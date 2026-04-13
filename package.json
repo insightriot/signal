@@ -1,0 +1,28 @@
+{
+  "name": "skills-gsd",
+  "version": "0.1.0",
+  "description": "Disciplined AI development workflow — GSD execution orchestration + Agent Skills quality enforcement",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "esbuild tools/lib/*.js --bundle --platform=node --target=node22 --outdir=dist/lib --format=esm",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint tools/",
+    "validate": "node tools/validate-plugin.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/InsightRiot/dev-skills-gsd.git"
+  },
+  "license": "MIT",
+  "author": "InsightRiot",
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "vitest": "^3.1.0",
+    "eslint": "^9.0.0"
+  }
+}

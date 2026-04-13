@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.planning/
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+.DS_Store
+coverage/
+.claude/settings.local.json

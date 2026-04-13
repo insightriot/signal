@@ -1,0 +1,19 @@
+{
+  "name": "skills-gsd",
+  "owner": {
+    "name": "InsightRiot"
+  },
+  "metadata": {
+    "description": "Disciplined AI development workflow — GSD's execution orchestration with Agent Skills' quality enforcement. Six-phase lifecycle from spec to ship with structural quality gates."
+  },
+  "plugins": [
+    {
+      "name": "skills-gsd",
+      "source": {
+        "source": "github",
+        "repo": "InsightRiot/dev-skills-gsd"
+      },
+      "description": "Six-phase AI development workflow (DISCUSS → PLAN → EXECUTE → VERIFY → REVIEW → SHIP) with on-demand quality skills, 24 specialized agents, and anti-rationalization gates."
+    }
+  ]
+}
