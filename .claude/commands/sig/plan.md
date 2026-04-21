@@ -1,12 +1,12 @@
 ---
-name: hybrid-plan
+name: sig:plan
 description: "PLAN phase — multi-agent research, plan creation with vertical slicing, 8-dimension validation, and Nyquist test-coverage mapping."
 args: "<phase-number>"
 ---
 
 # PLAN Phase
 
-You are running the PLAN phase of the hybrid workflow. Your goal: produce an executable plan that any agent can follow without further clarification.
+You are running the PLAN phase of the Signal workflow. Your goal: produce an executable plan that any agent can follow without further clarification.
 
 ## Skill Loading
 
@@ -18,7 +18,7 @@ Load from `${CLAUDE_PLUGIN_ROOT}/skills/plan/`:
 ### 1. Load Context
 
 Read from `.planning/`:
-- `PROJECT.md`, `CONTEXT.md`, `REQUIREMENTS.md`
+- `PROJECT.md`, `PROFILE.md`, `CONTEXT.md`, `REQUIREMENTS.md`
 - `STATE.md` — verify current phase is PLAN
 
 ### 2. Research (Parallel Agents)

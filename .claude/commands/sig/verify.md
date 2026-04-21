@@ -1,5 +1,5 @@
 ---
-name: hybrid-verify
+name: sig:verify
 description: "VERIFY phase — acceptance criteria verification, full test suite, Nyquist compliance check."
 args: "<phase-number>"
 ---

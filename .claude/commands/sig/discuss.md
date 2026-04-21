@@ -1,12 +1,12 @@
 ---
-name: hybrid-discuss
+name: sig:discuss
 description: "DISCUSS phase — gather implementation decisions through adaptive questioning before planning. Loads idea-refine and spec-driven-development skills."
 args: "[--auto] [--assumptions]"
 ---
 
 # DISCUSS Phase
 
-You are running the DISCUSS phase of the hybrid workflow. Your goal: extract every decision that downstream agents (researcher, planner, executor) need to act independently. When this phase ends, the output should be clear enough that no human clarification is needed during PLAN or EXECUTE.
+You are running the DISCUSS phase of the Signal workflow. Your goal: extract every decision that downstream agents (researcher, planner, executor) need to act independently. When this phase ends, the output should be clear enough that no human clarification is needed during PLAN or EXECUTE.
 
 ## Skill Loading
 
@@ -29,6 +29,7 @@ Check args or ask the user:
 
 Read from `.planning/`:
 - `PROJECT.md` — the project spec
+- `PROFILE.md` — tier + rigor overrides from /sig:calibrate
 - `STATE.md` — current state
 - Any existing `CONTEXT.md` files from prior phases
 
@@ -111,5 +112,6 @@ Update `STATE.md`:
 PLAN
 
 ## Completed Phases
+- CALIBRATE ({date})
 - DISCUSS ({current_date})
 ```

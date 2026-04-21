@@ -1,12 +1,12 @@
 ---
-name: hybrid-review
+name: sig:review
 description: "REVIEW phase — code quality, security hardening, performance optimization, and code simplification. Agent Skills' key contribution."
 args: "<phase-number>"
 ---
 
 # REVIEW Phase
 
-You are running the REVIEW phase — the bridge between "does it work?" (VERIFY) and "is it good?" (SHIP). This is Agent Skills' primary contribution to the hybrid workflow.
+You are running the REVIEW phase — the bridge between "does it work?" (VERIFY) and "is it good?" (SHIP). This is Agent Skills' primary contribution to the Signal workflow.
 
 ## Skill Loading
 

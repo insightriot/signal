@@ -1,10 +1,13 @@
-# PROJECT.md — GSD × Agent Skills Hybrid Plugin
+# PROJECT.md — Signal
+
+> **Working name:** **Signal** (market-facing: *SignalOS*). Command prefix: `/sig:`. Phase 0: `/sig:calibrate`.
+> The organizing metaphor is *signal vs. noise* at every phase — vision, validation, spec, plan, code, test, review, ship, learn. Calibrate tunes the receiver; the rest of the flow amplifies signal and suppresses noise.
 
 ## Vision
 
-Build a Claude Code plugin (with multi-runtime compatibility) that combines **GSD's execution orchestration** with **Agent Skills' quality enforcement** into a unified AI-assisted development workflow. The result: AI coding agents that are both disciplined (don't skip specs, tests, security) and durable (don't degrade over long sessions).
+Signal is a Claude Code plugin (with multi-runtime compatibility) that combines **GSD's execution orchestration** with **Agent Skills' quality enforcement**, then layers in a project-complexity calibration step so rigor is right-sized per project. The result: AI coding agents that are disciplined (don't skip specs, tests, security), durable (don't degrade over long sessions), *and* calibrated (don't over-engineer throwaways or under-engineer production systems).
 
-This plugin targets solo developers and small teams who want production-grade engineering output from AI agents without enterprise ceremony.
+Signal targets solo developers and small teams who want production-grade engineering output from AI agents without enterprise ceremony — and without spending 60 minutes planning a homepage.
 
 ## Problem Statement
 
@@ -30,11 +33,13 @@ The gap: there is no integrated system that enforces engineering quality standar
 ## In Scope
 
 - Plugin packaging with commands, agents, skills, references, state management, and CLI tools
-- Six-phase workflow: DISCUSS → PLAN → EXECUTE → VERIFY → REVIEW → SHIP
+- **Phase 0 + six-phase workflow:** `/sig:calibrate` → `/sig:discuss` → `/sig:plan` → `/sig:execute` → `/sig:verify` → `/sig:review` → `/sig:ship`
+- `/sig:calibrate` Phase 0 router that writes `.planning/PROFILE.md` (tier: SKETCH / FEATURE / SPIKE / FULL) that every downstream command reads
 - Integration of GSD's 21 agents with Agent Skills' 3 specialist agents (code-reviewer, test-engineer, security-auditor)
 - On-demand skill loading per phase (not all-at-once) to preserve context budget
-- File-based state management (`.planning/` directory pattern from GSD)
+- File-based state management (`.planning/` directory pattern from GSD, plus `PROFILE.md`)
 - Anti-rationalization tables at every phase gate
+- `/sig:escalate` escape hatch to upgrade tier mid-flight when scope grows
 - Multi-runtime support (Claude Code primary, with adapter layer for others)
 - Documentation and setup guides
 
@@ -57,11 +62,13 @@ The gap: there is no integrated system that enforces engineering quality standar
 
 ## Done When
 
-- A developer can run `/hybrid-new-project` and be guided through all six phases to a shipped PR
+- A developer can run `/sig:new-project` (or `/sig:calibrate` on its own) and be routed into the appropriate rigor tier
+- A developer can run `/sig:discuss` through `/sig:ship` and produce a shipped PR
 - Every phase transition has a gate with explicit go/no-go criteria
 - Agent Skills' 21 skills are loadable on-demand within GSD's execution framework
 - Context monitoring warns at 35% and 25% remaining (GSD pattern)
 - All 24 agents (21 GSD + 3 Agent Skills specialists) are functional
+- `PROFILE.md` correctly gates downstream phases based on calibration output
 - The plugin passes its own quality gates (dogfooding)
 
 ---
@@ -118,17 +125,26 @@ Three-layer design. Each layer has a distinct responsibility.
 └──────────────────────────────────────────────────────┘
 ```
 
-## Six-Phase Workflow
+## Workflow — Phase 0 + Six Phases
 
 ```
-DISCUSS → PLAN → EXECUTE → VERIFY → REVIEW → SHIP
-   │         │        │        │        │        │
-   ▼         ▼        ▼        ▼        ▼        ▼
- Human    Human    Human    Human    Human    Human
- approves approves approves approves approves approves
+[Phase 0]
+/sig:calibrate ── writes .planning/PROFILE.md ── routes ↓
+
+/sig:discuss → /sig:plan → /sig:execute → /sig:verify → /sig:review → /sig:ship
+     │            │            │              │             │              │
+     ▼            ▼            ▼              ▼             ▼              ▼
+   Human        Human        Human          Human         Human          Human
+   gate         gate         gate           gate          gate           gate
+
+Escape hatch: /sig:escalate (upgrade SKETCH → FEATURE → FULL mid-flight)
 ```
 
-The REVIEW phase (between VERIFY and SHIP) is the key architectural addition. GSD's existing flow goes straight from "does it work?" to "ship it." Agent Skills inserts "is it good?" — covering code quality, security hardening, performance optimization, and code simplification. This is the difference between shipping code that functions and shipping code that lasts.
+The REVIEW phase (between VERIFY and SHIP) is the key architectural addition from Agent Skills. GSD's existing flow goes straight from "does it work?" to "ship it." Agent Skills inserts "is it good?" — covering code quality, security hardening, performance optimization, and code simplification. This is the difference between shipping code that functions and shipping code that lasts.
+
+**Phase 0 (`/sig:calibrate`)** is the router that prevents over- and under-engineering. It asks 5 diagnostic questions (scope, stakes, novelty, reversibility, horizon) and writes `PROFILE.md`. Downstream commands read the profile and dial rigor up or down — SKETCH mode for throwaways skips verify/review entirely; FULL mode for production apps runs every phase.
+
+> **Note on broader scope:** The companion `analysis/REPO-ANALYSIS.md` document recommends expanding from 6 phases to 10 (adding IDEATE / VALIDATE / STRATEGIZE upstream and COMPOUND downstream). This PROJECT.md currently spec's the 6-phase MVP; the 10-phase expansion is tracked as a follow-on once the core flow ships.
 
 ---
 
@@ -166,62 +182,80 @@ The REVIEW phase (between VERIFY and SHIP) is the key architectural addition. GS
 
 ### 2.0 Phase Commands (Slash Commands)
 
-**Goal:** Build the 7 primary slash commands that drive the workflow.
+**Goal:** Build the 8 primary slash commands that drive the workflow (Phase 0 + 6 phases + new-project convenience).
 
 ```
-2.1 /hybrid-new-project — Initialize new project (GSD's /gsd-new-project adapted)
-    Done: Creates .planning/ directory, PROJECT.md, kicks off DISCUSS phase
+2.1 /sig:new-project — Initialize new project (GSD's /gsd-new-project adapted)
+    2.1.1 Creates .planning/ directory structure
+    2.1.2 Auto-invokes /sig:calibrate to produce PROFILE.md
+    2.1.3 Hands off to /sig:discuss once tier is set
+    Done: Creates .planning/ directory, PROJECT.md, PROFILE.md, kicks off DISCUSS phase
 
-2.2 /hybrid-discuss — DISCUSS phase
-    2.2.1 Assumptions mode (for existing codebases — GSD pattern)
-    2.2.2 Open-ended mode (for new projects)
-    2.2.3 Load Agent Skills: idea-refine, spec-driven-development
-    2.2.4 Phase gate with anti-rationalization check
+2.2 /sig:calibrate — PHASE 0 (NEW — router)
+    2.2.1 Asks 5 diagnostic questions (scope, stakes, novelty, reversibility, horizon)
+    2.2.2 Classifies tier: SKETCH | FEATURE | SPIKE | FULL
+    2.2.3 Writes .planning/PROFILE.md with phases_enabled/skipped + rigor_overrides
+    2.2.4 Every downstream command's first action: read PROFILE.md; if phase
+          is skipped in current tier, exit; if rigor_overrides apply, respect them
+    2.2.5 Escape hatch: /sig:escalate promotes tier mid-flight
+    Done: PROFILE.md is written, downstream routing respects it
+
+2.3 /sig:discuss — DISCUSS phase
+    2.3.1 Assumptions mode (for existing codebases — GSD pattern)
+    2.3.2 Open-ended mode (for new projects)
+    2.3.3 Load Agent Skills: idea-refine, spec-driven-development
+    2.3.4 Phase gate with anti-rationalization check
     Done: Outputs PROJECT.md, REQUIREMENTS.md, CONTEXT.md; gate approval required
 
-2.3 /hybrid-plan — PLAN phase
-    2.3.1 Multi-agent research step (4 parallel subagents — GSD pattern)
-    2.3.2 Planning step with vertical slicing enforcement (Agent Skills)
-    2.3.3 Plan Checker (8-dimension validation — GSD)
-    2.3.4 Nyquist test-coverage mapping
-    2.3.5 Load Agent Skills: planning-and-task-breakdown
-    2.3.6 Phase gate with anti-rationalization check
+2.4 /sig:plan — PLAN phase
+    2.4.1 Multi-agent research step (4 parallel subagents — GSD pattern)
+    2.4.2 Planning step with vertical slicing enforcement (Agent Skills)
+    2.4.3 Plan Checker (8-dimension validation — GSD)
+    2.4.4 Nyquist test-coverage mapping
+    2.4.5 Load Agent Skills: planning-and-task-breakdown
+    2.4.6 Phase gate with anti-rationalization check
     Done: Outputs {phase}-PLAN.md, RESEARCH.md, {phase}-VALIDATION.md; gate approval required
 
-2.4 /hybrid-execute — EXECUTE phase
-    2.4.1 Wave-based parallel execution (GSD's core pattern)
-    2.4.2 Fresh context per task, atomic git commits
-    2.4.3 Context rot prevention (re-read CONTEXT.md every ~45 min)
-    2.4.4 Load Agent Skills: incremental-implementation, TDD, context-engineering
-    2.4.5 Phase gate
+2.5 /sig:execute — EXECUTE phase
+    2.5.1 Wave-based parallel execution (GSD's core pattern)
+    2.5.2 Fresh context per task, atomic git commits
+    2.5.3 Context rot prevention (re-read CONTEXT.md every ~45 min)
+    2.5.4 Load Agent Skills: incremental-implementation, TDD, context-engineering
+    2.5.5 Phase gate
     Done: All plan tasks executed, tests pass, atomic commits created
 
-2.5 /hybrid-verify — VERIFY phase
-    2.5.1 Acceptance criteria verification against PLAN.md
-    2.5.2 Full test suite execution
-    2.5.3 Nyquist compliance check (all 8 dimensions)
-    2.5.4 Load Agent Skills: browser-testing, debugging-and-error-recovery
-    2.5.5 Phase gate (max 3 loops back to execute)
+2.6 /sig:verify — VERIFY phase
+    2.6.1 Acceptance criteria verification against PLAN.md
+    2.6.2 Full test suite execution
+    2.6.3 Nyquist compliance check (all 8 dimensions)
+    2.6.4 Load Agent Skills: browser-testing, debugging-and-error-recovery
+    2.6.5 Phase gate (max 3 loops back to execute)
     Done: All acceptance criteria met, all tests pass, build succeeds
 
-2.6 /hybrid-review — REVIEW phase (NEW — Agent Skills' key contribution)
-    2.6.1 Code review and quality assessment
-    2.6.2 Security hardening (OWASP ASVS-informed)
-    2.6.3 Performance optimization analysis
-    2.6.4 Code simplification pass
-    2.6.5 Load Agent Skills: code-review-and-quality, security-and-hardening,
+2.7 /sig:review — REVIEW phase (NEW — Agent Skills' key contribution)
+    2.7.1 Code review and quality assessment
+    2.7.2 Security hardening (OWASP ASVS-informed)
+    2.7.3 Performance optimization analysis
+    2.7.4 Code simplification pass
+    2.7.5 Load Agent Skills: code-review-and-quality, security-and-hardening,
           performance-optimization, code-simplification
-    2.6.6 Phase gate with anti-rationalization check
+    2.7.6 Phase gate with anti-rationalization check
     Done: Code quality, security, performance all assessed; issues addressed or documented
 
-2.7 /hybrid-ship — SHIP phase
-    2.7.1 Pre-ship checklist (no secrets, env vars documented, README, CHANGELOG)
-    2.7.2 Clean git history (meaningful atomic commits)
-    2.7.3 PR creation with description linked to plan
-    2.7.4 Load Agent Skills: git-workflow-and-versioning, ci-cd-and-automation,
+2.8 /sig:ship — SHIP phase
+    2.8.1 Pre-ship checklist (no secrets, env vars documented, README, CHANGELOG)
+    2.8.2 Clean git history (meaningful atomic commits)
+    2.8.3 PR creation with description linked to plan
+    2.8.4 Load Agent Skills: git-workflow-and-versioning, ci-cd-and-automation,
           documentation-and-adrs, shipping-and-launch
-    2.7.5 Final anti-rationalization check
+    2.8.5 Final anti-rationalization check
     Done: PR created, description complete, all checklist items verified
+
+2.9 /sig:escalate — ESCAPE HATCH (promotes tier mid-flight)
+    2.9.1 Re-run calibration questions with current context
+    2.9.2 Update PROFILE.md with new tier
+    2.9.3 Re-enable previously-skipped phases (back-fill if needed)
+    Done: PROFILE.md updated, downstream phases re-gated
 ```
 
 **Source references:**
@@ -321,10 +355,10 @@ The REVIEW phase (between VERIFY and SHIP) is the key architectural addition. GS
     Done: All state operations tested, context thresholds verified
 
 5.2 Integration test: run full 6-phase cycle on a sample project
-    Done: Sample project goes from /hybrid-new-project through /hybrid-ship
+    Done: Sample project goes from /sig:new-project through /sig:ship
 
 5.3 Dogfood: use the plugin to build a feature OF the plugin
-    Done: At least one feature built using the hybrid workflow itself
+    Done: At least one feature built using the Signal workflow itself
 
 5.4 Multi-runtime smoke test (Claude Code + one other)
     Done: Core workflow functional in at least 2 runtimes
@@ -388,7 +422,9 @@ Work items 2.0, 3.0, and 4.0 can run in parallel once 1.0 is complete. This is a
 ### Gate 2: Core Workflow Functional
 **Timing:** After WBS 2.0 + 3.0 + 4.0
 **Go criteria:**
-- [ ] All 7 slash commands execute without errors
+- [ ] All 9 slash commands (`/sig:new-project`, `/sig:calibrate`, `/sig:discuss`, `/sig:plan`, `/sig:execute`, `/sig:verify`, `/sig:review`, `/sig:ship`, `/sig:escalate`) execute without errors
+- [ ] `/sig:calibrate` writes a valid `PROFILE.md` and downstream commands respect tier gating
+- [ ] `/sig:escalate` correctly upgrades tier and re-enables skipped phases
 - [ ] All 24 agents spawn and produce output
 - [ ] Skills load on-demand (not all at once) — verify with token measurement
 - [ ] Phase gates enforce anti-rationalization checks
@@ -398,7 +434,8 @@ Work items 2.0, 3.0, and 4.0 can run in parallel once 1.0 is complete. This is a
 ### Gate 3: Integration Validated
 **Timing:** After WBS 5.0
 **Go criteria:**
-- [ ] Full 6-phase cycle completes on sample project
+- [ ] Full Phase-0 + six-phase cycle completes on a sample project (at minimum one run through FULL tier)
+- [ ] At least one SKETCH-tier run validates that rigor truly drops (no TDD/security/review triggered)
 - [ ] At least one plugin feature was built using the plugin itself (dogfooding)
 - [ ] Multi-runtime smoke test passes (Claude Code + 1 other)
 **No-go:** End-to-end cycle fails → diagnose and fix; don't ship a broken workflow
@@ -408,7 +445,7 @@ Work items 2.0, 3.0, and 4.0 can run in parallel once 1.0 is complete. This is a
 **Go criteria:**
 - [ ] README enables installation in <5 minutes
 - [ ] Command reference is complete and accurate
-- [ ] Plugin passes its own shipping checklist (from /hybrid-ship)
+- [ ] Plugin passes its own shipping checklist (from `/sig:ship`)
 **No-go:** Documentation gaps that would block a new user → fill gaps first
 
 ---
@@ -449,7 +486,7 @@ With AI-assisted development (using GSD or similar), the lower end is realistic.
 
 - [ ] What is the actual token cost of loading Agent Skills' richest skills (security-and-hardening, shipping-and-launch)? Need to measure before committing to the full 21.
 - [ ] Does GSD's wave-based execution work cleanly with Agent Skills' exit criteria gates, or do gates need to be adapted for async execution?
-- [ ] How much of GSD's `gsd-tools.cjs` CLI can be reused directly vs. needs adaptation for the hybrid workflow?
+- [ ] How much of GSD's `gsd-tools.cjs` CLI can be reused directly vs. needs adaptation for the Signal workflow?
 - [ ] What's the right granularity for the REVIEW phase — one command with 4 sub-steps, or 4 separate commands?
 - [ ] How do the two frameworks' agent naming conventions reconcile? (GSD uses role-based names; Agent Skills uses function-based names)
 
@@ -459,11 +496,12 @@ With AI-assisted development (using GSD or similar), the lower end is realistic.
 
 Open this project in Claude Code and:
 
-1. **Read this PROJECT.md** — it's the spec
+1. **Read this PROJECT.md** — it's the spec. Also read `analysis/REPO-ANALYSIS.md` for the landscape context and `analysis/JOURNEY-MAP.html` for the visual.
 2. **Check licenses** on both source repos before writing code
 3. **Scaffold the plugin** (WBS 1.1)
 4. **Measure token cost** of loading 3-4 Agent Skills skill files simultaneously (risk mitigation)
-5. **Build the DISCUSS command first** — it's the simplest phase and validates the entire architecture pattern (command → loads skills → spawns agents → gates approval)
-6. **Iterate through phases** using the WBS above
+5. **Build `/sig:calibrate` first** — it's the smallest, most self-contained command and establishes the `PROFILE.md` contract that every downstream command will depend on. No skills loaded, no agents spawned — just 5 questions and a YAML write. Ship this and validate it routes correctly before building anything heavier.
+6. **Then build `/sig:discuss`** — it's the first phase that exercises the full pattern (command → loads skills → spawns agents → gates approval → respects PROFILE.md tier)
+7. **Iterate through phases** using the WBS above
 
-The project is designed to be built using the very workflow it implements. Once /hybrid-discuss and /hybrid-plan are functional, use them to plan and execute the remaining phases.
+Signal is designed to be built using the very workflow it implements. Once `/sig:calibrate`, `/sig:discuss`, and `/sig:plan` are functional, use them to plan and execute the remaining phases.

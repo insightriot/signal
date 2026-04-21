@@ -1,6 +1,6 @@
 ---
 name: executor
-description: Executes plan tasks with TDD, atomic commits, and context rot prevention. Spawned by /hybrid-execute for each task in a wave.
+description: Executes plan tasks with TDD, atomic commits, and context rot prevention. Spawned by /sig:execute for each task in a wave.
 tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 

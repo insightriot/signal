@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Signal — AI Dev Plugin Journey-Map: 7 Repos + Your WIP</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --card: #1a1f26;
+    --border: #2a323d;
+    --text: #e6e8eb;
+    --muted: #8b95a3;
+    --accent: #5eead4;
+    --strong: #5eead4;
+    --partial: #eab308;
+    --none: #3a4553;
+    --best: #f97316;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 24px; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  .container { max-width: 1400px; margin: 0 auto; }
+  h1 {
+    font-size: 32px; margin: 0 0 8px; font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), #a78bfa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .subtitle { color: var(--muted); font-size: 16px; margin-bottom: 40px; }
+  h2 {
+    font-size: 22px; margin: 48px 0 16px; font-weight: 600;
+    border-bottom: 1px solid var(--border); padding-bottom: 8px;
+  }
+  h3 { font-size: 16px; color: var(--accent); margin: 24px 0 8px; }
+
+  /* Journey track */
+  .journey {
+    display: grid;
+    grid-template-columns: 180px repeat(12, 1fr);
+    gap: 2px;
+    background: var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 11px;
+  }
+  .journey .cell {
+    background: var(--card); padding: 12px 6px; text-align: center;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    min-height: 48px;
+  }
+  .journey .header {
+    background: #252c35; font-weight: 600; color: var(--muted); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    writing-mode: horizontal-tb; padding: 14px 6px;
+  }
+  .journey .repo-name {
+    font-weight: 600; text-align: left; padding-left: 14px; color: var(--text);
+    background: #1e242c;
+  }
+  .journey .repo-name.wip { background: #2d1f3d; color: #e9d5ff; }
+  .dot { width: 22px; height: 22px; border-radius: 50%; display: inline-block; }
+  .dot.strong { background: var(--strong); box-shadow: 0 0 0 2px rgba(94,234,212,0.15); }
+  .dot.best { background: var(--best); box-shadow: 0 0 0 2px rgba(249,115,22,0.2); }
+  .dot.partial { background: var(--partial); opacity: 0.7; }
+  .dot.none { background: var(--none); opacity: 0.5; }
+  .dot-label { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  .legend {
+    display: flex; gap: 24px; margin: 16px 0 24px; font-size: 13px;
+    color: var(--muted); flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; }
+
+  /* Organ diagram */
+  .organs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 24px 0;
+  }
+  .organ {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px;
+  }
+  .organ h4 {
+    margin: 0 0 12px; color: var(--accent); font-size: 14px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .organ .repo {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 13px;
+  }
+  .organ .repo:last-child { border-bottom: none; }
+  .organ .bar {
+    display: inline-block; height: 8px; border-radius: 4px; background: var(--accent);
+  }
+  .organ .repo.lead .bar { background: var(--best); }
+
+  /* Frankenstein architecture stack */
+  .stack {
+    display: flex; flex-direction: column; gap: 8px; margin: 20px 0;
+  }
+  .stack-layer {
+    background: var(--card); border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    padding: 16px 20px; border-radius: 6px;
+    display: grid; grid-template-columns: 180px 1fr 200px; gap: 20px; align-items: center;
+  }
+  .stack-layer.compound { border-left-color: #a78bfa; }
+  .stack-layer.review { border-left-color: #ec4899; }
+  .stack-layer.immune { border-left-color: #f97316; }
+  .stack-layer.engine { border-left-color: #5eead4; }
+  .stack-layer.strategy { border-left-color: #facc15; }
+  .stack-layer .layer-name {
+    font-weight: 700; font-size: 14px; color: var(--text);
+  }
+  .stack-layer .layer-name small {
+    display: block; font-weight: 400; color: var(--muted); font-size: 11px; margin-top: 2px;
+  }
+  .stack-layer .layer-body { font-size: 13px; color: var(--text); }
+  .stack-layer .source {
+    font-size: 11px; color: var(--muted); text-align: right;
+    background: #252c35; padding: 6px 10px; border-radius: 4px;
+  }
+  .stack-arrow {
+    text-align: center; color: var(--muted); font-size: 20px; line-height: 0.8;
+  }
+
+  /* Summary grid */
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 20px 0;
+  }
+  .summary-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+  }
+  .summary-card h5 {
+    margin: 0 0 8px; font-size: 13px; color: var(--accent); font-weight: 600;
+  }
+  .summary-card p {
+    margin: 4px 0; font-size: 12px; color: var(--text);
+  }
+  .summary-card .label {
+    font-size: 10px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.05em;
+  }
+  .tag {
+    display: inline-block; padding: 2px 8px; border-radius: 12px;
+    font-size: 10px; background: #252c35; color: var(--muted);
+    margin-right: 4px; margin-top: 4px;
+  }
+  .tag.strength { background: rgba(94,234,212,0.15); color: var(--accent); }
+  .tag.gap { background: rgba(249,115,22,0.15); color: var(--best); }
+
+  /* Leaders table */
+  .leaders {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0;
+  }
+  .leader {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 18px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .leader .cap { font-size: 13px; color: var(--text); font-weight: 500; }
+  .leader .repo-name-sm {
+    font-size: 12px; color: var(--best); font-weight: 600;
+    background: rgba(249,115,22,0.12); padding: 4px 10px; border-radius: 4px;
+  }
+
+  .callout {
+    background: #1a1f2e; border: 1px solid #3a4a6b;
+    border-left: 4px solid #a78bfa;
+    padding: 16px 20px; border-radius: 6px; margin: 20px 0;
+    font-size: 14px; color: #e6e8eb;
+  }
+  .callout strong { color: #c4b5fd; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Signal — AI Dev Plugin Journey-Map</h1>
+<div class="subtitle">Working name: <strong style="color:var(--accent)">Signal</strong> · command prefix <code style="background:#252c35; padding:2px 8px; border-radius:4px; color:var(--accent)">/sig:</code> · Phase 0 = <strong style="color:var(--accent)">Calibrate</strong>. Coverage analysis: 7 repos + your WIP across the entrepreneur-to-shipped-product journey · April 2026</div>
+
+<!-- ─────────── PART 1: The Big Picture Matrix ─────────── -->
+<h2>1. Coverage Matrix — Who Does What</h2>
+
+<div class="legend">
+  <div class="legend-item"><span class="dot best"></span> Best-in-class leader</div>
+  <div class="legend-item"><span class="dot strong"></span> Strong coverage</div>
+  <div class="legend-item"><span class="dot partial"></span> Partial</div>
+  <div class="legend-item"><span class="dot none"></span> None / thin</div>
+</div>
+
+<div class="journey">
+  <div class="cell header"></div>
+  <div class="cell header">Idea</div>
+  <div class="cell header">Validate</div>
+  <div class="cell header">Strategy</div>
+  <div class="cell header">Spec</div>
+  <div class="cell header">Plan</div>
+  <div class="cell header">Code</div>
+  <div class="cell header">Test</div>
+  <div class="cell header">Review</div>
+  <div class="cell header">Security</div>
+  <div class="cell header">Ship</div>
+  <div class="cell header">PM/Ops</div>
+  <div class="cell header">Compound</div>
+
+  <!-- gstack -->
+  <div class="cell repo-name">gstack</div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot best"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot best"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+
+  <!-- superpowers -->
+  <div class="cell repo-name">superpowers</div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot none"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot best"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot none"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot none"></span></div>
+  <div class="cell"><span class="dot none"></span></div>
+
+  <!-- pm-skills -->
+  <div class="cell repo-name">pm-skills</div>
+  <div class="cell"><span class="dot best"></span></div>
+  <div class="cell"><span class="dot best"></span></div>
+  <div class="cell"><span class="dot best"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot none"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot none"></span></div>
+  <div class="cell"><span class="dot none"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot best"></span></div>
+  <div class="cell"><span class="dot none"></span></div>
+
+  <!-- planning-with-files -->
+  <div class="cell repo-name">planning-with-files</div>
+  <div class="cell"><span class="dot none"></span></div>
+  <div class="cell"><span class="dot none"></span></div>
+  <div class="cell"><span class="dot none"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot none"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot none"></span></div>
+
+  <!-- oh-my-claudecode -->
+  <div class="cell repo-name">oh-my-claudecode</div>
+  <div class="cell"><span class="dot none"></span></div>
+  <div class="cell"><span class="dot none"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot best"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+
+  <!-- compound-engineering -->
+  <div class="cell repo-name">compound-engineering</div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot best"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot best"></span></div>
+
+  <!-- gsd -->
+  <div class="cell repo-name">gsd</div>
+  <div class="cell"><span class="dot none"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot best"></span></div>
+  <div class="cell"><span class="dot best"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+
+  <!-- Your WIP -->
+  <div class="cell repo-name wip">Signal (your WIP)</div>
+  <div class="cell"><span class="dot none"></span></div>
+  <div class="cell"><span class="dot none"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot strong"></span></div>
+  <div class="cell"><span class="dot partial"></span></div>
+  <div class="cell"><span class="dot none"></span></div>
+</div>
+
+<div class="callout">
+  <strong>The shape of the gap:</strong> Signal (in its current GSD × Agent Skills form) and GSD look almost identical on the matrix — that's the problem. Adding Agent Skills makes Signal better at Review/Security/Ship than GSD, but leaves the upstream (Idea/Validate/Strategy) and Compound gaps unfilled. These are filled by <strong>pm-skills</strong> and <strong>compound-engineering</strong>, which aren't yet in Signal. Phase 0 (<code>/sig:calibrate</code>) then routes which gaps actually need filling per project.
+</div>
+
+<!-- ─────────── PART 2: The Four Organs ─────────── -->
+<h2>2. The Four Organs — Where Each Repo Optimizes</h2>
+
+<div class="subtitle" style="margin-bottom:16px">Think of AI-assisted building as a body with four organs. No single repo covers all four.</div>
+
+<div class="organs">
+
+  <div class="organ">
+    <h4>🧠 Organ 1: The Brain / Strategy</h4>
+    <div style="color:var(--muted); font-size:12px; margin-bottom:10px">"What are we building and why?"</div>
+    <div class="repo lead"><span>pm-skills</span><span class="bar" style="width:140px"></span></div>
+    <div class="repo"><span>gstack (CEO / office-hours)</span><span class="bar" style="width:110px"></span></div>
+    <div class="repo"><span>compound-engineering</span><span class="bar" style="width:70px"></span></div>
+    <div class="repo"><span>oh-my-claudecode</span><span class="bar" style="width:65px"></span></div>
+    <div class="repo"><span>GSD (spec-phase)</span><span class="bar" style="width:45px"></span></div>
+    <div class="repo"><span>superpowers (brainstorm)</span><span class="bar" style="width:40px"></span></div>
+    <div class="repo"><span>planning-with-files</span><span class="bar" style="width:10px"></span></div>
+  </div>
+
+  <div class="organ">
+    <h4>🏗️ Organ 2: The Engine Room</h4>
+    <div style="color:var(--muted); font-size:12px; margin-bottom:10px">"Get agents actually building things"</div>
+    <div class="repo lead"><span>GSD</span><span class="bar" style="width:150px"></span></div>
+    <div class="repo"><span>oh-my-claudecode</span><span class="bar" style="width:125px"></span></div>
+    <div class="repo"><span>compound-engineering</span><span class="bar" style="width:105px"></span></div>
+    <div class="repo"><span>gstack</span><span class="bar" style="width:100px"></span></div>
+    <div class="repo"><span>superpowers</span><span class="bar" style="width:80px"></span></div>
+    <div class="repo"><span>planning-with-files</span><span class="bar" style="width:50px"></span></div>
+    <div class="repo"><span>pm-skills</span><span class="bar" style="width:5px"></span></div>
+  </div>
+
+  <div class="organ">
+    <h4>🛡️ Organ 3: The Immune System</h4>
+    <div style="color:var(--muted); font-size:12px; margin-bottom:10px">"Don't let the agent cheat or drift"</div>
+    <div class="repo lead"><span>superpowers</span><span class="bar" style="width:150px"></span></div>
+    <div class="repo"><span>gstack (CSO / review / freeze)</span><span class="bar" style="width:130px"></span></div>
+    <div class="repo"><span>GSD (verifier, plan-check, Nyquist)</span><span class="bar" style="width:110px"></span></div>
+    <div class="repo"><span>compound-engineering (~50 agents)</span><span class="bar" style="width:105px"></span></div>
+    <div class="repo"><span>oh-my-claudecode</span><span class="bar" style="width:80px"></span></div>
+    <div class="repo"><span>pm-skills</span><span class="bar" style="width:10px"></span></div>
+    <div class="repo"><span>planning-with-files</span><span class="bar" style="width:15px"></span></div>
+  </div>
+
+  <div class="organ">
+    <h4>🔁 Organ 4: The Memory</h4>
+    <div style="color:var(--muted); font-size:12px; margin-bottom:10px">"What did we learn? What's worth keeping?"</div>
+    <div class="repo lead"><span>compound-engineering</span><span class="bar" style="width:150px"></span></div>
+    <div class="repo"><span>gstack (retro / learn)</span><span class="bar" style="width:110px"></span></div>
+    <div class="repo"><span>oh-my-claudecode (wiki, memory)</span><span class="bar" style="width:80px"></span></div>
+    <div class="repo"><span>GSD (STATE.md)</span><span class="bar" style="width:50px"></span></div>
+    <div class="repo"><span>planning-with-files (JSONL)</span><span class="bar" style="width:30px"></span></div>
+    <div class="repo"><span>superpowers</span><span class="bar" style="width:5px"></span></div>
+    <div class="repo"><span>pm-skills</span><span class="bar" style="width:5px"></span></div>
+  </div>
+
+</div>
+
+<!-- ─────────── PART 3: Best-in-Class by Capability ─────────── -->
+<h2>3. Best-in-Class by Capability</h2>
+
+<div class="leaders">
+  <div class="leader"><span class="cap">Wave-based parallel execution</span><span class="repo-name-sm">GSD</span></div>
+  <div class="leader"><span class="cap">Context-rot prevention</span><span class="repo-name-sm">GSD + planning-with-files</span></div>
+  <div class="leader"><span class="cap">Anti-rationalization / hard gates</span><span class="repo-name-sm">superpowers</span></div>
+  <div class="leader"><span class="cap">Systematic debugging (4-phase)</span><span class="repo-name-sm">superpowers</span></div>
+  <div class="leader"><span class="cap">Socratic requirements (measurable)</span><span class="repo-name-sm">oh-my-claudecode</span></div>
+  <div class="leader"><span class="cap">Product strategy frameworks</span><span class="repo-name-sm">pm-skills</span></div>
+  <div class="leader"><span class="cap">Ideation + reframing</span><span class="repo-name-sm">gstack + pm-skills</span></div>
+  <div class="leader"><span class="cap">Market validation (JTBD, OST)</span><span class="repo-name-sm">pm-skills</span></div>
+  <div class="leader"><span class="cap">Security audit depth</span><span class="repo-name-sm">gstack /cso (15-phase)</span></div>
+  <div class="leader"><span class="cap">Multi-lens code review</span><span class="repo-name-sm">compound-engineering</span></div>
+  <div class="leader"><span class="cap">Compounding learning loop</span><span class="repo-name-sm">compound-engineering</span></div>
+  <div class="leader"><span class="cap">QA / browser testing</span><span class="repo-name-sm">gstack (browser daemon)</span></div>
+  <div class="leader"><span class="cap">State persistence convention</span><span class="repo-name-sm">GSD (.planning/)</span></div>
+  <div class="leader"><span class="cap">Lifecycle hook infrastructure</span><span class="repo-name-sm">oh-my-claudecode (17 hooks)</span></div>
+  <div class="leader"><span class="cap">GTM / launch planning</span><span class="repo-name-sm">pm-skills</span></div>
+  <div class="leader"><span class="cap">Deploy / release orchestration</span><span class="repo-name-sm">— (green field, no leader)</span></div>
+</div>
+
+<!-- ─────────── PART 4: The Frankenstein Architecture ─────────── -->
+<h2>4. The Frankenstein — Five-Layer Stack</h2>
+
+<div class="subtitle" style="margin-bottom:16px">GSD stays the engine. Three layers graft around it.</div>
+
+<div class="stack">
+
+  <div class="stack-layer compound">
+    <div class="layer-name">LAYER 5 — COMPOUND<small>Institutional memory</small></div>
+    <div class="layer-body">
+      /retro + /learn (gstack) · learnings-researcher + session-historian agents (compound-eng) · new /compound phase between SHIP and next project · writes to STATE.md + per-org store
+    </div>
+    <div class="source">compound-eng + gstack</div>
+  </div>
+  <div class="stack-arrow">▲</div>
+
+  <div class="stack-layer review">
+    <div class="layer-name">LAYER 4 — REVIEW<small>Quality depth</small></div>
+    <div class="layer-body">
+      Multi-lens review (compound-eng pattern, 6-8 lenses) · /cso 14-phase security (gstack, replaces Agent Skills security) · code-simplification + perf-opt (Agent Skills kept) · visual-verdict for UI
+    </div>
+    <div class="source">compound-eng + gstack + Agent Skills</div>
+  </div>
+  <div class="stack-arrow">▲</div>
+
+  <div class="stack-layer immune">
+    <div class="layer-name">LAYER 3 — IMMUNE SYSTEM<small>Enforcement</small></div>
+    <div class="layer-body">
+      Anti-rationalization tables at every gate (superpowers) · HARD-GATE tags (superpowers) · 4-phase systematic-debugging (superpowers) · Goal-backward verification + Nyquist (GSD) · /freeze + /careful (gstack)
+    </div>
+    <div class="source">superpowers + GSD + gstack</div>
+  </div>
+  <div class="stack-arrow">▲</div>
+
+  <div class="stack-layer engine">
+    <div class="layer-name">LAYER 2 — ENGINE ROOM<small>Orchestration</small></div>
+    <div class="layer-body">
+      Wave-based parallel execution · fresh-context atomic tasks · .planning/ state · 21 agents · context monitoring · gsd-tools.cjs · <em>optional graft:</em> PwF hook-driven re-read (2-Action Rule)
+    </div>
+    <div class="source">GSD (unchanged)</div>
+  </div>
+  <div class="stack-arrow">▲</div>
+
+  <div class="stack-layer strategy">
+    <div class="layer-name">LAYER 1 — STRATEGY<small>The biggest gap</small></div>
+    <div class="layer-body">
+      /sig:ideate (pm-skills + gstack /office-hours) · /sig:validate (OST, assumption-map, interview — pm-skills) · /sig:strategize (BMC, VPD, Lean Canvas — pm-skills) · /sig:spec (OMC deep-interview with 20% ambiguity gate + GSD spec-phase)
+    </div>
+    <div class="source">pm-skills + gstack + OMC</div>
+  </div>
+
+</div>
+
+<!-- ─────────── PART 5: The 10-Phase Flow ─────────── -->
+<h2>5. The Signal Flow — Phase 0 + 10 Phases</h2>
+
+<!-- Phase 0: Calibrate, sits above the 10-phase grid -->
+<div style="margin: 20px 0 12px; padding: 14px 18px; background:#1a1f2e; border:1px solid #f97316; border-left:4px solid #f97316; border-radius:6px; display:flex; justify-content:space-between; align-items:center; gap:16px;">
+  <div>
+    <div style="font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em;">Phase 0 · router</div>
+    <div style="font-size:16px; font-weight:700; color:#f97316; margin-top:2px;">/sig:calibrate</div>
+    <div style="font-size:12px; color:var(--text); margin-top:4px;">5 diagnostic questions → <code style="background:#252c35; padding:2px 6px; border-radius:3px;">.planning/PROFILE.md</code> → routes downstream to SKETCH / FEATURE / SPIKE / FULL mode</div>
+  </div>
+  <div style="color:var(--muted); font-size:24px;">▼</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 20px 0;">
+  <div style="background:#1a1f2e; border-left:3px solid #facc15; padding:12px; border-radius:4px; font-size:12px;"><strong style="color:#facc15">/sig:ideate</strong><br><span style="color:var(--muted)">pm-skills / gstack</span></div>
+  <div style="background:#1a1f2e; border-left:3px solid #facc15; padding:12px; border-radius:4px; font-size:12px;"><strong style="color:#facc15">/sig:validate</strong><br><span style="color:var(--muted)">pm-skills</span></div>
+  <div style="background:#1a1f2e; border-left:3px solid #facc15; padding:12px; border-radius:4px; font-size:12px;"><strong style="color:#facc15">/sig:strategize</strong><br><span style="color:var(--muted)">pm-skills</span></div>
+  <div style="background:#1a1f2e; border-left:3px solid #5eead4; padding:12px; border-radius:4px; font-size:12px;"><strong style="color:#5eead4">/sig:spec</strong><br><span style="color:var(--muted)">OMC + GSD</span></div>
+  <div style="background:#1a1f2e; border-left:3px solid #5eead4; padding:12px; border-radius:4px; font-size:12px;"><strong style="color:#5eead4">/sig:plan</strong><br><span style="color:var(--muted)">GSD</span></div>
+  <div style="background:#1a1f2e; border-left:3px solid #5eead4; padding:12px; border-radius:4px; font-size:12px;"><strong style="color:#5eead4">/sig:execute</strong><br><span style="color:var(--muted)">GSD + superpowers TDD</span></div>
+  <div style="background:#1a1f2e; border-left:3px solid #5eead4; padding:12px; border-radius:4px; font-size:12px;"><strong style="color:#5eead4">/sig:verify</strong><br><span style="color:var(--muted)">GSD + gstack /qa</span></div>
+  <div style="background:#1a1f2e; border-left:3px solid #ec4899; padding:12px; border-radius:4px; font-size:12px;"><strong style="color:#ec4899">/sig:review</strong><br><span style="color:var(--muted)">compound + gstack /cso</span></div>
+  <div style="background:#1a1f2e; border-left:3px solid #ec4899; padding:12px; border-radius:4px; font-size:12px;"><strong style="color:#ec4899">/sig:ship</strong><br><span style="color:var(--muted)">gstack + pm-skills GTM</span></div>
+  <div style="background:#1a1f2e; border-left:3px solid #a78bfa; padding:12px; border-radius:4px; font-size:12px;"><strong style="color:#a78bfa">/sig:compound</strong><br><span style="color:var(--muted)">compound-eng + gstack retro</span></div>
+</div>
+
+<div style="color: var(--muted); font-size: 13px; font-style: italic; margin-top: -8px;">
+  FULL mode runs all 10 phases. FEATURE work on existing codebases collapses IDEATE→VALIDATE→STRATEGIZE into a single <code style="background:#252c35; padding:2px 6px; border-radius:3px;">/sig:discover</code>. SHIP and COMPOUND are always mandatory. SKETCH mode skips to visual-verdict. Route is set by <code style="background:#252c35; padding:2px 6px; border-radius:3px;">/sig:calibrate</code> and mutable via <code style="background:#252c35; padding:2px 6px; border-radius:3px;">/sig:escalate</code>.
+</div>
+
+<!-- ─────────── PART 6: Rigor Calibration ─────────── -->
+<h2>6. The Missing Layer — Rigor Calibration (Phase 0)</h2>
+
+<div class="subtitle" style="margin-bottom:16px">
+  Every repo treats every project with the same rigor. That's wrong. A marketing homepage ≠ Conversor. <code style="background:#252c35; padding:2px 8px; border-radius:4px; color:var(--accent)">/sig:calibrate</code> at project kickoff tunes the system and routes the workflow into one of four modes. <em>Calibrate, not triage</em> — this is instrument-tuning before signal detection, not emergency stabilization.
+</div>
+
+<!-- 2x2 Matrix -->
+<div style="display:grid; grid-template-columns:60px 1fr 1fr 60px; gap:12px; margin:30px 0; align-items:stretch;">
+
+  <!-- Left axis label -->
+  <div style="display:flex; align-items:center; justify-content:center; writing-mode:vertical-rl; transform:rotate(180deg); color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:0.1em;">
+    Novelty ▲ Novel &nbsp;·&nbsp; Familiar ▼
+  </div>
+
+  <!-- SPIKE quadrant (top-left: novel + high stakes) -->
+  <div style="background:var(--card); border:1px solid var(--border); border-left:4px solid #f97316; border-radius:8px; padding:20px;">
+    <div style="font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:6px;">NOVEL × HIGH STAKES</div>
+    <div style="font-size:22px; font-weight:700; color:#f97316; margin-bottom:8px;">SPIKE</div>
+    <div style="font-size:13px; color:var(--text); margin-bottom:12px;">Novel problem with real stakes. Heavy validation, lighter verification, time-boxed.</div>
+    <div style="font-size:11px; color:var(--muted); margin-bottom:4px;"><strong>Phases:</strong> Ideate → Validate → Spec → Execute → Verify → Ship</div>
+    <div style="font-size:11px; color:var(--muted);"><strong>Example:</strong> Early AI product exploration, novel market entry</div>
+  </div>
+
+  <!-- FULL quadrant (top-right: familiar + high stakes) -->
+  <div style="background:var(--card); border:1px solid var(--border); border-left:4px solid #ef4444; border-radius:8px; padding:20px;">
+    <div style="font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:6px;">FAMILIAR × HIGH STAKES</div>
+    <div style="font-size:22px; font-weight:700; color:#ef4444; margin-bottom:8px;">FULL</div>
+    <div style="font-size:13px; color:var(--text); margin-bottom:12px;">Production app. Real users. Meaningful blast radius. All guards on.</div>
+    <div style="font-size:11px; color:var(--muted); margin-bottom:4px;"><strong>Phases:</strong> All 10 (Ideate → Compound)</div>
+    <div style="font-size:11px; color:var(--muted);"><strong>Example:</strong> Conversor, auth system, payments, SaaS</div>
+  </div>
+
+  <!-- Right axis label -->
+  <div></div>
+
+  <!-- Left spacer -->
+  <div></div>
+
+  <!-- SKETCH quadrant (bottom-left: novel + low stakes) -->
+  <div style="background:var(--card); border:1px solid var(--border); border-left:4px solid #5eead4; border-radius:8px; padding:20px;">
+    <div style="font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:6px;">NOVEL × LOW STAKES</div>
+    <div style="font-size:22px; font-weight:700; color:#5eead4; margin-bottom:8px;">SKETCH</div>
+    <div style="font-size:13px; color:var(--text); margin-bottom:12px;">Throwaway, demo, exploration. Fast iteration, visual verdict only.</div>
+    <div style="font-size:11px; color:var(--muted); margin-bottom:4px;"><strong>Phases:</strong> Ideate → Execute → Visual Check</div>
+    <div style="font-size:11px; color:var(--muted);"><strong>Example:</strong> Homepage, landing page, demo, prototype</div>
+  </div>
+
+  <!-- FEATURE quadrant (bottom-right: familiar + low stakes) -->
+  <div style="background:var(--card); border:1px solid var(--border); border-left:4px solid #a78bfa; border-radius:8px; padding:20px;">
+    <div style="font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:6px;">FAMILIAR × LOW STAKES</div>
+    <div style="font-size:22px; font-weight:700; color:#a78bfa; margin-bottom:8px;">FEATURE</div>
+    <div style="font-size:13px; color:var(--text); margin-bottom:12px;">Adding to existing codebase. Skip upstream (problem already validated).</div>
+    <div style="font-size:11px; color:var(--muted); margin-bottom:4px;"><strong>Phases:</strong> Spec → Plan → Execute → Verify → Review → Ship</div>
+    <div style="font-size:11px; color:var(--muted);"><strong>Example:</strong> New feature in known app, enhancement, bug fix</div>
+  </div>
+
+  <!-- Right spacer -->
+  <div></div>
+
+</div>
+
+<!-- X-axis label -->
+<div style="text-align:center; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:0.1em; margin:-10px 0 30px;">
+  ← Stakes (blast radius if wrong) →
+</div>
+
+<!-- Calibration mechanism -->
+<div style="background:var(--card); border:1px solid var(--border); border-radius:8px; padding:20px 24px; margin:20px 0;">
+  <h3 style="margin-top:0;">The Calibration Mechanism</h3>
+  <div style="color:var(--muted); font-size:13px; margin-bottom:14px;">The <code style="background:#252c35; padding:2px 6px; border-radius:3px;">/sig:calibrate</code> command asks 5 questions and writes a profile that every downstream phase reads.</div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+    <div>
+      <h5 style="color:var(--accent); font-size:13px; margin:0 0 10px;">The 5 diagnostic questions</h5>
+      <ol style="font-size:12px; color:var(--text); padding-left:20px; margin:0; line-height:1.7;">
+        <li><strong>Scope</strong> — net-new or modifying?</li>
+        <li><strong>Stakes</strong> — blast radius if broken?</li>
+        <li><strong>Novelty</strong> — known analogs or new territory?</li>
+        <li><strong>Reversibility</strong> — two-way door test</li>
+        <li><strong>Horizon</strong> — throwaway or durable?</li>
+      </ol>
+    </div>
+    <div>
+      <h5 style="color:var(--accent); font-size:13px; margin:0 0 10px;">Output: .planning/PROFILE.md</h5>
+      <pre style="background:#0a0e12; color:#c9d1d9; padding:12px; border-radius:4px; font-size:11px; margin:0; overflow-x:auto;"><code>tier: SKETCH
+stakes: low
+novelty: familiar
+phases_skipped:
+  - validate
+  - review
+  - cso_security
+  - compound
+rigor_overrides:
+  tdd_required: false
+  security_audit: false
+escape_hatch: /sig:escalate</code></pre>
+    </div>
+  </div>
+</div>
+
+<div class="callout">
+  <strong>Key principle — phases aren't removed, they're gated.</strong> <code>/sig:escalate</code> promotes a SKETCH to FULL mid-flight if scope grows. Prevents the "cheap mode becomes tech debt" failure where something you prototyped ships, becomes real, and has no retroactive rigor.
+</div>
+
+<!-- Closest analogs -->
+<h3 style="margin-top:30px;">Closest analogs in the landscape — none fully solve it</h3>
+<div class="leaders" style="grid-template-columns:1fr;">
+  <div class="leader" style="flex-direction:column; align-items:flex-start;">
+    <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+      <span class="cap">GSD <code style="background:#252c35; padding:2px 6px; border-radius:3px; font-size:11px;">gsd-spike</code> / <code style="background:#252c35; padding:2px 6px; border-radius:3px; font-size:11px;">gsd-sketch</code></span>
+      <span class="repo-name-sm">escape hatch, not classifier</span>
+    </div>
+    <div style="color:var(--muted); font-size:11px; margin-top:6px;">Light-mode commands, but operator must already know to pick them. No diagnostic step.</div>
+  </div>
+  <div class="leader" style="flex-direction:column; align-items:flex-start;">
+    <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+      <span class="cap">gstack <code style="background:#252c35; padding:2px 6px; border-radius:3px; font-size:11px;">/plan-ceo-review</code> 4 scope modes</span>
+      <span class="repo-name-sm">plan-time, not project-time</span>
+    </div>
+    <div style="color:var(--muted); font-size:11px; margin-top:6px;">Expansion / Selective / Hold / Reduction modes run at plan-review time, not project kickoff.</div>
+  </div>
+  <div class="leader" style="flex-direction:column; align-items:flex-start;">
+    <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+      <span class="cap">OMC <code style="background:#252c35; padding:2px 6px; border-radius:3px; font-size:11px;">deep-interview</code> 20% ambiguity gate</span>
+      <span class="repo-name-sm">spec clarity ≠ project complexity</span>
+    </div>
+    <div style="color:var(--muted); font-size:11px; margin-top:6px;">Measures spec ambiguity. Orthogonal to stakes/novelty — you can have a clear spec for a throwaway.</div>
+  </div>
+</div>
+
+<div class="callout" style="border-left-color:#f97316; background:#2a1a0e;">
+  <strong>Strategic implication for your consultancy:</strong> Calibration is the feature that makes AI-assisted dev *adoptable* by mid-market orgs. Without it, they face "full rigor always" (simple stuff feels overbuilt) or "light touch always" (important stuff ships broken). Signal earns the right to prescribe rigor — by showing it knows when *not* to.
+</div>
+
+<!-- ─────────── PART 7: Quick Repo Summaries ─────────── -->
+<h2>7. Repo Summary Cards</h2>
+
+<div class="summary-grid">
+
+  <div class="summary-card">
+    <h5>gstack</h5>
+    <div class="label">Garry Tan — 30+ skills</div>
+    <p><strong>Virtual exec team</strong> metaphor. Boil-the-lake philosophy. 15-phase CSO, browser daemon, retro/learn loops. Broadest single-repo coverage.</p>
+    <span class="tag strength">security</span>
+    <span class="tag strength">QA</span>
+    <span class="tag strength">broad coverage</span>
+    <span class="tag gap">no validation</span>
+  </div>
+
+  <div class="summary-card">
+    <h5>superpowers</h5>
+    <div class="label">Jesse Vincent — 14 skills, 1 agent</div>
+    <p><strong>Discipline enforcer.</strong> Hard gates, anti-rationalization tables, TDD non-negotiable, 4-phase systematic debugging.</p>
+    <span class="tag strength">enforcement</span>
+    <span class="tag strength">TDD</span>
+    <span class="tag strength">debugging</span>
+    <span class="tag gap">no upstream</span>
+  </div>
+
+  <div class="summary-card">
+    <h5>pm-skills</h5>
+    <div class="label">phuryn — 65 skills, 8 plugins</div>
+    <p><strong>Framework-driven PM library.</strong> Teresa Torres, Cagan, Strategyzer, Savoia. Discovery → Strategy → PRD → GTM.</p>
+    <span class="tag strength">strategy</span>
+    <span class="tag strength">validation</span>
+    <span class="tag strength">GTM</span>
+    <span class="tag gap">no engineering</span>
+  </div>
+
+  <div class="summary-card">
+    <h5>planning-with-files</h5>
+    <div class="label">OthmanAdi — 1 skill, 6 langs</div>
+    <p><strong>Disk-as-memory pattern.</strong> Manus principles, 96.7% benchmark vs. 6.7%. 3-file structure with hook-driven re-read.</p>
+    <span class="tag strength">state pattern</span>
+    <span class="tag strength">benchmarked</span>
+    <span class="tag gap">no agents</span>
+  </div>
+
+  <div class="summary-card">
+    <h5>oh-my-claudecode</h5>
+    <div class="label">Yeachan-Heo — 37 skills, 19 agents</div>
+    <p><strong>Autonomous execution.</strong> Deep-interview (20% ambiguity gate), ralph (PRD loops), consensus planning, 17 lifecycle hooks.</p>
+    <span class="tag strength">spec rigor</span>
+    <span class="tag strength">hooks</span>
+    <span class="tag strength">consensus</span>
+    <span class="tag gap">no discovery</span>
+  </div>
+
+  <div class="summary-card">
+    <h5>compound-engineering</h5>
+    <div class="label">Every Inc — ~45 skills, ~50 agents</div>
+    <p><strong>Inverts velocity decay.</strong> 80/20 planning/execution. Compound phase captures learnings as first-class deliverable.</p>
+    <span class="tag strength">compounding</span>
+    <span class="tag strength">multi-lens review</span>
+    <span class="tag gap">pre-launch validation</span>
+  </div>
+
+  <div class="summary-card">
+    <h5>GSD</h5>
+    <div class="label">72 cmds, 21 agents, CLI</div>
+    <p><strong>Anti context-rot.</strong> Wave-based parallel, fresh atomic contexts, goal-backward verification, Nyquist tests, file-based state.</p>
+    <span class="tag strength">orchestration</span>
+    <span class="tag strength">context mgmt</span>
+    <span class="tag strength">verification</span>
+    <span class="tag gap">no upstream</span>
+  </div>
+
+  <div class="summary-card" style="border-left: 3px solid #a78bfa;">
+    <h5>Signal (your WIP)</h5>
+    <div class="label">GSD × Agent Skills — evolving to /sig: + Calibrate</div>
+    <p><strong>Engine + quality</strong>, upstream gap. Adds REVIEW phase, now adds <code>/sig:calibrate</code> (Phase 0) and is being extended to IDEATE/VALIDATE/COMPOUND.</p>
+    <span class="tag strength">REVIEW added</span>
+    <span class="tag strength">calibrate (new)</span>
+    <span class="tag gap">ideation (planned)</span>
+    <span class="tag gap">compound (planned)</span>
+  </div>
+
+</div>
+
+<!-- ─────────── Closing ─────────── -->
+<div class="callout" style="margin-top:40px">
+  <strong>Highest-leverage next move for Signal:</strong> Don't build more of the engine. You have a great one. Ship <code>/sig:calibrate</code> first (the routing layer), then graft the upstream (pm-skills <code>/discover</code> + <code>/strategy</code> into <code>/sig:ideate</code> / <code>/sig:validate</code> / <code>/sig:strategize</code>) and the compound layer (compound-eng's <code>/compound</code> + gstack's <code>/retro</code> into <code>/sig:compound</code>) onto your existing GSD-core plan. That single move covers 80% of the journey with 20% more work than your current roadmap.
+</div>
+
+<div style="text-align:center; color:var(--muted); font-size:11px; margin: 40px 0 0; padding-top: 20px; border-top: 1px solid var(--border)">
+  Source: <a href="REPO-ANALYSIS.md" style="color:var(--accent); text-decoration:none">REPO-ANALYSIS.md</a> · Prepared for Brett · April 2026
+</div>
+
+</div>
+</body>
+</html>

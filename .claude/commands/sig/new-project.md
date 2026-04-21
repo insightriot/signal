@@ -1,11 +1,11 @@
 ---
-name: hybrid-new-project
-description: Initialize a new project with the hybrid GSD + Agent Skills workflow. Creates .planning/ directory, PROJECT.md, and kicks off the DISCUSS phase.
+name: sig:new-project
+description: Initialize a new project with the Signal workflow. Creates .planning/ directory, PROJECT.md, and kicks off the CALIBRATE phase.
 ---
 
-# Initialize New Hybrid Project
+# Initialize New Signal Project
 
-You are starting a new project using the skills-gsd hybrid workflow. This command sets up the project foundation and transitions into the DISCUSS phase.
+You are starting a new project using the Signal workflow. This command sets up the project foundation and transitions into Phase 0 (CALIBRATE).
 
 ## Steps
 
@@ -21,7 +21,7 @@ Initialize `STATE.md` with:
 # Project State
 
 ## Current Phase
-DISCUSS
+CALIBRATE
 
 ## Completed Phases
 (none)
@@ -46,12 +46,12 @@ Ask the user:
 
 From the answers, generate `.planning/PROJECT.md` following the format in the plugin's `PROJECT.md` as a reference — include Vision, Problem Statement, Success Criteria, Scope (in/out), Constraints, and Done When.
 
-### 4. Transition to DISCUSS
+### 4. Transition to CALIBRATE
 
-Update `STATE.md` to reflect DISCUSS phase is active. Inform the user they can now run `/hybrid-discuss` to begin the structured discussion phase, or continue the conversation naturally.
+Update `STATE.md` to reflect CALIBRATE phase is active. Inform the user they can now run `/sig:calibrate` to tier the project (SKETCH / FEATURE / SPIKE / FULL) before entering structured phases.
 
 ## Gate: Project Initialized
 - [ ] `.planning/` directory created
 - [ ] `STATE.md` initialized
 - [ ] `PROJECT.md` captures user's intent
-- [ ] User understands the six-phase workflow ahead
+- [ ] User understands Phase 0 + six-phase workflow ahead

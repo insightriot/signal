@@ -4,44 +4,62 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This repository is building a **Claude Code plugin** that combines two open-source frameworks:
+This repository is **Signal** (market-facing: *SignalOS*) — a Claude Code plugin that combines two open-source frameworks and adds a project-complexity calibration layer so rigor is right-sized per project:
+
 - **GSD (Get Shit Done)** — execution orchestration: wave-based parallel execution, 21 specialized agents, context monitoring, file-based state management
 - **Agent Skills** (Addy Osmani) — quality enforcement: 21 skills, 3 specialist agents, anti-rationalization tables, phase gates
+- **Signal's own contribution** — `/sig:calibrate` (Phase 0) + `/sig:escalate`: a routing layer that writes `.planning/PROFILE.md` so every downstream command dials rigor up or down based on project tier (SKETCH / FEATURE / SPIKE / FULL)
 
-The plugin targets solo developers and small teams who want production-grade engineering output from AI agents.
+Command prefix: `/sig:`. The organizing metaphor is *signal vs. noise* at every phase — calibrate tunes the receiver, and the flow amplifies signal (real problem, real coverage, real user value) and suppresses noise (shiny objects, test theater, ship-for-shipping's-sake).
+
+The plugin targets solo developers and small teams who want production-grade engineering output from AI agents — without over-engineering throwaways or under-engineering production systems.
 
 ## Current State
 
 Pre-code planning phase. The repository contains:
-- `PROJECT.md` — the full spec (read this first for any implementation work)
-- `GSD-AgentSkills-Combination-Analysis.md` — strategic analysis of why/how to combine the frameworks
+- `PROJECT.md` — the full Signal spec (read this first for any implementation work)
+- `GSD-AgentSkills-Combination-Analysis.md` — original strategic analysis of why/how to combine the two source frameworks
+- `analysis/REPO-ANALYSIS.md` — landscape analysis of 7 AI-dev plugins and recommendation that evolved into Signal
+- `analysis/JOURNEY-MAP.html` — visual companion to the analysis (coverage matrix, stack, calibration matrix, phase flow)
 
 No source code, build system, or tests exist yet. Implementation starts with WBS 1.0 (Foundation & Scaffolding) in PROJECT.md.
 
 ## Architecture
 
-Three-layer design:
+Three-layer design, plus a Phase 0 router above it:
 
+0. **Calibration Router (Phase 0, Signal's own)** — `/sig:calibrate` asks 5 diagnostic questions, writes `.planning/PROFILE.md` that gates every downstream phase by tier (SKETCH / FEATURE / SPIKE / FULL). `/sig:escalate` upgrades tier mid-flight.
 1. **Orchestration Engine (Layer 1, from GSD)** — wave-based parallel execution, `.planning/` state management, context monitoring (35% warn / 25% critical), agent spawning, CLI tools
 2. **Quality Gates (Layer 2, from Agent Skills)** — on-demand skill loading per phase (not all at once), exit criteria checklists, anti-rationalization tables
 3. **Anti-Rationalization & Verification (Layer 3, shared)** — Nyquist test-coverage validation, 8-dimension plan validation, specialist verifier agents
 
-## Six-Phase Workflow
+## Workflow — Phase 0 + Six Phases
 
 ```
-DISCUSS → PLAN → EXECUTE → VERIFY → REVIEW → SHIP
+/sig:calibrate → /sig:discuss → /sig:plan → /sig:execute → /sig:verify → /sig:review → /sig:ship
+   (Phase 0,
+    routes by tier)
 ```
+
+Escape hatch: `/sig:escalate` promotes tier mid-flight if scope grows.
 
 The REVIEW phase (between VERIFY and SHIP) is the key addition over GSD's original flow. It covers code quality, security hardening, performance optimization, and code simplification via Agent Skills' specialist agents.
+
+**Tier-gating:** Every phase command's first action is to read `PROFILE.md`. If the current tier skips that phase, the command exits early. If `rigor_overrides` apply (e.g., `tdd_required: false` in SKETCH), the command respects them.
+
+**Forward-looking scope note:** `analysis/REPO-ANALYSIS.md` recommends eventually expanding the flow to 10 phases (adding IDEATE / VALIDATE / STRATEGIZE upstream and COMPOUND downstream). The current PROJECT.md spec's the 6-phase MVP; the 10-phase expansion is a follow-on once the core ships.
 
 ## Planned Plugin Structure
 
 ```
-commands/       # 7 slash commands (one per phase + new-project)
+commands/       # 9 slash commands — /sig:new-project, /sig:calibrate,
+                # /sig:discuss, /sig:plan, /sig:execute, /sig:verify,
+                # /sig:review, /sig:ship, /sig:escalate
 agents/         # 24 agents (21 GSD + 3 Agent Skills specialists)
 skills/         # 21 quality skills organized by phase (define/, plan/, build/, verify/, review/, ship/)
-references/     # Merged checklists and gates from both frameworks
-state/          # GSD's .planning/ state management
+references/     # Merged checklists and gates from both frameworks,
+                # plus PROFILE.md schema + tier definitions
+state/          # GSD's .planning/ state management (now including PROFILE.md)
 tools/          # GSD's CLI tools layer
 ```
 
@@ -61,12 +79,16 @@ tools/          # GSD's CLI tools layer
 
 ## Development Strategy
 
-**Self-bootstrapping**: Once the DISCUSS and PLAN commands work, use the plugin itself to plan and execute remaining phases. This is the fastest way to validate whether the architecture holds.
+**Build `/sig:calibrate` first**: It's the smallest, most self-contained command — no skills loaded, no agents spawned. Just 5 questions → YAML write to `PROFILE.md`. Ship this first because every downstream command depends on the `PROFILE.md` contract. Validating the contract early de-risks the entire flow.
 
-**Token budget is the highest risk**: Before investing days in building commands, measure the token cost of loading Agent Skills' larger skill files (especially `security-and-hardening`). If they blow the context budget, you'll need to summarize or chunk them — which changes the loader design. Test this in Phase 1.
+**Then `/sig:discuss`**: Once calibration works, build DISCUSS as the first phase that exercises the full pattern — command → reads PROFILE.md → loads skills → spawns agents → gates approval.
 
-**Critical path runs through Phase Commands (WBS 2.0)**: The commands are where the two frameworks' philosophies collide — that's where the integration design gets proven or broken. Build the DISCUSS command first to validate the full pattern (command → loads skills → spawns agents → gates approval). Agents (3.0) and skills (4.0) can be developed in parallel once the command pattern is validated.
+**Self-bootstrapping**: Once `/sig:calibrate`, `/sig:discuss`, and `/sig:plan` work, use Signal itself to plan and execute remaining phases. This is the fastest way to validate whether the architecture holds.
+
+**Token budget is the highest risk**: Before investing days in building phase commands, measure the token cost of loading Agent Skills' larger skill files (especially `security-and-hardening`). If they blow the context budget, you'll need to summarize or chunk them — which changes the loader design. Test this in Phase 1.
+
+**Critical path runs through Phase Commands (WBS 2.0)**: The commands are where the two frameworks' philosophies collide — that's where the integration design gets proven or broken. Agents (3.0) and skills (4.0) can be developed in parallel once `/sig:calibrate` + `/sig:discuss` validate the command pattern.
 
 ## Critical Path
 
-Foundation (1.0) → Phase Commands (2.0) → Integration Testing (5.0) → Documentation (6.0)
+Foundation (1.0) → `/sig:calibrate` → `/sig:discuss` → rest of Phase Commands (2.0) → Integration Testing (5.0) → Documentation (6.0)

@@ -8,16 +8,16 @@ CONFIG_FILE="${STATE_DIR}/config.json"
 
 # Verify state directory exists
 if [ ! -d "$STATE_DIR" ]; then
-  echo "[skills-gsd] State directory not found. Run /hybrid-new-project to initialize."
+  echo "[signal] State directory not found. Run /sig:new-project to initialize."
   exit 0
 fi
 
 # Report active project state if .planning/ exists in the working directory
 if [ -d ".planning" ]; then
   if [ -f ".planning/STATE.md" ]; then
-    echo "[skills-gsd] Active project detected. Current state:"
+    echo "[signal] Active project detected. Current state:"
     head -20 ".planning/STATE.md"
   fi
 fi
 
-echo "[skills-gsd] Plugin loaded. Commands: /hybrid-new-project, /hybrid-discuss, /hybrid-plan, /hybrid-execute, /hybrid-verify, /hybrid-review, /hybrid-ship"
+echo "[signal] Plugin loaded. Commands: /sig:new-project, /sig:calibrate, /sig:discuss, /sig:plan, /sig:execute, /sig:verify, /sig:review, /sig:ship, /sig:escalate"

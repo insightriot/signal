@@ -80,7 +80,7 @@ export async function transitionPhase(baseDir, nextPhase) {
 
   const state = await readState(baseDir);
   if (!state) {
-    throw new Error('No project state found. Run /hybrid-new-project first.');
+    throw new Error('No project state found. Run /sig:new-project first.');
   }
 
   const now = new Date().toISOString().split('T')[0];

@@ -1,12 +1,12 @@
 ---
-name: hybrid-execute
+name: sig:execute
 description: "EXECUTE phase — wave-based parallel execution with fresh context per task, atomic commits, and context rot prevention."
 args: "<phase-number>"
 ---
 
 # EXECUTE Phase
 
-You are running the EXECUTE phase of the hybrid workflow. Your goal: implement every task in the plan with atomic commits and passing tests.
+You are running the EXECUTE phase of the Signal workflow. Your goal: implement every task in the plan with atomic commits and passing tests.
 
 ## Skill Loading
 

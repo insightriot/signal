@@ -1,5 +1,5 @@
 ---
-name: hybrid-ship
+name: sig:ship
 description: "SHIP phase — pre-ship checklist, clean git history, PR creation with quality documentation."
 args: "<phase-number>"
 ---
