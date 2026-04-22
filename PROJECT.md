@@ -5,7 +5,11 @@
 
 ## Vision
 
-Signal is a Claude Code plugin (with multi-runtime compatibility) that combines **GSD's execution orchestration** with **Agent Skills' quality enforcement**, then layers in a project-complexity calibration step so rigor is right-sized per project. The result: AI coding agents that are disciplined (don't skip specs, tests, security), durable (don't degrade over long sessions), *and* calibrated (don't over-engineer throwaways or under-engineer production systems).
+Signal is a Claude Code plugin (with multi-runtime compatibility) that integrates the strongest patterns from across the Claude Code plugin ecosystem — GSD's execution orchestration, Agent Skills' quality enforcement, and patterns drawn from gstack, pm-skills, superpowers, compound-engineering, planning-with-files, and oh-my-claudecode — then adds a project-complexity calibration step so rigor is right-sized per project.
+
+The v1 MVP ports GSD and Agent Skills directly. The v2 architecture (see `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`) incorporates the remaining source repos: upstream ideation/validation/strategy phases from pm-skills, a post-ship Compound memory phase from compound-engineering, a 15-phase security audit from gstack, stronger TDD enforcement from superpowers, and context-discipline hook patterns from planning-with-files.
+
+The result: AI coding agents that are disciplined (don't skip specs, tests, security), durable (don't degrade over long sessions), *and* calibrated (don't over-engineer throwaways or under-engineer production systems).
 
 Signal targets solo developers and small teams who want production-grade engineering output from AI agents without enterprise ceremony — and without spending 60 minutes planning a homepage.
 
@@ -75,12 +79,22 @@ The gap: there is no integrated system that enforces engineering quality standar
 
 ## Reference Repositories
 
-| Repo | URL | Role in This Project |
-|------|-----|---------------------|
-| **Agent Skills** (Addy Osmani) | https://github.com/addyosmani/agent-skills | Quality enforcement layer — 21 skills, 3 specialist agents, 7 slash commands, anti-rationalization tables, phase gates, exit criteria |
-| **Get Shit Done (GSD)** | https://github.com/gsd-build/get-shit-done | Execution orchestration layer — wave-based parallel execution, 21 specialized agents, 72 commands, CLI tools, file-based state, context monitoring |
-| **GSD Skill Creator** (Tibsfox) | https://github.com/Tibsfox/gsd-skill-creator | Reference for bridging the two ecosystems — shows how GSD workflows can generate/consume Agent Skills format, implements DACP protocol |
-| **Prior Analysis** | `GSD-AgentSkills-Combination-Analysis.md` (in this folder) | Strategic analysis of why/how to combine, review of existing hybrid skill, architectural recommendations |
+| Repo | URL | Status | Role in Signal |
+|------|-----|--------|----------------|
+| **GSD (Get Shit Done)** | https://github.com/gsd-build/get-shit-done | Ported (v1) | Execution orchestration — wave-based parallel execution, 21 specialized agents, CLI tools, file-based state, context monitoring |
+| **Agent Skills** (Addy Osmani) | https://github.com/addyosmani/agent-skills | Ported (v1) | Quality enforcement — 21 skills, 3 specialist agents, anti-rationalization tables, phase gates, exit criteria |
+| **gstack** (Garry Tan) | https://github.com/garrytan/gstack | Planned (v2) | 15-phase CSO security audit, office-hours reframing, retro + learn memory loop, freeze/careful hard gates |
+| **pm-skills** (phuryn) | https://github.com/phuryn/pm-skills | Planned (v2) | Upstream PM layer — Torres/Cagan/Olsen frameworks for ideate → validate → strategize phases, PRD templates, GTM suite |
+| **superpowers** (Jesse Vincent / obra) | https://github.com/obra/superpowers | Planned (v2) | Harder TDD enforcement, systematic-debugging skill, `<HARD-GATE>` mechanism, anti-rationalization table format |
+| **compound-engineering** (Every Inc) | https://github.com/EveryInc/compound-engineering-plugin | Planned (v2) | Compound memory phase, learnings-researcher and session-historian agents, multi-lens review panel |
+| **planning-with-files** (OthmanAdi) | https://github.com/OthmanAdi/planning-with-files | Pattern source | Disk-as-cognitive-scaffold discipline, hook-driven context re-reads, 2-Action Rule (benchmarked 6.7% → 96.7% lift) |
+| **oh-my-claudecode** (Yeachan-Heo) | https://github.com/Yeachan-Heo/oh-my-claudecode | Pattern source | `deep-interview` with 20% ambiguity gate, consensus planning, visual-verdict, lifecycle hook architecture |
+| **GSD Skill Creator** (Tibsfox) | https://github.com/Tibsfox/gsd-skill-creator | Reference | Format bridge between GSD and Agent Skills; DACP protocol precedent |
+| **Prior Analysis** | `GSD-AgentSkills-Combination-Analysis.md` (in this folder) | Historical | Original two-framework strategic memo; superseded by `analysis/` docs |
+
+**Status legend:** *Ported (v1)* = code and structure imported directly. *Planned (v2)* = analyzed, roadmapped for v2 integration per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`. *Pattern source* = architectural ideas informed Signal's design; no full port planned.
+
+See also: `analysis/REPO-ANALYSIS.md` (deep analysis of all seven landscape repos) and `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` (integration plan).
 
 ---
 

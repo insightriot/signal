@@ -4,11 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This repository is **Signal** (market-facing: *SignalOS*) — a Claude Code plugin that combines two open-source frameworks and adds a project-complexity calibration layer so rigor is right-sized per project:
+This repository is **Signal** (market-facing: *SignalOS*) — a Claude Code plugin that integrates patterns from across the Claude Code plugin ecosystem and adds a project-complexity calibration layer so rigor is right-sized per project.
 
+**v1 MVP — direct ports (currently being built):**
 - **GSD (Get Shit Done)** — execution orchestration: wave-based parallel execution, 21 specialized agents, context monitoring, file-based state management
 - **Agent Skills** (Addy Osmani) — quality enforcement: 21 skills, 3 specialist agents, anti-rationalization tables, phase gates
-- **Signal's own contribution** — `/sig:calibrate` (Phase 0) + `/sig:escalate`: a routing layer that writes `.planning/PROFILE.md` so every downstream command dials rigor up or down based on project tier (SKETCH / FEATURE / SPIKE / FULL)
+
+**v2 planned integrations (see `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`):**
+- **gstack** (Garry Tan) — 15-phase security audit, retro + learn memory loop, office-hours reframing
+- **pm-skills** (phuryn) — upstream ideation / validation / strategy phases
+- **superpowers** (Jesse Vincent / obra) — harder TDD, systematic-debugging, `<HARD-GATE>` mechanism
+- **compound-engineering** (Every Inc) — post-ship Compound memory phase, multi-lens review panel
+
+**Pattern sources (ideas borrowed, not full ports):**
+- **planning-with-files** (OthmanAdi) — hook-driven context discipline
+- **oh-my-claudecode** (Yeachan-Heo) — deep-interview spec-rigor gate, consensus planning
+
+**Signal's own contribution:**
+- `/sig:calibrate` (Phase 0) + `/sig:escalate` — a routing layer that writes `.planning/PROFILE.md` so every downstream command dials rigor up or down based on project tier (SKETCH / FEATURE / SPIKE / FULL). No source repo in the landscape solves this problem; it's Signal's unique contribution.
 
 Command prefix: `/sig:`. The organizing metaphor is *signal vs. noise* at every phase — calibrate tunes the receiver, and the flow amplifies signal (real problem, real coverage, real user value) and suppresses noise (shiny objects, test theater, ship-for-shipping's-sake).
 

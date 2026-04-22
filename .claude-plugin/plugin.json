@@ -1,6 +1,6 @@
 {
   "name": "skills-gsd",
-  "description": "Disciplined AI development workflow — GSD's execution orchestration with Agent Skills' quality enforcement. Six-phase lifecycle from spec to ship with structural quality gates.",
+  "description": "Disciplined AI development workflow integrating GSD's execution orchestration, Agent Skills' quality enforcement, and patterns from the broader Claude Code plugin ecosystem — with a project-complexity calibration router that right-sizes rigor per project tier.",
   "version": "0.1.0",
   "author": {
     "name": "InsightRiot"

@@ -1,7 +1,7 @@
 {
   "name": "skills-gsd",
   "version": "0.1.0",
-  "description": "Disciplined AI development workflow — GSD execution orchestration + Agent Skills quality enforcement",
+  "description": "Disciplined AI development workflow — integrates GSD, Agent Skills, and patterns from the broader Claude Code plugin ecosystem, with a project-complexity calibration router.",
   "type": "module",
   "engines": {
     "node": ">=22.0.0"
