@@ -1,6 +1,5 @@
 node_modules/
 dist/
-.planning/
 .env
 .env.local
 .env.*.local

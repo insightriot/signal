@@ -1,0 +1,56 @@
+# Architectural Decisions Log
+
+Append-only. When a decision is reversed, *add* a new entry noting the reversal with the reason — don't edit the old one. This is history, not state.
+
+---
+
+## 2026-04-22 — v1 = 6-phase MVP, v2 = 10-phase architecture
+
+**Decision:** v1 ships the 6-phase MVP currently speced in `PROJECT.md` (`calibrate → discuss → plan → execute → verify → review → ship` + `escalate`). v2 expands to the 10-phase architecture from `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` (adds ideate / validate / strategize upstream + compound downstream).
+
+**Rationale:** The rundown explicitly flagged this as an open question. Shipping v1 narrow, learning from real use, then expanding is lower-risk than trying to build 10 phases with 9 source-repo ports in one push.
+
+**Implication:** Tranche 4 (v2 integrations) is gated on Tranche 3 completing AND v1 having real users.
+
+---
+
+## 2026-04-22 — Attribution restructured into four tiers
+
+**Decision:** All 9 source repos are attributed across `PROJECT.md`, `CLAUDE.md`, `LICENSES.md`, and the plugin manifests. Tiers: **Ported (v1)** = GSD, Agent Skills. **Planned (v2)** = gstack, pm-skills, superpowers, compound-engineering. **Pattern source** = planning-with-files, oh-my-claudecode. **Reference** = GSD Skill Creator.
+
+**Rationale:** Original framing ("two frameworks") understated intellectual debt and would have caused attribution gaps as v2 ports land.
+
+**Implication:** Full MIT (or other) license texts for v2-planned repos are added to `LICENSES.md` *when code is actually ported*, not speculatively — but the "Planned Integrations" section exists now so intent is public.
+
+---
+
+## 2026-04-22 — Build Signal with lightweight `.planning/`, not GSD
+
+**Decision:** Manage Signal's own build with a hand-rolled `.planning/` directory (STATE, TRANCHE-{n}, DECISIONS, OPEN-QUESTIONS, CONTEXT). Do not install GSD for this.
+
+**Rationale:** GSD would be overkill for a markdown-heavy build, create meta-confusion (whose `.planning/` is canonical?), and impose the exact over-engineering Signal is designed to prevent. Lightweight structure captures 90% of GSD's disciplines (planning, state, decisions log, atomic commits) at ~5% of the overhead.
+
+**Implication:** Once `/sig:calibrate`, `/sig:discuss`, `/sig:plan` work (late Tranche 2 / early Tranche 3), switch to dogfooding Signal on itself — that's where real validation happens.
+
+---
+
+## 2026-04-22 — Rebrand deferred to Tranche 1
+
+**Decision:** Manifest `name` fields still say `skills-gsd`. Rename to `signal` happens in Tranche 1 alongside scope-lock and PROFILE.md-schema work, not as part of attribution cleanup.
+
+**Rationale:** Keep the attribution pass scoped to attribution, not mix in branding changes. One thing at a time.
+
+---
+
+## 2026-04-22 — `.planning/` is always tracked in git, never ignored
+
+**Decision:** `.planning/` is committed to version control in this repo, and Signal must ensure it is also committed in any user project where Signal is used. `.planning/` was previously in this repo's `.gitignore`; that line has been removed.
+
+**Rationale:** `.planning/` is the project's institutional memory — state, decisions log, context, open questions, plans, verification reports. If a collaborator clones a repo without `.planning/`, they lose all accumulated project knowledge. That defeats the entire purpose of the file-based state convention. The instinct that "state directories should be ignored" does not apply here — `.planning/` is deliverable documentation that keeps a project coherent across contributors, sessions, and time.
+
+**Implication:**
+- Signal's `/sig:new-project` (and any command that writes to `.planning/`) must check the user's `.gitignore` and warn or auto-correct if `.planning/` is being ignored. Added as a task in `TRANCHE-2.md`.
+- Signal's README and documentation must explicitly instruct users to commit `.planning/`, not ignore it.
+- Any template `.gitignore` Signal ships or recommends must not include `.planning/`.
+
+---
