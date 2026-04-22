@@ -4,26 +4,6 @@ Unresolved design questions. Append new ones; delete resolved ones (or move to `
 
 ---
 
-## GitHub repo rename: `dev-skills-gsd` → `signal`?
-
-Manifest `name` fields are now `signal`, but repository URLs still point at `InsightRiot/dev-skills-gsd` because that's the actual GitHub repo name. Changing the URLs without renaming the repo would break clone/install.
-
-**Options:**
-1. Rename the GitHub repo now (e.g., to `InsightRiot/signal` or `InsightRiot/signal-plugin`). Then update all URLs in one pass.
-2. Defer rename to later; leave URLs pointing at `dev-skills-gsd` indefinitely. Inconsistent but harmless.
-3. Rename to something non-colliding (e.g., `InsightRiot/signalos-plugin` if `signal` is taken or to avoid generic naming).
-
-**Needs Brett's decision.** Action items once decided:
-- Rename on GitHub (via web UI or `gh`).
-- Update `repository.url` in `package.json`.
-- Update `repo` in `.claude-plugin/marketplace.json`.
-- Update `homepage` + `repository` in `.claude-plugin/plugin.json`.
-- Update local `git remote set-url origin` to the new URL.
-
-**Resolve by:** Before shipping v1 (Tranche 3 / README writing).
-
----
-
 ## Tier count: validate 4 tiers against real calibration
 
 Schema is locked at 4 tiers (SKETCH / FEATURE / SPIKE / FULL) per DECISIONS.md. The design note in `references/tier-definitions.md` explains why, but this is a judgment call that can only be validated by calibrating real projects.

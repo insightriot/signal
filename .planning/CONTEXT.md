@@ -33,15 +33,18 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-- 7 of 9 slash commands scaffolded (`new-project`, `discuss`, `plan`, `execute`, `verify`, `review`, `ship`). **Missing: `calibrate` and `escalate`.**
-- 21 skill files, 17 agent files, 7 reference checklists, 3 tool libs.
-- `skills-gsd` → `signal` rebrand **complete** for manifest `name` fields. Repo URLs (`InsightRiot/dev-skills-gsd`) still point at the current GitHub repo name — see OPEN-QUESTIONS.md for the URL rename decision.
-- `PROFILE.md` schema not yet written (Tranche 1).
-- Tests present but dependencies not installed (Tranche 1).
+**Tranche 1 complete.** Foundation is coherent and ready for Tranche 2.
+
+- 7 of 9 slash commands scaffolded (`new-project`, `discuss`, `plan`, `execute`, `verify`, `review`, `ship`). **Missing: `calibrate` and `escalate`** — both built in Tranche 2.
+- 21 skill files, 17 agent files, 9 reference docs (including the new `profile-schema.md` + `tier-definitions.md`), 3 tool libs.
+- Rebrand complete: manifest `name` fields, GitHub repo (`InsightRiot/signal`), local git remote, and all manifest URL fields.
+- PROFILE.md schema locked (`references/profile-schema.md`) — 10 rigor overrides, 4 tiers, frontmatter + body format, escalation history. See `DECISIONS.md`.
+- Tier-to-defaults mapping locked (`references/tier-definitions.md`) — SKETCH / FEATURE / SPIKE / FULL with full Stakes × Novelty 2×2 + FULL escalators.
+- `npm install` done, 19 tests passing, `validate-plugin.js` green.
 
 ## Active work
 
-**Tranche 1 — Unblock the build.** See `TRANCHE-1.md`.
+**Tranche 2, Step 1 — build `/sig:calibrate`.** See `TRANCHE-2.md` Step 1 for the full spec. This is the command the entire Phase 0 architecture pivots on; the schema it writes is already locked, so it's a bounded task.
 
 ## Key files
 

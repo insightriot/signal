@@ -14,14 +14,69 @@
 
 ## Tasks
 
-### 1. Write `/sig:calibrate` (Phase 0)
+### 1. Write `/sig:calibrate` (Phase 0) — **READY TO START**
 
-Smallest command. No skills, no agents. Just 5 questions → tier → YAML write.
-- [ ] Draft `.claude/commands/sig/calibrate.md`
-- [ ] 5 diagnostic questions: Scope, Stakes, Novelty, Reversibility, Horizon
-- [ ] Stakes × Novelty 2×2 → tier mapping
-- [ ] Write to `.planning/PROFILE.md` following the Tranche 1 schema
-- [ ] Self-test: run against a hypothetical project, verify PROFILE.md is valid per the schema
+Smallest command in the entire plugin. No skills loaded, no agents spawned. Just 5 questions → tier → YAML write. Phase 0 is what makes Signal distinct from "GSD + Agent Skills stapled together," so getting this right is load-bearing.
+
+**Inputs (already locked from Tranche 1):**
+- `references/profile-schema.md` — authoritative PROFILE.md format + validation rules
+- `references/tier-definitions.md` — 4 tiers, diagnostic question → tier mapping logic, full defaults table
+- Existing `.claude/commands/sig/` commands — use the same frontmatter + structure conventions
+
+**Deliverable:** `.claude/commands/sig/calibrate.md`
+
+**Structure to produce:**
+
+```yaml
+---
+name: sig:calibrate
+description: "Phase 0 — classify project into SKETCH / FEATURE / SPIKE / FULL and write .planning/PROFILE.md to drive downstream rigor."
+args: "[--re-calibrate]"
+---
+```
+
+Body sections, in order:
+
+1. **Pre-flight check.** Verify `.planning/` exists (create if missing). If `PROFILE.md` already exists and `--re-calibrate` was not passed, refuse and suggest `/sig:escalate` or `--re-calibrate`. **Also check that the user's `.gitignore` does not ignore `.planning/`** — if it does, warn and offer to remove that line. (Per DECISIONS.md: `.planning/` must always be tracked.)
+2. **Ask the 5 diagnostic questions,** one at a time, using the exact enum values from `profile-schema.md`:
+   - **Scope:** `throwaway` / `feature` / `subsystem` / `product`
+   - **Stakes:** `none` / `minor` / `major` / `catastrophic`
+   - **Novelty:** `familiar` / `rare` / `first-for-org` / `first-in-industry`
+   - **Reversibility:** `trivial` / `moderate` / `painful` / `irreversible`
+   - **Horizon:** `hours` / `days` / `months` / `years`
+3. **Derive tier** using the logic in `tier-definitions.md`:
+   - **FULL** if any of: `stakes: catastrophic`, `reversibility: irreversible`, `horizon: years`
+   - Else **SPIKE** if all of: stakes in `{none, minor}` AND novelty in `{first-for-org, first-in-industry}` AND horizon in `{hours, days}` AND scope in `{throwaway, feature}`
+   - Else **SKETCH** if all of: `scope: throwaway`, `stakes: none`, `reversibility: trivial`, `horizon in {hours, days}`
+   - Else **FEATURE** (default)
+4. **Show user the derived tier + defaults,** ask for confirmation. Allow manual override (with warning) — they can force SKETCH on what calibrates as FULL, but Signal notes the risk.
+5. **Write `.planning/PROFILE.md`** — YAML frontmatter with all 10 rigor_overrides fields written literally (from the tier-to-defaults table in `tier-definitions.md`), plus a markdown body summarizing the calibration decision.
+6. **Print next-step message:** "Profile written. Run `/sig:discuss` to continue, or `/sig:escalate` to adjust tier later."
+
+**Anti-rationalization check** (include in command markdown):
+| Temptation | Check |
+|---|---|
+| "I know this is a FULL project, skip the questions" | Answer the questions anyway — the 5 dimensions reveal details you may have missed |
+| "This feels like SKETCH but I should just say FEATURE to be safe" | Over-tiering IS the failure mode Signal exists to prevent. Trust SKETCH when it applies |
+| "I'll just skip the .gitignore check" | Without it, the project's memory gets lost on clone. Non-negotiable |
+
+**Self-test checklist** (run after drafting):
+- [ ] Run on a hypothetical FULL project (answers: subsystem / catastrophic / rare / painful / years). Verify output matches the FULL example in `profile-schema.md`.
+- [ ] Run on a hypothetical SKETCH project (answers: throwaway / none / familiar / trivial / hours). Verify output matches the SKETCH example.
+- [ ] Run on an edge-case FULL (answers: feature / minor / familiar / irreversible / days — FULL should still fire due to irreversibility).
+- [ ] Run on a SPIKE (feature / minor / first-for-org / moderate / days).
+- [ ] Open the generated PROFILE.md. Confirm YAML parses and all 10 rigor_overrides are present.
+
+**Dependencies:** None. This is the base-case command — no skills, no agents, no prior phase state required.
+
+**Session-pickup checklist for whoever starts next:**
+1. Read this file (TRANCHE-2.md) — confirm Step 1 is still the active task.
+2. Read `references/profile-schema.md` — understand what you're writing to.
+3. Read `references/tier-definitions.md` — understand the mapping logic.
+4. Read an existing command like `.claude/commands/sig/discuss.md` for structural convention.
+5. Draft `.claude/commands/sig/calibrate.md`.
+6. Run the self-test checklist.
+7. Commit + update STATE.md.
 
 ### 2. Write `/sig:escalate` (escape hatch)
 

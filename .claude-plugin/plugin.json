@@ -5,8 +5,8 @@
   "author": {
     "name": "InsightRiot"
   },
-  "homepage": "https://github.com/InsightRiot/dev-skills-gsd",
-  "repository": "https://github.com/InsightRiot/dev-skills-gsd",
+  "homepage": "https://github.com/InsightRiot/signal",
+  "repository": "https://github.com/InsightRiot/signal",
   "license": "MIT",
   "commands": "./.claude/commands"
 }
