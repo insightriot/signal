@@ -35,7 +35,7 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 - 7 of 9 slash commands scaffolded (`new-project`, `discuss`, `plan`, `execute`, `verify`, `review`, `ship`). **Missing: `calibrate` and `escalate`.**
 - 21 skill files, 17 agent files, 7 reference checklists, 3 tool libs.
-- `skills-gsd` → `signal` rebrand still pending (Tranche 1).
+- `skills-gsd` → `signal` rebrand **complete** for manifest `name` fields. Repo URLs (`InsightRiot/dev-skills-gsd`) still point at the current GitHub repo name — see OPEN-QUESTIONS.md for the URL rename decision.
 - `PROFILE.md` schema not yet written (Tranche 1).
 - Tests present but dependencies not installed (Tranche 1).
 

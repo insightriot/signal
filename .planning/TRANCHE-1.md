@@ -10,13 +10,14 @@
 
 ## Tasks
 
-### 1. Rebrand manifests from `skills-gsd` → `signal`
+### 1. Rebrand manifests from `skills-gsd` → `signal` ✅
 
-- [ ] `.claude-plugin/plugin.json` — `name` field
-- [ ] `.claude-plugin/marketplace.json` — `name` field + `plugins[0].name` field
-- [ ] `package.json` — `name` field
-- [ ] Update `repository` URL if needed (currently `InsightRiot/dev-skills-gsd` — should match the actual repo name)
-- [ ] Grep for any remaining `skills-gsd` or `dev-skills-gsd` references and update
+- [x] `.claude-plugin/plugin.json` — `name` field
+- [x] `.claude-plugin/marketplace.json` — `name` field + `plugins[0].name` field
+- [x] `package.json` — `name` field
+- [x] `tests/state.test.js` — temp-dir prefix `'skills-gsd-test-'` → `'signal-test-'`
+- [ ] Repo URLs (`InsightRiot/dev-skills-gsd`) — **deferred, pending Brett decision** on whether to rename the GitHub repo. See OPEN-QUESTIONS.md. Changing URLs before the GitHub repo is renamed would break installs/clones.
+- [x] Grep confirmed: no remaining `skills-gsd` or `dev-skills-gsd` references outside repo URLs and `package-lock.json` (which regenerates on `npm install`).
 
 ### 2. Declare all plugin parts in the manifest
 

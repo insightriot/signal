@@ -9,7 +9,7 @@ describe('State Management', () => {
   let tempDir;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'skills-gsd-test-'));
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-test-'));
   });
 
   afterEach(async () => {

@@ -1,5 +1,5 @@
 {
-  "name": "skills-gsd",
+  "name": "signal",
   "owner": {
     "name": "InsightRiot"
   },
@@ -8,7 +8,7 @@
   },
   "plugins": [
     {
-      "name": "skills-gsd",
+      "name": "signal",
       "source": {
         "source": "github",
         "repo": "InsightRiot/dev-skills-gsd"
