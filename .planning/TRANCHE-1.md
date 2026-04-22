@@ -19,26 +19,27 @@
 - [ ] Repo URLs (`InsightRiot/dev-skills-gsd`) — **deferred, pending Brett decision** on whether to rename the GitHub repo. See OPEN-QUESTIONS.md. Changing URLs before the GitHub repo is renamed would break installs/clones.
 - [x] Grep confirmed: no remaining `skills-gsd` or `dev-skills-gsd` references outside repo URLs and `package-lock.json` (which regenerates on `npm install`).
 
-### 2. Declare all plugin parts in the manifest
+### 2. Declare all plugin parts in the manifest ✅ (no-op)
 
-Currently `plugin.json` only declares `commands`. Claude Code needs to know about the rest (or confirm it auto-discovers them).
-- [ ] Check: does Claude Code auto-load `agents/`, `skills/`, `hooks/`, `references/` from plugin root? (See `OPEN-QUESTIONS.md`.)
-- [ ] If auto-discovery: confirm working with `node tools/validate-plugin.js`.
-- [ ] If explicit paths needed: add them to `plugin.json`.
+**Resolved via claude-code-guide research (2026-04-22):** Claude Code auto-discovers `agents/`, `skills/` (with nested subdirectories and on-demand loading), and `hooks/hooks.json` from plugin root. No manifest changes needed. `references/` is not a framework convention — it's just files the commands read directly.
 
-### 3. Install dependencies & get tests green
+Source: https://code.claude.com/docs/en/plugins.md and https://code.claude.com/docs/en/plugins-reference.md
 
-- [ ] `npm install`
-- [ ] `npm test` — verify the 2 existing test files pass (`state.test.js`, `context-monitor.test.js`)
-- [ ] `node tools/validate-plugin.js` — verify validator still passes
-- [ ] Fix anything broken before moving on.
+- [x] Confirmed auto-discovery for agents, skills, hooks
+- [x] Confirmed `references/` is ad-hoc (commands read by path)
+- [x] `plugin.json` needs only `name`, `description`, `version` + optional metadata — all present
 
-### 4. Formalize v1 vs v2 scope in PROJECT.md
+### 3. Install dependencies & get tests green ✅
 
-Vision paragraph now references v1/v2 (from the attribution cleanup), but there's no explicit "Scope & Roadmap" section. Tighten this so it's unambiguous.
-- [ ] Add a short "Scope & Roadmap" section near the top of `PROJECT.md` explicitly stating: v1 scope, v2 scope, gating criteria (when does v2 work start).
-- [ ] Remove or tighten the existing "Note on broader scope" at the bottom of the Workflow section — it now reads as redundant.
-- [ ] Update `CLAUDE.md`'s "Forward-looking scope note" to reference the new section.
+- [x] `npm install` — 135 packages added, 0 vulnerabilities, `package-lock.json` regenerated with `"name": "signal"`.
+- [x] `npm test` — 19 tests passed (state.test.js: 11, context-monitor.test.js: 8).
+- [x] `node tools/validate-plugin.js` — passed.
+
+### 4. Formalize v1 vs v2 scope in PROJECT.md ✅
+
+- [x] Added "Scope & Roadmap" section between Vision and Problem Statement in `PROJECT.md`. Explicit v1 scope (6-phase), v2 scope (10-phase), and two gating criteria: v1 must ship end-to-end AND have real users.
+- [x] Collapsed the redundant "Note on broader scope" at the bottom of the Workflow section to a pointer.
+- [x] Updated `CLAUDE.md`'s "Forward-looking scope note" to point at the new PROJECT.md section.
 
 ### 5. Define the `PROFILE.md` schema
 

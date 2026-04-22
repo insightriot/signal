@@ -60,7 +60,7 @@ The REVIEW phase (between VERIFY and SHIP) is the key addition over GSD's origin
 
 **Tier-gating:** Every phase command's first action is to read `PROFILE.md`. If the current tier skips that phase, the command exits early. If `rigor_overrides` apply (e.g., `tdd_required: false` in SKETCH), the command respects them.
 
-**Forward-looking scope note:** `analysis/REPO-ANALYSIS.md` recommends eventually expanding the flow to 10 phases (adding IDEATE / VALIDATE / STRATEGIZE upstream and COMPOUND downstream). The current PROJECT.md spec's the 6-phase MVP; the 10-phase expansion is a follow-on once the core ships.
+**v1 vs v2 scope:** v1 is the 6-phase MVP speced in this `PROJECT.md`. v2 expands to 10 phases per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` (adds IDEATE / VALIDATE / STRATEGIZE upstream and COMPOUND downstream), and is gated on v1 shipping + having real users. See `PROJECT.md` → "Scope & Roadmap" for the full v1/v2 split and gating criteria.
 
 ## Planned Plugin Structure
 

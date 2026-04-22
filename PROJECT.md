@@ -13,6 +13,37 @@ The result: AI coding agents that are disciplined (don't skip specs, tests, secu
 
 Signal targets solo developers and small teams who want production-grade engineering output from AI agents without enterprise ceremony — and without spending 60 minutes planning a homepage.
 
+## Scope & Roadmap
+
+Signal ships in two versions. This PROJECT.md specifies v1. v2 is tracked separately and does not start until v1 is validated in real use.
+
+### v1 — 6-phase MVP (current scope)
+
+Phase 0 + six-phase workflow:
+
+`/sig:calibrate` → `/sig:discuss` → `/sig:plan` → `/sig:execute` → `/sig:verify` → `/sig:review` → `/sig:ship`
+
+Escape hatch: `/sig:escalate` (upgrades tier mid-flight).
+
+**What's inside:** direct ports from GSD (execution orchestration — wave-based parallel execution, 21+ specialized agents, file-based state, context monitoring) and Agent Skills (quality enforcement — 21 skills, anti-rationalization tables, phase gates). The new-to-Signal contributions are Phase 0 calibration (`PROFILE.md` tier routing) and the REVIEW phase as a first-class step.
+
+### v2 — 10-phase architecture (follow-on)
+
+Expands to the 10-phase flow specified in `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`:
+
+`/sig:calibrate` → `/sig:ideate` → `/sig:validate` → `/sig:strategize` → `/sig:discuss` (possibly renamed `/sig:spec`) → `/sig:plan` → `/sig:execute` → `/sig:verify` → `/sig:review` → `/sig:ship` → `/sig:compound`
+
+**What's added:** upstream PM phases (ideate / validate / strategize) from pm-skills + gstack + oh-my-claudecode; a post-ship Compound memory phase from compound-engineering + gstack; security audit upgrade from gstack; stronger TDD enforcement from superpowers; context-discipline hooks from planning-with-files.
+
+### Gating between v1 and v2
+
+v2 work does not start until both conditions are met:
+
+1. **v1 ships end-to-end.** All 9 commands working. Both FULL and SKETCH tier passes validated on real sample projects.
+2. **v1 has real users.** At least a few weeks of real usage, long enough for feedback to shape v2 priorities.
+
+v2 sub-tranches should be re-ordered based on observed v1 pain points, not the order listed in the rundown. See `.planning/TRANCHE-4.md` for the sub-tranche roadmap (directional, not prescriptive).
+
 ## Problem Statement
 
 AI coding agents have two failure modes that current frameworks solve independently:
@@ -158,7 +189,7 @@ The REVIEW phase (between VERIFY and SHIP) is the key architectural addition fro
 
 **Phase 0 (`/sig:calibrate`)** is the router that prevents over- and under-engineering. It asks 5 diagnostic questions (scope, stakes, novelty, reversibility, horizon) and writes `PROFILE.md`. Downstream commands read the profile and dial rigor up or down — SKETCH mode for throwaways skips verify/review entirely; FULL mode for production apps runs every phase.
 
-> **Note on broader scope:** The companion `analysis/REPO-ANALYSIS.md` document recommends expanding from 6 phases to 10 (adding IDEATE / VALIDATE / STRATEGIZE upstream and COMPOUND downstream). This PROJECT.md currently spec's the 6-phase MVP; the 10-phase expansion is tracked as a follow-on once the core flow ships.
+> **v1 vs v2 scope:** see the "Scope & Roadmap" section above.
 
 ---
 
