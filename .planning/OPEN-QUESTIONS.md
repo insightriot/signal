@@ -24,14 +24,16 @@ Manifest `name` fields are now `signal`, but repository URLs still point at `Ins
 
 ---
 
-## PROFILE.md schema specifics
+## Tier count: validate 4 tiers against real calibration
 
-- What exact field names go in `rigor_overrides`? Candidates: `tdd_required`, `security_audit`, `nyquist_tests`, `review_depth`, `context_rot_reread`, `plan_validation_dims` (all 8 vs subset). Need a close read of each phase command to know what knobs actually need overriding.
-- Is the tier enum `SKETCH | FEATURE | SPIKE | FULL` the right cut? Or do we need a 5th tier between SKETCH and FEATURE? Defer judgment until we try calibrating real projects.
-- Metadata: `calibrated_by` — what goes there? Session ID? Just a timestamp? Or skip entirely?
-- How do we record escalation history when `/sig:escalate` upgrades tier mid-flight? Append-only array in PROFILE.md, or separate file?
+Schema is locked at 4 tiers (SKETCH / FEATURE / SPIKE / FULL) per DECISIONS.md. The design note in `references/tier-definitions.md` explains why, but this is a judgment call that can only be validated by calibrating real projects.
 
-**Resolve by:** Tranche 1, Step 5 (when writing `references/profile-schema.md`).
+Watch for:
+- **Too-coarse signal:** if real projects keep landing between SKETCH and FEATURE (e.g., "this is more than SKETCH but I'm uncomfortable calling it FEATURE"), we may need a 5th tier.
+- **Redundant tiers:** if SPIKE and SKETCH feel interchangeable in practice, we may consolidate.
+- **Missing dimensions:** if Scope / Stakes / Novelty / Reversibility / Horizon don't capture some real project quality (e.g., team size, deadline pressure), the diagnostic questions may need to evolve.
+
+**Resolve by:** Tranche 3 (real-project calibration runs). Likely outcome: confirmed as-is, with minor override-key tweaks.
 
 ---
 

@@ -42,6 +42,26 @@ Append-only. When a decision is reversed, *add* a new entry noting the reversal 
 
 ---
 
+## 2026-04-22 — PROFILE.md schema locked (v1)
+
+**Decision:** PROFILE.md uses YAML frontmatter + markdown body format. Frontmatter contains five top-level fields: `tier`, `schema_version`, `calibration` (5 sub-fields), `phases_skipped` (array), `rigor_overrides` (10 sub-fields), `metadata` (3 sub-fields including `escalation_history`). Ten rigor override keys: `tdd_required`, `security_audit`, `performance_pass`, `simplification_pass`, `nyquist_enforcement`, `plan_validation_dims`, `research_parallelism`, `gate_strictness`, `context_rot_reread`, `review_depth`. Tiers: `SKETCH | FEATURE | SPIKE | FULL`.
+
+Full spec: `references/profile-schema.md`. Tier-to-defaults mapping: `references/tier-definitions.md`.
+
+**Rationale:**
+- YAML frontmatter + markdown body follows GSD/Agent Skills convention; machine-parseable and human-readable in one file.
+- All 10 override keys always written (not inherited by reference) so escalations and manual edits stay explicit.
+- Enums preferred over booleans where a three-way distinction exists (e.g., `security_audit: none | basic | full`).
+- `escalation_history` is an array in `metadata` so the decision trail survives across escalations.
+- Started with 4 tiers (not 3 or 5): 3 misses SPIKE's exploratory shape; 5 adds cognitive load without a clear third-axis. Revisit after real-project calibration (tracked in OPEN-QUESTIONS.md).
+
+**Implication:**
+- `/sig:calibrate` (Tranche 2) writes this schema literally.
+- Every downstream command reads it via a `readProfile()` helper (to be written in Tranche 2).
+- Schema version = 1. Bumps on any breaking change. Readers should fail closed on unknown versions.
+
+---
+
 ## 2026-04-22 — `.planning/` is always tracked in git, never ignored
 
 **Decision:** `.planning/` is committed to version control in this repo, and Signal must ensure it is also committed in any user project where Signal is used. `.planning/` was previously in this repo's `.gitignore`; that line has been removed.

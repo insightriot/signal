@@ -41,16 +41,12 @@ Source: https://code.claude.com/docs/en/plugins.md and https://code.claude.com/d
 - [x] Collapsed the redundant "Note on broader scope" at the bottom of the Workflow section to a pointer.
 - [x] Updated `CLAUDE.md`'s "Forward-looking scope note" to point at the new PROJECT.md section.
 
-### 5. Define the `PROFILE.md` schema
+### 5. Define the `PROFILE.md` schema ✅
 
-Every downstream command reads this. Nothing in Tranche 2 can start until it's specified.
-- [ ] Create `references/profile-schema.md` — YAML schema for PROFILE.md:
-  - Tier enum: `SKETCH | FEATURE | SPIKE | FULL`
-  - `phases_enabled` / `phases_skipped` (array of phase names)
-  - `rigor_overrides` (map with typed keys: `tdd_required`, `security_audit`, `nyquist_tests`, `review_depth`, others TBD — see OPEN-QUESTIONS.md)
-  - Metadata: `created_at`, `calibrated_by`, `escalation_history` (for `/sig:escalate`)
-- [ ] Create `references/tier-definitions.md` — what each tier means, what it skips, what rigor defaults apply, and the Stakes × Novelty 2×2 mapping logic.
-- [ ] Write at least 2 example PROFILE.md files — one SKETCH, one FULL — to sanity-check the schema before committing.
+- [x] Created `references/profile-schema.md` — full YAML frontmatter + markdown body spec. 10 rigor_overrides keys. 5 calibration sub-fields. Validation rules. `escalation_history` in metadata. Design notes explaining why.
+- [x] Created `references/tier-definitions.md` — 4 tiers (SKETCH / FEATURE / SPIKE / FULL), Stakes × Novelty 2×2 + escalators/gates for FULL/SKETCH/SPIKE, full tier-to-defaults table, escalation path guidance.
+- [x] Schema validated against 2 inline example profiles (SKETCH + FULL) in `profile-schema.md`.
+- [x] Schema locked in `DECISIONS.md`. Tier-count open question (revisit after real-project calibration) tracked in `OPEN-QUESTIONS.md`.
 
 ### 6. Commit the pre-Tranche + Tranche 1 work
 
