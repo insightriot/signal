@@ -138,6 +138,20 @@ If escalating *up* in rigor (SKETCH → FEATURE, FEATURE → FULL, etc.), previo
 
 `/sig:escalate` surfaces these warnings when it writes the new profile.
 
+### Recoverable vs. permanent backfills
+
+Not every backfill is fully recoverable. Two categories that matter for understanding the real cost of under-tiering:
+
+**Recoverable backfills** — the gap closes by running additional work after escalation:
+- **REVIEW → FULL:** re-run REVIEW with the deeper `security-and-hardening` skill, simplification pass, perf pass. Real cleanup; the gap closes.
+- **SKETCH → any:** add tests for already-shipped behavior. Tests now exist; behavior is verified going forward.
+- **SPIKE → FEATURE/FULL:** refactor exploratory code into production shape. Code becomes production-grade.
+
+**Permanent gaps** — the gap is structurally non-recoverable; only approximations exist:
+- **Nyquist=strict on already-shipped code (FEATURE → FULL escalation after VERIFY done).** Strict Nyquist requires that every test was seen to fail *before* passing — proof that the test catches the bug. Once code has shipped, the bug is fixed and the original fail event is gone. Approximations (mutation testing, developer attestation) give partial confidence but never equal strict Nyquist on those commits. **Forward work can fully comply; pre-escalation commits never will.**
+
+Permanent gaps should be documented in PROFILE.md body as known limits. They're also the strongest argument for **calibrating accurately up front**: under-tiering creates real, irrecoverable cost, not just deferrable work — which is precisely what `/sig:calibrate`'s 5 diagnostic questions exist to prevent.
+
 ### Escalation down
 
 Escalating *down* (FULL → FEATURE) is rare but valid — e.g., a project that was originally scoped as production but turned out to be an internal tool with no PII. Downward escalation doesn't back-fill anything; it just relaxes rigor for future phases.

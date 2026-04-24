@@ -19,15 +19,26 @@ See `TRANCHE-2.md` for the task list.
 - **Tranche 1, Step 5 — PROFILE.md schema + tier definitions** (2026-04-22): wrote `references/profile-schema.md` and `references/tier-definitions.md`. Schema locked in DECISIONS.md. Committed (`0c5ead6`).
 - **Tranche 2, Step 1 — `/sig:calibrate` complete** (2026-04-22 → 2026-04-24): wrote `.claude/commands/sig/calibrate.md` — pre-flight detects 3 scenarios (new project / first calibration / existing PROFILE.md with 4 sub-paths), 5 diagnostic questions with strict enum parsing, tier derivation (FULL / SPIKE / SKETCH / FEATURE), PROFILE.md writer with all 10 rigor_overrides inlined per tier, up/down override handling (downward = warn, upward = brief-confirm with cost implications), `escalation_history` preserved on `--re-calibrate`, anti-rationalization table, gate checklist. Auto-discovered by Claude Code. 19/19 tests pass; validator green. Self-test traced against all 5 scenarios in TRANCHE-2 Step 1.
 
-  Surrounding design decisions logged this round: `FUTURE-IDEAS.md` (new — calibration granularity options A/B/C with C as the lean; multi-feature project lifecycle), `TRANCHE-3.md` (promoted `/sig:status` + `/sig:resume` to committed Task 1), `OPEN-QUESTIONS.md` (logged Socratic question-pattern codification, resolve before T2 Step 3).
+  Surrounding design decisions logged: `FUTURE-IDEAS.md` (new — calibration granularity options A/B/C with C as the lean; multi-feature project lifecycle), `TRANCHE-3.md` (promoted `/sig:status` + `/sig:resume` to committed Task 1), `OPEN-QUESTIONS.md` (logged Socratic question-pattern codification, resolve before T2 Step 3).
+
+- **Tranche 2, Step 2 — `/sig:escalate` complete** (2026-04-24): wrote `.claude/commands/sig/escalate.md` — pre-flight requires existing PROFILE.md, re-asks 5 questions with prior answers as defaults, derives new tier with same rules, three-case comparison (same/escalation-up/de-escalation), backfill warnings table (5 rows including Nyquist permanent-gap row), appends to `escalation_history` (preserves `created_at` and `created_by`), markdown body section per escalation. **All 9 sig commands now exist on disk.** Tests 19/19, validator green, auto-discovered.
+
+  Architectural insight surfaced: **strict Nyquist is a one-way ratchet — only forward work can achieve it; pre-escalation commits hold permanent quality gaps that no command can recover.** Documented in `references/tier-definitions.md` (new "Recoverable vs. permanent backfills" subsection) and surfaced in `escalate.md`'s Nyquist backfill warning. Reinforces why `/sig:calibrate`'s 5 questions matter — under-tiering creates irrecoverable cost, not just deferrable work.
 
 ## Active
 
-**Next: Tranche 2, Step 2 — build `/sig:escalate`** (escape hatch that re-runs calibration carrying current context and appends to `escalation_history`). Same structural conventions as `calibrate.md`. Smaller scope since the heavy lifting (schema, derivation, override handling) is already done.
+**Next: Tranche 2, Step 4 — state.js + readProfile/isPhaseEnabled/applyRigorOverrides helpers.** Pure tooling work, no blockers. Step 3 (the "read PROFILE.md first" preamble pass on the 6 phase commands) is sequenced AFTER Step 4 because Step 3 is gated on resolving the Socratic question-pattern OPEN-QUESTION first.
+
+Step 4 deliverables (from `TRANCHE-2.md` Step 4):
+- Add `CALIBRATE` to the `PHASES` array in `tools/lib/state.js`
+- Add `readProfile(baseDir)` helper in `tools/lib/` that parses PROFILE.md into a typed object
+- Add `isPhaseEnabled(profile, phaseName)` helper
+- Add `applyRigorOverrides(config, profile)` helper that merges profile overrides into the active config
+- Add tests for each helper (vitest, alongside existing `state.test.js`)
 
 ## Blockers
 
-None — but `Tranche 2 Step 3` (the "read PROFILE.md first" preamble pass on the 6 phase commands) is gated on resolving the Socratic-pattern OPEN-QUESTIONS entry first.
+None for Step 4. Step 3 blocked on resolving the Socratic-pattern OPEN-QUESTION (top entry in `OPEN-QUESTIONS.md`) — needs `references/question-patterns.md` written + decision on the 3+other convention before the preamble pass touches the 6 phase commands.
 
 ## Last Updated
 

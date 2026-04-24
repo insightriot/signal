@@ -33,18 +33,19 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-**Tranche 1 complete.** Foundation is coherent and ready for Tranche 2.
+**Tranche 2 underway. Steps 1 + 2 complete; all 9 slash commands now exist on disk.**
 
-- 7 of 9 slash commands scaffolded (`new-project`, `discuss`, `plan`, `execute`, `verify`, `review`, `ship`). **Missing: `calibrate` and `escalate`** — both built in Tranche 2.
-- 21 skill files, 17 agent files, 9 reference docs (including the new `profile-schema.md` + `tier-definitions.md`), 3 tool libs.
-- Rebrand complete: manifest `name` fields, GitHub repo (`InsightRiot/signal`), local git remote, and all manifest URL fields.
-- PROFILE.md schema locked (`references/profile-schema.md`) — 10 rigor overrides, 4 tiers, frontmatter + body format, escalation history. See `DECISIONS.md`.
-- Tier-to-defaults mapping locked (`references/tier-definitions.md`) — SKETCH / FEATURE / SPIKE / FULL with full Stakes × Novelty 2×2 + FULL escalators.
-- `npm install` done, 19 tests passing, `validate-plugin.js` green.
+- 9 of 9 slash commands scaffolded. `calibrate` and `escalate` are functionally complete (auto-discovered, tested, validator green). The other 6 (discuss / plan / execute / verify / review / ship) exist but lack the "read PROFILE.md first" preamble — that's Step 3, blocked on the Socratic-pattern OPEN-QUESTION.
+- 21 skill files, 17 agent files, 10 reference docs (added "Recoverable vs. permanent backfills" subsection to `tier-definitions.md`), 3 tool libs.
+- PROFILE.md schema locked. Tier-to-defaults mapping locked. Override handling locked (up = brief confirm with cost implications; down = warn with the specific escalator that fired). Escalation history preservation locked (`--re-calibrate` carries history forward; `/sig:escalate` appends).
+- Architectural insight: **strict Nyquist is a one-way ratchet** — only forward work can comply; pre-escalation commits carry permanent gaps. Surfaced in `tier-definitions.md` § "Recoverable vs. permanent backfills" and in `escalate.md`'s backfill warning table.
+- 19 tests passing. `validate-plugin.js` green.
 
 ## Active work
 
-**Tranche 2, Step 1 — build `/sig:calibrate`.** See `TRANCHE-2.md` Step 1 for the full spec. This is the command the entire Phase 0 architecture pivots on; the schema it writes is already locked, so it's a bounded task.
+**Tranche 2, Step 4 — `state.js` + helpers (`readProfile`, `isPhaseEnabled`, `applyRigorOverrides`).** Pure tooling work; full deliverable list in `TRANCHE-2.md` Step 4 and `STATE.md` Active section. No blockers.
+
+Steps 1 and 2 (`/sig:calibrate` and `/sig:escalate`) are complete. Step 3 (preamble pass on 6 phase commands) is **deferred until the Socratic question-pattern OPEN-QUESTION resolves** — see top entry of `OPEN-QUESTIONS.md`.
 
 ## Key files
 
