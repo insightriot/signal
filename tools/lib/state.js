@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 const PLANNING_DIR = '.planning';
 
-const PHASES = ['DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'SHIP'];
+const PHASES = ['CALIBRATE', 'DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'SHIP'];
 
 /**
  * Initialize the .planning/ directory for a new project.

@@ -4,7 +4,7 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 2 — MVP Functional** (Step 1 of 8 complete)
+**Tranche 2 — MVP Functional** (Steps 1, 2, 4 of 8 complete)
 
 See `TRANCHE-2.md` for the task list.
 
@@ -25,20 +25,17 @@ See `TRANCHE-2.md` for the task list.
 
   Architectural insight surfaced: **strict Nyquist is a one-way ratchet — only forward work can achieve it; pre-escalation commits hold permanent quality gaps that no command can recover.** Documented in `references/tier-definitions.md` (new "Recoverable vs. permanent backfills" subsection) and surfaced in `escalate.md`'s Nyquist backfill warning. Reinforces why `/sig:calibrate`'s 5 questions matter — under-tiering creates irrecoverable cost, not just deferrable work.
 
+- **Tranche 2, Step 4 — state.js + profile helpers** (2026-04-24): added `CALIBRATE` to `PHASES` in `tools/lib/state.js`. New `tools/lib/profile.js` exports `readProfile(baseDir)` (parses + strict-validates `.planning/PROFILE.md` frontmatter against the schema in `references/profile-schema.md`; throws `ProfileSchemaError` on any violation), `isPhaseEnabled(profile, phaseName)` (CALIBRATE always true, otherwise checks `phases_skipped`), and `applyRigorOverrides(config, profile)` (returns a new merged config with `rigor_overrides` attached + obvious legacy-key correspondences for `workflow.*`, `gates.*`, `parallelization.max_concurrent_agents`; non-mutating). Added `yaml@^2.8.3` as a runtime dependency (real parser since `escalation_history` carries nested arrays of objects with quoted strings). 28 new tests in `tests/profile.test.js`. Total 47/47 passing, validator green.
+
 ## Active
 
-**Next: Tranche 2, Step 4 — state.js + readProfile/isPhaseEnabled/applyRigorOverrides helpers.** Pure tooling work, no blockers. Step 3 (the "read PROFILE.md first" preamble pass on the 6 phase commands) is sequenced AFTER Step 4 because Step 3 is gated on resolving the Socratic question-pattern OPEN-QUESTION first.
+**Next: Tranche 2, Step 5 — naming/bindings drift + validator updates.** Includes adding `calibrate.md` and `escalate.md` to `validate-plugin.js` REQUIRED_COMMANDS, adding `references/profile-schema.md` and `references/tier-definitions.md` to REQUIRED_FILES, the orphan-skill audit, and `testing-patterns.md` vs. `testing-checklist.md` reconciliation.
 
-Step 4 deliverables (from `TRANCHE-2.md` Step 4):
-- Add `CALIBRATE` to the `PHASES` array in `tools/lib/state.js`
-- Add `readProfile(baseDir)` helper in `tools/lib/` that parses PROFILE.md into a typed object
-- Add `isPhaseEnabled(profile, phaseName)` helper
-- Add `applyRigorOverrides(config, profile)` helper that merges profile overrides into the active config
-- Add tests for each helper (vitest, alongside existing `state.test.js`)
+Step 3 (the "read PROFILE.md first" preamble pass on the 6 phase commands) remains blocked on the Socratic-pattern OPEN-QUESTION. Now that `readProfile` / `isPhaseEnabled` / `applyRigorOverrides` exist, Step 3 has its tools — only the question-pattern decision is still pending.
 
 ## Blockers
 
-None for Step 4. Step 3 blocked on resolving the Socratic-pattern OPEN-QUESTION (top entry in `OPEN-QUESTIONS.md`) — needs `references/question-patterns.md` written + decision on the 3+other convention before the preamble pass touches the 6 phase commands.
+None for Step 5. Step 3 blocked on resolving the Socratic-pattern OPEN-QUESTION (top entry in `OPEN-QUESTIONS.md`) — needs `references/question-patterns.md` written + decision on the 3+other convention before the preamble pass touches the 6 phase commands.
 
 ## Last Updated
 

@@ -33,19 +33,20 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-**Tranche 2 underway. Steps 1 + 2 complete; all 9 slash commands now exist on disk.**
+**Tranche 2 underway. Steps 1, 2, 4 complete; all 9 slash commands exist on disk; profile-helper toolkit shipped.**
 
 - 9 of 9 slash commands scaffolded. `calibrate` and `escalate` are functionally complete (auto-discovered, tested, validator green). The other 6 (discuss / plan / execute / verify / review / ship) exist but lack the "read PROFILE.md first" preamble — that's Step 3, blocked on the Socratic-pattern OPEN-QUESTION.
-- 21 skill files, 17 agent files, 10 reference docs (added "Recoverable vs. permanent backfills" subsection to `tier-definitions.md`), 3 tool libs.
+- 21 skill files, 17 agent files, 10 reference docs, **4 tool libs** (added `tools/lib/profile.js`).
 - PROFILE.md schema locked. Tier-to-defaults mapping locked. Override handling locked (up = brief confirm with cost implications; down = warn with the specific escalator that fired). Escalation history preservation locked (`--re-calibrate` carries history forward; `/sig:escalate` appends).
+- **Profile helpers shipped (Step 4).** `readProfile` strictly validates against the schema and throws `ProfileSchemaError` on any violation. `isPhaseEnabled` treats CALIBRATE as never-skipped. `applyRigorOverrides` returns a new merged config (non-mutating) with `rigor_overrides` attached + legacy-key correspondences for `workflow`/`gates`/`parallelization`. `CALIBRATE` added to `PHASES` array in `state.js`. `yaml@^2.8.3` added as runtime dep.
 - Architectural insight: **strict Nyquist is a one-way ratchet** — only forward work can comply; pre-escalation commits carry permanent gaps. Surfaced in `tier-definitions.md` § "Recoverable vs. permanent backfills" and in `escalate.md`'s backfill warning table.
-- 19 tests passing. `validate-plugin.js` green.
+- **47 tests passing** (19 prior + 28 new in `tests/profile.test.js`). `validate-plugin.js` green.
 
 ## Active work
 
-**Tranche 2, Step 4 — `state.js` + helpers (`readProfile`, `isPhaseEnabled`, `applyRigorOverrides`).** Pure tooling work; full deliverable list in `TRANCHE-2.md` Step 4 and `STATE.md` Active section. No blockers.
+**Tranche 2, Step 5 — naming drift + `validate-plugin.js` REQUIRED_COMMANDS / REQUIRED_FILES update.** Add `calibrate.md` + `escalate.md` to REQUIRED_COMMANDS; add `references/profile-schema.md` + `references/tier-definitions.md` to REQUIRED_FILES; orphan-skill audit; reconcile `testing-patterns.md` vs. `testing-checklist.md` naming. No blockers.
 
-Steps 1 and 2 (`/sig:calibrate` and `/sig:escalate`) are complete. Step 3 (preamble pass on 6 phase commands) is **deferred until the Socratic question-pattern OPEN-QUESTION resolves** — see top entry of `OPEN-QUESTIONS.md`.
+Steps 1, 2, 4 complete. Step 3 (preamble pass on 6 phase commands) is **deferred until the Socratic question-pattern OPEN-QUESTION resolves** — see top entry of `OPEN-QUESTIONS.md`. Step 4's helpers give Step 3 the tooling it needs once unblocked.
 
 ## Key files
 
@@ -67,4 +68,4 @@ Steps 1 and 2 (`/sig:calibrate` and `/sig:escalate`) are complete. Step 3 (pream
 
 ---
 
-*Last updated: 2026-04-22*
+*Last updated: 2026-04-24*
