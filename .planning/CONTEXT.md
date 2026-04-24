@@ -53,7 +53,8 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 - `CLAUDE.md` — project instructions
 - `.planning/TRANCHE-{1,2,3,4}.md` — scoped work plans
 - `.planning/DECISIONS.md` — append-only architecture decisions
-- `.planning/OPEN-QUESTIONS.md` — unresolved design questions
+- `.planning/OPEN-QUESTIONS.md` — unresolved design questions (v1-scoped)
+- `.planning/FUTURE-IDEAS.md` — post-v1 architectural evolutions of Signal's own mechanisms (distinct from TRANCHE-4's rundown-v2 integrations)
 - `.planning/STATE.md` — what tranche we're in, active, blocked
 
 ## How to start a session

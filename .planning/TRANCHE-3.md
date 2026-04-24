@@ -14,19 +14,27 @@
 
 ## Tasks
 
-### 1. Dogfood — build a small feature in Signal's own repo *using* Signal
+### 1. Build `/sig:status` and `/sig:resume` — critical project-resumption UX
 
-Pick something real and small. Candidates (see `OPEN-QUESTIONS.md`):
-- Add a `/sig:help` command
-- Add a `/sig:status` command that summarizes `.planning/` state
-- Write a missing reference checklist
-- Implement the `readProfile()` helper if deferred from Tranche 2
+These are load-bearing for the actual user experience. Users will jump back into Signal projects hundreds of times across the lifetime of any serious project; they need a reliable way to get the model up to speed without re-reading five `.planning/` files themselves. Without these, every resumption is a manual context-rebuilding exercise — which kills the whole value prop of `.planning/` as persistent project memory.
 
-Process:
-- [ ] Choose the target feature (lock it in `DECISIONS.md`)
-- [ ] Transition `.planning/` from hand-rolled to Signal-managed (or run both side-by-side for the first pass)
-- [ ] Run `/sig:calibrate` (choose FULL) → full 6-phase flow
-- [ ] Take notes on every friction point — these go in OPEN-QUESTIONS.md and drive improvements
+**`/sig:status`** — read-only project inspection. Reports:
+- Current tier + (once concerns ship) concerns weighting
+- Current phase, completed phases, blockers (from STATE.md)
+- Last calibration date, any escalations (from PROFILE.md metadata)
+- Pending open questions (from OPEN-QUESTIONS.md if present)
+- One-line recommendation for next action ("You're mid-PLAN. Run `/sig:plan` to continue, or `/sig:resume` for a full re-orientation.")
+
+**`/sig:resume`** — same inspection, plus **actively loads the context needed to continue**. Reads PROJECT.md, PROFILE.md, STATE.md, and the current phase's artifact (e.g., CONTEXT.md if in DISCUSS, PLAN.md if in EXECUTE). Prints a concise re-orientation that includes decisions locked, work done, and work remaining. Ends with: *"Ready to continue with /sig:{current_phase}?"*
+
+**Dogfood:** build one of these using Signal itself (choose the smaller — probably `/sig:status`). The other is hand-rolled to avoid a chicken-and-egg loop (you can't use resumption to build the resumption tool).
+
+- [ ] Choose which to build via Signal, which to hand-roll (lock in DECISIONS.md)
+- [ ] Run `/sig:calibrate` (choose FEATURE tier) → full 6-phase flow on the dogfood target
+- [ ] Take notes on every friction point — these go in OPEN-QUESTIONS.md and drive Tranche 3+ improvements
+- [ ] Ship both commands before moving on; they unblock every subsequent dogfood pass
+
+**Design note:** `/sig:resume` is the more complex of the two — it has to know how to "re-orient" for each phase, which means it needs per-phase resumption logic. That's a small state machine. `/sig:status` is the pure-read version and should land first.
 
 ### 2. FULL-tier pass on a throwaway sample project
 
