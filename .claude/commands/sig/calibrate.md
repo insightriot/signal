@@ -126,11 +126,13 @@ Present the derived tier, the reasoning (which rule fired, citing the triggering
 | `simplification_pass` | `false` | `true` | `false` | `true` |
 | `nyquist_enforcement` | `off` | `basic` | `off` | `strict` |
 | `plan_validation_dims` | `none` | `core` | `none` | `all` |
-| `research_parallelism` | `0` | `2` | `2` | `4` |
+| `research_parallelism` | `0` | `2` | `2` | `4` |[^rp]
 | `gate_strictness` | `off` | `light` | `light` | `strict` |
 | `context_rot_reread` | `false` | `true` | `false` | `true` |
 | `review_depth` | `none` | `quality-only` | `none` | `full` |
 | `phases_skipped` | `[REVIEW]` | `[]` | `[REVIEW, SHIP]` | `[]` |
+
+[^rp]: `research_parallelism: 4` (FULL) assumes the domain has enough surface that 4 distinct angles each return non-redundant signal. For well-trodden domains (e.g., URL shorteners, CRUD APIs, common framework patterns), the 4 agents tend to overlap; consider downward-overriding to 2 in the override step below. The token cost of 4 vs 2 agents is ~30K tokens, which adds up across phases.
 
 Ask: **"Derived tier is {TIER}. Accept, or override?"**
 
@@ -200,6 +202,12 @@ metadata:
 - All 10 `rigor_overrides` keys present with correct types.
 - `phases_skipped` is a YAML array using the valid phase names (`DISCUSS`, `PLAN`, `EXECUTE`, `VERIFY`, `REVIEW`, `SHIP`).
 - `created_at` is ISO-8601 UTC.
+
+### 5b. Initialize `.planning/STATE.md` (if absent)
+
+After PROFILE.md is written, ensure STATE.md exists with `Current Phase: DISCUSS`. `/sig:new-project` initializes STATE.md to `CALIBRATE`; calibrate then transitions it. **If calibrate runs standalone (no prior `/sig:new-project`), STATE.md may be missing** — and downstream phases (especially `transitionPhase`) will fail without it.
+
+Programmatic equivalent: `await initState(baseDir, 'DISCUSS')` from `tools/lib/state.js`. If STATE.md already exists, leave it alone (idempotent — `initState` overwrites, but that's fine on a clean post-calibrate path because the state should be `DISCUSS` anyway).
 
 ### 6. Print next-step message
 

@@ -14,7 +14,7 @@ Read `.planning/PROFILE.md` before any other workflow step.
 
 - **If `PROFILE.md` is missing:** halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:review`."* Do not proceed.
 - **If `REVIEW` is in `phases_skipped`:** exit with *"This tier ({tier}) skips REVIEW. Run `/sig:ship` next, or `/sig:escalate` if scope has grown and REVIEW should run."* Do not proceed. (SKETCH and SPIKE tiers skip REVIEW by default.)
-- **Apply `rigor_overrides`** from PROFILE.md — REVIEW has the most overrides of any phase:
+- **Apply `rigor_overrides`** from PROFILE.md — REVIEW has the most overrides of any phase. **Precedence rule: `review_depth` is the master switch.** When `review_depth: none`, REVIEW is in `phases_skipped` and the preamble exits above. When `review_depth: quality-only`, only Step 1 runs — Steps 2/3/4 are skipped regardless of what `security_audit` / `performance_pass` / `simplification_pass` say. Those three flags **only matter when `review_depth: full`**. (FEATURE tier sets `review_depth: quality-only` AND `security_audit: basic` etc.; the `quality-only` master switch wins, the others are inert at that tier.)
 
 | Override | Effect on this phase |
 |---|---|
@@ -104,8 +104,17 @@ Generate `.planning/{phase}-REVIEW.md`:
 
 ## Verdict
 - [ ] PASS — ready for SHIP
+- [ ] PASS-WITH-FIXES — Important issues fixed in-phase; ready for SHIP
 - [ ] FAIL — issues must be addressed (return to EXECUTE)
 ```
+
+**PASS-WITH-FIXES guidance.** Use this verdict when REVIEW found Important issues but the fix is small enough to land in REVIEW itself rather than ceremonially looping back to EXECUTE. Rule of thumb: total change ≤ 50 LOC, all tests still pass, no design impact. Document each fix in the report (path, summary, why fix-in-phase was chosen). Fixes that touch architecture, ripple beyond a single file, or require new tests should FAIL and loop back to EXECUTE — that's what the loop is for.
+
+| Verdict | When |
+|---|---|
+| PASS | 0 Critical, 0 Important. Suggestions optional. |
+| PASS-WITH-FIXES | Important issues found AND total fix < 50 LOC AND tests still green AND no architectural impact. |
+| FAIL | Any Critical, OR Important fix > 50 LOC, OR tests can't stay green without re-planning. |
 
 ## Phase Gate
 

@@ -214,3 +214,35 @@ This matches GSD's pattern (where multi-phase project work was first-class) and 
 - The OPEN-QUESTIONS entry on `{phase}-` naming can be marked resolved once future runs confirm the `1-` convention sticks.
 
 ---
+
+## 2026-04-26 — T3 Task 5 triage: workflow refinements from dogfood evidence
+
+**Decision:** Five small workflow refinements applied to command markdown + references, all driven by FULL-tier and SKETCH-tier dogfood findings. None changes the 6-phase flow or the PROFILE.md schema; each codifies what the dogfood actually did or surfaces a subtle precedence rule that wasn't explicit before.
+
+**The five refinements:**
+
+1. **REVIEW gains a `PASS-WITH-FIXES` verdict** (in addition to PASS / FAIL). For Important issues whose total fix is < 50 LOC and tests stay green, the fix lands in REVIEW itself rather than ceremonially looping back to EXECUTE. FAIL is reserved for Critical issues, > 50 LOC fixes, or fixes that need re-planning. **Source:** T3 Task 2 dogfood — the URL shortener's REVIEW found 2 small Important issues (Content-Length pre-check, unhandled-error logging) that were silly to wrap in a full EXECUTE phase.
+
+2. **Strict Nyquist accepts two evidence forms** (either is sufficient): per-test red→green git evidence, OR explicit attestation in `{phase}-VERIFICATION.md` that the test was written before the implementation. The atomic-commit-per-slice pattern from EXECUTE naturally supports the attestation form. **Source:** T3 Task 2 dogfood — TDD discipline was real but not preserved as per-test red→green commits.
+
+3. **PLAN gains an Environment-check tail step (Step 6).** Confirms the dev runtime matches research's assumed runtime *before* EXECUTE rather than at first `npm install`. Cheap; surfaces drift at the right phase boundary. **Source:** T3 Task 2 dogfood — research assumed `better-sqlite3@11`/Node 22; dev machine on Node 25 needed `@12+`.
+
+4. **DISCUSS gains a tier-aware NFR prompt** before generating REQUIREMENTS.md. FULL prompts for healthcheck / graceful shutdown / structured logging / security headers / rate limiting; FEATURE prompts a lighter set; SPIKE/SKETCH skip. Catches operational hygiene that less-experienced users would miss. **Source:** T3 Task 2 dogfood — F6 (`/healthz`), N1d, N3a/b/c added because Claude is experienced; a real user might not surface them.
+
+5. **SKETCH 8-artifact floor codified** in `references/tier-definitions.md`. SKETCH still produces 8 `.planning/` files; that's deliberate (the project's memory is load-bearing even at the lowest tier), not a defect. No TRIVIAL tier in v1. **Source:** T3 Task 3 dogfood — the CSV-to-JSON one-shot demonstrated the floor; recommendation is to accept it (the contrast vs FEATURE/FULL is already 10–24x, pushing lower trades documentation value for marginal savings).
+
+**Plus three minor clarifications** (not architectural — listed for completeness):
+- `review.md` precedence note: `review_depth` is the master switch over `security_audit` / `performance_pass` / `simplification_pass`.
+- `calibrate.md` rigor table footnote: `research_parallelism: 4` (FULL) is calibrated for novel domains; for known domains, downward-overriding to 2 saves ~30K tokens with no quality loss.
+- `execute.md`: `1-PROGRESS.md` is implicit-optional for single-task plans.
+
+**Plus implementation-level fixes** (`tools/lib/state.js`):
+- `initState` default phase changed from `DISCUSS` to `CALIBRATE` (matches `/sig:new-project`'s expected sequence) and now accepts an explicit `initialPhase` parameter.
+- `transitionPhase` dedupes `completedPhases` by phase name (recovery scenarios were producing duplicates).
+- Test count: 93 → 96.
+
+**Rationale.** Triage criterion: each fix had to be small, doc-or-config-only, and traced to a concrete dogfood observation. Larger architectural changes (slash-command testing harness, TRIVIAL tier, domain-novelty-aware research_parallelism) are deferred — they're worth doing only with more user signal than two dogfood passes provide.
+
+**Implication.** OPEN-QUESTIONS.md goes from 20 active items to 2: tier-count validation (waits for real-user data) and slash-command testing harness (TRANCHE-4 candidate). Tranche 3 is now exit-criteria-clean for v1 ship-readiness.
+
+---

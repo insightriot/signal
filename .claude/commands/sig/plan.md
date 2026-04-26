@@ -88,6 +88,21 @@ For each task, map the acceptance criteria to specific test types:
 
 Write to `.planning/{phase}-VALIDATION.md`.
 
+### 6. Environment check (final gate before EXECUTE)
+
+PLAN's research happens against assumed runtimes (e.g., "Node 22 + better-sqlite3 v11 prebuilts"). EXECUTE happens against the actual dev machine. Drift between the two — different Node major, missing prebuilt binary, OS-specific compiler toolchain — is a common, expected friction that's cheaper to surface here than at first `npm install`.
+
+For each runtime / native dep / external service identified during research:
+
+- [ ] Note the assumed runtime version in `{phase}-PLAN.md` (e.g., "Node 22+ assumed; tested on Node 22.x").
+- [ ] If the project has a package manifest (`package.json`, `pyproject.toml`, `Cargo.toml`, etc.), do a dry-run of the install (`npm install --dry-run`, `cargo check`, etc.) to confirm dependency resolution works on the dev runtime.
+- [ ] If a native module is involved, confirm a prebuilt binary exists for the dev runtime — or budget time for source-build dependencies (Xcode CLT, build-essential, etc.) in EXECUTE Slice 1.
+- [ ] If research named specific package versions, confirm they are still on the registry and not yanked.
+
+Document any drift discovered (e.g., "research assumed `better-sqlite3@11`; dev machine on Node 25 needs `@12+`") in `{phase}-RESEARCH.md` as an addendum, then either update the plan or budget Slice 1 to handle the version bump.
+
+This step is intentionally lightweight at FEATURE/SKETCH (`research_parallelism: 0–2`); it's primarily a guard against silent assumption drift at FULL where 4-agent research can produce confident-but-stale environment claims.
+
 ## Phase Gate
 
 ### Anti-Rationalization Check

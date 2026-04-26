@@ -106,6 +106,17 @@ If the discussion surface enough detail, generate `.planning/REQUIREMENTS.md` wi
 - Non-functional requirements (performance, security, accessibility)
 - Acceptance criteria for each requirement
 
+**Tier-aware NFR prompt.** Before finalizing REQUIREMENTS.md, check what the tier expects users to think about — production-shaped projects often need NFRs that less-experienced users would miss:
+
+| Tier | NFR prompt — surface and confirm or explicitly defer |
+|---|---|
+| FULL | Ask: "Have we covered — health/liveness probe, graceful shutdown signal handling, structured request logging, security headers (CSP/HSTS/X-Content-Type-Options), and rate limiting if exposed publicly?" Each item: in-scope, deferred-with-rationale, or N/A. |
+| FEATURE | Ask: "Have we covered — error handling at boundaries, log lines for failures, basic input validation?" |
+| SPIKE | Skip — exploratory work doesn't need ops hygiene. |
+| SKETCH | Skip — one-shot work. |
+
+For FULL specifically, REQUIREMENTS.md is effectively mandatory (strict Nyquist in PLAN needs acceptance criteria to map tests against). For SKETCH, REQUIREMENTS.md is usually unnecessary — PROJECT.md "Done when" carries the same weight.
+
 ## Phase Gate
 
 Before transitioning to PLAN, verify:

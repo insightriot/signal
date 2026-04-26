@@ -22,18 +22,28 @@ describe('State Management', () => {
       expect(existsSync(planningDir)).toBe(true);
     });
 
-    it('creates STATE.md with DISCUSS as initial phase', async () => {
+    it('creates STATE.md with CALIBRATE as default initial phase (matches /sig:new-project)', async () => {
       await initState(tempDir);
       const state = await readState(tempDir);
-      expect(state.phase).toBe('DISCUSS');
+      expect(state.phase).toBe('CALIBRATE');
       expect(state.completedPhases).toEqual([]);
+    });
+
+    it('accepts an explicit initial phase (e.g., DISCUSS for post-calibrate paths)', async () => {
+      await initState(tempDir, 'DISCUSS');
+      const state = await readState(tempDir);
+      expect(state.phase).toBe('DISCUSS');
+    });
+
+    it('rejects invalid initial phase names', async () => {
+      await expect(initState(tempDir, 'NOPE')).rejects.toThrow('Invalid initial phase');
     });
 
     it('is idempotent — does not error on existing directory', async () => {
       await initState(tempDir);
       await initState(tempDir); // should not throw
       const state = await readState(tempDir);
-      expect(state.phase).toBe('DISCUSS');
+      expect(state.phase).toBe('CALIBRATE');
     });
   });
 
@@ -46,7 +56,7 @@ describe('State Management', () => {
     it('parses phase and completed phases correctly', async () => {
       await initState(tempDir);
       const state = await readState(tempDir);
-      expect(state.phase).toBe('DISCUSS');
+      expect(state.phase).toBe('CALIBRATE');
       expect(state.completedPhases).toEqual([]);
       expect(state.lastUpdated).toBeTruthy();
     });
@@ -54,7 +64,7 @@ describe('State Management', () => {
 
   describe('transitionPhase', () => {
     it('transitions from DISCUSS to PLAN', async () => {
-      await initState(tempDir);
+      await initState(tempDir, 'DISCUSS');
       await transitionPhase(tempDir, 'PLAN');
       const state = await readState(tempDir);
       expect(state.phase).toBe('PLAN');
@@ -63,12 +73,24 @@ describe('State Management', () => {
     });
 
     it('tracks multiple completed phases', async () => {
-      await initState(tempDir);
+      await initState(tempDir, 'DISCUSS');
       await transitionPhase(tempDir, 'PLAN');
       await transitionPhase(tempDir, 'EXECUTE');
       const state = await readState(tempDir);
       expect(state.phase).toBe('EXECUTE');
       expect(state.completedPhases).toHaveLength(2);
+    });
+
+    it('dedupes by phase name when transitioning to a phase already completed', async () => {
+      await initState(tempDir, 'DISCUSS');
+      await transitionPhase(tempDir, 'PLAN');
+      await transitionPhase(tempDir, 'EXECUTE');
+      await transitionPhase(tempDir, 'VERIFY');
+      // Re-transition through PLAN (recovery scenario): no duplicate PLAN entries.
+      await transitionPhase(tempDir, 'PLAN');
+      const state = await readState(tempDir);
+      const planEntries = state.completedPhases.filter((p) => p.startsWith('PLAN'));
+      expect(planEntries).toHaveLength(1);
     });
 
     it('rejects invalid phase names', async () => {

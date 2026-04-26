@@ -33,7 +33,9 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-**TRANCHE 3 IN PROGRESS — Tasks 1, 2, 3, 4 complete (2026-04-26).** Task 1: /sig:status + /sig:resume shipped. Task 2: FULL-tier dogfood on URL shortener (39 tests, 13 commits, all 24 AC). Task 3: SKETCH-tier dogfood on a CSV-to-JSON one-shot — calibration value-prop validated (wall-clock contrast 24x, agent-spawn contrast 4→0). **Task 4: comprehensive README.md written (install + walkthrough + command reference + heritage); Signal's own PROJECT.md moved to `.planning/PROJECT.md` via `git mv` — resolves the T1-dogfood "checkGateArtifacts wants `.planning/PROJECT.md`" friction and unifies the convention.** Only Task 5 (OPEN-QUESTIONS triage) remains.
+**TRANCHE 3 COMPLETE (2026-04-26) — v1 is ship-ready.** All 5 tasks shipped: /sig:status + /sig:resume; FULL-tier dogfood on URL shortener (39 tests, all 24 AC); SKETCH-tier dogfood on CSV-to-JSON one-shot (calibration value-prop validated, 24x contrast); README.md + PROJECT.md → `.planning/PROJECT.md` move; OPEN-QUESTIONS triage (14 fix-nows applied across state.js + 5 phase commands + tier-definitions + README + historical docs; 4 marked resolved; 1 deferred to T4; 1 confirmed-no-change). Tests 53 → 96; OPEN-QUESTIONS 20 → 2.
+
+**Next decision:** tag `v0.1.0` (recommended — stop adding scope, wait for real user signal) OR begin TRANCHE-4 v2 ports per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` (gated on v1 having real users per locked decision).
 
 - **11 of 11 slash commands shipped** (added `/sig:status` and `/sig:resume` in T3 Task 1).
   - `/sig:status` — read-only project inspection, dogfooded (worktree branch `worktree-dogfood-status`).
@@ -52,14 +54,14 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Active work
 
-**Tranche 3 in progress.** Tasks 1–4 complete; 1 task remains (see `TRANCHE-3.md`):
-1. ✓ Build `/sig:status` and `/sig:resume` (T3 Task 1 — 2026-04-26).
+**Tranche 3 COMPLETE.** All 5 tasks shipped (see `TRANCHE-3.md`):
+1. ✓ /sig:status + /sig:resume (T3 Task 1 — 2026-04-26).
 2. ✓ FULL-tier pass on URL shortener (T3 Task 2 — 2026-04-26). 13 commits, 39 tests, all 24 AC.
 3. ✓ SKETCH-tier pass on CSV-to-JSON one-shot (T3 Task 3 — 2026-04-26). Calibration value-prop validated.
-4. ✓ README quickstart + PROJECT.md → `.planning/PROJECT.md` move (T3 Task 4 — 2026-04-26). README covers value-prop, install, walkthrough, command reference, the `.planning/`-always-committed one-liner, Credits & Heritage. PROJECT.md move resolved the T1-dogfood Scenario-B friction.
-5. Triage outstanding OPEN-QUESTIONS items — last task.
+4. ✓ README quickstart + PROJECT.md → `.planning/PROJECT.md` move (T3 Task 4 — 2026-04-26).
+5. ✓ OPEN-QUESTIONS triage (T3 Task 5 — 2026-04-26). 14 fix-nows applied; 4 resolved; 1 deferred; 1 confirmed-no-change. 20 → 2 active items.
 
-OPEN-QUESTIONS.md now carries 20 active items (1 resolved by Task 4 move): 3 from T2 Step 8 + 4 from T1 dogfood + 6 from T3 Task 2 dogfood + 3 from T3 Task 3 dogfood + 4 older. Most are doc-level / one-line fixes.
+OPEN-QUESTIONS.md now carries 2 deferred items: tier-count validation (waits for real-user data) + slash-command testing harness (TRANCHE-4 candidate). DECISIONS.md gained one entry summarizing T3 Task 5's architecturally-meaningful refinements.
 
 Dogfood approach for any future Signal-on-Signal work is now locked in DECISIONS.md (worktree + cherry-pick protocol).
 
@@ -97,4 +99,4 @@ Dogfood approach for any future Signal-on-Signal work is now locked in DECISIONS
 
 ---
 
-*Last updated: 2026-04-26 (T3 Task 4 complete — README + PROJECT.md move)*
+*Last updated: 2026-04-26 (TRANCHE 3 COMPLETE — v1 ship-ready)*

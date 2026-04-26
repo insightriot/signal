@@ -80,7 +80,19 @@ Claim: installable in under 5 minutes. **Verified.**
 
 **Bonus:** CLAUDE.md "Current State" section was wildly stale ("no source code, build system, or tests yet") — refreshed to point at TRANCHE-3 / dogfood as the current orientation.
 
-### 5. Triage Tranche 2 outstanding issues
+### 5. Triage outstanding issues ✓ COMPLETE (2026-04-26)
+
+20 active items going into triage. Outcomes:
+- **14 fix-nows applied** (state.js + 5 command markdowns + tier-definitions + README + historical-doc annotation).
+- **4 marked resolved** (PROJECT.md location, numeric `{phase}-` prefix, TRANCHE-3 schema-drift, REVIEW/SHIP read-prior-artifacts).
+- **1 deferred to T4** (slash-command testing harness).
+- **1 confirmed-no-change** (4-tier count — two data points show no drift).
+
+Architecturally-meaningful refinements logged as a DECISIONS entry: PASS-WITH-FIXES verdict, two-form Nyquist evidence, PLAN environment-check, DISCUSS tier-aware NFR prompt, SKETCH-floor codified.
+
+OPEN-QUESTIONS.md: 20 → 2 items. Validator green; 96/96 tests.
+
+### Original Task 5 scope (kept for traceability)
 
 Specific items to triage (from OPEN-QUESTIONS.md as of 2026-04-25):
 
@@ -100,12 +112,12 @@ Specific items to triage (from OPEN-QUESTIONS.md as of 2026-04-25):
 
 ## Exit Criteria
 
-- [ ] Dogfood feature shipped via Signal's own commands (not hand-rolled)
-- [ ] FULL-tier pass succeeded end-to-end on a throwaway project
-- [ ] SKETCH-tier pass succeeded *and* visibly lower-rigor — with measurable difference from the FULL pass
-- [ ] README gets a new user from zero to running in <5 min
-- [ ] Validator, tests, and all CI checks pass
+- [x] Dogfood feature shipped via Signal's own commands (not hand-rolled) — `/sig:status` shipped via Signal-on-Signal in T1.
+- [x] FULL-tier pass succeeded end-to-end on a throwaway project — URL shortener (T2; 39 tests, all 24 AC, REVIEW caught real issues).
+- [x] SKETCH-tier pass succeeded *and* visibly lower-rigor — CSV-to-JSON one-shot (T3; 24x wall-clock contrast vs FULL, 0 agents vs 4, 8 vs 14 `.planning/` artifacts).
+- [x] README gets a new user from zero to running in <5 min — verified `npm install` ~1.3s + validator/tests ~1.4s on warm cache (T4).
+- [x] Validator, tests, and all CI checks pass — validator green; 96/96 tests.
 
 ## What this unlocks
 
-v1 is shippable. Can hand to external testers. Tranche 4 (v2 ports from the rundown) becomes legitimate to start — but only after v1 has real users for a few weeks, since v2 decisions should be shaped by real usage signal.
+**v1 is shippable.** Can hand to external testers. Tranche 4 (v2 ports from the rundown) becomes legitimate to start — but only after v1 has real users for a few weeks, since v2 decisions should be shaped by real usage signal.

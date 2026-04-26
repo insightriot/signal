@@ -4,7 +4,7 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 3 — Real-Project Testing — IN PROGRESS.** Tasks 1, 2, 3, 4 complete (2026-04-26). Task 5 (OPEN-QUESTIONS triage) is the only remaining T3 item.
+**Tranche 3 — Real-Project Testing — COMPLETE (2026-04-26).** All 5 tasks shipped. v1 ship-readiness criteria met: `/sig:status` and `/sig:resume` shipped, FULL- and SKETCH-tier dogfood passes both succeeded, README quickstart written, all triage-able OPEN-QUESTIONS resolved.
 
 See `TRANCHE-3.md` for the task breakdown.
 
@@ -48,6 +48,30 @@ See `TRANCHE-3.md` for the task breakdown.
 - **Tranche 2, Step 6 — agent count reconciliation** (2026-04-25): audit found 22 agents on disk (the OPEN-QUESTIONS "17" count was stale). PROJECT.md claimed 24 but contained two errors — Security Auditor double-counted (in both 3.3 GSD verification and 3.4 Agent Skills specialists), plus Doc Writer + Doc Verifier never written. Decision: revise spec to 22 (drop the docs agents — already covered by `documentation-and-adrs` SHIP-phase skill; same skill-not-agent pattern compound-engineering uses). PROJECT.md sections 3.0/3.3/3.5/Gate 2 updated; CLAUDE.md updated.
 
 - **Tranche 2, Step 8 — paper walkthrough** (2026-04-25): structural smoke test (real execution deferred to TRANCHE-3 Tasks 2+3 where fresh-project setup, real time/token measurement, and full execution time naturally live). Findings: PLAN's skill-loading paths were wrong for cross-bound skills (fixed inline); references all resolve; skill-binding consistency holds; 3 friction points logged to OPEN-QUESTIONS for TRANCHE-3: `{phase}-` artifact naming convention, REVIEW/SHIP not explicitly reading prior-phase artifacts, state.js initState phase-name mismatch.
+
+- **Tranche 3, Task 5 — OPEN-QUESTIONS triage** (2026-04-26): triaged 20 active items into buckets — 14 fix-nows applied, 4 marked resolved, 1 deferred to T4, 1 confirmed-no-change with current data.
+
+  **Fix-nows applied:**
+  - **`tools/lib/state.js`:** `initState` default phase changed from `DISCUSS` to `CALIBRATE`; now accepts explicit `initialPhase` param. `transitionPhase` dedupes `completedPhases` by phase name (recovery scenarios). Tests updated; 93 → 96.
+  - **`/sig:calibrate`:** added Step 5b (initialize STATE.md after PROFILE.md write); footnote on `research_parallelism` row noting FULL's `4` is calibrated for novel domains, not known ones.
+  - **`/sig:review`:** precedence note above rigor table (`review_depth` master switch); added PASS-WITH-FIXES verdict to the report template with explicit guidance.
+  - **`/sig:verify`:** softened strict-Nyquist language to accept either per-test red→green git evidence OR explicit attestation in VERIFICATION.md.
+  - **`/sig:plan`:** new Step 6 "Environment check" — confirms dev runtime matches research's assumed runtime before EXECUTE.
+  - **`/sig:execute`:** `1-PROGRESS.md` marked implicit-optional for single-task plans.
+  - **`/sig:discuss`:** tier-aware NFR prompt added (FULL gets 5 ops items, FEATURE gets 3, SPIKE/SKETCH skip).
+  - **`references/tier-definitions.md`:** SKETCH 8-artifact floor codified (no TRIVIAL tier in v1).
+  - **`README.md`:** `${CLAUDE_PLUGIN_ROOT}` dev-mode hint added.
+  - **`GSD-AgentSkills-Combination-Analysis.md`:** prefixed with "Historical document" annotation pointing readers to current `analysis/` docs.
+
+  **Resolved (struck from OPEN-QUESTIONS):** PROJECT.md location (T4 move); numeric `{phase}-` prefix (DECISIONS lock); TRANCHE-3.md schema-drift (corrected during T3 Task 3 wrap-up); REVIEW/SHIP read-prior-artifacts (didn't bite in dogfood).
+
+  **Deferred to TRANCHE-4:** slash-command testing harness — non-trivial; current 96-test tooling coverage + dogfood passes provide enough signal for v1.
+
+  **Confirmed no-change with data:** 4-tier count — two dogfood data points didn't surface drift; revisit on real-user calibration data.
+
+  **Architecturally meaningful triage outcomes** logged as a single DECISIONS entry (2026-04-26 — "T3 Task 5 triage: workflow refinements from dogfood evidence"). Five small refinements: PASS-WITH-FIXES verdict, two-form Nyquist evidence, PLAN environment-check, DISCUSS tier-aware NFR prompt, SKETCH-floor codified.
+
+  Validator green; 96/96 tests still pass. **OPEN-QUESTIONS.md goes from 20 active items to 2** (tier-count + testing-harness, both with deferred resolution paths).
 
 - **Tranche 3, Task 4 — README quickstart + move PROJECT.md to `.planning/`** (2026-04-26): wrote a comprehensive `README.md` covering value-prop (with the SKETCH-vs-FULL contrast table from T3 Task 3), install instructions (plugin marketplace + from-source), first-project walkthrough (`/sig:new-project` + `/sig:calibrate` + the 5 questions), command reference (one paragraph per command), the `.planning/`-always-committed one-liner (load-bearing — explains why), and Credits & Heritage tiered like LICENSES.md (4 tiers, all 9 source repos linked).
 
@@ -117,8 +141,9 @@ See `TRANCHE-3.md` for the task breakdown.
 
 ## Active
 
-**TRANCHE 3 Tasks 1–4 COMPLETE.** Task 5 only remaining:
-5. Triage outstanding OPEN-QUESTIONS items (1 resolved by Task 4 PROJECT.md move; 20 active = 3 from T2 Step 8 + 4 from T1 dogfood + 6 from T3 Task 2 dogfood + 3 from T3 Task 3 dogfood + 4 older). Most are doc-level / one-line fixes.
+**TRANCHE 3 COMPLETE — v1 ship-readiness criteria met.** Next decision: declare v1 ready for external testers + tag `v0.1.0`, OR queue TRANCHE-4 (v2 ports per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` — gated on v1 having real users, per the locked decision).
+
+Recommendation: tag `v0.1.0` and stop adding scope until real user signal arrives. Two dogfood passes (FULL + SKETCH) is the right amount of self-validation; further pre-release polish risks the very over-engineering Signal's own calibration is built to prevent.
 
 ## Blockers
 
@@ -126,4 +151,4 @@ None.
 
 ## Last Updated
 
-2026-04-26 (Tranche 3 Task 4 complete — README + PROJECT.md move)
+2026-04-26 (Tranche 3 COMPLETE — v1 ship-ready)

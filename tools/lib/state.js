@@ -9,9 +9,16 @@ const PHASES = ['CALIBRATE', 'DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', '
 /**
  * Initialize the .planning/ directory for a new project.
  * @param {string} baseDir - The project root directory
+ * @param {string} [initialPhase='CALIBRATE'] - Phase to write into STATE.md.
+ *   Default `CALIBRATE` matches `/sig:new-project`'s expected sequence
+ *   (Phase 0 runs first). Pass `DISCUSS` if calling from a post-calibrate path.
  * @returns {Promise<string>} Path to the created .planning/ directory
  */
-export async function initState(baseDir) {
+export async function initState(baseDir, initialPhase = 'CALIBRATE') {
+  if (!PHASES.includes(initialPhase)) {
+    throw new Error(`Invalid initial phase: ${initialPhase}. Must be one of: ${PHASES.join(', ')}`);
+  }
+
   const planningDir = join(baseDir, PLANNING_DIR);
 
   if (!existsSync(planningDir)) {
@@ -22,7 +29,7 @@ export async function initState(baseDir) {
   const stateContent = `# Project State
 
 ## Current Phase
-DISCUSS
+${initialPhase}
 
 ## Completed Phases
 (none)
@@ -84,9 +91,15 @@ export async function transitionPhase(baseDir, nextPhase) {
   }
 
   const now = new Date().toISOString().split('T')[0];
-  const completed = state.phase
+  // Dedupe by phase name; keep the latest (timestamp) entry per phase. Recovery
+  // scenarios (manual STATE.md edits, re-run transitions) otherwise append duplicates.
+  const phaseNameOf = (entry) => entry.split(' ')[0];
+  const seen = state.phase
     ? [...state.completedPhases, `${state.phase} (${now})`]
     : state.completedPhases;
+  const completed = Array.from(
+    new Map(seen.map((entry) => [phaseNameOf(entry), entry])).values()
+  );
 
   const completedSection = completed.length > 0
     ? completed.map(p => `- ${p}`).join('\n')

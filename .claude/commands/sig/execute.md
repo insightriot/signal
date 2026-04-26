@@ -76,6 +76,8 @@ After each task, update `.planning/{phase}-PROGRESS.md`:
 - [ ] Task 3 — pending
 ```
 
+**Optional for single-task plans.** When the plan has only one task (typical at SKETCH tier), `{phase}-PROGRESS.md` is informational and the commit log substitutes for it. Skip without ceremony — the SKETCH dogfood (T3 Task 3) confirmed this works cleanly. At gate_strictness:off, progress tracking is informational only; at strict, write the file even for a single task so the artifact exists for downstream phases to reference.
+
 ## Phase Gate
 
 ### Anti-Rationalization Check

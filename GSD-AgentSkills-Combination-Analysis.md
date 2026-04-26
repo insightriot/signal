@@ -4,6 +4,10 @@
 
 ---
 
+> **Historical document.** This is the original two-framework analysis (GSD + Agent Skills) that seeded Signal. It predates the broader landscape analysis in `analysis/REPO-ANALYSIS.md`, which expanded the source set to 9 repos across 4 attribution tiers. For current architecture, read `analysis/REPO-ANALYSIS.md` and `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` instead. This document is preserved for the strategic reasoning that shaped Signal's earliest design.
+
+---
+
 ## The Mental Model: Two Halves of the Same Brain
 
 Think of building software with AI agents like driving a car on a long road trip.

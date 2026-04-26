@@ -44,6 +44,14 @@ npm test                        # 93+ tests should pass
 
 Then point Claude Code at the local plugin directory (settings → plugins → load from path), or symlink into your `~/.claude/plugins/` if you prefer.
 
+**`${CLAUDE_PLUGIN_ROOT}` for development.** Several command markdown files reference paths like `${CLAUDE_PLUGIN_ROOT}/skills/...` and `${CLAUDE_PLUGIN_ROOT}/state/config.json`. Claude Code sets this env var when the plugin is installed via the marketplace. For local development (or when dogfooding Signal-on-Signal), set it manually before running Claude Code:
+
+```bash
+export CLAUDE_PLUGIN_ROOT="$(pwd)"   # from the Signal repo root
+```
+
+Without it, command markdown still works — Claude resolves the literal path from context — but explicit is faster.
+
 **5-minute install target:** clone + `npm install` + validator pass takes well under that on a machine that already has Node 22 + git. Most of the time budget is `npm install` (the `yaml` runtime dep is the one external dependency).
 
 ## Your first project
