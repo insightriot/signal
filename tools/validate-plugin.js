@@ -35,6 +35,7 @@ const REQUIRED_COMMANDS = [
   '.claude/commands/sig/ship.md',
   '.claude/commands/sig/escalate.md',
   '.claude/commands/sig/status.md',
+  '.claude/commands/sig/resume.md',
 ];
 
 const REQUIRED_DIRS = [

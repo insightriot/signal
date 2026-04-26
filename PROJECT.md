@@ -310,6 +310,17 @@ The REVIEW phase (between VERIFY and SHIP) is the key architectural addition fro
     2.10.3 Tier-aware next-action recommendation honors phases_skipped
     No skills loaded, no agents spawned, no tier-gating preamble (meta).
     Done: snapshot rendered without mutating any .planning/* file
+
+2.11 /sig:resume — META (re-orientation briefing)
+    2.11.1 Same 3-branch detection as /sig:status
+    2.11.2 Load PROJECT.md (Vision/Problem) + CONTEXT.md (locked
+           decisions) + the current phase's artifact (PLAN/PROGRESS/
+           VERIFICATION/REVIEW per state.phase)
+    2.11.3 Print compact briefing (~30-50 lines) + "Ready to continue
+           with /sig:{phase}?" prompt — explicit user confirmation
+           gate (does not auto-invoke the next phase command)
+    No skills loaded, no agents spawned, no tier-gating preamble (meta).
+    Done: briefing rendered; user knows what to type next
 ```
 
 **Source references:**
