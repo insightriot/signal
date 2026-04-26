@@ -29,13 +29,15 @@ The plugin targets solo developers and small teams who want production-grade eng
 
 ## Current State
 
-Pre-code planning phase. The repository contains:
-- `PROJECT.md` — the full Signal spec (read this first for any implementation work)
-- `GSD-AgentSkills-Combination-Analysis.md` — original strategic analysis of why/how to combine the two source frameworks
-- `analysis/REPO-ANALYSIS.md` — landscape analysis of 7 AI-dev plugins and recommendation that evolved into Signal
-- `analysis/JOURNEY-MAP.html` — visual companion to the analysis (coverage matrix, stack, calibration matrix, phase flow)
+Tranche 3 in progress (real-project testing). Tranches 1–2 complete: 11 slash commands shipped, 22 agents, 21 skills bound to phases, validator + tests + token-cost measurement in place. Recent dogfood passes: a FULL-tier URL shortener and a SKETCH-tier CSV-to-JSON one-shot — both in `.dogfood/` (gitignored), both shipped end-to-end through Signal's own commands.
 
-No source code, build system, or tests exist yet. Implementation starts with WBS 1.0 (Foundation & Scaffolding) in PROJECT.md.
+For current state and active work, read in order: `.planning/CONTEXT.md` → `.planning/STATE.md` → `.planning/TRANCHE-3.md`. The full v1 spec is `.planning/PROJECT.md`.
+
+Key supporting docs:
+- `analysis/REPO-ANALYSIS.md` — landscape analysis of 7 AI-dev plugins; the seed of Signal.
+- `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` — v2 vision (10-phase architecture).
+- `analysis/JOURNEY-MAP.html` — visual companion.
+- `GSD-AgentSkills-Combination-Analysis.md` — historical (pre-landscape) two-framework analysis.
 
 ## Architecture
 
@@ -60,7 +62,7 @@ The REVIEW phase (between VERIFY and SHIP) is the key addition over GSD's origin
 
 **Tier-gating:** Every phase command's first action is to read `PROFILE.md`. If the current tier skips that phase, the command exits early. If `rigor_overrides` apply (e.g., `tdd_required: false` in SKETCH), the command respects them.
 
-**v1 vs v2 scope:** v1 is the 6-phase MVP speced in this `PROJECT.md`. v2 expands to 10 phases per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` (adds IDEATE / VALIDATE / STRATEGIZE upstream and COMPOUND downstream), and is gated on v1 shipping + having real users. See `PROJECT.md` → "Scope & Roadmap" for the full v1/v2 split and gating criteria.
+**v1 vs v2 scope:** v1 is the 6-phase MVP speced in `.planning/PROJECT.md`. v2 expands to 10 phases per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` (adds IDEATE / VALIDATE / STRATEGIZE upstream and COMPOUND downstream), and is gated on v1 shipping + having real users. See `.planning/PROJECT.md` → "Scope & Roadmap" for the full v1/v2 split and gating criteria.
 
 ## Planned Plugin Structure
 

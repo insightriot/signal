@@ -66,15 +66,19 @@ If calibration doesn't visibly skip phases and drop rigor in SKETCH mode, the wh
 
 **Contrast vs FULL pass (URL shortener):** wall clock ~24x lower, source LOC ~20x lower, agent spawns 0 vs 4, `.planning/` artifacts 8 vs 14, automated tests 0 vs 39, commits 2 vs 13. **The contrast is real.** 3 new findings logged to OPEN-QUESTIONS.md, all doc-level.
 
-### 4. Write README quickstart
+### 4. Write README quickstart ✓ COMPLETE (2026-04-26)
 
-Claim: installable in under 5 minutes.
-- [ ] Install instructions (plugin registration, `npm install`, environment checks)
-- [ ] First-project walkthrough (`/sig:new-project` → `/sig:calibrate` → brief explainer of each phase, with expected outputs)
-- [ ] Command reference (one paragraph per command)
-- [ ] Credits & Heritage section (the 9 source repos with links and roles — Tier-style like LICENSES.md)
-- [ ] **`.planning/`-always-committed one-liner** (carried forward from T2 Step 5a): "`.planning/` should be committed to git — it's your project's memory, not scratch state. Don't add it to `.gitignore`."
-- [ ] Time a cold install from the README on a fresh machine and verify <5 min
+Claim: installable in under 5 minutes. **Verified.**
+- [x] Install instructions (plugin registration via `/plugin install signal` + from-source steps with `npm install` + validator).
+- [x] First-project walkthrough (`/sig:new-project` → `/sig:calibrate` with the 5 enums spelled out → table walking through each phase + when it skips).
+- [x] Command reference (one paragraph per command for all 11 commands).
+- [x] Credits & Heritage section — 9 source repos with GitHub links, organized into the 4 tiers (Ported v1, Planned v2, Pattern source, Reference) matching LICENSES.md / CLAUDE.md.
+- [x] `.planning/`-always-committed one-liner (its own dedicated section explaining *why*, not just *what*).
+- [x] Cold install timed: `npm install` ~1.3s on warm cache; validator + 93 tests ~1.4s. (Doesn't include `git clone` — but Signal repo excluding `node_modules` is a few MB and only one runtime dep.) Well under 5 min.
+
+**Sub-action: moved Signal's own `PROJECT.md` from repo root to `.planning/PROJECT.md`** via `git mv` (history preserved). CLAUDE.md updated. No symlink — commits to convention. Resolves OPEN-QUESTIONS friction "Calibrate Scenario B and `checkGateArtifacts` PLAN gate require `.planning/PROJECT.md`" (logged in T1 dogfood).
+
+**Bonus:** CLAUDE.md "Current State" section was wildly stale ("no source code, build system, or tests yet") — refreshed to point at TRANCHE-3 / dogfood as the current orientation.
 
 ### 5. Triage Tranche 2 outstanding issues
 

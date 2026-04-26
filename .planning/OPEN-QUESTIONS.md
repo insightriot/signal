@@ -60,21 +60,9 @@ If `initState` is called directly from tooling (not via the slash command), STAT
 
 ---
 
-## Calibrate Scenario B and `checkGateArtifacts` PLAN gate require `.planning/PROJECT.md`
+## ~~Calibrate Scenario B and `checkGateArtifacts` PLAN gate require `.planning/PROJECT.md`~~ — RESOLVED (2026-04-26)
 
-**Surfaced by:** Tranche 3 Task 1 dogfood (2026-04-26).
-
-Two places assume PROJECT.md lives at `.planning/PROJECT.md`:
-- `/sig:calibrate.md` Scenario B (line 26): "`.planning/PROJECT.md` exists, no `PROFILE.md`" → happy path.
-- `tools/lib/state.js` `checkGateArtifacts(baseDir, 'PLAN')` (line 124): requires `PROJECT.md` to exist in `.planning/`.
-
-But the Signal-build's own `PROJECT.md` lives at repo root (legacy from before `.planning/` was introduced). The dogfood worked around this by symlinking `.planning/PROJECT.md → ../PROJECT.md`.
-
-**Two fix paths:**
-- **Move Signal's own PROJECT.md to `.planning/PROJECT.md`** so the convention applies uniformly. Symlink at repo root for backward refs.
-- **Make calibrate + checkGateArtifacts also check repo root** as a fallback. More code, but accommodates self-managed projects that drifted.
-
-**Resolve by:** Tranche 3 Task 4 (README work) is a natural seam — moving PROJECT.md is a small refactor and the README will reference the new path anyway.
+**Resolved in Tranche 3 Task 4 (2026-04-26):** moved Signal's own `PROJECT.md` from repo root to `.planning/PROJECT.md` via `git mv` (history preserved). No symlink at repo root — the move commits to the convention. CLAUDE.md updated to reference the new path. `checkGateArtifacts(".", "PLAN")` now correctly finds PROJECT.md; calibrate Scenario B's happy path holds for the Signal-build itself; the dogfood-era symlink workaround is no longer needed.
 
 ---
 

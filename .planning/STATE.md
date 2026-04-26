@@ -4,7 +4,7 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 3 — Real-Project Testing — IN PROGRESS.** Task 1 complete (2026-04-26: /sig:status + /sig:resume shipped). Task 2 complete (2026-04-26: FULL-tier dogfood on URL shortener). Task 3 complete (2026-04-26: SKETCH-tier dogfood on a CSV-to-JSON one-shot — calibration contrast validated). Tasks 4–5 next.
+**Tranche 3 — Real-Project Testing — IN PROGRESS.** Tasks 1, 2, 3, 4 complete (2026-04-26). Task 5 (OPEN-QUESTIONS triage) is the only remaining T3 item.
 
 See `TRANCHE-3.md` for the task breakdown.
 
@@ -48,6 +48,16 @@ See `TRANCHE-3.md` for the task breakdown.
 - **Tranche 2, Step 6 — agent count reconciliation** (2026-04-25): audit found 22 agents on disk (the OPEN-QUESTIONS "17" count was stale). PROJECT.md claimed 24 but contained two errors — Security Auditor double-counted (in both 3.3 GSD verification and 3.4 Agent Skills specialists), plus Doc Writer + Doc Verifier never written. Decision: revise spec to 22 (drop the docs agents — already covered by `documentation-and-adrs` SHIP-phase skill; same skill-not-agent pattern compound-engineering uses). PROJECT.md sections 3.0/3.3/3.5/Gate 2 updated; CLAUDE.md updated.
 
 - **Tranche 2, Step 8 — paper walkthrough** (2026-04-25): structural smoke test (real execution deferred to TRANCHE-3 Tasks 2+3 where fresh-project setup, real time/token measurement, and full execution time naturally live). Findings: PLAN's skill-loading paths were wrong for cross-bound skills (fixed inline); references all resolve; skill-binding consistency holds; 3 friction points logged to OPEN-QUESTIONS for TRANCHE-3: `{phase}-` artifact naming convention, REVIEW/SHIP not explicitly reading prior-phase artifacts, state.js initState phase-name mismatch.
+
+- **Tranche 3, Task 4 — README quickstart + move PROJECT.md to `.planning/`** (2026-04-26): wrote a comprehensive `README.md` covering value-prop (with the SKETCH-vs-FULL contrast table from T3 Task 3), install instructions (plugin marketplace + from-source), first-project walkthrough (`/sig:new-project` + `/sig:calibrate` + the 5 questions), command reference (one paragraph per command), the `.planning/`-always-committed one-liner (load-bearing — explains why), and Credits & Heritage tiered like LICENSES.md (4 tiers, all 9 source repos linked).
+
+  **Sub-action: moved Signal's own `PROJECT.md` from repo root to `.planning/PROJECT.md`** via `git mv` (history preserved). Updated CLAUDE.md's three references + refreshed CLAUDE.md "Current State" section (it claimed "no source code yet" — wildly stale). No symlink at repo root: the move commits to the convention.
+
+  **Resolves OPEN-QUESTIONS friction "Calibrate Scenario B and `checkGateArtifacts` PLAN gate require `.planning/PROJECT.md`"** (logged in T1 dogfood). `checkGateArtifacts(".", "PLAN")` now correctly finds PROJECT.md.
+
+  **Cold-install timing on this machine:** `npm install` ~1.3s (warm npm cache); validator + 93 tests ~1.4s. Well under the 5-minute claim. (Doesn't include `git clone` — but Signal repo excluding `node_modules` is a few MB, and `npm install` has only one runtime dep, `yaml`.)
+
+  Validator green; 93/93 tests still pass after the move.
 
 - **Tranche 3, Task 3 — SKETCH-tier dogfood on a CSV-to-JSON one-shot script** (2026-04-26): the critical "does calibration actually drop rigor?" validation. Single Claude session ran the SKETCH-tier flow (calibrate → discuss → plan → execute → verify → ship; REVIEW skipped per `phases_skipped: [REVIEW]`) on a 30-LOC Node.js one-shot in `.dogfood/csv-to-json-sketch/`. SKETCH-shaped answers: scope=throwaway, stakes=none, novelty=familiar, reversibility=trivial, horizon=hours → rule 3 fired.
 
@@ -107,9 +117,8 @@ See `TRANCHE-3.md` for the task breakdown.
 
 ## Active
 
-**TRANCHE 3 Task 3 COMPLETE — calibration value-prop validated.** Tasks 4–5 next:
-4. Write README quickstart (carries the `.planning/`-always-committed one-liner from T2 Step 5a). Natural seam to move PROJECT.md → `.planning/PROJECT.md` (resolves T1-dogfood findings).
-5. Triage outstanding OPEN-QUESTIONS items (3 from T2 Step 8 + 5 from T1 dogfood + 6 from T3 Task 2 dogfood + 3 from T3 Task 3 dogfood + 4 older = 21 active).
+**TRANCHE 3 Tasks 1–4 COMPLETE.** Task 5 only remaining:
+5. Triage outstanding OPEN-QUESTIONS items (1 resolved by Task 4 PROJECT.md move; 20 active = 3 from T2 Step 8 + 4 from T1 dogfood + 6 from T3 Task 2 dogfood + 3 from T3 Task 3 dogfood + 4 older). Most are doc-level / one-line fixes.
 
 ## Blockers
 
@@ -117,4 +126,4 @@ None.
 
 ## Last Updated
 
-2026-04-26 (Tranche 3 Task 3 complete)
+2026-04-26 (Tranche 3 Task 4 complete — README + PROJECT.md move)

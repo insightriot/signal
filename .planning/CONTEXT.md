@@ -33,7 +33,7 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-**TRANCHE 3 IN PROGRESS — Tasks 1, 2, 3 complete (2026-04-26).** Task 1: /sig:status + /sig:resume shipped. Task 2: FULL-tier dogfood on URL shortener (39 tests, 13 commits, all 24 AC). **Task 3: SKETCH-tier dogfood on a CSV-to-JSON one-shot — calibration value-prop validated. Wall-clock contrast 24x, agent-spawn contrast 4→0, source-LOC contrast 20x. Calibration meaningfully and visibly drops rigor.** Tranche 2 complete; phase commands respect tier; orphan skills bound; agent count reconciled; token costs measured.
+**TRANCHE 3 IN PROGRESS — Tasks 1, 2, 3, 4 complete (2026-04-26).** Task 1: /sig:status + /sig:resume shipped. Task 2: FULL-tier dogfood on URL shortener (39 tests, 13 commits, all 24 AC). Task 3: SKETCH-tier dogfood on a CSV-to-JSON one-shot — calibration value-prop validated (wall-clock contrast 24x, agent-spawn contrast 4→0). **Task 4: comprehensive README.md written (install + walkthrough + command reference + heritage); Signal's own PROJECT.md moved to `.planning/PROJECT.md` via `git mv` — resolves the T1-dogfood "checkGateArtifacts wants `.planning/PROJECT.md`" friction and unifies the convention.** Only Task 5 (OPEN-QUESTIONS triage) remains.
 
 - **11 of 11 slash commands shipped** (added `/sig:status` and `/sig:resume` in T3 Task 1).
   - `/sig:status` — read-only project inspection, dogfooded (worktree branch `worktree-dogfood-status`).
@@ -52,14 +52,14 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Active work
 
-**Tranche 3 in progress.** Tasks 1, 2, 3 complete; 2 tasks remain (see `TRANCHE-3.md`):
+**Tranche 3 in progress.** Tasks 1–4 complete; 1 task remains (see `TRANCHE-3.md`):
 1. ✓ Build `/sig:status` and `/sig:resume` (T3 Task 1 — 2026-04-26).
 2. ✓ FULL-tier pass on URL shortener (T3 Task 2 — 2026-04-26). 13 commits, 39 tests, all 24 AC.
-3. ✓ SKETCH-tier pass on CSV-to-JSON one-shot (T3 Task 3 — 2026-04-26). 2 commits, 30 LOC, calibration contrast validated (~24x wall-clock reduction, 0 agents vs 4, 8 vs 14 .planning/ artifacts). REVIEW correctly skipped via `phases_skipped`; in-phase rigor toggles correctly skipped Steps inside enabled phases.
-4. README quickstart (with `.planning/`-always-committed one-liner from T2 Step 5a). Natural seam to also move Signal's PROJECT.md from repo root to `.planning/PROJECT.md` (resolves T1-dogfood Friction #1/#3).
-5. Triage outstanding OPEN-QUESTIONS items.
+3. ✓ SKETCH-tier pass on CSV-to-JSON one-shot (T3 Task 3 — 2026-04-26). Calibration value-prop validated.
+4. ✓ README quickstart + PROJECT.md → `.planning/PROJECT.md` move (T3 Task 4 — 2026-04-26). README covers value-prop, install, walkthrough, command reference, the `.planning/`-always-committed one-liner, Credits & Heritage. PROJECT.md move resolved the T1-dogfood Scenario-B friction.
+5. Triage outstanding OPEN-QUESTIONS items — last task.
 
-OPEN-QUESTIONS.md now carries 21 active items: 3 from T2 Step 8 + 5 from T1 dogfood + 6 from T3 Task 2 dogfood + 3 from T3 Task 3 dogfood + 4 older. Most are doc-level / one-line fixes; Task 5 triage is mostly mechanical.
+OPEN-QUESTIONS.md now carries 20 active items (1 resolved by Task 4 move): 3 from T2 Step 8 + 4 from T1 dogfood + 6 from T3 Task 2 dogfood + 3 from T3 Task 3 dogfood + 4 older. Most are doc-level / one-line fixes.
 
 Dogfood approach for any future Signal-on-Signal work is now locked in DECISIONS.md (worktree + cherry-pick protocol).
 
@@ -97,4 +97,4 @@ Dogfood approach for any future Signal-on-Signal work is now locked in DECISIONS
 
 ---
 
-*Last updated: 2026-04-26 (T3 Task 3 complete — calibration value-prop validated)*
+*Last updated: 2026-04-26 (T3 Task 4 complete — README + PROJECT.md move)*
