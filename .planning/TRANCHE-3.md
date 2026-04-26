@@ -51,15 +51,20 @@ These are load-bearing for the actual user experience. Users will jump back into
 
 **Outcome:** all 24 acceptance criteria satisfied (18 automated, 6 manual-acknowledged). 39/39 tests green. REVIEW caught and fixed 2 real Important issues (Content-Length pre-check, unhandled-error logging) inline. 6 new findings appended to OPEN-QUESTIONS.md (env-var resolution, strict Nyquist audit-trail gap, REVIEW PASS-WITH-FIXES verdict, research-parallelism overkill for known domains, DISCUSS NFR checklist gap, Node-runtime / native-prebuilt drift). All triage-able; none gating ship of v1.
 
-### 3. SKETCH-tier pass — the critical validation
+### 3. SKETCH-tier pass — the critical validation ✓ COMPLETE (2026-04-26)
 
 If calibration doesn't visibly skip phases and drop rigor in SKETCH mode, the whole value prop is broken. This is the single most important test in the build.
-- [ ] Pick a throwaway (e.g., "static marketing homepage" or "one-shot script")
-- [ ] Run `/sig:calibrate`, answer to produce SKETCH tier
-- [ ] Verify: VERIFY and REVIEW phases skipped
-- [ ] Verify: TDD off in EXECUTE
-- [ ] Verify: no security audit, no nyquist mapping
-- [ ] Verify: the output still ships and works — lower rigor ≠ broken output
+
+**Outcome: PASSED. Calibration measurably and visibly drops rigor.**
+
+- [x] Pick a throwaway — chose CSV-to-JSON one-shot Node script (`.dogfood/csv-to-json-sketch/`).
+- [x] Run `/sig:calibrate`, answer to produce SKETCH tier — answers (throwaway/none/familiar/trivial/hours) hit rule 3 → SKETCH.
+- [x] Verify: ~~VERIFY and~~ REVIEW phase skipped — **only REVIEW is in `phases_skipped` per the locked schema** (the original Task-3 spec was wrong; doc/schema drift logged for Task 5 triage). VERIFY runs but with `nyquist_enforcement: off`.
+- [x] Verify: TDD off in EXECUTE — confirmed; wrote no automated tests; manual smoke covered the cases.
+- [x] Verify: no security audit, no Nyquist mapping — confirmed; PLAN skipped Step 2 (research, `research_parallelism: 0`), Step 4 (8-dim, `plan_validation_dims: none`), Step 5 (Nyquist, `nyquist_enforcement: off`); REVIEW skipped entirely.
+- [x] Verify: the output still ships and works — lower rigor ≠ broken output. Confirmed: `csv-to-json.js` runs cleanly, produces valid JSON, handles error paths.
+
+**Contrast vs FULL pass (URL shortener):** wall clock ~24x lower, source LOC ~20x lower, agent spawns 0 vs 4, `.planning/` artifacts 8 vs 14, automated tests 0 vs 39, commits 2 vs 13. **The contrast is real.** 3 new findings logged to OPEN-QUESTIONS.md, all doc-level.
 
 ### 4. Write README quickstart
 

@@ -227,3 +227,47 @@ This is one specific instance of a broader pattern: **PLAN's research happens in
 **Resolve by:** TRANCHE-3 Task 5 triage; could add "Environment check" as Slice 0 in EXECUTE templates, OR as a tail step in PLAN ("verify your dev runtime matches your research's runtime assumptions").
 
 ---
+
+## TRANCHE-3.md predicts SKETCH skips VERIFY; the schema only skips REVIEW
+
+**Surfaced by:** Tranche 3 Task 3 SKETCH-tier dogfood (2026-04-26).
+
+`TRANCHE-3.md` Task 3 line 57 says: *"Verify: VERIFY and REVIEW phases skipped"*. The actual locked schema (`references/tier-definitions.md` + `tools/lib/profile.js` + the per-tier defaults written into `/sig:calibrate`) only puts REVIEW in `phases_skipped` for SKETCH. VERIFY runs (with `nyquist_enforcement: off` and `gate_strictness: off`).
+
+**Decision implication:** the document predates the schema lock. The schema is correct (VERIFY is a "does it work?" minimum every tier should run; only REVIEW's "is it good?" pass is genuinely optional). Fix the doc, not the schema.
+
+**Candidate fix:** edit TRANCHE-3.md Task 3 to say "VERIFY runs with Nyquist off; REVIEW skipped." One-line change.
+
+**Resolve by:** TRANCHE-3 Task 5 triage; trivial edit.
+
+---
+
+## SKETCH still writes 8 `.planning/` artifacts — is that the right floor?
+
+**Surfaced by:** Tranche 3 Task 3 SKETCH-tier dogfood (2026-04-26).
+
+Even at the lowest tier, SKETCH produces: PROJECT.md, PROFILE.md, STATE.md, config.json, CONTEXT.md, 1-PLAN.md, 1-VERIFICATION.md, 1-SHIP.md. Plus the source code itself.
+
+For a genuine "I want to convert one CSV file *right now*" moment, this is more ceremony than typing `awk -F, '...'` in a terminal. SKETCH is honest documentation but isn't *zero overhead*.
+
+**Two paths:**
+- **Accept the floor.** `.planning/` is the project's memory; the artifacts at SKETCH are minimal. Anyone who wants pure-zero overhead doesn't need Signal — they `awk`. SKETCH is for "I want a small but real artifact and a record of what I decided."
+- **Add a TRIVIAL tier below SKETCH.** Collapses CONTEXT.md, 1-PLAN.md, 1-VERIFICATION.md, 1-SHIP.md into a single `NOTES.md`. A 5th tier doesn't fit cleanly into the current 4-tier mental model and risks tier proliferation.
+
+**Recommendation:** accept the SKETCH floor for v1. The contrast vs FEATURE/FULL is already strong (~10–24x); pushing lower trades documentation value for marginal ceremony savings. **Document explicitly** in `references/tier-definitions.md`: "SKETCH still produces a minimum 8-artifact `.planning/`; if you want zero overhead, you don't want Signal — you want a shell script."
+
+**Resolve by:** TRANCHE-3 Task 5 triage; one-paragraph addition to tier-definitions.md. Couples to the older "Tier count" question.
+
+---
+
+## `1-PROGRESS.md` is implicit-optional for single-task plans (SKETCH default)
+
+**Surfaced by:** Tranche 3 Task 3 SKETCH-tier dogfood (2026-04-26).
+
+Signal's EXECUTE phase markdown (`execute.md` Step 4) instructs to write `{phase}-PROGRESS.md` after each task. For a SKETCH plan with one task, this artifact is noise (the commit message + git log are the progress log). My SKETCH run skipped it without obvious downside.
+
+**Candidate fix:** `execute.md` could note that for plans with ≤1 task, `1-PROGRESS.md` is optional (the commit log substitutes). Or: `1-PROGRESS.md` is always-optional and the spec language ("update `1-PROGRESS.md`") becomes "update if maintaining one." Coupled to gate_strictness — at gate_strictness:off, progress tracking is informational only.
+
+**Resolve by:** TRANCHE-3 Task 5 triage; one-line tweak to execute.md.
+
+---

@@ -4,7 +4,7 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 3 — Real-Project Testing — IN PROGRESS.** Task 1 complete (2026-04-26: /sig:status + /sig:resume shipped). Task 2 complete (2026-04-26: FULL-tier dogfood on a throwaway URL shortener). Tasks 3–5 next.
+**Tranche 3 — Real-Project Testing — IN PROGRESS.** Task 1 complete (2026-04-26: /sig:status + /sig:resume shipped). Task 2 complete (2026-04-26: FULL-tier dogfood on URL shortener). Task 3 complete (2026-04-26: SKETCH-tier dogfood on a CSV-to-JSON one-shot — calibration contrast validated). Tasks 4–5 next.
 
 See `TRANCHE-3.md` for the task breakdown.
 
@@ -49,6 +49,28 @@ See `TRANCHE-3.md` for the task breakdown.
 
 - **Tranche 2, Step 8 — paper walkthrough** (2026-04-25): structural smoke test (real execution deferred to TRANCHE-3 Tasks 2+3 where fresh-project setup, real time/token measurement, and full execution time naturally live). Findings: PLAN's skill-loading paths were wrong for cross-bound skills (fixed inline); references all resolve; skill-binding consistency holds; 3 friction points logged to OPEN-QUESTIONS for TRANCHE-3: `{phase}-` artifact naming convention, REVIEW/SHIP not explicitly reading prior-phase artifacts, state.js initState phase-name mismatch.
 
+- **Tranche 3, Task 3 — SKETCH-tier dogfood on a CSV-to-JSON one-shot script** (2026-04-26): the critical "does calibration actually drop rigor?" validation. Single Claude session ran the SKETCH-tier flow (calibrate → discuss → plan → execute → verify → ship; REVIEW skipped per `phases_skipped: [REVIEW]`) on a 30-LOC Node.js one-shot in `.dogfood/csv-to-json-sketch/`. SKETCH-shaped answers: scope=throwaway, stakes=none, novelty=familiar, reversibility=trivial, horizon=hours → rule 3 fired.
+
+  **Throwaway shipped:** 2 commits, 1 source file (`csv-to-json.js`, ~30 LOC), 0 automated tests (TDD off in SKETCH), manual smoke covered happy path + 2 error paths. 8 `.planning/` artifacts (PROJECT, PROFILE, STATE, config.json, CONTEXT, 1-PLAN, 1-VERIFICATION, 1-SHIP — no RESEARCH/VALIDATION/PROGRESS/REVIEW/REQUIREMENTS).
+
+  **Contrast vs FULL (URL shortener):** wall clock ~5 min vs ~2 hours (~24x), research agents 0 vs 4, source files 1 vs 8, source LOC ~30 vs ~600 (~20x), automated tests 0 vs 39, commits 2 vs 13, `.planning/` artifacts 8 vs 14 (~57%). **Calibration delivers measurable, visible rigor reduction. Value prop validated.**
+
+  **Run log:** `.dogfood/T3-TASK3-RUNLOG.md` (gitignored).
+
+  **3 new findings appended to OPEN-QUESTIONS.md (2026-04-26):**
+    1. TRANCHE-3.md predicted SKETCH skips VERIFY; schema only skips REVIEW. Doc/schema drift; trivial fix.
+    2. SKETCH still writes 8 `.planning/` artifacts — is that the right floor? Recommendation: accept floor; document explicitly.
+    3. `1-PROGRESS.md` is implicit-optional for single-task plans (SKETCH default).
+
+  All 3 are doc-level / one-line fixes for Task 5 triage.
+
+  **High-confidence outcomes:**
+  - The contrast between SKETCH and FULL is real and large.
+  - Phase-skipping (REVIEW) works cleanly via `phases_skipped`.
+  - In-phase skipped *steps* (research, plan-validation, Nyquist) work cleanly via individual rigor_overrides.
+  - Auto-advance gates (`gate_strictness: off`) work cleanly — no confirmation prompts firing inappropriately.
+  - The one-shot script actually runs and produces correct JSON.
+
 - **Tranche 3, Task 2 — FULL-tier dogfood on a throwaway URL shortener** (2026-04-26): first end-to-end pass of Signal on a *non-Signal* target. Single Claude session ran the full 6-phase flow (`new-project → calibrate → discuss → plan → execute → verify → review → ship`) on a Node.js URL shortener service in `.dogfood/url-shortener-fulltier/` (gitignored from Signal). Synthesized FULL-shaped calibration answers (scope=product, stakes=major, novelty=familiar, reversibility=irreversible, horizon=years → rule 1 fired on irreversibility + years).
 
   **Throwaway shipped:** 13 commits on its own main branch, 8 production source files in `src/`, 8 test files (39 tests, ~0.5s suite), README + CHANGELOG + .env.example. All 24 acceptance criteria satisfied (18 automated, 6 manual-acknowledged). Live curl smoke confirmed all routes work end-to-end with proper status codes, security headers, graceful SIGTERM. `1-RESEARCH.md` (4-agent synthesis), `1-PLAN.md` (8 vertical slices), `1-VALIDATION.md` (8-dim + Nyquist), `1-PROGRESS.md`, `1-VERIFICATION.md`, `1-REVIEW.md` (2 Important issues fixed in-phase, 2 Suggestions applied), `1-SHIP.md` all generated cleanly.
@@ -85,10 +107,9 @@ See `TRANCHE-3.md` for the task breakdown.
 
 ## Active
 
-**TRANCHE 3 Task 2 COMPLETE.** Tasks 3–5 next:
-3. SKETCH-tier pass — the critical validation that calibration actually drops rigor.
+**TRANCHE 3 Task 3 COMPLETE — calibration value-prop validated.** Tasks 4–5 next:
 4. Write README quickstart (carries the `.planning/`-always-committed one-liner from T2 Step 5a). Natural seam to move PROJECT.md → `.planning/PROJECT.md` (resolves T1-dogfood findings).
-5. Triage outstanding OPEN-QUESTIONS items (3 from T2 Step 8 + 5 from T1 dogfood + 6 new from T2 Task 2 dogfood + 4 older = 18 active).
+5. Triage outstanding OPEN-QUESTIONS items (3 from T2 Step 8 + 5 from T1 dogfood + 6 from T3 Task 2 dogfood + 3 from T3 Task 3 dogfood + 4 older = 21 active).
 
 ## Blockers
 
@@ -96,4 +117,4 @@ None.
 
 ## Last Updated
 
-2026-04-26 (Tranche 3 Task 2 complete)
+2026-04-26 (Tranche 3 Task 3 complete)
