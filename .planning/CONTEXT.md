@@ -33,7 +33,7 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-**Tranche 2 underway. Steps 1, 2, 3, 4, 5, 5a complete. PROFILE.md → phase behavior is fully wired; the calibration layer has teeth.**
+**TRANCHE 2 COMPLETE (all 8 steps).** PROFILE.md → phase behavior fully wired; phase commands respect tier; orphan skills bound; agent count reconciled; token costs measured (all phases comfortably within budget); paper-walkthrough audit clean. **Next is Tranche 3 — real-project testing.**
 
 - 9 of 9 slash commands scaffolded. **All 6 phase commands now read PROFILE.md as their first action**, exit early if the phase is in `phases_skipped`, and apply per-phase `rigor_overrides`. `calibrate`, `escalate`, and `new-project` enforce `.gitignore` doesn't ignore `.planning/`.
 - 21 skill files (all bound now or correctly meta-only), 17 agent files, **11 reference docs** (added `question-patterns.md`), **4 tool libs**.
@@ -49,13 +49,21 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Active work
 
-**Tranche 2 has two items left, both unblocked:**
-- **Step 7** — REVIEW + PLAN phase token-cost measurement (`estimatePhaseSkillCost`). Now load-bearing: Step 5's bindings increased PLAN to 3 skills; this is the first chance to see if the PREPARE-phase token-budget trigger is already firing. Recommended next pickup.
-- **Step 6** — agent count reconciliation (17 on disk vs. 24 in spec). Audit which agents are missing, decide write-vs-revise.
+**Tranche 3 next.** Five tasks (see `TRANCHE-3.md`):
+1. Build `/sig:status` and `/sig:resume` (project resumption UX — load-bearing).
+2. FULL-tier pass on a throwaway sample project (the real E2E test).
+3. SKETCH-tier pass — the critical validation that calibration actually drops rigor.
+4. README quickstart (with `.planning/`-always-committed one-liner from T2 Step 5a).
+5. Triage T2 outstanding issues from OPEN-QUESTIONS.md.
 
-Step 8 (end-to-end self-test) is gated on Step 6/7 complete.
+Tranche 3 dogfoods Signal on itself: build one of `/sig:status` or `/sig:resume` via Signal's own commands. The "real" end-to-end self-test (deferred from T2 Step 8) lives in T3 Tasks 2 and 3.
 
-All previous blockers resolved. PROFILE.md → phase behavior is wired; only Step 6/7 remain before Tranche 2 exits.
+OPEN-QUESTIONS.md carries 3 friction points from T2 Step 8's paper walkthrough:
+- `{phase}-` artifact naming (multi-phase semantics in single-phase v1)
+- REVIEW/SHIP not explicitly reading prior-phase artifacts
+- state.js initState phase-name mismatch with /sig:new-project
+
+These are tractable in T3 once dogfood usage reveals which actually bite.
 
 ## Key files
 

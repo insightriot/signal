@@ -34,10 +34,10 @@ Tooling: `tools/lib/profile.js` exposes `readProfile`, `isPhaseEnabled`, `applyR
 
 ## Skill Loading
 
-Load from `${CLAUDE_PLUGIN_ROOT}/skills/plan/`:
-- `planning-and-task-breakdown/SKILL.md`
-- `api-and-interface-design/SKILL.md`
-- `deprecation-and-migration/SKILL.md`
+Load these skills (paths shown — bound to PLAN regardless of which directory the SKILL.md file lives in):
+- `${CLAUDE_PLUGIN_ROOT}/skills/plan/planning-and-task-breakdown/SKILL.md`
+- `${CLAUDE_PLUGIN_ROOT}/skills/build/api-and-interface-design/SKILL.md` (cross-bound: lives in `build/`, used in PLAN for designing contracts before code is written)
+- `${CLAUDE_PLUGIN_ROOT}/skills/ship/deprecation-and-migration/SKILL.md` (cross-bound: lives in `ship/`, used in PLAN for deprecation planning at design time; also loaded in SHIP for cleanup)
 
 ## Workflow
 

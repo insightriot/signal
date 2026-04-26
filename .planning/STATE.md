@@ -4,9 +4,9 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 2 — MVP Functional** (Steps 1, 2, 3, 4, 5, 5a, 6, 7 of 8 complete — only Step 8 remaining)
+**Tranche 2 — MVP Functional — COMPLETE** (all 8 steps done as of 2026-04-25). Tranche 3 is next.
 
-See `TRANCHE-2.md` for the task list.
+See `TRANCHE-2.md` for the final state; `TRANCHE-3.md` for what's next.
 
 ## Completed
 
@@ -43,11 +43,22 @@ See `TRANCHE-2.md` for the task list.
   - **Skill loading updated.** PLAN now loads api-and-interface-design + deprecation-and-migration. EXECUTE adds source-driven-development + frontend-ui-engineering (with conditional-loading note pointing to FUTURE-IDEAS.md). SHIP adds deprecation-and-migration. Reflects the Step 5 binding decisions.
   - 47/47 tests still passing; validator green.
 
+- **Tranche 2, Step 7 — phase token-cost measurement** (2026-04-25): wrote `tools/measure-phase-costs.js`. All 6 phases within budget; largest is EXECUTE at 12,761 tokens (6.4% of 200K). REVIEW at 5.2% — original "highest risk" framing was overcautious. PLAN at 3.3% with 3 skills — PREPARE-phase token-budget trigger NOT firing (FUTURE-IDEAS updated). Loader bug surfaced and fixed: `findSkillPath` searches all skill phase directories so cross-bound skills load correctly. 6 new tests; 53/53 passing.
+
+- **Tranche 2, Step 6 — agent count reconciliation** (2026-04-25): audit found 22 agents on disk (the OPEN-QUESTIONS "17" count was stale). PROJECT.md claimed 24 but contained two errors — Security Auditor double-counted (in both 3.3 GSD verification and 3.4 Agent Skills specialists), plus Doc Writer + Doc Verifier never written. Decision: revise spec to 22 (drop the docs agents — already covered by `documentation-and-adrs` SHIP-phase skill; same skill-not-agent pattern compound-engineering uses). PROJECT.md sections 3.0/3.3/3.5/Gate 2 updated; CLAUDE.md updated.
+
+- **Tranche 2, Step 8 — paper walkthrough** (2026-04-25): structural smoke test (real execution deferred to TRANCHE-3 Tasks 2+3 where fresh-project setup, real time/token measurement, and full execution time naturally live). Findings: PLAN's skill-loading paths were wrong for cross-bound skills (fixed inline); references all resolve; skill-binding consistency holds; 3 friction points logged to OPEN-QUESTIONS for TRANCHE-3: `{phase}-` artifact naming convention, REVIEW/SHIP not explicitly reading prior-phase artifacts, state.js initState phase-name mismatch.
+
 ## Active
 
-**Next: Tranche 2 has two items left — Step 6 (agent count reconciliation: 17 on disk vs. 24 in spec) and Step 7 (REVIEW + PLAN phase token-cost measurement). Either is a reasonable next pickup; recommend Step 7 since the Step 5 skill bindings increased PLAN's load and we want the data point.** Step 8 (end-to-end self-test) is gated on Step 6/7 complete.
+**TRANCHE 2 COMPLETE.** All 8 steps done; PROFILE.md → phase behavior is fully wired; calibration layer has teeth.
 
-All previous blockers resolved. Phase commands now wire PROFILE.md → behavior — the calibration layer's actual teeth are in.
+**Next: TRANCHE 3 — Ready for Real-Project Testing.** See `TRANCHE-3.md`. Tasks:
+1. Build `/sig:status` and `/sig:resume` (one via Signal itself, one hand-rolled — chicken-and-egg loop avoidance).
+2. FULL-tier pass on a throwaway sample project (real E2E test).
+3. SKETCH-tier pass — the critical validation that calibration actually drops rigor.
+4. Write README quickstart (carries the `.planning/`-always-committed one-liner from T2 Step 5a).
+5. Triage T2 outstanding issues from OPEN-QUESTIONS.md.
 
 ## Blockers
 
