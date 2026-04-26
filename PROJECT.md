@@ -301,6 +301,15 @@ The REVIEW phase (between VERIFY and SHIP) is the key architectural addition fro
     2.9.2 Update PROFILE.md with new tier
     2.9.3 Re-enable previously-skipped phases (back-fill if needed)
     Done: PROFILE.md updated, downstream phases re-gated
+
+2.10 /sig:status — META (read-only project inspection)
+    2.10.1 Detect project state — three branches:
+           A. not calibrated; B. calibrated but unbegun; C. in-flight
+    2.10.2 Render compact one-screen report (project + tier + phase +
+           blockers + open-questions count + last calibration + next action)
+    2.10.3 Tier-aware next-action recommendation honors phases_skipped
+    No skills loaded, no agents spawned, no tier-gating preamble (meta).
+    Done: snapshot rendered without mutating any .planning/* file
 ```
 
 **Source references:**
