@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { estimateTokens, checkContextBudget } from '../tools/lib/context-monitor.js';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import {
+  estimateTokens,
+  checkContextBudget,
+  findSkillPath,
+  estimatePhaseSkillCost,
+} from '../tools/lib/context-monitor.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PLUGIN_ROOT = join(__dirname, '..');
 
 describe('Context Monitor', () => {
   describe('estimateTokens', () => {
@@ -48,6 +59,52 @@ describe('Context Monitor', () => {
     it('reports remaining tokens', () => {
       const result = checkContextBudget(50_000, MAX_TOKENS);
       expect(result.remaining).toBe(150_000);
+    });
+  });
+
+  describe('findSkillPath', () => {
+    it('finds a skill in its native directory', () => {
+      const path = findSkillPath(PLUGIN_ROOT, 'planning-and-task-breakdown');
+      expect(path).toMatch(/skills\/plan\/planning-and-task-breakdown\/SKILL\.md$/);
+    });
+
+    it('finds a skill that lives in a directory other than its bound phase', () => {
+      // api-and-interface-design is bound to `plan` but lives in `skills/build/`.
+      const path = findSkillPath(PLUGIN_ROOT, 'api-and-interface-design');
+      expect(path).toMatch(/skills\/build\/api-and-interface-design\/SKILL\.md$/);
+    });
+
+    it('returns null for unknown skills', () => {
+      expect(findSkillPath(PLUGIN_ROOT, 'no-such-skill-xyz')).toBeNull();
+    });
+  });
+
+  describe('estimatePhaseSkillCost', () => {
+    it('finds cross-directory skills (plan binding includes a build/-resident skill)', async () => {
+      const bindings = {
+        plan: ['planning-and-task-breakdown', 'api-and-interface-design'],
+      };
+      const result = await estimatePhaseSkillCost(PLUGIN_ROOT, 'plan', bindings);
+      expect(result.skills).toHaveLength(2);
+      for (const s of result.skills) {
+        expect(s.found).toBe(true);
+        expect(s.tokens).toBeGreaterThan(0);
+      }
+      expect(result.totalTokens).toBeGreaterThan(0);
+    });
+
+    it('marks unfound skills with found: false', async () => {
+      const bindings = { plan: ['no-such-skill-xyz'] };
+      const result = await estimatePhaseSkillCost(PLUGIN_ROOT, 'plan', bindings);
+      expect(result.skills[0].found).toBe(false);
+      expect(result.skills[0].tokens).toBe(0);
+      expect(result.totalTokens).toBe(0);
+    });
+
+    it('returns empty result for unknown phase', async () => {
+      const result = await estimatePhaseSkillCost(PLUGIN_ROOT, 'no-such-phase', {});
+      expect(result.skills).toEqual([]);
+      expect(result.totalTokens).toBe(0);
     });
   });
 });

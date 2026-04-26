@@ -4,7 +4,7 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 2 — MVP Functional** (Steps 1, 2, 3, 4, 5, 5a of 8 complete)
+**Tranche 2 — MVP Functional** (Steps 1, 2, 3, 4, 5, 5a, 7 of 8 complete)
 
 See `TRANCHE-2.md` for the task list.
 

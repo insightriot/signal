@@ -23,10 +23,10 @@
 | 5. Naming drift + `validate-plugin.js` REQUIRED_COMMANDS / REQUIRED_FILES update | **DONE** | Bound 4 orphan skills (api-and-interface-design + deprecation-and-migration → plan; deprecation-and-migration also → ship; frontend-ui-engineering + source-driven-development → execute). Renamed `testing-patterns.md` → `testing-checklist.md`. Validator now requires calibrate/escalate commands + profile-schema/tier-definitions references. PREPARE phase logged as v2 candidate in FUTURE-IDEAS.md with three trigger conditions. Decision logged in DECISIONS.md. |
 | 5a. `.planning/`-always-tracked enforcement in user-facing commands | **DONE** | `/sig:calibrate` already had check (T2 Step 1). Added equivalent gate to `/sig:new-project` (Step 0 + gate checklist). README one-liner deferred to TRANCHE-3 Task 4 (where the README itself is written) — added explicit checkbox there. |
 | 6. Agent count reconciliation (17 on disk vs. 24 in spec) | Pending | Audit, decide which to write vs. revise spec. |
-| 7. REVIEW phase token-cost measurement | Pending | Run `estimatePhaseSkillCost('review')`; record in `DECISIONS.md`; chunk loader if over budget. |
+| 7. REVIEW phase token-cost measurement | **DONE** | Wrote `tools/measure-phase-costs.js`. All 6 phases within budget (largest is EXECUTE at 6.4% of 200K context). REVIEW at 5.2% — original "highest risk" concern was overcautious. PLAN at 3.3% — PREPARE-phase token-budget trigger NOT firing. Loader bug surfaced and fixed: `estimatePhaseSkillCost` now searches across all skill phase directories so cross-bound skills (api-and-interface lives in build/ but binds to plan; deprecation-and-migration in ship/ binds to plan + ship) load correctly. New `findSkillPath` helper. 6 new tests; 53/53 passing. Decisions logged in DECISIONS.md. |
 | 8. End-to-end self-test on a sample throwaway project | Pending | Validates the whole flow from `/sig:new-project` through `/sig:ship`. |
 
-**Order to execute:** ~~4~~ → ~~5~~ → ~~5a~~ → ~~(resolve Socratic OPEN-QUESTION)~~ → ~~3~~ → 6 → 7 → 8.
+**Order to execute:** ~~4~~ → ~~5~~ → ~~5a~~ → ~~(resolve Socratic OPEN-QUESTION)~~ → ~~3~~ → ~~7~~ → 6 → 8.
 
 ---
 

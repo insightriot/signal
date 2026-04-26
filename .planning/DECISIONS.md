@@ -87,6 +87,36 @@ Full spec: `references/profile-schema.md`. Tier-to-defaults mapping: `references
 
 ---
 
+## 2026-04-25 — Token-cost concern resolved; PREPARE-phase token-budget trigger not firing
+
+**Decision:** PROJECT.md's "Token budget is the highest risk" concern is resolved with measurement data. No phase comes close to the 40K threshold (~20% of 200K context).
+
+**Measured (via `tools/measure-phase-costs.js`):**
+
+| Phase | Skills | Tokens | % of 200K | Verdict |
+|---|---|---|---|---|
+| discuss | 2 | 3,881 | 1.9% | ok |
+| plan | 3 | 6,537 | 3.3% | ok |
+| execute | 5 | 12,761 | 6.4% | ok (largest) |
+| verify | 2 | 3,616 | 1.8% | ok |
+| review | 4 | 10,435 | 5.2% | ok |
+| ship | 5 | 12,234 | 6.1% | ok |
+
+**Rationale.** The original concern was that REVIEW would blow the budget loading 4 skills simultaneously. The measurement shows REVIEW at 5.2% — about a quarter of the alarm threshold. EXECUTE is the heaviest (5 skills, 6.4%) but still well within. Skills are smaller than feared; the 200K context window is larger than the original concern accounted for.
+
+**Implication for the PREPARE-phase candidate (FUTURE-IDEAS.md):**
+- One of the three PREPARE-phase promotion triggers was: "If `/sig:plan` ends up loading 5+ skills and the token budget blows."
+- PLAN currently loads 3 skills at 6,537 tokens. **Trigger is provisionally NOT firing.** Even doubling the skill count would still fit well within budget.
+- The other two PREPARE triggers (repeated user-language friction at the seam, two+ new skills landing homeless) remain active.
+
+**Loader bug surfaced and fixed:** `estimatePhaseSkillCost` previously assumed 1:1 phase → directory mapping; cross-bound skills (e.g., `api-and-interface-design` lives in `skills/build/` but is bound to `plan`) reported 0 tokens. New `findSkillPath` helper in `context-monitor.js` searches across all skill phase directories. Tests added.
+
+**Implication for chunking:**
+- No chunking required for v1. The on-demand loader pattern from Agent Skills holds at current scale.
+- If real-project usage shows any phase approaching 40K (e.g., REVIEW with adds + larger SKILL.md content over time), revisit.
+
+---
+
 ## 2026-04-25 — Question patterns: three shapes, strongly-recommended-with-justification
 
 **Decision:** Signal commands ask user-facing questions in exactly three shapes, codified in `references/question-patterns.md`:

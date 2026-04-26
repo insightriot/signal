@@ -184,7 +184,7 @@ That's a tranche of work, not a step. v1's whole pitch is *don't over-engineer b
 
 Promote PREPARE to a tranche file when **any one of these fires:**
 
-1. **Token-budget signal.** `/sig:plan` ends up loading 5+ skills (current candidate set already gets to 3: planning-and-task-breakdown, api-and-interface-design, deprecation-and-migration) and Tranche 2 Step 7's REVIEW token-cost measurement reveals PLAN is also over-budget. Two over-budget phases = structural problem, not skill-sizing problem.
+1. ~~**Token-budget signal.**~~ **(Provisionally cleared 2026-04-25 — see DECISIONS.md)** Tranche 2 Step 7 measurement shows PLAN at 6,537 tokens (3.3% of 200K context) with 3 skills bound; even doubling the count fits comfortably. The original framing assumed a much tighter budget than reality reflects. Reactivate this trigger if real-world usage shows PLAN approaching 40K (~20% of context window).
 
 2. **User-language signal.** During real Signal usage (Tranche 3+ dogfood), users repeatedly say things like *"I'm in PLAN but I'm really setting things up"* or *"this isn't really planning, this is prep"*. Two or more independent observations = the seam is real.
 
