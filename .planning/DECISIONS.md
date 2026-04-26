@@ -87,6 +87,28 @@ Full spec: `references/profile-schema.md`. Tier-to-defaults mapping: `references
 
 ---
 
+## 2026-04-25 — Agent count finalized at 22 (was speced as 24)
+
+**Decision:** Signal ships with **22 agents** (19 GSD + 3 Agent Skills specialists), not 24. PROJECT.md and CLAUDE.md updated.
+
+**Audit findings:**
+- 22 agent definitions on disk (the OPEN-QUESTIONS.md note of "17" was stale).
+- PROJECT.md claimed 24 but contained two errors:
+  1. **Security Auditor was double-counted** — listed under both 3.3 (GSD verification, 7 agents) and 3.4 (Agent Skills specialists, 3 agents). On disk it lives in `agents/specialists/`, so it's correctly an Agent Skills specialist; 3.3 should be 6 GSD verifiers (not 7). Real claimed count was 23, not 24.
+  2. **Doc Writer and Doc Verifier never written** — listed under 3.5 supporting agents but absent from disk.
+
+**Decision: drop Doc Writer + Doc Verifier from the spec rather than write them.**
+
+**Rationale.** Documentation responsibilities are already covered by the `documentation-and-adrs` SHIP-phase skill, which loads when SHIP runs. Spawning separate agents for documentation duplicates the skill's role and adds agent-spawn overhead for work that fits the skill pattern (instructions Claude follows in-context). Compound-engineering uses the same skill-not-agent pattern for docs, validating the choice. The skill catches doc-related needs (READMEs, ADRs, CHANGELOGs) at the right moment in the workflow without a separate agent.
+
+**Implication:**
+- PROJECT.md Gate 2 criterion "All 24 agents... functional" → "All 22 agents... functional".
+- PROJECT.md section 3.0 goal updated; 3.3 and 3.5 corrected; Security Auditor noted to live in 3.4 only.
+- CLAUDE.md "24 agents" → "22 agents".
+- OPEN-QUESTIONS.md "Agent count" entry resolved and removed.
+
+---
+
 ## 2026-04-25 — Token-cost concern resolved; PREPARE-phase token-budget trigger not firing
 
 **Decision:** PROJECT.md's "Token budget is the highest risk" concern is resolved with measurement data. No phase comes close to the 40K threshold (~20% of 200K context).

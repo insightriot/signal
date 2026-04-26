@@ -17,18 +17,6 @@ Watch for:
 
 ---
 
-## Agent count: 17 on disk vs. 24 in spec
-
-`PROJECT.md` claims 24 agents (21 GSD + 3 Agent Skills specialists). Actual on disk: 17.
-
-- Which 7 are missing? Quick audit against GSD's agents/ directory and Agent Skills' agents/ directory.
-- Are any of the missing ones actually load-bearing vs. redundant with what's there (per the rundown's note that GSD's 21 overlap with compound-eng's lens pattern and may trim)?
-- Decision: write them, or revise `PROJECT.md` Gate 2 down to the real number?
-
-**Resolve by:** Tranche 2, Step 6.
-
----
-
 ## Plugin manifest: what does Claude Code auto-discover?
 
 `plugin.json` only declares `commands`. Need to know:

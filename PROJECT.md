@@ -70,7 +70,7 @@ The gap: there is no integrated system that enforces engineering quality standar
 - Plugin packaging with commands, agents, skills, references, state management, and CLI tools
 - **Phase 0 + six-phase workflow:** `/sig:calibrate` → `/sig:discuss` → `/sig:plan` → `/sig:execute` → `/sig:verify` → `/sig:review` → `/sig:ship`
 - `/sig:calibrate` Phase 0 router that writes `.planning/PROFILE.md` (tier: SKETCH / FEATURE / SPIKE / FULL) that every downstream command reads
-- Integration of GSD's 21 agents with Agent Skills' 3 specialist agents (code-reviewer, test-engineer, security-auditor)
+- Integration of GSD's 19 agents with Agent Skills' 3 specialist agents (code-reviewer, test-engineer, security-auditor) — 22 agents total. (Originally speced as 24, reduced after doc-writer / doc-verifier responsibilities folded into the `documentation-and-adrs` SHIP-phase skill.)
 - On-demand skill loading per phase (not all-at-once) to preserve context budget
 - File-based state management (`.planning/` directory pattern from GSD, plus `PROFILE.md`)
 - Anti-rationalization tables at every phase gate
@@ -102,7 +102,7 @@ The gap: there is no integrated system that enforces engineering quality standar
 - Every phase transition has a gate with explicit go/no-go criteria
 - Agent Skills' 21 skills are loadable on-demand within GSD's execution framework
 - Context monitoring warns at 35% and 25% remaining (GSD pattern)
-- All 24 agents (21 GSD + 3 Agent Skills specialists) are functional
+- All 22 agents (19 GSD + 3 Agent Skills specialists) are functional
 - `PROFILE.md` correctly gates downstream phases based on calibration output
 - The plugin passes its own quality gates (dogfooding)
 
@@ -312,7 +312,7 @@ The REVIEW phase (between VERIFY and SHIP) is the key architectural addition fro
 
 ### 3.0 Agent Definitions
 
-**Goal:** Define all 24 specialized agents with scoped tool access.
+**Goal:** Define all 22 specialized agents with scoped tool access.
 
 ```
 3.1 Research agents (from GSD — 6 agents)
@@ -324,9 +324,11 @@ The REVIEW phase (between VERIFY and SHIP) is the key architectural addition fro
     - Planner, Roadmapper, Executor
     Done: Each agent functional within wave-based execution
 
-3.3 Verification & Quality agents (from GSD — 7 agents)
+3.3 Verification & Quality agents (from GSD — 6 agents)
     - Plan Checker, Integration Checker, UI Checker, Verifier
-    - Nyquist Auditor, UI Auditor, Security Auditor
+    - Nyquist Auditor, UI Auditor
+    (Security Auditor lives in 3.4 — it's an Agent Skills specialist, not a GSD verifier.
+    Earlier draft double-counted it under both categories; corrected here.)
     Done: Each agent validates its domain correctly
 
 3.4 Specialist agents (from Agent Skills — 3 agents)
@@ -335,10 +337,14 @@ The REVIEW phase (between VERIFY and SHIP) is the key architectural addition fro
     - Security Auditor (loaded during REVIEW phase)
     Done: Specialists integrate with GSD's agent spawning, produce actionable findings
 
-3.5 Supporting agents (from GSD — 5 agents)
-    - Codebase Mapper, Debugger, Doc Writer, Doc Verifier
-    - Phase Gate Enforcer (new — runs anti-rationalization checks)
+3.5 Supporting agents (from GSD — 3 agents + 1 Signal-original)
+    - Codebase Mapper, Debugger (from GSD)
+    - Phase Gate Enforcer (Signal-original — runs anti-rationalization checks)
     Done: All supporting agents functional
+
+    (Earlier draft also listed Doc Writer + Doc Verifier here. Decision 2026-04-25:
+    folded into the `documentation-and-adrs` SHIP-phase skill rather than as separate
+    agents. Compound-engineering uses the same skill-not-agent pattern for docs.)
 ```
 
 **Source references:**

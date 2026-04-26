@@ -68,7 +68,7 @@ The REVIEW phase (between VERIFY and SHIP) is the key addition over GSD's origin
 commands/       # 9 slash commands — /sig:new-project, /sig:calibrate,
                 # /sig:discuss, /sig:plan, /sig:execute, /sig:verify,
                 # /sig:review, /sig:ship, /sig:escalate
-agents/         # 24 agents (21 GSD + 3 Agent Skills specialists)
+agents/         # 22 agents (19 GSD + 3 Agent Skills specialists)
 skills/         # 21 quality skills organized by phase (define/, plan/, build/, verify/, review/, ship/)
 references/     # Merged checklists and gates from both frameworks,
                 # plus PROFILE.md schema + tier definitions
