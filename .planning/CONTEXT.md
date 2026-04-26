@@ -35,7 +35,7 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 **TRANCHE 3 COMPLETE (2026-04-26) — v1 is ship-ready.** All 5 tasks shipped: /sig:status + /sig:resume; FULL-tier dogfood on URL shortener (39 tests, all 24 AC); SKETCH-tier dogfood on CSV-to-JSON one-shot (calibration value-prop validated, 24x contrast); README.md + PROJECT.md → `.planning/PROJECT.md` move; OPEN-QUESTIONS triage (14 fix-nows applied across state.js + 5 phase commands + tier-definitions + README + historical docs; 4 marked resolved; 1 deferred to T4; 1 confirmed-no-change). Tests 53 → 96; OPEN-QUESTIONS 20 → 2.
 
-**Next decision:** tag `v0.1.0` (recommended — stop adding scope, wait for real user signal) OR begin TRANCHE-4 v2 ports per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` (gated on v1 having real users per locked decision).
+**Path forward (locked 2026-04-26):** tag `v0.1.0`, clear context, then begin **TRANCHE-4 — `/sig:init` brownfield onboarding** (see `TRANCHE-4.md`). This was a roadmap reorder: the previous TRANCHE-4 (v2 ports) became TRANCHE-5; brownfield onboarding was promoted because it's a v1-completing feature, not v2-expanding scope. Brownfield is likely the most common real-world adoption path, and v1's ad-hoc three-step brownfield flow gates adoption.
 
 - **11 of 11 slash commands shipped** (added `/sig:status` and `/sig:resume` in T3 Task 1).
   - `/sig:status` — read-only project inspection, dogfooded (worktree branch `worktree-dogfood-status`).
@@ -70,7 +70,7 @@ Dogfood approach for any future Signal-on-Signal work is now locked in DECISIONS
 - `PROJECT.md` — the full v1 spec
 - `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` — the v2 vision
 - `CLAUDE.md` — project instructions
-- `.planning/TRANCHE-{1,2,3,4}.md` — scoped work plans
+- `.planning/TRANCHE-{1,2,3,4,5}.md` — scoped work plans (TRANCHE-4 = `/sig:init` next phase; TRANCHE-5 = v2 ports, gated)
 - `.planning/DECISIONS.md` — append-only architecture decisions
 - `.planning/OPEN-QUESTIONS.md` — unresolved design questions (v1-scoped)
 - `.planning/FUTURE-IDEAS.md` — post-v1 architectural evolutions of Signal's own mechanisms (distinct from TRANCHE-4's rundown-v2 integrations)

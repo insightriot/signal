@@ -141,9 +141,11 @@ See `TRANCHE-3.md` for the task breakdown.
 
 ## Active
 
-**TRANCHE 3 COMPLETE — v1 ship-readiness criteria met.** Next decision: declare v1 ready for external testers + tag `v0.1.0`, OR queue TRANCHE-4 (v2 ports per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` — gated on v1 having real users, per the locked decision).
+**TRANCHE 3 COMPLETE — v0.1.0 ready to tag.** Next phase: **TRANCHE-4 — `/sig:init` brownfield onboarding** (see `TRANCHE-4.md`). The previous TRANCHE-4 (v2 ports) was renamed to TRANCHE-5 to reflect the priority shift; rationale in DECISIONS.md (2026-04-26 — "Roadmap reorder").
 
-Recommendation: tag `v0.1.0` and stop adding scope until real user signal arrives. Two dogfood passes (FULL + SKETCH) is the right amount of self-validation; further pre-release polish risks the very over-engineering Signal's own calibration is built to prevent.
+The path: ship v0.1.0 → clear context → start fresh on TRANCHE-4 by reading `TRANCHE-4.md` cold (the file's "How to start a session" appendix lays out the read-order).
+
+Why brownfield-init became TRANCHE-4 instead of v1.5/FUTURE-IDEAS: brownfield is almost certainly the most common real-world adoption path, and v1's three-step ad-hoc brownfield flow is friction-rich enough to gate adoption. It's a v1-completing feature, not v2-expanding scope.
 
 ## Blockers
 

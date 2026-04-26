@@ -246,3 +246,23 @@ This matches GSD's pattern (where multi-phase project work was first-class) and 
 **Implication.** OPEN-QUESTIONS.md goes from 20 active items to 2: tier-count validation (waits for real-user data) and slash-command testing harness (TRANCHE-4 candidate). Tranche 3 is now exit-criteria-clean for v1 ship-readiness.
 
 ---
+
+## 2026-04-26 — Roadmap reorder: brownfield onboarding promoted to TRANCHE-4
+
+**Decision:** `/sig:init` (brownfield onboarding for existing codebases that aren't yet using Signal) becomes TRANCHE-4. The previous TRANCHE-4 (v2 ports per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`) moves to TRANCHE-5. The file `TRANCHE-4.md` is now the `/sig:init` plan; the prior content was renamed via `git mv` to `TRANCHE-5.md`, with sub-tranches renumbered `4a-f` → `5a-f` and the blocking criterion updated.
+
+**Rationale.** Three user journeys exist for Signal: greenfield (`/sig:new-project`), existing-Signal-project (`/sig:status` + `/sig:resume`), and brownfield (existing codebase, no Signal yet). The first two have clean v1 entry points; the third does not — the current path is `/sig:new-project` + `/sig:calibrate` Scenario A + `/sig:discuss --assumptions`, which is friction-rich and easy to skip steps.
+
+Brownfield is almost certainly the most common real-world adoption path. Greenfield Signal projects are rare; most users have existing code they want to bring discipline to. Without a dedicated entry point, the first thing prospective users see when adopting Signal is a friction-rich path that requires reverse-engineering Signal's mental model — which kills adoption.
+
+This is a **v1-completing feature, not a v2-expanding one.** v2 ports add new capabilities; brownfield-onboarding is closing a hole in v1's user-facing surface area. Treating it as TRANCHE-4 (rather than buried in `FUTURE-IDEAS.md` as a v1.5 candidate) reflects that priority.
+
+**Implication:**
+- v0.1.0 ships v1 narrow as planned (current Tranches 1–3).
+- TRANCHE-4 begins next, on a fresh context per the session-flow plan.
+- TRANCHE-5 (the previous TRANCHE-4) remains gated on real-user signal and now also waits on TRANCHE-4 completion. The v2-ports scope itself is unchanged; only its position in the queue moved.
+- No license / attribution changes — `/sig:init` is Signal's own design, not a port.
+
+**Implementing session should:** read the new `TRANCHE-4.md` (which is detailed enough to pick up cold), and follow the "How to start a session for TRANCHE-4" appendix at the bottom of that file.
+
+---
