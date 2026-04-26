@@ -33,10 +33,13 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-**TRANCHE 2 COMPLETE (all 8 steps).** PROFILE.md → phase behavior fully wired; phase commands respect tier; orphan skills bound; agent count reconciled; token costs measured (all phases comfortably within budget); paper-walkthrough audit clean. **Next is Tranche 3 — real-project testing.**
+**TRANCHE 3 IN PROGRESS — Task 1 ✓ ✓ (both /sig:status and /sig:resume shipped 2026-04-26).** First dogfood pass of Signal-on-Signal complete. Tranche 2 complete; phase commands respect tier; orphan skills bound; agent count reconciled; token costs measured.
 
-- 9 of 9 slash commands scaffolded. **All 6 phase commands now read PROFILE.md as their first action**, exit early if the phase is in `phases_skipped`, and apply per-phase `rigor_overrides`. `calibrate`, `escalate`, and `new-project` enforce `.gitignore` doesn't ignore `.planning/`.
-- 21 skill files (all bound now or correctly meta-only), **22 agent files** (PROJECT.md updated from claimed 24 → 22; 19 GSD + 3 Agent Skills specialists), **11 reference docs** (added `question-patterns.md`), **4 tool libs**.
+- **11 of 11 slash commands shipped** (added `/sig:status` and `/sig:resume` in T3 Task 1).
+  - `/sig:status` — read-only project inspection, dogfooded (worktree branch `worktree-dogfood-status`).
+  - `/sig:resume` — re-orientation briefing, hand-rolled per the locked plan (chicken-and-egg avoidance).
+  - The 6 phase commands all read PROFILE.md as their first action; meta commands (calibrate / escalate / new-project / status / resume) skip the tier-gating preamble.
+- 21 skill files (all bound or correctly meta-only), **22 agent files**, **11 reference docs**, **5 tool libs** (added `tools/lib/status.js`).
 - **Question-pattern convention locked (Step 3).** `references/question-patterns.md` defines three shapes — strict enum (calibrate's questions), 3-options-plus-other (the default for tradeoffs), open-ended (rare). Strongly-recommended-with-justification convention. DISCUSS Step 4 retrofitted to explicit 3+other; VERIFY's Loop Back retrofitted to 3+other (loop-back / escalate / accept-failure).
 - **Skill bindings (Step 5).** Plan: 3 skills (was 1). Execute: 5 (was 3). Ship: 5 (was 4). Bindings written in `state/config.json`; phase commands updated to load them.
 - PROFILE.md schema locked. Tier-to-defaults mapping locked. Override handling locked. Escalation history preservation locked.
@@ -45,25 +48,20 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 - **Validator** requires `calibrate.md` + `escalate.md` + `profile-schema.md` + `tier-definitions.md`.
 - **Profile helpers (Step 4).** `readProfile` strictly validates. `isPhaseEnabled` treats CALIBRATE as never-skipped. `applyRigorOverrides` is non-mutating + maps to legacy keys.
 - Architectural insights logged: (a) **strict Nyquist is a one-way ratchet**; (b) **ODI map reveals a missing PREPARE phase** in v1's decomposition (logged for v2).
-- **53 tests passing** (state.test.js + context-monitor.test.js + profile.test.js); validator green.
+- **93 tests passing** (state.test.js + context-monitor.test.js + profile.test.js + status.test.js — 53 → 93, +40 new in T3 Task 1); validator green.
 
 ## Active work
 
-**Tranche 3 next.** Five tasks (see `TRANCHE-3.md`):
-1. Build `/sig:status` and `/sig:resume` (project resumption UX — load-bearing).
-2. FULL-tier pass on a throwaway sample project (the real E2E test).
+**Tranche 3 in progress.** Task 1 complete; 4 tasks remain (see `TRANCHE-3.md`):
+1. ✓ Build `/sig:status` and `/sig:resume` (T3 Task 1 — 2026-04-26). `/sig:status` was dogfooded (full 6-phase Signal-on-Signal pass in worktree `worktree-dogfood-status`); `/sig:resume` was hand-rolled. Both auto-discovered by Claude Code; validator green; 93/93 tests pass.
+2. FULL-tier pass on a throwaway sample project (the real E2E test) — next.
 3. SKETCH-tier pass — the critical validation that calibration actually drops rigor.
-4. README quickstart (with `.planning/`-always-committed one-liner from T2 Step 5a).
-5. Triage T2 outstanding issues from OPEN-QUESTIONS.md.
+4. README quickstart (with `.planning/`-always-committed one-liner from T2 Step 5a). Natural seam to also move Signal's PROJECT.md from repo root to `.planning/PROJECT.md` (resolves dogfood Friction #1/#3).
+5. Triage T2 outstanding issues + 5 new dogfood findings from OPEN-QUESTIONS.md.
 
-Tranche 3 dogfoods Signal on itself: build one of `/sig:status` or `/sig:resume` via Signal's own commands. The "real" end-to-end self-test (deferred from T2 Step 8) lives in T3 Tasks 2 and 3.
+OPEN-QUESTIONS.md carries 5 dogfood findings (added 2026-04-26) plus the 3 from T2 Step 8 + 4 older items. Friction triage is Task 5; resolutions are mostly small (one-line fixes in calibrate.md, review.md's override table, state.js dedup).
 
-OPEN-QUESTIONS.md carries 3 friction points from T2 Step 8's paper walkthrough:
-- `{phase}-` artifact naming (multi-phase semantics in single-phase v1)
-- REVIEW/SHIP not explicitly reading prior-phase artifacts
-- state.js initState phase-name mismatch with /sig:new-project
-
-These are tractable in T3 once dogfood usage reveals which actually bite.
+Dogfood approach for any future Signal-on-Signal work is now locked in DECISIONS.md (worktree + cherry-pick protocol).
 
 ## Key files
 

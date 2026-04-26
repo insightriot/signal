@@ -36,7 +36,7 @@ Currently, Claude infers what to do — usually correctly. Risk: in a long sessi
 
 ## state.js `initState` writes DISCUSS; `/sig:new-project` writes CALIBRATE
 
-**Surfaced by:** Tranche 2 Step 8 paper walkthrough (2026-04-25).
+**Surfaced by:** Tranche 2 Step 8 paper walkthrough (2026-04-25); reinforced by Tranche 3 Task 1 dogfood (2026-04-26).
 
 `tools/lib/state.js` `initState(baseDir)` initializes STATE.md with `Current Phase: DISCUSS`. But `/sig:new-project.md` Step 1 says to initialize STATE.md with `Current Phase: CALIBRATE` (because Phase 0 should run next).
 
@@ -45,6 +45,62 @@ If `initState` is called directly from tooling (not via the slash command), STAT
 **Candidate fix:** Update `initState` default to `CALIBRATE`, OR accept a `phase` parameter so the caller chooses.
 
 **Resolve by:** Trivial; can be done in any session that touches state.js.
+
+---
+
+## `/sig:calibrate` doesn't initialize STATE.md (init gap between Phase 0 and Phase 1)
+
+**Surfaced by:** Tranche 3 Task 1 dogfood (2026-04-26).
+
+`/sig:calibrate` writes `.planning/PROFILE.md` but not `.planning/STATE.md`. `/sig:discuss` Step 1 expects STATE.md to exist. On a clean post-calibrate path, STATE.md is missing — `/sig:discuss` continues gracefully (Step 1 doesn't halt), but `transitionPhase` later fails because there's no state to transition.
+
+**Candidate fix:** add a final step to `/sig:calibrate` that calls `initState(baseDir, 'DISCUSS')` after writing PROFILE.md. Or: `/sig:discuss` Step 1 calls `initState` if STATE.md is absent. The first option is cleaner — the calibration phase produces both artifacts the workflow expects.
+
+**Resolve by:** small fix in `/sig:calibrate.md` Step 5 or Step 6. Couples to the `initState` phase-default question above (if both fix together, can hardcode the right initial phase).
+
+---
+
+## Calibrate Scenario B and `checkGateArtifacts` PLAN gate require `.planning/PROJECT.md`
+
+**Surfaced by:** Tranche 3 Task 1 dogfood (2026-04-26).
+
+Two places assume PROJECT.md lives at `.planning/PROJECT.md`:
+- `/sig:calibrate.md` Scenario B (line 26): "`.planning/PROJECT.md` exists, no `PROFILE.md`" → happy path.
+- `tools/lib/state.js` `checkGateArtifacts(baseDir, 'PLAN')` (line 124): requires `PROJECT.md` to exist in `.planning/`.
+
+But the Signal-build's own `PROJECT.md` lives at repo root (legacy from before `.planning/` was introduced). The dogfood worked around this by symlinking `.planning/PROJECT.md → ../PROJECT.md`.
+
+**Two fix paths:**
+- **Move Signal's own PROJECT.md to `.planning/PROJECT.md`** so the convention applies uniformly. Symlink at repo root for backward refs.
+- **Make calibrate + checkGateArtifacts also check repo root** as a fallback. More code, but accommodates self-managed projects that drifted.
+
+**Resolve by:** Tranche 3 Task 4 (README work) is a natural seam — moving PROJECT.md is a small refactor and the README will reference the new path anyway.
+
+---
+
+## `review_depth: quality-only` supersedes `security_audit` / `performance_pass` / `simplification_pass`
+
+**Surfaced by:** Tranche 3 Task 1 dogfood (2026-04-26).
+
+In `review.md` Section 0's override table, `review_depth: quality-only` says "Skip Steps 2 (security), 3 (performance), 4 (simplification)" — but the table also lists `security_audit`, `performance_pass`, `simplification_pass` as separate overrides with their own effects. FEATURE tier sets `review_depth: quality-only` but ALSO sets `security_audit: basic`, `performance_pass: true`, `simplification_pass: true` — which wins?
+
+The current behavior (per the table's prose) is that `review_depth` wins: when it's `quality-only`, the other flags are ignored. That's a precedence rule that isn't explicit in the table.
+
+**Candidate fix:** Add a one-line precedence note above the rigor table in `review.md`: *"`review_depth` is the master switch — `none` skips REVIEW entirely, `quality-only` skips Steps 2/3/4, `full` runs all four. The other rigor flags (`security_audit`, `performance_pass`, `simplification_pass`) only matter when `review_depth: full`."*
+
+**Resolve by:** Tranche 3 triage; one-line edit.
+
+---
+
+## `transitionPhase` doesn't dedupe completed phases
+
+**Surfaced by:** Tranche 3 Task 1 dogfood (2026-04-26).
+
+If `transitionPhase` is called after `state.completedPhases` was edited by hand (or by an earlier transition that wasn't undone), it appends — producing duplicate entries (`VERIFY` listed twice, etc). Minor in the happy path; bites in recovery scenarios.
+
+**Candidate fix:** in `state.js#transitionPhase` line 88, dedupe `completed` by phase name (keep latest timestamp): `Array.from(new Map(completed.map(p => [p.split(' ')[0], p])).values())`.
+
+**Resolve by:** Trivial; bundled with the other state.js fix above.
 
 ---
 

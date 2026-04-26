@@ -178,3 +178,39 @@ The 5th unbound skill, `using-agent-skills`, is meta — correctly not phase-bou
 - The orphan-skill OPEN-QUESTIONS entry is resolved and removed.
 
 ---
+
+## 2026-04-26 — Dogfood approach: worktree + cherry-pick for Signal-on-Signal builds
+
+**Decision:** When using Signal to build Signal itself (the dogfood pattern committed for Tranche 3 Task 1), follow this process:
+
+1. Create a git worktree (`EnterWorktree` or `git worktree add`) from main HEAD on a fresh branch.
+2. In the worktree, rename hand-rolled colliding files: `.planning/CONTEXT.md` → `.planning/BUILD-CONTEXT.md` and `.planning/STATE.md` → `.planning/BUILD-STATE.md`. Commit the rename as a worktree-only setup commit.
+3. Run the Signal flow (`/sig:calibrate` → `/sig:discuss` → `/sig:plan` → `/sig:execute` → `/sig:verify` → `/sig:review` → `/sig:ship`) inside the worktree. The Signal-managed `PROFILE.md`, `CONTEXT.md`, `REQUIREMENTS.md`, `1-PLAN.md`, `1-RESEARCH.md`, `1-VALIDATION.md`, `1-PROGRESS.md`, `1-VERIFICATION.md`, `1-REVIEW.md`, and `1-SHIP.md` (a useful improvisation) write into `.planning/` cleanly.
+4. After SHIP, cherry-pick or `git checkout` the **substantive files only** back to main (the new command file, helpers, tests, validator update, and PROJECT.md changes — not the `.planning/` dogfood artifacts).
+5. Capture friction findings in main's `OPEN-QUESTIONS.md` and `DECISIONS.md`.
+6. Keep the worktree branch around as a record (Action: `keep`, not `remove`).
+
+**Rationale:** The Signal-build's hand-rolled `.planning/` (with its tranche-based meta-state) and Signal-managed `.planning/` (PROFILE / CONTEXT / STATE / `{phase}-*.md`) want the same filenames for some artifacts. A worktree isolates them so the dogfood is a true picture of Signal's behavior on a "real" project rather than a collision-noise mess.
+
+**Implication:**
+- Future dogfood passes (e.g., for `/sig:resume` if it ever needs an end-to-end pass; for v2 phase additions; for any Signal-on-Signal feature work) follow this protocol.
+- `/sig:resume` itself was hand-rolled (not dogfooded) by design — using `/sig:resume` to build `/sig:resume` is a chicken-and-egg loop. The dogfood protocol does NOT apply when the feature being built is itself the resumption tool.
+- Friction findings from the first dogfood (Signal-on-Signal for `/sig:status`) are now in `OPEN-QUESTIONS.md`: 5 issues, all small/triage-able, none gating ship.
+
+---
+
+## 2026-04-26 — `{phase}-` artifact prefix uses numeric form (`1-{ARTIFACT}.md`) in v1
+
+**Decision:** Where commands write `{phase}-PLAN.md` / `{phase}-RESEARCH.md` / `{phase}-VALIDATION.md` / `{phase}-PROGRESS.md` / `{phase}-VERIFICATION.md` / `{phase}-REVIEW.md`, the `{phase}` substitution is the **numeric phase index starting at 1** (i.e., `1-PLAN.md`, `1-VERIFICATION.md`, etc).
+
+This matches GSD's pattern (where multi-phase project work was first-class) and fits Signal v1's "one project = one linear flow" model — there's only ever phase `1` in v1, but the naming leaves room for v2 multi-feature lifecycle (where phase `2`, `3`, etc. become real).
+
+**Rationale:** The OPEN-QUESTIONS.md `{phase}-` naming question was tied to two paths: numeric (GSD-style; `1-`) or simplified-no-prefix (just `PLAN.md`). Dogfood signal: numeric reads more naturally and doesn't break when the literal-substitution form would produce `PLAN-PLAN.md` (which is awkward). It also signposts the multi-feature future — users who eventually have `1-PLAN.md` and `2-PLAN.md` immediately understand the system.
+
+**Implication:**
+- Phase commands keep the `{phase}-` placeholder text in the markdown for now; users (and Claude reading them) substitute `1-` in v1.
+- `/sig:resume`'s artifact-resolution probes try `1-{ARTIFACT}.md` first (per the locked convention), then `{ARTIFACT}.md` (the simplified form, still tolerated), then `{PHASE_NAME}-{ARTIFACT}.md` (defensive fallback).
+- v2 multi-feature lifecycle work (if it lands) makes the numeric prefix load-bearing.
+- The OPEN-QUESTIONS entry on `{phase}-` naming can be marked resolved once future runs confirm the `1-` convention sticks.
+
+---

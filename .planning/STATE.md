@@ -4,9 +4,9 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 2 — MVP Functional — COMPLETE** (all 8 steps done as of 2026-04-25). Tranche 3 is next.
+**Tranche 3 — Real-Project Testing — IN PROGRESS.** Task 1 complete (2026-04-26): `/sig:status` shipped via Signal-on-Signal dogfood; `/sig:resume` hand-rolled. Tasks 2–5 next.
 
-See `TRANCHE-2.md` for the final state; `TRANCHE-3.md` for what's next.
+See `TRANCHE-3.md` for the task breakdown.
 
 ## Completed
 
@@ -49,16 +49,24 @@ See `TRANCHE-2.md` for the final state; `TRANCHE-3.md` for what's next.
 
 - **Tranche 2, Step 8 — paper walkthrough** (2026-04-25): structural smoke test (real execution deferred to TRANCHE-3 Tasks 2+3 where fresh-project setup, real time/token measurement, and full execution time naturally live). Findings: PLAN's skill-loading paths were wrong for cross-bound skills (fixed inline); references all resolve; skill-binding consistency holds; 3 friction points logged to OPEN-QUESTIONS for TRANCHE-3: `{phase}-` artifact naming convention, REVIEW/SHIP not explicitly reading prior-phase artifacts, state.js initState phase-name mismatch.
 
+- **Tranche 3, Task 1 — `/sig:status` (dogfooded) + `/sig:resume` (hand-rolled)** (2026-04-26): first Signal-on-Signal dogfood pass. Worktree `worktree-dogfood-status` ran the full 6-phase flow on building `/sig:status`. Substantive work cherry-picked to main:
+  - `.claude/commands/sig/status.md` — 3-branch (uncalibrated / unbegun / in-flight) read-only inspection with tier-aware next-action recommendation.
+  - `.claude/commands/sig/resume.md` — re-orientation briefing that loads PROJECT/CONTEXT + the current phase's artifact and ends with "Ready to continue with /sig:{phase}?" prompt; tolerant to `{phase}-` naming variants.
+  - `tools/lib/status.js` — `nextActionForPhase`, `reachedDoneViaSkip`, `extractTopOpenQuestions`, `countOpenQuestions`, `readOpenQuestions`, `formatEscalationSummary`.
+  - `tests/status.test.js` — 40 new tests (helpers + 3 branch fixtures + read-only mtime check + static contract checks). 53 → 93 tests.
+  - `tools/validate-plugin.js` — adds `status.md` and `resume.md` to REQUIRED_COMMANDS.
+  - `PROJECT.md` — adds WBS sections 2.10 and 2.11.
+  - `.gitignore` — ignores `.claude/worktrees/`.
+
+  Five dogfood-friction findings appended to `OPEN-QUESTIONS.md` (Scenario B's `.planning/PROJECT.md` check vs. Signal's repo-root PROJECT.md; calibrate doesn't init STATE.md; PLAN gate `checkGateArtifacts` likewise; `review_depth: quality-only` precedence; `transitionPhase` doesn't dedupe). Two `DECISIONS.md` entries: dogfood worktree+cherry-pick protocol, `{phase}-` numeric prefix locked.
+
 ## Active
 
-**TRANCHE 2 COMPLETE.** All 8 steps done; PROFILE.md → phase behavior is fully wired; calibration layer has teeth.
-
-**Next: TRANCHE 3 — Ready for Real-Project Testing.** See `TRANCHE-3.md`. Tasks:
-1. Build `/sig:status` and `/sig:resume` (one via Signal itself, one hand-rolled — chicken-and-egg loop avoidance).
+**TRANCHE 3 Task 1 COMPLETE.** Tasks 2–5 next:
 2. FULL-tier pass on a throwaway sample project (real E2E test).
 3. SKETCH-tier pass — the critical validation that calibration actually drops rigor.
-4. Write README quickstart (carries the `.planning/`-always-committed one-liner from T2 Step 5a).
-5. Triage T2 outstanding issues from OPEN-QUESTIONS.md.
+4. Write README quickstart (carries the `.planning/`-always-committed one-liner from T2 Step 5a). Natural seam to move PROJECT.md → `.planning/PROJECT.md` (resolves dogfood findings #1/#3).
+5. Triage outstanding OPEN-QUESTIONS items (3 from T2 Step 8 + 5 new dogfood findings + 4 older).
 
 ## Blockers
 
@@ -66,4 +74,4 @@ None.
 
 ## Last Updated
 
-2026-04-25
+2026-04-26

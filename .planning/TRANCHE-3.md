@@ -34,11 +34,11 @@ These are load-bearing for the actual user experience. Users will jump back into
 
 **Dogfood:** build `/sig:status` via Signal itself (the smaller, pure-read command); hand-roll `/sig:resume` to avoid the chicken-and-egg loop (can't use resumption to build the resumption tool). This lean was already in OPEN-QUESTIONS pre-T3; locked here.
 
-- [ ] Hand-roll `/sig:status` first — but actually run Signal *against itself* to dogfood the build of it (use `/sig:calibrate` (FEATURE) → `/sig:discuss` → ... → `/sig:ship`). Lock the build approach in DECISIONS.md.
-- [ ] Run the full 6-phase flow on the `/sig:status` dogfood target.
-- [ ] Take notes on every friction point — these go in OPEN-QUESTIONS.md and drive Tranche 3+ improvements.
-- [ ] Hand-roll `/sig:resume` after `/sig:status` lands.
-- [ ] Ship both commands before moving on; they unblock every subsequent dogfood pass.
+- [x] Hand-roll `/sig:status` first — but actually run Signal *against itself* to dogfood the build of it (use `/sig:calibrate` (FEATURE) → `/sig:discuss` → ... → `/sig:ship`). Lock the build approach in DECISIONS.md.  ← 2026-04-26 — DECISIONS entry "Dogfood approach: worktree + cherry-pick" locks the protocol.
+- [x] Run the full 6-phase flow on the `/sig:status` dogfood target.  ← 2026-04-26 — 8 commits in `worktree-dogfood-status` branch document each phase; substantive output cherry-picked to main.
+- [x] Take notes on every friction point — these go in OPEN-QUESTIONS.md and drive Tranche 3+ improvements.  ← 2026-04-26 — 5 findings added.
+- [x] Hand-roll `/sig:resume` after `/sig:status` lands.  ← 2026-04-26.
+- [x] Ship both commands before moving on; they unblock every subsequent dogfood pass.  ← Both auto-discovered by Claude Code; validator green; 93/93 tests.
 
 **Design note:** `/sig:resume` is the more complex of the two — it has to know how to "re-orient" for each phase, which means it needs per-phase resumption logic. That's a small state machine. `/sig:status` is the pure-read version and lands first.
 
