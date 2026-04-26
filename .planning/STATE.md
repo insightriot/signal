@@ -4,11 +4,21 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 4 — Brownfield Onboarding via `/sig:init` — IN PROGRESS.** T4.1 shipped (skeleton + pre-flight); T4.2–T4.16 remain. See `TRANCHE-4.md` for full task list.
+**Tranche 4 — Brownfield Onboarding via `/sig:init` — IN PROGRESS.** T4.1 shipped (skeleton + pre-flight); T4.2–T4.5 shipped (4 scanner agents); T4.6–T4.16 remain. See `TRANCHE-4.md` for full task list.
 
 Tranche 3 closed 2026-04-26. v1 ship-ready; `v0.1.0` tag pending.
 
 ## Completed
+
+- **Tranche 4, Tasks 2–5 — 4 parallel scanner agents** (2026-04-26): wrote `agents/scanners/{stack,structure,activity,quality}-scanner.md`. Each is read-only, single-purpose, fact-only (no synthesis — T4.6's job), and writes to `.planning/scan/{name}.md` for the synthesizer to consume. Output formats are pinned-section-shape so T4.6 can mechanically combine them; missing sections are explicit `(none detected)` rather than omitted.
+
+  Sibling-scanner overlap was the design challenge — resolved by assigning ownership: stack owns languages + frameworks + Dockerfile + lockfiles; structure owns directory shapes + monorepo detection + test-dir presence + doc-dir presence; activity owns git-history signals (lifetime, cadence, contributors, hot files, commit conventions, branch state, health classification); quality owns test-runner config + CI workflows + lint/format tooling + README/CHANGELOG state + TODO/FIXME debt + license. Each agent's Constraints section explicitly disclaims what's *not* its territory to prevent duplicate reporting in LANDSCAPE.md.
+
+  All 4 scanners share the same defensive posture: read-only, no `npm install`/`pip install`/`cargo build`, 30s per-command timeout, "report no data" failure mode, no PROFILE.md awareness (runs before calibration). Stack scanner skips minified/vendored files (`node_modules/`, `vendor/`, `dist/`, `build/`, `.next/`, `target/`, `__pycache__/`, etc.) via `git ls-files`; the others inherit the same exclusions. Activity scanner explicitly omits author emails (privacy + LANDSCAPE.md is a project artifact).
+
+  Health classification rules (activity scanner) are 5-tier rule-based, first-match-wins: archived > 18mo / dormant 6-18mo / maintenance-mode <6mo + low cadence + 1 contributor / active <6mo + high cadence or multi-contributor / brand-new <30 days + <20 commits.
+
+  Validator updates **deferred to T4.14** for the same reason as init.md: skeleton ≠ functional. Tests 96/96 still pass; validator green. Auto-discovery by Claude Code untested at this commit (all 4 are sub-agents called from `/sig:init` at T4.6 time, not standalone slash commands — Claude Code's agent registration confirms availability via the `Task` tool's `subagent_type` parameter at runtime).
 
 - **Tranche 4, Task 1 — `/sig:init` skeleton + pre-flight + state machine** (2026-04-26): wrote `.claude/commands/sig/init.md` — auto-discovered by Claude Code as `sig:init`. Pre-flight implements 5 detected-state branches per the TRANCHE-4 spec, plus the entry-point `.gitignore` check pattern shared with `/sig:new-project` and `/sig:calibrate`:
   - **1.1 Already-Signalized** (PROFILE.md exists + validates) → halt + redirect to `/sig:resume`/`/sig:status`/`/sig:escalate`/`/sig:calibrate --re-calibrate`. Also handles malformed-PROFILE.md case (refuses to overwrite — explicit `--re-calibrate` required).
@@ -155,11 +165,13 @@ Tranche 3 closed 2026-04-26. v1 ship-ready; `v0.1.0` tag pending.
 
 ## Active
 
-**Tranche 4 — `/sig:init` brownfield onboarding.** T4.1 done (this session). Up next: T4.2–T4.5 (the 4 parallel scanner agents — stack / structure / activity / quality).
+**Tranche 4 — `/sig:init` brownfield onboarding.** T4.1 + Wave 2 (T4.2–T4.5) done (this session). Up next: T4.6 (LANDSCAPE.md synthesizer — orchestrates the 4 scanners in parallel + writes the unified `.planning/LANDSCAPE.md` from `.planning/scan/*.md` outputs) and T4.7 (baseline PROJECT.md generator).
 
-Wave-2 tasks (scanners) are independent of each other and could run in parallel as a single multi-agent execution wave once the agent skeletons are written. Wave 3 (LANDSCAPE.md synthesizer + baseline PROJECT.md generator) consumes scanner outputs, so it must follow Wave 2.
+T4.6 is where TRANCHE-4 design-decision #1 (scanner-agents-vs-embedded-logic) gets locked. Tentatively answered during Wave 2: spawn agents at all tier defaults — `/sig:init` runs *before* calibration, so we can't tier-gate the scan based on PROFILE.md. The "downward to 2 scanners at SKETCH" optimization the spec mentions is moot in practice because brownfield projects rarely calibrate to SKETCH.
 
-Five design-decisions-during-execution remain open per TRANCHE-4 (scanner-agents-vs-embedded-logic, single-LANDSCAPE-vs-multi-file, inference aggressiveness, write-PROJECT.md-or-just-LANDSCAPE, codebase-novelty-feeding-calibration). Decide each at the moment the relevant wave executes; pre-deciding is over-planning.
+Wave 3 (T4.6 + T4.7) consumes scanner outputs and is the synthesis layer. Wave 4 (T4.8 — assumption surfacing) is conversational and depends on Wave 3's output. Wave 5 (T4.9 — STATE.md handoff) finishes the command.
+
+Four design-decisions-during-execution remain open per TRANCHE-4 (single-LANDSCAPE-vs-multi-file → answered "single" by the scanner output design / T4.6 confirms; inference aggressiveness; write-PROJECT.md-or-just-LANDSCAPE; codebase-novelty-feeding-calibration). Decide each at the moment the relevant wave executes.
 
 ## Blockers
 
@@ -167,4 +179,4 @@ None.
 
 ## Last Updated
 
-2026-04-26 (Tranche 4 Task 1 — `/sig:init` skeleton + pre-flight shipped)
+2026-04-26 (Tranche 4 Wave 2 — 4 scanner agents shipped)
