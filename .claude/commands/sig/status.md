@@ -14,7 +14,7 @@ Authoritative references (read if you need to refresh):
 - `${CLAUDE_PLUGIN_ROOT}/references/profile-schema.md` — PROFILE.md format
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `ProfileSchemaError`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `nextActionForPhase`, `readOpenQuestions`, `formatEscalationSummary`, `reachedDoneViaSkip`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `nextActionForPhase`, `readOpenQuestions`, `formatEscalationSummary`, `reachedDoneViaSkip`, `readLandscapeMeta`
 
 ## Workflow
 
@@ -23,11 +23,25 @@ Authoritative references (read if you need to refresh):
 Try to read `.planning/PROFILE.md` via `readProfile(baseDir)`. Three possible outcomes:
 
 **Branch A — Not calibrated.**
-`readProfile` throws `ProfileSchemaError` and `err.message` contains the substring `not found`. Emit exactly this and exit:
+`readProfile` throws `ProfileSchemaError` and `err.message` contains the substring `not found`. Before emitting, call `readLandscapeMeta(baseDir)` to see if the project was brownfield-init'd:
 
-```
-Project not calibrated. Run /sig:calibrate to begin.
-```
+- **If `readLandscapeMeta` returns null** (no LANDSCAPE.md), this is a fresh, never-init'd project. Emit:
+
+  ```
+  Project not calibrated. Run /sig:calibrate to begin.
+  ```
+
+- **If `readLandscapeMeta` returns `{capturedOn}`** (LANDSCAPE.md exists), this project was init'd via `/sig:init` but the user hasn't yet calibrated. Emit:
+
+  ```
+  Brownfield init complete (landscape captured {capturedOn or "date unknown"}); not yet calibrated.
+  Next: /sig:calibrate to tier this project.
+
+  Reminder: review .planning/LANDSCAPE.md and .planning/PROJECT.md before calibrating
+  so tiering reflects what's actually true (not what /sig:init inferred).
+  ```
+
+Then exit.
 
 **Branch A.1 — schema_version mismatch.**
 `readProfile` throws and `err.message` contains `schema_version`. Emit:
@@ -45,7 +59,7 @@ Run /sig:calibrate --re-calibrate to rewrite.
 ```
 
 **Branch B — Calibrated but unbegun.**
-`readProfile` succeeds, but `readState(baseDir)` returns `null` OR returns an object with `phase === null` (corrupted STATE.md heading regex miss). Render the **tier line** (see Step 2.1 below) plus the escalation summary if any, then emit:
+`readProfile` succeeds, but `readState(baseDir)` returns `null` OR returns an object with `phase === null` (corrupted STATE.md heading regex miss). Render the **tier line** (see Step 2.1 below) plus the escalation summary if any. If `readLandscapeMeta(baseDir)` returns non-null, also emit a `Landscape: captured {capturedOn or "date unknown"}` line. Then:
 
 ```
 Calibrated as {tier}; no work started yet.
@@ -112,6 +126,14 @@ If `escalation_history` is non-empty, also emit:
 ```
 Last escalation: {YYYY-MM-DD from history[history.length-1].timestamp}
 ```
+
+If `readLandscapeMeta(baseDir)` returns non-null, also emit:
+
+```
+Landscape: captured {capturedOn or "date unknown"}
+```
+
+(This signals the project was brownfield-init'd via `/sig:init`. Greenfield projects via `/sig:new-project` won't have a LANDSCAPE.md, so the line is omitted.)
 
 #### 2.6 Next action
 

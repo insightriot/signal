@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { PHASES } from './state.js';
+import { extractSection } from './landscape.js';
 
 // Map: phase name -> the command that runs THAT phase.
 // (Used after walking forward to the next non-skipped phase.)
@@ -135,4 +136,23 @@ export function formatEscalationSummary(history) {
   const first = valid[0];
   const dateOnly = (first.timestamp.match(/^\d{4}-\d{2}-\d{2}/) || [first.timestamp])[0];
   return ` (escalated from ${first.from_tier} on ${dateOnly})`;
+}
+
+/**
+ * Read .planning/LANDSCAPE.md if present and return summary metadata.
+ * Returns null if the file is absent (callers omit the section). When present,
+ * returns the captured-on date parsed from the trailing "## Last Updated"
+ * section; null `capturedOn` means the file exists but the date is missing or
+ * unparseable.
+ *
+ * @param {string} baseDir - Project root.
+ * @returns {Promise<{capturedOn: string|null} | null>}
+ */
+export async function readLandscapeMeta(baseDir) {
+  const path = join(baseDir, '.planning', 'LANDSCAPE.md');
+  if (!existsSync(path)) return null;
+  const content = await readFile(path, 'utf-8');
+  const lastUpdatedSection = extractSection(content, 'Last Updated');
+  const dateMatch = lastUpdatedSection && lastUpdatedSection.match(/(\d{4}-\d{2}-\d{2})/);
+  return { capturedOn: dateMatch ? dateMatch[1] : null };
 }

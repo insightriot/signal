@@ -4,13 +4,21 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 4 — Brownfield Onboarding via `/sig:init` — IN PROGRESS.** T4.1 + T4.2–T4.5 + Wave 3 (T4.6 / T4.7 / T4.9) shipped. Remaining: T4.8 (assumption-surfacing UX), T4.10–T4.12 (adjacent command updates), T4.13–T4.14 (tests + validator), T4.15–T4.16 (dogfood + docs). See `TRANCHE-4.md` for full task list.
+**Tranche 4 — Brownfield Onboarding via `/sig:init` — IN PROGRESS.** T4.1 + T4.2–T4.5 + Wave 3 (T4.6 / T4.7 / T4.9) + T4.10–T4.12 + T4.14 shipped. Remaining: T4.8 (assumption-surfacing UX), T4.13 (fixture tests), T4.15 (dogfood), T4.16 (docs). See `TRANCHE-4.md` for full task list.
 
-`/sig:init` is now a functional happy-path command — Steps 1–4 + Step 6 are real; Step 5 is the only remaining placeholder and is a UX layer over already-generated artifacts (the user can manually inspect LANDSCAPE.md + PROJECT.md before calibrating).
+The brownfield path is now first-class across the command surface: `/sig:init` produces LANDSCAPE.md + baseline PROJECT.md + STATE.md; `/sig:status` and `/sig:resume` surface LANDSCAPE.md awareness; `/sig:calibrate` Scenario A redirects new brownfield users to `/sig:init` instead of leaving them on the friction-rich ad-hoc path. Validator now requires init.md + the 4 scanner agents.
 
-Tranche 3 closed 2026-04-26. v1 ship-ready; `v0.1.0` tag pending.
+Tranche 3 closed 2026-04-26. v1 ship-ready; `v0.1.0` tag pending (deferred until TRANCHE-4 dogfood validates).
 
 ## Completed
+
+- **Tranche 4, Tasks 10 + 11 + 12 + 14 — adjacent updates make brownfield path first-class** (2026-04-26):
+  - **T4.14 — validator updates.** `tools/validate-plugin.js` adds `.claude/commands/sig/init.md` to `REQUIRED_COMMANDS` (now 12 commands) and a new `REQUIRED_AGENTS` check for the 4 scanner agents. Also adds `agents/scanners` to `REQUIRED_DIRS`. The split between REQUIRED_COMMANDS (errors) and REQUIRED_DIRS (warnings) is preserved; agents land in errors because their absence breaks `/sig:init`.
+  - **T4.10 — `/sig:status` brownfield awareness.** New helper `readLandscapeMeta(baseDir)` in `tools/lib/status.js` returns `{capturedOn}` (date parsed from LANDSCAPE.md "## Last Updated" section, falling back to null on missing/unparseable). 5 new helper tests + 1 read-only-contract update (LANDSCAPE.md mtime preserved across status calls). Branch A (uncalibrated) now branches on LANDSCAPE.md presence: if present, surfaces "Brownfield init complete (landscape captured {date}); not yet calibrated" with a reminder to vet [INFERRED] markers before calibrating. Branches B and C add a `Landscape: captured {date}` line; greenfield projects (no LANDSCAPE.md) are unchanged.
+  - **T4.11 — `/sig:resume` brownfield awareness.** Step 2 loads LANDSCAPE.md alongside PROJECT.md. Vision-fallback rule: if PROJECT.md's Vision contains `[INFERRED]` or `[FILL IN]` markers AND LANDSCAPE.md exists, the briefing surfaces LANDSCAPE.md's "What this project is" paragraph instead, prefixed `(LANDSCAPE inference — PROJECT.md Vision not yet vetted):` so the user can see the inferred-but-unvetted summary clearly. Briefing template adds a `Landscape: captured {date} (brownfield init)` line conditional on LANDSCAPE.md presence.
+  - **T4.12 — `/sig:calibrate` Scenario A redirects.** Scenario A (no `.planning/`) now uses the locked 3+other pattern: A=brownfield (run /sig:init first) / B=greenfield (run /sig:new-project first) / C=cancel (wrong directory). Recommendation auto-selects based on git-state heuristic: `.git/` + ≥1 commit + tracked source files → recommend A; else recommend B. Goes from a single ambiguous question to a directed branch — under-tiering due to user-in-wrong-flow risk significantly reduced.
+
+  Validator green; 121/121 → 126/126 tests pass after readLandscapeMeta tests added.
 
 - **Tranche 4, Wave 3 — `/sig:init` Steps 2–4 + Step 6 (T4.6 + T4.7 + T4.9)** (2026-04-26):
   - **`tools/lib/landscape.js`** — 3 helpers (`readScan`, `readAllScans`, `extractSection`, `extractField`). `extractSection` uses an inline `(?m:...)` regex group to anchor h2 heading matches per-line while letting the closing-lookahead `$` mean end-of-input (JavaScript regex doesn't support `\Z`). `extractField` normalizes markdown emphasis (`**X**` → `X`) before matching to handle the common `- **Label:** value` shape without brittle multi-variant regex. 25 new tests; total 96 → 121.
@@ -177,24 +185,22 @@ Tranche 3 closed 2026-04-26. v1 ship-ready; `v0.1.0` tag pending.
 
 ## Active
 
-**Tranche 4 — `/sig:init` brownfield onboarding.** T4.1 + Waves 2 + 3 done. `/sig:init` now produces LANDSCAPE.md + baseline PROJECT.md + STATE.md end-to-end on the happy path. Step 5 (T4.8 assumption surfacing) is the only command-level gap and is a UX layer over already-functional artifacts.
+**Tranche 4 — `/sig:init` brownfield onboarding.** T4.1 + Waves 2 + 3 + adjacent updates (T4.10–T4.12 + T4.14) done. The brownfield path is now first-class across the entire command surface. Remaining work is dogfood validation + tests + UX polish + docs.
 
 **Up next, in priority order:**
-1. **T4.15 dogfood pass** — run `/sig:init` on Signal itself (which is its own brownfield codebase — meta loop). Highest ROI: validates Steps 1–4+6 actually work end-to-end and surfaces friction before T4.8 / T4.13 / T4.14 lock anything else.
-2. **T4.13 fixture tests** — Node / Python / dormant-project fixtures with snapshot-style assertions on LANDSCAPE.md shape. Hardens the synthesizer.
-3. **T4.14 validator updates** — add init.md to REQUIRED_COMMANDS + introduce REQUIRED_AGENTS for the 4 scanners. Cleanup task; matters for shipping.
-4. **T4.10–T4.12 adjacent updates** — `/sig:status` detect LANDSCAPE.md, `/sig:resume` read it alongside PROJECT.md, `/sig:calibrate` Scenario A redirect to `/sig:init`. Polish.
-5. **T4.8 assumption surfacing** — conversational UX over `[INFERRED]` markers. Could ship after T4.15 dogfood reveals which markers users actually struggle with (so the walkthrough targets real pain).
-6. **T4.16 documentation** — README brownfield section + tier-definitions update. Last.
+1. **T4.15 dogfood pass** — run `/sig:init` on Signal itself (its own brownfield codebase — meta loop). Highest ROI now: every change since this session has been spec-only; running the actual command on a real codebase surfaces what the spec missed. Best done in a fresh context to avoid the recursive build-and-test confusion.
+2. **T4.13 fixture tests** — Node / Python / dormant-project fixtures with snapshot-style assertions on LANDSCAPE.md shape. Hardens the synthesizer. Probably best done after T4.15 reveals what shapes actually emerge in practice.
+3. **T4.8 assumption surfacing** — conversational UX over `[INFERRED]` markers. T4.15 dogfood will reveal which markers users actually struggle with most, so deferring until after dogfood targets the walkthrough at real pain.
+4. **T4.16 documentation** — README brownfield section + tier-definitions update. Last; depends on the prior tasks landing.
 
-**Four TRANCHE-4 design decisions resolved this session (all logged):**
+**Codebase-novelty signal feeding calibration** (TRANCHE-4 design decision #5) was tentatively addressed in T4.12 — the calibrate Scenario A heuristic detects "likely brownfield" from git state. A deeper integration (e.g., `/sig:init`'s scan pre-fills calibration answers as defaults) is deferred until T4.15 dogfood reveals whether the rough heuristic suffices.
+
+**Five TRANCHE-4 design decisions resolved (all logged):**
 - Scanner count → fixed at 4 (DECISIONS 2026-04-26 entry).
 - Scanner agents vs embedded logic → agents (resolved by scanner-count lock).
 - LANDSCAPE.md vs multi-file → single LANDSCAPE.md (scanner outputs in `.planning/scan/` are the multi-file layer; LANDSCAPE.md is the synthesized view).
-- Write PROJECT.md or just LANDSCAPE.md → write both, with `[INFERRED]` / `[FILL IN]` markers per generation-rule per field. The friction of post-editing markers is lower than starting PROJECT.md from blank.
-
-**One TRANCHE-4 design decision still open:**
-- Codebase-novelty signal feeding calibration (TRANCHE-4 decision #5). Defer to T4.12 (the `/sig:calibrate` adjacent-update task) — that's where the cross-command interaction would land.
+- Write PROJECT.md or just LANDSCAPE.md → write both, with `[INFERRED]` / `[FILL IN]` markers per generation-rule per field.
+- Codebase-novelty feeding calibration → light-touch heuristic in `/sig:calibrate` Scenario A; deeper integration deferred.
 
 ## Blockers
 
@@ -202,4 +208,4 @@ None.
 
 ## Last Updated
 
-2026-04-26 (Tranche 4 Wave 3 — `/sig:init` Steps 2-4+6 functional; landscape.js + 25 tests)
+2026-04-26 (Tranche 4 Tasks 10-12 + 14 — brownfield path first-class across status/resume/calibrate/validator)

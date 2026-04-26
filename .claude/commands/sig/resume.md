@@ -13,7 +13,8 @@ Where `/sig:status` is a snapshot, `/sig:resume` is a **briefing**: it actively 
 Authoritative references:
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `ProfileSchemaError`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `nextActionForPhase`, `formatEscalationSummary`, `readOpenQuestions`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `nextActionForPhase`, `formatEscalationSummary`, `readOpenQuestions`, `readLandscapeMeta`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/landscape.js` — `extractSection` (used to pull "What this project is" from LANDSCAPE.md when PROJECT.md Vision is still `[INFERRED]` or `[FILL IN]`)
 
 ## Workflow
 
@@ -29,9 +30,13 @@ If `readState(baseDir)` is `null` OR returns `state.phase === null`:
 
 Else continue.
 
-### 2. Load PROJECT.md (if present)
+### 2. Load PROJECT.md and LANDSCAPE.md (if present)
 
 Read `.planning/PROJECT.md` (or repo-root `PROJECT.md` as a fallback for self-managed projects like the Signal build itself). Pull the **Vision / Problem Statement** (whichever heading is first) — keep to ≤ 3 sentences in the briefing.
+
+Also call `readLandscapeMeta(baseDir)` to detect a brownfield-init'd project. If LANDSCAPE.md exists, use `extractSection(content, 'What this project is')` to pull the inferred-purpose paragraph. **Use this paragraph as the Vision fallback when PROJECT.md's Vision is still `[INFERRED — please verify]` or `[FILL IN — ...]`** — that signals the user hasn't yet vetted the auto-generated brownfield draft, and showing the inferred paragraph is more useful than showing the raw marker.
+
+If both PROJECT.md and LANDSCAPE.md are present, prefer PROJECT.md's vetted content and fall back to LANDSCAPE.md only when markers indicate it isn't vetted yet.
 
 ### 3. Load the current phase's artifact
 
@@ -65,9 +70,14 @@ Render in this shape (aim for 30–50 lines — longer than `/sig:status` becaus
 Project: {cwd}
 Tier:    {profile.tier}{escalation_summary or ''}
 Phase:   {state.phase}  ({completed-count}/{total-non-skipped} phases done)
+{If LANDSCAPE.md exists, add:}
+Landscape: captured {capturedOn or "date unknown"} (brownfield init)
 
 — Vision —
-{first paragraph of PROJECT.md "Vision" or "Problem Statement", ≤3 sentences}
+{first paragraph of PROJECT.md "Vision" — OR, if PROJECT.md Vision contains
+ [INFERRED] / [FILL IN] markers AND LANDSCAPE.md exists, the
+ "What this project is" paragraph from LANDSCAPE.md prefixed with
+ "(LANDSCAPE inference — PROJECT.md Vision not yet vetted):"}
 
 — Decisions locked (DISCUSS) —
 {numbered list from CONTEXT.md "Locked Decisions" — first 5; if more, append "…and N more"}

@@ -21,7 +21,48 @@ Authoritative references (read if you need to refresh):
 Scan `.planning/` to identify which scenario applies before doing anything else.
 
 **Scenario A — No `.planning/` directory.**
-Ask: *"I don't see a `.planning/` directory here. Are you starting a brand-new project (I can run `/sig:new-project` first to set up the project spec, then come back here), or running calibration standalone to tier an existing codebase?"* Do not auto-create `.planning/` without confirmation — the user might be in the wrong directory.
+
+Before asking, detect which sub-case applies by checking the working directory:
+
+- **Likely brownfield** — `.git/` exists AND `git rev-list --count HEAD` ≥ 1 AND there are tracked source files (use `git ls-files | head -20` to spot-check). The project has code and history but no Signal touch yet.
+- **Likely greenfield** — no `.git/` OR no commits OR no tracked source files. The project is fresh / pre-code.
+
+Then ask using the 3-options-plus-other shape (per `references/question-patterns.md`):
+
+```
+I don't see a `.planning/` directory here.
+
+Three options:
+
+A. Brownfield codebase — existing code, no Signal yet
+   Run /sig:init first to scan the codebase, generate a LANDSCAPE.md ("lay of the land"
+   from your code), and a baseline PROJECT.md. Then come back here to calibrate.
+   Pick this if: you have existing source code with git history and you want Signal
+   applied to it. /sig:init removes the friction of reverse-engineering Signal's
+   mental model onto an established codebase.
+
+B. Brand-new project — no code yet
+   Run /sig:new-project first to set up the project spec (PROJECT.md), then come
+   back here to calibrate.
+   Pick this if: this is a fresh project where you haven't written code yet —
+   /sig:new-project asks you 5 questions to capture vision/scope/done-when.
+
+C. Wrong directory — cancel
+   Exit without changes. You may have cd'd somewhere unexpected.
+   Pick this if: you don't recognize this directory or didn't mean to run a Signal
+   command here.
+
+Recommendation: {if "Likely brownfield" detected → "A — your codebase has git
+history and source files; /sig:init will make calibration much sharper."}
+                {else if "Likely greenfield" detected → "B — this looks like a
+fresh directory with no code yet; /sig:new-project is the entry point."}
+
+If none of these fit, describe what you're trying to do and I'll work from there.
+```
+
+Do not auto-create `.planning/` without confirmation — under-tiering a project because the user is in the wrong directory is the failure mode this scenario exists to prevent.
+
+If the user picks A, exit calibrate and instruct them to run `/sig:init`. If they pick B, exit calibrate and instruct them to run `/sig:new-project`. If they pick C, exit cleanly. If they pick "other," capture their reasoning verbatim and proceed only if their stated intent is unambiguously "calibrate this codebase standalone without /sig:init or /sig:new-project."
 
 **Scenario B — `.planning/PROJECT.md` exists, no `PROFILE.md`.**
 This is the happy path — a first-time calibration. Proceed to step 2.

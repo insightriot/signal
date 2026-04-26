@@ -156,13 +156,13 @@ Same pattern as `/sig:new-project`'s tail. Calibration becomes the next user act
 - **T4.9** ✓ — STATE.md initialization + handoff message. Shipped 2026-04-26 (folded into Wave 3 to make the command functional end-to-end). `initState(baseDir, 'CALIBRATE')` + handoff that surfaces project age + brownfield-tier-bias hint.
 
 ### Wave 5 — Adjacent updates
-- **T4.10** — `/sig:status` updates: detect LANDSCAPE.md presence, surface in status output.
-- **T4.11** — `/sig:resume` updates: read LANDSCAPE.md alongside PROJECT.md/PROFILE.md if present.
-- **T4.12** — `/sig:calibrate` Scenario A updates: redirect to `/sig:init` if no `.planning/`. Scenario A becomes a thin "you probably want `/sig:init`" branch.
+- **T4.10** ✓ — `/sig:status` brownfield awareness. Shipped 2026-04-26. New helper `readLandscapeMeta(baseDir)` in `tools/lib/status.js` (parses "## Last Updated" date from LANDSCAPE.md, fall back to null on miss). Branch A (uncalibrated) now branches on LANDSCAPE.md presence with brownfield-specific message. Branches B and C add `Landscape: captured {date}` line conditional on file presence. 5 new helper tests + read-only-contract update.
+- **T4.11** ✓ — `/sig:resume` brownfield awareness. Shipped 2026-04-26. Step 2 loads LANDSCAPE.md alongside PROJECT.md. Vision-fallback rule: if PROJECT.md Vision contains `[INFERRED]` or `[FILL IN]` markers AND LANDSCAPE.md exists, the briefing surfaces LANDSCAPE.md's "What this project is" paragraph instead. Briefing template adds a `Landscape: captured {date} (brownfield init)` line.
+- **T4.12** ✓ — `/sig:calibrate` Scenario A brownfield redirect. Shipped 2026-04-26. Goes from a single ambiguous question to the locked 3+other pattern (A=brownfield/run /sig:init / B=greenfield/run /sig:new-project / C=cancel). Recommendation auto-selects from a git-state heuristic (`.git/` + ≥1 commit + tracked source files → recommend A). Tentatively addresses TRANCHE-4 design decision #5 (codebase-novelty feeding calibration) via the heuristic; deeper integration deferred until T4.15 dogfood signals.
 
 ### Wave 6 — Tests
-- **T4.13** — Fixture-based tests for `/sig:init` flow. Three example fixtures: a small Node project, a small Python project, a stale/dormant project (tests the activity scanner's "health" inference). Use vitest fixtures with snapshot-style assertions on the generated LANDSCAPE.md shape.
-- **T4.14** — Validator updates: `/sig:init.md` becomes REQUIRED_COMMANDS; agent files become REQUIRED_AGENTS.
+- **T4.13** — Fixture-based tests for `/sig:init` flow. Three example fixtures: a small Node project, a small Python project, a stale/dormant project (tests the activity scanner's "health" inference). Use vitest fixtures with snapshot-style assertions on the generated LANDSCAPE.md shape. **Defer until after T4.15 dogfood reveals real shapes** — designing fixtures from the spec alone risks over-fitting to the spec.
+- **T4.14** ✓ — Validator updates. Shipped 2026-04-26. `tools/validate-plugin.js` adds `init.md` to `REQUIRED_COMMANDS` (now 12 commands) + new `REQUIRED_AGENTS` check for the 4 scanners + `agents/scanners` to `REQUIRED_DIRS`. Agent absence is an error (breaks `/sig:init`); directory absence stays a warning per existing convention.
 
 ### Wave 7 — Dogfood + ship
 - **T4.15** — Dogfood pass: run `/sig:init` on Signal *itself* (it's its own brownfield codebase — there's a meta loop there worth exercising). Ideally also on a separate sample existing repo (e.g., one of the user's other `/Users/macstudio/dev-biz/` projects with permission).

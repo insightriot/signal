@@ -10,6 +10,7 @@ import {
   countOpenQuestions,
   readOpenQuestions,
   formatEscalationSummary,
+  readLandscapeMeta,
 } from '../tools/lib/status.js';
 import { readProfile, ProfileSchemaError } from '../tools/lib/profile.js';
 import { readState } from '../tools/lib/state.js';
@@ -140,6 +141,47 @@ body
     it('returns null when no valid entries', () => {
       const history = [{ from_tier: null }, { timestamp: 'oops' }];
       expect(formatEscalationSummary(history)).toBeNull();
+    });
+  });
+
+  describe('readLandscapeMeta', () => {
+    let baseDir;
+
+    beforeEach(async () => {
+      baseDir = await mkdtemp(join(tmpdir(), 'signal-landscape-meta-'));
+      await mkdir(join(baseDir, '.planning'), { recursive: true });
+    });
+
+    afterEach(async () => {
+      await rm(baseDir, { recursive: true, force: true });
+    });
+
+    it('returns null when LANDSCAPE.md is absent', async () => {
+      expect(await readLandscapeMeta(baseDir)).toBeNull();
+    });
+
+    it('extracts capturedOn date from "## Last Updated" section', async () => {
+      const content = '# Landscape\n\nbody\n\n## Last Updated\n\n2026-04-26\n';
+      await writeFile(join(baseDir, '.planning', 'LANDSCAPE.md'), content);
+      expect(await readLandscapeMeta(baseDir)).toEqual({ capturedOn: '2026-04-26' });
+    });
+
+    it('returns capturedOn:null when LANDSCAPE.md exists but Last Updated is unparseable', async () => {
+      const content = '# Landscape\n\n## Last Updated\n\n(unknown)\n';
+      await writeFile(join(baseDir, '.planning', 'LANDSCAPE.md'), content);
+      expect(await readLandscapeMeta(baseDir)).toEqual({ capturedOn: null });
+    });
+
+    it('returns capturedOn:null when Last Updated section is missing', async () => {
+      const content = '# Landscape\n\nNo last-updated section.\n';
+      await writeFile(join(baseDir, '.planning', 'LANDSCAPE.md'), content);
+      expect(await readLandscapeMeta(baseDir)).toEqual({ capturedOn: null });
+    });
+
+    it('extracts the first ISO date when Last Updated has extra commentary', async () => {
+      const content = '# Landscape\n\n## Last Updated\n\n2026-04-26 (re-scanned after dependency update)\n';
+      await writeFile(join(baseDir, '.planning', 'LANDSCAPE.md'), content);
+      expect(await readLandscapeMeta(baseDir)).toEqual({ capturedOn: '2026-04-26' });
     });
   });
 });
@@ -372,17 +414,24 @@ EXECUTE
 `
     );
     await writeFile(oqPath, '# Open Questions\n\n## A question\n');
+    const landscapePath = join(fixtureDir, '.planning', 'LANDSCAPE.md');
+    await writeFile(
+      landscapePath,
+      '# Landscape\n\n## What this project is\n\nA test fixture.\n\n## Last Updated\n\n2026-04-26\n'
+    );
 
     const before = await Promise.all([
       stat(profilePath).then((s) => s.mtimeMs),
       stat(statePath).then((s) => s.mtimeMs),
       stat(oqPath).then((s) => s.mtimeMs),
+      stat(landscapePath).then((s) => s.mtimeMs),
     ]);
 
     // Run all the helpers /sig:status will call
     const profile = await readProfile(fixtureDir);
     const state = await readState(fixtureDir);
     const oq = await readOpenQuestions(fixtureDir);
+    const landscape = await readLandscapeMeta(fixtureDir);
     nextActionForPhase(state.phase, profile.phases_skipped);
     formatEscalationSummary(profile.metadata.escalation_history);
 
@@ -390,10 +439,12 @@ EXECUTE
       stat(profilePath).then((s) => s.mtimeMs),
       stat(statePath).then((s) => s.mtimeMs),
       stat(oqPath).then((s) => s.mtimeMs),
+      stat(landscapePath).then((s) => s.mtimeMs),
     ]);
 
     expect(after).toEqual(before);
     expect(oq.count).toBe(1);
+    expect(landscape).toEqual({ capturedOn: '2026-04-26' });
   });
 });
 

@@ -26,6 +26,7 @@ const REQUIRED_FILES = [
 
 const REQUIRED_COMMANDS = [
   '.claude/commands/sig/new-project.md',
+  '.claude/commands/sig/init.md',
   '.claude/commands/sig/calibrate.md',
   '.claude/commands/sig/discuss.md',
   '.claude/commands/sig/plan.md',
@@ -38,11 +39,19 @@ const REQUIRED_COMMANDS = [
   '.claude/commands/sig/resume.md',
 ];
 
+const REQUIRED_AGENTS = [
+  'agents/scanners/stack-scanner.md',
+  'agents/scanners/structure-scanner.md',
+  'agents/scanners/activity-scanner.md',
+  'agents/scanners/quality-scanner.md',
+];
+
 const REQUIRED_DIRS = [
   'agents/researchers',
   'agents/executors',
   'agents/verifiers',
   'agents/specialists',
+  'agents/scanners',
   'skills/define',
   'skills/plan',
   'skills/build',
@@ -67,6 +76,13 @@ async function validate() {
   for (const cmd of REQUIRED_COMMANDS) {
     if (!existsSync(join(ROOT, cmd))) {
       errors.push(`Missing command: ${cmd}`);
+    }
+  }
+
+  // Check agents
+  for (const agent of REQUIRED_AGENTS) {
+    if (!existsSync(join(ROOT, agent))) {
+      errors.push(`Missing agent: ${agent}`);
     }
   }
 
