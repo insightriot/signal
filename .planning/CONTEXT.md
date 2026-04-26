@@ -36,7 +36,7 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 **TRANCHE 2 COMPLETE (all 8 steps).** PROFILE.md → phase behavior fully wired; phase commands respect tier; orphan skills bound; agent count reconciled; token costs measured (all phases comfortably within budget); paper-walkthrough audit clean. **Next is Tranche 3 — real-project testing.**
 
 - 9 of 9 slash commands scaffolded. **All 6 phase commands now read PROFILE.md as their first action**, exit early if the phase is in `phases_skipped`, and apply per-phase `rigor_overrides`. `calibrate`, `escalate`, and `new-project` enforce `.gitignore` doesn't ignore `.planning/`.
-- 21 skill files (all bound now or correctly meta-only), 17 agent files, **11 reference docs** (added `question-patterns.md`), **4 tool libs**.
+- 21 skill files (all bound now or correctly meta-only), **22 agent files** (PROJECT.md updated from claimed 24 → 22; 19 GSD + 3 Agent Skills specialists), **11 reference docs** (added `question-patterns.md`), **4 tool libs**.
 - **Question-pattern convention locked (Step 3).** `references/question-patterns.md` defines three shapes — strict enum (calibrate's questions), 3-options-plus-other (the default for tradeoffs), open-ended (rare). Strongly-recommended-with-justification convention. DISCUSS Step 4 retrofitted to explicit 3+other; VERIFY's Loop Back retrofitted to 3+other (loop-back / escalate / accept-failure).
 - **Skill bindings (Step 5).** Plan: 3 skills (was 1). Execute: 5 (was 3). Ship: 5 (was 4). Bindings written in `state/config.json`; phase commands updated to load them.
 - PROFILE.md schema locked. Tier-to-defaults mapping locked. Override handling locked. Escalation history preservation locked.
@@ -45,7 +45,7 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 - **Validator** requires `calibrate.md` + `escalate.md` + `profile-schema.md` + `tier-definitions.md`.
 - **Profile helpers (Step 4).** `readProfile` strictly validates. `isPhaseEnabled` treats CALIBRATE as never-skipped. `applyRigorOverrides` is non-mutating + maps to legacy keys.
 - Architectural insights logged: (a) **strict Nyquist is a one-way ratchet**; (b) **ODI map reveals a missing PREPARE phase** in v1's decomposition (logged for v2).
-- **47 tests passing**; validator green.
+- **53 tests passing** (state.test.js + context-monitor.test.js + profile.test.js); validator green.
 
 ## Active work
 
@@ -75,6 +75,20 @@ These are tractable in T3 once dogfood usage reveals which actually bite.
 - `.planning/OPEN-QUESTIONS.md` — unresolved design questions (v1-scoped)
 - `.planning/FUTURE-IDEAS.md` — post-v1 architectural evolutions of Signal's own mechanisms (distinct from TRANCHE-4's rundown-v2 integrations)
 - `.planning/STATE.md` — what tranche we're in, active, blocked
+
+**Authoritative references (in `references/`):**
+- `profile-schema.md` — PROFILE.md format + validation rules
+- `tier-definitions.md` — 4-tier definitions + tier-to-defaults table + escalation paths
+- `question-patterns.md` — three question shapes (strict enum / 3+other / open-ended)
+- `anti-rationalization.md` — anti-rationalization patterns
+
+**Tooling (in `tools/`):**
+- `lib/state.js` — `initState`, `readState`, `transitionPhase`, `checkGateArtifacts`, `PHASES`
+- `lib/profile.js` — `readProfile`, `isPhaseEnabled`, `applyRigorOverrides`, `ProfileSchemaError`
+- `lib/context-monitor.js` — `estimateTokens`, `checkContextBudget`, `findSkillPath`, `estimatePhaseSkillCost`
+- `lib/skill-loader.js` — skill resolution
+- `validate-plugin.js` — `npm run validate`
+- `measure-phase-costs.js` — token-cost measurement (`node tools/measure-phase-costs.js`)
 
 ## How to start a session
 

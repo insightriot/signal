@@ -6,9 +6,14 @@
 
 **Done when:** Signal can be handed to another developer with a README and work without the author present.
 
-**Blocked by:** Tranche 2 complete.
+**Blocked by:** ~~Tranche 2 complete.~~ **Tranche 2 is COMPLETE as of 2026-04-25 — Tranche 3 is unblocked.**
 
-**Note:** Task list will shift based on what Tranche 2 self-testing surfaces.
+**What Tranche 2 surfaced** (informs Tranche 3):
+- Calibration layer is fully wired — phase commands respect PROFILE.md (Step 3).
+- Token budget is not a blocker — all 6 phases fit comfortably (Step 7). PREPARE-phase token-budget trigger NOT firing.
+- Cross-bound skills work correctly after Step 7's `findSkillPath` fix.
+- 3 friction points logged to OPEN-QUESTIONS for Tranche 3 to triage (see Task 5).
+- Real end-to-end execution explicitly deferred from T2 Step 8 to T3 Tasks 2 + 3 (where it naturally lives).
 
 ---
 
@@ -27,14 +32,15 @@ These are load-bearing for the actual user experience. Users will jump back into
 
 **`/sig:resume`** — same inspection, plus **actively loads the context needed to continue**. Reads PROJECT.md, PROFILE.md, STATE.md, and the current phase's artifact (e.g., CONTEXT.md if in DISCUSS, PLAN.md if in EXECUTE). Prints a concise re-orientation that includes decisions locked, work done, and work remaining. Ends with: *"Ready to continue with /sig:{current_phase}?"*
 
-**Dogfood:** build one of these using Signal itself (choose the smaller — probably `/sig:status`). The other is hand-rolled to avoid a chicken-and-egg loop (you can't use resumption to build the resumption tool).
+**Dogfood:** build `/sig:status` via Signal itself (the smaller, pure-read command); hand-roll `/sig:resume` to avoid the chicken-and-egg loop (can't use resumption to build the resumption tool). This lean was already in OPEN-QUESTIONS pre-T3; locked here.
 
-- [ ] Choose which to build via Signal, which to hand-roll (lock in DECISIONS.md)
-- [ ] Run `/sig:calibrate` (choose FEATURE tier) → full 6-phase flow on the dogfood target
-- [ ] Take notes on every friction point — these go in OPEN-QUESTIONS.md and drive Tranche 3+ improvements
-- [ ] Ship both commands before moving on; they unblock every subsequent dogfood pass
+- [ ] Hand-roll `/sig:status` first — but actually run Signal *against itself* to dogfood the build of it (use `/sig:calibrate` (FEATURE) → `/sig:discuss` → ... → `/sig:ship`). Lock the build approach in DECISIONS.md.
+- [ ] Run the full 6-phase flow on the `/sig:status` dogfood target.
+- [ ] Take notes on every friction point — these go in OPEN-QUESTIONS.md and drive Tranche 3+ improvements.
+- [ ] Hand-roll `/sig:resume` after `/sig:status` lands.
+- [ ] Ship both commands before moving on; they unblock every subsequent dogfood pass.
 
-**Design note:** `/sig:resume` is the more complex of the two — it has to know how to "re-orient" for each phase, which means it needs per-phase resumption logic. That's a small state machine. `/sig:status` is the pure-read version and should land first.
+**Design note:** `/sig:resume` is the more complex of the two — it has to know how to "re-orient" for each phase, which means it needs per-phase resumption logic. That's a small state machine. `/sig:status` is the pure-read version and lands first.
 
 ### 2. FULL-tier pass on a throwaway sample project
 
@@ -65,9 +71,19 @@ Claim: installable in under 5 minutes.
 
 ### 5. Triage Tranche 2 outstanding issues
 
-- [ ] Review OPEN-QUESTIONS.md and session notes from Tranche 2
-- [ ] Categorize each: fix now / fix in Tranche 4 / accept-and-document
-- [ ] Resolve the "fix now" ones
+Specific items to triage (from OPEN-QUESTIONS.md as of 2026-04-25):
+
+**T2 Step 8 paper-walkthrough findings (3):**
+- [ ] **`{phase}-` artifact naming convention** — single-phase v1 inherits multi-phase prefix from GSD. Decide: embrace multi-phase explicitly (tied to multi-feature lifecycle in FUTURE-IDEAS) OR drop the prefix for v1. **Resolve via dogfood signal** (Tasks 2 + 3 will reveal whether `{phase}-` helps or noises).
+- [ ] **REVIEW and SHIP could read prior-phase artifacts more explicitly** — currently they rely on Claude inferring from {phase}-VERIFICATION.md / {phase}-REVIEW.md. **Resolve via dogfood signal** (if Claude misses Review findings in SHIP during real runs, add explicit "Load prior-phase artifacts" steps mirroring DISCUSS's pattern).
+- [ ] **state.js `initState` writes DISCUSS, but `/sig:new-project` writes CALIBRATE** — minor, only matters if `initState` is called directly. **Trivial fix** in any session that touches state.js (update default to CALIBRATE or accept a phase param).
+
+**Older T2-era questions still active (4):**
+- [ ] **Tier count: validate 4 tiers against real calibration** — likely confirmed-as-is during dogfood; watch for projects that land between SKETCH and FEATURE.
+- [ ] **Testing strategy for Signal itself** — slash commands aren't currently testable. Decide whether to build a fixture-based command-execution harness in T3 or defer.
+- [ ] **Historical docs: annotate or archive?** — `GSD-AgentSkills-Combination-Analysis.md` is superseded by `analysis/`. Low priority; decide during README work in Task 4.
+
+**Categorize after dogfood passes:** fix now / fix in Tranche 4 / accept-and-document. Resolve the "fix now" ones; move others into the appropriate tranche or DECISIONS.md.
 
 ---
 

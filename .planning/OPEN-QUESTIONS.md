@@ -61,27 +61,6 @@ Watch for:
 
 ---
 
-## Plugin manifest: what does Claude Code auto-discover?
-
-`plugin.json` only declares `commands`. Need to know:
-- Does Claude Code auto-load `agents/` from plugin root?
-- Same for `skills/` / `hooks/` / `references/`?
-- If yes, no manifest changes needed. If no, need to declare paths.
-
-Reference: check Claude Code plugin docs and the GSD plugin manifest for how it handles this.
-
-**Resolve by:** Tranche 1, Step 2.
-
----
-
-## Dogfood target feature for Tranche 3
-
-**Resolved 2026-04-23:** `/sig:status` and `/sig:resume` are now committed Tranche 3 deliverables (see `TRANCHE-3.md` Task 1), not candidates. Decision: build one via Signal (likely `/sig:status`, the simpler read-only command), hand-roll the other to avoid a chicken-and-egg loop.
-
-Remaining sub-question: which do we build via Signal vs. hand-roll? Resolve at Tranche 3 kickoff.
-
----
-
 ## Historical docs: annotate or archive?
 
 `GSD-AgentSkills-Combination-Analysis.md` predates the broader landscape analysis. Options:
@@ -95,11 +74,11 @@ Remaining sub-question: which do we build via Signal vs. hand-roll? Resolve at T
 
 ## Testing strategy for Signal itself
 
-Currently: 2 vitest files (`state.test.js`, `context-monitor.test.js`). No tests for slash commands (they're markdown — how would you test?). No integration tests yet.
+Currently: 3 vitest files (`state.test.js`, `context-monitor.test.js`, `profile.test.js`) — 53 tests covering tooling helpers. No tests for slash commands (they're markdown interpreted by Claude — how would you test their behavior?). No integration tests yet.
 
-- Should slash command behavior be testable? How (simulated runs, golden outputs)?
+- Should slash command behavior be testable? How (simulated runs against fixture projects, golden-output diffs, prompt-replay harness)?
 - Is Nyquist-compliance something Signal enforces on its own codebase, dogfood-style?
 
-**Resolve by:** Tranche 2 / early Tranche 3.
+**Resolve by:** Tranche 3 dogfood. Likely outcome: a fixture-based command-execution test harness lands as part of (or after) the FULL-tier and SKETCH-tier passes.
 
 ---
