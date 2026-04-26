@@ -4,11 +4,23 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 4 — Brownfield Onboarding via `/sig:init` — IN PROGRESS.** T4.1 shipped (skeleton + pre-flight); T4.2–T4.5 shipped (4 scanner agents); T4.6–T4.16 remain. See `TRANCHE-4.md` for full task list.
+**Tranche 4 — Brownfield Onboarding via `/sig:init` — IN PROGRESS.** T4.1 + T4.2–T4.5 + Wave 3 (T4.6 / T4.7 / T4.9) shipped. Remaining: T4.8 (assumption-surfacing UX), T4.10–T4.12 (adjacent command updates), T4.13–T4.14 (tests + validator), T4.15–T4.16 (dogfood + docs). See `TRANCHE-4.md` for full task list.
+
+`/sig:init` is now a functional happy-path command — Steps 1–4 + Step 6 are real; Step 5 is the only remaining placeholder and is a UX layer over already-generated artifacts (the user can manually inspect LANDSCAPE.md + PROJECT.md before calibrating).
 
 Tranche 3 closed 2026-04-26. v1 ship-ready; `v0.1.0` tag pending.
 
 ## Completed
+
+- **Tranche 4, Wave 3 — `/sig:init` Steps 2–4 + Step 6 (T4.6 + T4.7 + T4.9)** (2026-04-26):
+  - **`tools/lib/landscape.js`** — 3 helpers (`readScan`, `readAllScans`, `extractSection`, `extractField`). `extractSection` uses an inline `(?m:...)` regex group to anchor h2 heading matches per-line while letting the closing-lookahead `$` mean end-of-input (JavaScript regex doesn't support `\Z`). `extractField` normalizes markdown emphasis (`**X**` → `X`) before matching to handle the common `- **Label:** value` shape without brittle multi-variant regex. 25 new tests; total 96 → 121.
+  - **`/sig:init.md` Step 2 (Codebase scan)** — declarative "spawn all 4 scanner agents in parallel via the Task tool" with a per-scanner `subagent_type` table and a uniform agent prompt. Locked design decision: scanner count fixed at 4 (rationale in DECISIONS.md 2026-04-26 entry — calibration happens *after* the scan, so tier-aware reduction is structurally moot). Failure mode: continue on scanner failure; the synthesizer marks the corresponding LANDSCAPE.md section `(scan output unavailable)`.
+  - **`/sig:init.md` Step 3 (Write LANDSCAPE.md)** — full template with 7 sections: 1 narrative ("What this project is" — synthesized from cross-source signals), 5 mechanical (Tech stack / Project structure / Activity signals / Test surface / Open work signals — extracted via `extractSection` + `extractField`), 1 narrative ("Inferred goals & uncertainties" — confidence-marker labels mandatory, `[INFERRED — high/low confidence]` or `[FILL IN]`). Synthesis rules: don't aggregate weak signals into strong claims; embed scanner data, don't paraphrase.
+  - **`/sig:init.md` Step 4 (Generate baseline PROJECT.md)** — full template in Signal's standard shape (Vision / Problem / Success Criteria / Scope-in/out / Constraints / Done When / Notes). Generation rules codified per field: Vision + Problem may be `[INFERRED]` from LANDSCAPE; Success Criteria + Done When + Scope-out are *always* `[FILL IN]` (forward-looking; no scan can produce them); Constraints mix inferred (manifest-derived) and `[FILL IN]` (compliance, partner SLAs).
+  - **`/sig:init.md` Step 6 (STATE.md + handoff)** — `initState(baseDir, 'CALIBRATE')` + handoff message that surfaces project age + brownfield-tier-bias hint to the user (older codebases tend toward higher tiers due to reversibility cost).
+  - **Step 5 (assumption surfacing) remains T4.8.** A manual reminder text is emitted in its place ("review LANDSCAPE.md and PROJECT.md before /sig:calibrate"). Functional command without it; T4.8 is the conversational-UX upgrade.
+  - Gate checklist rewritten: removed per-task tags now that everything is in place except T4.8.
+  - Validator gating still deferred to T4.14 — adding init.md to REQUIRED_COMMANDS is bundled with adding scanner agents to a new REQUIRED_AGENTS list (current validator has no agent-file checks).
 
 - **Tranche 4, Tasks 2–5 — 4 parallel scanner agents** (2026-04-26): wrote `agents/scanners/{stack,structure,activity,quality}-scanner.md`. Each is read-only, single-purpose, fact-only (no synthesis — T4.6's job), and writes to `.planning/scan/{name}.md` for the synthesizer to consume. Output formats are pinned-section-shape so T4.6 can mechanically combine them; missing sections are explicit `(none detected)` rather than omitted.
 
@@ -165,13 +177,24 @@ Tranche 3 closed 2026-04-26. v1 ship-ready; `v0.1.0` tag pending.
 
 ## Active
 
-**Tranche 4 — `/sig:init` brownfield onboarding.** T4.1 + Wave 2 (T4.2–T4.5) done (this session). Up next: T4.6 (LANDSCAPE.md synthesizer — orchestrates the 4 scanners in parallel + writes the unified `.planning/LANDSCAPE.md` from `.planning/scan/*.md` outputs) and T4.7 (baseline PROJECT.md generator).
+**Tranche 4 — `/sig:init` brownfield onboarding.** T4.1 + Waves 2 + 3 done. `/sig:init` now produces LANDSCAPE.md + baseline PROJECT.md + STATE.md end-to-end on the happy path. Step 5 (T4.8 assumption surfacing) is the only command-level gap and is a UX layer over already-functional artifacts.
 
-T4.6 is where TRANCHE-4 design-decision #1 (scanner-agents-vs-embedded-logic) gets locked. Tentatively answered during Wave 2: spawn agents at all tier defaults — `/sig:init` runs *before* calibration, so we can't tier-gate the scan based on PROFILE.md. The "downward to 2 scanners at SKETCH" optimization the spec mentions is moot in practice because brownfield projects rarely calibrate to SKETCH.
+**Up next, in priority order:**
+1. **T4.15 dogfood pass** — run `/sig:init` on Signal itself (which is its own brownfield codebase — meta loop). Highest ROI: validates Steps 1–4+6 actually work end-to-end and surfaces friction before T4.8 / T4.13 / T4.14 lock anything else.
+2. **T4.13 fixture tests** — Node / Python / dormant-project fixtures with snapshot-style assertions on LANDSCAPE.md shape. Hardens the synthesizer.
+3. **T4.14 validator updates** — add init.md to REQUIRED_COMMANDS + introduce REQUIRED_AGENTS for the 4 scanners. Cleanup task; matters for shipping.
+4. **T4.10–T4.12 adjacent updates** — `/sig:status` detect LANDSCAPE.md, `/sig:resume` read it alongside PROJECT.md, `/sig:calibrate` Scenario A redirect to `/sig:init`. Polish.
+5. **T4.8 assumption surfacing** — conversational UX over `[INFERRED]` markers. Could ship after T4.15 dogfood reveals which markers users actually struggle with (so the walkthrough targets real pain).
+6. **T4.16 documentation** — README brownfield section + tier-definitions update. Last.
 
-Wave 3 (T4.6 + T4.7) consumes scanner outputs and is the synthesis layer. Wave 4 (T4.8 — assumption surfacing) is conversational and depends on Wave 3's output. Wave 5 (T4.9 — STATE.md handoff) finishes the command.
+**Four TRANCHE-4 design decisions resolved this session (all logged):**
+- Scanner count → fixed at 4 (DECISIONS 2026-04-26 entry).
+- Scanner agents vs embedded logic → agents (resolved by scanner-count lock).
+- LANDSCAPE.md vs multi-file → single LANDSCAPE.md (scanner outputs in `.planning/scan/` are the multi-file layer; LANDSCAPE.md is the synthesized view).
+- Write PROJECT.md or just LANDSCAPE.md → write both, with `[INFERRED]` / `[FILL IN]` markers per generation-rule per field. The friction of post-editing markers is lower than starting PROJECT.md from blank.
 
-Four design-decisions-during-execution remain open per TRANCHE-4 (single-LANDSCAPE-vs-multi-file → answered "single" by the scanner output design / T4.6 confirms; inference aggressiveness; write-PROJECT.md-or-just-LANDSCAPE; codebase-novelty-feeding-calibration). Decide each at the moment the relevant wave executes.
+**One TRANCHE-4 design decision still open:**
+- Codebase-novelty signal feeding calibration (TRANCHE-4 decision #5). Defer to T4.12 (the `/sig:calibrate` adjacent-update task) — that's where the cross-command interaction would land.
 
 ## Blockers
 
@@ -179,4 +202,4 @@ None.
 
 ## Last Updated
 
-2026-04-26 (Tranche 4 Wave 2 — 4 scanner agents shipped)
+2026-04-26 (Tranche 4 Wave 3 — `/sig:init` Steps 2-4+6 functional; landscape.js + 25 tests)

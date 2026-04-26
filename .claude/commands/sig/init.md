@@ -14,6 +14,7 @@ Authoritative references (read if you need to refresh):
 - `${CLAUDE_PLUGIN_ROOT}/references/question-patterns.md` — strict enum / 3+other / open-ended conventions (Step 1's ambiguous case + Step 5 use 3+other)
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `initState`, `PHASES`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `ProfileSchemaError`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/landscape.js` — `readAllScans`, `extractSection`, `extractField`
 
 ## Workflow
 
@@ -138,68 +139,228 @@ This check is non-negotiable. It's the same contract every Signal entry-point co
 
 ### 2. Codebase scan (parallel scanners)
 
-> **Status: T4.2–T4.5 — not yet implemented in this skeleton.**
->
-> When implemented, this step will spawn up to 4 parallel scanner agents (stack / structure / activity / quality) per the TRANCHE-4 spec. Each scanner is read-only; results merge into the LANDSCAPE.md draft in Step 3. Scanner count is tier-aware (FULL = 4, FEATURE = 4, SPIKE = 2, SKETCH = 2) — but `/sig:init` runs *before* calibration, so default to 4 unless future work surfaces a way to pre-tier from the scan itself (see TRANCHE-4 design decision #5).
->
-> Skeleton for now: emit a placeholder line acknowledging the gap.
->
-> ```
-> [Step 2 — Codebase scan: not yet implemented. T4.2–T4.5 wave will add the
-> 4 scanner agents (stack / structure / activity / quality).]
-> ```
+Create the scan output directory: `mkdir -p .planning/scan` (idempotent).
+
+Spawn **all 4 scanner agents in parallel** in a single message via the Task tool. Each scanner is registered as a sub-agent and writes its output to `.planning/scan/{name}.md`:
+
+| Agent | `subagent_type` | Output file |
+|---|---|---|
+| Stack scanner | `stack-scanner` | `.planning/scan/stack.md` |
+| Structure scanner | `structure-scanner` | `.planning/scan/structure.md` |
+| Activity scanner | `activity-scanner` | `.planning/scan/activity.md` |
+| Quality scanner | `quality-scanner` | `.planning/scan/quality.md` |
+
+Each agent's prompt is identical: `"Run the {name} scan per your agent definition. The working directory is the project root. Write your output to .planning/scan/{name}.md per the Output Format section. You are read-only — do not modify any other file. Report back when done."`
+
+`/sig:init` runs **before** PROFILE.md exists, so all 4 scanners always fire. The TRANCHE-4 spec mentions tier-aware scanner counts (SKETCH = 2), but that's moot for brownfield onboarding — calibration happens *after* this scan, and brownfield projects rarely calibrate to SKETCH anyway. (Locked design decision: scanner count is fixed at 4. Logged in DECISIONS.md.)
+
+Wait for all 4 scanners to complete. If any scanner fails (exception, timeout, refused write), record the failure but **continue** — Step 3's synthesizer degrades gracefully and marks the corresponding LANDSCAPE.md section as `(scan output unavailable — {scanner} failed: {reason})`. Do not retry within `/sig:init`; surface the failure so the user can re-run the scanner manually.
 
 ### 3. Write `.planning/LANDSCAPE.md`
 
-> **Status: T4.6 — not yet implemented in this skeleton.**
->
-> When implemented, this step will synthesize scanner outputs into the LANDSCAPE.md template defined in `.planning/TRANCHE-4.md` (sections: What this project is / Tech stack / Project structure / Activity signals / Test surface / Open work signals / Inferred goals & uncertainties / Last Updated). Inferred fields use confidence-marker labels (`[INFERRED — high confidence]`, `[INFERRED — low confidence]`, `[FILL IN]`).
->
-> Skeleton for now: emit a placeholder.
+Read the 4 scan outputs:
+
+```js
+const scans = await readAllScans(baseDir); // { stack, structure, activity, quality }
+```
+
+Synthesize them into `.planning/LANDSCAPE.md` using the template below. **Sections 2-6 are mechanical reformat from scan data** (use `extractSection` and `extractField` from `tools/lib/landscape.js`). **Sections 1 and 7 are narrative synthesis** by you — drawing across multiple scans to infer purpose and surface uncertainties.
+
+#### Template
+
+```markdown
+# Landscape
+
+## What this project is
+
+{1-paragraph synthesis. Sources: the README excerpt (quality scan → "## README" → first 30 lines), top language (stack scan → "## Languages" → first row), dominant framework (stack scan → "## Frameworks Detected" → first row), and project age + health (activity scan → "## Repo Lifetime", "## Health Classification"). Combine into a sentence like:
+
+  "{ProjectName} is a {framework} project written primarily in {language}, {age} old and currently {health-status}. {One-sentence purpose drawn from README, marked [INFERRED — confidence-level] if not stated explicitly}."
+
+If the README explicitly states the project's purpose, mark that part `[INFERRED — high confidence]`. If purpose is inferred from framework + structure alone, mark `[INFERRED — low confidence]`. If you can't infer at all, write `[FILL IN — Signal could not infer purpose from available signals; please describe what this project does]`.}
+
+## Tech stack
+
+- **Languages:** {extract from stack scan "## Languages" table — top 3-5 by file count, formatted "TypeScript (74%), JavaScript (12%), Shell (4%)"}
+- **Frameworks:** {extract from stack scan "## Frameworks Detected" — name + version per row, comma-separated; or "(none detected)"}
+- **Test runner:** {extract from quality scan "## Test Runners" — first row name + version; or "(none configured)"}
+- **CI:** {extract from quality scan "## CI Configuration" — platform name + "runs tests on PRs: yes/no/unknown"; or "(no CI detected)"}
+- **Container / deployment:** {extract from stack scan "## Runtime / Deployment" — if present; else omit this line}
+
+## Project structure
+
+{Embed the structure scan's "## Source Tree (depth-3)" table verbatim. Above the table, prepend a one-line monorepo summary from "## Monorepo Detection" — e.g., "Single-repo project." or "Monorepo (pnpm workspaces, 4 sub-packages: api, web, shared, cli)."}
+
+## Activity signals
+
+- **Last commit:** {activity scan "## Repo Lifetime" → "Last commit" field}
+- **Project age:** {activity scan "## Repo Lifetime" → "Project age" field}
+- **Cadence (90 days):** {activity scan "## Commit Cadence" → 90-day commits + avg/week}
+- **Active contributors (90 days):** {activity scan "## Contributors (90 days)" → "Total unique" field}
+- **Hot files:** {activity scan "## Hot Files" → top 5 paths only, comma-separated; or "(insufficient activity)"}
+- **Health:** {activity scan "## Health Classification" → "Status" field + "Reasoning" field in parens}
+
+## Test surface
+
+- **Test runner:** {quality scan "## Test Runners" → first row, or "none configured"}
+- **Tests detected:** {structure scan "## Test Surface" → "Net assessment" field}
+- **CI runs tests:** {quality scan "## CI Configuration" → "CI runs tests" field}
+- **Coverage tooling:** {if quality scan "## Lint / Format Tooling" or "## Notes" mentions coverage, surface it; else "(no coverage tooling detected)"}
+
+## Open work signals
+
+- **TODO/FIXME/HACK count:** {quality scan "## Open Work Signals" → "TODO/FIXME/HACK count" field}
+- **Top files by marker:** {quality scan "## Open Work Signals" → top 3 paths from "Top files" table}
+- **CHANGELOG state:** {quality scan "## CHANGELOG" → "Freshness" field + "Latest declared version" field}
+- **License:** {quality scan "## License" → "Detected" field}
+
+## Inferred goals & uncertainties
+
+**INFERRED — please verify before relying on:**
+- {Goal 1: synthesize from README + framework + hot-file paths. E.g., "Appears to be a public-facing API service — Express framework, hot files in `src/routes/` and `src/middleware/`, README mentions REST endpoints. Confidence: high."}
+- {Goal 2: secondary inference from CHANGELOG / recent commits. E.g., "Recent commits suggest active work on auth (3 commits to src/auth/* in last 30d). Confidence: medium."}
+- {Add 1-3 more if the data supports them; otherwise stop. Don't fill out a quota of guesses.}
+
+**Open questions for the user:**
+- {Question 1: a real gap the scan couldn't fill. E.g., "What's the production deployment target? `Dockerfile` is present but no `vercel.json` / `wrangler.toml` / etc. — could be self-hosted, Kubernetes, or something else."}
+- {Question 2: ambiguity worth surfacing. E.g., "README is from 18 months ago (last commit to README.md: 2024-08-15). Has the project's purpose changed since then?"}
+- {Question 3: scope-relevant uncertainty. E.g., "Active contributors in 90d: 1. Is this a solo project, or is the team's activity hidden in a different branch / fork?"}
+- {Add only as many as the data warrants. Better to ask 2 sharp questions than 6 generic ones.}
+
+## Last Updated
+
+{ISO date — current YYYY-MM-DD}
+```
+
+#### Synthesis rules
+
+- **Mechanical sections (2-6):** Use `extractSection` + `extractField` to pull values; if a field is missing or the source scan failed, write `[scan output unavailable]` rather than guessing.
+- **Narrative sections (1 + 7):** Confidence labels are mandatory. Every inferred fact has one of `[INFERRED — high confidence]` / `[INFERRED — low confidence]` / `[FILL IN]`. **Do not fabricate.** If you can't infer, mark `[FILL IN]`.
+- **Don't aggregate weak signals into strong claims.** Two low-confidence inferences don't compose into a high-confidence one. Mark them both as low.
+- **Embed scanner data; don't re-summarize.** "Project structure" should mostly be the structure scanner's output verbatim — your job is template-fill, not paraphrase. Paraphrase introduces drift.
+
+Write the file to `.planning/LANDSCAPE.md`.
 
 ### 4. Generate baseline `.planning/PROJECT.md`
 
-> **Status: T4.7 — not yet implemented in this skeleton.**
->
-> When implemented, this step will draft a baseline PROJECT.md in Signal's standard shape (Vision / Problem / Success Criteria / Scope / Constraints / Done When), with every inferred field marked `[INFERRED — please verify]` and every blank field marked `[FILL IN — Signal could not infer this]`. Never fabricate; mark and move on.
->
-> Skeleton for now: emit a placeholder.
+Draft a baseline PROJECT.md in Signal's standard shape, drawn from LANDSCAPE.md + scan data. **Every inferred field is marked `[INFERRED — please verify]`**. **Every blank field is marked `[FILL IN — Signal could not infer this]`**. Never fabricate.
+
+#### Template
+
+```markdown
+# {ProjectName} — Project Spec
+
+> **Brownfield onboarding draft** — generated by `/sig:init` from codebase scan.
+> Every `[INFERRED]` and `[FILL IN]` marker is your responsibility to resolve.
+> Do this *before* `/sig:calibrate` so tiering reflects reality, not Signal's guesses.
+
+## Vision
+
+{One-sentence vision. Source: LANDSCAPE.md "What this project is" → drop the technical descriptors, keep the purpose. If purpose is `[FILL IN]` in LANDSCAPE.md, mirror that here as `[FILL IN — what is this project for, in one sentence?]`.}
+
+`[INFERRED — please verify]` (or `[FILL IN — ...]`)
+
+## Problem Statement
+
+{1-3 sentences: what problem does this codebase solve, for whom? Source: README "Why" / "Motivation" / introduction sections (quality scan extracted these). If README doesn't articulate this, `[FILL IN — what user problem does this address?]`.}
+
+`[INFERRED — please verify]` (or `[FILL IN — ...]`)
+
+## Success Criteria
+
+`[FILL IN — what does success look like for this project today? List 3-5 measurable criteria. Examples: "P95 latency under 200ms", "Free-tier user growth >10%/month", "Zero P0 incidents in 90 days". Signal cannot infer these from code alone — they're forward-looking.]`
+
+## Scope
+
+### In Scope
+- {Inferred from hot files + recent commits — e.g., "Authentication subsystem (active 30d work in `src/auth/*`)"}
+- {Inferred from declared dependencies — e.g., "REST API endpoints (Express framework, `src/routes/` directory)"}
+- {Add 3-5 more from observable signal.}
+
+`[INFERRED — please verify]`
+
+### Out of Scope
+`[FILL IN — what is *explicitly* not part of this project? Signal cannot infer absence; you have to declare it. Examples: "Mobile clients (web only)", "Legacy v1 API (read-only maintenance, no new features)".]`
+
+## Constraints
+
+- **Language / runtime:** {LANDSCAPE → Tech stack → languages + runtime constraint, e.g., "Node 22+, TypeScript"}
+- **Frameworks:** {LANDSCAPE → Tech stack → frameworks, e.g., "Next.js 14, React 18"}
+- **Deployment target:** {LANDSCAPE → Tech stack → container/deployment if detected; else `[FILL IN — where does this deploy?]`}
+- **Team / contributors:** {Activity scan → contributors count + names if useful for context, or `[FILL IN — team size?]`}
+- **Hard constraints not in code:** `[FILL IN — anything else that constrains design choices? Compliance, license obligations, integrations, partner SLAs.]`
+
+## Done When
+
+`[FILL IN — what's the next concrete milestone for this project? Signal can't infer "done" from code alone. Examples: "Public beta launch with 100 paying customers", "All P0 features in CHANGELOG-v2.0.md shipped", "Replace legacy auth (TODO count in src/auth/* drops to 0)".]`
+
+## Notes
+
+- Generated by `/sig:init` on {YYYY-MM-DD}.
+- Source signals: see `.planning/LANDSCAPE.md` and `.planning/scan/{stack,structure,activity,quality}.md`.
+- Project state at brownfield onboarding: {LANDSCAPE.md activity signals "Health" field}, {project age}, {commits} total commits.
+```
+
+#### Generation rules
+
+- **Vision + Problem:** May be auto-filled from LANDSCAPE if `[INFERRED — high confidence]` was assigned there; mirror as `[INFERRED]` here. Otherwise `[FILL IN]`.
+- **Success Criteria + Done When:** **Always** `[FILL IN]`. These are forward-looking; no scan can produce them. Do not fabricate placeholder criteria like "code works" — those have negative value (the user has to delete them later).
+- **Scope (In):** Auto-fill from observable signal (hot files, frameworks, recent commits). Mark `[INFERRED — please verify]`.
+- **Scope (Out):** **Always** `[FILL IN]`. Absence isn't observable from code.
+- **Constraints:** Mix of inferred (language, framework) and `[FILL IN]` (compliance, partner SLAs). Inferred fields don't need a marker if they're 100% derived from manifest (e.g., "Node 22+" from `package.json` engines field is fact, not inference).
+- **Notes:** Always auto-filled. Provides traceability to scans.
+
+Write the file to `.planning/PROJECT.md`.
 
 ### 5. Surface assumptions for user validation
 
-> **Status: T4.8 — not yet implemented in this skeleton.**
+> **Status: T4.8 — not yet implemented.** This step will add a structured walkthrough of `[INFERRED]` and `[FILL IN]` markers using the 3+other and open-ended question patterns from `references/question-patterns.md`.
 >
-> When implemented, this step will walk the user through the inferred-content checkpoints from LANDSCAPE.md and the draft PROJECT.md. Use the locked question-pattern conventions:
-> - **3+other** for genuine tradeoff questions (e.g., "Should we treat this project as FEATURE / SUBSYSTEM / PRODUCT scope?")
-> - **Open-ended** for clarifying genuinely unknown intent (e.g., "What's the *current* problem you're solving — the README is from 18 months ago.")
+> Until T4.8 lands, emit a manual reminder to the user:
 >
-> User's responses (especially "other" answers) get captured verbatim in PROJECT.md's Notes section.
->
-> Skeleton for now: emit a placeholder.
+> ```
+> LANDSCAPE.md and PROJECT.md drafted. Before /sig:calibrate, please:
+>   1. Open .planning/LANDSCAPE.md and verify the [INFERRED] markers.
+>   2. Open .planning/PROJECT.md and fill in the [FILL IN — ...] sections.
+>   3. Note: Signal can't tier accurately if Vision / Problem / Success Criteria
+>      are still placeholders — calibration depends on knowing reversibility,
+>      stakes, and horizon, all of which derive from your goals.
+> ```
 
 ### 6. Initialize `.planning/STATE.md` and hand off to `/sig:calibrate`
 
-> **Status: T4.9 — not yet implemented in this skeleton.**
->
-> When implemented, this step will:
-> 1. Call `initState(baseDir, 'CALIBRATE')` from `tools/lib/state.js` to write STATE.md with `Current Phase: CALIBRATE`.
-> 2. Print the next-step message:
->
->    ```
->    Landscape captured at .planning/LANDSCAPE.md.
->    Baseline PROJECT.md drafted at .planning/PROJECT.md (review the [INFERRED] markers).
->
->    Next: /sig:calibrate to tier the work — given this is a brownfield project
->    with {N months/years} of git history, the calibration questions will lean
->    toward higher tiers (reversibility tends to be painful or worse for established
->    codebases).
->
->    Reminder: review LANDSCAPE.md and PROJECT.md before /sig:calibrate so the
->    tiering reflects what's *actually true* about your project, not what Signal
->    inferred.
->    ```
->
-> Skeleton for now: emit a placeholder + actually call `initState(baseDir, 'CALIBRATE')` so the pre-flight skeleton at least delivers a usable post-state for downstream commands during T4.2–T4.9 development. (Caveat: this means the T4.1 skeleton will leave a project in `Current Phase: CALIBRATE` state without a real LANDSCAPE.md — fine for skeleton-mode dogfooding, not for end users.)
+Call `initState(baseDir, 'CALIBRATE')` from `tools/lib/state.js`. This writes:
+
+```markdown
+# Project State
+
+## Current Phase
+CALIBRATE
+
+## Completed Phases
+(none)
+
+## Blockers
+(none)
+
+## Last Updated
+{YYYY-MM-DD}
+```
+
+Then print the handoff message. Compute `{age phrase}` from the activity scan's "Project age" field (e.g., "2 years 4 months"); if unavailable, use "(unknown duration)".
+
+```
+Landscape captured at .planning/LANDSCAPE.md.
+Baseline PROJECT.md drafted at .planning/PROJECT.md (review the [INFERRED] / [FILL IN] markers).
+
+Next: /sig:calibrate to tier the work — given this is a brownfield project with
+{age phrase} of git history, the calibration questions will lean toward higher
+tiers (reversibility tends to be painful or worse for established codebases).
+
+Reminder: review LANDSCAPE.md and PROJECT.md before /sig:calibrate so the
+tiering reflects what's *actually true* about your project, not what Signal
+inferred.
+```
 
 ## Anti-Rationalization Check
 
@@ -213,13 +374,11 @@ This check is non-negotiable. It's the same contract every Signal entry-point co
 
 ## Gate: Init Complete
 
-> The full gate (post-T4.9) will look like the gate below. T4.1 only delivers items marked `[T4.1]`; later waves fill in the rest.
-
-- [ ] **[T4.1]** Pre-flight detected one of 5 states (1.1 already-Signalized / 1.2 no-git / 1.3 empty-repo / 1.4 ambiguous-`.planning/` / 1.5 happy-path)
-- [ ] **[T4.1]** `.gitignore` does not ignore `.planning/` (or override is logged)
-- [ ] **[T4.2–T4.5]** Scanner agents ran; results captured
-- [ ] **[T4.6]** `.planning/LANDSCAPE.md` written with all template sections
-- [ ] **[T4.7]** `.planning/PROJECT.md` drafted with `[INFERRED]` / `[FILL IN]` markers
-- [ ] **[T4.8]** Inferred content surfaced to user; assumptions accepted / corrected / deferred
-- [ ] **[T4.9]** `.planning/STATE.md` written with `Current Phase: CALIBRATE`
-- [ ] **[T4.9]** User saw the next-step message pointing at `/sig:calibrate`
+- [ ] Pre-flight detected one of 5 states (1.1 already-Signalized / 1.2 no-git / 1.3 empty-repo / 1.4 ambiguous-`.planning/` / 1.5 happy-path)
+- [ ] `.gitignore` does not ignore `.planning/` (or override is logged)
+- [ ] All 4 scanner agents ran; results captured to `.planning/scan/{name}.md` (or failures recorded for the synthesizer)
+- [ ] `.planning/LANDSCAPE.md` written with all template sections; narrative sections use `[INFERRED — confidence-level]` or `[FILL IN]` markers
+- [ ] `.planning/PROJECT.md` drafted with `[INFERRED — please verify]` / `[FILL IN — Signal could not infer this]` markers; no fabrication
+- [ ] **[T4.8 — not yet implemented]** Inferred content surfaced to user; assumptions accepted / corrected / deferred via 3+other walkthrough
+- [ ] `.planning/STATE.md` written with `Current Phase: CALIBRATE`
+- [ ] User saw the next-step message pointing at `/sig:calibrate`

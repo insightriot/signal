@@ -148,12 +148,12 @@ Same pattern as `/sig:new-project`'s tail. Calibration becomes the next user act
   All 4 scanners share the same defensive posture: read-only, no install/build commands, 30s per-command timeout, "report no data" failure mode for missing/unparseable inputs, no PROFILE.md awareness. Sibling overlap explicitly resolved via per-agent Constraints sections.
 
 ### Wave 3 — Synthesis
-- **T4.6** — LANDSCAPE.md writer (template + synthesizer logic; lives in `/sig:init.md` Step 2 + supported by helper in `tools/lib/landscape.js` for any non-trivial detection).
-- **T4.7** — Baseline PROJECT.md generator (template + `[INFERRED]` markers).
+- **T4.6** ✓ — LANDSCAPE.md writer. Shipped 2026-04-26. `/sig:init.md` Step 2 (parallel scanner orchestration via Task tool with per-agent `subagent_type`) + Step 3 (LANDSCAPE.md template with 7 sections, 5 mechanical + 2 narrative). Helper `tools/lib/landscape.js`: `readScan` / `readAllScans` / `extractSection` (inline `(?m:...)` group for h2-anchored heading match) / `extractField` (markdown-emphasis-normalize-then-plain-match). 25 tests added.
+- **T4.7** ✓ — Baseline PROJECT.md generator. Shipped 2026-04-26. `/sig:init.md` Step 4 with full Signal-shape template (Vision / Problem / Success Criteria / Scope-in/out / Constraints / Done When / Notes). Generation rules per field: forward-looking fields (Success Criteria / Done When / Scope-out) are *always* `[FILL IN]`; manifest-derived fields (language, runtime) are facts; everything else gets `[INFERRED — please verify]`.
 
 ### Wave 4 — Validation
-- **T4.8** — Assumption-surfacing step in `/sig:init.md` (Step 4); user-validation flow.
-- **T4.9** — STATE.md initialization + handoff message.
+- **T4.8** — Assumption-surfacing step in `/sig:init.md` (Step 5); user-validation flow. Defer until after T4.15 dogfood reveals which markers users struggle with most.
+- **T4.9** ✓ — STATE.md initialization + handoff message. Shipped 2026-04-26 (folded into Wave 3 to make the command functional end-to-end). `initState(baseDir, 'CALIBRATE')` + handoff that surfaces project age + brownfield-tier-bias hint.
 
 ### Wave 5 — Adjacent updates
 - **T4.10** — `/sig:status` updates: detect LANDSCAPE.md presence, surface in status output.
