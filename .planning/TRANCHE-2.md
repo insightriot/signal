@@ -18,7 +18,7 @@
 |---|---|---|
 | 1. `/sig:calibrate` | **DONE** | Committed `f0f3e0b`. All 5 self-test scenarios pass. |
 | 2. `/sig:escalate` | **DONE** | Pre-flight, re-ask, derivation, 3-case comparison, backfill table (5 rows incl. Nyquist permanent-gap), history append. |
-| 3. "Read PROFILE.md first" preamble on 6 phase commands | **BLOCKED** | Gated on Socratic question-pattern OPEN-QUESTION (see top entry of `OPEN-QUESTIONS.md`). Resolve that first, then this becomes mechanical. |
+| 3. "Read PROFILE.md first" preamble on 6 phase commands | **DONE** | Socratic-pattern OPEN-QUESTION resolved (DECISIONS.md 2026-04-25); `references/question-patterns.md` written. Preamble + per-phase `rigor_overrides` table added to discuss/plan/execute/verify/review/ship. DISCUSS Step 4 retrofitted to explicit 3+other; VERIFY's Loop Back retrofitted as 3+other (loop-back / escalate / accept-failure). PLAN/EXECUTE/SHIP skill loadings updated to include the newly-bound orphans. 47/47 tests passing, validator green. |
 | 4. `state.js` + `readProfile` / `isPhaseEnabled` / `applyRigorOverrides` helpers | **DONE** | `CALIBRATE` added to `PHASES`. New `tools/lib/profile.js` with strict-validating `readProfile`, `isPhaseEnabled` (CALIBRATE never skipped), `applyRigorOverrides` (non-mutating; maps to legacy `workflow`/`gates`/`parallelization` keys + attaches `rigor_overrides` verbatim). `yaml@^2.8.3` added as runtime dep. 28 new tests; 47/47 passing. |
 | 5. Naming drift + `validate-plugin.js` REQUIRED_COMMANDS / REQUIRED_FILES update | **DONE** | Bound 4 orphan skills (api-and-interface-design + deprecation-and-migration → plan; deprecation-and-migration also → ship; frontend-ui-engineering + source-driven-development → execute). Renamed `testing-patterns.md` → `testing-checklist.md`. Validator now requires calibrate/escalate commands + profile-schema/tier-definitions references. PREPARE phase logged as v2 candidate in FUTURE-IDEAS.md with three trigger conditions. Decision logged in DECISIONS.md. |
 | 5a. `.planning/`-always-tracked enforcement in user-facing commands | **DONE** | `/sig:calibrate` already had check (T2 Step 1). Added equivalent gate to `/sig:new-project` (Step 0 + gate checklist). README one-liner deferred to TRANCHE-3 Task 4 (where the README itself is written) — added explicit checkbox there. |
@@ -26,7 +26,7 @@
 | 7. REVIEW phase token-cost measurement | Pending | Run `estimatePhaseSkillCost('review')`; record in `DECISIONS.md`; chunk loader if over budget. |
 | 8. End-to-end self-test on a sample throwaway project | Pending | Validates the whole flow from `/sig:new-project` through `/sig:ship`. |
 
-**Order to execute:** ~~4~~ → ~~5~~ → ~~5a~~ → (resolve Socratic OPEN-QUESTION) → 3 → 6 → 7 → 8.
+**Order to execute:** ~~4~~ → ~~5~~ → ~~5a~~ → ~~(resolve Socratic OPEN-QUESTION)~~ → ~~3~~ → 6 → 7 → 8.
 
 ---
 

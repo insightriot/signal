@@ -8,12 +8,34 @@ args: "<phase-number>"
 
 You are running the EXECUTE phase of the Signal workflow. Your goal: implement every task in the plan with atomic commits and passing tests.
 
+## 0. Tier-gating preamble (run before anything else)
+
+Read `.planning/PROFILE.md` before any other workflow step.
+
+- **If `PROFILE.md` is missing:** halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:execute`."* Do not proceed.
+- **EXECUTE is never in `phases_skipped`.** No tier is zero-work; even SKETCH and SPIKE run EXECUTE. This guard is therefore a sanity check — if you somehow see EXECUTE in `phases_skipped`, treat the PROFILE.md as malformed and halt.
+- **Apply `rigor_overrides`** from PROFILE.md:
+
+| Override | Effect on this phase |
+|---|---|
+| `tdd_required: false` | TDD-first is optional. Test-after or no-tests is permitted (e.g., SKETCH). Step 2 sub-step 2 ("write tests first") becomes optional. |
+| `tdd_required: true` | TDD-first is required. Step 2 sub-step 2 enforced — write a failing test before any implementation code. |
+| `context_rot_reread: false` | Skip Step 3 (45-min CONTEXT.md re-read). |
+| `context_rot_reread: true` | Run Step 3 every ~45 minutes (default). |
+| `gate_strictness: off` | Auto-advance through wave transitions; no per-wave confirmation. |
+| `gate_strictness: light` | Confirm at end of phase only. |
+| `gate_strictness: strict` | Confirm at every wave boundary + run anti-rationalization at exit. |
+
+Tooling: `tools/lib/profile.js` exposes `readProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`.
+
 ## Skill Loading
 
 Load from `${CLAUDE_PLUGIN_ROOT}/skills/build/`:
 - `incremental-implementation/SKILL.md`
-- `test-driven-development/SKILL.md`
+- `test-driven-development/SKILL.md` (skill loaded for reference even when `tdd_required: false`; rigor toggles enforcement, not knowledge)
 - `context-engineering/SKILL.md`
+- `source-driven-development/SKILL.md`
+- `frontend-ui-engineering/SKILL.md` (load only if the project has a frontend; conditional loading is a v1.5 candidate — see `.planning/FUTURE-IDEAS.md`)
 
 ## Workflow
 

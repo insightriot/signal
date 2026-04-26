@@ -8,6 +8,22 @@ args: "<phase-number>"
 
 You are running the SHIP phase. Your goal: get reviewed, verified code into a merge-ready PR with complete documentation.
 
+## 0. Tier-gating preamble (run before anything else)
+
+Read `.planning/PROFILE.md` before any other workflow step.
+
+- **If `PROFILE.md` is missing:** halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:ship`."* Do not proceed.
+- **If `SHIP` is in `phases_skipped`:** exit with *"This tier ({tier}) skips SHIP. The project's output is internal (e.g., a SPIKE finding doc, not a shipping artifact). If output should ship, run `/sig:escalate` to upgrade tier."* Do not proceed. (SPIKE tier skips SHIP by default.)
+- **Apply `rigor_overrides`** from PROFILE.md:
+
+| Override | Effect on this phase |
+|---|---|
+| `gate_strictness: off` | Auto-advance through pre-ship checklist; confirm only at PR creation. |
+| `gate_strictness: light` | Confirm at PR creation (default). |
+| `gate_strictness: strict` | Confirm at every checklist step + run final anti-rationalization (existing Step 5 / "Final Anti-Rationalization" already does this — make it mandatory under strict). |
+
+Tooling: `tools/lib/profile.js` exposes `readProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question convention: `references/question-patterns.md`.
+
 ## Skill Loading
 
 Load from `${CLAUDE_PLUGIN_ROOT}/skills/ship/`:
@@ -15,6 +31,7 @@ Load from `${CLAUDE_PLUGIN_ROOT}/skills/ship/`:
 - `ci-cd-and-automation/SKILL.md`
 - `documentation-and-adrs/SKILL.md`
 - `shipping-and-launch/SKILL.md`
+- `deprecation-and-migration/SKILL.md`
 
 ## Workflow
 

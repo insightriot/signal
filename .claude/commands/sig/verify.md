@@ -8,6 +8,25 @@ args: "<phase-number>"
 
 You are running the VERIFY phase. Your goal: confirm that what was built matches what was planned.
 
+## 0. Tier-gating preamble (run before anything else)
+
+Read `.planning/PROFILE.md` before any other workflow step.
+
+- **If `PROFILE.md` is missing:** halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:verify`."* Do not proceed.
+- **If `VERIFY` is in `phases_skipped`:** exit with *"This tier ({tier}) skips VERIFY. Run `/sig:review` next (or `/sig:ship` if REVIEW is also skipped), or `/sig:escalate` if scope has grown and VERIFY should run."* Do not proceed. (No v1 tier currently skips VERIFY.)
+- **Apply `rigor_overrides`** from PROFILE.md:
+
+| Override | Effect on this phase |
+|---|---|
+| `nyquist_enforcement: off` | Skip Step 3 (Nyquist Compliance) entirely. |
+| `nyquist_enforcement: basic` | Run Step 3 — check that planned tests exist and cover specified scenarios; do not require evidence each test failed before passing. |
+| `nyquist_enforcement: strict` | Run Step 3 with full strictness — every test must have a documented "failed before fixed" record. **Permanent gap warning:** code that shipped before strict mode was active is structurally non-recoverable for strict Nyquist (see `references/tier-definitions.md` § "Recoverable vs. permanent backfills"). Surface this as a known limit if escalation enabled strict mode mid-flight. |
+| `gate_strictness: off` | Auto-advance through verification; no per-step confirmation. |
+| `gate_strictness: light` | Confirm at end of phase. |
+| `gate_strictness: strict` | Confirm at every step + run anti-rationalization at exit. |
+
+Tooling: `tools/lib/profile.js` exposes `readProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question convention: `references/question-patterns.md`.
+
 ## Skill Loading
 
 Load from `${CLAUDE_PLUGIN_ROOT}/skills/verify/`:
@@ -62,7 +81,21 @@ Generate `.planning/{phase}-VERIFICATION.md` with results.
 
 ### Loop Back
 
-If verification fails (max 3 loops):
-1. Document the failure in `{phase}-VERIFICATION.md`
-2. Return to EXECUTE to fix specific issues
-3. Re-run VERIFY
+If verification fails, ask the user using the **3-options-plus-other** pattern (see `references/question-patterns.md`):
+
+A. **Loop back to EXECUTE.** Fix the specific failures and re-run VERIFY.
+   Pick this if: the gap is small, fixes are well-scoped, and you've looped <3 times for this phase. Default for first/second loops.
+
+B. **Escalate the loop ceiling via `/sig:escalate`.** If the third loop is approaching and the project's stakes have shifted (e.g., the gap reveals a missing dimension of the work), escalate the tier and re-plan.
+   Pick this if: the third loop is imminent and the failure pattern suggests the original calibration was too low.
+
+C. **Accept the failure and document it.** Mark the failed criteria as known limits in `{phase}-VERIFICATION.md`; ship with explicit caveats.
+   Pick this if: the failure is real but the cost of fixing exceeds the cost of shipping with a documented limit (rare; defaults to A or B).
+
+If none of these fit, describe what you'd prefer and capture the reasoning in `{phase}-VERIFICATION.md` for downstream phases.
+
+**Recommendation:** A for the first 2 loops; reassess at loop 3 — typically B if calibration looks too low, C if the failure is genuinely de-scope-able.
+
+After choosing:
+1. Document the failure (and the chosen path) in `{phase}-VERIFICATION.md`.
+2. Execute the chosen path.

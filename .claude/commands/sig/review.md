@@ -8,15 +8,41 @@ args: "<phase-number>"
 
 You are running the REVIEW phase — the bridge between "does it work?" (VERIFY) and "is it good?" (SHIP). This is Agent Skills' primary contribution to the Signal workflow.
 
+## 0. Tier-gating preamble (run before anything else)
+
+Read `.planning/PROFILE.md` before any other workflow step.
+
+- **If `PROFILE.md` is missing:** halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:review`."* Do not proceed.
+- **If `REVIEW` is in `phases_skipped`:** exit with *"This tier ({tier}) skips REVIEW. Run `/sig:ship` next, or `/sig:escalate` if scope has grown and REVIEW should run."* Do not proceed. (SKETCH and SPIKE tiers skip REVIEW by default.)
+- **Apply `rigor_overrides`** from PROFILE.md — REVIEW has the most overrides of any phase:
+
+| Override | Effect on this phase |
+|---|---|
+| `review_depth: none` | Phase is in `phases_skipped` — exit triggered above. |
+| `review_depth: quality-only` | Load only `code-review-and-quality`. Skip Steps 2 (security), 3 (performance), 4 (simplification). Lighter token load. |
+| `review_depth: full` | Load all four review skills (default). |
+| `security_audit: none` | Skip Step 2 (Security Hardening) entirely. |
+| `security_audit: basic` | Step 2 = OWASP Top 10 checklist only. |
+| `security_audit: full` | Step 2 = OWASP + ASVS Level 2 audit. |
+| `performance_pass: false` | Skip Step 3 (Performance Analysis). |
+| `simplification_pass: false` | Skip Step 4 (Simplification Pass). |
+| `gate_strictness: off` | Auto-advance through review; no per-step confirmation. |
+| `gate_strictness: light` | Confirm at end of phase. |
+| `gate_strictness: strict` | Confirm at every step + run anti-rationalization at exit. |
+
+Skill loading below assumes `review_depth: full`. If `review_depth: quality-only`, only load the first skill in the list.
+
+Tooling: `tools/lib/profile.js` exposes `readProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question convention: `references/question-patterns.md`.
+
 ## Skill Loading
 
-Load ALL four review skills from `${CLAUDE_PLUGIN_ROOT}/skills/review/`:
-- `code-review-and-quality/SKILL.md`
-- `security-and-hardening/SKILL.md`
-- `performance-optimization/SKILL.md`
-- `code-simplification/SKILL.md`
+Load review skills from `${CLAUDE_PLUGIN_ROOT}/skills/review/` per `review_depth` (see preamble):
+- `code-review-and-quality/SKILL.md` (always loaded if REVIEW runs)
+- `security-and-hardening/SKILL.md` (loaded if `review_depth: full`)
+- `performance-optimization/SKILL.md` (loaded if `review_depth: full`)
+- `code-simplification/SKILL.md` (loaded if `review_depth: full`)
 
-This is the heaviest skill load in the workflow (~12,700 tokens). Load all four — token budget analysis confirmed this fits comfortably.
+Full load (~12,700 tokens) is the heaviest in the workflow but token-budget analysis confirmed it fits comfortably. `quality-only` cuts the load substantially for FEATURE-tier work.
 
 ## Workflow
 

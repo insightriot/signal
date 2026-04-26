@@ -4,7 +4,7 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 2 — MVP Functional** (Steps 1, 2, 4, 5, 5a of 8 complete)
+**Tranche 2 — MVP Functional** (Steps 1, 2, 3, 4, 5, 5a of 8 complete)
 
 See `TRANCHE-2.md` for the task list.
 
@@ -36,15 +36,22 @@ See `TRANCHE-2.md` for the task list.
   - **OPEN-QUESTIONS cleanup.** Removed the resolved orphan-skill question. Decision logged in `DECISIONS.md` (2026-04-25 entry).
   - 47/47 tests still passing, validator green.
 
+- **Tranche 2, Step 3 — preamble pass + question-pattern convention** (2026-04-25):
+  - **Question-pattern convention locked.** Wrote `references/question-patterns.md` codifying three shapes: strict enum (calibrate's 5 questions; correctness constraint), 3-options-plus-other (default for tradeoff questions), open-ended (rare; for genuine clarification at workflow openings). Strictness convention: **strongly recommended with explicit justification for exceptions**. Strict enums mandatory where schema requires; 3+other default for tradeoffs; open-ended is the rare case. Decision logged in DECISIONS.md (2026-04-25 entry); Socratic OPEN-QUESTION resolved and removed.
+  - **Preamble + rigor table added to all 6 phase commands.** Each command now opens with "0. Tier-gating preamble" that (a) reads PROFILE.md (halts if missing), (b) exits if phase is in `phases_skipped` (with next-step message), (c) applies phase-specific `rigor_overrides`. Each command has a customized rigor table mapping the relevant overrides — DISCUSS (gate_strictness), PLAN (research_parallelism, plan_validation_dims, nyquist_enforcement, gate_strictness), EXECUTE (tdd_required, context_rot_reread, gate_strictness), VERIFY (nyquist_enforcement with permanent-gap warning, gate_strictness), REVIEW (review_depth, security_audit, performance_pass, simplification_pass, gate_strictness — most overrides), SHIP (gate_strictness).
+  - **Question-pattern retrofits.** DISCUSS Step 4 made explicit: exactly 3 named options + recommendation + "other" with verbatim capture into CONTEXT.md. VERIFY's "Loop Back" retrofitted from prescriptive ("return to EXECUTE") to 3+other (loop-back / escalate-tier / accept-failure-with-documented-limit) with recommendation per loop-count.
+  - **Skill loading updated.** PLAN now loads api-and-interface-design + deprecation-and-migration. EXECUTE adds source-driven-development + frontend-ui-engineering (with conditional-loading note pointing to FUTURE-IDEAS.md). SHIP adds deprecation-and-migration. Reflects the Step 5 binding decisions.
+  - 47/47 tests still passing; validator green.
+
 ## Active
 
-**Next: Tranche 2 has two unblocked items left — Step 6 (agent count reconciliation: 17 on disk vs. 24 in spec) and Step 7 (REVIEW phase token-cost measurement). Either is a reasonable next pickup.** Step 8 (end-to-end self-test) is gated on Step 3 unblock + Step 6/7 complete.
+**Next: Tranche 2 has two items left — Step 6 (agent count reconciliation: 17 on disk vs. 24 in spec) and Step 7 (REVIEW + PLAN phase token-cost measurement). Either is a reasonable next pickup; recommend Step 7 since the Step 5 skill bindings increased PLAN's load and we want the data point.** Step 8 (end-to-end self-test) is gated on Step 6/7 complete.
 
-Step 3 (the "read PROFILE.md first" preamble pass on the 6 phase commands) remains blocked on the Socratic-pattern OPEN-QUESTION. The profile helpers from Step 4 are ready; only the question-pattern decision is still pending.
+All previous blockers resolved. Phase commands now wire PROFILE.md → behavior — the calibration layer's actual teeth are in.
 
 ## Blockers
 
-None for Step 6 or Step 7. Step 3 blocked on resolving the Socratic-pattern OPEN-QUESTION (top entry in `OPEN-QUESTIONS.md`) — needs `references/question-patterns.md` written + decision on the 3+other convention before the preamble pass touches the 6 phase commands.
+None.
 
 ## Last Updated
 

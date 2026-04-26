@@ -8,6 +8,22 @@ args: "[--auto] [--assumptions]"
 
 You are running the DISCUSS phase of the Signal workflow. Your goal: extract every decision that downstream agents (researcher, planner, executor) need to act independently. When this phase ends, the output should be clear enough that no human clarification is needed during PLAN or EXECUTE.
 
+## 0. Tier-gating preamble (run before anything else)
+
+Read `.planning/PROFILE.md` before any other workflow step. PROFILE.md drives every phase's behavior; bypassing it defeats the calibration layer.
+
+- **If `PROFILE.md` is missing:** halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:discuss`."* Do not proceed.
+- **If `DISCUSS` is in `phases_skipped`:** exit with *"This tier ({tier}) skips DISCUSS. Run `/sig:plan` next, or `/sig:escalate` if scope has grown and DISCUSS should run."* Do not proceed.
+- **Apply `rigor_overrides`** from PROFILE.md:
+
+| Override | Effect on this phase |
+|---|---|
+| `gate_strictness: off` | Auto-advance — present recommendations as a batch, accept all without confirmation. |
+| `gate_strictness: light` | Confirm once at the end of Step 4 (batch approval). |
+| `gate_strictness: strict` | Confirm each gray-area decision individually; run anti-rationalization check at the gate. |
+
+Tooling: `tools/lib/profile.js` exposes `readProfile`, `isPhaseEnabled`, and `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question-asking convention: `references/question-patterns.md`.
+
 ## Skill Loading
 
 Load these skills from `${CLAUDE_PLUGIN_ROOT}/skills/define/`:
@@ -53,13 +69,16 @@ Based on PROJECT.md and codebase analysis, identify decisions that aren't yet lo
 
 ### 4. Structured Discussion
 
-For each gray area:
-1. Present the options with trade-offs
-2. Make a recommendation with reasoning
-3. Ask for the user's decision
-4. Lock the decision
+For each gray area, ask the user using the **3-options-plus-other** pattern (see `references/question-patterns.md`):
+
+1. **Present exactly three named options.** Each with a one-line description and a "Pick this if:" trade-off that names a real cost or benefit. Force a third if you only have two natural options (e.g., "do nothing for now" or "defer to PLAN") so the user sees the do-nothing trade-off explicitly.
+2. **Make an explicit recommendation.** Pick A, B, or C with one-line reasoning. Hiding the recommendation abdicates the synthesis the user invoked Signal for.
+3. **Accept "other" as free-text.** If none of the three fit, capture the user's stated reasoning verbatim — it goes into `CONTEXT.md` "Locked Decisions" so future phases see *why* the user went off-pattern.
+4. **Lock the decision.**
 
 In `--auto` mode: make all recommendations, present them as a batch, and ask for approval.
+
+`gate_strictness` from PROFILE.md modulates: `off` → batch-approve at end (`--auto` shape); `light` → confirm once at the end; `strict` → confirm each decision individually.
 
 ### 5. Capture Decisions
 

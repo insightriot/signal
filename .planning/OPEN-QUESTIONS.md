@@ -50,27 +50,6 @@ Remaining sub-question: which do we build via Signal vs. hand-roll? Resolve at T
 
 ---
 
-## Socratic / guided-question UX pattern
-
-GSD is known for a specific conversational pattern: when asking the user for input, present **3 options + "other/explain"** rather than open-ended prompts. This reduces decision fatigue, surfaces tradeoffs explicitly, and keeps the flow moving.
-
-Today's Signal commands use this pattern lightly (see `discuss.md` step 4: "present the options with trade-offs, make a recommendation, ask for decision") but it's not codified as a cross-command convention. There's no reference doc authors can check against. Risk: phase commands drift into open-ended questions that slow users down and let Claude improvise inconsistently across commands.
-
-**Candidate resolution:**
-- Write `references/question-patterns.md` — a short reference doc defining:
-  - The 3-options-plus-other pattern and when to use it (gray areas, tradeoffs, user-is-the-decider choices).
-  - When open-ended questions ARE appropriate (clarifying a genuinely unknown user intent).
-  - How to structure options (name, one-line description, tradeoff / why-you'd-pick-this).
-  - How to handle "other" — always accept free-text, always capture reasoning for future reference.
-- Add a command-authoring checklist item: "any user-facing question must use the 3+other pattern unless explicitly justified."
-- Retrofit existing question-asking commands (`discuss.md`, `calibrate.md`, eventually `escalate.md`) to conform.
-
-**Why now, not later:** the Tranche 2 Step 3 preamble-pass will touch every phase command — natural moment to also standardize question-asking. Doing this after Tranche 2 means retrofitting twice.
-
-**Resolve by:** Before Tranche 2 Step 3. Ideally as Tranche 2 Step 3a or a dedicated sub-step.
-
----
-
 ## Historical docs: annotate or archive?
 
 `GSD-AgentSkills-Combination-Analysis.md` predates the broader landscape analysis. Options:

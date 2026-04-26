@@ -8,10 +8,36 @@ args: "<phase-number>"
 
 You are running the PLAN phase of the Signal workflow. Your goal: produce an executable plan that any agent can follow without further clarification.
 
+## 0. Tier-gating preamble (run before anything else)
+
+Read `.planning/PROFILE.md` before any other workflow step.
+
+- **If `PROFILE.md` is missing:** halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:plan`."* Do not proceed.
+- **If `PLAN` is in `phases_skipped`:** exit with *"This tier ({tier}) skips PLAN. Run `/sig:execute` next, or `/sig:escalate` if scope has grown and PLAN should run."* Do not proceed. (No v1 tier currently skips PLAN; this guard is defensive.)
+- **Apply `rigor_overrides`** from PROFILE.md:
+
+| Override | Effect on this phase |
+|---|---|
+| `research_parallelism: 0` | Skip Step 2 (Research) entirely. |
+| `research_parallelism: 2` | Spawn 2 research agents instead of 4 (pick the most relevant — usually domain + codebase). |
+| `research_parallelism: 4` | Full 4-agent research (domain, codebase, risk, prior art). |
+| `plan_validation_dims: none` | Skip Step 4 (Plan Validation) entirely. |
+| `plan_validation_dims: core` | Run only 3 dimensions: goal alignment, completeness, testability. |
+| `plan_validation_dims: all` | Run all 8 dimensions. |
+| `nyquist_enforcement: off` | Skip Step 5 (Nyquist mapping). |
+| `nyquist_enforcement: basic` or `strict` | Run Step 5. (Strictness — proof-of-fail-before-pass — is enforced in VERIFY, not here.) |
+| `gate_strictness: off` | Auto-advance through plan approval; no user confirmation required. |
+| `gate_strictness: light` | Confirm at end of phase (default). |
+| `gate_strictness: strict` | Confirm at every step + run anti-rationalization check at the gate. |
+
+Tooling: `tools/lib/profile.js` exposes `readProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question convention: `references/question-patterns.md`.
+
 ## Skill Loading
 
 Load from `${CLAUDE_PLUGIN_ROOT}/skills/plan/`:
 - `planning-and-task-breakdown/SKILL.md`
+- `api-and-interface-design/SKILL.md`
+- `deprecation-and-migration/SKILL.md`
 
 ## Workflow
 

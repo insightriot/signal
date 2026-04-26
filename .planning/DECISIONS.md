@@ -87,6 +87,26 @@ Full spec: `references/profile-schema.md`. Tier-to-defaults mapping: `references
 
 ---
 
+## 2026-04-25 — Question patterns: three shapes, strongly-recommended-with-justification
+
+**Decision:** Signal commands ask user-facing questions in exactly three shapes, codified in `references/question-patterns.md`:
+
+1. **Strict enum** — schema-validated values; no "other" accepted (e.g., `/sig:calibrate`'s 5 diagnostic questions).
+2. **3-options-plus-other** — the default for tradeoff questions; always 3 named options + free-text fallback + an explicit recommendation.
+3. **Open-ended** — reserved for clarifying genuinely unknown intent at workflow openings (`/sig:new-project`'s opening, `/sig:escalate`'s "what's changed?").
+
+The convention is **strongly recommended with explicit justification required for exceptions.** Strict enums are mandatory where schema requires a fixed value (correctness constraint). 3+other is the default for non-enum tradeoff questions. Open-ended is the rare case, justified in a command-markdown comment.
+
+**Rationale.** Without a shared convention, phase commands drift into open-ended questions that slow users down and let Claude improvise inconsistently. Mandatory enforcement would fail real edge cases (the first "what are you building?" question doesn't fit 3+other; mid-question clarifications don't either). Loose suggestion would let drift creep back in. The middle path: default to the convention, document the exception in-line.
+
+**Implication:**
+- Tranche 2 Step 3's preamble pass also retrofits any non-conforming question patterns in the 6 phase commands.
+- `references/question-patterns.md` is the authoritative source. Future command authors must reference it.
+- Anti-rationalization tables in commands include question-pattern-specific entries (e.g., "I'll skip the recommendation since the user is in a hurry" → no, the recommendation is one word; the user can override in one word).
+- The Socratic / guided-question UX OPEN-QUESTION is resolved and removed.
+
+---
+
 ## 2026-04-25 — Orphan skills bound to existing phases (interim; PREPARE phase deferred to v2)
 
 **Decision:** The four skills on disk that had no phase binding (`api-and-interface-design`, `frontend-ui-engineering`, `source-driven-development`, `deprecation-and-migration`) are bound to existing v1 phases as follows:
