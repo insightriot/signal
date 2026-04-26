@@ -4,11 +4,25 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 3 — Real-Project Testing — COMPLETE (2026-04-26).** All 5 tasks shipped. v1 ship-readiness criteria met: `/sig:status` and `/sig:resume` shipped, FULL- and SKETCH-tier dogfood passes both succeeded, README quickstart written, all triage-able OPEN-QUESTIONS resolved.
+**Tranche 4 — Brownfield Onboarding via `/sig:init` — IN PROGRESS.** T4.1 shipped (skeleton + pre-flight); T4.2–T4.16 remain. See `TRANCHE-4.md` for full task list.
 
-See `TRANCHE-3.md` for the task breakdown.
+Tranche 3 closed 2026-04-26. v1 ship-ready; `v0.1.0` tag pending.
 
 ## Completed
+
+- **Tranche 4, Task 1 — `/sig:init` skeleton + pre-flight + state machine** (2026-04-26): wrote `.claude/commands/sig/init.md` — auto-discovered by Claude Code as `sig:init`. Pre-flight implements 5 detected-state branches per the TRANCHE-4 spec, plus the entry-point `.gitignore` check pattern shared with `/sig:new-project` and `/sig:calibrate`:
+  - **1.1 Already-Signalized** (PROFILE.md exists + validates) → halt + redirect to `/sig:resume`/`/sig:status`/`/sig:escalate`/`/sig:calibrate --re-calibrate`. Also handles malformed-PROFILE.md case (refuses to overwrite — explicit `--re-calibrate` required).
+  - **1.2 No `.git/`** (worktree-aware: directory or `.git`-file pointer) → halt; refuses to auto-run `git init` to preserve user's git ceremony.
+  - **1.3 Genuinely empty** (no commits via `git rev-list --count HEAD`, no tracked files via `git ls-files`, no obvious source files) → halt + redirect to `/sig:new-project`. README + LICENSE alone don't constitute a codebase.
+  - **1.4 Ambiguous `.planning/`** (directory exists but no PROFILE.md) → 3+other question per `references/question-patterns.md` (continue / start-over / cancel; recommend cancel because partial state is rare-but-load-bearing). Destructive "start over" requires explicit user confirmation even after option B is picked.
+  - **1.5 Happy path** (brownfield codebase, no `.planning/`) → proceed to Step 1b.
+  - **Step 1b** — `.gitignore` check (mirrors new-project + calibrate exactly).
+
+  Steps 2–6 are scaffolded with `[T4.X — not yet implemented]` markers pointing to the downstream wave that fills them in (T4.2–T4.5 scanners, T4.6 LANDSCAPE.md writer, T4.7 baseline PROJECT.md generator, T4.8 assumption surfacing, T4.9 STATE.md init + handoff). Anti-rationalization table seeded with 5 brownfield-specific temptations (auto-init git, auto-merge ambiguous `.planning/`, skip pre-flight, skip gitignore check, scan empty repo). Gate checklist tagged per-wave so future tasks know which boxes they own.
+
+  Validator updates **deferred to T4.14** per the TRANCHE-4 spec — adding init.md to `REQUIRED_COMMANDS` before it's functional would make a partial skeleton the new "required minimum," violating Signal's invariant that required = functional. Tests 96/96 still pass; validator green.
+
+
 
 - **Pre-Tranche — Attribution cleanup** (2026-04-22): rewrote `PROJECT.md`, `CLAUDE.md`, `LICENSES.md`, `plugin.json`, `marketplace.json`, `package.json` to acknowledge all 9 source repos with Ported / Planned / Pattern-source / Reference tiers. Committed.
 - **Pre-Tranche — `.planning/` scaffold** (2026-04-22): created this directory; un-ignored `.planning/` in `.gitignore`. Committed.
@@ -141,11 +155,11 @@ See `TRANCHE-3.md` for the task breakdown.
 
 ## Active
 
-**TRANCHE 3 COMPLETE — v0.1.0 ready to tag.** Next phase: **TRANCHE-4 — `/sig:init` brownfield onboarding** (see `TRANCHE-4.md`). The previous TRANCHE-4 (v2 ports) was renamed to TRANCHE-5 to reflect the priority shift; rationale in DECISIONS.md (2026-04-26 — "Roadmap reorder").
+**Tranche 4 — `/sig:init` brownfield onboarding.** T4.1 done (this session). Up next: T4.2–T4.5 (the 4 parallel scanner agents — stack / structure / activity / quality).
 
-The path: ship v0.1.0 → clear context → start fresh on TRANCHE-4 by reading `TRANCHE-4.md` cold (the file's "How to start a session" appendix lays out the read-order).
+Wave-2 tasks (scanners) are independent of each other and could run in parallel as a single multi-agent execution wave once the agent skeletons are written. Wave 3 (LANDSCAPE.md synthesizer + baseline PROJECT.md generator) consumes scanner outputs, so it must follow Wave 2.
 
-Why brownfield-init became TRANCHE-4 instead of v1.5/FUTURE-IDEAS: brownfield is almost certainly the most common real-world adoption path, and v1's three-step ad-hoc brownfield flow is friction-rich enough to gate adoption. It's a v1-completing feature, not v2-expanding scope.
+Five design-decisions-during-execution remain open per TRANCHE-4 (scanner-agents-vs-embedded-logic, single-LANDSCAPE-vs-multi-file, inference aggressiveness, write-PROJECT.md-or-just-LANDSCAPE, codebase-novelty-feeding-calibration). Decide each at the moment the relevant wave executes; pre-deciding is over-planning.
 
 ## Blockers
 
@@ -153,4 +167,4 @@ None.
 
 ## Last Updated
 
-2026-04-26 (Tranche 3 COMPLETE — v1 ship-ready)
+2026-04-26 (Tranche 4 Task 1 — `/sig:init` skeleton + pre-flight shipped)

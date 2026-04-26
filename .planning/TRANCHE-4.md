@@ -137,7 +137,7 @@ Same pattern as `/sig:new-project`'s tail. Calibration becomes the next user act
 ## Tasks
 
 ### Wave 1 — Foundation
-- **T4.1** — Pre-flight + state machine (`/sig:init.md` skeleton; pre-flight checks; halt/redirect rules for the four detected states).
+- **T4.1** ✓ — Pre-flight + state machine. Shipped 2026-04-26. `.claude/commands/sig/init.md` skeleton with 5-state pre-flight (already-Signalized / no-`.git/` / empty repo / ambiguous `.planning/` / happy path) + `.gitignore` check + scaffolded Steps 2-6 with `[T4.X — not yet implemented]` markers + 5-row anti-rationalization table + per-wave-tagged gate checklist. Auto-discovered by Claude Code as `sig:init`. Validator updates deferred to T4.14 per the spec. Tests 96/96; validator green.
 
 ### Wave 2 — Scanners (parallel)
 - **T4.2** — Stack scanner agent (`agents/scanners/stack-scanner.md`).
