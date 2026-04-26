@@ -138,3 +138,92 @@ Currently: 3 vitest files (`state.test.js`, `context-monitor.test.js`, `profile.
 **Resolve by:** Tranche 3 dogfood. Likely outcome: a fixture-based command-execution test harness lands as part of (or after) the FULL-tier and SKETCH-tier passes.
 
 ---
+
+## `${CLAUDE_PLUGIN_ROOT}` env var doesn't resolve in dev/dogfood runs
+
+**Surfaced by:** Tranche 3 Task 2 FULL-tier dogfood (2026-04-26).
+
+`/sig:new-project` Step 1 says "copy `${CLAUDE_PLUGIN_ROOT}/state/config.json`" and skill-loading directives across multiple commands reference `${CLAUDE_PLUGIN_ROOT}/skills/.../SKILL.md`. The env var is set when Signal is installed via the Claude Code plugin system, but for users running Signal-on-Signal (dogfood) or developing Signal locally, the var doesn't resolve and operators must manually substitute the literal path.
+
+**Candidate fix:** add a fallback hint in command markdown ("if `${CLAUDE_PLUGIN_ROOT}` is unset, the plugin root is the directory containing this file's grandparent — usually a Signal install path"). Or document a one-liner for dev/dogfood: `export CLAUDE_PLUGIN_ROOT=/path/to/signal`. Cheap to fix.
+
+**Resolve by:** TRANCHE-3 Task 5 triage; small README addendum + one-line note in command markdown.
+
+---
+
+## Strict Nyquist's "failed before fixed" record is structurally unmet by per-slice atomic commits
+
+**Surfaced by:** Tranche 3 Task 2 FULL-tier dogfood (2026-04-26).
+
+VERIFY's strict Nyquist mode in `verify.md` says: *"every test must have a documented 'failed before fixed' record."* During EXECUTE, TDD discipline is honored per slice (test → red → impl → green) — but each slice's commit bundles the test + the implementation, so git history has no per-test red→green moment.
+
+This is not a TDD failure (the discipline was followed) — it's a *recordkeeping* failure (no audit trail).
+
+**Two paths:**
+- **Stricter EXECUTE pattern.** Require a "test-only commit that fails CI" before the implementation commit. Doubles the commit count but produces a real audit trail.
+- **Runtime harness.** A test runner that records each test's first-red SHA and first-green SHA. More invasive; doesn't exist today.
+
+**Candidate fix (lightweight):** Soften the strict-mode language in `verify.md` to say: *"strict Nyquist requires either (a) per-test red→green git evidence, or (b) explicit attestation in {phase}-VERIFICATION.md that the test was written before the implementation."* This codifies what the dogfood actually did — the spirit was preserved without the letter.
+
+**Resolve by:** TRANCHE-3 Task 5 triage or TRANCHE-4 if the stricter (a)-path is wanted. v2 PREPARE-phase candidate could include a "TDD audit trail" sub-step.
+
+---
+
+## REVIEW phase needs a "PASS-WITH-FIXES" verdict (not just PASS / FAIL)
+
+**Surfaced by:** Tranche 3 Task 2 FULL-tier dogfood (2026-04-26).
+
+`review.md` step 5 ("Write Review Report") template offers two verdict options: PASS — ready for SHIP, or FAIL — issues must be addressed (return to EXECUTE). In the dogfood, REVIEW found 2 important issues (Content-Length pre-check missing, unhandled-error not logged). Both fixes were small (1–3 lines each). Looping back to a full EXECUTE phase ceremony for two-line fixes is theatrical; I made the fixes inline within REVIEW and documented the choice.
+
+**Candidate fix:** add a third verdict option PASS-WITH-FIXES for cases where Important findings are addressed in REVIEW itself, with a guideline (e.g., "if total change is < 50 LOC and tests still pass, fix in-phase; otherwise loop to EXECUTE"). Keeps the EXECUTE loop available for genuine large remediations while not punishing small high-quality REVIEW findings.
+
+**Resolve by:** TRANCHE-3 Task 5 triage; one-paragraph addition to `review.md`'s verdict template.
+
+---
+
+## `research_parallelism: 4` (FULL) is overkill for known domains
+
+**Surfaced by:** Tranche 3 Task 2 FULL-tier dogfood (2026-04-26).
+
+PLAN spawned 4 research agents per FULL tier's `research_parallelism: 4`. Total cost: ~61K agent tokens. For a URL shortener — a well-trodden, well-documented domain — three of the four agents returned overlapping observations about the same prior art. The signal-to-noise was low.
+
+For a *novel* domain, 4 agents would each contribute unique angles. For a *known* domain, 2 (FEATURE/SPIKE level) would be sufficient.
+
+**Candidate fix paths:**
+- **Domain-novelty input** in calibration. Add a question like "is the technical approach well-known?" that influences `research_parallelism`. Adds a 6th calibration question.
+- **Adaptive parallelism in PLAN.** First agent does a "domain familiarity scan"; if the domain is well-known per its own report, subsequent agents are deduped. Adds complexity to PLAN.
+- **Document the trade.** Calibrate.md's table notes "FULL `research_parallelism: 4` assumes the domain has enough surface that 4 distinct angles each return non-redundant signal. For known domains, consider downward-overriding to 2."
+
+The third option is cheapest and aligns with Signal's "transparent overrides" philosophy.
+
+**Resolve by:** TRANCHE-3 Task 5 triage; small note in `calibrate.md`'s rigor table.
+
+---
+
+## DISCUSS doesn't surface tier-driven non-functional requirements
+
+**Surfaced by:** Tranche 3 Task 2 FULL-tier dogfood (2026-04-26).
+
+In DISCUSS, I added F6 (`/healthz`), N1d (security headers), N3a/b/c (graceful shutdown, exit codes) because I (as an experienced Claude) know FULL-tier production-shaped projects need them. A real user — especially less experienced — might not surface these.
+
+`discuss.md` Step 6 says "If the discussion surface enough detail, generate REQUIREMENTS.md" but doesn't prompt for tier-appropriate non-functional requirements.
+
+**Candidate fix:** add a tier-aware NFR checklist to DISCUSS. For FULL: prompt "consider adding healthcheck endpoint, graceful shutdown, structured logging, security headers, rate limiting (if exposed)." For FEATURE: lighter set. For SKETCH: skip entirely.
+
+**Resolve by:** TRANCHE-3 Task 5 triage or TRANCHE-4. Couples to the v2 PREPARE-phase question (some of these are *prep* concerns, not *discussion* concerns).
+
+---
+
+## Native module / Node version friction: `better-sqlite3` prebuilts vs runtime mismatch
+
+**Surfaced by:** Tranche 3 Task 2 FULL-tier dogfood (2026-04-26).
+
+PLAN's research agent flagged `better-sqlite3@>=11.5` for Node 22 prebuilts. The actual dev machine ran Node 25; v11.10 has no Node-25 prebuilt and source-build failed on first `npm install`. Fix was to bump to `better-sqlite3@^12.9.0`. **Lesson:** PLAN's research-time runtime-vs-prebuilt assumption can drift between PLAN and EXECUTE.
+
+This is one specific instance of a broader pattern: **PLAN's research happens in one environment (Claude's mental model + agent web fetches), EXECUTE happens in a real environment (the user's machine)**. Drift between them is a normal, expected friction.
+
+**Candidate fix:** EXECUTE's first sub-step (or PLAN's tail) could include an "environment-check" that runs `npm install` (or its equivalent) and confirms research's runtime assumptions hold. Cheap; surfaces these issues at the right phase boundary.
+
+**Resolve by:** TRANCHE-3 Task 5 triage; could add "Environment check" as Slice 0 in EXECUTE templates, OR as a tail step in PLAN ("verify your dev runtime matches your research's runtime assumptions").
+
+---

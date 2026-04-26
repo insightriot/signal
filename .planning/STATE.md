@@ -4,7 +4,7 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 3 — Real-Project Testing — IN PROGRESS.** Task 1 complete (2026-04-26): `/sig:status` shipped via Signal-on-Signal dogfood; `/sig:resume` hand-rolled. Tasks 2–5 next.
+**Tranche 3 — Real-Project Testing — IN PROGRESS.** Task 1 complete (2026-04-26: /sig:status + /sig:resume shipped). Task 2 complete (2026-04-26: FULL-tier dogfood on a throwaway URL shortener). Tasks 3–5 next.
 
 See `TRANCHE-3.md` for the task breakdown.
 
@@ -49,6 +49,29 @@ See `TRANCHE-3.md` for the task breakdown.
 
 - **Tranche 2, Step 8 — paper walkthrough** (2026-04-25): structural smoke test (real execution deferred to TRANCHE-3 Tasks 2+3 where fresh-project setup, real time/token measurement, and full execution time naturally live). Findings: PLAN's skill-loading paths were wrong for cross-bound skills (fixed inline); references all resolve; skill-binding consistency holds; 3 friction points logged to OPEN-QUESTIONS for TRANCHE-3: `{phase}-` artifact naming convention, REVIEW/SHIP not explicitly reading prior-phase artifacts, state.js initState phase-name mismatch.
 
+- **Tranche 3, Task 2 — FULL-tier dogfood on a throwaway URL shortener** (2026-04-26): first end-to-end pass of Signal on a *non-Signal* target. Single Claude session ran the full 6-phase flow (`new-project → calibrate → discuss → plan → execute → verify → review → ship`) on a Node.js URL shortener service in `.dogfood/url-shortener-fulltier/` (gitignored from Signal). Synthesized FULL-shaped calibration answers (scope=product, stakes=major, novelty=familiar, reversibility=irreversible, horizon=years → rule 1 fired on irreversibility + years).
+
+  **Throwaway shipped:** 13 commits on its own main branch, 8 production source files in `src/`, 8 test files (39 tests, ~0.5s suite), README + CHANGELOG + .env.example. All 24 acceptance criteria satisfied (18 automated, 6 manual-acknowledged). Live curl smoke confirmed all routes work end-to-end with proper status codes, security headers, graceful SIGTERM. `1-RESEARCH.md` (4-agent synthesis), `1-PLAN.md` (8 vertical slices), `1-VALIDATION.md` (8-dim + Nyquist), `1-PROGRESS.md`, `1-VERIFICATION.md`, `1-REVIEW.md` (2 Important issues fixed in-phase, 2 Suggestions applied), `1-SHIP.md` all generated cleanly.
+
+  **Run log:** `.dogfood/T3-TASK2-RUNLOG.md` captures phase-by-phase observations (gitignored).
+
+  **6 new findings appended to OPEN-QUESTIONS.md (2026-04-26):**
+    1. `${CLAUDE_PLUGIN_ROOT}` env var doesn't resolve in dev/dogfood runs.
+    2. Strict Nyquist's "failed before fixed" record is structurally unmet by per-slice atomic commits.
+    3. REVIEW phase needs a "PASS-WITH-FIXES" verdict for small in-phase fixes.
+    4. `research_parallelism: 4` (FULL) is overkill for known domains.
+    5. DISCUSS doesn't surface tier-driven non-functional requirements.
+    6. Native module / Node version friction (`better-sqlite3` prebuilts vs runtime mismatch in EXECUTE).
+
+  All 6 are small/triage-able; none gate ship of v1. Three (REVIEW PASS-WITH-FIXES, NFR checklist in DISCUSS, env-check at PLAN/EXECUTE seam) are real Signal-flow improvements; three are documentation-style fixes.
+
+  **High-confidence outcomes from this dogfood:**
+  - Signal's full FULL-tier flow works end-to-end on a real (small) production-shaped project.
+  - Phase artifacts are load-bearing across phases; the chain DISCUSS → PLAN → EXECUTE → VERIFY → REVIEW → SHIP holds together.
+  - Numeric `{phase}-` prefix (`1-PLAN.md` etc.) per DECISIONS.md (2026-04-26) worked cleanly.
+  - REVIEW caught real issues VERIFY would not have surfaced — high signal-to-noise; tier-appropriate.
+  - Wall clock for one Claude session: roughly 2 hours focused.
+
 - **Tranche 3, Task 1 — `/sig:status` (dogfooded) + `/sig:resume` (hand-rolled)** (2026-04-26): first Signal-on-Signal dogfood pass. Worktree `worktree-dogfood-status` ran the full 6-phase flow on building `/sig:status`. Substantive work cherry-picked to main:
   - `.claude/commands/sig/status.md` — 3-branch (uncalibrated / unbegun / in-flight) read-only inspection with tier-aware next-action recommendation.
   - `.claude/commands/sig/resume.md` — re-orientation briefing that loads PROJECT/CONTEXT + the current phase's artifact and ends with "Ready to continue with /sig:{phase}?" prompt; tolerant to `{phase}-` naming variants.
@@ -62,11 +85,10 @@ See `TRANCHE-3.md` for the task breakdown.
 
 ## Active
 
-**TRANCHE 3 Task 1 COMPLETE.** Tasks 2–5 next:
-2. FULL-tier pass on a throwaway sample project (real E2E test).
+**TRANCHE 3 Task 2 COMPLETE.** Tasks 3–5 next:
 3. SKETCH-tier pass — the critical validation that calibration actually drops rigor.
-4. Write README quickstart (carries the `.planning/`-always-committed one-liner from T2 Step 5a). Natural seam to move PROJECT.md → `.planning/PROJECT.md` (resolves dogfood findings #1/#3).
-5. Triage outstanding OPEN-QUESTIONS items (3 from T2 Step 8 + 5 new dogfood findings + 4 older).
+4. Write README quickstart (carries the `.planning/`-always-committed one-liner from T2 Step 5a). Natural seam to move PROJECT.md → `.planning/PROJECT.md` (resolves T1-dogfood findings).
+5. Triage outstanding OPEN-QUESTIONS items (3 from T2 Step 8 + 5 from T1 dogfood + 6 new from T2 Task 2 dogfood + 4 older = 18 active).
 
 ## Blockers
 
@@ -74,4 +96,4 @@ None.
 
 ## Last Updated
 
-2026-04-26
+2026-04-26 (Tranche 3 Task 2 complete)

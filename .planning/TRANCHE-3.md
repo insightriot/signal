@@ -42,12 +42,14 @@ These are load-bearing for the actual user experience. Users will jump back into
 
 **Design note:** `/sig:resume` is the more complex of the two — it has to know how to "re-orient" for each phase, which means it needs per-phase resumption logic. That's a small state machine. `/sig:status` is the pure-read version and lands first.
 
-### 2. FULL-tier pass on a throwaway sample project
+### 2. FULL-tier pass on a throwaway sample project ✓ COMPLETE (2026-04-26)
 
-- [ ] Pick something small but real (e.g., "build a URL shortener in Node" or "static-site generator from Markdown files")
-- [ ] Run complete flow from `/sig:new-project` through `/sig:ship`
-- [ ] Verify every phase fired, every skill loaded, every gate gated
-- [ ] Record timing and token usage per phase
+- [x] Pick something small but real — chose URL shortener in Node.js (Bitly-shaped: 7-char base62 codes, SQLite persistence, strict scheme allowlist).  ← `.dogfood/url-shortener-fulltier/` (gitignored from Signal).
+- [x] Run complete flow from `/sig:new-project` through `/sig:ship`. ← 13 commits, one per logical phase/slice. All 6 Signal phases ran end-to-end.
+- [x] Verify every phase fired, every skill loaded, every gate gated. ← every phase produced its expected artifact (PROFILE.md → CONTEXT.md + REQUIREMENTS.md → 1-RESEARCH.md + 1-PLAN.md + 1-VALIDATION.md → 1-PROGRESS.md + commits → 1-VERIFICATION.md → 1-REVIEW.md → 1-SHIP.md). Tier-gating preamble fired in each phase command. FULL-tier overrides applied (TDD on, strict Nyquist, all 8 plan-validation dims, 4-agent research, full security audit, all 4 review specialists, strict gate, anti-rationalization on).
+- [x] Record timing and token usage per phase. ← Wall clock ~2 hours focused (single Claude session). Token cost: 4-agent research ~61K agent tokens (PLAN); per-phase narrative + artifacts within reasonable budget; biggest in-context cost was EXECUTE (writing implementation + tests). Logged in `.dogfood/T3-TASK2-RUNLOG.md`.
+
+**Outcome:** all 24 acceptance criteria satisfied (18 automated, 6 manual-acknowledged). 39/39 tests green. REVIEW caught and fixed 2 real Important issues (Content-Length pre-check, unhandled-error logging) inline. 6 new findings appended to OPEN-QUESTIONS.md (env-var resolution, strict Nyquist audit-trail gap, REVIEW PASS-WITH-FIXES verdict, research-parallelism overkill for known domains, DISCUSS NFR checklist gap, Node-runtime / native-prebuilt drift). All triage-able; none gating ship of v1.
 
 ### 3. SKETCH-tier pass — the critical validation
 
