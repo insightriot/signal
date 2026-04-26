@@ -33,20 +33,27 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-**Tranche 2 underway. Steps 1, 2, 4 complete; all 9 slash commands exist on disk; profile-helper toolkit shipped.**
+**Tranche 2 underway. Steps 1, 2, 4, 5, 5a complete. Skill bindings filled in; PREPARE phase logged as v2 candidate.**
 
-- 9 of 9 slash commands scaffolded. `calibrate` and `escalate` are functionally complete (auto-discovered, tested, validator green). The other 6 (discuss / plan / execute / verify / review / ship) exist but lack the "read PROFILE.md first" preamble — that's Step 3, blocked on the Socratic-pattern OPEN-QUESTION.
-- 21 skill files, 17 agent files, 10 reference docs, **4 tool libs** (added `tools/lib/profile.js`).
-- PROFILE.md schema locked. Tier-to-defaults mapping locked. Override handling locked (up = brief confirm with cost implications; down = warn with the specific escalator that fired). Escalation history preservation locked (`--re-calibrate` carries history forward; `/sig:escalate` appends).
-- **Profile helpers shipped (Step 4).** `readProfile` strictly validates against the schema and throws `ProfileSchemaError` on any violation. `isPhaseEnabled` treats CALIBRATE as never-skipped. `applyRigorOverrides` returns a new merged config (non-mutating) with `rigor_overrides` attached + legacy-key correspondences for `workflow`/`gates`/`parallelization`. `CALIBRATE` added to `PHASES` array in `state.js`. `yaml@^2.8.3` added as runtime dep.
-- Architectural insight: **strict Nyquist is a one-way ratchet** — only forward work can comply; pre-escalation commits carry permanent gaps. Surfaced in `tier-definitions.md` § "Recoverable vs. permanent backfills" and in `escalate.md`'s backfill warning table.
-- **47 tests passing** (19 prior + 28 new in `tests/profile.test.js`). `validate-plugin.js` green.
+- 9 of 9 slash commands scaffolded. `calibrate`, `escalate`, and `new-project` enforce `.gitignore` doesn't ignore `.planning/`. The other 6 (discuss / plan / execute / verify / review / ship) exist but lack the "read PROFILE.md first" preamble — that's Step 3, blocked on the Socratic-pattern OPEN-QUESTION.
+- 21 skill files (all bound now or correctly meta-only), 17 agent files, 10 reference docs (renamed `testing-patterns.md` → `testing-checklist.md`), **4 tool libs**.
+- PROFILE.md schema locked. Tier-to-defaults mapping locked. Override handling locked. Escalation history preservation locked.
+- **Skill bindings filled (Step 5).** Plan: 3 skills (was 1). Execute: 5 (was 3). Ship: 5 (was 4). Bindings written in `state/config.json`. The orphan-skill audit surfaced an ODI Universal Job Map parallel — Signal's PLAN bundles ODI's *Locate* + *Prepare* steps. **PREPARE phase is now a v2 candidate in `FUTURE-IDEAS.md`** with three explicit promotion triggers; for v1 we accept the imprecision and bind orphans to existing phases.
+- **`.planning/`-always-tracked enforcement (Step 5a).** `/sig:new-project` and `/sig:calibrate` both refuse to write if `.gitignore` would ignore `.planning/`. README one-liner deferred to TRANCHE-3 Task 4 (where the README will be written; checkbox added there).
+- **Validator updates.** `validate-plugin.js` now requires `calibrate.md` + `escalate.md` and `profile-schema.md` + `tier-definitions.md`.
+- **Profile helpers shipped (Step 4).** `readProfile` strictly validates and throws `ProfileSchemaError`. `isPhaseEnabled` treats CALIBRATE as never-skipped. `applyRigorOverrides` is non-mutating + maps to legacy keys.
+- Architectural insights logged: (a) **strict Nyquist is a one-way ratchet** (forward-only, irrecoverable for pre-escalation commits); (b) **ODI map reveals a missing PREPARE phase** in v1's decomposition (logged for v2).
+- **47 tests passing**. `validate-plugin.js` green.
 
 ## Active work
 
-**Tranche 2, Step 5 — naming drift + `validate-plugin.js` REQUIRED_COMMANDS / REQUIRED_FILES update.** Add `calibrate.md` + `escalate.md` to REQUIRED_COMMANDS; add `references/profile-schema.md` + `references/tier-definitions.md` to REQUIRED_FILES; orphan-skill audit; reconcile `testing-patterns.md` vs. `testing-checklist.md` naming. No blockers.
+**Tranche 2 has two unblocked items left:**
+- **Step 6** — agent count reconciliation (17 on disk vs. 24 in spec). Audit which agents are missing, decide write-vs-revise.
+- **Step 7** — REVIEW phase token-cost measurement (`estimatePhaseSkillCost('review')`). Should also measure PLAN now that it loads 3 skills, in case the PREPARE-phase token-budget trigger is firing already.
 
-Steps 1, 2, 4 complete. Step 3 (preamble pass on 6 phase commands) is **deferred until the Socratic question-pattern OPEN-QUESTION resolves** — see top entry of `OPEN-QUESTIONS.md`. Step 4's helpers give Step 3 the tooling it needs once unblocked.
+Step 3 (preamble pass on 6 phase commands) is **deferred until the Socratic question-pattern OPEN-QUESTION resolves** — see top entry of `OPEN-QUESTIONS.md`. Step 4's helpers + Step 5's bindings give Step 3 the tooling and skill map it needs once unblocked.
+
+Step 8 (end-to-end self-test) is gated on Step 3 unblock + Step 6/7 complete.
 
 ## Key files
 
@@ -68,4 +75,4 @@ Steps 1, 2, 4 complete. Step 3 (preamble pass on 6 phase commands) is **deferred
 
 ---
 
-*Last updated: 2026-04-24*
+*Last updated: 2026-04-25*

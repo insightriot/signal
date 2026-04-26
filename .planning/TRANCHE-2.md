@@ -20,13 +20,13 @@
 | 2. `/sig:escalate` | **DONE** | Pre-flight, re-ask, derivation, 3-case comparison, backfill table (5 rows incl. Nyquist permanent-gap), history append. |
 | 3. "Read PROFILE.md first" preamble on 6 phase commands | **BLOCKED** | Gated on Socratic question-pattern OPEN-QUESTION (see top entry of `OPEN-QUESTIONS.md`). Resolve that first, then this becomes mechanical. |
 | 4. `state.js` + `readProfile` / `isPhaseEnabled` / `applyRigorOverrides` helpers | **DONE** | `CALIBRATE` added to `PHASES`. New `tools/lib/profile.js` with strict-validating `readProfile`, `isPhaseEnabled` (CALIBRATE never skipped), `applyRigorOverrides` (non-mutating; maps to legacy `workflow`/`gates`/`parallelization` keys + attaches `rigor_overrides` verbatim). `yaml@^2.8.3` added as runtime dep. 28 new tests; 47/47 passing. |
-| 5. Naming drift + `validate-plugin.js` REQUIRED_COMMANDS / REQUIRED_FILES update | **NEXT** | Includes orphan-skill audit and `testing-patterns.md` vs. `testing-checklist.md` reconciliation. |
-| 5a. `.planning/`-always-tracked enforcement in user-facing commands | Pending | `/sig:new-project` and `/sig:calibrate` already do this; mirror the pattern in any other command that writes to `.planning/`. README/quickstart one-liner. |
+| 5. Naming drift + `validate-plugin.js` REQUIRED_COMMANDS / REQUIRED_FILES update | **DONE** | Bound 4 orphan skills (api-and-interface-design + deprecation-and-migration → plan; deprecation-and-migration also → ship; frontend-ui-engineering + source-driven-development → execute). Renamed `testing-patterns.md` → `testing-checklist.md`. Validator now requires calibrate/escalate commands + profile-schema/tier-definitions references. PREPARE phase logged as v2 candidate in FUTURE-IDEAS.md with three trigger conditions. Decision logged in DECISIONS.md. |
+| 5a. `.planning/`-always-tracked enforcement in user-facing commands | **DONE** | `/sig:calibrate` already had check (T2 Step 1). Added equivalent gate to `/sig:new-project` (Step 0 + gate checklist). README one-liner deferred to TRANCHE-3 Task 4 (where the README itself is written) — added explicit checkbox there. |
 | 6. Agent count reconciliation (17 on disk vs. 24 in spec) | Pending | Audit, decide which to write vs. revise spec. |
 | 7. REVIEW phase token-cost measurement | Pending | Run `estimatePhaseSkillCost('review')`; record in `DECISIONS.md`; chunk loader if over budget. |
 | 8. End-to-end self-test on a sample throwaway project | Pending | Validates the whole flow from `/sig:new-project` through `/sig:ship`. |
 
-**Order to execute:** ~~4~~ → 5 → 5a → (resolve Socratic OPEN-QUESTION) → 3 → 6 → 7 → 8.
+**Order to execute:** ~~4~~ → ~~5~~ → ~~5a~~ → (resolve Socratic OPEN-QUESTION) → 3 → 6 → 7 → 8.
 
 ---
 

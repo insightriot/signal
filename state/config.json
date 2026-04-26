@@ -34,11 +34,11 @@
     "loading": "on-demand",
     "phase_bindings": {
       "discuss": ["idea-refine", "spec-driven-development"],
-      "plan": ["planning-and-task-breakdown"],
-      "execute": ["incremental-implementation", "test-driven-development", "context-engineering"],
+      "plan": ["planning-and-task-breakdown", "api-and-interface-design", "deprecation-and-migration"],
+      "execute": ["incremental-implementation", "test-driven-development", "context-engineering", "source-driven-development", "frontend-ui-engineering"],
       "verify": ["browser-testing-with-devtools", "debugging-and-error-recovery"],
       "review": ["code-review-and-quality", "security-and-hardening", "performance-optimization", "code-simplification"],
-      "ship": ["git-workflow-and-versioning", "ci-cd-and-automation", "documentation-and-adrs", "shipping-and-launch"]
+      "ship": ["git-workflow-and-versioning", "ci-cd-and-automation", "documentation-and-adrs", "shipping-and-launch", "deprecation-and-migration"]
     }
   }
 }

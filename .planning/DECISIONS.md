@@ -86,3 +86,23 @@ Full spec: `references/profile-schema.md`. Tier-to-defaults mapping: `references
 - Any template `.gitignore` Signal ships or recommends must not include `.planning/`.
 
 ---
+
+## 2026-04-25 — Orphan skills bound to existing phases (interim; PREPARE phase deferred to v2)
+
+**Decision:** The four skills on disk that had no phase binding (`api-and-interface-design`, `frontend-ui-engineering`, `source-driven-development`, `deprecation-and-migration`) are bound to existing v1 phases as follows:
+
+- `api-and-interface-design` → `plan` (designing endpoints, module boundaries, component contracts is a planning activity)
+- `deprecation-and-migration` → `plan` (deprecation planning) + `ship` (cleanup at ship time)
+- `frontend-ui-engineering` → `execute`
+- `source-driven-development` → `execute`
+
+The 5th unbound skill, `using-agent-skills`, is meta — correctly not phase-bound; loaded by user/system, not phase commands.
+
+**Rationale:** During the audit, an ODI (Outcome-Driven Innovation) Universal Job Map parallel surfaced — Signal's 6 phases collapse ODI's *Locate* (research) and *Prepare* (set up scaffolding, fetch docs, verify framework patterns) into PLAN's tail. Two of the four orphans (especially `source-driven-development`, partially `api-and-interface-design`) are *prep* skills with no clean home in v1's phase decomposition. The theoretically clean fix is a new PREPARE phase between PLAN and EXECUTE; the practical v1 fix is to accept the imprecision and bind to existing phases.
+
+**Implication:**
+- v1: PLAN gains 2 skills (3 total), EXECUTE gains 2 skills (5 total), SHIP gains 1 skill (5 total). Token-cost impact will be measured in Tranche 2 Step 7.
+- v2: PREPARE phase is logged as a candidate in `FUTURE-IDEAS.md` with three trigger conditions for promotion (token-budget signal, user-language signal, skill-binding signal).
+- The orphan-skill OPEN-QUESTIONS entry is resolved and removed.
+
+---

@@ -60,6 +60,7 @@ Claim: installable in under 5 minutes.
 - [ ] First-project walkthrough (`/sig:new-project` → `/sig:calibrate` → brief explainer of each phase, with expected outputs)
 - [ ] Command reference (one paragraph per command)
 - [ ] Credits & Heritage section (the 9 source repos with links and roles — Tier-style like LICENSES.md)
+- [ ] **`.planning/`-always-committed one-liner** (carried forward from T2 Step 5a): "`.planning/` should be committed to git — it's your project's memory, not scratch state. Don't add it to `.gitignore`."
 - [ ] Time a cold install from the README on a fresh machine and verify <5 min
 
 ### 5. Triage Tranche 2 outstanding issues

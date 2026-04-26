@@ -4,7 +4,7 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 2 — MVP Functional** (Steps 1, 2, 4 of 8 complete)
+**Tranche 2 — MVP Functional** (Steps 1, 2, 4, 5, 5a of 8 complete)
 
 See `TRANCHE-2.md` for the task list.
 
@@ -27,16 +27,25 @@ See `TRANCHE-2.md` for the task list.
 
 - **Tranche 2, Step 4 — state.js + profile helpers** (2026-04-24): added `CALIBRATE` to `PHASES` in `tools/lib/state.js`. New `tools/lib/profile.js` exports `readProfile(baseDir)` (parses + strict-validates `.planning/PROFILE.md` frontmatter against the schema in `references/profile-schema.md`; throws `ProfileSchemaError` on any violation), `isPhaseEnabled(profile, phaseName)` (CALIBRATE always true, otherwise checks `phases_skipped`), and `applyRigorOverrides(config, profile)` (returns a new merged config with `rigor_overrides` attached + obvious legacy-key correspondences for `workflow.*`, `gates.*`, `parallelization.max_concurrent_agents`; non-mutating). Added `yaml@^2.8.3` as a runtime dependency (real parser since `escalation_history` carries nested arrays of objects with quoted strings). 28 new tests in `tests/profile.test.js`. Total 47/47 passing, validator green.
 
+- **Tranche 2, Steps 5 + 5a — naming drift, validator updates, .planning/-always-tracked enforcement** (2026-04-25):
+  - **Orphan-skill audit & bindings.** 4 orphan skills bound to phases (interim, pending v2 PREPARE-phase decision): `api-and-interface-design` → `plan`; `deprecation-and-migration` → `plan` + `ship`; `frontend-ui-engineering` → `execute`; `source-driven-development` → `execute`. PLAN goes 1 → 3 skills, EXECUTE 3 → 5, SHIP 4 → 5. The 5th unbound skill `using-agent-skills` is meta — correctly not phase-bound.
+  - **PREPARE phase candidate logged.** During the audit, an ODI (Outcome-Driven Innovation) Universal Job Map parallel surfaced — Signal collapses ODI's *Locate* (research) and *Prepare* (set up scaffolding, fetch docs, verify framework patterns) into PLAN's tail. Two of the four orphans (especially `source-driven-development`, partially `api-and-interface-design`) are *prep* skills with no clean home in v1's phase decomposition. Added a long-form entry to `FUTURE-IDEAS.md` proposing a v2 PREPARE phase between PLAN and EXECUTE, with three concrete promotion triggers (token-budget signal in PLAN, repeated user-language friction at the seam, two+ new skills landing homeless). v1 stays at 6 phases.
+  - **Naming reconciliation.** `references/testing-patterns.md` → `references/testing-checklist.md` (matches family naming: security-checklist, performance-checklist, accessibility-checklist). Updated all references (LICENSES.md, test-driven-development SKILL.md). Used `git mv` to preserve history.
+  - **Validator updates.** `validate-plugin.js` now requires `calibrate.md` + `escalate.md` (REQUIRED_COMMANDS) and `profile-schema.md` + `tier-definitions.md` (REQUIRED_FILES).
+  - **.planning/-always-tracked.** Added `Step 0 — .gitignore check` to `/sig:new-project.md` (mirrors the existing pattern in `/sig:calibrate.md` Step 1b). README one-liner deferred to TRANCHE-3 Task 4 (where the README itself will be written) — explicit checkbox added there.
+  - **OPEN-QUESTIONS cleanup.** Removed the resolved orphan-skill question. Decision logged in `DECISIONS.md` (2026-04-25 entry).
+  - 47/47 tests still passing, validator green.
+
 ## Active
 
-**Next: Tranche 2, Step 5 — naming/bindings drift + validator updates.** Includes adding `calibrate.md` and `escalate.md` to `validate-plugin.js` REQUIRED_COMMANDS, adding `references/profile-schema.md` and `references/tier-definitions.md` to REQUIRED_FILES, the orphan-skill audit, and `testing-patterns.md` vs. `testing-checklist.md` reconciliation.
+**Next: Tranche 2 has two unblocked items left — Step 6 (agent count reconciliation: 17 on disk vs. 24 in spec) and Step 7 (REVIEW phase token-cost measurement). Either is a reasonable next pickup.** Step 8 (end-to-end self-test) is gated on Step 3 unblock + Step 6/7 complete.
 
-Step 3 (the "read PROFILE.md first" preamble pass on the 6 phase commands) remains blocked on the Socratic-pattern OPEN-QUESTION. Now that `readProfile` / `isPhaseEnabled` / `applyRigorOverrides` exist, Step 3 has its tools — only the question-pattern decision is still pending.
+Step 3 (the "read PROFILE.md first" preamble pass on the 6 phase commands) remains blocked on the Socratic-pattern OPEN-QUESTION. The profile helpers from Step 4 are ready; only the question-pattern decision is still pending.
 
 ## Blockers
 
-None for Step 5. Step 3 blocked on resolving the Socratic-pattern OPEN-QUESTION (top entry in `OPEN-QUESTIONS.md`) — needs `references/question-patterns.md` written + decision on the 3+other convention before the preamble pass touches the 6 phase commands.
+None for Step 6 or Step 7. Step 3 blocked on resolving the Socratic-pattern OPEN-QUESTION (top entry in `OPEN-QUESTIONS.md`) — needs `references/question-patterns.md` written + decision on the 3+other convention before the preamble pass touches the 6 phase commands.
 
 ## Last Updated
 
-2026-04-24
+2026-04-25

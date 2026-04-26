@@ -42,17 +42,6 @@ Reference: check Claude Code plugin docs and the GSD plugin manifest for how it 
 
 ---
 
-## Orphan skills on disk
-
-`state/config.json` phase_bindings lists 15 skills. On disk there are 21 SKILL.md files. The 6 not in any binding: `api-and-interface-design`, `frontend-ui-engineering`, `source-driven-development`, `deprecation-and-migration`, `using-agent-skills` (meta), and one more to identify.
-
-- Add to bindings? If so, which phase?
-- Remove from disk? If so, update PROJECT.md's skill list (4.2).
-
-**Resolve by:** Tranche 2, Step 5.
-
----
-
 ## Dogfood target feature for Tranche 3
 
 **Resolved 2026-04-23:** `/sig:status` and `/sig:resume` are now committed Tranche 3 deliverables (see `TRANCHE-3.md` Task 1), not candidates. Decision: build one via Signal (likely `/sig:status`, the simpler read-only command), hand-roll the other to avoid a chicken-and-egg loop.

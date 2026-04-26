@@ -115,4 +115,98 @@ Same command (`/sig:review`), same tier, same dial — wildly different runtime 
 
 ---
 
-*Last updated: 2026-04-23*
+## PREPARE phase — splitting PLAN's tail from EXECUTE's head
+
+**Status:** Logged 2026-04-25 during Tranche 2 Step 5 (orphan-skill audit conversation). Strong theoretical signal; awaiting lived signal before promotion.
+
+**Context.** While auditing where to bind four orphan skills (`api-and-interface-design`, `frontend-ui-engineering`, `source-driven-development`, `deprecation-and-migration`), it surfaced that two of them — particularly `source-driven-development` (verify framework code against official docs) and the planning-side aspects of the other three — don't cleanly belong in either PLAN or EXECUTE as currently scoped. They live in the seam.
+
+The conversation reframed against the **ODI (Outcome-Driven Innovation) Universal Job Map** — a JTBD-derived framework that decomposes any "job" into 8 generic steps:
+
+1. Define — determine goals and plan the approach
+2. Locate — gather required inputs and information
+3. Prepare — set up the environment and organize inputs
+4. Confirm — ensure everything is ready to start
+5. Execute — perform the core task
+6. Monitor — verify the job is going as planned
+7. Modify — make adjustments or fix problems
+8. Conclude — finalize the task and clean up
+
+Mapping Signal v1's 6 phases against the ODI map:
+
+| ODI step | Signal v1 | Notes |
+|---|---|---|
+| Define | CALIBRATE + DISCUSS | Calibrate sets *rigor*; discuss sets *intent* |
+| **Locate** | (inside PLAN) | Bundled, not a phase. Research happens via parallel agents inside PLAN |
+| **Prepare** | (gap) | **No phase.** Scaffolding, env setup, doc-fetching, framework-pattern verification live ambiguously between PLAN and EXECUTE |
+| Confirm | phase gates | Same function, different shape — Signal makes this a *transition mechanism*, not a phase |
+| Execute | EXECUTE | 1:1 |
+| Monitor | context-rot reread + state | Concurrent (not sequential) — sensible |
+| Modify | VERIFY + REVIEW + anti-rationalization | Spread across phases as feedback loops |
+| Conclude | SHIP | 1:1 |
+
+**The diagnostic insight.** Signal collapses ODI's *Locate* (research) and *Prepare* (set up scaffolding, fetch docs, verify framework patterns) into PLAN's tail. That's why source-driven-development feels homeless — it's a *prep/locate* skill being forced to bind to either PLAN or EXECUTE, fitting neither cleanly. Same for `api-and-interface-design` (designing contracts is a prep activity, between "decide what to build" and "build it") and parts of `deprecation-and-migration` (deprecation planning starts before code changes).
+
+### Candidate v2 phase: PREPARE
+
+Insert between PLAN and EXECUTE:
+
+```
+CALIBRATE → DISCUSS → PLAN → PREPARE → EXECUTE → VERIFY → REVIEW → SHIP
+```
+
+PREPARE would own:
+- **Locate** — fetch official docs, identify framework versions, gather library references (current behavior of source-driven-development as a skill, but as a phase it'd be pre-execution).
+- **Prepare** — scaffold project structure, generate boilerplate, set up dev environment, verify tooling.
+- **Interface design** — finalize public surfaces (api-and-interface-design) before code commits to a shape.
+- **Deprecation planning** — for migrations, plan the lifecycle before touching the code.
+
+PREPARE would NOT own:
+- High-level design (still PLAN's job — designing approach, breaking into tasks).
+- Building the actual feature (EXECUTE).
+
+This naturally re-homes 3 of the 4 currently-orphan skills (`source-driven-development`, `api-and-interface-design`, `deprecation-and-migration`'s planning aspects). `frontend-ui-engineering` stays in EXECUTE.
+
+### Why this is a v2 conversation, not a v1 one
+
+v1 is locked at 6 phases (per `DECISIONS.md` and `PROJECT.md` "Scope & Roadmap"). Adding a phase in v1 means:
+- Rewriting `/sig:calibrate`'s tier-to-phases mapping logic.
+- Adding a 10th slash command (`/sig:prepare`).
+- Updating every phase command's preamble routing.
+- Changing the validator's REQUIRED_COMMANDS.
+- Updating the state machine, the PHASES array, the gate logic.
+- Revising `phases_skipped` schema in PROFILE.md and tier-definitions.md.
+- Rewriting PROJECT.md's locked 6-phase contract.
+
+That's a tranche of work, not a step. v1's whole pitch is *don't over-engineer before evidence*. We have strong theoretical signal (ODI parallel) but no lived signal yet that the seam between PLAN and EXECUTE actually causes pain in practice.
+
+### Promotion triggers — what would flip this from "log it" to "build it"
+
+Promote PREPARE to a tranche file when **any one of these fires:**
+
+1. **Token-budget signal.** `/sig:plan` ends up loading 5+ skills (current candidate set already gets to 3: planning-and-task-breakdown, api-and-interface-design, deprecation-and-migration) and Tranche 2 Step 7's REVIEW token-cost measurement reveals PLAN is also over-budget. Two over-budget phases = structural problem, not skill-sizing problem.
+
+2. **User-language signal.** During real Signal usage (Tranche 3+ dogfood), users repeatedly say things like *"I'm in PLAN but I'm really setting things up"* or *"this isn't really planning, this is prep"*. Two or more independent observations = the seam is real.
+
+3. **Skill-binding signal.** Two or more new skills get added to v1 and end up homeless (no clean phase fit). Pattern repeats = the phase decomposition is wrong, not the skills.
+
+### Interim v1 answer (today, locked)
+
+Bind orphan skills to existing phases with imprecision accepted:
+- `api-and-interface-design` → `plan`
+- `deprecation-and-migration` → `plan` + `ship`
+- `frontend-ui-engineering` → `execute`
+- `source-driven-development` → `execute`
+
+Accept that source-driven-development is technically a "verify-as-you-build" skill bound to EXECUTE rather than its own prep activity. Token cost is bounded; the alternative (architectural rework now) is worse.
+
+### What to log alongside this entry
+
+- `OPEN-QUESTIONS.md` — keep watching for the three trigger conditions above.
+- If conditional-loading lands first (also FUTURE-IDEAS material), it might *partially* mitigate by skipping irrelevant skills per project — but conditional loading is a *which* fix; PREPARE is a *when* fix. They solve different problems and could both be needed.
+
+**Resolve by:** any one of the three trigger conditions firing during real Signal usage, OR by the time v2 phase decomposition is on the agenda. Whichever comes first.
+
+---
+
+*Last updated: 2026-04-25*

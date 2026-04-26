@@ -8,7 +8,7 @@ This project integrates and adapts work from two open-source projects. Both are 
 
 **Repository:** https://github.com/addyosmani/agent-skills
 
-Skill files in `skills/` and reference checklists in `references/` (security-checklist.md, performance-checklist.md, testing-patterns.md, accessibility-checklist.md) are adapted from Agent Skills.
+Skill files in `skills/` and reference checklists in `references/` (security-checklist.md, performance-checklist.md, testing-checklist.md, accessibility-checklist.md) are adapted from Agent Skills.
 
 ```
 MIT License

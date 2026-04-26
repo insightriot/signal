@@ -20,16 +20,20 @@ const REQUIRED_FILES = [
   'state/config.json',
   'references/anti-rationalization.md',
   'references/phase-gates.md',
+  'references/profile-schema.md',
+  'references/tier-definitions.md',
 ];
 
 const REQUIRED_COMMANDS = [
   '.claude/commands/sig/new-project.md',
+  '.claude/commands/sig/calibrate.md',
   '.claude/commands/sig/discuss.md',
   '.claude/commands/sig/plan.md',
   '.claude/commands/sig/execute.md',
   '.claude/commands/sig/verify.md',
   '.claude/commands/sig/review.md',
   '.claude/commands/sig/ship.md',
+  '.claude/commands/sig/escalate.md',
 ];
 
 const REQUIRED_DIRS = [
