@@ -160,6 +160,24 @@ Escalating *down* (FULL → FEATURE) is rare but valid — e.g., a project that 
 
 ---
 
+## Brownfield calibration patterns
+
+When `/sig:calibrate` runs after `/sig:init` (rather than after `/sig:new-project`), the project is **brownfield** — an existing codebase that already had a life before Signal touched it. Brownfield calibration tends to land at higher tiers than greenfield work for two reasons:
+
+1. **Reversibility is rarely trivial.** A throwaway script is a throwaway script. An existing codebase with users, deployments, or downstream dependencies has reversibility cost even when the *new work* you're tiering is small. Even a "small fix" to an established system is harder to undo than the same fix on a fresh project.
+2. **Horizon is rarely "hours" or "days".** If a codebase has 6+ months of git history, the new work you're calibrating is usually being added with the expectation that it'll persist for a similar horizon. SKETCH-tier work in a brownfield context is unusual — and worth a second look when it surfaces (often the brownfield-flavored answer to "scope" should be FEATURE rather than throwaway).
+
+**Practical patterns:**
+
+- **A 5-year-old codebase calibrating to SKETCH** — almost never the right answer. Reversibility ≠ trivial in established systems. If the diagnostic answers genuinely produce SKETCH, double-check the reversibility and horizon answers.
+- **Brownfield FEATURE is the most common landing zone.** Adding capability to an existing system, fixing real bugs, refactoring within the system's bounds — all FEATURE. The calibration tier mirrors the work being added, not the codebase's overall maturity.
+- **Brownfield FULL applies when the new work touches a critical surface** (auth, payments, data integrity, public APIs) — exactly the same FULL escalators as greenfield, with the addition that touching established critical surfaces in a brownfield system tends to be irreversible (one of the FULL escalators).
+- **Brownfield SPIKE is valid for adding novel capability to an existing system** — e.g., "investigate which auth library to migrate to." The investigation is exploratory; the result will inform a FEATURE or FULL implementation later.
+
+**Codebase-novelty signal feeding calibration.** `/sig:init`'s scanner outputs (especially the activity scanner's "Health" classification — `archived` / `dormant` / `maintenance-mode` / `active` / `brand-new` / "young + active") and the structure scanner's monorepo + framework signals are useful inputs to `/sig:calibrate`'s questions. Future work may pre-fill calibration defaults from scan signals; for now, the user reads `LANDSCAPE.md` and answers the 5 questions informed by it.
+
+---
+
 ## Design notes
 
 - **Why four tiers, not three or five?** Three (simple/medium/complex) misses SPIKE's exploratory shape, which needs different rigor than "just less rigor." Five would make `/sig:calibrate` harder to reason about without clear gains. Four is the smallest number that respects the distinct shapes of throwaway, default, exploratory, and critical work.

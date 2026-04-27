@@ -98,6 +98,31 @@ Mid-flight scope grew? `/sig:escalate` re-runs calibration, promotes tier, and p
 
 Want a status check without running anything? `/sig:status` (read-only inspection) and `/sig:resume` (re-orientation briefing for a fresh session).
 
+## Bringing Signal to an existing codebase
+
+If you already have code and want Signal applied to it (the most common adoption path), use `/sig:init` instead of `/sig:new-project`:
+
+```bash
+cd /path/to/your-existing-project   # must be a git repo with commits
+```
+
+In Claude Code:
+
+```
+/sig:init
+```
+
+`/sig:init` runs four parallel scanner agents that read your repo (read-only — no installs, no edits) and produces:
+
+- **`.planning/LANDSCAPE.md`** — a "lay of the land" derived from your code: detected languages and frameworks, project structure, git activity signals (cadence, contributors, hot files, health classification), test surface, open work signals (TODOs / CHANGELOG state), license, and a synthesized "What this project is" paragraph.
+- **`.planning/PROJECT.md`** — a baseline project spec drafted from `LANDSCAPE.md`, with `[INFERRED — please verify]` markers on auto-filled fields and `[FILL IN — Signal could not infer this]` markers on forward-looking fields (Success Criteria, Done When, Scope-out — these need your input, not your code's inference).
+- **`.planning/STATE.md`** — initialized to `Current Phase: CALIBRATE` so you can run `/sig:calibrate` next.
+- **`.planning/scan/{stack,structure,activity,quality}.md`** — the raw per-scanner outputs that fed `LANDSCAPE.md`. Useful for verifying any inference Signal made.
+
+**Before you run `/sig:calibrate`**, open `LANDSCAPE.md` and `PROJECT.md` and resolve the markers. Calibration depends on knowing reversibility, stakes, and horizon — all of which derive from your real goals, not Signal's inferred ones. Brownfield codebases tend to lean toward higher tiers (a 5-year-old codebase rarely calibrates to SKETCH; reversibility cost is non-trivial for established work).
+
+If `/sig:calibrate` is run in a directory with no `.planning/`, it now auto-detects whether the project is brownfield (existing code + git history + tracked source files) and recommends `/sig:init` first — so you don't have to remember the order.
+
 ## `.planning/` is your project's memory — keep it in git
 
 Signal's `.planning/` directory is **not scratch state**. It holds the project's institutional memory: state, decisions log, plans, verification reports. **Commit it. Do not add it to `.gitignore`.** Any contributor who clones a Signal project without `.planning/` loses every accumulated decision, every captured assumption, every plan that drove the current code shape.
@@ -106,7 +131,8 @@ Both `/sig:new-project` and `/sig:calibrate` check this on entry and refuse to p
 
 ## Command reference
 
-- **`/sig:new-project`** — initializes a new Signal project. Creates `.planning/`, asks for project intent, writes `PROJECT.md`, transitions into CALIBRATE.
+- **`/sig:new-project`** — initializes a new (greenfield) Signal project. Creates `.planning/`, asks for project intent, writes `PROJECT.md`, transitions into CALIBRATE.
+- **`/sig:init`** — brownfield onboarding for an existing codebase. Spawns 4 parallel scanner agents (stack / structure / activity / quality), writes `LANDSCAPE.md` + a baseline `PROJECT.md` (with `[INFERRED]` / `[FILL IN]` markers), transitions into CALIBRATE.
 - **`/sig:calibrate`** — Phase 0. Five questions → tier → `PROFILE.md` with ten rigor toggles. The contract every other phase reads.
 - **`/sig:escalate`** — re-runs calibration with prior answers as defaults, preserves `escalation_history`, and surfaces backfill warnings (e.g., strict Nyquist is one-way: code shipped before strict mode was active is structurally non-recoverable for strict Nyquist).
 - **`/sig:discuss`** — DISCUSS phase. Loads `idea-refine` + `spec-driven-development` skills. Identifies gray-area decisions; locks them via 3-options-plus-other. Output: `CONTEXT.md`, `REQUIREMENTS.md` (FULL).

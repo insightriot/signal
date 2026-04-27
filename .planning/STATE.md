@@ -4,13 +4,20 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 4 — Brownfield Onboarding via `/sig:init` — IN PROGRESS.** T4.1 + T4.2–T4.7 + T4.9–T4.12 + T4.14 + T4.15 shipped. Remaining: T4.8 (assumption-surfacing UX), T4.13 (fixture tests), T4.16 (docs). See `TRANCHE-4.md` for full task list.
+**Tranche 4 — Brownfield Onboarding via `/sig:init` — IN PROGRESS.** T4.1 + T4.2–T4.7 + T4.9–T4.12 + T4.14 + T4.15 + T4.16 shipped. Remaining: T4.8 (assumption-surfacing UX), T4.13 (fixture tests). See `TRANCHE-4.md` for full task list.
 
-T4.15 dogfood pass run on Signal-the-codebase itself; LANDSCAPE.md + baseline PROJECT.md generated and reviewed in `.dogfood/T4-INIT-DOGFOOD/`. Synthesis pipeline validated. One blocker surfaced (F2 — agent-spawn registration in dev mode; fallback path locked in DECISIONS.md).
+The brownfield path is now publicly documented (README brownfield section + tier-definitions.md brownfield calibration patterns). v0.1.0 tag-and-publish ready pending one external validation: marketplace-install behavior for plugin-agent registration (F2 unknown).
 
-Tranche 3 closed 2026-04-26. v1 ship-ready; `v0.1.0` tag pending (deferred until TRANCHE-4 docs land).
+Tranche 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the markdown and code layer.
 
 ## Completed
+
+- **Tranche 4, Task 16 — Documentation: README brownfield section + tier-definitions brownfield patterns** (2026-04-26):
+  - **README.md** — added "Bringing Signal to an existing codebase" section between "Your first project" (greenfield) and "`.planning/` is your project's memory." Walks through `/sig:init`'s 4 outputs (LANDSCAPE.md, baseline PROJECT.md, STATE.md, scan/*.md), the [INFERRED]/[FILL IN] marker convention, the brownfield-tier-bias hint, and the calibrate-Scenario-A auto-redirect behavior. Also added `/sig:init` to the Command reference list (between new-project and calibrate).
+  - **references/tier-definitions.md** — added "Brownfield calibration patterns" section after Escalation, before Design notes. Codifies: reversibility-not-trivial + horizon-rarely-hours-or-days as the two reasons brownfield leans higher-tier, four practical patterns (5yo codebase ≠ SKETCH; FEATURE is most common landing zone; FULL on critical surfaces; SPIKE for novel-capability investigation), and a forward-looking note on codebase-novelty signal feeding calibration (deferred per design decision #5).
+  - **LICENSES.md** — no changes. `/sig:init` is Signal's own design (per PROJECT.md attribution tier); no new source repos to attribute.
+
+  Validator green; 126/126 tests still pass after doc-only changes.
 
 - **Tranche 4, Task 15 — `/sig:init` dogfood on Signal itself** (2026-04-26): ran scanners + synthesizer on Signal-the-codebase, output to `.dogfood/T4-INIT-DOGFOOD/` (gitignored). Outputs: 4 scan files + LANDSCAPE.md + baseline PROJECT.md + RUNLOG.md with 18 numbered findings.
 
@@ -205,22 +212,21 @@ Tranche 3 closed 2026-04-26. v1 ship-ready; `v0.1.0` tag pending (deferred until
 
 ## Active
 
-**Tranche 4 — `/sig:init` brownfield onboarding.** T4.1 + Waves 2 + 3 + adjacent updates + T4.15 dogfood done. Synthesis pipeline validated end-to-end on Signal itself. F2 blocker (agent-spawn registration) has a documented fallback path; marketplace-install behavior remains the single biggest unknown and gates the pre-publish checklist.
+**Tranche 4 — `/sig:init` brownfield onboarding** is feature-complete on the markdown + code layer. T4.1 + Waves 2 + 3 + adjacent updates + T4.15 dogfood + T4.16 docs done. Synthesis pipeline validated; brownfield path documented in README + tier-definitions; F2 blocker has a documented fallback path.
 
 **Up next, in priority order:**
-1. **T4.8 assumption surfacing** — conversational UX over `[INFERRED]` markers. T4.15 dogfood reinforced its value (finding F15: I felt the absence). Should target `[FILL IN]` markers in particular — those are where the user's real input is required.
-2. **T4.16 documentation** — README brownfield walkthrough section + tier-definitions update for brownfield calibration patterns + LICENSES.md if any new attribution surfaces. Closes TRANCHE-4 cleanly.
-3. **T4.13 fixture tests** — Node / Python / dormant-project fixtures. Now that T4.15 surfaced real shapes, fixtures can be designed against observed-actual rather than spec-only patterns.
-4. **Marketplace-install validation** (pre-publish, NOT a TRANCHE-4 task per se): publish a test build of Signal, install via marketplace, verify whether named subagents resolve and what prefix (if any) Claude Code applies. Update init.md Step 2 table accordingly. Unknown blocker per F2 / DECISIONS 2026-04-26 entry.
+1. **Marketplace-install validation** (pre-publish blocker for F2): publish a test build of Signal, install via marketplace, verify whether named subagents resolve and what prefix (if any) Claude Code applies. Update init.md Step 2 table accordingly. **This is the single remaining blocker between current state and shipping v0.1.0.**
+2. **T4.8 assumption surfacing** — conversational UX over `[INFERRED]` markers. T4.15 dogfood reinforced its value. Could ship in v0.1.1 if v0.1.0 is held strictly to "ships what's tested."
+3. **T4.13 fixture tests** — Node / Python / dormant-project fixtures. Hardens the synthesizer against regressions. Same v0.1.1 candidate as T4.8.
 
 **Five TRANCHE-4 design decisions resolved (all logged):**
 - Scanner count → fixed at 4.
 - Scanner agents vs embedded logic → agents.
 - LANDSCAPE.md vs multi-file → single LANDSCAPE.md (scan files in `.planning/scan/` as the multi-file layer).
 - Write PROJECT.md or just LANDSCAPE.md → both, with per-field `[INFERRED]` / `[FILL IN]` markers.
-- Codebase-novelty feeding calibration → light-touch heuristic in `/sig:calibrate` Scenario A.
+- Codebase-novelty feeding calibration → light-touch heuristic in `/sig:calibrate` Scenario A; deeper integration documented as forward-looking in tier-definitions.md.
 
-**One open unknown (added by T4.15):** plugin agent registration mechanism post-marketplace-install + namespacing convention. Tracked in DECISIONS.md (2026-04-26 — "scanner-spawn fallback path locked").
+**One open unknown:** plugin agent registration mechanism post-marketplace-install + namespacing convention. Has documented fallback path; resolution gates v0.1.0 marketplace publish.
 
 ## Blockers
 
@@ -228,4 +234,4 @@ None.
 
 ## Last Updated
 
-2026-04-26 (Tranche 4 Task 15 — Signal-on-Signal dogfood; F2 blocker + 4 fix-now refinements; DECISIONS entry locked)
+2026-04-26 (Tranche 4 Task 16 — README brownfield section + tier-definitions brownfield patterns; TRANCHE-4 feature-complete pending F2 marketplace validation)

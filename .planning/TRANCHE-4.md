@@ -166,7 +166,7 @@ Same pattern as `/sig:new-project`'s tail. Calibration becomes the next user act
 
 ### Wave 7 — Dogfood + ship
 - **T4.15** ✓ — Dogfood pass on Signal-on-Signal. Shipped 2026-04-26. Outputs at `.dogfood/T4-INIT-DOGFOOD/` (gitignored): RUNLOG.md with 18 numbered findings + 4 scan files + LANDSCAPE.md + baseline PROJECT.md. Synthesis pipeline validated end-to-end; one blocker (F2 — agent-spawn registration in dev mode) with documented fallback path locked in DECISIONS.md. Four fix-now refinements applied to init.md + structure-scanner.md + activity-scanner.md. Six findings deferred (logged in RUNLOG.md). 126/126 tests still pass.
-- **T4.16** — Documentation update: README brownfield-walkthrough section; `references/tier-definitions.md` adjustment to acknowledge brownfield calibration patterns; LICENSES.md if any new attribution surfaces.
+- **T4.16** ✓ — Documentation update. Shipped 2026-04-26. README gained "Bringing Signal to an existing codebase" section (between greenfield walkthrough and `.planning/`-in-git note) + `/sig:init` in Command reference. tier-definitions.md gained "Brownfield calibration patterns" section (between Escalation and Design notes) — codifies why brownfield leans higher-tier (reversibility-not-trivial + horizon-rarely-hours) and four practical patterns. LICENSES.md unchanged (no new attribution — `/sig:init` is Signal's own design).
 
 ---
 
