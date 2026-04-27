@@ -4,13 +4,33 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 4 — Brownfield Onboarding via `/sig:init` — IN PROGRESS.** T4.1 + T4.2–T4.5 + Wave 3 (T4.6 / T4.7 / T4.9) + T4.10–T4.12 + T4.14 shipped. Remaining: T4.8 (assumption-surfacing UX), T4.13 (fixture tests), T4.15 (dogfood), T4.16 (docs). See `TRANCHE-4.md` for full task list.
+**Tranche 4 — Brownfield Onboarding via `/sig:init` — IN PROGRESS.** T4.1 + T4.2–T4.7 + T4.9–T4.12 + T4.14 + T4.15 shipped. Remaining: T4.8 (assumption-surfacing UX), T4.13 (fixture tests), T4.16 (docs). See `TRANCHE-4.md` for full task list.
 
-The brownfield path is now first-class across the command surface: `/sig:init` produces LANDSCAPE.md + baseline PROJECT.md + STATE.md; `/sig:status` and `/sig:resume` surface LANDSCAPE.md awareness; `/sig:calibrate` Scenario A redirects new brownfield users to `/sig:init` instead of leaving them on the friction-rich ad-hoc path. Validator now requires init.md + the 4 scanner agents.
+T4.15 dogfood pass run on Signal-the-codebase itself; LANDSCAPE.md + baseline PROJECT.md generated and reviewed in `.dogfood/T4-INIT-DOGFOOD/`. Synthesis pipeline validated. One blocker surfaced (F2 — agent-spawn registration in dev mode; fallback path locked in DECISIONS.md).
 
-Tranche 3 closed 2026-04-26. v1 ship-ready; `v0.1.0` tag pending (deferred until TRANCHE-4 dogfood validates).
+Tranche 3 closed 2026-04-26. v1 ship-ready; `v0.1.0` tag pending (deferred until TRANCHE-4 docs land).
 
 ## Completed
+
+- **Tranche 4, Task 15 — `/sig:init` dogfood on Signal itself** (2026-04-26): ran scanners + synthesizer on Signal-the-codebase, output to `.dogfood/T4-INIT-DOGFOOD/` (gitignored). Outputs: 4 scan files + LANDSCAPE.md + baseline PROJECT.md + RUNLOG.md with 18 numbered findings.
+
+  **Headline outcome:** synthesis pipeline works end-to-end. Generated LANDSCAPE.md correctly identified Signal as "a Claude Code plugin in mid-shipping its first release, planning-driven (hot files concentrated in `.planning/`), 13 days old + active, single contributor." Inference labels (`[INFERRED — high/low confidence]`) applied correctly; "Open questions for the user" section produced 4 sharp, data-grounded questions (no CI / no agent registration / no v0.1.0 tag / hand-rolled `.planning/`). Baseline PROJECT.md generation forced `[FILL IN]` for forward-looking fields (Success Criteria, Done When, Scope-out) per design intent.
+
+  **One blocker (F2):** Task tool in dev mode does NOT see Signal's `agents/scanners/*` even though the command list does. `subagent_type: stack-scanner` returns `Agent type 'stack-scanner' not found`. Available agents are harness defaults + `gsd-*` (from properly-installed gsd plugin). Decision logged in DECISIONS.md (2026-04-26 entry — "scanner-spawn fallback path locked"): init.md Step 2 now documents primary path (named subagent) + fallback path (`general-purpose` with agent definition embedded inline) with auto-detect-and-switch instruction. Three open unknowns about marketplace-install behavior flagged for pre-publish validation.
+
+  **Four fix-now refinements applied:**
+  - **F2:** init.md Step 2 documents the dev-mode + pre-marketplace fallback path.
+  - **F3:** `agents/scanners/structure-scanner.md` exclude list adds `.dogfood/` + `.claude/worktrees/`.
+  - **F5:** `agents/scanners/activity-scanner.md` health rule 5 (brand-new) loosened from `<20 commits + <30 days` to `<50 commits + <60 days`; rule 4 (active) gets a tiebreaker note appending "(young + active)" when project age <90 days. Signal itself was hitting rule 4 and losing the brand-new signal.
+  - **F10:** `agents/scanners/structure-scanner.md` co-located test detection no longer double-counts files inside dedicated test dirs. Outputs split into "tests in dedicated directory: N" + "tests co-located with source: M" rather than a single conflated count.
+
+  **Six findings deferred** (logged in RUNLOG.md): F1 (Step 1.4 recommendation tone — T4.8 territory), F6 (quality-scanner test-script grep doc-fix — minor), F8 (Frameworks empty-state for plugin/library projects — defer until 2nd dogfood), F9 (source-root precedence for plugin-shaped repos — defer until 2nd dogfood), F15 (T4.8 absence felt during dogfood — reinforces T4.8 priority), F16 ("established codebases" wording in handoff message — minor doc).
+
+  **Eight positive observations** (no action — validates design): F4, F7, F11–F14, F17, F18 — see RUNLOG.md.
+
+  **Wall clock for the full pass:** ~10 minutes (scan data ~2 min + scanner output writes ~5 min + synthesis ~3 min). Mostly token-bound, not thinking-bound. With proper agent-spawn working in parallel, expect significant reduction.
+
+  Validator green; 126/126 tests still pass after fix-now refinements (all changes are markdown-only).
 
 - **Tranche 4, Tasks 10 + 11 + 12 + 14 — adjacent updates make brownfield path first-class** (2026-04-26):
   - **T4.14 — validator updates.** `tools/validate-plugin.js` adds `.claude/commands/sig/init.md` to `REQUIRED_COMMANDS` (now 12 commands) and a new `REQUIRED_AGENTS` check for the 4 scanner agents. Also adds `agents/scanners` to `REQUIRED_DIRS`. The split between REQUIRED_COMMANDS (errors) and REQUIRED_DIRS (warnings) is preserved; agents land in errors because their absence breaks `/sig:init`.
@@ -185,22 +205,22 @@ Tranche 3 closed 2026-04-26. v1 ship-ready; `v0.1.0` tag pending (deferred until
 
 ## Active
 
-**Tranche 4 — `/sig:init` brownfield onboarding.** T4.1 + Waves 2 + 3 + adjacent updates (T4.10–T4.12 + T4.14) done. The brownfield path is now first-class across the entire command surface. Remaining work is dogfood validation + tests + UX polish + docs.
+**Tranche 4 — `/sig:init` brownfield onboarding.** T4.1 + Waves 2 + 3 + adjacent updates + T4.15 dogfood done. Synthesis pipeline validated end-to-end on Signal itself. F2 blocker (agent-spawn registration) has a documented fallback path; marketplace-install behavior remains the single biggest unknown and gates the pre-publish checklist.
 
 **Up next, in priority order:**
-1. **T4.15 dogfood pass** — run `/sig:init` on Signal itself (its own brownfield codebase — meta loop). Highest ROI now: every change since this session has been spec-only; running the actual command on a real codebase surfaces what the spec missed. Best done in a fresh context to avoid the recursive build-and-test confusion.
-2. **T4.13 fixture tests** — Node / Python / dormant-project fixtures with snapshot-style assertions on LANDSCAPE.md shape. Hardens the synthesizer. Probably best done after T4.15 reveals what shapes actually emerge in practice.
-3. **T4.8 assumption surfacing** — conversational UX over `[INFERRED]` markers. T4.15 dogfood will reveal which markers users actually struggle with most, so deferring until after dogfood targets the walkthrough at real pain.
-4. **T4.16 documentation** — README brownfield section + tier-definitions update. Last; depends on the prior tasks landing.
-
-**Codebase-novelty signal feeding calibration** (TRANCHE-4 design decision #5) was tentatively addressed in T4.12 — the calibrate Scenario A heuristic detects "likely brownfield" from git state. A deeper integration (e.g., `/sig:init`'s scan pre-fills calibration answers as defaults) is deferred until T4.15 dogfood reveals whether the rough heuristic suffices.
+1. **T4.8 assumption surfacing** — conversational UX over `[INFERRED]` markers. T4.15 dogfood reinforced its value (finding F15: I felt the absence). Should target `[FILL IN]` markers in particular — those are where the user's real input is required.
+2. **T4.16 documentation** — README brownfield walkthrough section + tier-definitions update for brownfield calibration patterns + LICENSES.md if any new attribution surfaces. Closes TRANCHE-4 cleanly.
+3. **T4.13 fixture tests** — Node / Python / dormant-project fixtures. Now that T4.15 surfaced real shapes, fixtures can be designed against observed-actual rather than spec-only patterns.
+4. **Marketplace-install validation** (pre-publish, NOT a TRANCHE-4 task per se): publish a test build of Signal, install via marketplace, verify whether named subagents resolve and what prefix (if any) Claude Code applies. Update init.md Step 2 table accordingly. Unknown blocker per F2 / DECISIONS 2026-04-26 entry.
 
 **Five TRANCHE-4 design decisions resolved (all logged):**
-- Scanner count → fixed at 4 (DECISIONS 2026-04-26 entry).
-- Scanner agents vs embedded logic → agents (resolved by scanner-count lock).
-- LANDSCAPE.md vs multi-file → single LANDSCAPE.md (scanner outputs in `.planning/scan/` are the multi-file layer; LANDSCAPE.md is the synthesized view).
-- Write PROJECT.md or just LANDSCAPE.md → write both, with `[INFERRED]` / `[FILL IN]` markers per generation-rule per field.
-- Codebase-novelty feeding calibration → light-touch heuristic in `/sig:calibrate` Scenario A; deeper integration deferred.
+- Scanner count → fixed at 4.
+- Scanner agents vs embedded logic → agents.
+- LANDSCAPE.md vs multi-file → single LANDSCAPE.md (scan files in `.planning/scan/` as the multi-file layer).
+- Write PROJECT.md or just LANDSCAPE.md → both, with per-field `[INFERRED]` / `[FILL IN]` markers.
+- Codebase-novelty feeding calibration → light-touch heuristic in `/sig:calibrate` Scenario A.
+
+**One open unknown (added by T4.15):** plugin agent registration mechanism post-marketplace-install + namespacing convention. Tracked in DECISIONS.md (2026-04-26 — "scanner-spawn fallback path locked").
 
 ## Blockers
 
@@ -208,4 +228,4 @@ None.
 
 ## Last Updated
 
-2026-04-26 (Tranche 4 Tasks 10-12 + 14 — brownfield path first-class across status/resume/calibrate/validator)
+2026-04-26 (Tranche 4 Task 15 — Signal-on-Signal dogfood; F2 blocker + 4 fix-now refinements; DECISIONS entry locked)

@@ -165,7 +165,7 @@ Same pattern as `/sig:new-project`'s tail. Calibration becomes the next user act
 - **T4.14** ✓ — Validator updates. Shipped 2026-04-26. `tools/validate-plugin.js` adds `init.md` to `REQUIRED_COMMANDS` (now 12 commands) + new `REQUIRED_AGENTS` check for the 4 scanners + `agents/scanners` to `REQUIRED_DIRS`. Agent absence is an error (breaks `/sig:init`); directory absence stays a warning per existing convention.
 
 ### Wave 7 — Dogfood + ship
-- **T4.15** — Dogfood pass: run `/sig:init` on Signal *itself* (it's its own brownfield codebase — there's a meta loop there worth exercising). Ideally also on a separate sample existing repo (e.g., one of the user's other `/Users/macstudio/dev-biz/` projects with permission).
+- **T4.15** ✓ — Dogfood pass on Signal-on-Signal. Shipped 2026-04-26. Outputs at `.dogfood/T4-INIT-DOGFOOD/` (gitignored): RUNLOG.md with 18 numbered findings + 4 scan files + LANDSCAPE.md + baseline PROJECT.md. Synthesis pipeline validated end-to-end; one blocker (F2 — agent-spawn registration in dev mode) with documented fallback path locked in DECISIONS.md. Four fix-now refinements applied to init.md + structure-scanner.md + activity-scanner.md. Six findings deferred (logged in RUNLOG.md). 126/126 tests still pass.
 - **T4.16** — Documentation update: README brownfield-walkthrough section; `references/tier-definitions.md` adjustment to acknowledge brownfield calibration patterns; LICENSES.md if any new attribution surfaces.
 
 ---

@@ -283,3 +283,25 @@ The token cost of 4 vs 2 scanners is real but bounded — each scanner output ca
 - Future profiling may surface a real cost issue at FULL on huge monorepos. If so, the right response is *parallelism throttling within the scanners* (e.g., "stack scanner samples 1000 files instead of all"), not reducing scanner count.
 
 ---
+
+## 2026-04-26 — T4.15 dogfood: scanner-spawn fallback path locked; agent-registration mechanism flagged
+
+**Decision:** `/sig:init` Step 2 now documents a two-path agent spawn: (1) primary path uses `subagent_type: {name}-scanner` via the Task tool — works post-marketplace-install if Signal's plugin agents register namespaced; (2) fallback path uses `subagent_type: general-purpose` with the agent's full markdown definition embedded in the prompt — works in dev mode and as a guaranteed escape hatch. The init.md command instructs Claude to detect `Agent type '{name}' not found` and switch paths automatically.
+
+**Why this matters.** T4.15 dogfood (`/sig:init` on Signal itself) revealed: the Task tool in dev mode does NOT see Signal's `agents/scanners/*-scanner.md` even though they're auto-discovered as command-list entries. Available agents in dev sessions are harness defaults + agents from properly-installed-via-marketplace plugins (the visible `gsd-*` agents from a separate gsd plugin install). This blocks the named-subagent path entirely until Signal itself is marketplace-installed.
+
+**Three open unknowns flagged for later validation:**
+1. **Does marketplace install register Signal's agents?** Unknown until we publish to marketplace and test. Parallel: `gsd-*` agents do appear, so the mechanism exists — but Signal's agent-frontmatter format may need to differ from what we shipped.
+2. **What namespacing convention applies post-install?** The `gsd-*` prefix suggests installed plugins get prefixed agent names. If so, init.md Step 2's `subagent_type: stack-scanner` references will need to become `subagent_type: signal-stack-scanner` (or whatever prefix Claude Code assigns).
+3. **Is the auto-fallback-detection robust?** The "if Task tool returns 'Agent type ... not found', switch to general-purpose" pattern needs to handle both error message wording variations and silent failures.
+
+**Implication for shipping:**
+- The fallback path makes `/sig:init` immediately usable in dev mode and after marketplace install regardless of namespacing — removes the blocker.
+- Before publishing to the marketplace, run a fresh-install test to verify whether named subagents resolve and what the prefix is. If they do resolve, update the init.md table to reference the resolved names; if they don't, the fallback path becomes the permanent path.
+- The synthesis pipeline (Steps 3+4 of init.md) is unaffected by this — it consumes scanner outputs regardless of how the scanners were spawned.
+
+**Other T4.15 dogfood findings** (not architecturally meaningful but worth noting): structure-scanner exclude list was missing `.dogfood/` and `.claude/worktrees/` (added); activity-scanner health rules didn't distinguish "young+active" from "established+active" (rule 5 threshold loosened to `<50 commits + <60 days` plus tiebreaker note for rule 4 with age <90 days); structure-scanner co-located test detection had a false positive for files inside dedicated test directories (corrected). Full runlog: `.dogfood/T4-INIT-DOGFOOD/RUNLOG.md`.
+
+**Validation outcome:** the synthesis pipeline (LANDSCAPE.md template + baseline PROJECT.md template) works as designed. Generated artifacts on Signal-itself were genuinely useful — the LANDSCAPE.md correctly identified Signal as a "planning-driven Claude Code plugin in mid-shipping its first release" with high-confidence inference + 4 sharp open questions for the user. PROJECT.md baseline forced abstaining from forward-looking fields (Success Criteria, Done When, Scope-out) via `[FILL IN]` markers, which is the design intent.
+
+---

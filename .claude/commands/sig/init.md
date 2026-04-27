@@ -152,6 +152,22 @@ Spawn **all 4 scanner agents in parallel** in a single message via the Task tool
 
 Each agent's prompt is identical: `"Run the {name} scan per your agent definition. The working directory is the project root. Write your output to .planning/scan/{name}.md per the Output Format section. You are read-only — do not modify any other file. Report back when done."`
 
+**Dev-mode + pre-marketplace fallback.** If the Task tool returns `Agent type '{name}-scanner' not found` (which happens in dev mode and possibly after marketplace install if agent namespacing applies), fall back to spawning `general-purpose` subagent with the agent's full markdown definition embedded in the prompt:
+
+```
+You are the {name} scanner per the definition below. Follow it exactly.
+Output to .planning/scan/{name}.md per the file's Output Format section.
+You are read-only.
+
+---
+{contents of agents/scanners/{name}-scanner.md verbatim}
+---
+
+Working directory: {cwd}
+```
+
+This fallback path is documented at T4.15 (dogfood pass found that dev-mode plugin agents don't auto-register with the Task tool). Verify the marketplace-install behavior + plugin-agent namespacing convention before relying on the named-subagent path in production. If marketplace install applies a `signal-` prefix (parallel to how `gsd-*` prefixed agents from the gsd plugin appear), update this section's table to reference the prefixed names.
+
 `/sig:init` runs **before** PROFILE.md exists, so all 4 scanners always fire. The TRANCHE-4 spec mentions tier-aware scanner counts (SKETCH = 2), but that's moot for brownfield onboarding — calibration happens *after* this scan, and brownfield projects rarely calibrate to SKETCH anyway. (Locked design decision: scanner count is fixed at 4. Logged in DECISIONS.md.)
 
 Wait for all 4 scanners to complete. If any scanner fails (exception, timeout, refused write), record the failure but **continue** — Step 3's synthesizer degrades gracefully and marks the corresponding LANDSCAPE.md section as `(scan output unavailable — {scanner} failed: {reason})`. Do not retry within `/sig:init`; surface the failure so the user can re-run the scanner manually.
