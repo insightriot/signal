@@ -330,7 +330,7 @@ Write the file to `.planning/PROJECT.md`.
 
 ### 5. Surface assumptions for user validation
 
-> **Status: T4.8 — not yet implemented.** This step will add a structured walkthrough of `[INFERRED]` and `[FILL IN]` markers using the 3+other and open-ended question patterns from `references/question-patterns.md`.
+> **Status: T4.8 — not yet implemented.** Detailed implementation design lives in `.planning/TRANCHE-4.md` Wave 4 ("T4.8 detailed design (next-session pickup)") — covers walkthrough order, per-marker question shape (3+other for `[INFERRED]`, open-ended-or-defer for `[FILL IN]`), capture rules (Accept/Edit/Defer + Notes section appendage), pre-walkthrough zero-marker skip, post-walkthrough summary, anti-rationalization table, and success-criteria checklist.
 >
 > Until T4.8 lands, emit a manual reminder to the user:
 >

@@ -214,10 +214,11 @@ Tranche 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the mark
 
 **Tranche 4 — `/sig:init` brownfield onboarding** is feature-complete on the markdown + code layer. T4.1 + Waves 2 + 3 + adjacent updates + T4.15 dogfood + T4.16 docs done. Synthesis pipeline validated; brownfield path documented in README + tier-definitions; F2 blocker has a documented fallback path.
 
-**Up next, in priority order:**
-1. **Marketplace-install validation** (pre-publish blocker for F2): publish a test build of Signal, install via marketplace, verify whether named subagents resolve and what prefix (if any) Claude Code applies. Update init.md Step 2 table accordingly. **This is the single remaining blocker between current state and shipping v0.1.0.**
-2. **T4.8 assumption surfacing** — conversational UX over `[INFERRED]` markers. T4.15 dogfood reinforced its value. Could ship in v0.1.1 if v0.1.0 is held strictly to "ships what's tested."
-3. **T4.13 fixture tests** — Node / Python / dormant-project fixtures. Hardens the synthesizer against regressions. Same v0.1.1 candidate as T4.8.
+**Next-session priority: T4.8 (assumption surfacing UX).** Detailed implementation design now lives in `TRANCHE-4.md` Wave 4 ("T4.8 detailed design (next-session pickup)") — covers walkthrough order, per-marker question shape (3+other for `[INFERRED]`, open-ended-or-defer for `[FILL IN]`), capture rules (Accept/Edit/Defer + Notes section appendage), pre-walkthrough zero-marker skip, post-walkthrough summary, anti-rationalization table, and 8-item success-criteria checklist. Implementation work is to replace `/sig:init` Step 5's placeholder + add tests + dogfood-validate. **Read `TRANCHE-4.md` Wave 4 first; everything needed to start cold is there.**
+
+**Other open items, in priority order:**
+1. **Marketplace-install validation** (pre-publish blocker for F2): publish a test build of Signal, install via marketplace, verify whether named subagents resolve and what prefix (if any) Claude Code applies. Update init.md Step 2 table accordingly. **The single remaining external blocker between current state and shipping v0.1.0.** Not a TRANCHE-4 task (needs publish-then-test cycle).
+2. **T4.13 fixture tests** — Node / Python / dormant-project fixtures. Hardens the synthesizer against regressions. v0.1.1 candidate; lower priority than T4.8.
 
 **Five TRANCHE-4 design decisions resolved (all logged):**
 - Scanner count → fixed at 4.
@@ -234,4 +235,4 @@ None.
 
 ## Last Updated
 
-2026-04-26 (Tranche 4 Task 16 — README brownfield section + tier-definitions brownfield patterns; TRANCHE-4 feature-complete pending F2 marketplace validation)
+2026-04-27 (CONTEXT.md + TRANCHE-4.md Wave 4 hardened for next-session T4.8 pickup; STATE.md "Active" points at T4.8 design)

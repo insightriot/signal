@@ -152,8 +152,107 @@ Same pattern as `/sig:new-project`'s tail. Calibration becomes the next user act
 - **T4.7** ✓ — Baseline PROJECT.md generator. Shipped 2026-04-26. `/sig:init.md` Step 4 with full Signal-shape template (Vision / Problem / Success Criteria / Scope-in/out / Constraints / Done When / Notes). Generation rules per field: forward-looking fields (Success Criteria / Done When / Scope-out) are *always* `[FILL IN]`; manifest-derived fields (language, runtime) are facts; everything else gets `[INFERRED — please verify]`.
 
 ### Wave 4 — Validation
-- **T4.8** — Assumption-surfacing step in `/sig:init.md` (Step 5); user-validation flow. Defer until after T4.15 dogfood reveals which markers users struggle with most.
+- **T4.8** — Assumption-surfacing step in `/sig:init.md` (Step 5); user-validation flow. **Deferred from this tranche; see detailed design below — this is a queued-up next-session task.**
 - **T4.9** ✓ — STATE.md initialization + handoff message. Shipped 2026-04-26 (folded into Wave 3 to make the command functional end-to-end). `initState(baseDir, 'CALIBRATE')` + handoff that surfaces project age + brownfield-tier-bias hint.
+
+#### T4.8 detailed design (next-session pickup)
+
+**Why it matters.** T4.15 dogfood (Signal-on-Signal) ran without T4.8. Doing the walkthrough manually I felt the absence: `[INFERRED]` and `[FILL IN]` markers are scattered through LANDSCAPE.md and baseline PROJECT.md, and the user has to spot them, decide what to do with each, and edit the files manually. T4.8 is the conversational layer that turns "scan output" into "vetted artifacts the user trusts to feed `/sig:calibrate`."
+
+**Goal.** A structured walkthrough that surfaces every `[INFERRED]` and `[FILL IN]` marker in `.planning/PROJECT.md` (the higher-priority file — calibration questions derive from these fields) with question-pattern-compliant prompts. User responses get captured into the file directly; the walkthrough either resolves the marker or explicitly defers it.
+
+**Scope decision (lock during implementation).** Two reasonable scopes:
+- **(a) PROJECT.md only.** The forward-looking fields (Vision / Problem / Success Criteria / Done When / Scope-out / Constraints) are what `/sig:calibrate` needs vetted. LANDSCAPE.md is reference material the user can read manually.
+- **(b) PROJECT.md + LANDSCAPE.md narrative sections** ("What this project is" + "Inferred goals & uncertainties"). LANDSCAPE.md's narrative inferences also have confidence markers; if they're wrong, the project description carries that wrongness forward.
+- **Recommendation: (a) first** — ship a focused walkthrough; expand to (b) only if dogfood-2 surfaces real friction.
+
+**Walkthrough order** (locked):
+1. **Vision** (`[INFERRED — please verify]` or `[FILL IN]` from PROJECT.md)
+2. **Problem Statement** (same)
+3. **Scope (In)** (`[INFERRED]` — auto-filled from observable signal)
+4. **Constraints** (mix; `[FILL IN]` items only — manifest-derived facts get skipped)
+5. **Success Criteria** (always `[FILL IN]`)
+6. **Done When** (always `[FILL IN]`)
+7. **Scope (Out)** (always `[FILL IN]`)
+
+Order rationale: vetted Vision + Problem are prerequisites for Success Criteria + Done When + Scope-out (those forward-looking fields require knowing the goal first). Constraints come before Success Criteria because constraints often shape what success looks like.
+
+**Per-marker question pattern (per `references/question-patterns.md`):**
+
+For `[INFERRED]` markers (auto-filled content the user can accept, correct, or defer):
+```
+Vision (inferred from {source — e.g., "README + framework + activity signals"}):
+
+  "{the inferred Vision text}"
+
+Three options:
+
+A. Accept as-is — replace [INFERRED] marker with confirmation.
+B. Edit — give me the corrected version.
+C. Defer — leave the [INFERRED] marker; you'll vet later.
+
+Recommendation: {A if confidence-marker is "high"; "Edit (B)" if "low"; "Defer (C)" only if you genuinely have no signal — but note that calibration depends on this field}.
+
+If none fit, describe what you'd prefer.
+```
+
+For `[FILL IN]` markers (forward-looking content Signal can't infer):
+```
+Success Criteria — Signal can't infer this; you have to articulate it.
+
+Open-ended: what does success look like for this project today? List 3-5 measurable
+criteria (e.g., "P95 latency under 200ms", "Free-tier user growth >10%/month",
+"v0.1.0 shipped to plugin marketplace by 2026-05-15").
+
+Or pick:
+A. Defer — leave the [FILL IN] marker; you'll fill in later. Calibration may
+   land at a less-accurate tier without this.
+B. Skip — explicitly mark "no fixed criteria" if this project doesn't have
+   measurable success criteria yet (rare; mostly applies to research SPIKE
+   tier work).
+
+Recommendation: take the open-ended path; even rough criteria help calibration
+(stakes / horizon answers depend on knowing what "done" looks like).
+```
+
+**Capture rules:**
+- Accept (A): replace the marker with the inferred content unwrapped (no `[INFERRED]` annotation).
+- Edit (B): replace the marker with the user's edited content; capture the original inferred content + the user's reason for edit in a "## Notes" section at the end of PROJECT.md (history is load-bearing for future Claude sessions).
+- Defer (C): leave the marker in place. Append a note to PROJECT.md "## Notes" section: `Deferred at /sig:init walkthrough on {date}: {field name}.`
+- Open-ended `[FILL IN]` answer: replace the marker with the user's content; no inferred-content backup needed (there was none).
+- Defer on `[FILL IN]`: same as defer on `[INFERRED]` — note in "## Notes."
+
+**Pre-walkthrough check:** before starting the walkthrough, count how many markers exist in PROJECT.md. If 0 markers (the user pre-edited the file), skip Step 5 entirely and go straight to Step 6. Useful telemetry to surface to the user: "0 unresolved markers in PROJECT.md — skipping the walkthrough and proceeding to calibration."
+
+**Post-walkthrough summary:** after the walkthrough, emit a 1-line summary:
+```
+Walkthrough complete: {N} markers resolved, {M} deferred.
+{If M > 0}: Deferred fields are noted in PROJECT.md "## Notes"; calibration
+will proceed but tier accuracy may be reduced for the deferred dimensions.
+```
+
+**Implementation notes:**
+- Use `extractField` from `tools/lib/landscape.js` to find marker lines: pattern `[INFERRED — please verify]` or `[FILL IN — ...]`. Or walk PROJECT.md as raw text and grep for the marker substrings.
+- A new helper `tools/lib/walkthrough.js` may be worthwhile if the marker-detection + edit logic gets complex. Decide during implementation; if PROJECT.md manipulation can be done cleanly inline in the command, no helper needed.
+- Tests: at minimum, a fixture PROJECT.md with mixed markers + a unit test that the walkthrough's pre-check correctly counts markers. Full conversational walkthrough test is harder; a smoke test that the helper functions work is enough.
+
+**Anti-rationalization for T4.8 implementation:**
+| Temptation | Check |
+|---|---|
+| "Walk LANDSCAPE.md too — it has markers." | Defer to scope (b). Ship (a) first; LANDSCAPE.md walkthrough is more questions, more tokens, and the user can review LANDSCAPE.md manually before /sig:calibrate. |
+| "Skip the 'Defer' option to force completeness." | No — forcing completeness on an entrypoint command kills adoption. Defer must be a first-class option. |
+| "Auto-accept high-confidence [INFERRED] markers without asking." | No — even if Signal's confidence is high, the user is the source of truth on their own project's purpose. The walkthrough exists to surface, not to auto-decide. |
+| "Make the questions multi-line and detailed." | Keep each question to ≤ 8 lines (the option enumeration + recommendation). Brevity matters; the walkthrough has 7 fields and a 50-line question per field is fatigue-inducing. |
+
+**Success criteria for T4.8 ship:**
+- [ ] Step 5 placeholder in `init.md` replaced with the structured walkthrough.
+- [ ] All 7 PROJECT.md fields covered in the locked order.
+- [ ] 3+other for `[INFERRED]` markers; open-ended-or-defer for `[FILL IN]` markers.
+- [ ] Capture rules implemented (Accept/Edit/Defer behavior + Notes section appendage).
+- [ ] Pre-walkthrough zero-marker skip path implemented.
+- [ ] Post-walkthrough summary emitted.
+- [ ] Validator + 126 tests still pass.
+- [ ] Dogfood pass on Signal itself confirms the walkthrough is non-fatiguing.
 
 ### Wave 5 — Adjacent updates
 - **T4.10** ✓ — `/sig:status` brownfield awareness. Shipped 2026-04-26. New helper `readLandscapeMeta(baseDir)` in `tools/lib/status.js` (parses "## Last Updated" date from LANDSCAPE.md, fall back to null on miss). Branch A (uncalibrated) now branches on LANDSCAPE.md presence with brownfield-specific message. Branches B and C add `Landscape: captured {date}` line conditional on file presence. 5 new helper tests + read-only-contract update.
