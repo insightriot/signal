@@ -53,11 +53,15 @@ export async function readAllScans(baseDir) {
 export function extractSection(content, heading) {
   if (!content) return null;
   const esc = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  // Without the `m` flag, `$` is end-of-string. With the inline `(?m:...)`
-  // group we anchor only the headings (h2 must start its own line) while
-  // letting `$` in the closing lookahead mean end-of-input.
+  // Anchor h2 headings to the start of a line manually (start-of-input or
+  // post-newline) instead of using the `(?m:...)` inline modifier — that
+  // syntax is only available on V8 12.7+ (Node 23+) and we target Node 22+.
+  // Without the `m` flag, the trailing `$` continues to mean end-of-input.
+  // `[ \t]*` (not `\s*`) so the trailing-whitespace allowance can't eat the
+  // newline at the end of the heading line and accidentally swallow blank
+  // lines belonging to the next section.
   const pattern = new RegExp(
-    `(?m:^##\\s+${esc}\\s*$)\\n([\\s\\S]*?)(?=(?m:^##\\s+)|$)`,
+    `(?:^|\\n)##\\s+${esc}[ \\t]*(?:\\n|$)([\\s\\S]*?)(?=\\n##\\s+|$)`,
     'i'
   );
   const match = content.match(pattern);
