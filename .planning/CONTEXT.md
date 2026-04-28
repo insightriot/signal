@@ -33,41 +33,43 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-**TRANCHE 4 nearly complete (2026-04-27) — `/sig:init` brownfield onboarding feature-complete on the markdown + code layer.** 14 of 16 tasks shipped: skeleton + 5-state pre-flight, 4 parallel scanner agents, LANDSCAPE.md synthesizer + landscape.js helpers, baseline PROJECT.md generator, STATE.md handoff, brownfield awareness in `/sig:status` / `/sig:resume` / `/sig:calibrate` Scenario A, validator updates, Signal-on-Signal dogfood (validated synthesis pipeline; surfaced F2 blocker — agent-spawn registration in dev mode — with documented fallback path), README brownfield walkthrough + tier-definitions brownfield calibration patterns. Tests 96 → 126.
+**TRANCHE 4 nearly complete (2026-04-27) — `/sig:init` brownfield onboarding feature-complete including the assumption-surfacing walkthrough.** 15 of 16 tasks shipped: skeleton + 5-state pre-flight, 4 parallel scanner agents, LANDSCAPE.md synthesizer + landscape.js helpers, baseline PROJECT.md generator, **PROJECT.md walkthrough (T4.8 — Step 5 assumption surfacing)**, STATE.md handoff, brownfield awareness in `/sig:status` / `/sig:resume` / `/sig:calibrate` Scenario A, validator updates, Signal-on-Signal dogfood (validated synthesis pipeline; surfaced F2 blocker — agent-spawn registration in dev mode — with documented fallback path), README brownfield walkthrough + tier-definitions brownfield calibration patterns. Tests 96 → 148.
 
 **TRANCHE 3 closed 2026-04-26 — v1 ship-ready** (separate effort that produced the original 11 commands + dogfood passes). v0.1.0 tag pending until F2 marketplace-install validation.
 
-**Path forward (2026-04-27):** the two remaining TRANCHE-4 tasks are **T4.8 (assumption surfacing UX)** and **T4.13 (fixture tests)** — both v0.1.1 candidates, neither blocking ship. T4.8 has the most user-facing value; T4.13 is internal hardening. **T4.8 has a detailed design entry in TRANCHE-4.md (Wave 4 section); start there for the next session.**
+**Path forward (2026-04-27):** only **T4.13 (fixture tests)** remains in TRANCHE-4 — internal hardening, v0.1.1 candidate, doesn't block ship. T4.8 (the conversational walkthrough) is now live in code + tested; a real-run dogfood pass is queued as a soft follow-up but isn't blocking.
 
 - **12 slash commands shipped** (`/sig:new-project`, `/sig:init` (new in T4), `/sig:calibrate`, `/sig:discuss`, `/sig:plan`, `/sig:execute`, `/sig:verify`, `/sig:review`, `/sig:ship`, `/sig:escalate`, `/sig:status`, `/sig:resume`).
 - **26 agent files** = 22 from prior tranches + 4 new scanner agents (stack / structure / activity / quality) under `agents/scanners/`.
 - 21 skill files (unchanged from T3).
-- **6 tool libs** = 5 prior + `tools/lib/landscape.js` (new in T4 Wave 3).
-- **Question-pattern convention locked** (T2 Step 3) — strict enum / 3+other / open-ended. T4.8 will use the same convention for marker walkthroughs.
+- **7 tool libs** = 5 prior + `tools/lib/landscape.js` (T4 Wave 3) + `tools/lib/walkthrough.js` (T4.8 — `countMarkers`, `appendNote`).
+- **Question-pattern convention locked** (T2 Step 3) — strict enum / 3+other / open-ended. T4.8 uses 3+other for `[INFERRED]` markers and open-ended-or-defer for `[FILL IN]` markers.
 - PROFILE.md schema + tier-to-defaults + override handling + escalation history all locked from prior tranches.
 - **`/sig:init` adds the LANDSCAPE.md + baseline PROJECT.md + scan/*.md artifacts** to the `.planning/` shape. Greenfield projects (`/sig:new-project`) don't have these; only brownfield-init'd projects do.
 - **Validator** requires `calibrate.md` + `escalate.md` + `init.md` + `profile-schema.md` + `tier-definitions.md` + the 4 scanner agents (`agents/scanners/*-scanner.md`).
 - **F2 unknown:** plugin agent registration mechanism + namespacing convention post-marketplace-install — gates v0.1.0 ship; has a documented fallback path in init.md Step 2 so the command works regardless. See DECISIONS.md (2026-04-26 — "scanner-spawn fallback path locked").
-- **126 tests passing** (state + context-monitor + profile + status + landscape — 25 new in T4 Wave 3, 5 new readLandscapeMeta tests, 1 read-only-contract update); validator green.
+- **148 tests passing** (state + context-monitor + profile + status + landscape + walkthrough — 22 new in T4.8 Wave 4); validator green. Bundled fix in T4.8: `extractSection` rewritten to be V8-12.4-portable (Node 22) — the prior `(?m:...)` inline-flag form required Node 23+.
 
 ## Active work
 
-**TRANCHE 4 mostly done.** 14 of 16 tasks shipped (see `TRANCHE-4.md`):
+**TRANCHE 4 nearly done.** 15 of 16 tasks shipped (see `TRANCHE-4.md`):
 1. ✓ T4.1 — `/sig:init` skeleton + 5-state pre-flight.
 2. ✓ T4.2–T4.5 — 4 scanner agents (stack / structure / activity / quality).
 3. ✓ T4.6 — LANDSCAPE.md synthesizer + landscape.js helpers.
 4. ✓ T4.7 — Baseline PROJECT.md generator with `[INFERRED]` / `[FILL IN]` markers.
-5. **○ T4.8 — Assumption surfacing UX** (deferred → designed in TRANCHE-4.md ready for next session).
+5. ✓ T4.8 — Assumption-surfacing walkthrough in `/sig:init` Step 5 (zero-marker skip, locked field order, 3+other for INFERRED, open-ended-or-defer for FILL-IN, capture rules with Notes-history append). Bundled a Node-22 regex portability fix in landscape.js (`(?m:...)` inline modifier needed V8 12.7+).
 6. ✓ T4.9 — STATE.md init + brownfield-aware handoff.
 7. ✓ T4.10–T4.12 — `/sig:status`, `/sig:resume`, `/sig:calibrate` Scenario A all surface LANDSCAPE.md awareness.
-8. **○ T4.13 — Fixture tests** (deferred → v0.1.1 candidate).
+8. **○ T4.13 — Fixture tests** (deferred → v0.1.1 candidate; only remaining TRANCHE-4 task).
 9. ✓ T4.14 — Validator updates (REQUIRED_COMMANDS + REQUIRED_AGENTS + REQUIRED_DIRS).
 10. ✓ T4.15 — Signal-on-Signal dogfood. Synthesis pipeline validated; 4 fix-nows applied; F2 blocker logged with fallback path. Full runlog at `.dogfood/T4-INIT-DOGFOOD/RUNLOG.md` (gitignored — won't survive context clear; key findings preserved in DECISIONS.md and STATE.md).
 11. ✓ T4.16 — README brownfield section + tier-definitions brownfield calibration patterns.
 
-Two open architectural items, both logged for next session:
-- **T4.8 next priority** — designed in TRANCHE-4.md Wave 4. The fresh session should: read CONTEXT → STATE → TRANCHE-4 (T4.8 entry has the walkthrough order, per-marker question shape, capture rules), then implement init.md Step 5.
-- **F2 marketplace validation** — external blocker for v0.1.0 publish (not a TRANCHE-4 task; needs publish-then-test cycle).
+Two soft follow-ups, neither blocking ship:
+- **T4.13 fixture tests** — Node / Python / dormant-project synthesizer fixtures. v0.1.1 candidate.
+- **T4.8 conversational dogfood** — exercise the new walkthrough against a real brownfield run; surface fatigue/phrasing issues. Can ride the next /sig:init dogfood pass.
+
+**Single external blocker for v0.1.0 publish:** F2 marketplace-install validation (plugin-agent registration mechanism + namespacing). Not a TRANCHE-4 task; needs publish-then-test cycle.
 
 ## Key files
 
@@ -90,6 +92,7 @@ Two open architectural items, both logged for next session:
 - `lib/state.js` — `initState`, `readState`, `transitionPhase`, `checkGateArtifacts`, `PHASES`
 - `lib/profile.js` — `readProfile`, `isPhaseEnabled`, `applyRigorOverrides`, `ProfileSchemaError`
 - `lib/landscape.js` — `readScan`, `readAllScans`, `extractSection`, `extractField` (consumed by `/sig:init` Step 3 synthesis)
+- `lib/walkthrough.js` — `countMarkers`, `appendNote` (consumed by `/sig:init` Step 5 walkthrough)
 - `lib/status.js` — `nextActionForPhase`, `readOpenQuestions`, `formatEscalationSummary`, `reachedDoneViaSkip`, `readLandscapeMeta`
 - `lib/context-monitor.js` — `estimateTokens`, `checkContextBudget`, `findSkillPath`, `estimatePhaseSkillCost`
 - `lib/skill-loader.js` — skill resolution
@@ -103,15 +106,10 @@ Two open architectural items, both logged for next session:
 3. Glance at OPEN-QUESTIONS.md to see what needs deciding soon.
 4. Pick up the first un-checked task.
 
-**Specifically for the next session:** TRANCHE-4 task **T4.8 (assumption surfacing UX)** is the queued-up next task. Its design lives in `TRANCHE-4.md` Wave 4 (T4.8 entry has the full spec — walkthrough order, per-marker question shape, capture rules). The implementation work is to replace the `/sig:init` Step 5 placeholder with the designed walkthrough, add tests, and dogfood-validate.
+**Specifically for the next session:** TRANCHE-4 is one task away from done — only **T4.13 (fixture tests)** remains, and it's a v0.1.1 candidate that doesn't block ship. Higher-leverage next moves are either (a) marketplace-install validation (gates v0.1.0 ship), or (b) start TRANCHE-5 v2 ports (gated on real-user signal — see PROJECT.md Scope & Roadmap).
 
-Pre-reads for the T4.8 session:
-1. `CONTEXT.md` (this file) + `STATE.md` (status)
-2. `TRANCHE-4.md` Wave 4 — T4.8 design spec (the actionable plan)
-3. `.claude/commands/sig/init.md` — the command being modified (Step 5 is the target)
-4. `references/question-patterns.md` — the convention for the walkthrough's prompts
-5. `tools/lib/landscape.js` — helpers `extractSection`/`extractField` may be useful for parsing PROJECT.md markers
+If continuing T4 polish: re-run `/sig:init` end-to-end on a fresh brownfield target to dogfood the new T4.8 walkthrough conversationally (Wave 4 success-criterion #8). Surface any phrasing fatigue or missed-edge cases.
 
 ---
 
-*Last updated: 2026-04-27 (TRANCHE 4 mostly complete — T4.8 + T4.13 deferred for next session; T4.8 design ready in TRANCHE-4.md)*
+*Last updated: 2026-04-27 (T4.8 shipped: assumption-surfacing walkthrough live; tools/lib/walkthrough.js + 22 tests added; landscape.js Node-22 regex fix bundled; only T4.13 fixtures remain in TRANCHE-4)*

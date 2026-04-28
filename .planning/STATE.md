@@ -4,13 +4,20 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 4 — Brownfield Onboarding via `/sig:init` — IN PROGRESS.** T4.1 + T4.2–T4.7 + T4.9–T4.12 + T4.14 + T4.15 + T4.16 shipped. Remaining: T4.8 (assumption-surfacing UX), T4.13 (fixture tests). See `TRANCHE-4.md` for full task list.
+**Tranche 4 — Brownfield Onboarding via `/sig:init` — 15 of 16 tasks shipped.** T4.1 + T4.2–T4.7 + T4.8 + T4.9–T4.12 + T4.14 + T4.15 + T4.16 shipped. Only remaining: T4.13 (fixture tests, v0.1.1 candidate). See `TRANCHE-4.md` for full task list.
 
-The brownfield path is now publicly documented (README brownfield section + tier-definitions.md brownfield calibration patterns). v0.1.0 tag-and-publish ready pending one external validation: marketplace-install behavior for plugin-agent registration (F2 unknown).
+The brownfield path is now feature-complete on the markdown + code layer, including the conversational assumption-surfacing walkthrough. v0.1.0 tag-and-publish ready pending one external validation: marketplace-install behavior for plugin-agent registration (F2 unknown).
 
 Tranche 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the markdown and code layer.
 
 ## Completed
+
+- **Tranche 4, Task 8 — Assumption-surfacing walkthrough in `/sig:init` Step 5** (2026-04-27):
+  - **`tools/lib/walkthrough.js`** (new) — two helpers: `countMarkers(content)` returns `{inferred, fillIn, total}` and powers the pre-walkthrough zero-marker skip path; `appendNote(content, note)` adds a `- ` bullet to the `## Notes` section, creating the section if absent. Marker detection deliberately uses `\\[INFERRED[^\\]]+\\]` / `\\[FILL IN[^\\]]+\\]` (requires content after the keyword) so the PROJECT.md header's prose references — `Every \`[INFERRED]\` and \`[FILL IN]\` marker is your responsibility...` — don't inflate the count.
+  - **`/sig:init.md` Step 5 fully replaced.** Placeholder reminder is gone; the new spec covers: (5.1) zero-marker skip with announce-N message; (5.2) locked walkthrough order (Vision → Problem → Scope-In → Constraints → Success Criteria → Done When → Scope-Out) with rationale; (5.3) 3+other shape verbatim for `[INFERRED]` markers, with confidence-driven recommendation rules (recommend Accept on high-confidence, Edit on low-confidence, Defer only when no signal); (5.4) open-ended-or-defer shape for `[FILL IN]` markers, with field-specific framing + prompt table for the four FILL-IN field types (Success Criteria, Done When, Scope-Out, Constraints-per-item); (5.5) capture rules (Accept strips marker, Edit replaces + history note, Defer leaves marker + Notes entry, Skip replaces with placeholder + Notes entry, "other" verbatim capture); (5.6) post-walkthrough summary with deferred-fields warning.
+  - **Anti-rationalization table grew by 4 rows** — walk-LANDSCAPE-too (defer to scope b), skip-Defer-to-force-completeness (no — Defer is first-class), auto-accept-high-confidence (no — user is source of truth), over-detailed-questions (≤8 lines per question to prevent fatigue).
+  - **22 new tests** in `tests/walkthrough.test.js`. Tests 126 → 148. Validator green.
+  - **Pre-existing landscape.js fix bundled.** The `extractSection` regex used `(?m:...)` inline modifiers, which require V8 12.7+ (Node 23+) and were silently failing on Node 22.13 — 13 tests had been red on `main` post-context-clear (must have been written and tested on a newer Node). Rewrote with manual line anchors (`(?:^|\\n)##` / `(?=\\n##\\s+|$)`) and replaced `\\s*` after the heading text with `[ \\t]*` so the trailing-whitespace allowance can't gobble the heading-ending newline and pull blank lines from the next section. All 25 landscape tests + the 5 status `readLandscapeMeta` tests now pass on Node 22.
 
 - **Tranche 4, Task 16 — Documentation: README brownfield section + tier-definitions brownfield patterns** (2026-04-26):
   - **README.md** — added "Bringing Signal to an existing codebase" section between "Your first project" (greenfield) and "`.planning/` is your project's memory." Walks through `/sig:init`'s 4 outputs (LANDSCAPE.md, baseline PROJECT.md, STATE.md, scan/*.md), the [INFERRED]/[FILL IN] marker convention, the brownfield-tier-bias hint, and the calibrate-Scenario-A auto-redirect behavior. Also added `/sig:init` to the Command reference list (between new-project and calibrate).
@@ -212,13 +219,14 @@ Tranche 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the mark
 
 ## Active
 
-**Tranche 4 — `/sig:init` brownfield onboarding** is feature-complete on the markdown + code layer. T4.1 + Waves 2 + 3 + adjacent updates + T4.15 dogfood + T4.16 docs done. Synthesis pipeline validated; brownfield path documented in README + tier-definitions; F2 blocker has a documented fallback path.
+**Tranche 4 — `/sig:init` brownfield onboarding** is now feature-complete on the markdown + code layer including the conversational assumption-surfacing walkthrough. 15 of 16 tasks shipped (T4.1 + Waves 2 + 3 + adjacent updates + T4.15 dogfood + T4.16 docs + T4.8 walkthrough). Synthesis pipeline validated end-to-end on Signal-on-Signal; brownfield path documented in README + tier-definitions; F2 blocker has a documented fallback path.
 
-**Next-session priority: T4.8 (assumption surfacing UX).** Detailed implementation design now lives in `TRANCHE-4.md` Wave 4 ("T4.8 detailed design (next-session pickup)") — covers walkthrough order, per-marker question shape (3+other for `[INFERRED]`, open-ended-or-defer for `[FILL IN]`), capture rules (Accept/Edit/Defer + Notes section appendage), pre-walkthrough zero-marker skip, post-walkthrough summary, anti-rationalization table, and 8-item success-criteria checklist. Implementation work is to replace `/sig:init` Step 5's placeholder + add tests + dogfood-validate. **Read `TRANCHE-4.md` Wave 4 first; everything needed to start cold is there.**
+**Pending dogfood validation of T4.8.** The walkthrough is implemented + unit-tested but hasn't been exercised against a real PROJECT.md draft. Recommended next pass: re-run `/sig:init` on a fresh worktree and walk all 7 fields to confirm the conversational layer is non-fatiguing in practice (the Wave 4 design's success criterion #8). Defer this dogfood until either marketplace validation lands or T4.13 fixtures need a target.
 
-**Other open items, in priority order:**
+**Open items, in priority order:**
 1. **Marketplace-install validation** (pre-publish blocker for F2): publish a test build of Signal, install via marketplace, verify whether named subagents resolve and what prefix (if any) Claude Code applies. Update init.md Step 2 table accordingly. **The single remaining external blocker between current state and shipping v0.1.0.** Not a TRANCHE-4 task (needs publish-then-test cycle).
-2. **T4.13 fixture tests** — Node / Python / dormant-project fixtures. Hardens the synthesizer against regressions. v0.1.1 candidate; lower priority than T4.8.
+2. **T4.13 fixture tests** — Node / Python / dormant-project fixtures. Hardens the synthesizer against regressions. v0.1.1 candidate; only remaining TRANCHE-4 task.
+3. **T4.8 conversational dogfood** — exercise the walkthrough against a real brownfield run; surface fatigue / phrasing issues. v0.1.1 candidate; can ride the next /sig:init dogfood pass.
 
 **Five TRANCHE-4 design decisions resolved (all logged):**
 - Scanner count → fixed at 4.
@@ -235,4 +243,4 @@ None.
 
 ## Last Updated
 
-2026-04-27 (CONTEXT.md + TRANCHE-4.md Wave 4 hardened for next-session T4.8 pickup; STATE.md "Active" points at T4.8 design)
+2026-04-27 (T4.8 shipped: assumption-surfacing walkthrough live in `/sig:init` Step 5; tools/lib/walkthrough.js + 22 tests added; bundled Node-22 regex fix in landscape.js; tests 126 → 148; only T4.13 fixtures remain in TRANCHE-4)
