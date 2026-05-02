@@ -209,4 +209,66 @@ Accept that source-driven-development is technically a "verify-as-you-build" ski
 
 ---
 
-*Last updated: 2026-04-25*
+## Pre-scoped DISCUSS agenda — surface gray areas as a checklist before drilling in
+
+**Status:** Logged 2026-05-02 during Tranche 4 wrap-up conversation. UX gap surfaced by user comparing Signal to GSD's `/gsd:discuss-phase`.
+
+**Context.** Today's `/sig:discuss` Step 3 has *Claude* identify gray areas internally, then Step 4 just starts asking 3+other on each one in sequence. The user never sees the *agenda* — they get questions one at a time without knowing the shape of the unknowns up front, can't pre-empt with "skip the deployment topology question, I've already decided that," and can't add an area Claude missed before Claude commits to its agenda. GSD's pattern (multi-select checkbox of pre-identified discussion areas, plus a free-text "type something" line) covers all three: visibility, prioritization, and recovery valve when Claude's gray-area detection underfits.
+
+**Candidate direction (post-Tranche-4 polish, not v2).**
+
+Insert a Step 3.5 between "identify gray areas" and "ask 3+other on each":
+
+```
+Six areas surfaced for DISCUSS:
+
+1. [ ] {area name}
+   {one-line sub-question summary}
+
+...
+
+6. [ ] Add an area I'm worried about that you missed
+   (free text)
+
+Reply with the numbers you want to discuss, or "all" / "skip N,M" /
+"add: <description>" to add one.
+```
+
+Then Step 4 runs 3+other only on selected areas. Deselected → `CONTEXT.md` "Deferred Decisions" with note that user explicitly skipped at scoping time (vs. silently never raised). PLAN later distinguishes "we agreed not to discuss this" from "we forgot."
+
+**Implementation notes:**
+- No native multi-select widget in Claude Code chat — text-rendered list with "reply with numbers" convention. Same UX outcome, no UI dependency.
+- Slots into `references/question-patterns.md` as a fourth shape (working name: **scoped multi-select**), or as a step modifier on top of 3+other. Lean toward fourth shape — distinct enough.
+- The "add an area I'm worried about" line is the critical piece — it's the recovery valve when Claude's gray-area detection underfits. Without it, the pattern is just a fancier hidden-agenda.
+
+**Why post-Tranche-4 polish, not v2.**
+- Pure UX improvement to an existing command — no new phase, no new skill, no architectural shift.
+- Cheap: ~one tasks worth of work in `/sig:discuss.md` + a question-patterns.md addendum.
+- High user-value-per-effort ratio. Worth promoting before v2 integrations land.
+
+**Resolve by:** real-project DISCUSS run where the user wishes they could see the agenda first, or by the time v2 phase work begins. Likely the next dogfood pass.
+
+---
+
+## Plugin slug rename — `signal` → `sig` to remove `/signal:sig:*` namespace stutter
+
+**Status:** Logged 2026-05-02 during Tranche 4 wrap-up conversation. Daily papercut surfaced by user comparing autocomplete UX to GSD.
+
+**Context.** Plugin commands today render in autocomplete as `/signal:sig:execute` — two namespaces stacked: outer from `plugin.json` `"name": "signal"`, inner from the `commands/sig/` subdirectory. The short form `/sig:execute` works because there's no collision, but autocomplete shows the canonical fully-qualified form. GSD avoids this by naming its plugin slug `gsd` and putting commands directly in `commands/` (no subdirectory), giving clean `/gsd:command-name`.
+
+**Candidate direction.**
+
+1. `plugin.json`: rename `"name": "signal"` → `"name": "sig"`. Display name "Signal" survives in description, homepage, README, marketplace listing — only the slug changes.
+2. Move `.claude/commands/sig/*.md` → `.claude/commands/*.md` (drop the subdirectory).
+3. Update `plugin.json` `commands` path if it points to a subdirectory.
+4. Verify no internal references break — agents reference commands by `/sig:foo` strings, which keep working since the prefix is preserved.
+
+**Tradeoff.** Plugin slug becomes `sig` not `signal`. Marketplace search/install would use `sig`. Brand "Signal" stays everywhere user-facing. Probably worth it — the namespace stutter is a daily papercut, the slug change is one-time mechanical work.
+
+**Why log, not fix now.** Mechanical but touches the manifest + every command path, which is the kind of "small change with broad blast radius" that wants to land alongside other plugin-config work rather than as a one-off. Bundle with the next plugin-structure task.
+
+**Resolve by:** next time the plugin manifest is touched for any reason, OR before first marketplace publish (whichever comes first — marketplace listings will be hard to rename after the fact).
+
+---
+
+*Last updated: 2026-05-02*
