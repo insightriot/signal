@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Signal — Decision Tree</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --card: #1a1f26;
+    --card-hi: #232a33;
+    --border: #2a323d;
+    --text: #e6e8eb;
+    --muted: #8b95a3;
+    --dim: #6b7280;
+    --accent: #5eead4;
+    --purple: #a78bfa;
+    --tier-sketch: #94a3b8;
+    --tier-spike: #f59e0b;
+    --tier-feature: #5eead4;
+    --tier-full: #f97316;
+    --good: #5eead4;
+    --warn: #eab308;
+    --bad: #ef4444;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 24px; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  .container { max-width: 1300px; margin: 0 auto; }
+  header { margin-bottom: 56px; }
+  pre.banner {
+    color: var(--accent);
+    font-size: 11px; line-height: 1.1; margin: 0 0 12px;
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    overflow-x: auto;
+  }
+  .tagline {
+    color: var(--muted); font-style: italic; font-size: 15px; margin: 0 0 4px;
+  }
+  .meta {
+    color: var(--dim); font-size: 12px; margin: 0;
+  }
+  nav.toc {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    margin: 32px 0; padding: 16px 20px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    font-size: 13px;
+  }
+  nav.toc a {
+    color: var(--accent); text-decoration: none;
+    padding: 4px 10px; border-radius: 4px;
+    transition: background 0.15s;
+  }
+  nav.toc a:hover { background: var(--card-hi); }
+  h2 {
+    font-size: 24px; margin: 64px 0 8px; font-weight: 600;
+    border-bottom: 1px solid var(--border); padding-bottom: 10px;
+  }
+  h2 .glyph { font-family: monospace; color: var(--accent); margin-right: 10px; }
+  h3 { font-size: 17px; color: var(--text); margin: 28px 0 10px; font-weight: 600; }
+  h4 { font-size: 14px; color: var(--muted); margin: 20px 0 8px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+  p { margin: 0 0 14px; }
+  p.lede { color: var(--muted); font-size: 15px; max-width: 800px; }
+  code {
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 13px; background: var(--card-hi); padding: 1px 6px; border-radius: 3px;
+    color: var(--accent);
+  }
+
+  /* CALIBRATE SIMULATOR */
+  .sim {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 24px;
+    margin: 24px 0;
+  }
+  @media (max-width: 1000px) { .sim { grid-template-columns: 1fr; } }
+  .sim-questions {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 24px;
+  }
+  .sim-q {
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sim-q:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+  .sim-q-label {
+    font-weight: 600; font-size: 14px; margin-bottom: 4px;
+    color: var(--text);
+  }
+  .sim-q-sub {
+    color: var(--muted); font-size: 13px; margin-bottom: 12px;
+  }
+  .sim-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  @media (max-width: 600px) { .sim-options { grid-template-columns: 1fr; } }
+  .sim-option {
+    padding: 10px 12px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; cursor: pointer;
+    font-size: 13px; transition: all 0.15s;
+    user-select: none;
+  }
+  .sim-option:hover { border-color: var(--accent); }
+  .sim-option.selected {
+    background: var(--card-hi); border-color: var(--accent);
+    color: var(--accent);
+  }
+  .sim-option .opt-val {
+    font-family: monospace; font-weight: 600; display: block;
+  }
+  .sim-option .opt-desc {
+    color: var(--muted); font-size: 11px; margin-top: 2px;
+  }
+  .sim-option.selected .opt-desc { color: var(--text); }
+
+  .sim-result {
+    position: sticky; top: 24px; align-self: start;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 24px;
+    text-align: center;
+  }
+  .sim-result.empty { color: var(--muted); font-style: italic; }
+  .sim-tier {
+    font-size: 48px; font-weight: 700; margin: 12px 0 4px;
+    font-family: monospace;
+  }
+  .sim-tier.SKETCH { color: var(--tier-sketch); }
+  .sim-tier.SPIKE { color: var(--tier-spike); }
+  .sim-tier.FEATURE { color: var(--tier-feature); }
+  .sim-tier.FULL { color: var(--tier-full); }
+  .sim-glyph { font-size: 28px; opacity: 0.7; }
+  .sim-rule {
+    font-size: 12px; color: var(--muted);
+    margin: 8px 0 16px; line-height: 1.4;
+  }
+  .sim-rule strong { color: var(--text); }
+  .sim-overrides {
+    text-align: left; font-size: 11px;
+    background: var(--bg); padding: 12px; border-radius: 6px;
+    font-family: monospace;
+  }
+  .sim-overrides .row { display: flex; justify-content: space-between; padding: 2px 0; }
+  .sim-overrides .key { color: var(--muted); }
+  .sim-overrides .val { color: var(--accent); }
+  .sim-phases {
+    margin-top: 14px; font-size: 11px; text-align: left;
+  }
+  .sim-phases .phase-pill {
+    display: inline-block; padding: 3px 8px; margin: 2px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 12px; font-family: monospace;
+  }
+  .sim-phases .phase-pill.skipped {
+    color: var(--dim); text-decoration: line-through;
+    opacity: 0.5;
+  }
+  .reset-btn {
+    background: transparent; color: var(--muted); border: 1px solid var(--border);
+    padding: 6px 14px; border-radius: 4px; cursor: pointer;
+    font-size: 12px; margin-top: 12px;
+  }
+  .reset-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  /* TIER CARDS */
+  .tier-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px; margin: 24px 0;
+  }
+  @media (max-width: 900px) { .tier-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 500px) { .tier-grid { grid-template-columns: 1fr; } }
+  .tier-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 18px;
+    border-top: 3px solid var(--border);
+  }
+  .tier-card.SKETCH { border-top-color: var(--tier-sketch); }
+  .tier-card.SPIKE { border-top-color: var(--tier-spike); }
+  .tier-card.FEATURE { border-top-color: var(--tier-feature); }
+  .tier-card.FULL { border-top-color: var(--tier-full); }
+  .tier-card .tname {
+    font-size: 18px; font-weight: 700; margin-bottom: 2px;
+    font-family: monospace;
+  }
+  .tier-card.SKETCH .tname { color: var(--tier-sketch); }
+  .tier-card.SPIKE .tname { color: var(--tier-spike); }
+  .tier-card.FEATURE .tname { color: var(--tier-feature); }
+  .tier-card.FULL .tname { color: var(--tier-full); }
+  .tier-card .tsub { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .tier-card .tphil { font-size: 12px; line-height: 1.5; color: var(--text); }
+  .tier-card .twhen { font-size: 11px; color: var(--muted); margin: 10px 0; font-style: italic; }
+
+  /* RIGOR MATRIX */
+  table.matrix {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+    font-size: 13px;
+  }
+  table.matrix th, table.matrix td {
+    padding: 10px 12px; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  table.matrix th {
+    background: var(--card); color: var(--muted);
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    font-weight: 500;
+  }
+  table.matrix th.tier-SKETCH { color: var(--tier-sketch); }
+  table.matrix th.tier-SPIKE { color: var(--tier-spike); }
+  table.matrix th.tier-FEATURE { color: var(--tier-feature); }
+  table.matrix th.tier-FULL { color: var(--tier-full); }
+  table.matrix td:first-child { font-family: monospace; color: var(--muted); }
+  table.matrix td.val { font-family: monospace; font-size: 12px; }
+  table.matrix td.val.off { color: var(--dim); }
+  table.matrix td.val.on { color: var(--accent); }
+  table.matrix td.val.warn { color: var(--warn); }
+
+  /* PHASE FLOW */
+  .phase-flow {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin: 24px 0; align-items: stretch;
+  }
+  .phase-card {
+    flex: 1 1 160px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+    position: relative;
+  }
+  .phase-card .pglyph {
+    font-family: monospace; font-size: 24px; color: var(--accent);
+    line-height: 1;
+  }
+  .phase-card .pname {
+    font-weight: 700; font-size: 14px; margin: 8px 0 4px;
+    font-family: monospace;
+  }
+  .phase-card .ppurpose { font-size: 12px; color: var(--muted); line-height: 1.4; }
+  .phase-card .pmeta {
+    margin-top: 10px; font-size: 11px;
+    border-top: 1px solid var(--border); padding-top: 8px;
+  }
+  .phase-card .pmeta .row { display: flex; gap: 6px; margin: 3px 0; }
+  .phase-card .pmeta .label { color: var(--dim); min-width: 64px; }
+  .phase-card .pmeta .value { color: var(--text); flex: 1; }
+  .phase-card .pmeta code {
+    font-size: 10px; padding: 0 4px;
+    background: var(--bg);
+  }
+  .phase-card .skip-marker {
+    position: absolute; top: 6px; right: 8px;
+    font-size: 9px; color: var(--dim);
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+
+  /* QUESTION PATTERNS */
+  .pattern-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px; margin: 16px 0;
+  }
+  @media (max-width: 800px) { .pattern-grid { grid-template-columns: 1fr; } }
+  .pattern-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+  }
+  .pattern-card h4 {
+    color: var(--purple); font-size: 13px;
+    margin: 0 0 8px; text-transform: none; letter-spacing: 0;
+  }
+  .pattern-card p { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
+  .pattern-card .when { font-size: 11px; color: var(--text); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+  .pattern-card .when strong { color: var(--accent); }
+
+  /* footnote */
+  footer {
+    margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--border);
+    color: var(--dim); font-size: 12px;
+  }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+<pre class="banner">███████ ██  ██████  ███   ██  █████  ██
+██      ██ ██       ████  ██ ██   ██ ██
+███████ ██ ██   ███ ██ ██ ██ ███████ ██
+     ██ ██ ██    ██ ██  ████ ██   ██ ██
+███████ ██  ██████  ██   ███ ██   ██ ███████</pre>
+<p class="tagline">Right-sized rigor for AI-assisted engineering.</p>
+<p class="meta">Decision tree &middot; v0.1 &middot; generated 2026-05-02 &middot; <a href="../references/tier-definitions.md">tier-definitions.md</a> &middot; <a href="../.claude/commands/sig/calibrate.md">calibrate.md</a></p>
+</header>
+
+<nav class="toc">
+  <a href="#calibrate">1. Calibrate simulator</a>
+  <a href="#tiers">2. Tiers</a>
+  <a href="#matrix">3. Rigor matrix</a>
+  <a href="#phases">4. Phase flow</a>
+  <a href="#patterns">5. Question patterns</a>
+</nav>
+
+<section id="calibrate">
+<h2><span class="glyph">▁</span>1. Calibrate — 5 questions → tier</h2>
+<p class="lede">Pick an answer for each of the 5 diagnostic questions. The tier updates live as you choose. The right panel shows which derivation rule fired, the rigor profile, and which phases run/skip.</p>
+
+<div class="sim">
+  <div class="sim-questions" id="sim-questions"></div>
+  <div class="sim-result" id="sim-result"></div>
+</div>
+</section>
+
+<section id="tiers">
+<h2><span class="glyph">◇</span>2. The Four Tiers</h2>
+<p class="lede">Every project is exactly one tier. Tier sets the structural shape (which phases run); rigor overrides set the dial values inside.</p>
+<div class="tier-grid" id="tier-grid"></div>
+</section>
+
+<section id="matrix">
+<h2><span class="glyph">◆</span>3. Rigor matrix — 11 dials × 4 tiers</h2>
+<p class="lede">Authoritative tier-to-defaults mapping. <code>/sig:calibrate</code> writes these literal values into <code>PROFILE.md</code>; every downstream phase reads them as its first action.</p>
+<div id="matrix"></div>
+</section>
+
+<section id="phases">
+<h2><span class="glyph">█</span>4. Phase flow — 7 phases</h2>
+<p class="lede">CALIBRATE is Phase 0 (always runs). The other six are tier-gated — see the skip badge per card. Each phase reads <code>PROFILE.md</code>, applies <code>rigor_overrides</code>, and exits via a gate.</p>
+<div class="phase-flow" id="phase-flow"></div>
+</section>
+
+<section id="patterns">
+<h2><span class="glyph">▴</span>5. Question patterns</h2>
+<p class="lede">How Signal asks the user for input. Every user-facing question fits exactly one shape — see <a href="../references/question-patterns.md">question-patterns.md</a>.</p>
+<div class="pattern-grid" id="pattern-grid"></div>
+</section>
+
+<footer>
+<p>Source-of-truth: <code>references/tier-definitions.md</code>, <code>.claude/commands/sig/calibrate.md</code>, <code>references/question-patterns.md</code>. To update this viewer when Signal changes, edit the data objects at the top of the <code>&lt;script&gt;</code> block at the bottom of this file.</p>
+</footer>
+
+</div>
+
+<script>
+// ============================================================
+// DATA — single source of truth for this viewer.
+// To update: edit values here, save, reload. No build step.
+// ============================================================
+
+const QUESTIONS = [
+  {
+    id: 'scope',
+    label: 'Scope',
+    sub: 'How big is this work?',
+    options: [
+      { val: 'throwaway', desc: 'one-shot, will be deleted' },
+      { val: 'feature',   desc: 'a single feature in a larger system' },
+      { val: 'subsystem', desc: 'a whole subsystem (auth, billing, etc.)' },
+      { val: 'product',   desc: 'a standalone product or major release' },
+    ],
+  },
+  {
+    id: 'stakes',
+    label: 'Stakes',
+    sub: 'If it breaks in production, what happens?',
+    options: [
+      { val: 'none',         desc: 'nobody notices' },
+      { val: 'minor',        desc: 'inconvenience; easy recovery' },
+      { val: 'major',        desc: 'real user pain or revenue loss' },
+      { val: 'catastrophic', desc: 'user harm, data loss, legal/financial' },
+    ],
+  },
+  {
+    id: 'novelty',
+    label: 'Novelty',
+    sub: 'How much prior experience with this kind of work?',
+    options: [
+      { val: 'familiar',          desc: 'done many times' },
+      { val: 'rare',              desc: 'done occasionally' },
+      { val: 'first-for-org',     desc: 'first time for this team/org' },
+      { val: 'first-in-industry', desc: 'genuinely novel' },
+    ],
+  },
+  {
+    id: 'reversibility',
+    label: 'Reversibility',
+    sub: 'If the approach is wrong, how costly to undo?',
+    options: [
+      { val: 'trivial',      desc: 'delete and redo in an hour' },
+      { val: 'moderate',     desc: 'a day or two of rework' },
+      { val: 'painful',      desc: 'weeks of migration' },
+      { val: 'irreversible', desc: 'cannot undo (published API, data model)' },
+    ],
+  },
+  {
+    id: 'horizon',
+    label: 'Horizon',
+    sub: 'How long will this output live?',
+    options: [
+      { val: 'hours',  desc: 'today only' },
+      { val: 'days',   desc: 'this sprint' },
+      { val: 'months', desc: 'a release cycle or two' },
+      { val: 'years',  desc: 'long-lived core infrastructure' },
+    ],
+  },
+];
+
+const TIERS = {
+  SKETCH: {
+    glyph: '◦',
+    label: 'throwaway / prototype',
+    when: 'Static page, one-shot script, hackathon demo, internal tool with no users.',
+    philosophy: "Stops Signal from over-engineering throwaway work. Speed over polish — honestly.",
+    phases_skipped: ['REVIEW'],
+    rigor: {
+      tdd_required: 'false',
+      security_audit: 'none',
+      performance_pass: 'false',
+      simplification_pass: 'false',
+      nyquist_enforcement: 'off',
+      plan_validation_dims: 'none',
+      research_parallelism: '0',
+      gate_strictness: 'off',
+      context_rot_reread: 'false',
+      review_depth: 'none',
+    },
+  },
+  FEATURE: {
+    glyph: '◆',
+    label: 'typical feature work',
+    when: 'New feature on existing system. Incremental improvement. Known pattern, new problem. **The default tier.**',
+    philosophy: '"Just do it right." Tuned for what most product features actually need.',
+    phases_skipped: [],
+    rigor: {
+      tdd_required: 'true',
+      security_audit: 'basic',
+      performance_pass: 'true',
+      simplification_pass: 'true',
+      nyquist_enforcement: 'basic',
+      plan_validation_dims: 'core',
+      research_parallelism: '2',
+      gate_strictness: 'light',
+      context_rot_reread: 'true',
+      review_depth: 'quality-only',
+    },
+  },
+  SPIKE: {
+    glyph: '◊',
+    label: 'exploratory investigation',
+    when: "You don't know the answer yet. Library choice, architecture alternative, perf question. Output is *learning*.",
+    philosophy: '"I need to figure something out" should not get FULL-tier treatment. Learning is the deliverable.',
+    phases_skipped: ['REVIEW', 'SHIP'],
+    rigor: {
+      tdd_required: 'false',
+      security_audit: 'none',
+      performance_pass: 'false',
+      simplification_pass: 'false',
+      nyquist_enforcement: 'off',
+      plan_validation_dims: 'none',
+      research_parallelism: '2',
+      gate_strictness: 'light',
+      context_rot_reread: 'false',
+      review_depth: 'none',
+    },
+  },
+  FULL: {
+    glyph: '■',
+    label: 'production / critical',
+    when: 'Auth. Payments. Data integrity. Public API. Anything where breakage = real harm or irreversible damage.',
+    philosophy: '"Don\'t screw this up." Worth slowing down for. Signal\'s ceremony is designed for this tier specifically.',
+    phases_skipped: [],
+    rigor: {
+      tdd_required: 'true',
+      security_audit: 'full',
+      performance_pass: 'true',
+      simplification_pass: 'true',
+      nyquist_enforcement: 'strict',
+      plan_validation_dims: 'all',
+      research_parallelism: '4',
+      gate_strictness: 'strict',
+      context_rot_reread: 'true',
+      review_depth: 'full',
+    },
+  },
+};
+
+const RIGOR_KEYS = [
+  'tdd_required', 'security_audit', 'performance_pass', 'simplification_pass',
+  'nyquist_enforcement', 'plan_validation_dims', 'research_parallelism',
+  'gate_strictness', 'context_rot_reread', 'review_depth',
+];
+
+const PHASES = [
+  {
+    id: 'CALIBRATE', glyph: '▁',
+    purpose: 'Classify project; write PROFILE.md so downstream phases know rigor.',
+    skills: 'none (smallest command)',
+    artifacts: 'PROFILE.md, STATE.md',
+    gate: 'Profile schema-valid, .gitignore clean',
+    skipIn: [],
+  },
+  {
+    id: 'DISCUSS', glyph: '▂',
+    purpose: 'Adaptive questioning to extract decisions before planning.',
+    skills: 'idea-refine, spec-driven-development',
+    artifacts: 'CONTEXT.md, REQUIREMENTS.md',
+    gate: 'No unresolved gray areas; user approves transition to PLAN',
+    skipIn: [],
+  },
+  {
+    id: 'PLAN', glyph: '▃',
+    purpose: 'Multi-agent research, vertical slicing, 8-dim plan validation, Nyquist mapping.',
+    skills: 'planning-and-decomposition + research agents',
+    artifacts: 'PLAN.md',
+    gate: 'Plan-checker green; Nyquist mapping ≥ acceptance criteria',
+    skipIn: [],
+  },
+  {
+    id: 'EXECUTE', glyph: '▅',
+    purpose: 'Wave-based parallel execution, fresh context per task, atomic commits.',
+    skills: 'TDD, source-driven-development, frontend-ui-engineering (as bound)',
+    artifacts: 'code commits, test files',
+    gate: 'All tasks merged; tests passing; context rot guarded',
+    skipIn: [],
+  },
+  {
+    id: 'VERIFY', glyph: '▆',
+    purpose: 'Acceptance criteria + full test suite + Nyquist compliance check.',
+    skills: 'verification-and-coverage',
+    artifacts: 'VERIFICATION.md',
+    gate: 'Every acceptance criterion has a test that was seen to fail then pass',
+    skipIn: [],
+  },
+  {
+    id: 'REVIEW', glyph: '▇',
+    purpose: 'Code quality, security, performance, simplification — Agent Skills specialists.',
+    skills: 'code-review, security-and-hardening, performance-optimization, simplify (depth per tier)',
+    artifacts: 'REVIEW.md',
+    gate: 'Issues triaged; criticals resolved; deferred items logged',
+    skipIn: ['SKETCH', 'SPIKE'],
+  },
+  {
+    id: 'SHIP', glyph: '█',
+    purpose: 'Pre-ship checklist, clean git history, PR creation with quality docs.',
+    skills: 'shipping-and-deployment',
+    artifacts: 'SHIP.md, PR description',
+    gate: 'Pre-ship checklist complete; PR opened; CI green',
+    skipIn: ['SPIKE'],
+  },
+];
+
+const PATTERNS = [
+  {
+    name: 'Strict enum',
+    desc: 'Answer must be one of a small fixed set; downstream code parses the value literally. No "other."',
+    when: 'Used in /sig:calibrate (5 diagnostic questions feed schema validation).',
+  },
+  {
+    name: '3-options-plus-other',
+    desc: 'The default for tradeoff questions. Three named options + recommendation + "other" with verbatim free-text capture.',
+    when: 'Used in /sig:discuss step 4 and /sig:plan approach selection.',
+  },
+  {
+    name: 'Open-ended',
+    desc: 'Genuinely unknown user intent that no pre-formed option set could anticipate. Reserved for workflow openings.',
+    when: 'Used in /sig:new-project and /sig:escalate. Justify if used elsewhere.',
+  },
+];
+
+// ============================================================
+// DERIVATION — must match references/tier-definitions.md exactly.
+// ============================================================
+
+function deriveTier(answers) {
+  if (!answers.scope || !answers.stakes || !answers.novelty || !answers.reversibility || !answers.horizon) {
+    return null;
+  }
+  // Rule 1: FULL escalators
+  if (answers.stakes === 'catastrophic') {
+    return { tier: 'FULL', rule: 'FULL escalator: stakes = catastrophic.' };
+  }
+  if (answers.reversibility === 'irreversible') {
+    return { tier: 'FULL', rule: 'FULL escalator: reversibility = irreversible.' };
+  }
+  if (answers.horizon === 'years') {
+    return { tier: 'FULL', rule: 'FULL escalator: horizon = years.' };
+  }
+  // Rule 2: SPIKE gates (all must hold)
+  if (
+    ['none', 'minor'].includes(answers.stakes) &&
+    ['first-for-org', 'first-in-industry'].includes(answers.novelty) &&
+    ['hours', 'days'].includes(answers.horizon) &&
+    ['throwaway', 'feature'].includes(answers.scope)
+  ) {
+    return { tier: 'SPIKE', rule: 'SPIKE: low stakes + novel + short horizon + bounded scope.' };
+  }
+  // Rule 3: SKETCH gates (all must hold)
+  if (
+    answers.scope === 'throwaway' &&
+    answers.stakes === 'none' &&
+    answers.reversibility === 'trivial' &&
+    ['hours', 'days'].includes(answers.horizon)
+  ) {
+    return { tier: 'SKETCH', rule: 'SKETCH: throwaway + no stakes + trivial reversibility + short horizon.' };
+  }
+  // Default
+  return { tier: 'FEATURE', rule: 'FEATURE (default — answers don\'t match SKETCH, SPIKE, or FULL gates).' };
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+
+const state = { answers: {} };
+
+function renderQuestions() {
+  const root = document.getElementById('sim-questions');
+  root.innerHTML = QUESTIONS.map((q, i) => `
+    <div class="sim-q">
+      <div class="sim-q-label">${i+1}. ${q.label}</div>
+      <div class="sim-q-sub">${q.sub}</div>
+      <div class="sim-options">
+        ${q.options.map(opt => `
+          <div class="sim-option" data-q="${q.id}" data-val="${opt.val}">
+            <span class="opt-val">${opt.val}</span>
+            <span class="opt-desc">${opt.desc}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  root.querySelectorAll('.sim-option').forEach(el => {
+    el.addEventListener('click', () => {
+      const q = el.dataset.q;
+      const v = el.dataset.val;
+      state.answers[q] = v;
+      // toggle selected state for this question's options
+      root.querySelectorAll(`.sim-option[data-q="${q}"]`).forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+      renderResult();
+    });
+  });
+}
+
+function renderResult() {
+  const root = document.getElementById('sim-result');
+  const result = deriveTier(state.answers);
+  const total = QUESTIONS.length;
+  const filled = Object.keys(state.answers).length;
+
+  if (!result) {
+    root.classList.add('empty');
+    root.innerHTML = `
+      <p>Pick an answer for each question.</p>
+      <p style="font-size:12px;margin-top:8px;">${filled} / ${total} answered</p>
+    `;
+    return;
+  }
+  root.classList.remove('empty');
+  const tier = TIERS[result.tier];
+  const allPhases = ['CALIBRATE','DISCUSS','PLAN','EXECUTE','VERIFY','REVIEW','SHIP'];
+  root.innerHTML = `
+    <div class="sim-glyph">${tier.glyph}</div>
+    <div class="sim-tier ${result.tier}">${result.tier}</div>
+    <div class="sim-rule"><strong>Rule fired:</strong><br>${result.rule}</div>
+    <div class="sim-overrides">
+      ${RIGOR_KEYS.map(k => `
+        <div class="row"><span class="key">${k}</span><span class="val">${tier.rigor[k]}</span></div>
+      `).join('')}
+    </div>
+    <div class="sim-phases">
+      <div style="color:var(--muted);margin-bottom:4px;">Phases:</div>
+      ${allPhases.map(p => `
+        <span class="phase-pill ${tier.phases_skipped.includes(p) ? 'skipped' : ''}">${p}</span>
+      `).join('')}
+    </div>
+    <button class="reset-btn" onclick="resetSim()">Reset</button>
+  `;
+}
+
+function resetSim() {
+  state.answers = {};
+  document.querySelectorAll('#sim-questions .sim-option').forEach(o => o.classList.remove('selected'));
+  renderResult();
+}
+
+function renderTierCards() {
+  const root = document.getElementById('tier-grid');
+  root.innerHTML = ['SKETCH','SPIKE','FEATURE','FULL'].map(name => {
+    const t = TIERS[name];
+    return `
+      <div class="tier-card ${name}">
+        <div class="tname">${t.glyph} ${name}</div>
+        <div class="tsub">${t.label}</div>
+        <div class="twhen">${t.when}</div>
+        <div class="tphil">${t.philosophy}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderMatrix() {
+  const root = document.getElementById('matrix');
+  const tiers = ['SKETCH','FEATURE','SPIKE','FULL'];
+  const offVals = new Set(['false','none','off','0']);
+  const warnVals = new Set(['basic','light','core','quality-only']);
+  function classify(v) {
+    if (offVals.has(v)) return 'off';
+    if (warnVals.has(v)) return 'warn';
+    return 'on';
+  }
+
+  let html = `<table class="matrix">
+    <thead><tr>
+      <th>override</th>
+      ${tiers.map(t => `<th class="tier-${t}">${TIERS[t].glyph} ${t}</th>`).join('')}
+    </tr></thead><tbody>`;
+
+  for (const k of RIGOR_KEYS) {
+    html += `<tr><td>${k}</td>`;
+    for (const t of tiers) {
+      const v = TIERS[t].rigor[k];
+      html += `<td class="val ${classify(v)}">${v}</td>`;
+    }
+    html += `</tr>`;
+  }
+
+  // phases_skipped row
+  html += `<tr><td>phases_skipped</td>`;
+  for (const t of tiers) {
+    const skipped = TIERS[t].phases_skipped;
+    const display = skipped.length === 0 ? '[]' : `[${skipped.join(', ')}]`;
+    const cls = skipped.length === 0 ? 'on' : 'warn';
+    html += `<td class="val ${cls}">${display}</td>`;
+  }
+  html += `</tr>`;
+
+  html += `</tbody></table>`;
+  root.innerHTML = html;
+}
+
+function renderPhases() {
+  const root = document.getElementById('phase-flow');
+  root.innerHTML = PHASES.map(p => {
+    const skipBadge = p.skipIn.length === 0
+      ? ''
+      : `<div class="skip-marker">skipped: ${p.skipIn.join(', ')}</div>`;
+    return `
+      <div class="phase-card">
+        ${skipBadge}
+        <div class="pglyph">${p.glyph}</div>
+        <div class="pname">${p.id}</div>
+        <div class="ppurpose">${p.purpose}</div>
+        <div class="pmeta">
+          <div class="row"><span class="label">skills</span><span class="value">${p.skills}</span></div>
+          <div class="row"><span class="label">writes</span><span class="value">${p.artifacts}</span></div>
+          <div class="row"><span class="label">gate</span><span class="value">${p.gate}</span></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderPatterns() {
+  const root = document.getElementById('pattern-grid');
+  root.innerHTML = PATTERNS.map(p => `
+    <div class="pattern-card">
+      <h4>${p.name}</h4>
+      <p>${p.desc}</p>
+      <div class="when"><strong>Where:</strong> ${p.when}</div>
+    </div>
+  `).join('');
+}
+
+// init
+renderQuestions();
+renderResult();
+renderTierCards();
+renderMatrix();
+renderPhases();
+renderPatterns();
+</script>
+</body>
+</html>
