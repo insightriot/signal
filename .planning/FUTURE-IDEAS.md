@@ -271,4 +271,50 @@ Then Step 4 runs 3+other only on selected areas. Deselected → `CONTEXT.md` "De
 
 ---
 
-*Last updated: 2026-05-02*
+## `/sig:report` — narrative project report (separate from `/sig:status`)
+
+**Status:** Logged 2026-05-03 during Tranche 4 wrap-up conversation. Gap surfaced when user wanted a "zoom out and tell me what we've done and what remains" view on a real Signal project.
+
+**Context.** `/sig:status` already exists, but it's intentionally a one-screen tactical snapshot — its anti-rationalization table explicitly rejects "make it longer with more sections" (see `.claude/commands/sig/status.md` line 176). It answers *"where am I, what's next."* It does **not** tell the *story* of the project: what was decided in DISCUSS and why, how PLAN broke the work down, which plan tasks shipped vs. remain, what verification surfaced, what the open decisions are.
+
+That's a genuinely different artifact, not a longer status. Mashing them together via a `--report` flag would dilute `/sig:status`'s locked one-screen contract — the one-screen rule is what makes it useful as a check-without-disturbing tool. Two commands, two purposes:
+
+- **`/sig:status`** — operational glance: *where am I, what's next.* ≤30 lines.
+- **`/sig:report`** — narrative read: *what's the whole story, why we got here, what remains.* 60–100 lines.
+
+**Candidate direction.**
+
+New command `/sig:report`. Read-only (same design as `/sig:status` — re-running produces the same output, no `.planning/*` mtimes change, no skills loaded, no agents spawned).
+
+Synthesizes a phase-by-phase narrative covering things `/sig:status` deliberately omits:
+
+- **Phase narrative** — "CALIBRATE on {date} → tier {T} because {triggering answer}. DISCUSS locked {N} decisions, deferred {M}. PLAN broke work into {N} tasks across {M} waves. EXECUTE: {done}/{total} tasks shipped..." Each completed phase gets 2–4 lines that explain *why*, not just *what*.
+- **Plan-task granularity** — from `PLAN.md` if present, list done vs. pending tasks (with wave grouping if applicable).
+- **Decision history** — locked + deferred decisions from `CONTEXT.md`, with rationale.
+- **Outstanding marker counts** — `[INFERRED]` / `[FILL IN]` across all artifacts (uses `tools/lib/walkthrough.js#countMarkers` already shipped in T4.8).
+- **Open questions full list** — not the top-3 truncation `/sig:status` does.
+- **Verification + review status** — if those phases ran, summary of what passed / what's logged.
+- **Recent commit activity** — commits since last phase transition (one-line cap each).
+- **Next action** — same logic as `/sig:status` (`nextActionForPhase` from `tools/lib/status.js`).
+
+**Tier-aware behavior.**
+
+| Tier | Output |
+|---|---|
+| SKETCH | Stub — there's not much story to tell on a throwaway. Maybe 10–15 lines. |
+| FEATURE | Standard depth. ~60 lines. |
+| SPIKE | Findings-oriented narrative — what we explored, what we learned, what the answer is. ~40 lines. |
+| FULL | Full depth. ~80–100 lines. Every phase gets its narrative paragraph. |
+
+**Why log, not fix now.** New command means: new file in `.claude/commands/sig/`, new entry in validator's `REQUIRED_COMMANDS`, README mentions, MCP/skill descriptions registered, decision-tree viewer (`docs/map/index.html`) updated. Not huge, but not a one-line fix either. Bundle it as a Tranche 5 (or post-T4-polish) task with `/sig:status`'s tooling reused (`readProfile`, `readState`, `readOpenQuestions`, `nextActionForPhase`).
+
+**Anti-rationalization to lock in early:**
+- "Just add `--detailed` to `/sig:status`." — No. The one-screen rule is load-bearing for `/sig:status`. Adding flags that change its shape destroys the contract.
+- "Read `cat .planning/*.md` does this already." — Reading 6+ files manually every time you context-switch back is exactly what `.planning/` exists to *prevent*. The synthesis is the value; the raw files are the substrate.
+- "Make it write to a file so it can be shared." — Read-only, same as status. If sharing is needed, pipe stdout to a file. Mutating breaks the check-without-disturbing property.
+
+**Resolve by:** next time the user runs a Signal project past EXECUTE and wants a zoom-out view, OR when promoting future-ideas to a tranche file. Likely Tranche 5 (alongside the multi-select pre-scoping work — both are conversational/UX upgrades to existing commands and could ship together).
+
+---
+
+*Last updated: 2026-05-03*
