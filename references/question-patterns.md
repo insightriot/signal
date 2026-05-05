@@ -111,6 +111,40 @@ Question — one-line ask, possibly with a brief framing.
 
 ---
 
+## Rendering — how each pattern hits the screen
+
+The shapes shown above describe the *content* of each option (name, one-line description, "Pick this if" trade-off, recommendation). The renderer below decides *how* that content reaches the user. Default to Claude Code's native `AskUserQuestion` tool wherever it fits — it's a structured form (header + tabbed/checkbox options + auto-added "Other" + free-text input on "Other"), and it's the difference between "user reads a wall of markdown and answers in prose" and "user clicks a choice and moves on."
+
+### Strict enum → `AskUserQuestion(multiSelect: false)`
+
+- `header`: the one-line question.
+- `options`: one entry per enum value, each with a `description` of what the value means.
+- `multiSelect: false`.
+- The tool auto-adds an "Other" choice. For strict enums it must be treated as a request to **restate the question** — strict enums reject free-text by definition. Re-issue the same `AskUserQuestion` call after restating.
+
+### 3+other → `AskUserQuestion(multiSelect: false)` *(the default for tradeoff questions)*
+
+- `header`: the one-line ask.
+- `options`: exactly three named options. Each option's `description` carries the one-line summary, the "Pick this if:" trade-off line, and (for the recommended option) a short note like "(recommended — {one-line rationale})". Don't hide the recommendation — it's the synthesis the user invoked Signal for.
+- `multiSelect: false`.
+- The tool auto-adds an "Other" choice. When the user picks it, accept their free-text reply at the next plain-prompt turn (don't issue another `AskUserQuestion`). Capture verbatim per "How to handle 'other' answers" below.
+- **One question per call.** If a phase has N gray areas, that's N separate `AskUserQuestion` calls — never bundle multiple gray areas into a single markdown response. Bundling is the wall-of-text anti-pattern: it forces the user to scroll up/down, track state mentally, and answer in unstructured prose. The whole point of structured asks is to push that state into the harness, not the user's head.
+
+### Open-ended → plain text question
+
+- Do **not** use `AskUserQuestion`. Open-ended answers are free-text by design; the tool's option chrome is misleading for them.
+- Rules from "Open-ended" above still apply (verbatim capture, summarize-back after 2–3 in a row).
+
+### Text-mode fallback (non-Claude-Code runtimes)
+
+When the runtime doesn't render `AskUserQuestion` natively (Codex / Gemini adapters, terminals that strip the tool chrome), drop to a numbered markdown list with the same option content. Apply the fallback for the entire phase command — don't mix renderers within one workflow. This case is rare today; v1 Signal targets Claude Code as the primary runtime.
+
+### When a command sample shows a markdown shape
+
+Several command specs (`/sig:discuss`, `/sig:init`, `/sig:calibrate`, `/sig:verify`) include inline samples of the "Three options:\n\nA. …\nB. …\nC. …" markdown form. Those samples describe the **option content** that flows into `AskUserQuestion` — they are *not* literal output to print to the user. The directive in this section overrides any apparent instruction to "ask using the shape below."
+
+---
+
 ## Decision tree — which pattern does this question need?
 
 ```
@@ -146,6 +180,7 @@ Three things to nail per option:
 | Recommendation that contradicts the trade-off framing | Says "Pick A if speed matters" but recommends B for a project where speed matters — internal inconsistency |
 | Forgetting to make a recommendation | Defers the synthesis the user invoked Signal for |
 | "Other" without a free-text capture mechanism | The user goes off-pattern and the reasoning is lost — future phases re-litigate |
+| Bundling N gray areas into one markdown wall instead of N AskUserQuestion calls | User has to scroll up/down, track which option they picked for which question in their head, and answer in unstructured prose. Each gray area is its own AskUserQuestion call — push state into the harness, not the user's head. |
 
 ---
 

@@ -69,16 +69,19 @@ Based on PROJECT.md and codebase analysis, identify decisions that aren't yet lo
 
 ### 4. Structured Discussion
 
-For each gray area, ask the user using the **3-options-plus-other** pattern (see `references/question-patterns.md`):
+For each gray area, render the question via `AskUserQuestion` per `references/question-patterns.md` § Rendering. **One `AskUserQuestion` call per gray area — never bundle multiple gray areas into a single markdown response.** Wall-of-text bundling forces the user to scroll, track state mentally, and answer in unstructured prose; it defeats the point of a structured ask.
 
-1. **Present exactly three named options.** Each with a one-line description and a "Pick this if:" trade-off that names a real cost or benefit. Force a third if you only have two natural options (e.g., "do nothing for now" or "defer to PLAN") so the user sees the do-nothing trade-off explicitly.
-2. **Make an explicit recommendation.** Pick A, B, or C with one-line reasoning. Hiding the recommendation abdicates the synthesis the user invoked Signal for.
-3. **Accept "other" as free-text.** If none of the three fit, capture the user's stated reasoning verbatim — it goes into `CONTEXT.md` "Locked Decisions" so future phases see *why* the user went off-pattern.
-4. **Lock the decision.**
+For each call:
 
-In `--auto` mode: make all recommendations, present them as a batch, and ask for approval.
+1. **`header`** — the one-line ask for this gray area.
+2. **`options`** — exactly three named options. Each option's `description` carries: a one-line summary, a "Pick this if:" trade-off naming a real cost or benefit, and (on the recommended option) a "(recommended — {one-line rationale})" note. Force a third option if only two are natural (e.g., "do nothing for now" / "defer to PLAN") so the user sees the do-nothing trade-off explicitly.
+3. **`multiSelect: false`.** The tool auto-adds "Other."
+4. **On "Other"** — accept the user's free-text reply at the next plain-prompt turn (don't issue another `AskUserQuestion`). Write the verbatim reasoning to `CONTEXT.md` "Locked Decisions" so future phases see *why* the user went off-pattern.
+5. **Lock the decision** before moving to the next gray area.
 
-`gate_strictness` from PROFILE.md modulates: `off` → batch-approve at end (`--auto` shape); `light` → confirm once at the end; `strict` → confirm each decision individually.
+In `--auto` mode: select the recommended option for every gray area without invoking `AskUserQuestion`. Log each auto-pick to STDOUT and write to `CONTEXT.md`. Then ask once at the end for batch approval (plain prompt, not `AskUserQuestion`).
+
+`gate_strictness` from PROFILE.md modulates: `off` → batch-approve at end (`--auto` shape); `light` → confirm once at the end; `strict` → confirm each decision individually as it's made (one `AskUserQuestion` per gray area, as above — `strict` is the default for FULL tier).
 
 ### 5. Capture Decisions
 
