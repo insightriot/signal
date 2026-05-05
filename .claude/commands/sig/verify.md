@@ -81,7 +81,7 @@ Generate `.planning/{phase}-VERIFICATION.md` with results.
 
 ### Loop Back
 
-If verification fails, ask the user using the **3-options-plus-other** pattern (see `references/question-patterns.md`):
+If verification fails, ask the user using the **3-options-plus-other** pattern (see `references/question-patterns.md`). **Render via `AskUserQuestion(multiSelect: false)` per § Rendering — the option content (name / "Pick this if" / recommendation) flows into the per-option `description`, not as literal markdown output.**
 
 A. **Loop back to EXECUTE.** Fix the specific failures and re-run VERIFY.
    Pick this if: the gap is small, fixes are well-scoped, and you've looped <3 times for this phase. Default for first/second loops.

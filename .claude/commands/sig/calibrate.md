@@ -27,7 +27,7 @@ Before asking, detect which sub-case applies by checking the working directory:
 - **Likely brownfield** — `.git/` exists AND `git rev-list --count HEAD` ≥ 1 AND there are tracked source files (use `git ls-files | head -20` to spot-check). The project has code and history but no Signal touch yet.
 - **Likely greenfield** — no `.git/` OR no commits OR no tracked source files. The project is fresh / pre-code.
 
-Then ask using the 3-options-plus-other shape (per `references/question-patterns.md`):
+Then ask using the 3-options-plus-other shape (per `references/question-patterns.md`). **Render via `AskUserQuestion(multiSelect: false)` per § Rendering — the markdown shape below describes the option content (header + per-option name / description / "Pick this if" / recommendation marker), not literal output to print.**
 
 ```
 I don't see a `.planning/` directory here.
@@ -103,7 +103,7 @@ Signal's architecture requires `.planning/` to be tracked in git — it's the pr
 
 ### 2. Ask the 5 diagnostic questions
 
-Ask one at a time. Use the **exact enum values** below — no synonyms, no free text. Restate the question if the user's answer doesn't match an enum value.
+Ask one at a time. **Render each question via `AskUserQuestion(multiSelect: false)` per `references/question-patterns.md` § Rendering** — the markdown below describes the per-option `description` content. Use the **exact enum values** below as option labels — no synonyms, no free text. The tool's auto-added "Other" choice should be treated as a request to restate the question (strict-enum rule); re-issue the same `AskUserQuestion` call.
 
 1. **Scope** — How big is this work?
    - `throwaway` — one-shot, will be deleted

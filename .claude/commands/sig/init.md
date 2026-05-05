@@ -83,7 +83,7 @@ Exit.
 
 #### 1.4 `.planning/` exists but no `PROFILE.md`?
 
-If `.planning/` directory exists but `readProfile` threw with `not found` — this is the ambiguous case. Could be a partial init that crashed, an abandoned attempt, or a hand-rolled `.planning/` (like Signal's own bootstrap directory). **Halt and ask** using a 3+other pattern (per `references/question-patterns.md`):
+If `.planning/` directory exists but `readProfile` threw with `not found` — this is the ambiguous case. Could be a partial init that crashed, an abandoned attempt, or a hand-rolled `.planning/` (like Signal's own bootstrap directory). **Halt and ask** using a 3+other pattern (per `references/question-patterns.md`). **Render via `AskUserQuestion(multiSelect: false)` per § Rendering — the markdown below describes option content, not literal output.**
 
 ```
 .planning/ exists but no PROFILE.md was found. This is ambiguous — could be a
@@ -370,7 +370,7 @@ Order rationale: Vision + Problem are prerequisites for Success Criteria + Done 
 
 #### 5.3 Question pattern for `[INFERRED]` markers (3+other)
 
-Per `references/question-patterns.md`. Use this shape verbatim:
+Per `references/question-patterns.md`. **Render via `AskUserQuestion(multiSelect: false)` per § Rendering — one call per marker.** The shape below describes the per-option content (name / one-line description / recommendation marker), not literal markdown to print to the user.
 
 ```
 {Field name} (inferred from {source — e.g., "README + framework + activity signals"}):
@@ -399,7 +399,7 @@ If none of these fit, describe what you'd prefer and I'll capture it.
 
 #### 5.4 Question pattern for `[FILL IN]` markers (open-ended-or-defer)
 
-`[FILL IN]` markers exist because Signal couldn't infer the field. There's no inferred content to accept, so the 3+other shape doesn't fit cleanly. Use the open-ended-justified pattern from `references/question-patterns.md` (the workflow-opening exception):
+`[FILL IN]` markers exist because Signal couldn't infer the field. There's no inferred content to accept, so the 3+other shape doesn't fit cleanly. Use the open-ended-justified pattern from `references/question-patterns.md` (the workflow-opening exception). **Render as plain-text question — do NOT use `AskUserQuestion`** (open-ended answers are free-text by design; the tool's option chrome is misleading for them). The "Or pick: A. Defer / B. Skip" fallback at the end of the prompt stays as literal markdown — let the user reply with prose or with "A" / "B".
 
 ```
 {Field name} — Signal can't infer this; you have to articulate it.
