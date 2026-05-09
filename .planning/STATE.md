@@ -4,13 +4,19 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 4 — Brownfield Onboarding via `/sig:init` — 15 of 16 tasks shipped.** T4.1 + T4.2–T4.7 + T4.8 + T4.9–T4.12 + T4.14 + T4.15 + T4.16 shipped. Only remaining: T4.13 (fixture tests, v0.1.1 candidate). See `TRANCHE-4.md` for full task list.
+**Tranche 4 — Brownfield Onboarding via `/sig:init` — 16 of 16 tasks shipped.** T4.1 + T4.2–T4.7 + T4.8 + T4.9–T4.12 + T4.13 + T4.14 + T4.15 + T4.16 + T4.17 shipped. See `TRANCHE-4.md` for full task list.
 
-The brownfield path is now feature-complete on the markdown + code layer, including the conversational assumption-surfacing walkthrough. v0.1.0 tag-and-publish ready pending one external validation: marketplace-install behavior for plugin-agent registration (F2 unknown).
+The brownfield path is now feature-complete on the markdown + code layer, including the conversational assumption-surfacing walkthrough and fixture-based regression coverage for the synthesizer. v0.1.0 tag-and-publish ready pending one external validation: marketplace-install behavior for plugin-agent registration (F2 unknown).
 
 Tranche 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the markdown and code layer.
 
 ## Completed
+
+- **Tranche 4, Task 13 — Fixture-based tests for `/sig:init` flow** (2026-05-09):
+  - **`tests/fixtures/init/{node,python,dormant}-project/.planning/scan/`** (12 new files) — three project fixtures with hand-authored `{stack,structure,activity,quality}.md` files modeled on the real T4.15 dogfood shape but synthetic (Node Express + GitHub-Actions-CI; Python Flask + no CI + Sphinx docs; Ruby Sinatra + Travis-legacy + dormant 9 months). Each fixture totals ~150–200 lines across the 4 scan files.
+  - **`tests/init-fixtures.test.js`** (new, 21 tests) — per fixture: (a) all 4 scans load via `readAllScans`, (b) load-bearing fields extract correctly via `extractSection` + `extractField` (health, framework, CI, license, test runner), (c) one `toMatchInlineSnapshot` of the synthesized 10-field bundle (runtime / lockfile / projectAge / contributors90d / health / defaultBranch / ciPlatforms / license / testAssessment / todoCount). Plus a cross-fixture `describe` block enforcing scanner-ownership boundaries (CI never in stack; Health never in quality; Frameworks never in structure; Test Runners never in stack). Dormant fixture's `Status: dormant` + `rule 2 fired` extraction is the spec-named focus.
+  - **Design choice locked.** Scanners are agent specs (markdown), not JS — so what's testable in code is the synthesis layer in `tools/lib/landscape.js`, not the scan itself. The TRANCHE-4 spec's "snapshot of the generated LANDSCAPE.md shape" reframed as snapshot of the *extracted-values bundle* — what the LANDSCAPE.md template consumes. Re-implementing scanner logic in JS to test the scanners themselves was rejected (two truths, maintenance trap).
+  - **Tests 148 → 169** (+21). Validator green.
 
 - **Tranche 4, Task 8 — Assumption-surfacing walkthrough in `/sig:init` Step 5** (2026-04-27):
   - **`tools/lib/walkthrough.js`** (new) — two helpers: `countMarkers(content)` returns `{inferred, fillIn, total}` and powers the pre-walkthrough zero-marker skip path; `appendNote(content, note)` adds a `- ` bullet to the `## Notes` section, creating the section if absent. Marker detection deliberately uses `\\[INFERRED[^\\]]+\\]` / `\\[FILL IN[^\\]]+\\]` (requires content after the keyword) so the PROJECT.md header's prose references — `Every \`[INFERRED]\` and \`[FILL IN]\` marker is your responsibility...` — don't inflate the count.
@@ -219,14 +225,13 @@ Tranche 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the mark
 
 ## Active
 
-**Tranche 4 — `/sig:init` brownfield onboarding** is now feature-complete on the markdown + code layer including the conversational assumption-surfacing walkthrough. 15 of 16 tasks shipped (T4.1 + Waves 2 + 3 + adjacent updates + T4.15 dogfood + T4.16 docs + T4.8 walkthrough). Synthesis pipeline validated end-to-end on Signal-on-Signal; brownfield path documented in README + tier-definitions; F2 blocker has a documented fallback path.
+**Tranche 4 closed on the markdown + code layer.** All 16 task slots shipped (T4.1 + Waves 2 + 3 + adjacent updates + T4.13 fixtures + T4.15 dogfood + T4.16 docs + T4.8 walkthrough + T4.17 AskUserQuestion wiring). Synthesis pipeline validated end-to-end on Signal-on-Signal; brownfield path documented in README + tier-definitions; F2 blocker has a documented fallback path; synthesizer regression coverage is now in place via three project fixtures.
 
-**Pending dogfood validation of T4.8.** The walkthrough is implemented + unit-tested but hasn't been exercised against a real PROJECT.md draft. Recommended next pass: re-run `/sig:init` on a fresh worktree and walk all 7 fields to confirm the conversational layer is non-fatiguing in practice (the Wave 4 design's success criterion #8). Defer this dogfood until either marketplace validation lands or T4.13 fixtures need a target.
+**Pending dogfood validation of T4.8.** The walkthrough is implemented + unit-tested but hasn't been exercised against a real PROJECT.md draft. Recommended next pass: re-run `/sig:init` on a fresh worktree and walk all 7 fields to confirm the conversational layer is non-fatiguing in practice (the Wave 4 design's success criterion #8). Bundle this dogfood with marketplace validation when that publish-then-test cycle happens.
 
 **Open items, in priority order:**
 1. **Marketplace-install validation** (pre-publish blocker for F2): publish a test build of Signal, install via marketplace, verify whether named subagents resolve and what prefix (if any) Claude Code applies. Update init.md Step 2 table accordingly. **The single remaining external blocker between current state and shipping v0.1.0.** Not a TRANCHE-4 task (needs publish-then-test cycle).
-2. **T4.13 fixture tests** — Node / Python / dormant-project fixtures. Hardens the synthesizer against regressions. v0.1.1 candidate; only remaining TRANCHE-4 task.
-3. **T4.8 conversational dogfood** — exercise the walkthrough against a real brownfield run; surface fatigue / phrasing issues. v0.1.1 candidate; can ride the next /sig:init dogfood pass.
+2. **T4.8 conversational dogfood** — exercise the walkthrough against a real brownfield run; surface fatigue / phrasing issues. Can ride the next `/sig:init` dogfood pass alongside marketplace validation.
 
 **Five TRANCHE-4 design decisions resolved (all logged):**
 - Scanner count → fixed at 4.
@@ -243,4 +248,4 @@ None.
 
 ## Last Updated
 
-2026-04-27 (T4.8 shipped: assumption-surfacing walkthrough live in `/sig:init` Step 5; tools/lib/walkthrough.js + 22 tests added; bundled Node-22 regex fix in landscape.js; tests 126 → 148; only T4.13 fixtures remain in TRANCHE-4)
+2026-05-09 (T4.13 shipped: fixture-based regression tests for `/sig:init` synthesizer — 3 fixtures × 4 scan files + `tests/init-fixtures.test.js` with 21 tests including the spec-named dormant-health assertion + cross-fixture scanner-ownership discipline. Tests 148 → 169. Tranche 4 closed on markdown + code layer; v0.1.0 ship gated only on marketplace-install validation for F2.)
