@@ -317,4 +317,78 @@ Synthesizes a phase-by-phase narrative covering things `/sig:status` deliberatel
 
 ---
 
-*Last updated: 2026-05-03*
+## `/sig:audit` — engineering-readiness audit (codebase scorecard + refactor plan)
+
+**Status:** Logged 2026-05-09. Source: review of *Code Evaluation Audit* (Nate Bjones, `promptkit.natebjones.com/20260504_qbn_promptkit_1`) — adapted, not ported. Two interview-style prompts in the source; the 6-dimension scorecard is the keeper insight, translated to Signal's artifact-driven substrate. Drop the source's "Mythos-class adversarial review readiness" framing — newsletter-bait tied to a 2026 news cycle; the underlying dimensions are evergreen without it.
+
+**Context.** `/sig:init` produces `LANDSCAPE.md` — a *descriptive* snapshot of an existing codebase (stack, structure, tests, activity). It deliberately stops short of *evaluating* what it found. There's a real adjacent capability gap: a user finishing `/sig:init` (or returning months later) often wants the next question answered — *"how ready is this codebase for the engineering rigor I'm about to apply to it?"* That's an audit, not a landscape.
+
+### Candidate direction
+
+New read-only command, sibling to `/sig:init` and `/sig:status`. Same design discipline as `/sig:status` and the proposed `/sig:report`: re-running produces the same output, no `.planning/*` mtimes change, no skills loaded (light agent use is fine — see below). Writes its own artifact (`.planning/AUDIT.md` + optional `.planning/WHAT-GOOD-LOOKS-LIKE.md`) so it doesn't churn LANDSCAPE.md.
+
+**Six dimensions to score (1–10 each, with composite weighted by tier):**
+
+| Dimension | Primary input | Notes |
+|---|---|---|
+| Modularity & boundary clarity | `agents/scanners/structure-scanner` | Top-level layout, monorepo shape, module boundaries |
+| Test coverage & test quality | `agents/scanners/quality-scanner` + new ratio check | Folds the source kit's functional-vs-quality ratio diagnostic into the *quality* half of this score |
+| Documentation & explicitness | `quality-scanner` (README/CHANGELOG) + `structure-scanner` (docs/) | Includes ADR/decision-log presence |
+| Dependency health | `agents/scanners/stack-scanner` (lockfiles/manifests) | Age, count, vendoring posture |
+| Tribal-knowledge risk | `agents/scanners/activity-scanner` (contributor concentration, hot files) + LANDSCAPE.md | Inverse: high score = low tribal-knowledge dependency |
+| Security-model explicitness | new (interview supplement OR scanner extension) | Auth/trust boundaries, threat-model presence, secrets-handling discipline |
+
+Five dimensions map cleanly onto existing `/sig:init` scanner outputs — `/sig:audit` would consume the four `.planning/scan/*.md` files plus `LANDSCAPE.md` rather than re-running scanners. **One (security-model explicitness) doesn't have a clean scanner source today.** Two viable approaches: (a) light interview supplement using the T4.8 walkthrough pattern (3–4 targeted questions surfaced as 3+other), or (b) extend `quality-scanner` to detect security-relevant files (CSP headers, threat-model docs, security.md, dependabot config). Lean toward (a) for v1 of audit since the dimension is judgment-heavy by nature; (b) becomes worth it when a second new dimension also wants scanner-level signal.
+
+**Output sections (composite ~80–120 lines for FULL):**
+- Six-dimension scorecard, with one-line evidence per dimension and one-line "what a 10 looks like for *this* codebase."
+- Composite weighted score (security-sensitive systems weight modularity + security higher; weighting derived from PROFILE.md tier + concerns block if the Option C concerns work has shipped).
+- Ranked structural blockers — concretely *what would impede AI-assisted engineering work*, not generic "bad practice." Severity tagged Critical / High / Medium / Low.
+- Prioritized refactor plan — 3–7 items, rough effort estimate in days/sprints (not hours; precision is dishonest at this scope).
+- Honest risk summary written *for the user*, not "for leadership" — the source kit's CTO/VP framing is enterprise-coded and doesn't fit Signal's solo-dev / small-team audience.
+- Optional `WHAT-GOOD-LOOKS-LIKE.md` companion artifact — north-star description of the target state, not just a to-do list.
+
+**Tier-aware behavior:**
+
+| Tier | Output |
+|---|---|
+| SKETCH | Skip entirely. Throwaways don't need an audit; noise-to-signal inverts. |
+| FEATURE | Light pass — scorecard + top 3 blockers + 3-item refactor plan. ~40 lines. |
+| SPIKE | Findings-shaped — what we explored, what's risky if we keep any of this code. ~30 lines. |
+| FULL | Full pass — six dimensions scored fully, 5–7 blockers, refactor plan with effort estimates. ~80–120 lines. |
+
+**Where it slots in the flow** — three plausible entry points; not locking before v1 ships:
+1. **After `/sig:init`, before `/sig:calibrate`** — "your codebase is at readiness X; here's what calibrate is about to apply." Useful prologue for FULL-tier brownfield adoption.
+2. **Standalone on demand** — run anytime mid-project to score current state.
+3. **Periodic checkpoint** — re-run quarterly to track readiness drift over time.
+
+Default first delivery: standalone-on-demand (#2). The brownfield-prologue placement (#1) is a follow-on once #2 proves out.
+
+### Companion change — eval-balance check in `test-engineer`
+
+The source kit's second prompt — functional-vs-quality test ratio diagnostic — has a second home outside `/sig:audit`: as a small standing question inside the existing `agents/specialists/test-engineer.md` agent. During every REVIEW phase, test-engineer estimates the functional/quality ratio of tests touching the changed surface and flags if skewed beyond a tier-appropriate target (e.g., FULL ≈ 50/50; FEATURE ≈ 70/30; SKETCH N/A).
+
+Small change (1–2 hours). Ship **after** `/sig:audit` proves the ratio framing — don't propagate the insight into ongoing review work until the audit's scorecard validates it across multiple projects.
+
+### Why log, not fix now
+
+- T4.13 (fixture tests, v0.1.1) is the only remaining Tranche 4 task; close that and ship v0.1.0 before opening new command surface.
+- New command surface area = validator's `REQUIRED_COMMANDS`, README mentions, decision-tree viewer (`docs/map/index.html`), MCP/skill descriptions. Not huge, but bundle with planning work, not a one-off.
+- Security-model dimension has a real "where does input come from" design question (interview supplement vs. scanner extension) that wants a tiny investigation before locking the dimension in.
+- The audit's value depends on having more than one real brownfield Signal user — until then, scoring rubrics are calibrated against a sample of one (Signal-on-Signal).
+
+### Anti-rationalization to lock in early
+
+- *"Just put scoring inside `/sig:init`."* — No. `/sig:init` is *descriptive* (what's there); audit is *evaluative* (vs. a target). Folding evaluation into description forces every brownfield run through audit machinery, including SKETCH, where the audit explicitly shouldn't run.
+- *"Use the source kit's interview-style prompts directly."* — No. Signal works from artifacts (LANDSCAPE.md, scanners, code), not interviews. Adapt the *dimensions and judgments*; don't port the prompts.
+- *"Add eval-balance check to `test-engineer` first, audit later."* — Reverse it. Audit is the substantive new capability; the test-engineer fold-in is a derivative insight. If the audit's framing turns out wrong, you've only paid for one mistake instead of two.
+- *"Make `/sig:audit` overwrite `LANDSCAPE.md`."* — No. LANDSCAPE.md is a stable `/sig:init` artifact. Audit produces its own (`AUDIT.md`) so re-running doesn't churn upstream.
+- *"Skip the security-model dimension since it doesn't have a scanner."* — No. It's load-bearing — codebase audits without security explicitness produce false comfort. Solve the input-source question instead.
+- *"Run audit before every phase."* — No. Audit is strategic, not transactional. Default cadence: on demand + once per brownfield onboarding. Per-phase running is exactly the rigor-noise the calibration layer exists to suppress.
+- *"Keep the 'Mythos readiness' framing, it'll attract attention."* — No. Tying surface area to a news cycle dates the command. Underlying dimensions stand on their own.
+
+**Resolve by:** v0.1.0 ships → first FEATURE-or-FULL tier brownfield adoption beyond Signal-on-Signal where the user post-`/sig:init` wishes they had a *"is this ready?"* answer → promote to a Tranche 5 sub-tranche slot. Likely co-ships with `/sig:report` since both are read-only synthesis commands and could share helper code in `tools/lib/`.
+
+---
+
+*Last updated: 2026-05-09*
