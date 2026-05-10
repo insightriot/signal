@@ -1,0 +1,47 @@
+agent_zone_checksum: 9b7fb3f14f370fcbce66e9aa3e33633f77542a4616a3203b5eaa7d6c0444bdca
+contributes_to_confident:
+- target: income_replacement
+  venture: brett
+- target: exit_path
+  venture: brett
+contributes_to_tbd:
+- question: Does Signal's role as personal infrastructure (methodology + tooling for all AI
+    dev work) meaningfully accelerate `crowe_optionality_q3` (IR+TV revenue 1.5x by Oct 1),
+    or is the link too indirect to count?
+  status: tbd
+- question: "Signal is tagged `personal-infra` and `methodology` \u2014 does it contribute\
+    \ to `exit_path` ($100M exit) as a force-multiplier on other ventures, or only incidentally?"
+  status: tbd
+drift_callout: null
+generated_at: '2026-05-10T12:05:00Z'
+inputs:
+- sha256: 5cd37f9fbd63d845dc3d3e460f3364ce63ed7b7b26bf5c98ebb0e945eab28558
+  source: daily_log
+- sha256: df6b13214e8e6c6186dd908bf1f1dcc6caf365ee94ded308ad35d05b86fc07ea
+  source: git_log
+- sha256: 216e886aa700ab29ba1045f023724c14338d706accad410c77b26aed63fb34b1
+  source: planning
+- sha256: 47d8dcdeba1ff18fbb0ab0aa008078d2c7e02cce7a3b0c373de5c53eda390bc6
+  source: portfolio
+- sha256: f5e2b928950b670405444801c7b16ad94d41a228f714fc9708815d4d0c8c55f8
+  source: readme
+llm:
+  max_tokens: 4096
+  model: claude-sonnet-4-6
+  prompt_template_version: 2026-05-09a
+  schema_keys:
+  - blockers
+  - contributes_to_confident
+  - contributes_to_tbd
+  - current_sprint
+  - decision_rules
+  - deferred
+  - focus
+  - links
+  - next_actions
+  temperature: 0.0
+project_id: signal
+redactions: []
+state_declared: active
+state_observed: active
+version: 1
