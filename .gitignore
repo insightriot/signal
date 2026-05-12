@@ -10,3 +10,4 @@ coverage/
 .claude/settings.local.json
 .claude/worktrees/
 .dogfood/
+.upstream/
