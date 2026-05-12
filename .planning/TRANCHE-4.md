@@ -270,6 +270,54 @@ will proceed but tier accuracy may be reduced for the deferred dimensions.
 - **T4.16** ✓ — Documentation update. Shipped 2026-04-26. README gained "Bringing Signal to an existing codebase" section (between greenfield walkthrough and `.planning/`-in-git note) + `/sig:init` in Command reference. tier-definitions.md gained "Brownfield calibration patterns" section (between Escalation and Design notes) — codifies why brownfield leans higher-tier (reversibility-not-trivial + horizon-rarely-hours) and four practical patterns. LICENSES.md unchanged (no new attribution — `/sig:init` is Signal's own design).
 - **T4.17** — Wire `AskUserQuestion` into decision-gathering commands. Shipped 2026-05-05. **Trigger:** real-project dogfood pass on `/sig:discuss` (Phase 2 of MPS) produced a markdown wall — six 3+other gray areas bundled into one scrollable response — instead of one structured question per gray area. **Root cause:** Signal's command specs described the 3+other contract in prose ("Present three named options...") but never told the model to invoke the platform's `AskUserQuestion` tool; GSD's discuss-phase had explicit AskUserQuestion directives that got dropped in Signal's ~7× compression of the spec. **Patches:** `references/question-patterns.md` gained a `## Rendering` section mapping each pattern to its tool — strict-enum and 3+other → `AskUserQuestion(multiSelect: false)`, open-ended → plain text, plus a text-mode fallback for non-Claude-Code runtimes — and an anti-pattern row for wall-of-text bundling. `commands/sig/discuss.md` Step 4 rewritten to explicitly invoke `AskUserQuestion`, one call per gray area. `commands/sig/init.md` (1.4 + 5.3 + 5.4), `commands/sig/calibrate.md` (Scenario A redirect + the 5 diagnostic questions), and `commands/sig/verify.md` (loop-back failure path) gained one-line directives at each inline 3+other / strict-enum sample making clear the markdown describes option content, not literal output. `[FILL IN]` open-ended fallback in init.md 5.4 explicitly stays plain-text. **Validator:** green; tests unchanged (this is a spec-doc patch — no helper code touched). **Why it matters:** AskUserQuestion is Claude Code-native; leaving it on the floor means every decision-gathering command produced GSD-pre-port-quality UX. Closes the gap between Signal's question-pattern *contract* (well-specified) and its *rendering* (was implicit, now explicit).
 
+- **T4.18** (will be renamed to **M4.t18** during execution) — Vocabulary refactor: Tranche → Milestone, add Epic mid-layer. **Trigger:** 2026-05-12 conversation. User asked "where the fuck did Tranche come from?" Investigation traced it to a single commit (`236aecc`, 2026-04-22) that scaffolded `.planning/` with hand-rolled file names and picked "Tranche" with no principled grounding. The term is a finance import (loan tranches, bond tranches), fancy-sounding but opaque to anyone outside finance — fails the "could a new contributor guess what this means" test. None of the 9 upstream inspiration repos in `.upstream/` use "Tranche"; GSD uses "Milestone." Signal is downstream of GSD, so vocabulary should align unless there's a reason to diverge — there isn't.
+
+  **Locked vocabulary:**
+  - **Milestone** (M1, M2…) replaces Tranche.
+  - **Epic** (M5.E1, M5.E2…) is a new mid-layer that names the structure Signal already invented as awkward "sub-tranches" (5a, 5b, …).
+  - **Phase**, **Wave**, **Task** unchanged.
+
+  **ID scheme:**
+  - `M4` — Milestone 4.
+  - `M4.t17` — Task 17 in Milestone 4 (flat, no epic layer).
+  - `M5.E3` — Epic 3 in Milestone 5.
+  - `M5.E3.t2` — Task 2 in Epic 3 in Milestone 5.
+  - Lowercase `t` for tasks so M / E / t are visually distinct.
+
+  **The persistence rule** (what the original instinct was really about): the **ID is persistent identity, never changes.** Phase and Wave are *metadata* on the item — they describe transient status (in-transit, delivered), not address. Document this rule in `PROJECT.md` alongside the vocabulary table.
+
+  **Files to add/change:**
+  - (a) `git mv .planning/TRANCHE-{1..5}.md .planning/MILESTONE-{1..5}.md` (5 renames).
+  - (b) Prose replacement across all `.md` files in repo *excluding* `.upstream/`, `CHANGELOG`, and historical commit-message references (those are frozen history): `Tranche` → `Milestone`, `tranche` → `milestone`, T-prefix IDs → M-prefix IDs (e.g., `T4.17` → `M4.t17`). ~17 files affected.
+  - (c) Add a `## Vocabulary` section to `PROJECT.md` (or `CLAUDE.md`) with the locked terms + ID-is-identity rule.
+  - (d) Update Signal's commands (`.claude/commands/sig/*.md`) that reference `TRANCHE-N.md` to look for `MILESTONE-N.md` first.
+  - (e) Backward-compat: commands recognize `TRANCHE-N.md` for one release cycle with a one-line deprecation warning pointing to the migration prompt. Drop in the release after.
+  - (f) `tools/validate-plugin.js` — grep for hard-coded TRANCHE references and update.
+  - (g) `DECISIONS.md` append entry locking the new vocabulary with this trigger as rationale.
+
+  **Existing IDs:** don't retroactively assign epics to past milestones. M1–M4 had flat task lists; their IDs become `M{N}.t{X}`. Epics start being used in M5 where the sub-tranche structure already exists (M5.E1 = upstream phases, M5.E2 = COMPOUND memory phase, M5.E3 = security upgrade, M5.E4 = TDD & gate upgrades, M5.E5 = context-discipline hooks, M5.E6 = tactical GSD ports / `/sig:docs-update`).
+
+  **Migration helper for downstream projects.** Signal projects in the user's other repos will have `.planning/TRANCHE-*.md` from earlier Signal versions. Publish a portable refactor prompt at `docs/migration-vocab-v0.1.0.md` (or in README) as part of this task. The prompt: lists files using old vocab, dry-run summary, ask confirmation, execute renames + replacements, append DECISIONS.md entry, report changes. **Canonical source for the prompt body is the 2026-05-12 conversation transcript** (Part 3 of the response that proposed this task) — copy verbatim, don't redraft from scratch.
+
+  **Acceptance criteria:**
+  1. `grep -ri "tranche" --include="*.md" --exclude-dir=.upstream .` returns zero matches in current-state docs (historical CHANGELOG/commit refs preserved as-is).
+  2. Validator green.
+  3. Tests still pass (doc-only refactor; no helper code logic should change).
+  4. `DECISIONS.md` entry exists locking the rename.
+  5. Migration prompt published at a stable path.
+
+  **Why ship before v0.1.0:** once `Tranche` is in a tagged release, removing it gets harder (release-note hits, PR references). Never have a published Signal that uses the dumb word.
+
+  **Anti-rationalization:**
+  | Temptation | Check |
+  |---|---|
+  | "Just rename Tranche but keep T-prefix IDs." | No. Half-measures recreate the original problem of mixed vocabulary. |
+  | "Add Epic later." | No. The sub-tranches in M5 already exist (5a, 5b…) and need names today. M5 should be born with Epic IDs, not letters. |
+  | "Skip the migration prompt — users can figure it out." | No. The user explicitly flagged this as a real-world use case across multiple projects. Solving it once portably is the whole point. |
+  | "Make Phase change to Stage while we're at it." | No. Signal's Phase = workflow-only is *better* than GSD's overloaded Phase (where Phase doubles as both a numbered work unit AND a workflow stage). Keep Signal's cleaner choice; this refactor is about Tranche, not Phase. |
+
+  **Estimated effort:** half-day focused work + validation.
+
 ---
 
 ## Design decisions to lock during execution (not decided here)

@@ -4,9 +4,9 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Tranche
 
-**Tranche 4 — Brownfield Onboarding via `/sig:init` — 16 of 16 tasks shipped.** T4.1 + T4.2–T4.7 + T4.8 + T4.9–T4.12 + T4.13 + T4.14 + T4.15 + T4.16 + T4.17 shipped. See `TRANCHE-4.md` for full task list.
+**Tranche 4 — Brownfield Onboarding via `/sig:init` — 16 of 17 tasks shipped.** T4.1 + T4.2–T4.7 + T4.8 + T4.9–T4.12 + T4.13 + T4.14 + T4.15 + T4.16 + T4.17 shipped. **Pending: T4.18** — Vocabulary refactor (Tranche → Milestone, add Epic mid-layer; logged 2026-05-12 after investigation traced "Tranche" to a single arbitrary word-choice commit on 2026-04-22 with no principled grounding). Design notes in `TRANCHE-4.md`.
 
-The brownfield path is now feature-complete on the markdown + code layer, including the conversational assumption-surfacing walkthrough and fixture-based regression coverage for the synthesizer. v0.1.0 tag-and-publish ready pending one external validation: marketplace-install behavior for plugin-agent registration (F2 unknown).
+The brownfield path is feature-complete on the markdown + code layer, including the conversational assumption-surfacing walkthrough and fixture-based regression coverage for the synthesizer. v0.1.0 tag-and-publish gated on (a) T4.18 vocabulary refactor — better to never have a tagged Signal release using the finance term — and (b) one external validation: marketplace-install behavior for plugin-agent registration (F2 unknown).
 
 Tranche 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the markdown and code layer.
 
