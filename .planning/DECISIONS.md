@@ -10,7 +10,7 @@ Append-only. When a decision is reversed, *add* a new entry noting the reversal 
 
 **Rationale:** The rundown explicitly flagged this as an open question. Shipping v1 narrow, learning from real use, then expanding is lower-risk than trying to build 10 phases with 9 source-repo ports in one push.
 
-**Implication:** Tranche 4 (v2 integrations) is gated on Tranche 3 completing AND v1 having real users.
+**Implication:** Milestone 4 (v2 integrations) is gated on Milestone 3 completing AND v1 having real users.
 
 ---
 
@@ -26,17 +26,17 @@ Append-only. When a decision is reversed, *add* a new entry noting the reversal 
 
 ## 2026-04-22 — Build Signal with lightweight `.planning/`, not GSD
 
-**Decision:** Manage Signal's own build with a hand-rolled `.planning/` directory (STATE, TRANCHE-{n}, DECISIONS, OPEN-QUESTIONS, CONTEXT). Do not install GSD for this.
+**Decision:** Manage Signal's own build with a hand-rolled `.planning/` directory (STATE, MILESTONE-{n}, DECISIONS, OPEN-QUESTIONS, CONTEXT). Do not install GSD for this.
 
 **Rationale:** GSD would be overkill for a markdown-heavy build, create meta-confusion (whose `.planning/` is canonical?), and impose the exact over-engineering Signal is designed to prevent. Lightweight structure captures 90% of GSD's disciplines (planning, state, decisions log, atomic commits) at ~5% of the overhead.
 
-**Implication:** Once `/sig:calibrate`, `/sig:discuss`, `/sig:plan` work (late Tranche 2 / early Tranche 3), switch to dogfooding Signal on itself — that's where real validation happens.
+**Implication:** Once `/sig:calibrate`, `/sig:discuss`, `/sig:plan` work (late Milestone 2 / early Milestone 3), switch to dogfooding Signal on itself — that's where real validation happens.
 
 ---
 
-## 2026-04-22 — Rebrand deferred to Tranche 1
+## 2026-04-22 — Rebrand deferred to Milestone 1
 
-**Decision:** Manifest `name` fields still say `skills-gsd`. Rename to `signal` happens in Tranche 1 alongside scope-lock and PROFILE.md-schema work, not as part of attribution cleanup.
+**Decision:** Manifest `name` fields still say `skills-gsd`. Rename to `signal` happens in Milestone 1 alongside scope-lock and PROFILE.md-schema work, not as part of attribution cleanup.
 
 **Rationale:** Keep the attribution pass scoped to attribution, not mix in branding changes. One thing at a time.
 
@@ -68,8 +68,8 @@ Full spec: `references/profile-schema.md`. Tier-to-defaults mapping: `references
 - Started with 4 tiers (not 3 or 5): 3 misses SPIKE's exploratory shape; 5 adds cognitive load without a clear third-axis. Revisit after real-project calibration (tracked in OPEN-QUESTIONS.md).
 
 **Implication:**
-- `/sig:calibrate` (Tranche 2) writes this schema literally.
-- Every downstream command reads it via a `readProfile()` helper (to be written in Tranche 2).
+- `/sig:calibrate` (Milestone 2) writes this schema literally.
+- Every downstream command reads it via a `readProfile()` helper (to be written in Milestone 2).
 - Schema version = 1. Bumps on any breaking change. Readers should fail closed on unknown versions.
 
 ---
@@ -81,7 +81,7 @@ Full spec: `references/profile-schema.md`. Tier-to-defaults mapping: `references
 **Rationale:** `.planning/` is the project's institutional memory — state, decisions log, context, open questions, plans, verification reports. If a collaborator clones a repo without `.planning/`, they lose all accumulated project knowledge. That defeats the entire purpose of the file-based state convention. The instinct that "state directories should be ignored" does not apply here — `.planning/` is deliverable documentation that keeps a project coherent across contributors, sessions, and time.
 
 **Implication:**
-- Signal's `/sig:new-project` (and any command that writes to `.planning/`) must check the user's `.gitignore` and warn or auto-correct if `.planning/` is being ignored. Added as a task in `TRANCHE-2.md`.
+- Signal's `/sig:new-project` (and any command that writes to `.planning/`) must check the user's `.gitignore` and warn or auto-correct if `.planning/` is being ignored. Added as a task in `MILESTONE-2.md`.
 - Signal's README and documentation must explicitly instruct users to commit `.planning/`, not ignore it.
 - Any template `.gitignore` Signal ships or recommends must not include `.planning/`.
 
@@ -152,7 +152,7 @@ The convention is **strongly recommended with explicit justification required fo
 **Rationale.** Without a shared convention, phase commands drift into open-ended questions that slow users down and let Claude improvise inconsistently. Mandatory enforcement would fail real edge cases (the first "what are you building?" question doesn't fit 3+other; mid-question clarifications don't either). Loose suggestion would let drift creep back in. The middle path: default to the convention, document the exception in-line.
 
 **Implication:**
-- Tranche 2 Step 3's preamble pass also retrofits any non-conforming question patterns in the 6 phase commands.
+- Milestone 2 Step 3's preamble pass also retrofits any non-conforming question patterns in the 6 phase commands.
 - `references/question-patterns.md` is the authoritative source. Future command authors must reference it.
 - Anti-rationalization tables in commands include question-pattern-specific entries (e.g., "I'll skip the recommendation since the user is in a hurry" → no, the recommendation is one word; the user can override in one word).
 - The Socratic / guided-question UX OPEN-QUESTION is resolved and removed.
@@ -173,7 +173,7 @@ The 5th unbound skill, `using-agent-skills`, is meta — correctly not phase-bou
 **Rationale:** During the audit, an ODI (Outcome-Driven Innovation) Universal Job Map parallel surfaced — Signal's 6 phases collapse ODI's *Locate* (research) and *Prepare* (set up scaffolding, fetch docs, verify framework patterns) into PLAN's tail. Two of the four orphans (especially `source-driven-development`, partially `api-and-interface-design`) are *prep* skills with no clean home in v1's phase decomposition. The theoretically clean fix is a new PREPARE phase between PLAN and EXECUTE; the practical v1 fix is to accept the imprecision and bind to existing phases.
 
 **Implication:**
-- v1: PLAN gains 2 skills (3 total), EXECUTE gains 2 skills (5 total), SHIP gains 1 skill (5 total). Token-cost impact will be measured in Tranche 2 Step 7.
+- v1: PLAN gains 2 skills (3 total), EXECUTE gains 2 skills (5 total), SHIP gains 1 skill (5 total). Token-cost impact will be measured in Milestone 2 Step 7.
 - v2: PREPARE phase is logged as a candidate in `FUTURE-IDEAS.md` with three trigger conditions for promotion (token-budget signal, user-language signal, skill-binding signal).
 - The orphan-skill OPEN-QUESTIONS entry is resolved and removed.
 
@@ -181,7 +181,7 @@ The 5th unbound skill, `using-agent-skills`, is meta — correctly not phase-bou
 
 ## 2026-04-26 — Dogfood approach: worktree + cherry-pick for Signal-on-Signal builds
 
-**Decision:** When using Signal to build Signal itself (the dogfood pattern committed for Tranche 3 Task 1), follow this process:
+**Decision:** When using Signal to build Signal itself (the dogfood pattern committed for Milestone 3 Task 1), follow this process:
 
 1. Create a git worktree (`EnterWorktree` or `git worktree add`) from main HEAD on a fresh branch.
 2. In the worktree, rename hand-rolled colliding files: `.planning/CONTEXT.md` → `.planning/BUILD-CONTEXT.md` and `.planning/STATE.md` → `.planning/BUILD-STATE.md`. Commit the rename as a worktree-only setup commit.
@@ -190,7 +190,7 @@ The 5th unbound skill, `using-agent-skills`, is meta — correctly not phase-bou
 5. Capture friction findings in main's `OPEN-QUESTIONS.md` and `DECISIONS.md`.
 6. Keep the worktree branch around as a record (Action: `keep`, not `remove`).
 
-**Rationale:** The Signal-build's hand-rolled `.planning/` (with its tranche-based meta-state) and Signal-managed `.planning/` (PROFILE / CONTEXT / STATE / `{phase}-*.md`) want the same filenames for some artifacts. A worktree isolates them so the dogfood is a true picture of Signal's behavior on a "real" project rather than a collision-noise mess.
+**Rationale:** The Signal-build's hand-rolled `.planning/` (with its milestone-based meta-state) and Signal-managed `.planning/` (PROFILE / CONTEXT / STATE / `{phase}-*.md`) want the same filenames for some artifacts. A worktree isolates them so the dogfood is a true picture of Signal's behavior on a "real" project rather than a collision-noise mess.
 
 **Implication:**
 - Future dogfood passes (e.g., for `/sig:resume` if it ever needs an end-to-end pass; for v2 phase additions; for any Signal-on-Signal feature work) follow this protocol.
@@ -215,21 +215,21 @@ This matches GSD's pattern (where multi-phase project work was first-class) and 
 
 ---
 
-## 2026-04-26 — T3 Task 5 triage: workflow refinements from dogfood evidence
+## 2026-04-26 — M3 Task 5 triage: workflow refinements from dogfood evidence
 
 **Decision:** Five small workflow refinements applied to command markdown + references, all driven by FULL-tier and SKETCH-tier dogfood findings. None changes the 6-phase flow or the PROFILE.md schema; each codifies what the dogfood actually did or surfaces a subtle precedence rule that wasn't explicit before.
 
 **The five refinements:**
 
-1. **REVIEW gains a `PASS-WITH-FIXES` verdict** (in addition to PASS / FAIL). For Important issues whose total fix is < 50 LOC and tests stay green, the fix lands in REVIEW itself rather than ceremonially looping back to EXECUTE. FAIL is reserved for Critical issues, > 50 LOC fixes, or fixes that need re-planning. **Source:** T3 Task 2 dogfood — the URL shortener's REVIEW found 2 small Important issues (Content-Length pre-check, unhandled-error logging) that were silly to wrap in a full EXECUTE phase.
+1. **REVIEW gains a `PASS-WITH-FIXES` verdict** (in addition to PASS / FAIL). For Important issues whose total fix is < 50 LOC and tests stay green, the fix lands in REVIEW itself rather than ceremonially looping back to EXECUTE. FAIL is reserved for Critical issues, > 50 LOC fixes, or fixes that need re-planning. **Source:** M3 Task 2 dogfood — the URL shortener's REVIEW found 2 small Important issues (Content-Length pre-check, unhandled-error logging) that were silly to wrap in a full EXECUTE phase.
 
-2. **Strict Nyquist accepts two evidence forms** (either is sufficient): per-test red→green git evidence, OR explicit attestation in `{phase}-VERIFICATION.md` that the test was written before the implementation. The atomic-commit-per-slice pattern from EXECUTE naturally supports the attestation form. **Source:** T3 Task 2 dogfood — TDD discipline was real but not preserved as per-test red→green commits.
+2. **Strict Nyquist accepts two evidence forms** (either is sufficient): per-test red→green git evidence, OR explicit attestation in `{phase}-VERIFICATION.md` that the test was written before the implementation. The atomic-commit-per-slice pattern from EXECUTE naturally supports the attestation form. **Source:** M3 Task 2 dogfood — TDD discipline was real but not preserved as per-test red→green commits.
 
-3. **PLAN gains an Environment-check tail step (Step 6).** Confirms the dev runtime matches research's assumed runtime *before* EXECUTE rather than at first `npm install`. Cheap; surfaces drift at the right phase boundary. **Source:** T3 Task 2 dogfood — research assumed `better-sqlite3@11`/Node 22; dev machine on Node 25 needed `@12+`.
+3. **PLAN gains an Environment-check tail step (Step 6).** Confirms the dev runtime matches research's assumed runtime *before* EXECUTE rather than at first `npm install`. Cheap; surfaces drift at the right phase boundary. **Source:** M3 Task 2 dogfood — research assumed `better-sqlite3@11`/Node 22; dev machine on Node 25 needed `@12+`.
 
-4. **DISCUSS gains a tier-aware NFR prompt** before generating REQUIREMENTS.md. FULL prompts for healthcheck / graceful shutdown / structured logging / security headers / rate limiting; FEATURE prompts a lighter set; SPIKE/SKETCH skip. Catches operational hygiene that less-experienced users would miss. **Source:** T3 Task 2 dogfood — F6 (`/healthz`), N1d, N3a/b/c added because Claude is experienced; a real user might not surface them.
+4. **DISCUSS gains a tier-aware NFR prompt** before generating REQUIREMENTS.md. FULL prompts for healthcheck / graceful shutdown / structured logging / security headers / rate limiting; FEATURE prompts a lighter set; SPIKE/SKETCH skip. Catches operational hygiene that less-experienced users would miss. **Source:** M3 Task 2 dogfood — F6 (`/healthz`), N1d, N3a/b/c added because Claude is experienced; a real user might not surface them.
 
-5. **SKETCH 8-artifact floor codified** in `references/tier-definitions.md`. SKETCH still produces 8 `.planning/` files; that's deliberate (the project's memory is load-bearing even at the lowest tier), not a defect. No TRIVIAL tier in v1. **Source:** T3 Task 3 dogfood — the CSV-to-JSON one-shot demonstrated the floor; recommendation is to accept it (the contrast vs FEATURE/FULL is already 10–24x, pushing lower trades documentation value for marginal savings).
+5. **SKETCH 8-artifact floor codified** in `references/tier-definitions.md`. SKETCH still produces 8 `.planning/` files; that's deliberate (the project's memory is load-bearing even at the lowest tier), not a defect. No TRIVIAL tier in v1. **Source:** M3 Task 3 dogfood — the CSV-to-JSON one-shot demonstrated the floor; recommendation is to accept it (the contrast vs FEATURE/FULL is already 10–24x, pushing lower trades documentation value for marginal savings).
 
 **Plus three minor clarifications** (not architectural — listed for completeness):
 - `review.md` precedence note: `review_depth` is the master switch over `security_audit` / `performance_pass` / `simplification_pass`.
@@ -243,52 +243,52 @@ This matches GSD's pattern (where multi-phase project work was first-class) and 
 
 **Rationale.** Triage criterion: each fix had to be small, doc-or-config-only, and traced to a concrete dogfood observation. Larger architectural changes (slash-command testing harness, TRIVIAL tier, domain-novelty-aware research_parallelism) are deferred — they're worth doing only with more user signal than two dogfood passes provide.
 
-**Implication.** OPEN-QUESTIONS.md goes from 20 active items to 2: tier-count validation (waits for real-user data) and slash-command testing harness (TRANCHE-4 candidate). Tranche 3 is now exit-criteria-clean for v1 ship-readiness.
+**Implication.** OPEN-QUESTIONS.md goes from 20 active items to 2: tier-count validation (waits for real-user data) and slash-command testing harness (MILESTONE-4 candidate). Milestone 3 is now exit-criteria-clean for v1 ship-readiness.
 
 ---
 
-## 2026-04-26 — Roadmap reorder: brownfield onboarding promoted to TRANCHE-4
+## 2026-04-26 — Roadmap reorder: brownfield onboarding promoted to MILESTONE-4
 
-**Decision:** `/sig:init` (brownfield onboarding for existing codebases that aren't yet using Signal) becomes TRANCHE-4. The previous TRANCHE-4 (v2 ports per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`) moves to TRANCHE-5. The file `TRANCHE-4.md` is now the `/sig:init` plan; the prior content was renamed via `git mv` to `TRANCHE-5.md`, with sub-tranches renumbered `4a-f` → `5a-f` and the blocking criterion updated.
+**Decision:** `/sig:init` (brownfield onboarding for existing codebases that aren't yet using Signal) becomes MILESTONE-4. The previous MILESTONE-4 (v2 ports per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`) moves to MILESTONE-5. The file `MILESTONE-4.md` is now the `/sig:init` plan; the prior content was renamed via `git mv` to `MILESTONE-5.md`, with sub-tranches renumbered `4a-f` → `5a-f` and the blocking criterion updated. *(Sub-tranche letters were later renamed to Epic IDs `M5.E1`–`M5.E6` in M4.t18, 2026-05-12.)*
 
 **Rationale.** Three user journeys exist for Signal: greenfield (`/sig:new-project`), existing-Signal-project (`/sig:status` + `/sig:resume`), and brownfield (existing codebase, no Signal yet). The first two have clean v1 entry points; the third does not — the current path is `/sig:new-project` + `/sig:calibrate` Scenario A + `/sig:discuss --assumptions`, which is friction-rich and easy to skip steps.
 
 Brownfield is almost certainly the most common real-world adoption path. Greenfield Signal projects are rare; most users have existing code they want to bring discipline to. Without a dedicated entry point, the first thing prospective users see when adopting Signal is a friction-rich path that requires reverse-engineering Signal's mental model — which kills adoption.
 
-This is a **v1-completing feature, not a v2-expanding one.** v2 ports add new capabilities; brownfield-onboarding is closing a hole in v1's user-facing surface area. Treating it as TRANCHE-4 (rather than buried in `FUTURE-IDEAS.md` as a v1.5 candidate) reflects that priority.
+This is a **v1-completing feature, not a v2-expanding one.** v2 ports add new capabilities; brownfield-onboarding is closing a hole in v1's user-facing surface area. Treating it as MILESTONE-4 (rather than buried in `FUTURE-IDEAS.md` as a v1.5 candidate) reflects that priority.
 
 **Implication:**
-- v0.1.0 ships v1 narrow as planned (current Tranches 1–3).
-- TRANCHE-4 begins next, on a fresh context per the session-flow plan.
-- TRANCHE-5 (the previous TRANCHE-4) remains gated on real-user signal and now also waits on TRANCHE-4 completion. The v2-ports scope itself is unchanged; only its position in the queue moved.
+- v0.1.0 ships v1 narrow as planned (current Milestones 1–3).
+- MILESTONE-4 begins next, on a fresh context per the session-flow plan.
+- MILESTONE-5 (the previous MILESTONE-4) remains gated on real-user signal and now also waits on MILESTONE-4 completion. The v2-ports scope itself is unchanged; only its position in the queue moved.
 - No license / attribution changes — `/sig:init` is Signal's own design, not a port.
 
-**Implementing session should:** read the new `TRANCHE-4.md` (which is detailed enough to pick up cold), and follow the "How to start a session for TRANCHE-4" appendix at the bottom of that file.
+**Implementing session should:** read the new `MILESTONE-4.md` (which is detailed enough to pick up cold), and follow the "How to start a session for MILESTONE-4" appendix at the bottom of that file.
 
 ---
 
 ## 2026-04-26 — `/sig:init` scanner count fixed at 4 (no tier-aware reduction)
 
-**Decision:** `/sig:init` always spawns all 4 scanner agents (stack / structure / activity / quality) in parallel. The TRANCHE-4 spec mentioned a possible tier-aware reduction (SKETCH = 2 scanners), but Wave 2 implementation locked the count at 4.
+**Decision:** `/sig:init` always spawns all 4 scanner agents (stack / structure / activity / quality) in parallel. The MILESTONE-4 spec mentioned a possible tier-aware reduction (SKETCH = 2 scanners), but Wave 2 implementation locked the count at 4.
 
 **Rationale.** Two reasons made the tier-aware path moot:
 
-1. **Calibration happens *after* the scan.** `/sig:init` writes LANDSCAPE.md before PROFILE.md exists. There's no tier to gate on — the scan must complete before tiering becomes possible. The only way to make scanner count tier-aware would be to *guess* a tier from the scan itself (TRANCHE-4 design decision #5, "codebase-novelty signal feeding calibration"), and that guess only matters in retrospect — by the time a guess could fire, the scan is already done.
+1. **Calibration happens *after* the scan.** `/sig:init` writes LANDSCAPE.md before PROFILE.md exists. There's no tier to gate on — the scan must complete before tiering becomes possible. The only way to make scanner count tier-aware would be to *guess* a tier from the scan itself (MILESTONE-4 design decision #5, "codebase-novelty signal feeding calibration"), and that guess only matters in retrospect — by the time a guess could fire, the scan is already done.
 2. **Brownfield projects rarely calibrate to SKETCH.** SKETCH is for throwaway / hours-horizon work. A codebase old enough to brownfield-init has reversibility and horizon characteristics that almost always push it to FEATURE or higher. Optimizing scanner count for the rare SKETCH brownfield case would be premature optimization.
 
 The token cost of 4 vs 2 scanners is real but bounded — each scanner output caps near 200-300 lines of structured markdown. Total scan-to-LANDSCAPE budget is comfortable within the ~12K-token EXECUTE-phase ceiling Signal already operates within.
 
 **Implication:**
-- TRANCHE-4 design decision #1 ("scanner agents vs in-command logic") is also resolved by this lock — the decision was framed as a SKETCH-optimization tradeoff (embedded logic is cheaper than agent fan-out at SKETCH); since SKETCH brownfield is rare, the agent-fan-out cost is the right default.
+- MILESTONE-4 design decision #1 ("scanner agents vs in-command logic") is also resolved by this lock — the decision was framed as a SKETCH-optimization tradeoff (embedded logic is cheaper than agent fan-out at SKETCH); since SKETCH brownfield is rare, the agent-fan-out cost is the right default.
 - Future profiling may surface a real cost issue at FULL on huge monorepos. If so, the right response is *parallelism throttling within the scanners* (e.g., "stack scanner samples 1000 files instead of all"), not reducing scanner count.
 
 ---
 
-## 2026-04-26 — T4.15 dogfood: scanner-spawn fallback path locked; agent-registration mechanism flagged
+## 2026-04-26 — M4.t15 dogfood: scanner-spawn fallback path locked; agent-registration mechanism flagged
 
 **Decision:** `/sig:init` Step 2 now documents a two-path agent spawn: (1) primary path uses `subagent_type: {name}-scanner` via the Task tool — works post-marketplace-install if Signal's plugin agents register namespaced; (2) fallback path uses `subagent_type: general-purpose` with the agent's full markdown definition embedded in the prompt — works in dev mode and as a guaranteed escape hatch. The init.md command instructs Claude to detect `Agent type '{name}' not found` and switch paths automatically.
 
-**Why this matters.** T4.15 dogfood (`/sig:init` on Signal itself) revealed: the Task tool in dev mode does NOT see Signal's `agents/scanners/*-scanner.md` even though they're auto-discovered as command-list entries. Available agents in dev sessions are harness defaults + agents from properly-installed-via-marketplace plugins (the visible `gsd-*` agents from a separate gsd plugin install). This blocks the named-subagent path entirely until Signal itself is marketplace-installed.
+**Why this matters.** M4.t15 dogfood (`/sig:init` on Signal itself) revealed: the Task tool in dev mode does NOT see Signal's `agents/scanners/*-scanner.md` even though they're auto-discovered as command-list entries. Available agents in dev sessions are harness defaults + agents from properly-installed-via-marketplace plugins (the visible `gsd-*` agents from a separate gsd plugin install). This blocks the named-subagent path entirely until Signal itself is marketplace-installed.
 
 **Three open unknowns flagged for later validation:**
 1. **Does marketplace install register Signal's agents?** Unknown until we publish to marketplace and test. Parallel: `gsd-*` agents do appear, so the mechanism exists — but Signal's agent-frontmatter format may need to differ from what we shipped.
@@ -300,8 +300,35 @@ The token cost of 4 vs 2 scanners is real but bounded — each scanner output ca
 - Before publishing to the marketplace, run a fresh-install test to verify whether named subagents resolve and what the prefix is. If they do resolve, update the init.md table to reference the resolved names; if they don't, the fallback path becomes the permanent path.
 - The synthesis pipeline (Steps 3+4 of init.md) is unaffected by this — it consumes scanner outputs regardless of how the scanners were spawned.
 
-**Other T4.15 dogfood findings** (not architecturally meaningful but worth noting): structure-scanner exclude list was missing `.dogfood/` and `.claude/worktrees/` (added); activity-scanner health rules didn't distinguish "young+active" from "established+active" (rule 5 threshold loosened to `<50 commits + <60 days` plus tiebreaker note for rule 4 with age <90 days); structure-scanner co-located test detection had a false positive for files inside dedicated test directories (corrected). Full runlog: `.dogfood/T4-INIT-DOGFOOD/RUNLOG.md`.
+**Other M4.t15 dogfood findings** (not architecturally meaningful but worth noting): structure-scanner exclude list was missing `.dogfood/` and `.claude/worktrees/` (added); activity-scanner health rules didn't distinguish "young+active" from "established+active" (rule 5 threshold loosened to `<50 commits + <60 days` plus tiebreaker note for rule 4 with age <90 days); structure-scanner co-located test detection had a false positive for files inside dedicated test directories (corrected). Full runlog: `.dogfood/M4-INIT-DOGFOOD/RUNLOG.md`.
 
 **Validation outcome:** the synthesis pipeline (LANDSCAPE.md template + baseline PROJECT.md template) works as designed. Generated artifacts on Signal-itself were genuinely useful — the LANDSCAPE.md correctly identified Signal as a "planning-driven Claude Code plugin in mid-shipping its first release" with high-confidence inference + 4 sharp open questions for the user. PROJECT.md baseline forced abstaining from forward-looking fields (Success Criteria, Done When, Scope-out) via `[FILL IN]` markers, which is the design intent.
+
+---
+
+## 2026-05-12 — Vocabulary lock: Milestone / Epic / Phase / Wave / Task; ID is persistent identity
+
+**Decision:** Lock Signal's work-unit vocabulary as **Milestone** (M1, M2, …) → **Epic** (M5.E1, M5.E2, …; optional mid-layer) → **Task** (M4.t17, M5.E3.t2; lowercase `t`). Phase and Wave keep their meanings (workflow stage; parallel-execution batch within a phase). The previously-shipped term *Tranche* is retired and replaced with Milestone. Full vocabulary table lives in `PROJECT.md` § Vocabulary.
+
+**Persistence rule (the load-bearing part):** the **ID is persistent identity, never changes.** Once assigned, a task's ID is its address forever — across renames, re-orderings, escalations, and milestone reshuffles. Phase and Wave are *metadata* on the work unit, not part of its address.
+
+**Trigger.** 2026-05-12 conversation. User asked "where the fuck did Tranche come from?" Investigation traced it to a single commit (`236aecc`, 2026-04-22) that scaffolded `.planning/` with hand-rolled file names and picked "Tranche" with no principled grounding. None of the 9 upstream inspiration repos in `.upstream/` use `Tranche`; GSD (Signal's primary upstream) uses `Milestone`. The term is a finance import (loan tranches, bond tranches), fancy-sounding but opaque to anyone outside finance — fails the "could a new contributor guess what this means" test.
+
+**Why ship before v0.1.0.** Once `Tranche` lands in a tagged release, removing it gets harder (release-note hits, PR references). Better to never have a published Signal that uses the dumb word.
+
+**Rationale per term:**
+- *Milestone* aligns Signal with GSD's vocabulary; downstream-of-upstream divergence has a cost (cognitive switching when reading both ecosystems' docs) and no benefit here.
+- *Epic* names the structure Signal already invented as awkward "sub-tranches" (M5 had 5a–5f). Borrowed from common product-management vocabulary; intuitive without explanation.
+- *Phase* is reserved for the 6-phase workflow only (`calibrate → discuss → plan → execute → verify → review → ship`), so the word stays unambiguous. GSD overloads Phase to mean both a workflow stage AND a numbered work unit; Signal's separation is cleaner and was deliberately preserved in this refactor.
+- *Wave* is unchanged from GSD — a parallel-execution batch within a single phase.
+- *Task* uses lowercase `t` in IDs (`M4.t17`, not `M4.T17`) so the three nested levels (M / E / t) are visually distinct at a glance.
+
+**Implication.**
+- All `.planning/TRANCHE-*.md` files renamed to `MILESTONE-*.md` (5 renames via `git mv`, history preserved).
+- All prose references to `Tranche`/`tranche` replaced with `Milestone`/`milestone`. T-prefix IDs (`T4.17`) replaced with M-prefix IDs (`M4.t17`). Approximately 17 `.md` files touched.
+- M5's prior sub-tranches (`5a`–`5f`) renumbered to `M5.E1`–`M5.E6`.
+- `.upstream/` and `CHANGELOG` are excluded — frozen historical references stay frozen. Commit-message references also unchanged.
+- Migration prompt for downstream user projects (Signal-managed repos with old `.planning/TRANCHE-*.md`) published at `docs/migration-vocab-v0.1.0.md`.
+- v0.1.0 ship is now gated only on F2 (marketplace-install plugin-agent registration); the vocabulary blocker is closed.
 
 ---

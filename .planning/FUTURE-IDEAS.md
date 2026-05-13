@@ -1,16 +1,16 @@
 # Future Ideas
 
-Post-v1 architectural ideas for Signal itself — **distinct from `TRANCHE-4.md`**, which is specifically the "rundown v2" integrations (porting patterns from other repos).
+Post-v1 architectural ideas for Signal itself — **distinct from `MILESTONE-4.md`**, which is specifically the "rundown v2" integrations (porting patterns from other repos).
 
-This file is for evolutions of Signal's *own* mechanisms that surface during v1 build/use. Entries here are candidates for later tranches (v1.5 or v2), not committed work.
+This file is for evolutions of Signal's *own* mechanisms that surface during v1 build/use. Entries here are candidates for later milestones (v1.5 or v2), not committed work.
 
-Append new ideas; promote to a tranche file when ready to build.
+Append new ideas; promote to a milestone file when ready to build.
 
 ---
 
 ## Calibration granularity — making PROFILE.md more expressive
 
-**Status:** Leaning Option C for v2. Logged 2026-04-22 during Tranche 2 Step 1 (drafting `/sig:calibrate`).
+**Status:** Leaning Option C for v2. Logged 2026-04-22 during Milestone 2 Step 1 (drafting `/sig:calibrate`).
 
 **Context.** Today's PROFILE.md has `tier` (SKETCH / FEATURE / SPIKE / FULL) + 10 typed `rigor_overrides`. The tier sets a uniform baseline — e.g., FULL cranks every dial to max. Real projects don't actually need uniform rigor: an auth subsystem and a billing pipeline both calibrate as FULL, but their emphasis should differ (auth = security + data integrity; billing = data integrity + observability). The 10-dial design catches this coarsely (you can hand-edit `security_audit` to `full` regardless of tier), but there's no *principled* mechanism to express per-concern emphasis.
 
@@ -89,7 +89,7 @@ Same command (`/sig:review`), same tier, same dial — wildly different runtime 
 
 ## Multi-feature project lifecycle
 
-**Status:** Logged 2026-04-23 during Tranche 2 Step 1 discussion. Surfaced by the question *"how does Signal handle adding a new feature to an existing already-calibrated project?"*
+**Status:** Logged 2026-04-23 during Milestone 2 Step 1 discussion. Surfaced by the question *"how does Signal handle adding a new feature to an existing already-calibrated project?"*
 
 **Context.** v1's 6-phase flow assumes a project goes through CALIBRATE → DISCUSS → ... → SHIP linearly, once. Real projects aren't one-shot — they ship v1, add feature #2, refactor subsystem #3, deprecate component #4. Signal has no first-class concept of "feature #N of an ongoing project." Today, every command reads project-level `.planning/` artifacts as if the project is a single linear flow.
 
@@ -99,7 +99,7 @@ Same command (`/sig:review`), same tier, same dial — wildly different runtime 
 - **Does each feature re-calibrate?** A mature product might be FULL overall but a specific admin-dashboard feature might honestly be SKETCH. An internal tooling refactor inside a production system might warrant its own SPIKE tier, separate from the parent project's FULL.
 - **Does `STATE.md` track "features shipped"** alongside "current phase"? Today it only has current phase + completed phases, no ongoing feature log.
 - **What does `/sig:calibrate --re-calibrate` mean in a feature context?** Re-score the whole project, or start a fresh feature-local profile?
-- **How does `/sig:resume` know which feature (if any) is in-flight?** Needs answering before Tranche 3 ships the resume command.
+- **How does `/sig:resume` know which feature (if any) is in-flight?** Needs answering before Milestone 3 ships the resume command.
 
 **Candidate direction** (for post-v1 consideration, not locked):
 - `.planning/features/{feature-slug}/` subdirectory per feature, holding feature-local CONTEXT.md, PLAN.md, PROFILE.md override, etc.
@@ -111,13 +111,13 @@ Same command (`/sig:review`), same tier, same dial — wildly different runtime 
 
 **Interim v1 answer (today):** one project = one linear flow. To add a feature, either stay in the existing tier (if the feature fits it) or run `/sig:calibrate --re-calibrate` if the new work is materially different in risk profile.
 
-**Resolve by:** first real attempt to add feature #2 to a Signal-built project. Likely Tranche 3 dogfood or shortly after.
+**Resolve by:** first real attempt to add feature #2 to a Signal-built project. Likely Milestone 3 dogfood or shortly after.
 
 ---
 
 ## PREPARE phase — splitting PLAN's tail from EXECUTE's head
 
-**Status:** Logged 2026-04-25 during Tranche 2 Step 5 (orphan-skill audit conversation). Strong theoretical signal; awaiting lived signal before promotion.
+**Status:** Logged 2026-04-25 during Milestone 2 Step 5 (orphan-skill audit conversation). Strong theoretical signal; awaiting lived signal before promotion.
 
 **Context.** While auditing where to bind four orphan skills (`api-and-interface-design`, `frontend-ui-engineering`, `source-driven-development`, `deprecation-and-migration`), it surfaced that two of them — particularly `source-driven-development` (verify framework code against official docs) and the planning-side aspects of the other three — don't cleanly belong in either PLAN or EXECUTE as currently scoped. They live in the seam.
 
@@ -178,15 +178,15 @@ v1 is locked at 6 phases (per `DECISIONS.md` and `PROJECT.md` "Scope & Roadmap")
 - Revising `phases_skipped` schema in PROFILE.md and tier-definitions.md.
 - Rewriting PROJECT.md's locked 6-phase contract.
 
-That's a tranche of work, not a step. v1's whole pitch is *don't over-engineer before evidence*. We have strong theoretical signal (ODI parallel) but no lived signal yet that the seam between PLAN and EXECUTE actually causes pain in practice.
+That's a milestone of work, not a step. v1's whole pitch is *don't over-engineer before evidence*. We have strong theoretical signal (ODI parallel) but no lived signal yet that the seam between PLAN and EXECUTE actually causes pain in practice.
 
 ### Promotion triggers — what would flip this from "log it" to "build it"
 
-Promote PREPARE to a tranche file when **any one of these fires:**
+Promote PREPARE to a milestone file when **any one of these fires:**
 
-1. ~~**Token-budget signal.**~~ **(Provisionally cleared 2026-04-25 — see DECISIONS.md)** Tranche 2 Step 7 measurement shows PLAN at 6,537 tokens (3.3% of 200K context) with 3 skills bound; even doubling the count fits comfortably. The original framing assumed a much tighter budget than reality reflects. Reactivate this trigger if real-world usage shows PLAN approaching 40K (~20% of context window).
+1. ~~**Token-budget signal.**~~ **(Provisionally cleared 2026-04-25 — see DECISIONS.md)** Milestone 2 Step 7 measurement shows PLAN at 6,537 tokens (3.3% of 200K context) with 3 skills bound; even doubling the count fits comfortably. The original framing assumed a much tighter budget than reality reflects. Reactivate this trigger if real-world usage shows PLAN approaching 40K (~20% of context window).
 
-2. **User-language signal.** During real Signal usage (Tranche 3+ dogfood), users repeatedly say things like *"I'm in PLAN but I'm really setting things up"* or *"this isn't really planning, this is prep"*. Two or more independent observations = the seam is real.
+2. **User-language signal.** During real Signal usage (Milestone 3+ dogfood), users repeatedly say things like *"I'm in PLAN but I'm really setting things up"* or *"this isn't really planning, this is prep"*. Two or more independent observations = the seam is real.
 
 3. **Skill-binding signal.** Two or more new skills get added to v1 and end up homeless (no clean phase fit). Pattern repeats = the phase decomposition is wrong, not the skills.
 
@@ -211,11 +211,11 @@ Accept that source-driven-development is technically a "verify-as-you-build" ski
 
 ## Pre-scoped DISCUSS agenda — surface gray areas as a checklist before drilling in
 
-**Status:** Logged 2026-05-02 during Tranche 4 wrap-up conversation. UX gap surfaced by user comparing Signal to GSD's `/gsd:discuss-phase`.
+**Status:** Logged 2026-05-02 during Milestone 4 wrap-up conversation. UX gap surfaced by user comparing Signal to GSD's `/gsd:discuss-phase`.
 
 **Context.** Today's `/sig:discuss` Step 3 has *Claude* identify gray areas internally, then Step 4 just starts asking 3+other on each one in sequence. The user never sees the *agenda* — they get questions one at a time without knowing the shape of the unknowns up front, can't pre-empt with "skip the deployment topology question, I've already decided that," and can't add an area Claude missed before Claude commits to its agenda. GSD's pattern (multi-select checkbox of pre-identified discussion areas, plus a free-text "type something" line) covers all three: visibility, prioritization, and recovery valve when Claude's gray-area detection underfits.
 
-**Candidate direction (post-Tranche-4 polish, not v2).**
+**Candidate direction (post-Milestone-4 polish, not v2).**
 
 Insert a Step 3.5 between "identify gray areas" and "ask 3+other on each":
 
@@ -241,7 +241,7 @@ Then Step 4 runs 3+other only on selected areas. Deselected → `CONTEXT.md` "De
 - Slots into `references/question-patterns.md` as a fourth shape (working name: **scoped multi-select**), or as a step modifier on top of 3+other. Lean toward fourth shape — distinct enough.
 - The "add an area I'm worried about" line is the critical piece — it's the recovery valve when Claude's gray-area detection underfits. Without it, the pattern is just a fancier hidden-agenda.
 
-**Why post-Tranche-4 polish, not v2.**
+**Why post-Milestone-4 polish, not v2.**
 - Pure UX improvement to an existing command — no new phase, no new skill, no architectural shift.
 - Cheap: ~one tasks worth of work in `/sig:discuss.md` + a question-patterns.md addendum.
 - High user-value-per-effort ratio. Worth promoting before v2 integrations land.
@@ -252,7 +252,7 @@ Then Step 4 runs 3+other only on selected areas. Deselected → `CONTEXT.md` "De
 
 ## Plugin slug rename — `signal` → `sig` to remove `/signal:sig:*` namespace stutter
 
-**Status:** Logged 2026-05-02 during Tranche 4 wrap-up conversation. Daily papercut surfaced by user comparing autocomplete UX to GSD.
+**Status:** Logged 2026-05-02 during Milestone 4 wrap-up conversation. Daily papercut surfaced by user comparing autocomplete UX to GSD.
 
 **Context.** Plugin commands today render in autocomplete as `/signal:sig:execute` — two namespaces stacked: outer from `plugin.json` `"name": "signal"`, inner from the `commands/sig/` subdirectory. The short form `/sig:execute` works because there's no collision, but autocomplete shows the canonical fully-qualified form. GSD avoids this by naming its plugin slug `gsd` and putting commands directly in `commands/` (no subdirectory), giving clean `/gsd:command-name`.
 
@@ -273,7 +273,7 @@ Then Step 4 runs 3+other only on selected areas. Deselected → `CONTEXT.md` "De
 
 ## `/sig:report` — narrative project report (separate from `/sig:status`)
 
-**Status:** Logged 2026-05-03 during Tranche 4 wrap-up conversation. Gap surfaced when user wanted a "zoom out and tell me what we've done and what remains" view on a real Signal project.
+**Status:** Logged 2026-05-03 during Milestone 4 wrap-up conversation. Gap surfaced when user wanted a "zoom out and tell me what we've done and what remains" view on a real Signal project.
 
 **Context.** `/sig:status` already exists, but it's intentionally a one-screen tactical snapshot — its anti-rationalization table explicitly rejects "make it longer with more sections" (see `.claude/commands/sig/status.md` line 176). It answers *"where am I, what's next."* It does **not** tell the *story* of the project: what was decided in DISCUSS and why, how PLAN broke the work down, which plan tasks shipped vs. remain, what verification surfaced, what the open decisions are.
 
@@ -291,7 +291,7 @@ Synthesizes a phase-by-phase narrative covering things `/sig:status` deliberatel
 - **Phase narrative** — "CALIBRATE on {date} → tier {T} because {triggering answer}. DISCUSS locked {N} decisions, deferred {M}. PLAN broke work into {N} tasks across {M} waves. EXECUTE: {done}/{total} tasks shipped..." Each completed phase gets 2–4 lines that explain *why*, not just *what*.
 - **Plan-task granularity** — from `PLAN.md` if present, list done vs. pending tasks (with wave grouping if applicable).
 - **Decision history** — locked + deferred decisions from `CONTEXT.md`, with rationale.
-- **Outstanding marker counts** — `[INFERRED]` / `[FILL IN]` across all artifacts (uses `tools/lib/walkthrough.js#countMarkers` already shipped in T4.8).
+- **Outstanding marker counts** — `[INFERRED]` / `[FILL IN]` across all artifacts (uses `tools/lib/walkthrough.js#countMarkers` already shipped in M4.t8).
 - **Open questions full list** — not the top-3 truncation `/sig:status` does.
 - **Verification + review status** — if those phases ran, summary of what passed / what's logged.
 - **Recent commit activity** — commits since last phase transition (one-line cap each).
@@ -306,14 +306,14 @@ Synthesizes a phase-by-phase narrative covering things `/sig:status` deliberatel
 | SPIKE | Findings-oriented narrative — what we explored, what we learned, what the answer is. ~40 lines. |
 | FULL | Full depth. ~80–100 lines. Every phase gets its narrative paragraph. |
 
-**Why log, not fix now.** New command means: new file in `.claude/commands/sig/`, new entry in validator's `REQUIRED_COMMANDS`, README mentions, MCP/skill descriptions registered, decision-tree viewer (`docs/map/index.html`) updated. Not huge, but not a one-line fix either. Bundle it as a Tranche 5 (or post-T4-polish) task with `/sig:status`'s tooling reused (`readProfile`, `readState`, `readOpenQuestions`, `nextActionForPhase`).
+**Why log, not fix now.** New command means: new file in `.claude/commands/sig/`, new entry in validator's `REQUIRED_COMMANDS`, README mentions, MCP/skill descriptions registered, decision-tree viewer (`docs/map/index.html`) updated. Not huge, but not a one-line fix either. Bundle it as a Milestone 5 (or post-M4-polish) task with `/sig:status`'s tooling reused (`readProfile`, `readState`, `readOpenQuestions`, `nextActionForPhase`).
 
 **Anti-rationalization to lock in early:**
 - "Just add `--detailed` to `/sig:status`." — No. The one-screen rule is load-bearing for `/sig:status`. Adding flags that change its shape destroys the contract.
 - "Read `cat .planning/*.md` does this already." — Reading 6+ files manually every time you context-switch back is exactly what `.planning/` exists to *prevent*. The synthesis is the value; the raw files are the substrate.
 - "Make it write to a file so it can be shared." — Read-only, same as status. If sharing is needed, pipe stdout to a file. Mutating breaks the check-without-disturbing property.
 
-**Resolve by:** next time the user runs a Signal project past EXECUTE and wants a zoom-out view, OR when promoting future-ideas to a tranche file. Likely Tranche 5 (alongside the multi-select pre-scoping work — both are conversational/UX upgrades to existing commands and could ship together).
+**Resolve by:** next time the user runs a Signal project past EXECUTE and wants a zoom-out view, OR when promoting future-ideas to a milestone file. Likely Milestone 5 (alongside the multi-select pre-scoping work — both are conversational/UX upgrades to existing commands and could ship together).
 
 ---
 
@@ -338,7 +338,7 @@ New read-only command, sibling to `/sig:init` and `/sig:status`. Same design dis
 | Tribal-knowledge risk | `agents/scanners/activity-scanner` (contributor concentration, hot files) + LANDSCAPE.md | Inverse: high score = low tribal-knowledge dependency |
 | Security-model explicitness | new (interview supplement OR scanner extension) | Auth/trust boundaries, threat-model presence, secrets-handling discipline |
 
-Five dimensions map cleanly onto existing `/sig:init` scanner outputs — `/sig:audit` would consume the four `.planning/scan/*.md` files plus `LANDSCAPE.md` rather than re-running scanners. **One (security-model explicitness) doesn't have a clean scanner source today.** Two viable approaches: (a) light interview supplement using the T4.8 walkthrough pattern (3–4 targeted questions surfaced as 3+other), or (b) extend `quality-scanner` to detect security-relevant files (CSP headers, threat-model docs, security.md, dependabot config). Lean toward (a) for v1 of audit since the dimension is judgment-heavy by nature; (b) becomes worth it when a second new dimension also wants scanner-level signal.
+Five dimensions map cleanly onto existing `/sig:init` scanner outputs — `/sig:audit` would consume the four `.planning/scan/*.md` files plus `LANDSCAPE.md` rather than re-running scanners. **One (security-model explicitness) doesn't have a clean scanner source today.** Two viable approaches: (a) light interview supplement using the M4.t8 walkthrough pattern (3–4 targeted questions surfaced as 3+other), or (b) extend `quality-scanner` to detect security-relevant files (CSP headers, threat-model docs, security.md, dependabot config). Lean toward (a) for v1 of audit since the dimension is judgment-heavy by nature; (b) becomes worth it when a second new dimension also wants scanner-level signal.
 
 **Output sections (composite ~80–120 lines for FULL):**
 - Six-dimension scorecard, with one-line evidence per dimension and one-line "what a 10 looks like for *this* codebase."
@@ -372,7 +372,7 @@ Small change (1–2 hours). Ship **after** `/sig:audit` proves the ratio framing
 
 ### Why log, not fix now
 
-- T4.13 (fixture tests, v0.1.1) is the only remaining Tranche 4 task; close that and ship v0.1.0 before opening new command surface.
+- M4.t13 (fixture tests, v0.1.1) is the only remaining Milestone 4 task; close that and ship v0.1.0 before opening new command surface.
 - New command surface area = validator's `REQUIRED_COMMANDS`, README mentions, decision-tree viewer (`docs/map/index.html`), MCP/skill descriptions. Not huge, but bundle with planning work, not a one-off.
 - Security-model dimension has a real "where does input come from" design question (interview supplement vs. scanner extension) that wants a tiny investigation before locking the dimension in.
 - The audit's value depends on having more than one real brownfield Signal user — until then, scoring rubrics are calibrated against a sample of one (Signal-on-Signal).
@@ -387,7 +387,7 @@ Small change (1–2 hours). Ship **after** `/sig:audit` proves the ratio framing
 - *"Run audit before every phase."* — No. Audit is strategic, not transactional. Default cadence: on demand + once per brownfield onboarding. Per-phase running is exactly the rigor-noise the calibration layer exists to suppress.
 - *"Keep the 'Mythos readiness' framing, it'll attract attention."* — No. Tying surface area to a news cycle dates the command. Underlying dimensions stand on their own.
 
-**Resolve by:** v0.1.0 ships → first FEATURE-or-FULL tier brownfield adoption beyond Signal-on-Signal where the user post-`/sig:init` wishes they had a *"is this ready?"* answer → promote to a Tranche 5 sub-tranche slot. Likely co-ships with `/sig:report` since both are read-only synthesis commands and could share helper code in `tools/lib/`.
+**Resolve by:** v0.1.0 ships → first FEATURE-or-FULL tier brownfield adoption beyond Signal-on-Signal where the user post-`/sig:init` wishes they had a *"is this ready?"* answer → promote to a Milestone 5 Epic slot. Likely co-ships with `/sig:report` since both are read-only synthesis commands and could share helper code in `tools/lib/`.
 
 ---
 
@@ -403,7 +403,7 @@ GSD's `/gsd:docs-update` subsystem (4 agents, ~1200 lines of agent code + 1161-l
 
 | In scope (the GSD nine) | Out of scope |
 |---|---|
-| README, ARCHITECTURE, getting-started, development, testing, API, configuration, deployment, contributing | `.planning/STATE.md`, `STATUS.md`, `TRANCHE-*.md`, `CONTEXT.md` — Signal-internal planning state has its own lifecycle (STATE.md is *meant* to drift; STATUS.md is regenerated by the Phase 2 deducer). Verifier must not touch these. |
+| README, ARCHITECTURE, getting-started, development, testing, API, configuration, deployment, contributing | `.planning/STATE.md`, `STATUS.md`, `MILESTONE-*.md`, `CONTEXT.md` — Signal-internal planning state has its own lifecycle (STATE.md is *meant* to drift; STATUS.md is regenerated by the Phase 2 deducer). Verifier must not touch these. |
 
 **Candidate direction.**
 
@@ -460,7 +460,7 @@ This is a real-world use case the user flagged explicitly — it deserves spec i
 - "Just use `--force` every time and skip the verifier." — No. `--force` overwrites hand-written content. The verifier exists so the writer only touches what's actually drifted, preserving human-authored detail.
 - "Make it part of `/sig:review` instead of a standalone command." — No. `/sig:review` runs once per shipped feature; doc drift accumulates across multiple ships and is worth checking *periodically* outside the phase flow. Standalone preserves that property; `/sig:ship` integration covers the per-ship case.
 
-**Resolve by:** promote to a Tranche 5 sub-tranche (suggest **5f. Tactical GSD ports — `/sig:docs-update`**) when (a) Tranche 4 closes with T4.13 shipped, AND (b) the user wants to address doc drift on a real Signal-managed project. Independent of the 10-phase v2 architecture work — this is a tactical port, not an architectural one, and can ship as a single sub-tranche before/alongside any of 5a-5e.
+**Resolve by:** promote to a Milestone 5 Epic (suggest a new **M5.E7 — Tactical GSD ports / `/sig:docs-update`**) when (a) Milestone 4 closes with M4.t13 shipped, AND (b) the user wants to address doc drift on a real Signal-managed project. Independent of the 10-phase v2 architecture work — this is a tactical port, not an architectural one, and can ship as a single Epic before/alongside any of M5.E1–M5.E6.
 
 ---
 

@@ -1,4 +1,4 @@
-# Tranche 2 — MVP Functional
+# Milestone 2 — MVP Functional
 
 **Goal:** Make all 9 slash commands real and make tier routing actually route.
 
@@ -6,9 +6,9 @@
 
 **Done when:** PROJECT.md Gate 2 (Core Workflow Functional) is achievable — all commands execute, PROFILE.md gates downstream phases, anti-rationalization fires.
 
-**Blocked by:** Tranche 1 complete.
+**Blocked by:** Milestone 1 complete.
 
-**Note:** Task list may evolve as Tranche 1 surfaces new constraints (especially around PROFILE.md schema and plugin manifest discovery behavior).
+**Note:** Task list may evolve as Milestone 1 surfaces new constraints (especially around PROFILE.md schema and plugin manifest discovery behavior).
 
 ---
 
@@ -21,12 +21,12 @@
 | 3. "Read PROFILE.md first" preamble on 6 phase commands | **DONE** | Socratic-pattern OPEN-QUESTION resolved (DECISIONS.md 2026-04-25); `references/question-patterns.md` written. Preamble + per-phase `rigor_overrides` table added to discuss/plan/execute/verify/review/ship. DISCUSS Step 4 retrofitted to explicit 3+other; VERIFY's Loop Back retrofitted as 3+other (loop-back / escalate / accept-failure). PLAN/EXECUTE/SHIP skill loadings updated to include the newly-bound orphans. 47/47 tests passing, validator green. |
 | 4. `state.js` + `readProfile` / `isPhaseEnabled` / `applyRigorOverrides` helpers | **DONE** | `CALIBRATE` added to `PHASES`. New `tools/lib/profile.js` with strict-validating `readProfile`, `isPhaseEnabled` (CALIBRATE never skipped), `applyRigorOverrides` (non-mutating; maps to legacy `workflow`/`gates`/`parallelization` keys + attaches `rigor_overrides` verbatim). `yaml@^2.8.3` added as runtime dep. 28 new tests; 47/47 passing. |
 | 5. Naming drift + `validate-plugin.js` REQUIRED_COMMANDS / REQUIRED_FILES update | **DONE** | Bound 4 orphan skills (api-and-interface-design + deprecation-and-migration → plan; deprecation-and-migration also → ship; frontend-ui-engineering + source-driven-development → execute). Renamed `testing-patterns.md` → `testing-checklist.md`. Validator now requires calibrate/escalate commands + profile-schema/tier-definitions references. PREPARE phase logged as v2 candidate in FUTURE-IDEAS.md with three trigger conditions. Decision logged in DECISIONS.md. |
-| 5a. `.planning/`-always-tracked enforcement in user-facing commands | **DONE** | `/sig:calibrate` already had check (T2 Step 1). Added equivalent gate to `/sig:new-project` (Step 0 + gate checklist). README one-liner deferred to TRANCHE-3 Task 4 (where the README itself is written) — added explicit checkbox there. |
+| 5a. `.planning/`-always-tracked enforcement in user-facing commands | **DONE** | `/sig:calibrate` already had check (M2 Step 1). Added equivalent gate to `/sig:new-project` (Step 0 + gate checklist). README one-liner deferred to MILESTONE-3 Task 4 (where the README itself is written) — added explicit checkbox there. |
 | 6. Agent count reconciliation (17 on disk vs. 24 in spec) | **DONE** | Audit found 22 on disk (the "17" was stale). PROJECT.md's "24" had a Security Auditor double-count + 2 unwritten docs agents (Doc Writer, Doc Verifier). Decision: revise spec to 22 (drop the docs agents — already covered by `documentation-and-adrs` SHIP-phase skill; same pattern as compound-engineering). PROJECT.md sections 3.0, 3.3, 3.5, Gate 2 updated; CLAUDE.md updated. |
 | 7. REVIEW phase token-cost measurement | **DONE** | Wrote `tools/measure-phase-costs.js`. All 6 phases within budget (largest is EXECUTE at 6.4% of 200K context). REVIEW at 5.2% — original "highest risk" concern was overcautious. PLAN at 3.3% — PREPARE-phase token-budget trigger NOT firing. Loader bug surfaced and fixed: `estimatePhaseSkillCost` now searches across all skill phase directories so cross-bound skills (api-and-interface lives in build/ but binds to plan; deprecation-and-migration in ship/ binds to plan + ship) load correctly. New `findSkillPath` helper. 6 new tests; 53/53 passing. Decisions logged in DECISIONS.md. |
-| 8. End-to-end self-test on a sample throwaway project | **DONE (paper walkthrough)** | Real execution deferred to TRANCHE-3 Tasks 2 + 3 (FULL-tier and SKETCH-tier passes — they need fresh-project setup, real time/token measurement, and full execution time which TRANCHE-3 is scoped for). T2 Step 8 = structural smoke test only. **Findings:** (a) PLAN's skill-loading paths were wrong for cross-bound skills (api-and-interface-design lives in `build/`, deprecation-and-migration in `ship/`) — fixed inline. (b) References resolve: profile-schema, tier-definitions, question-patterns, anti-rationalization all present. (c) Skill-binding consistency: state/config.json matches what each command claims to load. (d) Three friction points logged to OPEN-QUESTIONS.md for TRANCHE-3: `{phase}-` artifact naming (multi-phase semantics in single-phase v1), REVIEW/SHIP not explicitly reading prior-phase artifacts, state.js initState default phase mismatch with /sig:new-project. |
+| 8. End-to-end self-test on a sample throwaway project | **DONE (paper walkthrough)** | Real execution deferred to MILESTONE-3 Tasks 2 + 3 (FULL-tier and SKETCH-tier passes — they need fresh-project setup, real time/token measurement, and full execution time which MILESTONE-3 is scoped for). M2 Step 8 = structural smoke test only. **Findings:** (a) PLAN's skill-loading paths were wrong for cross-bound skills (api-and-interface-design lives in `build/`, deprecation-and-migration in `ship/`) — fixed inline. (b) References resolve: profile-schema, tier-definitions, question-patterns, anti-rationalization all present. (c) Skill-binding consistency: state/config.json matches what each command claims to load. (d) Three friction points logged to OPEN-QUESTIONS.md for MILESTONE-3: `{phase}-` artifact naming (multi-phase semantics in single-phase v1), REVIEW/SHIP not explicitly reading prior-phase artifacts, state.js initState default phase mismatch with /sig:new-project. |
 
-**Order to execute:** ~~4~~ → ~~5~~ → ~~5a~~ → ~~(resolve Socratic OPEN-QUESTION)~~ → ~~3~~ → ~~7~~ → ~~6~~ → ~~8~~. **TRANCHE 2 COMPLETE.**
+**Order to execute:** ~~4~~ → ~~5~~ → ~~5a~~ → ~~(resolve Socratic OPEN-QUESTION)~~ → ~~3~~ → ~~7~~ → ~~6~~ → ~~8~~. **MILESTONE 2 COMPLETE.**
 
 ---
 
@@ -36,7 +36,7 @@
 
 Smallest command in the entire plugin. No skills loaded, no agents spawned. Just 5 questions → tier → YAML write. Phase 0 is what makes Signal distinct from "GSD + Agent Skills stapled together," so getting this right is load-bearing.
 
-**Inputs (already locked from Tranche 1):**
+**Inputs (already locked from Milestone 1):**
 - `references/profile-schema.md` — authoritative PROFILE.md format + validation rules
 - `references/tier-definitions.md` — 4 tiers, diagnostic question → tier mapping logic, full defaults table
 - Existing `.claude/commands/sig/` commands — use the same frontmatter + structure conventions
@@ -88,7 +88,7 @@ Body sections, in order:
 **Dependencies:** None. This is the base-case command — no skills, no agents, no prior phase state required.
 
 **Session-pickup checklist for whoever starts next:**
-1. Read this file (TRANCHE-2.md) — confirm Step 1 is still the active task.
+1. Read this file (MILESTONE-2.md) — confirm Step 1 is still the active task.
 2. Read `references/profile-schema.md` — understand what you're writing to.
 3. Read `references/tier-definitions.md` — understand the mapping logic.
 4. Read an existing command like `.claude/commands/sig/discuss.md` for structural convention.
@@ -173,4 +173,4 @@ Kill the #1 risk from PROJECT.md with data.
 
 ## What this unlocks
 
-Tranche 3 can dogfood Signal on itself — switching from lightweight `.planning/` management to using Signal's own commands on Signal's own codebase.
+Milestone 3 can dogfood Signal on itself — switching from lightweight `.planning/` management to using Signal's own commands on Signal's own codebase.

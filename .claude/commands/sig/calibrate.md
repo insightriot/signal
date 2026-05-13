@@ -77,7 +77,7 @@ PROFILE.md already exists (tier: {TIER}, last calibrated {DATE}).
 
 Pick the right tool for what you're doing:
 - Resuming work on the existing scope? Read .planning/STATE.md for current phase.
-  (A dedicated /sig:status and /sig:resume are on the roadmap — Tranche 3. For
+  (A dedicated /sig:status and /sig:resume are on the roadmap — Milestone 3. For
    now, `cat .planning/STATE.md` gives you the snapshot.)
 - Scope grew, need more rigor? Run /sig:escalate to promote tier and log why.
 - Starting over from scratch? Run /sig:calibrate --re-calibrate (overwrites

@@ -13,6 +13,28 @@ The result: AI coding agents that are disciplined (don't skip specs, tests, secu
 
 Signal targets solo developers and small teams who want production-grade engineering output from AI agents without enterprise ceremony — and without spending 60 minutes planning a homepage.
 
+## Vocabulary
+
+Signal uses the following work-unit terms. Locked 2026-05-12 in M4.t18 (see `DECISIONS.md`).
+
+| Term | Meaning | ID shape |
+|---|---|---|
+| **Milestone** | A scoped slice of project work, weeks-to-months. The top-level work unit. | `M1`, `M2`, …, `M5` |
+| **Epic** | Optional mid-layer that groups related tasks within a milestone. Used when a milestone has obvious sub-themes (e.g., M5 has 6 epics for v2 ports); skipped when it's a flat task list (M1–M4). | `M5.E1`, `M5.E2`, … |
+| **Task** | A unit of work small enough to ship in a focused session. Lowercase `t` so M / E / t are visually distinct. | `M4.t17`, `M5.E3.t2` |
+| **Phase** | A workflow stage in Signal's 6-phase flow (`calibrate → discuss → plan → execute → verify → review → ship`). Workflow-only — never a numbered work unit. | `CALIBRATE`, `DISCUSS`, … |
+| **Wave** | A parallel-execution batch within a single phase's plan (used by `/sig:execute`). | `Wave 1`, `Wave 2` |
+
+**ID is persistent identity, never changes.** Once assigned, a task's ID is its address forever — across renames, re-orderings, escalations, and milestone reshuffles. Phase and Wave are *metadata* on the work unit (describing transient status: planned / in-flight / shipped), not part of its address. If a task moves between waves or restarts in a different phase, its ID stays the same; only its metadata updates.
+
+This rule exists because plans drift. IDs that mutate when work moves break every cross-reference (commit messages, PR descriptions, decisions logs, learnings entries, retros). The cost of immutable IDs is a slightly awkward sequence (e.g., M4.t13 might ship after M4.t17); the cost of mutable IDs is constant low-grade reference rot.
+
+**Why these terms (not Tranche / Phase-as-numbered-unit / Sprint):**
+- *Milestone* is what GSD (Signal's primary upstream) uses; aligning vocabulary with downstream-of-upstream avoids needless divergence.
+- *Tranche* (the term Signal originally shipped with) is a finance import — fancy-sounding but opaque to anyone outside finance, fails the "could a new contributor guess what this means" test. None of the 9 upstream inspiration repos use it.
+- *Phase* is reserved for the workflow stages so the word stays unambiguous. (GSD overloads Phase to mean both a workflow stage AND a numbered work unit; Signal keeps the cleaner separation.)
+- *Sprint* implies a fixed time-box (Scrum heritage) Signal doesn't enforce.
+
 ## Scope & Roadmap
 
 Signal ships in two versions. This PROJECT.md specifies v1. v2 is tracked separately and does not start until v1 is validated in real use.
@@ -42,7 +64,7 @@ v2 work does not start until both conditions are met:
 1. **v1 ships end-to-end.** All 9 commands working. Both FULL and SKETCH tier passes validated on real sample projects.
 2. **v1 has real users.** At least a few weeks of real usage, long enough for feedback to shape v2 priorities.
 
-v2 sub-tranches should be re-ordered based on observed v1 pain points, not the order listed in the rundown. See `.planning/TRANCHE-4.md` for the sub-tranche roadmap (directional, not prescriptive).
+v2 Epics should be re-ordered based on observed v1 pain points, not the order listed in the rundown. See `.planning/MILESTONE-4.md` for the Epic roadmap (directional, not prescriptive).
 
 ## Problem Statement
 

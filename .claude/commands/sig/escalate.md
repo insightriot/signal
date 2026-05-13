@@ -76,7 +76,7 @@ Show the user the rigor delta — which dials are getting stricter, which previo
 
 | Prior tier | Phases completed | Back-fill warning |
 |---|---|---|
-| Any | EXECUTE done with `tdd_required: false` | *"Prior commits have no tests. Recommend `/sig:add-tests` (Tranche 3 work) or manual retroactive test pass."* |
+| Any | EXECUTE done with `tdd_required: false` | *"Prior commits have no tests. Recommend `/sig:add-tests` (Milestone 3 work) or manual retroactive test pass."* |
 | SKETCH | SHIP done | *"REVIEW was skipped on already-shipped code. Recommend running `/sig:review` against prior commits."* |
 | FEATURE → FULL | REVIEW done with `security_audit: basic` | *"Prior REVIEW used OWASP Top 10 only. Recommend re-running REVIEW with the deeper `security-and-hardening` skill."* |
 | FEATURE → FULL | VERIFY done with `nyquist_enforcement: basic` | *"**Permanent gap, not a fixable debt.** FULL expects strict Nyquist — every test was seen to fail before passing, proving it catches the bug. Once code has shipped, the bug is fixed and the original fail event is gone. Approximations: mutation testing (break code, confirm test catches it) gives partial confidence; developer attestation is honesty-based. Neither equals strict Nyquist on prior commits. **Forward work can fully comply; pre-escalation commits never will.** Document this in PROFILE.md body as a known limit. See `tier-definitions.md` § 'Recoverable vs. permanent backfills' for the broader principle."* |

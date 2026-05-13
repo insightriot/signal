@@ -97,7 +97,7 @@ If detected:
 
 ## Output Format
 
-Write to `.planning/scan/stack.md` (overwrite if exists). Use **exactly** this section structure so the T4.6 synthesizer can mechanically merge it:
+Write to `.planning/scan/stack.md` (overwrite if exists). Use **exactly** this section structure so the M4.t6 synthesizer can mechanically merge it:
 
 ```markdown
 # Stack Scan

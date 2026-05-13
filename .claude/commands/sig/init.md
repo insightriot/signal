@@ -167,9 +167,9 @@ You are read-only.
 Working directory: {cwd}
 ```
 
-This fallback path is documented at T4.15 (dogfood pass found that dev-mode plugin agents don't auto-register with the Task tool). Verify the marketplace-install behavior + plugin-agent namespacing convention before relying on the named-subagent path in production. If marketplace install applies a `signal-` prefix (parallel to how `gsd-*` prefixed agents from the gsd plugin appear), update this section's table to reference the prefixed names.
+This fallback path is documented at M4.t15 (dogfood pass found that dev-mode plugin agents don't auto-register with the Task tool). Verify the marketplace-install behavior + plugin-agent namespacing convention before relying on the named-subagent path in production. If marketplace install applies a `signal-` prefix (parallel to how `gsd-*` prefixed agents from the gsd plugin appear), update this section's table to reference the prefixed names.
 
-`/sig:init` runs **before** PROFILE.md exists, so all 4 scanners always fire. The TRANCHE-4 spec mentions tier-aware scanner counts (SKETCH = 2), but that's moot for brownfield onboarding — calibration happens *after* this scan, and brownfield projects rarely calibrate to SKETCH anyway. (Locked design decision: scanner count is fixed at 4. Logged in DECISIONS.md.)
+`/sig:init` runs **before** PROFILE.md exists, so all 4 scanners always fire. The MILESTONE-4 spec mentions tier-aware scanner counts (SKETCH = 2), but that's moot for brownfield onboarding — calibration happens *after* this scan, and brownfield projects rarely calibrate to SKETCH anyway. (Locked design decision: scanner count is fixed at 4. Logged in DECISIONS.md.)
 
 Wait for all 4 scanners to complete. If any scanner fails (exception, timeout, refused write), record the failure but **continue** — Step 3's synthesizer degrades gracefully and marks the corresponding LANDSCAPE.md section as `(scan output unavailable — {scanner} failed: {reason})`. Do not retry within `/sig:init`; surface the failure so the user can re-run the scanner manually.
 

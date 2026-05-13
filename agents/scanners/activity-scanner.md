@@ -102,7 +102,7 @@ Apply these rules **in order**. First match wins.
 2. **dormant** — last commit between 6 and 18 months ago.
 3. **maintenance-mode** — last commit < 6 months ago AND 90-day commit count < 10 AND only 1 active contributor in 90 days.
 4. **active** — last commit < 6 months ago AND (90-day commit count ≥ 10 OR 90-day contributors ≥ 2).
-5. **brand-new** — total commits < 50 AND repo age < 60 days. (Loosened from `<20 / <30 days` after T4.15 dogfood: a young-but-busy project — Signal at 31 commits / 13 days — was hitting rule 4 ("active") and losing the brand-new flavor entirely. The looser threshold lets brand-new fire when both signals are present, but rule 4 still wins on volume past these thresholds.)
+5. **brand-new** — total commits < 50 AND repo age < 60 days. (Loosened from `<20 / <30 days` after M4.t15 dogfood: a young-but-busy project — Signal at 31 commits / 13 days — was hitting rule 4 ("active") and losing the brand-new flavor entirely. The looser threshold lets brand-new fire when both signals are present, but rule 4 still wins on volume past these thresholds.)
 
 **Tiebreaker note when rule 4 fires AND project age < 90 days:** classify as `active` per rule 4, but **append "(young + active)" in the Reasoning line** so the brownfield user sees both signals. A 13-day-old project at rule-4 cadence is structurally different from a 5-year-old project at the same cadence — calibration tone for a brownfield init should reflect that.
 

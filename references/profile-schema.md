@@ -199,7 +199,7 @@ A valid `PROFILE.md`:
 - Has all ten `rigor_overrides` keys present with correct types.
 - Has valid ISO-8601 `created_at`.
 
-A `readProfile(baseDir)` helper in `tools/lib/` (see TRANCHE-2) should return a typed object and throw on any schema violation.
+A `readProfile(baseDir)` helper in `tools/lib/` (see MILESTONE-2) should return a typed object and throw on any schema violation.
 
 ---
 

@@ -29,9 +29,9 @@ The plugin targets solo developers and small teams who want production-grade eng
 
 ## Current State
 
-Tranche 3 in progress (real-project testing). Tranches 1–2 complete: 11 slash commands shipped, 22 agents, 21 skills bound to phases, validator + tests + token-cost measurement in place. Recent dogfood passes: a FULL-tier URL shortener and a SKETCH-tier CSV-to-JSON one-shot — both in `.dogfood/` (gitignored), both shipped end-to-end through Signal's own commands.
+Milestone 4 (brownfield onboarding via `/sig:init`) feature-complete on the markdown + code layer — 18 of 18 tasks shipped, including the M4.t18 vocabulary refactor (Tranche → Milestone, add Epic mid-layer; 2026-05-12). Milestones 1–3 complete: 12 slash commands shipped, 26 agents (incl. 4 brownfield scanners), 21 skills bound to phases, 169 tests passing, validator green. v0.1.0 tag-and-publish gated only on F2 (marketplace-install plugin-agent registration). Milestone 5 (v2 ports per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`) is the next horizon.
 
-For current state and active work, read in order: `.planning/CONTEXT.md` → `.planning/STATE.md` → `.planning/TRANCHE-3.md`. The full v1 spec is `.planning/PROJECT.md`.
+For current state and active work, read in order: `.planning/CONTEXT.md` → `.planning/STATE.md` → `.planning/MILESTONE-4.md`. The full v1 spec is `.planning/PROJECT.md`. See `## Vocabulary` in PROJECT.md for the locked Milestone / Epic / Phase / Wave / Task terms and the ID-is-identity rule.
 
 Key supporting docs:
 - `analysis/REPO-ANALYSIS.md` — landscape analysis of 7 AI-dev plugins; the seed of Signal.

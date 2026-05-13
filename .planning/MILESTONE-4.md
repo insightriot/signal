@@ -1,28 +1,28 @@
-# Tranche 4 — Brownfield Onboarding via `/sig:init`
+# Milestone 4 — Brownfield Onboarding via `/sig:init`
 
 **Goal:** Build `/sig:init` — a single-command entry point that gets Signal applied to an *existing codebase* (one that wasn't built with Signal), producing a `.planning/LANDSCAPE.md` "lay of the land" document derived from the code itself, then handing off to `/sig:calibrate`.
 
 **Estimated effort:** 3–5 focused days. One command + one new agent + adjustments to adjacent commands + tests + dogfood pass.
 
-**Blocked by:** v1 (`v0.1.0`) shipped. *Not* blocked on real-user signal — this is the recognized highest-impact gap from T3 dogfood reflection (see DECISIONS 2026-04-26 — "Roadmap reorder").
+**Blocked by:** v1 (`v0.1.0`) shipped. *Not* blocked on real-user signal — this is the recognized highest-impact gap from M3 dogfood reflection (see DECISIONS 2026-04-26 — "Roadmap reorder").
 
 **Done when:** A user can clone an existing non-Signal codebase, run `/sig:init`, and get a usable Signal project state in under 5 minutes — including a landscape doc accurate enough that `/sig:calibrate` lands the right tier without manual fixup.
 
 ---
 
-## Why this is TRANCHE-4 and not v1.5 buried in FUTURE-IDEAS
+## Why this is MILESTONE-4 and not v1.5 buried in FUTURE-IDEAS
 
 Three user journeys exist today; only one had a clean entry point at v1:
 
 | Journey | Today | Quality |
 |---|---|---|
-| Greenfield ("starting fresh") | `/sig:new-project` | clean (T2) |
-| Existing Signal project ("coming back") | `/sig:status` → `/sig:resume` | clean (T3 Task 1) |
+| Greenfield ("starting fresh") | `/sig:new-project` | clean (M2) |
+| Existing Signal project ("coming back") | `/sig:status` → `/sig:resume` | clean (M3 Task 1) |
 | **Brownfield ("existing codebase, no Signal yet")** | `/sig:new-project` + `/sig:calibrate` Scenario A + `/sig:discuss --assumptions` | **ad-hoc, three-step, easy to do wrong** |
 
 Brownfield is almost certainly the most common real-world adoption path — greenfield Signal projects are rare; most users have existing code they want to bring discipline to. Without a dedicated command, the first thing users see when adopting Signal is a friction-rich path that requires reverse-engineering Signal's mental model. That kills adoption.
 
-**The strategic call (2026-04-26):** ship v1 narrow but make brownfield onboarding TRANCHE-4 — *before* v2 ports (now TRANCHE-5). Brownfield is a v1-completing feature, not a v2-expanding one.
+**The strategic call (2026-04-26):** ship v1 narrow but make brownfield onboarding MILESTONE-4 — *before* v2 ports (now MILESTONE-5). Brownfield is a v1-completing feature, not a v2-expanding one.
 
 ---
 
@@ -52,7 +52,7 @@ Scanners must be **read-only**. No writes during scan. Results synthesized in St
 
 ### Step 2 — Write `.planning/LANDSCAPE.md`
 
-The signature artifact of TRANCHE-4. Brownfield's analog of greenfield's PROJECT.md. Contains:
+The signature artifact of MILESTONE-4. Brownfield's analog of greenfield's PROJECT.md. Contains:
 
 ```markdown
 # Landscape
@@ -137,27 +137,27 @@ Same pattern as `/sig:new-project`'s tail. Calibration becomes the next user act
 ## Tasks
 
 ### Wave 1 — Foundation
-- **T4.1** ✓ — Pre-flight + state machine. Shipped 2026-04-26. `.claude/commands/sig/init.md` skeleton with 5-state pre-flight (already-Signalized / no-`.git/` / empty repo / ambiguous `.planning/` / happy path) + `.gitignore` check + scaffolded Steps 2-6 with `[T4.X — not yet implemented]` markers + 5-row anti-rationalization table + per-wave-tagged gate checklist. Auto-discovered by Claude Code as `sig:init`. Validator updates deferred to T4.14 per the spec. Tests 96/96; validator green.
+- **M4.t1** ✓ — Pre-flight + state machine. Shipped 2026-04-26. `.claude/commands/sig/init.md` skeleton with 5-state pre-flight (already-Signalized / no-`.git/` / empty repo / ambiguous `.planning/` / happy path) + `.gitignore` check + scaffolded Steps 2-6 with `[M4.X — not yet implemented]` markers + 5-row anti-rationalization table + per-wave-tagged gate checklist. Auto-discovered by Claude Code as `sig:init`. Validator updates deferred to M4.t14 per the spec. Tests 96/96; validator green.
 
 ### Wave 2 — Scanners (parallel)
-- **T4.2** ✓ — Stack scanner agent. Shipped 2026-04-26. Detects languages (file-extension tally with vendored exclusions), package managers + manifests (Node/Python/Rust/Go/Ruby/JVM/.NET/PHP/Elixir/Swift + container/edge), framework markers (Next/Vite/Astro/Remix/Nuxt/SvelteKit/Express/Django/Flask/Rails/Spring/Laravel via config-file presence not just deps), and runtime/deployment targets. Writes `.planning/scan/stack.md`.
-- **T4.3** ✓ — Structure scanner agent. Shipped 2026-04-26. Top-level inventory (categorized: source-shaped / test-shaped / doc-shaped / CI-tooling / standard-files / other), monorepo detection (workspaces / Nx / Turbo / Lerna / Rush / implicit / single-repo), source-tree depth-3 walk with conservative annotations, test-directory presence (dedicated + co-located + by-name detection), doc-directory presence (Docusaurus/MkDocs/mdBook/VitePress/GitBook/Sphinx). Writes `.planning/scan/structure.md`.
-- **T4.4** ✓ — Activity scanner agent. Shipped 2026-04-26. Repo lifetime, commit cadence (30/90/365d windows + avg/week), contributor counts (90d unique + top 10, names-only no emails), hot files (90d with lockfile/CHANGELOG/generated-doc filters), commit-message convention detection (Conventional Commits / PR-merge / squash-and-merge / free-form / mixed; >50%/>30% thresholds), branch state, 5-tier rule-based health classification (archived / dormant / maintenance-mode / active / brand-new). Writes `.planning/scan/activity.md`.
-- **T4.5** ✓ — Quality scanner agent. Shipped 2026-04-26. Test-runner detection (vitest/jest/mocha/Playwright/Cypress/pytest/RSpec/cargo/go-test/JUnit via config-file presence not just devDeps), CI workflow detection (GitHub Actions / GitLab / CircleCI / Travis / Buildkite / Jenkins / Azure / Vercel / Netlify) with "does CI run tests on PRs" derived from workflow grep, lint/format tooling (ESLint / Prettier / Biome / Ruff / Black / mypy/pyright / rustfmt / golangci-lint / RuboCop / EditorConfig / TypeScript), README sections + first-30-lines verbatim (synthesizer uses these for "What this project is"), CHANGELOG freshness, TODO/FIXME/HACK debt grep with `:!*.lock` `:!CHANGELOG*` exclusions and 1000-result cap, license SPDX detection. Writes `.planning/scan/quality.md`.
+- **M4.t2** ✓ — Stack scanner agent. Shipped 2026-04-26. Detects languages (file-extension tally with vendored exclusions), package managers + manifests (Node/Python/Rust/Go/Ruby/JVM/.NET/PHP/Elixir/Swift + container/edge), framework markers (Next/Vite/Astro/Remix/Nuxt/SvelteKit/Express/Django/Flask/Rails/Spring/Laravel via config-file presence not just deps), and runtime/deployment targets. Writes `.planning/scan/stack.md`.
+- **M4.t3** ✓ — Structure scanner agent. Shipped 2026-04-26. Top-level inventory (categorized: source-shaped / test-shaped / doc-shaped / CI-tooling / standard-files / other), monorepo detection (workspaces / Nx / Turbo / Lerna / Rush / implicit / single-repo), source-tree depth-3 walk with conservative annotations, test-directory presence (dedicated + co-located + by-name detection), doc-directory presence (Docusaurus/MkDocs/mdBook/VitePress/GitBook/Sphinx). Writes `.planning/scan/structure.md`.
+- **M4.t4** ✓ — Activity scanner agent. Shipped 2026-04-26. Repo lifetime, commit cadence (30/90/365d windows + avg/week), contributor counts (90d unique + top 10, names-only no emails), hot files (90d with lockfile/CHANGELOG/generated-doc filters), commit-message convention detection (Conventional Commits / PR-merge / squash-and-merge / free-form / mixed; >50%/>30% thresholds), branch state, 5-tier rule-based health classification (archived / dormant / maintenance-mode / active / brand-new). Writes `.planning/scan/activity.md`.
+- **M4.t5** ✓ — Quality scanner agent. Shipped 2026-04-26. Test-runner detection (vitest/jest/mocha/Playwright/Cypress/pytest/RSpec/cargo/go-test/JUnit via config-file presence not just devDeps), CI workflow detection (GitHub Actions / GitLab / CircleCI / Travis / Buildkite / Jenkins / Azure / Vercel / Netlify) with "does CI run tests on PRs" derived from workflow grep, lint/format tooling (ESLint / Prettier / Biome / Ruff / Black / mypy/pyright / rustfmt / golangci-lint / RuboCop / EditorConfig / TypeScript), README sections + first-30-lines verbatim (synthesizer uses these for "What this project is"), CHANGELOG freshness, TODO/FIXME/HACK debt grep with `:!*.lock` `:!CHANGELOG*` exclusions and 1000-result cap, license SPDX detection. Writes `.planning/scan/quality.md`.
 
   All 4 scanners share the same defensive posture: read-only, no install/build commands, 30s per-command timeout, "report no data" failure mode for missing/unparseable inputs, no PROFILE.md awareness. Sibling overlap explicitly resolved via per-agent Constraints sections.
 
 ### Wave 3 — Synthesis
-- **T4.6** ✓ — LANDSCAPE.md writer. Shipped 2026-04-26. `/sig:init.md` Step 2 (parallel scanner orchestration via Task tool with per-agent `subagent_type`) + Step 3 (LANDSCAPE.md template with 7 sections, 5 mechanical + 2 narrative). Helper `tools/lib/landscape.js`: `readScan` / `readAllScans` / `extractSection` (inline `(?m:...)` group for h2-anchored heading match) / `extractField` (markdown-emphasis-normalize-then-plain-match). 25 tests added.
-- **T4.7** ✓ — Baseline PROJECT.md generator. Shipped 2026-04-26. `/sig:init.md` Step 4 with full Signal-shape template (Vision / Problem / Success Criteria / Scope-in/out / Constraints / Done When / Notes). Generation rules per field: forward-looking fields (Success Criteria / Done When / Scope-out) are *always* `[FILL IN]`; manifest-derived fields (language, runtime) are facts; everything else gets `[INFERRED — please verify]`.
+- **M4.t6** ✓ — LANDSCAPE.md writer. Shipped 2026-04-26. `/sig:init.md` Step 2 (parallel scanner orchestration via Task tool with per-agent `subagent_type`) + Step 3 (LANDSCAPE.md template with 7 sections, 5 mechanical + 2 narrative). Helper `tools/lib/landscape.js`: `readScan` / `readAllScans` / `extractSection` (inline `(?m:...)` group for h2-anchored heading match) / `extractField` (markdown-emphasis-normalize-then-plain-match). 25 tests added.
+- **M4.t7** ✓ — Baseline PROJECT.md generator. Shipped 2026-04-26. `/sig:init.md` Step 4 with full Signal-shape template (Vision / Problem / Success Criteria / Scope-in/out / Constraints / Done When / Notes). Generation rules per field: forward-looking fields (Success Criteria / Done When / Scope-out) are *always* `[FILL IN]`; manifest-derived fields (language, runtime) are facts; everything else gets `[INFERRED — please verify]`.
 
 ### Wave 4 — Validation
-- **T4.8** ✓ — Assumption-surfacing step in `/sig:init.md` (Step 5); user-validation flow. Shipped 2026-04-27. Replaced the placeholder reminder with a full structured walkthrough per the Wave 4 design below: pre-walkthrough zero-marker skip + locked field order (Vision → Problem → Scope-In → Constraints → Success Criteria → Done When → Scope-Out) + 3+other for `[INFERRED]` markers + open-ended-or-defer for `[FILL IN]` markers + Accept/Edit/Defer/Skip capture rules with `## Notes` history appendage + post-walkthrough summary. Field-specific framing + open-ended prompts for the four `[FILL IN]` field types codified in a table. Anti-rationalization table grew 4 rows (LANDSCAPE-too / skip-Defer / auto-accept-high-confidence / over-detailed-questions). Added `tools/lib/walkthrough.js` (`countMarkers` + `appendNote`) for the zero-marker skip + Notes-section history append. 22 new tests in `tests/walkthrough.test.js` (count: zeros / single / multi / bare-prose-ignored / confidence-labeled / no-backticks; appendNote: empty input / null / populated section / empty section / blank-only body / no Notes section / no trailing newline / mid-document / h3 ignored / whitespace-trim / multi-line / idempotent twice). Tests 126 → 148; validator green. Also fixed a pre-existing landscape.js regex incompatibility — `(?m:...)` inline modifier requires V8 12.7+ (Node 23+) and was failing on Node 22.13; rewrote `extractSection` to use manual line anchors with `[ \\t]*` (not `\\s*`) so the heading-line whitespace allowance doesn't eat blank lines.
-- **T4.9** ✓ — STATE.md initialization + handoff message. Shipped 2026-04-26 (folded into Wave 3 to make the command functional end-to-end). `initState(baseDir, 'CALIBRATE')` + handoff that surfaces project age + brownfield-tier-bias hint.
+- **M4.t8** ✓ — Assumption-surfacing step in `/sig:init.md` (Step 5); user-validation flow. Shipped 2026-04-27. Replaced the placeholder reminder with a full structured walkthrough per the Wave 4 design below: pre-walkthrough zero-marker skip + locked field order (Vision → Problem → Scope-In → Constraints → Success Criteria → Done When → Scope-Out) + 3+other for `[INFERRED]` markers + open-ended-or-defer for `[FILL IN]` markers + Accept/Edit/Defer/Skip capture rules with `## Notes` history appendage + post-walkthrough summary. Field-specific framing + open-ended prompts for the four `[FILL IN]` field types codified in a table. Anti-rationalization table grew 4 rows (LANDSCAPE-too / skip-Defer / auto-accept-high-confidence / over-detailed-questions). Added `tools/lib/walkthrough.js` (`countMarkers` + `appendNote`) for the zero-marker skip + Notes-section history append. 22 new tests in `tests/walkthrough.test.js` (count: zeros / single / multi / bare-prose-ignored / confidence-labeled / no-backticks; appendNote: empty input / null / populated section / empty section / blank-only body / no Notes section / no trailing newline / mid-document / h3 ignored / whitespace-trim / multi-line / idempotent twice). Tests 126 → 148; validator green. Also fixed a pre-existing landscape.js regex incompatibility — `(?m:...)` inline modifier requires V8 12.7+ (Node 23+) and was failing on Node 22.13; rewrote `extractSection` to use manual line anchors with `[ \\t]*` (not `\\s*`) so the heading-line whitespace allowance doesn't eat blank lines.
+- **M4.t9** ✓ — STATE.md initialization + handoff message. Shipped 2026-04-26 (folded into Wave 3 to make the command functional end-to-end). `initState(baseDir, 'CALIBRATE')` + handoff that surfaces project age + brownfield-tier-bias hint.
 
-#### T4.8 detailed design (next-session pickup)
+#### M4.t8 detailed design (next-session pickup)
 
-**Why it matters.** T4.15 dogfood (Signal-on-Signal) ran without T4.8. Doing the walkthrough manually I felt the absence: `[INFERRED]` and `[FILL IN]` markers are scattered through LANDSCAPE.md and baseline PROJECT.md, and the user has to spot them, decide what to do with each, and edit the files manually. T4.8 is the conversational layer that turns "scan output" into "vetted artifacts the user trusts to feed `/sig:calibrate`."
+**Why it matters.** M4.t15 dogfood (Signal-on-Signal) ran without M4.t8. Doing the walkthrough manually I felt the absence: `[INFERRED]` and `[FILL IN]` markers are scattered through LANDSCAPE.md and baseline PROJECT.md, and the user has to spot them, decide what to do with each, and edit the files manually. M4.t8 is the conversational layer that turns "scan output" into "vetted artifacts the user trusts to feed `/sig:calibrate`."
 
 **Goal.** A structured walkthrough that surfaces every `[INFERRED]` and `[FILL IN]` marker in `.planning/PROJECT.md` (the higher-priority file — calibration questions derive from these fields) with question-pattern-compliant prompts. User responses get captured into the file directly; the walkthrough either resolves the marker or explicitly defers it.
 
@@ -236,7 +236,7 @@ will proceed but tier accuracy may be reduced for the deferred dimensions.
 - A new helper `tools/lib/walkthrough.js` may be worthwhile if the marker-detection + edit logic gets complex. Decide during implementation; if PROJECT.md manipulation can be done cleanly inline in the command, no helper needed.
 - Tests: at minimum, a fixture PROJECT.md with mixed markers + a unit test that the walkthrough's pre-check correctly counts markers. Full conversational walkthrough test is harder; a smoke test that the helper functions work is enough.
 
-**Anti-rationalization for T4.8 implementation:**
+**Anti-rationalization for M4.t8 implementation:**
 | Temptation | Check |
 |---|---|
 | "Walk LANDSCAPE.md too — it has markers." | Defer to scope (b). Ship (a) first; LANDSCAPE.md walkthrough is more questions, more tokens, and the user can review LANDSCAPE.md manually before /sig:calibrate. |
@@ -244,7 +244,7 @@ will proceed but tier accuracy may be reduced for the deferred dimensions.
 | "Auto-accept high-confidence [INFERRED] markers without asking." | No — even if Signal's confidence is high, the user is the source of truth on their own project's purpose. The walkthrough exists to surface, not to auto-decide. |
 | "Make the questions multi-line and detailed." | Keep each question to ≤ 8 lines (the option enumeration + recommendation). Brevity matters; the walkthrough has 7 fields and a 50-line question per field is fatigue-inducing. |
 
-**Success criteria for T4.8 ship:**
+**Success criteria for M4.t8 ship:**
 - [ ] Step 5 placeholder in `init.md` replaced with the structured walkthrough.
 - [ ] All 7 PROJECT.md fields covered in the locked order.
 - [ ] 3+other for `[INFERRED]` markers; open-ended-or-defer for `[FILL IN]` markers.
@@ -255,26 +255,26 @@ will proceed but tier accuracy may be reduced for the deferred dimensions.
 - [ ] Dogfood pass on Signal itself confirms the walkthrough is non-fatiguing.
 
 ### Wave 5 — Adjacent updates
-- **T4.10** ✓ — `/sig:status` brownfield awareness. Shipped 2026-04-26. New helper `readLandscapeMeta(baseDir)` in `tools/lib/status.js` (parses "## Last Updated" date from LANDSCAPE.md, fall back to null on miss). Branch A (uncalibrated) now branches on LANDSCAPE.md presence with brownfield-specific message. Branches B and C add `Landscape: captured {date}` line conditional on file presence. 5 new helper tests + read-only-contract update.
-- **T4.11** ✓ — `/sig:resume` brownfield awareness. Shipped 2026-04-26. Step 2 loads LANDSCAPE.md alongside PROJECT.md. Vision-fallback rule: if PROJECT.md Vision contains `[INFERRED]` or `[FILL IN]` markers AND LANDSCAPE.md exists, the briefing surfaces LANDSCAPE.md's "What this project is" paragraph instead. Briefing template adds a `Landscape: captured {date} (brownfield init)` line.
-- **T4.12** ✓ — `/sig:calibrate` Scenario A brownfield redirect. Shipped 2026-04-26. Goes from a single ambiguous question to the locked 3+other pattern (A=brownfield/run /sig:init / B=greenfield/run /sig:new-project / C=cancel). Recommendation auto-selects from a git-state heuristic (`.git/` + ≥1 commit + tracked source files → recommend A). Tentatively addresses TRANCHE-4 design decision #5 (codebase-novelty feeding calibration) via the heuristic; deeper integration deferred until T4.15 dogfood signals.
+- **M4.t10** ✓ — `/sig:status` brownfield awareness. Shipped 2026-04-26. New helper `readLandscapeMeta(baseDir)` in `tools/lib/status.js` (parses "## Last Updated" date from LANDSCAPE.md, fall back to null on miss). Branch A (uncalibrated) now branches on LANDSCAPE.md presence with brownfield-specific message. Branches B and C add `Landscape: captured {date}` line conditional on file presence. 5 new helper tests + read-only-contract update.
+- **M4.t11** ✓ — `/sig:resume` brownfield awareness. Shipped 2026-04-26. Step 2 loads LANDSCAPE.md alongside PROJECT.md. Vision-fallback rule: if PROJECT.md Vision contains `[INFERRED]` or `[FILL IN]` markers AND LANDSCAPE.md exists, the briefing surfaces LANDSCAPE.md's "What this project is" paragraph instead. Briefing template adds a `Landscape: captured {date} (brownfield init)` line.
+- **M4.t12** ✓ — `/sig:calibrate` Scenario A brownfield redirect. Shipped 2026-04-26. Goes from a single ambiguous question to the locked 3+other pattern (A=brownfield/run /sig:init / B=greenfield/run /sig:new-project / C=cancel). Recommendation auto-selects from a git-state heuristic (`.git/` + ≥1 commit + tracked source files → recommend A). Tentatively addresses MILESTONE-4 design decision #5 (codebase-novelty feeding calibration) via the heuristic; deeper integration deferred until M4.t15 dogfood signals.
 
 ### Wave 6 — Tests
-- **T4.13** ✓ — Fixture-based tests for `/sig:init` flow. Shipped 2026-05-09. Three fixtures under `tests/fixtures/init/{node,python,dormant}-project/.planning/scan/`, each with hand-authored `{stack,structure,activity,quality}.md` files modeled on the real T4.15 dogfood shape but with synthetic projects (Node Express + GitHub-Actions-CI; Python Flask + no CI; Ruby Sinatra + Travis-legacy + dormant 9 months). New `tests/init-fixtures.test.js` (21 tests) loads each fixture via `readAllScans` and asserts (a) all 4 scans load, (b) per-fixture load-bearing fields extract correctly via `extractSection` + `extractField` (health, framework, CI, license, test runner), (c) one inline-snapshot per fixture of the synthesized field bundle (10 fields each — runtime / lockfile / projectAge / contributors90d / health / defaultBranch / ciPlatforms / license / testAssessment / todoCount) so scanner-output drift fails loudly, and (d) cross-fixture sibling-overlap discipline (CI never in stack; Health never in quality; Frameworks never in structure; Test Runners never in stack). Dormant fixture's `Status: dormant` extraction is the spec-named focus and gets a dedicated assertion + the `rule 2 fired` reasoning regex. Tests 148 → 169; validator green. Realistic-but-minimal: each fixture's 4 scan files total ~150–200 lines; the suite catches helper-side regressions (e.g., the Node-22 `(?m:...)` issue caught in T4.8) without re-implementing scanner logic in JS.
+- **M4.t13** ✓ — Fixture-based tests for `/sig:init` flow. Shipped 2026-05-09. Three fixtures under `tests/fixtures/init/{node,python,dormant}-project/.planning/scan/`, each with hand-authored `{stack,structure,activity,quality}.md` files modeled on the real M4.t15 dogfood shape but with synthetic projects (Node Express + GitHub-Actions-CI; Python Flask + no CI; Ruby Sinatra + Travis-legacy + dormant 9 months). New `tests/init-fixtures.test.js` (21 tests) loads each fixture via `readAllScans` and asserts (a) all 4 scans load, (b) per-fixture load-bearing fields extract correctly via `extractSection` + `extractField` (health, framework, CI, license, test runner), (c) one inline-snapshot per fixture of the synthesized field bundle (10 fields each — runtime / lockfile / projectAge / contributors90d / health / defaultBranch / ciPlatforms / license / testAssessment / todoCount) so scanner-output drift fails loudly, and (d) cross-fixture sibling-overlap discipline (CI never in stack; Health never in quality; Frameworks never in structure; Test Runners never in stack). Dormant fixture's `Status: dormant` extraction is the spec-named focus and gets a dedicated assertion + the `rule 2 fired` reasoning regex. Tests 148 → 169; validator green. Realistic-but-minimal: each fixture's 4 scan files total ~150–200 lines; the suite catches helper-side regressions (e.g., the Node-22 `(?m:...)` issue caught in M4.t8) without re-implementing scanner logic in JS.
 
-  **Design choice locked during implementation:** scanners are agent specs (markdown), not JS — so what's testable in code is the synthesis layer (`tools/lib/landscape.js`'s `extractSection`/`extractField`), not the scan itself. T4.13's "snapshot of the generated LANDSCAPE.md shape" reframed as snapshot of the *extracted-values bundle* — what the LANDSCAPE.md template consumes. Re-implementing scanner logic in JS to test the scanners themselves was rejected (would create two truths and a maintenance trap).
-- **T4.14** ✓ — Validator updates. Shipped 2026-04-26. `tools/validate-plugin.js` adds `init.md` to `REQUIRED_COMMANDS` (now 12 commands) + new `REQUIRED_AGENTS` check for the 4 scanners + `agents/scanners` to `REQUIRED_DIRS`. Agent absence is an error (breaks `/sig:init`); directory absence stays a warning per existing convention.
+  **Design choice locked during implementation:** scanners are agent specs (markdown), not JS — so what's testable in code is the synthesis layer (`tools/lib/landscape.js`'s `extractSection`/`extractField`), not the scan itself. M4.t13's "snapshot of the generated LANDSCAPE.md shape" reframed as snapshot of the *extracted-values bundle* — what the LANDSCAPE.md template consumes. Re-implementing scanner logic in JS to test the scanners themselves was rejected (would create two truths and a maintenance trap).
+- **M4.t14** ✓ — Validator updates. Shipped 2026-04-26. `tools/validate-plugin.js` adds `init.md` to `REQUIRED_COMMANDS` (now 12 commands) + new `REQUIRED_AGENTS` check for the 4 scanners + `agents/scanners` to `REQUIRED_DIRS`. Agent absence is an error (breaks `/sig:init`); directory absence stays a warning per existing convention.
 
 ### Wave 7 — Dogfood + ship
-- **T4.15** ✓ — Dogfood pass on Signal-on-Signal. Shipped 2026-04-26. Outputs at `.dogfood/T4-INIT-DOGFOOD/` (gitignored): RUNLOG.md with 18 numbered findings + 4 scan files + LANDSCAPE.md + baseline PROJECT.md. Synthesis pipeline validated end-to-end; one blocker (F2 — agent-spawn registration in dev mode) with documented fallback path locked in DECISIONS.md. Four fix-now refinements applied to init.md + structure-scanner.md + activity-scanner.md. Six findings deferred (logged in RUNLOG.md). 126/126 tests still pass.
-- **T4.16** ✓ — Documentation update. Shipped 2026-04-26. README gained "Bringing Signal to an existing codebase" section (between greenfield walkthrough and `.planning/`-in-git note) + `/sig:init` in Command reference. tier-definitions.md gained "Brownfield calibration patterns" section (between Escalation and Design notes) — codifies why brownfield leans higher-tier (reversibility-not-trivial + horizon-rarely-hours) and four practical patterns. LICENSES.md unchanged (no new attribution — `/sig:init` is Signal's own design).
-- **T4.17** — Wire `AskUserQuestion` into decision-gathering commands. Shipped 2026-05-05. **Trigger:** real-project dogfood pass on `/sig:discuss` (Phase 2 of MPS) produced a markdown wall — six 3+other gray areas bundled into one scrollable response — instead of one structured question per gray area. **Root cause:** Signal's command specs described the 3+other contract in prose ("Present three named options...") but never told the model to invoke the platform's `AskUserQuestion` tool; GSD's discuss-phase had explicit AskUserQuestion directives that got dropped in Signal's ~7× compression of the spec. **Patches:** `references/question-patterns.md` gained a `## Rendering` section mapping each pattern to its tool — strict-enum and 3+other → `AskUserQuestion(multiSelect: false)`, open-ended → plain text, plus a text-mode fallback for non-Claude-Code runtimes — and an anti-pattern row for wall-of-text bundling. `commands/sig/discuss.md` Step 4 rewritten to explicitly invoke `AskUserQuestion`, one call per gray area. `commands/sig/init.md` (1.4 + 5.3 + 5.4), `commands/sig/calibrate.md` (Scenario A redirect + the 5 diagnostic questions), and `commands/sig/verify.md` (loop-back failure path) gained one-line directives at each inline 3+other / strict-enum sample making clear the markdown describes option content, not literal output. `[FILL IN]` open-ended fallback in init.md 5.4 explicitly stays plain-text. **Validator:** green; tests unchanged (this is a spec-doc patch — no helper code touched). **Why it matters:** AskUserQuestion is Claude Code-native; leaving it on the floor means every decision-gathering command produced GSD-pre-port-quality UX. Closes the gap between Signal's question-pattern *contract* (well-specified) and its *rendering* (was implicit, now explicit).
+- **M4.t15** ✓ — Dogfood pass on Signal-on-Signal. Shipped 2026-04-26. Outputs at `.dogfood/M4-INIT-DOGFOOD/` (gitignored): RUNLOG.md with 18 numbered findings + 4 scan files + LANDSCAPE.md + baseline PROJECT.md. Synthesis pipeline validated end-to-end; one blocker (F2 — agent-spawn registration in dev mode) with documented fallback path locked in DECISIONS.md. Four fix-now refinements applied to init.md + structure-scanner.md + activity-scanner.md. Six findings deferred (logged in RUNLOG.md). 126/126 tests still pass.
+- **M4.t16** ✓ — Documentation update. Shipped 2026-04-26. README gained "Bringing Signal to an existing codebase" section (between greenfield walkthrough and `.planning/`-in-git note) + `/sig:init` in Command reference. tier-definitions.md gained "Brownfield calibration patterns" section (between Escalation and Design notes) — codifies why brownfield leans higher-tier (reversibility-not-trivial + horizon-rarely-hours) and four practical patterns. LICENSES.md unchanged (no new attribution — `/sig:init` is Signal's own design).
+- **M4.t17** — Wire `AskUserQuestion` into decision-gathering commands. Shipped 2026-05-05. **Trigger:** real-project dogfood pass on `/sig:discuss` (Phase 2 of MPS) produced a markdown wall — six 3+other gray areas bundled into one scrollable response — instead of one structured question per gray area. **Root cause:** Signal's command specs described the 3+other contract in prose ("Present three named options...") but never told the model to invoke the platform's `AskUserQuestion` tool; GSD's discuss-phase had explicit AskUserQuestion directives that got dropped in Signal's ~7× compression of the spec. **Patches:** `references/question-patterns.md` gained a `## Rendering` section mapping each pattern to its tool — strict-enum and 3+other → `AskUserQuestion(multiSelect: false)`, open-ended → plain text, plus a text-mode fallback for non-Claude-Code runtimes — and an anti-pattern row for wall-of-text bundling. `commands/sig/discuss.md` Step 4 rewritten to explicitly invoke `AskUserQuestion`, one call per gray area. `commands/sig/init.md` (1.4 + 5.3 + 5.4), `commands/sig/calibrate.md` (Scenario A redirect + the 5 diagnostic questions), and `commands/sig/verify.md` (loop-back failure path) gained one-line directives at each inline 3+other / strict-enum sample making clear the markdown describes option content, not literal output. `[FILL IN]` open-ended fallback in init.md 5.4 explicitly stays plain-text. **Validator:** green; tests unchanged (this is a spec-doc patch — no helper code touched). **Why it matters:** AskUserQuestion is Claude Code-native; leaving it on the floor means every decision-gathering command produced GSD-pre-port-quality UX. Closes the gap between Signal's question-pattern *contract* (well-specified) and its *rendering* (was implicit, now explicit).
 
-- **T4.18** (will be renamed to **M4.t18** during execution) — Vocabulary refactor: Tranche → Milestone, add Epic mid-layer. **Trigger:** 2026-05-12 conversation. User asked "where the fuck did Tranche come from?" Investigation traced it to a single commit (`236aecc`, 2026-04-22) that scaffolded `.planning/` with hand-rolled file names and picked "Tranche" with no principled grounding. The term is a finance import (loan tranches, bond tranches), fancy-sounding but opaque to anyone outside finance — fails the "could a new contributor guess what this means" test. None of the 9 upstream inspiration repos in `.upstream/` use "Tranche"; GSD uses "Milestone." Signal is downstream of GSD, so vocabulary should align unless there's a reason to diverge — there isn't.
+- **M4.t18** ✓ — Vocabulary refactor: `Tranche` → `Milestone`, add `Epic` mid-layer. Shipped 2026-05-12. **Trigger:** 2026-05-12 conversation. User asked "where the fuck did Tranche come from?" Investigation traced it to a single commit (`236aecc`, 2026-04-22) that scaffolded `.planning/` with hand-rolled file names and picked "Tranche" with no principled grounding. The term is a finance import (loan tranches, bond tranches), fancy-sounding but opaque to anyone outside finance — fails the "could a new contributor guess what this means" test. None of the 9 upstream inspiration repos in `.upstream/` used `Tranche`; GSD uses `Milestone`. Signal is downstream of GSD, so vocabulary should align unless there's a reason to diverge — there wasn't.
 
   **Locked vocabulary:**
-  - **Milestone** (M1, M2…) replaces Tranche.
-  - **Epic** (M5.E1, M5.E2…) is a new mid-layer that names the structure Signal already invented as awkward "sub-tranches" (5a, 5b, …).
+  - **Milestone** (M1, M2…) replaces `Tranche`.
+  - **Epic** (M5.E1, M5.E2…) is a new mid-layer that names the structure Signal already invented as awkward `sub-tranches` (5a, 5b, …).
   - **Phase**, **Wave**, **Task** unchanged.
 
   **ID scheme:**
@@ -284,39 +284,37 @@ will proceed but tier accuracy may be reduced for the deferred dimensions.
   - `M5.E3.t2` — Task 2 in Epic 3 in Milestone 5.
   - Lowercase `t` for tasks so M / E / t are visually distinct.
 
-  **The persistence rule** (what the original instinct was really about): the **ID is persistent identity, never changes.** Phase and Wave are *metadata* on the item — they describe transient status (in-transit, delivered), not address. Document this rule in `PROJECT.md` alongside the vocabulary table.
+  **The persistence rule** (what the original instinct was really about): the **ID is persistent identity, never changes.** Phase and Wave are *metadata* on the item — they describe transient status (in-transit, delivered), not address. Documented in `PROJECT.md` alongside the vocabulary table.
 
-  **Files to add/change:**
-  - (a) `git mv .planning/TRANCHE-{1..5}.md .planning/MILESTONE-{1..5}.md` (5 renames).
-  - (b) Prose replacement across all `.md` files in repo *excluding* `.upstream/`, `CHANGELOG`, and historical commit-message references (those are frozen history): `Tranche` → `Milestone`, `tranche` → `milestone`, T-prefix IDs → M-prefix IDs (e.g., `T4.17` → `M4.t17`). ~17 files affected.
-  - (c) Add a `## Vocabulary` section to `PROJECT.md` (or `CLAUDE.md`) with the locked terms + ID-is-identity rule.
-  - (d) Update Signal's commands (`.claude/commands/sig/*.md`) that reference `TRANCHE-N.md` to look for `MILESTONE-N.md` first.
-  - (e) Backward-compat: commands recognize `TRANCHE-N.md` for one release cycle with a one-line deprecation warning pointing to the migration prompt. Drop in the release after.
-  - (f) `tools/validate-plugin.js` — grep for hard-coded TRANCHE references and update.
-  - (g) `DECISIONS.md` append entry locking the new vocabulary with this trigger as rationale.
+  **What shipped:**
+  - (a) `git mv .planning/TRANCHE-{1..5}.md .planning/MILESTONE-{1..5}.md` (5 renames, history preserved).
+  - (b) Prose replacement across all `.md` files in repo *excluding* `.upstream/`, `CHANGELOG`, and historical commit-message references: `Tranche`→`Milestone`, `tranche`→`milestone`, T-prefix IDs → M-prefix IDs (e.g., the old `T4.17` ID became `M4.t17`).
+  - (c) `## Vocabulary` section added to `PROJECT.md` with locked terms + ID-is-identity rule.
+  - (d) Signal's commands (`.claude/commands/sig/*.md`) updated to reference `MILESTONE-N.md` first; backward-compat fallback to `TRANCHE-N.md` for one release cycle with a one-line deprecation warning pointing to the migration prompt.
+  - (e) `tools/validate-plugin.js` — no hard-coded TRANCHE references found (file was in good shape).
+  - (f) `DECISIONS.md` append entry locking the new vocabulary with this trigger as rationale.
+  - (g) Migration prompt for downstream projects published at `docs/migration-vocab-v0.1.0.md` — portable refactor prompt for any Signal-managed repo with the old `.planning/TRANCHE-*.md` shape.
 
-  **Existing IDs:** don't retroactively assign epics to past milestones. M1–M4 had flat task lists; their IDs become `M{N}.t{X}`. Epics start being used in M5 where the sub-tranche structure already exists (M5.E1 = upstream phases, M5.E2 = COMPOUND memory phase, M5.E3 = security upgrade, M5.E4 = TDD & gate upgrades, M5.E5 = context-discipline hooks, M5.E6 = tactical GSD ports / `/sig:docs-update`).
+  **Existing IDs:** epics weren't retroactively assigned to past milestones. M1–M4 had flat task lists; their IDs became `M{N}.t{X}`. Epics start being used in M5 where the prior sub-tranche structure already existed (M5.E1 = upstream phases, M5.E2 = COMPOUND memory phase, M5.E3 = security upgrade, M5.E4 = TDD & gate upgrades, M5.E5 = context-discipline hooks, M5.E6 = multi-runtime adapters).
 
-  **Migration helper for downstream projects.** Signal projects in the user's other repos will have `.planning/TRANCHE-*.md` from earlier Signal versions. Publish a portable refactor prompt at `docs/migration-vocab-v0.1.0.md` (or in README) as part of this task. The prompt: lists files using old vocab, dry-run summary, ask confirmation, execute renames + replacements, append DECISIONS.md entry, report changes. **Canonical source for the prompt body is the 2026-05-12 conversation transcript** (Part 3 of the response that proposed this task) — copy verbatim, don't redraft from scratch.
-
-  **Acceptance criteria:**
-  1. `grep -ri "tranche" --include="*.md" --exclude-dir=.upstream .` returns zero matches in current-state docs (historical CHANGELOG/commit refs preserved as-is).
+  **Acceptance criteria — all green:**
+  1. `grep -ri "tranche" --include="*.md" --exclude-dir=.upstream .` → zero matches in current-state docs (historical CHANGELOG/commit refs preserved as-is).
   2. Validator green.
-  3. Tests still pass (doc-only refactor; no helper code logic should change).
-  4. `DECISIONS.md` entry exists locking the rename.
-  5. Migration prompt published at a stable path.
+  3. Tests pass (doc-only refactor; no helper code logic changed).
+  4. `DECISIONS.md` entry locks the rename.
+  5. Migration prompt published at `docs/migration-vocab-v0.1.0.md`.
 
-  **Why ship before v0.1.0:** once `Tranche` is in a tagged release, removing it gets harder (release-note hits, PR references). Never have a published Signal that uses the dumb word.
+  **Why we shipped before v0.1.0:** once `Tranche` lands in a tagged release, removing it gets harder (release-note hits, PR references). Never have a published Signal that uses the dumb word.
 
-  **Anti-rationalization:**
+  **Anti-rationalization (decisions made during the refactor):**
   | Temptation | Check |
   |---|---|
   | "Just rename Tranche but keep T-prefix IDs." | No. Half-measures recreate the original problem of mixed vocabulary. |
-  | "Add Epic later." | No. The sub-tranches in M5 already exist (5a, 5b…) and need names today. M5 should be born with Epic IDs, not letters. |
+  | "Add Epic later." | No. The Epics in M5 already exist (the old 5a, 5b…) and need names today. M5 should be born with Epic IDs, not letters. |
   | "Skip the migration prompt — users can figure it out." | No. The user explicitly flagged this as a real-world use case across multiple projects. Solving it once portably is the whole point. |
   | "Make Phase change to Stage while we're at it." | No. Signal's Phase = workflow-only is *better* than GSD's overloaded Phase (where Phase doubles as both a numbered work unit AND a workflow stage). Keep Signal's cleaner choice; this refactor is about Tranche, not Phase. |
 
-  **Estimated effort:** half-day focused work + validation.
+  **Effort:** half-day focused work + validation.
 
 ---
 
@@ -353,16 +351,16 @@ These are the gray areas a real implementation will surface. Logged for the impl
 ## What this unlocks
 
 - **Brownfield adoption becomes a one-command operation.** Removes the biggest barrier to Signal being usable on real-world existing projects.
-- **TRANCHE-5 (v2 ports)** becomes legitimate to start once `/sig:init` lands AND v1+v1.5 has real users for a few weeks.
+- **MILESTONE-5 (v2 ports)** becomes legitimate to start once `/sig:init` lands AND v1+v1.5 has real users for a few weeks.
 - **A scanner-agent pattern** that future v2 work (especially gstack's `/cso` audit, which is similar — multi-dimensional codebase scan + report) can build on.
 
 ---
 
-## How to start a session for TRANCHE-4
+## How to start a session for MILESTONE-4
 
 1. Read `.planning/CONTEXT.md` + `.planning/STATE.md` (current state of Signal-the-project).
-2. Read this file (`TRANCHE-4.md`) for task list.
+2. Read this file (`MILESTONE-4.md`) for task list.
 3. Re-read `.claude/commands/sig/new-project.md` and `.claude/commands/sig/calibrate.md` — `/sig:init` is conceptually a new entry point that overlaps both, so understanding their shapes is necessary background.
 4. Re-read `references/question-patterns.md` — `/sig:init`'s Step 4 (assumption surfacing) is question-pattern-heavy.
-5. Re-read T3 Task 1's commits (`5bf4184`, `600de7f`) — `/sig:status` and `/sig:resume`'s structure is the closest existing analog to what `/sig:init` will look like.
-6. Pick up Task T4.1 first.
+5. Re-read M3 Task 1's commits (`5bf4184`, `600de7f`) — `/sig:status` and `/sig:resume`'s structure is the closest existing analog to what `/sig:init` will look like.
+6. Pick up Task M4.t1 first.

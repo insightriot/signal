@@ -1,4 +1,4 @@
-# Tranche 1 — Unblock the Build
+# Milestone 1 — Unblock the Build
 
 **Goal:** Get the repo to a consistent starting state so new work doesn't fight old scaffolding.
 
@@ -48,7 +48,7 @@ Source: https://code.claude.com/docs/en/plugins.md and https://code.claude.com/d
 - [x] Schema validated against 2 inline example profiles (SKETCH + FULL) in `profile-schema.md`.
 - [x] Schema locked in `DECISIONS.md`. Tier-count open question (revisit after real-project calibration) tracked in `OPEN-QUESTIONS.md`.
 
-### 6. Commit the pre-Tranche + Tranche 1 work
+### 6. Commit the pre-Milestone + Milestone 1 work
 
 - [ ] Logical atomic commits (not one monster):
   - Attribution cleanup (done — needs commit)
@@ -71,4 +71,4 @@ Source: https://code.claude.com/docs/en/plugins.md and https://code.claude.com/d
 
 ## What this unlocks
 
-Tranche 2 can build `/sig:calibrate` against a real PROFILE.md schema. Rebranding no longer a distraction. Test infra is live so future work has a feedback loop.
+Milestone 2 can build `/sig:calibrate` against a real PROFILE.md schema. Rebranding no longer a distraction. Test infra is live so future work has a feedback loop.

@@ -19,7 +19,7 @@ See `profile-schema.md` for the full PROFILE.md schema. This doc is the authorit
 
 **Philosophy.** SKETCH exists to stop Signal from over-engineering throwaway work. If it's wrong to spend 60 minutes planning a homepage, SKETCH is how we say so. Speed over polish — honestly.
 
-**Floor.** SKETCH still produces a minimum 8-artifact `.planning/`: PROJECT.md, PROFILE.md, STATE.md, config.json, CONTEXT.md, 1-PLAN.md, 1-VERIFICATION.md, 1-SHIP.md. That's deliberate — `.planning/` is the project's memory, and even a one-shot benefits from a record of what was decided. **If you want zero overhead, you don't want Signal — you want a shell script.** SKETCH is for "I want a small but real artifact and a record of what I decided." Validated against the T3 Task 3 dogfood (CSV-to-JSON one-shot): the contrast vs FULL is already ~10–24x; pushing lower trades documentation value for marginal ceremony savings. No TRIVIAL tier in v1.
+**Floor.** SKETCH still produces a minimum 8-artifact `.planning/`: PROJECT.md, PROFILE.md, STATE.md, config.json, CONTEXT.md, 1-PLAN.md, 1-VERIFICATION.md, 1-SHIP.md. That's deliberate — `.planning/` is the project's memory, and even a one-shot benefits from a record of what was decided. **If you want zero overhead, you don't want Signal — you want a shell script.** SKETCH is for "I want a small but real artifact and a record of what I decided." Validated against the M3 Task 3 dogfood (CSV-to-JSON one-shot): the contrast vs FULL is already ~10–24x; pushing lower trades documentation value for marginal ceremony savings. No TRIVIAL tier in v1.
 
 ---
 
