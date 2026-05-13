@@ -1,12 +1,11 @@
 {
-  "name": "signal",
-  "description": "Disciplined AI development workflow integrating GSD's execution orchestration, Agent Skills' quality enforcement, and patterns from the broader Claude Code plugin ecosystem — with a project-complexity calibration router that right-sizes rigor per project tier.",
+  "name": "sig",
+  "description": "Disciplined AI development workflow integrating GSD's execution orchestration, Agent Skills' quality enforcement, and patterns from the broader Claude Code plugin ecosystem — with a project-complexity calibration router that right-sizes rigor per project tier. Slash-command prefix: /sig:* (Signal is the project brand; sig is the namespace).",
   "version": "0.1.0",
   "author": {
     "name": "InsightRiot"
   },
   "homepage": "https://github.com/InsightRiot/signal",
   "repository": "https://github.com/InsightRiot/signal",
-  "license": "MIT",
-  "commands": "./.claude/commands"
+  "license": "MIT"
 }

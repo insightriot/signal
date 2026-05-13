@@ -316,6 +316,24 @@ will proceed but tier accuracy may be reduced for the deferred dimensions.
 
   **Effort:** half-day focused work + validation.
 
+- **M4.t19** ✓ — Marketplace install layout fix + plugin slug rename `signal` → `sig`. Shipped 2026-05-12. **Trigger:** user installed Signal in another project; `/sig:*` commands rendered as "disabled," didn't appear after enable + reload. Auto-suggest proposed flattening `commands/` into `commands/` — partially correct but missed two structural issues. **Root cause:** Signal's command files lived at `.claude/commands/sig/`, but the canonical Claude Code marketplace-plugin layout puts commands at `<plugin-root>/commands/`. The slash-command namespace derives from `plugin.json`'s `name` field, NOT from a subdirectory. With plugin name `signal` and commands buried in `.claude/commands/`, Claude Code couldn't auto-discover them. Even if it had, the namespace would have rendered `/signal:sig:command` (double-stutter — also pre-logged in `FUTURE-IDEAS.md`). **Fix:**
+  - `git mv .claude/commands/sig/*.md commands/*.md` (12 files, flat — no `sig/` subdir; the prefix comes from plugin name).
+  - Removed `.claude/commands/` directory entirely.
+  - `.claude-plugin/plugin.json` → `"name": "sig"` (was `"signal"`); removed defunct `"commands": "./.claude/commands"` field (Claude Code auto-discovers from `commands/`).
+  - `.claude-plugin/marketplace.json` → `plugins[0].name: "sig"` (matches plugin.json). Marketplace catalog name stays `"signal"` (separate concept).
+  - Brand "Signal" preserved everywhere user-facing (descriptions, README, CLAUDE.md, repo name `InsightRiot/signal`).
+  - `tools/validate-plugin.js` updated: REQUIRED_COMMANDS paths point to `commands/`; new check enforces `plugin.json.name === "sig"` so future drift is caught at validate time; defunct `"commands"` field check removed.
+  - `tests/status.test.js` path reference updated to `commands/status.md`.
+  - Tagged `v0.1.0` and pushed.
+
+  **Why this closed F2.** The original F2 unknown was "marketplace-install plugin-agent registration mechanism + namespacing convention post-marketplace-install." The agent-registration half remains as a follow-up (documented fallback path in `init.md` Step 2 still applies); the slash-command-namespacing half is now resolved by aligning with the canonical compound-engineering plugin pattern (verified against `.upstream/compound-engineering-plugin/plugins/compound-engineering/`).
+
+  **Acceptance criteria:**
+  1. Validator green ✓
+  2. 169/169 tests pass ✓
+  3. Plugin installable from `InsightRiot/signal` GitHub repo via marketplace ✓ (post-tag)
+  4. After install, `/sig:calibrate` autocompletes and runs without manual enable steps — *to be verified by user post-install on a fresh project*
+
 ---
 
 ## Design decisions to lock during execution (not decided here)

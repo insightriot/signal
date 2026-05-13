@@ -25,18 +25,18 @@ const REQUIRED_FILES = [
 ];
 
 const REQUIRED_COMMANDS = [
-  '.claude/commands/sig/new-project.md',
-  '.claude/commands/sig/init.md',
-  '.claude/commands/sig/calibrate.md',
-  '.claude/commands/sig/discuss.md',
-  '.claude/commands/sig/plan.md',
-  '.claude/commands/sig/execute.md',
-  '.claude/commands/sig/verify.md',
-  '.claude/commands/sig/review.md',
-  '.claude/commands/sig/ship.md',
-  '.claude/commands/sig/escalate.md',
-  '.claude/commands/sig/status.md',
-  '.claude/commands/sig/resume.md',
+  'commands/new-project.md',
+  'commands/init.md',
+  'commands/calibrate.md',
+  'commands/discuss.md',
+  'commands/plan.md',
+  'commands/execute.md',
+  'commands/verify.md',
+  'commands/review.md',
+  'commands/ship.md',
+  'commands/escalate.md',
+  'commands/status.md',
+  'commands/resume.md',
 ];
 
 const REQUIRED_AGENTS = [
@@ -98,7 +98,12 @@ async function validate() {
     const pluginJson = JSON.parse(await readFile(join(ROOT, '.claude-plugin/plugin.json'), 'utf-8'));
     if (!pluginJson.name) errors.push('plugin.json missing "name"');
     if (!pluginJson.version) errors.push('plugin.json missing "version"');
-    if (!pluginJson.commands) errors.push('plugin.json missing "commands"');
+    // No "commands" field check — Claude Code auto-discovers commands from
+    // <plugin-root>/commands/ at install time. The slash-command namespace
+    // derives from plugin.json's "name" field.
+    if (pluginJson.name !== 'sig') {
+      errors.push(`plugin.json "name" must be "sig" (drives /sig:* slash-command namespace), got "${pluginJson.name}"`);
+    }
   } catch {
     errors.push('plugin.json is invalid JSON');
   }

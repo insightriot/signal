@@ -449,7 +449,7 @@ EXECUTE
 });
 
 describe('status.md — static contract', () => {
-  const statusMdPath = new URL('../.claude/commands/sig/status.md', import.meta.url);
+  const statusMdPath = new URL('../commands/status.md', import.meta.url);
 
   it('file exists', () => {
     expect(existsSync(statusMdPath)).toBe(true);

@@ -4,9 +4,9 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Milestone
 
-**Milestone 4 — Brownfield Onboarding via `/sig:init` — 18 of 18 tasks shipped.** M4.t1 + M4.t2–M4.t7 + M4.t8 + M4.t9–M4.t12 + M4.t13 + M4.t14 + M4.t15 + M4.t16 + M4.t17 + M4.t18 shipped. **M4.t18** (vocabulary refactor: Tranche → Milestone, add Epic mid-layer) shipped 2026-05-12 after investigation traced "Tranche" to a single arbitrary word-choice commit on 2026-04-22 with no principled grounding. Design notes in `MILESTONE-4.md`.
+**Milestone 4 — Brownfield Onboarding via `/sig:init` — 19 of 19 tasks shipped + v0.1.0 tagged.** M4.t1 + M4.t2–M4.t7 + M4.t8 + M4.t9–M4.t12 + M4.t13 + M4.t14 + M4.t15 + M4.t16 + M4.t17 + M4.t18 + M4.t19 shipped. **M4.t18** (vocabulary refactor: Tranche → Milestone, add Epic mid-layer) and **M4.t19** (marketplace install layout fix + plugin slug `signal` → `sig`) both shipped 2026-05-12. Design notes in `MILESTONE-4.md`.
 
-The brownfield path is feature-complete on the markdown + code layer, including the conversational assumption-surfacing walkthrough and fixture-based regression coverage for the synthesizer. v0.1.0 tag-and-publish now gated only on the external validation: marketplace-install behavior for plugin-agent registration (F2 unknown).
+Plugin is now marketplace-installable from `InsightRiot/signal` via Claude Code's plugin system. Slash-command prefix `/sig:*` works because the plugin slug in `.claude-plugin/plugin.json` is `sig` (brand "Signal" preserved in descriptions). The v0.1.0 tag is the publish point. Remaining F2 sub-question (does Claude Code auto-register Signal's agents post-install, or do they need restructuring to flat `agents/sig-<name>.md`?) is a v0.1.1 candidate — `/sig:init` Step 2 has the documented fallback path so it works regardless.
 
 Milestone 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the markdown and code layer.
 

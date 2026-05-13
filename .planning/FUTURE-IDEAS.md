@@ -250,7 +250,11 @@ Then Step 4 runs 3+other only on selected areas. Deselected → `CONTEXT.md` "De
 
 ---
 
-## Plugin slug rename — `signal` → `sig` to remove `/signal:sig:*` namespace stutter
+## ✓ SHIPPED — Plugin slug rename — `signal` → `sig` to remove `/signal:sig:*` namespace stutter
+
+> **Shipped 2026-05-12 as M4.t19** (bundled with the marketplace install layout fix). Plugin slug is now `sig`; commands moved to plugin-root `commands/` (flat); brand "Signal" preserved everywhere user-facing. Original entry below for historical context.
+
+
 
 **Status:** Logged 2026-05-02 during Milestone 4 wrap-up conversation. Daily papercut surfaced by user comparing autocomplete UX to GSD.
 
