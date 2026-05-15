@@ -21,16 +21,35 @@ Same tooling. Same commands. The difference is calibration.
 
 ## Install
 
-**Requirements:** Node.js 22+ and Claude Code.
+**Requirements:** Node.js 22+ and Claude Code (2.1.141 or newer recommended — that release shipped the HTTPS-prefer plugin loader env var used by the troubleshooting workaround below).
 
 ### Via Claude Code plugin marketplace
 
-```bash
-# In Claude Code:
-/plugin install signal
+```
+/plugin marketplace add insightriot/signal
+/plugin install sig@signal
+/reload-plugins
 ```
 
-Or add the marketplace entry pointing at `InsightRiot/signal` if installing from a custom marketplace.
+Then try `/sig:calibrate` to confirm the install. Signal's `/sig:*` commands should autocomplete.
+
+#### Troubleshooting install
+
+If `/plugin install` fails with `Permission denied (publickey)` or `Could not read from remote repository`, your machine has a non-default SSH config (multi-identity hosts, `IdentitiesOnly yes`, or no default `Host github.com`) and Claude Code's plugin loader is reaching for SSH. Two documented escape hatches:
+
+1. **Use Anthropic's HTTPS-prefer env var** (Claude Code 2.1.141+):
+   ```bash
+   export CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1
+   ```
+   Then retry the install. This is the cleanest fix and doesn't change your SSH config.
+
+2. **Or install from a local clone** (no marketplace fetch involved):
+   ```bash
+   GIT_CONFIG_GLOBAL=/dev/null git clone https://github.com/InsightRiot/signal ~/signal
+   ```
+   Then in Claude Code: `/plugin marketplace add ~/signal` → `/plugin install sig@signal`.
+
+As of v0.1.1, Signal's marketplace.json pins HTTPS explicitly, so option 1 should rarely be needed — but it's there if some other plugin in your stack triggers the same path.
 
 ### From source (for development or hacking on Signal itself)
 

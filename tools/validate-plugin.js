@@ -105,6 +105,9 @@ async function validate() {
     if (pluginJson.name !== 'sig') {
       errors.push(`plugin.json "name" must be "sig" (drives /sig:* slash-command namespace), got "${pluginJson.name}"`);
     }
+    if (pluginJson.version && !/^\d+\.\d+\.\d+$/.test(pluginJson.version)) {
+      errors.push(`plugin.json "version" must be semver-shaped (MAJOR.MINOR.PATCH), got "${pluginJson.version}"`);
+    }
   } catch {
     errors.push('plugin.json is invalid JSON');
   }
