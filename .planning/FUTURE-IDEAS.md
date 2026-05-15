@@ -468,4 +468,161 @@ This is a real-world use case the user flagged explicitly — it deserves spec i
 
 ---
 
-*Last updated: 2026-05-12*
+## `/sig:add` — capture-and-route new work to the right altitude in `.planning/`
+
+**Status:** Logged 2026-05-13 during M4.t19 follow-up conversation about release-hardening and stranger-adoption readiness. Surfaced when user wanted to add a release-hardening idea ("F2 resolution, README rewrite, etc.") and had to decide themselves whether it was a Task, Epic, Milestone, FUTURE-IDEAS entry, or OPEN-QUESTIONS entry — a routing decision that requires already-internalized fluency with Signal's locked vocabulary (Milestone / Epic / Phase / Wave / Task per M4.t18). That fluency burden is stranger-hostile and a daily papercut even for experienced users.
+
+**Context.** Signal today has commands for moving work *through* the system (`/sig:calibrate → /sig:discuss → /sig:plan → /sig:execute → /sig:verify → /sig:review → /sig:ship`) and one read-only inspection command (`/sig:status`). It has **no command for capturing new work and routing it to the right altitude** in `.planning/`. The user must decide manually:
+
+- Is this a concrete task that fits the current milestone? → append to active `MILESTONE-*.md`.
+- A new Epic within the current milestone? → new Epic stanza.
+- An unresolved design question? → `OPEN-QUESTIONS.md`.
+- A "someday" architectural evolution? → `FUTURE-IDEAS.md`.
+- A new milestone-scale chunk? → hand-author `MILESTONE-N.md`.
+
+That's five altitudes, each with a different file and conventions. Newcomers can't make this call without reading existing entries to learn the shape; experienced users still pay a small tax every time. The result is capture loss — ideas land in a notes file, Slack DM, or memory and never make it into `.planning/` at all.
+
+### Candidate direction
+
+New command. Probably not phase-gated (capture should always work). Light agent use only — this is not a synthesis command, it's a capture-and-route command.
+
+**Capture flow:**
+1. User runs `/sig:add` with (optionally) a paste or one-liner: `/sig:add "F2 — verify agents auto-register after marketplace install"`.
+2. Brief interview — 1–3 questions, adaptive based on what the input already reveals:
+   - *Is this actionable now, or future-state?*
+   - *Is there an unresolved design question, or do you know the shape?*
+   - *Does this fit the current milestone's scope, or is it bigger?*
+3. Confirm proposed routing destination before writing. User can override.
+4. Append a stamped entry (date, trigger context, body) to the chosen file.
+5. Print one-line confirmation: `Added to FUTURE-IDEAS.md at line 471. Run /sig:status to see updated counts.`
+
+**Routing logic (user's design insight, locked here):**
+
+> **FUTURE-IDEAS.md is the default landing zone.** Subsequent planning phases (`/sig:plan`, hand-curated milestone creation) review the list and promote items to specific milestones when scope and timing align. This makes `/sig:add` low-stakes: capture first, sort later. The promotion step is where altitude gets decided with full context.
+
+| Destination | Heuristic | Frequency |
+|---|---|---|
+| **`FUTURE-IDEAS.md` (default)** | Architectural evolution, "someday" idea, anything not clearly committed work | ~70% |
+| `OPEN-QUESTIONS.md` | User says "I don't know how to decide X" — explicit unresolved design question | ~15% |
+| Current `MILESTONE-*.md` | User confirms it's a concrete task fitting current milestone's scope | ~10% |
+| Other `MILESTONE-*.md` | User identifies a specific future milestone (e.g., "this is M5-territory") | ~3% |
+| New `MILESTONE-N.md` scaffold | High-altitude — requires confirmation; rare | ~2% |
+
+**Never writes to `DECISIONS.md` or `STATE.md`** — DECISIONS is write-only after deliberation, STATE is regenerated from phase output. Capture is upstream of both.
+
+**Entry shape (whichever destination):** Date stamp + one-line trigger context + body. The "why" line is load-bearing — it's what makes Signal's planning archaeology work months later. Format matches existing FUTURE-IDEAS / OPEN-QUESTIONS conventions so promoted items don't need re-formatting.
+
+### Why log, not fix now
+
+- **Chicken-and-egg:** Can't use `/sig:add` to add `/sig:add`. Pragmatically the design must stabilize through manual entries (this one) before the command exists.
+- **New command surface area** — validator's `REQUIRED_COMMANDS`, `plugin.json` commands list, README, decision-tree viewer (`docs/map/index.html`), MCP/skill descriptions. Same overhead as `/sig:report` and `/sig:audit` — bundle, don't one-off.
+- **Strong candidate for Milestone 4.5 (release-hardening / stranger-adoption) as a named Epic.** Release-hardening isn't only "polish docs"; it's also "make Signal usable by people who haven't memorized its vocabulary." `/sig:add` directly addresses that. Sibling Epics: F2 (post-install agent registration), README-as-pitch, CHANGELOG discipline, fresh-machine install verification.
+- Routing heuristics want at least 5–10 real capture events worth of data before locking — pre-locking will produce a brittle command.
+
+### Anti-rationalization to lock in early
+
+- *"Just have Claude figure out where it goes — no interview."* — No. Altitude is judgment-heavy. A 1–3 question interview is cheap; misrouting an idea into the wrong file forces the user to re-find and re-author it later. Confirmation is load-bearing.
+- *"Default to current milestone, not FUTURE-IDEAS."* — No. That biases toward over-committing scope. FUTURE-IDEAS default + planning-phase promotion is the safer asymmetry: easier to promote than to retract.
+- *"Make it write to multiple files at once."* — No. One destination per `/sig:add` call. If something needs to land in both OPEN-QUESTIONS and FUTURE-IDEAS, that's two captures. Multi-destination logic balloons fast.
+- *"Add `--quick` mode that skips the interview."* — Defer. Power-user flag, but the interview is *the* feature for newcomers. Add only when 5+ users have explicitly asked.
+- *"Let it edit DECISIONS.md too."* — No. DECISIONS is the resolved-architecture log. Capture is upstream of decisions, never sideways into them.
+- *"Make it auto-trigger from `/sig:discuss` when new scope surfaces."* — Defer. Tempting, but it conflates capture (lightweight, always available) with discussion (phase-gated, heavy). Keep them separate; cross-reference if useful.
+- *"Just point users at the right file in docs and skip the command."* — No. That's exactly what's broken today — the file-routing burden lives in the user's head. The command exists to absorb that burden.
+
+**Resolve by:** Milestone 4.5 (release-hardening) when that milestone is scaffolded — `/sig:add` is a strong candidate first Epic alongside F2. If M4.5 doesn't materialize, promote to M5 as a standalone Epic. Likely co-ships with `/sig:report` and `/sig:audit` (all three are command-surface additions that share validator/README/manifest overhead).
+
+---
+
+## `/sig:goal` — phase-aware wrapper around Claude Code's `/goal` for intra-phase autonomous loops
+
+**Status:** Logged 2026-05-14. Trigger: user surfaced Claude Code's new `/goal` feature ([code.claude.com/docs/en/goal](https://code.claude.com/docs/en/goal)) and asked whether it could be told to "complete Milestones X through Y with accompanying verification and review processes" — i.e., let it autonomously run through Signal-planned work across multiple milestones.
+
+### What `/goal` is (Claude Code feature, not Signal)
+
+A session-scoped supervisor. User sets a condition (`/goal <description>`); after every turn, a small fast model (Haiku) reads the **conversation transcript** and decides yes/no on whether the condition holds. "No" auto-fires the next turn with the evaluator's reason as guidance; "yes" clears the goal. Key constraints:
+
+- One goal at a time, session-scoped.
+- Evaluator **does not call tools and does not read files** — it judges only what Claude has surfaced in the transcript.
+- It's a wrapper around a prompt-based Stop hook (composes with existing Stop hooks at session scope).
+- Works in non-interactive mode (`claude -p "/goal ..."`).
+- Resumes across `--continue` (turn count + timer reset, condition preserved).
+
+### Context — the tension with Signal
+
+Signal's whole design is **phase-gated**: CALIBRATE → DISCUSS → PLAN → EXECUTE → VERIFY → REVIEW → SHIP each end at an inspection point that's *meant* to involve the human. PROFILE.md tier-gating exists precisely to dial *how much* human friction a project warrants. `/goal` is engineered to remove per-turn prompts — which is the friction FULL-tier work is specifically supposed to retain. The naive use case ("complete Milestones X–Y autonomously") is exactly the noise calibration is supposed to suppress.
+
+Two further mechanical problems with naive use:
+
+1. **Evaluator can't read `.planning/` state.** For Haiku to judge "milestone N tasks complete and verified," Claude would have to keep re-pasting STATE.md / MILESTONE-N.md content into the transcript every turn. Unreliable, expensive, and drift-prone.
+2. **It bypasses Signal's own anti-rationalization gates.** `phase-gate-enforcer`, `plan-checker`, `nyquist-auditor`, `verifier`, `ui-checker` — these are designed as deliberate inspection points. `/goal` will keep firing turns past them unless the condition explicitly encodes each one (and even then, only via transcript signal, not artifact reading).
+
+### Where `/goal` legitimately fits — intra-phase, not cross-phase
+
+| Phase | Good `/goal` condition shape |
+|---|---|
+| `/sig:execute` wave | "Every task in wave N is committed, `npm test` exits 0, phase-gate-enforcer agent surfaces no blockers, or stop after 30 turns" |
+| `/sig:verify` | "All Nyquist gaps filled, full suite green, verifier agent confirms phase goal met" |
+| `/sig:init` scans | "All 4 scanners (stack/structure/activity/quality) emitted their markdown and LANDSCAPE.md is drafted" |
+| Mechanical sweeps (M4.t18-style refactors) | "`grep -r '<old-vocab>' .` returns 0 matches, tests pass" |
+
+All have one measurable end-state that lands naturally in the transcript without re-pasting `.planning/` state.
+
+### Where it doesn't fit
+
+- **Cross-milestone autonomy** — "complete Milestones X–Y" spans phase gates designed for human input. Pays for Signal's planning rigor and skips the human-in-the-loop part that makes the rigor pay off.
+- **CALIBRATE / DISCUSS** — the user *is* the signal source. Autonomous = self-talk.
+- **REVIEW** — multi-agent review exists to surface judgment calls. Auto-clearing on "review done" defeats the point.
+
+### Candidate direction — `/sig:goal` wrapper
+
+A thin Signal-aware wrapper over Claude Code's `/goal`. Reads `PROFILE.md` + `STATE.md`, identifies the current phase, and emits an exit-criteria condition appropriate to that phase. Keeps the **calibration layer in charge of whether to run unattended**, lets `/goal` handle the loop mechanics.
+
+**Shape (sketch, not locked):**
+
+```
+/sig:goal                # use current phase's default exit criteria
+/sig:goal <subphase>     # e.g., "/sig:goal wave-2" inside execute
+/sig:goal --condition <override>  # pass a custom condition through
+```
+
+**Phase → default condition mapping (sketch):**
+
+| Phase | Default condition emitted to `/goal` |
+|---|---|
+| EXECUTE | "All wave-N tasks committed, suite exits 0, no phase-gate blockers, or stop after T turns" (T derived from tier) |
+| VERIFY | "Nyquist coverage gaps filled, full suite green, verifier agent reports phase goal met" |
+| `/sig:init` | "All 4 scanners emitted markdown, LANDSCAPE.md drafted, baseline PROJECT.md present" |
+| Mechanical sweep mode | User provides the grep target; condition is "`grep <target>` returns 0 matches AND tests pass" |
+| CALIBRATE / DISCUSS / REVIEW / SHIP | **Refuses to set a goal.** These phases need human input by design. Prints a one-line explanation pointing at the right phase command. |
+
+**Tier-aware behavior:**
+
+| Tier | Behavior |
+|---|---|
+| SKETCH | Default-on; long turn budgets fine — throwaways don't need supervision. |
+| FEATURE | Default-on with shorter turn caps; warns before exceeding budget. |
+| SPIKE | Default-on; phase-specific conditions favor "answer found" over "code shipped." |
+| FULL | **Off by default**; opt-in per invocation (`/sig:goal --confirm`). The whole point of FULL is the inspection points; auto-supervising past them undermines the tier. |
+
+### Why log, not fix now
+
+- **`/goal` itself is new** — Claude Code feature, not yet stress-tested in real Signal sessions. Want at least 5–10 real `/goal`-driven runs before locking the wrapper's shape.
+- **Condition-authoring is the actual hard part.** The mapping from "Signal phase + current STATE" → "condition Haiku can evaluate from transcript alone" is non-trivial. Evaluator can't read files; conditions must be phrased so Claude's *output* contains the proof. That's a small design study, not a one-liner.
+- **Stop-hook interaction needs verification.** User's `~/.claude/settings.json` already has a Stop hook (afplay sound). Docs say `/goal` is a session-scoped Stop hook layered on top — should compose, but worth real-session validation before promising it works.
+- **Bundle with command-surface peers.** Same overhead as `/sig:report`, `/sig:audit`, `/sig:add`, `/sig:docs-update` — validator's `REQUIRED_COMMANDS`, README, decision-tree viewer, plugin manifest. Co-ship with one of those, not standalone.
+
+### Anti-rationalization to lock in early
+
+- *"Just tell users to use `/goal` directly — Signal doesn't need a wrapper."* — Partly true for power users, but the value of `/sig:goal` is **encoding the phase-aware refusal** (won't run during DISCUSS / REVIEW / CALIBRATE / SHIP) and the tier-aware defaults. Users who don't know which phases are safe to autonomize will reach for `/goal` in CALIBRATE and get bad outcomes.
+- *"Have `/sig:goal` span phases — run EXECUTE then VERIFY then REVIEW back-to-back."* — No. That's the cross-milestone failure mode again at a smaller scale. Each phase transition is a checkpoint. If the user wants chained phases, that's `/sig:execute && /sig:verify` at the shell, not a single goal condition.
+- *"Make the condition read `.planning/STATE.md`."* — Can't. Haiku evaluator doesn't run tools. The condition must be phrased so Claude *surfaces* the relevant state in the transcript (e.g., "cat STATE.md and confirm `current_phase: verify`"). Wrapper's job is to author conditions that respect this constraint.
+- *"Auto-set a goal at the start of every `/sig:execute`."* — No. Opt-in. The whole reason Signal has phase commands is to make rigor a deliberate user action. Auto-supervising defeats that.
+- *"Add Notion / Slack integration so the goal fires when work completes."* — Defer. Out of scope. `/goal` already supports headless mode; users who want notification can wire that themselves.
+- *"Run `/sig:goal` during REVIEW with a 'review complete' condition."* — No. REVIEW is judgment-heavy; auto-clearing on "review complete" optimizes for transcript-surface signal over substantive multi-lens evaluation. Same logic as why REVIEW is human-gated at all.
+- *"Drop the FULL-tier opt-in requirement — it makes the command feel timid."* — No. FULL is the tier where the human checkpoints matter most. Making the user explicitly confirm autonomous mode at FULL is the calibration layer doing its job.
+
+**Resolve by:** real Signal usage of plain `/goal` reveals which phase-conditions actually work in practice (5–10 sessions minimum), AND one of these fires — (a) the user catches themselves re-typing similar `/goal` conditions across runs, (b) a stranger using Signal misuses `/goal` in a phase where it shouldn't run, (c) condition-authoring becomes a friction point worth absorbing into a command. Likely Milestone 5 or later. Co-ship candidate with `/sig:report` / `/sig:audit` / `/sig:add` if they cluster into a "new command surface" Epic.
+
+---
+
+*Last updated: 2026-05-14*

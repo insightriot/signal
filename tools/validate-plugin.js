@@ -37,6 +37,7 @@ const REQUIRED_COMMANDS = [
   'commands/escalate.md',
   'commands/status.md',
   'commands/resume.md',
+  'commands/add.md',
 ];
 
 const REQUIRED_AGENTS = [

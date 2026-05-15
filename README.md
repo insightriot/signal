@@ -98,6 +98,8 @@ Mid-flight scope grew? `/sig:escalate` re-runs calibration, promotes tier, and p
 
 Want a status check without running anything? `/sig:status` (read-only inspection) and `/sig:resume` (re-orientation briefing for a fresh session).
 
+Got a new idea mid-flow? `/sig:add "your idea here"` captures it to `.planning/FUTURE-IDEAS.md` without breaking your current phase. Not tier-gated; available anywhere `.planning/` exists. Planning phases pick up captured entries on the next `/sig:plan` run.
+
 ## Bringing Signal to an existing codebase
 
 If you already have code and want Signal applied to it (the most common adoption path), use `/sig:init` instead of `/sig:new-project`:
@@ -143,6 +145,7 @@ Both `/sig:new-project` and `/sig:calibrate` check this on entry and refuse to p
 - **`/sig:ship`** — SHIP phase. Pre-ship checklist, git history hygiene, PR creation. Output: `{phase}-SHIP.md`. (Skipped for SPIKE.)
 - **`/sig:status`** — read-only inspection of the current project: tier, current phase, completed phases, blockers, open questions, recommended next action.
 - **`/sig:resume`** — re-orientation briefing for a fresh session. Reads `PROJECT.md`, `PROFILE.md`, `STATE.md`, and the current phase's artifact, prints a concise summary, ends with "Ready to continue with `/sig:{phase}`?"
+- **`/sig:add`** — capture a new idea or work item to `.planning/FUTURE-IDEAS.md` without breaking the current phase. Verbatim capture (no rewrites), atomic write, sensitive-data scrub, lock-protected. Not tier-gated. Slice 1 (hot path) only in v0.1.1; cold-path interview + multi-destination routing land in subsequent slices.
 
 ## Credits & Heritage
 

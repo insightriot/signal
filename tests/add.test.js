@@ -1,0 +1,408 @@
+// Tests for /sig:add Slice 1 — hardened hot path (M4.5.E2.S1).
+// See .planning/M4.5.E2-PLAN.md § Slice 1 and .planning/M4.5.E2-VALIDATION.md § Slice 1.
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, rm, writeFile, mkdir, readFile, copyFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+
+import {
+  parseInput,
+  scrubSensitive,
+  buildFutureIdeasEntry,
+  insertAboveFooter,
+  rewriteFooter,
+  checkBodyLength,
+  atomicWrite,
+  acquireLock,
+  releaseLock,
+  captureToFutureIdeas,
+  BODY_LENGTH_SOFT_CAP,
+} from '../tools/lib/add.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const FIXTURE_ROOT = join(__dirname, 'fixtures', 'add');
+
+// Helper — clone a fixture into a temp dir so tests can mutate freely.
+async function setupFixture(fixtureName, tempDir) {
+  const src = join(FIXTURE_ROOT, fixtureName, '.planning', 'FUTURE-IDEAS.md');
+  const dest = join(tempDir, '.planning', 'FUTURE-IDEAS.md');
+  await mkdir(join(tempDir, '.planning'), { recursive: true });
+  await copyFile(src, dest);
+  return dest;
+}
+
+describe('parseInput (pure)', () => {
+  it('extracts body from a single-arg string', () => {
+    expect(parseInput('use semver-it for tag publish')).toEqual({
+      body: 'use semver-it for tag publish',
+      flags: {},
+    });
+  });
+
+  it('returns empty body for empty input', () => {
+    expect(parseInput('')).toEqual({ body: '', flags: {} });
+    expect(parseInput('   ')).toEqual({ body: '', flags: {} });
+  });
+
+  it('trims surrounding whitespace from body but preserves internal', () => {
+    expect(parseInput('  hello  world  ').body).toBe('hello  world');
+  });
+});
+
+describe('scrubSensitive (pure — returns hits, never auto-redacts)', () => {
+  it('returns empty hits for clean input', () => {
+    expect(scrubSensitive('just an idea, nothing sensitive').hits).toEqual([]);
+  });
+
+  it('detects AWS access key pattern AKIA…', () => {
+    const result = scrubSensitive('use AKIAIOSFODNN7EXAMPLE for the bucket');
+    expect(result.hits.length).toBeGreaterThan(0);
+    expect(result.hits[0].type).toBe('aws-key');
+  });
+
+  it('detects GitHub personal token ghp_…', () => {
+    const result = scrubSensitive('token ghp_abcdefghijklmnopqrstuvwxyz0123456789');
+    expect(result.hits[0].type).toBe('github-token');
+  });
+
+  it('detects Bearer token in Authorization-style strings', () => {
+    const result = scrubSensitive('curl -H "Authorization: Bearer eyJhbGc.payload.sig"');
+    expect(result.hits[0].type).toBe('bearer-token');
+  });
+
+  it('detects 40-char hex blob (likely SHA / private key fragment)', () => {
+    const result = scrubSensitive('hash is a1b2c3d4e5f60718293a4b5c6d7e8f9012345678');
+    expect(result.hits[0].type).toBe('hex-blob-40');
+  });
+
+  it('never modifies the input body (the body field equals the input)', () => {
+    const input = 'Bearer abc.def.ghi this stays verbatim';
+    const result = scrubSensitive(input);
+    expect(result.body).toBe(input);
+  });
+});
+
+describe('checkBodyLength (pure)', () => {
+  it('reports tooLong=false for body under soft cap', () => {
+    expect(checkBodyLength('short body').tooLong).toBe(false);
+  });
+
+  it('reports tooLong=true for body over soft cap', () => {
+    const long = 'x'.repeat(BODY_LENGTH_SOFT_CAP + 1);
+    const result = checkBodyLength(long);
+    expect(result.tooLong).toBe(true);
+    expect(result.length).toBe(BODY_LENGTH_SOFT_CAP + 1);
+  });
+
+  it('soft cap is 4000 chars (matches plan acceptance criterion 9)', () => {
+    expect(BODY_LENGTH_SOFT_CAP).toBe(4000);
+  });
+});
+
+describe('buildFutureIdeasEntry (pure)', () => {
+  it('produces a heading from the first ~6 words of body', () => {
+    const entry = buildFutureIdeasEntry({
+      body: 'use semver-it for tag publish hooks',
+      date: '2026-05-14',
+    });
+    expect(entry).toMatch(/^## /);
+    expect(entry).toMatch(/use semver-it/i);
+  });
+
+  it('includes a Status line with the date and /sig:add provenance', () => {
+    const entry = buildFutureIdeasEntry({
+      body: 'short note',
+      date: '2026-05-14',
+    });
+    expect(entry).toMatch(/\*\*Status:\*\* Logged 2026-05-14 via `\/sig:add`\./);
+  });
+
+  it('appends trigger context to Status when provided', () => {
+    const entry = buildFutureIdeasEntry({
+      body: 'short note',
+      date: '2026-05-14',
+      triggerContext: 'mid-EXECUTE on M4.5.E2',
+    });
+    expect(entry).toMatch(/mid-EXECUTE on M4\.5\.E2/);
+  });
+
+  it('ends with the --- separator', () => {
+    const entry = buildFutureIdeasEntry({ body: 'foo', date: '2026-05-14' });
+    expect(entry.trimEnd().endsWith('---')).toBe(true);
+  });
+
+  it('preserves the body verbatim (no LLM rewrite, no smart-quoting)', () => {
+    const body = 'fix the FOO and the "bar" — with backtick `code`';
+    const entry = buildFutureIdeasEntry({ body, date: '2026-05-14' });
+    expect(entry).toContain(body);
+  });
+
+  it('caps heading at 60 chars to avoid wall-of-title', () => {
+    const longBody = 'a '.repeat(80).trim();
+    const entry = buildFutureIdeasEntry({ body: longBody, date: '2026-05-14' });
+    const heading = entry.split('\n')[0];
+    expect(heading.length).toBeLessThanOrEqual(63); // '## ' + ≤60 chars
+  });
+});
+
+describe('rewriteFooter (pure)', () => {
+  it('rewrites an existing *Last updated:* line to today', () => {
+    const before = '## entry\n\nbody\n\n---\n\n*Last updated: 2020-01-01*\n';
+    const after = rewriteFooter(before, '2026-05-14');
+    expect(after).toContain('*Last updated: 2026-05-14*');
+    expect(after).not.toContain('2020-01-01');
+  });
+
+  it('appends a footer if none exists', () => {
+    const before = '## entry\n\nbody\n\n---\n';
+    const after = rewriteFooter(before, '2026-05-14');
+    expect(after.trimEnd().endsWith('*Last updated: 2026-05-14*')).toBe(true);
+  });
+
+  it('preserves all content above the footer', () => {
+    const before = 'line 1\nline 2\n\n---\n\n*Last updated: 1999-12-31*\n';
+    const after = rewriteFooter(before, '2026-05-14');
+    expect(after).toContain('line 1');
+    expect(after).toContain('line 2');
+  });
+});
+
+describe('insertAboveFooter (pure)', () => {
+  it('inserts a new entry block above the footer', () => {
+    const before = '# Title\n\n## existing\n\nbody\n\n---\n\n*Last updated: 2020-01-01*\n';
+    const entry = '## new entry\n\nbody\n\n---';
+    const after = insertAboveFooter(before, entry);
+    // Footer remains last (rewriteFooter will update its date separately)
+    expect(after.indexOf('## new entry')).toBeLessThan(after.indexOf('*Last updated:'));
+    expect(after.indexOf('## existing')).toBeLessThan(after.indexOf('## new entry'));
+  });
+
+  it('appends to end-of-file if no footer exists', () => {
+    const before = '# Title\n\n## existing\n\nbody\n\n---\n';
+    const entry = '## new entry\n\nbody\n\n---';
+    const after = insertAboveFooter(before, entry);
+    expect(after).toContain('## new entry');
+    expect(after.indexOf('## new entry')).toBeGreaterThan(after.indexOf('## existing'));
+  });
+
+  it('preserves the existing entry separators', () => {
+    const before = '# Title\n\n## first\nbody1\n\n---\n\n## second\nbody2\n\n---\n\n*Last updated: 2020-01-01*\n';
+    const after = insertAboveFooter(before, '## third\nbody3\n\n---');
+    // Both prior separators still present
+    expect(after.match(/^---$/gm)?.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('atomicWrite (I/O)', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-add-test-'));
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('writes content to the target path', async () => {
+    const target = join(tempDir, 'out.md');
+    await atomicWrite(target, 'hello world');
+    expect(await readFile(target, 'utf-8')).toBe('hello world');
+  });
+
+  it('does not leave a .tmp- file behind on success', async () => {
+    const target = join(tempDir, 'out.md');
+    await atomicWrite(target, 'hello');
+    const { readdir } = await import('node:fs/promises');
+    const files = await readdir(tempDir);
+    const tmpFiles = files.filter((f) => f.includes('.tmp-'));
+    expect(tmpFiles).toHaveLength(0);
+  });
+
+  it('leaves destination unchanged if rename throws (atomic-fail invariant)', async () => {
+    const target = join(tempDir, 'out.md');
+    await writeFile(target, 'ORIGINAL', 'utf-8');
+    const renameFn = async () => {
+      throw new Error('simulated rename failure');
+    };
+    await expect(atomicWrite(target, 'NEW', { renameFn })).rejects.toThrow(/simulated rename/);
+    // Destination unchanged
+    expect(await readFile(target, 'utf-8')).toBe('ORIGINAL');
+  });
+
+  it('falls back to copy+unlink when rename throws EXDEV (cross-filesystem)', async () => {
+    const target = join(tempDir, 'out.md');
+    let callCount = 0;
+    const renameFn = async (...args) => {
+      callCount++;
+      if (callCount === 1) {
+        const err = new Error('cross-device link');
+        err.code = 'EXDEV';
+        throw err;
+      }
+      // Subsequent calls (should not happen — fallback uses copy+unlink, not rename)
+      const { rename } = await import('node:fs/promises');
+      return rename(...args);
+    };
+    await atomicWrite(target, 'NEW', { renameFn });
+    expect(await readFile(target, 'utf-8')).toBe('NEW');
+  });
+});
+
+describe('acquireLock / releaseLock (I/O)', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-add-test-'));
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('creates the lock file on acquire', async () => {
+    await acquireLock(tempDir);
+    expect(existsSync(join(tempDir, '.planning', '.add.lock'))).toBe(true);
+    await releaseLock(tempDir);
+  });
+
+  it('rejects a second acquire while the first is held (and lock is fresh)', async () => {
+    await acquireLock(tempDir);
+    await expect(acquireLock(tempDir)).rejects.toThrow(/Another `\/sig:add` is running/);
+    await releaseLock(tempDir);
+  });
+
+  it('removes the lock file on release', async () => {
+    await acquireLock(tempDir);
+    await releaseLock(tempDir);
+    expect(existsSync(join(tempDir, '.planning', '.add.lock'))).toBe(false);
+  });
+
+  it('treats a stale lock (older than TTL) as releasable', async () => {
+    // Manually plant a stale lock with an old timestamp.
+    const lockPath = join(tempDir, '.planning', '.add.lock');
+    const stale = `99999\n${Date.now() - 60_000}\n`; // 60s ago, well over 30s TTL
+    await writeFile(lockPath, stale, 'utf-8');
+    // Acquire should succeed by overwriting the stale lock.
+    await expect(acquireLock(tempDir)).resolves.toBeDefined();
+    await releaseLock(tempDir);
+  });
+});
+
+describe('captureToFutureIdeas (integration)', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-add-test-'));
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('writes an entry above the footer and rewrites footer date', async () => {
+    await setupFixture('future-ideas-minimal', tempDir);
+    const result = await captureToFutureIdeas(tempDir, {
+      body: 'use semver-it for tag publish',
+      today: '2026-05-14',
+      sensitivePrompt: async () => 'keep',
+    });
+    expect(result.written).toBe(true);
+    expect(result.path).toBe(join(tempDir, '.planning', 'FUTURE-IDEAS.md'));
+    const content = await readFile(result.path, 'utf-8');
+    expect(content).toContain('use semver-it for tag publish');
+    expect(content).toContain('*Last updated: 2026-05-14*');
+    expect(content).not.toContain('*Last updated: 2026-05-12*');
+  });
+
+  it('throws when .planning/ is missing (acceptance criterion 2)', async () => {
+    // tempDir has no .planning/
+    await expect(
+      captureToFutureIdeas(tempDir, {
+        body: 'idea',
+        today: '2026-05-14',
+        sensitivePrompt: async () => 'keep',
+      })
+    ).rejects.toThrow(/sig:init/);
+  });
+
+  it('aborts cleanly when sensitive scrub prompt returns "abort"', async () => {
+    await setupFixture('future-ideas-minimal', tempDir);
+    const path = join(tempDir, '.planning', 'FUTURE-IDEAS.md');
+    const before = await readFile(path, 'utf-8');
+    const result = await captureToFutureIdeas(tempDir, {
+      body: 'token: ghp_abcdefghijklmnopqrstuvwxyz0123456789',
+      today: '2026-05-14',
+      sensitivePrompt: async () => 'abort',
+    });
+    expect(result.written).toBe(false);
+    expect(result.aborted).toBe('sensitive-data');
+    // File unchanged
+    expect(await readFile(path, 'utf-8')).toBe(before);
+  });
+
+  it('writes verbatim when sensitive scrub prompt returns "keep"', async () => {
+    await setupFixture('future-ideas-minimal', tempDir);
+    const result = await captureToFutureIdeas(tempDir, {
+      body: 'token: ghp_abcdefghijklmnopqrstuvwxyz0123456789',
+      today: '2026-05-14',
+      sensitivePrompt: async () => 'keep',
+    });
+    expect(result.written).toBe(true);
+    const content = await readFile(result.path, 'utf-8');
+    expect(content).toContain('ghp_abcdefghijklmnopqrstuvwxyz0123456789');
+  });
+
+  it('reports line number of the new entry in the success result', async () => {
+    await setupFixture('future-ideas-minimal', tempDir);
+    const result = await captureToFutureIdeas(tempDir, {
+      body: 'idea text here',
+      today: '2026-05-14',
+      sensitivePrompt: async () => 'keep',
+    });
+    expect(typeof result.line).toBe('number');
+    expect(result.line).toBeGreaterThan(0);
+  });
+
+  it('warns and consults bodyLengthPrompt when body exceeds soft cap (criterion 9)', async () => {
+    await setupFixture('future-ideas-minimal', tempDir);
+    const longBody = 'x'.repeat(BODY_LENGTH_SOFT_CAP + 100);
+    let prompted = false;
+    const result = await captureToFutureIdeas(tempDir, {
+      body: longBody,
+      today: '2026-05-14',
+      sensitivePrompt: async () => 'keep',
+      bodyLengthPrompt: async () => {
+        prompted = true;
+        return 'keep';
+      },
+    });
+    expect(prompted).toBe(true);
+    expect(result.written).toBe(true);
+  });
+
+  it('aborts cleanly when bodyLengthPrompt returns "abort"', async () => {
+    await setupFixture('future-ideas-minimal', tempDir);
+    const longBody = 'x'.repeat(BODY_LENGTH_SOFT_CAP + 100);
+    const result = await captureToFutureIdeas(tempDir, {
+      body: longBody,
+      today: '2026-05-14',
+      sensitivePrompt: async () => 'keep',
+      bodyLengthPrompt: async () => 'abort',
+    });
+    expect(result.written).toBe(false);
+    expect(result.aborted).toBe('body-length');
+  });
+
+  it('refuses concurrent capture (lock held)', async () => {
+    await setupFixture('future-ideas-minimal', tempDir);
+    // Hold the lock manually
+    await acquireLock(tempDir);
+    await expect(
+      captureToFutureIdeas(tempDir, {
+        body: 'idea',
+        today: '2026-05-14',
+        sensitivePrompt: async () => 'keep',
+      })
+    ).rejects.toThrow(/Another `\/sig:add` is running/);
+    await releaseLock(tempDir);
+  });
+});

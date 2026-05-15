@@ -4,13 +4,32 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Milestone
 
-**Milestone 4 — Brownfield Onboarding via `/sig:init` — 19 of 19 tasks shipped + v0.1.0 tagged.** M4.t1 + M4.t2–M4.t7 + M4.t8 + M4.t9–M4.t12 + M4.t13 + M4.t14 + M4.t15 + M4.t16 + M4.t17 + M4.t18 + M4.t19 shipped. **M4.t18** (vocabulary refactor: Tranche → Milestone, add Epic mid-layer) and **M4.t19** (marketplace install layout fix + plugin slug `signal` → `sig`) both shipped 2026-05-12. Design notes in `MILESTONE-4.md`.
+**Milestone 4.5 — Release Hardening / Stranger-Adoption Readiness — in flight.** Scaffolded 2026-05-13; 5 Epics. **M4.5.E2 (`/sig:add`) Slice 1 (hardened hot path) shipped 2026-05-14** — verbatim capture to `FUTURE-IDEAS.md`, sensitive-data scrub, atomic write, lock-protected. 40 new tests; total 169 → 209. Validator green. Slices 2–5 deferred (force-route flags, cold-path interview, stranger-safety hardening, `/sig:plan` close-the-loop). Other Epics pending: E1 (install-path bulletproof / F2), E3 (public-facing docs rewrite), E4 (worked example + comparison page), E5 (external validation + launch).
 
-Plugin is now marketplace-installable from `InsightRiot/signal` via Claude Code's plugin system. Slash-command prefix `/sig:*` works because the plugin slug in `.claude-plugin/plugin.json` is `sig` (brand "Signal" preserved in descriptions). The v0.1.0 tag is the publish point. Remaining F2 sub-question (does Claude Code auto-register Signal's agents post-install, or do they need restructuring to flat `agents/sig-<name>.md`?) is a v0.1.1 candidate — `/sig:init` Step 2 has the documented fallback path so it works regardless.
+**Milestone 4 — Brownfield Onboarding via `/sig:init` — closed 2026-05-12 + v0.1.0 tagged.** 19 of 19 tasks shipped. M4.t18 (vocabulary refactor: Tranche → Milestone, add Epic mid-layer) and M4.t19 (marketplace install layout fix + plugin slug `signal` → `sig`) both shipped 2026-05-12. Design notes in `MILESTONE-4.md`.
+
+Plugin is now marketplace-installable from `InsightRiot/signal` via Claude Code's plugin system. Slash-command prefix `/sig:*` works because the plugin slug in `.claude-plugin/plugin.json` is `sig` (brand "Signal" preserved in descriptions). The v0.1.0 tag is the publish point. Remaining F2 sub-question (does Claude Code auto-register Signal's agents post-install, or do they need restructuring to flat `agents/sig-<name>.md`?) is the headline item for M4.5.E1 — `/sig:init` Step 2 has the documented fallback path so it works regardless.
 
 Milestone 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the markdown and code layer.
 
 ## Completed
+
+- **Milestone 4.5, Epic 2, Slice 1 — `/sig:add` hardened hot path** (2026-05-14):
+  - **`commands/add.md`** (new) — meta-command spec for `/sig:add "idea"`. No tier-gating preamble (capture should always work); modeled on `commands/resume.md`. Slice 1 covers verbatim capture to `.planning/FUTURE-IDEAS.md` only; force-route flags (`--question`, `--milestone`, `--milestone N`, `--file`), naked-invocation interview, and stranger-safety hardening are deferred to Slices 2–4 per `M4.5.E2-PLAN.md`.
+  - **`tools/lib/add.js`** (new, ~250 lines) — pure-function module: `parseInput`, `scrubSensitive`, `checkBodyLength`, `buildFutureIdeasEntry`, `rewriteFooter`, `insertAboveFooter`, `atomicWrite` (write-to-temp + `fs.rename` with `EXDEV` fallback), `acquireLock` / `releaseLock` (stale-lock detection via `unlink` before atomic-create with `wx` flag), `captureToFutureIdeas`. `BODY_LENGTH_SOFT_CAP = 4000` per acceptance criterion #9.
+  - **`tests/add.test.js`** (new, 40 tests) — pure-function unit tests for each helper + integration tests covering all 9 acceptance criteria: well-formed write above footer, `.planning/` absence handling, concurrent-run lock failure, sensitive-data scrub prompt (abort + keep paths), atomic rename failure leaves destination unchanged, footer date rewrite, validator green, no new deps, body-length warning.
+  - **`tests/fixtures/add/future-ideas-minimal/.planning/FUTURE-IDEAS.md`** (new, ~25 lines) — synthetic minimal fixture for capture integration tests. Models the real `.planning/FUTURE-IDEAS.md` footer convention so footer-rewrite assertions are realistic.
+  - **`tools/validate-plugin.js`** — `REQUIRED_COMMANDS` += `'commands/add.md'`.
+  - **`README.md`** — added `/sig:add` callout in flow section + per-command bullet in command reference.
+  - **`CLAUDE.md`** — "9 slash commands" → "13 slash commands" with full list (`/sig:new-project`, `/sig:init`, `/sig:calibrate`, `/sig:discuss`, `/sig:plan`, `/sig:execute`, `/sig:verify`, `/sig:review`, `/sig:ship`, `/sig:escalate`, `/sig:status`, `/sig:resume`, `/sig:add`).
+  - **One defect found + fixed in-slice.** Stale-lock test failure on first run — `acquireLock` did not `unlink` the stale lock before the atomic-create, so `openSync(lockPath, 'wx')` failed with EEXIST. Fixed by adding `unlink` in the stale-detection branch.
+  - **Anti-rationalization honored** (per M4.5.E2-PLAN.md): no `appendFile` shortcut (always temp + rename), lock file kept despite solo-dev assumption, sensitive-data scrub prompts user (never auto-redacts), no preview before write, verbatim capture (no LLM rewrite / smart-quoting / normalization), no numeric entry IDs.
+  - **Tests 169 → 209** (+40). Validator green. FULL-tier `gate_strictness: strict` honored — slice held for explicit user approval before commit.
+
+- **Milestone 4, Tasks 17 + 18 + 19 — finishing M4 + v0.1.0 tag** (2026-05-11 to 2026-05-12):
+  - **M4.t17** (PR #1, merged 2026-05-11) — wire `AskUserQuestion` tool into decision-gathering commands. Replaces free-text prompts in `/sig:calibrate`, `/sig:discuss`, `/sig:escalate`, and `/sig:init` Step 5 walkthrough with structured single-select / multi-select questions where appropriate. Preserves the 3+other pattern for branch-and-other shapes; free-text remains for genuinely open-ended fields (Vision, Problem). Calibrate's 5 diagnostic questions all use the structured tool now.
+  - **M4.t18** (2026-05-12) — vocabulary refactor. Renames Tranche → Milestone, introduces Epic as a mid-layer between Milestone and Phase/Wave/Task. Locked vocabulary stanza added to `.planning/PROJECT.md` ("## Vocabulary") with the ID-is-identity rule (e.g., `M4.5.E2.S1` is the canonical reference shape; never re-number after publish). Mechanical sweep across all `.planning/`, `commands/`, `agents/`, `skills/`, `references/`, `docs/`, `README.md`, `CLAUDE.md`. Test fixtures (`tests/fixtures/init/*`) updated to match. The 4.5 milestone shape was the first test of the new vocabulary's flexibility.
+  - **M4.t19** (2026-05-12, v0.1.0) — marketplace install layout fix + plugin slug `signal` → `sig`. `.claude-plugin/plugin.json` name field `signal` → `sig` so command prefix `/sig:*` works post-install (Claude Code's marketplace flow uses plugin name as slash-command namespace). Brand "Signal" preserved in `description`. `commands/` directory promoted to repo root (was `.claude/commands/`) so marketplace install resolves correctly. `agents/`, `skills/`, `references/` paths verified against marketplace conventions. v0.1.0 tagged at commit `a73d550`. Marketplace-installable from `InsightRiot/signal`. F2 sub-question (post-install agent registration) deferred to M4.5.E1 — `/sig:init` Step 2 has documented fallback.
 
 - **Milestone 4, Task 13 — Fixture-based tests for `/sig:init` flow** (2026-05-09):
   - **`tests/fixtures/init/{node,python,dormant}-project/.planning/scan/`** (12 new files) — three project fixtures with hand-authored `{stack,structure,activity,quality}.md` files modeled on the real M4.t15 dogfood shape but synthetic (Node Express + GitHub-Actions-CI; Python Flask + no CI + Sphinx docs; Ruby Sinatra + Travis-legacy + dormant 9 months). Each fixture totals ~150–200 lines across the 4 scan files.
@@ -225,13 +244,20 @@ Milestone 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the ma
 
 ## Active
 
-**Milestone 4 closed on the markdown + code layer.** All 16 task slots shipped (M4.t1 + Waves 2 + 3 + adjacent updates + M4.t13 fixtures + M4.t15 dogfood + M4.t16 docs + M4.t8 walkthrough + M4.t17 AskUserQuestion wiring). Synthesis pipeline validated end-to-end on Signal-on-Signal; brownfield path documented in README + tier-definitions; F2 blocker has a documented fallback path; synthesizer regression coverage is now in place via three project fixtures.
+**Milestone 4.5 underway.** E2 Slice 1 (`/sig:add` hardened hot path) shipped 2026-05-14. Slices 2–5 of E2 (force-route flags, cold-path interview + heuristic hints, stranger-safety hardening, `/sig:plan` close-the-loop) pending. Other Epics not yet started:
+- **E1 — Stranger-install path bulletproof.** F2 resolution, fresh-machine install protocol, versioning & deprecation policy. The single highest-leverage Epic; if install path is broken, every other Epic's value is gated.
+- **E3 — Public-facing docs rewrite.** README as pitch, CHANGELOG, compatibility matrix, CONTRIBUTING + SECURITY, privacy/telemetry statement.
+- **E4 — Worked example + comparison page.** `examples/` directory; `docs/vs.md`.
+- **E5 — External validation + launch.** 3 friendly testers, launch post, v0.1.x → v0.2.0 decision point.
 
-**Pending dogfood validation of M4.t8.** The walkthrough is implemented + unit-tested but hasn't been exercised against a real PROJECT.md draft. Recommended next pass: re-run `/sig:init` on a fresh worktree and walk all 7 fields to confirm the conversational layer is non-fatiguing in practice (the Wave 4 design's success criterion #8). Bundle this dogfood with marketplace validation when that publish-then-test cycle happens.
+E2 Slice 1 was the first FULL-tier `/sig:plan` + execute pass on Signal-on-Signal — research → 8-dim plan validation → 5-slice plan → strict-gate execute. Artifacts: `M4.5.E2-RESEARCH.md`, `M4.5.E2-PLAN.md`, `M4.5.E2-VALIDATION.md`, `M4.5.E2-PROGRESS.md`. PROFILE.md retro-calibrated FULL at the start of E2 (Signal-on-Signal had no PROFILE.md prior).
+
+**Pending dogfood validation of M4.t8.** The walkthrough is implemented + unit-tested but hasn't been exercised against a real PROJECT.md draft. Bundle with E1's marketplace-install validation.
 
 **Open items, in priority order:**
-1. **Marketplace-install validation** (pre-publish blocker for F2): publish a test build of Signal, install via marketplace, verify whether named subagents resolve and what prefix (if any) Claude Code applies. Update init.md Step 2 table accordingly. **The single remaining external blocker between current state and shipping v0.1.0.** Not a MILESTONE-4 task (needs publish-then-test cycle).
-2. **M4.t8 conversational dogfood** — exercise the walkthrough against a real brownfield run; surface fatigue / phrasing issues. Can ride the next `/sig:init` dogfood pass alongside marketplace validation.
+1. **F2 — marketplace-install agent registration** (M4.5.E1). Publish a test build of Signal, install via marketplace, verify whether named subagents resolve and what prefix (if any) Claude Code applies. Update `/sig:init` Step 2 accordingly. v0.1.0 is shipped but F2 is the headline gating item for v0.1.1.
+2. **M4.5.E2 Slices 2–5** — force-route flags, cold-path interview, stranger-safety hardening, `/sig:plan` close-the-loop. Order flexible; S2 likely lands first.
+3. **M4.t8 conversational dogfood** — can ride the F2 marketplace validation pass.
 
 **Five MILESTONE-4 design decisions resolved (all logged):**
 - Scanner count → fixed at 4.
@@ -240,12 +266,12 @@ Milestone 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the ma
 - Write PROJECT.md or just LANDSCAPE.md → both, with per-field `[INFERRED]` / `[FILL IN]` markers.
 - Codebase-novelty feeding calibration → light-touch heuristic in `/sig:calibrate` Scenario A; deeper integration documented as forward-looking in tier-definitions.md.
 
-**One open unknown:** plugin agent registration mechanism post-marketplace-install + namespacing convention. Has documented fallback path; resolution gates v0.1.0 marketplace publish.
-
 ## Blockers
 
 None.
 
 ## Last Updated
 
-2026-05-09 (M4.t13 shipped: fixture-based regression tests for `/sig:init` synthesizer — 3 fixtures × 4 scan files + `tests/init-fixtures.test.js` with 21 tests including the spec-named dormant-health assertion + cross-fixture scanner-ownership discipline. Tests 148 → 169. Milestone 4 closed on markdown + code layer; v0.1.0 ship gated only on marketplace-install validation for F2.)
+2026-05-14 (M4.5.E2 Slice 1 shipped: `/sig:add` hardened hot path — `commands/add.md` + `tools/lib/add.js` + 40 tests + minimal fixture + validator/README/CLAUDE.md wiring. Verbatim capture to `FUTURE-IDEAS.md`, atomic write, sensitive-data scrub, lock-protected. Tests 169 → 209. Validator green. FULL-tier strict gate honored. Slices 2–5 pending; M4.5's other 4 Epics not yet started.)
+
+Prior: 2026-05-12 (M4 closed + v0.1.0 tagged via M4.t19 marketplace install layout fix + plugin slug rename; M4.t18 vocabulary refactor); 2026-05-09 (M4.t13 fixture tests).

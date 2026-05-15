@@ -77,7 +77,7 @@ Two soft follow-ups, neither blocking ship:
 - `.planning/PROJECT.md` — the full v1 spec
 - `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` — the v2 vision
 - `CLAUDE.md` — project instructions
-- `.planning/MILESTONE-{1,2,3,4,5}.md` — scoped work plans (MILESTONE-4 = `/sig:init` brownfield onboarding, mostly done; MILESTONE-5 = v2 ports, gated)
+- `.planning/MILESTONE-{1,2,3,4,4.5,5}.md` — scoped work plans (MILESTONE-4 = `/sig:init` brownfield onboarding, ✓ closed 2026-05-12 + v0.1.0 tagged; **MILESTONE-4.5 = release-hardening / stranger-adoption readiness, scaffolded 2026-05-13** — 5 Epics including `/sig:add` capture-and-route command and F2 install-path resolution; MILESTONE-5 = v2 ports, gated on usage data)
 - `.planning/DECISIONS.md` — append-only architecture decisions
 - `.planning/OPEN-QUESTIONS.md` — unresolved design questions (v1-scoped)
 - `.planning/FUTURE-IDEAS.md` — post-v1 architectural evolutions of Signal's own mechanisms (distinct from MILESTONE-5's rundown-v2 integrations)
