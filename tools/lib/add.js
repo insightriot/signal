@@ -15,10 +15,15 @@
 // onboarding warning + gate_strictness honoring (S4), /sig:plan FUTURE-IDEAS
 // review step (S5). This module is the substrate for all of them.
 
-import { readFile, writeFile, rename, unlink, copyFile, mkdir } from 'node:fs/promises';
+import { readFile, unlink, mkdir } from 'node:fs/promises';
 import { existsSync, openSync, closeSync, writeSync } from 'node:fs';
 import { join } from 'node:path';
-import { randomBytes } from 'node:crypto';
+
+import { atomicWrite } from './atomic-write.js';
+
+// Re-export so existing consumers (tests/add.test.js, future callers) keep working
+// while atomic-write.js is the canonical implementation site.
+export { atomicWrite };
 
 // --- Constants ---
 
@@ -185,41 +190,6 @@ export function insertAboveFooter(content, entry) {
 }
 
 // --- I/O primitives ---
-
-/**
- * Atomic write: write to a sibling .tmp- file then rename onto the target.
- * On POSIX, rename is atomic — readers either see the old file or the new
- * one, never a half-written state. Cross-filesystem boundaries trigger EXDEV;
- * fall back to copy + unlink (less safe but functional).
- *
- * @param {string} targetPath
- * @param {string} content
- * @param {{renameFn?: typeof rename}} opts — renameFn injectable for tests
- */
-export async function atomicWrite(targetPath, content, opts = {}) {
-  const renameFn = opts.renameFn ?? rename;
-  const dir = targetPath.replace(/\/[^/]+$/, '') || '.';
-  const tmpName = `.tmp-${randomBytes(6).toString('hex')}-${Date.now()}`;
-  const tmpPath = join(dir, tmpName);
-  await writeFile(tmpPath, content, 'utf-8');
-  try {
-    await renameFn(tmpPath, targetPath);
-  } catch (err) {
-    if (err && err.code === 'EXDEV') {
-      // Cross-filesystem rename failure — fall back to copy + unlink.
-      await copyFile(tmpPath, targetPath);
-      await unlink(tmpPath);
-      return;
-    }
-    // Clean up tmp file on other failures so we don't leak.
-    try {
-      await unlink(tmpPath);
-    } catch {
-      // Best-effort cleanup; swallow.
-    }
-    throw err;
-  }
-}
 
 /**
  * Acquire the .planning/.add.lock file. Atomic create via O_EXCL — if the
