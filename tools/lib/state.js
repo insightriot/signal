@@ -205,31 +205,69 @@ ${now}
 }
 
 /**
- * Read the current project state.
- * @param {string} baseDir - The project root directory
- * @returns {Promise<{phase: string, completedPhases: string[], lastUpdated: string} | null>}
+ * Read the current project state. Three-way schema detection per D14:
+ *
+ * 1. No frontmatter → legacy parse path; returns camelCase fields with
+ *    `_schema: 'legacy'` sentinel. Downstream mutating helpers see this
+ *    and call `upgradeStateFile` on the next write.
+ * 2. Frontmatter + `schema_version: 1` → return parsed data, exposing
+ *    both the native snake_case fields and back-compat camelCase aliases.
+ *    `_schema: 1`.
+ * 3. Frontmatter + unknown `schema_version` (e.g., 999, written by a
+ *    newer Signal) → throws StateSchemaError. Fail closed.
+ * 4. Frontmatter present but no `schema_version` key → throws
+ *    StateSchemaError. Refuses to auto-upgrade; the user must either
+ *    remove the frontmatter (to let migration run) or hand-edit
+ *    `schema_version: 1` in.
+ *
+ * Pre-existing contract preserved: file absent → returns `null`.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<object | null>}
  */
 export async function readState(baseDir) {
   const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
-
-  if (!existsSync(statePath)) {
-    return null;
-  }
+  if (!existsSync(statePath)) return null;
 
   const content = await readFile(statePath, 'utf-8');
+  const { data } = parseFrontmatter(content);
 
-  const phaseMatch = content.match(/## Current Phase\n(.+)/);
+  if (data === null) {
+    // Case 3 in D14: no frontmatter → legacy path + sentinel.
+    return { ...legacyParse(content), _schema: 'legacy' };
+  }
+  if (!('schema_version' in data)) {
+    // Case 4 in D14: structured front but no version key. Refuse to guess.
+    throw new StateSchemaError(
+      `STATE.md has frontmatter but no schema_version key. Refusing to auto-upgrade — either remove the frontmatter to let Signal migrate the file, or add \`schema_version: 1\` manually.`
+    );
+  }
+  if (data.schema_version !== SCHEMA_VERSION) {
+    // Case 2 in D14: unknown version → fail closed.
+    throw new StateSchemaError(
+      `STATE.md was written by a newer Signal version (schema_version ${data.schema_version}); this Signal supports schema_version ${SCHEMA_VERSION}. Upgrade Signal or hand-edit the frontmatter.`
+    );
+  }
+  // Case 1 in D14: parse normally. Expose snake_case fields plus camelCase
+  // aliases for code written against the pre-schema legacy shape.
+  return {
+    ...data,
+    _schema: SCHEMA_VERSION,
+    completedPhases: data.completed_phases ?? [],
+    lastUpdated: data.last_updated ?? null,
+  };
+}
+
+// Legacy parser — extracted so readState can route the no-frontmatter case
+// through the same logic as the pre-S1 implementation. `inferCompletedPhases`
+// is shared with upgradeStateFile so the two paths can't disagree about
+// what counts as a completed phase.
+function legacyParse(content) {
+  const phaseMatch = content.match(/^## Current Phase\s*\n+([^\n]+)/m);
   const phase = phaseMatch ? phaseMatch[1].trim() : null;
-
-  const completedMatch = content.match(/## Completed Phases\n([\s\S]*?)(?=\n## |\n*$)/);
-  const completedRaw = completedMatch ? completedMatch[1].trim() : '';
-  const completedPhases = completedRaw === '(none)'
-    ? []
-    : completedRaw.split('\n').map(line => line.replace(/^- /, '').trim()).filter(Boolean);
-
-  const updatedMatch = content.match(/## Last Updated\n(.+)/);
+  const completedPhases = inferCompletedPhases(content);
+  const updatedMatch = content.match(/^## Last Updated\s*\n+([^\n]+)/m);
   const lastUpdated = updatedMatch ? updatedMatch[1].trim() : null;
-
   return { phase, completedPhases, lastUpdated };
 }
 
