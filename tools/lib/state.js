@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -185,41 +185,46 @@ export async function upgradeStateFile(baseDir) {
 }
 
 /**
- * Initialize the .planning/ directory for a new project.
- * @param {string} baseDir - The project root directory
- * @param {string} [initialPhase='CALIBRATE'] - Phase to write into STATE.md.
- *   Default `CALIBRATE` matches `/sig:new-project`'s expected sequence
- *   (Phase 0 runs first). Pass `DISCUSS` if calling from a post-calibrate path.
- * @returns {Promise<string>} Path to the created .planning/ directory
+ * Initialize the .planning/ directory for a new project. Writes a fresh
+ * schema_version-1 STATE.md with sensible defaults — empty current_tasks,
+ * empty completed_phases, no blockers.
+ *
+ * Idempotent: re-calling overwrites with the same fresh shape (safe under
+ * the /sig:new-project re-run path).
+ *
+ * @param {string} baseDir
+ * @param {string} [initialPhase='CALIBRATE'] — `/sig:new-project` runs
+ *   Phase 0 first; pass `DISCUSS` (or later) from post-calibrate paths.
+ * @returns {Promise<string>} planning dir path
  */
 export async function initState(baseDir, initialPhase = 'CALIBRATE') {
   if (!PHASES.includes(initialPhase)) {
-    throw new Error(`Invalid initial phase: ${initialPhase}. Must be one of: ${PHASES.join(', ')}`);
+    throw new Error(
+      `Invalid initial phase: ${initialPhase}. Must be one of: ${PHASES.join(', ')}`
+    );
   }
-
   const planningDir = join(baseDir, PLANNING_DIR);
-
   if (!existsSync(planningDir)) {
     await mkdir(planningDir, { recursive: true });
   }
-
-  const now = new Date().toISOString().split('T')[0];
-  const stateContent = `# Project State
-
-## Current Phase
-${initialPhase}
-
-## Completed Phases
-(none)
-
-## Blockers
-(none)
-
-## Last Updated
-${now}
-`;
-
-  await writeFile(join(planningDir, 'STATE.md'), stateContent, 'utf-8');
+  const data = {
+    schema_version: SCHEMA_VERSION,
+    phase: initialPhase,
+    current_epic: null,
+    current_wave: null,
+    current_tasks: [],
+    completed_phases: [],
+    blockers: [],
+    last_decision_at: null,
+    last_updated_commit: null,
+    last_updated: new Date().toISOString(),
+  };
+  const body =
+    '# Project State\n\nManaged by Signal. The YAML frontmatter above is the authoritative machine-readable state; this body is freeform human-readable narrative.\n';
+  await atomicWrite(
+    join(planningDir, 'STATE.md'),
+    stringifyFrontmatter(data, body)
+  );
   return planningDir;
 }
 
@@ -291,52 +296,42 @@ function legacyParse(content) {
 }
 
 /**
- * Transition to the next phase.
- * @param {string} baseDir - The project root directory
- * @param {string} nextPhase - The phase to transition to
- * @returns {Promise<void>}
+ * Transition to the next phase. Appends the prior phase (with date suffix)
+ * to `completed_phases`, dedupes by phase name (most-recent wins so recovery
+ * re-transitions don't accumulate duplicates), and writes through the
+ * frontmatter serializer + atomic-write + state lock.
+ *
+ * Auto-upgrades a legacy STATE.md on first call (via readStateForMutation).
+ *
+ * @param {string} baseDir
+ * @param {string} nextPhase
  */
 export async function transitionPhase(baseDir, nextPhase) {
   if (!PHASES.includes(nextPhase)) {
-    throw new Error(`Invalid phase: ${nextPhase}. Must be one of: ${PHASES.join(', ')}`);
+    throw new Error(
+      `Invalid phase: ${nextPhase}. Must be one of: ${PHASES.join(', ')}`
+    );
   }
-
-  const state = await readState(baseDir);
-  if (!state) {
-    throw new Error('No project state found. Run /sig:new-project first.');
-  }
-
-  const now = new Date().toISOString().split('T')[0];
-  // Dedupe by phase name; keep the latest (timestamp) entry per phase. Recovery
-  // scenarios (manual STATE.md edits, re-run transitions) otherwise append duplicates.
-  const phaseNameOf = (entry) => entry.split(' ')[0];
-  const seen = state.phase
-    ? [...state.completedPhases, `${state.phase} (${now})`]
-    : state.completedPhases;
-  const completed = Array.from(
-    new Map(seen.map((entry) => [phaseNameOf(entry), entry])).values()
-  );
-
-  const completedSection = completed.length > 0
-    ? completed.map(p => `- ${p}`).join('\n')
-    : '(none)';
-
-  const stateContent = `# Project State
-
-## Current Phase
-${nextPhase}
-
-## Completed Phases
-${completedSection}
-
-## Blockers
-(none)
-
-## Last Updated
-${now}
-`;
-
-  await writeFile(join(baseDir, PLANNING_DIR, 'STATE.md'), stateContent, 'utf-8');
+  return withStateLock(baseDir, async () => {
+    const state = await readStateForMutation(baseDir);
+    if (!state) {
+      throw new Error('No project state found. Run /sig:new-project first.');
+    }
+    const today = new Date().toISOString().split('T')[0];
+    const phaseNameOf = (entry) => entry.split(' ')[0];
+    const priorCompleted = state.completed_phases ?? state.completedPhases ?? [];
+    const seen = state.phase
+      ? [...priorCompleted, `${state.phase} (${today})`]
+      : priorCompleted;
+    const completed = Array.from(
+      new Map(seen.map((entry) => [phaseNameOf(entry), entry])).values()
+    );
+    const payload = stripStateMeta(state);
+    payload.phase = nextPhase;
+    payload.completed_phases = completed;
+    payload.last_updated = new Date().toISOString();
+    await writeStateFrontmatter(baseDir, payload);
+  });
 }
 
 /**
