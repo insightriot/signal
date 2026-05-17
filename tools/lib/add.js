@@ -15,23 +15,30 @@
 // onboarding warning + gate_strictness honoring (S4), /sig:plan FUTURE-IDEAS
 // review step (S5). This module is the substrate for all of them.
 
-import { readFile, unlink, mkdir } from 'node:fs/promises';
-import { existsSync, openSync, closeSync, writeSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
+import {
+  acquireLock as fileAcquireLock,
+  releaseLock as fileReleaseLock,
+} from './file-lock.js';
 
-// Re-export so existing consumers (tests/add.test.js, future callers) keep working
-// while atomic-write.js is the canonical implementation site.
+// Re-export atomicWrite so existing consumers (tests/add.test.js, future
+// callers) keep working while atomic-write.js is the canonical implementation
+// site.
 export { atomicWrite };
 
 // --- Constants ---
 
 export const BODY_LENGTH_SOFT_CAP = 4000;
+// /sig:add holds the lock across a sensitive-data prompt that can sit open
+// waiting for user input, so 30s is the right TTL here. state.js writes use
+// the file-lock default (5s).
 const LOCK_TTL_MS = 30_000;
 const LOCK_FILE = '.planning/.add.lock';
 const FUTURE_IDEAS = '.planning/FUTURE-IDEAS.md';
-const PLANNING_DIR = '.planning';
 
 // Sensitive-data detectors. The intent is detection, not prevention — the
 // caller decides whether to keep, abort, or scrub manually. Patterns are
@@ -192,76 +199,27 @@ export function insertAboveFooter(content, entry) {
 // --- I/O primitives ---
 
 /**
- * Acquire the .planning/.add.lock file. Atomic create via O_EXCL — if the
- * lock exists and is fresh (< TTL), reject. Stale locks (> TTL) are
- * overwritten so a crashed prior run can't permanently wedge the command.
+ * Acquire the `.planning/.add.lock` file. Thin wrapper around
+ * `tools/lib/file-lock.js` that pins the path, TTL, and user-facing label
+ * for /sig:add specifically.
  *
  * @param {string} baseDir
  * @returns {Promise<{path: string, released: () => Promise<void>}>}
  */
 export async function acquireLock(baseDir) {
-  const lockPath = join(baseDir, LOCK_FILE);
-  const planningDir = join(baseDir, PLANNING_DIR);
-  // Ensure .planning/ exists — caller should have already validated, but
-  // a defensive mkdir keeps the lock path creatable.
-  await mkdir(planningDir, { recursive: true });
-
-  if (existsSync(lockPath)) {
-    // Check freshness.
-    const existing = await readFile(lockPath, 'utf-8').catch(() => '');
-    const [, tsLine] = existing.split('\n');
-    const ts = Number(tsLine);
-    if (Number.isFinite(ts) && Date.now() - ts < LOCK_TTL_MS) {
-      throw new Error(
-        `Another \`/sig:add\` is running (lock at .planning/.add.lock held by pid ${
-          existing.split('\n')[0] || 'unknown'
-        }; retry in <${Math.ceil(LOCK_TTL_MS / 1000)}s).`
-      );
-    }
-    // Stale — unlink so the upcoming O_EXCL create succeeds.
-    try {
-      await unlink(lockPath);
-    } catch (err) {
-      if (err.code !== 'ENOENT') throw err;
-    }
-  }
-
-  // Atomic create (O_EXCL). If two processes race here, the second
-  // openSync call throws EEXIST, which we re-raise as a user-facing error.
-  let fd;
-  try {
-    fd = openSync(lockPath, 'wx');
-  } catch (err) {
-    if (err.code === 'EEXIST') {
-      // Re-check freshness — another process may have just won the race.
-      const existing = await readFile(lockPath, 'utf-8').catch(() => '');
-      throw new Error(
-        `Another \`/sig:add\` is running (lock created concurrently; retry shortly).${
-          existing ? ` Lock contents: ${existing.trim()}` : ''
-        }`
-      );
-    }
-    throw err;
-  }
-  writeSync(fd, `${process.pid}\n${Date.now()}\n`);
-  closeSync(fd);
-
-  return {
-    path: lockPath,
-    released: () => releaseLock(baseDir),
-  };
+  return fileAcquireLock(join(baseDir, LOCK_FILE), {
+    ttlMs: LOCK_TTL_MS,
+    label: '/sig:add',
+  });
 }
 
 /**
- * Release the lock file. Idempotent — silently succeeds if already absent.
+ * Release the `.planning/.add.lock` file. Idempotent.
+ *
+ * @param {string} baseDir
  */
 export async function releaseLock(baseDir) {
-  const lockPath = join(baseDir, LOCK_FILE);
-  try {
-    await unlink(lockPath);
-  } catch (err) {
-    if (err.code !== 'ENOENT') throw err;
-  }
+  return fileReleaseLock(join(baseDir, LOCK_FILE));
 }
 
 // --- Orchestrator ---
