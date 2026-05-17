@@ -28,6 +28,8 @@ Read `.planning/PROFILE.md` before any other workflow step.
 
 Tooling: `tools/lib/profile.js` exposes `readProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`.
 
+**Auto-state-protocol (M4.5.E6 onward).** Each dispatched task is wrapped by `dispatchTaskWithState` in `tools/lib/execute.js`, which calls `setCurrentTask` before the agent runs and `clearCurrentTask({status})` after — so `/sig:resume` can recover from a context-clear mid-EXECUTE. **SKETCH tier disables the auto-protocol entirely; STATE.md updates only via manual `/sig:checkpoint`.** FEATURE/SPIKE tiers run it under `gate_strictness: light` (state-write failures warn + continue). FULL tier runs it under `strict` (state-write failures halt the dispatch). See `tools/lib/execute.js` + `tools/lib/state.js`.
+
 ## Skill Loading
 
 Load from `${CLAUDE_PLUGIN_ROOT}/skills/build/`:
@@ -51,13 +53,14 @@ Group tasks into waves based on dependencies:
 - **Wave 2**: Tasks depending only on Wave 1 outputs
 - **Wave N**: Continue until all tasks are scheduled
 
-For each task in a wave:
-1. Read the task's acceptance criteria and test mapping
-2. Write tests first (TDD) where applicable
-3. Implement the minimum code to pass tests
-4. Run the test suite
-5. Create an atomic git commit with a descriptive message
-6. Update `.planning/STATE.md` with progress
+For each task in a wave, the orchestrator drives the work through `dispatchTaskWithState(baseDir, task, profile)` (from `tools/lib/execute.js`). The wrapper handles steps 1 + 6 automatically; the executor agent handles 2–5:
+
+1. **(orchestrator)** `clearOrphansBeforeDispatch` + `setCurrentTask({id, epic, wave})` — records the task as `in_progress` in `STATE.md` before the agent runs. SKETCH skips this entirely; FULL/strict halts on state-write failure; FEATURE/light warns + continues.
+2. **(agent)** Read the task's acceptance criteria and test mapping.
+3. **(agent)** Write tests first (TDD) where applicable.
+4. **(agent)** Implement the minimum code to pass tests.
+5. **(agent)** Run the test suite, then create an atomic git commit with a descriptive message. Return the commit sha to the orchestrator.
+6. **(orchestrator)** `clearCurrentTask({id, status: 'done', commit})` on success; `clearCurrentTask({id, status: 'aborted'})` on agent throw (re-thrown to the caller). Then update `.planning/{phase}-PROGRESS.md` if applicable.
 
 ### 3. Context Rot Prevention
 

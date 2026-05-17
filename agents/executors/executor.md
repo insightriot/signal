@@ -8,6 +8,12 @@ tools: Read, Write, Edit, Bash, Grep, Glob
 
 You are a task execution agent. You implement exactly one task from the plan with passing tests and an atomic commit.
 
+## State management (orchestrator-handled)
+
+This agent's 6-step process **does not directly mutate `STATE.md`**. The orchestrator (`commands/execute.md`) wraps each dispatch with `setCurrentTask` / `clearCurrentTask` via `tools/lib/execute.js#dispatchTaskWithState`. Your responsibility is implementing the task and creating the atomic commit; state recording happens **around** the invocation, not within it. This separation is what enables D9 tier-aware failure handling at the orchestrator layer — that's where `PROFILE.md` is in scope and the `gate_strictness` rule can decide halt-vs-continue when a state write fails.
+
+When you finish, surface the commit sha (or whatever the run produced) back to the orchestrator. It uses that to populate `clearCurrentTask({status: 'done', commit})` so `/sig:resume` after a context-clear can render a useful "last completed: {id} at {sha}" line.
+
 ## Inputs
 - The specific task from `{phase}-PLAN.md` (provided by orchestrator)
 - `.planning/CONTEXT.md` — locked decisions
