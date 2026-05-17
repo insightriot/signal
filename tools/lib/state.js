@@ -1,10 +1,76 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 const PLANNING_DIR = '.planning';
 
 const PHASES = ['CALIBRATE', 'DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'SHIP'];
+
+// --- Schema layer (M4.5.E6.S1.t3 onward) ---
+//
+// STATE.md is moving to YAML frontmatter + freeform body. The pure helpers
+// below are the substrate for S1.t4 (upgradeStateFile, legacy → schema_v1
+// migration) and S1.t5 (readState rewrite with strict three-way detection).
+
+/**
+ * Raised when STATE.md content fails schema validation — malformed YAML,
+ * unsupported schema_version, missing schema_version on frontmatter, etc.
+ */
+export class StateSchemaError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'StateSchemaError';
+  }
+}
+
+// Anchored regex: opening `---\n`, captured YAML block (non-greedy), closing
+// `---\n?`, captured body. `\r?\n` keeps CRLF-checked-out files working on
+// macOS/Linux. The trailing `\n?` makes the post-fence newline optional so
+// files without a final newline still parse.
+const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
+
+/**
+ * Parse a STATE.md-shaped string into its frontmatter data + body. Returns
+ * `{data: null, body: raw}` when no frontmatter is present (legacy STATE.md);
+ * the caller decides whether that means "trigger upgrade" or "treat as-is".
+ *
+ * @param {string} raw
+ * @returns {{data: object | null, body: string}}
+ */
+export function parseFrontmatter(raw) {
+  const match = raw.match(FRONTMATTER_RE);
+  if (!match) {
+    return { data: null, body: raw };
+  }
+  const [, yamlBlock, body] = match;
+  let data;
+  try {
+    data = parseYaml(yamlBlock, { schema: 'core' });
+  } catch (err) {
+    throw new StateSchemaError(`STATE.md frontmatter YAML is malformed: ${err.message}`);
+  }
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+    const got = data === null ? 'null' : Array.isArray(data) ? 'array' : typeof data;
+    throw new StateSchemaError(
+      `STATE.md frontmatter must be a YAML mapping; got ${got}.`
+    );
+  }
+  return { data, body };
+}
+
+/**
+ * Render a frontmatter object + body back into the canonical STATE.md shape.
+ * Round-trips through `parseFrontmatter` losslessly for well-formed inputs.
+ *
+ * @param {object} data
+ * @param {string} body
+ * @returns {string}
+ */
+export function stringifyFrontmatter(data, body) {
+  const yamlBlock = stringifyYaml(data).trimEnd();
+  return `---\n${yamlBlock}\n---\n${body}`;
+}
 
 /**
  * Initialize the .planning/ directory for a new project.
