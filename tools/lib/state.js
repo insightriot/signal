@@ -515,3 +515,67 @@ export async function getCurrentTasks(baseDir) {
   if (!state) return [];
   return state.current_tasks ?? [];
 }
+
+const DEFAULT_ORPHAN_THRESHOLD_MS = 30 * 60 * 1000;
+
+/**
+ * Identify in-flight tasks that exceed `thresholdMs` of wall-clock age and
+ * whose ids do NOT appear in any recent commit subject — the heuristic for
+ * "task started, process likely died before clearCurrentTask ran." Used by
+ * `/sig:resume` orphan-prompt UI (S4) and `/sig:execute` pre-dispatch
+ * recovery (S3).
+ *
+ * `execFn` is injectable so tests can stub the git shell-out. D6 graceful
+ * degradation: if git fails (not installed, not a repo, etc.), returns []
+ * with a stderr warning rather than producing false-positive orphans.
+ *
+ * @param {string} baseDir
+ * @param {{thresholdMs?: number, execFn?: typeof execFileSync}} [opts]
+ * @returns {Promise<Array<{id: string, startedAt: string, ageMs: number}>>}
+ */
+export async function detectOrphans(baseDir, opts = {}) {
+  const thresholdMs = opts.thresholdMs ?? DEFAULT_ORPHAN_THRESHOLD_MS;
+  const execFn = opts.execFn ?? execFileSync;
+
+  const tasks = await getCurrentTasks(baseDir);
+  if (tasks.length === 0) return [];
+
+  const now = Date.now();
+  const candidates = tasks
+    .filter((t) => (t.status ?? 'in_progress') === 'in_progress')
+    .map((t) => ({
+      id: t.id,
+      startedAt: t.startedAt,
+      ageMs: now - new Date(t.startedAt).getTime(),
+    }))
+    .filter((t) => t.ageMs > thresholdMs);
+
+  if (candidates.length === 0) return [];
+
+  // Query git for commit subjects affecting .planning/ since the oldest
+  // candidate started. If any subject references a candidate's id, that
+  // candidate is not orphaned — the work landed but clearCurrentTask
+  // didn't (probably the executor crashed mid-write).
+  const oldestStartMs = Math.min(
+    ...candidates.map((c) => new Date(c.startedAt).getTime())
+  );
+  const sinceIso = new Date(oldestStartMs).toISOString();
+  let subjects;
+  try {
+    const out = execFn(
+      'git',
+      ['log', '--since', sinceIso, '--pretty=format:%s', '--', '.planning/'],
+      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
+    );
+    subjects = String(out).split('\n').filter(Boolean);
+  } catch (err) {
+    process.stderr.write(
+      `Signal: detectOrphans could not query git (${err.message}); assuming no orphans.\n`
+    );
+    return [];
+  }
+
+  return candidates.filter(
+    (c) => !subjects.some((s) => s.includes(c.id))
+  );
+}
