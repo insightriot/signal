@@ -447,3 +447,119 @@ If a state-update call (e.g., `setCurrentTask`) fails (disk full, permission err
 - **DISCUSS-phase note on strict gate:** asked 3 of the 9 gray areas via `AskUserQuestion` (the genuinely-undecided UX/architecture trade-offs); locked the other 6 with judgment to honor user's velocity preference. All 6 self-locks are explicit and reviewable in this entry; user has flagged none for revision.
 
 ---
+
+## 2026-05-17 — M4.5.E6 PLAN-phase research addendum (D1 amended + D10–D16 added)
+
+`/sig:plan` Step 2 ran 4 parallel research agents (codebase, project/external, assumptions-analyzer, phase-researcher) per `research_parallelism: 4`. Outputs surfaced one research-settled correction to D1 and seven new D-candidates. After user review (D10 + D15 confirmed via `AskUserQuestion`; D11/D12/D14/D16 Claude-locked with rationale and user-approved):
+
+### D1 — AMENDED (research correction, not re-litigation)
+
+**Original D1 (2026-05-16):** STATE.md schema = YAML frontmatter via `js-yaml` (new runtime dependency).
+
+**Amended D1 (2026-05-17):** STATE.md schema = YAML frontmatter via the existing `yaml` (eemeli) package — already in `package.json` as `yaml@^2.8.3`, already used by `tools/lib/profile.js`. **No new runtime dependency.**
+
+**Why amended:** All 4 research agents independently flagged the existing `yaml` package. Original D1 reference to `js-yaml` was research-uninformed. The eemeli `yaml` library covers every D1 requirement (parse-or-throw, frontmatter round-tripping, comment preservation, schema validation) with fewer transitive deps, better security history (CVE-2013-4660 was js-yaml; CVE-2025-64718 was js-yaml prototype pollution; eemeli `yaml`'s only known issue CVE-2026-33532 is patched in 2.8.3 which Signal is already on).
+
+**Implications:**
+- The "first new runtime dep since v0.1.0" framing is removed. No versioning-policy ceremony needed.
+- One YAML lib across the codebase — consistent error semantics between PROFILE.md and STATE.md parsing.
+- Smaller install footprint (good for M4.5's stranger-adoption thesis).
+- Hand-rolled frontmatter splitter (~20 lines) using existing `yaml` is right call over adding `gray-matter` (5 transitive deps).
+- Use `{ schema: 'core' }` option on parse for strictest YAML-1.2 Core compliance (defensive, free).
+
+### D10 — STATE.md tracks parallel tasks as a list (`current_tasks[]`)
+
+Schema field `current_task: {...}` becomes `current_tasks: [...]`. Each parallel executor adds its own entry on `setCurrentTask`, removes on `clearCurrentTask`. Briefing renders the array — `In-flight (N tasks in Wave M): ...`.
+
+**Why:** EXECUTE waves run tasks in parallel (per `commands/execute.md` § 2). A single-object schema silently lies during parallel execution. The original 9 decisions missed this; the assumptions audit caught it (A1.1, A10.4). Honest picture is load-bearing for unambiguous handover — the Epic's whole point.
+
+**Helper API impact:** `setCurrentTask({...})` appends; `clearCurrentTask({task_id, commit})` removes by id; new helper `getCurrentTasks(baseDir)` returns the array. Renaming from D1's `current_task` is locked.
+
+### D11 — Staleness check uses git commit hash, not wall-clock timestamp
+
+Schema field `last_updated: <iso timestamp>` is augmented with `last_updated_commit: <sha>`. Staleness check becomes: `git rev-list <last_updated_commit>..HEAD -- <state-affecting-paths>` returns non-empty.
+
+**Why:** Wall-clock vs git committer-date skew across machines (NTP drift, manual `git commit --date=`) causes false positives/negatives in D6's check. Hash comparison is clock-free. Editor auto-save can't bump it accidentally. Test fixtures are simpler (mock rev-list output instead of reconciling two time domains).
+
+**Helper API impact:** `isStateStale(baseDir)` returns `{stale: boolean, commitCount: number, commits: [{sha, subject}]}`. Replaces the timestamp comparison originally implied by D6 — D6's scope (which files trigger) stays unchanged.
+
+### D12 — Orphan `in_progress` detection in `/sig:resume` + `/sig:checkpoint`
+
+If any `current_tasks[]` entry has `status: in_progress` AND `git log --since=entry.started_at -- .planning/` shows no commits referencing that task ID AND `now() - started_at > 30 minutes`, surface via `AskUserQuestion` strict-enum:
+- `clear` — call `clearCurrentTask({task_id, status: aborted})` and proceed
+- `keep` — leave entry; user knows the task is genuinely long-running
+
+**Why:** The central failure mode the Epic exists to fix would otherwise be re-introduced by the fix itself. Without orphan detection, a crashed/timed-out executor leaves a permanent in-flight entry; `/sig:resume` faithfully reports it; user is stuck. The assumptions audit (A5.1) flagged this as the highest-risk implicit assumption — should have been in the original 9.
+
+**Helper API impact:** `detectOrphans(baseDir)` returns `[{taskId, startedAt, ageMs}]`. Both `/sig:resume` and `/sig:checkpoint` call it as part of their normal flow.
+
+### D13 — merged into D10
+
+A1.1 and A10.4 from the assumptions audit both flagged the wave-parallel issue. Combined resolution lives in D10. D13 number reserved but unused.
+
+### D14 — Strict three-way schema detection (no silent inference)
+
+Reader logic in `state.js`:
+1. **Frontmatter present + `schema_version: 1`** → parse normally
+2. **Frontmatter present + `schema_version: <other>`** → throw `StateSchemaError: STATE.md was written by a newer Signal version. Upgrade Signal or roll back the file.`
+3. **No frontmatter at all** → trigger D4 migration (auto-extend with one-time notice)
+4. **Frontmatter present but no `schema_version`** → throw `StateSchemaError: STATE.md has YAML frontmatter but no schema_version. Refusing to auto-upgrade to avoid clobbering user-authored fields. Add 'schema_version: 1' manually if migration is intended.`
+
+**Why:** Prevents silent downgrade when a future-version STATE.md is read by an older Signal install (the `gh` CLI anti-pattern flagged in project-researcher output). Prevents auto-migration from clobbering user-authored frontmatter that happens to lack schema_version. The assumptions audit (A4.1) named this as HIGH risk for silent corruption.
+
+### D15 — Signal-on-Signal STATE.md uses the standard migration, gated by a dry-run review
+
+D4's blanket migration policy applies to Signal's own `.planning/STATE.md` (no premature special case). **However, before S1 ships, the planner MUST:**
+
+1. Copy `.planning/STATE.md` to `/tmp/sig-state-migration-dryrun.md`
+2. Run the migration code against the copy
+3. Capture the before/after diff in `M4.5.E6-RESEARCH.md` as an addendum
+4. Human review: does the migrated file render useful info via `/sig:resume`?
+5. If acceptable: ship normally
+6. If unacceptable: escalate to D15-fallback (separate `.state.yaml` for structured data; STATE.md stays freeform narrative) before code lands
+
+**Why:** Signal-on-Signal's STATE.md is freeform-narrative (270+ lines as of 2026-05-17), the most-likely-to-look-weird migration case. The assumptions audit (A6.1, A10.5) flagged this as HIGH risk for the dogfood criterion #8 — the very test of the Epic could fail on Signal's own data. Dry-run forces explicit verification on the most-uncertain case without locking a premature carve-out.
+
+### D16 — `/sig:checkpoint --context` appends to BOTH CONTEXT.md and DECISIONS.md
+
+`--context` mode prompts for decisions + open questions. The decision-capture path AMENDED:
+- "Any decisions to lock?" → appends to `CONTEXT.md` § Locked Decisions (as before)
+- **AND** appends a one-line entry to `DECISIONS.md`: `## YYYY-MM-DD — Checkpoint-captured: <verbatim user text>` (new in D16)
+- "Any new open questions?" → appends to `OPEN-QUESTIONS.md` (unchanged)
+
+**Why:** CONTEXT.md is the working-set view (curated, can be regenerated); DECISIONS.md is the immutable audit log (append-only). Decisions captured via `/sig:checkpoint --context` must land in both or the audit trail silently fragments — the assumptions audit (A9.1) flagged this as a MEDIUM-HIGH gap in D2. Same user input, two destinations.
+
+---
+
+**Combined implications across D1-amendment + D10–D16:**
+
+- **Helpers (new):** `setCurrentTask`, `clearCurrentTask`, `getCurrentTasks`, `addBlocker`, `clearBlocker`, `appendDecision`, `markFresh` (renamed from `markStale` for clarity — the function refutes staleness by updating `last_updated`), `isStateStale`, `detectOrphans`, `upgradeStateFile`.
+- **Error classes (new):** `StateSchemaError` (read-side: malformed YAML, schema_version unknown, or frontmatter-without-version), `StateWriteError` (write-side: ENOSPC, EACCES, lock contention).
+- **Refactor (shared utilities):** Extract `atomicWrite` + `acquireLock`/`releaseLock` from `tools/lib/add.js` to new shared modules `tools/lib/atomic-write.js` and `tools/lib/file-lock.js`. add.js + new state.js helpers both import from the shared modules. No new dependencies — pure reorganization.
+- **Refactor (testability):** Extract `commands/resume.md`'s briefing-rendering logic into `tools/lib/resume.js#renderResumeBriefing` so AC#7 + AC#8 (the end-to-end context-clear simulation) can be tested in code, not only manually.
+- **Test count delta:** ~30-45 new tests (research's estimate of 25-35 + 6-10 for the new decisions). Matches M4.5.E2.S1's +40 precedent.
+- **No new runtime dependencies.** D1's amendment removes the only one originally implied.
+- **Schema field shape locked:**
+  ```yaml
+  ---
+  schema_version: 1
+  phase: EXECUTE
+  current_epic: M4.5.E6
+  current_wave: 3
+  current_tasks:                # array per D10
+    - id: S3.t1
+      epic: M4.5.E6
+      wave: 3
+      commit: null
+      status: in_progress
+      started_at: 2026-05-17T09:22:00Z
+  completed_phases:
+    - {phase: CALIBRATE, at: 2026-05-14}
+  blockers: []
+  last_decision_at: 2026-05-17T13:10:00Z
+  last_updated_commit: a1b2c3d   # per D11
+  last_updated: 2026-05-17T14:22:00Z
+  ---
+  ```
+
+---

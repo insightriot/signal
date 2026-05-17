@@ -33,44 +33,35 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-**MILESTONE 4 complete (2026-05-12) — `/sig:init` brownfield onboarding shipped + vocabulary refactor (M4.t18) shipped.** 18 of 18 tasks shipped: skeleton + 5-state pre-flight, 4 parallel scanner agents, LANDSCAPE.md synthesizer + landscape.js helpers, baseline PROJECT.md generator, PROJECT.md walkthrough (M4.t8 — Step 5 assumption surfacing), STATE.md handoff, brownfield awareness in `/sig:status` / `/sig:resume` / `/sig:calibrate` Scenario A, validator updates, Signal-on-Signal dogfood (synthesis pipeline validated; F2 blocker logged with fallback path), README brownfield walkthrough + tier-definitions brownfield calibration patterns, fixture-based regression tests (M4.t13), AskUserQuestion wired into decision-gathering commands (M4.t17), and **Tranche → Milestone vocabulary refactor (M4.t18, 2026-05-12)**. Tests 96 → 169.
+**MILESTONE 4 closed 2026-05-12 + v0.1.0 tagged.** 19 of 19 tasks shipped. Plugin marketplace-installable from `InsightRiot/signal`. M4.t18 vocabulary refactor (Tranche → Milestone + Epic mid-layer) and M4.t19 (`signal → sig` plugin slug + marketplace install layout fix) both shipped 2026-05-12.
 
-**MILESTONE 3 closed 2026-04-26 — v1 ship-ready** (separate effort that produced the original 11 commands + dogfood passes). v0.1.0 tag pending only on F2 marketplace-install validation.
+**v0.1.1 shipped 2026-05-15** via M4.5.E1.S1 — marketplace.json source-block fix + `CLAUDE_CODE_PLUGIN_PREFER_HTTPS` doc + semver validator + 16 new tests (209 → 225). R1 verified on Brett's biz machine.
 
-**Path forward (2026-05-12):** v0.1.0 publish gated on a single external item: F2 (plugin-agent registration mechanism + namespacing post-marketplace-install). All internal blockers cleared.
+**v0.1.x in flight** via M4.5.E6 (resume reliability) — entering EXECUTE 2026-05-17.
 
-- **12 slash commands shipped** (`/sig:new-project`, `/sig:init` (new in M4), `/sig:calibrate`, `/sig:discuss`, `/sig:plan`, `/sig:execute`, `/sig:verify`, `/sig:review`, `/sig:ship`, `/sig:escalate`, `/sig:status`, `/sig:resume`).
-- **26 agent files** = 22 from prior milestones + 4 new scanner agents (stack / structure / activity / quality) under `agents/scanners/`.
-- 21 skill files (unchanged from M3).
-- **7 tool libs** = 5 prior + `tools/lib/landscape.js` (M4 Wave 3) + `tools/lib/walkthrough.js` (M4.t8 — `countMarkers`, `appendNote`).
-- **Question-pattern convention locked** (M2 Step 3) — strict enum / 3+other / open-ended. M4.t8 uses 3+other for `[INFERRED]` markers and open-ended-or-defer for `[FILL IN]` markers.
-- PROFILE.md schema + tier-to-defaults + override handling + escalation history all locked from prior milestones.
-- **`/sig:init` adds the LANDSCAPE.md + baseline PROJECT.md + scan/*.md artifacts** to the `.planning/` shape. Greenfield projects (`/sig:new-project`) don't have these; only brownfield-init'd projects do.
-- **Validator** requires `calibrate.md` + `escalate.md` + `init.md` + `profile-schema.md` + `tier-definitions.md` + the 4 scanner agents (`agents/scanners/*-scanner.md`).
-- **F2 unknown:** plugin agent registration mechanism + namespacing convention post-marketplace-install — gates v0.1.0 ship; has a documented fallback path in init.md Step 2 so the command works regardless. See DECISIONS.md (2026-04-26 — "scanner-spawn fallback path locked").
-- **169 tests passing** (state + context-monitor + profile + status + landscape + walkthrough + init-fixtures — 21 new in M4.t13); validator green. M4.t18 was a docs-only refactor — no helper code touched, all tests still pass.
-- **Vocabulary locked (M4.t18, 2026-05-12):** Milestone (M1, M2, …) → Epic (M5.E1, …; optional mid-layer) → Task (M4.t17, M5.E3.t2; lowercase `t`). Phase, Wave unchanged. ID is persistent identity, never changes. Full table in `PROJECT.md` § Vocabulary; rationale in `DECISIONS.md` 2026-05-12 entry; downstream-project migration prompt at `docs/migration-vocab-v0.1.0.md`.
+- **13 slash commands shipped**: `/sig:new-project`, `/sig:init`, `/sig:calibrate`, `/sig:discuss`, `/sig:plan`, `/sig:execute`, `/sig:verify`, `/sig:review`, `/sig:ship`, `/sig:escalate`, `/sig:status`, `/sig:resume`, `/sig:add`. **+1 planned in E6.S2**: `/sig:checkpoint`.
+- **26 agent files**: 22 from M1-M3 + 4 brownfield scanners (stack / structure / activity / quality) under `agents/scanners/`.
+- **21 skill files** (unchanged since M3).
+- **8 tool libs**: state.js (will be rewritten in E6.S1), context-monitor.js, profile.js, status.js, landscape.js, walkthrough.js, skill-loader.js, add.js. **+3 planned in E6**: atomic-write.js + file-lock.js (extracted from add.js) + checkpoint.js + execute.js + resume.js.
+- **Conventions locked**: question-patterns (strict enum / 3+other / open-ended); PROFILE.md schema + tier-to-defaults + escalation_history; ID-is-identity vocabulary rule (Milestone / Epic / Phase / Wave / Task with M4.5.E6.S1.t1 style addressing); `.planning/` always tracked in git.
+- **Validator** requires `calibrate.md` + `escalate.md` + `init.md` + `add.md` + `profile-schema.md` + `tier-definitions.md` + the 4 scanner agents. **+1 planned in E6.S5**: `checkpoint.md`.
+- **225 tests passing** as of v0.1.1; validator green. **E6 will add ~88 new tests** → ~313 total at S5 close.
+- **F2 (post-marketplace-install agent registration)** — still open. Documented fallback path in `/sig:init` Step 2; not blocking. M4.5.E1.S2 will verify post-marketplace-install.
+- **Known gap (literally what E6 fixes):** `/sig:resume` cannot fully re-orient after context-clear because STATE.md is freeform narrative + artifact resolver doesn't know Epic-prefix naming. **Manual workaround until E6 ships:** read `.planning/STATE.md` § "POST-CONTEXT-CLEAR RE-ENTRY PROTOCOL" at the top.
 
 ## Active work
 
-**MILESTONE 4 nearly done.** 15 of 16 tasks shipped (see `MILESTONE-4.md`):
-1. ✓ M4.t1 — `/sig:init` skeleton + 5-state pre-flight.
-2. ✓ M4.t2–M4.t5 — 4 scanner agents (stack / structure / activity / quality).
-3. ✓ M4.t6 — LANDSCAPE.md synthesizer + landscape.js helpers.
-4. ✓ M4.t7 — Baseline PROJECT.md generator with `[INFERRED]` / `[FILL IN]` markers.
-5. ✓ M4.t8 — Assumption-surfacing walkthrough in `/sig:init` Step 5 (zero-marker skip, locked field order, 3+other for INFERRED, open-ended-or-defer for FILL-IN, capture rules with Notes-history append). Bundled a Node-22 regex portability fix in landscape.js (`(?m:...)` inline modifier needed V8 12.7+).
-6. ✓ M4.t9 — STATE.md init + brownfield-aware handoff.
-7. ✓ M4.t10–M4.t12 — `/sig:status`, `/sig:resume`, `/sig:calibrate` Scenario A all surface LANDSCAPE.md awareness.
-8. **○ M4.t13 — Fixture tests** (deferred → v0.1.1 candidate; only remaining MILESTONE-4 task).
-9. ✓ M4.t14 — Validator updates (REQUIRED_COMMANDS + REQUIRED_AGENTS + REQUIRED_DIRS).
-10. ✓ M4.t15 — Signal-on-Signal dogfood. Synthesis pipeline validated; 4 fix-nows applied; F2 blocker logged with fallback path. Full runlog at `.dogfood/M4-INIT-DOGFOOD/RUNLOG.md` (gitignored — won't survive context clear; key findings preserved in DECISIONS.md and STATE.md).
-11. ✓ M4.t16 — README brownfield section + tier-definitions brownfield calibration patterns.
+**MILESTONE 4 closed 2026-05-12 + v0.1.0 tagged.** 19 of 19 tasks shipped. Plugin marketplace-installable from `InsightRiot/signal`.
 
-Two soft follow-ups, neither blocking ship:
-- **M4.t13 fixture tests** — Node / Python / dormant-project synthesizer fixtures. v0.1.1 candidate.
-- **M4.t8 conversational dogfood** — exercise the new walkthrough against a real brownfield run; surface fatigue/phrasing issues. Can ride the next /sig:init dogfood pass.
+**MILESTONE 4.5 underway** — Release Hardening / Stranger-Adoption Readiness; 6 Epics.
 
-**Single external blocker for v0.1.0 publish:** F2 marketplace-install validation (plugin-agent registration mechanism + namespacing). Not a MILESTONE-4 task; needs publish-then-test cycle.
+**ACTIVE EPIC: M4.5.E6 — Resume reliability** (entering EXECUTE 2026-05-17). Plan in `.planning/M4.5.E6-PLAN.md`. 16 design decisions locked in `.planning/DECISIONS.md` (2026-05-16 + 2026-05-17 addendum). 5 slices: S1 (schema + helpers + migration + D15 dry-run gate) → S2 (`/sig:checkpoint`) → S3 (auto-protocol in executor/orchestrator) → S4 (resume staleness + orphan UI + briefing extraction) → S5 (tier-aware + validator + docs + dogfood). Linear strict-gate execution. ~88 new tests planned; no new runtime deps (D1 amended — use existing `yaml@^2.8.3`).
+
+**→ See `.planning/STATE.md` § "POST-CONTEXT-CLEAR RE-ENTRY PROTOCOL"** at the top for canonical re-entry instructions after any context clear during E6.
+
+**Already shipped in M4.5:** E1.S1 (marketplace install path fix → v0.1.1, 2026-05-15), E2.S1 (`/sig:add` hardened hot path → 2026-05-14, 40 tests).
+
+**Pending after E6 closes:** E1 Slices 2–5 (F2 verification, install matrix, versioning policy, validator hardening); E2 Slices 2–5 (force-route flags, cold-path interview, hardening, /sig:plan close-the-loop); E3 (public-facing docs rewrite); E4 (worked example + comparison page); E5 (external validation + launch).
 
 ## Key files
 

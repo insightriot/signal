@@ -2,9 +2,47 @@
 
 Meta-state of the Signal build. Not to be confused with the `.planning/` that Signal's own commands will write in *user* projects once it's functional — this one is for building Signal itself.
 
+---
+
+## ⚡ POST-CONTEXT-CLEAR RE-ENTRY PROTOCOL (read this first)
+
+**If you (Claude or Brett) are reading this after a context clear:**
+
+1. **Where we are:** M4.5.E6 (resume reliability) — DISCUSS + PLAN complete 2026-05-17. **Ready to start EXECUTE.** Next concrete action: kick off S1.t1 (extract `atomic-write.js` from `add.js`).
+
+2. **What's locked:** 16 design decisions in `.planning/DECISIONS.md` (entries dated 2026-05-16 + 2026-05-17 addendum). The 2026-05-17 addendum is the most recent and contains D1 amendment + D10–D16. Do NOT re-litigate these.
+
+3. **What to read in order:**
+   - `.planning/M4.5.E6-PLAN.md` — the executable plan (5 slices, 37 tasks, TDD ordering). This is your single source of truth for what to do.
+   - `.planning/M4.5.E6-RESEARCH.md` — research synthesis (why each decision was made; reference if confused).
+   - `.planning/M4.5.E6-VALIDATION.md` — 8-dim plan validation + Nyquist test mapping.
+   - `.planning/DECISIONS.md` 2026-05-16 + 2026-05-17 entries — locked decisions.
+
+4. **Critical things to remember:**
+   - **No new runtime dependencies.** D1 was amended to use existing `yaml@^2.8.3`, NOT `js-yaml`.
+   - **S1.t4 has a hard gate** — the D15 dry-run on Signal-on-Signal's own STATE.md. Don't ship S1 code without that gate executing and Brett reviewing the diff.
+   - **Linear S1→S2→S3→S4→S5 execution** under strict gate. Each slice gets explicit user approval before next begins.
+   - **Per-task atomic commits** with the M4.5.E6.S{N}.t{M} naming convention (matches M4.5.E2 precedent).
+
+5. **The reason this protocol exists:** Signal's current `/sig:resume` cannot fully re-orient you after a context clear because STATE.md is freeform narrative and the resume.md artifact resolver doesn't know Epic-prefix naming yet. That's literally what M4.5.E6 fixes. Until E6 ships, this README-style protocol at the top of STATE.md is the manual workaround.
+
+6. **To continue:** Tell Claude "let's start S1.t1" or invoke `/sig:execute` (note: execute.md may need `M4.5.E6` as the phase argument — see PLAN.md for runtime details). The plan is written so any agent can pick up from here without re-asking design questions.
+
+---
+
+## Current Phase
+
+EXECUTE
+
+## Completed Phases
+
+- CALIBRATE (2026-05-14)
+- DISCUSS (2026-05-16)
+- PLAN (2026-05-17)
+
 ## Current Milestone
 
-**Milestone 4.5 — Release Hardening / Stranger-Adoption Readiness — in flight.** Scaffolded 2026-05-13; **6 Epics** (E6 added 2026-05-16). **M4.5.E6 (resume reliability — STATE.md schema + auto-update protocol + `/sig:checkpoint`) — DISCUSS complete 2026-05-16, entering PLAN.** Critical Epic, jumps queue ahead of E1.S2 and E2.S2 because real-world `/sig:resume` failure on a user project surfaced 2026-05-16. 9 design decisions locked in DECISIONS.md (2026-05-16 entry): YAML-frontmatter STATE.md schema with `schema_version`, two-mode `/sig:checkpoint` (default quick + `--context` for deep capture), per-task refresh cadence during EXECUTE, auto-migration on first write, end-of-phase markStale, scoped staleness check, unit+fixture test approach, show-diff-confirm under strict gate, tier-aware failure handling. 5-slice plan + 8 acceptance criteria scaffolded in MILESTONE-4.5.md § E6. Next: run `/sig:plan` to generate `M4.5.E6-{RESEARCH,PLAN,VALIDATION}.md`. **M4.5.E1 (install-path bulletproof) Slice 1 shipped 2026-05-15 + R1 verified — v0.1.1 tagged + pushed.** marketplace.json `source` switched from `"github"` shorthand to `"url"` with explicit HTTPS URL + ref + sha pin; v0.1.0 → v0.1.1; CHANGELOG seeded; README install section corrected + Troubleshooting subsection naming `CLAUDE_CODE_PLUGIN_PREFER_HTTPS` (Claude Code 2.1.141+); validator gained semver-format check; 16 new tests (209 → 225). R1 verified by successful `/plugin marketplace update signal` on Brett's business machine (multi-identity SSH; would have failed under the old SSH path). Slices 2–5 pending: S2 F2 verification (run `/agents` on biz machine, capture output), S3 install matrix rows R2/R3/R5, S4 versioning policy doc, S5 validator hardening. **M4.5.E2 (`/sig:add`) Slice 1 shipped 2026-05-14** — verbatim capture to `FUTURE-IDEAS.md`, sensitive-data scrub, atomic write, lock-protected (40 tests). E2 Slices 2–5 deferred (force-route flags, cold-path interview, stranger-safety hardening, `/sig:plan` close-the-loop). Other Epics pending: E3 (public-facing docs rewrite), E4 (worked example + comparison page), E5 (external validation + launch).
+**Milestone 4.5 — Release Hardening / Stranger-Adoption Readiness — in flight.** Scaffolded 2026-05-13; **6 Epics** (E6 added 2026-05-16). **M4.5.E6 (resume reliability — STATE.md schema + auto-update protocol + `/sig:checkpoint`) — PLAN complete 2026-05-17, entering EXECUTE.** Critical Epic, jumps queue ahead of E1.S2 and E2.S2 because real-world `/sig:resume` failure on a user project surfaced 2026-05-16. **16 design decisions locked in DECISIONS.md** (9 from 2026-05-16 + D1 amendment + D10–D16 from 2026-05-17 addendum): YAML-frontmatter STATE.md schema with `schema_version` using existing `yaml@^2.8.3` (NOT new js-yaml dep), two-mode `/sig:checkpoint` (default quick + `--context` for deep capture appending to BOTH CONTEXT.md and DECISIONS.md), per-task refresh cadence during EXECUTE, auto-migration on first write with strict three-way schema detection, end-of-phase markFresh (renamed from markStale for clarity), scoped staleness check via git commit hash (not wall clock), `current_tasks[]` array for wave-parallel execution, orphan in_progress detection, unit+fixture test approach, show-diff-confirm under strict gate, tier-aware failure handling, D15 dry-run gate against Signal-on-Signal's own STATE.md before S1 ships. **5-slice plan + 37 tasks + ~88 new tests** documented in `M4.5.E6-PLAN.md`. Research synthesis in `M4.5.E6-RESEARCH.md`. 8-dim validation + Nyquist mapping PASS in `M4.5.E6-VALIDATION.md`. Next: run `/sig:execute` on M4.5.E6 to start S1.t1 (extract `atomic-write.js` from `add.js`). **M4.5.E1 (install-path bulletproof) Slice 1 shipped 2026-05-15 + R1 verified — v0.1.1 tagged + pushed.** marketplace.json `source` switched from `"github"` shorthand to `"url"` with explicit HTTPS URL + ref + sha pin; v0.1.0 → v0.1.1; CHANGELOG seeded; README install section corrected + Troubleshooting subsection naming `CLAUDE_CODE_PLUGIN_PREFER_HTTPS` (Claude Code 2.1.141+); validator gained semver-format check; 16 new tests (209 → 225). R1 verified by successful `/plugin marketplace update signal` on Brett's business machine (multi-identity SSH; would have failed under the old SSH path). Slices 2–5 pending: S2 F2 verification (run `/agents` on biz machine, capture output), S3 install matrix rows R2/R3/R5, S4 versioning policy doc, S5 validator hardening. **M4.5.E2 (`/sig:add`) Slice 1 shipped 2026-05-14** — verbatim capture to `FUTURE-IDEAS.md`, sensitive-data scrub, atomic write, lock-protected (40 tests). E2 Slices 2–5 deferred (force-route flags, cold-path interview, stranger-safety hardening, `/sig:plan` close-the-loop). Other Epics pending: E3 (public-facing docs rewrite), E4 (worked example + comparison page), E5 (external validation + launch).
 
 **Milestone 4 — Brownfield Onboarding via `/sig:init` — closed 2026-05-12 + v0.1.0 tagged.** 19 of 19 tasks shipped. M4.t18 (vocabulary refactor: Tranche → Milestone, add Epic mid-layer) and M4.t19 (marketplace install layout fix + plugin slug `signal` → `sig`) both shipped 2026-05-12. Design notes in `MILESTONE-4.md`.
 
@@ -244,7 +282,14 @@ Milestone 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the ma
 
 ## Active
 
-**Milestone 4.5 underway.** **M4.5.E6 (resume reliability) is the active Epic — DISCUSS complete, entering PLAN.** Jumps queue ahead of E1.S2 and E2.S2. M4.5.E1 Slice 1 shipped 2026-05-15 (v0.1.1). E2 Slice 1 (`/sig:add` hardened hot path) shipped 2026-05-14. Pending after E6:
+**Milestone 4.5 underway.** **M4.5.E6 (resume reliability) is the active Epic — PLAN complete 2026-05-17; EXECUTE next, starting with S1.t1.** Jumps queue ahead of E1.S2 and E2.S2. M4.5.E1 Slice 1 shipped 2026-05-15 (v0.1.1). E2 Slice 1 (`/sig:add` hardened hot path) shipped 2026-05-14.
+
+**E6 immediate next steps (post context-clear):**
+1. Invoke `/sig:execute` with phase=M4.5.E6 (or tell Claude "let's start S1.t1").
+2. S1.t1 = extract `atomic-write.js` from `tools/lib/add.js` (lift-and-shift refactor + 4 new tests; existing 40 add.js tests stay green).
+3. Continue through S1.t1 → S1.t12 sequentially per `M4.5.E6-PLAN.md`. **S1.t4 has the D15 dry-run gate — DO NOT SKIP** (capture diff in RESEARCH §8.1, await Brett's verdict before continuing).
+
+Pending after E6:
 - **E1 Slices 2–5** — F2 verification (run `/agents` post-marketplace-install), install matrix R2/R3/R5, versioning policy doc, validator hardening.
 - **E2 Slices 2–5** — force-route flags, cold-path interview + heuristic hints, stranger-safety hardening, `/sig:plan` close-the-loop.
 - **E3 — Public-facing docs rewrite.** README as pitch, CHANGELOG, compatibility matrix, CONTRIBUTING + SECURITY, privacy/telemetry statement.
@@ -256,7 +301,7 @@ E2 Slice 1 was the first FULL-tier `/sig:plan` + execute pass on Signal-on-Signa
 **Pending dogfood validation of M4.t8.** The walkthrough is implemented + unit-tested but hasn't been exercised against a real PROJECT.md draft. Bundle with E1's marketplace-install validation.
 
 **Open items, in priority order:**
-1. **M4.5.E6 — resume reliability** (new, critical). DISCUSS complete 2026-05-16; PLAN next. 5 slices; ships ASAP. Real-world `/sig:resume` failure on user project surfaced 2026-05-16 — the friction made it so taxing to confirm doc-currency before context-clearing that the Epic was scaffolded same-session.
+1. **M4.5.E6 — resume reliability — EXECUTE S1** (CRITICAL, active). PLAN complete 2026-05-17; S1.t1 is the immediate next action. 5 slices, 37 tasks, ~88 new tests. Linear execution under strict gate. Plan in `M4.5.E6-PLAN.md`. The 270-line context-clear-re-entry barrier this STATE.md document represents IS the friction this Epic eliminates — see top-of-file Re-Entry Protocol.
 2. **F2 — marketplace-install agent registration** (M4.5.E1.S2). Publish a test build of Signal, install via marketplace, verify whether named subagents resolve and what prefix (if any) Claude Code applies. Update `/sig:init` Step 2 accordingly.
 3. **M4.5.E2 Slices 2–5** — force-route flags, cold-path interview, stranger-safety hardening, `/sig:plan` close-the-loop. Order flexible; S2 likely lands first.
 4. **M4.t8 conversational dogfood** — can ride the F2 marketplace validation pass.
@@ -274,6 +319,6 @@ None.
 
 ## Last Updated
 
-2026-05-16 (M4.5.E6 scaffolded + DISCUSS complete. New critical Epic for resume reliability: STATE.md schema (YAML frontmatter + schema_version), auto-update protocol during EXECUTE (per-task cadence), `/sig:checkpoint` command with `--context` deep-capture flag, `/sig:resume` staleness check. 9 design decisions locked in DECISIONS.md. Scaffold in MILESTONE-4.5.md § E6. Next: `/sig:plan` to generate M4.5.E6-{RESEARCH,PLAN,VALIDATION}.md. STATE.md preserved as freeform narrative; will auto-upgrade to schema_version 1 on first write under E6.S1 helpers.)
+2026-05-17 (M4.5.E6 PLAN phase complete. 4 parallel research agents (codebase, project/external, assumptions, phase) ran during /sig:plan Step 2. Research surfaced one D1 correction (use existing `yaml@^2.8.3`, NOT new js-yaml dep) + 7 new D-candidates (D10–D16) — all 16 design decisions now in DECISIONS.md. M4.5.E6-PLAN.md drafted: 5 slices, 37 tasks, ~88 new tests, linear S1→S2→S3→S4→S5 execution. M4.5.E6-VALIDATION.md PASS across all 8 dimensions + Nyquist strict mapping. M4.5.E6-RESEARCH.md captures full synthesis. STATE.md updated with re-entry protocol at top + `## Current Phase` / `## Completed Phases` headings so existing /sig:resume helper can parse it pre-E6-S1. Next: kick off EXECUTE on S1.t1 (extract atomic-write.js from add.js).)
 
-Prior: 2026-05-15 (M4.5.E1 Slice 1 shipped + v0.1.1); 2026-05-14 (M4.5.E2 Slice 1 shipped: `/sig:add` hardened hot path); 2026-05-12 (M4 closed + v0.1.0 tagged via M4.t19 marketplace install layout fix + plugin slug rename; M4.t18 vocabulary refactor); 2026-05-09 (M4.t13 fixture tests).
+Prior: 2026-05-16 (M4.5.E6 scaffolded + DISCUSS complete; 9 initial design decisions); 2026-05-15 (M4.5.E1 Slice 1 shipped + v0.1.1); 2026-05-14 (M4.5.E2 Slice 1 shipped: `/sig:add` hardened hot path); 2026-05-12 (M4 closed + v0.1.0 tagged via M4.t19 marketplace install layout fix + plugin slug rename; M4.t18 vocabulary refactor); 2026-05-09 (M4.t13 fixture tests).
