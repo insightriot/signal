@@ -597,12 +597,14 @@ const STALE_SKIP_GRACE_MS = 60_000;
  * UI rather than a bare boolean.
  *
  * Skips the git call entirely when `last_updated` is within 60s of now —
- * resume immediately after a write can't be stale.
+ * resume immediately after a write can't be stale. /sig:checkpoint passes
+ * `bypassGrace: true` so explicit "tell me what changed" requests always
+ * query git, even right after a write.
  *
  * D6 graceful degradation: git failure → `{stale: false}` + stderr warning.
  *
  * @param {string} baseDir
- * @param {{execFn?: typeof execFileSync}} [opts]
+ * @param {{execFn?: typeof execFileSync, bypassGrace?: boolean}} [opts]
  * @returns {Promise<{stale: boolean, commitCount: number, commits: Array<{sha, subject}>}>}
  */
 export async function isStateStale(baseDir, opts = {}) {
@@ -615,11 +617,15 @@ export async function isStateStale(baseDir, opts = {}) {
   if (!lastCommit) return empty; // no baseline — can't measure
 
   // Grace window: very recent writes can't be stale relative to themselves.
-  const lastUpdatedMs = state.last_updated
-    ? new Date(state.last_updated).getTime()
-    : 0;
-  if (Number.isFinite(lastUpdatedMs) && Date.now() - lastUpdatedMs < STALE_SKIP_GRACE_MS) {
-    return empty;
+  // /sig:checkpoint opts out (bypassGrace) because user-explicit "what
+  // changed?" should always hit git.
+  if (!opts.bypassGrace) {
+    const lastUpdatedMs = state.last_updated
+      ? new Date(state.last_updated).getTime()
+      : 0;
+    if (Number.isFinite(lastUpdatedMs) && Date.now() - lastUpdatedMs < STALE_SKIP_GRACE_MS) {
+      return empty;
+    }
   }
 
   try {
