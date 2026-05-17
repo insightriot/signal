@@ -109,3 +109,80 @@ export async function detectStateChanges(baseDir, opts = {}) {
     },
   };
 }
+
+// Fields that exist on readState's return only for read-side ergonomics.
+// They shouldn't appear in a diff (the user didn't write them).
+const META_FIELDS = new Set(['_schema', 'completedPhases', 'lastUpdated']);
+
+function deepEqual(a, b) {
+  if (a === b) return true;
+  if (typeof a !== typeof b) return false;
+  if (a === null || b === null) return a === b;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a)) {
+    if (a.length !== b.length) return false;
+    return a.every((v, i) => deepEqual(v, b[i]));
+  }
+  if (typeof a === 'object') {
+    const ak = Object.keys(a).sort();
+    const bk = Object.keys(b).sort();
+    if (ak.length !== bk.length) return false;
+    return ak.every((k, i) => k === bk[i] && deepEqual(a[k], b[k]));
+  }
+  return false;
+}
+
+function formatScalar(v) {
+  if (v === null) return 'null';
+  if (v === undefined) return 'undefined';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+/**
+ * Plain-text rendering of the diff between two state objects. Sorted
+ * key-by-key; arrays render with nested `- removed: X` / `+ added: Y`
+ * markers (D8 confirm-then-write flow consumes this).
+ *
+ * @param {object|null} oldState
+ * @param {object|null} newState
+ * @returns {string}
+ */
+export function renderStateDiff(oldState, newState) {
+  if (!oldState || !newState) return 'No state to diff.';
+
+  const allKeys = new Set([
+    ...Object.keys(oldState),
+    ...Object.keys(newState),
+  ]);
+  for (const k of META_FIELDS) allKeys.delete(k);
+
+  const lines = [];
+  for (const key of [...allKeys].sort()) {
+    const oldVal = oldState[key];
+    const newVal = newState[key];
+    if (deepEqual(oldVal, newVal)) continue;
+
+    if (Array.isArray(oldVal) || Array.isArray(newVal)) {
+      const oldArr = Array.isArray(oldVal) ? oldVal : [];
+      const newArr = Array.isArray(newVal) ? newVal : [];
+      lines.push(`${key}:`);
+      for (const item of oldArr) {
+        if (!newArr.some((n) => deepEqual(n, item))) {
+          lines.push(`  - removed: ${formatScalar(item)}`);
+        }
+      }
+      for (const item of newArr) {
+        if (!oldArr.some((o) => deepEqual(o, item))) {
+          lines.push(`  + added: ${formatScalar(item)}`);
+        }
+      }
+      continue;
+    }
+
+    lines.push(`${key}: ${formatScalar(oldVal)} → ${formatScalar(newVal)}`);
+  }
+
+  return lines.length === 0 ? 'No changes.' : lines.join('\n');
+}

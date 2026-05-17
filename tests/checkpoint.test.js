@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import {
   parseCheckpointArgs,
   detectStateChanges,
+  renderStateDiff,
 } from '../tools/lib/checkpoint.js';
 import { stringifyFrontmatter, setCurrentTask } from '../tools/lib/state.js';
 
@@ -132,6 +133,70 @@ describe('detectStateChanges', () => {
     expect(result.diff.commitsBehind).toBe(3);
     expect(result.current.current_tasks).toEqual([]);
     expect(result.proposed.current_tasks).toEqual([]);
+  });
+
+});
+
+describe('renderStateDiff', () => {
+  it('renders "No changes." when states are identical', () => {
+    const state = { phase: 'EXECUTE', current_tasks: [], blockers: [] };
+    expect(renderStateDiff(state, { ...state })).toBe('No changes.');
+  });
+
+  it('renders a single-field diff on one line', () => {
+    expect(renderStateDiff({ phase: 'PLAN' }, { phase: 'EXECUTE' })).toBe(
+      'phase: PLAN → EXECUTE'
+    );
+  });
+
+  it('renders multi-field diffs as one line per field, sorted', () => {
+    const out = renderStateDiff(
+      { phase: 'PLAN', last_updated_commit: 'abc' },
+      { phase: 'EXECUTE', last_updated_commit: 'def' }
+    );
+    const lines = out.split('\n');
+    expect(lines).toHaveLength(2);
+    // Keys sorted alphabetically: last_updated_commit comes before phase.
+    expect(lines[0]).toBe('last_updated_commit: abc → def');
+    expect(lines[1]).toBe('phase: PLAN → EXECUTE');
+  });
+
+  it('renders array diffs (current_tasks) with nested +/- markers', () => {
+    const out = renderStateDiff(
+      { current_tasks: [{ id: 'T1' }, { id: 'T2' }] },
+      { current_tasks: [{ id: 'T2' }, { id: 'T3' }] }
+    );
+    expect(out).toContain('current_tasks:');
+    expect(out).toMatch(/-\s+removed.*T1/);
+    expect(out).toMatch(/\+\s+added.*T3/);
+    // T2 is in both → not mentioned.
+    expect(out.split('\n').filter((l) => l.includes('T2'))).toHaveLength(0);
+  });
+
+  it('omits internal meta fields (_schema, completedPhases, lastUpdated)', () => {
+    const out = renderStateDiff(
+      { _schema: 'legacy', completedPhases: ['old'], phase: 'PLAN' },
+      { _schema: 1, completedPhases: ['new'], phase: 'EXECUTE' }
+    );
+    expect(out).toBe('phase: PLAN → EXECUTE');
+    expect(out).not.toMatch(/_schema/);
+    expect(out).not.toMatch(/completedPhases/);
+  });
+
+  it('returns "No state to diff." when either side is null', () => {
+    expect(renderStateDiff(null, { phase: 'X' })).toBe('No state to diff.');
+    expect(renderStateDiff({ phase: 'X' }, null)).toBe('No state to diff.');
+  });
+
+});
+
+describe('detectStateChanges — baseline edge', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-detect-changes-edge-test-'));
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
   });
 
   it('passes through detection cleanly when STATE.md has no last_updated_commit baseline', async () => {
