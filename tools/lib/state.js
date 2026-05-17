@@ -579,3 +579,77 @@ export async function detectOrphans(baseDir, opts = {}) {
     (c) => !subjects.some((s) => s.includes(c.id))
   );
 }
+
+// D6 — paths whose commits indicate STATE.md is stale relative to the
+// surrounding work. Decision-log / future-ideas / milestone-plan files are
+// deliberately EXCLUDED: editing those is metadata curation, not the kind
+// of "ground state has moved" event that needs a /sig:checkpoint refresh.
+const STATE_AFFECTING_PATHS = [
+  ':(glob).planning/STATE.md',
+  ':(glob).planning/CONTEXT.md',
+  ':(glob).planning/*-PROGRESS.md',
+  ':(glob).planning/*-PLAN.md',
+  ':(glob).planning/*-VERIFICATION.md',
+  ':(glob).planning/*-REVIEW.md',
+];
+const STALE_SKIP_GRACE_MS = 60_000;
+
+/**
+ * D11 staleness check: did any state-affecting file get committed since the
+ * commit recorded as `last_updated_commit`? Returns commit count + subjects
+ * so callers (resume.md S4 banner, checkpoint.md S2 diff) can render useful
+ * UI rather than a bare boolean.
+ *
+ * Skips the git call entirely when `last_updated` is within 60s of now —
+ * resume immediately after a write can't be stale.
+ *
+ * D6 graceful degradation: git failure → `{stale: false}` + stderr warning.
+ *
+ * @param {string} baseDir
+ * @param {{execFn?: typeof execFileSync}} [opts]
+ * @returns {Promise<{stale: boolean, commitCount: number, commits: Array<{sha, subject}>}>}
+ */
+export async function isStateStale(baseDir, opts = {}) {
+  const execFn = opts.execFn ?? execFileSync;
+  const empty = { stale: false, commitCount: 0, commits: [] };
+
+  const state = await readState(baseDir);
+  if (!state) return empty;
+  const lastCommit = state.last_updated_commit;
+  if (!lastCommit) return empty; // no baseline — can't measure
+
+  // Grace window: very recent writes can't be stale relative to themselves.
+  const lastUpdatedMs = state.last_updated
+    ? new Date(state.last_updated).getTime()
+    : 0;
+  if (Number.isFinite(lastUpdatedMs) && Date.now() - lastUpdatedMs < STALE_SKIP_GRACE_MS) {
+    return empty;
+  }
+
+  try {
+    const out = execFn(
+      'git',
+      [
+        'log',
+        '--pretty=format:%H %s',
+        `${lastCommit}..HEAD`,
+        '--',
+        ...STATE_AFFECTING_PATHS,
+      ],
+      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
+    );
+    const lines = String(out).split('\n').filter(Boolean);
+    const commits = lines.map((line) => {
+      const idx = line.indexOf(' ');
+      return idx === -1
+        ? { sha: line, subject: '' }
+        : { sha: line.slice(0, idx), subject: line.slice(idx + 1) };
+    });
+    return { stale: commits.length > 0, commitCount: commits.length, commits };
+  } catch (err) {
+    process.stderr.write(
+      `Signal: isStateStale could not query git (${err.message}); assuming fresh.\n`
+    );
+    return empty;
+  }
+}
