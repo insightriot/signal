@@ -60,11 +60,44 @@ Use `state.phase` to pick which file(s) to read:
 
 If none match, emit a one-line note: `Note: expected artifact for {state.phase} not found — looked for 1-{ARTIFACT}.md, {ARTIFACT}.md, {PHASE}-{ARTIFACT}.md.` Continue with the briefing using whatever data is available.
 
+### 3b. Staleness check + orphan detection (M4.5.E6.S4)
+
+Two pre-render checks routed through `tools/lib/state.js` + `tools/lib/resume.js`:
+
+1. **Staleness** — call `isStateStale(baseDir)`. If `stale: true`, capture the result and pass to `renderResumeBriefing` so the banner prepends to the output (D11 + D6 scope). The 60s grace window is intentionally kept for resume (a write-then-resume burst shouldn't flag stale); the user wants the explicit "what changed?" view via `/sig:checkpoint` (which passes `bypassGrace: true`).
+
+2. **Orphan detection** — call `handleOrphansAtResume(baseDir, {prompt})` where `prompt(orphans)` issues an `AskUserQuestion(strict-enum, [clear, keep])`:
+   - Header: `Orphan tasks`
+   - Question: `{N} task(s) older than 30 min with no matching commit. Clear?`
+   - Options: `clear` (mark each as `aborted` via `clearCurrentTask`), `keep` (you may be mid-work; leave them).
+
+The orphan prompt fires regardless of `gate_strictness` — orphan detection is interactive by design (per D12). Run **before** the briefing render so the briefing reflects post-clear state if the user chose `clear`.
+
 ### 4. Print the re-orientation
 
-Render in this shape (aim for 30–50 lines — longer than `/sig:status` because it includes content from artifacts):
+Call `renderResumeBriefing` from `tools/lib/resume.js` with the data loaded above. The helper handles the shape; this section documents what the helper renders so you know what to inspect / adjust.
+
+```js
+renderResumeBriefing({
+  cwd: baseDir,
+  state,                          // readState() output
+  profile,                        // readProfile() output
+  visionText: resolvedVision,     // PROJECT.md Vision OR LANDSCAPE fallback per Step 2
+  landscapeCapturedOn: lm?.capturedOn ?? null,
+  lockedDecisions: …,             // first 5 bullets from CONTEXT.md § Locked Decisions
+  openQuestions: …,               // first 3 headings from OPEN-QUESTIONS.md
+  isStaleResult: staleResult,     // from Step 3b
+  nextAction: nextActionForPhase(state.phase, profile),
+});
+```
+
+The rendered briefing has these blocks (in order):
 
 ```
+{If staleness banner active (S4.t2):}
+⚠ STATE.md is {N} commit(s) behind work history.
+   Run /sig:checkpoint to refresh, or continue with potentially stale info.
+
 == Project Briefing ==
 
 Project: {cwd}
@@ -74,22 +107,31 @@ Phase:   {state.phase}  ({completed-count}/{total-non-skipped} phases done)
 Landscape: captured {capturedOn or "date unknown"} (brownfield init)
 
 — Vision —
-{first paragraph of PROJECT.md "Vision" — OR, if PROJECT.md Vision contains
- [INFERRED] / [FILL IN] markers AND LANDSCAPE.md exists, the
- "What this project is" paragraph from LANDSCAPE.md prefixed with
- "(LANDSCAPE inference — PROJECT.md Vision not yet vetted):"}
+{resolvedVision — see Step 2 for the LANDSCAPE fallback rule}
+
+{If current_tasks non-empty (M4.5.E6 addition):}
+— In-flight ({N}) —
+{comma-separated current_tasks[].id}
+
+{If last_completed_task present (M4.5.E6 addition):}
+— Last completed —
+{id} ({status}) at {shortSha}
+
+{If blockers non-empty (M4.5.E6 addition):}
+— Blockers ({N}) —
+{text} ({id}, raised {age})
 
 — Decisions locked (DISCUSS) —
-{numbered list from CONTEXT.md "Locked Decisions" — first 5; if more, append "…and N more"}
+{numbered list, first 5; "…and N more" if longer}
 
 — Current phase: {state.phase} —
 {phase-specific summary from the artifact loaded in Step 3}
 
 — Open questions ({count}) —
-{first 3 truncated headings from OPEN-QUESTIONS.md, or omit section if file absent}
+{first 3 truncated headings; section omitted if file absent}
 
 — Work remaining —
-Next phase: {nextActionForPhase result, with skip-aware copy from /sig:status conventions}
+Next phase: {nextActionForPhase result}
 
 Ready to continue with {next-command}? (Reply "yes" to proceed, or run any /sig:* command directly.)
 ```
@@ -106,6 +148,8 @@ End with the literal one-line prompt. Do **not** auto-invoke the next phase comm
 | "Load every artifact for every phase, just in case." | Token cost is real; load only the most-recent artifact for the current phase plus PROJECT.md + CONTEXT.md. Users who want more depth `cat` the file. |
 | "Refresh STATE.md with a 'last resumed' timestamp." | `/sig:resume` is read-only by design (matches `/sig:status`). Mutation muddies the trust contract. |
 | "Render the full PROJECT.md / CONTEXT.md verbatim." | Summarize. The briefing is for re-anchoring, not re-reading from scratch. |
+| "Move the staleness banner to the bottom of the briefing so users see it after the situational read." | No. The banner is a **trust signal** about the briefing itself — if STATE.md is stale, every line below is potentially wrong. The banner goes **at the top**, where a user who's deciding whether to continue can see it before they invest attention in the rest. |
+| "Skip the orphan prompt under `gate_strictness: off` — too chatty." | Per D12, orphan detection is always-on regardless of strictness. Without it, a crashed mid-task wedges `current_tasks[]` forever and `/sig:resume` can't recover. The prompt itself **is** the recovery mechanism. |
 
 ## Gate: Briefing Complete
 
