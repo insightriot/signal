@@ -10,7 +10,12 @@ import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { readState, isStateStale } from './state.js';
+import {
+  readState,
+  isStateStale,
+  detectOrphans,
+  clearCurrentTask,
+} from './state.js';
 import { scrubSensitive } from './add.js';
 
 // Vocabulary task-ID regex (per Signal's ID-is-identity convention): matches
@@ -301,4 +306,42 @@ export async function captureCheckpointContext(baseDir, opts = {}) {
   }
 
   return { wrote, sensitiveHits: scrub.hits };
+}
+
+// --- handleCheckpointOrphans (S2.t7) ---
+
+/**
+ * Orphan-detection step for /sig:checkpoint. Calls `detectOrphans`; if any
+ * are found, awaits `prompt(orphans) → 'clear' | 'keep'` and acts:
+ *   - 'clear' → call clearCurrentTask({status: 'aborted'}) for each entry.
+ *   - 'keep'  → no-op (user is still working on them).
+ *   - no prompt supplied → returns action: 'pending' so the caller can
+ *     route to its own UI (the command markdown wires AskUserQuestion).
+ *
+ * `execFn` and `thresholdMs` pass through to `detectOrphans`.
+ *
+ * @param {string} baseDir
+ * @param {{
+ *   prompt?: (orphans: Array) => Promise<'clear' | 'keep'>,
+ *   thresholdMs?: number,
+ *   execFn?: typeof import('node:child_process').execFileSync
+ * }} [opts]
+ * @returns {Promise<{orphans: Array, action: 'none' | 'cleared' | 'kept' | 'pending'}>}
+ */
+export async function handleCheckpointOrphans(baseDir, opts = {}) {
+  const orphans = await detectOrphans(baseDir, opts);
+  if (orphans.length === 0) {
+    return { orphans: [], action: 'none' };
+  }
+  if (!opts.prompt) {
+    return { orphans, action: 'pending' };
+  }
+  const choice = await opts.prompt(orphans);
+  if (choice === 'clear') {
+    for (const o of orphans) {
+      await clearCurrentTask(baseDir, { id: o.id, status: 'aborted' });
+    }
+    return { orphans, action: 'cleared' };
+  }
+  return { orphans, action: 'kept' };
 }

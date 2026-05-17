@@ -12,6 +12,7 @@ import {
   detectStateChanges,
   renderStateDiff,
   captureCheckpointContext,
+  handleCheckpointOrphans,
 } from '../tools/lib/checkpoint.js';
 import { readFile } from 'node:fs/promises';
 import { stringifyFrontmatter, setCurrentTask } from '../tools/lib/state.js';
@@ -305,5 +306,71 @@ describe('captureCheckpointContext (--context mode)', () => {
     });
     expect(result.wrote.some((p) => p.endsWith('CONTEXT.md'))).toBe(true);
     expect(result.wrote.some((p) => p.endsWith('OPEN-QUESTIONS.md'))).toBe(false);
+  });
+});
+
+describe('handleCheckpointOrphans (S2.t7)', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-orphan-prompt-test-'));
+    await setupSchemaV1Fixture(tempDir);
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('returns action: "none" when no orphans found', async () => {
+    // No current_tasks → detectOrphans returns [].
+    const promptSpy = vi.fn();
+    const result = await handleCheckpointOrphans(tempDir, {
+      execFn: () => gitOutput(),
+      prompt: promptSpy,
+    });
+    expect(result.action).toBe('none');
+    expect(result.orphans).toEqual([]);
+    expect(promptSpy).not.toHaveBeenCalled();
+  });
+
+  it('clears orphans (status: aborted) when prompt returns "clear"', async () => {
+    const { setCurrentTask, readState } = await import('../tools/lib/state.js');
+    const oldStart = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    await setCurrentTask(tempDir, { id: 'T-OLD', startedAt: oldStart });
+    const prompt = vi.fn(async () => 'clear');
+    const result = await handleCheckpointOrphans(tempDir, {
+      execFn: () => gitOutput(), // no matching commit
+      prompt,
+    });
+    expect(result.action).toBe('cleared');
+    expect(prompt).toHaveBeenCalledTimes(1);
+    expect(prompt.mock.calls[0][0]).toHaveLength(1); // orphans array
+    const state = await readState(tempDir);
+    expect(state.current_tasks).toEqual([]);
+    expect(state.last_completed_task.id).toBe('T-OLD');
+    expect(state.last_completed_task.status).toBe('aborted');
+  });
+
+  it('leaves orphans intact when prompt returns "keep"', async () => {
+    const { setCurrentTask, readState } = await import('../tools/lib/state.js');
+    const oldStart = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    await setCurrentTask(tempDir, { id: 'T-OLD', startedAt: oldStart });
+    const prompt = vi.fn(async () => 'keep');
+    const result = await handleCheckpointOrphans(tempDir, {
+      execFn: () => gitOutput(),
+      prompt,
+    });
+    expect(result.action).toBe('kept');
+    const state = await readState(tempDir);
+    expect(state.current_tasks.map((t) => t.id)).toEqual(['T-OLD']);
+  });
+
+  it('returns action: "pending" with orphans when no prompt is supplied', async () => {
+    const { setCurrentTask } = await import('../tools/lib/state.js');
+    const oldStart = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    await setCurrentTask(tempDir, { id: 'T-OLD', startedAt: oldStart });
+    const result = await handleCheckpointOrphans(tempDir, {
+      execFn: () => gitOutput(),
+    });
+    expect(result.action).toBe('pending');
+    expect(result.orphans.map((o) => o.id)).toEqual(['T-OLD']);
   });
 });
