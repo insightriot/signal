@@ -94,13 +94,13 @@ Done:    {state.completedPhases.join(', ') or '(none)'}
 
 #### 2.3 Blockers
 
-Read `.planning/STATE.md` raw and extract the `## Blockers` section (similar to how `state.js#readState` extracts other sections). If empty or `(none)`:
+Read `state.blockers` from the `readState` return value (schema_v1 exposes it as a structured array; legacy STATE.md callers see `[]` and should treat that as "no blockers"). If empty:
 
 ```
 Blockers: (none)
 ```
 
-Otherwise list each blocker.
+Otherwise list each blocker — render `{blocker.text} (blk-XXXX)` per entry. Optionally include `state.current_tasks` (also from `readState`) on the same screen so the user sees what's in flight alongside what's blocked. No raw STATE.md regex here — the schema layer in `tools/lib/state.js` is the only authoritative reader.
 
 #### 2.4 Open questions
 
