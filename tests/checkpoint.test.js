@@ -11,7 +11,9 @@ import {
   parseCheckpointArgs,
   detectStateChanges,
   renderStateDiff,
+  captureCheckpointContext,
 } from '../tools/lib/checkpoint.js';
+import { readFile } from 'node:fs/promises';
 import { stringifyFrontmatter, setCurrentTask } from '../tools/lib/state.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -224,5 +226,84 @@ describe('detectStateChanges — baseline edge', () => {
     // isStateStale skips git call → diff reflects fresh.
     expect(result.diff.commitsBehind).toBe(0);
     expect(execFn).not.toHaveBeenCalled();
+  });
+});
+
+describe('captureCheckpointContext (--context mode)', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-capture-ctx-test-'));
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('appends decisions to CONTEXT.md § Locked Decisions and creates the section if missing', async () => {
+    await writeFile(
+      join(tempDir, '.planning', 'CONTEXT.md'),
+      '# Context\n\n## Project\n\nSignal.\n',
+      'utf-8'
+    );
+    await captureCheckpointContext(tempDir, {
+      decisions: ['Auth uses Supabase JWT, not custom session'],
+    });
+    const ctx = await readFile(join(tempDir, '.planning', 'CONTEXT.md'), 'utf-8');
+    expect(ctx).toContain('## Locked Decisions');
+    expect(ctx).toContain('Auth uses Supabase JWT, not custom session');
+  });
+
+  it('creates CONTEXT.md from scratch when absent', async () => {
+    await captureCheckpointContext(tempDir, {
+      decisions: ['Switch to Postgres'],
+    });
+    const ctx = await readFile(join(tempDir, '.planning', 'CONTEXT.md'), 'utf-8');
+    expect(ctx).toMatch(/^#/); // has a heading
+    expect(ctx).toContain('## Locked Decisions');
+    expect(ctx).toContain('Switch to Postgres');
+  });
+
+  it('appends one entry per decision to DECISIONS.md (D16 dual-write)', async () => {
+    await captureCheckpointContext(tempDir, {
+      decisions: ['Decision A', 'Decision B'],
+    });
+    const dec = await readFile(join(tempDir, '.planning', 'DECISIONS.md'), 'utf-8');
+    expect(dec).toMatch(/##\s+\d{4}-\d{2}-\d{2}.*Decision A/);
+    expect(dec).toMatch(/##\s+\d{4}-\d{2}-\d{2}.*Decision B/);
+  });
+
+  it('appends questions to OPEN-QUESTIONS.md as level-2 headings', async () => {
+    await captureCheckpointContext(tempDir, {
+      questions: ['Do we need rate limiting in MVP?', 'JWT secret rotation cadence?'],
+    });
+    const oq = await readFile(join(tempDir, '.planning', 'OPEN-QUESTIONS.md'), 'utf-8');
+    expect(oq).toMatch(/^##\s+Do we need rate limiting/m);
+    expect(oq).toMatch(/^##\s+JWT secret rotation/m);
+  });
+
+  it('is a no-op (no writes) when both decisions and questions are empty', async () => {
+    const result = await captureCheckpointContext(tempDir, {});
+    expect(result.wrote).toEqual([]);
+    // Verify no files were created.
+    const planningDir = join(tempDir, '.planning');
+    const { readdir } = await import('node:fs/promises');
+    expect(await readdir(planningDir)).toEqual([]);
+  });
+
+  it('reports sensitiveHits on any input containing a known pattern', async () => {
+    const result = await captureCheckpointContext(tempDir, {
+      decisions: ['Token is ghp_abcdefghijklmnopqrstuvwxyz0123456789'],
+    });
+    expect(result.sensitiveHits.length).toBeGreaterThan(0);
+    expect(result.sensitiveHits[0].type).toBe('github-token');
+  });
+
+  it('strips whitespace-only entries before write', async () => {
+    const result = await captureCheckpointContext(tempDir, {
+      decisions: ['real decision', '   ', ''],
+      questions: ['', '   '],
+    });
+    expect(result.wrote.some((p) => p.endsWith('CONTEXT.md'))).toBe(true);
+    expect(result.wrote.some((p) => p.endsWith('OPEN-QUESTIONS.md'))).toBe(false);
   });
 });

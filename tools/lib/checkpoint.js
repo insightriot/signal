@@ -5,7 +5,13 @@
 // --context mode (D16): additionally prompt for decisions + open questions
 // and dual-write them to CONTEXT.md (§Locked Decisions) AND DECISIONS.md.
 
+import { readFile, mkdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+
+import { atomicWrite } from './atomic-write.js';
 import { readState, isStateStale } from './state.js';
+import { scrubSensitive } from './add.js';
 
 // Vocabulary task-ID regex (per Signal's ID-is-identity convention): matches
 // `M4`, `M4.5`, `M4.5.E6`, `M4.5.E6.S1`, `M4.5.E6.S1.t6`, with an optional
@@ -185,4 +191,114 @@ export function renderStateDiff(oldState, newState) {
   }
 
   return lines.length === 0 ? 'No changes.' : lines.join('\n');
+}
+
+// --- captureCheckpointContext (S2.t4, D16 dual-write) ---
+
+const CONTEXT_PATH_REL = '.planning/CONTEXT.md';
+const DECISIONS_PATH_REL = '.planning/DECISIONS.md';
+const OPEN_QUESTIONS_PATH_REL = '.planning/OPEN-QUESTIONS.md';
+const LOCKED_DECISIONS_HEADING = '## Locked Decisions';
+
+function appendToLockedDecisions(content, decisions, date) {
+  const bullets = decisions.map((d) => `- ${d} (${date})`).join('\n');
+  if (!content.trim()) {
+    // Fresh file — emit a minimal skeleton.
+    return `# Project Context\n\n${LOCKED_DECISIONS_HEADING}\n\n${bullets}\n`;
+  }
+  if (!content.includes(LOCKED_DECISIONS_HEADING)) {
+    const trimmed = content.replace(/\s+$/, '');
+    return `${trimmed}\n\n${LOCKED_DECISIONS_HEADING}\n\n${bullets}\n`;
+  }
+  // Section exists — insert bullets at the end of the section (before next
+  // `\n## ` heading or end-of-file).
+  const idx = content.indexOf(LOCKED_DECISIONS_HEADING);
+  const sectionStart = idx + LOCKED_DECISIONS_HEADING.length;
+  const nextHeadingIdx = content.indexOf('\n## ', sectionStart);
+  const cutAt = nextHeadingIdx === -1 ? content.length : nextHeadingIdx;
+  const before = content.slice(0, cutAt).replace(/\s+$/, '');
+  const after = nextHeadingIdx === -1 ? '' : content.slice(cutAt);
+  return `${before}\n\n${bullets}\n${after}`;
+}
+
+function appendDecisionsFile(content, decisions, date) {
+  const entries = decisions
+    .map((d) => `## ${date} — Checkpoint-captured: ${d}\n`)
+    .join('\n');
+  const trimmed = content.replace(/\s+$/, '');
+  return trimmed ? `${trimmed}\n\n${entries}` : `# Decisions\n\n${entries}`;
+}
+
+function appendOpenQuestions(content, questions, date) {
+  const entries = questions
+    .map((q) => `## ${q}\n\n*Logged ${date} via /sig:checkpoint*\n`)
+    .join('\n');
+  const trimmed = content.replace(/\s+$/, '');
+  return trimmed ? `${trimmed}\n\n${entries}` : `# Open Questions\n\n${entries}`;
+}
+
+/**
+ * --context mode side-effect for /sig:checkpoint. Appends:
+ *   - decisions → CONTEXT.md § Locked Decisions (creates section if absent;
+ *     creates the file from a minimal skeleton when absent)
+ *   - decisions → DECISIONS.md (per-decision level-2 heading; D16 dual-write)
+ *   - questions → OPEN-QUESTIONS.md (per-question level-2 heading)
+ *
+ * Empty/whitespace-only inputs are stripped before deciding what to write,
+ * so passing `{decisions: ['', '  ']}` is equivalent to passing nothing.
+ *
+ * Inputs run through `add.js#scrubSensitive` and the caller receives
+ * `sensitiveHits` for confirm-or-abort decisions before this function
+ * is called in production (S2.t5 wires the prompt). Detection only —
+ * never auto-redacts.
+ *
+ * @param {string} baseDir
+ * @param {{decisions?: string[], questions?: string[]}} [opts]
+ * @returns {Promise<{wrote: string[], sensitiveHits: object[]}>}
+ */
+export async function captureCheckpointContext(baseDir, opts = {}) {
+  const decisions = (Array.isArray(opts.decisions) ? opts.decisions : [])
+    .map((d) => String(d).trim())
+    .filter(Boolean);
+  const questions = (Array.isArray(opts.questions) ? opts.questions : [])
+    .map((q) => String(q).trim())
+    .filter(Boolean);
+
+  if (decisions.length === 0 && questions.length === 0) {
+    return { wrote: [], sensitiveHits: [] };
+  }
+
+  const scrub = scrubSensitive([...decisions, ...questions].join('\n'));
+  const today = new Date().toISOString().split('T')[0];
+  const planningDir = join(baseDir, '.planning');
+  await mkdir(planningDir, { recursive: true });
+
+  const wrote = [];
+
+  if (decisions.length > 0) {
+    const ctxPath = join(baseDir, CONTEXT_PATH_REL);
+    const ctxExisting = existsSync(ctxPath)
+      ? await readFile(ctxPath, 'utf-8')
+      : '';
+    await atomicWrite(ctxPath, appendToLockedDecisions(ctxExisting, decisions, today));
+    wrote.push(ctxPath);
+
+    const decPath = join(baseDir, DECISIONS_PATH_REL);
+    const decExisting = existsSync(decPath)
+      ? await readFile(decPath, 'utf-8')
+      : '';
+    await atomicWrite(decPath, appendDecisionsFile(decExisting, decisions, today));
+    wrote.push(decPath);
+  }
+
+  if (questions.length > 0) {
+    const oqPath = join(baseDir, OPEN_QUESTIONS_PATH_REL);
+    const oqExisting = existsSync(oqPath)
+      ? await readFile(oqPath, 'utf-8')
+      : '';
+    await atomicWrite(oqPath, appendOpenQuestions(oqExisting, questions, today));
+    wrote.push(oqPath);
+  }
+
+  return { wrote, sensitiveHits: scrub.hits };
 }
