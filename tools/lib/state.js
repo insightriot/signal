@@ -726,3 +726,74 @@ export async function clearBlocker(baseDir, opts = {}) {
     return { cleared: true, id: matched.id };
   });
 }
+
+// --- appendDecision / markFresh (M4.5.E6.S1.t10) ---
+
+/**
+ * Touch `last_decision_at`. Used at phase boundaries and `/sig:checkpoint`
+ * to record "a decision-shaped event happened at this timestamp" without
+ * mutating any other field.
+ *
+ * @param {string} baseDir
+ * @param {{at?: string}} [opts]
+ */
+export async function appendDecision(baseDir, opts = {}) {
+  return withStateLock(baseDir, async () => {
+    const state = await readStateForMutation(baseDir);
+    if (!state || state._schema !== SCHEMA_VERSION) {
+      throw new StateWriteError(
+        'STATE.md must be at schema_version 1 before decisions can be appended.'
+      );
+    }
+    const payload = stripStateMeta(state);
+    payload.last_decision_at = opts.at ?? new Date().toISOString();
+    payload.last_updated = new Date().toISOString();
+    await writeStateFrontmatter(baseDir, payload);
+  });
+}
+
+// Resolve current HEAD via injectable execFn — mirrors detectOrphans /
+// isStateStale's pattern so tests don't need a real git repo.
+function resolveHeadCommit(baseDir, execFn) {
+  try {
+    const out = execFn('git', ['rev-parse', 'HEAD'], {
+      cwd: baseDir,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return String(out).trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Refresh `last_updated` and `last_updated_commit`. When `commit` is not
+ * supplied, resolves HEAD via `git rev-parse HEAD`. Renamed from the
+ * MILESTONE-4.5 spec's colloquial `markStale` — semantically the function
+ * REFUTES staleness (D5 amendment per phase-researcher).
+ *
+ * Called at the end of each phase (verify.md, review.md in S4) and on
+ * task completion (clearCurrentTask handles its own write; this is for
+ * cross-cutting refreshes).
+ *
+ * @param {string} baseDir
+ * @param {{at?: string, commit?: string, execFn?: typeof execFileSync}} [opts]
+ */
+export async function markFresh(baseDir, opts = {}) {
+  const execFn = opts.execFn ?? execFileSync;
+  return withStateLock(baseDir, async () => {
+    const state = await readStateForMutation(baseDir);
+    if (!state || state._schema !== SCHEMA_VERSION) {
+      throw new StateWriteError(
+        'STATE.md must be at schema_version 1 before markFresh can run.'
+      );
+    }
+    const payload = stripStateMeta(state);
+    payload.last_updated = opts.at ?? new Date().toISOString();
+    const commit = opts.commit ?? resolveHeadCommit(baseDir, execFn);
+    if (commit) {
+      payload.last_updated_commit = commit;
+    }
+    await writeStateFrontmatter(baseDir, payload);
+  });
+}
