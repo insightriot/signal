@@ -332,3 +332,118 @@ The token cost of 4 vs 2 scanners is real but bounded — each scanner output ca
 - v0.1.0 ship is now gated only on F2 (marketplace-install plugin-agent registration); the vocabulary blocker is closed.
 
 ---
+
+## 2026-05-16 — M4.5.E6 design decisions (resume reliability)
+
+**Decision (D1) — `STATE.md` schema = YAML frontmatter + markdown body + `schema_version`.**
+Structured fields move into a `---` frontmatter block at the top of `STATE.md`; narrative markdown stays below for humans. Helpers in `tools/lib/state.js` parse via `js-yaml` (new dependency), not regex.
+
+**Why this shape over hybrid-markdown or pure-sections:** parse-or-throw is the load-bearing property. Malformed state must fail loudly at read time, not be silently mis-read into a partial picture that `/sig:resume` then presents as truth. PROFILE.md already uses YAML frontmatter (`schema_version: 1`), so this is consistency, not novelty. Atomic shape — `current_task` is one structured object that can't have id-but-no-commit drift. Pure markdown sections were ruled out specifically because partial-update is invisible (writer crashes between section 4 and 5, file looks valid but is internally inconsistent — exactly the failure mode this Epic exists to eliminate).
+
+**Schema (locked at PLAN time, refinable):**
+```yaml
+schema_version: 1
+phase: EXECUTE                         # one of CALIBRATE/DISCUSS/PLAN/EXECUTE/VERIFY/REVIEW/SHIP
+current_epic: M4.5.E6                  # null if no epic-level structure (greenfield)
+current_wave: 3                        # null outside EXECUTE
+current_task:                          # null if no task in flight
+  id: S3.t2
+  commit: a1b2c3d                      # null if task started but no commit yet
+  status: in_progress                  # in_progress | done | blocked
+  started_at: 2026-05-16T14:22:00Z
+completed_phases:
+  - {phase: CALIBRATE, at: 2026-05-14}
+blockers: []                           # list of {text, raised_at, resolved_at?}
+last_decision_at: 2026-05-16T13:10:00Z # timestamp of last appendDecision() call
+last_updated: 2026-05-16T14:22:00Z
+```
+
+**Implication:** `js-yaml` added to `dependencies` (S1). All readers in `tools/lib/state.js` + `tools/lib/status.js` + any other STATE.md consumer updated in S1. Backwards-compatible reader: pre-S1 STATE.md (Signal's own included) detected by missing `schema_version`, auto-upgraded on first write with the existing freeform body preserved as the markdown-body section.
+
+---
+
+**Decision (D2) — `/sig:checkpoint` UX = two-mode with rename: default quick, `--context` for deep capture.**
+Default `/sig:checkpoint` silently refreshes STATE.md from git (no prompts). `/sig:checkpoint --context` adds two prompts: "any decisions to lock?" → CONTEXT.md, "any new open questions?" → OPEN-QUESTIONS.md.
+
+**Flag name `--context` (not `--interactive`):** semantically resonant — "add more context" right before "context clear." The flag literally describes its purpose; the user invokes it as the deliberate pre-context-clear ritual.
+
+**Mitigations to prevent the `--context`-forgotten failure mode** (the legitimate risk of this two-mode split): three baked-in disambiguators so user can't silently under-capture without seeing the gap:
+1. **Quick-mode output always ends with a visible banner:** `💡 About to clear context? Run with --context to also capture decisions + open questions.`
+2. **README leads the `/sig:checkpoint` section with:** "use `--context` before any context clear."
+3. **`/sig:resume`'s staleness check (S4) is the safety net:** if user forgot `--context` and meanwhile decisions accumulated, the staleness warning surfaces it on next resume.
+
+**Why this split over always-prompt:** the user's intent is two distinct jobs — quick checkpoints for *during-work* state ratcheting (run frequently between tasks, friction would cause drop-off) vs. deliberate *pre-context-clear* deep capture. Always-prompt conflates them; the mitigations above prevent the worst-case silent miss without forcing chatty defaults.
+
+---
+
+**Decision (D3) — STATE.md refresh cadence during EXECUTE = per-task.**
+Executor agent calls `setCurrentTask({epic, wave, task, status: in_progress})` at the start of its 6-step process and `clearCurrentTask({commit, status: done})` after its atomic commit. STATE.md is written twice per task (start + end), not per-commit.
+
+**Known recoverable gap:** mid-TDD context-clears (between the red test-commit and the green implementation-commit of a single task) won't have STATE.md update for the intermediate commit. `/sig:resume` shows "task X in_progress, started at TIME"; user must read `git log` to see the intermediate commit landed. Recoverable, low frequency, acceptable cost.
+
+**Why not per-commit:** would require wrapping git commit or installing post-commit hooks — adds significant implementation complexity for the rare mid-TDD case. Why not per-wave-boundary: that IS the current behavior (functionally) and is exactly what the user is finding inadequate; mid-wave context-clears are the *common* case for long-running EXECUTE.
+
+---
+
+**Decision (D4) — Migration policy = auto-extend on first write + one-time notice.**
+Existing `.planning/STATE.md` files (including Signal-on-Signal's own freeform STATE.md) are detected at first-write time by the absence of `schema_version` in YAML frontmatter (or absence of frontmatter entirely). On detection, the writer:
+1. Reads the existing file as freeform markdown body
+2. Generates a minimal frontmatter block with `schema_version: 1`, `phase: <inferred from "## Current Phase" if present, else "EXECUTE">`, and timestamp
+3. Writes the new file with frontmatter + the original body preserved verbatim
+4. Prints a one-time notice: `📋 STATE.md upgraded to schema_version 1. Original content preserved below frontmatter. See DECISIONS.md 2026-05-16 for details.`
+
+**Why not require explicit migration command:** silent upgrades are too easy to miss; explicit commands add friction for zero gain since there's nothing the user needs to decide. One-time notice is the right disambiguation.
+
+---
+
+**Decision (D5) — `markStale()` trigger = end-of-phase (VERIFY and REVIEW).**
+`verify.md` and `review.md` call `markStale()` after writing their report — updates STATE.md `last_updated` to current timestamp. This is *separate* from D3's per-task EXECUTE updates; it ensures phase-completion is itself a state event.
+
+---
+
+**Decision (D6) — `/sig:resume` staleness-check scope = state-affecting `.planning/*` files only.**
+Compare `STATE.md.last_updated` against `git log -1 --format=%ct --` for these paths only:
+- `.planning/STATE.md`
+- `.planning/CONTEXT.md`
+- `.planning/*-PROGRESS.md`
+- `.planning/*-PLAN.md`
+- `.planning/*-VERIFICATION.md`
+- `.planning/*-REVIEW.md`
+
+**Excluded** (commits to these do not trigger staleness warning): `FUTURE-IDEAS.md`, `OPEN-QUESTIONS.md`, `DECISIONS.md`, `MILESTONE-*.md`, `PROJECT.md`, `LANDSCAPE.md`. These are knowledge-capture / spec / history files — touching them doesn't invalidate STATE.md's "where am I in the workflow" answer.
+
+**Output when stale:** prepend to briefing: `⚠ STATE.md may be stale — N commit(s) to state-affecting files since last update. Run /sig:checkpoint to refresh.`
+
+---
+
+**Decision (D7) — Test approach = unit tests + fixture-based end-to-end (both).**
+Per M4.5.E2 precedent (~40 tests). Per-helper unit tests for every new `tools/lib/state.js` function. Plus a fixture-based integration test simulating the end-to-end scenario: synthetic fixture project runs a fake EXECUTE wave, then "context-clears" (drops in-memory state, re-reads from disk), then validates that `/sig:resume`'s briefing renders the expected text. This is the test that proves criterion #8 (the dogfood criterion) before the manual dogfood runs.
+
+---
+
+**Decision (D8) — `/sig:checkpoint` auto-write policy = show-diff-and-confirm under `gate_strictness: strict`.**
+When `/sig:checkpoint` detects state to update (per D3-derived git-log diff), it shows the proposed STATE.md changes as a diff and prompts user confirmation before writing — under `gate_strictness: strict` (FULL tier default). Under `light` it shows the diff but writes without confirmation. Under `off` it writes silently. The `--context` deep-capture prompts are not gated by this (they're always-prompted-or-skip when `--context` is set).
+
+---
+
+**Decision (D9) — Auto-protocol failure handling = tier-aware.**
+If a state-update call (e.g., `setCurrentTask`) fails (disk full, permission error, lock contention):
+- **FULL tier (`gate_strictness: strict`):** halt the task — state-update is a gating prerequisite. Task does not start until state can be recorded.
+- **FEATURE tier (`gate_strictness: light`):** log warning, continue task. Best-effort.
+- **SKETCH/SPIKE tier:** N/A (auto-protocol disabled per S5 tier-aware behavior).
+
+**Rationale:** matches the existing `gate_strictness` semantics across the workflow — strict gates on quality-relevant failures; light surfaces but doesn't block.
+
+---
+
+**Implications across all 9 decisions:**
+
+- **New runtime dependency:** `js-yaml` (S1). First non-test runtime dep Signal has added since v0.1.0 — versioning policy from E1 applies.
+- **All STATE.md readers updated in S1:** `tools/lib/state.js`, `tools/lib/status.js`, anything in `commands/` that reads STATE.md (resume, status, escalate, init).
+- **`/sig:checkpoint` is a new command:** `commands/checkpoint.md` + helpers in `tools/lib/state.js` + validator update (S2/S5).
+- **`commands/checkpoint.md` is not tier-gated** — same class as `/sig:status`, `/sig:resume`, `/sig:add` (capture should always work).
+- **The dogfood acceptance criterion (#8) becomes load-bearing:** E6 itself runs through EXECUTE under the new protocol. If `/sig:resume` after a real mid-E6 context-clear doesn't render an accurate briefing, that's the bug-find that proves the implementation isn't done.
+- **Backwards compatibility is bounded:** any Signal-managed project that updates from < 0.1.x to E6's release gets STATE.md auto-upgraded on first write. Documented in CHANGELOG + migration note (analogous to `docs/migration-vocab-v0.1.0.md`).
+- **DISCUSS-phase note on strict gate:** asked 3 of the 9 gray areas via `AskUserQuestion` (the genuinely-undecided UX/architecture trade-offs); locked the other 6 with judgment to honor user's velocity preference. All 6 self-locks are explicit and reviewable in this entry; user has flagged none for revision.
+
+---

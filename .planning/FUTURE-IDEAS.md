@@ -97,9 +97,9 @@ Same command (`/sig:review`), same tier, same dial — wildly different runtime 
 
 - **Does `.planning/` accumulate per-feature subdirectories** (e.g., `.planning/features/{slug}/CONTEXT.md`), or does each new feature overwrite the project-level artifacts?
 - **Does each feature re-calibrate?** A mature product might be FULL overall but a specific admin-dashboard feature might honestly be SKETCH. An internal tooling refactor inside a production system might warrant its own SPIKE tier, separate from the parent project's FULL.
-- **Does `STATE.md` track "features shipped"** alongside "current phase"? Today it only has current phase + completed phases, no ongoing feature log.
+- **Does `STATE.md` track "features shipped"** alongside "current phase"? Today it only has current phase + completed phases, no ongoing feature log. *(Partial resolution in flight: M4.5.E6 extends `STATE.md` schema with `current_wave` / `current_task` / structured `blockers` for single-project in-flight tracking — the multi-feature `features[]` block envisioned here remains in this entry's scope.)*
 - **What does `/sig:calibrate --re-calibrate` mean in a feature context?** Re-score the whole project, or start a fresh feature-local profile?
-- **How does `/sig:resume` know which feature (if any) is in-flight?** Needs answering before Milestone 3 ships the resume command.
+- **How does `/sig:resume` know which feature (if any) is in-flight?** Needs answering before Milestone 3 ships the resume command. *(Single-project version of this question is being answered in M4.5.E6 — `STATE.md` schema gains `current_epic` / `current_wave` / `current_task`. Multi-feature variant remains open under this entry.)*
 
 **Candidate direction** (for post-v1 consideration, not locked):
 - `.planning/features/{feature-slug}/` subdirectory per feature, holding feature-local CONTEXT.md, PLAN.md, PROFILE.md override, etc.

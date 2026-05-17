@@ -24,17 +24,18 @@ Three reasons:
 
 Listed in suggested execution order. Each Epic is independently shippable as v0.1.x.
 
-### Status snapshot (as of 2026-05-14)
+### Status snapshot (as of 2026-05-16)
 
 | Epic | Status | Notes |
 |---|---|---|
-| E1 — Stranger-install path bulletproof | pending | F2 is headline; gates v0.1.1 |
-| E2 — `/sig:add` capture-and-route | **S1 shipped 2026-05-14**; S2–S5 pending | Hot path done; force-route flags + interview + hardening + plan-loop remain |
+| E1 — Stranger-install path bulletproof | S1 shipped 2026-05-15 (v0.1.1); S2–S5 pending | F2 is headline; gates the rest |
+| E2 — `/sig:add` capture-and-route | S1 shipped 2026-05-14; S2–S5 pending | Hot path done; force-route flags + interview + hardening + plan-loop remain |
 | E3 — Public-facing docs rewrite | pending | |
 | E4 — Worked example + comparison page | pending | |
 | E5 — External validation + launch | pending | Cannot finish until E1–E4 land |
+| **E6 — Resume reliability (STATE.md schema + auto-update + `/sig:checkpoint`)** | **scaffolded 2026-05-16 — ships next** | Jumps the queue ahead of E1.S2 / E2.S2 because real-world `/sig:resume` failure surfaced this on a user project. |
 
-E2 plan + execute artifacts live in `M4.5.E2-{RESEARCH,PLAN,VALIDATION,PROGRESS}.md`.
+E2 plan + execute artifacts live in `M4.5.E2-{RESEARCH,PLAN,VALIDATION,PROGRESS}.md`. E6 artifacts will live in `M4.5.E6-{RESEARCH,PLAN,VALIDATION,PROGRESS}.md` once DISCUSS/PLAN run.
 
 ---
 
@@ -97,6 +98,33 @@ Without external feedback, M4.5's earlier Epics are calibrated against a sample 
 - **v0.1.x → v0.2.0 decision point** — after external feedback merges, evaluate: is v0.2.0 warranted (cumulative changes), or stay on v0.1.x until M5 work begins? Versioning policy from E1 governs this call.
 
 **Exit:** 3 external tester reports captured, launch post published, version bump decision made + tagged.
+
+### M4.5.E6 — Resume reliability (STATE.md schema + auto-update protocol + `/sig:checkpoint`)
+
+**Critical — ships next.** `/sig:resume`'s briefing contract depends on `STATE.md` + `CONTEXT.md` + phase artifacts being current — but today only `/sig:discuss` and `/sig:ship` document state updates. `plan.md` / `execute.md` / `verify.md` / `review.md` don't, the `executor` agent has no state-mutation step in its 6-step process (just commits + returns), and `STATE.md`'s schema is too coarse (`current_phase` / `completed_phases` / `blockers` / `last_updated`) to record where-inside-a-phase you actually are. Result: after a context clear mid-EXECUTE, `/sig:resume` cannot meaningfully re-orient. A real user (the author, on a different Signal-managed project) hit this 2026-05-16; gap was previously flagged in FUTURE-IDEAS.md lines 100/102 but deferred.
+
+**Scope-tension flag (read this).** This milestone's Notes section says "No new architectural surface — does not change PROFILE.md schema." E6 extends `STATE.md`'s schema (not `PROFILE.md`'s) and adds one meta-command (`/sig:checkpoint`). I am treating this as hardening of an existing contract — `/sig:resume` is broken-by-default for any work that spans a context clear, which is day-one stranger territory — rather than net-new feature work. If that reading is wrong, demote to M5.E0 instead.
+
+**Five-slice plan (refined in DISCUSS/PLAN):**
+
+- **S1 — `STATE.md` schema extension + `tools/lib/state.js` helpers + migration.** New fields: `current_epic`, `current_wave`, `current_task` (with commit hash + status), `last_decision_at`, structured in-flight `blockers` list. Helpers: `setCurrentTask`, `clearCurrentTask`, `addBlocker`, `clearBlocker`, `appendDecision`, `markStale`. Backwards-compatible reader; first write to a pre-S1 STATE.md auto-extends the file with sensible defaults (including Signal's own `.planning/STATE.md`).
+- **S2 — `/sig:checkpoint` command (manual force-refresh, kept post-S3/S4 as peace-of-mind knob).** Thin meta-command — same class as `/sig:status` / `/sig:resume` / `/sig:add`. Reads git log since `last_updated`, diffs against `{phase}-PROGRESS.md`, refreshes `STATE.md`, prompts user "any decisions to lock?" → `CONTEXT.md`, "any new open questions?" → `OPEN-QUESTIONS.md`. Prints "Checkpoint saved at {date} — safe to clear context." Idempotent (safe to run twice in a row).
+- **S3 — Patch `executor` agent + `execute.md` orchestrator.** Executor: call `setCurrentTask` at start, `clearCurrentTask` + record commit hash at end. Orchestrator: refresh STATE.md at wave boundaries; offer to `appendDecision` if the wave surfaced a new locked decision; ensure orchestrator-level update runs even if individual executor crashes (resilience matters for the recovery use-case).
+- **S4 — Patch `verify.md` + `review.md` + add `/sig:resume` staleness check.** Both phases write STATE.md update after their report. `/sig:resume`: compare `STATE.md.last_updated` against `git log -1 --format=%ct -- .planning/`; if commits are newer, prepend `⚠ STATE.md may be stale — N commit(s) since last update. Consider running /sig:checkpoint first.` to the briefing (does not block — surfaces drift).
+- **S5 — Tier-aware behavior + validator + docs + tests.** SKETCH opts out of auto-protocol (manual `/sig:checkpoint` still available). FEATURE/FULL on by default. `gate_strictness: strict` treats state-update failure as a phase-gate failure. Validator: `REQUIRED_COMMANDS += commands/checkpoint.md`. README: `/sig:checkpoint` callout + state-hygiene section. CLAUDE.md: 13 → 14 commands. Tests: per-helper units + end-to-end "context-clear then resume" scenario using a fixture project that runs a fake EXECUTE wave and verifies the resulting briefing.
+
+**Acceptance criteria (high level — refined in PLAN):**
+
+1. After any wave boundary in EXECUTE, `/sig:resume` reports current wave + current task without manual STATE.md edits.
+2. After a simulated context clear mid-EXECUTE, `/sig:resume` renders a briefing that includes both the last completed task (with commit hash) and the in-flight task (if any).
+3. `/sig:checkpoint` is callable from any post-CALIBRATE state, never errors on a calibrated project, and is idempotent.
+4. New `STATE.md` schema is backwards-compatible: reading a pre-S1 STATE.md does not crash; first write auto-upgrades and preserves existing data.
+5. `/sig:resume` warns when `STATE.md.last_updated` is older than the most recent `.planning/` commit.
+6. SKETCH tier skips the auto-protocol but retains the manual command. FEATURE/FULL run the auto-protocol; `strict` gates on update failure.
+7. Existing 225 tests stay green; new tests cover all helpers + the end-to-end context-clear scenario.
+8. The Epic dogfoods itself: at least one real context-clear during E6's own EXECUTE phase produces an accurate `/sig:resume` briefing.
+
+**Exit:** All 5 slices shipped; the dogfood criterion (#8) demonstrated; release notes call out the schema migration; FUTURE-IDEAS.md entries at lines 100/102 updated to point at this Epic as resolution.
 
 ---
 
