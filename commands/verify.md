@@ -63,6 +63,16 @@ Compare `{phase}-VALIDATION.md` test mapping against actual tests:
 
 Generate `.planning/{phase}-VERIFICATION.md` with results.
 
+### 5b. Mark STATE.md fresh (M4.5.E6.S4)
+
+**SKETCH tier:** skip this step. STATE.md updates only via manual `/sig:checkpoint`.
+
+**FEATURE/SPIKE/FULL:** call `markFresh(baseDir, {commit: <git HEAD>})` from `tools/lib/state.js`. This advances `last_updated` to now and `last_updated_commit` to HEAD so the staleness banner in `/sig:resume` reads as fresh after VERIFY closes.
+
+If `markFresh` fails (lock contention, git unavailable, etc.):
+- Under `gate_strictness: strict`, surface the failure to the user but **do not halt phase exit** — the work is already done; the state-write blip is a recovery item, not a verification failure.
+- Under `light` / `off`, log to stderr and continue.
+
 ## Phase Gate
 
 ### Anti-Rationalization Check

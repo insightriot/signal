@@ -116,6 +116,16 @@ Generate `.planning/{phase}-REVIEW.md`:
 | PASS-WITH-FIXES | Important issues found AND total fix < 50 LOC AND tests still green AND no architectural impact. |
 | FAIL | Any Critical, OR Important fix > 50 LOC, OR tests can't stay green without re-planning. |
 
+### 5b. Mark STATE.md fresh (M4.5.E6.S4)
+
+**SKETCH tier:** skip — REVIEW is in `phases_skipped` for SKETCH anyway, but if a re-calibration brought REVIEW back, STATE.md updates only via manual `/sig:checkpoint`.
+
+**FEATURE/SPIKE/FULL:** call `markFresh(baseDir, {commit: <git HEAD>})` from `tools/lib/state.js`. Advances `last_updated` / `last_updated_commit` so `/sig:resume` reads fresh after REVIEW closes.
+
+If `markFresh` fails (lock contention, git unavailable):
+- Under `gate_strictness: strict`, surface but **do not halt phase exit** — the review is already written; the state-write blip is a recovery item, not a review failure.
+- Under `light` / `off`, log to stderr and continue.
+
 ## Phase Gate
 
 ### Anti-Rationalization Check
