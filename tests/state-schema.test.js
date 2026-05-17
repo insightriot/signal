@@ -1,15 +1,31 @@
-// Tests for the STATE.md schema layer in tools/lib/state.js (M4.5.E6.S1.t3).
-// Covers the YAML-frontmatter parser/serializer + StateSchemaError, the pure
-// helpers underlying upgradeStateFile (S1.t4) and the readState rewrite
-// (S1.t5).
+// Tests for the STATE.md schema layer in tools/lib/state.js.
+// S1.t3: parseFrontmatter / stringifyFrontmatter / StateSchemaError
+// S1.t4: upgradeStateFile (+ legacy fixture)
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { mkdtemp, rm, mkdir, copyFile, readFile, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 
 import {
   parseFrontmatter,
   stringifyFrontmatter,
   StateSchemaError,
+  upgradeStateFile,
 } from '../tools/lib/state.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const FIXTURE_ROOT = join(__dirname, 'fixtures', 'state');
+
+async function setupLegacyFixture(tempDir) {
+  await mkdir(join(tempDir, '.planning'), { recursive: true });
+  await copyFile(
+    join(FIXTURE_ROOT, 'legacy', '.planning', 'STATE.md'),
+    join(tempDir, '.planning', 'STATE.md')
+  );
+}
 
 describe('parseFrontmatter', () => {
   it('parses a well-formed frontmatter + body', () => {
@@ -93,5 +109,115 @@ describe('StateSchemaError', () => {
     expect(err).toBeInstanceOf(StateSchemaError);
     expect(err.name).toBe('StateSchemaError');
     expect(err.message).toBe('boom');
+  });
+});
+
+describe('upgradeStateFile (S1.t4)', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-upgrade-state-test-'));
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('returns {upgraded: false} when STATE.md does not exist', async () => {
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+    const result = await upgradeStateFile(tempDir);
+    expect(result.upgraded).toBe(false);
+    expect(result.reason).toBe('no-state-file');
+  });
+
+  it('upgrades a legacy STATE.md to schema_version 1 frontmatter', async () => {
+    await setupLegacyFixture(tempDir);
+    const result = await upgradeStateFile(tempDir);
+    expect(result.upgraded).toBe(true);
+    expect(result.schemaVersion).toBe(1);
+
+    const content = await readFile(join(tempDir, '.planning', 'STATE.md'), 'utf-8');
+    const { data, body } = parseFrontmatter(content);
+    expect(data.schema_version).toBe(1);
+    expect(data.phase).toBe('EXECUTE');
+    expect(data.completed_phases).toEqual([
+      'CALIBRATE (2026-05-01)',
+      'DISCUSS (2026-05-08)',
+      'PLAN (2026-05-15)',
+    ]);
+    expect(data.current_tasks).toEqual([]);
+    expect(data.blockers).toEqual([]);
+    // last_updated_commit may be a real sha (running inside the Signal repo)
+    // or null if shell-out failed; both shapes are acceptable.
+    expect(['string', 'object']).toContain(typeof data.last_updated_commit);
+    expect(body.length).toBeGreaterThan(0); // body preserved; tighter test below
+  });
+
+  it('preserves original body verbatim beneath an HTML comment marker', async () => {
+    await setupLegacyFixture(tempDir);
+    const original = await readFile(
+      join(FIXTURE_ROOT, 'legacy', '.planning', 'STATE.md'),
+      'utf-8'
+    );
+    await upgradeStateFile(tempDir);
+    const content = await readFile(join(tempDir, '.planning', 'STATE.md'), 'utf-8');
+    const { body } = parseFrontmatter(content);
+    // HTML comment marker introduces the preserved-content block
+    expect(body).toMatch(/<!--[\s\S]*preserved verbatim[\s\S]*-->/);
+    // Every line of the original file appears in the migrated body
+    for (const line of original.split('\n')) {
+      if (line.trim()) expect(body).toContain(line);
+    }
+  });
+
+  it('is idempotent — re-calling on an already-upgraded file is a no-op', async () => {
+    await setupLegacyFixture(tempDir);
+    const r1 = await upgradeStateFile(tempDir);
+    expect(r1.upgraded).toBe(true);
+    const after1 = await readFile(join(tempDir, '.planning', 'STATE.md'), 'utf-8');
+
+    const r2 = await upgradeStateFile(tempDir);
+    expect(r2.upgraded).toBe(false);
+    expect(r2.reason).toBe('already-frontmatter');
+    const after2 = await readFile(join(tempDir, '.planning', 'STATE.md'), 'utf-8');
+    expect(after2).toBe(after1);
+  });
+
+  it('writes a one-time notice to stderr on upgrade', async () => {
+    await setupLegacyFixture(tempDir);
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      await upgradeStateFile(tempDir);
+      const calls = stderrSpy.mock.calls.map((c) => String(c[0])).join('');
+      expect(calls).toContain('STATE.md');
+      expect(calls).toMatch(/schema_version[^\n]*1/);
+    } finally {
+      stderrSpy.mockRestore();
+    }
+  });
+
+  it('defaults phase to EXECUTE when "## Current Phase" is absent', async () => {
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+    await writeFile(
+      join(tempDir, '.planning', 'STATE.md'),
+      '# Project State\n\nNo phase heading anywhere.\n',
+      'utf-8'
+    );
+    await upgradeStateFile(tempDir);
+    const content = await readFile(join(tempDir, '.planning', 'STATE.md'), 'utf-8');
+    const { data } = parseFrontmatter(content);
+    expect(data.phase).toBe('EXECUTE');
+  });
+
+  it('parses an empty Completed Phases section as []', async () => {
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+    await writeFile(
+      join(tempDir, '.planning', 'STATE.md'),
+      '# Project State\n\n## Current Phase\nDISCUSS\n\n## Completed Phases\n(none)\n',
+      'utf-8'
+    );
+    await upgradeStateFile(tempDir);
+    const content = await readFile(join(tempDir, '.planning', 'STATE.md'), 'utf-8');
+    const { data } = parseFrontmatter(content);
+    expect(data.phase).toBe('DISCUSS');
+    expect(data.completed_phases).toEqual([]);
   });
 });

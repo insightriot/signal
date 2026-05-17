@@ -1,7 +1,10 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+
+import { atomicWrite } from './atomic-write.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -70,6 +73,96 @@ export function parseFrontmatter(raw) {
 export function stringifyFrontmatter(data, body) {
   const yamlBlock = stringifyYaml(data).trimEnd();
   return `---\n${yamlBlock}\n---\n${body}`;
+}
+
+const SCHEMA_VERSION = 1;
+
+// Best-effort fetch of the current git HEAD sha. Returns null when git is
+// unavailable, the cwd isn't a repo, or HEAD is otherwise unreadable —
+// matches the D6 graceful-degradation posture for git-dependent helpers.
+function getCurrentGitCommit(baseDir) {
+  try {
+    const out = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: baseDir,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return String(out).trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function inferPhase(rawContent) {
+  // Anchor on a line that starts with "## Current Phase"; take the first
+  // non-empty line after it as the phase. Default to EXECUTE when missing —
+  // pre-S1 STATE.md files were almost always written mid-EXECUTE.
+  const match = rawContent.match(/^## Current Phase\s*\n+([^\n]+)/m);
+  return match ? match[1].trim() : 'EXECUTE';
+}
+
+function inferCompletedPhases(rawContent) {
+  // Find the section start; bail when missing.
+  const startMatch = rawContent.match(/^## Completed Phases\s*\n/m);
+  if (!startMatch) return [];
+  const afterHeading = rawContent.slice(startMatch.index + startMatch[0].length);
+  // Cut at the next `## ` heading start, or run to end-of-input.
+  const nextHeading = afterHeading.match(/\n## /);
+  const body = (nextHeading
+    ? afterHeading.slice(0, nextHeading.index)
+    : afterHeading
+  ).trim();
+  if (body === '' || body === '(none)') return [];
+  return body
+    .split('\n')
+    .map((l) => l.replace(/^-\s*/, '').trim())
+    .filter(Boolean);
+}
+
+const MIGRATION_NOTICE_TEMPLATE =
+  '<!-- Original STATE.md content preserved verbatim from pre-schema_v1 migration on {date}. The YAML frontmatter above is the authoritative machine-readable state; everything below is human-readable history. -->';
+
+/**
+ * Auto-upgrade a legacy (freeform / no-frontmatter) STATE.md into the
+ * schema_version-1 shape. Idempotent: re-running on an already-upgraded file
+ * is a no-op. Preserves original content verbatim under an HTML comment
+ * marker so the human-readable narrative remains accessible after migration.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<{upgraded: boolean, schemaVersion?: number, reason?: string}>}
+ */
+export async function upgradeStateFile(baseDir) {
+  const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
+  if (!existsSync(statePath)) {
+    return { upgraded: false, reason: 'no-state-file' };
+  }
+  const raw = await readFile(statePath, 'utf-8');
+  const { data } = parseFrontmatter(raw);
+  if (data !== null) {
+    return { upgraded: false, reason: 'already-frontmatter' };
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const newFrontmatter = {
+    schema_version: SCHEMA_VERSION,
+    phase: inferPhase(raw),
+    current_epic: null,
+    current_wave: null,
+    current_tasks: [],
+    completed_phases: inferCompletedPhases(raw),
+    blockers: [],
+    last_decision_at: null,
+    last_updated_commit: getCurrentGitCommit(baseDir),
+    last_updated: new Date().toISOString(),
+  };
+  const notice = MIGRATION_NOTICE_TEMPLATE.replace('{date}', today);
+  const body = `${notice}\n\n${raw}`;
+  await atomicWrite(statePath, stringifyFrontmatter(newFrontmatter, body));
+
+  process.stderr.write(
+    `Signal: STATE.md upgraded to schema_version ${SCHEMA_VERSION}. ` +
+      `Original content preserved verbatim below frontmatter.\n`
+  );
+  return { upgraded: true, schemaVersion: SCHEMA_VERSION };
 }
 
 /**
