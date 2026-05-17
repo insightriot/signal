@@ -119,6 +119,19 @@ Want a status check without running anything? `/sig:status` (read-only inspectio
 
 Got a new idea mid-flow? `/sig:add "your idea here"` captures it to `.planning/FUTURE-IDEAS.md` without breaking your current phase. Not tier-gated; available anywhere `.planning/` exists. Planning phases pick up captured entries on the next `/sig:plan` run.
 
+### State hygiene — `/sig:checkpoint`
+
+`/sig:checkpoint` is the manual state-refresh ritual. Use it when you want `STATE.md` to reflect the actual state of your work right now — typically because you're about to clear context, switch machines, or hand a session off to a teammate.
+
+Two modes:
+
+- **Default (quick)** — `/sig:checkpoint` walks the git log since the last refresh, proposes an updated `STATE.md`, and writes it after a confirmation (under `gate_strictness: strict`). Cleared tasks come out of `current_tasks[]`; `last_updated_commit` advances to HEAD.
+- **`--context`** — same as default, then prompts for any decisions worth locking in (dual-written to `.planning/CONTEXT.md` § Locked Decisions AND `.planning/DECISIONS.md`) and any open questions worth surfacing on next `/sig:resume` (appended to `.planning/OPEN-QUESTIONS.md`). This is the ritual to run **before** a planned context clear so the next session's `/sig:resume` is genuinely useful.
+
+You don't strictly need to run `/sig:checkpoint` — `/sig:execute` auto-records each task to `STATE.md` (the auto-state-protocol) so resume works out of the box. `/sig:checkpoint` is the manual safety net for when you've done work outside the `/sig:execute` loop, or want to capture decisions and questions explicitly before stepping away.
+
+See [`references/state-schema.md`](references/state-schema.md) for the full `STATE.md` schema and the auto-update protocol's tier-aware behavior.
+
 ## Bringing Signal to an existing codebase
 
 If you already have code and want Signal applied to it (the most common adoption path), use `/sig:init` instead of `/sig:new-project`:
@@ -165,6 +178,7 @@ Both `/sig:new-project` and `/sig:calibrate` check this on entry and refuse to p
 - **`/sig:status`** — read-only inspection of the current project: tier, current phase, completed phases, blockers, open questions, recommended next action.
 - **`/sig:resume`** — re-orientation briefing for a fresh session. Reads `PROJECT.md`, `PROFILE.md`, `STATE.md`, and the current phase's artifact, prints a concise summary, ends with "Ready to continue with `/sig:{phase}`?"
 - **`/sig:add`** — capture a new idea or work item to `.planning/FUTURE-IDEAS.md` without breaking the current phase. Verbatim capture (no rewrites), atomic write, sensitive-data scrub, lock-protected. Not tier-gated. Slice 1 (hot path) only in v0.1.1; cold-path interview + multi-destination routing land in subsequent slices.
+- **`/sig:checkpoint`** — manual state refresh. Default (quick) mode diffs git log against `STATE.md` and refreshes. `--context` mode additionally prompts for decisions + open questions (D16 dual-write to `CONTEXT.md` + `DECISIONS.md` + `OPEN-QUESTIONS.md`). Use before a planned context clear so the next session's `/sig:resume` is genuinely useful.
 
 ## Credits & Heritage
 

@@ -67,10 +67,10 @@ The REVIEW phase (between VERIFY and SHIP) is the key addition over GSD's origin
 ## Planned Plugin Structure
 
 ```
-commands/       # 13 slash commands — /sig:new-project, /sig:init, /sig:calibrate,
+commands/       # 14 slash commands — /sig:new-project, /sig:init, /sig:calibrate,
                 # /sig:discuss, /sig:plan, /sig:execute, /sig:verify,
                 # /sig:review, /sig:ship, /sig:escalate, /sig:status,
-                # /sig:resume, /sig:add
+                # /sig:resume, /sig:add, /sig:checkpoint
 agents/         # 22 agents (19 GSD + 3 Agent Skills specialists)
 skills/         # 21 quality skills organized by phase (define/, plan/, build/, verify/, review/, ship/)
 references/     # Merged checklists and gates from both frameworks,
@@ -86,6 +86,7 @@ tools/          # GSD's CLI tools layer
 - Plugin must be installable in under 5 minutes
 - Claude Code is the primary runtime; adapter layer for Cursor/Codex is secondary
 - Integration of existing frameworks, not reinvention — respect both projects' licenses
+- `STATE.md` uses YAML frontmatter (`schema_version: 1`) as of v0.1.x (M4.5.E6). Schema migrations are auto-applied on first write to a legacy STATE.md; original content is preserved verbatim under an HTML comment marker. See `references/state-schema.md` and `docs/migration-state-schema-v0.1.x.md`.
 
 ## Reference Repositories
 
