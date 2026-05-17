@@ -5,6 +5,9 @@ import { execFileSync } from 'node:child_process';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 import { atomicWrite } from './atomic-write.js';
+import {
+  acquireLock as fileAcquireLock,
+} from './file-lock.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -26,6 +29,21 @@ export class StateSchemaError extends Error {
     this.name = 'StateSchemaError';
   }
 }
+
+/**
+ * Raised when a STATE.md mutation cannot complete — lock contention,
+ * pre-mutation precondition failure (no STATE.md, wrong schema), etc.
+ * D9 tier-aware callers dispatch on this type.
+ */
+export class StateWriteError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'StateWriteError';
+  }
+}
+
+const STATE_LOCK_PATH_REL = '.planning/.state.lock';
+const STATE_LOCK_TTL_MS = 5_000;
 
 // Anchored regex: opening `---\n`, captured YAML block (non-greedy), closing
 // `---\n?`, captured body. `\r?\n` keeps CRLF-checked-out files working on
@@ -350,3 +368,150 @@ export async function checkGateArtifacts(baseDir, targetPhase) {
 }
 
 export { PHASES, PLANNING_DIR };
+
+// --- current_tasks helpers (M4.5.E6.S1.t6, D10) ---
+//
+// All mutating helpers go through `withStateLock` (5s TTL on
+// `.planning/.state.lock`) and call `readStateForMutation` so a legacy
+// STATE.md is auto-upgraded before any write touches disk.
+
+async function withStateLock(baseDir, fn) {
+  let lock;
+  try {
+    lock = await fileAcquireLock(join(baseDir, STATE_LOCK_PATH_REL), {
+      ttlMs: STATE_LOCK_TTL_MS,
+      label: 'state write',
+    });
+  } catch (err) {
+    throw new StateWriteError(`Could not acquire STATE.md lock: ${err.message}`);
+  }
+  try {
+    return await fn();
+  } finally {
+    await lock.released();
+  }
+}
+
+async function readStateForMutation(baseDir) {
+  const initial = await readState(baseDir);
+  if (initial?._schema === 'legacy') {
+    await upgradeStateFile(baseDir);
+    return await readState(baseDir);
+  }
+  return initial;
+}
+
+// Strip read-side ergonomics before round-tripping back to disk: `_schema`
+// is a runtime sentinel, and `completedPhases`/`lastUpdated` are back-compat
+// camelCase aliases of the same underlying fields.
+function stripStateMeta(state) {
+  const out = { ...state };
+  delete out._schema;
+  delete out.completedPhases;
+  delete out.lastUpdated;
+  return out;
+}
+
+async function writeStateFrontmatter(baseDir, data) {
+  const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
+  const raw = await readFile(statePath, 'utf-8');
+  const { body } = parseFrontmatter(raw);
+  await atomicWrite(statePath, stringifyFrontmatter(data, body ?? ''));
+}
+
+/**
+ * Append a task to `current_tasks[]`. Idempotent — re-calling with an `id`
+ * already present is a no-op. Triggers `upgradeStateFile` first when called
+ * on a legacy STATE.md.
+ *
+ * @param {string} baseDir
+ * @param {{id: string, epic?: string|null, wave?: number|null, status?: string, startedAt?: string}} opts
+ */
+export async function setCurrentTask(baseDir, opts) {
+  if (!opts || !opts.id) {
+    throw new StateWriteError('setCurrentTask requires an `id`.');
+  }
+  return withStateLock(baseDir, async () => {
+    const state = await readStateForMutation(baseDir);
+    if (!state || state._schema !== SCHEMA_VERSION) {
+      throw new StateWriteError(
+        'STATE.md must be at schema_version 1 before tasks can be set. Run /sig:new-project or /sig:init first.'
+      );
+    }
+    const current = state.current_tasks ?? [];
+    if (current.some((t) => t.id === opts.id)) {
+      return; // idempotent
+    }
+    const entry = {
+      id: opts.id,
+      epic: opts.epic ?? null,
+      wave: opts.wave ?? null,
+      status: opts.status ?? 'in_progress',
+      startedAt: opts.startedAt ?? new Date().toISOString(),
+    };
+    const payload = stripStateMeta(state);
+    payload.current_tasks = [...current, entry];
+    payload.last_updated = new Date().toISOString();
+    await writeStateFrontmatter(baseDir, payload);
+  });
+}
+
+/**
+ * Remove a task from `current_tasks[]` by id and record completion metadata.
+ * Returns `{cleared: false}` + a stderr warning when the id isn't present
+ * (no throw — recovery scenarios are common at orphan-clear time).
+ *
+ * @param {string} baseDir
+ * @param {{id: string, commit?: string|null, status?: string, completedAt?: string}} opts
+ * @returns {Promise<{cleared: boolean}>}
+ */
+export async function clearCurrentTask(baseDir, opts) {
+  if (!opts || !opts.id) {
+    throw new StateWriteError('clearCurrentTask requires an `id`.');
+  }
+  return withStateLock(baseDir, async () => {
+    const state = await readStateForMutation(baseDir);
+    if (!state || state._schema !== SCHEMA_VERSION) {
+      throw new StateWriteError(
+        'STATE.md must be at schema_version 1 before tasks can be cleared.'
+      );
+    }
+    const current = state.current_tasks ?? [];
+    const idx = current.findIndex((t) => t.id === opts.id);
+    if (idx < 0) {
+      process.stderr.write(
+        `Signal: clearCurrentTask called with id "${opts.id}" not in current_tasks — no-op.\n`
+      );
+      return { cleared: false };
+    }
+    const completedAt = opts.completedAt ?? new Date().toISOString();
+    const payload = stripStateMeta(state);
+    payload.current_tasks = current.filter((_, i) => i !== idx);
+    payload.last_decision_at = completedAt;
+    if (opts.commit) {
+      payload.last_updated_commit = opts.commit;
+    }
+    payload.last_completed_task = {
+      id: opts.id,
+      status: opts.status ?? 'done',
+      commit: opts.commit ?? null,
+      completedAt,
+    };
+    payload.last_updated = new Date().toISOString();
+    await writeStateFrontmatter(baseDir, payload);
+    return { cleared: true };
+  });
+}
+
+/**
+ * Read-only access to the current_tasks[] array. Returns [] for missing
+ * STATE.md, legacy STATE.md (no current_tasks concept yet), or empty array.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<Array<object>>}
+ */
+export async function getCurrentTasks(baseDir) {
+  const state = await readState(baseDir);
+  if (!state) return [];
+  return state.current_tasks ?? [];
+}
