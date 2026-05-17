@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 import { atomicWrite } from './atomic-write.js';
@@ -652,4 +653,76 @@ export async function isStateStale(baseDir, opts = {}) {
     );
     return empty;
   }
+}
+
+// --- blockers helpers (M4.5.E6.S1.t9) ---
+
+/**
+ * Append a blocker to `blockers[]`. Generates a 4-char-hex id (`blk-XXXX`)
+ * — short enough to type-reference but unique-enough for a project's
+ * blocker count.
+ *
+ * @param {string} baseDir
+ * @param {{text: string, raisedAt?: string}} opts
+ * @returns {Promise<{id: string}>}
+ */
+export async function addBlocker(baseDir, opts = {}) {
+  const text = String(opts.text ?? '').trim();
+  if (!text) {
+    throw new StateWriteError('addBlocker requires non-empty `text`.');
+  }
+  return withStateLock(baseDir, async () => {
+    const state = await readStateForMutation(baseDir);
+    if (!state || state._schema !== SCHEMA_VERSION) {
+      throw new StateWriteError(
+        'STATE.md must be at schema_version 1 before blockers can be added.'
+      );
+    }
+    const id = `blk-${randomBytes(2).toString('hex')}`;
+    const entry = {
+      id,
+      text,
+      raisedAt: opts.raisedAt ?? new Date().toISOString(),
+    };
+    const payload = stripStateMeta(state);
+    payload.blockers = [...(state.blockers ?? []), entry];
+    payload.last_updated = new Date().toISOString();
+    await writeStateFrontmatter(baseDir, payload);
+    return { id };
+  });
+}
+
+/**
+ * Remove a blocker by `id` or `text` (first text match wins). No-match
+ * returns `{cleared: false}` without throwing — recovery scenarios.
+ *
+ * @param {string} baseDir
+ * @param {{id?: string, text?: string, resolvedAt?: string}} opts
+ * @returns {Promise<{cleared: boolean, id?: string}>}
+ */
+export async function clearBlocker(baseDir, opts = {}) {
+  if (!opts.id && !opts.text) {
+    throw new StateWriteError('clearBlocker requires `id` or `text`.');
+  }
+  return withStateLock(baseDir, async () => {
+    const state = await readStateForMutation(baseDir);
+    if (!state || state._schema !== SCHEMA_VERSION) {
+      throw new StateWriteError(
+        'STATE.md must be at schema_version 1 before blockers can be cleared.'
+      );
+    }
+    const blockers = state.blockers ?? [];
+    const idx = opts.id
+      ? blockers.findIndex((b) => b.id === opts.id)
+      : blockers.findIndex((b) => b.text === opts.text);
+    if (idx < 0) {
+      return { cleared: false };
+    }
+    const matched = blockers[idx];
+    const payload = stripStateMeta(state);
+    payload.blockers = blockers.filter((_, i) => i !== idx);
+    payload.last_updated = new Date().toISOString();
+    await writeStateFrontmatter(baseDir, payload);
+    return { cleared: true, id: matched.id };
+  });
 }
