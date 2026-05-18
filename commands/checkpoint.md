@@ -13,7 +13,7 @@ You are running `/sig:checkpoint`, a not-phase-gated state-refresh command. Same
 
 Authoritative references:
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/checkpoint.js` — `parseCheckpointArgs`, `detectStateChanges`, `renderStateDiff`, `captureCheckpointContext`, `handleCheckpointOrphans`
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `markFresh`, `detectOrphans`, `clearCurrentTask`, `appendDecision`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `markFresh`, `detectOrphans`, `clearCurrentTask`, `touchDecisionTimestamp`
 - `${CLAUDE_PLUGIN_ROOT}/references/question-patterns.md` — strict-enum used for `apply` / `discard` and orphan `clear` / `keep` prompts
 
 ## Workflow

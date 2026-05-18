@@ -724,7 +724,11 @@ export async function clearBlocker(baseDir, opts = {}) {
   });
 }
 
-// --- appendDecision / markFresh (M4.5.E6.S1.t10) ---
+// --- touchDecisionTimestamp / markFresh (M4.5.E6.S1.t10) ---
+// `touchDecisionTimestamp` was renamed from `appendDecision` in S6.t4
+// (REVIEW IMPORTANT-3): the old name implied an append-to-list operation
+// matching addBlocker/clearBlocker, but there is no decisions[] field —
+// this only refreshes the last_decision_at scalar.
 
 /**
  * Touch `last_decision_at`. Used at phase boundaries and `/sig:checkpoint`
@@ -734,7 +738,7 @@ export async function clearBlocker(baseDir, opts = {}) {
  * @param {string} baseDir
  * @param {{at?: string}} [opts]
  */
-export async function appendDecision(baseDir, opts = {}) {
+export async function touchDecisionTimestamp(baseDir, opts = {}) {
   return withStateLock(baseDir, async () => {
     const state = await readStateForMutation(baseDir);
     if (!state || state._schema !== SCHEMA_VERSION) {

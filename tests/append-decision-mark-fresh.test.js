@@ -1,4 +1,5 @@
-// Tests for appendDecision + markFresh (M4.5.E6.S1.t10).
+// Tests for touchDecisionTimestamp + markFresh
+// (M4.5.E6.S1.t10; renamed from appendDecision in S6.t4 per REVIEW IMPORTANT-3).
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtemp, rm, mkdir, copyFile } from 'node:fs/promises';
@@ -7,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 import {
-  appendDecision,
+  touchDecisionTimestamp,
   markFresh,
   readState,
 } from '../tools/lib/state.js';
@@ -23,7 +24,7 @@ async function setupSchemaV1Fixture(tempDir) {
   );
 }
 
-describe('appendDecision', () => {
+describe('touchDecisionTimestamp', () => {
   let tempDir;
   beforeEach(async () => {
     tempDir = await mkdtemp(join(tmpdir(), 'signal-decision-test-'));
@@ -34,7 +35,7 @@ describe('appendDecision', () => {
 
   it('updates last_decision_at with the supplied timestamp', async () => {
     await setupSchemaV1Fixture(tempDir);
-    await appendDecision(tempDir, { at: '2026-05-17T20:00:00.000Z' });
+    await touchDecisionTimestamp(tempDir, { at: '2026-05-17T20:00:00.000Z' });
     const state = await readState(tempDir);
     expect(state.last_decision_at).toBe('2026-05-17T20:00:00.000Z');
   });
@@ -42,7 +43,7 @@ describe('appendDecision', () => {
   it('defaults `at` to now() when omitted', async () => {
     await setupSchemaV1Fixture(tempDir);
     const before = Date.now();
-    await appendDecision(tempDir);
+    await touchDecisionTimestamp(tempDir);
     const after = Date.now();
     const state = await readState(tempDir);
     const recorded = new Date(state.last_decision_at).getTime();

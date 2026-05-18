@@ -80,7 +80,7 @@ Optional freeform narrative below. Signal never parses this.
 | `current_tasks` | array of `Task` | Mid-EXECUTE | See `Task` below. D10: array, not scalar — supports wave parallelism (Slice 1 of M4.5.E6 ships with sequential-only call sites but the schema accepts multi-entry). |
 | `completed_phases` | array of strings | After any `transitionPhase` | Entries shape `"PHASE_NAME (YYYY-MM-DD)"`. Dedupe by phase name on re-transition. |
 | `blockers` | array of `Blocker` | When blocked | See `Blocker` below. |
-| `last_decision_at` | ISO 8601 timestamp \| null | After `appendDecision` / `clearCurrentTask` | When the last decision-shaped event happened. |
+| `last_decision_at` | ISO 8601 timestamp \| null | After `touchDecisionTimestamp` / `clearCurrentTask` | When the last decision-shaped event happened. |
 | `last_updated_commit` | string (git sha) \| null | After `markFresh` / `clearCurrentTask({commit})` / `upgradeStateFile` | The commit hash relative to which staleness is measured. |
 | `last_updated` | ISO 8601 timestamp | Always (any mutation) | When STATE.md was last written. |
 | `last_completed_task` | `Task` shape \| absent | After first `clearCurrentTask` | Single-entry (not array) — only the most recent. Read by `renderResumeBriefing` for the "Last completed" line. |
