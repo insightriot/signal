@@ -24,18 +24,18 @@ Three reasons:
 
 Listed in suggested execution order. Each Epic is independently shippable as v0.1.x.
 
-### Status snapshot (as of 2026-05-16)
+### Status snapshot (as of 2026-05-18)
 
 | Epic | Status | Notes |
 |---|---|---|
-| E1 — Stranger-install path bulletproof | S1 shipped 2026-05-15 (v0.1.1); S2–S5 pending | F2 is headline; gates the rest |
+| E1 — Stranger-install path bulletproof | S1 shipped 2026-05-15 (v0.1.1); S2–S5 pending | F2 is headline; gates the rest. **Recommended next.** |
 | E2 — `/sig:add` capture-and-route | S1 shipped 2026-05-14; S2–S5 pending | Hot path done; force-route flags + interview + hardening + plan-loop remain |
 | E3 — Public-facing docs rewrite | pending | |
 | E4 — Worked example + comparison page | pending | |
 | E5 — External validation + launch | pending | Cannot finish until E1–E4 land |
-| **E6 — Resume reliability (STATE.md schema + auto-update + `/sig:checkpoint`)** | **scaffolded 2026-05-16 — ships next** | Jumps the queue ahead of E1.S2 / E2.S2 because real-world `/sig:resume` failure surfaced this on a user project. |
+| **E6 — Resume reliability (STATE.md schema + auto-update + `/sig:checkpoint`)** | **✓ shipped 2026-05-18 (v0.1.2)** | All 5 slices + S6 REVIEW loop-back (5 IMPORTANT findings resolved pre-publish). YAML-frontmatter STATE.md + auto-state-protocol + new `/sig:checkpoint` + staleness banner + orphan UI in `/sig:resume`. 225 → 366 tests; no new runtime deps. |
 
-E2 plan + execute artifacts live in `M4.5.E2-{RESEARCH,PLAN,VALIDATION,PROGRESS}.md`. E6 artifacts will live in `M4.5.E6-{RESEARCH,PLAN,VALIDATION,PROGRESS}.md` once DISCUSS/PLAN run.
+E2 plan + execute artifacts live in `M4.5.E2-{RESEARCH,PLAN,VALIDATION,PROGRESS}.md`. E6 artifacts live in `M4.5.E6-{RESEARCH,PLAN,VALIDATION,VERIFICATION,REVIEW}.md` (DISCUSS/PLAN/EXECUTE/VERIFY/REVIEW/SHIP all complete).
 
 ---
 

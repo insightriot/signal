@@ -625,4 +625,13 @@ A thin Signal-aware wrapper over Claude Code's `/goal`. Reads `PROFILE.md` + `ST
 
 ---
 
-*Last updated: 2026-05-14*
+## I wonder aloud at having a
+
+**Status:** Logged 2026-05-18 via `/sig:add`.
+
+I wonder aloud at having a feature of Signal be a 'you are here' breadcrumb in status line - so somewhere in status line would be "M1>Wave2>T1..." etc. wise? feasible? I just find myself wondering where I am in the process alot of the time, and feels like status line would be a good place for that? thoughts?
+
+---
+
+
+*Last updated: 2026-05-18*

@@ -29,9 +29,9 @@ The plugin targets solo developers and small teams who want production-grade eng
 
 ## Current State
 
-Milestone 4 (brownfield onboarding via `/sig:init`) feature-complete on the markdown + code layer — 18 of 18 tasks shipped, including the M4.t18 vocabulary refactor (Tranche → Milestone, add Epic mid-layer; 2026-05-12). Milestones 1–3 complete: 12 slash commands shipped, 26 agents (incl. 4 brownfield scanners), 21 skills bound to phases, 169 tests passing, validator green. v0.1.0 tag-and-publish gated only on F2 (marketplace-install plugin-agent registration). Milestone 5 (v2 ports per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`) is the next horizon.
+Milestones 1–4 closed; v1 + brownfield onboarding (`/sig:init`) feature-complete and shipped. **Currently in M4.5 (release hardening / stranger-adoption readiness)** — 6 Epics scaffolded; **E1.S1 shipped as v0.1.1 (2026-05-15)**, **E2.S1 (`/sig:add` hot path) shipped 2026-05-14**, **E6 (resume reliability — STATE.md schema_version 1 + auto-update protocol + `/sig:checkpoint`) shipped as v0.1.2 (2026-05-18)**. 14 slash commands shipped, 26 agents (incl. 4 brownfield scanners), 21 skills bound to phases, 366 tests passing, validator green. Remaining M4.5: E1 Slices 2–5 (F2 verification + install matrix + versioning policy + validator hardening), E2 Slices 2–5 (`/sig:add` cold path + flags + hardening), E3 (public docs rewrite), E4 (worked example), E5 (external validation + launch). Milestone 5 (v2 ports per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`) is the next horizon after M4.5 closes.
 
-For current state and active work, read in order: `.planning/CONTEXT.md` → `.planning/STATE.md` → `.planning/MILESTONE-4.md`. The full v1 spec is `.planning/PROJECT.md`. See `## Vocabulary` in PROJECT.md for the locked Milestone / Epic / Phase / Wave / Task terms and the ID-is-identity rule.
+For current state and active work, read in order: `.planning/CONTEXT.md` → `.planning/STATE.md` (YAML frontmatter is authoritative) → `.planning/MILESTONE-4.5.md`. The full v1 spec is `.planning/PROJECT.md`. See `## Vocabulary` in PROJECT.md for the locked Milestone / Epic / Phase / Wave / Task terms and the ID-is-identity rule.
 
 Key supporting docs:
 - `analysis/REPO-ANALYSIS.md` — landscape analysis of 7 AI-dev plugins; the seed of Signal.
@@ -71,7 +71,7 @@ commands/       # 14 slash commands — /sig:new-project, /sig:init, /sig:calibr
                 # /sig:discuss, /sig:plan, /sig:execute, /sig:verify,
                 # /sig:review, /sig:ship, /sig:escalate, /sig:status,
                 # /sig:resume, /sig:add, /sig:checkpoint
-agents/         # 22 agents (19 GSD + 3 Agent Skills specialists)
+agents/         # 26 agents (19 GSD + 3 Agent Skills specialists + 4 brownfield scanners)
 skills/         # 21 quality skills organized by phase (define/, plan/, build/, verify/, review/, ship/)
 references/     # Merged checklists and gates from both frameworks,
                 # plus PROFILE.md schema + tier definitions
