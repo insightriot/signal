@@ -186,6 +186,74 @@ describe('dispatchTaskWithState — D9 tier-aware failure handling', () => {
   });
 });
 
+describe('dispatchTaskWithState — S6.t2 success-path protection (IMPORTANT-2)', () => {
+  // REVIEW IMPORTANT-2: if dispatch succeeds but clearCurrentTask({done})
+  // throws (lock contention, disk full, schema error), the wrapper used to
+  // re-throw the state-write error and trigger a second clearCurrentTask
+  // ({aborted}) — caller saw a "failure" even though the task already
+  // committed. Fix: nested try/catch around the success-path clear; warn
+  // to stderr + return the dispatch result. On the failure path, if the
+  // aborted-clear also fails, swallow it and re-throw the ORIGINAL dispatch
+  // error so the caller sees the meaningful one.
+
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-dispatch-s6t2-test-'));
+    await setupSchemaV1Fixture(tempDir);
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('dispatch success + clearCurrentTask({done}) failure → stderr warn + returns dispatch result (does NOT throw)', async () => {
+    const { writeFile } = await import('node:fs/promises');
+    // Dispatch succeeds, then plants a fresh lock so the next state-write
+    // (clearCurrentTask in the wrapper's success path) fails.
+    const dispatch = vi.fn(async () => {
+      await writeFile(
+        join(tempDir, '.planning', '.state.lock'),
+        `99999\n${Date.now()}\n`,
+        'utf-8'
+      );
+      return { ok: true, commit: 'sha-after' };
+    });
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      const result = await dispatchTaskWithState(
+        tempDir,
+        { id: 'T1', dispatch },
+        fullProfile()
+      );
+      expect(result).toEqual({ ok: true, commit: 'sha-after' });
+      const stderr = stderrSpy.mock.calls.map((c) => String(c[0])).join('');
+      expect(stderr).toMatch(/clearCurrentTask.*failed|orphan-cleared on next run/i);
+      expect(stderr).toContain('T1');
+    } finally {
+      stderrSpy.mockRestore();
+    }
+  });
+
+  it('dispatch failure + clearCurrentTask({aborted}) failure → re-throws ORIGINAL dispatch error (not state-write error)', async () => {
+    const { writeFile } = await import('node:fs/promises');
+    const dispatch = vi.fn(async () => {
+      await writeFile(
+        join(tempDir, '.planning', '.state.lock'),
+        `99999\n${Date.now()}\n`,
+        'utf-8'
+      );
+      throw new Error('agent exploded');
+    });
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      await expect(
+        dispatchTaskWithState(tempDir, { id: 'T1', dispatch }, fullProfile())
+      ).rejects.toThrow('agent exploded'); // NOT /lock/
+    } finally {
+      stderrSpy.mockRestore();
+    }
+  });
+});
+
 describe('clearOrphansBeforeDispatch', () => {
   let tempDir;
   beforeEach(async () => {

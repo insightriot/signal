@@ -81,16 +81,35 @@ export async function dispatchTaskWithState(baseDir, task, profile) {
     return await task.dispatch();
   }
 
+  // S6.t2 (REVIEW IMPORTANT-2): a successful task must not surface as a
+  // failure because the post-dispatch state-write blipped. Nested try/catch
+  // protects the success path; the orphan detector (clearOrphansBeforeDispatch)
+  // is the safety net for the residual stuck entry on next run.
   try {
     const result = await task.dispatch();
-    await clearCurrentTask(baseDir, {
-      id: task.id,
-      status: 'done',
-      commit: result?.commit ?? null,
-    });
+    try {
+      await clearCurrentTask(baseDir, {
+        id: task.id,
+        status: 'done',
+        commit: result?.commit ?? null,
+      });
+    } catch (clearErr) {
+      process.stderr.write(
+        `Signal: clearCurrentTask({done}) failed after successful dispatch of ${task.id} (${clearErr.message}); orphan-cleared on next run.\n`
+      );
+    }
     return result;
   } catch (err) {
-    await clearCurrentTask(baseDir, { id: task.id, status: 'aborted' });
+    // Failure path: a state-write blip during the aborted-clear shouldn't
+    // mask the original dispatch error — that's what the caller actually
+    // needs to debug.
+    try {
+      await clearCurrentTask(baseDir, { id: task.id, status: 'aborted' });
+    } catch (clearErr) {
+      process.stderr.write(
+        `Signal: clearCurrentTask({aborted}) failed for ${task.id} (${clearErr.message}); orphan-cleared on next run.\n`
+      );
+    }
     throw err;
   }
 }
