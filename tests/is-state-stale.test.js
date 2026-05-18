@@ -74,22 +74,50 @@ describe('isStateStale', () => {
     ]);
   });
 
-  it('skips the git call when last_updated is within 60s of now', async () => {
-    const recent = new Date(Date.now() - 5_000).toISOString(); // 5s ago
+  // S6.t3 (REVIEW IMPORTANT-4): D11 chose commit-hash-based staleness to
+  // avoid wall-clock skew. STALE_SKIP_GRACE_MS reintroduced that dependency
+  // for a 60s optimization. Replaced with a HEAD-hash compare: same intent
+  // (skip the git log when we're certainly fresh), no clock dependency.
+
+  it('S6.t3: skips git log when last_updated_commit === HEAD (hash short-circuit)', async () => {
     await plantState(tempDir, {
       last_updated_commit: 'abc123',
-      last_updated: recent,
+      // last_updated is irrelevant under the new contract — only the hash
+      // matters. Set it to an OLD timestamp to prove wall-clock is moot.
+      last_updated: '2020-01-01T00:00:00.000Z',
     });
-    const execSpy = vi.fn(() => gitOutput('sha1 something'));
+    const execSpy = vi.fn((cmd, args) => {
+      if (args[0] === 'rev-parse') return Buffer.from('abc123\n');
+      // log should never be reached under the short-circuit.
+      throw new Error('git log should not be called when HEAD matches');
+    });
     const result = await isStateStale(tempDir, { execFn: execSpy });
     expect(result).toEqual({ stale: false, commitCount: 0, commits: [] });
-    expect(execSpy).not.toHaveBeenCalled();
+    expect(execSpy).toHaveBeenCalledTimes(1);
+    expect(execSpy.mock.calls[0][1]).toEqual(['rev-parse', 'HEAD']);
+  });
+
+  it('S6.t3: always hits git log when bypassGrace: true even if HEAD matches', async () => {
+    await plantState(tempDir, { last_updated_commit: 'abc123' });
+    // bypassGrace skips the short-circuit; rev-parse is also skipped because
+    // we know we're going to log anyway. Only one call expected: the log.
+    const execSpy = vi.fn(() => gitOutput('sha1 fresh commit'));
+    const result = await isStateStale(tempDir, {
+      execFn: execSpy,
+      bypassGrace: true,
+    });
+    expect(result.stale).toBe(true);
+    expect(result.commitCount).toBe(1);
+    expect(execSpy).toHaveBeenCalledTimes(1);
+    expect(execSpy.mock.calls[0][1]).toContain('abc123..HEAD');
   });
 
   it('uses git rev-range <sha>..HEAD with D6 state-affecting pathspec', async () => {
     await plantState(tempDir, { last_updated_commit: 'deadbeef' });
     const execSpy = vi.fn(() => gitOutput());
-    await isStateStale(tempDir, { execFn: execSpy });
+    // bypassGrace skips the rev-parse short-circuit so we test the log call
+    // in isolation. (S6.t3: the short-circuit path is exercised by its own test.)
+    await isStateStale(tempDir, { execFn: execSpy, bypassGrace: true });
     expect(execSpy).toHaveBeenCalledTimes(1);
     const [cmd, args] = execSpy.mock.calls[0];
     expect(cmd).toBe('git');

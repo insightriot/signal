@@ -588,18 +588,18 @@ const STATE_AFFECTING_PATHS = [
   ':(glob).planning/*-VERIFICATION.md',
   ':(glob).planning/*-REVIEW.md',
 ];
-const STALE_SKIP_GRACE_MS = 60_000;
-
 /**
  * D11 staleness check: did any state-affecting file get committed since the
  * commit recorded as `last_updated_commit`? Returns commit count + subjects
  * so callers (resume.md S4 banner, checkpoint.md S2 diff) can render useful
  * UI rather than a bare boolean.
  *
- * Skips the git call entirely when `last_updated` is within 60s of now —
- * resume immediately after a write can't be stale. /sig:checkpoint passes
- * `bypassGrace: true` so explicit "tell me what changed" requests always
- * query git, even right after a write.
+ * Hash short-circuit (S6.t3 — REVIEW IMPORTANT-4): if `last_updated_commit`
+ * equals HEAD, no git log call is needed — there can be no commits between
+ * a commit and itself. The earlier implementation used a 60s wall-clock
+ * grace window, which D11 explicitly rejected for clock-skew reasons.
+ * /sig:checkpoint passes `bypassGrace: true` so explicit "tell me what
+ * changed" requests always query git (and skip the rev-parse too).
  *
  * D6 graceful degradation: git failure → `{stale: false}` + stderr warning.
  *
@@ -616,16 +616,12 @@ export async function isStateStale(baseDir, opts = {}) {
   const lastCommit = state.last_updated_commit;
   if (!lastCommit) return empty; // no baseline — can't measure
 
-  // Grace window: very recent writes can't be stale relative to themselves.
-  // /sig:checkpoint opts out (bypassGrace) because user-explicit "what
-  // changed?" should always hit git.
+  // Hash short-circuit: HEAD === last_updated_commit means no new commits
+  // can exist in the rev range. Same optimization intent as the old
+  // wall-clock grace, no clock dependency.
   if (!opts.bypassGrace) {
-    const lastUpdatedMs = state.last_updated
-      ? new Date(state.last_updated).getTime()
-      : 0;
-    if (Number.isFinite(lastUpdatedMs) && Date.now() - lastUpdatedMs < STALE_SKIP_GRACE_MS) {
-      return empty;
-    }
+    const head = resolveHeadCommit(baseDir, execFn);
+    if (head && head === lastCommit) return empty;
   }
 
   try {
