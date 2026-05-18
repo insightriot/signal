@@ -1,3 +1,21 @@
+---
+schema_version: 1
+phase: VERIFY
+current_epic: null
+current_wave: null
+current_tasks: []
+completed_phases:
+  - CALIBRATE (2026-05-14)
+  - DISCUSS (2026-05-16)
+  - PLAN (2026-05-17)
+  - EXECUTE (2026-05-18)
+blockers: []
+last_decision_at: null
+last_updated_commit: 45b31af12b1eff939d4e92f13140fb451dea4a0f
+last_updated: 2026-05-18T02:12:12.295Z
+---
+<!-- Original STATE.md content preserved verbatim from pre-schema_v1 migration on 2026-05-18. The YAML frontmatter above is the authoritative machine-readable state; everything below is human-readable history. -->
+
 # Signal — Project State
 
 Meta-state of the Signal build. Not to be confused with the `.planning/` that Signal's own commands will write in *user* projects once it's functional — this one is for building Signal itself.
