@@ -291,14 +291,6 @@ describe('captureCheckpointContext (--context mode)', () => {
     expect(await readdir(planningDir)).toEqual([]);
   });
 
-  it('reports sensitiveHits on any input containing a known pattern', async () => {
-    const result = await captureCheckpointContext(tempDir, {
-      decisions: ['Token is ghp_abcdefghijklmnopqrstuvwxyz0123456789'],
-    });
-    expect(result.sensitiveHits.length).toBeGreaterThan(0);
-    expect(result.sensitiveHits[0].type).toBe('github-token');
-  });
-
   it('strips whitespace-only entries before write', async () => {
     const result = await captureCheckpointContext(tempDir, {
       decisions: ['real decision', '   ', ''],
@@ -306,6 +298,53 @@ describe('captureCheckpointContext (--context mode)', () => {
     });
     expect(result.wrote.some((p) => p.endsWith('CONTEXT.md'))).toBe(true);
     expect(result.wrote.some((p) => p.endsWith('OPEN-QUESTIONS.md'))).toBe(false);
+  });
+
+  // S6.t1 — scrub-before-write contract (IMPORTANT-1 + IMPORTANT-5).
+  // The pre-S6 behavior wrote files first, then surfaced sensitiveHits to
+  // the caller. That leaked secrets to git-tracked markdown before the abort
+  // prompt fired. S6.t1 inverts the order: detect first, refuse to write
+  // unless `acknowledgeSensitive: true` is passed.
+
+  it('refuses to write and returns aborted: "sensitive-data-pending" when hits found without acknowledgeSensitive', async () => {
+    const result = await captureCheckpointContext(tempDir, {
+      decisions: ['Token is ghp_abcdefghijklmnopqrstuvwxyz0123456789'],
+    });
+    expect(result.wrote).toEqual([]);
+    expect(result.sensitiveHits.length).toBeGreaterThan(0);
+    expect(result.sensitiveHits[0].type).toBe('github-token');
+    expect(result.aborted).toBe('sensitive-data-pending');
+
+    // No files mutated.
+    const { readdir } = await import('node:fs/promises');
+    const planningDir = join(tempDir, '.planning');
+    expect(await readdir(planningDir)).toEqual([]);
+  });
+
+  it('writes when acknowledgeSensitive: true and still surfaces sensitiveHits for audit', async () => {
+    const result = await captureCheckpointContext(tempDir, {
+      decisions: ['Token is ghp_abcdefghijklmnopqrstuvwxyz0123456789'],
+      acknowledgeSensitive: true,
+    });
+    expect(result.wrote.length).toBeGreaterThan(0);
+    expect(result.wrote.some((p) => p.endsWith('CONTEXT.md'))).toBe(true);
+    expect(result.wrote.some((p) => p.endsWith('DECISIONS.md'))).toBe(true);
+    expect(result.sensitiveHits.length).toBeGreaterThan(0);
+    expect(result.sensitiveHits[0].type).toBe('github-token');
+    // No aborted flag on the acknowledged path.
+    expect(result.aborted).toBeUndefined();
+
+    const ctx = await readFile(join(tempDir, '.planning', 'CONTEXT.md'), 'utf-8');
+    expect(ctx).toContain('ghp_abcdefghijklmnopqrstuvwxyz0123456789');
+  });
+
+  it('writes when no sensitive hits regardless of acknowledgeSensitive', async () => {
+    const result = await captureCheckpointContext(tempDir, {
+      decisions: ['Plain decision with no secrets'],
+    });
+    expect(result.wrote.length).toBeGreaterThan(0);
+    expect(result.sensitiveHits).toEqual([]);
+    expect(result.aborted).toBeUndefined();
   });
 });
 

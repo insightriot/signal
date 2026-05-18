@@ -252,14 +252,26 @@ function appendOpenQuestions(content, questions, date) {
  * Empty/whitespace-only inputs are stripped before deciding what to write,
  * so passing `{decisions: ['', '  ']}` is equivalent to passing nothing.
  *
- * Inputs run through `add.js#scrubSensitive` and the caller receives
- * `sensitiveHits` for confirm-or-abort decisions before this function
- * is called in production (S2.t5 wires the prompt). Detection only —
- * never auto-redacts.
+ * Sensitive-data contract (S6.t1 — matches tools/lib/add.js precedent):
+ * inputs run through `add.js#scrubSensitive` *before any write*. When hits
+ * are detected and `acknowledgeSensitive` is not set, the function refuses
+ * to mutate any file and returns `{wrote: [], sensitiveHits, aborted:
+ * 'sensitive-data-pending'}` so the caller (commands/checkpoint.md § 7) can
+ * prompt the user with [keep, abort]. On `keep`, the caller re-invokes with
+ * `acknowledgeSensitive: true`. On `abort`, no rollback is needed because
+ * no writes happened. Detection only — never auto-redacts.
  *
  * @param {string} baseDir
- * @param {{decisions?: string[], questions?: string[]}} [opts]
- * @returns {Promise<{wrote: string[], sensitiveHits: object[]}>}
+ * @param {{
+ *   decisions?: string[],
+ *   questions?: string[],
+ *   acknowledgeSensitive?: boolean,
+ * }} [opts]
+ * @returns {Promise<{
+ *   wrote: string[],
+ *   sensitiveHits: object[],
+ *   aborted?: 'sensitive-data-pending',
+ * }>}
  */
 export async function captureCheckpointContext(baseDir, opts = {}) {
   const decisions = (Array.isArray(opts.decisions) ? opts.decisions : [])
@@ -274,6 +286,14 @@ export async function captureCheckpointContext(baseDir, opts = {}) {
   }
 
   const scrub = scrubSensitive([...decisions, ...questions].join('\n'));
+  if (scrub.hits.length > 0 && !opts.acknowledgeSensitive) {
+    return {
+      wrote: [],
+      sensitiveHits: scrub.hits,
+      aborted: 'sensitive-data-pending',
+    };
+  }
+
   const today = new Date().toISOString().split('T')[0];
   const planningDir = join(baseDir, '.planning');
   await mkdir(planningDir, { recursive: true });

@@ -80,19 +80,21 @@ Surface two open-ended prompts in plain prose:
 1. "**Decisions to lock in?** List any architecture / scope / approach decisions worth remembering across sessions. Type a blank line to skip." (One decision per line.)
 2. "**Open questions to record?** List any unresolved questions worth surfacing on next `/sig:resume`. Type a blank line to skip." (One question per line.)
 
-For each non-empty response, split into trimmed lines, then call:
+For each non-empty response, split into trimmed lines, then call (default `acknowledgeSensitive: false`):
 ```
 const result = await captureCheckpointContext(baseDir, { decisions, questions });
 ```
 
-If `result.sensitiveHits.length > 0`, surface the hits via `AskUserQuestion(strict-enum, [keep, abort])` (same shape as `/sig:add`'s sensitive-data prompt):
-- Header: `Sensitive data`
-- Question: `Detected {N} potential secret(s) in the input — {types}. Capture verbatim?`
-- Options: `keep`, `abort`.
+`captureCheckpointContext` (S6.t1 contract — matches `tools/lib/add.js`) scrubs **before** any write. There are three outcomes:
 
-If `abort`, **roll back the writes** — `result.wrote` lists the files that received the appended content; the entries are appended at the tail of each file, so removing the appended block is straightforward by file length comparison. (Slice 2 ships the simple path: re-run `captureCheckpointContext` with no decisions/questions is the equivalent of "discard." Slice 3+ can build a true rollback if `abort` proves to fire frequently.)
-
-If `keep`, proceed — files are already written.
+1. **No hits, writes proceed.** `result.wrote.length > 0`, `result.sensitiveHits === []`. Continue to step 8.
+2. **Hits found, default refuse-to-write.** `result.wrote === []`, `result.aborted === 'sensitive-data-pending'`, `result.sensitiveHits` lists the matches. **No files mutated.** Surface the hits via `AskUserQuestion(strict-enum, [keep, abort])`:
+   - Header: `Sensitive data`
+   - Question: `Detected {N} potential secret(s) in the input — {types}. Capture verbatim?`
+   - Options: `keep`, `abort`.
+   - On `keep`: re-call `captureCheckpointContext(baseDir, { decisions, questions, acknowledgeSensitive: true })`. Writes happen now; `result.sensitiveHits` is still surfaced for audit. Continue to step 8.
+   - On `abort`: do nothing — no writes happened, nothing to roll back. Continue to step 8 with the discard-summary line.
+3. **Acknowledged path.** When the caller already passed `acknowledgeSensitive: true` (the re-call above), writes proceed and `result.aborted` is `undefined`.
 
 ### 8. Success message
 
