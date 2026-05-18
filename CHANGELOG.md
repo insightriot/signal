@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased] — M4.5.E6 (resume reliability)
+## [0.1.2] — 2026-05-18 — M4.5.E6 (resume reliability)
 
 ### Added — `STATE.md` schema_version 1 + auto-update protocol + `/sig:checkpoint`
 
@@ -21,7 +21,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 - New modules: `tools/lib/atomic-write.js` (extracted from `add.js`), `tools/lib/file-lock.js` (extracted from `add.js`, parameterized for state.js's 5s TTL), `tools/lib/checkpoint.js`, `tools/lib/execute.js`, `tools/lib/resume.js` (with `renderResumeBriefing` + `handleOrphansAtResume`).
 - `tools/validate-plugin.js` — `commands/checkpoint.md` is now a required artifact.
 - New docs: `references/state-schema.md` (canonical schema reference), `docs/migration-state-schema-v0.1.x.md` (downstream user-facing migration guide).
-- New test files (11): `atomic-write.test.js`, `file-lock.test.js`, `state-schema.test.js`, `current-tasks.test.js`, `detect-orphans.test.js`, `is-state-stale.test.js`, `blockers.test.js`, `append-decision-mark-fresh.test.js`, `checkpoint.test.js`, `dispatch-task-with-state.test.js`, `resume-briefing.test.js`, `state-end-to-end.test.js`. Total tests: 225 → ~361.
+- New test files (12): `atomic-write.test.js`, `file-lock.test.js`, `state-schema.test.js`, `current-tasks.test.js`, `detect-orphans.test.js`, `is-state-stale.test.js`, `blockers.test.js`, `append-decision-mark-fresh.test.js`, `checkpoint.test.js`, `dispatch-task-with-state.test.js`, `resume-briefing.test.js`, `state-end-to-end.test.js`. **Total tests: 225 → 366** (post-S6 final).
 
 ### Changed — `[BREAKING]` `STATE.md` shape
 
@@ -41,7 +41,8 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 ### Notes
 
 - M4.5.E6 closes the "post-context-clear re-orientation" gap that motivated the milestone. `/sig:resume` is now an unambiguous validated picture of where the user left off — even after a full context-clear mid-EXECUTE. The 280-line manual re-entry protocol previously hand-maintained at the top of Signal's own `STATE.md` is no longer the recovery path; the schema + briefing + checkpoint command together replace it.
-- AC#8 dogfood (real context-clear during E6 EXECUTE) is the user-driven verification step; will be captured in `M4.5.E6-VERIFICATION.md` once VERIFY phase runs.
+- AC#8 dogfood (real context-clear during E6 EXECUTE) verified in `M4.5.E6-VERIFICATION.md` § 8.
+- REVIEW loop-back (path B): the original review pass surfaced 5 Important findings that were resolved via S6 (5 tasks, ~240 LOC, +5 tests). Re-VERIFY + re-REVIEW appendices in `M4.5.E6-VERIFICATION.md` § 12 and `M4.5.E6-REVIEW.md`. Verdict: PASS.
 
 ---
 
