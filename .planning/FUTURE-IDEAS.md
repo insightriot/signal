@@ -634,4 +634,24 @@ I wonder aloud at having a feature of Signal be a 'you are here' breadcrumb in s
 ---
 
 
-*Last updated: 2026-05-18*
+## `/sig:resume` origin-drift detection (2026-05-19)
+
+**Problem:** `/sig:resume` reads local `STATE.md` as the source of truth. If another machine shipped work to origin but the commit didn't touch `STATE.md`, `/sig:resume` orients against stale local state and the user re-plans work that's already done. Happened 2026-05-19: biz-machine Claude session shipped M4.5.E1.S2 Phase A as `f38187a` (no STATE.md touch); dev-machine `/sig:resume` next session re-planned the same Epic from scratch. ~90 min duplicate planning work.
+
+**Enhancement:** at the start of every `/sig:resume` (and likely `/sig:status` + `/sig:checkpoint`):
+1. `git fetch origin` (read-only, ~1 sec).
+2. Compare `origin/<default-branch>` HEAD vs `STATE.md.last_updated_commit` (the field added in E6.S1).
+3. If origin has commits the local STATE doesn't acknowledge:
+   - Surface a banner: "⚠ origin has N commits since last STATE update. Recent commits: ... Consider `git pull` before continuing."
+   - Highlight if any of the new commits touched `.planning/` files — that's strong signal another Signal session shipped work.
+4. Do not block; surface drift, let user decide.
+
+**Why E6 didn't catch this:** E6's staleness check compares `STATE.md.last_updated` against the most recent `.planning/` commit *on local main* (not origin). Catches the case where Signal commands didn't update STATE; doesn't catch the case where another machine's commits aren't yet pulled. Different failure modes.
+
+**Scope:** small. Add helper `isStaleVsOrigin(baseDir)` to `tools/lib/state.js`; wire into `/sig:resume` + `/sig:status` + `/sig:checkpoint`. Tests: fixture where local STATE.md points at one commit but origin has 2 newer commits in `.planning/`.
+
+**Slot:** likely a slice in M4.5.E1 S5 (validator hardening + tooling polish) or its own micro-Epic. Defer-or-promote decision at next planning session.
+
+---
+
+*Last updated: 2026-05-19*

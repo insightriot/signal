@@ -35,10 +35,12 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 **MILESTONE 4 closed 2026-05-12 + v0.1.0 tagged.** 19 of 19 tasks shipped. Plugin marketplace-installable from `InsightRiot/signal`.
 
-**MILESTONE 4.5 in flight.** Three Epics shipped, three pending:
+**MILESTONE 4.5 in flight.** Four Epics shipped (or part-shipped), three pending, one newly scaffolded:
 - **E2.S1 (`/sig:add` hot path)** shipped 2026-05-14 — verbatim capture to `FUTURE-IDEAS.md` with scrub + lock + atomic write.
 - **E1.S1 (marketplace install path)** shipped 2026-05-15 as **v0.1.1** — `marketplace.json` source-block fix + `CLAUDE_CODE_PLUGIN_PREFER_HTTPS` doc + semver validator.
 - **E6 (resume reliability)** shipped 2026-05-18 as **v0.1.2** — YAML-frontmatter STATE.md (`schema_version: 1`) + auto-update protocol during EXECUTE + new `/sig:checkpoint` command + staleness banner + orphan UI in `/sig:resume`. 5 slices + S6 REVIEW loop-back (5 IMPORTANT findings resolved pre-publish).
+- **E1.S2 Phase A (F2 verification)** shipped 2026-05-19 as commit `f38187a` — empirical confirmation on the maintainer biz machine (R1 row): all 25 Signal agents auto-register as `sig:<subdirectory>:<name>` (e.g., `sig:scanners:stack-scanner`) and spawn cleanly via `Task subagent_type`. Phase B (26-file flat restructure) permanently shelved. `commands/init.md:170` updated with the empirically-confirmed convention. `docs/install-verification.md` born with R1 entry.
+- **E7 (synthesizer prose-quality + install-UX hardening)** scaffolded 2026-05-19 — surfaced during E1.S2 Phase A. Two findings: (1) `/sig:init` synthesizer character-eating bug (6+ confirmed instances in one run, e.g. `## Ierred goals & uncertainties`, `## ints`) — real quality blocker for strangers reading `/sig:init` output; (2) three install-UX papercuts (P1 stale gitCommitSha short-circuits install; P2 no uninstall verb in `/plugin` UI; P3 disable state survives uninstall+reinstall) requiring troubleshooting docs. See `MILESTONE-4.5.md` § E7 + `docs/install-verification.md` R1 for details.
 
 - **14 slash commands shipped**: `/sig:new-project`, `/sig:init`, `/sig:calibrate`, `/sig:discuss`, `/sig:plan`, `/sig:execute`, `/sig:verify`, `/sig:review`, `/sig:ship`, `/sig:escalate`, `/sig:status`, `/sig:resume`, `/sig:add`, `/sig:checkpoint`.
 - **26 agent files**: 22 from M1-M3 + 4 brownfield scanners (stack / structure / activity / quality) under `agents/scanners/`.
@@ -47,24 +49,25 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 - **Conventions locked**: question-patterns (strict enum / 3+other / open-ended); PROFILE.md schema + tier-to-defaults + escalation_history; ID-is-identity vocabulary rule (Milestone / Epic / Phase / Wave / Task with M4.5.E6.S1.t1 style addressing); `.planning/` always tracked in git; STATE.md uses YAML frontmatter (`schema_version: 1`) with auto-migration on first write.
 - **Validator** requires `calibrate.md` + `escalate.md` + `init.md` + `add.md` + `checkpoint.md` + `profile-schema.md` + `tier-definitions.md` + the 4 scanner agents.
 - **366 tests passing** as of v0.1.2; validator green. (Test count history: 209 v0.1.0 → 225 v0.1.1 → 366 v0.1.2.)
-- **F2 (post-marketplace-install agent registration)** — still open. Documented fallback path in `/sig:init` Step 2; not blocking. M4.5.E1.S2 will verify post-marketplace-install.
-- **Resume reliability — solved as of v0.1.2.** `/sig:resume` reads the YAML frontmatter, surfaces in-flight tasks + staleness + orphans + open questions + next action. The 280-line manual POST-CONTEXT-CLEAR RE-ENTRY PROTOCOL previously hand-maintained at the top of Signal's own `STATE.md` body is now obsolete; the body is preserved-verbatim history (per the auto-migration design), but the frontmatter drives the protocol.
+- **F2 — RESOLVED 2026-05-19 as outcome (a).** All 25 Signal agents auto-register post-marketplace-install as `sig:<subdirectory>:<name>`; nested layout works as designed. No restructure. See `DECISIONS.md` 2026-05-19 entry + `docs/install-verification.md` § R1.
+- **Resume reliability — solved as of v0.1.2 BUT one gap surfaced 2026-05-19.** `/sig:resume` reads YAML frontmatter and surfaces in-flight tasks + staleness + orphans + open questions + next action. Gap: it does NOT fetch origin to detect work that shipped from another machine but didn't update STATE.md. On 2026-05-19, this caused ~90 min of duplicate planning when a biz-machine session shipped E1.S2 Phase A (commit `f38187a`) without updating STATE.md, and a parallel dev-machine `/sig:resume` re-planned the same Epic. Enhancement candidate logged in `FUTURE-IDEAS.md` (origin-drift detection at session start). Workflow lesson: keep Signal-the-codebase work on one canonical machine; use other machines as test environments only.
 
 ## Active work
 
-**MILESTONE 4.5 underway** — Release Hardening / Stranger-Adoption Readiness; 6 Epics total, 3 shipped (E1.S1, E2.S1, E6 full), 3+ pending.
+**MILESTONE 4.5 underway** — Release Hardening / Stranger-Adoption Readiness; 6 original Epics + E7 scaffolded 2026-05-19. Status: **E1.S1 + E1.S2 Phase A + E2.S1 + E6 full = 4 ship-events** done; E1.S3–S5 + E2.S2–S5 + E3 + E4 + E5 + E7 pending.
 
-**No active Epic right now.** Phase is `SHIP` (M4.5.E6 closed). The next Epic is Brett's choice; recommended order:
+**No active Epic right now.** Phase is `SHIP` (M4.5.E1.S2 Phase A just shipped via `f38187a`). The next Epic is Brett's choice; recommended order:
 
-1. **M4.5.E1 Slices 2–5** — F2 verification on biz machine (highest-leverage; unblocks confident marketplace promotion), install matrix R2/R3/R5, versioning policy doc, validator hardening.
-2. **M4.5.E2 Slices 2–5** — `/sig:add` force-route flags (`--question`, `--milestone N`, `--file`), cold-path interview for naked invocation, stranger-safety hardening, `/sig:plan` close-the-loop.
-3. **M4.5.E3** — public-facing docs rewrite. Gates external launch.
-4. **M4.5.E4** — worked example + comparison page.
-5. **M4.5.E5** — external validation + launch.
-
-Status-line breadcrumb (`[sig] M4.5.E6 · EXECUTE · S6.t2`) captured to `FUTURE-IDEAS.md` 2026-05-18 — promote to its own Epic (e.g., M4.5.E7) if prioritized before launch.
+1. **M4.5.E7 (NEW — recommended first)** — synthesizer prose-quality + install-UX hardening. The character-eating bug is a real quality blocker that strangers will see in their first `/sig:init` output. Fixing it before E3 docs rewrite means the docs can showcase clean output. ~1–2 focused days.
+2. **M4.5.E3** — public-facing docs rewrite (README-as-pitch, CHANGELOG, compatibility, CONTRIBUTING/SECURITY, privacy). Gates external launch. Depends on E7 not being a blocker.
+3. **M4.5.E1 Slices 3–5** — install matrix rows R2/R3/R5 (Linux + WSL coverage; need fresh machines), versioning policy doc, validator hardening. S3 row R1 + S2 Phase A both shipped via E1.S2 commit; S2 Phase B permanently shelved per outcome (a).
+4. **M4.5.E2 Slices 2–5** — `/sig:add` force-route flags + cold-path interview + hardening + `/sig:plan` close-the-loop.
+5. **M4.5.E4** — worked example + comparison page (`docs/vs.md`).
+6. **M4.5.E5** — external validation + launch.
 
 **To start the next Epic:** run `/sig:resume` first (auto-orientation briefing — reads PROFILE.md + STATE.md frontmatter + open questions + next-action), then `/sig:discuss` once you've picked a scope.
+
+**Multi-machine note:** as of 2026-05-19, Signal-the-codebase work happens on the **Mac Studio** (this machine). Biz machine + personal laptop are test environments for `/plugin install` verification. Don't run parallel `/sig:*` workflow commands on multiple machines — git race conditions create duplicate work. If laptop needs Signal v0.1.2 + the f38187a commands/init.md fix, follow `/plugin uninstall sig@signal` → `/plugin install sig@signal` → `/reload-plugins` (per `docs/install-verification.md` § R1 P1 workaround).
 
 ## Key files
 
