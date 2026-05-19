@@ -167,7 +167,7 @@ You are read-only.
 Working directory: {cwd}
 ```
 
-This fallback path is documented at M4.t15 (dogfood pass found that dev-mode plugin agents don't auto-register with the Task tool). Verify the marketplace-install behavior + plugin-agent namespacing convention before relying on the named-subagent path in production. If marketplace install applies a `signal-` prefix (parallel to how `gsd-*` prefixed agents from the gsd plugin appear), update this section's table to reference the prefixed names.
+This fallback path is documented at M4.t15 (dogfood pass found that dev-mode plugin agents don't auto-register with the Task tool). **Marketplace-install behavior is empirically resolved as of 2026-05-19** (M4.5.E1.S2 Phase A; see `docs/install-verification.md` § R1 and `.planning/DECISIONS.md` 2026-05-19 entry): post-install, Claude Code auto-registers all of Signal's nested agents under the naming convention `sig:<subdirectory>:<name>` — for example, `sig:scanners:stack-scanner`, `sig:specialists:security-auditor`. The Task tool's `subagent_type` accepts the bare name (`stack-scanner`) and resolves via the loaded-plugins namespace; the fully-qualified `sig:scanners:stack-scanner` form is the one shown in `/agents` output. **The fallback path below is dev-mode-only**; production marketplace installs hit the primary named-subagent path.
 
 `/sig:init` runs **before** PROFILE.md exists, so all 4 scanners always fire. The MILESTONE-4 spec mentions tier-aware scanner counts (SKETCH = 2), but that's moot for brownfield onboarding — calibration happens *after* this scan, and brownfield projects rarely calibrate to SKETCH anyway. (Locked design decision: scanner count is fixed at 4. Logged in DECISIONS.md.)
 

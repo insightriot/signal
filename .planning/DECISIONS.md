@@ -563,3 +563,22 @@ D4's blanket migration policy applies to Signal's own `.planning/STATE.md` (no p
   ```
 
 ---
+
+## 2026-05-19 — F2 resolved: outcome (a)
+
+**Decision:** `/sig:init` Step 2's agent-spawning question (F2) — open since v0.1.0 — is empirically resolved as **outcome (a)**: all 25 Signal agents auto-register post-marketplace-install via the naming convention `sig:<subdirectory>:<name>` (e.g., `sig:scanners:stack-scanner`). The Task tool spawns them via `subagent_type` without "Agent type not found" errors and without falling back to `general-purpose`. No agent restructure needed; the nested `agents/<category>/<name>.md` layout works as designed.
+
+**Evidence:** R1 row of `docs/install-verification.md` (2026-05-19, maintainer business box, macOS, v0.1.2 marketplace install). `/agents` listed all 25 Signal agents under the namespaced convention; `/sig:init` on a fresh shallow clone of `expressjs/express` ran end-to-end with all 4 scanners spawning in parallel via named subagent_type, producing 4 substantive scan files + LANDSCAPE.md + baseline PROJECT.md + STATE.md.
+
+**Rationale:** This was the headline open question gating confident promotion of v0.1.0+. M4.5.E1.S2's three-way decision tree (outcome a / b / c) anticipated up to 26 agent files needing flat-restructure if Claude Code's plugin loader couldn't see nested layouts. Empirically that worst case does not exist — the nested layout registers cleanly, the production path is named-subagent spawn, and the documented fallback path in `commands/init.md` Step 2 is now correctly characterized as dev-mode-only.
+
+**Implication:**
+- **M4.5.E1.S2 Phase B does NOT fire.** The 26-agent flat-restructure work (outcome c) is permanently shelved.
+- **`commands/init.md`'s line 170 speculative paragraph is updated** in this same change to reflect F2's resolution (replaces "if marketplace install applies a `signal-` prefix..." with the confirmed `sig:<subdirectory>:<name>` convention).
+- **M4.5.E1.S2 is shipped on Phase A alone.** S2 acceptance criteria #4–#5 (validator REQUIRED_AGENTS expansion, file moves) are now n/a per outcome.
+- **Naming nuance worth noting for future reference:** the PLAN-time prediction was `sig:<name>` flat; actual is `sig:<subdirectory>:<name>` nested. The `subagent_type` table in `commands/init.md` Step 2 currently uses bare names (`stack-scanner`); Claude Code's plugin loader appears to resolve them. No change needed to the table for this run, but if a future Claude Code version requires fully-qualified `subagent_type` values, the table will need updating in lockstep.
+- **Side-discoveries are routed to a new Epic M4.5.E7.** The R1 run surfaced a synthesizer character-eating bug in LANDSCAPE.md + PROJECT.md output and three install-path UX papercuts (stale `gitCommitSha`, no uninstall verb in `/plugin` UI, disable state survives uninstall). These are not F2-related and get their own dedicated work.
+
+**Reference:** Full run log in `docs/install-verification.md` § R1. PLAN source: `.planning/M4.5.E1-PLAN.md` Slice 2. Updated S2 status in `.planning/M4.5.E1-PROGRESS.md`.
+
+---

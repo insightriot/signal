@@ -1,0 +1,167 @@
+# Install Verification Matrix
+
+Proof that Signal's marketplace install works across the OS / SSH / auth combinations strangers will hit. See `.planning/M4.5.E1-PLAN.md` Slice 3 for the matrix specification and `.planning/M4.5.E1-RESEARCH.md` § 5 for row definitions.
+
+Each row records a real install run on a real machine. Rows are append-only; failed runs stay as the record (with the fix that unblocked the next attempt) rather than being rewritten.
+
+---
+
+## Matrix overview
+
+| Row | Machine type | OS | SSH config | Result | Date |
+|---|---|---|---|---|---|
+| R1 | Maintainer business box | macOS | Multi-identity; no default `Host github.com` | **PASS** (3 install-UX papercuts documented) | 2026-05-19 |
+| R2 | Mac happy-path | macOS | Default SSH config | pending | — |
+| R3 | Linux | Linux | Default | pending | — |
+| R4 | WSL | Windows Subsystem for Linux | Default | best-effort | — |
+| R5 | IdentitiesOnly hardened | any | `IdentitiesOnly yes` per-host | pending | — |
+| R6 | Corporate proxy | any | SSH port 22 blocked | optional | — |
+| R7 | Pre-rename upgrade | any | Had `signal@signal` installed before M4.t19 | optional | — |
+| R8 | Cold install on never-touched box | any | Default | optional | — |
+
+---
+
+## R1 — Maintainer business box (macOS, multi-identity SSH)
+
+**Result: PASS — v0.1.2 installed cleanly after working through 3 install-UX papercuts.**
+
+### Machine signature
+
+- macOS, Apple Silicon (hostname: MBP7EYZXT1117)
+- Claude Code 2.1.144
+- Multi-identity `~/.ssh/config` with no default `Host github.com` block — the original failure mode that motivated v0.1.1's source-block fix
+
+### Goal
+
+Upgrade from v0.1.1 (which was the v0.1.1 source-block fix's own R1 verification target on 2026-05-15) to v0.1.2 (which shipped 2026-05-18 with M4.5.E6), then run F2 verification (M4.5.E1.S2 Phase A) on the v0.1.2 install.
+
+### Install adventure (the actual chronology)
+
+The R1 install on 2026-05-19 surfaced three distinct UX papercuts. None are Signal-side bugs — all are Claude Code-side behaviors — but each one would rage-quit a stranger. They are documented here so install troubleshooting docs (M4.5.E7) can address them.
+
+#### Papercut 1: `/plugin install` short-circuited on stale `gitCommitSha`
+
+- `/plugin marketplace update signal` reported the catalog at v0.1.2.
+- `/plugin install sig@signal` reported "already at latest" and exited.
+- `/reload-plugins` continued to load v0.1.1-era code.
+- Root cause (discovered by reading `~/.claude/plugins/installed_plugins.json`): the `version` field said `0.1.2` but `gitCommitSha` was `fdc1247e09c7f434550a78745274b093d0619dc2` — a commit between v0.1.0 and v0.1.1, predating either tag. Claude Code's install logic appears to short-circuit on `version` match, not on `gitCommitSha` content-identity.
+
+#### Papercut 2: `/plugin` UI has no uninstall verb
+
+- The interactive `/plugin` menu offers Enable / Disable / Update / Add-to-favorites / Open-homepage / View-repository / Back — but no Uninstall.
+- "Disable" stops Claude Code from loading the plugin but leaves the cache directory at `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/` intact, which is exactly why Papercut 1 keeps biting on subsequent install attempts.
+- Workaround: filesystem purge — `rm -rf ~/.claude/plugins/cache/signal/`, then edit `~/.claude/plugins/installed_plugins.json` to remove the dangling `sig@signal` entry (which still points at the just-deleted `installPath`).
+
+#### Papercut 3: Disable state survives uninstall + reinstall
+
+- After purging cache, manifest entry, and the entire marketplace registration (`/plugin marketplace remove signal`), a fresh `/plugin marketplace add insightriot/signal` + `/plugin install sig@signal` + `/reload-plugins` reported success — `1 plugin · 14 skills · 32 agents · 1 hook` — but `/sig:` commands did not autocomplete and the plugin showed Status: Disabled.
+- Root cause: enable/disable state lives in `~/.claude/settings.json` under `enabledPlugins` as `"sig@signal": false` (or true). The earlier Disable action wrote `false` there. Neither marketplace removal nor uninstall touches this key; the reinstall picked up the stale `false`.
+- Resolution: removed the `sig@signal` line from `~/.claude/settings.json` `enabledPlugins`, restarted Claude Code, re-ran the install sequence.
+
+#### Clean v0.1.2 install confirmed
+
+`~/.claude/plugins/installed_plugins.json` after the clean install:
+
+```json
+{
+  "version": 2,
+  "plugins": {
+    "sig@signal": [
+      {
+        "scope": "user",
+        "installPath": "/Users/brett.vantil/.claude/plugins/cache/signal/sig/0.1.2",
+        "version": "0.1.2",
+        "installedAt": "2026-05-19T15:46:51.528Z",
+        "lastUpdated": "2026-05-19T15:46:51.528Z",
+        "gitCommitSha": "9f504a49de9687ea336d735252215fb5cc72d2d4"
+      }
+    ]
+  }
+}
+```
+
+`gitCommitSha` matches the `sha` pinned in `marketplace.json` for the v0.1.2 release commit. `installedAt === lastUpdated` confirms this was a genuine fresh install, not a refresh of stale cache.
+
+### F2 verification — M4.5.E1.S2 Phase A
+
+**Outcome: (a) — all Signal agents auto-register; no fallback fires; no agent restructure needed.**
+
+#### `/agents` output
+
+Plugin agents section showed 25 Signal-registered subagents under the naming convention `sig:<subdirectory>:<name>`:
+
+| Category | Count | Examples |
+|---|---|---|
+| executors | 1 | `sig:executors:executor` |
+| planners | 2 | `sig:planners:planner`, `sig:planners:roadmapper` |
+| researchers | 7 | `sig:researchers:codebase-researcher`, `sig:researchers:project-researcher`, `sig:researchers:phase-researcher`, `sig:researchers:advisor-researcher`, `sig:researchers:assumptions-analyzer`, `sig:researchers:research-synthesizer`, `sig:researchers:ui-researcher` |
+| scanners | 4 | `sig:scanners:stack-scanner`, `sig:scanners:structure-scanner`, `sig:scanners:activity-scanner`, `sig:scanners:quality-scanner` |
+| specialists | 3 | `sig:specialists:code-reviewer`, `sig:specialists:security-auditor`, `sig:specialists:test-engineer` |
+| support | 3 | `sig:support:codebase-mapper`, `sig:support:debugger`, `sig:support:phase-gate-enforcer` |
+| verifiers | 5 | `sig:verifiers:plan-checker`, `sig:verifiers:verifier`, `sig:verifiers:integration-checker` (alias `is:nyquist-auditor`), `sig:verifiers:ui-auditor`, `sig:verifiers:ui-checker` |
+
+Note: `sig:verifiers:integration-checker` displays an alias `is:nyquist-auditor` — that's Claude Code surfacing the agent file's `name:` frontmatter field, which differs from the filename.
+
+Three small discrepancies worth following up but not blocking F2:
+
+1. `/reload-plugins` reported "32 agents" but `/agents` lists 25 Signal agents (and 6 built-ins = 31 visible total). The "32" likely double-counts the alias-bearing agent or includes a hidden default. Worth a quick audit.
+2. CLAUDE.md says "26 agents (19 GSD + 3 Agent Skills specialists + 4 brownfield scanners)" — actual on-disk count is 25 plugin agents. The 26-vs-25 difference may be a documentation drift; should be reconciled in a future M4.5.E7 or M4.5.E1.S5 pass.
+3. The PLAN-time prediction in `M4.5.E1-PLAN.md` Slice 2 was `sig:<name>` flat; actual is `sig:<subdirectory>:<name>` nested. This nuance only matters for invocation if `subagent_type` requires the full namespaced form (see § Empirical /sig:init run below).
+
+#### Empirical `/sig:init` run on `expressjs/express`
+
+Target: shallow clone of `expressjs/express` (`git clone --depth=1`) in `/tmp/express` — chosen per PLAN as a known canonical mid-sized Node.js codebase with real source, tests, CI, and license signals.
+
+Result: `/sig:init` completed end-to-end. All 4 scanners spawned in parallel via the Task tool with named `subagent_type`; each ran for ~55–58 seconds; token cost was 11.3k–16.7k per scanner. No "Agent type X not found" errors. No fallback path fired.
+
+Generated artifacts in `/tmp/express/.planning/`:
+
+- `scan/stack.md` — JavaScript 66.2%, Express 5.2.1, Mocha + nyc + supertest test stack
+- `scan/structure.md` — single-repo (no monorepo markers); `lib/` flat 6-file source root; `test/` with 91 spec files using `{module}.{method}.js` naming convention
+- `scan/activity.md` — shallow-clone detected (`.git/shallow` present); flagged contributor/cadence as unreliable; `History.md` external evidence used to infer mature-and-active despite N=1 commit visible
+- `scan/quality.md` — Mocha 11.7.5; nyc 17.1.0 + Coveralls; 4 GitHub Actions workflows (ci, legacy, codeql, scorecard); MIT; 0 genuine TODO/FIXME markers
+- `LANDSCAPE.md` — 7-section synthesis with appropriate `[INFERRED — high/low confidence]` labels; "Open questions for the user" produced 3 sharp data-grounded questions (is-this-a-fork-vs-clone, target-upstream-or-private-fork, specific-task-vs-exploratory)
+- `PROJECT.md` — baseline with Vision + Problem inferred from LANDSCAPE; Success Criteria / Done When / Scope-Out / Constraints-Hard left as `[FILL IN]` per design
+- `STATE.md` — initialized to phase `CALIBRATE`
+
+#### Bonus findings beyond F2 itself
+
+These positive discoveries are not part of F2's question but were validated by the same run; they're recorded here so future regressions can be detected.
+
+1. **Shallow-clone handling works.** Activity scanner detected `.git/shallow` and flagged contributor/cadence metrics as unreliable. The synthesizer surfaced the caveat at the top of LANDSCAPE.md with a `git fetch --unshallow` remediation hint. This is a real-world condition the M3 dogfood never exercised (Signal's own repo was non-shallow). First-time-correct on a new edge case is meaningful signal.
+2. **Non-standard file casing handled.** `Readme.md` (Express uses sentence-case, not all-caps) and `History.md` (Express's changelog, not the conventional `CHANGELOG.md` name) both detected by the quality scanner without confusion. Section-extraction did not silently skip them.
+3. **M4.t8 assumption-surfacing walkthrough fires correctly on a real brownfield codebase.** First real dogfood of the walkthrough step. The 4 `Deferred` + 1 `Skipped` Notes entries written into baseline PROJECT.md were textbook-correct: Defer leaves the `[FILL IN]` marker in the body + appends a timestamped Notes entry; Skip replaces the marker with a placeholder + appends a timestamped Notes entry. The walkthrough copy distinguished `[INFERRED]` (assertable from scan) vs `[FILL IN]` (forward-looking; only the user can answer).
+4. **Vision / Problem Statement inference quality is solid.** Both fields generated read naturally and accurately describe what Express is. "In Scope" was inferred cleanly from observed file/directory signals (no overreach into `[FILL IN]` territory).
+
+#### Bug surfaced during the run — synthesizer character-eating
+
+The LANDSCAPE.md and PROJECT.md outputs show systematic character drops. At least 6 confirmed instances in one run:
+
+| Location | Visible | Should be |
+|---|---|---|
+| LANDSCAPE.md heading | `## Ierred goals & uncertainties` | `## Inferred goals & uncertainties` |
+| LANDSCAPE.md structure table | `is \| Top-level entry (224 bytes)` | `index.js \| Top-level entry (224 bytes)` |
+| LANDSCAPE.md test command | `--checkt/ test/acceptance/` | `--check-leaks test/ test/acceptance/` (probably) |
+| LANDSCAPE.md activity note | `...not real cadence).git fetch --unshallow\`` (missing newline + backtick) | Separate sentence with proper code-fence boundary |
+| PROJECT.md heading | `## ints` | `## Constraints` |
+| PROJECT.md Notes line | `Constraints (Team / contributoiteria.` (mid-sentence drop) | `Constraints (Team / contributors — no fixed criteria for this project — see Notes).` (or similar) |
+
+The pattern is systematic, not a paste artifact. Routed to **M4.5.E7** for root-cause investigation + fix + regression tests.
+
+### Wall-clock estimate
+
+- Install adventure (papercuts 1–3 + clean reinstall): ~30–40 minutes of real time, including diagnosis pauses
+- `/sig:init` on Express (Step 2 scan dispatch through Step 6 handoff): ~2–3 minutes
+- F2 verification capture (paste `/agents`, paste LANDSCAPE.md, paste PROJECT.md): ~5 minutes
+
+Total session: ~40–50 minutes for one matrix row, dominated by the install-adventure papercuts. A stranger without diagnostic context would either rage-quit during Papercut 1 or 3, or spend hours.
+
+---
+
+## Pending rows
+
+R2 through R8 not yet run. R2 (Mac happy-path on a fresh machine without R1's SSH config) is the highest-priority remaining row — it isolates whether the install adventure was caused by the multi-identity SSH config or whether it would reproduce on a default-config machine. R3 (Linux) and R5 (IdentitiesOnly hardened) are required for the M4.5.E1 exit gate per `MILESTONE-4.5.md`.
+
+---
+
+*Created 2026-05-19 as the M4.5.E1.S2 + S3 R1-row deliverable. Future rows appended chronologically.*

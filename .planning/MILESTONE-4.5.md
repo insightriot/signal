@@ -24,16 +24,17 @@ Three reasons:
 
 Listed in suggested execution order. Each Epic is independently shippable as v0.1.x.
 
-### Status snapshot (as of 2026-05-18)
+### Status snapshot (as of 2026-05-19)
 
 | Epic | Status | Notes |
 |---|---|---|
-| E1 — Stranger-install path bulletproof | S1 shipped 2026-05-15 (v0.1.1); S2–S5 pending | F2 is headline; gates the rest. **Recommended next.** |
+| E1 — Stranger-install path bulletproof | S1 shipped 2026-05-15 (v0.1.1); **S2 Phase A shipped 2026-05-19 (outcome a — Phase B not needed)**; S3–S5 pending | F2 resolved as outcome (a); R1 row of install-verification matrix complete. Remaining: S3 R2/R3/R5 rows + S4 versioning policy + S5 validator hardening. |
 | E2 — `/sig:add` capture-and-route | S1 shipped 2026-05-14; S2–S5 pending | Hot path done; force-route flags + interview + hardening + plan-loop remain |
 | E3 — Public-facing docs rewrite | pending | |
 | E4 — Worked example + comparison page | pending | |
 | E5 — External validation + launch | pending | Cannot finish until E1–E4 land |
 | **E6 — Resume reliability (STATE.md schema + auto-update + `/sig:checkpoint`)** | **✓ shipped 2026-05-18 (v0.1.2)** | All 5 slices + S6 REVIEW loop-back (5 IMPORTANT findings resolved pre-publish). YAML-frontmatter STATE.md + auto-state-protocol + new `/sig:checkpoint` + staleness banner + orphan UI in `/sig:resume`. 225 → 366 tests; no new runtime deps. |
+| **E7 — Synthesizer prose-quality + install-UX hardening** | **scaffolded 2026-05-19; not yet CALIBRATED** | Surfaced during M4.5.E1.S2 Phase A. Two findings: `/sig:init` synthesizer character-eating bug (6+ instances in one run) + 3 install-path UX papercuts requiring troubleshooting docs. See § E7 below + `docs/install-verification.md` R1. |
 
 E2 plan + execute artifacts live in `M4.5.E2-{RESEARCH,PLAN,VALIDATION,PROGRESS}.md`. E6 artifacts live in `M4.5.E6-{RESEARCH,PLAN,VALIDATION,VERIFICATION,REVIEW}.md` (DISCUSS/PLAN/EXECUTE/VERIFY/REVIEW/SHIP all complete).
 
@@ -125,6 +126,53 @@ Without external feedback, M4.5's earlier Epics are calibrated against a sample 
 8. The Epic dogfoods itself: at least one real context-clear during E6's own EXECUTE phase produces an accurate `/sig:resume` briefing.
 
 **Exit:** All 5 slices shipped; the dogfood criterion (#8) demonstrated; release notes call out the schema migration; FUTURE-IDEAS.md entries at lines 100/102 updated to point at this Epic as resolution.
+
+### M4.5.E7 — Synthesizer prose-quality + install-UX hardening
+
+Surfaced during M4.5.E1.S2 Phase A on 2026-05-19. Two distinct findings that do not fit E1's "install path" scope but each block "stranger-ready" quality. Full evidence in `docs/install-verification.md` § R1.
+
+**Why a new Epic rather than slotting into E1.** E1 owns marketplace install + agent registration + fresh-machine verification. The synthesizer bug is a `/sig:init` prose-generation defect (different domain); the install-UX papercuts are Claude Code-side behaviors that Signal can only mitigate via troubleshooting docs (also a different domain than "make install work"). Stretching E1 to absorb both would dilute its identity. E7 keeps the closure: E1 ships the install path; E7 ships the polish around the install path's edges.
+
+**Finding 1 — `/sig:init` synthesizer character-eating bug.**
+
+LANDSCAPE.md and PROJECT.md outputs show systematic character drops. At least 6 confirmed instances in a single dogfood run on `expressjs/express` (2026-05-19):
+
+- `## Ierred goals & uncertainties` (should be `## Inferred goals & uncertainties`)
+- `## ints` (should be `## Constraints`)
+- `is | Top-level entry (224 bytes)` (should be `index.js | Top-level entry (224 bytes)`)
+- `--checkt/ test/acceptance/` (should be `--check-leaks test/ test/acceptance/`)
+- Concatenated sentence boundary: `...not real cadence).git fetch --unshallow\`` (missing newline + backtick before remediation prose)
+- Mid-sentence drop in PROJECT.md Notes: `Constraints (Team / contributoiteria.`
+
+The pattern is **systematic**, not a paste artifact. Hypotheses to investigate:
+
+- Regex with buggy lookahead/lookbehind eating the prior character at section transitions
+- String-slicing offset error in synthesizer combining scanner outputs
+- LLM prompt-boundary issue in the scanner-output → synthesizer handoff (synthesizer agent may be receiving truncated input)
+
+**Finding 2 — Install-path UX papercuts** (Claude Code behaviors; Signal mitigates via docs).
+
+Three failure modes documented in `docs/install-verification.md` § R1:
+
+- **P1 — `/plugin install` short-circuits on stale `gitCommitSha`.** When `installed_plugins.json` shows matching `version` field, install exits "already at latest" even when `gitCommitSha` reveals the cached code is stale. Workaround: filesystem purge before reinstall.
+- **P2 — `/plugin` UI has no uninstall verb.** The interactive menu only offers Disable; cache directory survives, which interacts badly with P1. Workaround: `rm -rf ~/.claude/plugins/cache/<marketplace>/` + manual edit of `installed_plugins.json` to remove dangling entry.
+- **P3 — Disable state survives uninstall + reinstall.** Lives in `~/.claude/settings.json` under `enabledPlugins`; neither marketplace removal nor uninstall touches it. Workaround: manually remove the `<plugin>@<marketplace>` line from settings.json before reinstall.
+
+**Scope:**
+
+- **Synthesizer bug (highest priority).** Root-cause analysis on `tools/lib/landscape.js` + scanner-output parsing path. Add regression tests covering each of the 6 documented patterns + likely sibling cases (heading boundaries, table cells, sentence joins, fenced-code boundaries). Fix produces clean output on the Express dogfood replay.
+- **Install troubleshooting docs.** Either expand the existing README "Troubleshooting install" section or create a dedicated `docs/install-troubleshooting.md` covering the 3 papercuts with copy-paste resolution commands. Prefer the dedicated doc — strangers benefit from a focused page that names each failure mode by symptom.
+- **Optional — synthesizer output sanity check.** A validator pass or test that detects garbled output patterns (e.g., heading shorter than 4 chars after `## `, table row with single-character cell where a filename is expected). Probably impractical for arbitrary content but worth scoping.
+
+**Exit:** Synthesizer regression tests green on all 6 documented patterns + the synthesizer rerun on Express produces clean output. `docs/install-troubleshooting.md` (or expanded README section) covers the 3 papercuts. CHANGELOG entry for the patch release.
+
+**Estimated effort:** 1–2 focused days. Depends primarily on synthesizer bug root-cause complexity; troubleshooting docs are 1–2 hours.
+
+**Not in scope (for E7 specifically):**
+
+- Synthesizer **prompt** improvements (LANDSCAPE.md narrative quality, PROJECT.md inference quality) — these were validated as solid in the R1 run; not a fix. Defer to FUTURE-IDEAS if quality concerns emerge later.
+- `/sig:init` agent-discovery convention reconciliation — defer to M4.5.E1.S5 validator hardening.
+- The 26-vs-25 agent-count drift between CLAUDE.md docs and on-disk reality — defer to M4.5.E1.S5.
 
 ---
 
