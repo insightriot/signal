@@ -582,3 +582,38 @@ D4's blanket migration policy applies to Signal's own `.planning/STATE.md` (no p
 **Reference:** Full run log in `docs/install-verification.md` § R1. PLAN source: `.planning/M4.5.E1-PLAN.md` Slice 2. Updated S2 status in `.planning/M4.5.E1-PROGRESS.md`.
 
 ---
+
+## 2026-05-21 — M4.5.E7 DISCUSS locks: synthesizer fix + troubleshooting docs strategy
+
+**Context:** First DISCUSS run for M4.5.E7 (synthesizer prose-quality + install-UX hardening). PROFILE.md tier FULL; `gate_strictness: strict`. Four gray areas surfaced + locked via `AskUserQuestion`; all four resolved on the recommended option.
+
+**D-E7-1 — Synthesizer fix sequence: tests-first, then iterate.**
+
+Approach: write regression tests for all 6 documented bug patterns from R1's Express dogfood (`## Ierred goals & uncertainties`, `## ints`, `is | Top-level entry (224 bytes)`, `--checkt/ test/acceptance/`, the concatenated sentence boundary, the mid-sentence drop in PROJECT.md Notes) **before** investigating root cause. Tests pin the contract; fix surface (`tools/lib/landscape.js` regex/slicing OR the synthesizer-agent prompt-handoff OR both) is whatever makes the tests go green. Rationale: FULL tier's `tdd_required: true`; regression tests survive even if the fix path changes mid-investigation; locks the behavioral contract before guessing at root cause.
+
+**D-E7-2 — Troubleshooting docs live at `docs/install-troubleshooting.md`.**
+
+New dedicated page organized by symptom (P1 stale `gitCommitSha` short-circuit, P2 no uninstall verb in `/plugin` UI, P3 disable state survives uninstall+reinstall). Each entry: symptom → root cause (Claude Code-side behavior) → copy-paste resolution commands. Linked from README's existing Troubleshooting section. Rationale: strangers find install fixes by searching the symptom; matches MILESTONE-4.5.md § E7 spec recommendation; keeps README pitch-shaped (per E3's planned rewrite).
+
+**D-E7-3 — Validator-side synthesizer sanity-check: deferred to FUTURE-IDEAS.**
+
+The optional "garbled-output detector" item from the E7 scope is **not** included in this Epic. Rationale: once the 6 regression tests are green and the synthesizer rerun on `expressjs/express` produces clean output, a validator-side detector loses most of its marginal value. Logged as a FUTURE-IDEAS entry to revisit if quality regressions emerge later or if the synthesizer surface gains new failure modes. Keeps E7 sized to its stated 1–2 day estimate.
+
+**D-E7-4 — E7 slices into 2 ship-events.**
+
+- **S1 — Synthesizer fix.** Regression tests (6 documented patterns + likely sibling cases at heading/table/sentence/fenced-code boundaries) → root-cause investigation + fix → synthesizer rerun on `expressjs/express` produces clean output. Ships first; higher quality-blocker.
+- **S2 — Install troubleshooting docs.** `docs/install-troubleshooting.md` written (P1/P2/P3 documented with workarounds) + README link added + CHANGELOG entry. Ships second; small, doc-only.
+
+Rationale: two distinct findings (synthesizer ≠ install UX) → two slices keeps PRs small + independently reviewable; matches the slicing pattern Signal already used on E2/E6. Single-PR bundling was considered but rejected for FULL-tier (slice boundaries help future archaeology).
+
+**Non-functional requirements (FULL-tier NFR checklist):** E7's surface is internal markdown generation (synthesizer) + static documentation files. **All five FULL NFR items (health probe, graceful shutdown, structured request logging, security headers, rate limiting) are N/A** — no service, no network surface, no exposed endpoint. Explicitly recorded so `/sig:plan` doesn't re-litigate.
+
+**Implication for PLAN:**
+- Two artifacts to produce in PLAN: `M4.5.E7-RESEARCH.md` (root-cause hypotheses, scanner-output → synthesizer pipeline mapping, fix-path tradeoffs) + `M4.5.E7-PLAN.md` (vertical slices, task breakdown, Nyquist test mapping).
+- Expected test delta: 6 documented patterns × 1 regression test each = 6 minimum, plus 4–8 sibling-case tests = ~10–14 new tests. Total 366 → ~380.
+- Validator changes: probably none (no new commands, no new agents). Confirm during PLAN.
+- Docs changes for S2: new `docs/install-troubleshooting.md` + 2-line README addition + CHANGELOG entry under the patch-release header.
+
+**Reference:** Acceptance criteria in `.planning/M4.5.E7-REQUIREMENTS.md` (written during this DISCUSS). MILESTONE-4.5 § E7 retains the human-readable scope statement.
+
+---
