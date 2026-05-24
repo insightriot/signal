@@ -349,6 +349,83 @@ Synthesizes a phase-by-phase narrative covering things `/sig:status` deliberatel
 
 ---
 
+## `/sig:orient` — plain-language project overview (no Signal jargon)
+
+**Status:** Logged 2026-05-24 during conversation about reporting gaps. Trigger: user reviewing existing reporting seeds (`/sig:report`) realized the proposed report is still *written for a Signal-fluent reader* — phase narrative, plan-task counts, decision history. Real gap surfaced: *"where are we on this overall, in plain language"* — an orientation artifact that someone (including the user, returning to a project after weeks away, or a stakeholder, or a future collaborator) can read **without knowing Signal exists**.
+
+**Context.** Signal's reporting surface today and as-proposed assumes vocabulary fluency: Milestone, Epic, Wave, Task, Phase, Tier, SKETCH/FEATURE/SPIKE/FULL. That's load-bearing inside the workflow but stranger-hostile outside it. Three distinct read-only artifacts now make sense:
+
+- **`/sig:status`** — operational glance: *where am I, what's next.* ≤30 lines. Signal-fluent reader.
+- **`/sig:report`** — phase narrative: *what's the whole story, why we got here.* 60–100 lines. Signal-fluent reader.
+- **`/sig:orient`** — plain-English overview: *what is this thing, where is it, what's next.* 15–40 lines. **No Signal vocabulary.** Anyone can read it.
+
+The flag form (`/sig:report --bigpicture` or `--orient`) was considered and rejected for the same reason `/sig:status` rejects shape-changing flags: it dilutes the parent command's locked contract. `/sig:report`'s phase-by-phase narrative and `/sig:orient`'s plain-prose overview are different artifacts with different audiences — they earn separate commands.
+
+**Candidate direction.**
+
+New command `/sig:orient`. Read-only (same design discipline as `/sig:status` and `/sig:report` — re-running produces the same output, no `.planning/*` mtimes change, no skills loaded, no agents spawned).
+
+The output is **prose, not a state dump.** A first paragraph that describes the project to someone who has never heard of it. A second paragraph that says where it currently stands. A third that names the next concrete step and any open questions worth knowing about.
+
+Example shape (illustrative, not a template):
+
+> "Signal is a Claude Code plugin you've been building since April 2026. It calibrates how much engineering rigor to apply to a coding task before doing it — so throwaway scripts get throwaway treatment and production systems get production treatment.
+>
+> The core workflow ships and works: 14 commands, 26 agents, 366 tests passing. You're currently hardening it for outside users — fixing install gaps, rewriting public docs, lining up a first stranger to try it.
+>
+> The next concrete step is finishing the install-troubleshooting docs (most of that landed this week). Three things remain unfinished: a versioning policy, a worked end-to-end example, and the public README rewrite. One open question: which external user gets the first invite."
+
+That's what "plain language" means here — **prose written for a human, not a glossary substitution of Signal jargon.** No Milestone/Wave/Epic/Task vocabulary anywhere in the output. Phase names get translated to plain English ("we're currently hardening it for outside users" not "we're in M4.5.E1"). Tier names get translated or omitted ("a production-quality project" rather than "FULL tier").
+
+**Source data.**
+
+Reads the same `.planning/` substrate as `/sig:report`, but the *output transformation* is the work:
+
+- `PROFILE.md` → tier, but rendered as a sentence ("treated as production-quality work" not "FULL tier")
+- `STATE.md` → current phase, but rendered as plain status ("currently testing it" not "VERIFY phase")
+- `PROJECT.md` → one-paragraph description (the *what* and *why*, not the scope/roadmap section)
+- `MILESTONE-*.md` → progress count rendered as plain English ("most of the work is done" not "4 of 6 epics shipped")
+- `OPEN-QUESTIONS.md` → top 1–3, phrased in plain terms
+- Recent git activity → "the last week of work has been..." style
+
+**Tier-aware behavior.**
+
+| Tier | Output |
+|---|---|
+| SKETCH | 1 short paragraph. "This is a throwaway exploration of X. You're partway through. Next step: Y." |
+| FEATURE | 2–3 paragraphs. Standard depth. ~20 lines. |
+| SPIKE | Findings-oriented prose. "You wanted to know whether X. Here's what you found." ~20 lines. |
+| FULL | 3–4 paragraphs. ~30–40 lines. Includes a "remaining work" paragraph. |
+
+**Use cases.**
+
+1. **Solo dev returning after weeks away** — read a paragraph instead of decoding STATE.md.
+2. **Showing the project to a non-Signal user** — collaborator, friend, prospective contributor.
+3. **Stakeholder-style updates** — pipe stdout into a Slack message or email draft.
+4. **Pre-`/sig:resume` orientation** — read this first to remember *why* the project exists, then run `/sig:resume` for the tactical re-orientation.
+
+**Why log, not fix now.** New command surface area — same overhead as `/sig:report`, `/sig:audit`, `/sig:add`, `/sig:docs-update`, `/sig:goal`: validator's `REQUIRED_COMMANDS`, README mentions, decision-tree viewer (`docs/map/index.html`), MCP/skill descriptions, plugin manifest. Plus the prose-generation prompt is non-trivial — translating Signal vocabulary into plain language without losing fidelity is a small design study, not a one-liner. Bundle with `/sig:report` and the other read-only synthesis commands when they ship together.
+
+**Anti-rationalization to lock in early:**
+- *"Just add `--plain` to `/sig:report`."* — No. Same reason `/sig:status` rejected flags that change output shape: the parent command's contract is load-bearing. Different audience, different vocabulary, different shape = different command.
+- *"`/sig:status` is short enough, just read that."* — `/sig:status` is **deliberately jargon-heavy and tactical.** It's optimized for the user mid-flight, not for orientation. Forcing it to double as plain-English overview destroys both contracts.
+- *"Use `/sig:report` and skim."* — `/sig:report` is 60–100 lines of phase narrative with Signal vocabulary throughout. Not the same artifact.
+- *"Just write a README paragraph and call it done."* — README is static; `/sig:orient` describes the project *as it currently stands*, derived from live state. The synthesis is the value, same as `/sig:status` and `/sig:report`.
+- *"Make it a fancy LLM-paraphrased version of `/sig:report`."* — Tempting, but non-deterministic LLM paraphrase breaks the "re-running produces the same output" property all three read-only commands share. Output must be deterministic — templated prose with state-derived substitutions, not free-form generation.
+- *"Add audience flags (`--for-stakeholder`, `--for-collaborator`)."* — Premature. Ship the single plain-English mode first; add audience variants only if the single mode proves insufficient in real use.
+
+**Open design questions:**
+- **Deterministic prose templating** — concretely, how does state map to paragraph structure? Probably needs a small template DSL or a prompt-with-fixed-structure. Worth a small spike before committing to implementation.
+- **Phase-to-plain-English mapping** — CALIBRATE → "deciding how much rigor to apply," DISCUSS → "working out the design," PLAN → "breaking down the work," EXECUTE → "building it," VERIFY → "testing it," REVIEW → "quality-checking it," SHIP → "shipping it." Needs a reference table in `references/`.
+- **Tier-to-plain-English mapping** — SKETCH → "a throwaway exploration," FEATURE → "a focused feature build," SPIKE → "an investigation into a specific question," FULL → "a production-quality project." Also reference-worthy.
+- **How does it handle multi-milestone projects?** Signal itself is at M4.5 with M5 on the horizon. Plain-English version of that is harder than single-milestone projects.
+
+**Relationship to `/sig:report`:** Sibling, not subset. They share `.planning/` source data and helper code (`readProfile`, `readState`, `readOpenQuestions`, `nextActionForPhase` from `tools/lib/status.js`) but have different output shapes, audiences, and vocabulary discipline. Likely co-ship.
+
+**Resolve by:** real Signal usage produces a moment where the user (or someone they're showing the project to) wishes there were a non-jargon overview, OR `/sig:report` ships and immediately gets a "but I want this in plain English" request. Likely Milestone 5, co-shipped with `/sig:report` and possibly `/sig:audit` as a "read-only synthesis commands" cluster — all three share validator/README/manifest overhead.
+
+---
+
 ## `/sig:audit` — engineering-readiness audit (codebase scorecard + refactor plan)
 
 **Status:** Logged 2026-05-09. Source: review of *Code Evaluation Audit* (Nate Bjones, `promptkit.natebjones.com/20260504_qbn_promptkit_1`) — adapted, not ported. Two interview-style prompts in the source; the 6-dimension scorecard is the keeper insight, translated to Signal's artifact-driven substrate. Drop the source's "Mythos-class adversarial review readiness" framing — newsletter-bait tied to a 2026 news cycle; the underlying dimensions are evergreen without it.
