@@ -56,7 +56,18 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 **MILESTONE 4.5 underway** — Release Hardening / Stranger-Adoption Readiness; 6 original Epics + E7 = 7 total. Status: **E1.S1 + E1.S2 Phase A + E2.S1 + E6 full + E7 full = 5 ship-events** done; E1.S3–S5 + E2.S2–S5 + E3 (in-flight) + E4 + E5 pending.
 
-**Active Epic: M4.5.E3** (DISCUSS complete 2026-05-24 + same-day **audience-reframe revision**). Public-facing documentation rewrite, **scope-shrunk to self + peers audience**: not optimizing for external contributors near-term. 2 slices (was 3): **S1 privacy** (README section + PRIVACY.md + `tools/audit-network-calls.sh` + docs/map link) → **S2 compatibility note + slim SECURITY.md + Epic close** (README mini-table only, no `docs/compatibility.md` sub-doc; SECURITY.md ~25 lines with no Signal jargon per D-E3-10; CHANGELOG `[0.1.3]` E3 block; MILESTONE-4.5.md annotations). 12 decisions locked + 3 NEW (D-E3-10 plain-language discipline; D-E3-11 audience reframe; D-E3-12 E1.S3-S5 shelved) in DECISIONS.md 2026-05-24 revision entry. CONTRIBUTING.md + issue templates + `docs/compatibility.md` **deferred** with explicit revisit triggers. Next: `/sig:plan` to produce M4.5.E3-RESEARCH/PLAN/VALIDATION artifacts on the revised scope.
+**Active Epic: M4.5.E3** (PLAN complete 2026-05-24). Public-facing documentation rewrite, **scope-shrunk to self + peers audience** (per audience-reframe revision earlier same day). DISCUSS + PLAN both shipped on 2026-05-24.
+
+**Final E3 shape (post PLAN gate, commit `59cbfdd`):** 2 slices, 9 tasks total.
+
+- **S1 privacy posture** (3 tasks): RED `tests/audit-network-calls.test.js` → GREEN `tools/audit-network-calls.js` (Node ESM, not `.sh` per D-E3-1-amend-b) → README "Privacy & telemetry" section + CHANGELOG. **No PRIVACY.md** (per D-E3-1-amend — 0 of 6 peer plugins ship one; ecosystem norm is silence-as-no-telemetry).
+- **S2 compat + Open Source Origins + slim SECURITY + close** (7 tasks): `references/facts.md` canonical fact source (per D-E3-NEW-13) → RED consistency tests + jargon-lint helper → README compat section + docs/map link → **README rewrite `## Credits & Heritage` → `## Open Source Origins`** with gratitude framing (per D-E3-NEW-14) → `SECURITY.md` (standard shape, zero Signal jargon) → MILESTONE annotations + FUTURE-IDEAS deferred-contribution entry → CHANGELOG + E3 close.
+
+**Decisions locked total:** 12 DISCUSS + 3 revision (D-E3-10/11/12) + 4 PLAN-gate (D-E3-1-amend, D-E3-1-amend-b, D-E3-NEW-13, D-E3-NEW-14) = **19**. Authoritative scope: `.planning/M4.5.E3-PLAN.md`. CONTRIBUTING.md + issue templates + `docs/compatibility.md` **deferred** with explicit revisit triggers (D-E3-11).
+
+**Test forecast:** 384 → ~396 (+12 across `tests/audit-network-calls.test.js` + `tests/cross-file-consistency.test.js`).
+
+**Next:** `/sig:execute` on S1.t1 (write RED tests for the audit-network-calls script).
 
 **Remaining M4.5 after E3 closes** (recommended order):
 
