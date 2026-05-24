@@ -695,3 +695,93 @@ Rationale: A stranger evaluating Signal skims the top, scrolls to commands ("wha
 
 ---
 
+## 2026-05-24 — M4.5.E8 DISCUSS decisions locked (6 decisions)
+
+**Context.** E8 — `/sig:doctor` install-state diagnostician + ownership reframe — scoped 2026-05-24 after frustration that 3 of 5 install failure modes (P1/P2/P3) are upstream Claude Code plugin-host bugs, not Signal bugs, but the 280-line troubleshooting doc reads as Signal's shame. Sequenced before E5 launch in MILESTONE-4.5.md § E8 — launching without it ships the current install dance to strangers. PROFILE.md tier: FULL; `gate_strictness: strict`.
+
+**State machine note.** This DISCUSS ran in parallel with M4.5.E3's in-flight state (E3 DISCUSS complete 2026-05-24; awaiting PLAN). STATE.md was not updated for E8; this entry + `M4.5.E8-REQUIREMENTS.md` are the durable capture. Executes after E3 closes. Captured-in-the-moment per user feedback (see memory `feedback_document-in-the-moment`) rather than waiting for E3's full ship cycle.
+
+**D-E8-1 — Execution model: generate a runnable script (not direct execution).**
+
+`/sig:doctor --fix` and `/sig:doctor --reinstall` write `~/.claude/sig-doctor.sh` containing the remediation sequence, print `Run: bash ~/.claude/sig-doctor.sh`, and exit. User reviews the script, runs it manually, then re-invokes `/sig:doctor` to verify the install is healthy.
+
+Rationale: maximum auditability — user sees exactly what will mutate `~/.claude/` before it runs. Sidesteps the "can a slash command invoke `/plugin uninstall` from inside Claude Code" unknown (deferred to OQ3 for PLAN's research). Two-step flow is acceptable cost; the trust gain dwarfs the friction.
+
+Rejected: direct execution with per-action prompts (technical unknown around invoking other slash commands from inside one); print-only mode (collapses `--fix` / `--reinstall` into the diagnose mode's output — no real feature distinction).
+
+**D-E8-2 — OS support: macOS only first ship; Linux/WSL stub.**
+
+Detection logic handles macOS paths (`/Users/$USER/.claude/`). Linux and WSL invocations print `/sig:doctor currently supports macOS only. Linux/WSL support is in flight (see docs/install-troubleshooting.md for the manual sequence).` and exit 0. Real Linux/WSL paths added in a follow-on slice when E1.S3 lands fresh-machine hardware verification.
+
+Rationale: hardware reality — Mac Studio + biz machine + personal laptop are all macOS. `docs/install-troubleshooting.md` is already macOS-first. Blocking E8 ship on Linux/WSL hardware availability would push E8 past E5 launch, defeating the point.
+
+Rejected: macOS + Linux day-one (requires Linux fixture tests + verification machine, bottlenecks on E1.S3 hardware); all three day-one (longest path, blocks ship).
+
+**D-E8-3 — Script style: interactive `[y/N]` per mutating step.**
+
+Generated `~/.claude/sig-doctor.sh` wraps each mutating action in `read -p "Execute: ... ? [y/N]"` prompts. User runs the script, sees each step, confirms or skips per-action. Declining a prompt skips that action and continues to the next.
+
+Rationale: belt-and-suspenders. The script-generation flow already provides audit-at-generation-time; interactive prompts add audit-at-execution-time. User explicitly chose this against the recommendation (which was straight-through `set -euo pipefail`), citing that for `~/.claude/` mutations — which affect every Claude Code plugin the user has installed — redundant safeguards are worth the friction.
+
+Rejected: straight-through with `set -e` (efficient but no execution-time confirmation; user pushed back on this even though it was recommended); commented-out copy-paste (collapses into a glorified copy-paste sheet — `docs/install-troubleshooting.md` already does that).
+
+**D-E8-4 — Latest-version source: GitHub releases API, 24h cache.**
+
+`/sig:status` and `/sig:doctor` query `https://api.github.com/repos/InsightRiot/signal/releases/latest`, use the `tag_name` field, cache the result 24h in `~/.claude/.sig-version-cache.json` (location not yet finalized — see OQ5). Tag-based comparison: warnings fire only when there's a tagged release the user could actually install.
+
+Rationale: matches Signal's actual release model — tags are the user-visible release contract. Currently `[0.1.3]` is unreleased; users on v0.1.2 correctly see "up to date" until v0.1.3 cuts. Plugin.json-on-main-branch was rejected for generating constant "you're behind!" warnings during unreleased windows with no upgrade path to take (noise, not signal). marketplace.json was rejected for ref-pin/tag misalignment confusion.
+
+**D-E8-5 — Flag naming: `--fix` + `--reinstall` (drop `--upgrade`).**
+
+User reframe during DISCUSS: `--upgrade` conflates with `/plugin install`'s normal path. The hostage situation E8 solves is **broken-state recovery**, not version upgrade. Final flag set:
+
+- `/sig:doctor --fix` — surgical remediation: addresses only the specific P-states doctor detected. Generated script contains only those commands.
+- `/sig:doctor --reinstall` — full canonical clean reinstall: cache purge + settings.json edit + `/plugin uninstall` + `/plugin install` + `/reload-plugins`. Same script contents regardless of starting state; interactive prompts are the safeguard against unnecessary mutations on a healthy install.
+
+`/sig:status`'s version-check recommendation table accounts for state-combination:
+
+| Installed | Latest | P-states | Recommendation |
+|---|---|---|---|
+| stale | newer exists | none | `/plugin install sig@signal` (normal path) |
+| stale | newer exists | yes | `/sig:doctor --reinstall` (clean + upgrade) |
+| current | none | yes | `/sig:doctor --fix` (surgical) |
+| current | none | none | (no warning) |
+
+Rationale: user catch is sharp. `--upgrade` was the wrong word for what E8 does. `--reinstall` honestly names "broken-state recovery." Two flags earn their keep: `--fix` is low-risk and surgical; `--reinstall` is the headline feature that addresses the launch-readiness frustration.
+
+Rejected: merge into `--upgrade` only ("what will this script do?" becomes "depends on doctor's findings" — harder to reason about pre-execution); `--fix` only with no `--reinstall` ("I just want latest" becomes multi-step manual — the failure mode E8 exists to eliminate).
+
+**D-E8-6 — NFRs all N/A.**
+
+All five FULL-tier NFR items confirmed N/A:
+
+- Health/liveness probe — N/A (CLI command, not a service runtime)
+- Graceful shutdown — N/A (command runs and exits; no long-running process)
+- Structured request logging — N/A (output is user-facing diagnostic prose)
+- Security headers — N/A (no web surface)
+- Rate limiting — addressed structurally by the 24h on-disk cache on the GitHub releases API. The cache IS the rate-limiting mechanism.
+
+Same NFR shape as E3 (docs Epic — also all-N/A). E8 is a CLI diagnostic command; ops-shaped concerns don't apply.
+
+**Open questions deferred to PLAN's research phase** (full list in `M4.5.E8-REQUIREMENTS.md` § Open Questions):
+
+- **OQ1:** canonical path Claude Code uses for plugin state — empirically verify on Mac Studio
+- **OQ2:** does `api.github.com/.../releases/latest` work unauthenticated, or require `gh`?
+- **OQ3:** can the generated script execute `/plugin uninstall` / `/plugin install` directly, or must those steps document themselves as user-runs-manually?
+- **OQ4:** upstream filings timing — pre-S3 SHIP or in parallel? (lean: parallel, per `feedback_document-in-the-moment`)
+- **OQ5:** cache file location
+
+**Implication for PLAN:**
+
+- Three slices, one ship event each:
+  - S1 = diagnose-only command + fixture tests + validator wiring
+  - S2 = `--fix` + `--reinstall` script generation + script-content lint tests
+  - S3 = `/sig:status` version-check + 24h cache + `docs/install-troubleshooting.md` reframe + (optional) upstream filings + CHANGELOG `[0.1.3]` E8 block + Epic close
+- Test delta: ~40-50 new tests baseline (384 → ~430)
+- No new runtime dependencies expected
+- Validator changes: `REQUIRED_COMMANDS += 'commands/doctor.md'`; CLAUDE.md 14 → 15 commands
+- Dogfood gate (AC#13): real `--reinstall` end-to-end run on biz machine before SHIP
+
+**Reference:** Full functional requirements + acceptance criteria + open questions in `.planning/M4.5.E8-REQUIREMENTS.md` (written during this DISCUSS). MILESTONE-4.5 § E8 retains the human-readable scope statement.
+
+---
