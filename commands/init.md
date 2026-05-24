@@ -14,7 +14,7 @@ Authoritative references (read if you need to refresh):
 - `${CLAUDE_PLUGIN_ROOT}/references/question-patterns.md` — strict enum / 3+other / open-ended conventions (Step 1's ambiguous case + Step 5 use 3+other)
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `initState`, `PHASES`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `ProfileSchemaError`
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/landscape.js` — `readAllScans`, `extractSection`, `extractField`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/landscape.js` — `readAllScans`, `extractSection`, `extractField`, `embedSection`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/walkthrough.js` — `countMarkers`, `appendNote` (Step 5 helpers)
 
 ## Workflow
@@ -206,7 +206,9 @@ If the README explicitly states the project's purpose, mark that part `[INFERRED
 
 ## Project structure
 
-{Embed the structure scan's "## Source Tree (depth-3)" table verbatim. Above the table, prepend a one-line monorepo summary from "## Monorepo Detection" — e.g., "Single-repo project." or "Monorepo (pnpm workspaces, 4 sub-packages: api, web, shared, cli)."}
+{Write the literal output of `embedSection(scans.structure, 'Source Tree (depth-3)')` from `tools/lib/landscape.js`. Do **not** paraphrase, retype, or summarize this section — `embedSection` returns the scan's Source Tree body verbatim (tables, fenced code, bullets preserved character-for-character). Asking the model to "embed verbatim" historically produced character-drop bugs (M4.5.E7 patterns 3 + 4); calling the helper eliminates that surface.
+
+Above the embedded table, prepend a one-line monorepo summary from `extractSection(scans.structure, 'Monorepo Detection')` — e.g., "Single-repo project." or "Monorepo (pnpm workspaces, 4 sub-packages: api, web, shared, cli)."}
 
 ## Activity signals
 
@@ -254,7 +256,7 @@ If the README explicitly states the project's purpose, mark that part `[INFERRED
 - **Mechanical sections (2-6):** Use `extractSection` + `extractField` to pull values; if a field is missing or the source scan failed, write `[scan output unavailable]` rather than guessing.
 - **Narrative sections (1 + 7):** Confidence labels are mandatory. Every inferred fact has one of `[INFERRED — high confidence]` / `[INFERRED — low confidence]` / `[FILL IN]`. **Do not fabricate.** If you can't infer, mark `[FILL IN]`.
 - **Don't aggregate weak signals into strong claims.** Two low-confidence inferences don't compose into a high-confidence one. Mark them both as low.
-- **Embed scanner data; don't re-summarize.** "Project structure" should mostly be the structure scanner's output verbatim — your job is template-fill, not paraphrase. Paraphrase introduces drift.
+- **Embed scanner data via `embedSection`; don't re-summarize.** Section 3 (Project structure) must call `embedSection(scans.structure, 'Source Tree (depth-3)')` — the helper preserves tables, code, and pipe characters verbatim. Asking the model to "embed verbatim" risks character drops at table cells and code-fence boundaries (M4.5.E7 patterns 3 + 4); the helper takes that surface out of the loop.
 
 Write the file to `.planning/LANDSCAPE.md`.
 

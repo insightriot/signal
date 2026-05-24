@@ -143,3 +143,17 @@ describe('synthesizer Layer B: embedSection helper (RED until M4.5.E7.S1.t5)', (
     expect(typeof landscape.embedSection, 'embedSection is not exported from landscape.js — implement in S1.t5').toBe('function');
   });
 });
+
+// ─── Layer B: init.md template references embedSection (S1.t6) ────────────
+
+describe('synthesizer Layer B: init.md template wiring (S1.t6)', () => {
+  it('commands/init.md Step 3 references embedSection for the structure-scan Source Tree', async () => {
+    const initMd = await read(new URL('../commands/init.md', import.meta.url).pathname);
+    // The Project structure synthesis instruction must explicitly call
+    // embedSection rather than asking the model to "embed verbatim" by hand.
+    expect(initMd).toContain("embedSection(scans.structure, 'Source Tree (depth-3)')");
+    // The Synthesis rules bullet should also mention embedSection so the
+    // wiring is documented in two places (instruction + rule).
+    expect(initMd.match(/embedSection/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+  });
+});
