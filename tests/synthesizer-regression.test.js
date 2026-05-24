@@ -149,11 +149,80 @@ describe('synthesizer Layer B: embedSection helper (RED until M4.5.E7.S1.t5)', (
 describe('synthesizer Layer B: init.md template wiring (S1.t6)', () => {
   it('commands/init.md Step 3 references embedSection for the structure-scan Source Tree', async () => {
     const initMd = await read(new URL('../commands/init.md', import.meta.url).pathname);
-    // The Project structure synthesis instruction must explicitly call
-    // embedSection rather than asking the model to "embed verbatim" by hand.
     expect(initMd).toContain("embedSection(scans.structure, 'Source Tree (depth-3)')");
-    // The Synthesis rules bullet should also mention embedSection so the
-    // wiring is documented in two places (instruction + rule).
     expect(initMd.match(/embedSection/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ─── Layer C: prompt-template lint against commands/init.md (S1.t7) ───────
+//
+// Property tests asserting shape properties of the template that, if
+// violated, induce the M4.5.E7 R1 prose-anti-patterns (mostly 4, 5, 6).
+// Patterns 1 + 2 (heading drops) are Layer B; patterns 5 + 6 (sentence /
+// code-fence boundary + mid-word truncation in dense prose) are this layer.
+
+import {
+  loadTemplate,
+  findLongLines,
+  findSentenceBeforeFence,
+  findShortHeadings,
+  findDoubleBraces,
+} from './helpers/template-lint.js';
+
+const MAX_LINE_LEN = 500;
+const MIN_HEADING_LEN = 8;
+const SHORT_HEADING_WHITELIST = new Set(['Vision', 'Scope', 'Notes']);
+
+describe('synthesizer Layer C: commands/init.md prompt-template lint', () => {
+  it('no template line exceeds 500 chars (catches pattern-6-style dense-prose truncation)', async () => {
+    const { lines } = await loadTemplate('commands/init.md');
+    const violations = findLongLines(lines, MAX_LINE_LEN);
+    expect(
+      violations,
+      `Found ${violations.length} lines > ${MAX_LINE_LEN} chars:\n${violations
+        .map((v) => `  L${v.line} (${v.length} chars): ${v.preview}`)
+        .join('\n')}`,
+    ).toEqual([]);
+  });
+
+  it('no template line places a sentence-terminator before a fenced-code opener (catches pattern 5)', async () => {
+    const { lines } = await loadTemplate('commands/init.md');
+    const violations = findSentenceBeforeFence(lines);
+    expect(
+      violations,
+      `Found ${violations.length} sentence-then-fence-on-same-line:\n${violations
+        .map((v) => `  L${v.line}: ${v.preview}`)
+        .join('\n')}`,
+    ).toEqual([]);
+  });
+
+  it('no h2 heading literal in template is shorter than 8 chars (excluding Vision/Scope/Notes)', async () => {
+    const { lines } = await loadTemplate('commands/init.md');
+    const violations = findShortHeadings(lines, MIN_HEADING_LEN, SHORT_HEADING_WHITELIST);
+    expect(
+      violations,
+      `Found ${violations.length} suspiciously-short h2 headings:\n${violations
+        .map((v) => `  L${v.line}: "${v.heading}" (${v.heading.length} chars)`)
+        .join('\n')}`,
+    ).toEqual([]);
+  });
+
+  it('no template line contains double-braces ({{ or }}) — single-brace placeholders only', async () => {
+    const { lines } = await loadTemplate('commands/init.md');
+    const violations = findDoubleBraces(lines);
+    expect(
+      violations,
+      `Found ${violations.length} double-brace patterns:\n${violations
+        .map((v) => `  L${v.line}: ${v.preview}`)
+        .join('\n')}`,
+    ).toEqual([]);
+  });
+
+  it('lint helpers also apply cleanly to commands/discuss.md and commands/calibrate.md (sibling-template coverage)', async () => {
+    for (const rel of ['commands/discuss.md', 'commands/calibrate.md']) {
+      const { lines } = await loadTemplate(rel);
+      expect(findDoubleBraces(lines), `${rel}: double-braces`).toEqual([]);
+      expect(findSentenceBeforeFence(lines), `${rel}: sentence-then-fence`).toEqual([]);
+    }
   });
 });
