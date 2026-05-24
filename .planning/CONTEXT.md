@@ -54,18 +54,18 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Active work
 
-**MILESTONE 4.5 underway** — Release Hardening / Stranger-Adoption Readiness; 6 original Epics + E7 scaffolded 2026-05-19. Status: **E1.S1 + E1.S2 Phase A + E2.S1 + E6 full = 4 ship-events** done; E1.S3–S5 + E2.S2–S5 + E3 + E4 + E5 + E7 pending.
+**MILESTONE 4.5 underway** — Release Hardening / Stranger-Adoption Readiness; 6 original Epics + E7 = 7 total. Status: **E1.S1 + E1.S2 Phase A + E2.S1 + E6 full + E7 full = 5 ship-events** done; E1.S3–S5 + E2.S2–S5 + E3 (in-flight) + E4 + E5 pending.
 
-**No active Epic right now.** Phase is `SHIP` (M4.5.E1.S2 Phase A just shipped via `f38187a`). The next Epic is Brett's choice; recommended order:
+**Active Epic: M4.5.E3** (DISCUSS complete 2026-05-24). Public-facing documentation rewrite — additive scope (README pitch already mostly done; E3 fills the privacy / compatibility / governance gaps strangers expect from any production-claimable OSS plugin). 3 slices locked: S1 privacy (README section + PRIVACY.md + audit script) → S2 compatibility (README table + docs/compatibility.md) → S3 governance (CONTRIBUTING.md + SECURITY.md + 2 issue templates). 9 decisions locked in DECISIONS.md 2026-05-24 entry. Demo asset deferred to E5; architecture extraction declined. Next: `/sig:plan` to produce M4.5.E3-RESEARCH/PLAN/VALIDATION artifacts.
 
-1. **M4.5.E7 (NEW — recommended first)** — synthesizer prose-quality + install-UX hardening. The character-eating bug is a real quality blocker that strangers will see in their first `/sig:init` output. Fixing it before E3 docs rewrite means the docs can showcase clean output. ~1–2 focused days.
-2. **M4.5.E3** — public-facing docs rewrite (README-as-pitch, CHANGELOG, compatibility, CONTRIBUTING/SECURITY, privacy). Gates external launch. Depends on E7 not being a blocker.
-3. **M4.5.E1 Slices 3–5** — install matrix rows R2/R3/R5 (Linux + WSL coverage; need fresh machines), versioning policy doc, validator hardening. S3 row R1 + S2 Phase A both shipped via E1.S2 commit; S2 Phase B permanently shelved per outcome (a).
-4. **M4.5.E2 Slices 2–5** — `/sig:add` force-route flags + cold-path interview + hardening + `/sig:plan` close-the-loop.
-5. **M4.5.E4** — worked example + comparison page (`docs/vs.md`).
-6. **M4.5.E5** — external validation + launch.
+**Remaining M4.5 after E3 closes** (recommended order):
 
-**To start the next Epic:** run `/sig:resume` first (auto-orientation briefing — reads PROFILE.md + STATE.md frontmatter + open questions + next-action), then `/sig:discuss` once you've picked a scope.
+1. **M4.5.E1 Slices 3–5** — install matrix rows R2/R3/R5 (Linux + WSL coverage; need fresh machines), versioning policy doc, validator hardening. S3 row R1 + S2 Phase A both shipped via E1.S2 commit; S2 Phase B permanently shelved per outcome (a).
+2. **M4.5.E2 Slices 2–5** — `/sig:add` force-route flags + cold-path interview + hardening + `/sig:plan` close-the-loop.
+3. **M4.5.E4** — worked example + comparison page (`docs/vs.md`).
+4. **M4.5.E5** — external validation + launch (owns the demo asset deferred from E3).
+
+**To start the next Epic after E3:** run `/sig:resume` first (auto-orientation briefing — reads PROFILE.md + STATE.md frontmatter + open questions + next-action), then `/sig:discuss` once you've picked a scope.
 
 **Multi-machine note:** as of 2026-05-19, Signal-the-codebase work happens on the **Mac Studio** (this machine). Biz machine + personal laptop are test environments for `/plugin install` verification. Don't run parallel `/sig:*` workflow commands on multiple machines — git race conditions create duplicate work. If laptop needs Signal v0.1.2 + the f38187a commands/init.md fix, follow `/plugin uninstall sig@signal` → `/plugin install sig@signal` → `/reload-plugins` (per `docs/install-verification.md` § R1 P1 workaround).
 

@@ -617,3 +617,81 @@ Rationale: two distinct findings (synthesizer ≠ install UX) → two slices kee
 **Reference:** Acceptance criteria in `.planning/M4.5.E7-REQUIREMENTS.md` (written during this DISCUSS). MILESTONE-4.5 § E7 retains the human-readable scope statement.
 
 ---
+
+## 2026-05-24 — M4.5.E3 DISCUSS decisions locked (9 decisions)
+
+**Context.** E3 — public-facing documentation rewrite — entered DISCUSS 2026-05-24 after E7 SHIP closed (`8723967`). The Epic was scoped 2026-05-13 against a README that read as internal architecture notes; the README has since evolved past that baseline (pitch + table + walkthrough + state-hygiene + brownfield + command-reference + heritage all live and working at 218 lines). E3 is therefore *additive* — fill the doc-surface gaps strangers expect (privacy, compatibility, governance) rather than re-architect what's already working. PROFILE.md tier: FULL; `gate_strictness: strict`.
+
+**Verification.** Network-call audit run during DISCUSS (`grep -rEn "fetch\(|require\(['\"]https?['\"]\)|node-fetch|axios|got|http\.request|https\.request" tools/ skills/ agents/ commands/`) returned **zero hits**. The "no network calls beyond Claude's API" privacy claim is structurally verifiable, not aspirational. The audit script is itself an E3 deliverable (FR1 + AC3) so contributors can rerun it.
+
+**D-E3-1 — Privacy as a doc pair: README section + PRIVACY.md.**
+
+README gets a 6–10 line "Privacy & telemetry" section before "Command reference" — the elevator answer for skimmers. `PRIVACY.md` at repo root carries the full statement: headline claim, audit method (the grep commands + their reproducibility via `tools/audit-network-calls.sh`), what `.planning/` contains and doesn't, and a "what would change this" clause (any future telemetry requires major-version bump + opt-in flag + audit appendix update).
+
+Rationale: Strangers reading the README want the 5-second answer. Auditors (or strangers with high-trust needs) want the reproducible method. The two-doc pair matches Keep-a-Changelog's pattern (README blurb + CHANGELOG.md detail).
+
+**D-E3-2 — Compatibility as a doc pair: README table + docs/compatibility.md.**
+
+README gets a "Requirements & compatibility" table (~12 lines, 4 rows: Node.js / Claude Code / OS / Git). `docs/compatibility.md` carries the full OS matrix mirroring `docs/install-verification.md`'s R-row convention. R1+ verified (macOS Mac Studio, 2026-05-23 from E7); R2 / R3 / R5 pre-stubbed as pending with their E1 slice owners.
+
+Rationale: README answers "can I run this?" in 5 seconds. `docs/compatibility.md` is the surface E1 slices write their cross-platform verification rows to as they ship. Same pattern as `docs/install-verification.md`.
+
+**D-E3-3 — Governance trio: CONTRIBUTING.md + SECURITY.md + 2 issue templates.**
+
+CONTRIBUTING.md (~80–120 lines): filing bugs, PR flow, local dev (`git clone` / `npm install` / validator / 384 tests / `CLAUDE_PLUGIN_ROOT`), `.planning/` ground rule, code style (no enforced linter, match patterns, one dep), release-process pointer, inline 3-line CoC stanza.
+
+SECURITY.md (~30–50 lines): supported versions (latest 0.1.x only), reporting (private email `brett@insightriot.com` or GitHub private vulnerability report), response posture (best-effort, ~72h ack, no SLA pre-1.0), disclosure (CHANGELOG entry), scope (plugin code; not Claude Code; not user project).
+
+Issue templates: `.github/ISSUE_TEMPLATE/bug_report.md` + `feature_request.md` + `config.yml` (blank issues disabled; questions routed per D-E3-6).
+
+Rationale: Strangers expect "if I find a bug, where does it go?" answered in three places (CONTRIBUTING, the issue chooser, SECURITY for the security carve-out). This is the standard MIT-OSS shape and signals "this project takes reports seriously" without ceremony.
+
+**D-E3-4 — Three slices: S1 privacy → S2 compatibility → S3 governance.**
+
+- **S1.** README privacy section + PRIVACY.md + `tools/audit-network-calls.sh`. One ship event.
+- **S2.** README compatibility table + `docs/compatibility.md` + cross-link to install-verification.md. One ship event.
+- **S3.** CONTRIBUTING.md + SECURITY.md + `.github/ISSUE_TEMPLATE/*` + CHANGELOG `[0.1.3]` E3 block + Epic close. One ship event.
+
+Rationale: Matches Brett's 1-thing-per-slice cadence (E1/E2/E6/E7). Each slice is independently reviewable (privacy ≠ compatibility ≠ governance) and each ships its own CHANGELOG bullet. Bundling would force a single oversized PR review.
+
+**D-E3-5 — Tag bump deferred; `[0.1.3]` stays Unreleased through E3.**
+
+CHANGELOG `[0.1.3]` already carries the E7 block (Unreleased). E3 appends to the same heading. The actual `0.1.3` tag cuts after E5 launch or whenever Brett judges enough has accumulated. Avoids two tags in one week.
+
+Rationale: Tags signal "user-visible release." Docs-only Epics don't usually warrant standalone tags; bundling with E7's synthesizer fix is honest.
+
+**D-E3-6 — Issue chooser hides blank issues; questions route to Discussions or Question-shaped bug.**
+
+`.github/ISSUE_TEMPLATE/config.yml` sets `blank_issues_enabled: false` and adds a `contact_links:` entry. If GitHub Discussions is enabled on the repo, it links there; if not, instructs openers to file a Question-shaped issue. The Discussions-enable check is an out-of-Claude action and is logged as OQ2 for S3 to branch on.
+
+Rationale: Blank issues are a known noise vector. Forcing the chooser keeps inbound triage cheap. Discussions vs Question-issue is a per-repo config; deciding both branches in DISCUSS unblocks S3.
+
+**D-E3-7 — No standalone CODE_OF_CONDUCT.md in E3.**
+
+CONTRIBUTING.md includes a 3-line inline CoC stanza ("be kind, assume good faith, no harassment"). Separate CoC file revisited if/when external contributors materialize (E5 follow-on or later).
+
+Rationale: A standalone CoC at solo-maintainer scale is more form than function — strangers read it as "this project pretends to be bigger than it is." Inline 3-line stanza in CONTRIBUTING is honest about scale and still discharges the "is this project welcoming?" question.
+
+**D-E3-8 — Demo asset deferred to E5.**
+
+E3 ships README pitch text + walkthrough only. The 30-second animated GIF / asciinema cast / screen recording originally listed in MILESTONE-4.5 § E3 moves to E5's scope (launch post needs a demo regardless).
+
+Rationale: Producing a demo in E3 then re-producing for E5's launch post is waste. The demo's audience is launch-day readers; ship it with launch. README's pitch text + tier-comparison table + walkthrough already communicates Signal's value to a curious skimmer without a video.
+
+**D-E3-9 — No architecture extraction in E3.**
+
+"Command reference" + "Credits & Heritage" sections stay in README (218 lines total). No `docs/architecture.md` created in E3.
+
+Rationale: A stranger evaluating Signal skims the top, scrolls to commands ("what does this actually do?"), scrolls to heritage ("who built this, what does it borrow?"). Splitting these across files adds a click-tax. 218 lines is not problematic for a substantive plugin's README. Re-evaluate after E5 if external feedback says the README scrolls too much.
+
+**Non-functional requirements (FULL-tier NFR checklist):** E3 ships static documentation files. **All five FULL NFR items (health probe, graceful shutdown, structured request logging, security headers, rate limiting) are N/A** — no service, no runtime, no network surface. The privacy statement (FR1) is the nearest security-relevant NFR, and its acceptance is structural (zero network calls in the plugin's executable surface), verified by the audit script.
+
+**Implication for PLAN:**
+- Three slices, one artifact pair each. PLAN produces `M4.5.E3-RESEARCH.md` (light — most decisions already locked; research focus is OSS-doc-template best practices for CONTRIBUTING/SECURITY shape) + `M4.5.E3-PLAN.md` (S1/S2/S3 task breakdown with TDD-where-applicable) + `M4.5.E3-VALIDATION.md`.
+- Test delta: zero new tests baseline (docs are static); +5 LOC if PLAN decides OQ1 (audit-script existence test) or OQ3 (cross-file consistency test) warrant inclusion.
+- Validator changes: none expected.
+
+**Reference:** Acceptance criteria in `.planning/M4.5.E3-REQUIREMENTS.md` (written during this DISCUSS). MILESTONE-4.5 § E3 retains the human-readable scope statement.
+
+---
+
