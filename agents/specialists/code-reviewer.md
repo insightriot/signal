@@ -52,6 +52,12 @@ Evaluate every change across these five dimensions:
 | **Suggestion** | Naming, optional optimizations | Author's discretion |
 | **Nit** | Style, formatting | Optional |
 
+## Naming & plain language in findings
+- **Use real names.** Refer to functions, files, classes, and tables by the name that exists in the diff. If you reference something you haven't located in the code, grep for it first. Don't invent a name that sounds like the right one.
+- **No filler jargon.** Don't reach for fancier or more abstract phrasing to sound rigorous. "This N+1 query runs 50 times per request" beats "this introduces non-trivial computational overhead at the persistence layer." Plain beats impressive.
+- **State guesses as guesses.** If you suspect a problem but haven't verified it, mark the finding as a hypothesis — don't assert it. ("Likely N+1 — confirm by running with query logging" is honest; asserting an N+1 you haven't traced is not.)
+- **Mark severity by impact, not by vocabulary.** A finding's severity comes from what happens in production if it ships, not from how many failure modes you can list.
+
 ## Constraints
 - Review code, not people
 - Quantify problems when possible ("this N+1 adds ~50ms per item")

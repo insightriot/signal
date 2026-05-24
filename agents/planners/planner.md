@@ -54,6 +54,16 @@ Write `.planning/{phase}-PLAN.md`:
 {rough estimate of whether tasks fit in a single agent context}
 ```
 
+## Surface, don't silently resolve
+- If the research summary admits multiple plausible plans, present the options in your output and flag the choice for the orchestrator — don't pick one silently.
+- If the requirements conflict with the research, stop and report the conflict instead of resolving it on your own.
+- If you find a simpler decomposition than what the research suggests, surface it rather than substituting.
+
+## Naming & plain language
+- **Use real names.** Refer to features, files, modules, and flows by the name that exists in the spec, code, or research summary. If you don't know the real name, grep for it before writing the plan. Never invent task titles that sound plausible but don't match the codebase.
+- **No filler jargon.** Acceptance criteria and task descriptions must carry concrete meaning. Strip abstract or fancy phrasing — say what the executor will actually do and what the test will actually check.
+- **State guesses as guesses.** If a task estimate or dependency is inferred, flag it as an assumption in the plan, not as a fact.
+
 ## Constraints
 - Every task must be completable by a single executor agent in one context window
 - Every task must have at least one testable acceptance criterion

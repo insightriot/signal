@@ -88,6 +88,29 @@ tools/          # GSD's CLI tools layer
 - Integration of existing frameworks, not reinvention — respect both projects' licenses
 - `STATE.md` uses YAML frontmatter (`schema_version: 1`) as of v0.1.x (M4.5.E6). Schema migrations are auto-applied on first write to a legacy STATE.md; original content is preserved verbatim under an HTML comment marker. See `references/state-schema.md` and `docs/migration-state-schema-v0.1.x.md`.
 
+## Working in this repository
+
+Behavioral rules that apply to every conversation and every agent, in addition to anything Signal's phase commands add on top.
+
+### Naming & plain language
+- **Use real names.** Refer to features, functions, files, tables, and flows by the name that exists in the code, plan, or spec. If you don't know the real name, grep for it before using it. Never invent a label that sounds plausible.
+- **Mark dev-only terms.** If you reference an internal identifier (a function, a flag, a table), say it's the code-level name — don't present it as user-facing language.
+- **No filler jargon.** Don't reach for a fancier word to sound precise. If a term doesn't carry concrete meaning, cut it and say the plain thing.
+- **State guesses as guesses.** If you're inferring something, flag it as an assumption. Don't assert it.
+- **Don't dress up mistakes.** If you got something wrong, say so plainly and fix it. Never reframe an error as if it were intentional.
+
+### Surface ambiguity, don't resolve silently
+- If a request admits multiple interpretations, present them. Don't pick one and proceed.
+- If you find a simpler approach than what was asked, surface it. Don't silently substitute.
+- If you discover context that conflicts with what you were told, stop and flag it.
+
+### Surgical edits
+- Every changed line should trace directly to the requested change. If you can't justify a line against the task, don't write it.
+- Don't refactor, reformat, or "improve" code outside the scope of the change — even in files you're already editing.
+- Match the existing style of the file you're editing, even if you'd do it differently.
+- Pre-existing dead code or issues you notice but weren't asked to fix: mention them. Don't delete or "improve" them unsolicited.
+- Orphans your changes created (now-unused imports, variables, helpers): remove them.
+
 ## Reference Repositories
 
 - **Agent Skills**: https://github.com/addyosmani/agent-skills

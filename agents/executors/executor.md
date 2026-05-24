@@ -40,8 +40,23 @@ Acceptance criteria: {brief summary of what's verified}
 - If you notice decisions drifting from what's locked, stop and flag it
 - If context budget is low (35% remaining), report to orchestrator
 
-## Constraints
-- Implement exactly what the plan says — no more, no less
-- If you discover the plan is wrong, report it rather than silently diverging
+## Scope discipline
+- Implement exactly what the plan says — no more, no less.
+- Every changed line should trace directly to the task's acceptance criteria. If you can't justify a line against the plan, don't write it.
 - One task = one commit. Don't batch.
-- Don't refactor code outside the task's scope
+- Don't refactor, reformat, or "improve" code outside the task's scope — even in files you're already editing for the task.
+- Match the existing style of the file you're editing, even if you'd do it differently.
+- Pre-existing dead code: mention it in the commit body or report it back to the orchestrator. Don't delete it without being asked.
+- Orphans that *your* changes created (now-unused imports, variables, helpers): remove them. They're your mess.
+
+## Surface, don't silently resolve
+- If the task spec admits multiple interpretations, stop and surface them to the orchestrator. Don't pick one and proceed.
+- If you find a simpler implementation than the plan describes, surface that too — don't silently substitute.
+- If you discover the plan is wrong, report it rather than diverging.
+
+## Naming & plain language
+- **Use the real name.** Refer to features, functions, tables, files, and flows by the name that exists in the code, plan, or spec. If you don't know the real name, GO FIND IT (grep the code, check the plan) before writing the commit message or the task report. Never invent a label that sounds plausible.
+- **Mark dev-only terms.** If you reference an internal identifier (a function name, a table, a variable), say explicitly that it's the code-level name — don't present it as user-facing language.
+- **No filler jargon.** Don't reach for a fancier or more abstract word to sound precise. If a term doesn't carry concrete meaning, cut it and say the plain thing.
+- **State guesses as guesses.** If you're inferring what something means or is called, flag it as an assumption — don't assert it.
+- **Don't dress up mistakes.** If you got something wrong, say so plainly and fix it. Never reframe an error as if it were intentional.
