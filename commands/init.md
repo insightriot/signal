@@ -167,7 +167,11 @@ You are read-only.
 Working directory: {cwd}
 ```
 
-This fallback path is documented at M4.t15 (dogfood pass found that dev-mode plugin agents don't auto-register with the Task tool). **Marketplace-install behavior is empirically resolved as of 2026-05-19** (M4.5.E1.S2 Phase A; see `docs/install-verification.md` § R1 and `.planning/DECISIONS.md` 2026-05-19 entry): post-install, Claude Code auto-registers all of Signal's nested agents under the naming convention `sig:<subdirectory>:<name>` — for example, `sig:scanners:stack-scanner`, `sig:specialists:security-auditor`. The Task tool's `subagent_type` accepts the bare name (`stack-scanner`) and resolves via the loaded-plugins namespace; the fully-qualified `sig:scanners:stack-scanner` form is the one shown in `/agents` output. **The fallback path below is dev-mode-only**; production marketplace installs hit the primary named-subagent path.
+This fallback path is documented at M4.t15 (dogfood pass found that dev-mode plugin agents don't auto-register with the Task tool).
+
+**Marketplace-install behavior is empirically resolved as of 2026-05-19** (M4.5.E1.S2 Phase A; see `docs/install-verification.md` § R1 and `.planning/DECISIONS.md` 2026-05-19 entry): post-install, Claude Code auto-registers all of Signal's nested agents under the naming convention `sig:<subdirectory>:<name>` — for example, `sig:scanners:stack-scanner`, `sig:specialists:security-auditor`.
+
+The Task tool's `subagent_type` accepts the bare name (`stack-scanner`) and resolves via the loaded-plugins namespace; the fully-qualified `sig:scanners:stack-scanner` form is the one shown in `/agents` output. **The fallback path above is dev-mode-only**; production marketplace installs hit the primary named-subagent path.
 
 `/sig:init` runs **before** PROFILE.md exists, so all 4 scanners always fire. The MILESTONE-4 spec mentions tier-aware scanner counts (SKETCH = 2), but that's moot for brownfield onboarding — calibration happens *after* this scan, and brownfield projects rarely calibrate to SKETCH anyway. (Locked design decision: scanner count is fixed at 4. Logged in DECISIONS.md.)
 
@@ -401,7 +405,9 @@ If none of these fit, describe what you'd prefer and I'll capture it.
 
 #### 5.4 Question pattern for `[FILL IN]` markers (open-ended-or-defer)
 
-`[FILL IN]` markers exist because Signal couldn't infer the field. There's no inferred content to accept, so the 3+other shape doesn't fit cleanly. Use the open-ended-justified pattern from `references/question-patterns.md` (the workflow-opening exception). **Render as plain-text question — do NOT use `AskUserQuestion`** (open-ended answers are free-text by design; the tool's option chrome is misleading for them). The "Or pick: A. Defer / B. Skip" fallback at the end of the prompt stays as literal markdown — let the user reply with prose or with "A" / "B".
+`[FILL IN]` markers exist because Signal couldn't infer the field. There's no inferred content to accept, so the 3+other shape doesn't fit cleanly. Use the open-ended-justified pattern from `references/question-patterns.md` (the workflow-opening exception).
+
+**Render as plain-text question — do NOT use `AskUserQuestion`** (open-ended answers are free-text by design; the tool's option chrome is misleading for them). The "Or pick: A. Defer / B. Skip" fallback at the end of the prompt stays as literal markdown — let the user reply with prose or with "A" / "B".
 
 ```
 {Field name} — Signal can't infer this; you have to articulate it.
