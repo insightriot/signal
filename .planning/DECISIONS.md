@@ -785,3 +785,78 @@ Same NFR shape as E3 (docs Epic — also all-N/A). E8 is a CLI diagnostic comman
 **Reference:** Full functional requirements + acceptance criteria + open questions in `.planning/M4.5.E8-REQUIREMENTS.md` (written during this DISCUSS). MILESTONE-4.5 § E8 retains the human-readable scope statement.
 
 ---
+
+## 2026-05-24 — M4.5.E3 audience reframe + E1.S3-S5 shelved (revision)
+
+**Context.** Same-day revision to the M4.5.E3 DISCUSS entry above. After the initial 9-decision lock, the user clarified two things during the pre-PLAN red-flag review:
+
+1. **Near-term audience is self + peers, not external contributors.** "I'm not overly concerned about contributors — I'm more concerned about stabilizing for use by myself and peers."
+2. **Cross-platform testing paused until tester volunteers materialize.** "Cross-platform is great — but can be focused on Mac for now until I can find some folks who are willing to test on Linux and Windows down the line."
+
+Both clarifications shrink E3's scope and shelf E1's remaining slices. The original lock is preserved verbatim above for archaeology; the revisions below supersede.
+
+**D-E3-1 — UNCHANGED.** Privacy doc pair (README section + PRIVACY.md + `tools/audit-network-calls.sh`).
+
+**D-E3-2 — REVISED.** Compatibility = **README mini-table only**, no `docs/compatibility.md` sub-doc. OS row reads "Verified on macOS; Linux/WSL untested." Rationale: the sub-doc was scaffolding for E1.S3-S5's R-row writes; with E1.S3-S5 shelved (see D-E3-12), the sub-doc has no near-term writes and would ship stale. Re-introduce when cross-platform testing resumes.
+
+**D-E3-3 — REVISED (governance trio → slim SECURITY only).**
+
+- **SECURITY.md** — kept (~25 lines). Security reports come from anyone using the plugin, peers included. Standard hygiene. **No Signal workflow vocabulary** per D-E3-10.
+- **CONTRIBUTING.md** — **deferred**. Peer-scale doesn't need a formalized contribution flow. Logged to FUTURE-IDEAS. Trigger to revisit: external contributor opens a real PR.
+- **`.github/ISSUE_TEMPLATE/*`** — **deferred**. Peers can email or open untemplated issues. Logged to FUTURE-IDEAS. Trigger to revisit: issue volume exceeds informal email channel (~5+ open issues from non-author contributors).
+- **Inline CoC stanza** — dropped (lived inside CONTRIBUTING.md).
+
+**D-E3-4 — REVISED.** **2 slices, not 3**:
+
+- **S1 — Privacy.** README "Privacy & telemetry" section + PRIVACY.md + `tools/audit-network-calls.sh` + `docs/map/index.html` link in README workflow narrative.
+- **S2 — Compatibility note + slim SECURITY + close.** README "Requirements & compatibility" mini-table + SECURITY.md + CHANGELOG `[0.1.3]` E3 block + MILESTONE-4.5.md § E3 closed + E1.S3-S5 shelved annotation + FUTURE-IDEAS entry for deferred contribution scaffolding.
+
+**D-E3-5 — UNCHANGED.** Tag bump deferred; `[0.1.3]` Unreleased.
+
+**D-E3-6 — MOOT.** Issue chooser config — no templates ship.
+
+**D-E3-7 — MOOT.** CoC stanza — no CONTRIBUTING.md ships.
+
+**D-E3-8 — UNCHANGED.** Demo asset deferred to E5.
+
+**D-E3-9 — UNCHANGED.** No architecture extraction in E3.
+
+**D-E3-10 — NEW: plain-language discipline graduated by audience.**
+
+| Doc | Jargon stance |
+|---|---|
+| **README** | Tolerant — calibration/tier IS the value pitch; define inline on first use |
+| **PRIVACY.md** | Minimal — plain audit prose; no workflow vocab in body |
+| **SECURITY.md** | **Zero Signal workflow vocabulary** (no Tier / Phase / Slice / Wave / Epic / Milestone / `/sig:*` command references). Pure standard security-doc shape. Enforced by a small grep test as part of the cross-file consistency check (OQ3 resolution). |
+
+Rationale: This direction is consistent with three other things landed today (the executor/planner/code-reviewer "Naming & plain language" sections, and the `/sig:orient` FUTURE-IDEAS entry calling out Signal's jargon-heavy stranger surface). E3's docs follow the same discipline.
+
+**D-E3-11 — NEW: audience reframe (self + peers, not strangers).**
+
+E3 ships for self + peers, not external contributors. Triggers to revisit deferred items:
+
+- (a) External contributor opens a real PR → promotes CONTRIBUTING.md from deferred to active scope.
+- (b) Issue volume exceeds informal email channel (~5+ open issues from non-author) → promotes issue templates.
+- (c) Linux or WSL tester volunteers raise a hand → promotes `docs/compatibility.md` sub-doc AND unshelves the relevant E1.S{3,4,5} slice.
+
+Implication for E5 launch: if E5 also pivots toward "quiet peer-only release" rather than "stranger-facing launch," its scope shrinks too (demo asset may not be needed; external-tester recruitment becomes opportunistic rather than blocking). **Not yet decided** — E5 scope re-evaluation happens when E3 + E8 are done, not now.
+
+**D-E3-12 — NEW: E1.S3-S5 shelved pending tester volunteers.**
+
+E1 Slices 3 (Linux x86_64 / R2 install verification), 4 (versioning policy `docs/versioning.md`), and 5 (Windows WSL / R5 install verification) **shelved**, not deleted. The work is still scoped in MILESTONE-4.5.md § E1; it's paused.
+
+- S3 + S5 trigger: a volunteer on the relevant platform raises a hand.
+- S4 (versioning policy) is platform-independent but was bundled with S3-S5 in MILESTONE-4.5.md § E1; carrying it under the same shelf because no near-term release tag is imminent anyway (see D-E3-5). Trigger: when `[0.1.3]` is about to cut, S4 ships immediately before to govern the call.
+
+MILESTONE-4.5.md § E1 + § Status snapshot table both get an explicit "shelved 2026-05-24 — see D-E3-12" annotation as part of E3 S2's Epic-close task.
+
+**Implication for PLAN:**
+
+- 2 slices, smaller artifact set. M4.5.E3-RESEARCH.md is light (most decisions locked; research focus: slim-SECURITY shape best practices from comparable solo-maintainer MIT-licensed plugins).
+- Test delta: 384 → ~387 (consistency check + optional audit-script wrapper + optional D-E3-10 jargon-lint).
+- Validator changes: none expected.
+- E1.S3-S5 shelving is a single block update in MILESTONE-4.5.md scoped to E3 S2's Epic-close task.
+
+**Reference:** Revised acceptance criteria (AC1–AC12) + revised D-E3 list + revised open questions in `.planning/M4.5.E3-REQUIREMENTS.md` § "2026-05-24 revision". MILESTONE-4.5.md § E3 + § E1 get the shelving + close annotations during E3 S2.
+
+---

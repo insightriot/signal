@@ -56,14 +56,18 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 **MILESTONE 4.5 underway** — Release Hardening / Stranger-Adoption Readiness; 6 original Epics + E7 = 7 total. Status: **E1.S1 + E1.S2 Phase A + E2.S1 + E6 full + E7 full = 5 ship-events** done; E1.S3–S5 + E2.S2–S5 + E3 (in-flight) + E4 + E5 pending.
 
-**Active Epic: M4.5.E3** (DISCUSS complete 2026-05-24). Public-facing documentation rewrite — additive scope (README pitch already mostly done; E3 fills the privacy / compatibility / governance gaps strangers expect from any production-claimable OSS plugin). 3 slices locked: S1 privacy (README section + PRIVACY.md + audit script) → S2 compatibility (README table + docs/compatibility.md) → S3 governance (CONTRIBUTING.md + SECURITY.md + 2 issue templates). 9 decisions locked in DECISIONS.md 2026-05-24 entry. Demo asset deferred to E5; architecture extraction declined. Next: `/sig:plan` to produce M4.5.E3-RESEARCH/PLAN/VALIDATION artifacts.
+**Active Epic: M4.5.E3** (DISCUSS complete 2026-05-24 + same-day **audience-reframe revision**). Public-facing documentation rewrite, **scope-shrunk to self + peers audience**: not optimizing for external contributors near-term. 2 slices (was 3): **S1 privacy** (README section + PRIVACY.md + `tools/audit-network-calls.sh` + docs/map link) → **S2 compatibility note + slim SECURITY.md + Epic close** (README mini-table only, no `docs/compatibility.md` sub-doc; SECURITY.md ~25 lines with no Signal jargon per D-E3-10; CHANGELOG `[0.1.3]` E3 block; MILESTONE-4.5.md annotations). 12 decisions locked + 3 NEW (D-E3-10 plain-language discipline; D-E3-11 audience reframe; D-E3-12 E1.S3-S5 shelved) in DECISIONS.md 2026-05-24 revision entry. CONTRIBUTING.md + issue templates + `docs/compatibility.md` **deferred** with explicit revisit triggers. Next: `/sig:plan` to produce M4.5.E3-RESEARCH/PLAN/VALIDATION artifacts on the revised scope.
 
 **Remaining M4.5 after E3 closes** (recommended order):
 
-1. **M4.5.E1 Slices 3–5** — install matrix rows R2/R3/R5 (Linux + WSL coverage; need fresh machines), versioning policy doc, validator hardening. S3 row R1 + S2 Phase A both shipped via E1.S2 commit; S2 Phase B permanently shelved per outcome (a).
+1. **M4.5.E8** — `/sig:doctor` install-state diagnostician + ownership reframe (scoped + DISCUSS'd 2026-05-24, commit `ddc89fc` + `09d0be4`). 3 slices: S1 diagnose-only, S2 mutating flags, S3 status version-check + troubleshooting reframe. Sequenced before E5 launch.
 2. **M4.5.E2 Slices 2–5** — `/sig:add` force-route flags + cold-path interview + hardening + `/sig:plan` close-the-loop.
 3. **M4.5.E4** — worked example + comparison page (`docs/vs.md`).
-4. **M4.5.E5** — external validation + launch (owns the demo asset deferred from E3).
+4. **M4.5.E5** — external validation + launch (owns the demo asset deferred from E3). **Scope re-evaluation pending** — if launch pivots toward "quiet peer-only release," E5 shrinks too.
+
+**Shelved (not deleted) pending tester volunteers** (per D-E3-12):
+
+- **M4.5.E1 Slices 3–5** — Linux + WSL install matrix R2/R3/R5 + versioning policy doc + validator hardening. The work is still scoped in MILESTONE-4.5.md § E1; paused until Linux/WSL volunteers raise a hand. Trigger to unshelf: a tester on the relevant platform commits to running `/sig:init` → verifying agent registration.
 
 **To start the next Epic after E3:** run `/sig:resume` first (auto-orientation briefing — reads PROFILE.md + STATE.md frontmatter + open questions + next-action), then `/sig:discuss` once you've picked a scope.
 
