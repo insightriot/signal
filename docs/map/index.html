@@ -276,6 +276,110 @@
   .pattern-card .when { font-size: 11px; color: var(--text); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
   .pattern-card .when strong { color: var(--accent); }
 
+  /* VOCABULARY */
+  .vocab-axis-title {
+    font-size: 11px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.05em; margin: 28px 0 12px; font-weight: 500;
+  }
+  .vocab-axis-title .axis-scope {
+    color: var(--dim); font-size: 10px; text-transform: none; letter-spacing: 0;
+    margin-left: 8px; font-style: italic;
+  }
+  .vocab-tree {
+    display: flex; flex-direction: column; gap: 0;
+    max-width: 780px;
+  }
+  .vocab-node {
+    background: var(--card); border: 1px solid var(--border);
+    border-left: 3px solid var(--purple);
+    border-radius: 8px; padding: 14px 18px;
+  }
+  .vocab-node.optional {
+    border-left-style: dashed;
+    border-left-color: var(--dim);
+  }
+  .vocab-node .vhead {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .vocab-node .vname {
+    font-family: monospace; font-weight: 700; font-size: 15px;
+    color: var(--purple);
+  }
+  .vocab-node.optional .vname { color: var(--muted); }
+  .vocab-node .vreq {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--accent);
+  }
+  .vocab-node.optional .vreq { color: var(--dim); }
+  .vocab-node .vdesc {
+    font-size: 12px; color: var(--text); margin-bottom: 8px; line-height: 1.5;
+  }
+  .vocab-node .vid {
+    font-family: monospace; font-size: 11px; color: var(--muted);
+  }
+  .vocab-node .vid .lbl { color: var(--dim); margin-right: 6px; }
+  .vocab-node .vex {
+    font-size: 11px; color: var(--muted); margin-top: 6px;
+    font-style: italic;
+  }
+  .vocab-arrow {
+    text-align: center; color: var(--dim);
+    font-size: 14px; margin: 0; line-height: 1;
+    padding: 4px 0;
+    max-width: 780px;
+  }
+  .vocab-addr {
+    margin: 24px 0; padding: 18px 22px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px;
+    max-width: 780px;
+  }
+  .vocab-addr pre {
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 13px; line-height: 1.5;
+    color: var(--muted); margin: 0;
+    overflow-x: auto;
+  }
+  .vocab-addr pre .id-line {
+    color: var(--accent); font-weight: 700;
+  }
+  .vocab-axis-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px; margin: 16px 0;
+  }
+  @media (max-width: 800px) { .vocab-axis-grid { grid-template-columns: 1fr; } }
+  .vocab-axis-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+  }
+  .vocab-axis-card .axname {
+    font-family: monospace; font-weight: 700; font-size: 14px;
+    color: var(--purple);
+  }
+  .vocab-axis-card .axscope {
+    font-size: 11px; color: var(--dim); font-style: italic;
+    margin: 2px 0 10px;
+  }
+  .vocab-axis-card .axvals {
+    font-family: monospace; font-size: 11px;
+    background: var(--bg); padding: 8px 10px; border-radius: 4px;
+    color: var(--accent); margin-bottom: 10px;
+    line-height: 1.5;
+  }
+  .vocab-axis-card .axdesc {
+    font-size: 12px; color: var(--text); line-height: 1.5;
+  }
+  .vocab-constraint {
+    margin: 20px 0; padding: 14px 18px;
+    background: var(--card-hi); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    font-size: 12px; color: var(--text); line-height: 1.5;
+    max-width: 780px;
+  }
+  .vocab-constraint strong { color: var(--accent); }
+
   /* footnote */
   footer {
     margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--border);
@@ -294,15 +398,16 @@
      ██ ██ ██    ██ ██  ████ ██   ██ ██
 ███████ ██  ██████  ██   ███ ██   ██ ███████</pre>
 <p class="tagline">Right-sized rigor for AI-assisted engineering.</p>
-<p class="meta">Decision tree &middot; v0.1 &middot; generated 2026-05-22 &middot; <a href="../references/tier-definitions.md">tier-definitions.md</a> &middot; <a href="../commands/calibrate.md">calibrate.md</a></p>
+<p class="meta">Decision tree &middot; v0.1 &middot; generated 2026-05-24 &middot; <a href="../.planning/PROJECT.md">PROJECT.md § Vocabulary</a> &middot; <a href="../references/tier-definitions.md">tier-definitions.md</a> &middot; <a href="../commands/calibrate.md">calibrate.md</a></p>
 </header>
 
 <nav class="toc">
   <a href="#calibrate">1. Calibrate simulator</a>
-  <a href="#tiers">2. Tiers</a>
-  <a href="#matrix">3. Rigor matrix</a>
-  <a href="#phases">4. Phase flow</a>
-  <a href="#patterns">5. Question patterns</a>
+  <a href="#vocab">2. Vocabulary</a>
+  <a href="#tiers">3. Tiers</a>
+  <a href="#matrix">4. Rigor matrix</a>
+  <a href="#phases">5. Phase flow</a>
+  <a href="#patterns">6. Question patterns</a>
 </nav>
 
 <section id="calibrate">
@@ -315,32 +420,46 @@
 </div>
 </section>
 
+<section id="vocab">
+<h2><span class="glyph">▸</span>2. Work-unit vocabulary</h2>
+<p class="lede">Signal organizes work into a four-level identity hierarchy plus three orthogonal status terms. Hierarchy IDs are immutable after assignment; status terms change as work progresses. Source: <a href="../.planning/PROJECT.md">PROJECT.md § Vocabulary</a>.</p>
+
+<div class="vocab-axis-title">Identity hierarchy <span class="axis-scope">— IDs never change after assignment</span></div>
+<div class="vocab-tree" id="vocab-tree"></div>
+<div class="vocab-addr" id="vocab-addr"></div>
+
+<div class="vocab-axis-title">Status metadata <span class="axis-scope">— changes as work moves; not part of the ID</span></div>
+<div class="vocab-axis-grid" id="vocab-axis-grid"></div>
+
+<div class="vocab-constraint" id="vocab-constraint"></div>
+</section>
+
 <section id="tiers">
-<h2><span class="glyph">◇</span>2. The Four Tiers</h2>
-<p class="lede">Every project is exactly one tier. Tier sets the structural shape (which phases run); rigor overrides set the dial values inside.</p>
+<h2><span class="glyph">◇</span>3. The Four Tiers</h2>
+<p class="lede">Every project is exactly one Tier. Tier sets the structural shape (which phases run); rigor overrides set the dial values inside.</p>
 <div class="tier-grid" id="tier-grid"></div>
 </section>
 
 <section id="matrix">
-<h2><span class="glyph">◆</span>3. Rigor matrix — 11 dials × 4 tiers</h2>
+<h2><span class="glyph">◆</span>4. Rigor matrix — 11 dials × 4 tiers</h2>
 <p class="lede">Authoritative tier-to-defaults mapping. <code>/sig:calibrate</code> writes these literal values into <code>PROFILE.md</code>; every downstream phase reads them as its first action.</p>
 <div id="matrix"></div>
 </section>
 
 <section id="phases">
-<h2><span class="glyph">█</span>4. Phase flow — 7 phases</h2>
+<h2><span class="glyph">█</span>5. Phase flow — 7 phases</h2>
 <p class="lede">CALIBRATE is Phase 0 (always runs). The other six are tier-gated — see the skip badge per card. Each phase reads <code>PROFILE.md</code>, applies <code>rigor_overrides</code>, and exits via a gate.</p>
 <div class="phase-flow" id="phase-flow"></div>
 </section>
 
 <section id="patterns">
-<h2><span class="glyph">▴</span>5. Question patterns</h2>
+<h2><span class="glyph">▴</span>6. Question patterns</h2>
 <p class="lede">How Signal asks the user for input. Every user-facing question fits exactly one shape — see <a href="../references/question-patterns.md">question-patterns.md</a>.</p>
 <div class="pattern-grid" id="pattern-grid"></div>
 </section>
 
 <footer>
-<p>Source-of-truth: <code>references/tier-definitions.md</code>, <code>commands/calibrate.md</code>, <code>references/question-patterns.md</code>. To update this viewer when Signal changes, edit the data objects at the top of the <code>&lt;script&gt;</code> block at the bottom of this file.</p>
+<p>Source-of-truth: <code>.planning/PROJECT.md § Vocabulary</code> (for VOCABULARY), <code>references/tier-definitions.md</code>, <code>commands/calibrate.md</code>, <code>references/question-patterns.md</code>. To update this viewer when Signal changes, edit the data objects at the top of the <code>&lt;script&gt;</code> block at the bottom of this file. <strong>Refresh cadence: update the "currently active" lines in VOCABULARY.hierarchy on each release-cycle ship event</strong> — see <code>.planning/FUTURE-IDEAS.md § map-refresh-protocol</code>.</p>
 </footer>
 
 </div>
@@ -552,6 +671,78 @@ const PHASES = [
     skipIn: ['SPIKE'],
   },
 ];
+
+const VOCABULARY = {
+  // Last refreshed: 2026-05-24. Update "currently active" lines on each release.
+  hierarchy: [
+    {
+      name: 'Milestone',
+      glyph: '◆',
+      required: true,
+      desc: 'Top-level scoped work, weeks-to-months. Every Signal project has at least one.',
+      ids: 'M1 · M2 · M3 · M4 · M4.5 · M5',
+      example: 'Currently: M4.5 (Release Hardening / Stranger-Adoption Readiness)',
+    },
+    {
+      name: 'Epic',
+      glyph: '◇',
+      required: false,
+      desc: 'Mid-layer grouping related tasks within a Milestone. Used when a Milestone has obvious sub-themes; skipped when it\'s a flat task list (M1–M4 had no Epics).',
+      ids: 'M5.E1 · M4.5.E8',
+      example: 'Active: M4.5.E3 (public docs rewrite, in DISCUSS)',
+    },
+    {
+      name: 'Slice',
+      glyph: '◌',
+      required: false,
+      desc: 'Epic subdivision; a coherent group of tasks that ships as ONE atomic event (one commit chain, one CHANGELOG entry, one user-visible "thing happened").',
+      ids: 'M4.5.E2.S1 · M4.5.E7.S2',
+      example: 'Last shipped slice: M4.5.E7.S2 (install-troubleshooting doc, 2026-05-23)',
+    },
+    {
+      name: 'Task',
+      glyph: '•',
+      required: true,
+      desc: 'Atomic unit, small enough to ship in a focused session. Lowercase t so M / E / S / t stay visually distinct in IDs.',
+      ids: 'M4.t17 · M5.E3.t2 · M4.5.E8.S2.t3',
+      example: 'Last shipped task: M4.5.E7.S2.t8 (E7 SHIP commit, 2026-05-23)',
+    },
+  ],
+  address: {
+    lines: [
+      'M4.5  .  E8  .  S2  .  t3',
+      '│        │      │      │',
+      '│        │      │      └──  Task 3',
+      '│        │      └───────── Slice 2',
+      '│        └──────────────── Epic 8',
+      '└──────────────────────── Milestone 4.5',
+    ],
+  },
+  status: [
+    {
+      name: 'Phase',
+      scope: 'per-task metadata',
+      values: 'CALIBRATE → DISCUSS → PLAN → EXECUTE\n   → VERIFY → REVIEW → SHIP',
+      desc: 'Workflow stage. A task moves through these over time. Two of seven can be skipped per Tier — SKETCH skips REVIEW; SPIKE skips REVIEW + SHIP.',
+    },
+    {
+      name: 'Wave',
+      scope: 'per-task metadata (EXECUTE phase only)',
+      values: 'Wave 1 · Wave 2 · Wave 3 · …',
+      desc: 'Parallel-execution batch within a single phase\'s plan. Used by /sig:execute to schedule tasks in concurrent groups.',
+    },
+    {
+      name: 'Tier',
+      scope: 'project-wide (set in PROFILE.md)',
+      values: 'SKETCH · FEATURE · SPIKE · FULL',
+      desc: 'Rigor classification set by /sig:calibrate; changeable via /sig:escalate. Gates which phases run and how strictly. See Section 3 below.',
+    },
+  ],
+  constraint: {
+    headline: 'ID is persistent identity, never changes.',
+    detail: 'Once a Task or Slice gets an ID, that ID stays the same forever — across renames, re-orderings, escalations, and Milestone reshuffles. Phase, Wave, and Tier are status flags on the work unit, not part of its address. This is why commit messages and PR descriptions cite M4.5.E8.S2.t3 and never something like "Wave 2 task 3" — the latter would become a broken reference the moment work shifts.',
+  },
+};
 
 const PATTERNS = [
   {
@@ -766,6 +957,43 @@ function renderPhases() {
   }).join('');
 }
 
+function renderVocabulary() {
+  // Identity hierarchy tree
+  const treeRoot = document.getElementById('vocab-tree');
+  treeRoot.innerHTML = VOCABULARY.hierarchy.map((n, i) => `
+    <div class="vocab-node ${n.required ? 'mandatory' : 'optional'}">
+      <div class="vhead">
+        <span class="vname">${n.glyph}  ${n.name}</span>
+        <span class="vreq">${n.required ? 'mandatory' : 'optional'}</span>
+      </div>
+      <div class="vdesc">${n.desc}</div>
+      <div class="vid"><span class="lbl">ID shapes:</span>${n.ids}</div>
+      <div class="vex">${n.example}</div>
+    </div>
+    ${i < VOCABULARY.hierarchy.length - 1 ? '<div class="vocab-arrow">▼</div>' : ''}
+  `).join('');
+
+  // Address breakdown
+  const addrRoot = document.getElementById('vocab-addr');
+  const lines = VOCABULARY.address.lines;
+  addrRoot.innerHTML = `<pre><span class="id-line">${lines[0]}</span>\n${lines.slice(1).join('\n')}</pre>`;
+
+  // Status metadata axis
+  const axisRoot = document.getElementById('vocab-axis-grid');
+  axisRoot.innerHTML = VOCABULARY.status.map(s => `
+    <div class="vocab-axis-card">
+      <div class="axname">${s.name}</div>
+      <div class="axscope">${s.scope}</div>
+      <div class="axvals">${s.values.replace(/\n/g, '<br>')}</div>
+      <div class="axdesc">${s.desc}</div>
+    </div>
+  `).join('');
+
+  // Constraint callout
+  const constRoot = document.getElementById('vocab-constraint');
+  constRoot.innerHTML = `<strong>${VOCABULARY.constraint.headline}</strong> ${VOCABULARY.constraint.detail}`;
+}
+
 function renderPatterns() {
   const root = document.getElementById('pattern-grid');
   root.innerHTML = PATTERNS.map(p => `
@@ -780,6 +1008,7 @@ function renderPatterns() {
 // init
 renderQuestions();
 renderResult();
+renderVocabulary();
 renderTierCards();
 renderMatrix();
 renderPhases();
