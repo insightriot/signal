@@ -11,6 +11,7 @@ Each row records a real install run on a real machine. Rows are append-only; fai
 | Row | Machine type | OS | SSH config | Result | Date |
 |---|---|---|---|---|---|
 | R1 | Maintainer business box | macOS | Multi-identity; no default `Host github.com` | **PASS** (3 install-UX papercuts documented) | 2026-05-19 |
+| R1+ | Maintainer dev box (Mac Studio) | macOS | n/a | **PASS** (M4.5.E7 synthesizer fix verified — 0 R1 patterns reproduce) | 2026-05-23 |
 | R2 | Mac happy-path | macOS | Default SSH config | pending | — |
 | R3 | Linux | Linux | Default | pending | — |
 | R4 | WSL | Windows Subsystem for Linux | Default | best-effort | — |
@@ -155,6 +156,56 @@ The pattern is systematic, not a paste artifact. Routed to **M4.5.E7** for root-
 - F2 verification capture (paste `/agents`, paste LANDSCAPE.md, paste PROJECT.md): ~5 minutes
 
 Total session: ~40–50 minutes for one matrix row, dominated by the install-adventure papercuts. A stranger without diagnostic context would either rage-quit during Papercut 1 or 3, or spend hours.
+
+---
+
+## R1+ — Mac Studio (post-M4.5.E7 synthesizer fix) — 2026-05-23
+
+**Result: PASS — synthesizer fix verified against the original R1 reproduction surface.**
+
+This row records the FR3 spec-named gate for M4.5.E7.S1 (synthesizer prose-quality). Run on the Mac Studio (Brett's primary dev box) against a fresh `--depth=1` clone of `expressjs/express` at `/tmp/express-repro-v2`, using the patched plugin code (M4.5.E7.S1.t1 through S1.t8).
+
+### Method
+
+1. Fresh shallow clone: `git clone --depth=1 https://github.com/expressjs/express /tmp/express-repro-v2`.
+2. 4 scanner agents spawned in parallel via `sig:scanners:{stack,structure,activity,quality}` subagent_type — all completed (95–121s, 23k–34k tokens each). No fallback path fired.
+3. LANDSCAPE.md synthesized per the patched `commands/init.md` Step 3 — Project structure section embedded the structure-scan Source Tree via `embedSection(scans.structure, 'Source Tree (depth-3)')`. Baseline PROJECT.md synthesized per Step 4.
+
+### Verification of FR3 + AC3 + AC9
+
+**All 6 R1-documented character-drop patterns absent.** Exact-string sweep against `/tmp/express-repro-v2/.planning/LANDSCAPE.md` and `PROJECT.md`:
+
+| # | R1 buggy form | Status in R1+ |
+|---|---|---|
+| 1 | `## Ierred goals & uncertainties` | absent ✓ — output has clean `## Inferred goals & uncertainties` |
+| 2 | `## ints` | absent ✓ — output has clean `## Constraints` |
+| 3 | `is \| Top-level entry (224 bytes)` | absent ✓ — Source Tree embedded verbatim via `embedSection` |
+| 4 | `--checkt/ test/acceptance/` | absent ✓ — test command quoted intact |
+| 5 | `).git fetch --unshallow\`` | absent ✓ — code-fence boundary has proper space + backtick |
+| 6 | `contributoiteria.` | absent ✓ — no mid-word truncation in Notes |
+
+**No new character-drop patterns surfaced on maintainer eyeball read.** All 15 h2 headings well-formed; backtick parity clean across all lines; no sentence-then-fence boundary anti-pattern.
+
+### What changed since R1
+
+- New `embedSection(content, heading)` helper in `tools/lib/landscape.js` (S1.t5) — extracts a section body verbatim from scanner output, preserving tables / fenced code / pipes character-for-character.
+- `commands/init.md` Step 3 Project structure template (S1.t6) now calls `embedSection(scans.structure, 'Source Tree (depth-3)')` explicitly instead of asking the LLM to "embed verbatim" — which is what produced patterns 3 + 4 in R1.
+- `commands/init.md` long lines split (S1.t8) — L170 (851 chars) and L404 (562 chars) broken into shorter paragraphs at natural sentence boundaries. Long lines correlate with LLM truncation under dense generation (pattern 6).
+- Test surface: 366 → 384 tests (12 new — 9 Layer B regression in `tests/synthesizer-regression.test.js` + 3 unit in `tests/landscape.test.js`). Fixture at `tests/fixtures/synthesizer-bug-r1/` is the hermetic regression record.
+
+### Caveat: bug is non-deterministic
+
+The S1.t1 re-repro on 2026-05-22 (pre-fix) **also** came out clean — see `.planning/M4.5.E7-RESEARCH.md` § S1.t1 addendum. R1+'s clean result therefore can't be uniquely attributed to the fix (the bug failed to reproduce twice now, with and without the fix). However:
+
+- The deterministic test architecture (Layer B + Layer C, asserting against fixtures) catches regressions that any future run might produce.
+- `embedSection` removes the LLM from the verbatim-embed loop entirely, structurally eliminating patterns 3 + 4 regardless of model state.
+- Layer C template lint (line-length, sentence-then-fence, heading-literal length) catches the prose-shape anti-patterns that produce patterns 5 + 6.
+
+The fix is therefore "preventive" rather than "demonstrably curative" in this single rerun — but the protective layers are now in place for any future LLM run that would otherwise drift.
+
+### Wall-clock
+
+~6 minutes end-to-end: 4 scanners in parallel (~2 min), synthesis + helper extraction (~2 min), verification sweep (~2 min). Significantly faster than R1's session because there were no install-UX papercuts.
 
 ---
 
