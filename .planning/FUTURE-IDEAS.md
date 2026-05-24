@@ -889,3 +889,66 @@ Option A as the minimum viable fix — append "refresh STATE.md frontmatter" to 
 **Triage hint.** This sits between "Signal enhancement" and "resume-reliability bug." If it's a bug, it belongs in a release-hardening Epic; if it's an enhancement, it belongs after M4.5 closes. **Recommended:** treat as a P2 bug — slot into M4.5 as a fast follow on E6 (call it E6.S7 or a new mini-Epic) **only if a second instance happens** during M4.5's remaining work. Otherwise, ship as part of v0.1.3-or-later release-hardening pass once E5 launch posture is clearer.
 
 **Source data.** STATE.md frontmatter, `commands/execute.md` step-6 protocol, `agents/executors/executor.md` task-completion step, `tools/lib/state.js` (writers + readers), `references/state-schema.md` (the contract definition). See M4.5.E6 SHIP artifacts in `.planning/` + commit `8723967` (E7 SHIP) for the most recent canonical example of the EXECUTE-only refresh in action.
+
+## `/sig:resume` artifact-resolution doesn't recognize Epic-prefixed naming (`M4.5.E3-PLAN.md`)
+
+**Status:** Logged 2026-05-24. Trigger: M4.5.E3 PLAN phase complete; in preparing for a context clear, observed that `/sig:resume`'s artifact-resolution table won't find `M4.5.E3-PLAN.md` and will degrade to a "Note: expected artifact for PLAN not found" line.
+
+**Context.** `commands/resume.md` Step 3's resolution rules try three filename patterns for the current phase's artifact:
+
+1. `{N}-{ARTIFACT}.md` for any `N` in `[1..9]` — numeric/GSD-style prefix (e.g., `1-PLAN.md`).
+2. `{ARTIFACT}.md` — no-prefix simplified form (e.g., `PLAN.md`).
+3. `{PHASE_NAME}-{ARTIFACT}.md` — literal-substitution (e.g., `PLAN-PLAN.md`).
+
+Signal's actual convention since the Milestone/Epic vocabulary lock (`939ecf4`, `7339b5d`) is **Epic-prefixed**: `{epic-id}-{ARTIFACT}.md`. Examples shipped:
+
+- `.planning/M4.5.E3-REQUIREMENTS.md`
+- `.planning/M4.5.E3-RESEARCH.md`
+- `.planning/M4.5.E3-PLAN.md`
+- `.planning/M4.5.E3-VALIDATION.md`
+- `.planning/M4.5.E7-PROGRESS.md`
+- ... and every other M4.5.E* artifact
+
+None of these match patterns 1, 2, or 3.
+
+**Impact.** Every `/sig:resume` against a project mid-Epic hits the "expected artifact not found" path and skips the most useful briefing content — the task breakdown, slice status, or current-phase notes. The user has to manually `cat` the file to see what's planned. Briefing still works (tier + Epic + Vision + decisions + next-action all come from STATE.md + PROJECT.md + CONTEXT.md), but the artifact-content section that's supposed to make resume "rich" is empty.
+
+This Epic (M4.5.E3) just shipped a 9-task PLAN.md, and `/sig:resume` won't surface a single task in the briefing without this fix.
+
+**Staleness inventory** (cases the gap manifests):
+
+| Artifact | File on disk | Resolver finds? |
+|---|---|---|
+| Epic PLAN | `M4.5.E3-PLAN.md` | ❌ no |
+| Epic PROGRESS | `M4.5.E7-PROGRESS.md` | ❌ no |
+| Epic VERIFICATION | `M4.5.E6-VERIFICATION.md` | ❌ no |
+| Epic REVIEW | `M4.5.E6-REVIEW.md` | ❌ no |
+| Epic SHIP | (would be `M4.5.E3-SHIP.md`) | ❌ no |
+| Epic RESEARCH | `M4.5.E3-RESEARCH.md` | ❌ no (and resume doesn't yet load this) |
+| Project-level | `PROFILE.md`, `STATE.md`, `CONTEXT.md`, `PROJECT.md` | ✅ yes (named directly) |
+
+**Candidate direction.**
+
+Extend the resolver to recognize a 4th pattern as the FIRST attempt (since it's the actual Signal convention now):
+
+```
+0. {state.current_epic}-{ARTIFACT}.md — Epic-prefixed (e.g., M4.5.E3-PLAN.md)
+1. {N}-{ARTIFACT}.md for N in [1..9]
+2. {ARTIFACT}.md
+3. {PHASE_NAME}-{ARTIFACT}.md
+```
+
+Read `state.current_epic` from STATE.md frontmatter (already loaded for the briefing); if non-null, try the Epic-prefixed form first. Falls through to existing patterns for projects that don't use Epic-prefixed naming (legacy `.planning/` directories from M1-M4 used numeric prefixes).
+
+**Scope of fix.**
+
+- `commands/resume.md` Step 3 table — add the new pattern as bullet 0.
+- `tools/lib/resume.js` (if the resolver lives there as helper code) — add the Epic-prefix branch.
+- `tools/lib/status.js` `nextActionForPhase` — verify it doesn't share the same resolver bug. (Probably not — it computes the *next-phase recommendation*, not the artifact path.)
+- Tests: one new vitest case asserting Epic-prefixed resolution works on a fixture project with `current_epic: M4.5.E99` and `.planning/M4.5.E99-PLAN.md` on disk.
+
+**Cost estimate.** ~30 LOC change + ~25 LOC test = 1-2 hours including verification on M4.5.E3 (this Epic, mid-flight).
+
+**Triage hint.** P2 — a real briefing-quality regression that hits every Epic-mid-flight resume call. Worth slotting into M4.5 as a fast-follow tooling fix if `/sig:resume` is run more than ~2-3 times before another release; otherwise, batch with a release-hardening tooling sweep. Either way, ship before any external launch where strangers might run `/sig:resume` on their own Signal-managed project. Related to `/sig:resume` origin-drift gap (also logged) — both are resume-reliability papercuts that compound to "the briefing doesn't actually brief."
+
+**Source data.** `commands/resume.md` (resolution rules in Step 3); `tools/lib/resume.js` (if helper exists); existing `.planning/M4.5.E*` artifacts as proof of the convention; STATE.md `current_epic` field availability since schema_version 1 (M4.5.E6 ship).
