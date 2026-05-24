@@ -21,7 +21,8 @@ Signal uses the following work-unit terms. Locked 2026-05-12 in M4.t18 (see `DEC
 |---|---|---|
 | **Milestone** | A scoped slice of project work, weeks-to-months. The top-level work unit. | `M1`, `M2`, …, `M5` |
 | **Epic** | Optional mid-layer that groups related tasks within a milestone. Used when a milestone has obvious sub-themes (e.g., M5 has 6 epics for v2 ports); skipped when it's a flat task list (M1–M4). | `M5.E1`, `M5.E2`, … |
-| **Task** | A unit of work small enough to ship in a focused session. Lowercase `t` so M / E / t are visually distinct. | `M4.t17`, `M5.E3.t2` |
+| **Slice** | Optional sub-Epic subdivision — a coherent group of tasks that ships as one atomic event (one commit chain, one CHANGELOG entry, one user-visible "thing happened"). Used when an Epic is large enough that monolithic execution would mean a single oversized PR; skipped when an Epic is small enough to execute as a flat task list. | `M4.5.E2.S1`, `M4.5.E7.S2` |
+| **Task** | A unit of work small enough to ship in a focused session. Lowercase `t` so M / E / S / t are visually distinct. | `M4.t17`, `M5.E3.t2`, `M4.5.E8.S2.t3` |
 | **Phase** | A workflow stage in Signal's 6-phase flow (`calibrate → discuss → plan → execute → verify → review → ship`). Workflow-only — never a numbered work unit. | `CALIBRATE`, `DISCUSS`, … |
 | **Wave** | A parallel-execution batch within a single phase's plan (used by `/sig:execute`). | `Wave 1`, `Wave 2` |
 
