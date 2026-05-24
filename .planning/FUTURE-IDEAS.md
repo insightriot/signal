@@ -8,6 +8,34 @@ Append new ideas; promote to a milestone file when ready to build.
 
 ---
 
+## Synthesizer-output validator-side sanity-check (deferred from M4.5.E7)
+
+**Status:** Deferred from M4.5.E7 to FUTURE-IDEAS. Logged 2026-05-23 at E7 close.
+
+**Original intent.** During E7 DISCUSS / PLAN, an optional fourth scope item was floated: a validator pass over generated `.planning/LANDSCAPE.md` + baseline `PROJECT.md` that detects character-drop smells before the user sees them. Concretely:
+
+- Heading-shorter-than-N-chars detector (catches patterns 1 + 2 in R1 — `## Ierred` / `## ints`).
+- Single-char or mid-truncated table-cell detector (catches pattern 3 — `is | Top-level entry`).
+- Backtick parity per line (catches pattern 5 — `).git fetch --unshallow\`` is unbalanced).
+- Sentence-fragment / mid-word detector (catches pattern 6 — `contributoiteria.`).
+
+The check would live in `tools/validate-plugin.js` or a new `tools/lint-synthesizer-output.js`; runs against the most recently generated `.planning/LANDSCAPE.md` or as a post-`/sig:init` step.
+
+**Why deferred** (per D-E7-3, 2026-05-21 DISCUSS):
+
+1. The two-layer fix landed in E7 (helper-based embed for Layer B + template lint for Layer C) makes most cases unnecessary. The deterministic surface is now structurally protected: `embedSection` eliminates LLM verbatim-copy as a failure mode; Layer C lint catches the prose anti-patterns at template-author time.
+2. Validator-side sanity-check is reactive — it catches drops after they happen. The E7 fix is preventive — it stops them from being generated. Preventive is strictly better when achievable.
+3. False-positive risk is real: heading-shorter-than-N-chars whitelists exist (Vision / Scope / Notes); table cells legitimately can be 1-2 chars in some scanner outputs; backtick parity within fenced code blocks is hard to reason about. The cost of dialing the lint thresholds may outweigh the benefit while E7's preventive layers are doing their job.
+
+**Promote-back trigger.** Revisit if **2+ new synthesizer quality regressions** ship to `FUTURE-IDEAS.md` within the next 3 months (i.e., by 2026-08-23). Two regressions would signal that E7's preventive layers have blind spots and validator-side detection is the right complement. One regression is noise; three patterns over time is a sign.
+
+**Cross-references:**
+- `.planning/M4.5.E7-RESEARCH.md` § 5 (research synthesis explicitly amended to defer this).
+- `.planning/DECISIONS.md` 2026-05-21 entry D-E7-3.
+- `.planning/M4.5.E7-PLAN.md` § Slice 2 t8 (folds this entry into the Epic ship event per VALIDATION § Plan Refinements #1).
+
+---
+
 ## Calibration granularity — making PROFILE.md more expressive
 
 **Status:** Leaning Option C for v2. Logged 2026-04-22 during Milestone 2 Step 1 (drafting `/sig:calibrate`).

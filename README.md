@@ -51,6 +51,8 @@ If `/plugin install` fails with `Permission denied (publickey)` or `Could not re
 
 As of v0.1.1, Signal's marketplace.json pins HTTPS explicitly, so option 1 should rarely be needed — but it's there if some other plugin in your stack triggers the same path.
 
+For other install symptoms — `/plugin install` reporting "already at latest" while running stale code, missing Uninstall verb in the `/plugin` UI, plugin staying Disabled after reinstall, pre-rename `signal@signal` cache orphans — see [`docs/install-troubleshooting.md`](./docs/install-troubleshooting.md).
+
 ### From source (for development or hacking on Signal itself)
 
 ```bash

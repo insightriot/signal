@@ -28,6 +28,12 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 - Authoritative references list updated to include `embedSection`.
 - 2 long lines (L170 at 851 chars, L404 at 562 chars) split at natural sentence boundaries to reduce dense-prose generation pressure. No content reordering; no instruction rewriting.
 
+### Added — `docs/install-troubleshooting.md`
+
+- **Symptom-organized install troubleshooting doc** at `docs/install-troubleshooting.md`. Strangers find their fix by searching the failure mode they see, not by reading sequentially.
+- Contains: Quick Triage decision table, Canonical Clean Reinstall 4-step sequence, 5 symptom sections (P1 stale `gitCommitSha` short-circuit / P2 no-Uninstall-verb in `/plugin` UI / P3 Disabled state survives reinstall / pre-rename `signal@signal` cache orphan / SSH multi-identity cross-link to v0.1.1), Reference table for the 4 Claude Code plugin-state files, See Also pointers.
+- Linked from README's existing "Troubleshooting install" section.
+
 ## [0.1.2] — 2026-05-18 — M4.5.E6 (resume reliability)
 
 ### Added — `STATE.md` schema_version 1 + auto-update protocol + `/sig:checkpoint`
