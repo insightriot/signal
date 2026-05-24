@@ -35,6 +35,7 @@ Listed in suggested execution order. Each Epic is independently shippable as v0.
 | E5 — External validation + launch | pending | Cannot finish until E1–E4 land |
 | **E6 — Resume reliability (STATE.md schema + auto-update + `/sig:checkpoint`)** | **✓ shipped 2026-05-18 (v0.1.2)** | All 5 slices + S6 REVIEW loop-back (5 IMPORTANT findings resolved pre-publish). YAML-frontmatter STATE.md + auto-state-protocol + new `/sig:checkpoint` + staleness banner + orphan UI in `/sig:resume`. 225 → 366 tests; no new runtime deps. |
 | **E7 — Synthesizer prose-quality + install-UX hardening** | **✓ shipped 2026-05-23 (v0.1.3 candidate)** | DISCUSS + PLAN closed 2026-05-21 (commit `015525e`); EXECUTE 2026-05-22 → 2026-05-23 (per-task atomic commits S1.t1 → S2.t8). Two-layer synthesizer fix: new `embedSection` helper in `tools/lib/landscape.js` (eliminates LLM verbatim-copy as failure mode) + `commands/init.md` long-line splits (reduces dense-prose generation pressure). `docs/install-troubleshooting.md` with 5 symptom sections + Quick Triage + Canonical Clean Reinstall. R1+ rerun on Mac Studio 2026-05-23 verified clean (`docs/install-verification.md` § R1+). Tests 366 → 384; validator green. CHANGELOG [0.1.3] section. See § E7 below + `docs/install-verification.md` R1 for original motivation. |
+| **E8 — `/sig:doctor` install-state diagnostician + reframe** | **pending — scoped 2026-05-24** | Scoped after E7 surfaced that 3 of 5 install failure modes (P1/P2/P3) are upstream Claude Code plugin-host bugs, not Signal bugs, but the 280-line troubleshooting doc reads as Signal's shame. E8 ships a single command users run to get diagnosis + the exact remediation commands, reframes the troubleshooting doc to name upstream-vs-Signal ownership, and adds auto-version-check to `/sig:status` so staleness gets surfaced before strangers hit weird behavior. Sequenced before E5 launch — launching without it ships the current install dance to strangers. See § E8 below. |
 
 E2 plan + execute artifacts live in `M4.5.E2-{RESEARCH,PLAN,VALIDATION,PROGRESS}.md`. E6 artifacts live in `M4.5.E6-{RESEARCH,PLAN,VALIDATION,VERIFICATION,REVIEW}.md` (DISCUSS/PLAN/EXECUTE/VERIFY/REVIEW/SHIP all complete).
 
@@ -174,11 +175,89 @@ Three failure modes documented in `docs/install-verification.md` § R1:
 - `/sig:init` agent-discovery convention reconciliation — defer to M4.5.E1.S5 validator hardening.
 - The 26-vs-25 agent-count drift between CLAUDE.md docs and on-disk reality — defer to M4.5.E1.S5.
 
+### M4.5.E8 — `/sig:doctor` install-state diagnostician + ownership reframe
+
+Scoped 2026-05-24. Sequenced **before E5 launch** — launching without it ships the current install dance to strangers, which is the failure mode E5's "external validation" is supposed to surface, not reproduce.
+
+**Why a new Epic rather than slotting into E1.** E1 owns marketplace install + agent registration + fresh-machine verification — making install *work* the first time. E8 owns the *upgrade and recovery path* when install state goes wrong, plus the *ownership framing* of the troubleshooting story (most of which is Anthropic's plugin host, not Signal). Different domain, different lifecycle: E1 fires on day-one install; E8 fires every time a user upgrades, hits a P-state bug, or wonders if they're on the latest version. Stretching E1 to absorb upgrade-state management would dilute its identity. E7 set the precedent of carving out a focused install-UX Epic when the surface area earned its own scope; E8 extends that pattern to the upgrade lifecycle.
+
+**Problem statement.** Current upgrade story for a stranger who installed Signal v0.1.0 in April 2026 and wants v0.1.3 today:
+
+1. Read 280-line `docs/install-troubleshooting.md`.
+2. Identify which of 5 P-states they're in (P1 stale `gitCommitSha`, P2 no Uninstall verb, P3 Disabled-state survives, pre-rename `signal@signal` cache orphan, SSH multi-identity).
+3. Execute a 4-step canonical clean reinstall sequence — possibly preceded by a manual edit of `~/.claude/settings.json` and/or `rm -rf` on a cache directory.
+4. Re-run `/plugin install` and hope.
+5. If still broken, repeat from (2).
+
+That is not a plugin upgrade story. That is a hostage situation.
+
+**Honest ownership accounting** (gates the reframe in S3):
+
+| Failure mode | Owner | Signal can fix? |
+|---|---|---|
+| P1 — `gitCommitSha` short-circuit | Claude Code plugin host | No — only diagnose + work around |
+| P2 — no Uninstall verb in `/plugin` UI | Claude Code plugin host | No — only document alternate path |
+| P3 — Disabled state survives reinstall | Claude Code plugin host | No — only diagnose + remediate |
+| Pre-rename `signal@signal` cache orphan | Half Signal (the rename) / half Claude Code (cache GC) | Partial — detect and remediate; historical only |
+| SSH multi-identity | Environmental | Documentation only |
+
+3 of 5 are upstream bugs. The troubleshooting doc reads as Signal's failure because it lives in Signal's repo; that framing is wrong and stranger-hostile.
+
+**Scope:**
+
+- **`/sig:doctor` command (S1 — diagnose-only).** Reads `~/.claude/settings.json`, `~/.claude/plugins/installed_plugins.json`, and `~/.claude/plugins/cache/<marketplace>/` directory structure. Detects all 5 documented P-states. Prints findings with copy-paste-ready remediation commands per state, OR "Signal v0.1.X installed and healthy — no action needed." Read-only; no mutations. Exit code 0 if healthy, 1 if any P-state detected (so it can be scripted in CI or pre-commit hooks).
+- **`/sig:doctor --upgrade` (S2 — guided upgrade flow).** Single command that performs the canonical clean reinstall sequence regardless of which P-state(s) the user is in. Prompts for confirmation before each mutating action (`rm -rf` cache dir, `settings.json` edit, `/plugin uninstall`, `/plugin install`). Idempotent — re-running on a clean install reports "already at latest" and exits.
+- **`/sig:doctor --fix` (S2 — auto-remediation, per-finding).** For each detected P-state, ask "remediate this one? [y/N]" and execute the per-state fix. More surgical than `--upgrade`; useful when only one P-state is present.
+- **Auto-version-check in `/sig:status` (S3).** `/sig:status` reads installed version from cache, compares to latest GitHub release tag, and prepends `⚠ Signal vX.Y.Z installed; vA.B.C available. Run /sig:doctor --upgrade.` to the briefing when stale. Does not block — surfaces drift the same way E6's STATE.md staleness check does. Cached for 24h to avoid GitHub API hits on every `/sig:status` call.
+- **Troubleshooting doc reframe (S3).** First sentence of `docs/install-troubleshooting.md` names ownership explicitly: *"Most install-state failures documented here are Claude Code plugin-host bugs, not Signal bugs. We document them because strangers should not have to debug Anthropic's plugin host alone. Run `/sig:doctor` first — it will tell you which workaround applies and execute it for you."* Per-section ownership tags added (`**Owner: Claude Code plugin host**` / `**Owner: Signal (historical — pre-rename)**`). Reduces doc length by routing readers to `/sig:doctor` instead of asking them to triage 5 symptom sections by hand.
+- **Upstream issue filings (S3, optional — defer if upstream pace would block ship).** File 3 GitHub issues against `anthropics/claude-code` for P1/P2/P3 using Signal's existing repro docs as the bug-report substrate. Cross-link from `docs/install-troubleshooting.md`. If/when upstream lands fixes, the corresponding `/sig:doctor` checks can be retired.
+
+**Three-slice plan:**
+
+- **S1 — `/sig:doctor` diagnose-only command.** `commands/doctor.md` + `tools/lib/doctor.js`. Detection logic per P-state, output formatting, no mutations. Validator wiring (`REQUIRED_COMMANDS += commands/doctor.md`), README mention, CLAUDE.md command-count bump (14 → 15). Tests: per-P-state fixture under `tests/fixtures/doctor-states/` (synthetic `~/.claude/` trees representing each state), unit tests for each detector, output-formatting tests. One ship event.
+- **S2 — `--upgrade` + `--fix` mutating flags.** Add remediation execution per P-state, confirmation prompts, idempotency guarantee. Tests cover the dry-run path (default) AND the execute path against fixture filesystems (no real `~/.claude/` mutation in tests). One ship event.
+- **S3 — `/sig:status` version-check + doc reframe + (optional) upstream filings.** Extend `tools/lib/status.js` with version-staleness detection (GitHub releases API + 24h cache). Reframe `docs/install-troubleshooting.md` with ownership tags + `/sig:doctor`-first routing. File 3 upstream issues if scope permits. CHANGELOG `[0.1.3]` E8 block. Epic close. One ship event.
+
+**Acceptance criteria (high level — refined in PLAN):**
+
+1. `/sig:doctor` runs on a healthy install and reports "Signal vX.Y.Z installed and healthy — no action needed."
+2. `/sig:doctor` runs on each of the 5 documented P-states (via fixture or real reproduction) and reports the correct finding with the correct remediation command.
+3. `/sig:doctor --upgrade` executes a clean reinstall regardless of starting P-state; re-running on a now-healthy install is a no-op.
+4. `/sig:doctor --fix` remediates per-finding with explicit per-action confirmation; declining a prompt skips that fix and continues.
+5. `/sig:status` prepends a staleness warning when installed version is older than the latest GitHub release tag.
+6. `docs/install-troubleshooting.md` opens with the ownership statement and routes readers to `/sig:doctor` before any per-symptom triage.
+7. Tests cover detection of all 5 P-states + the healthy-install case; existing 384 tests stay green.
+8. The Epic dogfoods itself: at least one upgrade flow (e.g., the Biz machine or laptop test environment) is executed via `/sig:doctor --upgrade` end-to-end before SHIP.
+
+**Exit:** All 3 slices shipped; dogfood criterion (#8) demonstrated; `docs/install-troubleshooting.md` reframed; (optional) 3 upstream issues filed against `anthropics/claude-code`. Stranger onboarding story for v0.1.3 collapses to: *install once, then on upgrade run `/sig:doctor --upgrade` — one command, deterministic, regardless of P-state.*
+
+**Estimated effort:** 2–3 focused days. Detection logic is mechanical (read JSON files + dir listings + compare strings). The risk is in the `--upgrade` flow execution model — invoking `/plugin uninstall` and `/plugin install` from inside Claude Code requires either shelling out or instructing the user to run them. The first design decision in DISCUSS will be: does `/sig:doctor` execute the remediation, or does it generate a script the user runs? Lean toward generating a runnable shell script the first time, then upgrading to direct execution once the path is proven.
+
+**Not in scope (for E8 specifically):**
+
+- Marketplace migration (publishing to the official Claude Code marketplace vs. GitHub-hosted `sig@signal`). That's an E5 launch concern.
+- Telemetry or auto-update background processes — Signal's privacy claim (E3 D-E3-1) explicitly rules these out.
+- Diagnosis of `.planning/` corruption or in-project state issues — that's `/sig:checkpoint`'s domain (E6). `/sig:doctor` is strictly about install/upgrade state in `~/.claude/`.
+- The TLS/auth side of GitHub releases API access — assume `gh` CLI or `curl` works; punt on auth-required fetch.
+
+**Anti-rationalization to lock in early:**
+
+- *"Just expand the troubleshooting doc with better diagrams."* — No. The doc is the symptom of the problem, not the solution. A stranger debugging install state is already failing the "5-minute install" promise.
+- *"Wait for Anthropic to fix the plugin host."* — Indefinite timeline; Signal cannot ship its launch on an upstream dependency. File the issues AND ship `/sig:doctor` so we're not blocked.
+- *"Auto-remediate without confirmation prompts to make it one command."* — No. Mutations to `~/.claude/` affect every plugin the user has installed. Explicit confirmation per mutating action is non-negotiable. `--upgrade` can chain prompts but must not skip them.
+- *"Make `/sig:doctor` part of `/sig:status`."* — No. `/sig:status`'s one-screen contract is load-bearing (per E6 work). Doctor's detection logic is more expensive (filesystem reads + JSON parses + version-check); bolting it onto `/sig:status` either slows status down or fragments the contract. Separate command.
+
+**Resolve before SHIP:**
+
+- DISCUSS gate: confirm S2's execution model (script generation vs. direct execution) before PLAN.
+- PLAN gate: confirm that fixture-based detection tests are sufficient (vs. requiring real `~/.claude/` state in a sandbox).
+- Pre-SHIP: dogfood `/sig:doctor --upgrade` end-to-end on at least one machine other than Mac Studio.
+
 ---
 
 ## Exit Criteria for Milestone 4.5
 
-All 5 Epics shipped. At least 3 non-Signal users have run `/sig:init` through `/sig:ship` on real projects. Friction logs from those runs reviewed; resulting fixes either shipped or promoted to FUTURE-IDEAS / M5. README opens with a pitch a stranger can parse in 60 seconds. Install path verified on at least one fresh non-author machine.
+All 8 Epics shipped (E1–E8). At least 3 non-Signal users have run `/sig:init` through `/sig:ship` on real projects. Friction logs from those runs reviewed; resulting fixes either shipped or promoted to FUTURE-IDEAS / M5. README opens with a pitch a stranger can parse in 60 seconds. Install path verified on at least one fresh non-author machine. Upgrade path collapses to one deterministic command via `/sig:doctor --upgrade` (E8) regardless of starting install state.
 
 ## Notes
 
