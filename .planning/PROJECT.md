@@ -25,6 +25,7 @@ Signal uses the following work-unit terms. Locked 2026-05-12 in M4.t18 (see `DEC
 | **Task** | A unit of work small enough to ship in a focused session. Lowercase `t` so M / E / S / t are visually distinct. | `M4.t17`, `M5.E3.t2`, `M4.5.E8.S2.t3` |
 | **Phase** | A workflow stage in Signal's 6-phase flow (`calibrate → discuss → plan → execute → verify → review → ship`). Workflow-only — never a numbered work unit. | `CALIBRATE`, `DISCUSS`, … |
 | **Wave** | A parallel-execution batch within a single phase's plan (used by `/sig:execute`). | `Wave 1`, `Wave 2` |
+| **Tier** | Project-wide rigor classification set by `/sig:calibrate` (changeable via `/sig:escalate`); written to `.planning/PROFILE.md`. Gates which phases run for the project and how strictly — skipped phases, gate strictness, TDD requirement, security audit depth, plan-validation dimensions, etc. Project-scoped, not per-task. Full schema in `references/profile-schema.md`; per-tier defaults in `references/tier-definitions.md`. | `SKETCH`, `FEATURE`, `SPIKE`, `FULL` |
 
 **ID is persistent identity, never changes.** Once assigned, a task's ID is its address forever — across renames, re-orderings, escalations, and milestone reshuffles. Phase and Wave are *metadata* on the work unit (describing transient status: planned / in-flight / shipped), not part of its address. If a task moves between waves or restarts in a different phase, its ID stays the same; only its metadata updates.
 
