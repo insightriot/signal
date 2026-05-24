@@ -831,3 +831,61 @@ Convert `docs/map/index.html` to fetch state at page load via a GitHub raw URL p
 ---
 
 *Last updated: 2026-05-24*
+## STATE.md auto-update protocol — extend beyond EXECUTE waves
+
+**Status:** Logged 2026-05-24. Trigger: hit during M4.5.E3 DISCUSS work. After E7 SHIP closed (commit `8723967`, 2026-05-23), `last_updated_commit` in STATE.md frontmatter stayed pinned at `8723967` across 5+ subsequent commits spanning E8 scaffolding, E3 DISCUSS lock, vocabulary updates, docs/map work, and E3 DISCUSS revision. The frontmatter was only refreshed by manual intervention after the user called it out as "a bug."
+
+**Context.** E6 (v0.1.2, 2026-05-18) shipped the STATE.md auto-update protocol as part of resume reliability. The protocol fires during EXECUTE waves — `commands/execute.md` and the executor agent both write STATE.md frontmatter after each task commit. **DISCUSS, PLAN, REVIEW, and SHIP phases don't have the equivalent.** Phase-entry transitions update `phase:` and `completed_phases:`, but `last_updated_commit` and `last_updated` only refresh when an EXECUTE-phase task ships. Result: any work done during DISCUSS or PLAN — including the DISCUSS phase artifact commits themselves, vocabulary refinements, milestone-doc updates, scoping decisions — leaves the frontmatter pointing at the previous EXECUTE commit.
+
+`/sig:checkpoint` exists as the manual escape hatch, but it requires conscious invocation. The protocol is only as good as the human remembering to run it; in practice, between-EXECUTE work accumulates silently.
+
+**Symptom inventory** (cases the gap manifests):
+
+| Case | Example | What goes stale |
+|---|---|---|
+| DISCUSS phase commits | Today: bc8b10b (DISCUSS lock), b4aa79b (DISCUSS revision) | `last_updated_commit`, `last_updated`, `last_decision_at` |
+| PLAN phase commits | Plan artifact writes, validation refinements | Same fields |
+| Out-of-flow doc edits | Vocabulary additions (`939ecf4` Tier, `7339b5d` Slice) | Same fields |
+| Parallel-machine work | A peer commits from another machine without running EXECUTE | Same fields + origin drift |
+| Manual SHIP polish | `[BREAKING]` flag tweaks, README cross-link audits | Same fields |
+
+**Why it matters.** `/sig:resume` reads frontmatter as the authoritative re-orientation source. A frontmatter pointing 5 commits back means:
+
+- Staleness banner correctly fires (good — the gap doesn't *hide*).
+- But the recommended next action is computed against stale context.
+- The contributor (human or AI) opening a fresh session sees "last commit: <some ancient hash>" and has to manually run `git log` to bridge — defeating the entire briefing contract `/sig:resume` is meant to provide.
+
+The 2026-05-19 origin-drift incident already proved this class of problem produces ~90 min of duplicate work. Today's case is gentler (single machine, just intra-conversation freshness) but the failure mode is identical.
+
+**Candidate direction.**
+
+Three options, ascending cost:
+
+### Option A — Extend the protocol to every phase command (lowest cost)
+
+Each `commands/{discuss,plan,verify,review,ship}.md` ends its workflow with a "refresh STATE.md frontmatter" step, same shape as the executor agent's step 6 (write `last_updated_commit: <HEAD>`, `last_updated: <ISO now>`). One step appended to 5 command markdowns.
+
+**Pros:** Localized change. Doesn't require a new tool. Each command knows when its work "ends" so the refresh happens at the natural transaction boundary.
+**Cons:** 5 commands updated; risk of drift if one of them forgets. Doesn't cover out-of-flow doc edits (vocabulary commits, MILESTONE-x.md edits made outside any `/sig:*` command).
+
+### Option B — Add a post-commit hook approach (mid cost)
+
+A documented opt-in git hook (`.githooks/post-commit`) that runs `node tools/refresh-state.js` after every commit, regardless of which `/sig:*` command (if any) drove it. The script reads HEAD + current time and patches STATE.md frontmatter.
+
+**Pros:** Catches every commit, including out-of-flow edits and parallel-machine sessions. No discipline burden on the user.
+**Cons:** Git hooks are opt-in (each clone has to enable them via `git config core.hooksPath .githooks`). Not portable across IDEs (some don't trigger hooks the same way). Risk: hook running during a rebase or amend creates weird intermediate frontmatter writes.
+
+### Option C — Compute on-read instead of writing on-commit (highest cost)
+
+`/sig:resume` and `/sig:status` recompute "last commit" by calling `git log -1` at read time, never trusting a stored field. STATE.md frontmatter drops `last_updated_commit` entirely; staleness becomes definitionally impossible because there's no stored value to go stale.
+
+**Pros:** Eliminates the gap class entirely. The frontmatter only stores fields that *can't* be re-derived (phase, current_epic, blockers).
+**Cons:** Bigger schema change (`schema_version: 1` → `schema_version: 2`); breaks any external tooling that reads the field. Auto-migration logic needed. Decision-trail fields (`last_decision_at`) still need writing; only the derivable ones move to read-time.
+
+**Recommended starting point.**
+
+Option A as the minimum viable fix — append "refresh STATE.md frontmatter" to the 5 non-EXECUTE phase commands. Probably 1–2 hours of work + tests. Defers Option B / C until evidence shows discipline-based refresh keeps failing.
+
+**Triage hint.** This sits between "Signal enhancement" and "resume-reliability bug." If it's a bug, it belongs in a release-hardening Epic; if it's an enhancement, it belongs after M4.5 closes. **Recommended:** treat as a P2 bug — slot into M4.5 as a fast follow on E6 (call it E6.S7 or a new mini-Epic) **only if a second instance happens** during M4.5's remaining work. Otherwise, ship as part of v0.1.3-or-later release-hardening pass once E5 launch posture is clearer.
+
+**Source data.** STATE.md frontmatter, `commands/execute.md` step-6 protocol, `agents/executors/executor.md` task-completion step, `tools/lib/state.js` (writers + readers), `references/state-schema.md` (the contract definition). See M4.5.E6 SHIP artifacts in `.planning/` + commit `8723967` (E7 SHIP) for the most recent canonical example of the EXECUTE-only refresh in action.
