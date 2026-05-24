@@ -860,3 +860,65 @@ MILESTONE-4.5.md § E1 + § Status snapshot table both get an explicit "shelved 
 **Reference:** Revised acceptance criteria (AC1–AC12) + revised D-E3 list + revised open questions in `.planning/M4.5.E3-REQUIREMENTS.md` § "2026-05-24 revision". MILESTONE-4.5.md § E3 + § E1 get the shelving + close annotations during E3 S2.
 
 ---
+
+## 2026-05-24 — M4.5.E3 PLAN-gate decisions locked (4 new)
+
+**Context.** PLAN phase completed 2026-05-24 for M4.5.E3. Research surfaced 3 deviations from DISCUSS scope; user (Brett) approved all + added 1 scope addition at the gate. Decisions locked before EXECUTE entry.
+
+**D-E3-1-amend — Drop PRIVACY.md as a separate file.**
+
+Original D-E3-1 specified a "privacy doc pair" (README section + PRIVACY.md). Research (domain + prior-art researchers) found 0 of 6 peer Claude Code plugins ship PRIVACY.md and the ecosystem norm for tools that send nothing is silence-as-no-telemetry (esbuild, Prettier, husky, Vitest all skip PRIVACY.md; Astro/Next ship it because they DO have telemetry). Shipping PRIVACY.md actively signals "maybe there's telemetry to worry about" — opposite of intent.
+
+**Revised:** README "Privacy & telemetry" section (~6-8 lines) + `tools/audit-network-calls.js`. No PRIVACY.md. The README mini-section carries the affirmative claim; the script makes it verifiable.
+
+**Impact:** AC2 dropped. AC1 absorbs audit-method content as a short paragraph. Removes ~1 file deliverable; reduces drift surface.
+
+**D-E3-1-amend-b — Convert `tools/audit-network-calls.sh` → `.js`.**
+
+Original D-E3-1 specified `.sh`. Codebase researcher found zero `.sh` precedent in `tools/` (all 15 existing files are Node ESM); risk researcher flagged shell-portability concerns (bash vs zsh, BSD vs GNU grep). Converting to Node ESM avoids the portability question entirely and inherits Signal's standard tool conventions.
+
+**Revised:** `tools/audit-network-calls.js`. Shebang `#!/usr/bin/env node`; ESM imports; `__dirname` via `fileURLToPath(import.meta.url)`; exit 0/1 conventions.
+
+**Impact:** AC3 unchanged in effect; file extension + implementation language change. README + CHANGELOG references update.
+
+**D-E3-NEW-13 — Add `references/facts.md` as canonical source-of-truth.**
+
+Surfaces from risk researcher: hard-coded fact strings across multiple docs is the maintenance time-bomb that hit STATE.md staleness earlier this session (test count 93+ in README vs 366 in CONTEXT.md vs 384 actual). Single source-of-truth file with a consistency test that reads from it eliminates the class.
+
+**Locked:** New file `references/facts.md` with canonical strings for:
+- Runtime: Node.js 22+; Claude Code 2.1.141+; OS = "Verified on macOS; Linux/WSL untested"
+- Dependencies: runtime `yaml` (1 dep); dev `vitest`
+- Test surface: current count (updated each Epic close)
+- License + repo: MIT; `https://github.com/InsightRiot/signal`
+
+Header note pins the file as authoritative: "Update HERE first; tests catch drift in referenced docs."
+
+**Impact:** New file + new test pattern. Consistency test sources from `references/facts.md` rather than hard-coding. Pattern reusable for future drift-prone facts.
+
+**D-E3-NEW-14 — Lock attribution prominently across documents as "Open Source Origins."**
+
+**User request at PLAN gate 2026-05-24:** "I want to make sure attribution is locked in documents — so all of the repos that we've either borrowed from or taken inspiration from should be explicitly attributed — maybe with a head of 'Open Source Origins' — a note of appreciation. then list with gratitude the work all of those folks did that has inspired Signal."
+
+**Locked:**
+
+- **README rewrite:** existing `## Credits & Heritage` section becomes `## Open Source Origins`. New intro paragraph with gratitude framing (1-2 sentences, e.g., "Signal is the synthesis of patterns from many other people's work. The projects below shaped Signal's architecture directly — through code ported, ideas borrowed, or examples studied. Listed with thanks to their maintainers.").
+- **Preserve 4-tier structural information** — Ported (v1) / Planned (v2) / Pattern source / Reference / Signal's own contribution. Subsection headings updated to warmer voice ("Directly ported (v1)" / "Inspiration for v2" / "Patterns borrowed (without full ports)" / "Bridge references" / "Signal's own contribution").
+- **All 9 source repos retain GitHub URL links** + 1-line acknowledgments of what specifically was borrowed.
+- **LICENSES.md cross-link preserved** — legal attribution is separate from gratitude attribution.
+
+**Verification:** Consistency test 9 (added to `tests/cross-file-consistency.test.js` in S2.t2) asserts literal `## Open Source Origins` + presence of all 9 source-repo GitHub URLs. Voice quality validated by manual review at VERIFY.
+
+**Impact:** +1 task in S2 (S2.t4); +1 acceptance criterion (AC13); +1 consistency test assertion (test 9). Net: ~20 LOC README rewrite + ~3 LOC test extension.
+
+Per Brett's phrasing "in documents" (plural), the LICENSES.md file is left untouched as the legal-attribution surface (it already exists); README is the primary gratitude-attribution surface. If a future Epic wants to extend the gratitude framing to additional surfaces (e.g., a dedicated `ACKNOWLEDGMENTS.md`), that's a follow-on, not E3 scope.
+
+**Implication for EXECUTE:**
+
+S2 grows from 6 → 7 tasks. New sequence: t1 (facts.md) → t2 (consistency tests RED + test 9) → t3 (README compat + docs/map) → t4 (README Open Source Origins) → t5 (SECURITY.md) → t6 (MILESTONE + FUTURE-IDEAS) → t7 (CHANGELOG + E3 close). S2.t3 and S2.t4 are both README edits and can be ordered for efficient editing (recommended: t3 first, then t4).
+
+PLAN artifacts authoritative for EXECUTE:
+- `.planning/M4.5.E3-PLAN.md` (task list + acceptance criteria)
+- `.planning/M4.5.E3-VALIDATION.md` (8-dim + Nyquist mapping)
+- `.planning/M4.5.E3-RESEARCH.md` (informational; surfaced decisions integrated above)
+
+---
