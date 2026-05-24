@@ -759,4 +759,75 @@ I wonder aloud at having a feature of Signal be a 'you are here' breadcrumb in s
 
 ---
 
-*Last updated: 2026-05-19*
+## `docs/map/index.html` — refresh protocol (auto-generated vs. manual sync)
+
+**Status:** Logged 2026-05-24. Trigger: added the "Work-unit vocabulary" section to `docs/map/index.html` (commit `629b629`); the new section includes "currently active" lines (Milestone / Epic / Slice / Task) populated from STATE.md as of 2026-05-24. Without an explicit refresh protocol these lines go stale within days during active development — Task lines change daily during EXECUTE, Slice lines every few days, Epic lines every few weeks.
+
+**Context.** The map (`docs/map/index.html`) is intentionally a side note — single-file static HTML, no build step, data lives in JS objects at the bottom of `<script>`. It was a one-time visualization of *static* concepts: the 4 tiers, the 7 phases, the rigor matrix, the 5 calibration questions. None of those go stale unless Signal's architecture changes. The new vocabulary section breaks that pattern: it embeds "currently active" project state (`M4.5`, `M4.5.E3`, `M4.5.E7.S2`, `M4.5.E7.S2.t8`) directly into the visualization. That data has its own staleness cadence.
+
+**Staleness inventory** (which lines decay how fast):
+
+| Line | Source-of-truth | Typical refresh cadence |
+|---|---|---|
+| `Currently: M4.5 (...)` (Milestone) | STATE.md frontmatter + MILESTONE-{N}.md | 1–2× per year (new Milestone start) |
+| `Active: M4.5.E3 (...)` (Epic) | STATE.md `current_epic` | Every few weeks (Epic shifts) |
+| `Last shipped slice: M4.5.E7.S2 (...)` (Slice) | git log + CHANGELOG | Every few days during active dev |
+| `Last shipped task: M4.5.E7.S2.t8 (...)` (Task) | STATE.md `last_completed_task` | Daily during EXECUTE |
+| Header meta date | Manual | Every map edit |
+
+**Candidate direction.**
+
+A staged approach — start with the lightest possible manual protocol, promote to automation only if the manual approach reliably fails.
+
+### Stage 1 — Manual sync at Epic-SHIP events (lowest cost; recommended starting point)
+
+Add one line to `commands/ship.md`'s pre-ship checklist:
+
+> Before opening the PR: if this Epic touched the work-unit vocabulary OR shipped a slice that should appear in `docs/map/index.html`, update the `VOCABULARY.hierarchy[].example` lines and the `<p class="meta">generated {date}</p>` header in `docs/map/index.html`. ~2 minutes; same edit pattern as updating CHANGELOG.
+
+Rationale: Epic-SHIP is the natural cadence for "stuff worth surfacing publicly happened." Task-level changes are too noisy (Task line would update daily); Milestone-level is too rare (Slice + Epic lines would lag). Epic-SHIP is the goldilocks gate.
+
+Cost: zero infrastructure, ~2 min per Epic ship. Already part of an existing checklist, so no new ceremony.
+
+Failure mode: human forgets. Mitigated by `commands/ship.md` being the per-Epic checklist that already gates other "did you remember…" items (CHANGELOG, validator, tests).
+
+### Stage 2 — Auto-generate map data on commit (if Stage 1 reliably fails)
+
+Promote to a `tools/build-map.js` script that:
+- Reads `.planning/STATE.md` frontmatter (current_epic, last_completed_task)
+- Reads `.planning/CHANGELOG.md` or `git log --oneline -1 -- MILESTONE-*.md` for last shipped slice
+- Rewrites the `VOCABULARY.hierarchy[].example` lines in `docs/map/index.html` in place
+- Bumps the header `generated {date}` line
+- Runs as either: (a) a `lefthook` / `husky` pre-commit hook scoped to `.planning/STATE.md` writes, (b) a `npm run build:map` invoked from `commands/ship.md`, or (c) a tiny Node script in `tools/` called manually.
+
+Cost: ~150 LOC of Node, no new runtime dep (uses existing `fs` + `yaml` for STATE.md parsing). Adds a build step to a previously build-step-free file — minor architectural drift.
+
+Failure mode: regex-based string replacement can be fragile; mistakes corrupt the map. Mitigate with: (a) tests for the script, (b) keeping the data object structure verbatim-parseable.
+
+### Stage 3 — Make the map a live page (deferred indefinitely)
+
+Convert `docs/map/index.html` to fetch state at page load via a GitHub raw URL pointing at `.planning/STATE.md`. Pros: never stale. Cons: introduces network dependency on a side-note page, breaks the "static, no build step" property, raises questions about cross-origin and rate limits. Not pursued unless Stages 1 and 2 both fail and live freshness becomes a real ask.
+
+**Why log, not fix now.** Stage 1 is genuinely a one-line addition to `commands/ship.md` plus this FUTURE-IDEAS entry. Could be landed right now without a full Epic. But the user has scoped today's work as: capture-and-ship the vocabulary visualization. Adding to `commands/ship.md` touches the workflow surface, which deserves its own micro-Epic or a slot in the next plan-cycle so the change is intentional. Land as: a one-task addition to M4.5.E3's S3 governance slice (since governance is the natural home for "checklist updates that contributors follow"), OR as a standalone follow-on after E8.
+
+**Anti-rationalization to lock in early:**
+- *"Just update the map whenever you remember."* — That's the failure mode this entry exists to prevent. The map already had a stale `generated 2026-05-22` date when this entry was written; ad-hoc updates lose to entropy.
+- *"Skip Stage 1, jump to Stage 2."* — No. Stage 1 is free and proves whether the refresh cadence is worth automating. Building the script before knowing whether the manual version reliably gets done is over-engineering.
+- *"Make the data live."* — Stage 3 territory. Not now. Side-note pages don't justify network dependencies; the cost-benefit doesn't pencil out.
+- *"Add map updates to every task SHIP, not Epic SHIP."* — Wrong cadence. Most tasks don't shift the vocabulary visualization's content; Epic boundaries do. Task-level cadence creates churn without signal.
+
+**Open design questions:**
+- **Where does Stage 1's checklist line live?** `commands/ship.md` is the obvious home (per-Epic SHIP), but `commands/ship.md` is currently a generic command template, not Epic-specific. May need a small refactor or a separate "release-cycle ship checklist" doc.
+- **Does the map deserve its own SHIP gate at all?** Alternative framing: treat it as `examples/` material (deferrable, casual) rather than `docs/` material (formal, current). If so, refresh cadence relaxes to "whenever convenient."
+- **Should the `docs/map/index.html` footer's "refresh cadence" pointer link to this entry's permalink?** Currently links to `.planning/FUTURE-IDEAS.md § map-refresh-protocol`. Once promoted to milestone work, the pointer should update.
+
+**Resolve by:**
+- Stage 1 lands as part of M4.5.E3.S3 (governance slice) OR as a one-off micro-task after E3 ships. Either way, before E5 launch — strangers will see the map and they'll see "generated {old date}" as a quality signal.
+- Stage 2 promotion-trigger: 3+ consecutive Epic ships where Stage 1's checklist was forgotten or skipped. Until then, manual is fine.
+- Stage 3: never, unless Stages 1 + 2 both fail AND live freshness becomes a real user ask.
+
+**Slot:** likely M4.5.E3.S3 (one-line checklist addition to `commands/ship.md`) or a standalone micro-task after E3/E8 close. Defer-or-promote decision when the next planning cycle runs.
+
+---
+
+*Last updated: 2026-05-24*
