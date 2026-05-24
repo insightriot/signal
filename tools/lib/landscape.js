@@ -70,6 +70,40 @@ export function extractSection(content, heading) {
 }
 
 /**
+ * Embed the body of an h2 markdown section verbatim.
+ *
+ * Like extractSection, but preserves interior whitespace, fenced-code blocks,
+ * tables, and bullets exactly as they appear in the source. The only whitespace
+ * mutation is stripping trailing whitespace at the section boundary (so the
+ * caller doesn't get the next heading's leading newlines).
+ *
+ * Designed for /sig:init Step 3's "embed verbatim" instructions: the
+ * synthesizer template asks for the structure scan's Source Tree table to
+ * appear unchanged in LANDSCAPE.md. Asking the LLM to "embed verbatim" is
+ * what produced R1's character-drop bugs (M4.5.E7 patterns 3 + 4); this
+ * helper takes the LLM out of the loop for that copy.
+ *
+ * Returns null if the heading is not found or content is null/empty.
+ *
+ * @param {string|null} content - markdown content (typically a scan output)
+ * @param {string} heading - exact heading text (without leading `## `)
+ * @returns {string|null}
+ */
+export function embedSection(content, heading) {
+  if (!content) return null;
+  const esc = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(
+    `(?:^|\\n)##\\s+${esc}[ \\t]*\\n([\\s\\S]*?)(?=\\n##\\s+|$)`,
+    'i'
+  );
+  const match = content.match(pattern);
+  if (!match) return null;
+  // Strip trailing whitespace only (so the caller doesn't inherit the
+  // next-heading's leading newlines), but preserve interior content verbatim.
+  return match[1].replace(/\s+$/, '');
+}
+
+/**
  * Extract a labeled field from markdown content. Matches common shapes:
  *   - **Label:** value
  *   - **Label**: value
@@ -105,3 +139,4 @@ export function extractField(content, label) {
 }
 
 export { SCANNERS, SCAN_DIR, PLANNING_DIR };
+// embedSection is exported inline at its definition above.

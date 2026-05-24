@@ -7,6 +7,7 @@ import {
   readAllScans,
   extractSection,
   extractField,
+  embedSection,
   SCANNERS,
 } from '../tools/lib/landscape.js';
 
@@ -179,5 +180,67 @@ describe('extractField', () => {
   it('trims whitespace from extracted value', () => {
     const content = '- **Status:**   active   \n';
     expect(extractField(content, 'Status')).toBe('active');
+  });
+});
+
+describe('embedSection', () => {
+  it('returns full section body verbatim for a structure-scan Source Tree table', () => {
+    const scan = [
+      '# Structure Scan',
+      '',
+      '## Source Tree (depth-3)',
+      '',
+      'Source root: `lib/`',
+      '',
+      '| Path | Annotation |',
+      '|---|---|',
+      '| `index.js` | Top-level entry (224 bytes) |',
+      '| `lib/` | Library source — 6 files |',
+      '',
+      '## Test Surface',
+      '',
+      '- Dedicated directory: test/',
+      '',
+    ].join('\n');
+    const body = embedSection(scan, 'Source Tree (depth-3)');
+    expect(body).toContain('| Path | Annotation |');
+    expect(body).toContain('| `index.js` | Top-level entry (224 bytes) |');
+    expect(body).toContain('| `lib/` | Library source — 6 files |');
+    expect(body).toContain('Source root: `lib/`');
+    expect(body).not.toContain('## Test Surface');
+    expect(body).not.toContain('Dedicated directory: test/');
+  });
+
+  it('returns null for a missing heading', () => {
+    const scan = '# Stack Scan\n\n## Languages\n\n- JavaScript: 100%\n';
+    expect(embedSection(scan, 'Nonexistent Heading')).toBeNull();
+    expect(embedSection(null, 'Languages')).toBeNull();
+    expect(embedSection('', 'Languages')).toBeNull();
+  });
+
+  it('preserves fenced-code blocks and table cell content verbatim', () => {
+    const scan = [
+      '## README',
+      '',
+      '**First 30 lines:**',
+      '',
+      '```',
+      '[![Express Logo](https://example.com/logo.png)](https://expressjs.com/)',
+      '',
+      '**Fast, unopinionated, minimalist web framework for [Node.js](https://nodejs.org).**',
+      '```',
+      '',
+      '## CHANGELOG',
+      '',
+      'Other content',
+      '',
+    ].join('\n');
+    const body = embedSection(scan, 'README');
+    expect(body).toContain('```\n[![Express Logo]');
+    expect(body).toContain('**Fast, unopinionated, minimalist web framework for [Node.js](https://nodejs.org).**');
+    const fenceCount = (body.match(/```/g) || []).length;
+    expect(fenceCount).toBe(2);
+    expect(body).not.toContain('## CHANGELOG');
+    expect(body).not.toContain('Other content');
   });
 });
