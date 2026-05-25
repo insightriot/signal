@@ -952,3 +952,57 @@ Read `state.current_epic` from STATE.md frontmatter (already loaded for the brie
 **Triage hint.** P2 — a real briefing-quality regression that hits every Epic-mid-flight resume call. Worth slotting into M4.5 as a fast-follow tooling fix if `/sig:resume` is run more than ~2-3 times before another release; otherwise, batch with a release-hardening tooling sweep. Either way, ship before any external launch where strangers might run `/sig:resume` on their own Signal-managed project. Related to `/sig:resume` origin-drift gap (also logged) — both are resume-reliability papercuts that compound to "the briefing doesn't actually brief."
 
 **Source data.** `commands/resume.md` (resolution rules in Step 3); `tools/lib/resume.js` (if helper exists); existing `.planning/M4.5.E*` artifacts as proof of the convention; STATE.md `current_epic` field availability since schema_version 1 (M4.5.E6 ship).
+
+---
+
+## FUTURE-IDEAS drain process — no defined path from capture to Epic
+
+**Status:** Logged 2026-05-24 during conversation about the asymmetry between FUTURE-IDEAS' input pipe and its (nonexistent) output pipe. Trigger: user reviewing 16 live entries asked aloud *"at some point they all need to get into Epics — any process for that?"* The honest answer was no, there isn't one. This entry captures the gap before designing a fix.
+
+**Context.** FUTURE-IDEAS.md has a hardened **input** path: `/sig:add` (M4.5.E2.S1, shipped 2026-05-14) does verbatim capture, sensitive-data scrub, atomic write, lock-protected. New ideas land cleanly. There is no defined **output** path. Entries accumulate. As of today: 16 live entries, oldest from early M4.5 work (~April 2026), most recent five logged within the last 36 hours. Average accumulation during active dogfooding is ~3–5 entries/week. No expiry, no triage cadence, no owner.
+
+Things that touch the gap today, in order of how much they actually drain:
+
+1. **M4.5.E2 Slice 5 (pending)** — `commands/plan.md` gets a step that surfaces FUTURE-IDEAS at planning-gate. This is the closest thing to a drain, and it's already on the roadmap — but it only fires when a new Epic starts PLAN, so entries can sit weeks between sweeps. It also doesn't define what *should happen* to an entry once surfaced (promote? defer? delete? merge?).
+2. **Ad-hoc relevance** — when an entry becomes urgent ("oh, we need that now"), the user manually promotes it into an Epic or fold it into in-flight work. Lossy: relevant-but-not-urgent entries decay into the void.
+3. **Nothing else.** No periodic review. No staleness flag. No archival of shipped items beyond the lone `## ✓ SHIPPED — …` heading from the plugin rename.
+
+**Impact.** Three failure modes, ordered by current pain:
+
+- **Quiet decay.** Entries logged during real friction moments lose context as the project evolves — six weeks later, the "why" line still reads but the surrounding state has changed enough that it takes 10 minutes of re-investigation to know whether the entry is still valid.
+- **Duplicate logging.** With 16+ entries and no triage cadence, `/sig:add` calls risk re-capturing variants of existing entries because nobody is reading FUTURE-IDEAS top-to-bottom. (Already mitigated weakly by the user's habit of skimming before logging, but that's a personal-discipline gate, not a process.)
+- **Stranger-hostile.** A new contributor reading FUTURE-IDEAS today cannot tell which entries are *next up*, which are *parked indefinitely*, and which are *probably stale.* Same problem as the `/sig:orient` entry surfaces for project status — Signal's surface lacks plain-English curation outside of in-flight Epics.
+
+**Candidate directions.** Three options, in increasing order of effort and explicit ownership:
+
+1. **Trust M4.5.E2.S5 alone.** Planning-gate review is the most natural drain point — the user is already in "what should we build next" mode. Define what S5 *does* with each surfaced entry (promote / defer / delete / merge) and call it done. Low effort, but only fires per-Epic-planning, so cadence is irregular.
+2. **Milestone-boundary sweep.** Add a FUTURE-IDEAS triage step to whatever closes a Milestone (today there's no explicit command — happens implicitly via the final `/sig:ship`). Lower frequency than S5, but higher rigor — every entry gets a decision at least once per Milestone.
+3. **`/sig:groom` (or `/sig:triage`) command.** Dedicated read-mostly command that walks FUTURE-IDEAS and prompts per entry: *still relevant? promote? defer? delete? merge?* Same design discipline as `/sig:status` and `/sig:report` — re-runnable, decisions captured separately, no `.planning/*` mtimes mutated by the walk itself. Most effort, but the only option that gives the drain process an explicit owner, a cadence the user controls, and a verb in Signal's vocabulary.
+
+Options aren't mutually exclusive. Plausible final shape: S5 covers *new-Epic planning gate*, a Milestone-close step covers *full sweep*, and `/sig:groom` exists as an *on-demand* triage tool. Don't design the full shape until S5 ships and the gap it leaves behind is concrete.
+
+**Anti-rationalization to lock in early:**
+- *"Just delete entries we don't act on."* — No. The value of FUTURE-IDEAS is the why-and-context capture at the moment of friction; deletion without triage discards data we paid to record.
+- *"Set a hard expiry — auto-archive after N weeks."* — Tempting but lossy. Entries can be dormant-but-correct for months (e.g., `/sig:audit` logged 2026-05-09 is still relevant). Time-based decay punishes the wrong thing.
+- *"Just rely on the user skimming the file before each `/sig:add`."* — Personal-discipline gate, not a process. Fails the moment the user is tired, rushed, or onboarding a collaborator. Won't survive stranger adoption.
+- *"Track everything in a real issue tracker (GitHub Issues / Linear)."* — Considered and rejected. FUTURE-IDEAS' value is being *inside the workspace*, captured by `/sig:add` in the same flow as actual work. Exporting to an external tracker breaks the capture loop and adds context-switch overhead. Worth revisiting only if Signal grows multi-contributor.
+- *"Add a `status:` field to each entry's frontmatter (active / parked / stale)."* — Adds bookkeeping load to every entry without solving the underlying triage cadence problem. Status fields go stale faster than the entries they describe. Don't.
+- *"Roll this into `/sig:plan`'s already-planned S5."* — That's option #1 above, and it might be the right answer. But conflating "review at next planning gate" with "drain the full file" is how S5's scope quietly grows beyond what was planned. Keep them as distinct decisions.
+
+**Open design questions:**
+- **What's the canonical disposition vocabulary?** *Promote → Epic*, *defer → keep dormant*, *merge → fold into another entry*, *delete → outdated*, *shipped → archive with marker*. Need a small reference table if any option lands.
+- **Where do disposition decisions get recorded?** Inline edit of the entry? Archive section at bottom? Separate `FUTURE-IDEAS-LOG.md`? Probably inline — the entry already carries its own context, so the disposition belongs next to it.
+- **What's the right cadence for option #2 (Milestone sweep)?** Tied to *whatever closes a Milestone* — and Signal doesn't have a `/sig:milestone-close` command today. Adding one is a separate small design problem.
+- **Does `/sig:groom` (option #3) need tier-aware behavior?** Probably not — it's a META command like `/sig:status`/`/sig:report`/`/sig:resume`, which are tier-agnostic. But worth a one-line decision.
+- **What about FUTURE-IDEAS entries that are themselves about FUTURE-IDEAS process** (like this one)? Probably the right answer is *they get triaged by the process they describe, once it exists.* But that's circular until the first drain happens.
+
+**Triage hint.** P3 — real gap, no immediate blocker. M4.5.E2.S5 must ship regardless; the question this entry actually decides is *what comes after S5.* Reasonable resolution path: let S5 ship, live with it for 2–3 Epics, then revisit whether options #2 or #3 are needed. Or — if external stranger adoption begins before that — promote earlier, because stranger-hostility of an untriaged FUTURE-IDEAS file becomes a real cost the moment a non-author opens it.
+
+**Resolve by:** M4.5.E2.S5 ships AND (a) the user notices entries decaying between planning-gate sweeps, OR (b) a stranger reads FUTURE-IDEAS and asks "which of these are real?", OR (c) FUTURE-IDEAS crosses ~30 live entries (current 16 + projected 14 more during M4.5 close = roughly the threshold where top-to-bottom scan stops being free). Likely M5-era if (a)/(b)/(c) don't accelerate it.
+
+**Relationship to other entries:**
+- `/sig:add` (shipped) — input pipe. This entry is the missing output pipe.
+- M4.5.E2.S5 (pending) — partial drain at planning-gate. This entry asks "is partial enough?"
+- `/sig:report`, `/sig:audit`, `/sig:orient` — all read-only synthesis commands that share the same design discipline `/sig:groom` would inherit (re-runnable, no mtime mutation, no skills loaded, no agents spawned).
+
+**Source data.** `.planning/FUTURE-IDEAS.md` (this file, 16 live entries as of 2026-05-24); `.planning/MILESTONE-4.5.md` lines 60–71 (`/sig:add` Epic spec + S5 description); `commands/add.md` + `tools/lib/add.js` (input pipe implementation); conversation 2026-05-24 surfacing the gap.
