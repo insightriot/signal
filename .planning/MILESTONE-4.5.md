@@ -28,9 +28,9 @@ Listed in suggested execution order. Each Epic is independently shippable as v0.
 
 | Epic | Status | Notes |
 |---|---|---|
-| E1 — Stranger-install path bulletproof | S1 shipped 2026-05-15 (v0.1.1); **S2 Phase A shipped 2026-05-19 (outcome a — Phase B not needed)**; S3–S5 pending | F2 resolved as outcome (a); R1 row of install-verification matrix complete. Remaining: S3 R2/R3/R5 rows + S4 versioning policy + S5 validator hardening. |
+| E1 — Stranger-install path bulletproof | S1 shipped 2026-05-15 (v0.1.1); **S2 Phase A shipped 2026-05-19 (outcome a — Phase B not needed)**; **S3–S5 ⏸ shelved 2026-05-24** | F2 resolved as outcome (a); R1 row of install-verification matrix complete. S3–S5 (R2/R3/R5 + versioning policy + validator hardening) paused pending Linux/WSL tester volunteers — see M4.5.E3-REQUIREMENTS.md § D-E3-12 for unshelf trigger. |
 | E2 — `/sig:add` capture-and-route | S1 shipped 2026-05-14; S2–S5 pending | Hot path done; force-route flags + interview + hardening + plan-loop remain |
-| E3 — Public-facing docs rewrite | pending | |
+| **E3 — Public-facing docs rewrite** | **✓ shipped 2026-05-24 (v0.1.3 candidate)** | Audience reframe to self + peers (D-E3-11). 2 slices, 10 tasks. New: tools/audit-network-calls.js + README Privacy section + Compat table + docs/map link + README Open Source Origins rewrite + SECURITY.md + references/facts.md + tests/cross-file-consistency.test.js. 384 → 397 tests. CONTRIBUTING.md + issue templates + docs/compatibility.md deferred per D-E3-11 (see FUTURE-IDEAS.md "E3 contribution scaffolding — deferred"). |
 | E4 — Worked example + comparison page | pending | |
 | E5 — External validation + launch | pending | Cannot finish until E1–E4 land |
 | **E6 — Resume reliability (STATE.md schema + auto-update + `/sig:checkpoint`)** | **✓ shipped 2026-05-18 (v0.1.2)** | All 5 slices + S6 REVIEW loop-back (5 IMPORTANT findings resolved pre-publish). YAML-frontmatter STATE.md + auto-state-protocol + new `/sig:checkpoint` + staleness banner + orphan UI in `/sig:resume`. 225 → 366 tests; no new runtime deps. |
@@ -50,6 +50,8 @@ The single highest-leverage Epic. If the install path is broken, every other Epi
 - **Versioning & deprecation policy** — write the policy that would have made the `signal → sig` rename non-painful for users (semver-strict? breaking changes only at 0.X.0 minors with explicit upgrade notes? deprecation period before removal?). One-page doc; lives in `docs/versioning.md`. Future renames cite it.
 
 **Exit:** F2 resolved, install protocol documented + verified on at least one fresh machine, versioning policy committed.
+
+**S3–S5 shelved 2026-05-24** — see M4.5.E3-REQUIREMENTS.md § D-E3-12 for the trigger to unshelf (a Linux or WSL tester raising a hand). Work is paused, not cancelled; the scope still stands.
 
 ### M4.5.E2 — `/sig:add` capture-and-route command
 
@@ -81,6 +83,8 @@ Current top-level docs read as internal architecture notes. Strangers need a pit
 - **Privacy/telemetry statement** — one section in README: "Signal makes no network calls beyond Claude's own API; all state lives in `.planning/` in your repo."
 
 **Exit:** README opens with the pitch, CHANGELOG exists, compatibility documented, contribution/security paths visible, privacy statement explicit.
+
+**Shipped 2026-05-24 via M4.5.E3** with audience reframe (self + peers). See M4.5.E3-REQUIREMENTS.md § 2026-05-24 revision (decisions D-E3-10 / D-E3-11 / D-E3-12 / D-E3-1-amend) and M4.5.E3-PLAN.md for the revised 2-slice scope. CONTRIBUTING.md + issue templates + docs/compatibility.md sub-doc deferred — see FUTURE-IDEAS.md entry "E3 contribution scaffolding — deferred" for re-promotion triggers.
 
 ### M4.5.E4 — Worked example + comparison page
 

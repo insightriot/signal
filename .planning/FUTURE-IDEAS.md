@@ -1058,3 +1058,32 @@ Where it would actually help:
 - This entry's *language/stack* open question may share resolution with any future "what runtime does Signal depend on" decision.
 
 **Source data.** `safishamsi/graphify` (v8, ~3MB Python, 53k stars, AST extraction via tree-sitter + LLM augmentation for non-code; output in `graphify-out/` — `GRAPH_REPORT.md` + `graph.json` + `graph.html`); review conversation 2026-05-24.
+
+---
+
+## E3 contribution scaffolding — deferred (CONTRIBUTING.md + issue templates + docs/compatibility.md sub-doc)
+
+**Status:** Logged 2026-05-24 at M4.5.E3 close. Original M4.5.E3 scope included CONTRIBUTING.md + GitHub issue templates + a standalone `docs/compatibility.md` sub-doc. All three deferred via the audience reframe (M4.5.E3-REQUIREMENTS.md § D-E3-11) — E3 ships for self + peers, not external contributors, so formal contribution flow doesn't earn its keep yet.
+
+**Context.** Peer-scale collaboration (the author + a handful of trusted reviewers) doesn't need formal contribution paperwork. A CONTRIBUTING.md that says "open a PR" without any other contributors isn't a contract, it's furniture. Same for issue templates without an issue stream. Same for a compatibility sub-doc when the only verified OS is macOS and the matrix has one row. The Compat table in README.md is the honest current shape; a sub-doc earns scope when there are multiple verified rows.
+
+**Re-promotion triggers** (verbatim from M4.5.E3-REQUIREMENTS.md § D-E3-11):
+
+- **(a) External contributor opens a real PR** → promotes `CONTRIBUTING.md`. The PR itself is evidence the file is now load-bearing; write it then, with knowledge of the actual contribution shape that arrived.
+- **(b) Issue volume exceeds informal email channel** (~5+ open issues from non-author contributors) → promotes issue templates. Templates make sense once the volume justifies routing; before that, they're friction.
+- **(c) Linux or WSL tester volunteers** → promotes `docs/compatibility.md` AND unshelves M4.5.E1.S3–S5 (the install matrix rows). Same trigger as M4.5.E1's S3–S5 unshelf — a tester for the relevant platform raising a hand. The compat sub-doc and the install-matrix work are paired: one without the other is half-finished.
+
+**What ships today instead:**
+
+- `SECURITY.md` (M4.5.E3.S2.t5) — security reports can come from anyone, including peers. Industry-standard shape; not the same as CONTRIBUTING.md.
+- README `### Requirements & compatibility` table (M4.5.E3.S2.t3) — 4-row honest current state. No sub-doc; just the table.
+- `references/facts.md` (M4.5.E3.S2.t1) — single-source-of-truth for fact strings cross-cited in README + SECURITY. When `docs/compatibility.md` lands later, it sources facts from here too.
+
+**Anti-rationalization to lock in early:**
+- *"Just write a one-line CONTRIBUTING.md now."* — No. A stub file says "we don't take this seriously yet" louder than its absence. Wait for the trigger.
+- *"GitHub Issues template files cost almost nothing to add."* — They cost coordination overhead (which template? when? mandatory fields?) and trigger an expectation that issues will be triaged. Don't promise what isn't there.
+- *"A `docs/compatibility.md` sub-doc is forward-looking — write it now even with one row."* — Same problem as CONTRIBUTING.md. A sub-doc with one row reads as scope inflation. The table in README is the honest current shape.
+
+**Resolve by:** any of triggers (a), (b), or (c) firing. Whichever fires first scopes the corresponding artifact in isolation; the other two stay parked.
+
+**Source data.** M4.5.E3-REQUIREMENTS.md § D-E3-11 (audience reframe decision); M4.5.E3-PLAN.md (post-reframe 2-slice plan); MILESTONE-4.5.md § Status snapshot (E1 row notes the paired E1.S3–S5 shelving via D-E3-12).
