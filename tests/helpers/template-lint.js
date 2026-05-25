@@ -105,3 +105,30 @@ export function findDoubleBraces(lines) {
   }
   return out;
 }
+
+/**
+ * Find each line in `content` that matches `jargonRegex`. Used by
+ * tests/cross-file-consistency.test.js to enforce that user-facing docs
+ * (notably SECURITY.md, which lands in M4.5.E3.S2.t5) don't leak
+ * Signal's internal workflow vocabulary (Tier / Phase / Slice / Wave /
+ * Epic / Milestone, or any /sig:* command reference).
+ *
+ * @param {string} content - full file contents
+ * @param {RegExp} jargonRegex - pattern to match per line
+ * @returns {{line: number, match: string, preview: string}[]}
+ */
+export function findJargonHits(content, jargonRegex) {
+  const out = [];
+  const lines = content.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(jargonRegex);
+    if (m) {
+      out.push({
+        line: i + 1,
+        match: m[0],
+        preview: lines[i].slice(0, 70) + (lines[i].length > 70 ? '…' : ''),
+      });
+    }
+  }
+  return out;
+}
