@@ -165,6 +165,14 @@ Signal's `.planning/` directory is **not scratch state**. It holds the project's
 
 Both `/sig:new-project` and `/sig:calibrate` check this on entry and refuse to proceed if `.gitignore` would silence `.planning/`. The check is non-negotiable; you can override it explicitly, and the override is logged.
 
+## Privacy & telemetry
+
+Signal makes **no network calls beyond what Claude Code itself makes to Anthropic's API**. All state lives in `.planning/` in your repo — no analytics, no telemetry, no usage pings, no remote logging.
+
+Verify it yourself: `node tools/audit-network-calls.js`. The script greps `tools/`, `skills/`, `agents/`, and `commands/` for `fetch`, `axios`, `node-fetch`, `got`, `http.request`, and the usual `child_process curl|wget` shapes. Exit 0 means clean; exit 1 prints the violating path. The audit covers Signal's own source, not transitive npm dependencies — that responsibility stays upstream.
+
+Any future telemetry would require a major-version bump, an explicit opt-in flag, and an updated audit script documented here.
+
 ## Command reference
 
 - **`/sig:new-project`** — initializes a new (greenfield) Signal project. Creates `.planning/`, asks for project intent, writes `PROJECT.md`, transitions into CALIBRATE.
