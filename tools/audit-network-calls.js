@@ -26,10 +26,12 @@
  * EXIT
  *   0 — no patterns matched
  *   1 — at least one pattern matched (per-hit lines printed to stdout)
+ *   2 — usage error (explicit argument is not a directory or doesn't exist;
+ *       per-error message printed to stderr)
  */
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, dirname, relative, basename, extname } from 'node:path';
+import { join, dirname, relative, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
