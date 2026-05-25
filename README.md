@@ -233,3 +233,7 @@ See `LICENSES.md` for full MIT license texts of the directly-ported (v1) source 
 ## License
 
 MIT. See `LICENSE`.
+
+## Security
+
+Found a vulnerability? See [`SECURITY.md`](./SECURITY.md) — preferred channel is a private GitHub advisory; email backup available.
