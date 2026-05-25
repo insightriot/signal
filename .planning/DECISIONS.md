@@ -922,3 +922,40 @@ PLAN artifacts authoritative for EXECUTE:
 - `.planning/M4.5.E3-RESEARCH.md` (informational; surfaced decisions integrated above)
 
 ---
+
+## 2026-05-24 — FUTURE-IDEAS drain: four-verb disposition protocol, folded into M4.5.E2.S5
+
+**Decision:** Signal's drain mechanism for `FUTURE-IDEAS.md` is a **four-verb disposition protocol** — *promote / defer / merge / delete* — applied at the M4.5.E2.S5 planning-gate sweep. No new command. No new ceremony. S5's spec is sharpened to require a disposition per surfaced entry; disposition is recorded inline by editing the entry's `**Status:**` line and explained in the commit message.
+
+**The four verbs:**
+- **Promote** — entry becomes an Epic, Slice, or task in the current/upcoming planning round. Status updated to `Promoted YYYY-MM-DD → {epic-id}`; entry can stay in the file as historical context or be moved into the Epic's artifact.
+- **Defer** — entry stays in `FUTURE-IDEAS.md` untouched in scope, but Status line is updated to `Deferred YYYY-MM-DD — re-evaluate at next planning gate` (or with a more specific re-evaluation trigger). The act of deferring is itself a decision; it's not the same as ignoring.
+- **Merge** — entry is folded into another existing entry. Original is deleted with a one-line redirect (`→ merged into {other-entry-title} 2026-MM-DD`); the receiving entry absorbs whatever context the merged one carried.
+- **Delete** — outdated / superseded / no longer relevant. Removed outright; the commit message carries the one-line reason. This is the only verb that loses data, so the bar is *evidence the entry no longer reflects reality*, not *I don't want to think about this right now* (that's defer).
+
+**Trigger.** 2026-05-24 conversation. User reviewing 16 live `FUTURE-IDEAS.md` entries asked aloud *"at some point they all need to get into Epics — any process for that?"* Honest answer was no — Signal has a hardened input pipe (`/sig:add` shipped M4.5.E2.S1) and no output pipe. Three options on the table: (A) fold disposition protocol into S5's already-planned planning-gate review; (B) milestone-boundary sweep (requires new ceremony); (C) `/sig:groom` standalone command (requires new command surface). User picked A.
+
+**Rationale.**
+- **Smallest viable drain.** S5 is already on the M4.5 roadmap. Sharpening its scope from "review FUTURE-IDEAS" to "review + dispose" costs almost nothing — same step, same trigger, just a defined exit verb per entry.
+- **No new command surface.** Options B and C both require new ceremonies or commands with the full overhead they carry (validator `REQUIRED_COMMANDS`, README mentions, `docs/map/index.html`, MCP/skill descriptions, plugin manifest, tests). Option A inherits S5's already-planned overhead.
+- **Reversibility.** If A proves insufficient after 2–3 Epics of lived experience — entries decay between planning-gate sweeps, or a stranger reads the file and asks "which of these are real?" — options B and C are still on the table. The `FUTURE-IDEAS.md` entry "FUTURE-IDEAS drain process" carries the explicit follow-on trigger.
+- **The four verbs were not invented for this decision.** They're the obvious dispositions any backlog grooming process names. Codifying them as Signal's vocabulary is cheap; not codifying them means each S5 sweep re-invents what "review" means.
+
+**Trade-offs accepted.**
+- Cadence is irregular — S5 fires per-Epic-planning, so triage cycles happen whenever a new Epic enters PLAN. Entries can sit weeks between sweeps. Acceptable given the alternative (full sweep ceremony or standalone command) costs more than the problem currently warrants.
+- No staleness flag. An entry's age alone doesn't trigger anything; only a planning-gate sweep does. Risk: dormant-but-correct entries (e.g., `/sig:audit` logged 2026-05-09) can decay silently. Mitigation: the `Resolve by:` field in each FUTURE-IDEAS entry already names the trigger condition; sweep reviewers check it.
+- No automated tooling. Disposition recording is manual prose editing. Acceptable at current scale (16 entries); revisit if file grows beyond ~30 entries or contributor count grows beyond 1.
+
+**Implication.**
+- `MILESTONE-4.5.md` M4.5.E2.S5 description updated to include the four-verb protocol + inline disposition-recording rule.
+- `FUTURE-IDEAS.md` drain-process entry updated with a `**Decision (2026-05-24): Option A locked in.**` stamp and the resolved Triage hint.
+- When S5 actually ships, `commands/plan.md` carries the four-verb protocol in its FUTURE-IDEAS-review step. No standalone reference doc — the spec lives inside the command's instructions where it's executed.
+- Options B and C remain in the FUTURE-IDEAS entry as **deferred-not-killed** alternatives. Re-evaluate after 2–3 Epics of lived S5 experience, or sooner if external stranger adoption begins.
+
+**Anti-rationalization (the alternatives we said no to, recorded here so future-us doesn't re-litigate):**
+- *"Just build `/sig:groom` now."* — Premature. Solving for a problem (decay between planning-gate sweeps, stranger-hostility of an untriaged file) we haven't observed at scale. Bias toward least new surface.
+- *"Add a status-field to every entry's frontmatter."* — Considered and rejected in the FUTURE-IDEAS entry. Bookkeeping load without solving cadence. Status fields go stale faster than the entries they describe.
+- *"Set a time-based expiry."* — Lossy. Entries can be dormant-but-correct for months. Time-based decay punishes the wrong thing.
+- *"Track in GitHub Issues / Linear instead."* — Breaks the in-workspace capture loop that `/sig:add` exists to preserve. Revisit only if Signal grows multi-contributor.
+
+---

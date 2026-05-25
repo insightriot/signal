@@ -955,9 +955,11 @@ Read `state.current_epic` from STATE.md frontmatter (already loaded for the brie
 
 ---
 
-## FUTURE-IDEAS drain process — no defined path from capture to Epic
+## FUTURE-IDEAS drain process — disposition protocol folds into M4.5.E2.S5
 
-**Status:** Logged 2026-05-24 during conversation about the asymmetry between FUTURE-IDEAS' input pipe and its (nonexistent) output pipe. Trigger: user reviewing 16 live entries asked aloud *"at some point they all need to get into Epics — any process for that?"* The honest answer was no, there isn't one. This entry captures the gap before designing a fix.
+**Status:** Logged 2026-05-24 during conversation about the asymmetry between FUTURE-IDEAS' input pipe and its (nonexistent) output pipe. Trigger: user reviewing 16 live entries asked aloud *"at some point they all need to get into Epics — any process for that?"* The honest answer was no, there isn't one.
+
+**Decision (2026-05-24): Option A locked in.** The drain process is a four-verb disposition protocol — **promote / defer / merge / delete** — applied at the M4.5.E2.S5 planning-gate sweep. No new command. No new ceremony. S5's spec is sharpened to include the protocol; this entry becomes its own first triage candidate when S5 ships. See `DECISIONS.md` 2026-05-24 for full rationale. Options B (milestone-boundary sweep) and C (`/sig:groom` command) are not killed — they're deferred until 2–3 Epics of lived experience with S5 reveal whether option A is sufficient.
 
 **Context.** FUTURE-IDEAS.md has a hardened **input** path: `/sig:add` (M4.5.E2.S1, shipped 2026-05-14) does verbatim capture, sensitive-data scrub, atomic write, lock-protected. New ideas land cleanly. There is no defined **output** path. Entries accumulate. As of today: 16 live entries, oldest from early M4.5 work (~April 2026), most recent five logged within the last 36 hours. Average accumulation during active dogfooding is ~3–5 entries/week. No expiry, no triage cadence, no owner.
 
@@ -996,9 +998,9 @@ Options aren't mutually exclusive. Plausible final shape: S5 covers *new-Epic pl
 - **Does `/sig:groom` (option #3) need tier-aware behavior?** Probably not — it's a META command like `/sig:status`/`/sig:report`/`/sig:resume`, which are tier-agnostic. But worth a one-line decision.
 - **What about FUTURE-IDEAS entries that are themselves about FUTURE-IDEAS process** (like this one)? Probably the right answer is *they get triaged by the process they describe, once it exists.* But that's circular until the first drain happens.
 
-**Triage hint.** P3 — real gap, no immediate blocker. M4.5.E2.S5 must ship regardless; the question this entry actually decides is *what comes after S5.* Reasonable resolution path: let S5 ship, live with it for 2–3 Epics, then revisit whether options #2 or #3 are needed. Or — if external stranger adoption begins before that — promote earlier, because stranger-hostility of an untriaged FUTURE-IDEAS file becomes a real cost the moment a non-author opens it.
+**Triage hint.** Resolved 2026-05-24 — Option A locked in (see Decision stamp above). What remains live in this entry: *the question of whether option A is sufficient, or whether options B/C eventually need to follow.* That question stays parked until S5 ships and 2–3 Epics' worth of triage cycles have run.
 
-**Resolve by:** M4.5.E2.S5 ships AND (a) the user notices entries decaying between planning-gate sweeps, OR (b) a stranger reads FUTURE-IDEAS and asks "which of these are real?", OR (c) FUTURE-IDEAS crosses ~30 live entries (current 16 + projected 14 more during M4.5 close = roughly the threshold where top-to-bottom scan stops being free). Likely M5-era if (a)/(b)/(c) don't accelerate it.
+**Resolve by (follow-on B/C decision):** S5 ships AND (a) the user notices entries decaying between planning-gate sweeps, OR (b) a stranger reads FUTURE-IDEAS and asks "which of these are real?", OR (c) FUTURE-IDEAS crosses ~30 live entries (current 16 + projected 14 more during M4.5 close = roughly the threshold where top-to-bottom scan stops being free). Likely M5-era if (a)/(b)/(c) don't accelerate it.
 
 **Relationship to other entries:**
 - `/sig:add` (shipped) — input pipe. This entry is the missing output pipe.
