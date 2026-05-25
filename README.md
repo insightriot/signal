@@ -67,7 +67,7 @@ git clone https://github.com/InsightRiot/signal
 cd signal
 npm install
 node tools/validate-plugin.js   # should report all checks green
-npm test                        # 380+ tests should pass
+npm test                        # 397 tests should pass
 ```
 
 Then point Claude Code at the local plugin directory (settings → plugins → load from path), or symlink into your `~/.claude/plugins/` if you prefer.

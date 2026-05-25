@@ -19,9 +19,9 @@ Source-of-truth for facts cross-cited in `README.md` and `SECURITY.md`. Other do
 
 ## Test surface
 
-- **Test count:** 387
+- **Test count:** 397
 
-Placeholder during M4.5.E3 EXECUTE. Set to the post-Slice-2 final count at S2.t7 (CHANGELOG + Epic close) after S2.t2's consistency tests + S2.t5's SECURITY.md land.
+Updated to the post-M4.5.E3 final count at Epic close (commit closing S2.t7). The cross-file consistency test (`tests/cross-file-consistency.test.js`) asserts that any test-count mention in README or SECURITY.md matches this value.
 
 ## License + repo
 
