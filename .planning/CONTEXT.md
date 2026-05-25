@@ -54,25 +54,32 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Active work
 
-**MILESTONE 4.5 underway** — Release Hardening / Stranger-Adoption Readiness; 6 original Epics + E7 = 7 total. Status: **E1.S1 + E1.S2 Phase A + E2.S1 + E6 full + E7 full = 5 ship-events** done; E1.S3–S5 + E2.S2–S5 + E3 (in-flight) + E4 + E5 pending.
+**MILESTONE 4.5 underway** — Release Hardening / Stranger-Adoption Readiness; 6 original Epics + E7 = 7 total. Status: **E1.S1 + E1.S2 Phase A + E2.S1 + E6 full + E7 full + E3 full = 6 ship-events** done; E1.S3–S5 (⏸ shelved) + E2.S2–S5 + E4 + E5 + E8 pending.
 
-**Active Epic: M4.5.E3** (PLAN complete 2026-05-24). Public-facing documentation rewrite, **scope-shrunk to self + peers audience** (per audience-reframe revision earlier same day). DISCUSS + PLAN both shipped on 2026-05-24.
+**Active Epic: none.** M4.5.E3 SHIPPED 2026-05-25 — single-session EXECUTE + VERIFY + REVIEW + SHIP closing. CHANGELOG `[0.1.3]` left Unreleased (bundles M4.5.E7 + M4.5.E3; future Epics will add their own blocks until a tagged release event).
 
-**Final E3 shape (post PLAN gate, commit `59cbfdd`):** 2 slices, 9 tasks total.
+**E3 outcome summary:**
+- 11 task/artifact commits: `f7ef937` (S1.t1 RED) → `527ce73` (S2.t7 SHIP) plus PROGRESS (`270634b`), VERIFICATION (`00afd71`), REVIEW fix (`4edc0a1`), REVIEW report (`40065f1`).
+- Test suite: 384 → 397 (+13). Plan forecast was +12; landed at +13 (consistency-suite preamble).
+- VERIFY: 12 of 12 active ACs PASS (AC2 intentionally DROPPED at PLAN gate).
+- REVIEW: PASS-WITH-FIXES (1 Important + 1 Suggestion fixed in-phase; 3 Suggestions deferred with explicit triggers).
+- New code surface: `tools/audit-network-calls.js`, `tests/audit-network-calls.test.js`, `tests/cross-file-consistency.test.js`, `tests/helpers/template-lint.js` extension (`findJargonHits`), `tests/fixtures/audit-network-calls-seeded/with-fetch.js`.
+- New doc surface: `SECURITY.md`, `references/facts.md`, README sections (Privacy, Compat, docs/map link, Open Source Origins rewrite, Security footer), CHANGELOG `[0.1.3]` expanded, MILESTONE annotations, FUTURE-IDEAS deferred-contribution entry.
 
-- **S1 privacy posture** (3 tasks): RED `tests/audit-network-calls.test.js` → GREEN `tools/audit-network-calls.js` (Node ESM, not `.sh` per D-E3-1-amend-b) → README "Privacy & telemetry" section + CHANGELOG. **No PRIVACY.md** (per D-E3-1-amend — 0 of 6 peer plugins ship one; ecosystem norm is silence-as-no-telemetry).
-- **S2 compat + Open Source Origins + slim SECURITY + close** (7 tasks): `references/facts.md` canonical fact source (per D-E3-NEW-13) → RED consistency tests + jargon-lint helper → README compat section + docs/map link → **README rewrite `## Credits & Heritage` → `## Open Source Origins`** with gratitude framing (per D-E3-NEW-14) → `SECURITY.md` (standard shape, zero Signal jargon) → MILESTONE annotations + FUTURE-IDEAS deferred-contribution entry → CHANGELOG + E3 close.
+**Two flagged plan deviations** (both surfaced in commit bodies + VERIFICATION § 7 + REVIEW § 2):
+- Dropped `got` from the bare-word audit pattern — pervasive English-word false positives.
+- MILESTONE annotations cite `M4.5.E3-REQUIREMENTS.md § D-E3-12` instead of `DECISIONS.md` (decisions live in REQUIREMENTS.md today; DECISIONS.md promotion flagged as recommended follow-up).
 
-**Decisions locked total:** 12 DISCUSS + 3 revision (D-E3-10/11/12) + 4 PLAN-gate (D-E3-1-amend, D-E3-1-amend-b, D-E3-NEW-13, D-E3-NEW-14) = **19**. Authoritative scope: `.planning/M4.5.E3-PLAN.md`. CONTRIBUTING.md + issue templates + `docs/compatibility.md` **deferred** with explicit revisit triggers (D-E3-11).
+**Recommended follow-ups (out of E3 scope; surfaced for triage at next planning gate):**
+1. Promote D-E3-* decisions from `M4.5.E3-REQUIREMENTS.md` to `DECISIONS.md` per past Epic pattern (M4.5.E6 did this).
+2. STATE.md frontmatter auto-update protocol gap — `last_updated_commit` lags HEAD by one commit after every phase-transition commit. Tracked in FUTURE-IDEAS entry "STATE.md auto-update protocol — extend beyond EXECUTE waves" (logged 2026-05-24).
 
-**Test forecast:** 384 → ~396 (+12 across `tests/audit-network-calls.test.js` + `tests/cross-file-consistency.test.js`).
+**Next:** pick the next Epic from the queue below. `/sig:resume` will re-orient against current state and propose `/sig:discuss` (for fresh Epics) or `/sig:plan` (for E8 which already has DISCUSS complete).
 
-**Next:** `/sig:execute` on S1.t1 (write RED tests for the audit-network-calls script).
+**Remaining M4.5 in recommended order:**
 
-**Remaining M4.5 after E3 closes** (recommended order):
-
-1. **M4.5.E8** — `/sig:doctor` install-state diagnostician + ownership reframe (scoped + DISCUSS'd 2026-05-24, commit `ddc89fc` + `09d0be4`). 3 slices: S1 diagnose-only, S2 mutating flags, S3 status version-check + troubleshooting reframe. Sequenced before E5 launch.
-2. **M4.5.E2 Slices 2–5** — `/sig:add` force-route flags + cold-path interview + hardening + `/sig:plan` close-the-loop.
+1. **M4.5.E8** — `/sig:doctor` install-state diagnostician + ownership reframe (scoped + DISCUSS'd 2026-05-24, commits `ddc89fc` + `09d0be4`). 3 slices: S1 diagnose-only, S2 mutating flags, S3 status version-check + troubleshooting reframe. Sequenced before E5 launch. **Next concrete action: `/sig:plan`** (DISCUSS already done).
+2. **M4.5.E2 Slices 2–5** — `/sig:add` force-route flags + cold-path interview + hardening + `/sig:plan` close-the-loop. Note S5 now also carries the FUTURE-IDEAS drain protocol (DECISIONS.md 2026-05-24 Option A lock).
 3. **M4.5.E4** — worked example + comparison page (`docs/vs.md`).
 4. **M4.5.E5** — external validation + launch (owns the demo asset deferred from E3). **Scope re-evaluation pending** — if launch pivots toward "quiet peer-only release," E5 shrinks too.
 
