@@ -21,7 +21,14 @@ Same tooling. Same commands. The difference is calibration.
 
 ## Install
 
-**Requirements:** Node.js 22+ and Claude Code (2.1.141 or newer recommended — that release shipped the HTTPS-prefer plugin loader env var used by the troubleshooting workaround below).
+### Requirements & compatibility
+
+| | Minimum | Notes |
+|---|---|---|
+| **Node.js** | 22+ | ESM, no native modules |
+| **Claude Code** | 2.1.141+ | That release shipped the `CLAUDE_CODE_PLUGIN_PREFER_HTTPS` env var used by the troubleshooting workaround below |
+| **Operating system** | macOS (verified) | Linux/WSL untested — see [`docs/install-verification.md`](./docs/install-verification.md) for the verification matrix |
+| **Git** | any modern version | `.planning/` requires a git repo to be useful |
 
 ### Via Claude Code plugin marketplace
 
@@ -76,6 +83,8 @@ Without it, command markdown still works — Claude resolves the literal path fr
 **5-minute install target:** clone + `npm install` + validator pass takes well under that on a machine that already has Node 22 + git. Most of the time budget is `npm install` (the `yaml` runtime dep is the one external dependency).
 
 ## Your first project
+
+Visual companion: [Signal map](./docs/map/index.html) — workflow phases, tier matrix, and the 5 calibration questions on one page.
 
 ```bash
 mkdir my-project && cd my-project
