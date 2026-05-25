@@ -1008,3 +1008,53 @@ Options aren't mutually exclusive. Plausible final shape: S5 covers *new-Epic pl
 - `/sig:report`, `/sig:audit`, `/sig:orient` — all read-only synthesis commands that share the same design discipline `/sig:groom` would inherit (re-runnable, no mtime mutation, no skills loaded, no agents spawned).
 
 **Source data.** `.planning/FUTURE-IDEAS.md` (this file, 16 live entries as of 2026-05-24); `.planning/MILESTONE-4.5.md` lines 60–71 (`/sig:add` Epic spec + S5 description); `commands/add.md` + `tools/lib/add.js` (input pipe implementation); conversation 2026-05-24 surfacing the gap.
+
+---
+
+## Codebase knowledge-graph as a Signal-managed artifact (graphify, graph-only)
+
+**Status:** Logged 2026-05-24 after reviewing `safishamsi/graphify` (https://github.com/safishamsi/graphify). Scope deliberately narrowed by user: **adopt the graph artifact only — not graphify's skill, AGENTS.md nudge, install hooks, or auto-rebuild post-commit hooks.** Runtime/language choice (graphify is Python; Signal is JS/Node + markdown) is an open question and may rule out graphify-the-tool while keeping graphify-the-idea.
+
+**Core idea.** A persistent, queryable knowledge graph of the user's codebase — produced once at brownfield onboarding, refreshed at controlled checkpoints, and consumed by Signal's research/planner/reviewer agents instead of grep+glob exploration on every session. The graph is **both a Signal-generated artifact** (Signal owns when it's built and where it lives) **and an ongoing reference surface** that downstream phases read.
+
+**Why this is interesting (carry-over from initial review).**
+
+Where it would actually help:
+
+- **`/sig:init` brownfield scan.** Today the four scanners (activity / quality / stack / structure) grep their way around. A pre-built graph with god-node and community-structure data would feed `sig:planners:codebase-researcher` and `sig:support:codebase-mapper` something far richer than what they produce now. This is the clean win.
+- **DISCUSS / PLAN on existing code.** `graphify query "what connects auth to database?"` and `graphify path A B` are exactly the questions `sig:researchers:codebase-researcher` is trying to answer.
+- **REVIEW phase signal.** Impact-analysis + centrality metrics give `code-reviewer` and `security-auditor` something concrete to point at — *"this PR touches a god node."*
+
+**Lifecycle the user sketched (with open questions).**
+
+1. **Build on `/sig:init`** — first-run cost paid once during brownfield onboarding; output lives alongside `.planning/LANDSCAPE.md` (or replaces parts of it). Tier-gated: probably skip for SKETCH, opt-in for FEATURE, default for SPIKE/FULL.
+2. **Refresh after each `/sig:ship`?** — user flagged this with a `?`. Plausible because shipping is the natural "code state changed materially" beat, and it's user-initiated (not a silent hook fight with auto-update protocol). Open: is per-`/sig:ship` the right cadence, or per-Epic-close, or both? AST-only rebuild is fast and free; LLM-augmented passes (docs/PDFs) are not.
+3. **Ongoing reference** — research/planner/reviewer agents read the graph artifact instead of greping. The graph becomes part of the briefing surface alongside CONTEXT.md / STATE.md / current Epic plan.
+
+**Adoption shape that fits Signal's constraints (graphify-the-tool variant).** If graphify is the implementation:
+
+- Do **not** install graphify's skill file (~58KB autoload would torch the context budget — Signal's hardest constraint).
+- Do **not** install graphify's git hooks; they would race Signal's STATE.md auto-update protocol on the same commit lifecycle.
+- Wrap it as a thin `/sig:graph` (or fold into `/sig:init`) that shells out, tier-gated by PROFILE.md, AST-only by default (skip LLM-cost extraction of docs/PDFs/images unless user opts in).
+- Treat graphify's `EXTRACTED` / `INFERRED` / `AMBIGUOUS` confidence labels as first-class — planner agents must not promote `INFERRED` to ground truth (aligns with the working-norms baseline rule: *surface ambiguity, don't resolve silently*).
+
+**Language / stack concern (open).** Graphify is Python (3.10+, `uv`/`pipx`, tree-sitter grammars). Signal today is Node + markdown + YAML — no Python runtime prerequisite. Adopting graphify-the-tool would make Python a transitive install requirement and dent the "installable in under 5 minutes" target. Three live alternatives:
+
+1. **Accept the Python dep** — fastest to value, biggest install-footprint regret.
+2. **Find a Node/JS equivalent** — tree-sitter has Node bindings; graph storage (NetworkX) has JS analogues. More work, native to the stack.
+3. **Build the minimum graph Signal actually needs in JS** — Signal probably doesn't need 31-language coverage or video transcription. A narrower JS implementation tuned to Signal's research-agent questions may be the right scope.
+
+**Trustworthiness flag on graphify-the-tool.** 53,075 stars on a 3MB repo whose default branch is `v8`, with a marketing site (graphifylabs.ai) and ~30 translated READMEs, is unusual for a tool of this scope and recency. Not disqualifying, but warrants a contributor-graph + issue-activity look before adopting it as a Signal dependency. The *idea* of a codebase knowledge graph is sound regardless of whether this particular implementation is.
+
+**Triage hint.** P3 — not blocking M4.5, but a high-leverage M5-era candidate. The clean-win surface (`/sig:init` enrichment) is well-defined and would compound across every Epic that touches existing code. Resolve language/stack question before any prototype work; that decision gates everything else.
+
+**Promote-back trigger.** Revisit when (a) M4.5 closes and M5 scope is being shaped, OR (b) a `sig:researchers:codebase-researcher` or `sig:planners:codebase-researcher` invocation produces visibly weaker briefings than a graph-backed equivalent would have (i.e., the felt cost of grep+glob exploration becomes concrete on a real Epic).
+
+**Cross-references:**
+- `.planning/MILESTONE-4.5.md` E1 (brownfield onboarding — `/sig:init` is the integration point).
+- `agents/sig:planners:codebase-researcher`, `agents/sig:support:codebase-mapper`, `agents/sig:researchers:codebase-researcher` — the consumers.
+- `commands/init.md` — would gain the graph-build step.
+- Working-norms baseline: *surface ambiguity, don't resolve silently* — applies to `INFERRED`/`AMBIGUOUS` edge handling.
+- This entry's *language/stack* open question may share resolution with any future "what runtime does Signal depend on" decision.
+
+**Source data.** `safishamsi/graphify` (v8, ~3MB Python, 53k stars, AST extraction via tree-sitter + LLM augmentation for non-code; output in `graphify-out/` — `GRAPH_REPORT.md` + `graph.json` + `graph.html`); review conversation 2026-05-24.
