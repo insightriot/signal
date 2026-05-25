@@ -1087,3 +1087,161 @@ Where it would actually help:
 **Resolve by:** any of triggers (a), (b), or (c) firing. Whichever fires first scopes the corresponding artifact in isolation; the other two stay parked.
 
 **Source data.** M4.5.E3-REQUIREMENTS.md § D-E3-11 (audience reframe decision); M4.5.E3-PLAN.md (post-reframe 2-slice plan); MILESTONE-4.5.md § Status snapshot (E1 row notes the paired E1.S3–S5 shelving via D-E3-12).
+
+---
+
+## Memory & Documentation Management as Signal-managed Runtime (wiki/index pattern + retro enforcement + migration tooling)
+
+**Status:** Logged 2026-05-25. Originator: user, in response to two concrete pain points: (1) a retrospective got skipped because conversation context cleared first — the learning evaporated; (2) ad-hoc retros routinely have more depth than whatever "summary RETROSPECTIVE" is supposed to be — even though discovery during scoping confirmed **no formal retro step exists in `commands/ship.md` today**. Companion observation: `.planning/` is already at 40 files in the flat root (trending toward 56+ this milestone) — the doc-sprawl problem the user described isn't a future risk, it's already here. Reference: Andrej Karpathy's personal wiki pattern (https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) — markdown files as queryable knowledge base, with index/hub files and explicit cross-links. Signal's own auto-memory (the user's `MEMORY.md` + topical files + `[[name]]` links) already implements exactly this pattern — adopting it for `.planning/` would be internally consistent.
+
+**Companion entry:** `## Codebase knowledge-graph as a Signal-managed artifact (graphify, graph-only)` — logged 2026-05-24, narrowly scoped to the artifact (not graphify-the-tool). The doc-wiki and code-graph share a thesis: **persistent, queryable structure beats grep + context-bloat**. They should ship as siblings inside this milestone, not as separate efforts that drift apart.
+
+### Core thesis
+
+A project's success depends on its documentation — big-picture goals, planning decisions, execution effort logs, retrospective learnings, security audit findings, architectural ADRs. Today Signal stores all of these monolithically in a flat `.planning/` root with filename-prefix namespacing (`M4.5.E3-*.md`). That breaks down fast — both for the human trying to find anything and for the LLM trying to traverse without blowing context. **Memory management is not a docs-cleanup task; it's a runtime concern** that touches every phase, every agent, every command, every brownfield onboarding. The fix is structural: wiki-style organization, per-cycle artifacts, machine-readable indexes, enforced cadences, link-health checks, and tier-aware activation.
+
+This is potentially Signal's biggest unlock on its core value prop: *the receiver that tunes itself stays tuned because its memory of past tuning is structured, not buried.*
+
+### The four workstreams (separate, related, sequenceable)
+
+#### Workstream 1 — Retro enforcement + template (smallest, urgent)
+
+- **Problem.** SHIP has no retro step. Ad-hoc retros happen sometimes; quality is highly variable; if context clears before someone writes one (as happened to the user immediately preceding this entry), the learning is lost forever. There is no formal artifact to retroactively populate, no template to follow, no phase gate to enforce it.
+- **Fix.** SHIP refuses to mark the phase complete without `RETROSPECTIVE.md` (or per-epic equivalent) on disk. Phase-gate check at the start of SHIP warns "retro will be required to close this phase"; hard block at the end refuses to write `phase: SHIP → completed_phases` until the artifact exists and passes a minimum-content sanity check (not empty, contains the template's required sections).
+- **Template — captures what made the rich ad-hoc retros rich.** Sections to include:
+  - Timeline of the work (key dates, key decisions, key reversals)
+  - What changed mid-flight and why
+  - What assumptions broke
+  - What surprised the team (positive or negative)
+  - What would be done differently
+  - What to feed back into Signal's own design (process improvements, command gaps, validator rules to add)
+  - Links to specific commits, PRs, decision IDs, artifact files
+  - Anti-rationalization: at least one "thing we almost rationalized away but didn't"
+- **Distinct from existing artifacts.** PROGRESS.md is process state (commits, test counts). REVIEW.md is code-quality findings. RETROSPECTIVE.md is *meta-learning* — what we learned about how we work, not just what we built.
+- **Granularity.** Per-epic, not per-milestone. One milestone = N epics = N retros. (Per-milestone meta-retro is a separate, smaller artifact at milestone close.)
+
+#### Workstream 2 — Retrospective index (small, follows #1)
+
+- `.planning/RETROSPECTIVES.md` as index — one-line entries per epic with hook, pointing to detailed files.
+- Per-epic files live in a subfolder (`.planning/retrospectives/M4.5.E3.md` or, under workstream #3, `.planning/epics/M4.5.E3/RETROSPECTIVE.md`).
+- Same shape as the user's `MEMORY.md` — proves the pattern is already validated in production (Signal-the-plugin uses it on the user's machine).
+- Lets `/sig:resume` load only the index + the most recently relevant retro, instead of dumping all of them into context every session.
+- Index entries should include a `tags:` field for fast filtering (e.g., `process`, `tooling`, `external-dependency`, `agent-design`).
+
+#### Workstream 3 — `.planning/` wiki restructure (big, breaking)
+
+- **New convention: subfolder per scope unit, consistent artifact filenames inside.** Working proposal:
+  ```
+  .planning/
+    INDEX.md                              # top-level navigation
+    PROJECT.md                            # stays at root (load-bearing for many commands)
+    STATE.md                              # stays at root (load-bearing)
+    PROFILE.md                            # stays at root (load-bearing)
+    CONTEXT.md                            # stays at root
+    OPEN-QUESTIONS.md                     # stays at root
+    DECISIONS.md                          # stays at root
+    FUTURE-IDEAS.md                       # stays at root
+    milestones/
+      M4.5/
+        INDEX.md                          # milestone-level nav
+        MILESTONE.md                      # the planning doc (was MILESTONE-4.5.md)
+        retrospective.md                  # milestone-close meta-retro
+        epics/
+          E3/
+            INDEX.md                      # epic-level nav (auto-generated)
+            REQUIREMENTS.md
+            RESEARCH.md
+            PLAN.md
+            PROGRESS.md
+            VERIFICATION.md
+            REVIEW.md
+            RETROSPECTIVE.md
+            VALIDATION.md
+  ```
+- **Cross-link convention.** `[[M4.5.E3#retro]]` (wikilink shorthand) or relative paths (`../epics/E3/RETROSPECTIVE.md`); must pick one and enforce it via the validator + link-check tool.
+- **Touches every command and every agent that hardcodes `.planning/*` paths.** Quick audit needed before scoping — likely all 14 commands and many of the 26 agents reference these paths. Largest internal refactor since v0.1.0.
+- **Open: directory shape.** `milestones/M4.5/epics/E3/` (proposed) vs `epics/M4.5.E3/` (flatter but loses milestone grouping) vs `by-epic/M4.5.E3/` (older convention). Each has different traversal ergonomics, different breakage on rename, and different implications for the validator's path glob rules.
+- **Open: how indexes get maintained.** Auto-regenerated on each write (cheap, never stale, but opaque)? Hand-curated (rich, but decays)? Hybrid with auto-generated structural section + manual "what matters here" narrative section?
+- **Open: link health.** When files move or get renamed, do we have a link-check tool that catches dangling `[[refs]]`? Probably needs to be part of the validator suite, run by `/sig:doctor` and pre-commit.
+- **Open: stable IDs vs filename-based links.** If a retro is `M4.5.E3.RETRO`, does that ID survive a rename of E3's title? Karpathy's wiki uses path-as-ID; Notion-style systems use UUIDs. Signal probably wants path-as-ID for git-friendliness, with the validator enforcing stability.
+
+#### Workstream 4 — Doc-runtime / "militant memory management" (biggest swing)
+
+- **Scheduled re-indexing.** Periodic regeneration of all index files from source artifacts. Run as a pre-commit hook? `/sig:index` command? Both?
+- **Cross-doc link health.** Fail CI (or `/sig:doctor`) on broken `[[refs]]`. Same shape as the existing `validate-references.js` work.
+- **Codebase knowledge-graph integration.** Graphify or equivalent (runtime/language choice TBD — graphify is Python; Signal is JS/Node + markdown). Surfaced to research/planner/reviewer agents instead of grep + glob exploration on every session. See companion entry from 2026-05-24 for narrowed scope (graph artifact only, not the surrounding tool conventions).
+- **Tier-aware activation.** SKETCH likely doesn't need wiki structure or graph; FEATURE/FULL do. Where exactly is the line? — SKETCH may need only a single `NOTES.md`; SPIKE may need PROGRESS + RETROSPECTIVE but no INDEX; FEATURE/FULL get the full structure.
+- **Possible new commands.** `/sig:index` (rebuild indexes), `/sig:wiki-check` (link health), `/sig:graph-rebuild` (refresh knowledge graph), `/sig:migrate-memory` (upgrade an existing project's flat `.planning/` to wiki shape), `/sig:retro` (interactive retro-writing helper that pre-populates the template from git log + PROGRESS.md + decision history).
+- **Cadence enforcement.** Retro-on-SHIP is workstream #1; doc-runtime adds *index-on-write* (every PLAN/PROGRESS update triggers index regeneration) and *graph-on-checkpoint* (every `/sig:checkpoint` triggers a graph delta refresh).
+
+### Migration story — how an existing Signal-using project upgrades
+
+**This is the part that decides whether the feature is usable in the wild or only for greenfield.** Without an explicit migration command, the only beneficiaries are projects started after the feature ships — and the maintainer's own project (Signal-the-codebase) becomes stranded on the old structure. Open questions to answer before designing:
+
+- **Discovery.** How does the migrator identify epics and milestones in a flat `.planning/`? Filename prefix (`M4.5.E3-*`) is the obvious signal — but is it always reliable? Older projects might use different shapes (`M5-S2-PLAN.md`, `Phase3-research.md`, etc.). Probably needs a configurable regex or interactive disambiguation pass.
+- **Backup.** Is the old flat structure preserved during migration? Strong default: move originals to `.planning/.archive/pre-wiki-{ISO-date}/` so users can diff and verify before deleting. Never delete in the same operation as the move.
+- **Idempotency.** Can `/sig:migrate-memory` be re-run after partial completion? After new flat files were added post-migration? Must be — networks fail, users interrupt, hybrid states are real. Migration tool needs to detect "already migrated" state and degrade gracefully to "scan for stragglers" mode.
+- **Backward compat during the transition.** Do existing 14 commands keep working pointing at old paths until cutover? Or is migration a single atomic operation that rewrites command references too? Probably: commands ship in both-paths-work mode for one minor version, then deprecate flat paths in the next.
+- **Past retros.** For already-shipped epics with no RETROSPECTIVE.md, do we (a) leave them blank, (b) generate placeholders prompting the user to backfill, or (c) auto-synthesize a thin retro from git log + PROGRESS.md + commits? Recommended default: (b) — placeholders surface the gap honestly without inventing false memories. Optional (c) as `--synthesize` flag for users who want a starting point.
+- **Index bootstrap.** Generated automatically on first run (mechanical, low-effort, may need narrative editing)? Or interactive — `/sig:migrate-memory` walks the user through index entries the way `/sig:init` walks brownfield onboarding? Recommended: auto-generate the mechanical structure, prompt for one-line narratives per major section.
+- **Knowledge graph bootstrap.** When does graphify (or equivalent) get bootstrapped — on `/sig:migrate-memory`? On `/sig:upgrade`? On-demand only via `/sig:graph-rebuild`? Probably on-demand — graph generation can be expensive and isn't every user's priority.
+- **Per-project opt-in / opt-out.** Tier-gated? SKETCH skips wiki structure entirely? Or always-on but with shallow structure for small projects? Probably: tier-gated, with the migration tool detecting the project's current PROFILE.md tier and proposing the matching depth.
+- **Cursor/Codex impact.** Signal's primary runtime is Claude Code, but commands are theoretically portable. Does wiki structure assume CC-specific things (e.g., how skills resolve relative paths)? Probably no, but worth checking before scoping the multi-runtime adapter layer.
+- **`/sig:upgrade` vs `/sig:migrate-memory`.** Is upgrade-the-plugin (new commands appear, new validator rules) separate from migrate-the-project-structure (existing artifacts get reorganized)? Strong yes — upgrades should be seamless, migrations are explicit and reviewable (user must approve the proposed move list before any file is touched).
+- **Dry-run mode.** `/sig:migrate-memory --dry-run` prints the full move/rename/index-create plan without touching disk. Mandatory before any migration runs for real.
+- **Rollback.** If migration goes sideways, is there a one-command rollback? `/sig:migrate-memory --rollback` restores from `.planning/.archive/pre-wiki-{date}/`. Same shape as a database migration's `down`.
+
+The migration command (working name `/sig:migrate-memory`, possibly `/sig:wiki-init` for greenfield-feeling) is itself the unlock: without it, the feature only benefits new projects and existing Signal users (including the maintainer's own work, this very repo) are stranded on the old flat structure.
+
+### Dogfooding plan — Signal-on-Signal as the validation harness
+
+The user's framing on 2026-05-25: *"use signal as the manual version of what we hope to solidify in the signal plugin."* This is the design strategy in one sentence. The sequence:
+
+1. **Manually restructure Signal's own `.planning/`** into the proposed wiki shape. Pick the directory convention by doing it for real. Write the index files by hand. Move every file. Update every command/agent that references those paths. **Discover the rough edges by hitting them, not by speculating.**
+2. **Use Signal in its new shape for one full Epic** — probably whatever comes after this design Epic, possibly the Epic that builds the formal migration tooling itself. Operate on the new structure long enough to find the friction.
+3. **Capture what worked and what didn't** as a retrospective (which we'll be doing anyway, per workstream #1 — this is the first dogfooded retro).
+4. **Codify the working version into the plugin.** `/sig:migrate-memory` is informed by what we did manually. Templates are informed by the retro that the dogfood epic produced. Validator rules are informed by the link-rot we hit during step 1.
+
+This sequence means **workstreams #1 + #2 ship first** (small, low-risk, no breaking changes — adds a new artifact + index, doesn't move anything); **workstream #3 is the dogfooding move** (manual restructure of Signal); **workstream #4 is informed by the dogfood** (the migration tooling, the indexes' auto-generation logic, the link-health validator, the graph integration).
+
+### Why this is potentially a Milestone, not an Epic
+
+- Touches every command (14) and every agent (26) — they all hardcode `.planning/*` paths in skill loaders and reference checks.
+- Introduces at least 2–3 new commands (`/sig:migrate-memory`, `/sig:index`, possibly `/sig:wiki-check`, possibly `/sig:retro`).
+- Companion graphify work is its own design study (open language/runtime choice, MCP integration questions).
+- Sequencing constraint: must close M4.5 first — interleaving with active Epics E1/E2/E4/E5/E8 would create merge-conflict hell on `.planning/` paths.
+- Strong candidate: **M5** explicitly, with v2 framework ports (compound-engineering, gstack, etc.) sequenced *after* memory management ships — because v2 ports will themselves benefit from the wiki structure as they're added.
+- **Alternative scoping:** split — workstreams #1+#2 land as a closing M4.5 micro-Epic (low-risk additive change, ships value immediately, validates the retro template before we build everything else around it); workstreams #3+#4 become M5 in full.
+
+### Anti-rationalizations to lock in early
+
+- *"Just add a 'remember to write a retro' note to ship.md."* — No. Notes get ignored. The whole point is that retros got skipped when context cleared. Soft reminders fail under the exact pressure they're meant to handle. Phase gate or nothing.
+- *"Subfolders are fancy; flat files have been working."* — They haven't. 40 files today, projection of 56+ this milestone, and the user noticed before the assistant did. "Working" means "we haven't admitted it's broken."
+- *"Auto-generated indexes are too clever; just keep hand-written ones."* — Possibly true for top-level INDEX.md, but per-epic indexes that decay because nobody updates them are worse than no indexes. Hybrid (auto-structural + manual-narrative) is the answer; figure out which sections are auto vs manual at design time.
+- *"Wait until after launch (E5)."* — Launch is the moment with maximum first-time strangers encountering `.planning/`. If 40 flat files look chaotic to the maintainer, they will look catastrophic to a new user trying to understand the project's shape. This is exactly the wrong time to defer.
+- *"Build graphify integration first, it's flashier."* — No. The wiki structure makes graphify integration possible to surface coherently. Without indexes, the graph has nothing to nest into or link out to.
+- *"Skip the migration tool — just write new projects in the new shape."* — That strands every existing Signal user including the maintainer. The migration tool is what makes the feature shippable, not optional polish.
+- *"Make `RETROSPECTIVE.md` optional in SKETCH tier."* — Probably correct, but be careful: SKETCH is also where bad habits start. Maybe make it a one-paragraph `NOTES.md` instead — same enforcement, lower ceremony.
+- *"Use Notion / Obsidian / something fancier than markdown."* — No. Plain markdown in git is load-bearing for Signal's portability claim and for AI agent consumption. The wiki pattern works *because* it's just files.
+
+### Resolve by
+
+- **Scoping decision (M4.5 micro-Epic for #1+#2 vs full M5 for all four):** in the next `/sig:discuss` session for this feature. Recommended split: ship #1+#2 inside M4.5 close-out; full M5 for #3+#4.
+- **Directory convention (which subfolder shape wins):** first PLAN-phase decision for workstream #3.
+- **Migration open-questions list (above):** DISCUSS phase deliverable for the M5 (or M5-prep) work.
+- **Land workstream #1 (retro enforcement) before any other workstream** — it's the cheapest insurance against losing more learning during the build itself. The Epic that builds the wiki restructure will produce the most valuable retro of the entire project; losing it because we sequenced #3 before #1 would be embarrassing.
+
+**Source data.** This conversation 2026-05-25 (user pain points: retro-skipped-by-context-clear, ad-hoc retro quality variance, doc sprawl observation, Karpathy wiki reference). Companion entry `## Codebase knowledge-graph as a Signal-managed artifact` (logged 2026-05-24). User's own `MEMORY.md` structure as the validated precedent. Current `.planning/` state (40 files, flat) as the problem statement.
+
+### Conversation emergence log (what surfaced during 2026-05-25 scoping)
+
+Captured here rather than lost-to-context, because the scoping conversation produced design signal that future-DISCUSS will want. Each item paired with the action it implies — observations without actions are noise.
+
+- **No formal retro exists today.** Initial framing assumed "the normal summary RETROSPECTIVE is thinner than ad-hoc ones." Discovery: there is no formal retro at all. *Action:* workstream #1 is greenfield design, not redesign — adjust DISCUSS scope accordingly (no legacy to be backward-compatible with).
+- **`/sig:add` slice 1 cannot capture its own design spec.** This very entry was written via direct Edit because slice 1 is hot-path verbatim capture of short user snippets; substantial composed entries need the cold-path interview from slices 2–4 (not yet built). *Action:* this is a concrete use case for the M4.5.E2 cold-path slices. Cite this entry as the validating example when those slices reach DISCUSS.
+- **The four-way split was emergent, not pre-decided.** User came in with one bundled concern; the split into (1) retro enforcement, (2) retro index, (3) wiki restructure, (4) doc-runtime emerged from grounding the request against the actual repo state. *Action:* DISCUSS should explicitly validate the split with the user rather than treating it as given. The split may consolidate or fragment further once decisions are surfaced.
+- **Dogfooding insight came as a user afterthought.** *"Use signal as the manual version of what we hope to solidify in the signal plugin"* was added at the end, not the top. It reshaped the entire sequencing strategy. *Action:* dogfooding plan is now load-bearing for the milestone shape — make it an explicit DISCUSS dimension, not an implementation detail.
+- **The migration question list was generated mid-conversation.** 11 open questions surfaced once "migration" was named as a workstream. They were generated by the assistant, not asked of the user. *Action:* DISCUSS must walk the user through these explicitly — assistant-generated question lists are starting points, not answers. Several may collapse or split once the user weighs in.
+- **Initial framing as "feature" was wrong altitude.** User opened with "new feature, new functionality, maybe ongoing runtime." The scoping conversation revealed this is milestone-altitude work touching all 14 commands + 26 agents. *Action:* resist the urge to scope as a single Epic during DISCUSS. If user pressure is to scope smaller, the right move is workstream #1+#2 as M4.5 close-out, workstreams #3+#4 as M5 — not "shrink the whole thing to fit."
+- **Observation-without-action pattern surfaced.** Assistant closed the prior response with a hanging observation about losing this conversation's learnings; user corrected. *Action:* working norm saved to memory. Future responses pair every observation with an action, recommendation, or explicit awareness-only flag. This log section is the action paired with that observation.
+- **Capture-in-the-moment proved itself.** The fact that this log exists at all — written before context clears, while the threads are still fresh — is the workstream #1 thesis demonstrated in miniature. *Action:* cite this log as the dogfood-zero artifact when workstream #1's retro template is drafted. The template should produce content shaped like this section.
