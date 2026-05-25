@@ -23,12 +23,12 @@ Same tooling. Same commands. The difference is calibration.
 
 ### Requirements & compatibility
 
-| | Minimum | Notes |
-|---|---|---|
-| **Node.js** | 22+ | ESM, no native modules |
-| **Claude Code** | 2.1.141+ | That release shipped the `CLAUDE_CODE_PLUGIN_PREFER_HTTPS` env var used by the troubleshooting workaround below |
-| **Operating system** | macOS (verified) | Linux/WSL untested — see [`docs/install-verification.md`](./docs/install-verification.md) for the verification matrix |
-| **Git** | any modern version | `.planning/` requires a git repo to be useful |
+| Component | Notes |
+|---|---|
+| **Node.js 22+** | ESM, no native modules |
+| **Claude Code 2.1.141+** | That release shipped the `CLAUDE_CODE_PLUGIN_PREFER_HTTPS` env var used by the troubleshooting workaround below |
+| **Operating system** | Verified on macOS; Linux/WSL untested — see [`docs/install-verification.md`](./docs/install-verification.md) for the verification matrix |
+| **Git** | Any modern version (`.planning/` requires a git repo to be useful) |
 
 ### Via Claude Code plugin marketplace
 
@@ -199,28 +199,28 @@ Any future telemetry would require a major-version bump, an explicit opt-in flag
 - **`/sig:add`** — capture a new idea or work item to `.planning/FUTURE-IDEAS.md` without breaking the current phase. Verbatim capture (no rewrites), atomic write, sensitive-data scrub, lock-protected. Not tier-gated. Slice 1 (hot path) only in v0.1.1; cold-path interview + multi-destination routing land in subsequent slices.
 - **`/sig:checkpoint`** — manual state refresh. Default (quick) mode diffs git log against `STATE.md` and refreshes. `--context` mode additionally prompts for decisions + open questions (D16 dual-write to `CONTEXT.md` + `DECISIONS.md` + `OPEN-QUESTIONS.md`). Use before a planned context clear so the next session's `/sig:resume` is genuinely useful.
 
-## Credits & Heritage
+## Open Source Origins
 
-Signal is a synthesis. The architecture borrows heavily — these are the source repositories with their roles in Signal's tier classification:
+Signal is a synthesis of patterns from many other people's work. The projects below shaped Signal's architecture directly — through code ported, ideas borrowed, or examples studied. Listed with thanks to their maintainers; their work is what made Signal possible.
 
-### Ported (v1)
+### Directly ported (v1)
 
 - **[GSD (Get Shit Done)](https://github.com/gsd-build/get-shit-done)** — execution orchestration: wave-based parallel execution, 19 specialized agents, context monitoring, file-based `.planning/` state management, CLI tools layer.
 - **[Agent Skills](https://github.com/addyosmani/agent-skills) (Addy Osmani)** — quality enforcement: 21 on-demand skills, 3 specialist agents (code-reviewer, security-auditor, codebase-analyst), anti-rationalization tables, phase gates.
 
-### Planned (v2)
+### Inspiration for v2
 
 - **[gstack](https://github.com/garrytan/gstack) (Garry Tan)** — 15-phase security audit, retro + learn memory loop, office-hours reframing.
 - **[pm-skills](https://github.com/phuryn/pm-skills) (phuryn)** — upstream ideation / validation / strategy phases.
 - **[superpowers](https://github.com/obra/superpowers) (Jesse Vincent / obra)** — harder TDD, systematic-debugging, `<HARD-GATE>` mechanism.
 - **[compound-engineering](https://github.com/everyinc/compound-engineering) (Every Inc)** — post-ship Compound memory phase, multi-lens review panel.
 
-### Pattern source (ideas borrowed; not full ports)
+### Patterns borrowed (without full ports)
 
 - **[planning-with-files](https://github.com/OthmanAdi/planning-with-files) (OthmanAdi)** — hook-driven context discipline.
 - **[oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode) (Yeachan-Heo)** — deep-interview spec-rigor gate, consensus planning.
 
-### Reference (bridge / inspiration)
+### Bridge references
 
 - **[GSD Skill Creator](https://github.com/Tibsfox/gsd-skill-creator) (Tibsfox)** — bridge reference for skill-creation patterns.
 
@@ -228,7 +228,7 @@ Signal is a synthesis. The architecture borrows heavily — these are the source
 
 The Phase 0 calibration router (`/sig:calibrate` + `/sig:escalate`) and `PROFILE.md` schema are not from any source repo — Signal is the first plugin in this ecosystem to address the right-sized-rigor problem at the workflow-routing layer rather than at individual command level. Every downstream phase command reads `PROFILE.md` as its first action; that contract is what makes the calibration meaningful instead of decorative.
 
-See `LICENSES.md` for full MIT license texts of the Ported (v1) source projects. v2 license texts will be added when code is actually ported, not speculatively.
+See `LICENSES.md` for full MIT license texts of the directly-ported (v1) source projects. v2 license texts will be added when code is actually ported, not speculatively.
 
 ## License
 
