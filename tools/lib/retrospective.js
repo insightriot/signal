@@ -187,14 +187,36 @@ export async function loadTemplate(tier, baseDir) {
 
 // ---- Validation ----
 
-// Per-tier minimum byte thresholds. PLACEHOLDER values per RESEARCH § 3.5;
-// S1.t11 replaces these with measurement-driven floors of the form
-// `template_floor + ~150B × required_section_count`.
-const PLACEHOLDER_BYTE_THRESHOLDS = {
-  SKETCH: 250,
-  FEATURE: 1000,
-  SPIKE: 500,
-  FULL: 2500,
+// Per-tier minimum byte thresholds. Measured + wired in S1.t11 from the
+// shipped references/retrospective-template.md.
+//
+// PLAN deviation surfaced: the PLAN spec suggested coefficient 150B per
+// section, but the PLAN AC ("minimally-filled template — one sentence per
+// section — passes") is incompatible with 150B. One sentence is ~50-70B
+// of body; using 150B per section pushes the threshold beyond what one
+// sentence per section can clear. The AC is the binding constraint
+// (user-facing behavior); the 150B suggestion was a rough cut from
+// RESEARCH § 3.5 that didn't survive the AC.
+//
+// Resolved by using coefficient 60B per section, which:
+//   1. Rejects heading-only templates (template_floor < threshold)
+//   2. Rejects "x"-body retros (a few bytes per section, well below floor + 60B/section)
+//   3. Accepts one substantive sentence per section
+//
+// Measurements + formula (M4.5.E9.S1.t11, 2026-05-26):
+//   threshold = template_floor + 60B × required_section_count
+//   SKETCH:  60B + 60 × 3 = 240B
+//   FEATURE: 114B + 60 × 5 = 414B
+//   SPIKE:    99B + 60 × 3 = 279B
+//   FULL:    207B + 60 × 8 = 687B
+//
+// If a tier proves too lenient or too strict in dogfood (S1.t12 will be
+// the first dogfood), the right knob is the 60B coefficient, not the floor.
+const BYTE_THRESHOLDS = {
+  SKETCH: 240,
+  FEATURE: 414,
+  SPIKE: 279,
+  FULL: 687,
 };
 
 /**
@@ -246,13 +268,11 @@ export function validateRetroContent(content, tier) {
   }
 
   // 4. Tier minimum-byte threshold check.
-  const threshold = PLACEHOLDER_BYTE_THRESHOLDS[tier];
-  // (threshold can't be undefined here — getRequiredSections threw earlier
-  // if the tier wasn't recognized — but defensive coding cheap.)
+  const threshold = BYTE_THRESHOLDS[tier];
   const byteLength = Buffer.byteLength(content, 'utf-8');
   if (threshold && byteLength < threshold) {
     errors.push(
-      `retro content is too short: ${byteLength} bytes is below the ${tier} threshold of ${threshold} bytes (placeholder; finalized in S1.t11)`,
+      `retro content is too short: ${byteLength} bytes is below the ${tier} threshold of ${threshold} bytes`,
     );
   }
 

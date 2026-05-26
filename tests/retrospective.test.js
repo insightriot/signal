@@ -327,19 +327,50 @@ describe('validateRetroContent', () => {
     expect(result.errors).toEqual([]);
   });
 
-  it('rejects content below the tier minimum-byte threshold', () => {
-    // FULL has a substantially higher threshold than SKETCH; a content blob
-    // that's all-headings + one-word bodies will satisfy heading + non-empty-
-    // body checks but fail the byte floor.
-    const tinyButValid = getRequiredSections('FULL')
-      .map((h) => `${h}\n\nx\n`)
-      .join('\n');
-    const result = validateRetroContent(tinyButValid, 'FULL');
-    expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => /threshold|byte|too short/i.test(e))).toBe(
-      true,
-    );
-  });
+  it.each([
+    ['SKETCH'],
+    ['FEATURE'],
+    ['SPIKE'],
+    ['FULL'],
+  ])(
+    'rejects content below the tier minimum-byte threshold (%s, S1.t11)',
+    (tier) => {
+      // All-headings + one-letter bodies satisfies heading + non-empty checks
+      // but should fail the byte floor for every tier.
+      const tinyButValid = getRequiredSections(tier)
+        .map((h) => `${h}\n\nx\n`)
+        .join('\n');
+      const result = validateRetroContent(tinyButValid, tier);
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some((e) => /threshold|byte|too short/i.test(e)),
+        `tier=${tier} errors=${JSON.stringify(result.errors)}`,
+      ).toBe(true);
+    },
+  );
+
+  it.each([
+    ['SKETCH'],
+    ['FEATURE'],
+    ['SPIKE'],
+    ['FULL'],
+  ])(
+    'accepts a minimally-filled retro that meets the threshold (%s, S1.t11)',
+    (tier) => {
+      // One short but substantive sentence per section. Should clear both
+      // the empty-body check AND the byte threshold (per the measured
+      // template_floor + 150B × section_count formula).
+      const sections = getRequiredSections(tier);
+      const sentence =
+        'This section captures the substantive content the retro needs to record.\n';
+      const content = sections.map((h) => `${h}\n\n${sentence}`).join('\n');
+      const result = validateRetroContent(content, tier);
+      expect(
+        result.valid,
+        `tier=${tier} bytes=${Buffer.byteLength(content)} errors=${JSON.stringify(result.errors)}`,
+      ).toBe(true);
+    },
+  );
 
   it('throws on unknown tier (delegates to getRequiredSections)', () => {
     expect(() => validateRetroContent('content', 'TRIVIAL')).toThrow(
