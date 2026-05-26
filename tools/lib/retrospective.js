@@ -505,7 +505,6 @@ export async function shipFR1Check(args) {
 
   let content;
   try {
-    const { readFile } = await import('node:fs/promises');
     content = await readFile(join(baseDir, retroPath), 'utf-8');
   } catch (err) {
     if (err && err.code === 'ENOENT') {

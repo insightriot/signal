@@ -17,7 +17,7 @@
 //     adding when an Epic actually fails the convention test.
 
 import { readFile, access } from 'node:fs/promises';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 
 import {
@@ -141,11 +141,11 @@ export function commitRangeForEpic(epicId, opts = {}) {
 }
 
 function defaultRunGit(args) {
-  // Shell out via execSync. Args are individually shell-escaped.
-  const shellArgs = args
-    .map((a) => `'${String(a).replace(/'/g, "'\\''")}'`)
-    .join(' ');
-  return execSync(`git ${shellArgs}`, { encoding: 'utf-8' });
+  // execFileSync bypasses the shell entirely — args are passed as an array,
+  // not concatenated into a shell-parsed command line. Defense-in-depth:
+  // even though inputs (Epic IDs) are validated upstream, no shell == no
+  // shell-injection surface.
+  return execFileSync('git', args, { encoding: 'utf-8' });
 }
 
 // ----- Artifact enumeration -----

@@ -17,8 +17,7 @@
 // where unit tests can exercise it directly.
 
 import { readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 
 import { checkProposedStateWrite } from '../tools/lib/retrospective.js';
 
@@ -46,7 +45,11 @@ const input = event?.tool_input ?? {};
 if (tool !== 'Edit' && tool !== 'Write') process.exit(0);
 
 const filePath = input.file_path ?? '';
-if (!/\.planning\/STATE\.md$/.test(filePath)) process.exit(0);
+// Require a path-boundary (start-of-string or `/`) before `.planning/STATE.md`.
+// Without it, a path like `something.planning/STATE.md` would incorrectly
+// match — the suffix `.planning/STATE.md` is not by itself a Signal-managed
+// state file unless it's preceded by a path separator.
+if (!/(^|\/)\.planning\/STATE\.md$/.test(filePath)) process.exit(0);
 
 // Compute the proposed post-write content.
 let proposedContent = '';
