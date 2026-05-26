@@ -11,18 +11,21 @@ import { join, relative, basename } from 'node:path';
 import { atomicWrite } from './atomic-write.js';
 
 /**
- * Is this retro a stub (un-filled)? Heuristic: any `[FILL IN` substring in
- * the content signals an unfilled section. Conservative: false-positives
- * (marking a real retro as stub because the user kept the literal text in
- * a quoted example) are mild — the index just shows "stub" status, which
- * the user can override by editing the marker.
+ * Is this retro a stub (un-filled)? Heuristic: a `[FILL IN` marker at the
+ * start of a line (after optional whitespace) signals an unfilled section.
+ * Line-anchored to avoid false positives when the user references
+ * `[FILL IN]` inline as part of normal prose (e.g., describing how stubs
+ * work) — the actual template markers always sit on their own line.
  *
  * @param {string} content
  * @returns {boolean}
  */
 export function isStubRetro(content) {
   if (!content || content.length === 0) return false;
-  return /\[FILL IN/i.test(content);
+  // Multiline: ^ matches line start. \s* tolerates indentation (e.g., in
+  // nested lists). Inline references like `\`[FILL IN]\` markers` won't
+  // match because they're preceded by backticks or other characters.
+  return /^\s*\[FILL IN/im.test(content);
 }
 
 /**
