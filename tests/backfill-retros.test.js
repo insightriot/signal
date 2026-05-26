@@ -171,10 +171,12 @@ describe('commitRangeForEpic (dependency-injected)', () => {
   });
 
   it('handles a single-commit Epic correctly', () => {
-    const fakeGit = () => 'xyz789 M4.5.E5.S1.t1: only commit\n';
+    // Note: hash must be valid hex to satisfy subject-line filter (added in
+    // S1.t9 regression). Git always emits hex; this aligns the fixture.
+    const fakeGit = () => 'abc1234 M4.5.E5.S1.t1: only commit\n';
     const result = commitRangeForEpic('M4.5.E5', { runGit: fakeGit });
-    expect(result.first).toBe('xyz789');
-    expect(result.last).toBe('xyz789');
+    expect(result.first).toBe('abc1234');
+    expect(result.last).toBe('abc1234');
     expect(result.count).toBe(1);
     expect(result.missing).toBe(false);
   });
@@ -200,5 +202,22 @@ describe('commitRangeForEpic (dependency-injected)', () => {
     // Both first and last should be 7-40 char hex hashes.
     expect(result.first).toMatch(/^[0-9a-f]{7,40}$/);
     expect(result.last).toMatch(/^[0-9a-f]{7,40}$/);
+  });
+
+  it('filters by subject-line only, not commit body (regression)', () => {
+    // git log --grep matches the full message. A commit whose subject
+    // starts with M4.5.E7 but whose body mentions "M4.5.E2 precedent..."
+    // should NOT be attributed to E2. Surfaced in the M4.5.E9 dry-run.
+    const fakeGit = () =>
+      [
+        'aaa1111 M4.5.E2.S1: real E2 commit',
+        'bbb2222 M4.5.E7.S1.t10: subject is E7 but body mentions M4.5.E2',
+        'ccc3333 M4.5.E2 SHIP: real E2 close',
+      ].join('\n') + '\n';
+    const result = commitRangeForEpic('M4.5.E2', { runGit: fakeGit });
+    // Only the two E2-subject commits should be counted.
+    expect(result.count).toBe(2);
+    expect(result.first).toBe('aaa1111');
+    expect(result.last).toBe('ccc3333');
   });
 });

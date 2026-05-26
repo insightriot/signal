@@ -16,9 +16,17 @@
 //     Path-filter fallback was on the table per PLAN but isn't needed yet;
 //     adding when an Epic actually fails the convention test.
 
-import { readFile } from 'node:fs/promises';
+import { readFile, access } from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
+
+import {
+  parseSections,
+  getRequiredSections,
+  deriveRetroPath,
+  loadTemplate,
+} from './lib/retrospective.js';
+import { atomicWrite } from './lib/atomic-write.js';
 
 // ----- Epic enumeration -----
 
@@ -108,12 +116,21 @@ export function commitRangeForEpic(epicId, opts = {}) {
   const stdout = runGit([
     'log',
     '--reverse',
-    '--format=%H %s',
+    '--format=%h %s',
     `--grep=${pattern}`,
     '--extended-regexp',
   ]);
 
-  const lines = stdout.split('\n').filter((l) => l.length > 0);
+  // --grep matches the full commit message, so subject-line filtering is
+  // needed: a commit whose body mentions e.g. "M4.5.E2 precedent" but whose
+  // subject starts with "M4.5.E7" would otherwise be wrongly attributed.
+  // Surfaced in M4.5.E9 dry-run against real history (755dabe matched the
+  // E2 grep via its body, not subject).
+  const subjectRe = new RegExp(`^[0-9a-f]+ ${escaped}(?:[\\s\\.:]|$)`);
+  const lines = stdout
+    .split('\n')
+    .filter((l) => l.length > 0)
+    .filter((l) => subjectRe.test(l));
   if (lines.length === 0) {
     return { first: null, last: null, count: 0, missing: true };
   }
@@ -131,14 +148,304 @@ function defaultRunGit(args) {
   return execSync(`git ${shellArgs}`, { encoding: 'utf-8' });
 }
 
+// ----- Artifact enumeration -----
+
+// The artifact set Signal Epics conventionally produce. Order matters: the
+// stub's Links section lists them in this order, matching reader expectations.
+const ARTIFACT_KINDS = [
+  { label: 'Requirements', suffix: 'REQUIREMENTS' },
+  { label: 'Research', suffix: 'RESEARCH' },
+  { label: 'Plan', suffix: 'PLAN' },
+  { label: 'Validation', suffix: 'VALIDATION' },
+  { label: 'Progress', suffix: 'PROGRESS' },
+  { label: 'Verification', suffix: 'VERIFICATION' },
+  { label: 'Review', suffix: 'REVIEW' },
+];
+
+/**
+ * Discover which standard Epic artifacts exist on disk for a given Epic ID.
+ *
+ * @param {string} baseDir
+ * @param {string} epicId — e.g., "M4.5.E3"
+ * @returns {Promise<Array<{label: string, path: string}>>}
+ */
+export async function enumerateEpicArtifacts(baseDir, epicId) {
+  const found = [];
+  for (const kind of ARTIFACT_KINDS) {
+    const path = `.planning/${epicId}-${kind.suffix}.md`;
+    try {
+      await access(join(baseDir, path));
+      found.push({ label: kind.label, path });
+    } catch {
+      // skip
+    }
+  }
+  return found;
+}
+
+// ----- Stub composition -----
+
+/**
+ * Render the stub `RETROSPECTIVE.md` body for an Epic. Uses the FULL-tier
+ * template (per D-E9-7: all backfilled Epics use FULL since the project
+ * itself is FULL tier).
+ *
+ * The Links section is pre-populated with auto-extracted artifact paths +
+ * commit range. All other sections retain their `[FILL IN]` markers.
+ *
+ * A title heading + generation stamp + (optional) partial-Epic warning
+ * precede the template content.
+ *
+ * @param {string} epicId
+ * @param {object} opts
+ * @param {string} opts.baseDir
+ * @param {boolean} opts.partial
+ * @param {string} opts.today — ISO date string (YYYY-MM-DD)
+ * @param {Array<{label: string, path: string}>} opts.artifactPaths
+ * @param {{first: string|null, last: string|null, count: number, missing: boolean} | null} opts.commitRange
+ * @returns {Promise<string>}
+ */
+export async function composeStub(epicId, opts) {
+  const { baseDir, partial, today, artifactPaths, commitRange } = opts;
+
+  const template = await loadTemplate('FULL', baseDir);
+  const { headings, sectionsByHeading } = parseSections(template);
+
+  // Override the Links section body with auto-populated content.
+  const linksLines = [];
+  for (const a of artifactPaths) {
+    linksLines.push(`- ${a.label}: [\`${a.path}\`](../${a.path})`);
+  }
+  if (commitRange && !commitRange.missing) {
+    linksLines.push(
+      `- Commit range: \`${commitRange.first}..${commitRange.last}\` (${commitRange.count} commits)`,
+    );
+  }
+  if (linksLines.length === 0) {
+    linksLines.push('[FILL IN — no auto-extractable artifact links found]');
+  }
+  const newBodies = {
+    ...sectionsByHeading,
+    '## Links': '\n' + linksLines.join('\n') + '\n',
+  };
+
+  // Reassemble: heading + blank line + body. parseSections strips the
+  // heading's trailing newline (split('\n') drops it), so we re-insert one
+  // here to preserve the canonical heading-then-blank-line spacing.
+  const sectionsMd = headings
+    .map((h) => `${h}\n${newBodies[h]}`)
+    .join('\n');
+
+  const header = formatStubHeader(epicId, today, partial);
+  return `${header}\n\n${sectionsMd}`;
+}
+
+function formatStubHeader(epicId, today, partial) {
+  const title = `# ${epicId} Retrospective`;
+  const stamp =
+    `> _Stub generated ${today} by M4.5.E9 backfill. Fill in opportunistically — index in \`RETROSPECTIVES.md\` surfaces stub-vs-complete status._`;
+  if (!partial) return `${title}\n\n${stamp}`;
+  const partialNote =
+    `> **Epic incomplete as of backfill date ${today}.** This retro covers shipped slices only. When remaining slices ship, either extend this retro with a continuation section or close it and open a follow-on.`;
+  return `${title}\n\n${stamp}\n\n${partialNote}`;
+}
+
+// ----- Backfill orchestration + idempotency -----
+
+/**
+ * Heuristic for AC13: is this retro file edited beyond the initial stub?
+ * Returns true when the file looks like it has substantive user content.
+ *
+ * Heuristic (per PLAN S1.t9 spec):
+ *   - File size > 2× a fresh FULL-template stub (~3000B baseline) — substantial content added
+ *   - OR `[FILL IN]` count is below the FULL template's marker count (some markers replaced)
+ *
+ * Conservative: false-positives (treating a stub as "edited" and skipping)
+ * are OK; false-negatives (overwriting a user's real retro) are catastrophic.
+ *
+ * @param {string} content
+ * @param {string} freshStubReference
+ * @returns {boolean}
+ */
+function looksEdited(content, freshStubReference) {
+  const fillInCount = (s) => (s.match(/\[FILL IN/g) ?? []).length;
+  const currentFills = fillInCount(content);
+  const baselineFills = fillInCount(freshStubReference);
+  if (currentFills < baselineFills) return true;
+  const sizeRatio = content.length / Math.max(freshStubReference.length, 1);
+  return sizeRatio > 2.0;
+}
+
+/**
+ * Enumerate + generate + write stubs for every shipped Epic in a milestone.
+ *
+ * @param {string} baseDir
+ * @param {string} milestonePrefix — e.g., "M4.5"
+ * @param {object} opts
+ * @param {string|null} opts.currentEpicId
+ * @param {string} opts.today — ISO date string
+ * @param {(args: string[]) => string} [opts.runGit]
+ * @param {boolean} [opts.dryRun] — if true, return planned writes without touching disk
+ * @param {boolean} [opts.force] — if true, regenerate stubs over existing files unless looksEdited
+ * @returns {Promise<Array<{epicId: string, path: string, status: 'written'|'skipped'|'planned'|'error', reason?: string, content?: string}>>}
+ */
+export async function backfillMilestone(baseDir, milestonePrefix, opts) {
+  const {
+    currentEpicId,
+    today,
+    runGit,
+    dryRun = false,
+    force = false,
+  } = opts ?? {};
+
+  const epics = await enumerateEpics(baseDir, milestonePrefix, currentEpicId);
+  const results = [];
+
+  for (const epic of epics) {
+    const retroPath = deriveRetroPath(epic.epicId);
+    const fullPath = join(baseDir, retroPath);
+
+    // Build the stub content.
+    const artifactPaths = await enumerateEpicArtifacts(baseDir, epic.epicId);
+    const commitRange = commitRangeForEpic(epic.epicId, { runGit });
+    const stubContent = await composeStub(epic.epicId, {
+      baseDir,
+      partial: epic.partial,
+      today,
+      artifactPaths,
+      commitRange,
+    });
+
+    // Idempotency + AC13 check.
+    let existing = null;
+    try {
+      existing = await readFile(fullPath, 'utf-8');
+    } catch {
+      // File doesn't exist — proceed to write.
+    }
+
+    if (existing !== null) {
+      if (!force) {
+        results.push({
+          epicId: epic.epicId,
+          path: retroPath,
+          status: 'skipped',
+          reason: 'file exists (re-run is a no-op)',
+        });
+        continue;
+      }
+      // force=true: still skip if user-edited content detected.
+      if (looksEdited(existing, stubContent)) {
+        results.push({
+          epicId: epic.epicId,
+          path: retroPath,
+          status: 'skipped',
+          reason: 'file appears edited (user content detected; --force respected)',
+        });
+        continue;
+      }
+    }
+
+    if (dryRun) {
+      results.push({
+        epicId: epic.epicId,
+        path: retroPath,
+        status: 'planned',
+        content: stubContent,
+      });
+      continue;
+    }
+
+    try {
+      await atomicWrite(fullPath, stubContent);
+      results.push({
+        epicId: epic.epicId,
+        path: retroPath,
+        status: 'written',
+      });
+    } catch (err) {
+      results.push({
+        epicId: epic.epicId,
+        path: retroPath,
+        status: 'error',
+        reason: err.message,
+      });
+    }
+  }
+
+  return results;
+}
+
 // ----- CLI -----
-// The CLI surface lands in S1.t9 (stub generation). S1.t8 ships the library
-// only; running this file directly is a no-op pending the stub-gen logic.
-//
-// Detect direct invocation; future S1.t9 main() goes here.
+
+function isoToday() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function main(argv) {
+  const args = argv.slice(2);
+  const dryRun = args.includes('--dry-run');
+  const force = args.includes('--force');
+  // Default milestone prefix is M4.5 (E9's backfill scope); future
+  // invocations can pass --milestone Mx.y to override.
+  let milestonePrefix = 'M4.5';
+  const idx = args.indexOf('--milestone');
+  if (idx >= 0 && args[idx + 1]) milestonePrefix = args[idx + 1];
+
+  // Read STATE.md current_epic to exclude the in-flight Epic.
+  let currentEpicId = null;
+  try {
+    const stateContent = await readFile('.planning/STATE.md', 'utf-8');
+    const m = stateContent.match(/^current_epic:\s*(\S+)$/m);
+    if (m && m[1] !== 'null') currentEpicId = m[1];
+  } catch {
+    // No STATE.md — treat as null current_epic.
+  }
+
+  const results = await backfillMilestone('.', milestonePrefix, {
+    currentEpicId,
+    today: isoToday(),
+    dryRun,
+    force,
+  });
+
+  if (dryRun) {
+    console.log(
+      `# Dry-run backfill report — ${milestonePrefix} as of ${isoToday()}\n`,
+    );
+    console.log(`Planned writes: ${results.length}\n`);
+    for (const r of results) {
+      console.log(`## ${r.epicId} → ${r.path}\n`);
+      console.log('```markdown');
+      console.log(r.content?.slice(0, 1500) ?? '(no content)');
+      console.log('```\n');
+    }
+  } else {
+    let written = 0;
+    let skipped = 0;
+    let errored = 0;
+    for (const r of results) {
+      const tag =
+        r.status === 'written' ? '✓ WROTE'
+        : r.status === 'skipped' ? '· skipped'
+        : '✗ ERROR';
+      console.log(
+        `${tag.padEnd(10)} ${r.epicId}${r.reason ? ` (${r.reason})` : ''}`,
+      );
+      if (r.status === 'written') written++;
+      else if (r.status === 'skipped') skipped++;
+      else errored++;
+    }
+    console.log(
+      `\nSummary: ${written} written, ${skipped} skipped, ${errored} errored.`,
+    );
+    if (errored > 0) process.exit(1);
+  }
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
-  console.error(
-    'backfill-retros.js: CLI not yet implemented (S1.t9 lands stub generation). Library exports only.',
-  );
-  process.exit(1);
+  main(process.argv).catch((err) => {
+    console.error('backfill-retros: fatal', err);
+    process.exit(1);
+  });
 }
