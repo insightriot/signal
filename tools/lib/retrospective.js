@@ -10,6 +10,7 @@
 // in S1.t11 — they're shaped roughly per RESEARCH § 3.5 recommendations.
 
 import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 // ---- Per-tier required sections (locked, exact-string match) ----
@@ -333,6 +334,118 @@ export function isEpicCloseShip(state, milestoneContent) {
   const hasInFlight = /\bin\s+flight\b/i.test(statusRow);
 
   return !hasPending && !hasInFlight;
+}
+
+// ---- Hook helpers (D-E9-8 layers 2 + 3) ----
+
+/**
+ * Decide whether a proposed STATE.md write should be blocked by the
+ * PreToolUse hook (layer 2 of D-E9-8). The proposed new content is parsed,
+ * and we look for the load-bearing signal: the write would mark the Epic
+ * as SHIPped (`phase: SHIP` AND completed_phases contains a `SHIP ...` entry).
+ * If the matching retro file isn't on disk, block.
+ *
+ * The check fires regardless of whether `/sig:ship` was the invoker — that's
+ * the bypass-resistance the layer adds beyond the command-internal check.
+ *
+ * @param {object} args
+ * @param {string} args.proposedContent — the post-write STATE.md content
+ * @param {string} args.baseDir — project root
+ * @param {(state: object) => string|null} [args.expectedRetroPathFn] — DI for testing
+ * @param {(p: string) => boolean} [args.fileExistsFn] — DI for testing
+ * @returns {{block: boolean, reason?: string, retroPath?: string}}
+ */
+export function checkProposedStateWrite(args) {
+  const {
+    proposedContent,
+    baseDir,
+    expectedRetroPathFn = expectedRetroPath,
+    fileExistsFn,
+  } = args;
+
+  // Parse frontmatter inline — duplicating the lightweight pattern from
+  // state.js to avoid a circular import. We only need a few fields.
+  const m = proposedContent.match(/^---\n([\s\S]*?)\n---/);
+  if (!m) return { block: false };
+  const fm = m[1];
+
+  const phaseMatch = fm.match(/^phase:\s*(.+)$/m);
+  const phase = phaseMatch ? phaseMatch[1].trim() : null;
+  if (phase !== 'SHIP') return { block: false };
+
+  // completed_phases as YAML list — look for any line starting with "- SHIP"
+  const hasShipCompletion = /(^|\n)\s*-\s*SHIP\b/.test(fm);
+  if (!hasShipCompletion) return { block: false };
+
+  const currentEpicMatch = fm.match(/^current_epic:\s*(\S+)\s*$/m);
+  const currentEpic = currentEpicMatch ? currentEpicMatch[1].replace(/['"]/g, '') : null;
+  if (!currentEpic || currentEpic === 'null') return { block: false };
+
+  const retroPath = expectedRetroPathFn({ current_epic: currentEpic });
+  if (!retroPath) return { block: false };
+
+  const fullPath = join(baseDir, retroPath);
+  const exists = fileExistsFn ? fileExistsFn(fullPath) : defaultFileExists(fullPath);
+  if (exists) return { block: false };
+
+  return {
+    block: true,
+    retroPath,
+    reason:
+      `M4.5.E9 enforcement: STATE.md write would mark Epic-close SHIP for ${currentEpic} ` +
+      `without ${retroPath}. Create the retro file (template at ` +
+      `references/retrospective-template.md), then re-attempt the write.`,
+  };
+}
+
+/**
+ * Detect "dirty EXECUTE" state for the SessionStart(resume) hook (layer 3
+ * of D-E9-8). Dirty = STATE.md says we're mid-EXECUTE for an Epic that
+ * already looks like it should have shipped (per the milestone file), and
+ * no retro exists.
+ *
+ * Returns a banner message to inject into additionalContext, or null when
+ * the state is clean.
+ *
+ * @param {object} args
+ * @param {{current_epic?: string|null, phase?: string}} args.state
+ * @param {string} args.milestoneContent
+ * @param {string} args.baseDir
+ * @param {(p: string) => boolean} [args.fileExistsFn] — DI for testing
+ * @returns {string | null}
+ */
+export function detectDirtyExecute(args) {
+  const { state, milestoneContent, baseDir, fileExistsFn } = args;
+  if (!state || state.phase !== 'EXECUTE') return null;
+  if (!state.current_epic) return null;
+  // Only warn when MILESTONE.md shows the Epic IS at close (per
+  // isEpicCloseShip) but STATE.md still says EXECUTE — that's the gap the
+  // hook exists to surface.
+  if (!isEpicCloseShip(state, milestoneContent)) return null;
+  const retroPath = expectedRetroPath(state);
+  if (!retroPath) return null;
+  const exists = fileExistsFn
+    ? fileExistsFn(join(baseDir, retroPath))
+    : defaultFileExists(join(baseDir, retroPath));
+  if (exists) return null;
+
+  return (
+    `[signal] M4.5.E9 enforcement reminder: Epic ${state.current_epic} ` +
+    `looks closed in MILESTONE.md but STATE.md still says EXECUTE, and ` +
+    `no retro file exists at \`${retroPath}\`. Before \`/sig:ship\` can ` +
+    `close this Epic, create the retro from the tier-appropriate template ` +
+    `(see \`references/retrospective-template.md\`). The SHIP command will ` +
+    `hard-block until the retro lands.`
+  );
+}
+
+function defaultFileExists(path) {
+  // Sync existsSync is safe + cheap; hook scripts need synchronous decisions.
+  try {
+    return existsSync(path);
+  } catch {
+    return false;
+  }
 }
 
 // ---- Command-internal SHIP enforcement (D-E9-8 layer 1) ----
