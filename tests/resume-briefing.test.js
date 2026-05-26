@@ -238,6 +238,61 @@ describe('renderResumeBriefing — brownfield/landscape line', () => {
   });
 });
 
+describe('renderResumeBriefing — retro completeness line (M4.5.E9.S2.t7)', () => {
+  const baseProfile = { tier: 'FULL', phases_skipped: [] };
+  const baseState = { phase: 'EXECUTE', completed_phases: [], current_tasks: [] };
+
+  it('renders "N/M complete (X stubs)" when retros exist with stubs', () => {
+    const out = renderResumeBriefing({
+      cwd: '/p',
+      profile: baseProfile,
+      state: baseState,
+      retroSummary: { total: 6, complete: 1, stub: 5 },
+    });
+    expect(out).toMatch(/Retros:\s+1\/6 complete \(5 stubs awaiting backfill\)/);
+  });
+
+  it('renders "N/M complete" with no suffix when all retros complete', () => {
+    const out = renderResumeBriefing({
+      cwd: '/p',
+      profile: baseProfile,
+      state: baseState,
+      retroSummary: { total: 3, complete: 3, stub: 0 },
+    });
+    expect(out).toMatch(/Retros:\s+3\/3 complete$/m);
+  });
+
+  it("renders 0/0 with helpful prose when no retros exist", () => {
+    const out = renderResumeBriefing({
+      cwd: '/p',
+      profile: baseProfile,
+      state: baseState,
+      retroSummary: { total: 0, complete: 0, stub: 0 },
+    });
+    expect(out).toMatch(/Retros:\s+0\/0/);
+    expect(out).toMatch(/no retros yet/i);
+  });
+
+  it("omits the Retros line entirely when retroSummary is null (backwards compat)", () => {
+    const out = renderResumeBriefing({
+      cwd: '/p',
+      profile: baseProfile,
+      state: baseState,
+    });
+    expect(out).not.toMatch(/Retros:/);
+  });
+
+  it('singularizes "stub" when exactly one stub remains', () => {
+    const out = renderResumeBriefing({
+      cwd: '/p',
+      profile: baseProfile,
+      state: baseState,
+      retroSummary: { total: 5, complete: 4, stub: 1 },
+    });
+    expect(out).toMatch(/Retros:\s+4\/5 complete \(1 stub awaiting backfill\)/);
+  });
+});
+
 describe('handleOrphansAtResume (S4.t3)', () => {
   let tempDir;
   beforeEach(async () => {

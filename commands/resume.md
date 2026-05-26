@@ -66,6 +66,18 @@ Two pre-render checks routed through `tools/lib/state.js` + `tools/lib/resume.js
 
 1. **Staleness** — call `isStateStale(baseDir)`. If `stale: true`, capture the result and pass to `renderResumeBriefing` so the banner prepends to the output (D11 + D6 scope). The 60s grace window is intentionally kept for resume (a write-then-resume burst shouldn't flag stale); the user wants the explicit "what changed?" view via `/sig:checkpoint` (which passes `bypassGrace: true`).
 
+#### 3c. Retro completeness (M4.5.E9.S2.t7)
+
+Call `enumerateRetros(baseDir)` from `tools/lib/retro-index.js`. Build a summary `{total, complete, stub}` where `complete = total - stub` (and `stub = records.filter(r => r.isStub).length`). Pass as `retroSummary` to `renderResumeBriefing`. The renderer adds one line:
+
+  `Retros:  1/6 complete (5 stubs awaiting backfill)`
+
+or, when `total === 0` (greenfield or pre-backfill projects):
+
+  `Retros:  0/0 (no retros yet — the first one lands at the next Epic close)`
+
+The retro count is independent of phase / tier — it's just a hint at the index health. Greenfield projects always show `0/0` until they ship their first Epic; mid-flight projects show their current backfill state.
+
 2. **Orphan detection** — call `handleOrphansAtResume(baseDir, {prompt})` where `prompt(orphans)` issues an `AskUserQuestion(strict-enum, [clear, keep])`:
    - Header: `Orphan tasks`
    - Question: `{N} task(s) older than 30 min with no matching commit. Clear?`
@@ -88,6 +100,7 @@ renderResumeBriefing({
   openQuestions: …,               // first 3 headings from OPEN-QUESTIONS.md
   isStaleResult: staleResult,     // from Step 3b
   nextAction: nextActionForPhase(state.phase, profile),
+  retroSummary,                   // {total, complete, stub} — see Step 3c
 });
 ```
 

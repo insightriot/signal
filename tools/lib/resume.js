@@ -60,6 +60,7 @@ export function renderResumeBriefing(params = {}) {
     openQuestions = [],
     isStaleResult = null,
     nextAction = '',
+    retroSummary = null,
   } = params;
 
   const lines = [];
@@ -89,6 +90,15 @@ export function renderResumeBriefing(params = {}) {
   }
   if (landscapeCapturedOn) {
     lines.push(`Landscape: captured ${landscapeCapturedOn} (brownfield init)`);
+  }
+  if (retroSummary) {
+    const { total, complete, stub } = retroSummary;
+    if (total === 0) {
+      lines.push(`Retros:  0/0 (no retros yet — the first one lands at the next Epic close)`);
+    } else {
+      const stubSuffix = stub > 0 ? ` (${stub} stub${stub === 1 ? '' : 's'} awaiting backfill)` : '';
+      lines.push(`Retros:  ${complete}/${total} complete${stubSuffix}`);
+    }
   }
 
   if (visionText) {
