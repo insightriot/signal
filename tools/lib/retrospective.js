@@ -335,6 +335,96 @@ export function isEpicCloseShip(state, milestoneContent) {
   return !hasPending && !hasInFlight;
 }
 
+// ---- Command-internal SHIP enforcement (D-E9-8 layer 1) ----
+
+/**
+ * The command-internal FR1 pre-check invoked from `commands/ship.md`.
+ *
+ * Returns a structured result the caller uses to decide whether to halt.
+ * Shapes:
+ *   - { halt: false, retroPath, isEpicClose: true }                 — proceed
+ *   - { halt: false, skipped: true, reason }                        — per-slice ship; skip
+ *   - { halt: true, code: 'NO_CURRENT_EPIC', message }              — A2 empty
+ *   - { halt: true, code: 'NO_RETRO_FILE', retroPath, message }     — AC1
+ *   - { halt: true, code: 'INVALID_RETRO', retroPath, message }     — content fails validator
+ *
+ * The function has NO bypass parameter — D-E9-3's "no bypass" applies. Extra
+ * args passed by the caller are ignored.
+ *
+ * @param {object} args
+ * @param {{current_epic?: string|null} | null} args.state
+ * @param {{tier: string}} args.profile
+ * @param {string} args.milestoneContent — full content of MILESTONE-{N}.md
+ * @param {string} args.baseDir
+ */
+export async function shipFR1Check(args) {
+  const { state, profile, milestoneContent, baseDir } = args;
+
+  // (1) current_epic edge cases (A2).
+  if (!state || !state.current_epic) {
+    return {
+      halt: true,
+      code: 'NO_CURRENT_EPIC',
+      message:
+        'No current_epic in STATE.md. Run `/sig:resume` or set current_epic before invoking `/sig:ship`.',
+    };
+  }
+
+  // (2) Per-Epic vs per-Slice gating. If this isn't the closing SHIP for the
+  // Epic, FR1 doesn't fire — slice ships are exempt per D-E9-5.
+  if (!isEpicCloseShip(state, milestoneContent)) {
+    return {
+      halt: false,
+      skipped: true,
+      reason:
+        'not an Epic-close SHIP (per-Slice SHIP or Epic not yet near close); FR1 retro enforcement does not apply',
+    };
+  }
+
+  // (3) Derive retro path.
+  const retroPath = expectedRetroPath(state);
+
+  // (4) Read and validate.
+  const tierAnchor =
+    'references/retrospective-template.md#' +
+    String(profile.tier).toLowerCase() +
+    '-tier';
+
+  let content;
+  try {
+    const { readFile } = await import('node:fs/promises');
+    content = await readFile(join(baseDir, retroPath), 'utf-8');
+  } catch (err) {
+    if (err && err.code === 'ENOENT') {
+      return {
+        halt: true,
+        code: 'NO_RETRO_FILE',
+        retroPath,
+        message:
+          `M4.5.E9 enforcement: \`RETROSPECTIVE.md\` required before SHIP can close. ` +
+          `Create \`${retroPath}\` from the ${profile.tier}-tier template ` +
+          `(see \`${tierAnchor}\`), then re-invoke \`/sig:ship\`.`,
+      };
+    }
+    throw err;
+  }
+
+  const result = validateRetroContent(content, profile.tier);
+  if (!result.valid) {
+    return {
+      halt: true,
+      code: 'INVALID_RETRO',
+      retroPath,
+      message:
+        `Retro at \`${retroPath}\` failed ${profile.tier}-tier validation: ` +
+        result.errors.join('; ') +
+        `. Edit the file (template at \`${tierAnchor}\`), then re-invoke \`/sig:ship\`.`,
+    };
+  }
+
+  return { halt: false, retroPath, isEpicClose: true };
+}
+
 /**
  * Extract the status column from a MILESTONE-{N}.md table row matching the
  * given Epic ID. Returns null when not found.

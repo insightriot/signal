@@ -24,6 +24,24 @@ Read `.planning/PROFILE.md` before any other workflow step.
 
 Tooling: `tools/lib/profile.js` exposes `readProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question convention: `references/question-patterns.md`.
 
+## 0.5 FR1 retrospective pre-check (M4.5.E9, command-internal layer)
+
+Run **before any other Workflow step**, regardless of `gate_strictness`. This is the command-internal layer of the layered enforcement locked in D-E9-8 (`PreToolUse` hook + `SessionStart-resume` hook are the other two layers; this layer is the only one that fires across all runtimes including Cursor/Codex).
+
+**Steps:**
+
+1. Load STATE.md via `readState(baseDir)` — gives the `state` object.
+2. Determine the current milestone file: parse `state.current_epic` (e.g., `M4.5.E9`), drop the trailing `.E{N}`, prefix with `MILESTONE-`, append `.md`. Load `.planning/MILESTONE-{n}.md` content; if file missing, halt with *"current_epic `{epicId}` points to a milestone whose MILESTONE-{n}.md does not exist. Set current_epic to a real Epic or create the milestone file."*
+3. Call `shipFR1Check({state, profile, milestoneContent, baseDir})` from `tools/lib/retrospective.js`.
+4. Interpret the result:
+   - `{halt: false, skipped: true, reason}` — this is a per-Slice SHIP, not an Epic-close. Continue with normal Workflow. No retro enforcement.
+   - `{halt: false, retroPath, isEpicClose: true}` — retro exists + passes validation. Continue with Workflow. The eventual STATE.md commit will include the Epic-close.
+   - `{halt: true, code, message, retroPath?}` — emit `message` verbatim to the user and **halt**. Do not proceed to Workflow. The user creates / fixes the retro file, then re-invokes `/sig:ship`.
+
+**No bypass.** Per D-E9-3 there is no `--no-retro` flag, no environment variable escape hatch, and no extra-args trick. `shipFR1Check` ignores any extra properties passed to it.
+
+**Layered enforcement context:** even if a user manually edits STATE.md to skip `/sig:ship`, the `PreToolUse(Edit|Write)` hook in `hooks/hooks.json` (added in M4.5.E9.S1.t7) blocks that write. Even if the user clears context mid-EXECUTE without invoking SHIP, the `SessionStart(resume)` hook surfaces the missing retro on the next session resume.
+
 ## Skill Loading
 
 Load from `${CLAUDE_PLUGIN_ROOT}/skills/ship/`:
@@ -68,9 +86,18 @@ If this phase introduced significant architectural decisions, document them:
 - Create ADR files in the project's docs directory
 - Link from the PR description
 
-### 5. Update State
+### 5. Update State (programmatic, not prose)
 
-Update `.planning/STATE.md` to reflect completion.
+The PR is open and the Epic has shipped end-to-end. Bring STATE.md frontmatter into parity with the rest of the phase commands (RESEARCH § 1.1 surfaced that SHIP previously relied on prose "Update STATE.md" rather than programmatic state-writes — that gap is now closed):
+
+1. `await transitionPhase(baseDir, 'SHIP')` from `tools/lib/state.js` — appends `SHIP (YYYY-MM-DD)` to `completed_phases` and updates `phase: SHIP` if not already there.
+2. `await markFresh(baseDir, {commit: <git HEAD short>})` — advances `last_updated` to now and `last_updated_commit` to HEAD so `/sig:resume`'s staleness banner reads as fresh.
+
+If `markFresh` fails (lock contention, git unavailable):
+- Under `gate_strictness: strict`, surface the failure but **do not roll back the SHIP** — the work and PR are done; the state-write blip is a recovery item, not a SHIP failure.
+- Under `light` / `off`, log to stderr and continue.
+
+This step is now required even if no PR was created (e.g., direct-to-main shipping for the Signal-on-Signal flow) so STATE.md never lags behind the Epic-close.
 
 ## Phase Gate
 
