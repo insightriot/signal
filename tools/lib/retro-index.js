@@ -237,3 +237,122 @@ export async function regenerateIndex(baseDir) {
   await atomicWrite(indexPath, content);
   return { written: true, path: indexPath, retroCount: retros.length };
 }
+
+// ---- Milestone meta-retro (S2.t6 / FR6 A6 downgrade) ----
+
+/**
+ * Compose a milestone-level meta-retro stub. Synthesizes per-Epic retros
+ * into a milestone-scoped reflection — auto-extractable fields filled,
+ * reflection sections marked [FILL IN] for opportunistic completion.
+ *
+ * Per A6, this is a manual-trigger artifact only — no auto-detection of
+ * milestone close, no hard block. The user invokes `/sig:ship --milestone-meta`
+ * (or the equivalent command surface) when they want the synthesis layer.
+ *
+ * @param {string} milestoneId — e.g., "M4.5" or "M4"
+ * @param {Array<{epicId: string, path: string, isStub: boolean}>} retros — filtered to this milestone
+ * @param {string} today — ISO date string (YYYY-MM-DD)
+ * @returns {string}
+ */
+export function composeMilestoneMetaRetro(milestoneId, retros, today) {
+  const header = `# ${milestoneId} Meta-Retrospective`;
+  const stamp =
+    `> _Generated ${today} from the per-Epic retros below. This is a synthesis-only stub — fill in opportunistically when the milestone is reflected on as a whole._`;
+
+  let referenced;
+  if (retros.length === 0) {
+    referenced =
+      '_(no per-Epic retros under this milestone yet — the meta-retro will populate as Epics close)_';
+  } else {
+    const lines = retros.map((r) => {
+      const filename = r.path.split('/').pop();
+      const status = r.isStub ? '*stub*' : '*complete*';
+      return `- [${r.epicId}](${filename}) — ${status}`;
+    });
+    referenced = lines.join('\n');
+  }
+
+  return [
+    header,
+    '',
+    stamp,
+    '',
+    '## Epic retros referenced',
+    '',
+    referenced,
+    '',
+    '## Synthesis',
+    '',
+    '[FILL IN — synthesize the patterns that recurred across the Epics above. What was learned at the milestone scale that no single Epic could teach?]',
+    '',
+    '## Compound learnings',
+    '',
+    '[FILL IN — what about Signal itself (the workflow, the tier system, the artifact set) shifted because of this milestone? What feeds back into the calibration or the phase gates?]',
+    '',
+    '## Forward-looking',
+    '',
+    `[FILL IN — what should the next milestone change based on ${milestoneId}'s experience? Concrete process / scope / sequencing changes.]`,
+    '',
+    '## Links',
+    '',
+    `- Per-Epic retros: see entries above`,
+    `- Index: [\`RETROSPECTIVES.md\`](RETROSPECTIVES.md)`,
+    '',
+  ].join('\n');
+}
+
+/**
+ * Filter enumerated retros to only those under a given milestone prefix.
+ * E.g., milestoneId="M4.5" keeps only M4.5.E* entries; milestoneId="M4"
+ * matches the M4 plain-milestone shape.
+ *
+ * @param {Array<{epicId: string}>} retros
+ * @param {string} milestoneId
+ * @returns {Array}
+ */
+function filterRetrosForMilestone(retros, milestoneId) {
+  const prefix = milestoneId + '.E';
+  return retros.filter((r) => r.epicId.startsWith(prefix));
+}
+
+/**
+ * Manual trigger entrypoint: enumerate retros, filter to the milestone,
+ * compose the meta-retro stub, atomic-write to .planning/{milestoneId}-RETROSPECTIVE.md.
+ *
+ * @param {string} baseDir
+ * @param {string} milestoneId — e.g., "M4.5"
+ * @param {{today?: string, force?: boolean}} [opts]
+ * @returns {Promise<{written: boolean, path: string, retroCount: number, reason?: string}>}
+ */
+export async function generateMilestoneMetaRetro(baseDir, milestoneId, opts = {}) {
+  const today = opts.today ?? new Date().toISOString().slice(0, 10);
+  const force = opts.force ?? false;
+
+  const path = join(baseDir, '.planning', `${milestoneId}-RETROSPECTIVE.md`);
+
+  // Idempotency: refuse to overwrite an existing file unless --force.
+  let existing = null;
+  try {
+    existing = await readFile(path, 'utf-8');
+  } catch {
+    // File doesn't exist — proceed to write.
+  }
+  if (existing !== null && !force) {
+    return {
+      written: false,
+      path,
+      retroCount: 0,
+      reason: 'file exists (pass force: true to regenerate)',
+    };
+  }
+
+  const allRetros = await enumerateRetros(baseDir);
+  const milestoneRetros = filterRetrosForMilestone(allRetros, milestoneId);
+  const content = composeMilestoneMetaRetro(milestoneId, milestoneRetros, today);
+  await atomicWrite(path, content);
+  return {
+    written: true,
+    path,
+    retroCount: milestoneRetros.length,
+  };
+}

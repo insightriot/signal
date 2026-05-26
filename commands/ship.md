@@ -112,6 +112,21 @@ The index regen runs only on Epic-close SHIP (when `shipFR1Check` returned `{hal
 
 Stage the modified `.planning/RETROSPECTIVES.md` (when `result.written === true`) into the SHIP commit alongside the retro file + state-write. One atomic commit captures all three.
 
+### 7. Manual milestone meta-retro (`--milestone-meta` flag, optional)
+
+If the user invokes `/sig:ship --milestone-meta` (or otherwise explicitly requests a milestone-level meta-retrospective), call `generateMilestoneMetaRetro(baseDir, milestoneId, opts)` from `tools/lib/retro-index.js` where `milestoneId` is derived from `state.current_epic` (drop the trailing `.E{N}` segment, e.g., `M4.5.E9` → `M4.5`).
+
+The helper writes `.planning/{milestoneId}-RETROSPECTIVE.md` as a stub with:
+- Auto-generated list of per-Epic retros under the milestone (sorted naturally, each with stub/complete status flag)
+- `[FILL IN]` markers in three reflection sections (Synthesis, Compound learnings, Forward-looking)
+- A Links footer pointing back at the index
+
+The helper **refuses to overwrite** an existing meta-retro unless `{force: true}` is passed — confirms user intent before destroying prior content. If the file already exists, surface the refusal message; the user can re-invoke with `--force` after deciding to regenerate, or hand-edit the existing file.
+
+The meta-retro is **opt-in / manual only** per A6 (the auto-detection of milestone close was downgraded because MILESTONE-{N}.md has no fully-parseable close-detection schema). FR1 enforcement does NOT extend to milestone meta-retros — they're additive, not gating.
+
+Stage the new file into the SHIP commit (or its own commit if SHIP isn't running). The index regen in §6 will pick up the milestone meta-retro automatically on the next regen if you want it indexed alongside per-Epic retros — though typically it's tracked separately because it spans Epics.
+
 ## Phase Gate
 
 ### Anti-Rationalization Check
