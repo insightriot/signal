@@ -99,6 +99,19 @@ If `markFresh` fails (lock contention, git unavailable):
 
 This step is now required even if no PR was created (e.g., direct-to-main shipping for the Signal-on-Signal flow) so STATE.md never lags behind the Epic-close.
 
+### 6. Regenerate RETROSPECTIVES.md index (M4.5.E9.S2)
+
+After the FR1 retro file and the state-write have both landed, call `regenerateIndex(baseDir)` from `tools/lib/retro-index.js` to refresh the index. The helper:
+
+1. Walks `.planning/` recursively for `*-RETROSPECTIVE.md` files.
+2. Parses any existing `RETROSPECTIVES.md` to preserve hand-written hook lines per Epic ID.
+3. Renders the new index (reverse-chronological by lastModified) with hooks merged.
+4. Atomic-writes IF content differs from existing (idempotent — no spurious diffs on re-runs that don't change retro state).
+
+The index regen runs only on Epic-close SHIP (when `shipFR1Check` returned `{halt: false, isEpicClose: true}` in §0.5). Per-slice SHIPs skip both FR1 and the regen — the index doesn't change because no new retro lands.
+
+Stage the modified `.planning/RETROSPECTIVES.md` (when `result.written === true`) into the SHIP commit alongside the retro file + state-write. One atomic commit captures all three.
+
 ## Phase Gate
 
 ### Anti-Rationalization Check

@@ -8,6 +8,8 @@ import { readFile, stat } from 'node:fs/promises';
 import { readdir } from 'node:fs/promises';
 import { join, relative, basename } from 'node:path';
 
+import { atomicWrite } from './atomic-write.js';
+
 /**
  * Is this retro a stub (un-filled)? Heuristic: any `[FILL IN` substring in
  * the content signals an unfilled section. Conservative: false-positives
@@ -194,4 +196,41 @@ export function renderIndex(retros, existingHooks) {
   }
 
   return `${header}\n\n${preamble}\n\n${lines.join('\n')}\n`;
+}
+
+// ---- Regen orchestration (S2.t3) ----
+
+/**
+ * One-shot: enumerate retros, parse existing index hooks, render new
+ * content, atomic-write IF different. Idempotent — second call with no
+ * changes is a no-op (returns `written: false`).
+ *
+ * Used by:
+ *   - commands/ship.md post-FR1 step (regen on every Epic-close SHIP)
+ *   - S2.t4 initial generation (one-shot at Epic close)
+ *
+ * @param {string} baseDir
+ * @returns {Promise<{written: boolean, path: string, retroCount?: number, reason?: string}>}
+ */
+export async function regenerateIndex(baseDir) {
+  const indexPath = join(baseDir, '.planning', 'RETROSPECTIVES.md');
+
+  const retros = await enumerateRetros(baseDir);
+
+  let existing = '';
+  try {
+    existing = await readFile(indexPath, 'utf-8');
+  } catch {
+    // No existing index — that's fine; we'll write the first one.
+  }
+
+  const hooks = parseExistingHooks(existing);
+  const content = renderIndex(retros, hooks);
+
+  if (content === existing) {
+    return { written: false, path: indexPath, reason: 'unchanged' };
+  }
+
+  await atomicWrite(indexPath, content);
+  return { written: true, path: indexPath, retroCount: retros.length };
 }

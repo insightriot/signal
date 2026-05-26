@@ -13,6 +13,7 @@ import {
   isStubRetro,
   renderIndex,
   parseExistingHooks,
+  regenerateIndex,
 } from '../tools/lib/retro-index.js';
 
 const STUB_RETRO = `# M4.5.E1 Retrospective
@@ -317,5 +318,67 @@ describe('renderIndex', () => {
     const out = renderIndex([], {});
     expect(out).toMatch(/Retrospectives Index/);
     expect(out).toMatch(/no retros yet/i);
+  });
+});
+
+describe('regenerateIndex', () => {
+  let base;
+  beforeEach(async () => {
+    base = await makeBase();
+  });
+  afterEach(async () => await rm(base, { recursive: true, force: true }));
+
+  it('writes RETROSPECTIVES.md when none exists', async () => {
+    await writeFile(
+      join(base, '.planning', 'M4.5.E3-RETROSPECTIVE.md'),
+      COMPLETE_RETRO,
+    );
+    const result = await regenerateIndex(base);
+    expect(result.written).toBe(true);
+    expect(result.retroCount).toBe(1);
+    const onDisk = await import('node:fs/promises').then((m) =>
+      m.readFile(join(base, '.planning', 'RETROSPECTIVES.md'), 'utf-8'),
+    );
+    expect(onDisk).toContain('[M4.5.E3]');
+  });
+
+  it("is idempotent — re-run produces no write when content unchanged (AC15 surrogate)", async () => {
+    await writeFile(
+      join(base, '.planning', 'M4.5.E3-RETROSPECTIVE.md'),
+      COMPLETE_RETRO,
+    );
+    await regenerateIndex(base);
+    const result = await regenerateIndex(base);
+    expect(result.written).toBe(false);
+    expect(result.reason).toMatch(/unchanged/);
+  });
+
+  it('preserves hand-written hooks across regen', async () => {
+    await writeFile(
+      join(base, '.planning', 'M4.5.E3-RETROSPECTIVE.md'),
+      COMPLETE_RETRO,
+    );
+    // First pass — placeholder hooks.
+    await regenerateIndex(base);
+    // Hand-edit the index, replace placeholder with substantive hook.
+    const indexPath = join(base, '.planning', 'RETROSPECTIVES.md');
+    const fs = await import('node:fs/promises');
+    let content = await fs.readFile(indexPath, 'utf-8');
+    content = content.replace(
+      '_(hook pending)_',
+      'a hand-curated description of the Epic.',
+    );
+    await fs.writeFile(indexPath, content, 'utf-8');
+    // Add another retro file and re-run.
+    await writeFile(
+      join(base, '.planning', 'M4.5.E9-RETROSPECTIVE.md'),
+      COMPLETE_RETRO,
+    );
+    await regenerateIndex(base);
+    // Hand-curated hook for E3 should survive.
+    const after = await fs.readFile(indexPath, 'utf-8');
+    expect(after).toContain('a hand-curated description of the Epic.');
+    // E9 should now appear with placeholder.
+    expect(after).toContain('[M4.5.E9]');
   });
 });
