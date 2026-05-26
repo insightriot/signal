@@ -959,3 +959,128 @@ PLAN artifacts authoritative for EXECUTE:
 - *"Track in GitHub Issues / Linear instead."* — Breaks the in-workspace capture loop that `/sig:add` exists to preserve. Revisit only if Signal grows multi-contributor.
 
 ---
+
+## 2026-05-25 — M4.5.E9 decisions locked (D-E9-1 through D-E9-8)
+
+**Context.** M4.5.E9 (Retro Foundations) DISCUSS phase completed 2026-05-25 with 7 decisions locked. PLAN-phase research surfaced one ESCALATE-level gap (D-E9-8) and four AMEND-level issues that needed DISCUSS amendment before PLAN could lock; the layered-enforcement question was elevated to a decision and confirmed via `AskUserQuestion`. The four AMENDs are absorbed into PLAN task specs and are not standalone decisions; only D-E9-8 promoted to the decisions list.
+
+These 8 decisions are promoted here from `M4.5.E9-REQUIREMENTS.md` § "Locked Decisions" + § "DISCUSS amendments from PLAN research" per the M4.5.E3 follow-up convention (CONTEXT.md 2026-05-25 "Recommended follow-ups" #1). REQUIREMENTS.md retains the table for at-a-glance reference with a header note pointing here for authoritative rationale.
+
+### D-E9-1 — Scope = split
+
+**Decision.** Workstreams 1 + 2 (SHIP enforcement + tier-aware template + stub backfill, plus `RETROSPECTIVES.md` index + cross-link conventions) ship as **M4.5.E9**. Workstreams 3 + 4 (wiki restructure of `.planning/`, doc-runtime / cross-link sanity tooling, migration tooling for existing projects) **deferred to M5.E1** with its own DISCUSS.
+
+**Rationale.** Retro enforcement is the highest-leverage of the four workstreams — without it, retros stay structurally optional and disappear under context pressure (the failure mode that motivated the whole question). Shipping the small/incremental option starts saving learning immediately. The dogfooding lever for M5.E1 is preserved: M5.E1's DISCUSS opens with 1-3 Epics of lived retro experience already captured.
+
+**Alternatives considered.**
+- *All-in-one M5.E1 (wiki restructure + enforcement together)* — would lock the directory shape (`.planning/retrospectives/`) before dogfooding revealed whether it's the right shape; couples a learning-emitting decision to a learning-consuming decision.
+- *Workstream 1 alone (defer the index to M5.E1 too)* — rejected; an index is the natural traversal surface for retros and is small (~7 tasks). Folding it in keeps the "find a retro" UX shipping at the same time as the "write a retro" UX.
+
+**Reference.** `M4.5.E9-REQUIREMENTS.md` § "Locked Decisions" row D-E9-1; FUTURE-IDEAS.md § "Memory & Documentation Management as Signal-managed Runtime" (the four-workstream framing).
+
+### D-E9-2 — Slice shape = two slices
+
+**Decision.** **S1** ships SHIP enforcement + tier-aware template + stub backfill (12 tasks, ~40 tests, High risk). **S2** ships `RETROSPECTIVES.md` index + cross-link conventions + manual milestone meta-retro + `/sig:resume` retro-status surfacing (7 tasks, ~18 tests, Low risk).
+
+**Rationale.** S2 is downstream of S1 by design — no retros means nothing to index. Sequential matches the dependency. S1 ships and is exercised on the very next Epic, producing a real retro to point S2's index at. Splitting also keeps each slice's PR / commit chain digestible.
+
+**Alternatives considered.**
+- *Single monolithic slice* — rejected; 19-task single PR is too large for review and bundles a high-risk new gate (S1) with a low-risk pure-additive feature (S2), making rollback granularity worse.
+- *Three slices (enforce / backfill / index)* — rejected; the backfill is tightly coupled to enforcement (S1.t10 dry-run gate must precede enforcement ship), separating them would introduce a fragile cross-slice ordering rule.
+
+**Reference.** `M4.5.E9-REQUIREMENTS.md` § "Locked Decisions" row D-E9-2; `M4.5.E9-PLAN.md` § "Slice overview".
+
+### D-E9-3 — Enforcement = hard block, no bypass
+
+**Decision.** SHIP refuses to write `phase: SHIP → completed_phases` until `RETROSPECTIVE.md` exists at the expected per-Epic path and passes a minimum-content sanity check. **No `--no-retro` flag. No override. No environment-variable escape hatch.**
+
+**Rationale.** This is the anti-rationalization heart of the Epic — the FUTURE-IDEAS entry that motivated this work specifically named the failure mode as "soft signals get rationalized away under exactly the pressure they're meant to handle (context-clear, deadline, demo)." A hard block is the only mechanism that fails closed under that pressure. The whole motivation is the failure mode that bypasses soft signals; a softer gate would re-introduce it.
+
+**Alternatives considered.**
+- *Soft warning at SHIP time* — explicitly rejected as recreating the failure mode.
+- *Hard block with `--no-retro` bypass for emergencies* — rejected; "emergencies" are exactly the context-pressure scenarios where the gate is meant to fire.
+- *Hard block at REVIEW phase instead of SHIP* — rejected; REVIEW is earlier in the flow and the retro isn't writable yet (it summarizes ship outcomes); SHIP is the natural altitude.
+
+**Reference.** `M4.5.E9-REQUIREMENTS.md` § "Locked Decisions" row D-E9-3; FUTURE-IDEAS.md § "Memory & Documentation Management" anti-rationalization framing.
+
+### D-E9-4 — Tier scope = all tiers required, tier-aware template
+
+**Decision.** The hard block fires for **all four tiers** (SKETCH, FEATURE, SPIKE, FULL). Template content **scales by tier**: SKETCH gets a 3-question stub; SPIKE gets an exploratory template focused on whether the spike resolved its question; FEATURE gets a medium template; FULL gets the full template (timeline, assumptions broken, surprises, anti-rationalization moment, links to artifacts).
+
+**Rationale.** Preserves D-E9-3's universal "no exception" principle without burdening SKETCH throwaways with FULL-tier ceremony. Matches the pattern `gate_strictness` already uses — same enforcement, calibrated ceremony per project tier. Exempting SKETCH from retros would replicate the original failure mode in a smaller scope; calibrating the ceremony preserves the discipline.
+
+**Alternatives considered.**
+- *SKETCH-tier exemption (no retro required)* — rejected; D-E9-3's "no bypass" extends to tier-shaped bypasses.
+- *Single universal template* — rejected; SKETCH ceremony budget can't absorb FULL-template heading count without producing performative noise.
+- *Tier-specific ENFORCEMENT (e.g., warn at SKETCH, block at FULL)* — rejected; same reason as the SKETCH exemption.
+
+**Reference.** `M4.5.E9-REQUIREMENTS.md` § "Locked Decisions" row D-E9-4; `M4.5.E9-RESEARCH.md` § 3.6 (per-tier section heading specifications).
+
+### D-E9-5 — Granularity = per-Epic, with optional milestone-close meta-retro
+
+**Decision.** One `RETROSPECTIVE.md` per **Epic**, written when SHIP closes the Epic (last unshipped slice). **Optional** milestone-close meta-retro synthesizes the Epic retros into a milestone-level reflection — no hard block, user-triggered.
+
+**Rationale.** Epic is the existing SHIP-gate altitude; plugs into existing infrastructure cleanly without inventing new lifecycle hooks. Per-Slice was rejected as fatigue-inducing (slices ship weekly during active Epics; per-Slice retros decay to checkbox theater). Per-Milestone was rejected as too rare (months between captures loses fidelity — by the time the retro is written, the lessons have already drifted). Milestone meta-retro is value-add when it happens but should not gate; it operates on already-captured Epic retros, not the lived session.
+
+**Alternatives considered.**
+- *Per-Slice retros* — rejected; fatigue-inducing, decays to theater.
+- *Per-Milestone only* — rejected; loses fidelity to the Epic-scale lessons.
+- *Per-Slice optional + per-Epic required* — rejected; double bookkeeping, unclear cardinality semantics for the index.
+
+**Reference.** `M4.5.E9-REQUIREMENTS.md` § "Locked Decisions" row D-E9-5; FR6 (milestone meta-retro, downgraded to manual per A6 in PLAN).
+
+### D-E9-6 — File location = flat convention
+
+**Decision.** Per-Epic retros live at **`.planning/M{milestone}.E{N}-RETROSPECTIVE.md`** (flat; matches existing artifact convention used by PLAN, REVIEW, PROGRESS, VERIFICATION, REQUIREMENTS, RESEARCH, VALIDATION). Index lives at **`.planning/RETROSPECTIVES.md`** (root of `.planning/`).
+
+**Rationale.** Pre-staging the wiki shape (`.planning/retrospectives/M{milestone}.E{N}.md`) was rejected because workstream #3 (wiki restructure) is being deliberately interrogated in M5.E1's DISCUSS — pre-deciding the directory shape now would short-circuit that work. M5.E1's migration tool will handle relocation if the wiki restructure ships. Flat convention also means the existing artifact-discovery patterns (the `{N}-{ARTIFACT}.md` / `{ARTIFACT}.md` / `{PHASE}-{ARTIFACT}.md` resolution rule used by `/sig:resume`) extend with minimal churn.
+
+**Alternatives considered.**
+- *`.planning/retrospectives/M{milestone}.E{N}.md` subdirectory* — rejected; pre-decides M5.E1's wiki-shape question.
+- *`.planning/retrospectives/{milestone}/E{N}.md` two-level* — rejected; same as above plus harder to glob.
+- *Stick retros into existing artifact files (e.g., extend `M4.5.E9-REVIEW.md` with a retro section)* — rejected; mixes pre-ship review (defect-finding) with post-ship retro (learning capture); different audiences, different timing.
+
+**Reference.** `M4.5.E9-REQUIREMENTS.md` § "Locked Decisions" row D-E9-6; FUTURE-IDEAS.md § "Memory & Documentation Management" workstream-3 framing (wiki restructure deferred).
+
+### D-E9-7 — Backfill = stubs with `[FILL IN]` markers
+
+**Decision.** For each already-shipped M4.5 Epic (E1 partial, E2 partial, E3, E6, E7 per CONTEXT.md as of 2026-05-25), M4.5.E9 generates a **stub `RETROSPECTIVE.md`** pre-populated with auto-extracted artifact links (PLAN, REVIEW, PROGRESS, VERIFICATION) + commit range + `[FILL IN]` markers in every reflection section. User fills in opportunistically. Stubs vs. complete status is surfaced in the index.
+
+**Rationale.** Surfaces the gap honestly without inventing false memories. Forward-only (no backfill, retros start at M4.5.E9) would let the historical gap stay invisible — strangers reading the index would see five gap rows with no explanation and the project's learning history would appear to start mid-stream. Auto-synthesize from session transcripts or commit messages would be scope creep — that's migration-tool territory for M5.E1, not enforcement-mechanism territory for E9. The honest middle is a stub with auto-extractable structural fields filled and reflection fields explicitly marked `[FILL IN]`.
+
+**Partial-Epic handling.** PLAN-level decision (deferred from DISCUSS): partial Epics (E1, E2) get a stub for the shipped-portion only with an explicit header note ("Epic incomplete as of backfill date; this retro covers shipped slices only. When remaining slices ship, append a continuation section."). Recommendation locked at PLAN gate.
+
+**Alternatives considered.**
+- *Forward-only (no backfill)* — rejected; obscures the historical learning gap.
+- *Auto-synthesize stub content from commits / session transcripts* — rejected; scope creep into M5.E1 migration tooling; fabricated content is worse than honest `[FILL IN]` markers.
+- *Manual backfill ceremony (user writes them from scratch)* — rejected; the auto-extractable structural fields (links, commit ranges, dates) are mechanical and worth pre-filling.
+
+**Reference.** `M4.5.E9-REQUIREMENTS.md` § "Locked Decisions" row D-E9-7; FR4 § "Partial-Epic handling"; `M4.5.E9-PLAN.md` § S1.t9 partial-Epic header.
+
+### D-E9-8 — Enforcement mechanism = layered (command-internal + PreToolUse hook + SessionStart-resume hook)
+
+**Decision.** Three enforcement mechanisms, all shipping together in S1:
+
+1. **Command-internal check in `commands/ship.md`** — primary enforcement; works across all runtimes including Cursor/Codex adapters. Reads `state.current_epic`, derives expected retro path, runs `validateRetroContent`, halts SHIP on failure.
+2. **`PreToolUse(Edit|Write)` hook on `.planning/STATE.md`** — Claude Code (+ Codex compatible). Intercepts the exact bad write even if user manually edits STATE.md to skip `/sig:ship`. Bypass-resistant at the tool layer; user flags do not bypass it.
+3. **`SessionStart(resume)` hook** — Claude Code (+ Codex compatible). Detects dirty-EXECUTE state from a prior session (current_epic set, phase: EXECUTE, missing retro for an Epic that should have shipped) and emits a high-visibility warning via `additionalContext` on the next session resume.
+
+**Explicitly NOT included:** `Stop` hook. Superpowers issue #390 documented Stop hooks hanging indefinitely on slow operations, wedging the session. Also fires every turn, not session-end — creating false-positive risk during normal EXECUTE work.
+
+**Rationale.** PLAN-phase research surfaced an ESCALATE-level gap: SHIP-phase enforcement is **structurally orthogonal to the motivating failure mode** (the context that motivated the Epic was *the conversation context cleared before `/sig:ship` was invoked* → a SHIP-phase check would never fire in that case). Anthropic's `PreSessionEnd` hook (which would close the gap natively) does not exist in Claude Code's public API. No single mechanism perfectly addresses the failure mode, so the answer is defense-in-depth: command-internal catches the normal path, `PreToolUse` catches the manual-STATE-write bypass, and `SessionStart-resume` catches the original motivating scenario (gap discovered on next session). Each mechanism handles a failure mode the others miss; together they degrade gracefully when any one is unavailable.
+
+**Cross-runtime implication.** Cursor users get command-internal only (Cursor's hook API does not currently support `PreToolUse` on file writes). Codex gets the full layered stack. Documented as a known limitation in PLAN § "Risk mitigation".
+
+**Alternatives considered.**
+- *Command-internal only* — rejected; misses the manual-STATE-write bypass (user edits STATE.md directly, skipping `/sig:ship`) and the original motivating failure mode (context cleared before SHIP).
+- *Hook-only (no command-internal)* — rejected; Cursor/Codex adapters lose enforcement entirely. Command-internal is the universal floor.
+- *Add a `Stop` hook for session-end detection* — rejected; superpowers #390 (hanging) plus false-positive risk (Stop fires every turn).
+- *Wait for `PreSessionEnd` hook to land in Claude Code* — rejected; indefinite blocker on a hypothetical API.
+
+**Reference.** `M4.5.E9-REQUIREMENTS.md` § "DISCUSS amendments from PLAN research" → D-E9-8 entry (full ESCALATE finding + user confirmation context); `M4.5.E9-RESEARCH.md` § 5 (hook API surface verification); `M4.5.E9-PLAN.md` S1.t6 + S1.t7 task specs (mechanism implementations).
+
+---
+
+**Impact on EXECUTE.** All 8 decisions are pre-locked; no decision deferrals carry into the EXECUTE phase. AMEND-level issues (A2, A3, A4, A6, A8) are absorbed into PLAN task specs (S1.t6, S1.t5, S1.t8, S2.t6, PLAN-wide AC split respectively) and do not require separate DECISIONS.md promotion — they're encoded as implementation requirements, not architectural decisions. Deferred AMEND items (A5, A7, A9) are documented in REQUIREMENTS.md § "Deferred" with explicit revisit triggers.
+
+
