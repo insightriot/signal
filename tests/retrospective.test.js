@@ -14,6 +14,8 @@ import {
   deriveRetroPath,
   loadTemplate,
   validateRetroContent,
+  expectedRetroPath,
+  isEpicCloseShip,
 } from '../tools/lib/retrospective.js';
 
 describe('parseSections', () => {
@@ -343,5 +345,96 @@ describe('validateRetroContent', () => {
     expect(() => validateRetroContent('content', 'TRIVIAL')).toThrow(
       /unknown tier/i,
     );
+  });
+});
+
+describe('expectedRetroPath', () => {
+  it('returns derived path when current_epic is populated', () => {
+    expect(expectedRetroPath({ current_epic: 'M4.5.E9' })).toBe(
+      '.planning/M4.5.E9-RETROSPECTIVE.md',
+    );
+    expect(expectedRetroPath({ current_epic: 'M5.E1' })).toBe(
+      '.planning/M5.E1-RETROSPECTIVE.md',
+    );
+  });
+
+  it('returns null when current_epic is null / empty / undefined', () => {
+    expect(expectedRetroPath({ current_epic: null })).toBe(null);
+    expect(expectedRetroPath({ current_epic: '' })).toBe(null);
+    expect(expectedRetroPath({ current_epic: undefined })).toBe(null);
+    expect(expectedRetroPath({})).toBe(null);
+  });
+
+  it('returns null when state itself is null or missing', () => {
+    expect(expectedRetroPath(null)).toBe(null);
+    expect(expectedRetroPath(undefined)).toBe(null);
+  });
+
+  it('propagates malformed-epic errors from deriveRetroPath', () => {
+    expect(() => expectedRetroPath({ current_epic: 'bogus' })).toThrow(
+      /malformed/i,
+    );
+  });
+});
+
+describe('isEpicCloseShip', () => {
+  // Realistic-shaped MILESTONE-4.5.md status table for fixture testing.
+  const MILESTONE_CONTENT = `
+| **Epic** | Status | Notes |
+|---|---|---|
+| E1 — Stranger-install path bulletproof | S1 shipped 2026-05-15 (v0.1.1); **S2 Phase A shipped 2026-05-19**; **S3–S5 ⏸ shelved 2026-05-24** | Notes... |
+| E2 — \`/sig:add\` capture-and-route | S1 shipped 2026-05-14; S2–S5 pending | Notes... |
+| **E3 — Public-facing docs rewrite** | **✓ shipped 2026-05-24 (v0.1.3 candidate)** | Notes... |
+| E4 — Worked example + comparison page | pending | |
+| **E9 — Retro Foundations** | DISCUSS + PLAN done 2026-05-25; EXECUTE in flight | Notes... |
+`;
+
+  it('returns true when Epic is fully shipped (Epic-close ceremony)', () => {
+    expect(
+      isEpicCloseShip({ current_epic: 'M4.5.E3' }, MILESTONE_CONTENT),
+    ).toBe(true);
+  });
+
+  it('returns true when remaining slices are all shelved (regression: E1.S3-S5)', () => {
+    // E1 has S1 shipped + S2 Phase A shipped + S3-S5 shelved. No pending.
+    // The closing SHIP for E1 should enforce the retro.
+    expect(
+      isEpicCloseShip({ current_epic: 'M4.5.E1' }, MILESTONE_CONTENT),
+    ).toBe(true);
+  });
+
+  it('returns false when other slices remain pending', () => {
+    // E2 has S2-S5 pending. Mid-Epic SHIPs should NOT enforce retro.
+    expect(
+      isEpicCloseShip({ current_epic: 'M4.5.E2' }, MILESTONE_CONTENT),
+    ).toBe(false);
+  });
+
+  it('returns false when the Epic has not shipped anything yet', () => {
+    // E9 is in flight; no slice has shipped yet. Not a close ship.
+    expect(
+      isEpicCloseShip({ current_epic: 'M4.5.E9' }, MILESTONE_CONTENT),
+    ).toBe(false);
+  });
+
+  it('returns false when Epic is entirely pending', () => {
+    // E4 has no shipped slices.
+    expect(
+      isEpicCloseShip({ current_epic: 'M4.5.E4' }, MILESTONE_CONTENT),
+    ).toBe(false);
+  });
+
+  it('returns false when current_epic is null / missing', () => {
+    expect(isEpicCloseShip({ current_epic: null }, MILESTONE_CONTENT)).toBe(
+      false,
+    );
+    expect(isEpicCloseShip({}, MILESTONE_CONTENT)).toBe(false);
+    expect(isEpicCloseShip(null, MILESTONE_CONTENT)).toBe(false);
+  });
+
+  it("returns false when the Epic ID isn't present in milestoneContent", () => {
+    expect(
+      isEpicCloseShip({ current_epic: 'M99.E99' }, MILESTONE_CONTENT),
+    ).toBe(false);
   });
 });

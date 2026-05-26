@@ -258,3 +258,81 @@ export function validateRetroContent(content, tier) {
 
   return { valid: errors.length === 0, errors };
 }
+
+// ---- State + milestone integration ----
+
+/**
+ * Compute the expected retrospective path from STATE.md frontmatter shape.
+ * Returns null when `current_epic` is missing/empty — the caller is
+ * responsible for surfacing the right user-facing error in that case
+ * (S1.t6 ship.md FR1 pre-check has the documented message).
+ *
+ * @param {{current_epic?: string|null} | null | undefined} state
+ * @returns {string | null}
+ */
+export function expectedRetroPath(state) {
+  if (!state) return null;
+  const epicId = state.current_epic;
+  if (!epicId) return null;
+  // Delegate to deriveRetroPath — propagates malformed-epic errors.
+  return deriveRetroPath(epicId);
+}
+
+/**
+ * Determine whether the SHIP about to fire closes the Epic.
+ *
+ * Returns true iff the Epic shows at least one shipped slice AND has no
+ * remaining pending slices in the milestone file. Shelved slices DO NOT
+ * count as pending (regression-tested for E1.S3-S5 — D-E3-12 shelved them
+ * yet E1 is effectively closed for retro purposes).
+ *
+ * Workflow assumption: the slice's own SHIP work updates MILESTONE-{N}.md
+ * to mark the slice as shipped BEFORE `/sig:ship` is invoked for the
+ * Epic-close event. This matches the M4.5.E3 pattern where the closing
+ * SHIP commit (dc43ebf) refreshed STATE.md + CONTEXT.md after MILESTONE
+ * annotations were already in earlier slice commits.
+ *
+ * @param {{current_epic?: string|null} | null | undefined} state
+ * @param {string} milestoneContent — full file contents of MILESTONE-{N}.md
+ * @returns {boolean}
+ */
+export function isEpicCloseShip(state, milestoneContent) {
+  if (!state) return false;
+  const epicId = state.current_epic;
+  if (!epicId) return false;
+  if (!milestoneContent) return false;
+
+  const statusRow = findEpicStatusRow(milestoneContent, epicId);
+  if (statusRow === null) return false;
+
+  const hasShipped = /\bshipped\b/i.test(statusRow);
+  if (!hasShipped) return false;
+
+  const hasPending = /\bpending\b/i.test(statusRow);
+  // "in flight" is also a non-terminal state; treat as pending.
+  const hasInFlight = /\bin\s+flight\b/i.test(statusRow);
+
+  return !hasPending && !hasInFlight;
+}
+
+/**
+ * Extract the status column from a MILESTONE-{N}.md table row matching the
+ * given Epic ID. Returns null when not found.
+ *
+ * @param {string} milestoneContent
+ * @param {string} epicId
+ * @returns {string | null}
+ */
+function findEpicStatusRow(milestoneContent, epicId) {
+  const epicNumMatch = epicId.match(/\.E(\d+)$/);
+  if (!epicNumMatch) return null;
+  const epicNum = epicNumMatch[1];
+
+  for (const line of milestoneContent.split('\n')) {
+    const match = line.match(/^\|\s*\*{0,2}E(\d+)\b[^|]*\|([^|]+)\|/);
+    if (match && match[1] === epicNum) {
+      return match[2].trim();
+    }
+  }
+  return null;
+}
