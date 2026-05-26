@@ -8,6 +8,100 @@ Append new ideas; promote to a milestone file when ready to build.
 
 ---
 
+## "Spec-internal consistency" as a PLAN-validation axis
+
+**Status:** Logged 2026-05-26 at M4.5.E9 REVIEW close.
+
+**Trigger.** M4.5.E9.S1.t11 surfaced an incompatibility internal to the PLAN itself: the threshold formula stated in the task spec (`template_floor + 150B × section_count`) was inconsistent with the AC stated in the same task (`minimally-filled template — one sentence per section — passes`). One sentence is ~50-70B of body; 150B per section pushes the threshold beyond what one sentence can clear. The 8-dimension VALIDATION pass did not catch this because it audits goal alignment / completeness / dependency / testability / scope / context / risk / vertical-slicing — none of which check whether the formula stated in the PLAN actually satisfies the AC stated in the PLAN.
+
+The fix landed inline in EXECUTE (60B coefficient, AC as binding constraint, deviation surfaced in commit message). But the class of issue — *the PLAN can contradict itself in subtle ways VALIDATION's existing axes miss* — generalizes.
+
+**Proposal.** Add a 9th dimension to `M4.5.E{N}-VALIDATION.md` called **Spec-internal consistency**. The check: for each PLAN-stated formula / threshold / heuristic, walk the matching AC and verify the formula's output satisfies the AC's input. Should be lightweight (one paragraph per axis, per task with a quantitative spec). Catches the class of "the PLAN says X and also says Y, but X⇒¬Y" before it reaches EXECUTE.
+
+**Why not just careful PLAN review.** Same reason we have 8 dimensions instead of "just read the PLAN carefully." Naming the axis makes the check explicit + auditable; absent a named axis, the check is invisible to PLAN-checker agents and VALIDATION reviewers.
+
+**Resolve by.** Next M4.5 planning round that touches a PLAN with quantitative thresholds. Possibly bundled with a v1.5 / v2 refresh of the VALIDATION conventions.
+
+**Cross-references:** `.planning/M4.5.E9-RETROSPECTIVE.md` § "What to feed back into Signal"; `.planning/M4.5.E9-REVIEW.md` § 8.
+
+---
+
+## Dry-run gate as a standard PLAN pattern
+
+**Status:** Logged 2026-05-26 at M4.5.E9 REVIEW close.
+
+**Trigger.** Two of two recent M4.5 Epics that included a dry-run-with-user-approval gate caught real issues that would have shipped otherwise:
+
+- **M4.5.E6 D15** — dry-run against Signal-on-Signal's own STATE.md before the migration shipped. Caught a load-bearing edge case.
+- **M4.5.E9 S1.t10** — dry-run of the backfill stub generation before live writes. Caught two bugs: (a) `git log --grep` matched commit bodies, not just subjects, leading to wrong commits being attributed to E2; (b) markdown link URLs used `../.planning/X.md` when the retro file lives in `.planning/` already (sibling resolution wants bare `X.md`). Both would have shipped + propagated to five committed stub files.
+
+The pattern: when an Epic writes to existing user state (STATE.md, MILESTONE.md, planning artifacts), generate the proposed writes first, capture them in a RESEARCH addendum, await explicit user approval, then live-write only on go-ahead.
+
+**Proposal.** Codify the dry-run gate as a recommended PLAN pattern for any Epic touching existing user state. Not a hard rule (some Epics are pure-additive and don't warrant the ceremony), but a default to consider. Concrete shape:
+
+1. PLAN identifies tasks that write to existing state.
+2. A "DRY-RUN GATE" task gets inserted before the live-write task.
+3. Gate task: run `--dry-run`, capture proposed output in `M4.5.E{N}-RESEARCH.md` addendum (or similar), pause for user approval.
+4. On approval: live run with `--no-dry-run` or equivalent.
+
+**Resolve by.** Next Epic that touches existing user state — apply the pattern, see if it's worth codifying in a `references/plan-patterns.md` doc.
+
+**Cross-references:** `.planning/M4.5.E6-DECISIONS.md` D15; `.planning/M4.5.E9-RESEARCH.md` § 8.1.
+
+---
+
+## Hook output format reference doc
+
+**Status:** Logged 2026-05-26 at M4.5.E9 REVIEW close.
+
+**Trigger.** M4.5.E9.S1.t7 needed to emit a SessionStart hook payload that injects an `additionalContext` warning. The shape used was:
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "..."
+  }
+}
+```
+
+This was inferred from existing Claude Code patterns + cached plugin behavior — there is no `references/hooks-api.md` in this repo that documents the exact JSON shape the hook should emit per event type. If a future hook needs `PreToolUse` denial shapes or `PostToolUse` data injection, the author has to re-discover the format.
+
+**Proposal.** Add `references/hooks-api.md` documenting each Claude Code hook event Signal uses + the exact stdin/stdout/exit-code contract per event:
+
+- `PreToolUse(Edit|Write)` — read event JSON from stdin (shape: `{tool_name, tool_input: {file_path, ...}}`); exit 0 to allow, exit 2 + stderr to block.
+- `SessionStart(resume|startup|clear)` — emit JSON to stdout: `{hookSpecificOutput: {hookEventName, additionalContext}}` to inject context; exit 0.
+- Plus the matchers in `hooks.json` and how Claude Code routes events.
+
+**Why not just link to upstream docs.** Upstream Claude Code docs cover the API surface in general terms; Signal's `references/` exists to capture exactly the subset Signal uses + the Signal-specific conventions (e.g., fail-open on malformed JSON, sync I/O for synchronous hook decisions).
+
+**Resolve by.** Next Epic that adds a new hook surface, or a routine docs-refresh round. Low priority — workable as-is, but a stranger reading Signal's hook scripts has to grep the source rather than read a doc.
+
+**Cross-references:** `.planning/M4.5.E9-REVIEW.md` § 8.
+
+---
+
+## SessionStart-resume hook manual smoke test (M4.5.E9 follow-on)
+
+**Status:** Logged 2026-05-26 at M4.5.E9 SHIP. Known limitation, not blocking SHIP.
+
+**Trigger.** M4.5.E9.S1.t7 added a `SessionStart(resume)` hook that emits an `additionalContext` warning when STATE.md shows a dirty-EXECUTE state. The unit tests (`tests/hook-state-write.test.js`) cover the JS logic of `detectDirtyExecute` end-to-end. The hook-firing handshake — Claude Code → SessionStart event → matcher `resume` → `node hooks/warn-dirty-execute.js` → stdout JSON → context injection — is **not yet verified in a real session**. PreToolUse smoke was confirmed (exit 2 + stderr block) but SessionStart-resume was not.
+
+**Proposal.** When the user has a convenient moment, exercise the smoke test in a real Claude Code session:
+
+1. Synthesize a dirty-EXECUTE state: edit STATE.md frontmatter to `phase: EXECUTE` + `current_epic: M4.5.E9` (already there); ensure MILESTONE-4.5.md shows E9 as shipped (which it does post-SHIP); delete or rename `.planning/M4.5.E9-RETROSPECTIVE.md` temporarily.
+2. Quit the Claude Code session.
+3. Run `claude --continue` or open a session in the same project. The SessionStart(resume) hook should fire and inject the additionalContext warning visible in the next message.
+4. Restore the retro file (or run `/sig:resume`).
+
+**Why deferred.** The unit tests cover the load-bearing logic. The hook handshake is a Claude Code platform contract that's been observed working on the existing `session-start.sh` plugin hook (the unmatched-default SessionStart entry); the matcher-specific resume variant uses the same mechanism. Practically high-confidence but not yet empirically verified.
+
+**Resolve by.** Whenever the user wants to validate; alternatively, fold into a future install-verification matrix entry.
+
+**Cross-references:** `.planning/M4.5.E9-VERIFICATION.md` § 5.2 #2; `.planning/M4.5.E9-REVIEW.md` § 8.
+
+---
+
 ## Synthesizer-output validator-side sanity-check (deferred from M4.5.E7)
 
 **Status:** Deferred from M4.5.E7 to FUTURE-IDEAS. Logged 2026-05-23 at E7 close.

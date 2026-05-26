@@ -6,7 +6,56 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [0.1.3] — Unreleased — M4.5.E7 + M4.5.E3 (synthesizer prose-quality + install-UX hardening + public-docs rewrite)
+## [0.1.3] — Unreleased — M4.5.E7 + M4.5.E3 + M4.5.E9 (synthesizer prose-quality + install-UX hardening + public-docs rewrite + retro foundations)
+
+### Added — Retro Foundations (M4.5.E9)
+
+- **SHIP hard-block gate** (D-E9-3, D-E9-8). Every Epic-close SHIP must produce a per-Epic `RETROSPECTIVE.md` that passes a tier-aware content validator before `/sig:ship` will write the `completed_phases: SHIP` entry. The mechanism is **layered**: (1) command-internal pre-check in `commands/ship.md` §0.5 — works in all runtimes including Cursor/Codex; (2) `PreToolUse(Edit|Write)` hook on `.planning/STATE.md` (Claude Code + Codex) — bypass-resistant at the tool layer; (3) `SessionStart(resume)` hook (Claude Code + Codex) — surfaces dirty-EXECUTE state on the next session resume, catching the original motivating failure mode (context cleared before SHIP was invoked). No `--no-retro` flag, no environment override, no extra-args trick.
+- **Tier-aware retrospective templates** at `references/retrospective-template.md`. One copy-paste-able block per tier (SKETCH 3 sections, FEATURE 5, SPIKE 3, FULL 8). Section headings are exact-string locked per the validator's contract; template content scales by tier so SKETCH throwaways aren't burdened with FULL-tier ceremony.
+- **6 retrospective files in `.planning/`**: M4.5.E9 (substantive dogfood from S1.t12) + backfilled stubs for E1 (partial), E2 (partial), E3, E6, E7. Backfill mechanism (`tools/backfill-retros.js`) auto-extracts artifact links + commit ranges via `git log --grep=^M4.5.E{N}` (with subject-line filter to avoid false-positives from body content) and pre-populates the Links section; reflection sections retain `[FILL IN]` markers for opportunistic completion.
+- **`.planning/RETROSPECTIVES.md` index** — hand-curated hooks per Epic survive auto-regen (merged by Epic ID); reverse-chronological order; sibling links from the index file's own location.
+- **`tools/lib/retrospective.js`** — exports: `parseSections`, `getRequiredSections`, `deriveRetroPath`, `loadTemplate`, `validateRetroContent`, `expectedRetroPath`, `isEpicCloseShip`, `shipFR1Check` (command-internal layer), `checkProposedStateWrite` (PreToolUse layer), `detectDirtyExecute` (SessionStart-resume layer).
+- **`tools/lib/retro-index.js`** — exports: `isStubRetro`, `enumerateRetros` (path-agnostic recursive walk), `parseExistingHooks`, `renderIndex`, `regenerateIndex` (idempotent), `composeMilestoneMetaRetro`, `generateMilestoneMetaRetro` (manual trigger per A6 / FR6 downgrade).
+- **`tools/backfill-retros.js`** — CLI for one-shot Epic-retro stub generation. Supports `--dry-run`, `--force`, `--milestone Mx.y`. Idempotent on re-run; refuses to overwrite edited stubs (heuristic: `[FILL IN]` count drop OR size > 2× baseline).
+- **`hooks/check-state-write.js`** — Node CLI for the PreToolUse hook. Reads Claude Code hook event JSON from stdin; exits 2 + stderr block when a proposed STATE.md write would mark Epic-close SHIP without a matching retro file.
+- **`hooks/warn-dirty-execute.js`** — Node CLI for the SessionStart(resume) hook. Emits an additionalContext JSON payload surfacing the gap when STATE.md shows EXECUTE for an Epic that already looks shipped per MILESTONE.md.
+
+### Changed — `commands/ship.md` (M4.5.E9.S1.t6)
+
+- **§0.5 FR1 retrospective pre-check** added between the §0 tier-gating preamble and the `Skill Loading` section. Documents the layered enforcement flow + the 4-step shipFR1Check integration. Fires regardless of `gate_strictness`; no bypass parameter.
+- **§5 Update State** rewritten from prose ("Update `.planning/STATE.md` to reflect completion") to programmatic (`transitionPhase(baseDir, 'SHIP')` + `markFresh(baseDir, {commit: <HEAD>})`). Brings SHIP into parity with `verify.md`/`review.md`'s state-write pattern. Documents the markFresh failure-mode policy (surface but don't roll back SHIP).
+- **§6 Regenerate RETROSPECTIVES.md index** added — calls `regenerateIndex(baseDir)` post-state-write on every Epic-close SHIP. Atomic-writes the new index file when content changes; idempotent no-op when unchanged.
+- **§7 Manual milestone meta-retro** added — documents the optional `--milestone-meta` flag invocation that calls `generateMilestoneMetaRetro` to produce a milestone-scoped synthesis stub. Opt-in per A6 (FR6 auto-detection downgraded because MILESTONE-{N}.md has no fully-parseable close-detection schema).
+
+### Changed — `commands/resume.md` (M4.5.E9.S2.t7)
+
+- **Step 3c Retro completeness** added — calls `enumerateRetros(baseDir)` to build a `{total, complete, stub}` summary and passes as `retroSummary` to `renderResumeBriefing`. The briefing now surfaces one new line: `Retros:  1/6 complete (5 stubs awaiting backfill)` (or `0/0 (no retros yet)` for greenfield).
+
+### Changed — `hooks/hooks.json` (M4.5.E9.S1.t7)
+
+- **`PreToolUse` with `matcher: "Edit|Write"`** invoking `node hooks/check-state-write.js` — bypass-resistant layer of D-E9-8.
+- **`SessionStart` with `matcher: "resume"`** invoking `node hooks/warn-dirty-execute.js` — catches the original motivating failure mode.
+- **Cross-platform note:** PLAN spec called for bash wrappers; collapsed to direct Node invocation. Bash availability is platform-dependent (Windows lacks it natively); the bash→node wrapper bought no testability. Existing `session-start.sh` preserved as the default-source SessionStart handler.
+
+### Test suite: 397 → 535 (+138, M4.5.E9)
+
+- `tests/retrospective.test.js` (29 cases) — parsers, validator, path derivation, template loading, shipFR1Check
+- `tests/retro-index.test.js` (24 cases) — enumeration, stub detection, index rendering, regen, idempotency
+- `tests/retro-index-fr5.test.js` (6 cases) — AC14-17 integration
+- `tests/backfill-retros.test.js` (13 cases) — Epic enumeration, commit-range scan, subject-line filter regression
+- `tests/backfill-stub-gen.test.js` (13 cases) — stub composition, partial-Epic header, idempotency, edit-detection
+- `tests/ship-fr1.test.js` (9 cases) — AC1, AC1-extended, AC2 (no-bypass), AC3
+- `tests/hook-state-write.test.js` (11 cases) — checkProposedStateWrite + detectDirtyExecute
+- `tests/milestone-meta-retro.test.js` (8 cases) — AC18, AC19, idempotency
+- `tests/resume-briefing.test.js` (+5 cases) — retroSummary param
+
+### Documented for downstream
+
+- 5-axis code review + OWASP/ASVS audit clean. 1 Important + 3 Suggestions fixed in-phase (regex precision in `check-state-write.js`, redundant dynamic import removed, unused imports removed, `execSync` → `execFileSync` for defense-in-depth).
+- PLAN deviations surfaced + resolved: (1) byte-threshold formula `150B × section_count` per PLAN vs. AC "one sentence per section passes" — resolved with 60B coefficient honoring the AC. (2) hooks spec called bash wrappers, shipped as Node CLIs.
+- Items logged to FUTURE-IDEAS for next planning gate: "spec-internal consistency" PLAN-validation axis, dry-run gate as standard PLAN pattern, hook output format reference doc.
+
+
 
 ### Fixed — `/sig:init` synthesizer character-drop regression coverage
 

@@ -24,7 +24,7 @@ Three reasons:
 
 Listed in suggested execution order. Each Epic is independently shippable as v0.1.x.
 
-### Status snapshot (as of 2026-05-19)
+### Status snapshot (as of 2026-05-26)
 
 | Epic | Status | Notes |
 |---|---|---|
@@ -36,8 +36,9 @@ Listed in suggested execution order. Each Epic is independently shippable as v0.
 | **E6 — Resume reliability (STATE.md schema + auto-update + `/sig:checkpoint`)** | **✓ shipped 2026-05-18 (v0.1.2)** | All 5 slices + S6 REVIEW loop-back (5 IMPORTANT findings resolved pre-publish). YAML-frontmatter STATE.md + auto-state-protocol + new `/sig:checkpoint` + staleness banner + orphan UI in `/sig:resume`. 225 → 366 tests; no new runtime deps. |
 | **E7 — Synthesizer prose-quality + install-UX hardening** | **✓ shipped 2026-05-23 (v0.1.3 candidate)** | DISCUSS + PLAN closed 2026-05-21 (commit `015525e`); EXECUTE 2026-05-22 → 2026-05-23 (per-task atomic commits S1.t1 → S2.t8). Two-layer synthesizer fix: new `embedSection` helper in `tools/lib/landscape.js` (eliminates LLM verbatim-copy as failure mode) + `commands/init.md` long-line splits (reduces dense-prose generation pressure). `docs/install-troubleshooting.md` with 5 symptom sections + Quick Triage + Canonical Clean Reinstall. R1+ rerun on Mac Studio 2026-05-23 verified clean (`docs/install-verification.md` § R1+). Tests 366 → 384; validator green. CHANGELOG [0.1.3] section. See § E7 below + `docs/install-verification.md` R1 for original motivation. |
 | **E8 — `/sig:doctor` install-state diagnostician + reframe** | **pending — scoped 2026-05-24** | Scoped after E7 surfaced that 3 of 5 install failure modes (P1/P2/P3) are upstream Claude Code plugin-host bugs, not Signal bugs, but the 280-line troubleshooting doc reads as Signal's shame. E8 ships a single command users run to get diagnosis + the exact remediation commands, reframes the troubleshooting doc to name upstream-vs-Signal ownership, and adds auto-version-check to `/sig:status` so staleness gets surfaced before strangers hit weird behavior. Sequenced before E5 launch — launching without it ships the current install dance to strangers. See § E8 below. |
+| **E9 — Retro Foundations (SHIP enforcement + RETROSPECTIVES.md index)** | **✓ shipped 2026-05-26 (v0.1.3 candidate)** | DISCUSS + PLAN closed 2026-05-25; EXECUTE 2026-05-26 (Waves 1-5, 19/19 tasks); VERIFY PASS 23/23 ACs; REVIEW PASS-WITH-FIXES (1 Important + 3 Suggestions fixed in-phase). Layered enforcement per D-E9-8 (command-internal + PreToolUse + SessionStart-resume hooks). 5 backfilled stub retros (E1, E2, E3, E6, E7) + E9 own substantive retro + RETROSPECTIVES.md index live. Tests 397 → 535 (+138). 24 atomic commits. See § E9 below. |
 
-E2 plan + execute artifacts live in `M4.5.E2-{RESEARCH,PLAN,VALIDATION,PROGRESS}.md`. E6 artifacts live in `M4.5.E6-{RESEARCH,PLAN,VALIDATION,VERIFICATION,REVIEW}.md` (DISCUSS/PLAN/EXECUTE/VERIFY/REVIEW/SHIP all complete).
+E2 plan + execute artifacts live in `M4.5.E2-{RESEARCH,PLAN,VALIDATION,PROGRESS}.md`. E6 artifacts live in `M4.5.E6-{RESEARCH,PLAN,VALIDATION,VERIFICATION,REVIEW}.md` (DISCUSS/PLAN/EXECUTE/VERIFY/REVIEW/SHIP all complete). E9 artifacts live in `M4.5.E9-{REQUIREMENTS,RESEARCH,PLAN,VALIDATION,PROGRESS,VERIFICATION,REVIEW,RETROSPECTIVE}.md` (all phases complete).
 
 ---
 
@@ -259,9 +260,61 @@ That is not a plugin upgrade story. That is a hostage situation.
 
 ---
 
+### M4.5.E9 — Retro Foundations (SHIP enforcement + RETROSPECTIVES.md index)
+
+**Status:** ✓ shipped 2026-05-26 (v0.1.3 candidate). 19/19 tasks. 24 atomic commits + pushes (`b6c478a..dbbc252`).
+
+**Motivation.** Per-Epic retrospectives were structurally optional in Signal up to M4.5.E8 — soft signals that survived only if conversation context did. The motivating failure mode: a session shipped an Epic, the context cleared before `/sig:ship` was invoked, the retro was never written, and the lesson disappeared. Each shipped Epic compounded the loss. E9 fails closed: SHIP refuses to mark an Epic as complete until a tier-appropriate `RETROSPECTIVE.md` exists and passes a content validator. Three layers (command-internal + PreToolUse + SessionStart-resume hooks) defend against the three known bypass paths.
+
+**Decisions (full rationale in `DECISIONS.md` 2026-05-25 entry "M4.5.E9 decisions locked"):**
+
+- **D-E9-1 Scope = split.** Workstreams 1+2 (enforcement + index) ship as M4.5.E9. Wiki restructure + doc-runtime + migration tooling deferred to M5.E1 with its own DISCUSS.
+- **D-E9-2 Slice shape = two slices.** S1 (12 tasks, high risk) = enforcement + template + stub backfill + E9's own dogfooded retro. S2 (7 tasks, low risk) = index + meta-retro + resume integration.
+- **D-E9-3 Enforcement = hard block, no bypass.** No `--no-retro` flag, no env-var override, no extra-args trick.
+- **D-E9-4 Tier scope = all tiers.** SKETCH/FEATURE/SPIKE/FULL all required; template ceremony scales per tier.
+- **D-E9-5 Granularity = per-Epic** + optional milestone-close meta-retro (manual trigger).
+- **D-E9-6 File location = flat convention** (`.planning/M{N}.E{X}-RETROSPECTIVE.md`; index at `.planning/RETROSPECTIVES.md`).
+- **D-E9-7 Backfill = stubs with `[FILL IN]` markers** for already-shipped Epics; surfaces gap honestly without fabricating false memories.
+- **D-E9-8 Enforcement mechanism = layered.** Command-internal `commands/ship.md` §0.5 + PreToolUse(Edit|Write) hook + SessionStart(resume) hook. Surfaced at PLAN-time research because the motivating failure (context cleared before SHIP) is structurally orthogonal to SHIP-phase enforcement.
+
+**Slices:**
+
+- **S1 — SHIP enforcement + tier-aware template + stub backfill (✓ shipped 2026-05-26).** 12 tasks. New files: `references/retrospective-template.md`, `tools/lib/retrospective.js`, `tools/backfill-retros.js`, `hooks/check-state-write.js`, `hooks/warn-dirty-execute.js`. 5 backfilled stub retros for already-shipped M4.5 Epics (E1, E2, E3, E6, E7) + E9's own substantive dogfood retro from S1.t12 as the integration test. DRY-RUN GATE at S1.t10 caught 2 real bugs (`git log --grep` subject-vs-body false positive; relative-path `../.planning/X.md` vs sibling `X.md`) that would have shipped otherwise.
+- **S2 — RETROSPECTIVES.md index + meta-retro + resume integration (✓ shipped 2026-05-26).** 7 tasks. New file: `tools/lib/retro-index.js`. Hand-curated hooks merge with auto-structural rendering. `/sig:resume` briefing adds a `Retros:  N/M complete` line. Manual milestone meta-retro mechanism via `--milestone-meta` flag (per A6 / FR6 downgrade from auto-detection).
+
+**Outcomes:**
+
+- Tests 397 → 535 (+138; +34.7% surface in one Epic).
+- 6 retrospective files now live in `.planning/`.
+- `commands/ship.md` gains 4 new sections (§0.5 FR1 + §5 programmatic state-write + §6 index regen + §7 manual meta-retro). State-write parity with `verify.md`/`review.md` closed a longstanding gap surfaced in RESEARCH § 1.1.
+- 1 known limitation: cross-runtime hook surface (Cursor lacks `PreToolUse` for file writes; gets command-internal only). Documented in PLAN.
+
+**PLAN deviations surfaced + resolved in-flight:**
+
+1. **Byte-threshold formula vs. AC.** PLAN spec said `template_floor + 150B × section_count`; PLAN AC said "one sentence per section passes." Incompatible. Resolved with 60B coefficient (AC is binding). Logged in `M4.5.E9-PROGRESS.md` + `tools/lib/retrospective.js` inline comment.
+2. **Hook scripts bash vs. Node.** PLAN spec called for `.sh` wrappers; shipped as direct `.js` Node CLIs because bash availability is platform-dependent (Windows lacks bash natively) and the wrapper added no testability.
+3. **S1.t6 scope-by-discovery.** RESEARCH § 1.1 surfaced that `commands/ship.md` had a state-write gap relative to `verify.md`/`review.md` (prose "Update STATE.md" rather than programmatic). Fix bundled into S1.t6 per PLAN § 1.5's "PASS-WITH-NOTE" scope-discipline callout.
+
+**Items surfaced for FUTURE-IDEAS triage (see entries dated 2026-05-26):**
+
+- "Spec-internal consistency" as a new PLAN-validation axis.
+- Dry-run gate as a standard PLAN pattern for any Epic that writes to existing user state.
+- Hook output format reference doc.
+
+**Known follow-on (post-SHIP, user-validated):**
+
+- SessionStart-resume hook manual smoke test in a real session. The unit tests cover the JS logic; the hook-firing handshake is not yet end-to-end verified. PreToolUse smoke confirmed during EXECUTE (exit 2 + stderr block).
+
+**Cross-references:**
+- `.planning/M4.5.E9-{REQUIREMENTS,RESEARCH,PLAN,VALIDATION,PROGRESS,VERIFICATION,REVIEW,RETROSPECTIVE}.md`
+- `.planning/DECISIONS.md` 2026-05-25 entry (D-E9-1 through D-E9-8)
+- `.planning/RETROSPECTIVES.md` (index)
+
+---
+
 ## Exit Criteria for Milestone 4.5
 
-All 8 Epics shipped (E1–E8). At least 3 non-Signal users have run `/sig:init` through `/sig:ship` on real projects. Friction logs from those runs reviewed; resulting fixes either shipped or promoted to FUTURE-IDEAS / M5. README opens with a pitch a stranger can parse in 60 seconds. Install path verified on at least one fresh non-author machine. Upgrade path collapses to one deterministic command via `/sig:doctor --upgrade` (E8) regardless of starting install state.
+All 9 Epics shipped (E1–E9). At least 3 non-Signal users have run `/sig:init` through `/sig:ship` on real projects. Friction logs from those runs reviewed; resulting fixes either shipped or promoted to FUTURE-IDEAS / M5. README opens with a pitch a stranger can parse in 60 seconds. Install path verified on at least one fresh non-author machine. Upgrade path collapses to one deterministic command via `/sig:doctor --upgrade` (E8) regardless of starting install state.
 
 ## Notes
 

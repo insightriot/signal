@@ -1,6 +1,6 @@
 ---
 schema_version: 1
-phase: REVIEW
+phase: SHIP
 current_epic: M4.5.E9
 current_wave: null
 current_tasks: []
@@ -13,8 +13,8 @@ completed_phases:
 blockers: []
 last_completed_task: M4.5.E9.S2.t6
 last_decision_at: 2026-05-26T00:00:00.000Z
-last_updated_commit: 6f9746c
-last_updated: 2026-05-26T00:00:00.000Z
+last_updated_commit: dbbc252
+last_updated: 2026-05-26T17:55:38.001Z
 ---
 <!-- Original STATE.md content preserved verbatim from pre-schema_v1 migration on 2026-05-18. The YAML frontmatter above is the authoritative machine-readable state; everything below is human-readable history. -->
 

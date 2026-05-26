@@ -35,12 +35,13 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 **MILESTONE 4 closed 2026-05-12 + v0.1.0 tagged.** 19 of 19 tasks shipped. Plugin marketplace-installable from `InsightRiot/signal`.
 
-**MILESTONE 4.5 in flight.** Four Epics shipped (or part-shipped), three pending, one newly scaffolded:
+**MILESTONE 4.5 in flight.** Five Epics shipped (or part-shipped), three pending, one newly scaffolded:
 - **E2.S1 (`/sig:add` hot path)** shipped 2026-05-14 — verbatim capture to `FUTURE-IDEAS.md` with scrub + lock + atomic write.
 - **E1.S1 (marketplace install path)** shipped 2026-05-15 as **v0.1.1** — `marketplace.json` source-block fix + `CLAUDE_CODE_PLUGIN_PREFER_HTTPS` doc + semver validator.
 - **E6 (resume reliability)** shipped 2026-05-18 as **v0.1.2** — YAML-frontmatter STATE.md (`schema_version: 1`) + auto-update protocol during EXECUTE + new `/sig:checkpoint` command + staleness banner + orphan UI in `/sig:resume`. 5 slices + S6 REVIEW loop-back (5 IMPORTANT findings resolved pre-publish).
 - **E1.S2 Phase A (F2 verification)** shipped 2026-05-19 as commit `f38187a` — empirical confirmation on the maintainer biz machine (R1 row): all 25 Signal agents auto-register as `sig:<subdirectory>:<name>` (e.g., `sig:scanners:stack-scanner`) and spawn cleanly via `Task subagent_type`. Phase B (26-file flat restructure) permanently shelved. `commands/init.md:170` updated with the empirically-confirmed convention. `docs/install-verification.md` born with R1 entry.
 - **E7 (synthesizer prose-quality + install-UX hardening)** scaffolded 2026-05-19 — surfaced during E1.S2 Phase A. Two findings: (1) `/sig:init` synthesizer character-eating bug (6+ confirmed instances in one run, e.g. `## Ierred goals & uncertainties`, `## ints`) — real quality blocker for strangers reading `/sig:init` output; (2) three install-UX papercuts (P1 stale gitCommitSha short-circuits install; P2 no uninstall verb in `/plugin` UI; P3 disable state survives uninstall+reinstall) requiring troubleshooting docs. See `MILESTONE-4.5.md` § E7 + `docs/install-verification.md` R1 for details.
+- **E9 (Retro Foundations — SHIP enforcement + RETROSPECTIVES.md index)** shipped 2026-05-26 (v0.1.3 candidate). 19/19 tasks, 24 atomic commits, tests 397 → 535 (+138). Layered enforcement per D-E9-8 — `commands/ship.md` §0.5 FR1 pre-check + `PreToolUse(Edit|Write)` hook + `SessionStart(resume)` hook. 5 backfilled stub retros (E1, E2, E3, E6, E7) + E9's own substantive dogfood retro live in `.planning/`. New `RETROSPECTIVES.md` index with hand-curated hooks. `commands/ship.md` gained 4 new sections (FR1, programmatic state-write, index regen, manual meta-retro). Known follow-on: SessionStart hook manual smoke (user-validated post-ship). See `MILESTONE-4.5.md` § E9 for details.
 
 - **14 slash commands shipped**: `/sig:new-project`, `/sig:init`, `/sig:calibrate`, `/sig:discuss`, `/sig:plan`, `/sig:execute`, `/sig:verify`, `/sig:review`, `/sig:ship`, `/sig:escalate`, `/sig:status`, `/sig:resume`, `/sig:add`, `/sig:checkpoint`.
 - **26 agent files**: 22 from M1-M3 + 4 brownfield scanners (stack / structure / activity / quality) under `agents/scanners/`.
@@ -56,7 +57,7 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 **MILESTONE 4.5 underway** — Release Hardening / Stranger-Adoption Readiness; 6 original Epics + E7 = 7 total. Status: **E1.S1 + E1.S2 Phase A + E2.S1 + E6 full + E7 full + E3 full = 6 ship-events** done; E1.S3–S5 (⏸ shelved) + E2.S2–S5 + E4 + E5 + E8 pending.
 
-**Active Epic: none.** M4.5.E3 SHIPPED 2026-05-25 — single-session EXECUTE + VERIFY + REVIEW + SHIP closing. CHANGELOG `[0.1.3]` left Unreleased (bundles M4.5.E7 + M4.5.E3; future Epics will add their own blocks until a tagged release event).
+**Active Epic: none.** M4.5.E9 SHIPPED 2026-05-26 — DISCUSS → PLAN → EXECUTE → VERIFY → REVIEW → SHIP all closed; 24 atomic commits + pushes. CHANGELOG `[0.1.3]` left Unreleased (now bundles M4.5.E7 + M4.5.E3 + M4.5.E9; future Epics will add their own blocks until a tagged release event).
 
 **E3 outcome summary:**
 - 11 task/artifact commits: `f7ef937` (S1.t1 RED) → `527ce73` (S2.t7 SHIP) plus PROGRESS (`270634b`), VERIFICATION (`00afd71`), REVIEW fix (`4edc0a1`), REVIEW report (`40065f1`).
