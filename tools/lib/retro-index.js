@@ -116,3 +116,82 @@ function epicIdCompare(a, b) {
   }
   return 0;
 }
+
+// ---- Hybrid render (S2.t2) ----
+
+/**
+ * Parse hand-written hook text per Epic ID from an existing
+ * `RETROSPECTIVES.md`. Returns a `{epicId → hook}` map.
+ *
+ * Recognized line shape (loose):
+ *   `- [M4.5.E9](M4.5.E9-RETROSPECTIVE.md) — *complete* — hook text here.`
+ *   `- [M4.5.E9 — title](path) — *stub* — hook text here.`
+ *
+ * The hook is everything after the third em-dash (or the third standalone
+ * `--`-style separator). Robust to slight variation; falls back to
+ * empty/missing when shape doesn't match.
+ *
+ * Multi-line hooks supported via 2-space-indent continuation lines.
+ *
+ * @param {string|null|undefined} content
+ * @returns {Record<string, string>}
+ */
+export function parseExistingHooks(content) {
+  if (!content) return {};
+  const map = {};
+  const lines = content.split('\n');
+  let currentEpic = null;
+  for (const line of lines) {
+    // Recognize list lines with an [EpicId](path) and " — " separators.
+    const itemMatch = line.match(/^- \[(M\d+(?:\.\d+)*\.E\d+)[^\]]*\]\([^)]+\)\s+—\s+\*[^*]+\*\s+—\s+(.*)$/);
+    if (itemMatch) {
+      currentEpic = itemMatch[1];
+      map[currentEpic] = itemMatch[2];
+      continue;
+    }
+    // Continuation line: leading whitespace, no leading `- `.
+    if (currentEpic && /^\s+\S/.test(line) && !line.startsWith('- ')) {
+      map[currentEpic] += '\n' + line;
+      continue;
+    }
+    // Anything else closes the running entry.
+    currentEpic = null;
+  }
+  return map;
+}
+
+const PLACEHOLDER_HOOK = '_(hook pending)_';
+
+/**
+ * Render the `RETROSPECTIVES.md` content from an enumerated retro list,
+ * preserving any hand-written hooks from a previous version of the index.
+ *
+ * @param {Array<{epicId: string, path: string, isStub: boolean, lastModified: Date}>} retros
+ * @param {Record<string, string>} existingHooks — map from epicId → hook text
+ * @returns {string}
+ */
+export function renderIndex(retros, existingHooks) {
+  const hooks = existingHooks ?? {};
+  const header = '# Signal — Retrospectives Index';
+  const preamble =
+    '> Per-Epic retrospectives, indexed for fast scan. Status flag (*stub* / *complete*) is auto-derived from the presence of `[FILL IN]` markers in the retro file. Hook lines (after the second em-dash) are hand-curated — they survive regeneration by Epic ID.';
+
+  if (retros.length === 0) {
+    return `${header}\n\n${preamble}\n\n_(no retros yet — the first one lands when the next Epic closes)_\n`;
+  }
+
+  // Reverse-chronological by lastModified (newest first).
+  const sorted = [...retros].sort(
+    (a, b) => b.lastModified.getTime() - a.lastModified.getTime(),
+  );
+
+  const lines = [];
+  for (const r of sorted) {
+    const filename = r.path.split('/').pop();
+    const status = r.isStub ? '*stub*' : '*complete*';
+    const hook = hooks[r.epicId] ?? PLACEHOLDER_HOOK;
+    lines.push(`- [${r.epicId}](${filename}) — ${status} — ${hook}`);
+  }
+
+  return `${header}\n\n${preamble}\n\n${lines.join('\n')}\n`;
+}
