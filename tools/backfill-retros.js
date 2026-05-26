@@ -211,10 +211,16 @@ export async function composeStub(epicId, opts) {
   const template = await loadTemplate('FULL', baseDir);
   const { headings, sectionsByHeading } = parseSections(template);
 
-  // Override the Links section body with auto-populated content.
+  // Override the Links section body with auto-populated content. The retro
+  // file lives at .planning/{epicId}-RETROSPECTIVE.md per D-E9-6 (flat
+  // convention), so sibling artifacts are referenced as bare filenames.
+  // The `.planning/`-prefixed path is preserved as the human-readable link
+  // text so readers see the canonical address even though the link itself
+  // is the sibling resolution.
   const linksLines = [];
   for (const a of artifactPaths) {
-    linksLines.push(`- ${a.label}: [\`${a.path}\`](../${a.path})`);
+    const filename = a.path.replace(/^\.planning\//, '');
+    linksLines.push(`- ${a.label}: [\`${a.path}\`](${filename})`);
   }
   if (commitRange && !commitRange.missing) {
     linksLines.push(
