@@ -13,6 +13,7 @@ import {
   getRequiredSections,
   deriveRetroPath,
   loadTemplate,
+  validateRetroContent,
 } from '../tools/lib/retrospective.js';
 
 describe('parseSections', () => {
@@ -221,5 +222,126 @@ Prose between.
     const sketch = await loadTemplate('SKETCH', repoRoot);
     const sketchSections = parseSections(sketch).headings;
     expect(sketchSections).toEqual(getRequiredSections('SKETCH'));
+  });
+});
+
+// --- Helpers for validateRetroContent tests ---
+
+// Compose a well-formed retro file for a given tier. Each section gets a
+// generous paragraph to satisfy minimum-byte thresholds.
+function wellFormedRetro(tier) {
+  const sections = getRequiredSections(tier);
+  const longBody =
+    'Concrete substantive paragraph that captures meaningful retrospective content. '.repeat(
+      6,
+    ) + '\n';
+  return sections.map((h) => `${h}\n\n${longBody}`).join('\n');
+}
+
+// Compose a retro missing one required section.
+function retroMissingSection(tier, indexToOmit) {
+  const sections = getRequiredSections(tier);
+  const longBody = 'Meaningful body content here. '.repeat(15) + '\n';
+  return sections
+    .filter((_, i) => i !== indexToOmit)
+    .map((h) => `${h}\n\n${longBody}`)
+    .join('\n');
+}
+
+// Compose a retro with all headings present but empty bodies.
+function retroWithEmptyBodies(tier) {
+  const sections = getRequiredSections(tier);
+  return sections.map((h) => `${h}\n\n`).join('\n');
+}
+
+describe('validateRetroContent', () => {
+  it('rejects empty content (AC6)', () => {
+    const result = validateRetroContent('', 'FULL');
+    expect(result.valid).toBe(false);
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors.some((e) => /empty/i.test(e))).toBe(true);
+  });
+
+  it('rejects whitespace-only content as empty', () => {
+    const result = validateRetroContent('   \n\n\t\n  ', 'FULL');
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => /empty/i.test(e))).toBe(true);
+  });
+
+  it.each([
+    ['SKETCH'],
+    ['FEATURE'],
+    ['SPIKE'],
+    ['FULL'],
+  ])(
+    'rejects retro missing a required heading (%s tier, AC7)',
+    (tier) => {
+      const sections = getRequiredSections(tier);
+      // Omit each section in turn — every position should produce an error.
+      for (let i = 0; i < sections.length; i++) {
+        const content = retroMissingSection(tier, i);
+        const result = validateRetroContent(content, tier);
+        expect(result.valid).toBe(false);
+        expect(
+          result.errors.some((e) =>
+            e.includes(sections[i]),
+          ),
+          `tier=${tier} missing="${sections[i]}" got errors=${JSON.stringify(result.errors)}`,
+        ).toBe(true);
+      }
+    },
+  );
+
+  it.each([
+    ['SKETCH'],
+    ['FEATURE'],
+    ['SPIKE'],
+    ['FULL'],
+  ])(
+    'rejects retro with heading but empty body (%s tier, AC8)',
+    (tier) => {
+      const content = retroWithEmptyBodies(tier);
+      const result = validateRetroContent(content, tier);
+      expect(result.valid).toBe(false);
+      // At least one error must reference an empty-body section.
+      expect(
+        result.errors.some((e) => /empty body|no body|empty section/i.test(e)),
+      ).toBe(true);
+    },
+  );
+
+  it.each([
+    ['SKETCH'],
+    ['FEATURE'],
+    ['SPIKE'],
+    ['FULL'],
+  ])('accepts a well-formed retro (%s tier, AC9)', (tier) => {
+    const content = wellFormedRetro(tier);
+    const result = validateRetroContent(content, tier);
+    expect(
+      result.valid,
+      `tier=${tier} errors=${JSON.stringify(result.errors)}`,
+    ).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  it('rejects content below the tier minimum-byte threshold', () => {
+    // FULL has a substantially higher threshold than SKETCH; a content blob
+    // that's all-headings + one-word bodies will satisfy heading + non-empty-
+    // body checks but fail the byte floor.
+    const tinyButValid = getRequiredSections('FULL')
+      .map((h) => `${h}\n\nx\n`)
+      .join('\n');
+    const result = validateRetroContent(tinyButValid, 'FULL');
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => /threshold|byte|too short/i.test(e))).toBe(
+      true,
+    );
+  });
+
+  it('throws on unknown tier (delegates to getRequiredSections)', () => {
+    expect(() => validateRetroContent('content', 'TRIVIAL')).toThrow(
+      /unknown tier/i,
+    );
   });
 });
