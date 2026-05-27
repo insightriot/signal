@@ -8,6 +8,123 @@ Append new ideas; promote to a milestone file when ready to build.
 
 ---
 
+## Compound-engineering audit before `/sig:compound` design
+
+**Status:** Logged 2026-05-27 after M4.5.E9 SHIP retrospective conversation surfaced the relationship between E9's mechanism and compound-engineering's Compound phase.
+
+**Trigger.** M4.5.E9 built the **capture** half of what compound-engineering does: each Epic now produces a tier-aware retrospective, validated at SHIP, indexed in `RETROSPECTIVES.md`. M4.5.E9 did **not** build the **replay** half: lessons captured in retro files don't yet surface anywhere — no automation reads them during the next Epic's DISCUSS or PLAN, no research agent uses them as context, no pattern detection flags repeat mistakes.
+
+This is exactly the gap `analysis/REPO-ANALYSIS.md` line 257 named:
+
+> *"No compounding loop. You ship and forget. compound-engineering's Compound phase is the biggest architectural miss."*
+
+E9 closed the "ship and forget" half. The "compound" half is still empty. compound-engineering (Every Inc) had already named "retros as memory + replay" as a complete pattern via its `learnings-researcher` + `session-historian` agents in a dedicated Compound phase. Signal built half of that pattern without consulting the source that already designed both halves.
+
+**Proposal.** Before scoping the v2 `/sig:compound` Epic (planned per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` line 310), do a deliberate 30-minute read of compound-engineering's actual implementation:
+
+1. What does `learnings-researcher` actually do? Read the agent definition, not just the analysis-doc summary.
+2. What shape are lessons stored in? Free-form markdown? JSONL? Structured records?
+3. How does `session-historian` work — what does it persist, and when is it re-injected?
+4. Does compound-engineering's Compound phase auto-trigger (on PR merge?) or is it manual?
+5. How does it handle the "lesson surfaces relevance" question — keyword match? Embedding similarity? Agent-mediated retrieval?
+
+Then audit E9's retro format against the answers:
+
+- Do our reflection sections (Timeline / What changed / What broke / What surprised / What we'd do differently / What to feed back into Signal / Anti-rationalization / Links) feed naturally into a compound-engineering-style replay layer?
+- Or did we pick a shape (markdown + `[FILL IN]` markers) that's awkward to mine? If so, is that fixable post-hoc via a parser, or does it imply changing the template?
+- Does the `## What to feed back into Signal` section already do half of compound-engineering's replay work in slow-motion (humans reading retros + manually feeding insights into next Epics)? That'd make it the natural integration point.
+
+**Why this matters.** Building `/sig:compound` from first principles without consulting the source plugin that owns this pattern risks repeating the EXECUTE-phase PLAN-deviation pattern at a larger scale — solving the right problem in a slightly wrong way that we then have to retrofit. A 30-minute spike upstream of design work is cheap insurance.
+
+**Resolve by.** Before v2 / `/sig:compound` Epic scoping. If v2 starts with a different Epic (e.g., M5.E1's wiki restructure), this can wait. If `/sig:compound` is in the first batch, this gates it.
+
+**Cross-references:**
+- `analysis/REPO-ANALYSIS.md` § 6 (compound-engineering description) + § "Stage 12 Compounding/learning" comparison table
+- `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` § 8 (compound-engineering deep dive) + § "10-phase architecture"
+- `.planning/M4.5.E9-RETROSPECTIVE.md` § "What to feed back into Signal" (where E9's lessons live for now)
+- `.planning/RETROSPECTIVES.md` (the capture surface that needs a replay companion)
+
+---
+
+## Roadmap refresh — post-M4.5 reality check on v2 vision
+
+**Status:** Logged 2026-05-27 after M4.5.E9 SHIP retrospective conversation surfaced that `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` was written before M4.5 existed as a milestone.
+
+**Trigger.** The two canonical comparison documents (`analysis/REPO-ANALYSIS.md` and `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`) lay out a 10-phase v2 vision drawn from the original 7-plugin landscape. Both docs predate v1's shipping (M4 closed 2026-05-12) and predate M4.5's entire scope. Active Epic-by-Epic comparison against those source plugins has drifted: M4.5.E6 / E7 / E9 were built from internal-emergence rather than against "what does {gstack, superpowers, compound-engineering, pm-skills} do here that we should match?"
+
+That's not necessarily wrong — first-principles work has its own value — but the original v2 vision is now stale-relative-to-shipped-reality in several ways:
+
+- **New inspiration sources have entered the landscape** since the original analysis: Anthropic's Memory + Dreaming launch transcripts, the 2026-05-14 "Claude Code in large codebases" blog post, `obra/superpowers#390` (Stop hook learnings), `disler/claude-code-hooks-mastery`. None of these are tracked in the source-repo list.
+- **Some of the original 7 plugins may have moved**. compound-engineering, gstack, pm-skills, superpowers all continue evolving. The 2025-era analysis snapshot may be missing newer patterns those upstreams have shipped.
+- **Some original assumptions are now testable**. The analysis predicted compound-engineering's Compound phase was the biggest architectural miss; M4.5.E9 confirms it (the gap is real, the half-done capture mechanism makes it visible). Other predictions (pm-skills upstream phases, gstack 15-phase security audit) haven't been tested yet because v1 didn't include them.
+- **The 10-phase target sequence isn't sequenced**. Once M4.5 closes, v2 begins — but in what order? The rundown lists 10 phases but doesn't say which v2 Epic ships first.
+
+**Proposal.** Once M4.5 closes (E4, E5, E8 remaining), produce one of:
+
+- **`analysis/SIGNAL-INTEGRATION-RUNDOWN-v2.md`** — successor doc that supersedes the original, written from post-M4.5 reality. Updates: which of the 7 source plugins still feel like the right inspiration after dogfooding, which look less applicable, what new sources (Anthropic Memory + Dreaming, etc.) belong on the list, and a *sequenced* v2 Epic plan.
+- **Or an in-place revision** of the existing rundown with explicit "as of 2026-MM-DD" stamps on each section so the staleness boundary is visible.
+- **Or a `MILESTONE-5-PLANNING.md` doc** that focuses on Epic sequencing rather than vision (defers vision-refresh to a v3 conversation).
+
+The choice between these depends on whether the original vision still holds — if it does, in-place revision is enough; if it doesn't, a successor doc captures the pivot more honestly.
+
+**What to include in the refresh:**
+
+1. Re-validate the 5-layer model against what v1 actually ships
+2. Track each of the 7 original source plugins — still relevant, evolved, deprecated, or pivoted?
+3. Add new inspiration sources with attribution
+4. Sequence the v2 Epic queue (which one ships first, why)
+5. Update the gating criteria — what counts as "v1 has real users" given M4.5.E5 hasn't shipped yet
+
+**Resolve by.** When M4.5 closes + before v2 / M5 planning begins. If E5's launch surfaces additional friction, fold those findings in.
+
+**Cross-references:**
+- `analysis/REPO-ANALYSIS.md` (pre-v1 landscape)
+- `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` (pre-M4.5 v2 vision)
+- `analysis/JOURNEY-MAP.html` (visual companion; may also need refresh)
+- `.planning/MILESTONE-4.5.md` (current milestone scope — informs what's actually been validated)
+- `.planning/PROJECT.md` § "Scope & Roadmap" (current v1/v2 split + gating criteria)
+
+---
+
+## Vocabulary attribution sweep on E9 retro mechanism
+
+**Status:** Logged 2026-05-27 after M4.5.E9 SHIP retrospective conversation surfaced unattributed compound-engineering vocabulary in the milestone meta-retro template.
+
+**Trigger.** M4.5.E9.S2.t6 created `composeMilestoneMetaRetro` in `tools/lib/retro-index.js`. The output template includes a section heading `## Compound learnings`. *"Compound"* is compound-engineering's term, lifted into Signal's template without attribution. It captures the right concept — milestone-scale insights that compound across Epics — but credit is owed, or the term should be replaced with Signal-native vocabulary.
+
+Per the working-norms baseline (`CLAUDE.md` § "Naming & plain language" — *"Use real names. Mark dev-only terms"*) and the source-attribution conventions in `LICENSES.md` (4-tier inspiration model), vocabulary borrowed from a named source repo should either be credited or replaced.
+
+**Proposal.** ~10-minute audit pass over E9's new surface:
+
+1. **Grep for compound-engineering vocabulary** across the new files:
+   - `references/retrospective-template.md`
+   - `tools/lib/retrospective.js`
+   - `tools/lib/retro-index.js`
+   - `tools/backfill-retros.js`
+   - `commands/ship.md` (§0.5, §5, §6, §7)
+   - `commands/resume.md` (Step 3c)
+   - Terms to look for: *compound*, *compounding*, *learnings* (vs. *lessons* — both repos use it, but worth noting), *lens* (compound-eng's review-panel term)
+2. **For each hit, decide:**
+   - (a) Add an inline `LICENSES.md`-style attribution comment (e.g., *"`Compound learnings` — vocabulary borrowed from compound-engineering's Compound phase"*).
+   - (b) Replace with Signal-native term (e.g., `## Compound learnings` → `## Milestone-scale lessons` or `## What compounds`).
+   - (c) Promote to LICENSES.md's tiered attribution list as a Pattern-source reference (the same tier `planning-with-files` + `oh-my-claudecode` sit in today).
+3. **Default for ambiguous cases:** (a) the inline attribution — it's the lightest touch + preserves the right concept name when there's no obvious replacement.
+
+**Why this matters beyond pedantry.** Two reasons:
+
+- **Stranger-adoption story.** A reader of Signal's source who knows compound-engineering would notice the borrowed term + wonder why it's not credited. That's a small papercut that erodes the credibility of LICENSES.md's claim that Signal is honest about attribution.
+- **Forward-compat for `/sig:compound`.** If/when the v2 Compound phase ports compound-engineering's mechanism explicitly, the vocabulary attribution should already be consistent. Better to set it now than to retrofit after a port.
+
+**Resolve by.** Anytime before v2 / `/sig:compound` design begins. Could bundle into the compound-engineering audit FUTURE-IDEAS entry above as a single ~45-minute prep session.
+
+**Cross-references:**
+- `tools/lib/retro-index.js` line 288 — the literal `## Compound learnings` heading
+- `LICENSES.md` — current attribution tiers (Ported / Planned / Pattern source / Reference)
+- `analysis/REPO-ANALYSIS.md` § 6 (compound-engineering's vocabulary)
+- The companion entry above ("Compound-engineering audit before /sig:compound design") — likely bundled together
+
+---
+
 ## "Spec-internal consistency" as a PLAN-validation axis
 
 **Status:** Logged 2026-05-26 at M4.5.E9 REVIEW close.
