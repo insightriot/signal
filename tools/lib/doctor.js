@@ -158,6 +158,46 @@ export function detectP4PreRenameSlug(manifest, settings, fsImpl, homeDir) {
 }
 
 /**
+ * Aggregate the 5 detectors into a single doctor verdict.
+ *
+ * Severity / recommendation rules (per M4.5.E8-RESEARCH.md § 3):
+ *   - Any P1 → '--reinstall' (highest severity)
+ *   - P2/P3/P4 only (no P1) → '--fix'
+ *   - P5 is informational — fires as a finding but does NOT change healthy
+ *   - No consequential findings → healthy:true, recommendation:null
+ *
+ * @param {{manifest:object, settings:object, fsImpl:object, homeDir:string}} state
+ * @returns {{healthy:boolean, findings:object[], aggregate_recommendation:string|null}}
+ */
+export function runAllDetectors({ manifest, settings, fsImpl, homeDir }) {
+  const findings = [];
+
+  const detectors = [
+    detectP1StaleGitCommitSha(manifest, fsImpl),
+    detectP2OrphanCacheEntry(manifest, fsImpl, homeDir),
+    detectP3OrphanEnabledFlag(settings, manifest),
+    detectP4PreRenameSlug(manifest, settings, fsImpl, homeDir),
+    detectP5SshMultiIdentity(fsImpl, homeDir),
+  ];
+  for (const d of detectors) {
+    if (d.detected) findings.push(d);
+  }
+
+  // P5 is info-only; doesn't change healthy.
+  const consequential = findings.filter((f) => f.recommendation !== 'info-only');
+  const healthy = consequential.length === 0;
+
+  let aggregate_recommendation = null;
+  if (consequential.some((f) => f.recommendation === '--reinstall')) {
+    aggregate_recommendation = '--reinstall';
+  } else if (consequential.some((f) => f.recommendation === '--fix')) {
+    aggregate_recommendation = '--fix';
+  }
+
+  return { healthy, findings, aggregate_recommendation };
+}
+
+/**
  * P5 — SSH multi-identity config detected. Informational only — does NOT
  *      change healthy:false on its own (per D-E8-11 P5 carve-out).
  *
