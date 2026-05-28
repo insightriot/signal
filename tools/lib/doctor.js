@@ -48,6 +48,37 @@ export class DoctorEnvironmentError extends Error {
 const DEFAULT_FS_IMPL = { existsSync, readFileSync, readdirSync };
 
 /**
+ * Positive-allowlist environment check (D-E8-2; RESEARCH § 4 risk #5).
+ * Throws DoctorEnvironmentError if the host doesn't match the macOS-first-ship
+ * profile. Caller catches and prints the polite stub.
+ *
+ * Three guards (all must pass):
+ *   1. platform === 'darwin'
+ *   2. homeDir starts with '/Users/' (catches WSL-on-darwin and Linux-with-mounted-Users edges)
+ *   3. <homeDir>/.claude directory exists (catches "Claude Code not installed")
+ *
+ * @param {{platform:string, homeDir:string, fsImpl?:object}} opts
+ */
+export function checkDoctorEnvironment({ platform, homeDir, fsImpl = DEFAULT_FS_IMPL }) {
+  if (platform !== 'darwin') {
+    throw new DoctorEnvironmentError(
+      `Detected platform: ${platform}. /sig:doctor currently supports macOS only. ` +
+        `Linux/WSL support is in flight (see docs/install-troubleshooting.md for the manual sequence).`
+    );
+  }
+  if (!homeDir || !homeDir.startsWith('/Users/')) {
+    throw new DoctorEnvironmentError(
+      `Detected homeDir: ${homeDir}. /sig:doctor requires a macOS-shaped home directory under /Users/.`
+    );
+  }
+  if (!fsImpl.existsSync(join(homeDir, '.claude'))) {
+    throw new DoctorEnvironmentError(
+      `No ~/.claude directory at ${join(homeDir, '.claude')} — is Claude Code installed?`
+    );
+  }
+}
+
+/**
  * Read manifest + settings into a state object suitable for runAllDetectors.
  *
  * Reads:

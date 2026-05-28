@@ -16,7 +16,9 @@ import {
   detectP5SshMultiIdentity,
   runAllDetectors,
   readInstallState,
+  checkDoctorEnvironment,
   DoctorDetectionError,
+  DoctorEnvironmentError,
 } from '../tools/lib/doctor.js';
 
 // ---- detectP1 ----
@@ -498,5 +500,41 @@ describe('end-to-end: readInstallState + runAllDetectors against fixture trees',
     expect(codes).toContain('P1');
     expect(codes).toContain('P3');
     expect(result.aggregate_recommendation).toBe('--reinstall');
+  });
+});
+
+// ---- Platform gating (D-E8-2: macOS-only first ship; positive allowlist) ----
+
+describe('checkDoctorEnvironment', () => {
+  const okFs = { existsSync: () => true };
+
+  it('throws DoctorEnvironmentError on Linux with platform name in message', () => {
+    let thrown;
+    try {
+      checkDoctorEnvironment({ platform: 'linux', homeDir: '/home/user', fsImpl: okFs });
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(DoctorEnvironmentError);
+    expect(thrown.message).toMatch(/linux/);
+    expect(thrown.message).toMatch(/macOS only/);
+  });
+
+  it('throws DoctorEnvironmentError on win32', () => {
+    expect(() =>
+      checkDoctorEnvironment({ platform: 'win32', homeDir: 'C:\\Users\\x', fsImpl: okFs })
+    ).toThrow(DoctorEnvironmentError);
+  });
+
+  it('throws DoctorEnvironmentError on darwin with non-/Users homeDir (Linux-paths edge)', () => {
+    expect(() =>
+      checkDoctorEnvironment({ platform: 'darwin', homeDir: '/home/user', fsImpl: okFs })
+    ).toThrow(DoctorEnvironmentError);
+  });
+
+  it('does not throw on darwin + /Users/ homeDir + present ~/.claude/', () => {
+    expect(() =>
+      checkDoctorEnvironment({ platform: 'darwin', homeDir: '/Users/x', fsImpl: okFs })
+    ).not.toThrow();
   });
 });
