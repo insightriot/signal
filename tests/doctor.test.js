@@ -2,7 +2,11 @@
 // S1.t2 (RED) — detector unit tests against in-memory state objects.
 // See .planning/M4.5.E8-PLAN.md § S1 + .planning/M4.5.E8-RESEARCH.md § 3.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+
+import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 import {
   detectP1StaleGitCommitSha,
@@ -11,6 +15,8 @@ import {
   detectP4PreRenameSlug,
   detectP5SshMultiIdentity,
   runAllDetectors,
+  readInstallState,
+  DoctorDetectionError,
 } from '../tools/lib/doctor.js';
 
 // ---- detectP1 ----
@@ -259,5 +265,66 @@ describe('runAllDetectors', () => {
     expect(result.healthy).toBe(true);
     expect(result.findings.map((f) => f.code)).toEqual(['P5']);
     expect(result.aggregate_recommendation).toBeNull();
+  });
+});
+
+// ---- readInstallState IO orchestrator ----
+
+describe('readInstallState', () => {
+  let tempDir;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'sig-doctor-readstate-'));
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  async function writeFixtureFile(relPath, content) {
+    const fullPath = join(tempDir, relPath);
+    await mkdir(join(fullPath, '..'), { recursive: true });
+    await writeFile(fullPath, content);
+  }
+
+  it('reads manifest + settings into a state object suitable for runAllDetectors', async () => {
+    await writeFixtureFile(
+      '.claude/plugins/installed_plugins.json',
+      JSON.stringify({
+        version: 2,
+        plugins: { 'sig@signal': [{ installPath: '/foo', version: '0.1.2' }] },
+      })
+    );
+    await writeFixtureFile(
+      '.claude/settings.json',
+      JSON.stringify({ enabledPlugins: { 'sig@signal': true } })
+    );
+
+    const state = readInstallState({ homeDir: tempDir });
+    expect(state.homeDir).toBe(tempDir);
+    expect(state.manifest.plugins['sig@signal'][0].version).toBe('0.1.2');
+    expect(state.settings.enabledPlugins['sig@signal']).toBe(true);
+    expect(state.fsImpl).toBeDefined();
+  });
+
+  it('returns empty-default manifest + settings when files are missing', () => {
+    // No files created in tempDir; both reads should return defaults.
+    const state = readInstallState({ homeDir: tempDir });
+    expect(state.manifest).toEqual({ plugins: {} });
+    expect(state.settings).toEqual({ enabledPlugins: {} });
+  });
+
+  it('throws DoctorDetectionError on malformed installed_plugins.json (concurrent /plugin install write)', async () => {
+    await writeFixtureFile('.claude/plugins/installed_plugins.json', '{ malformed json'); // truncated mid-write
+    expect(() => readInstallState({ homeDir: tempDir })).toThrow(DoctorDetectionError);
+  });
+
+  it('throws DoctorDetectionError on malformed settings.json', async () => {
+    await writeFixtureFile(
+      '.claude/plugins/installed_plugins.json',
+      JSON.stringify({ plugins: {} })
+    );
+    await writeFixtureFile('.claude/settings.json', 'not-json-at-all');
+    expect(() => readInstallState({ homeDir: tempDir })).toThrow(DoctorDetectionError);
   });
 });
