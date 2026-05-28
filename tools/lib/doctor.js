@@ -14,8 +14,87 @@
 // D-E8-10: every function taking ~/.claude/ paths accepts `homeDir` injected.
 //          NEVER call os.homedir() directly from pure detectors.
 // D-E8-11: every detector MUST be Signal-scoped before emitting findings.
+// D-E8-12: doctor exits 0 healthy / 1 P-states detected / 2 doctor errored.
+//          DoctorDetectionError + DoctorEnvironmentError signal exit-2 cases.
 
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+
+/**
+ * Thrown when doctor cannot read the install state — usually a parse failure
+ * from a concurrent `/plugin install` mid-write. Caller maps this to exit 2
+ * with a friendly "(state file mid-write; retry)" message.
+ */
+export class DoctorDetectionError extends Error {
+  constructor(message, cause) {
+    super(message);
+    this.name = 'DoctorDetectionError';
+    if (cause) this.cause = cause;
+  }
+}
+
+/**
+ * Thrown when doctor's host environment doesn't match expectations
+ * (non-macOS platform, no ~/.claude/ directory). Caller prints the polite
+ * stub and exits 0.
+ */
+export class DoctorEnvironmentError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'DoctorEnvironmentError';
+  }
+}
+
+const DEFAULT_FS_IMPL = { existsSync, readFileSync, readdirSync };
+
+/**
+ * Read manifest + settings into a state object suitable for runAllDetectors.
+ *
+ * Reads:
+ *   <homeDir>/.claude/plugins/installed_plugins.json
+ *   <homeDir>/.claude/settings.json
+ *
+ * Missing files return empty defaults (fresh install). Malformed JSON throws
+ * DoctorDetectionError — caller exits 2.
+ *
+ * @param {{homeDir:string, fsImpl?:object}} opts
+ * @returns {{manifest:object, settings:object, fsImpl:object, homeDir:string}}
+ */
+export function readInstallState({ homeDir, fsImpl = DEFAULT_FS_IMPL } = {}) {
+  if (!homeDir) {
+    throw new DoctorEnvironmentError('readInstallState requires homeDir');
+  }
+
+  const manifestPath = join(homeDir, '.claude', 'plugins', 'installed_plugins.json');
+  const settingsPath = join(homeDir, '.claude', 'settings.json');
+
+  const manifest = fsImpl.existsSync(manifestPath)
+    ? parseStateFile(fsImpl, manifestPath, 'installed_plugins.json')
+    : { plugins: {} };
+
+  const settings = fsImpl.existsSync(settingsPath)
+    ? parseStateFile(fsImpl, settingsPath, 'settings.json')
+    : { enabledPlugins: {} };
+
+  return { manifest, settings, fsImpl, homeDir };
+}
+
+function parseStateFile(fsImpl, path, label) {
+  let raw;
+  try {
+    raw = fsImpl.readFileSync(path, 'utf8');
+  } catch (err) {
+    throw new DoctorDetectionError(`Could not read ${label} at ${path}`, err);
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    throw new DoctorDetectionError(
+      `${label} is not valid JSON (file may be mid-write from a concurrent /plugin install; retry)`,
+      err
+    );
+  }
+}
 
 /**
  * P1 — manifest entry exists, cache dir exists, but cached plugin.json version
