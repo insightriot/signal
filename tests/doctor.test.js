@@ -10,6 +10,7 @@ import {
   detectP3OrphanEnabledFlag,
   detectP4PreRenameSlug,
   detectP5SshMultiIdentity,
+  runAllDetectors,
 } from '../tools/lib/doctor.js';
 
 // ---- detectP1 ----
@@ -182,5 +183,81 @@ describe('detectP5SshMultiIdentity', () => {
     expect(result.detected).toBe(true);
     expect(result.code).toBe('P5');
     expect(result.recommendation).toBe('info-only');
+  });
+});
+
+// ---- runAllDetectors aggregate ----
+
+describe('runAllDetectors', () => {
+  // Helpers for building healthy baseline state.
+  const HEALTHY_FS = {
+    existsSync: () => false, // no cache/, no .ssh/config → all detectors return clean
+    readdirSync: () => [],
+    readFileSync: () => '',
+  };
+  const HEALTHY_STATE = {
+    manifest: { plugins: {} },
+    settings: { enabledPlugins: {} },
+    fsImpl: HEALTHY_FS,
+    homeDir: '/Users/x',
+  };
+
+  it('returns healthy:true, empty findings, null recommendation when nothing detected', () => {
+    const result = runAllDetectors(HEALTHY_STATE);
+    expect(result.healthy).toBe(true);
+    expect(result.findings).toEqual([]);
+    expect(result.aggregate_recommendation).toBeNull();
+  });
+
+  it('returns --fix when only P3 detected (single P-state, surgical)', () => {
+    const state = {
+      ...HEALTHY_STATE,
+      settings: { enabledPlugins: { 'sig@signal': false } },
+      manifest: { plugins: {} },
+    };
+    const result = runAllDetectors(state);
+    expect(result.healthy).toBe(false);
+    expect(result.findings.map((f) => f.code)).toEqual(['P3']);
+    expect(result.aggregate_recommendation).toBe('--fix');
+  });
+
+  it('returns --reinstall when P1 detected, even alongside other lower-severity findings', () => {
+    const state = {
+      ...HEALTHY_STATE,
+      manifest: {
+        plugins: {
+          'sig@signal': [{
+            installPath: '/Users/x/.claude/plugins/cache/signal/sig/0.1.2',
+            version: '0.1.2',
+            gitCommitSha: 'abc',
+          }],
+        },
+      },
+      settings: { enabledPlugins: { 'sig@old@signal': true } }, // would be P3
+      fsImpl: {
+        existsSync: () => true, // cache dir present
+        readdirSync: () => ['0.1.2'], // matches manifest — no P2
+        readFileSync: () => JSON.stringify({ version: '0.1.0' }), // stale → P1
+      },
+    };
+    const result = runAllDetectors(state);
+    expect(result.healthy).toBe(false);
+    expect(result.findings.map((f) => f.code)).toContain('P1');
+    expect(result.aggregate_recommendation).toBe('--reinstall');
+  });
+
+  it('keeps healthy:true when only P5 (info-only) fires', () => {
+    const state = {
+      ...HEALTHY_STATE,
+      fsImpl: {
+        existsSync: (p) => p.endsWith('/.ssh/config'),
+        readdirSync: () => [],
+        readFileSync: () => 'Host github.com-personal\n  HostName github.com\n',
+      },
+    };
+    const result = runAllDetectors(state);
+    expect(result.healthy).toBe(true);
+    expect(result.findings.map((f) => f.code)).toEqual(['P5']);
+    expect(result.aggregate_recommendation).toBeNull();
   });
 });
