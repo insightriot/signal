@@ -39,6 +39,7 @@ const REQUIRED_COMMANDS = [
   'commands/resume.md',
   'commands/add.md',
   'commands/checkpoint.md',
+  'commands/doctor.md',
 ];
 
 const REQUIRED_AGENTS = [

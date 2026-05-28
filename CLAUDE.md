@@ -29,7 +29,7 @@ The plugin targets solo developers and small teams who want production-grade eng
 
 ## Current State
 
-Milestones 1–4 closed; v1 + brownfield onboarding (`/sig:init`) feature-complete and shipped. **Currently in M4.5 (release hardening / stranger-adoption readiness)** — 8 Epics scaffolded; **E1.S1 shipped as v0.1.1 (2026-05-15)**, **E1.S2 Phase A shipped 2026-05-19** (F2 resolved as outcome a; Phase B shelved), **E2.S1 (`/sig:add` hot path) shipped 2026-05-14**, **E6 (resume reliability — STATE.md schema_version 1 + auto-update protocol + `/sig:checkpoint`) shipped as v0.1.2 (2026-05-18)**, **E7 (synthesizer prose-quality + install-UX hardening) shipped 2026-05-23 (v0.1.3 candidate, untagged)**. 14 slash commands shipped, 26 agents (incl. 4 brownfield scanners), 21 skills bound to phases, 384 tests passing, validator green. **Active Epic: M4.5.E3** (public-facing docs rewrite — privacy / compatibility / governance; DISCUSS complete 2026-05-24, PLAN next). Remaining M4.5 after E3 closes: E1 Slices 3–5 (install matrix R2/R3/R5 + versioning policy + validator hardening), E2 Slices 2–5 (`/sig:add` cold path + flags + hardening + `/sig:plan` close-the-loop), E4 (worked example + comparison page), **E8 (`/sig:doctor` install-state diagnostician + ownership reframe — scoped + DISCUSS complete 2026-05-24, sequenced before E5)**, E5 (external validation + launch). Milestone 5 (v2 ports per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`) is the next horizon after M4.5 closes.
+Milestones 1–4 closed; v1 + brownfield onboarding (`/sig:init`) feature-complete and shipped. **Currently in M4.5 (release hardening / stranger-adoption readiness)** — 8 Epics scaffolded; **E1.S1 shipped as v0.1.1 (2026-05-15)**, **E1.S2 Phase A shipped 2026-05-19** (F2 resolved as outcome a; Phase B shelved), **E2.S1 (`/sig:add` hot path) shipped 2026-05-14**, **E6 (resume reliability — STATE.md schema_version 1 + auto-update protocol + `/sig:checkpoint`) shipped as v0.1.2 (2026-05-18)**, **E7 (synthesizer prose-quality + install-UX hardening) shipped 2026-05-23**, **E3 (public-facing docs rewrite) shipped 2026-05-26**, **E9 (Retro Foundations) shipped 2026-05-26 (v0.1.3 candidate, untagged)**. 15 slash commands shipped (with M4.5.E8.S1 in flight: `/sig:doctor` detection-only landed; --fix/--reinstall S2 pending), 26 agents (incl. 4 brownfield scanners), 21 skills bound to phases, 561+ tests passing, validator green. **Active Epic: M4.5.E8** (`/sig:doctor` install-state diagnostician + ownership reframe; PLAN complete 2026-05-28, S1 EXECUTE in flight). Remaining M4.5 after E8 closes: E2 Slices 2–5 (`/sig:add` cold path + flags + hardening + `/sig:plan` close-the-loop), E4 (worked example + comparison page), E5 (external validation + launch). E1 Slices 3–5 (Linux/WSL install matrix + versioning policy + validator hardening) shelved pending volunteer testers (D-E3-12). Milestone 5 (v2 ports per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`) is the next horizon after M4.5 closes.
 
 For current state and active work, read in order: `.planning/CONTEXT.md` → `.planning/STATE.md` (YAML frontmatter is authoritative) → `.planning/MILESTONE-4.5.md`. The full v1 spec is `.planning/PROJECT.md`. See `## Vocabulary` in PROJECT.md for the locked Milestone / Epic / Slice / Task / Phase / Wave / Tier terms and the ID-is-identity rule.
 
@@ -67,10 +67,10 @@ The REVIEW phase (between VERIFY and SHIP) is the key addition over GSD's origin
 ## Planned Plugin Structure
 
 ```
-commands/       # 14 slash commands — /sig:new-project, /sig:init, /sig:calibrate,
+commands/       # 15 slash commands — /sig:new-project, /sig:init, /sig:calibrate,
                 # /sig:discuss, /sig:plan, /sig:execute, /sig:verify,
                 # /sig:review, /sig:ship, /sig:escalate, /sig:status,
-                # /sig:resume, /sig:add, /sig:checkpoint
+                # /sig:resume, /sig:add, /sig:checkpoint, /sig:doctor
 agents/         # 26 agents (19 GSD + 3 Agent Skills specialists + 4 brownfield scanners)
 skills/         # 21 quality skills organized by phase (define/, plan/, build/, verify/, review/, ship/)
 references/     # Merged checklists and gates from both frameworks,

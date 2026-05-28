@@ -198,6 +198,7 @@ Any future telemetry would require a major-version bump, an explicit opt-in flag
 - **`/sig:resume`** — re-orientation briefing for a fresh session. Reads `PROJECT.md`, `PROFILE.md`, `STATE.md`, and the current phase's artifact, prints a concise summary, ends with "Ready to continue with `/sig:{phase}`?"
 - **`/sig:add`** — capture a new idea or work item to `.planning/FUTURE-IDEAS.md` without breaking the current phase. Verbatim capture (no rewrites), atomic write, sensitive-data scrub, lock-protected. Not tier-gated. Slice 1 (hot path) only in v0.1.1; cold-path interview + multi-destination routing land in subsequent slices.
 - **`/sig:checkpoint`** — manual state refresh. Default (quick) mode diffs git log against `STATE.md` and refreshes. `--context` mode additionally prompts for decisions + open questions (D16 dual-write to `CONTEXT.md` + `DECISIONS.md` + `OPEN-QUESTIONS.md`). Use before a planned context clear so the next session's `/sig:resume` is genuinely useful.
+- **`/sig:doctor`** — Claude Code plugin install-state diagnostician (macOS only first ship). Detects 5 documented failure modes — stale `gitCommitSha`, orphan cache, disabled-state-survives-reinstall, pre-rename `signal@signal` slug, SSH multi-identity. `--fix` generates a surgical remediation shell script; `--reinstall` generates the full canonical clean reinstall. Exits 0 healthy / 1 P-states / 2 doctor errored.
 
 ## Open Source Origins
 
