@@ -1083,4 +1083,104 @@ These 8 decisions are promoted here from `M4.5.E9-REQUIREMENTS.md` § "Locked De
 
 **Impact on EXECUTE.** All 8 decisions are pre-locked; no decision deferrals carry into the EXECUTE phase. AMEND-level issues (A2, A3, A4, A6, A8) are absorbed into PLAN task specs (S1.t6, S1.t5, S1.t8, S2.t6, PLAN-wide AC split respectively) and do not require separate DECISIONS.md promotion — they're encoded as implementation requirements, not architectural decisions. Deferred AMEND items (A5, A7, A9) are documented in REQUIREMENTS.md § "Deferred" with explicit revisit triggers.
 
+---
+
+## 2026-05-28 — M4.5.E8 PLAN decisions locked (D-E8-7 through D-E8-12)
+
+PLAN-phase research (4 parallel agents — project / codebase / risk / phase) surfaced six new decisions that complement the 6 DISCUSS-era locks (D-E8-1 through D-E8-6, captured 2026-05-24). All six emerged from empirical findings or risk analysis, not from re-litigating DISCUSS scope.
+
+### D-E8-7 — Version source = `/repos/.../tags`, NOT `/releases/latest`
+
+**Decision.** FR6's GitHub API endpoint is `https://api.github.com/repos/InsightRiot/signal/tags`. The response is an array; the most recent tag is element `[0]`. The field name is `name` (not `tag_name`). Strip leading `v` before semver compare.
+
+**Rationale.** Empirical: `curl -sS https://api.github.com/repos/InsightRiot/signal/releases/latest` returns HTTP 404 because Signal publishes git tags but has never cut a GitHub Release object. `/tags` works unauthenticated, returns HTTP 200 with the expected schema, and matches Signal's actual release contract.
+
+**Alternatives considered.**
+- *Make E8.S3 SHIP gate include creating a GitHub Release* — rejected; couples a diagnostician feature to a release-pipeline process change.
+- *`gh` CLI fallback* — rejected; adds an external dependency, unauth API works fine.
+
+**Reference.** `M4.5.E8-RESEARCH.md` § 1 + § 2; `M4.5.E8-PLAN.md` § "Conflicts with REQUIREMENTS" item 1.
+
+### D-E8-8 — Generated script: `#!/usr/bin/env bash` + `set -u -o pipefail` (NOT `set -e`)
+
+**Decision.** The script written by `/sig:doctor --fix` / `--reinstall` begins with `#!/usr/bin/env bash` and `set -u -o pipefail`. **`set -e` is deliberately omitted.**
+
+**Rationale.** `set -e` interacts badly with conditional `[y/N]` branches — declining a prompt followed by a no-op should NOT abort the script. Each mutating step explicitly checks its own exit and continues regardless. macOS ships bash 3.2 at `/bin/bash`; `#!/usr/bin/env bash` picks up Homebrew bash 5 if installed (and Signal's `[[ ]]` test syntax requires bash, not sh).
+
+**Alternatives considered.**
+- *Full `set -euo pipefail`* — rejected; aborts on declined prompts. Trailing "partial completion" message handles the case better.
+- *`/bin/bash` shebang* — rejected; macOS bash 3.2 lacks features Signal relies on.
+
+**Reference.** `M4.5.E8-RESEARCH.md` § 4 "Shell script generation safety"; arslan.io idempotent-bash + Codurance safe-bash references.
+
+### D-E8-9 — Upstream filings: cross-link 2 existing in S1; file new P3 alongside S1 ship
+
+**Decision.** Of the 3 P-state upstream issues FR9 originally proposed filing, **2 already exist:**
+
+- **P1** stale `gitCommitSha` = [anthropics/claude-code#56740](https://github.com/anthropics/claude-code/issues/56740) (open since 2026-05-06)
+- **P2** no Uninstall verb = [anthropics/claude-code#62497](https://github.com/anthropics/claude-code/issues/62497) (open since 2026-05-26)
+
+PLAN promotes cross-linking work into **S1** (lead each P-section in `docs/install-troubleshooting.md` with the canonical upstream issue URL + filing date). The **new P3 issue** (Disabled state survives uninstall+reinstall) is filed alongside S1 ship — no upstream match found.
+
+**Rationale.** Filing duplicates embarrasses Signal in front of the launch audience (M4.5.E5). Per [[feedback_document-in-the-moment]], cross-link now while context is fresh; don't defer to S3 "optional" status.
+
+**Alternatives considered.**
+- *File all 3 as new* — rejected; duplicates harm credibility.
+- *Skip upstream filing entirely* — rejected; new P3 issue is genuinely useful.
+- *Defer cross-links to S3* — rejected; doc reads incomplete without them.
+
+**Reference.** `M4.5.E8-RESEARCH.md` § 5 "Upstream filing best practice"; FR9 of `M4.5.E8-REQUIREMENTS.md`.
+
+### D-E8-10 — Test isolation via `homeDir` parameter injection (NEVER `os.homedir()` direct)
+
+**Decision.** Every function in `tools/lib/doctor.js` that touches `~/.claude/` paths takes `homeDir` as an injected parameter — never calls `os.homedir()` directly. Production code paths pass `os.homedir()` from `commands/doctor.md`; tests pass fixture tmpdir paths. Generated scripts substitute the resolved absolute `homeDir` at script-gen time — never emit literal `~/.claude/`.
+
+**Rationale.** AC #3 fixture-comparison tests + AC #5 `--reinstall` content tests could execute destructive script content against the developer's real `~/.claude/` if isolation depends on developer vigilance. Encoding isolation in the code surface eliminates the failure mode. **This is the highest single risk in E8** per RESEARCH § 7 Risk 1.
+
+**Alternatives considered.**
+- *Test discipline — developers just be careful with paths* — rejected; one mistake destroys the dev environment.
+- *`SIG_DOCTOR_HOME` env var* — kept as secondary fallback (documented in script comments) but parameter injection is primary; env vars are too easy to forget.
+
+**Reference.** `M4.5.E8-RESEARCH.md` § 7 Risk 1; `M4.5.E8-PLAN.md` anti-rationalization table row 1; meta-test in S2.t12.
+
+### D-E8-11 — Every detector MUST be Signal-scoped before emitting findings
+
+**Decision.** All 5 detectors filter inputs by Signal-scoped patterns BEFORE emitting `{detected: true, ...}`:
+
+- Detectors reading `installed_plugins.json` or `settings.json.enabledPlugins` filter by key prefix `sig@` or `signal@`.
+- Detectors walking the cache filter by path pattern `signal/sig/` or `signal/signal/`.
+- P5 (SSH multi-identity) is informational only — does not change `healthy: false`.
+
+A fixture test asserts non-Signal plugin entries in `installed_plugins.json` (with simulated staleness) yield `healthy: true`.
+
+**Rationale.** `installed_plugins.json` and `settings.json` are shared state files containing entries for every installed Claude Code plugin. A Signal detector that emits a P-state finding (and therefore a `--fix` script step) for a non-Signal plugin would propose `rm -rf` against another plugin's cache. That's a destructive cross-tenant bug.
+
+**Alternatives considered.**
+- *"The cache dir is plugin-scoped so it doesn't matter"* — rejected; `settings.json` and `installed_plugins.json` are NOT plugin-scoped.
+- *Post-emit filtering (detect everything, drop non-Signal in aggregate)* — rejected; doubles complexity, leaks non-Signal evidence into intermediate code paths.
+
+**Reference.** `M4.5.E8-RESEARCH.md` § 7 Risk 2; per-detector pseudocode in RESEARCH § 3.
+
+### D-E8-12 — 3-level exit code: 0 healthy / 1 P-states detected / 2 doctor errored
+
+**Decision.** `/sig:doctor` exits with one of three codes:
+
+- `0` — healthy, no findings, no errors
+- `1` — one or more P-states detected (broken install, actionable by user)
+- `2` — doctor encountered an error (parse failure, unexpected state, malformed `settings.json` from concurrent `/plugin install` write) — install state is **unknown**, user should investigate
+
+REQUIREMENTS FR2 originally locked binary 0/1; PLAN expands to 3-level so CI consumers can distinguish "broken install" from "broken doctor."
+
+**Rationale.** A transient network error during version-check leaking exit `1` would fail a CI gate for the wrong reason. Concurrent `/plugin install` writes that leave `installed_plugins.json` mid-write produce JSON parse failures — those are not P-state findings, they're "state file mid-write; retry" conditions. Pre-commit hooks gate on `!= 0`; CI dashboards distinguish meanings.
+
+**Alternatives considered.**
+- *Binary 0/1 as REQUIREMENTS originally specified* — rejected; loses signal value.
+- *Distinct codes per P-state (P1 → 11, P2 → 12, ...)* — rejected; overspecified, no consumer needs it, breaks the "any non-zero" convention.
+
+**Reference.** `M4.5.E8-RESEARCH.md` § 7 Risk 10; FR2 of `M4.5.E8-REQUIREMENTS.md`.
+
+---
+
+**Impact on EXECUTE.** All 12 E8 decisions (D-E8-1 through D-E8-12) are pre-locked. No decision deferrals carry into EXECUTE. The 3 conflicts with REQUIREMENTS surfaced during PLAN are reconciled by the new decisions (D-E8-7 reconciles FR6 endpoint conflict; D-E8-9 reconciles FR9 timing conflict; the `installed_plugins.json` shape conflict requires no decision — detector signatures handle the array). EXECUTE proceeds against `M4.5.E8-PLAN.md` as written.
+
 
