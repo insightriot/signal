@@ -15,9 +15,7 @@
 //          NEVER call os.homedir() directly from pure detectors.
 // D-E8-11: every detector MUST be Signal-scoped before emitting findings.
 
-function notImplemented(name) {
-  throw new Error(`${name} not implemented (M4.5.E8.S1.t3 GREEN pending)`);
-}
+import { join } from 'node:path';
 
 /**
  * P1 — manifest entry exists, cache dir exists, but cached plugin.json version
@@ -28,11 +26,52 @@ function notImplemented(name) {
  * @returns {{detected:boolean, evidence?:any, recommendation?:string, code:'P1'}}
  */
 export function detectP1StaleGitCommitSha(manifest, fsImpl) {
-  notImplemented('detectP1StaleGitCommitSha');
+  const entry = manifest?.plugins?.['sig@signal']?.[0];
+  if (!entry) return { detected: false, code: 'P1' };
+
+  const cacheDir = entry.installPath;
+  if (!cacheDir || !fsImpl.existsSync(cacheDir)) {
+    return {
+      detected: true,
+      code: 'P1',
+      evidence: 'cache dir missing entirely',
+      recommendation: '--reinstall',
+    };
+  }
+
+  const pluginJsonPath = join(cacheDir, '.claude-plugin', 'plugin.json');
+  let cachedPluginJson;
+  try {
+    cachedPluginJson = JSON.parse(fsImpl.readFileSync(pluginJsonPath, 'utf8'));
+  } catch {
+    // Cache dir exists but plugin.json unreadable — treat as stale.
+    return {
+      detected: true,
+      code: 'P1',
+      evidence: `cache plugin.json unreadable at ${pluginJsonPath}`,
+      recommendation: '--reinstall',
+    };
+  }
+
+  if (cachedPluginJson.version !== entry.version) {
+    return {
+      detected: true,
+      code: 'P1',
+      evidence: {
+        manifestVer: entry.version,
+        cachedVer: cachedPluginJson.version,
+        sha: entry.gitCommitSha,
+      },
+      recommendation: '--reinstall',
+    };
+  }
+
+  return { detected: false, code: 'P1' };
 }
 
 /**
- * P2 — cache directory present without matching installed_plugins.json entry.
+ * P2 — cache version directories under signal/sig/ not referenced by any
+ *      installed_plugins.json entry (Disable left filesystem behind).
  *
  * @param {object} manifest
  * @param {{existsSync: (p:string)=>boolean, readdirSync: (p:string)=>string[]}} fsImpl
@@ -40,22 +79,56 @@ export function detectP1StaleGitCommitSha(manifest, fsImpl) {
  * @returns {{detected:boolean, evidence?:string[], recommendation?:string, code:'P2'}}
  */
 export function detectP2OrphanCacheEntry(manifest, fsImpl, homeDir) {
-  notImplemented('detectP2OrphanCacheEntry');
+  const cacheBase = join(homeDir, '.claude', 'plugins', 'cache', 'signal', 'sig');
+  if (!fsImpl.existsSync(cacheBase)) {
+    return { detected: false, code: 'P2' };
+  }
+
+  // D-E8-11 narrowing: only Signal-scoped manifest entries count.
+  const manifestPaths = new Set(
+    Object.entries(manifest?.plugins || {})
+      .filter(([key]) => key === 'sig@signal' || key === 'signal@signal')
+      .flatMap(([, entries]) => (entries || []).map((e) => e.installPath))
+  );
+
+  const verDirs = fsImpl.readdirSync(cacheBase) || [];
+  const orphans = verDirs
+    .map((v) => join(cacheBase, v))
+    .filter((p) => !manifestPaths.has(p));
+
+  return orphans.length
+    ? { detected: true, code: 'P2', evidence: orphans, recommendation: '--fix' }
+    : { detected: false, code: 'P2' };
 }
 
 /**
  * P3 — settings.json `enabledPlugins` entry without matching installed plugin.
+ *      Captures the "Disabled state survives uninstall + reinstall" upstream bug.
  *
  * @param {object} settings - parsed settings.json
  * @param {object} manifest - parsed installed_plugins.json
  * @returns {{detected:boolean, evidence?:string[], recommendation?:string, code:'P3'}}
  */
 export function detectP3OrphanEnabledFlag(settings, manifest) {
-  notImplemented('detectP3OrphanEnabledFlag');
+  const enabled = settings?.enabledPlugins || {};
+  const installed = manifest?.plugins || {};
+  const orphans = [];
+
+  // D-E8-11 narrowing: only sig@/signal@ keys.
+  for (const key of Object.keys(enabled)) {
+    if ((key.startsWith('sig@') || key.startsWith('signal@')) && !installed[key]) {
+      orphans.push(key);
+    }
+  }
+
+  return orphans.length
+    ? { detected: true, code: 'P3', evidence: orphans, recommendation: '--fix' }
+    : { detected: false, code: 'P3' };
 }
 
 /**
  * P4 — pre-rename `signal@signal` slug present anywhere (cache, manifest, settings).
+ *      Detection is inherently Signal-scoped (literal slug match).
  *
  * @param {object} manifest
  * @param {object} settings
@@ -64,17 +137,52 @@ export function detectP3OrphanEnabledFlag(settings, manifest) {
  * @returns {{detected:boolean, evidence?:string[], recommendation?:string, code:'P4'}}
  */
 export function detectP4PreRenameSlug(manifest, settings, fsImpl, homeDir) {
-  notImplemented('detectP4PreRenameSlug');
+  const hits = [];
+
+  const preRenameCacheDir = join(homeDir, '.claude', 'plugins', 'cache', 'signal', 'signal');
+  if (fsImpl.existsSync(preRenameCacheDir)) {
+    hits.push(`cache:${preRenameCacheDir}`);
+  }
+
+  if (manifest?.plugins?.['signal@signal']) {
+    hits.push('manifest:installed_plugins.json signal@signal entry');
+  }
+
+  if (settings?.enabledPlugins?.['signal@signal'] !== undefined) {
+    hits.push('settings:enabledPlugins.signal@signal');
+  }
+
+  return hits.length
+    ? { detected: true, code: 'P4', evidence: hits, recommendation: '--fix' }
+    : { detected: false, code: 'P4' };
 }
 
 /**
- * P5 — SSH multi-identity config detected (informational only — does NOT
- *      change healthy:false on its own; see D-E8-11 P5 carve-out).
+ * P5 — SSH multi-identity config detected. Informational only — does NOT
+ *      change healthy:false on its own (per D-E8-11 P5 carve-out).
  *
  * @param {{existsSync: (p:string)=>boolean, readFileSync: (p:string,enc:string)=>string}} fsImpl
  * @param {string} homeDir
  * @returns {{detected:boolean, evidence?:string, recommendation?:'info-only', code:'P5'}}
  */
 export function detectP5SshMultiIdentity(fsImpl, homeDir) {
-  notImplemented('detectP5SshMultiIdentity');
+  const sshConfigPath = join(homeDir, '.ssh', 'config');
+  if (!fsImpl.existsSync(sshConfigPath)) {
+    return { detected: false, code: 'P5' };
+  }
+
+  const content = fsImpl.readFileSync(sshConfigPath, 'utf8');
+  const hasMultiHost = /^Host\s+github\.com-/m.test(content);
+  const hasDefaultHost = /^Host\s+github\.com\s*$/m.test(content);
+
+  if (hasMultiHost && !hasDefaultHost) {
+    return {
+      detected: true,
+      code: 'P5',
+      evidence: 'multi-identity Host github.com-* without default Host github.com',
+      recommendation: 'info-only',
+    };
+  }
+
+  return { detected: false, code: 'P5' };
 }
