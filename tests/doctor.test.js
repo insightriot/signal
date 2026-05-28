@@ -328,3 +328,175 @@ describe('readInstallState', () => {
     expect(() => readInstallState({ homeDir: tempDir })).toThrow(DoctorDetectionError);
   });
 });
+
+// ---- End-to-end fixture-based integration ----
+// Per M4.5.E8-PLAN.md § S1.t6: 6 fixture scenarios exercising the full
+// readInstallState → runAllDetectors pipeline against real filesystem state.
+
+async function buildDoctorFixture(homeDir, scenario) {
+  const claudeDir = join(homeDir, '.claude');
+  const pluginsDir = join(claudeDir, 'plugins');
+  const cacheRoot = join(pluginsDir, 'cache', 'signal');
+  await mkdir(claudeDir, { recursive: true });
+  await mkdir(pluginsDir, { recursive: true });
+
+  async function writeCachePluginJson(slug, version) {
+    const versionDir = join(cacheRoot, slug, version);
+    await mkdir(join(versionDir, '.claude-plugin'), { recursive: true });
+    await writeFile(
+      join(versionDir, '.claude-plugin', 'plugin.json'),
+      JSON.stringify({ name: slug, version }, null, 2)
+    );
+    return versionDir;
+  }
+  async function writeManifest(plugins) {
+    await writeFile(
+      join(pluginsDir, 'installed_plugins.json'),
+      JSON.stringify({ version: 2, plugins }, null, 2)
+    );
+  }
+  async function writeSettings(settings) {
+    await writeFile(join(claudeDir, 'settings.json'), JSON.stringify(settings, null, 2));
+  }
+
+  switch (scenario) {
+    case 'healthy': {
+      const installPath = await writeCachePluginJson('sig', '0.1.2');
+      await writeManifest({
+        'sig@signal': [{ scope: 'user', installPath, version: '0.1.2', gitCommitSha: 'abc' }],
+      });
+      await writeSettings({ enabledPlugins: { 'sig@signal': true } });
+      return;
+    }
+    case 'p1-stale-sha': {
+      // Manifest says 0.1.2, but the cached plugin.json reports 0.1.0 (the short-circuit bug).
+      const versionDir = join(cacheRoot, 'sig', '0.1.2');
+      await mkdir(join(versionDir, '.claude-plugin'), { recursive: true });
+      await writeFile(
+        join(versionDir, '.claude-plugin', 'plugin.json'),
+        JSON.stringify({ name: 'sig', version: '0.1.0' }, null, 2) // stale
+      );
+      await writeManifest({
+        'sig@signal': [{ scope: 'user', installPath: versionDir, version: '0.1.2', gitCommitSha: 'abc' }],
+      });
+      await writeSettings({ enabledPlugins: { 'sig@signal': true } });
+      return;
+    }
+    case 'p2-orphan-cache': {
+      // Three version dirs in cache; manifest only points at 0.1.2.
+      await writeCachePluginJson('sig', '0.1.0');
+      await writeCachePluginJson('sig', '0.1.1');
+      const installPath = await writeCachePluginJson('sig', '0.1.2');
+      await writeManifest({
+        'sig@signal': [{ scope: 'user', installPath, version: '0.1.2', gitCommitSha: 'abc' }],
+      });
+      await writeSettings({ enabledPlugins: { 'sig@signal': true } });
+      return;
+    }
+    case 'p3-disabled-orphan': {
+      // settings.enabledPlugins still has sig@signal: false but manifest has no plugin.
+      await writeManifest({}); // no Signal install at all
+      await writeSettings({ enabledPlugins: { 'sig@signal': false } });
+      return;
+    }
+    case 'p4-pre-rename': {
+      // Pre-rename cache dir present alongside healthy current install.
+      const installPath = await writeCachePluginJson('sig', '0.1.2');
+      await writeCachePluginJson('signal', '0.1.0'); // the pre-rename orphan
+      await writeManifest({
+        'sig@signal': [{ scope: 'user', installPath, version: '0.1.2', gitCommitSha: 'abc' }],
+      });
+      await writeSettings({ enabledPlugins: { 'sig@signal': true } });
+      return;
+    }
+    case 'combined-p1-p3': {
+      // P1 (stale cache) + P3 (orphan enabled flag for a previously-uninstalled plugin).
+      const versionDir = join(cacheRoot, 'sig', '0.1.2');
+      await mkdir(join(versionDir, '.claude-plugin'), { recursive: true });
+      await writeFile(
+        join(versionDir, '.claude-plugin', 'plugin.json'),
+        JSON.stringify({ name: 'sig', version: '0.1.0' }, null, 2) // stale → P1
+      );
+      await writeManifest({
+        'sig@signal': [{ scope: 'user', installPath: versionDir, version: '0.1.2', gitCommitSha: 'abc' }],
+      });
+      await writeSettings({
+        enabledPlugins: {
+          'sig@signal': true,
+          'sig@otherplugin': true, // orphan enabled flag → P3
+        },
+      });
+      return;
+    }
+    default:
+      throw new Error(`unknown fixture scenario: ${scenario}`);
+  }
+}
+
+describe('end-to-end: readInstallState + runAllDetectors against fixture trees', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'sig-doctor-fixture-'));
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('healthy fixture → healthy:true, no findings, no recommendation', async () => {
+    await buildDoctorFixture(tempDir, 'healthy');
+    const result = runAllDetectors(readInstallState({ homeDir: tempDir }));
+    expect(result.healthy).toBe(true);
+    expect(result.findings).toEqual([]);
+    expect(result.aggregate_recommendation).toBeNull();
+  });
+
+  it('p1-stale-sha fixture → P1 detected, --reinstall recommended', async () => {
+    await buildDoctorFixture(tempDir, 'p1-stale-sha');
+    const result = runAllDetectors(readInstallState({ homeDir: tempDir }));
+    expect(result.healthy).toBe(false);
+    expect(result.findings.map((f) => f.code)).toContain('P1');
+    expect(result.aggregate_recommendation).toBe('--reinstall');
+  });
+
+  it('p2-orphan-cache fixture → P2 detected on 0.1.0 + 0.1.1, 0.1.2 not flagged, --fix', async () => {
+    await buildDoctorFixture(tempDir, 'p2-orphan-cache');
+    const result = runAllDetectors(readInstallState({ homeDir: tempDir }));
+    expect(result.healthy).toBe(false);
+    const p2 = result.findings.find((f) => f.code === 'P2');
+    expect(p2).toBeDefined();
+    expect(p2.evidence.some((p) => p.endsWith('/0.1.0'))).toBe(true);
+    expect(p2.evidence.some((p) => p.endsWith('/0.1.1'))).toBe(true);
+    expect(p2.evidence.some((p) => p.endsWith('/0.1.2'))).toBe(false);
+    expect(result.aggregate_recommendation).toBe('--fix');
+  });
+
+  it('p3-disabled-orphan fixture → P3 detected, --fix recommended', async () => {
+    await buildDoctorFixture(tempDir, 'p3-disabled-orphan');
+    const result = runAllDetectors(readInstallState({ homeDir: tempDir }));
+    expect(result.healthy).toBe(false);
+    const p3 = result.findings.find((f) => f.code === 'P3');
+    expect(p3).toBeDefined();
+    expect(p3.evidence).toContain('sig@signal');
+    expect(result.aggregate_recommendation).toBe('--fix');
+  });
+
+  it('p4-pre-rename fixture → P4 detected on cache:signal/signal/, --fix', async () => {
+    await buildDoctorFixture(tempDir, 'p4-pre-rename');
+    const result = runAllDetectors(readInstallState({ homeDir: tempDir }));
+    expect(result.healthy).toBe(false);
+    const p4 = result.findings.find((f) => f.code === 'P4');
+    expect(p4).toBeDefined();
+    expect(p4.evidence.some((e) => e.includes('cache:'))).toBe(true);
+    expect(result.aggregate_recommendation).toBe('--fix');
+  });
+
+  it('combined-p1-p3 fixture → both detected, --reinstall (P1 dominates)', async () => {
+    await buildDoctorFixture(tempDir, 'combined-p1-p3');
+    const result = runAllDetectors(readInstallState({ homeDir: tempDir }));
+    expect(result.healthy).toBe(false);
+    const codes = result.findings.map((f) => f.code);
+    expect(codes).toContain('P1');
+    expect(codes).toContain('P3');
+    expect(result.aggregate_recommendation).toBe('--reinstall');
+  });
+});
