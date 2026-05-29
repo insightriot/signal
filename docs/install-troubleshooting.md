@@ -1,8 +1,22 @@
 # Install Troubleshooting
 
+> **Most install-state failures documented here are Claude Code plugin-host bugs, not Signal bugs. We document them because strangers should not have to debug Anthropic's plugin host alone.**
+>
+> **Run `/sig:doctor` first** — it will tell you which workaround applies and generate a script that runs the fix for you. Manual workarounds are kept below for environments where `/sig:doctor` isn't available (older Claude Code, Linux, WSL).
+
 Symptom-organized troubleshooting for `/plugin install sig@signal` on Claude Code. If the install isn't behaving as expected, find your symptom in § Quick Triage below and jump to the matching section. For the full empirical record of what's been verified, see [`install-verification.md`](./install-verification.md) § R1.
 
 > **Claude Code version verified:** 2.1.150 (commands tested below). Most workarounds require ≥ 2.1.121 (CLI verbs like `claude plugin uninstall`) or ≥ 2.1.141 (`CLAUDE_CODE_PLUGIN_PREFER_HTTPS` env var). Check yours with `claude --version`.
+
+**Ownership at a glance:**
+
+| Symptom | Owner | Surfaced upstream as |
+|---|---|---|
+| P1 — install short-circuits on stale `gitCommitSha` | Claude Code plugin host | [#56740](https://github.com/anthropics/claude-code/issues/56740) |
+| P2 — no Uninstall verb in `/plugin` interactive menu | Claude Code plugin host | [#62497](https://github.com/anthropics/claude-code/issues/62497) |
+| P3 — Disabled state survives uninstall + reinstall | Claude Code plugin host | [#63624](https://github.com/anthropics/claude-code/issues/63624) |
+| P4 — pre-rename `signal@signal` cache orphan | Signal (historical — pre-rename) | (none — fixed in our own migration) |
+| P5 — SSH multi-identity `git clone` failure | Environmental (user `~/.ssh/config`) | (none — workaround is the fix) |
 
 ---
 
@@ -62,7 +76,9 @@ If `/reload-plugins` reports "1 plugin · 14 skills · 32 agents · 1 hook" and 
 
 ## Symptom 1 — `/plugin install` reports "already at latest" but cached code is stale (P1)
 
-**Upstream:** [anthropics/claude-code#56740](https://github.com/anthropics/claude-code/issues/56740) — open since 2026-05-06. This is a Claude Code plugin-host bug, not a Signal bug.
+**Owner:** Claude Code plugin host. **Upstream:** [anthropics/claude-code#56740](https://github.com/anthropics/claude-code/issues/56740) — open since 2026-05-06.
+
+**Quickest fix:** `/sig:doctor --reinstall` generates a reviewable shell script that runs the canonical clean reinstall. Run that first; the manual sequence below is the fallback.
 
 ### You will see
 
@@ -108,7 +124,9 @@ Plugin manifests have two version-identity fields. The `version` field tracks th
 
 ## Symptom 2 — `/plugin` interactive menu has no Uninstall verb (P2)
 
-**Upstream:** [anthropics/claude-code#62497](https://github.com/anthropics/claude-code/issues/62497) — open since 2026-05-26. This is a Claude Code plugin-host bug, not a Signal bug.
+**Owner:** Claude Code plugin host. **Upstream:** [anthropics/claude-code#62497](https://github.com/anthropics/claude-code/issues/62497) — open since 2026-05-26.
+
+**Quickest fix:** `/sig:doctor --fix` (or `--reinstall`) generates the surgical script. Manual sequence below is the fallback.
 
 ### You will see
 
@@ -168,7 +186,9 @@ The cache directory path is `~/.claude/plugins/cache/<marketplace>/<plugin>/<ver
 
 ## Symptom 3 — Plugin stays Disabled after uninstall + reinstall (P3)
 
-**Upstream:** [anthropics/claude-code#63624](https://github.com/anthropics/claude-code/issues/63624) — filed 2026-05-29. This is a Claude Code plugin-host bug, not a Signal bug.
+**Owner:** Claude Code plugin host. **Upstream:** [anthropics/claude-code#63624](https://github.com/anthropics/claude-code/issues/63624) — filed 2026-05-29.
+
+**Quickest fix:** `/sig:doctor --fix` removes the stale `enabledPlugins` entry without touching anything else. Manual sequence below is the fallback.
 
 ### You will see
 
@@ -209,6 +229,10 @@ This is a Claude Code UX papercut. Filed upstream as [#63624](https://github.com
 
 ## Symptom 4 — Pre-rename `signal@signal` cache orphan
 
+**Owner:** Signal (historical — pre-rename). Not filed upstream because the rename itself is the fix going forward; only existing pre-rename installs need this cleanup.
+
+**Quickest fix:** `/sig:doctor --fix` removes the orphan cache directory and any related state entries. The detector explicitly looks for the `signal@signal` literal slug. Manual sequence below is the fallback.
+
 ### Who is affected
 
 Only users who installed Signal **before M4.t19 (2026-05-12)**, when the plugin slug was renamed `signal` → `sig` so the marketplace install would produce the `/sig:*` command prefix. The pre-rename install entry was registered as `signal@signal`; the post-rename install is `sig@signal`. Upgrading without first removing the pre-rename install leaves a dangling cache directory.
@@ -247,6 +271,10 @@ After this, the canonical `sig@signal` install path is clean.
 ---
 
 ## Symptom 5 — SSH multi-identity clone failure (cross-link)
+
+**Owner:** Environmental (user `~/.ssh/config`). Not filed upstream — the workaround (`CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1`) IS the canonical fix, not a workaround for a bug.
+
+**`/sig:doctor` notes this as informational only** (P5 — does not change `healthy:false`); it doesn't generate a remediation step since the resolution is an environment variable, not a filesystem mutation.
 
 If `/plugin marketplace add insightriot/signal` or `/plugin install` fails with an SSH authentication error on a machine using multi-identity `~/.ssh/config` (separate identity files for personal vs. work GitHub accounts, no default `Host github.com` block), this was the original failure mode that motivated **v0.1.1's marketplace source-block fix**.
 

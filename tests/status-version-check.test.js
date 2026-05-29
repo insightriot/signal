@@ -266,3 +266,33 @@ describe('readStalenessWarning (advisory; never throws)', () => {
     expect(result).toBeNull();
   });
 });
+
+// ---- docs/install-troubleshooting.md reframe lint (S3.t11) ----
+
+describe('install-troubleshooting.md ownership reframe (S3.t11)', () => {
+  let docContent;
+  beforeEach(async () => {
+    docContent = await readFile(
+      join(process.cwd(), 'docs/install-troubleshooting.md'),
+      'utf8'
+    );
+  });
+
+  it('opens with the FR8 ownership statement and /sig:doctor lead-in', () => {
+    // Statement appears in the first 1KB so it lands above the fold.
+    const head = docContent.slice(0, 1500);
+    expect(head).toMatch(/Claude Code plugin-host bugs, not Signal bugs/);
+    expect(head).toMatch(/Run `\/sig:doctor` first/);
+  });
+
+  it('each of the 5 symptom sections carries an explicit Owner tag', () => {
+    // Symptom 1 (P1), 2 (P2), 3 (P3): Claude Code plugin host
+    // Symptom 4: Signal (historical)
+    // Symptom 5: Environmental
+    expect(docContent).toMatch(/## Symptom 1[\s\S]*?\*\*Owner:\*\* Claude Code plugin host/);
+    expect(docContent).toMatch(/## Symptom 2[\s\S]*?\*\*Owner:\*\* Claude Code plugin host/);
+    expect(docContent).toMatch(/## Symptom 3[\s\S]*?\*\*Owner:\*\* Claude Code plugin host/);
+    expect(docContent).toMatch(/## Symptom 4[\s\S]*?\*\*Owner:\*\* Signal/);
+    expect(docContent).toMatch(/## Symptom 5[\s\S]*?\*\*Owner:\*\* Environmental/);
+  });
+});
