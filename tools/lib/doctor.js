@@ -18,6 +18,7 @@
 //          DoctorDetectionError + DoctorEnvironmentError signal exit-2 cases.
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { atomicWrite } from './atomic-write.js';
 
@@ -527,6 +528,153 @@ export function buildReinstallScript({ homeDir }) {
  */
 export async function writeDoctorScript(scriptPath, content) {
   await atomicWrite(scriptPath, content);
+}
+
+// ===== S3 — Version check (FR6) =====
+//
+// D-E8-7: source is /repos/InsightRiot/signal/tags (NOT /releases/latest, which
+// 404s — Signal publishes git tags, not GitHub Releases). Field is `name`, not
+// `tag_name`. Strip leading `v` before compare.
+
+const TAGS_URL = 'https://api.github.com/repos/InsightRiot/signal/tags';
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const FETCH_TIMEOUT_MS = 5000;
+
+function versionCachePath(homeDir) {
+  return join(homeDir, '.claude', '.sig-version-cache.json');
+}
+
+/**
+ * Fetch the most-recent tag name from GitHub. Returns null on any failure
+ * mode (offline, 404, empty array, malformed JSON, timeout) — `/sig:status`
+ * silently skips the staleness banner when this returns null.
+ *
+ * @param {{fetchFn?:Function}} opts
+ * @returns {Promise<string|null>} e.g. "v0.1.2"
+ */
+export async function fetchLatestTag({ fetchFn = fetch } = {}) {
+  try {
+    const res = await fetchFn(TAGS_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+    if (!res.ok) return null;
+    const tags = await res.json();
+    if (!Array.isArray(tags) || tags.length === 0) return null;
+    const firstName = tags[0]?.name;
+    return typeof firstName === 'string' ? firstName : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read the 24h on-disk cache at ~/.claude/.sig-version-cache.json. Returns null
+ * on miss / parse-fail / shape-fail (invalid → miss per RESEARCH § 2).
+ *
+ * @param {{homeDir:string}} opts
+ * @returns {Promise<{fetched_at:string, data:object}|null>}
+ */
+export async function readVersionCache({ homeDir }) {
+  const cachePath = versionCachePath(homeDir);
+  if (!existsSync(cachePath)) return null;
+  try {
+    const raw = await readFile(cachePath, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (typeof parsed.fetched_at !== 'string' || !parsed.data) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Atomic write of the version cache. Stamps `fetched_at` to now.
+ *
+ * @param {{homeDir:string, data:object}} opts
+ */
+export async function writeVersionCache({ homeDir, data }) {
+  const cachePath = versionCachePath(homeDir);
+  const payload = { fetched_at: new Date().toISOString(), data };
+  await atomicWrite(cachePath, JSON.stringify(payload, null, 2));
+}
+
+/**
+ * Compose cache + fetch + TTL check. Returns the latest tag name (cached or
+ * freshly fetched) or null if the API is unreachable.
+ *
+ * Within 24h of last fetch → cached value, no network call.
+ * Cache stale or missing → fetch fresh + write cache.
+ *
+ * @param {{homeDir:string, fetchFn?:Function, now?:()=>number}} opts
+ * @returns {Promise<string|null>}
+ */
+export async function fetchLatestVersionCached({ homeDir, fetchFn = fetch, now = Date.now } = {}) {
+  const cached = await readVersionCache({ homeDir });
+  if (cached) {
+    const age = now() - Date.parse(cached.fetched_at);
+    if (age < CACHE_TTL_MS && cached.data && typeof cached.data.name === 'string') {
+      return cached.data.name;
+    }
+  }
+  const fresh = await fetchLatestTag({ fetchFn });
+  if (fresh) {
+    await writeVersionCache({ homeDir, data: { name: fresh } });
+    return fresh;
+  }
+  return null;
+}
+
+/**
+ * Hand-rolled 3-part numeric version compare. Strips leading `v`, ignores
+ * pre-release suffixes (anything after `-`).
+ *
+ * @param {string} installed
+ * @param {string} latest
+ * @returns {'stale'|'current'|'newer'}
+ */
+export function compareVersions(installed, latest) {
+  const parse = (v) =>
+    String(v)
+      .replace(/^v/, '')
+      .split('-')[0] // strip pre-release suffix
+      .split('.')
+      .map((n) => parseInt(n, 10) || 0);
+
+  const a = parse(installed);
+  const b = parse(latest);
+  const len = Math.max(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    const ai = a[i] || 0;
+    const bi = b[i] || 0;
+    if (ai < bi) return 'stale';
+    if (ai > bi) return 'newer';
+  }
+  return 'current';
+}
+
+/**
+ * Map the (installed × latest × P-states) tuple to a recommendation string,
+ * per the FR6 matrix. Returns null when no banner should be shown.
+ *
+ * @param {{installed:string, latest:string|null, pStatesDetected:boolean}} opts
+ * @returns {string|null}
+ */
+export function computeStalenessRecommendation({ installed, latest, pStatesDetected }) {
+  // Latest unknown → silent skip (API failed or no tags exist).
+  if (!latest) return null;
+
+  const cmp = compareVersions(installed, latest);
+
+  if (cmp === 'stale') {
+    return pStatesDetected
+      ? 'Run /sig:doctor --reinstall (clean install + upgrade).'
+      : 'Run /plugin install sig@signal to upgrade.';
+  }
+  if (cmp === 'current') {
+    return pStatesDetected
+      ? 'Run /sig:doctor --fix to remediate the detected install-state issues.'
+      : null;
+  }
+  // installed > latest (e.g., running a dev build ahead of any tag) — silent.
+  return null;
 }
 
 /**
