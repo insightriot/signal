@@ -95,7 +95,7 @@ Finding-code → short-title map:
 Upstream-issue map (D-E8-9):
 - P1 → `https://github.com/anthropics/claude-code/issues/56740`
 - P2 → `https://github.com/anthropics/claude-code/issues/62497`
-- P3 → (filled by S1.t14 — link in docs/install-troubleshooting.md after issue file)
+- P3 → `https://github.com/anthropics/claude-code/issues/63624`
 - P4 → no upstream (historical Signal rename)
 - P5 → no upstream (environmental)
 

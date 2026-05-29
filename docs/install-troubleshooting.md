@@ -62,6 +62,8 @@ If `/reload-plugins` reports "1 plugin · 14 skills · 32 agents · 1 hook" and 
 
 ## Symptom 1 — `/plugin install` reports "already at latest" but cached code is stale (P1)
 
+**Upstream:** [anthropics/claude-code#56740](https://github.com/anthropics/claude-code/issues/56740) — open since 2026-05-06. This is a Claude Code plugin-host bug, not a Signal bug.
+
 ### You will see
 
 ```
@@ -105,6 +107,8 @@ Plugin manifests have two version-identity fields. The `version` field tracks th
 ---
 
 ## Symptom 2 — `/plugin` interactive menu has no Uninstall verb (P2)
+
+**Upstream:** [anthropics/claude-code#62497](https://github.com/anthropics/claude-code/issues/62497) — open since 2026-05-26. This is a Claude Code plugin-host bug, not a Signal bug.
 
 ### You will see
 
@@ -164,6 +168,8 @@ The cache directory path is `~/.claude/plugins/cache/<marketplace>/<plugin>/<ver
 
 ## Symptom 3 — Plugin stays Disabled after uninstall + reinstall (P3)
 
+**Upstream:** [anthropics/claude-code#63624](https://github.com/anthropics/claude-code/issues/63624) — filed 2026-05-29. This is a Claude Code plugin-host bug, not a Signal bug.
+
 ### You will see
 
 A clean reinstall completed without errors:
@@ -197,7 +203,7 @@ Then restart Claude Code (or `/reload-plugins`) and re-run the install sequence 
 
 ### Note
 
-This is a Claude Code UX papercut worth filing upstream after M4.5.E7 ships — Disabled state surviving uninstall is rarely what a user wants, and there's no visible signal during install that explains why a "successful" install isn't producing working commands.
+This is a Claude Code UX papercut. Filed upstream as [#63624](https://github.com/anthropics/claude-code/issues/63624) on 2026-05-29. Disabled state surviving uninstall is rarely what a user wants, and there's no visible signal during install that explains why a "successful" install isn't producing working commands.
 
 ---
 
