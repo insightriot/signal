@@ -103,15 +103,20 @@ Exit 1.
 
 ### 6. Flag dispatch
 
+Call `checkCacheCasingClash({homeDir: os.homedir()})` before any script generation — aborts with `DoctorDetectionError → exit 2` if the marketplace cache contains case-mismatched siblings (`signal/` + `Signal/`).
+
 - **No flags** → exit code per § 5.
-- **`--fix`** → **[S2 not yet implemented — exit 0 with a "coming in S2" note for now]**
-- **`--reinstall`** → **[S2 not yet implemented — exit 0 with a "coming in S2" note for now]**
 
-S2 will replace these stubs with:
+- **`--fix`**:
+  1. If `findings.length === 0` (healthy) → print `No findings to remediate. Signal v{version} installed and healthy.` Exit 0. Script NOT written.
+  2. Otherwise → `const script = buildFixScript(findings, {homeDir: os.homedir()})` → `await writeDoctorScript(join(os.homedir(), "sig-doctor.sh"), script)` → print `Generated {scriptPath} — review then run: bash {scriptPath}` → exit 0.
 
-1. `--fix` on `healthy: true` → print "No findings to remediate." Exit 0; no script written.
-2. `--fix` on findings → call `buildFixScript(findings, {homeDir})` → call `writeDoctorScript("~/.claude/sig-doctor.sh", content)` → print `Generated ~/.claude/sig-doctor.sh — review then run: bash ~/.claude/sig-doctor.sh` → exit 0.
-3. `--reinstall` (any state) → call `buildReinstallScript({homeDir})` → write → print run instruction → exit 0.
+- **`--reinstall`**:
+  Always → `const script = buildReinstallScript({homeDir: os.homedir()})` → `await writeDoctorScript(join(os.homedir(), "sig-doctor.sh"), script)` → print same `Generated ... — review then run: ...` message → exit 0.
+
+Generated script lives at `~/.claude/sig-doctor.sh` (NOT next to the source repo). User reviews, runs `bash ~/.claude/sig-doctor.sh`, then re-invokes `/sig:doctor` to verify.
+
+`--fix` and `--reinstall` are mutually exclusive — combining them prints an "ignoring --reinstall because --fix takes precedence" warning and proceeds with `--fix`.
 
 ## Anti-Rationalization Check
 
@@ -124,6 +129,11 @@ S2 will replace these stubs with:
 | Auto-execute `/plugin install/uninstall` from inside doctor | No. OQ3 → option (b). Generated script invokes `claude plugin {uninstall,install}` shell CLI subcommands explicitly. Doctor itself doesn't run them. |
 | Exit 0 on findings — they're informational, not fatal | No. D-E8-12. Exit 1 on P-states detected so CI / pre-commit hooks can gate on `!= 0`. P5 alone (info-only) keeps healthy:true → exit 0. |
 | Fall through to detector logic on Linux just because the paths *might* exist | No. macOS-first ship per D-E8-2. Linux + WSL paths land in a follow-on slice when E1.S3 fresh-machine hardware exists. |
+| Use `sed` for JSON edits in the generated script — `node -e` is verbose | No. JSON has nested structure; `sed` corrupts it on the second mutation. Inline `node -e` does atomic parse→mutate→temp-file-rename (S2 GREEN bundle 4f0105a). Length tradeoff documented in FUTURE-IDEAS § "/sig:doctor helper-script split". |
+| Hardcode `~/.claude/plugins/cache/signal/sig/` paths in the generated script | No. D-E8-10. Detection resolves the actual absolute path; the script template substitutes it. Meta-test in `tests/doctor-script-gen.test.js` asserts the script body never contains literal `~/.claude/`. |
+| Skip the `claude --version` preamble — users will have a recent version | No. The script is downloaded + reviewed + run in arbitrary environments. The preamble surfaces the detected version line and prints the 2.1.150+ requirement so a too-old runtime is visible before any `claude plugin` call fails (S2.t8). |
+| Auto-execute `--fix` since it's surgical | No. D-E8-1 + D-E8-3. Script-gen-with-review applies to BOTH flags. Consistency over per-flag UX nuance. |
+| Skip the casing-clash check — `signal/` + `Signal/` siblings can't happen on APFS | No. They can't on the default case-insensitive APFS volume, but external volumes + WSL bind-mounts produce them. `checkCacheCasingClash` aborts hard (exit 2) so the user can resolve manually rather than have the script `rm -rf` the wrong directory (S2.t7). |
 
 ## Gate: Doctor Complete
 
@@ -131,7 +141,12 @@ S2 will replace these stubs with:
 - [ ] `readInstallState` errors map to exit 2 with friendly retry message.
 - [ ] Each finding is Signal-scoped (D-E8-11) — non-Signal plugin state in fixtures never triggers detection.
 - [ ] Exit code per D-E8-12: 0 healthy / 1 P-states / 2 doctor errored.
-- [ ] `--fix` / `--reinstall` stubs print "coming in S2" but do not crash.
+- [ ] `--fix` on healthy install prints `No findings to remediate.` — no script written.
+- [ ] `--fix` on findings writes `~/.claude/sig-doctor.sh` with surgical steps only.
+- [ ] `--reinstall` writes the full canonical reinstall script regardless of starting state.
+- [ ] Every mutating step in the generated script is wrapped in `read -p "Execute: ... [y/N]"`.
+- [ ] Generated script body contains NO literal `~/.claude/` — paths are resolved absolute (D-E8-10 + S2.t12 meta-test).
+- [ ] `checkCacheCasingClash` fires before script gen; case-mismatched cache siblings abort with `DoctorDetectionError → exit 2`.
 - [ ] Validator recognizes `commands/doctor.md` (S1.t11).
 - [ ] CLAUDE.md + CONTEXT.md + README list `/sig:doctor` (S1.t12).
 - [ ] `docs/install-troubleshooting.md` cross-links upstream #56740 + #62497 (S1.t13).

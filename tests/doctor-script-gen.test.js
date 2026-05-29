@@ -11,6 +11,8 @@ import {
   buildFixScript,
   buildReinstallScript,
   writeDoctorScript,
+  checkCacheCasingClash,
+  DoctorDetectionError,
 } from '../tools/lib/doctor.js';
 
 // ---- buildFixScript — script-content lint ----
@@ -55,6 +57,18 @@ describe('buildFixScript (script-content lint)', () => {
     const script = buildFixScript(FINDINGS_P2_P3, { homeDir: '/Users/x' });
     expect(script).toMatch(/\/reload-plugins/);
     expect(script).toMatch(/\/sig:doctor/); // recommend re-running to verify
+  });
+
+  it('preamble surfaces detected Claude Code version (S2.t8)', () => {
+    const script = buildFixScript(FINDINGS_P2_P3, { homeDir: '/Users/x' });
+    expect(script).toMatch(/claude --version/);
+    expect(script).toMatch(/2\.1\.150/); // min version reference
+  });
+
+  it('returns null on empty findings (S2.t9 no-op on healthy)', () => {
+    expect(buildFixScript([], { homeDir: '/Users/x' })).toBeNull();
+    expect(buildFixScript(null, { homeDir: '/Users/x' })).toBeNull();
+    expect(buildFixScript(undefined, { homeDir: '/Users/x' })).toBeNull();
   });
 });
 
@@ -138,5 +152,56 @@ describe('writeDoctorScript (atomic write)', () => {
     const { readdir } = await import('node:fs/promises');
     const entries = await readdir(tempDir);
     expect(entries).toEqual(['sig-doctor.sh']);
+  });
+});
+
+// ---- S2.t12 meta-test: no literal ~/.claude/ in any generated script body ----
+// Single dedicated test exercising D-E8-10 against BOTH script variants. If a
+// future contributor templates a literal '~' instead of resolved homeDir,
+// this fires loudly.
+
+describe('D-E8-10 meta-test: generated scripts contain no literal ~ paths', () => {
+  it('--fix script body has no literal ~/.claude/ anywhere', () => {
+    const variedFindings = [
+      { code: 'P2', evidence: ['/Users/x/.claude/plugins/cache/signal/sig/0.1.0'], recommendation: '--fix' },
+      { code: 'P3', evidence: ['sig@signal', 'signal@old'], recommendation: '--fix' },
+      { code: 'P4', evidence: ['cache:/Users/x/.claude/plugins/cache/signal/signal', 'settings:enabledPlugins.signal@signal'], recommendation: '--fix' },
+    ];
+    const script = buildFixScript(variedFindings, { homeDir: '/Users/x' });
+    expect(script).not.toMatch(/~\/\.claude/);
+    expect(script).not.toMatch(/\$HOME/);
+  });
+
+  it('--reinstall script body has no literal ~/.claude/ anywhere', () => {
+    const script = buildReinstallScript({ homeDir: '/Users/x' });
+    expect(script).not.toMatch(/~\/\.claude/);
+    expect(script).not.toMatch(/\$HOME/);
+  });
+});
+
+// ---- Marketplace casing clash (S2.t7 — abort hard before script-gen) ----
+
+describe('checkCacheCasingClash', () => {
+  it('throws DoctorDetectionError when cache root contains case-mismatched siblings', () => {
+    const fsImpl = {
+      existsSync: () => true,
+      readdirSync: () => ['signal', 'Signal'], // both casings present
+    };
+    expect(() => checkCacheCasingClash({ homeDir: '/Users/x', fsImpl })).toThrow(
+      DoctorDetectionError
+    );
+  });
+
+  it('does not throw when only one casing present', () => {
+    const fsImpl = {
+      existsSync: () => true,
+      readdirSync: () => ['signal', 'someotherplugin'],
+    };
+    expect(() => checkCacheCasingClash({ homeDir: '/Users/x', fsImpl })).not.toThrow();
+  });
+
+  it('does not throw when cache root is absent (no install)', () => {
+    const fsImpl = { existsSync: () => false, readdirSync: () => [] };
+    expect(() => checkCacheCasingClash({ homeDir: '/Users/x', fsImpl })).not.toThrow();
   });
 });

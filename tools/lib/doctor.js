@@ -358,6 +358,12 @@ const BASH_HEADER = (mode) =>
     '  exit 1',
     'fi',
     '',
+    '# Surface Claude Code version so a too-old runtime is visible before any',
+    "# 'claude plugin' subcommand fails (need 2.1.150+ per docs/install-troubleshooting.md).",
+    'echo "Detected Claude Code: $(claude --version 2>&1 | head -1)"',
+    'echo "(This script needs 2.1.150+ for \'claude plugin\' subcommands.)"',
+    'echo ""',
+    '',
   ].join('\n');
 
 const BASH_FOOTER = [
@@ -411,6 +417,9 @@ function settingsPath(homeDir) {
  * @returns {string} bash script body
  */
 export function buildFixScript(findings, { homeDir }) {
+  // No-op on healthy installs — caller skips writing the script entirely.
+  if (!findings || findings.length === 0) return null;
+
   const steps = [];
   for (const f of findings) {
     switch (f.code) {
@@ -518,4 +527,34 @@ export function buildReinstallScript({ homeDir }) {
  */
 export async function writeDoctorScript(scriptPath, content) {
   await atomicWrite(scriptPath, content);
+}
+
+/**
+ * Abort script generation if the marketplace cache contains case-mismatched
+ * sibling directories (e.g., both `signal/` and `Signal/`). On case-sensitive
+ * filesystems this is ambiguous — we can't safely target either without risk
+ * of hitting the wrong one. On the default case-insensitive macOS APFS volume
+ * this can't happen, but external volumes + WSL bind-mounts can produce it.
+ *
+ * @param {{homeDir:string, fsImpl?:object}} opts
+ * @throws {DoctorDetectionError} on case clash
+ */
+export function checkCacheCasingClash({ homeDir, fsImpl = DEFAULT_FS_IMPL }) {
+  const cacheRoot = join(homeDir, '.claude', 'plugins', 'cache');
+  if (!fsImpl.existsSync(cacheRoot)) return;
+
+  const entries = fsImpl.readdirSync(cacheRoot) || [];
+  const seenByLower = new Map();
+  for (const entry of entries) {
+    const lower = entry.toLowerCase();
+    const prior = seenByLower.get(lower);
+    if (prior && prior !== entry) {
+      throw new DoctorDetectionError(
+        `Cache contains case-mismatched marketplace siblings: '${prior}' and '${entry}'. ` +
+          `Cannot safely target either from the generated script. ` +
+          `Resolve manually (rm or rename one) before re-running /sig:doctor.`
+      );
+    }
+    seenByLower.set(lower, entry);
+  }
 }
