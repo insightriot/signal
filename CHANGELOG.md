@@ -6,7 +6,74 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [0.1.3] — Unreleased — M4.5.E7 + M4.5.E3 + M4.5.E9 (synthesizer prose-quality + install-UX hardening + public-docs rewrite + retro foundations)
+## [0.1.3] — Unreleased — M4.5.E7 + M4.5.E3 + M4.5.E9 + M4.5.E8 (synthesizer prose-quality + install-UX hardening + public-docs rewrite + retro foundations + install-state diagnostician)
+
+### Added — `/sig:doctor` install-state diagnostician (M4.5.E8)
+
+- New slash command `/sig:doctor` (15th in the suite — commands/doctor.md). Meta-command class; no tier-gating preamble, no skill loading, no agent spawning.
+- macOS-only first ship (D-E8-2). Linux + WSL receive a polite stub via `checkDoctorEnvironment` with a positive-allowlist platform guard. Linux/WSL support is in flight for a follow-on Epic.
+- Detects 5 documented install-state failure modes against `~/.claude/plugins/installed_plugins.json`, `~/.claude/settings.json`, and `~/.claude/plugins/cache/signal/`:
+  - **P1** — stale `gitCommitSha` (cached `plugin.json` version ≠ manifest version)
+  - **P2** — orphan cache version directories under `signal/sig/`
+  - **P3** — `enabledPlugins["sig@signal"]` entry without matching install
+  - **P4** — pre-rename `signal@signal` slug present anywhere
+  - **P5** — multi-identity `~/.ssh/config` (informational only — does not change healthy status)
+- All detectors are Signal-scoped (D-E8-11) — non-Signal plugin entries with state that *would* match are explicitly ignored. Detection cannot propose destructive actions against other plugins.
+- Three flag modes:
+  - **No flags** — read-only detection. Exit 0 (healthy) / 1 (P-states detected) / 2 (doctor errored — install state unknown) per D-E8-12.
+  - **`--fix`** — generates a *surgical* shell script at `~/.claude/sig-doctor.sh` containing remediation steps only for detected P-states. Does NOT execute. User reviews, runs `bash ~/.claude/sig-doctor.sh`, then re-invokes `/sig:doctor` to verify.
+  - **`--reinstall`** — generates the *full canonical clean reinstall* script regardless of starting state. Same body whether install is healthy or broken; per-step `[y/N]` prompts at execution time are the safeguard.
+- Generated script discipline (D-E8-8):
+  - Shebang `#!/usr/bin/env bash` (picks up Homebrew bash 5 over macOS's 3.2)
+  - `set -u -o pipefail` — deliberately omits `-e` so declined `[y/N]` branches don't abort the script
+  - Every mutating step wrapped in `read -p "Execute: ... [y/N]"` with `[done]` / `[skipped]` markers
+  - Resolved absolute paths only — no literal `~/.claude` (D-E8-10; meta-test asserts this)
+  - Preamble probes `claude --version` and surfaces the 2.1.150 minimum requirement
+  - Inline `node -e` for JSON edits (no `jq` dependency; well-formedness asserted at script-gen time)
+- `checkCacheCasingClash` — aborts hard with `DoctorDetectionError → exit 2` when the marketplace cache contains case-mismatched siblings (e.g. `signal/` + `Signal/`). Prevents the generated script from `rm -rf`-ing the wrong directory on case-sensitive filesystems.
+
+### Added — `/sig:status` version-check (M4.5.E8.S3, FR6)
+
+- `readStalenessWarning` in `tools/lib/status.js` — composes install state, detector results, and a 24h-cached `/repos/InsightRiot/signal/tags` query into a one-line banner prepended to `/sig:status` output.
+- `commands/status.md` § 2.0 — Version staleness check (prepended) wires the helper.
+- D-E8-7 — uses GitHub `/tags` endpoint (NOT `/releases/latest`, which 404s for Signal). Field is `name`; leading `v` stripped for compare. Hand-rolled 3-part numeric `compareVersions` (no `semver` runtime dep).
+- 24h on-disk cache at `~/.claude/.sig-version-cache.json` (OQ5 lock). Cache shape: `{ fetched_at: ISO8601, data: { name: "v0.1.2" } }`. Atomic write via `tools/lib/atomic-write.js`. Invalid (parse-fail / shape-fail) treated as miss.
+- Native `fetch` + `AbortSignal.timeout(5000)`. No new runtime dependencies. All failure modes (offline / 404 / empty / malformed / timeout) collapse to null — `/sig:status` prints normally without the staleness banner when the API is unreachable.
+- FR6 matrix in `computeStalenessRecommendation`:
+  - stale + no P-states → `Run /plugin install sig@signal`
+  - stale + P-states → `Run /sig:doctor --reinstall`
+  - current + P-states → `Run /sig:doctor --fix`
+  - current + no P-states → silent (no banner)
+  - latest unknown → silent
+
+### Changed — `docs/install-troubleshooting.md` ownership reframe (M4.5.E8.S3.t11, FR8)
+
+- Opens with explicit ownership statement — most documented failure modes are Claude Code plugin-host bugs, not Signal bugs.
+- "Ownership at a glance" table maps each P-state to its owner (Claude Code plugin host / Signal historical / Environmental) and links the upstream issue.
+- Each of 5 symptom sections now leads with a `**Owner:** ...` tag + a quickest-fix lead-in pointing at `/sig:doctor` flags. Manual fallback sequences retained for environments where `/sig:doctor` isn't available (older Claude Code, Linux, WSL).
+
+### Filed — upstream issues (M4.5.E8.S1.t13–t14, D-E8-9)
+
+- Cross-link in `docs/install-troubleshooting.md`:
+  - **P1**: [anthropics/claude-code#56740](https://github.com/anthropics/claude-code/issues/56740) (open since 2026-05-06)
+  - **P2**: [anthropics/claude-code#62497](https://github.com/anthropics/claude-code/issues/62497) (open since 2026-05-26)
+- New issue filed:
+  - **P3**: [anthropics/claude-code#63624](https://github.com/anthropics/claude-code/issues/63624) (filed 2026-05-29, Signal-originated)
+
+### Test suite: 535 → 608+ (+73+, M4.5.E8)
+
+- `tests/doctor.test.js` (+26) — 5 detector unit tests with Signal-scoped narrowing, `runAllDetectors` aggregate, 6 fixture-tree integration scenarios (healthy + 5 P-states + combined), `readInstallState` IO orchestrator, `checkDoctorEnvironment` positive-allowlist.
+- `tests/doctor-script-gen.test.js` (+19) — script-content lint, inline `node -e` well-formedness, casing-clash abort, version probe, no-op-on-healthy, no-literal-`~/.claude` meta-test.
+- `tests/status-version-check.test.js` (+28) — `fetchLatestTag` failure modes, cache helpers + TTL boundary, `compareVersions` table, FR6 matrix, `readStalenessWarning` orchestrator, install-troubleshooting reframe lint.
+
+### Decisions — `.planning/DECISIONS.md` (M4.5.E8)
+
+- **D-E8-1** through **D-E8-6** locked at DISCUSS (2026-05-24) — execution model, macOS-only first ship, interactive prompts, GitHub releases API + cache, `--fix`/`--reinstall` flag naming, NFRs N/A.
+- **D-E8-7** through **D-E8-12** locked at PLAN (2026-05-28) — `/tags` endpoint, bash shebang + strictness, upstream-filing timing, `homeDir` parameter injection, Signal-scoped detector filtering, 3-level exit code.
+
+### Deferred — `.planning/FUTURE-IDEAS.md`
+
+- "`/sig:doctor` helper-script split" — PLAN locked an 80-char threshold for inline `node -e` payloads; S2 kept them inline (~200 chars) with a well-formedness gate. Revisit if audit complaints surface, or if a future P-state requires JSON edits more complex than "delete a key."
 
 ### Added — Retro Foundations (M4.5.E9)
 
