@@ -75,6 +75,17 @@ Both succeed. Continue to Step 2.
 
 Emit the following six fields in this order, as a markdown report. Aim for ≤30 lines of output.
 
+#### 2.0 Version staleness check (prepended)
+
+Before rendering 2.1, call `readStalenessWarning({ homeDir: os.homedir() })` from `tools/lib/status.js`. If it returns a string, prepend that line to the briefing (single line, no extra blank line above). If it returns null, skip silently. This is the FR6 surface added in M4.5.E8.S3 — version-check is **advisory only** and MUST NOT break `/sig:status` if the GitHub API is unreachable (try/catch is inside `readStalenessWarning`; callers don't need to wrap).
+
+```
+{stalenessWarning if non-null}
+
+Project: {cwd}
+...
+```
+
 #### 2.1 Project + tier
 
 Project root path (use the working directory). Tier from `profile.tier`. If `profile.metadata.escalation_history` is non-empty, append `formatEscalationSummary(profile.metadata.escalation_history)` to the tier line. Calibration date from the `YYYY-MM-DD` portion of `profile.metadata.created_at`.

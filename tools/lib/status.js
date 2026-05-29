@@ -1,8 +1,14 @@
 import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PHASES } from './state.js';
 import { extractSection } from './landscape.js';
+import {
+  readInstallState,
+  runAllDetectors,
+  fetchLatestVersionCached,
+  computeStalenessRecommendation,
+} from './doctor.js';
 
 // Map: phase name -> the command that runs THAT phase.
 // (Used after walking forward to the next non-skipped phase.)
@@ -155,4 +161,74 @@ export async function readLandscapeMeta(baseDir) {
   const lastUpdatedSection = extractSection(content, 'Last Updated');
   const dateMatch = lastUpdatedSection && lastUpdatedSection.match(/(\d{4}-\d{2}-\d{2})/);
   return { capturedOn: dateMatch ? dateMatch[1] : null };
+}
+
+/**
+ * Compose the staleness banner for `/sig:status` (M4.5.E8.S3 FR6).
+ *
+ * Reads install state, runs detectors, fetches the latest tag from GitHub
+ * (24h cache), and renders a one-line warning per the FR6 matrix. Returns
+ * `null` to skip the banner entirely (e.g., no Signal install, healthy +
+ * current version, or API unreachable).
+ *
+ * Wraps every code path in try/catch — the version check is advisory; a
+ * failure here MUST NOT break `/sig:status`.
+ *
+ * @param {{homeDir?:string, fetchFn?:Function, fsImpl?:object, now?:()=>number}} opts
+ * @returns {Promise<string|null>}
+ */
+export async function readStalenessWarning(opts = {}) {
+  try {
+    const { homeDir } = opts;
+    if (!homeDir) return null;
+
+    const state = readInstallState({ homeDir, fsImpl: opts.fsImpl });
+    const entry = state.manifest?.plugins?.['sig@signal']?.[0];
+    if (!entry || !entry.installPath) return null; // no Signal install
+
+    // Read the installed version from cache plugin.json.
+    let installedVersion;
+    try {
+      const pluginJsonPath = join(entry.installPath, '.claude-plugin', 'plugin.json');
+      const fsRead = opts.fsImpl?.readFileSync || readFileSync;
+      installedVersion = JSON.parse(fsRead(pluginJsonPath, 'utf8')).version;
+    } catch {
+      return null; // unreadable plugin.json — can't compute staleness
+    }
+
+    const findings = runAllDetectors(state);
+    const latest = await fetchLatestVersionCached({
+      homeDir,
+      fetchFn: opts.fetchFn,
+      now: opts.now,
+    });
+
+    const recommendation = computeStalenessRecommendation({
+      installed: installedVersion,
+      latest,
+      pStatesDetected: !findings.healthy,
+    });
+    if (!recommendation) return null;
+
+    return formatStalenessWarning({
+      installed: installedVersion,
+      latest,
+      recommendation,
+    });
+  } catch {
+    // Advisory only — never break /sig:status.
+    return null;
+  }
+}
+
+/**
+ * Render the staleness banner as a one-line string. Pure function;
+ * separated so callers can compose differently if needed.
+ *
+ * @param {{installed:string, latest:string|null, recommendation:string}} opts
+ * @returns {string}
+ */
+export function formatStalenessWarning({ installed, latest, recommendation }) {
+  const latestText = latest ? ` Latest tag: ${latest}.` : '';
+  return `[!] Signal v${installed} installed.${latestText} ${recommendation}`;
 }

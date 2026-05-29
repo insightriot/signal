@@ -18,6 +18,8 @@ import {
   computeStalenessRecommendation,
 } from '../tools/lib/doctor.js';
 
+import { readStalenessWarning, formatStalenessWarning } from '../tools/lib/status.js';
+
 // ---- fetchLatestTag ----
 
 describe('fetchLatestTag (D-E8-7 — /tags endpoint, name field, strip leading v)', () => {
@@ -186,5 +188,81 @@ describe('computeStalenessRecommendation (FR6 4-row matrix)', () => {
   it('latest unknown (API failed / no tags) → null (silent skip)', () => {
     const r = computeStalenessRecommendation({ installed: '0.1.3', latest: null, pStatesDetected: false });
     expect(r).toBeNull();
+  });
+});
+
+// ---- readStalenessWarning orchestrator (S3.t9) ----
+
+describe('readStalenessWarning (advisory; never throws)', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'sig-stale-warn-'));
+    await mkdir(join(tempDir, '.claude', 'plugins'), { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  async function seedHealthyInstall(version) {
+    const versionDir = join(tempDir, '.claude', 'plugins', 'cache', 'signal', 'sig', version);
+    await mkdir(join(versionDir, '.claude-plugin'), { recursive: true });
+    await writeFile(
+      join(versionDir, '.claude-plugin', 'plugin.json'),
+      JSON.stringify({ name: 'sig', version })
+    );
+    await writeFile(
+      join(tempDir, '.claude', 'plugins', 'installed_plugins.json'),
+      JSON.stringify({
+        version: 2,
+        plugins: {
+          'sig@signal': [{
+            scope: 'user',
+            installPath: versionDir,
+            version,
+            gitCommitSha: 'abc',
+          }],
+        },
+      })
+    );
+    await writeFile(
+      join(tempDir, '.claude', 'settings.json'),
+      JSON.stringify({ enabledPlugins: { 'sig@signal': true } })
+    );
+  }
+
+  it('returns null when no Signal install present', async () => {
+    // tempDir has no installed_plugins.json at all
+    const result = await readStalenessWarning({ homeDir: tempDir });
+    expect(result).toBeNull();
+  });
+
+  it('returns null on healthy install at current version (no warning shown)', async () => {
+    await seedHealthyInstall('0.1.2');
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [{ name: 'v0.1.2' }],
+    });
+    const result = await readStalenessWarning({ homeDir: tempDir, fetchFn });
+    expect(result).toBeNull();
+  });
+
+  it('returns a banner when installed version is older than latest tag', async () => {
+    await seedHealthyInstall('0.1.1');
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [{ name: 'v0.1.2' }],
+    });
+    const result = await readStalenessWarning({ homeDir: tempDir, fetchFn });
+    expect(result).toMatch(/Signal v0\.1\.1 installed/);
+    expect(result).toMatch(/v0\.1\.2/); // latest mentioned
+    expect(result).toMatch(/plugin install/); // stale + no P-states → /plugin install
+  });
+
+  it('returns null (does not throw) when the API throws unexpectedly', async () => {
+    await seedHealthyInstall('0.1.2');
+    const fetchFn = vi.fn().mockRejectedValue(new Error('boom'));
+    const result = await readStalenessWarning({ homeDir: tempDir, fetchFn });
+    // current installed but latest unknown → null (silent skip)
+    expect(result).toBeNull();
   });
 });
