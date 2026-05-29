@@ -1461,3 +1461,20 @@ Captured here rather than lost-to-context, because the scoping conversation prod
 - **Initial framing as "feature" was wrong altitude.** User opened with "new feature, new functionality, maybe ongoing runtime." The scoping conversation revealed this is milestone-altitude work touching all 14 commands + 26 agents. *Action:* resist the urge to scope as a single Epic during DISCUSS. If user pressure is to scope smaller, the right move is workstream #1+#2 as M4.5 close-out, workstreams #3+#4 as M5 — not "shrink the whole thing to fit."
 - **Observation-without-action pattern surfaced.** Assistant closed the prior response with a hanging observation about losing this conversation's learnings; user corrected. *Action:* working norm saved to memory. Future responses pair every observation with an action, recommendation, or explicit awareness-only flag. This log section is the action paired with that observation.
 - **Capture-in-the-moment proved itself.** The fact that this log exists at all — written before context clears, while the threads are still fresh — is the workstream #1 thesis demonstrated in miniature. *Action:* cite this log as the dogfood-zero artifact when workstream #1's retro template is drafted. The template should produce content shaped like this section.
+
+---
+
+## `/sig:doctor` helper-script split (M4.5.E8 S2 deviation; logged 2026-05-29)
+
+**Context.** PLAN-phase RESEARCH § 10 + PLAN.md S2.t4/t5 locked an 80-char threshold for generated-script `node -e` payloads — anything longer was to be promoted to a companion `~/.claude/sig-doctor-helper.js`. S2.t2/t3/t6 (buildFixScript / buildReinstallScript / writeDoctorScript) implemented inline `node -e` for JSON edits; those payloads run ~200 characters. PLAN-rule violated.
+
+**Why kept inline anyway.** Two emitted files (`sig-doctor.sh` + `sig-doctor-helper.js`) doubles the user's audit surface — they have to review both before approving any `[y/N]` step. One self-contained bash script reads as a flat sequence of independently-auditable actions. The 80-char threshold was an aesthetic readability proxy; the actual correctness gate is "is the embedded JS well-formed?" That's now enforced by `tests/doctor-script-gen.test.js` § "inline node -e commands are well-formed JavaScript" — every payload is parsed by `new Function()` to catch syntax errors at script-gen time, not at user-run time.
+
+**When to revisit.**
+- A user reports the inline payloads are hard to audit before running.
+- A future P-state requires JSON mutations more complex than "delete a key" (e.g., merging nested objects). At that complexity, the helper-script approach becomes net-positive.
+- M4.5.E2 cold-path captures a real friction event from running a generated script.
+
+**Implementation note for future-Self.** `buildFixScript` and `buildReinstallScript` are pure functions returning strings today. The helper-script split would change the return shape to `{ script: string, helper: string }` and `writeDoctorScript` would need to know to write both. Public API change; tests would update. Plan ahead of any deeper P-state additions if the threshold revisits.
+
+**Reference.** `M4.5.E8-PLAN.md` § S2.t4/t5; `M4.5.E8-RESEARCH.md` § 10; commits `4f0105a` (inline GREEN) + `1445a39` (well-formedness gate + deviation acknowledgment).
