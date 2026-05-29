@@ -84,6 +84,34 @@ describe('buildReinstallScript (always-full canonical sequence)', () => {
   });
 });
 
+// ---- Inline node -e correctness (S2.t4 — PLAN deviation review point) ----
+
+describe('inline node -e commands are well-formed JavaScript', () => {
+  it('every node -e payload in --fix scripts parses as valid JS', () => {
+    const script = buildFixScript(
+      [
+        { code: 'P3', evidence: ['sig@signal', 'signal@old'], recommendation: '--fix' },
+      ],
+      { homeDir: '/Users/x' }
+    );
+    const payloads = [...script.matchAll(/node -e "([^"]*)"/g)].map((m) => m[1]);
+    expect(payloads.length).toBeGreaterThan(0);
+    for (const code of payloads) {
+      // new Function throws on syntax errors; parses fine on valid JS.
+      expect(() => new Function(code)).not.toThrow();
+    }
+  });
+
+  it('the --reinstall combined-key node -e payload parses', () => {
+    const script = buildReinstallScript({ homeDir: '/Users/x' });
+    const payloads = [...script.matchAll(/node -e "([^"]*)"/g)].map((m) => m[1]);
+    expect(payloads.length).toBeGreaterThan(0);
+    for (const code of payloads) {
+      expect(() => new Function(code)).not.toThrow();
+    }
+  });
+});
+
 // ---- writeDoctorScript — atomic write delegate ----
 
 describe('writeDoctorScript (atomic write)', () => {
