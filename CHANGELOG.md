@@ -6,7 +6,18 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [0.1.3] — Unreleased — M4.5.E7 + M4.5.E3 + M4.5.E9 + M4.5.E8 (synthesizer prose-quality + install-UX hardening + public-docs rewrite + retro foundations + install-state diagnostician)
+## [0.1.3] — Unreleased — M4.5.E7 + M4.5.E3 + M4.5.E9 + M4.5.E8 + M4.5.E2 (synthesizer prose-quality + install-UX hardening + public-docs rewrite + retro foundations + install-state diagnostician + `/sig:add` force-route flags)
+
+### Added — `/sig:add` force-route flags (M4.5.E2 Slice 2)
+
+- **Explicit routing flags** for `/sig:add`, on a generalized capture spine that reuses Slice 1's sensitive-data scrub + body-length check + lock + atomic write for every destination:
+  - **`--question "…"`** → appends to `.planning/OPEN-QUESTIONS.md` in the file's Status/Resolve-by shape, at end-of-file (no footer to rewrite).
+  - **`--milestone [N] "…"`** → appends to a `## Captured via /sig:add` holding section in a milestone file, created if absent and reused on later captures. `--milestone` (no `N`) targets the current milestone resolved from STATE.md `current_epic`; `--milestone 5` targets `MILESTONE-5.md`. It never edits the structured plan body, and never scaffolds a missing milestone file — both no-current-milestone and missing-`MILESTONE-N.md` cases fail clearly with no write.
+  - **Multi-destination guard** — supplying two destination flags in one call exits non-zero with a clear message *before* any lock acquisition or write.
+- Default capture (no flag) still lands in `.planning/FUTURE-IDEAS.md`. Routing is flags-only — there is no heuristic that re-routes based on input.
+- New helper `tools/lib/milestones.js` — `currentMilestone` (derives the target milestone from STATE.md `current_epic`; no file-scan heuristics) + `listMilestones` (decimal-aware, so `4.5` sorts between `4` and `5`).
+- `commands/add.md` Step 2 + error table + intro document `--question` / `--milestone [N]`; README command reference + first-project note updated. No new runtime dependencies.
+- *(Naked-invocation interview and the `/sig:plan` FUTURE-IDEAS drain land in M4.5.E2 Slices 3 and 5.)*
 
 ### Added — `/sig:doctor` install-state diagnostician (M4.5.E8)
 

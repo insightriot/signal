@@ -128,7 +128,7 @@ Mid-flight scope grew? `/sig:escalate` re-runs calibration, promotes tier, and p
 
 Want a status check without running anything? `/sig:status` (read-only inspection) and `/sig:resume` (re-orientation briefing for a fresh session).
 
-Got a new idea mid-flow? `/sig:add "your idea here"` captures it to `.planning/FUTURE-IDEAS.md` without breaking your current phase. Not tier-gated; available anywhere `.planning/` exists. Planning phases pick up captured entries on the next `/sig:plan` run.
+Got a new idea mid-flow? `/sig:add "your idea here"` captures it to `.planning/FUTURE-IDEAS.md` without breaking your current phase. Know where it belongs? Route it explicitly: `--question "…"` files to `.planning/OPEN-QUESTIONS.md`, and `--milestone [N] "…"` files to a holding section in a milestone file. Not tier-gated; available anywhere `.planning/` exists. Planning phases pick up captured entries on the next `/sig:plan` run.
 
 ### State hygiene — `/sig:checkpoint`
 
@@ -196,7 +196,7 @@ Any future telemetry would require a major-version bump, an explicit opt-in flag
 - **`/sig:ship`** — SHIP phase. Pre-ship checklist, git history hygiene, PR creation. Output: `{phase}-SHIP.md`. (Skipped for SPIKE.)
 - **`/sig:status`** — read-only inspection of the current project: tier, current phase, completed phases, blockers, open questions, recommended next action.
 - **`/sig:resume`** — re-orientation briefing for a fresh session. Reads `PROJECT.md`, `PROFILE.md`, `STATE.md`, and the current phase's artifact, prints a concise summary, ends with "Ready to continue with `/sig:{phase}`?"
-- **`/sig:add`** — capture a new idea or work item to `.planning/FUTURE-IDEAS.md` without breaking the current phase. Verbatim capture (no rewrites), atomic write, sensitive-data scrub, lock-protected. Not tier-gated. Slice 1 (hot path) only in v0.1.1; cold-path interview + multi-destination routing land in subsequent slices.
+- **`/sig:add`** — capture a new idea or work item without breaking the current phase. Verbatim capture (no rewrites), atomic write, sensitive-data scrub, lock-protected. Not tier-gated. Capture defaults to `.planning/FUTURE-IDEAS.md`; `--question "…"` routes to `.planning/OPEN-QUESTIONS.md`, and `--milestone [N] "…"` routes to a `## Captured via /sig:add` holding section in a milestone file (current milestone when `N` is omitted, else `MILESTONE-N.md`). Routing is flags-only — with no flag, capture always lands in FUTURE-IDEAS.
 - **`/sig:checkpoint`** — manual state refresh. Default (quick) mode diffs git log against `STATE.md` and refreshes. `--context` mode additionally prompts for decisions + open questions (D16 dual-write to `CONTEXT.md` + `DECISIONS.md` + `OPEN-QUESTIONS.md`). Use before a planned context clear so the next session's `/sig:resume` is genuinely useful.
 - **`/sig:doctor`** — Claude Code plugin install-state diagnostician (macOS only first ship). Detects 5 documented failure modes — stale `gitCommitSha`, orphan cache, disabled-state-survives-reinstall, pre-rename `signal@signal` slug, SSH multi-identity. `--fix` generates a surgical remediation shell script; `--reinstall` generates the full canonical clean reinstall. Exits 0 healthy / 1 P-states / 2 doctor errored.
 
