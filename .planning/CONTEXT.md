@@ -57,7 +57,13 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 **MILESTONE 4.5 underway** — Release Hardening / Stranger-Adoption Readiness; 6 original Epics + E7 = 7 total. Status: **E1.S1 + E1.S2 Phase A + E2.S1 + E6 full + E7 full + E3 full = 6 ship-events** done; E1.S3–S5 (⏸ shelved) + E2.S2–S5 + E4 + E5 + E8 pending.
 
-**Active Epic: none.** M4.5.E9 SHIPPED 2026-05-26 — DISCUSS → PLAN → EXECUTE → VERIFY → REVIEW → SHIP all closed; 24 atomic commits + pushes. CHANGELOG `[0.1.3]` left Unreleased (now bundles M4.5.E7 + M4.5.E3 + M4.5.E9; future Epics will add their own blocks until a tagged release event).
+**Active Epic: M4.5.E2 (`/sig:add` Slices 2–5) — DISCUSS + PLAN complete 2026-05-30; awaiting plan approval → EXECUTE.** M4.5.E8 (`/sig:doctor`) SHIPPED 2026-05-30 (commit `fce5ab7`); M4.5.E9 shipped 2026-05-26. E2 re-entered DISCUSS 2026-05-30 (9 decisions in `M4.5.E2-REQUIREMENTS.md` + DECISIONS 2026-05-30) then PLAN (2026-05-30 addenda in `M4.5.E2-{RESEARCH,PLAN,VALIDATION}.md`; 8-dim PASS, Nyquist PASS; Node 22.13.0 / 608 tests green baseline).
+
+**⚠ Two flagged deviations to review BEFORE approving EXECUTE** (both in `M4.5.E2-VALIDATION.md` § 2026-05-30 + the 2026-05-30 DECISIONS entry):
+- **Q1** — no destination-confirm at any `gate_strictness`; `gate_strictness` instead modulates the one-time first-run onboarding note (narrows AC-FR6.3).
+- **Q2** — the `/sig:plan` drain surfaces ALL un-dispositioned FUTURE-IDEAS entries (no date window); supersedes FR7.1's "in-window" placeholder.
+
+**Next concrete action: review the plan (esp. Q1/Q2), then `/sig:execute` to start S2.t1** (generalize the capture spine → `captureToDestination`). 4 slices S2–S5, ~16 tasks, linear. CHANGELOG `[0.1.3]` stays Unreleased.
 
 **E3 outcome summary:**
 - 11 task/artifact commits: `f7ef937` (S1.t1 RED) → `527ce73` (S2.t7 SHIP) plus PROGRESS (`270634b`), VERIFICATION (`00afd71`), REVIEW fix (`4edc0a1`), REVIEW report (`40065f1`).
@@ -75,11 +81,11 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 1. Promote D-E3-* decisions from `M4.5.E3-REQUIREMENTS.md` to `DECISIONS.md` per past Epic pattern (M4.5.E6 did this).
 2. STATE.md frontmatter auto-update protocol gap — `last_updated_commit` lags HEAD by one commit after every phase-transition commit. Tracked in FUTURE-IDEAS entry "STATE.md auto-update protocol — extend beyond EXECUTE waves" (logged 2026-05-24).
 
-**Next:** pick the next Epic from the queue below. `/sig:resume` will re-orient against current state and propose `/sig:discuss` (for fresh Epics) or `/sig:plan` (for E8 which already has DISCUSS complete).
+**Next:** M4.5.E2 is the active Epic (DISCUSS + PLAN complete 2026-05-30). Resume → review the plan + Q1/Q2 deviations → `/sig:execute` (S2.t1). After E2 closes, pick the next Epic from the queue below; `/sig:resume` re-orients against current state.
 
 **Remaining M4.5 in recommended order:**
 
-1. **M4.5.E8** — `/sig:doctor` install-state diagnostician + ownership reframe (scoped + DISCUSS'd 2026-05-24, commits `ddc89fc` + `09d0be4`). 3 slices: S1 diagnose-only, S2 mutating flags, S3 status version-check + troubleshooting reframe. Sequenced before E5 launch. **Next concrete action: `/sig:plan`** (DISCUSS already done).
+1. **M4.5.E2 (ACTIVE)** — `/sig:add` Slices 2–5: force-route flags + naked interview + stranger-safety hardening + `/sig:plan` FUTURE-IDEAS drain. DISCUSS + PLAN complete 2026-05-30. **Next: approve plan → `/sig:execute` (S2.t1).** (M4.5.E8 `/sig:doctor` — SHIPPED 2026-05-30, no longer pending.)
 2. **M4.5.E2 Slices 2–5** — `/sig:add` force-route flags + cold-path interview + hardening + `/sig:plan` close-the-loop. Note S5 now also carries the FUTURE-IDEAS drain protocol (DECISIONS.md 2026-05-24 Option A lock).
 3. **M4.5.E4** — worked example + comparison page (`docs/vs.md`).
 4. **M4.5.E5** — external validation + launch (owns the demo asset deferred from E3). **Scope re-evaluation pending** — if launch pivots toward "quiet peer-only release," E5 shrinks too.
