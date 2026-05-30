@@ -1,20 +1,15 @@
 ---
 schema_version: 1
-phase: SHIP
-current_epic: null
+phase: PLAN
+current_epic: M4.5.E2
 current_wave: null
 current_tasks: []
 completed_phases:
-  - DISCUSS (2026-05-24)
-  - PLAN (2026-05-28)
-  - EXECUTE (2026-05-30)
-  - VERIFY (2026-05-30)
-  - REVIEW (2026-05-30)
-  - SHIP (2026-05-30)
+  - DISCUSS (2026-05-30)
 blockers: []
-last_completed_task: M4.5.E8.S3.t14
+last_completed_task: M4.5.E8.S3.t15
 last_decision_at: 2026-05-30T00:00:00.000Z
-last_updated_commit: e6730c9
+last_updated_commit: fce5ab7
 last_updated: 2026-05-30T00:00:00.000Z
 ---
 <!-- Original STATE.md content preserved verbatim from pre-schema_v1 migration on 2026-05-18. The YAML frontmatter above is the authoritative machine-readable state; everything below is human-readable history. -->

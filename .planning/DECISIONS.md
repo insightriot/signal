@@ -1183,4 +1183,26 @@ REQUIREMENTS FR2 originally locked binary 0/1; PLAN expands to 3-level so CI con
 
 **Impact on EXECUTE.** All 12 E8 decisions (D-E8-1 through D-E8-12) are pre-locked. No decision deferrals carry into EXECUTE. The 3 conflicts with REQUIREMENTS surfaced during PLAN are reconciled by the new decisions (D-E8-7 reconciles FR6 endpoint conflict; D-E8-9 reconciles FR9 timing conflict; the `installed_plugins.json` shape conflict requires no decision — detector signatures handle the array). EXECUTE proceeds against `M4.5.E8-PLAN.md` as written.
 
+---
+
+## 2026-05-30 — M4.5.E2 Slices 2–5 DISCUSS decisions locked (9)
+
+**Context.** `/sig:add` S1 (hardened hot path) shipped 2026-05-14; S2–S5 were planned the same day in `M4.5.E2-PLAN.md`. That plan predates two later locks: the 2026-05-24 FUTURE-IDEAS drain decision (Option A, above) and this DISCUSS's capture-friction call. DISCUSS re-entered 2026-05-30 after M4.5.E8 shipped and `/sig:resume` proposed E2 as the next Epic. Tier FULL, `gate_strictness: strict`. Full detail + acceptance criteria in `M4.5.E2-REQUIREMENTS.md`. (S1's own 25 locked decisions live in `M4.5.E2-RESEARCH.md` § 1, referenced there by number — not re-numbered here.)
+
+**The 9 decisions:**
+
+1. **Build all four slices (S2 + S3 + S4 + S5).** Finish `/sig:add` before the E5 launch. (Considered: drop S2 flags, or drain-only. Rejected — the self+peers audience means power-user flags earn their keep.)
+2. **Drain gate is ADVISORY, not blocking.** S5's `/sig:plan` step recommends a disposition per surfaced entry but lets the user skip and continue; skipped entries re-surface next run. Rules out a hard gate (even at FULL) that would tax every plan run.
+3. **Disposition vocabulary = promote / defer / merge / delete, recorded inline** on the entry's `**Status:**` line + explained in the commit. Inherits the 2026-05-24 Option A lock; **replaces** the 2026-05-14 plan's `[include / defer / cull]`.
+4. **Quoted capture is ALWAYS instant.** `/sig:add "text"` → FUTURE-IDEAS with zero routing prompts, even for text ending in `?` or starting `fix`/`bug`/`TODO`. Honors the "capture latency dies on confirmation" anti-rationalization. Rules out heuristic auto-reroute on the hot path.
+5. **S3 heuristic hints are CUT; S3 = naked-invocation interview only.** No-args `/sig:add` → one plain question → files to FUTURE-IDEAS; empty answer aborts cleanly. The `suggestDestination` heuristic + 3+other reroute prompts from the 2026-05-14 plan's Slice 3 are dropped (consequence of Decision 4).
+6. **Routing = explicit flags only (S2):** `--question` → OPEN-QUESTIONS; `--milestone [N]` → milestone file; `--file` → undocumented escape valve (refuses DECISIONS/STATE + paths outside `.planning/`); multi-flag → error before any write. (Unchanged from the 2026-05-14 plan.)
+7. **`--milestone` writes to a `## Captured via /sig:add` holding section**, never into the structured plan body. No-N uses STATE.md `current_epic`'s milestone (clear error if none); `--milestone N` requires the file to exist (no auto-scaffold; 5th destination stays deferred).
+8. **No per-slice version tags.** Supersedes the plan's "tag-per-slice." Each slice = atomic commit(s) + CHANGELOG `[0.1.3]` Unreleased entry, per the E7/E3/E9 convention; a release tag is a separate event at Epic/milestone close.
+9. **DISCUSS output → Epic-prefixed files + this DECISIONS entry**, not the shared `CONTEXT.md` (the fresh-session briefing). Matches E8/E9 precedent.
+
+**What this rules out (so PLAN doesn't re-litigate):** any LLM/heuristic input classification; a blocking drain; confirmation on the quoted hot path; numbered entry IDs; the 5th (scaffold) destination; per-slice tags.
+
+**Cross-references:** `M4.5.E2-REQUIREMENTS.md` (this DISCUSS's full spec, FR1–FR8 + ACs); `M4.5.E2-PLAN.md` Slices 2–5 (superseded where it disagrees); `FUTURE-IDEAS.md` § "FUTURE-IDEAS drain process"; DECISIONS 2026-05-24 (Option A); `M4.5.E3-REQUIREMENTS.md` § D-E3-11 (audience reframe).
+
 
