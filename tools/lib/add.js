@@ -24,6 +24,7 @@ import {
   acquireLock as fileAcquireLock,
   releaseLock as fileReleaseLock,
 } from './file-lock.js';
+import { currentMilestone } from './milestones.js';
 
 // Re-export atomicWrite so existing consumers (tests/add.test.js, future
 // callers) keep working while atomic-write.js is the canonical implementation
@@ -40,6 +41,11 @@ const LOCK_TTL_MS = 30_000;
 const LOCK_FILE = '.planning/.add.lock';
 const FUTURE_IDEAS = '.planning/FUTURE-IDEAS.md';
 const OPEN_QUESTIONS = '.planning/OPEN-QUESTIONS.md';
+
+// The h2 heading under which `--milestone` captures are appended. Captures
+// land ONLY here — never in the structured plan body — so /sig:add can never
+// mangle a hand-authored milestone plan (FR2 / R5).
+const MILESTONE_HOLDING_SECTION = 'Captured via /sig:add';
 
 // Sensitive-data detectors. The intent is detection, not prevention — the
 // caller decides whether to keep, abort, or scrub manually. Patterns are
@@ -341,6 +347,128 @@ export function insertAtEnd(content, entry) {
   return `${trimmed}\n\n${entry}\n`;
 }
 
+/**
+ * Render a milestone holding-section entry block. Unlike FUTURE-IDEAS /
+ * OPEN-QUESTIONS (whose entries are h2 sections), a milestone capture lives
+ * UNDER the `## Captured via /sig:add` holding section, so it uses an `###`
+ * (h3) heading. No `---` separator — entries stack under the one h2 section.
+ * Body is verbatim — no rewrite.
+ *
+ * @param {{body: string, date: string, triggerContext?: string}} opts
+ * @returns {string}
+ */
+export function buildMilestoneEntry({ body, date, triggerContext }) {
+  const heading = deriveHeading(body);
+  const trigger = triggerContext ? ` ${triggerContext.trim()}` : '';
+  const capturedLine = `**Captured:** ${date} via \`/sig:add\`.${trigger}`;
+  return [
+    `### ${heading}`,
+    '',
+    capturedLine,
+    '',
+    body,
+  ].join('\n');
+}
+
+// A trailing-footer line is a `*Created …*` or `*Last updated …*` italic line —
+// the convention some milestone files end with. Used to decide whether the
+// holding section (or a new entry within it) inserts ABOVE the footer or at EOF.
+const MILESTONE_FOOTER_RE = /^\*(?:Created|Last updated)\b.*\*\s*$/;
+
+/**
+ * Insert `entry` into a `## {sectionTitle}` holding section near the end of a
+ * milestone file, creating the section if it is absent. NEVER touches the
+ * structured plan body — only the holding section. Pre-existing content outside
+ * the inserted region stays BYTE-IDENTICAL (proved by prefix/suffix equality in
+ * tests), so a hand-authored milestone plan can never be mangled (FR2 / R5).
+ *
+ * Four cases (all tested):
+ *   (a) no section + no footer  → append the section (+entry) at EOF.
+ *   (b) no section + footer     → insert the section (+entry) ABOVE the footer.
+ *   (c) section exists          → append the entry to the END of that section
+ *       (before the next `## ` heading, before a trailing footer, or at EOF) —
+ *       2nd-and-later captures reuse the one section (FR2 AC).
+ *   (d) section exists, then other `## ` headings → append at the end of the
+ *       section's own content, i.e. just before the next `## ` heading.
+ *
+ * @param {string} content
+ * @param {string} entry — h3 entry block (no trailing separator)
+ * @param {{sectionTitle?: string}} [opts]
+ * @returns {string}
+ */
+export function insertIntoHoldingSection(
+  content,
+  entry,
+  { sectionTitle = MILESTONE_HOLDING_SECTION } = {}
+) {
+  const lines = content.split('\n');
+  const sectionHeading = `## ${sectionTitle}`;
+  const sectionIdx = lines.findIndex((l) => l.trim() === sectionHeading);
+
+  if (sectionIdx === -1) {
+    // --- Section absent → create it. ---
+    // Find a trailing footer line (last non-empty line is a *Created…*/
+    // *Last updated…* italic). If present, insert the section above it (b);
+    // otherwise append at EOF (a).
+    const footerIdx = findTrailingFooterIdx(lines);
+    const block = `## ${sectionTitle}\n\n${entry}`;
+    if (footerIdx === -1) {
+      // (a) No footer — append at end, ensuring one blank line above and a
+      // single trailing newline.
+      const trimmed = content.replace(/\s+$/, '');
+      return `${trimmed}\n\n${block}\n`;
+    }
+    // (b) Footer present — slot the section above it. Step back over the blank
+    // line(s) directly above the footer to find the insertion anchor.
+    let insertIdx = footerIdx;
+    while (insertIdx > 0 && lines[insertIdx - 1].trim() === '') {
+      insertIdx--;
+    }
+    const insertion = ['', ...block.split('\n'), ''];
+    return [
+      ...lines.slice(0, insertIdx),
+      ...insertion,
+      ...lines.slice(insertIdx),
+    ].join('\n');
+  }
+
+  // --- Section exists → append the entry to the END of the section (c/d). ---
+  // The section runs from just after its heading to the next `## ` heading, the
+  // trailing footer line, or EOF — whichever comes first.
+  let endIdx = lines.length; // exclusive end of the section's region
+  for (let i = sectionIdx + 1; i < lines.length; i++) {
+    if (/^## /.test(lines[i]) || MILESTONE_FOOTER_RE.test(lines[i])) {
+      endIdx = i;
+      break;
+    }
+  }
+  // Step back over trailing blank lines inside the section so the new entry
+  // sits directly below the section's last non-blank content line.
+  let insertIdx = endIdx;
+  while (insertIdx > sectionIdx + 1 && lines[insertIdx - 1].trim() === '') {
+    insertIdx--;
+  }
+  const insertion = ['', ...entry.split('\n'), ''];
+  const merged = [
+    ...lines.slice(0, insertIdx),
+    ...insertion,
+    ...lines.slice(insertIdx),
+  ].join('\n');
+  // Normalize to a single trailing newline (only collapses trailing
+  // whitespace at EOF — pre-existing interior content is untouched).
+  return merged.replace(/\s+$/, '') + '\n';
+}
+
+// Return the index of a trailing footer line (`*Created…*` / `*Last updated…*`)
+// when it is the LAST non-empty line of the file, else -1.
+function findTrailingFooterIdx(lines) {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (lines[i].trim() === '') continue;
+    return MILESTONE_FOOTER_RE.test(lines[i]) ? i : -1;
+  }
+  return -1;
+}
+
 // --- I/O primitives ---
 
 /**
@@ -546,6 +674,94 @@ export async function captureToOpenQuestions(baseDir, opts) {
     missingFileError:
       `Cannot capture: .planning/OPEN-QUESTIONS.md not found at ${join(baseDir, OPEN_QUESTIONS)}. ` +
       `Run \`/sig:init\` first if this is an existing codebase, or \`/sig:new-project\` for a fresh project.`,
+    body,
+    today,
+    triggerContext,
+    sensitivePrompt,
+    bodyLengthPrompt,
+  });
+}
+
+/**
+ * S2.t5 entry point: capture `body` into a milestone file's
+ * `## Captured via /sig:add` holding section (the `--milestone` destination).
+ * Delegates to the shared `captureToDestination` spine so scrub + body-length +
+ * lock + atomic-write all apply, exactly as for the other destinations
+ * (R5/R7).
+ *
+ * Target resolution (Decision 7 / FR2):
+ *   - `milestoneArg == null` → the current milestone, derived from STATE.md's
+ *     `current_epic` via `currentMilestone`. No current milestone → throw a
+ *     clear error, NO write (FR2.2).
+ *   - `milestoneArg` is a string N (e.g. "5", "4.5") → `MILESTONE-{N}.md`.
+ *
+ * The target milestone file MUST already exist — scaffolding a new milestone is
+ * out of scope (FR2.4). A missing file throws a tailored error and writes
+ * nothing. We check existence here (before delegating) so the error names the
+ * file and explains the scaffold-is-out-of-scope rule; the same message is also
+ * passed to the spine as `missingFileError` backstop.
+ *
+ * NEVER edits the structured plan body — only the holding section
+ * (`insertIntoHoldingSection`), find-or-create. Pre-existing content outside
+ * the inserted region stays byte-identical.
+ *
+ * @param {string} baseDir — project root (where .planning/ lives)
+ * @param {object} opts
+ * @param {string|null} opts.milestoneArg — null = current milestone; "5"/"4.5" = explicit N
+ * @param {string} opts.body — raw user input (verbatim, do not modify)
+ * @param {string} opts.today — ISO date YYYY-MM-DD (injected for testability)
+ * @param {string} [opts.triggerContext] — phase/milestone context if mid-flow
+ * @param {(hits: Array) => Promise<'keep'|'abort'>} opts.sensitivePrompt
+ * @param {(length: number) => Promise<'keep'|'abort'>} [opts.bodyLengthPrompt]
+ *
+ * @returns {Promise<{written: boolean, path?: string, line?: number, aborted?: string}>}
+ */
+export async function captureToMilestone(baseDir, opts) {
+  const {
+    milestoneArg,
+    body,
+    today,
+    triggerContext,
+    sensitivePrompt,
+    bodyLengthPrompt,
+  } = opts;
+
+  // Resolve the target milestone filename.
+  let fname;
+  if (milestoneArg == null) {
+    fname = await currentMilestone(baseDir);
+    if (!fname) {
+      throw new Error(
+        'Cannot capture to the current milestone: no current milestone is set ' +
+          "in STATE.md (`current_epic` is absent or doesn't parse). Pass an " +
+          'explicit `--milestone N` (e.g. `--milestone 5`), or check ' +
+          '`/sig:status` for the current epic.'
+      );
+    }
+  } else {
+    fname = `MILESTONE-${milestoneArg}.md`;
+  }
+
+  const relPath = `.planning/${fname}`;
+  const targetPath = join(baseDir, relPath);
+
+  // Existence check BEFORE delegating — scaffolding a new milestone is out of
+  // scope (FR2.4). Tailored message names the file and the rule.
+  const missingFileError =
+    `Cannot capture to ${relPath}: that milestone file does not exist at ${targetPath}. ` +
+    `Scaffolding a new milestone is out of scope for /sig:add — hand-author the ` +
+    `milestone file first, then re-run.`;
+  if (!existsSync(targetPath)) {
+    throw new Error(missingFileError);
+  }
+
+  return captureToDestination(baseDir, {
+    relPath,
+    buildEntry: ({ body, date, triggerContext }) =>
+      buildMilestoneEntry({ body, date, triggerContext }),
+    // Holding-section find-or-create; never touches the plan body.
+    insert: (content, entry) => insertIntoHoldingSection(content, entry),
+    missingFileError,
     body,
     today,
     triggerContext,

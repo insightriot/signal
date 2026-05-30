@@ -13,8 +13,10 @@ import {
   scrubSensitive,
   buildFutureIdeasEntry,
   buildOpenQuestionsEntry,
+  buildMilestoneEntry,
   insertAboveFooter,
   insertAtEnd,
+  insertIntoHoldingSection,
   rewriteFooter,
   checkBodyLength,
   atomicWrite,
@@ -22,6 +24,7 @@ import {
   releaseLock,
   captureToFutureIdeas,
   captureToOpenQuestions,
+  captureToMilestone,
   captureToDestination,
   resolveDestination,
   BODY_LENGTH_SOFT_CAP,
@@ -47,6 +50,21 @@ async function setupOpenQuestionsFixture(fixtureName, tempDir) {
   await mkdir(join(tempDir, '.planning'), { recursive: true });
   await copyFile(src, dest);
   return dest;
+}
+
+// Helper — clone the milestone fixture (MILESTONE-5.md + STATE.md) into a temp
+// dir. STATE.md's current_epic (M5.E1) resolves to MILESTONE-5.md, so the
+// no-N "current milestone" path writes to the file present in the fixture.
+async function setupMilestoneFixture(tempDir) {
+  await mkdir(join(tempDir, '.planning'), { recursive: true });
+  const planning = join(FIXTURE_ROOT, 'milestone-minimal', '.planning');
+  const milestonePath = join(tempDir, '.planning', 'MILESTONE-5.md');
+  await copyFile(join(planning, 'MILESTONE-5.md'), milestonePath);
+  await copyFile(
+    join(planning, 'STATE.md'),
+    join(tempDir, '.planning', 'STATE.md')
+  );
+  return milestonePath;
 }
 
 describe('parseInput (pure)', () => {
@@ -340,6 +358,117 @@ describe('insertAtEnd (pure) — S2.t4', () => {
     const after = insertAtEnd(before, '## new\n\n---');
     expect(after.endsWith('---\n')).toBe(true);
     expect(after.endsWith('---\n\n')).toBe(false);
+  });
+});
+
+describe('buildMilestoneEntry (pure) — S2.t5 / FR2', () => {
+  it('uses an ### (h3) heading — it lives UNDER the ## holding section', () => {
+    const entry = buildMilestoneEntry({
+      body: 'switch the publish hook to semver-it',
+      date: '2026-05-30',
+    });
+    expect(entry).toMatch(/^### /);
+    expect(entry).toMatch(/switch the publish hook/i);
+  });
+
+  it('includes a **Captured:** line with the date and /sig:add provenance', () => {
+    const entry = buildMilestoneEntry({
+      body: 'a milestone note',
+      date: '2026-05-30',
+    });
+    expect(entry).toMatch(/\*\*Captured:\*\* 2026-05-30 via `\/sig:add`\./);
+  });
+
+  it('contains the body verbatim (no LLM rewrite, no smart-quoting)', () => {
+    const body = 'keep the "quotes" and the `code` and the — em dash';
+    const entry = buildMilestoneEntry({ body, date: '2026-05-30' });
+    expect(entry).toContain(body);
+  });
+
+  it('appends trigger context to the Captured line when provided', () => {
+    const entry = buildMilestoneEntry({
+      body: 'a milestone note',
+      date: '2026-05-30',
+      triggerContext: 'mid-EXECUTE on M5.E1',
+    });
+    expect(entry).toMatch(/mid-EXECUTE on M5\.E1/);
+  });
+});
+
+describe('insertIntoHoldingSection (pure) — S2.t5 / FR2 / R5', () => {
+  const ENTRY = '### A new capture\n\n**Captured:** 2026-05-30 via `/sig:add`.\n\nbody text';
+
+  // Case (a): no section + no footer → append section at EOF.
+  it('(a) no section + no footer: appends the section at EOF, plan body byte-identical', () => {
+    const before = '# Milestone\n\n## Goals\n\n- do the thing\n';
+    const after = insertIntoHoldingSection(before, ENTRY);
+    // Plan body survives byte-identical up to its last non-whitespace char.
+    const prefix = before.replace(/\s+$/, '');
+    expect(after.startsWith(prefix)).toBe(true);
+    expect(after).toContain('## Captured via /sig:add');
+    expect(after).toContain('### A new capture');
+    // The holding section sits below the plan body.
+    expect(after.indexOf('## Captured via /sig:add')).toBeGreaterThan(
+      after.indexOf('## Goals')
+    );
+    expect(after.endsWith('\n')).toBe(true);
+    expect(after.endsWith('\n\n')).toBe(false);
+  });
+
+  // Case (b): no section + footer → insert section ABOVE the footer.
+  it('(b) no section + footer: inserts the section above the *Created* footer, footer stays last', () => {
+    const before =
+      '# Milestone\n\n## Goals\n\n- do the thing\n\n*Created 2026-05-01.*\n';
+    const after = insertIntoHoldingSection(before, ENTRY);
+    expect(after).toContain('## Captured via /sig:add');
+    // Section is above the footer; footer remains the final non-empty line.
+    expect(after.indexOf('## Captured via /sig:add')).toBeLessThan(
+      after.indexOf('*Created 2026-05-01.*')
+    );
+    const lastNonEmpty = after
+      .split('\n')
+      .filter((l) => l.trim() !== '')
+      .at(-1);
+    expect(lastNonEmpty).toBe('*Created 2026-05-01.*');
+    // Plan body (everything before the footer/section) untouched.
+    expect(after).toContain('## Goals');
+    expect(after).toContain('- do the thing');
+  });
+
+  // Case (c): section exists → append a 2nd entry to the END of that section.
+  it('(c) section exists: a 2nd entry reuses the SAME section (one ##, two ###)', () => {
+    const before =
+      '# Milestone\n\n## Goals\n\nbody\n\n## Captured via /sig:add\n\n### First capture\n\n**Captured:** 2026-05-29 via `/sig:add`.\n\nfirst body\n';
+    const after = insertIntoHoldingSection(before, ENTRY);
+    // Exactly one holding-section heading; two ### entries.
+    expect(after.match(/^## Captured via \/sig:add$/gm)).toHaveLength(1);
+    expect(after.match(/^### /gm)).toHaveLength(2);
+    // New entry sits AFTER the first one (appended to the end of the section).
+    expect(after.indexOf('### A new capture')).toBeGreaterThan(
+      after.indexOf('### First capture')
+    );
+    // First entry's content survives.
+    expect(after).toContain('first body');
+  });
+
+  // Case (d): section exists followed by OTHER ## headings → entry lands at the
+  // end of the section's own content, before the next ## heading.
+  it('(d) section followed by other ## headings: entry lands before the next ## heading', () => {
+    const before =
+      '# Milestone\n\n## Captured via /sig:add\n\n### First capture\n\nfirst body\n\n## Later Section\n\nlater content\n';
+    const after = insertIntoHoldingSection(before, ENTRY);
+    expect(after.match(/^## Captured via \/sig:add$/gm)).toHaveLength(1);
+    // New entry is inside the holding section: after First capture, before
+    // the Later Section heading.
+    expect(after.indexOf('### A new capture')).toBeGreaterThan(
+      after.indexOf('### First capture')
+    );
+    expect(after.indexOf('### A new capture')).toBeLessThan(
+      after.indexOf('## Later Section')
+    );
+    // The following plan section is preserved verbatim and stays after.
+    expect(after).toContain('## Later Section');
+    expect(after).toContain('later content');
   });
 });
 
@@ -692,6 +821,155 @@ describe('captureToOpenQuestions (integration) — S2.t4 / FR1 / R3', () => {
         sensitivePrompt: async () => 'keep',
       })
     ).rejects.toThrow(/OPEN-QUESTIONS|sig:init/);
+  });
+});
+
+describe('captureToMilestone (integration) — S2.t5 / FR2 / R5', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-add-test-'));
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  // FR2.1: --milestone (milestoneArg:null) resolves the current milestone from
+  // STATE.md (current_epic: M5.E1 → MILESTONE-5.md) and writes the holding
+  // section; the rest of the file stays byte-identical, footer preserved.
+  it('FR2.1: --milestone (current) creates the holding section; plan body byte-identical', async () => {
+    const milestonePath = await setupMilestoneFixture(tempDir);
+    const original = await readFile(milestonePath, 'utf-8');
+    // Region that must survive untouched: everything up to (and excluding) the
+    // trailing footer line. The section is inserted above the footer.
+    const beforeFooter = original.slice(0, original.indexOf('*Created 2026-05-01.*'));
+
+    const result = await captureToMilestone(tempDir, {
+      milestoneArg: null,
+      body: 'a thought to drop into the current milestone',
+      today: '2026-05-30',
+      sensitivePrompt: async () => 'keep',
+    });
+    expect(result.written).toBe(true);
+    expect(result.path).toBe(milestonePath);
+    expect(typeof result.line).toBe('number');
+    expect(result.line).toBeGreaterThan(0);
+
+    const after = await readFile(milestonePath, 'utf-8');
+    // Plan body before the footer is byte-identical (the section + footer come
+    // after it).
+    expect(after.startsWith(beforeFooter)).toBe(true);
+    expect(after).toContain('## Captured via /sig:add');
+    // Heading is the first ~6 words of the body, sentence-cased.
+    expect(after).toContain('### A thought to drop into the');
+    expect(after).toContain('a thought to drop into the current milestone');
+    // Footer preserved and still last.
+    const lastNonEmpty = after
+      .split('\n')
+      .filter((l) => l.trim() !== '')
+      .at(-1);
+    expect(lastNonEmpty).toBe('*Created 2026-05-01.*');
+    // Structured plan headings untouched.
+    expect(after).toContain('## Goals');
+    expect(after).toContain('## Epics');
+  });
+
+  // FR2.2: no current milestone (current_epic null) → throws, NO write.
+  it('FR2.2: no current milestone → throws, writes nothing', async () => {
+    // A temp project whose STATE.md has no current_epic.
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+    const milestonePath = join(tempDir, '.planning', 'MILESTONE-5.md');
+    await writeFile(milestonePath, '# Milestone 5\n\n## Goals\n\nbody\n', 'utf-8');
+    const stateNoEpic =
+      '---\nschema_version: 1\nphase: EXECUTE\ncurrent_epic: null\ncurrent_wave: null\ncurrent_tasks: []\ncompleted_phases: []\nblockers: []\nlast_decision_at: null\nlast_updated_commit: null\nlast_updated: 2026-05-30T00:00:00.000Z\n---\n# State\n';
+    await writeFile(join(tempDir, '.planning', 'STATE.md'), stateNoEpic, 'utf-8');
+    const before = await readFile(milestonePath, 'utf-8');
+
+    await expect(
+      captureToMilestone(tempDir, {
+        milestoneArg: null,
+        body: 'orphan thought',
+        today: '2026-05-30',
+        sensitivePrompt: async () => 'keep',
+      })
+    ).rejects.toThrow(/no current milestone|current milestone/i);
+    // No write: the milestone file is unchanged and no holding section appeared.
+    expect(await readFile(milestonePath, 'utf-8')).toBe(before);
+  });
+
+  // FR2.3: --milestone 5 (explicit N) → writes to MILESTONE-5.md.
+  it('FR2.3: --milestone 5 (explicit N) writes to MILESTONE-5.md', async () => {
+    const milestonePath = await setupMilestoneFixture(tempDir);
+    const result = await captureToMilestone(tempDir, {
+      milestoneArg: '5',
+      body: 'explicit-N capture',
+      today: '2026-05-30',
+      sensitivePrompt: async () => 'keep',
+    });
+    expect(result.written).toBe(true);
+    expect(result.path).toBe(milestonePath);
+    const after = await readFile(milestonePath, 'utf-8');
+    expect(after).toContain('## Captured via /sig:add');
+    expect(after).toContain('explicit-N capture');
+  });
+
+  // FR2.4: --milestone 99 (MILESTONE-99.md absent) → throws scaffold-out-of-
+  // scope error, NO write (no file created).
+  it('FR2.4: --milestone 99 (file absent) → throws scaffolding-out-of-scope, no write', async () => {
+    await setupMilestoneFixture(tempDir);
+    await expect(
+      captureToMilestone(tempDir, {
+        milestoneArg: '99',
+        body: 'capture into a non-existent milestone',
+        today: '2026-05-30',
+        sensitivePrompt: async () => 'keep',
+      })
+    ).rejects.toThrow(/out of scope|does not exist/i);
+    // No MILESTONE-99.md was scaffolded.
+    expect(existsSync(join(tempDir, '.planning', 'MILESTONE-99.md'))).toBe(false);
+  });
+
+  // FR2 AC: a 2nd capture reuses the SAME ## Captured via /sig:add section.
+  it('second capture reuses the same holding section (one ##, two ###)', async () => {
+    const milestonePath = await setupMilestoneFixture(tempDir);
+    await captureToMilestone(tempDir, {
+      milestoneArg: '5',
+      body: 'first milestone capture',
+      today: '2026-05-30',
+      sensitivePrompt: async () => 'keep',
+    });
+    await captureToMilestone(tempDir, {
+      milestoneArg: '5',
+      body: 'second milestone capture',
+      today: '2026-05-30',
+      sensitivePrompt: async () => 'keep',
+    });
+    const after = await readFile(milestonePath, 'utf-8');
+    expect(after.match(/^## Captured via \/sig:add$/gm)).toHaveLength(1);
+    expect(after.match(/^### /gm)).toHaveLength(2);
+    expect(after).toContain('first milestone capture');
+    expect(after).toContain('second milestone capture');
+    // Both entries live above the footer.
+    const lastNonEmpty = after
+      .split('\n')
+      .filter((l) => l.trim() !== '')
+      .at(-1);
+    expect(lastNonEmpty).toBe('*Created 2026-05-01.*');
+  });
+
+  // R5/R7 spine reuse: scrub fires for THIS destination too.
+  it('scrub fires for the milestone destination (R5/R7): aborts and leaves file unchanged', async () => {
+    const milestonePath = await setupMilestoneFixture(tempDir);
+    const before = await readFile(milestonePath, 'utf-8');
+    const result = await captureToMilestone(tempDir, {
+      milestoneArg: '5',
+      body: 'leaking ghp_abcdefghijklmnopqrstuvwxyz0123456789 here',
+      today: '2026-05-30',
+      sensitivePrompt: async () => 'abort',
+    });
+    expect(result).toEqual({ written: false, aborted: 'sensitive-data' });
+    expect(await readFile(milestonePath, 'utf-8')).toBe(before);
+    // No lock left behind (scrub abort precedes lock acquisition).
+    expect(existsSync(join(tempDir, '.planning', '.add.lock'))).toBe(false);
   });
 });
 
