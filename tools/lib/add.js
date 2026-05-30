@@ -55,17 +55,116 @@ const SENSITIVE_PATTERNS = [
 
 // --- Pure helpers ---
 
+// A token after `--milestone` is treated as the milestone id N ONLY if it is a
+// bare integer or single-decimal number; otherwise `--milestone` is the
+// boolean (current-milestone) form and the token belongs to the body.
+const MILESTONE_N_RE = /^\d+(\.\d+)?$/;
+
 /**
  * Parse the raw `$ARGUMENTS` string a slash command receives into a normalized
- * shape. Slice 1 supports only the bare-body form (`/sig:add "idea text"`);
- * S2 will extend this to handle `--question`, `--milestone`, `--file`.
+ * shape `{ body, flags }`.
+ *
+ * Bare-body form (`/sig:add "idea text"`) returns `{ body: <trimmed>, flags: {} }`
+ * — the original Slice 1 behavior, preserved byte-for-byte (including internal
+ * whitespace) when no recognized flag is present.
+ *
+ * S2 (this task) adds destination flags:
+ *   - `--question` — boolean. Presence → `flags.question = true`.
+ *   - `--milestone [N]` — `--milestone` alone → `flags.milestone = true`
+ *     (current milestone); `--milestone 5` / `--milestone 4.5` → the N string
+ *     (the N token is consumed). A non-numeric token after `--milestone` is the
+ *     boolean form and stays in the body.
+ *   - `--file <path>` — value flag. The token immediately after `--file` is the
+ *     path and is consumed; everything else is body.
+ *
+ * The slash-command host strips surrounding quotes before we see `$ARGUMENTS`,
+ * so this treats the input as a plain whitespace-separated token stream for
+ * flag-scanning. The body is "the leftover tokens after flags + their consumed
+ * values are removed", rejoined with single spaces. The verbatim-capture rule
+ * still applies to the words themselves — we never smart-quote or normalize
+ * them; we only split on whitespace to separate flags from body.
  *
  * @param {string} argsString
  * @returns {{body: string, flags: Record<string, string|boolean>}}
  */
 export function parseInput(argsString) {
   if (typeof argsString !== 'string') return { body: '', flags: {} };
-  return { body: argsString.trim(), flags: {} };
+
+  // No recognized flag present → preserve the exact Slice 1 behavior (trim
+  // only). This guarantees the internal-double-space case is untouched, since
+  // token-split-and-rejoin would collapse runs of whitespace.
+  if (!/(^|\s)--(question|milestone|file)(\s|$)/.test(argsString)) {
+    return { body: argsString.trim(), flags: {} };
+  }
+
+  const tokens = argsString.trim().split(/\s+/);
+  const flags = {};
+  const bodyTokens = [];
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token === '--question') {
+      flags.question = true;
+    } else if (token === '--milestone') {
+      const next = tokens[i + 1];
+      if (next !== undefined && MILESTONE_N_RE.test(next)) {
+        flags.milestone = next;
+        i++; // consume N
+      } else {
+        flags.milestone = true;
+      }
+    } else if (token === '--file') {
+      const next = tokens[i + 1];
+      // The token immediately after --file is always the path (consumed).
+      flags.file = next;
+      i++;
+    } else {
+      bodyTokens.push(token);
+    }
+  }
+
+  return { body: bodyTokens.join(' '), flags };
+}
+
+/**
+ * Classify which destination a parsed `flags` object selects, and enforce the
+ * multi-destination guard (FR4 / risk R4). This is a PURE function with no I/O
+ * so the command can call it BEFORE acquiring the lock or touching any file —
+ * a conflicting-flags invocation must fail before any side effect.
+ *
+ * Returns a destination descriptor that S2.t4/t5/t6 consume:
+ *   - `{ destination: 'future-ideas' }` — default (no destination flag).
+ *   - `{ destination: 'open-questions' }` — `--question`.
+ *   - `{ destination: 'milestone', milestoneArg }` — `--milestone`;
+ *     `milestoneArg` is `null` for the current milestone (boolean form) or the
+ *     N string for `--milestone N`.
+ *   - `{ destination: 'file', path }` — `--file <path>`.
+ *
+ * @param {Record<string, string|boolean>} flags
+ * @returns {{destination: string, milestoneArg?: string|null, path?: string}}
+ * @throws {Error} when more than one destination flag is supplied.
+ */
+export function resolveDestination(flags = {}) {
+  const present = [];
+  if (flags.question) present.push('--question');
+  if (flags.milestone) present.push('--milestone');
+  if (flags.file) present.push('--file');
+
+  if (present.length > 1) {
+    throw new Error(
+      `/sig:add accepts only one destination flag, but got: ${present.join(', ')}. Pick one.`
+    );
+  }
+
+  if (flags.question) return { destination: 'open-questions' };
+  if (flags.milestone) {
+    return {
+      destination: 'milestone',
+      milestoneArg: flags.milestone === true ? null : flags.milestone,
+    };
+  }
+  if (flags.file) return { destination: 'file', path: flags.file };
+  return { destination: 'future-ideas' };
 }
 
 /**

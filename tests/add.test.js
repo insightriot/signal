@@ -20,6 +20,7 @@ import {
   releaseLock,
   captureToFutureIdeas,
   captureToDestination,
+  resolveDestination,
   BODY_LENGTH_SOFT_CAP,
 } from '../tools/lib/add.js';
 
@@ -50,6 +51,121 @@ describe('parseInput (pure)', () => {
 
   it('trims surrounding whitespace from body but preserves internal', () => {
     expect(parseInput('  hello  world  ').body).toBe('hello  world');
+  });
+});
+
+describe('parseInput (flags) — S2.t3', () => {
+  // --question is a boolean flag (no value); presence → flags.question = true.
+  it('parses --question as a boolean flag, body is the remainder', () => {
+    expect(parseInput('--question is X right?')).toEqual({
+      body: 'is X right?',
+      flags: { question: true },
+    });
+  });
+
+  // --milestone with no N → boolean form (current milestone).
+  it('parses --milestone (no N) as the boolean (current-milestone) form', () => {
+    expect(parseInput('--milestone fix the foo')).toEqual({
+      body: 'fix the foo',
+      flags: { milestone: true },
+    });
+  });
+
+  // --milestone N where N matches /^\d+(\.\d+)?$/ → string N, N consumed.
+  it('parses --milestone N (integer) and consumes N from the body', () => {
+    expect(parseInput('--milestone 5 add to M5')).toEqual({
+      body: 'add to M5',
+      flags: { milestone: '5' },
+    });
+  });
+
+  it('parses --milestone N (decimal) and consumes N from the body', () => {
+    const result = parseInput('--milestone 4.5 x');
+    expect(result.flags.milestone).toBe('4.5');
+    expect(result.body).toBe('x');
+  });
+
+  // Token after --milestone that is NOT a number is body, not N (boolean form).
+  it('treats a non-numeric token after --milestone as body (boolean form)', () => {
+    expect(parseInput('--milestone fix the bug')).toEqual({
+      body: 'fix the bug',
+      flags: { milestone: true },
+    });
+  });
+
+  // --file <path>: the token immediately after --file is always the path.
+  it('parses --file <path> and consumes the path token from the body', () => {
+    expect(parseInput('--file .planning/NOTES.md raw body')).toEqual({
+      body: 'raw body',
+      flags: { file: '.planning/NOTES.md' },
+    });
+  });
+
+  // No recognized flag → behaves exactly like the bare-body form (regression).
+  it('falls back to bare-body behavior when no recognized flag is present', () => {
+    expect(parseInput('use semver-it for tag publish')).toEqual({
+      body: 'use semver-it for tag publish',
+      flags: {},
+    });
+  });
+
+  it('preserves internal double-space when no flag is present (regression)', () => {
+    expect(parseInput('  hello  world  ')).toEqual({
+      body: 'hello  world',
+      flags: {},
+    });
+  });
+});
+
+describe('resolveDestination (pure guard) — S2.t3 / FR4 / R4', () => {
+  it('returns future-ideas default when no destination flag is present', () => {
+    expect(resolveDestination({})).toEqual({ destination: 'future-ideas' });
+  });
+
+  it('classifies --question to open-questions', () => {
+    expect(resolveDestination({ question: true })).toEqual({
+      destination: 'open-questions',
+    });
+  });
+
+  it('classifies --milestone (boolean) to milestone with null arg (current)', () => {
+    expect(resolveDestination({ milestone: true })).toEqual({
+      destination: 'milestone',
+      milestoneArg: null,
+    });
+  });
+
+  it('classifies --milestone N to milestone with the N string', () => {
+    expect(resolveDestination({ milestone: '5' })).toEqual({
+      destination: 'milestone',
+      milestoneArg: '5',
+    });
+  });
+
+  it('classifies --file to file with the supplied path', () => {
+    expect(resolveDestination({ file: '.planning/X.md' })).toEqual({
+      destination: 'file',
+      path: '.planning/X.md',
+    });
+  });
+
+  // FR4 / R4: any 2+ destination flags throw — pure call, no temp dir, no lock.
+  it('throws when --question and --milestone are both present', () => {
+    expect(() => resolveDestination({ question: true, milestone: true })).toThrow();
+  });
+
+  it('throws when --milestone and --file are both present', () => {
+    expect(() => resolveDestination({ milestone: true, file: 'x' })).toThrow();
+  });
+
+  it('throws when --question and --file are both present', () => {
+    expect(() => resolveDestination({ question: true, file: 'x' })).toThrow();
+  });
+
+  it('names the conflicting flags in the error message', () => {
+    expect(() => resolveDestination({ question: true, milestone: true })).toThrow(
+      /--question.*--milestone|--milestone.*--question/
+    );
   });
 });
 
