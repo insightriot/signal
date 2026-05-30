@@ -209,9 +209,147 @@ The fix is therefore "preventive" rather than "demonstrably curative" in this si
 
 ---
 
+## R6 — Mac Studio `/sig:doctor` dogfood (M4.5.E8.S3.t13) — 2026-05-30
+
+**Purpose:** Satisfy M4.5.E8 AC #13 — end-to-end exercise of `/sig:doctor` detection + script-generation + script-execution pipeline against a real `~/.claude/` install. First time `/sig:doctor` ran against non-fixture state.
+
+**Machine:** Mac Studio (Signal-the-codebase dev machine). Claude Code 2.1.157. Pre-dogfood Signal install: `sig@signal` v0.1.2 (marketplace-installed) + dev environment loading code from `/Users/macstudio/dev-biz/signal/`.
+
+**Pre-state on disk** (the maintainer's accumulated install history):
+- `~/.claude/plugins/cache/signal/sig/0.1.0/` (P2 orphan — Signal v0.1.0 cache from initial install)
+- `~/.claude/plugins/cache/signal/sig/0.1.1/` (P2 orphan — Signal v0.1.1 cache from M4.5.E1.S1 upgrade)
+- `~/.claude/plugins/cache/signal/sig/0.1.2/` (current install — manifest-referenced; healthy)
+- `~/.claude/plugins/cache/signal/signal/0.1.0/` (P4 — pre-rename `signal@signal` slug cache from before M4.t19 rename on 2026-05-12)
+- `~/.ssh/config` with multi-identity `Host github.com-insightriot` + `Host github.com-brettvtcrowe` blocks, no default `Host github.com` (P5 informational)
+
+### Step 1 — backup
+
+```bash
+tar -czf ~/claude-backup-pre-doctor-dogfood.tgz ~/.claude
+```
+
+Completed cleanly. Backup tarball lives at `~/claude-backup-pre-doctor-dogfood.tgz` as the rollback path if the script had misbehaved.
+
+### Step 2 — detection (read-only)
+
+Driver: `/tmp/sig-doctor-dogfood-detect.mjs` (imports `readInstallState` + `runAllDetectors` from `tools/lib/doctor.js`; invoked via `node`).
+
+Output:
+
+```json
+{
+  "healthy": false,
+  "aggregate_recommendation": "--fix",
+  "findings": [
+    { "code": "P2", "recommendation": "--fix",
+      "evidence": [
+        "/Users/macstudio/.claude/plugins/cache/signal/sig/0.1.0",
+        "/Users/macstudio/.claude/plugins/cache/signal/sig/0.1.1"
+      ] },
+    { "code": "P4", "recommendation": "--fix",
+      "evidence": ["cache:/Users/macstudio/.claude/plugins/cache/signal/signal"] },
+    { "code": "P5", "recommendation": "info-only",
+      "evidence": "multi-identity Host github.com-* without default Host github.com" }
+  ]
+}
+```
+
+**Verifications passed:**
+- D-E8-11 Signal-scoping held — no spurious non-Signal entries flagged.
+- P2 evidence correctly excluded the current v0.1.2 (manifest-narrowed); included only the orphan 0.1.0 / 0.1.1.
+- P4 evidence correctly flagged the pre-rename cache via the `cache:` prefix.
+- P5 fired as `info-only` — did not flip `healthy` to false on its own (healthy is false because of P2 + P4).
+- Aggregate recommendation `--fix` (not `--reinstall`) — correct because no P1 fired (cached `plugin.json` matched manifest for the current install).
+
+### Step 3 — script generation
+
+Driver: `/tmp/sig-doctor-dogfood-write.mjs` (calls `buildFixScript` + `writeDoctorScript`).
+
+```
+Wrote /Users/macstudio/.claude/sig-doctor.sh (2005 bytes)
+```
+
+Script body verified to contain:
+- `#!/usr/bin/env bash` shebang (D-E8-8)
+- `set -u -o pipefail` (no `-e`)
+- `claude --version` preamble + 2.1.150 minimum call-out
+- 3 `read -p "Execute: ... [y/N]"`-wrapped `rm -rf` steps (2 P2 + 1 P4)
+- P5 informational echo with `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` hint
+- Trailing `/reload-plugins` + `/sig:doctor` re-verify instruction
+- All paths absolute (`/Users/macstudio/.claude/...`); no literal `~/.claude/` (D-E8-10 meta-test passed in production).
+
+### Step 4 — script execution
+
+```bash
+bash ~/.claude/sig-doctor.sh
+```
+
+Output:
+
+```
+Detected Claude Code: 2.1.157 (Claude Code)
+(This script needs 2.1.150+ for 'claude plugin' subcommands.)
+
+  [skipped]
+  [skipped]
+  [skipped]
+[i] If marketplace operations fail with SSH auth errors, try:
+    export CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1
+
+Script complete. Final step requires Claude Code:
+  1. Inside Claude Code, run: /reload-plugins
+  2. Then: /sig:doctor   (to verify install state)
+```
+
+**User declined all three `[y/N]` prompts** — a legitimate validation outcome. This exercised:
+- ✅ The `claude --version` preamble (printed real version)
+- ✅ All three `read -p` prompts fired correctly
+- ✅ Default-skip behavior on non-`y` answers (no rm executed)
+- ✅ Script continues past skipped steps (not aborting via `set -e`)
+- ✅ P5 info echo
+- ✅ Final reminder block prints
+
+**What was NOT exercised:** the actual `rm -rf` destructive leg. Filesystem state pre- and post-script-execution is identical.
+
+### Step 5 — `/reload-plugins`
+
+```
+Reloaded: 6 plugins · 21 skills · 34 agents · 5 hooks · 1 plugin MCP server · 1 plugin LSP server
+```
+
+Picked up the new code from the dev environment. **`/sig:doctor` is now live** as a slash command on this machine, available for follow-on verification of the command-side dispatch path (separate from the script-execution path tested here).
+
+### Outcome summary
+
+| Validation surface | Status |
+|---|---|
+| Detection against real `~/.claude/` state | ✅ end-to-end |
+| Signal-scoping (D-E8-11) | ✅ no non-Signal leakage |
+| Aggregate-recommendation logic | ✅ `--fix` correctly selected |
+| Script generation (`buildFixScript`) | ✅ well-formed output |
+| Atomic write (`writeDoctorScript`) | ✅ 2005 bytes landed via `atomicWrite` |
+| Script preamble (`claude --version` probe) | ✅ printed live version |
+| `[y/N]` prompt mechanism | ✅ defaulted to skip on non-`y` |
+| Skip → continue (no `set -e` abort) | ✅ all 3 skipped, script finished |
+| P5 informational echo | ✅ printed |
+| `/reload-plugins` post-execution | ✅ Signal hot-reloaded |
+| Actual destructive `rm -rf` leg | ⏸️ user declined (legitimate) |
+
+AC #13 satisfied for the execution-mechanism end-to-end. The destructive leg remains unexercised by this dogfood but is covered by:
+- Unit tests for `buildFixScript` step-template content (S2 lint tests)
+- The structural safety mechanisms themselves (per-step `[y/N]`, no `set -e`)
+- Future stranger encountering a real broken install (where their script-run answers `y`)
+
+### What this row does NOT cover
+
+- `--reinstall` script generation + execution. The `--reinstall` body invokes `claude plugin uninstall/install` CLI subcommands which would touch the active install — too high-blast-radius for the dev machine without a more compelling test scenario.
+- Cross-machine dogfood (biz machine or laptop). REQUIREMENTS originally suggested biz machine; PLAN reframed AC #13 as "any second macOS machine acceptable." Mac Studio satisfied the spirit; biz/laptop dogfood is a low-priority follow-on that can wait for a real install-state issue to surface there.
+
+---
+
 ## Pending rows
 
-R2 through R8 not yet run. R2 (Mac happy-path on a fresh machine without R1's SSH config) is the highest-priority remaining row — it isolates whether the install adventure was caused by the multi-identity SSH config or whether it would reproduce on a default-config machine. R3 (Linux) and R5 (IdentitiesOnly hardened) are required for the M4.5.E1 exit gate per `MILESTONE-4.5.md`.
+R2 through R5 + R7 + R8 not yet run. R2 (Mac happy-path on a fresh machine without R1's SSH config) is the highest-priority remaining row — it isolates whether the install adventure was caused by the multi-identity SSH config or whether it would reproduce on a default-config machine. R3 (Linux) and R5 (IdentitiesOnly hardened) are required for the M4.5.E1 exit gate per `MILESTONE-4.5.md`. R6 above closes the M4.5.E8 AC #13 gate.
 
 ---
 
