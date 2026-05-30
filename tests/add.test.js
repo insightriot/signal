@@ -19,6 +19,7 @@ import {
   acquireLock,
   releaseLock,
   captureToFutureIdeas,
+  captureToDestination,
   BODY_LENGTH_SOFT_CAP,
 } from '../tools/lib/add.js';
 
@@ -404,5 +405,126 @@ describe('captureToFutureIdeas (integration)', () => {
       })
     ).rejects.toThrow(/Another `\/sig:add` is running/);
     await releaseLock(tempDir);
+  });
+});
+
+describe('captureToDestination (spine)', () => {
+  // S2.t1 — the generalized, destination-agnostic write spine. These tests
+  // prove scrub + body-length + lock + atomicWrite fire for ANY destination,
+  // not just FUTURE-IDEAS (closes R7: "scrub must fire for every destination").
+  let tempDir;
+  const ARBITRARY = join('.planning', 'ARBITRARY.md');
+
+  // A trivial destination contract: append the entry plus a newline. No footer
+  // rewrite, no insert-above-footer — deliberately unlike FUTURE-IDEAS, so the
+  // tests exercise the spine itself rather than FUTURE-IDEAS-specific behavior.
+  const trivialBuildEntry = ({ body, date }) => `## entry ${date}\n\n${body}\n\n---`;
+  const trivialInsert = (content, entry) => `${content}\n${entry}\n`;
+
+  async function seedArbitrary(initial = '# Arbitrary\n\nseed content\n') {
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+    await writeFile(join(tempDir, ARBITRARY), initial, 'utf-8');
+    return join(tempDir, ARBITRARY);
+  }
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-add-test-'));
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('scrub fires for an arbitrary destination (R7): aborts and leaves file unchanged', async () => {
+    const target = await seedArbitrary();
+    const before = await readFile(target, 'utf-8');
+    const result = await captureToDestination(tempDir, {
+      relPath: ARBITRARY,
+      buildEntry: trivialBuildEntry,
+      insert: trivialInsert,
+      body: 'leaking ghp_abcdefghijklmnopqrstuvwxyz0123456789 here',
+      today: '2026-05-30',
+      sensitivePrompt: async () => 'abort',
+    });
+    expect(result).toEqual({ written: false, aborted: 'sensitive-data' });
+    // File untouched — abort happens before the lock and before any write.
+    expect(await readFile(target, 'utf-8')).toBe(before);
+    // No lock left behind (scrub abort precedes lock acquisition).
+    expect(existsSync(join(tempDir, '.planning', '.add.lock'))).toBe(false);
+  });
+
+  it('body-length prompt fires for an arbitrary destination: aborts on decline', async () => {
+    const target = await seedArbitrary();
+    const before = await readFile(target, 'utf-8');
+    const longBody = 'x'.repeat(BODY_LENGTH_SOFT_CAP + 50);
+    const result = await captureToDestination(tempDir, {
+      relPath: ARBITRARY,
+      buildEntry: trivialBuildEntry,
+      insert: trivialInsert,
+      body: longBody,
+      today: '2026-05-30',
+      sensitivePrompt: async () => 'keep',
+      bodyLengthPrompt: async () => 'abort',
+    });
+    expect(result).toEqual({ written: false, aborted: 'body-length' });
+    expect(await readFile(target, 'utf-8')).toBe(before);
+  });
+
+  it('happy path on an arbitrary destination writes the entry and reports a positive line', async () => {
+    const target = await seedArbitrary();
+    const result = await captureToDestination(tempDir, {
+      relPath: ARBITRARY,
+      buildEntry: trivialBuildEntry,
+      insert: trivialInsert,
+      body: 'a destination-agnostic capture',
+      today: '2026-05-30',
+      sensitivePrompt: async () => 'keep',
+    });
+    expect(result.written).toBe(true);
+    expect(result.path).toBe(target);
+    expect(typeof result.line).toBe('number');
+    expect(result.line).toBeGreaterThan(0);
+    const content = await readFile(target, 'utf-8');
+    expect(content).toContain('a destination-agnostic capture');
+    expect(content).toContain('seed content'); // pre-existing content preserved
+    // Lock released after a successful write.
+    expect(existsSync(join(tempDir, '.planning', '.add.lock'))).toBe(false);
+  });
+
+  it('throws a custom missingFileError when the destination does not exist', async () => {
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+    await expect(
+      captureToDestination(tempDir, {
+        relPath: join('.planning', 'NOPE.md'),
+        buildEntry: trivialBuildEntry,
+        insert: trivialInsert,
+        body: 'idea',
+        today: '2026-05-30',
+        sensitivePrompt: async () => 'keep',
+        missingFileError: 'custom: NOPE.md is not here',
+      })
+    ).rejects.toThrow(/custom: NOPE\.md is not here/);
+  });
+
+  it('delegation: captureToFutureIdeas still writes above the footer and rewrites the footer date', async () => {
+    await setupFixture('future-ideas-minimal', tempDir);
+    const result = await captureToFutureIdeas(tempDir, {
+      body: 'routed through the shared spine',
+      today: '2026-05-30',
+      sensitivePrompt: async () => 'keep',
+    });
+    expect(result.written).toBe(true);
+    const content = await readFile(result.path, 'utf-8');
+    // FUTURE-IDEAS-specific behavior survives the refactor: the entry lands in
+    // the file and the footer date is rewritten to today.
+    expect(content).toContain('routed through the shared spine');
+    expect(content).toContain('*Last updated: 2026-05-30*');
+    expect(content).not.toContain('*Last updated: 2026-05-12*');
+    // The footer line is the final non-empty line — proves the new entry was
+    // inserted ABOVE it, not appended after it (FUTURE-IDEAS insert closure).
+    const lastNonEmpty = content
+      .split('\n')
+      .filter((l) => l.trim() !== '')
+      .at(-1);
+    expect(lastNonEmpty).toBe('*Last updated: 2026-05-30*');
   });
 });

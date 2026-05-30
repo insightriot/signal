@@ -225,31 +225,55 @@ export async function releaseLock(baseDir) {
 // --- Orchestrator ---
 
 /**
- * Slice 1 entry point: capture `body` to .planning/FUTURE-IDEAS.md with all
- * safety primitives applied. Returns a status object the caller surfaces to
- * the user via the slash command's success message.
+ * Generalized, destination-agnostic capture spine. All `/sig:add` destinations
+ * (FUTURE-IDEAS, OPEN-QUESTIONS, milestone holding section, `--file`) route
+ * through this one function so the safety substrate — scrub, body-length,
+ * lock, atomic write — fires for EVERY destination, not just FUTURE-IDEAS
+ * (closes R7). The destination-specific bits are supplied by the caller as
+ * `buildEntry` and `insert` closures.
+ *
+ * Ordering is identical to the original `captureToFutureIdeas`: scrub and
+ * body-length run BEFORE the lock so a declined capture never touches the lock
+ * file; the lock is held only across read → build → insert → atomicWrite and
+ * is always released in a finally.
  *
  * @param {string} baseDir — project root (where .planning/ lives)
  * @param {object} opts
+ * @param {string} opts.relPath — destination path relative to baseDir
+ * @param {(args: {body: string, date: string, triggerContext?: string}) => string} opts.buildEntry
+ *   — renders the entry block for this destination.
+ * @param {(content: string, entry: string, date: string) => string} opts.insert
+ *   — splices `entry` into the existing file `content`, returning the new content.
  * @param {string} opts.body — raw user input (verbatim, do not modify)
  * @param {string} opts.today — ISO date YYYY-MM-DD (injected for testability)
  * @param {string} [opts.triggerContext] — phase/milestone context if mid-flow
  * @param {(hits: Array) => Promise<'keep'|'abort'>} opts.sensitivePrompt
  * @param {(length: number) => Promise<'keep'|'abort'>} [opts.bodyLengthPrompt]
+ * @param {string} [opts.missingFileError] — error message thrown when relPath
+ *   doesn't exist; defaults to a sensible message naming relPath.
  *
  * @returns {Promise<{written: boolean, path?: string, line?: number, aborted?: string}>}
  */
-export async function captureToFutureIdeas(baseDir, opts) {
-  const { body, today, triggerContext, sensitivePrompt, bodyLengthPrompt } = opts;
-  const targetPath = join(baseDir, FUTURE_IDEAS);
+export async function captureToDestination(baseDir, opts) {
+  const {
+    relPath,
+    buildEntry,
+    insert,
+    body,
+    today,
+    triggerContext,
+    sensitivePrompt,
+    bodyLengthPrompt,
+    missingFileError,
+  } = opts;
+  const targetPath = join(baseDir, relPath);
 
-  // Pre-flight — fail loud if .planning/FUTURE-IDEAS.md doesn't exist.
-  // The brownfield-vs-greenfield-vs-wrong-dir disambiguation lives in S4;
-  // S1's job is just to refuse cleanly with an actionable error.
+  // Pre-flight — fail loud if the destination doesn't exist. The caller may
+  // supply a destination-specific message; otherwise default to one naming the
+  // relative path.
   if (!existsSync(targetPath)) {
     throw new Error(
-      `Cannot capture: .planning/FUTURE-IDEAS.md not found at ${targetPath}. ` +
-        `Run \`/sig:init\` first if this is an existing codebase, or \`/sig:new-project\` for a fresh project.`
+      missingFileError ?? `Cannot capture: ${relPath} not found at ${targetPath}.`
     );
   }
 
@@ -282,20 +306,63 @@ export async function captureToFutureIdeas(baseDir, opts) {
   const lock = await acquireLock(baseDir);
   try {
     const existing = await readFile(targetPath, 'utf-8');
-    const entry = buildFutureIdeasEntry({ body, date: today, triggerContext });
-    const withEntry = insertAboveFooter(existing, entry);
-    const withFooter = rewriteFooter(withEntry, today);
-    await atomicWrite(targetPath, withFooter);
+    const entry = buildEntry({ body, date: today, triggerContext });
+    const newContent = insert(existing, entry, today);
+    await atomicWrite(targetPath, newContent);
 
-    // Compute the 1-indexed line number of the new heading for the success
-    // message. Find the first occurrence of the heading after the existing
-    // content's footer position.
-    const heading = `## ${deriveHeading(body)}`;
-    const lineIdx = withFooter.split('\n').findIndex((l) => l === heading);
+    // Compute the 1-indexed line number of the new entry generically: find the
+    // entry's first line in the written content. -1 when not found (e.g. the
+    // insert closure transformed the heading), which the caller may surface.
+    const firstEntryLine = entry.split('\n')[0];
+    const lineIdx = newContent.split('\n').findIndex((l) => l === firstEntryLine);
     const line = lineIdx >= 0 ? lineIdx + 1 : -1;
 
     return { written: true, path: targetPath, line };
   } finally {
     await lock.released();
   }
+}
+
+/**
+ * Slice 1 entry point: capture `body` to .planning/FUTURE-IDEAS.md with all
+ * safety primitives applied. Returns a status object the caller surfaces to
+ * the user via the slash command's success message.
+ *
+ * Delegates to `captureToDestination` (S2.t1): the FUTURE-IDEAS-specific entry
+ * template and footer-rewrite-on-insert behavior are encapsulated in the
+ * closures passed below; the scrub + body-length + lock + atomic-write spine
+ * is shared with every other destination.
+ *
+ * @param {string} baseDir — project root (where .planning/ lives)
+ * @param {object} opts
+ * @param {string} opts.body — raw user input (verbatim, do not modify)
+ * @param {string} opts.today — ISO date YYYY-MM-DD (injected for testability)
+ * @param {string} [opts.triggerContext] — phase/milestone context if mid-flow
+ * @param {(hits: Array) => Promise<'keep'|'abort'>} opts.sensitivePrompt
+ * @param {(length: number) => Promise<'keep'|'abort'>} [opts.bodyLengthPrompt]
+ *
+ * @returns {Promise<{written: boolean, path?: string, line?: number, aborted?: string}>}
+ */
+export async function captureToFutureIdeas(baseDir, opts) {
+  const { body, today, triggerContext, sensitivePrompt, bodyLengthPrompt } = opts;
+
+  return captureToDestination(baseDir, {
+    relPath: FUTURE_IDEAS,
+    buildEntry: ({ body, date, triggerContext }) =>
+      buildFutureIdeasEntry({ body, date, triggerContext }),
+    // Footer rewrite stays FUTURE-IDEAS-specific — encapsulated here so the
+    // shared spine never assumes a footer exists.
+    insert: (content, entry, date) =>
+      rewriteFooter(insertAboveFooter(content, entry), date),
+    // Preserve the exact error text Slice 1 threw (existing test asserts
+    // /sig:init/ appears).
+    missingFileError:
+      `Cannot capture: .planning/FUTURE-IDEAS.md not found at ${join(baseDir, FUTURE_IDEAS)}. ` +
+      `Run \`/sig:init\` first if this is an existing codebase, or \`/sig:new-project\` for a fresh project.`,
+    body,
+    today,
+    triggerContext,
+    sensitivePrompt,
+    bodyLengthPrompt,
+  });
 }
