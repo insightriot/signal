@@ -17,7 +17,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve, sep, basename } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
 import {
@@ -469,6 +469,106 @@ function findTrailingFooterIdx(lines) {
   return -1;
 }
 
+/**
+ * THE R2 HARD GATE for the undocumented `--file` escape valve (FR3). Pure path
+ * math + a basename check — NO async, NO I/O — so the command can refuse a bad
+ * path BEFORE acquiring the lock or writing anything (the "refuse before lock"
+ * requirement). Two guards, both airtight:
+ *
+ *   1. Inside-`.planning/` guard (FR3.1). `resolve(baseDir, relOrPath)` collapses
+ *      `..` segments and returns absolute paths as-is, so it defeats `../`
+ *      escapes, absolute paths, and mid-path traversal alike. The resolved
+ *      target must start with `resolve(baseDir, '.planning') + sep`. Appending
+ *      the separator is what defeats the classic `startsWith` sibling-prefix bug:
+ *      `.planning-evil/` does NOT start with `.planning/` (the trailing sep
+ *      forces a directory-boundary match). `.planning` itself is a directory, so
+ *      a target can never equal `planningRoot`.
+ *   2. Basename denylist (FR3.2). DECISIONS.md and STATE.md are machine-managed;
+ *      they are never capture destinations, regardless of where in `.planning/`
+ *      they sit. Checked by `basename` so `.planning/sub/STATE.md` is refused too.
+ *
+ * Out of scope: symlinks. `resolve` does NOT follow symlinks (it is lexical),
+ * so a symlink inside `.planning/` pointing outside would pass this lexical
+ * gate. `--file` is an undocumented power-user escape valve in a local repo the
+ * user already controls; defending against a symlink they planted in their own
+ * `.planning/` is not a threat this gate addresses.
+ *
+ * @param {string} baseDir — project root (where .planning/ lives)
+ * @param {string} relOrPath — the user-supplied `--file` path
+ * @returns {string} the original `relOrPath` (unchanged) when safe — the caller
+ *   passes it to the spine as `relPath`, so `join(baseDir, relOrPath)` recomputes
+ *   the same target this gate validated.
+ * @throws {Error} when the path escapes `.planning/` or hits the denylist.
+ */
+export function assertSafeFilePath(baseDir, relOrPath) {
+  const planningRoot = resolve(baseDir, '.planning');
+  const target = resolve(baseDir, relOrPath);
+
+  if (!target.startsWith(planningRoot + sep)) {
+    throw new Error(
+      `--file destination must be inside .planning/ — refused: ${relOrPath}`
+    );
+  }
+
+  const base = basename(target);
+  if (base === 'DECISIONS.md' || base === 'STATE.md') {
+    throw new Error(
+      `--file cannot target ${base} (DECISIONS.md and STATE.md are managed, not capture destinations).`
+    );
+  }
+
+  return relOrPath;
+}
+
+/**
+ * Insert a RAW body (verbatim — NO heading, NO `**Status:**` line, no template)
+ * above the LAST `---` separator line in the file, or append at EOF if there is
+ * no `---`. The body is wrapped with one blank line above and below so it reads
+ * as clean markdown, but its text is otherwise untouched. Content above the
+ * insertion region stays byte-identical; the result has a single trailing
+ * newline. This is the `--file` escape valve's insert strategy (Decision 6:
+ * "raw body above last `---`").
+ *
+ * @param {string} content
+ * @param {string} body — raw user text, inserted verbatim
+ * @returns {string}
+ */
+export function insertRawAboveLastSeparator(content, body) {
+  const lines = content.split('\n');
+  // Find the LAST standalone `---` separator line.
+  let lastSepIdx = -1;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (lines[i].trim() === '---') {
+      lastSepIdx = i;
+      break;
+    }
+  }
+
+  if (lastSepIdx === -1) {
+    // No separator — append the raw body at EOF, one blank line above, single
+    // trailing newline.
+    const trimmed = content.replace(/\s+$/, '');
+    return `${trimmed}\n\n${body}\n`;
+  }
+
+  // Step back over blank line(s) directly above the separator to find the
+  // insertion anchor, so the body slots in just below the prior content with a
+  // single blank line on each side.
+  let insertIdx = lastSepIdx;
+  while (insertIdx > 0 && lines[insertIdx - 1].trim() === '') {
+    insertIdx--;
+  }
+
+  const insertion = ['', body, ''];
+  const merged = [
+    ...lines.slice(0, insertIdx),
+    ...insertion,
+    ...lines.slice(insertIdx),
+  ].join('\n');
+  // Normalize to a single trailing newline.
+  return merged.replace(/\s+$/, '') + '\n';
+}
+
 // --- I/O primitives ---
 
 /**
@@ -762,6 +862,71 @@ export async function captureToMilestone(baseDir, opts) {
     // Holding-section find-or-create; never touches the plan body.
     insert: (content, entry) => insertIntoHoldingSection(content, entry),
     missingFileError,
+    body,
+    today,
+    triggerContext,
+    sensitivePrompt,
+    bodyLengthPrompt,
+  });
+}
+
+/**
+ * S2.t6 entry point: capture `body` to an arbitrary file inside `.planning/`
+ * (the UNDOCUMENTED `--file <path>` escape valve, FR3 / Decision 6). Unlike the
+ * other destinations there is NO template — the raw body is written verbatim
+ * above the last `---`/EOF.
+ *
+ * THE R2 HARD GATE fires FIRST, before anything else: `assertSafeFilePath`
+ * throws on a path that escapes `.planning/` (FR3.1) or whose basename is
+ * DECISIONS.md / STATE.md (FR3.2). Because it runs before delegating to the
+ * spine, the refusal happens BEFORE lock acquisition and before any write — a
+ * bad path leaves zero lock and zero file mutation (the R2 "refuse before lock"
+ * requirement, proven by the integration tests).
+ *
+ * After the gate, delegates to the shared `captureToDestination` spine so
+ * scrub + body-length + lock + atomic-write all apply (R7), exactly as for the
+ * other destinations. The `buildEntry` closure returns the raw body unchanged
+ * (the entry IS the body — no heading, no status line), and `insert` splices it
+ * above the last separator via `insertRawAboveLastSeparator`.
+ *
+ * Per FR3.3 this destination is intentionally NOT surfaced in any `--help` /
+ * usage text — S2.t7 documents `--question` / `--milestone` only.
+ *
+ * @param {string} baseDir — project root (where .planning/ lives)
+ * @param {object} opts
+ * @param {string} opts.filePath — the `--file` path (validated by the hard gate)
+ * @param {string} opts.body — raw user input (verbatim, do not modify)
+ * @param {string} opts.today — ISO date YYYY-MM-DD (injected for testability)
+ * @param {string} [opts.triggerContext] — phase/milestone context if mid-flow
+ * @param {(hits: Array) => Promise<'keep'|'abort'>} opts.sensitivePrompt
+ * @param {(length: number) => Promise<'keep'|'abort'>} [opts.bodyLengthPrompt]
+ *
+ * @returns {Promise<{written: boolean, path?: string, line?: number, aborted?: string}>}
+ */
+export async function captureToFile(baseDir, opts) {
+  const {
+    filePath,
+    body,
+    today,
+    triggerContext,
+    sensitivePrompt,
+    bodyLengthPrompt,
+  } = opts;
+
+  // R2 HARD GATE — refuse a path-escape or denylisted target BEFORE the spine
+  // runs (so before lock acquisition and before any write). Returns the
+  // validated relative path unchanged.
+  const relPath = assertSafeFilePath(baseDir, filePath);
+
+  return captureToDestination(baseDir, {
+    relPath,
+    // No template — the entry IS the raw body, verbatim.
+    buildEntry: ({ body }) => body,
+    // Raw body above the last --- / EOF; no footer, no heading.
+    insert: (content, entry) => insertRawAboveLastSeparator(content, entry),
+    missingFileError:
+      `Cannot capture: ${relPath} not found at ${join(baseDir, relPath)}. ` +
+      `--file requires the target file to already exist inside .planning/.`,
     body,
     today,
     triggerContext,

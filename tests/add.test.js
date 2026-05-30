@@ -27,6 +27,9 @@ import {
   captureToMilestone,
   captureToDestination,
   resolveDestination,
+  assertSafeFilePath,
+  insertRawAboveLastSeparator,
+  captureToFile,
   BODY_LENGTH_SOFT_CAP,
 } from '../tools/lib/add.js';
 
@@ -1091,5 +1094,283 @@ describe('captureToDestination (spine)', () => {
       .filter((l) => l.trim() !== '')
       .at(-1);
     expect(lastNonEmpty).toBe('*Last updated: 2026-05-30*');
+  });
+});
+
+describe('assertSafeFilePath (hard gate, pure) — S2.t6 / FR3 / R2', () => {
+  // baseDir is arbitrary; the gate is pure path math + a basename check, so it
+  // needs no temp dir or filesystem. Use a fixed absolute root.
+  const base = '/tmp/sig-base';
+
+  // --- REFUSALS (FR3.1 outside-.planning; FR3.2 DECISIONS/STATE denylist) ---
+
+  it('FR3.1: refuses a parent-escape relative path (../outside.md)', () => {
+    expect(() => assertSafeFilePath(base, '../outside.md')).toThrow(
+      /inside \.planning\//
+    );
+  });
+
+  it('FR3.1: refuses an absolute path outside .planning (/etc/passwd)', () => {
+    expect(() => assertSafeFilePath(base, '/etc/passwd')).toThrow(
+      /inside \.planning\//
+    );
+  });
+
+  it('FR3.1: refuses a traversal that climbs out (.planning/../../x.md)', () => {
+    expect(() => assertSafeFilePath(base, '.planning/../../x.md')).toThrow(
+      /inside \.planning\//
+    );
+  });
+
+  it('FR3.1: refuses a traversal that lands in baseDir root (.planning/../secrets.md)', () => {
+    expect(() => assertSafeFilePath(base, '.planning/../secrets.md')).toThrow(
+      /inside \.planning\//
+    );
+  });
+
+  it('FR3.1: refuses a nested-but-sneaky traversal (.planning/sub/../../DECISIONS.md)', () => {
+    // resolves to base/DECISIONS.md → OUTSIDE .planning → refused as outside.
+    expect(() =>
+      assertSafeFilePath(base, '.planning/sub/../../DECISIONS.md')
+    ).toThrow(/inside \.planning\//);
+  });
+
+  // The classic startsWith() sibling-prefix bug: a sibling dir whose name
+  // begins with ".planning" must NOT pass, because the guard appends a path
+  // separator (".planning/" cannot prefix-match ".planning-evil/").
+  it('FR3.1: refuses a sibling-prefix dir (.planning-evil/x.md) — startsWith bug guard', () => {
+    expect(() => assertSafeFilePath(base, '.planning-evil/x.md')).toThrow(
+      /inside \.planning\//
+    );
+  });
+
+  it('FR3.1: refuses another sibling-prefix dir (.planningX/x.md)', () => {
+    expect(() => assertSafeFilePath(base, '.planningX/x.md')).toThrow(
+      /inside \.planning\//
+    );
+  });
+
+  it('FR3.2: refuses .planning/DECISIONS.md (managed, not a capture destination)', () => {
+    expect(() => assertSafeFilePath(base, '.planning/DECISIONS.md')).toThrow(
+      /DECISIONS\.md/
+    );
+  });
+
+  it('FR3.2: refuses .planning/STATE.md (managed, not a capture destination)', () => {
+    expect(() => assertSafeFilePath(base, '.planning/STATE.md')).toThrow(
+      /STATE\.md/
+    );
+  });
+
+  it('FR3.2: refuses a nested STATE.md by basename (.planning/sub/STATE.md)', () => {
+    expect(() => assertSafeFilePath(base, '.planning/sub/STATE.md')).toThrow(
+      /STATE\.md/
+    );
+  });
+
+  // --- ALLOWED (in-.planning, non-denylisted) ---
+
+  it('allows a plain in-.planning path (.planning/NOTES.md)', () => {
+    expect(() => assertSafeFilePath(base, '.planning/NOTES.md')).not.toThrow();
+  });
+
+  it('allows a nested in-.planning path (.planning/sub/deep.md)', () => {
+    expect(() => assertSafeFilePath(base, '.planning/sub/deep.md')).not.toThrow();
+  });
+
+  it('returns the original relative path on success (consumable by the spine)', () => {
+    expect(assertSafeFilePath(base, '.planning/NOTES.md')).toBe('.planning/NOTES.md');
+  });
+});
+
+describe('insertRawAboveLastSeparator (pure) — S2.t6 / FR3', () => {
+  it('inserts the raw body above a trailing --- separator, verbatim', () => {
+    const before = '# Notes\n\nintro line\n\n---\n';
+    const after = insertRawAboveLastSeparator(before, 'raw verbatim note');
+    expect(after).toContain('raw verbatim note');
+    // The body sits ABOVE the final separator.
+    expect(after.indexOf('raw verbatim note')).toBeLessThan(after.lastIndexOf('---'));
+    // No template heading was added.
+    expect(after).not.toMatch(/^## /m);
+  });
+
+  it('does NOT wrap the body in a heading or **Status:** line (raw)', () => {
+    const before = '# Notes\n\n---\n';
+    const after = insertRawAboveLastSeparator(before, 'just text');
+    expect(after).not.toContain('**Status:**');
+    expect(after).not.toContain('## just text');
+  });
+
+  it('appends at EOF when the file has no --- separator', () => {
+    const before = '# Notes\n\nsome content\n';
+    const after = insertRawAboveLastSeparator(before, 'appended body');
+    expect(after).toContain('appended body');
+    expect(after.indexOf('some content')).toBeLessThan(after.indexOf('appended body'));
+  });
+
+  it('inserts above the LAST --- when several are present', () => {
+    const before = '# Notes\n\n---\n\nmiddle\n\n---\n';
+    const after = insertRawAboveLastSeparator(before, 'NEWBODY');
+    const lines = after.split('\n');
+    const sepIdxs = lines
+      .map((l, i) => (l.trim() === '---' ? i : -1))
+      .filter((i) => i >= 0);
+    const lastSep = sepIdxs[sepIdxs.length - 1];
+    const bodyIdx = lines.findIndex((l) => l === 'NEWBODY');
+    expect(bodyIdx).toBeGreaterThan(-1);
+    expect(bodyIdx).toBeLessThan(lastSep);
+    // The 'middle' content (above the last ---) is preserved.
+    expect(after).toContain('middle');
+  });
+
+  it('leaves content above the insertion region byte-identical (prefix equality)', () => {
+    const before = '# Notes\n\nkeep me exactly\n\n---\n';
+    const prefix = '# Notes\n\nkeep me exactly';
+    const after = insertRawAboveLastSeparator(before, 'x');
+    expect(after.startsWith(prefix)).toBe(true);
+  });
+
+  it('ends with a single trailing newline', () => {
+    const before = '# Notes\n\n---\n';
+    const after = insertRawAboveLastSeparator(before, 'x');
+    expect(after.endsWith('\n')).toBe(true);
+    expect(after.endsWith('\n\n')).toBe(false);
+  });
+});
+
+describe('captureToFile (integration) — S2.t6 / FR3 / R2', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-add-test-'));
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('writes the raw body above the trailing --- with no ## heading added', async () => {
+    const notesPath = join(tempDir, '.planning', 'NOTES.md');
+    const original = '# Scratch Notes\n\nexisting line\n\n---\n';
+    await writeFile(notesPath, original, 'utf-8');
+
+    const result = await captureToFile(tempDir, {
+      filePath: '.planning/NOTES.md',
+      body: 'raw note',
+      today: '2026-05-30',
+      sensitivePrompt: async () => 'keep',
+    });
+
+    expect(result.written).toBe(true);
+    const content = await readFile(notesPath, 'utf-8');
+    expect(content).toContain('raw note');
+    // No template heading derived from the body.
+    expect(content).not.toContain('## raw note');
+    expect(content).not.toContain('**Status:**');
+    // Pre-existing content intact.
+    expect(content).toContain('# Scratch Notes');
+    expect(content).toContain('existing line');
+  });
+
+  it('writes to a nested in-.planning subdir path (join math is correct)', async () => {
+    await mkdir(join(tempDir, '.planning', 'sub'), { recursive: true });
+    const deepPath = join(tempDir, '.planning', 'sub', 'X.md');
+    await writeFile(deepPath, '# Deep\n\n---\n', 'utf-8');
+
+    const result = await captureToFile(tempDir, {
+      filePath: '.planning/sub/X.md',
+      body: 'deep body',
+      today: '2026-05-30',
+      sensitivePrompt: async () => 'keep',
+    });
+
+    expect(result.written).toBe(true);
+    expect(result.path).toBe(deepPath);
+    const content = await readFile(deepPath, 'utf-8');
+    expect(content).toContain('deep body');
+  });
+
+  // R2 HARD GATE — refuse BEFORE lock acquisition AND before any write.
+  it('R2: refuses --file .planning/DECISIONS.md — throws, leaves no lock, file unchanged', async () => {
+    const decisionsPath = join(tempDir, '.planning', 'DECISIONS.md');
+    const original = '# Decisions\n\nimmutable\n\n---\n';
+    await writeFile(decisionsPath, original, 'utf-8');
+
+    await expect(
+      captureToFile(tempDir, {
+        filePath: '.planning/DECISIONS.md',
+        body: 'should never land',
+        today: '2026-05-30',
+        sensitivePrompt: async () => 'keep',
+      })
+    ).rejects.toThrow(/DECISIONS\.md/);
+
+    // Refusal happened before lock acquisition.
+    expect(existsSync(join(tempDir, '.planning', '.add.lock'))).toBe(false);
+    // DECISIONS.md is byte-unchanged.
+    const after = await readFile(decisionsPath, 'utf-8');
+    expect(after).toBe(original);
+  });
+
+  it('R2: refuses --file .planning/STATE.md — throws, leaves no lock, file unchanged', async () => {
+    const statePath = join(tempDir, '.planning', 'STATE.md');
+    const original = '---\nphase: EXECUTE\n---\n\nstate body\n';
+    await writeFile(statePath, original, 'utf-8');
+
+    await expect(
+      captureToFile(tempDir, {
+        filePath: '.planning/STATE.md',
+        body: 'should never land',
+        today: '2026-05-30',
+        sensitivePrompt: async () => 'keep',
+      })
+    ).rejects.toThrow(/STATE\.md/);
+
+    expect(existsSync(join(tempDir, '.planning', '.add.lock'))).toBe(false);
+    const after = await readFile(statePath, 'utf-8');
+    expect(after).toBe(original);
+  });
+
+  it('R2: refuses an outside-.planning path (../evil.md) — throws, leaves no lock', async () => {
+    await expect(
+      captureToFile(tempDir, {
+        filePath: '../evil.md',
+        body: 'escape attempt',
+        today: '2026-05-30',
+        sensitivePrompt: async () => 'keep',
+      })
+    ).rejects.toThrow(/inside \.planning\//);
+
+    expect(existsSync(join(tempDir, '.planning', '.add.lock'))).toBe(false);
+  });
+
+  it('R2: refuses a sibling-prefix path (.planning-evil/x.md) — throws, leaves no lock', async () => {
+    await expect(
+      captureToFile(tempDir, {
+        filePath: '.planning-evil/x.md',
+        body: 'sibling-prefix attack',
+        today: '2026-05-30',
+        sensitivePrompt: async () => 'keep',
+      })
+    ).rejects.toThrow(/inside \.planning\//);
+
+    expect(existsSync(join(tempDir, '.planning', '.add.lock'))).toBe(false);
+  });
+
+  // R7 spine reuse — scrub still fires for the --file destination.
+  it('R7: scrub fires — ghp_ token + abort → not written, no lock left behind', async () => {
+    const notesPath = join(tempDir, '.planning', 'NOTES.md');
+    await writeFile(notesPath, '# Notes\n\n---\n', 'utf-8');
+
+    const result = await captureToFile(tempDir, {
+      filePath: '.planning/NOTES.md',
+      body: 'leaking ghp_abcdefghijklmnopqrstuvwxyz0123456789 here',
+      today: '2026-05-30',
+      sensitivePrompt: async () => 'abort',
+    });
+
+    expect(result.written).toBe(false);
+    expect(existsSync(join(tempDir, '.planning', '.add.lock'))).toBe(false);
+    const content = await readFile(notesPath, 'utf-8');
+    expect(content).not.toContain('ghp_abcdefghijklmnopqrstuvwxyz0123456789');
   });
 });
