@@ -180,9 +180,13 @@ Three failure modes documented in `docs/install-verification.md` § R1:
 - `/sig:init` agent-discovery convention reconciliation — defer to M4.5.E1.S5 validator hardening.
 - The 26-vs-25 agent-count drift between CLAUDE.md docs and on-disk reality — defer to M4.5.E1.S5.
 
-### M4.5.E8 — `/sig:doctor` install-state diagnostician + ownership reframe
+### M4.5.E8 — `/sig:doctor` install-state diagnostician + ownership reframe ✅ SHIPPED 2026-05-30
 
-Scoped 2026-05-24. Sequenced **before E5 launch** — launching without it ships the current install dance to strangers, which is the failure mode E5's "external validation" is supposed to surface, not reproduce.
+Scoped 2026-05-24. **Shipped 2026-05-30** as part of the v0.1.3 candidate bundle (joins E7 + E3 + E9 in CHANGELOG `[0.1.3]` — still Unreleased pending an M4.5 close-out version cut). Sequenced before E5 launch as planned. Full retro at `.planning/M4.5.E8-RETROSPECTIVE.md`; AC #13 dogfood at `docs/install-verification.md` § R6.
+
+**Outcome summary:** 3 slices, 41 tasks, 31 atomic commits, tests 535 → 608+ (+73 vs +38 forecast). 12 decisions locked (D-E8-1 through D-E8-12 — 6 DISCUSS + 6 PLAN). 3 REQUIREMENTS↔reality conflicts surfaced at PLAN and reconciled (FR6 endpoint `/releases/latest` → `/tags`; FR9 timing — 2 of 3 issues already filed upstream, cross-linked + 1 new P3 filed at #63624; `installed_plugins.json` per-scope-array shape). 1 PLAN deviation documented (helper-script split deferred; inline `node -e` kept with well-formedness gate). 13/13 ACs satisfied (AC #13 partial — execution-mechanism end-to-end on Mac Studio; destructive rm-rf leg deferred per legitimate user choice during dogfood).
+
+**Original scope, captured below for posterity** — note that PLAN reframed the `--upgrade` flag to `--reinstall` (D-E8-5) and the version-source endpoint from `/releases/latest` to `/tags` (D-E8-7):
 
 **Why a new Epic rather than slotting into E1.** E1 owns marketplace install + agent registration + fresh-machine verification — making install *work* the first time. E8 owns the *upgrade and recovery path* when install state goes wrong, plus the *ownership framing* of the troubleshooting story (most of which is Anthropic's plugin host, not Signal). Different domain, different lifecycle: E1 fires on day-one install; E8 fires every time a user upgrades, hits a P-state bug, or wonders if they're on the latest version. Stretching E1 to absorb upgrade-state management would dilute its identity. E7 set the precedent of carving out a focused install-UX Epic when the surface area earned its own scope; E8 extends that pattern to the upgrade lifecycle.
 
