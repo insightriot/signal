@@ -39,6 +39,7 @@ export const BODY_LENGTH_SOFT_CAP = 4000;
 const LOCK_TTL_MS = 30_000;
 const LOCK_FILE = '.planning/.add.lock';
 const FUTURE_IDEAS = '.planning/FUTURE-IDEAS.md';
+const OPEN_QUESTIONS = '.planning/OPEN-QUESTIONS.md';
 
 // Sensitive-data detectors. The intent is detection, not prevention — the
 // caller decides whether to keep, abort, or scrub manually. Patterns are
@@ -295,6 +296,51 @@ export function insertAboveFooter(content, entry) {
   return newLines.join('\n');
 }
 
+/**
+ * Render an OPEN-QUESTIONS.md entry block. The OPEN-QUESTIONS shape differs from
+ * FUTURE-IDEAS: heading, a `**Status:**` line, body verbatim, a `**Resolve by:**`
+ * line, then a trailing `---` separator (matching the file's existing
+ * Status/Watch-for/Resolve-by convention). The heading-derivation rule is shared
+ * with FUTURE-IDEAS for consistency. Body is verbatim — no rewrite.
+ *
+ * @param {{body: string, date: string, triggerContext?: string}} opts
+ * @returns {string}
+ */
+export function buildOpenQuestionsEntry({ body, date, triggerContext }) {
+  const heading = deriveHeading(body);
+  const trigger = triggerContext ? ` ${triggerContext.trim()}` : '';
+  const statusLine = `**Status:** Open — logged ${date} via \`/sig:add\`.${trigger}`;
+  return [
+    `## ${heading}`,
+    '',
+    statusLine,
+    '',
+    body,
+    '',
+    '**Resolve by:** (unset — triage at next planning pass)',
+    '',
+    '---',
+  ].join('\n');
+}
+
+/**
+ * Append a new entry block at end-of-file. Unlike `insertAboveFooter`, this
+ * makes no assumption about a footer — OPEN-QUESTIONS.md has none; its entries
+ * just end with `---` separators. Pre-existing content up to its last non-
+ * whitespace character is byte-identical: strip trailing whitespace, then add
+ * one blank line + the entry + a single trailing newline. If the file already
+ * ends with a `---` separator, the appended entry sits cleanly below it with one
+ * blank line between.
+ *
+ * @param {string} content
+ * @param {string} entry — full entry block (already includes its trailing ---)
+ * @returns {string}
+ */
+export function insertAtEnd(content, entry) {
+  const trimmed = content.replace(/\s+$/, '');
+  return `${trimmed}\n\n${entry}\n`;
+}
+
 // --- I/O primitives ---
 
 /**
@@ -457,6 +503,48 @@ export async function captureToFutureIdeas(baseDir, opts) {
     // /sig:init/ appears).
     missingFileError:
       `Cannot capture: .planning/FUTURE-IDEAS.md not found at ${join(baseDir, FUTURE_IDEAS)}. ` +
+      `Run \`/sig:init\` first if this is an existing codebase, or \`/sig:new-project\` for a fresh project.`,
+    body,
+    today,
+    triggerContext,
+    sensitivePrompt,
+    bodyLengthPrompt,
+  });
+}
+
+/**
+ * S2.t4 entry point: capture `body` to .planning/OPEN-QUESTIONS.md (the
+ * `--question` destination). Delegates to the shared `captureToDestination`
+ * spine so scrub + body-length + lock + atomic-write all apply, exactly as for
+ * FUTURE-IDEAS.
+ *
+ * OPEN-QUESTIONS.md has a DIFFERENT shape from FUTURE-IDEAS: no
+ * `*Last updated:*` footer; entries are separated by `---`. So the entry is
+ * appended at end-of-file (`insertAtEnd`) rather than inserted above a footer,
+ * and there is no footer date to rewrite. Pre-existing content above the
+ * insertion point stays byte-identical.
+ *
+ * @param {string} baseDir — project root (where .planning/ lives)
+ * @param {object} opts
+ * @param {string} opts.body — raw user input (verbatim, do not modify)
+ * @param {string} opts.today — ISO date YYYY-MM-DD (injected for testability)
+ * @param {string} [opts.triggerContext] — phase/milestone context if mid-flow
+ * @param {(hits: Array) => Promise<'keep'|'abort'>} opts.sensitivePrompt
+ * @param {(length: number) => Promise<'keep'|'abort'>} [opts.bodyLengthPrompt]
+ *
+ * @returns {Promise<{written: boolean, path?: string, line?: number, aborted?: string}>}
+ */
+export async function captureToOpenQuestions(baseDir, opts) {
+  const { body, today, triggerContext, sensitivePrompt, bodyLengthPrompt } = opts;
+
+  return captureToDestination(baseDir, {
+    relPath: OPEN_QUESTIONS,
+    buildEntry: ({ body, date, triggerContext }) =>
+      buildOpenQuestionsEntry({ body, date, triggerContext }),
+    // No footer in OPEN-QUESTIONS — append at end-of-file, no date rewrite.
+    insert: (content, entry) => insertAtEnd(content, entry),
+    missingFileError:
+      `Cannot capture: .planning/OPEN-QUESTIONS.md not found at ${join(baseDir, OPEN_QUESTIONS)}. ` +
       `Run \`/sig:init\` first if this is an existing codebase, or \`/sig:new-project\` for a fresh project.`,
     body,
     today,

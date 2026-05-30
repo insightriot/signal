@@ -12,13 +12,16 @@ import {
   parseInput,
   scrubSensitive,
   buildFutureIdeasEntry,
+  buildOpenQuestionsEntry,
   insertAboveFooter,
+  insertAtEnd,
   rewriteFooter,
   checkBodyLength,
   atomicWrite,
   acquireLock,
   releaseLock,
   captureToFutureIdeas,
+  captureToOpenQuestions,
   captureToDestination,
   resolveDestination,
   BODY_LENGTH_SOFT_CAP,
@@ -31,6 +34,16 @@ const FIXTURE_ROOT = join(__dirname, 'fixtures', 'add');
 async function setupFixture(fixtureName, tempDir) {
   const src = join(FIXTURE_ROOT, fixtureName, '.planning', 'FUTURE-IDEAS.md');
   const dest = join(tempDir, '.planning', 'FUTURE-IDEAS.md');
+  await mkdir(join(tempDir, '.planning'), { recursive: true });
+  await copyFile(src, dest);
+  return dest;
+}
+
+// Helper — clone an OPEN-QUESTIONS fixture into a temp dir (different filename
+// from setupFixture, which is FUTURE-IDEAS-specific).
+async function setupOpenQuestionsFixture(fixtureName, tempDir) {
+  const src = join(FIXTURE_ROOT, fixtureName, '.planning', 'OPEN-QUESTIONS.md');
+  const dest = join(tempDir, '.planning', 'OPEN-QUESTIONS.md');
   await mkdir(join(tempDir, '.planning'), { recursive: true });
   await copyFile(src, dest);
   return dest;
@@ -262,6 +275,71 @@ describe('buildFutureIdeasEntry (pure)', () => {
     const entry = buildFutureIdeasEntry({ body: longBody, date: '2026-05-14' });
     const heading = entry.split('\n')[0];
     expect(heading.length).toBeLessThanOrEqual(63); // '## ' + ≤60 chars
+  });
+});
+
+describe('buildOpenQuestionsEntry (pure) — S2.t4 / FR1', () => {
+  it('starts with a ## heading derived from the first ~6 words of body', () => {
+    const entry = buildOpenQuestionsEntry({
+      body: 'should we cache tokens?',
+      date: '2026-05-30',
+    });
+    expect(entry).toMatch(/^## /);
+    expect(entry).toMatch(/should we cache tokens/i);
+  });
+
+  it('includes a Status line with the date and /sig:add provenance', () => {
+    const entry = buildOpenQuestionsEntry({
+      body: 'should we cache tokens?',
+      date: '2026-05-30',
+    });
+    expect(entry).toMatch(/\*\*Status:\*\* Open — logged 2026-05-30 via `\/sig:add`\./);
+  });
+
+  it('contains the body verbatim (no LLM rewrite, no smart-quoting)', () => {
+    const body = 'should we cache "tokens" — even the `ghp`-shaped ones?';
+    const entry = buildOpenQuestionsEntry({ body, date: '2026-05-30' });
+    expect(entry).toContain(body);
+  });
+
+  it('ends with the --- separator (OPEN-QUESTIONS entries are ---separated)', () => {
+    const entry = buildOpenQuestionsEntry({
+      body: 'should we cache tokens?',
+      date: '2026-05-30',
+    });
+    expect(entry.trimEnd().endsWith('---')).toBe(true);
+  });
+
+  it('appends trigger context to the Status line when provided', () => {
+    const entry = buildOpenQuestionsEntry({
+      body: 'should we cache tokens?',
+      date: '2026-05-30',
+      triggerContext: 'mid-EXECUTE on M4.5.E2',
+    });
+    expect(entry).toMatch(/mid-EXECUTE on M4\.5\.E2/);
+  });
+});
+
+describe('insertAtEnd (pure) — S2.t4', () => {
+  it('appends the entry below the existing trailing --- with one blank line', () => {
+    const before = '# Open Questions\n\nintro\n\n## existing\n\nbody\n\n---\n';
+    const after = insertAtEnd(before, '## new\n\nnew body\n\n---');
+    expect(after.indexOf('## new')).toBeGreaterThan(after.indexOf('## existing'));
+    expect(after).toContain('## new');
+  });
+
+  it('leaves the pre-existing content (to its last non-whitespace char) byte-identical', () => {
+    const before = '# Open Questions\n\nintro\n\n## existing\n\nbody\n\n---\n';
+    const prefix = before.replace(/\s+$/, '');
+    const after = insertAtEnd(before, '## new\n\nnew body\n\n---');
+    expect(after.startsWith(prefix)).toBe(true);
+  });
+
+  it('ends with a single trailing newline', () => {
+    const before = '# Open Questions\n\n## existing\n\n---\n';
+    const after = insertAtEnd(before, '## new\n\n---');
+    expect(after.endsWith('---\n')).toBe(true);
+    expect(after.endsWith('---\n\n')).toBe(false);
   });
 });
 
@@ -521,6 +599,99 @@ describe('captureToFutureIdeas (integration)', () => {
       })
     ).rejects.toThrow(/Another `\/sig:add` is running/);
     await releaseLock(tempDir);
+  });
+});
+
+describe('captureToOpenQuestions (integration) — S2.t4 / FR1 / R3', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-add-test-'));
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('writes a well-formed entry and reports written:true + path + line', async () => {
+    const path = await setupOpenQuestionsFixture('open-questions-minimal', tempDir);
+    const result = await captureToOpenQuestions(tempDir, {
+      body: 'should we cache tokens?',
+      today: '2026-05-30',
+      sensitivePrompt: async () => 'keep',
+    });
+    expect(result.written).toBe(true);
+    expect(result.path).toBe(path);
+    expect(typeof result.line).toBe('number');
+    expect(result.line).toBeGreaterThan(0);
+
+    const content = await readFile(path, 'utf-8');
+    // Body present, in OPEN-QUESTIONS shape (heading + Status line, --- end).
+    expect(content).toContain('should we cache tokens?');
+    expect(content).toMatch(/## Should we cache tokens\?/);
+    expect(content).toMatch(/\*\*Status:\*\* Open — logged 2026-05-30 via `\/sig:add`\./);
+    expect(content.trimEnd().endsWith('---')).toBe(true);
+  });
+
+  it('leaves all pre-existing content byte-identical (full-file prefix equality)', async () => {
+    const path = await setupOpenQuestionsFixture('open-questions-minimal', tempDir);
+    const original = await readFile(path, 'utf-8');
+    // The region that must survive untouched: everything up to the last
+    // non-whitespace char of the original file.
+    const originalPrefix = original.replace(/\s+$/, '');
+
+    await captureToOpenQuestions(tempDir, {
+      body: 'a brand new open question',
+      today: '2026-05-30',
+      sensitivePrompt: async () => 'keep',
+    });
+
+    const after = await readFile(path, 'utf-8');
+    expect(after.startsWith(originalPrefix)).toBe(true);
+    // Pre-existing entries + their separators intact.
+    expect(after).toContain('## Should the cache TTL be configurable');
+    expect(after).toContain('## Do we need a second log level');
+    // The new entry sits below the prior content.
+    expect(after.indexOf('a brand new open question')).toBeGreaterThan(
+      after.indexOf('## Do we need a second log level')
+    );
+    // No FUTURE-IDEAS-style footer was introduced (this destination has none).
+    expect(after).not.toContain('*Last updated:');
+  });
+
+  it('scrub still fires for THIS destination (R3/R7): aborts and leaves file unchanged', async () => {
+    const path = await setupOpenQuestionsFixture('open-questions-minimal', tempDir);
+    const before = await readFile(path, 'utf-8');
+    const result = await captureToOpenQuestions(tempDir, {
+      body: 'leaking ghp_abcdefghijklmnopqrstuvwxyz0123456789 here',
+      today: '2026-05-30',
+      sensitivePrompt: async () => 'abort',
+    });
+    expect(result).toEqual({ written: false, aborted: 'sensitive-data' });
+    expect(await readFile(path, 'utf-8')).toBe(before);
+    // No lock left behind (scrub abort precedes lock acquisition).
+    expect(existsSync(join(tempDir, '.planning', '.add.lock'))).toBe(false);
+  });
+
+  it('writes verbatim when the scrub prompt returns "keep"', async () => {
+    const path = await setupOpenQuestionsFixture('open-questions-minimal', tempDir);
+    const result = await captureToOpenQuestions(tempDir, {
+      body: 'token: ghp_abcdefghijklmnopqrstuvwxyz0123456789',
+      today: '2026-05-30',
+      sensitivePrompt: async () => 'keep',
+    });
+    expect(result.written).toBe(true);
+    const content = await readFile(path, 'utf-8');
+    expect(content).toContain('ghp_abcdefghijklmnopqrstuvwxyz0123456789');
+  });
+
+  it('throws a clear error when OPEN-QUESTIONS.md is missing', async () => {
+    // tempDir has no .planning/OPEN-QUESTIONS.md
+    await expect(
+      captureToOpenQuestions(tempDir, {
+        body: 'idea',
+        today: '2026-05-30',
+        sensitivePrompt: async () => 'keep',
+      })
+    ).rejects.toThrow(/OPEN-QUESTIONS|sig:init/);
   });
 });
 
