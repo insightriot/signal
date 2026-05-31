@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [0.1.3] — Unreleased — M4.5.E7 + M4.5.E3 + M4.5.E9 + M4.5.E8 + M4.5.E2 (synthesizer prose-quality + install-UX hardening + public-docs rewrite + retro foundations + install-state diagnostician + `/sig:add` force-route flags + naked-invocation interview + stranger-safety hardening + `/sig:plan` FUTURE-IDEAS drain)
+## [0.1.3] — 2026-05-31 — M4.5.E7 + M4.5.E3 + M4.5.E9 + M4.5.E8 + M4.5.E2 (synthesizer prose-quality + install-UX hardening + public-docs rewrite + retro foundations + install-state diagnostician + `/sig:add` force-route flags + naked-invocation interview + stranger-safety hardening + `/sig:plan` FUTURE-IDEAS drain)
 
 ### Added — `/sig:add` force-route flags (M4.5.E2 Slice 2)
 

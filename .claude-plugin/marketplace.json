@@ -12,7 +12,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/InsightRiot/signal.git",
-        "ref": "v0.1.2",
+        "ref": "v0.1.3",
         "sha": "9f504a49de9687ea336d735252215fb5cc72d2d4"
       },
       "description": "Phase-0 + six-phase AI development workflow (CALIBRATE → DISCUSS → PLAN → EXECUTE → VERIFY → REVIEW → SHIP) with on-demand quality skills, specialized agents, anti-rationalization gates, and project-tier calibration. Slash-command prefix: /sig:* (Signal is the project brand; sig is the namespace). Integrates patterns from GSD, Agent Skills, and the broader Claude Code plugin ecosystem (gstack, pm-skills, superpowers, compound-engineering, planning-with-files, oh-my-claudecode)."
