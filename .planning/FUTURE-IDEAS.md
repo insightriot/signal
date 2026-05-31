@@ -1041,7 +1041,18 @@ Convert `docs/map/index.html` to fetch state at page load via a GitHub raw URL p
 
 ---
 
-*Last updated: 2026-05-24*
+## Drain safety check — an unclosed
+
+**Status:** Logged 2026-05-31 via `/sig:add`.
+
+Drain safety check — an unclosed code fence can hide ideas. If a FUTURE-IDEAS entry contains an opening triple-backtick code fence with no matching close, the /sig:plan drain treats everything below it as inside the fence and skips every entry after it — they become invisible in the candidate list (not deleted, just not shown). Low risk while the file stays well-formed markdown.
+
+Possible fix: in tools/lib/drain.js parseEntries, if the fence is still open at end-of-file, warn (or treat the dangling fence as closed) so a typo cannot silently hide ideas from the drain. Surfaced in M4.5.E2 REVIEW (finding S4).
+
+---
+
+
+*Last updated: 2026-05-31*
 ## STATE.md auto-update protocol — extend beyond EXECUTE waves
 
 **Status:** Logged 2026-05-24. Trigger: hit during M4.5.E3 DISCUSS work. After E7 SHIP closed (commit `8723967`, 2026-05-23), `last_updated_commit` in STATE.md frontmatter stayed pinned at `8723967` across 5+ subsequent commits spanning E8 scaffolding, E3 DISCUSS lock, vocabulary updates, docs/map work, and E3 DISCUSS revision. The frontmatter was only refreshed by manual intervention after the user called it out as "a bug."
