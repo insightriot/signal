@@ -30,6 +30,7 @@ import {
   assertSafeFilePath,
   insertRawAboveLastSeparator,
   captureToFile,
+  isBlank,
   BODY_LENGTH_SOFT_CAP,
 } from '../tools/lib/add.js';
 
@@ -1372,5 +1373,106 @@ describe('captureToFile (integration) — S2.t6 / FR3 / R2', () => {
     expect(existsSync(join(tempDir, '.planning', '.add.lock'))).toBe(false);
     const content = await readFile(notesPath, 'utf-8');
     expect(content).not.toContain('ghp_abcdefghijklmnopqrstuvwxyz0123456789');
+  });
+});
+
+describe('naked invocation (FR5) — S3.t1', () => {
+  // The naked-invocation interview lives in commands/add.md Step 2 (prose
+  // orchestration): empty $ARGUMENTS → one open-ended "What's the idea?" → the
+  // answer becomes the body. The pure, testable invariant here is the
+  // empty-answer-abort GATE (`isBlank`) and the fact that capture is what
+  // creates+releases the lock — so a blank answer that never reaches capture
+  // can never leave `.planning/.add.lock` behind.
+
+  it('isBlank: empty/whitespace/undefined/null/non-string → true; real text → false', () => {
+    expect(isBlank('')).toBe(true);
+    expect(isBlank('   ')).toBe(true);
+    expect(isBlank('\t\n')).toBe(true);
+    expect(isBlank(undefined)).toBe(true);
+    expect(isBlank(null)).toBe(true);
+    expect(isBlank(42)).toBe(true); // non-string
+    expect(isBlank('idea')).toBe(false);
+    expect(isBlank('  idea  ')).toBe(false);
+  });
+
+  describe('integration', () => {
+    let tempDir;
+    const lockPath = (root) => join(root, '.planning', '.add.lock');
+
+    beforeEach(async () => {
+      tempDir = await mkdtemp(join(tmpdir(), 'signal-add-test-'));
+    });
+    afterEach(async () => {
+      await rm(tempDir, { recursive: true, force: true });
+    });
+
+    // FR5.1 — a provided answer routes through the spine to FUTURE-IDEAS. This
+    // mirrors the naked flow: empty $ARGUMENTS → ask → user types an answer →
+    // the answer is passed as `body` to captureToFutureIdeas.
+    it('FR5.1: a provided answer files to FUTURE-IDEAS via the spine', async () => {
+      await setupFixture('future-ideas-minimal', tempDir);
+      const answer = 'the answer the user typed';
+      expect(isBlank(answer)).toBe(false); // the gate decides to capture
+      const result = await captureToFutureIdeas(tempDir, {
+        body: answer,
+        today: '2026-05-30',
+        sensitivePrompt: async () => 'keep',
+      });
+      expect(result.written).toBe(true);
+      const content = await readFile(result.path, 'utf-8');
+      expect(content).toContain(answer);
+    });
+
+    // FR5.2 — the critical one. A blank answer is gated OUT before capture, so
+    // the destination is untouched AND no `.add.lock` ever appears. We prove
+    // the gate-then-call structure: the predicate decides; capture is skipped.
+    it('FR5.2: blank answer → no write, and no .add.lock ever appears', async () => {
+      const dest = await setupFixture('future-ideas-minimal', tempDir);
+      const before = await readFile(dest, 'utf-8');
+
+      // Naked + blank answer: isBlank(answer) gates the call; capture is NEVER
+      // invoked, so the lock (acquired only inside captureToDestination) never
+      // gets created.
+      const answer = '   ';
+      if (!isBlank(answer)) {
+        await captureToFutureIdeas(tempDir, {
+          body: answer,
+          today: '2026-05-30',
+          sensitivePrompt: async () => 'keep',
+        });
+      }
+
+      expect(await readFile(dest, 'utf-8')).toBe(before); // no write
+      expect(existsSync(lockPath(tempDir))).toBe(false); // no lock left behind
+    });
+
+    // FR5.2 corollary — the lock is acquired AND released inside the capture
+    // spine: after a full successful capture there is no lingering lock. (So
+    // the only way a lock could persist is a crash mid-capture — never a blank
+    // naked invocation, which doesn't reach capture at all.)
+    it('FR5.2: a successful capture releases the lock (no lingering .add.lock)', async () => {
+      await setupFixture('future-ideas-minimal', tempDir);
+      const result = await captureToFutureIdeas(tempDir, {
+        body: 'something real',
+        today: '2026-05-30',
+        sensitivePrompt: async () => 'keep',
+      });
+      expect(result.written).toBe(true);
+      expect(existsSync(lockPath(tempDir))).toBe(false);
+    });
+  });
+
+  // FR5.3 — quoted input is always instant (Decision 4): a `?`-ending body and
+  // a `fix`-prefixed body both parse to a NON-blank body, so the naked-
+  // invocation gate (isBlank) is false and the interview is skipped. No
+  // heuristic reroute — both still head to FUTURE-IDEAS via the hot path.
+  it('FR5.3: quoted ?/fix-prefixed input is non-blank → interview skipped', () => {
+    const q = parseInput('is this right?');
+    expect(q).toEqual({ body: 'is this right?', flags: {} });
+    expect(isBlank(q.body)).toBe(false);
+
+    const f = parseInput('fix the thing');
+    expect(f).toEqual({ body: 'fix the thing', flags: {} });
+    expect(isBlank(f.body)).toBe(false);
   });
 });

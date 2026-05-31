@@ -54,9 +54,15 @@ Then call `resolveDestination(flags)` to classify the target **before** acquirin
 - `--milestone [N]` → `{destination: 'milestone', milestoneArg}` (`milestoneArg` is `null` for the current milestone, else the `N` string).
 - **More than one destination flag** (e.g. `--question --milestone`) → `resolveDestination` throws. Surface the message and exit non-zero — no lock, no write (FR4). This is why `resolveDestination` runs first: a conflicting-flags invocation must fail before any side effect.
 
-Empty-body handling:
+Empty-body handling — the **naked-invocation interview** (S3 / FR5):
 
-- If `body` is empty (no `$ARGUMENTS` or only whitespace): **a subsequent slice will surface a single AskUserQuestion prompt here** ("What's the idea?"). Until then, exit cleanly with: "No idea provided. Pass the idea as an argument: `/sig:add \"your idea here\"`."
+- If `body` is non-empty → this is an **instant capture** (the hot path). Per Decision 4, quoted capture is *always* instant: even when the body ends in `?` or starts with `fix`/`bug`/`TODO`, there is no routing prompt and no interview. Proceed to the scrub/capture steps with that body.
+- If `isBlank(parseInput($ARGUMENTS).body)` (no `$ARGUMENTS`, or only whitespace) **and no destination flag is present** → run the naked-invocation interview:
+  1. Ask exactly ONE question using the `open-ended` pattern in `references/question-patterns.md` (`§ 3. Open-ended` → plain text question, **not** `AskUserQuestion`): **"What's the idea?"** Plain English only — no Signal vocabulary (R6); don't say "FUTURE-IDEAS altitude" or "capture spine," just ask for the idea.
+  2. If the user's answer `isBlank(answer)` (empty or only whitespace) → **abort cleanly**: print "No idea captured." and exit 0. Do **not** call any capture function. Because the lock is acquired only inside Step 6 (capture), an abandoned/empty naked invocation never creates `.planning/.add.lock` (FR5.2 — no write, no lock).
+  3. Otherwise use the answer verbatim as the `body` and continue to Step 3 (scrub). A naked invocation always files to `FUTURE-IDEAS.md` — there are **no** destination heuristics (Decision 5): naked = ask once, file to the default.
+
+> This is an `open-ended` question used outside `new-project` / `escalate` / phase openings, justified here per the question-patterns escape clause: `/sig:add` naked invocation *opens* a capture flow with genuinely unknown intent ("what's the idea?"), which no enum or 3+other option set could anticipate. Decision 5 explicitly cuts the heuristic 3+other reroute the 2026-05-14 plan once proposed.
 
 ### 3. Sensitive-data scrub
 

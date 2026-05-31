@@ -68,6 +68,24 @@ const SENSITIVE_PATTERNS = [
 const MILESTONE_N_RE = /^\d+(\.\d+)?$/;
 
 /**
+ * True when a value is null/undefined/non-string/empty/whitespace-only.
+ *
+ * Shared by the S3 naked-invocation flow (commands/add.md Step 2): a blank
+ * `parseInput($ARGUMENTS).body` triggers the one-question "What's the idea?"
+ * interview, and a blank ANSWER aborts the interview BEFORE any capture call —
+ * so no file write and no lock (FR5.2). The lock is acquired only inside the
+ * capture spine (`captureToDestination`), so a naked invocation the user
+ * abandons never creates `.planning/.add.lock`. Pure predicate, no I/O, so the
+ * command and the tests share exactly one definition of "blank".
+ *
+ * @param {unknown} s
+ * @returns {boolean}
+ */
+export function isBlank(s) {
+  return typeof s !== 'string' || s.trim() === '';
+}
+
+/**
  * Parse the raw `$ARGUMENTS` string a slash command receives into a normalized
  * shape `{ body, flags }`.
  *
