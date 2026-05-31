@@ -38,14 +38,23 @@ const HEADING_RE = /^## /;
 // file.
 const HEADING_DISPOSED_RE = /^##\s*(✓\s*)?(SHIPPED|PROMOTED|DEFERRED|MERGED|DELETED)\b/i;
 
-// A Status line carrying a disposition verb is already disposed (Q2). This is
-// the rule the drain stamp written by applyDisposition (S5.t2) — `… → Deferred
-// 2026-05-30 (M4.5.E2 drain).` — relies on so a dispositioned entry never
-// resurfaces on the next drain. Deliberately case-sensitive and prose-blind per
-// the locked Q2 regex: a Status that already reads "Deferred from M4.5.E7 …"
-// counts as dispositioned too (a defer decision was already recorded). Simpler
-// rule chosen over a window in RESEARCH § Q2; the over-match is intentional.
-const STATUS_DISPOSED_RE = /\b(Promoted|Deferred|Merged|Deleted)\b/;
+// A Status line carrying the drain's OWN stamp is already disposed. The stamp
+// written by applyDisposition (S5.t2) has a fixed shape — a verb, an ISO date,
+// then a parenthetical containing "drain" — in both forms it emits:
+//   append (entry already had a Status):  `… → Deferred 2026-05-30 (M4.5.E2 drain).`
+//   insert (entry had no Status line):    `**Status:** Deferred 2026-05-30 (M4.5.E2 drain).`
+// Matching that exact signature (verb + date + `(… drain)`) is what stops a
+// dispositioned entry from resurfacing on the next drain.
+//
+// Q2 refinement (2026-05-31, user-approved in M4.5.E2 REVIEW): the original
+// locked rule matched a *bare* verb anywhere in the Status (`/\b(Promoted|…)\b/`),
+// which over-matched prose — e.g. `**Status:** Deferred from M4.5.E7 …` wrongly
+// hid a genuine live entry (1 of 29 in the real file). Scoping to the stamp
+// signature fixes that false-negative: only an actual drain disposition counts,
+// not the word appearing in a sentence. (Heading markers like `## ✓ SHIPPED`
+// are still caught by HEADING_DISPOSED_RE.)
+const STATUS_DISPOSED_RE =
+  /\b(Promoted|Deferred|Merged|Deleted)\s+\d{4}-\d{2}-\d{2}\s+\([^)\n]*\bdrain\b\)/;
 
 // First `**Status:**` line of an entry (leading whitespace tolerated).
 const STATUS_LINE_RE = /^\s*\*\*Status:\*\*/;

@@ -144,6 +144,32 @@ describe('listDrainCandidates (Q2 — un-dispositioned only, no date window)', (
       '## two\n\n**Status:** Logged 2026-01-01. → Promoted 2026-02-02 (drain).\n\n---\n';
     expect(listDrainCandidates(allDisposed)).toEqual([]);
   });
+
+  // Q2 refinement (2026-05-31, user-approved in M4.5.E2 REVIEW): only the drain's
+  // OWN stamp (`{Verb} {date} (… drain)`) counts as dispositioned — a prose
+  // mention of a verb does not. Previously `Deferred from M4.5.E7 …` hid a live
+  // entry (1/29 in the real file). This is the regression test for that fix.
+  it('a prose disposition verb does NOT hide a live entry (only the drain stamp counts)', () => {
+    const proseVerb =
+      '## Real live idea\n\n' +
+      '**Status:** Deferred from M4.5.E7 to FUTURE-IDEAS. Logged 2026-05-23.\n\n' +
+      'Body.\n\n---\n';
+    expect(listDrainCandidates(proseVerb).map((e) => e.heading)).toEqual(['Real live idea']);
+  });
+
+  it('the drain stamp itself (append form, with arrow) still counts as dispositioned', () => {
+    const stamped =
+      '## Done one\n\n' +
+      '**Status:** Logged 2026-01-01 via `/sig:add`. → Deferred 2026-05-30 (M4.5.E2 drain).\n\n---\n';
+    expect(listDrainCandidates(stamped)).toEqual([]);
+  });
+
+  it('the drain stamp insert form (no arrow, Status freshly inserted) still counts', () => {
+    const inserted =
+      '## Done two\n\n' +
+      '**Status:** Deferred 2026-05-30 (M4.5.E2 drain).\n\n---\n';
+    expect(listDrainCandidates(inserted)).toEqual([]);
+  });
 });
 
 // --- S5.t2: applyDisposition (pure) + applyDispositionToFile (writer, R5 gate) ---
