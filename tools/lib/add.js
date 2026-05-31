@@ -18,8 +18,8 @@
 // FUTURE-IDEAS — nothing in between; there is no `suggestDestination`-style
 // guesser (FR5.4, guarded by the export-surface test in tests/add.test.js).
 
-import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
+import { existsSync, readdirSync } from 'node:fs';
 import { join, resolve, sep, basename } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
@@ -44,6 +44,11 @@ const LOCK_TTL_MS = 30_000;
 const LOCK_FILE = '.planning/.add.lock';
 const FUTURE_IDEAS = '.planning/FUTURE-IDEAS.md';
 const OPEN_QUESTIONS = '.planning/OPEN-QUESTIONS.md';
+// One-time first-run onboarding flag (FR6.1). Lives inside .planning/, so it is
+// git-tracked by convention like everything else there — no special .gitignore
+// rule needed. Its presence means "this repo has already seen the onboarding
+// note"; the note never shows again.
+const ONBOARDED_FLAG = '.planning/.add-onboarded';
 
 // The h2 heading under which `--milestone` captures are appended. Captures
 // land ONLY here — never in the structured plan body — so /sig:add can never
@@ -86,6 +91,129 @@ const MILESTONE_N_RE = /^\d+(\.\d+)?$/;
  */
 export function isBlank(s) {
   return typeof s !== 'string' || s.trim() === '';
+}
+
+// --- S4.t1: first-run onboarding + brownfield/greenfield detection (FR6) ---
+
+/**
+ * Absolute path to the one-time onboarding flag file (FR6.1).
+ *
+ * @param {string} baseDir — project root (where .planning/ lives)
+ * @returns {string}
+ */
+export function onboardedFlagPath(baseDir) {
+  return join(baseDir, ONBOARDED_FLAG);
+}
+
+/**
+ * True when this repo has already shown the first-run onboarding note (the flag
+ * file exists). Sync, matching the existsSync style used elsewhere in this
+ * module.
+ *
+ * @param {string} baseDir
+ * @returns {boolean}
+ */
+export function isOnboarded(baseDir) {
+  return existsSync(onboardedFlagPath(baseDir));
+}
+
+/**
+ * Persist the onboarding flag so the note never shows again. Idempotent — a
+ * second call just rewrites the timestamp line. Content is a single dated line;
+ * the file's mere existence is the signal, the line is for a curious reader.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<void>}
+ */
+export async function markOnboarded(baseDir) {
+  const stamp = `Onboarded to /sig:add on ${new Date().toISOString()}\n`;
+  await writeFile(onboardedFlagPath(baseDir), stamp, 'utf-8');
+}
+
+/**
+ * Resolve the SHAPE of the first-run onboarding note from `gate_strictness`
+ * (Q1). This is the ONLY thing gate_strictness modulates for /sig:add — it adds
+ * NO destination-confirmation prompt at any level (Q1 locked + user-
+ * reconfirmed). Quoted/flagged capture stays instant regardless (Decision 4).
+ *
+ *   - `strict` → `'strict'`  — a BLOCKING note shown once (continue/abort).
+ *   - `light`  → `'fyi'`     — a one-line, non-blocking FYI shown once.
+ *   - `off`    → `'silent'`  — no note at all.
+ *   - anything else (null/absent profile, missing rigor_overrides, unknown
+ *     value) → `'fyi'`       — the light default (PROFILE.md absent ⇒ light).
+ *
+ * Pure: takes the already-read profile object (or null) so it's unit-testable
+ * without touching the filesystem.
+ *
+ * @param {{rigor_overrides?: {gate_strictness?: string}}|null|undefined} profileOrNull
+ * @returns {'strict'|'fyi'|'silent'}
+ */
+export function resolveOnboardingMode(profileOrNull) {
+  const strictness = profileOrNull?.rigor_overrides?.gate_strictness;
+  if (strictness === 'strict') return 'strict';
+  if (strictness === 'off') return 'silent';
+  // 'light', null/absent profile, missing rigor_overrides, or any unknown
+  // value all collapse to the light FYI default.
+  return 'fyi';
+}
+
+// Names that are NOT evidence of a real source tree on their own — dotfiles
+// (.git, .gitignore, …) and Signal's own scaffolding. Used by detectProjectKind
+// to decide "is there actual code/content here, or is this a bare dir?".
+const NON_SOURCE_ENTRIES = new Set(['.planning', 'node_modules']);
+
+/**
+ * Classify a directory as `'brownfield'` or `'greenfield'` for the
+ * missing-`.planning/` error (FR6.2). The heuristic is deliberately simple — it
+ * only drives WHICH command the error suggests, so a wrong guess costs the user
+ * one wrong command name, not data:
+ *
+ *   brownfield = `.git/` exists AND at least one non-dotfile, non-scaffolding
+ *                entry is present (i.e. there's real source to scan).
+ *   greenfield = everything else (no `.git/`, or an empty/just-initialized dir).
+ *
+ * Dotfiles (anything starting with `.`) and `node_modules`/`.planning` don't
+ * count as "source" — a freshly `git init`-ed empty dir is greenfield.
+ *
+ * @param {string} baseDir — project root
+ * @returns {'brownfield'|'greenfield'}
+ */
+export function detectProjectKind(baseDir) {
+  if (!existsSync(join(baseDir, '.git'))) return 'greenfield';
+  let entries;
+  try {
+    entries = readdirSync(baseDir);
+  } catch {
+    return 'greenfield';
+  }
+  const hasSource = entries.some(
+    (name) => !name.startsWith('.') && !NON_SOURCE_ENTRIES.has(name)
+  );
+  return hasSource ? 'brownfield' : 'greenfield';
+}
+
+/**
+ * Compose the missing-`.planning/` error message, branching on
+ * `detectProjectKind` (FR6.2). Brownfield repos are told to run `/sig:init`
+ * (scan the existing code); greenfield dirs are told to run `/sig:new-project`
+ * (start fresh). Kept as its own helper so the command layer (commands/add.md)
+ * can surface a sharp message without duplicating the detection logic, while
+ * the capture functions keep their own generic throw unchanged.
+ *
+ * @param {string} baseDir — project root
+ * @returns {string}
+ */
+export function buildMissingPlanningError(baseDir) {
+  if (detectProjectKind(baseDir) === 'brownfield') {
+    return (
+      'No .planning/ found, but this looks like an existing codebase. ' +
+      'Run `/sig:init` to scan it, then `/sig:add` will work.'
+    );
+  }
+  return (
+    'No .planning/ found and no project detected. ' +
+    'Run `/sig:new-project` to start fresh.'
+  );
 }
 
 /**

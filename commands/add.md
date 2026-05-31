@@ -21,9 +21,10 @@ Routing is **flags or nothing in between**: with no flag, capture always lands i
 - `DECISIONS.md` / `STATE.md` — **never** written by `/sig:add` (DECISIONS is post-deliberation; STATE is regenerated)
 
 Authoritative references:
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/add.js` — `parseInput`, `resolveDestination`, `scrubSensitive`, `buildFutureIdeasEntry`, `buildOpenQuestionsEntry`, `buildMilestoneEntry`, `insertAboveFooter`, `rewriteFooter`, `atomicWrite`, `acquireLock`, `releaseLock`, `captureToFutureIdeas`, `captureToOpenQuestions`, `captureToMilestone`, `checkBodyLength`, `BODY_LENGTH_SOFT_CAP`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/add.js` — `parseInput`, `resolveDestination`, `scrubSensitive`, `buildFutureIdeasEntry`, `buildOpenQuestionsEntry`, `buildMilestoneEntry`, `insertAboveFooter`, `rewriteFooter`, `atomicWrite`, `acquireLock`, `releaseLock`, `captureToFutureIdeas`, `captureToOpenQuestions`, `captureToMilestone`, `checkBodyLength`, `BODY_LENGTH_SOFT_CAP`, `resolveOnboardingMode`, `isOnboarded`, `markOnboarded`, `detectProjectKind`, `buildMissingPlanningError`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/milestones.js` — `currentMilestone`, `listMilestones` (target resolution for `--milestone [N]`)
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState` (for trigger-context detection in mid-phase captures)
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile` (reads `rigor_overrides.gate_strictness` for the onboarding note shape; throws `ProfileSchemaError` if PROFILE.md is absent — treat as `light`)
 - `${CLAUDE_PLUGIN_ROOT}/references/question-patterns.md` — `3+other` and `strict-enum` patterns for the prompts below
 - `.planning/FUTURE-IDEAS.md` — the default destination; entry shape is defined by `buildFutureIdeasEntry`
 
@@ -32,11 +33,32 @@ Authoritative references:
 ### 1. Pre-flight
 
 - Resolve the project root (typically cwd, but verify by checking for `.planning/`).
-- If `.planning/FUTURE-IDEAS.md` does **not** exist:
-  - If `.git/` exists with tracked source files → "This looks like a brownfield repo. Run `/sig:init` first, then `/sig:add` will work."
-  - Else → "No project detected. Run `/sig:new-project` to start fresh."
-  - Exit non-zero. (Brownfield-vs-greenfield enrichment lives in Slice 4; Slice 1 surfaces the generic "Run `/sig:init` first" error from `tools/lib/add.js`.)
+- If `.planning/FUTURE-IDEAS.md` (or the resolved target file) does **not** exist:
+  - Surface `buildMissingPlanningError(baseDir)` from `tools/lib/add.js`. It branches on `detectProjectKind(baseDir)`:
+    - **brownfield** (`.git/` exists AND at least one non-dotfile source entry present) → suggests `/sig:init` ("scan it, then `/sig:add` will work").
+    - **greenfield** (no `.git/`, or an empty/just-initialized dir) → suggests `/sig:new-project`.
+  - Exit non-zero. No lock, no write. (The capture functions also carry their own generic `/sig:init`-or-`/sig:new-project` throw as a backstop; this pre-flight message is the sharper, detected one.)
 - `.gitignore` check (same rule as every other write-to-`.planning/` command): if any line would silence `.planning/`, warn the user, explain why `.planning/` must be tracked, offer to remove. Do not proceed without confirmation. See `commands/calibrate.md:98-102` for the canonical pattern.
+
+### 1b. First-run onboarding note (FR6.1 / Q1)
+
+The **first** time `/sig:add` is used in a repo, show a one-time note that `.planning/` is git-tracked, so captures become permanent on commit. After it's shown (and the run isn't aborted), persist the flag so it never shows again.
+
+1. If `isOnboarded(baseDir)` (the `.planning/.add-onboarded` flag exists) → **skip this whole step.** Already onboarded; proceed to Step 2.
+2. Otherwise, read PROFILE.md to decide the note's shape:
+   - Call `readProfile(baseDir)`. If it throws `ProfileSchemaError` (PROFILE.md absent or invalid), treat the profile as **absent** → default to the `light` shape.
+   - Compute `mode = resolveOnboardingMode(profileOrNull)` → one of `'strict' | 'fyi' | 'silent'`. This is the **only** thing `gate_strictness` modulates for `/sig:add`.
+3. Act on `mode`:
+   - **`strict`** → show a BLOCKING note **once** via `AskUserQuestion(strict-enum, [continue, abort])` (`references/question-patterns.md` § Strict enum → `AskUserQuestion(multiSelect: false)`):
+     - Header: `Heads up`
+     - Question: `.planning/ is tracked in git, so anything you capture here becomes part of the repo's history once you commit. Treat captures as shareable, not private. Continue?`
+     - Options: `continue` (proceed with the capture), `abort` (stop now — nothing is written).
+     - On **`abort`** → exit 0, do **not** capture, and do **NOT** write the onboarded flag (so the note shows again next time). On **`continue`** → `await markOnboarded(baseDir)`, then proceed to Step 2.
+   - **`fyi`** (light, or PROFILE.md absent) → print a single non-blocking line **once**, then `await markOnboarded(baseDir)` and proceed:
+     - `Note: .planning/ is tracked in git — captures here become permanent once you commit.`
+   - **`silent`** (off) → show nothing. Still `await markOnboarded(baseDir)` (so the state stays consistent and one-and-done), then proceed.
+
+> **Q1 — NO destination confirmation, at any `gate_strictness`.** This is locked and user-reconfirmed. `gate_strictness` modulates **only** the first-run onboarding note above. It does **not** add any "confirm destination?" / "write to {file}?" prompt anywhere, at any level. The hot path stays instant (Decision 4): a quoted or flagged capture writes immediately, prompting only for the existing scrub / over-length / naked-empty cases. Do not introduce a destination-confirm step.
 
 ### 2. Parse input and resolve the destination
 
@@ -123,7 +145,8 @@ Do **not** preview the entry before write (capture latency dies on every confirm
 
 | Error | User-facing message |
 |---|---|
-| Destination file missing | (from `tools/lib/add.js`) "Run `/sig:init` first ..." — names the resolved destination. |
+| `.planning/` / destination file missing | (pre-flight, from `buildMissingPlanningError`) brownfield (`.git/` + source) → "Run `/sig:init` …"; greenfield → "Run `/sig:new-project` …". The capture functions carry the same generic suggestion as a backstop. |
+| Onboarding note aborted (`strict` only) | First run with `gate_strictness: strict` and the user picks `abort` → exit 0, no capture, onboarded flag NOT written (note re-shows next time). |
 | Multiple destination flags | (from `resolveDestination`) "`/sig:add` accepts only one destination flag ... Pick one." Exit non-zero **before** any lock or write (FR4). |
 | `--milestone` with no current milestone | (from `captureToMilestone`) "no current milestone is set in STATE.md ... Pass an explicit `--milestone N`." No write (FR2.2). |
 | `--milestone N` file absent | (from `captureToMilestone`) "that milestone file does not exist ... Scaffolding a new milestone is out of scope for `/sig:add`." No auto-create, no write (FR2.4). |
@@ -143,6 +166,8 @@ Do **not** preview the entry before write (capture latency dies on every confirm
 | "Show entry preview before write so user can confirm." | No. Capture latency dies on confirmation steps. Diff *after* write is the confirmation. Linear "C" lesson; GSD `--note` pattern. Per plan locked decision #6. |
 | "Tidy / smart-quote / capitalize the body." | No. **Verbatim capture is non-negotiable.** The user's exact phrasing is the signal. From GSD `note.md`: *"Never modify the note text — capture verbatim, including typos."* Per plan locked decision #5. |
 | "Add a `## Recently captured` summary at the top of the file." | No. The file's existing structure (heading → entries separated by `---` → footer) is the contract. New entries land above the footer in the same shape as existing ones. |
+| "`gate_strictness: strict` means I should confirm the destination before writing." | No. Q1 is locked + user-reconfirmed: `gate_strictness` modulates **only** the one-time first-run onboarding note (Step 1b) — never a destination confirm. Capture stays instant at every level (Decision 4). |
+| "Show the onboarding note every run so the warning sticks." | No. It's one-time per repo, gated by `.planning/.add-onboarded`. Repeating it on every capture is exactly the friction `/sig:add` exists to remove. |
 | "Write to a different file if FUTURE-IDEAS.md is too long." | No. File size isn't a concern at scale. Single file = single grep target = single read. |
 
 ## Gate: Capture Complete
@@ -152,3 +177,5 @@ Do **not** preview the entry before write (capture latency dies on every confirm
 - [ ] For a FUTURE-IDEAS write: footer date matches today afterward (OPEN-QUESTIONS and milestone holding sections have no footer to rewrite).
 - [ ] `.planning/.add.lock` removed (released or never acquired).
 - [ ] Entry body matches user input verbatim (verifiable via `git diff`).
+- [ ] First-run onboarding note shown at most once per repo (gated by `.planning/.add-onboarded`); shape matched `gate_strictness` (strict = blocking once / light + absent = one-line FYI once / off = silent). A `strict`-abort wrote no flag and no capture.
+- [ ] NO destination-confirmation prompt was shown at any `gate_strictness` (Q1) — only scrub / over-length / naked-empty prompts, plus the one-time onboarding note, ever appear.

@@ -11,6 +11,12 @@ import { fileURLToPath } from 'node:url';
 import * as addModule from '../tools/lib/add.js';
 import {
   parseInput,
+  resolveOnboardingMode,
+  onboardedFlagPath,
+  isOnboarded,
+  markOnboarded,
+  detectProjectKind,
+  buildMissingPlanningError,
   scrubSensitive,
   buildFutureIdeasEntry,
   buildOpenQuestionsEntry,
@@ -1475,6 +1481,127 @@ describe('naked invocation (FR5) — S3.t1', () => {
     const f = parseInput('fix the thing');
     expect(f).toEqual({ body: 'fix the thing', flags: {} });
     expect(isBlank(f.body)).toBe(false);
+  });
+});
+
+describe('resolveOnboardingMode (pure) — S4.t1 / FR6.3 / Q1', () => {
+  // Q1: gate_strictness modulates the SHAPE of the one-time first-run onboarding
+  // note ONLY — it never adds a destination-confirm prompt. strict → blocking
+  // once; light/absent/unknown → one-line FYI once; off → silent.
+
+  it('strict → "strict" (blocking note once)', () => {
+    expect(
+      resolveOnboardingMode({ rigor_overrides: { gate_strictness: 'strict' } })
+    ).toBe('strict');
+  });
+
+  it('light → "fyi" (one-line FYI once)', () => {
+    expect(
+      resolveOnboardingMode({ rigor_overrides: { gate_strictness: 'light' } })
+    ).toBe('fyi');
+  });
+
+  it('off → "silent" (no note)', () => {
+    expect(
+      resolveOnboardingMode({ rigor_overrides: { gate_strictness: 'off' } })
+    ).toBe('silent');
+  });
+
+  it('null profile (PROFILE.md absent) → "fyi" (light default)', () => {
+    expect(resolveOnboardingMode(null)).toBe('fyi');
+  });
+
+  it('undefined profile → "fyi"', () => {
+    expect(resolveOnboardingMode(undefined)).toBe('fyi');
+  });
+
+  it('profile with no rigor_overrides → "fyi"', () => {
+    expect(resolveOnboardingMode({})).toBe('fyi');
+  });
+
+  it('unknown gate_strictness value → "fyi" (safe default)', () => {
+    expect(
+      resolveOnboardingMode({ rigor_overrides: { gate_strictness: 'banana' } })
+    ).toBe('fyi');
+  });
+});
+
+describe('onboarded flag (I/O) — S4.t1 / FR6.1', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-add-test-'));
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('onboardedFlagPath resolves to .planning/.add-onboarded', () => {
+    expect(onboardedFlagPath(tempDir)).toBe(
+      join(tempDir, '.planning', '.add-onboarded')
+    );
+  });
+
+  it('isOnboarded is false on a fresh repo; true after markOnboarded', async () => {
+    expect(isOnboarded(tempDir)).toBe(false);
+    await markOnboarded(tempDir);
+    expect(isOnboarded(tempDir)).toBe(true);
+    expect(existsSync(onboardedFlagPath(tempDir))).toBe(true);
+  });
+
+  it('markOnboarded is idempotent (a second call does not throw)', async () => {
+    await markOnboarded(tempDir);
+    await expect(markOnboarded(tempDir)).resolves.not.toThrow();
+    expect(isOnboarded(tempDir)).toBe(true);
+  });
+});
+
+describe('detectProjectKind (I/O) — S4.t1 / FR6.2', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-add-test-'));
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('returns "brownfield" when .git/ exists AND a source file is present', async () => {
+    await mkdir(join(tempDir, '.git'), { recursive: true });
+    await writeFile(join(tempDir, 'index.js'), 'console.log(1);\n', 'utf-8');
+    expect(detectProjectKind(tempDir)).toBe('brownfield');
+  });
+
+  it('returns "greenfield" for a bare empty dir', async () => {
+    expect(detectProjectKind(tempDir)).toBe('greenfield');
+  });
+
+  it('returns "greenfield" when .git/ exists but no non-dotfile source is present', async () => {
+    await mkdir(join(tempDir, '.git'), { recursive: true });
+    expect(detectProjectKind(tempDir)).toBe('greenfield');
+  });
+});
+
+describe('buildMissingPlanningError (I/O) — S4.t1 / FR6.2', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-add-test-'));
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('brownfield repo → message suggests /sig:init', async () => {
+    await mkdir(join(tempDir, '.git'), { recursive: true });
+    await writeFile(join(tempDir, 'index.js'), 'console.log(1);\n', 'utf-8');
+    const msg = buildMissingPlanningError(tempDir);
+    expect(msg).toMatch(/sig:init/);
+    expect(msg).not.toMatch(/sig:new-project/);
+  });
+
+  it('greenfield dir → message suggests /sig:new-project', () => {
+    const msg = buildMissingPlanningError(tempDir);
+    expect(msg).toMatch(/sig:new-project/);
+    expect(msg).not.toMatch(/sig:init/);
   });
 });
 
