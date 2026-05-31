@@ -5,13 +5,47 @@
  * files, and conventions are in place.
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, '..');
+export const ROOT = join(__dirname, '..');
+
+// Legacy vocabulary that must never reappear: "Tranche" was renamed to
+// "Milestone" in M4.t18. Guards against drift back into the canonical
+// Milestone / Epic / Slice / Task addressing. Scanned per line (mirroring
+// tests/helpers/template-lint.js#findJargonHits) so errors carry line numbers.
+const BANNED_VOCABULARY = [{ term: 'tranche', re: /tranche/i }];
+const VOCABULARY_LINTED_FILES = ['commands/add.md', 'tools/lib/add.js'];
+
+/**
+ * Scan the vocabulary-linted files for banned legacy terms and push one error
+ * per hit (with file:line) into `errors`. Returns the number of hits found.
+ *
+ * @param {string[]} errors - accumulator the caller flips hasError from
+ * @param {string} baseDir - directory the relative file paths resolve against
+ * @param {string[]} files - relative paths to scan
+ * @returns {number} number of banned-term hits
+ */
+export function checkBannedVocabulary(errors, baseDir = ROOT, files = VOCABULARY_LINTED_FILES) {
+  let hits = 0;
+  for (const rel of files) {
+    const p = join(baseDir, rel);
+    if (!existsSync(p)) continue;
+    const lines = readFileSync(p, 'utf8').split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      for (const { term, re } of BANNED_VOCABULARY) {
+        if (re.test(lines[i])) {
+          errors.push(`Banned vocabulary "${term}" in ${rel}:${i + 1} — use canonical Milestone/Epic/Slice/Task vocabulary (M4.t18 lock).`);
+          hits++;
+        }
+      }
+    }
+  }
+  return hits;
+}
 
 const REQUIRED_FILES = [
   '.claude-plugin/plugin.json',
@@ -124,6 +158,9 @@ async function validate() {
     errors.push('state/config.json is invalid JSON');
   }
 
+  // Check for banned legacy vocabulary in the user-facing /sig:add surface.
+  checkBannedVocabulary(errors);
+
   // Report
   if (errors.length === 0 && warnings.length === 0) {
     console.log('Plugin validation passed.');
@@ -144,4 +181,8 @@ async function validate() {
   return errors.length === 0;
 }
 
-validate();
+// Auto-run only when invoked directly (e.g. `node tools/validate-plugin.js`),
+// not when imported by tests for the exported helpers.
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  validate();
+}
