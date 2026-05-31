@@ -8,6 +8,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
+import * as addModule from '../tools/lib/add.js';
 import {
   parseInput,
   scrubSensitive,
@@ -1474,5 +1475,43 @@ describe('naked invocation (FR5) — S3.t1', () => {
     const f = parseInput('fix the thing');
     expect(f).toEqual({ body: 'fix the thing', flags: {} });
     expect(isBlank(f.body)).toBe(false);
+  });
+});
+
+describe('no-heuristics guard (FR5.4 / Decision 5)', () => {
+  // The shipped design is "routing = explicit flags OR FUTURE-IDEAS, nothing in
+  // between". The 2026-05-14 plan's `suggestDestination(body, state)` heuristic
+  // and its reroute prompts were CUT (Decision 5). This is the long-term guard
+  // against a future contributor quietly re-adding destination-guessing logic.
+
+  // Any name a heuristic/reroute would plausibly take. The export-surface check
+  // catches an exported function; the source-text check below also catches a
+  // non-exported helper.
+  const banned = [
+    'suggestDestination',
+    'rerouteDestination',
+    'classifyDestination',
+    'guessDestination',
+    'inferDestination',
+  ];
+
+  it('exports no destination-heuristic / reroute function', () => {
+    for (const name of banned) {
+      expect(
+        addModule[name],
+        `add.js must not export ${name} — routing is flags-or-FUTURE-IDEAS (Decision 5)`
+      ).toBeUndefined();
+    }
+  });
+
+  it('the source contains no `suggestDestination` identifier (catches non-exported helpers)', async () => {
+    const src = await readFile(join(__dirname, '..', 'tools', 'lib', 'add.js'), 'utf-8');
+    // Match the bare identifier only — the prose comment that *names* the cut
+    // heuristic (`suggestDestination`-style) is allowed, so require a word
+    // boundary followed by `(` to flag an actual call/definition site.
+    expect(
+      /\bsuggestDestination\s*\(/.test(src),
+      'tools/lib/add.js must not define or call suggestDestination (Decision 5: heuristics cut)'
+    ).toBe(false);
   });
 });

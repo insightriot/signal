@@ -10,10 +10,13 @@
 //   - Footer rewrite: every successful write bumps `*Last updated: YYYY-MM-DD*`.
 //   - Body length soft cap at 4000 chars — warn, never hard-fail.
 //
-// Slices 2-5 will add: --question / --milestone flag routing (S2), naked-
-// invocation interview + heuristic single-key overrides (S3), first-run
-// onboarding warning + gate_strictness honoring (S4), /sig:plan FUTURE-IDEAS
-// review step (S5). This module is the substrate for all of them.
+// Later slices build on this substrate: --question / --milestone flag routing
+// (S2), the naked-invocation interview (S3 — one open-ended question → FUTURE-
+// IDEAS; NO destination heuristics, those were cut per Decision 5), first-run
+// onboarding warning + gate_strictness honoring (S4), and the /sig:plan
+// FUTURE-IDEAS review step (S5). Routing is explicit flags OR the default
+// FUTURE-IDEAS — nothing in between; there is no `suggestDestination`-style
+// guesser (FR5.4, guarded by the export-surface test in tests/add.test.js).
 
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
