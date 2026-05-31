@@ -31,43 +31,27 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## ⚡ POST-CONTEXT-CLEAR RE-ENTRY PROTOCOL (read this first)
 
+**The YAML frontmatter at the top of this file is the authoritative machine state.** This prose section is the human companion, refreshed by hand at phase/Epic boundaries. (Since M4.5.E6 shipped, `/sig:resume` reads the frontmatter directly — this README-style protocol is now a convenience, not the load-bearing recovery path it was before E6.)
+
 **If you (Claude or Brett) are reading this after a context clear:**
 
-1. **Where we are:** M4.5.E6 (resume reliability) — DISCUSS + PLAN complete 2026-05-17. **Ready to start EXECUTE.** Next concrete action: kick off S1.t1 (extract `atomic-write.js` from `add.js`).
+1. **Where we are (2026-05-31):** **M4.5.E2 (`/sig:add`) just shipped** — the full 5-slice Epic is closed (capture hot path + `--question`/`--milestone`/`--file` flags + naked-invocation interview + stranger-safety hardening + the `/sig:plan` advisory FUTURE-IDEAS drain). Frontmatter says `phase: SHIP`, `current_epic: M4.5.E2`, DISCUSS→SHIP all complete. No Epic is currently in flight.
 
-2. **What's locked:** 16 design decisions in `.planning/DECISIONS.md` (entries dated 2026-05-16 + 2026-05-17 addendum). The 2026-05-17 addendum is the most recent and contains D1 amendment + D10–D16. Do NOT re-litigate these.
+2. **What's next (Brett's call):** the remaining M4.5 Epics are **E4** (worked example + comparison page) and **E5** (external validation + launch). Also open: **E1 Slices 3–5** (Linux/WSL install matrix + versioning-policy doc + validator hardening), shelved pending volunteer testers (D-E3-12); and cutting the **v0.1.3** release (currently `[0.1.3] — Unreleased` in CHANGELOG, bundling E7+E3+E9+E8+E2). Pick one and run its first phase command, or `/sig:resume` for a fresh briefing.
 
-3. **What to read in order:**
-   - `.planning/M4.5.E6-PLAN.md` — the executable plan (5 slices, 37 tasks, TDD ordering). This is your single source of truth for what to do.
-   - `.planning/M4.5.E6-RESEARCH.md` — research synthesis (why each decision was made; reference if confused).
-   - `.planning/M4.5.E6-VALIDATION.md` — 8-dim plan validation + Nyquist test mapping.
-   - `.planning/DECISIONS.md` 2026-05-16 + 2026-05-17 entries — locked decisions.
+3. **What to read in order:** `.planning/CONTEXT.md` → this file's frontmatter → `.planning/MILESTONE-4.5.md` (Epic roadmap) → the target Epic's `M4.5.E{N}-*.md` artifacts. Locked decisions are in `.planning/DECISIONS.md`; per-Epic retrospectives are indexed in `.planning/RETROSPECTIVES.md`.
 
-4. **Critical things to remember:**
-   - **No new runtime dependencies.** D1 was amended to use existing `yaml@^2.8.3`, NOT `js-yaml`.
-   - **S1.t4 has a hard gate** — the D15 dry-run on Signal-on-Signal's own STATE.md. Don't ship S1 code without that gate executing and Brett reviewing the diff.
-   - **Linear S1→S2→S3→S4→S5 execution** under strict gate. Each slice gets explicit user approval before next begins.
-   - **Per-task atomic commits** with the M4.5.E6.S{N}.t{M} naming convention (matches M4.5.E2 precedent).
-
-5. **The reason this protocol exists:** Signal's current `/sig:resume` cannot fully re-orient you after a context clear because STATE.md is freeform narrative and the resume.md artifact resolver doesn't know Epic-prefix naming yet. That's literally what M4.5.E6 fixes. Until E6 ships, this README-style protocol at the top of STATE.md is the manual workaround.
-
-6. **To continue:** Tell Claude "let's start S1.t1" or invoke `/sig:execute` (note: execute.md may need `M4.5.E6` as the phase argument — see PLAN.md for runtime details). The plan is written so any agent can pick up from here without re-asking design questions.
+4. **Working norms (load-bearing):** per-task atomic commits with the `M4.5.E{N}.S{M}.t{K}` naming convention; FULL tier (`gate_strictness: strict`) means explicit user approval at each wave/phase boundary; no new runtime dependencies; commit **and** push (push is the default, not a separate ask).
 
 ---
 
 ## Current Phase
 
-EXECUTE
-
-## Completed Phases
-
-- CALIBRATE (2026-05-14)
-- DISCUSS (2026-05-16)
-- PLAN (2026-05-17)
+**SHIP complete for M4.5.E2 (2026-05-31). Between Epics — no phase in flight.** (The authoritative per-Epic phase state is the frontmatter `phase:` / `completed_phases:` at the top of this file; this prose echoes it for human readers.)
 
 ## Current Milestone
 
-**Milestone 4.5 — Release Hardening / Stranger-Adoption Readiness — in flight.** Scaffolded 2026-05-13; **6 Epics** (E6 added 2026-05-16). **M4.5.E6 (resume reliability — STATE.md schema + auto-update protocol + `/sig:checkpoint`) — PLAN complete 2026-05-17, entering EXECUTE.** Critical Epic, jumps queue ahead of E1.S2 and E2.S2 because real-world `/sig:resume` failure on a user project surfaced 2026-05-16. **16 design decisions locked in DECISIONS.md** (9 from 2026-05-16 + D1 amendment + D10–D16 from 2026-05-17 addendum): YAML-frontmatter STATE.md schema with `schema_version` using existing `yaml@^2.8.3` (NOT new js-yaml dep), two-mode `/sig:checkpoint` (default quick + `--context` for deep capture appending to BOTH CONTEXT.md and DECISIONS.md), per-task refresh cadence during EXECUTE, auto-migration on first write with strict three-way schema detection, end-of-phase markFresh (renamed from markStale for clarity), scoped staleness check via git commit hash (not wall clock), `current_tasks[]` array for wave-parallel execution, orphan in_progress detection, unit+fixture test approach, show-diff-confirm under strict gate, tier-aware failure handling, D15 dry-run gate against Signal-on-Signal's own STATE.md before S1 ships. **5-slice plan + 37 tasks + ~88 new tests** documented in `M4.5.E6-PLAN.md`. Research synthesis in `M4.5.E6-RESEARCH.md`. 8-dim validation + Nyquist mapping PASS in `M4.5.E6-VALIDATION.md`. Next: run `/sig:execute` on M4.5.E6 to start S1.t1 (extract `atomic-write.js` from `add.js`). **M4.5.E1 (install-path bulletproof) Slice 1 shipped 2026-05-15 + R1 verified — v0.1.1 tagged + pushed.** marketplace.json `source` switched from `"github"` shorthand to `"url"` with explicit HTTPS URL + ref + sha pin; v0.1.0 → v0.1.1; CHANGELOG seeded; README install section corrected + Troubleshooting subsection naming `CLAUDE_CODE_PLUGIN_PREFER_HTTPS` (Claude Code 2.1.141+); validator gained semver-format check; 16 new tests (209 → 225). R1 verified by successful `/plugin marketplace update signal` on Brett's business machine (multi-identity SSH; would have failed under the old SSH path). Slices 2–5 pending: S2 F2 verification (run `/agents` on biz machine, capture output), S3 install matrix rows R2/R3/R5, S4 versioning policy doc, S5 validator hardening. **M4.5.E2 (`/sig:add`) Slice 1 shipped 2026-05-14** — verbatim capture to `FUTURE-IDEAS.md`, sensitive-data scrub, atomic write, lock-protected (40 tests). E2 Slices 2–5 deferred (force-route flags, cold-path interview, stranger-safety hardening, `/sig:plan` close-the-loop). Other Epics pending: E3 (public-facing docs rewrite), E4 (worked example + comparison page), E5 (external validation + launch).
+**Milestone 4.5 — Release Hardening / Stranger-Adoption Readiness — in flight.** Scaffolded 2026-05-13. **Shipped Epics:** **E1** (install-path fix → v0.1.1; Slice 1 + Phase A only — Slices 3–5 shelved pending testers), **E6** (resume reliability — STATE.md YAML-frontmatter schema + auto-update protocol + `/sig:checkpoint` → v0.1.2), **E7** (synthesizer prose-quality + install-UX), **E3** (public-facing docs rewrite — audience reframe), **E9** (retro foundations — SHIP retro gate + `RETROSPECTIVES.md` index), **E8** (`/sig:doctor` install-state diagnostician — 15th slash command, shipped 2026-05-30), and **E2** (`/sig:add` capture-and-route + `/sig:plan` advisory FUTURE-IDEAS drain — full 5-slice Epic, shipped 2026-05-31; see `M4.5.E2-RETROSPECTIVE.md`). **Remaining M4.5 Epics: E4** (worked example + comparison page) and **E5** (external validation + launch). **Also open:** E1 Slices 3–5 (Linux/WSL install matrix + versioning-policy doc + validator hardening), shelved pending volunteer testers (D-E3-12); and cutting the **v0.1.3** release — `CHANGELOG [0.1.3]` is staged but **Unreleased**, bundling E7+E3+E9+E8+E2. Test suite at **762**; validator green. Full Epic roadmap in `MILESTONE-4.5.md`; per-Epic retrospectives indexed in `RETROSPECTIVES.md`; locked decisions in `DECISIONS.md`.
 
 **Milestone 4 — Brownfield Onboarding via `/sig:init` — closed 2026-05-12 + v0.1.0 tagged.** 19 of 19 tasks shipped. M4.t18 (vocabulary refactor: Tranche → Milestone, add Epic mid-layer) and M4.t19 (marketplace install layout fix + plugin slug `signal` → `sig`) both shipped 2026-05-12. Design notes in `MILESTONE-4.md`.
 
@@ -76,6 +60,11 @@ Plugin is now marketplace-installable from `InsightRiot/signal` via Claude Code'
 Milestone 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the markdown and code layer.
 
 ## Completed
+
+- **Milestone 4.5, Epic 2 — `/sig:add` capture-and-route, full Epic closed** (2026-05-31):
+  - **Slices 2–5 shipped** after a full 2026-05-30 re-DISCUSS + re-PLAN (which superseded the 2026-05-14 S2–S5 draft — heuristics cut per Decision 5, drain made advisory per Decision 2). **S2:** generalized capture spine (`captureToDestination`) + `tools/lib/milestones.js` + `--question`/`--milestone [N]`/`--file` flags with multi-flag guard + `--file` path-escape hard gate. **S3:** naked-invocation interview (one question → FUTURE-IDEAS) + no-heuristics guard. **S4:** first-run onboarding note (gate_strictness-modulated) + brownfield/greenfield error + validator vocab lint. **S5:** the `/sig:plan` advisory drain — `tools/lib/drain.js` (`parseEntries` fence-aware + `listDrainCandidates` + `applyDisposition`/`applyDispositions`/`applyDispositionToFile`) + `commands/plan.md` `### 1b.` step with R1 preview-diff gate + R5 delete/merge confirm.
+  - **Full DISCUSS→PLAN→EXECUTE→VERIFY→REVIEW→SHIP cycle** run at FULL/strict. VERIFY: 762 tests, strict Nyquist. REVIEW: four-lens, verdict **PASS-WITH-FIXES** — the Q2 dispositioned-rule was refined in-loop (bare-verb match → drain-stamp signature) after REVIEW found it hid 1 of 29 live entries; user-approved. Shipped direct-to-main (no per-slice tag, Decision 8).
+  - **New surface:** `tools/lib/drain.js`, `tools/lib/milestones.js`, `commands/plan.md` § 1b (plus S1's `commands/add.md` + `tools/lib/add.js`). **Epic-owned tests:** `add.test.js` 137 + `milestones.test.js` 8 + `drain.test.js` 38 = 183. Commit range `fdc1247..d79e1b1`. Retro: `M4.5.E2-RETROSPECTIVE.md`.
 
 - **Milestone 4.5, Epic 2, Slice 1 — `/sig:add` hardened hot path** (2026-05-14):
   - **`commands/add.md`** (new) — meta-command spec for `/sig:add "idea"`. No tier-gating preamble (capture should always work); modeled on `commands/resume.md`. Slice 1 covers verbatim capture to `.planning/FUTURE-IDEAS.md` only; force-route flags (`--question`, `--milestone`, `--milestone N`, `--file`), naked-invocation interview, and stranger-safety hardening are deferred to Slices 2–4 per `M4.5.E2-PLAN.md`.
