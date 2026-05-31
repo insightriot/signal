@@ -137,6 +137,7 @@ This step is intentionally lightweight at FEATURE/SKETCH (`research_parallelism:
 | "This task is too small to need acceptance criteria" | If it doesn't have criteria, how will you know it's done? |
 | "We can figure out the test strategy during execution" | TDD requires knowing what to test before writing code |
 | "Vertical slicing is overkill for this" | Horizontal slicing creates integration debt |
+| "The plan's decided — skip the FUTURE-IDEAS drain" | No. FUTURE-IDEAS is `/sig:add`'s default destination; the PLAN drain (Step 1b) IS the promotion step. Skip it and captures rot in a write-only file. |
 
 ### Exit Criteria
 - [ ] `{phase}-PLAN.md` exists with vertical slices and acceptance criteria

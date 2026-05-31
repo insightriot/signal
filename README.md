@@ -118,7 +118,7 @@ Then walk the phases:
 | Command | What it does | Skipped if… |
 |---|---|---|
 | `/sig:discuss` | Lock implementation decisions; produces `CONTEXT.md` (and `REQUIREMENTS.md` for FULL). | Never. |
-| `/sig:plan` | Up to 4 parallel research agents → `1-RESEARCH.md` → vertical-slice plan → 8-dim validation → Nyquist test-coverage mapping. | Per-step skips at lower tiers (no research at SKETCH; no 8-dim at SKETCH; no Nyquist at SKETCH). |
+| `/sig:plan` | Advisory drain of `.planning/FUTURE-IDEAS.md` (promote/defer/merge/delete captured ideas) → up to 4 parallel research agents → `1-RESEARCH.md` → vertical-slice plan → 8-dim validation → Nyquist test-coverage mapping. | Per-step skips at lower tiers (no research at SKETCH; no 8-dim at SKETCH; no Nyquist at SKETCH). The drain is always skippable. |
 | `/sig:execute` | Wave-based execution; TDD where required; atomic commit per task; per-phase progress in `1-PROGRESS.md`. | Never. |
 | `/sig:verify` | Run the full test suite; check acceptance criteria; Nyquist compliance pass at strict. | Never. |
 | `/sig:review` | Specialist passes — code quality, security hardening, performance, simplification. Produces `1-REVIEW.md`. | SKETCH and SPIKE tiers skip REVIEW entirely. |
@@ -191,7 +191,7 @@ Any future telemetry would require a major-version bump, an explicit opt-in flag
 - **`/sig:calibrate`** — Phase 0. Five questions → tier → `PROFILE.md` with ten rigor toggles. The contract every other phase reads.
 - **`/sig:escalate`** — re-runs calibration with prior answers as defaults, preserves `escalation_history`, and surfaces backfill warnings (e.g., strict Nyquist is one-way: code shipped before strict mode was active is structurally non-recoverable for strict Nyquist).
 - **`/sig:discuss`** — DISCUSS phase. Loads `idea-refine` + `spec-driven-development` skills. Identifies gray-area decisions; locks them via 3-options-plus-other. Output: `CONTEXT.md`, `REQUIREMENTS.md` (FULL).
-- **`/sig:plan`** — PLAN phase. Up to 4 parallel research agents. 8-dimension plan validation. Strict Nyquist test-coverage mapping. Output: `{phase}-RESEARCH.md`, `{phase}-PLAN.md`, `{phase}-VALIDATION.md`.
+- **`/sig:plan`** — PLAN phase. Opens with an advisory drain of `.planning/FUTURE-IDEAS.md` — surfaces every un-dispositioned captured idea so you can promote it into this plan, defer it, merge it, or delete it (with a preview diff before any write; the whole step is skippable). Then: up to 4 parallel research agents. 8-dimension plan validation. Strict Nyquist test-coverage mapping. Output: `{phase}-RESEARCH.md`, `{phase}-PLAN.md`, `{phase}-VALIDATION.md`.
 - **`/sig:execute`** — EXECUTE phase. Wave-based parallel execution. TDD where `tdd_required`. Atomic commit per task. Output: `{phase}-PROGRESS.md` + the actual code.
 - **`/sig:verify`** — VERIFY phase. Acceptance-criteria walkthrough; full test suite; Nyquist compliance check at strict. Output: `{phase}-VERIFICATION.md`.
 - **`/sig:review`** — REVIEW phase. Code quality, security hardening (OWASP / ASVS), performance, simplification. Output: `{phase}-REVIEW.md` with critical/important/suggestion/nit findings. (Skipped for SKETCH and SPIKE.)

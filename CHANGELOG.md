@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [0.1.3] — Unreleased — M4.5.E7 + M4.5.E3 + M4.5.E9 + M4.5.E8 + M4.5.E2 (synthesizer prose-quality + install-UX hardening + public-docs rewrite + retro foundations + install-state diagnostician + `/sig:add` force-route flags + naked-invocation interview + stranger-safety hardening)
+## [0.1.3] — Unreleased — M4.5.E7 + M4.5.E3 + M4.5.E9 + M4.5.E8 + M4.5.E2 (synthesizer prose-quality + install-UX hardening + public-docs rewrite + retro foundations + install-state diagnostician + `/sig:add` force-route flags + naked-invocation interview + stranger-safety hardening + `/sig:plan` FUTURE-IDEAS drain)
 
 ### Added — `/sig:add` force-route flags (M4.5.E2 Slice 2)
 
@@ -22,13 +22,20 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 - **Naked `/sig:add`** (no arguments) now asks one plain-English question — "What's the idea?" — and files the answer to `.planning/FUTURE-IDEAS.md`. An empty/whitespace answer aborts cleanly with no file write and no `.add.lock` left behind. Quoted input (`/sig:add "text"`) stays instant — it skips the question and goes straight to FUTURE-IDEAS, even when the text ends in `?` or starts with `fix`/`bug`/`TODO`.
 - **No destination heuristics.** Routing is the explicit flags (`--question`, `--milestone`) or the default FUTURE-IDEAS — nothing in between; there is no `suggestDestination`-style guesser that re-routes based on the text (Decision 5 cut the heuristic hints planned on 2026-05-14). An export-surface + source-text guard test permanently asserts this absence (FR5.4).
-- *(The `/sig:plan` FUTURE-IDEAS drain lands in M4.5.E2 Slice 5.)*
+- *(The `/sig:plan` FUTURE-IDEAS drain landed in M4.5.E2 Slice 5 — see below.)*
 
 ### Added — `/sig:add` stranger-safety hardening (M4.5.E2 Slice 4)
 
 - **One-time first-run onboarding note.** The first `/sig:add` in a repo reminds you that `.planning/` is tracked in git — captures become a permanent part of the project once you commit. A `.planning/.add-onboarded` marker persists the fact, so the note never shows again. Its loudness follows the project's `PROFILE.md` `gate_strictness`: `strict` → a one-time confirm; `light` (and projects with no `PROFILE.md` yet) → a single-line FYI; `off` → silent. There is no per-capture confirmation at any strictness — capture stays instant (Decision 4, Q1).
 - **Brownfield-vs-greenfield missing-`.planning/` error.** When `.planning/` doesn't exist, the error now distinguishes a brownfield repo (existing code + `.git/` → suggests `/sig:init`) from a greenfield directory (suggests `/sig:new-project`), instead of a single generic message.
 - **Validator vocabulary lint.** `npm run validate` now runs `checkBannedVocabulary` over `commands/add.md` and `tools/lib/add.js` (via the existing `findJargonHits` helper), failing the validate step if the pre-M4.t18 legacy term that the `Milestone` / `Epic` / `Slice` vocabulary replaced reappears — a long-term guard against vocabulary drift.
+
+### Added — `/sig:plan` FUTURE-IDEAS drain (M4.5.E2 Slice 5 — closes the GTD loop)
+
+- **`/sig:plan` now drains `.planning/FUTURE-IDEAS.md`** at the start of planning (a new advisory `### 1b.` step), so captured ideas no longer rot in a write-only file — capture (`/sig:add`) and clarify (the drain) are both present. The step surfaces **every un-dispositioned entry** (no date window), rendered compactly, and offers a **"defer all remaining"** batch for the first large triage. The whole step is **skippable** and never blocks planning; an empty backlog prints a one-line note and continues.
+- **Four dispositions per entry** — *promote* (fold into the plan as a candidate task), *defer*, *merge*, *delete* — plus an explicit *skip*. `promote`/`defer` record the decision inline by stamping the entry's `**Status:**` line (`→ Deferred 2026-05-30 (M4.5.E2 drain).`), so a dispositioned entry never resurfaces. `merge`/`delete` remove the entry's block and require a per-entry `[confirm, keep]` confirmation **regardless of `gate_strictness`**.
+- **R1 hard gate** — every disposition write is **previewed as a diff before it is written**; unlike `/sig:add`'s instant-capture hot path, a planning-time mutation of the idea database always shows the user what will change first. Writes go through a single full-file `atomicWrite`, reusing the `/sig:add` substrate.
+- New helper `tools/lib/drain.js` — `parseEntries` (fence-aware top-level `## ` segmentation, tolerant of an orphaned mid-file `*Last updated:*` footer), `listDrainCandidates`, `applyDisposition` / `applyDispositions` (byte-range edits — dispositioning one entry leaves every other byte identical), and `applyDispositionToFile`. Pure Node, no new runtime dependencies.
 
 ### Added — `/sig:doctor` install-state diagnostician (M4.5.E8)
 

@@ -33,6 +33,8 @@ const FIXTURE = join(
 );
 const content = readFileSync(FIXTURE, 'utf-8');
 const planMd = readFileSync(join(ROOT, 'commands', 'plan.md'), 'utf-8');
+const readmeMd = readFileSync(join(ROOT, 'README.md'), 'utf-8');
+const changelogMd = readFileSync(join(ROOT, 'CHANGELOG.md'), 'utf-8');
 
 describe('parseEntries (pure, fence-aware)', () => {
   it('segments exactly the 7 top-level entries (fenced `## ` does not split)', () => {
@@ -321,6 +323,28 @@ describe('commands/plan.md drain step (S5.t3 — FR7.1-7.4, R1 hard gate)', () =
 
   it('FR7.4: empty candidate set emits a one-line note and continues', () => {
     expect(planMd).toContain('(no FUTURE-IDEAS candidates to drain)');
+  });
+});
+
+describe('S5.t4 docs + anti-rationalization (FR7.5 / FR8.2)', () => {
+  it('FR7.5: plan.md anti-rationalization table gains a "skip the drain" row', () => {
+    // Inside the Phase Gate's Anti-Rationalization Check table.
+    const tableStart = planMd.indexOf('### Anti-Rationalization Check');
+    expect(tableStart).toBeGreaterThan(-1);
+    const table = planMd.slice(tableStart);
+    expect(table).toMatch(/skip the (FUTURE-IDEAS )?drain/i);
+    expect(table.toLowerCase()).toContain('rot');
+  });
+
+  it('FR8.2: README `/sig:plan` mentions the FUTURE-IDEAS drain', () => {
+    expect(readmeMd).toMatch(/drains?[^\n]*FUTURE-IDEAS/i);
+  });
+
+  it('FR8: CHANGELOG has a Slice 5 section documenting the drain', () => {
+    // Target the actual Slice 5 section header (not the Slice 3 cross-ref line).
+    expect(changelogMd).toMatch(/### Added —[^\n]*FUTURE-IDEAS drain[^\n]*Slice 5/i);
+    const idx = changelogMd.search(/### Added —[^\n]*Slice 5/i);
+    expect(changelogMd.slice(idx, idx + 800)).toMatch(/drain/i);
   });
 });
 
