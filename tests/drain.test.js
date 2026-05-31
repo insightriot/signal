@@ -22,6 +22,7 @@ import {
 } from '../tools/lib/drain.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(__dirname, '..');
 const FIXTURE = join(
   __dirname,
   'fixtures',
@@ -31,6 +32,7 @@ const FIXTURE = join(
   'FUTURE-IDEAS.md'
 );
 const content = readFileSync(FIXTURE, 'utf-8');
+const planMd = readFileSync(join(ROOT, 'commands', 'plan.md'), 'utf-8');
 
 describe('parseEntries (pure, fence-aware)', () => {
   it('segments exactly the 7 top-level entries (fenced `## ` does not split)', () => {
@@ -269,6 +271,56 @@ describe('applyDispositions (batch — "defer all remaining")', () => {
     for (const c of candidates) {
       expect(after[c.heading]).toContain('Deferred 2026-05-30');
     }
+  });
+});
+
+describe('commands/plan.md drain step (S5.t3 — FR7.1-7.4, R1 hard gate)', () => {
+  it('inserts `### 1b.` between Step 1 and Step 2 without renumbering Steps 2-6', () => {
+    expect(planMd).toMatch(/^### 1b\. /m);
+    // Untouched, numerically-referenced steps still present.
+    expect(planMd).toContain('### 2. Research (Parallel Agents)');
+    expect(planMd).toContain('### 4. Plan Validation (8 Dimensions)');
+    // 1b. sits between Step 1 and Step 2.
+    const i1 = planMd.indexOf('### 1. Load Context');
+    const i1b = planMd.search(/^### 1b\. /m);
+    const i2 = planMd.indexOf('### 2. Research (Parallel Agents)');
+    expect(i1).toBeGreaterThan(-1);
+    expect(i1b).toBeGreaterThan(i1);
+    expect(i2).toBeGreaterThan(i1b);
+  });
+
+  it('FR7.1: reads candidates via the drain helper, all un-dispositioned (no window)', () => {
+    expect(planMd).toContain('listDrainCandidates');
+    expect(planMd).toContain('tools/lib/drain.js');
+    expect(planMd).toMatch(/FUTURE-IDEAS\.md/);
+  });
+
+  it('FR7.2: advisory + skippable + "defer all remaining" batch', () => {
+    expect(planMd.toLowerCase()).toContain('advisory');
+    expect(planMd.toLowerCase()).toMatch(/skip the whole step|fully skippable|skippable/);
+    expect(planMd).toMatch(/defer all remaining/i);
+  });
+
+  it('FR7.2/7.3: per-entry strict-enum offers promote/defer/merge/delete + explicit skip', () => {
+    expect(planMd).toMatch(/strict-enum/);
+    for (const verb of ['promote', 'defer', 'merge', 'delete']) {
+      expect(planMd, `drain step must offer "${verb}"`).toContain(verb);
+    }
+  });
+
+  it('FR7.3 + R5: delete/merge confirm regardless of gate_strictness; keep preserves', () => {
+    expect(planMd).toMatch(/\[confirm, keep\]/);
+    expect(planMd).toMatch(/regardless of `?gate_strictness`?/);
+  });
+
+  it('R1 HARD GATE: previews the diff before any disposition write', () => {
+    expect(planMd).toMatch(/HARD GATE/);
+    expect(planMd.toLowerCase()).toContain('preview');
+    expect(planMd).toContain('applyDispositionToFile');
+  });
+
+  it('FR7.4: empty candidate set emits a one-line note and continues', () => {
+    expect(planMd).toContain('(no FUTURE-IDEAS candidates to drain)');
   });
 });
 

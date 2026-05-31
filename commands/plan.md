@@ -47,6 +47,31 @@ Read from `.planning/`:
 - `PROJECT.md`, `PROFILE.md`, `CONTEXT.md`, `REQUIREMENTS.md`
 - `STATE.md` — verify current phase is PLAN
 
+### 1b. Drain FUTURE-IDEAS.md (advisory — promote captured ideas into this plan)
+
+`/sig:add` captures ideas to `.planning/FUTURE-IDEAS.md` between planning passes; PLAN is where they get dispositioned, so captures don't rot in a write-only file. This step is **advisory and fully skippable** — if you'd rather not triage now, skip the whole step and planning proceeds unchanged.
+
+Load candidates with `listDrainCandidates(content)` from `tools/lib/drain.js` (it reads `.planning/FUTURE-IDEAS.md` and returns every top-level `## ` entry that is **not** already dispositioned — no date window, so the first run surfaces the whole standing backlog by design).
+
+- **No candidates** → emit the one-line note `(no FUTURE-IDEAS candidates to drain)` and continue to Step 2.
+- **Candidates present** → render them **compactly** — heading + the one-line Status, numbered. On a large first run, offer **"defer all remaining"** up front (a single `applyDispositions` batch) so the user can clear the wall in one action instead of N prompts.
+
+For each entry the user keeps triaging, offer a `strict-enum [promote, defer, merge, delete]` choice plus an explicit **skip** (leave the entry untouched and move on):
+
+| Verb | Effect |
+|---|---|
+| **promote** | Fold the idea into this plan as a candidate task (feeds Step 3). Stamps the entry's Status inline — `→ Promoted {date} ({Epic} drain).` — so the entry stays in FUTURE-IDEAS, marked done, and never resurfaces on a later drain. |
+| **defer** | Leave it for a later pass. Stamps `→ Deferred {date} ({Epic} drain).`. |
+| **merge** | The idea folds into another entry; the source block is **removed**. |
+| **delete** | Drop the idea entirely; the block is **removed**. |
+| **skip** | No change; the entry stays a candidate for the next drain. |
+
+**R1 — HARD GATE: preview the diff before any disposition write.** A drain write mutates the project's idea database, so — unlike `/sig:add`'s instant-capture hot path — every write is **previewed first**. Compute the proposed content with `applyDisposition` (or `applyDispositions` for the batch), show the user a diff of exactly what will change, and write **only after they accept**. Never persist a disposition the user hasn't seen. The write itself goes through `applyDispositionToFile` (one full-file `atomicWrite` per disposition, reusing the `/sig:add` substrate).
+
+**delete / merge confirm (R5 sub-gate).** Because they remove text, `delete` and `merge` require a per-entry `strict-enum [confirm, keep]` confirmation **regardless of `gate_strictness`** — `keep` leaves the file byte-for-byte unchanged. The removal reason is recorded in the eventual commit message, not in the file.
+
+**promote** entries flow into Step 3 (Create Plan) as candidate tasks. This step never blocks planning: skip it, batch-defer it, or triage entry-by-entry — all three leave you ready for Step 2.
+
 ### 2. Research (Parallel Agents)
 
 Spawn up to 4 research agents in parallel:
