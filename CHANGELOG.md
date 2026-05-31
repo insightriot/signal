@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [0.1.3] — Unreleased — M4.5.E7 + M4.5.E3 + M4.5.E9 + M4.5.E8 + M4.5.E2 (synthesizer prose-quality + install-UX hardening + public-docs rewrite + retro foundations + install-state diagnostician + `/sig:add` force-route flags + naked-invocation interview)
+## [0.1.3] — Unreleased — M4.5.E7 + M4.5.E3 + M4.5.E9 + M4.5.E8 + M4.5.E2 (synthesizer prose-quality + install-UX hardening + public-docs rewrite + retro foundations + install-state diagnostician + `/sig:add` force-route flags + naked-invocation interview + stranger-safety hardening)
 
 ### Added — `/sig:add` force-route flags (M4.5.E2 Slice 2)
 
@@ -22,7 +22,13 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 - **Naked `/sig:add`** (no arguments) now asks one plain-English question — "What's the idea?" — and files the answer to `.planning/FUTURE-IDEAS.md`. An empty/whitespace answer aborts cleanly with no file write and no `.add.lock` left behind. Quoted input (`/sig:add "text"`) stays instant — it skips the question and goes straight to FUTURE-IDEAS, even when the text ends in `?` or starts with `fix`/`bug`/`TODO`.
 - **No destination heuristics.** Routing is the explicit flags (`--question`, `--milestone`) or the default FUTURE-IDEAS — nothing in between; there is no `suggestDestination`-style guesser that re-routes based on the text (Decision 5 cut the heuristic hints planned on 2026-05-14). An export-surface + source-text guard test permanently asserts this absence (FR5.4).
-- *(First-run onboarding/`gate_strictness` hardening and the `/sig:plan` FUTURE-IDEAS drain land in M4.5.E2 Slices 4 and 5.)*
+- *(The `/sig:plan` FUTURE-IDEAS drain lands in M4.5.E2 Slice 5.)*
+
+### Added — `/sig:add` stranger-safety hardening (M4.5.E2 Slice 4)
+
+- **One-time first-run onboarding note.** The first `/sig:add` in a repo reminds you that `.planning/` is tracked in git — captures become a permanent part of the project once you commit. A `.planning/.add-onboarded` marker persists the fact, so the note never shows again. Its loudness follows the project's `PROFILE.md` `gate_strictness`: `strict` → a one-time confirm; `light` (and projects with no `PROFILE.md` yet) → a single-line FYI; `off` → silent. There is no per-capture confirmation at any strictness — capture stays instant (Decision 4, Q1).
+- **Brownfield-vs-greenfield missing-`.planning/` error.** When `.planning/` doesn't exist, the error now distinguishes a brownfield repo (existing code + `.git/` → suggests `/sig:init`) from a greenfield directory (suggests `/sig:new-project`), instead of a single generic message.
+- **Validator vocabulary lint.** `npm run validate` now runs `checkBannedVocabulary` over `commands/add.md` and `tools/lib/add.js` (via the existing `findJargonHits` helper), failing the validate step if the pre-M4.t18 legacy term that the `Milestone` / `Epic` / `Slice` vocabulary replaced reappears — a long-term guard against vocabulary drift.
 
 ### Added — `/sig:doctor` install-state diagnostician (M4.5.E8)
 
