@@ -19,7 +19,13 @@
 //   - Q2: a drain candidate is any top-level `## ` entry that is NOT already
 //     dispositioned. No date window — disposition-state is the only gate.
 //
-// No new runtime deps — pure string work.
+// No new runtime deps — pure string work; the single full-file atomicWrite is
+// reused from the /sig:add substrate.
+
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
+import { atomicWrite } from './atomic-write.js';
 
 // Top-level entry boundary: a line that begins with exactly `## ` (two hashes +
 // space). `### …` has a non-space at index 2, so it never matches — nested
@@ -153,4 +159,173 @@ export function parseEntries(content) {
  */
 export function listDrainCandidates(content) {
   return parseEntries(content).filter((e) => !e.dispositioned);
+}
+
+// Disposition verb → the past-tense word recorded in the Status stamp. Only
+// promote/defer ever stamp (delete/merge remove the block); merge/delete are
+// listed for completeness but their entries are gone before a stamp would show.
+const VERB_PAST = {
+  promote: 'Promoted',
+  defer: 'Deferred',
+  merge: 'Merged',
+  delete: 'Deleted',
+};
+
+// Index of the first non-fenced `**Status:**` line within a block's line array,
+// or -1. Mirrors parseEntries' inner scan so surface and write agree on which
+// line is "the Status line".
+function statusLineIdxInBlock(lines) {
+  let inFence = false;
+  for (let i = 1; i < lines.length; i++) {
+    if (isFenceMarker(lines[i])) {
+      inFence = !inFence;
+      continue;
+    }
+    if (!inFence && STATUS_LINE_RE.test(lines[i])) return i;
+  }
+  return -1;
+}
+
+/**
+ * Transform a single entry's block text for `verb`. Pure string→string; the
+ * caller splices the result back into the full content at the block's byte
+ * range, so neighbours are never touched (R1/R5).
+ *
+ *   - promote / defer → record the disposition inline (never removes text):
+ *       append ` → {Past} {date} ({reason}).` to the existing Status line, OR
+ *       insert a fresh `**Status:** {Past} {date} ({reason}).` line under the
+ *       heading when the entry has no Status line (the date-in-heading case).
+ *   - delete / merge → remove the whole block (returns ''); the next heading
+ *       slides up against the prior entry's trailing `---`. The reason is
+ *       carried in the commit message, not the file.
+ */
+function transformBlock(block, verb, reason, date) {
+  if (verb === 'delete' || verb === 'merge') return '';
+
+  const past = VERB_PAST[verb];
+  if (!past) throw new Error(`applyDisposition: unknown verb "${verb}".`);
+
+  const lines = block.split('\n');
+  const statusIdx = statusLineIdxInBlock(lines);
+
+  if (statusIdx >= 0) {
+    // Append the stamp to the existing Status line.
+    lines[statusIdx] = `${lines[statusIdx].trimEnd()} → ${past} ${date} (${reason}).`;
+    return lines.join('\n');
+  }
+
+  // No Status line — insert one under the heading (line 0). Slot it after the
+  // blank line that conventionally follows the heading; if there is none,
+  // insert directly after the heading.
+  const insertAt = lines[1] !== undefined && lines[1].trim() === '' ? 2 : 1;
+  lines.splice(insertAt, 0, `**Status:** ${past} ${date} (${reason}).`, '');
+  return lines.join('\n');
+}
+
+/**
+ * Record a disposition for entry `entryIndex` and return the new full content.
+ * Pure — does NO I/O and does NO confirmation; the confirm gate + atomicWrite
+ * live in `applyDispositionToFile`. Edits ONLY the target block's byte range, so
+ * every other entry stays byte-identical (the R1 invariant the snapshot tests
+ * pin). Signature matches the plan: `(content, entryIndex, verb, reason, date)`.
+ *
+ * @param {string} content
+ * @param {number} entryIndex — index into `parseEntries(content)`
+ * @param {'promote'|'defer'|'merge'|'delete'} verb
+ * @param {string} reason — stamp context, e.g. "M4.5.E2 drain"
+ * @param {string} date — ISO date YYYY-MM-DD
+ * @returns {string} the new content
+ */
+export function applyDisposition(content, entryIndex, verb, reason, date) {
+  const entries = parseEntries(content);
+  const entry = entries[entryIndex];
+  if (!entry) {
+    throw new Error(
+      `applyDisposition: no entry at index ${entryIndex} (have ${entries.length}).`
+    );
+  }
+  const { start, end } = entry.range;
+  const block = content.slice(start, end);
+  const newBlock = transformBlock(block, verb, reason, date);
+  return content.slice(0, start) + newBlock + content.slice(end);
+}
+
+/**
+ * Apply a batch of dispositions in one pass (powers the "defer all remaining"
+ * action, FR7.2). All ranges are computed from ONE initial parse, then applied
+ * in DESCENDING entryIndex order — editing a higher-offset block never shifts a
+ * lower-offset block's bytes, so each original range stays valid as the content
+ * mutates beneath it. Skips duplicate indices defensively.
+ *
+ * @param {string} content
+ * @param {Array<{entryIndex: number, verb: string, reason: string, date: string}>} dispositions
+ * @returns {string} the new content
+ */
+export function applyDispositions(content, dispositions) {
+  const entries = parseEntries(content);
+  const seen = new Set();
+  const ordered = [...dispositions]
+    .filter((d) => {
+      if (seen.has(d.entryIndex)) return false;
+      seen.add(d.entryIndex);
+      return true;
+    })
+    .sort((a, b) => b.entryIndex - a.entryIndex);
+
+  let out = content;
+  for (const { entryIndex, verb, reason, date } of ordered) {
+    const entry = entries[entryIndex];
+    if (!entry) {
+      throw new Error(
+        `applyDispositions: no entry at index ${entryIndex} (have ${entries.length}).`
+      );
+    }
+    const { start, end } = entry.range;
+    const newBlock = transformBlock(out.slice(start, end), verb, reason, date);
+    out = out.slice(0, start) + newBlock + out.slice(end);
+  }
+  return out;
+}
+
+/**
+ * Read a drain file, record one disposition, and write it back via the shared
+ * full-file atomicWrite. Destructive verbs (`delete`/`merge`) MUST clear a
+ * per-entry confirm gate first — `confirmPrompt(entry)` is awaited and anything
+ * other than `'confirm'` aborts with the file left BYTE-for-byte unchanged
+ * (R5 sub-gate; fires regardless of gate_strictness — the command supplies a
+ * `strict-enum [confirm, keep]` prompt). promote/defer never prompt.
+ *
+ * @param {string} baseDir — project root
+ * @param {string} relPath — destination path relative to baseDir (e.g. `.planning/FUTURE-IDEAS.md`)
+ * @param {object} opts
+ * @param {number} opts.entryIndex
+ * @param {'promote'|'defer'|'merge'|'delete'} opts.verb
+ * @param {string} opts.reason
+ * @param {string} opts.date
+ * @param {(entry: object) => Promise<'confirm'|'keep'>} [opts.confirmPrompt] — required for delete/merge
+ * @param {Function} [opts.renameFn] — injected for the atomic-fail test; forwarded to atomicWrite
+ * @returns {Promise<{written: boolean, kept?: boolean, verb: string, heading: string, path?: string}>}
+ */
+export async function applyDispositionToFile(baseDir, relPath, opts) {
+  const { entryIndex, verb, reason, date, confirmPrompt, renameFn } = opts;
+  const targetPath = join(baseDir, relPath);
+  const content = await readFile(targetPath, 'utf-8');
+  const entry = parseEntries(content)[entryIndex];
+  if (!entry) {
+    throw new Error(`applyDispositionToFile: no entry at index ${entryIndex} in ${relPath}.`);
+  }
+
+  if (verb === 'delete' || verb === 'merge') {
+    if (typeof confirmPrompt !== 'function') {
+      throw new Error(`applyDispositionToFile: "${verb}" requires a confirmPrompt.`);
+    }
+    const decision = await confirmPrompt(entry);
+    if (decision !== 'confirm') {
+      return { written: false, kept: true, verb, heading: entry.heading };
+    }
+  }
+
+  const newContent = applyDisposition(content, entryIndex, verb, reason, date);
+  await atomicWrite(targetPath, newContent, renameFn ? { renameFn } : undefined);
+  return { written: true, verb, heading: entry.heading, path: targetPath };
 }

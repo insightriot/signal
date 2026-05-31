@@ -6,12 +6,20 @@
 //   parseEntries(content)        — fence-aware top-level `## ` segmentation
 //   listDrainCandidates(content) — parseEntries filtered to un-dispositioned (Q2)
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { mkdtemp, rm, mkdir, writeFile, readFile, copyFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { parseEntries, listDrainCandidates } from '../tools/lib/drain.js';
+import {
+  parseEntries,
+  listDrainCandidates,
+  applyDisposition,
+  applyDispositions,
+  applyDispositionToFile,
+} from '../tools/lib/drain.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(
@@ -131,5 +139,216 @@ describe('listDrainCandidates (Q2 — un-dispositioned only, no date window)', (
       '## ✓ SHIPPED — one\n\n**Status:** done.\n\n---\n\n' +
       '## two\n\n**Status:** Logged 2026-01-01. → Promoted 2026-02-02 (drain).\n\n---\n';
     expect(listDrainCandidates(allDisposed)).toEqual([]);
+  });
+});
+
+// --- S5.t2: applyDisposition (pure) + applyDispositionToFile (writer, R5 gate) ---
+
+const DATE = '2026-05-30';
+const REASON = 'M4.5.E2 drain';
+
+// Map heading -> exact block text, so neighbor byte-identity can be asserted
+// across an edit that shifts offsets (block text is offset-independent).
+function blocksByHeading(c) {
+  return Object.fromEntries(
+    parseEntries(c).map((e) => [e.heading, c.slice(e.range.start, e.range.end)])
+  );
+}
+
+describe('applyDisposition (pure, byte-range edits)', () => {
+  it('defer appends a stamp to the Status line; all other blocks byte-identical', () => {
+    const before = blocksByHeading(content);
+    const out = applyDisposition(content, 0, 'defer', REASON, DATE); // entry 0
+    const after = blocksByHeading(out);
+
+    expect(after['Canonical candidate via add']).toContain(
+      '→ Deferred 2026-05-30 (M4.5.E2 drain).'
+    );
+    // Original status text is preserved (append, not replace).
+    expect(after['Canonical candidate via add']).toContain('Logged 2026-05-27 via');
+
+    for (const h of Object.keys(before)) {
+      if (h === 'Canonical candidate via add') continue;
+      expect(after[h], `neighbor "${h}" must be byte-identical`).toBe(before[h]);
+    }
+  });
+
+  it('promote stamps with "Promoted" and never removes text', () => {
+    const out = applyDisposition(content, 1, 'promote', REASON, DATE); // Hand-authored
+    const block = blocksByHeading(out)['Hand-authored candidate'];
+    expect(block).toContain('→ Promoted 2026-05-30 (M4.5.E2 drain).');
+    expect(block).toContain('Logged 2026-05-20 during a planning conversation.');
+  });
+
+  it('a deferred entry stops being a drain candidate (round-trips through Q2)', () => {
+    const out = applyDisposition(content, 0, 'defer', REASON, DATE);
+    expect(listDrainCandidates(out).map((e) => e.heading)).not.toContain(
+      'Canonical candidate via add'
+    );
+  });
+
+  it('date-in-heading (no Status) defer INSERTS a Status line under the heading', () => {
+    const idx = parseEntries(content).findIndex((e) =>
+      e.heading.startsWith('Candidate dated in heading')
+    );
+    const before = blocksByHeading(content);
+    const out = applyDisposition(content, idx, 'defer', REASON, DATE);
+    const block = blocksByHeading(out)['Candidate dated in heading (2026-05-19)'];
+    expect(block).toMatch(
+      /^## Candidate dated in heading \(2026-05-19\)\n\n\*\*Status:\*\* Deferred 2026-05-30 \(M4\.5\.E2 drain\)\.\n/
+    );
+    expect(block).toContain('A genuine candidate whose only date lives in the heading');
+    // Now dispositioned.
+    expect(listDrainCandidates(out).map((e) => e.heading)).not.toContain(
+      'Candidate dated in heading (2026-05-19)'
+    );
+    // Neighbors untouched.
+    for (const h of Object.keys(before)) {
+      if (h === 'Candidate dated in heading (2026-05-19)') continue;
+      expect(blocksByHeading(out)[h]).toBe(before[h]);
+    }
+  });
+
+  it('delete removes exactly that block (+ its trailing ---); neighbors byte-identical', () => {
+    const before = blocksByHeading(content);
+    const out = applyDisposition(content, 0, 'delete', REASON, DATE);
+    const after = blocksByHeading(out);
+    expect(after['Canonical candidate via add']).toBeUndefined();
+    expect(parseEntries(out).length).toBe(parseEntries(content).length - 1);
+    for (const h of Object.keys(before)) {
+      if (h === 'Canonical candidate via add') continue;
+      expect(after[h], `neighbor "${h}" must be byte-identical after delete`).toBe(before[h]);
+    }
+    // No orphaned `## Canonical` text remains anywhere.
+    expect(out).not.toContain('## Canonical candidate via add');
+  });
+
+  it('merge removes the block like delete (intent differs; content effect is removal)', () => {
+    const out = applyDisposition(content, 1, 'merge', REASON, DATE);
+    expect(out).not.toContain('## Hand-authored candidate');
+    expect(parseEntries(out).length).toBe(parseEntries(content).length - 1);
+  });
+
+  it('shared 6-word-prefix Status lines do not cross-contaminate', () => {
+    const twin =
+      '## Alpha entry\n\n' +
+      '**Status:** Logged 2026-05-01 during a planning conversation here.\n\n' +
+      'Body A.\n\n---\n\n' +
+      '## Beta entry\n\n' +
+      '**Status:** Logged 2026-05-01 during a planning conversation here too.\n\n' +
+      'Body B.\n\n---\n';
+    const before = blocksByHeading(twin);
+    const out = applyDisposition(twin, 0, 'defer', REASON, DATE);
+    // Beta's block is byte-identical — the prefix-sharing Status was not touched.
+    expect(blocksByHeading(out)['Beta entry']).toBe(before['Beta entry']);
+    expect(blocksByHeading(out)['Alpha entry']).toContain('→ Deferred');
+  });
+});
+
+describe('applyDispositions (batch — "defer all remaining")', () => {
+  it('stamps every supplied entry; non-targets untouched; descending-safe', () => {
+    const candidates = listDrainCandidates(content);
+    const indices = parseEntries(content)
+      .map((e, i) => ({ e, i }))
+      .filter(({ e }) => !e.dispositioned)
+      .map(({ i }) => i);
+    const out = applyDispositions(
+      content,
+      indices.map((entryIndex) => ({ entryIndex, verb: 'defer', reason: REASON, date: DATE }))
+    );
+    // Every former candidate is now dispositioned.
+    expect(listDrainCandidates(out)).toEqual([]);
+    // The two already-dispositioned blocks are byte-identical.
+    const before = blocksByHeading(content);
+    const after = blocksByHeading(out);
+    expect(after['✓ SHIPPED — Already-shipped thing']).toBe(
+      before['✓ SHIPPED — Already-shipped thing']
+    );
+    expect(after['Already-drained candidate']).toBe(before['Already-drained candidate']);
+    // sanity: every candidate got a Deferred stamp
+    for (const c of candidates) {
+      expect(after[c.heading]).toContain('Deferred 2026-05-30');
+    }
+  });
+});
+
+describe('applyDispositionToFile (R5 delete/merge confirm gate + atomic write)', () => {
+  let tempDir;
+  let target;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'drain-write-'));
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+    target = join(tempDir, '.planning', 'FUTURE-IDEAS.md');
+    await copyFile(FIXTURE, target);
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('delete + confirm "keep" leaves the file BYTE-for-byte unchanged, no prompt bypass', async () => {
+    const original = await readFile(target, 'utf-8');
+    let prompted = false;
+    const res = await applyDispositionToFile(tempDir, '.planning/FUTURE-IDEAS.md', {
+      entryIndex: 0,
+      verb: 'delete',
+      reason: REASON,
+      date: DATE,
+      confirmPrompt: async () => {
+        prompted = true;
+        return 'keep';
+      },
+    });
+    expect(prompted).toBe(true); // confirm gate fired
+    expect(res.written).toBe(false);
+    expect(await readFile(target, 'utf-8')).toBe(original);
+  });
+
+  it('delete + confirm "confirm" removes exactly that block', async () => {
+    const res = await applyDispositionToFile(tempDir, '.planning/FUTURE-IDEAS.md', {
+      entryIndex: 0,
+      verb: 'delete',
+      reason: REASON,
+      date: DATE,
+      confirmPrompt: async () => 'confirm',
+    });
+    expect(res.written).toBe(true);
+    const after = await readFile(target, 'utf-8');
+    expect(after).not.toContain('## Canonical candidate via add');
+    expect(parseEntries(after).length).toBe(7 - 1);
+  });
+
+  it('defer does NOT invoke the confirm prompt (non-destructive) and stamps the file', async () => {
+    let prompted = false;
+    const res = await applyDispositionToFile(tempDir, '.planning/FUTURE-IDEAS.md', {
+      entryIndex: 0,
+      verb: 'defer',
+      reason: REASON,
+      date: DATE,
+      confirmPrompt: async () => {
+        prompted = true;
+        return 'confirm';
+      },
+    });
+    expect(prompted).toBe(false);
+    expect(res.written).toBe(true);
+    expect(await readFile(target, 'utf-8')).toContain('→ Deferred 2026-05-30 (M4.5.E2 drain).');
+  });
+
+  it('rename failure leaves the file unchanged (atomic-write invariant forwarded)', async () => {
+    const original = await readFile(target, 'utf-8');
+    const renameFn = async () => {
+      throw new Error('simulated rename failure');
+    };
+    await expect(
+      applyDispositionToFile(tempDir, '.planning/FUTURE-IDEAS.md', {
+        entryIndex: 0,
+        verb: 'defer',
+        reason: REASON,
+        date: DATE,
+        renameFn,
+      })
+    ).rejects.toThrow(/simulated rename/);
+    expect(await readFile(target, 'utf-8')).toBe(original);
   });
 });
