@@ -18,8 +18,8 @@ last_completed_task:
   commit: ae00a50
   completedAt: 2026-05-31T17:57:59.312Z
 last_decision_at: 2026-05-31T17:57:59.312Z
-last_updated_commit: 99f57ab62bbb8ca9c3ee7693a728c8d8185e97fb
-last_updated: 2026-05-31T18:22:31.783Z
+last_updated_commit: 5b6b0e6a73c7f132aeb1b9f9b65d960cca7223fc
+last_updated: 2026-06-01T12:32:21.011Z
 ---
 <!-- Original STATE.md content preserved verbatim from pre-schema_v1 migration on 2026-05-18. The YAML frontmatter above is the authoritative machine-readable state; everything below is human-readable history. -->
 
@@ -35,9 +35,9 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 **If you (Claude or Brett) are reading this after a context clear:**
 
-1. **Where we are (2026-05-31):** **M4.5.E2 (`/sig:add`) just shipped** — the full 5-slice Epic is closed (capture hot path + `--question`/`--milestone`/`--file` flags + naked-invocation interview + stranger-safety hardening + the `/sig:plan` advisory FUTURE-IDEAS drain). Frontmatter says `phase: SHIP`, `current_epic: M4.5.E2`, DISCUSS→SHIP all complete. No Epic is currently in flight.
+1. **Where we are (2026-06-01):** **M4.5.E2 (`/sig:add`) shipped and v0.1.3 is cut.** The full 5-slice Epic closed (capture hot path + `--question`/`--milestone`/`--file` flags + naked-invocation interview + stranger-safety hardening + the `/sig:plan` advisory FUTURE-IDEAS drain), and E7+E3+E9+E8+E2 were bundled into the **v0.1.3 release** (tag `v0.1.3`, pushed; `marketplace.json` pinned to the release commit). Frontmatter says `phase: SHIP`, `current_epic: M4.5.E2`, DISCUSS→SHIP all complete. No Epic is currently in flight.
 
-2. **What's next (Brett's call):** the remaining M4.5 Epics are **E4** (worked example + comparison page) and **E5** (external validation + launch). Also open: **E1 Slices 3–5** (Linux/WSL install matrix + versioning-policy doc + validator hardening), shelved pending volunteer testers (D-E3-12); and cutting the **v0.1.3** release (currently `[0.1.3] — Unreleased` in CHANGELOG, bundling E7+E3+E9+E8+E2). Pick one and run its first phase command, or `/sig:resume` for a fresh briefing.
+2. **What's next (Brett's call):** the remaining M4.5 Epics are **E4** (worked example + comparison page) and **E5** (external validation + launch) — the plan is to start **E4** next (run `/sig:discuss`; the project is already calibrated FULL). Also open: **E1 Slices 3–5** (Linux/WSL install matrix + versioning-policy doc + validator hardening), shelved pending volunteer testers (D-E3-12). Or `/sig:resume` for a fresh briefing.
 
 3. **What to read in order:** `.planning/CONTEXT.md` → this file's frontmatter → `.planning/MILESTONE-4.5.md` (Epic roadmap) → the target Epic's `M4.5.E{N}-*.md` artifacts. Locked decisions are in `.planning/DECISIONS.md`; per-Epic retrospectives are indexed in `.planning/RETROSPECTIVES.md`.
 
@@ -51,7 +51,7 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Milestone
 
-**Milestone 4.5 — Release Hardening / Stranger-Adoption Readiness — in flight.** Scaffolded 2026-05-13. **Shipped Epics:** **E1** (install-path fix → v0.1.1; Slice 1 + Phase A only — Slices 3–5 shelved pending testers), **E6** (resume reliability — STATE.md YAML-frontmatter schema + auto-update protocol + `/sig:checkpoint` → v0.1.2), **E7** (synthesizer prose-quality + install-UX), **E3** (public-facing docs rewrite — audience reframe), **E9** (retro foundations — SHIP retro gate + `RETROSPECTIVES.md` index), **E8** (`/sig:doctor` install-state diagnostician — 15th slash command, shipped 2026-05-30), and **E2** (`/sig:add` capture-and-route + `/sig:plan` advisory FUTURE-IDEAS drain — full 5-slice Epic, shipped 2026-05-31; see `M4.5.E2-RETROSPECTIVE.md`). **Remaining M4.5 Epics: E4** (worked example + comparison page) and **E5** (external validation + launch). **Also open:** E1 Slices 3–5 (Linux/WSL install matrix + versioning-policy doc + validator hardening), shelved pending volunteer testers (D-E3-12); and cutting the **v0.1.3** release — `CHANGELOG [0.1.3]` is staged but **Unreleased**, bundling E7+E3+E9+E8+E2. Test suite at **762**; validator green. Full Epic roadmap in `MILESTONE-4.5.md`; per-Epic retrospectives indexed in `RETROSPECTIVES.md`; locked decisions in `DECISIONS.md`.
+**Milestone 4.5 — Release Hardening / Stranger-Adoption Readiness — in flight.** Scaffolded 2026-05-13. **Shipped Epics:** **E1** (install-path fix → v0.1.1; Slice 1 + Phase A only — Slices 3–5 shelved pending testers), **E6** (resume reliability — STATE.md YAML-frontmatter schema + auto-update protocol + `/sig:checkpoint` → v0.1.2), **E7** (synthesizer prose-quality + install-UX), **E3** (public-facing docs rewrite — audience reframe), **E9** (retro foundations — SHIP retro gate + `RETROSPECTIVES.md` index), **E8** (`/sig:doctor` install-state diagnostician — 15th slash command, shipped 2026-05-30), and **E2** (`/sig:add` capture-and-route + `/sig:plan` advisory FUTURE-IDEAS drain — full 5-slice Epic, shipped 2026-05-31; see `M4.5.E2-RETROSPECTIVE.md`). **v0.1.3 released 2026-05-31** (tag `v0.1.3` at the release commit; `marketplace.json` ref + sha pinned to it) — bundling E7+E3+E9+E8+E2. **Remaining M4.5 Epics: E4** (worked example + comparison page) and **E5** (external validation + launch). **Also open:** E1 Slices 3–5 (Linux/WSL install matrix + versioning-policy doc + validator hardening), shelved pending volunteer testers (D-E3-12). Test suite at **762**; validator green. Full Epic roadmap in `MILESTONE-4.5.md`; per-Epic retrospectives indexed in `RETROSPECTIVES.md`; locked decisions in `DECISIONS.md`.
 
 **Milestone 4 — Brownfield Onboarding via `/sig:init` — closed 2026-05-12 + v0.1.0 tagged.** 19 of 19 tasks shipped. M4.t18 (vocabulary refactor: Tranche → Milestone, add Epic mid-layer) and M4.t19 (marketplace install layout fix + plugin slug `signal` → `sig`) both shipped 2026-05-12. Design notes in `MILESTONE-4.md`.
 
