@@ -18,8 +18,8 @@ last_completed_task:
   commit: ae00a50
   completedAt: 2026-05-31T17:57:59.312Z
 last_decision_at: 2026-05-31T17:57:59.312Z
-last_updated_commit: 5b6b0e6a73c7f132aeb1b9f9b65d960cca7223fc
-last_updated: 2026-06-01T12:32:21.011Z
+last_updated_commit: a377074496f3a233034984139a25e60ddb7c9664
+last_updated: 2026-06-01T12:33:20.413Z
 ---
 <!-- Original STATE.md content preserved verbatim from pre-schema_v1 migration on 2026-05-18. The YAML frontmatter above is the authoritative machine-readable state; everything below is human-readable history. -->
 
@@ -296,36 +296,18 @@ Milestone 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the ma
 
 ## Active
 
-**Milestone 4.5 underway.** **M4.5.E6 (resume reliability) is the active Epic — PLAN complete 2026-05-17; EXECUTE next, starting with S1.t1.** Jumps queue ahead of E1.S2 and E2.S2. M4.5.E1 Slice 1 shipped 2026-05-15 (v0.1.1). E2 Slice 1 (`/sig:add` hardened hot path) shipped 2026-05-14.
+**No Epic in flight.** M4.5.E2 (`/sig:add` capture-and-route) shipped 2026-05-31 and was bundled into **v0.1.3** (with E7+E3+E9+E8). DISCUSS→SHIP all complete for E2; frontmatter says `phase: SHIP`, `current_epic: M4.5.E2`. Test suite at **762**; validator green. 15 slash commands, 26 agents, 21 skills.
 
-**E6 immediate next steps (post context-clear):**
-1. Invoke `/sig:execute` with phase=M4.5.E6 (or tell Claude "let's start S1.t1").
-2. S1.t1 = extract `atomic-write.js` from `tools/lib/add.js` (lift-and-shift refactor + 4 new tests; existing 40 add.js tests stay green).
-3. Continue through S1.t1 → S1.t12 sequentially per `M4.5.E6-PLAN.md`. **S1.t4 has the D15 dry-run gate — DO NOT SKIP** (capture diff in RESEARCH §8.1, await Brett's verdict before continuing).
+**Planned next move: M4.5.E4** (worked example + comparison page — `examples/` directory + `docs/vs.md`). Project is already calibrated FULL, so the entry point is `/sig:discuss` (no re-calibration needed). Or run `/sig:resume` for a fresh briefing.
 
-Pending after E6:
-- **E1 Slices 2–5** — F2 verification (run `/agents` post-marketplace-install), install matrix R2/R3/R5, versioning policy doc, validator hardening.
-- **E2 Slices 2–5** — force-route flags, cold-path interview + heuristic hints, stranger-safety hardening, `/sig:plan` close-the-loop.
-- **E3 — Public-facing docs rewrite.** README as pitch, CHANGELOG, compatibility matrix, CONTRIBUTING + SECURITY, privacy/telemetry statement.
-- **E4 — Worked example + comparison page.** `examples/` directory; `docs/vs.md`.
-- **E5 — External validation + launch.** 3 friendly testers, launch post, v0.1.x → v0.2.0 decision point.
+**Remaining M4.5 Epics, in order:**
+1. **E4 — worked example + comparison page** (next). `examples/` directory; `docs/vs.md`.
+2. **E5 — external validation + launch.** 3 friendly testers, launch post, v0.1.x → v0.2.0 decision point.
+3. **E1 Slices 3–5** — Linux/WSL install matrix (R2/R3/R5) + versioning-policy doc + validator hardening; shelved pending volunteer testers (D-E3-12).
 
-E2 Slice 1 was the first FULL-tier `/sig:plan` + execute pass on Signal-on-Signal — research → 8-dim plan validation → 5-slice plan → strict-gate execute. Artifacts: `M4.5.E2-RESEARCH.md`, `M4.5.E2-PLAN.md`, `M4.5.E2-VALIDATION.md`, `M4.5.E2-PROGRESS.md`. PROFILE.md retro-calibrated FULL at the start of E2 (Signal-on-Signal had no PROFILE.md prior).
+Milestone 5 (v2 ports per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`) is the next horizon after M4.5 closes.
 
-**Pending dogfood validation of M4.t8.** The walkthrough is implemented + unit-tested but hasn't been exercised against a real PROJECT.md draft. Bundle with E1's marketplace-install validation.
-
-**Open items, in priority order:**
-1. **M4.5.E6 — resume reliability — EXECUTE S1** (CRITICAL, active). PLAN complete 2026-05-17; S1.t1 is the immediate next action. 5 slices, 37 tasks, ~88 new tests. Linear execution under strict gate. Plan in `M4.5.E6-PLAN.md`. The 270-line context-clear-re-entry barrier this STATE.md document represents IS the friction this Epic eliminates — see top-of-file Re-Entry Protocol.
-2. **F2 — marketplace-install agent registration** (M4.5.E1.S2). Publish a test build of Signal, install via marketplace, verify whether named subagents resolve and what prefix (if any) Claude Code applies. Update `/sig:init` Step 2 accordingly.
-3. **M4.5.E2 Slices 2–5** — force-route flags, cold-path interview, stranger-safety hardening, `/sig:plan` close-the-loop. Order flexible; S2 likely lands first.
-4. **M4.t8 conversational dogfood** — can ride the F2 marketplace validation pass.
-
-**Five MILESTONE-4 design decisions resolved (all logged):**
-- Scanner count → fixed at 4.
-- Scanner agents vs embedded logic → agents.
-- LANDSCAPE.md vs multi-file → single LANDSCAPE.md (scan files in `.planning/scan/` as the multi-file layer).
-- Write PROJECT.md or just LANDSCAPE.md → both, with per-field `[INFERRED]` / `[FILL IN]` markers.
-- Codebase-novelty feeding calibration → light-touch heuristic in `/sig:calibrate` Scenario A; deeper integration documented as forward-looking in tier-definitions.md.
+Per-Epic shipped detail lives in `## Current Milestone` above and `RETROSPECTIVES.md`; locked decisions in `DECISIONS.md`. (The five MILESTONE-4 design decisions and the M4.5.E6 EXECUTE plan that used to sit here are resolved/shipped — see `DECISIONS.md` and `M4.5.E6-RETROSPECTIVE.md`.)
 
 ## Blockers
 
@@ -333,6 +315,6 @@ None.
 
 ## Last Updated
 
-2026-05-17 (M4.5.E6 PLAN phase complete. 4 parallel research agents (codebase, project/external, assumptions, phase) ran during /sig:plan Step 2. Research surfaced one D1 correction (use existing `yaml@^2.8.3`, NOT new js-yaml dep) + 7 new D-candidates (D10–D16) — all 16 design decisions now in DECISIONS.md. M4.5.E6-PLAN.md drafted: 5 slices, 37 tasks, ~88 new tests, linear S1→S2→S3→S4→S5 execution. M4.5.E6-VALIDATION.md PASS across all 8 dimensions + Nyquist strict mapping. M4.5.E6-RESEARCH.md captures full synthesis. STATE.md updated with re-entry protocol at top + `## Current Phase` / `## Completed Phases` headings so existing /sig:resume helper can parse it pre-E6-S1. Next: kick off EXECUTE on S1.t1 (extract atomic-write.js from add.js).)
+2026-06-01 (STATE prose refresh — `## Active` + `## Last Updated` brought in line with the frontmatter after M4.5.E2 shipped and v0.1.3 was cut. Narrative only; no code/test changes. The frontmatter and top-of-file Re-Entry Protocol were already current; this fixes the lower prose, which still described M4.5.E6 as the active Epic from 2026-05-17. Dropped the stale E6 EXECUTE checklist and the resolved MILESTONE-4 design-decisions block from `## Active` — both are captured in `DECISIONS.md` / retros.)
 
-Prior: 2026-05-16 (M4.5.E6 scaffolded + DISCUSS complete; 9 initial design decisions); 2026-05-15 (M4.5.E1 Slice 1 shipped + v0.1.1); 2026-05-14 (M4.5.E2 Slice 1 shipped: `/sig:add` hardened hot path); 2026-05-12 (M4 closed + v0.1.0 tagged via M4.t19 marketplace install layout fix + plugin slug rename; M4.t18 vocabulary refactor); 2026-05-09 (M4.t13 fixture tests).
+Prior: 2026-05-31 (M4.5.E2 full Epic closed + **v0.1.3** released — bundled E7+E3+E9+E8+E2; tag pushed, marketplace.json sha pinned); 2026-05-23→30 (E7 synthesizer/install-UX, E3 docs rewrite, E9 retro foundations, E8 `/sig:doctor` 15th command — all shipped); 2026-05-17 (M4.5.E6 PLAN complete — 5 slices, 37 tasks); 2026-05-16 (E6 scaffolded + DISCUSS); 2026-05-15 (M4.5.E1 Slice 1 shipped + v0.1.1); 2026-05-14 (M4.5.E2 Slice 1: `/sig:add` hardened hot path); 2026-05-12 (M4 closed + v0.1.0 tagged); 2026-05-09 (M4.t13 fixture tests).
