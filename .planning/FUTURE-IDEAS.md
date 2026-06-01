@@ -1051,8 +1051,23 @@ Possible fix: in tools/lib/drain.js parseEntries, if the fence is still open at 
 
 ---
 
+## M5 opening move — feature-parity audit
 
-*Last updated: 2026-05-31*
+**Status:** Logged 2026-06-01 via `/sig:add`.
+
+M5 opening move — feature-parity audit across ALL inspirational repos. Before/at the start of v2 (Milestone 5), do a deliberate re-read of every inspirational repo against current Signal, then refresh analysis/SIGNAL-INTEGRATION-RUNDOWN.md (it predates M4.5 and is now stale). Repos: GSD, Agent Skills, gstack, pm-skills, superpowers, compound-engineering, planning-with-files, oh-my-claudecode, + Pi / oh-my-pi (see analysis/PI-OMP-PATTERNS.md).
+
+Focus areas the user flagged as high-potential: (1) documentation indexing / organization, (2) memory management, (3) "compounding" learning — retro REPLAY, not just capture (M4.5.E9 built capture only), (4) gstack office-hours reframing.
+
+Recommendation: make this the OPENING Epic of M5 (after M4.5 closes — E4 worked-example + E5 launch), so v2 is planned against a current landscape rather than the pre-M4.5 vision. When M5 planning runs, the new /sig:plan drain will surface this and the related entries below as candidates — the capture/drain loop closes here.
+
+Related existing FUTURE-IDEAS entries to fold in: "Roadmap refresh — post-M4.5 reality check on v2 vision"; "Compound-engineering audit before /sig:compound design"; "Memory & Documentation Management as Signal-managed Runtime (wiki/index + retro enforcement)"; "Codebase knowledge-graph (graphify)". Logged 2026-06-01 at the v0.1.3 close, before a context clear.
+
+---
+
+
+
+*Last updated: 2026-06-01*
 ## STATE.md auto-update protocol — extend beyond EXECUTE waves
 
 **Status:** Logged 2026-05-24. Trigger: hit during M4.5.E3 DISCUSS work. After E7 SHIP closed (commit `8723967`, 2026-05-23), `last_updated_commit` in STATE.md frontmatter stayed pinned at `8723967` across 5+ subsequent commits spanning E8 scaffolding, E3 DISCUSS lock, vocabulary updates, docs/map work, and E3 DISCUSS revision. The frontmatter was only refreshed by manual intervention after the user called it out as "a bug."
