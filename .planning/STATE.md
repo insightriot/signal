@@ -1,16 +1,17 @@
 ---
 schema_version: 1
-phase: PLAN
+phase: EXECUTE
 current_epic: M4.5.E4
-current_wave: null
+current_wave: S1
 current_tasks: []
 completed_phases:
   - DISCUSS (2026-06-01)
+  - PLAN (2026-06-02)
 blockers: []
 last_completed_task: null
-last_decision_at: 2026-06-02T00:12:11.000Z
-last_updated_commit: e309e4dd3785178ea53da028012ddc4583160580
-last_updated: 2026-06-02T00:12:11.000Z
+last_decision_at: 2026-06-02T14:36:53.000Z
+last_updated_commit: 9c3fd3719949b375aff8635b001c2174465a6435
+last_updated: 2026-06-02T14:36:53.000Z
 ---
 <!-- Original STATE.md content preserved verbatim from pre-schema_v1 migration on 2026-05-18. The YAML frontmatter above is the authoritative machine-readable state; everything below is human-readable history. -->
 
@@ -28,7 +29,7 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 1. **Where we are (2026-06-01):** **M4.5.E2 (`/sig:add`) shipped and v0.1.3 is cut.** The full 5-slice Epic closed (capture hot path + `--question`/`--milestone`/`--file` flags + naked-invocation interview + stranger-safety hardening + the `/sig:plan` advisory FUTURE-IDEAS drain), and E7+E3+E9+E8+E2 were bundled into the **v0.1.3 release** (tag `v0.1.3`, pushed; `marketplace.json` pinned to the release commit). Frontmatter says `phase: SHIP`, `current_epic: M4.5.E2`, DISCUSS→SHIP all complete. No Epic is currently in flight.
 
-2. **What's next:** **M4.5.E4 (worked example + comparison page) is the active Epic — DISCUSS complete 2026-06-01; PLAN next.** Run `/sig:plan` (or tell Claude "start PLAN for E4"). Decisions locked in `M4.5.E4-REQUIREMENTS.md` + DECISIONS 2026-06-01 (D-E4-1…9); one risk (R1, the runnable example's `better-sqlite3` native-dep caveat) is flagged for PLAN to settle. After E4: **E5** (external validation + launch). Also open: **E1 Slices 3–5** (Linux/WSL install matrix + versioning-policy doc + validator hardening), shelved pending volunteer testers (D-E3-12).
+2. **What's next:** **M4.5.E4 (worked example + comparison page) is the active Epic — PLAN complete 2026-06-02; EXECUTE Slice 1 in progress.** Plan in `M4.5.E4-PLAN.md` (3 vertical slices, 10 tasks); R1 resolved (swap to Node's built-in `node:sqlite`). Slice 1 = promote example → `examples/url-shortener/` + storage swap + artifact refresh + currency guard; Slice 2 = `docs/vs.md`; Slice 3 = README links + CHANGELOG. After E4: **E5** (external validation + launch). Also open: **E1 Slices 3–5** (Linux/WSL install matrix + versioning-policy doc + validator hardening), shelved pending volunteer testers (D-E3-12).
 
 3. **What to read in order:** `.planning/CONTEXT.md` → this file's frontmatter → `.planning/MILESTONE-4.5.md` (Epic roadmap) → the target Epic's `M4.5.E{N}-*.md` artifacts. Locked decisions are in `.planning/DECISIONS.md`; per-Epic retrospectives are indexed in `.planning/RETROSPECTIVES.md`.
 
@@ -38,7 +39,7 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Phase
 
-**M4.5.E4 (worked example + comparison page) — DISCUSS complete 2026-06-01; PLAN next.** (The authoritative per-Epic phase state is the frontmatter `phase:` / `completed_phases:` at the top of this file; this prose echoes it for human readers.) E2 shipped + v0.1.3 cut 2026-05-31; E4 opened DISCUSS 2026-06-01.
+**M4.5.E4 (worked example + comparison page) — PLAN complete 2026-06-02; EXECUTE Slice 1 in progress.** (The authoritative per-Epic phase state is the frontmatter `phase:` / `completed_phases:` at the top of this file; this prose echoes it for human readers.) E2 shipped + v0.1.3 cut 2026-05-31; E4: DISCUSS 2026-06-01 → PLAN 2026-06-02 → EXECUTE.
 
 ## Current Milestone
 
@@ -287,11 +288,11 @@ Milestone 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the ma
 
 ## Active
 
-**M4.5.E4 (worked example + comparison page) is the active Epic — DISCUSS complete 2026-06-01; PLAN next.** E2 (`/sig:add`) shipped 2026-05-31 and was bundled into **v0.1.3** (with E7+E3+E9+E8). Test suite at **762**; validator green. 15 slash commands, 26 agents, 21 skills.
+**M4.5.E4 (worked example + comparison page) is the active Epic — PLAN complete 2026-06-02; EXECUTE Slice 1 in progress.** E2 (`/sig:add`) shipped 2026-05-31 and was bundled into **v0.1.3** (with E7+E3+E9+E8). Test suite at **762**; validator green. 15 slash commands, 26 agents, 21 skills.
 
-**E4 DISCUSS locked four gray areas** (full spec in `M4.5.E4-REQUIREMENTS.md`; rationale in DECISIONS 2026-06-01, D-E4-1…9): (1) worked example = full `calibrate→ship` flow on one project — shows the calibration wedge, not init-only; (2) source = reuse + refresh `.dogfood/url-shortener-fulltier/` with a mandatory drift audit; (3) form = runnable app + artifacts + currency guard test; (4) `docs/vs.md` = prose decision guide (~60–80 lines, 5 comparators, heritage-respectful). **One open item for PLAN: R1** — the runnable example's `better-sqlite3` native dep can break "clone and `npm test`"; PLAN picks swap-to-zero-native-dep (recommended) / document-build-step / guard-artifacts-only.
+**E4 DISCUSS locked four gray areas** (full spec in `M4.5.E4-REQUIREMENTS.md`; rationale in DECISIONS 2026-06-01, D-E4-1…9): (1) worked example = full `calibrate→ship` flow on one project — shows the calibration wedge, not init-only; (2) source = reuse + refresh `.dogfood/url-shortener-fulltier/` with a mandatory drift audit; (3) form = runnable app + artifacts + currency guard test; (4) `docs/vs.md` = prose decision guide (~60–80 lines, 5 comparators, heritage-respectful). **R1 RESOLVED in PLAN** — swap the example's storage to Node's built-in `node:sqlite` (removes the only native dependency; the demo stays a real SQLite app). PLAN artifacts: `M4.5.E4-RESEARCH.md` / `-PLAN.md` (3 vertical slices, 10 tasks) / `-VALIDATION.md` (8-dim PASS + strict Nyquist).
 
-**Immediate next step:** run `/sig:plan` for M4.5.E4 (project already calibrated FULL). Or `/sig:resume` for a fresh briefing.
+**Immediate next step:** EXECUTE Slice 1 — promote the example into a tracked `examples/url-shortener/`, swap storage to `node:sqlite`, refresh STATE.md to `schema_version: 1` + reconcile the AC-count, add the `tests/example-currency.test.js` guard. Then Slice 2 (`docs/vs.md`) + Slice 3 (README links + CHANGELOG).
 
 **Remaining M4.5 Epics, in order:**
 1. **E4 — worked example + comparison page** (next). `examples/` directory; `docs/vs.md`.
@@ -308,6 +309,8 @@ None.
 
 ## Last Updated
 
-2026-06-01 (M4.5.E4 DISCUSS complete — phase → PLAN. Four gray areas gated individually under FULL/strict: worked-example scope / source / form / `vs.md` format. Output in `M4.5.E4-REQUIREMENTS.md` (9 decisions, 8 FRs, doc-quality NFRs, 3 risks, 9 ACs) + DECISIONS 2026-06-01 (D-E4-1…9). Risk R1 — runnable example's `better-sqlite3` native dep — flagged for PLAN. Frontmatter advanced: `current_epic: M4.5.E4`, `phase: PLAN`, `completed_phases: [DISCUSS]`. Next: `/sig:plan`.)
+2026-06-02 (M4.5.E4 PLAN complete — phase → EXECUTE. 4 parallel research agents ran; R1 resolved (swap `better-sqlite3` → Node built-in `node:sqlite`; env check: Node 22.13.0, swap removes the native dep). Drift audit: only STATE.md needs refresh (zero "tranche" hits). `M4.5.E4-{RESEARCH,PLAN,VALIDATION}.md` written; 8-dim PASS + strict Nyquist. Plan = 3 vertical slices / 10 tasks. Frontmatter: `phase: EXECUTE`, `current_wave: S1`, `completed_phases: [DISCUSS, PLAN]`. Next: EXECUTE Slice 1.)
+
+Prior: 2026-06-01 (M4.5.E4 DISCUSS complete — phase → PLAN. Four gray areas gated individually under FULL/strict: worked-example scope / source / form / `vs.md` format. Output in `M4.5.E4-REQUIREMENTS.md` (9 decisions, 8 FRs, doc-quality NFRs, 3 risks, 9 ACs) + DECISIONS 2026-06-01 (D-E4-1…9). Risk R1 flagged for PLAN. Next: `/sig:plan`.)
 
 Prior: 2026-06-01 (STATE prose refresh — `## Active` + `## Last Updated` brought in line with the frontmatter after M4.5.E2 shipped and v0.1.3 was cut; dropped the stale E6 EXECUTE checklist + resolved M4 design-decisions block); 2026-05-31 (M4.5.E2 full Epic closed + **v0.1.3** released — bundled E7+E3+E9+E8+E2; tag pushed, marketplace.json sha pinned); 2026-05-23→30 (E7 synthesizer/install-UX, E3 docs rewrite, E9 retro foundations, E8 `/sig:doctor` 15th command — all shipped); 2026-05-17 (M4.5.E6 PLAN complete — 5 slices, 37 tasks); 2026-05-16 (E6 scaffolded + DISCUSS); 2026-05-15 (M4.5.E1 Slice 1 shipped + v0.1.1); 2026-05-14 (M4.5.E2 Slice 1: `/sig:add` hardened hot path); 2026-05-12 (M4 closed + v0.1.0 tagged); 2026-05-09 (M4.t13 fixture tests).
