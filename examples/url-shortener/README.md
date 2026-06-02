@@ -4,7 +4,7 @@ A small, single-process URL shortener service in Node.js.
 
 - Two routes: `POST /shorten` (mint a code), `GET /:code` (302 redirect).
 - Health probe: `GET /healthz`.
-- File-based persistence via SQLite (`better-sqlite3`).
+- File-based persistence: a plain JSON file (no native modules — `npm install` compiles nothing).
 - Crypto-random 7-char base62 codes (collision-resistant via UNIQUE constraint + retry).
 - Strict scheme allowlist (`http://`, `https://`).
 
@@ -69,7 +69,7 @@ kill $SERVER_PID
 npm test
 ```
 
-8 test files, 38 tests covering:
+8 test files, 39 tests covering:
 - `storage`, `codegen`, `validate` units
 - `service` (collision retry, validation error)
 - `server` integration (F1, F2, F5, F6, N1d via real `fetch` against an ephemeral port)
@@ -78,8 +78,8 @@ npm test
 
 ## Operational
 
-- Graceful shutdown: `SIGTERM` / `SIGINT` → `server.close()` then `db.close()`. 10s force-exit guard.
-- WAL-mode SQLite. Pragmas: `journal_mode = WAL`, `synchronous = NORMAL`, `busy_timeout = 5000`.
+- Graceful shutdown: `SIGTERM` / `SIGINT` → `server.close()` then `storage.close()`. 10s force-exit guard.
+- Persistence: a JSON file at `DB_PATH`, read on open and written on each change. Zero runtime dependencies.
 - HTTP server: `requestTimeout = 10s`, `headersTimeout = 5s`, `keepAliveTimeout = 5s`, `maxRequestsPerSocket = 100`.
 - Body cap: 4 KB.
 - Security headers on JSON + 404 responses: `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`.

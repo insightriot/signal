@@ -1,32 +1,42 @@
-import Database from 'better-sqlite3';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
+// Zero-dependency persistence: the whole store is a JSON object
+// { code: longUrl } loaded into memory on open and written back on each
+// mutation. Plenty for a single-process demo, and `npm install` never
+// compiles a native module (no better-sqlite3, no node:sqlite).
 export function openStorage(dbPath) {
-  const db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
-  db.pragma('synchronous = NORMAL');
-  db.pragma('busy_timeout = 5000');
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS urls (
-      code TEXT PRIMARY KEY,
-      long_url TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+  let data = {};
+  if (existsSync(dbPath)) {
+    // readFileSync throws (EISDIR) if dbPath is a directory; index.js turns
+    // that into a non-zero startup exit (test N3c).
+    const raw = readFileSync(dbPath, 'utf8');
+    data = raw.trim() === '' ? {} : JSON.parse(raw);
+  } else {
+    // Create the file up front so an unwritable/dir path fails fast on open.
+    writeFileSync(dbPath, '{}');
+  }
 
-  const insertStmt = db.prepare('INSERT OR IGNORE INTO urls(code, long_url) VALUES (?, ?)');
-  const selectStmt = db.prepare('SELECT long_url FROM urls WHERE code = ?');
+  function persist() {
+    writeFileSync(dbPath, JSON.stringify(data));
+  }
 
   return {
     put(code, longUrl) {
-      const info = insertStmt.run(code, longUrl);
-      return { inserted: info.changes === 1 };
+      // INSERT-OR-IGNORE semantics: never overwrite an existing code.
+      if (Object.prototype.hasOwnProperty.call(data, code)) {
+        return { inserted: false };
+      }
+      data[code] = longUrl;
+      persist();
+      return { inserted: true };
     },
     get(code) {
-      const row = selectStmt.get(code);
-      return row ? { longUrl: row.long_url } : null;
+      return Object.prototype.hasOwnProperty.call(data, code)
+        ? { longUrl: data[code] }
+        : null;
     },
     close() {
-      db.close();
+      persist();
     },
   };
 }

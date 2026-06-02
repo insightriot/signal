@@ -61,7 +61,7 @@ describe('shutdown (N3b, N3c)', () => {
   }, 15_000);
 
   it('N3c: startup fails with non-zero exit when DB_PATH is unwritable', async () => {
-    // Use a directory path as DB_PATH — sqlite cannot open a directory as a file.
+    // Use a directory path as DB_PATH — the store cannot open a directory as a file.
     const dir = mkdtempSync(join(tmpdir(), 'url-shortener-startfail-'));
     const fakeDb = join(dir, 'is-a-dir');
     mkdirSync(fakeDb);
