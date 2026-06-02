@@ -1,0 +1,44 @@
+{
+  "mode": "interactive",
+  "workflow": {
+    "research": true,
+    "plan_check": true,
+    "verifier": true,
+    "auto_advance": false,
+    "nyquist_validation": true,
+    "security_enforcement": true,
+    "security_asvs_level": 1,
+    "security_block_on": "high",
+    "discuss_mode": "discuss",
+    "review_phase": true
+  },
+  "parallelization": {
+    "enabled": true,
+    "max_concurrent_agents": 3
+  },
+  "gates": {
+    "confirm_discuss": true,
+    "confirm_plan": true,
+    "confirm_execute": true,
+    "confirm_verify": true,
+    "confirm_review": true,
+    "confirm_ship": true,
+    "anti_rationalization": true
+  },
+  "context": {
+    "warn_threshold": 0.35,
+    "critical_threshold": 0.25,
+    "reread_interval_minutes": 45
+  },
+  "skills": {
+    "loading": "on-demand",
+    "phase_bindings": {
+      "discuss": ["idea-refine", "spec-driven-development"],
+      "plan": ["planning-and-task-breakdown", "api-and-interface-design", "deprecation-and-migration"],
+      "execute": ["incremental-implementation", "test-driven-development", "context-engineering", "source-driven-development", "frontend-ui-engineering"],
+      "verify": ["browser-testing-with-devtools", "debugging-and-error-recovery"],
+      "review": ["code-review-and-quality", "security-and-hardening", "performance-optimization", "code-simplification"],
+      "ship": ["git-workflow-and-versioning", "ci-cd-and-automation", "documentation-and-adrs", "shipping-and-launch", "deprecation-and-migration"]
+    }
+  }
+}
