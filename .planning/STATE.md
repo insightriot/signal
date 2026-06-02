@@ -2,16 +2,20 @@
 schema_version: 1
 phase: EXECUTE
 current_epic: M4.5.E4
-current_wave: S1
+current_wave: null
 current_tasks: []
 completed_phases:
   - DISCUSS (2026-06-01)
   - PLAN (2026-06-02)
 blockers: []
-last_completed_task: null
-last_decision_at: 2026-06-02T14:36:53.000Z
-last_updated_commit: 9c3fd3719949b375aff8635b001c2174465a6435
-last_updated: 2026-06-02T14:36:53.000Z
+last_completed_task:
+  id: M4.5.E4.S1.t5
+  status: done
+  commit: c443caf
+  completedAt: 2026-06-02T14:56:47.000Z
+last_decision_at: 2026-06-02T14:56:47.000Z
+last_updated_commit: c443caf3fbeb3198a3fd84547e582cd9418679fa
+last_updated: 2026-06-02T14:56:47.000Z
 ---
 <!-- Original STATE.md content preserved verbatim from pre-schema_v1 migration on 2026-05-18. The YAML frontmatter above is the authoritative machine-readable state; everything below is human-readable history. -->
 
@@ -292,7 +296,7 @@ Milestone 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the ma
 
 **E4 DISCUSS locked four gray areas** (full spec in `M4.5.E4-REQUIREMENTS.md`; rationale in DECISIONS 2026-06-01, D-E4-1…9): (1) worked example = full `calibrate→ship` flow on one project — shows the calibration wedge, not init-only; (2) source = reuse + refresh `.dogfood/url-shortener-fulltier/` with a mandatory drift audit; (3) form = runnable app + artifacts + currency guard test; (4) `docs/vs.md` = prose decision guide (~60–80 lines, 5 comparators, heritage-respectful). **R1 RESOLVED in PLAN** — swap the example's storage to Node's built-in `node:sqlite` (removes the only native dependency; the demo stays a real SQLite app). PLAN artifacts: `M4.5.E4-RESEARCH.md` / `-PLAN.md` (3 vertical slices, 10 tasks) / `-VALIDATION.md` (8-dim PASS + strict Nyquist).
 
-**Immediate next step:** EXECUTE Slice 1 — promote the example into a tracked `examples/url-shortener/`, swap storage to `node:sqlite`, refresh STATE.md to `schema_version: 1` + reconcile the AC-count, add the `tests/example-currency.test.js` guard. Then Slice 2 (`docs/vs.md`) + Slice 3 (README links + CHANGELOG).
+**Immediate next step:** Slice 1 ✅ **complete** (commits `dc80415`→`c443caf`) — `examples/url-shortener/` promoted, runnable on a zero-dependency JSON store (R1-residual: `node:sqlite` blocked by vitest/vite builtin resolution → JSON file), artifacts refreshed to current schema, AC-count reconciled (24 = 17+7), `tests/example-currency.test.js` guard added. Root suite **764/764**, validator green. **Slice 2 (`docs/vs.md`) pending user approval**, then Slice 3 (README links + CHANGELOG). Task detail in `M4.5.E4-PROGRESS.md`.
 
 **Remaining M4.5 Epics, in order:**
 1. **E4 — worked example + comparison page** (next). `examples/` directory; `docs/vs.md`.
@@ -309,7 +313,9 @@ None.
 
 ## Last Updated
 
-2026-06-02 (M4.5.E4 PLAN complete — phase → EXECUTE. 4 parallel research agents ran; R1 resolved (swap `better-sqlite3` → Node built-in `node:sqlite`; env check: Node 22.13.0, swap removes the native dep). Drift audit: only STATE.md needs refresh (zero "tranche" hits). `M4.5.E4-{RESEARCH,PLAN,VALIDATION}.md` written; 8-dim PASS + strict Nyquist. Plan = 3 vertical slices / 10 tasks. Frontmatter: `phase: EXECUTE`, `current_wave: S1`, `completed_phases: [DISCUSS, PLAN]`. Next: EXECUTE Slice 1.)
+2026-06-02 (M4.5.E4 EXECUTE Slice 1 complete — worked example shipped to `examples/url-shortener/`. Promoted from `.dogfood/`, swapped to a zero-dep JSON store (node:sqlite hit a vitest/vite builtin-resolution wall — documented in PROGRESS), refreshed STATE to schema_version 1, reconciled the AC-count (24 = 17 automated + 7 manual), added `tests/example-currency.test.js` currency guard. Root suite 762 → 764, validator green. Slice 2 (`docs/vs.md`) pending approval. `last_completed_task: M4.5.E4.S1.t5`.)
+
+Prior: 2026-06-02 (M4.5.E4 PLAN complete — phase → EXECUTE. 4 parallel research agents ran; R1 resolved (swap `better-sqlite3` → Node built-in `node:sqlite`; env check: Node 22.13.0, swap removes the native dep). Drift audit: only STATE.md needs refresh (zero "tranche" hits). `M4.5.E4-{RESEARCH,PLAN,VALIDATION}.md` written; 8-dim PASS + strict Nyquist. Plan = 3 vertical slices / 10 tasks. Frontmatter: `phase: EXECUTE`, `current_wave: S1`, `completed_phases: [DISCUSS, PLAN]`. Next: EXECUTE Slice 1.)
 
 Prior: 2026-06-01 (M4.5.E4 DISCUSS complete — phase → PLAN. Four gray areas gated individually under FULL/strict: worked-example scope / source / form / `vs.md` format. Output in `M4.5.E4-REQUIREMENTS.md` (9 decisions, 8 FRs, doc-quality NFRs, 3 risks, 9 ACs) + DECISIONS 2026-06-01 (D-E4-1…9). Risk R1 flagged for PLAN. Next: `/sig:plan`.)
 
