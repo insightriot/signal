@@ -1205,4 +1205,30 @@ REQUIREMENTS FR2 originally locked binary 0/1; PLAN expands to 3-level so CI con
 
 **Cross-references:** `M4.5.E2-REQUIREMENTS.md` (this DISCUSS's full spec, FR1–FR8 + ACs); `M4.5.E2-PLAN.md` Slices 2–5 (superseded where it disagrees); `FUTURE-IDEAS.md` § "FUTURE-IDEAS drain process"; DECISIONS 2026-05-24 (Option A); `M4.5.E3-REQUIREMENTS.md` § D-E3-11 (audience reframe).
 
+---
+
+## 2026-06-01 — M4.5.E4 DISCUSS decisions locked (D-E4-1 through D-E4-9)
+
+**Context.** E4 (worked example + comparison page) entered DISCUSS 2026-06-01 after E2 closed and v0.1.3 was cut, with no Epic in flight. `/sig:resume` proposed E4 as the next move; the project is already calibrated FULL (`gate_strictness: strict`). Four gray areas were gated individually under strict; five consequent locks follow from the gated four + the E4 spec (`MILESTONE-4.5.md` § E4). Full spec + acceptance criteria in `M4.5.E4-REQUIREMENTS.md`.
+
+**The pivotal insight that shaped DISCUSS:** the spec's literal worked example is `/sig:init` (brownfield) — but `/sig:init` scans a repo and *hands off to `/sig:calibrate`*, so an init-only example stops exactly where the calibration router (the wedge `docs/vs.md` is meant to sell) begins. The example was therefore re-scoped to a full `calibrate → ship` run so the wedge is actually visible.
+
+**The 9 decisions:**
+
+1. **D-E4-1 — Worked example = full `calibrate → ship` flow on ONE project.** Not init-only (stops before the wedge), not a SKETCH/FULL contrast (biggest option; deferred). *(User-gated.)*
+2. **D-E4-2 — Example source = reuse + refresh `.dogfood/url-shortener-fulltier/`** with a mandatory drift audit to current conventions (STATE `schema_version: 1` from E6; Milestone/Epic vocab from M4.t18). Escape hatch: regenerate fresh if the audit finds the artifacts unsalvageable. *(User-gated.)*
+3. **D-E4-3 — Example form = runnable app + artifacts + guard.** Commit `src/`+`tests/`+`package.json` (no `node_modules`) + refreshed `.planning/` + README; add a guard test so the example can't silently rot. *(User-gated.)* **Carries Risk R1** — native-dependency (`better-sqlite3`) caveat that PLAN must settle.
+4. **D-E4-4 — `docs/vs.md` = prose decision guide**, heritage-respectful, "when to reach for which," calibration router as the wedge, ~60–80 lines. Not a feature matrix. *(User-gated.)*
+5. **D-E4-5 — Exactly ONE worked example in E4.** Additional examples (Python / Rust / dormant) deferred to future Epics / E5.
+6. **D-E4-6 — Comparison set = 5** (GSD, superpowers, Agent Skills, planning-with-files, compound-engineering), per the spec. gstack / pm-skills / oh-my-claudecode named in passing only; depth lives in `analysis/REPO-ANALYSIS.md` (linked).
+7. **D-E4-7 — No third-party source vendored.** Moot for this (Signal-authored) example; locked as principle for any future real-repo example.
+8. **D-E4-8 — FULL runtime NFR checklist is N/A; doc-quality NFRs bind instead** (link integrity, currency guard, line budget, accuracy, test discipline). E4 owns no runtime service.
+9. **D-E4-9 — DISCUSS output → `M4.5.E4-REQUIREMENTS.md` + this DECISIONS entry**, not the shared `CONTEXT.md`. Matches E2 § Decision 9 / E8 / E9.
+
+**Open for PLAN (flagged, not deferred-silently):** R1 — the runnable example's `better-sqlite3` native dependency can break "clone and `npm test`" on a stranger's machine. PLAN chooses: (a) swap to a zero-native-dep store during refresh (recommended), (b) keep it + document build step/Node range, or (c) scope the guard to artifact-parsing and label "runnable" with caveats. See `M4.5.E4-REQUIREMENTS.md` § Risks R1 / A1 / A2.
+
+**What this rules out (so PLAN doesn't re-litigate):** init-only example; multi-tier contrast in E4; a fresh-from-scratch run (unless the audit forces it); a feature-matrix `vs.md`; vendoring third-party source; more than one example this Epic.
+
+**Cross-references:** `M4.5.E4-REQUIREMENTS.md` (full spec, FR1–FR8 + ACs + Risks); `MILESTONE-4.5.md` § E4 (Epic definition); `analysis/REPO-ANALYSIS.md` (vs.md raw material); `.dogfood/url-shortener-fulltier/` (example source, gitignored); STATE.md M3 Task 2 findings (R1 origin).
+
 
