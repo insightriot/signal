@@ -2,7 +2,7 @@
 
 ## Phase Goal
 
-Ship a single-process Node.js URL shortener service that satisfies all 16 acceptance criteria in REQUIREMENTS.md, with a clean test suite (TDD per task), strict shutdown discipline, and no high-severity REVIEW findings.
+Ship a single-process Node.js URL shortener service that satisfies all 24 acceptance criteria in REQUIREMENTS.md (17 test-backed + 7 manual-verified), with a clean test suite (TDD per task), strict shutdown discipline, and no high-severity REVIEW findings.
 
 ## Vertical Slices
 

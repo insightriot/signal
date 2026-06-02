@@ -6,7 +6,7 @@ FULL tier → all 8 plan-validation dimensions + strict Nyquist (every acceptanc
 
 ### 1. Goal alignment ✓
 
-Phase goal: "ship a service that satisfies all 16 acceptance criteria". Every slice maps to a slice of those criteria; no slice exists without anchor.
+Phase goal: "ship a service that satisfies all 24 acceptance criteria (17 test-backed + 7 manual-verified)". Every slice maps to a slice of those criteria; no slice exists without anchor.
 
 | Slice | Anchored to |
 |---|---|
@@ -130,7 +130,7 @@ Strict mode: every functional + non-functional acceptance criterion → at least
 | N3b | integration via `child_process` | `tests/shutdown.test.js::sigterm graceful` | covered |
 | N3c | integration via `child_process` | `tests/shutdown.test.js::startup failure exit code` | covered |
 
-**Strict Nyquist verdict:** 18 of 24 acceptance criteria covered by automated tests. 6 are documented manual-verifications (1 logging-policy code review, 1 error-echo code review, 4 perf benchmarks). VERIFY phase will assert all 18 automated + check the 6 manual.
+**Strict Nyquist verdict:** 17 of 24 acceptance criteria covered by automated tests. 7 are documented manual-verifications (N1b logging-policy code review, N1c error-echo code review, N2a–d perf benchmarks, N3a access-log format). VERIFY phase will assert all 17 automated + check the 7 manual.
 
 **Nyquist permanent-gap risk:** none — every gap is structural (perf criteria can't reasonably be in unit suite for v1) and explicitly logged. No gaps that strict Nyquist would flag as "should be a test but isn't."
 

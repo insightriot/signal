@@ -62,7 +62,7 @@ Generated from PROJECT.md success criteria + CONTEXT.md decisions. Each requirem
 
 ## Acceptance Criteria Summary
 
-Total acceptance points: F1 (1), F2 (2), F3 (1), F4 (1), F5 (7), F6 (1), N1d (1), N3b (1), N3c (1) = **16 testable acceptance criteria**.
+Total acceptance points: F1 (1), F2 (2), F3 (1), F4 (1), F5 (7), F6 (1), N1a (1), N1d (1), N3b (1), N3c (1) = **17 test-backed acceptance criteria** (of **24 total** — the other 7 are manual-acknowledged NFRs: N1b, N1c, N2a–d, N3a).
 
 Nyquist mapping happens in PLAN — every acceptance criterion above must map to ≥1 test case in `1-PLAN.md`.
 

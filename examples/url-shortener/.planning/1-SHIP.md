@@ -54,7 +54,7 @@ If/when v2 brings additional storage backends, vanity codes, or an authenticatio
 
 > "Am I shipping this because it's ready, or because I'm tired of working on it?"
 
-Ready. The 24 acceptance criteria are all satisfied (18 automated, 6 manual-acknowledged). REVIEW caught and fixed two real issues (I-1 + I-2) before the gate. Nothing material is being deferred *into* the ship — only the documented v1 scope-cuts (rate limiting, analytics, vanity codes) which were explicitly out-of-scope from PROJECT.md onward.
+Ready. The 24 acceptance criteria are all satisfied (17 automated, 7 manual-acknowledged). REVIEW caught and fixed two real issues (I-1 + I-2) before the gate. Nothing material is being deferred *into* the ship — only the documented v1 scope-cuts (rate limiting, analytics, vanity codes) which were explicitly out-of-scope from PROJECT.md onward.
 
 ## Verdict
 

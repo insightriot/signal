@@ -28,7 +28,7 @@ FULL tier → strict Nyquist enforcement, strict gate, anti-rationalization on.
 | N3b | ✓ pass | `tests/shutdown.test.js > N3b: SIGTERM triggers graceful exit within 10s with code 0`. Live smoke: SIGTERM exited with code 0 within 1 second. |
 | N3c | ✓ pass | `tests/shutdown.test.js > N3c: startup fails with non-zero exit when DB_PATH is unwritable`. |
 
-**Summary:** 18/18 automated criteria green. 6/6 manual-acknowledged criteria verified by inspection or live smoke. **0 failures.**
+**Summary:** 17/17 automated criteria green. 7/7 manual-acknowledged criteria verified by inspection or live smoke. **0 failures.**
 
 ## Test suite
 
@@ -46,7 +46,7 @@ Duration    ~500ms
 
 ## Strict Nyquist compliance
 
-Every functional + automatable acceptance criterion maps to ≥1 test (per `1-VALIDATION.md`'s Nyquist table). Each automated row above has a concrete test path. The 6 manual rows are explicitly acknowledged in PLAN with stated rationale (perf benchmarks, code-review-only items).
+Every functional + automatable acceptance criterion maps to ≥1 test (per `1-VALIDATION.md`'s Nyquist table). Each automated row above has a concrete test path. The 7 manual rows are explicitly acknowledged in PLAN with stated rationale (perf benchmarks, code-review-only items).
 
 **Strict-mode "failed before fixed" record:** during EXECUTE, every slice's tests were written *before* the implementation. The red state was confirmed by running `npm test` after writing tests but before writing code (e.g., the run after Slices 2/3/4 tests showed `FAIL Failed Suites 3` because `src/storage.js`, `src/codegen.js`, `src/validate.js` did not yet exist). However, the red→green transitions are bundled in single per-slice commits — git history doesn't preserve a "this test was red at SHA X, then green at SHA Y" trail. **This is a real strict-Nyquist limitation worth flagging in OPEN-QUESTIONS.md** — strict Nyquist's "failed before fixed" criterion would, in a stricter implementation, require either (a) a separate test-write commit that fails CI, or (b) a test-runner harness that records each test's first-red and first-green moments. v1 captures the spirit (TDD discipline preserved per slice) but not the letter (no per-test red→green git evidence).
 
@@ -80,7 +80,7 @@ kill -TERM $PID
 
 ## Verification verdict
 
-**PASS.** All 24 acceptance criteria satisfied — 18 automated, 6 manual-acknowledged. Test suite green. Live HTTP smoke green. Graceful shutdown verified. Ready for REVIEW.
+**PASS.** All 24 acceptance criteria satisfied — 17 automated, 7 manual-acknowledged. Test suite green. Live HTTP smoke green. Graceful shutdown verified. Ready for REVIEW.
 
 ## Last Updated
 2026-04-26
