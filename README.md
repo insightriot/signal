@@ -19,6 +19,8 @@ In Signal's own dogfood:
 
 Same tooling. Same commands. The difference is calibration.
 
+That FULL run is committed as a worked example you can read end to end: **[`examples/url-shortener/`](./examples/url-shortener/)** — the complete `.planning/` chain (calibrate → ship) plus a runnable, zero-dependency service. Its README walks through *why* the project calibrated FULL and what each phase produced.
+
 ## Install
 
 ### Requirements & compatibility
@@ -205,6 +207,8 @@ Any future telemetry would require a major-version bump, an explicit opt-in flag
 ## Open Source Origins
 
 Signal is a synthesis of patterns from many other people's work. The projects below shaped Signal's architecture directly — through code ported, ideas borrowed, or examples studied. Listed with thanks to their maintainers; their work is what made Signal possible.
+
+**Not sure when to reach for Signal versus one of these directly?** See [`docs/vs.md`](./docs/vs.md) — an honest, toolbox-framed guide to which tool fits which job.
 
 ### Directly ported (v1)
 

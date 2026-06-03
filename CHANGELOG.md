@@ -6,6 +6,19 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased] — M4.5.E4 (worked example + comparison page)
+
+### Added — worked example (M4.5.E4 Slice 1)
+
+- **`examples/url-shortener/`** — a complete, committed `calibrate → ship` run of Signal on a small URL-shortener service, so newcomers can see what Signal produces and how the calibration router right-sizes rigor. Runnable with **zero runtime dependencies** (a plain JSON-file store — `npm install` compiles nothing, `npm test` → 39/39 on Node ≥ 22.5). The annotated README tours each `.planning/` artifact and explains why the project calibrated FULL (a published short URL is an irreversible public contract). Promoted out of the gitignored `.dogfood/` into a tracked directory so it can't silently rot.
+- **`tests/example-currency.test.js`** — a guard that asserts the example stays on the current STATE/PROFILE schema (`readState(...)._schema === 1`, `readProfile(...)` valid), so a future schema change can't leave the worked example stale.
+
+### Added — comparison page (M4.5.E4 Slice 2)
+
+- **`docs/vs.md`** — a prose "when to reach for which" guide across the plugins Signal is built from (GSD, Agent Skills, superpowers, planning-with-files, compound-engineering), framed as a toolbox: each is excellent on its own; Signal assembles them under one roof and adds the calibration router that right-sizes rigor. Linked from the README and registered in the validator.
+
+---
+
 ## [0.1.3] — 2026-05-31 — M4.5.E7 + M4.5.E3 + M4.5.E9 + M4.5.E8 + M4.5.E2 (synthesizer prose-quality + install-UX hardening + public-docs rewrite + retro foundations + install-state diagnostician + `/sig:add` force-route flags + naked-invocation interview + stranger-safety hardening + `/sig:plan` FUTURE-IDEAS drain)
 
 ### Added — `/sig:add` force-route flags (M4.5.E2 Slice 2)
