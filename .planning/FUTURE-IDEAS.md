@@ -1065,9 +1065,18 @@ Related existing FUTURE-IDEAS entries to fold in: "Roadmap refresh — post-M4.5
 
 ---
 
+## Signal should acclimate it's language to
+
+**Status:** Logged 2026-06-03 via `/sig:add`. during PLAN on M4.5.E5
+
+signal should acclimate it's language to how technical the person is. I keep finding myself asking for plain language explanations so I actually understand what things mean and what decision I'm really making. So in the spirit of 'calibrate', one has the option to dial in a spectrum of technical language, one end being "zero-technical knowledge who wants very plain, straight forward explanations anyone can understand <---|---|--->expert/senior developer who wants explicit and detailed technical language"
+
+---
 
 
-*Last updated: 2026-06-01*
+
+
+*Last updated: 2026-06-03*
 ## STATE.md auto-update protocol — extend beyond EXECUTE waves
 
 **Status:** Logged 2026-05-24. Trigger: hit during M4.5.E3 DISCUSS work. After E7 SHIP closed (commit `8723967`, 2026-05-23), `last_updated_commit` in STATE.md frontmatter stayed pinned at `8723967` across 5+ subsequent commits spanning E8 scaffolding, E3 DISCUSS lock, vocabulary updates, docs/map work, and E3 DISCUSS revision. The frontmatter was only refreshed by manual intervention after the user called it out as "a bug."
