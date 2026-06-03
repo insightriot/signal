@@ -1073,10 +1073,6 @@ signal should acclimate it's language to how technical the person is. I keep fin
 
 ---
 
-
-
-
-*Last updated: 2026-06-03*
 ## STATE.md auto-update protocol — extend beyond EXECUTE waves
 
 **Status:** Logged 2026-05-24. Trigger: hit during M4.5.E3 DISCUSS work. After E7 SHIP closed (commit `8723967`, 2026-05-23), `last_updated_commit` in STATE.md frontmatter stayed pinned at `8723967` across 5+ subsequent commits spanning E8 scaffolding, E3 DISCUSS lock, vocabulary updates, docs/map work, and E3 DISCUSS revision. The frontmatter was only refreshed by manual intervention after the user called it out as "a bug."
@@ -1513,3 +1509,24 @@ Captured here rather than lost-to-context, because the scoping conversation prod
 **Implementation note for future-Self.** `buildFixScript` and `buildReinstallScript` are pure functions returning strings today. The helper-script split would change the return shape to `{ script: string, helper: string }` and `writeDoctorScript` would need to know to write both. Public API change; tests would update. Plan ahead of any deeper P-state additions if the threshold revisits.
 
 **Reference.** `M4.5.E8-PLAN.md` § S2.t4/t5; `M4.5.E8-RESEARCH.md` § 10; commits `4f0105a` (inline GREEN) + `1445a39` (well-formedness gate + deviation acknowledgment).
+
+---
+
+## FUTURE-IDEAS footer drift — new entries can land below the `*Last updated:*` footer
+
+**Status:** Logged 2026-06-03 (during PLAN on M4.5.E5). Surgical fix applied same day — the footer was moved to the true end of file; this entry tracks the root-cause hardening so the drift can't silently recur.
+
+**Symptom.** A `/sig:add` capture on 2026-06-03 landed at line ~1068 — *above* a `*Last updated:*` footer that was itself stranded mid-file (line 1079), with 6 idea entries sitting *below* it (lines 1080–1515). `insertAboveFooter` correctly inserts above the first `*Last updated:*` match, so once any content gets appended below the footer, every subsequent `/sig:add` buries new entries above the stranded footer instead of at the real end.
+
+**Root cause (to investigate).** Something wrote ≥6 entries below the footer at some earlier point — candidates: a manual paste/edit that appended at EOF without respecting the footer, an older `/sig:add` or drain code path, or a merge. `rewriteFooter` + `insertAboveFooter` (`tools/lib/add.js`) assume exactly one footer at EOF; they neither detect nor repair a footer that has content after it.
+
+**Forward fix options (pick at a future planning gate; relates to the `/sig:add` surface, M4.5.E2):**
+1. **Guard in `add.js`** — after `insertAboveFooter`, assert no non-whitespace content exists after the `*Last updated:*` line; if it does, repair (move footer to EOF) or warn loudly rather than silently inserting mid-file.
+2. **Validator/lint check** — a test (or `validate-plugin` rule) that fails if `FUTURE-IDEAS.md` has content after its footer. Cheap regression guard; catches the drift the moment it reappears.
+3. **Footer-position-tolerant `insertAboveFooter`** — treat the footer as "always at EOF" and normalize on every write (move it down if entries exist below).
+
+Low urgency now that the file is repaired; worth a guard so it can't recur.
+
+---
+
+*Last updated: 2026-06-03*
