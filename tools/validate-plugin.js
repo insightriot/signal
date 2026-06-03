@@ -56,6 +56,7 @@ const REQUIRED_FILES = [
   'references/phase-gates.md',
   'references/profile-schema.md',
   'references/tier-definitions.md',
+  'docs/vs.md',
 ];
 
 const REQUIRED_COMMANDS = [
