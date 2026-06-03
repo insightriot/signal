@@ -1,22 +1,20 @@
 ---
 schema_version: 1
-phase: EXECUTE
-current_epic: M4.5.E4
+phase: PLAN
+current_epic: M4.5.E5
 current_wave: null
 current_tasks: []
 completed_phases:
-  - DISCUSS (2026-06-01)
-  - PLAN (2026-06-02)
-  - EXECUTE (2026-06-03)
+  - DISCUSS (2026-06-03)
 blockers: []
 last_completed_task:
   id: M4.5.E4.S3.t10
   status: done
   commit: 5eb7b47
   completedAt: 2026-06-03T13:46:08.000Z
-last_decision_at: 2026-06-03T13:46:08.000Z
-last_updated_commit: 5eb7b4734a0c2eb6d10602e502749bfabcedd3d2
-last_updated: 2026-06-03T13:46:08.000Z
+last_decision_at: 2026-06-03T21:18:26.000Z
+last_updated_commit: c3b2bf0f79477ee94ca620638cf83bd5f66b2276
+last_updated: 2026-06-03T21:18:26.000Z
 ---
 <!-- Original STATE.md content preserved verbatim from pre-schema_v1 migration on 2026-05-18. The YAML frontmatter above is the authoritative machine-readable state; everything below is human-readable history. -->
 
@@ -44,7 +42,9 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Phase
 
-**M4.5.E4 (worked example + comparison page) — closed (lightweight) 2026-06-03.** All 3 slices + 9 ACs done; VERIFY/REVIEW/SHIP folded into the close (docs/example Epic, ACs verified inline with test evidence). **No Epic in flight — next is E5.** (Authoritative per-Epic phase state is the frontmatter at the top; this prose echoes it.) E4's CHANGELOG block is `[Unreleased]` and batches with E5's release.
+**M4.5.E5 (external validation + launch) — DISCUSS complete 2026-06-03; phase → PLAN.** Four gray areas gated individually under FULL/strict: launch posture = **quiet peer release**; validation = **assets now, validate async**; assets = **full launch-post draft + demo script**; version = **decide at E5 close with a written rubric**. Spine decision (D-E5-6): **asset/human split** — EXECUTE ships only Claude-producible drafts/templates; the outward actions (recruit peers, record, publish, push tag) are Brett's async handoff. Output in `M4.5.E5-REQUIREMENTS.md` (10 decisions, 8 FRs, doc-quality NFRs, 2 risks, 9 ACs) + DECISIONS 2026-06-03 (D-E5-1…10). **Next: `/sig:plan`.** (Authoritative per-Epic phase state is the frontmatter at the top; this prose echoes it.)
+
+**M4.5.E4 (worked example + comparison page) — closed (lightweight) 2026-06-03.** All 3 slices + 9 ACs done; VERIFY/REVIEW/SHIP folded into the close (docs/example Epic, ACs verified inline with test evidence). E4's CHANGELOG block is `[Unreleased]` and batches with E5's release (the version E5 cuts — D-E5-5).
 
 ## Current Milestone
 
@@ -293,16 +293,17 @@ Milestone 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the ma
 
 ## Active
 
-**M4.5.E4 (worked example + comparison page) — ✓ closed (lightweight) 2026-06-03. No Epic in flight; E5 is next.** E4 shipped `examples/url-shortener/` (runnable, zero runtime deps, currency guard) + `docs/vs.md` (toolbox-framed comparison), both linked from README. Test suite **762 → 764**; validator green. 15 slash commands, 26 agents, 21 skills. E4 work is `[Unreleased]` — batches with E5's launch.
+**M4.5.E5 (external validation + launch) — DISCUSS complete 2026-06-03; in PLAN.** The last M4.5 Epic and the release trigger. **Quiet peer release** with an **asset/human split**: Claude drafts the launch post + demo script + tester brief + friction-log template + version rubric + release-notes draft + handoff checklist; Brett runs the outward actions (recruit peers, record, publish, push tag) async. E4's `[Unreleased]` CHANGELOG ships with the version E5 cuts (decided at E5 close — D-E5-5). Spec: `M4.5.E5-REQUIREMENTS.md` (10 decisions, 8 FRs, doc-quality NFRs, 2 risks, 9 ACs); decisions: DECISIONS 2026-06-03 (D-E5-1…10). **Next: `/sig:plan`.**
+
+**M4.5.E4 (worked example + comparison page) — ✓ closed (lightweight) 2026-06-03.** E4 shipped `examples/url-shortener/` (runnable, zero runtime deps, currency guard) + `docs/vs.md` (toolbox-framed comparison), both linked from README. Test suite **762 → 764**; validator green. 15 slash commands, 26 agents, 21 skills. E4 work is `[Unreleased]` — batches with E5's launch.
 
 **E4 DISCUSS locked four gray areas** (full spec in `M4.5.E4-REQUIREMENTS.md`; rationale in DECISIONS 2026-06-01, D-E4-1…9): (1) worked example = full `calibrate→ship` flow on one project — shows the calibration wedge, not init-only; (2) source = reuse + refresh `.dogfood/url-shortener-fulltier/` with a mandatory drift audit; (3) form = runnable app + artifacts + currency guard test; (4) `docs/vs.md` = prose decision guide (~60–80 lines, 5 comparators, heritage-respectful). **R1 RESOLVED in PLAN** — swap the example's storage to Node's built-in `node:sqlite` (removes the only native dependency; the demo stays a real SQLite app). PLAN artifacts: `M4.5.E4-RESEARCH.md` / `-PLAN.md` (3 vertical slices, 10 tasks) / `-VALIDATION.md` (8-dim PASS + strict Nyquist).
 
-**Immediate next step:** **E5 — external validation + launch** (the last M4.5 Epic; E1–E4 have all landed). E5 is the natural release moment — E4's `[Unreleased]` CHANGELOG block ships with E5's version bump. E4 detail in `M4.5.E4-PROGRESS.md` + `M4.5.E4-RETROSPECTIVE.md`. (Also still open: **E1 Slices 3–5**, shelved pending volunteer testers, D-E3-12.)
+**Immediate next step:** **`/sig:plan` for M4.5.E5** — research + plan the 8 FRs into vertical slices/tasks, settle the two PLAN-handed risks (R1 version-rubric location vs. shelved E1 `docs/versioning.md`; R2 concrete distribution channels), and map each AC to a verification (link-integrity / word-count / validator — not code TDD, per the docs-Epic Nyquist posture). E4 detail in `M4.5.E4-PROGRESS.md` + `M4.5.E4-RETROSPECTIVE.md`.
 
 **Remaining M4.5 Epics, in order:**
-1. **E4 — worked example + comparison page** (next). `examples/` directory; `docs/vs.md`.
-2. **E5 — external validation + launch.** 3 friendly testers, launch post, v0.1.x → v0.2.0 decision point.
-3. **E1 Slices 3–5** — Linux/WSL install matrix (R2/R3/R5) + versioning-policy doc + validator hardening; shelved pending volunteer testers (D-E3-12).
+1. **E5 — external validation + launch** (ACTIVE, in PLAN). Quiet peer release; launch-post draft + demo script + tester brief; v0.1.x → v0.2.0 decision at close.
+2. **E1 Slices 3–5** — Linux/WSL install matrix (R2/R3/R5) + versioning-policy doc + validator hardening; shelved pending volunteer testers (D-E3-12).
 
 Milestone 5 (v2 ports per `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`) is the next horizon after M4.5 closes.
 
@@ -314,7 +315,9 @@ None.
 
 ## Last Updated
 
-2026-06-03 (M4.5.E4 closed, lightweight. EXECUTE finished all 3 slices / 10 tasks / 9 ACs; VERIFY/REVIEW/SHIP folded per user decision (docs Epic, ACs verified inline with test evidence). Shipped `examples/url-shortener/` (runnable zero-dep + `tests/example-currency.test.js` guard) + `docs/vs.md` (toolbox-framed). Key pivots: `node:sqlite`→JSON store (vitest/vite builtin-resolution wall), AC-count reconciled 24 = 17+7, `vs.md` tone reframe, `gate-at-product-altitude` norm captured. `[Unreleased]` — batches with E5. Frontmatter: `completed_phases: [DISCUSS, PLAN, EXECUTE]`, `last_completed_task: M4.5.E4.S3.t10`. Retro: `M4.5.E4-RETROSPECTIVE.md`. Next: E5.)
+2026-06-03 (M4.5.E5 DISCUSS complete → phase PLAN. Four gray areas gated under FULL/strict: launch posture = quiet peer release; validation = assets now, validate async; assets = full launch-post draft + demo script; version = decide at close with a written rubric. Spine = D-E5-6 asset/human split (Claude ships drafts/templates; Brett runs the outward actions async). Output: `M4.5.E5-REQUIREMENTS.md` (10 decisions, 8 FRs, doc-quality NFRs, 2 risks R1/R2, 9 ACs) + DECISIONS 2026-06-03 (D-E5-1…10). Frontmatter: `current_epic: M4.5.E5`, `phase: PLAN`, `completed_phases: [DISCUSS]`. Next: `/sig:plan`.)
+
+Prior: 2026-06-03 (M4.5.E4 closed, lightweight. EXECUTE finished all 3 slices / 10 tasks / 9 ACs; VERIFY/REVIEW/SHIP folded per user decision (docs Epic, ACs verified inline with test evidence). Shipped `examples/url-shortener/` (runnable zero-dep + `tests/example-currency.test.js` guard) + `docs/vs.md` (toolbox-framed). Key pivots: `node:sqlite`→JSON store (vitest/vite builtin-resolution wall), AC-count reconciled 24 = 17+7, `vs.md` tone reframe, `gate-at-product-altitude` norm captured. `[Unreleased]` — batches with E5. Frontmatter: `completed_phases: [DISCUSS, PLAN, EXECUTE]`, `last_completed_task: M4.5.E4.S3.t10`. Retro: `M4.5.E4-RETROSPECTIVE.md`. Next: E5.)
 
 Prior: 2026-06-02 (M4.5.E4 EXECUTE Slice 1 complete — worked example shipped to `examples/url-shortener/`. Promoted from `.dogfood/`, swapped to a zero-dep JSON store (node:sqlite hit a vitest/vite builtin-resolution wall — documented in PROGRESS), refreshed STATE to schema_version 1, reconciled the AC-count (24 = 17 automated + 7 manual), added `tests/example-currency.test.js` currency guard. Root suite 762 → 764, validator green. Slice 2 (`docs/vs.md`) pending approval. `last_completed_task: M4.5.E4.S1.t5`.)
 

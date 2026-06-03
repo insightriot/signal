@@ -1232,3 +1232,26 @@ REQUIREMENTS FR2 originally locked binary 0/1; PLAN expands to 3-level so CI con
 **Cross-references:** `M4.5.E4-REQUIREMENTS.md` (full spec, FR1–FR8 + ACs + Risks); `MILESTONE-4.5.md` § E4 (Epic definition); `analysis/REPO-ANALYSIS.md` (vs.md raw material); `.dogfood/url-shortener-fulltier/` (example source, gitignored); STATE.md M3 Task 2 findings (R1 origin).
 
 
+
+---
+
+## 2026-06-03 — M4.5.E5 DISCUSS decisions locked (D-E5-1 through D-E5-10)
+
+**Context:** Entering the last M4.5 Epic — external validation + launch. E5 is the release trigger (E4's `[Unreleased]` CHANGELOG ships here). Full spec in `M4.5.E5-REQUIREMENTS.md`. Four gray areas gated individually under FULL/strict; six consequent locks follow.
+
+1. **D-E5-1 — Launch posture = quiet peer release.** GitHub release + share with a small circle of peers who double as testers; validation and release are one motion. Not a public push (HN/Reddit/X — too much blast radius for unvalidated install UX), not launch-deferred. Matches the E3 "self + peers" reframe + the CONTEXT.md pivot flag. *(User-gated.)*
+2. **D-E5-2 — Validation scope = assets now, validate async.** E5 closes on Claude's deliverables; real peer `/sig:init → /sig:ship` runs + friction capture happen async and feed the v0.1.(N+1) backlog. Not block-on-real-feedback (leaves the Epic open on others' availability), not self-validation-only (too lean for an Epic named "external validation"). *(User-gated.)*
+3. **D-E5-3 — Launch assets = full post draft + demo script.** Claude drafts the full ~600–800 word post (landscape → Signal synthesis + calibration wedge) → `docs/launch-post.md`, plus a turnkey demo recording storyboard. Brett edits, records, publishes. Not outline-only, not release-notes-only. The E3-deferred 30s demo is folded in as a *script* (Claude can't record). *(User-gated.)*
+4. **D-E5-4 — Version bump = decide at E5 close, with a lightweight inline rubric.** E1's `docs/versioning.md` is shelved (D-E3-12), so E5 writes a minimal rubric; Brett makes the v0.1.x → v0.2.0 call at close. Because validation is async, the call is a judgment on cumulative surface since v0.1.0, not on tester input. Not pre-committed to 0.2.0 or 0.1.4. *(User-gated.)*
+5. **D-E5-5 — E5 is the M4.5 release trigger.** E4's `[Unreleased]` block ships with whatever version E5 cuts; version header stamped at close (D-E5-4). Matches the E7/E3/E9/E8/E2 land-then-tag convention.
+6. **D-E5-6 — Asset / human split is the Epic's spine.** EXECUTE delivers only Claude-producible assets (drafts, templates, rubric, scripts); the outward actions (recruit peers, record demo, publish, push tag) are out of EXECUTE and captured as a handoff checklist (FR7). This is what keeps E5 shippable under D-E5-2.
+7. **D-E5-7 — FULL runtime NFR checklist N/A; doc-quality NFRs bind** (accuracy/no-over-claiming, privacy, link integrity, line budget, test discipline). E5 owns no runtime service. Mirrors D-E4-8.
+8. **D-E5-8 — DISCUSS output → `M4.5.E5-REQUIREMENTS.md` + this entry**, not the shared `CONTEXT.md`. Matches E2 § Decision 9 / D-E4-9 / E8 / E9.
+9. **D-E5-9 — Launch post leads with the original landscape analysis** (`analysis/REPO-ANALYSIS.md`) → Signal as synthesis + calibration wedge. The E4 `vs.md` accuracy traps apply (heritage-respectful, no over-claiming, no fabricated benchmarks/user counts).
+10. **D-E5-10 — No new worked examples in E5.** D-E4-5's deferral of additional examples (Python/Rust/dormant) to "future Epics / E5" resolves to: **not E5** (a lean launch Epic). They stay deferred to a post-launch Epic / M5.
+
+**What this rules out (so PLAN doesn't re-litigate):** a public/broad launch this Epic; blocking E5 on real human feedback; Claude attempting to recruit testers / record video / publish; pre-committing the version number; adding more worked examples; treating FR5 as license to unshelf all of E1 Slices 3–5.
+
+**Two risks flagged for PLAN:** R1 — FR5 version-rubric location overlaps shelved E1 `docs/versioning.md` (scope it to the rubric only). R2 — distribution channels are "TBD" in the spec; the handoff must name concrete channels (GitHub release + direct peer share).
+
+**Cross-references:** `M4.5.E5-REQUIREMENTS.md` (full spec, FR1–FR8 + NFRs + ACs + Risks); `MILESTONE-4.5.md` § E5 (Epic definition); `analysis/REPO-ANALYSIS.md` (launch-post raw material); `M4.5.E3-REQUIREMENTS.md` § D-E3-10/11 (audience reframe), § D-E3-12 (E1 shelving + tester trigger).
