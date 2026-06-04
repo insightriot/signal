@@ -1529,4 +1529,22 @@ Low urgency now that the file is repaired; worth a guard so it can't recur.
 
 ---
 
-*Last updated: 2026-06-03*
+## Passive Stop-hook → continuous in-the-moment observation
+
+**Status:** Logged 2026-06-04 via `/sig:add`. mid-EXECUTE on M4.5.E5
+
+Passive Stop-hook → continuous in-the-moment observation capture. Add a passive Stop hook that fires when Claude finishes a turn and, while context is fresh, appends candidate observations (decisions made, gaps noticed, upstream bugs, drift from plan) to a scratch file — e.g. .planning/OBSERVATIONS.md. /sig:checkpoint and the SHIP retro then drain it into RETROSPECTIVES.md. Constraints: keep the hook PASSIVE (write-only, never triggers another Claude response), respect the stop_hook_active field to avoid infinite loops, and tier-gate it so SKETCH projects skip the overhead. Why it fits: Signal's learn loop today runs at SHIP/Epic-close granularity (E9 retro foundations); nothing captures a decision/gap at the moment it surfaces, which is exactly the standing "document in the moment" working norm. Signal already owns the hook plumbing (SessionStart, PreToolUse guards) and a retro index to land it, so this composes with E9 rather than replacing it. Source: Anthropic "How Claude Code works in large codebases" — self-improving Stop hook pattern. Likely an M5 (or small M4.5) slice.
+
+---
+
+## New command /sig:audit --docs / --code
+
+**Status:** Logged 2026-06-04 via `/sig:add`. mid-EXECUTE on M4.5.E5
+
+New command /sig:audit --docs / --code — a periodic deep-dive audit + cleaning sweep for alignment, accuracy, organization, and simplicity, run on demand (not phase-gated). --docs audits documentation: accuracy + alignment (stale prose, drift between STATE narrative / README / CHANGELOG / retrospectives / CLAUDE.md, internal contradictions, dead pointers and links, duplication) and organization (structure, findability, dedup). --code audits the codebase: organization (sprawl, inconsistent structure, misplaced files, dead code / orphans) and simplicity (over-engineering, redundant abstractions, needless indirection). No flag could default to a combined pass or prompt for scope. Inspired by — but deliberately broader than — Anthropic's "delete-the-line" staleness test (if removing a rule/line doesn't change behavior, cut it) plus their every-3-6-months re-audit cadence, generalized from CLAUDE.md hygiene into a whole-project sweep. Relates to the "docs always accurate" value and the learn/memory loop, but is a PROACTIVE periodic deep-clean rather than a reactive in-the-moment fix (contrast the Stop-hook capture idea, which is reactive/continuous). Likely implemented as read-only scanner-agent fan-out — reuse the brownfield scanner pattern, write findings to a report — feeding a remediation pass the user approves before anything changes; could extend /sig:doctor or stand alone; tier-aware depth. Motivation (user, observed across several long-running projects): a recurring feeling that projects accrete cruft and drift over time and periodically need a real organization + cleaning sweep, not just incremental edits.
+
+---
+
+
+
+*Last updated: 2026-06-04*
