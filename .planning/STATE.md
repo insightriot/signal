@@ -1,20 +1,21 @@
 ---
 schema_version: 1
-phase: PLAN
+phase: EXECUTE
 current_epic: M4.5.E5
-current_wave: null
+current_wave: S1
 current_tasks: []
 completed_phases:
   - DISCUSS (2026-06-03)
+  - PLAN (2026-06-03)
 blockers: []
 last_completed_task:
   id: M4.5.E4.S3.t10
   status: done
   commit: 5eb7b47
   completedAt: 2026-06-03T13:46:08.000Z
-last_decision_at: 2026-06-03T21:18:26.000Z
-last_updated_commit: c3b2bf0f79477ee94ca620638cf83bd5f66b2276
-last_updated: 2026-06-03T21:18:26.000Z
+last_decision_at: 2026-06-04T00:30:37.000Z
+last_updated_commit: aba41ae6efcf27a0c83e25d6e3283b3dcd1dca12
+last_updated: 2026-06-04T00:30:37.000Z
 ---
 <!-- Original STATE.md content preserved verbatim from pre-schema_v1 migration on 2026-05-18. The YAML frontmatter above is the authoritative machine-readable state; everything below is human-readable history. -->
 
@@ -42,7 +43,7 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Phase
 
-**M4.5.E5 (external validation + launch) — DISCUSS complete 2026-06-03; phase → PLAN.** Four gray areas gated individually under FULL/strict: launch posture = **quiet peer release**; validation = **assets now, validate async**; assets = **full launch-post draft + demo script**; version = **decide at E5 close with a written rubric**. Spine decision (D-E5-6): **asset/human split** — EXECUTE ships only Claude-producible drafts/templates; the outward actions (recruit peers, record, publish, push tag) are Brett's async handoff. Output in `M4.5.E5-REQUIREMENTS.md` (10 decisions, 8 FRs, doc-quality NFRs, 2 risks, 9 ACs) + DECISIONS 2026-06-03 (D-E5-1…10). **Next: `/sig:plan`.** (Authoritative per-Epic phase state is the frontmatter at the top; this prose echoes it.)
+**M4.5.E5 (external validation + launch) — PLAN complete 2026-06-03; phase → EXECUTE (Slice 1).** Four gray areas gated individually under FULL/strict: launch posture = **quiet peer release**; validation = **assets now, validate async**; assets = **full launch-post draft + demo script**; version = **decide at E5 close with a written rubric**. Spine decision (D-E5-6): **asset/human split** — EXECUTE ships only Claude-producible drafts/templates; the outward actions (recruit peers, record, publish, push tag) are Brett's async handoff. PLAN output: `M4.5.E5-{RESEARCH,PLAN,VALIDATION}.md` — 4 vertical slices / 9 tasks, 8/8 dim PASS + strict Nyquist (9/9 ACs mapped). R1→inline version rubric (no `docs/versioning.md`); R2→GitHub-release + direct peer share + README surfacing. **Next: `/sig:execute` (S1.t1 — launch-asset guard test, RED).** (Authoritative per-Epic phase state is the frontmatter at the top; this prose echoes it.)
 
 **M4.5.E4 (worked example + comparison page) — closed (lightweight) 2026-06-03.** All 3 slices + 9 ACs done; VERIFY/REVIEW/SHIP folded into the close (docs/example Epic, ACs verified inline with test evidence). E4's CHANGELOG block is `[Unreleased]` and batches with E5's release (the version E5 cuts — D-E5-5).
 
@@ -293,7 +294,7 @@ Milestone 3 closed 2026-04-26. v1 + v1.5 (brownfield) feature-complete on the ma
 
 ## Active
 
-**M4.5.E5 (external validation + launch) — DISCUSS complete 2026-06-03; in PLAN.** The last M4.5 Epic and the release trigger. **Quiet peer release** with an **asset/human split**: Claude drafts the launch post + demo script + tester brief + friction-log template + version rubric + release-notes draft + handoff checklist; Brett runs the outward actions (recruit peers, record, publish, push tag) async. E4's `[Unreleased]` CHANGELOG ships with the version E5 cuts (decided at E5 close — D-E5-5). Spec: `M4.5.E5-REQUIREMENTS.md` (10 decisions, 8 FRs, doc-quality NFRs, 2 risks, 9 ACs); decisions: DECISIONS 2026-06-03 (D-E5-1…10). **Next: `/sig:plan`.**
+**M4.5.E5 (external validation + launch) — PLAN complete 2026-06-03; in EXECUTE (Slice 1).** The last M4.5 Epic and the release trigger. **Quiet peer release** with an **asset/human split**: Claude drafts the launch post + demo script + tester brief + friction-log template + version rubric + release-notes draft + handoff checklist; Brett runs the outward actions (recruit peers, record, publish, push tag) async. Plan = 4 vertical slices / 9 tasks (`M4.5.E5-PLAN.md`): S1 launch narrative → S2 validation kit → S3 launch ops → S4 sweep; 8/8 dim PASS + strict Nyquist. R1→inline rubric (no `docs/versioning.md`); R2→GitHub-release + peer-share + README surfacing. E4's `[Unreleased]` CHANGELOG ships with the version E5 cuts (decided at E5 close — D-E5-5). Spec: `M4.5.E5-REQUIREMENTS.md`; PLAN: `M4.5.E5-{RESEARCH,PLAN,VALIDATION}.md`; decisions: DECISIONS 2026-06-03 (D-E5-1…10). **Next: `/sig:execute` (S1.t1).**
 
 **M4.5.E4 (worked example + comparison page) — ✓ closed (lightweight) 2026-06-03.** E4 shipped `examples/url-shortener/` (runnable, zero runtime deps, currency guard) + `docs/vs.md` (toolbox-framed comparison), both linked from README. Test suite **762 → 764**; validator green. 15 slash commands, 26 agents, 21 skills. E4 work is `[Unreleased]` — batches with E5's launch.
 
@@ -315,7 +316,9 @@ None.
 
 ## Last Updated
 
-2026-06-03 (M4.5.E5 DISCUSS complete → phase PLAN. Four gray areas gated under FULL/strict: launch posture = quiet peer release; validation = assets now, validate async; assets = full launch-post draft + demo script; version = decide at close with a written rubric. Spine = D-E5-6 asset/human split (Claude ships drafts/templates; Brett runs the outward actions async). Output: `M4.5.E5-REQUIREMENTS.md` (10 decisions, 8 FRs, doc-quality NFRs, 2 risks R1/R2, 9 ACs) + DECISIONS 2026-06-03 (D-E5-1…10). Frontmatter: `current_epic: M4.5.E5`, `phase: PLAN`, `completed_phases: [DISCUSS]`. Next: `/sig:plan`.)
+2026-06-03 (M4.5.E5 PLAN complete → phase EXECUTE, Slice 1. 4 parallel research agents ran (codebase conventions / launch-post source / risk-accuracy / external norms); `M4.5.E5-{RESEARCH,PLAN,VALIDATION}.md` written. Plan = 4 vertical slices / 9 tasks; 8/8 plan-dim PASS + strict Nyquist (9/9 ACs mapped, docs-Epic posture: link-integrity + word-count + validator, not code TDD). R1 settled → inline version rubric in a LAUNCH-KIT, NOT `docs/versioning.md` (avoids unshelfing E1). R2 settled → GitHub-release + direct peer share + README surfacing; HN/Reddit/X deferred. Bonus: CHANGELOG dangling `docs/versioning.md` ref to be softened in S3.t8. Mid-PLAN: a `/sig:add` capture (technical-language calibration idea) + a FUTURE-IDEAS footer-drift fix (footer was stranded mid-file; moved to EOF) + root-cause item logged — commits `37f7e10`, `aba41ae`. Frontmatter: `phase: EXECUTE`, `current_wave: S1`, `completed_phases: [DISCUSS, PLAN]`. Next: `/sig:execute` (S1.t1 launch-asset guard, RED).)
+
+Prior: 2026-06-03 (M4.5.E5 DISCUSS complete → phase PLAN. Four gray areas gated under FULL/strict: launch posture = quiet peer release; validation = assets now, validate async; assets = full launch-post draft + demo script; version = decide at close with a written rubric. Spine = D-E5-6 asset/human split (Claude ships drafts/templates; Brett runs the outward actions async). Output: `M4.5.E5-REQUIREMENTS.md` (10 decisions, 8 FRs, doc-quality NFRs, 2 risks R1/R2, 9 ACs) + DECISIONS 2026-06-03 (D-E5-1…10). Frontmatter: `current_epic: M4.5.E5`, `phase: PLAN`, `completed_phases: [DISCUSS]`. Next: `/sig:plan`.)
 
 Prior: 2026-06-03 (M4.5.E4 closed, lightweight. EXECUTE finished all 3 slices / 10 tasks / 9 ACs; VERIFY/REVIEW/SHIP folded per user decision (docs Epic, ACs verified inline with test evidence). Shipped `examples/url-shortener/` (runnable zero-dep + `tests/example-currency.test.js` guard) + `docs/vs.md` (toolbox-framed). Key pivots: `node:sqlite`→JSON store (vitest/vite builtin-resolution wall), AC-count reconciled 24 = 17+7, `vs.md` tone reframe, `gate-at-product-altitude` norm captured. `[Unreleased]` — batches with E5. Frontmatter: `completed_phases: [DISCUSS, PLAN, EXECUTE]`, `last_completed_task: M4.5.E4.S3.t10`. Retro: `M4.5.E4-RETROSPECTIVE.md`. Next: E5.)
 
