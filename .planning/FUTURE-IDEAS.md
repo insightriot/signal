@@ -972,7 +972,7 @@ I wonder aloud at having a feature of Signal be a 'you are here' breadcrumb in s
 
 ## `docs/map/index.html` — refresh protocol (auto-generated vs. manual sync)
 
-**Status:** Logged 2026-05-24. Trigger: added the "Work-unit vocabulary" section to `docs/map/index.html` (commit `629b629`); the new section includes "currently active" lines (Milestone / Epic / Slice / Task) populated from STATE.md as of 2026-05-24. Without an explicit refresh protocol these lines go stale within days during active development — Task lines change daily during EXECUTE, Slice lines every few days, Epic lines every few weeks.
+**Status:** Logged 2026-05-24. Trigger: added the "Work-unit vocabulary" section to `docs/map/index.html` (commit `629b629`); the new section includes "currently active" lines (Milestone / Epic / Slice / Task) populated from STATE.md as of 2026-05-24. Without an explicit refresh protocol these lines go stale within days during active development — Task lines change daily during EXECUTE, Slice lines every few days, Epic lines every few weeks. **Updated 2026-06-03:** the map gained a Command library (Section 1, `COMMANDS` array, commit `2f66bd1`); Stage 1's checklist below now also covers command/flag changes. This same protocol gap was confirmed live — the map sat at `generated 2026-05-24` through the entire v0.1.3 release until manually refreshed.
 
 **Context.** The map (`docs/map/index.html`) is intentionally a side note — single-file static HTML, no build step, data lives in JS objects at the bottom of `<script>`. It was a one-time visualization of *static* concepts: the 4 tiers, the 7 phases, the rigor matrix, the 5 calibration questions. None of those go stale unless Signal's architecture changes. The new vocabulary section breaks that pattern: it embeds "currently active" project state (`M4.5`, `M4.5.E3`, `M4.5.E7.S2`, `M4.5.E7.S2.t8`) directly into the visualization. That data has its own staleness cadence.
 
@@ -994,7 +994,7 @@ A staged approach — start with the lightest possible manual protocol, promote 
 
 Add one line to `commands/ship.md`'s pre-ship checklist:
 
-> Before opening the PR: if this Epic touched the work-unit vocabulary OR shipped a slice that should appear in `docs/map/index.html`, update the `VOCABULARY.hierarchy[].example` lines and the `<p class="meta">generated {date}</p>` header in `docs/map/index.html`. ~2 minutes; same edit pattern as updating CHANGELOG.
+> Before opening the PR: if this Epic touched the work-unit vocabulary OR shipped a slice that should appear in `docs/map/index.html`, update the `VOCABULARY.hierarchy[].example` lines and the `<p class="meta">generated {date}</p>` header in `docs/map/index.html`. If this Epic added/removed/renamed a command or changed a command's flags, also update the `COMMANDS` array (Section 1 — Command library) in the same file. ~2 minutes; same edit pattern as updating CHANGELOG.
 
 Rationale: Epic-SHIP is the natural cadence for "stuff worth surfacing publicly happened." Task-level changes are too noisy (Task line would update daily); Milestone-level is too rare (Slice + Epic lines would lag). Epic-SHIP is the goldilocks gate.
 
