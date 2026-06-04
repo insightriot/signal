@@ -19,6 +19,7 @@ const REPO_ROOT = join(__dirname, '..');
 const DOCS_DIR = join(REPO_ROOT, 'docs');
 
 const LAUNCH_POST = join(DOCS_DIR, 'launch-post.md');
+const DEMO_SCRIPT = join(DOCS_DIR, 'demo-script.md');
 
 // Count whitespace-separated word tokens in a markdown body.
 function wordCount(text) {
@@ -78,5 +79,32 @@ describe('docs/launch-post.md (M4.5.E5 S1.t2 — FR1)', () => {
 
   it('has no dead relative links', () => {
     assertLinksResolve(LAUNCH_POST);
+  });
+});
+
+describe('docs/demo-script.md (M4.5.E5 S1.t3 — FR2)', () => {
+  it('exists', () => {
+    expect(existsSync(DEMO_SCRIPT)).toBe(true);
+  });
+
+  it('states the install-mode assumptions (macOS + marketplace install)', () => {
+    // Per research: a dev-checkout recording shows fallback agent names +
+    // unset CLAUDE_PLUGIN_ROOT, not the install path a peer experiences.
+    const content = readFileSync(DEMO_SCRIPT, 'utf8');
+    expect(content).toMatch(/macOS/);
+    expect(content).toMatch(/marketplace install/i);
+  });
+
+  it('records the calibrate-before-status command sequence', () => {
+    // A clean /sig:init writes STATE but not PROFILE; /sig:status reads PROFILE,
+    // so /sig:calibrate must come before /sig:status in the recorded sequence.
+    const content = readFileSync(DEMO_SCRIPT, 'utf8');
+    expect(content).toContain('/sig:init');
+    expect(content).toContain('/sig:calibrate');
+    expect(content).toContain('/sig:status');
+  });
+
+  it('has no dead relative links', () => {
+    assertLinksResolve(DEMO_SCRIPT);
   });
 });
