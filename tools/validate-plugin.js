@@ -57,6 +57,7 @@ const REQUIRED_FILES = [
   'references/profile-schema.md',
   'references/tier-definitions.md',
   'docs/vs.md',
+  'docs/launch-post.md',
 ];
 
 const REQUIRED_COMMANDS = [
