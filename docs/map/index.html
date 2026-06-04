@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Signal — Decision Tree</title>
+<title>Signal — Map</title>
 <style>
   :root {
     --bg: #0f1419;
@@ -380,6 +380,67 @@
   }
   .vocab-constraint strong { color: var(--accent); }
 
+  /* COMMAND LIBRARY */
+  .cmd-controls { display: flex; gap: 10px; margin: 4px 0 20px; }
+  .cmd-controls button {
+    background: transparent; color: var(--muted); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;
+    transition: all 0.15s;
+  }
+  .cmd-controls button:hover { color: var(--text); border-color: var(--accent); }
+  .cmd-group {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; margin-bottom: 12px; overflow: hidden;
+  }
+  .cmd-group-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 20px; cursor: pointer; user-select: none;
+    transition: background 0.15s;
+  }
+  .cmd-group-head:hover { background: var(--card-hi); }
+  .cmd-chevron {
+    font-family: monospace; color: var(--accent); font-size: 12px;
+    width: 12px; display: inline-block; transition: transform 0.18s;
+  }
+  .cmd-group.open .cmd-chevron { transform: rotate(90deg); }
+  .cmd-group-title { font-weight: 700; font-size: 15px; color: var(--text); }
+  .cmd-group-count {
+    font-family: monospace; font-size: 11px; color: var(--dim);
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1px 8px;
+  }
+  .cmd-group-blurb { font-size: 12px; color: var(--muted); flex: 1; }
+  @media (max-width: 700px) { .cmd-group-blurb { display: none; } }
+  .cmd-group-body { display: none; padding: 0 20px 8px; }
+  .cmd-group.open .cmd-group-body { display: block; }
+  .cmd {
+    border-top: 1px solid var(--border); padding: 14px 0;
+    display: grid; grid-template-columns: 210px 1fr; gap: 18px;
+  }
+  @media (max-width: 700px) { .cmd { grid-template-columns: 1fr; gap: 6px; } }
+  .cmd-name {
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-weight: 700; font-size: 14px; color: var(--accent);
+  }
+  .cmd-badges { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .cmd-badge {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--muted); background: var(--bg); border: 1px solid var(--border);
+    border-radius: 3px; padding: 1px 6px;
+  }
+  .cmd-badge.phase { color: var(--purple); border-color: var(--purple); }
+  .cmd-badge.skip { color: var(--warn); border-color: var(--warn); }
+  .cmd-summary { font-size: 13px; color: var(--text); line-height: 1.5; }
+  .cmd-flags { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .cmd-flag { display: flex; gap: 10px; align-items: baseline; font-size: 12px; }
+  .cmd-flag .flag {
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    color: var(--accent); background: var(--card-hi);
+    padding: 1px 6px; border-radius: 3px; white-space: nowrap;
+  }
+  .cmd-flag .flag-desc { color: var(--muted); }
+  .cmd-noflags { margin-top: 8px; font-size: 11px; color: var(--dim); font-style: italic; }
+
   /* footnote */
   footer {
     margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--border);
@@ -398,20 +459,31 @@
      ██ ██ ██    ██ ██  ████ ██   ██ ██
 ███████ ██  ██████  ██   ███ ██   ██ ███████</pre>
 <p class="tagline">Right-sized rigor for AI-assisted engineering.</p>
-<p class="meta">Decision tree &middot; v0.1 &middot; generated 2026-05-24 &middot; <a href="../.planning/PROJECT.md">PROJECT.md § Vocabulary</a> &middot; <a href="../references/tier-definitions.md">tier-definitions.md</a> &middot; <a href="../commands/calibrate.md">calibrate.md</a></p>
+<p class="meta">Map &middot; v0.1.3 &middot; generated 2026-06-03 &middot; <a href="../commands/">commands/</a> &middot; <a href="../.planning/PROJECT.md">PROJECT.md § Vocabulary</a> &middot; <a href="../references/tier-definitions.md">tier-definitions.md</a></p>
 </header>
 
 <nav class="toc">
-  <a href="#calibrate">1. Calibrate simulator</a>
-  <a href="#vocab">2. Vocabulary</a>
-  <a href="#tiers">3. Tiers</a>
-  <a href="#matrix">4. Rigor matrix</a>
-  <a href="#phases">5. Phase flow</a>
-  <a href="#patterns">6. Question patterns</a>
+  <a href="#commands">1. Command library</a>
+  <a href="#calibrate">2. Calibrate simulator</a>
+  <a href="#vocab">3. Vocabulary</a>
+  <a href="#tiers">4. Tiers</a>
+  <a href="#matrix">5. Rigor matrix</a>
+  <a href="#phases">6. Phase flow</a>
+  <a href="#patterns">7. Question patterns</a>
 </nav>
 
+<section id="commands">
+<h2><span class="glyph">⌘</span>1. Command library — 15 commands</h2>
+<p class="lede">Every Signal command, grouped by when you'd reach for it. Click a category to expand it; flags shown are the documented options each command accepts.</p>
+<div class="cmd-controls">
+  <button onclick="toggleAllCommands(true)">Expand all</button>
+  <button onclick="toggleAllCommands(false)">Collapse all</button>
+</div>
+<div id="command-lib"></div>
+</section>
+
 <section id="calibrate">
-<h2><span class="glyph">▁</span>1. Calibrate — 5 questions → tier</h2>
+<h2><span class="glyph">▁</span>2. Calibrate — 5 questions → tier</h2>
 <p class="lede">Pick an answer for each of the 5 diagnostic questions. The tier updates live as you choose. The right panel shows which derivation rule fired, the rigor profile, and which phases run/skip.</p>
 
 <div class="sim">
@@ -421,7 +493,7 @@
 </section>
 
 <section id="vocab">
-<h2><span class="glyph">▸</span>2. Work-unit vocabulary</h2>
+<h2><span class="glyph">▸</span>3. Work-unit vocabulary</h2>
 <p class="lede">Signal organizes work into a four-level identity hierarchy plus three orthogonal status terms. Hierarchy IDs are immutable after assignment; status terms change as work progresses. Source: <a href="../.planning/PROJECT.md">PROJECT.md § Vocabulary</a>.</p>
 
 <div class="vocab-axis-title">Identity hierarchy <span class="axis-scope">— IDs never change after assignment</span></div>
@@ -435,31 +507,31 @@
 </section>
 
 <section id="tiers">
-<h2><span class="glyph">◇</span>3. The Four Tiers</h2>
+<h2><span class="glyph">◇</span>4. The Four Tiers</h2>
 <p class="lede">Every project is exactly one Tier. Tier sets the structural shape (which phases run); rigor overrides set the dial values inside.</p>
 <div class="tier-grid" id="tier-grid"></div>
 </section>
 
 <section id="matrix">
-<h2><span class="glyph">◆</span>4. Rigor matrix — 11 dials × 4 tiers</h2>
+<h2><span class="glyph">◆</span>5. Rigor matrix — 10 dials × 4 tiers</h2>
 <p class="lede">Authoritative tier-to-defaults mapping. <code>/sig:calibrate</code> writes these literal values into <code>PROFILE.md</code>; every downstream phase reads them as its first action.</p>
 <div id="matrix"></div>
 </section>
 
 <section id="phases">
-<h2><span class="glyph">█</span>5. Phase flow — 7 phases</h2>
+<h2><span class="glyph">█</span>6. Phase flow — 7 phases</h2>
 <p class="lede">CALIBRATE is Phase 0 (always runs). The other six are tier-gated — see the skip badge per card. Each phase reads <code>PROFILE.md</code>, applies <code>rigor_overrides</code>, and exits via a gate.</p>
 <div class="phase-flow" id="phase-flow"></div>
 </section>
 
 <section id="patterns">
-<h2><span class="glyph">▴</span>6. Question patterns</h2>
+<h2><span class="glyph">▴</span>7. Question patterns</h2>
 <p class="lede">How Signal asks the user for input. Every user-facing question fits exactly one shape — see <a href="../references/question-patterns.md">question-patterns.md</a>.</p>
 <div class="pattern-grid" id="pattern-grid"></div>
 </section>
 
 <footer>
-<p>Source-of-truth: <code>.planning/PROJECT.md § Vocabulary</code> (for VOCABULARY), <code>references/tier-definitions.md</code>, <code>commands/calibrate.md</code>, <code>references/question-patterns.md</code>. To update this viewer when Signal changes, edit the data objects at the top of the <code>&lt;script&gt;</code> block at the bottom of this file. <strong>Refresh cadence: update the "currently active" lines in VOCABULARY.hierarchy on each release-cycle ship event</strong> — see <code>.planning/FUTURE-IDEAS.md § map-refresh-protocol</code>.</p>
+<p>Source-of-truth: <code>.planning/PROJECT.md § Vocabulary</code> (for VOCABULARY), <code>references/tier-definitions.md</code>, <code>commands/calibrate.md</code>, <code>references/question-patterns.md</code>. To update this viewer when Signal changes, edit the data objects at the top of the <code>&lt;script&gt;</code> block at the bottom of this file. <strong>Refresh cadence: on each release-cycle ship event, update the "currently active" lines in VOCABULARY.hierarchy and the COMMANDS array (commands + flags)</strong> — see <code>.planning/FUTURE-IDEAS.md § map-refresh-protocol</code>.</p>
 </footer>
 
 </div>
@@ -469,6 +541,141 @@
 // DATA — single source of truth for this viewer.
 // To update: edit values here, save, reload. No build step.
 // ============================================================
+
+// Last refreshed: 2026-06-03 (v0.1.3). Refresh this array when a command or flag changes.
+// Flags listed are ONLY documented, accepted options — not every "--x" string that
+// appears in a command file (many of those are cross-references or rejected proposals).
+const COMMANDS = [
+  {
+    group: 'Set up',
+    blurb: 'Bring Signal to a codebase — new or existing.',
+    items: [
+      {
+        name: '/sig:new-project',
+        tags: ['bootstrap'],
+        summary: 'Initialize a new (greenfield) project: creates the .planning/ directory and PROJECT.md, then kicks off CALIBRATE.',
+        flags: [],
+      },
+      {
+        name: '/sig:init',
+        tags: ['bootstrap', 'brownfield'],
+        summary: 'Onboard Signal to an existing codebase: scans the repo, writes LANDSCAPE.md, drafts a baseline PROJECT.md, then hands off to /sig:calibrate.',
+        flags: [],
+      },
+    ],
+  },
+  {
+    group: 'The 7-phase flow',
+    blurb: "Phase 0 (calibrate) plus the six pipeline phases. Each reads PROFILE.md first; some are skipped by tier.",
+    items: [
+      {
+        name: '/sig:calibrate',
+        phase: 'Phase 0',
+        summary: 'Ask 5 diagnostic questions, classify the project SKETCH / FEATURE / SPIKE / FULL, and write PROFILE.md to drive downstream rigor.',
+        flags: [
+          { f: '--re-calibrate', d: 'Rewrite an existing PROFILE.md from scratch (required — calibrate refuses to overwrite without it).' },
+        ],
+      },
+      {
+        name: '/sig:discuss',
+        phase: 'DISCUSS',
+        summary: 'Adaptive questioning to extract decisions before planning. Writes CONTEXT.md + REQUIREMENTS.md.',
+        flags: [
+          { f: '--auto', d: 'Claude picks the recommended default for every gray area; you review at the end.' },
+          { f: '--assumptions', d: 'For existing code — analyze first, then surface assumptions for you to validate.' },
+        ],
+      },
+      {
+        name: '/sig:plan',
+        phase: 'PLAN',
+        summary: 'Multi-agent research, vertical slicing, 8-dimension plan validation, and Nyquist test-coverage mapping. Writes PLAN.md.',
+        flags: [],
+      },
+      {
+        name: '/sig:execute',
+        phase: 'EXECUTE',
+        summary: 'Wave-based parallel execution with fresh context per task, atomic commits, and context-rot prevention.',
+        flags: [],
+      },
+      {
+        name: '/sig:verify',
+        phase: 'VERIFY',
+        summary: 'Acceptance-criteria verification, full test suite, and Nyquist compliance check. Writes VERIFICATION.md.',
+        flags: [],
+      },
+      {
+        name: '/sig:review',
+        phase: 'REVIEW',
+        skipNote: 'skipped in SKETCH · SPIKE',
+        summary: 'Code quality, security hardening, performance, and simplification via Agent Skills specialists. Depth scales with tier. Writes REVIEW.md.',
+        flags: [],
+      },
+      {
+        name: '/sig:ship',
+        phase: 'SHIP',
+        skipNote: 'skipped in SPIKE',
+        summary: 'Pre-ship checklist, clean git history, PR with quality docs. Runs the SHIP retro gate (no bypass).',
+        flags: [
+          { f: '--milestone-meta', d: 'Also generate a milestone-level meta-retrospective.' },
+          { f: '--force', d: 'Regenerate an existing meta-retro (overwrites — confirms intent first).' },
+        ],
+      },
+    ],
+  },
+  {
+    group: 'Steer & orient',
+    blurb: 'Check where you are, pick work back up, or change the rigor tier mid-flight.',
+    items: [
+      {
+        name: '/sig:status',
+        tags: ['read-only'],
+        summary: 'One-screen status report: synthesizes PROFILE.md + STATE.md (+ OPEN-QUESTIONS.md if present) with tier-aware next-action guidance.',
+        flags: [],
+      },
+      {
+        name: '/sig:resume',
+        summary: "Re-orient after a break: reads PROFILE.md + STATE.md + the current phase's artifact, prints a recap, checks for origin drift, and asks before continuing.",
+        flags: [],
+      },
+      {
+        name: '/sig:checkpoint',
+        summary: 'Manual state refresh: diffs git log against STATE.md and refreshes it. Quick mode by default.',
+        flags: [
+          { f: '--context', d: 'Also capture decisions + open questions so a later context-clear can re-orient cleanly.' },
+        ],
+      },
+      {
+        name: '/sig:escalate',
+        summary: 'Escape hatch: re-run calibration carrying current context, bump the PROFILE.md tier, and append to escalation_history. Use when scope, stakes, or risk grows.',
+        flags: [],
+      },
+    ],
+  },
+  {
+    group: 'Capture & maintain',
+    blurb: 'Side-channel intake that never interrupts a phase, plus install health.',
+    items: [
+      {
+        name: '/sig:add',
+        tags: ['not phase-gated'],
+        summary: 'Capture-and-route new work. Default appends a stamped entry to FUTURE-IDEAS.md after a sensitive-data scrub + atomic write.',
+        flags: [
+          { f: '--question', d: 'Route the entry to OPEN-QUESTIONS.md instead.' },
+          { f: '--milestone [N]', d: 'Route the entry to a milestone holding section.' },
+        ],
+      },
+      {
+        name: '/sig:doctor',
+        tags: ['read-only by default', 'macOS first'],
+        summary: 'Install-state diagnostician: detects 5 documented failure modes and reports healthy or actionable findings.',
+        flags: [
+          { f: '--fix', d: 'Generate a surgical remediation script for you to review, then run yourself.' },
+          { f: '--reinstall', d: 'Generate a full canonical reinstall script.' },
+        ],
+      },
+    ],
+  },
+];
 
 const QUESTIONS = [
   {
@@ -633,7 +840,7 @@ const PHASES = [
   {
     id: 'PLAN', glyph: '▃',
     purpose: 'Multi-agent research, vertical slicing, 8-dim plan validation, Nyquist mapping.',
-    skills: 'planning-and-decomposition + research agents',
+    skills: 'planning-and-task-breakdown + research agents',
     artifacts: 'PLAN.md',
     gate: 'Plan-checker green; Nyquist mapping ≥ acceptance criteria',
     skipIn: [],
@@ -641,7 +848,7 @@ const PHASES = [
   {
     id: 'EXECUTE', glyph: '▅',
     purpose: 'Wave-based parallel execution, fresh context per task, atomic commits.',
-    skills: 'TDD, source-driven-development, frontend-ui-engineering (as bound)',
+    skills: 'test-driven-development, source-driven-development, incremental-implementation, frontend-ui-engineering (as bound)',
     artifacts: 'code commits, test files',
     gate: 'All tasks merged; tests passing; context rot guarded',
     skipIn: [],
@@ -649,7 +856,7 @@ const PHASES = [
   {
     id: 'VERIFY', glyph: '▆',
     purpose: 'Acceptance criteria + full test suite + Nyquist compliance check.',
-    skills: 'verification-and-coverage',
+    skills: 'debugging-and-error-recovery, browser-testing-with-devtools',
     artifacts: 'VERIFICATION.md',
     gate: 'Every acceptance criterion has a test that was seen to fail then pass',
     skipIn: [],
@@ -657,7 +864,7 @@ const PHASES = [
   {
     id: 'REVIEW', glyph: '▇',
     purpose: 'Code quality, security, performance, simplification — Agent Skills specialists.',
-    skills: 'code-review, security-and-hardening, performance-optimization, simplify (depth per tier)',
+    skills: 'code-review-and-quality, security-and-hardening, performance-optimization, code-simplification (depth per tier)',
     artifacts: 'REVIEW.md',
     gate: 'Issues triaged; criticals resolved; deferred items logged',
     skipIn: ['SKETCH', 'SPIKE'],
@@ -665,7 +872,7 @@ const PHASES = [
   {
     id: 'SHIP', glyph: '█',
     purpose: 'Pre-ship checklist, clean git history, PR creation with quality docs.',
-    skills: 'shipping-and-deployment',
+    skills: 'shipping-and-launch, git-workflow-and-versioning, documentation-and-adrs',
     artifacts: 'SHIP.md, PR description',
     gate: 'Pre-ship checklist complete; PR opened; CI green',
     skipIn: ['SPIKE'],
@@ -673,7 +880,7 @@ const PHASES = [
 ];
 
 const VOCABULARY = {
-  // Last refreshed: 2026-05-24. Update "currently active" lines on each release.
+  // Last refreshed: 2026-06-03. Update "currently active" lines on each release.
   hierarchy: [
     {
       name: 'Milestone',
@@ -689,7 +896,7 @@ const VOCABULARY = {
       required: false,
       desc: 'Mid-layer grouping related tasks within a Milestone. Used when a Milestone has obvious sub-themes; skipped when it\'s a flat task list (M1–M4 had no Epics).',
       ids: 'M5.E1 · M4.5.E8',
-      example: 'Active: M4.5.E3 (public docs rewrite, in DISCUSS)',
+      example: 'Active: M4.5.E5 (external validation + launch, in PLAN)',
     },
     {
       name: 'Slice',
@@ -697,7 +904,7 @@ const VOCABULARY = {
       required: false,
       desc: 'Epic subdivision; a coherent group of tasks that ships as ONE atomic event (one commit chain, one CHANGELOG entry, one user-visible "thing happened").',
       ids: 'M4.5.E2.S1 · M4.5.E7.S2',
-      example: 'Last shipped slice: M4.5.E7.S2 (install-troubleshooting doc, 2026-05-23)',
+      example: 'Last shipped slice: M4.5.E4.S3 (worked example linked from README, 2026-06-03)',
     },
     {
       name: 'Task',
@@ -705,7 +912,7 @@ const VOCABULARY = {
       required: true,
       desc: 'Atomic unit, small enough to ship in a focused session. Lowercase t so M / E / S / t stay visually distinct in IDs.',
       ids: 'M4.t17 · M5.E3.t2 · M4.5.E8.S2.t3',
-      example: 'Last shipped task: M4.5.E7.S2.t8 (E7 SHIP commit, 2026-05-23)',
+      example: 'Last completed task: M4.5.E4.S3.t10 (2026-06-03)',
     },
   ],
   address: {
@@ -1005,7 +1212,53 @@ function renderPatterns() {
   `).join('');
 }
 
+function renderCommands() {
+  const root = document.getElementById('command-lib');
+  root.innerHTML = COMMANDS.map((g, gi) => `
+    <div class="cmd-group${gi === 1 ? ' open' : ''}">
+      <div class="cmd-group-head">
+        <span class="cmd-chevron">▸</span>
+        <span class="cmd-group-title">${g.group}</span>
+        <span class="cmd-group-count">${g.items.length}</span>
+        <span class="cmd-group-blurb">${g.blurb}</span>
+      </div>
+      <div class="cmd-group-body">
+        ${g.items.map(c => `
+          <div class="cmd">
+            <div>
+              <div class="cmd-name">${c.name}</div>
+              <div class="cmd-badges">
+                ${c.phase ? `<span class="cmd-badge phase">${c.phase}</span>` : ''}
+                ${(c.tags || []).map(t => `<span class="cmd-badge">${t}</span>`).join('')}
+                ${c.skipNote ? `<span class="cmd-badge skip">${c.skipNote}</span>` : ''}
+              </div>
+            </div>
+            <div>
+              <div class="cmd-summary">${c.summary}</div>
+              ${c.flags && c.flags.length ? `
+                <div class="cmd-flags">
+                  ${c.flags.map(fl => `
+                    <div class="cmd-flag"><span class="flag">${fl.f}</span><span class="flag-desc">${fl.d}</span></div>
+                  `).join('')}
+                </div>` : `<div class="cmd-noflags">no flags — naked invocation</div>`}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  root.querySelectorAll('.cmd-group-head').forEach(head => {
+    head.addEventListener('click', () => head.parentElement.classList.toggle('open'));
+  });
+}
+
+function toggleAllCommands(open) {
+  document.querySelectorAll('#command-lib .cmd-group').forEach(g => g.classList.toggle('open', open));
+}
+
 // init
+renderCommands();
 renderQuestions();
 renderResult();
 renderVocabulary();
