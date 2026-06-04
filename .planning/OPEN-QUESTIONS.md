@@ -28,3 +28,7 @@ Unresolved design questions. Append new ones; delete resolved ones (or move to `
 **Resolve by:** MILESTONE-4. Couples to the v2 architecture additions (more commands → more surface to verify mechanically).
 
 ---
+
+## M4.5.E5 re-entry note (logged via /sig:checkpoint --context before a context clear): docs/launch-post.md + docs/demo-script.md are committed DRAFTS awaiting Brett voice/accuracy pass before publishing — not blocking S2-S4. EXECUTE is paused at the strict gate: Slice 1 complete (t1-t4), awaiting explicit go to start Slice 2 (tester brief + friction-log).
+
+*Logged 2026-06-04 via /sig:checkpoint*
