@@ -579,7 +579,7 @@ D4's blanket migration policy applies to Signal's own `.planning/STATE.md` (no p
 - **Naming nuance worth noting for future reference:** the PLAN-time prediction was `sig:<name>` flat; actual is `sig:<subdirectory>:<name>` nested. The `subagent_type` table in `commands/init.md` Step 2 currently uses bare names (`stack-scanner`); Claude Code's plugin loader appears to resolve them. No change needed to the table for this run, but if a future Claude Code version requires fully-qualified `subagent_type` values, the table will need updating in lockstep.
 - **Side-discoveries are routed to a new Epic M4.5.E7.** The R1 run surfaced a synthesizer character-eating bug in LANDSCAPE.md + PROJECT.md output and three install-path UX papercuts (stale `gitCommitSha`, no uninstall verb in `/plugin` UI, disable state survives uninstall). These are not F2-related and get their own dedicated work.
 
-**Reference:** Full run log in `docs/install-verification.md` § R1. PLAN source: `.planning/M4.5.E1-PLAN.md` Slice 2. Updated S2 status in `.planning/M4.5.E1-PROGRESS.md`.
+**Reference:** Full run log in `docs/install-verification.md` § R1. PLAN source: `.planning/archive/M4.5/E1/M4.5.E1-PLAN.md` Slice 2. Updated S2 status in `.planning/archive/M4.5/E1/M4.5.E1-PROGRESS.md`.
 
 ---
 
@@ -614,7 +614,7 @@ Rationale: two distinct findings (synthesizer ≠ install UX) → two slices kee
 - Validator changes: probably none (no new commands, no new agents). Confirm during PLAN.
 - Docs changes for S2: new `docs/install-troubleshooting.md` + 2-line README addition + CHANGELOG entry under the patch-release header.
 
-**Reference:** Acceptance criteria in `.planning/M4.5.E7-REQUIREMENTS.md` (written during this DISCUSS). MILESTONE-4.5 § E7 retains the human-readable scope statement.
+**Reference:** Acceptance criteria in `.planning/archive/M4.5/E7/M4.5.E7-REQUIREMENTS.md` (written during this DISCUSS). MILESTONE-4.5 § E7 retains the human-readable scope statement.
 
 ---
 
@@ -691,7 +691,7 @@ Rationale: A stranger evaluating Signal skims the top, scrolls to commands ("wha
 - Test delta: zero new tests baseline (docs are static); +5 LOC if PLAN decides OQ1 (audit-script existence test) or OQ3 (cross-file consistency test) warrant inclusion.
 - Validator changes: none expected.
 
-**Reference:** Acceptance criteria in `.planning/M4.5.E3-REQUIREMENTS.md` (written during this DISCUSS). MILESTONE-4.5 § E3 retains the human-readable scope statement.
+**Reference:** Acceptance criteria in `.planning/archive/M4.5/E3/M4.5.E3-REQUIREMENTS.md` (written during this DISCUSS). MILESTONE-4.5 § E3 retains the human-readable scope statement.
 
 ---
 
@@ -782,7 +782,7 @@ Same NFR shape as E3 (docs Epic — also all-N/A). E8 is a CLI diagnostic comman
 - Validator changes: `REQUIRED_COMMANDS += 'commands/doctor.md'`; CLAUDE.md 14 → 15 commands
 - Dogfood gate (AC#13): real `--reinstall` end-to-end run on biz machine before SHIP
 
-**Reference:** Full functional requirements + acceptance criteria + open questions in `.planning/M4.5.E8-REQUIREMENTS.md` (written during this DISCUSS). MILESTONE-4.5 § E8 retains the human-readable scope statement.
+**Reference:** Full functional requirements + acceptance criteria + open questions in `.planning/archive/M4.5/E8/M4.5.E8-REQUIREMENTS.md` (written during this DISCUSS). MILESTONE-4.5 § E8 retains the human-readable scope statement.
 
 ---
 
@@ -857,7 +857,7 @@ MILESTONE-4.5.md § E1 + § Status snapshot table both get an explicit "shelved 
 - Validator changes: none expected.
 - E1.S3-S5 shelving is a single block update in MILESTONE-4.5.md scoped to E3 S2's Epic-close task.
 
-**Reference:** Revised acceptance criteria (AC1–AC12) + revised D-E3 list + revised open questions in `.planning/M4.5.E3-REQUIREMENTS.md` § "2026-05-24 revision". MILESTONE-4.5.md § E3 + § E1 get the shelving + close annotations during E3 S2.
+**Reference:** Revised acceptance criteria (AC1–AC12) + revised D-E3 list + revised open questions in `.planning/archive/M4.5/E3/M4.5.E3-REQUIREMENTS.md` § "2026-05-24 revision". MILESTONE-4.5.md § E3 + § E1 get the shelving + close annotations during E3 S2.
 
 ---
 
@@ -917,9 +917,9 @@ Per Brett's phrasing "in documents" (plural), the LICENSES.md file is left untou
 S2 grows from 6 → 7 tasks. New sequence: t1 (facts.md) → t2 (consistency tests RED + test 9) → t3 (README compat + docs/map) → t4 (README Open Source Origins) → t5 (SECURITY.md) → t6 (MILESTONE + FUTURE-IDEAS) → t7 (CHANGELOG + E3 close). S2.t3 and S2.t4 are both README edits and can be ordered for efficient editing (recommended: t3 first, then t4).
 
 PLAN artifacts authoritative for EXECUTE:
-- `.planning/M4.5.E3-PLAN.md` (task list + acceptance criteria)
-- `.planning/M4.5.E3-VALIDATION.md` (8-dim + Nyquist mapping)
-- `.planning/M4.5.E3-RESEARCH.md` (informational; surfaced decisions integrated above)
+- `.planning/archive/M4.5/E3/M4.5.E3-PLAN.md` (task list + acceptance criteria)
+- `.planning/archive/M4.5/E3/M4.5.E3-VALIDATION.md` (8-dim + Nyquist mapping)
+- `.planning/archive/M4.5/E3/M4.5.E3-RESEARCH.md` (informational; surfaced decisions integrated above)
 
 ---
 

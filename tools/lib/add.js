@@ -1,7 +1,7 @@
 // /sig:add — capture-and-route helpers. Slice 1 (M4.5.E2.S1) implements the
 // hardened hot path: write to .planning/FUTURE-IDEAS.md only.
 //
-// Design constraints (from .planning/M4.5.E2-PLAN.md § Slice 1):
+// Design constraints (from .planning/archive/M4.5/E2/M4.5.E2-PLAN.md § Slice 1):
 //   - Verbatim capture — no LLM rewrite, no smart-quoting, no normalization.
 //   - Atomic write: read → build → write-to-temp → fs.rename. Never appendFile.
 //   - Lock file with 30s TTL — defends against silent corruption on concurrent

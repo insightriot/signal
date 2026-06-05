@@ -66,7 +66,7 @@ v2 work does not start until both conditions are met:
 1. **v1 ships end-to-end.** All 9 commands working. Both FULL and SKETCH tier passes validated on real sample projects.
 2. **v1 has real users.** At least a few weeks of real usage, long enough for feedback to shape v2 priorities.
 
-v2 Epics should be re-ordered based on observed v1 pain points, not the order listed in the rundown. See `.planning/MILESTONE-4.md` for the Epic roadmap (directional, not prescriptive).
+v2 Epics should be re-ordered based on observed v1 pain points, not the order listed in the rundown. See `.planning/archive/milestones/MILESTONE-4.md` for the Epic roadmap (directional, not prescriptive).
 
 ## Problem Statement
 

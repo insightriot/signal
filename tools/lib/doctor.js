@@ -3,7 +3,7 @@
 // Pure detectors operate on in-memory state objects (manifest = parsed
 // installed_plugins.json, settings = parsed settings.json). IO orchestrators
 // (readInstallState, runDoctor) accept injectable {homeDir, fsImpl?, fetchFn?}
-// for testability. See .planning/M4.5.E8-PLAN.md § "S1 Task Breakdown".
+// for testability. See .planning/archive/M4.5/E8/M4.5.E8-PLAN.md § "S1 Task Breakdown".
 //
 // Detector return shape: { detected, evidence, recommendation, code }
 //   detected:       boolean

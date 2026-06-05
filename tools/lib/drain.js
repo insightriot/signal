@@ -7,8 +7,8 @@
 // step consume ONE shared parser (`parseEntries`) so the byte ranges they act on
 // can never drift apart (R1/R5).
 //
-// Design constraints (from .planning/M4.5.E2-PLAN.md § "2026-05-30 RE-PLAN" S5,
-// .planning/M4.5.E2-RESEARCH.md § Q2):
+// Design constraints (from .planning/archive/M4.5/E2/M4.5.E2-PLAN.md § "2026-05-30 RE-PLAN" S5,
+// .planning/archive/M4.5/E2/M4.5.E2-RESEARCH.md § Q2):
 //   - Pure functions over a content string — no I/O. The command layer reads the
 //     file, calls these, and does the single full-file atomicWrite.
 //   - Fence-aware: a `## ` (or `**Status:**`) line inside a ``` / ~~~ code fence
