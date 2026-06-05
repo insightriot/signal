@@ -1545,6 +1545,49 @@ New command /sig:audit --docs / --code — a periodic deep-dive audit + cleaning
 
 ---
 
+## Archive-migration dogfood → `/sig:migrate-memory` lessons
 
+**Status:** Logged 2026-06-05 after a manual `.planning/` archive-restructure (the "do it by hand first" dogfood plan from the *Memory & Documentation Management* entry). **⚠ REQUIRES ANOTHER ROUND OF REVIEW — these are lessons from a single pass on the archive subset; do NOT harden them into `/sig:migrate-memory`'s design without re-validating at full-wiki scale.** Captured in the moment per the "document in the moment" norm; face-value risk is real because the dogfood only exercised *closed* docs, not the active-doc move workstream #3 actually needs.
 
-*Last updated: 2026-06-04*
+**What happened.** Archived 48 closed-cycle files (8 Epics' scaffolding + M1–M4) into `.planning/archive/M4.5/E{n}/` (nested, Epic-ID-prefixed) and added `.planning/INDEX.md` as a tiered map. Built `tools/archive-migrate.mjs` — a path-aware migration script (dry-run + self-verify) kept as a throwaway-but-committed prototype. Shipped as commit `be9d87d`. Working set dropped 72 → 24 root files; 0 dangling links; 773 tests green.
+
+**Candidate lessons (each needs validation, not adoption):**
+
+1. **The cascade is the LINKS, not the file moves.** 48 `git mv` were trivial; the work was 68 clickable links + 92 prose paths rewritten. ⚠ **TBD:** confirm this holds when workstream #3 moves *active* docs (STATE/PROFILE/CONTEXT and every command/agent that hardcodes their paths) — far more inbound refs, and load-bearing.
+2. **Three reference classes need distinct handling:** (a) clickable `](path)` links → context-relative rewrite; (b) location-asserting prose paths (`.planning/X`) → archive path; (c) bare identifiers (`` `M4.5.E6-PLAN.md` ``) → leave valid *only if* prefixed filenames are kept. ⚠ **TBD:** is this taxonomy complete? Reference-style markdown links (`[a]: path`) and HTML anchors were never exercised; the tool's regex only catches inline `](...)`.
+3. **ID-prefixed filenames in nested folders** traded path aesthetics for ~99 avoided rewrites. ⚠ **TBD:** workstream #3 proposed *bare* names (`epics/E3/PLAN.md`) for the active wiki. The archive's prefixed choice may conflict with that — decide whether the active wiki also keeps prefixes, or whether archive and active wiki diverge intentionally.
+4. **The keying bug (load-bearing warning).** Link edits are computed against pre-move paths; they MUST be applied by mapping original→new location. The first apply keyed by post-move path and silently skipped every moved-file internal link — caught *only* by the post-move dangling-link verify. ⚠ `/sig:migrate-memory` must ship a dangling-link + residual-path check that runs automatically; the verify gate is not optional.
+5. **Retros stayed in root** because `retro-index.js` parses `epicId` from the flat prefixed filename and the SHIP-time regenerator + tests assume that. ⚠ **TBD:** does the eventual wiki move retros into Epic folders (requires updating the parser + renderer + tests), or keep them flat forever? Deferred, not decided.
+6. **Bot-race is real.** `mps-compiler` pushed `STATUS.md` mid-session → push rejected → rebase (harmless here, disjoint file). ⚠ `/sig:migrate-memory` must assume the tree can move under it: fetch + dry-run + reviewable plan + atomic apply, never a blind in-place rewrite.
+
+**Where it lives.** `tools/archive-migrate.mjs` (committed). The dry-run + self-verify pattern is the seed of both `/sig:migrate-memory` (the move) and `/sig:wiki-check` (link health).
+
+**Resolve by.** M5 memory-management DISCUSS — fold these in as design inputs, after re-validating each ⚠ against the active-doc move.
+
+**Cross-references:** *Memory & Documentation Management as Signal-managed Runtime* (workstreams #3/#4 — the parent plan); *Codebase knowledge-graph as a Signal-managed artifact* (sibling traversal artifact); `tools/archive-migrate.mjs`; `.planning/INDEX.md`.
+
+---
+
+## Codebase-traversal + memory borrows from the "5 open-source CC tools" review
+
+**Status:** Logged 2026-06-05 after reviewing a video walkthrough of 5 Claude Code tools (Intent Layers, DeepSec, Vercel best-practices skill, Agent Memory, Chrome verification). **⚠ REQUIRES ANOTHER ROUND OF REVIEW — conclusions drawn from one conversation against a transcript summary, NOT against the tools' actual source. Do not take at face value; the graphify-vs-Intent-Layers reframe in particular would change a previously-captured decision and must be validated by a real dogfood spike first.**
+
+**The genuine deltas (each TBD until validated):**
+
+1. **Intent-Layers-markdown as a contender to graphify for code-tree traversal.** Signal's captured answer to the traversal gap is a *knowledge graph* (graphify — Python, opaque, queryable). Intent Layers is *hierarchical markdown* `AGENTS.md` (readable, no runtime dep, git-tracked) — more aligned with the *"plain markdown in git is load-bearing"* anti-rationalization in the wiki-restructure entry. ⚠ **TBD:** NOT either/or — the graph answers *relational* queries ("what connects auth to the DB?") markdown can't; markdown answers *navigation/convention* queries the graph can't. Which is the **default** traversal artifact is unresolved. ⚠ Validate by actually running the `intent-layer` skill (crafter-station/skills, now installed) on a real large repo — the dogfood spike that has NOT been done.
+2. **"Global invariants + anti-patterns" as a named INDEX content type.** Per-directory gotchas ("your training data is wrong about this repo") + anti-patterns ("don't put X here"). Absent from workstream #3's "terse pointers" INDEX and from the graphify entry. Plausibly the highest-leverage *accuracy* mechanism (suppresses the agent confidently following stale/wrong assumptions). ⚠ **TBD:** validate it earns its keep — does this content type drift faster than it helps, and who/what refreshes it (the lifecycle gate)?
+3. **The ~20k-token-per-directory threshold** as the "when does a directory earn its own index doc" heuristic — answers an open question in workstream #3. ⚠ **TBD:** arbitrary number lifted from one tool; calibrate against Signal's actual context budget before adopting.
+
+**Competition findings (awareness, not action — also TBD):**
+
+- **Agent Memory** (4-tier working/episodic/semantic/procedural + decay): do NOT run alongside Signal — two uncurated memory systems muddy the signal-vs-noise model and Agent Memory's opaque/decaying DB contradicts Signal's readable-`.planning/` promise. *Borrow* its tiers + decay concept for `/sig:compound` design only. ⚠ **TBD:** validate against compound-engineering's actual mechanism (see the compound-engineering audit entry) before designing.
+- **DeepSec** (Vercel security harness): don't reimplement; either orchestrate from REVIEW or fold its threat-model→matcher→batch→report methodology into the gstack v2 security port. ⚠ **TBD.**
+- **Chrome verification** + **Vercel React/Next best-practices skill**: largely already covered (`browser-testing-with-devtools` skill + `ui-checker`; ported Agent Skills) and/or should stay framework-agnostic. Low priority. ⚠ Confirm `ui-checker` actually drives a *live* browser loop vs. static read — unverified.
+
+**Resolve by.** M5 memory-milestone scoping / before `/sig:compound` design. Each ⚠ must clear a validation pass first.
+
+**Cross-references:** *Codebase knowledge-graph as a Signal-managed artifact* (the graphify entry this reframes); *Memory & Documentation Management as Signal-managed Runtime* (workstream #3 + the markdown anti-rationalization); *Compound-engineering audit before `/sig:compound` design*; source = video walkthrough of 5 CC tools (no durable URL captured — ⚠ re-source before citing).
+
+---
+
+*Last updated: 2026-06-05*
