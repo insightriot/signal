@@ -18,7 +18,7 @@ Signal is a Claude Code plugin that runs a six-phase workflow — calibrate → 
 
 ## How it's different
 
-The calibration router is the part none of the others set out to build. They solve rigor at the command level — this command is strict, that one is loose. Signal solves it one level up, at routing: a single decision at the start, and the whole workflow self-tunes. In its own dogfood, a SKETCH-tier throwaway shipped in about 5 minutes with 0 tests and 8 planning artifacts; a FULL-tier service took about 2 hours with 39 tests, 4 research agents, and 14 artifacts. Same commands, same tooling — the only difference is what calibration decided the job was worth. `/sig:escalate` re-sizes mid-flight if the scope grows under you.
+The calibration router is the part none of the others set out to build. They solve rigor at the command level — this command is strict, that one is loose. Signal solves it one level up, at routing: a single decision at the start, and the whole workflow self-tunes. In its own dogfood, a SKETCH-tier throwaway shipped in about 5 minutes with 0 tests and 8 planning artifacts; a FULL-tier service took about 2 hours with 39 tests, 4 research agents, and 13 artifacts. Same commands, same tooling — the only difference is what calibration decided the job was worth. `/sig:escalate` re-sizes mid-flight if the scope grows under you.
 
 ## Honest limits
 

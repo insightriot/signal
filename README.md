@@ -15,7 +15,7 @@ In Signal's own dogfood:
 | Tier | Throwaway | Wall clock | Source LOC | Tests | Research agents | `.planning/` artifacts |
 |---|---|---|---|---|---|---|
 | **SKETCH** | CSV-to-JSON one-shot | ~5 min | ~30 | 0 (smoke only) | 0 | 8 |
-| **FULL** | Production URL shortener | ~2 hours | ~600 | 39 | 4 | 14 |
+| **FULL** | Production URL shortener | ~2 hours | ~600 | 39 | 4 | 13 |
 
 Same tooling. Same commands. The difference is calibration.
 
