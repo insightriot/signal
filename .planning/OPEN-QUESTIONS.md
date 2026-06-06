@@ -29,6 +29,6 @@ Unresolved design questions. Append new ones; delete resolved ones (or move to `
 
 ---
 
-## M4.5.E5 re-entry note: docs/launch-post.md + docs/demo-script.md + docs/tester-brief.md are committed DRAFTS awaiting Brett's voice pass before they go to a peer — not blocking S3-S4. A mechanical accuracy self-pass (2026-06-06) found all three consistent with the locked guardrails (7 analyzed / ports two / v2 = roadmap / sample-of-one / privacy verbatim / Mac caveat / dogfood numbers match the README table); voice is the remaining gate, to be tracked as a line in the S3.t7 handoff checklist. EXECUTE is paused at the strict gate: Slices 1-2 complete (t1-t6), awaiting explicit go to start Slice 3 (launch kit + CHANGELOG).
+## M4.5.E5 re-entry note: EXECUTE is COMPLETE — all 4 slices / 9 tasks shipped (t1-t9), all 9 ACs met, full suite 777, validator green. The three launch docs (launch-post / demo-script / tester-brief) are committed DRAFTS awaiting Brett's voice pass before they go outward (mechanical accuracy already clean); the voice pass is tracked as a line in the handoff checklist (`M4.5.E5-LAUNCH-KIT.md` §3). Phase still reads EXECUTE, paused at the strict end-of-phase gate awaiting go to enter VERIFY → REVIEW → SHIP. SHIP cuts the version (Brett's call, D-E5-4; rubric recommends v0.1.4) and begins the human handoff.
 
-*Logged 2026-06-04 via /sig:checkpoint; refreshed 2026-06-06 at the S2/S3 gate.*
+*Logged 2026-06-04 via /sig:checkpoint; refreshed 2026-06-06 at the S2/S3 gate and again at EXECUTE-complete.*
