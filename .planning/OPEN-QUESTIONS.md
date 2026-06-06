@@ -29,6 +29,6 @@ Unresolved design questions. Append new ones; delete resolved ones (or move to `
 
 ---
 
-## M4.5.E5 re-entry note (logged via /sig:checkpoint --context before a context clear): docs/launch-post.md + docs/demo-script.md are committed DRAFTS awaiting Brett voice/accuracy pass before publishing — not blocking S2-S4. EXECUTE is paused at the strict gate: Slice 1 complete (t1-t4), awaiting explicit go to start Slice 2 (tester brief + friction-log).
+## M4.5.E5 re-entry note: docs/launch-post.md + docs/demo-script.md + docs/tester-brief.md are committed DRAFTS awaiting Brett's voice pass before they go to a peer — not blocking S3-S4. A mechanical accuracy self-pass (2026-06-06) found all three consistent with the locked guardrails (7 analyzed / ports two / v2 = roadmap / sample-of-one / privacy verbatim / Mac caveat / dogfood numbers match the README table); voice is the remaining gate, to be tracked as a line in the S3.t7 handoff checklist. EXECUTE is paused at the strict gate: Slices 1-2 complete (t1-t6), awaiting explicit go to start Slice 3 (launch kit + CHANGELOG).
 
-*Logged 2026-06-04 via /sig:checkpoint*
+*Logged 2026-06-04 via /sig:checkpoint; refreshed 2026-06-06 at the S2/S3 gate.*
