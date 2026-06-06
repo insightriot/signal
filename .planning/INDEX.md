@@ -38,6 +38,7 @@ a future `/sig:index`. Curated one-liners survive regeneration by file/Epic ID.
 | [DECISIONS.md](DECISIONS.md) | Decision log (`D-E{n}-{k}` IDs). **1,257 lines — append-only monolith; grep/TOC, don't load whole.** |
 | [FUTURE-IDEAS.md](FUTURE-IDEAS.md) | Post-v1 idea backlog. **1,549 lines — append-only monolith; grep/TOC, don't load whole.** Drained advisorily by `/sig:plan`. |
 | [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) | Unresolved questions surfaced across phases. |
+| [BUGS.md](BUGS.md) | Bugs & verified findings catalog. **Where bugs get logged** (catalog → triage → confirm/dismiss). GitHub Issues deferred to live-users. |
 | [MILESTONE-5.md](MILESTONE-5.md) | Forward placeholder — v2 ports + memory-management milestone (next horizon). |
 | E5 working refs | [REQUIREMENTS](M4.5.E5-REQUIREMENTS.md) · [RESEARCH](M4.5.E5-RESEARCH.md) · [VALIDATION](M4.5.E5-VALIDATION.md) — active-Epic detail, read when the PLAN points to them. |
 

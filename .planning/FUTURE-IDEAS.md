@@ -1590,4 +1590,29 @@ New command /sig:audit --docs / --code — a periodic deep-dive audit + cleaning
 
 ---
 
-*Last updated: 2026-06-05*
+## GitHub Issues for work-item tracking — deferred until live users
+
+**Status:** Logged 2026-06-06. **Decision: defer.** Evaluated adopting GitHub Issues as canonical work-item tracking (bugs / followups / ops / enhancements) against a detailed adoption prompt. **Outcome: stick with `.planning/` markdown for now; revisit when Signal has live users.**
+
+**Why defer.** Signal *is* a planning-in-markdown system — its thesis (and `CONTEXT.md`'s locked rule) is that `.planning/` is the canonical, git-tracked, portable, AI-readable memory. Routing work-tracking to GitHub Issues would (a) split the project's memory across two systems — the same *"two uncurated memory systems muddy the signal"* risk flagged about Agent Memory in the *Codebase-traversal + memory borrows* entry — and (b) undercut the dogfooding story (if Signal can't track its own work in `.planning/`, that quietly concedes the thesis). For a solo maintainer with ~1 code TODO and few lifetime bugs, the overhead isn't earned yet.
+
+**Trigger to adopt: live users (≈ E5 launch).** External testers won't edit `.planning/` markdown — they'll open Issues. E5.S2's tester-brief + friction-log is the natural first external intake, and public bug/friction intake is exactly what Issues are for — *complementary* to `.planning/`, not a replacement.
+
+**The line to draw when adopted:**
+- **GitHub Issues** = operational + external: bugs, ops, follow-ups, tester friction, the `needs-triage` inbox.
+- **`.planning/`** = deliberate design memory: decisions, phase artifacts, architectural future-ideas, retros.
+- Neither swallows the other. Do **not** migrate `FUTURE-IDEAS`/`DECISIONS` to Issues.
+
+**Detection snapshot (2026-06-06):** repo `insightriot/signal`, Issues enabled, 0 open, default labels only, no `.github/ISSUE_TEMPLATE/`; inline tracking = `.planning/` (`FUTURE-IDEAS` + `OPEN-QUESTIONS` + `DECISIONS` + new `BUGS.md`); 1 code-level TODO. (`gh` active account = `insightriot` ✓.)
+
+**Deferred setup to run at adoption:** namespaced labels (`bug`, `enhancement`, `followup`, `ops`; `priority:high/med/low` — or reuse Signal's `P1/P2/P3`; optional `triage:M{n}`, `audit:*`); short templates (`bug_report.yml`, `followup.yml`) + `config.yml` `blank_issues_enabled: false`; saved-search dashboard URLs in `CLAUDE.md`; a **human-in-the-loop rule** (never create / comment / close / label an Issue without explicit per-action approval — "yes file it" is not standing authorization; use `gh issue` via Bash); migrate `BUGS.md` + scattered follow-ups, leaving pointers. Code TODO/FIXME stay in code (one sweep Issue, not per-comment).
+
+**Implemented now (the "valuable regardless" slice):** `.planning/BUGS.md` — a minimal markdown bug/findings catalog (the Signal-native "bug taxonomy") with a triage discipline. Gives the "always catalog bugs" norm a home in the existing system without the Issues overhead. Listed in `INDEX.md`.
+
+**Resolve by:** E5 launch / first live users. If launch is a "quiet peer-only release," scale to just labels + a bug template and skip the formal migration (per the prompt's small-project guidance).
+
+**Cross-references:** `.planning/BUGS.md`; *Codebase-traversal + memory borrows from the "5 open-source CC tools" review* (the Agent Memory two-systems finding); `CONTEXT.md` § locked ".planning/ is the memory"; E5 tester-brief / friction-log (`M4.5.E5-PLAN.md`).
+
+---
+
+*Last updated: 2026-06-06*
