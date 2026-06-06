@@ -132,3 +132,10 @@ Behavioral rules that apply to every conversation and every agent, in addition t
 ## Critical Path
 
 Foundation (1.0) → `/sig:calibrate` → `/sig:discuss` → rest of Phase Commands (2.0) → Integration Testing (5.0) → Documentation (6.0)
+
+## MPS (automated, by design)
+
+This repo is tracked by **MPS**, Brett's portfolio system of record. A daily `mps-compiler[bot]` job regenerates `STATUS.md` — its frontmatter, the `owner=agent` sections, and "Recent reality"; commits are `[skip ci]` (no CI/deploy). Harmless background activity — rebase past it on push, don't flag it as drift.
+
+- **Don't delete `STATUS.md`** — recreated, and its absence reads as drift in MPS.
+- **Don't hand-edit** the frontmatter, `owner=agent` blocks, or "Recent reality" — regenerated daily, edits lost. The `owner=human` sections (`Decision rules`, `Deferred`) are the safe-to-edit zone.
