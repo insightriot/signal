@@ -1,12 +1,12 @@
 # Changelog
 
-All notable changes to Signal are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) — pre-1.0 (`0.x.y`) allows breaking changes at `x` bumps; see `docs/versioning.md` (shipping in M4.5.E1 Slice 4) for the full policy.
+All notable changes to Signal are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) — pre-1.0 (`0.x.y`) allows breaking changes at minor (`0.x`) bumps. See the pre-1.0 line in [`SECURITY.md`](SECURITY.md) for the support policy, and Signal's version-decision rubric (adopted with the M4.5.E5 launch assets) for how minor vs. patch is decided.
 
 `[BREAKING]` tags mark entries that change user-visible behavior, slash-command surface, plugin manifest shape, or `.planning/` schema.
 
 ---
 
-## [Unreleased] — M4.5.E4 (worked example + comparison page)
+## [Unreleased] — M4.5.E4 + M4.5.E5 (worked example + comparison page + launch assets)
 
 ### Added — worked example (M4.5.E4 Slice 1)
 
@@ -16,6 +16,14 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 ### Added — comparison page (M4.5.E4 Slice 2)
 
 - **`docs/vs.md`** — a prose "when to reach for which" guide across the plugins Signal is built from (GSD, Agent Skills, superpowers, planning-with-files, compound-engineering), framed as a toolbox: each is excellent on its own; Signal assembles them under one roof and adds the calibration router that right-sizes rigor. Linked from the README and registered in the validator.
+
+### Added — launch assets (M4.5.E5)
+
+- **`docs/launch-post.md`** — the research-arc launch post: the seven-plugin landscape → Signal as a synthesis of the patterns worth keeping, plus the calibration wedge no other plugin set out to build. Leads with the landscape analysis, states v1 ports GSD + Agent Skills (the rest are v2 roadmap), and keeps the honest limits up front (0.1.x, macOS-only, sample-of-one). Registered in the validator's `REQUIRED_FILES`.
+- **`docs/demo-script.md`** — a turnkey ~45–60s demo recording storyboard (`/sig:init → /sig:calibrate → /sig:status`) with the macOS + marketplace-install assumptions stated up front, so a recording shows what a peer actually experiences rather than dev-mode fallback agent names.
+- **`docs/tester-brief.md`** — a peer-tester invitation with a scoped ~20-minute ask (`/sig:calibrate → /sig:discuss`, log the friction), who-to-ask criteria, the macOS-only caveat, an explicit nothing-sensitive boundary, and a copy-paste friction-log template.
+- **`tests/e5-launch-assets.test.js`** — a growing guard over the launch docs: existence, the launch-post word budget, the exact privacy sentence, structural markers (friction-log template, demo assumptions, calibrate-before-status sequence), and relative-link integrity across all three docs.
+- **`.planning/M4.5.E5-LAUNCH-KIT.md`** — internal launch-ops kit: the version-decision rubric, a release-notes draft, the human-handoff checklist, and the (deliberately narrow) distribution channels for a quiet peer release.
 
 ---
 
