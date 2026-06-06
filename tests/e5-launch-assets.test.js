@@ -20,6 +20,7 @@ const DOCS_DIR = join(REPO_ROOT, 'docs');
 
 const LAUNCH_POST = join(DOCS_DIR, 'launch-post.md');
 const DEMO_SCRIPT = join(DOCS_DIR, 'demo-script.md');
+const TESTER_BRIEF = join(DOCS_DIR, 'tester-brief.md');
 
 // Count whitespace-separated word tokens in a markdown body.
 function wordCount(text) {
@@ -106,5 +107,33 @@ describe('docs/demo-script.md (M4.5.E5 S1.t3 — FR2)', () => {
 
   it('has no dead relative links', () => {
     assertLinksResolve(DEMO_SCRIPT);
+  });
+});
+
+describe('docs/tester-brief.md (M4.5.E5 S2.t6 — FR3 + FR4)', () => {
+  it('exists', () => {
+    expect(existsSync(TESTER_BRIEF)).toBe(true);
+  });
+
+  it('embeds a copy-paste friction-log template (paired TEMPLATE markers)', () => {
+    // Mirrors references/retrospective-template.md: a copy-paste block delimited
+    // by `<!-- TEMPLATE: friction-log -->` / `<!-- /TEMPLATE: friction-log -->`
+    // so a tester can lift it verbatim into their own log.
+    const content = readFileSync(TESTER_BRIEF, 'utf8');
+    expect(content).toContain('<!-- TEMPLATE: friction-log -->');
+    expect(content).toContain('<!-- /TEMPLATE: friction-log -->');
+  });
+
+  it('carries the Mac-only caveat (matches README.md wording)', () => {
+    // README.md: "Verified on macOS; Linux/WSL untested". The brief must set the
+    // same expectation so a peer on Linux/WSL self-selects out before testing.
+    const content = readFileSync(TESTER_BRIEF, 'utf8');
+    expect(content).toMatch(/macOS/);
+    expect(content).toMatch(/Linux(\s*\/\s*WSL|\s+and\s+WSL)/i);
+    expect(content).toMatch(/untested/i);
+  });
+
+  it('has no dead relative links', () => {
+    assertLinksResolve(TESTER_BRIEF);
   });
 });
