@@ -1615,4 +1615,20 @@ New command /sig:audit --docs / --code — a periodic deep-dive audit + cleaning
 
 ---
 
-*Last updated: 2026-06-06*
+## Path-scoped skills — a second scoping axis (phase × path)
+
+**Status:** Logged 2026-06-07 (from the "execution harness / 7 extension points" doc review, post-v0.1.4). **Triage hint.** P3 (low).
+
+Signal scopes skill loading by **workflow phase** only (`state/config.json` keys define/plan/build/verify/review/ship, via `skill-loader.js` + `context-monitor.js`). The large-codebase-harness pattern adds an orthogonal axis: scope a skill to a **filesystem glob** so it loads only when Claude is working under a matching path (e.g. a deploy workflow that fires only in `services/payments/**`). A two-axis loader — **phase × path** — would let Signal-managed projects keep phase skills lean while adding directory-local workflows without ballooning CLAUDE.md. ⚠ **Verify the mechanism first:** the source claims a `path:`/glob field in skill frontmatter is a real Claude Code feature, but it's a second-hand interpretation — confirm against actual Anthropic docs before designing (it may not be shipped, or may live elsewhere). Composes with, doesn't replace, the phase-keyed loader. Source: Anthropic "How Claude Code works in large codebases" (same doc as the Passive Stop-hook entry above). Likely M5-era.
+
+---
+
+## CLAUDE.md "de-bloat" test + command-frontmatter freshness discipline
+
+**Status:** Logged 2026-06-07 (from the same "execution harness" doc review; subsumes the command-frontmatter freshness sweep deferred at the v0.1.4 close). **Triage hint.** P3 (low).
+
+Adopt an explicit maintenance discipline for Signal's own instruction surface, two parts. (1) **The De-Bloat Test** — for any line in CLAUDE.md or a command's frontmatter, ask *"if I delete this, does Claude break in a way it wouldn't have?"*; if no, it's dead weight, cut it. The cost of bloat isn't tokens, it's that signal drowns and the one critical gotcha gets ignored. (2) **A recurring freshness review** (quarterly, or at each release) — old rules actively brake newer models (the classic "edit one file at a time" example), and descriptions drift: the stale `/sig:add` "naked-invocation lands in a subsequent slice" blurb caught + fixed at the v0.1.4 close was the visible tip; sibling command descriptions likely carry similar drift. **Signal-specific caveat (the load-bearing nuance):** de-bloat *reference/pointer* content only — **never** the behavioral gates (anti-rationalization tables, phase gates, exit criteria). Those are *deliberately* "redundant" because models rationalize them away; minimal-context optimization and behavioral-reliability optimization pull opposite directions, and the gates win. Could ship as a `/sig:` maintenance command or a `references/` checklist. Source: Anthropic "How Claude Code works in large codebases" (De-Bloat Test + quarterly review).
+
+---
+
+*Last updated: 2026-06-07*
