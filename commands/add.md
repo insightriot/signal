@@ -1,6 +1,6 @@
 ---
 name: sig:add
-description: "Capture-and-route new work — appends a stamped entry to .planning/FUTURE-IDEAS.md (default) after verbatim capture, sensitive-data scrub, and atomic write. Route explicitly with --question (OPEN-QUESTIONS.md) or --milestone [N] (a milestone holding section). Not phase-gated. Naked-invocation interview lands in a subsequent slice of M4.5.E2."
+description: "Capture-and-route new work — appends a stamped entry to .planning/FUTURE-IDEAS.md (default) after verbatim capture, sensitive-data scrub, and atomic write. Route explicitly with --question (OPEN-QUESTIONS.md) or --milestone [N] (a milestone holding section). Naked /sig:add (no args) asks one question and files the answer to FUTURE-IDEAS. Not phase-gated."
 args: "[idea text]"
 ---
 
