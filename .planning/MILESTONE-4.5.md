@@ -8,6 +8,8 @@
 
 **Done when:** A developer who has never seen Signal can (a) install it from the marketplace on a fresh machine, (b) read the README and understand within 2 minutes what it does and whether it's for them, (c) run `/sig:init` on an existing codebase and reach `/sig:ship` without consulting source files, and (d) capture new ideas via `/sig:add` without learning the vocabulary. At least 3 non-Signal users have completed this path with their feedback merged.
 
+> **Status (2026-06-06): build-complete.** All Epics shipped — E1, E6, E7, E3, E9, E8, E2 (→ v0.1.1/v0.1.2/v0.1.3) and E4 + E5 (→ v0.1.4, 2026-06-06, the repo's first GitHub Release). Done-when (a)–(d) are satisfied by shipped code/docs. The remaining clause — **"≥3 non-Signal users have completed this path with feedback merged"** — is **OPEN**: it depends on the outward tester loop (voice pass, recruit peers via `M4.5.E5-LAUNCH-KIT.md` §3), which is Brett's async work, not buildable. M4.5 formally closes when that feedback lands. **M5** (v2 ports) is the next build horizon and is not blocked by it.
+
 ---
 
 ## Why a 4.5, not a 5 or a v2

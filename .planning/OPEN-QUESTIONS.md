@@ -29,6 +29,4 @@ Unresolved design questions. Append new ones; delete resolved ones (or move to `
 
 ---
 
-## M4.5.E5 re-entry note: EXECUTE is COMPLETE — all 4 slices / 9 tasks shipped (t1-t9), all 9 ACs met, full suite 777, validator green. The three launch docs (launch-post / demo-script / tester-brief) are committed DRAFTS awaiting Brett's voice pass before they go outward (mechanical accuracy already clean); the voice pass is tracked as a line in the handoff checklist (`M4.5.E5-LAUNCH-KIT.md` §3). Phase still reads EXECUTE, paused at the strict end-of-phase gate awaiting go to enter VERIFY → REVIEW → SHIP. SHIP cuts the version (Brett's call, D-E5-4; rubric recommends v0.1.4) and begins the human handoff.
-
-*Logged 2026-06-04 via /sig:checkpoint; refreshed 2026-06-06 at the S2/S3 gate and again at EXECUTE-complete.*
+*(The M4.5.E5 re-entry breadcrumb was removed 2026-06-06 — E5 shipped as v0.1.4. The pending outward loop, voice pass + recruit ≥3 testers, is tracked in `M4.5.E5-LAUNCH-KIT.md` §3 and `M4.5.E5-SHIP.md`, not here.)*

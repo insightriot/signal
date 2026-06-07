@@ -33,9 +33,9 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-**v1 is feature-complete and shipped.** Latest release **v0.1.3** (2026-05-31) bundled E7+E3+E9+E8+E2. Plugin marketplace-installable from `InsightRiot/signal`. Milestones 1–4 closed (M4 + v0.1.0 tagged 2026-05-12).
+**v1 is feature-complete and shipped.** Latest release **v0.1.4** (2026-06-06) bundled E4+E5; **v0.1.3** (2026-05-31) bundled E7+E3+E9+E8+E2. Plugin marketplace-installable from `InsightRiot/signal`. Milestones 1–4 closed (M4 + v0.1.0 tagged 2026-05-12).
 
-**MILESTONE 4.5 (Release Hardening / Stranger-Adoption Readiness) is nearly closed.** Shipped Epics: **E1** (install-path fix → v0.1.1; Slices 3–5 shelved), **E6** (STATE schema + `/sig:checkpoint` → v0.1.2), **E7 / E3 / E9 / E8 / E2** (→ v0.1.3), **E4** (worked example `examples/url-shortener/` + `docs/vs.md` — closed 2026-06-03, `[Unreleased]`, batches with E5). Only **E5** remains active.
+**MILESTONE 4.5 (Release Hardening / Stranger-Adoption Readiness): all Epics built + shipped (v0.1.4, 2026-06-06).** The milestone's external-validation criterion (≥3 non-Signal testers, feedback merged) remains open, pending the outward tester loop. Shipped Epics: **E1** (install-path fix → v0.1.1; Slices 3–5 shelved), **E6** (STATE schema + `/sig:checkpoint` → v0.1.2), **E7 / E3 / E9 / E8 / E2** (→ v0.1.3), **E4 + E5** (worked example + comparison page + launch assets → v0.1.4, 2026-06-06).
 
 - **15 slash commands**, **26 agents**, **21 skills**, **773 tests passing**, validator green.
 - **Conventions locked**: question-patterns (strict enum / 3+other / open-ended); PROFILE.md schema + tier-to-defaults + escalation_history; ID-is-identity vocabulary (M4.5.E6.S1.t1 addressing); `.planning/` always tracked in git; STATE.md YAML frontmatter (`schema_version: 1`) with auto-migration.
@@ -43,14 +43,11 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Active work
 
-**Active Epic: M4.5.E5 — external validation + launch.** The **last M4.5 Epic** and the **release trigger** — closing it ships E4's `[Unreleased]` CHANGELOG block and cuts the release. Phase **EXECUTE**, FULL/strict tier. Plan: 4 vertical slices, 9 tasks (`M4.5.E5-PLAN.md`); guard `tests/e5-launch-assets.test.js`.
+**M4.5.E5 — external validation + launch — SHIPPED as v0.1.4 (2026-06-06).** The last M4.5 Epic. All 4 slices / 9 tasks done (launch post, demo script, tester brief + friction-log, internal launch kit, CHANGELOG + dangling-ref fix); VERIFY + REVIEW PASS; retro written + gate-passing; **v0.1.4 cut, tagged (`6328fed`), marketplace re-pinned, and published as the repo's first GitHub Release.** Full suite **777**, validator green. Artifacts: `M4.5.E5-{PLAN,VERIFICATION,REVIEW,RETROSPECTIVE,SHIP,LAUNCH-KIT}.md`.
 
-- **Slice 1 (launch narrative) — done.** `docs/launch-post.md` (719w) + `docs/demo-script.md`, both validator-registered + guarded. Last completed task `M4.5.E5.S1.t4` (commit `f1e11c8`).
-- **Next: Slice 2 (validation kit)** — `t5` tester-brief guard (RED) → `t6` `docs/tester-brief.md` + friction-log. Then **S3** (launch kit + CHANGELOG / release stamp) and **S4** (cross-doc link sweep + full verify).
+- **All M4.5 Epics are now built + shipped.** What remains for M4.5 is *not buildable*: its "≥3 non-Signal testers, feedback merged" criterion needs the **outward tester loop** — voice pass on the 3 launch drafts, recruit peers (send `docs/tester-brief.md`), record the demo (`docs/demo-script.md`), capture friction → v0.1.(N+1) backlog. Tracked in `M4.5.E5-LAUNCH-KIT.md` §3.
 
-**Next concrete action:** `/sig:resume` → continue E5 at **S2.t5** (or `/sig:execute`). Note: the test-count claim in `references/facts.md` / README updates at the release stamp (S3.t8) — suite is now **773**.
-
-**After E5 closes:** cuts the release, closes M4.5 → **M5** (v2 framework ports + the memory-management milestone). The 2026-06-05 corpus restructure already dogfooded part of M5's memory work — see the `/sig:migrate-memory` FUTURE-IDEAS entry.
+**Next build horizon: M5** (v2 framework ports + memory-management milestone) — not blocked by the tester loop. The 2026-06-05 corpus restructure already dogfooded part of M5's memory work (see the `/sig:migrate-memory` FUTURE-IDEAS entry).
 
 **Shelved (not deleted), pending tester volunteers (per D-E3-12):**
 
@@ -97,4 +94,4 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ---
 
-*Last updated: 2026-06-05 (refreshed for M4.5.E5 active + the 2026-06-05 `.planning/` archive restructure — see `INDEX.md` for the corpus map. Prior refresh was 2026-05-18 at M4.5.E6/v0.1.2.)*
+*Last updated: 2026-06-06 (M4.5.E5 shipped as v0.1.4; M4.5 build-complete, external-validation loop pending. Prior refresh 2026-06-05 for the `.planning/` archive restructure — see `INDEX.md` for the corpus map.)*
