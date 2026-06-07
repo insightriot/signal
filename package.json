@@ -1,6 +1,6 @@
 {
   "name": "signal",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Disciplined AI development workflow — integrates GSD, Agent Skills, and patterns from the broader Claude Code plugin ecosystem, with a project-complexity calibration router.",
   "type": "module",
   "engines": {

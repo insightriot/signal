@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased] — M4.5.E4 + M4.5.E5 (worked example + comparison page + launch assets)
+## [0.1.4] — 2026-06-06 — M4.5.E4 + M4.5.E5 (worked example + comparison page + launch assets)
 
 ### Added — worked example (M4.5.E4 Slice 1)
 
@@ -325,5 +325,6 @@ Initial public release. Marketplace-installable from `InsightRiot/signal` via Cl
 
 ---
 
+[0.1.4]: https://github.com/InsightRiot/signal/releases/tag/v0.1.4
 [0.1.1]: https://github.com/InsightRiot/signal/releases/tag/v0.1.1
 [0.1.0]: https://github.com/InsightRiot/signal/releases/tag/v0.1.0
