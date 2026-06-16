@@ -127,6 +127,22 @@ The meta-retro is **opt-in / manual only** per A6 (the auto-detection of milesto
 
 Stage the new file into the SHIP commit (or its own commit if SHIP isn't running). The index regen in §6 will pick up the milestone meta-retro automatically on the next regen if you want it indexed alongside per-Epic retros — though typically it's tracked separately because it spans Epics.
 
+### 8. Reconcile docs (Curator — optional, skips cleanly if not installed)
+
+If the [Curator](https://github.com/insightriot/curator) CLI is available, regenerate the doc indexes so `.planning/` (and any other curated zone) ships reconciled. This is the milestone-level complement to Curator's per-commit `post-commit` hook: it guarantees the reconcile runs at SHIP even on machines or CI where that local git hook isn't installed (hooks live in `.git/hooks/`, which isn't version-controlled).
+
+Detect the CLI the same way the hook does, then run a structural refresh from the repo root — no file moves, no model calls:
+
+```bash
+if command -v curator >/dev/null 2>&1; then CUR=curator
+elif command -v python3 >/dev/null 2>&1 && python3 -c "import curator" >/dev/null 2>&1; then CUR="python3 -m curator"; fi
+[ -n "${CUR:-}" ] && $CUR --root "$(git rev-parse --show-toplevel)" refresh --all || true
+```
+
+`refresh --all` discovers every `.curator.yml` under the repo, regenerates each zone's `INDEX.md` from its own config, and skips vendored trees (`node_modules`, etc.). It is idempotent — no spurious diffs when docs haven't changed.
+
+Stage any regenerated `**/INDEX.md` into the SHIP commit alongside the state-write (§5) and retro index (§6). If Curator isn't installed the step is a clean no-op — it never blocks the SHIP.
+
 ## Phase Gate
 
 ### Anti-Rationalization Check
