@@ -10,12 +10,12 @@ contributes_to:
   status: tbd
 - question: Signal is tagged `personal-infra` and `methodology` — does it contribute to `exit_path` ($100M exit) as a force-multiplier on other ventures, or only incidentally?
   status: tbd
-days_since_last_commit: 8
+days_since_last_commit: 9
 delta: aligned
 depends_on: []
 drift_callout: null
 kind: infrastructure
-last_agent_update: '2026-06-25T13:13:11Z'
+last_agent_update: '2026-06-27T12:07:48Z'
 lifecycle: build
 parent: brett
 project: signal
