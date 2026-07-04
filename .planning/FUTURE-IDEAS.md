@@ -1685,13 +1685,22 @@ Adopt an explicit maintenance discipline for Signal's own instruction surface, t
 
 ---
 
-## STATE.md append-without-evict — closed-work narrative must
+## STATE.md append-without-evict — closed-work narrative must leave the live file
 
 **Status:** Logged 2026-07-04 via `/sig:add`.
 
 STATE.md append-without-evict — closed-work narrative must leave the live file (evidence: CMMC dogfood). Second-dogfood STATE.md (examples/Example-cmmc-STATE.md) hit 60,551 words / 455KB, ~90% closed-work history; frontmatter completed_phases polluted with a ~550-word stale narrative blob that contradicts both the body and the archive — an accuracy failure, not just bloat. Four root causes in Signal's own contract: (1) writer doesn't validate completed_phases entry shape; (2) no machine home for per-slice lifecycle so agents invent prose slots (ties to the Multi-feature project lifecycle entry — this file is the BR-9 evidence it was waiting for); (3) body contract is append-only, "preserved across writes", with no eviction step at SHIP; (4) no size tripwire, so drift compounds silently. Signal's own STATE.md (7,624 words) is on the same curve. Candidate direction — four changes: writer-side shape enforcement in tools/lib/state.js; normative live-above-the-fold body skeleton in references/state-schema.md (resume pointer → in-flight → blockers → pending ops → one-line pointers to closed work); evict-on-close step in /sig:ship + /sig:checkpoint (closed-slice narrative moves to archive SUMMARY, one-line pointer stays); size warning in /sig:status + /sig:checkpoint over ~2K words live / 8K total. Companion to M4.5.E10's auto-update-protocol extension. Resolve by: next STATE.md-touching Epic (E10 is the natural host) or when a third project shows the same curve.
 
 ---
+
+## /sig:add derived-title polish — cut the auto-heading at a clause boundary
+
+**Status:** Logged 2026-07-04 via `/sig:add`.
+
+/sig:add derived-title polish — cut the auto-heading at a clause boundary, not a raw character count. buildFutureIdeasEntry (tools/lib/add.js) derives the entry heading by slicing the first ~60 chars of the body at a word boundary, which can land mid-clause: the 2026-07-04 "STATE.md append-without-evict" capture got the heading "closed-work narrative must" (hand-fixed same day). Candidate fix: prefer the first sentence-ending punctuation, em-dash, or period before the cap; fall back to the current word-boundary slice. Cosmetic, but headings are the scan/drain surface of FUTURE-IDEAS.md — the drain protocol and humans both navigate by them. Applies to all three destinations if they share the title derivation (check buildOpenQuestionsEntry / buildMilestoneEntry).
+
+---
+
 
 
 *Last updated: 2026-07-04*
