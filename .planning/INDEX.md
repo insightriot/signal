@@ -40,6 +40,7 @@ a future `/sig:index`. Curated one-liners survive regeneration by file/Epic ID.
 | [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) | Unresolved questions surfaced across phases. |
 | [BUGS.md](BUGS.md) | Bugs & verified findings catalog. **Where bugs get logged** (catalog → triage → confirm/dismiss). GitHub Issues deferred to live-users. |
 | [MILESTONE-5.md](MILESTONE-5.md) | Forward placeholder — v2 ports + memory-management milestone (next horizon). |
+| [BACKLOG-REVIEW-2026-07-04.md](BACKLOG-REVIEW-2026-07-04.md) | Full backlog pass: 5 gap-fills, 8 sharpened entries, 8 sprint clusters + watchlist. **Recommendations only — ratify at next planning gate** (§5 lists the 7 decisions). |
 | E5 working refs | [REQUIREMENTS](M4.5.E5-REQUIREMENTS.md) · [RESEARCH](M4.5.E5-RESEARCH.md) · [VALIDATION](M4.5.E5-VALIDATION.md) — active-Epic detail, read when the PLAN points to them. |
 
 ## 🧊 COLD — closed work (reference; retro carries the "what mattered")
