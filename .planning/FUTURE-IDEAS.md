@@ -169,6 +169,8 @@ The pattern: when an Epic writes to existing user state (STATE.md, MILESTONE.md,
 
 ## Hook output format reference doc
 
+> **Promoted 2026-07-04 → M4.5.E10** (trust-hardening Epic, v0.1.5) — pairs with the SessionStart smoke test. See DECISIONS 2026-07-04 + MILESTONE-4.5.md § E10.
+
 **Status:** Logged 2026-05-26 at M4.5.E9 REVIEW close.
 
 **Trigger.** M4.5.E9.S1.t7 needed to emit a SessionStart hook payload that injects an `additionalContext` warning. The shape used was:
@@ -199,6 +201,8 @@ This was inferred from existing Claude Code patterns + cached plugin behavior �
 ---
 
 ## SessionStart-resume hook manual smoke test (M4.5.E9 follow-on)
+
+> **Promoted 2026-07-04 → M4.5.E10** (trust-hardening Epic, v0.1.5). See DECISIONS 2026-07-04 + MILESTONE-4.5.md § E10.
 
 **Status:** Logged 2026-05-26 at M4.5.E9 SHIP. Known limitation, not blocking SHIP.
 
@@ -328,6 +332,8 @@ Same command (`/sig:review`), same tier, same dial — wildly different runtime 
 
 ## Multi-feature project lifecycle
 
+> **Update 2026-07-04 (backlog review):** E6 shipped the single-project half (`current_epic` / `current_wave` / `current_task` in schema_version 1). Remaining scope = per-feature PROFILE override + `features[]` block + feature-aware status/resume — design gated on evidence from the second dogfood project (BR-9), per this entry's own "resolve by."
+
 **Status:** Logged 2026-04-23 during Milestone 2 Step 1 discussion. Surfaced by the question *"how does Signal handle adding a new feature to an existing already-calibrated project?"*
 
 **Context.** v1's 6-phase flow assumes a project goes through CALIBRATE → DISCUSS → ... → SHIP linearly, once. Real projects aren't one-shot — they ship v1, add feature #2, refactor subsystem #3, deprecate component #4. Signal has no first-class concept of "feature #N of an ongoing project." Today, every command reads project-level `.planning/` artifacts as if the project is a single linear flow.
@@ -355,6 +361,8 @@ Same command (`/sig:review`), same tier, same dial — wildly different runtime 
 ---
 
 ## PREPARE phase — splitting PLAN's tail from EXECUTE's head
+
+> **Update 2026-07-04 (backlog review, ratified):** the ODI analysis folds into M5.E1's phase-decomposition design scope — one phase-skeleton conversation, not two. The three promotion triggers below also move to the Trigger watchlist entry so PREPARE can still fire early on lived signal. See DECISIONS 2026-07-04.
 
 **Status:** Logged 2026-04-25 during Milestone 2 Step 5 (orphan-skill audit conversation). Strong theoretical signal; awaiting lived signal before promotion.
 
@@ -638,6 +646,8 @@ Reads the same `.planning/` substrate as `/sig:report`, but the *output transfor
 ---
 
 ## `/sig:audit` — engineering-readiness audit (codebase scorecard + refactor plan)
+
+> **Update 2026-07-04 (ratified BR-1):** keeps the `/sig:audit` name. The 2026-06-04 hygiene-sweep proposal below (which also claimed `/sig:audit`) is renamed `/sig:sweep` — evaluate-readiness vs clean-drift is the boundary. See DECISIONS 2026-07-04.
 
 **Status:** Logged 2026-05-09. Source: review of *Code Evaluation Audit* (Nate Bjones, `promptkit.natebjones.com/20260504_qbn_promptkit_1`) — adapted, not ported. Two interview-style prompts in the source; the 6-dimension scorecard is the keeper insight, translated to Signal's artifact-driven substrate. Drop the source's "Mythos-class adversarial review readiness" framing — newsletter-bait tied to a 2026 news cycle; the underlying dimensions are evergreen without it.
 
@@ -943,6 +953,8 @@ A thin Signal-aware wrapper over Claude Code's `/goal`. Reads `PROFILE.md` + `ST
 
 ## I wonder aloud at having a
 
+> **Update 2026-07-04 (backlog review):** sharpened into a concrete design — a statusline script reading STATE.md frontmatter (`current_epic` / `current_wave` / `last_completed_task`, all shipped in schema_version 1) rendering e.g. `M4.5 › E5 › S2.t5 (EXECUTE)`; tier-gated display depth; one verify step first (confirm Claude Code's statusline-config API surface). Verified 2026-07-04: no statusline integration exists in the repo today. Cockpit cluster (`BACKLOG-REVIEW-2026-07-04.md` §3 + §4 Sprint 5).
+
 **Status:** Logged 2026-05-18 via `/sig:add`.
 
 I wonder aloud at having a feature of Signal be a 'you are here' breadcrumb in status line - so somewhere in status line would be "M1>Wave2>T1..." etc. wise? feasible? I just find myself wondering where I am in the process alot of the time, and feels like status line would be a good place for that? thoughts?
@@ -951,6 +963,8 @@ I wonder aloud at having a feature of Signal be a 'you are here' breadcrumb in s
 
 
 ## `/sig:resume` origin-drift detection (2026-05-19)
+
+> **Promoted 2026-07-04 → M4.5.E10** — bundled with STATE auto-update Option A per BR-3 (verified still open same day: no `isStaleVsOrigin` in `tools/lib/state.js`). See DECISIONS 2026-07-04 + MILESTONE-4.5.md § E10.
 
 **Problem:** `/sig:resume` reads local `STATE.md` as the source of truth. If another machine shipped work to origin but the commit didn't touch `STATE.md`, `/sig:resume` orients against stale local state and the user re-plans work that's already done. Happened 2026-05-19: biz-machine Claude session shipped M4.5.E1.S2 Phase A as `f38187a` (no STATE.md touch); dev-machine `/sig:resume` next session re-planned the same Epic from scratch. ~90 min duplicate planning work.
 
@@ -1043,6 +1057,8 @@ Convert `docs/map/index.html` to fetch state at page load via a GitHub raw URL p
 
 ## Drain safety check — an unclosed
 
+> **Promoted 2026-07-04 → M4.5.E10** (capture-pipe guard). See DECISIONS 2026-07-04 + MILESTONE-4.5.md § E10.
+
 **Status:** Logged 2026-05-31 via `/sig:add`.
 
 Drain safety check — an unclosed code fence can hide ideas. If a FUTURE-IDEAS entry contains an opening triple-backtick code fence with no matching close, the /sig:plan drain treats everything below it as inside the fence and skips every entry after it — they become invisible in the candidate list (not deleted, just not shown). Low risk while the file stays well-formed markdown.
@@ -1052,6 +1068,8 @@ Possible fix: in tools/lib/drain.js parseEntries, if the fence is still open at 
 ---
 
 ## M5 opening move — feature-parity audit
+
+> **Update 2026-07-04 (ratified BR-8):** confirmed — this is M5's opening Epic. Scope + sequencing in `BACKLOG-REVIEW-2026-07-04.md` §4 Sprint 2; MILESTONE-5.md carries the opening-move note.
 
 **Status:** Logged 2026-06-01 via `/sig:add`.
 
@@ -1067,6 +1085,8 @@ Related existing FUTURE-IDEAS entries to fold in: "Roadmap refresh — post-M4.5
 
 ## Signal should acclimate it's language to
 
+> **Update 2026-07-04 (ratified BR-4):** sharpened — the dial is a property of the person, not the project. Lives at user level (a communication block in user-scoped config) with an optional per-project PROFILE.md override; every command reads it via a shared output-shaping preamble plus the plain-English mapping tables spec'd in the `/sig:orient` entry (build those tables once, share them). Calibration-depth cluster (`BACKLOG-REVIEW-2026-07-04.md` §4 Sprint 6). See DECISIONS 2026-07-04.
+
 **Status:** Logged 2026-06-03 via `/sig:add`. during PLAN on M4.5.E5
 
 signal should acclimate it's language to how technical the person is. I keep finding myself asking for plain language explanations so I actually understand what things mean and what decision I'm really making. So in the spirit of 'calibrate', one has the option to dial in a spectrum of technical language, one end being "zero-technical knowledge who wants very plain, straight forward explanations anyone can understand <---|---|--->expert/senior developer who wants explicit and detailed technical language"
@@ -1074,6 +1094,8 @@ signal should acclimate it's language to how technical the person is. I keep fin
 ---
 
 ## STATE.md auto-update protocol — extend beyond EXECUTE waves
+
+> **Promoted 2026-07-04 → M4.5.E10** — Option A ratified (BR-3), bundled with origin-drift detection as one slice (shared failure mode + shared fixtures). Options B/C parked on the Trigger watchlist entry. See DECISIONS 2026-07-04 + MILESTONE-4.5.md § E10.
 
 **Status:** Logged 2026-05-24. Trigger: hit during M4.5.E3 DISCUSS work. After E7 SHIP closed (commit `8723967`, 2026-05-23), `last_updated_commit` in STATE.md frontmatter stayed pinned at `8723967` across 5+ subsequent commits spanning E8 scaffolding, E3 DISCUSS lock, vocabulary updates, docs/map work, and E3 DISCUSS revision. The frontmatter was only refreshed by manual intervention after the user called it out as "a bug."
 
@@ -1133,6 +1155,8 @@ Option A as the minimum viable fix — append "refresh STATE.md frontmatter" to 
 **Source data.** STATE.md frontmatter, `commands/execute.md` step-6 protocol, `agents/executors/executor.md` task-completion step, `tools/lib/state.js` (writers + readers), `references/state-schema.md` (the contract definition). See M4.5.E6 SHIP artifacts in `.planning/` + commit `8723967` (E7 SHIP) for the most recent canonical example of the EXECUTE-only refresh in action.
 
 ## `/sig:resume` artifact-resolution doesn't recognize Epic-prefixed naming (`M4.5.E3-PLAN.md`)
+
+> **Promoted 2026-07-04 → M4.5.E10** — verified still open same day (`commands/resume.md` Step 3 still lists only the 3 legacy patterns). See DECISIONS 2026-07-04 + MILESTONE-4.5.md § E10.
 
 **Status:** Logged 2026-05-24. Trigger: M4.5.E3 PLAN phase complete; in preparing for a context clear, observed that `/sig:resume`'s artifact-resolution table won't find `M4.5.E3-PLAN.md` and will degrade to a "Note: expected artifact for PLAN not found" line.
 
@@ -1255,6 +1279,8 @@ Options aren't mutually exclusive. Plausible final shape: S5 covers *new-Epic pl
 
 ## Codebase knowledge-graph as a Signal-managed artifact (graphify, graph-only)
 
+> **Update 2026-07-04 (ratified BR-2):** this entry is now the single home of the traversal-artifact question (consolidates the Intent-Layers finding from the "5 CC tools" entry). Ratified default = hierarchical markdown intent layer — aligns with the locked "plain markdown in git is load-bearing" rule and avoids a Python dep against the <5-min install target. The graph becomes opt-in later, only if relational queries prove needed on a real Epic. Decision spike (run `intent-layer` on a real repo) scheduled in the M5-opening audit. See DECISIONS 2026-07-04.
+
 **Status:** Logged 2026-05-24 after reviewing `safishamsi/graphify` (https://github.com/safishamsi/graphify). Scope deliberately narrowed by user: **adopt the graph artifact only — not graphify's skill, AGENTS.md nudge, install hooks, or auto-rebuild post-commit hooks.** Runtime/language choice (graphify is Python; Signal is JS/Node + markdown) is an open question and may rule out graphify-the-tool while keeping graphify-the-idea.
 
 **Core idea.** A persistent, queryable knowledge graph of the user's codebase — produced once at brownfield onboarding, refreshed at controlled checkpoints, and consumed by Signal's research/planner/reviewer agents instead of grep+glob exploration on every session. The graph is **both a Signal-generated artifact** (Signal owns when it's built and where it lives) **and an ongoing reference surface** that downstream phases read.
@@ -1333,6 +1359,8 @@ Where it would actually help:
 ---
 
 ## Memory & Documentation Management as Signal-managed Runtime (wiki/index pattern + retro enforcement + migration tooling)
+
+> **Update 2026-07-04 (ratified BR-5):** workstreams #1 + #2 SHIPPED as M4.5.E9 (v0.1.3) — SHIP retro gate + `RETROSPECTIVES.md` index. The "SHIP has no retro step" premise below is historical. Remaining scope = #3-active (live-doc wiki restructure; the archive half was dogfooded 2026-06-05) + #4 (doc-runtime), with the six ⚠ lessons from the archive-migration entry as design inputs. Workstream #4's `/sig:doc-review` is absorbed into `/sig:sweep --docs` (BR-1). See DECISIONS 2026-07-04 + `BACKLOG-REVIEW-2026-07-04.md` §4 Sprint 3.
 
 **Status:** Logged 2026-05-25. Originator: user, in response to two concrete pain points: (1) a retrospective got skipped because conversation context cleared first — the learning evaporated; (2) ad-hoc retros routinely have more depth than whatever "summary RETROSPECTIVE" is supposed to be — even though discovery during scoping confirmed **no formal retro step exists in `commands/ship.md` today**. Companion observation: `.planning/` is already at 40 files in the flat root (trending toward 56+ this milestone) — the doc-sprawl problem the user described isn't a future risk, it's already here. Reference: Andrej Karpathy's personal wiki pattern (https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) — markdown files as queryable knowledge base, with index/hub files and explicit cross-links. Signal's own auto-memory (the user's `MEMORY.md` + topical files + `[[name]]` links) already implements exactly this pattern — adopting it for `.planning/` would be internally consistent.
 
@@ -1514,6 +1542,8 @@ Captured here rather than lost-to-context, because the scoping conversation prod
 
 ## FUTURE-IDEAS footer drift — new entries can land below the `*Last updated:*` footer
 
+> **Promoted 2026-07-04 → M4.5.E10** (capture-pipe guard — forward-fix options 1 + 2). See DECISIONS 2026-07-04 + MILESTONE-4.5.md § E10.
+
 **Status:** Logged 2026-06-03 (during PLAN on M4.5.E5). Surgical fix applied same day — the footer was moved to the true end of file; this entry tracks the root-cause hardening so the drift can't silently recur.
 
 **Symptom.** A `/sig:add` capture on 2026-06-03 landed at line ~1068 — *above* a `*Last updated:*` footer that was itself stranded mid-file (line 1079), with 6 idea entries sitting *below* it (lines 1080–1515). `insertAboveFooter` correctly inserts above the first `*Last updated:*` match, so once any content gets appended below the footer, every subsequent `/sig:add` buries new entries above the stranded footer instead of at the real end.
@@ -1538,6 +1568,8 @@ Passive Stop-hook → continuous in-the-moment observation capture. Add a passiv
 ---
 
 ## New command /sig:audit --docs / --code
+
+> **Update 2026-07-04 (ratified BR-1):** renamed **`/sig:sweep --docs / --code`** (the `/sig:audit` name stays with the readiness scorecard above). Absorbs workstream #4's `/sig:doc-review` — its scope (stale indexes, drifted CLAUDE.md, `[FILL IN]` stubs, stale FUTURE-IDEAS) is a subset of `--docs`. Slotted in the memory/doc-runtime cluster (`BACKLOG-REVIEW-2026-07-04.md` §4 Sprint 3).
 
 **Status:** Logged 2026-06-04 via `/sig:add`. mid-EXECUTE on M4.5.E5
 
@@ -1569,6 +1601,8 @@ New command /sig:audit --docs / --code — a periodic deep-dive audit + cleaning
 ---
 
 ## Codebase-traversal + memory borrows from the "5 open-source CC tools" review
+
+> **Update 2026-07-04 (ratified BR-2):** delta 1 (traversal) is resolved-by-default — consolidated into the graphify entry above, with markdown intent layer as the ratified default. Deltas 2–3 and the competition findings are unchanged and still ⚠ pending the M5-opening audit re-validation.
 
 **Status:** Logged 2026-06-05 after reviewing a video walkthrough of 5 Claude Code tools (Intent Layers, DeepSec, Vercel best-practices skill, Agent Memory, Chrome verification). **⚠ REQUIRES ANOTHER ROUND OF REVIEW — conclusions drawn from one conversation against a transcript summary, NOT against the tools' actual source. Do not take at face value; the graphify-vs-Intent-Layers reframe in particular would change a previously-captured decision and must be validated by a real dogfood spike first.**
 
@@ -1631,4 +1665,24 @@ Adopt an explicit maintenance discipline for Signal's own instruction surface, t
 
 ---
 
-*Last updated: 2026-06-07*
+## Trigger watchlist — standing entry (check conditions at every drain)
+
+**Status:** Added 2026-07-04 (backlog review, ratified BR-6). **Standing entry — never promote, merge, or delete.** At each `/sig:plan` drain, walk the conditions below and act on any that have fired; update rows as triggers fire or as new trigger-parked items land. Rationale: 10+ parked entries carry promote-back conditions that nothing evaluated — including one *dated* trigger that would otherwise expire unobserved. See `BACKLOG-REVIEW-2026-07-04.md` §2 A1 + DECISIONS 2026-07-04.
+
+| Parked item (entry / doc) | Trigger condition | Fired? |
+|---|---|---|
+| E1 Slices 3–5 — Linux/WSL install matrix + versioning policy + validator hardening (`MILESTONE-4.5.md` § E1) | A Linux or WSL tester volunteers (D-E3-12) | — |
+| E3 contribution scaffolding — CONTRIBUTING.md / issue templates / `docs/compatibility.md` | (a) external PR opens; (b) ~5+ non-author issues; (c) Linux/WSL tester (pairs with the row above) | — |
+| Synthesizer-output validator-side sanity check | 2+ new synthesizer quality regressions by **2026-08-23** — dated; if the date passes with <2, mark expired-clean | — |
+| `/sig:doctor` helper-script split | Inline `node -e` payloads reported hard to audit, OR a P-state needs JSON mutations beyond delete-a-key | — |
+| `docs/map` refresh Stage 2 (auto-generate) | Stage 1 checklist forgotten on 3+ consecutive Epic ships | — |
+| GitHub Issues adoption (setup checklist in its entry) | First live external tester (expected to fire in Sprint 0 — `BACKLOG-REVIEW-2026-07-04.md` §4) | — |
+| PREPARE phase early promotion | Any of: PLAN skill-load approaches ~40K tokens; 2+ independent "this is prep, not planning" observations; 2+ new skills land homeless | — |
+| STATE auto-update Options B/C | Option A discipline demonstrably fails (frontmatter stale despite the refresh steps) | — |
+| Second dogfood project (BR-9) | Committed in Sprint 0; if not started by the time M5 PLAN runs, escalate — M5's usage-signal gate has no other source | — |
+| Multi-feature lifecycle design | First real "feature #2" added to a Signal-built project (likely the second dogfood project) | — |
+| Option C concerns block (calibration granularity) | Users hand-edit dials against tier defaults, or want a rigor level their tier doesn't offer | — |
+
+---
+
+*Last updated: 2026-07-04*

@@ -26,7 +26,7 @@ Three reasons:
 
 Listed in suggested execution order. Each Epic is independently shippable as v0.1.x.
 
-### Status snapshot (as of 2026-06-03 — E4 closed; E5 next; E4 work unreleased)
+### Status snapshot (as of 2026-07-04 — E5 shipped v0.1.4; E10 added via backlog review)
 
 | Epic | Status | Notes |
 |---|---|---|
@@ -34,7 +34,8 @@ Listed in suggested execution order. Each Epic is independently shippable as v0.
 | **E2 — `/sig:add` capture-and-route** | **✓ shipped 2026-05-31 (in v0.1.3)** | Full 5-slice Epic: hot path (S1) + force-route flags & `--file` (S2) + naked-invocation interview (S3, heuristics cut per Decision 5) + stranger-safety & vocab lint (S4) + `/sig:plan` advisory FUTURE-IDEAS drain (S5). Q2 dispositioned-rule refined in-loop at REVIEW. 183 Epic-owned tests. See `M4.5.E2-RETROSPECTIVE.md`. |
 | **E3 — Public-facing docs rewrite** | **✓ shipped 2026-05-24 (released in v0.1.3 on 2026-05-31)** | Audience reframe to self + peers (D-E3-11). 2 slices, 10 tasks. New: tools/audit-network-calls.js + README Privacy section + Compat table + docs/map link + README Open Source Origins rewrite + SECURITY.md + references/facts.md + tests/cross-file-consistency.test.js. 384 → 397 tests. CONTRIBUTING.md + issue templates + docs/compatibility.md deferred per D-E3-11 (see FUTURE-IDEAS.md "E3 contribution scaffolding — deferred"). |
 | **E4 — Worked example + comparison page** | **✓ shipped 2026-06-03 (closed lightweight; `[Unreleased]` — batches with E5)** | `examples/url-shortener/` (runnable, zero runtime deps, annotated tour, currency guard) + `docs/vs.md` (toolbox-framed prose guide). 3 slices, 10 tasks. `node:sqlite`→JSON-store pivot; AC-count reconciled (24 = 17+7); `vs.md` tone reframe. Root suite 762 → 764; validator green. See `M4.5.E4-RETROSPECTIVE.md`. |
-| E5 — External validation + launch | pending — **unblocked** (E1–E4 all landed) | Next Epic. The natural release trigger — E4's `[Unreleased]` CHANGELOG block ships with E5's launch/version bump. |
+| **E5 — External validation + launch** | **✓ shipped 2026-06-06 (v0.1.4)** | All 4 slices / 9 tasks (launch post, demo script, tester brief + friction log, launch kit, CHANGELOG). v0.1.4 tagged + first GitHub Release; E4's `[Unreleased]` block shipped with it. The outward tester loop (voice pass, recruit ≥3, record demo) remains open — tracked in `M4.5.E5-LAUNCH-KIT.md` §3. |
+| E10 — Resume trust & capture integrity | added 2026-07-04 — pending | v0.1.5 hardening batch from the backlog review (DECISIONS 2026-07-04, BR-7). Ship before external testers onboard. See § E10 below. |
 | **E6 — Resume reliability (STATE.md schema + auto-update + `/sig:checkpoint`)** | **✓ shipped 2026-05-18 (v0.1.2)** | All 5 slices + S6 REVIEW loop-back (5 IMPORTANT findings resolved pre-publish). YAML-frontmatter STATE.md + auto-state-protocol + new `/sig:checkpoint` + staleness banner + orphan UI in `/sig:resume`. 225 → 366 tests; no new runtime deps. |
 | **E7 — Synthesizer prose-quality + install-UX hardening** | **✓ shipped 2026-05-23 (released in v0.1.3 on 2026-05-31)** | DISCUSS + PLAN closed 2026-05-21 (commit `015525e`); EXECUTE 2026-05-22 → 2026-05-23 (per-task atomic commits S1.t1 → S2.t8). Two-layer synthesizer fix: new `embedSection` helper in `tools/lib/landscape.js` (eliminates LLM verbatim-copy as failure mode) + `commands/init.md` long-line splits (reduces dense-prose generation pressure). `docs/install-troubleshooting.md` with 5 symptom sections + Quick Triage + Canonical Clean Reinstall. R1+ rerun on Mac Studio 2026-05-23 verified clean (`docs/install-verification.md` § R1+). Tests 366 → 384; validator green. CHANGELOG [0.1.3] section. See § E7 below + `docs/install-verification.md` R1 for original motivation. |
 | **E8 — `/sig:doctor` install-state diagnostician + reframe** | **✓ shipped 2026-05-30 (in v0.1.3)** | Scoped after E7 surfaced that 3 of 5 install failure modes (P1/P2/P3) are upstream Claude Code plugin-host bugs, not Signal bugs, but the 280-line troubleshooting doc reads as Signal's shame. E8 ships a single command users run to get diagnosis + the exact remediation commands, reframes the troubleshooting doc to name upstream-vs-Signal ownership, and adds auto-version-check to `/sig:status` so staleness gets surfaced before strangers hit weird behavior. Sequenced before E5 launch — launching without it ships the current install dance to strangers. See § E8 below. |
@@ -318,9 +319,24 @@ That is not a plugin upgrade story. That is a hostage situation.
 
 ---
 
+### M4.5.E10 — Resume trust & capture integrity (v0.1.5)
+
+Added 2026-07-04 via backlog-review ratification (`BACKLOG-REVIEW-2026-07-04.md` §4 Sprint 1 + DECISIONS 2026-07-04, BR-7). One theme: **the briefing and the capture pipe must be trustworthy before external testers onboard.** Every item verified still open in source on 2026-07-04; all are small (≤ half-day) with no M5 dependencies.
+
+- **`/sig:resume` Epic-prefix artifact resolution** — resolver tries `{state.current_epic}-{ARTIFACT}.md` first (pattern 0), falling through to the 3 legacy patterns. Today every mid-Epic resume misses the plan briefing (P2). FUTURE-IDEAS entry of same name has the full scope + test sketch (~30 LOC + test).
+- **Origin-drift detection** — `isStaleVsOrigin(baseDir)` in `tools/lib/state.js`; wire into `/sig:resume` + `/sig:status` + `/sig:checkpoint`. Surface a banner, never block. (The 2026-05-19 incident: ~90 min duplicate planning.)
+- **STATE.md auto-update Option A** — append the frontmatter-refresh step to the 5 non-EXECUTE phase commands (`discuss`/`plan`/`verify`/`review`/`ship`), same shape as the executor's step 6. Ratified BR-3; bundled with origin-drift (shared failure mode + fixtures). Options B/C stay on the watchlist.
+- **Capture-pipe guards** — (a) drain dangling-fence warning in `tools/lib/drain.js` (unclosed fence at EOF currently hides every entry below it — REVIEW finding S4); (b) FUTURE-IDEAS footer-position guard in `tools/lib/add.js` (assert-and-repair, forward-fix options 1 + 2 from the footer-drift entry).
+- **`/sig:doctor` upgrade-path diagnostics** — detect version drift: installed plugin version vs marketplace pin vs the `.planning/` schema of an in-flight project. E8 covers install states; this covers the upgrade seam testers on a v0.1.x cadence will hit.
+- **SessionStart-resume hook smoke test + `references/hooks-api.md`** — verify the E9 hook handshake end-to-end in a real session; document the per-event stdin/stdout/exit-code contract Signal uses.
+
+**Exit:** all six items shipped + tested, validator green, released as v0.1.5 before the first external tester onboards.
+
+---
+
 ## Exit Criteria for Milestone 4.5
 
-All 9 Epics shipped (E1–E9). At least 3 non-Signal users have run `/sig:init` through `/sig:ship` on real projects. Friction logs from those runs reviewed; resulting fixes either shipped or promoted to FUTURE-IDEAS / M5. README opens with a pitch a stranger can parse in 60 seconds. Install path verified on at least one fresh non-author machine. Upgrade path collapses to one deterministic command via `/sig:doctor --upgrade` (E8) regardless of starting install state.
+All 10 Epics shipped (E1–E10; E1 S3–S5 remain shelved per D-E3-12). At least 3 non-Signal users have run `/sig:init` through `/sig:ship` on real projects. Friction logs from those runs reviewed; resulting fixes either shipped or promoted to FUTURE-IDEAS / M5. README opens with a pitch a stranger can parse in 60 seconds. Install path verified on at least one fresh non-author machine. Upgrade path collapses to one deterministic command via `/sig:doctor --upgrade` (E8) regardless of starting install state.
 
 ## Notes
 

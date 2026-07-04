@@ -1255,3 +1255,23 @@ REQUIREMENTS FR2 originally locked binary 0/1; PLAN expands to 3-level so CI con
 **Two risks flagged for PLAN:** R1 — FR5 version-rubric location overlaps shelved E1 `docs/versioning.md` (scope it to the rubric only). R2 — distribution channels are "TBD" in the spec; the handoff must name concrete channels (GitHub release + direct peer share).
 
 **Cross-references:** `M4.5.E5-REQUIREMENTS.md` (full spec, FR1–FR8 + NFRs + ACs + Risks); `MILESTONE-4.5.md` § E5 (Epic definition); `analysis/REPO-ANALYSIS.md` (launch-post raw material); `M4.5.E3-REQUIREMENTS.md` § D-E3-10/11 (audience reframe), § D-E3-12 (E1 shelving + tester trigger).
+
+---
+
+## 2026-07-04 — Backlog review ratified (BR-1 through BR-9)
+
+**Context.** Full backlog pass over FUTURE-IDEAS.md (~30 live entries) + MILESTONE-5.md + OPEN-QUESTIONS.md + shelved items, written up as `.planning/BACKLOG-REVIEW-2026-07-04.md` (5 gap-fills, 8 sharpened entries, 8 sprint clusters + watchlist). Ratified interactively 2026-07-04. Dispositions applied inline to FUTURE-IDEAS.md per the Option A drain convention (DECISIONS 2026-05-24); committed work promoted to milestone files.
+
+1. **BR-1 — `/sig:sweep` owns the periodic hygiene sweep (`--docs` / `--code`); `/sig:audit` keeps the engineering-readiness scorecard.** Resolves the name collision between the 2026-05-09 and 2026-06-04 FUTURE-IDEAS entries; `/sig:sweep --docs` absorbs workstream #4's `/sig:doc-review` (its scope is a subset).
+2. **BR-2 — Default traversal artifact = hierarchical markdown intent layer; knowledge graph is opt-in later.** Aligns with the locked "plain markdown in git is load-bearing" anti-rationalization and avoids a Python dep against the <5-min install target. Flips only if relational queries prove needed on a real Epic. Decision spike (run `intent-layer` on a real repo) lives in the M5-opening audit. The graphify entry is now the single home of the traversal question.
+3. **BR-3 — STATE.md auto-update: Option A** (frontmatter-refresh step appended to the 5 non-EXECUTE phase commands), **bundled with origin-drift detection (`isStaleVsOrigin`) as one slice** — shared failure mode (stale STATE → wrong resume briefing) + shared fixtures. Options B/C parked on the trigger watchlist.
+4. **BR-4 — Audience-technicality dial lives at user level** (communication block in user-scoped config) **with per-project PROFILE.md override.** Commands read it via a shared output-shaping preamble + the plain-English mapping tables spec'd in the `/sig:orient` entry — built once, shared.
+5. **BR-5 — Memory & Doc-Runtime entry corrected against shipped reality:** workstreams #1+#2 shipped as M4.5.E9 (v0.1.3); remaining scope = #3-active (live-doc wiki restructure) + #4 (doc-runtime), with the six archive-dogfood ⚠ lessons as design inputs.
+6. **BR-6 — Trigger watchlist adopted** as a standing FUTURE-IDEAS entry that the `/sig:plan` drain surfaces at every planning gate; all trigger-parked items moved onto it (including the dated synthesizer trigger that would otherwise expire unobserved 2026-08-23).
+7. **BR-7 — Sprint 1 (trust hardening → v0.1.5) = new Epic M4.5.E10** ("Resume trust & capture integrity"). Fits the release-hardening charter; ships before external testers onboard. Stanza + status row added to MILESTONE-4.5.md; exit criteria updated to E1–E10.
+8. **BR-8 — M5 opens with the landscape re-audit + roadmap refresh** (confirms the "M5 opening move" FUTURE-IDEAS recommendation). MILESTONE-5.md carries the opening-move note; its E1–E6 order gets re-sequenced by the audit's output.
+9. **BR-9 — Second dogfood project committed** as the usage-signal hedge for M5's gate (Sprint 0). Project selection deferred to kickoff; watchlist row escalates if not started by M5 PLAN.
+
+**What this rules out (so later planning doesn't re-litigate):** a wholesale FUTURE-IDEAS rewrite (dispositions are inline, per Option A); building the graph before the markdown intent layer proves insufficient; per-project storage of the language dial; STATE Options B/C absent evidence Option A fails; treating the sprint clusters as locked Epic definitions (they're planning inputs — each still goes through its own DISCUSS/PLAN).
+
+**Cross-references:** `BACKLOG-REVIEW-2026-07-04.md` (full review + sprint clusters); FUTURE-IDEAS entries stamped 2026-07-04 (7 promotions + 10 updates + watchlist); MILESTONE-4.5.md § E10; MILESTONE-5.md § Epics (opening-move note); DECISIONS 2026-05-24 (Option A drain convention this pass executed).
