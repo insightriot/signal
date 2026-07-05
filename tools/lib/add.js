@@ -393,21 +393,68 @@ export function buildFutureIdeasEntry({ body, date, triggerContext }) {
   ].join('\n');
 }
 
+// A `*Last updated:*` footer line (leading marker only — the trailing format
+// varies). FUTURE-IDEAS files end with one of these.
+const FUTURE_IDEAS_FOOTER_RE = /^\*Last updated:/;
+
+// True when the trimmed line opens/closes a fenced code block.
+function isFenceLine(line) {
+  const t = line.trimStart();
+  return t.startsWith('```') || t.startsWith('~~~');
+}
+
+// Index of the last non-empty line, or -1.
+function lastNonEmptyLineIdx(lines) {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (lines[i].trim() !== '') return i;
+  }
+  return -1;
+}
+
+// Indices of every top-level (non-fenced) footer line, in order. A footer line
+// inside a ``` / ~~~ code fence is a literal sample, not the document footer.
+function footerLineIdxs(lines) {
+  const idxs = [];
+  let inFence = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (isFenceLine(lines[i])) {
+      inFence = !inFence;
+      continue;
+    }
+    if (!inFence && FUTURE_IDEAS_FOOTER_RE.test(lines[i])) idxs.push(i);
+  }
+  return idxs;
+}
+
+// The footer index ONLY when the footer is the LAST non-empty line of the file
+// (trailing-anchored + fence-aware). A fenced `*Last updated:*` sample earlier
+// in the file, or a footer with content stranded below it, returns -1 — the
+// old first-match `findIndex` corrupted both cases. `insertFutureIdeasEntry`
+// handles the stranded case; here we just refuse to misidentify the footer.
+function trailingFooterLineIdx(lines) {
+  const last = lastNonEmptyLineIdx(lines);
+  if (last === -1 || !FUTURE_IDEAS_FOOTER_RE.test(lines[last])) return -1;
+  return footerLineIdxs(lines).includes(last) ? last : -1;
+}
+
 /**
  * Rewrite the trailing `*Last updated: YYYY-MM-DD*` footer to today's date.
- * If no such line is present, append one. Preserves all content above the
- * footer verbatim.
+ * Trailing-anchored + fence-aware: only the real footer (last non-empty line,
+ * not a fenced sample) is rewritten. If no such line is present, append one.
+ * Preserves all content above the footer verbatim.
  *
  * @param {string} content
  * @param {string} date
  * @returns {string}
  */
 export function rewriteFooter(content, date) {
-  const re = /^\*Last updated:[^*]*\*\s*$/m;
-  if (re.test(content)) {
-    return content.replace(re, `*Last updated: ${date}*`);
+  const lines = content.split('\n');
+  const idx = trailingFooterLineIdx(lines);
+  if (idx !== -1) {
+    lines[idx] = `*Last updated: ${date}*`;
+    return lines.join('\n');
   }
-  // No footer — append one. Ensure exactly one trailing newline.
+  // No trailing footer — append one. Ensure exactly one trailing newline.
   const trimmed = content.endsWith('\n') ? content : content + '\n';
   return `${trimmed}\n*Last updated: ${date}*\n`;
 }
@@ -423,7 +470,7 @@ export function rewriteFooter(content, date) {
  */
 export function insertAboveFooter(content, entry) {
   const lines = content.split('\n');
-  const footerIdx = lines.findIndex((l) => /^\*Last updated:/.test(l));
+  const footerIdx = trailingFooterLineIdx(lines);
 
   if (footerIdx === -1) {
     // No footer — append entry at end, ensuring one blank line above.
@@ -449,6 +496,54 @@ export function insertAboveFooter(content, entry) {
     ...lines.slice(insertIdx),
   ];
   return newLines.join('\n');
+}
+
+/**
+ * Insert a FUTURE-IDEAS entry with footer normalization (FR4b). Wraps the
+ * well-formed insert (`rewriteFooter(insertAboveFooter(...))`) with a repair
+ * branch for a drifted file — one where a `*Last updated:*` footer sits
+ * mid-file with content stranded below it (or where there are multiple footers)
+ * so the naive first-match insert would wedge the entry in the wrong place.
+ *
+ * Well-formed (zero footers, or one footer as the last non-empty line) → the
+ * historical behavior byte-for-byte, `repaired: false`. Drifted → strip every
+ * NON-fenced footer line (fenced samples are kept), absorb the remaining
+ * content in order, then land the entry + a single fresh footer at true EOF,
+ * `repaired: true` so the command layer can announce the normalization (AD5:
+ * detect+recover returns the signal; the announce lives in the caller).
+ *
+ * @param {string} content
+ * @param {string} entry — full entry block (already includes its trailing ---)
+ * @param {string} date — ISO date YYYY-MM-DD
+ * @returns {{content: string, repaired: boolean}}
+ */
+export function insertFutureIdeasEntry(content, entry, date) {
+  const lines = content.split('\n');
+  const footers = footerLineIdxs(lines);
+  const last = lastNonEmptyLineIdx(lines);
+
+  const wellFormed =
+    footers.length === 0 || (footers.length === 1 && footers[0] === last);
+
+  if (wellFormed) {
+    return {
+      content: rewriteFooter(insertAboveFooter(content, entry), date),
+      repaired: false,
+    };
+  }
+
+  // Drifted — a footer with content stranded below it, or multiple footers.
+  // Keep every non-footer line (fenced samples included), absorbing stranded
+  // content above; land the entry + one fresh footer at true EOF.
+  const footerSet = new Set(footers);
+  const kept = lines
+    .filter((_, i) => !footerSet.has(i))
+    .join('\n')
+    .replace(/\s+$/, '');
+  return {
+    content: `${kept}\n\n${entry}\n\n*Last updated: ${date}*\n`,
+    repaired: true,
+  };
 }
 
 /**
@@ -829,7 +924,14 @@ export async function captureToDestination(baseDir, opts) {
   try {
     const existing = await readFile(targetPath, 'utf-8');
     const entry = buildEntry({ body, date: today, triggerContext });
-    const newContent = insert(existing, entry, today);
+    // An `insert` closure may return a bare string (most destinations) or a
+    // `{content, repaired}` object (FUTURE-IDEAS footer-repair, S3.t2). Normalize
+    // both so the repair signal threads up to the command layer to announce.
+    const insertResult = insert(existing, entry, today);
+    const newContent =
+      typeof insertResult === 'string' ? insertResult : insertResult.content;
+    const repaired =
+      typeof insertResult === 'string' ? false : Boolean(insertResult.repaired);
     await atomicWrite(targetPath, newContent);
 
     // Compute the 1-indexed line number of the new entry generically: find the
@@ -839,7 +941,7 @@ export async function captureToDestination(baseDir, opts) {
     const lineIdx = newContent.split('\n').findIndex((l) => l === firstEntryLine);
     const line = lineIdx >= 0 ? lineIdx + 1 : -1;
 
-    return { written: true, path: targetPath, line };
+    return { written: true, path: targetPath, line, repaired };
   } finally {
     await lock.released();
   }
@@ -863,7 +965,8 @@ export async function captureToDestination(baseDir, opts) {
  * @param {(hits: Array) => Promise<'keep'|'abort'>} opts.sensitivePrompt
  * @param {(length: number) => Promise<'keep'|'abort'>} [opts.bodyLengthPrompt]
  *
- * @returns {Promise<{written: boolean, path?: string, line?: number, aborted?: string}>}
+ * @returns {Promise<{written: boolean, path?: string, line?: number, aborted?: string, repaired?: boolean}>}
+ *   `repaired: true` when a drifted mid-file footer was normalized (S3.t2).
  */
 export async function captureToFutureIdeas(baseDir, opts) {
   const { body, today, triggerContext, sensitivePrompt, bodyLengthPrompt } = opts;
@@ -872,10 +975,10 @@ export async function captureToFutureIdeas(baseDir, opts) {
     relPath: FUTURE_IDEAS,
     buildEntry: ({ body, date, triggerContext }) =>
       buildFutureIdeasEntry({ body, date, triggerContext }),
-    // Footer rewrite stays FUTURE-IDEAS-specific — encapsulated here so the
-    // shared spine never assumes a footer exists.
-    insert: (content, entry, date) =>
-      rewriteFooter(insertAboveFooter(content, entry), date),
+    // Footer handling stays FUTURE-IDEAS-specific — encapsulated here so the
+    // shared spine never assumes a footer exists. Returns {content, repaired}
+    // so a drifted (stranded-footer) file gets normalized + announced (S3.t2).
+    insert: (content, entry, date) => insertFutureIdeasEntry(content, entry, date),
     // Preserve the exact error text Slice 1 threw (existing test asserts
     // /sig:init/ appears).
     missingFileError:

@@ -22,6 +22,7 @@ import {
   buildOpenQuestionsEntry,
   buildMilestoneEntry,
   insertAboveFooter,
+  insertFutureIdeasEntry,
   insertAtEnd,
   insertIntoHoldingSection,
   rewriteFooter,
@@ -529,6 +530,121 @@ describe('insertAboveFooter (pure)', () => {
     // Both prior separators still present
     expect(after.match(/^---$/gm)?.length).toBeGreaterThanOrEqual(3);
   });
+
+  // S3.t2: trailing-anchored footer detection. A fenced `*Last updated:*`
+  // SAMPLE earlier in the file must not be treated as THE footer (the old
+  // first-match findIndex corrupted the entry containing the sample).
+  it('ignores a fenced *Last updated:* sample and inserts above the real trailing footer', () => {
+    const before = [
+      '# FUTURE-IDEAS',
+      '',
+      '## Idea with a footer sample',
+      '',
+      'A footer looks like:',
+      '',
+      '```',
+      '*Last updated: 2099-09-09*',
+      '```',
+      '',
+      '---',
+      '',
+      '*Last updated: 2020-01-01*',
+      '',
+    ].join('\n');
+    const after = insertAboveFooter(before, '## new entry\n\nbody\n\n---');
+    // Inserted above the REAL (trailing) footer, i.e. AFTER the fenced sample.
+    expect(after.indexOf('## new entry')).toBeGreaterThan(after.indexOf('2099-09-09'));
+    expect(after.indexOf('## new entry')).toBeLessThan(after.lastIndexOf('*Last updated:'));
+    // The fenced sample is untouched.
+    expect(after).toContain('*Last updated: 2099-09-09*');
+  });
+});
+
+describe('insertFutureIdeasEntry (S3.t2 — trailing-anchored + fence-aware footer repair, FR4b)', () => {
+  const ENTRY = '## New idea\n\nNew body.\n\n---';
+
+  // AC4.5 — a well-formed file: entry lands above the footer, footer date
+  // bumps, everything else stays byte-identical; no spurious repair.
+  it('AC4.5: well-formed file — entry above footer, date bumped, no repair', () => {
+    const before =
+      '# FUTURE-IDEAS\n\n## Existing idea\n\nBody of existing.\n\n---\n\n*Last updated: 2020-01-01*\n';
+    const { content, repaired } = insertFutureIdeasEntry(before, ENTRY, '2026-07-05');
+    expect(repaired).toBe(false);
+    expect(content).toContain('## New idea');
+    expect(content.indexOf('## New idea')).toBeLessThan(content.indexOf('*Last updated:'));
+    expect(content).toContain('*Last updated: 2026-07-05*');
+    expect(content).not.toContain('2020-01-01');
+    // Pre-existing entry preserved verbatim (prefix byte-identical).
+    expect(content.startsWith('# FUTURE-IDEAS\n\n## Existing idea\n\nBody of existing.')).toBe(true);
+    // Exactly one footer.
+    expect((content.match(/^\*Last updated:/gm) || []).length).toBe(1);
+  });
+
+  // AC4.4 — stranded content below a mid-file footer: repair to a single
+  // footer at true EOF, nothing lost, entry landed above it, announced.
+  it('AC4.4: stranded content below the footer — repaired to single EOF footer, nothing lost', () => {
+    const before = [
+      '# FUTURE-IDEAS',
+      '',
+      '## Idea one',
+      '',
+      'Body one.',
+      '',
+      '---',
+      '',
+      '*Last updated: 2020-01-01*',
+      '',
+      '## Stranded idea',
+      '',
+      'This got appended below the footer.',
+      '',
+    ].join('\n');
+    const { content, repaired } = insertFutureIdeasEntry(before, ENTRY, '2026-07-05');
+    expect(repaired).toBe(true);
+    // Nothing lost — both pre-existing ideas survive.
+    expect(content).toContain('## Idea one');
+    expect(content).toContain('## Stranded idea');
+    expect(content).toContain('## New idea');
+    // Exactly one footer, at true EOF, today's date; stale date gone.
+    expect((content.match(/^\*Last updated:/gm) || []).length).toBe(1);
+    expect(content.trimEnd().endsWith('*Last updated: 2026-07-05*')).toBe(true);
+    expect(content).not.toContain('2020-01-01');
+  });
+
+  // Fenced-sample false positive at the integration level: a well-formed file
+  // whose entry contains a fenced footer sample must NOT be flagged as needing
+  // repair, and the sample must survive.
+  it('does not treat a fenced *Last updated:* sample as the footer (no false repair)', () => {
+    const before = [
+      '# FUTURE-IDEAS',
+      '',
+      '## Idea with a sample',
+      '',
+      '```',
+      '*Last updated: 2099-09-09*',
+      '```',
+      '',
+      '---',
+      '',
+      '*Last updated: 2020-01-01*',
+      '',
+    ].join('\n');
+    const { content, repaired } = insertFutureIdeasEntry(before, ENTRY, '2026-07-05');
+    expect(repaired).toBe(false);
+    expect(content).toContain('*Last updated: 2099-09-09*'); // sample untouched
+    expect(content).toContain('## New idea');
+    // The real (non-fenced) footer bumped; the fenced sample date unchanged.
+    expect(content).toContain('*Last updated: 2026-07-05*');
+  });
+
+  // Footerless file: append entry + a fresh footer, no repair flag.
+  it('appends an entry + footer to a footerless file without flagging repair', () => {
+    const before = '# FUTURE-IDEAS\n\n## Only idea\n\nBody.\n';
+    const { content, repaired } = insertFutureIdeasEntry(before, ENTRY, '2026-07-05');
+    expect(repaired).toBe(false);
+    expect(content).toContain('## New idea');
+    expect(content.trimEnd().endsWith('*Last updated: 2026-07-05*')).toBe(true);
+  });
 });
 
 describe('atomicWrite (I/O)', () => {
@@ -646,6 +762,40 @@ describe('captureToFutureIdeas (integration)', () => {
     expect(content).toContain('use semver-it for tag publish');
     expect(content).toContain('*Last updated: 2026-05-14*');
     expect(content).not.toContain('*Last updated: 2026-05-12*');
+    expect(result.repaired).toBe(false); // well-formed → no repair (S3.t2)
+  });
+
+  it('threads repaired:true and normalizes a stranded-footer file (S3.t2 integration)', async () => {
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+    const stranded = [
+      '# FUTURE-IDEAS',
+      '',
+      '## Idea one',
+      '',
+      'Body one.',
+      '',
+      '*Last updated: 2020-01-01*',
+      '',
+      '## Stranded idea',
+      '',
+      'Appended below the footer by a bad write.',
+      '',
+    ].join('\n');
+    await writeFile(join(tempDir, '.planning', 'FUTURE-IDEAS.md'), stranded, 'utf-8');
+    const result = await captureToFutureIdeas(tempDir, {
+      body: 'a fresh capture into the drifted file',
+      today: '2026-07-05',
+      sensitivePrompt: async () => 'keep',
+    });
+    expect(result.written).toBe(true);
+    expect(result.repaired).toBe(true);
+    const content = await readFile(result.path, 'utf-8');
+    // Nothing lost; single footer at true EOF; the fresh capture present.
+    expect(content).toContain('## Idea one');
+    expect(content).toContain('## Stranded idea');
+    expect(content).toContain('a fresh capture into the drifted file');
+    expect((content.match(/^\*Last updated:/gm) || []).length).toBe(1);
+    expect(content.trimEnd().endsWith('*Last updated: 2026-07-05*')).toBe(true);
   });
 
   it('throws when .planning/ is missing (acceptance criterion 2)', async () => {

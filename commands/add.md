@@ -139,6 +139,14 @@ Review with: git diff {path}
 Revert with: git checkout -- {path}
 ```
 
+**Footer-repair announce (FUTURE-IDEAS only).** If `result.repaired` is `true`, the destination's `*Last updated:*` footer had drifted mid-file (content stranded below it) and the capture normalized it — one footer at true EOF, no content lost. Prepend one line so the extra diff isn't a surprise:
+
+```
+Normalized FUTURE-IDEAS.md footer (it had drifted mid-file; no entries lost).
+```
+
+When `result.repaired` is `false` (the common case), say nothing extra.
+
 Do **not** preview the entry before write (capture latency dies on every confirmation step — see Anti-Rationalization below). The diff *after* write is the confirmation.
 
 ### 8. Error handling
