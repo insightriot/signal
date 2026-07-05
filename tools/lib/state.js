@@ -797,6 +797,88 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
   return { stale: true, aheadCount, commits, touchedPlanning };
 }
 
+// --- schema-drift detection (M4.5.E10.S4.t1, FR5) ---
+
+const SCHEMA_DRIFT_MIGRATION_HINT =
+  'See references/state-schema.md + docs/migration-state-schema-v0.1.x.md; ' +
+  'Signal auto-migrates a legacy/older STATE.md on the next state write.';
+
+/**
+ * Pure schema-drift compare. Given a raw `schema_version` value (a number, or
+ * null/undefined for a legacy/missing version) and the expected version,
+ * returns a finding or `null`. No I/O. AD6: this stays OFF `readState`, which
+ * throws indistinguishably for both the ahead (>expected) and missing-key
+ * cases — so AC5.3's "report rather than crash" needs a bare numeric compare.
+ *
+ * @param {number|null|undefined} rawSchemaVersion
+ * @param {number} [expected=SCHEMA_VERSION]
+ * @returns {{status: 'behind'|'ahead', found: number|null, expected: number, message: string} | null}
+ */
+export function detectSchemaDrift(rawSchemaVersion, expected = SCHEMA_VERSION) {
+  if (rawSchemaVersion === expected) return null;
+  if (typeof rawSchemaVersion === 'number' && Number.isFinite(rawSchemaVersion)) {
+    if (rawSchemaVersion > expected) {
+      return {
+        status: 'ahead',
+        found: rawSchemaVersion,
+        expected,
+        message:
+          `STATE.md was written by a newer Signal (schema_version ${rawSchemaVersion}; ` +
+          `this Signal supports ${expected}). Upgrade Signal, or hand-edit the frontmatter — ` +
+          `reading it fails closed to avoid acting on state this version doesn't understand.`,
+      };
+    }
+    return {
+      status: 'behind',
+      found: rawSchemaVersion,
+      expected,
+      message:
+        `STATE.md is schema_version ${rawSchemaVersion}; this Signal expects ${expected}. ` +
+        SCHEMA_DRIFT_MIGRATION_HINT,
+    };
+  }
+  // null / undefined / non-number — legacy (pre-frontmatter) or missing key.
+  return {
+    status: 'behind',
+    found: null,
+    expected,
+    message:
+      'STATE.md predates the schema_version frontmatter (or is missing it). ' +
+      SCHEMA_DRIFT_MIGRATION_HINT,
+  };
+}
+
+/**
+ * Read-only schema-drift check for a project's STATE.md (FR5). Uses
+ * `parseFrontmatter` (narrow — throws only on malformed YAML), NOT `readState`.
+ * Returns a finding or `null`:
+ *   - no STATE.md             → null (AC5.4)
+ *   - malformed YAML          → {status:'unreadable', …} (no crash, AC5.3-spirit)
+ *   - legacy (no frontmatter) → {status:'behind', …}
+ *   - else                    → detectSchemaDrift(data.schema_version)
+ *
+ * @param {string} baseDir
+ * @returns {Promise<{status: string, found: number|null, expected: number, message: string} | null>}
+ */
+export async function readSchemaDrift(baseDir) {
+  const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
+  if (!existsSync(statePath)) return null;
+  const raw = await readFile(statePath, 'utf-8');
+  let data;
+  try {
+    ({ data } = parseFrontmatter(raw));
+  } catch (err) {
+    return {
+      status: 'unreadable',
+      found: null,
+      expected: SCHEMA_VERSION,
+      message: `STATE.md frontmatter is unreadable (${err.message}). Fix the YAML or re-run /sig:calibrate --re-calibrate.`,
+    };
+  }
+  // Legacy no-frontmatter → behind (auto-migrates on next write); else compare.
+  return detectSchemaDrift(data === null ? null : data.schema_version);
+}
+
 // --- blockers helpers (M4.5.E6.S1.t9) ---
 
 /**
