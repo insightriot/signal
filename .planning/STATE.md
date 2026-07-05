@@ -1,6 +1,6 @@
 ---
 schema_version: 1
-phase: VERIFY
+phase: REVIEW
 current_epic: M4.5.E10
 current_wave: S1
 current_tasks: []
@@ -8,6 +8,7 @@ completed_phases:
   - DISCUSS (2026-07-04)
   - PLAN (2026-07-05)
   - EXECUTE (2026-07-05)
+  - VERIFY (2026-07-05)
 blockers: []
 last_completed_task:
   id: M4.5.E10.S5.t3
@@ -15,8 +16,8 @@ last_completed_task:
   commit: dfc4bf7
   completedAt: 2026-07-05T16:24:45.218Z
 last_decision_at: 2026-07-05T16:24:45.218Z
-last_updated_commit: 6160adc33f5d240dccbf57c518073b4addc42d6f
-last_updated: 2026-07-05T16:34:45.253Z
+last_updated_commit: a6d8ecf1807476045bcb7f2f2b5acce4dfada8bf
+last_updated: 2026-07-05T18:30:11.024Z
 ---
 <!-- Original STATE.md content preserved verbatim from pre-schema_v1 migration on 2026-05-18. The YAML frontmatter above is the authoritative machine-readable state; everything below is human-readable history. -->
 
@@ -44,7 +45,7 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Phase
 
-**M4.5.E10 (Resume trust & capture integrity → v0.1.5) — EXECUTE complete 2026-07-05 (all 5 slices, 13 tasks); phase → VERIFY next.** New Epic promoted from the 2026-07-04 backlog review (BR-7); trust-hardening batch shipped before external testers onboard. Six items → **5 slices** (high-risk-first): **S1** origin-drift (`isStaleVsOrigin`, hardened+bounded fetch on resume/status/checkpoint) + STATE freshness in discuss/plan · **S2** resume Epic-prefix resolver (+ traversal guard) · **S3** capture-pipe guards (drain dangling-fence + `/sig:add` footer repair + lint, recover+warn) · **S4** schema-drift banner in `/sig:status`+`/sig:resume` (moved out of `/sig:doctor`, AD2) · **S5** hook smoke harness + `references/hooks-api.md` + privacy-doc fix. PLAN gated 3 scope decisions: FR1 kept as the Signal-on-Signal resolver read-half (AD1); schema-drift → status/resume (AD2); privacy docs reconciled (AD3). **Epic-native flow committed as the NEXT Epic after E10** (make Epic mode first-class — DECISIONS 2026-07-05); FR1 is its forward-compatible read-half. PLAN output: `M4.5.E10-{RESEARCH,PLAN,VALIDATION}.md`, 8/8 dims PASS, 31/31 ACs mapped. **EXECUTE shipped all 5 slices** (`0c0ca54..dfc4bf7`, per-task atomic commits, all pushed): **S1** FR2 origin-drift (`isStaleVsOrigin` hardened fail-open + banner in resume/status/checkpoint) + FR3 `markFresh` in discuss/plan · **S2** FR1 `resolveArtifactPath` Epic-prefix resolver + traversal guard (fixes the resume-can't-find-`M4.5.E10-PLAN.md` papercut) · **S3** FR4 capture-pipe guards (`listDrainCandidatesWithRecovery` dangling-fence + `insertFutureIdeasEntry` footer repair + `lintFutureIdeasFooter` dogfood lint) · **S4** FR5 `detectSchemaDrift`/`readSchemaDrift` + banner in status/resume (AD2 host) · **S5** FR6 hook spawn harness + `references/hooks-api.md` + SD3 privacy-doc reconciliation. **777→848 tests** (+71), validator green, no new deps. Progress board: `M4.5.E10-PROGRESS.md`. **Next: `/sig:verify`** (FULL tier — full suite + strict Nyquist over the 31 ACs). (Authoritative per-Epic state is the frontmatter above; this prose echoes it.)
+**M4.5.E10 (Resume trust & capture integrity → v0.1.5) — EXECUTE + VERIFY + REVIEW complete 2026-07-05; phase → SHIP next.** New Epic promoted from the 2026-07-04 backlog review (BR-7); trust-hardening batch shipped before external testers onboard. Six items → **5 slices** (high-risk-first): **S1** origin-drift (`isStaleVsOrigin`, hardened+bounded fetch on resume/status/checkpoint) + STATE freshness in discuss/plan · **S2** resume Epic-prefix resolver (+ traversal guard) · **S3** capture-pipe guards (drain dangling-fence + `/sig:add` footer repair + lint, recover+warn) · **S4** schema-drift banner in `/sig:status`+`/sig:resume` (moved out of `/sig:doctor`, AD2) · **S5** hook smoke harness + `references/hooks-api.md` + privacy-doc fix. PLAN gated 3 scope decisions: FR1 kept as the Signal-on-Signal resolver read-half (AD1); schema-drift → status/resume (AD2); privacy docs reconciled (AD3). **Epic-native flow committed as the NEXT Epic after E10** (make Epic mode first-class — DECISIONS 2026-07-05); FR1 is its forward-compatible read-half. PLAN output: `M4.5.E10-{RESEARCH,PLAN,VALIDATION}.md`, 8/8 dims PASS, 31/31 ACs mapped. **EXECUTE shipped all 5 slices** (`0c0ca54..dfc4bf7`, per-task atomic commits, all pushed): **S1** FR2 origin-drift (`isStaleVsOrigin` hardened fail-open + banner in resume/status/checkpoint) + FR3 `markFresh` in discuss/plan · **S2** FR1 `resolveArtifactPath` Epic-prefix resolver + traversal guard (fixes the resume-can't-find-`M4.5.E10-PLAN.md` papercut) · **S3** FR4 capture-pipe guards (`listDrainCandidatesWithRecovery` dangling-fence + `insertFutureIdeasEntry` footer repair + `lintFutureIdeasFooter` dogfood lint) · **S4** FR5 `detectSchemaDrift`/`readSchemaDrift` + banner in status/resume (AD2 host) · **S5** FR6 hook spawn harness + `references/hooks-api.md` + SD3 privacy-doc reconciliation. **777→848 tests** (+71), validator green, no new deps. Progress board: `M4.5.E10-PROGRESS.md`. **VERIFY:** PASS — 31/31 ACs, strict-Nyquist RED-first attestation (`M4.5.E10-VERIFICATION.md`). **REVIEW:** PASS-WITH-FIXES — 2 independent specialist agents (code-quality + security); both caught the same crash (F1: `isStaleVsOrigin`/`isStateStale` threw on a schema-drifted STATE.md instead of degrading); 7 findings fixed in-phase (+ Sec-2 git-option-injection guard), 848→**854 tests**; report `M4.5.E10-REVIEW.md`. **Next: `/sig:ship`** (FULL tier — pre-ship checklist, retro gate, v0.1.5 release). (Authoritative per-Epic state is the frontmatter above; this prose echoes it.)
 
 **M4.5.E5 (external validation + launch) — SHIPPED as v0.1.4 (2026-06-06); the last M4.5 Epic before E10 was added.** PLAN complete 2026-06-03; phase → EXECUTE (Slice 1). Four gray areas gated individually under FULL/strict: launch posture = **quiet peer release**; validation = **assets now, validate async**; assets = **full launch-post draft + demo script**; version = **decide at E5 close with a written rubric**. Spine decision (D-E5-6): **asset/human split** — EXECUTE ships only Claude-producible drafts/templates; the outward actions (recruit peers, record, publish, push tag) are Brett's async handoff. PLAN output: `M4.5.E5-{RESEARCH,PLAN,VALIDATION}.md` — 4 vertical slices / 9 tasks, 8/8 dim PASS + strict Nyquist (9/9 ACs mapped). R1→inline version rubric (no `docs/versioning.md`); R2→GitHub-release + direct peer share + README surfacing. **Next: `/sig:execute` (S1.t1 — launch-asset guard test, RED).** (Authoritative per-Epic phase state is the frontmatter at the top; this prose echoes it.)
 
