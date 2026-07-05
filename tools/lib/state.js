@@ -652,6 +652,151 @@ export async function isStateStale(baseDir, opts = {}) {
   }
 }
 
+// --- origin-drift check (M4.5.E10.S1.t2, FR2) ---
+
+// Bounded, non-interactive fetch env (AD7). The load-bearing anti-hang
+// detail: kill terminal/credential/SSH prompts so a remote that would
+// otherwise block on auth can't wedge a /sig:resume|status|checkpoint run.
+const ORIGIN_FETCH_TIMEOUT_MS = 2000;
+const ORIGIN_FETCH_ENV = {
+  GIT_TERMINAL_PROMPT: '0',
+  GIT_ASKPASS: '',
+  SSH_ASKPASS: '',
+  GIT_SSH_COMMAND: 'ssh -oBatchMode=yes -oConnectTimeout=2',
+};
+
+/**
+ * Detect whether the remote default branch is ahead of the commit recorded
+ * in STATE.md (`last_updated_commit`) — i.e. someone (or another machine)
+ * pushed work the local STATE.md doesn't reflect. Distinct from
+ * `isStateStale` (which compares against local HEAD); this reaches the
+ * network via a hardened, bounded `git fetch`.
+ *
+ * **Fail-open by construction.** Every failure mode — non-git dir, no
+ * remote, offline, fetch timeout/auth-hang, unset `origin/HEAD`, diverged
+ * or force-pushed history, null baseline — resolves to `{stale:false}` and
+ * never throws. The fetch writes `.git/` (FETCH_HEAD, remote refs), NOT
+ * `.planning/`, so callers that advertise a read-only `.planning/` contract
+ * (`/sig:status`) still hold.
+ *
+ * @param {string} baseDir
+ * @param {{execFn?: typeof execFileSync}} [opts]
+ * @returns {Promise<{stale: boolean, aheadCount: number, commits: Array<{sha, subject}>, touchedPlanning: boolean}>}
+ */
+export async function isStaleVsOrigin(baseDir, opts = {}) {
+  const execFn = opts.execFn ?? execFileSync;
+  const notStale = { stale: false, aheadCount: 0, commits: [], touchedPlanning: false };
+
+  const state = await readState(baseDir);
+  if (!state) return notStale;
+  const stored = state.last_updated_commit;
+  if (!stored) return notStale; // no baseline — can't measure
+
+  // 1. Resolve the remote default branch. Unset origin/HEAD prints the
+  //    literal "origin/HEAD" and exits 128; both the throw and the literal
+  //    fall back to `main` (AC2.5).
+  let branch = 'main';
+  try {
+    const ref = String(
+      execFn('git', ['rev-parse', '--abbrev-ref', 'origin/HEAD'], {
+        cwd: baseDir,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      })
+    ).trim();
+    if (ref && ref !== 'origin/HEAD') {
+      branch = ref.startsWith('origin/') ? ref.slice('origin/'.length) : ref;
+    }
+  } catch {
+    branch = 'main';
+  }
+  const tracking = `origin/${branch}`;
+
+  // 2. Bounded, non-interactive fetch of just that branch. Any throw
+  //    (offline / no-remote / timeout / auth-hang) → fail open.
+  try {
+    execFn(
+      'git',
+      [
+        '-c', 'credential.helper=',
+        '-c', 'core.askPass=',
+        'fetch', '--no-tags', '--quiet', '--no-recurse-submodules',
+        'origin', branch,
+      ],
+      {
+        cwd: baseDir,
+        timeout: ORIGIN_FETCH_TIMEOUT_MS,
+        killSignal: 'SIGKILL',
+        stdio: ['ignore', 'ignore', 'ignore'],
+        env: { ...process.env, ...ORIGIN_FETCH_ENV },
+      }
+    );
+  } catch {
+    return notStale;
+  }
+
+  // 3. How many commits is the remote branch ahead of the stored sha? A
+  //    missing sha or diverged history → `fatal: bad revision` (exit 128)
+  //    → catch → fail open.
+  let aheadCount;
+  try {
+    aheadCount = parseInt(
+      String(
+        execFn('git', ['rev-list', '--count', `${stored}..${tracking}`], {
+          cwd: baseDir,
+          stdio: ['ignore', 'pipe', 'ignore'],
+        })
+      ).trim(),
+      10
+    );
+  } catch {
+    return notStale;
+  }
+  if (!Number.isFinite(aheadCount) || aheadCount <= 0) return notStale;
+
+  // 4. Commit subjects for the banner. A throw here degrades to an empty
+  //    list but keeps the (already-known) count.
+  let commits = [];
+  try {
+    const out = execFn(
+      'git',
+      ['log', '--pretty=format:%H %s', `${stored}..${tracking}`],
+      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
+    );
+    commits = String(out)
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => {
+        const idx = line.indexOf(' ');
+        return idx === -1
+          ? { sha: line, subject: '' }
+          : { sha: line.slice(0, idx), subject: line.slice(idx + 1) };
+      });
+  } catch {
+    commits = [];
+  }
+
+  // 5. Did any of those ahead commits touch .planning/? Drives the banner's
+  //    "your project memory moved" highlight (AC2.3).
+  let touchedPlanning = false;
+  try {
+    touchedPlanning =
+      parseInt(
+        String(
+          execFn(
+            'git',
+            ['rev-list', '--count', `${stored}..${tracking}`, '--', '.planning/'],
+            { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
+          )
+        ).trim(),
+        10
+      ) > 0;
+  } catch {
+    touchedPlanning = false;
+  }
+
+  return { stale: true, aheadCount, commits, touchedPlanning };
+}
+
 // --- blockers helpers (M4.5.E6.S1.t9) ---
 
 /**
