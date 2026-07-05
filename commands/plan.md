@@ -128,6 +128,14 @@ Document any drift discovered (e.g., "research assumed `better-sqlite3@11`; dev 
 
 This step is intentionally lightweight at FEATURE/SKETCH (`research_parallelism: 0–2`); it's primarily a guard against silent assumption drift at FULL where 4-agent research can produce confident-but-stale environment claims.
 
+### 7. Mark STATE.md fresh (M4.5.E10.S1.t5, FR3)
+
+**SKETCH tier:** skip this step. STATE.md updates only via manual `/sig:checkpoint`.
+
+**FEATURE/SPIKE/FULL:** after the PLAN artifacts (`{phase}-PLAN.md` / `{phase}-RESEARCH.md` / `{phase}-VALIDATION.md`) are committed, call `markFresh(baseDir, {commit: <git HEAD>})` from `tools/lib/state.js`. This advances `last_updated` + `last_updated_commit` to the phase-close commit so the staleness banner in `/sig:resume` reads fresh after PLAN. Run it **after** the commit — passing a pre-commit HEAD records a stale sha and silently defeats the freshness check (AC3.4).
+
+Wrap the call in a **catch-all**: if `markFresh` throws for *any* reason — `StateSchemaError` on a schema-mismatched STATE.md, `StateWriteError` on lock contention, git unavailable — warn and continue. The plan is written and committed; a state-write blip is a recovery item, not a PLAN failure. (Mirrors verify/review/ship; a bare git/lock guard is not enough — `markFresh` can throw `StateSchemaError` too.)
+
 ## Phase Gate
 
 ### Anti-Rationalization Check

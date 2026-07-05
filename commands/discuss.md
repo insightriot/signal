@@ -148,3 +148,11 @@ PLAN
 - CALIBRATE ({date})
 - DISCUSS ({current_date})
 ```
+
+### Mark STATE.md fresh (M4.5.E10.S1.t5, FR3)
+
+**SKETCH tier:** skip this step. STATE.md updates only via manual `/sig:checkpoint`.
+
+**FEATURE/SPIKE/FULL:** after the DISCUSS artifacts (PROJECT.md / CONTEXT.md / REQUIREMENTS.md) are committed, call `markFresh(baseDir, {commit: <git HEAD>})` from `tools/lib/state.js`. This advances `last_updated` + `last_updated_commit` to the phase-close commit so the staleness banner in `/sig:resume` reads fresh after DISCUSS. Run it **after** the commit — passing a pre-commit HEAD records a stale sha and silently defeats the freshness check (AC3.4).
+
+Wrap the call in a **catch-all**: if `markFresh` throws for *any* reason — `StateSchemaError` on a schema-mismatched STATE.md, `StateWriteError` on lock contention, git unavailable — warn and continue. The phase work is done; a state-write blip is a recovery item, not a DISCUSS failure. (Mirrors verify/review/ship; a bare git/lock guard is not enough — `markFresh` can throw `StateSchemaError` too.)
