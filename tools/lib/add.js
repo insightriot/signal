@@ -393,9 +393,13 @@ export function buildFutureIdeasEntry({ body, date, triggerContext }) {
   ].join('\n');
 }
 
-// A `*Last updated:*` footer line (leading marker only — the trailing format
-// varies). FUTURE-IDEAS files end with one of these.
-const FUTURE_IDEAS_FOOTER_RE = /^\*Last updated:/;
+// A `*Last updated: …*` footer line — anchored to the FULL italic shape
+// (`[^*]*\*` requires the closing asterisk), matching rewriteFooter's original
+// regex. Anchoring to the whole shape (not the loose `/^\*Last updated:/`)
+// stops a genuine idea line that merely *begins* `*Last updated:` from being
+// mis-classified as the footer and stripped by the repair path (M4.5.E10
+// REVIEW Sec-3). FUTURE-IDEAS files end with one of these.
+const FUTURE_IDEAS_FOOTER_RE = /^\*Last updated:[^*]*\*\s*$/;
 
 // True when the trimmed line opens/closes a fenced code block.
 function isFenceLine(line) {

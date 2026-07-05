@@ -162,4 +162,28 @@ describe('isStateStale', () => {
     expect(result).toEqual({ stale: false, commitCount: 0, commits: [] });
     expect(execSpy).not.toHaveBeenCalled();
   });
+
+  // REVIEW F1: isStateStale runs BEFORE isStaleVsOrigin in /sig:resume +
+  // /sig:checkpoint, so it must also fail open on a schema-drifted STATE.md —
+  // else those commands crash before the schema-drift banner can render.
+  it('REVIEW F1: fails open (no throw, no git) on a schema-drifted STATE.md', async () => {
+    await plantState(tempDir, { schema_version: 999, last_updated_commit: 'abc123' });
+    const execSpy = vi.fn(() => gitOutput('sha1 anything'));
+    let result;
+    await expect(
+      (async () => { result = await isStateStale(tempDir, { execFn: execSpy }); })()
+    ).resolves.not.toThrow();
+    expect(result).toEqual({ stale: false, commitCount: 0, commits: [] });
+    expect(execSpy).not.toHaveBeenCalled();
+  });
+
+  // REVIEW Sec-2: an option-like last_updated_commit is rejected before it can
+  // be glued into a git revision range.
+  it('REVIEW Sec-2: rejects an option-like last_updated_commit before any git call', async () => {
+    await plantState(tempDir, { last_updated_commit: '--output=/tmp/pwned' });
+    const execSpy = vi.fn(() => gitOutput('sha1 anything'));
+    const result = await isStateStale(tempDir, { execFn: execSpy });
+    expect(result).toEqual({ stale: false, commitCount: 0, commits: [] });
+    expect(execSpy).not.toHaveBeenCalled();
+  });
 });

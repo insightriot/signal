@@ -267,4 +267,29 @@ describe('isStaleVsOrigin', () => {
     expect(fetchOpts.env.GIT_ASKPASS).toBe('');
     expect(fetchOpts.env.GIT_SSH_COMMAND).toContain('BatchMode=yes');
   });
+
+  // REVIEW F1 (both agents): readState throws StateSchemaError on an ahead /
+  // missing-key schema — exactly the file the schema-drift banner exists to
+  // surface. isStaleVsOrigin must fail open, not crash the command.
+  it('REVIEW F1: fails open (no throw, no git) on a schema-drifted STATE.md', async () => {
+    await plantState(tempDir, { schema_version: 999, last_updated_commit: 'abc123' });
+    const execFn = makeExec({ revParse: 'origin/main', fetch: '', revListCount: '3' });
+    let result;
+    await expect(
+      (async () => { result = await isStaleVsOrigin(tempDir, { execFn }); })()
+    ).resolves.not.toThrow();
+    expect(result).toEqual({ stale: false, aheadCount: 0, commits: [], touchedPlanning: false });
+    expect(execFn.calls).toHaveLength(0); // readState threw before any git call
+  });
+
+  // REVIEW Sec-2: a crafted last_updated_commit that git would parse as an
+  // option (leading `-`, e.g. `--output=…`) must be rejected before it reaches
+  // git argv, so it can never become an arbitrary-file-write primitive.
+  it('REVIEW Sec-2: rejects an option-like last_updated_commit before any git call', async () => {
+    await plantState(tempDir, { last_updated_commit: '--output=/tmp/pwned' });
+    const execFn = makeExec({ revParse: 'origin/main', fetch: '', revListCount: '3', log: 'x', revListPlanning: '1' });
+    const result = await isStaleVsOrigin(tempDir, { execFn });
+    expect(result).toEqual({ stale: false, aheadCount: 0, commits: [], touchedPlanning: false });
+    expect(execFn.calls).toHaveLength(0);
+  });
 });

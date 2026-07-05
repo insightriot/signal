@@ -637,6 +637,29 @@ describe('insertFutureIdeasEntry (S3.t2 — trailing-anchored + fence-aware foot
     expect(content).toContain('*Last updated: 2026-07-05*');
   });
 
+  // REVIEW Sec-3: a genuine idea line that merely BEGINS `*Last updated:` but
+  // isn't the full italic footer shape (no closing `*`) must not be classified
+  // as a footer and stripped by the repair path.
+  it('REVIEW Sec-3: does not treat a user line starting with *Last updated: as the footer', () => {
+    const before = [
+      '# FUTURE-IDEAS',
+      '',
+      '## Idea',
+      '',
+      '*Last updated: my note on staleness (no closing marker so this is prose',
+      '',
+      '---',
+      '',
+      '*Last updated: 2020-01-01*',
+      '',
+    ].join('\n');
+    const { content, repaired } = insertFutureIdeasEntry(before, ENTRY, '2026-07-05');
+    // One real footer at EOF → well-formed → no repair, and the user line lives.
+    expect(repaired).toBe(false);
+    expect(content).toContain('*Last updated: my note on staleness');
+    expect((content.match(/^\*Last updated:[^*]*\*\s*$/gm) || []).length).toBe(1);
+  });
+
   // Footerless file: append entry + a fresh footer, no repair flag.
   it('appends an entry + footer to a footerless file without flagging repair', () => {
     const before = '# FUTURE-IDEAS\n\n## Only idea\n\nBody.\n';

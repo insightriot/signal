@@ -588,6 +588,16 @@ const STATE_AFFECTING_PATHS = [
   ':(glob).planning/*-VERIFICATION.md',
   ':(glob).planning/*-REVIEW.md',
 ];
+
+// A stored commit token (`last_updated_commit`) is user-editable YAML that
+// gets glued into a git revision range (`${stored}..${tracking}`). It must
+// start with an alphanumeric (so it can never be parsed by git as an option,
+// e.g. a crafted `--output=…`) and contain only ref-safe characters. Anything
+// else → the caller fails open. Defense-in-depth (M4.5.E10 REVIEW Sec-2): the
+// `execFileSync` args-array already blocks shell injection; this blocks
+// git-option injection from a hostile `.planning/STATE.md`.
+const COMMIT_TOKEN_RE = /^[0-9A-Za-z][0-9A-Za-z._/-]*$/;
+
 /**
  * D11 staleness check: did any state-affecting file get committed since the
  * commit recorded as `last_updated_commit`? Returns commit count + subjects
@@ -611,10 +621,20 @@ export async function isStateStale(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
   const empty = { stale: false, commitCount: 0, commits: [] };
 
-  const state = await readState(baseDir);
+  // Fail open on a schema-drifted / malformed STATE.md — readState throws
+  // StateSchemaError on an ahead/unknown/missing schema_version, and this feeds
+  // /sig:resume + /sig:checkpoint, which must degrade (and still render the
+  // schema-drift banner) rather than crash (M4.5.E10 REVIEW F1).
+  let state;
+  try {
+    state = await readState(baseDir);
+  } catch {
+    return empty;
+  }
   if (!state) return empty;
   const lastCommit = state.last_updated_commit;
   if (!lastCommit) return empty; // no baseline — can't measure
+  if (!COMMIT_TOKEN_RE.test(lastCommit)) return empty; // Sec-2: reject option-like tokens
 
   // Hash short-circuit: HEAD === last_updated_commit means no new commits
   // can exist in the rev range. Same optimization intent as the old
@@ -674,10 +694,11 @@ const ORIGIN_FETCH_ENV = {
  *
  * **Fail-open by construction.** Every failure mode — non-git dir, no
  * remote, offline, fetch timeout/auth-hang, unset `origin/HEAD`, diverged
- * or force-pushed history, null baseline — resolves to `{stale:false}` and
- * never throws. The fetch writes `.git/` (FETCH_HEAD, remote refs), NOT
- * `.planning/`, so callers that advertise a read-only `.planning/` contract
- * (`/sig:status`) still hold.
+ * or force-pushed history, null baseline, **a schema-drifted/malformed
+ * STATE.md** (readState throws), or an option-like `last_updated_commit` —
+ * resolves to `{stale:false}` and never throws. The fetch writes `.git/`
+ * (FETCH_HEAD, remote refs), NOT `.planning/`, so callers that advertise a
+ * read-only `.planning/` contract (`/sig:status`) still hold.
  *
  * @param {string} baseDir
  * @param {{execFn?: typeof execFileSync}} [opts]
@@ -687,10 +708,21 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
   const notStale = { stale: false, aheadCount: 0, commits: [], touchedPlanning: false };
 
-  const state = await readState(baseDir);
+  // Fail open on a schema-drifted / malformed STATE.md — readState throws
+  // StateSchemaError on an ahead/unknown/missing schema_version (exactly the
+  // inputs the schema-drift banner exists to surface). The origin check must
+  // degrade to "not stale", not crash the command (M4.5.E10 REVIEW F1 — both
+  // agents; the docstring's never-throws contract has to hold here too).
+  let state;
+  try {
+    state = await readState(baseDir);
+  } catch {
+    return notStale;
+  }
   if (!state) return notStale;
   const stored = state.last_updated_commit;
   if (!stored) return notStale; // no baseline — can't measure
+  if (!COMMIT_TOKEN_RE.test(stored)) return notStale; // Sec-2: reject option-like tokens
 
   // 1. Resolve the remote default branch. Unset origin/HEAD prints the
   //    literal "origin/HEAD" and exits 128; both the throw and the literal
@@ -850,12 +882,13 @@ export function detectSchemaDrift(rawSchemaVersion, expected = SCHEMA_VERSION) {
 
 /**
  * Read-only schema-drift check for a project's STATE.md (FR5). Uses
- * `parseFrontmatter` (narrow — throws only on malformed YAML), NOT `readState`.
+ * `parseFrontmatter` (narrow — throws only on malformed YAML or non-mapping
+ * frontmatter), NOT `readState` (which fails closed on ahead/missing schema).
  * Returns a finding or `null`:
- *   - no STATE.md             → null (AC5.4)
- *   - malformed YAML          → {status:'unreadable', …} (no crash, AC5.3-spirit)
- *   - legacy (no frontmatter) → {status:'behind', …}
- *   - else                    → detectSchemaDrift(data.schema_version)
+ *   - no STATE.md              → null (AC5.4)
+ *   - unreadable file / YAML   → {status:'unreadable', …} (no crash, AC5.3-spirit)
+ *   - legacy (no frontmatter)  → {status:'behind', …}
+ *   - else                     → detectSchemaDrift(data.schema_version)
  *
  * @param {string} baseDir
  * @returns {Promise<{status: string, found: number|null, expected: number, message: string} | null>}
@@ -863,16 +896,19 @@ export function detectSchemaDrift(rawSchemaVersion, expected = SCHEMA_VERSION) {
 export async function readSchemaDrift(baseDir) {
   const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
   if (!existsSync(statePath)) return null;
-  const raw = await readFile(statePath, 'utf-8');
+  // Fold the readFile into the try too (M4.5.E10 REVIEW F3): a delete-after-
+  // existsSync race or a permission error must degrade to 'unreadable', not
+  // crash the /sig:status | /sig:resume caller this whole function serves.
   let data;
   try {
+    const raw = await readFile(statePath, 'utf-8');
     ({ data } = parseFrontmatter(raw));
   } catch (err) {
     return {
       status: 'unreadable',
       found: null,
       expected: SCHEMA_VERSION,
-      message: `STATE.md frontmatter is unreadable (${err.message}). Fix the YAML or re-run /sig:calibrate --re-calibrate.`,
+      message: `STATE.md is unreadable (${err.message}). Fix the file / its frontmatter, or re-run /sig:calibrate --re-calibrate.`,
     };
   }
   // Legacy no-frontmatter → behind (auto-migrates on next write); else compare.
@@ -889,7 +925,12 @@ export async function readSchemaDrift(baseDir) {
  */
 export function formatSchemaDriftBanner(finding) {
   if (!finding) return null;
-  return `⚠ STATE.md schema drift (${finding.status}).\n   ${finding.message}`;
+  // An unreadable/malformed file isn't strictly "schema drift" (REVIEW F5).
+  const label =
+    finding.status === 'unreadable'
+      ? 'STATE.md unreadable'
+      : `STATE.md schema drift (${finding.status})`;
+  return `⚠ ${label}.\n   ${finding.message}`;
 }
 
 // --- blockers helpers (M4.5.E6.S1.t9) ---

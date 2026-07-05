@@ -222,6 +222,12 @@ export function listDrainCandidatesWithRecovery(content) {
   const recovered = parseEntries(tail)
     .map((e) => ({
       ...e,
+      // `recovered` entries are visible for triage-awareness but are NOT in
+      // parseEntries(fullContent) — the dangling fence swallowed them — so they
+      // have a valid `range` but no stable `entryIndex` for applyDisposition.
+      // The tag lets /sig:plan render them yet exclude them from disposition /
+      // "defer all remaining" until the fence is fixed (M4.5.E10 REVIEW F2).
+      recovered: true,
       range: { start: e.range.start + tailStart, end: e.range.end + tailStart },
     }))
     .filter((e) => !e.dispositioned && !seenStarts.has(e.range.start));

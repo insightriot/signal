@@ -277,6 +277,19 @@ describe('listDrainCandidatesWithRecovery (S3.t1 — dangling-fence recover+warn
     expect(b.range.end).toBeGreaterThan(b.range.start);
     expect(DANGLING.slice(b.range.start, b.range.end)).toContain('Idea B');
   });
+
+  // REVIEW F2: recovered entries have a range but no valid parseEntries index,
+  // so they must be distinguishable for the command to exclude them from
+  // disposition. Base (dispositionable) entries stay untagged.
+  it('REVIEW F2: tags recovered entries `recovered: true`; base entries stay untagged', () => {
+    const { candidates } = listDrainCandidatesWithRecovery(DANGLING);
+    const a = candidates.find((e) => e.heading === 'Entry A'); // base
+    const b = candidates.find((e) => e.heading === 'Entry B'); // recovered
+    const c = candidates.find((e) => e.heading === 'Entry C'); // recovered
+    expect(a.recovered).toBeUndefined();
+    expect(b.recovered).toBe(true);
+    expect(c.recovered).toBe(true);
+  });
 });
 
 describe('applyDisposition (pure, byte-range edits)', () => {
