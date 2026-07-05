@@ -64,7 +64,9 @@ If none match, emit a one-line note: `Note: expected artifact for {state.phase} 
 
 Two pre-render checks routed through `tools/lib/state.js` + `tools/lib/resume.js`:
 
-1. **Staleness** — call `isStateStale(baseDir)`. If `stale: true`, capture the result and pass to `renderResumeBriefing` so the banner prepends to the output (D11 + D6 scope). The 60s grace window is intentionally kept for resume (a write-then-resume burst shouldn't flag stale); the user wants the explicit "what changed?" view via `/sig:checkpoint` (which passes `bypassGrace: true`).
+1. **Staleness (local)** — call `isStateStale(baseDir)`. If `stale: true`, capture the result and pass to `renderResumeBriefing` so the banner prepends to the output (D11 + D6 scope). The 60s grace window is intentionally kept for resume (a write-then-resume burst shouldn't flag stale); the user wants the explicit "what changed?" view via `/sig:checkpoint` (which passes `bypassGrace: true`).
+
+1a. **Staleness (origin)** — call `isStaleVsOrigin(baseDir)` from `tools/lib/state.js` and pass the result to `renderResumeBriefing` as `originDriftResult`. This reaches the network via a **bounded, hardened `git fetch`** (2s timeout + SIGKILL, `GIT_TERMINAL_PROMPT=0`, neutralized askpass, SSH BatchMode) and is **fail-open**: any failure (offline, no remote, auth-hang, timeout, diverged history) returns `{stale:false}` and renders no banner — it never blocks the briefing. The fetch writes `.git/` (FETCH_HEAD, remote refs), **not** `.planning/`, so the read-only-`.planning/` posture holds. The origin banner is **distinct** from the local one (D-E10-8): local = "your working tree moved past STATE.md"; origin = "someone pushed work you don't have" (the multi-machine case).
 
 #### 3c. Retro completeness (M4.5.E9.S2.t7)
 
@@ -98,7 +100,8 @@ renderResumeBriefing({
   landscapeCapturedOn: lm?.capturedOn ?? null,
   lockedDecisions: …,             // first 5 bullets from CONTEXT.md § Locked Decisions
   openQuestions: …,               // first 3 headings from OPEN-QUESTIONS.md
-  isStaleResult: staleResult,     // from Step 3b
+  isStaleResult: staleResult,     // local staleness — from Step 3b(1)
+  originDriftResult,              // origin drift — from Step 3b(1a); fail-open
   nextAction: nextActionForPhase(state.phase, profile),
   retroSummary,                   // {total, complete, stub} — see Step 3c
 });
@@ -107,9 +110,14 @@ renderResumeBriefing({
 The rendered briefing has these blocks (in order):
 
 ```
-{If staleness banner active (S4.t2):}
+{If local-staleness banner active (S4.t2):}
 ⚠ STATE.md is {N} commit(s) behind work history.
    Run /sig:checkpoint to refresh, or continue with potentially stale info.
+
+{If origin-drift banner active (S1.t3):}
+⚠ origin is {N} commit(s) ahead of your STATE.md baseline — someone pushed work you don't have.
+   {If .planning/ touched:} Includes .planning/ changes — git pull before continuing so project memory doesn't fork.
+   {else:} Run git pull to sync, or continue (this was a read-only check).
 
 == Project Briefing ==
 

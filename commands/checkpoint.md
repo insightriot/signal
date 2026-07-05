@@ -13,7 +13,7 @@ You are running `/sig:checkpoint`, a not-phase-gated state-refresh command. Same
 
 Authoritative references:
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/checkpoint.js` — `parseCheckpointArgs`, `detectStateChanges`, `renderStateDiff`, `captureCheckpointContext`, `handleCheckpointOrphans`
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `markFresh`, `detectOrphans`, `clearCurrentTask`, `touchDecisionTimestamp`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `markFresh`, `detectOrphans`, `clearCurrentTask`, `touchDecisionTimestamp`, `isStaleVsOrigin`
 - `${CLAUDE_PLUGIN_ROOT}/references/question-patterns.md` — strict-enum used for `apply` / `discard` and orphan `clear` / `keep` prompts
 
 ## Workflow
@@ -62,6 +62,14 @@ After writes, emit the **D2 mitigation banner** verbatim (the explicit "what was
   - Tasks cleared: {comma-separated ids or '(none)'}
   - Now fresh at: {HEAD sha (short)}
 ```
+
+Then call `isStaleVsOrigin(baseDir)` from `tools/lib/state.js` (after `markFresh`, so the baseline is the just-advanced HEAD). If it returns `{stale: true}`, append one advisory line — the refresh made STATE.md match local reality, but the *remote* is still ahead, so a `git pull` is the next move:
+
+```
+⚠ origin is {aheadCount} commit(s) ahead — git pull to sync{ (includes .planning/) if touchedPlanning}.
+```
+
+`isStaleVsOrigin` is **fail-open** (offline / no-remote / auth-hang / timeout → `{stale:false}`, never throws) with a bounded hardened fetch; if it returns `{stale:false}`, skip the line silently. The fetch writes `.git/`, not `.planning/`.
 
 ### 6. Orphan check
 

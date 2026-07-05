@@ -86,6 +86,18 @@ Project: {cwd}
 ...
 ```
 
+#### 2.0b Origin-drift check (prepended)
+
+Also before 2.1, call `isStaleVsOrigin(baseDir)` from `tools/lib/state.js`. If it returns `{stale: true}`, prepend a banner:
+
+```
+⚠ origin is {aheadCount} commit(s) ahead of your STATE.md baseline — someone pushed work you don't have.
+   {if touchedPlanning:} Includes .planning/ changes — git pull before continuing so project memory doesn't fork.
+   {else:} Run git pull to sync, or continue (this was a read-only check).
+```
+
+If `{stale: false}`, skip silently. Like the version check this is **advisory only** and MUST NOT break `/sig:status`: `isStaleVsOrigin` is **fail-open** (offline / no-remote / auth-hang / timeout / diverged → `{stale:false}`, never throws), and its `git fetch` is bounded (2s timeout + SIGKILL, `GIT_TERMINAL_PROMPT=0`, neutralized askpass, SSH BatchMode) — that timeout is what protects the ≤30-line, low-latency `/sig:status` contract. **Read-only note (AD7):** the fetch writes `.git/` (FETCH_HEAD, remote refs), **not** `.planning/`, so `/sig:status`'s "no `.planning/*` mtime changed" gate literally still holds.
+
 #### 2.1 Project + tier
 
 Project root path (use the working directory). Tier from `profile.tier`. If `profile.metadata.escalation_history` is non-empty, append `formatEscalationSummary(profile.metadata.escalation_history)` to the tier line. Calibration date from the `YYYY-MM-DD` portion of `profile.metadata.created_at`.
