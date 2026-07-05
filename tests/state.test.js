@@ -3,7 +3,18 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { initState, readState, transitionPhase, checkGateArtifacts } from '../tools/lib/state.js';
+import { initState, readState, transitionPhase, checkGateArtifacts, SCHEMA_VERSION } from '../tools/lib/state.js';
+
+// S1.t1 (M4.5.E10): SCHEMA_VERSION must be a public named export — the S4
+// schema-drift detector (detectSchemaDrift) numeric-compares raw STATE.md
+// schema_version against it, bypassing readState (which throws on ahead/
+// missing-key). Until this Epic it was module-private (state.js:97).
+describe('SCHEMA_VERSION export', () => {
+  it('is exported as a numeric constant equal to 1', () => {
+    expect(SCHEMA_VERSION).toBe(1);
+    expect(typeof SCHEMA_VERSION).toBe('number');
+  });
+});
 
 describe('State Management', () => {
   let tempDir;

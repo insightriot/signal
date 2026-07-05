@@ -363,7 +363,7 @@ export async function checkGateArtifacts(baseDir, targetPhase) {
   return { ready: missing.length === 0, missing };
 }
 
-export { PHASES, PLANNING_DIR };
+export { PHASES, PLANNING_DIR, SCHEMA_VERSION };
 
 // --- current_tasks helpers (M4.5.E6.S1.t6, D10) ---
 //
