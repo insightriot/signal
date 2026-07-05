@@ -547,6 +547,45 @@ export function insertFutureIdeasEntry(content, entry, date) {
 }
 
 /**
+ * Lint a FUTURE-IDEAS.md string: it must have exactly one `*Last updated:*`
+ * footer and nothing non-whitespace below it (fence-aware — a footer inside a
+ * code fence is a sample, not the footer). The complement of
+ * `insertFutureIdeasEntry`'s repair: repair fixes drift on the next capture,
+ * this detects it so it can't silently accumulate. A footerless file is out of
+ * scope (`ok: true`). Pure — no I/O; the caller reads the file.
+ *
+ * @param {string} content
+ * @returns {{ok: boolean, message?: string}}
+ */
+export function lintFutureIdeasFooter(content) {
+  const lines = String(content).split('\n');
+  const footers = footerLineIdxs(lines);
+  if (footers.length === 0) return { ok: true }; // no footer — out of scope
+  if (footers.length > 1) {
+    return {
+      ok: false,
+      message:
+        `FUTURE-IDEAS.md has ${footers.length} *Last updated:* footers ` +
+        `(lines ${footers.map((i) => i + 1).join(', ')}); it should have exactly ` +
+        `one, at EOF. Run /sig:add to normalize.`,
+    };
+  }
+  const lastFooter = footers[0];
+  for (let i = lastFooter + 1; i < lines.length; i++) {
+    if (lines[i].trim() !== '') {
+      return {
+        ok: false,
+        message:
+          `FUTURE-IDEAS.md has content after its footer (line ${i + 1}: ` +
+          `"${lines[i].trim().slice(0, 60)}"). The *Last updated:* footer must be ` +
+          `the last non-whitespace line. Run /sig:add to normalize.`,
+      };
+    }
+  }
+  return { ok: true };
+}
+
+/**
  * Render an OPEN-QUESTIONS.md entry block. The OPEN-QUESTIONS shape differs from
  * FUTURE-IDEAS: heading, a `**Status:**` line, body verbatim, a `**Resolve by:**`
  * line, then a trailing `---` separator (matching the file's existing
