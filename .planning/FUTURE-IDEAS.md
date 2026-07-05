@@ -1700,6 +1700,11 @@ STATE.md append-without-evict — closed-work narrative must leave the live file
 
 The other three candidate changes (body skeleton in `references/state-schema.md`, evict-on-close in `/sig:ship` + `/sig:checkpoint`, size warning in `/sig:status`) all still stand — but they are read-time/convention controls that writer (B) can ignore; the hook is the only write-time enforcement point. Sequence the hook first; the rest is cleanup behind it. (Drafting the hook patch requires reading `tools/lib/retrospective.js`, where `checkProposedStateWrite` lives, to match its `{block, reason}` return shape.)
 
+**Two refinements (2026-07-04).**
+
+- **Migration-side fix (the acute-case root cause).** The 455KB downstream monster was seeded by the legacy migration, not by slow accretion: `upgradeStateFile` (state.js:177) inlines the entire old file as the new body — `` body = `${notice}\n\n${raw}` `` — and `writeStateFrontmatter` (state.js:411–416) then preserves it verbatim on every subsequent write, so nothing prunes it. Fix: on migration, **relocate the legacy body to a sibling `.planning/STATE-HISTORY.md`** and leave a one-line pointer in STATE.md's body, instead of inlining. This is distinct from the evict-on-close step above (that handles *new* closed slices; this handles the *one-time* legacy seed). Note it's downstream-specific — Signal's own STATE.md never migrated a legacy body, which is why it's ~59KB (7,624 words), not 455KB. Signal's own file still bloats via writer (B) accretion, just an eighth as fast and without the migration accelerant — the same curve, earlier on it.
+- **Tier-aware budget.** The ~2K-live / 8K-total figure above should scale by PROFILE tier rather than being flat: a SKETCH project's STATE.md warrants a tighter ceiling than a FULL project mid-milestone. The hook can read `PROFILE.md` (as the phase commands already do) to pick the threshold; fall back to the flat default when no profile exists.
+
 ---
 
 ## /sig:add derived-title polish — cut the auto-heading at a clause boundary
