@@ -12,7 +12,8 @@ Where `/sig:status` is a snapshot, `/sig:resume` is a **briefing**: it actively 
 
 Authoritative references:
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `ProfileSchemaError`
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `isStateStale`, `isStaleVsOrigin`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/resume.js` — `renderResumeBriefing`, `handleOrphansAtResume`, `resolveArtifactPath`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `nextActionForPhase`, `formatEscalationSummary`, `readOpenQuestions`, `readLandscapeMeta`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/landscape.js` — `extractSection` (used to pull "What this project is" from LANDSCAPE.md when PROJECT.md Vision is still `[INFERRED]` or `[FILL IN]`)
 
@@ -52,13 +53,14 @@ Use `state.phase` to pick which file(s) to read:
 | REVIEW | `{phase}-REVIEW.md` | Critical / Important issue counts |
 | SHIP | `{phase}-SHIP.md` (if present) or pre-ship checklist from STATE.md | Ship-checklist completion |
 
-**Resolving `{phase}-` artifact names** — the v1 convention isn't yet locked (see `.planning/OPEN-QUESTIONS.md`). For each `{ARTIFACT}` above, look in `.planning/` for the first match in this order, then read the first one found:
+**Resolving `{phase}-` artifact names** — the v1 convention isn't yet locked (see `.planning/OPEN-QUESTIONS.md`). Call `resolveArtifactPath(planningDir, ARTIFACT, {currentEpic: state.current_epic, phase: state.phase})` from `tools/lib/resume.js`; it returns the first match (absolute path) or `null`, trying this precedence:
 
-1. `{N}-{ARTIFACT}.md` for any `N` in `[1..9]` — the numeric/GSD-style prefix
+0. `{current_epic}-{ARTIFACT}.md` — the Epic-prefixed form (e.g., `M4.5.E10-PLAN.md`). **Fires only when `current_epic` is set** (a sanitized, path-confined token); a crafted `current_epic` is rejected and falls through. This pattern serves **Epic-prefixed / hand-managed projects** (Signal-on-Signal), where the maintainer writes Epic-scoped artifacts and hand-sets `current_epic` — command-driven projects write phase-prefixed artifacts and leave `current_epic` null, so pattern 0 simply never fires for them (they resolve via 1–3, unchanged).
+1. `{N}-{ARTIFACT}.md` for any `N` in `[1..9]` — the numeric/GSD-style prefix (ascending-N tie-break)
 2. `{ARTIFACT}.md` — the no-prefix simplified form
 3. `{PHASE_NAME}-{ARTIFACT}.md` — the literal-substitution form (e.g., `PLAN-PLAN.md`)
 
-If none match, emit a one-line note: `Note: expected artifact for {state.phase} not found — looked for 1-{ARTIFACT}.md, {ARTIFACT}.md, {PHASE}-{ARTIFACT}.md.` Continue with the briefing using whatever data is available.
+If it returns `null`, emit a one-line note: `Note: expected artifact for {state.phase} not found — looked for {current_epic}-{ARTIFACT}.md (if current_epic set), 1-{ARTIFACT}.md, {ARTIFACT}.md, {PHASE}-{ARTIFACT}.md.` Continue with the briefing using whatever data is available.
 
 ### 3b. Staleness check + orphan detection (M4.5.E6.S4)
 
