@@ -6,6 +6,23 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.5] — 2026-07-05 — M4.5.E10 (resume trust & capture integrity)
+
+A trust-hardening batch shipped before external testers onboard: the `/sig:resume` briefing and the `/sig:add` capture pipe must be trustworthy. No breaking changes; no new runtime dependencies. 777 → 854 tests.
+
+### Added
+
+- **Origin-drift detection** — `/sig:resume`, `/sig:status`, and `/sig:checkpoint` now run a bounded, read-only `git fetch` against your own remote and surface a non-blocking banner when someone (or another machine) pushed work your `STATE.md` doesn't reflect yet. Fail-open by construction (offline / no-remote / auth-prompt / timeout → silently skipped); the fetch is hardened against auth-hangs (`GIT_TERMINAL_PROMPT=0`, SSH `BatchMode`, 2s timeout + `SIGKILL`) and writes only `.git/`, never `.planning/`.
+- **Schema-drift banner** — `/sig:status` + `/sig:resume` detect when a project's `STATE.md schema_version` is behind (needs migration) or ahead (written by a newer Signal) of what the installed plugin supports, and point at the migration path. Platform-agnostic and read-only (deliberately not in the macOS-gated `/sig:doctor`), and it reports rather than crashes on an ahead-schema file.
+- **STATE freshness in DISCUSS + PLAN** — both phases now refresh `STATE.md` at close (like verify/review/ship), so `/sig:resume`'s staleness banner reads fresh after them.
+- **`references/hooks-api.md`** — documents all three wired hooks (their stdin/stdout/exit contracts, the cwd-vs-stdin asymmetry, fail-open convention, and the manual real-session smoke procedure).
+
+### Fixed
+
+- **`/sig:resume` finds Epic-prefixed plan artifacts** — a new resolver tries `{current_epic}-{ARTIFACT}.md` first, so hand-managed Epic-prefixed projects stop reporting "artifact not found" for files like `M4.5.E10-PLAN.md`. Guarded against path traversal via a crafted `current_epic`.
+- **Capture pipe can't silently lose ideas** — `/sig:plan`'s FUTURE-IDEAS drain now recovers entries hidden below an unclosed code fence (with a warning), and `/sig:add` repairs a `*Last updated:` footer that has drifted mid-file (single footer at true EOF, nothing lost) and no longer mistakes a fenced footer sample for the real footer. A lint keeps Signal's own `FUTURE-IDEAS.md` clean.
+- **Hardening (REVIEW)** — the origin/staleness checks now fail open on a schema-drifted or malformed `STATE.md` instead of crashing the command (both review agents caught this), and a user-editable `last_updated_commit` is validated so a crafted value can't be parsed by git as an option.
+
 ## [0.1.4] — 2026-06-06 — M4.5.E4 + M4.5.E5 (worked example + comparison page + launch assets)
 
 ### Added — worked example (M4.5.E4 Slice 1)
