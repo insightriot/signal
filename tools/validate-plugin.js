@@ -56,6 +56,7 @@ const REQUIRED_FILES = [
   'references/phase-gates.md',
   'references/profile-schema.md',
   'references/tier-definitions.md',
+  'references/hooks-api.md',
   'docs/vs.md',
   'docs/launch-post.md',
 ];
