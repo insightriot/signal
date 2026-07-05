@@ -1715,6 +1715,15 @@ The other three candidate changes (body skeleton in `references/state-schema.md`
 
 ---
 
+## Drain disposition-detector misses blockquote promotions....
+
+**Status:** Logged 2026-07-05 via `/sig:add`. during PLAN on M4.5.E10
+
+Drain disposition-detector misses blockquote promotions. /sig:plan's FUTURE-IDEAS drain (listDrainCandidates / parseEntries in tools/lib/drain.js) treats an entry as dispositioned only when the `## ` heading carries a SHIPPED|PROMOTED|DEFERRED|MERGED|DELETED marker (HEADING_DISPOSED_RE) OR a `**Status:**` line carries one of those verbs. But the 2026-07-04 backlog review stamped promotions/updates as blockquotes — `> **Promoted 2026-07-04 → M4.5.E10** ...` — which neither check recognizes. Result: every entry promoted or updated via the blockquote convention resurfaces as a drain candidate forever (the M4.5.E10 PLAN drain surfaced 42 candidates, including the 6 already promoted to E10). Fix options: (a) extend the disposition detector to also treat a leading `> **Promoted|Deferred|Merged|Shipped …**` blockquote inside an entry as dispositioned; or (b) make the backlog-review/promotion convention write a `**Status:**` disposition line (not only a blockquote). Surfaced during M4.5.E10 PLAN (2026-07-05).
+
+---
 
 
-*Last updated: 2026-07-04*
+
+
+*Last updated: 2026-07-05*
