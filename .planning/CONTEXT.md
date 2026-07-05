@@ -35,7 +35,7 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 **v1 is feature-complete and shipped.** Latest release **v0.1.4** (2026-06-06) bundled E4+E5; **v0.1.3** (2026-05-31) bundled E7+E3+E9+E8+E2. Plugin marketplace-installable from `InsightRiot/signal`. Milestones 1–4 closed (M4 + v0.1.0 tagged 2026-05-12).
 
-**MILESTONE 4.5 (Release Hardening / Stranger-Adoption Readiness): all Epics built + shipped (v0.1.4, 2026-06-06).** The milestone's external-validation criterion (≥3 non-Signal testers, feedback merged) remains open, pending the outward tester loop. Shipped Epics: **E1** (install-path fix → v0.1.1; Slices 3–5 shelved), **E6** (STATE schema + `/sig:checkpoint` → v0.1.2), **E7 / E3 / E9 / E8 / E2** (→ v0.1.3), **E4 + E5** (worked example + comparison page + launch assets → v0.1.4, 2026-06-06).
+**MILESTONE 4.5 (Release Hardening / Stranger-Adoption Readiness): E1–E9 shipped (v0.1.1–v0.1.4); E10 added 2026-07-04 and now IN FLIGHT (phase EXECUTE, targeting v0.1.5).** The milestone's external-validation criterion (≥3 non-Signal testers, feedback merged) remains open, pending the outward tester loop. Shipped Epics: **E1** (install-path fix → v0.1.1; Slices 3–5 shelved), **E6** (STATE schema + `/sig:checkpoint` → v0.1.2), **E7 / E3 / E9 / E8 / E2** (→ v0.1.3), **E4 + E5** (worked example + comparison page + launch assets → v0.1.4, 2026-06-06). **E10** (resume trust & capture integrity) is the active build — see Active work below.
 
 - **15 slash commands**, **26 agents**, **21 skills**, **773 tests passing**, validator green.
 - **Conventions locked**: question-patterns (strict enum / 3+other / open-ended); PROFILE.md schema + tier-to-defaults + escalation_history; ID-is-identity vocabulary (M4.5.E6.S1.t1 addressing); `.planning/` always tracked in git; STATE.md YAML frontmatter (`schema_version: 1`) with auto-migration.
@@ -43,11 +43,15 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Active work
 
-**M4.5.E5 — external validation + launch — SHIPPED as v0.1.4 (2026-06-06).** The last M4.5 Epic. All 4 slices / 9 tasks done (launch post, demo script, tester brief + friction-log, internal launch kit, CHANGELOG + dangling-ref fix); VERIFY + REVIEW PASS; retro written + gate-passing; **v0.1.4 cut, tagged (`6328fed`), marketplace re-pinned, and published as the repo's first GitHub Release.** Full suite **777**, validator green. Artifacts: `M4.5.E5-{PLAN,VERIFICATION,REVIEW,RETROSPECTIVE,SHIP,LAUNCH-KIT}.md`.
+**M4.5.E10 — Resume trust & capture integrity → v0.1.5 — IN FLIGHT (phase EXECUTE, wave S1).** Promoted from the 2026-07-04 backlog review (BR-7); trust-hardening batch to ship before external testers onboard. DISCUSS + PLAN complete (2026-07-04 / 07-05). 6 items → **5 slices, high-risk-first**: **S1** origin-drift (`isStaleVsOrigin`, hardened+bounded fetch on resume/status/checkpoint) + STATE freshness in discuss/plan · **S2** resume Epic-prefix resolver (+ traversal guard) · **S3** capture-pipe guards (drain dangling-fence + `/sig:add` footer repair + lint) · **S4** schema-drift banner in `/sig:status`+`/sig:resume` (moved out of `/sig:doctor`, AD2) · **S5** hook smoke test + `references/hooks-api.md` + privacy-doc fix. **Next: `/sig:execute` — S1.t1 (export `SCHEMA_VERSION`) → S1.t2 (`isStaleVsOrigin`, RED-first, the high-risk one).** Plan: `M4.5.E10-{REQUIREMENTS,RESEARCH,PLAN,VALIDATION}.md`; decisions D-E10-1…11 + the 3 PLAN scope gates (AD1 FR1-kept / AD2 schema-drift host / AD3 privacy docs) in DECISIONS 2026-07-04 & 07-05. 8/8 dims PASS, 31/31 ACs mapped, no new deps, 777-test baseline.
 
-- **All M4.5 Epics are now built + shipped.** What remains for M4.5 is *not buildable*: its "≥3 non-Signal testers, feedback merged" criterion needs the **outward tester loop** — voice pass on the 3 launch drafts, recruit peers (send `docs/tester-brief.md`), record the demo (`docs/demo-script.md`), capture friction → v0.1.(N+1) backlog. Tracked in `M4.5.E5-LAUNCH-KIT.md` §3.
+> **Resume caveat (expected, not a bug — it's the thing E10 fixes):** `/sig:resume`'s artifact resolver can't yet find `M4.5.E10-PLAN.md` — the Epic-prefix resolver *is* S2/FR1, not built. Post-clear resume reports the correct STATE (EXECUTE / S1 / next-action) but its current-phase-artifact section will say "not found." Read `M4.5.E10-PLAN.md` directly for the task list until S2 lands.
 
-**Next build horizon: M5** (v2 framework ports + memory-management milestone) — not blocked by the tester loop. The 2026-06-05 corpus restructure already dogfooded part of M5's memory work (see the `/sig:migrate-memory` FUTURE-IDEAS entry).
+**Epic-native flow = the committed NEXT Epic after E10** — make Epic mode first-class (commands create/track Epics, write Epic-scoped artifacts, populate `current_epic`, per-Epic calibration). Root cause + full context in DECISIONS 2026-07-05; FR1 is its forward-compatible read-half.
+
+**M4.5.E5 — external validation + launch — SHIPPED as v0.1.4 (2026-06-06)** (the last M4.5 Epic before E10 was added). v0.1.4 tagged (`6328fed`), first GitHub Release; the outward tester loop (recruit ≥3, record demo) remains open, tracked in `M4.5.E5-LAUNCH-KIT.md` §3.
+
+**Build horizon after E10 + Epic-native: M5** (v2 framework ports + memory-management milestone). The 2026-06-05 corpus restructure already dogfooded part of M5's memory work (see the `/sig:migrate-memory` FUTURE-IDEAS entry).
 
 **Shelved (not deleted), pending tester volunteers (per D-E3-12):**
 
@@ -94,4 +98,4 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ---
 
-*Last updated: 2026-06-06 (M4.5.E5 shipped as v0.1.4; M4.5 build-complete, external-validation loop pending. Prior refresh 2026-06-05 for the `.planning/` archive restructure — see `INDEX.md` for the corpus map.)*
+*Last updated: 2026-07-05 (M4.5.E10 DISCUSS+PLAN complete → phase EXECUTE S1, trust-hardening batch → v0.1.5; Epic-native flow committed as the next Epic. Prior: 2026-06-06 E5 → v0.1.4.)*
