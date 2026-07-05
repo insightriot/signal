@@ -24,7 +24,7 @@ The calibration router is the part none of the others set out to build. They sol
 
 It's early — version 0.1.x, and so far the only person who's run it in anger is me, so treat the calibration premise as a strong hypothesis, not a proven result. Install is verified on macOS; Linux and WSL are untested. The harder-TDD enforcement and the post-ship learning loop you'll see referenced in the docs are on the v2 roadmap, not shipped yet — if those are what you need today, the original projects do them well and I point you straight at them.
 
-On privacy, since people ask: Signal makes no network calls beyond what Claude Code itself makes to Anthropic's API. All state lives in `.planning/` in your repo — no analytics, no telemetry, no usage pings, no remote logging.
+On privacy, since people ask: Signal keeps all state in `.planning/` in your repo — no analytics, no telemetry, no usage pings, no remote logging. Beyond Claude Code's own calls to Anthropic, it makes just two optional network calls, neither carrying your data: a version check against the public GitHub API (is there a newer Signal?), and a read-only `git fetch` to **your own** remote (did someone push work your `STATE.md` doesn't have yet?). Both fail silently offline.
 
 ## If you want to look
 

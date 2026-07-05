@@ -64,11 +64,18 @@ describe('docs/launch-post.md (M4.5.E5 S1.t2 — FR1)', () => {
     expect(words).toBeLessThanOrEqual(850);
   });
 
-  it('uses the exact privacy sentence from the README (no over-claim drift)', () => {
+  it('states the accurate privacy claim — no over-claim drift (M4.5.E10.S5.t3)', () => {
     const content = readFileSync(LAUNCH_POST, 'utf8');
-    expect(content).toContain(
-      'no network calls beyond what Claude Code itself makes to Anthropic',
-    );
+    // Must NOT resurrect the old over-claim: Signal DOES make two network calls
+    // (the GitHub version check + the origin-drift git fetch), so "no network
+    // calls beyond Anthropic's API" is false (SD3/AD3).
+    expect(content).not.toContain('no network calls beyond');
+    // Must state the two real, data-free calls accurately + consistently with
+    // the README's Privacy section.
+    expect(content).toMatch(/version check/i);
+    expect(content).toMatch(/git fetch/i);
+    expect(content).toMatch(/your own/i);
+    expect(content).toMatch(/no analytics, no telemetry/i);
   });
 
   it('links to the landscape analysis, the comparison page, and the worked example', () => {

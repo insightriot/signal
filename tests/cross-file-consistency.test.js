@@ -91,6 +91,17 @@ describe('cross-file consistency: references/facts.md <-> README + SECURITY.md',
     expect(readme).toMatch(/^## Privacy & telemetry$/m);
   });
 
+  it('6a. README Privacy states the two real network calls (no over-claim, M4.5.E10.S5.t3)', () => {
+    // SD3/AD3: "no network calls beyond Anthropic's API" is false — the GitHub
+    // version check (E8) + the origin-drift git fetch (E10) are real. The
+    // section must state both accurately and not resurrect the over-claim.
+    expect(readme).not.toContain('no network calls beyond');
+    expect(readme).toMatch(/version check/i);
+    expect(readme).toMatch(/git fetch/i);
+    expect(readme).toMatch(/your own/i);
+    expect(readme).toMatch(/no analytics, no telemetry/i);
+  });
+
   it('7. README has "### Requirements & compatibility" section nested under Install', () => {
     expect(readme).toMatch(/^### Requirements & compatibility$/m);
   });
