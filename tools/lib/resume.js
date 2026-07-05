@@ -46,6 +46,8 @@ function formatAge(iso) {
  * @param {string[]} [params.lockedDecisions] - first-5 used; remainder summarized
  * @param {string[]} [params.openQuestions] - first-3 used
  * @param {{stale: boolean, commitCount: number}} [params.isStaleResult]
+ * @param {{stale: boolean, aheadCount: number, touchedPlanning: boolean}} [params.originDriftResult]
+ *   - isStaleVsOrigin() output; renders a distinct banner from isStaleResult
  * @param {string} [params.nextAction]  - "Work remaining" copy
  * @returns {string}
  */
@@ -59,6 +61,7 @@ export function renderResumeBriefing(params = {}) {
     lockedDecisions = [],
     openQuestions = [],
     isStaleResult = null,
+    originDriftResult = null,
     nextAction = '',
     retroSummary = null,
   } = params;
@@ -72,6 +75,23 @@ export function renderResumeBriefing(params = {}) {
       } behind work history.`
     );
     lines.push(`   Run /sig:checkpoint to refresh, or continue with potentially stale info.`);
+    lines.push('');
+  }
+
+  // Origin-drift is a distinct trust signal from local staleness (D-E10-8):
+  // the remote moved, not just the local working tree. Kept as its own banner
+  // so both can fire — a machine that pushed .planning/ changes is exactly the
+  // case where "which of my STATE.md files is authoritative?" bites.
+  if (originDriftResult?.stale) {
+    const n = originDriftResult.aheadCount;
+    lines.push(
+      `⚠ origin is ${n} commit${n === 1 ? '' : 's'} ahead of your STATE.md baseline — someone pushed work you don't have.`
+    );
+    if (originDriftResult.touchedPlanning) {
+      lines.push(`   Includes .planning/ changes — git pull before continuing so project memory doesn't fork.`);
+    } else {
+      lines.push(`   Run git pull to sync, or continue (this was a read-only check).`);
+    }
     lines.push('');
   }
 

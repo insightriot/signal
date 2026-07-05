@@ -217,6 +217,71 @@ describe('renderResumeBriefing — staleness banner (S4.t2)', () => {
   });
 });
 
+describe('renderResumeBriefing — origin-drift banner (S1.t3, FR2)', () => {
+  const baseState = { phase: 'EXECUTE', completed_phases: [], current_tasks: [] };
+
+  it('renders an origin-drift banner when originDriftResult.stale is true', () => {
+    const out = renderResumeBriefing({
+      cwd: '/p',
+      profile: FULL_PROFILE,
+      state: baseState,
+      originDriftResult: { stale: true, aheadCount: 3, commits: [], touchedPlanning: false },
+    });
+    expect(out.startsWith('⚠')).toBe(true);
+    expect(out).toMatch(/origin is 3 commits ahead/);
+    expect(out).toMatch(/git pull/);
+  });
+
+  it('highlights .planning/ when the ahead commits touched project memory', () => {
+    const out = renderResumeBriefing({
+      cwd: '/p',
+      profile: FULL_PROFILE,
+      state: baseState,
+      originDriftResult: { stale: true, aheadCount: 2, commits: [], touchedPlanning: true },
+    });
+    expect(out).toMatch(/origin is 2 commits ahead/);
+    expect(out).toMatch(/\.planning\//);
+  });
+
+  it('uses singular "commit" when aheadCount === 1', () => {
+    const out = renderResumeBriefing({
+      cwd: '/p',
+      profile: FULL_PROFILE,
+      state: baseState,
+      originDriftResult: { stale: true, aheadCount: 1, commits: [], touchedPlanning: false },
+    });
+    expect(out).toMatch(/origin is 1 commit ahead/);
+    expect(out).not.toMatch(/1 commits ahead/);
+  });
+
+  it('is a distinct banner from the local-staleness one (both can fire)', () => {
+    const out = renderResumeBriefing({
+      cwd: '/p',
+      profile: FULL_PROFILE,
+      state: baseState,
+      isStaleResult: { stale: true, commitCount: 4 },
+      originDriftResult: { stale: true, aheadCount: 2, commits: [], touchedPlanning: true },
+    });
+    expect(out).toMatch(/4 commits behind work history/);
+    expect(out).toMatch(/origin is 2 commits ahead/);
+  });
+
+  it('omits the origin banner when originDriftResult is absent or not stale', () => {
+    const absent = renderResumeBriefing({ cwd: '/p', profile: FULL_PROFILE, state: baseState });
+    expect(absent).not.toContain('origin is');
+    expect(absent.startsWith('== Project Briefing ==')).toBe(true);
+
+    const notStale = renderResumeBriefing({
+      cwd: '/p',
+      profile: FULL_PROFILE,
+      state: baseState,
+      originDriftResult: { stale: false, aheadCount: 0, commits: [], touchedPlanning: false },
+    });
+    expect(notStale).not.toContain('⚠');
+    expect(notStale.startsWith('== Project Briefing ==')).toBe(true);
+  });
+});
+
 describe('renderResumeBriefing — brownfield/landscape line', () => {
   it('renders the Landscape line when landscapeCapturedOn is supplied', () => {
     const out = renderResumeBriefing({
