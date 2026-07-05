@@ -9,13 +9,13 @@ completed_phases:
   - PLAN (2026-07-05)
 blockers: []
 last_completed_task:
-  id: M4.5.E5.S4.t9
+  id: M4.5.E10.S1.t5
   status: done
-  commit: fe0e153
-  completedAt: 2026-06-06T17:45:06.591Z
-last_decision_at: 2026-07-05T02:52:12.000Z
-last_updated_commit: 700fccf5a7008ba6eab6b788ab0cf604fdaaa763
-last_updated: 2026-07-05T13:34:53.992Z
+  commit: 494b007
+  completedAt: 2026-07-05T15:33:45.623Z
+last_decision_at: 2026-07-05T15:33:45.623Z
+last_updated_commit: 494b007
+last_updated: 2026-07-05T15:33:45.624Z
 ---
 <!-- Original STATE.md content preserved verbatim from pre-schema_v1 migration on 2026-05-18. The YAML frontmatter above is the authoritative machine-readable state; everything below is human-readable history. -->
 
@@ -43,7 +43,7 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Phase
 
-**M4.5.E10 (Resume trust & capture integrity → v0.1.5) — PLAN complete 2026-07-05; phase → EXECUTE (S1).** New Epic promoted from the 2026-07-04 backlog review (BR-7); trust-hardening batch shipped before external testers onboard. Six items → **5 slices** (high-risk-first): **S1** origin-drift (`isStaleVsOrigin`, hardened+bounded fetch on resume/status/checkpoint) + STATE freshness in discuss/plan · **S2** resume Epic-prefix resolver (+ traversal guard) · **S3** capture-pipe guards (drain dangling-fence + `/sig:add` footer repair + lint, recover+warn) · **S4** schema-drift banner in `/sig:status`+`/sig:resume` (moved out of `/sig:doctor`, AD2) · **S5** hook smoke harness + `references/hooks-api.md` + privacy-doc fix. PLAN gated 3 scope decisions: FR1 kept as the Signal-on-Signal resolver read-half (AD1); schema-drift → status/resume (AD2); privacy docs reconciled (AD3). **Epic-native flow committed as the NEXT Epic after E10** (make Epic mode first-class — DECISIONS 2026-07-05); FR1 is its forward-compatible read-half. PLAN output: `M4.5.E10-{RESEARCH,PLAN,VALIDATION}.md`, 8/8 dims PASS, 31/31 ACs mapped. **Next: `/sig:execute` (S1.t1 — export SCHEMA_VERSION; then S1.t2 isStaleVsOrigin RED).** (Authoritative per-Epic state is the frontmatter above; this prose echoes it.)
+**M4.5.E10 (Resume trust & capture integrity → v0.1.5) — PLAN complete 2026-07-05; phase → EXECUTE; S1 shipped 2026-07-05.** New Epic promoted from the 2026-07-04 backlog review (BR-7); trust-hardening batch shipped before external testers onboard. Six items → **5 slices** (high-risk-first): **S1** origin-drift (`isStaleVsOrigin`, hardened+bounded fetch on resume/status/checkpoint) + STATE freshness in discuss/plan · **S2** resume Epic-prefix resolver (+ traversal guard) · **S3** capture-pipe guards (drain dangling-fence + `/sig:add` footer repair + lint, recover+warn) · **S4** schema-drift banner in `/sig:status`+`/sig:resume` (moved out of `/sig:doctor`, AD2) · **S5** hook smoke harness + `references/hooks-api.md` + privacy-doc fix. PLAN gated 3 scope decisions: FR1 kept as the Signal-on-Signal resolver read-half (AD1); schema-drift → status/resume (AD2); privacy docs reconciled (AD3). **Epic-native flow committed as the NEXT Epic after E10** (make Epic mode first-class — DECISIONS 2026-07-05); FR1 is its forward-compatible read-half. PLAN output: `M4.5.E10-{RESEARCH,PLAN,VALIDATION}.md`, 8/8 dims PASS, 31/31 ACs mapped. **S1 shipped** (`0c0ca54..494b007`): S1.t1 export `SCHEMA_VERSION` · S1.t2 `isStaleVsOrigin` (hardened, fail-open origin-drift, 13 unit + real-git verified) · S1.t3 origin-drift banner in `renderResumeBriefing` · S1.t4 wire into resume/status/checkpoint · S1.t5 `markFresh` in DISCUSS+PLAN; 777→**798 tests**, validator green; progress in `M4.5.E10-PROGRESS.md`. **Next: `/sig:execute` S2 (FR1 Epic-prefix resolver — S2.t1 `resolveArtifactPath` + traversal guard, RED-first).** (Authoritative per-Epic state is the frontmatter above; this prose echoes it.)
 
 **M4.5.E5 (external validation + launch) — SHIPPED as v0.1.4 (2026-06-06); the last M4.5 Epic before E10 was added.** PLAN complete 2026-06-03; phase → EXECUTE (Slice 1). Four gray areas gated individually under FULL/strict: launch posture = **quiet peer release**; validation = **assets now, validate async**; assets = **full launch-post draft + demo script**; version = **decide at E5 close with a written rubric**. Spine decision (D-E5-6): **asset/human split** — EXECUTE ships only Claude-producible drafts/templates; the outward actions (recruit peers, record, publish, push tag) are Brett's async handoff. PLAN output: `M4.5.E5-{RESEARCH,PLAN,VALIDATION}.md` — 4 vertical slices / 9 tasks, 8/8 dim PASS + strict Nyquist (9/9 ACs mapped). R1→inline version rubric (no `docs/versioning.md`); R2→GitHub-release + direct peer share + README surfacing. **Next: `/sig:execute` (S1.t1 — launch-asset guard test, RED).** (Authoritative per-Epic phase state is the frontmatter at the top; this prose echoes it.)
 
