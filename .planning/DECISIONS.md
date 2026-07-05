@@ -1275,3 +1275,25 @@ REQUIREMENTS FR2 originally locked binary 0/1; PLAN expands to 3-level so CI con
 **What this rules out (so later planning doesn't re-litigate):** a wholesale FUTURE-IDEAS rewrite (dispositions are inline, per Option A); building the graph before the markdown intent layer proves insufficient; per-project storage of the language dial; STATE Options B/C absent evidence Option A fails; treating the sprint clusters as locked Epic definitions (they're planning inputs — each still goes through its own DISCUSS/PLAN).
 
 **Cross-references:** `BACKLOG-REVIEW-2026-07-04.md` (full review + sprint clusters); FUTURE-IDEAS entries stamped 2026-07-04 (7 promotions + 10 updates + watchlist); MILESTONE-4.5.md § E10; MILESTONE-5.md § Epics (opening-move note); DECISIONS 2026-05-24 (Option A drain convention this pass executed).
+
+---
+
+## 2026-07-04 — M4.5.E10 DISCUSS decisions locked (D-E10-1 … D-E10-11)
+
+**Context.** `/sig:discuss M4.5.E10` — DISCUSS phase for the "Resume trust & capture integrity" Epic (v0.1.5), promoted from the same-day backlog review (BR-7). FULL/`gate_strictness: strict`: five product-altitude gray areas gated individually via `AskUserQuestion`; plumbing decided at product altitude. Full spec + acceptance criteria in `M4.5.E10-REQUIREMENTS.md`. One code-reality correction surfaced during scouting (D-E10-6). Each item verified still open in source 2026-07-04.
+
+1. **D-E10-1 — Scope = the 6 listed items only, one v0.1.5.** Trigger-watchlist `/sig:plan` drain-step (backlog A1) stays a separate follow-on; no item trimmed. *(User-gated: "6 items only".)*
+2. **D-E10-2 — Origin-drift = live `git fetch` on all three of `/sig:resume` / `/sig:status` / `/sig:checkpoint`**, fail-open (offline/no-remote/non-git → no-op), with a short fetch timeout so `/sig:status` stays fast. *(User-gated: "Fetch on all three" — over the recommended status-local-only; timeout is the mitigation.)*
+3. **D-E10-3 — `/sig:doctor` upgrade-path = schema-drift focus.** In-flight `STATE.md schema_version` vs the plugin's `SCHEMA_VERSION`; version-staleness leg left to E8's `/sig:status` check. Forward-looking (no schema >1 exists yet). *(User-gated: "Schema-drift focus".)*
+4. **D-E10-4 — Capture guards = recover + warn.** Drain parses past a dangling-open fence (hidden entries resurface) + warns; `/sig:add` repairs a stranded footer to EOF + announces; plus a validator/lint check for content-after-footer (footer forward-fix options 1+2). Never silently mutate capture content. *(User-gated: "Recover + warn".)*
+5. **D-E10-5 — SessionStart smoke test = automated harness + documented manual leg.** Integration test asserts the stdout-JSON contract; `references/hooks-api.md` carries the real-session procedure Brett runs async (asset/human split, D-E5-6). *(User-gated: "Automated harness + documented manual leg".)*
+6. **D-E10-6 — Item 3 (STATE auto-update Option A) shrinks to `discuss.md` + `plan.md` only.** Code-verified: `verify.md`/`review.md`/`ship.md` already call `markFresh`. **Corrects BR-3's "5 non-EXECUTE commands" claim** — the fix is a 2-command patch. *(Surfaced, not resolved silently.)*
+7. **D-E10-7 — Item 1 resolver extracted as a pure helper** (`resolveArtifactPath`), pattern 0 = `{current_epic}-{ARTIFACT}.md` first, fires only when `current_epic` non-null; legacy patterns unchanged. Product-altitude plumbing.
+8. **D-E10-8 — Origin-drift helper `isStaleVsOrigin(baseDir, {execFn})` in `tools/lib/state.js`**, sibling to `isStateStale`; default branch via `git rev-parse --abbrev-ref origin/HEAD` (fallback `main`); returns `{stale, aheadCount, commits, touchedPlanning}`. Product-altitude plumbing.
+9. **D-E10-9 — DISCUSS output → `M4.5.E10-REQUIREMENTS.md` + this entry**, not the shared `CONTEXT.md` (matches E5 D-E5-8). Project `CONTEXT.md`/`STATE.md` prose refresh at E10 SHIP.
+10. **D-E10-10 — FULL runtime NFR checklist N/A** (no service/HTTP surface); resilience + resource NFRs bind (fail-open, timeout-bounded fetch, backwards-compat, no new deps). Mirrors D-E5-7.
+11. **D-E10-11 — No new runtime deps; 777-test baseline stays green; strict Nyquist** — every AC tested except the one human-only real-session smoke leg (documented attestation).
+
+**What this rules out (so PLAN doesn't re-litigate):** patching all 5 non-EXECUTE commands for Option A (only 2 need it); re-implementing E8's version-staleness in `/sig:doctor` (schema leg only); a `/sig:status` that skips drift-detection (it fetches, bounded by timeout); silent self-heal of `FUTURE-IDEAS.md` (guards announce); folding the watchlist drain-step into E10; a `schema_version` bump (none — backwards-compat holds).
+
+**Cross-references:** `M4.5.E10-REQUIREMENTS.md` (FRs + ACs + NFRs + assumptions); `MILESTONE-4.5.md` § E10; `FUTURE-IDEAS.md` entries (origin-drift 2026-05-19 · Epic-prefix artifact resolution · STATE auto-update protocol · Drain safety check · FUTURE-IDEAS footer drift · SessionStart smoke test · Hook output format reference doc); DECISIONS 2026-07-04 backlog-review entry (BR-3/BR-7 provenance).

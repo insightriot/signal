@@ -1,25 +1,20 @@
 ---
 schema_version: 1
-phase: SHIP
-current_epic: M4.5.E5
-current_wave: S1
+phase: PLAN
+current_epic: M4.5.E10
+current_wave: null
 current_tasks: []
 completed_phases:
-  - DISCUSS (2026-06-03)
-  - PLAN (2026-06-03)
-  - EXECUTE (2026-06-06)
-  - VERIFY (2026-06-06)
-  - REVIEW (2026-06-06)
-  - SHIP (2026-06-07)
+  - DISCUSS (2026-07-04)
 blockers: []
 last_completed_task:
   id: M4.5.E5.S4.t9
   status: done
   commit: fe0e153
   completedAt: 2026-06-06T17:45:06.591Z
-last_decision_at: 2026-06-06T17:45:06.591Z
-last_updated_commit: f525168fbe5189448ae823d6aaf0d6a913316881
-last_updated: 2026-06-07T02:01:54.156Z
+last_decision_at: 2026-07-05T02:52:12.000Z
+last_updated_commit: ffec77ae4c4ee0357d0bdc2a2acf79b20320f9f3
+last_updated: 2026-07-05T02:52:12.000Z
 ---
 <!-- Original STATE.md content preserved verbatim from pre-schema_v1 migration on 2026-05-18. The YAML frontmatter above is the authoritative machine-readable state; everything below is human-readable history. -->
 
@@ -47,7 +42,9 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 
 ## Current Phase
 
-**M4.5.E5 (external validation + launch) — PLAN complete 2026-06-03; phase → EXECUTE (Slice 1).** Four gray areas gated individually under FULL/strict: launch posture = **quiet peer release**; validation = **assets now, validate async**; assets = **full launch-post draft + demo script**; version = **decide at E5 close with a written rubric**. Spine decision (D-E5-6): **asset/human split** — EXECUTE ships only Claude-producible drafts/templates; the outward actions (recruit peers, record, publish, push tag) are Brett's async handoff. PLAN output: `M4.5.E5-{RESEARCH,PLAN,VALIDATION}.md` — 4 vertical slices / 9 tasks, 8/8 dim PASS + strict Nyquist (9/9 ACs mapped). R1→inline version rubric (no `docs/versioning.md`); R2→GitHub-release + direct peer share + README surfacing. **Next: `/sig:execute` (S1.t1 — launch-asset guard test, RED).** (Authoritative per-Epic phase state is the frontmatter at the top; this prose echoes it.)
+**M4.5.E10 (Resume trust & capture integrity → v0.1.5) — DISCUSS complete 2026-07-04; phase → PLAN.** New Epic promoted from the 2026-07-04 backlog review (BR-7); trust-hardening batch shipped before external testers onboard. Six items: `/sig:resume` Epic-prefix artifact resolution · origin-drift detection (`isStaleVsOrigin`, live fetch on resume/status/checkpoint) · STATE auto-update Option A (discuss+plan only — verify/review/ship already refresh) · capture-pipe guards (drain dangling-fence + `/sig:add` footer-drift, recover+warn) · `/sig:doctor` schema-drift diagnostic · SessionStart hook smoke test + `references/hooks-api.md`. Five gray areas gated individually under FULL/strict; one code-reality correction (Item 3 is a 2-command patch, not 5). DISCUSS output: `M4.5.E10-REQUIREMENTS.md` + DECISIONS 2026-07-04 (D-E10-1…11). **Next: `/sig:plan` research + slicing.** (Authoritative per-Epic state is the frontmatter above; this prose echoes it.)
+
+**M4.5.E5 (external validation + launch) — SHIPPED as v0.1.4 (2026-06-06); the last M4.5 Epic before E10 was added.** PLAN complete 2026-06-03; phase → EXECUTE (Slice 1). Four gray areas gated individually under FULL/strict: launch posture = **quiet peer release**; validation = **assets now, validate async**; assets = **full launch-post draft + demo script**; version = **decide at E5 close with a written rubric**. Spine decision (D-E5-6): **asset/human split** — EXECUTE ships only Claude-producible drafts/templates; the outward actions (recruit peers, record, publish, push tag) are Brett's async handoff. PLAN output: `M4.5.E5-{RESEARCH,PLAN,VALIDATION}.md` — 4 vertical slices / 9 tasks, 8/8 dim PASS + strict Nyquist (9/9 ACs mapped). R1→inline version rubric (no `docs/versioning.md`); R2→GitHub-release + direct peer share + README surfacing. **Next: `/sig:execute` (S1.t1 — launch-asset guard test, RED).** (Authoritative per-Epic phase state is the frontmatter at the top; this prose echoes it.)
 
 **M4.5.E4 (worked example + comparison page) — closed (lightweight) 2026-06-03.** All 3 slices + 9 ACs done; VERIFY/REVIEW/SHIP folded into the close (docs/example Epic, ACs verified inline with test evidence). E4's CHANGELOG block is `[Unreleased]` and batches with E5's release (the version E5 cuts — D-E5-5).
 
