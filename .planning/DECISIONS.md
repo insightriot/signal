@@ -1297,3 +1297,21 @@ REQUIREMENTS FR2 originally locked binary 0/1; PLAN expands to 3-level so CI con
 **What this rules out (so PLAN doesn't re-litigate):** patching all 5 non-EXECUTE commands for Option A (only 2 need it); re-implementing E8's version-staleness in `/sig:doctor` (schema leg only); a `/sig:status` that skips drift-detection (it fetches, bounded by timeout); silent self-heal of `FUTURE-IDEAS.md` (guards announce); folding the watchlist drain-step into E10; a `schema_version` bump (none — backwards-compat holds).
 
 **Cross-references:** `M4.5.E10-REQUIREMENTS.md` (FRs + ACs + NFRs + assumptions); `MILESTONE-4.5.md` § E10; `FUTURE-IDEAS.md` entries (origin-drift 2026-05-19 · Epic-prefix artifact resolution · STATE auto-update protocol · Drain safety check · FUTURE-IDEAS footer drift · SessionStart smoke test · Hook output format reference doc); DECISIONS 2026-07-04 backlog-review entry (BR-3/BR-7 provenance).
+
+---
+
+## 2026-07-05 — Epic-native flow committed as the next Epic after M4.5.E10
+
+**Context.** During E10 PLAN, research proved FR1's Epic-prefix resolver is inert for command-driven projects: **no command writes `current_epic`** (it initializes to `null` at `state.js:167,213` and is only ever read), and the phase commands write **phase-prefixed** artifacts (`{phase}-PLAN.md`), not Epic-prefixed. Root cause — Signal has **two unreconciled modes:**
+- **Linear mode** (what the commands actually implement): one project = one `calibrate → ship` pass; artifacts named by phase; no Epic concept anywhere in the flow.
+- **Epic mode** (what Signal-on-Signal runs *by hand*): many Milestones → Epics, each Epic runs its own `discuss → ship`, artifacts named `M4.5.E10-PLAN.md`, `current_epic` tracks the live one.
+
+The Epic/Milestone/Slice/Task vocabulary was locked (M4.t18) as *planning language* but the commands were never wired to drive off it. Signal dogfoods Epic mode entirely by hand — `current_epic: M4.5.E10` was hand-typed into STATE.md during this session.
+
+**Decision.** Build **"Epic-native flow"** as the next Epic after E10 (user-gated 2026-07-05, over cram-into-E10 / pause-and-design-now). Make Epic mode first-class: commands **create/track Epics**, assign Epic IDs, write **Epic-scoped artifacts**, populate `current_epic` automatically; **per-Epic calibration** (an Epic inside a FULL project can honestly be SKETCH) falls out naturally. Un-parks the "multi-feature project lifecycle" FUTURE-IDEAS entry with a concrete reason.
+
+**Why not now / not in E10.** `current_epic` alone is inert without Epic-scoped artifact naming, which requires deciding the Epic-creation + ID convention for *every* project and migrating existing linear-mode projects — a real design pass, not a slice. E10 is orthogonal trust-hardening; **FR1 stays E10's forward-compatible read-half** (the write-half slots on top with zero rework). Its own DISCUSS defines the naming convention, Epic-creation UX, artifact-naming migration, and per-Epic calibration.
+
+**Rules out:** cramming the write-half into E10 under a shipping clock; treating Epic-native as a "someday" FUTURE-IDEAS entry (it is committed as *next*). Milestone placement (M4.5.E11 vs an M5 Epic) is decided at its DISCUSS — it's architecture, likely M5-adjacent, but sequenced immediately after E10.
+
+**Cross-references:** `M4.5.E10-RESEARCH.md` § SD1 (AD1); `FUTURE-IDEAS.md` "Multi-feature project lifecycle"; DECISIONS 2026-07-04 (BR-9 second-dogfood, which will exercise feature #2).
