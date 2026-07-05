@@ -19,9 +19,9 @@ Source-of-truth for facts cross-cited in `README.md` and `SECURITY.md`. Other do
 
 ## Test surface
 
-- **Test count:** 777
+- **Test count:** 854
 
-Updated at the v0.1.4 release (M4.5.E5 Epic close, 2026-06-06). The cross-file consistency test (`tests/cross-file-consistency.test.js`) asserts that any test-count mention in README or SECURITY.md matches this value.
+Updated at the v0.1.5 release (M4.5.E10 Epic close, 2026-07-05). The cross-file consistency test (`tests/cross-file-consistency.test.js`) asserts that any test-count mention in README or SECURITY.md matches this value.
 
 ## License + repo
 
