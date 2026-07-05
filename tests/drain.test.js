@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import {
   parseEntries,
   listDrainCandidates,
+  listDrainCandidatesWithRecovery,
   applyDisposition,
   applyDispositions,
   applyDispositionToFile,
@@ -184,6 +185,99 @@ function blocksByHeading(c) {
     parseEntries(c).map((e) => [e.heading, c.slice(e.range.start, e.range.end)])
   );
 }
+
+describe('listDrainCandidatesWithRecovery (S3.t1 — dangling-fence recover+warn, AC4.1-4.3)', () => {
+  // An UNCLOSED fence (odd fence-marker count) leaves parseEntries' tracker
+  // stuck "inside a fence", so every `## ` entry below it silently vanishes
+  // from listDrainCandidates — ideas captured after a malformed fenced sample
+  // would never surface for triage.
+  const DANGLING = [
+    '# FUTURE-IDEAS',
+    '',
+    '## Entry A',
+    '',
+    'Idea A (before the fence).',
+    '',
+    'Here is a sample:',
+    '',
+    '```',
+    'unclosed fence — no closing marker',
+    'more sample text',
+    '',
+    '## Entry B',
+    '',
+    'Idea B — captured after a malformed fenced sample.',
+    '',
+    '## Entry C',
+    '',
+    'Idea C — also below the dangling fence.',
+    '',
+  ].join('\n');
+
+  // Self-contained well-formed control (balanced fences).
+  const WELL_FORMED = [
+    '# FUTURE-IDEAS',
+    '',
+    '## Entry X',
+    '',
+    'Sample:',
+    '',
+    '```',
+    'balanced fence content',
+    '```',
+    '',
+    'Idea X.',
+    '',
+    '## Entry Y',
+    '',
+    'Idea Y.',
+    '',
+  ].join('\n');
+
+  it('AC4.1: resurfaces entries swallowed by a dangling fence', () => {
+    // Baseline: the buggy parse hides B and C.
+    const base = listDrainCandidates(DANGLING).map((e) => e.heading);
+    expect(base).toContain('Entry A');
+    expect(base).not.toContain('Entry B');
+    expect(base).not.toContain('Entry C');
+
+    const { candidates, recoveredCount } = listDrainCandidatesWithRecovery(DANGLING);
+    const headings = candidates.map((e) => e.heading);
+    expect(headings).toContain('Entry A');
+    expect(headings).toContain('Entry B');
+    expect(headings).toContain('Entry C');
+    expect(recoveredCount).toBe(2);
+  });
+
+  it('AC4.2: flags the dangling fence so the caller can warn', () => {
+    expect(listDrainCandidatesWithRecovery(DANGLING).danglingFence).toBe(true);
+  });
+
+  it('AC4.3: well-formed file — identical candidates, no flag, no recovery', () => {
+    const base = listDrainCandidates(WELL_FORMED).map((e) => e.heading);
+    const { candidates, danglingFence, recoveredCount } =
+      listDrainCandidatesWithRecovery(WELL_FORMED);
+    expect(danglingFence).toBe(false);
+    expect(recoveredCount).toBe(0);
+    expect(candidates.map((e) => e.heading)).toEqual(base);
+  });
+
+  it('AC4.3: the real (balanced) drain fixture is untouched — no spurious warning', () => {
+    const base = listDrainCandidates(content).map((e) => e.heading);
+    const { candidates, danglingFence, recoveredCount } =
+      listDrainCandidatesWithRecovery(content);
+    expect(danglingFence).toBe(false);
+    expect(recoveredCount).toBe(0);
+    expect(candidates.map((e) => e.heading)).toEqual(base);
+  });
+
+  it('a recovered entry carries a usable byte range pointing at its own text', () => {
+    const { candidates } = listDrainCandidatesWithRecovery(DANGLING);
+    const b = candidates.find((e) => e.heading === 'Entry B');
+    expect(b.range.end).toBeGreaterThan(b.range.start);
+    expect(DANGLING.slice(b.range.start, b.range.end)).toContain('Idea B');
+  });
+});
 
 describe('applyDisposition (pure, byte-range edits)', () => {
   it('defer appends a stamp to the Status line; all other blocks byte-identical', () => {

@@ -170,6 +170,69 @@ export function listDrainCandidates(content) {
   return parseEntries(content).filter((e) => !e.dispositioned);
 }
 
+/**
+ * `listDrainCandidates` + dangling-fence recovery (FR4a, AD5). An UNCLOSED
+ * fence (odd fence-marker count) leaves `parseEntries`' fence tracker stuck
+ * "inside a fence" for the rest of the file, so every `## ` entry below the
+ * dangling marker silently vanishes from the candidate set — an idea captured
+ * after a malformed fenced sample would never surface for triage. This detects
+ * that case and resurfaces the swallowed entries, plus a `danglingFence` signal
+ * the command layer announces.
+ *
+ * `parseEntries` / `listDrainCandidates` keep their bare-return contracts (the
+ * snapshot tests pin them); this is the sibling detect+recover per AD5. The
+ * recovery is targeted, NOT a fence-oblivious re-parse: because the tail after
+ * the *last* fence marker contains no fence markers by construction, re-parsing
+ * only that tail resurfaces exactly the swallowed headings without ever
+ * surfacing a heading that sits inside a legitimately-balanced fence.
+ *
+ * Out of scope (unchanged from parseEntries): fence-type (``` vs ~~~) matching.
+ *
+ * @param {string} content
+ * @returns {{ candidates: ReturnType<typeof parseEntries>, danglingFence: boolean, recoveredCount: number }}
+ */
+export function listDrainCandidatesWithRecovery(content) {
+  const candidates = listDrainCandidates(content);
+  if (typeof content !== 'string' || content === '') {
+    return { candidates, danglingFence: false, recoveredCount: 0 };
+  }
+
+  const lines = content.split('\n');
+  let fenceCount = 0;
+  let lastFenceLine = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (isFenceMarker(lines[i])) {
+      fenceCount++;
+      lastFenceLine = i;
+    }
+  }
+  // Balanced fences → nothing swallowed → identical candidates, no warning.
+  if (fenceCount % 2 === 0) {
+    return { candidates, danglingFence: false, recoveredCount: 0 };
+  }
+
+  // Odd count: a dangling fence swallowed every heading after the last marker.
+  // The tail past that marker has zero fence markers, so a plain re-parse of it
+  // recovers exactly those headings; offset their ranges back into `content`.
+  const offsets = lineOffsets(lines);
+  const tailStart =
+    lastFenceLine + 1 < lines.length ? offsets[lastFenceLine + 1] : content.length;
+  const tail = content.slice(tailStart);
+  const seenStarts = new Set(candidates.map((e) => e.range.start));
+  const recovered = parseEntries(tail)
+    .map((e) => ({
+      ...e,
+      range: { start: e.range.start + tailStart, end: e.range.end + tailStart },
+    }))
+    .filter((e) => !e.dispositioned && !seenStarts.has(e.range.start));
+
+  return {
+    candidates: [...candidates, ...recovered],
+    danglingFence: true,
+    recoveredCount: recovered.length,
+  };
+}
+
 // Disposition verb → the past-tense word recorded in the Status stamp. Only
 // promote/defer ever stamp (delete/merge remove the block); merge/delete are
 // listed for completeness but their entries are gone before a stamp would show.
