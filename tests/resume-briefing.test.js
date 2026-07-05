@@ -282,6 +282,54 @@ describe('renderResumeBriefing — origin-drift banner (S1.t3, FR2)', () => {
   });
 });
 
+describe('renderResumeBriefing — schema-drift banner (S4.t2, FR5)', () => {
+  const baseState = { phase: 'EXECUTE', completed_phases: [], current_tasks: [] };
+
+  it('renders a schema-drift banner when schemaDriftResult is present (behind)', () => {
+    const out = renderResumeBriefing({
+      cwd: '/p',
+      profile: FULL_PROFILE,
+      state: baseState,
+      schemaDriftResult: {
+        status: 'behind',
+        found: 0,
+        expected: 1,
+        message: 'STATE.md is schema_version 0; this Signal expects 1. See migration doc.',
+      },
+    });
+    expect(out.startsWith('⚠')).toBe(true);
+    expect(out).toMatch(/schema drift/i);
+    expect(out).toMatch(/migration doc/);
+  });
+
+  it('renders the ahead (fail-closed) schema-drift message', () => {
+    const out = renderResumeBriefing({
+      cwd: '/p',
+      profile: FULL_PROFILE,
+      state: baseState,
+      schemaDriftResult: {
+        status: 'ahead',
+        found: 999,
+        expected: 1,
+        message: 'STATE.md was written by a newer Signal (schema_version 999). Upgrade Signal.',
+      },
+    });
+    expect(out).toMatch(/schema drift \(ahead\)/i);
+    expect(out).toMatch(/Upgrade Signal/);
+  });
+
+  it('omits the schema-drift banner when schemaDriftResult is null', () => {
+    const out = renderResumeBriefing({
+      cwd: '/p',
+      profile: FULL_PROFILE,
+      state: baseState,
+      schemaDriftResult: null,
+    });
+    expect(out).not.toMatch(/schema drift/i);
+    expect(out.startsWith('== Project Briefing ==')).toBe(true);
+  });
+});
+
 describe('renderResumeBriefing — brownfield/landscape line', () => {
   it('renders the Landscape line when landscapeCapturedOn is supplied', () => {
     const out = renderResumeBriefing({

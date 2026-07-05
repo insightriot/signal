@@ -15,6 +15,7 @@ import { resolve, sep } from 'node:path';
 import {
   detectOrphans,
   clearCurrentTask,
+  formatSchemaDriftBanner,
 } from './state.js';
 
 const PHASES = ['CALIBRATE', 'DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'SHIP'];
@@ -105,6 +106,8 @@ function formatAge(iso) {
  * @param {{stale: boolean, commitCount: number}} [params.isStaleResult]
  * @param {{stale: boolean, aheadCount: number, touchedPlanning: boolean}} [params.originDriftResult]
  *   - isStaleVsOrigin() output; renders a distinct banner from isStaleResult
+ * @param {{status: string, message: string} | null} [params.schemaDriftResult]
+ *   - readSchemaDrift() output; renders a schema-drift banner above all others
  * @param {string} [params.nextAction]  - "Work remaining" copy
  * @returns {string}
  */
@@ -119,11 +122,21 @@ export function renderResumeBriefing(params = {}) {
     openQuestions = [],
     isStaleResult = null,
     originDriftResult = null,
+    schemaDriftResult = null,
     nextAction = '',
     retroSummary = null,
   } = params;
 
   const lines = [];
+
+  // Schema drift is the most fundamental trust signal — if STATE.md's schema is
+  // wrong, every field the briefing reads below could be misparsed. Surfaced
+  // first, above the staleness banners (AD2: platform-agnostic, non-blocking).
+  const schemaBanner = formatSchemaDriftBanner(schemaDriftResult);
+  if (schemaBanner) {
+    lines.push(...schemaBanner.split('\n'));
+    lines.push('');
+  }
 
   if (isStaleResult?.stale) {
     lines.push(

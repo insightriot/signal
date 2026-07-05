@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { PHASES } from './state.js';
+import { PHASES, readSchemaDrift, formatSchemaDriftBanner } from './state.js';
 import { extractSection } from './landscape.js';
 import {
   readInstallState,
@@ -231,4 +231,17 @@ export async function readStalenessWarning(opts = {}) {
 export function formatStalenessWarning({ installed, latest, recommendation }) {
   const latestText = latest ? ` Latest tag: ${latest}.` : '';
   return `[!] Signal v${installed} installed.${latestText} ${recommendation}`;
+}
+
+/**
+ * Read a project's STATE.md schema-drift banner for /sig:status (FR5, S4.t2),
+ * or null when there's no drift / no STATE.md. Read-only; wraps state.js's
+ * readSchemaDrift + the shared formatter so /sig:status and /sig:resume show
+ * the identical, platform-agnostic warning (AD2 — not gated behind /sig:doctor).
+ *
+ * @param {string} baseDir
+ * @returns {Promise<string | null>}
+ */
+export async function readSchemaDriftBanner(baseDir) {
+  return formatSchemaDriftBanner(await readSchemaDrift(baseDir));
 }

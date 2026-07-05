@@ -879,6 +879,19 @@ export async function readSchemaDrift(baseDir) {
   return detectSchemaDrift(data === null ? null : data.schema_version);
 }
 
+/**
+ * Format a schema-drift finding into a two-line banner (or null when there's
+ * no drift). Shared by /sig:resume (via renderResumeBriefing) and /sig:status
+ * so both surface the identical, platform-agnostic warning (AD2).
+ *
+ * @param {{status: string, message: string} | null} finding
+ * @returns {string | null}
+ */
+export function formatSchemaDriftBanner(finding) {
+  if (!finding) return null;
+  return `⚠ STATE.md schema drift (${finding.status}).\n   ${finding.message}`;
+}
+
 // --- blockers helpers (M4.5.E6.S1.t9) ---
 
 /**

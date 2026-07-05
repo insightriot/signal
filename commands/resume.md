@@ -12,7 +12,7 @@ Where `/sig:status` is a snapshot, `/sig:resume` is a **briefing**: it actively 
 
 Authoritative references:
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `ProfileSchemaError`
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `isStateStale`, `isStaleVsOrigin`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `isStateStale`, `isStaleVsOrigin`, `readSchemaDrift`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/resume.js` — `renderResumeBriefing`, `handleOrphansAtResume`, `resolveArtifactPath`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `nextActionForPhase`, `formatEscalationSummary`, `readOpenQuestions`, `readLandscapeMeta`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/landscape.js` — `extractSection` (used to pull "What this project is" from LANDSCAPE.md when PROJECT.md Vision is still `[INFERRED]` or `[FILL IN]`)
@@ -70,6 +70,8 @@ Two pre-render checks routed through `tools/lib/state.js` + `tools/lib/resume.js
 
 1a. **Staleness (origin)** — call `isStaleVsOrigin(baseDir)` from `tools/lib/state.js` and pass the result to `renderResumeBriefing` as `originDriftResult`. This reaches the network via a **bounded, hardened `git fetch`** (2s timeout + SIGKILL, `GIT_TERMINAL_PROMPT=0`, neutralized askpass, SSH BatchMode) and is **fail-open**: any failure (offline, no remote, auth-hang, timeout, diverged history) returns `{stale:false}` and renders no banner — it never blocks the briefing. The fetch writes `.git/` (FETCH_HEAD, remote refs), **not** `.planning/`, so the read-only-`.planning/` posture holds. The origin banner is **distinct** from the local one (D-E10-8): local = "your working tree moved past STATE.md"; origin = "someone pushed work you don't have" (the multi-machine case).
 
+1b. **Schema drift** — call `readSchemaDrift(baseDir)` from `tools/lib/state.js` and pass the result to `renderResumeBriefing` as `schemaDriftResult`. It's read-only + platform-agnostic (AD2 — deliberately NOT in `/sig:doctor`, which is macOS-gated), routes through `parseFrontmatter` (not `readState`, which throws on an ahead schema), and returns `null` when there's no drift. The briefing renders this banner **above** all others: a STATE.md schema mismatch means every field the briefing reads below could be misparsed.
+
 #### 3c. Retro completeness (M4.5.E9.S2.t7)
 
 Call `enumerateRetros(baseDir)` from `tools/lib/retro-index.js`. Build a summary `{total, complete, stub}` where `complete = total - stub` (and `stub = records.filter(r => r.isStub).length`). Pass as `retroSummary` to `renderResumeBriefing`. The renderer adds one line:
@@ -104,6 +106,7 @@ renderResumeBriefing({
   openQuestions: …,               // first 3 headings from OPEN-QUESTIONS.md
   isStaleResult: staleResult,     // local staleness — from Step 3b(1)
   originDriftResult,              // origin drift — from Step 3b(1a); fail-open
+  schemaDriftResult,             // schema drift — from Step 3b(1b); read-only
   nextAction: nextActionForPhase(state.phase, profile),
   retroSummary,                   // {total, complete, stub} — see Step 3c
 });
@@ -112,6 +115,10 @@ renderResumeBriefing({
 The rendered briefing has these blocks (in order):
 
 ```
+{If schema-drift banner active (S4.t2) — topmost, most fundamental trust signal:}
+⚠ STATE.md schema drift ({status}).
+   {migration pointer (behind) / upgrade-Signal note (ahead) / unreadable note}
+
 {If local-staleness banner active (S4.t2):}
 ⚠ STATE.md is {N} commit(s) behind work history.
    Run /sig:checkpoint to refresh, or continue with potentially stale info.

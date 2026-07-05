@@ -11,8 +11,45 @@ import {
   readOpenQuestions,
   formatEscalationSummary,
   readLandscapeMeta,
+  readSchemaDriftBanner,
 } from '../tools/lib/status.js';
 import { readProfile, ProfileSchemaError } from '../tools/lib/profile.js';
+
+describe('readSchemaDriftBanner (S4.t2, FR5)', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-status-drift-'));
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('returns null when STATE.md is at the current schema', async () => {
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+    await writeFile(
+      join(tempDir, '.planning', 'STATE.md'),
+      '---\nschema_version: 1\nphase: EXECUTE\n---\n# body\n',
+      'utf-8'
+    );
+    expect(await readSchemaDriftBanner(tempDir)).toBeNull();
+  });
+
+  it('returns null when there is no STATE.md', async () => {
+    expect(await readSchemaDriftBanner(tempDir)).toBeNull();
+  });
+
+  it('returns a formatted banner string when the schema is ahead', async () => {
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+    await writeFile(
+      join(tempDir, '.planning', 'STATE.md'),
+      '---\nschema_version: 999\nphase: EXECUTE\n---\n# body\n',
+      'utf-8'
+    );
+    const banner = await readSchemaDriftBanner(tempDir);
+    expect(banner).toMatch(/⚠/);
+    expect(banner).toMatch(/schema drift/i);
+  });
+});
 import { readState } from '../tools/lib/state.js';
 
 describe('Status helpers', () => {
