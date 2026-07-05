@@ -9,12 +9,69 @@
 // fixtures without staging real files (or, when staging matters, point at
 // tests/fixtures/resume/{in-flight, stale, orphan}/.planning/).
 
+import { existsSync } from 'node:fs';
+import { resolve, sep } from 'node:path';
+
 import {
   detectOrphans,
   clearCurrentTask,
 } from './state.js';
 
 const PHASES = ['CALIBRATE', 'DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'SHIP'];
+
+// current_epic is user-editable YAML — a value like `../../etc/x` would let
+// pattern-0 escape .planning/. Accept only a filename-safe token (mirrors the
+// Epic-ID shape used across retrospective.js / backfill-retros.js); anything
+// else falls through to the legacy patterns.
+const EPIC_ID_RE = /^[A-Za-z0-9._-]+$/;
+
+/**
+ * Resolve a phase artifact's path within `.planning/`, trying, in precedence:
+ *   0. `${currentEpic}-${artifact}.md`  — Epic-prefixed; only when currentEpic
+ *      is a sanitized, path-confined token (Signal-on-Signal / hand-managed).
+ *   1. `${N}-${artifact}.md` for N in 1..9  — numeric/GSD prefix (ascending N).
+ *   2. `${artifact}.md`  — no-prefix simplified form.
+ *   3. `${phase}-${artifact}.md`  — literal-substitution form (e.g. PLAN-PLAN).
+ *
+ * Returns the first existing candidate as an absolute path, or `null`.
+ *
+ * The Epic-prefixed pattern is the FR1 addition: `/sig:resume` couldn't find
+ * `M4.5.E10-PLAN.md` because none of the legacy patterns match an Epic-prefixed
+ * name. Guarded two ways (mirror add.js's assertSafeFilePath): the token regex
+ * AND a path-confinement check, so a crafted current_epic can't escape.
+ *
+ * @param {string} planningDir  — absolute path to the project's `.planning/`
+ * @param {string} artifact     — artifact base name, e.g. 'PLAN', 'REQUIREMENTS'
+ * @param {{currentEpic?: string|null, phase?: string|null, existsFn?: (p: string) => boolean}} [opts]
+ * @returns {string | null}
+ */
+export function resolveArtifactPath(planningDir, artifact, opts = {}) {
+  const { currentEpic = null, phase = null, existsFn = existsSync } = opts;
+  const planningRoot = resolve(planningDir);
+
+  const candidates = [];
+  if (typeof currentEpic === 'string' && currentEpic && EPIC_ID_RE.test(currentEpic)) {
+    candidates.push(`${currentEpic}-${artifact}.md`); // pattern 0
+  }
+  for (let n = 1; n <= 9; n++) {
+    candidates.push(`${n}-${artifact}.md`); // pattern 1 (ascending N tie-break)
+  }
+  candidates.push(`${artifact}.md`); // pattern 2
+  if (typeof phase === 'string' && phase) {
+    candidates.push(`${phase}-${artifact}.md`); // pattern 3
+  }
+
+  for (const name of candidates) {
+    const full = resolve(planningRoot, name);
+    // Defense-in-depth path-confinement: the resolved candidate must stay
+    // inside planningRoot (the trailing `sep` defeats the sibling-prefix bug,
+    // e.g. `.planning-evil/`). The regex already blocks separators, but keep
+    // both guards — same posture as add.js's assertSafeFilePath.
+    if (!full.startsWith(planningRoot + sep)) continue;
+    if (existsFn(full)) return full;
+  }
+  return null;
+}
 
 function shortSha(sha) {
   if (!sha) return null;
