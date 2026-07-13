@@ -94,8 +94,18 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 3. If staleness is reported (STATE.md behind work history), run `/sig:checkpoint` first. Run `/sig:checkpoint --context` before any planned context clear so the next session's resume is genuinely useful.
 4. For deeper context (full vision, design decisions, milestone breakdown), open the files in this order: `CONTEXT.md` (this file) → `MILESTONE-4.5.md` → `DECISIONS.md`.
 
-**Specifically for the next session:** **no Epic is in flight** — M4.5.E10 shipped v0.1.5 (2026-07-05); every M4.5 Epic (E1–E10) has shipped. `/sig:resume` will report `Next: done`. Pick the next scope and run `/sig:discuss`: the committed next Epic is **Epic-native flow** (make Epic mode first-class — see § Active work + DECISIONS 2026-07-05); alternatively, Milestone 5 (v2 ports + memory mgmt) is the horizon after M4.5 closes. The open M4.5 tail: the outward tester loop (≥3 non-Signal testers) + AC6.4's manual hook smoke check.
+**Specifically for the next session (queued 2026-07-13):** A doc-accuracy + eviction pass just landed and is committed/pushed (STATE `## Active` rewrite, INDEX refresh, a shipped FUTURE-IDEAS entry deleted). **No Epic is in flight** — `/sig:resume` will report `Next: done`.
+
+**Recommended next work — a small `v0.1.6` doc-integrity guardrail** (est. ~1–2 focused build sessions). Four bounded pieces:
+1. A STATE write-hook (`hooks/check-state-write.js`) that **blocks** prose from landing in the `completed_phases`/`blockers` frontmatter fields and **warns** when the body crosses a size budget — prevents the 455 KB CMMC-dogfood failure mode at write time.
+2. The `/sig:plan` drain **blockquote-disposition fix** (`tools/lib/drain.js`) so the drain converges instead of re-surfacing ~40 already-handled entries.
+3. Move the bug-flavored FUTURE-IDEAS items (footer drift, drain blockquote, `/sig:add` derived-title) into `BUGS.md`.
+4. `/sig:add` derived-title cut-at-clause fix (`tools/lib/add.js`).
+
+This is the do-now, un-gated form of the doc-lifecycle fix captured in `MILESTONE-5.md` (§ Captured via /sig:add). **To start: run `/sig:discuss`** on it (likely a small `M4.5.E11` trust-hardening Epic or a standalone `v0.1.6` patch — DISCUSS decides the shape).
+
+**Alternatives if you'd rather:** the committed **Epic-native flow** Epic (make Epic mode first-class — DECISIONS 2026-07-05), or **Milestone 5** (v2 ports + memory/doc-runtime, gated on usage signal). The *big* eviction redesign (M5 Sprint 3) stays gated behind M4.5's close. Open M4.5 tail: outward tester loop (≥3 non-Signal testers) + AC6.4's manual hook smoke check.
 
 ---
 
-*Last updated: 2026-07-05 (M4.5.E10 SHIPPED as v0.1.5 — full DISCUSS→SHIP; 854 tests; REVIEW caught + fixed the F1 schema-drift crash. All M4.5 Epics E1–E10 shipped. Next: Epic-native flow Epic, or M5. Prior: 2026-06-06 E5 → v0.1.4.)*
+*Last updated: 2026-07-13 (doc-accuracy + eviction pass: STATE `## Active` refreshed to match frontmatter, INDEX HOT/WARM/COLD refreshed after E5+E10, shipped FUTURE-IDEAS entry deleted, doc-lifecycle fix captured to MILESTONE-5. Queued next: v0.1.6 doc-integrity guardrail (recommended) / Epic-native flow / M5. Prior: 2026-07-05 M4.5.E10 → v0.1.5; 2026-06-06 E5 → v0.1.4.)*

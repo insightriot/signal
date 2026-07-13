@@ -497,31 +497,6 @@ Then Step 4 runs 3+other only on selected areas. Deselected → `CONTEXT.md` "De
 
 ---
 
-## ✓ SHIPPED — Plugin slug rename — `signal` → `sig` to remove `/signal:sig:*` namespace stutter
-
-> **Shipped 2026-05-12 as M4.t19** (bundled with the marketplace install layout fix). Plugin slug is now `sig`; commands moved to plugin-root `commands/` (flat); brand "Signal" preserved everywhere user-facing. Original entry below for historical context.
-
-
-
-**Status:** Logged 2026-05-02 during Milestone 4 wrap-up conversation. Daily papercut surfaced by user comparing autocomplete UX to GSD.
-
-**Context.** Plugin commands today render in autocomplete as `/signal:sig:execute` — two namespaces stacked: outer from `plugin.json` `"name": "signal"`, inner from the `commands/sig/` subdirectory. The short form `/sig:execute` works because there's no collision, but autocomplete shows the canonical fully-qualified form. GSD avoids this by naming its plugin slug `gsd` and putting commands directly in `commands/` (no subdirectory), giving clean `/gsd:command-name`.
-
-**Candidate direction.**
-
-1. `plugin.json`: rename `"name": "signal"` → `"name": "sig"`. Display name "Signal" survives in description, homepage, README, marketplace listing — only the slug changes.
-2. Move `.claude/commands/sig/*.md` → `.claude/commands/*.md` (drop the subdirectory).
-3. Update `plugin.json` `commands` path if it points to a subdirectory.
-4. Verify no internal references break — agents reference commands by `/sig:foo` strings, which keep working since the prefix is preserved.
-
-**Tradeoff.** Plugin slug becomes `sig` not `signal`. Marketplace search/install would use `sig`. Brand "Signal" stays everywhere user-facing. Probably worth it — the namespace stutter is a daily papercut, the slug change is one-time mechanical work.
-
-**Why log, not fix now.** Mechanical but touches the manifest + every command path, which is the kind of "small change with broad blast radius" that wants to land alongside other plugin-config work rather than as a one-off. Bundle with the next plugin-structure task.
-
-**Resolve by:** next time the plugin manifest is touched for any reason, OR before first marketplace publish (whichever comes first — marketplace listings will be hard to rename after the fact).
-
----
-
 ## `/sig:report` — narrative project report (separate from `/sig:status`)
 
 **Status:** Logged 2026-05-03 during Milestone 4 wrap-up conversation. Gap surfaced when user wanted a "zoom out and tell me what we've done and what remains" view on a real Signal project.
