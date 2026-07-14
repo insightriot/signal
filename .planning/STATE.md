@@ -1,6 +1,6 @@
 ---
 schema_version: 1
-phase: REVIEW
+phase: SHIP
 current_epic: v0.1.6
 current_wave: null
 current_tasks: []
@@ -9,6 +9,7 @@ completed_phases:
   - PLAN (2026-07-13)
   - EXECUTE (2026-07-13)
   - VERIFY (2026-07-14)
+  - REVIEW (2026-07-14)
 blockers: []
 last_completed_task:
   id: M4.5.E10.S5.t3
@@ -44,6 +45,8 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 ---
 
 ## Current Phase
+
+**v0.1.6 (Doc-integrity guardrail) — SHIPPED (2026-07-14); full DISCUSS→SHIP at FULL/strict.** Lightweight patch (no Epic ID; `current_epic: v0.1.6`). 5 slices (`94aaaa7..b70da15`): **FR1** STATE-frontmatter write-guard (block prose in `completed_phases`/`blockers` — sibling pure fn `checkStateFrontmatterShape`, field-specific/blacklist/raw-text, fires in every installed repo, CRLF-tolerant) · **FR2** read-time size banner (`detectStateSize`/`readStateSize`/`formatStateSizeBanner` trio + resume/status/checkpoint wiring, 150 KB) · **FR3** drain recognizes `> **Promoted**` blockquote stamps (`^`-anchored, fence-aware; 43→37 candidates) · **FR4** `deriveHeading` clause-boundary cut · **FR5** 3 bugs → `BUGS.md`. DISCUSS gated 2 product decisions (hook posture; packaging); D-v016-1…7. PLAN: 4-agent research corrected the FR1 design twice (field-specific not "multi-line→block"; raw-text not `parseFrontmatter`), 8/8 validation. VERIFY 21/21 ACs, strict-Nyquist attested. **REVIEW PASS-WITH-FIXES** — 2 specialists; FR1 was inert on CRLF + a `$`-replacement desync; 6 fixes in-phase (`c1fe728`). 854→**894 tests**, no new deps. Retro `v0.1.6-RETROSPECTIVE.md`. Carry-over: AC6.4-style real-session hook smoke (human step); pre-existing lint breakage = `BUGS.md` B5. **Next: no Epic in flight — the committed Epic-native flow Epic (or M5).** (Frontmatter above is authoritative; this prose echoes it.)
 
 **M4.5.E10 (Resume trust & capture integrity) — SHIPPED as v0.1.5 (2026-07-05); full DISCUSS→SHIP complete.** New Epic promoted from the 2026-07-04 backlog review (BR-7); trust-hardening batch shipped before external testers onboard. Six items → **5 slices** (high-risk-first): **S1** origin-drift (`isStaleVsOrigin`, hardened+bounded fetch on resume/status/checkpoint) + STATE freshness in discuss/plan · **S2** resume Epic-prefix resolver (+ traversal guard) · **S3** capture-pipe guards (drain dangling-fence + `/sig:add` footer repair + lint, recover+warn) · **S4** schema-drift banner in `/sig:status`+`/sig:resume` (moved out of `/sig:doctor`, AD2) · **S5** hook smoke harness + `references/hooks-api.md` + privacy-doc fix. PLAN gated 3 scope decisions: FR1 kept as the Signal-on-Signal resolver read-half (AD1); schema-drift → status/resume (AD2); privacy docs reconciled (AD3). **Epic-native flow committed as the NEXT Epic after E10** (make Epic mode first-class — DECISIONS 2026-07-05); FR1 is its forward-compatible read-half. PLAN output: `M4.5.E10-{RESEARCH,PLAN,VALIDATION}.md`, 8/8 dims PASS, 31/31 ACs mapped. **EXECUTE shipped all 5 slices** (`0c0ca54..dfc4bf7`, per-task atomic commits, all pushed): **S1** FR2 origin-drift (`isStaleVsOrigin` hardened fail-open + banner in resume/status/checkpoint) + FR3 `markFresh` in discuss/plan · **S2** FR1 `resolveArtifactPath` Epic-prefix resolver + traversal guard (fixes the resume-can't-find-`M4.5.E10-PLAN.md` papercut) · **S3** FR4 capture-pipe guards (`listDrainCandidatesWithRecovery` dangling-fence + `insertFutureIdeasEntry` footer repair + `lintFutureIdeasFooter` dogfood lint) · **S4** FR5 `detectSchemaDrift`/`readSchemaDrift` + banner in status/resume (AD2 host) · **S5** FR6 hook spawn harness + `references/hooks-api.md` + SD3 privacy-doc reconciliation. **777→848 tests** (+71), validator green, no new deps. Progress board: `M4.5.E10-PROGRESS.md`. **VERIFY:** PASS — 31/31 ACs, strict-Nyquist RED-first attestation (`M4.5.E10-VERIFICATION.md`). **REVIEW:** PASS-WITH-FIXES — 2 independent specialist agents (code-quality + security); both caught the same crash (F1: `isStaleVsOrigin`/`isStateStale` threw on a schema-drifted STATE.md instead of degrading); 7 findings fixed in-phase (+ Sec-2 git-option-injection guard), 848→**854 tests**; report `M4.5.E10-REVIEW.md`. **SHIP:** complete — **v0.1.5 released** (release commit `e98e2d7`, tag `v0.1.5` pushed, marketplace sha-pinned, GitHub Release published under `insightriot`); retro `M4.5.E10-RETROSPECTIVE.md` (FR1 gate passed); `MILESTONE-4.5.md` § E10 marked shipped. Release carry-over: AC6.4 real-session hook smoke check (human step). **Next: no Epic in flight — the committed Epic-native flow Epic (or M5).** (Authoritative per-Epic state is the frontmatter above; this prose echoes it.)
 

@@ -6,6 +6,24 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.6] — 2026-07-14 — v0.1.6 (doc-integrity guardrail)
+
+A lightweight trust-hardening patch that prevents new documentation-integrity pathology at the point it's created and converges two capture/planning papercuts. No breaking changes; no new runtime dependencies. 854 → 894 tests. Shipped as a version patch (not an Epic) — but the cross-project write-hook earned a full specialist REVIEW pass (2 independent auditors, 6 fixes in-phase; see `.planning/v0.1.6-REVIEW.md`).
+
+Scope note: this **prevents** new bloat and **flags** growth — it does not evict an already-bloated `STATE.md`. Automated eviction is a Milestone 5 concern.
+
+### Added
+
+- **STATE.md frontmatter guard (write-time).** The `check-state-write` PreToolUse hook now blocks a write that puts prose into the `completed_phases` / `blockers` frontmatter fields (a raw-text, field-specific check: multi-line or over-budget `completed_phases` entries; over-budget or block-scalar `blockers[].text`). Blacklist stance — when in doubt it allows, so a legitimate write is never wedged; a cleanup edit that lands clean frontmatter always passes. Guards against the 455 KB "prose in the YAML list" failure mode observed in a dogfood project. Fires in every repo where Signal is installed; CRLF-tolerant.
+- **STATE.md size banner (read-time).** `/sig:resume`, `/sig:status`, and `/sig:checkpoint` now surface an advisory banner when `STATE.md` exceeds ~150 KB — a "closed-work history is accumulating; eviction is planned for M5" nudge. Read-only, never blocks; quiet on files under budget.
+- **`.planning/BUGS.md`** gains a defect register for three previously-`FUTURE-IDEAS` items (footer-drift, drain-blockquote, `/sig:add` title), now marked `fixed`, plus a pre-existing lint-tooling finding.
+
+### Fixed
+
+- **`/sig:plan` drain now converges.** The FUTURE-IDEAS disposition detector recognizes the `> **Promoted 2026-07-04 → …**` blockquote convention (`^`-anchored, fence-aware), so entries promoted via that convention stop resurfacing on every drain (live candidates 43 → 37).
+- **`/sig:add` derived titles cut at a clause boundary** (em-dash / period / colon / comma) instead of mid-clause, with a URL guard and a minimum-length floor.
+- **Hook Edit-reconstruction fidelity.** `$`-tokens (`$&`, `` $` ``, `$'`, `$$`) in an Edit's `new_string` are now inserted literally, so the write-hook judges the same content Claude Code actually writes.
+
 ## [0.1.5] — 2026-07-05 — M4.5.E10 (resume trust & capture integrity)
 
 A trust-hardening batch shipped before external testers onboard: the `/sig:resume` briefing and the `/sig:add` capture pipe must be trustworthy. No breaking changes; no new runtime dependencies. 777 → 854 tests.

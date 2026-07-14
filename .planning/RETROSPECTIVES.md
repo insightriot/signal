@@ -2,6 +2,7 @@
 
 > Per-Epic retrospectives, indexed for fast scan. Status flag (*stub* / *complete*) is auto-derived from the presence of `[FILL IN]` markers in the retro file. Hook lines (after the second em-dash) are hand-curated — they survive regeneration by Epic ID.
 
+- [v0.1.6](v0.1.6-RETROSPECTIVE.md) — *complete* — doc-integrity guardrail (lightweight patch, not an Epic): STATE frontmatter write-guard (field-specific/blacklist/raw-text — research + advisor caught a blocker false-positive that would have shipped the exact P1 harm), read-time size banner, `/sig:plan` drain convergence, `/sig:add` clause-boundary titles, 3 bugs → BUGS.md. REVIEW (2 specialists) found FR1 was inert on CRLF; 6 fixes in-phase, 854→894 tests.
 - [M4.5.E10](M4.5.E10-RETROSPECTIVE.md) — *complete* — resume/capture trust-hardening (v0.1.5): origin-drift + schema-drift banners, Epic-prefix resolver, capture-pipe guards, hook smoke test. REVIEW earned its keep — two independent agents caught the same crash (staleness checks threw on a schema-drifted STATE.md) that a green 848-test VERIFY missed; 7 findings fixed in-phase, 777→854 tests.
 - [M4.5.E5](M4.5.E5-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M4.5.E7](M4.5.E7-RETROSPECTIVE.md) — *stub* — synthesizer prose-quality fix (`embedSection` helper) + install-UX troubleshooting docs (v0.1.3 candidate); 366 → 384 tests.

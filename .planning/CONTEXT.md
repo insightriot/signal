@@ -33,7 +33,7 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-**v1 is feature-complete and shipped.** Latest release **v0.1.5** (2026-07-05, M4.5.E10); prior **v0.1.4** (2026-06-06) bundled E4+E5; **v0.1.3** (2026-05-31) bundled E7+E3+E9+E8+E2. Plugin marketplace-installable from `InsightRiot/signal`. Milestones 1–4 closed (M4 + v0.1.0 tagged 2026-05-12).
+**v1 is feature-complete and shipped.** Latest release **v0.1.6** (2026-07-14, doc-integrity guardrail — lightweight patch); prior **v0.1.5** (2026-07-05, M4.5.E10); **v0.1.4** (2026-06-06) bundled E4+E5; **v0.1.3** (2026-05-31) bundled E7+E3+E9+E8+E2. Plugin marketplace-installable from `InsightRiot/signal`. Milestones 1–4 closed (M4 + v0.1.0 tagged 2026-05-12).
 
 **MILESTONE 4.5 (Release Hardening / Stranger-Adoption Readiness): E1–E10 all shipped (v0.1.1–v0.1.5).** The milestone's external-validation criterion (≥3 non-Signal testers, feedback merged) remains open, pending the outward tester loop. Shipped Epics: **E1** (install-path fix → v0.1.1; Slices 3–5 shelved), **E6** (STATE schema + `/sig:checkpoint` → v0.1.2), **E7 / E3 / E9 / E8 / E2** (→ v0.1.3), **E4 + E5** (worked example + comparison page + launch assets → v0.1.4, 2026-06-06), **E10** (resume trust & capture integrity → v0.1.5, 2026-07-05). One release carry-over: AC6.4 (real-session SessionStart-resume hook smoke check) is a documented human step — see `references/hooks-api.md`.
 
@@ -42,6 +42,8 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 - **`.planning/` restructured 2026-06-05** (out-of-band hygiene, *not* an E5 task): 72 → 24 root files; closed-cycle scaffolding archived under `.planning/archive/M4.5/E{n}/` (M1–M4 under `archive/milestones/`). **`.planning/INDEX.md` is the documentation map — read it first.** Retros stay in root as the traceability spine. `tools/archive-migrate.mjs` = `/sig:migrate-memory` prototype. Commits `be9d87d`, `79c030f`.
 
 ## Active work
+
+**v0.1.6 — Doc-integrity guardrail — SHIPPED (2026-07-14).** Lightweight patch (no Epic ID; tracked as `current_epic: v0.1.6`), full DISCUSS→SHIP at FULL/strict. 5 slices (`94aaaa7..b70da15`): **FR1** STATE-frontmatter write-guard (block prose in `completed_phases`/`blockers` — field-specific/blacklist/raw-text; fires in every installed repo) · **FR2** read-time size banner (resume/status/checkpoint, 150 KB) · **FR3** `/sig:plan` drain recognizes `> **Promoted**` blockquote stamps (converges 43→37) · **FR4** `/sig:add` clause-boundary titles · **FR5** 3 bugs → `BUGS.md`. VERIFY 21/21 ACs; **REVIEW PASS-WITH-FIXES** — 2 specialists, FR1 was inert on CRLF + `$`-replacement desync, 6 fixes in-phase. 854→**894 tests**, no new deps. Decisions D-v016-1…7; retro `v0.1.6-RETROSPECTIVE.md`. **Carry-over:** AC6.4-style real-session hook smoke (human step). **Next horizon: the committed Epic-native flow Epic**, or **Milestone 5**. (The version-as-`current_epic` friction hit during this SHIP is one more vote for Epic-native flow.)
 
 **M4.5.E10 — Resume trust & capture integrity — SHIPPED as v0.1.5 (2026-07-05).** Full DISCUSS→SHIP at FULL/strict in one session. 5 slices / 13 tasks (`0c0ca54..dfc4bf7`): **S1** FR2 origin-drift (`isStaleVsOrigin`) + FR3 STATE freshness in discuss/plan · **S2** FR1 `resolveArtifactPath` Epic-prefix resolver (fixed the resume-can't-find-`M4.5.E10-PLAN.md` papercut) · **S3** FR4 capture-pipe guards · **S4** FR5 schema-drift banner in status/resume (AD2) · **S5** FR6 hook harness + `references/hooks-api.md` + SD3 privacy fix. VERIFY 31/31 ACs; **REVIEW PASS-WITH-FIXES** — 2 independent agents caught the same crash (F1: staleness checks threw on a schema-drifted STATE.md instead of degrading), 7 findings fixed in-phase + a git-option-injection guard. 777→**854 tests**, no new deps, validator green. Retro: `M4.5.E10-RETROSPECTIVE.md`. **One carry-over:** AC6.4 real-session hook smoke check (human step, `references/hooks-api.md`). **Next horizon: the committed Epic-native flow Epic** (make Epic mode first-class — commands write Epic-scoped artifacts + populate `current_epic`; FR1 is its forward-compatible read-half — DECISIONS 2026-07-05).
 
@@ -94,18 +96,14 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 3. If staleness is reported (STATE.md behind work history), run `/sig:checkpoint` first. Run `/sig:checkpoint --context` before any planned context clear so the next session's resume is genuinely useful.
 4. For deeper context (full vision, design decisions, milestone breakdown), open the files in this order: `CONTEXT.md` (this file) → `MILESTONE-4.5.md` → `DECISIONS.md`.
 
-**Specifically for the next session (queued 2026-07-13):** A doc-accuracy + eviction pass just landed and is committed/pushed (STATE `## Active` rewrite, INDEX refresh, a shipped FUTURE-IDEAS entry deleted). **No Epic is in flight** — `/sig:resume` will report `Next: done`.
+**Specifically for the next session:** **v0.1.6 (doc-integrity guardrail) just shipped** — release committed + tagged + pushed, marketplace pinned. **No Epic is in flight** — `/sig:resume` will report `Next: done`.
 
-**Recommended next work — a small `v0.1.6` doc-integrity guardrail** (est. ~1–2 focused build sessions). Four bounded pieces:
-1. A STATE write-hook (`hooks/check-state-write.js`) that **blocks** prose from landing in the `completed_phases`/`blockers` frontmatter fields and **warns** when the body crosses a size budget — prevents the 455 KB CMMC-dogfood failure mode at write time.
-2. The `/sig:plan` drain **blockquote-disposition fix** (`tools/lib/drain.js`) so the drain converges instead of re-surfacing ~40 already-handled entries.
-3. Move the bug-flavored FUTURE-IDEAS items (footer drift, drain blockquote, `/sig:add` derived-title) into `BUGS.md`.
-4. `/sig:add` derived-title cut-at-clause fix (`tools/lib/add.js`).
+**Recommended next work — two committed options:**
+1. **Epic-native flow** Epic (make Epic mode first-class — commands create/track Epics, write Epic-scoped artifacts, populate `current_epic`, per-Epic calibration; DECISIONS 2026-07-05). The version-as-`current_epic` friction hit during v0.1.6's SHIP (the FR1 milestone-derivation + `deriveRetroPath` both assume an `M{n}.E{n}` ID) is fresh evidence for it.
+2. **Milestone 5** (v2 ports + memory/doc-runtime, gated on usage signal). The *big* STATE-eviction redesign (M5 Sprint 3) — v0.1.6 was the *preventive* down-payment (block new pollution + flag growth); eviction of already-bloated files is still M5.
 
-This is the do-now, un-gated form of the doc-lifecycle fix captured in `MILESTONE-5.md` (§ Captured via /sig:add). **To start: run `/sig:discuss`** on it (likely a small `M4.5.E11` trust-hardening Epic or a standalone `v0.1.6` patch — DISCUSS decides the shape).
-
-**Alternatives if you'd rather:** the committed **Epic-native flow** Epic (make Epic mode first-class — DECISIONS 2026-07-05), or **Milestone 5** (v2 ports + memory/doc-runtime, gated on usage signal). The *big* eviction redesign (M5 Sprint 3) stays gated behind M4.5's close. Open M4.5 tail: outward tester loop (≥3 non-Signal testers) + AC6.4's manual hook smoke check.
+Open M4.5 tail: outward tester loop (≥3 non-Signal testers) + the AC6.4-style real-session hook smoke check (human step, `references/hooks-api.md`). Pre-existing lint tooling breakage tracked as `BUGS.md` B5.
 
 ---
 
-*Last updated: 2026-07-13 (doc-accuracy + eviction pass: STATE `## Active` refreshed to match frontmatter, INDEX HOT/WARM/COLD refreshed after E5+E10, shipped FUTURE-IDEAS entry deleted, doc-lifecycle fix captured to MILESTONE-5. Queued next: v0.1.6 doc-integrity guardrail (recommended) / Epic-native flow / M5. Prior: 2026-07-05 M4.5.E10 → v0.1.5; 2026-06-06 E5 → v0.1.4.)*
+*Last updated: 2026-07-14 (v0.1.6 doc-integrity guardrail SHIPPED: STATE frontmatter write-guard + read-time size banner + drain convergence + clause-boundary titles + 3 bugs→BUGS.md; 854→894 tests; CONTEXT/STATE prose refreshed at SHIP. Prior: 2026-07-05 M4.5.E10 → v0.1.5; 2026-06-06 E5 → v0.1.4.)*
