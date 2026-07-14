@@ -102,6 +102,10 @@ If `{stale: false}`, skip silently. Like the version check this is **advisory on
 
 Also before 2.1, call `readSchemaDriftBanner(baseDir)` from `tools/lib/status.js`. If it returns a string, prepend it **above** the version + origin banners — a STATE.md schema mismatch is the most fundamental trust signal (every field below is read from that STATE.md). If it returns `null`, skip silently. This is **platform-agnostic and read-only** (per AD2 — it deliberately does *not* live in `/sig:doctor`, which is macOS-gated and `~/.claude`-scoped, so a Linux/WSL tester still sees the warning). It routes through `parseFrontmatter`, not `readState`, so an ahead-schema STATE.md reports rather than crashes.
 
+#### 2.0d STATE.md size check (advisory) — v0.1.6, FR2
+
+Call `readStateSizeBanner(baseDir)` from `tools/lib/status.js`. If it returns a string, append it **below** the drift banners (it's the lowest-priority, advisory signal — the file being large doesn't make the status *wrong*, unlike schema/origin drift). If `null`, skip silently. Read-only whole-file `statSync`, 150 KB threshold; detect + flag only (eviction is M5). Like the other banners, advisory-only — it MUST NOT break `/sig:status`.
+
 #### 2.1 Project + tier
 
 Project root path (use the working directory). Tier from `profile.tier`. If `profile.metadata.escalation_history` is non-empty, append `formatEscalationSummary(profile.metadata.escalation_history)` to the tier line. Calibration date from the `YYYY-MM-DD` portion of `profile.metadata.created_at`.

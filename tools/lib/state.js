@@ -1,5 +1,5 @@
 import { readFile, mkdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
@@ -932,6 +932,82 @@ export function formatSchemaDriftBanner(finding) {
       : `STATE.md schema drift (${finding.status})`;
   return `⚠ ${label}.\n   ${finding.message}`;
 }
+
+// --- FR2 (v0.1.6): read-time STATE.md size banner ---
+//
+// Detect + FLAG only. Actual eviction/remediation of an already-bloated file is
+// the M5 redesign (root cause: upgradeStateFile inlining the legacy body +
+// append-without-evict). This is the coarse "the file is getting big" signal;
+// FR1's write-hook catches the specific frontmatter-prose pathology at write.
+//
+// Whole-file size (statSync .size): simplest, read-only (no mtime change), and
+// it catches frontmatter bloat too (the cmmc pollution lives INSIDE the
+// frontmatter). Threshold sits above Signal's own legitimate ~62 KB file and
+// well below the 465 KB cmmc failure — so it stays quiet until eviction is
+// genuinely due, at which point M5 is the fix.
+const STATE_SIZE_WARN_BYTES = 150 * 1024;
+
+/**
+ * Pure size compare. Returns a finding when `bytes` EXCEEDS `threshold`, else
+ * null (exclusive at the boundary). No I/O.
+ *
+ * @param {number} bytes
+ * @param {number} [threshold=STATE_SIZE_WARN_BYTES]
+ * @returns {{bytes: number, threshold: number, message: string} | null}
+ */
+function detectStateSize(bytes, threshold = STATE_SIZE_WARN_BYTES) {
+  if (!Number.isFinite(bytes) || bytes <= threshold) return null;
+  const kb = Math.round(bytes / 1024);
+  const budgetKb = Math.round(threshold / 1024);
+  return {
+    bytes,
+    threshold,
+    message:
+      `STATE.md is ${kb} KB (over the ${budgetKb} KB budget) — closed-work history ` +
+      `is accumulating. Automated eviction is planned for M5; for now, move ` +
+      `closed-slice narrative into an archive/RETROSPECTIVES pointer to trim it.`,
+  };
+}
+
+/**
+ * Read-only size check for a project's STATE.md (FR2). Whole-file `statSync`;
+ * NEVER throws (missing file or stat error → null → no banner). Read-only, so
+ * the `/sig:status` read-only-`.planning/` contract holds (no mtime change).
+ *
+ * @param {string} baseDir
+ * @returns {{bytes: number, threshold: number, message: string} | null}
+ */
+function readStateSize(baseDir) {
+  const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
+  if (!existsSync(statePath)) return null;
+  let bytes;
+  try {
+    bytes = statSync(statePath).size;
+  } catch {
+    return null; // unreadable → no banner
+  }
+  return detectStateSize(bytes);
+}
+
+/**
+ * Format a size finding into a two-line advisory banner (or null when under
+ * budget). Shared by /sig:resume, /sig:status, /sig:checkpoint so all three
+ * surface the identical warning. Advisory only — never blocks.
+ *
+ * @param {{message: string} | null} finding
+ * @returns {string | null}
+ */
+function formatStateSizeBanner(finding) {
+  if (!finding) return null;
+  return `⚠ STATE.md is large.\n   ${finding.message}`;
+}
+
+export {
+  STATE_SIZE_WARN_BYTES,
+  detectStateSize,
+  readStateSize,
+  formatStateSizeBanner,
+};
 
 // --- blockers helpers (M4.5.E6.S1.t9) ---
 

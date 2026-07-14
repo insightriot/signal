@@ -16,6 +16,7 @@ import {
   detectOrphans,
   clearCurrentTask,
   formatSchemaDriftBanner,
+  formatStateSizeBanner,
 } from './state.js';
 
 const PHASES = ['CALIBRATE', 'DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'SHIP'];
@@ -123,6 +124,7 @@ export function renderResumeBriefing(params = {}) {
     isStaleResult = null,
     originDriftResult = null,
     schemaDriftResult = null,
+    stateSizeResult = null,
     nextAction = '',
     retroSummary = null,
   } = params;
@@ -162,6 +164,15 @@ export function renderResumeBriefing(params = {}) {
     } else {
       lines.push(`   Run git pull to sync, or continue (this was a read-only check).`);
     }
+    lines.push('');
+  }
+
+  // Size is the lowest-priority (advisory) banner — it doesn't cast doubt on
+  // the briefing's correctness the way schema/staleness/origin drift do, so it
+  // renders last, just above the body.
+  const sizeBanner = formatStateSizeBanner(stateSizeResult);
+  if (sizeBanner) {
+    lines.push(...sizeBanner.split('\n'));
     lines.push('');
   }
 

@@ -1,7 +1,13 @@
 import { readFile } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { PHASES, readSchemaDrift, formatSchemaDriftBanner } from './state.js';
+import {
+  PHASES,
+  readSchemaDrift,
+  formatSchemaDriftBanner,
+  readStateSize,
+  formatStateSizeBanner,
+} from './state.js';
 import { extractSection } from './landscape.js';
 import {
   readInstallState,
@@ -244,4 +250,17 @@ export function formatStalenessWarning({ installed, latest, recommendation }) {
  */
 export async function readSchemaDriftBanner(baseDir) {
   return formatSchemaDriftBanner(await readSchemaDrift(baseDir));
+}
+
+/**
+ * Advisory STATE.md size banner (FR2, v0.1.6) — a string or null when the file
+ * is under budget / absent. Read-only; wraps state.js's readStateSize + the
+ * shared formatter so /sig:status, /sig:resume and /sig:checkpoint show the
+ * identical warning. Never blocks.
+ *
+ * @param {string} baseDir
+ * @returns {string | null}
+ */
+export function readStateSizeBanner(baseDir) {
+  return formatStateSizeBanner(readStateSize(baseDir));
 }

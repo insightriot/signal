@@ -463,3 +463,26 @@ describe('handleOrphansAtResume (S4.t3)', () => {
     expect(state.current_tasks.map((t) => t.id)).toEqual(['T-OLD']);
   });
 });
+
+describe('renderResumeBriefing — FR2 size banner (v0.1.6)', () => {
+  it('AC2.1 renders the advisory size banner when stateSizeResult is present', () => {
+    const out = renderResumeBriefing({
+      cwd: '/p',
+      profile: FULL_PROFILE,
+      state: { phase: 'EXECUTE', completed_phases: [], current_tasks: [] },
+      stateSizeResult: { bytes: 200 * 1024, threshold: 150 * 1024, message: 'STATE.md is 200 KB (over the 150 KB budget) — eviction planned for M5.' },
+    });
+    expect(out).toMatch(/⚠ STATE\.md is large/);
+    expect(out).toMatch(/M5/);
+  });
+
+  it('omits the size banner when stateSizeResult is null', () => {
+    const out = renderResumeBriefing({
+      cwd: '/p',
+      profile: FULL_PROFILE,
+      state: { phase: 'EXECUTE', completed_phases: [], current_tasks: [] },
+      stateSizeResult: null,
+    });
+    expect(out).not.toMatch(/STATE\.md is large/);
+  });
+});

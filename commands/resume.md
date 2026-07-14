@@ -12,7 +12,7 @@ Where `/sig:status` is a snapshot, `/sig:resume` is a **briefing**: it actively 
 
 Authoritative references:
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `ProfileSchemaError`
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `isStateStale`, `isStaleVsOrigin`, `readSchemaDrift`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `isStateStale`, `isStaleVsOrigin`, `readSchemaDrift`, `readStateSize`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/resume.js` — `renderResumeBriefing`, `handleOrphansAtResume`, `resolveArtifactPath`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `nextActionForPhase`, `formatEscalationSummary`, `readOpenQuestions`, `readLandscapeMeta`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/landscape.js` — `extractSection` (used to pull "What this project is" from LANDSCAPE.md when PROJECT.md Vision is still `[INFERRED]` or `[FILL IN]`)
@@ -72,6 +72,8 @@ Two pre-render checks routed through `tools/lib/state.js` + `tools/lib/resume.js
 
 1b. **Schema drift** — call `readSchemaDrift(baseDir)` from `tools/lib/state.js` and pass the result to `renderResumeBriefing` as `schemaDriftResult`. It's read-only + platform-agnostic (AD2 — deliberately NOT in `/sig:doctor`, which is macOS-gated), routes through `parseFrontmatter` (not `readState`, which throws on an ahead schema), and returns `null` when there's no drift. The briefing renders this banner **above** all others: a STATE.md schema mismatch means every field the briefing reads below could be misparsed.
 
+1c. **STATE.md size** (v0.1.6, FR2) — call `readStateSize(baseDir)` from `tools/lib/state.js` and pass the result to `renderResumeBriefing` as `stateSizeResult`. Read-only whole-file `statSync` (never throws → `null` on a missing/unreadable file), threshold 150 KB. It's the **lowest-priority, advisory** banner (rendered last, just above the body — it doesn't cast doubt on the briefing's correctness the way schema/staleness/origin drift do). Detect + flag only: eviction of an already-bloated STATE.md is M5.
+
 #### 3c. Retro completeness (M4.5.E9.S2.t7)
 
 Call `enumerateRetros(baseDir)` from `tools/lib/retro-index.js`. Build a summary `{total, complete, stub}` where `complete = total - stub` (and `stub = records.filter(r => r.isStub).length`). Pass as `retroSummary` to `renderResumeBriefing`. The renderer adds one line:
@@ -107,6 +109,7 @@ renderResumeBriefing({
   isStaleResult: staleResult,     // local staleness — from Step 3b(1)
   originDriftResult,              // origin drift — from Step 3b(1a); fail-open
   schemaDriftResult,             // schema drift — from Step 3b(1b); read-only
+  stateSizeResult,               // STATE.md size — from Step 3b(1c); advisory, read-only
   nextAction: nextActionForPhase(state.phase, profile),
   retroSummary,                   // {total, complete, stub} — see Step 3c
 });

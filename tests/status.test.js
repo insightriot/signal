@@ -12,6 +12,7 @@ import {
   formatEscalationSummary,
   readLandscapeMeta,
   readSchemaDriftBanner,
+  readStateSizeBanner,
 } from '../tools/lib/status.js';
 import { readProfile, ProfileSchemaError } from '../tools/lib/profile.js';
 
@@ -519,5 +520,30 @@ describe('status.md — static contract', () => {
     // We catch that imperative pattern but allow disclaimers.
     expect(content).not.toMatch(/^Spawn (up to )?\d+|^Spawn (\w+ ){0,3}agents? in parallel/im);
     expect(content).not.toMatch(/research(er)? agents? in parallel/i);
+  });
+});
+
+describe('readStateSizeBanner (FR2, v0.1.6)', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'signal-status-size-'));
+    await mkdir(join(dir, '.planning'), { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('AC2.4 returns null when no STATE.md exists', () => {
+    expect(readStateSizeBanner(dir)).toBeNull();
+  });
+
+  it('AC2.3 returns null for a small STATE.md', async () => {
+    await writeFile(join(dir, '.planning', 'STATE.md'), '---\nschema_version: 1\n---\nbody\n');
+    expect(readStateSizeBanner(dir)).toBeNull();
+  });
+
+  it('AC2.1 returns a banner string for an over-budget STATE.md', async () => {
+    await writeFile(join(dir, '.planning', 'STATE.md'), '---\nschema_version: 1\n---\n' + 'x'.repeat(200 * 1024));
+    expect(readStateSizeBanner(dir)).toMatch(/⚠ STATE\.md is large/);
   });
 });
