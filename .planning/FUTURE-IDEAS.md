@@ -1516,25 +1516,6 @@ Captured here rather than lost-to-context, because the scoping conversation prod
 
 ---
 
-## FUTURE-IDEAS footer drift — new entries can land below the `*Last updated:*` footer
-
-> **Promoted 2026-07-04 → M4.5.E10** (capture-pipe guard — forward-fix options 1 + 2). See DECISIONS 2026-07-04 + MILESTONE-4.5.md § E10.
-
-**Status:** Logged 2026-06-03 (during PLAN on M4.5.E5). Surgical fix applied same day — the footer was moved to the true end of file; this entry tracks the root-cause hardening so the drift can't silently recur.
-
-**Symptom.** A `/sig:add` capture on 2026-06-03 landed at line ~1068 — *above* a `*Last updated:*` footer that was itself stranded mid-file (line 1079), with 6 idea entries sitting *below* it (lines 1080–1515). `insertAboveFooter` correctly inserts above the first `*Last updated:*` match, so once any content gets appended below the footer, every subsequent `/sig:add` buries new entries above the stranded footer instead of at the real end.
-
-**Root cause (to investigate).** Something wrote ≥6 entries below the footer at some earlier point — candidates: a manual paste/edit that appended at EOF without respecting the footer, an older `/sig:add` or drain code path, or a merge. `rewriteFooter` + `insertAboveFooter` (`tools/lib/add.js`) assume exactly one footer at EOF; they neither detect nor repair a footer that has content after it.
-
-**Forward fix options (pick at a future planning gate; relates to the `/sig:add` surface, M4.5.E2):**
-1. **Guard in `add.js`** — after `insertAboveFooter`, assert no non-whitespace content exists after the `*Last updated:*` line; if it does, repair (move footer to EOF) or warn loudly rather than silently inserting mid-file.
-2. **Validator/lint check** — a test (or `validate-plugin` rule) that fails if `FUTURE-IDEAS.md` has content after its footer. Cheap regression guard; catches the drift the moment it reappears.
-3. **Footer-position-tolerant `insertAboveFooter`** — treat the footer as "always at EOF" and normalize on every write (move it down if entries exist below).
-
-Low urgency now that the file is repaired; worth a guard so it can't recur.
-
----
-
 ## Passive Stop-hook → continuous in-the-moment observation
 
 **Status:** Logged 2026-06-04 via `/sig:add`. mid-EXECUTE on M4.5.E5
@@ -1680,22 +1661,6 @@ The other three candidate changes (body skeleton in `references/state-schema.md`
 
 - **Migration-side fix (the acute-case root cause).** The 455KB downstream monster was seeded by the legacy migration, not by slow accretion: `upgradeStateFile` (state.js:177) inlines the entire old file as the new body — `` body = `${notice}\n\n${raw}` `` — and `writeStateFrontmatter` (state.js:411–416) then preserves it verbatim on every subsequent write, so nothing prunes it. Fix: on migration, **relocate the legacy body to a sibling `.planning/STATE-HISTORY.md`** and leave a one-line pointer in STATE.md's body, instead of inlining. This is distinct from the evict-on-close step above (that handles *new* closed slices; this handles the *one-time* legacy seed). Note it's downstream-specific — Signal's own STATE.md never migrated a legacy body, which is why it's ~59KB (7,624 words), not 455KB. Signal's own file still bloats via writer (B) accretion, just an eighth as fast and without the migration accelerant — the same curve, earlier on it.
 - **Tier-aware budget.** The ~2K-live / 8K-total figure above should scale by PROFILE tier rather than being flat: a SKETCH project's STATE.md warrants a tighter ceiling than a FULL project mid-milestone. The hook can read `PROFILE.md` (as the phase commands already do) to pick the threshold; fall back to the flat default when no profile exists.
-
----
-
-## /sig:add derived-title polish — cut the auto-heading at a clause boundary
-
-**Status:** Logged 2026-07-04 via `/sig:add`.
-
-/sig:add derived-title polish — cut the auto-heading at a clause boundary, not a raw character count. buildFutureIdeasEntry (tools/lib/add.js) derives the entry heading by slicing the first ~60 chars of the body at a word boundary, which can land mid-clause: the 2026-07-04 "STATE.md append-without-evict" capture got the heading "closed-work narrative must" (hand-fixed same day). Candidate fix: prefer the first sentence-ending punctuation, em-dash, or period before the cap; fall back to the current word-boundary slice. Cosmetic, but headings are the scan/drain surface of FUTURE-IDEAS.md — the drain protocol and humans both navigate by them. Applies to all three destinations if they share the title derivation (check buildOpenQuestionsEntry / buildMilestoneEntry).
-
----
-
-## Drain disposition-detector misses blockquote promotions....
-
-**Status:** Logged 2026-07-05 via `/sig:add`. during PLAN on M4.5.E10
-
-Drain disposition-detector misses blockquote promotions. /sig:plan's FUTURE-IDEAS drain (listDrainCandidates / parseEntries in tools/lib/drain.js) treats an entry as dispositioned only when the `## ` heading carries a SHIPPED|PROMOTED|DEFERRED|MERGED|DELETED marker (HEADING_DISPOSED_RE) OR a `**Status:**` line carries one of those verbs. But the 2026-07-04 backlog review stamped promotions/updates as blockquotes — `> **Promoted 2026-07-04 → M4.5.E10** ...` — which neither check recognizes. Result: every entry promoted or updated via the blockquote convention resurfaces as a drain candidate forever (the M4.5.E10 PLAN drain surfaced 42 candidates, including the 6 already promoted to E10). Fix options: (a) extend the disposition detector to also treat a leading `> **Promoted|Deferred|Merged|Shipped …**` blockquote inside an entry as dispositioned; or (b) make the backlog-review/promotion convention write a `**Status:**` disposition line (not only a blockquote). Surfaced during M4.5.E10 PLAN (2026-07-05).
 
 ---
 

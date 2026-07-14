@@ -36,7 +36,7 @@ a future `/sig:index`. Curated one-liners survive regeneration by file/Epic ID.
 |---|---|
 | [RETROSPECTIVES.md](RETROSPECTIVES.md) | **Traceability spine** — per-Epic retro ledger. `stub`/`complete` flag auto-derived from `[FILL IN]` markers; hooks hand-curated, survive regen by Epic ID. |
 | [DECISIONS.md](DECISIONS.md) | Decision log (`D-E{n}-{k}` IDs). **1,317 lines — append-only monolith; grep/TOC, don't load whole.** |
-| [FUTURE-IDEAS.md](FUTURE-IDEAS.md) | Post-v1 idea backlog. **1,703 lines — append-only monolith; grep/TOC, don't load whole.** Drained advisorily by `/sig:plan`. |
+| [FUTURE-IDEAS.md](FUTURE-IDEAS.md) | Post-v1 idea backlog. **1,678 lines — append-only monolith; grep/TOC, don't load whole.** Drained advisorily by `/sig:plan`. |
 | [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) | Unresolved questions surfaced across phases. |
 | [BUGS.md](BUGS.md) | Bugs & verified findings catalog. **Where bugs get logged** (catalog → triage → confirm/dismiss). GitHub Issues deferred to live-users. |
 | [MILESTONE-5.md](MILESTONE-5.md) | Next-horizon milestone — v2 ports + memory-management (gated on usage signal). Holds `/sig:add --milestone 5` captures near EOF. |
