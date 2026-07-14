@@ -56,6 +56,15 @@ const HEADING_DISPOSED_RE = /^##\s*(✓\s*)?(SHIPPED|PROMOTED|DEFERRED|MERGED|DE
 const STATUS_DISPOSED_RE =
   /\b(Promoted|Deferred|Merged|Deleted)\s+\d{4}-\d{2}-\d{2}\s+\([^)\n]*\bdrain\b\)/;
 
+// FR3 (v0.1.6): the 2026-07-04 backlog review stamped promotions as a LEADING
+// blockquote (`> **Promoted 2026-07-04 → M4.5.E10** …`), which neither of the
+// two REs above recognized — so those entries resurfaced on every drain. This
+// matches such a stamp, ^-anchored at line start so a stamp merely QUOTED
+// mid-prose (or a `> **Update …**` annotation on a still-open entry) is never
+// mistaken for a real disposition. Verb set matches HEADING_DISPOSED_RE.
+const BLOCKQUOTE_DISPOSED_RE =
+  /^\s*>\s*\*\*(Promoted|Deferred|Merged|Shipped|Deleted)\b/i;
+
 // First `**Status:**` line of an entry (leading whitespace tolerated).
 const STATUS_LINE_RE = /^\s*\*\*Status:\*\*/;
 
@@ -145,9 +154,29 @@ export function parseEntries(content) {
     };
     const dateISO = dateFrom(statusLine) ?? dateFrom(headingLineRaw);
 
+    // FR3: a leading blockquote disposition stamp in the entry's header region
+    // (first non-blank content line after the heading, fence-aware) marks the
+    // entry dispositioned. Scanning only the first non-blank line keeps a stamp
+    // quoted deeper in the body from being mistaken for a real disposition.
+    let blockquoteDisposed = false;
+    {
+      let hdrFence = false;
+      for (let i = startLine + 1; i < endLine; i++) {
+        if (isFenceMarker(lines[i])) {
+          hdrFence = !hdrFence;
+          continue;
+        }
+        if (hdrFence) continue;
+        if (lines[i].trim() === '') continue;
+        blockquoteDisposed = BLOCKQUOTE_DISPOSED_RE.test(lines[i]);
+        break; // first non-blank, non-fenced line decides
+      }
+    }
+
     const dispositioned =
       HEADING_DISPOSED_RE.test(headingLineRaw) ||
-      STATUS_DISPOSED_RE.test(statusLine ?? '');
+      STATUS_DISPOSED_RE.test(statusLine ?? '') ||
+      blockquoteDisposed;
 
     const start = offsets[startLine];
     const end = endLine < lines.length ? offsets[endLine] : content.length;

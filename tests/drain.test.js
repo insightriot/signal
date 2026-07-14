@@ -561,3 +561,41 @@ describe('applyDispositionToFile (R5 delete/merge confirm gate + atomic write)',
     expect(await readFile(target, 'utf-8')).toBe(original);
   });
 });
+
+// --- FR3 (v0.1.6): leading blockquote disposition stamps ---
+// The 2026-07-04 backlog review stamped promotions as blockquotes
+// (`> **Promoted 2026-07-04 → M4.5.E10** …`), which neither HEADING_DISPOSED_RE
+// nor STATUS_DISPOSED_RE recognized — so those entries resurfaced every drain.
+// FR3 adds a ^-anchored, fence-aware header-region scan for such stamps.
+describe('listDrainCandidates — FR3 blockquote disposition (v0.1.6)', () => {
+  it('AC3.1 treats a leading `> **Promoted …**` blockquote as dispositioned (excluded)', () => {
+    const c =
+      '## Some idea\n\n> **Promoted 2026-07-04 → M4.5.E10** (folded into the plan). See DECISIONS.\n\nBody text.\n\n---\n';
+    expect(listDrainCandidates(c)).toEqual([]);
+  });
+
+  it('AC3.1 also recognizes Deferred/Merged/Shipped/Deleted leading blockquotes', () => {
+    for (const verb of ['Deferred', 'Merged', 'Shipped', 'Deleted']) {
+      const c = `## Idea\n\n> **${verb} 2026-07-04 → M5** (note).\n\n---\n`;
+      expect(listDrainCandidates(c)).toEqual([]);
+    }
+  });
+
+  it('AC3.2 does NOT treat a leading `> **Update …**` blockquote as dispositioned (stays live)', () => {
+    const c =
+      '## Live idea\n\n> **Update 2026-07-04 (still open)** more context.\n\nBody.\n\n---\n';
+    expect(listDrainCandidates(c).map((e) => e.heading)).toEqual(['Live idea']);
+  });
+
+  it('AC3.2 does not let a FENCED blockquote stamp flip a real candidate', () => {
+    const c =
+      '## Live idea\n\n```\n> **Promoted 2026-07-04 → M5** (example inside a code fence)\n```\n\nBody.\n\n---\n';
+    expect(listDrainCandidates(c).map((e) => e.heading)).toEqual(['Live idea']);
+  });
+
+  it('AC3.2 ignores a Promoted stamp quoted deeper in the body (not the leading line)', () => {
+    const c =
+      '## Live idea\n\nSome intro prose first.\n\n> **Promoted 2026-07-04 → M5** (quoted as an example, not a real disposition)\n\n---\n';
+    expect(listDrainCandidates(c).map((e) => e.heading)).toEqual(['Live idea']);
+  });
+});
