@@ -459,17 +459,19 @@
      ██ ██ ██    ██ ██  ████ ██   ██ ██
 ███████ ██  ██████  ██   ███ ██   ██ ███████</pre>
 <p class="tagline">Right-sized rigor for AI-assisted engineering.</p>
-<p class="meta">Map &middot; v0.1.3 &middot; generated 2026-06-03 &middot; <a href="../commands/">commands/</a> &middot; <a href="../.planning/PROJECT.md">PROJECT.md § Vocabulary</a> &middot; <a href="../references/tier-definitions.md">tier-definitions.md</a></p>
+<p class="meta">Map &middot; v0.1.5 &middot; generated 2026-07-13 &middot; <a href="../commands/">commands/</a> &middot; <a href="../.planning/PROJECT.md">PROJECT.md § Vocabulary</a> &middot; <a href="../references/tier-definitions.md">tier-definitions.md</a></p>
 </header>
 
 <nav class="toc">
   <a href="#commands">1. Command library</a>
-  <a href="#calibrate">2. Calibrate simulator</a>
-  <a href="#vocab">3. Vocabulary</a>
-  <a href="#tiers">4. Tiers</a>
-  <a href="#matrix">5. Rigor matrix</a>
-  <a href="#phases">6. Phase flow</a>
-  <a href="#patterns">7. Question patterns</a>
+  <a href="#agents">2. Agent roster</a>
+  <a href="#skills">3. Skill library</a>
+  <a href="#calibrate">4. Calibrate simulator</a>
+  <a href="#vocab">5. Vocabulary</a>
+  <a href="#tiers">6. Tiers</a>
+  <a href="#matrix">7. Rigor matrix</a>
+  <a href="#phases">8. Phase flow</a>
+  <a href="#patterns">9. Question patterns</a>
 </nav>
 
 <section id="commands">
@@ -482,8 +484,28 @@
 <div id="command-lib"></div>
 </section>
 
+<section id="agents">
+<h2><span class="glyph">◈</span>2. Agent roster — 26 agents</h2>
+<p class="lede">Signal spawns specialized subagents per phase — you rarely call these directly; the phase commands orchestrate them. Grouped by role; click a group to expand. (19 from GSD's orchestration engine + 3 Agent Skills specialists + 4 brownfield scanners.)</p>
+<div class="cmd-controls">
+  <button onclick="toggleAllGroups('agent-lib', true)">Expand all</button>
+  <button onclick="toggleAllGroups('agent-lib', false)">Collapse all</button>
+</div>
+<div id="agent-lib"></div>
+</section>
+
+<section id="skills">
+<h2><span class="glyph">▦</span>3. Skill library — 21 skills</h2>
+<p class="lede">Quality skills from Agent Skills (Addy Osmani), bound to phases and loaded on-demand — never all 21 at once, to protect the context budget. Grouped by the phase that loads them.</p>
+<div class="cmd-controls">
+  <button onclick="toggleAllGroups('skill-lib', true)">Expand all</button>
+  <button onclick="toggleAllGroups('skill-lib', false)">Collapse all</button>
+</div>
+<div id="skill-lib"></div>
+</section>
+
 <section id="calibrate">
-<h2><span class="glyph">▁</span>2. Calibrate — 5 questions → tier</h2>
+<h2><span class="glyph">▁</span>4. Calibrate — 5 questions → tier</h2>
 <p class="lede">Pick an answer for each of the 5 diagnostic questions. The tier updates live as you choose. The right panel shows which derivation rule fired, the rigor profile, and which phases run/skip.</p>
 
 <div class="sim">
@@ -493,7 +515,7 @@
 </section>
 
 <section id="vocab">
-<h2><span class="glyph">▸</span>3. Work-unit vocabulary</h2>
+<h2><span class="glyph">▸</span>5. Work-unit vocabulary</h2>
 <p class="lede">Signal organizes work into a four-level identity hierarchy plus three orthogonal status terms. Hierarchy IDs are immutable after assignment; status terms change as work progresses. Source: <a href="../.planning/PROJECT.md">PROJECT.md § Vocabulary</a>.</p>
 
 <div class="vocab-axis-title">Identity hierarchy <span class="axis-scope">— IDs never change after assignment</span></div>
@@ -507,25 +529,25 @@
 </section>
 
 <section id="tiers">
-<h2><span class="glyph">◇</span>4. The Four Tiers</h2>
+<h2><span class="glyph">◇</span>6. The Four Tiers</h2>
 <p class="lede">Every project is exactly one Tier. Tier sets the structural shape (which phases run); rigor overrides set the dial values inside.</p>
 <div class="tier-grid" id="tier-grid"></div>
 </section>
 
 <section id="matrix">
-<h2><span class="glyph">◆</span>5. Rigor matrix — 10 dials × 4 tiers</h2>
+<h2><span class="glyph">◆</span>7. Rigor matrix — 10 dials × 4 tiers</h2>
 <p class="lede">Authoritative tier-to-defaults mapping. <code>/sig:calibrate</code> writes these literal values into <code>PROFILE.md</code>; every downstream phase reads them as its first action.</p>
 <div id="matrix"></div>
 </section>
 
 <section id="phases">
-<h2><span class="glyph">█</span>6. Phase flow — 7 phases</h2>
+<h2><span class="glyph">█</span>8. Phase flow — 7 phases</h2>
 <p class="lede">CALIBRATE is Phase 0 (always runs). The other six are tier-gated — see the skip badge per card. Each phase reads <code>PROFILE.md</code>, applies <code>rigor_overrides</code>, and exits via a gate.</p>
 <div class="phase-flow" id="phase-flow"></div>
 </section>
 
 <section id="patterns">
-<h2><span class="glyph">▴</span>7. Question patterns</h2>
+<h2><span class="glyph">▴</span>9. Question patterns</h2>
 <p class="lede">How Signal asks the user for input. Every user-facing question fits exactly one shape — see <a href="../references/question-patterns.md">question-patterns.md</a>.</p>
 <div class="pattern-grid" id="pattern-grid"></div>
 </section>
@@ -880,7 +902,7 @@ const PHASES = [
 ];
 
 const VOCABULARY = {
-  // Last refreshed: 2026-06-03. Update "currently active" lines on each release.
+  // Last refreshed: 2026-07-13. Update "currently active" lines on each release.
   hierarchy: [
     {
       name: 'Milestone',
@@ -896,7 +918,7 @@ const VOCABULARY = {
       required: false,
       desc: 'Mid-layer grouping related tasks within a Milestone. Used when a Milestone has obvious sub-themes; skipped when it\'s a flat task list (M1–M4 had no Epics).',
       ids: 'M5.E1 · M4.5.E8',
-      example: 'Active: M4.5.E5 (external validation + launch, in PLAN)',
+      example: 'Most recently shipped: M4.5.E10 (resume trust & capture integrity, v0.1.5); no Epic currently in flight',
     },
     {
       name: 'Slice',
@@ -904,7 +926,7 @@ const VOCABULARY = {
       required: false,
       desc: 'Epic subdivision; a coherent group of tasks that ships as ONE atomic event (one commit chain, one CHANGELOG entry, one user-visible "thing happened").',
       ids: 'M4.5.E2.S1 · M4.5.E7.S2',
-      example: 'Last shipped slice: M4.5.E4.S3 (worked example linked from README, 2026-06-03)',
+      example: 'Last shipped slice: M4.5.E10.S5 (capture-integrity guards + hook harness, 2026-07-05)',
     },
     {
       name: 'Task',
@@ -912,7 +934,7 @@ const VOCABULARY = {
       required: true,
       desc: 'Atomic unit, small enough to ship in a focused session. Lowercase t so M / E / S / t stay visually distinct in IDs.',
       ids: 'M4.t17 · M5.E3.t2 · M4.5.E8.S2.t3',
-      example: 'Last completed task: M4.5.E4.S3.t10 (2026-06-03)',
+      example: 'Last completed task: M4.5.E10.S5.t3 (2026-07-05)',
     },
   ],
   address: {
@@ -1257,8 +1279,188 @@ function toggleAllCommands(open) {
   document.querySelectorAll('#command-lib .cmd-group').forEach(g => g.classList.toggle('open', open));
 }
 
+// ============================================================
+// AGENTS + SKILLS inventory (added 2026-07-13, v0.1.5).
+// Reuses the .cmd-* group styling via renderGroupLib().
+// Refresh alongside COMMANDS when agents/skills change.
+// ============================================================
+const AGENTS = [
+  {
+    group: 'Planning',
+    blurb: 'Turn goals into executable structure.',
+    items: [
+      { name: 'planner', tags: ['PLAN'], summary: 'Creates executable phase plans — task breakdown, dependency analysis, vertical slicing. Core agent of the PLAN phase.' },
+      { name: 'roadmapper', tags: ['init'], summary: 'Builds the project roadmap: phase breakdown, requirement mapping, milestone definition. Runs during project initialization.' },
+    ],
+  },
+  {
+    group: 'Research',
+    blurb: 'Gather evidence before the plan commits.',
+    items: [
+      { name: 'phase-researcher', tags: ['PLAN'], summary: 'Researches how to implement a phase before planning — surfaces options, tradeoffs, and a recommended approach.' },
+      { name: 'project-researcher', tags: ['PLAN'], summary: 'Researches the domain ecosystem, external docs, libraries, and APIs relevant to a phase.' },
+      { name: 'codebase-researcher', tags: ['PLAN'], summary: 'Analyzes the existing codebase for patterns, conventions, reusable assets, and integration points.' },
+      { name: 'advisor-researcher', tags: ['gray-area'], summary: 'Researches gray-area decisions and returns structured comparison tables when choosing between viable alternatives.' },
+      { name: 'assumptions-analyzer', tags: ['PLAN'], summary: 'Surfaces implicit assumptions about an approach and forces explicit acknowledgment of what is being taken for granted.' },
+      { name: 'ui-researcher', tags: ['frontend'], summary: 'Produces UI design specs for frontend phases — design patterns, component libraries, layout approaches.' },
+      { name: 'research-synthesizer', tags: ['PLAN'], summary: 'Merges parallel researcher outputs into one summary, resolving conflicts and highlighting key decisions.' },
+    ],
+  },
+  {
+    group: 'Execution',
+    blurb: 'Build the plan, one atomic task at a time.',
+    items: [
+      { name: 'executor', tags: ['EXECUTE'], summary: 'Executes plan tasks with TDD, atomic commits, and context-rot prevention. Spawned per task in a wave.' },
+    ],
+  },
+  {
+    group: 'Verification',
+    blurb: 'Prove the work meets its goal — not just that it ran.',
+    items: [
+      { name: 'verifier', tags: ['VERIFY'], summary: 'Verifies phase-goal achievement via goal-backward analysis — confirms what was built satisfies the phase purpose.' },
+      { name: 'plan-checker', tags: ['PLAN gate'], summary: 'Validates plans against 8 dimensions before execution begins. Gates the PLAN to EXECUTE transition.' },
+      { name: 'nyquist-auditor', tags: ['VERIFY'], summary: 'Fills Nyquist gaps — generates tests for untested acceptance criteria so every plan criterion has a test.' },
+      { name: 'integration-checker', tags: ['VERIFY'], summary: 'Verifies cross-phase integration and end-to-end flows — catches components that pass alone but fail combined.' },
+      { name: 'ui-checker', tags: ['frontend'], summary: 'Validates UI implementation against the design contract (UI-SPEC.md) across quality dimensions.' },
+      { name: 'ui-auditor', tags: ['frontend'], summary: 'Retroactive visual audit of implemented frontend code — reviews UI quality across 6 pillars with no pre-existing spec.' },
+    ],
+  },
+  {
+    group: 'Review specialists',
+    blurb: 'Agent Skills staff-level reviewers, loaded in REVIEW.',
+    items: [
+      { name: 'code-reviewer', tags: ['REVIEW'], summary: 'Staff-engineer code review across five axes: correctness, readability, architecture, security, performance.' },
+      { name: 'security-auditor', tags: ['REVIEW'], summary: 'Identifies vulnerabilities, assesses risk, and recommends mitigations.' },
+      { name: 'test-engineer', tags: ['VERIFY', 'REVIEW'], summary: 'QA specialist focused on test strategy, coverage analysis, and test quality.' },
+    ],
+  },
+  {
+    group: 'Brownfield scanners',
+    blurb: 'Four read-only scanners that map an existing repo for /sig:init.',
+    items: [
+      { name: 'stack-scanner', tags: ['init'], summary: 'Detects languages, frameworks, package managers, and runtime targets.' },
+      { name: 'structure-scanner', tags: ['init'], summary: 'Maps directory layout, monorepo shape, test/docs presence, and code-organization conventions.' },
+      { name: 'quality-scanner', tags: ['init'], summary: 'Detects test runners, CI, lint/format config, README/CHANGELOG state, and TODO/FIXME debt.' },
+      { name: 'activity-scanner', tags: ['init'], summary: 'Reports git activity — commit cadence, contributors, hot files, branch state, project health.' },
+    ],
+  },
+  {
+    group: 'Support',
+    blurb: 'Cross-phase helpers the flow calls on demand.',
+    items: [
+      { name: 'codebase-mapper', tags: ['support'], summary: 'Explores the codebase and writes structured architecture, dependency, and convention maps for other agents.' },
+      { name: 'debugger', tags: ['VERIFY'], summary: 'Investigates bugs with the scientific method — hypotheses, experiments, and root-cause isolation.' },
+      { name: 'phase-gate-enforcer', tags: ['every gate'], summary: 'Runs anti-rationalization checks at every phase gate — enforces exit criteria with structured challenge tables.' },
+    ],
+  },
+];
+
+const SKILLS = [
+  {
+    group: 'define/ — DISCUSS',
+    blurb: 'Frame the problem before building.',
+    items: [
+      { name: 'idea-refine', tags: [], summary: 'Refine ideas through structured divergent then convergent thinking.' },
+      { name: 'spec-driven-development', tags: [], summary: 'Write the spec before code when none exists yet.' },
+    ],
+  },
+  {
+    group: 'plan/ — PLAN',
+    blurb: 'Decompose into verifiable work.',
+    items: [
+      { name: 'planning-and-task-breakdown', tags: [], summary: 'Break a spec into small, verifiable tasks with explicit acceptance criteria.' },
+    ],
+  },
+  {
+    group: 'build/ — EXECUTE',
+    blurb: 'Build in thin, verified slices.',
+    items: [
+      { name: 'test-driven-development', tags: [], summary: 'Drive development with tests — prove behavior while implementing.' },
+      { name: 'incremental-implementation', tags: [], summary: 'Build in thin vertical slices across multi-file changes.' },
+      { name: 'source-driven-development', tags: [], summary: 'Verify code against official documentation instead of guessing APIs.' },
+      { name: 'api-and-interface-design', tags: [], summary: 'Design stable, well-documented interfaces and module boundaries.' },
+      { name: 'frontend-ui-engineering', tags: [], summary: 'Build production-quality UIs — components, layouts, and states.' },
+      { name: 'context-engineering', tags: [], summary: 'Optimize agent context setup to keep output quality high.' },
+    ],
+  },
+  {
+    group: 'verify/ — VERIFY',
+    blurb: 'Confirm it actually works.',
+    items: [
+      { name: 'debugging-and-error-recovery', tags: [], summary: 'Systematic debugging with structured triage when things break.' },
+      { name: 'browser-testing-with-devtools', tags: [], summary: 'Runtime verification of anything that renders, via Chrome DevTools MCP.' },
+    ],
+  },
+  {
+    group: 'review/ — REVIEW',
+    blurb: 'Is it good, not just working?',
+    items: [
+      { name: 'code-review-and-quality', tags: [], summary: 'Multi-dimensional code review with quality gates before merge.' },
+      { name: 'security-and-hardening', tags: [], summary: 'Security-first practices for input handling, auth, and data.' },
+      { name: 'performance-optimization', tags: [], summary: 'Optimize against performance requirements and Core Web Vitals.' },
+      { name: 'code-simplification', tags: [], summary: 'Refactor for clarity without changing behavior.' },
+    ],
+  },
+  {
+    group: 'ship/ — SHIP',
+    blurb: 'Release with confidence and a clean trail.',
+    items: [
+      { name: 'git-workflow-and-versioning', tags: [], summary: 'Atomic commits, clean history, and disciplined branching.' },
+      { name: 'documentation-and-adrs', tags: [], summary: 'Document decisions (ADRs), not just code.' },
+      { name: 'ci-cd-and-automation', tags: [], summary: 'Automate build and deploy pipelines and quality gates.' },
+      { name: 'shipping-and-launch', tags: [], summary: 'Deploy and launch — rollouts, migrations, and betas.' },
+      { name: 'deprecation-and-migration', tags: [], summary: 'Structured removal and migration when sunsetting systems.' },
+    ],
+  },
+  {
+    group: 'meta/ — always available',
+    blurb: 'The skill router.',
+    items: [
+      { name: 'using-agent-skills', tags: [], summary: 'Discovers and invokes the right skill for the current task.' },
+    ],
+  },
+];
+
+function renderGroupLib(data, rootId, openIndex) {
+  const root = document.getElementById(rootId);
+  root.innerHTML = data.map((g, gi) => `
+    <div class="cmd-group${gi === openIndex ? ' open' : ''}">
+      <div class="cmd-group-head">
+        <span class="cmd-chevron">▸</span>
+        <span class="cmd-group-title">${g.group}</span>
+        <span class="cmd-group-count">${g.items.length}</span>
+        <span class="cmd-group-blurb">${g.blurb}</span>
+      </div>
+      <div class="cmd-group-body">
+        ${g.items.map(c => `
+          <div class="cmd">
+            <div>
+              <div class="cmd-name">${c.name}</div>
+              <div class="cmd-badges">
+                ${(c.tags || []).map(t => `<span class="cmd-badge">${t}</span>`).join('')}
+              </div>
+            </div>
+            <div>
+              <div class="cmd-summary">${c.summary}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+  root.querySelectorAll('.cmd-group-head').forEach(head => {
+    head.addEventListener('click', () => head.parentElement.classList.toggle('open'));
+  });
+}
+
+function toggleAllGroups(rootId, open) {
+  document.querySelectorAll('#' + rootId + ' .cmd-group').forEach(g => g.classList.toggle('open', open));
+}
+
 // init
 renderCommands();
+renderGroupLib(AGENTS, 'agent-lib', 0);
+renderGroupLib(SKILLS, 'skill-lib', 2);
 renderQuestions();
 renderResult();
 renderVocabulary();
