@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   checkProposedStateWrite,
+  checkStateFrontmatterShape,
   detectDirtyExecute,
 } from '../tools/lib/retrospective.js';
 
@@ -184,5 +185,128 @@ describe('detectDirtyExecute (SessionStart-resume layer)', () => {
         fileExistsFn: () => false,
       }),
     ).toBeNull();
+  });
+});
+
+// --- FR1 (v0.1.6): block prose in STATE frontmatter fields ---
+// Field-specific, raw-text, blacklist discriminator. `completed_phases` items
+// are single-line scalars (multi-line OR >150 chars = prose). `blockers` items
+// are 3-line objects (NEVER flagged for being multi-line — only the `text:`
+// value is inspected: multi-line block-scalar OR >500 chars = prose).
+
+const FM_HEAD = `---
+schema_version: 1
+phase: EXECUTE
+current_epic: null
+current_wave: null
+current_tasks: []`;
+
+describe('checkStateFrontmatterShape (FR1 prose-block)', () => {
+  it('AC1.1 blocks a multi-line completed_phases item (the cmmc double-quoted-scalar pollution)', () => {
+    const content = `${FM_HEAD}
+completed_phases:
+  - CALIBRATE (2026-05-13)
+  - "**▶ Active: Slice SEC1 — Supabase hardening: DISCUSS done →
+    PLAN done landed 2026-07-01 (4-agent research + MCP pulls +
+    independent plan-checker 8-dim PASS-WITH-NOTES)"
+blockers: []
+---
+body
+`;
+    const r = checkStateFrontmatterShape({ proposedContent: content });
+    expect(r.block).toBe(true);
+    expect(r.reason).toMatch(/completed_phases/);
+  });
+
+  it('AC1.1 blocks an over-length (>150 char) single-line completed_phases item', () => {
+    const longEntry = `PLAN (2026-07-04) — ${'narrative '.repeat(20)}`; // ~220 chars
+    const content = `${FM_HEAD}
+completed_phases:
+  - CALIBRATE (2026-05-13)
+  - "${longEntry}"
+blockers: []
+---
+`;
+    const r = checkStateFrontmatterShape({ proposedContent: content });
+    expect(r.block).toBe(true);
+    expect(r.reason).toMatch(/completed_phases/);
+  });
+
+  it('AC1.2 blocks a blockers[].text over the length budget (>500 chars)', () => {
+    const longText = 'x'.repeat(600);
+    const content = `${FM_HEAD}
+completed_phases:
+  - DISCUSS (2026-07-13)
+blockers:
+  - id: blk-1a2b
+    text: ${longText}
+    raisedAt: 2026-07-13T00:00:00.000Z
+---
+`;
+    const r = checkStateFrontmatterShape({ proposedContent: content });
+    expect(r.block).toBe(true);
+    expect(r.reason).toMatch(/blockers/);
+  });
+
+  it('AC1.2 blocks a blockers[].text written as a multi-line block scalar', () => {
+    const content = `${FM_HEAD}
+completed_phases:
+  - DISCUSS (2026-07-13)
+blockers:
+  - id: blk-1a2b
+    text: |
+      first paragraph of narrative prose that should never
+      live inside a structured blocker text field at all
+    raisedAt: 2026-07-13T00:00:00.000Z
+---
+`;
+    const r = checkStateFrontmatterShape({ proposedContent: content });
+    expect(r.block).toBe(true);
+    expect(r.reason).toMatch(/blockers/);
+  });
+
+  it('AC1.3 allows well-formed frontmatter, incl. the 58-char annotated completed_phases entry', () => {
+    const content = `${FM_HEAD}
+completed_phases:
+  - DISCUSS (2026-07-13)
+  - "DISCUSS (2026-05-13) — Slice A: build-order infrastructure"
+blockers: []
+---
+body
+`;
+    expect(checkStateFrontmatterShape({ proposedContent: content }).block).toBe(false);
+  });
+
+  it("AC1.6 allows a legit multi-line blockers object (id/text/raisedAt, semicolon in text)", () => {
+    const content = `${FM_HEAD}
+completed_phases:
+  - CALIBRATE (2026-05-14)
+blockers:
+  - id: blk-abcd
+    text: Marketplace install hangs on first run; tracked under F2
+    raisedAt: 2026-05-16T10:00:00.000Z
+---
+`;
+    expect(checkStateFrontmatterShape({ proposedContent: content }).block).toBe(false);
+  });
+
+  it('AC1.7 self-unblock: a write producing clean frontmatter is allowed (hook is stateless)', () => {
+    // A cleanup edit that lands clean frontmatter always passes, regardless of
+    // whatever polluted state the file had before — that is how a wedged file
+    // gets un-wedged.
+    const cleaned = `${FM_HEAD}
+completed_phases:
+  - DISCUSS (2026-07-13)
+  - PLAN (2026-07-13)
+blockers: []
+---
+`;
+    expect(checkStateFrontmatterShape({ proposedContent: cleaned }).block).toBe(false);
+  });
+
+  it('AC1.5 fails open (allow) on content with no frontmatter or garbage input', () => {
+    expect(checkStateFrontmatterShape({ proposedContent: '' }).block).toBe(false);
+    expect(checkStateFrontmatterShape({ proposedContent: 'no frontmatter here' }).block).toBe(false);
+    expect(checkStateFrontmatterShape({ proposedContent: undefined }).block).toBe(false);
   });
 });

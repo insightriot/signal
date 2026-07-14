@@ -19,7 +19,10 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { checkProposedStateWrite } from '../tools/lib/retrospective.js';
+import {
+  checkProposedStateWrite,
+  checkStateFrontmatterShape,
+} from '../tools/lib/retrospective.js';
 
 // Read event JSON from stdin.
 let raw = '';
@@ -79,10 +82,13 @@ if (tool === 'Write') {
 // baseDir = directory containing .planning/
 const baseDir = resolve(filePath, '..', '..');
 
-const result = checkProposedStateWrite({
-  proposedContent,
-  baseDir,
-});
+// Two independent predicates (D-v016-2): the FR1 prose-shape check fires on
+// any phase; the E9 retro-absence check fires only on Epic-close SHIP. Block if
+// either fires. Shape is checked first (a malformed frontmatter is the more
+// fundamental defect).
+const shape = checkStateFrontmatterShape({ proposedContent });
+const retro = checkProposedStateWrite({ proposedContent, baseDir });
+const result = shape.block ? shape : retro;
 
 if (result.block) {
   process.stderr.write(`[signal:check-state-write] ${result.reason}\n`);

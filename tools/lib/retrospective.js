@@ -398,6 +398,142 @@ export function checkProposedStateWrite(args) {
   };
 }
 
+// --- FR1 (v0.1.6): block prose landing in STATE.md frontmatter fields ---
+//
+// A SIBLING to checkProposedStateWrite (which gates on phase: SHIP). The prose
+// check must fire on ANY phase, so it cannot nest inside that SHIP-gated path;
+// the hook composes both predicates and blocks if either fires.
+//
+// RAW-TEXT, not parseFrontmatter: parseFrontmatter throws on malformed YAML,
+// which a prose blob often IS (unquoted colons, bare newlines) — a parse-first
+// design would fail OPEN and miss its headline case (the 455 KB cmmc pollution).
+// So we walk the raw frontmatter lines.
+//
+// Blacklist stance: block only clearly-malformed input; when in doubt, ALLOW.
+// A false positive wedges a stranger's write (the P1 harm); a false negative
+// just defers to FR2's read-time size banner. Budgets are deliberately generous.
+
+// A completed_phases entry is a single-line scalar `PHASE (YYYY-MM-DD)` (~17-24
+// chars) or an annotated `PHASE (date) — <note>` (observed legit max 58 chars).
+const COMPLETED_PHASES_MAX = 150;
+// A blockers[].text is a short structured summary (observed legit max ~52,
+// e.g. "Marketplace install hangs on first run; tracked under F2").
+const BLOCKER_TEXT_MAX = 500;
+
+/**
+ * Detect prose that would pollute a STATE.md frontmatter list field
+ * (`completed_phases` scalars / `blockers[].text`). Operates on the RAW
+ * frontmatter text, per-field, and NEVER throws (fail-open → { block: false }).
+ *
+ * @param {object} args
+ * @param {string} args.proposedContent — the post-write STATE.md content
+ * @returns {{block: boolean, reason?: string}}
+ */
+export function checkStateFrontmatterShape(args) {
+  try {
+    const proposedContent = args?.proposedContent;
+    if (typeof proposedContent !== 'string') return { block: false };
+    const m = proposedContent.match(/^---\n([\s\S]*?)\n---/);
+    if (!m) return { block: false };
+    const lines = m[1].split('\n');
+
+    const isTopKey = (line) => /^[A-Za-z_][A-Za-z0-9_]*:/.test(line);
+
+    // Raw block of lines under a top-level `key:` list (lines after `key:` up
+    // to the next top-level key or EOF). null if absent or inlined (`key: []`).
+    const sectionLines = (key) => {
+      const idx = lines.findIndex((l) => new RegExp(`^${key}:`).test(l));
+      if (idx === -1) return null;
+      if (/^[A-Za-z_][A-Za-z0-9_]*:\s*\S/.test(lines[idx])) return null; // inline
+      const out = [];
+      for (let i = idx + 1; i < lines.length; i++) {
+        if (isTopKey(lines[i])) break;
+        out.push(lines[i]);
+      }
+      return out;
+    };
+
+    // Split a section into per-item chunks (an item starts at a `- ` marker;
+    // deeper non-blank lines are continuations of the preceding item).
+    const itemChunks = (secLines) => {
+      const items = [];
+      let cur = null;
+      for (const line of secLines) {
+        if (/^\s*-\s/.test(line)) {
+          if (cur) items.push(cur);
+          cur = [line];
+        } else if (cur && line.trim() !== '') {
+          cur.push(line);
+        }
+      }
+      if (cur) items.push(cur);
+      return items;
+    };
+
+    // completed_phases — scalar strings. Multi-line OR over-budget = prose.
+    const cp = sectionLines('completed_phases');
+    if (cp) {
+      for (const chunk of itemChunks(cp)) {
+        if (chunk.length > 1) {
+          return {
+            block: true,
+            reason:
+              'STATE.md frontmatter: a completed_phases entry spans multiple lines. ' +
+              'Entries must be single-line "PHASE (YYYY-MM-DD)" scalars — move the ' +
+              'narrative into the STATE.md body below the frontmatter, then re-write.',
+          };
+        }
+        const value = chunk[0]
+          .replace(/^\s*-\s*/, '')
+          .replace(/^["']|["']$/g, '')
+          .trim();
+        if (value.length > COMPLETED_PHASES_MAX) {
+          return {
+            block: true,
+            reason:
+              `STATE.md frontmatter: a completed_phases entry is ${value.length} chars ` +
+              `(budget ${COMPLETED_PHASES_MAX}). Entries must be short "PHASE (date)" ` +
+              'labels — move the narrative into the STATE.md body, then re-write.',
+          };
+        }
+      }
+    }
+
+    // blockers — object mappings. Inspect ONLY the text: value; NEVER flag a
+    // blocker for being multi-line (a real blocker is a 3-line id/text/raisedAt
+    // object). Only its text: value can be prose.
+    const bl = sectionLines('blockers');
+    if (bl) {
+      for (const line of bl) {
+        const tm = line.match(/^\s*text:\s*(.*)$/);
+        if (!tm) continue;
+        const raw = tm[1].trim();
+        if (/^[|>][+-]?\s*$/.test(raw)) {
+          return {
+            block: true,
+            reason:
+              'STATE.md frontmatter: a blockers[].text is a multi-line block scalar. ' +
+              'Blocker text must be a short single-line summary — trim it, then re-write.',
+          };
+        }
+        if (raw.length > BLOCKER_TEXT_MAX) {
+          return {
+            block: true,
+            reason:
+              `STATE.md frontmatter: a blockers[].text is ${raw.length} chars ` +
+              `(budget ${BLOCKER_TEXT_MAX}). Keep blocker text a short summary — ` +
+              'trim it, then re-write.',
+          };
+        }
+      }
+    }
+
+    return { block: false };
+  } catch {
+    return { block: false }; // fail-open: never wedge a write on our own error
+  }
+}
+
 /**
  * Detect "dirty EXECUTE" state for the SessionStart(resume) hook (layer 3
  * of D-E9-8). Dirty = STATE.md says we're mid-EXECUTE for an Epic that
