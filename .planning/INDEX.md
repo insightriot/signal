@@ -47,11 +47,12 @@ a future `/sig:index`. Curated one-liners survive regeneration by file/Epic ID.
 Each closed Epic's scaffolding (REQUIREMENTS / RESEARCH / PLAN / PROGRESS / VERIFICATION /
 VALIDATION / REVIEW, varying by Epic) is archived at `.planning/archive/M4.5/E{n}/`. The
 `RETROSPECTIVE.md` stays in root (the spine). For *why it mattered*, read the linked retro —
-don't reload the scaffolding. **E5 + E10 scaffolding is still in root** (they closed after the
+don't reload the scaffolding. **E5 + E10 + v0.1.6 scaffolding is still in root** (they closed after the
 2026-06-05 archive run — see Archive-move status below).
 
 | Epic | Released | One-liner | Retro |
 |---|---|---|---|
+| **v0.1.6** | v0.1.6 | Doc-integrity guardrail (patch, not an Epic) — STATE-frontmatter write-guard + read-time size banner + drain blockquote convergence + `/sig:add` clause-boundary titles + 3 bugs→BUGS.md | [complete](v0.1.6-RETROSPECTIVE.md) |
 | **E10** | v0.1.5 | Resume trust & capture integrity — origin-drift + schema-drift banners, Epic-prefix resolver, capture-pipe guards, hook harness | [complete](M4.5.E10-RETROSPECTIVE.md) |
 | **E5** | v0.1.4 | External validation + launch assets (LAUNCH-KIT, tester brief, demo script) | [complete](M4.5.E5-RETROSPECTIVE.md) |
 | **E4** | v0.1.4 | Worked example (`examples/url-shortener/`) + `docs/vs.md` toolbox comparison | [complete](M4.5.E4-RETROSPECTIVE.md) |
