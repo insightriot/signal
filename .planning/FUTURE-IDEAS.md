@@ -1699,7 +1699,16 @@ Drain disposition-detector misses blockquote promotions. /sig:plan's FUTURE-IDEA
 
 ---
 
+## Map drift-guard (v0.1.6 doc-integrity candidate)
+
+**Status:** Logged 2026-07-13 via `/sig:add`.
+
+Map drift-guard (v0.1.6 doc-integrity candidate). docs/map/index.html silently fell two releases behind — showed v0.1.3 while prod was v0.1.5, omitted all 26 agents + 21 skills (incl. ui-auditor), and carried stale "currently active" work-unit examples — because its refresh protocol is manual. Fix = a drift-GUARD, not a full regenerator and not a literal hook. Recommended: a small tools/ check that compares the map's listed commands/agents/skills + version stamp against the actual repo files (commands/*.md, agents/**/*.md, skills/**/SKILL.md, package.json version) and FAILS when the roster or version is stale/missing. Wire it two places: (1) the existing validator/test suite that must stay green — so a PR that adds an agent but forgets the map turns red; (2) a /sig:ship checklist line (the slot the old Curator step occupied). The guard checks roster membership + counts + version only — the one-line summaries, flag curation, vocab examples, tiers, rigor matrix, and calibrate simulator stay HAND-CURATED; it never auto-writes prose. Explicitly NOT a Claude Code hook (those fire on session/tool events; there is no "on version bump" event) and NOT a git post-commit hook (per-commit not per-version, unversioned, the Curator footgun — see DECISIONS 2026-07-13). Down-payment on M5 future /sig:index doc-runtime (the map footer already says structural rows will move to a future /sig:index). Fits the queued v0.1.6 doc-integrity guardrail batch, alongside the STATE.md write-hook guardrail. Deferred from building now to avoid colliding with the concurrent agent editing v0.1.6-REQUIREMENTS.md.
+
+---
 
 
 
-*Last updated: 2026-07-05*
+
+
+*Last updated: 2026-07-13*
