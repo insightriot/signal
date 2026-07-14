@@ -419,6 +419,12 @@ const COMPLETED_PHASES_MAX = 150;
 // A blockers[].text is a short structured summary (observed legit max ~52,
 // e.g. "Marketplace install hangs on first run; tracked under F2").
 const BLOCKER_TEXT_MAX = 500;
+// Defense-in-depth (REVIEW, security-Low): the hook runs synchronously in the
+// Edit/Write path. A runaway multi-MB *well-formed* frontmatter would incur a
+// proportional line-walk stall. Legit frontmatter is a few KB, so a 1 MB
+// ceiling never trips a real file; past it we fail open (FR2's banner flags the
+// oversized file anyway).
+const FRONTMATTER_SCAN_CEILING = 1024 * 1024;
 
 /**
  * Detect prose that would pollute a STATE.md frontmatter list field
@@ -433,9 +439,12 @@ export function checkStateFrontmatterShape(args) {
   try {
     const proposedContent = args?.proposedContent;
     if (typeof proposedContent !== 'string') return { block: false };
-    const m = proposedContent.match(/^---\n([\s\S]*?)\n---/);
+    // CRLF-tolerant (REVIEW): a Windows STATE.md (autocrlf) must get the same
+    // protection as an LF one — an `\n`-only anchor would leave it unguarded.
+    const m = proposedContent.match(/^---\r?\n([\s\S]*?)\r?\n---/);
     if (!m) return { block: false };
-    const lines = m[1].split('\n');
+    if (m[1].length > FRONTMATTER_SCAN_CEILING) return { block: false };
+    const lines = m[1].split(/\r?\n/);
 
     const isTopKey = (line) => /^[A-Za-z_][A-Za-z0-9_]*:/.test(line);
 

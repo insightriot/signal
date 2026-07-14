@@ -74,9 +74,14 @@ if (tool === 'Write') {
     // surface the actual error).
     process.exit(0);
   }
+  // Use a function replacer so `$&`, `$\``, `$'`, `$$` in new_string are
+  // inserted LITERALLY (String.prototype.replace expands them otherwise, even
+  // for a plain-string search) — otherwise the hook judges a different string
+  // than Claude Code actually writes (REVIEW, security-Low). split/join is
+  // already `$`-faithful for the replace_all path.
   proposedContent = input.replace_all
     ? current.split(oldStr).join(newStr)
-    : current.replace(oldStr, newStr);
+    : current.replace(oldStr, () => newStr);
 }
 
 // baseDir = directory containing .planning/
@@ -85,14 +90,17 @@ const baseDir = resolve(filePath, '..', '..');
 // Two independent predicates (D-v016-2): the FR1 prose-shape check fires on
 // any phase; the E9 retro-absence check fires only on Epic-close SHIP. Block if
 // either fires. Shape is checked first (a malformed frontmatter is the more
-// fundamental defect).
-const shape = checkStateFrontmatterShape({ proposedContent });
-const retro = checkProposedStateWrite({ proposedContent, baseDir });
-const result = shape.block ? shape : retro;
-
-if (result.block) {
-  process.stderr.write(`[signal:check-state-write] ${result.reason}\n`);
+// fundamental defect) and SHORT-CIRCUITS — so a throw in the retro predicate
+// can't discard a shape block that already fired (REVIEW, security-informational).
+function block(reason) {
+  process.stderr.write(`[signal:check-state-write] ${reason}\n`);
   process.exit(2);
 }
+
+const shape = checkStateFrontmatterShape({ proposedContent });
+if (shape.block) block(shape.reason);
+
+const retro = checkProposedStateWrite({ proposedContent, baseDir });
+if (retro.block) block(retro.reason);
 
 process.exit(0);
