@@ -1815,3 +1815,51 @@ describe('no-heuristics guard (FR5.4 / Decision 5)', () => {
     ).toBe(false);
   });
 });
+
+// --- FR4 (v0.1.6): deriveHeading cuts at a clause boundary, not mid-clause ---
+// deriveHeading is private; tested through buildFutureIdeasEntry's ## line.
+describe('buildFutureIdeasEntry — FR4 clause-boundary heading (v0.1.6)', () => {
+  const h = (body) => buildFutureIdeasEntry({ body, date: '2026-07-13' }).split('\n')[0];
+
+  it('AC4.1 cuts at an em-dash clause boundary, not mid-clause', () => {
+    expect(
+      h('closed-work narrative must leave the live file — PLAN landed 2026-07-01 with detail'),
+    ).toBe('## Closed-work narrative must leave the live file');
+  });
+
+  it('AC4.1 cuts at a period boundary followed by whitespace', () => {
+    expect(h('Add a STATE size tripwire. Then wire the banner into resume.')).toBe(
+      '## Add a STATE size tripwire',
+    );
+  });
+
+  it('AC4.2 falls back to the word slice when there is no early boundary (hyphen is not one)', () => {
+    expect(h('use semver-it for tag publish hooks')).toBe('## Use semver-it for tag publish hooks');
+  });
+
+  it('AC4 edge: does not cut inside a URL (colon/period not followed by whitespace)', () => {
+    const heading = h('https://example.com/foo is the canonical source for the widget list');
+    expect(heading).not.toMatch(/^## Https:?$/);
+    expect(heading).toMatch(/^## Https:\/\/example\.com/);
+  });
+
+  it('AC4 edge: em-dash boundary only, never a hyphen-minus', () => {
+    expect(h('semver-it is a small helper for tag publishing across many repos')).not.toMatch(
+      /^## Semver$/,
+    );
+  });
+
+  it('AC4 edge: skips a boundary that yields too-short a heading (min-length floor)', () => {
+    const heading = h('auth, billing, and payments all need the same rate limiter eventually');
+    expect(heading).not.toBe('## Auth');
+    expect(heading).not.toBe('## Auth, billing');
+  });
+
+  it('AC4.3 retains the 60-char cap on the fallback path', () => {
+    expect(h('a '.repeat(80).trim()).length).toBeLessThanOrEqual(63);
+  });
+
+  it('AC4.3 caps a long clause too', () => {
+    expect(h('x'.repeat(90) + ', short tail').length).toBeLessThanOrEqual(63);
+  });
+});

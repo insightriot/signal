@@ -358,13 +358,49 @@ export function checkBodyLength(body) {
   return { tooLong: length > BODY_LENGTH_SOFT_CAP, length };
 }
 
+const HEADING_MAX = 60;
+// Don't cut to a stub like "Ok" from "OK, so …"; a clause boundary must leave
+// at least this many chars, else fall through to the next boundary / word slice.
+const HEADING_MIN_CLAUSE = 20;
+// Only cut at a boundary this near the start; a boundary further out means the
+// first clause is too long to be a good heading — use the word/length fallback.
+const HEADING_CLAUSE_WINDOW = 80;
+
 /**
- * Build the sentence-cased heading text from the first ~6 words of the body.
- * Cap at 60 chars to avoid wall-of-title in the rendered markdown.
+ * Build the sentence-cased heading text from the body.
+ *
+ * FR4 (v0.1.6): prefer the first clause boundary (em-dash / `.` / `:` / `,`
+ * FOLLOWED BY whitespace-or-EOL) within the search window that yields at least
+ * a MIN-length clause — so "…live file — PLAN …" heads as "…live file", not a
+ * mid-clause 6-word slice. The "followed by whitespace" guard keeps `https://`
+ * and `example.com` from triggering; only the em-dash (—) counts, never a
+ * hyphen-minus. Falls back to the original first-~6-words slice when no such
+ * boundary exists. The 60-char cap and sentence-casing are retained.
  */
 function deriveHeading(body) {
-  const first = (body ?? '').trim().split(/\s+/).slice(0, 6).join(' ');
-  const truncated = first.length > 60 ? first.slice(0, 57).trimEnd() + '...' : first;
+  const text = (body ?? '').trim();
+  if (text === '') return '';
+
+  let heading = null;
+  const limit = Math.min(text.length, HEADING_CLAUSE_WINDOW);
+  for (let i = 0; i < limit; i++) {
+    const ch = text[i];
+    if (ch === '—' || ch === '.' || ch === ':' || ch === ',') {
+      const next = text[i + 1];
+      if (next === undefined || /\s/.test(next)) {
+        const clause = text.slice(0, i).trim();
+        if (clause.length >= HEADING_MIN_CLAUSE) {
+          heading = clause;
+          break;
+        }
+      }
+    }
+  }
+
+  if (heading === null) heading = text.split(/\s+/).slice(0, 6).join(' ');
+
+  const truncated =
+    heading.length > HEADING_MAX ? heading.slice(0, HEADING_MAX - 3).trimEnd() + '...' : heading;
   // Sentence case: capitalize the first character, preserve the rest verbatim.
   // Title case would degrade acronyms ("FOO" → "Foo") — keep it readable.
   return truncated.charAt(0).toUpperCase() + truncated.slice(1);
