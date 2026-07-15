@@ -12,7 +12,7 @@ This command is **meta** — same class as `/sig:calibrate`, `/sig:escalate`, an
 
 Authoritative references (read if you need to refresh):
 - `${CLAUDE_PLUGIN_ROOT}/references/profile-schema.md` — PROFILE.md format
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `ProfileSchemaError`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `readEffectiveProfile`, `ProfileSchemaError`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `nextActionForPhase`, `readOpenQuestions`, `formatEscalationSummary`, `reachedDoneViaSkip`, `readLandscapeMeta`
 
@@ -108,11 +108,11 @@ Call `readStateSizeBanner(baseDir)` from `tools/lib/status.js`. If it returns a 
 
 #### 2.1 Project + tier
 
-Project root path (use the working directory). Tier from `profile.tier`. If `profile.metadata.escalation_history` is non-empty, append `formatEscalationSummary(profile.metadata.escalation_history)` to the tier line. Calibration date from the `YYYY-MM-DD` portion of `profile.metadata.created_at`.
+Project root path (use the working directory). **Effective tier (M4.5.E11 / FR3):** compute the tier body with `formatTierLine({ effectiveTier: effective.tier, projectTier: project.tier, currentEpic: state.current_epic })` (`tools/lib/status.js`), where `effective = readEffectiveProfile(baseDir, { currentEpic: state.current_epic })` and `project = readProfile(baseDir)` (the Step 1 read). When an Epic overrides the project tier this renders `SKETCH (Epic M4.5.E11 override; project default FULL)` — shadowing is never silent; in linear mode it's the bare tier, byte-identical to pre-E11. Fail-open: if `readEffectiveProfile` throws (malformed Epic PROFILE), use the project profile so `/sig:status` never breaks. Then, if `profile.metadata.escalation_history` is non-empty, append `formatEscalationSummary(...)`. Calibration date from the `YYYY-MM-DD` portion of `profile.metadata.created_at` (the effective profile's).
 
 ```
 Project: {cwd}
-Tier:    {profile.tier}{escalation_summary or ''}
+Tier:    {formatTierLine result}{escalation_summary or ''}
 Calibrated: {YYYY-MM-DD from profile.metadata.created_at}
 ```
 

@@ -11,7 +11,7 @@ You are running `/sig:resume`, a meta command that loads enough context for the 
 Where `/sig:status` is a snapshot, `/sig:resume` is a **briefing**: it actively reads the current phase's artifact(s) so you can re-anchor on the locked decisions, work done, and work remaining without manually opening 5 files.
 
 Authoritative references:
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `ProfileSchemaError`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `readEffectiveProfile`, `ProfileSchemaError`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `isStateStale`, `isStaleVsOrigin`, `readSchemaDrift`, `readStateSize`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/resume.js` — `renderResumeBriefing`, `handleOrphansAtResume`, `resolveArtifactPath`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `nextActionForPhase`, `formatEscalationSummary`, `readOpenQuestions`, `readLandscapeMeta`
@@ -95,13 +95,16 @@ The orphan prompt fires regardless of `gate_strictness` — orphan detection is 
 
 ### 4. Print the re-orientation
 
+**Effective profile (M4.5.E11 / FR3).** The `profile` passed below is the **effective** profile: `readEffectiveProfile(baseDir, { currentEpic: state.current_epic })` (`tools/lib/profile.js`), so an Epic-scoped `{EpicID}-PROFILE.md` is honored. `readProfile(baseDir)` from Step 1 stays the **project** profile — pass its `.tier` as `projectTier` so the renderer can surface a per-Epic override (`Tier: SKETCH (Epic … override; project default FULL)`). Fail-open for this read-only briefing: if `readEffectiveProfile` throws (e.g. a malformed Epic PROFILE), fall back to the project profile so the briefing never breaks.
+
 Call `renderResumeBriefing` from `tools/lib/resume.js` with the data loaded above. The helper handles the shape; this section documents what the helper renders so you know what to inspect / adjust.
 
 ```js
 renderResumeBriefing({
   cwd: baseDir,
   state,                          // readState() output
-  profile,                        // readProfile() output
+  profile,                        // readEffectiveProfile(baseDir, {currentEpic}) — the EFFECTIVE profile
+  projectTier,                    // project PROFILE .tier — surfaces the Epic override (S3.t3); null in linear
   visionText: resolvedVision,     // PROJECT.md Vision OR LANDSCAPE fallback per Step 2
   landscapeCapturedOn: lm?.capturedOn ?? null,
   lockedDecisions: …,             // first 5 bullets from CONTEXT.md § Locked Decisions
@@ -110,7 +113,7 @@ renderResumeBriefing({
   originDriftResult,              // origin drift — from Step 3b(1a); fail-open
   schemaDriftResult,             // schema drift — from Step 3b(1b); read-only
   stateSizeResult,               // STATE.md size — from Step 3b(1c); advisory, read-only
-  nextAction: nextActionForPhase(state.phase, profile),
+  nextAction: nextActionForPhase(state.phase, profile.phases_skipped),
   retroSummary,                   // {total, complete, stub} — see Step 3c
 });
 ```
@@ -134,7 +137,7 @@ The rendered briefing has these blocks (in order):
 == Project Briefing ==
 
 Project: {cwd}
-Tier:    {profile.tier}{escalation_summary or ''}
+Tier:    {formatTierLine — effective tier, with a per-Epic override surfaced: "SKETCH (Epic M4.5.E11 override; project default FULL)"; bare tier in linear mode}
 Phase:   {state.phase}  ({completed-count}/{total-non-skipped} phases done)
 {If LANDSCAPE.md exists, add:}
 Landscape: captured {capturedOn or "date unknown"} (brownfield init)
