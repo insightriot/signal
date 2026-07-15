@@ -45,9 +45,9 @@ These were called out as desirable in `REPO-ANALYSIS.md` / `SIGNAL-INTEGRATION-R
 
 ---
 
-## 3. Strategic decision still undecided
+## 3. Strategic decision — RESOLVED 2026-07-15
 
-- **Compounding substrate: per-project vs per-org.** One of the four "strategic decision points" in `REPO-ANALYSIS.md` Part 6, never resolved. `MILESTONE-5.md` E2 punts with *"carry forward via `.planning/`"*, which does not answer whether learnings live **per-repo** or in a shared **per-org** store — the latter was called *the* differentiator for the consultancy. **Decide before building the Compound phase**, not during.
+- **Compounding substrate: per-project vs per-org — decided per-repo.** One of the four "strategic decision points" in `REPO-ANALYSIS.md` Part 6. **Resolved 2026-07-15** (Brett, during orientation — i.e. *before* building, as this section asked): the substrate is **per-repository** — learnings live in each repo's own `.planning/`. Org-wide learning is **not** a Signal primitive; it's an **opt-in analysis a user runs over multiple repos' `.planning/`**, layered on top of the per-repo store. `MILESTONE-5.md` E2's "carry forward via `.planning/`" now has a definite answer. The re-audit inherits this as settled input — do not re-open it. See `DECISIONS.md` 2026-07-15.
 
 ---
 

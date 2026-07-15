@@ -1349,3 +1349,19 @@ The Epic/Milestone/Slice/Task vocabulary was locked (M4.t18) as *planning langua
 **Rules out.** Running Curator against Signal's `.planning/` (regresses the INDEX); treating the external Curator integration as a permanent part of Signal-the-plugin; leaving the "go native" intent implicit (it is now recorded on both sides — see the paired FUTURE-IDEAS note).
 
 **Cross-references.** `commands/ship.md` §8 (the optional integration being sunset); `FUTURE-IDEAS.md` § Workstream 4 `/sig:index` entry (paired directive, stamped 2026-07-13); `.planning/INDEX.md` (hand-curated; "structural rows will move to a future `/sig:index`"); agent-memory `curator-dormant-on-signal-planning`.
+
+---
+
+## 2026-07-15 — Compounding memory is per-repo; org-level learning is a user-run analysis on top (not a Signal primitive)
+
+**Context.** Resolves the last of `REPO-ANALYSIS.md` Part 6's four strategic-decision points, flagged still-open in `analysis/SIGNAL-INTEGRATION-RUNDOWN-v2-SEED.md` §3 ("Compounding substrate: per-project vs per-org — **decide before building the Compound phase, not during**"). `MILESTONE-5.md` E2 punted with "carry forward via `.planning/`," which never actually answered per-repo vs per-org. Decided by Brett 2026-07-15 during roadmap orientation (not during a build), which is exactly the "decide before building" the seed asked for.
+
+**Decision.** The compounding/learning substrate is **per-repository**: each project's accumulated learnings live in that repo's own `.planning/` (retros, `RETROSPECTIVES.md`, whatever the future `/sig:compound` phase writes). Signal does **not** maintain a shared central/per-org learning store as a primitive. Org-wide or cross-repo learnings are an **opt-in analysis a user runs over multiple repos' `.planning/`** — a derived pass on top of the per-repo substrate, not a service Signal keeps in sync.
+
+**Why.** Keeps each repo self-contained and portable (learnings travel with the code, no external store to provision, sync, or secure) and keeps Signal's blast radius inside the repo it's installed in — consistent with the whole `.planning/`-as-project-memory thesis. It doesn't foreclose org learning; it relocates it to a cheaper, opt-in layer (run your own analysis across repos when you want it) instead of paying central-store cost by default for every project.
+
+**Consequences for M5.** The Compound phase (M5.E2 / backlog Sprint 4 "compounding replay") builds on repo-local `.planning/` memory — retro *replay* into the next Epic's DISCUSS/PLAN, cross-Epic pattern detection over that repo's `RETROSPECTIVES.md`. Any "org learnings" feature is explicitly out of the Compound-phase core; if it ever lands, it's a separate optional analysis tool, not a change to where learnings are stored. The M5 opening re-audit (BR-8) inherits this as settled input rather than re-opening it.
+
+**Rules out.** A shared per-org learning store as a default/primitive; blocking or scoping the Compound phase on standing up central infrastructure; leaving the per-repo-vs-per-org question implicit for the re-audit to re-litigate.
+
+**Cross-references.** `analysis/SIGNAL-INTEGRATION-RUNDOWN-v2-SEED.md` §3 (the open question, now resolved — updated in place); `MILESTONE-5.md` E2 (COMPOUND phase — "carry forward via `.planning/`" now has a definite answer); `.planning/BACKLOG-REVIEW-2026-07-04.md` Sprint 4 (compounding replay); `REPO-ANALYSIS.md` Part 6 (strategic decision points).
