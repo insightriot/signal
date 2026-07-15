@@ -1,14 +1,18 @@
 #!/usr/bin/env node
 // PreToolUse(Edit|Write) hook — D-E9-8 layer 2.
 //
-// Reads the Claude Code hook event JSON from stdin. If the proposed write
-// targets .planning/STATE.md and would mark an Epic-close SHIP without a
-// corresponding retro file on disk, exits 2 (block) with a stderr message
-// that surfaces to the user. Otherwise exits 0 (allow).
-//
-// This layer is what makes D-E9-3's "no bypass" hold: even if the user
-// manually edits STATE.md to skip /sig:ship's command-internal FR1 check,
-// the underlying Edit/Write tool call goes through this hook first.
+// Reads the Claude Code hook event JSON from stdin. On a proposed write to
+// .planning/STATE.md it runs two checks with DIFFERENT strictness (the
+// M4.5.E11 D-E11-5 two-tier posture):
+//   1. Malformed STATE frontmatter (checkStateFrontmatterShape) → HARD BLOCK
+//      (exit 2) with a stderr message. An integrity guard, always enforced.
+//   2. An Epic-close SHIP without a retro file on disk → WARN, non-blocking
+//      (exit 0 + stderr). Hooks nudge on process; they don't hard-block an
+//      editor's own STATE write. The hard "no retro, no ship" contract lives
+//      in /sig:ship §0.5's command-internal shipFR1Check — running the command
+//      is what opts you into its contract (D-E9-3).
+// Otherwise exits 0 (allow). The check-2 path is throw-safe: a malformed
+// current_epic can't crash a stranger's PreToolUse (fail-open exit 0).
 //
 // Note: the PLAN spec called for a bash wrapper invoking a Node CLI; this
 // implementation collapses both into a single Node entrypoint. Bash adds
