@@ -13,6 +13,8 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { EPIC_ID_STRICT_RE } from './state.js';
+
 // ---- Per-tier required sections (locked, exact-string match) ----
 
 const TIER_SECTIONS = {
@@ -129,8 +131,9 @@ export function deriveRetroPath(epicId) {
     throw new Error('deriveRetroPath: epicId is required');
   }
   // Shapes: M4.E1, M4.5.E1, M10.E1, M5.E12, M4.5.6.E1 (in case of nested),
-  // but NOT bare "E9" or arbitrary strings.
-  if (!/^M\d+(\.\d+)*\.E\d+$/.test(epicId)) {
+  // but NOT bare "E9" or arbitrary strings. Shape is the shared
+  // EPIC_ID_STRICT_RE (state.js) — single source of truth (M4.5.E11.S1.t1).
+  if (!EPIC_ID_STRICT_RE.test(epicId)) {
     throw new Error(
       `deriveRetroPath: malformed epicId "${epicId}" (expected M{N}[.{N}]*.E{N})`,
     );

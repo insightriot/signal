@@ -96,6 +96,17 @@ export function stringifyFrontmatter(data, body) {
 
 const SCHEMA_VERSION = 1;
 
+// Canonical strict Epic-ID validator (M4.5.E11.S1.t1). `current_epic` is
+// M-shaped only — `M{N}[.{N}]*.E{N}` (D-E11-4); version strings like `v0.1.6`
+// are release tags, NOT Epic IDs. This is the SINGLE source of truth for the
+// shape: `retrospective.js` `deriveRetroPath` imports it (killing the regex
+// schism where a permissive read-half accepted IDs the strict retro/milestone
+// code then threw on). `milestones.js` keeps its own *capturing* CURRENT_EPIC_RE
+// for extracting the milestone number — this one only *validates*. Depth-3
+// (M4.5.6.E1) is permitted by the shape but the writer (deriveNextEpicId) only
+// ever emits depth-2, which currentMilestone can parse.
+const EPIC_ID_STRICT_RE = /^M\d+(\.\d+)*\.E\d+$/;
+
 // Best-effort fetch of the current git HEAD sha. Returns null when git is
 // unavailable, the cwd isn't a repo, or HEAD is otherwise unreadable —
 // matches the D6 graceful-degradation posture for git-dependent helpers.
@@ -363,7 +374,7 @@ export async function checkGateArtifacts(baseDir, targetPhase) {
   return { ready: missing.length === 0, missing };
 }
 
-export { PHASES, PLANNING_DIR, SCHEMA_VERSION };
+export { PHASES, PLANNING_DIR, SCHEMA_VERSION, EPIC_ID_STRICT_RE };
 
 // --- current_tasks helpers (M4.5.E6.S1.t6, D10) ---
 //
