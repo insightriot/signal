@@ -13,8 +13,8 @@ last_completed_task:
   commit: dfc4bf7
   completedAt: 2026-07-05T16:24:45.218Z
 last_decision_at: 2026-07-15T18:45:19.000Z
-last_updated_commit: 1ef9c71e7e18e5cc2bd349d15c926fac0581bba7
-last_updated: 2026-07-15T18:45:19.000Z
+last_updated_commit: 91ecdace4511722dfc22aa73141098af35c8dba1
+last_updated: 2026-07-15T19:34:10.284Z
 ---
 <!-- Original STATE.md content preserved verbatim from pre-schema_v1 migration on 2026-05-18. The YAML frontmatter above is the authoritative machine-readable state; everything below is human-readable history. -->
 
