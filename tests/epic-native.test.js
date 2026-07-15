@@ -23,6 +23,8 @@ import { deriveRetroPath, isEpicDone } from '../tools/lib/retrospective.js';
 import { currentMilestone, deriveNextEpicId } from '../tools/lib/milestones.js';
 import { resolveArtifactPath, artifactName } from '../tools/lib/resume.js';
 import { readProfile, readEffectiveProfile, ProfileSchemaError } from '../tools/lib/profile.js';
+import { formatTierLine } from '../tools/lib/status.js';
+import { renderResumeBriefing } from '../tools/lib/resume.js';
 
 // Write a COMPLETE schema_v1 STATE.md (all fields) so readStateForMutation
 // accepts it — used where we need a non-null current_wave to prove the roll
@@ -544,5 +546,67 @@ describe('S2.t3 Epic-mode golden fixture', () => {
     const name = artifactName('PLAN', { currentEpic: 'M4.5.E99' });
     const resolved = resolveArtifactPath(epicPlanning, 'PLAN', { currentEpic: 'M4.5.E99', phase: 'PLAN' });
     expect(resolved).toBe(join(epicPlanning, name));
+  });
+});
+
+// ---- S3.t3 — effective-tier provenance (shadowing is never silent) ----
+describe('S3.t3 formatTierLine', () => {
+  it('Epic override with a DIFFERENT tier → shows provenance', () => {
+    expect(
+      formatTierLine({ effectiveTier: 'SKETCH', projectTier: 'FULL', currentEpic: 'M4.5.E11' }),
+    ).toBe('SKETCH (Epic M4.5.E11 override; project default FULL)');
+  });
+
+  it('no active Epic → bare tier (linear, unchanged)', () => {
+    expect(formatTierLine({ effectiveTier: 'FULL', projectTier: 'FULL', currentEpic: null })).toBe(
+      'FULL',
+    );
+  });
+
+  it('Epic active but SAME tier → bare tier (no override noise)', () => {
+    expect(
+      formatTierLine({ effectiveTier: 'FULL', projectTier: 'FULL', currentEpic: 'M4.5.E11' }),
+    ).toBe('FULL');
+  });
+
+  it.each(['v0.1.6', '', '   ', 'garbage'])(
+    'non-strict currentEpic %j → bare tier (no phantom override)',
+    (bad) => {
+      expect(formatTierLine({ effectiveTier: 'SKETCH', projectTier: 'FULL', currentEpic: bad })).toBe(
+        'SKETCH',
+      );
+    },
+  );
+
+  it('no projectTier context → bare effective tier', () => {
+    expect(formatTierLine({ effectiveTier: 'SKETCH', currentEpic: 'M4.5.E11' })).toBe('SKETCH');
+  });
+});
+
+describe('S3.t3 renderResumeBriefing surfaces the override in the Tier line', () => {
+  const state = {
+    phase: 'EXECUTE',
+    current_epic: 'M4.5.E11',
+    completed_phases: ['DISCUSS', 'PLAN'],
+  };
+
+  it('Epic-override briefing shows the provenance', () => {
+    const out = renderResumeBriefing({
+      cwd: '/tmp/proj',
+      state,
+      profile: { tier: 'SKETCH' }, // effective (Epic) profile
+      projectTier: 'FULL', // project default
+    });
+    expect(out).toContain('Tier:    SKETCH (Epic M4.5.E11 override; project default FULL)');
+  });
+
+  it('linear briefing (no projectTier / no Epic) shows the bare tier — back-compat', () => {
+    const out = renderResumeBriefing({
+      cwd: '/tmp/proj',
+      state: { phase: 'EXECUTE', current_epic: null, completed_phases: [] },
+      profile: { tier: 'FULL' },
+    });
+    expect(out).toContain('Tier:    FULL');
+    expect(out).not.toContain('override');
   });
 });

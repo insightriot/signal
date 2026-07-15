@@ -19,6 +19,7 @@ import {
   formatStateSizeBanner,
   EPIC_ID_STRICT_RE,
 } from './state.js';
+import { formatTierLine } from './status.js';
 
 const PHASES = ['CALIBRATE', 'DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'SHIP'];
 
@@ -170,6 +171,7 @@ export function renderResumeBriefing(params = {}) {
     stateSizeResult = null,
     nextAction = '',
     retroSummary = null,
+    projectTier = null,
   } = params;
 
   const lines = [];
@@ -222,8 +224,16 @@ export function renderResumeBriefing(params = {}) {
   lines.push('== Project Briefing ==');
   lines.push('');
   lines.push(`Project: ${cwd}`);
-  const tier = profile?.tier ?? '<uncalibrated>';
-  lines.push(`Tier:    ${tier}`);
+  // Effective tier, with a per-Epic override surfaced (never silent) — S3.t3.
+  // `profile` is the EFFECTIVE profile (readEffectiveProfile); `projectTier` is
+  // the project PROFILE's tier so the shadow can be shown.
+  const effectiveTier = profile?.tier ?? '<uncalibrated>';
+  const tierLine = formatTierLine({
+    effectiveTier,
+    projectTier,
+    currentEpic: state?.current_epic ?? null,
+  });
+  lines.push(`Tier:    ${tierLine}`);
   if (state) {
     const completed = (state.completed_phases ?? state.completedPhases ?? []).length;
     const skipped = (profile?.phases_skipped ?? []).length;

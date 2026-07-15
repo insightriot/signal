@@ -7,6 +7,7 @@ import {
   formatSchemaDriftBanner,
   readStateSize,
   formatStateSizeBanner,
+  EPIC_ID_STRICT_RE,
 } from './state.js';
 import { extractSection } from './landscape.js';
 import {
@@ -148,6 +149,30 @@ export function formatEscalationSummary(history) {
   const first = valid[0];
   const dateOnly = (first.timestamp.match(/^\d{4}-\d{2}-\d{2}/) || [first.timestamp])[0];
   return ` (escalated from ${first.from_tier} on ${dateOnly})`;
+}
+
+/**
+ * Render the tier-line body for status/resume, making a per-Epic calibration
+ * override VISIBLE (M4.5.E11.S3.t3, FR3). When an Epic is active (strict
+ * `currentEpic`) and its effective tier differs from the project default, the
+ * shadowing is surfaced — never silent — so a "Tier: SKETCH" line can't be
+ * mistaken for the whole project being SKETCH:
+ *
+ *   SKETCH (Epic M4.5.E11 override; project default FULL)
+ *
+ * Otherwise (linear mode, no override, non-strict `currentEpic`, matching
+ * tiers, or no project context) it returns the bare effective tier — the
+ * pre-E11 behaviour, byte-identical.
+ *
+ * @param {{effectiveTier: string, projectTier?: string|null, currentEpic?: string|null}} opts
+ * @returns {string} the tier value to print after "Tier:    "
+ */
+export function formatTierLine({ effectiveTier, projectTier = null, currentEpic = null } = {}) {
+  const epicActive = typeof currentEpic === 'string' && EPIC_ID_STRICT_RE.test(currentEpic);
+  if (epicActive && projectTier && projectTier !== effectiveTier) {
+    return `${effectiveTier} (Epic ${currentEpic} override; project default ${projectTier})`;
+  }
+  return effectiveTier;
 }
 
 /**
