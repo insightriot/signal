@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
-import { PLANNING_DIR } from './state.js';
+import { PLANNING_DIR, EPIC_ID_STRICT_RE } from './state.js';
 
 const PROFILE_FILE = 'PROFILE.md';
 
@@ -143,6 +143,21 @@ function validateMetadata(metadata) {
  */
 export async function readProfile(baseDir) {
   const profilePath = join(baseDir, PLANNING_DIR, PROFILE_FILE);
+  return readProfileFromPath(profilePath);
+}
+
+/**
+ * Read and validate a PROFILE.md at an explicit path. `readProfile` is the
+ * project-scoped `.planning/PROFILE.md` case; `readEffectiveProfile` uses this
+ * directly for an Epic-scoped `{EpicID}-PROFILE.md`. Same validation, same
+ * `ProfileSchemaError` on any violation (including a missing file — the error
+ * message names the actual path so command halt copy stays byte-identical).
+ *
+ * @param {string} profilePath - absolute path to a PROFILE.md
+ * @returns {Promise<object>} the validated profile (same shape as readProfile)
+ * @throws {ProfileSchemaError}
+ */
+async function readProfileFromPath(profilePath) {
   if (!existsSync(profilePath)) {
     throw new ProfileSchemaError(
       `PROFILE.md not found at ${profilePath}. Run /sig:calibrate first.`
@@ -192,6 +207,46 @@ export async function readProfile(baseDir) {
       escalation_history: [...parsed.metadata.escalation_history],
     },
   };
+}
+
+/**
+ * Read the profile that governs the phases of the currently-active Epic
+ * (M4.5.E11.S3.t1, FR3 — per-Epic calibration). An Epic can carry its own tier
+ * that overrides the project PROFILE **for its phases only**, via a whole-file
+ * shadow at `.planning/{EpicID}-PROFILE.md` (no merge — a PROFILE is complete,
+ * not by-reference).
+ *
+ * Composition:
+ *   - `currentEpic` is a strict Epic ID AND `{EpicID}-PROFILE.md` exists → that
+ *     Epic PROFILE (validated; malformed *content* throws ProfileSchemaError).
+ *   - otherwise → the project `.planning/PROFILE.md` (byte-identical to
+ *     readProfile — the linear/no-override path).
+ *
+ * Fail-open on the STATE value: a null / absent / non-strict `currentEpic`
+ * (garbage, a version string like `v0.1.6`, a bare milestone) SKIPS the Epic
+ * probe and falls back to the project PROFILE — it never throws on the
+ * `current_epic` itself. This is the invariant the six phase commands' gate-read
+ * retrofit (S3.t4) depends on: a hand-edited STATE must degrade to the project
+ * tier, not crash the command's first action. (Distinct from a *malformed Epic
+ * PROFILE file* that does exist — that throws, same as any bad PROFILE.) When
+ * neither PROFILE exists, the project-path read throws the same "not found"
+ * ProfileSchemaError a linear command already surfaces, so halt copy is
+ * unchanged.
+ *
+ * @param {string} baseDir
+ * @param {{currentEpic?: string|null}} [opts]
+ * @returns {Promise<object>} the effective profile (same shape as readProfile)
+ * @throws {ProfileSchemaError}
+ */
+export async function readEffectiveProfile(baseDir, opts = {}) {
+  const { currentEpic = null } = opts;
+  if (typeof currentEpic === 'string' && EPIC_ID_STRICT_RE.test(currentEpic)) {
+    const epicPath = join(baseDir, PLANNING_DIR, `${currentEpic}-${PROFILE_FILE}`);
+    if (existsSync(epicPath)) {
+      return readProfileFromPath(epicPath);
+    }
+  }
+  return readProfile(baseDir);
 }
 
 /**

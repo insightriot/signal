@@ -22,6 +22,7 @@ import {
 import { deriveRetroPath, isEpicDone } from '../tools/lib/retrospective.js';
 import { currentMilestone, deriveNextEpicId } from '../tools/lib/milestones.js';
 import { resolveArtifactPath, artifactName } from '../tools/lib/resume.js';
+import { readProfile, readEffectiveProfile, ProfileSchemaError } from '../tools/lib/profile.js';
 
 // Write a COMPLETE schema_v1 STATE.md (all fields) so readStateForMutation
 // accepts it — used where we need a non-null current_wave to prove the roll
@@ -383,5 +384,141 @@ describe('S2.t1 artifactName', () => {
         expect(resolved).toBe(join(planning, name));
       }
     });
+  });
+});
+
+// ---- S3.t1 — readEffectiveProfile (Epic PROFILE shadows project PROFILE) ----
+const PROJECT_FULL_PROFILE = `---
+tier: FULL
+schema_version: 1
+
+calibration:
+  scope: product
+  stakes: major
+  novelty: rare
+  reversibility: painful
+  horizon: years
+
+phases_skipped: []
+
+rigor_overrides:
+  tdd_required: true
+  security_audit: full
+  performance_pass: true
+  simplification_pass: true
+  nyquist_enforcement: strict
+  plan_validation_dims: all
+  research_parallelism: 4
+  gate_strictness: strict
+  context_rot_reread: true
+  review_depth: full
+
+metadata:
+  created_at: 2026-07-15T00:00:00Z
+  created_by: sig:calibrate
+  escalation_history: []
+---
+
+# Project profile
+`;
+
+const EPIC_SKETCH_PROFILE = `---
+tier: SKETCH
+schema_version: 1
+
+calibration:
+  scope: throwaway
+  stakes: none
+  novelty: familiar
+  reversibility: trivial
+  horizon: hours
+
+phases_skipped:
+  - REVIEW
+
+rigor_overrides:
+  tdd_required: false
+  security_audit: none
+  performance_pass: false
+  simplification_pass: false
+  nyquist_enforcement: off
+  plan_validation_dims: none
+  research_parallelism: 0
+  gate_strictness: off
+  context_rot_reread: false
+  review_depth: none
+
+metadata:
+  created_at: 2026-07-15T01:00:00Z
+  created_by: sig:calibrate
+  escalation_history: []
+---
+
+# Epic profile (this Epic is honestly a SKETCH inside a FULL project)
+`;
+
+describe('S3.t1 readEffectiveProfile', () => {
+  let baseDir;
+  let planning;
+  beforeEach(async () => {
+    baseDir = await mkdtemp(join(tmpdir(), 'signal-e11-s3t1-'));
+    planning = join(baseDir, '.planning');
+    await mkdir(planning, { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true });
+  });
+
+  const writeProject = () => writeFile(join(planning, 'PROFILE.md'), PROJECT_FULL_PROFILE, 'utf-8');
+  const writeEpic = (id, body = EPIC_SKETCH_PROFILE) =>
+    writeFile(join(planning, `${id}-PROFILE.md`), body, 'utf-8');
+
+  it('no currentEpic → project PROFILE (byte-identical to readProfile, R7 golden)', async () => {
+    await writeProject();
+    const eff = await readEffectiveProfile(baseDir, {});
+    const proj = await readProfile(baseDir);
+    expect(eff).toEqual(proj);
+    expect(eff.tier).toBe('FULL');
+  });
+
+  it('valid currentEpic + Epic PROFILE exists → Epic PROFILE shadows project', async () => {
+    await writeProject();
+    await writeEpic('M4.5.E99');
+    const eff = await readEffectiveProfile(baseDir, { currentEpic: 'M4.5.E99' });
+    expect(eff.tier).toBe('SKETCH'); // Epic wins
+    // ...and the project PROFILE is untouched / still readable as FULL.
+    expect((await readProfile(baseDir)).tier).toBe('FULL');
+  });
+
+  it('valid currentEpic + NO Epic PROFILE → falls back to project PROFILE', async () => {
+    await writeProject(); // no M4.5.E99-PROFILE.md written
+    const eff = await readEffectiveProfile(baseDir, { currentEpic: 'M4.5.E99' });
+    expect(eff.tier).toBe('FULL');
+  });
+
+  it.each(['v0.1.6', '', '   ', 'garbage', 'M4.5'])(
+    'fail-open: non-strict currentEpic %j SKIPS the Epic probe → project PROFILE (never throws on the STATE value)',
+    async (bad) => {
+      await writeProject();
+      const eff = await readEffectiveProfile(baseDir, { currentEpic: bad });
+      expect(eff.tier).toBe('FULL');
+    },
+  );
+
+  it('malformed Epic PROFILE *content* (file exists) → ProfileSchemaError (distinct from a missing file)', async () => {
+    await writeProject();
+    await writeEpic('M4.5.E99', '---\ntier: NONSENSE\nschema_version: 1\n---\n');
+    await expect(readEffectiveProfile(baseDir, { currentEpic: 'M4.5.E99' })).rejects.toBeInstanceOf(
+      ProfileSchemaError,
+    );
+  });
+
+  it('neither Epic nor project PROFILE exists → ProfileSchemaError (byte-identical not-found halt)', async () => {
+    // No PROFILE.md at all; the command halt message must stay unchanged.
+    await expect(readEffectiveProfile(baseDir, { currentEpic: 'M4.5.E99' })).rejects.toBeInstanceOf(
+      ProfileSchemaError,
+    );
+    // fall-through path is readProfile(baseDir) — same error a linear command sees.
+    await expect(readEffectiveProfile(baseDir, {})).rejects.toThrow(/not found/i);
   });
 });
