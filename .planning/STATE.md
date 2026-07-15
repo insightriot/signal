@@ -1,24 +1,19 @@
 ---
 schema_version: 1
-phase: SHIP
-current_epic: v0.1.6
+phase: DISCUSS
+current_epic: M4.5.E11
 current_wave: null
 current_tasks: []
-completed_phases:
-  - DISCUSS (2026-07-13)
-  - PLAN (2026-07-13)
-  - EXECUTE (2026-07-13)
-  - VERIFY (2026-07-14)
-  - REVIEW (2026-07-14)
+completed_phases: []
 blockers: []
 last_completed_task:
   id: M4.5.E10.S5.t3
   status: done
   commit: dfc4bf7
   completedAt: 2026-07-05T16:24:45.218Z
-last_decision_at: 2026-07-05T16:24:45.218Z
-last_updated_commit: d5d5261a728bf4f42fab5c7f8aa2e202b42810f7
-last_updated: 2026-07-14T10:36:08.582Z
+last_decision_at: 2026-07-15T18:37:11.000Z
+last_updated_commit: 291373849256ef558b3fe8d6967c03f734dca873
+last_updated: 2026-07-15T18:37:11.000Z
 ---
 <!-- Original STATE.md content preserved verbatim from pre-schema_v1 migration on 2026-05-18. The YAML frontmatter above is the authoritative machine-readable state; everything below is human-readable history. -->
 
@@ -45,6 +40,8 @@ Meta-state of the Signal build. Not to be confused with the `.planning/` that Si
 ---
 
 ## Current Phase
+
+**M4.5.E11 (Epic-native flow) — DISCUSS in progress (2026-07-15); FULL/strict.** The committed next Epic after E10 (DECISIONS 2026-07-05) — makes Epic mode first-class so commands create/track Epics, assign IDs, auto-populate `current_epic`, and write Epic-scoped artifacts; per-Epic calibration falls out. DISCUSS locked two product decisions via `AskUserQuestion`: **D-E11-1 scope = tight core** (Epics first-class + per-Epic calibration; the `features[]`/per-feature-subdir multi-feature layer stays parked in FUTURE-IDEAS until a real 2nd feature tests it — its own "resolve by"); **D-E11-2 placement = M4.5.E11** (last release-hardening Epic, built now, before M5's locked re-audit opening). Decided-default (plumbing, not gated): **migration posture = additive/opt-in** — linear mode (`calibrate→ship`, phase-named artifacts) keeps working untouched; FR1 (E10) is the forward-compatible read-half the write-half slots onto. Spec: `M4.5.E11-REQUIREMENTS.md`; decisions in `DECISIONS.md` (2026-07-15). **Bootstrap-as-evidence:** this Epic's own STATE transition + Epic ID were done **by hand** (`current_epic: M4.5.E11` hand-typed, this narrative hand-written) — that friction *is* the requirements input for what E11 automates. **Next: DISCUSS gate → PLAN.** (Frontmatter above is authoritative; this prose echoes it.)
 
 **v0.1.6 (Doc-integrity guardrail) — SHIPPED (2026-07-14); full DISCUSS→SHIP at FULL/strict.** Lightweight patch (no Epic ID; `current_epic: v0.1.6`). 5 slices (`94aaaa7..b70da15`): **FR1** STATE-frontmatter write-guard (block prose in `completed_phases`/`blockers` — sibling pure fn `checkStateFrontmatterShape`, field-specific/blacklist/raw-text, fires in every installed repo, CRLF-tolerant) · **FR2** read-time size banner (`detectStateSize`/`readStateSize`/`formatStateSizeBanner` trio + resume/status/checkpoint wiring, 150 KB) · **FR3** drain recognizes `> **Promoted**` blockquote stamps (`^`-anchored, fence-aware; 43→37 candidates) · **FR4** `deriveHeading` clause-boundary cut · **FR5** 3 bugs → `BUGS.md`. DISCUSS gated 2 product decisions (hook posture; packaging); D-v016-1…7. PLAN: 4-agent research corrected the FR1 design twice (field-specific not "multi-line→block"; raw-text not `parseFrontmatter`), 8/8 validation. VERIFY 21/21 ACs, strict-Nyquist attested. **REVIEW PASS-WITH-FIXES** — 2 specialists; FR1 was inert on CRLF + a `$`-replacement desync; 6 fixes in-phase (`c1fe728`). 854→**894 tests**, no new deps. Retro `v0.1.6-RETROSPECTIVE.md`. Carry-over: AC6.4-style real-session hook smoke (human step); pre-existing lint breakage = `BUGS.md` B5. **Next: no Epic in flight — the committed Epic-native flow Epic (or M5).** (Frontmatter above is authoritative; this prose echoes it.)
 
