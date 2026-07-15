@@ -4,8 +4,11 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 import {
   EPIC_ID_STRICT_RE,
@@ -18,6 +21,7 @@ import {
 } from '../tools/lib/state.js';
 import { deriveRetroPath, isEpicDone } from '../tools/lib/retrospective.js';
 import { currentMilestone, deriveNextEpicId } from '../tools/lib/milestones.js';
+import { resolveArtifactPath } from '../tools/lib/resume.js';
 
 // Write a COMPLETE schema_v1 STATE.md (all fields) so readStateForMutation
 // accepts it — used where we need a non-null current_wave to prove the roll
@@ -276,4 +280,21 @@ describe('S1.t5 isEpicDone', () => {
       expect(isEpicDone(baseDir, bad)).toBe(false);
     },
   );
+});
+
+// ---- S1.t6 — linear-mode back-compat net (byte-identity anchor) ----
+describe('S1.t6 linear-mode golden fixture', () => {
+  const linearBase = join(__dirname, 'fixtures', 'epic-native', 'linear');
+  const linearPlanning = join(linearBase, '.planning');
+
+  it('the fixture is genuinely linear mode (detectMode → linear)', async () => {
+    const state = await readState(linearBase);
+    expect(state.current_epic).toBeNull();
+    expect(detectMode(state)).toBe('linear');
+  });
+
+  it('resolves phase-named 1-PLAN.md in linear mode (no Epic prefix)', () => {
+    const p = resolveArtifactPath(linearPlanning, 'PLAN', { currentEpic: null, phase: 'PLAN' });
+    expect(p).toMatch(/1-PLAN\.md$/);
+  });
 });
