@@ -553,6 +553,24 @@ export async function setCurrentEpic(baseDir, epicId) {
 }
 
 /**
+ * Detect Epic mode vs linear mode from a STATE object (M4.5.E11.S1.t3, FR4).
+ * The sole signal is `current_epic`: a non-empty, strict-shaped value → 'epic';
+ * null / absent / empty / whitespace / malformed / version-string → 'linear'.
+ * Pure and fail-open — never throws (a hand-edited garbage `current_epic`
+ * degrades to linear rather than crashing a read path). Linear is the
+ * byte-identical default (a version string like `v0.1.6` is NOT Epic mode,
+ * per D-E11-4).
+ *
+ * @param {object|null|undefined} state — a readState() result
+ * @returns {'epic'|'linear'}
+ */
+export function detectMode(state) {
+  const epic = state?.current_epic;
+  if (typeof epic !== 'string' || epic.trim() === '') return 'linear';
+  return EPIC_ID_STRICT_RE.test(epic) ? 'epic' : 'linear';
+}
+
+/**
  * Read-only access to the current_tasks[] array. Returns [] for missing
  * STATE.md, legacy STATE.md (no current_tasks concept yet), or empty array.
  *

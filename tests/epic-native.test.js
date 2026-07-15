@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 
 import {
   EPIC_ID_STRICT_RE,
+  detectMode,
   initState,
   readState,
   setCurrentEpic,
@@ -178,5 +179,27 @@ describe('S1.t2 setCurrentEpic', () => {
     expect(state.phase).toBe('EXECUTE');
     expect(Array.isArray(state.completedPhases ?? state.completed_phases)).toBe(true);
     expect(state.blockers).toEqual([]);
+  });
+});
+
+// ---- S1.t3 — detectMode (the sole mode signal, fail-open to linear) ----
+describe('S1.t3 detectMode', () => {
+  it('returns epic for a strict-shaped current_epic', () => {
+    expect(detectMode({ current_epic: 'M4.5.E11' })).toBe('epic');
+    expect(detectMode({ current_epic: 'M5.E1' })).toBe('epic');
+  });
+
+  it.each([
+    ['null current_epic', { current_epic: null }],
+    ['absent current_epic', {}],
+    ['empty string', { current_epic: '' }],
+    ['whitespace', { current_epic: '   ' }],
+    ['version string (not an Epic ID)', { current_epic: 'v0.1.6' }],
+    ['garbage', { current_epic: 'garbage' }],
+    ['padded id', { current_epic: 'M4.5.E11 ' }],
+    ['null state', null],
+    ['undefined state', undefined],
+  ])('returns linear for %s (fail-open, never throws)', (_label, state) => {
+    expect(detectMode(state)).toBe('linear');
   });
 });
