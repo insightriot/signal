@@ -334,6 +334,25 @@ Added 2026-07-04 via backlog-review ratification (`BACKLOG-REVIEW-2026-07-04.md`
 
 ---
 
+### M4.5.E11 — Epic-native flow
+
+The **committed next Epic after E10** (DECISIONS 2026-07-05). Makes **Epic mode first-class**: today Signal has two unreconciled modes — **linear** (what the phase commands implement — one `calibrate → ship` pass, phase-named artifacts, no Epic concept) and **Epic** (what Signal-on-Signal ran *by hand* — Milestones → Epics, `{EpicID}-*.md` artifacts, `current_epic` hand-typed). E11 teaches the commands to drive off the locked Epic/Milestone/Slice/Task vocabulary instead of dogfooding it manually. FR1 from E10 (`resolveArtifactPath`) was the forward-compatible **read-half**; E11 supplies the **write-half**. Full reference: `references/epic-native-flow.md`.
+
+Four FRs, all **additive over a byte-identical linear mode** (D-E11-3, no `schema_version` bump):
+
+- **FR1 — Epic creation & `current_epic` write-half.** `--epic <name>` on `/sig:discuss` + `/sig:new-project` (derive-by-default via `deriveNextEpicId`, explicit-strict-ID override) → `setCurrentEpic` writes `current_epic` automatically (no hand-editing STATE), rolls on open (resets coupled `current_wave`/`current_tasks`), and guards a done Epic (`isEpicDone` = retro exists) against clobber.
+- **FR2 — Epic-scoped artifact naming.** `artifactName()` (write) symmetric to `resolveArtifactPath()` (read): Epic mode → `{EpicID}-{ARTIFACT}.md`; linear → phase-named, with `REQUIREMENTS` unprefixed and `CONTEXT` / `RETROSPECTIVE` carve-outs (retro owned by `deriveRetroPath`). Threaded into all 6 phase commands' write points.
+- **FR3 — Per-Epic calibration.** `readEffectiveProfile()` — a whole-file `.planning/{EpicID}-PROFILE.md` shadows the project PROFILE for the Epic's phases only; the 6 phase commands' gate-read now reads the effective profile, and `/sig:calibrate`/`/sig:escalate` target the Epic PROFILE when active. Provenance surfaced via `formatTierLine` in `/sig:status` + `/sig:resume` (`SKETCH (Epic … override; project default FULL)` — never silent).
+- **FR4 — Mode detection.** `detectMode(state)` off a strict `current_epic`, fail-open to linear; linear stays the unchanged default.
+
+**Two-tier retro coupling (B2, D-E11-5):** the STATE-write **hook** warns (non-blocking, throw-safe) on a missing Epic retro at arbitrary STATE edits — the stranger blast-radius surface; the **command gate** (`/sig:ship` §0.5, `shipFR1Check`) keeps E9's hard retro contract. Hooks nudge on process; invoking the command opts you into its contract.
+
+Wave graph `S1 → {S2 ∥ S3} → S4`. **S1** (write-half + `detectMode` + retro-gate hook fail-open + linear golden fixture) shipped 7 tasks (`d7fc9eb..8d36e38`), 894 → 948 tests. **S2** (`artifactName` + thread into 6 commands + Epic golden fixture) + **S3** (`readEffectiveProfile` + `formatTierLine` + gate-read retrofit + calibrate/escalate targeting) shipped 7 tasks in parallel (`35efecd..e1d3644`), 948 → 997 tests; C2 honored (one owner drove all 6 command-file edits). **S4** (bootstrap dogfood + e2e fixture + docs) — the end-to-end chain proven against disk (999 tests). **No linear-project migration** — Epic mode is entered only by an explicit `--epic`.
+
+**Status:** EXECUTE complete (all 4 slices); VERIFY → REVIEW → SHIP next. Cross-refs: `.planning/M4.5.E11-{REQUIREMENTS,RESEARCH,PLAN,VALIDATION,PROGRESS}.md`, `references/epic-native-flow.md`, DECISIONS 2026-07-15 (D-E11-1…5).
+
+---
+
 ## Exit Criteria for Milestone 4.5
 
 All 10 Epics shipped (E1–E10; E1 S3–S5 remain shelved per D-E3-12). At least 3 non-Signal users have run `/sig:init` through `/sig:ship` on real projects. Friction logs from those runs reviewed; resulting fixes either shipped or promoted to FUTURE-IDEAS / M5. README opens with a pitch a stranger can parse in 60 seconds. Install path verified on at least one fresh non-author machine. Upgrade path collapses to one deterministic command via `/sig:doctor --upgrade` (E8) regardless of starting install state.
