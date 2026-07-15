@@ -10,9 +10,9 @@ You are running the VERIFY phase. Your goal: confirm that what was built matches
 
 ## 0. Tier-gating preamble (run before anything else)
 
-Read `.planning/PROFILE.md` before any other workflow step.
+Read the **effective profile** before any other workflow step: `readEffectiveProfile(baseDir, { currentEpic })` (`tools/lib/profile.js`), where `currentEpic` is `current_epic` from STATE.md (via `readState`). In **Epic mode** (a strict `current_epic`) an Epic-scoped `.planning/{EpicID}-PROFILE.md` shadows the project PROFILE for this Epic's phases; in **linear mode** (null / absent / non-strict `current_epic`) it reads `.planning/PROFILE.md` unchanged — byte-identical to pre-E11. Fail-open on the STATE value: a hand-edited or garbage `current_epic` degrades to the project PROFILE, never throws.
 
-- **If `PROFILE.md` is missing:** halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:verify`."* Do not proceed.
+- **If neither PROFILE.md is present:** `readEffectiveProfile` throws the same not-found error — halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:verify`."* Do not proceed.
 - **If `VERIFY` is in `phases_skipped`:** exit with *"This tier ({tier}) skips VERIFY. Run `/sig:review` next (or `/sig:ship` if REVIEW is also skipped), or `/sig:escalate` if scope has grown and VERIFY should run."* Do not proceed. (No v1 tier currently skips VERIFY.)
 - **Apply `rigor_overrides`** from PROFILE.md:
 
@@ -25,7 +25,7 @@ Read `.planning/PROFILE.md` before any other workflow step.
 | `gate_strictness: light` | Confirm at end of phase. |
 | `gate_strictness: strict` | Confirm at every step + run anti-rationalization at exit. |
 
-Tooling: `tools/lib/profile.js` exposes `readProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question convention: `references/question-patterns.md`.
+Tooling: `tools/lib/profile.js` exposes `readProfile`, `readEffectiveProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question convention: `references/question-patterns.md`.
 
 ## Skill Loading
 

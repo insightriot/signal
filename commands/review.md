@@ -10,9 +10,9 @@ You are running the REVIEW phase — the bridge between "does it work?" (VERIFY)
 
 ## 0. Tier-gating preamble (run before anything else)
 
-Read `.planning/PROFILE.md` before any other workflow step.
+Read the **effective profile** before any other workflow step: `readEffectiveProfile(baseDir, { currentEpic })` (`tools/lib/profile.js`), where `currentEpic` is `current_epic` from STATE.md (via `readState`). In **Epic mode** (a strict `current_epic`) an Epic-scoped `.planning/{EpicID}-PROFILE.md` shadows the project PROFILE for this Epic's phases; in **linear mode** (null / absent / non-strict `current_epic`) it reads `.planning/PROFILE.md` unchanged — byte-identical to pre-E11. Fail-open on the STATE value: a hand-edited or garbage `current_epic` degrades to the project PROFILE, never throws.
 
-- **If `PROFILE.md` is missing:** halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:review`."* Do not proceed.
+- **If neither PROFILE.md is present:** `readEffectiveProfile` throws the same not-found error — halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:review`."* Do not proceed.
 - **If `REVIEW` is in `phases_skipped`:** exit with *"This tier ({tier}) skips REVIEW. Run `/sig:ship` next, or `/sig:escalate` if scope has grown and REVIEW should run."* Do not proceed. (SKETCH and SPIKE tiers skip REVIEW by default.)
 - **Apply `rigor_overrides`** from PROFILE.md — REVIEW has the most overrides of any phase. **Precedence rule: `review_depth` is the master switch.** When `review_depth: none`, REVIEW is in `phases_skipped` and the preamble exits above. When `review_depth: quality-only`, only Step 1 runs — Steps 2/3/4 are skipped regardless of what `security_audit` / `performance_pass` / `simplification_pass` say. Those three flags **only matter when `review_depth: full`**. (FEATURE tier sets `review_depth: quality-only` AND `security_audit: basic` etc.; the `quality-only` master switch wins, the others are inert at that tier.)
 
@@ -32,7 +32,7 @@ Read `.planning/PROFILE.md` before any other workflow step.
 
 Skill loading below assumes `review_depth: full`. If `review_depth: quality-only`, only load the first skill in the list.
 
-Tooling: `tools/lib/profile.js` exposes `readProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question convention: `references/question-patterns.md`.
+Tooling: `tools/lib/profile.js` exposes `readProfile`, `readEffectiveProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question convention: `references/question-patterns.md`.
 
 ## Skill Loading
 

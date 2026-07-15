@@ -10,9 +10,9 @@ You are running the EXECUTE phase of the Signal workflow. Your goal: implement e
 
 ## 0. Tier-gating preamble (run before anything else)
 
-Read `.planning/PROFILE.md` before any other workflow step.
+Read the **effective profile** before any other workflow step: `readEffectiveProfile(baseDir, { currentEpic })` (`tools/lib/profile.js`), where `currentEpic` is `current_epic` from STATE.md (via `readState`). In **Epic mode** (a strict `current_epic`) an Epic-scoped `.planning/{EpicID}-PROFILE.md` shadows the project PROFILE for this Epic's phases; in **linear mode** (null / absent / non-strict `current_epic`) it reads `.planning/PROFILE.md` unchanged — byte-identical to pre-E11. Fail-open on the STATE value: a hand-edited or garbage `current_epic` degrades to the project PROFILE, never throws.
 
-- **If `PROFILE.md` is missing:** halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:execute`."* Do not proceed.
+- **If neither PROFILE.md is present:** `readEffectiveProfile` throws the same not-found error — halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:execute`."* Do not proceed.
 - **EXECUTE is never in `phases_skipped`.** No tier is zero-work; even SKETCH and SPIKE run EXECUTE. This guard is therefore a sanity check — if you somehow see EXECUTE in `phases_skipped`, treat the PROFILE.md as malformed and halt.
 - **Apply `rigor_overrides`** from PROFILE.md:
 
@@ -26,7 +26,7 @@ Read `.planning/PROFILE.md` before any other workflow step.
 | `gate_strictness: light` | Confirm at end of phase only. |
 | `gate_strictness: strict` | Confirm at every wave boundary + run anti-rationalization at exit. |
 
-Tooling: `tools/lib/profile.js` exposes `readProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`.
+Tooling: `tools/lib/profile.js` exposes `readProfile`, `readEffectiveProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`.
 
 **Auto-state-protocol (M4.5.E6 onward).** Each dispatched task is wrapped by `dispatchTaskWithState` in `tools/lib/execute.js`, which calls `setCurrentTask` before the agent runs and `clearCurrentTask({status})` after — so `/sig:resume` can recover from a context-clear mid-EXECUTE. **SKETCH tier disables the auto-protocol entirely; STATE.md updates only via manual `/sig:checkpoint`.** FEATURE/SPIKE tiers run it under `gate_strictness: light` (state-write failures warn + continue). FULL tier runs it under `strict` (state-write failures halt the dispatch). See `tools/lib/execute.js` + `tools/lib/state.js`.
 

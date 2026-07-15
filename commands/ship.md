@@ -10,9 +10,9 @@ You are running the SHIP phase. Your goal: get reviewed, verified code into a me
 
 ## 0. Tier-gating preamble (run before anything else)
 
-Read `.planning/PROFILE.md` before any other workflow step.
+Read the **effective profile** before any other workflow step: `readEffectiveProfile(baseDir, { currentEpic })` (`tools/lib/profile.js`), where `currentEpic` is `current_epic` from STATE.md (via `readState`). In **Epic mode** (a strict `current_epic`) an Epic-scoped `.planning/{EpicID}-PROFILE.md` shadows the project PROFILE for this Epic's phases; in **linear mode** (null / absent / non-strict `current_epic`) it reads `.planning/PROFILE.md` unchanged — byte-identical to pre-E11. Fail-open on the STATE value: a hand-edited or garbage `current_epic` degrades to the project PROFILE, never throws.
 
-- **If `PROFILE.md` is missing:** halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:ship`."* Do not proceed.
+- **If neither PROFILE.md is present:** `readEffectiveProfile` throws the same not-found error — halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:ship`."* Do not proceed.
 - **If `SHIP` is in `phases_skipped`:** exit with *"This tier ({tier}) skips SHIP. The project's output is internal (e.g., a SPIKE finding doc, not a shipping artifact). If output should ship, run `/sig:escalate` to upgrade tier."* Do not proceed. (SPIKE tier skips SHIP by default.)
 - **Apply `rigor_overrides`** from PROFILE.md:
 
@@ -22,7 +22,7 @@ Read `.planning/PROFILE.md` before any other workflow step.
 | `gate_strictness: light` | Confirm at PR creation (default). |
 | `gate_strictness: strict` | Confirm at every checklist step + run final anti-rationalization (existing Step 5 / "Final Anti-Rationalization" already does this — make it mandatory under strict). |
 
-Tooling: `tools/lib/profile.js` exposes `readProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question convention: `references/question-patterns.md`.
+Tooling: `tools/lib/profile.js` exposes `readProfile`, `readEffectiveProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question convention: `references/question-patterns.md`.
 
 ## 0.5 FR1 retrospective pre-check (M4.5.E9, command-internal layer)
 
