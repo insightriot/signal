@@ -21,7 +21,7 @@ import {
 } from '../tools/lib/state.js';
 import { deriveRetroPath, isEpicDone } from '../tools/lib/retrospective.js';
 import { currentMilestone, deriveNextEpicId } from '../tools/lib/milestones.js';
-import { resolveArtifactPath } from '../tools/lib/resume.js';
+import { resolveArtifactPath, artifactName } from '../tools/lib/resume.js';
 
 // Write a COMPLETE schema_v1 STATE.md (all fields) so readStateForMutation
 // accepts it — used where we need a non-null current_wave to prove the roll
@@ -296,5 +296,92 @@ describe('S1.t6 linear-mode golden fixture', () => {
   it('resolves phase-named 1-PLAN.md in linear mode (no Epic prefix)', () => {
     const p = resolveArtifactPath(linearPlanning, 'PLAN', { currentEpic: null, phase: 'PLAN' });
     expect(p).toMatch(/1-PLAN\.md$/);
+  });
+});
+
+// ---- S2.t1 — artifactName (the FR2 write-half; symmetric to resolveArtifactPath) ----
+describe('S2.t1 artifactName', () => {
+  // The 8 Epic-scoped artifact kinds (FR2).
+  const KINDS = [
+    'RESEARCH',
+    'REQUIREMENTS',
+    'PLAN',
+    'VALIDATION',
+    'VERIFICATION',
+    'REVIEW',
+    'PROGRESS',
+    'RETROSPECTIVE',
+  ];
+  // Phase-command-owned kinds (artifactName is their write path). RETROSPECTIVE
+  // is excluded from the linear contract — ship owns it via deriveRetroPath /
+  // milestone scoping, not artifactName.
+  const PHASE_OWNED_LINEAR = ['RESEARCH', 'PLAN', 'VALIDATION', 'VERIFICATION', 'REVIEW', 'PROGRESS'];
+
+  describe('epic mode → {EpicID}-{artifact}.md (all 8 kinds)', () => {
+    for (const k of KINDS) {
+      it(`${k} → M4.5.E99-${k}.md`, () => {
+        expect(artifactName(k, { currentEpic: 'M4.5.E99' })).toBe(`M4.5.E99-${k}.md`);
+      });
+    }
+    it('RETROSPECTIVE agrees with deriveRetroPath (single source of truth, no divergence)', () => {
+      // basename of deriveRetroPath must equal artifactName — pins the invariant
+      // the advisor flagged: retro naming has ONE owner in Epic mode.
+      const full = deriveRetroPath('M4.5.E99'); // .planning/M4.5.E99-RETROSPECTIVE.md
+      expect(`.planning/${artifactName('RETROSPECTIVE', { currentEpic: 'M4.5.E99' })}`).toBe(full);
+    });
+  });
+
+  describe('linear mode', () => {
+    it('REQUIREMENTS is unprefixed — REQUIREMENTS.md (matches discuss.md write path, FR4 byte-identity)', () => {
+      expect(artifactName('REQUIREMENTS', { currentEpic: null })).toBe('REQUIREMENTS.md');
+    });
+    for (const k of PHASE_OWNED_LINEAR) {
+      it(`${k} → 1-${k}.md (numeric prefix)`, () => {
+        expect(artifactName(k, { currentEpic: null })).toBe(`1-${k}.md`);
+      });
+    }
+  });
+
+  describe('fail-open: non-strict currentEpic falls back to linear naming (never Epic-names garbage)', () => {
+    for (const bad of ['v0.1.6', '', '   ', '../x', 'garbage', 'M4.5', undefined]) {
+      it(`${JSON.stringify(bad)} → 1-PLAN.md`, () => {
+        expect(artifactName('PLAN', { currentEpic: bad })).toBe('1-PLAN.md');
+      });
+    }
+    it('no opts at all → linear', () => {
+      expect(artifactName('PLAN')).toBe('1-PLAN.md');
+    });
+  });
+
+  describe('write→read round-trip (artifactName output resolves via resolveArtifactPath)', () => {
+    let baseDir;
+    let planning;
+    beforeEach(async () => {
+      baseDir = await mkdtemp(join(tmpdir(), 'signal-e11-s2t1-'));
+      planning = join(baseDir, '.planning');
+      await mkdir(planning, { recursive: true });
+    });
+    afterEach(async () => {
+      await rm(baseDir, { recursive: true, force: true });
+    });
+
+    it('epic mode: every one of the 8 kinds round-trips', async () => {
+      const epic = 'M4.5.E99';
+      for (const k of KINDS) {
+        const name = artifactName(k, { currentEpic: epic });
+        await writeFile(join(planning, name), 'x', 'utf-8');
+        const resolved = resolveArtifactPath(planning, k, { currentEpic: epic, phase: k });
+        expect(resolved).toBe(join(planning, name));
+      }
+    });
+
+    it('linear mode: REQUIREMENTS + the 6 phase-owned kinds round-trip', async () => {
+      for (const k of ['REQUIREMENTS', ...PHASE_OWNED_LINEAR]) {
+        const name = artifactName(k, { currentEpic: null });
+        await writeFile(join(planning, name), 'x', 'utf-8');
+        const resolved = resolveArtifactPath(planning, k, { currentEpic: null, phase: k });
+        expect(resolved).toBe(join(planning, name));
+      }
+    });
   });
 });

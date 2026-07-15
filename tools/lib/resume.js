@@ -17,6 +17,7 @@ import {
   clearCurrentTask,
   formatSchemaDriftBanner,
   formatStateSizeBanner,
+  EPIC_ID_STRICT_RE,
 } from './state.js';
 
 const PHASES = ['CALIBRATE', 'DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'SHIP'];
@@ -73,6 +74,48 @@ export function resolveArtifactPath(planningDir, artifact, opts = {}) {
     if (existsFn(full)) return full;
   }
   return null;
+}
+
+// Artifact kinds whose LINEAR-mode name is NOT the numeric `1-` prefix.
+// REQUIREMENTS (a DISCUSS artifact) is written UNPREFIXED as `REQUIREMENTS.md`
+// by discuss.md — matching that exactly is FR4 byte-identity (an Epic prefix or
+// a `1-` prefix here would fork every existing linear project that already has
+// a `REQUIREMENTS.md`), not cosmetics.
+const LINEAR_UNPREFIXED = new Set(['REQUIREMENTS']);
+
+/**
+ * Produce the canonical file name a phase command should WRITE for `artifact`
+ * — the FR2 write-half (M4.5.E11.S2.t1), symmetric to `resolveArtifactPath`'s
+ * read. Whatever this emits, `resolveArtifactPath` (with the same opts) resolves
+ * back.
+ *
+ *   - Epic mode (strict `currentEpic`): `{EpicID}-{artifact}.md` for ALL kinds.
+ *     This matches every Epic artifact Signal-on-Signal writes on disk
+ *     (e.g. `M4.5.E11-REQUIREMENTS.md`) and, for RETROSPECTIVE, is
+ *     byte-identical to `deriveRetroPath`'s basename — retro naming has one
+ *     owner in Epic mode.
+ *   - Linear mode (null / absent / non-strict `currentEpic`): the numeric
+ *     `1-{artifact}.md`, EXCEPT REQUIREMENTS → unprefixed `REQUIREMENTS.md`.
+ *
+ * Uses the STRICT Epic-ID shape (D-E11-4): a non-strict value like `v0.1.6`
+ * degrades to linear naming rather than emitting `v0.1.6-PLAN.md` — fail-open,
+ * consistent with `detectMode`.
+ *
+ * RETROSPECTIVE's LINEAR name is intentionally NOT part of this contract: in
+ * linear mode the retro is milestone-scoped and written by ship via
+ * `deriveRetroPath`, not through a phase command's `artifactName` call.
+ *
+ * @param {string} artifact — artifact base name, e.g. 'PLAN', 'REQUIREMENTS'
+ * @param {{currentEpic?: string|null, phase?: string|null}} [opts]
+ * @returns {string} the file name (no directory) to write under `.planning/`
+ */
+export function artifactName(artifact, opts = {}) {
+  const { currentEpic = null } = opts;
+  if (typeof currentEpic === 'string' && EPIC_ID_STRICT_RE.test(currentEpic)) {
+    return `${currentEpic}-${artifact}.md`;
+  }
+  if (LINEAR_UNPREFIXED.has(artifact)) return `${artifact}.md`;
+  return `1-${artifact}.md`;
 }
 
 function shortSha(sha) {
