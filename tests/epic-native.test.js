@@ -522,3 +522,27 @@ describe('S3.t1 readEffectiveProfile', () => {
     await expect(readEffectiveProfile(baseDir, {})).rejects.toThrow(/not found/i);
   });
 });
+
+// ---- S2.t3 — Epic-mode golden fixture (the {EpicID}-PLAN.md resolve anchor) ----
+describe('S2.t3 Epic-mode golden fixture', () => {
+  const epicBase = join(__dirname, 'fixtures', 'epic-native', 'epic');
+  const epicPlanning = join(epicBase, '.planning');
+
+  it('the fixture is genuinely Epic mode (detectMode → epic)', async () => {
+    const state = await readState(epicBase);
+    expect(state.current_epic).toBe('M4.5.E99');
+    expect(detectMode(state)).toBe('epic');
+  });
+
+  it('resolves the Epic-scoped M4.5.E99-PLAN.md (pattern 0), NOT null — no "artifact not found"', () => {
+    const p = resolveArtifactPath(epicPlanning, 'PLAN', { currentEpic: 'M4.5.E99', phase: 'PLAN' });
+    expect(p).not.toBeNull(); // the FR1 papercut this Epic fixes
+    expect(p).toMatch(/M4\.5\.E99-PLAN\.md$/);
+  });
+
+  it('write→read symmetry against a real fixture: artifactName names exactly what the resolver finds', () => {
+    const name = artifactName('PLAN', { currentEpic: 'M4.5.E99' });
+    const resolved = resolveArtifactPath(epicPlanning, 'PLAN', { currentEpic: 'M4.5.E99', phase: 'PLAN' });
+    expect(resolved).toBe(join(epicPlanning, name));
+  });
+});
