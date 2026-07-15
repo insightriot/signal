@@ -53,6 +53,8 @@ Load from `${CLAUDE_PLUGIN_ROOT}/skills/ship/`:
 
 ## Workflow
 
+**Artifact naming (M4.5.E11).** Resolve prior-phase artifacts this phase reads with `resolveArtifactPath(planningDir, ARTIFACT, { currentEpic, phase })` (`tools/lib/resume.js`) — Epic mode finds `{EpicID}-*.md`, linear finds `{phase}-*.md`. The Epic **retrospective** is named by `deriveRetroPath(currentEpic)` (`tools/lib/retrospective.js`) → `{EpicID}-RETROSPECTIVE.md`, **not** `artifactName` — retro naming has one owner (see §0.5).
+
 ### 1. Pre-Ship Checklist
 
 Verify before creating the PR:

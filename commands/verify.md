@@ -35,6 +35,8 @@ Load from `${CLAUDE_PLUGIN_ROOT}/skills/verify/`:
 
 ## Workflow
 
+**Artifact naming (M4.5.E11).** Name each artifact this phase writes with `artifactName(ARTIFACT, { currentEpic })` (`tools/lib/resume.js`), and resolve ones it reads with `resolveArtifactPath(planningDir, ARTIFACT, { currentEpic, phase })` — `currentEpic` is `current_epic` from STATE. **Epic mode** → `{EpicID}-{ARTIFACT}.md` (e.g. `M4.5.E11-VERIFICATION.md`); **linear mode** → the `{phase}-{ARTIFACT}.md` forms below, byte-identical to pre-E11. Substitute the `artifactName` result wherever this file writes a literal `.planning/{phase}-*.md` path.
+
 ### 1. Acceptance Criteria Verification
 
 For each task in `{phase}-PLAN.md`:
@@ -61,7 +63,7 @@ Compare `{phase}-VALIDATION.md` test mapping against actual tests:
 
 ### 5. Write Verification Report
 
-Generate `.planning/{phase}-VERIFICATION.md` with results.
+Generate the VERIFICATION artifact (`artifactName('VERIFICATION', { currentEpic })` — `{phase}-VERIFICATION.md` linear / `{EpicID}-VERIFICATION.md` Epic) with results.
 
 ### 5b. Mark STATE.md fresh (M4.5.E6.S4)
 

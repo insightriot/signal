@@ -53,6 +53,8 @@ Then call `setCurrentEpic(baseDir, resolvedId)` (`tools/lib/state.js`) — it va
 
 ## Workflow
 
+**Artifact naming (M4.5.E11).** In **Epic mode** (a strict `current_epic`) write REQUIREMENTS via `artifactName('REQUIREMENTS', { currentEpic })` (`tools/lib/resume.js`) → `{EpicID}-REQUIREMENTS.md`; in **linear mode** it stays `REQUIREMENTS.md`, byte-identical to pre-E11. `CONTEXT.md` is a project-level running doc — **never** Epic-prefixed, in either mode.
+
 ### 1. Load Prior Context
 
 Read from `.planning/`:
@@ -116,7 +118,7 @@ Write all locked decisions to `.planning/CONTEXT.md`:
 
 ### 6. Generate Requirements
 
-If the discussion surface enough detail, generate `.planning/REQUIREMENTS.md` with:
+If the discussion surface enough detail, generate the REQUIREMENTS artifact (`artifactName('REQUIREMENTS', { currentEpic })` — `REQUIREMENTS.md` linear / `{EpicID}-REQUIREMENTS.md` Epic) with:
 - Functional requirements (what it must do)
 - Non-functional requirements (performance, security, accessibility)
 - Acceptance criteria for each requirement

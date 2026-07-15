@@ -41,9 +41,11 @@ Load from `${CLAUDE_PLUGIN_ROOT}/skills/build/`:
 
 ## Workflow
 
+**Artifact naming (M4.5.E11).** Name each artifact this phase writes with `artifactName(ARTIFACT, { currentEpic })` (`tools/lib/resume.js`), and resolve ones it reads with `resolveArtifactPath(planningDir, ARTIFACT, { currentEpic, phase })` — `currentEpic` is `current_epic` from STATE. **Epic mode** → `{EpicID}-{ARTIFACT}.md` (e.g. `M4.5.E11-PROGRESS.md`); **linear mode** → the `{phase}-{ARTIFACT}.md` forms below, byte-identical to pre-E11. Substitute the `artifactName` result wherever this file writes a literal `.planning/{phase}-*.md` path.
+
 ### 1. Load Plan
 
-Read `.planning/{phase}-PLAN.md` and `.planning/{phase}-VALIDATION.md`.
+Read the PLAN and VALIDATION artifacts — resolve each with `resolveArtifactPath(planningDir, ARTIFACT, { currentEpic, phase })` (`{phase}-*.md` linear / `{EpicID}-*.md` Epic).
 Verify all tasks have acceptance criteria and test mappings.
 
 ### 2. Wave-Based Execution
@@ -71,7 +73,7 @@ Every ~45 minutes of execution:
 
 ### 4. Progress Tracking
 
-After each task, update `.planning/{phase}-PROGRESS.md`:
+After each task, update the PROGRESS artifact (`artifactName('PROGRESS', { currentEpic })` — `{phase}-PROGRESS.md` linear / `{EpicID}-PROGRESS.md` Epic):
 ```markdown
 ## Wave {n}
 - [x] Task 1 — commit {hash}

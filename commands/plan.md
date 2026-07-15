@@ -41,6 +41,8 @@ Load these skills (paths shown — bound to PLAN regardless of which directory t
 
 ## Workflow
 
+**Artifact naming (M4.5.E11).** Name each artifact this phase writes with `artifactName(ARTIFACT, { currentEpic })` (`tools/lib/resume.js`), and resolve ones it reads with `resolveArtifactPath(planningDir, ARTIFACT, { currentEpic, phase })` — `currentEpic` is `current_epic` from STATE. **Epic mode** → `{EpicID}-{ARTIFACT}.md` (e.g. `M4.5.E11-PLAN.md`); **linear mode** → the `{phase}-{ARTIFACT}.md` forms below, byte-identical to pre-E11. Substitute the `artifactName` result wherever this file writes a literal `.planning/{phase}-*.md` path.
+
 ### 1. Load Context
 
 Read from `.planning/`:
@@ -82,11 +84,11 @@ Spawn up to 4 research agents in parallel:
 - **Risk researcher** — what could go wrong, edge cases, known pitfalls
 - **Prior art researcher** — how similar problems have been solved
 
-Synthesize research into `.planning/{phase}-RESEARCH.md`.
+Synthesize research into the RESEARCH artifact (`artifactName('RESEARCH', { currentEpic })` — `{phase}-RESEARCH.md` linear / `{EpicID}-RESEARCH.md` Epic).
 
 ### 3. Create Plan
 
-Generate `.planning/{phase}-PLAN.md` with:
+Generate the PLAN artifact (`artifactName('PLAN', { currentEpic })` — `{phase}-PLAN.md` linear / `{EpicID}-PLAN.md` Epic) with:
 - Phase goal (one sentence)
 - Tasks broken into vertical slices (each slice is independently shippable)
 - Dependencies between tasks
@@ -113,7 +115,7 @@ For each task, map the acceptance criteria to specific test types:
 - Integration tests for boundaries
 - E2E tests for user flows
 
-Write to `.planning/{phase}-VALIDATION.md`.
+Write to the VALIDATION artifact (`artifactName('VALIDATION', { currentEpic })` — `{phase}-VALIDATION.md` linear / `{EpicID}-VALIDATION.md` Epic).
 
 ### 6. Environment check (final gate before EXECUTE)
 
