@@ -6,7 +6,7 @@
 // order or dropped the function-replacer would turn this red.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -16,14 +16,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const HOOK = join(__dirname, '..', 'hooks', 'check-state-write.js');
 
 // Spawn the hook with a PreToolUse event on stdin. Returns { status, stderr }.
-// execFileSync throws on non-zero exit → capture err.status/err.stderr.
+// spawnSync captures stderr on ANY exit code — needed since the retro path now
+// warns on exit 0 (D-E11-5), not just blocks on exit 2.
 function runHook(event) {
-  try {
-    execFileSync('node', [HOOK], { encoding: 'utf-8', input: JSON.stringify(event) });
-    return { status: 0, stderr: '' };
-  } catch (err) {
-    return { status: err.status, stderr: (err.stderr ?? '').toString() };
-  }
+  const r = spawnSync('node', [HOOK], { encoding: 'utf-8', input: JSON.stringify(event) });
+  return { status: r.status, stderr: (r.stderr ?? '').toString() };
 }
 
 const CLEAN = `---
@@ -78,7 +75,7 @@ body
     expect(stderr).toMatch(/completed_phases/);
   });
 
-  it('E9 composition preserved: SHIP-close without a retro still blocks (exit 2)', () => {
+  it('D-E11-5: SHIP-close without a retro now WARNS on the hook path (exit 0 + stderr)', () => {
     const shipNoRetro = `---
 schema_version: 1
 phase: SHIP
@@ -93,8 +90,31 @@ body
       tool_name: 'Write',
       tool_input: { file_path: statePath, content: shipNoRetro },
     });
-    expect(status).toBe(2);
+    // Two-tier split (B2): the HOOK path warns (non-blocking); the hard retro
+    // contract lives in /sig:ship §0.5, not here.
+    expect(status).toBe(0);
     expect(stderr).toMatch(/retro/i);
+    expect(stderr).toMatch(/warning/i);
+  });
+
+  it('R2: SHIP-close with a malformed current_epic fails open (exit 0, no crash)', () => {
+    // current_epic "v0.1.6" makes deriveRetroPath throw; the hook must fail
+    // open (exit 0), never crash a normal write.
+    const shipBadEpic = `---
+schema_version: 1
+phase: SHIP
+current_epic: v0.1.6
+completed_phases:
+  - SHIP (2026-07-15)
+blockers: []
+---
+body
+`;
+    const { status } = runHook({
+      tool_name: 'Write',
+      tool_input: { file_path: statePath, content: shipBadEpic },
+    });
+    expect(status).toBe(0);
   });
 
   it('$-faithful Edit reconstruction: a new_string with `$\\`` stays clean (exit 0)', async () => {

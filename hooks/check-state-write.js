@@ -87,20 +87,33 @@ if (tool === 'Write') {
 // baseDir = directory containing .planning/
 const baseDir = resolve(filePath, '..', '..');
 
-// Two independent predicates (D-v016-2): the FR1 prose-shape check fires on
-// any phase; the E9 retro-absence check fires only on Epic-close SHIP. Block if
-// either fires. Shape is checked first (a malformed frontmatter is the more
-// fundamental defect) and SHORT-CIRCUITS — so a throw in the retro predicate
-// can't discard a shape block that already fired (REVIEW, security-informational).
+// Two-tier retro posture (D-E11-5 / M4.5.E11.S1.t4). The FR1 prose-shape check
+// (D-v016-2) stays a hard BLOCK — malformed frontmatter is unambiguously wrong.
+// The E9 retro-absence check on THIS hook path is a non-blocking WARN: a missing
+// retro is a process gap, not malformed data, and this hook fires on arbitrary
+// STATE edits in stranger repos. The hard retro contract still lives in
+// /sig:ship §0.5's command-internal shipFR1Check (the two-tier split, B2).
+// Shape is checked first (the more fundamental defect) and SHORT-CIRCUITS via
+// process.exit(2) before the retro predicate can run.
 function block(reason) {
   process.stderr.write(`[signal:check-state-write] ${reason}\n`);
   process.exit(2);
+}
+function warn(reason) {
+  process.stderr.write(`[signal:check-state-write] warning: ${reason}\n`);
+  // Non-blocking — the write is allowed to proceed (exit 0 below).
 }
 
 const shape = checkStateFrontmatterShape({ proposedContent });
 if (shape.block) block(shape.reason);
 
-const retro = checkProposedStateWrite({ proposedContent, baseDir });
-if (retro.block) block(retro.reason);
+// Fail-open around the retro predicate: deriveRetroPath throws on a malformed
+// current_epic (R2), and a PreToolUse hook must never crash a normal edit.
+try {
+  const retro = checkProposedStateWrite({ proposedContent, baseDir });
+  if (retro.block) warn(retro.reason);
+} catch {
+  // Retro predicate threw (e.g. a malformed current_epic) — fail open.
+}
 
 process.exit(0);
