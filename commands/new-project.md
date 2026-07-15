@@ -1,6 +1,7 @@
 ---
 name: sig:new-project
 description: Initialize a new project with the Signal workflow. Creates .planning/ directory, PROJECT.md, and kicks off the CALIBRATE phase.
+args: "[--epic <name>]"
 ---
 
 # Initialize New Signal Project
@@ -41,6 +42,10 @@ CALIBRATE
 ## Last Updated
 {current_date}
 ```
+
+### 1b. Epic mode (`--epic <name>`, optional)
+
+If invoked with `--epic <name>` (M4.5.E11), open the project's first Epic right after STATE init so `current_epic` is set automatically and downstream artifacts are Epic-scoped. Resolve the ID exactly as `/sig:discuss` § "Epic mode" describes: a strict `M{N}.E{K}` value is used verbatim; otherwise derive with `deriveNextEpicId(baseDir, { milestone })` (a brand-new project has no prior Epic, so pass the milestone explicitly) and call `setCurrentEpic(baseDir, resolvedId)` (`tools/lib/state.js`). Without `--epic`, the project starts in linear mode (byte-identical to pre-E11).
 
 ### 2. Gather Project Context
 

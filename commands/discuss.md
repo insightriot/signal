@@ -1,7 +1,7 @@
 ---
 name: sig:discuss
 description: "DISCUSS phase — gather implementation decisions through adaptive questioning before planning. Loads idea-refine and spec-driven-development skills."
-args: "[--auto] [--assumptions]"
+args: "[--auto] [--assumptions] [--epic <name>]"
 ---
 
 # DISCUSS Phase
@@ -38,6 +38,16 @@ Check args or ask the user:
 - **discuss** (default): Open-ended exploration of requirements, trade-offs, and gray areas
 - **assumptions** (`--assumptions`): For existing codebases — analyze code first, then surface assumptions for validation
 - **auto** (`--auto`): Claude picks recommended defaults for all gray areas, user reviews at the end
+
+## Epic mode (`--epic <name>`) — run before Step 1
+
+Epic mode is **opt-in and additive** (M4.5.E11). Without `--epic`, this phase runs in whatever mode STATE already reflects — linear (`current_epic` null) is byte-identical to pre-E11. With `--epic <name>`, this DISCUSS opens (or rolls to) an Epic **before** loading context, so `current_epic` is written automatically (no hand-editing STATE) and every artifact this phase writes is Epic-scoped (`{EpicID}-*.md`, per the artifact-naming rule).
+
+Resolve the Epic ID from `<name>`:
+- If `<name>` is already a strict Epic ID (matches `EPIC_ID_STRICT_RE` from `tools/lib/state.js`, e.g. `M5.E1` — typically the first Epic of a new milestone), use it verbatim.
+- Otherwise treat `<name>` as a human label and derive the next ID under the current milestone with `deriveNextEpicId(baseDir)` (`tools/lib/milestones.js`). If it returns `null` (no milestone context — e.g. a project with no prior Epic), ask the user for the milestone and retry as `deriveNextEpicId(baseDir, { milestone })`, or accept a literal `--epic M{N}.E{K}` ID.
+
+Then call `setCurrentEpic(baseDir, resolvedId)` (`tools/lib/state.js`) — it validates the shape, writes `current_epic`, and on a roll resets the coupled `current_wave`/`current_tasks` atomically. Record the human label alongside the resolved ID in `CONTEXT.md` so later phases can show it.
 
 ## Workflow
 

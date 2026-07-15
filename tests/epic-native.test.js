@@ -17,7 +17,7 @@ import {
   StateWriteError,
 } from '../tools/lib/state.js';
 import { deriveRetroPath } from '../tools/lib/retrospective.js';
-import { currentMilestone } from '../tools/lib/milestones.js';
+import { currentMilestone, deriveNextEpicId } from '../tools/lib/milestones.js';
 
 // Write a COMPLETE schema_v1 STATE.md (all fields) so readStateForMutation
 // accepts it — used where we need a non-null current_wave to prove the roll
@@ -201,5 +201,50 @@ describe('S1.t3 detectMode', () => {
     ['undefined state', undefined],
   ])('returns linear for %s (fail-open, never throws)', (_label, state) => {
     expect(detectMode(state)).toBe('linear');
+  });
+});
+
+// ---- S1.t7 — deriveNextEpicId (assign the next E{N} under a milestone) ----
+describe('S1.t7 deriveNextEpicId', () => {
+  let baseDir;
+  beforeEach(async () => {
+    baseDir = await mkdtemp(join(tmpdir(), 'signal-e11-t7-'));
+    await mkdir(join(baseDir, '.planning'), { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true });
+  });
+
+  async function touch(...names) {
+    for (const n of names) await writeFile(join(baseDir, '.planning', n), 'x', 'utf-8');
+  }
+
+  it('derives the next E{N} under the current_epic milestone', async () => {
+    await writeState(baseDir, { epic: 'M4.5.E11' });
+    await touch('M4.5.E10-PLAN.md', 'M4.5.E11-PLAN.md', 'M4.5.E11-RESEARCH.md');
+    expect(await deriveNextEpicId(baseDir)).toBe('M4.5.E12');
+  });
+
+  it('returns E1 for a milestone with no existing Epics (explicit milestone)', async () => {
+    await writeState(baseDir, { epic: 'M4.5.E11' });
+    expect(await deriveNextEpicId(baseDir, { milestone: '5' })).toBe('M5.E1');
+  });
+
+  it('ignores MILESTONE-*.md and other-milestone artifacts', async () => {
+    await writeState(baseDir, { epic: 'M4.5.E1' });
+    await touch('MILESTONE-4.5.md', 'M4.E9-PLAN.md', 'M5.E3-PLAN.md', 'M4.5.E2-PLAN.md');
+    expect(await deriveNextEpicId(baseDir)).toBe('M4.5.E3'); // max under 4.5 is E2
+  });
+
+  it('returns null when there is no milestone context (no current_epic, no milestone arg)', async () => {
+    await writeState(baseDir, { epic: null });
+    expect(await deriveNextEpicId(baseDir)).toBeNull();
+  });
+
+  it('every derived ID is a legal strict Epic ID', async () => {
+    await writeState(baseDir, { epic: 'M4.5.E11' });
+    await touch('M4.5.E11-PLAN.md');
+    const next = await deriveNextEpicId(baseDir);
+    expect(EPIC_ID_STRICT_RE.test(next)).toBe(true);
   });
 });

@@ -22,6 +22,11 @@ const CURRENT_EPIC_RE = /^M(\d+(?:\.\d+)?)\.E\d+/;
 // Milestone filenames are `MILESTONE-{n}.md` with an optional decimal id.
 const MILESTONE_FILE_RE = /^MILESTONE-(\d+(?:\.\d+)?)\.md$/;
 
+// Epic artifact filenames are `{EpicID}-{ARTIFACT}.md`; capture the milestone
+// id and the epic number so we can find the highest E{N} already used under a
+// milestone. `MILESTONE-4.5.md` etc. don't match (no digit right after `M`).
+const EPIC_ARTIFACT_RE = /^M(\d+(?:\.\d+)?)\.E(\d+)-/;
+
 /**
  * Resolve the milestone file that `--milestone` (no N) targets, derived from
  * STATE.md's `current_epic`. Returns the bare `MILESTONE-{n}.md` filename
@@ -71,4 +76,47 @@ export async function listMilestones(baseDir) {
     })
     .filter(Boolean)
     .sort((a, b) => parseFloat(a.id) - parseFloat(b.id));
+}
+
+/**
+ * Derive the next Epic ID under a milestone (M4.5.E11.S1.t7 — the "commands
+ * assign IDs" half of FR1). Scans `.planning/` for existing
+ * `M{milestone}.E{N}-*.md` artifacts and returns `M{milestone}.E{maxN+1}`
+ * (or `...E1` when none exist). The milestone comes from `opts.milestone`
+ * when given, otherwise from the milestone portion of STATE.md's current_epic.
+ * Returns `null` when there is no milestone context to derive under (no
+ * `milestone` arg AND no strict `current_epic`) — the caller must then supply
+ * an explicit `--milestone` or pass a literal Epic ID to `--epic`.
+ *
+ * @param {string} baseDir
+ * @param {{milestone?: string}} [opts]
+ * @returns {Promise<string|null>} next strict Epic ID, or null.
+ */
+export async function deriveNextEpicId(baseDir, { milestone } = {}) {
+  let ms = milestone ?? null;
+  if (ms == null) {
+    const state = await readState(baseDir);
+    const epic = state?.current_epic;
+    if (typeof epic === 'string') {
+      const m = epic.match(CURRENT_EPIC_RE);
+      if (m) ms = m[1];
+    }
+  }
+  if (ms == null) return null;
+
+  let entries;
+  try {
+    entries = await readdir(join(baseDir, PLANNING_DIR));
+  } catch {
+    entries = [];
+  }
+  let maxN = 0;
+  for (const f of entries) {
+    const m = f.match(EPIC_ARTIFACT_RE);
+    if (m && m[1] === ms) {
+      const n = parseInt(m[2], 10);
+      if (n > maxN) maxN = n;
+    }
+  }
+  return `M${ms}.E${maxN + 1}`;
 }
