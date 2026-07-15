@@ -91,6 +91,8 @@ Rare but valid. Surface to the user: *"De-escalation from {OLD} to {NEW}. This i
 
 ### 5. Write updated PROFILE.md
 
+**Epic-scoped target (M4.5.E11, R10).** If an Epic is active — a strict `current_epic` in STATE.md (`readState` + `EPIC_ID_STRICT_RE`) — escalate targets `.planning/{current_epic}-PROFILE.md` (the Epic's own PROFILE), **not** the project one: escalating an active Epic adjusts that Epic's tier, and the project PROFILE stays as-is. If the Epic has no PROFILE yet, use the effective profile (`readEffectiveProfile`) as the pre-escalation baseline and write the new tier to a fresh `.planning/{current_epic}-PROFILE.md`. With no active Epic, target the project `.planning/PROFILE.md` as before. Everything below applies to whichever PROFILE is targeted.
+
 Modify in place — preserve fields that should not change:
 - **Update** `tier` to the new value.
 - **Update** `calibration` block with the new answers.

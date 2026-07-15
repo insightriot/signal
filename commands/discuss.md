@@ -49,6 +49,8 @@ Resolve the Epic ID from `<name>`:
 
 Then call `setCurrentEpic(baseDir, resolvedId)` (`tools/lib/state.js`) — it validates the shape, writes `current_epic`, and on a roll resets the coupled `current_wave`/`current_tasks` atomically. Record the human label alongside the resolved ID in `CONTEXT.md` so later phases can show it.
 
+**Per-Epic tier (optional, M4.5.E11 / FR3).** After opening the Epic, offer to calibrate it: if this Epic should run at a different tier than the project (e.g. a SKETCH spike inside a FULL project, or a FULL security Epic inside a FEATURE project), run `/sig:calibrate` for it — with an Epic active, calibrate writes `.planning/{EpicID}-PROFILE.md`, which `readEffectiveProfile` then honors **for this Epic's phases only**. Skip it and the Epic inherits the project PROFILE (the default). Either way, every phase's gate-read uses the effective profile — Epic PROFILE if present, else project — so the tier is never ambiguous.
+
 **Done-Epic guard.** If `current_epic` already points at a *done* Epic — `isEpicDone(baseDir, current_epic)` (`tools/lib/retrospective.js`), i.e. its `{EpicID}-RETROSPECTIVE.md` exists — and **no** `--epic` was passed, halt and require `--epic <name>` to open the next Epic. Never silently re-run DISCUSS into a completed Epic's artifacts (it would clobber `{EpicID}-REQUIREMENTS.md`).
 
 ## Workflow

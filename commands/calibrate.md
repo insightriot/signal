@@ -187,6 +187,8 @@ In both cases, Signal's job is to surface the signal, not to dictate. Once the u
 
 ### 5. Write `.planning/PROFILE.md`
 
+**Epic-scoped target (M4.5.E11, R10).** If an Epic is active — a strict `current_epic` in STATE.md (`readState` + `EPIC_ID_STRICT_RE` from `tools/lib/state.js`) — write `.planning/{current_epic}-PROFILE.md` instead of the project `.planning/PROFILE.md`. This calibrates the **Epic**: its phases run at this tier via `readEffectiveProfile`, and the project PROFILE is left untouched. No active Epic (or an explicit `--project`) targets the project `.planning/PROFILE.md` as before. The file shape below is identical either way — an Epic PROFILE is a complete, standalone profile (whole-file shadow, not a diff).
+
 Write the file literally — do not reference the tier-definitions table at runtime, inline the values. Use this shape:
 
 ```markdown
