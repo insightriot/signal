@@ -610,3 +610,76 @@ describe('S3.t3 renderResumeBriefing surfaces the override in the Tier line', ()
     expect(out).not.toContain('override');
   });
 });
+
+// ---- S4.t2 — end-to-end bootstrap: mode + name + profile-precedence vs disk ----
+// The bootstrap-as-evidence AC (S4.t1) proven mechanically: open an Epic through
+// the real write-half (setCurrentEpic — zero hand-edited STATE), then drive the
+// whole read side (detectMode → readEffectiveProfile → artifactName ↔
+// resolveArtifactPath → formatTierLine) against a real .planning/ on disk.
+describe('S4.t2 end-to-end Epic-native chain (against disk)', () => {
+  let baseDir;
+  let planning;
+  beforeEach(async () => {
+    baseDir = await mkdtemp(join(tmpdir(), 'signal-e11-s4t2-'));
+    planning = join(baseDir, '.planning');
+    await mkdir(planning, { recursive: true });
+    // Project calibrated FULL; the Epic honestly a SKETCH.
+    await writeFile(join(planning, 'PROFILE.md'), PROJECT_FULL_PROFILE, 'utf-8');
+    await writeFile(join(planning, 'M4.5.E77-PROFILE.md'), EPIC_SKETCH_PROFILE, 'utf-8');
+  });
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true });
+  });
+
+  it('opens the Epic via the write-half, then the full read chain agrees', async () => {
+    // 1. Open the Epic with the real write-half — no hand-edited STATE.
+    await initState(baseDir, 'EXECUTE');
+    await setCurrentEpic(baseDir, 'M4.5.E77');
+    const state = await readState(baseDir);
+    expect(state.current_epic).toBe('M4.5.E77');
+
+    // 2. Mode detection off the persisted STATE.
+    expect(detectMode(state)).toBe('epic');
+
+    // 3. Per-Epic calibration: the Epic PROFILE shadows the project PROFILE.
+    const effective = await readEffectiveProfile(baseDir, { currentEpic: state.current_epic });
+    const project = await readProfile(baseDir);
+    expect(effective.tier).toBe('SKETCH');
+    expect(project.tier).toBe('FULL'); // untouched
+
+    // 4. Provenance is surfaced, never silent.
+    expect(
+      formatTierLine({
+        effectiveTier: effective.tier,
+        projectTier: project.tier,
+        currentEpic: state.current_epic,
+      }),
+    ).toBe('SKETCH (Epic M4.5.E77 override; project default FULL)');
+
+    // 5. Write→read round-trip for every phase artifact this Epic would produce,
+    //    against real files: artifactName names it, resolveArtifactPath finds it.
+    for (const kind of ['RESEARCH', 'REQUIREMENTS', 'PLAN', 'VALIDATION', 'VERIFICATION', 'REVIEW', 'PROGRESS']) {
+      const name = artifactName(kind, { currentEpic: state.current_epic });
+      expect(name).toBe(`M4.5.E77-${kind}.md`);
+      await writeFile(join(planning, name), `# ${kind}`, 'utf-8');
+      const resolved = resolveArtifactPath(planning, kind, {
+        currentEpic: state.current_epic,
+        phase: kind,
+      });
+      expect(resolved).toBe(join(planning, name));
+    }
+  });
+
+  it('rolling to the next Epic re-points the whole chain (no stale carry-over)', async () => {
+    await initState(baseDir, 'EXECUTE');
+    await setCurrentEpic(baseDir, 'M4.5.E77');
+    await setCurrentEpic(baseDir, 'M4.5.E78'); // roll — no Epic PROFILE for E78
+    const state = await readState(baseDir);
+    expect(state.current_epic).toBe('M4.5.E78');
+    // No M4.5.E78-PROFILE.md → falls back to the project tier (FULL).
+    const effective = await readEffectiveProfile(baseDir, { currentEpic: state.current_epic });
+    expect(effective.tier).toBe('FULL');
+    // Artifact naming follows the new Epic.
+    expect(artifactName('PLAN', { currentEpic: state.current_epic })).toBe('M4.5.E78-PLAN.md');
+  });
+});
