@@ -49,6 +49,8 @@ Resolve the Epic ID from `<name>`:
 
 Then call `setCurrentEpic(baseDir, resolvedId)` (`tools/lib/state.js`) — it validates the shape, writes `current_epic`, and on a roll resets the coupled `current_wave`/`current_tasks` atomically. Record the human label alongside the resolved ID in `CONTEXT.md` so later phases can show it.
 
+**Done-Epic guard.** If `current_epic` already points at a *done* Epic — `isEpicDone(baseDir, current_epic)` (`tools/lib/retrospective.js`), i.e. its `{EpicID}-RETROSPECTIVE.md` exists — and **no** `--epic` was passed, halt and require `--epic <name>` to open the next Epic. Never silently re-run DISCUSS into a completed Epic's artifacts (it would clobber `{EpicID}-REQUIREMENTS.md`).
+
 ## Workflow
 
 ### 1. Load Prior Context

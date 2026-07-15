@@ -141,6 +141,24 @@ export function deriveRetroPath(epicId) {
   return `.planning/${epicId}-RETROSPECTIVE.md`;
 }
 
+/**
+ * Is the given Epic "done"? True iff its `{EpicID}-RETROSPECTIVE.md` exists on
+ * disk — the unambiguous SHIP-complete signal (M4.5.E11.S1.t5). NOT `phase:
+ * SHIP`: Signal's STATE never moves SHIP into `completed_phases`, so `phase:
+ * SHIP` means "in/past SHIP", not done. Returns false for a malformed/empty
+ * `epicId` (never throws — a non-Epic-shaped value isn't a done Epic). Powers
+ * the done-Epic guard: a writing command against a done Epic with no `--epic`
+ * must halt rather than clobber that Epic's artifacts.
+ *
+ * @param {string} baseDir
+ * @param {string} epicId
+ * @returns {boolean}
+ */
+export function isEpicDone(baseDir, epicId) {
+  if (typeof epicId !== 'string' || !EPIC_ID_STRICT_RE.test(epicId)) return false;
+  return existsSync(join(baseDir, deriveRetroPath(epicId)));
+}
+
 // ---- Template loader ----
 
 /**

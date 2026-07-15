@@ -16,7 +16,7 @@ import {
   setCurrentTask,
   StateWriteError,
 } from '../tools/lib/state.js';
-import { deriveRetroPath } from '../tools/lib/retrospective.js';
+import { deriveRetroPath, isEpicDone } from '../tools/lib/retrospective.js';
 import { currentMilestone, deriveNextEpicId } from '../tools/lib/milestones.js';
 
 // Write a COMPLETE schema_v1 STATE.md (all fields) so readStateForMutation
@@ -247,4 +247,33 @@ describe('S1.t7 deriveNextEpicId', () => {
     const next = await deriveNextEpicId(baseDir);
     expect(EPIC_ID_STRICT_RE.test(next)).toBe(true);
   });
+});
+
+// ---- S1.t5 — isEpicDone (done-signal = retro file exists, NOT phase=SHIP) ----
+describe('S1.t5 isEpicDone', () => {
+  let baseDir;
+  beforeEach(async () => {
+    baseDir = await mkdtemp(join(tmpdir(), 'signal-e11-t5-'));
+    await mkdir(join(baseDir, '.planning'), { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true });
+  });
+
+  it('is true when {EpicID}-RETROSPECTIVE.md exists', async () => {
+    await writeFile(join(baseDir, '.planning', 'M4.5.E11-RETROSPECTIVE.md'), '# retro', 'utf-8');
+    expect(isEpicDone(baseDir, 'M4.5.E11')).toBe(true);
+  });
+
+  it('is false when no retro file exists (in/past SHIP is not done)', async () => {
+    await writeFile(join(baseDir, '.planning', 'M4.5.E11-PLAN.md'), 'x', 'utf-8');
+    expect(isEpicDone(baseDir, 'M4.5.E11')).toBe(false);
+  });
+
+  it.each(['v0.1.6', '', 'garbage', null, undefined])(
+    'is false (no throw) for non-Epic-shaped id %j',
+    (bad) => {
+      expect(isEpicDone(baseDir, bad)).toBe(false);
+    },
+  );
 });
