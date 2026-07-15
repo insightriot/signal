@@ -511,6 +511,48 @@ export async function clearCurrentTask(baseDir, opts) {
 }
 
 /**
+ * Set (open/roll) the active Epic — the FR1 `current_epic` write-half
+ * (M4.5.E11.S1.t2). Validates `epicId` against the canonical strict shape
+ * BEFORE touching disk. When the Epic actually changes (open or roll), it
+ * atomically resets the coupled in-flight fields `current_wave: null` +
+ * `current_tasks: []` under the same lock, so a new Epic never inherits the
+ * previous one's wave/tasks (this also covers the abandon case — opening the
+ * next Epic clears the abandoned one's in-flight state). Idempotent: setting
+ * the already-active id is a no-op that leaves coupled fields untouched (R8 —
+ * safe against Signal's own hand-bootstrapped `current_epic`).
+ *
+ * No `clearCurrentEpic` counterpart exists: the locked "roll-on-open, never
+ * clear to null" semantics (D-E11-4) give it no caller (YAGNI).
+ *
+ * @param {string} baseDir
+ * @param {string} epicId — strict `M{N}[.{N}]*.E{N}`
+ */
+export async function setCurrentEpic(baseDir, epicId) {
+  if (typeof epicId !== 'string' || !EPIC_ID_STRICT_RE.test(epicId)) {
+    throw new StateWriteError(
+      `setCurrentEpic: invalid Epic ID ${JSON.stringify(epicId)} (expected M{N}[.{N}]*.E{N}).`
+    );
+  }
+  return withStateLock(baseDir, async () => {
+    const state = await readStateForMutation(baseDir);
+    if (!state || state._schema !== SCHEMA_VERSION) {
+      throw new StateWriteError(
+        'STATE.md must be at schema_version 1 before an Epic can be set. Run /sig:new-project or /sig:init first.'
+      );
+    }
+    if (state.current_epic === epicId) {
+      return; // idempotent — no roll, coupled fields preserved
+    }
+    const payload = stripStateMeta(state);
+    payload.current_epic = epicId;
+    payload.current_wave = null; // roll resets coupled in-flight state...
+    payload.current_tasks = []; // ...atomically, under the same lock
+    payload.last_updated = new Date().toISOString();
+    await writeStateFrontmatter(baseDir, payload);
+  });
+}
+
+/**
  * Read-only access to the current_tasks[] array. Returns [] for missing
  * STATE.md, legacy STATE.md (no current_tasks concept yet), or empty array.
  *
