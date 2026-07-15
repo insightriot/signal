@@ -6,6 +6,24 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.7] — 2026-07-15 — M4.5.E11 (Epic-native flow)
+
+Makes **Epic mode** first-class: commands can open/track Epics, auto-write a strict `current_epic`, name artifacts `{EpicID}-*.md`, and honor a per-Epic tier — all **additive over a byte-identical linear mode**. No breaking changes; no new runtime dependencies; no `.planning/` schema bump. 894 → 999 tests. Full DISCUSS→SHIP at FULL/strict; REVIEW ran two independent specialist agents. Reference: [`references/epic-native-flow.md`](references/epic-native-flow.md).
+
+### Added
+
+- **`--epic <name>` on `/sig:discuss` and `/sig:new-project`** opens (or rolls to) an Epic: the tooling derives a strict Epic ID (`M{maj}.{min}.E{n}`, via `deriveNextEpicId`) or accepts an explicit one, writes it to STATE `current_epic` **automatically** (no hand-editing), and atomically resets the coupled in-flight fields (`current_wave` / `current_tasks`) on a roll. A *done* Epic — one whose `{EpicID}-RETROSPECTIVE.md` exists — requires `--epic` to open the next one, so a completed Epic's artifacts are never clobbered.
+- **Epic-scoped artifact naming.** When an Epic is active, the six phase commands write `{EpicID}-{ARTIFACT}.md` (RESEARCH / REQUIREMENTS / PLAN / VALIDATION / VERIFICATION / REVIEW / PROGRESS) and `/sig:resume` + `/sig:status` resolve them via the E10 read-half. The retrospective stays `deriveRetroPath`-owned (`{EpicID}-RETROSPECTIVE.md`); `CONTEXT.md` is never Epic-prefixed.
+- **Per-Epic calibration.** An Epic can carry its own tier via a whole-file `.planning/{EpicID}-PROFILE.md` that shadows the project PROFILE **for that Epic's phases only** (`readEffectiveProfile`). `/sig:calibrate` and `/sig:escalate` target the Epic PROFILE when an Epic is active; `/sig:status` and `/sig:resume` render the override (`Tier: SKETCH (Epic M4.5.E11 override; project default FULL)`) so shadowing is never silent.
+
+### Fixed
+
+- **The `check-state-write` PreToolUse hook no longer crashes on a hostile `current_epic`.** A malformed `current_epic` on an Epic-close SHIP write previously threw an uncaught error (a stranger-session crash); it now fails open (exit 0). The hook's missing-retro path warns rather than blocks — the hard "no retro, no ship" gate stays in `/sig:ship` §0.5 (running the command opts you into its contract).
+
+### Notes
+
+- **Additive / opt-in.** A project with no active Epic runs exactly as before — linear mode is byte-identical to pre-E11, with no migration and no schema bump. The `resolveArtifactPath` read-half stays intentionally permissive to keep resolving pre-E11 hand-managed artifacts (e.g. `v0.1.6-*.md`) that the strict write-side shape would reject.
+
 ## [0.1.6] — 2026-07-14 — v0.1.6 (doc-integrity guardrail)
 
 A lightweight trust-hardening patch that prevents new documentation-integrity pathology at the point it's created and converges two capture/planning papercuts. No breaking changes; no new runtime dependencies. 854 → 894 tests. Shipped as a version patch (not an Epic) — but the cross-project write-hook earned a full specialist REVIEW pass (2 independent auditors, 6 fixes in-phase; see `.planning/v0.1.6-REVIEW.md`).
