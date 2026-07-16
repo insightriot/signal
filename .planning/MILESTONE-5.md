@@ -16,9 +16,24 @@
 
 > **Opening move (locked 2026-07-04, BR-8):** M5's first Epic is the **landscape re-audit + roadmap refresh** — feature-parity audit across all inspiration repos → `SIGNAL-INTEGRATION-RUNDOWN-v2.md` with a *sequenced* Epic queue. Scope: `BACKLOG-REVIEW-2026-07-04.md` §4 Sprint 2 + FUTURE-IDEAS "M5 opening move." The E1–E6 order below gets re-sequenced by that audit's output, and the memory/doc-runtime scope (BACKLOG-REVIEW Sprint 3, from the FUTURE-IDEAS memory-management entry) enters the queue then. See DECISIONS 2026-07-04. **A preview seed for this audit — the reflection scorecard + the "flagged-but-not-yet-queued" frontier the E1–E6 list is missing — is captured in `analysis/SIGNAL-INTEGRATION-RUNDOWN-v2-SEED.md` (2026-07-13); the re-audit should verify it fresh and supersede it.**
 
-## Epics (one at a time, in no particular order until feedback shapes it)
+## Epic status
 
-### M5.E1 — Upstream phases — IDEATE / VALIDATE / STRATEGIZE
+The doc-runtime flagship (per the 2026-07-16 override) takes the early M5.E IDs. The
+speculative v2-port candidates below are **unsequenced** — their pre-override `M5.E1–E6`
+labels are **superseded** and will be assigned real IDs by the re-audit (BR-8). Read this
+table, not the candidate headings, for what the IDs mean.
+
+| Epic | Status | Scope |
+|---|---|---|
+| **E1** | ✅ shipped 2026-07-16 | **Doc-runtime & memory hygiene** — canonical doc-model (FR1) + STATE/FUTURE-IDEAS eviction (FR2/FR3) + dogfood. Retro: [`M5.E1-RETROSPECTIVE.md`](M5.E1-RETROSPECTIVE.md). |
+| **E2** | planned | **All-docs hygiene runtime + living `BACKLOG.md`** (FR4, FR5). Absorbs the map-drift guard; resolves the derived-vs-hand-curated INDEX conflict. |
+| **E3** | planned | **Auto-sensing migrate command + doc-layout stamp/banner** (FR6, FR7) — the risky migrate piece last, on the proven model; includes vector-1 (frontmatter-prose) + already-migrated-body remediation. |
+
+## Candidate v2 feature-port scope (unsequenced — the re-audit assigns IDs)
+
+*Pre-override labels retained for continuity only; the `M5.E1–E6` numbers below no longer bind (see the status table + override note above).*
+
+### Upstream phases — IDEATE / VALIDATE / STRATEGIZE
 
 From pm-skills + gstack + oh-my-claudecode.
 - [ ] Port `/discover` workflow from pm-skills → split into `/sig:ideate` + `/sig:validate`
@@ -28,7 +43,7 @@ From pm-skills + gstack + oh-my-claudecode.
 - [ ] Port `deep-interview` with 20% ambiguity gate from oh-my-claudecode → integrate into `/sig:spec` (possibly renamed from `/sig:discuss`)
 - [ ] Update tier-gating: these phases skip entirely in SKETCH, may skip in FEATURE
 
-### M5.E2 — COMPOUND phase (memory layer)
+### COMPOUND phase (memory layer)
 
 From compound-engineering + gstack.
 - [ ] Port `/sig:compound` from compound-engineering's Compound phase
@@ -36,13 +51,13 @@ From compound-engineering + gstack.
 - [ ] Port `/retro` + `/learn` from gstack (weekly reflection + JSONL learning log)
 - [ ] Integrate with `.planning/` so learnings carry forward between projects
 
-### M5.E3 — Security upgrade
+### Security upgrade
 
 - [ ] Replace Agent Skills' `security-and-hardening` skill with gstack's 15-phase `/cso` audit
 - [ ] Verify full license attribution in `LICENSES.md`
 - [ ] Update `/sig:review` to reference the new skill
 
-### M5.E4 — TDD & gate upgrades
+### TDD & gate upgrades
 
 From superpowers.
 - [ ] Replace Agent Skills' TDD with superpowers' harder version (deletes pre-test code)
@@ -50,14 +65,14 @@ From superpowers.
 - [ ] Port `systematic-debugging` 4-phase skill
 - [ ] Adopt superpowers' anti-rationalization table format across all existing phase gates
 
-### M5.E5 — Context discipline hooks
+### Context discipline hooks
 
 From planning-with-files.
 - [ ] Graft the 2-Action Rule into the executor agent
 - [ ] Add hook-driven `PROFILE.md` re-read on `PostToolUse` to prevent drift
 - [ ] Implement findings-quarantine pattern for untrusted external data (web fetch, API responses)
 
-### M5.E6 — Multi-runtime adapters
+### Multi-runtime adapters
 
 - [ ] Cursor adapter layer
 - [ ] Codex adapter layer

@@ -2,6 +2,7 @@
 
 > Per-Epic retrospectives, indexed for fast scan. Status flag (*stub* / *complete*) is auto-derived from the presence of `[FILL IN]` markers in the retro file. Hook lines (after the second em-dash) are hand-curated — they survive regeneration by Epic ID.
 
+- [M5.E1](M5.E1-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M4.5.E11](M4.5.E11-RETROSPECTIVE.md) — *complete* — Epic mode made first-class (v0.1.7): `--epic` write-half, Epic-scoped artifact naming, per-Epic `{EpicID}-PROFILE.md` calibration, all additive over a byte-identical linear default. Key lesson — a green 999-test suite couldn't prove FR3 at runtime; only grepping every `readProfile(` call site did. REVIEW rejected a specialist's tidiness suggestion that would have broken `v0.1.6-*` back-compat. 894→999 tests.
 - [M4.5.E10](M4.5.E10-RETROSPECTIVE.md) — *complete* — resume/capture trust-hardening (v0.1.5): origin-drift + schema-drift banners, Epic-prefix resolver, capture-pipe guards, hook smoke test. REVIEW earned its keep — two independent agents caught the same crash (staleness checks threw on a schema-drifted STATE.md) that a green 848-test VERIFY missed; 7 findings fixed in-phase, 777→854 tests.
 - [M4.5.E5](M4.5.E5-RETROSPECTIVE.md) — *complete* — _(hook pending)_

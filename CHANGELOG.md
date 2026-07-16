@@ -6,6 +6,24 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased] — M5.E1 (Doc-runtime & memory hygiene)
+
+The doc-runtime **model + eviction mechanics** — Signal's answer to unbounded `.planning/` growth. Ships the *eviction/organization* half that pairs with v0.1.6's *prevention* half (write-guard + size banner). Additive; no breaking changes; no new runtime dependencies; no `.planning/` schema bump. 999 → 1070 tests. Full DISCUSS→SHIP at FULL/strict; REVIEW ran two independent specialist agents (PASS-WITH-FIXES, 4 Important fixed). Reference: [`references/doc-runtime-model.md`](references/doc-runtime-model.md).
+
+### Added
+- **Canonical doc-runtime model** (`references/doc-runtime-model.md`, FR1) — the provisional-canonical decision every later doc-runtime FR references: the two axes (load-frequency × growth-policy), the unit-homed single-home eviction rule, the 3-vector bloat taxonomy, RETROSPECTIVE-as-SUMMARY-card, and the ordered distill→verify→evict faithfulness gate.
+- **STATE.md live-above-the-fold body skeleton** (FR2c) — a normative body template (Resume pointer → In-flight → Blockers → Pending ops → Closed work); `initState` emits it; documented in `references/state-schema.md`.
+- **Evict-on-close** (FR2b) — `evictEpicNarrative` moves a closed Epic's STATE.md narrative to `.planning/archive/<milestone>/<epic>/` (byte-identical, move-never-delete) behind a faithfulness gate, leaving a one-line pointer. Wired into `/sig:ship` §5.5 + `/sig:checkpoint` (Epic-close only).
+- **FUTURE-IDEAS physical eviction** (FR3) — `evictTerminalToLedger` moves terminal (shipped/promoted/merged/deleted) entries out of `FUTURE-IDEAS.md` into an archive ledger so the inbox *converges*; DEFERRED entries stay. Crash-safe (ledger-first, body-keyed dedup). Wired into `/sig:plan`'s drain.
+
+### Changed
+- **Migration relocates the legacy body** (FR2a) — `upgradeStateFile` writes the legacy body to `.planning/STATE-HISTORY.md` + a pointer instead of inlining it forever (new migrations only).
+- **Tier-aware STATE.md size warning** (FR2d) — `/sig:status`, `/sig:checkpoint`, `/sig:resume` scale the size threshold by PROFILE tier (SKETCH 75 / FEATURE·SPIKE 150 / FULL 300 KB), flat fallback when no PROFILE.
+- **Dogfood:** Signal's own STATE.md shrank 64.5 KB → ~1 KB (body → `STATE-HISTORY.md`); 6 shipped FUTURE-IDEAS entries moved to the ledger.
+
+### Fixed
+- **`plugin.json` version** bumped 0.1.6 → 0.1.7 — the v0.1.7 ship had left it stale (BUGS.md B7); a v0.1.7 install self-reported 0.1.6.
+
 ## [0.1.7] — 2026-07-15 — M4.5.E11 (Epic-native flow)
 
 Makes **Epic mode** first-class: commands can open/track Epics, auto-write a strict `current_epic`, name artifacts `{EpicID}-*.md`, and honor a per-Epic tier — all **additive over a byte-identical linear mode**. No breaking changes; no new runtime dependencies; no `.planning/` schema bump. 894 → 999 tests. Full DISCUSS→SHIP at FULL/strict; REVIEW ran two independent specialist agents. Reference: [`references/epic-native-flow.md`](references/epic-native-flow.md).
