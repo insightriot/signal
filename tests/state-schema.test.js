@@ -166,20 +166,74 @@ describe('upgradeStateFile (S1.t4)', () => {
     expect(body.length).toBeGreaterThan(0); // body preserved; tighter test below
   });
 
-  it('preserves original body verbatim beneath an HTML comment marker', async () => {
+  it('relocates the original body to STATE-HISTORY.md, leaving a pointer body (FR2a)', async () => {
     await setupLegacyFixture(tempDir);
     const original = await readFile(
       join(FIXTURE_ROOT, 'legacy', '.planning', 'STATE.md'),
       'utf-8'
     );
     await upgradeStateFile(tempDir);
+
     const content = await readFile(join(tempDir, '.planning', 'STATE.md'), 'utf-8');
     const { body } = parseFrontmatter(content);
-    // HTML comment marker introduces the preserved-content block
-    expect(body).toMatch(/<!--[\s\S]*preserved verbatim[\s\S]*-->/);
-    // Every line of the original file appears in the migrated body
+    // STATE.md body is a lean pointer to STATE-HISTORY.md...
+    expect(body).toContain('STATE-HISTORY.md');
+    // ...and no longer inlines the bulk original narrative.
+    expect(body).not.toContain('Working on Slice 1, Task 3 of the resume-reliability epic.');
+
+    // The verbatim original now lives in the sibling STATE-HISTORY.md.
+    const historyPath = join(tempDir, '.planning', 'STATE-HISTORY.md');
+    expect(existsSync(historyPath)).toBe(true);
+    const history = await readFile(historyPath, 'utf-8');
     for (const line of original.split('\n')) {
-      if (line.trim()) expect(body).toContain(line);
+      if (line.trim()) expect(history).toContain(line);
+    }
+  });
+
+  it('FR2a: STATE-HISTORY.md holds the legacy content verbatim (every non-empty line)', async () => {
+    await setupLegacyFixture(tempDir);
+    const original = await readFile(
+      join(FIXTURE_ROOT, 'legacy', '.planning', 'STATE.md'),
+      'utf-8'
+    );
+    await upgradeStateFile(tempDir);
+    const history = await readFile(
+      join(tempDir, '.planning', 'STATE-HISTORY.md'),
+      'utf-8'
+    );
+    for (const line of original.split('\n')) {
+      if (line.trim()) expect(history).toContain(line);
+    }
+  });
+
+  it('FR2a: STATE.md body is a lean pointer, not the original narrative', async () => {
+    await setupLegacyFixture(tempDir);
+    await upgradeStateFile(tempDir);
+    const content = await readFile(join(tempDir, '.planning', 'STATE.md'), 'utf-8');
+    const { body } = parseFrontmatter(content);
+    expect(body).toContain('STATE-HISTORY.md');
+    // A distinctive long line from the legacy narrative body must NOT be inlined.
+    expect(body).not.toContain('Working on Slice 1, Task 3 of the resume-reliability epic.');
+  });
+
+  it('FR2a: frontmatter round-trip keeps every schema_version-1 field', async () => {
+    await setupLegacyFixture(tempDir);
+    await upgradeStateFile(tempDir);
+    const content = await readFile(join(tempDir, '.planning', 'STATE.md'), 'utf-8');
+    const { data } = parseFrontmatter(content);
+    for (const field of [
+      'schema_version',
+      'phase',
+      'current_epic',
+      'current_wave',
+      'current_tasks',
+      'completed_phases',
+      'blockers',
+      'last_decision_at',
+      'last_updated_commit',
+      'last_updated',
+    ]) {
+      expect(data).toHaveProperty(field);
     }
   });
 

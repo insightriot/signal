@@ -148,14 +148,16 @@ function inferCompletedPhases(rawContent) {
     .filter(Boolean);
 }
 
-const MIGRATION_NOTICE_TEMPLATE =
-  '<!-- Original STATE.md content preserved verbatim from pre-schema_v1 migration on {date}. The YAML frontmatter above is the authoritative machine-readable state; everything below is human-readable history. -->';
+const MIGRATION_RELOCATE_NOTICE_TEMPLATE =
+  '<!-- Original pre-schema_v1 STATE.md content was relocated to .planning/STATE-HISTORY.md on {date} (M5.E1 FR2a). The YAML frontmatter above is the authoritative machine-readable state. -->';
 
 /**
  * Auto-upgrade a legacy (freeform / no-frontmatter) STATE.md into the
  * schema_version-1 shape. Idempotent: re-running on an already-upgraded file
- * is a no-op. Preserves original content verbatim under an HTML comment
- * marker so the human-readable narrative remains accessible after migration.
+ * is a no-op. The original legacy narrative is RELOCATED verbatim to a sibling
+ * `.planning/STATE-HISTORY.md` (not inlined into the new body — FR2a, bloat
+ * vector 2); the new STATE.md body becomes a short pointer to it so the live
+ * file stays lean.
  *
  * @param {string} baseDir
  * @returns {Promise<{upgraded: boolean, schemaVersion?: number, reason?: string}>}
@@ -184,13 +186,24 @@ export async function upgradeStateFile(baseDir) {
     last_updated_commit: getCurrentGitCommit(baseDir),
     last_updated: new Date().toISOString(),
   };
-  const notice = MIGRATION_NOTICE_TEMPLATE.replace('{date}', today);
-  const body = `${notice}\n\n${raw}`;
+  // Relocate the full legacy content to a sibling STATE-HISTORY.md FIRST, then
+  // rewrite STATE.md to a pointer. History-first ordering means a crash between
+  // the two writes leaves STATE.md still legacy (the idempotency guard re-runs
+  // cleanly on the next attempt) rather than a pointer with no history behind it.
+  const historyPath = join(baseDir, PLANNING_DIR, 'STATE-HISTORY.md');
+  await atomicWrite(historyPath, raw);
+
+  const notice = MIGRATION_RELOCATE_NOTICE_TEMPLATE.replace('{date}', today);
+  const body =
+    `${notice}\n\n` +
+    '# Project State\n\n' +
+    'Legacy narrative from before the schema_version-1 migration lives in ' +
+    '[STATE-HISTORY.md](STATE-HISTORY.md).\n';
   await atomicWrite(statePath, stringifyFrontmatter(newFrontmatter, body));
 
   process.stderr.write(
     `Signal: STATE.md upgraded to schema_version ${SCHEMA_VERSION}. ` +
-      `Original content preserved verbatim below frontmatter.\n`
+      `Original content relocated to .planning/STATE-HISTORY.md.\n`
   );
   return { upgraded: true, schemaVersion: SCHEMA_VERSION };
 }
