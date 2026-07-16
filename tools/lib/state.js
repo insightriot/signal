@@ -1057,6 +1057,30 @@ export function formatSchemaDriftBanner(finding) {
 // genuinely due, at which point M5 is the fix.
 const STATE_SIZE_WARN_BYTES = 150 * 1024;
 
+// FR2d — tier-aware size thresholds. A SKETCH project is throwaway and should
+// stay tiny; a FULL project is long-lived and legitimately carries more
+// closed-work history before eviction is due. The async PROFILE read that
+// resolves the tier lives in the command layer (tools/lib/status.js) — keeping
+// this module sync/pure and free of a profile.js import (which would cycle,
+// since profile.js already imports from state.js).
+const TIER_SIZE_THRESHOLDS = {
+  SKETCH: 75 * 1024, // throwaway — stays tiny
+  FEATURE: 150 * 1024,
+  SPIKE: 150 * 1024,
+  FULL: 300 * 1024, // long-lived — more closed-work history before eviction is due
+};
+
+/**
+ * Resolve a project tier to its STATE.md size threshold. Unknown / undefined
+ * tier → the flat STATE_SIZE_WARN_BYTES default (fail-open).
+ *
+ * @param {string|null|undefined} tier
+ * @returns {number}
+ */
+function resolveStateSizeThreshold(tier) {
+  return TIER_SIZE_THRESHOLDS[tier] ?? STATE_SIZE_WARN_BYTES;
+}
+
 /**
  * Pure size compare. Returns a finding when `bytes` EXCEEDS `threshold`, else
  * null (exclusive at the boundary). No I/O.
@@ -1074,20 +1098,25 @@ function detectStateSize(bytes, threshold = STATE_SIZE_WARN_BYTES) {
     threshold,
     message:
       `STATE.md is ${kb} KB (over the ${budgetKb} KB budget) — closed-work history ` +
-      `is accumulating. Automated eviction is planned for M5; for now, move ` +
-      `closed-slice narrative into an archive/RETROSPECTIVES pointer to trim it.`,
+      `is accumulating. Run /sig:checkpoint or /sig:ship to evict closed-Epic ` +
+      `narrative to archive (M5.E1 FR2b), or move closed-slice narrative into an ` +
+      `archive/RETROSPECTIVES pointer to trim it.`,
   };
 }
 
 /**
- * Read-only size check for a project's STATE.md (FR2). Whole-file `statSync`;
- * NEVER throws (missing file or stat error → null → no banner). Read-only, so
- * the `/sig:status` read-only-`.planning/` contract holds (no mtime change).
+ * Read-only size check for a project's STATE.md against an explicit threshold
+ * (FR2d). Whole-file `statSync`; NEVER throws (missing file or stat error →
+ * null → no banner). Read-only, so the `/sig:status` read-only-`.planning/`
+ * contract holds (no mtime change). The tier-aware command-layer wrapper
+ * (status.js `readStateSizeForTier`) resolves the threshold from PROFILE and
+ * passes it here; sync callers get the flat default.
  *
  * @param {string} baseDir
+ * @param {number} [threshold=STATE_SIZE_WARN_BYTES]
  * @returns {{bytes: number, threshold: number, message: string} | null}
  */
-function readStateSize(baseDir) {
+function readStateSizeWithThreshold(baseDir, threshold = STATE_SIZE_WARN_BYTES) {
   const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
   if (!existsSync(statePath)) return null;
   let bytes;
@@ -1096,7 +1125,19 @@ function readStateSize(baseDir) {
   } catch {
     return null; // unreadable → no banner
   }
-  return detectStateSize(bytes);
+  return detectStateSize(bytes, threshold);
+}
+
+/**
+ * Read-only size check for a project's STATE.md at the flat default threshold
+ * (FR2). Thin wrapper over `readStateSizeWithThreshold` so the existing sync
+ * callers/tests keep their 150 KB behavior unchanged.
+ *
+ * @param {string} baseDir
+ * @returns {{bytes: number, threshold: number, message: string} | null}
+ */
+function readStateSize(baseDir) {
+  return readStateSizeWithThreshold(baseDir, STATE_SIZE_WARN_BYTES);
 }
 
 /**
@@ -1114,8 +1155,11 @@ function formatStateSizeBanner(finding) {
 
 export {
   STATE_SIZE_WARN_BYTES,
+  TIER_SIZE_THRESHOLDS,
+  resolveStateSizeThreshold,
   detectStateSize,
   readStateSize,
+  readStateSizeWithThreshold,
   formatStateSizeBanner,
 };
 

@@ -6,9 +6,13 @@ import {
   readSchemaDrift,
   formatSchemaDriftBanner,
   readStateSize,
+  readStateSizeWithThreshold,
+  resolveStateSizeThreshold,
+  STATE_SIZE_WARN_BYTES,
   formatStateSizeBanner,
   EPIC_ID_STRICT_RE,
 } from './state.js';
+import { readProfile } from './profile.js';
 import { extractSection } from './landscape.js';
 import {
   readInstallState,
@@ -288,4 +292,40 @@ export async function readSchemaDriftBanner(baseDir) {
  */
 export function readStateSizeBanner(baseDir) {
   return formatStateSizeBanner(readStateSize(baseDir));
+}
+
+/**
+ * Tier-aware STATE.md size finding (FR2d, M5.E1.S2). Resolves the project tier
+ * from PROFILE.md, maps it to the tier's size threshold, and runs the sync
+ * read-only size check against it. This is the async command layer: the profile
+ * read lives HERE (not in state.js) because profile.js already imports from
+ * state.js — reading the profile from state.js would create an import cycle.
+ *
+ * Read-only and fail-open — NEVER throws. No/invalid/malformed PROFILE.md →
+ * the flat STATE_SIZE_WARN_BYTES default.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<{bytes: number, threshold: number, message: string} | null>}
+ */
+export async function readStateSizeForTier(baseDir) {
+  let threshold = STATE_SIZE_WARN_BYTES;
+  try {
+    const profile = await readProfile(baseDir);
+    threshold = resolveStateSizeThreshold(profile?.tier);
+  } catch {
+    /* no/invalid PROFILE → flat default (fail-open) */
+  }
+  return readStateSizeWithThreshold(baseDir, threshold);
+}
+
+/**
+ * Tier-aware STATE.md size banner (FR2d, M5.E1.S2) — a string or null when the
+ * file is under the tier's budget / absent. Read-only, fail-open, never blocks.
+ * The tier-aware counterpart to `readStateSizeBanner`.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<string | null>}
+ */
+export async function readStateSizeBannerForTier(baseDir) {
+  return formatStateSizeBanner(await readStateSizeForTier(baseDir));
 }

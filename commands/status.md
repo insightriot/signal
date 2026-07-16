@@ -104,7 +104,7 @@ Also before 2.1, call `readSchemaDriftBanner(baseDir)` from `tools/lib/status.js
 
 #### 2.0d STATE.md size check (advisory) — v0.1.6, FR2
 
-Call `readStateSizeBanner(baseDir)` from `tools/lib/status.js`. If it returns a string, append it **below** the drift banners (it's the lowest-priority, advisory signal — the file being large doesn't make the status *wrong*, unlike schema/origin drift). If `null`, skip silently. Read-only whole-file `statSync`, 150 KB threshold; detect + flag only (eviction is M5). Like the other banners, advisory-only — it MUST NOT break `/sig:status`.
+Call `readStateSizeBannerForTier(baseDir)` from `tools/lib/status.js` (tier-aware — M5.E1.S2, FR2d). If it returns a string, append it **below** the drift banners (it's the lowest-priority, advisory signal — the file being large doesn't make the status *wrong*, unlike schema/origin drift). If `null`, skip silently. Read-only whole-file `statSync`; threshold is resolved from the project tier (SKETCH 75 KB < FEATURE/SPIKE 150 KB < FULL 300 KB, flat 150 KB fallback when no PROFILE). Fail-open — like the other banners, advisory-only, it MUST NOT break `/sig:status`.
 
 #### 2.1 Project + tier
 

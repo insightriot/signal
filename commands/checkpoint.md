@@ -13,7 +13,8 @@ You are running `/sig:checkpoint`, a not-phase-gated state-refresh command. Same
 
 Authoritative references:
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/checkpoint.js` — `parseCheckpointArgs`, `detectStateChanges`, `renderStateDiff`, `captureCheckpointContext`, `handleCheckpointOrphans`
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `markFresh`, `detectOrphans`, `clearCurrentTask`, `touchDecisionTimestamp`, `isStaleVsOrigin`, `readStateSize`, `formatStateSizeBanner`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `markFresh`, `detectOrphans`, `clearCurrentTask`, `touchDecisionTimestamp`, `isStaleVsOrigin`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `readStateSizeBannerForTier`
 - `${CLAUDE_PLUGIN_ROOT}/references/question-patterns.md` — strict-enum used for `apply` / `discard` and orphan `clear` / `keep` prompts
 
 ## Workflow
@@ -71,7 +72,7 @@ Then call `isStaleVsOrigin(baseDir)` from `tools/lib/state.js` (after `markFresh
 
 `isStaleVsOrigin` is **fail-open** (offline / no-remote / auth-hang / timeout → `{stale:false}`, never throws) with a bounded hardened fetch; if it returns `{stale:false}`, skip the line silently. The fetch writes `.git/`, not `.planning/`.
 
-Then (v0.1.6, FR2) call `formatStateSizeBanner(readStateSize(baseDir))` from `tools/lib/state.js`. If it returns a string, append it as a final advisory line — a checkpoint is exactly when a growing STATE.md is worth flagging (`/sig:checkpoint` is the refresh surface). If `null`, skip silently. Read-only whole-file `statSync`, 150 KB threshold, detect + flag only (eviction is M5). This is net-new wiring — checkpoint carried only the origin-drift banner before.
+Then (v0.1.6, FR2; tier-aware M5.E1.S2, FR2d) call `readStateSizeBannerForTier(baseDir)` from `tools/lib/status.js`. If it returns a string, append it as a final advisory line — a checkpoint is exactly when a growing STATE.md is worth flagging (`/sig:checkpoint` is the refresh surface). If `null`, skip silently. Read-only + fail-open whole-file `statSync`; the threshold is resolved from the project tier (SKETCH 75 KB < FEATURE/SPIKE 150 KB < FULL 300 KB, flat 150 KB fallback when no PROFILE).
 
 ### 6. Orphan check
 
