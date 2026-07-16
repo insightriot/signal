@@ -96,17 +96,18 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 ## How to start a session
 
 1. Run `/sig:resume`. It reads PROFILE.md + STATE.md frontmatter and prints a single-screen re-orientation briefing (vision, tier, phase, in-flight tasks, last completed task, blockers, open questions, next action). This replaces the manual "read CONTEXT.md + STATE.md + MILESTONE-*.md" ritual.
-2. If `/sig:resume` reports `Next: done` (current Epic shipped), pick the next Epic from `MILESTONE-4.5.md` § "Epics" and run `/sig:discuss` to enter DISCUSS on the new scope.
-3. If staleness is reported (STATE.md behind work history), run `/sig:checkpoint` first. Run `/sig:checkpoint --context` before any planned context clear so the next session's resume is genuinely useful.
-4. For deeper context (full vision, design decisions, milestone breakdown), open the files in this order: `CONTEXT.md` (this file) → `MILESTONE-4.5.md` → `DECISIONS.md`.
+2. If `/sig:resume` reports `Next: done` (current Epic shipped), pick the next Epic from `MILESTONE-5.md` § "Epic status" and run **`/sig:discuss --epic M5.E2`** (the E11 Epic-native flow: `--epic` derives/writes `current_epic` + resets coupled fields; a *done* Epic requires `--epic` to open the next one).
+3. If staleness is reported (STATE.md behind work history), it's very likely the **benign B6 "+1"** (a markFresh/bookkeeping commit — local HEAD already == origin; nothing to pull). Confirm with `git rev-list HEAD..origin/main` = 0; only run `/sig:checkpoint` if a *real* remote push exists. Run `/sig:checkpoint --context` before any planned context clear.
+4. For deeper context, open the files in this order: `CONTEXT.md` (this file) → `MILESTONE-5.md` → `DECISIONS.md` (2026-07-16 entries).
 
-**Specifically for the next session:** **v0.1.6 (doc-integrity guardrail) just shipped** — release committed + tagged + pushed, marketplace pinned. **No Epic is in flight** — `/sig:resume` will report `Next: done`.
+**Specifically for the next session (machine handoff 2026-07-16):** **M5.E1 (Doc-runtime & memory hygiene) shipped, unreleased** (full DISCUSS→SHIP; 1070 tests; REVIEW PASS-WITH-FIXES). Everything committed + pushed; **`git pull` first** on the new machine. `/sig:resume` will report `Phase: SHIP · Next: done` — that's expected (Epic closed). The two staleness banners it shows are the **benign B6 false-positive** (markFresh +1), not real drift.
 
-**Recommended next work — two committed options:**
-1. **Epic-native flow** Epic (make Epic mode first-class — commands create/track Epics, write Epic-scoped artifacts, populate `current_epic`, per-Epic calibration; DECISIONS 2026-07-05). The version-as-`current_epic` friction hit during v0.1.6's SHIP (the FR1 milestone-derivation + `deriveRetroPath` both assume an `M{n}.E{n}` ID) is fresh evidence for it.
-2. **Milestone 5** (v2 ports + memory/doc-runtime, gated on usage signal). The *big* STATE-eviction redesign (M5 Sprint 3) — v0.1.6 was the *preventive* down-payment (block new pollution + flag growth); eviction of already-bloated files is still M5.
+**Recommended next work — sequencing call is yours:**
+1. **M5.E2** — doc-runtime continuation: all-docs hygiene runtime + link-health-in-validator (FR4) + living `BACKLOG.md` lifecycle (FR5). Resolves the derived-vs-hand-curated INDEX conflict deferred from E1. The natural next slice on the proven model.
+2. **M5.E3 / FR6 — consider pulling forward.** `BUGS.md` **B8** (confirmed P2) is Brett **blocked live** on `nextpass/.planning/STATE.md` (529 KB) — the v0.1.6 write-guard wedges pre-existing prose files and its only escape (one whole-file de-prose write) is undocumented. The fix (vector-1 de-prose + already-migrated-body relocation) lives in E3's migrate command. If the live pain outweighs finishing the hygiene runtime, E3/FR6 jumps the queue. (B8's cheap interim mitigation — extend the guard's reason string — could also land standalone.)
+3. **v2-port re-audit** (BR-8) — still gates the speculative feature ports; unblocked but lower urgency than the doc-runtime.
 
-Open M4.5 tail: outward tester loop (≥3 non-Signal testers) + the AC6.4-style real-session hook smoke check (human step, `references/hooks-api.md`). Pre-existing lint tooling breakage tracked as `BUGS.md` B5.
+Open tail: `BUGS.md` B5 (lint tooling), B6 (resume staleness false-positive), B8 (write-guard wedge). FR2b `evictEpicNarrative` never-live-fired (hardened in REVIEW, awaits a future Epic's close).
 
 ---
 
