@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { mkdtemp, rm, mkdir, writeFile, readFile, copyFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, readFile, copyFile, rename } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -537,6 +537,14 @@ describe('commands/plan.md drain step (S5.t3 — FR7.1-7.4, R1 hard gate)', () =
   it('FR7.4: empty candidate set emits a one-line note and continues', () => {
     expect(planMd).toContain('(no FUTURE-IDEAS candidates to drain)');
   });
+
+  it('FR3 (M5.E1): wires evictTerminalToLedger with a dry-run preview; DEFERRED stays', () => {
+    expect(planMd).toContain('evictTerminalToLedger');
+    expect(planMd).toMatch(/dryRun:\s*true/);
+    expect(planMd.toLowerCase()).toContain('preview');
+    expect(planMd).toMatch(/DEFERRED[^\n]*stays/i);
+    expect(planMd).toMatch(/danglingFence/);
+  });
 });
 
 describe('S5.t4 docs + anti-rationalization (FR7.5 / FR8.2)', () => {
@@ -677,5 +685,206 @@ describe('listDrainCandidates — FR3 blockquote disposition (v0.1.6)', () => {
     const c =
       '## Live idea\n\nSome intro prose first.\n\n> **Promoted 2026-07-04 → M5** (quoted as an example, not a real disposition)\n\n---\n';
     expect(listDrainCandidates(c).map((e) => e.heading)).toEqual(['Live idea']);
+  });
+});
+
+// --- S4.t1/t2: evictTerminalToLedger — physical eviction to the archive ledger ---
+// FR3 (M5.E1): terminal (SHIPPED/PROMOTED/MERGED/DELETED) entries physically
+// LEAVE the inbox for an append-only ledger, so FUTURE-IDEAS.md converges.
+// DEFERRED stays. Ledger-append FIRST, then inbox-remove — keyed + idempotent,
+// so a crash between the two writes re-runs clean (no dupe, no loss).
+describe('evictTerminalToLedger (S4.t1/t2 — physical eviction, crash-safe)', () => {
+  // Inbox with one of each: a terminal ✓ SHIPPED, a terminal PROMOTED, a
+  // DEFERRED (parked-but-live), and an un-dispositioned live candidate.
+  const INBOX = [
+    '# Future Ideas',
+    '',
+    'Preamble — not an entry.',
+    '',
+    '---',
+    '',
+    '## ✓ SHIPPED — a shipped thing',
+    '',
+    '**Status:** Logged 2026-05-02; shipped 2026-05-15.',
+    '',
+    'Shipped body.',
+    '',
+    '---',
+    '',
+    '## A promoted thing',
+    '',
+    '**Status:** Logged 2026-05-18. → Promoted 2026-05-30 (M5.E1 drain).',
+    '',
+    'Promoted body.',
+    '',
+    '---',
+    '',
+    '## A deferred thing',
+    '',
+    '**Status:** Logged 2026-05-20. → Deferred 2026-05-30 (M5.E1 drain).',
+    '',
+    'Deferred body — parked-but-live, stays.',
+    '',
+    '---',
+    '',
+    '## A live candidate',
+    '',
+    '**Status:** Logged 2026-05-25.',
+    '',
+    'Undisposed — stays.',
+    '',
+    '---',
+    '',
+  ].join('\n');
+
+  // .sort() is lexicographic by code unit: 'A' (0x41) sorts before '✓' (0x2713).
+  const TERMINAL_HEADINGS = ['A promoted thing', '✓ SHIPPED — a shipped thing'];
+
+  const INBOX_REL = '.planning/FUTURE-IDEAS.md';
+  const LEDGER_REL = '.planning/archive/FUTURE-IDEAS-LEDGER.md';
+
+  let tempDir;
+  let inbox;
+  let ledger;
+
+  async function stageInbox(text = INBOX) {
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+    await writeFile(inbox, text, 'utf-8');
+  }
+
+  async function readIf(path) {
+    try {
+      return await readFile(path, 'utf-8');
+    } catch (err) {
+      if (err.code === 'ENOENT') return null;
+      throw err;
+    }
+  }
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'drain-evict-'));
+    inbox = join(tempDir, INBOX_REL);
+    ledger = join(tempDir, LEDGER_REL);
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('AC1: terminal entries physically leave the inbox → ledger; DEFERRED + live stay', async () => {
+    await stageInbox();
+    const res = await evictTerminalToLedger(tempDir);
+
+    expect(res.evicted.map((e) => e.heading).sort()).toEqual(TERMINAL_HEADINGS);
+    expect(res.danglingFence).toBe(false);
+
+    const afterInbox = await readFile(inbox, 'utf-8');
+    expect(afterInbox).not.toContain('## ✓ SHIPPED — a shipped thing');
+    expect(afterInbox).not.toContain('## A promoted thing');
+    expect(afterInbox).toContain('## A deferred thing'); // AC2
+    expect(afterInbox).toContain('## A live candidate');
+
+    const afterLedger = await readFile(ledger, 'utf-8');
+    expect(afterLedger).toContain('## ✓ SHIPPED — a shipped thing');
+    expect(afterLedger).toContain('## A promoted thing');
+    expect(afterLedger).toContain('<!-- evicted-key: ');
+  });
+
+  it('AC1: a second run does NOT re-surface or duplicate (dedupe)', async () => {
+    await stageInbox();
+    await evictTerminalToLedger(tempDir);
+    const inboxAfter1 = await readFile(inbox, 'utf-8');
+    const ledgerAfter1 = await readFile(ledger, 'utf-8');
+
+    const res2 = await evictTerminalToLedger(tempDir);
+    expect(res2.evicted).toEqual([]);
+    expect(await readFile(inbox, 'utf-8')).toBe(inboxAfter1);
+    expect(await readFile(ledger, 'utf-8')).toBe(ledgerAfter1);
+  });
+
+  it('AC2: a DEFERRED entry survives in the inbox and never leaks to the ledger', async () => {
+    await stageInbox();
+    await evictTerminalToLedger(tempDir);
+    const afterInbox = await readFile(inbox, 'utf-8');
+    expect(afterInbox).toContain('## A deferred thing');
+    expect(afterInbox).toContain('Deferred body — parked-but-live, stays.');
+    expect(await readFile(ledger, 'utf-8')).not.toContain('## A deferred thing');
+  });
+
+  it('AC5: non-target (surviving) blocks are byte-identical after eviction', async () => {
+    await stageInbox();
+    const before = blocksByHeading(INBOX);
+    await evictTerminalToLedger(tempDir);
+    const after = blocksByHeading(await readFile(inbox, 'utf-8'));
+    for (const h of ['A deferred thing', 'A live candidate']) {
+      expect(after[h], `survivor "${h}" must be byte-identical`).toBe(before[h]);
+    }
+  });
+
+  it('R1 dry-run: writes NOTHING; inbox byte-identical, no ledger created', async () => {
+    await stageInbox();
+    const res = await evictTerminalToLedger(tempDir, { dryRun: true });
+    expect(res.evicted).toEqual([]);
+    expect(res.planned.map((e) => e.heading).sort()).toEqual(TERMINAL_HEADINGS);
+    expect(await readFile(inbox, 'utf-8')).toBe(INBOX); // byte-identical
+    expect(await readIf(ledger)).toBeNull(); // nothing written
+  });
+
+  it('AC3: dangling fence → scoped no-op; danglingFence true; file uncorrupted', async () => {
+    // A terminal ✓ SHIPPED entry whose BODY holds an unclosed fence; a live idea
+    // below is swallowed. Evicting the straddler would delete the swallowed idea,
+    // so the guard (range.end ≤ fence marker) makes this a no-op.
+    const DANGLING = [
+      '# Future Ideas',
+      '',
+      '## ✓ SHIPPED — straddler',
+      '',
+      '**Status:** Logged 2026-05-01; shipped 2026-05-10.',
+      '',
+      'Sample follows:',
+      '',
+      '```',
+      'unclosed fence content',
+      '## Live idea below the fence',
+      'captured after a malformed sample',
+      '',
+    ].join('\n');
+    await stageInbox(DANGLING);
+    const res = await evictTerminalToLedger(tempDir);
+    expect(res.danglingFence).toBe(true);
+    expect(res.evicted).toEqual([]);
+    expect(await readFile(inbox, 'utf-8')).toBe(DANGLING); // uncorrupted
+    expect(await readIf(ledger)).toBeNull();
+  });
+
+  it('AC4: crash between ledger-write and inbox-write → re-run: no dupe, no loss', async () => {
+    await stageInbox();
+    // Throw on the INBOX write (path ends FUTURE-IDEAS.md) but let the LEDGER
+    // write (ends -LEDGER.md) through: the ledger commits, the inbox removal crashes.
+    const crashingRename = async (from, to) => {
+      if (to.endsWith('FUTURE-IDEAS.md')) throw new Error('simulated inbox rename crash');
+      return rename(from, to);
+    };
+    await expect(
+      evictTerminalToLedger(tempDir, { renameFn: crashingRename })
+    ).rejects.toThrow(/simulated inbox rename crash/);
+
+    // Post-crash: entries in BOTH files (ledger committed; inbox unchanged).
+    expect(await readFile(ledger, 'utf-8')).toContain('## A promoted thing');
+    expect(await readFile(inbox, 'utf-8')).toContain('## A promoted thing');
+
+    // Re-run with a normal rename: completes the removal, appends nothing new.
+    const res = await evictTerminalToLedger(tempDir);
+    expect(res.evicted.map((e) => e.heading).sort()).toEqual(TERMINAL_HEADINGS);
+
+    const finalInbox = await readFile(inbox, 'utf-8');
+    const finalLedger = await readFile(ledger, 'utf-8');
+    // No loss: terminal removed from inbox; DEFERRED survivor intact.
+    expect(finalInbox).not.toContain('## A promoted thing');
+    expect(finalInbox).not.toContain('## ✓ SHIPPED — a shipped thing');
+    expect(finalInbox).toContain('## A deferred thing');
+    // No dupe: each evicted block + its key marker appears exactly once.
+    expect(finalLedger.split('## A promoted thing').length - 1).toBe(1);
+    expect(finalLedger.split('## ✓ SHIPPED — a shipped thing').length - 1).toBe(1);
+    expect((finalLedger.match(/<!-- evicted-key: /g) || []).length).toBe(2);
   });
 });

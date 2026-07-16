@@ -22,8 +22,9 @@
 // No new runtime deps — pure string work; the single full-file atomicWrite is
 // reused from the /sig:add substrate.
 
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readFile, mkdir } from 'node:fs/promises';
+import { join, dirname } from 'node:path';
+import { createHash } from 'node:crypto';
 
 import { atomicWrite } from './atomic-write.js';
 
@@ -484,4 +485,150 @@ export async function applyDispositionToFile(baseDir, relPath, opts) {
   const newContent = applyDisposition(content, entryIndex, verb, reason, date);
   await atomicWrite(targetPath, newContent, renameFn ? { renameFn } : undefined);
   return { written: true, verb, heading: entry.heading, path: targetPath };
+}
+
+// FR3 (M5.E1): the FUTURE-IDEAS archive ledger — where terminally-disposed
+// entries physically go when they leave the inbox. Written once on first
+// creation; every eviction appends a keyed block below it. Append-only; it is an
+// archive, so it is intentionally NOT size-banner or write-guard watched.
+const LEDGER_HEADER =
+  '# FUTURE-IDEAS — archive ledger\n\n' +
+  'Terminally-disposed entries (SHIPPED / PROMOTED / MERGED / DELETED) evicted from\n' +
+  '`.planning/FUTURE-IDEAS.md`. Append-only; DEFERRED entries stay in the inbox.\n';
+
+// Dedupe key for an evicted entry: sha1 of `heading + '|' + (dateISO ?? '')`.
+// The ledger records `<!-- evicted-key: {key} -->` immediately above each block;
+// a re-run whose key is already present appends nothing (idempotent) — the
+// crash-safety backbone of the ledger-first ordering (AC4).
+function evictionKey(entry) {
+  return createHash('sha1').update(`${entry.heading}|${entry.dateISO ?? ''}`).digest('hex');
+}
+
+// Byte offset of the last (unclosed) fence-marker line when `content` has an odd
+// fence count; `null` when fences are balanced (or none). Under a dangling fence
+// an entry is only evictable if it sits FULLY ABOVE this offset (range.end ≤
+// offset) — never cut a block across an unclosed fence, which would delete every
+// swallowed idea below it (AD5 / R1).
+function danglingFenceOffset(content) {
+  const lines = content.split('\n');
+  let count = 0;
+  let lastLine = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (isFenceMarker(lines[i])) {
+      count++;
+      lastLine = i;
+    }
+  }
+  if (count % 2 === 0 || lastLine < 0) return null;
+  let off = 0;
+  for (let i = 0; i < lastLine; i++) off += lines[i].length + 1;
+  return off;
+}
+
+/**
+ * FR3 (M5.E1): physically evict terminally-disposed FUTURE-IDEAS entries from
+ * the inbox into an append-only archive ledger, so the inbox CONVERGES instead
+ * of only growing (today `transformBlock` stamps in place, so disposed entries
+ * never leave). DEFERRED entries are parked-but-live — NOT terminal — and stay.
+ *
+ * Two-file, crash-safe ordering — **ledger-append FIRST, then inbox-remove:**
+ *   1. Read the inbox; select the terminal, non-recovered entries via isEvictable
+ *      over parseEntries. Under a dangling (unclosed) fence, exclude every entry
+ *      not fully ABOVE the marker and report `danglingFence` (a scoped no-op that
+ *      leaves the file uncorrupted).
+ *   2. Append each not-yet-ledgered block (absence detected by its
+ *      `<!-- evicted-key -->` marker) to the ledger; atomicWrite the ledger FIRST.
+ *   3. Remove those same blocks from the inbox — highest offset first, from ONE
+ *      parse, so lower ranges stay valid (the applyDispositions pattern);
+ *      atomicWrite the inbox SECOND.
+ * A crash between the two writes leaves an entry in BOTH files; a re-run appends
+ * nothing new to the ledger (key already present) and completes the inbox
+ * removal — no dupe, no loss (AC4). The two writes are gated INDEPENDENTLY
+ * (ledger on `additions`, inbox on `targets`) so the re-run still removes.
+ *
+ * `dryRun` writes NOTHING and returns the plan (R1 diff-preview: the inbox is
+ * byte-identical after a dry run). Non-target blocks are always byte-identical
+ * (exact-range splice — R1/R5).
+ *
+ * @param {string} baseDir — project root
+ * @param {object} [opts]
+ * @param {string} [opts.inboxRel='.planning/FUTURE-IDEAS.md']
+ * @param {string} [opts.ledgerRel='.planning/archive/FUTURE-IDEAS-LEDGER.md']
+ * @param {boolean} [opts.dryRun=false]
+ * @param {string} [opts.date] — accepted for signature parity with
+ *   applyDispositionToFile; the dedupe key uses each entry's own `dateISO`.
+ * @param {Function} [opts.renameFn] — injected for the crash-injection test;
+ *   forwarded to both atomicWrite calls.
+ * @returns {Promise<{evicted: Array<{heading: string, key: string}>, planned: Array<{heading: string, key: string}>, danglingFence: boolean}>}
+ */
+export async function evictTerminalToLedger(baseDir, opts = {}) {
+  const {
+    inboxRel = '.planning/FUTURE-IDEAS.md',
+    ledgerRel = '.planning/archive/FUTURE-IDEAS-LEDGER.md',
+    dryRun = false,
+    renameFn,
+  } = opts;
+
+  const inboxPath = join(baseDir, inboxRel);
+  const ledgerPath = join(baseDir, ledgerRel);
+  const content = await readFile(inboxPath, 'utf-8');
+
+  // Reuse the existing dangling-fence signal (v0.1.6/AD5) — don't rebuild it.
+  const { danglingFence } = listDrainCandidatesWithRecovery(content);
+  const markerOffset = danglingFence ? danglingFenceOffset(content) : null;
+
+  // Terminal, non-recovered entries; under a dangling fence, only those fully
+  // above the marker (range.end ≤ markerOffset) so no block ever spans it.
+  const entries = parseEntries(content);
+  const targets = entries.filter(
+    (e) => isEvictable(e) && (markerOffset === null || e.range.end <= markerOffset)
+  );
+
+  const planned = targets.map((e) => ({ heading: e.heading, key: evictionKey(e) }));
+
+  if (dryRun) {
+    return { evicted: [], planned, danglingFence };
+  }
+
+  // Step 2 — ledger-append FIRST. Read the current ledger (if any); append only
+  // blocks whose key is not already present, keeping the append idempotent.
+  let ledgerText = '';
+  let ledgerExists = false;
+  try {
+    ledgerText = await readFile(ledgerPath, 'utf-8');
+    ledgerExists = true;
+  } catch (err) {
+    if (!err || err.code !== 'ENOENT') throw err;
+  }
+
+  const additions = [];
+  for (const e of targets) {
+    const marker = `<!-- evicted-key: ${evictionKey(e)} -->`;
+    if (ledgerText.includes(marker)) continue; // already ledgered — dedupe
+    additions.push(`${marker}\n${content.slice(e.range.start, e.range.end)}`);
+  }
+
+  if (additions.length > 0) {
+    await mkdir(dirname(ledgerPath), { recursive: true });
+    let ledger = ledgerExists ? ledgerText : LEDGER_HEADER;
+    if (!ledger.endsWith('\n')) ledger += '\n';
+    ledger += `\n${additions.join('\n')}`;
+    if (!ledger.endsWith('\n')) ledger += '\n';
+    await atomicWrite(ledgerPath, ledger, renameFn ? { renameFn } : undefined);
+  }
+
+  // Step 3 — inbox-remove SECOND. Highest offset first so each range stays valid
+  // as bytes are spliced out. Gated on `targets` (NOT `additions`) so a crash
+  // re-run — whose ledger additions are empty — still completes the removal.
+  if (targets.length > 0) {
+    const ordered = [...targets].sort((a, b) => b.range.start - a.range.start);
+    let out = content;
+    for (const e of ordered) {
+      out = out.slice(0, e.range.start) + out.slice(e.range.end);
+    }
+    await atomicWrite(inboxPath, out, renameFn ? { renameFn } : undefined);
+  }
+
+  const evicted = targets.map((e) => ({ heading: e.heading, key: evictionKey(e) }));
+  return { evicted, planned, danglingFence };
 }

@@ -76,6 +76,8 @@ For each entry the user keeps triaging, offer a `strict-enum [promote, defer, me
 
 **promote** entries flow into Step 3 (Create Plan) as candidate tasks. This step never blocks planning: skip it, batch-defer it, or triage entry-by-entry — all three leave you ready for Step 2.
 
+**Physically evict terminal entries (FR3).** promote / ship / merge / delete are *terminal* dispositions — once stamped, the entry is done and should physically leave the inbox so `FUTURE-IDEAS.md` converges instead of only growing (**DEFERRED is parked-but-live and stays**). After the disposition pass, call `evictTerminalToLedger(baseDir, { dryRun: true })` from `tools/lib/drain.js` to **preview** which terminal entries would move to `.planning/archive/FUTURE-IDEAS-LEDGER.md` (a dry run leaves the inbox byte-identical); then, on confirm (honoring `gate_strictness`), call `evictTerminalToLedger(baseDir)` for real. It appends to the ledger **first**, then removes the blocks from the inbox — crash-safe and keyed, so a re-run never dupes or loses. If it reports `danglingFence: true` it performed a **scoped no-op** (never cutting across an unclosed fence); report that and leave the file for the fence to be fixed.
+
 ### 2. Research (Parallel Agents)
 
 Spawn up to 4 research agents in parallel:
