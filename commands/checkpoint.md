@@ -15,6 +15,7 @@ Authoritative references:
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/checkpoint.js` — `parseCheckpointArgs`, `detectStateChanges`, `renderStateDiff`, `captureCheckpointContext`, `handleCheckpointOrphans`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `markFresh`, `detectOrphans`, `clearCurrentTask`, `touchDecisionTimestamp`, `isStaleVsOrigin`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `readStateSizeBannerForTier`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/evict.js` — `evictEpicNarrative` (M5.E1 FR2b evict-on-close tidy)
 - `${CLAUDE_PLUGIN_ROOT}/references/question-patterns.md` — strict-enum used for `apply` / `discard` and orphan `clear` / `keep` prompts
 
 ## Workflow
@@ -54,6 +55,7 @@ Read `gate_strictness` from PROFILE.md (via `readProfile`):
 When applying:
 1. For each `taskId` in `diff.taskIdsInCommits` that's currently in `state.current_tasks`, call `clearCurrentTask(baseDir, {id, status: 'done', commit: <first matching commit sha>})`. This removes the in-flight task and records the completion metadata.
 2. Call `markFresh(baseDir)` so `last_updated` + `last_updated_commit` advance to HEAD.
+3. **Evict-on-close tidy (M5.E1 FR2b).** If `state.current_epic` is set, call `evictEpicNarrative(baseDir, state.current_epic)` from `tools/lib/evict.js`. It **self-guards** — returns `{evicted:false, reason:'not-closed'}` and changes nothing unless that Epic is genuinely closed (its `{EpicID}-RETROSPECTIVE.md` exists) and still has body narrative to evict, so a routine checkpoint on an in-flight Epic is a no-op. When it does evict (`{evicted:true}`), it moves the closed narrative to `.planning/archive/<milestone>/<epic>/STATE-NARRATIVE.md` + leaves a pointer + lifts carry-overs UP; add a `- Evicted: {archivePath}` line to the refresh banner and stage the archive file. On `{reason:'lossy-card'}`, surface the `missing` items and do **not** force — the ordered gate (`references/doc-runtime-model.md` §5) proves no-loss, not faithfulness; fix the retrospective, then re-run.
 
 After writes, emit the **D2 mitigation banner** verbatim (the explicit "what was refreshed" readout that prevents silent-no-op confusion):
 

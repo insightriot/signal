@@ -101,6 +101,19 @@ If `markFresh` fails (lock contention, git unavailable):
 
 This step is now required even if no PR was created (e.g., direct-to-main shipping for the Signal-on-Signal flow) so STATE.md never lags behind the Epic-close.
 
+### 5.5 Evict-on-close (M5.E1 FR2b) — Epic-close SHIP only
+
+When this is an **Epic-close** SHIP (`shipFR1Check` returned `{isEpicClose: true}` in §0.5), the closing Epic's narrative should LEAVE the live STATE.md body. Call `evictEpicNarrative(baseDir, state.current_epic)` from `tools/lib/evict.js` — it moves that Epic's body narrative to `.planning/archive/<milestone>/<epic>/STATE-NARRATIVE.md` (byte-identical, move-never-delete), leaves a one-line pointer in its place, and lifts any open carry-overs UP into a live section so they aren't buried.
+
+It runs the ordered **distill → verify-against-source → evict** gate and **refuses** (returns `{evicted:false, reason}`, changing nothing) when:
+- the Epic has no body narrative block (`no-section`) — a safe no-op;
+- the Epic isn't closed — no `{EpicID}-RETROSPECTIVE.md` (`not-closed`); the Auditor-style closed-vs-live confirm;
+- the retrospective (the card) **fails the coverage gate** (`lossy-card`, with `missing` ids/dates/tokens). **Do not force.** Surface the missing items, fix the retrospective so it faithfully covers the narrative, then re-run. This is the R1 safety — never replace live narrative with a pointer to a card that dropped material.
+
+On `{evicted:true}`, stage the modified `.planning/STATE.md` **and** the new `.planning/archive/.../STATE-NARRATIVE.md` into the SHIP commit (alongside the retro + state-write + index from §6). Per-slice (non-Epic-close) SHIPs skip this step entirely.
+
+> The gate proves **no-loss of discrete tokens, not semantic faithfulness** (`references/doc-runtime-model.md` §5). A green gate never excuses an unfaithful card — REVIEW is the faithfulness backstop.
+
 ### 6. Regenerate RETROSPECTIVES.md index (M4.5.E9.S2)
 
 After the FR1 retro file and the state-write have both landed, call `regenerateIndex(baseDir)` from `tools/lib/retro-index.js` to refresh the index. The helper:

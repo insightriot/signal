@@ -25,7 +25,18 @@
 // on live content (the S5 dogfood) and in REVIEW. A green gate means "nothing
 // was silently dropped," not "the card is faithful."
 
-import { EPIC_ID_STRICT_RE } from './state.js';
+import { existsSync } from 'node:fs';
+import { readFile, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+
+import {
+  EPIC_ID_STRICT_RE,
+  PLANNING_DIR,
+  parseFrontmatter,
+  stringifyFrontmatter,
+} from './state.js';
+import { deriveRetroPath } from './retrospective.js';
+import { atomicWrite } from './atomic-write.js';
 
 // --- ID / date / status-token extractors (the deterministic backstop) --------
 
@@ -225,4 +236,121 @@ export function deriveEpicArchiveDir(epicId) {
     throw new Error(`deriveEpicArchiveDir: malformed epicId "${epicId}" (expected M{N}[.{N}]*.E{N})`);
   }
   return `.planning/archive/${m[1]}/E${m[2]}`;
+}
+
+// --- S3b: the evict-on-close orchestration -----------------------------------
+
+/**
+ * Insert lifted carry-over lines into a LIVE section of the body so open items
+ * are surfaced, not buried (R3). Prefers `## {heading}` (e.g. "In-flight");
+ * when that heading is absent (a real migrated body with no skeleton), inserts
+ * at the top, right after the first `# ` title line. Each line is tagged with
+ * its origin Epic and de-duplicated against lines already present.
+ *
+ * @param {string} body
+ * @param {string} heading  section heading text to lift under, e.g. "In-flight"
+ * @param {string} epicId
+ * @param {string[]} carry  lines from extractCarryOvers
+ * @returns {string}
+ */
+export function insertCarryOvers(body, heading, epicId, carry) {
+  if (!carry || carry.length === 0) return body;
+  const tagged = carry.map((line) => {
+    const stripped = line.replace(/^[-*]\s+/, '');
+    return `- [carried from ${epicId}] ${stripped}`;
+  });
+  const block = tagged.filter((l) => !body.includes(l)).join('\n');
+  if (!block) return body;
+
+  const escHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const headingRe = new RegExp(`(?:^|\\n)##\\s+${escHeading}[ \\t]*\\n`, '');
+  const hm = body.match(headingRe);
+  if (hm) {
+    const insertAt = hm.index + hm[0].length;
+    return `${body.slice(0, insertAt)}${block}\n${body.slice(insertAt)}`;
+  }
+  // Fallback: insert after the first `# ` title, else at the very top.
+  const titleRe = /(?:^|\n)#\s+[^\n]*\n/;
+  const tm = body.match(titleRe);
+  if (tm) {
+    const insertAt = tm.index + tm[0].length;
+    return `${body.slice(0, insertAt)}${block}\n${body.slice(insertAt)}`;
+  }
+  return `${block}\n${body}`;
+}
+
+/**
+ * Evict a closed Epic's narrative from the live STATE.md body (FR2b). The
+ * ordered gate runs distill→verify→evict; this function is the verify+evict
+ * mechanics. It NEVER deletes: the original section is relocated byte-identical
+ * to `.planning/archive/<milestone>/<epic>/STATE-NARRATIVE.md` and the live body
+ * gets a one-line pointer in its place, with open carry-overs lifted UP into a
+ * live section.
+ *
+ * Refuses (no mutation) and returns a reason when:
+ *   - STATE.md has no frontmatter (`no-frontmatter`)
+ *   - the Epic has no narrative block in the body (`no-section`)
+ *   - the Epic isn't closed — no `{EpicID}-RETROSPECTIVE.md` (`not-closed`;
+ *     the Auditor-style closed-vs-live confirm)
+ *   - the card fails the coverage gate (`lossy-card`, with `missing`)
+ *
+ * @param {string} baseDir
+ * @param {string} epicId
+ * @param {{dropped?: string[], carryOverHeading?: string}} [opts]
+ * @returns {Promise<{evicted: boolean, reason?: string, missing?: object,
+ *   archivePath?: string, pointer?: string, carriedOver?: string[]}>}
+ */
+export async function evictEpicNarrative(baseDir, epicId, opts = {}) {
+  const { dropped = [], carryOverHeading = 'In-flight' } = opts;
+  const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
+  if (!existsSync(statePath)) return { evicted: false, reason: 'no-state-file' };
+
+  const raw = await readFile(statePath, 'utf-8');
+  const { data, body } = parseFrontmatter(raw);
+  if (data === null) return { evicted: false, reason: 'no-frontmatter' };
+
+  const sec = extractEpicSection(body, epicId);
+  if (!sec.found) return { evicted: false, reason: 'no-section' };
+
+  // Closed-vs-live confirm (Auditor-style): only evict a genuinely CLOSED Epic.
+  // An Epic is closed iff its retrospective (the card) exists.
+  const retroRel = deriveRetroPath(epicId);
+  const retroPath = join(baseDir, retroRel);
+  if (!existsSync(retroPath)) return { evicted: false, reason: 'not-closed' };
+  const card = await readFile(retroPath, 'utf-8');
+
+  // The gate. A lossy card FAILS — no eviction, so the live narrative is never
+  // replaced by a pointer to a card that dropped material.
+  const coverage = verifyCardCoverage(sec.section, card, { dropped });
+  if (!coverage.pass) {
+    return { evicted: false, reason: 'lossy-card', missing: coverage.missing };
+  }
+
+  // Move: relocate the original narrative byte-identical (move-never-delete).
+  const archiveDir = deriveEpicArchiveDir(epicId);
+  await mkdir(join(baseDir, archiveDir), { recursive: true });
+  const narrativeRel = `${archiveDir}/STATE-NARRATIVE.md`;
+  const narrativeAbs = join(baseDir, narrativeRel);
+  await atomicWrite(narrativeAbs, sec.section);
+  // Zero-loss accounting: what we archived is byte-identical to the extracted
+  // section (the original survives in full in archive).
+  const archived = await readFile(narrativeAbs, 'utf-8');
+  if (archived !== sec.section) {
+    throw new Error(
+      `evictEpicNarrative: archived narrative for ${epicId} is not byte-identical to the source section`
+    );
+  }
+
+  // Replace the live section with a one-line pointer (unit-homed single-home:
+  // points at the archived narrative + the card).
+  const cardName = retroRel.replace(`${PLANNING_DIR}/`, '');
+  const pointer = `- ${epicId} — evicted to ${narrativeRel} · card: ${cardName}`;
+  let newBody = `${sec.before}${pointer}\n${sec.after}`;
+
+  // Lift open carry-overs UP into a live section (never bury them in archive).
+  const carriedOver = extractCarryOvers(sec.section);
+  newBody = insertCarryOvers(newBody, carryOverHeading, epicId, carriedOver);
+
+  await atomicWrite(statePath, stringifyFrontmatter(data, newBody));
+  return { evicted: true, archivePath: narrativeRel, pointer, carriedOver };
 }
