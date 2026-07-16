@@ -290,6 +290,9 @@ export async function readSchemaDriftBanner(baseDir) {
  * @param {string} baseDir
  * @returns {string | null}
  */
+// Superseded as a command call site by `readStateSizeBannerForTier` (M5.E1 FR2d);
+// all three commands (status/resume/checkpoint) now use the tier-aware variant.
+// Retained as tested public API (flat-threshold), not wired into any command doc.
 export function readStateSizeBanner(baseDir) {
   return formatStateSizeBanner(readStateSize(baseDir));
 }

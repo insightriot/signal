@@ -770,6 +770,21 @@ describe('evictTerminalToLedger (S4.t1/t2 — physical eviction, crash-safe)', (
     await rm(tempDir, { recursive: true, force: true });
   });
 
+  it('REVIEW fix: body-hash key — two distinct entries sharing heading+date across runs → NO loss', async () => {
+    // A date embedded in the heading makes heading+date non-unique; the old
+    // sha1(heading|date) key collided cross-run, splicing the 2nd entry out of
+    // the inbox but never appending it → silent loss. Body-hash keys them apart.
+    const entry = (body) =>
+      `\n## Foo (2026-05-30)\n\n> **Promoted 2026-07-04 → M4.5.E1**\n\n${body}\n\n---\n`;
+    await stageInbox('# Ideas\n\n---\n' + entry('BODY-A unique.'));
+    await evictTerminalToLedger(tempDir);
+    await writeFile(inbox, (await readFile(inbox, 'utf-8')) + entry('BODY-B different.'), 'utf-8');
+    await evictTerminalToLedger(tempDir);
+    const ledgerText = await readFile(ledger, 'utf-8');
+    expect(ledgerText).toContain('BODY-A unique.');
+    expect(ledgerText).toContain('BODY-B different.'); // LOST under the old heading+date key
+  });
+
   it('AC1: terminal entries physically leave the inbox → ledger; DEFERRED + live stay', async () => {
     await stageInbox();
     const res = await evictTerminalToLedger(tempDir);

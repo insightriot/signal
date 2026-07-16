@@ -27,13 +27,14 @@
 
 import { existsSync } from 'node:fs';
 import { readFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 
 import {
   EPIC_ID_STRICT_RE,
   PLANNING_DIR,
   parseFrontmatter,
   stringifyFrontmatter,
+  withStateLock,
 } from './state.js';
 import { deriveRetroPath } from './retrospective.js';
 import { atomicWrite } from './atomic-write.js';
@@ -126,7 +127,15 @@ export function verifyCardCoverage(source, card, opts = {}) {
 
   const isCovered = (needle) => {
     const n = String(needle);
-    return cardText.includes(n) || dropped.includes(n.toLowerCase());
+    if (dropped.includes(n.toLowerCase())) return true;
+    // Bounded match — NOT substring. A plain `includes` would count a source
+    // `M5.E1` as covered by a card mention of `M5.E10` (or `FR2` by `FR2b`,
+    // `AC1` by `AC10`), silently PASSING a lossy card — the wrong direction for
+    // a gate whose job is to FAIL loss. Alphanumeric neighbours mean "part of a
+    // longer ID"; `.`/`-` are treated as boundaries so a trailing sentence
+    // period or the id's own internal separators don't block a legit match.
+    const esc = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`(?:^|[^A-Za-z0-9])${esc}(?:[^A-Za-z0-9]|$)`).test(cardText);
   };
   const isTokenCovered = (tok) => {
     const re = new RegExp(`(?:^|[^a-z-])${tok}(?:[^a-z-]|$)`, 'i');
@@ -305,52 +314,80 @@ export async function evictEpicNarrative(baseDir, epicId, opts = {}) {
   const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
   if (!existsSync(statePath)) return { evicted: false, reason: 'no-state-file' };
 
-  const raw = await readFile(statePath, 'utf-8');
-  const { data, body } = parseFrontmatter(raw);
-  if (data === null) return { evicted: false, reason: 'no-frontmatter' };
+  // STATE.md is lock-protected: every other mutator serializes on
+  // withStateLock (5s TTL). Hold it across the whole read-modify-write so a
+  // concurrent state write (hook, second session) can't lose an update between
+  // our read and our write. atomicWrite prevents a torn file, not a lost update.
+  return withStateLock(baseDir, async () => {
+    const raw = await readFile(statePath, 'utf-8');
+    const { data, body } = parseFrontmatter(raw);
+    if (data === null) return { evicted: false, reason: 'no-frontmatter' };
 
-  const sec = extractEpicSection(body, epicId);
-  if (!sec.found) return { evicted: false, reason: 'no-section' };
+    const sec = extractEpicSection(body, epicId);
+    if (!sec.found) return { evicted: false, reason: 'no-section' };
 
-  // Closed-vs-live confirm (Auditor-style): only evict a genuinely CLOSED Epic.
-  // An Epic is closed iff its retrospective (the card) exists.
-  const retroRel = deriveRetroPath(epicId);
-  const retroPath = join(baseDir, retroRel);
-  if (!existsSync(retroPath)) return { evicted: false, reason: 'not-closed' };
-  const card = await readFile(retroPath, 'utf-8');
+    // Closed-vs-live confirm (Auditor-style): only evict a genuinely CLOSED
+    // Epic. An Epic is closed iff its retrospective (the card) exists.
+    const retroRel = deriveRetroPath(epicId);
+    const retroPath = join(baseDir, retroRel);
+    if (!existsSync(retroPath)) return { evicted: false, reason: 'not-closed' };
+    const card = await readFile(retroPath, 'utf-8');
 
-  // The gate. A lossy card FAILS — no eviction, so the live narrative is never
-  // replaced by a pointer to a card that dropped material.
-  const coverage = verifyCardCoverage(sec.section, card, { dropped });
-  if (!coverage.pass) {
-    return { evicted: false, reason: 'lossy-card', missing: coverage.missing };
-  }
+    // The gate. A lossy card FAILS — no eviction, so the live narrative is never
+    // replaced by a pointer to a card that dropped material.
+    const coverage = verifyCardCoverage(sec.section, card, { dropped });
+    if (!coverage.pass) {
+      return { evicted: false, reason: 'lossy-card', missing: coverage.missing };
+    }
 
-  // Move: relocate the original narrative byte-identical (move-never-delete).
-  const archiveDir = deriveEpicArchiveDir(epicId);
-  await mkdir(join(baseDir, archiveDir), { recursive: true });
-  const narrativeRel = `${archiveDir}/STATE-NARRATIVE.md`;
-  const narrativeAbs = join(baseDir, narrativeRel);
-  await atomicWrite(narrativeAbs, sec.section);
-  // Zero-loss accounting: what we archived is byte-identical to the extracted
-  // section (the original survives in full in archive).
-  const archived = await readFile(narrativeAbs, 'utf-8');
-  if (archived !== sec.section) {
-    throw new Error(
-      `evictEpicNarrative: archived narrative for ${epicId} is not byte-identical to the source section`
-    );
-  }
+    // Move: relocate the original narrative byte-identical (move-never-delete).
+    const archiveDir = deriveEpicArchiveDir(epicId);
+    // Defense-in-depth path confinement (mirrors resume.js/add.js): the regex in
+    // deriveEpicArchiveDir already makes traversal structurally impossible, but
+    // assert the resolved path stays inside .planning/ so a future regex edit
+    // can't silently widen it (the trailing sep defeats the sibling-prefix bug).
+    const planningRoot = resolve(baseDir, PLANNING_DIR);
+    if (!resolve(baseDir, archiveDir).startsWith(planningRoot + sep)) {
+      throw new Error(`evictEpicNarrative: archive path for ${epicId} escapes ${PLANNING_DIR}/`);
+    }
+    await mkdir(join(baseDir, archiveDir), { recursive: true });
+    const narrativeRel = `${archiveDir}/STATE-NARRATIVE.md`;
+    const narrativeAbs = join(baseDir, narrativeRel);
+    await atomicWrite(narrativeAbs, sec.section);
+    // Zero-loss accounting: what we archived is byte-identical to the extracted
+    // section (the original survives in full in archive).
+    const archived = await readFile(narrativeAbs, 'utf-8');
+    if (archived !== sec.section) {
+      throw new Error(
+        `evictEpicNarrative: archived narrative for ${epicId} is not byte-identical to the source section`
+      );
+    }
 
-  // Replace the live section with a one-line pointer (unit-homed single-home:
-  // points at the archived narrative + the card).
-  const cardName = retroRel.replace(`${PLANNING_DIR}/`, '');
-  const pointer = `- ${epicId} — evicted to ${narrativeRel} · card: ${cardName}`;
-  let newBody = `${sec.before}${pointer}\n${sec.after}`;
+    // One-line pointer (unit-homed single-home: archived narrative + card).
+    const cardName = retroRel.replace(`${PLANNING_DIR}/`, '');
+    const pointer = `- ${epicId} — evicted to ${narrativeRel} · card: ${cardName}`;
 
-  // Lift open carry-overs UP into a live section (never bury them in archive).
-  const carriedOver = extractCarryOvers(sec.section);
-  newBody = insertCarryOvers(newBody, carryOverHeading, epicId, carriedOver);
+    // Route the pointer under "## Closed work" (the skeleton's advertised home
+    // for evicted-narrative pointers, per state-schema.md). Splicing it in-situ
+    // would orphan it under the *previous* Epic's heading. Fall back to in-situ
+    // only when the body has no skeleton "Closed work" section (a real migrated
+    // body). Removing the section collapses the seam to a single blank line.
+    const closedRe = /(?:^|\n)##\s+Closed work[ \t]*\n/;
+    let newBody;
+    if (closedRe.test(sec.before) || closedRe.test(sec.after)) {
+      const withoutSection = (sec.before + sec.after).replace(/\n{3,}/g, '\n\n');
+      const cm = withoutSection.match(closedRe);
+      const at = cm.index + cm[0].length;
+      newBody = `${withoutSection.slice(0, at)}${pointer}\n${withoutSection.slice(at)}`;
+    } else {
+      newBody = `${sec.before}${pointer}\n${sec.after}`;
+    }
 
-  await atomicWrite(statePath, stringifyFrontmatter(data, newBody));
-  return { evicted: true, archivePath: narrativeRel, pointer, carriedOver };
+    // Lift open carry-overs UP into a live section (never bury them in archive).
+    const carriedOver = extractCarryOvers(sec.section);
+    newBody = insertCarryOvers(newBody, carryOverHeading, epicId, carriedOver);
+
+    await atomicWrite(statePath, stringifyFrontmatter(data, newBody));
+    return { evicted: true, archivePath: narrativeRel, pointer, carriedOver };
+  });
 }

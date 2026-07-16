@@ -149,7 +149,7 @@ function inferCompletedPhases(rawContent) {
 }
 
 const MIGRATION_RELOCATE_NOTICE_TEMPLATE =
-  '<!-- Original pre-schema_v1 STATE.md content was relocated to .planning/STATE-HISTORY.md on {date} (M5.E1 FR2a). The YAML frontmatter above is the authoritative machine-readable state. -->';
+  '<!-- Original pre-schema_v1 STATE.md content was relocated to .planning/{file} on {date} (M5.E1 FR2a). The YAML frontmatter above is the authoritative machine-readable state. -->';
 
 /**
  * Auto-upgrade a legacy (freeform / no-frontmatter) STATE.md into the
@@ -190,20 +190,28 @@ export async function upgradeStateFile(baseDir) {
   // rewrite STATE.md to a pointer. History-first ordering means a crash between
   // the two writes leaves STATE.md still legacy (the idempotency guard re-runs
   // cleanly on the next attempt) rather than a pointer with no history behind it.
-  const historyPath = join(baseDir, PLANNING_DIR, 'STATE-HISTORY.md');
+  // Don't clobber a pre-existing STATE-HISTORY.md (a hand-created one on a
+  // still-legacy STATE.md): fall back to a dated sibling so no file is lost.
+  let historyName = 'STATE-HISTORY.md';
+  if (existsSync(join(baseDir, PLANNING_DIR, historyName))) {
+    historyName = `STATE-HISTORY-${today}.md`;
+  }
+  const historyPath = join(baseDir, PLANNING_DIR, historyName);
   await atomicWrite(historyPath, raw);
 
-  const notice = MIGRATION_RELOCATE_NOTICE_TEMPLATE.replace('{date}', today);
+  const notice = MIGRATION_RELOCATE_NOTICE_TEMPLATE
+    .replace('{date}', today)
+    .replace('{file}', historyName);
   const body =
     `${notice}\n\n` +
     '# Project State\n\n' +
     'Legacy narrative from before the schema_version-1 migration lives in ' +
-    '[STATE-HISTORY.md](STATE-HISTORY.md).\n';
+    `[${historyName}](${historyName}).\n`;
   await atomicWrite(statePath, stringifyFrontmatter(newFrontmatter, body));
 
   process.stderr.write(
     `Signal: STATE.md upgraded to schema_version ${SCHEMA_VERSION}. ` +
-      `Original content relocated to .planning/STATE-HISTORY.md.\n`
+      `Original content relocated to .planning/${historyName}.\n`
   );
   return { upgraded: true, schemaVersion: SCHEMA_VERSION };
 }
@@ -413,7 +421,7 @@ export async function checkGateArtifacts(baseDir, targetPhase) {
   return { ready: missing.length === 0, missing };
 }
 
-export { PHASES, PLANNING_DIR, SCHEMA_VERSION, EPIC_ID_STRICT_RE };
+export { PHASES, PLANNING_DIR, SCHEMA_VERSION, EPIC_ID_STRICT_RE, withStateLock };
 
 // --- current_tasks helpers (M4.5.E6.S1.t6, D10) ---
 //

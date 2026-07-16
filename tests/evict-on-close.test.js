@@ -89,6 +89,20 @@ describe('evictEpicNarrative (FR2b)', () => {
     expect(state).toContain('card: M5.E1-RETROSPECTIVE.md');
   });
 
+  it('routes the eviction pointer under "## Closed work", not the previous Epic (REVIEW I-2)', async () => {
+    await writeRetro(GOLDEN_RETRO);
+    await evictEpicNarrative(baseDir, 'M5.E1');
+    const state = await readState();
+    const closedIdx = state.indexOf('## Closed work');
+    const pointerIdx = state.indexOf('evicted to .planning/archive/M5/E1');
+    expect(closedIdx).toBeGreaterThanOrEqual(0);
+    // pointer sits UNDER "## Closed work" (its advertised home), not orphaned
+    // in-situ under the previous Epic's "## M4.5.E11" heading.
+    expect(pointerIdx).toBeGreaterThan(closedIdx);
+    // the old M5.E1 heading is gone from the live body
+    expect(state).not.toContain('## M5.E1 — Doc-runtime');
+  });
+
   it('archives the original byte-identical (AC5, zero-loss)', async () => {
     await writeRetro(GOLDEN_RETRO);
     // what extractEpicSection sees pre-eviction is what must land in archive

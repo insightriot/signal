@@ -496,12 +496,17 @@ const LEDGER_HEADER =
   'Terminally-disposed entries (SHIPPED / PROMOTED / MERGED / DELETED) evicted from\n' +
   '`.planning/FUTURE-IDEAS.md`. Append-only; DEFERRED entries stay in the inbox.\n';
 
-// Dedupe key for an evicted entry: sha1 of `heading + '|' + (dateISO ?? '')`.
-// The ledger records `<!-- evicted-key: {key} -->` immediately above each block;
-// a re-run whose key is already present appends nothing (idempotent) — the
-// crash-safety backbone of the ledger-first ordering (AC4).
-function evictionKey(entry) {
-  return createHash('sha1').update(`${entry.heading}|${entry.dateISO ?? ''}`).digest('hex');
+// Dedupe key for an evicted entry: sha1 of the entry's whole block BODY.
+// Keying on heading+date was NOT unique — two distinct entries sharing a
+// heading and date (e.g. a date embedded in the heading) collide, and a
+// cross-run collision (marker already in the ledger from a prior run) makes the
+// second entry get spliced from the inbox but never appended → silent loss from
+// the move-never-delete archive. The block body is the entry's identity, and it
+// preserves crash-idempotency: on a crash re-run the un-removed inbox block is
+// byte-identical, so its hash still matches the ledgered marker and it still
+// dedupes. The ledger records `<!-- evicted-key: {key} -->` above each block.
+function evictionKey(entry, content) {
+  return createHash('sha1').update(content.slice(entry.range.start, entry.range.end)).digest('hex');
 }
 
 // Byte offset of the last (unclosed) fence-marker line when `content` has an odd
@@ -584,7 +589,7 @@ export async function evictTerminalToLedger(baseDir, opts = {}) {
     (e) => isEvictable(e) && (markerOffset === null || e.range.end <= markerOffset)
   );
 
-  const planned = targets.map((e) => ({ heading: e.heading, key: evictionKey(e) }));
+  const planned = targets.map((e) => ({ heading: e.heading, key: evictionKey(e, content) }));
 
   if (dryRun) {
     return { evicted: [], planned, danglingFence };
@@ -602,9 +607,12 @@ export async function evictTerminalToLedger(baseDir, opts = {}) {
   }
 
   const additions = [];
+  const staged = new Set(); // keys appended this run — dedupe within the batch too
   for (const e of targets) {
-    const marker = `<!-- evicted-key: ${evictionKey(e)} -->`;
-    if (ledgerText.includes(marker)) continue; // already ledgered — dedupe
+    const key = evictionKey(e, content);
+    const marker = `<!-- evicted-key: ${key} -->`;
+    if (ledgerText.includes(marker) || staged.has(key)) continue; // dedupe (prior run OR this batch)
+    staged.add(key);
     additions.push(`${marker}\n${content.slice(e.range.start, e.range.end)}`);
   }
 
@@ -629,6 +637,6 @@ export async function evictTerminalToLedger(baseDir, opts = {}) {
     await atomicWrite(inboxPath, out, renameFn ? { renameFn } : undefined);
   }
 
-  const evicted = targets.map((e) => ({ heading: e.heading, key: evictionKey(e) }));
+  const evicted = targets.map((e) => ({ heading: e.heading, key: evictionKey(e, content) }));
   return { evicted, planned, danglingFence };
 }

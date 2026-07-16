@@ -250,6 +250,18 @@ describe('upgradeStateFile (S1.t4)', () => {
     expect(after2).toBe(after1);
   });
 
+  it('does not clobber a pre-existing STATE-HISTORY.md (relocates to a dated sibling) — REVIEW fix', async () => {
+    await setupLegacyFixture(tempDir);
+    const histPath = join(tempDir, '.planning', 'STATE-HISTORY.md');
+    await writeFile(histPath, 'PRE-EXISTING HISTORY — must survive.\n', 'utf-8');
+    await upgradeStateFile(tempDir);
+    // The hand-created history file is untouched...
+    expect(await readFile(histPath, 'utf-8')).toContain('PRE-EXISTING HISTORY — must survive.');
+    // ...and the legacy body was relocated to a dated sibling the pointer names.
+    const state = await readFile(join(tempDir, '.planning', 'STATE.md'), 'utf-8');
+    expect(state).toMatch(/STATE-HISTORY-\d{4}-\d{2}-\d{2}\.md/);
+  });
+
   it('writes a one-time notice to stderr on upgrade', async () => {
     await setupLegacyFixture(tempDir);
     const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);

@@ -102,6 +102,21 @@ describe('verifyCardCoverage — the faithfulness gate (deterministic backstop)'
     expect(result.pass).toBe(false);
     expect(result.missing.ids.length).toBeGreaterThan(0);
   });
+
+  it('REVIEW fix (I-1): a longer ID does NOT falsely cover a shorter one (bounded, not substring)', () => {
+    // A plain `includes` would count source M5.E1/AC1/FR2 as covered by a card
+    // that only mentions M5.E10/AC10/FR2b — PASSING a lossy card (wrong way).
+    const source = 'Closed M5.E1. AC1 verified. FR2 delivered.';
+    const card = 'Work continues on M5.E10; AC10 and AC12 remain. FR2b shipped.';
+    const result = verifyCardCoverage(source, card);
+    expect(result.pass).toBe(false);
+    expect(result.missing.ids).toEqual(expect.arrayContaining(['M5.E1', 'AC1', 'FR2']));
+  });
+
+  it('REVIEW fix (I-1): an exact ID mention (even with a trailing period) still counts as covered', () => {
+    const result = verifyCardCoverage('Closed M5.E1. AC1. FR2.', 'Shipped M5.E1. AC1 ok, FR2 done.');
+    expect(result.pass).toBe(true);
+  });
 });
 
 describe('extractEpicSection — scope to the closing unit only', () => {
