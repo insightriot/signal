@@ -84,7 +84,7 @@ a body mechanism that never touches frontmatter).
 | # | Vector | Where it lives | Prevented by | Remediated by |
 |---|---|---|---|---|
 | **1** | **Frontmatter-list prose** | multi-paragraph prose crammed into `completed_phases` / `blockers` YAML entries (the acute 455 KB `examples/Example-cmmc-STATE.md`) | ✅ v0.1.6 write-guard (`checkStateFrontmatterShape`) blocks *new* ones | ❌ **not yet** — a one-time "de-prose" transform → **E3 migrate command** (the CMMC file is its fixture) |
-| **2** | **Inlined legacy body** | `upgradeStateFile` inlines the *entire* legacy file into the new body and preserves it verbatim forever (Signal's own STATE.md: ~64 KB body) | — | **FR2a** for *new* migrations; existing ones via the FR2b move-helper in the **E1 dogfood (S5)** |
+| **2** | **Inlined legacy body** | `upgradeStateFile` inlines the *entire* legacy file into the new body and preserves it verbatim forever (Signal's own STATE.md: ~64 KB body) | — | **FR2a** for *new* migrations. **Existing** already-migrated inlined bodies have **no shipped mechanism** — FR2b's `evictEpicNarrative` is Epic-*section*-scoped and a migrated body is one un-sectioned blob, so the M5.E1 S5 dogfood relocated Signal's own body with a **one-off hand script**, not a reusable helper. A general "relocate an already-migrated inlined body" command is **E3 / FR6 (migrate command)** territory — E3 must not assume it exists. |
 | **3** | **Ongoing body accretion** | closed-Epic narrative piles into the STATE body and never leaves | — | **FR2b** evict-on-close (E1) |
 
 **What M5.E1 covers:** vector 2-new (FR2a) + vector 3 (FR2b), and it shrinks Signal's own
