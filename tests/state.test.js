@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -55,6 +55,25 @@ describe('State Management', () => {
       await initState(tempDir); // should not throw
       const state = await readState(tempDir);
       expect(state.phase).toBe('CALIBRATE');
+    });
+
+    it('emits the live-above-the-fold body skeleton headings (FR2c)', async () => {
+      // Fresh STATE.md body must carry the normative skeleton (state-schema.md
+      // § Body skeleton) so writer-agents have fixed slots, not free prose.
+      await initState(tempDir);
+      const raw = await readFile(join(tempDir, '.planning', 'STATE.md'), 'utf-8');
+      for (const heading of [
+        '## Resume pointer',
+        '## In-flight',
+        '## Blockers',
+        '## Pending ops',
+        '## Closed work',
+      ]) {
+        expect(raw).toContain(heading);
+      }
+      // Skeleton lives in the body, below the closing frontmatter fence.
+      const bodyStart = raw.indexOf('\n---\n') + 5;
+      expect(raw.slice(bodyStart)).toContain('## Resume pointer');
     });
   });
 

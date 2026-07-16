@@ -230,8 +230,34 @@ export async function initState(baseDir, initialPhase = 'CALIBRATE') {
     last_updated_commit: null,
     last_updated: new Date().toISOString(),
   };
-  const body =
-    '# Project State\n\nManaged by Signal. The YAML frontmatter above is the authoritative machine-readable state; this body is freeform human-readable narrative.\n';
+  // Live-above-the-fold body skeleton (FR2c). Headings match the normative
+  // template in references/state-schema.md § Body skeleton verbatim — closed-unit
+  // narrative is evicted to archive on close (FR2b), leaving a pointer under
+  // "Closed work" instead of accreting in the body.
+  const body = [
+    '# Project State',
+    '',
+    '## Resume pointer',
+    '',
+    'Next action a fresh session should take. Keep it to one line.',
+    '',
+    '## In-flight',
+    '',
+    'Active Epic / wave / task narrative — the human companion to the frontmatter current_tasks and current_wave.',
+    '',
+    '## Blockers',
+    '',
+    'Human-readable notes on active blockers. The frontmatter blockers[] array is authoritative.',
+    '',
+    '## Pending ops',
+    '',
+    'Queued operational items — archive moves, migrations, deferred bookkeeping.',
+    '',
+    '## Closed work',
+    '',
+    'One-line pointers to evicted closed-unit narrative under archive/<milestone>/<epic>/. Grows by pointers, never re-inlined narrative.',
+    '',
+  ].join('\n');
   await atomicWrite(
     join(planningDir, 'STATE.md'),
     stringifyFrontmatter(data, body)

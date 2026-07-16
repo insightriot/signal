@@ -2,7 +2,7 @@
 
 `.planning/STATE.md` is Signal's machine-readable record of where the project is, what's in flight, what's blocked, and when work last touched ground. As of `schema_version: 1` (M4.5.E6), STATE.md uses YAML frontmatter for structured state with a freeform body for human-readable narrative.
 
-The frontmatter is authoritative. The body is preserved across writes but is not parsed by Signal's commands — write whatever notes are useful to you below the closing `---`.
+The frontmatter is authoritative. The body is preserved across writes but is not parsed by Signal's commands. As of M5.E1 (FR2c) the body follows a normative **live-above-the-fold skeleton** ([§ Body skeleton](#body-skeleton-live-above-the-fold-fr2c)) so writer-agents have a fixed structure instead of inventing prose slots — this **supersedes** the earlier "write whatever notes are useful" guidance. Signal still never *parses* the body; the skeleton is a writer convention, not a parse contract. Closed-unit narrative is **evicted** from the body on close (FR2b → `.planning/archive/<milestone>/<epic>/`), not appended forever — see `references/doc-runtime-model.md`.
 
 ---
 
@@ -64,6 +64,53 @@ last_completed_task:
 
 Optional freeform narrative below. Signal never parses this.
 ```
+
+---
+
+## Body skeleton (live-above-the-fold, FR2c)
+
+The STATE.md body follows a normative **live-above-the-fold** skeleton: the working set
+(what to do next, what's in flight, what's blocking) sits at the top, and closed-unit
+narrative is **evicted** on close (FR2b) rather than accreting. The skeleton gives
+writer-agents a fixed set of slots instead of inventing prose sections; `initState`
+emits it for every new project (the headings below match `initState`'s output verbatim).
+
+```markdown
+# Project State
+
+## Resume pointer
+
+_The one line a fresh session reads first — the next action._
+
+## In-flight
+
+_Active Epic / wave / task narrative; the human companion to the frontmatter
+`current_tasks` / `current_wave`._
+
+## Blockers
+
+_Human-readable notes on active blockers (the frontmatter `blockers[]` array is
+authoritative; this is the readable companion)._
+
+## Pending ops
+
+_Queued operational items — archive moves, migrations, deferred bookkeeping._
+
+## Closed work
+
+_One-line pointers to evicted closed-unit narrative → `archive/<milestone>/<epic>/`
+cards. This section grows by **pointers**, never by re-inlined narrative._
+```
+
+**Why "above the fold":** the top three zones (Resume pointer → In-flight → Blockers) are
+what `/sig:resume` and a human both need to re-orient in seconds. "Pending ops" and
+"Closed work" are lower because they are reference, not action. When an Epic closes,
+FR2b's evict-on-close moves that Epic's narrative out of "In-flight" and leaves a single
+pointer under "Closed work" — the body stays lean by construction.
+
+This supersedes the pre-M5.E1 guidance that the body was a free-prose scratch area. Signal
+still never *parses* the body, so a project that ignores the skeleton keeps working; the
+skeleton is the recommended structure that the eviction mechanics (FR2b) are designed around.
 
 ---
 
