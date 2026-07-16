@@ -65,6 +65,19 @@ const STATUS_DISPOSED_RE =
 const BLOCKQUOTE_DISPOSED_RE =
   /^\s*>\s*\*\*(Promoted|Deferred|Merged|Shipped|Deleted)\b/i;
 
+// FR3 (M5.E1): TERMINAL disposition markers — a strict subset of the three
+// disposed REs above, with DEFERRED removed. SHIPPED/PROMOTED/MERGED/DELETED are
+// disposed-for-good, so the entry is eligible to physically LEAVE the inbox for
+// the archive ledger; DEFERRED is parked-but-live, so it stays. Each mirrors its
+// disposed counterpart exactly (verb list minus DEFERRED) so classification can
+// never drift from detection — the status variant keeps its counterpart's verb
+// set (no `Shipped`; the drain never stamps "Shipped" onto a Status line).
+const HEADING_TERMINAL_RE = /^##\s*(✓\s*)?(SHIPPED|PROMOTED|MERGED|DELETED)\b/i;
+const STATUS_TERMINAL_RE =
+  /\b(Promoted|Merged|Deleted)\s+\d{4}-\d{2}-\d{2}\s+\([^)\n]*\bdrain\b\)/;
+const BLOCKQUOTE_TERMINAL_RE =
+  /^\s*>\s*\*\*(Promoted|Merged|Shipped|Deleted)\b/i;
+
 // First `**Status:**` line of an entry (leading whitespace tolerated).
 const STATUS_LINE_RE = /^\s*\*\*Status:\*\*/;
 
@@ -103,13 +116,18 @@ function lineOffsets(lines) {
  *   - `dateISO`      — first ISO date found in the Status line, else in the
  *                      heading, else `null` (informational; Q2 uses no window).
  *   - `dispositioned`— true iff the heading marker OR the Status verb says so.
+ *   - `dispositionKind` — the finer FR3 (M5.E1) signal: `'terminal'` for a
+ *                      SHIPPED/PROMOTED/MERGED/DELETED disposition (eligible to
+ *                      leave the inbox), `'deferred'` for a DEFERRED disposition
+ *                      (parked-but-live, stays), `null` for un-dispositioned.
+ *                      Invariant: `dispositioned === (dispositionKind !== null)`.
  *   - `range`        — `{ start, end }` byte offsets `[start, end)` of the whole
  *                      block (heading line through the byte before the next
  *                      top-level heading, or EOF). Ranges tile gap-free, so
  *                      editing one block leaves every other byte identical (R1).
  *
  * @param {string} content
- * @returns {Array<{heading: string, statusLine: string|null, dateISO: string|null, dispositioned: boolean, range: {start: number, end: number}}>}
+ * @returns {Array<{heading: string, statusLine: string|null, dateISO: string|null, dispositioned: boolean, dispositionKind: 'terminal'|'deferred'|null, range: {start: number, end: number}}>}
  */
 export function parseEntries(content) {
   if (typeof content !== 'string' || content === '') return [];
@@ -159,6 +177,7 @@ export function parseEntries(content) {
     // entry dispositioned. Scanning only the first non-blank line keeps a stamp
     // quoted deeper in the body from being mistaken for a real disposition.
     let blockquoteDisposed = false;
+    let blockquoteTerminal = false;
     {
       let hdrFence = false;
       for (let i = startLine + 1; i < endLine; i++) {
@@ -169,6 +188,7 @@ export function parseEntries(content) {
         if (hdrFence) continue;
         if (lines[i].trim() === '') continue;
         blockquoteDisposed = BLOCKQUOTE_DISPOSED_RE.test(lines[i]);
+        blockquoteTerminal = BLOCKQUOTE_TERMINAL_RE.test(lines[i]);
         break; // first non-blank, non-fenced line decides
       }
     }
@@ -178,11 +198,40 @@ export function parseEntries(content) {
       STATUS_DISPOSED_RE.test(statusLine ?? '') ||
       blockquoteDisposed;
 
+    // FR3 (M5.E1): refine to terminal-vs-deferred, gated on `dispositioned` so
+    // the `dispositioned === (dispositionKind !== null)` invariant holds by
+    // construction. A disposed entry is either terminal or (by elimination, since
+    // the disposed verbs are exactly SHIPPED/PROMOTED/DEFERRED/MERGED/DELETED and
+    // terminal covers all but DEFERRED) deferred.
+    const terminalSignal =
+      HEADING_TERMINAL_RE.test(headingLineRaw) ||
+      STATUS_TERMINAL_RE.test(statusLine ?? '') ||
+      blockquoteTerminal;
+    const dispositionKind = dispositioned
+      ? terminalSignal
+        ? 'terminal'
+        : 'deferred'
+      : null;
+
     const start = offsets[startLine];
     const end = endLine < lines.length ? offsets[endLine] : content.length;
 
-    return { heading, statusLine, dateISO, dispositioned, range: { start, end } };
+    return { heading, statusLine, dateISO, dispositioned, dispositionKind, range: { start, end } };
   });
+}
+
+/**
+ * FR3 (M5.E1) predicate: is this entry eligible to physically leave the inbox
+ * for the archive ledger? True only for a **terminal** disposition
+ * (SHIPPED/PROMOTED/MERGED/DELETED) on a real inbox entry — never a `recovered`
+ * entry (resurfaced from below a dangling fence; it has no stable index and must
+ * never be mutated) and never a DEFERRED (parked-but-live) entry.
+ *
+ * @param {{dispositionKind?: string|null, recovered?: boolean}} entry
+ * @returns {boolean}
+ */
+export function isEvictable(entry) {
+  return entry.dispositionKind === 'terminal' && !entry.recovered;
 }
 
 /**

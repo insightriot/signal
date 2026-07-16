@@ -20,6 +20,8 @@ import {
   applyDisposition,
   applyDispositions,
   applyDispositionToFile,
+  isEvictable,
+  evictTerminalToLedger,
 } from '../tools/lib/drain.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -99,6 +101,84 @@ describe('parseEntries (pure, fence-aware)', () => {
     for (let i = 1; i < entries.length; i++) {
       expect(entries[i].range.start).toBe(entries[i - 1].range.end);
     }
+  });
+});
+
+// --- S4.t3: terminal-vs-deferred classification (dispositionKind + isEvictable) ---
+// The existing `dispositioned` flag is true for ALL five verbs (incl. DEFERRED).
+// FR3 (M5.E1) adds `dispositionKind` to separate TERMINAL dispositions
+// (SHIPPED/PROMOTED/MERGED/DELETED — eligible to physically leave the inbox) from
+// DEFERRED (parked-but-live, stays). `isEvictable` is the pure eviction gate.
+describe('dispositionKind (S4.t3 — terminal vs deferred vs null)', () => {
+  it('the ✓ SHIPPED heading marker → terminal (heading-marker rule)', () => {
+    const shipped = parseEntries(content).find((e) => e.heading.includes('SHIPPED'));
+    expect(shipped.dispositionKind).toBe('terminal');
+  });
+
+  it('an inline DEFERRED drain stamp → deferred, not terminal', () => {
+    const deferred = parseEntries(content).find(
+      (e) => e.heading === 'Already-drained candidate'
+    );
+    // Its Status is `… → Deferred 2026-05-30 (M4.5.E2 drain).`
+    expect(deferred.dispositioned).toBe(true);
+    expect(deferred.dispositionKind).toBe('deferred');
+  });
+
+  it('an un-dispositioned entry → null', () => {
+    const live = parseEntries(content).find((e) => e.heading === 'Canonical candidate via add');
+    expect(live.dispositioned).toBe(false);
+    expect(live.dispositionKind).toBeNull();
+  });
+
+  it('a PROMOTED status-line stamp → terminal', () => {
+    const c =
+      '## Promoted thing\n\n**Status:** Logged 2026-01-01. → Promoted 2026-02-02 (M5.E1 drain).\n\n---\n';
+    expect(parseEntries(c)[0].dispositionKind).toBe('terminal');
+  });
+
+  it('a MERGED and a DELETED status-line stamp → terminal', () => {
+    for (const verb of ['Merged', 'Deleted']) {
+      const c = `## ${verb} thing\n\n**Status:** Logged 2026-01-01. → ${verb} 2026-02-02 (M5.E1 drain).\n\n---\n`;
+      expect(parseEntries(c)[0].dispositionKind).toBe('terminal');
+    }
+  });
+
+  it('a leading `> **Promoted …**` blockquote → terminal; `> **Deferred …**` → deferred', () => {
+    const promoted =
+      '## Idea one\n\n> **Promoted 2026-07-04 → M5.E1** (folded).\n\nBody.\n\n---\n';
+    const deferred =
+      '## Idea two\n\n> **Deferred 2026-07-04 → M6** (parked).\n\nBody.\n\n---\n';
+    expect(parseEntries(promoted)[0].dispositionKind).toBe('terminal');
+    expect(parseEntries(deferred)[0].dispositionKind).toBe('deferred');
+  });
+
+  it('a bare (non-stamp) heading DEFERRED marker → deferred', () => {
+    const c = '## DEFERRED — parked idea\n\n**Status:** parked.\n\n---\n';
+    const e = parseEntries(c)[0];
+    expect(e.dispositioned).toBe(true);
+    expect(e.dispositionKind).toBe('deferred');
+  });
+
+  it('invariant holds across the whole fixture: dispositioned === (dispositionKind !== null)', () => {
+    for (const e of parseEntries(content)) {
+      expect(e.dispositioned).toBe(e.dispositionKind !== null);
+    }
+  });
+});
+
+describe('isEvictable (S4.t3 — terminal + non-recovered only)', () => {
+  it('true for a terminal, non-recovered entry', () => {
+    expect(isEvictable({ dispositionKind: 'terminal' })).toBe(true);
+    expect(isEvictable({ dispositionKind: 'terminal', recovered: false })).toBe(true);
+  });
+
+  it('false for a deferred or un-dispositioned entry', () => {
+    expect(isEvictable({ dispositionKind: 'deferred' })).toBe(false);
+    expect(isEvictable({ dispositionKind: null })).toBe(false);
+  });
+
+  it('false for a recovered entry even if terminal (never mutate a recovered entry)', () => {
+    expect(isEvictable({ dispositionKind: 'terminal', recovered: true })).toBe(false);
   });
 });
 
