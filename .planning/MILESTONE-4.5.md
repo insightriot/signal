@@ -10,6 +10,8 @@
 
 > **Status (2026-06-06): build-complete.** All Epics shipped — E1, E6, E7, E3, E9, E8, E2 (→ v0.1.1/v0.1.2/v0.1.3) and E4 + E5 (→ v0.1.4, 2026-06-06, the repo's first GitHub Release). Done-when (a)–(d) are satisfied by shipped code/docs. The remaining clause — **"≥3 non-Signal users have completed this path with feedback merged"** — is **OPEN**: it depends on the outward tester loop (voice pass, recruit peers via `M4.5.E5-LAUNCH-KIT.md` §3), which is Brett's async work, not buildable. M4.5 formally closes when that feedback lands. **M5** (v2 ports) is the next build horizon and is not blocked by it.
 
+> **Status update (2026-07-15): CLOSED.** The remaining clause is **met** — Brett has onboarded **4 non-Signal users** with positive reception and sufficient input to proceed; as maintainer he is the source of truth on "bulletproof," with external feedback folding in as it arrives. M4.5 is **formally closed**. M5 is open — see DECISIONS 2026-07-15 ("M5 opens: usage-signal gate cleared + eviction Epic goes first").
+
 ---
 
 ## Why a 4.5, not a 5 or a v2
