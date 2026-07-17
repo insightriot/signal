@@ -1089,24 +1089,150 @@ export function senseState(stateText) {
   };
 }
 
+// --- full-corpus hygiene (S2.t5b) — axis-2 classification of the LIVE docs ------
+//
+// The full-corpus brain classifies the LIVE top-level `.planning/*.md` docs on the
+// model's GROWTH-POLICY axis (doc-runtime-model §1 axis-2) and routes each by class:
+//   - APPEND-LOG (`DECISIONS.md`, `RETROSPECTIVES.md`) — grows BY DESIGN; bounded by
+//     TOC + grep, NEVER loaded whole, NEVER evicted/relocated/de-prosed. "Large ≠
+//     bloated" is the exact fallacy this axis exists to kill. Surfaced as LEFT-ALONE
+//     (`appendLogs`) so the dry-run shows the migrate SAW it and chose not to touch it.
+//   - SPINE (`INDEX.md`) — hand-curated, §10-descoped; never auto-touched.
+//   - MILESTONE (`MILESTONE-*.md`) — a working-set-shaped doc with NO clean closed
+//     signal (`enumerateRetros` requires an `.E<n>` Epic ID, so `MILESTONE-N.md`
+//     meta-retros never match; the real corpus archived M1–M4 BY HAND). A bloated one
+//     is FLAGGED for MANUAL review — NEVER auto-relocated (relocate-never-delete
+//     conservatism, S2.t3 handoff: do not invent a heuristic to move milestone docs).
+//   - OTHER (e.g. `PROJECT.md`) — left alone (large-by-design spec docs are not bloat;
+//     flagging them would recreate the "large = bloated" fallacy above).
+// Scaffold docs (Epic-ID-prefixed) + STATE.md are OUT of scope here: closed scaffolds
+// are moved by archive-tree, open ones are the live working set, and STATE.md is the
+// within-STATE vectors' job. Read-only, no lock — this is the sense layer (§9).
+
+// Append-log basenames (model §1 axis-2 examples). Grow by design, never evicted.
+const APPEND_LOG_BASENAMES = new Set(['DECISIONS.md', 'RETROSPECTIVES.md']);
+// A milestone meta-doc: `MILESTONE-<n>[.<n>…>].md` (e.g. MILESTONE-4.5.md).
+const MILESTONE_DOC_RE = /^MILESTONE-\d+(?:\.\d+)*\.md$/;
+// A scaffold-family doc owns a strict Epic-ID PREFIX (archive-tree / live working set).
+const EPIC_PREFIXED_RE = /^M\d+(?:\.\d+)*\.E\d+-/;
+// A doc over this size is a bloat CANDIDATE — same budget as the vector-2 body
+// threshold. Only a MILESTONE-class candidate is flagged (append-log/spine/other
+// are left alone regardless of size).
+const CORPUS_BLOAT_THRESHOLD = INLINED_BODY_THRESHOLD;
+
 /**
- * Sense the invoking project's `.planning/` → migration plan-data (mutates
- * nothing). Reads STATE.md, delegates the single-STATE V1 + V2 vectors to the
- * pure `senseState`, and folds in the disk-aware V3 (retroactive closed-Epic
- * evict) sense so `noop` accounts for un-evicted closed-Epic narrative. (Archive
- * tree + other-doc full-corpus sensing lands in S2.t5.)
+ * Classify a `.planning/` doc by its GROWTH-POLICY (model §1 axis-2), from its
+ * basename. Pure.
+ *
+ * @param {string} basename  e.g. "DECISIONS.md"
+ * @returns {'append-log'|'spine'|'milestone'|'other'}
+ */
+export function classifyDocGrowthPolicy(basename) {
+  if (APPEND_LOG_BASENAMES.has(basename)) return 'append-log';
+  if (basename === 'INDEX.md') return 'spine';
+  if (MILESTONE_DOC_RE.test(basename)) return 'milestone';
+  return 'other';
+}
+
+/**
+ * Full-corpus hygiene sense (READ-ONLY, no lock). Classifies the LIVE top-level
+ * `.planning/*.md` docs on axis-2 and returns:
+ *   - `appendLogs` — the append-log docs LEFT ALONE (surfaced in the dry-run).
+ *   - `flags`      — `milestone-bloat` manual-review flags (bloated milestone docs,
+ *                    NEVER auto-moved). Scaffold / STATE.md / spine / other docs are
+ *                    out of scope or left alone. Shared by `senseProject` +
+ *                    `renderDryRun` so the plan-data and the display never drift.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<{appendLogs: Array<{file: string, bytes: number}>, flags: Array}>}
+ */
+export async function senseCorpusHygiene(baseDir) {
+  const planningDir = join(baseDir, PLANNING_DIR);
+  let entries;
+  try {
+    entries = await readdir(planningDir, { withFileTypes: true });
+  } catch {
+    return { appendLogs: [], flags: [] };
+  }
+  const appendLogs = [];
+  const flags = [];
+  for (const e of entries) {
+    if (!e.isFile() || !e.name.endsWith('.md')) continue;
+    if (e.name === 'STATE.md' || EPIC_PREFIXED_RE.test(e.name)) continue; // vectors / archive-tree own these
+    const fileRel = toPosix(join(PLANNING_DIR, e.name));
+    const cls = classifyDocGrowthPolicy(e.name);
+    if (cls === 'append-log') {
+      // Grows BY DESIGN (§1 axis-2) — never flagged, never moved. Surface it as
+      // left-alone (regardless of size) so the dry-run shows it was seen + spared.
+      let bytes = 0;
+      try {
+        bytes = (await readFile(join(planningDir, e.name), 'utf-8')).length;
+      } catch {
+        bytes = 0;
+      }
+      appendLogs.push({ file: fileRel, bytes });
+      continue;
+    }
+    if (cls === 'milestone') {
+      // No clean closed-milestone signal → a bloated one is FLAGGED for MANUAL
+      // review, NEVER auto-relocated (S2.t3 conservatism).
+      let bytes = 0;
+      try {
+        bytes = (await readFile(join(planningDir, e.name), 'utf-8')).length;
+      } catch {
+        continue;
+      }
+      if (bytes > CORPUS_BLOAT_THRESHOLD) {
+        flags.push({
+          kind: 'milestone-bloat',
+          file: fileRel,
+          chars: bytes,
+          reason: `${e.name} is a bloated milestone doc with no clean closed-milestone signal — flag for MANUAL review; migrate never auto-relocates it (relocate-never-delete conservatism)`,
+        });
+      }
+    }
+    // 'spine' (INDEX.md, §10-descoped) + 'other' (e.g. PROJECT.md, large-by-design)
+    // → left alone, never flagged (flagging them recreates the "large = bloated"
+    // fallacy this axis exists to kill).
+  }
+  return { appendLogs, flags };
+}
+
+/**
+ * Sense the invoking project's `.planning/` → ONE unified migration plan-data
+ * object (mutates nothing). Reads STATE.md and folds in every sensing layer:
+ *   - `vectors`/`v1`/`v2` — the within-STATE vectors (`senseState`);
+ *   - `v3`                — retroactive closed-Epic evict (`senseVector3`);
+ *   - `archive`           — the archive-tree file moves (`senseArchiveTree`);
+ *   - `appendLogs`        — append-log docs left alone (`senseCorpusHygiene`);
+ *   - `flags`             — the UNIFIED ambiguity list (vector-1 soft-long + v3
+ *                           no-fabricate/defer/index + milestone-bloat);
+ *   - `noop`              — true only when NOTHING is pending across all layers.
+ * A conformant project is a true no-op (stamped, no vectors, no evicts, no moves).
  *
  * @param {string} baseDir
  */
 export async function senseProject(baseDir) {
   const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
+  const archive = await senseArchiveTree(baseDir);
+  const corpus = await senseCorpusHygiene(baseDir);
+  const archiveOut = { moves: archive.moves, moveMap: archive.moveMap, closedEpicIds: archive.closedEpicIds };
+
   if (!existsSync(statePath)) {
-    return { vectors: [], v1: { entries: [] }, v2: { candidate: false, bytes: 0 }, flags: [], v3: { evicts: [], flags: [], skips: [] }, stamp: null, stamped: false, conformant: true, noop: true, needsStamp: false, reason: 'no-state-file' };
+    return {
+      vectors: [], v1: { entries: [] }, v2: { candidate: false, bytes: 0 },
+      v3: { evicts: [], flags: [], skips: [] },
+      archive: archiveOut, appendLogs: corpus.appendLogs, flags: corpus.flags,
+      stamp: null, stamped: false, conformant: true,
+      noop: archive.moves.length === 0, needsStamp: false, reason: 'no-state-file',
+    };
   }
   const raw = await readFile(statePath, 'utf-8');
   const base = senseState(raw);
   const v3 = await senseVector3(baseDir, raw);
-  return { ...base, v3, noop: base.noop && v3.evicts.length === 0 };
+  const flags = [...base.flags, ...v3.flags, ...corpus.flags];
+  const noop = base.noop && v3.evicts.length === 0 && archive.moves.length === 0;
+  return { ...base, v3, archive: archiveOut, appendLogs: corpus.appendLogs, flags, noop };
 }
 
 // --- dangling-link baseline + dry-run render (S1.t7c) -------------------------
@@ -1386,7 +1512,15 @@ export async function renderDryRun(baseDir) {
   const v2 = senseState(postV1).v2;
   // Disk-aware V3 sense (retroactive closed-Epic evict) — read-only.
   const v3 = await senseVector3(baseDir, raw);
-  const noop = plan.noop && v3.evicts.length === 0;
+  // Full-corpus layers (S2.t5b), via the SAME helpers senseProject calls so the
+  // human-facing display never drifts from the plan-data: the archive-tree file
+  // moves + referrer rewrites, and the axis-2 corpus classification (append-logs
+  // left alone, bloated milestone docs flagged for manual review). Archive moves
+  // fold into the no-op gate — a conformant STATE.md with an un-archived closed
+  // scaffold is NOT a no-op.
+  const archive = await senseArchiveTree(baseDir);
+  const corpus = await senseCorpusHygiene(baseDir);
+  const noop = plan.noop && v3.evicts.length === 0 && archive.moves.length === 0;
 
   // S2.t4 link-hygiene surfacing (read-only): at-risk anchors into files the
   // migrate rewrites (STATE.md when any vector/evict fires — its headings shift),
@@ -1396,7 +1530,6 @@ export async function renderDryRun(baseDir) {
   // the moved file's CURRENT (source) path — the moveMap KEY — so add the keys so
   // at-risk anchors into MOVED files are flagged too (before, only STATE.md-rewrite
   // anchors were).
-  const archive = await senseArchiveTree(baseDir);
   const touched = new Set();
   if (!noop) touched.add(`${PLANNING_DIR}/STATE.md`);
   for (const from of archive.moveMap.keys()) touched.add(from);
@@ -1411,7 +1544,9 @@ export async function renderDryRun(baseDir) {
   L.push(`  vector-1 relocations: ${relocations.length}`);
   L.push(`  vector-2 (big body):  ${v2.candidate ? `yes (${v2.bytes} B → STATE-HISTORY.md)` : 'no'}`);
   L.push(`  vector-3 (closed-Epic evicts): ${v3.evicts.length}`);
-  L.push(`  ambiguity flags:      ${plan.flags.length + v3.flags.length}`);
+  L.push(`  archive-tree moves:   ${archive.moves.length}`);
+  L.push(`  append-logs (left alone): ${corpus.appendLogs.length}`);
+  L.push(`  ambiguity flags:      ${plan.flags.length + v3.flags.length + corpus.flags.length}`);
   L.push(`  stamp:                ${plan.stamped ? `already ${CURRENT_LAYOUT_VERSION}` : `will set docs_layout_version: ${CURRENT_LAYOUT_VERSION} on conformance`}`);
   L.push('');
   // Tier 2 — mechanical moves.
@@ -1425,8 +1560,12 @@ export async function renderDryRun(baseDir) {
   for (const ev of v3.evicts) {
     L.push(`  ${ev.epicId} narrative → ${ev.archiveRel} (byte-identical) + pointer; card: ${ev.cardPath}`);
   }
+  for (const { from, to } of archive.moves) {
+    L.push(`  ${from} → ${to} (byte-identical archive relocation) + referrer links/prose rewritten`);
+  }
   for (const f of plan.flags) L.push(`  FLAG (not moved): ${f.kind} — ${f.chars} chars — "${f.detail}…"`);
   for (const f of v3.flags) L.push(`  FLAG (not moved): ${f.kind} — ${f.reason}`);
+  for (const f of corpus.flags) L.push(`  FLAG (not moved): ${f.kind} — ${f.reason}`);
   L.push('');
   // Tier 3 — faithfulness diff (the human-approved content).
   L.push('— Tier 3: faithfulness diff (review each before approving) —');
@@ -1438,6 +1577,15 @@ export async function renderDryRun(baseDir) {
   for (const ev of v3.evicts) {
     L.push(`  • ${ev.epicId} evict — card coverage ${ev.coverage.pass ? 'PASS' : `FAIL (missing ids:${ev.coverage.missing.ids.join(',')} dates:${ev.coverage.missing.dates.join(',')} tokens:${ev.coverage.missing.tokens.join(',')})`}`);
   }
+  if (archive.moves.length > 0) {
+    L.push(`  • archive-tree: ${archive.moves.length} byte-identical file relocation(s) — no prose change to review; referrer links rewritten to the new paths`);
+  }
+  L.push('');
+  // Append-logs (model §1 axis-2) — grow BY DESIGN; the migrate leaves them alone
+  // (never relocated/evicted/de-prosed). Surfaced so the human sees they were seen.
+  L.push(`— Append-logs left alone (${corpus.appendLogs.length}) — grow by design (model §1 axis-2); never relocated/evicted/de-prosed —`);
+  for (const a of corpus.appendLogs) L.push(`  ${a.file} (${a.bytes} B)`);
+  if (corpus.appendLogs.length === 0) L.push('  (none)');
   L.push('');
   // Pre-existing dangling links — surfaced SEPARATELY (FR6.3 "before").
   L.push(`— Pre-existing dangling links (${baseline.length}) — NOT caused by this migrate —`);
