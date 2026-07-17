@@ -16,7 +16,7 @@ last_updated: 2026-07-17T12:36:20.717Z
 
 ## Resume pointer
 
-M5.E2 (Auto-sensing migrate command — FR6/FR7), FULL/strict — **PLAN complete → EXECUTE next (awaiting plan approval).** Run `/sig:resume` for the full briefing; run `/sig:execute` to build.
+M5.E2 (Auto-sensing migrate command — FR6/FR7), FULL/strict — **PLAN complete + approved → EXECUTE next.** Run `/sig:resume` for the full briefing; run `/sig:execute` to build S1 (Wave 1: command + safety harness + de-prose/body-relocate engine + gate + stamp; un-sticks nextpass). Any staleness banner shown is the benign B6 "+1" (markFresh bookkeeping; local HEAD == origin — nothing to pull).
 
 ## In-flight
 
