@@ -20,11 +20,11 @@ last_updated: 2026-07-17T01:41:52.200Z
 
 ## Resume pointer
 
-M5.E2 (Auto-sensing migrate command — FR6/FR7), FULL/strict — **DISCUSS complete → PLAN next.** Run `/sig:resume` for the full briefing; run `/sig:plan` to continue.
+M5.E2 (Auto-sensing migrate command — FR6/FR7), FULL/strict — **PLAN complete → EXECUTE next (awaiting plan approval).** Run `/sig:resume` for the full briefing; run `/sig:execute` to build.
 
 ## In-flight
 
-M5.E2 — the auto-sensing migrate/re-org command (FR6) + doc-layout stamp/banner (FR7). **Pulled forward ahead of FR4/FR5** (2026-07-16 pivot) because live doc-bloat is blocking Brett across ~5 projects and the migrate command is what un-sticks them. DISCUSS done: full scope locked (relocate-never-delete + §5 faithfulness gate; releasable on its own as E1+E2). Spec: `M5.E2-REQUIREMENTS.md`; decisions D-M5E2-1…5. (FR4/FR5 all-docs hygiene + living BACKLOG.md → now M5.E3; its 3 DISCUSS pre-decisions captured in `MILESTONE-5.md`.)
+M5.E2 — the auto-sensing migrate/re-org command (FR6) + doc-layout stamp/banner (FR7). **Pulled forward ahead of FR4/FR5** (2026-07-16 pivot). DISCUSS + PLAN done: full scope locked (relocate-never-delete + §5 faithfulness gate; releasable on its own as E1+E2). **PLAN:** 4-agent research + 8-dim plan-checker (WARN → fixes folded). **4 slices, 3 waves** — S1 (command + safety harness + de-prose/body-relocate engine + gate + stamp; **un-sticks nextpass, auto-remediates B8**) → S2+S3 ∥ (vector-3 evict + archive-tree + link-rewrite; upgrade banner) → S4 (Signal + nextpass dogfood = the faithfulness proof). Artifacts: `M5.E2-{RESEARCH,PLAN,VALIDATION}.md`. B9 folds in as S1.t0. (FR4/FR5 → M5.E3.)
 
 ## Blockers
 
