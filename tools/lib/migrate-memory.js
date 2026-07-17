@@ -18,6 +18,7 @@
 // AC and must hold from the first commit).
 
 import { readFile, mkdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { join, dirname, resolve, sep } from 'node:path';
 
 import { PLANNING_DIR, withStateLock } from './state.js';
@@ -482,6 +483,106 @@ export async function applyDeproseVector1(baseDir, opts = {}) {
     await atomicWrite(statePath, newText);
   });
   return { applied: true, changed, relocations, conservation };
+}
+
+// --- vector-2 inlined-body relocate (S1.t5) — big body → STATE-HISTORY.md -----
+//
+// The E1-by-hand case (STATE.md 64.5 KB → 1 KB): a schema_v1 STATE.md whose body
+// is a big inlined narrative. Relocate the body BYTE-IDENTICAL to STATE-HISTORY.md
+// and leave a one-line pointer, preserving the frontmatter VERBATIM (no
+// serializer round-trip — cross-cutting §1). History-first ordering (model:
+// upgradeStateFile:189-216) makes a crash between the two writes re-run cleanly.
+
+const VECTOR2_MARKER = 'migrate-memory:vector-2';
+const VECTOR2_MARKER_RE = /migrate-memory:vector-2/;
+
+function buildVector2Pointer(historyName, dateStr, nl) {
+  return [
+    '# Project State',
+    '',
+    `<!-- ${VECTOR2_MARKER} relocated the prior inlined body to ${historyName} on ${dateStr}. The YAML frontmatter above is the authoritative machine-readable state. -->`,
+    '',
+    `The prior inlined body was relocated to [${historyName}](${historyName}) by migrate-memory (vector-2) on ${dateStr}.`,
+    '',
+  ].join(nl);
+}
+
+/**
+ * Pure vector-2 planner. Given the STATE.md text + whether/what STATE-HISTORY.md
+ * already holds, decides the history target (clobber-guard → dated sibling;
+ * crash-reuse → reuse an identical existing one) and the new STATE.md text.
+ * `skip:true` when there's no frontmatter or the body is already a pointer.
+ */
+function planVector2(raw, { dateStr, historyExists, historyContent }) {
+  const fm = splitFrontmatter(raw);
+  if (!fm) return { skip: true, reason: 'no-frontmatter' };
+  if (VECTOR2_MARKER_RE.test(fm.body)) return { skip: true, reason: 'already-relocated' };
+
+  let historyName = 'STATE-HISTORY.md';
+  let reuseExisting = false;
+  if (historyExists) {
+    if (historyContent === fm.body) {
+      reuseExisting = true; // crash re-run — the identical body is already there
+    } else {
+      historyName = `STATE-HISTORY-${dateStr}.md`; // clobber-guard — don't overwrite
+    }
+  }
+  const pointerBody = buildVector2Pointer(historyName, dateStr, fm.nl);
+  return {
+    skip: false,
+    historyName,
+    reuseExisting,
+    body: fm.body,
+    bytes: fm.body.length,
+    newText: `${fm.open}${fm.block}${fm.close}${pointerBody}`,
+  };
+}
+
+/**
+ * Standalone on-disk vector-2 relocate (self-locking wrapper; the harness uses
+ * the pure `planVector2` core under its coarse lock). Dry-run reports the target;
+ * apply relocates the body byte-identical to STATE-HISTORY.md (history-first),
+ * then rewrites STATE.md to the pointer, all under the state lock. Asserts the
+ * archived copy is byte-identical before returning (move-never-delete accounting).
+ *
+ * @param {string} baseDir
+ * @param {{apply?: boolean, dateStr?: string}} [opts]
+ * @returns {Promise<{relocated: boolean, applied: boolean, historyName?: string, bytes?: number, reason?: string}>}
+ */
+export async function relocateInlinedBody(baseDir, opts = {}) {
+  const apply = opts.apply ?? false;
+  const dateStr = opts.dateStr ?? new Date().toISOString().split('T')[0];
+  const planningDir = join(baseDir, PLANNING_DIR);
+  const statePath = join(planningDir, 'STATE.md');
+  const primaryHistory = join(planningDir, 'STATE-HISTORY.md');
+
+  const planNow = async () => {
+    const raw = await readFile(statePath, 'utf-8');
+    const historyExists = existsSync(primaryHistory);
+    const historyContent = historyExists ? await readFile(primaryHistory, 'utf-8') : null;
+    return planVector2(raw, { dateStr, historyExists, historyContent });
+  };
+
+  const plan = await planNow();
+  if (!apply || plan.skip) {
+    return { relocated: false, applied: false, ...plan };
+  }
+
+  return withStateLock(baseDir, async () => {
+    const p = await planNow(); // re-read under the lock (TOCTOU for standalone use)
+    if (p.skip) return { relocated: false, applied: false, ...p };
+    const historyPath = join(planningDir, p.historyName);
+    // History FIRST (byte-identical), then the STATE.md pointer. A crash between
+    // leaves STATE.md still big + un-marked → the next run reuses the identical
+    // history rather than duplicating it.
+    if (!p.reuseExisting) await atomicWrite(historyPath, p.body);
+    const landed = await readFile(historyPath, 'utf-8');
+    if (landed !== p.body) {
+      throw new Error('relocateInlinedBody: STATE-HISTORY copy is not byte-identical to the relocated body.');
+    }
+    await atomicWrite(statePath, p.newText);
+    return { relocated: true, applied: true, historyName: p.historyName, bytes: p.bytes };
+  });
 }
 
 /**
