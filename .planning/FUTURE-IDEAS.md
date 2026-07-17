@@ -1454,8 +1454,19 @@ Map drift-guard (v0.1.6 doc-integrity candidate). docs/map/index.html silently f
 
 ---
 
+## **Dedicated test-sandbox project for Signal QA.** A commi...
+
+**Status:** Logged 2026-07-17 via `/sig:add`. Surfaced 2026-07-17 during M5.E2 S4.t1 dogfood — verifying a live 28-move migration on the real repo took ~6 introspection passes; a curated sandbox would make it a glance.
+
+**Dedicated test-sandbox project for Signal QA.** A committed, browsable fixture project — one `.planning/` corpus deliberately seeded with every situation Signal's commands must handle plus edge cases (closed Epics with and without retros; un-sectioned body bloat; append-logs like `DECISIONS.md`; milestone bloat; dangling / anchor / reference-style / HTML links; CRLF; non-standard and linear layouts; unstamped-but-conformant; pre- and post-reorg) — that any `/sig:` command (especially `/sig:migrate-memory`) can be run against and diffed.
+
+Purpose: fast human QA + faithfulness eyeballs, demos, onboarding, and regression — instead of "go read 10k lines of markdown and tell me if it's good." Complements the inline per-shape test fixtures (which prove the code) with something a human can open and reason about. Sibling to `examples/url-shortener/`, deliberately isolated from Signal's real `.planning/`. Candidate framing: its own small M5 Epic.
+
+---
 
 
 
 
-*Last updated: 2026-07-13*
+
+
+*Last updated: 2026-07-17*
