@@ -594,6 +594,17 @@ export async function setCurrentEpic(baseDir, epicId) {
     payload.current_epic = epicId;
     payload.current_wave = null; // roll resets coupled in-flight state...
     payload.current_tasks = []; // ...atomically, under the same lock
+    // B9 (M5.E2.S1.t0): phase, completed_phases, and last_completed_task are
+    // PER-EPIC — a roll to a new Epic must not inherit the previous Epic's phase
+    // progression (the bug: a fresh Epic reported as still at the old Epic's
+    // SHIP with the old Epic's completed phases). phase: null is the valid
+    // "no phase yet" state /sig:resume already handles; the caller
+    // (discuss/new-project) sets the real phase immediately after the roll —
+    // transitionPhase(...) records a clean per-Epic completed_phases because it
+    // skips a null prior phase. blockers are NOT reset: a blocker can span Epics.
+    payload.phase = null;
+    payload.completed_phases = [];
+    payload.last_completed_task = null;
     payload.last_updated = new Date().toISOString();
     await writeStateFrontmatter(baseDir, payload);
   });

@@ -47,6 +47,8 @@ CALIBRATE
 
 If invoked with `--epic <name>` (M4.5.E11), open the project's first Epic right after STATE init so `current_epic` is set automatically and downstream artifacts are Epic-scoped. Resolve the ID exactly as `/sig:discuss` § "Epic mode" describes: a strict `M{N}.E{K}` value is used verbatim; otherwise derive with `deriveNextEpicId(baseDir, { milestone })` (a brand-new project has no prior Epic, so pass the milestone explicitly) and call `setCurrentEpic(baseDir, resolvedId)` (`tools/lib/state.js`). Without `--epic`, the project starts in linear mode (byte-identical to pre-E11).
 
+Opening the Epic leaves `phase: null` (B9, M5.E2.S1.t0 — `setCurrentEpic` resets the per-Epic `phase`/`completed_phases`/`last_completed_task` so a rolled Epic can't inherit a prior one's progression). That's expected here: **Step 4 below sets the real phase (CALIBRATE)** immediately after, so the null is transient. Run the Epic-open before Step 4, never after.
+
 ### 2. Gather Project Context
 
 Ask the user:

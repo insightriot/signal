@@ -179,12 +179,14 @@ describe('S1.t2 setCurrentEpic', () => {
     expect(state.current_tasks).toHaveLength(1); // NOT reset
   });
 
-  it('preserves other frontmatter (phase, completed_phases, blockers)', async () => {
+  it('preserves blockers but resets per-Epic phase/completed_phases on a roll (B9, M5.E2.S1.t0)', async () => {
     await initState(baseDir, 'EXECUTE');
-    await setCurrentEpic(baseDir, 'M4.5.E11');
+    await setCurrentEpic(baseDir, 'M4.5.E11'); // null → value is a change (roll branch)
     const state = await readState(baseDir);
-    expect(state.phase).toBe('EXECUTE');
-    expect(Array.isArray(state.completedPhases ?? state.completed_phases)).toBe(true);
+    // B9: phase + completed_phases are per-Epic — a roll resets them (the caller
+    // sets the real phase next). blockers survive (they can span Epics).
+    expect(state.phase).toBeNull();
+    expect(state.completed_phases).toEqual([]);
     expect(state.blockers).toEqual([]);
   });
 });
