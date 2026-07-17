@@ -23,9 +23,16 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { join, dirname, resolve, relative, sep } from 'node:path';
 
-import { PLANNING_DIR, withStateLock } from './state.js';
+import { PLANNING_DIR, withStateLock, EPIC_ID_STRICT_RE } from './state.js';
 import { atomicWrite } from './atomic-write.js';
-import { extractEpicSection, verifyCardCoverage } from './evict.js';
+import {
+  extractEpicSection,
+  verifyCardCoverage,
+  extractCarryOvers,
+  insertCarryOvers,
+  deriveEpicArchiveDir,
+} from './evict.js';
+import { enumerateRetros } from './retro-index.js';
 import { checkStateFrontmatterShape } from './retrospective.js';
 
 // verifyFaithful IS verifyCardCoverage under the migrate command's name — a
@@ -630,6 +637,241 @@ export function classifyClosedEpicBody(body, epicId) {
   };
 }
 
+// --- vector-3 retroactive evict LOOP (S2.t2) — closed-Epic narrative → archive -
+//
+// Applies evict-on-close RETROACTIVELY to a project's backlog of already-closed
+// Epics. A retrospective's existence is the closed-signal (enumerateRetros globs
+// `.planning/*-RETROSPECTIVE.md`). Candidate discovery is the UNION of
+//   (a) retro-derived closed-Epic IDs, and
+//   (b) Epic-ID section headings found live in the STATE body,
+// because the no-fabricate gate can only FLAG a closed-LOOKING body section whose
+// Epic has no retrospective if sensing actually scanned the body for it.
+//
+// Routing precedence (order is load-bearing — see the two guards):
+//   1. body already carries this Epic's eviction pointer → idempotent SKIP (FR6.4).
+//      Detected by the pointer MARKER, not extractEpicSection (post-evict the
+//      heading is gone, so a re-run would else mis-route the already-archived Epic).
+//   2. live section + retrospective → EVICT the section slice (vector-3).
+//   3. live section + NO retrospective → SKIP + no-fabricate FLAG. Never fabricate
+//      a card to force an evict — the load-bearing safety gate of this Epic.
+//   4. no section + retrospective (classifier → vector-2-reclassify) → V3 does NOT
+//      whole-body relocate. Whole body un-sectioned → defer to the vector-2 step;
+//      MIXED body (another Epic owns a live section) → SKIP (the guard: a literal
+//      whole-body relocate here would drag that live section into history).
+//   5. no section + no retrospective → no-op.
+//
+// STRUCTURAL mixed-body guard (S2.t1 handoff): V3's ONLY write is an
+// extractEpicSection-SLICE evict via the lock-free relocateFaithful spine — it
+// NEVER performs a whole-body relocate. The whole-body vector-2 relocate stays in
+// the size-based, whole-STATE V2 step. So the mixed-body catastrophe is impossible
+// by construction, not by a runtime check.
+
+// The evict pointer MARKER (byte-for-byte the prefix planEpicEvict / evict.js
+// writes) — the idempotency probe. A re-run must see this and skip.
+function hasEvictionPointer(body, epicId) {
+  const esc = String(epicId).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`^- ${esc} — evicted to `, 'm').test(String(body));
+}
+
+// Epic-level IDs that own a heading LINE in the body (the live-section candidates).
+// Scans heading lines only (mirrors extractEpicSection's heading-keyed scoping);
+// captures the Epic-level prefix (M{N}[.{N}]*.E{N}) even from a deeper heading.
+function discoverEpicSectionIds(body) {
+  const ids = new Set();
+  for (const line of String(body).split('\n')) {
+    if (!/^#{1,6}[ \t]/.test(line)) continue;
+    const m = line.match(/\bM\d+(?:\.\d+)*\.E\d+\b/);
+    if (m && EPIC_ID_STRICT_RE.test(m[0])) ids.add(m[0]);
+  }
+  return [...ids];
+}
+
+// Numeric-segment Epic-ID sort (M5.E2 < M5.E10) — deterministic plan/moves order.
+function compareEpicIds(a, b) {
+  const na = a.match(/\d+/g)?.map(Number) ?? [];
+  const nb = b.match(/\d+/g)?.map(Number) ?? [];
+  for (let i = 0; i < Math.max(na.length, nb.length); i++) {
+    const d = (na[i] ?? 0) - (nb[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
+/**
+ * PURE per-Epic evict planner. Given the STATE body, a closed Epic ID, and its
+ * card (the RETROSPECTIVE content), returns the planned mutation WITHOUT any I/O
+ * or lock: the extracted section (the archive source), the coverage verdict, the
+ * archive-relative path, the one-line pointer (evict.js format — the idempotency
+ * marker), and the rewritten body (pointer routed under "## Closed work" when
+ * present, else in-situ; open carry-overs lifted UP into a live section). Mirrors
+ * evictEpicNarrative's body mechanics but lock-free + frontmatter-agnostic (the
+ * caller splices it back under the frontmatter verbatim). The authoritative gate
+ * is relocateFaithful at apply time; `coverage` here is for the dry-run diff.
+ *
+ * @param {string} body    STATE.md body (below the frontmatter)
+ * @param {string} epicId
+ * @param {string} card    the retrospective content (coverage source-of-truth)
+ * @param {{dropped?: string[], carryOverHeading?: string, cardPath?: string}} [opts]
+ */
+export function planEpicEvict(body, epicId, card, opts = {}) {
+  const { dropped = [], carryOverHeading = 'In-flight', cardPath = null } = opts;
+  const sec = extractEpicSection(body, epicId);
+  if (!sec.found) return { evict: false, reason: 'no-section', epicId };
+
+  const coverage = verifyCardCoverage(sec.section, card ?? '', { dropped });
+  const archiveRel = `${deriveEpicArchiveDir(epicId)}/STATE-NARRATIVE.md`;
+  const cardName = cardPath
+    ? String(cardPath).replace(`${PLANNING_DIR}/`, '')
+    : `${epicId}-RETROSPECTIVE.md`;
+  const pointer = `- ${epicId} — evicted to ${archiveRel} · card: ${cardName}`;
+
+  // Route the pointer under "## Closed work" (the skeleton's advertised home) so
+  // it isn't orphaned under the previous Epic's heading; else splice in-situ
+  // (mirrors evict.js:375-384).
+  const closedRe = /(?:^|\n)##\s+Closed work[ \t]*\n/;
+  let newBody;
+  if (closedRe.test(sec.before) || closedRe.test(sec.after)) {
+    const withoutSection = (sec.before + sec.after).replace(/\n{3,}/g, '\n\n');
+    const cm = withoutSection.match(closedRe);
+    const at = cm.index + cm[0].length;
+    newBody = `${withoutSection.slice(0, at)}${pointer}\n${withoutSection.slice(at)}`;
+  } else {
+    newBody = `${sec.before}${pointer}\n${sec.after}`;
+  }
+
+  const carriedOver = extractCarryOvers(sec.section);
+  newBody = insertCarryOvers(newBody, carryOverHeading, epicId, carriedOver);
+
+  return {
+    evict: coverage.pass,
+    reason: coverage.pass ? null : 'lossy-card',
+    epicId,
+    section: sec.section,
+    coverage,
+    archiveRel,
+    pointer,
+    newBody,
+    carriedOver,
+    card: card ?? '',
+  };
+}
+
+/**
+ * PURE vector-3 router. Decides, for the union of (retro-derived closed Epics) and
+ * (body Epic-ID section headings), which sections to EVICT, which to FLAG (the
+ * no-fabricate + mixed-body-defer flags), and which to SKIP (idempotent /
+ * mixed-body-guard). No I/O, no lock. The caller (applyMigrate) executes the evict
+ * set sequentially via relocateFaithful under the ONE coarse lock.
+ *
+ * @param {string} stateText  full STATE.md content
+ * @param {Map<string,{path:string,content:string}>|Object} cards  closed Epic → card
+ * @returns {{evicts: object[], flags: object[], skips: object[], whollyUnsectioned: boolean}}
+ */
+export function planVector3(stateText, cards) {
+  const fm = splitFrontmatter(stateText);
+  const body = fm ? fm.body : String(stateText ?? '');
+  const closed = cards instanceof Map ? cards : new Map(Object.entries(cards ?? {}));
+
+  const bodyIds = discoverEpicSectionIds(body);
+  const whollyUnsectioned = bodyIds.length === 0;
+  const candidates = [...new Set([...closed.keys(), ...bodyIds])].sort(compareEpicIds);
+
+  const evicts = [];
+  const flags = [];
+  const skips = [];
+
+  for (const epicId of candidates) {
+    // 1. Already evicted (pointer present) → idempotent skip. MUST precede the
+    //    no-section branch: post-evict the heading is gone, so extractEpicSection
+    //    would return found:false and mis-route an already-archived Epic (FR6.4).
+    if (hasEvictionPointer(body, epicId)) {
+      skips.push({ epicId, reason: 'already-archived' });
+      continue;
+    }
+
+    const sec = extractEpicSection(body, epicId);
+    const card = closed.get(epicId);
+
+    if (sec.found) {
+      if (card) {
+        // 2. Live section + retrospective → evict the slice.
+        const p = planEpicEvict(body, epicId, card.content, { cardPath: card.path });
+        evicts.push({
+          epicId,
+          card: card.content,
+          cardPath: card.path,
+          archiveRel: p.archiveRel,
+          pointer: p.pointer,
+          coverage: p.coverage,
+        });
+      } else {
+        // 3. Live section + NO retrospective → skip + no-fabricate FLAG.
+        flags.push({
+          kind: 'no-retrospective',
+          epicId,
+          reason: `closed-looking live section for ${epicId} but no ${epicId}-RETROSPECTIVE.md — SKIPPED (never fabricate a card to force an evict)`,
+        });
+      }
+    } else if (card) {
+      // 4. No section + retrospective. classifier → vector-2-reclassify. V3 never
+      //    whole-body relocates: defer the un-sectioned whole body to the vector-2
+      //    step; a MIXED body is a guard-skip (a whole-body relocate here would
+      //    drag a live section into history).
+      classifyClosedEpicBody(body, epicId); // honor the S2.t1 routing handoff
+      if (whollyUnsectioned) {
+        flags.push({
+          kind: 'vector-2-defer',
+          epicId,
+          reason: `${epicId} is closed + its narrative is un-sectioned in a whole-body body — handled by the vector-2 whole-body relocate, not V3`,
+        });
+      } else {
+        skips.push({
+          epicId,
+          reason: 'mixed-body-guard',
+          note: `${epicId} closed but un-sectioned in a MIXED body (another Epic owns a live section) — NOT whole-body relocating (would drag that live section into history)`,
+        });
+      }
+    }
+    // 5. No section + no retrospective → no-op (nothing to do).
+  }
+
+  return { evicts, flags, skips, whollyUnsectioned };
+}
+
+/**
+ * Disk-aware vector-3 sense: glob the closed Epics (enumerateRetros), read each
+ * card, and delegate to the pure planVector3. Adds the INDEX.md refresh flag (§10)
+ * when evicts would move narrative AND a hand-curated `.planning/INDEX.md` exists —
+ * migrate NEVER auto-writes INDEX.md, only flags it. Read-only.
+ *
+ * @param {string} baseDir
+ * @param {string} stateText  full STATE.md content
+ */
+export async function senseVector3(baseDir, stateText) {
+  const retros = await enumerateRetros(baseDir);
+  const cards = new Map();
+  for (const r of retros) {
+    let content = '';
+    try {
+      content = await readFile(join(baseDir, r.path), 'utf-8');
+    } catch {
+      content = '';
+    }
+    cards.set(r.epicId, { path: r.path, content });
+  }
+  const plan = planVector3(stateText, cards);
+  if (plan.evicts.length > 0 && existsSync(join(baseDir, PLANNING_DIR, 'INDEX.md'))) {
+    plan.flags = [
+      ...plan.flags,
+      {
+        kind: 'index-refresh',
+        reason: 'INDEX.md is hand-curated and may reference now-archived narrative — review it manually (this migrate will NOT auto-write INDEX.md)',
+      },
+    ];
+  }
+  return plan;
+}
+
 // --- git-state probe (S1.t7a) — refuse / proceed / downgrade matrix -----------
 //
 // Decides whether apply can rely on git for reversibility (`git` mode) or must
@@ -848,19 +1090,22 @@ export function senseState(stateText) {
 
 /**
  * Sense the invoking project's `.planning/` → migration plan-data (mutates
- * nothing). Reads STATE.md and delegates to the pure `senseState`. Full-corpus
- * sensing (vector-3 evict + archive tree + other docs) lands in S2.t5; this
- * covers the single-STATE V1 + V2 vectors the S1 harness consumes.
+ * nothing). Reads STATE.md, delegates the single-STATE V1 + V2 vectors to the
+ * pure `senseState`, and folds in the disk-aware V3 (retroactive closed-Epic
+ * evict) sense so `noop` accounts for un-evicted closed-Epic narrative. (Archive
+ * tree + other-doc full-corpus sensing lands in S2.t5.)
  *
  * @param {string} baseDir
  */
 export async function senseProject(baseDir) {
   const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
   if (!existsSync(statePath)) {
-    return { vectors: [], v1: { entries: [] }, v2: { candidate: false, bytes: 0 }, flags: [], stamp: null, stamped: false, conformant: true, noop: true, needsStamp: false, reason: 'no-state-file' };
+    return { vectors: [], v1: { entries: [] }, v2: { candidate: false, bytes: 0 }, flags: [], v3: { evicts: [], flags: [], skips: [] }, stamp: null, stamped: false, conformant: true, noop: true, needsStamp: false, reason: 'no-state-file' };
   }
   const raw = await readFile(statePath, 'utf-8');
-  return senseState(raw);
+  const base = senseState(raw);
+  const v3 = await senseVector3(baseDir, raw);
+  return { ...base, v3, noop: base.noop && v3.evicts.length === 0 };
 }
 
 // --- dangling-link baseline + dry-run render (S1.t7c) -------------------------
@@ -953,6 +1198,9 @@ export async function renderDryRun(baseDir) {
   let postV1 = raw;
   if (relocations.length > 0) postV1 = deproseFrontmatter(raw).newText;
   const v2 = senseState(postV1).v2;
+  // Disk-aware V3 sense (retroactive closed-Epic evict) — read-only.
+  const v3 = await senseVector3(baseDir, raw);
+  const noop = plan.noop && v3.evicts.length === 0;
 
   const L = [];
   L.push('== /sig:migrate-memory — DRY RUN (nothing written) ==', '');
@@ -961,25 +1209,33 @@ export async function renderDryRun(baseDir) {
   L.push(`  vectors:              ${plan.vectors.length ? plan.vectors.join(', ') : '(none — conformant)'}`);
   L.push(`  vector-1 relocations: ${relocations.length}`);
   L.push(`  vector-2 (big body):  ${v2.candidate ? `yes (${v2.bytes} B → STATE-HISTORY.md)` : 'no'}`);
-  L.push(`  ambiguity flags:      ${plan.flags.length}`);
+  L.push(`  vector-3 (closed-Epic evicts): ${v3.evicts.length}`);
+  L.push(`  ambiguity flags:      ${plan.flags.length + v3.flags.length}`);
   L.push(`  stamp:                ${plan.stamped ? `already ${CURRENT_LAYOUT_VERSION}` : `will set docs_layout_version: ${CURRENT_LAYOUT_VERSION} on conformance`}`);
   L.push('');
   // Tier 2 — mechanical moves.
   L.push('— Tier 2: mechanical moves —');
-  if (plan.noop) L.push('  (already conformant + stamped — no-op)');
+  if (noop) L.push('  (already conformant + stamped — no-op)');
   for (const e of relocations) {
     const where = e.field === 'blockers' ? `blockers[${e.id}].text` : `completed_phases[${e.index}]`;
     L.push(`  ${where} (${e.reason}) → STATE body; frontmatter left: ${e.short.trim()}`);
   }
   if (v2.candidate) L.push('  STATE body → STATE-HISTORY.md (byte-identical) + pointer');
+  for (const ev of v3.evicts) {
+    L.push(`  ${ev.epicId} narrative → ${ev.archiveRel} (byte-identical) + pointer; card: ${ev.cardPath}`);
+  }
   for (const f of plan.flags) L.push(`  FLAG (not moved): ${f.kind} — ${f.chars} chars — "${f.detail}…"`);
+  for (const f of v3.flags) L.push(`  FLAG (not moved): ${f.kind} — ${f.reason}`);
   L.push('');
   // Tier 3 — faithfulness diff (the human-approved content).
   L.push('— Tier 3: faithfulness diff (review each before approving) —');
-  if (relocations.length === 0) L.push('  (no frontmatter prose to relocate)');
+  if (relocations.length === 0 && v3.evicts.length === 0) L.push('  (no prose to relocate)');
   for (const e of relocations) {
     const preview = e.originalForBody.replace(/\s+/g, ' ').slice(0, 200);
     L.push(`  • ${e.field === 'blockers' ? e.id : `entry ${e.index}`}: "${preview}${e.originalForBody.length > 200 ? '…' : ''}"`);
+  }
+  for (const ev of v3.evicts) {
+    L.push(`  • ${ev.epicId} evict — card coverage ${ev.coverage.pass ? 'PASS' : `FAIL (missing ids:${ev.coverage.missing.ids.join(',')} dates:${ev.coverage.missing.dates.join(',')} tokens:${ev.coverage.missing.tokens.join(',')})`}`);
   }
   L.push('');
   // Pre-existing dangling links — surfaced SEPARATELY (FR6.3 "before").
@@ -1004,6 +1260,14 @@ export async function renderDryRun(baseDir) {
 const bodyOf = (text) => {
   const m = String(text).match(FRONTMATTER_SPLICE_RE);
   return m ? m[4] : String(text);
+};
+
+// Splice a new body under the EXISTING frontmatter, verbatim (no serializer
+// round-trip — cross-cutting §1). Used by the V3 evict loop to re-home a body
+// after a section is relocated.
+const withBody = (text, newBody) => {
+  const fm = splitFrontmatter(text);
+  return fm ? `${fm.open}${fm.block}${fm.close}${newBody}` : String(newBody);
 };
 
 /** SHA-256 of the STATE.md bytes — the TOCTOU binding token (dry-run → apply). */
@@ -1048,7 +1312,12 @@ export async function applyMigrate(baseDir, opts = {}) {
     }
 
     const plan = senseState(raw);
-    if (plan.noop) {
+    // V3 (retroactive closed-Epic evict) is disk-aware, so senseState's noop is
+    // V3-BLIND: a clean-frontmatter, small-body, already-stamped STATE.md with
+    // closed-Epic sections still to evict is exactly V3's job. Fold V3 into the
+    // gate so that case isn't early-returned as a no-op.
+    const v3sense = await senseVector3(baseDir, raw);
+    if (plan.noop && v3sense.evicts.length === 0) {
       return { applied: false, changed: false, moves: [], inputHash, mode: probe.mode, warnings: probe.warnings };
     }
 
@@ -1084,6 +1353,45 @@ export async function applyMigrate(baseDir, opts = {}) {
       }
       text = d.newText;
       moves.push({ vector: 'vector-1', relocations: d.relocations.length });
+    }
+
+    // --- V3: evict closed-Epic narrative SECTIONS (relocateFaithful spine, §9) --
+    // Sense on the post-V1 text (V1 only appends a frontmatter-narrative section —
+    // no Epic heading — so the evict set is stable). Each evict is a SLICE relocate
+    // via the LOCK-FREE relocateFaithful (never evictEpicNarrative, which self-locks
+    // and would re-enter this coarse lock). V3 NEVER whole-body relocates — the
+    // mixed-body catastrophe is structurally impossible. Per-evict gate: a lossy
+    // card (or a broken byte-relocate) hard-fails → surgical rollback, no partial
+    // writes. Body is re-derived per evict so sequential evicts compose correctly.
+    const v3 = await senseVector3(baseDir, text);
+    for (const ev of v3.evicts) {
+      const p = planEpicEvict(bodyOf(text), ev.epicId, ev.card, { cardPath: ev.cardPath });
+      if (!p.evict) {
+        // Known-lossy card at plan time — abort before writing anything for it.
+        await rollback();
+        throw new Error(
+          `applyMigrate: V3 evict of ${ev.epicId} would drop content the card doesn't cover (${p.reason}) — rolled back, no partial writes.`
+        );
+      }
+      // Register the NEW archive file BEFORE the write so a later gate failure's
+      // surgical rollback removes it.
+      const archiveKey = p.archiveRel.replace(`${PLANNING_DIR}/`, '');
+      await snap(archiveKey);
+      const rel = await relocateFaithful({
+        sourceText: p.section,
+        card: ev.card,
+        destAbs: join(baseDir, p.archiveRel),
+        baseDir,
+        mode: BYTE,
+      });
+      if (!rel.pass) {
+        await rollback();
+        throw new Error(
+          `applyMigrate: V3 evict gate failed for ${ev.epicId} (conservation:${rel.conservation.pass} coverage:${rel.coverage.pass}) — rolled back, no partial writes.`
+        );
+      }
+      text = withBody(text, p.newBody);
+      moves.push({ vector: 'vector-3', epicId: ev.epicId, archiveRel: p.archiveRel });
     }
 
     let historyName = null;
