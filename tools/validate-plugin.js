@@ -77,6 +77,7 @@ const REQUIRED_COMMANDS = [
   'commands/add.md',
   'commands/checkpoint.md',
   'commands/doctor.md',
+  'commands/migrate-memory.md',
 ];
 
 const REQUIRED_AGENTS = [
