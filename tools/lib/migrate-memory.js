@@ -19,6 +19,7 @@
 
 import { readFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join, dirname, resolve, sep } from 'node:path';
 
 import { PLANNING_DIR, withStateLock } from './state.js';
@@ -583,6 +584,101 @@ export async function relocateInlinedBody(baseDir, opts = {}) {
     await atomicWrite(statePath, p.newText);
     return { relocated: true, applied: true, historyName: p.historyName, bytes: p.bytes };
   });
+}
+
+// --- git-state probe (S1.t7a) — refuse / proceed / downgrade matrix -----------
+//
+// Decides whether apply can rely on git for reversibility (`git` mode) or must
+// fall back to a filesystem snapshot (`fs-backup` mode), or must REFUSE. Every
+// git call is fail-safe: a git failure degrades toward fs-backup, never crashes.
+
+/**
+ * @param {string} baseDir
+ * @param {{execFn?: typeof execFileSync, force?: boolean}} [opts]
+ * @returns {{mode: 'git'|'fs-backup', proceed: boolean, dirty: boolean, warnings: string[], reason?: string}}
+ */
+export function probeGitState(baseDir, opts = {}) {
+  const execFn = opts.execFn ?? execFileSync;
+  const force = opts.force ?? false;
+  const git = (args) =>
+    String(execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] })).trim();
+  const warnings = [];
+
+  // 1. A git work tree at all? (non-repo → fs-backup)
+  try {
+    git(['rev-parse', '--is-inside-work-tree']);
+  } catch {
+    return {
+      mode: 'fs-backup',
+      proceed: true,
+      dirty: false,
+      warnings: ['Not a git repository — using a filesystem snapshot for reversibility.'],
+    };
+  }
+
+  // 2. Unborn HEAD (no commits) → no commit to tag/reset to → fs-backup.
+  try {
+    git(['rev-parse', '--verify', 'HEAD']);
+  } catch {
+    return {
+      mode: 'fs-backup',
+      proceed: true,
+      dirty: false,
+      warnings: ['Repository has no commits yet (unborn HEAD) — using a filesystem snapshot for reversibility.'],
+    };
+  }
+
+  // 3. .planning/ gitignored → git can't track the changes → fs-backup.
+  //    `check-ignore -q` exits 0 when ignored (returns), 1 when not (throws).
+  try {
+    git(['check-ignore', '-q', '.planning/STATE.md']);
+    return {
+      mode: 'fs-backup',
+      proceed: true,
+      dirty: false,
+      warnings: ['.planning/ is gitignored — git can\'t track the migrate\'s changes; using a filesystem snapshot for reversibility.'],
+    };
+  } catch {
+    /* not ignored — good, continue */
+  }
+
+  // 4. Submodule? (proceed as git, but flag it — the superproject tracks the ref)
+  try {
+    if (git(['rev-parse', '--show-superproject-working-tree'])) {
+      warnings.push('This repo is a git submodule — the migrate stages changes inside it; the superproject tracks the submodule ref separately.');
+    }
+  } catch {
+    /* ignore */
+  }
+
+  // 5. Detached HEAD? (proceed — the pre-apply tag still anchors a rollback)
+  try {
+    git(['symbolic-ref', '-q', 'HEAD']);
+  } catch {
+    warnings.push('Detached HEAD — the pre-apply tag still anchors a rollback point.');
+  }
+
+  // 6. Dirty tree? Refuse without --force; with --force, rollback stays surgical.
+  let dirty = false;
+  try {
+    dirty = git(['status', '--porcelain']).length > 0;
+  } catch {
+    /* ignore — treat as clean */
+  }
+  if (dirty && !force) {
+    return {
+      mode: 'git',
+      proceed: false,
+      dirty: true,
+      warnings,
+      reason: 'Working tree is dirty. Commit or stash your changes, or re-run with --force (rollback stays surgical — only the files the migrate touches are restored).',
+    };
+  }
+  if (dirty && force) {
+    warnings.push('--force on a dirty tree: rollback restores ONLY the files the migrate touches (surgical) — never the whole tree.');
+  }
+
+  return { mode: 'git', proceed: true, dirty, warnings };
 }
 
 // --- single-STATE auto-sense (S1.t6) — stamp-first → structural sniff → plan ---
