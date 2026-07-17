@@ -169,6 +169,7 @@ export function renderResumeBriefing(params = {}) {
     originDriftResult = null,
     schemaDriftResult = null,
     stateSizeResult = null,
+    layoutBanner = null,
     nextAction = '',
     retroSummary = null,
     projectTier = null,
@@ -218,6 +219,16 @@ export function renderResumeBriefing(params = {}) {
   const sizeBanner = formatStateSizeBanner(stateSizeResult);
   if (sizeBanner) {
     lines.push(...sizeBanner.split('\n'));
+    lines.push('');
+  }
+
+  // The pre-reorg layout nudge (M5.E2.S3.t2, FR7.2) is ALSO advisory — it points
+  // at the docs layout, not at STATE.md's trustworthiness — so it renders in the
+  // same low-priority tier as the size banner (never above the schema-drift banner).
+  // A pre-resolved string: the async structural sniff (readLayoutBanner) runs in the
+  // command doc, keeping this renderer pure.
+  if (layoutBanner) {
+    lines.push(...String(layoutBanner).split('\n'));
     lines.push('');
   }
 

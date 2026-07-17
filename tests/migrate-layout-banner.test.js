@@ -1,0 +1,260 @@
+// Pre-reorg layout banner for /sig:resume + /sig:status (M5.E2.S3.t2, FR7.2).
+//
+// The COMMAND-PATH counterpart to the SessionStart hook (S3.t1). Same nudge, but
+// two things differ from the hook and are the whole point of this task:
+//   1. IMPORT FREEDOM — /sig:resume and /sig:status are commands (not a fail-open-
+//      at-import SessionStart hook), so the banner is built on the migrate engine's
+//      real structural-sniff source (`senseProject`), which reads the FR7 stamp AND
+//      detects every pending vector/move in one pass.
+//   2. STRUCTURAL-SNIFF FALLBACK — the hook's `decideLayoutDrift` is stamp-first
+//      only: a fenced-no-stamp file returns preReorg:true, which would FALSE-banner
+//      a project that is already structurally conformant but simply never got
+//      stamped. `decideLayoutBanner` layers the sniff on top: no stamp → banner only
+//      when there is genuine pending reorg work.
+//
+// Load-bearing invariants (the RED-first matrix):
+//   - post-reorg (stamp >= CURRENT)                    → SILENT (no banner);
+//   - pre-reorg  (stamp < CURRENT, OR no stamp + real  → banner in resume AND status;
+//                 within-STATE vector / v3 evict / archive move)
+//   - unstamped BUT structurally conformant            → SILENT (the t2-vs-t1 thesis:
+//                 the stamp-first hook would banner this; the command path must not);
+//   - malformed stamp on a conformant file             → SILENT (fail-open, no false
+//                 banner — a parse hiccup must never nag a clean project);
+//   - CRLF post-reorg                                  → SILENT (Windows autocrlf).
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+
+import {
+  decideLayoutBanner,
+  readLayoutBanner,
+  LAYOUT_DRIFT_BANNER_COMMAND,
+} from '../tools/lib/status.js';
+import { renderResumeBriefing } from '../tools/lib/resume.js';
+import { CURRENT_LAYOUT_VERSION } from '../tools/lib/migrate-memory.js';
+// The S3.t1 hook decision — stamp-first ONLY. Imported here to PROVE, as a lasting
+// regression guard, that it false-banners the unstamped-conformant case while the
+// command path stays silent (the reason t2 exists on top of t1).
+import { decideLayoutDrift } from '../hooks/warn-layout-drift.js';
+
+// --- fixtures ---------------------------------------------------------------
+
+const CONFORMANT_BODY = `# Project State
+a small conformant body — well under the inlined-body threshold.
+`;
+
+// Post-reorg: stamped at CURRENT, structurally clean → must be SILENT.
+const POST_REORG = `---
+schema_version: 1
+docs_layout_version: ${CURRENT_LAYOUT_VERSION}
+phase: EXECUTE
+current_epic: null
+completed_phases:
+  - DISCUSS (2026-07-16)
+blockers: []
+---
+${CONFORMANT_BODY}`;
+
+// Unstamped but structurally conformant → the t2 thesis case → must be SILENT.
+// (The stamp-first hook decideLayoutDrift returns preReorg:true on this exact shape.)
+const UNSTAMPED_CONFORMANT = `---
+schema_version: 1
+phase: EXECUTE
+current_epic: null
+completed_phases:
+  - DISCUSS (2026-07-16)
+blockers: []
+---
+${CONFORMANT_BODY}`;
+
+// Pre-reorg with a REAL within-STATE vector: no stamp + a big inlined body (>8 KB,
+// the vector-2 INLINED_BODY_THRESHOLD). "No stamp" alone is the conformant case —
+// this fixture carries genuine drift → must BANNER.
+const PRE_REORG_DRIFT = `---
+schema_version: 1
+phase: EXECUTE
+current_epic: null
+---
+# Project State
+${'x'.repeat(9 * 1024)}
+`;
+
+// Malformed stamp (non-numeric value) on an otherwise-conformant file. The stamp
+// read degrades to null (no \\d+ match) → structural sniff → clean → must be SILENT.
+const MALFORMED_STAMP = `---
+schema_version: 1
+docs_layout_version: not-a-number
+phase: EXECUTE
+current_epic: null
+completed_phases:
+  - DISCUSS (2026-07-16)
+blockers: []
+---
+${CONFORMANT_BODY}`;
+
+// CRLF post-reorg (Windows autocrlf) — senseState is \\r?\\n-tolerant; prove it.
+const POST_REORG_CRLF = POST_REORG.replace(/\n/g, '\r\n');
+
+// --- synthetic sensed objects (pure decideLayoutBanner unit target) ---------
+
+const sensed = (over = {}) => ({
+  stamp: null,
+  conformant: true,
+  v3: { evicts: [] },
+  archive: { moves: [] },
+  flags: [],
+  ...over,
+});
+
+// --- helpers ----------------------------------------------------------------
+
+async function plant(dir, state) {
+  const planning = join(dir, '.planning');
+  await mkdir(planning, { recursive: true });
+  await writeFile(join(planning, 'STATE.md'), state, 'utf-8');
+  return dir;
+}
+
+// A minimal-but-valid renderResumeBriefing params bag; layoutBanner is the axis.
+const briefingParams = (layoutBanner) => ({
+  cwd: '/tmp/proj',
+  state: { phase: 'EXECUTE', completed_phases: [] },
+  profile: { tier: 'FULL' },
+  layoutBanner,
+});
+
+// ============================================================================
+// 1. PURE decideLayoutBanner — the stamp-first + structural-sniff decision
+// ============================================================================
+
+describe('decideLayoutBanner — stamp-first', () => {
+  it('post-reorg (stamp == CURRENT) → silent (false)', () => {
+    expect(decideLayoutBanner(sensed({ stamp: CURRENT_LAYOUT_VERSION }))).toBe(false);
+  });
+
+  it('ahead stamp (stamp > CURRENT) → silent (false) — cannot predate the layout', () => {
+    expect(decideLayoutBanner(sensed({ stamp: CURRENT_LAYOUT_VERSION + 1 }))).toBe(false);
+  });
+
+  it('old stamp (stamp < CURRENT) → banner (true), even on a clean structure', () => {
+    expect(
+      decideLayoutBanner(sensed({ stamp: CURRENT_LAYOUT_VERSION - 1, conformant: true }))
+    ).toBe(true);
+  });
+});
+
+describe('decideLayoutBanner — structural sniff (no/unparseable stamp)', () => {
+  it('unstamped + structurally conformant → silent (false) — the t2 thesis', () => {
+    expect(decideLayoutBanner(sensed({ stamp: null }))).toBe(false);
+  });
+
+  it('unstamped + within-STATE vector (conformant:false) → banner (true)', () => {
+    expect(decideLayoutBanner(sensed({ stamp: null, conformant: false }))).toBe(true);
+  });
+
+  it('unstamped + a pending v3 evict ONLY → banner (true)', () => {
+    expect(
+      decideLayoutBanner(sensed({ stamp: null, v3: { evicts: [{ epicId: 'M5.E1' }] } }))
+    ).toBe(true);
+  });
+
+  it('unstamped + a pending archive move ONLY → banner (true)', () => {
+    expect(
+      decideLayoutBanner(sensed({ stamp: null, archive: { moves: ['a→b'] } }))
+    ).toBe(true);
+  });
+
+  it('unstamped + flags ONLY (soft-long / milestone-bloat) → silent (false)', () => {
+    // Flags are advisory, not vectors/moves — a flags-only project must stay silent.
+    expect(
+      decideLayoutBanner(sensed({ stamp: null, flags: [{ kind: 'milestone-bloat' }] }))
+    ).toBe(false);
+  });
+});
+
+// ============================================================================
+// 2. Disk-aware readLayoutBanner — the shared sensing both commands call
+// ============================================================================
+
+describe('readLayoutBanner (disk-aware, fail-open)', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-layout-banner-'));
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('post-reorg (stamp=CURRENT) → null (silent)', async () => {
+    const dir = await plant(join(tempDir, 'post'), POST_REORG);
+    expect(await readLayoutBanner(dir)).toBeNull();
+  });
+
+  it('pre-reorg (no stamp + big inlined body) → banner string', async () => {
+    const dir = await plant(join(tempDir, 'pre'), PRE_REORG_DRIFT);
+    const banner = await readLayoutBanner(dir);
+    expect(banner).toBe(LAYOUT_DRIFT_BANNER_COMMAND);
+    expect(banner).toMatch(/\/sig:migrate-memory/);
+  });
+
+  it('unstamped-but-conformant → null (no false banner — the t2 thesis)', async () => {
+    const dir = await plant(join(tempDir, 'clean'), UNSTAMPED_CONFORMANT);
+    expect(await readLayoutBanner(dir)).toBeNull();
+  });
+
+  it('malformed stamp on a conformant file → null (fail-open, no false banner)', async () => {
+    const dir = await plant(join(tempDir, 'malformed'), MALFORMED_STAMP);
+    expect(await readLayoutBanner(dir)).toBeNull();
+  });
+
+  it('CRLF post-reorg → null (silent; senseState is \\r?\\n-tolerant)', async () => {
+    const dir = await plant(join(tempDir, 'crlf'), POST_REORG_CRLF);
+    expect(await readLayoutBanner(dir)).toBeNull();
+  });
+
+  it('no .planning/ at all → null (fail-open, never throws)', async () => {
+    const dir = join(tempDir, 'empty');
+    await mkdir(dir, { recursive: true });
+    expect(await readLayoutBanner(dir)).toBeNull();
+  });
+
+  // The t2-vs-t1 thesis, as a lasting regression guard: the S3.t1 stamp-first hook
+  // WOULD false-banner the unstamped-conformant file (preReorg:true), while the
+  // command path — with its structural sniff — stays silent (null).
+  it('contrast: stamp-first hook banners unstamped-conformant; command path does not', async () => {
+    expect(decideLayoutDrift(UNSTAMPED_CONFORMANT).preReorg).toBe(true);
+    const dir = await plant(join(tempDir, 'contrast'), UNSTAMPED_CONFORMANT);
+    expect(await readLayoutBanner(dir)).toBeNull();
+  });
+});
+
+// ============================================================================
+// 3. renderResumeBriefing wiring — the /sig:resume render surface
+// ============================================================================
+
+describe('renderResumeBriefing — layout banner (advisory tier)', () => {
+  it('renders the layout banner when a string is passed', () => {
+    const out = renderResumeBriefing(briefingParams(LAYOUT_DRIFT_BANNER_COMMAND));
+    expect(out).toContain(LAYOUT_DRIFT_BANNER_COMMAND);
+    // Advisory tier: it sits ABOVE the body header, never inside the briefing body.
+    expect(out.indexOf(LAYOUT_DRIFT_BANNER_COMMAND)).toBeLessThan(out.indexOf('== Project Briefing =='));
+  });
+
+  it('omits the layout banner when null (post-reorg / conformant)', () => {
+    const out = renderResumeBriefing(briefingParams(null));
+    expect(out).not.toContain('predates the current docs layout');
+  });
+
+  it('places the layout banner BELOW a schema-drift banner (advisory < trust signal)', () => {
+    const out = renderResumeBriefing({
+      ...briefingParams(LAYOUT_DRIFT_BANNER_COMMAND),
+      schemaDriftResult: { status: 'behind', message: 'STATE.md schema drift (behind).' },
+    });
+    const schemaIdx = out.indexOf('schema drift');
+    const layoutIdx = out.indexOf(LAYOUT_DRIFT_BANNER_COMMAND);
+    expect(schemaIdx).toBeGreaterThanOrEqual(0);
+    expect(layoutIdx).toBeGreaterThan(schemaIdx);
+  });
+});

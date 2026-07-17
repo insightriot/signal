@@ -14,7 +14,7 @@ Authoritative references:
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `readEffectiveProfile`, `ProfileSchemaError`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `isStateStale`, `isStaleVsOrigin`, `readSchemaDrift`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/resume.js` — `renderResumeBriefing`, `handleOrphansAtResume`, `resolveArtifactPath`
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `nextActionForPhase`, `formatEscalationSummary`, `readOpenQuestions`, `readLandscapeMeta`, `readStateSizeForTier`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `nextActionForPhase`, `formatEscalationSummary`, `readOpenQuestions`, `readLandscapeMeta`, `readStateSizeForTier`, `readLayoutBanner`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/landscape.js` — `extractSection` (used to pull "What this project is" from LANDSCAPE.md when PROJECT.md Vision is still `[INFERRED]` or `[FILL IN]`)
 
 ## Workflow
@@ -74,6 +74,8 @@ Two pre-render checks routed through `tools/lib/state.js` + `tools/lib/resume.js
 
 1c. **STATE.md size** (v0.1.6, FR2; tier-aware M5.E1.S2, FR2d) — call `readStateSizeForTier(baseDir)` from `tools/lib/status.js` and pass the result to `renderResumeBriefing` as `stateSizeResult`. Read-only + fail-open (never throws → `null` on a missing/unreadable file, or when PROFILE.md is absent/malformed). Async because it resolves the size threshold from the project tier (SKETCH 75 KB < FEATURE/SPIKE 150 KB < FULL 300 KB, flat 150 KB fallback). It's the **lowest-priority, advisory** banner (rendered last, just above the body — it doesn't cast doubt on the briefing's correctness the way schema/staleness/origin drift do).
 
+1d. **Pre-reorg layout nudge** (M5.E2.S3.t2, FR7.2) — call `readLayoutBanner(baseDir)` from `tools/lib/status.js` and pass the returned string (or `null`) to `renderResumeBriefing` as `layoutBanner`. Read-only + **fail-open** (never throws → `null` on any error). It senses via the migrate engine's `senseProject`: **stamp-first** (a `docs_layout_version` stamp at/above CURRENT → silent), then a **structural sniff** (an unstamped project stays silent unless it carries pending reorg work — so a clean-but-unstamped project is never false-bannered). Same **advisory tier** as the size banner (rendered near it, never above the schema-drift banner). It's the command-path counterpart to the SessionStart hook (`hooks/warn-layout-drift.js`, S3.t1), whose stamp-first-only read the structural sniff here corrects.
+
 #### 3c. Retro completeness (M4.5.E9.S2.t7)
 
 Call `enumerateRetros(baseDir)` from `tools/lib/retro-index.js`. Build a summary `{total, complete, stub}` where `complete = total - stub` (and `stub = records.filter(r => r.isStub).length`). Pass as `retroSummary` to `renderResumeBriefing`. The renderer adds one line:
@@ -113,6 +115,7 @@ renderResumeBriefing({
   originDriftResult,              // origin drift — from Step 3b(1a); fail-open
   schemaDriftResult,             // schema drift — from Step 3b(1b); read-only
   stateSizeResult,               // STATE.md size — from Step 3b(1c); advisory, read-only
+  layoutBanner,                  // pre-reorg layout nudge string|null — from Step 3b(1d); advisory, fail-open
   nextAction: nextActionForPhase(state.phase, profile.phases_skipped),
   retroSummary,                   // {total, complete, stub} — see Step 3c
 });

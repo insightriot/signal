@@ -14,7 +14,7 @@ Authoritative references (read if you need to refresh):
 - `${CLAUDE_PLUGIN_ROOT}/references/profile-schema.md` — PROFILE.md format
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `readEffectiveProfile`, `ProfileSchemaError`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `nextActionForPhase`, `readOpenQuestions`, `formatEscalationSummary`, `reachedDoneViaSkip`, `readLandscapeMeta`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `nextActionForPhase`, `readOpenQuestions`, `formatEscalationSummary`, `reachedDoneViaSkip`, `readLandscapeMeta`, `readLayoutBanner`
 
 ## Workflow
 
@@ -105,6 +105,10 @@ Also before 2.1, call `readSchemaDriftBanner(baseDir)` from `tools/lib/status.js
 #### 2.0d STATE.md size check (advisory) — v0.1.6, FR2
 
 Call `readStateSizeBannerForTier(baseDir)` from `tools/lib/status.js` (tier-aware — M5.E1.S2, FR2d). If it returns a string, append it **below** the drift banners (it's the lowest-priority, advisory signal — the file being large doesn't make the status *wrong*, unlike schema/origin drift). If `null`, skip silently. Read-only whole-file `statSync`; threshold is resolved from the project tier (SKETCH 75 KB < FEATURE/SPIKE 150 KB < FULL 300 KB, flat 150 KB fallback when no PROFILE). Fail-open — like the other banners, advisory-only, it MUST NOT break `/sig:status`.
+
+#### 2.0e Pre-reorg layout check (advisory) — M5.E2.S3.t2, FR7.2
+
+Call `readLayoutBanner(baseDir)` from `tools/lib/status.js`. If it returns a string, append it in the **advisory tier** alongside the size banner (below the schema/origin/staleness drift banners — a project predating the current docs layout doesn't make the status *wrong*). If `null`, skip silently. It nudges a project whose `.planning/` predates the current docs layout to run `/sig:migrate-memory`. Read-only and **fail-open**: it senses via the migrate engine's `senseProject` (stamp-first — a `docs_layout_version` stamp at/above CURRENT is silent — then a **structural sniff**: an unstamped project stays silent unless it actually carries pending reorg work, so a clean-but-unstamped project is never false-bannered). ANY error (unreadable STATE.md, a parse hiccup) degrades to `null` — advisory-only, it MUST NOT break `/sig:status`. This is the command-path counterpart to the SessionStart hook (`hooks/warn-layout-drift.js`, S3.t1); the hook's stamp-first-only read would false-banner an unstamped-conformant project, which the structural sniff here fixes.
 
 #### 2.1 Project + tier
 

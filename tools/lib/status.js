@@ -14,6 +14,7 @@ import {
 } from './state.js';
 import { readProfile } from './profile.js';
 import { extractSection } from './landscape.js';
+import { senseProject, CURRENT_LAYOUT_VERSION } from './migrate-memory.js';
 import {
   readInstallState,
   runAllDetectors,
@@ -331,4 +332,78 @@ export async function readStateSizeForTier(baseDir) {
  */
 export async function readStateSizeBannerForTier(baseDir) {
   return formatStateSizeBanner(await readStateSizeForTier(baseDir));
+}
+
+// --- pre-reorg layout-drift banner (M5.E2.S3.t2, FR7.2) — command-path half ----
+//
+// The COMMAND counterpart to the SessionStart hook (S3.t1). Same nudge, but built
+// on the migrate engine's real structural-sniff source (`senseProject`) rather than
+// the hook's capped-prefix stamp read. Two things drive that choice:
+//   - IMPORT FREEDOM — /sig:resume and /sig:status already import heavy libs, so
+//     (unlike the fail-open-at-import SessionStart hook) they MAY import senseProject
+//     freely. senseProject reads the FR7 `docs_layout_version` stamp AND detects every
+//     pending vector/move in ONE pass — so the hook's stamp-only helpers would supply
+//     just half the decision (importing them buys nothing, and commands reaching into
+//     hooks/ is a smell). The `HOOK_LAYOUT_VERSION === CURRENT_LAYOUT_VERSION` sync
+//     assertion stays live in the untouched hook test.
+//   - STRUCTURAL-SNIFF FALLBACK — the hook's `decideLayoutDrift` is stamp-first ONLY:
+//     a fenced-no-stamp file returns preReorg:true, which would FALSE-banner a project
+//     that is already structurally conformant but simply never got stamped. This layers
+//     the sniff on top: no stamp → banner ONLY when there is genuine pending reorg work.
+//
+// Named DISTINCTLY from the hook's `LAYOUT_DRIFT_BANNER` (deliberately NOT shared — that
+// would reintroduce the commands-reaching-into-hooks/ smell option (c) exists to avoid).
+// The two texts differ by design: the hook adds "then --apply … to the current model",
+// this command-path copy is the shorter FR7.2-quoted nudge.
+export const LAYOUT_DRIFT_BANNER_COMMAND =
+  "Signal: this project's `.planning/` predates the current docs layout — run " +
+  '`/sig:migrate-memory` (dry-run first) to reorganize. This is advisory; nothing is blocked.';
+
+/**
+ * PURE layout-drift decision. Stamp-first, then structural sniff:
+ *   - a stamp AT/AHEAD of CURRENT_LAYOUT_VERSION cannot predate the layout → silent;
+ *   - a stamp BELOW CURRENT is unambiguously pre-reorg → banner;
+ *   - no / unparseable stamp → banner ONLY when the structure shows genuine pending
+ *     reorg work (a within-STATE vector, a v3 evict, or an archive move). A
+ *     structurally-clean unstamped project stays SILENT (the t2-vs-t1 thesis — the
+ *     stamp-first hook would false-banner it). `flags` are advisory (soft-long /
+ *     milestone-bloat / index-refresh), NOT vectors/moves, so a flags-only project
+ *     also stays silent. Deliberately does NOT use `senseProject.noop` (it folds in
+ *     `stamped`, which would re-banner every conformant-unstamped project).
+ *
+ * @param {{stamp: number|null, conformant?: boolean, v3?: {evicts?: any[]}, archive?: {moves?: any[]}}} sensed
+ *   — senseProject (or senseState) output.
+ * @returns {boolean} true ⇒ show the pre-reorg banner.
+ */
+export function decideLayoutBanner(sensed) {
+  const stamp = sensed?.stamp ?? null;
+  if (Number.isInteger(stamp)) {
+    // Stamped: at/ahead of CURRENT can't predate the layout → silent; older → banner.
+    return stamp < CURRENT_LAYOUT_VERSION;
+  }
+  const structurallyClean =
+    sensed?.conformant === true &&
+    (sensed?.v3?.evicts?.length ?? 0) === 0 &&
+    (sensed?.archive?.moves?.length ?? 0) === 0;
+  return !structurallyClean;
+}
+
+/**
+ * Disk-aware pre-reorg layout banner (FR7.2) — a string or null when the project's
+ * `.planning/` is post-reorg / structurally conformant / absent. Read-only and
+ * FAIL-OPEN: ANY error (unreadable STATE.md, a parse hiccup in the structural sniff,
+ * no `.planning/` at all) degrades to `null` — advisory-only, it MUST NOT break
+ * `/sig:status` or `/sig:resume`. Shared by both commands so they show the identical
+ * banner (mirrors readSchemaDriftBanner / readStateSizeBannerForTier).
+ *
+ * @param {string} baseDir
+ * @returns {Promise<string | null>}
+ */
+export async function readLayoutBanner(baseDir) {
+  try {
+    const sensed = await senseProject(baseDir);
+    return decideLayoutBanner(sensed) ? LAYOUT_DRIFT_BANNER_COMMAND : null;
+  } catch {
+    return null; // advisory + fail-open — never break the command
+  }
 }
