@@ -34,7 +34,7 @@ import {
 } from './evict.js';
 import { enumerateRetros } from './retro-index.js';
 import { checkStateFrontmatterShape } from './retrospective.js';
-import { toPosix, detectUnhandledLinkForms } from './archive-tree.js';
+import { toPosix, detectUnhandledLinkForms, senseArchiveTree, applyArchiveTree } from './archive-tree.js';
 
 // verifyFaithful IS verifyCardCoverage under the migrate command's name — a
 // re-export, NOT a rename (evict.js keeps verifyCardCoverage; check-state-write
@@ -1219,8 +1219,8 @@ export function computeDanglingDelta(before, after) {
  * path still literally present anywhere (link OR prose) -- a rewrite the migrate
  * SHOULD have performed but skipped. The moved file's own new home is exempt (it
  * may legitimately quote its former path in verbatim history). Read-only, scans
- * capped at FILE_SCAN_CEILING. moveMap is empty until S2.t5 wires the archive-tree
- * moves in -> until then this is a no-op.
+ * capped at FILE_SCAN_CEILING. applyMigrate feeds the live archive-tree moveMap
+ * (S2.t5a); an empty moveMap (no archive moves) is a no-op.
  *
  * @param {string} baseDir
  * @param {Map<string,string>} moveMap  original->new (repo-root-relative POSIX)
@@ -1391,10 +1391,15 @@ export async function renderDryRun(baseDir) {
   // S2.t4 link-hygiene surfacing (read-only): at-risk anchors into files the
   // migrate rewrites (STATE.md when any vector/evict fires — its headings shift),
   // and the detect-and-warn floor for reference-style / HTML links the inline
-  // rewriter does NOT touch. moveMap targets get added to `touched` once S2.t5
-  // wires the archive-tree moves into the dry-run.
+  // rewriter does NOT touch. S2.t5a adds the archive-tree moves: a link
+  // `](movedFile#heading)` resolves (in the PRE-apply layout the dry-run scans) to
+  // the moved file's CURRENT (source) path — the moveMap KEY — so add the keys so
+  // at-risk anchors into MOVED files are flagged too (before, only STATE.md-rewrite
+  // anchors were).
+  const archive = await senseArchiveTree(baseDir);
   const touched = new Set();
   if (!noop) touched.add(`${PLANNING_DIR}/STATE.md`);
+  for (const from of archive.moveMap.keys()) touched.add(from);
   const atRiskAnchors = await scanAtRiskAnchors(baseDir, touched);
   const unhandledForms = await scanUnhandledLinkForms(baseDir);
 
@@ -1551,7 +1556,18 @@ export async function applyMigrate(baseDir, opts = {}) {
     // closed-Epic sections still to evict is exactly V3's job. Fold V3 into the
     // gate so that case isn't early-returned as a no-op.
     const v3sense = await senseVector3(baseDir, raw);
-    if (plan.noop && v3sense.evicts.length === 0) {
+
+    // Archive-tree sense (read-only, under the ONE coarse lock — §9): closed-scaffold
+    // FILE moves + per-file referrer link/prose rewrites. Sensed HERE (before the
+    // noop gate) for two reasons: (1) a conformant-STATE project can still have
+    // un-archived closed scaffolds, so the gate must NOT early-return it as a no-op;
+    // (2) it is read BEFORE any write, so the extended snapshot set + the
+    // enforceNoDangling moveMap both derive from it. The moveMap is invariant across
+    // the V1/V3/V2 compose (STATE.md is not a scaffold doc), so sensing it now is safe.
+    const archiveSense = await senseArchiveTree(baseDir);
+    const archiveMoveMap = archiveSense.moveMap;
+
+    if (plan.noop && v3sense.evicts.length === 0 && archiveMoveMap.size === 0) {
       return { applied: false, changed: false, moves: [], inputHash, mode: probe.mode, warnings: probe.warnings };
     }
 
@@ -1560,6 +1576,14 @@ export async function applyMigrate(baseDir, opts = {}) {
     // reuses this SAME snapshot/rollback via createSnapshotter.
     const { snapshot, snap, rollback } = createSnapshotter(planningDir);
     await snap('STATE.md');
+    // snap a file ONCE — never clobber an existing snapshot entry. Critical: the
+    // archive-tree snapshot extension (below) must NOT overwrite STATE.md's raw
+    // pre-apply bytes with its post-write composed bytes (that would make rollback
+    // restore the composed text, not the original), nor re-snap the V3/V2 archive
+    // files after they were created.
+    const snapOnce = async (rel) => {
+      if (!snapshot.has(rel)) await snap(rel);
+    };
 
     // Pre-apply dangling-link baseline (FR6.3 "before") — pre-existing dangles
     // are NOT attributed to the migrate; only NEW ones abort.
@@ -1658,16 +1682,44 @@ export async function applyMigrate(baseDir, opts = {}) {
       throw new Error(`applyMigrate: post-apply verify failed (${v.reason ?? 'blocked'}) — rolled back.`);
     }
 
+    // --- archive-tree: relocate closed-scaffold FILES + rewrite referrers (§9) ---
+    // Runs AFTER the STATE.md write so it rewrites the FINAL composed STATE.md's
+    // scaffold-links; the within-STATE vector moves (V1/V3/V2) are already on disk.
+    // LOCK-FREE spine: applyArchiveTree never self-locks and never calls
+    // evictEpicNarrative — it runs under THIS apply's ONE coarse lock.
+    if (archiveMoveMap.size > 0) {
+      // Extend the surgical snapshot to EVERY file the archive step touches BEFORE
+      // any archive write, so an abort below (or in enforceNoDangling) rolls back
+      // ALL of them byte-identical — else STATE.md rolls back but a rewritten
+      // referrer stays mutated = partial write. Derived from senseArchiveTree's
+      // moveMap + editsByFile: every move SOURCE + DEST, plus every referrer whose
+      // link/prose edits are non-empty. Paths are repo-root-relative POSIX; snap()
+      // keys are relative to planningDir, so strip the leading `.planning/`.
+      for (const [from, to] of archiveMoveMap) {
+        await snapOnce(from.replace(`${PLANNING_DIR}/`, '')); // move source (removed)
+        await snapOnce(to.replace(`${PLANNING_DIR}/`, '')); // move dest (created)
+      }
+      for (const [f, edits] of archiveSense.editsByFile) {
+        if (edits.length > 0) await snapOnce(f.replace(`${PLANNING_DIR}/`, '')); // referrer
+      }
+      const archiveResult = await applyArchiveTree(baseDir, { apply: true });
+      moves.push({
+        vector: 'archive-tree',
+        moves: archiveResult.moves.length,
+        rewrittenFiles: archiveResult.rewrittenFiles,
+      });
+    }
+
     // Post-apply BLOCKING dangling-link gate (S2.t4): migrate-caused dangling
     // references — inline .md dangles (delta vs the pre-apply baseline, FR6.3
-    // "before") + residual flat paths (this run's moveMap) — HARD abort + surgical
-    // rollback (never a log-after-commit). INDEX.md dangles (§10) + at-risk anchors
-    // are flagged, never aborted. §9: this runs inside the ONE coarse lock and
-    // reuses THIS apply's snapshot rollback. moveMap is empty until S2.t5 wires the
-    // archive-tree moves into this compose sequence (then it feeds the moveMap here).
+    // "before") + residual flat paths (this run's archive moveMap) — HARD abort +
+    // surgical rollback (never a log-after-commit). INDEX.md dangles (§10) +
+    // at-risk anchors are flagged, never aborted. §9: this runs inside the ONE
+    // coarse lock and reuses THIS apply's snapshot rollback (extended above to the
+    // archive-touched files so a rewritten referrer is never left partially written).
     await enforceNoDangling(baseDir, {
       baseline: danglingBaseline,
-      moveMap: new Map(),
+      moveMap: archiveMoveMap,
       rollback,
       scanDangling,
     });
