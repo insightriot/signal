@@ -17,11 +17,21 @@
 // modes are write-free (the dry-run write-nothing invariant is the load-bearing
 // AC and must hold from the first commit).
 
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readFile, mkdir } from 'node:fs/promises';
+import { join, dirname, resolve, sep } from 'node:path';
 
 import { PLANNING_DIR, withStateLock } from './state.js';
 import { atomicWrite } from './atomic-write.js';
+import { verifyCardCoverage } from './evict.js';
+
+// verifyFaithful IS verifyCardCoverage under the migrate command's name — a
+// re-export, NOT a rename (evict.js keeps verifyCardCoverage; check-state-write
+// and evictEpicNarrative still call it there). It is the discrete-token
+// (ID/date/status) COVERAGE backstop — NOT the vector-1 prose gate. The vector-1
+// gate is WORD conservation (advisor pin, confirmed empirically): verifyFaithful
+// returns pass:true on a TOTAL deletion of pure prose that carries no IDs, so it
+// cannot be what guards the B8 catastrophe.
+export const verifyFaithful = verifyCardCoverage;
 
 /**
  * Parse the command flags. Dry-run is the default (FR6.1) — writing requires an
@@ -115,6 +125,117 @@ export async function setDocsLayoutVersion(baseDir, n) {
       await atomicWrite(statePath, next); // compare-before-write → idempotent no-op
     }
   });
+}
+
+// --- the faithfulness gate (S1.t3) — relocate-never-delete, verified ----------
+//
+// Extracted + generalized from evict.js:343-391 (the byte-identical archive
+// spine), minus the Epic/retro coupling, plus a second conservation mode and the
+// B8 body-not-grown hard-fail. Two conservation modes (cross-cutting §2):
+//   BYTE — archive/verbatim relocation: the new home equals the source exactly.
+//   WORD — in-body relocation: every source token survives in the new home
+//          (indent-/reflow-agnostic). This is the load-bearing VECTOR-1 gate.
+
+export const BYTE = 'byte';
+export const WORD = 'word';
+
+/**
+ * Pure conservation check — the B8 "body shrank but the new home didn't grow"
+ * guard. The relocated content must be fully present in its new home:
+ *   BYTE — `newHome` equals `source` exactly (archive/verbatim).
+ *   WORD — every whitespace-delimited token of `source` appears in `newHome` at
+ *          least as many times (multiset containment; indent-/reflow-agnostic).
+ *          A dropped sentence removes its tokens from `newHome` → fail. Catches
+ *          a WHOLESALE drop (the B8 catastrophe: hundreds of tokens vanish); it
+ *          is NOT a semantic-faithfulness check (a single-word paraphrase is the
+ *          human-eyeball blind spot, cross-cutting §7).
+ *
+ * @param {string} source
+ * @param {string} newHome
+ * @param {'byte'|'word'} [mode=WORD]
+ * @returns {{pass: boolean, mode: string, missing: string[]}}
+ */
+export function conserves(source, newHome, mode = WORD) {
+  const src = String(source ?? '');
+  const dst = String(newHome ?? '');
+  if (mode === BYTE) {
+    return { pass: dst === src, mode, missing: dst === src ? [] : ['<byte-identity>'] };
+  }
+  if (mode !== WORD) {
+    throw new Error(`conserves: unknown mode ${JSON.stringify(mode)} (expected 'byte' | 'word').`);
+  }
+  const tokenize = (s) => s.split(/\s+/).filter(Boolean);
+  const have = new Map();
+  for (const t of tokenize(dst)) have.set(t, (have.get(t) ?? 0) + 1);
+  const need = new Map();
+  for (const t of tokenize(src)) need.set(t, (need.get(t) ?? 0) + 1);
+  const missing = [];
+  for (const [tok, count] of need) {
+    if ((have.get(tok) ?? 0) < count) missing.push(tok);
+  }
+  return { pass: missing.length === 0, mode, missing };
+}
+
+/**
+ * Relocate `sourceText` to a new home, verifying NO loss two independent ways:
+ *   1. CONSERVATION — the new home actually GREW to hold the content (BYTE
+ *      identity for archive/verbatim, WORD containment for in-body). This is the
+ *      B8 body-not-grown guard and the load-bearing vector-1 gate.
+ *   2. COVERAGE backstop — verifyFaithful (= verifyCardCoverage) proves no
+ *      discrete ID / ISO date / status token was dropped from `card`.
+ * Both must pass or the relocation FAILS (`pass:false`) and the caller refuses
+ * the apply / rolls back. This primitive NEVER shortens the source — the caller
+ * does that, gated on `pass`, so a failed gate can never leave content deleted.
+ *
+ * BYTE mode writes `sourceText` to `destAbs` and reads it back — that readback IS
+ * the "new home grew by exactly the source" proof; the separate `card` (e.g. a
+ * RETROSPECTIVE for vector-3) is what coverage is checked against. WORD mode does
+ * NOT write (source & dest share a file for in-body relocation — the caller
+ * writes the combined file, gated on `pass`); `card` is the new-home body region
+ * the content moved into, and both conservation + coverage run against it.
+ *
+ * @param {object} args
+ * @param {string} args.sourceText  the content being relocated
+ * @param {string} [args.card]      new-home representation for coverage (and, in
+ *                                  WORD mode, for conservation). Defaults to
+ *                                  `sourceText` (a byte-identical move covers
+ *                                  itself).
+ * @param {string} args.destAbs     absolute path of the new home file
+ * @param {string} args.baseDir     project root (path confinement)
+ * @param {'byte'|'word'} [args.mode=BYTE]
+ * @param {string[]} [args.dropped] explicitly-acknowledged dropped items
+ * @param {string} [args.pointer]   one-line pointer left behind (echoed back)
+ * @returns {Promise<{pass, mode, conservation, coverage, destAbs, pointer}>}
+ */
+export async function relocateFaithful(args) {
+  const { sourceText, destAbs, baseDir, mode = BYTE, dropped = [], pointer = null } = args;
+  const card = args.card ?? sourceText;
+
+  // Defense-in-depth path confinement (mirrors evict.js / resume.js / add.js):
+  // the new home must stay inside the project's .planning/ — the trailing sep
+  // defeats the sibling-prefix bug (.planning-evil/).
+  const planningRoot = resolve(baseDir, PLANNING_DIR);
+  if (!resolve(destAbs).startsWith(planningRoot + sep)) {
+    throw new Error(
+      `relocateFaithful: dest ${destAbs} escapes ${PLANNING_DIR}/ (baseDir ${baseDir}).`
+    );
+  }
+
+  let conservation;
+  if (mode === BYTE) {
+    await mkdir(dirname(destAbs), { recursive: true });
+    await atomicWrite(destAbs, sourceText);
+    const landed = await readFile(destAbs, 'utf-8'); // "grew by exactly source" proof
+    conservation = conserves(sourceText, landed, BYTE);
+  } else if (mode === WORD) {
+    conservation = conserves(sourceText, card, WORD);
+  } else {
+    throw new Error(`relocateFaithful: unknown mode ${JSON.stringify(mode)} (expected 'byte' | 'word').`);
+  }
+
+  const coverage = verifyFaithful(sourceText, card, { dropped });
+  const pass = conservation.pass && coverage.pass;
+  return { pass, mode, conservation, coverage, destAbs, pointer };
 }
 
 /**
