@@ -34,6 +34,7 @@ import {
 } from './evict.js';
 import { enumerateRetros } from './retro-index.js';
 import { checkStateFrontmatterShape } from './retrospective.js';
+import { toPosix, detectUnhandledLinkForms } from './archive-tree.js';
 
 // verifyFaithful IS verifyCardCoverage under the migrate command's name — a
 // re-export, NOT a rename (evict.js keeps verifyCardCoverage; check-state-write
@@ -1118,6 +1119,17 @@ export async function senseProject(baseDir) {
 const DANGLING_LINK_RE = /\]\(([^)]+)\)/g;
 const isExternalLink = (t) => /^(https?:|mailto:|#)/.test(t);
 
+// Per-file scan cap (cross-cutting §4 — mirrors retrospective.js's 1 MB
+// FRONTMATTER_SCAN_CEILING, which isn't exported): a pathological huge file can
+// never hang the gate. Legit `.planning/` docs are a few KB; 1 MB is generous.
+const FILE_SCAN_CEILING = 1024 * 1024;
+
+// §10 (INDEX descope): the hand-curated `.planning/INDEX.md` is NEVER auto-
+// rewritten, so a move can legitimately leave an INDEX link stale. An INDEX dangle
+// is therefore a dry-run FLAG, never an abort (constraint 3). Repo-root-rel POSIX.
+const INDEX_REL = `${PLANNING_DIR}/INDEX.md`;
+const isIndexRel = (fileRepoRel) => toPosix(fileRepoRel) === INDEX_REL;
+
 async function walkMarkdown(dir) {
   const out = [];
   let entries;
@@ -1154,6 +1166,7 @@ export async function scanDanglingLinks(baseDir) {
     } catch {
       continue;
     }
+    if (text.length > FILE_SCAN_CEILING) text = text.slice(0, FILE_SCAN_CEILING);
     for (const m of text.matchAll(DANGLING_LINK_RE)) {
       const raw = m[1].trim();
       if (isExternalLink(raw)) continue;
@@ -1175,6 +1188,179 @@ export function computeDanglingDelta(before, after) {
   const key = (d) => `${d.file} ${d.link}`;
   const seen = new Set(before.map(key));
   return after.filter((d) => !seen.has(key(d)));
+}
+
+// --- blocking dangling-link gate (S2.t4, FM7) ---------------------------------
+//
+// Turns the prototype's ADVISORY link verification (archive-migrate.mjs:115-133 —
+// scan then log AFTER the moves already committed) into a BLOCKING post-apply
+// gate: any migrate-caused dangling reference -> hard abort + surgical rollback
+// (never a log-after-commit). Coverage:
+//   - inline `](path)` .md links -> `scanDanglingLinks` (delta vs the FR6.3
+//     "before" baseline; pre-existing dangles are NOT attributed to the migrate);
+//   - residual flat paths (a moved file's OLD `.planning/<file>` path still
+//     literally present -- a skipped prose/link rewrite) -> `scanResidualFlatPaths`.
+//     These come from THIS run's moveMap, so they are inherently migrate-caused
+//     (the path was valid until this migrate moved the file) -- no baseline
+//     subtraction needed;
+//   - anchors (`file#heading`) -> FLAGGED at-risk in the dry-run (not aborted): a
+//     `#heading` whose FILE is missing is already caught by the inline .md check;
+//     file-present-heading-moved is flagged for manual review (full slug
+//     resolution is skipped to avoid false-aborts -- the "clean run -> no false
+//     abort" AC);
+//   - reference-style `[a]: path` + HTML `<a href>` -> detect-and-warn floor in
+//     the dry-run (see `scanUnhandledLinkForms` / `detectUnhandledLinkForms`).
+// SS10: an `INDEX.md` dangle is a FLAG, never an abort -- the hand-curated INDEX
+// is never auto-rewritten, so a move legitimately leaves its links stale.
+
+/**
+ * Residual flat paths: for each moved file (a moveMap entry keyed on its OLD
+ * repo-root-relative POSIX `.planning/<file>` path), scan the corpus for that old
+ * path still literally present anywhere (link OR prose) -- a rewrite the migrate
+ * SHOULD have performed but skipped. The moved file's own new home is exempt (it
+ * may legitimately quote its former path in verbatim history). Read-only, scans
+ * capped at FILE_SCAN_CEILING. moveMap is empty until S2.t5 wires the archive-tree
+ * moves in -> until then this is a no-op.
+ *
+ * @param {string} baseDir
+ * @param {Map<string,string>} moveMap  original->new (repo-root-relative POSIX)
+ * @returns {Promise<Array<{file: string, target: string}>>}
+ */
+export async function scanResidualFlatPaths(baseDir, moveMap) {
+  if (!moveMap || moveMap.size === 0) return [];
+  const froms = [...moveMap.keys()].map(toPosix);
+  const files = await walkMarkdown(join(baseDir, PLANNING_DIR));
+  const residual = [];
+  for (const f of files) {
+    let text;
+    try {
+      text = await readFile(f, 'utf-8');
+    } catch {
+      continue;
+    }
+    if (text.length > FILE_SCAN_CEILING) text = text.slice(0, FILE_SCAN_CEILING);
+    const rel = toPosix(relative(baseDir, f));
+    for (const from of froms) {
+      if (rel === toPosix(moveMap.get(from))) continue; // the moved file's own new home
+      if (text.includes(from)) residual.push({ file: rel, target: from });
+    }
+  }
+  return residual;
+}
+
+/**
+ * At-risk anchors (dry-run flag, not abort): inline `](file#heading)` links whose
+ * target file is one the migrate MOVES or REWRITES -- after the change the
+ * `#heading` may no longer resolve. Cheap (no heading-slug resolution -> no
+ * false-abort); the human verifies. A `#heading` whose file is entirely missing is
+ * caught by the inline .md dangle check instead. Read-only, scans capped.
+ *
+ * @param {string} baseDir
+ * @param {Set<string>} touchedRel  repo-root-relative POSIX paths the migrate touches
+ * @returns {Promise<Array<{file: string, target: string, anchor: string}>>}
+ */
+export async function scanAtRiskAnchors(baseDir, touchedRel = new Set()) {
+  if (!touchedRel || touchedRel.size === 0) return [];
+  const files = await walkMarkdown(join(baseDir, PLANNING_DIR));
+  const out = [];
+  for (const f of files) {
+    let text;
+    try {
+      text = await readFile(f, 'utf-8');
+    } catch {
+      continue;
+    }
+    if (text.length > FILE_SCAN_CEILING) text = text.slice(0, FILE_SCAN_CEILING);
+    const linker = toPosix(relative(baseDir, f));
+    for (const m of text.matchAll(DANGLING_LINK_RE)) {
+      const raw = m[1].trim();
+      if (isExternalLink(raw)) continue;
+      const [targetPath, anchor = ''] = raw.split(/\s+/)[0].split(/(#.*)/);
+      if (!anchor || !targetPath.endsWith('.md')) continue;
+      const cand1 = toPosix(relative(baseDir, resolve(dirname(f), targetPath)));
+      const cand2 = toPosix(targetPath);
+      const target = touchedRel.has(cand1) ? cand1 : touchedRel.has(cand2) ? cand2 : null;
+      if (target) out.push({ file: linker, target, anchor });
+    }
+  }
+  return out;
+}
+
+/**
+ * Detect-and-warn floor (plan-checker fix 4): reference-style `[label]: path` and
+ * HTML `<a href>` links are OUTSIDE the inline `](path)` rewriter, so the migrate
+ * neither rewrites nor validates them. This surfaces every occurrence across the
+ * corpus so the dry-run can warn "present, not auto-rewritten -- verify manually"
+ * -- NOT silently ignored, NOT claimed as rewritten. Read-only, scans capped.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<Array<{file: string, form: 'reference'|'html', target: string}>>}
+ */
+export async function scanUnhandledLinkForms(baseDir) {
+  const files = await walkMarkdown(join(baseDir, PLANNING_DIR));
+  const out = [];
+  for (const f of files) {
+    let text;
+    try {
+      text = await readFile(f, 'utf-8');
+    } catch {
+      continue;
+    }
+    if (text.length > FILE_SCAN_CEILING) text = text.slice(0, FILE_SCAN_CEILING);
+    const file = toPosix(relative(baseDir, f));
+    for (const form of detectUnhandledLinkForms(text)) out.push({ file, ...form });
+  }
+  return out;
+}
+
+/**
+ * Partition post-apply dangling references into ABORTING (migrate-caused -> hard
+ * fail) and FLAGS (INDEX.md SS10 dangles -- surfaced, never abort). Inline dangles
+ * are the baseline-subtracted delta (FR6.3 "before"); residual flat paths are
+ * already this-run-caused (moveMap-keyed) so they enter as-is.
+ *
+ * @param {{baseline: Array, after: Array, residual: Array}} args
+ * @returns {{aborting: Array, flags: Array}}
+ */
+export function partitionDangling({ baseline = [], after = [], residual = [] }) {
+  const aborting = [];
+  const flags = [];
+  for (const d of computeDanglingDelta(baseline, after)) {
+    (isIndexRel(d.file) ? flags : aborting).push({ kind: 'dangling-link', ...d });
+  }
+  for (const r of residual) {
+    (isIndexRel(r.file) ? flags : aborting).push({ kind: 'residual-flat-path', ...r });
+  }
+  return { aborting, flags };
+}
+
+/**
+ * The BLOCKING dangling-link gate. Scans the post-apply corpus, partitions into
+ * abort vs flag, and on ANY aborting entry invokes the caller's SURGICAL `rollback`
+ * (the per-file pre-apply snapshot -- never `git reset --hard`) and throws. SS9:
+ * the caller holds the ONE coarse lock; this gate does no locking of its own.
+ * Returns the FLAG set (INDEX dangles) when it does not abort.
+ *
+ * @param {string} baseDir
+ * @param {{baseline?: Array, moveMap?: Map, rollback?: () => Promise<void>,
+ *          scanDangling?: (baseDir: string) => Promise<Array>}} [args]
+ * @returns {Promise<{flags: Array}>}
+ */
+export async function enforceNoDangling(baseDir, args = {}) {
+  const { baseline = [], moveMap = new Map(), rollback, scanDangling = scanDanglingLinks } = args;
+  const after = await scanDangling(baseDir);
+  const residual = await scanResidualFlatPaths(baseDir, moveMap);
+  const { aborting, flags } = partitionDangling({ baseline, after, residual });
+  if (aborting.length > 0) {
+    if (rollback) await rollback();
+    throw new Error(
+      `applyMigrate: the migrate introduced ${aborting.length} dangling reference(s) (${aborting
+        .map((a) => `${a.file}->${a.target}`)
+        .slice(0, 3)
+        .join(', ')}...) -- rolled back, no partial writes. Pre-existing dangles and INDEX.md/anchor at-risk items are not attributed (flagged in the dry-run).`
+    );
+  }
+  return { flags };
 }
 
 /**
@@ -1201,6 +1387,16 @@ export async function renderDryRun(baseDir) {
   // Disk-aware V3 sense (retroactive closed-Epic evict) — read-only.
   const v3 = await senseVector3(baseDir, raw);
   const noop = plan.noop && v3.evicts.length === 0;
+
+  // S2.t4 link-hygiene surfacing (read-only): at-risk anchors into files the
+  // migrate rewrites (STATE.md when any vector/evict fires — its headings shift),
+  // and the detect-and-warn floor for reference-style / HTML links the inline
+  // rewriter does NOT touch. moveMap targets get added to `touched` once S2.t5
+  // wires the archive-tree moves into the dry-run.
+  const touched = new Set();
+  if (!noop) touched.add(`${PLANNING_DIR}/STATE.md`);
+  const atRiskAnchors = await scanAtRiskAnchors(baseDir, touched);
+  const unhandledForms = await scanUnhandledLinkForms(baseDir);
 
   const L = [];
   L.push('== /sig:migrate-memory — DRY RUN (nothing written) ==', '');
@@ -1242,6 +1438,17 @@ export async function renderDryRun(baseDir) {
   L.push(`— Pre-existing dangling links (${baseline.length}) — NOT caused by this migrate —`);
   for (const d of baseline) L.push(`  ${d.file} → ${d.target}`);
   if (baseline.length === 0) L.push('  (none)');
+  L.push('');
+  // At-risk anchors — the target section may move; the #heading is NOT auto-verified.
+  L.push(`— At-risk anchors (${atRiskAnchors.length}) — target section may move; verify the #heading still resolves —`);
+  for (const a of atRiskAnchors) L.push(`  ${a.file} → ${a.target}${a.anchor}`);
+  if (atRiskAnchors.length === 0) L.push('  (none)');
+  L.push('');
+  // Detect-and-warn floor (plan-checker fix 4): reference-style + HTML links are
+  // present, NOT auto-rewritten by the inline pass — surfaced for manual review.
+  L.push(`— Reference-style / HTML links (${unhandledForms.length}) — present, NOT auto-rewritten; verify manually —`);
+  for (const u of unhandledForms) L.push(`  ${u.file} → [${u.form}] ${u.target}`);
+  if (unhandledForms.length === 0) L.push('  (none)');
 
   return L.join('\n');
 }
@@ -1273,6 +1480,33 @@ const withBody = (text, newBody) => {
 /** SHA-256 of the STATE.md bytes — the TOCTOU binding token (dry-run → apply). */
 export function hashState(text) {
   return createHash('sha256').update(String(text), 'utf-8').digest('hex');
+}
+
+/**
+ * The SURGICAL per-file snapshot + rollback the migrate reuses everywhere (the S2.t4
+ * gate + S1.t7 apply share ONE implementation). `snap(rel)` records a touched file's
+ * pre-apply bytes (or its non-existence); `rollback()` restores ONLY those files
+ * byte-identical and removes any the run newly created — NEVER a whole-tree
+ * `git reset --hard` (which would nuke a `--force` user's other uncommitted work).
+ * `rel` is relative to `planningDir`.
+ *
+ * @param {string} planningDir
+ * @returns {{snapshot: Map, snap: (rel: string) => Promise<void>, rollback: () => Promise<void>}}
+ */
+export function createSnapshotter(planningDir) {
+  const snapshot = new Map(); // rel → {abs, existed, bytes}
+  const snap = async (rel) => {
+    const abs = join(planningDir, rel);
+    const existed = existsSync(abs);
+    snapshot.set(rel, { abs, existed, bytes: existed ? await readFile(abs, 'utf-8') : null });
+  };
+  const rollback = async () => {
+    for (const s of snapshot.values()) {
+      if (s.existed) await atomicWrite(s.abs, s.bytes);
+      else if (existsSync(s.abs)) await rm(s.abs);
+    }
+  };
+  return { snapshot, snap, rollback };
 }
 
 /**
@@ -1322,19 +1556,9 @@ export async function applyMigrate(baseDir, opts = {}) {
     }
 
     // In-memory pre-apply snapshot of the files this apply may touch (surgical
-    // rollback source — restores ONLY these, never the whole tree).
-    const snapshot = new Map(); // rel → {abs, existed, bytes}
-    const snap = async (rel) => {
-      const abs = join(planningDir, rel);
-      const existed = existsSync(abs);
-      snapshot.set(rel, { abs, existed, bytes: existed ? await readFile(abs, 'utf-8') : null });
-    };
-    const rollback = async () => {
-      for (const s of snapshot.values()) {
-        if (s.existed) await atomicWrite(s.abs, s.bytes);
-        else if (existsSync(s.abs)) await rm(s.abs);
-      }
-    };
+    // rollback source — restores ONLY these, never the whole tree). The S2.t4 gate
+    // reuses this SAME snapshot/rollback via createSnapshotter.
+    const { snapshot, snap, rollback } = createSnapshotter(planningDir);
     await snap('STATE.md');
 
     // Pre-apply dangling-link baseline (FR6.3 "before") — pre-existing dangles
@@ -1434,19 +1658,19 @@ export async function applyMigrate(baseDir, opts = {}) {
       throw new Error(`applyMigrate: post-apply verify failed (${v.reason ?? 'blocked'}) — rolled back.`);
     }
 
-    // Post-apply dangling-link check: only NEW dangles (vs the pre-apply
-    // baseline) are the migrate's fault → hard abort + rollback (never a
-    // log-after-commit). Pre-existing dangles are left as they were.
-    const newDangles = computeDanglingDelta(danglingBaseline, await scanDangling(baseDir));
-    if (newDangles.length > 0) {
-      await rollback();
-      throw new Error(
-        `applyMigrate: the migrate introduced ${newDangles.length} dangling link(s) (${newDangles
-          .map((d) => `${d.file}→${d.target}`)
-          .slice(0, 3)
-          .join(', ')}…) — rolled back. Pre-existing dangles are not attributed.`
-      );
-    }
+    // Post-apply BLOCKING dangling-link gate (S2.t4): migrate-caused dangling
+    // references — inline .md dangles (delta vs the pre-apply baseline, FR6.3
+    // "before") + residual flat paths (this run's moveMap) — HARD abort + surgical
+    // rollback (never a log-after-commit). INDEX.md dangles (§10) + at-risk anchors
+    // are flagged, never aborted. §9: this runs inside the ONE coarse lock and
+    // reuses THIS apply's snapshot rollback. moveMap is empty until S2.t5 wires the
+    // archive-tree moves into this compose sequence (then it feeds the moveMap here).
+    await enforceNoDangling(baseDir, {
+      baseline: danglingBaseline,
+      moveMap: new Map(),
+      rollback,
+      scanDangling,
+    });
 
     // Persist the snapshot for durable surgical undo on the non-tag paths
     // (fs-backup OR --force on a dirty tree; git-clean relies on the tag).
