@@ -751,6 +751,20 @@ function locateSoftLongEntries(text) {
 }
 
 /**
+ * Stamp `text` to `version` ONLY when it is fully conformant (the Alembic
+ * blind-stamp guard, S1.t8): a stamp asserts "this file matches the layout," so
+ * stamping a still-polluted file would lie. Returns `text` unchanged when not
+ * conformant. Pure.
+ *
+ * @param {string} text
+ * @param {number} [version=CURRENT_LAYOUT_VERSION]
+ * @returns {string}
+ */
+export function stampOnConformance(text, version = CURRENT_LAYOUT_VERSION) {
+  return senseState(text).conformant ? spliceDocsLayoutVersion(text, version) : text;
+}
+
+/**
  * PURE single-STATE auto-sense. Reads the FR7 stamp, structurally sniffs the two
  * within-STATE bloat vectors, and returns the plan-data:
  *   - `vectors`     — which of ['vector-1','vector-2'] apply (the auto-move set).
@@ -1055,10 +1069,10 @@ export async function applyMigrate(baseDir, opts = {}) {
       moves.push({ vector: 'vector-2', historyName, bytes: p2.bytes });
     }
 
-    // Stamp only when the composed result is conformant (t8 hardens the policy).
-    if (senseState(text).conformant) {
-      text = spliceDocsLayoutVersion(text, CURRENT_LAYOUT_VERSION);
-    }
+    // Stamp only when the composed result is fully conformant (the Alembic
+    // blind-stamp guard — a partial run that didn't reach conformance leaves the
+    // stamp ABSENT so a re-run continues safely).
+    text = stampOnConformance(text, CURRENT_LAYOUT_VERSION);
 
     // One STATE.md write (compare-before-write).
     if (text !== raw) await atomicWrite(statePath, text);
