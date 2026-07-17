@@ -17,14 +17,16 @@
 // modes are write-free (the dry-run write-nothing invariant is the load-bearing
 // AC and must hold from the first commit).
 
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { join, dirname, resolve, sep } from 'node:path';
 
 import { PLANNING_DIR, withStateLock } from './state.js';
 import { atomicWrite } from './atomic-write.js';
 import { verifyCardCoverage } from './evict.js';
+import { checkStateFrontmatterShape } from './retrospective.js';
 
 // verifyFaithful IS verifyCardCoverage under the migrate command's name — a
 // re-export, NOT a rename (evict.js keeps verifyCardCoverage; check-state-write
@@ -805,29 +807,212 @@ export async function senseProject(baseDir) {
   return senseState(raw);
 }
 
+// --- apply engine (S1.t7b) — compose V1→V2→stamp under ONE coarse lock --------
+//
+// Composes the pure vector cores in memory under a SINGLE coarse `.state.lock`
+// (§9 — never the self-locking wrappers), reaches conformance in one invocation
+// (advisor: V1 de-prose can push the body past the V2 threshold, so V1→V2 must
+// chain or idempotency breaks + nextpass keeps a 529 KB body), stamps on
+// conformance, verifies, and rolls back SURGICALLY from an in-memory snapshot on
+// any failure (never `git reset --hard` — that would nuke a --force user's other
+// uncommitted work). TOCTOU: aborts before any write if STATE.md drifted since
+// the dry-run.
+
+const bodyOf = (text) => {
+  const m = String(text).match(FRONTMATTER_SPLICE_RE);
+  return m ? m[4] : String(text);
+};
+
+/** SHA-256 of the STATE.md bytes — the TOCTOU binding token (dry-run → apply). */
+export function hashState(text) {
+  return createHash('sha256').update(String(text), 'utf-8').digest('hex');
+}
+
 /**
- * Orchestrate a migrate run. Dry-run (default) senses the project and returns a
- * plan WITHOUT touching disk; `--apply` performs the (staged, reversible) moves.
- * `sense` is injectable so the auto-sense brain can be swapped/tested
- * independently of the orchestration.
- *
- * Skeleton (S1.t1): with the no-op sense there are no moves, so BOTH modes are
- * write-free — the apply path grows in S1.t7. `runMigrate(baseDir)` with no opts
- * is a dry-run that touches nothing.
+ * The apply engine. Probe → (refuse | proceed) → under ONE coarse lock: TOCTOU
+ * bind, in-memory snapshot, compose V1→V2→stamp, one write, verify, surgical
+ * rollback on failure, tag + stage (git) / persist snapshot (fs / --force-dirty).
  *
  * @param {string} baseDir
- * @param {{apply?: boolean, force?: boolean, sense?: (baseDir: string) => Promise<object>}} [opts]
- * @returns {Promise<{applied: boolean, dryRun: boolean, plan: object, changed?: string[]}>}
+ * @param {{force?: boolean, expectedHash?: string, execFn?: typeof execFileSync,
+ *          stamp?: string, dateStr?: string, verify?: (text: string) => {block: boolean, reason?: string}}} [opts]
+ */
+export async function applyMigrate(baseDir, opts = {}) {
+  const force = opts.force ?? false;
+  const execFn = opts.execFn ?? execFileSync;
+  const stamp = opts.stamp ?? new Date().toISOString().replace(/[:.]/g, '-');
+  const dateStr = opts.dateStr ?? new Date().toISOString().split('T')[0];
+  const verify = opts.verify ?? ((text) => checkStateFrontmatterShape({ proposedContent: text }));
+
+  const probe = probeGitState(baseDir, { execFn, force });
+  if (!probe.proceed) {
+    return { applied: false, refused: true, reason: probe.reason, warnings: probe.warnings };
+  }
+
+  const planningDir = join(baseDir, PLANNING_DIR);
+  const statePath = join(planningDir, 'STATE.md');
+
+  return withStateLock(baseDir, async () => {
+    const raw = await readFile(statePath, 'utf-8');
+
+    // TOCTOU: bind to the dry-run's hash. Mismatch → abort BEFORE any write.
+    const inputHash = hashState(raw);
+    if (opts.expectedHash && opts.expectedHash !== inputHash) {
+      throw new Error(
+        'applyMigrate: STATE.md changed since the dry-run (TOCTOU) — aborting before any write. Re-run the dry-run.'
+      );
+    }
+
+    const plan = senseState(raw);
+    if (plan.noop) {
+      return { applied: false, changed: false, moves: [], inputHash, mode: probe.mode, warnings: probe.warnings };
+    }
+
+    // In-memory pre-apply snapshot of the files this apply may touch (surgical
+    // rollback source — restores ONLY these, never the whole tree).
+    const snapshot = new Map(); // rel → {abs, existed, bytes}
+    const snap = async (rel) => {
+      const abs = join(planningDir, rel);
+      const existed = existsSync(abs);
+      snapshot.set(rel, { abs, existed, bytes: existed ? await readFile(abs, 'utf-8') : null });
+    };
+    const rollback = async () => {
+      for (const s of snapshot.values()) {
+        if (s.existed) await atomicWrite(s.abs, s.bytes);
+        else if (existsSync(s.abs)) await rm(s.abs);
+      }
+    };
+    await snap('STATE.md');
+
+    const moves = [];
+    let text = raw;
+
+    // --- compose V1 → V2 → stamp in memory (one STATE.md write at the end) ---
+    if (plan.v1.entries.length > 0) {
+      const d = deproseFrontmatter(text);
+      const cons = conserves(d.removedProse, bodyOf(d.newText), WORD);
+      if (!cons.pass) {
+        throw new Error(`applyMigrate: V1 WORD conservation failed (missing: ${cons.missing.slice(0, 5).join(', ')}…) — no write performed.`);
+      }
+      text = d.newText;
+      moves.push({ vector: 'vector-1', relocations: d.relocations.length });
+    }
+
+    let historyName = null;
+    if (senseState(text).v2.candidate) {
+      const primaryHistory = join(planningDir, 'STATE-HISTORY.md');
+      const historyExists = existsSync(primaryHistory);
+      const historyContent = historyExists ? await readFile(primaryHistory, 'utf-8') : null;
+      const p2 = planVector2(text, { dateStr, historyExists, historyContent });
+      historyName = p2.historyName;
+      await snap(historyName);
+      if (!p2.reuseExisting) {
+        // Write STATE-HISTORY byte-identical to the post-V1 body (BYTE gate).
+        const rel = await relocateFaithful({
+          sourceText: p2.body,
+          destAbs: join(planningDir, historyName),
+          baseDir,
+          mode: BYTE,
+        });
+        if (!rel.pass) {
+          await rollback();
+          throw new Error('applyMigrate: V2 BYTE conservation failed — rolled back.');
+        }
+      }
+      text = p2.newText;
+      moves.push({ vector: 'vector-2', historyName, bytes: p2.bytes });
+    }
+
+    // Stamp only when the composed result is conformant (t8 hardens the policy).
+    if (senseState(text).conformant) {
+      text = spliceDocsLayoutVersion(text, CURRENT_LAYOUT_VERSION);
+    }
+
+    // One STATE.md write (compare-before-write).
+    if (text !== raw) await atomicWrite(statePath, text);
+
+    // Post-apply verify → surgical rollback on failure.
+    const v = verify(text);
+    if (v.block) {
+      await rollback();
+      throw new Error(`applyMigrate: post-apply verify failed (${v.reason ?? 'blocked'}) — rolled back.`);
+    }
+
+    // Persist the snapshot for durable surgical undo on the non-tag paths
+    // (fs-backup OR --force on a dirty tree; git-clean relies on the tag).
+    let snapshotDir = null;
+    if (probe.mode === 'fs-backup' || (probe.dirty && force)) {
+      snapshotDir = join(planningDir, '.migrate', 'snapshot');
+      await mkdir(snapshotDir, { recursive: true });
+      await writeFile(join(planningDir, '.migrate', '.gitignore'), '*\n', 'utf-8');
+      for (const [rel, s] of snapshot) {
+        if (s.existed) await atomicWrite(join(snapshotDir, rel.replace(/\//g, '__')), s.bytes);
+      }
+    }
+
+    // Tag (git + HEAD) + stage the SPECIFIC mutated files (staged-not-committed).
+    let tag = null;
+    let revertLine;
+    const touched = [...snapshot.keys()].map((rel) => `${PLANNING_DIR}/${rel}`);
+    if (probe.mode === 'git') {
+      try {
+        execFn('git', ['tag', `pre-migrate-memory-${stamp}`], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
+        tag = `pre-migrate-memory-${stamp}`;
+      } catch {
+        tag = null;
+      }
+      try {
+        execFn('git', ['add', ...touched], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
+      } catch {
+        /* staging is best-effort — the changes are on disk regardless */
+      }
+      revertLine =
+        probe.dirty && force
+          ? `# --force on a dirty tree: restore ONLY the migrated files from ${snapshotDir} — do NOT 'git reset --hard' (it would discard your other uncommitted work).`
+          : `git reset --hard ${tag ?? '<pre-apply-commit>'}   # discards the staged migrate changes`;
+    } else {
+      revertLine = `# reversibility via filesystem snapshot — restore the migrated files from ${snapshotDir}.`;
+    }
+
+    return {
+      applied: true,
+      changed: true,
+      moves,
+      historyName,
+      stampedTo: readDocsLayoutVersion(text),
+      tag,
+      revertLine,
+      inputHash,
+      mode: probe.mode,
+      warnings: probe.warnings,
+    };
+  });
+}
+
+/**
+ * Orchestrate a migrate run. Dry-run (default) senses the project and returns the
+ * plan + `inputHash` (the TOCTOU binding token) WITHOUT touching disk; `--apply`
+ * hands off to `applyMigrate`, binding to the dry-run's hash. `sense` is
+ * injectable so the auto-sense brain can be swapped/tested independently.
+ *
+ * @param {string} baseDir
+ * @param {{apply?: boolean, force?: boolean, expectedHash?: string, stamp?: string,
+ *          dateStr?: string, sense?: (baseDir: string) => Promise<object>}} [opts]
  */
 export async function runMigrate(baseDir, opts = {}) {
   const apply = opts.apply ?? false;
   const sense = opts.sense ?? senseProject;
   const plan = await sense(baseDir);
 
+  const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
+  const inputHash = existsSync(statePath) ? hashState(await readFile(statePath, 'utf-8')) : null;
+
   if (!apply) {
-    return { applied: false, dryRun: true, plan };
+    return { applied: false, dryRun: true, plan, inputHash };
   }
-  // Apply path — the staged, reversible, gate-guarded move engine lands in
-  // S1.t7. The skeleton has no moves, so this writes nothing yet.
-  return { applied: true, dryRun: false, plan, changed: [] };
+  const result = await applyMigrate(baseDir, {
+    ...opts,
+    expectedHash: opts.expectedHash ?? inputHash,
+  });
+  return { ...result, plan };
 }
