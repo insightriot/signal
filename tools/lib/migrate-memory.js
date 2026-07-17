@@ -238,6 +238,252 @@ export async function relocateFaithful(args) {
   return { pass, mode, conservation, coverage, destAbs, pointer };
 }
 
+// --- vector-1 de-prose (S1.t4) — relocate frontmatter-list prose to the body --
+//
+// The acute nextpass/cmmc case: completed_phases entries and blockers[].text
+// fields became huge prose blocks, wedging the check-state-write write-guard. The
+// LOCATOR (net-new — checkStateFrontmatterShape only returns a boolean) finds the
+// offending entries + their line ranges; the TRANSFORM relocates each entry's
+// prose verbatim into the STATE body (leaving a short scalar), never deleting it.
+//
+// Budgets mirror checkStateFrontmatterShape (retrospective.js) so the locator
+// flags EXACTLY what the write-guard blocks — kept honest by the post-transform
+// `block:false` re-check in the tests.
+const COMPLETED_PHASES_MAX = 150;
+const BLOCKER_TEXT_MAX = 500;
+
+const isTopKeyLine = (line) => /^[A-Za-z_][A-Za-z0-9_]*:/.test(line);
+
+// Parse STATE.md into frontmatter fences + block lines + body (CRLF-aware).
+function splitFrontmatter(text) {
+  const m = String(text).match(FRONTMATTER_SPLICE_RE);
+  if (!m) return null;
+  const [, open, block, close, body] = m;
+  return { open, block, close, body, nl: open.includes('\r\n') ? '\r\n' : '\n', lines: block.split(/\r?\n/) };
+}
+
+// [start,end) line range of a top-level list key's items (null if absent/inline).
+function listSectionRange(lines, key) {
+  const keyIdx = lines.findIndex((l) => new RegExp(`^${key}:`).test(l));
+  if (keyIdx === -1) return null;
+  if (/^[A-Za-z_][A-Za-z0-9_]*:\s*\S/.test(lines[keyIdx])) return null; // inline `key: []`
+  let end = lines.length;
+  for (let i = keyIdx + 1; i < lines.length; i++) {
+    if (isTopKeyLine(lines[i])) { end = i; break; }
+  }
+  return { start: keyIdx + 1, end };
+}
+
+// Group a [start,end) range into `- `-led items, tracking each item's line span.
+function itemRanges(lines, start, end) {
+  const items = [];
+  let cur = null;
+  for (let i = start; i < end; i++) {
+    if (/^\s*-\s/.test(lines[i])) {
+      if (cur) items.push(cur);
+      cur = { start: i, end: i + 1 };
+    } else if (cur && lines[i].trim() !== '') {
+      cur.end = i + 1;
+    }
+  }
+  if (cur) items.push(cur);
+  return items;
+}
+
+// Within a blocker object's line span, locate its text: field span + value.
+function blockerTextSpan(lines, objStart, objEnd) {
+  for (let i = objStart; i < objEnd; i++) {
+    const tm = lines[i].match(/^(\s*)text:\s*(.*)$/);
+    if (!tm) continue;
+    const indent = tm[1].length;
+    const rest = tm[2];
+    if (/^[|>][+-]?\s*$/.test(rest)) {
+      // Block scalar: continuation is more-indented than the text: key, up to the
+      // next object-level key (raisedAt) or the object's end.
+      let j = i + 1;
+      const content = [];
+      for (; j < objEnd; j++) {
+        if (lines[j].trim() === '') { content.push(''); continue; }
+        if ((lines[j].match(/^(\s*)/)[1].length) <= indent) break;
+        content.push(lines[j].trim());
+      }
+      return { start: i, end: j, isBlockScalar: true, value: content.join('\n').trim() };
+    }
+    return { start: i, end: i + 1, isBlockScalar: false, value: rest.trim() };
+  }
+  return null;
+}
+
+/**
+ * The LOCATOR (net-new — checkStateFrontmatterShape returns only a boolean).
+ * Returns the exact frontmatter-list entries that pollute the write-guard, each
+ * with its line range (within the frontmatter block), the verbatim `original`
+ * prose to relocate, and the `short` scalar to leave in its place. Empty entries
+ * list = already clean.
+ *
+ * @param {string} text  full STATE.md content
+ * @returns {{entries: Array<{field, index?, id?, startLine, endLine, original, originalForBody, short, reason}>}}
+ */
+export function locateFrontmatterProse(text) {
+  const fm = splitFrontmatter(text);
+  if (!fm) return { entries: [] };
+  const { lines } = fm;
+  const entries = [];
+
+  // completed_phases — scalar strings; multi-line OR >150 chars is prose.
+  const cpRange = listSectionRange(lines, 'completed_phases');
+  if (cpRange) {
+    const items = itemRanges(lines, cpRange.start, cpRange.end);
+    items.forEach((item, index) => {
+      const itemLines = lines.slice(item.start, item.end);
+      const multiline = itemLines.length > 1;
+      const singleVal = itemLines[0]
+        .replace(/^\s*-\s*/, '')
+        .replace(/^["']|["']$/g, '')
+        .trim();
+      if (!multiline && singleVal.length <= COMPLETED_PHASES_MAX) return; // clean
+      const indent = (itemLines[0].match(/^(\s*)-/) ?? ['', ''])[1];
+      const firstRaw = itemLines[0].replace(/^\s*-\s*/, '').replace(/^["']/, '');
+      const phaseDate = firstRaw.match(/^([A-Z]+\s*\(\d{4}-\d{2}-\d{2}\))/);
+      const short = `${indent}- ${phaseDate ? phaseDate[1] : '"[relocated to STATE body — migrate-memory]"'}`;
+      entries.push({
+        field: 'completed_phases',
+        index,
+        startLine: item.start,
+        endLine: item.end,
+        original: itemLines.join('\n'),
+        originalForBody: itemLines.join('\n'),
+        short,
+        reason: multiline ? 'multi-line' : 'over-length',
+      });
+    });
+  }
+
+  // blockers — object mappings; only the text: value can be prose (block scalar
+  // OR >500 chars). NEVER flag a blocker for being a multi-line object.
+  const blRange = listSectionRange(lines, 'blockers');
+  if (blRange) {
+    const objs = itemRanges(lines, blRange.start, blRange.end);
+    for (const obj of objs) {
+      const span = blockerTextSpan(lines, obj.start, obj.end);
+      if (!span) continue;
+      if (!span.isBlockScalar && span.value.length <= BLOCKER_TEXT_MAX) continue; // clean
+      const idLine = lines.slice(obj.start, obj.end).find((l) => /^\s*(-\s*)?id:/.test(l)) ?? '';
+      const id = (idLine.match(/id:\s*(\S+)/) ?? ['', `blocker@${obj.start}`])[1];
+      const indent = (lines[span.start].match(/^(\s*)/) ?? ['', ''])[1];
+      entries.push({
+        field: 'blockers',
+        id,
+        startLine: span.start,
+        endLine: span.end,
+        original: span.value,
+        originalForBody: span.value,
+        short: `${indent}text: "[relocated to STATE body — migrate-memory, blocker ${id}]"`,
+        reason: span.isBlockScalar ? 'block-scalar' : 'over-budget',
+      });
+    }
+  }
+
+  return { entries };
+}
+
+// Build the body section that receives the relocated prose (verbatim + attributed).
+function buildRelocationSection(entries, nl) {
+  const parts = [
+    '## Relocated frontmatter narrative (migrate-memory)',
+    '',
+    'Prose lifted out of STATE.md frontmatter lists to satisfy the doc-runtime model (FR1). Verbatim — nothing dropped.',
+    '',
+  ];
+  for (const e of entries) {
+    const label = e.field === 'blockers'
+      ? `blockers — ${e.id}`
+      : `completed_phases — entry ${e.index}`;
+    parts.push(`### ${label}`, '', e.originalForBody, '');
+  }
+  return parts.join(nl);
+}
+
+/**
+ * PURE vector-1 de-prose transform. Relocates every offending frontmatter-list
+ * entry's prose verbatim into the STATE body under a labeled section, leaving a
+ * short scalar behind. Returns the new text + the relocation records + the
+ * concatenated `removedProse` (the conservation gate's source). No I/O, no lock.
+ * A no-op (changed:false, text unchanged) when the frontmatter is already clean.
+ *
+ * @param {string} text  full STATE.md content
+ * @returns {{changed: boolean, newText: string, relocations: object[], removedProse: string}}
+ */
+export function deproseFrontmatter(text) {
+  const fm = splitFrontmatter(text);
+  if (!fm) return { changed: false, newText: text, relocations: [], removedProse: '' };
+  const { entries } = locateFrontmatterProse(text);
+  if (entries.length === 0) {
+    return { changed: false, newText: text, relocations: [], removedProse: '' };
+  }
+  const { open, close, body, nl, lines } = fm;
+
+  // Rebuild the frontmatter block: replace each offending line range with its
+  // single short-scalar line. Splice from LAST to FIRST so earlier ranges stay
+  // valid.
+  const newLines = lines.slice();
+  const sorted = [...entries].sort((a, b) => b.startLine - a.startLine);
+  for (const e of sorted) {
+    newLines.splice(e.startLine, e.endLine - e.startLine, e.short);
+  }
+  const newBlock = newLines.join(nl);
+
+  // Append the relocation section to the body (verbatim prose → new home).
+  const relSection = buildRelocationSection(entries, nl);
+  const trimmedBody = body.replace(/\s+$/, '');
+  const newBody = `${trimmedBody}${nl}${nl}${relSection}${nl}`;
+
+  const removedProse = entries.map((e) => e.originalForBody).join('\n');
+  return {
+    changed: true,
+    newText: `${open}${newBlock}${close}${newBody}`,
+    relocations: entries,
+    removedProse,
+  };
+}
+
+/**
+ * Standalone on-disk vector-1 de-prose (self-locking wrapper; the harness uses
+ * the pure `deproseFrontmatter` core under its coarse lock). Runs the WORD
+ * conservation gate BEFORE any write — a lossy transform throws rather than
+ * writing (the B8 guard at the apply seam). Dry-run (apply:false) reports the
+ * relocations + conservation verdict, writing nothing.
+ *
+ * @param {string} baseDir
+ * @param {{apply?: boolean}} [opts]
+ * @returns {Promise<{applied: boolean, changed: boolean, relocations: object[], conservation: object}>}
+ */
+export async function applyDeproseVector1(baseDir, opts = {}) {
+  const apply = opts.apply ?? false;
+  const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
+  const raw = await readFile(statePath, 'utf-8');
+  const { changed, newText, relocations, removedProse } = deproseFrontmatter(raw);
+
+  const m = newText.match(FRONTMATTER_SPLICE_RE);
+  const body = m ? m[4] : newText;
+  const conservation = conserves(removedProse, body, WORD);
+
+  if (!apply || !changed) {
+    return { applied: false, changed, relocations, conservation };
+  }
+  if (!conservation.pass) {
+    throw new Error(
+      `applyDeproseVector1: WORD conservation FAILED (missing: ${conservation.missing
+        .slice(0, 5)
+        .join(', ')}…) — refusing to write a lossy de-prose.`
+    );
+  }
+  await withStateLock(baseDir, async () => {
+    await atomicWrite(statePath, newText);
+  });
+  return { applied: true, changed, relocations, conservation };
+}
+
 /**
  * Sense a project's `.planning/` layout → a migration plan (data, mutates
  * nothing). Skeleton stub (S1.t1): returns an empty no-op plan. The real
