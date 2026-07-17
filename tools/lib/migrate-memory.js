@@ -25,7 +25,7 @@ import { join, dirname, resolve, relative, sep } from 'node:path';
 
 import { PLANNING_DIR, withStateLock } from './state.js';
 import { atomicWrite } from './atomic-write.js';
-import { verifyCardCoverage } from './evict.js';
+import { extractEpicSection, verifyCardCoverage } from './evict.js';
 import { checkStateFrontmatterShape } from './retrospective.js';
 
 // verifyFaithful IS verifyCardCoverage under the migrate command's name — a
@@ -586,6 +586,48 @@ export async function relocateInlinedBody(baseDir, opts = {}) {
     await atomicWrite(statePath, p.newText);
     return { relocated: true, applied: true, historyName: p.historyName, bytes: p.bytes };
   });
+}
+
+// --- vector-3 classify/route (S2.t1) — never a silent no-section skip ----------
+//
+// The #2c gap: evictEpicNarrative (evict.js:327) NO-OPS on a closed-Epic body
+// with no Epic-ID section heading — it returns reason 'no-section' and the bloat
+// is silently LEFT IN PLACE. That silent skip is the exact failure this Epic
+// exists to prevent. This classifier closes the gap by routing every closed-Epic
+// body to a real handler:
+//   - SECTIONED (extractEpicSection finds an Epic-ID heading) → vector-3 evict
+//     (the S2.t2 loop relocates that section via the lock-free relocateFaithful
+//     spine — NOT the self-locking evictEpicNarrative, per cross-cutting §9).
+//   - UN-SECTIONED (no such heading) → RECLASSIFY to vector-2: relocate the WHOLE
+//     body byte-identical via relocateInlinedBody (D-M5E2 §5: whole-body relocate
+//     carries zero semantic risk, so no new sectioning bridge is built).
+// It NEVER returns a "skip / leave as-is" verdict — that is the whole gate.
+//
+// PREDICATE IDENTITY (correctness property): the sectioned check is literally the
+// same extractEpicSection(body, epicId).found call evictEpicNarrative makes, so
+// "classified sectioned" ⟺ "evict would actually find a section" with zero
+// daylight — re-deriving sectioning with any other heuristic could reopen the gap.
+//
+// SCOPE: pure classification/routing only — no I/O, no lock, no wiring into
+// senseState/senseProject/applyMigrate (that routing loop is S2.t2).
+//
+// @param {string} body    the closed-Epic STATE.md body (below the frontmatter)
+// @param {string} epicId  e.g. "M5.E1" (the caller has already confirmed closed)
+// @returns {{sectioned: boolean, route: 'vector-3-evict'|'vector-2-reclassify', reason: string}}
+export function classifyClosedEpicBody(body, epicId) {
+  const sec = extractEpicSection(body, epicId);
+  if (sec.found) {
+    return {
+      sectioned: true,
+      route: 'vector-3-evict',
+      reason: `epic-id section found (heading: "${sec.heading}") — evict narrative (vector-3)`,
+    };
+  }
+  return {
+    sectioned: false,
+    route: 'vector-2-reclassify',
+    reason: `no ${epicId} section heading — reclassify whole body to vector-2 (byte-identical relocate)`,
+  };
 }
 
 // --- git-state probe (S1.t7a) — refuse / proceed / downgrade matrix -----------
