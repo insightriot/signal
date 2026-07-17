@@ -17,7 +17,7 @@ last_updated: 2026-07-17T14:08:13.388Z
 
 ## Resume pointer
 
-M5.E2 (Auto-sensing migrate command — FR6/FR7), FULL/strict — **EXECUTE in progress: Wave 1 (S1) COMPLETE → Wave 2 (S2 ∥ S3) next.** S1 shipped `/sig:migrate-memory` (11 atomic commits t0–t8, 1071→1168 tests, validator green) — the safe auto-sensing engine that **un-sticks nextpass** (pure vector-1) + auto-remediates B8. Run `/sig:resume` for the briefing; run `/sig:execute` to continue with Wave 2. Progress board: `M5.E2-PROGRESS.md`. Any staleness banner shown is the benign B6 "+1" (markFresh bookkeeping; local HEAD == origin — nothing to pull).
+M5.E2 (Auto-sensing migrate command — FR6/FR7), FULL/strict — **EXECUTE in progress: Wave 1 (S1) COMPLETE → Wave 2 (S2 ∥ S3) next.** S1 shipped `/sig:migrate-memory` (11 atomic commits t0–t8, 1071→1168 tests, validator green) — the safe auto-sensing engine that **provides the mechanism to un-stick nextpass** (pure vector-1; the real 529 KB repo is proven end-to-end in **S4.t2**, not yet) + the B8 auto-remediation. Run `/sig:resume` for the briefing; run `/sig:execute` to continue with Wave 2. Progress board: `M5.E2-PROGRESS.md`. Any staleness banner shown is the benign B6 "+1" (markFresh bookkeeping; local HEAD == origin — nothing to pull).
 
 ## In-flight
 
