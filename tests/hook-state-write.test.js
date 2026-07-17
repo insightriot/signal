@@ -265,6 +265,23 @@ blockers:
     expect(r.reason).toMatch(/blockers/);
   });
 
+  it('B8: the block reason states the check is whole-file so incremental cleanup is not attempted (multiple prose entries, the 529 KB nextpass case)', () => {
+    const content = `${FM_HEAD}
+completed_phases:
+  - "DISCUSS (2026-07-01) — full narrative prose that pollutes the frontmatter and far exceeds the single-line scalar budget for a completed_phases entry, exactly the shape that wedged the live file"
+  - "PLAN (2026-07-01) — a second, equally over-length narrative entry; a user fixing these one at a time would still be blocked by this one on the next save"
+blockers: []
+---
+body
+`;
+    const r = checkStateFrontmatterShape({ proposedContent: content });
+    expect(r.block).toBe(true);
+    // The reason must reveal the whole-file semantics — the escape B8 found
+    // invisible: all offending entries have to be corrected in a single save.
+    expect(r.reason).toMatch(/whole file/i);
+    expect(r.reason).toMatch(/single save/i);
+  });
+
   it('AC1.3 allows well-formed frontmatter, incl. the 58-char annotated completed_phases entry', () => {
     const content = `${FM_HEAD}
 completed_phases:

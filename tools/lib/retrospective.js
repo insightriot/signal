@@ -446,6 +446,15 @@ const BLOCKER_TEXT_MAX = 500;
 // ceiling never trips a real file; past it we fail open (FR2's banner flags the
 // oversized file anyway).
 const FRONTMATTER_SCAN_CEILING = 1024 * 1024;
+// B8: the guard evaluates the WHOLE proposed file, not the delta, so a file with
+// several offending entries only unblocks via one save that fixes them all —
+// correcting them one at a time fails on every intermediate write. The block
+// message is the only channel the user sees, so it must say this or the escape
+// stays invisible (confirmed live on a 529 KB STATE.md with 10 prose entries).
+const WHOLE_FILE_NOTE =
+  ' Note: this check reads the whole file, so if more than one entry is ' +
+  'affected they must all be fixed in a single save — correcting them one at a ' +
+  'time will fail on every attempt.';
 
 /**
  * Detect prose that would pollute a STATE.md frontmatter list field
@@ -510,7 +519,8 @@ export function checkStateFrontmatterShape(args) {
             reason:
               'STATE.md frontmatter: a completed_phases entry spans multiple lines. ' +
               'Entries must be single-line "PHASE (YYYY-MM-DD)" scalars — move the ' +
-              'narrative into the STATE.md body below the frontmatter, then re-write.',
+              'narrative into the STATE.md body below the frontmatter, then re-write.' +
+              WHOLE_FILE_NOTE,
           };
         }
         const value = chunk[0]
@@ -523,7 +533,8 @@ export function checkStateFrontmatterShape(args) {
             reason:
               `STATE.md frontmatter: a completed_phases entry is ${value.length} chars ` +
               `(budget ${COMPLETED_PHASES_MAX}). Entries must be short "PHASE (date)" ` +
-              'labels — move the narrative into the STATE.md body, then re-write.',
+              'labels — move the narrative into the STATE.md body, then re-write.' +
+              WHOLE_FILE_NOTE,
           };
         }
       }
@@ -543,7 +554,8 @@ export function checkStateFrontmatterShape(args) {
             block: true,
             reason:
               'STATE.md frontmatter: a blockers[].text is a multi-line block scalar. ' +
-              'Blocker text must be a short single-line summary — trim it, then re-write.',
+              'Blocker text must be a short single-line summary — trim it, then re-write.' +
+              WHOLE_FILE_NOTE,
           };
         }
         if (raw.length > BLOCKER_TEXT_MAX) {
@@ -552,7 +564,8 @@ export function checkStateFrontmatterShape(args) {
             reason:
               `STATE.md frontmatter: a blockers[].text is ${raw.length} chars ` +
               `(budget ${BLOCKER_TEXT_MAX}). Keep blocker text a short summary — ` +
-              'trim it, then re-write.',
+              'trim it, then re-write.' +
+              WHOLE_FILE_NOTE,
           };
         }
       }
