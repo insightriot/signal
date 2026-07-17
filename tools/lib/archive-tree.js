@@ -55,6 +55,7 @@ export const SCAFFOLD_SUFFIXES = Object.freeze([
   'VERIFICATION',
   'VALIDATION',
   'REVIEW',
+  'SHIP',
 ]);
 
 const LINK_RE = /\]\(([^)]+)\)/g;

@@ -75,6 +75,35 @@ describe('M5.E2.S2.t3 planArchiveMoves — computed from signals, not literals',
   });
 });
 
+// --- B10: SHIP scaffolds archive WITH their Epic (RETROSPECTIVE + LAUNCH-KIT stay) --
+describe('M5.E2.S2.t6 planArchiveMoves — SHIP archives with its Epic (B10)', () => {
+  it('includes the SHIP doc in the moves → archive/<m>/<e>/ (was orphaned in root pre-fix)', () => {
+    const closedEpicIds = ['M6.E1'];
+    const files = [
+      '.planning/M6.E1-PLAN.md',
+      '.planning/M6.E1-SHIP.md',
+      '.planning/M6.E1-RETROSPECTIVE.md', // warm spine — stays in root
+      '.planning/M6.E1-LAUNCH-KIT.md', // one-off living asset — stays in root
+    ];
+    const { moveMap } = planArchiveMoves(closedEpicIds, files);
+
+    // The SHIP doc moves under the milestone DERIVED from the Epic ID (B10 fix).
+    expect(moveMap.get('.planning/M6.E1-SHIP.md')).toBe(
+      '.planning/archive/M6/E1/M6.E1-SHIP.md',
+    );
+    // RETROSPECTIVE still stays in root (warm-spine exclusion intact).
+    expect(moveMap.has('.planning/M6.E1-RETROSPECTIVE.md')).toBe(false);
+    // LAUNCH-KIT is a non-standard suffix — left in root (product call), no special-case.
+    expect(moveMap.has('.planning/M6.E1-LAUNCH-KIT.md')).toBe(false);
+  });
+
+  it('SCAFFOLD_SUFFIXES includes SHIP (still excludes RETROSPECTIVE / LAUNCH-KIT)', () => {
+    expect(SCAFFOLD_SUFFIXES).toContain('SHIP');
+    expect(SCAFFOLD_SUFFIXES).not.toContain('RETROSPECTIVE');
+    expect(SCAFFOLD_SUFFIXES).not.toContain('LAUNCH-KIT');
+  });
+});
+
 // --- POSIX-`/` guarantee (bites on macOS via path.posix + toPosix) --------------
 describe('M5.E2.S2.t3 POSIX link targets — no backslash on any platform', () => {
   it('toPosix normalizes a backslash path to `/`', () => {
