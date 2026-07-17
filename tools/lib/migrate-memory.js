@@ -17,11 +17,11 @@
 // modes are write-free (the dry-run write-nothing invariant is the load-bearing
 // AC and must hold from the first commit).
 
-import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rm, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { join, dirname, resolve, sep } from 'node:path';
+import { join, dirname, resolve, relative, sep } from 'node:path';
 
 import { PLANNING_DIR, withStateLock } from './state.js';
 import { atomicWrite } from './atomic-write.js';
@@ -807,6 +807,133 @@ export async function senseProject(baseDir) {
   return senseState(raw);
 }
 
+// --- dangling-link baseline + dry-run render (S1.t7c) -------------------------
+//
+// FR6.3 "before AND after": scan .planning/ for dangling inline .md links BEFORE
+// apply (the baseline) so pre-existing breakage isn't attributed to the migrate;
+// only NEW dangles it introduces abort+rollback. (Reference-style/HTML links are
+// out of LINK_RE — S2.t4 adds the detect-and-warn floor for those.)
+
+const DANGLING_LINK_RE = /\]\(([^)]+)\)/g;
+const isExternalLink = (t) => /^(https?:|mailto:|#)/.test(t);
+
+async function walkMarkdown(dir) {
+  const out = [];
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const e of entries) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) {
+      if (e.name !== '.migrate') out.push(...(await walkMarkdown(p))); // skip scratch
+    } else if (e.name.endsWith('.md')) {
+      out.push(p);
+    }
+  }
+  return out;
+}
+
+/**
+ * Scan the project's `.planning/` for dangling inline `.md` links (a `](target)`
+ * whose `.md` target doesn't resolve). Read-only. Returns `[{file, link, target}]`.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<Array<{file: string, link: string, target: string}>>}
+ */
+export async function scanDanglingLinks(baseDir) {
+  const files = await walkMarkdown(join(baseDir, PLANNING_DIR));
+  const dangling = [];
+  for (const f of files) {
+    let text;
+    try {
+      text = await readFile(f, 'utf-8');
+    } catch {
+      continue;
+    }
+    for (const m of text.matchAll(DANGLING_LINK_RE)) {
+      const raw = m[1].trim();
+      if (isExternalLink(raw)) continue;
+      const target = raw.split(/\s+/)[0].split('#')[0]; // strip title + anchor
+      if (!target.endsWith('.md')) continue;
+      if (!existsSync(resolve(dirname(f), target))) {
+        dangling.push({ file: relative(baseDir, f), link: raw, target });
+      }
+    }
+  }
+  return dangling;
+}
+
+/**
+ * The NEW dangling links in `after` that weren't in `before` (the baseline).
+ * @param {Array} before @param {Array} after @returns {Array}
+ */
+export function computeDanglingDelta(before, after) {
+  const key = (d) => `${d.file} ${d.link}`;
+  const seen = new Set(before.map(key));
+  return after.filter((d) => !seen.has(key(d)));
+}
+
+/**
+ * Render the dry-run in three tiers — counts / mechanical moves / faithfulness
+ * diff — plus a SEPARATE list of pre-existing dangling links (so the migrate
+ * isn't blamed for them). The faithfulness diff is what the human approves; a
+ * passing test suite is NOT the faithfulness gate (model §5). Reads only.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<string>}
+ */
+export async function renderDryRun(baseDir) {
+  const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
+  if (!existsSync(statePath)) return 'No .planning/STATE.md found — nothing to migrate.';
+  const raw = await readFile(statePath, 'utf-8');
+  const plan = senseState(raw);
+  const baseline = await scanDanglingLinks(baseDir);
+
+  // Project the moves (in memory, no write) for the mechanical + faithfulness tiers.
+  const relocations = plan.v1.entries;
+  let postV1 = raw;
+  if (relocations.length > 0) postV1 = deproseFrontmatter(raw).newText;
+  const v2 = senseState(postV1).v2;
+
+  const L = [];
+  L.push('== /sig:migrate-memory — DRY RUN (nothing written) ==', '');
+  // Tier 1 — counts.
+  L.push('— Tier 1: counts —');
+  L.push(`  vectors:              ${plan.vectors.length ? plan.vectors.join(', ') : '(none — conformant)'}`);
+  L.push(`  vector-1 relocations: ${relocations.length}`);
+  L.push(`  vector-2 (big body):  ${v2.candidate ? `yes (${v2.bytes} B → STATE-HISTORY.md)` : 'no'}`);
+  L.push(`  ambiguity flags:      ${plan.flags.length}`);
+  L.push(`  stamp:                ${plan.stamped ? `already ${CURRENT_LAYOUT_VERSION}` : `will set docs_layout_version: ${CURRENT_LAYOUT_VERSION} on conformance`}`);
+  L.push('');
+  // Tier 2 — mechanical moves.
+  L.push('— Tier 2: mechanical moves —');
+  if (plan.noop) L.push('  (already conformant + stamped — no-op)');
+  for (const e of relocations) {
+    const where = e.field === 'blockers' ? `blockers[${e.id}].text` : `completed_phases[${e.index}]`;
+    L.push(`  ${where} (${e.reason}) → STATE body; frontmatter left: ${e.short.trim()}`);
+  }
+  if (v2.candidate) L.push('  STATE body → STATE-HISTORY.md (byte-identical) + pointer');
+  for (const f of plan.flags) L.push(`  FLAG (not moved): ${f.kind} — ${f.chars} chars — "${f.detail}…"`);
+  L.push('');
+  // Tier 3 — faithfulness diff (the human-approved content).
+  L.push('— Tier 3: faithfulness diff (review each before approving) —');
+  if (relocations.length === 0) L.push('  (no frontmatter prose to relocate)');
+  for (const e of relocations) {
+    const preview = e.originalForBody.replace(/\s+/g, ' ').slice(0, 200);
+    L.push(`  • ${e.field === 'blockers' ? e.id : `entry ${e.index}`}: "${preview}${e.originalForBody.length > 200 ? '…' : ''}"`);
+  }
+  L.push('');
+  // Pre-existing dangling links — surfaced SEPARATELY (FR6.3 "before").
+  L.push(`— Pre-existing dangling links (${baseline.length}) — NOT caused by this migrate —`);
+  for (const d of baseline) L.push(`  ${d.file} → ${d.target}`);
+  if (baseline.length === 0) L.push('  (none)');
+
+  return L.join('\n');
+}
+
 // --- apply engine (S1.t7b) — compose V1→V2→stamp under ONE coarse lock --------
 //
 // Composes the pure vector cores in memory under a SINGLE coarse `.state.lock`
@@ -843,6 +970,7 @@ export async function applyMigrate(baseDir, opts = {}) {
   const stamp = opts.stamp ?? new Date().toISOString().replace(/[:.]/g, '-');
   const dateStr = opts.dateStr ?? new Date().toISOString().split('T')[0];
   const verify = opts.verify ?? ((text) => checkStateFrontmatterShape({ proposedContent: text }));
+  const scanDangling = opts.scanDangling ?? scanDanglingLinks;
 
   const probe = probeGitState(baseDir, { execFn, force });
   if (!probe.proceed) {
@@ -883,6 +1011,10 @@ export async function applyMigrate(baseDir, opts = {}) {
       }
     };
     await snap('STATE.md');
+
+    // Pre-apply dangling-link baseline (FR6.3 "before") — pre-existing dangles
+    // are NOT attributed to the migrate; only NEW ones abort.
+    const danglingBaseline = await scanDangling(baseDir);
 
     const moves = [];
     let text = raw;
@@ -936,6 +1068,20 @@ export async function applyMigrate(baseDir, opts = {}) {
     if (v.block) {
       await rollback();
       throw new Error(`applyMigrate: post-apply verify failed (${v.reason ?? 'blocked'}) — rolled back.`);
+    }
+
+    // Post-apply dangling-link check: only NEW dangles (vs the pre-apply
+    // baseline) are the migrate's fault → hard abort + rollback (never a
+    // log-after-commit). Pre-existing dangles are left as they were.
+    const newDangles = computeDanglingDelta(danglingBaseline, await scanDangling(baseDir));
+    if (newDangles.length > 0) {
+      await rollback();
+      throw new Error(
+        `applyMigrate: the migrate introduced ${newDangles.length} dangling link(s) (${newDangles
+          .map((d) => `${d.file}→${d.target}`)
+          .slice(0, 3)
+          .join(', ')}…) — rolled back. Pre-existing dangles are not attributed.`
+      );
     }
 
     // Persist the snapshot for durable surgical undo on the non-tag paths
