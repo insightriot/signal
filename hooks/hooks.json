@@ -17,6 +17,14 @@
             "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/warn-dirty-execute.js"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/warn-layout-drift.js"
+          }
+        ]
       }
     ],
     "PreToolUse": [
