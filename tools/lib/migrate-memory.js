@@ -585,17 +585,128 @@ export async function relocateInlinedBody(baseDir, opts = {}) {
   });
 }
 
+// --- single-STATE auto-sense (S1.t6) — stamp-first → structural sniff → plan ---
+//
+// Produces plan-DATA, mutating nothing. Conservative (FR6.5): only entries the
+// write-guard would BLOCK go in the auto-move set (v1.entries); a block:false-
+// but-LONG entry is FLAGGED for human attention, never auto-moved. V3 (retro
+// evict) + the full-corpus brain are S2 — this covers V1 + V2 for the harness.
+
+// The current doc-runtime layout version (FR7.1). t8 owns the write policy
+// (stamp only on full conformance); t6 reads it for the stamp-first no-op.
+export const CURRENT_LAYOUT_VERSION = 2;
+
+// A body over this size that isn't already a pointer is a vector-2 candidate (a
+// conformant skeleton body is ~1 KB; E1's inlined body was 64.5 KB).
+const INLINED_BODY_THRESHOLD = 8 * 1024;
+// Soft "long but legal" thresholds — below the write-guard block budgets. An
+// entry between the soft and the block threshold is FLAGGED, never auto-moved.
+const COMPLETED_PHASES_SOFT = 100; // block budget 150
+const BLOCKER_TEXT_SOFT = 300; // block budget 500
+
+function readDocsLayoutVersion(text) {
+  const fm = splitFrontmatter(text);
+  if (!fm) return null;
+  const line = fm.lines.find((l) => /^docs_layout_version:/.test(l));
+  const m = line && line.match(/^docs_layout_version:\s*(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function senseInlinedBody(text) {
+  const fm = splitFrontmatter(text);
+  if (!fm) return { candidate: false, bytes: 0 };
+  const bytes = fm.body.length;
+  if (VECTOR2_MARKER_RE.test(fm.body)) return { candidate: false, bytes }; // already relocated
+  return { candidate: bytes > INLINED_BODY_THRESHOLD, bytes };
+}
+
+// Block:false-but-LONG entries — surfaced as ambiguity flags, NEVER auto-moved.
+function locateSoftLongEntries(text) {
+  const fm = splitFrontmatter(text);
+  if (!fm) return [];
+  const { lines } = fm;
+  const flags = [];
+
+  const cpRange = listSectionRange(lines, 'completed_phases');
+  if (cpRange) {
+    for (const item of itemRanges(lines, cpRange.start, cpRange.end)) {
+      const itemLines = lines.slice(item.start, item.end);
+      if (itemLines.length > 1) continue; // multi-line = block-worthy (auto-move)
+      const val = itemLines[0].replace(/^\s*-\s*/, '').replace(/^["']|["']$/g, '').trim();
+      if (val.length > COMPLETED_PHASES_SOFT && val.length <= COMPLETED_PHASES_MAX) {
+        flags.push({ kind: 'long-completed-phase', chars: val.length, detail: val.slice(0, 60) });
+      }
+    }
+  }
+
+  const blRange = listSectionRange(lines, 'blockers');
+  if (blRange) {
+    for (const obj of itemRanges(lines, blRange.start, blRange.end)) {
+      const span = blockerTextSpan(lines, obj.start, obj.end);
+      if (!span || span.isBlockScalar) continue; // block scalar = auto-move
+      if (span.value.length > BLOCKER_TEXT_SOFT && span.value.length <= BLOCKER_TEXT_MAX) {
+        flags.push({ kind: 'long-blocker-text', chars: span.value.length, detail: span.value.slice(0, 60) });
+      }
+    }
+  }
+  return flags;
+}
+
 /**
- * Sense a project's `.planning/` layout → a migration plan (data, mutates
- * nothing). Skeleton stub (S1.t1): returns an empty no-op plan. The real
- * stamp-first → structural-sniff → per-vector plan-data auto-sense lands in
- * S1.t6 (single-STATE) and S2.t5 (full-corpus).
+ * PURE single-STATE auto-sense. Reads the FR7 stamp, structurally sniffs the two
+ * within-STATE bloat vectors, and returns the plan-data:
+ *   - `vectors`     — which of ['vector-1','vector-2'] apply (the auto-move set).
+ *   - `v1.entries`  — the block-worthy frontmatter-prose entries (locator output).
+ *   - `v2`          — {candidate, bytes} for the big-inlined-body relocation.
+ *   - `flags`       — block:false-but-long ambiguity flags (flag-only, per FR6.5).
+ *   - `stamped`     — stamp === CURRENT_LAYOUT_VERSION.
+ *   - `conformant`  — no vectors detected.
+ *   - `noop`        — stamped AND conformant (nothing to do at all).
+ *   - `needsStamp`  — conformant but unstamped (the stamp is the only action).
+ * Mutates nothing.
+ *
+ * @param {string} stateText  full STATE.md content
+ */
+export function senseState(stateText) {
+  const stamp = readDocsLayoutVersion(stateText);
+  const stamped = stamp === CURRENT_LAYOUT_VERSION;
+  const v1 = locateFrontmatterProse(stateText); // block-worthy auto-move set
+  const v2 = senseInlinedBody(stateText);
+  const flags = locateSoftLongEntries(stateText);
+
+  const vectors = [];
+  if (v1.entries.length > 0) vectors.push('vector-1');
+  if (v2.candidate) vectors.push('vector-2');
+
+  const conformant = vectors.length === 0;
+  return {
+    stamp,
+    stamped,
+    vectors,
+    v1,
+    v2,
+    flags,
+    conformant,
+    noop: conformant && stamped,
+    needsStamp: conformant && !stamped,
+  };
+}
+
+/**
+ * Sense the invoking project's `.planning/` → migration plan-data (mutates
+ * nothing). Reads STATE.md and delegates to the pure `senseState`. Full-corpus
+ * sensing (vector-3 evict + archive tree + other docs) lands in S2.t5; this
+ * covers the single-STATE V1 + V2 vectors the S1 harness consumes.
  *
  * @param {string} baseDir
- * @returns {Promise<{vectors: string[], flags: string[], moves: object[]}>}
  */
 export async function senseProject(baseDir) {
-  return { vectors: [], flags: [], moves: [] };
+  const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
+  if (!existsSync(statePath)) {
+    return { vectors: [], v1: { entries: [] }, v2: { candidate: false, bytes: 0 }, flags: [], stamp: null, stamped: false, conformant: true, noop: true, needsStamp: false, reason: 'no-state-file' };
+  }
+  const raw = await readFile(statePath, 'utf-8');
+  return senseState(raw);
 }
 
 /**
