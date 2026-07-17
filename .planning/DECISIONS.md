@@ -1445,3 +1445,21 @@ The Epic/Milestone/Slice/Task vocabulary was locked (M4.t18) as *planning langua
 **Also decided (bookkeeping):** the built **`M5.E1` = Doc-runtime** takes the early `M5.E` IDs; the pre-override speculative v2-port queue in `MILESTONE-5.md` (`### M5.E1–E6`) is **superseded and unsequenced** — the re-audit (BR-8) assigns its real IDs. `MILESTONE-5.md` now carries an Epic-status table (E1 shipped, E2/E3 = doc-runtime continuation) as the source of truth over the candidate headings.
 
 **Carry-forwards (see `M5.E1-VERIFICATION.md` Part E + `M5.E1-REVIEW.md`):** FR2b never-live-fired (REVIEW hardened its path — 4 Important fixed — before it goes live); relocating an *already-migrated* inlined body has no shipped mechanism (E3/FR6); S5's `dogfood-orientation.test.js` declined by design (verified-once historical event). Release-hygiene bug B7 (`plugin.json` stuck at 0.1.6 through v0.1.7) fixed en route.
+
+---
+
+## 2026-07-16 — M5.E2 sequencing pivot + migrate-command scope (D-M5E2-1 … D-M5E2-5)
+
+**Context:** Brett reports live doc-bloat blocking him across ~5 projects (`nextpass/.planning/STATE.md` write-wedged at 529 KB — `BUGS.md` B8). During M5.E2's DISCUSS he directed: build the *complete* cross-project fix, not per-file band-aids ("stay the course until we get to the proper upgrade number that will solve this across ALL my projects, not just one offs").
+
+**D-M5E2-1 — E2/E3 swapped; the migrate command is pulled forward.** M5.E2 becomes the **auto-sensing migrate command (FR6/FR7)**; the all-docs hygiene runtime + living `BACKLOG.md` (FR4/FR5) moves to **M5.E3**. *Rationale:* the migrate command is what reorganizes an *existing* bloated project's docs — the live pain; FR4/FR5 is prevention/maintenance that can follow. (Reverses the E1-era slice order `MILESTONE-5.md` recorded; the 3 FR4/FR5 DISCUSS pre-decisions are preserved for E3 in `MILESTONE-5.md`.)
+
+**D-M5E2-2 — full scope, not a narrow first cut.** "100% of intended functionality" = the migrate command **complete** (FR6/FR7, all three bloat vectors, conservative auto-sense, dry-run/rollback/idempotent), NOT pulling FR4/FR5 into E2. The E2/E3 boundary is explicit in `M5.E2-REQUIREMENTS.md` § Out.
+
+**D-M5E2-3 — the deliverable is a *release*, on its own.** E2's finish line is "releasable as the doc-bloat fix." E1+E2 (eviction + migrate) is a coherent releasable unit — "the proper upgrade number" Brett installs everywhere and runs per-project; the release is **not** gated on E3. The command operates on the **invoking** project's `.planning/`, never Signal's repo except the dogfood (the fix reaches a project via release → plugin-update → run-in-project).
+
+**D-M5E2-4 — de-prose RELOCATES, never deletes (headline risk).** Automated vector-1 frontmatter de-prose must *relocate* the narrative (body / `STATE-HISTORY.md` / archive card) with the model §5 word-accounting + faithfulness gate — **not** drop it. The B8 hand-recipe (frontmatter 107→27, "body byte-identical") *deleted* ~80 lines of prose: acceptable for Brett eyeballing one file, catastrophic as an unattended default (the silent-memory-degradation failure §5 exists to prevent; breaks move-never-delete). **Faithfulness is proven by a human-approved per-project dry-run diff + the Signal-own dogfood eyeball, not green tests** (§5 blind spot: tests can prove the mechanical move + coverage backstop, never that a card faithfully represents its source).
+
+**D-M5E2-5 — conservative auto-sense across unseen projects.** The command runs against projects it can't inspect beforehand (varied sizes, partial migrations, linear vs Epic mode). Dry-run + full plan + explicit per-project confirm is the default; it never assumes a uniform old layout, plans the smallest safe move when unsure, and a re-run on a migrated project is a no-op.
+
+**Also this session:** B8 discoverability mitigation shipped standalone (`56593a2` — the guard reason now states the whole-file semantics); **B9** logged confirmed (`setCurrentEpic` doesn't reset `phase`/`completed_phases`/`last_completed_task` on an Epic roll — candidate to fold into M5.E2's state-mutation work).

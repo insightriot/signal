@@ -146,14 +146,18 @@ unbounded-growth problem this Epic exists to kill. So the target shape is **tier
 - **Root `INDEX.md`** = the live working set + **one pointer per milestone** (not per Epic).
 - **Each `archive/<milestone>/`** carries **its own sub-index** of that milestone's closed Epics.
 
-**E1 records this shape; E1 does not build it.** The tiered-index *build* is **FR4 (E2)**.
-E1 preserves `INDEX.md`'s current **hand-curated** stance unchanged.
+**E1 records this shape; E1 does not build it.** The tiered-index *build* is **FR4 (E3**,
+post-pivot — see §8**)**. E1 preserves `INDEX.md`'s current **hand-curated** stance unchanged;
+the migrate command (E2) produces a correct index for a *reorganized* project as a one-time
+output, but the ongoing derived-index projection is E3.
 
-> **Flagged for E2, not decided in E1 — derived-vs-hand-curated INDEX.** Curator's Rule 3 says
-> the index is *generated, never hand-edited*. Signal's `INDEX.md` is **hand-curated by locked
-> decision** (memory `curator-dormant-on-signal-planning`). These conflict. The conflict bites
-> at FR4 (index-freshness-in-validator), which is **E2** — so E1 keeps hand-curation and
-> **defers the call.** Do not paper over it in E2.
+> **Decided at M5.E2 DISCUSS (2026-07-16) — derived-vs-hand-curated INDEX.** Curator's Rule 3 says
+> the index is *generated, never hand-edited*. Signal's `INDEX.md` was **hand-curated by locked
+> decision** (memory `curator-dormant-on-signal-planning`). **Resolution: fully auto-generated**
+> by a Signal-native `/sig:index`; hand-curation retired (reverses that memory's hand-curated
+> stance — memory + a DECISIONS entry get updated **when E3 implements it**, not before). This is
+> an **E3 pre-decision** (`MILESTONE-5.md`); E3 owns FR4 (index-freshness-in-validator) after the
+> E2/E3 swap. Not built in E1 or E2.
 
 ---
 
@@ -186,13 +190,15 @@ native equivalent).
 | **FR2c** | the STATE.md body skeleton (in `state-schema.md` + `initState`) | **M5.E1** |
 | **FR2d** | tier-aware size warning | **M5.E1** |
 | **FR3** | `FUTURE-IDEAS.md` physical eviction → ledger | **M5.E1** |
-| **FR4** | all-docs hygiene runtime + the tiered-index **build** + the derived-vs-hand-curated call | **M5.E2** |
-| **FR5** | living `BACKLOG.md` lifecycle | **M5.E2** |
-| **FR6** | the auto-sensing migrate command (incl. vector-1 de-prose remediation) | **M5.E3** |
-| **FR7** | `docs_layout_version` stamp + SessionStart upgrade banner | **M5.E3** |
+| **FR6** | the auto-sensing migrate command (incl. vector-1 de-prose remediation) | **M5.E2** |
+| **FR7** | `docs_layout_version` stamp + SessionStart upgrade banner | **M5.E2** |
+| **FR4** | all-docs hygiene runtime + the tiered-index **build** + the derived-vs-hand-curated call | **M5.E3** |
+| **FR5** | living `BACKLOG.md` lifecycle | **M5.E3** |
 
 ---
 
-*Last updated: 2026-07-16 — M5.E1.S1.t1. Provisional-canonical doc-runtime model established
-(FR1). Tiered-index build, derived-vs-hand-curated INDEX resolution → E2; migrate command +
-vector-1 remediation + layout stamp → E3.*
+*Last updated: 2026-07-16 — M5.E1.S1.t1 established the provisional-canonical model (FR1).
+Scope map §8 amended 2026-07-16 (M5.E2 DISCUSS): **E2/E3 swapped** — migrate command +
+vector-1 remediation + layout stamp pulled forward to **M5.E2** (live doc-bloat blocking Brett
+across ~5 projects, DECISIONS D-M5E2-1); tiered-index build + derived-vs-hand-curated INDEX
+resolution + living `BACKLOG.md` → **M5.E3**.*
