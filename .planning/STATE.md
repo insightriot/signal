@@ -1,13 +1,10 @@
 ---
 schema_version: 1
-phase: SHIP
-current_epic: M5.E1
+phase: DISCUSS
+current_epic: M5.E2
 current_wave: null
 current_tasks: []
-completed_phases:
-  - DISCUSS (2026-07-16)
-  - PLAN (2026-07-16)
-  - EXECUTE (2026-07-16)
+completed_phases: []
 blockers: []
 last_completed_task:
   id: M5.E1.S4
@@ -16,17 +13,17 @@ last_completed_task:
   completedAt: 2026-07-16T10:56:20.313Z
 last_decision_at: 2026-07-16T10:56:20.313Z
 last_updated_commit: 717dcf8
-last_updated: 2026-07-16T12:41:53.387Z
+last_updated: 2026-07-16T23:59:52.759Z
 ---
 # Project State
 
 ## Resume pointer
 
-M5.E1 (Doc-runtime & memory hygiene), FULL/strict — EXECUTE in progress (Wave 3 / S5 dogfood). Run `/sig:resume` for the full briefing.
+M5.E2 (Auto-sensing migrate command — FR6/FR7), FULL/strict — DISCUSS in progress. Run `/sig:resume` for the full briefing.
 
 ## In-flight
 
-M5.E1 — doc-runtime & memory hygiene. Waves 1–2 shipped (S1 model+skeleton, S2 FR2a/FR2d, S3 evict-on-close+gate, S4 FUTURE-IDEAS eviction). S5 dogfood on Signal's own `.planning/` in progress.
+M5.E2 — the auto-sensing migrate/re-org command (FR6) + doc-layout stamp/banner (FR7). **Pulled forward ahead of FR4/FR5** (2026-07-16 pivot) because live doc-bloat is blocking Brett across ~5 projects and the migrate command is what un-sticks them. DISCUSS phase: scoping the first migrate release. (FR4/FR5 all-docs hygiene + living BACKLOG.md → now M5.E3; its 3 DISCUSS decisions are captured for that Epic.)
 
 ## Blockers
 
@@ -38,4 +35,5 @@ None currently open.
 
 ## Closed work
 
+- **M5.E1** (Doc-runtime & memory hygiene) — SHIPPED 2026-07-16, unreleased (batched with E2/E3). Doc-model FR1 + STATE/FUTURE-IDEAS eviction FR2/FR3 + dogfood. → [M5.E1-RETROSPECTIVE.md](M5.E1-RETROSPECTIVE.md).
 - Pre-M5.E1 project history (the full pre-schema_v1 narrative + migration-preserved body) → [STATE-HISTORY.md](STATE-HISTORY.md). Relocated 2026-07-16 (M5.E1.S5 dogfood — vector-2 legacy-body eviction).

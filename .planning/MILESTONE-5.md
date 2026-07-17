@@ -23,11 +23,18 @@ speculative v2-port candidates below are **unsequenced** — their pre-override 
 labels are **superseded** and will be assigned real IDs by the re-audit (BR-8). Read this
 table, not the candidate headings, for what the IDs mean.
 
+> **Sequencing pivot (2026-07-16):** E2 and E3 **swapped**. Live doc-bloat is blocking Brett across ~5 projects (`nextpass/.planning/STATE.md` at 529 KB is write-wedged — see `BUGS.md` B8), and the **migrate command** (FR6/FR7) is what un-sticks existing projects; the all-docs hygiene runtime + living BACKLOG.md (FR4/FR5) is prevention/maintenance that can follow. So the migrate command is pulled forward to **M5.E2** and the hygiene/backlog work moves to **M5.E3**. B8's cheap discoverability mitigation shipped standalone (`56593a2`); its full auto-remediation is now M5.E2's job.
+
 | Epic | Status | Scope |
 |---|---|---|
 | **E1** | ✅ shipped 2026-07-16 | **Doc-runtime & memory hygiene** — canonical doc-model (FR1) + STATE/FUTURE-IDEAS eviction (FR2/FR3) + dogfood. Retro: [`M5.E1-RETROSPECTIVE.md`](M5.E1-RETROSPECTIVE.md). |
-| **E2** | planned | **All-docs hygiene runtime + living `BACKLOG.md`** (FR4, FR5). Absorbs the map-drift guard; resolves the derived-vs-hand-curated INDEX conflict. |
-| **E3** | planned | **Auto-sensing migrate command + doc-layout stamp/banner** (FR6, FR7) — the risky migrate piece last, on the proven model; includes vector-1 (frontmatter-prose) + already-migrated-body remediation. |
+| **E2** | 🔨 DISCUSS (2026-07-16) | **Auto-sensing migrate command + doc-layout stamp/banner** (FR6, FR7) — *pulled forward*. The risky migrate piece, built on E1's proven model; includes vector-1 (frontmatter-prose de-prose) + already-migrated-body remediation. Un-sticks live bloated projects (B8 auto-remediation). |
+| **E3** | planned | **All-docs hygiene runtime + living `BACKLOG.md`** (FR4, FR5) — *deferred from E2*. Absorbs the map-drift guard; resolves the derived-vs-hand-curated INDEX conflict. **DISCUSS pre-decisions locked 2026-07-16** (see below). |
+
+**M5.E3 DISCUSS pre-decisions (locked 2026-07-16, before the pivot — carry into E3's DISCUSS):**
+1. **`INDEX.md` → fully auto-generated** by a Signal-native `/sig:index` generator; hand-curation retired (reverses the `curator-dormant-on-signal-planning` hand-curated stance — that memory + a DECISIONS entry get updated *when E3 implements it*, not before). One-line notes derived from each file (mechanism = E3 PLAN).
+2. **Cleanup scan runs inside the test suite** (dead links / `[FILL IN]` stubs / roster+count drift across `docs/`, `README`, `CLAUDE.md`, `analysis/`); no new command — the `/sig:sweep` name stays reserved. Structural drift = hard test failure; soft findings = reported.
+3. **Living `BACKLOG.md` = full switch:** build it as the single sequenced roadmap, migrate `BACKLOG-REVIEW-2026-07-04.md`'s content in, archive that snapshot with a pointer (move-never-delete). `FUTURE-IDEAS.md` stays the raw inbox.
 
 ## Candidate v2 feature-port scope (unsequenced — the re-audit assigns IDs)
 
