@@ -248,3 +248,66 @@ describe('M5.E2.S2.t2 vector-3 retroactive evict loop', () => {
     await withStateLock(baseDir, async () => true);
   });
 });
+
+// M5.E2 REVIEW (B11) — vector-2-defer fires ONLY on real inline narrative.
+//
+// The over-fire: planVector3 case 4 emitted `vector-2-defer` for EVERY closed
+// Epic whenever the body carried no Epic-ID section heading (whollyUnsectioned) —
+// including a conformant skeleton body or an already-relocated body, where there
+// is NO un-sectioned narrative to relocate at all. Result: a conformant /
+// already-migrated project's dry-run spammed one spurious flag per historical
+// closed Epic (Signal's own dogfood = 12). The flag claims deferral to "the
+// vector-2 whole-body relocate", so it must fire IFF that relocate will actually
+// run — i.e. only when the body is a genuine vector-2 candidate (real narrative
+// present). B11 is advisory-only: no move/evict/noop/idempotency behavior shifts.
+describe('M5.E2 REVIEW (B11) vector-2-defer fires only on real inline narrative', () => {
+  // Two genuinely-closed Epics (retro cards present) with NO live section heading.
+  const closedCards = new Map([
+    ['M5.E1', { path: '.planning/M5.E1-RETROSPECTIVE.md', content: '# M5.E1 Retro\nClosed 2026-07-16 (M5.E1).' }],
+    ['M4.5.E10', { path: '.planning/M4.5.E10-RETROSPECTIVE.md', content: '# M4.5.E10 Retro\nClosed 2026-07-05 (M4.5.E10).' }],
+  ]);
+  const deferFlags = (plan) => plan.flags.filter((f) => f.kind === 'vector-2-defer');
+
+  // A conformant skeleton body: no Epic-ID headings, small (< 8 KB → NOT a
+  // vector-2 candidate). No un-sectioned narrative to relocate → zero flags.
+  const SKELETON_BODY = ['# Project State', '', '## Closed work', '', '## In-flight', ''].join('\n');
+
+  // An already-relocated body: carries the vector-2 MARKER → NOT a candidate,
+  // regardless of size. The narrative already lives in STATE-HISTORY.md.
+  const ALREADY_RELOCATED_BODY = [
+    '# Project State',
+    '',
+    '<!-- migrate-memory:vector-2 relocated the prior inlined body to STATE-HISTORY.md on 2026-07-17. -->',
+    '',
+    'The prior inlined body was relocated to [STATE-HISTORY.md](STATE-HISTORY.md) by migrate-memory (vector-2) on 2026-07-17.',
+    '',
+  ].join('\n');
+
+  // A GENUINE bloated, un-sectioned narrative body (> 8 KB, no marker, no Epic-ID
+  // heading) — a real vector-2 candidate. This is the positive case the flag exists
+  // for: there IS a whole-body relocate to defer the closed Epics to.
+  const BLOAT_PARA = 'The doc-runtime work shipped 2026-07-16. Decisions were locked; FR1 delivered; AC verified. ';
+  const INLINE_NARRATIVE_BODY = ['# Project State', '', '## Historical log', '', BLOAT_PARA.repeat(200), ''].join('\n');
+
+  // RED (against pre-fix lib): a conformant skeleton with historical closed Epics
+  // emits ONE spurious vector-2-defer per Epic. Post-fix: zero.
+  it('a conformant skeleton project (no inline narrative) emits ZERO vector-2-defer flags', () => {
+    const plan = planVector3(FRONTMATTER + '\n' + SKELETON_BODY, closedCards);
+    expect(deferFlags(plan)).toHaveLength(0);
+  });
+
+  // The already-migrated project: narrative is in STATE-HISTORY.md, not the body.
+  it('an already-relocated project (vector-2 marker present) emits ZERO vector-2-defer flags', () => {
+    const plan = planVector3(FRONTMATTER + '\n' + ALREADY_RELOCATED_BODY, closedCards);
+    expect(deferFlags(plan)).toHaveLength(0);
+  });
+
+  // Positive: a project that GENUINELY has un-sectioned closed-Epic narrative inline
+  // (a real vector-2 candidate) still gets the deferral flag per closed Epic.
+  it('a project with genuine un-sectioned inline narrative STILL emits vector-2-defer per closed Epic', () => {
+    const plan = planVector3(FRONTMATTER + '\n' + INLINE_NARRATIVE_BODY, closedCards);
+    expect(deferFlags(plan).length).toBeGreaterThan(0);
+    expect(deferFlags(plan).some((f) => f.epicId === 'M5.E1')).toBe(true);
+    expect(deferFlags(plan).some((f) => f.epicId === 'M4.5.E10')).toBe(true);
+  });
+});

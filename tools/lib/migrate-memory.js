@@ -763,9 +763,13 @@ export function classifyClosedEpicBody(body, epicId) {
 //   3. live section + NO retrospective → SKIP + no-fabricate FLAG. Never fabricate
 //      a card to force an evict — the load-bearing safety gate of this Epic.
 //   4. no section + retrospective (classifier → vector-2-reclassify) → V3 does NOT
-//      whole-body relocate. Whole body un-sectioned → defer to the vector-2 step;
-//      MIXED body (another Epic owns a live section) → SKIP (the guard: a literal
-//      whole-body relocate here would drag that live section into history).
+//      whole-body relocate. Whole body un-sectioned AND a genuine vector-2 candidate
+//      (real narrative to relocate) → defer to the vector-2 step (FLAG); whole body
+//      un-sectioned but NO narrative present (conformant skeleton / already-relocated
+//      / never-inline) → no-op, no flag (B11 — else a conformant project spams one
+//      spurious flag per historical closed Epic); MIXED body (another Epic owns a
+//      live section) → SKIP (the guard: a literal whole-body relocate here would
+//      drag that live section into history).
 //   5. no section + no retrospective → no-op.
 //
 // STRUCTURAL mixed-body guard (S2.t1 handoff): V3's ONLY write is an
@@ -927,11 +931,21 @@ export function planVector3(stateText, cards) {
       //    drag a live section into history).
       classifyClosedEpicBody(body, epicId); // honor the S2.t1 routing handoff
       if (whollyUnsectioned) {
-        flags.push({
-          kind: 'vector-2-defer',
-          epicId,
-          reason: `${epicId} is closed + its narrative is un-sectioned in a whole-body body — handled by the vector-2 whole-body relocate, not V3`,
-        });
+        // B11: emit the defer flag ONLY when the body is a genuine vector-2
+        // candidate — i.e. there is real un-sectioned narrative to relocate. The
+        // flag claims deferral to "the vector-2 whole-body relocate", so it must
+        // fire IFF that relocate will actually run (senseInlinedBody().candidate is
+        // the SAME predicate applyMigrate uses to decide the relocate). A conformant
+        // skeleton / already-relocated / never-inline body has NO narrative here →
+        // no relocate to defer to → no flag (else every historical closed Epic spams
+        // a spurious flag on a conformant project). Advisory-only; nothing behavioral.
+        if (senseInlinedBody(stateText).candidate) {
+          flags.push({
+            kind: 'vector-2-defer',
+            epicId,
+            reason: `${epicId} is closed + its narrative is un-sectioned in a whole-body body — handled by the vector-2 whole-body relocate, not V3`,
+          });
+        }
       } else {
         skips.push({
           epicId,

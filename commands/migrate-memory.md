@@ -48,7 +48,9 @@ From `${CLAUDE_PLUGIN_ROOT}/tools/lib/migrate-memory.js`:
 - `applyMigrate(baseDir, {force, expectedHash, stamp, dateStr})` — the apply engine (compose V1→V2→stamp under one coarse lock, TOCTOU, surgical rollback, tag + staged).
 - `relocateFaithful(...)` / `verifyFaithful(...)` / `conserves(...)` — the faithfulness gate (S1.t3): WORD conservation is the vector-1 gate; `verifyFaithful` is the ID/date/status-token backstop.
 
-Supporting: `senseState`/`senseProject` (auto-sense), `deproseFrontmatter`/`locateFrontmatterProse` (vector-1), `relocateInlinedBody`/`planVector2` (vector-2), `stampOnConformance`/`setDocsLayoutVersion` (the stamp), `scanDanglingLinks`/`computeDanglingDelta` (dangling baseline). Vector-3 evict + archive-tree + link-rewrite + the full-corpus brain land in **S2**; the FR7.2 upgrade banner + SessionStart hook in **S3**.
+Supporting (pure cores + read-only sensing helpers the command uses; the mutating cores compose under the ONE coarse lock inside `runMigrate`/`applyMigrate`): `senseState`/`senseProject` (auto-sense), `deproseFrontmatter`/`locateFrontmatterProse` (vector-1), `planVector2` (vector-2), `stampOnConformance` (the stamp), `scanDanglingLinks`/`computeDanglingDelta` (dangling baseline). Vector-3 evict + archive-tree + link-rewrite + the full-corpus brain land in **S2**; the FR7.2 upgrade banner + SessionStart hook in **S3**.
+
+> ⚠ **Do NOT call these from the command flow — they are self-locking, single-purpose wrappers that exist for STANDALONE / testing use only:** `relocateInlinedBody` (vector-2), `setDocsLayoutVersion` (the stamp), `applyDeproseVector1` (vector-1). Each takes the state lock on its own, so calling one directly bypasses the composed-under-one-lock safety harness — no V1→V2→stamp chain, no dangling-link gate, no surgical rollback, no TOCTOU bind — and would throw `another state write is running` if called under the coarse lock the harness already holds (§9). The command composes the pure cores listed above; drive it only through `runMigrate`/`applyMigrate`.
 
 ## Anti-Rationalization Check
 
