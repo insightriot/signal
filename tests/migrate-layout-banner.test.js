@@ -22,10 +22,22 @@
 //                 banner — a parse hiccup must never nag a clean project);
 //   - CRLF post-reorg                                  → SILENT (Windows autocrlf).
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+
+// Wrap the REAL senseProject in a counting spy (calls through — behavior is
+// preserved for every other test) so the perf block can PROVE readLayoutBanner
+// short-circuits on a stamped project and NEVER runs the full-corpus walk. A
+// throwing spy would break the legitimate sniff-fallback tests; an `opts.sense`
+// injection can't produce the RED (the pre-fix impl ignores the arg and calls the
+// real senseProject regardless). A module spy on the real export is the only honest
+// way to observe the unconditional call the fix removes.
+vi.mock('../tools/lib/migrate-memory.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, senseProject: vi.fn(actual.senseProject) };
+});
 
 import {
   decideLayoutBanner,
@@ -33,7 +45,8 @@ import {
   LAYOUT_DRIFT_BANNER_COMMAND,
 } from '../tools/lib/status.js';
 import { renderResumeBriefing } from '../tools/lib/resume.js';
-import { CURRENT_LAYOUT_VERSION } from '../tools/lib/migrate-memory.js';
+import { CURRENT_LAYOUT_VERSION, senseProject } from '../tools/lib/migrate-memory.js';
+import { LAYOUT_VERSION } from '../tools/lib/layout-stamp.js';
 // The S3.t1 hook decision — stamp-first ONLY. Imported here to PROVE, as a lasting
 // regression guard, that it false-banners the unstamped-conformant case while the
 // command path stays silent (the reason t2 exists on top of t1).
@@ -227,6 +240,86 @@ describe('readLayoutBanner (disk-aware, fail-open)', () => {
     expect(decideLayoutDrift(UNSTAMPED_CONFORMANT).preReorg).toBe(true);
     const dir = await plant(join(tempDir, 'contrast'), UNSTAMPED_CONFORMANT);
     expect(await readLayoutBanner(dir)).toBeNull();
+  });
+});
+
+// ============================================================================
+// 2b. PERF short-circuit — a stamped project must NOT trigger the full-corpus walk
+// ============================================================================
+//
+// The REVIEW finding this task fixes: readLayoutBanner called senseProject
+// UNCONDITIONALLY on every /sig:status AND /sig:resume — a full `.planning/**/*.md`
+// corpus walk + an uncapped STATE.md read, heaviest on exactly the bloated projects
+// the Epic targets (and a mild DoS floor on an adversarial `.planning/`). The fix
+// does a cheap capped-prefix stamp read first; an integer stamp decides the banner
+// purely (stamp < CURRENT → banner, else silent) and returns WITHOUT senseProject.
+// Only an absent/unparseable stamp falls back to the structural sniff.
+//
+// A LARGE stamped body makes the cost concrete; the assertion is on the senseProject
+// call count (the wrapped-real spy), which is what the short-circuit removes.
+
+describe('readLayoutBanner — capped-stamp short-circuit (perf / DoS floor)', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-layout-perf-'));
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  // A big stamped-at-CURRENT STATE.md: tiny stamped frontmatter + a large body.
+  const bigStamped = (stamp) =>
+    `---\nschema_version: 1\ndocs_layout_version: ${stamp}\nphase: EXECUTE\n---\n` +
+    'x'.repeat(600 * 1024);
+
+  it('stamped == CURRENT + large body → silent, WITHOUT the full-corpus walk', async () => {
+    const dir = await plant(join(tempDir, 'bigpost'), bigStamped(CURRENT_LAYOUT_VERSION));
+    senseProject.mockClear();
+    const banner = await readLayoutBanner(dir);
+    expect(banner).toBeNull(); // stamp == CURRENT → correct answer is silent
+    expect(senseProject).not.toHaveBeenCalled(); // RED pre-fix: called unconditionally
+  });
+
+  it('stamped < CURRENT + large body → banner, WITHOUT the full-corpus walk', async () => {
+    const dir = await plant(join(tempDir, 'bigold'), bigStamped(CURRENT_LAYOUT_VERSION - 1));
+    senseProject.mockClear();
+    const banner = await readLayoutBanner(dir);
+    expect(banner).toBe(LAYOUT_DRIFT_BANNER_COMMAND); // old stamp → banner
+    expect(senseProject).not.toHaveBeenCalled(); // decided purely from the stamp
+  });
+
+  it('unstamped-but-conformant → senseProject IS consulted (the sniff fallback)', async () => {
+    const dir = await plant(join(tempDir, 'unstamped'), UNSTAMPED_CONFORMANT);
+    senseProject.mockClear();
+    const banner = await readLayoutBanner(dir);
+    expect(banner).toBeNull(); // conformant → silent, but only the sniff knows that
+    expect(senseProject).toHaveBeenCalledTimes(1); // no stamp → falls through
+  });
+
+  it('malformed stamp → falls back to the sniff (no integer to short-circuit on)', async () => {
+    const dir = await plant(join(tempDir, 'malformed'), MALFORMED_STAMP);
+    senseProject.mockClear();
+    const banner = await readLayoutBanner(dir);
+    expect(banner).toBeNull();
+    expect(senseProject).toHaveBeenCalledTimes(1);
+  });
+
+  // Parity gate: a stray `docs_layout_version:` line WITHOUT a frontmatter opening
+  // fence must NOT short-circuit — the short-circuit only trusts a stamp inside real
+  // frontmatter (senseState/splitFrontmatter's own precondition). It falls through to
+  // the sniff, which sees no frontmatter → conformant → silent, exactly as the old
+  // unconditional-senseProject path did. (Without the `^---` gate this false-banners.)
+  it('stamp line without a frontmatter fence → falls through to the sniff (silent)', async () => {
+    const noFence = `docs_layout_version: 1\njust free text, no frontmatter fence here\n`;
+    const dir = await plant(join(tempDir, 'nofence-stamp'), noFence);
+    senseProject.mockClear();
+    const banner = await readLayoutBanner(dir);
+    expect(banner).toBeNull();
+    expect(senseProject).toHaveBeenCalledTimes(1);
+  });
+
+  it('LAYOUT_VERSION (layout-stamp.js) never disagrees with the engine', () => {
+    expect(LAYOUT_VERSION).toBe(CURRENT_LAYOUT_VERSION);
   });
 });
 

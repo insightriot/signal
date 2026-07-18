@@ -15,6 +15,7 @@ import {
 import { readProfile } from './profile.js';
 import { extractSection } from './landscape.js';
 import { senseProject, CURRENT_LAYOUT_VERSION } from './migrate-memory.js';
+import { readCappedPrefix, readLayoutStampFromPrefix } from './layout-stamp.js';
 import {
   readInstallState,
   runAllDetectors,
@@ -336,25 +337,33 @@ export async function readStateSizeBannerForTier(baseDir) {
 
 // --- pre-reorg layout-drift banner (M5.E2.S3.t2, FR7.2) — command-path half ----
 //
-// The COMMAND counterpart to the SessionStart hook (S3.t1). Same nudge, but built
-// on the migrate engine's real structural-sniff source (`senseProject`) rather than
-// the hook's capped-prefix stamp read. Two things drive that choice:
-//   - IMPORT FREEDOM — /sig:resume and /sig:status already import heavy libs, so
-//     (unlike the fail-open-at-import SessionStart hook) they MAY import senseProject
-//     freely. senseProject reads the FR7 `docs_layout_version` stamp AND detects every
-//     pending vector/move in ONE pass — so the hook's stamp-only helpers would supply
-//     just half the decision (importing them buys nothing, and commands reaching into
-//     hooks/ is a smell). The `HOOK_LAYOUT_VERSION === CURRENT_LAYOUT_VERSION` sync
-//     assertion stays live in the untouched hook test.
+// The COMMAND counterpart to the SessionStart hook (S3.t1). TWO-TIER read (M5.E2
+// REVIEW — perf/DoS fix): a CHEAP capped-prefix stamp read first, the migrate
+// engine's full structural sniff (`senseProject`) only as the fallback.
+//   - CHEAP STAMP SHORT-CIRCUIT — the common already-migrated case. readLayoutBanner
+//     runs on every /sig:status AND /sig:resume; calling senseProject UNCONDITIONALLY
+//     meant a full `.planning/**/*.md` corpus walk + an uncapped STATE.md read on the
+//     two most-run commands — heaviest on exactly the bloated projects this Epic
+//     targets, and a mild DoS floor on an adversarial `.planning/`. So readLayoutBanner
+//     first reads the SAME 64 KB capped prefix the hook uses (`readCappedPrefix` +
+//     `readLayoutStampFromPrefix`, now shared from the dependency-light
+//     tools/lib/layout-stamp.js — NOT reached in from hooks/). An integer stamp decides
+//     the banner PURELY (stamp < CURRENT → banner, else silent) and returns WITHOUT
+//     ever walking the corpus. decideLayoutBanner's integer-stamp branch is reused
+//     verbatim, so the short-circuit decision is byte-identical to the old path.
 //   - STRUCTURAL-SNIFF FALLBACK — the hook's `decideLayoutDrift` is stamp-first ONLY:
 //     a fenced-no-stamp file returns preReorg:true, which would FALSE-banner a project
-//     that is already structurally conformant but simply never got stamped. This layers
-//     the sniff on top: no stamp → banner ONLY when there is genuine pending reorg work.
+//     that is already structurally conformant but simply never got stamped. So when the
+//     stamp is ABSENT/unparseable, readLayoutBanner falls through to senseProject: no
+//     stamp → banner ONLY when there is genuine pending reorg work. The
+//     `HOOK_LAYOUT_VERSION === CURRENT_LAYOUT_VERSION` sync assertion stays live in the
+//     untouched hook test (and layout-stamp's `LAYOUT_VERSION` is asserted too).
 //
-// Named DISTINCTLY from the hook's `LAYOUT_DRIFT_BANNER` (deliberately NOT shared — that
-// would reintroduce the commands-reaching-into-hooks/ smell option (c) exists to avoid).
-// The two texts differ by design: the hook adds "then --apply … to the current model",
-// this command-path copy is the shorter FR7.2-quoted nudge.
+// Named DISTINCTLY from the hook's `LAYOUT_DRIFT_BANNER` (the banner TEXT is deliberately
+// not shared — sharing it would mean this command path reaching into hooks/, whereas the
+// cheap stamp primitives are shared the RIGHT way, via tools/lib/layout-stamp.js). The two
+// texts differ by design: the hook adds "then --apply … to the current model", this
+// command-path copy is the shorter FR7.2-quoted nudge.
 export const LAYOUT_DRIFT_BANNER_COMMAND =
   "Signal: this project's `.planning/` predates the current docs layout — run " +
   '`/sig:migrate-memory` (dry-run first) to reorganize. This is advisory; nothing is blocked.';
@@ -390,7 +399,10 @@ export function decideLayoutBanner(sensed) {
 
 /**
  * Disk-aware pre-reorg layout banner (FR7.2) — a string or null when the project's
- * `.planning/` is post-reorg / structurally conformant / absent. Read-only and
+ * `.planning/` is post-reorg / structurally conformant / absent. TWO-TIER for perf
+ * (M5.E2 REVIEW): a cheap capped-prefix stamp read first (an integer stamp decides
+ * the banner purely and returns WITHOUT the full-corpus `senseProject` walk); only an
+ * absent/unparseable stamp falls through to the structural sniff. Read-only and
  * FAIL-OPEN: ANY error (unreadable STATE.md, a parse hiccup in the structural sniff,
  * no `.planning/` at all) degrades to `null` — advisory-only, it MUST NOT break
  * `/sig:status` or `/sig:resume`. Shared by both commands so they show the identical
@@ -401,6 +413,27 @@ export function decideLayoutBanner(sensed) {
  */
 export async function readLayoutBanner(baseDir) {
   try {
+    // Cheap capped-prefix stamp read FIRST (M5.E2 REVIEW). An integer stamp decides
+    // the banner purely — the common already-migrated case returns here WITHOUT the
+    // full-corpus senseProject walk. decideLayoutBanner({ stamp }) reuses its exact
+    // integer-stamp branch (stamp < CURRENT → banner), so the decision is identical.
+    const statePath = join(baseDir, '.planning', 'STATE.md');
+    if (existsSync(statePath)) {
+      const prefix = readCappedPrefix(statePath);
+      // Only trust a stamp inside REAL frontmatter (a `^---` opening fence) — the same
+      // precondition senseState/splitFrontmatter enforce. This keeps the short-circuit
+      // decision identical to the senseProject path for every well-formed file: a stray
+      // `docs_layout_version:` line in a non-frontmatter doc falls through to the sniff,
+      // exactly as the old unconditional-senseProject path did.
+      if (/^---\r?\n/.test(prefix)) {
+        const stamp = readLayoutStampFromPrefix(prefix);
+        if (Number.isInteger(stamp)) {
+          return decideLayoutBanner({ stamp }) ? LAYOUT_DRIFT_BANNER_COMMAND : null;
+        }
+      }
+    }
+    // No STATE.md, or an absent/unparseable stamp → the structural-sniff fallback
+    // (catches unstamped-but-drifted projects). Unchanged behavior.
     const sensed = await senseProject(baseDir);
     return decideLayoutBanner(sensed) ? LAYOUT_DRIFT_BANNER_COMMAND : null;
   } catch {
