@@ -6,9 +6,13 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased] — M5.E1 (Doc-runtime & memory hygiene)
+## [Unreleased] — Doc-runtime (M5.E1 + M5.E2)
 
-The doc-runtime **model + eviction mechanics** — Signal's answer to unbounded `.planning/` growth. Ships the *eviction/organization* half that pairs with v0.1.6's *prevention* half (write-guard + size banner). Additive; no breaking changes; no new runtime dependencies; no `.planning/` schema bump. 999 → 1070 tests. Full DISCUSS→SHIP at FULL/strict; REVIEW ran two independent specialist agents (PASS-WITH-FIXES, 4 Important fixed). Reference: [`references/doc-runtime-model.md`](references/doc-runtime-model.md).
+The doc-runtime ships as **one release across three Epics** — E1 (model + eviction mechanics) + E2 (the auto-sensing migrate command) here, with **E3 (all-docs hygiene + living `BACKLOG.md`) still to land before the cut** (D-M5E2-6). Each Epic lands on `main` intentionally unreleased; the combined marketplace release cuts when E3 completes, so users get "eviction + migrate + hygiene" as a coherent unit rather than a partial fix. Additive; no breaking changes; no new runtime dependencies; no `.planning/` schema bump.
+
+### M5.E1 — model + eviction mechanics
+
+Signal's answer to unbounded `.planning/` growth — the *eviction/organization* half that pairs with v0.1.6's *prevention* half (write-guard + size banner). 999 → 1070 tests. Full DISCUSS→SHIP at FULL/strict; REVIEW ran two independent specialist agents (PASS-WITH-FIXES, 4 Important fixed). Reference: [`references/doc-runtime-model.md`](references/doc-runtime-model.md).
 
 ### Added
 - **Canonical doc-runtime model** (`references/doc-runtime-model.md`, FR1) — the provisional-canonical decision every later doc-runtime FR references: the two axes (load-frequency × growth-policy), the unit-homed single-home eviction rule, the 3-vector bloat taxonomy, RETROSPECTIVE-as-SUMMARY-card, and the ordered distill→verify→evict faithfulness gate.
@@ -23,6 +27,28 @@ The doc-runtime **model + eviction mechanics** — Signal's answer to unbounded 
 
 ### Fixed
 - **`plugin.json` version** bumped 0.1.6 → 0.1.7 — the v0.1.7 ship had left it stale (BUGS.md B7); a v0.1.7 install self-reported 0.1.6.
+
+### M5.E2 — auto-sensing migrate command (`/sig:migrate-memory`)
+
+The risky, go-big piece of the doc-runtime: the command that reorganizes an **existing** bloated project's `.planning/` in place. Un-sticks live pain (`nextpass/.planning/STATE.md` was write-wedged at 546 KB → **1.3 KB, 0 words dropped**; BUGS.md B8 auto-remediation). Full DISCUSS→SHIP at FULL/strict; REVIEW ran a 3-specialist adversarial panel (PASS-WITH-FIXES — a SHIP-blocking rollback gap, independently reproduced by two reviewers, caught + fixed in-phase). 1070 → 1300 tests. Reference: [`references/doc-runtime-model.md`](references/doc-runtime-model.md) §5 (faithfulness gate).
+
+#### Added — `/sig:migrate-memory` (M5.E2, FR6)
+- Auto-senses an old-layout project's `.planning/`, plans the **smallest safe** reorg, is **dry-run by default** (changes nothing), and applies only on explicit confirm. **Relocate-never-delete, git-backed rollback, idempotent** (a re-run on a migrated project is a no-op). Handles all three bloat vectors — v1 frontmatter-prose de-prose (relocated, never dropped), v2 whole-body relocate → `STATE-HISTORY.md`, v3 closed-Epic narrative eviction — plus archive-tree scaffold relocation. Engine: `tools/lib/migrate-memory.js` + `tools/lib/archive-tree.js`.
+
+#### Added — doc-layout stamp + drift banner (M5.E2, FR7)
+- `docs_layout_version` in STATE frontmatter — its own axis, distinct from `schema_version` (frontmatter format) and the plugin SemVer. Set by the migrate on completion; a **fail-open** SessionStart + `/sig:resume` + `/sig:status` banner warns when a pre-reorg project runs a post-reorg plugin (post-reorg is silent). Hook: `hooks/warn-layout-drift.js`.
+
+#### Changed — REVIEW hardening (M5.E2)
+- **Rollback now wraps the entire mechanical move/rewrite phase** (durable snapshot + pre-apply tag hoisted *before* the phase) — closes the Critical C1 unrecoverable-partial-write gap.
+- **Path confinement hardened** — realpath re-assertion on both write/move gateways refuses a directory-symlink escape (security MEDIUM, I-b).
+- **`readLayoutBanner` short-circuits** on a cheap 64 KB stamp read instead of an unconditional full-corpus walk on every `/sig:status` + `/sig:resume` (perf/DoS, I-d); stamp helpers promoted to `tools/lib/layout-stamp.js`.
+
+#### Fixed (M5.E2)
+- **B10** `SHIP`/`LAUNCH-KIT` scaffolds now archive with their Epic; **B11** `vector-2-defer` flag no longer over-fires on already-evicted corpora; **B12** non-standard `completed_phases` entries get a meaningful label + a dry-run warning instead of a generic placeholder / silent sweep-to-history; **B13** NUL-byte in `migrate-memory.js` → `\0` escape (restores `grep`).
+
+#### Dogfood + deferred (M5.E2)
+- **Dogfood:** Signal's own `.planning/` — 31 archive relocations + `docs_layout_version` stamp v2.
+- **Ticketed fast-follows (non-blocking):** B14 (codebase-wide lexical symlink confinement in `evict.js`/`add.js`/`resume.js`), B15 (>1 MB single-file scan-ceiling can defeat the dangling gate), B16 (a rolled-back `--apply` leaves a lingering `pre-migrate-memory-<stamp>` tag), B17 (4 git-heavy migrate tests flake on vitest's 5 s default under full-suite parallel load).
 
 ## [0.1.7] — 2026-07-15 — M4.5.E11 (Epic-native flow)
 

@@ -2,10 +2,11 @@
 
 > Per-Epic retrospectives, indexed for fast scan. Status flag (*stub* / *complete*) is auto-derived from the presence of `[FILL IN]` markers in the retro file. Hook lines (after the second em-dash) are hand-curated — they survive regeneration by Epic ID.
 
+- [M5.E2](M5.E2-RETROSPECTIVE.md) — *complete* — auto-sensing `/sig:migrate-memory` (FR6/FR7, unreleased) — relocate-never-delete, dry-run-default, git-reversible reorg of a bloated `.planning/`; un-wedged nextpass 546 KB→1.3 KB, 0 words dropped. REVIEW's 3-specialist adversarial panel caught a SHIP-blocking rollback gap (2 reviewers independently reproduced it) that a green 1296-test VERIFY missed; 5 RED-first fix batches, ≈1071→1300 tests. Landed on `main` batched into the E1+E2+E3 doc-runtime release (D-M5E2-6).
 - [M5.E1](M5.E1-RETROSPECTIVE.md) — *complete* — _(hook pending)_
+- [M4.5.E5](M4.5.E5-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M4.5.E11](M4.5.E11-RETROSPECTIVE.md) — *complete* — Epic mode made first-class (v0.1.7): `--epic` write-half, Epic-scoped artifact naming, per-Epic `{EpicID}-PROFILE.md` calibration, all additive over a byte-identical linear default. Key lesson — a green 999-test suite couldn't prove FR3 at runtime; only grepping every `readProfile(` call site did. REVIEW rejected a specialist's tidiness suggestion that would have broken `v0.1.6-*` back-compat. 894→999 tests.
 - [M4.5.E10](M4.5.E10-RETROSPECTIVE.md) — *complete* — resume/capture trust-hardening (v0.1.5): origin-drift + schema-drift banners, Epic-prefix resolver, capture-pipe guards, hook smoke test. REVIEW earned its keep — two independent agents caught the same crash (staleness checks threw on a schema-drifted STATE.md) that a green 848-test VERIFY missed; 7 findings fixed in-phase, 777→854 tests.
-- [M4.5.E5](M4.5.E5-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M4.5.E7](M4.5.E7-RETROSPECTIVE.md) — *stub* — synthesizer prose-quality fix (`embedSection` helper) + install-UX troubleshooting docs (v0.1.3 candidate); 366 → 384 tests.
 - [M4.5.E9](M4.5.E9-RETROSPECTIVE.md) — *complete* — established the SHIP enforcement gate (D-E9-8 layered: command-internal + PreToolUse + SessionStart-resume); first dogfooded retro under the new mechanism; threshold-formula PLAN deviation surfaced + resolved.
 - [M4.5.E3](M4.5.E3-RETROSPECTIVE.md) — *stub* — public-facing docs rewrite (audience reframe per D-E3-11): Privacy / Compatibility / Open Source Origins / SECURITY.md / facts.md (v0.1.3 candidate).

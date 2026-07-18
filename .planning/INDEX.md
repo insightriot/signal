@@ -6,7 +6,7 @@
 > to keep accurate). It carries: where the doc is, its lifecycle status, and any
 > non-obvious gotcha.
 
-**Corpus state (2026-07-16):** root working set + archive · **M5.E1 (Doc-runtime & memory hygiene) shipped 2026-07-16.** STATE.md body evicted to `STATE-HISTORY.md` (64.5 KB → ~1 KB skeleton); shipped FUTURE-IDEAS entries evicted to `archive/FUTURE-IDEAS-LEDGER.md`.
+**Corpus state (2026-07-18):** root working set + archive · **M5.E2 (auto-sensing migrate command) shipped 2026-07-18** — landed on `main` unreleased, batched into the combined E1+E2+E3 doc-runtime release (D-M5E2-6). Prior: **M5.E1 shipped 2026-07-16** (STATE.md body → `STATE-HISTORY.md`, 64.5 KB → ~1 KB skeleton; shipped FUTURE-IDEAS entries → `archive/FUTURE-IDEAS-LEDGER.md`).
 **Maintenance:** hand-curated for now; structural rows are mechanical and will move to
 a future `/sig:index`. Curated one-liners survive regeneration by file/Epic ID.
 
@@ -24,13 +24,13 @@ a future `/sig:index`. Curated one-liners survive regeneration by file/Epic ID.
 |---|---|
 | [STATE.md](STATE.md) | Authoritative current state. **YAML frontmatter is the machine truth**; body is now the lean live-above-the-fold skeleton (M5.E1 FR2c). `schema_version: 1` auto-migrates on first write. |
 | [STATE-HISTORY.md](STATE-HISTORY.md) | 🧊 Relocated pre-M5.E1 STATE.md body (the full pre-schema narrative), verbatim. Reference-only; nothing watches it. Created by the M5.E1.S5 dogfood. |
-| [MILESTONE-5.md](MILESTONE-5.md) | **Active milestone** — v2 integrations + doc-runtime. Epic-status table at top: E1 shipped, E2/E3 = doc-runtime continuation; speculative v2-port queue below is unsequenced (re-audit assigns IDs). |
+| [MILESTONE-5.md](MILESTONE-5.md) | **Active milestone** — v2 integrations + doc-runtime. Epic-status table at top: E1 + E2 shipped (unreleased), E3 next up (folded into the combined release); speculative v2-port queue below is unsequenced (re-audit assigns IDs). |
 | [PROFILE.md](PROFILE.md) | Active tier + rigor overrides (the calibration contract every phase reads first). |
 | [CONTEXT.md](CONTEXT.md) | Locked + deferred decisions for the *current* work; what DISCUSS settled. |
 | [MILESTONE-4.5.md](MILESTONE-4.5.md) | **Most recent milestone** — release hardening / stranger-adoption. E1–E10 all shipped (v0.1.1–v0.1.5); one open criterion: ≥3 non-Signal testers with feedback merged. |
 | [PROJECT.md](PROJECT.md) | v1 spec + locked vocabulary. **Gotcha:** ID-is-identity rule (Milestone/Epic/Slice/Task/Phase/Wave/Tier are fixed terms). |
 
-*M5.E1 just shipped (2026-07-16). Its scaffolding (`M5.E1-*.md`) is still in root pending the next archive-migrate pass. Next: M5.E2 (doc-runtime continuation — FR4/FR5) or the v2-port re-audit.*
+*M5.E2 just shipped (2026-07-18, unreleased). Its scaffolding (`M5.E2-*.md`) is in root pending the next archive-migrate pass (as is M5.E1's). Next: **M5.E3** — all-docs hygiene runtime + living `BACKLOG.md` (FR4/FR5), the last Epic before the combined doc-runtime release. Open with `/sig:discuss --epic M5.E3`.*
 
 ## 🌤 WARM — load on demand
 
@@ -54,7 +54,8 @@ don't reload the scaffolding. **E5 + E10 + v0.1.6 scaffolding is still in root**
 
 | Epic | Released | One-liner | Retro |
 |---|---|---|---|
-| **M5.E1** | (unreleased) | Doc-runtime & memory hygiene — canonical doc-model (FR1) + STATE/FUTURE-IDEAS eviction (FR2/FR3) + dogfood. STATE.md 64.5 KB→1 KB. Continuation: E2 (FR4/5), E3 (FR6/7) | [complete](M5.E1-RETROSPECTIVE.md) |
+| **M5.E2** | (unreleased) | Auto-sensing `/sig:migrate-memory` (FR6/FR7) — relocate-never-delete, dry-run-default, git-reversible reorg of a bloated `.planning/`; 3 bloat vectors + archive-tree + doc-layout stamp/banner. nextpass 546 KB→1.3 KB, 0 dropped. REVIEW 3-specialist panel, SHIP-blocking rollback gap caught | [complete](M5.E2-RETROSPECTIVE.md) |
+| **M5.E1** | (unreleased) | Doc-runtime & memory hygiene — canonical doc-model (FR1) + STATE/FUTURE-IDEAS eviction (FR2/FR3) + dogfood. STATE.md 64.5 KB→1 KB. Continuation: E2 (FR6/7 migrate), E3 (FR4/5 hygiene) | [complete](M5.E1-RETROSPECTIVE.md) |
 | **E11** | v0.1.7 | Epic-native flow — `--epic` first-class, `{EpicID}-*.md` artifacts, per-Epic PROFILE; linear mode byte-identical | [complete](M4.5.E11-RETROSPECTIVE.md) |
 | **v0.1.6** | v0.1.6 | Doc-integrity guardrail (patch, not an Epic) — STATE-frontmatter write-guard + read-time size banner + drain blockquote convergence + `/sig:add` clause-boundary titles + 3 bugs→BUGS.md | [complete](v0.1.6-RETROSPECTIVE.md) |
 | **E10** | v0.1.5 | Resume trust & capture integrity — origin-drift + schema-drift banners, Epic-prefix resolver, capture-pipe guards, hook harness | [complete](M4.5.E10-RETROSPECTIVE.md) |
