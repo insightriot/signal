@@ -1366,7 +1366,7 @@ export async function scanDanglingLinks(baseDir) {
  * @param {Array} before @param {Array} after @returns {Array}
  */
 export function computeDanglingDelta(before, after) {
-  const key = (d) => `${d.file} ${d.link}`;
+  const key = (d) => `${d.file}\0${d.link}`;
   const seen = new Set(before.map(key));
   return after.filter((d) => !seen.has(key(d)));
 }
@@ -1557,6 +1557,12 @@ export async function renderDryRun(baseDir) {
   const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
   if (!existsSync(statePath)) return 'No .planning/STATE.md found — nothing to migrate.';
   const raw = await readFile(statePath, 'utf-8');
+  // Fence-less STATE.md (no `---` YAML frontmatter): apply refuses this cleanly, so
+  // the dry-run must too — else the display drifts from the plan-data ("will set
+  // docs_layout_version… on conformance" against a file that can never be stamped).
+  if (!splitFrontmatter(raw)) {
+    return 'STATE.md has no YAML frontmatter — not a schema_version:1 file; nothing to migrate.';
+  }
   const plan = senseState(raw);
   const baseline = await scanDanglingLinks(baseDir);
 
@@ -1764,6 +1770,24 @@ export async function applyMigrate(baseDir, opts = {}) {
       );
     }
 
+    // Fence-less STATE.md (no `---` YAML frontmatter) → not a schema_version:1 file:
+    // it can never be stamped, so the no-op gate below would never fire and apply
+    // would fall through to a false applied:true + a fresh tag while leaving STATE
+    // untouched (re-taggable forever). Refuse cleanly instead — no write, no tag.
+    // Migrating a legacy pre-frontmatter body is a separate feature (out of scope);
+    // a clean refuse is the correct behavior here. Mirrors renderDryRun's early-exit.
+    if (!splitFrontmatter(raw)) {
+      return {
+        applied: false,
+        refused: true,
+        changed: false,
+        reason: 'STATE.md has no YAML frontmatter — not a schema_version:1 file; nothing to migrate.',
+        inputHash,
+        mode: probe.mode,
+        warnings: probe.warnings,
+      };
+    }
+
     const plan = senseState(raw);
     // V3 (retroactive closed-Epic evict) is disk-aware, so senseState's noop is
     // V3-BLIND: a clean-frontmatter, small-body, already-stamped STATE.md with
@@ -1886,29 +1910,14 @@ export async function applyMigrate(baseDir, opts = {}) {
     // stamp ABSENT so a re-run continues safely).
     text = stampOnConformance(text, CURRENT_LAYOUT_VERSION);
 
-    // One STATE.md write (compare-before-write).
-    if (text !== raw) await atomicWrite(statePath, text);
-
-    // Post-apply verify → surgical rollback on failure.
-    const v = verify(text);
-    if (v.block) {
-      await rollback();
-      throw new Error(`applyMigrate: post-apply verify failed (${v.reason ?? 'blocked'}) — rolled back.`);
-    }
-
-    // --- archive-tree: relocate closed-scaffold FILES + rewrite referrers (§9) ---
-    // Runs AFTER the STATE.md write so it rewrites the FINAL composed STATE.md's
-    // scaffold-links; the within-STATE vector moves (V1/V3/V2) are already on disk.
-    // LOCK-FREE spine: applyArchiveTree never self-locks and never calls
-    // evictEpicNarrative — it runs under THIS apply's ONE coarse lock.
+    // Extend the surgical snapshot to EVERY file the archive step touches BEFORE any
+    // disk mutation (hoisted OUT of the archive block so it precedes the durable
+    // snapshot + tag): else STATE.md rolls back but a rewritten referrer stays
+    // mutated = partial write. Derived from senseArchiveTree's moveMap + editsByFile:
+    // every move SOURCE + DEST, plus every referrer whose link/prose edits are
+    // non-empty. Paths are repo-root-relative POSIX; snap() keys are relative to
+    // planningDir, so strip the leading `.planning/`.
     if (archiveMoveMap.size > 0) {
-      // Extend the surgical snapshot to EVERY file the archive step touches BEFORE
-      // any archive write, so an abort below (or in enforceNoDangling) rolls back
-      // ALL of them byte-identical — else STATE.md rolls back but a rewritten
-      // referrer stays mutated = partial write. Derived from senseArchiveTree's
-      // moveMap + editsByFile: every move SOURCE + DEST, plus every referrer whose
-      // link/prose edits are non-empty. Paths are repo-root-relative POSIX; snap()
-      // keys are relative to planningDir, so strip the leading `.planning/`.
       for (const [from, to] of archiveMoveMap) {
         await snapOnce(from.replace(`${PLANNING_DIR}/`, '')); // move source (removed)
         await snapOnce(to.replace(`${PLANNING_DIR}/`, '')); // move dest (created)
@@ -1916,30 +1925,17 @@ export async function applyMigrate(baseDir, opts = {}) {
       for (const [f, edits] of archiveSense.editsByFile) {
         if (edits.length > 0) await snapOnce(f.replace(`${PLANNING_DIR}/`, '')); // referrer
       }
-      const archiveResult = await applyArchiveTree(baseDir, { apply: true });
-      moves.push({
-        vector: 'archive-tree',
-        moves: archiveResult.moves.length,
-        rewrittenFiles: archiveResult.rewrittenFiles,
-      });
     }
 
-    // Post-apply BLOCKING dangling-link gate (S2.t4): migrate-caused dangling
-    // references — inline .md dangles (delta vs the pre-apply baseline, FR6.3
-    // "before") + residual flat paths (this run's archive moveMap) — HARD abort +
-    // surgical rollback (never a log-after-commit). INDEX.md dangles (§10) +
-    // at-risk anchors are flagged, never aborted. §9: this runs inside the ONE
-    // coarse lock and reuses THIS apply's snapshot rollback (extended above to the
-    // archive-touched files so a rewritten referrer is never left partially written).
-    await enforceNoDangling(baseDir, {
-      baseline: danglingBaseline,
-      moveMap: archiveMoveMap,
-      rollback,
-      scanDangling,
-    });
-
-    // Persist the snapshot for durable surgical undo on the non-tag paths
-    // (fs-backup OR --force on a dirty tree; git-clean relies on the tag).
+    // Persist the durable snapshot + create the pre-apply tag BEFORE the mechanical
+    // phase, so a mid-phase throw (ENOSPC / EACCES / ENOTDIR / an applyArchiveTree
+    // byte-identity assert) still leaves an undo aid even if the in-memory rollback
+    // below cannot complete. The persisted-only-AFTER-the-throw gap was the
+    // SHIP-blocker: in fs-backup / --force-dirty modes there is no git net, so the
+    // durable snapshot is the ONLY recovery pointer. The snapshot Map is already
+    // COMPLETE here — STATE.md (snapped at entry), each V3 archive file + the V2
+    // history (snapped during compose), and the archive sources/dests/referrers
+    // (snapped just above) — so it captures every file the mechanical phase touches.
     let snapshotDir = null;
     if (probe.mode === 'fs-backup' || (probe.dirty && force)) {
       snapshotDir = join(planningDir, '.migrate', 'snapshot');
@@ -1950,10 +1946,12 @@ export async function applyMigrate(baseDir, opts = {}) {
       }
     }
 
-    // Tag (git + HEAD) + stage the SPECIFIC mutated files (staged-not-committed).
+    // Pre-apply tag (points at the pre-migrate HEAD). If the mechanical phase throws,
+    // rollback restores the tree to exactly this state, so the tag is harmless (it
+    // points at the state the tree is already at) — and it STAYS as the recovery
+    // pointer for the case where the in-memory rollback itself fails. NOT cleaned up
+    // on rollback: leaving it guarantees a pointer never vanishes.
     let tag = null;
-    let revertLine;
-    const touched = [...snapshot.keys()].map((rel) => `${PLANNING_DIR}/${rel}`);
     if (probe.mode === 'git') {
       try {
         execFn('git', ['tag', `pre-migrate-memory-${stamp}`], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
@@ -1961,8 +1959,76 @@ export async function applyMigrate(baseDir, opts = {}) {
       } catch {
         tag = null;
       }
+    }
+
+    // --- MECHANICAL PHASE (the disk mutations) under ONE rollback-on-throw wrap ----
+    // The in-memory snapshot covers every file touched at EVERY throw point below
+    // (STATE.md, the V3/V2 archives created during compose, the archive
+    // sources/dests/referrers), so a single `catch { rollback() }` restores the WHOLE
+    // set byte-identical on ANY failure — atomicWrite (ENOSPC), applyArchiveTree
+    // (ENOTDIR / EACCES / its byte-identity assert), or the dangling gate. Before this
+    // wrap, an applyArchiveTree throw escaped with STATE de-prosed+stamped on disk and
+    // no rollback = an unrecoverable partial write (the SHIP-blocker). Order is
+    // deliberate (write → verify → archive → dangling) — do NOT reorder. The inner
+    // rollback in the verify block + enforceNoDangling is redundant with this catch
+    // (double rollback is idempotent: restore-bytes twice, or rm-then-skip a created
+    // file); it is kept so those two proven, separately-tested paths stay unchanged.
+    try {
+      // One STATE.md write (compare-before-write).
+      if (text !== raw) await atomicWrite(statePath, text);
+
+      // Post-apply verify → surgical rollback on failure.
+      const v = verify(text);
+      if (v.block) {
+        await rollback();
+        throw new Error(`applyMigrate: post-apply verify failed (${v.reason ?? 'blocked'}) — rolled back.`);
+      }
+
+      // --- archive-tree: relocate closed-scaffold FILES + rewrite referrers (§9) ---
+      // Runs AFTER the STATE.md write so it rewrites the FINAL composed STATE.md's
+      // scaffold-links; the within-STATE vector moves (V1/V3/V2) are already on disk.
+      // LOCK-FREE spine: applyArchiveTree never self-locks and never calls
+      // evictEpicNarrative — it runs under THIS apply's ONE coarse lock. Its snapshot
+      // extension was hoisted above (before the durable persist) so the recovery aids
+      // cover the archive-touched files.
+      if (archiveMoveMap.size > 0) {
+        const archiveResult = await applyArchiveTree(baseDir, { apply: true });
+        moves.push({
+          vector: 'archive-tree',
+          moves: archiveResult.moves.length,
+          rewrittenFiles: archiveResult.rewrittenFiles,
+        });
+      }
+
+      // Post-apply BLOCKING dangling-link gate (S2.t4): migrate-caused dangling
+      // references — inline .md dangles (delta vs the pre-apply baseline, FR6.3
+      // "before") + residual flat paths (this run's archive moveMap) — HARD abort +
+      // surgical rollback (never a log-after-commit). INDEX.md dangles (§10) +
+      // at-risk anchors are flagged, never aborted. §9: this runs inside the ONE
+      // coarse lock and reuses THIS apply's snapshot rollback (extended above to the
+      // archive-touched files so a rewritten referrer is never left partly written).
+      await enforceNoDangling(baseDir, {
+        baseline: danglingBaseline,
+        moveMap: archiveMoveMap,
+        rollback,
+        scanDangling,
+      });
+    } catch (e) {
+      // Any throw in the mechanical phase → restore the WHOLE snapshot set
+      // byte-identical (never a whole-tree reset), then rethrow. The durable snapshot
+      // + tag persisted above remain as the recovery aid if this rollback itself fails.
+      await rollback();
+      throw e;
+    }
+
+    // Stage the SPECIFIC mutated files (staged-not-committed) — AFTER the mechanical
+    // phase succeeds. `--` ends option parsing so a pathological path never parses as
+    // a flag. The pre-apply tag was created above (before the phase).
+    let revertLine;
+    const touched = [...snapshot.keys()].map((rel) => `${PLANNING_DIR}/${rel}`);
+    if (probe.mode === 'git') {
       try {
-        execFn('git', ['add', ...touched], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
+        execFn('git', ['add', '--', ...touched], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
       } catch {
         /* staging is best-effort — the changes are on disk regardless */
       }
@@ -1976,7 +2042,7 @@ export async function applyMigrate(baseDir, opts = {}) {
 
     return {
       applied: true,
-      changed: true,
+      changed: text !== raw || moves.length > 0,
       moves,
       historyName,
       stampedTo: readDocsLayoutVersion(text),
