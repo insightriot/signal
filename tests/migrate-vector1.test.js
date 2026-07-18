@@ -20,6 +20,7 @@ import {
   locateFrontmatterProse,
   deproseFrontmatter,
   applyDeproseVector1,
+  renderDryRun,
   conserves,
   WORD,
 } from '../tools/lib/migrate-memory.js';
@@ -161,5 +162,98 @@ describe('M5.E2.S1.t4 applyDeproseVector1 (on disk, standalone wrapper)', () => 
     const after = await readFile(join(baseDir, '.planning', 'STATE.md'), 'utf-8');
     expect(r2.relocations.length).toBe(0);
     expect(after).toBe(mid);
+  });
+});
+
+// B12 (VERIFY) — a completed_phases entry WITHOUT a leading "PHASE (date)" token
+// must de-prose to a MEANINGFUL truncated label (never the generic "[relocated…]"
+// placeholder that erases which entry it was), and the dry-run must WARN that a
+// non-standard/active-looking entry was relocated (verify it was actually done).
+// The real nextpass dogfood find: an over-length "▶ Active: Slice SEC1 …" marker
+// parked in completed_phases placeholdered + was swept into history.
+const ACTIVE_MARKER =
+  `▶ Active: Slice SEC1 — Supabase Security-Advisor Hardening: DISCUSS ✅ → ` +
+  `EXECUTE in progress (PLAN landed 2026-07-16, 4-agent research + independent ` +
+  `plan-checker PASS)`; // >150 chars → over-length → enters the de-prose set
+const ACTIVE_STATE =
+  `---\n` +
+  `schema_version: 1\n` +
+  `phase: EXECUTE\n` +
+  `current_epic: M5.E2\n` +
+  `current_tasks: []\n` +
+  `completed_phases:\n` +
+  `  - CALIBRATE (2026-05-13)\n` +
+  `  - "${ACTIVE_MARKER}"\n` +
+  `blockers: []\n` +
+  `---\n` +
+  `# Project State\n\nexisting body\n`;
+
+// A NORMAL over-length entry that DOES carry a clean "PHASE (date)" prefix — must
+// keep its "PLAN (2026-07-16)" scalar unchanged and must NOT be flagged.
+const REGRESSION_MARKER = `PLAN (2026-07-16) — ${'narrative words '.repeat(15)}`; // >150
+const REGRESSION_STATE =
+  `---\n` +
+  `schema_version: 1\n` +
+  `phase: PLAN\n` +
+  `current_epic: M5.E2\n` +
+  `current_tasks: []\n` +
+  `completed_phases:\n` +
+  `  - "${REGRESSION_MARKER}"\n` +
+  `blockers: []\n` +
+  `---\n` +
+  `# Project State\n\nexisting body\n`;
+
+describe('M5.E2 VERIFY B12 — meaningful de-prose label + non-standard dry-run flag', () => {
+  it('derives a MEANINGFUL truncated label (never the generic [relocated…] placeholder)', () => {
+    const { entries } = locateFrontmatterProse(ACTIVE_STATE);
+    const active = entries.find((e) => e.field === 'completed_phases');
+    expect(active).toBeDefined();
+    // RED against the current placeholder behavior: today active.short is
+    // `- "[relocated to STATE body — migrate-memory]"`.
+    expect(active.short).not.toContain('[relocated');
+    expect(active.short).toContain('SEC1');
+    expect(active.nonStandard).toBe(true);
+  });
+
+  it('deproseFrontmatter leaves the meaningful label in the frontmatter (not a placeholder)', () => {
+    const { newText } = deproseFrontmatter(ACTIVE_STATE);
+    const fm = newText.split(/\n---\r?\n/)[0];
+    expect(fm).not.toContain('[relocated');
+    expect(fm).toContain('SEC1');
+    // Prose still relocates verbatim to the body (faithfulness unchanged).
+    expect(newText).toContain('independent');
+    expect(newText).toContain('plan-checker PASS');
+  });
+
+  it('a normal "PHASE (date)" entry keeps its PLAN (2026-07-16) scalar and is NOT non-standard', () => {
+    const { entries } = locateFrontmatterProse(REGRESSION_STATE);
+    const e = entries.find((x) => x.field === 'completed_phases');
+    expect(e).toBeDefined();
+    expect(e.short.trim()).toBe('- PLAN (2026-07-16)');
+    expect(e.nonStandard).toBe(false);
+  });
+
+  describe('renderDryRun warning', () => {
+    let baseDir;
+    afterEach(async () => {
+      if (baseDir) await rm(baseDir, { recursive: true, force: true });
+    });
+
+    it('warns that a non-standard/active-looking completed_phases entry was relocated', async () => {
+      baseDir = await mkdtemp(join(tmpdir(), 'signal-b12-'));
+      await mkdir(join(baseDir, '.planning'), { recursive: true });
+      await writeFile(join(baseDir, '.planning', 'STATE.md'), ACTIVE_STATE, 'utf-8');
+      const out = await renderDryRun(baseDir);
+      expect(out).toMatch(/non-standard/i);
+      expect(out).toContain('SEC1');
+    });
+
+    it('does NOT warn for a normal "PHASE (date)" entry', async () => {
+      baseDir = await mkdtemp(join(tmpdir(), 'signal-b12-'));
+      await mkdir(join(baseDir, '.planning'), { recursive: true });
+      await writeFile(join(baseDir, '.planning', 'STATE.md'), REGRESSION_STATE, 'utf-8');
+      const out = await renderDryRun(baseDir);
+      expect(out).not.toMatch(/non-standard/i);
+    });
   });
 });

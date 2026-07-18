@@ -264,6 +264,51 @@ export async function relocateFaithful(args) {
 const COMPLETED_PHASES_MAX = 150;
 const BLOCKER_TEXT_MAX = 500;
 
+// B12 (VERIFY): turn a frontmatter-list entry that lacks a leading "PHASE (date)"
+// token into a MEANINGFUL short single-line YAML scalar — never the generic
+// "[relocated…]" placeholder, which erased WHICH entry it was. Mirrors /sig:add's
+// deriveHeading clause-boundary approach (add.js, not exported): flatten the entry,
+// cut at the first clause boundary (— / . / : / , followed by whitespace-or-EOL)
+// inside a window that yields at least a MIN-length clause, else fall back to the
+// first ~6 words, then hard-cap. Faithfulness is unchanged — the full prose still
+// relocates to the STATE body verbatim; this labels ONLY the leftover scalar. The
+// result is short (≤ the cap) and single-line, so it does NOT itself trip the
+// write-guard, and it is stable (deriving it twice gives the same string → the
+// second apply is a zero-diff no-op).
+const NONSTD_LABEL_MAX = 60;
+const NONSTD_MIN_CLAUSE = 20;
+const NONSTD_CLAUSE_WINDOW = 80;
+
+function deriveNonStandardLabel(rawLines) {
+  const flat = (Array.isArray(rawLines) ? rawLines : [String(rawLines)])
+    .join(' ')
+    .replace(/^\s*-\s*/, '')     // drop the list marker
+    .replace(/^\s*text:\s*/, '') // drop a blocker text: key if present
+    .replace(/^["']/, '')        // drop a leading quote
+    .replace(/["']\s*$/, '')     // drop a trailing quote
+    .replace(/\s+/g, ' ')        // collapse whitespace (multi-line → one line)
+    .trim();
+
+  let label = null;
+  const limit = Math.min(flat.length, NONSTD_CLAUSE_WINDOW);
+  for (let i = 0; i < limit; i++) {
+    const ch = flat[i];
+    if (ch === '—' || ch === '.' || ch === ':' || ch === ',') {
+      const next = flat[i + 1];
+      if (next === undefined || /\s/.test(next)) {
+        const clause = flat.slice(0, i).trim();
+        if (clause.length >= NONSTD_MIN_CLAUSE) { label = clause; break; }
+      }
+    }
+  }
+  if (label === null) label = flat.split(/\s+/).slice(0, 6).join(' ');
+  if (label.length > NONSTD_LABEL_MAX) label = label.slice(0, NONSTD_LABEL_MAX - 1).trimEnd() + '…';
+
+  // Quote as a YAML double-quoted scalar (the label can carry `:` / `—`); escape
+  // backslashes and double-quotes so it stays a valid single-line scalar.
+  return `"${label.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
 const isTopKeyLine = (line) => /^[A-Za-z_][A-Za-z0-9_]*:/.test(line);
 
 // Parse STATE.md into frontmatter fences + block lines + body (CRLF-aware).
@@ -357,7 +402,13 @@ export function locateFrontmatterProse(text) {
       const indent = (itemLines[0].match(/^(\s*)-/) ?? ['', ''])[1];
       const firstRaw = itemLines[0].replace(/^\s*-\s*/, '').replace(/^["']/, '');
       const phaseDate = firstRaw.match(/^([A-Z]+\s*\(\d{4}-\d{2}-\d{2}\))/);
-      const short = `${indent}- ${phaseDate ? phaseDate[1] : '"[relocated to STATE body — migrate-memory]"'}`;
+      // B12: a clean "PHASE (date)" prefix keeps its scalar unchanged; anything
+      // else (an active/free-form marker) gets a MEANINGFUL truncated label — never
+      // a generic placeholder — and is marked non-standard so the dry-run can warn.
+      const nonStandard = !phaseDate;
+      const short = phaseDate
+        ? `${indent}- ${phaseDate[1]}`
+        : `${indent}- ${deriveNonStandardLabel(itemLines)}`;
       entries.push({
         field: 'completed_phases',
         index,
@@ -366,6 +417,7 @@ export function locateFrontmatterProse(text) {
         original: itemLines.join('\n'),
         originalForBody: itemLines.join('\n'),
         short,
+        nonStandard,
         reason: multiline ? 'multi-line' : 'over-length',
       });
     });
@@ -390,7 +442,10 @@ export function locateFrontmatterProse(text) {
         endLine: span.end,
         original: span.value,
         originalForBody: span.value,
-        short: `${indent}text: "[relocated to STATE body — migrate-memory, blocker ${id}]"`,
+        // B12: meaningful truncated label, never a generic "[relocated…]" scalar.
+        // The blocker id survives on the adjacent `- id:` line and the body section
+        // heading (buildRelocationSection), so identity is preserved.
+        short: `${indent}text: ${deriveNonStandardLabel(span.value)}`,
         reason: span.isBlockScalar ? 'block-scalar' : 'over-budget',
       });
     }
@@ -1567,6 +1622,17 @@ export async function renderDryRun(baseDir) {
   for (const f of v3.flags) L.push(`  FLAG (not moved): ${f.kind} — ${f.reason}`);
   for (const f of corpus.flags) L.push(`  FLAG (not moved): ${f.kind} — ${f.reason}`);
   L.push('');
+  // B12: non-standard completed_phases entries (no "PHASE (date)" shape) STILL
+  // relocate, but surface an advisory warning — an active/in-progress marker parked
+  // in completed_phases would otherwise be swept into history unremarked. Does NOT
+  // block apply; derived from the relocation set (never added to plan.flags, so the
+  // conformance / no-op / ambiguity-flag counts are untouched).
+  const nonStandardCp = relocations.filter((e) => e.field === 'completed_phases' && e.nonStandard);
+  if (nonStandardCp.length > 0) {
+    L.push(`⚠ Non-standard completed_phases entries relocated (${nonStandardCp.length}) — no "PHASE (date)" shape; verify these were actually complete (an active/in-progress marker may have been swept to history) —`);
+    for (const e of nonStandardCp) L.push(`  entry ${e.index} — ${e.short.trim().replace(/^-\s*/, '')}`);
+    L.push('');
+  }
   // Tier 3 — faithfulness diff (the human-approved content).
   L.push('— Tier 3: faithfulness diff (review each before approving) —');
   if (relocations.length === 0 && v3.evicts.length === 0) L.push('  (no prose to relocate)');
