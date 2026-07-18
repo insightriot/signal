@@ -52,9 +52,16 @@ describe('M5.E2.S1.t3 conserves — WORD mode (in-body relocation)', () => {
     expect(conserves(prose, '', WORD).pass).toBe(false);
   });
 
-  it('counts multiplicity — dropping one of two identical words fails', () => {
-    // source needs "the" x2; new home has it x1 → a real drop, not masked.
-    expect(conserves('keep the and the other', 'keep the other', WORD).pass).toBe(false);
+  it('counts multiplicity — dropping ONE of two identical words fails (multiset, not set)', () => {
+    // True discriminator (M5.E2 REVIEW I1): the new home drops exactly ONE `the`
+    // and keeps every OTHER word (`and` stays) — so source and dest have the
+    // IDENTICAL word SET {keep, the, and, other}. Only a multiset (repeated-word)
+    // count catches the drop: source needs `the` x2, dest has it x1 → pass:false.
+    // A set-based (de-duping) impl would see equal sets and wrongly return
+    // pass:true — this fixture is what makes that regression RED. (The earlier
+    // fixture dropped `and` entirely, so a set-based impl failed for the wrong
+    // reason and this gate proved nothing.)
+    expect(conserves('keep the and the other', 'keep the and other', WORD).pass).toBe(false);
   });
 });
 

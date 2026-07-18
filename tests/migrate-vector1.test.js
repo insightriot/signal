@@ -188,6 +188,64 @@ const ACTIVE_STATE =
   `---\n` +
   `# Project State\n\nexisting body\n`;
 
+// A blockers[].text with NO clean "PHASE (date)" prefix (blockers never carry one
+// — they always route through deriveNonStandardLabel). Block-scalar shape → enters
+// the de-prose set regardless of length. The de-prosed `text:` scalar must be a
+// MEANINGFUL truncated label (never the generic "[relocated…]" placeholder), the
+// blocker id must survive on its `- id:` line (identity preserved), and the full
+// prose must relocate verbatim into the body under a "blockers — <id>" heading.
+const BLOCKER_ID = 'blk-9f9f';
+const BLOCKER_PROSE_LINE_1 =
+  'The Supabase RLS policy blocks anon reads on the projects table which breaks the public dashboard';
+const BLOCKER_PROSE_LINE_2 =
+  'entirely until we add a policy exception for the anonymous role in the migration';
+const BLOCKER_STATE =
+  `---\n` +
+  `schema_version: 1\n` +
+  `phase: EXECUTE\n` +
+  `current_epic: M5.E2\n` +
+  `current_tasks: []\n` +
+  `completed_phases: []\n` +
+  `blockers:\n` +
+  `  - id: ${BLOCKER_ID}\n` +
+  `    text: |\n` +
+  `      ${BLOCKER_PROSE_LINE_1}\n` +
+  `      ${BLOCKER_PROSE_LINE_2}\n` +
+  `    raisedAt: 2026-07-13T00:00:00.000Z\n` +
+  `---\n` +
+  `# Project State\n\nexisting body\n`;
+
+describe('M5.E2 REVIEW I2 — blocker-label (B12) de-prose pins .short content', () => {
+  it('derives a MEANINGFUL truncated label for a blocker text (never [relocated…])', () => {
+    const { entries } = locateFrontmatterProse(BLOCKER_STATE);
+    const blk = entries.find((e) => e.field === 'blockers');
+    expect(blk).toBeDefined();
+    expect(blk.id).toBe(BLOCKER_ID);
+    // The leftover scalar is a real label, not the identity-erasing placeholder.
+    expect(blk.short).not.toContain('[relocated');
+    expect(blk.short).toContain('text:');
+    expect(blk.short).toContain('Supabase'); // a content token from the prose
+  });
+
+  it('deproseFrontmatter keeps the label + the blocker id, relocates prose verbatim', () => {
+    const { newText } = deproseFrontmatter(BLOCKER_STATE);
+    const fm = newText.split(/\n---\r?\n/)[0];
+    // Label survives in the frontmatter; id line is untouched (identity preserved).
+    expect(fm).not.toContain('[relocated');
+    expect(fm).toContain('Supabase');
+    expect(fm).toContain(`- id: ${BLOCKER_ID}`);
+    // Full prose relocates verbatim into the body under a "blockers — <id>" heading.
+    expect(newText).toContain(`blockers — ${BLOCKER_ID}`);
+    expect(newText).toContain(BLOCKER_PROSE_LINE_1);
+    expect(newText).toContain(BLOCKER_PROSE_LINE_2);
+  });
+
+  it('the de-prosed blocker text scalar no longer trips the write-guard', () => {
+    const { newText } = deproseFrontmatter(BLOCKER_STATE);
+    expect(checkStateFrontmatterShape({ proposedContent: newText }).block).toBe(false);
+  });
+});
+
 // A NORMAL over-length entry that DOES carry a clean "PHASE (date)" prefix — must
 // keep its "PLAN (2026-07-16)" scalar unchanged and must NOT be flagged.
 const REGRESSION_MARKER = `PLAN (2026-07-16) — ${'narrative words '.repeat(15)}`; // >150
