@@ -1,5 +1,6 @@
 ---
 schema_version: 1
+docs_layout_version: 2
 phase: EXECUTE
 current_epic: M5.E2
 current_wave: null
