@@ -18,7 +18,7 @@
 // AC and must hold from the first commit).
 
 import { readFile, writeFile, mkdir, rm, readdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { join, dirname, resolve, relative, sep } from 'node:path';
@@ -188,6 +188,51 @@ export function conserves(source, newHome, mode = WORD) {
   return { pass: missing.length === 0, mode, missing };
 }
 
+// realpath the deepest EXISTING component of `p` (the full path may not exist yet
+// — we're about to create it). Walk up until realpathSync resolves; at the fs root
+// it must resolve, else propagate. Cross-platform: realpathSync throws ENOENT on a
+// missing path, so the walk is the portable "nearest existing ancestor" primitive.
+function realpathNearestExisting(p) {
+  let cur = resolve(p);
+  for (;;) {
+    try {
+      return realpathSync(cur);
+    } catch (e) {
+      const parent = dirname(cur);
+      if (parent === cur) throw e; // reached fs root; nothing resolved — propagate
+      cur = parent;
+    }
+  }
+}
+
+// Symlink-aware confinement (REVIEW security MEDIUM) — additive to the lexical
+// startsWith guards. Two real-containment checks, realpath'ing BOTH sides so a
+// legit symlink on the base path (e.g. macOS /var → /private/var) never
+// false-refuses:
+//   (1) .planning/ itself must not be a symlink escaping the repo;
+//   (2) the dest DIRECTORY's nearest existing ancestor must resolve inside real
+//       .planning/ — catches a directory symlink under .planning/ (e.g. archive).
+// Anchored on dirname(destAbs), NEVER the leaf: the escape vector is always a
+// directory component, and atomicWrite renames over the leaf (never follows a leaf
+// symlink), so resolving the leaf would wrongly refuse the leaf-file-symlink case
+// that is already safe.
+function assertRealInsidePlanning(baseDir, destAbs, label) {
+  const planningRoot = resolve(baseDir, PLANNING_DIR);
+  const realBase = realpathSync(baseDir);
+  const realRoot = realpathSync(planningRoot); // .planning/ exists on a real apply
+  if (realRoot !== realBase && !realRoot.startsWith(realBase + sep)) {
+    throw new Error(
+      `${label}: ${PLANNING_DIR}/ resolves outside the repo (real ${realRoot}) — refusing a symlinked planning root.`
+    );
+  }
+  const realDir = realpathNearestExisting(dirname(destAbs));
+  if (realDir !== realRoot && !realDir.startsWith(realRoot + sep)) {
+    throw new Error(
+      `${label}: dest ${destAbs} escapes ${PLANNING_DIR}/ via a directory symlink (real dir ${realDir}).`
+    );
+  }
+}
+
 /**
  * Relocate `sourceText` to a new home, verifying NO loss two independent ways:
  *   1. CONSERVATION — the new home actually GREW to hold the content (BYTE
@@ -232,6 +277,13 @@ export async function relocateFaithful(args) {
       `relocateFaithful: dest ${destAbs} escapes ${PLANNING_DIR}/ (baseDir ${baseDir}).`
     );
   }
+  // ADDITIVE symlink-aware re-assert (REVIEW security MEDIUM): the lexical guard
+  // above normalizes `..` but does NOT follow symlinks — a checked-in DIRECTORY
+  // symlink under .planning/ (git tracks mode 120000) could pass it while the real
+  // write escapes the tree. Re-assert REAL containment; fail closed (a throw here
+  // rides the caller's rollback wrap). Runs in BOTH modes: WORD doesn't write, but
+  // confining its shared-file dest costs nothing and keeps the gateways parallel.
+  assertRealInsidePlanning(baseDir, destAbs, 'relocateFaithful');
 
   let conservation;
   if (mode === BYTE) {

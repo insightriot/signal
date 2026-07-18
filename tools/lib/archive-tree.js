@@ -35,6 +35,7 @@
 // floor). t3 leaves those forms BYTE-UNCHANGED; it does not silently drop them.
 
 import { readFile, mkdir, rm, readdir } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
 import { join, dirname, resolve, relative, sep, posix } from 'node:path';
 
 import { PLANNING_DIR, EPIC_ID_STRICT_RE } from './state.js';
@@ -252,12 +253,52 @@ async function walkPlanningMd(baseDir) {
   return out;
 }
 
-// Defense-in-depth path confinement (mirrors evict.js / relocateFaithful): the
-// trailing sep defeats the `.planning-evil/` sibling-prefix bug.
+// realpath the deepest EXISTING component of `p` (the full path may not exist yet).
+// Walk up until realpathSync resolves; at the fs root it must resolve, else
+// propagate. Portable "nearest existing ancestor" — realpathSync throws ENOENT on
+// a missing path on every platform.
+function realpathNearestExisting(p) {
+  let cur = resolve(p);
+  for (;;) {
+    try {
+      return realpathSync(cur);
+    } catch (e) {
+      const parent = dirname(cur);
+      if (parent === cur) throw e; // reached fs root; nothing resolved — propagate
+      cur = parent;
+    }
+  }
+}
+
+// Path confinement (mirrors evict.js / relocateFaithful). The LEXICAL guard's
+// trailing sep defeats the `.planning-evil/` sibling-prefix bug but does NOT follow
+// symlinks. The ADDITIVE symlink-aware re-assert (REVIEW security MEDIUM) resolves
+// symlinks and re-checks REAL containment two ways, realpath'ing BOTH sides so a
+// legit base-path symlink (macOS /var → /private/var) never false-refuses:
+//   (1) .planning/ itself must not be a symlink escaping the repo;
+//   (2) the dest DIRECTORY's nearest existing ancestor must resolve inside real
+//       .planning/ — catches a checked-in directory symlink under .planning/
+//       (e.g. archive → out-of-tree). Anchored on dirname(destAbs), NEVER the leaf
+//       (atomicWrite renames over the leaf, never following it — a leaf-file
+//       symlink is already safe). Fail closed: a throw here rides the caller's
+//       rollback wrap.
 function assertInsidePlanning(baseDir, destAbs) {
   const planningRoot = resolve(baseDir, PLANNING_DIR);
   if (!resolve(destAbs).startsWith(planningRoot + sep)) {
     throw new Error(`archive-tree: dest ${destAbs} escapes ${PLANNING_DIR}/`);
+  }
+  const realBase = realpathSync(baseDir);
+  const realRoot = realpathSync(planningRoot); // .planning/ exists on a real apply
+  if (realRoot !== realBase && !realRoot.startsWith(realBase + sep)) {
+    throw new Error(
+      `archive-tree: ${PLANNING_DIR}/ resolves outside the repo (real ${realRoot}) — refusing a symlinked planning root`
+    );
+  }
+  const realDir = realpathNearestExisting(dirname(destAbs));
+  if (realDir !== realRoot && !realDir.startsWith(realRoot + sep)) {
+    throw new Error(
+      `archive-tree: dest ${destAbs} escapes ${PLANNING_DIR}/ via a directory symlink (real dir ${realDir})`
+    );
   }
 }
 
