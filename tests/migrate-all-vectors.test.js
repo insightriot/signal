@@ -134,7 +134,7 @@ describe('M5.E2 all-vectors integration — V1 + V2 + V3 + archive-tree in one a
   });
 
   // --- 1. All four vectors fire in ONE apply → conformant + stamped ------------
-  it('fires all four vectors in a single apply — conformant + docs_layout_version: 2 stamped', async () => {
+  it('fires all four vectors in a single apply — conformant + docs_layout_version: 3 stamped', async () => {
     const r = await runMigrate(dir, { apply: true, stamp: 'T1', dateStr: '2026-07-17' });
 
     // The dry-run plan (sensed on the PRE-apply project) sees every vector.
@@ -149,8 +149,10 @@ describe('M5.E2 all-vectors integration — V1 + V2 + V3 + archive-tree in one a
       expect.arrayContaining(['vector-1', 'vector-3', 'vector-2', 'archive-tree']),
     );
 
-    // Reached conformance in ONE invocation and stamped it.
-    expect(r.stampedTo).toBe(2);
+    // Reached conformance in ONE invocation and stamped it to CURRENT (bumped 2→3
+    // by S6a.t4). This fixture is stamp-NULL → needsV3 is false → it takes the
+    // V1/V2 path and receives the current stamp (it is not a v2→v3 migration).
+    expect(r.stampedTo).toBe(3);
     const finalState = await read(dir, 'STATE.md');
     const s = senseState(finalState);
     expect(s.conformant).toBe(true);

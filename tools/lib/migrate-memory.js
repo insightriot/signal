@@ -1107,7 +1107,10 @@ export function probeGitState(baseDir, opts = {}) {
 
 // The current doc-runtime layout version (FR7.1). t8 owns the write policy
 // (stamp only on full conformance); t6 reads it for the stamp-first no-op.
-export const CURRENT_LAYOUT_VERSION = 2;
+// Bumped 2→3 by M5.E3.S6a.t4 — ARMS the v2→v3 chain (a stamp-2 project now
+// satisfies `2 < 3` → needsV3 → banners + migrates). Keep the layout-stamp mirror
+// (LAYOUT_VERSION, tools/lib/layout-stamp.js) in lockstep (asserted by a test).
+export const CURRENT_LAYOUT_VERSION = 3;
 
 // A body over this size that isn't already a pointer is a vector-2 candidate (a
 // conformant skeleton body is ~1 KB; E1's inlined body was 64.5 KB).

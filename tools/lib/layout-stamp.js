@@ -18,8 +18,9 @@ import { openSync, readSync, closeSync } from 'node:fs';
 // The current doc-runtime layout version, mirrored from the engine's
 // CURRENT_LAYOUT_VERSION (tools/lib/migrate-memory.js). Kept in sync by an assertion
 // test, NOT an import (see the module header). Re-exported by the hook as
-// HOOK_LAYOUT_VERSION for backward-compatibility.
-export const LAYOUT_VERSION = 2;
+// HOOK_LAYOUT_VERSION for backward-compatibility. Bumped 2→3 with the engine
+// constant by M5.E3.S6a.t4 (the arming step).
+export const LAYOUT_VERSION = 3;
 
 // Capped-prefix read budget (FM8). The stamp sits right after `schema_version:` at
 // the very top of the frontmatter, so 64 KB is orders of magnitude past where the

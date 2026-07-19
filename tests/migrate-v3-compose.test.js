@@ -22,12 +22,14 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { applyMigrate } from '../tools/lib/migrate-memory.js';
+import { applyMigrate, CURRENT_LAYOUT_VERSION } from '../tools/lib/migrate-memory.js';
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
 
-// A CONFORMANT STATE.md (no V1/V2 vectors) stamped at `ver`. A stamp of 1 is
-// v3-pending (1 < CURRENT 2 → needsV3); a stamp of 2 is a real v2 repo (inert).
+// A CONFORMANT STATE.md (no V1/V2 vectors) stamped at `ver`. Any stamp BELOW CURRENT
+// is v3-pending (needsV3); a stamp AT CURRENT is a fully-migrated repo (inert). After
+// the S6a.t4 arming (CURRENT 2→3) both stamp 1 and stamp 2 are v3-pending; only a
+// stamp-CURRENT (3) repo is inert.
 const STATE = (ver) =>
   `---\nschema_version: 1\ndocs_layout_version: ${ver}\nphase: EXECUTE\ncurrent_epic: M5.E3\n` +
   `current_tasks: []\ncompleted_phases:\n  - PLAN (2026-07-18)\nblockers: []\n---\n` +
@@ -160,12 +162,15 @@ describe('t2 — full v2→v3 compose (clean apply)', () => {
   });
 });
 
-describe('t2 — INERT on a real v2 repo (stamp 2 — the safety posture)', () => {
+describe('t2 — INERT on a fully-migrated repo (stamp == CURRENT — the safety posture)', () => {
   let dir;
   afterEach(async () => { if (dir) await rm(dir, { recursive: true, force: true }); });
 
-  it('a stamp-2 project with FUTURE-IDEAS + closed DECISIONS + no BACKLOG is untouched', async () => {
-    dir = await makeRepo({ ver: 2, futureIdeas: true, backlog: false });
+  it('a stamp-CURRENT project with FUTURE-IDEAS + closed DECISIONS + no BACKLOG is untouched', async () => {
+    // Post-S6a.t4 arming, "inert" means stamped AT CURRENT (3). A stamp-2 repo is now
+    // v3-pending (2 < 3) and WOULD migrate — that live-arming case is covered by the
+    // full-compose block above (stamp 1) and the t4 banner tests.
+    dir = await makeRepo({ ver: CURRENT_LAYOUT_VERSION, futureIdeas: true, backlog: false });
     const before = await treeSnapshot(dir);
     const res = await applyMigrate(dir, OPTS);
     expect(res.applied).toBe(false); // no v3 work fired

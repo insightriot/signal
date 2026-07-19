@@ -64,7 +64,21 @@ current_epic: null
 body
 `;
 
-const POST_REORG_STAMP_2 = `---
+// A STATE.md stamped AT the current layout version → fully migrated → silent by
+// contract. Tracks CURRENT_LAYOUT_VERSION so a future bump doesn't re-break it.
+const POST_REORG_STAMP_CURRENT = `---
+schema_version: 1
+docs_layout_version: ${CURRENT_LAYOUT_VERSION}
+phase: EXECUTE
+current_epic: null
+---
+body
+`;
+
+// A now-STALE v2 stamp. After the S6a.t4 arming (CURRENT 2→3) a stamp-2 project sits
+// BELOW CURRENT → pre-reorg → it banners. Retained (a) as a known-integer fixture for
+// the stamp reader and (b) to prove the arming in the hook path (decideLayoutDrift).
+const STALE_STAMP_2 = `---
 schema_version: 1
 docs_layout_version: 2
 phase: EXECUTE
@@ -91,7 +105,7 @@ just some free text, no fences here
 // A large post-reorg STATE.md: small stamped frontmatter + a big inlined body.
 const BIG_BODY = 'x'.repeat(200 * 1024);
 const LARGE_POST_REORG =
-  `---\nschema_version: 1\ndocs_layout_version: 2\nphase: EXECUTE\n---\n` + BIG_BODY;
+  `---\nschema_version: 1\ndocs_layout_version: ${CURRENT_LAYOUT_VERSION}\nphase: EXECUTE\n---\n` + BIG_BODY;
 // A large pre-reorg STATE.md: small unstamped frontmatter + a big inlined body
 // (the E1-by-hand vector-2 shape). Proves the capped read still banners a huge file.
 const LARGE_PRE_REORG =
@@ -100,7 +114,7 @@ const LARGE_PRE_REORG =
 // CRLF variants (Windows autocrlf). The stamp read is `\r?\n`-tolerant by
 // construction; these prove it (CRLF has bitten this hook family before —
 // check-state-write's REVIEW).
-const POST_REORG_CRLF = POST_REORG_STAMP_2.replace(/\n/g, '\r\n');
+const POST_REORG_CRLF = POST_REORG_STAMP_CURRENT.replace(/\n/g, '\r\n');
 const PRE_REORG_CRLF = PRE_REORG_NO_STAMP.replace(/\n/g, '\r\n');
 
 // --- helpers ----------------------------------------------------------------
@@ -165,9 +179,9 @@ describe('warn-layout-drift.js hook (spawn harness)', () => {
     expect(payload.hookSpecificOutput.additionalContext).toMatch(/migrate-memory/);
   });
 
-  it('post-reorg (stamp=2 == CURRENT) → silent, exit 0', async () => {
+  it('post-reorg (stamp == CURRENT) → silent, exit 0', async () => {
     const dir = join(tempDir, 'post');
-    await plant(dir, { state: POST_REORG_STAMP_2 });
+    await plant(dir, { state: POST_REORG_STAMP_CURRENT });
     const { status, stdout } = runHook(dir);
     expect(status).toBe(0);
     expect(stdout.trim()).toBe('');
@@ -220,7 +234,7 @@ describe('warn-layout-drift.js hook (spawn harness)', () => {
     expect(payload.hookSpecificOutput.additionalContext).toMatch(/migrate-memory/);
   });
 
-  it('CRLF post-reorg (stamp=2) → silent, exit 0', async () => {
+  it('CRLF post-reorg (stamp == CURRENT) → silent, exit 0', async () => {
     const dir = join(tempDir, 'crlf-post');
     await plant(dir, { state: POST_REORG_CRLF });
     const { status, stdout } = runHook(dir);
@@ -277,18 +291,21 @@ describe('warn-layout-drift.js pure core', () => {
   });
 
   it('readLayoutStampFromPrefix reads the stamp from the frontmatter region', () => {
-    expect(readLayoutStampFromPrefix(POST_REORG_STAMP_2)).toBe(2);
+    expect(readLayoutStampFromPrefix(STALE_STAMP_2)).toBe(2);
     expect(readLayoutStampFromPrefix(PRE_REORG_STAMP_1)).toBe(1);
     expect(readLayoutStampFromPrefix(PRE_REORG_NO_STAMP)).toBe(null);
   });
 
-  it('decideLayoutDrift: post-reorg → not pre-reorg', () => {
-    expect(decideLayoutDrift(POST_REORG_STAMP_2).preReorg).toBe(false);
+  it('decideLayoutDrift: post-reorg (stamp == CURRENT) → not pre-reorg', () => {
+    expect(decideLayoutDrift(POST_REORG_STAMP_CURRENT).preReorg).toBe(false);
   });
 
   it('decideLayoutDrift: no stamp / old stamp → pre-reorg', () => {
     expect(decideLayoutDrift(PRE_REORG_NO_STAMP).preReorg).toBe(true);
     expect(decideLayoutDrift(PRE_REORG_STAMP_1).preReorg).toBe(true);
+    // Armed by S6a.t4: a stamp-2 project is now below CURRENT (3) → pre-reorg. This
+    // is the SessionStart self-banner Signal's own stamp-2 repo now shows (plan Rec 2).
+    expect(decideLayoutDrift(STALE_STAMP_2).preReorg).toBe(true);
   });
 
   it('decideLayoutDrift: no frontmatter fence → NOT pre-reorg (silent)', () => {
@@ -304,12 +321,12 @@ describe('warn-layout-drift.js pure core', () => {
     // All-ASCII fixture → 1 byte == 1 char; the read is capped, never the whole body.
     expect(prefix.length).toBe(STAMP_SCAN_BYTES);
     // And the capped prefix still carries the stamp (it lives at the top).
-    expect(readLayoutStampFromPrefix(prefix)).toBe(2);
+    expect(readLayoutStampFromPrefix(prefix)).toBe(CURRENT_LAYOUT_VERSION);
   });
 
   it('readCappedPrefix returns the whole file when it is smaller than the cap', async () => {
-    const statePath = await plant(tempDir, { state: POST_REORG_STAMP_2 });
+    const statePath = await plant(tempDir, { state: POST_REORG_STAMP_CURRENT });
     const prefix = readCappedPrefix(statePath, STAMP_SCAN_BYTES);
-    expect(prefix).toBe(POST_REORG_STAMP_2);
+    expect(prefix).toBe(POST_REORG_STAMP_CURRENT);
   });
 });
