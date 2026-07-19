@@ -9,9 +9,13 @@ import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { readFile } from 'node:fs/promises';
+
 import {
   enumeratePlanningDocs,
   parseExistingAnnotations,
+  renderPlanningIndex,
+  regeneratePlanningIndex,
 } from '../tools/lib/planning-index.js';
 
 // A representative INDEX in the generator's canonical format — the shape t4's
@@ -141,5 +145,84 @@ describe('parseExistingAnnotations (t3) — round-trip curated notes by key', ()
   it('empty / null content → empty keyspaces + null legend (no throw)', () => {
     expect(parseExistingAnnotations('')).toEqual({ byPath: {}, byEpic: {}, legend: null });
     expect(parseExistingAnnotations(null)).toEqual({ byPath: {}, byEpic: {}, legend: null });
+  });
+});
+
+describe('renderPlanningIndex + regeneratePlanningIndex (t4) — idempotent, fixpoint', () => {
+  let base;
+  beforeEach(async () => {
+    base = await mkdtemp(join(tmpdir(), 'planning-index-render-'));
+    await seedPlanning(base);
+  });
+  afterEach(async () => {
+    await rm(base, { recursive: true, force: true });
+  });
+
+  it('the generated INDEX.md never lists itself (idempotency guard)', async () => {
+    await regeneratePlanningIndex(base);
+    const docs = await enumeratePlanningDocs(base);
+    expect(docs.some((d) => d.path === '.planning/INDEX.md')).toBe(false);
+  });
+
+  it('renders mechanical rows split by tier + an Epic ledger, sorted by path', async () => {
+    const docs = await enumeratePlanningDocs(base);
+    const content = renderPlanningIndex(docs, { byPath: {}, byEpic: {}, legend: null });
+    expect(content).toContain('## Live — working set');
+    expect(content).toContain('## Cold — archived + retrospectives');
+    expect(content).toContain('## Epic ledger');
+    expect(content).toContain('- [DECISIONS.md](DECISIONS.md) — `append-log` —');
+    expect(content).toContain('- [archive/M4.5/E1/M4.5.E1-PLAN.md](archive/M4.5/E1/M4.5.E1-PLAN.md) — `other` —');
+    expect(content).toContain('- [M4.5.E1](M4.5.E1-RETROSPECTIVE.md) —'); // ledger row
+  });
+
+  it('emits the placeholder for an absent note; re-attaches a curated note by key', async () => {
+    const docs = await enumeratePlanningDocs(base);
+    const content = renderPlanningIndex(docs, {
+      byPath: { 'DECISIONS.md': 'grep by ID, do not load whole.' },
+      byEpic: {},
+      legend: null,
+    });
+    expect(content).toContain('- [DECISIONS.md](DECISIONS.md) — `append-log` — grep by ID, do not load whole.');
+    expect(content).toContain('- [PROJECT.md](PROJECT.md) — `other` — _(note pending)_');
+  });
+
+  it('GATE (a): a no-op regeneration returns {written:false} and produces no diff', async () => {
+    const first = await regeneratePlanningIndex(base);
+    expect(first.written).toBe(true);
+    const before = await readFile(join(base, '.planning', 'INDEX.md'), 'utf-8');
+    const second = await regeneratePlanningIndex(base);
+    expect(second.written).toBe(false);
+    const after = await readFile(join(base, '.planning', 'INDEX.md'), 'utf-8');
+    expect(after).toBe(before);
+  });
+
+  it('GATE (b): parse↔render fixpoint — render(parse(render(x))) === render(x)', async () => {
+    const docs = await enumeratePlanningDocs(base);
+    const x = renderPlanningIndex(docs, {
+      byPath: { 'PROJECT.md': 'v1 spec.\n  **Gotcha:** ID-is-identity rule.' },
+      byEpic: { 'M4.5.E1': 'Marketplace install-path fix.' },
+      legend: null,
+    });
+    const y = renderPlanningIndex(docs, parseExistingAnnotations(x));
+    expect(y).toBe(x);
+  });
+
+  it('AC3.2: a curated note survives a regeneration that adds an unrelated doc', async () => {
+    await regeneratePlanningIndex(base); // initial
+    // Hand-curate a note into the DECISIONS row.
+    const indexPath = join(base, '.planning', 'INDEX.md');
+    let content = await readFile(indexPath, 'utf-8');
+    content = content.replace(
+      '- [DECISIONS.md](DECISIONS.md) — `append-log` — _(note pending)_',
+      '- [DECISIONS.md](DECISIONS.md) — `append-log` — Curated: grep by `D-…` ID.',
+    );
+    await writeFile(indexPath, content, 'utf-8');
+    // Add an unrelated doc → forces a regen that changes other rows.
+    await writeFile(join(base, '.planning', 'OPEN-QUESTIONS.md'), '# q\n', 'utf-8');
+    const res = await regeneratePlanningIndex(base);
+    expect(res.written).toBe(true);
+    const after = await readFile(indexPath, 'utf-8');
+    expect(after).toContain('- [DECISIONS.md](DECISIONS.md) — `append-log` — Curated: grep by `D-…` ID.');
+    expect(after).toContain('- [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) —');
   });
 });
