@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import {
   checkInternalLinks,
   checkRosterCounts,
+  checkVersionConsistency,
   listDocFiles,
 } from '../tools/lib/doc-hygiene.js';
 
@@ -144,5 +145,40 @@ describe('M5.E3.S3.t3 checkRosterCounts', () => {
 
   it('is GREEN on the live Signal repo (17/26/21 at every canonical site)', () => {
     expect(hard(checkRosterCounts(ROOT))).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// t4 — version-consistency (B7 class)
+// ---------------------------------------------------------------------------
+describe('M5.E3.S3.t4 checkVersionConsistency', () => {
+  let dir;
+  const marketplace = (ref) =>
+    JSON.stringify({ plugins: [{ name: 'sig', source: { source: 'url', url: 'x', ref } }] });
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'sig-hyg-ver-'));
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('flags a version mismatch as HARD', async () => {
+    await writeDoc(dir, '.claude-plugin/plugin.json', JSON.stringify({ version: '9.9.9' }));
+    await writeDoc(dir, '.claude-plugin/marketplace.json', marketplace('v0.0.1'));
+    await writeDoc(dir, 'CHANGELOG.md', '## [Unreleased] — x\n\n## [1.2.3] — 2026-01-01\n');
+    expect(hard(checkVersionConsistency(dir)).length).toBeGreaterThan(0);
+  });
+
+  it('passes the batched-unreleased state: skips [Unreleased], strips the v-prefix', async () => {
+    // The live shape: plugin/marketplace at X.Y.Z, doc-runtime still in
+    // [Unreleased], the top REAL heading is X.Y.Z.
+    await writeDoc(dir, '.claude-plugin/plugin.json', JSON.stringify({ version: '1.2.3' }));
+    await writeDoc(dir, '.claude-plugin/marketplace.json', marketplace('v1.2.3'));
+    await writeDoc(dir, 'CHANGELOG.md', '## [Unreleased] — doc-runtime\n\n## [1.2.3] — 2026-01-01\n');
+    expect(hard(checkVersionConsistency(dir))).toHaveLength(0);
+  });
+
+  it('is GREEN on the live Signal repo (all 0.1.7, doc-runtime in [Unreleased])', () => {
+    expect(hard(checkVersionConsistency(ROOT))).toHaveLength(0);
   });
 });

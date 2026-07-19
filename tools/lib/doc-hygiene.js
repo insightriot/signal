@@ -173,6 +173,79 @@ export function checkRosterCounts(baseDir = ROOT) {
   return findings.sort(findingCmp);
 }
 
+// --- version-consistency (B7 class) ------------------------------------------
+
+const stripV = (s) => String(s).replace(/^v/, '');
+
+function readJsonSafe(abs) {
+  try {
+    return JSON.parse(readFileSync(abs, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+/** plugin.json `.version` (or null). */
+function readPluginVersion(baseDir) {
+  const j = readJsonSafe(join(baseDir, '.claude-plugin', 'plugin.json'));
+  return j && typeof j.version === 'string' ? j.version : null;
+}
+
+/** marketplace.json's Signal plugin `source.ref` (or null). */
+function readMarketplaceRef(baseDir) {
+  const j = readJsonSafe(join(baseDir, '.claude-plugin', 'marketplace.json'));
+  const plugins = j && Array.isArray(j.plugins) ? j.plugins : [];
+  const entry = plugins.find((p) => p && p.source && typeof p.source.ref === 'string');
+  return entry ? entry.source.ref : null;
+}
+
+/**
+ * The latest REAL CHANGELOG version heading — the first `## [X.Y.Z]` heading,
+ * which naturally SKIPS `## [Unreleased]` (not a semver). So a batched-unreleased
+ * repo (doc-runtime under `[Unreleased]`, top real heading = the shipped version)
+ * reads the shipped version, and the check stays green now AND post-release.
+ */
+function readLatestChangelogVersion(baseDir) {
+  let text;
+  try {
+    text = readFileSync(join(baseDir, 'CHANGELOG.md'), 'utf-8');
+  } catch {
+    return null;
+  }
+  const m = text.match(/^##\s+\[(\d+\.\d+\.\d+)\]/m);
+  return m ? m[1] : null;
+}
+
+/**
+ * Version-consistency (HARD, B7 class): plugin.json version === marketplace ref
+ * === latest real CHANGELOG heading (skipping `[Unreleased]`), all normalized by
+ * stripping a leading `v`. Drift between any two turns the suite red.
+ *
+ * @param {string} [baseDir=ROOT]
+ * @returns {Array<{check: string, severity: string, file: string, message: string}>}
+ */
+export function checkVersionConsistency(baseDir = ROOT) {
+  const found = [];
+  const plugin = readPluginVersion(baseDir);
+  const market = readMarketplaceRef(baseDir);
+  const changelog = readLatestChangelogVersion(baseDir);
+  if (plugin != null) found.push(['.claude-plugin/plugin.json', stripV(plugin)]);
+  if (market != null) found.push(['.claude-plugin/marketplace.json', stripV(market)]);
+  if (changelog != null) found.push(['CHANGELOG.md', stripV(changelog)]);
+
+  const findings = [];
+  if (found.length < 2) return findings; // nothing to cross-check
+  const [refFile, refVer] = found[0];
+  for (const [file, ver] of found.slice(1)) {
+    if (ver !== refVer) {
+      findings.push(
+        mkFinding('version-consistency', 'hard', file, `version ${ver} != ${refVer} (${refFile})`),
+      );
+    }
+  }
+  return findings.sort(findingCmp);
+}
+
 /** Split a link token into its path part and `#anchor` (anchor may be ''). */
 function splitAnchor(tok) {
   const i = tok.indexOf('#');
