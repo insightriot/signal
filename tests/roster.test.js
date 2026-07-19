@@ -14,8 +14,12 @@ import { join } from 'node:path';
 import { listCommands, listAgents, listSkills, roster, ROOT } from '../tools/lib/roster.js';
 
 describe('roster — canonical filesystem-glob counts (Signal repo)', () => {
-  it('returns 16 commands from commands/*.md', () => {
-    expect(listCommands(ROOT).length).toBe(16);
+  // 17 commands as of M5.E3.S2.t6 (the new `/sig:index` command landed this
+  // slice — was 16 through t5). The count tracks disk: because validate-plugin
+  // sources its command list from this same glob, a new command needs no
+  // validator edit; only this assertion follows the roster up.
+  it('returns 17 commands from commands/*.md', () => {
+    expect(listCommands(ROOT).length).toBe(17);
   });
 
   it('returns 26 agents from agents/**/*.md', () => {
@@ -28,8 +32,8 @@ describe('roster — canonical filesystem-glob counts (Signal repo)', () => {
 
   it('roster() aggregates the counts + lists', () => {
     const r = roster(ROOT);
-    expect(r.counts).toEqual({ commands: 16, agents: 26, skills: 21 });
-    expect(r.commands.length).toBe(16);
+    expect(r.counts).toEqual({ commands: 17, agents: 26, skills: 21 });
+    expect(r.commands.length).toBe(17);
     expect(r.agents.length).toBe(26);
     expect(r.skills.length).toBe(21);
   });
@@ -37,6 +41,7 @@ describe('roster — canonical filesystem-glob counts (Signal repo)', () => {
   it('lists are sorted, POSIX-relative, and shaped as expected', () => {
     const cmds = listCommands(ROOT);
     expect(cmds).toContain('commands/calibrate.md');
+    expect(cmds).toContain('commands/index.md'); // the new /sig:index command
     expect([...cmds].sort()).toEqual(cmds); // already sorted
     expect(listAgents(ROOT)).toContain('agents/scanners/stack-scanner.md');
     expect(listSkills(ROOT).every((p) => p.endsWith('/SKILL.md'))).toBe(true);
