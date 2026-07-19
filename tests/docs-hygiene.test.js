@@ -7,8 +7,8 @@
 // pre-dogfood repo, `FUTURE-IDEAS.md` still present, all versions at 0.1.7).
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -19,11 +19,26 @@ import {
   checkRosterCounts,
   checkVersionConsistency,
   checkFillInStubs,
+  runDocHygiene,
+  hygieneReadSet,
   listDocFiles,
 } from '../tools/lib/doc-hygiene.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
+const MODULE_SRC = join(ROOT, 'tools/lib/doc-hygiene.js');
+
+/** Content-hash the guard's entire read set (order-stable). */
+function hashReadSet(base) {
+  const h = createHash('sha256');
+  for (const p of hygieneReadSet(base)) {
+    h.update(p);
+    h.update('\0');
+    h.update(readFileSync(p));
+    h.update('\0');
+  }
+  return h.digest('hex');
+}
 
 async function writeDoc(dir, rel, body) {
   const p = join(dir, rel);
@@ -218,5 +233,52 @@ describe('M5.E3.S3.t5 checkFillInStubs', () => {
 
   it('is GREEN on the live Signal repo (README clean, tester-brief excluded)', () => {
     expect(hard(checkFillInStubs(ROOT))).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// t6 — meta-tests + wiring
+// ---------------------------------------------------------------------------
+describe('M5.E3.S3.t6 meta-tests + wiring', () => {
+  it('AC4.3 — the guard source makes no network calls (no fetch/http/curl tokens)', () => {
+    // Reuses the audit-network-calls contract shape: a token grep over the
+    // source. `http` also catches `https`. Deterministic + offline is enforced
+    // structurally, not by trusting the checks to behave.
+    const src = readFileSync(MODULE_SRC, 'utf-8');
+    expect(src).not.toMatch(/fetch|http|curl/i);
+  });
+
+  it('is inbox-name-agnostic (no FUTURE-IDEAS / ISSUES-INBOX in the guard source)', () => {
+    // The guard must be green on pre-dogfood Signal (FUTURE-IDEAS.md present) AND
+    // post-migrate (ISSUES-INBOX.md) — so it never names the inbox file.
+    const src = readFileSync(MODULE_SRC, 'utf-8');
+    expect(src).not.toMatch(/FUTURE-IDEAS|ISSUES-INBOX/);
+  });
+
+  it('AC4.4 — the guard is read-only (doc tree byte-identical before and after a run)', () => {
+    const before = hashReadSet(ROOT);
+    runDocHygiene(ROOT);
+    const after = hashReadSet(ROOT);
+    expect(after).toBe(before);
+  });
+
+  it('splits findings by severity (a dead link is HARD, a bad anchor is SOFT)', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'sig-hyg-agg-'));
+    try {
+      await writeDoc(dir, 'CLAUDE.md', '# Heading\n');
+      await writeDoc(dir, 'README.md', '[dead](nope.md) and [bad](CLAUDE.md#no-such)\n');
+      const { hard: h, soft: s } = runDocHygiene(dir);
+      expect(h).toHaveLength(1);
+      expect(s).toHaveLength(1);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('HARD findings fail the suite; SOFT findings only warn — live repo is GREEN', () => {
+    const { hard: h, soft: s } = runDocHygiene(ROOT);
+    // Wiring: soft findings are reported (non-blocking); hard findings block.
+    for (const f of s) console.warn(`[doc-hygiene SOFT] ${f.check} ${f.file}: ${f.message}`);
+    expect(h).toEqual([]);
   });
 });

@@ -18,8 +18,6 @@ import { join, dirname, resolve, relative } from 'node:path';
 import { roster, ROOT } from './roster.js';
 import { isStubRetro } from './retro-index.js';
 
-export { ROOT };
-
 // Inline `](target)` links only (reference-style / HTML links are out of scope,
 // matching the migrate dangling-gate).
 const INLINE_LINK_RE = /\]\(([^)]+)\)/g;
@@ -299,6 +297,49 @@ export function checkFillInStubs(baseDir = ROOT) {
     }
   }
   return findings.sort(findingCmp);
+}
+
+// --- aggregation + read-set --------------------------------------------------
+
+/**
+ * Run every hygiene check and split findings by severity. HARD findings fail the
+ * suite; SOFT findings are reported (warned) but never block.
+ *
+ * @param {string} [baseDir=ROOT]
+ * @returns {{findings: Array, hard: Array, soft: Array}}
+ */
+export function runDocHygiene(baseDir = ROOT) {
+  const findings = [
+    ...checkInternalLinks(baseDir),
+    ...checkRosterCounts(baseDir),
+    ...checkVersionConsistency(baseDir),
+    ...checkFillInStubs(baseDir),
+  ].sort(findingCmp);
+  return {
+    findings,
+    hard: findings.filter((f) => f.severity === 'hard'),
+    soft: findings.filter((f) => f.severity === 'soft'),
+  };
+}
+
+/**
+ * Every file the guard reads: the doc surface plus the roster/version sources.
+ * The read-only assertion (AC4.4) hashes this set before/after a run to prove the
+ * guard never writes.
+ *
+ * @param {string} [baseDir=ROOT]
+ * @returns {string[]} absolute paths, sorted
+ */
+export function hygieneReadSet(baseDir = ROOT) {
+  const set = new Set(listDocFiles(baseDir));
+  const extras = [
+    join(baseDir, 'docs', 'map', 'index.html'),
+    join(baseDir, '.claude-plugin', 'plugin.json'),
+    join(baseDir, '.claude-plugin', 'marketplace.json'),
+    join(baseDir, 'CHANGELOG.md'),
+  ];
+  for (const p of extras) if (existsSync(p)) set.add(p);
+  return [...set].sort();
 }
 
 /** Split a link token into its path part and `#anchor` (anchor may be ''). */
