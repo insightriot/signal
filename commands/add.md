@@ -38,8 +38,8 @@ Authoritative references:
 ### 1. Pre-flight
 
 - Resolve the project root (typically cwd, but verify by checking for `.planning/`).
-- The inbox path is `resolveInboxPath(baseDir)` — `.planning/ISSUES-INBOX.md`, or the legacy `.planning/FUTURE-IDEAS.md` when that is what the repo still has (back-compat).
-- If `.planning/` itself does **not** exist (or, for a flagged destination, the resolved target file does not exist):
+- The inbox path is `resolveInboxPath(baseDir)` — `.planning/ISSUES-INBOX.md`, or the legacy `.planning/FUTURE-IDEAS.md` when that is what the repo still has (back-compat). For the **default** inbox capture, a present `.planning/` with no inbox file yet is fine — `captureToFutureIdeas` lazy-creates the inbox (AC6.3); only a missing `.planning/` is an error.
+- If `.planning/` itself does **not** exist (or, for a flagged destination — `--question`/`--bug`/`--milestone` — the resolved target file does not exist; those never lazy-create):
   - Surface `buildMissingPlanningError(baseDir)` from `tools/lib/add.js`. It branches on `detectProjectKind(baseDir)`:
     - **brownfield** (`.git/` exists AND at least one non-dotfile source entry present) → suggests `/sig:init` ("scan it, then `/sig:add` will work").
     - **greenfield** (no `.git/`, or an empty/just-initialized dir) → suggests `/sig:new-project`.
@@ -138,7 +138,7 @@ Dispatch on the destination resolved in Step 2. Every capture function shares th
 - `sensitivePrompt`: already-resolved decision wrapped in an async function (Step 3 ran the prompt; pass an `async () => 'keep'` since you've already decided).
 - `bodyLengthPrompt`: same pattern from Step 4.
 
-- `future-ideas` → `captureToFutureIdeas(baseDir, opts)` — routes through `resolveInboxPath` to the inbox (`ISSUES-INBOX.md` or legacy `FUTURE-IDEAS.md`), inserts above the `*Last updated:*` footer, and rewrites the footer date.
+- `future-ideas` → `captureToFutureIdeas(baseDir, opts)` — routes through `resolveInboxPath` to the inbox (`ISSUES-INBOX.md` or legacy `FUTURE-IDEAS.md`), inserts above the `*Last updated:*` footer, and rewrites the footer date. If `.planning/` exists but the inbox file does not (a fresh v3 project), it **lazy-creates** the `ISSUES-INBOX.md` skeleton on first capture (AC6.3) — no separate init step needed.
 - `open-questions` → `captureToOpenQuestions(baseDir, opts)` — appends at end-of-file in the OPEN-QUESTIONS Status/Resolve-by shape (no footer to rewrite).
 - `bugs` → `captureToBugs(baseDir, opts)` — appends a **simple** entry (`## heading` + `**Status:** needs-triage` + verbatim body + `---`) at end-of-file in `.planning/BUGS.md`. No B-ID, no table row — triage assigns those later. `BUGS.md` must already exist (no lazy-create).
 - `milestone` → `captureToMilestone(baseDir, {...opts, milestoneArg})` — find-or-create the `## Captured via /sig:add` holding section near the end of the target milestone file and append the entry there. It **never** edits the structured plan body. `milestoneArg: null` resolves the current milestone from STATE.md; if there is none, it throws the no-current-milestone error (FR2.2). An explicit `--milestone N` whose `MILESTONE-N.md` does not exist throws the file-absent error (FR2.4 — no scaffolding).

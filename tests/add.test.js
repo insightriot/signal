@@ -1132,6 +1132,50 @@ describe('captureToFutureIdeas — inbox rename back-compat (S1.t4 / AC1.1 / AC1
   });
 });
 
+describe('captureToFutureIdeas — lazy-create the inbox (S1.t5 / AC6.3)', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-add-test-'));
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('AC6.3: a repo with .planning/ but no inbox lazy-creates ISSUES-INBOX.md and writes the entry (no throw)', async () => {
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+    const inboxPath = join(tempDir, '.planning', 'ISSUES-INBOX.md');
+    expect(existsSync(inboxPath)).toBe(false); // nothing there yet
+
+    const result = await captureToFutureIdeas(tempDir, {
+      body: 'the first-ever capture in a fresh v3 project',
+      today: '2026-07-19',
+      sensitivePrompt: async () => 'keep',
+    });
+
+    expect(result.written).toBe(true);
+    expect(result.path).toBe(inboxPath);
+    expect(existsSync(inboxPath)).toBe(true);
+    const content = await readFile(inboxPath, 'utf-8');
+    expect(content).toContain('the first-ever capture in a fresh v3 project');
+    expect(content).toContain('*Last updated: 2026-07-19*');
+    // The skeleton reads as an inbox and no legacy file is created.
+    expect(content).toMatch(/^# /);
+    expect(existsSync(join(tempDir, '.planning', 'FUTURE-IDEAS.md'))).toBe(false);
+  });
+
+  it('AC6.3 guard: no .planning/ at all still throws (lazy-create needs the dir; no project)', async () => {
+    // tempDir has NO .planning/ — this is the "no project here" case.
+    await expect(
+      captureToFutureIdeas(tempDir, {
+        body: 'x',
+        today: '2026-07-19',
+        sensitivePrompt: async () => 'keep',
+      })
+    ).rejects.toThrow(/sig:init|sig:new-project/);
+    expect(existsSync(join(tempDir, '.planning', 'ISSUES-INBOX.md'))).toBe(false);
+  });
+});
+
 describe('captureToOpenQuestions (integration) — S2.t4 / FR1 / R3', () => {
   let tempDir;
   beforeEach(async () => {

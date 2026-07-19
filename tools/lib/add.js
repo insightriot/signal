@@ -20,7 +20,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync, readdirSync } from 'node:fs';
-import { join, resolve, sep, basename } from 'node:path';
+import { join, resolve, sep, basename, dirname } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
 import {
@@ -989,6 +989,13 @@ export async function releaseLock(baseDir) {
  * @param {(length: number) => Promise<'keep'|'abort'>} [opts.bodyLengthPrompt]
  * @param {string} [opts.missingFileError] — error message thrown when relPath
  *   doesn't exist; defaults to a sensible message naming relPath.
+ * @param {boolean} [opts.lazyCreate=false] — when true AND the target is absent
+ *   but its parent (`.planning/`) exists, create the file from
+ *   `lazyCreateContent` on first capture instead of throwing (AC6.3). Only the
+ *   inbox capture path sets this; every other destination keeps throwing.
+ * @param {string} [opts.lazyCreateContent] — the skeleton written when
+ *   lazy-creating (must carry whatever structure the `insert` closure expects,
+ *   e.g. a `*Last updated:*` footer for the inbox).
  *
  * @returns {Promise<{written: boolean, path?: string, line?: number, aborted?: string}>}
  */
@@ -1004,16 +1011,26 @@ export async function captureToDestination(baseDir, opts) {
     sensitivePrompt,
     bodyLengthPrompt,
     missingFileError,
+    lazyCreate = false,
+    lazyCreateContent,
   } = opts;
   const targetPath = join(baseDir, relPath);
 
   // Pre-flight — fail loud if the destination doesn't exist. The caller may
   // supply a destination-specific message; otherwise default to one naming the
-  // relative path.
-  if (!existsSync(targetPath)) {
-    throw new Error(
-      missingFileError ?? `Cannot capture: ${relPath} not found at ${targetPath}.`
-    );
+  // relative path. EXCEPTION: when `lazyCreate` is set AND the parent directory
+  // (`.planning/`) already exists, an absent target is NOT an error — the file
+  // is born on first capture from `lazyCreateContent` (AC6.3, a fresh v3
+  // project). A missing `.planning/` still throws (there is no project here) —
+  // that keeps the "no .planning/ → /sig:init" guidance intact.
+  const targetExists = existsSync(targetPath);
+  if (!targetExists) {
+    const parentExists = existsSync(dirname(targetPath));
+    if (!(lazyCreate && parentExists)) {
+      throw new Error(
+        missingFileError ?? `Cannot capture: ${relPath} not found at ${targetPath}.`
+      );
+    }
   }
 
   // Sensitive-data check. Prompt the user if hits are found; abort silently
@@ -1044,7 +1061,13 @@ export async function captureToDestination(baseDir, opts) {
   // Acquire lock. Released in finally.
   const lock = await acquireLock(baseDir);
   try {
-    const existing = await readFile(targetPath, 'utf-8');
+    // Read the current file, or start from the lazy-create skeleton when the
+    // target was absent (the pre-flight above already allowed this path). The
+    // skeleton + the new entry get written in ONE atomicWrite — no separate
+    // create step, so a fresh inbox is never left empty on a crash.
+    const existing = existsSync(targetPath)
+      ? await readFile(targetPath, 'utf-8')
+      : lazyCreateContent;
     const entry = buildEntry({ body, date: today, triggerContext, title });
     // An `insert` closure may return a bare string (most destinations) or a
     // `{content, repaired}` object (FUTURE-IDEAS footer-repair, S3.t2). Normalize
@@ -1070,9 +1093,30 @@ export async function captureToDestination(baseDir, opts) {
 }
 
 /**
- * Slice 1 entry point: capture `body` to .planning/FUTURE-IDEAS.md with all
- * safety primitives applied. Returns a status object the caller surfaces to
- * the user via the slash command's success message.
+ * The lazy-create skeleton for a born-on-v3 inbox (S1.t5 / AC6.3): a title, a
+ * one-line purpose, and a `*Last updated:*` footer — the minimum structure
+ * `insertFutureIdeasEntry` needs to land the first entry above the footer. Only
+ * used when a project has `.planning/` but no inbox file yet.
+ *
+ * @param {string} date — ISO date YYYY-MM-DD for the initial footer
+ * @returns {string}
+ */
+function inboxSkeleton(date) {
+  return [
+    '# Issues Inbox',
+    '',
+    'Raw capture inbox for `/sig:add` — untyped work lands here first, unsorted. The planning drain classifies and promotes from here.',
+    '',
+    `*Last updated: ${date}*`,
+    '',
+  ].join('\n');
+}
+
+/**
+ * Slice 1 entry point: capture `body` to the capture inbox (`ISSUES-INBOX.md`,
+ * or legacy `FUTURE-IDEAS.md`, resolved via `resolveInboxPath`) with all safety
+ * primitives applied. Returns a status object the caller surfaces to the user
+ * via the slash command's success message.
  *
  * Delegates to `captureToDestination` (S2.t1): the FUTURE-IDEAS-specific entry
  * template and footer-rewrite-on-insert behavior are encapsulated in the
@@ -1102,6 +1146,11 @@ export async function captureToFutureIdeas(baseDir, opts) {
 
   return captureToDestination(baseDir, {
     relPath,
+    // Born-on-v3: a project with `.planning/` but no inbox yet gets one created
+    // from this skeleton on first capture (AC6.3). The skeleton carries the
+    // `*Last updated:*` footer that `insertFutureIdeasEntry` inserts above.
+    lazyCreate: true,
+    lazyCreateContent: inboxSkeleton(today),
     buildEntry: ({ body, date, triggerContext, title }) =>
       buildFutureIdeasEntry({ body, date, triggerContext, title }),
     // Footer handling stays inbox-specific — encapsulated here so the shared
