@@ -373,9 +373,41 @@ export async function resolveDecisionId(baseDir, id) {
     if (r && num >= r.min && num <= r.max) candidates.push(file);
   }
   if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  // A prefix range spans multiple files — e.g. a decision DEFINED in an evicted
+  // archive section but merely REFERENCED (a bare `D-…` mention) in a still-live
+  // section. Range-membership can't tell a definition from a reference, so prefer
+  // the file that actually DEFINES the exact id (a heading- or bold-lead
+  // `D-<id> —`, the two shapes DECISIONS.md uses to introduce a decision). Without
+  // this, a bare live reference out-votes the archive that documents the decision
+  // and FR5's fail-closed anchor gate refuses the whole eviction (the D-v016-2
+  // dogfood regression). Falls back to the live-preference tie-break only when the
+  // definition is absent or ambiguous across candidates.
+  const definers = [];
+  for (const file of candidates) {
+    let content;
+    try {
+      content = await readFile(join(baseDir, file), 'utf-8');
+    } catch {
+      continue;
+    }
+    if (definesDecisionId(content, id)) definers.push(file);
+  }
+  if (definers.length === 1) return definers[0];
+
   if (candidates.includes(liveRel)) return liveRel; // prefer the live home on a tie
   candidates.sort();
   return candidates[0];
+}
+
+// True when `content` DEFINES decision `id` — i.e. the id leads a heading
+// (`## … ###### `) or a bold span (`**`), immediately followed by an em-/en-dash
+// or hyphen. That's how every decision in DECISIONS.md is introduced; a bare
+// inline `D-<id>` (a cross-reference) is deliberately NOT a definition. Pure.
+function definesDecisionId(content, id) {
+  const esc = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(String.raw`(?:^#{2,6}\s+|\*\*)${esc}\s*[—–-]`, 'm').test(content);
 }
 
 // ---- internals ----

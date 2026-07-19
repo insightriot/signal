@@ -292,4 +292,25 @@ describe('D-ID → home map + resolveDecisionId (t5) — AC3.3', () => {
     }
     expect(unresolved).toEqual([]);
   });
+
+  it('an evicted id DEFINED in the archive but REFERENCED in the live file resolves to the archive (definition beats reference — D-v016-2 dogfood regression)', async () => {
+    // Post-eviction reality: the archive DEFINES D-EV-2 (a heading-lead — the
+    // shape DECISIONS.md uses to introduce a decision); the live file only
+    // REFERENCES it in prose in a later, still-live section. Range-membership
+    // alone TIES (both files carry a D-EV range covering 2). The definition must
+    // win — else a bare live mention out-votes the archive that actually documents
+    // the decision, and FR5's fail-closed anchor gate refuses the whole eviction
+    // (this is exactly the D-v016-2 case the Signal dogfood surfaced).
+    await writeFile(
+      join(base, '.planning', 'archive', 'M1', 'DECISIONS.md'),
+      '## 2026-04-22 — old\n\n### D-EV-1 — first\n\nbody\n\n### D-EV-2 — second\n\nbody\n',
+      'utf-8',
+    );
+    await writeFile(
+      join(base, '.planning', 'DECISIONS.md'),
+      '## 2026-07-18 — current\n\n**D-CUR-1 — a.** Consistent with the earlier D-EV-2 and D-EV-1 (bare references).\n',
+      'utf-8',
+    );
+    expect(await resolveDecisionId(base, 'D-EV-2')).toBe('.planning/archive/M1/DECISIONS.md');
+  });
 });
