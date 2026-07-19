@@ -2148,3 +2148,125 @@ export async function runMigrate(baseDir, opts = {}) {
   });
   return { ...result, plan };
 }
+
+// --- append-log eviction (S5 / FR5) — evict-with-anchors ----------------------
+//
+// The final append-log hygiene: closed-milestone `DECISIONS.md` date-sections
+// relocate VERBATIM (byte-identical) to a per-milestone `archive/M{n}/DECISIONS.md`
+// behind a dated pointer, with every `D-…` anchor preserved so the ~669 bare-ID
+// prose references stay resolvable via S2's D-ID map. This is STANDALONE (planner
+// + apply step + `runAppendLogEvict`) — NOT composed into applyMigrate (that is
+// S6a). Faithfulness here is BYTE identity + anchor-resolvability (NO distilled
+// verifyCardCoverage card — verbatim relocate carries no semantic-drift risk).
+//
+// Model §1 axis-2 tags `DECISIONS.md` as an append-log — "grows by design, large
+// ≠ bloated" — so senseCorpusHygiene leaves it ALONE. This adds the ONE sanctioned
+// eviction path: not size-based de-bloat, but a CLOSED-MILESTONE cut. The selector
+// is a date cutoff (the current-milestone open date), not a byte budget.
+
+// A DECISIONS date-section heading: `## YYYY-MM-DD …` (an undatable `## …` heading
+// stays live). Line-anchored, so a `## ` in a section BODY is only a heading when
+// it starts a line — which in the append-only DECISIONS.md format it never does
+// for anything but a date-section. Matched across the FULL file read (t5): the
+// section parser must see every section even past FILE_SCAN_CEILING, so callers
+// pass the whole file, never the 1 MB-truncated copy the link scanners use.
+const DECISION_SECTION_RE = /^## .*/gm;
+const DECISION_DATE_RE = /^##\s+(\d{4}-\d{2}-\d{2})\b/;
+
+// The current doc-runtime layout knows M5's open date; the real M1–M4.5 windows
+// overlap messily (M4.5.E11 lands on M5's open day) — that judgment is S6b's
+// dogfood pass, not baked here. `milestoneOf` is injectable for exactly that
+// reason; this default only routes dates on/after a KNOWN milestone open.
+const MILESTONE_OPEN_DATES = { M5: '2026-07-15' };
+
+/**
+ * Parse a `DECISIONS.md` string into a `preamble` (everything before the first
+ * `## ` heading — the h1 + intro + the leading `---`) and an ordered list of
+ * date-sections. Each section's `raw` spans from its `## ` heading through just
+ * before the next `## ` heading (or EOF), so it carries its own trailing `---`
+ * divider + blank lines. INVARIANT (the verbatim relocate depends on it):
+ *   `preamble + sections.map(s => s.raw).join('') === text`  (byte-exact).
+ * `date` is the ISO date parsed from a `## YYYY-MM-DD …` heading, else `null`
+ * (an undatable heading — which the classifier keeps live).
+ *
+ * Pure. Give it the FULL file (never the FILE_SCAN_CEILING-truncated copy) so a
+ * >1 MB DECISIONS.md still yields every section (t5).
+ *
+ * @param {string} text  full DECISIONS.md content
+ * @returns {{preamble: string, sections: Array<{heading: string, date: string|null, raw: string, start: number, end: number}>}}
+ */
+export function parseDecisionSections(text) {
+  const src = String(text ?? '');
+  const starts = [];
+  for (const m of src.matchAll(DECISION_SECTION_RE)) starts.push(m.index);
+  if (starts.length === 0) return { preamble: src, sections: [] };
+
+  const preamble = src.slice(0, starts[0]);
+  const sections = [];
+  for (let i = 0; i < starts.length; i++) {
+    const start = starts[i];
+    const end = i + 1 < starts.length ? starts[i + 1] : src.length;
+    const raw = src.slice(start, end);
+    const headingLine = raw.slice(0, raw.indexOf('\n') === -1 ? raw.length : raw.indexOf('\n'));
+    const dm = headingLine.match(DECISION_DATE_RE);
+    sections.push({ heading: headingLine, date: dm ? dm[1] : null, raw, start, end });
+  }
+  return { preamble, sections };
+}
+
+/**
+ * Partition parsed sections by the date cutoff. A datable section STRICTLY
+ * before `boundaryDate` evicts; a section dated on/after the boundary, or an
+ * undatable one, stays LIVE. ISO dates compare lexically (chronological), so no
+ * Date parsing is needed. Pure.
+ *
+ * @param {Array<{date: string|null}>} sections
+ * @param {string} boundaryDate  ISO `YYYY-MM-DD` — the current-milestone open date
+ * @returns {{evict: Array, live: Array}}
+ */
+export function selectEvictableSections(sections, boundaryDate) {
+  const evict = [];
+  const live = [];
+  for (const s of sections) {
+    if (s.date && boundaryDate && s.date < boundaryDate) evict.push(s);
+    else live.push(s);
+  }
+  return { evict, live };
+}
+
+/**
+ * Derive the eviction boundary for the REAL run: the CURRENT milestone's open
+ * date. `currentMilestone` reads STATE.md's `current_epic` → `MILESTONE-{n}.md`;
+ * the small explicit `MILESTONE_OPEN_DATES` map turns that into the open date
+ * (M5 = 2026-07-15). Returns `null` when the milestone or its open date is
+ * unknown — the caller then evicts nothing (fail-safe). Tests inject an explicit
+ * `boundaryDate` instead of relying on this.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<string|null>}
+ */
+export async function deriveBoundaryDate(baseDir) {
+  const file = await currentMilestone(baseDir); // e.g. 'MILESTONE-5.md'
+  if (!file) return null;
+  const label = file.match(/^MILESTONE-(.+)\.md$/)?.[1];
+  if (!label) return null;
+  return MILESTONE_OPEN_DATES[`M${label}`] ?? null;
+}
+
+/**
+ * Default routing: the milestone label a date-section belongs to = the latest
+ * KNOWN milestone whose open date is ≤ the section's date. Injectable
+ * (`milestoneOf`); this default only knows M5, so any date before M5's open
+ * (i.e. everything the real run would evict) routes to `null` until S6b supplies
+ * the full M1–M4.5 map at dogfood time. Pure.
+ *
+ * @param {string} dateStr  ISO `YYYY-MM-DD`
+ * @returns {string|null}   milestone label (e.g. 'M5'), or null when unroutable
+ */
+export function defaultMilestoneOf(dateStr) {
+  let label = null;
+  for (const [ms, open] of Object.entries(MILESTONE_OPEN_DATES).sort((a, b) => (a[1] < b[1] ? -1 : 1))) {
+    if (open <= dateStr) label = ms;
+  }
+  return label;
+}
