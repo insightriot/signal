@@ -21,6 +21,8 @@ import {
   buildFutureIdeasEntry,
   buildOpenQuestionsEntry,
   buildMilestoneEntry,
+  buildBugsEntry,
+  captureToBugs,
   insertAboveFooter,
   insertFutureIdeasEntry,
   insertAtEnd,
@@ -209,6 +211,125 @@ describe('resolveDestination (pure guard) — S2.t3 / FR4 / R4', () => {
     expect(() => resolveDestination({ question: true, milestone: true })).toThrow(
       /--question.*--milestone|--milestone.*--question/
     );
+  });
+});
+
+// --- S1.t3: the `--bug` fast-path (FR1 / AC1.4) ---
+// A new typed fast-path routing straight to .planning/BUGS.md as a SIMPLE entry
+// (no B-ID, no table row). Routes like --question; bypasses the --file denylist.
+describe('parseInput / resolveDestination — --bug fast-path (S1.t3 / AC1.4)', () => {
+  it('parses --bug as a boolean flag, body is the remainder', () => {
+    expect(parseInput('--bug the widget throws on null')).toEqual({
+      body: 'the widget throws on null',
+      flags: { bug: true },
+    });
+  });
+
+  it('classifies --bug to the bugs destination', () => {
+    expect(resolveDestination({ bug: true })).toEqual({ destination: 'bugs' });
+  });
+
+  it('throws when --bug and --question are both present (conflict guard)', () => {
+    expect(() => resolveDestination({ bug: true, question: true })).toThrow();
+  });
+
+  it('names --bug in the multi-destination conflict message', () => {
+    expect(() => resolveDestination({ bug: true, milestone: true })).toThrow(/--bug/);
+  });
+
+  it('--question behavior is unchanged by the new --bug arm', () => {
+    expect(resolveDestination({ question: true })).toEqual({
+      destination: 'open-questions',
+    });
+    expect(parseInput('--question is X right?')).toEqual({
+      body: 'is X right?',
+      flags: { question: true },
+    });
+  });
+});
+
+describe('buildBugsEntry (pure) — S1.t3 / FR1 / AC1.4', () => {
+  it('renders a simple entry: ## heading, needs-triage status, verbatim body, --- separator', () => {
+    const entry = buildBugsEntry({ body: 'the thing crashes on empty input' });
+    expect(entry).toMatch(/^## /);
+    expect(entry).toContain('**Status:** needs-triage');
+    expect(entry).toContain('the thing crashes on empty input');
+    expect(entry.trimEnd().endsWith('---')).toBe(true);
+  });
+
+  it('is NOT a table row and allocates NO B-ID', () => {
+    const entry = buildBugsEntry({ body: 'some defect report here' });
+    expect(entry).not.toMatch(/^\|/m); // no table pipe row
+    expect(entry).not.toMatch(/\bB\d+\b/); // no B-ID
+  });
+
+  it('uses an agent-authored title when supplied, else deriveHeading', () => {
+    expect(
+      buildBugsEntry({ body: 'ignored body', title: 'Crash on empty input' }).split('\n')[0]
+    ).toBe('## Crash on empty input');
+    expect(
+      buildBugsEntry({ body: 'use semver-it for tag publish hooks' }).split('\n')[0]
+    ).toBe('## Use semver-it for tag publish hooks');
+  });
+
+  it('keeps the body byte-identical (verbatim)', () => {
+    const body = 'crash with "quotes" and `code` and the — em dash';
+    expect(buildBugsEntry({ body })).toContain(body);
+  });
+});
+
+describe('captureToBugs (integration) — S1.t3 / FR1 / AC1.4', () => {
+  let tempDir;
+  const BUGS_SEED =
+    '# Signal — Bugs & Findings\n\nIntro.\n\n| ID | Status | Pri | Summary |\n|---|---|---|---|\n' +
+    '| B1 | `fixed` | P2 | **A thing.** Fixed. |\n\n*0 open · 0 confirmed (1 total). Last updated: 2026-07-01.*\n';
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-add-test-'));
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('--bug appends a simple entry to .planning/BUGS.md (verbatim body, needs-triage)', async () => {
+    const bugsPath = join(tempDir, '.planning', 'BUGS.md');
+    await writeFile(bugsPath, BUGS_SEED, 'utf-8');
+    const result = await captureToBugs(tempDir, {
+      body: 'the widget throws on null input',
+      today: '2026-07-19',
+      sensitivePrompt: async () => 'keep',
+    });
+    expect(result.written).toBe(true);
+    expect(result.path).toBe(bugsPath);
+    const content = await readFile(bugsPath, 'utf-8');
+    expect(content).toContain('the widget throws on null input');
+    expect(content).toContain('**Status:** needs-triage');
+    // Pre-existing table content preserved.
+    expect(content).toContain('| B1 | `fixed` | P2 | **A thing.** Fixed. |');
+  });
+
+  it('scrub fires for --bug too (R7): abort → no write, no lock left behind', async () => {
+    const bugsPath = join(tempDir, '.planning', 'BUGS.md');
+    await writeFile(bugsPath, BUGS_SEED, 'utf-8');
+    const result = await captureToBugs(tempDir, {
+      body: 'leaking ghp_abcdefghijklmnopqrstuvwxyz0123456789 here',
+      today: '2026-07-19',
+      sensitivePrompt: async () => 'abort',
+    });
+    expect(result).toEqual({ written: false, aborted: 'sensitive-data' });
+    expect(await readFile(bugsPath, 'utf-8')).toBe(BUGS_SEED);
+    expect(existsSync(join(tempDir, '.planning', '.add.lock'))).toBe(false);
+  });
+
+  it('throws when BUGS.md is missing — --bug does NOT lazy-create', async () => {
+    await expect(
+      captureToBugs(tempDir, {
+        body: 'x',
+        today: '2026-07-19',
+        sensitivePrompt: async () => 'keep',
+      })
+    ).rejects.toThrow(/BUGS\.md/);
   });
 });
 

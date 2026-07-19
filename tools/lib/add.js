@@ -47,6 +47,7 @@ const LOCK_FILE = '.planning/.add.lock';
 // `resolveInboxPath(baseDir)` so a legacy (`FUTURE-IDEAS.md`) and a v3
 // (`ISSUES-INBOX.md`) repo both work without branching (FR1 / R1).
 const OPEN_QUESTIONS = '.planning/OPEN-QUESTIONS.md';
+const BUGS = '.planning/BUGS.md';
 // One-time first-run onboarding flag (FR6.1). Lives inside .planning/, so it is
 // git-tracked by convention like everything else there — no special .gitignore
 // rule needed. Its presence means "this repo has already seen the onboarding
@@ -229,6 +230,8 @@ export function buildMissingPlanningError(baseDir) {
  *
  * S2 (this task) adds destination flags:
  *   - `--question` — boolean. Presence → `flags.question = true`.
+ *   - `--bug` — boolean (S1.t3). Presence → `flags.bug = true`; routes to
+ *     `.planning/BUGS.md` (a typed fast-path, like `--question`).
  *   - `--milestone [N]` — `--milestone` alone → `flags.milestone = true`
  *     (current milestone); `--milestone 5` / `--milestone 4.5` → the N string
  *     (the N token is consumed). A non-numeric token after `--milestone` is the
@@ -252,7 +255,7 @@ export function parseInput(argsString) {
   // No recognized flag present → preserve the exact Slice 1 behavior (trim
   // only). This guarantees the internal-double-space case is untouched, since
   // token-split-and-rejoin would collapse runs of whitespace.
-  if (!/(^|\s)--(question|milestone|file)(\s|$)/.test(argsString)) {
+  if (!/(^|\s)--(question|milestone|file|bug)(\s|$)/.test(argsString)) {
     return { body: argsString.trim(), flags: {} };
   }
 
@@ -264,6 +267,8 @@ export function parseInput(argsString) {
     const token = tokens[i];
     if (token === '--question') {
       flags.question = true;
+    } else if (token === '--bug') {
+      flags.bug = true;
     } else if (token === '--milestone') {
       const next = tokens[i + 1];
       if (next !== undefined && MILESTONE_N_RE.test(next)) {
@@ -294,6 +299,7 @@ export function parseInput(argsString) {
  * Returns a destination descriptor that S2.t4/t5/t6 consume:
  *   - `{ destination: 'future-ideas' }` — default (no destination flag).
  *   - `{ destination: 'open-questions' }` — `--question`.
+ *   - `{ destination: 'bugs' }` — `--bug` (S1.t3; routes to `.planning/BUGS.md`).
  *   - `{ destination: 'milestone', milestoneArg }` — `--milestone`;
  *     `milestoneArg` is `null` for the current milestone (boolean form) or the
  *     N string for `--milestone N`.
@@ -306,6 +312,7 @@ export function parseInput(argsString) {
 export function resolveDestination(flags = {}) {
   const present = [];
   if (flags.question) present.push('--question');
+  if (flags.bug) present.push('--bug');
   if (flags.milestone) present.push('--milestone');
   if (flags.file) present.push('--file');
 
@@ -316,6 +323,7 @@ export function resolveDestination(flags = {}) {
   }
 
   if (flags.question) return { destination: 'open-questions' };
+  if (flags.bug) return { destination: 'bugs' };
   if (flags.milestone) {
     return {
       destination: 'milestone',
@@ -653,6 +661,31 @@ export function buildOpenQuestionsEntry({ body, date, triggerContext, title }) {
     body,
     '',
     '**Resolve by:** (unset — triage at next planning pass)',
+    '',
+    '---',
+  ].join('\n');
+}
+
+/**
+ * Render a BUGS.md entry block for the `--bug` fast-path (S1.t3 / FR1 / AC1.4).
+ * Deliberately a SIMPLE entry — NO B-ID, NO table row: `## {heading}`, a
+ * `**Status:** needs-triage` line, the body verbatim, then a `---` separator.
+ * `/sig:add --bug` is a raw capture into the bug inbox; triage (assigning a
+ * B-ID + a table row + a priority) is a separate human/planning step. The
+ * heading follows the shared rule: agent `title` if supplied, else
+ * `deriveHeading(body)`. Body is verbatim — no rewrite.
+ *
+ * @param {{body: string, title?: string}} opts
+ * @returns {string}
+ */
+export function buildBugsEntry({ body, title }) {
+  const heading = title?.trim() || deriveHeading(body);
+  return [
+    `## ${heading}`,
+    '',
+    '**Status:** needs-triage',
+    '',
+    body,
     '',
     '---',
   ].join('\n');
@@ -1124,6 +1157,49 @@ export async function captureToOpenQuestions(baseDir, opts) {
     insert: (content, entry) => insertAtEnd(content, entry),
     missingFileError:
       `Cannot capture: .planning/OPEN-QUESTIONS.md not found at ${join(baseDir, OPEN_QUESTIONS)}. ` +
+      `Run \`/sig:init\` first if this is an existing codebase, or \`/sig:new-project\` for a fresh project.`,
+    body,
+    today,
+    triggerContext,
+    title,
+    sensitivePrompt,
+    bodyLengthPrompt,
+  });
+}
+
+/**
+ * S1.t3 entry point: capture `body` to .planning/BUGS.md (the `--bug` fast-path,
+ * FR1 / AC1.4). A typed fast-path like `--question` — it routes straight to its
+ * home and bypasses the `--file` denylist. Delegates to the shared
+ * `captureToDestination` spine so scrub + body-length + lock + atomic-write all
+ * apply (R7).
+ *
+ * The entry is a SIMPLE block appended at end-of-file (`insertAtEnd`, the same
+ * strategy as OPEN-QUESTIONS): heading + `**Status:** needs-triage` + verbatim
+ * body + `---`. It does NOT allocate a B-ID or insert a table row — that is a
+ * triage step. BUGS.md must already exist (no lazy-create for `--bug`).
+ *
+ * @param {string} baseDir — project root (where .planning/ lives)
+ * @param {object} opts
+ * @param {string} opts.body — raw user input (verbatim, do not modify)
+ * @param {string} opts.today — ISO date YYYY-MM-DD (injected for testability)
+ * @param {string} [opts.triggerContext] — phase/milestone context if mid-flow
+ * @param {string} [opts.title] — optional agent-authored heading (FR1)
+ * @param {(hits: Array) => Promise<'keep'|'abort'>} opts.sensitivePrompt
+ * @param {(length: number) => Promise<'keep'|'abort'>} [opts.bodyLengthPrompt]
+ *
+ * @returns {Promise<{written: boolean, path?: string, line?: number, aborted?: string}>}
+ */
+export async function captureToBugs(baseDir, opts) {
+  const { body, today, triggerContext, title, sensitivePrompt, bodyLengthPrompt } = opts;
+
+  return captureToDestination(baseDir, {
+    relPath: BUGS,
+    buildEntry: ({ body, title }) => buildBugsEntry({ body, title }),
+    // Simple entry appended at EOF — same shape as OPEN-QUESTIONS; no footer.
+    insert: (content, entry) => insertAtEnd(content, entry),
+    missingFileError:
+      `Cannot capture: .planning/BUGS.md not found at ${join(baseDir, BUGS)}. ` +
       `Run \`/sig:init\` first if this is an existing codebase, or \`/sig:new-project\` for a fresh project.`,
     body,
     today,
