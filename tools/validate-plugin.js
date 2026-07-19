@@ -10,6 +10,8 @@ import { readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { listCommands } from './lib/roster.js';
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const ROOT = join(__dirname, '..');
 
@@ -61,24 +63,14 @@ const REQUIRED_FILES = [
   'docs/launch-post.md',
 ];
 
-const REQUIRED_COMMANDS = [
-  'commands/new-project.md',
-  'commands/init.md',
-  'commands/calibrate.md',
-  'commands/discuss.md',
-  'commands/plan.md',
-  'commands/execute.md',
-  'commands/verify.md',
-  'commands/review.md',
-  'commands/ship.md',
-  'commands/escalate.md',
-  'commands/status.md',
-  'commands/resume.md',
-  'commands/add.md',
-  'commands/checkpoint.md',
-  'commands/doctor.md',
-  'commands/migrate-memory.md',
-];
+// Commands are sourced from the single roster authority (tools/lib/roster.js) —
+// a filesystem glob of `commands/*.md` — rather than a hand-maintained allowlist
+// here. A new command (e.g. the FR3 `/sig:index`) is picked up automatically,
+// with no validator edit. Note the semantic shift vs. the old explicit list: a
+// glob can only report what IS on disk, so an *expected-but-absent* command is
+// no longer flagged as "missing" by this check (Claude Code's command
+// auto-discovery already tolerates that, and the FR4 roster/count-drift guard
+// covers the count against the docs).
 
 const REQUIRED_AGENTS = [
   'agents/scanners/stack-scanner.md',
@@ -113,8 +105,8 @@ async function validate() {
     }
   }
 
-  // Check commands
-  for (const cmd of REQUIRED_COMMANDS) {
+  // Check commands (sourced from the roster glob — the single source of truth)
+  for (const cmd of listCommands(ROOT)) {
     if (!existsSync(join(ROOT, cmd))) {
       errors.push(`Missing command: ${cmd}`);
     }
