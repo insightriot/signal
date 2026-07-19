@@ -1,39 +1,45 @@
 ---
 name: sig:add
-description: "Capture-and-route new work — appends a stamped entry to .planning/FUTURE-IDEAS.md (default) after verbatim capture, sensitive-data scrub, and atomic write. Route explicitly with --question (OPEN-QUESTIONS.md) or --milestone [N] (a milestone holding section). Naked /sig:add (no args) asks one question and files the answer to FUTURE-IDEAS. Not phase-gated."
+description: "Capture-and-route new work — appends a stamped entry to .planning/ISSUES-INBOX.md (default; falls back to the legacy FUTURE-IDEAS.md name if that is what the repo still has) after verbatim capture, sensitive-data scrub, and atomic write. Route explicitly with --question (OPEN-QUESTIONS.md), --bug (BUGS.md), or --milestone [N] (a milestone holding section). Naked /sig:add (no args) asks one question and files the answer to the inbox. Not phase-gated."
 args: "[idea text]"
 ---
 
 # `/sig:add` — Capture and Route
 
-You are running `/sig:add`, a not-phase-gated capture command. Same class as `/sig:status`, `/sig:resume`, `/sig:escalate`, `/sig:calibrate` — no tier-gating preamble, no skill loading, no agent spawning. The **hot path** is `/sig:add "idea text"`, which writes the entry to `.planning/FUTURE-IDEAS.md` after verbatim capture, atomic-write, lock, and sensitive-data scrub.
+You are running `/sig:add`, a not-phase-gated capture command. Same class as `/sig:status`, `/sig:resume`, `/sig:escalate`, `/sig:calibrate` — no tier-gating preamble, no skill loading, no agent spawning. The **hot path** is `/sig:add "idea text"`, which writes the entry to the capture inbox after verbatim capture, atomic-write, lock, and sensitive-data scrub.
 
-Two force-route flags send the capture somewhere other than the default:
+**The inbox is `.planning/ISSUES-INBOX.md`** (renamed from `FUTURE-IDEAS.md`). The rename is **back-compatible**: the code resolves the path via `resolveInboxPath(baseDir)` — a repo still on the legacy `FUTURE-IDEAS.md` keeps working (the resolver picks it), a v3 repo uses `ISSUES-INBOX.md`, and a fresh repo lazy-creates `ISSUES-INBOX.md`. The physical rename of an existing file is the `/sig:migrate-memory` v2→v3 step, **not** `/sig:add`.
+
+Three force-route flags send the capture somewhere other than the default:
 - `--question "…"` → `.planning/OPEN-QUESTIONS.md` (the unresolved-design-question shape).
+- `--bug "…"` → `.planning/BUGS.md` (a raw defect capture — a simple `## heading` + `**Status:** needs-triage` + body entry; no B-ID or table row, that is a triage step).
 - `--milestone [N] "…"` → a `## Captured via /sig:add` holding section in a milestone file (`--milestone` with no `N` targets the current milestone from STATE.md; `--milestone 5` targets `MILESTONE-5.md`).
 
-Routing is **flags or nothing in between**: with no flag, capture always lands in `FUTURE-IDEAS.md` — there is no heuristic that re-routes based on what you typed. Naked invocation (`/sig:add` with no args) prompts once for the idea and lands in a subsequent slice of M4.5.E2.
+Routing is **flags or nothing in between**: with no flag, capture always lands in the inbox (`ISSUES-INBOX.md`) — there is no heuristic that re-routes based on what you typed. Naked invocation (`/sig:add` with no args) prompts once for the idea and files it to the inbox.
 
 **Where work lives in Signal:**
-- `FUTURE-IDEAS.md` — "someday" ideas (the default; planning phases promote from here)
+- `ISSUES-INBOX.md` — the raw capture inbox (the default; planning phases classify/promote from here). Legacy name: `FUTURE-IDEAS.md`.
 - `OPEN-QUESTIONS.md` — unresolved design questions (`--question`)
+- `BUGS.md` — confirmed defects + raw defect captures (`--bug`)
 - `MILESTONE-*.md` — concrete tasks fitting an active scope (`--milestone [N]`, captured to a holding section — never into the structured plan body)
 - `DECISIONS.md` / `STATE.md` — **never** written by `/sig:add` (DECISIONS is post-deliberation; STATE is regenerated)
 
 Authoritative references:
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/add.js` — `parseInput`, `resolveDestination`, `scrubSensitive`, `buildFutureIdeasEntry`, `buildOpenQuestionsEntry`, `buildMilestoneEntry`, `insertAboveFooter`, `rewriteFooter`, `atomicWrite`, `acquireLock`, `releaseLock`, `captureToFutureIdeas`, `captureToOpenQuestions`, `captureToMilestone`, `checkBodyLength`, `BODY_LENGTH_SOFT_CAP`, `resolveOnboardingMode`, `isOnboarded`, `markOnboarded`, `detectProjectKind`, `buildMissingPlanningError`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/add.js` — `parseInput`, `resolveDestination`, `scrubSensitive`, `buildFutureIdeasEntry`, `buildOpenQuestionsEntry`, `buildMilestoneEntry`, `buildBugsEntry`, `insertAboveFooter`, `rewriteFooter`, `atomicWrite`, `acquireLock`, `releaseLock`, `captureToFutureIdeas`, `captureToOpenQuestions`, `captureToMilestone`, `captureToBugs`, `checkBodyLength`, `BODY_LENGTH_SOFT_CAP`, `resolveOnboardingMode`, `isOnboarded`, `markOnboarded`, `detectProjectKind`, `buildMissingPlanningError`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/inbox-path.js` — `resolveInboxPath`, `resolveLedgerPath` (back-compat inbox/ledger path resolution: `ISSUES-INBOX.md` else legacy `FUTURE-IDEAS.md`)
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/milestones.js` — `currentMilestone`, `listMilestones` (target resolution for `--milestone [N]`)
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState` (for trigger-context detection in mid-phase captures)
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile` (reads `rigor_overrides.gate_strictness` for the onboarding note shape; throws `ProfileSchemaError` if PROFILE.md is absent — treat as `light`)
 - `${CLAUDE_PLUGIN_ROOT}/references/question-patterns.md` — `3+other` and `strict-enum` patterns for the prompts below
-- `.planning/FUTURE-IDEAS.md` — the default destination; entry shape is defined by `buildFutureIdeasEntry`
+- `.planning/ISSUES-INBOX.md` (legacy: `.planning/FUTURE-IDEAS.md`) — the default destination, resolved via `resolveInboxPath`; entry shape is defined by `buildFutureIdeasEntry`
 
 ## Workflow
 
 ### 1. Pre-flight
 
 - Resolve the project root (typically cwd, but verify by checking for `.planning/`).
-- If `.planning/FUTURE-IDEAS.md` (or the resolved target file) does **not** exist:
+- The inbox path is `resolveInboxPath(baseDir)` — `.planning/ISSUES-INBOX.md`, or the legacy `.planning/FUTURE-IDEAS.md` when that is what the repo still has (back-compat).
+- If `.planning/` itself does **not** exist (or, for a flagged destination, the resolved target file does not exist):
   - Surface `buildMissingPlanningError(baseDir)` from `tools/lib/add.js`. It branches on `detectProjectKind(baseDir)`:
     - **brownfield** (`.git/` exists AND at least one non-dotfile source entry present) → suggests `/sig:init` ("scan it, then `/sig:add` will work").
     - **greenfield** (no `.git/`, or an empty/just-initialized dir) → suggests `/sig:new-project`.
@@ -65,16 +71,18 @@ The **first** time `/sig:add` is used in a repo, show a one-time note that `.pla
 Call `parseInput($ARGUMENTS)` → `{body, flags}`. The bare-body form (`/sig:add "idea text"`) returns `{body: "idea text", flags: {}}`. The recognized destination flags are:
 
 - `--question` — boolean; routes to `.planning/OPEN-QUESTIONS.md`.
+- `--bug` — boolean; routes to `.planning/BUGS.md` (a raw defect capture).
 - `--milestone [N]` — `--milestone` alone routes to the current milestone (resolved from STATE.md `current_epic`); `--milestone 5` / `--milestone 4.5` routes to `MILESTONE-{N}.md`. A non-numeric token after `--milestone` is treated as body, not as `N`.
 
 Everything that isn't a flag (or a flag's consumed value) is the verbatim body — `parseInput` never smart-quotes or normalizes the words.
 
 Then call `resolveDestination(flags)` to classify the target **before** acquiring the lock or touching any file:
 
-- No destination flag → `{destination: 'future-ideas'}` (the default).
+- No destination flag → `{destination: 'future-ideas'}` (the default — the inbox, `ISSUES-INBOX.md` or legacy `FUTURE-IDEAS.md`; the internal key stays `future-ideas`).
 - `--question` → `{destination: 'open-questions'}`.
+- `--bug` → `{destination: 'bugs'}`.
 - `--milestone [N]` → `{destination: 'milestone', milestoneArg}` (`milestoneArg` is `null` for the current milestone, else the `N` string).
-- **More than one destination flag** (e.g. `--question --milestone`) → `resolveDestination` throws. Surface the message and exit non-zero — no lock, no write (FR4). This is why `resolveDestination` runs first: a conflicting-flags invocation must fail before any side effect.
+- **More than one destination flag** (e.g. `--question --bug`) → `resolveDestination` throws. Surface the message and exit non-zero — no lock, no write (FR4). This is why `resolveDestination` runs first: a conflicting-flags invocation must fail before any side effect.
 
 Empty-body handling — the **naked-invocation interview** (S3 / FR5):
 
@@ -82,7 +90,7 @@ Empty-body handling — the **naked-invocation interview** (S3 / FR5):
 - If `isBlank(parseInput($ARGUMENTS).body)` (no `$ARGUMENTS`, or only whitespace) **and no destination flag is present** → run the naked-invocation interview:
   1. Ask exactly ONE question using the `open-ended` pattern in `references/question-patterns.md` (`§ 3. Open-ended` → plain text question, **not** `AskUserQuestion`): **"What's the idea?"** Plain English only — no Signal vocabulary (R6); don't say "FUTURE-IDEAS altitude" or "capture spine," just ask for the idea.
   2. If the user's answer `isBlank(answer)` (empty or only whitespace) → **abort cleanly**: print "No idea captured." and exit 0. Do **not** call any capture function. Because the lock is acquired only inside Step 6 (capture), an abandoned/empty naked invocation never creates `.planning/.add.lock` (FR5.2 — no write, no lock).
-  3. Otherwise use the answer verbatim as the `body` and continue to Step 3 (scrub). A naked invocation always files to `FUTURE-IDEAS.md` — there are **no** destination heuristics (Decision 5): naked = ask once, file to the default.
+  3. Otherwise use the answer verbatim as the `body` and continue to Step 3 (scrub). A naked invocation always files to the inbox (`ISSUES-INBOX.md`, or legacy `FUTURE-IDEAS.md`) — there are **no** destination heuristics (Decision 5): naked = ask once, file to the default.
 
 > This is an `open-ended` question used outside `new-project` / `escalate` / phase openings, justified here per the question-patterns escape clause: `/sig:add` naked invocation *opens* a capture flow with genuinely unknown intent ("what's the idea?"), which no enum or 3+other option set could anticipate. Decision 5 explicitly cuts the heuristic 3+other reroute the 2026-05-14 plan once proposed.
 
@@ -114,24 +122,32 @@ If `readState(baseDir)` returns a non-null phase, derive a one-phrase trigger co
 
 Pass this as `triggerContext` to `captureToFutureIdeas`.
 
+### 5b. Author a one-line title (FR1)
+
+Write a clean, one-line summary of the body — an **agent-authored title** that reads as a scannable `## heading` (proper capitalization, no trailing punctuation, ≤~60 chars). This becomes the entry's heading; the **body stays verbatim** (only the title is authored — AC1.2). Pass it as `title` in Step 6's opts.
+
+Do **not** rewrite, normalize, or "clean up" the body to match the title — the body is the signal, captured byte-for-byte. If you cannot summarize confidently (a terse fragment, a hook/script capture), **omit `title`** — the deterministic `deriveHeading` clause-slice is used instead, never an empty heading (AC1.3).
+
 ### 6. Capture
 
 Dispatch on the destination resolved in Step 2. Every capture function shares the same `opts`:
 - `body`: from Step 2 (verbatim — never modify).
 - `today`: ISO `YYYY-MM-DD` from `new Date()`.
 - `triggerContext`: from Step 5 (optional).
+- `title`: from Step 5b (the agent-authored one-line heading; omit for the deterministic `deriveHeading` fallback).
 - `sensitivePrompt`: already-resolved decision wrapped in an async function (Step 3 ran the prompt; pass an `async () => 'keep'` since you've already decided).
 - `bodyLengthPrompt`: same pattern from Step 4.
 
-- `future-ideas` → `captureToFutureIdeas(baseDir, opts)` — inserts above the `*Last updated:*` footer and rewrites the footer date.
+- `future-ideas` → `captureToFutureIdeas(baseDir, opts)` — routes through `resolveInboxPath` to the inbox (`ISSUES-INBOX.md` or legacy `FUTURE-IDEAS.md`), inserts above the `*Last updated:*` footer, and rewrites the footer date.
 - `open-questions` → `captureToOpenQuestions(baseDir, opts)` — appends at end-of-file in the OPEN-QUESTIONS Status/Resolve-by shape (no footer to rewrite).
+- `bugs` → `captureToBugs(baseDir, opts)` — appends a **simple** entry (`## heading` + `**Status:** needs-triage` + verbatim body + `---`) at end-of-file in `.planning/BUGS.md`. No B-ID, no table row — triage assigns those later. `BUGS.md` must already exist (no lazy-create).
 - `milestone` → `captureToMilestone(baseDir, {...opts, milestoneArg})` — find-or-create the `## Captured via /sig:add` holding section near the end of the target milestone file and append the entry there. It **never** edits the structured plan body. `milestoneArg: null` resolves the current milestone from STATE.md; if there is none, it throws the no-current-milestone error (FR2.2). An explicit `--milestone N` whose `MILESTONE-N.md` does not exist throws the file-absent error (FR2.4 — no scaffolding).
 
-All four share the same spine: scrub + body-length check run before the lock; then lock acquisition, read-current, build-entry, insert, atomic-write, lock-release.
+All destinations share the same spine: scrub + body-length check run before the lock; then lock acquisition, read-current, build-entry, insert, atomic-write, lock-release.
 
 ### 7. Success message
 
-Print exactly, substituting the destination's actual relative path (`result.path` relative to the project root) — `.planning/FUTURE-IDEAS.md` for the default, `.planning/OPEN-QUESTIONS.md` for `--question`, the resolved `.planning/MILESTONE-{N}.md` for `--milestone [N]`:
+Print exactly, substituting the destination's actual relative path (`result.path` relative to the project root) — the resolved inbox (`.planning/ISSUES-INBOX.md` or legacy `.planning/FUTURE-IDEAS.md`) for the default, `.planning/OPEN-QUESTIONS.md` for `--question`, `.planning/BUGS.md` for `--bug`, the resolved `.planning/MILESTONE-{N}.md` for `--milestone [N]`:
 
 ```
 Added to {path} (line {result.line}).
@@ -139,10 +155,10 @@ Review with: git diff {path}
 Revert with: git checkout -- {path}
 ```
 
-**Footer-repair announce (FUTURE-IDEAS only).** If `result.repaired` is `true`, the destination's `*Last updated:*` footer had drifted mid-file (content stranded below it) and the capture normalized it — one footer at true EOF, no content lost. Prepend one line so the extra diff isn't a surprise:
+**Footer-repair announce (inbox only).** If `result.repaired` is `true`, the inbox's `*Last updated:*` footer had drifted mid-file (content stranded below it) and the capture normalized it — one footer at true EOF, no content lost. Prepend one line so the extra diff isn't a surprise (name the actual file — `ISSUES-INBOX.md` or `FUTURE-IDEAS.md`):
 
 ```
-Normalized FUTURE-IDEAS.md footer (it had drifted mid-file; no entries lost).
+Normalized the inbox footer (it had drifted mid-file; no entries lost).
 ```
 
 When `result.repaired` is `false` (the common case), say nothing extra.
@@ -176,13 +192,13 @@ Do **not** preview the entry before write (capture latency dies on every confirm
 | "Add a `## Recently captured` summary at the top of the file." | No. The file's existing structure (heading → entries separated by `---` → footer) is the contract. New entries land above the footer in the same shape as existing ones. |
 | "`gate_strictness: strict` means I should confirm the destination before writing." | No. Q1 is locked + user-reconfirmed: `gate_strictness` modulates **only** the one-time first-run onboarding note (Step 1b) — never a destination confirm. Capture stays instant at every level (Decision 4). |
 | "Show the onboarding note every run so the warning sticks." | No. It's one-time per repo, gated by `.planning/.add-onboarded`. Repeating it on every capture is exactly the friction `/sig:add` exists to remove. |
-| "Write to a different file if FUTURE-IDEAS.md is too long." | No. File size isn't a concern at scale. Single file = single grep target = single read. |
+| "Write to a different file if the inbox (`ISSUES-INBOX.md`) is too long." | No. File size isn't a concern at scale. Single file = single grep target = single read. |
 
 ## Gate: Capture Complete
 
 - [ ] Either the destination file was written and the success message printed, OR an explicit abort/error message surfaced.
 - [ ] No `.planning/*` files mutated on abort paths (incl. the multi-flag and milestone-resolution errors, which refuse before any lock or write).
-- [ ] For a FUTURE-IDEAS write: footer date matches today afterward (OPEN-QUESTIONS and milestone holding sections have no footer to rewrite).
+- [ ] For an inbox write (`ISSUES-INBOX.md` / legacy `FUTURE-IDEAS.md`): footer date matches today afterward (OPEN-QUESTIONS, BUGS, and milestone holding sections have no footer to rewrite).
 - [ ] `.planning/.add.lock` removed (released or never acquired).
 - [ ] Entry body matches user input verbatim (verifiable via `git diff`).
 - [ ] First-run onboarding note shown at most once per repo (gated by `.planning/.add-onboarded`); shape matched `gate_strictness` (strict = blocking once / light + absent = one-line FYI once / off = silent). A `strict`-abort wrote no flag and no capture.

@@ -1084,6 +1084,54 @@ describe('captureToFutureIdeas (integration)', () => {
   });
 });
 
+describe('captureToFutureIdeas — inbox rename back-compat (S1.t4 / AC1.1 / AC1.5)', () => {
+  let tempDir;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-add-test-'));
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  async function setupInboxFixture() {
+    const src = join(FIXTURE_ROOT, 'issues-inbox-minimal', '.planning', 'ISSUES-INBOX.md');
+    const dest = join(tempDir, '.planning', 'ISSUES-INBOX.md');
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+    await copyFile(src, dest);
+    return dest;
+  }
+
+  it('AC1.1: a v3 repo (ISSUES-INBOX.md present) captures there, not into FUTURE-IDEAS.md', async () => {
+    const dest = await setupInboxFixture();
+    const result = await captureToFutureIdeas(tempDir, {
+      body: 'a v3 capture into the renamed inbox',
+      today: '2026-07-19',
+      sensitivePrompt: async () => 'keep',
+    });
+    expect(result.written).toBe(true);
+    expect(result.path).toBe(dest);
+    const content = await readFile(dest, 'utf-8');
+    expect(content).toContain('a v3 capture into the renamed inbox');
+    expect(content).toContain('*Last updated: 2026-07-19*');
+    // No legacy file was created as a side effect.
+    expect(existsSync(join(tempDir, '.planning', 'FUTURE-IDEAS.md'))).toBe(false);
+  });
+
+  it('AC1.5 back-compat: a legacy repo (FUTURE-IDEAS.md) still captures there; /sig:add never renames', async () => {
+    const dest = await setupFixture('future-ideas-minimal', tempDir);
+    const result = await captureToFutureIdeas(tempDir, {
+      body: 'a legacy capture',
+      today: '2026-07-19',
+      sensitivePrompt: async () => 'keep',
+    });
+    expect(result.written).toBe(true);
+    expect(result.path).toBe(dest);
+    // The physical rename is the FR6 migrate's job, NOT /sig:add.
+    expect(existsSync(join(tempDir, '.planning', 'ISSUES-INBOX.md'))).toBe(false);
+    expect(existsSync(dest)).toBe(true);
+  });
+});
+
 describe('captureToOpenQuestions (integration) — S2.t4 / FR1 / R3', () => {
   let tempDir;
   beforeEach(async () => {
