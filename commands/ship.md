@@ -151,21 +151,13 @@ The meta-retro is **opt-in / manual only** per A6 (the auto-detection of milesto
 
 Stage the new file into the SHIP commit (or its own commit if SHIP isn't running). The index regen in §6 will pick up the milestone meta-retro automatically on the next regen if you want it indexed alongside per-Epic retros — though typically it's tracked separately because it spans Epics.
 
-### 8. Reconcile docs (Curator — optional, skips cleanly if not installed or not opted in)
+### 8. Reconcile `.planning/INDEX.md` (native FR3 index-regen)
 
-If the [Curator](https://github.com/insightriot/curator) CLI is available, regenerate the doc indexes so `.planning/` (and any other curated zone) ships reconciled. This is the milestone-level complement to Curator's per-commit `post-commit` hook: it guarantees the reconcile runs at SHIP even on machines or CI where that local git hook isn't installed (hooks live in `.git/hooks/`, which isn't version-controlled).
+Regenerate the planning index so `.planning/` ships reconciled. This is Signal's own, in-repo reconcile — it replaces the former external doc-index step (retired per D-M5E1-3 / AC6.4). No external CLI, no per-zone config file, no model calls: the FR3 generator is deterministic and runs from the repo's own `tools/lib`.
 
-Detect the CLI the same way the hook does, then run a structural refresh from the repo root — no file moves, no model calls:
+Call `regeneratePlanningIndex(baseDir)` from `tools/lib/planning-index.js`. It enumerates every tracked `.planning/` (and `archive/`) doc, re-renders `INDEX.md` preserving hand-curated annotations by ID (the survive-by-ID pattern), and **compare-before-write** — idempotent, so a SHIP that didn't change the doc set produces no diff (`{written: false}`). Run it unconditionally (like the old §8 ran every SHIP); the compare-before-write makes a no-op SHIP a clean pass.
 
-```bash
-if command -v curator >/dev/null 2>&1; then CUR=curator
-elif command -v python3 >/dev/null 2>&1 && python3 -c "import curator" >/dev/null 2>&1; then CUR="python3 -m curator"; fi
-[ -n "${CUR:-}" ] && $CUR --root "$(git rev-parse --show-toplevel)" refresh --all || true
-```
-
-`refresh --all` discovers every `.curator.yml` under the repo, regenerates each zone's `INDEX.md` from its own config, and skips vendored trees (`node_modules`, etc.). It is idempotent — no spurious diffs when docs haven't changed.
-
-Stage any regenerated `**/INDEX.md` into the SHIP commit alongside the state-write (§5) and retro index (§6). Installing Curator alone changes nothing — this step only touches directories that have opted in with a `.curator.yml`. A repo without one (like Signal's own, which keeps a hand-curated `INDEX.md`) is a clean no-op even when Curator is installed. If Curator isn't installed the step is likewise a clean no-op — either way it never blocks the SHIP.
+When it reports `{written: true}`, stage the modified `.planning/INDEX.md` into the SHIP commit alongside the state-write (§5) and retro index (§6). The rest of what that step did is now covered natively and needs no step here: the FR4 all-docs hygiene guard (`tools/lib/doc-hygiene.js`, in the test suite) turns structural doc drift red, and the FR2 light inbox sweep (§6.5) reconciles the capture inbox at Epic-close.
 
 ## Phase Gate
 
