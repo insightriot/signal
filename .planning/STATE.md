@@ -10,20 +10,20 @@ completed_phases:
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-07-18T01:50:42.927Z
-last_updated_commit: b9a5a81
-last_updated: 2026-07-19T03:37:40.175Z
+last_updated_commit: 9d8ce51
+last_updated: 2026-07-19T03:39:11.901Z
 ---
 # Project State
 
 ## Resume pointer
 
-M5.E3 (all-docs hygiene runtime + living `BACKLOG.md` + append-log eviction — FR4/FR5 + D-M5E2-6), FULL/strict — **✅ DISCUSS complete (2026-07-18); PLAN next.** The final doc-runtime Epic; opened via `/sig:discuss --epic M5.E3` (clean B9-fixed roll). Doc-lifecycle model locked (**D-M5E3-1…8**, `DECISIONS.md` 2026-07-18): four role-named files — `ISSUES-INBOX.md` (raw capture, renamed from `FUTURE-IDEAS.md`) → the drain classifies/dispositions → `BACKLOG.md` (sequenced work) + `BUGS.md` (defects); `OPEN-QUESTIONS.md` (questions). Capture = verbatim body + agent-authored auto-title. Append-log hygiene = **evict-with-anchors** (closed-milestone `DECISIONS.md` → `DECISIONS-HISTORY.md` behind pointers, anchors preserved; the auto-`/sig:index` is the load-bearing traversal layer). Hygiene checks = test-suite, deterministic + offline. Rollout: layout v2→v3 (E2 banner + extended `/sig:migrate-memory` for existing; born-on-v3 for new); retires `ship.md` §8 Curator. Spec: **`M5.E3-REQUIREMENTS.md`** (6 FRs + ACs + NFRs).
+M5.E3 (all-docs hygiene runtime + living `BACKLOG.md` + append-log eviction — FR4/FR5 + D-M5E2-6), FULL/strict — **✅ DISCUSS + PLAN complete (2026-07-18); EXECUTE next.** The final doc-runtime Epic. Doc-lifecycle model locked (**D-M5E3-1…8**): four role-named files — `ISSUES-INBOX.md` (raw capture, renamed from `FUTURE-IDEAS.md`) → the drain classifies/dispositions → `BACKLOG.md` (sequenced work) + `BUGS.md` (defects); `OPEN-QUESTIONS.md` (questions). Plan: **7 slices / 5 waves** (`M5.E3-PLAN.md`) — S1 FR1 rename+capture · S2 FR3 auto-`/sig:index`+D-ID map · S4 FR2 BACKLOG+drain · S3 FR4 all-docs hygiene · S5 FR5 append-log evict (verbatim relocate, date-cutoff) · S6a FR6 v3 migrate mechanics · S6b FR6 dogfood+rollout. Research 4-agent (`M5.E3-RESEARCH.md`); validation 8-dim PASS + plan-checker WARN→cleared (`M5.E3-VALIDATION.md`).
 
-**➡ NEXT ACTION: run `/sig:plan`** (`current_epic: M5.E3` set — no `--epic` needed). Any staleness/origin banner is the benign B6 "+1" (bookkeeping commit; HEAD == origin).
+**➡ NEXT ACTION: run `/sig:execute`** (`current_epic: M5.E3` set — no `--epic` needed; plan approved). Wave 1 = S1 (FR1). Any staleness/origin banner is the benign B6 "+1" (bookkeeping commit; HEAD == origin).
 
 ## In-flight
 
-**M5.E3 — PLAN next.** DISCUSS closed with the doc-lifecycle model locked; the 6 FRs are speced in `M5.E3-REQUIREMENTS.md`: FR1 `ISSUES-INBOX` rename + smart capture · FR2 living `BACKLOG` + drain classify/promote · FR3 auto-generated `/sig:index` · FR4 all-docs hygiene in the test suite · FR5 append-log eviction (evict-with-anchors — E3's risky, migrate-shaped piece; reuses E2's dangling-gate + relocate-never-delete spine) · FR6 layout v2→v3 migration + rollout. Batched into the combined E1+E2+E3 release.
+**M5.E3 — EXECUTE next (Wave 1 = S1/FR1).** DISCUSS + PLAN closed; plan approved via the 8-dim + plan-checker gate. 7 slices / 5 waves (`M5.E3-PLAN.md`) covering the 6 FRs: FR1 `ISSUES-INBOX` rename + smart capture · FR2 living `BACKLOG` + drain classify/promote · FR3 auto-`/sig:index` + D-ID→home map · FR4 all-docs hygiene (reconcile-then-guard) · FR5 append-log eviction (verbatim relocate, date-cutoff — E3's risky, migrate-shaped piece; reuses E2's spine) · FR6 v3 migrate + rollout (S6a mechanics / S6b dogfood). Cross-cutting: back-compat inbox resolver + v3-conformance-gated stamp. Batched into the combined E1+E2+E3 release.
 
 ## Blockers
 
