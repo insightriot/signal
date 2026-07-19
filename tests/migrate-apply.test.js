@@ -53,7 +53,10 @@ describe('M5.E2.S1.t7b applyMigrate — V1→V2→stamp composition', () => {
   it('ONE apply reaches full conformance + stamp (de-prose then relocate the big body)', async () => {
     const r = await applyMigrate(dir, { stamp: 'T1', dateStr: '2026-07-17' });
     expect(r.applied).toBe(true);
-    expect(r.moves.map((m) => m.vector)).toEqual(['vector-1', 'vector-2']);
+    // This fixture is stamp-null (legacy), so S6b routes it through the full v3
+    // migration: the V1→V2 compose is now followed by the FR2 BACKLOG create-if-missing
+    // (no FUTURE-IDEAS.md here → no rename move; no DECISIONS.md → no evict).
+    expect(r.moves.map((m) => m.vector)).toEqual(['vector-1', 'vector-2', 'backlog-create']);
 
     const after = await readState(dir);
     // Frontmatter no longer blocks, body is a pointer, stamp is set.
@@ -83,6 +86,10 @@ describe('M5.E2.S1.t7b applyMigrate — V1→V2→stamp composition', () => {
     const staged = String(git(dir, ['diff', '--cached', '--name-only'])).trim();
     expect(staged).toContain('.planning/STATE.md');
     expect(staged).toContain('.planning/STATE-HISTORY.md');
+    // The v3 file work is staged too (S6b): the created BACKLOG.md. A defensively-
+    // snapped-but-never-created DECISIONS.md must NOT appear (it would fail the whole add).
+    expect(staged).toContain('.planning/BACKLOG.md');
+    expect(staged).not.toContain('.planning/DECISIONS.md');
     // Still exactly one commit (nothing was committed by the migrate).
     expect(String(git(dir, ['rev-list', '--count', 'HEAD'])).trim()).toBe('1');
     // Clean-tree revert line points at the tag.

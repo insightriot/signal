@@ -112,10 +112,12 @@ const POST_REORG_CRLF = POST_REORG.replace(/\n/g, '\r\n');
 
 // --- synthetic sensed objects (pure decideLayoutBanner unit target) ---------
 
+// The stamp-null banner decision keys off `v3Conformant` (senseProject's filesystem-
+// aware v3 conformance) + `archive.moves` (un-archived closed scaffolds — which
+// v3Conformant does not cover). A fully-v3-structured project is the silent default.
 const sensed = (over = {}) => ({
   stamp: null,
-  conformant: true,
-  v3: { evicts: [] },
+  v3Conformant: true,
   archive: { moves: [] },
   flags: [],
   ...over,
@@ -123,10 +125,17 @@ const sensed = (over = {}) => ({
 
 // --- helpers ----------------------------------------------------------------
 
+// Plant a project whose STATE.md is `state`. A BACKLOG.md is planted too so the
+// project is actually v3-conformant on disk (post-S6b, the banner's structural sniff
+// checks the FR6 file lifecycle: inbox renamed + BACKLOG present). Without it, a
+// clean-STATE unstamped fixture is structurally PRE-v3 (missing BACKLOG) and correctly
+// banners — so the "must stay silent" fixtures below are silent for the RIGHT reason
+// (genuinely on the v3 layout), not by an accident of the old vector-only definition.
 async function plant(dir, state) {
   const planning = join(dir, '.planning');
   await mkdir(planning, { recursive: true });
   await writeFile(join(planning, 'STATE.md'), state, 'utf-8');
+  await writeFile(join(planning, 'BACKLOG.md'), '# Backlog\n', 'utf-8');
   return dir;
 }
 
@@ -163,14 +172,14 @@ describe('decideLayoutBanner — structural sniff (no/unparseable stamp)', () =>
     expect(decideLayoutBanner(sensed({ stamp: null }))).toBe(false);
   });
 
-  it('unstamped + within-STATE vector (conformant:false) → banner (true)', () => {
-    expect(decideLayoutBanner(sensed({ stamp: null, conformant: false }))).toBe(true);
+  it('unstamped + within-STATE vector (not v3-conformant) → banner (true)', () => {
+    // A within-STATE V1/V2 vector makes the project NOT v3-conformant on disk.
+    expect(decideLayoutBanner(sensed({ stamp: null, v3Conformant: false }))).toBe(true);
   });
 
-  it('unstamped + a pending v3 evict ONLY → banner (true)', () => {
-    expect(
-      decideLayoutBanner(sensed({ stamp: null, v3: { evicts: [{ epicId: 'M5.E1' }] } }))
-    ).toBe(true);
+  it('unstamped + a pending v3 evict (not v3-conformant) → banner (true)', () => {
+    // A pending closed-Epic evict is folded into v3Conformant (senseVector3).
+    expect(decideLayoutBanner(sensed({ stamp: null, v3Conformant: false }))).toBe(true);
   });
 
   it('unstamped + a pending archive move ONLY → banner (true)', () => {

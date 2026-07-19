@@ -373,15 +373,19 @@ export const LAYOUT_DRIFT_BANNER_COMMAND =
  *   - a stamp AT/AHEAD of CURRENT_LAYOUT_VERSION cannot predate the layout → silent;
  *   - a stamp BELOW CURRENT is unambiguously pre-reorg → banner;
  *   - no / unparseable stamp → banner ONLY when the structure shows genuine pending
- *     reorg work (a within-STATE vector, a v3 evict, or an archive move). A
- *     structurally-clean unstamped project stays SILENT (the t2-vs-t1 thesis — the
- *     stamp-first hook would false-banner it). `flags` are advisory (soft-long /
+ *     reorg work: NOT fully v3-conformant on disk (`v3Conformant` folds in the within-
+ *     STATE V1/V2/V3 vectors AND the FR6 file lifecycle — inbox renamed, BACKLOG
+ *     present, closed-milestone evict done), OR an un-archived closed scaffold
+ *     (`archive.moves`, which v3Conformant does not cover). A fully-v3-structured
+ *     unstamped project stays SILENT (the t2-vs-t1 thesis — the stamp-first hook would
+ *     false-banner it; and per S6b we don't nag a project that is already on the v3
+ *     layout just because it lacks the stamp). `flags` are advisory (soft-long /
  *     milestone-bloat / index-refresh), NOT vectors/moves, so a flags-only project
  *     also stays silent. Deliberately does NOT use `senseProject.noop` (it folds in
  *     `stamped`, which would re-banner every conformant-unstamped project).
  *
- * @param {{stamp: number|null, conformant?: boolean, v3?: {evicts?: any[]}, archive?: {moves?: any[]}}} sensed
- *   — senseProject (or senseState) output.
+ * @param {{stamp: number|null, v3Conformant?: boolean, archive?: {moves?: any[]}}} sensed
+ *   — senseProject output (an integer-stamp `{stamp}` short-circuit object also works).
  * @returns {boolean} true ⇒ show the pre-reorg banner.
  */
 export function decideLayoutBanner(sensed) {
@@ -391,8 +395,7 @@ export function decideLayoutBanner(sensed) {
     return stamp < CURRENT_LAYOUT_VERSION;
   }
   const structurallyClean =
-    sensed?.conformant === true &&
-    (sensed?.v3?.evicts?.length ?? 0) === 0 &&
+    sensed?.v3Conformant === true &&
     (sensed?.archive?.moves?.length ?? 0) === 0;
   return !structurallyClean;
 }

@@ -1401,16 +1401,25 @@ export async function senseProject(baseDir) {
       vectors: [], v1: { entries: [] }, v2: { candidate: false, bytes: 0 },
       v3: { evicts: [], flags: [], skips: [] },
       archive: archiveOut, appendLogs: corpus.appendLogs, flags: corpus.flags,
-      stamp: null, stamped: false, conformant: true,
+      stamp: null, stamped: false, conformant: true, v3Conformant: true,
       noop: archive.moves.length === 0, needsStamp: false, reason: 'no-state-file',
     };
   }
   const raw = await readFile(statePath, 'utf-8');
   const base = senseState(raw);
   const v3 = await senseVector3(baseDir, raw);
+  // Filesystem-aware v3 conformance (R2): folds in the FR6 file lifecycle the pure-text
+  // vectors can't see — inbox renamed, BACKLOG present, append-log evict done — on top
+  // of the within-STATE V1/V2/V3 vectors. The layout banner keys its stamp-null branch
+  // off THIS (not just `conformant`), so a stamp-null project that is structurally
+  // pre-v3 (FUTURE-IDEAS present, BACKLOG missing, or a pending closed-milestone evict)
+  // nudges the migrate, while an already-v3-structured one stays silent. Reached only on
+  // the unstamped banner fallthrough + the CLI `sense` readout (an integer-stamped
+  // project short-circuits before senseProject), so the extra disk read is off the hot path.
+  const v3Conformant = await isV3Conformant(baseDir, raw);
   const flags = [...base.flags, ...v3.flags, ...corpus.flags];
   const noop = base.noop && v3.evicts.length === 0 && archive.moves.length === 0;
-  return { ...base, v3, archive: archiveOut, appendLogs: corpus.appendLogs, flags, noop };
+  return { ...base, v3, v3Conformant, archive: archiveOut, appendLogs: corpus.appendLogs, flags, noop };
 }
 
 // --- dangling-link baseline + dry-run render (S1.t7c) -------------------------
@@ -1705,12 +1714,16 @@ export async function renderDryRun(baseDir, opts = {}) {
   const baseline = await scanDanglingLinks(baseDir);
 
   // v2→v3 gate (FR6): the inbox/ledger rename + BACKLOG-create + append-log evict are
-  // previewed ONLY when the stamp is BELOW the current layout version — mirrors
-  // applyMigrate's `needsV3` so the dry-run enumerates EXACTLY the steps apply
-  // performs (no preview/apply drift). The evict inputs are the SAME ones apply binds
+  // previewed when the project is PRE-v3 — a stamp BELOW current OR a stamp-null legacy
+  // project (S6b rollout fix: at the E1+E2+E3 release every existing external project is
+  // stamp-null — the layout stamp is unreleased — so treating null as "not pre-v3" would
+  // never converge them onto the new layout). `null === null` is true → stamp-null is
+  // pre-v3; `CURRENT < CURRENT` is false → a born-on-v3 project stays inert. Mirrors
+  // applyMigrate's `needsV3` so the dry-run enumerates EXACTLY the steps apply performs
+  // (no preview/apply drift). The evict inputs are the SAME ones apply binds
   // (`opts.boundaryDate ?? deriveBoundaryDate`, `opts.milestoneOf ?? defaultMilestoneOf`);
   // the CLI calls with baseDir only and derives them internally, exactly like apply.
-  const needsV3 = plan.stamp !== null && plan.stamp < CURRENT_LAYOUT_VERSION;
+  const needsV3 = plan.stamp === null || plan.stamp < CURRENT_LAYOUT_VERSION;
   const milestoneOf = opts.milestoneOf ?? defaultMilestoneOf;
   const dateStr = opts.dateStr ?? new Date().toISOString().split('T')[0];
 
@@ -2016,12 +2029,16 @@ export async function applyMigrate(baseDir, opts = {}) {
     // gate so that case isn't early-returned as a no-op.
     const v3sense = await senseVector3(baseDir, raw);
 
-    // v2→v3 gate (FR6): the append-log evict + BACKLOG-create + inbox rename fire
-    // ONLY when the project's stamp is BELOW the current layout version. The chain
-    // is thus INERT on a real v2 repo (stamp === 2, not < 2) while the constant is
-    // still 2 — the version bump in S6a-B is the "arming" step. A null (fence-less-
-    // or-unstamped) stamp is left to the V1/V2 path, never speculatively v3-migrated.
-    const needsV3 = plan.stamp !== null && plan.stamp < CURRENT_LAYOUT_VERSION;
+    // v2→v3 gate (FR6): the append-log evict + BACKLOG-create + inbox rename fire when
+    // the project is PRE-v3 — a stamp BELOW current OR a stamp-null legacy project.
+    // S6b rollout fix: at the E1+E2+E3 release EVERY existing external project is
+    // stamp-null (the layout stamp is unreleased), so a stamp-null project MUST be
+    // treated as pre-v3 and get the full v3 migration — otherwise it never converges
+    // (and the old `!needsV3` v2-path stamp below would FALSE-stamp it to CURRENT while
+    // leaving FUTURE-IDEAS.md on disk, the self-silencing-banner bug). `null === null`
+    // is true → stamp-null is pre-v3; a born-on-v3 project (stamp === CURRENT) stays
+    // INERT (`CURRENT < CURRENT` is false), so the fix does not re-arm it.
+    const needsV3 = plan.stamp === null || plan.stamp < CURRENT_LAYOUT_VERSION;
 
     // Archive-tree sense (read-only, under the ONE coarse lock — §9): closed-scaffold
     // FILE moves + per-file referrer link/prose rewrites, PLUS the FR6 inbox/ledger
@@ -2361,7 +2378,19 @@ export async function applyMigrate(baseDir, opts = {}) {
     // phase succeeds. `--` ends option parsing so a pathological path never parses as
     // a flag. The pre-apply tag was created above (before the phase).
     let revertLine;
-    const touched = [...snapshot.keys()].map((rel) => `${PLANNING_DIR}/${rel}`);
+    // Stage only paths the mechanical phase actually mutated: a file that existed
+    // pre-apply (now modified OR deleted — a rename source — both need staging) or one
+    // the migrate CREATED (didn't exist before, exists now). A defensively-snapped file
+    // that was never touched — DECISIONS.md snapped for a v3 run with no evict, INDEX.md
+    // when index-regen no-ops — neither existed nor exists, so it is EXCLUDED: handing
+    // `git add` a non-matching pathspec fails the WHOLE add (best-effort catch swallows
+    // it) → nothing staged, which broke the FR6.2 staged-not-committed contract on the
+    // common stamp-null project that has no DECISIONS.md (surfaced when S6b armed
+    // stamp-null → needsV3). Mirrors the snapshotter's own rollback branch
+    // (`s.existed ? restore : existsSync && rm`).
+    const touched = [...snapshot.entries()]
+      .filter(([, s]) => s.existed || existsSync(s.abs))
+      .map(([rel]) => `${PLANNING_DIR}/${rel}`);
     if (probe.mode === 'git') {
       try {
         execFn('git', ['add', '--', ...touched], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
