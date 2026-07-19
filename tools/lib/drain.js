@@ -28,6 +28,7 @@ import { createHash } from 'node:crypto';
 
 import { atomicWrite } from './atomic-write.js';
 import { resolveInboxPath, resolveLedgerPath } from './inbox-path.js';
+import { promoteToBacklog, promoteToBugs } from './backlog.js';
 
 // Top-level entry boundary: a line that begins with exactly `## ` (two hashes +
 // space). `### …` has a non-space at index 2, so it never matches — nested
@@ -642,4 +643,70 @@ export async function evictTerminalToLedger(baseDir, opts = {}) {
 
   const evicted = targets.map((e) => ({ heading: e.heading, key: evictionKey(e, content) }));
   return { evicted, planned, danglingFence };
+}
+
+/**
+ * FR2 (M5.E3): the drain's classify-and-promote step. A confirmed `promote` is a
+ * two-part move — classify the destination, then physically route the idea and
+ * stamp the source terminal:
+ *
+ *   1. **Destination first** — `work` → `promoteToBacklog` (with a roadmap|hygiene
+ *      tag), `bug` → `promoteToBugs`. Each is sha1(block)-dedupe-guarded, so a
+ *      duplicate call (a crash re-run) is a no-op.
+ *   2. **Then stamp** — `applyDispositionToFile(..., verb: 'promote')` records
+ *      `→ Promoted {date} ({reason})` on the inbox entry, which the terminal REs
+ *      recognize, so the entry becomes evictable. Eviction itself is the separate
+ *      batch step (`evictTerminalToLedger`) the command runs after all promotes.
+ *
+ * Destination-before-stamp is the crash-safe ordering (S4.t4): if the process
+ * dies between the two writes, the re-run re-promotes (destination dedupe holds)
+ * and completes the stamp; the entry then double-homes — groomed in BACKLOG/BUGS,
+ * verbatim in the ledger — and leaves the inbox on the next eviction.
+ *
+ * `block` MUST be the raw source block (`content.slice(range.start, range.end)`)
+ * — the byte-stable dedupe key. `entryIndex` indexes `parseEntries(inbox)`; since
+ * a promote stamp appends inline (never removes the block), sequential promotes
+ * keep their indices without a re-parse.
+ *
+ * @param {string} baseDir — project root
+ * @param {object} opts
+ * @param {'work'|'bug'} opts.classification
+ * @param {string} opts.block — raw source inbox block (dedupe key)
+ * @param {'roadmap'|'hygiene'} [opts.tag] — required for `work`
+ * @param {string} [opts.title] — retitle for the destination entry
+ * @param {number} opts.entryIndex — index into `parseEntries(inbox)` to stamp
+ * @param {string} opts.reason — stamp context, e.g. "M5.E3 drain"
+ * @param {string} opts.date — ISO date YYYY-MM-DD
+ * @param {string} [opts.inboxRel] — defaults to `resolveInboxPath(baseDir)`
+ * @returns {Promise<{destination: 'backlog'|'bugs', deduped: boolean, heading: string}>}
+ */
+export async function promoteDrainEntry(baseDir, opts = {}) {
+  const { classification, block, tag, title, entryIndex, reason, date } = opts;
+  const inboxRel = opts.inboxRel ?? resolveInboxPath(baseDir);
+
+  // Step 1 — destination FIRST (dedupe-guarded → crash-safe re-run).
+  let destination;
+  let dest;
+  if (classification === 'work') {
+    dest = await promoteToBacklog(baseDir, { block, tag, title, today: date });
+    destination = 'backlog';
+  } else if (classification === 'bug') {
+    dest = await promoteToBugs(baseDir, { block, title });
+    destination = 'bugs';
+  } else {
+    throw new Error(
+      `promoteDrainEntry: classification must be "work" or "bug", got ${JSON.stringify(classification)}.`
+    );
+  }
+
+  // Step 2 — stamp the inbox entry `→ Promoted` (terminal; eviction is the batch
+  // sweep). promote never prompts, so no confirmPrompt is needed.
+  const stamp = await applyDispositionToFile(baseDir, inboxRel, {
+    entryIndex,
+    verb: 'promote',
+    reason,
+    date,
+  });
+
+  return { destination, deduped: Boolean(dest.deduped), heading: stamp.heading };
 }

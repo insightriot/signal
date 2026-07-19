@@ -11,15 +11,21 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   createBacklogIfMissing,
   promoteToBacklog,
   promoteToBugs,
 } from '../tools/lib/backlog.js';
+import { parseEntries, isEvictable, promoteDrainEntry } from '../tools/lib/drain.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(__dirname, '..');
+const planMd = readFileSync(join(ROOT, 'commands', 'plan.md'), 'utf-8');
 
 const BACKLOG_REL = '.planning/BACKLOG.md';
 
@@ -194,5 +200,119 @@ describe('promoteToBugs (S4.t2 — simple entry into BUGS.md, AC2.3 bug half)', 
     const text = await readFile(join(baseDir, '.planning/BUGS.md'), 'utf-8');
     expect(text).toContain('## A defect');
     expect(text).toContain('**Status:** needs-triage');
+  });
+});
+
+// A two-entry inbox: one work idea, one bug — the drain classify-step fodder.
+const DRAIN_INBOX = [
+  '# Issues Inbox',
+  '',
+  'Raw capture inbox.',
+  '',
+  '---',
+  '',
+  '## Status-line breadcrumb idea',
+  '',
+  '**Status:** Logged 2026-07-01 via `/sig:add`.',
+  '',
+  'Wire a statusline script that reads STATE frontmatter.',
+  '',
+  '---',
+  '',
+  '## resume crashes on schema drift',
+  '',
+  '**Status:** Logged 2026-07-02 via `/sig:add`.',
+  '',
+  '`/sig:resume` throws when schema_version is ahead.',
+  '',
+  '---',
+  '',
+].join('\n');
+
+describe('promoteDrainEntry (S4.t3 — classify → destination-first → stamp terminal, AC2.3/2.5)', () => {
+  const INBOX_REL = '.planning/ISSUES-INBOX.md';
+  let baseDir;
+  beforeEach(async () => {
+    baseDir = await stageBase();
+    await writeFile(join(baseDir, INBOX_REL), DRAIN_INBOX, 'utf-8');
+  });
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true });
+  });
+
+  it('work → BACKLOG (retitled + tagged); bug → BUGS; both stamp → terminal/evictable', async () => {
+    const before = parseEntries(DRAIN_INBOX);
+    const workBlock = DRAIN_INBOX.slice(before[0].range.start, before[0].range.end);
+    const bugBlock = DRAIN_INBOX.slice(before[1].range.start, before[1].range.end);
+
+    // promote stamps inline (never removes the block), so indices stay stable.
+    const r0 = await promoteDrainEntry(baseDir, {
+      classification: 'work',
+      block: workBlock,
+      tag: 'roadmap',
+      title: 'Status-line breadcrumb',
+      entryIndex: 0,
+      reason: 'M5.E3 drain',
+      date: '2026-07-19',
+    });
+    expect(r0.destination).toBe('backlog');
+
+    const r1 = await promoteDrainEntry(baseDir, {
+      classification: 'bug',
+      block: bugBlock,
+      title: 'Resume crash on schema drift',
+      entryIndex: 1,
+      reason: 'M5.E3 drain',
+      date: '2026-07-19',
+    });
+    expect(r1.destination).toBe('bugs');
+
+    const backlog = await readFile(join(baseDir, BACKLOG_REL), 'utf-8');
+    expect(backlog).toContain('## Status-line breadcrumb');
+    expect(backlog).toContain('**Tag:** roadmap');
+
+    const bugs = await readFile(join(baseDir, '.planning/BUGS.md'), 'utf-8');
+    expect(bugs).toContain('## Resume crash on schema drift');
+    expect(bugs).toContain('**Status:** needs-triage');
+
+    // Both inbox entries are now stamped `→ Promoted` → terminal → evictable.
+    const afterInbox = await readFile(join(baseDir, INBOX_REL), 'utf-8');
+    expect(afterInbox).toMatch(/→ Promoted 2026-07-19 \(M5\.E3 drain\)/);
+    const entries = parseEntries(afterInbox);
+    expect(entries.length).toBe(2);
+    expect(entries.every((e) => isEvictable(e))).toBe(true);
+  });
+
+  it('rejects an unknown classification', async () => {
+    await expect(
+      promoteDrainEntry(baseDir, {
+        classification: 'other',
+        block: 'x',
+        entryIndex: 0,
+        reason: 'r',
+        date: '2026-07-19',
+      })
+    ).rejects.toThrow(/work|bug/);
+  });
+});
+
+describe('commands/plan.md classify step (S4.t3 — FR2 wiring in Step 1b)', () => {
+  it('classifies with a strict-enum [work, bug] routing to promoteToBacklog / promoteToBugs', () => {
+    expect(planMd).toMatch(/\[work, bug\]/);
+    expect(planMd).toContain('promoteToBacklog');
+    expect(planMd).toContain('promoteToBugs');
+    expect(planMd).toContain('promoteDrainEntry');
+  });
+
+  it('a work promote takes a [roadmap, hygiene] tag and may retitle', () => {
+    expect(planMd).toMatch(/\[roadmap, hygiene\]/);
+    expect(planMd.toLowerCase()).toContain('retitle');
+  });
+
+  it('reads the inbox via the resolver, not a hardcoded FUTURE-IDEAS', () => {
+    expect(planMd).toContain('resolveInboxPath');
+    expect(planMd).toContain('ISSUES-INBOX.md');
+    // back-compat mention retained so a legacy repo still reads
+    expect(planMd).toMatch(/FUTURE-IDEAS\.md/);
   });
 });

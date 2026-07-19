@@ -49,26 +49,34 @@ Read from `.planning/`:
 - `PROJECT.md`, `PROFILE.md`, `CONTEXT.md`, `REQUIREMENTS.md`
 - `STATE.md` — verify current phase is PLAN
 
-### 1b. Drain FUTURE-IDEAS.md (advisory — promote captured ideas into this plan)
+### 1b. Drain the inbox (advisory — classify + promote captured ideas into this plan)
 
-`/sig:add` captures ideas to `.planning/FUTURE-IDEAS.md` between planning passes; PLAN is where they get dispositioned, so captures don't rot in a write-only file. This step is **advisory and fully skippable** — if you'd rather not triage now, skip the whole step and planning proceeds unchanged.
+`/sig:add` captures ideas to the inbox (`ISSUES-INBOX.md`, back-compat `FUTURE-IDEAS.md`) between planning passes; PLAN is where they get dispositioned, so captures don't rot in a write-only file. This step is **advisory and fully skippable** — if you'd rather not triage now, skip the whole step and planning proceeds unchanged.
 
-Load candidates with `listDrainCandidatesWithRecovery(content)` from `tools/lib/drain.js`. It reads `.planning/FUTURE-IDEAS.md` and returns `{candidates, danglingFence, recoveredCount}`: `candidates` is every top-level `## ` entry that is **not** already dispositioned (no date window, so the first run surfaces the whole standing backlog by design), plus any entries a **dangling (unclosed) code fence** had swallowed. If `danglingFence` is true, **announce** it before listing candidates — e.g. `⚠ FUTURE-IDEAS.md has an unclosed code fence; recovered {recoveredCount} otherwise-hidden entr(y/ies). Fix the fence when convenient.` — so a malformed fenced sample can't silently drop captured ideas. (`listDrainCandidates` remains the bare-return primitive for callers that don't need the recovery signal.)
+Load candidates with `listDrainCandidatesWithRecovery(content)` from `tools/lib/drain.js`. It reads the inbox resolved by `resolveInboxPath(baseDir)` (`ISSUES-INBOX.md` if present, else the legacy `FUTURE-IDEAS.md`) and returns `{candidates, danglingFence, recoveredCount}`: `candidates` is every top-level `## ` entry that is **not** already dispositioned (no date window, so the first run surfaces the whole standing backlog by design), plus any entries a **dangling (unclosed) code fence** had swallowed. If `danglingFence` is true, **announce** it before listing candidates — e.g. `⚠ the inbox has an unclosed code fence; recovered {recoveredCount} otherwise-hidden entr(y/ies). Fix the fence when convenient.` — so a malformed fenced sample can't silently drop captured ideas. (`listDrainCandidates` remains the bare-return primitive for callers that don't need the recovery signal.)
 
 **Recovered entries are read-only-visible, NOT dispositionable.** A candidate carrying `recovered: true` was resurfaced from below the dangling fence; it has a valid `range` but **no `entryIndex` in `parseEntries(content)`** (the fence swallowed it), so `applyDisposition`/`applyDispositions` cannot target it. **List recovered entries for awareness but do NOT offer promote/defer/merge/delete on them, and exclude them from the "defer all remaining" batch.** The only correct action is: fix the unclosed fence, then re-run the drain — they become normal, dispositionable entries. Disposition acts only on the non-`recovered` candidates.
 
-- **No candidates** → emit the one-line note `(no FUTURE-IDEAS candidates to drain)` and continue to Step 2.
+- **No candidates** → emit the one-line note `(no inbox candidates to drain)` and continue to Step 2.
 - **Candidates present** → render them **compactly** — heading + the one-line Status, numbered (recovered entries flagged and un-numbered / not selectable). On a large first run, offer **"defer all remaining"** up front (a single `applyDispositions` batch over the **non-recovered** candidates only) so the user can clear the wall in one action instead of N prompts.
 
 For each entry the user keeps triaging, offer a `strict-enum [promote, defer, merge, delete]` choice plus an explicit **skip** (leave the entry untouched and move on):
 
 | Verb | Effect |
 |---|---|
-| **promote** | Fold the idea into this plan as a candidate task (feeds Step 3). Stamps the entry's Status inline — `→ Promoted {date} ({Epic} drain).` — so the entry stays in FUTURE-IDEAS, marked done, and never resurfaces on a later drain. |
+| **promote** | Fold the idea into this plan as a candidate task (feeds Step 3) **and** classify + route it to a home (see **Classify + promote** below). Stamps the entry's Status inline — `→ Promoted {date} ({Epic} drain).` — so the entry stays in the inbox, marked done (terminal → evicted on the next sweep), and never resurfaces on a later drain. |
 | **defer** | Leave it for a later pass. Stamps `→ Deferred {date} ({Epic} drain).`. |
 | **merge** | The idea folds into another entry; the source block is **removed**. |
 | **delete** | Drop the idea entirely; the block is **removed**. |
 | **skip** | No change; the entry stays a candidate for the next drain. |
+
+**Classify + promote (FR2).** A `promote` is a two-part move — pick a *destination* (and, for work, a *tag*), then physically route the idea:
+
+- **Classify** with a `strict-enum [work, bug]`: real work (a feature, refactor, or roadmap item) → `.planning/BACKLOG.md`; a confirmed or suspected defect → `.planning/BUGS.md`.
+- **Tag** (work only) with a `strict-enum [roadmap, hygiene]` — roadmap-vs-hygiene is a Tag on the BACKLOG entry, not a separate file.
+- **Retitle** — offer a cleaned one-line title; the item lands under that title (the source heading is groomed away). A blank keeps the source heading.
+
+Run the route via `promoteDrainEntry(baseDir, { classification, block, tag, title, entryIndex, reason: '{Epic} drain', date })` from `tools/lib/drain.js`, where `block` is the source entry's raw block (`content.slice(range.start, range.end)`). It writes the **destination first** (`promoteToBacklog` / `promoteToBugs`, each sha1(block)-dedupe-guarded), **then** stamps the inbox entry `→ Promoted` (terminal) via `applyDispositionToFile`. Destination-first + sha1 dedupe is the crash-safe ordering: a crash before the stamp re-runs clean (the destination no-ops on the duplicate key), and the promoted item ends up double-homed — groomed in `BACKLOG`/`BUGS` and archived verbatim in the ledger — before the eviction step removes it from the inbox.
 
 **R1 — HARD GATE: preview the diff before any disposition write.** A drain write mutates the project's idea database, so — unlike `/sig:add`'s instant-capture hot path — every write is **previewed first**. Compute the proposed content with `applyDisposition` (or `applyDispositions` for the batch), show the user a diff of exactly what will change, and write **only after they accept**. Never persist a disposition the user hasn't seen. The write itself goes through `applyDispositionToFile` (one full-file `atomicWrite` per disposition, reusing the `/sig:add` substrate).
 
@@ -76,7 +84,7 @@ For each entry the user keeps triaging, offer a `strict-enum [promote, defer, me
 
 **promote** entries flow into Step 3 (Create Plan) as candidate tasks. This step never blocks planning: skip it, batch-defer it, or triage entry-by-entry — all three leave you ready for Step 2.
 
-**Physically evict terminal entries (FR3).** promote / ship / merge / delete are *terminal* dispositions — once stamped, the entry is done and should physically leave the inbox so `FUTURE-IDEAS.md` converges instead of only growing (**DEFERRED is parked-but-live and stays**). After the disposition pass, call `evictTerminalToLedger(baseDir, { dryRun: true })` from `tools/lib/drain.js` to **preview** which terminal entries would move to `.planning/archive/FUTURE-IDEAS-LEDGER.md` (a dry run leaves the inbox byte-identical); then, on confirm (honoring `gate_strictness`), call `evictTerminalToLedger(baseDir)` for real. It appends to the ledger **first**, then removes the blocks from the inbox — crash-safe and keyed, so a re-run never dupes or loses. If it reports `danglingFence: true` it performed a **scoped no-op** (never cutting across an unclosed fence); report that and leave the file for the fence to be fixed.
+**Physically evict terminal entries (FR3).** promote / ship / merge / delete are *terminal* dispositions — once stamped, the entry is done and should physically leave the inbox so the inbox converges instead of only growing (**DEFERRED is parked-but-live and stays**). After the disposition pass, call `evictTerminalToLedger(baseDir, { dryRun: true })` from `tools/lib/drain.js` to **preview** which terminal entries would move to the archive ledger (`ISSUES-INBOX-LEDGER.md`, back-compat `FUTURE-IDEAS-LEDGER.md`, resolved by `resolveLedgerPath`) — a dry run leaves the inbox byte-identical; then, on confirm (honoring `gate_strictness`), call `evictTerminalToLedger(baseDir)` for real. It appends to the ledger **first**, then removes the blocks from the inbox — crash-safe and keyed, so a re-run never dupes or loses. If it reports `danglingFence: true` it performed a **scoped no-op** (never cutting across an unclosed fence); report that and leave the file for the fence to be fixed.
 
 ### 2. Research (Parallel Agents)
 

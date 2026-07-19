@@ -535,7 +535,9 @@ describe('commands/plan.md drain step (S5.t3 — FR7.1-7.4, R1 hard gate)', () =
   });
 
   it('FR7.4: empty candidate set emits a one-line note and continues', () => {
-    expect(planMd).toContain('(no FUTURE-IDEAS candidates to drain)');
+    // M5.E3.S4.t3: the note was reworded FUTURE-IDEAS → inbox as the drain now
+    // reads the resolved inbox (ISSUES-INBOX.md, back-compat FUTURE-IDEAS.md).
+    expect(planMd).toContain('(no inbox candidates to drain)');
   });
 
   it('FR3 (M5.E1): wires evictTerminalToLedger with a dry-run preview; DEFERRED stays', () => {
