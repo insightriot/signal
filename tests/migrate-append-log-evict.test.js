@@ -24,6 +24,7 @@ import {
   applyAppendLogEvict,
   runAppendLogEvict,
   createSnapshotter,
+  buildArchiveContent,
 } from '../tools/lib/migrate-memory.js';
 
 const FIXTURE = join(ROOT, 'tests', 'fixtures', 'decisions-evict', 'DECISIONS.md');
@@ -399,5 +400,38 @@ describe('applyAppendLogEvict — the composable seam S6a wires under applyMigra
     expect(rolledBack).toBe(true);
     expect(await readFile(decisionsPath(dir), 'utf-8')).toBe(original);
     expect(existsSync(archivePath(dir, 'M1'))).toBe(false);
+  });
+});
+
+// M5.E3 REVIEW — SUGGESTION-1: buildArchiveContent's dedupe must be WHOLE-BLOCK-
+// anchored, never a naked `out.includes(raw)` substring — else a section whose raw is
+// a substring of an already-archived block is silently DROPPED from the archive
+// (data-loss in the eviction).
+describe('buildArchiveContent — whole-block dedupe (no substring drop)', () => {
+  const rawA = '## 2026-01-10 — Alpha\n\nDecision A stands (D-A-1).\n';
+  // rawB embeds rawA VERBATIM in its body (after "Revisiting: ", so the quoted
+  // heading is mid-line, not a section boundary) → rawA is a naked substring of rawB
+  // but a DISTINCT section that must still be archived.
+  const rawB =
+    '## 2026-02-20 — Beta\n\nRevisiting: ' + rawA + 'and now choosing B (D-B-1).\n';
+
+  it('archives BOTH when one section raw is a substring of another (container first)', () => {
+    // Process the CONTAINING section first → a naked `out.includes(rawA)` then treats
+    // rawA as already-present and drops it. Whole-block dedupe keeps both.
+    const out = buildArchiveContent('M1', [rawB, rawA]);
+    expect(out).toContain(rawB); // the container landed
+    // rawA appears TWICE: once quoted inside rawB, once as its OWN appended block.
+    expect(out.split(rawA).length - 1).toBe(2);
+  });
+
+  it('stays idempotent — re-running against its own output is a no-op', () => {
+    const once = buildArchiveContent('M1', [rawB, rawA]);
+    const twice = buildArchiveContent('M1', [rawB, rawA], once);
+    expect(twice).toBe(once);
+  });
+
+  it('still dedupes a genuine exact-duplicate block (append/crash idempotency)', () => {
+    const out = buildArchiveContent('M1', [rawA, rawA]);
+    expect(out.split(rawA).length - 1).toBe(1); // the true duplicate is skipped
   });
 });

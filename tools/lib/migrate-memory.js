@@ -2665,10 +2665,19 @@ function buildPointerBlock(milestone, dateStr) {
  */
 export function buildArchiveContent(milestone, sectionRaws, existing = '') {
   let out = existing && existing.length ? existing : buildArchiveHeader(milestone);
+  // Idempotency is WHOLE-BLOCK-anchored, never a naked substring (SUGGESTION-1): a raw
+  // whose text happens to be a substring of an already-archived block must NOT be
+  // silently dropped. Dedupe against the set of `## `-delimited blocks already in `out`
+  // (split with the SAME parser the evict uses), comparing whole blocks modulo trailing
+  // whitespace (the append step may add a separating newline). Only a true byte-exact
+  // duplicate block is skipped → append/crash idempotency is preserved.
+  const norm = (s) => s.replace(/\s+$/, '');
+  const present = new Set(parseDecisionSections(out).sections.map((s) => norm(s.raw)));
   for (const raw of sectionRaws) {
-    if (out.includes(raw)) continue; // already archived (append/crash idempotency)
+    if (present.has(norm(raw))) continue; // this exact block is already archived
     if (!out.endsWith('\n')) out += '\n';
     out += raw;
+    present.add(norm(raw));
   }
   return out;
 }
