@@ -35,13 +35,14 @@
 // floor). t3 leaves those forms BYTE-UNCHANGED; it does not silently drop them.
 
 import { readFile, mkdir, rm, readdir } from 'node:fs/promises';
-import { realpathSync } from 'node:fs';
+import { realpathSync, existsSync } from 'node:fs';
 import { join, dirname, resolve, relative, sep, posix } from 'node:path';
 
 import { PLANNING_DIR, EPIC_ID_STRICT_RE } from './state.js';
 import { atomicWrite } from './atomic-write.js';
 import { deriveEpicArchiveDir } from './evict.js';
 import { enumerateRetros } from './retro-index.js';
+import { INBOX_NEW, INBOX_LEGACY, LEDGER_NEW, LEDGER_LEGACY } from './inbox-path.js';
 
 // The scaffold doc-types that archive with a closed Epic. A project-AGNOSTIC
 // domain constant (the doc-runtime scaffold set) — NOT a project literal like a
@@ -113,6 +114,31 @@ export function planArchiveMoves(closedEpicIds, planningRelFiles, opts = {}) {
   }
   return { moves, moveMap };
 }
+
+/**
+ * The FIXED v2→v3 inbox rename moveMap (FR6): `FUTURE-IDEAS.md`→`ISSUES-INBOX.md`
+ * and the archive ledger `FUTURE-IDEAS-LEDGER.md`→`ISSUES-INBOX-LEDGER.md`. Each
+ * entry is EXISTENCE-gated — planned only when the source is present AND the dest
+ * is NOT (so a half-migrated repo with both names never clobbers the new file, and
+ * an already-renamed repo plans nothing → idempotent). Keys/values are repo-root-
+ * relative POSIX so they merge directly into `senseArchiveTree`'s moveMap. Pure
+ * (single `existsSync` probe per name).
+ *
+ * @param {string} baseDir
+ * @returns {Map<string,string>}  from→to (existence-gated)
+ */
+export function senseV3Rename(baseDir) {
+  const moveMap = new Map();
+  const plan = (from, to) => {
+    if (existsSync(join(baseDir, from)) && !existsSync(join(baseDir, to))) moveMap.set(from, to);
+  };
+  plan(INBOX_LEGACY, INBOX_NEW);
+  plan(LEDGER_LEGACY, LEDGER_NEW);
+  return moveMap;
+}
+
+// A repo-root-relative POSIX path that lives under `.planning/archive/`.
+const isUnderArchive = (repoRel) => toPosix(repoRel).startsWith(`${PLANNING_DIR}/archive/`);
 
 /**
  * Compute the inline-link rewrites for one file, keyed to the move map. Each
@@ -307,9 +333,17 @@ function assertInsidePlanning(baseDir, destAbs) {
  * come from the retros (a `*-RETROSPECTIVE.md` = the Epic is closed); the moves +
  * per-file keyed rewrites are computed against the PRE-move layout.
  *
+ * With `opts.v3Rename`, the FR6 inbox/ledger rename (`senseV3Rename`) folds into
+ * the move set. R7: the rename's referrer rewrite EXCLUDES files under
+ * `.planning/archive/` — an archived doc's historical `.planning/FUTURE-IDEAS.md`
+ * reference is a fact of the past, not a live link to repair — so archive files
+ * are keyed against the SCAFFOLD-only moveMap (the closed-Epic moves still rewrite
+ * them, as before). `renameFroms` is surfaced so the migrate's residual-flat-path
+ * scan can apply the same archive exemption.
+ *
  * @param {string} baseDir
- * @param {{scaffoldSuffixes?: string[]}} [opts]
- * @returns {Promise<{moves: Array, moveMap: Map, closedEpicIds: string[], files: string[], editsByFile: Map<string, Array>}>}
+ * @param {{scaffoldSuffixes?: string[], v3Rename?: boolean}} [opts]
+ * @returns {Promise<{moves: Array, moveMap: Map, closedEpicIds: string[], files: string[], editsByFile: Map<string, Array>, renameFroms: Set<string>}>}
  */
 export async function senseArchiveTree(baseDir, opts = {}) {
   const retros = await enumerateRetros(baseDir);
@@ -317,7 +351,24 @@ export async function senseArchiveTree(baseDir, opts = {}) {
   const files = await walkPlanningMd(baseDir);
   const { moves, moveMap } = planArchiveMoves(closedEpicIds, files, opts);
 
+  // Fold in the FR6 rename (existence-gated). renameFroms marks the entries the
+  // archive-exclusion (R7) applies to; the scaffold-only moveMap drives archive
+  // files so their historical flat-path references are left byte-unchanged.
+  const renameFroms = new Set();
+  if (opts.v3Rename) {
+    for (const [from, to] of senseV3Rename(baseDir)) {
+      if (moveMap.has(from)) continue; // never let the rename shadow a scaffold move
+      moves.push({ from, to });
+      moveMap.set(from, to);
+      renameFroms.add(from);
+    }
+  }
+  const scaffoldMoveMap = renameFroms.size
+    ? new Map([...moveMap].filter(([from]) => !renameFroms.has(from)))
+    : moveMap;
+
   const proseEdits = computeProseEdits(moveMap);
+  const scaffoldProseEdits = renameFroms.size ? computeProseEdits(scaffoldMoveMap) : proseEdits;
   const editsByFile = new Map();
   for (const f of files) {
     let text;
@@ -326,10 +377,13 @@ export async function senseArchiveTree(baseDir, opts = {}) {
     } catch {
       continue;
     }
-    const merged = [...computeLinkEdits(f, text, moveMap), ...proseEdits];
+    // Archive files: scaffold-only edits (rename refs stay, R7). Others: full merge.
+    const useMap = isUnderArchive(f) ? scaffoldMoveMap : moveMap;
+    const useProse = isUnderArchive(f) ? scaffoldProseEdits : proseEdits;
+    const merged = [...computeLinkEdits(f, text, useMap), ...useProse];
     editsByFile.set(f, merged);
   }
-  return { moves, moveMap, closedEpicIds, files, editsByFile };
+  return { moves, moveMap, closedEpicIds, files, editsByFile, renameFroms };
 }
 
 /**

@@ -489,14 +489,20 @@ export async function applyDispositionToFile(baseDir, relPath, opts) {
   return { written: true, verb, heading: entry.heading, path: targetPath };
 }
 
-// FR3 (M5.E1): the FUTURE-IDEAS archive ledger — where terminally-disposed
+// FR3 (M5.E1): the capture-inbox archive ledger — where terminally-disposed
 // entries physically go when they leave the inbox. Written once on first
 // creation; every eviction appends a keyed block below it. Append-only; it is an
-// archive, so it is intentionally NOT size-banner or write-guard watched.
-const LEDGER_HEADER =
-  '# FUTURE-IDEAS — archive ledger\n\n' +
-  'Terminally-disposed entries (SHIPPED / PROMOTED / MERGED / DELETED) evicted from\n' +
-  '`.planning/FUTURE-IDEAS.md`. Append-only; DEFERRED entries stay in the inbox.\n';
+// archive, so it is intentionally NOT size-banner or write-guard watched. The
+// header tracks the RESOLVED inbox name (FR6 rename: `ISSUES-INBOX.md`, or legacy
+// `FUTURE-IDEAS.md`) so a born-v3 ledger never mis-titles itself.
+function ledgerHeader(inboxRel) {
+  const inboxName = inboxRel.replace(/^.*\//, '').replace(/\.md$/, '');
+  return (
+    `# ${inboxName} — archive ledger\n\n` +
+    'Terminally-disposed entries (SHIPPED / PROMOTED / MERGED / DELETED) evicted from\n' +
+    `\`${inboxRel}\`. Append-only; DEFERRED entries stay in the inbox.\n`
+  );
+}
 
 // Dedupe key for an evicted entry: sha1 of the entry's whole block BODY.
 // Keying on heading+date was NOT unique — two distinct entries sharing a
@@ -622,7 +628,7 @@ export async function evictTerminalToLedger(baseDir, opts = {}) {
 
   if (additions.length > 0) {
     await mkdir(dirname(ledgerPath), { recursive: true });
-    let ledger = ledgerExists ? ledgerText : LEDGER_HEADER;
+    let ledger = ledgerExists ? ledgerText : ledgerHeader(inboxRel);
     if (!ledger.endsWith('\n')) ledger += '\n';
     ledger += `\n${additions.join('\n')}`;
     if (!ledger.endsWith('\n')) ledger += '\n';

@@ -15,10 +15,13 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-const INBOX_NEW = '.planning/ISSUES-INBOX.md';
-const INBOX_LEGACY = '.planning/FUTURE-IDEAS.md';
-const LEDGER_NEW = '.planning/archive/ISSUES-INBOX-LEDGER.md';
-const LEDGER_LEGACY = '.planning/archive/FUTURE-IDEAS-LEDGER.md';
+// The four canonical inbox/ledger names (repo-root-relative POSIX). Exported so
+// the FR6 migrate's fixed rename moveMap (`senseV3Rename`, archive-tree.js) shares
+// ONE source of truth for the names rather than re-hardcoding them.
+export const INBOX_NEW = '.planning/ISSUES-INBOX.md';
+export const INBOX_LEGACY = '.planning/FUTURE-IDEAS.md';
+export const LEDGER_NEW = '.planning/archive/ISSUES-INBOX-LEDGER.md';
+export const LEDGER_LEGACY = '.planning/archive/FUTURE-IDEAS-LEDGER.md';
 
 /**
  * Resolve the capture-inbox path (relative to `baseDir`), preferring the new
