@@ -2405,12 +2405,91 @@ export function senseAppendLogEvict(text, opts = {}) {
   return { noop: false, evicts, liveText, evictedIds, unroutable: [] };
 }
 
+// Default anchor-gate resolver: S2's `resolveDecisionId`, reached by DYNAMIC
+// import to avoid a static circular dependency (planning-index.js imports
+// `classifyDocGrowthPolicy` from here). Called once per evicted ID (Node caches
+// the module, so the import is cheap); `resolveDecisionId` re-globs disk each
+// call, so it is always the POST-evict map (Issue 4). Injectable in tests.
+async function defaultResolveDecisionId(baseDir, id) {
+  const { resolveDecisionId } = await import('./planning-index.js');
+  return resolveDecisionId(baseDir, id);
+}
+
 /**
- * Standalone append-log evict — parse → cut → relocate (archive-first, BYTE) →
- * shorten the live file → (t3) rebuild the D-ID map + anchor-resolvability gate.
- * NOT composed into `applyMigrate` (that is S6a). Move-never-delete: the archive
- * is written + BYTE-verified BEFORE the live file is shortened; a surgical
- * snapshot rolls every touched file back byte-identical on any failure.
+ * The discrete APPLY STEP (the composable seam S6a needs). Given a plan from
+ * `senseAppendLogEvict` and an INJECTED snapshotter (`snap`/`rollback`), it:
+ *   1. relocates each per-milestone archive BYTE-identical (archive-FIRST —
+ *      relocate-never-delete: the new home lands + is BYTE-verified BEFORE the
+ *      source is shortened), snapping each touched file via the injected `snap`;
+ *   2. shortens the live DECISIONS.md;
+ *   3. runs the anchor-resolvability gate — rebuilds the D-ID map FRESH from disk
+ *      (Issue 4) and asserts EVERY evicted `D-…` resolves to the SPECIFIC archive
+ *      it landed in. `resolveDecisionId` prefers the LIVE home on a tie, so a
+ *      prefix split across the boundary resolves LIVE → a miss → fail-closed to
+ *      DETECT-ONLY (R4): the injected `rollback` restores every touched file
+ *      byte-identical → mutates nothing.
+ * It does NOT regen INDEX.md (S6a's tail index-regen owns that; the gate reads
+ * the disk-fresh D-ID map, not INDEX.md) and does NOT run the markdown dangling
+ * gate (S6a's ONE dangling gate owns that — a verbatim block move re-roots the
+ * relative `](*.md)` links inside it). Because the snapshotter is injected, S6a
+ * composes this under `applyMigrate`'s ONE coarse lock + ONE snapshot.
+ *
+ * @param {string} baseDir
+ * @param {{evicts: Array, liveText: string, evictedIds: Array}} plan  from senseAppendLogEvict
+ * @param {{snap: (rel: string) => Promise<void>, rollback: () => Promise<void>,
+ *          resolveId?: (b: string, id: string) => Promise<string|null>}} deps
+ * @returns {Promise<{applied: boolean, detectOnly: boolean, misses: Array}>}
+ */
+export async function applyAppendLogEvict(baseDir, plan, deps) {
+  const { snap, rollback } = deps;
+  const resolveId = deps.resolveId ?? defaultResolveDecisionId;
+  const planningDir = join(baseDir, PLANNING_DIR);
+  const decisionsPath = join(planningDir, 'DECISIONS.md');
+
+  await snap('DECISIONS.md');
+
+  // 1. Archive-first (relocate-never-delete): write + BYTE-verify each archive.
+  for (const ev of plan.evicts) {
+    const archiveKey = ev.archiveRel.replace(`${PLANNING_DIR}/`, '');
+    await snap(archiveKey);
+    const existing = existsSync(join(baseDir, ev.archiveRel)) ? await readFile(join(baseDir, ev.archiveRel), 'utf-8') : '';
+    const archiveContent = buildArchiveContent(ev.milestone, ev.sectionRaws, existing);
+    const rel = await relocateFaithful({
+      sourceText: archiveContent,
+      destAbs: join(baseDir, ev.archiveRel),
+      baseDir,
+      mode: BYTE,
+    });
+    if (!rel.pass) {
+      await rollback();
+      throw new Error(`applyAppendLogEvict: BYTE conservation failed for ${ev.archiveRel} — rolled back, no writes.`);
+    }
+  }
+
+  // 2. Only now shorten the live file (the source), its content already re-homed.
+  await atomicWrite(decisionsPath, plan.liveText);
+
+  // 3. Anchor-resolvability gate (fail-closed to detect-only).
+  const misses = [];
+  for (const { id, archiveRel } of plan.evictedIds) {
+    const home = await resolveId(baseDir, id);
+    if (home !== archiveRel) misses.push({ id, expected: archiveRel, resolved: home });
+  }
+  if (misses.length > 0) {
+    await rollback();
+    return { applied: false, detectOnly: true, misses };
+  }
+  return { applied: true, detectOnly: false, misses: [] };
+}
+
+/**
+ * Standalone append-log evict ENTRY (the vertical slice): parse → cut → apply
+ * (relocate + gate, via `applyAppendLogEvict`) → regen-index. Creates its OWN
+ * surgical snapshotter and delegates the mechanical apply to `applyAppendLogEvict`
+ * (the seam S6a composes instead). NOT wired into `applyMigrate` (that is S6a).
+ * The INDEX.md regen is the standalone pipeline's traversal-doc refresh — it runs
+ * only AFTER a passing gate, so it needs no rollback; S6a's tail index-regen owns
+ * the equivalent step in the composed flow.
  *
  * @param {string} baseDir
  * @param {{boundaryDate?: string, milestoneOf?: (d: string) => string|null,
@@ -2421,14 +2500,6 @@ export async function runAppendLogEvict(baseDir, opts = {}) {
   const dateStr = opts.dateStr ?? new Date().toISOString().split('T')[0];
   const boundaryDate = opts.boundaryDate ?? (await deriveBoundaryDate(baseDir));
   const dryRun = opts.dryRun ?? false;
-  // The anchor-resolvability gate consumes S2's `resolveDecisionId`. Dynamic
-  // import avoids a static circular dependency (planning-index.js imports
-  // `classifyDocGrowthPolicy` from here); it is called once per evicted ID, not
-  // in a hot loop. Injectable so tests can force a resolution miss.
-  const resolveId = opts.resolveId ?? (async (b, id) => {
-    const { resolveDecisionId } = await import('./planning-index.js');
-    return resolveDecisionId(b, id);
-  });
 
   const planningDir = join(baseDir, PLANNING_DIR);
   const decisionsPath = join(planningDir, 'DECISIONS.md');
@@ -2457,70 +2528,31 @@ export async function runAppendLogEvict(baseDir, opts = {}) {
     return { applied: false, dryRun: true, noop: false, evicts: evictSummary, evictedIds: plan.evictedIds, liveBytesBefore: original.length, liveBytesAfter: plan.liveText.length };
   }
 
-  // Surgical snapshot (shared with the codebase's migrate rollback idiom): DECISIONS.md
-  // + each per-milestone archive. On any failure, restore byte-identical / remove created.
+  // Surgical snapshot (the codebase's migrate rollback idiom): on any failure,
+  // restore touched files byte-identical / remove created ones. Owned HERE and
+  // handed to the apply step; S6a supplies applyMigrate's shared snapshotter instead.
   const { snap, rollback } = createSnapshotter(planningDir);
-  await snap('DECISIONS.md');
+  const applyRes = await applyAppendLogEvict(baseDir, plan, { snap, rollback, resolveId: opts.resolveId });
 
-  // Archive-first (relocate-never-delete): write + BYTE-verify each per-milestone
-  // archive BEFORE the live file is shortened.
-  for (const ev of plan.evicts) {
-    const archiveKey = ev.archiveRel.replace(`${PLANNING_DIR}/`, '');
-    await snap(archiveKey);
-    const existing = existsSync(join(baseDir, ev.archiveRel)) ? await readFile(join(baseDir, ev.archiveRel), 'utf-8') : '';
-    const archiveContent = buildArchiveContent(ev.milestone, ev.sectionRaws, existing);
-    const rel = await relocateFaithful({
-      sourceText: archiveContent,
-      destAbs: join(baseDir, ev.archiveRel),
-      baseDir,
-      mode: BYTE,
-    });
-    if (!rel.pass) {
-      await rollback();
-      throw new Error(`runAppendLogEvict: BYTE conservation failed for ${ev.archiveRel} — rolled back, no writes.`);
-    }
-  }
-
-  // Only now shorten the live file (the source), its content already re-homed.
-  await atomicWrite(decisionsPath, plan.liveText);
-
-  // --- regen the traversal index (the FR3 layer FR5 rides on) -----------------
-  // Refresh `.planning/INDEX.md` so the human traversal doc reflects the new
-  // per-milestone archive DECISIONS files. Snapped FIRST so a fail-closed rollback
-  // restores it. The D-ID map the anchor gate below reads is separate + disk-fresh
-  // (rebuilt inside resolveDecisionId), so this regen is the human-doc half; the
-  // gate's map is the machine half — both post-evict (Issue 4). Idempotent.
-  await snap('INDEX.md');
-  const { regeneratePlanningIndex } = await import('./planning-index.js');
-  await regeneratePlanningIndex(baseDir);
-
-  // --- anchor-resolvability gate (in-evict-step regen; fail-closed) -----------
-  // AFTER both writes, rebuild the D-ID map FRESH from disk (Issue 4 — the gate
-  // must read the POST-evict map, not a stale pre-evict one) and assert EVERY
-  // evicted `D-…` resolves to the SPECIFIC archive it landed in. `resolveDecisionId`
-  // is mechanical-fresh (re-globs disk each call) and prefers the LIVE home on a
-  // tie, so a prefix split across the boundary resolves to LIVE → a miss. On ANY
-  // miss the evict fail-closes to DETECT-ONLY (R4): surgical rollback restores the
-  // live file byte-identical + removes the created archives → mutates nothing.
-  const misses = [];
-  for (const { id, archiveRel } of plan.evictedIds) {
-    const home = await resolveId(baseDir, id);
-    if (home !== archiveRel) misses.push({ id, expected: archiveRel, resolved: home });
-  }
-  if (misses.length > 0) {
-    await rollback();
+  if (applyRes.detectOnly) {
     return {
       applied: false,
       detectOnly: true,
       noop: false,
       reason: 'anchor-unresolvable',
-      misses,
+      misses: applyRes.misses,
       evicts: evictSummary,
       evictedIds: plan.evictedIds,
       liveBytesBefore: original.length,
       liveBytesAfter: original.length, // rolled back to the original
     };
   }
+
+  // regen-index: refresh `.planning/INDEX.md` so the human traversal doc reflects
+  // the new per-milestone archive DECISIONS files. Runs only after a passing gate
+  // (no rollback path below), so it needs no snapshot. Idempotent.
+  const { regeneratePlanningIndex } = await import('./planning-index.js');
+  await regeneratePlanningIndex(baseDir);
 
   return {
     applied: true,

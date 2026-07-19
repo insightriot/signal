@@ -21,7 +21,9 @@ import {
   parseDecisionSections,
   selectEvictableSections,
   senseAppendLogEvict,
+  applyAppendLogEvict,
   runAppendLogEvict,
+  createSnapshotter,
 } from '../tools/lib/migrate-memory.js';
 
 const FIXTURE = join(ROOT, 'tests', 'fixtures', 'decisions-evict', 'DECISIONS.md');
@@ -357,5 +359,45 @@ describe('t5 — compatibility (checkpoint appends + full-file read)', () => {
     const m2 = await readFile(archivePath(dir, 'M2'), 'utf-8');
     expect(m2).toContain('Late closed decision past the 1 MB mark');
     expect(m2).toContain('beyond FILE_SCAN_CEILING');
+  });
+});
+
+describe('applyAppendLogEvict — the composable seam S6a wires under applyMigrate', () => {
+  let dir;
+  beforeEach(async () => { dir = await makeRepo(); });
+  afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
+
+  it('applies against an INJECTED snapshotter (S6a supplies applyMigrate\'s shared one)', async () => {
+    const plan = senseAppendLogEvict(await loadFixture(), { boundaryDate: BOUNDARY, milestoneOf, dateStr: RUN_DATE });
+    // A spy snapshotter proves the injected snap/rollback are the ones used.
+    const snapped = [];
+    const inner = createSnapshotter(join(dir, '.planning'));
+    const snap = async (rel) => { snapped.push(rel); await inner.snap(rel); };
+    const res = await applyAppendLogEvict(dir, plan, { snap, rollback: inner.rollback });
+    expect(res.applied).toBe(true);
+    expect(res.detectOnly).toBe(false);
+    // The injected snap saw DECISIONS.md + both archives (the whole touched set).
+    expect(snapped).toContain('DECISIONS.md');
+    expect(snapped).toContain('archive/M1/DECISIONS.md');
+    expect(existsSync(archivePath(dir, 'M1'))).toBe(true);
+    // The step does NOT regen INDEX.md (S6a's tail regen owns that).
+    expect(existsSync(join(dir, '.planning', 'INDEX.md'))).toBe(false);
+  });
+
+  it('a gate miss fires the INJECTED rollback (detect-only) — DECISIONS.md restored', async () => {
+    const original = await readFile(decisionsPath(dir), 'utf-8');
+    const plan = senseAppendLogEvict(original, { boundaryDate: BOUNDARY, milestoneOf, dateStr: RUN_DATE });
+    let rolledBack = false;
+    const inner = createSnapshotter(join(dir, '.planning'));
+    const rollback = async () => { rolledBack = true; await inner.rollback(); };
+    const res = await applyAppendLogEvict(dir, plan, {
+      snap: inner.snap,
+      rollback,
+      resolveId: async () => '.planning/DECISIONS.md', // force every anchor to miss
+    });
+    expect(res.detectOnly).toBe(true);
+    expect(rolledBack).toBe(true);
+    expect(await readFile(decisionsPath(dir), 'utf-8')).toBe(original);
+    expect(existsSync(archivePath(dir, 'M1'))).toBe(false);
   });
 });
