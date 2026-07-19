@@ -26,22 +26,9 @@ Create the `.planning/` directory in the current working directory with:
 - `config.json` — copy from `${CLAUDE_PLUGIN_ROOT}/state/config.json`
 - `PROJECT.md` — to be populated during DISCUSS
 
-Initialize `STATE.md` with:
-```markdown
-# Project State
+Write `STATE.md` programmatically: call `initState(baseDir, 'CALIBRATE')` from `tools/lib/state.js` (the same helper `/sig:init` Step 6 uses). It creates `.planning/` if absent and writes a `schema_version: 1` STATE.md with the live-above-the-fold body skeleton. **Born-on-v3 (FR6 / AC6.3):** `initState` stamps `docs_layout_version` at the current layout version, so a fresh project self-reports v3 from birth — the `/sig:resume` / `/sig:status` / SessionStart layout-drift banner stays silent and the project never presents as needing `/sig:migrate-memory`. Do **not** hand-write the STATE.md body; `initState` is the one source of the born-on-v3 stamp.
 
-## Current Phase
-CALIBRATE
-
-## Completed Phases
-(none)
-
-## Blockers
-(none)
-
-## Last Updated
-{current_date}
-```
+The rest of the v3 file set is created on-demand, not scaffolded here: the first `/sig:add` lazy-creates `.planning/ISSUES-INBOX.md` (never `FUTURE-IDEAS.md`), and `BACKLOG.md` is created on first promote by the `/sig:plan` drain.
 
 ### 1b. Epic mode (`--epic <name>`, optional)
 

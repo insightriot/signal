@@ -466,23 +466,9 @@ The user reads this and proceeds knowing exactly where the gaps are.
 
 ### 6. Initialize `.planning/STATE.md` and hand off to `/sig:calibrate`
 
-Call `initState(baseDir, 'CALIBRATE')` from `tools/lib/state.js`. This writes:
+Call `initState(baseDir, 'CALIBRATE')` from `tools/lib/state.js`. This writes a `schema_version: 1` STATE.md with `phase: CALIBRATE`, empty `completed_phases`/`blockers`, and the live-above-the-fold body skeleton (`## Resume pointer`, `## In-flight`, `## Blockers`, `## Pending ops`, `## Closed work`).
 
-```markdown
-# Project State
-
-## Current Phase
-CALIBRATE
-
-## Completed Phases
-(none)
-
-## Blockers
-(none)
-
-## Last Updated
-{YYYY-MM-DD}
-```
+**Born-on-v3 (FR6 / AC6.3):** `initState` stamps `docs_layout_version` at the current layout version, so the brownfielded project self-reports v3 from birth — the `/sig:resume` / `/sig:status` / SessionStart layout-drift banner stays silent and it never presents as needing `/sig:migrate-memory`. The rest of the v3 file set is on-demand: the first `/sig:add` lazy-creates `.planning/ISSUES-INBOX.md` (never `FUTURE-IDEAS.md`), and `BACKLOG.md` is created on first promote by the `/sig:plan` drain.
 
 Then print the handoff message. Compute `{age phrase}` from the activity scan's "Project age" field (e.g., "2 years 4 months"); if unavailable, use "(unknown duration)".
 

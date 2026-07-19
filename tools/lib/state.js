@@ -6,6 +6,7 @@ import { randomBytes } from 'node:crypto';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 import { atomicWrite } from './atomic-write.js';
+import { LAYOUT_VERSION } from './layout-stamp.js';
 import {
   acquireLock as fileAcquireLock,
 } from './file-lock.js';
@@ -241,6 +242,14 @@ export async function initState(baseDir, initialPhase = 'CALIBRATE') {
   }
   const data = {
     schema_version: SCHEMA_VERSION,
+    // Born-on-v3 (FR6 / AC6.3): a fresh project stamps the CURRENT doc-runtime
+    // layout so it self-reports v3 from birth — the layout-drift banner stays
+    // silent and it never presents as an un-migrated older-layout project. Kept
+    // as the 2nd key so it serializes right after schema_version (the same slot
+    // spliceDocsLayoutVersion targets). LAYOUT_VERSION mirrors the engine's
+    // CURRENT_LAYOUT_VERSION (assertion-tested), imported from the dependency-light
+    // layout-stamp.js to stay cycle-free.
+    docs_layout_version: LAYOUT_VERSION,
     phase: initialPhase,
     current_epic: null,
     current_wave: null,
