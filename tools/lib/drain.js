@@ -678,10 +678,12 @@ export async function evictTerminalToLedger(baseDir, opts = {}) {
  * @param {string} opts.reason — stamp context, e.g. "M5.E3 drain"
  * @param {string} opts.date — ISO date YYYY-MM-DD
  * @param {string} [opts.inboxRel] — defaults to `resolveInboxPath(baseDir)`
+ * @param {Function} [opts.renameFn] — injected for the crash-injection test;
+ *   forwarded to the stamp's atomicWrite (the write BETWEEN destination + evict).
  * @returns {Promise<{destination: 'backlog'|'bugs', deduped: boolean, heading: string}>}
  */
 export async function promoteDrainEntry(baseDir, opts = {}) {
-  const { classification, block, tag, title, entryIndex, reason, date } = opts;
+  const { classification, block, tag, title, entryIndex, reason, date, renameFn } = opts;
   const inboxRel = opts.inboxRel ?? resolveInboxPath(baseDir);
 
   // Step 1 — destination FIRST (dedupe-guarded → crash-safe re-run).
@@ -706,6 +708,7 @@ export async function promoteDrainEntry(baseDir, opts = {}) {
     verb: 'promote',
     reason,
     date,
+    renameFn,
   });
 
   return { destination, deduped: Boolean(dest.deduped), heading: stamp.heading };

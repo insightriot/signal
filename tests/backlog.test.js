@@ -10,7 +10,7 @@
 // these tests may touch Signal's real .planning/BACKLOG.md or its inbox.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, readFile, rename } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -21,7 +21,12 @@ import {
   promoteToBacklog,
   promoteToBugs,
 } from '../tools/lib/backlog.js';
-import { parseEntries, isEvictable, promoteDrainEntry } from '../tools/lib/drain.js';
+import {
+  parseEntries,
+  isEvictable,
+  promoteDrainEntry,
+  evictTerminalToLedger,
+} from '../tools/lib/drain.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -293,6 +298,157 @@ describe('promoteDrainEntry (S4.t3 — classify → destination-first → stamp 
         date: '2026-07-19',
       })
     ).rejects.toThrow(/work|bug/);
+  });
+});
+
+describe('crash-safe promote → stamp → evict convergence (S4.t4 — AC2.4)', () => {
+  const INBOX_REL = '.planning/ISSUES-INBOX.md';
+  const LEDGER_REL = '.planning/archive/ISSUES-INBOX-LEDGER.md';
+  const SINGLE_INBOX = [
+    '# Issues Inbox',
+    '',
+    'Preamble.',
+    '',
+    '---',
+    '',
+    '## An idea to promote',
+    '',
+    '**Status:** Logged 2026-07-03 via `/sig:add`.',
+    '',
+    'Real work that should land in the backlog.',
+    '',
+    '---',
+    '',
+  ].join('\n');
+
+  let baseDir;
+  beforeEach(async () => {
+    baseDir = await stageBase();
+    await writeFile(join(baseDir, INBOX_REL), SINGLE_INBOX, 'utf-8');
+  });
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true });
+  });
+
+  // Re-slice the (byte-stable) source block from the current inbox on disk.
+  async function block0() {
+    const c = await readFile(join(baseDir, INBOX_REL), 'utf-8');
+    const e = parseEntries(c)[0];
+    return c.slice(e.range.start, e.range.end);
+  }
+
+  const backlogKeyCount = (s) => (s.match(/<!-- backlog-key: /g) || []).length;
+  const ledgerKeyCount = (s) => (s.match(/<!-- evicted-key: /g) || []).length;
+
+  it('crash BEFORE the stamp → re-run dedupes; entry double-homes (destination + ledger), gone from inbox', async () => {
+    const block = await block0();
+    // Sequence step 1 ran (destination written), then the process died before
+    // the stamp — the inbox is untouched, so the re-run re-slices the same bytes.
+    await promoteToBacklog(baseDir, {
+      block,
+      tag: 'roadmap',
+      title: 'An idea to promote',
+      today: '2026-07-19',
+    });
+
+    // Re-run the WHOLE compose: promote (dedupe no-op) → stamp → evict.
+    await promoteDrainEntry(baseDir, {
+      classification: 'work',
+      block,
+      tag: 'roadmap',
+      title: 'An idea to promote',
+      entryIndex: 0,
+      reason: 'M5.E3 drain',
+      date: '2026-07-19',
+    });
+    await evictTerminalToLedger(baseDir);
+
+    const backlog = await readFile(join(baseDir, BACKLOG_REL), 'utf-8');
+    const ledger = await readFile(join(baseDir, LEDGER_REL), 'utf-8');
+    const inbox = await readFile(join(baseDir, INBOX_REL), 'utf-8');
+
+    expect(backlogKeyCount(backlog)).toBe(1); // no duplicate in the destination
+    expect(backlog).toContain('## An idea to promote'); // present in destination
+    expect(ledger).toContain('Real work that should land in the backlog.'); // + ledger
+    expect(ledgerKeyCount(ledger)).toBe(1);
+    expect(inbox).not.toContain('## An idea to promote'); // gone from the inbox
+  });
+
+  it('crash AFTER the stamp, before evict → re-run completes eviction; no dupe, no loss', async () => {
+    const block = await block0();
+    await promoteDrainEntry(baseDir, {
+      classification: 'work',
+      block,
+      tag: 'roadmap',
+      title: 'An idea to promote',
+      entryIndex: 0,
+      reason: 'M5.E3 drain',
+      date: '2026-07-19',
+    });
+    // Crash before evict: entry stamped terminal, still physically in the inbox.
+    const midInbox = await readFile(join(baseDir, INBOX_REL), 'utf-8');
+    expect(midInbox).toMatch(/→ Promoted 2026-07-19 \(M5\.E3 drain\)/);
+    expect(parseEntries(midInbox).every((e) => isEvictable(e))).toBe(true);
+
+    // Re-run: the entry is no longer a candidate (it's dispositioned); the sweep
+    // evicts it. A second sweep is a no-op (idempotent).
+    await evictTerminalToLedger(baseDir);
+    const res2 = await evictTerminalToLedger(baseDir);
+    expect(res2.evicted).toEqual([]);
+
+    const backlog = await readFile(join(baseDir, BACKLOG_REL), 'utf-8');
+    const ledger = await readFile(join(baseDir, LEDGER_REL), 'utf-8');
+    const inbox = await readFile(join(baseDir, INBOX_REL), 'utf-8');
+    expect(backlogKeyCount(backlog)).toBe(1);
+    expect(inbox).not.toContain('## An idea to promote');
+    expect(ledgerKeyCount(ledger)).toBe(1);
+  });
+
+  it('injected crash ON the stamp write (destination already committed) → re-run converges, no dupe', async () => {
+    const block = await block0();
+    // A renameFn that throws on the INBOX (stamp) write but lets the destination
+    // write through — so destination commits FIRST, then the stamp crashes. This
+    // is the crash-between-the-two-writes case: it proves destination-first, since
+    // a stamp-first order would strand a terminal entry with no destination home.
+    const crashOnStamp = async (from, to) => {
+      if (to.endsWith('ISSUES-INBOX.md')) throw new Error('simulated stamp crash');
+      return rename(from, to);
+    };
+    await expect(
+      promoteDrainEntry(baseDir, {
+        classification: 'work',
+        block,
+        tag: 'roadmap',
+        title: 'An idea to promote',
+        entryIndex: 0,
+        reason: 'M5.E3 drain',
+        date: '2026-07-19',
+        renameFn: crashOnStamp,
+      })
+    ).rejects.toThrow(/simulated stamp crash/);
+
+    // Destination committed; inbox NOT yet stamped (still a live candidate).
+    expect(backlogKeyCount(await readFile(join(baseDir, BACKLOG_REL), 'utf-8'))).toBe(1);
+    expect(await readFile(join(baseDir, INBOX_REL), 'utf-8')).not.toMatch(/→ Promoted/);
+
+    // Re-run without the crash: promote dedupes, the stamp lands, the sweep evicts.
+    await promoteDrainEntry(baseDir, {
+      classification: 'work',
+      block,
+      tag: 'roadmap',
+      title: 'An idea to promote',
+      entryIndex: 0,
+      reason: 'M5.E3 drain',
+      date: '2026-07-19',
+    });
+    await evictTerminalToLedger(baseDir);
+
+    const backlog = await readFile(join(baseDir, BACKLOG_REL), 'utf-8');
+    const ledger = await readFile(join(baseDir, LEDGER_REL), 'utf-8');
+    const inbox = await readFile(join(baseDir, INBOX_REL), 'utf-8');
+    expect(backlogKeyCount(backlog)).toBe(1); // no dupe in the destination
+    expect(inbox).not.toContain('## An idea to promote'); // evicted
+    expect(ledgerKeyCount(ledger)).toBe(1);
   });
 });
 
