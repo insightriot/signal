@@ -2421,6 +2421,14 @@ export async function runAppendLogEvict(baseDir, opts = {}) {
   const dateStr = opts.dateStr ?? new Date().toISOString().split('T')[0];
   const boundaryDate = opts.boundaryDate ?? (await deriveBoundaryDate(baseDir));
   const dryRun = opts.dryRun ?? false;
+  // The anchor-resolvability gate consumes S2's `resolveDecisionId`. Dynamic
+  // import avoids a static circular dependency (planning-index.js imports
+  // `classifyDocGrowthPolicy` from here); it is called once per evicted ID, not
+  // in a hot loop. Injectable so tests can force a resolution miss.
+  const resolveId = opts.resolveId ?? (async (b, id) => {
+    const { resolveDecisionId } = await import('./planning-index.js');
+    return resolveDecisionId(b, id);
+  });
 
   const planningDir = join(baseDir, PLANNING_DIR);
   const decisionsPath = join(planningDir, 'DECISIONS.md');
@@ -2475,6 +2483,34 @@ export async function runAppendLogEvict(baseDir, opts = {}) {
 
   // Only now shorten the live file (the source), its content already re-homed.
   await atomicWrite(decisionsPath, plan.liveText);
+
+  // --- anchor-resolvability gate (in-evict-step regen; fail-closed) -----------
+  // AFTER both writes, rebuild the D-ID map FRESH from disk (Issue 4 — the gate
+  // must read the POST-evict map, not a stale pre-evict one) and assert EVERY
+  // evicted `D-…` resolves to the SPECIFIC archive it landed in. `resolveDecisionId`
+  // is mechanical-fresh (re-globs disk each call) and prefers the LIVE home on a
+  // tie, so a prefix split across the boundary resolves to LIVE → a miss. On ANY
+  // miss the evict fail-closes to DETECT-ONLY (R4): surgical rollback restores the
+  // live file byte-identical + removes the created archives → mutates nothing.
+  const misses = [];
+  for (const { id, archiveRel } of plan.evictedIds) {
+    const home = await resolveId(baseDir, id);
+    if (home !== archiveRel) misses.push({ id, expected: archiveRel, resolved: home });
+  }
+  if (misses.length > 0) {
+    await rollback();
+    return {
+      applied: false,
+      detectOnly: true,
+      noop: false,
+      reason: 'anchor-unresolvable',
+      misses,
+      evicts: evictSummary,
+      evictedIds: plan.evictedIds,
+      liveBytesBefore: original.length,
+      liveBytesAfter: original.length, // rolled back to the original
+    };
+  }
 
   return {
     applied: true,

@@ -180,3 +180,69 @@ describe('t2 — runAppendLogEvict (relocate + dated pointer)', () => {
     expect(await readFile(archivePath(dir, 'M1'), 'utf-8')).toBe(m1After1);
   });
 });
+
+// Build a temp repo with a custom DECISIONS.md body (for the gate edge cases).
+async function makeRepoWith(content) {
+  const dir = await mkdtemp(join(tmpdir(), 'evict-'));
+  await mkdir(join(dir, '.planning'), { recursive: true });
+  await writeFile(join(dir, '.planning', 'DECISIONS.md'), content, 'utf-8');
+  return dir;
+}
+
+describe('t3 — anchor-resolvability gate (fail-closed to detect-only)', () => {
+  let dir;
+  afterEach(async () => { if (dir) await rm(dir, { recursive: true, force: true }); });
+
+  it('every evicted D-… resolves to ITS archive home post-regen (real resolver)', async () => {
+    dir = await makeRepo();
+    const res = await runAppendLogEvict(dir, { boundaryDate: BOUNDARY, milestoneOf, dateStr: RUN_DATE });
+    expect(res.applied).toBe(true);
+    expect(res.detectOnly).toBeFalsy();
+    // Post-regen the D-ID map (rebuilt fresh from disk) resolves each evicted anchor
+    // to the SPECIFIC archive file it landed in — not merely "somewhere".
+    const { resolveDecisionId } = await import('../tools/lib/planning-index.js');
+    expect(await resolveDecisionId(dir, 'D-A-1')).toBe('.planning/archive/M1/DECISIONS.md');
+    expect(await resolveDecisionId(dir, 'D-B-2')).toBe('.planning/archive/M2/DECISIONS.md');
+  });
+
+  it('refuses (detect-only) when an evicted ID would NOT resolve to the archive — DECISIONS.md untouched', async () => {
+    dir = await makeRepo();
+    const original = await readFile(decisionsPath(dir), 'utf-8');
+    // A deliberately broken map: force D-A-1 to resolve to the live file.
+    const brokenResolve = async (baseDir, id) => {
+      if (id === 'D-A-1') return '.planning/DECISIONS.md';
+      const { resolveDecisionId } = await import('../tools/lib/planning-index.js');
+      return resolveDecisionId(baseDir, id);
+    };
+    const res = await runAppendLogEvict(dir, {
+      boundaryDate: BOUNDARY, milestoneOf, dateStr: RUN_DATE, resolveId: brokenResolve,
+    });
+    expect(res.detectOnly).toBe(true);
+    expect(res.applied).toBeFalsy();
+    expect(res.misses.map((m) => m.id)).toContain('D-A-1');
+    // Mutates nothing: DECISIONS.md bytes are exactly the original (rolled back).
+    expect(await readFile(decisionsPath(dir), 'utf-8')).toBe(original);
+    // The newly-created archive file was removed by the surgical rollback.
+    expect(existsSync(archivePath(dir, 'M1'))).toBe(false);
+  });
+
+  it('realistic split prefix (evicted num inside the retained live range) → detect-only', async () => {
+    // D-A-5 evicts to M1; the live section retains D-A-3 + D-A-9, so prefix A
+    // spans [3,9] in the live file. resolveDecisionId prefers the live home on a
+    // tie, so the evicted D-A-5 resolves to LIVE → the gate fail-closes.
+    const split = [
+      '# Log', '', 'Preamble.', '', '---', '',
+      '## 2026-01-10 — Closed, shares prefix A', '',
+      '**Decision:** Evicted milestone-one decision carrying D-A-5.', '', '---', '',
+      '## 2026-03-05 — Live, prefix A spans the boundary', '',
+      '**Decision:** Current-milestone work carrying D-A-3 and D-A-9.', '',
+    ].join('\n');
+    dir = await makeRepoWith(split);
+    const res = await runAppendLogEvict(dir, {
+      boundaryDate: BOUNDARY, milestoneOf: () => 'M1', dateStr: RUN_DATE,
+    });
+    expect(res.detectOnly).toBe(true);
+    expect(res.applied).toBeFalsy();
+    expect(await readFile(decisionsPath(dir), 'utf-8')).toBe(split);
+  });
+});
