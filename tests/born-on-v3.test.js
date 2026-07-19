@@ -15,8 +15,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 import { initState } from '../tools/lib/state.js';
 import {
@@ -74,5 +77,27 @@ describe('born-on-v3 scaffolding (S6b.t1 / FR6 / AC6.3)', () => {
     expect(result.written).toBe(true);
     expect(existsSync(join(tempDir, '.planning', 'ISSUES-INBOX.md'))).toBe(true);
     expect(existsSync(join(tempDir, '.planning', 'FUTURE-IDEAS.md'))).toBe(false);
+  });
+});
+
+// The behavioral tests above prove initState IS the born-on-v3 stamp path. These
+// guard the WIRING: both entry-point commands must route STATE.md creation through
+// initState. Without this, a revert of new-project.md to its old inline
+// `## Current Phase / CALIBRATE` template (which has no frontmatter, so the stamp
+// splice would no-op on it) silently breaks born-on-v3 for the primary command while
+// the behavioral tests — which call initState directly — stay green. The negative
+// assertion is the one that bites: it fails on any bypass-the-stamp inline template.
+describe('born-on-v3 command wiring (S6b.t1 / AC6.3)', () => {
+  it('AC6.3: new-project.md wires STATE.md through initState (the stamp path)', async () => {
+    const md = await readFile(join(ROOT, 'commands', 'new-project.md'), 'utf-8');
+    expect(md).toMatch(/initState/);
+    // No inline STATE template that would bypass the born-on-v3 stamp.
+    expect(md).not.toMatch(/## Current Phase\s*\nCALIBRATE/);
+  });
+
+  it('AC6.3: init.md wires STATE.md through initState (the stamp path)', async () => {
+    const md = await readFile(join(ROOT, 'commands', 'init.md'), 'utf-8');
+    expect(md).toMatch(/initState/);
+    expect(md).not.toMatch(/## Current Phase\s*\nCALIBRATE/);
   });
 });
