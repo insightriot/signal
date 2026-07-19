@@ -22,7 +22,7 @@
 // No new runtime deps — pure string work over the shared add.js substrate.
 
 import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -41,26 +41,54 @@ function isoToday() {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** The empty BACKLOG.md skeleton: title, one-line purpose, `*Last updated:*` footer. */
-function backlogSkeleton(date) {
-  return [
+/**
+ * The BACKLOG.md skeleton: title, one-line purpose, `*Last updated:*` footer.
+ * When a dated backlog-review snapshot (`BACKLOG-REVIEW-*.md`) is present, add a
+ * one-line pointer to it — the CONTENT restructure of that snapshot into this
+ * roadmap is a later dogfood judgment pass (S6b), NOT done here (create-if-missing
+ * only). `snapshotRel` is the snapshot's filename (a sibling of BACKLOG.md in
+ * `.planning/`), or `null`.
+ */
+function backlogSkeleton(date, snapshotRel) {
+  const lines = [
     '# Backlog',
     '',
     'Groomed, sequenced roadmap — promoted from the issues inbox. Roadmap-vs-hygiene is a **Tag** on each entry, not a separate file.',
     '',
-    `*Last updated: ${date}*`,
-    '',
-  ].join('\n');
+  ];
+  if (snapshotRel) {
+    lines.push(
+      `> Seeded from [\`${snapshotRel}\`](${snapshotRel}) — its content restructure into this roadmap is pending (M5.E3.S6b).`,
+      ''
+    );
+  }
+  lines.push(`*Last updated: ${date}*`, '');
+  return lines.join('\n');
+}
+
+// The dated backlog-review snapshot filename in `.planning/`, if one exists, else
+// null. Globs `BACKLOG-REVIEW-*.md` so any dated snapshot seeds the pointer; a
+// born-on-v3 project (no snapshot) gets the plain skeleton.
+function findSnapshot(baseDir) {
+  let entries;
+  try {
+    entries = readdirSync(join(baseDir, '.planning'));
+  } catch {
+    return null;
+  }
+  return entries.find((n) => /^BACKLOG-REVIEW-.*\.md$/.test(n)) ?? null;
 }
 
 /**
  * Idempotent create-if-missing for `.planning/BACKLOG.md`. Writes the skeleton
  * (intro + `*Last updated:*` footer) only when the file is absent; an existing
- * BACKLOG.md is left byte-for-byte untouched.
+ * BACKLOG.md is left byte-for-byte untouched. When a `BACKLOG-REVIEW-*.md`
+ * snapshot is present, the skeleton carries a pointer to it (the snapshot's
+ * content is restructured into the roadmap later, in S6b — not here).
  *
  * @param {string} baseDir — project root (where `.planning/` lives)
  * @param {{today?: string}} [opts] — `today` seeds the initial footer date.
- * @returns {Promise<{created: boolean, path: string}>}
+ * @returns {Promise<{created: boolean, path: string, seededFrom?: string|null}>}
  */
 export async function createBacklogIfMissing(baseDir, opts = {}) {
   const path = join(baseDir, BACKLOG_REL);
@@ -68,9 +96,10 @@ export async function createBacklogIfMissing(baseDir, opts = {}) {
     return { created: false, path };
   }
   const date = opts.today ?? isoToday();
+  const snapshot = findSnapshot(baseDir);
   await mkdir(dirname(path), { recursive: true });
-  await atomicWrite(path, backlogSkeleton(date));
-  return { created: true, path };
+  await atomicWrite(path, backlogSkeleton(date, snapshot));
+  return { created: true, path, seededFrom: snapshot };
 }
 
 // Remove a leading top-level `## ` heading line (and one following blank line)

@@ -492,6 +492,42 @@ describe('light /sig:ship inbox sweep + execute exclusion (S4.t5 — AC2.6)', ()
   });
 });
 
+describe('createBacklogIfMissing snapshot-seed branch (S4.t6 — create-if-missing only)', () => {
+  // HARD constraint: a FAKE snapshot in a temp dir — never Signal's real repo,
+  // where BACKLOG-REVIEW-2026-07-04.md is actually present.
+  let baseDir;
+  beforeEach(async () => {
+    baseDir = await stageBase();
+  });
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true });
+  });
+
+  it('with a snapshot present → BACKLOG references it; body NOT restructured (S6b owns that)', async () => {
+    await writeFile(
+      join(baseDir, '.planning/BACKLOG-REVIEW-2026-07-04.md'),
+      '# Backlog Review\n\nDistinctive snapshot body text.\n',
+      'utf-8'
+    );
+    const res = await createBacklogIfMissing(baseDir, { today: '2026-07-19' });
+    expect(res.created).toBe(true);
+    const text = await readFile(join(baseDir, BACKLOG_REL), 'utf-8');
+    expect(text).toMatch(/^# Backlog/m);
+    expect(text).toContain('BACKLOG-REVIEW-2026-07-04.md');
+    expect(text).toMatch(/\*Last updated: 2026-07-19\*/);
+    // create-if-missing ONLY — the snapshot content is not folded in here.
+    expect(text).not.toContain('Distinctive snapshot body text.');
+  });
+
+  it('with no snapshot present → plain empty skeleton (no snapshot reference)', async () => {
+    const res = await createBacklogIfMissing(baseDir, { today: '2026-07-19' });
+    expect(res.created).toBe(true);
+    const text = await readFile(join(baseDir, BACKLOG_REL), 'utf-8');
+    expect(text).toMatch(/^# Backlog/m);
+    expect(text).not.toContain('BACKLOG-REVIEW');
+  });
+});
+
 describe('commands/plan.md classify step (S4.t3 — FR2 wiring in Step 1b)', () => {
   it('classifies with a strict-enum [work, bug] routing to promoteToBacklog / promoteToBugs', () => {
     expect(planMd).toMatch(/\[work, bug\]/);
