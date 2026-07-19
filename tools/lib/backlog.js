@@ -28,9 +28,10 @@ import { join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 
 import { atomicWrite } from './atomic-write.js';
-import { insertAboveFooter, rewriteFooter } from './add.js';
+import { insertAboveFooter, rewriteFooter, buildBugsEntry, insertAtEnd } from './add.js';
 
 const BACKLOG_REL = '.planning/BACKLOG.md';
+const BUGS_REL = '.planning/BUGS.md';
 
 // Roadmap-vs-hygiene is a strict enum tag on each BACKLOG entry (AC2.1).
 const VALID_TAGS = new Set(['roadmap', 'hygiene']);
@@ -148,5 +149,57 @@ export async function promoteToBacklog(baseDir, { block, tag, title, today } = {
   const inserted = insertAboveFooter(content, entry);
   const bumped = rewriteFooter(inserted, date);
   await atomicWrite(path, bumped);
+  return { written: true, path, key };
+}
+
+/** The minimal BUGS.md skeleton used only when a promote must create it. */
+function bugsSkeleton() {
+  return ['# Bugs', '', 'Confirmed defects and verified findings.', ''].join('\n');
+}
+
+/**
+ * Promote a classified BUG entry into `.planning/BUGS.md`: a SIMPLE entry
+ * (heading + `**Status:** needs-triage` + verbatim body + `---`) built by S1's
+ * `buildBugsEntry` and appended at EOF the same way `captureToBugs` does — no
+ * B-ID, no table row (triage is a later human step). Carries a `<!-- bugs-key -->`
+ * sha1(block) dedupe marker so a re-promote of the same source block is a no-op.
+ *
+ * Deviation from `captureToBugs` (which throws on a missing BUGS.md): the drain
+ * creates BUGS.md if absent, so a bug-classified promote never fails on a project
+ * whose BUGS.md has not been scaffolded yet. (Documented S4 deviation.)
+ *
+ * @param {string} baseDir — project root
+ * @param {object} opts
+ * @param {string} opts.block — the raw source inbox block (dedupe key = sha1(block))
+ * @param {string} [opts.title] — retitle; falls back to the block's heading
+ * @returns {Promise<{written: boolean, deduped?: boolean, path: string, key: string}>}
+ */
+export async function promoteToBugs(baseDir, { block, title } = {}) {
+  const path = join(baseDir, BUGS_REL);
+  const key = backlogKey(block);
+  const marker = `<!-- bugs-key: ${key} -->`;
+
+  let content;
+  if (existsSync(path)) {
+    content = await readFile(path, 'utf-8');
+  } else {
+    await mkdir(dirname(path), { recursive: true });
+    content = bugsSkeleton();
+  }
+  if (content.includes(marker)) {
+    return { written: false, deduped: true, path, key };
+  }
+
+  const heading = resolveTitle(title, block);
+  const body = groomBlockBody(block);
+  const built = buildBugsEntry({ body, title: heading });
+  // Inject the dedupe marker under the needs-triage Status line so it travels
+  // with the entry and a re-promote sees it (crash-safe convergence for t4).
+  const entry = built.replace(
+    '**Status:** needs-triage',
+    `**Status:** needs-triage\n${marker}`
+  );
+  const next = insertAtEnd(content, entry);
+  await atomicWrite(path, next);
   return { written: true, path, key };
 }

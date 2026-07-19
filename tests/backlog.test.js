@@ -15,7 +15,11 @@ import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createBacklogIfMissing, promoteToBacklog } from '../tools/lib/backlog.js';
+import {
+  createBacklogIfMissing,
+  promoteToBacklog,
+  promoteToBugs,
+} from '../tools/lib/backlog.js';
 
 const BACKLOG_REL = '.planning/BACKLOG.md';
 
@@ -27,6 +31,16 @@ const WORK_BLOCK = [
   '**Status:** Logged 2026-07-01 via `/sig:add`.',
   '',
   'Add a status-line breadcrumb reading STATE frontmatter.',
+  '',
+  '---',
+].join('\n');
+
+const BUG_BLOCK = [
+  '## resume crashes on schema drift',
+  '',
+  '**Status:** Logged 2026-07-02 via `/sig:add`.',
+  '',
+  '`/sig:resume` throws when STATE.md schema_version is ahead of the reader.',
   '',
   '---',
 ].join('\n');
@@ -136,5 +150,49 @@ describe('promoteToBacklog (S4.t1 — tagged entry + sha1 dedupe, AC2.1)', () =>
       today: '2026-07-19',
     });
     expect(existsSync(join(baseDir, BACKLOG_REL))).toBe(true);
+  });
+});
+
+describe('promoteToBugs (S4.t2 — simple entry into BUGS.md, AC2.3 bug half)', () => {
+  let baseDir;
+  beforeEach(async () => {
+    baseDir = await stageBase();
+  });
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true });
+  });
+
+  it('appends a simple needs-triage entry into an existing BUGS.md (reuses buildBugsEntry)', async () => {
+    await writeFile(join(baseDir, '.planning/BUGS.md'), '# Bugs\n\nExisting.\n', 'utf-8');
+    const res = await promoteToBugs(baseDir, {
+      block: BUG_BLOCK,
+      title: 'Resume crash on schema drift',
+    });
+    expect(res.written).toBe(true);
+    const text = await readFile(join(baseDir, '.planning/BUGS.md'), 'utf-8');
+    expect(text).toContain('## Resume crash on schema drift');
+    expect(text).toContain('**Status:** needs-triage');
+    expect(text).toContain(
+      '`/sig:resume` throws when STATE.md schema_version is ahead of the reader.'
+    );
+    expect(text).toContain('Existing.'); // pre-existing content preserved
+  });
+
+  it('a second promote of the same block is a no-op (sha1 dedupe)', async () => {
+    await writeFile(join(baseDir, '.planning/BUGS.md'), '# Bugs\n', 'utf-8');
+    await promoteToBugs(baseDir, { block: BUG_BLOCK, title: 'X' });
+    const after1 = await readFile(join(baseDir, '.planning/BUGS.md'), 'utf-8');
+    const res2 = await promoteToBugs(baseDir, { block: BUG_BLOCK, title: 'A different title' });
+    expect(res2.written).toBe(false);
+    expect(res2.deduped).toBe(true);
+    expect(await readFile(join(baseDir, '.planning/BUGS.md'), 'utf-8')).toBe(after1);
+  });
+
+  it('creates BUGS.md when missing (drain resilience — conscious deviation from captureToBugs)', async () => {
+    expect(existsSync(join(baseDir, '.planning/BUGS.md'))).toBe(false);
+    await promoteToBugs(baseDir, { block: 'A defect body.', title: 'A defect' });
+    const text = await readFile(join(baseDir, '.planning/BUGS.md'), 'utf-8');
+    expect(text).toContain('## A defect');
+    expect(text).toContain('**Status:** needs-triage');
   });
 });
