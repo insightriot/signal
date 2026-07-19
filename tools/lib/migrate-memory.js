@@ -2233,6 +2233,17 @@ export async function applyMigrate(baseDir, opts = {}) {
     // COMPLETE here — STATE.md (snapped at entry), each V3 archive file + the V2
     // history (snapped during compose), and the archive sources/dests/referrers
     // (snapped just above) — so it captures every file the mechanical phase touches.
+    // IMPORTANT-1 (M5.E3 REVIEW security): UNCONDITIONAL planning-root realpath assert
+    // BEFORE any disk write (this fs-backup snapshot persist, the STATE/BACKLOG/INDEX
+    // writes below). The archive/relocate vectors run assertRealInsidePlanning, but a
+    // MINIMAL needsV3 run (de-prose/stamp + BACKLOG-create, empty archiveMoveMap) reaches
+    // the first write with NO vector to trigger it — a `.planning/` symlinked OUT of the
+    // repo would be missed (the stranger-adoption case the stamp-null fix makes reachable
+    // on every external project). Refuse cleanly (throw → no write) if the real planning
+    // root escapes the repo. `statePath`'s dirname IS the planning root, so this reuses
+    // the exact hardened check (its dest-dir arm is a trivial pass here).
+    assertRealInsidePlanning(baseDir, statePath, 'applyMigrate');
+
     let snapshotDir = null;
     if (probe.mode === 'fs-backup' || (probe.dirty && force)) {
       snapshotDir = join(planningDir, '.migrate', 'snapshot');

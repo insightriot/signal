@@ -123,6 +123,42 @@ describe('M5.E2 REVIEW — realpath confinement refuses a directory-symlink esca
     expect(threw).toBe(true); // the apply REFUSED a symlinked planning root
   });
 
+  // --- IMPORTANT-1 (M5.E3 REVIEW): the MINIMAL needsV3 path had NO realpath check ---
+  // The .planning-symlink case above is caught only because a closed-Epic scaffold
+  // triggers the archive vector, whose relocateFaithful/applyArchiveTree runs
+  // assertRealInsidePlanning. A minimal needsV3 run (de-prose/stamp STATE + BACKLOG-
+  // create, NO scaffold, empty archiveMoveMap) never touches that gateway → before the
+  // fix the tail STATE/BACKLOG/INDEX writes followed the symlink OUT of the repo with
+  // no check. The stamp-null nullfix makes migrate fire on every external project, so
+  // this is the stranger-adoption symlink case. An UNCONDITIONAL planning-root realpath
+  // assert before the first write closes it.
+  it('refuses a minimal needsV3 run (no vector) when .planning is a symlink OUT of the repo', async () => {
+    // stamp 1 → needsV3; conformant + no scaffold + no BACKLOG → the ONLY work is the
+    // de-prose/stamp + BACKLOG-create, which never hits the archive/relocate gateway.
+    const STATE_V3_PENDING =
+      `---\nschema_version: 1\ndocs_layout_version: 1\nphase: EXECUTE\ncurrent_epic: M6.E2\n` +
+      `current_tasks: []\ncompleted_phases:\n  - PLAN (2026-07-16)\nblockers: []\n---\n# Project State\n\nlive pointer\n`;
+    await writeFile(join(outside, 'STATE.md'), STATE_V3_PENDING, 'utf-8');
+    await symlink(outside, join(dir, '.planning'));
+    initGit(dir);
+
+    const stateBefore = await readFile(join(outside, 'STATE.md'), 'utf-8');
+
+    let threw = false;
+    try {
+      await applyMigrate(dir, { stamp: 'T1', dateStr: '2026-07-17' });
+    } catch {
+      threw = true;
+    }
+
+    // RED (no realpath check on the minimal path): the migrate writes BACKLOG.md +
+    // INDEX.md into the symlink target and stamps STATE — all three fail.
+    expect(threw).toBe(true); // refused before any write
+    expect(existsSync(join(outside, 'BACKLOG.md'))).toBe(false); // nothing created outside
+    expect(existsSync(join(outside, 'INDEX.md'))).toBe(false);
+    expect(await readFile(join(outside, 'STATE.md'), 'utf-8')).toBe(stateBefore); // STATE untouched
+  });
+
   // --- UNIT: relocateFaithful (the migrate-memory.js gateway) refuses directly ---
   it('relocateFaithful refuses a dest whose parent dir escapes via a symlink', async () => {
     const planning = join(dir, '.planning');
