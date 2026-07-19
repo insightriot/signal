@@ -18,6 +18,7 @@ import {
   checkInternalLinks,
   checkRosterCounts,
   checkVersionConsistency,
+  checkFillInStubs,
   listDocFiles,
 } from '../tools/lib/doc-hygiene.js';
 
@@ -180,5 +181,42 @@ describe('M5.E3.S3.t4 checkVersionConsistency', () => {
 
   it('is GREEN on the live Signal repo (all 0.1.7, doc-runtime in [Unreleased])', () => {
     expect(hard(checkVersionConsistency(ROOT))).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// t5 — [FILL IN] stubs
+// ---------------------------------------------------------------------------
+describe('M5.E3.S3.t5 checkFillInStubs', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'sig-hyg-fill-'));
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('flags a line-anchored [FILL IN] in a shipped doc as HARD', async () => {
+    await writeDoc(dir, 'README.md', '# Signal\n\n[FILL IN — the tagline]\n');
+    const h = hard(checkFillInStubs(dir));
+    expect(h).toHaveLength(1);
+    expect(h[0].file).toBe('README.md');
+  });
+
+  it('does NOT flag an inline [FILL IN] reference inside prose', async () => {
+    // The line-anchored heuristic ignores inline mentions like the one below.
+    await writeDoc(dir, 'docs/guide.md', 'Replace each `[FILL IN]` marker with your value.\n');
+    expect(hard(checkFillInStubs(dir))).toHaveLength(0);
+  });
+
+  it('excludes the tester-brief template + retros/milestone docs', async () => {
+    await writeDoc(dir, 'docs/tester-brief.md', '# Brief\n\n[FILL IN — your context]\n');
+    await writeDoc(dir, 'docs/M5.E3-RETROSPECTIVE.md', '[FILL IN — reflection]\n');
+    await writeDoc(dir, 'docs/MILESTONE-5.md', '[FILL IN — scope]\n');
+    expect(hard(checkFillInStubs(dir))).toHaveLength(0);
+  });
+
+  it('is GREEN on the live Signal repo (README clean, tester-brief excluded)', () => {
+    expect(hard(checkFillInStubs(ROOT))).toHaveLength(0);
   });
 });

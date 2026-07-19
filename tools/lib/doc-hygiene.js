@@ -246,6 +246,61 @@ export function checkVersionConsistency(baseDir = ROOT) {
   return findings.sort(findingCmp);
 }
 
+// --- [FILL IN] stubs (narrow allowlist) --------------------------------------
+
+// A named template exclusion: docs/tester-brief.md is a copy-and-fill
+// friction-log handed to first testers — its `[FILL IN — …]` markers ARE the
+// design, not an unfilled stub. This is the "minus templates" carve-out.
+const FILL_IN_TEMPLATE_EXCLUDE = new Set(['docs/tester-brief.md']);
+
+// Stub/meta retros and milestone docs legitimately carry `[FILL IN]` placeholders
+// for opportunistic completion — excluded by filename shape.
+const FILL_IN_NAME_EXCLUDE = /-RETROSPECTIVE\.md$|^MILESTONE-|-template\.md$/;
+
+/** README.md + top-level docs/*.md, minus templates / retros / milestone docs. */
+function fillInScope(baseDir) {
+  const rels = [];
+  if (existsSync(join(baseDir, 'README.md'))) rels.push('README.md');
+  let entries;
+  try {
+    entries = readdirSync(join(baseDir, 'docs'), { withFileTypes: true });
+  } catch {
+    entries = [];
+  }
+  for (const e of entries) {
+    if (e.isFile() && e.name.endsWith('.md')) rels.push(`docs/${e.name}`);
+  }
+  return rels
+    .filter((rel) => !FILL_IN_TEMPLATE_EXCLUDE.has(rel) && !FILL_IN_NAME_EXCLUDE.test(rel.split('/').pop()))
+    .sort();
+}
+
+/**
+ * Unfilled `[FILL IN]` markers in shipped (non-template) docs. HARD (AC4.2).
+ * Line-anchored via `isStubRetro` — inline mentions inside prose (e.g. text that
+ * describes how the markers work) don't match.
+ *
+ * @param {string} [baseDir=ROOT]
+ * @returns {Array<{check: string, severity: string, file: string, message: string}>}
+ */
+export function checkFillInStubs(baseDir = ROOT) {
+  const findings = [];
+  for (const rel of fillInScope(baseDir)) {
+    let text;
+    try {
+      text = readFileSync(join(baseDir, rel), 'utf-8');
+    } catch {
+      continue;
+    }
+    if (isStubRetro(text)) {
+      findings.push(
+        mkFinding('fill-in-stubs', 'hard', rel, 'unfilled [FILL IN] marker in a shipped (non-template) doc'),
+      );
+    }
+  }
+  return findings.sort(findingCmp);
+}
+
 /** Split a link token into its path part and `#anchor` (anchor may be ''). */
 function splitAnchor(tok) {
   const i = tok.indexOf('#');
