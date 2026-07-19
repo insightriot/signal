@@ -28,6 +28,7 @@ import {
   releaseLock as fileReleaseLock,
 } from './file-lock.js';
 import { currentMilestone } from './milestones.js';
+import { resolveInboxPath } from './inbox-path.js';
 
 // Re-export atomicWrite so existing consumers (tests/add.test.js, future
 // callers) keep working while atomic-write.js is the canonical implementation
@@ -42,7 +43,9 @@ export const BODY_LENGTH_SOFT_CAP = 4000;
 // the file-lock default (5s).
 const LOCK_TTL_MS = 30_000;
 const LOCK_FILE = '.planning/.add.lock';
-const FUTURE_IDEAS = '.planning/FUTURE-IDEAS.md';
+// The inbox path is NOT a hardcoded const — it routes through
+// `resolveInboxPath(baseDir)` so a legacy (`FUTURE-IDEAS.md`) and a v3
+// (`ISSUES-INBOX.md`) repo both work without branching (FR1 / R1).
 const OPEN_QUESTIONS = '.planning/OPEN-QUESTIONS.md';
 // One-time first-run onboarding flag (FR6.1). Lives inside .planning/, so it is
 // git-tracked by convention like everything else there — no special .gitignore
@@ -1050,18 +1053,23 @@ export async function captureToDestination(baseDir, opts) {
 export async function captureToFutureIdeas(baseDir, opts) {
   const { body, today, triggerContext, sensitivePrompt, bodyLengthPrompt } = opts;
 
+  // Route through the resolver: a legacy repo picks `.planning/FUTURE-IDEAS.md`,
+  // a v3 repo picks `.planning/ISSUES-INBOX.md`, a fresh repo picks the new name
+  // for lazy-create (FR1 / R1).
+  const relPath = resolveInboxPath(baseDir);
+
   return captureToDestination(baseDir, {
-    relPath: FUTURE_IDEAS,
+    relPath,
     buildEntry: ({ body, date, triggerContext }) =>
       buildFutureIdeasEntry({ body, date, triggerContext }),
-    // Footer handling stays FUTURE-IDEAS-specific — encapsulated here so the
-    // shared spine never assumes a footer exists. Returns {content, repaired}
-    // so a drifted (stranded-footer) file gets normalized + announced (S3.t2).
+    // Footer handling stays inbox-specific — encapsulated here so the shared
+    // spine never assumes a footer exists. Returns {content, repaired} so a
+    // drifted (stranded-footer) file gets normalized + announced (S3.t2).
     insert: (content, entry, date) => insertFutureIdeasEntry(content, entry, date),
-    // Preserve the exact error text Slice 1 threw (existing test asserts
-    // /sig:init/ appears).
+    // Error names the resolved inbox path; still mentions /sig:init (the
+    // existing test asserts /sig:init/ appears).
     missingFileError:
-      `Cannot capture: .planning/FUTURE-IDEAS.md not found at ${join(baseDir, FUTURE_IDEAS)}. ` +
+      `Cannot capture: ${relPath} not found at ${join(baseDir, relPath)}. ` +
       `Run \`/sig:init\` first if this is an existing codebase, or \`/sig:new-project\` for a fresh project.`,
     body,
     today,

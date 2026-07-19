@@ -27,6 +27,7 @@ import { join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 
 import { atomicWrite } from './atomic-write.js';
+import { resolveInboxPath, resolveLedgerPath } from './inbox-path.js';
 
 // Top-level entry boundary: a line that begins with exactly `## ` (two hashes +
 // space). `### …` has a non-space at index 2, so it never matches — nested
@@ -557,8 +558,10 @@ function danglingFenceOffset(content) {
  *
  * @param {string} baseDir — project root
  * @param {object} [opts]
- * @param {string} [opts.inboxRel='.planning/FUTURE-IDEAS.md']
- * @param {string} [opts.ledgerRel='.planning/archive/FUTURE-IDEAS-LEDGER.md']
+ * @param {string} [opts.inboxRel] — defaults to `resolveInboxPath(baseDir)`
+ *   (legacy `FUTURE-IDEAS.md` or v3 `ISSUES-INBOX.md`, whichever is present).
+ * @param {string} [opts.ledgerRel] — defaults to `resolveLedgerPath(baseDir)`
+ *   (paired with the resolved inbox; existing ledger wins).
  * @param {boolean} [opts.dryRun=false]
  * @param {string} [opts.date] — accepted for signature parity with
  *   applyDispositionToFile; the dedupe key uses each entry's own `dateISO`.
@@ -567,12 +570,12 @@ function danglingFenceOffset(content) {
  * @returns {Promise<{evicted: Array<{heading: string, key: string}>, planned: Array<{heading: string, key: string}>, danglingFence: boolean}>}
  */
 export async function evictTerminalToLedger(baseDir, opts = {}) {
-  const {
-    inboxRel = '.planning/FUTURE-IDEAS.md',
-    ledgerRel = '.planning/archive/FUTURE-IDEAS-LEDGER.md',
-    dryRun = false,
-    renameFn,
-  } = opts;
+  const { dryRun = false, renameFn } = opts;
+  // Resolve inside the body (baseDir is the first arg, unavailable in a default
+  // param). An explicit inboxRel/ledgerRel still wins; otherwise route through
+  // the resolver so a legacy and a v3 repo both work (FR1 / R1).
+  const inboxRel = opts.inboxRel ?? resolveInboxPath(baseDir);
+  const ledgerRel = opts.ledgerRel ?? resolveLedgerPath(baseDir);
 
   const inboxPath = join(baseDir, inboxRel);
   const ledgerPath = join(baseDir, ledgerRel);
