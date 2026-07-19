@@ -35,6 +35,7 @@ import {
 import { enumerateRetros } from './retro-index.js';
 import { checkStateFrontmatterShape } from './retrospective.js';
 import { toPosix, detectUnhandledLinkForms, senseArchiveTree, applyArchiveTree } from './archive-tree.js';
+import { currentMilestone } from './milestones.js';
 
 // verifyFaithful IS verifyCardCoverage under the migrate command's name — a
 // re-export, NOT a rename (evict.js keeps verifyCardCoverage; check-state-write
@@ -2269,4 +2270,218 @@ export function defaultMilestoneOf(dateStr) {
     if (open <= dateStr) label = ms;
   }
   return label;
+}
+
+// A bare decision anchor: `D-<prefix>-<num>` (D-A-1, D-M5E3-8, …). Matches the
+// planning-index D-ID grammar so the evicted-anchor set lines up exactly with
+// what `resolveDecisionId` keys on.
+const DECISION_ANCHOR_RE = /\bD-[A-Za-z0-9]+-\d+\b/g;
+
+// The archive header prefaced to a per-milestone `archive/M{n}/DECISIONS.md`.
+// DELIBERATELY carries no `D-<prefix>-<num>` token (would seed a phantom prefix
+// range). Ends with a `---\n\n` so the first relocated block's `## ` heading sits
+// on a fresh line.
+function buildArchiveHeader(milestone) {
+  return (
+    `# Archived Decisions — ${milestone}\n\n` +
+    'Closed-milestone decision sections relocated verbatim from ' +
+    '`.planning/DECISIONS.md` by `/sig:migrate-memory` (append-log eviction). ' +
+    'Byte-identical; every decision anchor still resolves here via `/sig:index`. ' +
+    'History, not state — append-only.\n\n---\n\n'
+  );
+}
+
+// The dated pointer left in the LIVE DECISIONS.md for a milestone group. Its body
+// is the archive path + date ONLY — ZERO `D-…` tokens (per the gate contract: a
+// D-ID enumerated here would put that prefix range back in the live file, and
+// `resolveDecisionId` prefers the live home on a tie → the evicted ID would
+// resolve to LIVE, spuriously fail-closing the whole evict). The heading is dated
+// `dateStr` (the run date, ≥ the boundary) so a re-parse classifies it LIVE, never
+// re-evicting the pointer. The `<!-- append-log-evicted: M{n} -->` marker mirrors
+// the drain ledger's `<!-- evicted-key -->` idempotency pattern.
+function buildPointerBlock(milestone, dateStr) {
+  return (
+    `<!-- append-log-evicted: ${milestone} -->\n` +
+    `## ${dateStr} — Closed-milestone decisions relocated (${milestone})\n\n` +
+    `The ${milestone} closed-milestone decision sections were relocated verbatim to ` +
+    `[archive/${milestone}/DECISIONS.md](archive/${milestone}/DECISIONS.md). Grep the ` +
+    `archive by decision ID; every anchor still resolves via \`/sig:index\`.\n`
+  );
+}
+
+/**
+ * Build the desired content of a per-milestone `archive/M{n}/DECISIONS.md`:
+ * `existing` (or a fresh header when absent) plus every relocated block NOT
+ * already present (a crash re-run / later same-milestone eviction is append-safe
+ * + idempotent — a block already archived is skipped, so nothing is duplicated or
+ * lost). Each `raw` is concatenated VERBATIM, so the block stays byte-identical.
+ * Pure.
+ *
+ * @param {string} milestone
+ * @param {string[]} sectionRaws  the verbatim section blocks for this milestone
+ * @param {string} existing       current archive content ('' when the file is new)
+ * @returns {string}
+ */
+export function buildArchiveContent(milestone, sectionRaws, existing = '') {
+  let out = existing && existing.length ? existing : buildArchiveHeader(milestone);
+  for (const raw of sectionRaws) {
+    if (out.includes(raw)) continue; // already archived (append/crash idempotency)
+    if (!out.endsWith('\n')) out += '\n';
+    out += raw;
+  }
+  return out;
+}
+
+/**
+ * PURE append-log evict planner. Parses DECISIONS.md, selects the strictly-closed
+ * sections, groups them by `milestoneOf(date)`, and returns the plan-data:
+ *   - `evicts`      — `[{ milestone, archiveRel, sections, sectionRaws }]`, one per
+ *                     milestone group, in first-appearance order;
+ *   - `liveText`    — the shortened DECISIONS.md: preamble + the LIVE section raws
+ *                     + a dated pointer (with marker) per milestone group;
+ *   - `evictedIds`  — `[{ id, archiveRel }]` for every `D-…` anchor in the evicted
+ *                     blocks, tagged with the archive it lands in (the gate's input);
+ *   - `unroutable`  — evictable sections `milestoneOf` could not label (a routing
+ *                     gap → the caller fail-safes to detect-only, planning nothing);
+ *   - `noop`        — nothing before the boundary → true no-op.
+ * No I/O — the caller reads any pre-existing archive + writes. The archive CONTENT
+ * (existing + new blocks) is assembled at apply time via `buildArchiveContent`.
+ *
+ * @param {string} text  full DECISIONS.md content
+ * @param {{boundaryDate: string, milestoneOf?: (d: string) => string|null, dateStr?: string}} opts
+ */
+export function senseAppendLogEvict(text, opts = {}) {
+  const boundaryDate = opts.boundaryDate;
+  const dateStr = opts.dateStr ?? new Date().toISOString().split('T')[0];
+  const milestoneOf = opts.milestoneOf ?? defaultMilestoneOf;
+
+  const { preamble, sections } = parseDecisionSections(text);
+  const { evict, live } = selectEvictableSections(sections, boundaryDate);
+  if (evict.length === 0) {
+    return { noop: true, evicts: [], liveText: text, evictedIds: [], unroutable: [] };
+  }
+
+  const unroutable = [];
+  const groups = new Map(); // milestone → section[] (first-appearance order)
+  for (const s of evict) {
+    const ms = milestoneOf(s.date);
+    if (!ms) {
+      unroutable.push({ date: s.date, heading: s.heading });
+      continue;
+    }
+    if (!groups.has(ms)) groups.set(ms, []);
+    groups.get(ms).push(s);
+  }
+  // Fail-safe: if any evictable section can't be routed to a milestone, plan
+  // NOTHING (the caller reports detect-only — a partial evict would strand blocks).
+  if (unroutable.length > 0) {
+    return { noop: false, evicts: [], liveText: text, evictedIds: [], unroutable };
+  }
+
+  const evicts = [];
+  const evictedIds = [];
+  const seen = new Set();
+  for (const [milestone, secs] of groups) {
+    const archiveRel = toPosix(join(PLANNING_DIR, 'archive', milestone, 'DECISIONS.md'));
+    evicts.push({ milestone, archiveRel, sections: secs, sectionRaws: secs.map((s) => s.raw) });
+    for (const s of secs) {
+      for (const m of s.raw.matchAll(DECISION_ANCHOR_RE)) {
+        const key = `${m[0]}\0${archiveRel}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        evictedIds.push({ id: m[0], archiveRel });
+      }
+    }
+  }
+
+  // Live text = preamble + LIVE section raws + one dated pointer per group.
+  let liveText = preamble + live.map((s) => s.raw).join('');
+  for (const [milestone] of groups) {
+    if (liveText.includes(`<!-- append-log-evicted: ${milestone} -->`)) continue;
+    if (!liveText.endsWith('\n')) liveText += '\n';
+    liveText += `\n---\n\n${buildPointerBlock(milestone, dateStr)}`;
+  }
+
+  return { noop: false, evicts, liveText, evictedIds, unroutable: [] };
+}
+
+/**
+ * Standalone append-log evict — parse → cut → relocate (archive-first, BYTE) →
+ * shorten the live file → (t3) rebuild the D-ID map + anchor-resolvability gate.
+ * NOT composed into `applyMigrate` (that is S6a). Move-never-delete: the archive
+ * is written + BYTE-verified BEFORE the live file is shortened; a surgical
+ * snapshot rolls every touched file back byte-identical on any failure.
+ *
+ * @param {string} baseDir
+ * @param {{boundaryDate?: string, milestoneOf?: (d: string) => string|null,
+ *          dateStr?: string, dryRun?: boolean, resolveId?: (b: string, id: string) => Promise<string|null>}} [opts]
+ */
+export async function runAppendLogEvict(baseDir, opts = {}) {
+  const milestoneOf = opts.milestoneOf ?? defaultMilestoneOf;
+  const dateStr = opts.dateStr ?? new Date().toISOString().split('T')[0];
+  const boundaryDate = opts.boundaryDate ?? (await deriveBoundaryDate(baseDir));
+  const dryRun = opts.dryRun ?? false;
+
+  const planningDir = join(baseDir, PLANNING_DIR);
+  const decisionsPath = join(planningDir, 'DECISIONS.md');
+  if (!boundaryDate) {
+    return { applied: false, noop: true, reason: 'no-boundary', evicts: [], evictedIds: [] };
+  }
+  if (!existsSync(decisionsPath)) {
+    return { applied: false, noop: true, reason: 'no-decisions-file', evicts: [], evictedIds: [] };
+  }
+
+  // FULL read (t5) — never the FILE_SCAN_CEILING-truncated copy, so a >1 MB
+  // DECISIONS.md still yields every section to the parser.
+  const original = await readFile(decisionsPath, 'utf-8');
+  const plan = senseAppendLogEvict(original, { boundaryDate, milestoneOf, dateStr });
+
+  if (plan.noop) {
+    return { applied: false, noop: true, evicts: [], evictedIds: [], liveBytesBefore: original.length, liveBytesAfter: original.length };
+  }
+  if (plan.unroutable.length > 0) {
+    // A routing gap → fail-safe detect-only (mutate nothing).
+    return { applied: false, detectOnly: true, noop: false, reason: 'unroutable-sections', unroutable: plan.unroutable, evicts: [], evictedIds: [], liveBytesBefore: original.length, liveBytesAfter: original.length };
+  }
+
+  const evictSummary = plan.evicts.map((e) => ({ milestone: e.milestone, archiveRel: e.archiveRel, sectionCount: e.sections.length }));
+  if (dryRun) {
+    return { applied: false, dryRun: true, noop: false, evicts: evictSummary, evictedIds: plan.evictedIds, liveBytesBefore: original.length, liveBytesAfter: plan.liveText.length };
+  }
+
+  // Surgical snapshot (shared with the codebase's migrate rollback idiom): DECISIONS.md
+  // + each per-milestone archive. On any failure, restore byte-identical / remove created.
+  const { snap, rollback } = createSnapshotter(planningDir);
+  await snap('DECISIONS.md');
+
+  // Archive-first (relocate-never-delete): write + BYTE-verify each per-milestone
+  // archive BEFORE the live file is shortened.
+  for (const ev of plan.evicts) {
+    const archiveKey = ev.archiveRel.replace(`${PLANNING_DIR}/`, '');
+    await snap(archiveKey);
+    const existing = existsSync(join(baseDir, ev.archiveRel)) ? await readFile(join(baseDir, ev.archiveRel), 'utf-8') : '';
+    const archiveContent = buildArchiveContent(ev.milestone, ev.sectionRaws, existing);
+    const rel = await relocateFaithful({
+      sourceText: archiveContent,
+      destAbs: join(baseDir, ev.archiveRel),
+      baseDir,
+      mode: BYTE,
+    });
+    if (!rel.pass) {
+      await rollback();
+      throw new Error(`runAppendLogEvict: BYTE conservation failed for ${ev.archiveRel} — rolled back, no writes.`);
+    }
+  }
+
+  // Only now shorten the live file (the source), its content already re-homed.
+  await atomicWrite(decisionsPath, plan.liveText);
+
+  return {
+    applied: true,
+    noop: false,
+    evicts: evictSummary,
+    evictedIds: plan.evictedIds,
+    liveBytesBefore: original.length,
+    liveBytesAfter: plan.liveText.length,
+  };
 }
