@@ -246,3 +246,63 @@ describe('t3 — anchor-resolvability gate (fail-closed to detect-only)', () => 
     expect(await readFile(decisionsPath(dir), 'utf-8')).toBe(split);
   });
 });
+
+describe('t4 — standalone end-to-end (NOT wired into applyMigrate)', () => {
+  let dir;
+  beforeEach(async () => { dir = await makeRepo(); });
+  afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
+
+  const indexPath = (d) => join(d, '.planning', 'INDEX.md');
+
+  it('runs the full parse→cut→relocate→regen-index→anchor-check pipeline green', async () => {
+    const res = await runAppendLogEvict(dir, { boundaryDate: BOUNDARY, milestoneOf, dateStr: RUN_DATE });
+    expect(res.applied).toBe(true);
+    expect(res.detectOnly).toBeFalsy();
+    // relocate: per-milestone archives exist.
+    expect(existsSync(archivePath(dir, 'M1'))).toBe(true);
+    expect(existsSync(archivePath(dir, 'M2'))).toBe(true);
+    // regen-index: INDEX.md is refreshed and lists the new archive DECISIONS files.
+    const index = await readFile(indexPath(dir), 'utf-8');
+    expect(index).toContain('archive/M1/DECISIONS.md');
+    expect(index).toContain('archive/M2/DECISIONS.md');
+    // anchor-check passed: evicted IDs resolve to their archive home (independent verify).
+    const { resolveDecisionId } = await import('../tools/lib/planning-index.js');
+    expect(await resolveDecisionId(dir, 'D-A-1')).toBe('.planning/archive/M1/DECISIONS.md');
+    expect(await resolveDecisionId(dir, 'D-B-1')).toBe('.planning/archive/M2/DECISIONS.md');
+  });
+
+  it('operates directly on DECISIONS.md — no STATE.md / applyMigrate involved', async () => {
+    // The fixture repo has NO STATE.md; applyMigrate would refuse (no frontmatter),
+    // proving this entry is genuinely standalone, not a thin applyMigrate wrapper.
+    expect(existsSync(join(dir, '.planning', 'STATE.md'))).toBe(false);
+    const res = await runAppendLogEvict(dir, { boundaryDate: BOUNDARY, milestoneOf, dateStr: RUN_DATE });
+    expect(res.applied).toBe(true);
+  });
+
+  it('idempotent re-run is a no-op (AC5.5) — every file byte-unchanged', async () => {
+    await runAppendLogEvict(dir, { boundaryDate: BOUNDARY, milestoneOf, dateStr: RUN_DATE });
+    const after1 = {
+      live: await readFile(decisionsPath(dir), 'utf-8'),
+      m1: await readFile(archivePath(dir, 'M1'), 'utf-8'),
+      m2: await readFile(archivePath(dir, 'M2'), 'utf-8'),
+      index: await readFile(indexPath(dir), 'utf-8'),
+    };
+    const res2 = await runAppendLogEvict(dir, { boundaryDate: BOUNDARY, milestoneOf, dateStr: RUN_DATE });
+    expect(res2.noop).toBe(true);
+    expect(await readFile(decisionsPath(dir), 'utf-8')).toBe(after1.live);
+    expect(await readFile(archivePath(dir, 'M1'), 'utf-8')).toBe(after1.m1);
+    expect(await readFile(archivePath(dir, 'M2'), 'utf-8')).toBe(after1.m2);
+    expect(await readFile(indexPath(dir), 'utf-8')).toBe(after1.index);
+  });
+
+  it('dry-run reports the plan and writes nothing', async () => {
+    const before = await readFile(decisionsPath(dir), 'utf-8');
+    const res = await runAppendLogEvict(dir, { boundaryDate: BOUNDARY, milestoneOf, dateStr: RUN_DATE, dryRun: true });
+    expect(res.dryRun).toBe(true);
+    expect(res.applied).toBeFalsy();
+    expect(res.evicts.map((e) => e.milestone)).toEqual(['M1', 'M2']);
+    expect(await readFile(decisionsPath(dir), 'utf-8')).toBe(before);
+    expect(existsSync(archivePath(dir, 'M1'))).toBe(false);
+    expect(existsSync(indexPath(dir))).toBe(false);
+  });
+});

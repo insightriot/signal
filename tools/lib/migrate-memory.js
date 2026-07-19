@@ -2484,6 +2484,16 @@ export async function runAppendLogEvict(baseDir, opts = {}) {
   // Only now shorten the live file (the source), its content already re-homed.
   await atomicWrite(decisionsPath, plan.liveText);
 
+  // --- regen the traversal index (the FR3 layer FR5 rides on) -----------------
+  // Refresh `.planning/INDEX.md` so the human traversal doc reflects the new
+  // per-milestone archive DECISIONS files. Snapped FIRST so a fail-closed rollback
+  // restores it. The D-ID map the anchor gate below reads is separate + disk-fresh
+  // (rebuilt inside resolveDecisionId), so this regen is the human-doc half; the
+  // gate's map is the machine half — both post-evict (Issue 4). Idempotent.
+  await snap('INDEX.md');
+  const { regeneratePlanningIndex } = await import('./planning-index.js');
+  await regeneratePlanningIndex(baseDir);
+
   // --- anchor-resolvability gate (in-evict-step regen; fail-closed) -----------
   // AFTER both writes, rebuild the D-ID map FRESH from disk (Issue 4 — the gate
   // must read the POST-evict map, not a stale pre-evict one) and assert EVERY
