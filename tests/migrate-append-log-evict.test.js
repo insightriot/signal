@@ -306,3 +306,56 @@ describe('t4 — standalone end-to-end (NOT wired into applyMigrate)', () => {
     expect(existsSync(indexPath(dir))).toBe(false);
   });
 });
+
+describe('t5 — compatibility (checkpoint appends + full-file read)', () => {
+  let dir;
+  beforeEach(async () => { dir = await makeRepo(); });
+  afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
+
+  it('a checkpoint-authored current-date section stays LIVE (AC5.4)', async () => {
+    // /sig:checkpoint --context appends `## <today> — Checkpoint-captured: …` to
+    // the LIVE DECISIONS.md. Today is always ≥ the current-milestone open date, so
+    // the append must survive the evict (eviction only moves closed-milestone blocks).
+    const { captureCheckpointContext } = await import('../tools/lib/checkpoint.js');
+    await captureCheckpointContext(dir, { decisions: ['A fresh current decision (D-C-9)'] });
+
+    await runAppendLogEvict(dir, { boundaryDate: BOUNDARY, milestoneOf, dateStr: RUN_DATE });
+
+    const live = await readFile(decisionsPath(dir), 'utf-8');
+    expect(live).toContain('Checkpoint-captured: A fresh current decision (D-C-9)');
+    // …and the closed-milestone blocks are gone (the evict still did its job).
+    expect(live).not.toContain('Establish the alpha baseline');
+  });
+
+  it('parses every section of a >1 MB DECISIONS.md — nothing dropped past FILE_SCAN_CEILING', () => {
+    const pad = 'X'.repeat(1024 * 1024 + 500); // pushes the 2nd heading past 1 MB
+    const big = [
+      '# Log', '', 'Preamble.', '', '---', '',
+      '## 2026-01-05 — Early closed decision (D-Z-1)', '',
+      `**Decision:** ${pad}`, '', '---', '',
+      '## 2026-02-15 — Late closed decision past the 1 MB mark (D-Z-2)', '',
+      '**Decision:** A section that lives beyond FILE_SCAN_CEILING.', '',
+    ].join('\n');
+    const { sections } = parseDecisionSections(big);
+    expect(sections).toHaveLength(2);
+    expect(sections[1].heading).toContain('Late closed decision past the 1 MB mark');
+  });
+
+  it('evicts a section located BEYOND the 1 MB mark (runner reads the whole file)', async () => {
+    const pad = 'X'.repeat(1024 * 1024 + 500);
+    const big = [
+      '# Log', '', 'Preamble.', '', '---', '',
+      '## 2026-01-05 — Early closed decision (D-Z-1)', '',
+      `**Decision:** ${pad}`, '', '---', '',
+      '## 2026-02-15 — Late closed decision past the 1 MB mark (D-Z-2)', '',
+      '**Decision:** A section that lives beyond FILE_SCAN_CEILING.', '',
+    ].join('\n');
+    dir = await makeRepoWith(big);
+    const res = await runAppendLogEvict(dir, { boundaryDate: BOUNDARY, milestoneOf, dateStr: RUN_DATE });
+    expect(res.applied).toBe(true);
+    // The late (past-1 MB) section was found + relocated — not silently dropped.
+    const m2 = await readFile(archivePath(dir, 'M2'), 'utf-8');
+    expect(m2).toContain('Late closed decision past the 1 MB mark');
+    expect(m2).toContain('beyond FILE_SCAN_CEILING');
+  });
+});
