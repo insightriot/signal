@@ -1180,6 +1180,51 @@ export function stampOnConformance(text, version = CURRENT_LAYOUT_VERSION) {
 }
 
 /**
+ * Is the project FULLY v3-conformant ON DISK? The v3 stamp-gating predicate (R2):
+ * true ⟺ the STATE within-doc vectors are all clean (V1/V2 pure-text via
+ * `senseState`, V3 disk-aware closed-Epic evict via `senseVector3`) AND the FR6
+ * file lifecycle is complete —
+ *   • the inbox is renamed (no `FUTURE-IDEAS.md` on disk),
+ *   • `BACKLOG.md` is present,
+ *   • the append-log evict is DONE (no closed-milestone `DECISIONS.md` date-section
+ *     still pending before the boundary — a born-v3 project with no `DECISIONS.md`,
+ *     or one whose closed sections are all evicted, passes).
+ * A STATE-text-only predicate would pass a text-only test while shipping the
+ * self-silencing-banner bug (stamped v3 with `FUTURE-IDEAS.md` still on disk), so
+ * this reads the FILESYSTEM. It is DELIBERATELY a NEW function, NOT a widening of
+ * `senseState`: that pure-text helper (`conformant = vectors.length === 0`) is
+ * shared by the fail-open banner hook + `status.js`, and giving it `baseDir` would
+ * blast the banner path. `opts.boundaryDate`/`opts.milestoneOf` default to the real-
+ * run derivation; the compose passes the SAME injected values it evicts with, so the
+ * evict-done check is consistent with what actually ran.
+ *
+ * @param {string} baseDir
+ * @param {string} stateText  the on-disk STATE.md content
+ * @param {{boundaryDate?: string, milestoneOf?: (d: string) => string|null}} [opts]
+ * @returns {Promise<boolean>}
+ */
+export async function isV3Conformant(baseDir, stateText, opts = {}) {
+  if (!senseState(stateText).conformant) return false;
+  if ((await senseVector3(baseDir, stateText)).evicts.length > 0) return false;
+  const planningDir = join(baseDir, PLANNING_DIR);
+  if (existsSync(join(planningDir, 'FUTURE-IDEAS.md'))) return false;
+  if (!existsSync(join(planningDir, 'BACKLOG.md'))) return false;
+  const decisionsPath = join(planningDir, 'DECISIONS.md');
+  if (existsSync(decisionsPath)) {
+    const boundaryDate = opts.boundaryDate ?? (await deriveBoundaryDate(baseDir));
+    if (boundaryDate) {
+      const milestoneOf = opts.milestoneOf ?? defaultMilestoneOf;
+      const ev = senseAppendLogEvict(await readFile(decisionsPath, 'utf-8'), { boundaryDate, milestoneOf });
+      // A ROUTABLE pending evict → not yet conformant. An UNROUTABLE set is a
+      // routing-gap fail-open (can't route → don't block the stamp), matching the
+      // evict step, which also plans nothing in that case.
+      if (!ev.noop && ev.unroutable.length === 0) return false;
+    }
+  }
+  return true;
+}
+
+/**
  * PURE single-STATE auto-sense. Reads the FR7 stamp, structurally sniffs the two
  * within-STATE bloat vectors, and returns the plan-data:
  *   - `vectors`     — which of ['vector-1','vector-2'] apply (the auto-move set).
@@ -1913,8 +1958,9 @@ export async function applyMigrate(baseDir, opts = {}) {
     // evict-pending project is not mistaken for a no-op, and pre-write so the
     // snapshot extension can cover the archive dests before any mutation.
     let evictPlan = null;
+    let boundaryDate = null;
     if (needsV3) {
-      const boundaryDate = opts.boundaryDate ?? (await deriveBoundaryDate(baseDir));
+      boundaryDate = opts.boundaryDate ?? (await deriveBoundaryDate(baseDir));
       const decisionsPath = join(planningDir, 'DECISIONS.md');
       if (boundaryDate && existsSync(decisionsPath)) {
         const decisionsText = await readFile(decisionsPath, 'utf-8');
@@ -2038,8 +2084,12 @@ export async function applyMigrate(baseDir, opts = {}) {
 
     // Stamp only when the composed result is fully conformant (the Alembic
     // blind-stamp guard — a partial run that didn't reach conformance leaves the
-    // stamp ABSENT so a re-run continues safely).
-    text = stampOnConformance(text, CURRENT_LAYOUT_VERSION);
+    // stamp ABSENT so a re-run continues safely). v2 path stamps HERE (in-memory,
+    // one STATE write). The v3 path defers the stamp to the TAIL of the mechanical
+    // phase (after the rename/BACKLOG/evict/index file work), gated on the stricter
+    // filesystem-aware `isV3Conformant` — stamping before the file work would ship
+    // the self-silencing-banner bug (stamped v3 with FUTURE-IDEAS.md still on disk).
+    if (!needsV3) text = stampOnConformance(text, CURRENT_LAYOUT_VERSION);
 
     // Extend the surgical snapshot to EVERY file the archive step touches BEFORE any
     // disk mutation (hoisted OUT of the archive block so it precedes the durable
@@ -2183,6 +2233,23 @@ export async function applyMigrate(baseDir, opts = {}) {
       if (needsV3) {
         const { regeneratePlanningIndex } = await import('./planning-index.js');
         await regeneratePlanningIndex(baseDir);
+      }
+
+      // --- v3 stamp (TAIL, relocated) — gated on the stricter filesystem-aware
+      // isV3Conformant, AFTER all the file work. Read the on-disk STATE.md (the
+      // archive-tree rename may have rewritten its scaffold-links) so the splice
+      // preserves those rewrites; keep `text` in sync so the returned stampedTo/
+      // changed are accurate. STATE.md is snapped, so a dangling abort below rolls the
+      // stamp back too. A non-conformant partial run is left UNSTAMPED → banner stays.
+      if (needsV3) {
+        const onDisk = await readFile(statePath, 'utf-8');
+        if (await isV3Conformant(baseDir, onDisk, { boundaryDate, milestoneOf })) {
+          const stamped = spliceDocsLayoutVersion(onDisk, CURRENT_LAYOUT_VERSION);
+          if (stamped !== onDisk) await atomicWrite(statePath, stamped);
+          text = stamped;
+        } else {
+          text = onDisk;
+        }
       }
 
       // Post-apply BLOCKING dangling-link gate (S2.t4): migrate-caused dangling
