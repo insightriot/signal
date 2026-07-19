@@ -127,6 +127,15 @@ The index regen runs only on Epic-close SHIP (when `shipFR1Check` returned `{hal
 
 Stage the modified `.planning/RETROSPECTIVES.md` (when `result.written === true`) into the SHIP commit alongside the retro file + state-write. One atomic commit captures all three.
 
+### 6.5 Light inbox sweep (M5.E3 FR2) — Epic-close SHIP only
+
+On an **Epic-close** SHIP (when `shipFR1Check` returned `{isEpicClose: true}` in §0.5), run a light sweep of the capture inbox so terminally-dispositioned entries (promoted / merged / shipped / deleted) that the `/sig:plan` drain stamped but did not yet evict physically leave the inbox — the same convergence step the drain performs, applied once more at Epic close so nothing lingers.
+
+1. `evictTerminalToLedger(baseDir, { dryRun: true })` from `tools/lib/drain.js` — **preview** which terminal entries would move to the archive ledger (`ISSUES-INBOX-LEDGER.md`, back-compat `FUTURE-IDEAS-LEDGER.md`, resolved by `resolveLedgerPath`). A dry run leaves the inbox byte-identical.
+2. Confirm (honoring `gate_strictness` — `strict` confirms explicitly, `off` auto-advances), then call `evictTerminalToLedger(baseDir)` for real. It appends to the ledger **first**, then removes the blocks from the inbox — crash-safe and keyed, so a re-run never dupes or loses. If it reports `danglingFence: true` it performed a scoped no-op (never cutting across an unclosed fence); report that and leave the fence to be fixed.
+
+**DEFERRED entries stay** (parked-but-live). When entries were evicted, stage the modified inbox **and** the ledger into the SHIP commit alongside §5/§6. Per-slice (non-Epic-close) SHIPs skip this step. This sweep is anchored at `/sig:plan` (primary) and `/sig:ship` (this step) only — **`/sig:execute` never runs it** (AC2.6).
+
 ### 7. Manual milestone meta-retro (`--milestone-meta` flag, optional)
 
 If the user invokes `/sig:ship --milestone-meta` (or otherwise explicitly requests a milestone-level meta-retrospective), call `generateMilestoneMetaRetro(baseDir, milestoneId, opts)` from `tools/lib/retro-index.js` where `milestoneId` is derived from `state.current_epic` (drop the trailing `.E{N}` segment, e.g., `M4.5.E9` → `M4.5`).

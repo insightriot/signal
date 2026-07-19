@@ -31,6 +31,8 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const planMd = readFileSync(join(ROOT, 'commands', 'plan.md'), 'utf-8');
+const shipMd = readFileSync(join(ROOT, 'commands', 'ship.md'), 'utf-8');
+const executeMd = readFileSync(join(ROOT, 'commands', 'execute.md'), 'utf-8');
 
 const BACKLOG_REL = '.planning/BACKLOG.md';
 
@@ -449,6 +451,44 @@ describe('crash-safe promote → stamp → evict convergence (S4.t4 — AC2.4)',
     expect(backlogKeyCount(backlog)).toBe(1); // no dupe in the destination
     expect(inbox).not.toContain('## An idea to promote'); // evicted
     expect(ledgerKeyCount(ledger)).toBe(1);
+  });
+});
+
+describe('light /sig:ship inbox sweep + execute exclusion (S4.t5 — AC2.6)', () => {
+  it('ship.md wires evictTerminalToLedger with a dry-run preview, gated on Epic-close', () => {
+    expect(shipMd).toContain('evictTerminalToLedger');
+    expect(shipMd).toMatch(/dryRun:\s*true/);
+    expect(shipMd.toLowerCase()).toContain('preview');
+    expect(shipMd).toMatch(/isEpicClose|Epic-close/);
+    expect(shipMd).toMatch(/gate_strictness/);
+  });
+
+  it('/sig:execute never invokes the sweep (AC2.6)', () => {
+    expect(executeMd).not.toContain('evictTerminalToLedger');
+  });
+
+  it('the sweep mechanism evicts a terminal entry from the v3-named inbox', async () => {
+    const baseDir = await stageBase();
+    const INBOX_REL = '.planning/ISSUES-INBOX.md';
+    const inbox = [
+      '# Issues Inbox',
+      '',
+      '---',
+      '',
+      '## A promoted thing',
+      '',
+      '**Status:** Logged 2026-07-01. → Promoted 2026-07-19 (M5.E3 drain).',
+      '',
+      'Body.',
+      '',
+      '---',
+      '',
+    ].join('\n');
+    await writeFile(join(baseDir, INBOX_REL), inbox, 'utf-8');
+    const res = await evictTerminalToLedger(baseDir);
+    expect(res.evicted.map((e) => e.heading)).toContain('A promoted thing');
+    expect(await readFile(join(baseDir, INBOX_REL), 'utf-8')).not.toContain('## A promoted thing');
+    await rm(baseDir, { recursive: true, force: true });
   });
 });
 
