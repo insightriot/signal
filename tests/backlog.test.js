@@ -128,6 +128,17 @@ describe('promoteToBacklog (S4.t1 — tagged entry + sha1 dedupe, AC2.1)', () =>
     expect(text).toContain('**Tag:** hygiene');
   });
 
+  it('a blank title keeps the source block heading (plan.md: "A blank keeps the source heading")', async () => {
+    await promoteToBacklog(baseDir, {
+      block: WORK_BLOCK,
+      tag: 'roadmap',
+      title: '',
+      today: '2026-07-19',
+    });
+    const text = await readFile(join(baseDir, BACKLOG_REL), 'utf-8');
+    expect(text).toContain('## Old capture title');
+  });
+
   it('a second promote of the same block (same key) is a no-op — no duplicate', async () => {
     await promoteToBacklog(baseDir, {
       block: WORK_BLOCK,
