@@ -17,22 +17,13 @@ last_updated: 2026-07-19T02:42:48.539Z
 
 ## Resume pointer
 
-M5.E2 (Auto-sensing migrate command — FR6/FR7), FULL/strict — **✅ DONE THROUGH REVIEW (PASS-WITH-FIXES, approved 2026-07-18). M5.E2's own SHIP is folded into a COMBINED E1+E2+E3 release.** Full DISCUSS→REVIEW: engine + vectors + hook/banner (S1–S3), Signal dogfood + nextpass faithfulness proof (S4), then a **3-specialist adversarial REVIEW** that caught + fixed a **SHIP-blocking rollback gap** (2 reviewers reproduced it) + a symlink escape + fence-less false-success + perf DoS + test-adequacy gaps — **5 RED-first fix batches `50ad065`..`dd77ef1`, 1281→1300 tests green**, real-file faithfulness **re-confirmed 0-dropped @ `ca6ec22`**. Reports: `M5.E2-{VERIFICATION,REVIEW}.md`; bugs `BUGS.md` (B10–B16).
+M5.E3 (all-docs hygiene runtime + living `BACKLOG.md` + append-log eviction — FR4/FR5 + D-M5E2-6), FULL/strict — **✅ DISCUSS complete (2026-07-18); PLAN next.** The final doc-runtime Epic; opened via `/sig:discuss --epic M5.E3` (clean B9-fixed roll). Doc-lifecycle model locked (**D-M5E3-1…8**, `DECISIONS.md` 2026-07-18): four role-named files — `ISSUES-INBOX.md` (raw capture, renamed from `FUTURE-IDEAS.md`) → the drain classifies/dispositions → `BACKLOG.md` (sequenced work) + `BUGS.md` (defects); `OPEN-QUESTIONS.md` (questions). Capture = verbatim body + agent-authored auto-title. Append-log hygiene = **evict-with-anchors** (closed-milestone `DECISIONS.md` → `DECISIONS-HISTORY.md` behind pointers, anchors preserved; the auto-`/sig:index` is the load-bearing traversal layer). Hygiene checks = test-suite, deterministic + offline. Rollout: layout v2→v3 (E2 banner + extended `/sig:migrate-memory` for existing; born-on-v3 for new); retires `ship.md` §8 Curator. Spec: **`M5.E3-REQUIREMENTS.md`** (6 FRs + ACs + NFRs).
 
-> **DECISION 2026-07-18 (Brett): fold M5.E3 (FR4/FR5 — all-docs hygiene runtime + living `BACKLOG.md`) into this release**, so the ENTIRE doc-runtime ships as one 0.1.x — NOT E1+E2 alone. Rationale: E1+E2 fix STATE/FUTURE-IDEAS bloat + the migrate command; E3 extends auto-hygiene to every other planning doc (append-logs like `DECISIONS.md`, milestone docs) + the living backlog. See `DECISIONS.md` 2026-07-18.
-
-**➡ NEXT ACTION: open M5.E3 — run `/sig:discuss --epic M5.E3`.** (This rolls `current_epic`→M5.E3 + resets the phase per B9/S1.t0, and starts E3's DISCUSS fresh.) After M5.E3 ships, cut the **combined E1+E2+E3** marketplace release; THEN `/plugin update` in nextpass et al. and run `/sig:migrate-memory`. Any staleness/origin banner is the benign B6 "+1" (bookkeeping commit; HEAD == origin).
+**➡ NEXT ACTION: run `/sig:plan`** (`current_epic: M5.E3` set — no `--epic` needed). Any staleness/origin banner is the benign B6 "+1" (bookkeeping commit; HEAD == origin).
 
 ## In-flight
 
-**M5.E3 (FR4/FR5 — all-docs hygiene runtime + living `BACKLOG.md`) is the next Epic to build** — open with `/sig:discuss --epic M5.E3`. Its 3 DISCUSS pre-decisions are locked (see `MILESTONE-5.md`). After E3 ships → combined E1+E2+E3 release.
-
-M5.E2 (below) — the auto-sensing migrate/re-org command (FR6) + doc-layout stamp/banner (FR7), **DONE THROUGH REVIEW.** Pulled forward ahead of FR4/FR5 (2026-07-16 pivot); now bundled with E1+E3 into one release (2026-07-18). **4 slices, 3 waves — all complete:**
-- **Wave 1 — S1: ✅ COMPLETE** (2026-07-17). `commands/migrate-memory.md` + `tools/lib/migrate-memory.js`: arg-parse (dry-run default), `relocateFaithful`/`conserves` faithfulness gate (word/byte conservation — the B8 catch), vector-1 de-prose locator+transform, vector-2 body relocate, `senseState` auto-sense, `probeGitState`, `applyMigrate` (compose V1→V2→stamp under one coarse lock, TOCTOU, surgical rollback, tag+staged), `scanDanglingLinks`/`renderDryRun`, stamp-only-on-conformance + zero-diff idempotency. B9 folded as S1.t0. **Two advisor passes** (verifyFaithful≠vector-1 gate; V1→V2 one-pass; surgical rollback; TOCTOU).
-- **Wave 2 — S2 + S3: ✅ COMPLETE** (2026-07-17). S2 = vector-3 retroactive evict loop (no-fabricate gate) + generalized `tools/lib/archive-tree.js` + blocking dangling-link gate (abort+surgical-rollback) + `applyArchiveTree` wired into `applyMigrate` with extended snapshot set + full-corpus `senseProject` brain (append-log protection, milestone flag-don't-move). S3 = `hooks/warn-layout-drift.js` SessionStart hook (capped-prefix, fail-open) + resume/status pre-reorg banner (stamp-first + structural sniff). Sub-split S2.t5→t5a/t5b at EXECUTE. Two load-bearing mutation gates (B8 drop; dangling-link skip) proven RED-first.
-- **Wave 3 — S4: ✅ COMPLETE (for EXECUTE).** **S4.t1 (Signal dogfood): ✅** (`251388e`) — 31 archive relocations + stamp v2, byte-identical, 1260 tests green, reversible. **S4.t2 (nextpass 546 KB vector-1): ✅ engine-proven read-only** — de-prose of 19 entries + 538 KB body relocate conserves every word (0 dropped); the **live apply is a post-release user step** (Brett runs it via the shipped plugin — nextpass already unwedged, no urgency). B10 (SHIP-suffix gap) caught + fixed mid-flight (`9064340`).
-
-Artifacts: `M5.E2-{RESEARCH,PLAN,VALIDATION,PROGRESS}.md`. (FR4/FR5 → M5.E3.)
+**M5.E3 — PLAN next.** DISCUSS closed with the doc-lifecycle model locked; the 6 FRs are speced in `M5.E3-REQUIREMENTS.md`: FR1 `ISSUES-INBOX` rename + smart capture · FR2 living `BACKLOG` + drain classify/promote · FR3 auto-generated `/sig:index` · FR4 all-docs hygiene in the test suite · FR5 append-log eviction (evict-with-anchors — E3's risky, migrate-shaped piece; reuses E2's dangling-gate + relocate-never-delete spine) · FR6 layout v2→v3 migration + rollout. Batched into the combined E1+E2+E3 release.
 
 ## Blockers
 
@@ -44,5 +35,6 @@ None currently open.
 
 ## Closed work
 
-- **M5.E1** (Doc-runtime & memory hygiene) — SHIPPED 2026-07-16, unreleased (batched with E2/E3). Doc-model FR1 + STATE/FUTURE-IDEAS eviction FR2/FR3 + dogfood. → [M5.E1-RETROSPECTIVE.md](M5.E1-RETROSPECTIVE.md).
+- **M5.E2** (Auto-sensing migrate command — FR6/FR7) — SHIPPED 2026-07-18, unreleased (batched E1+E2+E3). `/sig:migrate-memory` (relocate-never-delete, dry-run-default, git-reversible); REVIEW PASS-WITH-FIXES (3-specialist panel — SHIP-blocking rollback gap caught + fixed); ≈1071→1300 tests. → [M5.E2-RETROSPECTIVE.md](M5.E2-RETROSPECTIVE.md).
+- **M5.E1** (Doc-runtime & memory hygiene) — SHIPPED 2026-07-16, unreleased. Doc-model FR1 + STATE/FUTURE-IDEAS eviction FR2/FR3 + dogfood (STATE.md 64.5 KB→1 KB). → [M5.E1-RETROSPECTIVE.md](M5.E1-RETROSPECTIVE.md).
 - Pre-M5.E1 project history (the full pre-schema_v1 narrative + migration-preserved body) → [STATE-HISTORY.md](STATE-HISTORY.md). Relocated 2026-07-16 (M5.E1.S5 dogfood — vector-2 legacy-body eviction).
