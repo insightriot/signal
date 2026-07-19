@@ -150,8 +150,9 @@ describe('M5.E2 all-vectors integration — V1 + V2 + V3 + archive-tree in one a
     );
 
     // Reached conformance in ONE invocation and stamped it to CURRENT (bumped 2→3
-    // by S6a.t4). This fixture is stamp-NULL → needsV3 is false → it takes the
-    // V1/V2 path and receives the current stamp (it is not a v2→v3 migration).
+    // by S6a.t4). This fixture is stamp-NULL → needsV3 is TRUE (the 6dc7fa2 nullfix
+    // routes stamp-null through the v3 migration) → the relocated tail gate stamps it
+    // to CURRENT on full v3-conformance.
     expect(r.stampedTo).toBe(3);
     const finalState = await read(dir, 'STATE.md');
     const s = senseState(finalState);

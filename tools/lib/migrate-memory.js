@@ -2625,9 +2625,10 @@ const DECISION_ANCHOR_RE = /\bD-[A-Za-z0-9]+-\d+\b/g;
 function buildArchiveHeader(milestone) {
   return (
     `# Archived Decisions — ${milestone}\n\n` +
-    'Closed-milestone decision sections relocated verbatim from ' +
-    '`.planning/DECISIONS.md` by `/sig:migrate-memory` (append-log eviction). ' +
-    'Byte-identical; every decision anchor still resolves here via `/sig:index`. ' +
+    'Closed-milestone decision sections relocated from ' +
+    '`.planning/DECISIONS.md` by `/sig:migrate-memory` (append-log eviction) — ' +
+    'verbatim except relative file-links re-rooted to resolve from here. Every ' +
+    'decision anchor still resolves here via `/sig:index`. ' +
     'History, not state — append-only.\n\n---\n\n'
   );
 }
