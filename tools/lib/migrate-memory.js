@@ -1852,6 +1852,11 @@ export async function renderDryRun(baseDir, opts = {}) {
   if (backlogWillCreate) {
     L.push('  BACKLOG.md created (sequenced roadmap; seeded from a BACKLOG-REVIEW snapshot when present, else a skeleton)');
   }
+  // v2→v3 index-regen (FR3) — the tail step apply performs (dry-run parity, B19): a
+  // foreign/pre-v3-format INDEX is left intact + flagged at apply time, not here.
+  if (needsV3) {
+    L.push('  INDEX.md → regenerated (/sig:index) — mechanical rows refresh; curated notes survive by key');
+  }
   for (const f of plan.flags) L.push(`  FLAG (not moved): ${f.kind} — ${f.chars} chars — "${f.detail}…"`);
   for (const f of v3.flags) L.push(`  FLAG (not moved): ${f.kind} — ${f.reason}`);
   for (const f of corpus.flags) L.push(`  FLAG (not moved): ${f.kind} — ${f.reason}`);
@@ -2253,6 +2258,10 @@ export async function applyMigrate(baseDir, opts = {}) {
       }
     }
 
+    // B19: set when the tail INDEX regen is SKIPPED because the existing INDEX.md is a
+    // foreign/pre-v3 format (see the regen block below) — surfaced in the return warnings.
+    let indexRegenWarning = null;
+
     // --- MECHANICAL PHASE (the disk mutations) under ONE rollback-on-throw wrap ----
     // The in-memory snapshot covers every file touched at EVERY throw point below
     // (STATE.md, the V3/V2 archives created during compose, the archive
@@ -2328,9 +2337,32 @@ export async function applyMigrate(baseDir, opts = {}) {
       // INDEX.md — Issue 4). Runs at the TAIL so INDEX reflects the new archive
       // DECISIONS files + renamed inbox. INDEX.md was pre-snapped → a later abort
       // restores it. INDEX dangles are FLAGGED (never aborted) by the gate below.
+      //
+      // B19: SKIP the regen when the existing INDEX is a foreign / pre-v3 format the
+      // new-format parser can't read — non-empty, `parseExistingAnnotations` recovers
+      // ZERO annotations, AND no `**Tier legend:**` block (`legend === null`; a Signal-
+      // format INDEX always carries that block, even when every note is a placeholder —
+      // so a legit new-format INDEX still regenerates). Regenerating a foreign INDEX
+      // would CLOBBER curated content — now the default path for every stamp-null
+      // external project — so leave it intact and flag it for manual reconciliation.
       if (needsV3) {
-        const { regeneratePlanningIndex } = await import('./planning-index.js');
-        await regeneratePlanningIndex(baseDir);
+        const { regeneratePlanningIndex, parseExistingAnnotations } = await import('./planning-index.js');
+        let existingIndex = '';
+        try {
+          existingIndex = await readFile(join(planningDir, 'INDEX.md'), 'utf-8');
+        } catch {
+          /* absent → regenerate normally */
+        }
+        const ann = parseExistingAnnotations(existingIndex);
+        const hasAnnotations =
+          Object.keys(ann.byPath).length > 0 || Object.keys(ann.byEpic).length > 0;
+        if (existingIndex.trim().length > 0 && !hasAnnotations && ann.legend === null) {
+          indexRegenWarning =
+            `${PLANNING_DIR}/INDEX.md is a foreign/pre-v3 format this migrate cannot parse — ` +
+            'LEFT INTACT (not regenerated). Reconcile it manually via /sig:index.';
+        } else {
+          await regeneratePlanningIndex(baseDir);
+        }
       }
 
       // --- v3 stamp (TAIL, relocated) — gated on the stricter filesystem-aware
@@ -2415,7 +2447,7 @@ export async function applyMigrate(baseDir, opts = {}) {
       revertLine,
       inputHash,
       mode: probe.mode,
-      warnings: probe.warnings,
+      warnings: indexRegenWarning ? [...probe.warnings, indexRegenWarning] : probe.warnings,
     };
   });
 }
