@@ -12,7 +12,7 @@
 // alongside (t5) — that is what FR5 consumes at eviction time.
 
 import { readFile, readdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
 import { classifyDocGrowthPolicy } from './migrate-memory.js';
@@ -61,7 +61,10 @@ export async function enumeratePlanningDocs(baseDir) {
   const indexRel = PLANNING_DIR + '/INDEX.md';
   const records = [];
   for (const full of files) {
-    const rel = full.slice(baseDir.length + 1).split('\\').join('/');
+    // `relative` (not a raw slice) so a relative baseDir like '.' — where join()
+    // normalizes the leading './' away — doesn't chop real path chars (B18); a
+    // corrupted `rel` would also miss the `rel === indexRel` self-skip below.
+    const rel = relative(baseDir, full).split('\\').join('/');
     // The generated index never lists itself — otherwise the first write would
     // add INDEX.md to the catalog and the next regen would differ (breaking the
     // first-run no-op / idempotency).
@@ -329,7 +332,9 @@ export async function buildDecisionIdMap(baseDir) {
     } catch {
       continue; // absent live file, or vanished — skip
     }
-    const rel = full.slice(baseDir.length + 1).split('\\').join('/');
+    // `relative` (not a raw slice) so a relative baseDir like '.' doesn't chop real
+    // path chars (B18) — a corrupted key would break resolveDecisionId's home lookup.
+    const rel = relative(baseDir, full).split('\\').join('/');
     const ranges = {};
     for (const m of content.matchAll(DECISION_ID_RE)) {
       const prefix = m[1];

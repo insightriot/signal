@@ -48,6 +48,46 @@ describe('roster — canonical filesystem-glob counts (Signal repo)', () => {
   });
 });
 
+describe('roster — relative baseDir (B18: path-relativize, not slice)', () => {
+  // B18: `full.slice(baseDir.length + 1)` corrupts keys when baseDir is relative —
+  // `join('.', 'agents')` normalizes the `./` away, so slicing `baseDir.length + 1`
+  // (= 2) chops the first two real path chars ('ag'). A relative baseDir is reachable
+  // via /sig:index + /sig:ship. `relative(baseDir, full)` is the correct primitive.
+  let tmp;
+  let origCwd;
+  afterEach(async () => {
+    if (origCwd) {
+      process.chdir(origCwd);
+      origCwd = undefined;
+    }
+    if (tmp) {
+      await rm(tmp, { recursive: true, force: true });
+      tmp = undefined;
+    }
+  });
+
+  it("baseDir='.' yields correctly-rooted paths (agents/…, skills/…), not chopped keys", async () => {
+    tmp = await mkdtemp(join(tmpdir(), 'roster-dot-'));
+    await mkdir(join(tmp, 'commands'), { recursive: true });
+    await writeFile(join(tmp, 'commands', 'only.md'), '# only\n', 'utf-8');
+    await mkdir(join(tmp, 'agents', 'scanners'), { recursive: true });
+    await writeFile(join(tmp, 'agents', 'scanners', 'a.md'), '# a\n', 'utf-8');
+    await mkdir(join(tmp, 'skills', 'define', 's'), { recursive: true });
+    await writeFile(join(tmp, 'skills', 'define', 's', 'SKILL.md'), '# s\n', 'utf-8');
+
+    origCwd = process.cwd();
+    process.chdir(tmp);
+
+    const r = roster('.');
+    // Counts are unaffected by the slice bug — but the PATHS are corrupted.
+    expect(r.counts).toEqual({ commands: 1, agents: 1, skills: 1 });
+    expect(r.agents).toEqual(['agents/scanners/a.md']); // NOT 'ents/scanners/a.md'
+    expect(r.skills).toEqual(['skills/define/s/SKILL.md']); // NOT 'ills/define/s/SKILL.md'
+    expect(r.agents.every((p) => p.startsWith('agents/'))).toBe(true);
+    expect(r.skills.every((p) => p.startsWith('skills/'))).toBe(true);
+  });
+});
+
 describe('roster — anchored, does NOT recurse into unrelated trees', () => {
   let tmp;
   afterEach(async () => {

@@ -114,6 +114,56 @@ describe('enumeratePlanningDocs (t2) — mechanical doc catalog', () => {
   });
 });
 
+describe('relative baseDir (B18: path-relativize, not slice)', () => {
+  // B18: `full.slice(baseDir.length + 1)` corrupts keys when baseDir='.' —
+  // `join('.', '.planning')` normalizes `./` away → slice(2) chops '.p', yielding
+  // 'lanning/BACKLOG.md'. That also breaks the INDEX self-skip ('lanning/INDEX.md'
+  // never equals the '.planning/INDEX.md' sentinel, so INDEX lists itself).
+  let base;
+  let origCwd;
+  afterEach(async () => {
+    if (origCwd) {
+      process.chdir(origCwd);
+      origCwd = undefined;
+    }
+    if (base) {
+      await rm(base, { recursive: true, force: true });
+      base = undefined;
+    }
+  });
+
+  it("enumeratePlanningDocs('.') roots keys at .planning/ and self-skips INDEX.md", async () => {
+    base = await mkdtemp(join(tmpdir(), 'planning-index-dot-'));
+    const p = join(base, '.planning');
+    await mkdir(p, { recursive: true });
+    await writeFile(join(p, 'BACKLOG.md'), '# backlog\n', 'utf-8');
+    await writeFile(join(p, 'PROJECT.md'), '# project\n', 'utf-8');
+    await writeFile(join(p, 'INDEX.md'), '# index\n', 'utf-8');
+
+    origCwd = process.cwd();
+    process.chdir(base);
+
+    const docs = await enumeratePlanningDocs('.');
+    const paths = docs.map((d) => d.path);
+    expect(paths).toContain('.planning/BACKLOG.md'); // NOT 'lanning/BACKLOG.md'
+    expect(paths.every((p) => p.startsWith('.planning/'))).toBe(true);
+    // Self-skip survives a relative baseDir: INDEX.md must not list itself.
+    expect(paths.some((p) => p.endsWith('INDEX.md'))).toBe(false);
+  });
+
+  it("resolveDecisionId('.', id) resolves to a .planning/-rooted home", async () => {
+    base = await mkdtemp(join(tmpdir(), 'decision-map-dot-'));
+    const p = join(base, '.planning');
+    await mkdir(p, { recursive: true });
+    await writeFile(join(p, 'DECISIONS.md'), '## 2026-07-18 — d\n\n- D-CUR-2 second\n', 'utf-8');
+
+    origCwd = process.cwd();
+    process.chdir(base);
+
+    expect(await resolveDecisionId('.', 'D-CUR-2')).toBe('.planning/DECISIONS.md');
+  });
+});
+
 describe('parseExistingAnnotations (t3) — round-trip curated notes by key', () => {
   it('recovers file-path notes (the byPath keyspace)', () => {
     const a = parseExistingAnnotations(SAMPLE_INDEX);

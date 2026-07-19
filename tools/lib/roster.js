@@ -14,7 +14,7 @@
 // reach.
 
 import { readdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -45,8 +45,10 @@ function collect(baseDir, dir, predicate) {
     if (entry.isDirectory()) {
       out.push(...collect(baseDir, full, predicate));
     } else if (entry.isFile() && predicate(entry.name)) {
-      // POSIX-normalize for stable, platform-independent paths.
-      out.push(full.slice(baseDir.length + 1).split('\\').join('/'));
+      // POSIX-normalize for stable, platform-independent paths. `relative` (not a
+      // raw slice) so a relative baseDir like '.' — where join() normalizes the
+      // leading './' away — doesn't chop real path chars (B18).
+      out.push(relative(baseDir, full).split('\\').join('/'));
     }
   }
   out.sort();
