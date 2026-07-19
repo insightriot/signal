@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   checkInternalLinks,
+  checkRosterCounts,
   listDocFiles,
 } from '../tools/lib/doc-hygiene.js';
 
@@ -97,5 +98,51 @@ describe('M5.E3.S3.t2 checkInternalLinks', () => {
 
   it('is GREEN on the live Signal repo (no dead internal links on the public surface)', () => {
     expect(hard(checkInternalLinks(ROOT))).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// t3 — roster / count-drift
+// ---------------------------------------------------------------------------
+describe('M5.E3.S3.t3 checkRosterCounts', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'sig-hyg-roster-'));
+    // A real mini-roster: 2 commands / 1 agent / 1 skill (read from disk).
+    await writeDoc(dir, 'commands/a.md', 'x');
+    await writeDoc(dir, 'commands/b.md', 'x');
+    await writeDoc(dir, 'agents/x.md', 'x');
+    await writeDoc(dir, 'skills/foo/SKILL.md', 'x');
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('flags a wrong count at a canonical site as HARD', async () => {
+    await writeDoc(dir, 'CLAUDE.md', 'structure\n# 99 slash commands — /sig:a\n');
+    const h = hard(checkRosterCounts(dir));
+    expect(h).toHaveLength(1);
+    expect(h[0].message).toMatch(/99 commands, roster has 2/);
+  });
+
+  it('passes when the canonical counts match the roster', async () => {
+    await writeDoc(dir, 'CLAUDE.md', '# 2 slash commands — /sig:a\n# 1 agents\n# 1 quality skills\n');
+    await writeDoc(dir, 'docs/map/index.html', '<h2>Command library — 2 commands</h2>\n');
+    expect(hard(checkRosterCounts(dir))).toHaveLength(0);
+  });
+
+  it('does NOT scrape the historical narrative (# prefix required)', async () => {
+    // A prose line claims "15 slash commands" (no `#`); the canonical comment
+    // says "# 2 slash commands". The check must read the canonical 2, not 15.
+    await writeDoc(
+      dir,
+      'CLAUDE.md',
+      'Back then we had 15 slash commands, 26 agents, 21 skills.\n\n# 2 slash commands — /sig:a\n',
+    );
+    expect(hard(checkRosterCounts(dir))).toHaveLength(0);
+  });
+
+  it('is GREEN on the live Signal repo (17/26/21 at every canonical site)', () => {
+    expect(hard(checkRosterCounts(ROOT))).toHaveLength(0);
   });
 });

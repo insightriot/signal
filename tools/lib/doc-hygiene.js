@@ -124,6 +124,55 @@ export function checkInternalLinks(baseDir = ROOT) {
   return findings.sort(findingCmp);
 }
 
+// Canonical roster-count declaration sites. Each entry pins ONE prose count-claim
+// to its file with a NARROW pattern, so the check never scrapes an incidental
+// number. The CLAUDE.md patterns require a `#` code-comment prefix (with the
+// count on the same line — `[ \t]*`, never a newline), which excludes the
+// historical narrative in the Current-State paragraph: its "15 slash commands" is
+// a legitimate v0.1.3-era snapshot, not a live count. README is deliberately
+// absent — its "19 agents" / "21 skills" describe the UPSTREAM GSD / Agent Skills
+// projects, not Signal's roster.
+const ROSTER_SITES = [
+  { file: 'CLAUDE.md', kind: 'commands', re: /#[ \t]*(\d+) slash commands/ },
+  { file: 'CLAUDE.md', kind: 'agents', re: /#[ \t]*(\d+) agents/ },
+  { file: 'CLAUDE.md', kind: 'skills', re: /#[ \t]*(\d+) (?:quality )?skills/ },
+  { file: 'docs/map/index.html', kind: 'commands', re: /Command library[^\d\n]*(\d+) commands/ },
+  { file: 'docs/map/index.html', kind: 'agents', re: /Agent roster[^\d\n]*(\d+) agents/ },
+  { file: 'docs/map/index.html', kind: 'skills', re: /Skill library[^\d\n]*(\d+) skills/ },
+];
+
+/**
+ * Roster/count-drift: every canonical count-claim must match roster.js. HARD —
+ * adding an agent/command/skill without updating a declaration site turns the
+ * suite red (AC4.1, AC4.5). A site whose pattern is absent is simply not checked
+ * (drift, not absence, is the target).
+ *
+ * @param {string} [baseDir=ROOT]
+ * @returns {Array<{check: string, severity: string, file: string, message: string}>}
+ */
+export function checkRosterCounts(baseDir = ROOT) {
+  const counts = roster(baseDir).counts;
+  const findings = [];
+  for (const site of ROSTER_SITES) {
+    let text;
+    try {
+      text = readFileSync(join(baseDir, site.file), 'utf-8');
+    } catch {
+      continue;
+    }
+    const m = text.match(site.re);
+    if (!m) continue;
+    const claimed = Number(m[1]);
+    const actual = counts[site.kind];
+    if (claimed !== actual) {
+      findings.push(
+        mkFinding('roster-counts', 'hard', site.file, `claims ${claimed} ${site.kind}, roster has ${actual}`),
+      );
+    }
+  }
+  return findings.sort(findingCmp);
+}
+
 /** Split a link token into its path part and `#anchor` (anchor may be ''). */
 function splitAnchor(tok) {
   const i = tok.indexOf('#');
