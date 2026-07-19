@@ -177,9 +177,42 @@ describe('decideLayoutBanner — structural sniff (no/unparseable stamp)', () =>
     expect(decideLayoutBanner(sensed({ stamp: null, v3Conformant: false }))).toBe(true);
   });
 
-  it('unstamped + a pending v3 evict (not v3-conformant) → banner (true)', () => {
-    // A pending closed-Epic evict is folded into v3Conformant (senseVector3).
-    expect(decideLayoutBanner(sensed({ stamp: null, v3Conformant: false }))).toBe(true);
+  it('unstamped + a REAL pending closed-Epic v3 evict → banner (true), via the senseVector3 fold', async () => {
+    // Distinct from the synthetic within-STATE-vector case above (which was a literal
+    // duplicate of this one): this drives v3Conformant=false through the REAL
+    // senseProject → isV3Conformant → senseVector3 fold, not a hand-set boolean — so a
+    // regression that breaks the closed-Epic evict fold fails HERE (a mutation of
+    // migrate-memory.js:1211 flips both asserts). Unstamped → decideLayoutBanner takes
+    // the structural branch; BACKLOG present + no inbox + no scaffold → the pending
+    // evict is the SOLE non-conformance (archive.moves stays empty, isolating the fold).
+    const dir = await mkdtemp(join(tmpdir(), 'banner-v3fold-'));
+    try {
+      const p = join(dir, '.planning');
+      await mkdir(p, { recursive: true });
+      await writeFile(
+        join(p, 'STATE.md'),
+        `---\nschema_version: 1\nphase: EXECUTE\ncurrent_epic: M5.E3\ncurrent_tasks: []\n` +
+          `completed_phases:\n  - PLAN (2026-07-18)\nblockers: []\n---\n# Project State\n\n` +
+          `## M5.E1 — Doc-runtime & memory hygiene\n\n` +
+          `Shipped 2026-07-16. Decisions D-M5E1-1, D-M5E1-3, D-M5E1-6 locked.\n`,
+        'utf-8',
+      );
+      await writeFile(join(p, 'BACKLOG.md'), '# Backlog\n', 'utf-8');
+      await writeFile(
+        join(p, 'M5.E1-RETROSPECTIVE.md'),
+        `# M5.E1 Retrospective\nOutcome: doc-runtime model shipped 2026-07-16 (M5.E1).\n` +
+          `Decisions D-M5E1-1, D-M5E1-3, D-M5E1-6 locked.\n`,
+        'utf-8',
+      );
+
+      const s = await senseProject(dir);
+      // Isolate the fold: the banner is driven by v3Conformant (the evict), not a move.
+      expect(s.v3Conformant).toBe(false);
+      expect(s.archive.moves.length).toBe(0);
+      expect(decideLayoutBanner(s)).toBe(true);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it('unstamped + a pending archive move ONLY → banner (true)', () => {

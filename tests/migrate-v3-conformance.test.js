@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os';
 import {
   isV3Conformant,
   senseState,
+  senseVector3,
   applyMigrate,
   CURRENT_LAYOUT_VERSION,
 } from '../tools/lib/migrate-memory.js';
@@ -87,6 +88,37 @@ describe('t3 — isV3Conformant (filesystem-aware, both directions)', () => {
   it('FALSE when the STATE within-doc vectors are dirty (body over threshold)', async () => {
     const dir = track(await plant({ state: STATE_BLOATED, futureIdeas: false, backlog: true }));
     expect(await isV3Conformant(dir, STATE_BLOATED)).toBe(false);
+  });
+
+  // Dedicated coverage for the :1211 senseVector3 fold (the closed-Epic within-STATE
+  // evict). Every other gate is made to PASS so the ONLY thing that can flip the
+  // verdict is the pending v3 evict → mutate line 1211 away and this test fails.
+  it('FALSE when a closed-Epic vector-3 evict is still pending (the senseVector3 fold)', async () => {
+    // A conformant STATE with a closed-Epic `## M5.E1 —` section + its retrospective
+    // card so senseVector3 plans an evict. Clean STATE + BACKLOG present + no inbox +
+    // no DECISIONS → gates 1/3/4/5 all pass; only the :1211 fold catches it.
+    const STATE_CLOSED_EPIC =
+      `---\nschema_version: 1\nphase: EXECUTE\ncurrent_epic: M5.E3\ncurrent_tasks: []\n` +
+      `completed_phases:\n  - PLAN (2026-07-18)\nblockers: []\n---\n# Project State\n\n` +
+      `## M5.E1 — Doc-runtime & memory hygiene\n\n` +
+      `Shipped 2026-07-16. Decisions D-M5E1-1, D-M5E1-3, D-M5E1-6 locked.\n`;
+    const M5E1_RETRO =
+      `# M5.E1 Retrospective\nOutcome: doc-runtime model shipped 2026-07-16 (M5.E1).\n` +
+      `Decisions D-M5E1-1, D-M5E1-3, D-M5E1-6 locked.\n`;
+
+    const dir = track(await mkdtemp(join(tmpdir(), 'v3-conf-fold-')));
+    const p = join(dir, '.planning');
+    await mkdir(p, { recursive: true });
+    await writeFile(join(p, 'STATE.md'), STATE_CLOSED_EPIC, 'utf-8');
+    await writeFile(join(p, 'BACKLOG.md'), '# Backlog\n', 'utf-8');
+    await writeFile(join(p, 'M5.E1-RETROSPECTIVE.md'), M5E1_RETRO, 'utf-8');
+
+    // Isolate the fold: the STATE text itself is vector-clean, and the pending evict
+    // is the sole non-conformance signal.
+    expect(senseState(STATE_CLOSED_EPIC).conformant).toBe(true);
+    expect((await senseVector3(dir, STATE_CLOSED_EPIC)).evicts.length).toBeGreaterThan(0);
+
+    expect(await isV3Conformant(dir, STATE_CLOSED_EPIC)).toBe(false);
   });
 });
 
