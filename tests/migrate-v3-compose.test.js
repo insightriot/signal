@@ -22,7 +22,7 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { applyMigrate, CURRENT_LAYOUT_VERSION } from '../tools/lib/migrate-memory.js';
+import { applyMigrate, renderDryRun, CURRENT_LAYOUT_VERSION } from '../tools/lib/migrate-memory.js';
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
 
@@ -178,6 +178,67 @@ describe('t2 — INERT on a fully-migrated repo (stamp == CURRENT — the safety
     expect(has(dir, 'BACKLOG.md')).toBe(false); // not created
     expect(has(dir, 'archive', 'M1', 'DECISIONS.md')).toBe(false); // not evicted
     expect(await treeSnapshot(dir)).toEqual(before); // byte-identical
+  });
+});
+
+// M5.E3.S6a.t5 — the v3-pending DRY-RUN must enumerate the SAME steps apply performs
+// (rename + BACKLOG-create + append-log evict) so the human approves the real plan.
+// renderDryRun gets the same injectable {boundaryDate, milestoneOf, dateStr} surface as
+// apply — without it the M5-only default router can never route a fixture's evict, so
+// the preview would under-report vs apply. Built RED-first (before t5, renderDryRun
+// takes baseDir only and never senses the rename / BACKLOG / append-log evict).
+describe('t5 — v3-pending dry-run enumerates the full v2→v3 plan (parity with apply)', () => {
+  let dir;
+  const DRY_OPTS = { boundaryDate: BOUNDARY, milestoneOf, dateStr: RUN_DATE };
+  afterEach(async () => { if (dir) await rm(dir, { recursive: true, force: true }); });
+
+  it('shows rename + BACKLOG-create + append-log evict; is NOT a no-op; writes nothing', async () => {
+    // ver: 2 — the literal AC6.2 "a v2 project" case (mirrors Signal's stamp-2 dogfood).
+    dir = await makeRepo({ ver: 2, futureIdeas: true, backlog: false });
+    const before = await treeSnapshot(dir);
+    const out = await renderDryRun(dir, DRY_OPTS);
+    // Rename (FR6): FUTURE-IDEAS → ISSUES-INBOX.
+    expect(out).toMatch(/FUTURE-IDEAS\.md[\s\S]*?ISSUES-INBOX\.md/);
+    // BACKLOG-create (FR2).
+    expect(out).toMatch(/BACKLOG\.md/);
+    // Append-log evict (FR5): the M1 archive dest + anchor-preservation summary.
+    expect(out).toMatch(/append-log evict/i);
+    expect(out).toContain('archive/M1/DECISIONS.md');
+    expect(out).toMatch(/anchor/i);
+    // A v3-pending project is NOT reported as a no-op…
+    expect(out).not.toMatch(/no-op/);
+    // …and the dry-run mutated nothing.
+    expect(await treeSnapshot(dir)).toEqual(before);
+  });
+
+  it("the dry-run's enumerated steps match apply's recorded moves (parity)", async () => {
+    dir = await makeRepo({ ver: 2, futureIdeas: true, backlog: false });
+    const out = await renderDryRun(dir, DRY_OPTS);
+    const res = await applyMigrate(dir, OPTS);
+    // Every vector apply RECORDED is enumerated in the preview.
+    const vectors = res.moves.map((m) => m.vector);
+    expect(vectors).toEqual(expect.arrayContaining(['append-log-evict', 'backlog-create', 'archive-tree']));
+    expect(out).toContain('ISSUES-INBOX.md'); // archive-tree (rename)
+    expect(out).toContain('BACKLOG.md'); // backlog-create
+    expect(out).toContain('archive/M1/DECISIONS.md'); // append-log-evict
+  });
+
+  it('append-log evict is DETECT-ONLY when a section is unroutable (fail-safe surfaced)', async () => {
+    // The default router (milestoneOf undefined → defaultMilestoneOf, M5-only) can't
+    // route the 2026-01-10 M1 section → unroutable → the dry-run must SAY detect-only,
+    // never silently show it as evicted (mirrors apply skipping the evict).
+    dir = await makeRepo({ ver: 2, futureIdeas: true, backlog: false });
+    const out = await renderDryRun(dir, { boundaryDate: BOUNDARY, dateStr: RUN_DATE });
+    expect(out).toMatch(/detect-only/i);
+  });
+
+  it('a re-run dry-run on the migrated project is a no-op', async () => {
+    dir = await makeRepo({ ver: 2, futureIdeas: true, backlog: false });
+    await applyMigrate(dir, OPTS);
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-q', '--allow-empty', '-m', 'migrate']);
+    const out = await renderDryRun(dir, DRY_OPTS);
+    expect(out).toMatch(/no-op/);
   });
 });
 

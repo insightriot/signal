@@ -1,6 +1,6 @@
 ---
 name: sig:migrate-memory
-description: "Auto-sensing doc-runtime migrate — reorganizes THIS project's .planning/ docs to the FR1 model (de-prose frontmatter, relocate bloated bodies, evict closed-Epic narrative, build the archive tree). Relocate-never-delete, dry-run by default, git-reversible."
+description: "Auto-sensing doc-runtime migrate — reorganizes THIS project's .planning/ docs to the current layout (de-prose frontmatter, relocate bloated bodies, evict closed-Epic narrative, build the archive tree; and on a v2→v3 layout bump: rename FUTURE-IDEAS→ISSUES-INBOX, create BACKLOG, evict closed-milestone DECISIONS sections). Relocate-never-delete, dry-run by default, git-reversible."
 args: "[--apply] [--force]"
 ---
 
@@ -21,6 +21,16 @@ This command is **meta** — same class as `/sig:status` and `/sig:resume`. It d
 - **Vector 1 — frontmatter-list prose** (the acute 529 KB `nextpass` case): de-prose = relocate the narrative out of the YAML list into the STATE body, leaving a short scalar.
 - **Vector 2 — inlined legacy body**: relocate an already-migrated inlined body → `STATE-HISTORY.md` + a one-line pointer.
 - **Vector 3 — closed-Epic narrative accretion**: apply evict-on-close retroactively to a project's backlog of already-closed Epics (card + pointer + archive tree).
+
+## The v2→v3 layout transition (FR6)
+
+When the project's `docs_layout_version` stamp is **below** `CURRENT_LAYOUT_VERSION` (3), the same one-apply, one-lock, one-rollback chain also performs the v2→v3 file transition — each step **relocate-never-delete**, previewed in the dry-run, and gated on the dangling-link + anchor-resolvability checks:
+
+- **Inbox/ledger rename**: `FUTURE-IDEAS.md` → `ISSUES-INBOX.md` (and `FUTURE-IDEAS-LEDGER.md` → `ISSUES-INBOX-LEDGER.md`), with every referrer link/prose rewritten. Existence-gated → idempotent (an already-renamed repo plans nothing).
+- **BACKLOG create-if-missing**: seeds `BACKLOG.md` (from a `BACKLOG-REVIEW` snapshot when present, else a skeleton). A born-v3 / already-migrated project already has it → no-op.
+- **Append-log evict (FR5)**: closed-milestone `DECISIONS.md` date-sections relocate **verbatim** to `archive/M{n}/DECISIONS.md` behind a dated pointer, with **every `D-…` anchor preserved** (resolvable via `/sig:index`). A section that can't be routed to a milestone (its date predates the open-date map) is **detect-only** — nothing evicted (fail-safe). The live `DECISIONS.md` keeps the current milestone's decisions; new decisions still append there (`/sig:checkpoint`).
+
+The `docs_layout_version` stamp is written **only** at the tail, gated on full v3-conformance (inbox renamed, BACKLOG present, evict done) — a partial run stays unstamped so the banner keeps nagging and a re-run continues safely.
 
 ## Faithfulness — proven by a human, not by green tests
 
@@ -44,8 +54,8 @@ From `${CLAUDE_PLUGIN_ROOT}/tools/lib/migrate-memory.js`:
 - `parseMigrateArgs(argv)` → `{apply, force}` — flag parse; dry-run default.
 - `probeGitState(baseDir, {force})` → `{mode, proceed, dirty, warnings, reason?}` — the git-state refuse/proceed/downgrade decision.
 - `runMigrate(baseDir, {apply, force, expectedHash})` — the orchestration entry; dry-run returns `{plan, inputHash}`, apply delegates to `applyMigrate`.
-- `renderDryRun(baseDir)` → string — the human-facing three-tier dry-run (the faithfulness diff the user approves).
-- `applyMigrate(baseDir, {force, expectedHash, stamp, dateStr})` — the apply engine (compose V1→V2→stamp under one coarse lock, TOCTOU, surgical rollback, tag + staged).
+- `renderDryRun(baseDir, {boundaryDate, milestoneOf, dateStr})` → string — the human-facing three-tier dry-run (the faithfulness diff the user approves). On a v2→v3-pending project it also enumerates the inbox/ledger rename, the BACKLOG create, and the append-log evict (a **summary**, not a diff — a verbatim move has no semantic change), i.e. the SAME steps apply performs. The evict inputs default to the real-run derivation (`deriveBoundaryDate` / `defaultMilestoneOf`); the CLI calls with `baseDir` only.
+- `applyMigrate(baseDir, {force, expectedHash, stamp, dateStr})` — the apply engine (compose V1→V3→V2→append-log-evict→BACKLOG→rename→index-regen→stamp under one coarse lock, TOCTOU, surgical rollback, tag + staged; the v2→v3 steps fire only when the stamp is below `CURRENT_LAYOUT_VERSION`).
 - `relocateFaithful(...)` / `verifyFaithful(...)` / `conserves(...)` — the faithfulness gate (S1.t3): WORD conservation is the vector-1 gate; `verifyFaithful` is the ID/date/status-token backstop.
 
 Supporting (pure cores + read-only sensing helpers the command uses; the mutating cores compose under the ONE coarse lock inside `runMigrate`/`applyMigrate`): `senseState`/`senseProject` (auto-sense), `deproseFrontmatter`/`locateFrontmatterProse` (vector-1), `planVector2` (vector-2), `stampOnConformance` (the stamp), `scanDanglingLinks`/`computeDanglingDelta` (dangling baseline). Vector-3 evict + archive-tree + link-rewrite + the full-corpus brain land in **S2**; the FR7.2 upgrade banner + SessionStart hook in **S3**.

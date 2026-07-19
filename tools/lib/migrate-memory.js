@@ -1691,7 +1691,7 @@ export async function enforceNoDangling(baseDir, args = {}) {
  * @param {string} baseDir
  * @returns {Promise<string>}
  */
-export async function renderDryRun(baseDir) {
+export async function renderDryRun(baseDir, opts = {}) {
   const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
   if (!existsSync(statePath)) return 'No .planning/STATE.md found — nothing to migrate.';
   const raw = await readFile(statePath, 'utf-8');
@@ -1704,22 +1704,62 @@ export async function renderDryRun(baseDir) {
   const plan = senseState(raw);
   const baseline = await scanDanglingLinks(baseDir);
 
+  // v2→v3 gate (FR6): the inbox/ledger rename + BACKLOG-create + append-log evict are
+  // previewed ONLY when the stamp is BELOW the current layout version — mirrors
+  // applyMigrate's `needsV3` so the dry-run enumerates EXACTLY the steps apply
+  // performs (no preview/apply drift). The evict inputs are the SAME ones apply binds
+  // (`opts.boundaryDate ?? deriveBoundaryDate`, `opts.milestoneOf ?? defaultMilestoneOf`);
+  // the CLI calls with baseDir only and derives them internally, exactly like apply.
+  const needsV3 = plan.stamp !== null && plan.stamp < CURRENT_LAYOUT_VERSION;
+  const milestoneOf = opts.milestoneOf ?? defaultMilestoneOf;
+  const dateStr = opts.dateStr ?? new Date().toISOString().split('T')[0];
+
   // Project the moves (in memory, no write) for the mechanical + faithfulness tiers.
   const relocations = plan.v1.entries;
   let postV1 = raw;
   if (relocations.length > 0) postV1 = deproseFrontmatter(raw).newText;
   const v2 = senseState(postV1).v2;
-  // Disk-aware V3 sense (retroactive closed-Epic evict) — read-only.
+  // Disk-aware V3 sense (retroactive closed-Epic evict) — read-only. (Distinct from
+  // the FR5 append-log evict below: `v3` is the within-STATE closed-Epic vector,
+  // `evictPlan` is the DECISIONS.md date-section relocate.)
   const v3 = await senseVector3(baseDir, raw);
-  // Full-corpus layers (S2.t5b), via the SAME helpers senseProject calls so the
-  // human-facing display never drifts from the plan-data: the archive-tree file
-  // moves + referrer rewrites, and the axis-2 corpus classification (append-logs
-  // left alone, bloated milestone docs flagged for manual review). Archive moves
-  // fold into the no-op gate — a conformant STATE.md with an un-archived closed
-  // scaffold is NOT a no-op.
-  const archive = await senseArchiveTree(baseDir);
+  // Full-corpus layers (S2.t5b), via the SAME helpers senseProject/applyMigrate call
+  // so the human-facing display never drifts from the plan-data: the archive-tree file
+  // moves + referrer rewrites (folding in the FR6 inbox/ledger rename when v3-pending,
+  // exactly as apply runs it), and the axis-2 corpus classification (append-logs left
+  // alone, bloated milestone docs flagged for manual review). Archive moves fold into
+  // the no-op gate — a conformant STATE.md with an un-archived closed scaffold (or a
+  // pending rename) is NOT a no-op.
+  const archive = await senseArchiveTree(baseDir, { v3Rename: needsV3 });
   const corpus = await senseCorpusHygiene(baseDir);
-  const noop = plan.noop && v3.evicts.length === 0 && archive.moves.length === 0;
+
+  // Append-log evict plan (FR5, v3-pending only) — parse the LIVE DECISIONS.md and
+  // select the strictly-closed-milestone date-sections. A verbatim block move carries
+  // no semantic diff, so it is SUMMARIZED (evicts / anchors preserved / live-byte
+  // delta), never a Tier-3 faithfulness diff. Read-only; matches apply's pre-gate sense.
+  let evictPlan = null;
+  let decisionsBytesBefore = 0;
+  if (needsV3) {
+    const boundaryDate = opts.boundaryDate ?? (await deriveBoundaryDate(baseDir));
+    const decisionsPath = join(baseDir, PLANNING_DIR, 'DECISIONS.md');
+    if (boundaryDate && existsSync(decisionsPath)) {
+      const decisionsText = await readFile(decisionsPath, 'utf-8');
+      decisionsBytesBefore = decisionsText.length;
+      evictPlan = senseAppendLogEvict(decisionsText, { boundaryDate, milestoneOf, dateStr });
+    }
+  }
+  // BACKLOG-create pending (FR2): a v3-pending project without BACKLOG.md gets one.
+  const backlogWillCreate = needsV3 && !existsSync(join(baseDir, PLANNING_DIR, 'BACKLOG.md'));
+
+  // A v3-pending project is NEVER "nothing to do" (CHECK-ITEM 1, mirrors applyMigrate):
+  // a conformant-STATE project that still needs the evict or lacks BACKLOG.md must show
+  // as pending, not a no-op. (A routable, non-noop evict OR a pending BACKLOG; the
+  // rename, when pending, already opens the gate via archive.moves.)
+  const v3WorkPending =
+    needsV3 &&
+    ((evictPlan && !evictPlan.noop && evictPlan.unroutable.length === 0) || backlogWillCreate);
+  const noop =
+    plan.noop && v3.evicts.length === 0 && archive.moves.length === 0 && !v3WorkPending;
 
   // S2.t4 link-hygiene surfacing (read-only): at-risk anchors into files the
   // migrate rewrites (STATE.md when any vector/evict fires — its headings shift),
@@ -1745,6 +1785,15 @@ export async function renderDryRun(baseDir) {
   L.push(`  vector-3 (closed-Epic evicts): ${v3.evicts.length}`);
   L.push(`  archive-tree moves:   ${archive.moves.length}`);
   L.push(`  append-logs (left alone): ${corpus.appendLogs.length}`);
+  if (needsV3) {
+    const routableEvicts =
+      evictPlan && !evictPlan.noop && evictPlan.unroutable.length === 0 ? evictPlan.evicts.length : 0;
+    const unroutable = evictPlan?.unroutable.length ?? 0;
+    L.push(
+      `  append-log evicts (FR5): ${routableEvicts}${unroutable ? ` (+${unroutable} unroutable → detect-only)` : ''}`,
+    );
+    L.push(`  BACKLOG.md (FR2):      ${backlogWillCreate ? 'will create' : 'present'}`);
+  }
   L.push(`  ambiguity flags:      ${plan.flags.length + v3.flags.length + corpus.flags.length}`);
   L.push(`  stamp:                ${plan.stamped ? `already ${CURRENT_LAYOUT_VERSION}` : `will set docs_layout_version: ${CURRENT_LAYOUT_VERSION} on conformance`}`);
   L.push('');
@@ -1760,7 +1809,35 @@ export async function renderDryRun(baseDir) {
     L.push(`  ${ev.epicId} narrative → ${ev.archiveRel} (byte-identical) + pointer; card: ${ev.cardPath}`);
   }
   for (const { from, to } of archive.moves) {
-    L.push(`  ${from} → ${to} (byte-identical archive relocation) + referrer links/prose rewritten`);
+    // The FR6 inbox/ledger rename rides this same move loop (archive.renameFroms marks
+    // it); label it a rename, not an "archive relocation" — it stays in .planning/ root.
+    const label = archive.renameFroms?.has(from)
+      ? 'inbox/ledger rename (FR6)'
+      : 'byte-identical archive relocation';
+    L.push(`  ${from} → ${to} (${label}) + referrer links/prose rewritten`);
+  }
+  // v2→v3 append-log evict (FR5) — a verbatim block move (summary, not a diff). Shown
+  // as detect-only when a section can't be routed to a milestone (fail-safe: apply
+  // evicts nothing in that case either).
+  if (needsV3 && evictPlan && !evictPlan.noop) {
+    if (evictPlan.unroutable.length > 0) {
+      L.push(
+        `  append-log evict: DETECT-ONLY — ${evictPlan.unroutable.length} closed DECISIONS.md section(s) unroutable (dates predate the milestone-open map); nothing evicted (fail-safe)`,
+      );
+    } else {
+      for (const ev of evictPlan.evicts) {
+        L.push(
+          `  DECISIONS.md §${ev.milestone} → ${ev.archiveRel} (${ev.sections.length} closed section(s), verbatim byte-identical) + dated pointer`,
+        );
+      }
+      L.push(
+        `  append-log evict: ${evictPlan.evicts.length} milestone group(s), ${evictPlan.evictedIds.length} D-… anchor(s) preserved; live DECISIONS.md ${decisionsBytesBefore} B → ${evictPlan.liveText.length} B`,
+      );
+    }
+  }
+  // v2→v3 BACKLOG create-if-missing (FR2).
+  if (backlogWillCreate) {
+    L.push('  BACKLOG.md created (sequenced roadmap; seeded from a BACKLOG-REVIEW snapshot when present, else a skeleton)');
   }
   for (const f of plan.flags) L.push(`  FLAG (not moved): ${f.kind} — ${f.chars} chars — "${f.detail}…"`);
   for (const f of v3.flags) L.push(`  FLAG (not moved): ${f.kind} — ${f.reason}`);
@@ -1791,9 +1868,10 @@ export async function renderDryRun(baseDir) {
     L.push(`  • archive-tree: ${archive.moves.length} byte-identical file relocation(s) — no prose change to review; referrer links rewritten to the new paths`);
   }
   L.push('');
-  // Append-logs (model §1 axis-2) — grow BY DESIGN; the migrate leaves them alone
-  // (never relocated/evicted/de-prosed). Surfaced so the human sees they were seen.
-  L.push(`— Append-logs left alone (${corpus.appendLogs.length}) — grow by design (model §1 axis-2); never relocated/evicted/de-prosed —`);
+  // Append-logs (model §1 axis-2) — grow BY DESIGN; the whole-file relocate/de-prose
+  // brain leaves them alone (FR5 evicts closed DECISIONS.md sections separately, above).
+  // Surfaced so the human sees they were seen.
+  L.push(`— Append-logs left alone (${corpus.appendLogs.length}) — grow by design (model §1 axis-2); the whole-file relocate/de-prose brain never touches them (FR5 may still evict CLOSED sections of DECISIONS.md — see Tier 2) —`);
   for (const a of corpus.appendLogs) L.push(`  ${a.file} (${a.bytes} B)`);
   if (corpus.appendLogs.length === 0) L.push('  (none)');
   L.push('');
