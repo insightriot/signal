@@ -292,6 +292,92 @@ export async function regeneratePlanningIndex(baseDir) {
   return { written: true, path: indexPath, docCount: docs.length };
 }
 
+// ---- D-ID → home map (t5, AC3.3) --------------------------------------------
+
+// A decision ID: `D-<prefix>-<num>` (e.g. D-E10-3, D-M5E3-8, D-v016-7). The
+// prefix scopes it to an Epic / milestone / version; the num is monotonic within.
+const DECISION_ID_RE = /\bD-([A-Za-z0-9]+)-(\d+)\b/g;
+
+/**
+ * Build the `D-ID → home` map: which `DECISIONS.md` file currently holds each
+ * decision-ID prefix range. Sources: the live `.planning/DECISIONS.md` plus any
+ * `DECISIONS.md` under `.planning/archive/` (the per-milestone history files FR5
+ * creates — none exist yet; this self-heals as they appear). MECHANICAL-FRESH —
+ * always read from disk, never cached, so eviction (a block moving live→archive)
+ * is reflected on the very next call.
+ *
+ * Compact shape: `{ '<sourceFile>': { '<prefix>': { min, max } } }` — the ID
+ * prefix ranges per source file (the "ID-prefix ranges" the plan specifies).
+ *
+ * @param {string} baseDir
+ * @returns {Promise<Record<string, Record<string, {min: number, max: number}>>>}
+ */
+export async function buildDecisionIdMap(baseDir) {
+  const map = {};
+  const archiveDir = join(baseDir, PLANNING_DIR, 'archive');
+
+  const sources = [join(baseDir, PLANNING_DIR, 'DECISIONS.md')];
+  // Every DECISIONS.md under archive/ is a milestone-history source.
+  for (const full of await walkMarkdown(archiveDir)) {
+    if (full.split(/[/\\]/).pop() === 'DECISIONS.md') sources.push(full);
+  }
+
+  for (const full of sources) {
+    let content;
+    try {
+      content = await readFile(full, 'utf-8');
+    } catch {
+      continue; // absent live file, or vanished — skip
+    }
+    const rel = full.slice(baseDir.length + 1).split('\\').join('/');
+    const ranges = {};
+    for (const m of content.matchAll(DECISION_ID_RE)) {
+      const prefix = m[1];
+      const num = Number(m[2]);
+      const r = ranges[prefix];
+      if (!r) ranges[prefix] = { min: num, max: num };
+      else {
+        if (num < r.min) r.min = num;
+        if (num > r.max) r.max = num;
+      }
+    }
+    if (Object.keys(ranges).length > 0) map[rel] = ranges;
+  }
+  return map;
+}
+
+/**
+ * Resolve a decision ID (e.g. `D-E10-3`) to the relative path of the
+ * `DECISIONS.md` file that currently homes it, or `null` if unresolvable.
+ * MECHANICAL-FRESH — rebuilds the map from disk each call (self-heals after
+ * eviction). When a prefix's range spans multiple files (a split across the
+ * evict cutoff), the file whose range contains the num wins; the LIVE file is
+ * preferred on an exact tie. FR5's anchor-resolvability gate consumes this.
+ *
+ * @param {string} baseDir
+ * @param {string} id  e.g. "D-E10-3"
+ * @returns {Promise<string|null>}
+ */
+export async function resolveDecisionId(baseDir, id) {
+  const m = /^D-([A-Za-z0-9]+)-(\d+)$/.exec(String(id).trim());
+  if (!m) return null;
+  const prefix = m[1];
+  const num = Number(m[2]);
+
+  const map = await buildDecisionIdMap(baseDir);
+  const liveRel = PLANNING_DIR + '/DECISIONS.md';
+
+  const candidates = [];
+  for (const [file, ranges] of Object.entries(map)) {
+    const r = ranges[prefix];
+    if (r && num >= r.min && num <= r.max) candidates.push(file);
+  }
+  if (candidates.length === 0) return null;
+  if (candidates.includes(liveRel)) return liveRel; // prefer the live home on a tie
+  candidates.sort();
+  return candidates[0];
+}
+
 // ---- internals ----
 
 /**

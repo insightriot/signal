@@ -11,11 +11,14 @@ import { join } from 'node:path';
 
 import { readFile } from 'node:fs/promises';
 
+import { ROOT } from '../tools/lib/roster.js';
 import {
   enumeratePlanningDocs,
   parseExistingAnnotations,
   renderPlanningIndex,
   regeneratePlanningIndex,
+  buildDecisionIdMap,
+  resolveDecisionId,
 } from '../tools/lib/planning-index.js';
 
 // A representative INDEX in the generator's canonical format — the shape t4's
@@ -224,5 +227,69 @@ describe('renderPlanningIndex + regeneratePlanningIndex (t4) — idempotent, fix
     const after = await readFile(indexPath, 'utf-8');
     expect(after).toContain('- [DECISIONS.md](DECISIONS.md) — `append-log` — Curated: grep by `D-…` ID.');
     expect(after).toContain('- [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) —');
+  });
+});
+
+describe('D-ID → home map + resolveDecisionId (t5) — AC3.3', () => {
+  let base;
+  beforeEach(async () => {
+    base = await mkdtemp(join(tmpdir(), 'decision-map-'));
+    await mkdir(join(base, '.planning', 'archive', 'M1'), { recursive: true });
+    await writeFile(
+      join(base, '.planning', 'DECISIONS.md'),
+      '## 2026-07-18 — current\n\n- D-CUR-1 first\n- D-CUR-2 second\n- D-CUR-3 third\n',
+      'utf-8',
+    );
+    await writeFile(
+      join(base, '.planning', 'archive', 'M1', 'DECISIONS.md'),
+      '## 2026-04-22 — old\n\n- D-OLD-1 (a) and D-OLD-2 (b)\n',
+      'utf-8',
+    );
+  });
+  afterEach(async () => {
+    await rm(base, { recursive: true, force: true });
+  });
+
+  it('buildDecisionIdMap keys sourceFile → ID-prefix ranges (live + archive)', async () => {
+    const map = await buildDecisionIdMap(base);
+    expect(map['.planning/DECISIONS.md'].CUR).toEqual({ min: 1, max: 3 });
+    expect(map['.planning/archive/M1/DECISIONS.md'].OLD).toEqual({ min: 1, max: 2 });
+  });
+
+  it('a live D-… resolves to the live DECISIONS.md', async () => {
+    expect(await resolveDecisionId(base, 'D-CUR-2')).toBe('.planning/DECISIONS.md');
+  });
+
+  it("an archived block's D-… resolves to its archive file (AC3.3 archived home)", async () => {
+    expect(await resolveDecisionId(base, 'D-OLD-1')).toBe('.planning/archive/M1/DECISIONS.md');
+    expect(await resolveDecisionId(base, 'D-OLD-2')).toBe('.planning/archive/M1/DECISIONS.md');
+  });
+
+  it('an unknown D-… resolves to null (not resolvable)', async () => {
+    expect(await resolveDecisionId(base, 'D-NOPE-9')).toBeNull();
+  });
+
+  it('mechanical-fresh: self-heals when an archive DECISIONS.md appears after first call', async () => {
+    // Remove the archive file, prove D-OLD-1 is unresolvable, then re-create it.
+    await rm(join(base, '.planning', 'archive', 'M1', 'DECISIONS.md'));
+    expect(await resolveDecisionId(base, 'D-OLD-1')).toBeNull();
+    await writeFile(
+      join(base, '.planning', 'archive', 'M1', 'DECISIONS.md'),
+      '- D-OLD-1 revived\n',
+      'utf-8',
+    );
+    // No cache — the next call rebuilds from disk and finds it.
+    expect(await resolveDecisionId(base, 'D-OLD-1')).toBe('.planning/archive/M1/DECISIONS.md');
+  });
+
+  it("every D-… in Signal's live DECISIONS.md resolves to it (AC3.3 on real data)", async () => {
+    const content = await readFile(join(ROOT, '.planning', 'DECISIONS.md'), 'utf-8');
+    const ids = [...content.matchAll(/\bD-[A-Za-z0-9]+-\d+\b/g)].map((m) => m[0]);
+    expect(ids.length).toBeGreaterThan(50); // sanity: the log has many D-IDs
+    const unresolved = [];
+    for (const id of new Set(ids)) {
+      if ((await resolveDecisionId(ROOT, id)) !== '.planning/DECISIONS.md') unresolved.push(id);
+    }
+    expect(unresolved).toEqual([]);
   });
 });
