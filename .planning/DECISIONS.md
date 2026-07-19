@@ -157,3 +157,19 @@ The milestones closed-milestone decision sections were relocated verbatim to [ar
 ## 2026-07-19 — Closed-milestone decisions relocated (M4.5)
 
 The M4.5 closed-milestone decision sections were relocated verbatim to [archive/M4.5/DECISIONS.md](archive/M4.5/DECISIONS.md). Grep the archive by decision ID; every anchor still resolves via `/sig:index`.
+
+---
+
+## 2026-07-19 — M5.E3 EXECUTE: doc-runtime lands; `/sig:index` reverses the hand-curated-INDEX stance
+
+**Context.** M5.E3 EXECUTE completed at FULL/strict — the final doc-runtime layer (FR1–FR6), 7 slices / 5 waves, dogfooded on Signal's own `.planning/`. Records the downstream consequence D-M5E3-8 reserved for "when FR3 implements it."
+
+1. **FR3 lands → `.planning/INDEX.md` is now AUTO-generated** by the Signal-native `/sig:index` (`tools/lib/planning-index.js`); hand-curation is retired. Curated one-liner notes survive regeneration by key (path / Epic ID) via `parseExistingAnnotations`; the tier model is two-tier (Live/Cold). **This reverses the prior stance** ("INDEX is hand-curated; Curator dormant" — DECISIONS 2026-07-13) recorded in the `curator-dormant-on-signal-planning` memory (now updated). **External Curator is fully retired** — `ship.md §8` removed; the vacated slot calls native `regeneratePlanningIndex`; `grep -rn curator commands/` is empty (AC6.4). Signal carries no external doc-reconcile dependency.
+
+2. **Doc-lifecycle shipped:** `FUTURE-IDEAS.md` → `ISSUES-INBOX.md` (back-compat resolver, non-breaking) → drain classifies (`/sig:plan`) into a living `BACKLOG.md` (roadmap/hygiene tag) + `BUGS.md`. Append-log hygiene = evict-with-anchors: closed-milestone `DECISIONS.md` date-sections (`< 2026-07-15`) relocate verbatim to per-milestone `archive/M{n}/DECISIONS.md` behind dated pointers, D-anchors preserved via the FR3 index (fail-closed if any won't resolve). All-docs hygiene guard is deterministic + offline (no network).
+
+3. **Signal dogfood (AC6.5):** own `.planning/` migrated to v3 — `DECISIONS.md` 178 KB → 33 KB (37 sections → archives, 0 content dropped, 73 anchors preserved), BACKLOG seeded from the 2026-07-04 review (snapshot archived), `docs_layout_version: 3`. Fully git-reversible.
+
+4. **Rollout completeness (user-gated 2026-07-19):** stamp-null projects (every existing external repo at the combined release — the layout stamp is unreleased) now **route through the v3 migration** (`needsV3 = stamp === null || stamp < CURRENT`), so they converge on the new layout rather than staying resolver-back-compat forever ("less tech/feature debt"). The append-log evict stays **detect-only for external projects** (the milestone-open map is Signal-M5-specific) — a deliberate safe default for the riskiest op, generalize milestone-window derivation in a follow-up.
+
+5. **Findings logged (`BUGS.md`):** B18 (`regeneratePlanningIndex('.')` latent path corruption — absolute baseDir only), B19 (the migrate's tail index-regen silently clobbers a pre-v3 curated INDEX — REVIEW). Combined E1+E2+E3 doc-runtime is ready for the release cut.
