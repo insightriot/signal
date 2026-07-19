@@ -88,8 +88,10 @@ describe('t2 — CHECK-ITEM 1: a v3-pending project MIGRATES, not no-ops', () =>
 
   it('a conformant STATE that still needs the evict + lacks BACKLOG.md migrates', async () => {
     // Already-renamed inbox (no FUTURE-IDEAS) + no scaffold moves, so the ONLY work
-    // is the append-log evict + BACKLOG create — the exact case the old no-op gate
-    // (plan.noop && no-v3sense-evict && no-archive-move) did not account for.
+    // is the append-log evict + BACKLOG create. Proves a v3-pending project MIGRATES
+    // (not no-op'd). NB: needsV3 ⟹ stamp < CURRENT ⟹ plan.noop is already false, so
+    // the gate's explicit v3-pending term is a defensive invariant that RESTATES that
+    // (it never flips a live decision), not the sole reason this case is not no-op'd.
     dir = await makeRepo({ ver: 1, futureIdeas: false, backlog: false });
     const res = await applyMigrate(dir, OPTS);
     expect(res.applied).toBe(true);
