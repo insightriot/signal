@@ -941,7 +941,7 @@ Convert `docs/map/index.html` to fetch state at page load via a GitHub raw URL p
 **Open design questions:**
 - **Where does Stage 1's checklist line live?** `commands/ship.md` is the obvious home (per-Epic SHIP), but `commands/ship.md` is currently a generic command template, not Epic-specific. May need a small refactor or a separate "release-cycle ship checklist" doc.
 - **Does the map deserve its own SHIP gate at all?** Alternative framing: treat it as `examples/` material (deferrable, casual) rather than `docs/` material (formal, current). If so, refresh cadence relaxes to "whenever convenient."
-- **Should the `docs/map/index.html` footer's "refresh cadence" pointer link to this entry's permalink?** Currently links to `.planning/FUTURE-IDEAS.md § map-refresh-protocol`. Once promoted to milestone work, the pointer should update.
+- **Should the `docs/map/index.html` footer's "refresh cadence" pointer link to this entry's permalink?** Currently links to `.planning/ISSUES-INBOX.md § map-refresh-protocol`. Once promoted to milestone work, the pointer should update.
 
 **Resolve by:**
 - Stage 1 lands as part of M4.5.E3.S3 (governance slice) OR as a one-off micro-task after E3 ships. Either way, before E5 launch — strangers will see the map and they'll see "generated {old date}" as a quality signal.
@@ -1030,7 +1030,7 @@ Options aren't mutually exclusive. Plausible final shape: S5 covers *new-Epic pl
 - M4.5.E2.S5 (pending) — partial drain at planning-gate. This entry asks "is partial enough?"
 - `/sig:report`, `/sig:audit`, `/sig:orient` — all read-only synthesis commands that share the same design discipline `/sig:groom` would inherit (re-runnable, no mtime mutation, no skills loaded, no agents spawned).
 
-**Source data.** `.planning/FUTURE-IDEAS.md` (this file, 16 live entries as of 2026-05-24); `.planning/MILESTONE-4.5.md` lines 60–71 (`/sig:add` Epic spec + S5 description); `commands/add.md` + `tools/lib/add.js` (input pipe implementation); conversation 2026-05-24 surfacing the gap.
+**Source data.** `.planning/ISSUES-INBOX.md` (this file, 16 live entries as of 2026-05-24); `.planning/MILESTONE-4.5.md` lines 60–71 (`/sig:add` Epic spec + S5 description); `commands/add.md` + `tools/lib/add.js` (input pipe implementation); conversation 2026-05-24 surfacing the gap.
 
 ---
 

@@ -12,6 +12,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { lintFutureIdeasFooter } from '../tools/lib/add.js';
+import { resolveInboxPath } from '../tools/lib/inbox-path.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -83,10 +84,11 @@ describe('lintFutureIdeasFooter (FR4c, AC4.6)', () => {
     expect(lintFutureIdeasFooter('# FUTURE-IDEAS\n\n## Idea\n\nBody.\n').ok).toBe(true);
   });
 
-  // The load-bearing dogfood guard: Signal's own FUTURE-IDEAS.md must stay
-  // clean, so a drift regression trips on the next `npm test`.
-  it("Signal's own .planning/FUTURE-IDEAS.md passes the lint", () => {
-    const real = readFileSync(join(ROOT, '.planning', 'FUTURE-IDEAS.md'), 'utf-8');
+  // The load-bearing dogfood guard: Signal's own capture inbox must stay clean,
+  // so a drift regression trips on the next `npm test`. Resolves via the
+  // back-compat resolver (ISSUES-INBOX.md post-v3-migrate, FUTURE-IDEAS.md before).
+  it("Signal's own capture inbox passes the lint", () => {
+    const real = readFileSync(join(ROOT, resolveInboxPath(ROOT)), 'utf-8');
     const result = lintFutureIdeasFooter(real);
     expect(result.ok, result.message).toBe(true);
   });

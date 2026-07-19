@@ -1,6 +1,6 @@
 ---
 schema_version: 1
-docs_layout_version: 2
+docs_layout_version: 3
 phase: PLAN
 current_epic: M5.E3
 current_wave: null

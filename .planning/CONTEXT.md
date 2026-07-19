@@ -77,7 +77,7 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 - `.planning/MILESTONE-4.5.md` (active — release-hardening / stranger-adoption; E5 is the only Epic still open) + `MILESTONE-5.md` (v2 ports + memory mgmt, gated on usage data). **M1–M4 archived** at `.planning/archive/milestones/` (M4 = `/sig:init` brownfield onboarding, closed 2026-05-12 + v0.1.0).
 - `.planning/DECISIONS.md` — append-only architecture decisions
 - `.planning/OPEN-QUESTIONS.md` — unresolved design questions (v1-scoped)
-- `.planning/FUTURE-IDEAS.md` — post-v1 architectural evolutions of Signal's own mechanisms (distinct from MILESTONE-5's rundown-v2 integrations)
+- `.planning/ISSUES-INBOX.md` — post-v1 architectural evolutions of Signal's own mechanisms (distinct from MILESTONE-5's rundown-v2 integrations)
 - `.planning/STATE.md` — what milestone we're in, active, blocked
 
 **Authoritative references (in `references/`):**

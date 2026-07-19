@@ -282,13 +282,38 @@ describe('D-ID → home map + resolveDecisionId (t5) — AC3.3', () => {
     expect(await resolveDecisionId(base, 'D-OLD-1')).toBe('.planning/archive/M1/DECISIONS.md');
   });
 
-  it("every D-… in Signal's live DECISIONS.md resolves to it (AC3.3 on real data)", async () => {
-    const content = await readFile(join(ROOT, '.planning', 'DECISIONS.md'), 'utf-8');
-    const ids = [...content.matchAll(/\bD-[A-Za-z0-9]+-\d+\b/g)].map((m) => m[0]);
-    expect(ids.length).toBeGreaterThan(50); // sanity: the log has many D-IDs
+  it('every D-… across Signal\'s live + archived DECISIONS resolves to a file that DEFINES it (AC3.3 on real data)', async () => {
+    // Post-v3-migrate reality: decision homes are split across the live
+    // DECISIONS.md and the per-milestone archives (FR5 eviction). The invariant
+    // that must hold on real data is anchor-resolvability: every `D-…` resolves to
+    // a DECISIONS file that actually defines it (a heading- or bold-lead
+    // `D-<id> —`), never merely references it — the guarantee FR5's fail-closed
+    // anchor gate depends on. (Pre-migrate this was "all resolve to live"; the
+    // Signal dogfood split the homes.)
+    const files = [
+      '.planning/DECISIONS.md',
+      '.planning/archive/milestones/DECISIONS.md',
+      '.planning/archive/M4.5/DECISIONS.md',
+    ];
+    const ids = new Set();
+    const defines = (content, id) => {
+      const esc = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(String.raw`(?:^#{2,6}\s+|\*\*)${esc}\s*[—–-]`, 'm').test(content);
+    };
+    for (const f of files) {
+      const c = await readFile(join(ROOT, f), 'utf-8');
+      for (const m of c.matchAll(/\bD-[A-Za-z0-9]+-\d+\b/g)) ids.add(m[0]);
+    }
+    expect(ids.size).toBeGreaterThan(50); // sanity: the log has many D-IDs
     const unresolved = [];
-    for (const id of new Set(ids)) {
-      if ((await resolveDecisionId(ROOT, id)) !== '.planning/DECISIONS.md') unresolved.push(id);
+    for (const id of ids) {
+      const home = await resolveDecisionId(ROOT, id);
+      if (!home) {
+        unresolved.push(`${id} → null`);
+        continue;
+      }
+      const c = await readFile(join(ROOT, home), 'utf-8');
+      if (!defines(c, id)) unresolved.push(`${id} → ${home} (does not define it)`);
     }
     expect(unresolved).toEqual([]);
   });
