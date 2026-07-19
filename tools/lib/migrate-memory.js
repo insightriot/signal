@@ -34,8 +34,16 @@ import {
 } from './evict.js';
 import { enumerateRetros } from './retro-index.js';
 import { checkStateFrontmatterShape } from './retrospective.js';
-import { toPosix, detectUnhandledLinkForms, senseArchiveTree, applyArchiveTree } from './archive-tree.js';
+import {
+  toPosix,
+  detectUnhandledLinkForms,
+  senseArchiveTree,
+  applyArchiveTree,
+  computeLinkEdits,
+  applyKeyedReplacements,
+} from './archive-tree.js';
 import { currentMilestone } from './milestones.js';
+import { createBacklogIfMissing } from './backlog.js';
 
 // verifyFaithful IS verifyCardCoverage under the migrate command's name — a
 // re-export, NOT a rename (evict.js keeps verifyCardCoverage; check-state-write
@@ -1470,11 +1478,17 @@ export function computeDanglingDelta(before, after) {
  * capped at FILE_SCAN_CEILING. applyMigrate feeds the live archive-tree moveMap
  * (S2.t5a); an empty moveMap (no archive moves) is a no-op.
  *
+ * `archiveExemptFroms` (R7): a from in this set is NOT residual-scanned inside
+ * files under `.planning/archive/` — the FR6 inbox rename deliberately leaves an
+ * archived doc's historical `.planning/FUTURE-IDEAS.md` reference byte-unchanged,
+ * so its persistence there is intended, not a skipped rewrite.
+ *
  * @param {string} baseDir
  * @param {Map<string,string>} moveMap  original->new (repo-root-relative POSIX)
+ * @param {Set<string>} [archiveExemptFroms]  froms exempt inside archive/ (R7)
  * @returns {Promise<Array<{file: string, target: string}>>}
  */
-export async function scanResidualFlatPaths(baseDir, moveMap) {
+export async function scanResidualFlatPaths(baseDir, moveMap, archiveExemptFroms = new Set()) {
   if (!moveMap || moveMap.size === 0) return [];
   const froms = [...moveMap.keys()].map(toPosix);
   const files = await walkMarkdown(join(baseDir, PLANNING_DIR));
@@ -1488,8 +1502,10 @@ export async function scanResidualFlatPaths(baseDir, moveMap) {
     }
     if (text.length > FILE_SCAN_CEILING) text = text.slice(0, FILE_SCAN_CEILING);
     const rel = toPosix(relative(baseDir, f));
+    const underArchive = rel.startsWith(`${PLANNING_DIR}/archive/`);
     for (const from of froms) {
       if (rel === toPosix(moveMap.get(from))) continue; // the moved file's own new home
+      if (underArchive && archiveExemptFroms.has(from)) continue; // R7 — rename ref stays
       if (text.includes(from)) residual.push({ file: rel, target: from });
     }
   }
@@ -1591,13 +1607,20 @@ export function partitionDangling({ baseline = [], after = [], residual = [] }) 
  *
  * @param {string} baseDir
  * @param {{baseline?: Array, moveMap?: Map, rollback?: () => Promise<void>,
- *          scanDangling?: (baseDir: string) => Promise<Array>}} [args]
+ *          scanDangling?: (baseDir: string) => Promise<Array>,
+ *          archiveExemptFroms?: Set<string>}} [args]
  * @returns {Promise<{flags: Array}>}
  */
 export async function enforceNoDangling(baseDir, args = {}) {
-  const { baseline = [], moveMap = new Map(), rollback, scanDangling = scanDanglingLinks } = args;
+  const {
+    baseline = [],
+    moveMap = new Map(),
+    rollback,
+    scanDangling = scanDanglingLinks,
+    archiveExemptFroms = new Set(),
+  } = args;
   const after = await scanDangling(baseDir);
-  const residual = await scanResidualFlatPaths(baseDir, moveMap);
+  const residual = await scanResidualFlatPaths(baseDir, moveMap, archiveExemptFroms);
   const { aborting, flags } = partitionDangling({ baseline, after, residual });
   if (aborting.length > 0) {
     if (rollback) await rollback();
@@ -1817,6 +1840,11 @@ export async function applyMigrate(baseDir, opts = {}) {
   const dateStr = opts.dateStr ?? new Date().toISOString().split('T')[0];
   const verify = opts.verify ?? ((text) => checkStateFrontmatterShape({ proposedContent: text }));
   const scanDangling = opts.scanDangling ?? scanDanglingLinks;
+  // v2→v3 append-log evict injectables (fixtures drive the boundary/router/resolver;
+  // the real run derives them). Threaded so S6a's fixtures exercise the compose while
+  // the version constant is still 2 (the chain is inert on real v2 repos).
+  const milestoneOf = opts.milestoneOf ?? defaultMilestoneOf;
+  const resolveId = opts.resolveId ?? defaultResolveDecisionId;
 
   const probe = probeGitState(baseDir, { execFn, force });
   if (!probe.proceed) {
@@ -1862,17 +1890,53 @@ export async function applyMigrate(baseDir, opts = {}) {
     // gate so that case isn't early-returned as a no-op.
     const v3sense = await senseVector3(baseDir, raw);
 
+    // v2→v3 gate (FR6): the append-log evict + BACKLOG-create + inbox rename fire
+    // ONLY when the project's stamp is BELOW the current layout version. The chain
+    // is thus INERT on a real v2 repo (stamp === 2, not < 2) while the constant is
+    // still 2 — the version bump in S6a-B is the "arming" step. A null (fence-less-
+    // or-unstamped) stamp is left to the V1/V2 path, never speculatively v3-migrated.
+    const needsV3 = plan.stamp !== null && plan.stamp < CURRENT_LAYOUT_VERSION;
+
     // Archive-tree sense (read-only, under the ONE coarse lock — §9): closed-scaffold
-    // FILE moves + per-file referrer link/prose rewrites. Sensed HERE (before the
-    // noop gate) for two reasons: (1) a conformant-STATE project can still have
-    // un-archived closed scaffolds, so the gate must NOT early-return it as a no-op;
+    // FILE moves + per-file referrer link/prose rewrites, PLUS the FR6 inbox/ledger
+    // rename (v3Rename) when v3-pending. Sensed HERE (before the noop gate) for two
+    // reasons: (1) a conformant-STATE project can still have un-archived closed
+    // scaffolds or a pending rename, so the gate must NOT early-return it as a no-op;
     // (2) it is read BEFORE any write, so the extended snapshot set + the
     // enforceNoDangling moveMap both derive from it. The moveMap is invariant across
     // the V1/V3/V2 compose (STATE.md is not a scaffold doc), so sensing it now is safe.
-    const archiveSense = await senseArchiveTree(baseDir);
+    const archiveSense = await senseArchiveTree(baseDir, { v3Rename: needsV3 });
     const archiveMoveMap = archiveSense.moveMap;
 
-    if (plan.noop && v3sense.evicts.length === 0 && archiveMoveMap.size === 0) {
+    // Append-log evict plan (FR5, v3-pending only): parse the LIVE DECISIONS.md and
+    // select the strictly-closed-milestone date-sections. Computed pre-gate so an
+    // evict-pending project is not mistaken for a no-op, and pre-write so the
+    // snapshot extension can cover the archive dests before any mutation.
+    let evictPlan = null;
+    if (needsV3) {
+      const boundaryDate = opts.boundaryDate ?? (await deriveBoundaryDate(baseDir));
+      const decisionsPath = join(planningDir, 'DECISIONS.md');
+      if (boundaryDate && existsSync(decisionsPath)) {
+        const decisionsText = await readFile(decisionsPath, 'utf-8');
+        evictPlan = senseAppendLogEvict(decisionsText, { boundaryDate, milestoneOf, dateStr });
+      }
+    }
+    // A v3-pending project is NEVER "nothing to do" (CHECK-ITEM 1): a conformant,
+    // scaffold-clean STATE that still needs the append-log evict or lacks BACKLOG.md
+    // must migrate, not early-return. (The rename, when pending, already opens the
+    // gate via archiveMoveMap.) needsV3 ⟹ stamp < CURRENT ⟹ plan.noop is already
+    // false, so this term is a defensive, explicit statement of that invariant.
+    const v3WorkPending =
+      needsV3 &&
+      ((evictPlan && !evictPlan.noop && evictPlan.unroutable.length === 0) ||
+        !existsSync(join(planningDir, 'BACKLOG.md')));
+
+    if (
+      plan.noop &&
+      v3sense.evicts.length === 0 &&
+      archiveMoveMap.size === 0 &&
+      !v3WorkPending
+    ) {
       return { applied: false, changed: false, moves: [], inputHash, mode: probe.mode, warnings: probe.warnings };
     }
 
@@ -1994,6 +2058,19 @@ export async function applyMigrate(baseDir, opts = {}) {
       }
     }
 
+    // v3-pending: pre-snap every file the mechanical evict/BACKLOG/index steps touch,
+    // BEFORE the durable persist (so the fs-backup snapshot is COMPLETE): the live
+    // DECISIONS.md, each per-milestone archive DECISIONS dest, BACKLOG.md, INDEX.md.
+    // (The FR6 rename's files were already covered by the archiveMoveMap loop above.)
+    if (needsV3) {
+      await snapOnce('DECISIONS.md');
+      for (const ev of evictPlan?.evicts ?? []) {
+        await snapOnce(ev.archiveRel.replace(`${PLANNING_DIR}/`, ''));
+      }
+      await snapOnce('BACKLOG.md');
+      await snapOnce('INDEX.md');
+    }
+
     // Persist the durable snapshot + create the pre-apply tag BEFORE the mechanical
     // phase, so a mid-phase throw (ENOSPC / EACCES / ENOTDIR / an applyArchiveTree
     // byte-identity assert) still leaves an undo aid even if the in-memory rollback
@@ -2051,20 +2128,61 @@ export async function applyMigrate(baseDir, opts = {}) {
         throw new Error(`applyMigrate: post-apply verify failed (${v.reason ?? 'blocked'}) — rolled back.`);
       }
 
-      // --- archive-tree: relocate closed-scaffold FILES + rewrite referrers (§9) ---
-      // Runs AFTER the STATE.md write so it rewrites the FINAL composed STATE.md's
-      // scaffold-links; the within-STATE vector moves (V1/V3/V2) are already on disk.
-      // LOCK-FREE spine: applyArchiveTree never self-locks and never calls
-      // evictEpicNarrative — it runs under THIS apply's ONE coarse lock. Its snapshot
-      // extension was hoisted above (before the durable persist) so the recovery aids
-      // cover the archive-touched files.
+      // --- v2→v3 append-log evict (FR5 seam) — relocate closed-milestone DECISIONS
+      // date-sections VERBATIM to archive/M{n}/DECISIONS.md behind a dated pointer,
+      // under THIS apply's SHARED snapshotter (snapOnce, so a pre-snapped entry is
+      // never clobbered) + rollback. The relative `](*.md)` file-links inside a moved
+      // block are RE-ROOTED (rerootEvictPlan) to resolve from the new archive home —
+      // the bare `D-…` anchors carry no `](` delimiter so they stay byte-identical —
+      // baked into the plan BEFORE the write so buildArchiveContent dedupes on the
+      // re-rooted bytes (idempotent re-run). A broken anchor map fails CLOSED: the
+      // seam's detect-only rolls back the whole snapshot, then we throw so the migrate
+      // refuses (never a silent partial). Runs BEFORE the archive-tree rename so the
+      // ONE dangling gate below sees the final, re-rooted DECISIONS archives.
+      if (needsV3 && evictPlan && !evictPlan.noop && evictPlan.unroutable.length === 0) {
+        const rerooted = rerootEvictPlan(evictPlan);
+        const er = await applyAppendLogEvict(baseDir, rerooted, { snap: snapOnce, rollback, resolveId });
+        if (er.detectOnly) {
+          throw new Error(
+            `applyMigrate: append-log evict anchor gate failed — ${er.misses.length} decision anchor(s) unresolvable; rolled back, no partial writes.`
+          );
+        }
+        moves.push({ vector: 'append-log-evict', evicts: rerooted.evicts.length });
+      }
+
+      // --- v2→v3 BACKLOG create-if-missing (FR2) — idempotent skeleton (seeded from a
+      // BACKLOG-REVIEW snapshot when present). A born-v3 / already-migrated project
+      // already has it → no-op. BACKLOG.md was pre-snapped, so a later abort removes it.
+      if (needsV3) {
+        const bl = await createBacklogIfMissing(baseDir, { today: dateStr });
+        if (bl.created) moves.push({ vector: 'backlog-create' });
+      }
+
+      // --- archive-tree: relocate closed-scaffold FILES + the FR6 inbox/ledger rename
+      // + rewrite referrers (§9). Runs AFTER the STATE.md write so it rewrites the
+      // FINAL composed STATE.md's scaffold-links; the within-STATE vector moves
+      // (V1/V3/V2) are already on disk. LOCK-FREE spine: applyArchiveTree never
+      // self-locks and never calls evictEpicNarrative — it runs under THIS apply's ONE
+      // coarse lock. Its snapshot extension was hoisted above (before the durable
+      // persist) so the recovery aids cover the archive-touched files. `v3Rename`
+      // matches the pre-gate sense so the re-sense inside applyArchiveTree agrees.
       if (archiveMoveMap.size > 0) {
-        const archiveResult = await applyArchiveTree(baseDir, { apply: true });
+        const archiveResult = await applyArchiveTree(baseDir, { apply: true, v3Rename: needsV3 });
         moves.push({
           vector: 'archive-tree',
           moves: archiveResult.moves.length,
           rewrittenFiles: archiveResult.rewrittenFiles,
         });
+      }
+
+      // --- v2→v3 index-regen (FR3) — the SOLE INDEX.md refresh in the composed flow
+      // (the append-log anchor gate above already read the disk-fresh D-ID map, NOT
+      // INDEX.md — Issue 4). Runs at the TAIL so INDEX reflects the new archive
+      // DECISIONS files + renamed inbox. INDEX.md was pre-snapped → a later abort
+      // restores it. INDEX dangles are FLAGGED (never aborted) by the gate below.
+      if (needsV3) {
+        const { regeneratePlanningIndex } = await import('./planning-index.js');
+        await regeneratePlanningIndex(baseDir);
       }
 
       // Post-apply BLOCKING dangling-link gate (S2.t4): migrate-caused dangling
@@ -2074,11 +2192,14 @@ export async function applyMigrate(baseDir, opts = {}) {
       // at-risk anchors are flagged, never aborted. §9: this runs inside the ONE
       // coarse lock and reuses THIS apply's snapshot rollback (extended above to the
       // archive-touched files so a rewritten referrer is never left partly written).
+      // `archiveExemptFroms` (R7): the FR6 rename's flat-path references inside
+      // archive/ are intended history, not a skipped rewrite → never a residual abort.
       await enforceNoDangling(baseDir, {
         baseline: danglingBaseline,
         moveMap: archiveMoveMap,
         rollback,
         scanDangling,
+        archiveExemptFroms: archiveSense.renameFroms,
       });
     } catch (e) {
       // Any throw in the mechanical phase → restore the WHOLE snapshot set
@@ -2330,6 +2451,37 @@ export function buildArchiveContent(milestone, sectionRaws, existing = '') {
     out += raw;
   }
   return out;
+}
+
+/**
+ * Re-root the relative `](*.md)` file-links inside each evicted DECISIONS block so
+ * they resolve from the block's NEW home (`archive/M{n}/DECISIONS.md`), the SAME
+ * behavior the archive-tree scaffold move applies to relocated content: a verbatim
+ * byte-move re-roots a block-relative `](archive/M1/foo.md)` to `…/archive/M1/
+ * archive/M1/foo.md` (double-rooted → dangling) unless it is rewritten to resolve
+ * from the destination dir. The bare `D-…` decision anchors carry no `](` delimiter,
+ * so `computeLinkEdits` never matches them — they stay BYTE-identical (the ~669
+ * index-resolvable references are untouched; only the ~2 real file-links move).
+ *
+ * Baked into the plan BEFORE `applyAppendLogEvict` writes the archive so
+ * `buildArchiveContent` concatenates + dedupes on the re-rooted bytes: a crash /
+ * idempotent re-run finds the same re-rooted block already present → skipped, never
+ * duplicated. The live-file removal + the evicted-ID anchor set are unaffected (the
+ * D-… tokens are identical), so only `evicts[].sectionRaws` is transformed. Pure.
+ *
+ * @param {{evicts: Array<{archiveRel: string, sectionRaws: string[]}>}} plan
+ * @returns {object} a shallow-cloned plan with re-rooted `evicts[].sectionRaws`
+ */
+function rerootEvictPlan(plan) {
+  const decisionsRel = `${PLANNING_DIR}/DECISIONS.md`;
+  const evicts = plan.evicts.map((ev) => {
+    const moveMap = new Map([[decisionsRel, ev.archiveRel]]);
+    const sectionRaws = ev.sectionRaws.map((raw) =>
+      applyKeyedReplacements(raw, computeLinkEdits(decisionsRel, raw, moveMap))
+    );
+    return { ...ev, sectionRaws };
+  });
+  return { ...plan, evicts };
 }
 
 /**
