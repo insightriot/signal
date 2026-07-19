@@ -407,6 +407,54 @@ describe('buildMilestoneEntry (pure) — S2.t5 / FR2', () => {
   });
 });
 
+// --- S1.t2: optional agent-authored title threads to the heading (FR1) ---
+// AC1.2/AC1.3: the body stays byte-identical (verbatim contract); only the
+// title is agent-authored — `heading = title?.trim() || deriveHeading(body)`.
+// Given a title → heading is the (trimmed) title verbatim (no sentence-casing);
+// omitted/blank title → the deterministic deriveHeading clause-slice fallback.
+describe('agent-authored title threading (S1.t2 — FR1 / AC1.2 / AC1.3)', () => {
+  const builders = [
+    ['buildFutureIdeasEntry', buildFutureIdeasEntry, '## '],
+    ['buildOpenQuestionsEntry', buildOpenQuestionsEntry, '## '],
+    ['buildMilestoneEntry', buildMilestoneEntry, '### '],
+  ];
+
+  for (const [name, build, prefix] of builders) {
+    it(`${name}: a supplied title becomes the heading, verbatim (trimmed)`, () => {
+      const entry = build({
+        body: 'raw verbatim body — do not touch',
+        title: 'Agent-authored clean title',
+        date: '2026-07-19',
+      });
+      expect(entry.split('\n')[0]).toBe(`${prefix}Agent-authored clean title`);
+    });
+
+    it(`${name}: the body is byte-identical even when a title is supplied`, () => {
+      const body = 'keep the "quotes" and `code` and the — em dash verbatim';
+      const entry = build({ body, title: 'A title', date: '2026-07-19' });
+      expect(entry).toContain(body);
+    });
+
+    it(`${name}: omitting the title falls back to deriveHeading (AC1.3)`, () => {
+      const entry = build({
+        body: 'use semver-it for tag publish hooks',
+        date: '2026-07-19',
+      });
+      // deriveHeading sentence-cases the first-~6-word slice.
+      expect(entry.split('\n')[0]).toBe(`${prefix}Use semver-it for tag publish hooks`);
+    });
+
+    it(`${name}: a whitespace-only title falls back to deriveHeading`, () => {
+      const entry = build({
+        body: 'use semver-it for tag publish hooks',
+        title: '   ',
+        date: '2026-07-19',
+      });
+      expect(entry.split('\n')[0]).toBe(`${prefix}Use semver-it for tag publish hooks`);
+    });
+  }
+});
+
 describe('insertIntoHoldingSection (pure) — S2.t5 / FR2 / R5', () => {
   const ENTRY = '### A new capture\n\n**Captured:** 2026-05-30 via `/sig:add`.\n\nbody text';
 

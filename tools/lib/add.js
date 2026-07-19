@@ -414,11 +414,13 @@ function deriveHeading(body) {
  * line, body verbatim, trailing --- separator. No frontmatter, no IDs (those
  * are anti-patterns per FUTURE-IDEAS spec line 528 and prior-art research §5).
  *
- * @param {{body: string, date: string, triggerContext?: string}} opts
+ * @param {{body: string, date: string, triggerContext?: string, title?: string}} opts
+ *   — `title` is the optional agent-authored one-line heading; when absent or
+ *   blank the deterministic `deriveHeading(body)` clause-slice is used (AC1.3).
  * @returns {string}
  */
-export function buildFutureIdeasEntry({ body, date, triggerContext }) {
-  const heading = deriveHeading(body);
+export function buildFutureIdeasEntry({ body, date, triggerContext, title }) {
+  const heading = title?.trim() || deriveHeading(body);
   const trigger = triggerContext ? ` ${triggerContext.trim()}` : '';
   const statusLine = `**Status:** Logged ${date} via \`/sig:add\`.${trigger}`;
   return [
@@ -635,11 +637,12 @@ export function lintFutureIdeasFooter(content) {
  * Status/Watch-for/Resolve-by convention). The heading-derivation rule is shared
  * with FUTURE-IDEAS for consistency. Body is verbatim — no rewrite.
  *
- * @param {{body: string, date: string, triggerContext?: string}} opts
+ * @param {{body: string, date: string, triggerContext?: string, title?: string}} opts
+ *   — optional agent-authored `title`; blank/absent → `deriveHeading` (AC1.3).
  * @returns {string}
  */
-export function buildOpenQuestionsEntry({ body, date, triggerContext }) {
-  const heading = deriveHeading(body);
+export function buildOpenQuestionsEntry({ body, date, triggerContext, title }) {
+  const heading = title?.trim() || deriveHeading(body);
   const trigger = triggerContext ? ` ${triggerContext.trim()}` : '';
   const statusLine = `**Status:** Open — logged ${date} via \`/sig:add\`.${trigger}`;
   return [
@@ -680,11 +683,12 @@ export function insertAtEnd(content, entry) {
  * (h3) heading. No `---` separator — entries stack under the one h2 section.
  * Body is verbatim — no rewrite.
  *
- * @param {{body: string, date: string, triggerContext?: string}} opts
+ * @param {{body: string, date: string, triggerContext?: string, title?: string}} opts
+ *   — optional agent-authored `title`; blank/absent → `deriveHeading` (AC1.3).
  * @returns {string}
  */
-export function buildMilestoneEntry({ body, date, triggerContext }) {
-  const heading = deriveHeading(body);
+export function buildMilestoneEntry({ body, date, triggerContext, title }) {
+  const heading = title?.trim() || deriveHeading(body);
   const trigger = triggerContext ? ` ${triggerContext.trim()}` : '';
   const capturedLine = `**Captured:** ${date} via \`/sig:add\`.${trigger}`;
   return [
@@ -946,6 +950,8 @@ export async function releaseLock(baseDir) {
  * @param {string} opts.body — raw user input (verbatim, do not modify)
  * @param {string} opts.today — ISO date YYYY-MM-DD (injected for testability)
  * @param {string} [opts.triggerContext] — phase/milestone context if mid-flow
+ * @param {string} [opts.title] — optional agent-authored heading (FR1); the
+ *   `buildEntry` closure falls back to `deriveHeading(body)` when it is blank.
  * @param {(hits: Array) => Promise<'keep'|'abort'>} opts.sensitivePrompt
  * @param {(length: number) => Promise<'keep'|'abort'>} [opts.bodyLengthPrompt]
  * @param {string} [opts.missingFileError] — error message thrown when relPath
@@ -961,6 +967,7 @@ export async function captureToDestination(baseDir, opts) {
     body,
     today,
     triggerContext,
+    title,
     sensitivePrompt,
     bodyLengthPrompt,
     missingFileError,
@@ -1005,7 +1012,7 @@ export async function captureToDestination(baseDir, opts) {
   const lock = await acquireLock(baseDir);
   try {
     const existing = await readFile(targetPath, 'utf-8');
-    const entry = buildEntry({ body, date: today, triggerContext });
+    const entry = buildEntry({ body, date: today, triggerContext, title });
     // An `insert` closure may return a bare string (most destinations) or a
     // `{content, repaired}` object (FUTURE-IDEAS footer-repair, S3.t2). Normalize
     // both so the repair signal threads up to the command layer to announce.
@@ -1044,6 +1051,8 @@ export async function captureToDestination(baseDir, opts) {
  * @param {string} opts.body — raw user input (verbatim, do not modify)
  * @param {string} opts.today — ISO date YYYY-MM-DD (injected for testability)
  * @param {string} [opts.triggerContext] — phase/milestone context if mid-flow
+ * @param {string} [opts.title] — optional agent-authored heading (FR1); the
+ *   `buildEntry` closure falls back to `deriveHeading(body)` when it is blank.
  * @param {(hits: Array) => Promise<'keep'|'abort'>} opts.sensitivePrompt
  * @param {(length: number) => Promise<'keep'|'abort'>} [opts.bodyLengthPrompt]
  *
@@ -1051,7 +1060,7 @@ export async function captureToDestination(baseDir, opts) {
  *   `repaired: true` when a drifted mid-file footer was normalized (S3.t2).
  */
 export async function captureToFutureIdeas(baseDir, opts) {
-  const { body, today, triggerContext, sensitivePrompt, bodyLengthPrompt } = opts;
+  const { body, today, triggerContext, title, sensitivePrompt, bodyLengthPrompt } = opts;
 
   // Route through the resolver: a legacy repo picks `.planning/FUTURE-IDEAS.md`,
   // a v3 repo picks `.planning/ISSUES-INBOX.md`, a fresh repo picks the new name
@@ -1060,8 +1069,8 @@ export async function captureToFutureIdeas(baseDir, opts) {
 
   return captureToDestination(baseDir, {
     relPath,
-    buildEntry: ({ body, date, triggerContext }) =>
-      buildFutureIdeasEntry({ body, date, triggerContext }),
+    buildEntry: ({ body, date, triggerContext, title }) =>
+      buildFutureIdeasEntry({ body, date, triggerContext, title }),
     // Footer handling stays inbox-specific — encapsulated here so the shared
     // spine never assumes a footer exists. Returns {content, repaired} so a
     // drifted (stranded-footer) file gets normalized + announced (S3.t2).
@@ -1074,6 +1083,7 @@ export async function captureToFutureIdeas(baseDir, opts) {
     body,
     today,
     triggerContext,
+    title,
     sensitivePrompt,
     bodyLengthPrompt,
   });
@@ -1096,18 +1106,20 @@ export async function captureToFutureIdeas(baseDir, opts) {
  * @param {string} opts.body — raw user input (verbatim, do not modify)
  * @param {string} opts.today — ISO date YYYY-MM-DD (injected for testability)
  * @param {string} [opts.triggerContext] — phase/milestone context if mid-flow
+ * @param {string} [opts.title] — optional agent-authored heading (FR1); the
+ *   `buildEntry` closure falls back to `deriveHeading(body)` when it is blank.
  * @param {(hits: Array) => Promise<'keep'|'abort'>} opts.sensitivePrompt
  * @param {(length: number) => Promise<'keep'|'abort'>} [opts.bodyLengthPrompt]
  *
  * @returns {Promise<{written: boolean, path?: string, line?: number, aborted?: string}>}
  */
 export async function captureToOpenQuestions(baseDir, opts) {
-  const { body, today, triggerContext, sensitivePrompt, bodyLengthPrompt } = opts;
+  const { body, today, triggerContext, title, sensitivePrompt, bodyLengthPrompt } = opts;
 
   return captureToDestination(baseDir, {
     relPath: OPEN_QUESTIONS,
-    buildEntry: ({ body, date, triggerContext }) =>
-      buildOpenQuestionsEntry({ body, date, triggerContext }),
+    buildEntry: ({ body, date, triggerContext, title }) =>
+      buildOpenQuestionsEntry({ body, date, triggerContext, title }),
     // No footer in OPEN-QUESTIONS — append at end-of-file, no date rewrite.
     insert: (content, entry) => insertAtEnd(content, entry),
     missingFileError:
@@ -1116,6 +1128,7 @@ export async function captureToOpenQuestions(baseDir, opts) {
     body,
     today,
     triggerContext,
+    title,
     sensitivePrompt,
     bodyLengthPrompt,
   });
@@ -1150,6 +1163,8 @@ export async function captureToOpenQuestions(baseDir, opts) {
  * @param {string} opts.body — raw user input (verbatim, do not modify)
  * @param {string} opts.today — ISO date YYYY-MM-DD (injected for testability)
  * @param {string} [opts.triggerContext] — phase/milestone context if mid-flow
+ * @param {string} [opts.title] — optional agent-authored heading (FR1); the
+ *   `buildEntry` closure falls back to `deriveHeading(body)` when it is blank.
  * @param {(hits: Array) => Promise<'keep'|'abort'>} opts.sensitivePrompt
  * @param {(length: number) => Promise<'keep'|'abort'>} [opts.bodyLengthPrompt]
  *
@@ -1161,6 +1176,7 @@ export async function captureToMilestone(baseDir, opts) {
     body,
     today,
     triggerContext,
+    title,
     sensitivePrompt,
     bodyLengthPrompt,
   } = opts;
@@ -1196,14 +1212,15 @@ export async function captureToMilestone(baseDir, opts) {
 
   return captureToDestination(baseDir, {
     relPath,
-    buildEntry: ({ body, date, triggerContext }) =>
-      buildMilestoneEntry({ body, date, triggerContext }),
+    buildEntry: ({ body, date, triggerContext, title }) =>
+      buildMilestoneEntry({ body, date, triggerContext, title }),
     // Holding-section find-or-create; never touches the plan body.
     insert: (content, entry) => insertIntoHoldingSection(content, entry),
     missingFileError,
     body,
     today,
     triggerContext,
+    title,
     sensitivePrompt,
     bodyLengthPrompt,
   });
