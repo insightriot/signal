@@ -27,6 +27,7 @@ import {
   WORD,
 } from '../tools/lib/migrate-memory.js';
 import { extractEpicSection } from '../tools/lib/evict.js';
+import { checkStateFrontmatterShape } from '../tools/lib/retrospective.js';
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
 
@@ -189,7 +190,17 @@ describe('M5.E2 all-vectors integration — V1 + V2 + V3 + archive-tree in one a
 
   // --- 3. Faithfulness across all vectors --------------------------------------
   it('conserves the de-prose + evict content and moves the archive scaffold byte-identical', async () => {
+    // B8 (FR7) command-level flip: the polluted STATE blocks the write-guard BEFORE the
+    // migrate…
+    expect(checkStateFrontmatterShape({ proposedContent: STATE }).block).toBe(true);
+
     await runMigrate(dir, { apply: true, stamp: 'T1', dateStr: '2026-07-17' });
+
+    // …and the migrated STATE.md no longer blocks (guard flips true→false) — B8's
+    // auto-remediation, proven at the full applyMigrate COMMAND path (migrate-vector1.test.js
+    // proves it only at the pure/wrapper level).
+    const stateAfter = await read(dir, 'STATE.md');
+    expect(checkStateFrontmatterShape({ proposedContent: stateAfter }).block).toBe(false);
 
     const history = await read(dir, 'STATE-HISTORY.md');
     const narrative = await read(dir, 'archive/M5/E1/STATE-NARRATIVE.md');
