@@ -63,6 +63,10 @@ De-bloat test for CLAUDE.md + a command-frontmatter freshness check — both are
 **Tag:** hygiene
 One checklist line in `commands/ship.md` to keep the public `docs/map` fresh at Epic close. (Stages 2/3 are parked below.)
 
+### Concurrency-lock the doc-runtime RMW paths *(deferred from the 2026-07-19 memory-layer review)*
+**Tag:** hygiene
+The unlocked read-modify-write paths — `checkpoint.js` (`captureCheckpointContext`), `drain.js` (`promoteDrainEntry`, `evictTerminalToLedger`), `retro-index.js` (`regenerateIndex`, `generateMilestoneMetaRetro`), `planning-index.js` (`regeneratePlanningIndex`) — are torn-write-safe (`atomicWrite`) but have no compare-and-swap/lock, so two *concurrent* writers could lost-update. **Low priority:** these are orchestrator-only (wave-executors never call them) so single-session writes are sequential, and the one file parallel executors contend on — `STATE.md` — is already locked (`.state.lock`). It only defends concurrent **cross-session** writes on one repo, a mode Signal discourages. **The naive "just reuse `file-lock.js`" fix is unsafe:** `migrate-memory.js:2375` calls `regeneratePlanningIndex` *inside* `applyMigrate`'s coarse `.state.lock`, so making that function self-lock re-enters the non-reentrant lock and deadlocks migrate (the documented §9 hazard). Safe version = the established migrate pattern: split each locked entry into a lock-free core + a self-locking wrapper, lock only true command entries, keep inner helpers (`backlog.js`, `applyDispositionToFile`) lock-free. ~4-module refactor + tests; reuse `tools/lib/file-lock.js`.
+
 ---
 
 ## Sprint 4 — Compounding replay *(closes the "ship and forget" gap)*

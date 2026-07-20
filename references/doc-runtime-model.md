@@ -42,11 +42,13 @@ This is classic heat-driven eviction, and Signal already has it.
 |---|---|---|---|
 | **working-set** | Evicts **on close** — closed-unit narrative leaves the live file, leaving a one-line pointer. | STATE.md body, active-Epic scaffolding | FR2b (evict-on-close) |
 | **inbox** | Evicts **on ship/promote** — a disposed entry physically leaves the file for a ledger. | `FUTURE-IDEAS.md` | FR3 |
-| **append-log** | **Grows by design.** Bounded by TOC + grep, never loaded whole, **never evicted.** | `DECISIONS.md`, `RETROSPECTIVES.md` ledger | — (no eviction) |
+| **append-log** | **Grows by design** — bounded by TOC + grep, never loaded whole. Not evicted while a milestone is **open**; when a milestone **closes**, its `DECISIONS.md` date-sections relocate **verbatim** to `archive/M{n}/DECISIONS.md` behind a dated pointer (anchors preserved — see §2). The `RETROSPECTIVES.md` ledger never evicts. | `DECISIONS.md`, `RETROSPECTIVES.md` ledger | closed-milestone relocate (M5.E3) — `DECISIONS.md` only |
 | **spine** | Small, curated, **permanent.** | `INDEX.md` | — (hand-curated) |
 
 The growth-policy axis is what tells an agent *what to do at a boundary*: working-set and
-inbox files shed closed content; append-log and spine files never do. An append-log is not
+inbox files shed closed content continuously; an append-log sheds only at a **milestone
+close** (a closed milestone's `DECISIONS.md` sections relocate verbatim to archive — see §2;
+the `RETROSPECTIVES.md` ledger never evicts), and spine files never do. An append-log is not
 "bloated" when it is large — it is doing its job; you navigate it by TOC/grep, not by loading.
 
 ---
@@ -61,6 +63,7 @@ violation is a bug, not a convenience).
 |---|---|
 | A closed Epic's scaffolding **+ that Epic's evicted STATE narrative** | `.planning/archive/<milestone>/<epic>/` |
 | A closed milestone doc | `.planning/archive/milestones/` |
+| A **closed milestone's** `DECISIONS.md` date-sections (verbatim, anchors preserved) | `.planning/archive/<milestone>/DECISIONS.md` + a dated pointer (shipped M5.E3) |
 | Shipped/promoted `FUTURE-IDEAS.md` entries | an archive **ledger** (FR3) |
 | Dated snapshots (e.g. `BACKLOG-REVIEW-*`) | archive + a pointer (FR5 — deferred to E2) |
 
