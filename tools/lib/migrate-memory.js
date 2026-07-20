@@ -2374,7 +2374,10 @@ export async function applyMigrate(baseDir, opts = {}) {
       // curated content — now the default path for every stamp-null external project —
       // so leave it intact and flag it for manual reconciliation via /sig:index.
       if (needsV3) {
-        const { regeneratePlanningIndex, isForeignIndexFormat } = await import('./planning-index.js');
+        // §9: this runs inside applyMigrate's coarse `.state.lock`, so it MUST call
+        // the lock-free CORE — the self-locking `regeneratePlanningIndex` wrapper would
+        // re-enter the non-reentrant lock and throw (FR5).
+        const { regeneratePlanningIndexCore, isForeignIndexFormat } = await import('./planning-index.js');
         let existingIndex = '';
         try {
           existingIndex = await readFile(join(planningDir, 'INDEX.md'), 'utf-8');
@@ -2386,7 +2389,7 @@ export async function applyMigrate(baseDir, opts = {}) {
             `${PLANNING_DIR}/INDEX.md is a foreign/pre-v3 format this migrate cannot parse — ` +
             'LEFT INTACT (not regenerated). Reconcile it manually via /sig:index.';
         } else {
-          await regeneratePlanningIndex(baseDir);
+          await regeneratePlanningIndexCore(baseDir);
         }
       }
 
@@ -2968,9 +2971,12 @@ export async function runAppendLogEvict(baseDir, opts = {}) {
 
   // regen-index: refresh `.planning/INDEX.md` so the human traversal doc reflects
   // the new per-milestone archive DECISIONS files. Runs only after a passing gate
-  // (no rollback path below), so it needs no snapshot. Idempotent.
-  const { regeneratePlanningIndex } = await import('./planning-index.js');
-  await regeneratePlanningIndex(baseDir);
+  // (no rollback path below), so it needs no snapshot. Idempotent. Uses the lock-free
+  // CORE to mirror applyMigrate's composed tail (FR5): both flows do sense →
+  // applyAppendLogEvict → index-regen, so neither is a re-entrancy landmine if this
+  // standalone twin is ever composed under the coarse lock.
+  const { regeneratePlanningIndexCore } = await import('./planning-index.js');
+  await regeneratePlanningIndexCore(baseDir);
 
   return {
     applied: true,

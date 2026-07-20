@@ -15,6 +15,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
+import { withStateLock } from './state.js';
 import { classifyDocGrowthPolicy } from './migrate-memory.js';
 
 const PLANNING_DIR = '.planning';
@@ -291,10 +292,16 @@ export function renderPlanningIndex(docs, annotations) {
  * render, and atomic-write ONLY when the content differs (render-then-compare).
  * Idempotent — a no-op run returns `{written:false}` and touches nothing.
  *
+ * LOCK-FREE CORE (M5.E4 FR5): the read→render→write RMW body carries NO lock, so an
+ * in-lock caller that already holds `.planning/.state.lock` (applyMigrate's coarse
+ * lock — the append-log evict + tail INDEX regen) composes it WITHOUT re-entering the
+ * non-reentrant lock (§9). Standalone callers use the self-locking
+ * `regeneratePlanningIndex` wrapper below.
+ *
  * @param {string} baseDir
  * @returns {Promise<{written: boolean, path: string, docCount?: number, reason?: string}>}
  */
-export async function regeneratePlanningIndex(baseDir) {
+export async function regeneratePlanningIndexCore(baseDir) {
   const indexPath = join(baseDir, PLANNING_DIR, 'INDEX.md');
 
   const docs = await enumeratePlanningDocs(baseDir);
@@ -315,6 +322,20 @@ export async function regeneratePlanningIndex(baseDir) {
 
   await atomicWrite(indexPath, content);
   return { written: true, path: indexPath, docCount: docs.length };
+}
+
+/**
+ * Self-locking wrapper around `regeneratePlanningIndexCore` (M5.E4 FR5): acquires
+ * the coarse `.planning/.state.lock` for the whole RMW so a concurrent cross-session
+ * writer can't lost-update the INDEX. The standalone `/sig:index` + `/sig:ship`
+ * callers use THIS; the exported name is unchanged so no `commands/*.md` edits are
+ * needed. In-lock composers (applyMigrate) call the lock-free core directly.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<{written: boolean, path: string, docCount?: number, reason?: string}>}
+ */
+export async function regeneratePlanningIndex(baseDir) {
+  return withStateLock(baseDir, () => regeneratePlanningIndexCore(baseDir));
 }
 
 // ---- D-ID → home map (t5, AC3.3) --------------------------------------------
