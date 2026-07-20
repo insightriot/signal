@@ -15,8 +15,35 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
 
 import { isStaleVsOrigin, stringifyFrontmatter } from '../tools/lib/state.js';
+
+// Real git-fixture helpers (B6/FR4). The subcommand-dispatch mock above is
+// range-agnostic, so it can't prove the HEAD..origin range swap; the
+// bookkeeping-+1 origin cases run against real temp repos with a bare remote
+// and let isStaleVsOrigin's own hardened fetch refresh the tracking ref.
+const git = (cwd, args) =>
+  execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
+function initRepo(dir) {
+  git(dir, ['init', '-q', '-b', 'main']);
+  git(dir, ['config', 'user.email', 't@t.co']);
+  git(dir, ['config', 'user.name', 'T']);
+  git(dir, ['config', 'commit.gpgsign', 'false']);
+}
+const headSha = (dir) => String(git(dir, ['rev-parse', 'HEAD'])).trim();
+function commitAll(dir, msg) {
+  git(dir, ['add', '-A']);
+  git(dir, ['commit', '-q', '-m', msg]);
+}
+// Stub ONLY the function's bounded 2s fetch — its hardening/anti-hang contract
+// is covered by the AD7 mocked test above, and running it for real makes these
+// fixtures flaky (a slow spawn under parallel load trips the 2s SIGKILL and
+// fails open). Everything else runs against real git, so the HEAD..origin range
+// is still computed for real. The fixtures pre-fetch the tracking ref so
+// origin/main is current before the stubbed fetch would have refreshed it.
+const realGitExceptFetch = (cmd, args, opts) =>
+  args.includes('fetch') ? Buffer.from('') : execFileSync(cmd, args, opts);
 
 // Plant a schema-v1 STATE.md with the supplied frontmatter fields.
 async function plantState(tempDir, fm) {
@@ -163,7 +190,7 @@ describe('isStaleVsOrigin', () => {
     const fetchCall = execFn.calls.find((a) => a.includes('fetch'));
     expect(fetchCall[fetchCall.length - 1]).toBe('develop');
     const revList = execFn.calls.find((a) => a[0] === 'rev-list' && !a.includes('.planning/'));
-    expect(revList).toContain('stored123..origin/develop');
+    expect(revList).toContain('HEAD..origin/develop');
   });
 
   // AC2.5b — literal 'origin/HEAD' (unset symbolic ref) falls back to main.
@@ -209,7 +236,7 @@ describe('isStaleVsOrigin', () => {
     const execFn = makeExec({
       revParse: 'origin/main',
       fetch: '',
-      revListCount: new Error("fatal: bad revision 'stored123..origin/main'"),
+      revListCount: new Error("fatal: bad revision 'HEAD..origin/main'"),
     });
     const result = await isStaleVsOrigin(tempDir, { execFn });
     expect(result).toEqual({ stale: false, aheadCount: 0, commits: [], touchedPlanning: false });
@@ -292,4 +319,75 @@ describe('isStaleVsOrigin', () => {
     expect(result).toEqual({ stale: false, aheadCount: 0, commits: [], touchedPlanning: false });
     expect(execFn.calls).toHaveLength(0);
   });
+
+  // --- B6/FR4: gate on genuine origin drift, not the bookkeeping "+1" (real
+  // git fixtures with a bare remote) ---
+  //
+  // last_updated_commit lags HEAD by exactly the STATE-write commit, so the old
+  // stored..origin range counted that local +1 as "origin ahead". The fix
+  // measures HEAD..origin instead.
+
+  // AC4.1 (origin): after a clean checkpoint+push HEAD == origin/main (the +1 is
+  // a local STATE-only commit) -> NOT stale. RED against current code, which
+  // counts stored..origin = the +1 = 1 and fires.
+  it('B6/AC4.1: a clean checkpoint+push (HEAD == origin/main) is NOT stale', async () => {
+    const bare = await mkdtemp(join(tmpdir(), 'signal-origin-bare-'));
+    git(bare, ['init', '--bare', '-q', '-b', 'main']);
+    try {
+      initRepo(tempDir);
+      git(tempDir, ['remote', 'add', 'origin', bare]);
+      await writeFile(join(tempDir, 'app.js'), 'v0\n', 'utf-8');
+      commitAll(tempDir, 'base: initial work');
+      const base = headSha(tempDir);
+      await plantState(tempDir, { last_updated_commit: base }); // stored == HEAD~1
+      commitAll(tempDir, 'chore: refresh STATE.md'); // STATE-only "+1"
+      git(tempDir, ['push', '-q', 'origin', 'main']); // origin/main == HEAD == "+1"
+      git(tempDir, ['fetch', '-q', 'origin', 'main']); // tracking ref current
+      const result = await isStaleVsOrigin(tempDir, { execFn: realGitExceptFetch });
+      expect(result.stale).toBe(false);
+      expect(result.aheadCount).toBe(0);
+    } finally {
+      await rm(bare, { recursive: true, force: true });
+    }
+  }, 30000); // real-git fixture: generous timeout for parallel-suite load
+
+  // AC4.2 (origin): a genuine remote push (local actually behind origin by N),
+  // with the local bookkeeping +1 present. Correct aheadCount is N (== 2), NOT
+  // N+1. RED against current code, which counts stored..origin = 3 (the +1 plus
+  // the 2 real remote commits).
+  it('B6/AC4.2: a genuine remote push fires with the correct aheadCount (N, not N+1)', async () => {
+    const bare = await mkdtemp(join(tmpdir(), 'signal-origin-bare-'));
+    git(bare, ['init', '--bare', '-q', '-b', 'main']);
+    const otherParent = await mkdtemp(join(tmpdir(), 'signal-origin-other-'));
+    const other = join(otherParent, 'wc');
+    try {
+      initRepo(tempDir);
+      git(tempDir, ['remote', 'add', 'origin', bare]);
+      await writeFile(join(tempDir, 'app.js'), 'v0\n', 'utf-8');
+      commitAll(tempDir, 'base: initial work');
+      const base = headSha(tempDir);
+      await plantState(tempDir, { last_updated_commit: base }); // stored == HEAD~1
+      commitAll(tempDir, 'chore: refresh STATE.md'); // STATE-only "+1"
+      git(tempDir, ['push', '-q', 'origin', 'main']);
+
+      // Another machine pushes 2 genuine commits on top.
+      execFileSync('git', ['clone', '-q', bare, other], { stdio: ['ignore', 'pipe', 'ignore'] });
+      git(other, ['config', 'user.email', 't@t.co']);
+      git(other, ['config', 'user.name', 'T']);
+      git(other, ['config', 'commit.gpgsign', 'false']);
+      await writeFile(join(other, 'feature.js'), 'a\n', 'utf-8');
+      commitAll(other, 'feat: remote one');
+      await writeFile(join(other, 'feature.js'), 'b\n', 'utf-8');
+      commitAll(other, 'feat: remote two');
+      git(other, ['push', '-q', 'origin', 'main']);
+
+      git(tempDir, ['fetch', '-q', 'origin', 'main']); // refresh origin/main to the 2 new commits
+      const result = await isStaleVsOrigin(tempDir, { execFn: realGitExceptFetch });
+      expect(result.stale).toBe(true);
+      expect(result.aheadCount).toBe(2);
+    } finally {
+      await rm(bare, { recursive: true, force: true });
+      await rm(otherParent, { recursive: true, force: true });
+    }
+  }, 30000); // real-git fixture: generous timeout for parallel-suite load
 });

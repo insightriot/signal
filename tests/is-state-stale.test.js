@@ -5,6 +5,7 @@ import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 
 import {
   isStateStale,
@@ -12,6 +13,24 @@ import {
 } from '../tools/lib/state.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Real git-fixture helpers (B6/FR4). The mocked execFn tests above can't model
+// the two-call suppression path (filtered STATE-affecting walk + the unfiltered
+// "does any commit touch a non-STATE file?" check), so the bookkeeping-+1 cases
+// run against real temp repos.
+const git = (cwd, args) =>
+  execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
+function initRepo(dir) {
+  git(dir, ['init', '-q', '-b', 'main']);
+  git(dir, ['config', 'user.email', 't@t.co']);
+  git(dir, ['config', 'user.name', 'T']);
+  git(dir, ['config', 'commit.gpgsign', 'false']);
+}
+const headSha = (dir) => String(git(dir, ['rev-parse', 'HEAD'])).trim();
+function commitAll(dir, msg) {
+  git(dir, ['add', '-A']);
+  git(dir, ['commit', '-q', '-m', msg]);
+}
 
 // Plant a schema-v1 STATE.md with the supplied frontmatter fields.
 async function plantState(tempDir, fm) {
@@ -99,8 +118,10 @@ describe('isStateStale', () => {
 
   it('S6.t3: always hits git log when bypassGrace: true even if HEAD matches', async () => {
     await plantState(tempDir, { last_updated_commit: 'abc123' });
-    // bypassGrace skips the short-circuit; rev-parse is also skipped because
-    // we know we're going to log anyway. Only one call expected: the log.
+    // bypassGrace skips the short-circuit; rev-parse is also skipped because we
+    // know we're going to log anyway. Two log calls now: the filtered
+    // STATE-affecting walk, then the B6/FR4 genuine-work walk (both return the
+    // flat 'sha1 fresh commit' -> genuine work present -> not suppressed).
     const execSpy = vi.fn(() => gitOutput('sha1 fresh commit'));
     const result = await isStateStale(tempDir, {
       execFn: execSpy,
@@ -108,7 +129,7 @@ describe('isStateStale', () => {
     });
     expect(result.stale).toBe(true);
     expect(result.commitCount).toBe(1);
-    expect(execSpy).toHaveBeenCalledTimes(1);
+    expect(execSpy).toHaveBeenCalledTimes(2);
     expect(execSpy.mock.calls[0][1]).toContain('abc123..HEAD');
   });
 
@@ -186,4 +207,59 @@ describe('isStateStale', () => {
     expect(result).toEqual({ stale: false, commitCount: 0, commits: [] });
     expect(execSpy).not.toHaveBeenCalled();
   });
+
+  // --- B6/FR4: the bookkeeping-"+1" suppression (real git fixtures) ---
+  //
+  // markFresh sets last_updated_commit = HEAD-at-write-time but does NOT commit;
+  // the caller then commits the STATE write, so HEAD ends up exactly one
+  // STATE-only commit ahead of the recorded baseline. That pure-bookkeeping "+1"
+  // must NOT read as "ground state moved". D6 path scope is preserved: staleness
+  // still triggers on STATE-affecting files; the fix only suppresses the case
+  // where EVERY commit in the range touches ONLY those paths.
+
+  // AC4.1 (local): pure bookkeeping +1 = a STATE-only commit atop the recorded
+  // baseline -> NOT stale. RED against current code (the filtered walk finds the
+  // STATE.md commit and fires).
+  it('B6/AC4.1: a pure bookkeeping +1 (STATE-only commit) is NOT stale', async () => {
+    initRepo(tempDir);
+    await writeFile(join(tempDir, 'app.js'), 'v0\n', 'utf-8');
+    commitAll(tempDir, 'base: initial work');
+    const base = headSha(tempDir);
+    await plantState(tempDir, { last_updated_commit: base });
+    commitAll(tempDir, 'chore: refresh STATE.md'); // STATE-only "+1"
+    const result = await isStateStale(tempDir);
+    expect(result.stale).toBe(false);
+    expect(result.commitCount).toBe(0);
+  }, 30000); // real-git fixture: generous timeout for parallel-suite load
+
+  // 3-case, case 2: a real work commit (touches a non-STATE file) after the +1
+  // -> fires. Green before-and-after guard: proves the suppression doesn't over-
+  // reach a range that also contains genuine work.
+  it('B6: a real work commit (non-STATE file) after the +1 IS stale', async () => {
+    initRepo(tempDir);
+    await writeFile(join(tempDir, 'app.js'), 'v0\n', 'utf-8');
+    commitAll(tempDir, 'base: initial work');
+    const base = headSha(tempDir);
+    await plantState(tempDir, { last_updated_commit: base });
+    commitAll(tempDir, 'chore: refresh STATE.md'); // STATE-only "+1"
+    await writeFile(join(tempDir, 'app.js'), 'v1\n', 'utf-8'); // genuine work
+    commitAll(tempDir, 'feat: real work');
+    const result = await isStateStale(tempDir);
+    expect(result.stale).toBe(true);
+  }, 30000); // real-git fixture: generous timeout for parallel-suite load
+
+  // 3-case, case 3: a mixed commit (STATE.md AND a non-STATE file) -> fires.
+  // Green before-and-after guard distinguishing a pure-bookkeeping commit from a
+  // real work commit that also happens to touch STATE.md.
+  it('B6: a mixed commit (STATE.md + a non-STATE file) IS stale', async () => {
+    initRepo(tempDir);
+    await writeFile(join(tempDir, 'app.js'), 'v0\n', 'utf-8');
+    commitAll(tempDir, 'base: initial work');
+    const base = headSha(tempDir);
+    await plantState(tempDir, { last_updated_commit: base });
+    await writeFile(join(tempDir, 'app.js'), 'v1\n', 'utf-8'); // non-STATE work
+    commitAll(tempDir, 'feat: work + STATE refresh'); // mixed: STATE.md + app.js
+    const result = await isStateStale(tempDir);
+    expect(result.stale).toBe(true);
+  }, 30000); // real-git fixture: generous timeout for parallel-suite load
 });

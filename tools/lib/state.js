@@ -727,6 +727,17 @@ const STATE_AFFECTING_PATHS = [
   ':(glob).planning/*-REVIEW.md',
 ];
 
+// B6/FR4 — the exclude form of STATE_AFFECTING_PATHS. Paired with a leading `.`
+// pathspec, `git log <range> -- . <excludes>` lists commits that touch anything
+// OUTSIDE the state-affecting set — i.e. genuine work. Used to suppress the
+// bookkeeping "+1": markFresh records last_updated_commit = HEAD, then the
+// caller commits that STATE write, so HEAD is always one STATE-only commit ahead
+// of the recorded baseline. That pure-bookkeeping commit is not "ground state
+// moved" and must not read as stale.
+const STATE_AFFECTING_EXCLUDES = STATE_AFFECTING_PATHS.map((p) =>
+  p.replace(':(glob)', ':(glob,exclude)')
+);
+
 // A stored commit token (`last_updated_commit`) is user-editable YAML that
 // gets glued into a git revision range (`${stored}..${tracking}`). It must
 // start with an alphanumeric (so it can never be parsed by git as an option,
@@ -801,7 +812,29 @@ export async function isStateStale(baseDir, opts = {}) {
         ? { sha: line, subject: '' }
         : { sha: line.slice(0, idx), subject: line.slice(idx + 1) };
     });
-    return { stale: commits.length > 0, commitCount: commits.length, commits };
+    if (commits.length === 0) return empty; // no state-affecting commits (D6 scope)
+
+    // B6/FR4: suppress the pure-bookkeeping "+1". The filtered walk above fires
+    // on the STATE-only commit that markFresh's caller creates. Only treat the
+    // range as stale when at least one commit touches a file OUTSIDE the
+    // state-affecting set — i.e. genuine work STATE.md doesn't reflect. If every
+    // commit touches only state-affecting paths, it's bookkeeping, not drift.
+    const workOut = execFn(
+      'git',
+      [
+        'log',
+        '--pretty=format:%H',
+        `${lastCommit}..HEAD`,
+        '--',
+        '.',
+        ...STATE_AFFECTING_EXCLUDES,
+      ],
+      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
+    );
+    const genuineWork = String(workOut).split('\n').filter(Boolean).length;
+    if (genuineWork === 0) return empty;
+
+    return { stale: true, commitCount: commits.length, commits };
   } catch (err) {
     process.stderr.write(
       `Signal: isStateStale could not query git (${err.message}); assuming fresh.\n`
@@ -904,14 +937,18 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
     return notStale;
   }
 
-  // 3. How many commits is the remote branch ahead of the stored sha? A
-  //    missing sha or diverged history → `fatal: bad revision` (exit 128)
-  //    → catch → fail open.
+  // 3. How many commits is the remote branch ahead of local HEAD? B6/FR4: this
+  //    is measured HEAD..tracking, NOT stored..tracking. `stored`
+  //    (last_updated_commit) lags HEAD by exactly the bookkeeping STATE-write
+  //    commit, so a stored-based range counts that local "+1" as origin drift
+  //    even when HEAD == origin. Measuring from HEAD reports the genuine push
+  //    count. A missing sha or diverged history → `fatal: bad revision`
+  //    (exit 128) → catch → fail open.
   let aheadCount;
   try {
     aheadCount = parseInt(
       String(
-        execFn('git', ['rev-list', '--count', `${stored}..${tracking}`], {
+        execFn('git', ['rev-list', '--count', `HEAD..${tracking}`], {
           cwd: baseDir,
           stdio: ['ignore', 'pipe', 'ignore'],
         })
@@ -924,12 +961,13 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
   if (!Number.isFinite(aheadCount) || aheadCount <= 0) return notStale;
 
   // 4. Commit subjects for the banner. A throw here degrades to an empty
-  //    list but keeps the (already-known) count.
+  //    list but keeps the (already-known) count. Same HEAD..tracking range as
+  //    the count for a coherent pull list (B6/FR4).
   let commits = [];
   try {
     const out = execFn(
       'git',
-      ['log', '--pretty=format:%H %s', `${stored}..${tracking}`],
+      ['log', '--pretty=format:%H %s', `HEAD..${tracking}`],
       { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
     );
     commits = String(out)
@@ -946,7 +984,8 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
   }
 
   // 5. Did any of those ahead commits touch .planning/? Drives the banner's
-  //    "your project memory moved" highlight (AC2.3).
+  //    "your project memory moved" highlight (AC2.3). Same HEAD..tracking range
+  //    as the count/list for a coherent result (B6/FR4).
   let touchedPlanning = false;
   try {
     touchedPlanning =
@@ -954,7 +993,7 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
         String(
           execFn(
             'git',
-            ['rev-list', '--count', `${stored}..${tracking}`, '--', '.planning/'],
+            ['rev-list', '--count', `HEAD..${tracking}`, '--', '.planning/'],
             { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
           )
         ).trim(),
