@@ -1852,10 +1852,22 @@ export async function renderDryRun(baseDir, opts = {}) {
   if (backlogWillCreate) {
     L.push('  BACKLOG.md created (sequenced roadmap; seeded from a BACKLOG-REVIEW snapshot when present, else a skeleton)');
   }
-  // v2→v3 index-regen (FR3) — the tail step apply performs (dry-run parity, B19): a
-  // foreign/pre-v3-format INDEX is left intact + flagged at apply time, not here.
+  // v2→v3 index-regen (FR3) — the tail step apply performs (dry-run parity, B19): read
+  // the existing INDEX and preview EXACTLY what apply will do — a foreign/pre-v3-format
+  // INDEX is left intact + flagged (marker-based `isForeignIndexFormat`), not clobbered.
   if (needsV3) {
-    L.push('  INDEX.md → regenerated (/sig:index) — mechanical rows refresh; curated notes survive by key');
+    let existingIndex = '';
+    try {
+      existingIndex = await readFile(join(baseDir, PLANNING_DIR, 'INDEX.md'), 'utf-8');
+    } catch {
+      /* absent → regenerated normally */
+    }
+    const { isForeignIndexFormat } = await import('./planning-index.js');
+    if (isForeignIndexFormat(existingIndex)) {
+      L.push('  INDEX.md → LEFT INTACT (foreign/pre-v3 format) — reconcile manually via /sig:index');
+    } else {
+      L.push('  INDEX.md → regenerated (/sig:index) — mechanical rows refresh; curated notes survive by key');
+    }
   }
   for (const f of plan.flags) L.push(`  FLAG (not moved): ${f.kind} — ${f.chars} chars — "${f.detail}…"`);
   for (const f of v3.flags) L.push(`  FLAG (not moved): ${f.kind} — ${f.reason}`);
@@ -2350,24 +2362,22 @@ export async function applyMigrate(baseDir, opts = {}) {
       // restores it. INDEX dangles are FLAGGED (never aborted) by the gate below.
       //
       // B19: SKIP the regen when the existing INDEX is a foreign / pre-v3 format the
-      // new-format parser can't read — non-empty, `parseExistingAnnotations` recovers
-      // ZERO annotations, AND no `**Tier legend:**` block (`legend === null`; a Signal-
-      // format INDEX always carries that block, even when every note is a placeholder —
-      // so a legit new-format INDEX still regenerates). Regenerating a foreign INDEX
-      // would CLOBBER curated content — now the default path for every stamp-null
-      // external project — so leave it intact and flag it for manual reconciliation.
+      // new-format parser can't read (`isForeignIndexFormat`): non-empty, lacks the
+      // new-format auto-gen marker, AND `parseExistingAnnotations` recovers ZERO
+      // annotations. (The earlier `legend === null` test was WRONG — the OLD curated
+      // format carries a `**Tier legend:**` block too, so it never fired on the real
+      // repro and clobbered the file.) Regenerating a foreign INDEX would CLOBBER
+      // curated content — now the default path for every stamp-null external project —
+      // so leave it intact and flag it for manual reconciliation via /sig:index.
       if (needsV3) {
-        const { regeneratePlanningIndex, parseExistingAnnotations } = await import('./planning-index.js');
+        const { regeneratePlanningIndex, isForeignIndexFormat } = await import('./planning-index.js');
         let existingIndex = '';
         try {
           existingIndex = await readFile(join(planningDir, 'INDEX.md'), 'utf-8');
         } catch {
           /* absent → regenerate normally */
         }
-        const ann = parseExistingAnnotations(existingIndex);
-        const hasAnnotations =
-          Object.keys(ann.byPath).length > 0 || Object.keys(ann.byEpic).length > 0;
-        if (existingIndex.trim().length > 0 && !hasAnnotations && ann.legend === null) {
+        if (isForeignIndexFormat(existingIndex)) {
           indexRegenWarning =
             `${PLANNING_DIR}/INDEX.md is a foreign/pre-v3 format this migrate cannot parse — ` +
             'LEFT INTACT (not regenerated). Reconcile it manually via /sig:index.';

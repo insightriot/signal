@@ -26,6 +26,19 @@ const STATE_V1 =
 // Regenerating would CLOBBER it (B19).
 const FOREIGN_INDEX = `# My Planning Index\n\n- Sprint 1 — shipped\n- Sprint 2 — in progress\n- notes: see the wiki\n`;
 
+// The REAL B19 repro (this is what shipped false-green). The OLD hand-curated INDEX
+// carries a `**Tier legend:**` block — it is the ANCESTOR of the new format, so the
+// shipped `ann.legend === null` predicate did NOT fire on it (legend !== null) and it
+// got CLOBBERED. Plus markdown TABLE rows + a Gotcha (unparseable by the new list-row
+// parser) and NO auto-gen marker. The marker-based predicate is what actually protects it.
+const LEGACY_CURATED_INDEX =
+  `# Signal — Planning Index (hand-curated, pre-v3)\n\n` +
+  `**Tier legend:**\n- 🔥 HOT — working set\n- 🧊 COLD — closed work\n\n` +
+  `---\n\n## 🔥 HOT — the working set\n\n` +
+  `| File | What it is · gotcha |\n|---|---|\n` +
+  `| [STATE.md](STATE.md) | Authoritative current state. **Gotcha:** frontmatter is the truth. |\n` +
+  `| [DECISIONS.md](DECISIONS.md) | Append-only decision log. |\n`;
+
 async function plantRepo({ index = null } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'b19-'));
   const p = join(dir, '.planning');
@@ -59,6 +72,20 @@ describe('B19 — applyMigrate INDEX regen guard (no foreign clobber)', () => {
     ).toBe(true);
   });
 
+  it('leaves a LEGACY curated INDEX (Tier legend + tables) intact — the real B19 repro', async () => {
+    // RED against the shipped legend-based predicate: legend !== null here, so it did
+    // NOT skip → the migrate clobbered the curated file. GREEN with the marker-based fix.
+    const dir = track(await plantRepo({ index: LEGACY_CURATED_INDEX }));
+    const res = await applyMigrate(dir, { stamp: 'T3', dateStr: '2026-07-19' });
+    expect(res.applied).toBe(true);
+    // Byte-identical: no scaffold is moved in this fixture, so archive-tree never
+    // rewrites INDEX as a referrer — the curated file must be untouched.
+    expect(await readFile(join(dir, '.planning', 'INDEX.md'), 'utf-8')).toBe(LEGACY_CURATED_INDEX);
+    expect(
+      res.warnings.some((w) => /INDEX\.md/.test(w) && /foreign|left intact|not regenerated/i.test(w)),
+    ).toBe(true);
+  });
+
   it('regenerates INDEX when absent (a portable new-format INDEX is written normally)', async () => {
     const dir = track(await plantRepo({ index: null }));
     const res = await applyMigrate(dir, { stamp: 'T2', dateStr: '2026-07-19' });
@@ -80,5 +107,12 @@ describe('B19 — dry-run parity: needsV3 preview enumerates the INDEX regen ste
     const dir = track(await plantRepo({ index: null }));
     const out = await renderDryRun(dir);
     expect(out).toMatch(/INDEX\.md.*regenerat/i);
+  });
+
+  it('renderDryRun shows LEFT INTACT for a legacy curated INDEX (not "regenerated")', async () => {
+    const dir = track(await plantRepo({ index: LEGACY_CURATED_INDEX }));
+    const out = await renderDryRun(dir);
+    expect(out).toMatch(/INDEX\.md.*(left intact|foreign)/i);
+    expect(out).not.toMatch(/INDEX\.md → regenerated/);
   });
 });
