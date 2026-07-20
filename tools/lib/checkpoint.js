@@ -15,6 +15,7 @@ import {
   isStateStale,
   detectOrphans,
   clearCurrentTask,
+  withStateLock,
 } from './state.js';
 import { scrubSensitive } from './add.js';
 
@@ -273,7 +274,7 @@ function appendOpenQuestions(content, questions, date) {
  *   aborted?: 'sensitive-data-pending',
  * }>}
  */
-export async function captureCheckpointContext(baseDir, opts = {}) {
+async function captureCheckpointContextCore(baseDir, opts = {}) {
   const decisions = (Array.isArray(opts.decisions) ? opts.decisions : [])
     .map((d) => String(d).trim())
     .filter(Boolean);
@@ -326,6 +327,21 @@ export async function captureCheckpointContext(baseDir, opts = {}) {
   }
 
   return { wrote, sensitiveHits: scrub.hits };
+}
+
+/**
+ * FR5 (M5.E4): self-locking wrapper around `captureCheckpointContextCore`. Acquires
+ * the coarse `.planning/.state.lock` for the WHOLE capture RMW so all three
+ * read→atomicWrite pairs (CONTEXT.md, DECISIONS.md, OPEN-QUESTIONS.md) sit inside ONE
+ * lock and a concurrent cross-session state writer can't lost-update. The exported
+ * name is unchanged, so commands/checkpoint.md § 7 needs no edit.
+ *
+ * @param {string} baseDir
+ * @param {{decisions?: string[], questions?: string[], acknowledgeSensitive?: boolean}} [opts]
+ * @returns {Promise<{wrote: string[], sensitiveHits: object[], aborted?: 'sensitive-data-pending'}>}
+ */
+export async function captureCheckpointContext(baseDir, opts = {}) {
+  return withStateLock(baseDir, () => captureCheckpointContextCore(baseDir, opts));
 }
 
 // --- handleCheckpointOrphans (S2.t7) ---

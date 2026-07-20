@@ -9,6 +9,7 @@ import { readdir } from 'node:fs/promises';
 import { join, relative, basename } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
+import { withStateLock } from './state.js';
 
 /**
  * Is this retro a stub (un-filled)? Heuristic: a `[FILL IN` marker at the
@@ -215,7 +216,7 @@ export function renderIndex(retros, existingHooks) {
  * @param {string} baseDir
  * @returns {Promise<{written: boolean, path: string, retroCount?: number, reason?: string}>}
  */
-export async function regenerateIndex(baseDir) {
+async function regenerateIndexCore(baseDir) {
   const indexPath = join(baseDir, '.planning', 'RETROSPECTIVES.md');
 
   const retros = await enumerateRetros(baseDir);
@@ -236,6 +237,19 @@ export async function regenerateIndex(baseDir) {
 
   await atomicWrite(indexPath, content);
   return { written: true, path: indexPath, retroCount: retros.length };
+}
+
+/**
+ * FR5 (M5.E4): self-locking wrapper around `regenerateIndexCore`. Acquires the coarse
+ * `.planning/.state.lock` for the whole read→render→write RMW so a concurrent state
+ * writer can't lost-update RETROSPECTIVES.md. The exported name is unchanged, so
+ * commands/ship.md needs no edit.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<{written: boolean, path: string, retroCount?: number, reason?: string}>}
+ */
+export async function regenerateIndex(baseDir) {
+  return withStateLock(baseDir, () => regenerateIndexCore(baseDir));
 }
 
 // ---- Milestone meta-retro (S2.t6 / FR6 A6 downgrade) ----
@@ -324,7 +338,7 @@ function filterRetrosForMilestone(retros, milestoneId) {
  * @param {{today?: string, force?: boolean}} [opts]
  * @returns {Promise<{written: boolean, path: string, retroCount: number, reason?: string}>}
  */
-export async function generateMilestoneMetaRetro(baseDir, milestoneId, opts = {}) {
+async function generateMilestoneMetaRetroCore(baseDir, milestoneId, opts = {}) {
   const today = opts.today ?? new Date().toISOString().slice(0, 10);
   const force = opts.force ?? false;
 
@@ -355,4 +369,19 @@ export async function generateMilestoneMetaRetro(baseDir, milestoneId, opts = {}
     path,
     retroCount: milestoneRetros.length,
   };
+}
+
+/**
+ * FR5 (M5.E4): self-locking wrapper around `generateMilestoneMetaRetroCore`. Acquires
+ * the coarse `.planning/.state.lock` for the read (idempotency probe + enumerate) →
+ * write RMW so a concurrent state writer can't lost-update the meta-retro. The exported
+ * name is unchanged, so commands/ship.md needs no edit.
+ *
+ * @param {string} baseDir
+ * @param {string} milestoneId — e.g. "M4.5"
+ * @param {{today?: string, force?: boolean}} [opts]
+ * @returns {Promise<{written: boolean, path: string, retroCount: number, reason?: string}>}
+ */
+export async function generateMilestoneMetaRetro(baseDir, milestoneId, opts = {}) {
+  return withStateLock(baseDir, () => generateMilestoneMetaRetroCore(baseDir, milestoneId, opts));
 }

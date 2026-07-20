@@ -27,6 +27,7 @@ import { join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 
 import { atomicWrite } from './atomic-write.js';
+import { withStateLock } from './state.js';
 import { resolveInboxPath, resolveLedgerPath } from './inbox-path.js';
 import { promoteToBacklog, promoteToBugs } from './backlog.js';
 
@@ -465,7 +466,7 @@ export function applyDispositions(content, dispositions) {
  * @param {Function} [opts.renameFn] — injected for the atomic-fail test; forwarded to atomicWrite
  * @returns {Promise<{written: boolean, kept?: boolean, verb: string, heading: string, path?: string}>}
  */
-export async function applyDispositionToFile(baseDir, relPath, opts) {
+export async function applyDispositionToFileCore(baseDir, relPath, opts) {
   const { entryIndex, verb, reason, date, confirmPrompt, renameFn } = opts;
   const targetPath = join(baseDir, relPath);
   const content = await readFile(targetPath, 'utf-8');
@@ -487,6 +488,23 @@ export async function applyDispositionToFile(baseDir, relPath, opts) {
   const newContent = applyDisposition(content, entryIndex, verb, reason, date);
   await atomicWrite(targetPath, newContent, renameFn ? { renameFn } : undefined);
   return { written: true, verb, heading: entry.heading, path: targetPath };
+}
+
+/**
+ * FR5 (M5.E4) — DUAL-ROLE split: `applyDispositionToFile` is BOTH `promoteDrainEntry`'s
+ * inner stamp helper AND a standalone command write (commands/plan.md defer/delete). This
+ * self-locking wrapper is the STANDALONE path — it acquires the coarse `.planning/.state.lock`
+ * so a concurrent state writer can't lost-update the inbox. `promoteDrainEntry`'s locked core
+ * calls the lock-free `applyDispositionToFileCore` directly (it already holds the lock — a
+ * nested acquire would re-enter the non-reentrant lock and throw, §9). The exported name is
+ * unchanged so commands/plan.md needs no edit.
+ *
+ * @param {string} baseDir — project root
+ * @param {string} relPath — destination path relative to baseDir
+ * @param {object} opts — see `applyDispositionToFileCore`
+ */
+export async function applyDispositionToFile(baseDir, relPath, opts) {
+  return withStateLock(baseDir, () => applyDispositionToFileCore(baseDir, relPath, opts));
 }
 
 // FR3 (M5.E1): the capture-inbox archive ledger — where terminally-disposed
@@ -576,7 +594,7 @@ function danglingFenceOffset(content) {
  *   forwarded to both atomicWrite calls.
  * @returns {Promise<{evicted: Array<{heading: string, key: string}>, planned: Array<{heading: string, key: string}>, danglingFence: boolean}>}
  */
-export async function evictTerminalToLedger(baseDir, opts = {}) {
+async function evictTerminalToLedgerCore(baseDir, opts = {}) {
   const { dryRun = false, renameFn } = opts;
   // Resolve inside the body (baseDir is the first arg, unavailable in a default
   // param). An explicit inboxRel/ledgerRel still wins; otherwise route through
@@ -652,6 +670,21 @@ export async function evictTerminalToLedger(baseDir, opts = {}) {
 }
 
 /**
+ * FR5 (M5.E4): self-locking wrapper around `evictTerminalToLedgerCore`. Acquires the
+ * coarse `.planning/.state.lock` for the WHOLE two-file RMW (ledger-append FIRST, then
+ * inbox-remove) so the read of the inbox and both writes sit inside ONE lock and a
+ * concurrent state writer can't lost-update. The exported name is unchanged, so
+ * commands/ship.md + commands/plan.md need no edit.
+ *
+ * @param {string} baseDir — project root
+ * @param {object} [opts] — see `evictTerminalToLedgerCore`
+ * @returns {Promise<{evicted: Array<{heading: string, key: string}>, planned: Array<{heading: string, key: string}>, danglingFence: boolean}>}
+ */
+export async function evictTerminalToLedger(baseDir, opts = {}) {
+  return withStateLock(baseDir, () => evictTerminalToLedgerCore(baseDir, opts));
+}
+
+/**
  * FR2 (M5.E3): the drain's classify-and-promote step. A confirmed `promote` is a
  * two-part move — classify the destination, then physically route the idea and
  * stamp the source terminal:
@@ -688,7 +721,7 @@ export async function evictTerminalToLedger(baseDir, opts = {}) {
  *   forwarded to the stamp's atomicWrite (the write BETWEEN destination + evict).
  * @returns {Promise<{destination: 'backlog'|'bugs', deduped: boolean, heading: string}>}
  */
-export async function promoteDrainEntry(baseDir, opts = {}) {
+async function promoteDrainEntryCore(baseDir, opts = {}) {
   const { classification, block, tag, title, entryIndex, reason, date, renameFn } = opts;
   const inboxRel = opts.inboxRel ?? resolveInboxPath(baseDir);
 
@@ -708,8 +741,11 @@ export async function promoteDrainEntry(baseDir, opts = {}) {
   }
 
   // Step 2 — stamp the inbox entry `→ Promoted` (terminal; eviction is the batch
-  // sweep). promote never prompts, so no confirmPrompt is needed.
-  const stamp = await applyDispositionToFile(baseDir, inboxRel, {
+  // sweep). promote never prompts, so no confirmPrompt is needed. §9: this core runs
+  // INSIDE the `promoteDrainEntry` wrapper's lock, so it MUST call the lock-free
+  // `applyDispositionToFileCore` — the self-locking `applyDispositionToFile` wrapper
+  // would re-enter the non-reentrant lock and throw (the DUAL-ROLE split's whole point).
+  const stamp = await applyDispositionToFileCore(baseDir, inboxRel, {
     entryIndex,
     verb: 'promote',
     reason,
@@ -718,4 +754,18 @@ export async function promoteDrainEntry(baseDir, opts = {}) {
   });
 
   return { destination, deduped: Boolean(dest.deduped), heading: stamp.heading };
+}
+
+/**
+ * FR5 (M5.E4): self-locking wrapper around `promoteDrainEntryCore`. Acquires the coarse
+ * `.planning/.state.lock` for the WHOLE promote RMW (destination-first write, then the
+ * inbox stamp) so both writes sit inside ONE lock and a concurrent state writer can't
+ * lost-update. The exported name is unchanged, so commands/plan.md needs no edit.
+ *
+ * @param {string} baseDir — project root
+ * @param {object} opts — see `promoteDrainEntryCore`
+ * @returns {Promise<{destination: 'backlog'|'bugs', deduped: boolean, heading: string}>}
+ */
+export async function promoteDrainEntry(baseDir, opts = {}) {
+  return withStateLock(baseDir, () => promoteDrainEntryCore(baseDir, opts));
 }
