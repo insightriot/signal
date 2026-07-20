@@ -23,6 +23,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join, resolve, sep, basename, dirname } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
+import { assertRealInsidePlanning } from './path-confine.js';
 import {
   acquireLock as fileAcquireLock,
   releaseLock as fileReleaseLock,
@@ -833,10 +834,9 @@ function findTrailingFooterIdx(lines) {
 }
 
 /**
- * THE R2 HARD GATE for the undocumented `--file` escape valve (FR3). Pure path
- * math + a basename check — NO async, NO I/O — so the command can refuse a bad
- * path BEFORE acquiring the lock or writing anything (the "refuse before lock"
- * requirement). Two guards, both airtight:
+ * THE R2 HARD GATE for the undocumented `--file` escape valve (FR3). Runs BEFORE
+ * the caller acquires the lock, so a bad path is refused before anything is
+ * written. Three guards:
  *
  *   1. Inside-`.planning/` guard (FR3.1). `resolve(baseDir, relOrPath)` collapses
  *      `..` segments and returns absolute paths as-is, so it defeats `../`
@@ -849,19 +849,23 @@ function findTrailingFooterIdx(lines) {
  *   2. Basename denylist (FR3.2). DECISIONS.md and STATE.md are machine-managed;
  *      they are never capture destinations, regardless of where in `.planning/`
  *      they sit. Checked by `basename` so `.planning/sub/STATE.md` is refused too.
- *
- * Out of scope: symlinks. `resolve` does NOT follow symlinks (it is lexical),
- * so a symlink inside `.planning/` pointing outside would pass this lexical
- * gate. `--file` is an undocumented power-user escape valve in a local repo the
- * user already controls; defending against a symlink they planted in their own
- * `.planning/` is not a threat this gate addresses.
+ *   3. Symlink-aware confinement (B14 / FR2, added M5.E4.T1.2). The lexical guard
+ *      (1) is blind to symlinks — a checked-in DIRECTORY symlink inside
+ *      `.planning/` pointing OUT of the tree passes it. `assertRealInsidePlanning`
+ *      realpaths the dest directory (and `.planning/` itself) and refuses that
+ *      escape. Because it calls `realpathSync`, this gate now performs I/O — it is
+ *      NO LONGER pure path-math. Per D-M5E4-5 (ratified 2026-07-20) directory-
+ *      symlink confinement is IN scope for `--file`: the earlier "symlinks out of
+ *      scope / no I/O" carve-out was overturned so every `.planning/` write path
+ *      shares one uniform confinement posture. The gate still runs before the lock.
  *
  * @param {string} baseDir — project root (where .planning/ lives)
  * @param {string} relOrPath — the user-supplied `--file` path
  * @returns {string} the original `relOrPath` (unchanged) when safe — the caller
  *   passes it to the spine as `relPath`, so `join(baseDir, relOrPath)` recomputes
  *   the same target this gate validated.
- * @throws {Error} when the path escapes `.planning/` or hits the denylist.
+ * @throws {Error} when the path escapes `.planning/` (lexically or via a symlink)
+ *   or hits the denylist.
  */
 export function assertSafeFilePath(baseDir, relOrPath) {
   const planningRoot = resolve(baseDir, '.planning');
@@ -879,6 +883,10 @@ export function assertSafeFilePath(baseDir, relOrPath) {
       `--file cannot target ${base} (DECISIONS.md and STATE.md are managed, not capture destinations).`
     );
   }
+
+  // Symlink-aware re-assert (B14 / FR2, D-M5E4-5): the lexical guard above cannot
+  // see a checked-in DIRECTORY symlink inside .planning/ escaping the tree.
+  assertRealInsidePlanning(baseDir, target, '--file');
 
   return relOrPath;
 }

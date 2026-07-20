@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, readFile, readdir, symlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -175,5 +175,54 @@ describe('evictEpicNarrative (FR2b)', () => {
     const result = await evictEpicNarrative(baseDir, 'M9.E9');
     expect(result.evicted).toBe(false);
     expect(result.reason).toBe('no-section');
+  });
+});
+
+// M5.E4.T1.2 (B14 / FR2) — Site A: the archive write must refuse a checked-in
+// DIRECTORY symlink under .planning/. The lexical guard (evict.js:350) passes on
+// the POSIX dest `.planning/archive/M5/E1/…` while the real mkdir/atomicWrite
+// follow `.planning/archive` (a symlink) OUT of the tree. The realpath re-assert
+// closes it: RED (lexical only) lets the narrative escape; GREEN refuses.
+describe('evictEpicNarrative — realpath confinement against a directory-symlink escape (Site A)', () => {
+  let baseDir;
+  let planningDir;
+  let outside;
+
+  beforeEach(async () => {
+    baseDir = await mkdtemp(join(tmpdir(), 'signal-evict-symlink-'));
+    planningDir = join(baseDir, '.planning');
+    await mkdir(planningDir, { recursive: true });
+    // A real, EMPTY sibling dir OUTSIDE the repo — the attacker's escape target.
+    outside = await mkdtemp(join(tmpdir(), 'signal-evict-escape-target-'));
+    await writeFile(join(planningDir, 'STATE.md'), FRONTMATTER + '\n' + BODY, 'utf-8');
+    // Closed signal: a GOLDEN (non-lossy) retro so the coverage gate passes and
+    // eviction reaches the archive write under test.
+    await writeFile(join(planningDir, 'M5.E1-RETROSPECTIVE.md'), GOLDEN_RETRO, 'utf-8');
+    // The hostile artifact: .planning/archive is a checked-in DIRECTORY symlink to
+    // an out-of-repo dir. deriveEpicArchiveDir → .planning/archive/M5/E1/… , so the
+    // mkdir + atomicWrite traverse this link.
+    await symlink(outside, join(planningDir, 'archive'));
+  });
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  });
+
+  it('REFUSES the eviction — nothing written outside the tree, STATE untouched', async () => {
+    const stateBefore = await readFile(join(planningDir, 'STATE.md'), 'utf-8');
+
+    let threw = false;
+    try {
+      await evictEpicNarrative(baseDir, 'M5.E1');
+    } catch {
+      threw = true;
+    }
+
+    // RED (lexical guard only): mkdir/atomicWrite follow the symlink → the
+    // narrative lands in <outside>/M5/E1/STATE-NARRATIVE.md → readdir non-empty.
+    expect(await readdir(outside)).toEqual([]); // NOTHING escaped the tree
+    expect(threw).toBe(true); // the eviction REFUSED (threw before writing)
+    // STATE.md is never rewritten (the archive write precedes the pointer splice).
+    expect(await readFile(join(planningDir, 'STATE.md'), 'utf-8')).toBe(stateBefore);
   });
 });

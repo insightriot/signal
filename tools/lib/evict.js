@@ -38,6 +38,7 @@ import {
 } from './state.js';
 import { deriveRetroPath } from './retrospective.js';
 import { atomicWrite } from './atomic-write.js';
+import { assertRealInsidePlanning } from './path-confine.js';
 
 // --- ID / date / status-token extractors (the deterministic backstop) --------
 
@@ -350,6 +351,10 @@ export async function evictEpicNarrative(baseDir, epicId, opts = {}) {
     if (!resolve(baseDir, archiveDir).startsWith(planningRoot + sep)) {
       throw new Error(`evictEpicNarrative: archive path for ${epicId} escapes ${PLANNING_DIR}/`);
     }
+    // Symlink-aware re-assert (B14 / FR2): the lexical guard above is blind to a
+    // checked-in DIRECTORY symlink under .planning/ (e.g. archive → out of tree),
+    // which the mkdir/atomicWrite would follow OUT of the repo. realpath both sides.
+    assertRealInsidePlanning(baseDir, resolve(baseDir, archiveDir), 'evictEpicNarrative');
     await mkdir(join(baseDir, archiveDir), { recursive: true });
     const narrativeRel = `${archiveDir}/STATE-NARRATIVE.md`;
     const narrativeAbs = join(baseDir, narrativeRel);

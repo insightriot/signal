@@ -8,8 +8,10 @@
 // The resolver is pure over an injectable `existsFn`, so most cases run in
 // memory; one case uses the real fixture to prove the existsSync default.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, rm, mkdir, writeFile, symlink } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 import { resolveArtifactPath } from '../tools/lib/resume.js';
@@ -98,5 +100,46 @@ describe('resolveArtifactPath', () => {
     const planningDir = join(__dirname, 'fixtures', 'resume', 'epic-prefixed', '.planning');
     const out = resolveArtifactPath(planningDir, 'PLAN', { currentEpic: 'M4.5.E99' });
     expect(out).toBe(join(planningDir, 'M4.5.E99-PLAN.md'));
+  });
+});
+
+// M5.E4.T1.2 (B14 / FR2) — Site C: the read-side filter must not hand back an
+// artifact path that resolves OUT of the planning root. Candidates here are flat
+// (`resolve(planningRoot, name)`, no separators) so `dirname === planningRoot`
+// always — the only escape is a LEAF symlink, which a caller WOULD follow on
+// read. So this anchors on the leaf (unlike the write sites, which rename over
+// the leaf and anchor on dirname). Real FS symlink fixtures; no injected
+// realpathFn, so the default realpathSync path is exercised.
+describe('resolveArtifactPath — realpath confinement against a leaf-symlink escape (Site C)', () => {
+  let planningDir;
+  let outside;
+  beforeEach(async () => {
+    const base = await mkdtemp(join(tmpdir(), 'signal-resolve-symlink-'));
+    planningDir = join(base, '.planning');
+    await mkdir(planningDir, { recursive: true });
+    outside = await mkdtemp(join(tmpdir(), 'signal-resolve-escape-target-'));
+  });
+  afterEach(async () => {
+    await rm(dirname(planningDir), { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  });
+
+  it('REFUSES a candidate whose leaf is a symlink resolving OUT of the tree (returns null)', async () => {
+    // A real out-of-tree file, and a checked-in .planning/ leaf symlink to it.
+    const leaked = join(outside, 'leaked.md');
+    await writeFile(leaked, 'secret', 'utf-8');
+    await symlink(leaked, join(planningDir, 'M5.E1-PLAN.md'));
+
+    // RED (lexical guard only): existsSync(symlink) is true + the lexical guard
+    // passes → the escaped path is returned. GREEN: realpath the leaf, see it
+    // leaves the planning root, skip it → no other candidate exists → null.
+    const out = resolveArtifactPath(planningDir, 'PLAN', { currentEpic: 'M5.E1' });
+    expect(out).toBeNull();
+  });
+
+  it('still resolves a real (non-symlink) in-.planning artifact — no false refusal', async () => {
+    await writeFile(join(planningDir, 'M5.E1-PLAN.md'), '# plan\n', 'utf-8');
+    const out = resolveArtifactPath(planningDir, 'PLAN', { currentEpic: 'M5.E1' });
+    expect(out).toBe(join(planningDir, 'M5.E1-PLAN.md'));
   });
 });

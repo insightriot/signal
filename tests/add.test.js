@@ -2,7 +2,7 @@
 // See .planning/M4.5.E2-PLAN.md § Slice 1 and .planning/M4.5.E2-VALIDATION.md § Slice 1.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, writeFile, mkdir, readFile, copyFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, mkdir, readFile, copyFile, symlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -1539,10 +1539,23 @@ describe('captureToDestination (spine)', () => {
   });
 });
 
-describe('assertSafeFilePath (hard gate, pure) — S2.t6 / FR3 / R2', () => {
-  // baseDir is arbitrary; the gate is pure path math + a basename check, so it
-  // needs no temp dir or filesystem. Use a fixed absolute root.
-  const base = '/tmp/sig-base';
+describe('assertSafeFilePath (hard gate) — S2.t6 / FR3 / R2 + M5.E4.T1.2 (B14/FR2)', () => {
+  // The gate now performs realpath I/O (D-M5E4-5 reversal — no longer pure path
+  // math), so baseDir and its .planning/ must exist on disk. Every REFUSAL case
+  // still throws at the lexical guard or the basename denylist BEFORE reaching the
+  // realpath re-assert, so a real temp base leaves them behaviorally identical.
+  let base;
+  let outside;
+  beforeEach(async () => {
+    base = await mkdtemp(join(tmpdir(), 'signal-safepath-'));
+    await mkdir(join(base, '.planning'), { recursive: true });
+    // A real out-of-tree dir — the directory-symlink escape target.
+    outside = await mkdtemp(join(tmpdir(), 'signal-safepath-out-'));
+  });
+  afterEach(async () => {
+    await rm(base, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  });
 
   // --- REFUSALS (FR3.1 outside-.planning; FR3.2 DECISIONS/STATE denylist) ---
 
@@ -1622,6 +1635,18 @@ describe('assertSafeFilePath (hard gate, pure) — S2.t6 / FR3 / R2', () => {
 
   it('returns the original relative path on success (consumable by the spine)', () => {
     expect(assertSafeFilePath(base, '.planning/NOTES.md')).toBe('.planning/NOTES.md');
+  });
+
+  // --- B14 / FR2 (M5.E4.T1.2): a checked-in DIRECTORY symlink under .planning/
+  // escapes the tree lexically. The realpath re-assert closes it (RED with the
+  // lexical guard alone; GREEN after the fix + the D-M5E4-5 docstring reversal).
+  it('B14/FR2: refuses a directory-symlink escape (.planning/sub → out of tree)', async () => {
+    await symlink(outside, join(base, '.planning', 'sub'));
+    // Lexical guard passes (`.planning/sub/x.md` starts with `.planning/`); the
+    // basename is fine; only the realpath re-assert catches the escape.
+    expect(() => assertSafeFilePath(base, '.planning/sub/x.md')).toThrow(
+      /escapes \.planning\/ via a directory symlink/
+    );
   });
 });
 

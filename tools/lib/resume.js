@@ -9,7 +9,7 @@
 // fixtures without staging real files (or, when staging matters, point at
 // tests/fixtures/resume/{in-flight, stale, orphan}/.planning/).
 
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 
 import {
@@ -41,16 +41,23 @@ const EPIC_ID_RE = /^[A-Za-z0-9._-]+$/;
  *
  * The Epic-prefixed pattern is the FR1 addition: `/sig:resume` couldn't find
  * `M4.5.E10-PLAN.md` because none of the legacy patterns match an Epic-prefixed
- * name. Guarded two ways (mirror add.js's assertSafeFilePath): the token regex
- * AND a path-confinement check, so a crafted current_epic can't escape.
+ * name. Guarded three ways (mirror add.js's assertSafeFilePath): the token regex,
+ * the lexical path-confinement check, AND a symlink-aware realpath confinement
+ * (B14 / FR2) — a crafted current_epic can't escape, and a checked-in LEAF
+ * symlink under `.planning/` can't hand a caller a path resolving out of the tree.
+ *
+ * `realpathFn` is injectable (default `realpathSync`) so the in-memory `existsFn`
+ * seam stays intact: when a candidate isn't on real disk (mocked existsFn),
+ * realpath throws and we fall back to the lexical result — only a real on-disk
+ * symlink can actually escape, and that case resolves cleanly.
  *
  * @param {string} planningDir  — absolute path to the project's `.planning/`
  * @param {string} artifact     — artifact base name, e.g. 'PLAN', 'REQUIREMENTS'
- * @param {{currentEpic?: string|null, phase?: string|null, existsFn?: (p: string) => boolean}} [opts]
+ * @param {{currentEpic?: string|null, phase?: string|null, existsFn?: (p: string) => boolean, realpathFn?: (p: string) => string}} [opts]
  * @returns {string | null}
  */
 export function resolveArtifactPath(planningDir, artifact, opts = {}) {
-  const { currentEpic = null, phase = null, existsFn = existsSync } = opts;
+  const { currentEpic = null, phase = null, existsFn = existsSync, realpathFn = realpathSync } = opts;
   const planningRoot = resolve(planningDir);
 
   const candidates = [];
@@ -72,7 +79,23 @@ export function resolveArtifactPath(planningDir, artifact, opts = {}) {
     // e.g. `.planning-evil/`). The regex already blocks separators, but keep
     // both guards — same posture as add.js's assertSafeFilePath.
     if (!full.startsWith(planningRoot + sep)) continue;
-    if (existsFn(full)) return full;
+    if (!existsFn(full)) continue;
+    // Symlink-aware read-side confinement (B14 / FR2): the lexical guard above is
+    // blind to a checked-in symlink. Candidates are flat (dirname === planningRoot
+    // always), and this path is RETURNED for a caller to READ, so a LEAF symlink
+    // WOULD be followed — hence realpath the leaf `full` (the write sites rename
+    // OVER the leaf and instead anchor on dirname). realpath both sides; refuse a
+    // candidate that resolves out of the tree. A realpath throw means the path
+    // isn't on real disk (only the mocked-existsFn seam) — fall through to the
+    // lexical result, since only a real on-disk symlink can escape.
+    try {
+      const realRoot = realpathFn(planningRoot);
+      const realFull = realpathFn(full);
+      if (realFull !== realRoot && !realFull.startsWith(realRoot + sep)) continue;
+    } catch {
+      /* not on real disk → lexical guard already confined this candidate */
+    }
+    return full;
   }
   return null;
 }
