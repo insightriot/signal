@@ -1479,7 +1479,10 @@ export async function scanDanglingLinks(baseDir) {
     } catch {
       continue;
     }
-    if (text.length > FILE_SCAN_CEILING) text = text.slice(0, FILE_SCAN_CEILING);
+    // B15: NO truncation here — this scanner feeds the BLOCKING dangling gate, so a
+    // dangle past the 1 MB mark must never silently pass (matchAll over a large string is
+    // fine for a one-time offline migrate; mirrors the full-file section parser at §t5).
+    // The 3 advisory scanners below keep the cap: they surface FLAGS, not the abort.
     for (const m of text.matchAll(DANGLING_LINK_RE)) {
       const raw = m[1].trim();
       if (isExternalLink(raw)) continue;

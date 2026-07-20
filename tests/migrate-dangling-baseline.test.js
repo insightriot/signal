@@ -123,3 +123,22 @@ describe('M5.E2.S1.t7c renderDryRun (three-tier)', () => {
     expect(dry.applied).toBe(false);
   });
 });
+
+describe('M5.E4 — B15: the blocking dangling gate scans the FULL file (no 1 MB truncation)', () => {
+  it('finds a dangling .md link PAST the 1 MB scan cap (RED under the old slice)', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'b15-scan-'));
+    const p = join(dir, '.planning');
+    await mkdir(p, { recursive: true });
+    // >1 MB of filler, THEN a dangling .md link past the old 1 MB truncation point.
+    const filler = 'x'.repeat(1024 * 1024 + 100);
+    await writeFile(
+      join(p, 'BIG.md'),
+      `${filler}\n\nA [dangling](does-not-exist-past-cap.md) link.\n`,
+      'utf-8',
+    );
+    const dangling = await scanDanglingLinks(dir);
+    // RED with the 1 MB slice: the link past the cap was never scanned → missed.
+    expect(dangling.some((d) => /does-not-exist-past-cap\.md/.test(d.target))).toBe(true);
+    await rm(dir, { recursive: true, force: true });
+  });
+});
