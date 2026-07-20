@@ -25,13 +25,13 @@ last_updated: 2026-07-20T00:26:36.577Z
 
 ## Resume pointer
 
-M5.E3 (all-docs hygiene runtime + living `BACKLOG.md` + append-log eviction — FR4/FR5 + D-M5E2-6), FULL/strict — **✅ DISCUSS + PLAN complete (2026-07-18); EXECUTE next.** The final doc-runtime Epic. Doc-lifecycle model locked (**D-M5E3-1…8**): four role-named files — `ISSUES-INBOX.md` (raw capture, renamed from `FUTURE-IDEAS.md`) → the drain classifies/dispositions → `BACKLOG.md` (sequenced work) + `BUGS.md` (defects); `OPEN-QUESTIONS.md` (questions). Plan: **7 slices / 5 waves** (`M5.E3-PLAN.md`) — S1 FR1 rename+capture · S2 FR3 auto-`/sig:index`+D-ID map · S4 FR2 BACKLOG+drain · S3 FR4 all-docs hygiene · S5 FR5 append-log evict (verbatim relocate, date-cutoff) · S6a FR6 v3 migrate mechanics · S6b FR6 dogfood+rollout. Research 4-agent (`M5.E3-RESEARCH.md`); validation 8-dim PASS + plan-checker WARN→cleared (`M5.E3-VALIDATION.md`).
+**Milestone 5 — the doc-runtime (E1 + E2 + E3) — ✅ SHIPPED as v0.1.8 (2026-07-20).** M5.E3 (all-docs hygiene + living `BACKLOG.md` + append-log eviction, FR1–FR6) completed a full DISCUSS→SHIP at FULL/strict: 7 slices / 5 waves, 1300 → **1492 tests**, dogfooded on Signal's own `.planning/` (DECISIONS.md 178 KB → 33 KB, 37 sections evicted, 0 dropped), REVIEW PASS-WITH-FIXES (3-specialist panel, 4 Important fixed in-phase). The combined **E1+E2+E3** doc-runtime is released to the marketplace — Signal's memory is now self-maintaining (`ISSUES-INBOX`→`BACKLOG`/`BUGS` lifecycle, auto `/sig:index`, hygiene guard, verbatim `DECISIONS.md` eviction, `/sig:migrate-memory`). Retro: `M5.E3-RETROSPECTIVE.md`.
 
-**➡ NEXT ACTION: run `/sig:execute`** (`current_epic: M5.E3` set — no `--epic` needed; plan approved). Wave 1 = S1 (FR1). Any staleness/origin banner is the benign B6 "+1" (bookkeeping commit; HEAD == origin).
+**➡ NEXT: Milestone 5's doc-runtime is complete + released.** No Epic open. Next horizon per `MILESTONE-5.md`: the **v2-port re-audit (BR-8)** which gates the speculative feature ports (gstack / pm-skills / superpowers / compound-engineering), or open a new Epic with `/sig:discuss --epic <name>`. Deferred non-blocking fast-follows: `BUGS.md` B18–B23. Any staleness/origin banner is the benign B6 "+1" (HEAD == origin).
 
 ## In-flight
 
-**M5.E3 — EXECUTE next (Wave 1 = S1/FR1).** DISCUSS + PLAN closed; plan approved via the 8-dim + plan-checker gate. 7 slices / 5 waves (`M5.E3-PLAN.md`) covering the 6 FRs: FR1 `ISSUES-INBOX` rename + smart capture · FR2 living `BACKLOG` + drain classify/promote · FR3 auto-`/sig:index` + D-ID→home map · FR4 all-docs hygiene (reconcile-then-guard) · FR5 append-log eviction (verbatim relocate, date-cutoff — E3's risky, migrate-shaped piece; reuses E2's spine) · FR6 v3 migrate + rollout (S6a mechanics / S6b dogfood). Cross-cutting: back-compat inbox resolver + v3-conformance-gated stamp. Batched into the combined E1+E2+E3 release.
+**None — M5.E3 shipped as v0.1.8; no Epic open.** The doc-runtime milestone (E1+E2+E3) is complete and released.
 
 ## Blockers
 
