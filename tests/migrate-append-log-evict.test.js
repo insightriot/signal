@@ -10,13 +10,14 @@
 //   t4 — runAppendLogEvict: standalone end-to-end on a fixture repo
 //   t5 — compatibility: checkpoint appends untouched; full-file read (no ceiling)
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import { ROOT } from '../tools/lib/roster.js';
+import * as planningIndex from '../tools/lib/planning-index.js';
 import {
   parseDecisionSections,
   selectEvictableSections,
@@ -400,6 +401,19 @@ describe('applyAppendLogEvict — the composable seam S6a wires under applyMigra
     expect(rolledBack).toBe(true);
     expect(await readFile(decisionsPath(dir), 'utf-8')).toBe(original);
     expect(existsSync(archivePath(dir, 'M1'))).toBe(false);
+  });
+
+  it('B21 — builds the D-ID map ONCE for the whole gate loop (default resolver)', async () => {
+    const plan = senseAppendLogEvict(await loadFixture(), { boundaryDate: BOUNDARY, milestoneOf, dateStr: RUN_DATE });
+    expect(plan.evictedIds.length).toBeGreaterThan(1); // a genuine multi-ID eviction
+    const spy = vi.spyOn(planningIndex, 'buildDecisionIdMap');
+    const inner = createSnapshotter(join(dir, '.planning'));
+    // No injected resolveId → the default resolver → the B21 build-once path.
+    const res = await applyAppendLogEvict(dir, plan, { snap: inner.snap, rollback: inner.rollback });
+    expect(res.applied).toBe(true);
+    // Built ONCE for N IDs (was O(N) full-corpus rebuilds before B21).
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
   });
 });
 

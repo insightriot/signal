@@ -2862,9 +2862,20 @@ export async function applyAppendLogEvict(baseDir, plan, deps) {
   await atomicWrite(decisionsPath, plan.liveText);
 
   // 3. Anchor-resolvability gate (fail-closed to detect-only).
+  // B21: with the DEFAULT resolver, build the D-ID map ONCE for the whole loop instead
+  // of re-globbing the corpus per evicted ID — steps 1-2 above have finished writing, so
+  // the map is stable for the gate. An INJECTED resolver (tests) keeps its per-call path
+  // (identity check), so mocks still drive resolution.
+  let idMap = null;
+  let resolveIdInMap = null;
+  if (resolveId === defaultResolveDecisionId) {
+    const pi = await import('./planning-index.js');
+    idMap = await pi.buildDecisionIdMap(baseDir);
+    resolveIdInMap = pi.resolveDecisionIdIn;
+  }
   const misses = [];
   for (const { id, archiveRel } of plan.evictedIds) {
-    const home = await resolveId(baseDir, id);
+    const home = idMap ? await resolveIdInMap(baseDir, idMap, id) : await resolveId(baseDir, id);
     if (home !== archiveRel) misses.push({ id, expected: archiveRel, resolved: home });
   }
   if (misses.length > 0) {

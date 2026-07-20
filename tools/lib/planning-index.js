@@ -386,12 +386,29 @@ export async function buildDecisionIdMap(baseDir) {
  * @returns {Promise<string|null>}
  */
 export async function resolveDecisionId(baseDir, id) {
+  const map = await buildDecisionIdMap(baseDir);
+  return resolveDecisionIdIn(baseDir, map, id);
+}
+
+/**
+ * Resolve `id` against a PRE-BUILT D-ID map (buildDecisionIdMap output) — identical
+ * logic to resolveDecisionId, but the map is supplied so a BATCH can build it ONCE
+ * instead of per-ID (B21: FR5's anchor gate loops over every evicted ID). `baseDir` is
+ * still needed for the definer tie-break's readFile. Safe to reuse a map across a batch
+ * only when the disk is stable for the batch's duration (the evict gate: writes precede
+ * the loop).
+ *
+ * @param {string} baseDir
+ * @param {object} map  buildDecisionIdMap(baseDir) output
+ * @param {string} id  e.g. "D-E10-3"
+ * @returns {Promise<string|null>}
+ */
+export async function resolveDecisionIdIn(baseDir, map, id) {
   const m = /^D-([A-Za-z0-9]+)-(\d+)$/.exec(String(id).trim());
   if (!m) return null;
   const prefix = m[1];
   const num = Number(m[2]);
 
-  const map = await buildDecisionIdMap(baseDir);
   const liveRel = PLANNING_DIR + '/DECISIONS.md';
 
   const candidates = [];
