@@ -2267,10 +2267,11 @@ export async function applyMigrate(baseDir, opts = {}) {
     }
 
     // Pre-apply tag (points at the pre-migrate HEAD). If the mechanical phase throws,
-    // rollback restores the tree to exactly this state, so the tag is harmless (it
-    // points at the state the tree is already at) — and it STAYS as the recovery
-    // pointer for the case where the in-memory rollback itself fails. NOT cleaned up
-    // on rollback: leaving it guarantees a pointer never vanishes.
+    // rollback restores the tree to exactly this state. On a SUCCESSFUL rollback the tag
+    // is then redundant (it points at the state the tree was just restored to) and is
+    // deleted (B16 — so retries don't accumulate stray tags); it is KEPT only if the
+    // in-memory rollback itself fails, as the last-resort recovery pointer. On a
+    // successful apply it's the intended revert pointer (see revertLine below).
     let tag = null;
     if (probe.mode === 'git') {
       try {
@@ -2424,6 +2425,17 @@ export async function applyMigrate(baseDir, opts = {}) {
       // byte-identical (never a whole-tree reset), then rethrow. The durable snapshot
       // + tag persisted above remain as the recovery aid if this rollback itself fails.
       await rollback();
+      // B16: rollback succeeded → the pre-apply tag is now redundant (points at the
+      // just-restored state). Drop it so retries don't accumulate stray tags. If
+      // rollback() ITSELF threw above we never reach here — the tag survives as the
+      // last-resort pointer. Best-effort: a failed `tag -d` must not mask the real error.
+      if (tag) {
+        try {
+          execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
+        } catch {
+          /* best-effort — keep the original throw */
+        }
+      }
       throw e;
     }
 

@@ -108,3 +108,39 @@ describe('M5.E2 REVIEW — fence-less STATE.md refuses cleanly (Fix 2)', () => {
     expect(await readState(dir)).toBe(before); // byte-identical
   });
 });
+
+describe('M5.E4 — B16: a rolled-back git-mode apply deletes the pre-apply tag', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'signal-b16-tag-'));
+    const planning = join(dir, '.planning');
+    await mkdir(planning, { recursive: true });
+    await writeFile(
+      join(planning, 'STATE.md'),
+      `---\nschema_version: 1\nphase: PLAN\ncurrent_epic: M6.E2\ncurrent_tasks: []\n` +
+        `completed_phases:\n  - "${LONG_CP}"\nblockers: []\n---\n# Project State\n\nlive\n`,
+      'utf-8',
+    );
+    await writeFile(join(planning, 'M6.E1-RETROSPECTIVE.md'), '# M6.E1 retro\n', 'utf-8');
+    await writeFile(join(planning, 'M6.E1-PLAN.md'), PLAN_BODY, 'utf-8');
+    // `.planning/archive` is a regular FILE → the archive-tree mkdir throws ENOTDIR mid-phase.
+    await writeFile(join(planning, 'archive'), 'not a directory\n', 'utf-8');
+    // git mode → the pre-apply `pre-migrate-memory-<stamp>` tag IS created (fs-backup never tags).
+    git(dir, ['init', '-q', '-b', 'main']);
+    git(dir, ['config', 'user.email', 't@t.co']);
+    git(dir, ['config', 'user.name', 'T']);
+    git(dir, ['config', 'commit.gpgsign', 'false']);
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-q', '-m', 'init']);
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('deletes pre-migrate-memory-<stamp> after a successful rollback (no accumulation)', async () => {
+    await expect(applyMigrate(dir, { stamp: 'T1', dateStr: '2026-07-17' })).rejects.toThrow();
+    // B16: rollback succeeded → the now-redundant pre-apply tag is cleaned up so retries
+    // don't accumulate stray tags. RED against unfixed source: `pre-migrate-memory-T1` remains.
+    expect(String(git(dir, ['tag', '-l'])).trim()).toBe('');
+  });
+});
