@@ -13,7 +13,7 @@
 // Read-only (AC4.4): every function reads and asserts; none writes.
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { join, dirname, resolve, relative } from 'node:path';
+import { join, dirname, resolve, relative, sep } from 'node:path';
 
 import { roster, ROOT } from './roster.js';
 import { isStubRetro } from './retro-index.js';
@@ -92,6 +92,7 @@ export function listDocFiles(baseDir = ROOT) {
  */
 export function checkInternalLinks(baseDir = ROOT) {
   const findings = [];
+  const root = resolve(baseDir);
   for (const f of listDocFiles(baseDir)) {
     let text;
     try {
@@ -99,8 +100,15 @@ export function checkInternalLinks(baseDir = ROOT) {
     } catch {
       continue;
     }
-    if (text.length > FILE_SCAN_CEILING) text = text.slice(0, FILE_SCAN_CEILING);
     const rel = toPosix(relative(baseDir, f));
+    // B15: flag when a doc exceeds the scan cap — a silent truncation would hide
+    // any link past the cap, so the coverage gap must never pass unremarked.
+    if (text.length > FILE_SCAN_CEILING) {
+      findings.push(
+        mkFinding('internal-links', 'soft', rel, `exceeds ${FILE_SCAN_CEILING}B scan cap — link check truncated`),
+      );
+      text = text.slice(0, FILE_SCAN_CEILING);
+    }
     for (const m of text.matchAll(INLINE_LINK_RE)) {
       const raw = m[1].trim();
       if (isExternalTarget(raw)) continue;
@@ -108,6 +116,14 @@ export function checkInternalLinks(baseDir = ROOT) {
       const [pathPart, anchor] = splitAnchor(firstTok);
       if (!pathPart.endsWith('.md')) continue;
       const abs = resolve(dirname(f), pathPart);
+      // B22: bound the resolved target to repo root BEFORE any disk touch — a
+      // `](../../../x.md)` must never existsSync/readFile outside the walk root.
+      if (abs !== root && !(abs + sep).startsWith(root + sep)) {
+        findings.push(
+          mkFinding('internal-links', 'hard', rel, `internal link escapes repo root -> ${pathPart}`),
+        );
+        continue;
+      }
       if (!existsSync(abs)) {
         findings.push(mkFinding('internal-links', 'hard', rel, `dead internal link -> ${pathPart}`));
       } else if (anchor && !anchorResolves(abs, anchor)) {

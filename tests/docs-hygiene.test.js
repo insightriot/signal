@@ -116,6 +116,22 @@ describe('M5.E3.S3.t2 checkInternalLinks', () => {
   it('is GREEN on the live Signal repo (no dead internal links on the public surface)', () => {
     expect(hard(checkInternalLinks(ROOT))).toHaveLength(0);
   });
+
+  it('B22 — bounds an escaping ../ link to repo root (no disk touch outside root)', async () => {
+    await writeDoc(dir, 'README.md', 'clean.\n');
+    await writeDoc(dir, 'docs/guide.md', 'An [escape](../../../../../../etc/secrets.md) link.\n');
+    const h = hard(checkInternalLinks(dir));
+    expect(h).toHaveLength(1);
+    expect(h[0].file).toBe('docs/guide.md');
+    // Must report the escape (bound fired before existsSync), NOT "dead internal link".
+    expect(h[0].message).toMatch(/escapes repo root/);
+  });
+
+  it('B15 — flags a doc exceeding the scan cap instead of silently truncating', async () => {
+    await writeDoc(dir, 'README.md', 'x'.repeat(1024 * 1024 + 10) + '\n');
+    const s = soft(checkInternalLinks(dir));
+    expect(s.some((f) => /scan cap|truncat/i.test(f.message))).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
