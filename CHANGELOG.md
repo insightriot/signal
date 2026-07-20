@@ -6,9 +6,9 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased] — Doc-runtime (M5.E1 + M5.E2 + M5.E3)
+## [0.1.8] — 2026-07-20 — Doc-runtime (M5.E1 + M5.E2 + M5.E3)
 
-The doc-runtime ships as **one release across three Epics** — E1 (model + eviction mechanics) + E2 (the auto-sensing migrate command) + **E3 (all-docs hygiene + living `BACKLOG.md` + append-log eviction) — all now landed on `main`.** Each Epic landed intentionally unreleased; the combined marketplace release cuts as a deliberate step, so users get "eviction + migrate + hygiene" as a coherent unit rather than a partial fix. Additive; no breaking changes; no new runtime dependencies; no `.planning/` schema bump (a new `docs_layout_version` **doc-layout** axis, distinct from `schema_version`, is stamped by the migrate). **Before the tag:** README command-reference for the two new commands (done), a `CLAUDE.md` refresh, the `plugin.json`/`marketplace.json` version bump, and folding this block under the version heading.
+The doc-runtime ships as **one release across three Epics** — E1 (model + eviction mechanics) + E2 (the auto-sensing `/sig:migrate-memory` command) + E3 (all-docs hygiene + living `BACKLOG.md` + append-log eviction). Signal's memory is now self-maintaining. Additive; no breaking changes; no new runtime dependencies; no `.planning/` schema bump (a new `docs_layout_version` **doc-layout** axis, distinct from `schema_version`, is stamped by the migrate). Two new commands: `/sig:index` and `/sig:migrate-memory` (**15 → 17**). 1300 → **1492 tests**; FULL/strict throughout; each Epic dogfooded on Signal's own `.planning/`.
 
 ### M5.E1 — model + eviction mechanics
 
