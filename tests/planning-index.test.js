@@ -5,7 +5,7 @@
 //   t4 — renderPlanningIndex / regeneratePlanningIndex: idempotent, parse↔render fixpoint
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -161,6 +161,27 @@ describe('relative baseDir (B18: path-relativize, not slice)', () => {
     process.chdir(base);
 
     expect(await resolveDecisionId('.', 'D-CUR-2')).toBe('.planning/DECISIONS.md');
+  });
+
+  it("regeneratePlanningIndex('.') writes .planning/-rooted keys, not slice-chopped (B18 regression guard)", async () => {
+    // Regression guard for B18 (fixed in 8f1dda8). Every shipped caller passes an
+    // absolute baseDir, so the '.' path had no write round-trip test; AC2.x names
+    // regeneratePlanningIndex('.') specifically. GREEN on current code; would be RED
+    // on the pre-fix `full.slice(baseDir.length+1)` ('lanning/…' keys).
+    base = await mkdtemp(join(tmpdir(), 'planning-index-dot-regen-'));
+    const p = join(base, '.planning');
+    await mkdir(p, { recursive: true });
+    await writeFile(join(p, 'BACKLOG.md'), '# backlog\n', 'utf-8');
+    await writeFile(join(p, 'PROJECT.md'), '# project\n', 'utf-8');
+
+    origCwd = process.cwd();
+    process.chdir(base);
+
+    await regeneratePlanningIndex('.');
+    const written = await readFile(join(p, 'INDEX.md'), 'utf-8');
+    expect(written.length).toBeGreaterThan(0);
+    // The corruption signature: a slice-chopped 'lanning/' key NOT preceded by '.p'.
+    expect(written).not.toMatch(/(?<!\.p)lanning\//);
   });
 });
 
