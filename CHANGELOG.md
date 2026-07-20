@@ -6,9 +6,9 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased] — Doc-runtime (M5.E1 + M5.E2)
+## [Unreleased] — Doc-runtime (M5.E1 + M5.E2 + M5.E3)
 
-The doc-runtime ships as **one release across three Epics** — E1 (model + eviction mechanics) + E2 (the auto-sensing migrate command) here, with **E3 (all-docs hygiene + living `BACKLOG.md`) still to land before the cut** (D-M5E2-6). Each Epic lands on `main` intentionally unreleased; the combined marketplace release cuts when E3 completes, so users get "eviction + migrate + hygiene" as a coherent unit rather than a partial fix. Additive; no breaking changes; no new runtime dependencies; no `.planning/` schema bump.
+The doc-runtime ships as **one release across three Epics** — E1 (model + eviction mechanics) + E2 (the auto-sensing migrate command) + **E3 (all-docs hygiene + living `BACKLOG.md` + append-log eviction) — all now landed on `main`.** Each Epic landed intentionally unreleased; the combined marketplace release cuts as a deliberate step, so users get "eviction + migrate + hygiene" as a coherent unit rather than a partial fix. Additive; no breaking changes; no new runtime dependencies; no `.planning/` schema bump (a new `docs_layout_version` **doc-layout** axis, distinct from `schema_version`, is stamped by the migrate). **Before the tag:** README command-reference for the two new commands (done), a `CLAUDE.md` refresh, the `plugin.json`/`marketplace.json` version bump, and folding this block under the version heading.
 
 ### M5.E1 — model + eviction mechanics
 
@@ -49,6 +49,33 @@ The risky, go-big piece of the doc-runtime: the command that reorganizes an **ex
 #### Dogfood + deferred (M5.E2)
 - **Dogfood:** Signal's own `.planning/` — 31 archive relocations + `docs_layout_version` stamp v2.
 - **Ticketed fast-follows (non-blocking):** B14 (codebase-wide lexical symlink confinement in `evict.js`/`add.js`/`resume.js`), B15 (>1 MB single-file scan-ceiling can defeat the dangling gate), B16 (a rolled-back `--apply` leaves a lingering `pre-migrate-memory-<stamp>` tag), B17 (4 git-heavy migrate tests flake on vitest's 5 s default under full-suite parallel load).
+
+### M5.E3 — all-docs hygiene runtime + living `BACKLOG.md` + append-log eviction
+
+The final doc-runtime layer — what makes Signal's memory *self-maintaining*. 7 slices / 5 waves at FULL/strict; full DISCUSS→SHIP; REVIEW ran a 3-specialist adversarial panel (PASS-WITH-FIXES). Dogfooded on Signal's own `.planning/`. 1300 → **1492 tests**.
+
+#### Added (M5.E3)
+- **Capture-inbox lifecycle** (FR1) — `FUTURE-IDEAS.md` → `ISSUES-INBOX.md` via a **back-compat resolver** (non-breaking; `resolveInboxPath`), `/sig:add` writes a verbatim body + an agent-authored title, and a new `--bug` fast-path routes to `BUGS.md`.
+- **`/sig:index`** (FR3) — auto-generates `.planning/INDEX.md` from disk (two-tier Live/Cold), preserving hand-curated notes by key; publishes a `D-ID → home` map (`resolveDecisionId`) that homes decisions by **definition, not reference**. Runs automatically at `/sig:ship`.
+- **Living `BACKLOG.md`** (FR2) — the `/sig:plan` drain classifies each promoted inbox entry (work → `BACKLOG` with a roadmap/hygiene tag, bug → `BUGS`), retitles on promote, and evicts from the inbox; a light `/sig:ship` sweep clears terminal entries.
+- **All-docs hygiene guard** (FR4) — a deterministic + **offline** test-suite check over `README`/`CLAUDE.md`/`docs/`/`analysis/`: roster/count drift, dead internal links, version consistency (skips `[Unreleased]`), `[FILL IN]` stubs → hard fail; read-only.
+- **Append-log eviction** (FR5) — closed-milestone `DECISIONS.md` date-sections relocate **verbatim** to per-milestone `archive/M{n}/DECISIONS.md` behind dated pointers, every `D-…` anchor still resolvable via the index; **fail-closed** if any anchor wouldn't resolve.
+- **Layout v2→v3 migration** (FR6) — `/sig:migrate-memory` learns the v3 transition (rename + `BACKLOG` create + append-log evict), new projects are **born on v3**, existing (incl. stamp-null) projects converge on first migrate.
+
+#### Changed (M5.E3)
+- **`INDEX.md` is now auto-generated** — hand-curation retired; reverses the "INDEX is hand-curated / Curator dormant" stance (D-M5E3-8).
+- **External Curator retired** — `ship.md` §8 now calls the native `regeneratePlanningIndex`; no Signal command invokes `curator`.
+- Roster reconciled **15 → 17 commands** (adds `/sig:index` + `/sig:migrate-memory`) across `CLAUDE.md` + `docs/map`; the FR4 guard now enforces it.
+
+#### Fixed (M5.E3 — REVIEW, RED-first in-phase)
+- **B18** path-relativize (`relative()` not `slice()`) at 3 sites — a relative `baseDir` no longer corrupts INDEX/roster keys.
+- **B19** dry-run/apply parity + a guard that **skips-and-flags** (never clobbers) a foreign/pre-v3-format curated INDEX.
+- **IMPORTANT-1** (security) — an unconditional planning-root realpath assert before the first write closes a symlinked-`.planning/` escape on a minimal migrate run.
+- **D-v016-2** (dogfood-surfaced) — the D-ID map homed a decision by a live reference over its archived definition → the anchor gate refused the eviction; fixed with definition-precedence.
+
+#### Dogfood + deferred (M5.E3)
+- **Dogfood:** Signal's own `.planning/` migrated to v3 — `DECISIONS.md` 178 KB → 33 KB (37 sections evicted, **0 dropped**, 73 anchors preserved), `ISSUES-INBOX.md` + `BACKLOG.md`, stamp v3. Fully git-reversible.
+- **Ticketed fast-follows (non-blocking):** B20 (lint tooling — ESLint 9 flat-config), B21 (D-ID map per-ID rebuild — perf), B22 (doc-hygiene link-check reads outside repo root — dev-only), B23 (test-hardening bundle).
 
 ## [0.1.7] — 2026-07-15 — M4.5.E11 (Epic-native flow)
 

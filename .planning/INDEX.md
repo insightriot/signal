@@ -22,7 +22,9 @@
 - [M5.E3-PROGRESS.md](M5.E3-PROGRESS.md) — `other` — _(note pending)_
 - [M5.E3-REQUIREMENTS.md](M5.E3-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M5.E3-RESEARCH.md](M5.E3-RESEARCH.md) — `other` — _(note pending)_
+- [M5.E3-REVIEW.md](M5.E3-REVIEW.md) — `other` — _(note pending)_
 - [M5.E3-VALIDATION.md](M5.E3-VALIDATION.md) — `other` — _(note pending)_
+- [M5.E3-VERIFICATION.md](M5.E3-VERIFICATION.md) — `other` — _(note pending)_
 - [MILESTONE-4.5.md](MILESTONE-4.5.md) — `milestone` — Release-hardening / stranger-adoption milestone. **CLOSED 2026-07-15** — E1–E11 shipped (v0.1.1–v0.1.7); the ≥3-non-Signal-tester clause met (4 users onboarded). Superseded by M5.
 - [MILESTONE-5.md](MILESTONE-5.md) — `milestone` — **Active milestone** — v2 integrations + doc-runtime. Usage-signal gate lifted 2026-07-15. Epic-status table up top (M5.E1/E2 shipped-unreleased, M5.E3 in flight); the speculative v2-port queue below is unsequenced pending the landscape re-audit.
 - [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) — `other` — Unresolved questions surfaced across phases — the fourth doc-lifecycle home (questions, alongside inbox / backlog / bugs).
@@ -54,6 +56,7 @@
 - [M4.5.E9-RETROSPECTIVE.md](M4.5.E9-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E1-RETROSPECTIVE.md](M5.E1-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E2-RETROSPECTIVE.md](M5.E2-RETROSPECTIVE.md) — `other` — _(note pending)_
+- [M5.E3-RETROSPECTIVE.md](M5.E3-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [archive/BACKLOG-REVIEW-2026-07-04.md](archive/BACKLOG-REVIEW-2026-07-04.md) — `other` — Frozen 2026-07-04 backlog pass (gap-fills A1–A5, 8 sharpened items, 8 sprint clusters + watchlist). Point-in-time snapshot — its live content was folded into `BACKLOG.md` and it was archived here (move-never-delete, M5.E3.S6b).
 - [archive/ISSUES-INBOX-LEDGER.md](archive/ISSUES-INBOX-LEDGER.md) — `other` — Evicted shipped/drained capture entries (the closed tail of the inbox), relocated at M5.E1; renamed from `FUTURE-IDEAS-LEDGER.md` at docs-layout v3. Reference-only.
 - [archive/M4.5/DECISIONS.md](archive/M4.5/DECISIONS.md) — `append-log` — Evicted M4.5-era decisions (≈2026-05-16 → 2026-07-13: Epics E2–E10 + v0.1.6; E1 appears only as its shelved-slices revision, and E11's own decisions stayed in the live log post-cutoff). Relocated verbatim at docs-layout v3 behind a dated pointer in live `DECISIONS.md`. `D-ID`s resolve here via `/sig:index`.
@@ -161,3 +164,4 @@
 - [M4.5.E11](M4.5.E11-RETROSPECTIVE.md) — Epic-native flow — `--epic` first-class, `{EpicID}-*.md` artifacts, per-Epic PROFILE; linear mode byte-identical (v0.1.7).
 - [M5.E1](M5.E1-RETROSPECTIVE.md) — Doc-runtime & memory hygiene — canonical doc-model (FR1) + STATE/FUTURE-IDEAS eviction (FR2/FR3); STATE 64.5 KB → ~1 KB. Continuation: E2 (migrate), E3 (hygiene). Unreleased.
 - [M5.E2](M5.E2-RETROSPECTIVE.md) — Auto-sensing `/sig:migrate-memory` (FR6/FR7) — relocate-never-delete, dry-run-default, git-reversible `.planning/` reorg + doc-layout stamp/banner. Unreleased.
+- [M5.E3](M5.E3-RETROSPECTIVE.md) — _(note pending)_
