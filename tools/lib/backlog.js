@@ -133,7 +133,7 @@ function resolveTitle(title, block) {
 }
 
 /** sha1 of the raw source block — the stable dedupe key (see module header). */
-export function backlogKey(block) {
+export function blockKey(block) {
   return createHash('sha1').update(block).digest('hex');
 }
 
@@ -164,7 +164,7 @@ export async function promoteToBacklog(baseDir, { block, tag, title, today } = {
   await createBacklogIfMissing(baseDir, { today: date });
 
   const path = join(baseDir, BACKLOG_REL);
-  const key = backlogKey(block);
+  const key = blockKey(block);
   const marker = `<!-- backlog-key: ${key} -->`;
   const content = await readFile(path, 'utf-8');
   if (content.includes(marker)) {
@@ -205,7 +205,7 @@ function bugsSkeleton() {
  */
 export async function promoteToBugs(baseDir, { block, title } = {}) {
   const path = join(baseDir, BUGS_REL);
-  const key = backlogKey(block);
+  const key = blockKey(block);
   const marker = `<!-- bugs-key: ${key} -->`;
 
   let content;
@@ -224,10 +224,16 @@ export async function promoteToBugs(baseDir, { block, title } = {}) {
   const built = buildBugsEntry({ body, title: heading });
   // Inject the dedupe marker under the needs-triage Status line so it travels
   // with the entry and a re-promote sees it (crash-safe convergence for t4).
-  const entry = built.replace(
-    '**Status:** needs-triage',
-    `**Status:** needs-triage\n${marker}`
-  );
+  // B23 nit-2: fail LOUD if buildBugsEntry's template ever drops that exact anchor — a
+  // silent no-op replace would strip the marker and break dedupe (re-promotes duplicate).
+  const STATUS_ANCHOR = '**Status:** needs-triage';
+  if (!built.includes(STATUS_ANCHOR)) {
+    throw new Error(
+      `promoteToBugs: buildBugsEntry output is missing the "${STATUS_ANCHOR}" anchor — ` +
+        'cannot inject the dedupe marker (buildBugsEntry template drift?).'
+    );
+  }
+  const entry = built.replace(STATUS_ANCHOR, `${STATUS_ANCHOR}\n${marker}`);
   const next = insertAtEnd(content, entry);
   await atomicWrite(path, next);
   return { written: true, path, key };
