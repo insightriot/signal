@@ -34,7 +34,6 @@ async function main() {
   }
 
   const maxPhaseLen = Math.max(...phases.map(p => p.length));
-  const maxSkillsLen = Math.max(...results.map(r => r.skills.length));
 
   console.log('\nPhase skill-load cost (tokens, ~4 chars/token heuristic)');
   console.log('='.repeat(70));

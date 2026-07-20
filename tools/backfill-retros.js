@@ -22,7 +22,6 @@ import { join } from 'node:path';
 
 import {
   parseSections,
-  getRequiredSections,
   deriveRetroPath,
   loadTemplate,
 } from './lib/retrospective.js';
