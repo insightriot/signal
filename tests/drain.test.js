@@ -251,6 +251,18 @@ describe('listDrainCandidates (Q2 — un-dispositioned only, no date window)', (
       '**Status:** Deferred 2026-05-30 (M4.5.E2 drain).\n\n---\n';
     expect(listDrainCandidates(inserted)).toEqual([]);
   });
+
+  it('B23(d) — a → Promoted terminal entry is NOT re-selected in a batch re-run (only fresh)', () => {
+    // A drain re-run over a corpus that already promoted one entry must select ONLY the
+    // fresh entry — re-selecting the stamped block would re-promote/duplicate it.
+    const batch =
+      '## Already promoted\n\n' +
+      '**Status:** Logged 2026-07-01 via `/sig:add`. → Promoted 2026-07-04 (M5.E4 drain).\n\n' +
+      'Body of the promoted idea.\n\n---\n\n' +
+      '## Still fresh\n\n' +
+      'Body of the fresh idea.\n\n---\n';
+    expect(listDrainCandidates(batch).map((e) => e.heading)).toEqual(['Still fresh']);
+  });
 });
 
 // --- S5.t2: applyDisposition (pure) + applyDispositionToFile (writer, R5 gate) ---

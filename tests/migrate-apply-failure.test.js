@@ -143,4 +143,12 @@ describe('M5.E4 — B16: a rolled-back git-mode apply deletes the pre-apply tag'
     // don't accumulate stray tags. RED against unfixed source: `pre-migrate-memory-T1` remains.
     expect(String(git(dir, ['tag', '-l'])).trim()).toBe('');
   });
+
+  it('B23(c) — leaves the git index empty (nothing staged) after a mid-phase abort', async () => {
+    // Staging (`git add`) runs only AFTER the mechanical phase succeeds; a mid-phase
+    // abort rethrows before it. This guards the comment-protected "do NOT reorder" —
+    // a future reorder that stages before the gate would leak a partial index on abort.
+    await expect(applyMigrate(dir, { stamp: 'T1', dateStr: '2026-07-17' })).rejects.toThrow();
+    expect(String(git(dir, ['diff', '--cached', '--name-only'])).trim()).toBe('');
+  });
 });
