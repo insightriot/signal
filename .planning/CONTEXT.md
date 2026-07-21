@@ -1,81 +1,122 @@
-# Implementation Context — M5.E5 (v0.1.10 carry-over bug squash)
+# Signal — Fresh-Session Context
 
-**Epic:** M5.E5 · **Tier:** FULL / strict · **Phase:** DISCUSS
-**Scope:** the 3 confirmed `BUGS.md` carry-overs from M5.E4 (B24, B26, B25) + the M5.E4 REVIEW I-3 semantics refinement (B6-local-stale). Bugs-only — the Sprint-3 hygiene *commands* stay deferred (see Deferred).
-
-Each decision below was investigated in the real code by a dedicated read-only agent (root cause confirmed with file:line refs).
-
-**✅ RATIFIED 2026-07-21** (Brett — "go with your recs"). All four recommendations accepted as-is, including every **⚑ RATIFY** item: D1 the resolved-abs-target key (catalogue deviation), D2 the all-three-layers scope, D3 the full 6-wrapper close, and D4 **tighten** the stale gate + `CONTEXT.md` classified as **bookkeeping**. The ⚑ tags remain below as the record of what needed sign-off.
+Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Locked Decisions
+## Project
 
-### D1 — B24 (P2): re-key the dangling-delta on the *resolved absolute target*, not `file\0link`  ⚑ RATIFY (catalogue deviation)
+**Signal** (market-facing: *SignalOS*) — a Claude Code plugin that integrates patterns from the Claude Code plugin ecosystem with a project-complexity calibration router. Command prefix: `/sig:`.
 
-**Problem (confirmed):** `computeDanglingDelta` (`tools/lib/migrate-memory.js:1503-1507`) keys each dangle as `` `${d.file}\0${d.link}` ``. The append-log evict relocates a strictly-closed DECISIONS block to `archive/M{n}/` **and** re-roots its links (`./ghost.md` → `../../ghost.md`, resolution-preserving, `archive-tree.js:157-180`). Both key components mutate, so the pre-existing dangle can't be subtracted against the baseline → misread as migrate-introduced → `enforceNoDangling` aborts + rolls back byte-identical. Any external repo whose *closed* DECISIONS history carries one broken `](*.md)` link cannot migrate. There is also a **dry-run/apply divergence**: `renderDryRun` correctly lists the same link as "pre-existing, NOT caused by this migrate" while apply aborts on it.
+## Scope (locked)
 
-**Decision:** key the delta on the **resolved repo-root-relative absolute target** — the one quantity the re-root holds invariant — with **multiset/count semantics** (subtract at most as many as the baseline held for that target). Fix at the shared `scanDanglingLinks`/`computeDanglingDelta` layer so every migrate path is repaired at once.
+- **v1** = 6-phase MVP (`calibrate → discuss → plan → execute → verify → review → ship` + `escalate`). Currently being built.
+- **v2** = 10-phase expansion (adds ideate/validate/strategize upstream + compound downstream). Follow-on, after v1 ships and validates.
 
-**Why not the catalogue wording:** `BUGS.md` B24 said "key on decision ID / original link text." Both fail — the re-root *mutates* the link text, and there is no decision-ID at the generic scanner layer every migrate path shares. The resolved-abs-target is the generalization that actually survives move + re-root.
+See `DECISIONS.md` for full rationale.
 
-**Gate strength preserved:** a genuinely migrate-*introduced* dangle has an abs-target absent from the baseline (or increases the count for one present) → still aborts. **Named, accepted limitation:** delete-the-sole-dangle-to-X *and* introduce a different new dangle to the same already-missing X → count stays 1 → masked. Bounded/low-stakes (X was already missing pre-migrate); document, don't silently ship.
+## Attribution (locked)
 
-**Cost:** 3 test updates — the `computeDanglingDelta` unit test (carry the new field), **invert** the current B23(a) assertion (`tests/migrate-dangling-baseline.test.js:162-219`, which today asserts the *wrong* abort behavior and explicitly says so), and a **new non-injected** gate-strength test.
+9 source repos in 4 tiers:
+- **Ported (v1):** GSD, Agent Skills.
+- **Planned (v2):** gstack, pm-skills, superpowers, compound-engineering.
+- **Pattern source:** planning-with-files, oh-my-claudecode.
+- **Reference:** GSD Skill Creator.
+
+See `LICENSES.md` for details.
+
+## Build approach (locked)
+
+Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** Once `/sig:calibrate`, `/sig:discuss`, `/sig:plan` are functional (late Milestone 2 / early Milestone 3), switch to dogfooding Signal on itself.
+
+**`.planning/` is always tracked in git** — here and in every user project Signal touches. Never add it to `.gitignore`. It's the project's memory, not scratch state. See `DECISIONS.md` for the full principle.
+
+## Current state
+
+**v1 is feature-complete and shipped.** Latest release **v0.1.10** (2026-07-21, **M5.E5 — carry-over bug squash**: B24/B25/B26 + B6 refinement, 1561 tests; retro `M5.E5-RETROSPECTIVE.md`, decisions D-M5E5-1…4); prior **v0.1.9** (2026-07-21, **M5.E4 — bug & doc-runtime hygiene close-out**: 12 bugs + FR5 concurrency-lock, 1529 tests); **v0.1.8** (2026-07-20, the M5 doc-runtime — combined E1+E2+E3); **v0.1.7** (2026-07-15, M4.5.E11 Epic-native flow); **v0.1.6** (2026-07-14, doc-integrity guardrail); **v0.1.5** (2026-07-05, M4.5.E10); **v0.1.4** (2026-06-06) bundled E4+E5; **v0.1.3** (2026-05-31) bundled E7+E3+E9+E8+E2. Plugin marketplace-installable from `InsightRiot/signal`. Milestones 1–4 closed (M4 + v0.1.0 tagged 2026-05-12).
+
+**MILESTONE 4.5 (Release Hardening / Stranger-Adoption Readiness): CLOSED 2026-07-15.** All Epics E1–E11 shipped (v0.1.1–v0.1.7); the external-validation criterion (≥3 non-Signal testers) is **met** — 4 non-Signal users onboarded with positive reception; Brett is source of truth on "bulletproof," external feedback folds in as it arrives (DECISIONS 2026-07-15). Shipped Epics: **E1** (install-path fix → v0.1.1; Slices 3–5 shelved), **E6** (STATE schema + `/sig:checkpoint` → v0.1.2), **E7 / E3 / E9 / E8 / E2** (→ v0.1.3), **E4 + E5** (worked example + comparison + launch assets → v0.1.4), **E10** (resume trust & capture integrity → v0.1.5), **E11** (Epic-native flow → v0.1.7, 2026-07-15). One release carry-over: AC6.4 (real-session SessionStart-resume hook smoke check) is a documented human step — see `references/hooks-api.md`.
+
+- **15 slash commands** (16 on `main` counting the not-yet-released `/sig:migrate-memory`; the user-facing count + README roster bump at the combined doc-runtime release — see `MILESTONE-5.md` § Release prep), **26 agents**, **21 skills**, **1300 tests passing**, validator green.
+- **Conventions locked**: question-patterns (strict enum / 3+other / open-ended); PROFILE.md schema + tier-to-defaults + escalation_history; ID-is-identity vocabulary (M4.5.E6.S1.t1 addressing); `.planning/` always tracked in git; STATE.md YAML frontmatter (`schema_version: 1`) with auto-migration.
+- **`.planning/` restructured 2026-06-05** (out-of-band hygiene, *not* an E5 task): 72 → 24 root files; closed-cycle scaffolding archived under `.planning/archive/M4.5/E{n}/` (M1–M4 under `archive/milestones/`). **`.planning/INDEX.md` is the documentation map — read it first.** Retros stay in root as the traceability spine. `tools/archive-migrate.mjs` = `/sig:migrate-memory` prototype. Commits `be9d87d`, `79c030f`.
+
+## Active work
+
+**M5.E5 — Carry-over bug squash — ✅ SHIPPED as v0.1.10 (2026-07-21).** The four M5.E4 carry-overs cleared: **B24** (migrate dangling-gate over-abort → resolved-abs-target key + multiset), **B26** (retro gate blind on the self-hosted flow → STATE-based Epic-close fallback, Layers 1+2; Layer 3 descoped), **B25** (FR5 read-enclosure behavioral interleaving test + `_afterRead` seam), **B6** (stale-nudge by file identity → `BOOKKEEPING_PATHS`). Full DISCUSS→SHIP at FULL/strict, sequential dispatch (4 tasks / 2 waves); 1529 → **1561 tests**; REVIEW **PASS** — 3-specialist adversarial panel, 12-case mutation matrix, **0 false-greens** (contrast v0.1.9's two). **B26 dogfooded on its own SHIP** (hard-blocked until the retro existed). Decisions D-M5E5-1…4. Retro `M5.E5-RETROSPECTIVE.md`. **New carry-overs (all `needs-triage`):** **B27/B28** (migrate over-abort cluster — fail-safe; one design call: flag-not-abort for archive links), **B29** (`_afterRead` prototype-pollution hardening — unreachable), **B30** (FR1 pre-check timing). No Epic open; next horizon: the **v2-port re-audit (BR-8)** or a new Epic.
+
+**M5.E4 — Bug & doc-runtime hygiene close-out — ✅ SHIPPED as v0.1.9 (2026-07-21).** Full DISCUSS→SHIP at FULL/strict: the 12 confirmed `BUGS.md` items cleared (or dismissed) + the FR5 doc-runtime concurrency-lock; 1492 → **1529 tests**; REVIEW **PASS-WITH-FIXES** — a 3-specialist adversarial panel caught + closed a real path-confinement bypass shipping under a *false-green test* (the `evict.js` leaf-symlink escape — the B19 lesson recurring). Decisions D-M5E4-1…5. Retro: `M5.E4-RETROSPECTIVE.md`. **Two v0.1.10 carry-overs:** **B24** (pre-existing dangle in a closed DECISIONS section blocks migrate) + the **B6 local-stale scope refinement**. Sprint-3 hygiene *commands* (`/sig:sweep`, CLAUDE.md de-bloat, `docs/map`) also → v0.1.10. Broader next horizon: the **v2-port re-audit (BR-8)**.
+
+**M5.E3 — All-docs hygiene runtime + living `BACKLOG.md` + append-log eviction (FR4/FR5 + D-M5E2-6) — ✅ DISCUSS complete (2026-07-18); PLAN next.** Opened via `/sig:discuss --epic M5.E3` (clean B9-fixed roll). The final doc-runtime Epic; **folded into the release** — the doc-runtime ships as ONE 0.1.x (E1+E2+E3). **Doc-lifecycle model locked (D-M5E3-1…8, `DECISIONS.md` 2026-07-18):** four role-named files — `ISSUES-INBOX.md` (raw capture, renamed from `FUTURE-IDEAS.md`) → drain classifies/dispositions → `BACKLOG.md` (sequenced work) + `BUGS.md` (defects); `OPEN-QUESTIONS.md` (questions). Capture = verbatim body + agent-authored auto-title. Append-log hygiene = **evict-with-anchors** (closed-milestone `DECISIONS.md` → `DECISIONS-HISTORY.md` behind pointers, anchors preserved; the auto-`/sig:index` is the load-bearing traversal layer) — E3's risky migrate-shaped piece; audit showed near-zero cross-ref risk (2 file-level hard links, 669 index-resolvable prose refs). Hygiene checks = test-suite, deterministic + offline. Rollout: layout v2→v3 via the E2 banner + extended `/sig:migrate-memory` (existing projects) / born-on-v3 (new projects); retires the `ship.md` §8 Curator step. Spec: **`M5.E3-REQUIREMENTS.md`** (6 FRs + ACs + NFRs). Tier FULL/strict (inherited). Next: **`/sig:plan`** (`current_epic: M5.E3` set; no `--epic` needed).
+
+**M5.E2 — Auto-sensing migrate command (FR6/FR7) — ✅ SHIPPED 2026-07-18** (full DISCUSS→SHIP at FULL/strict in one session; **landed on `main` intentionally unreleased** — release batched into the combined E1+E2+E3 cut per D-M5E2-6; retro `M5.E2-RETROSPECTIVE.md`). Shipped `/sig:migrate-memory` (relocate-never-delete, dry-run-default, git-reversible, all 3 bloat vectors + archive-tree + FR7 stamp/hook/banner) — S1 engine (t0–t8) + S2/S3 vectors/hook/banner + S4 Signal dogfood (`.planning/` 31 archive relocations + stamp v2) + nextpass faithfulness proof (546 KB→1.3 KB, **0 words dropped**, re-confirmed post-REVIEW). **REVIEW = 3-specialist adversarial panel** → caught + fixed a **SHIP-blocking rollback gap** (2 reviewers reproduced it), a directory-symlink escape, fence-less false-success, a `readLayoutBanner` perf/DoS, and test-adequacy gaps — 5 RED-first batches (`50ad065`..`dd77ef1`), 1071→**1300 tests**. Bugs B10–B16 logged (B10–B13/B11 fixed; B14/B15/B16 ticketed). Reports `M5.E2-{VERIFICATION,REVIEW}.md`. The command operates on the **invoking** project (unwedges nextpass et al.); live per-project apply happens after the combined release via `/plugin update`. Spec `M5.E2-REQUIREMENTS.md`; decisions D-M5E2-1…6.
+
+**M5.E1 — Doc-runtime & memory hygiene — SHIPPED 2026-07-16 (full DISCUSS→SHIP, FULL/strict).** M5's first-built Epic, opened via `/sig:discuss --epic M5.E1`. Delivered the doc-runtime **model + eviction mechanics** (a bounded first slice of the go-big flagship): canonical doc-model (FR1, `references/doc-runtime-model.md`) + STATE.md migration-relocate/evict-on-close/skeleton/tier-size-warning (FR2a–d) + FUTURE-IDEAS physical eviction to a ledger (FR3), **dogfooded on Signal's own `.planning/`** (STATE.md 64.5 KB→1 KB; 6 shipped entries → ledger). 999→**1070 tests**; REVIEW PASS-WITH-FIXES (2 independent specialists, 4 Important fixed — incl. a coverage-gate-defeat + a ledger data-loss bug). Retro `M5.E1-RETROSPECTIVE.md`. **Carry-forward:** FR2b `evictEpicNarrative` is fixture-proven but **never live-fired** (no-ops at M5.E1's own close). **Deferred:** FR4/FR5 → M5.E2 (all-docs hygiene + living `BACKLOG.md`); FR6/FR7 → M5.E3 (auto-sensing migrate command + doc-layout stamp). Spec: `M5.E1-REQUIREMENTS.md`; decisions D-M5E1-1…6. **Landed on main, intentionally unreleased** — release **batched with the doc-runtime continuation** (cut the marketplace release when M5.E2/E3 land, so the doc-runtime ships as a coherent unit rather than a partial eviction-without-migrate; DECISIONS 2026-07-16). plugin.json stays 0.1.7; CHANGELOG entry is `[Unreleased]`. **Next: M5.E2 (doc-runtime continuation — FR4/FR5) or the v2-port re-audit.**
+
+**M4.5.E11 — Epic-native flow — SHIPPED as v0.1.7 (2026-07-15).** Full DISCUSS→SHIP at FULL/strict. Made Epic mode first-class: `--epic` on `/sig:discuss` + `/sig:new-project`, `setCurrentEpic` write-half, `{EpicID}-*.md` artifacts, per-Epic PROFILE calibration; **linear mode byte-identical** (opt-in/additive). 894→**999 tests**; REVIEW PASS-WITH-FIXES (2 specialists, 0 Critical). Retro `M4.5.E11-RETROSPECTIVE.md`. **Closed M4.5.**
+
+**v0.1.6 — Doc-integrity guardrail — SHIPPED (2026-07-14).** Lightweight patch (no Epic ID; tracked as `current_epic: v0.1.6`), full DISCUSS→SHIP at FULL/strict. 5 slices (`94aaaa7..b70da15`): **FR1** STATE-frontmatter write-guard (block prose in `completed_phases`/`blockers` — field-specific/blacklist/raw-text; fires in every installed repo) · **FR2** read-time size banner (resume/status/checkpoint, 150 KB) · **FR3** `/sig:plan` drain recognizes `> **Promoted**` blockquote stamps (converges 43→37) · **FR4** `/sig:add` clause-boundary titles · **FR5** 3 bugs → `BUGS.md`. VERIFY 21/21 ACs; **REVIEW PASS-WITH-FIXES** — 2 specialists, FR1 was inert on CRLF + `$`-replacement desync, 6 fixes in-phase. 854→**894 tests**, no new deps. Decisions D-v016-1…7; retro `v0.1.6-RETROSPECTIVE.md`. **Carry-over:** AC6.4-style real-session hook smoke (human step). **Next horizon: the committed Epic-native flow Epic**, or **Milestone 5**. (The version-as-`current_epic` friction hit during this SHIP is one more vote for Epic-native flow.)
+
+**M4.5.E10 — Resume trust & capture integrity — SHIPPED as v0.1.5 (2026-07-05).** Full DISCUSS→SHIP at FULL/strict in one session. 5 slices / 13 tasks (`0c0ca54..dfc4bf7`): **S1** FR2 origin-drift (`isStaleVsOrigin`) + FR3 STATE freshness in discuss/plan · **S2** FR1 `resolveArtifactPath` Epic-prefix resolver (fixed the resume-can't-find-`M4.5.E10-PLAN.md` papercut) · **S3** FR4 capture-pipe guards · **S4** FR5 schema-drift banner in status/resume (AD2) · **S5** FR6 hook harness + `references/hooks-api.md` + SD3 privacy fix. VERIFY 31/31 ACs; **REVIEW PASS-WITH-FIXES** — 2 independent agents caught the same crash (F1: staleness checks threw on a schema-drifted STATE.md instead of degrading), 7 findings fixed in-phase + a git-option-injection guard. 777→**854 tests**, no new deps, validator green. Retro: `M4.5.E10-RETROSPECTIVE.md`. **One carry-over:** AC6.4 real-session hook smoke check (human step, `references/hooks-api.md`). **Next horizon: the committed Epic-native flow Epic** (make Epic mode first-class — commands write Epic-scoped artifacts + populate `current_epic`; FR1 is its forward-compatible read-half — DECISIONS 2026-07-05).
+
+> **Resume caveat (expected, not a bug — it's the thing E10 fixes):** `/sig:resume`'s artifact resolver can't yet find `M4.5.E10-PLAN.md` — the Epic-prefix resolver *is* S2/FR1, not built. Post-clear resume reports the correct STATE (EXECUTE / S1 / next-action) but its current-phase-artifact section will say "not found." Read `M4.5.E10-PLAN.md` directly for the task list until S2 lands.
+
+**Epic-native flow = the committed NEXT Epic after E10** — make Epic mode first-class (commands create/track Epics, write Epic-scoped artifacts, populate `current_epic`, per-Epic calibration). Root cause + full context in DECISIONS 2026-07-05; FR1 is its forward-compatible read-half.
+
+**M4.5.E5 — external validation + launch — SHIPPED as v0.1.4 (2026-06-06)** (the last M4.5 Epic before E10 was added). v0.1.4 tagged (`6328fed`), first GitHub Release; the outward tester loop (recruit ≥3, record demo) remains open, tracked in `M4.5.E5-LAUNCH-KIT.md` §3.
+
+**Build horizon after E10 + Epic-native: M5** (v2 framework ports + memory-management milestone). The 2026-06-05 corpus restructure already dogfooded part of M5's memory work (see the `/sig:migrate-memory` FUTURE-IDEAS entry).
+
+**Shelved (not deleted), pending tester volunteers (per D-E3-12):**
+
+- **M4.5.E1 Slices 3–5** — Linux + WSL install matrix + versioning-policy doc + validator hardening. Scoped in `MILESTONE-4.5.md` § E1; paused until a tester on the platform commits to running `/sig:init` → verifying agent registration.
+
+**Multi-machine norm:** Signal-the-codebase work happens on **this Mac Studio**. Biz machine + personal laptop are `/plugin install` test environments only. Don't run parallel `/sig:*` workflow commands across machines — git races create duplicate work.
+
+## Key files
+
+- `.planning/PROJECT.md` — the full v1 spec
+- `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` — the v2 vision
+- `CLAUDE.md` — project instructions
+- `.planning/MILESTONE-4.5.md` (active — release-hardening / stranger-adoption; E5 is the only Epic still open) + `MILESTONE-5.md` (v2 ports + memory mgmt, gated on usage data). **M1–M4 archived** at `.planning/archive/milestones/` (M4 = `/sig:init` brownfield onboarding, closed 2026-05-12 + v0.1.0).
+- `.planning/DECISIONS.md` — append-only architecture decisions
+- `.planning/OPEN-QUESTIONS.md` — unresolved design questions (v1-scoped)
+- `.planning/ISSUES-INBOX.md` — post-v1 architectural evolutions of Signal's own mechanisms (distinct from MILESTONE-5's rundown-v2 integrations)
+- `.planning/STATE.md` — what milestone we're in, active, blocked
+
+**Authoritative references (in `references/`):**
+- `profile-schema.md` — PROFILE.md format + validation rules
+- `tier-definitions.md` — 4-tier definitions + tier-to-defaults table + escalation paths + brownfield calibration patterns (added in M4.t16)
+- `question-patterns.md` — three question shapes (strict enum / 3+other / open-ended) — **especially relevant for M4.t8**
+- `anti-rationalization.md` — anti-rationalization patterns
+
+**Tooling (in `tools/`):**
+- `lib/state.js` — `initState`, `readState`, `transitionPhase`, `checkGateArtifacts`, `PHASES`
+- `lib/profile.js` — `readProfile`, `isPhaseEnabled`, `applyRigorOverrides`, `ProfileSchemaError`
+- `lib/landscape.js` — `readScan`, `readAllScans`, `extractSection`, `extractField` (consumed by `/sig:init` Step 3 synthesis)
+- `lib/walkthrough.js` — `countMarkers`, `appendNote` (consumed by `/sig:init` Step 5 walkthrough)
+- `lib/status.js` — `nextActionForPhase`, `readOpenQuestions`, `formatEscalationSummary`, `reachedDoneViaSkip`, `readLandscapeMeta`
+- `lib/context-monitor.js` — `estimateTokens`, `checkContextBudget`, `findSkillPath`, `estimatePhaseSkillCost`
+- `lib/skill-loader.js` — skill resolution
+- `validate-plugin.js` — `npm run validate`
+- `measure-phase-costs.js` — token-cost measurement (`node tools/measure-phase-costs.js`)
+
+## How to start a session
+
+1. Run `/sig:resume`. It reads PROFILE.md + STATE.md frontmatter and prints a single-screen re-orientation briefing (vision, tier, phase, in-flight tasks, last completed task, blockers, open questions, next action). This replaces the manual "read CONTEXT.md + STATE.md + MILESTONE-*.md" ritual.
+2. If `/sig:resume` reports `Next: done` (current Epic shipped), pick the next Epic from `MILESTONE-5.md` § "Epic status" and run **`/sig:discuss --epic M5.E2`** (the E11 Epic-native flow: `--epic` derives/writes `current_epic` + resets coupled fields; a *done* Epic requires `--epic` to open the next one).
+3. If staleness is reported (STATE.md behind work history), it's very likely the **benign B6 "+1"** (a markFresh/bookkeeping commit — local HEAD already == origin; nothing to pull). Confirm with `git rev-list HEAD..origin/main` = 0; only run `/sig:checkpoint` if a *real* remote push exists. Run `/sig:checkpoint --context` before any planned context clear.
+4. For deeper context, open the files in this order: `CONTEXT.md` (this file) → `MILESTONE-5.md` → `DECISIONS.md` (2026-07-16 entries).
+
+**Current work (2026-07-20):** **Milestone 5 — the doc-runtime (E1+E2+E3) — ✅ SHIPPED as v0.1.8.** M5.E3 (all-docs hygiene + living BACKLOG + append-log eviction, FR1–FR6) completed full DISCUSS→SHIP at FULL/strict — 7 slices, 1300→1492 tests, dogfooded on Signal's own `.planning/` (DECISIONS 178KB→33KB, 0 dropped), REVIEW PASS-WITH-FIXES. Signal's memory is now self-maintaining (`ISSUES-INBOX`→`BACKLOG`/`BUGS`, auto `/sig:index`, hygiene guard, verbatim DECISIONS eviction, `/sig:migrate-memory`). **No Epic open.** Next horizon: the **v2-port re-audit (BR-8)** gating the speculative ports, or a new Epic via `/sig:discuss --epic <name>`. Deferred non-blocking: `BUGS.md` B18–B23. Retro: `M5.E3-RETROSPECTIVE.md`.
+
+**Sequencing (decided — no longer open):**
+1. **M5.E2 = migrate command (FR6/FR7)** — *in progress.* Un-sticks existing bloated projects. Full scope, relocate-never-delete, releasable on its own.
+2. **M5.E3 = all-docs hygiene runtime + living `BACKLOG.md` (FR4/FR5)** — prevention/maintenance; 3 DISCUSS pre-decisions locked (`MILESTONE-5.md`).
+3. **v2-port re-audit** (BR-8) — still gates the speculative feature ports; lower urgency than the doc-runtime.
+
+Open tail: `BUGS.md` B5 (lint tooling), B6 (resume staleness false-positive), **B8** (write-guard wedge — discoverability mitigated `56593a2`; auto-remediation = M5.E2), **B9** (`setCurrentEpic` stale-phase-on-roll, confirmed). FR2b `evictEpicNarrative` never-live-fired (its first real firing is M5.E2's migrate engine).
 
 ---
 
-### D2 — B26 (P3, scope wider than catalogue): STATE-based Epic-close fallback across all 3 enforcement layers  ⚑ RATIFY (scope expansion)
-
-**Problem (confirmed, worse than ticket):** the FR1 retro gate's Epic-close verdict is **100% milestone-table-driven** — `isEpicCloseShip` (`retrospective.js:341-358`) reads only the `MILESTONE-{n}.md` status row for the current Epic. `MILESTONE-5.md` has **no E4 row at all** (only E1/E2/E3), so `findEpicStatusRow('M5.E4')` returns `null` → skip. The retro was written by hand; the hard-block never fired. **This blind predicate is shared across all three D-E9-8 enforcement layers**, so fixing only `shipFR1Check` leaves two others blind:
-- **Layer 1** `shipFR1Check` (`retrospective.js:667`) — the reported symptom.
-- **Layer 3** `detectDirtyExecute` resume hook (`retrospective.js:603`) — same blind predicate.
-- **Layer 2** `checkProposedStateWrite` (`retrospective.js:379,398`) — blind for an *independent* reason: it triggers on a `- SHIP` line in `completed_phases`, which per `references/epic-native-flow.md:27` Signal by design **never writes**. Structurally dead on this flow.
-
-**Decision:** add a STATE-based fallback `isEpicCloseByState(state, profile)` — true when `current_epic` is set, `phase === 'SHIP'`, and `completed_phases` covers **every tier-enabled phase before SHIP** (tier-aware: FULL/FEATURE → through REVIEW; SKETCH → through VERIFY; SPIKE skips SHIP so FR1 never runs). **Gate it on row-absence** (`findEpicStatusRow === null AND isEpicCloseByState`), **not a pure OR** — a maintained table saying "S2–S5 pending" must still win for a legitimate per-slice ship (preserves D-E9-5). Apply the combined predicate to **Layer 1** (`shipFR1Check`); **re-key Layer 2** (`checkProposedStateWrite`) off `phase: SHIP` + tier-complete phases instead of the never-written `- SHIP`. **Layer 3 DESCOPED** — see note below.
-
-**False-positive risk (flag + negative-test):** linear mode + unmaintained table (row absent) + genuinely multi-slice with phases re-run per slice → could demand a retro on a non-final slice. Narrow (Epic mode has no mid-Epic SHIP), and over-firing a retro is the softer failure vs. silently skipping.
-
-**Layer 3 DESCOPE (ratified 2026-07-21, during T2 — reverses the "all 3 layers" scope):** `detectDirtyExecute` runs only at `phase === 'EXECUTE'` (`retrospective.js:697`) while `isEpicCloseByState` requires `phase === 'SHIP'` — an empty intersection, so the fallback is a literal no-op there (and `warn-dirty-execute.js:44` doesn't parse `completed_phases`, so it'd be inert in production anyway without editing hook JS outside the task lane). Verified in code. The B26 harm is **fully closed by Layers 1+2** (Layer 1 = the SHIP hard-block, the load-bearing gate that fires in every runtime incl. Cursor/Codex; Layer 2 = the write-guard). Layer 3's existing milestone-row trigger stays correct for its resume-nudge purpose (AC2.7 preserved). **AC2.4 struck.** The "also nudge at resume when parked at SHIP with no retro" idea (the executor's Option 2) is a real *feature*, captured in `ISSUES-INBOX.md` for a later Epic.
-
----
-
-### D3 — B25 (P3): prove FR5 read-enclosure with an `_afterRead` seam — full close (all 6 wrappers)  ⚑ RATIFY (full vs canonical-only)
-
-**Problem (confirmed):** read-enclosure IS correct — all 6 RMW wrappers are `withStateLock(baseDir, () => XxxCore(...))` with the read inside `Core`. But `tests/rmw-lock.test.js` only asserts throw-under-held-lock, which a *broken* read-outside-lock wrapper passes identically → AC5.2 ("no lost update") has no behavioral test.
-
-**Decision:** add an optional `_afterRead` opts hook to each `Core` (fires after the version-establishing read), defaulting to no-op — **mirroring the existing `renameFn` crash-injection seam** (`atomic-write.js:20`), so production is byte-identical and there's precedent. Reject a module-level global. Add a shared orchestration helper. Prove it with a deliberately-**broken** `reads-outside-lock` twin built from exported primitives: the new test must **FAIL** against the broken twin and **PASS** against the real wrappers (RED-first). Because the lock is throw-on-contention (not blocking), the *arriving* writer fails fast — assert "no lost update" via final on-disk content, not "A incorporates B."
-
-**Scope = full close (all 6 in `RMW_PATHS`)**, not canonical-path-only. Lead with `applyDispositionToFile` as the reference path (zero wrapper change — already forwards `opts`); `regenerateIndex` needs a one-line signature bump to `(baseDir, opts = {})`. Rationale: B25 is framed as "all 6 correct on inspection," so the honest close covers all 6 (matches the build-complete-not-band-aid norm).
-
-**Doc-accuracy note (free):** `M5.E4-REVIEW.md:29` says "7 wrappers swept" — there is a 7th (`regeneratePlanningIndex`), read-enclosed and covered indirectly; `RMW_PATHS` canonicalizes 6. Reconcile the wording.
-
----
-
-### D4 — B6-refinement (P3): tighten local-stale by *file identity*, not commit count  ⚑ RATIFY (taste call)
-
-**Problem (confirmed):** `isStateStale` (`state.js:769-844`) suppresses the "STATE is behind" banner whenever *every* commit in `lastCommit..HEAD` touches only `STATE_AFFECTING_PATHS` — which includes `*-PLAN/PROGRESS/VERIFICATION/REVIEW.md`. So a committed PLAN/PROGRESS file that was never rolled into STATE reads as "not stale." Internal inconsistency: those same files are in the *trigger* set (Walk 1 treats them as "state moved") but Walk 2 then swallows them.
-
-**Decision:** tighten via a **separate, smaller `BOOKKEEPING_PATHS`** (= `STATE.md`, plus `CONTEXT.md` — see sub-call) that drives Walk 2's exclude, instead of deriving Walk 2 from the full trigger list. Result: a STATE.md-only "+1" still suppresses (real bookkeeping); a committed PLAN/PROGRESS/VERIFICATION/REVIEW that never reached STATE reads as **work worth a nudge** → stale. **Count-independent**, so it's also correct where the M5.E4 reviewer's `commits.length === 1` candidate *misfired* (a STATE refresh split across two commits). Do **not** remove PLAN/PROGRESS from `STATE_AFFECTING_PATHS` (they'd become invisible — the opposite bug — and break the `is-state-stale.test.js:136` pathspec test).
-
-**⚑ Taste call — RATIFIED: tighten.** When you've committed a PLAN/PROGRESS file but haven't refreshed STATE, you want the "you're behind" nudge. Rationale held: the miss is costly (resuming on stale info at the exact moment the banner exists to protect); the false alarm is one dismissable, fail-open line.
-
-**⚑ Sub-call — RATIFIED: `CONTEXT.md` is bookkeeping** (goes in `BOOKKEEPING_PATHS`, no nudge — curated orientation like STATE).
-
----
-
-## Deferred Decisions
-
-- **Sprint-3 hygiene *commands*** — `/sig:sweep --docs/--code`, CLAUDE.md de-bloat + command-frontmatter freshness, the `docs/map` ship-checklist line (`BACKLOG.md` § "Sprint 3 (residual)"). These are *features*, not defects; out of a bug-squash Epic. The `docs/map` two-screen app itself already shipped this session (`ab05bb0`, `931c959`); only the freshness-checklist line remains. → a later Epic.
-- **B24 named limitation** (delete-one/add-one to the same already-missing target) — accepted + documented, not fixed.
-- **`isEpicCloseByState` linear-multi-slice false-positive** — bounded; handled by the row-absence gate + a negative test, not a separate mechanism.
-
-## Assumptions (validate during EXECUTE)
-
-1. `computeLinkEdits` (`archive-tree.js:171-174`) is genuinely resolution-preserving for every reroot path — D1's abs-target key relies on it. Verify with the inverted B23(a) fixture.
-2. No production caller of the 6 RMW Cores passes `_afterRead` (grep `commands/*.md`) — the seam must stay test-only and inert (D3, mirrors `renameFn`).
-3. `completed_phases` phase-name matching tolerates the `(date)` suffix (`REVIEW (2026-07-21)`) — D2's tier-complete check must prefix/word-boundary match, not exact-string.
-4. Fixing D2 across all 3 layers does not disturb `detectDirtyExecute`'s intended "milestone-says-close but STATE-says-EXECUTE" trigger — re-check `retrospective.js:600-603` before touching the shared predicate.
-
-## Last Updated
-2026-07-21 (DISCUSS complete — four investigations synthesized; all four decisions ratified by Brett)
+*Last updated: 2026-07-21 (**M5.E5 shipped as v0.1.10** — carry-over bug squash: B24/B25/B26 + B6 refinement, 1561 tests, REVIEW PASS with 0 false-greens; B26 dogfooded on its own SHIP. New carry-overs B27–B30 deferred. No Epic open; next is the v2-port re-audit or a new Epic. NOTE: some deeper lines in this doc still reference v0.1.8-era counts/state — a fuller orientation refresh is pending.)*
