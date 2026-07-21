@@ -267,7 +267,10 @@ function appendOpenQuestions(content, questions, date) {
  *   decisions?: string[],
  *   questions?: string[],
  *   acknowledgeSensitive?: boolean,
- * }} [opts]
+ *   _afterRead?: Function,
+ * }} [opts] — `_afterRead` is the FR5 read-enclosure test seam (B25/M5.E5.T3):
+ *   awaited once after the first version-establishing read, before any write.
+ *   Defaults to undefined (no-op); mirrors atomic-write.js#renameFn.
  * @returns {Promise<{
  *   wrote: string[],
  *   sensitiveHits: object[],
@@ -306,6 +309,11 @@ async function captureCheckpointContextCore(baseDir, opts = {}) {
     const ctxExisting = existsSync(ctxPath)
       ? await readFile(ctxPath, 'utf-8')
       : '';
+    // FR5 read-enclosure test seam (B25/M5.E5.T3): fire once after the first
+    // version-establishing read, before any write, so a behavioral interleaving test
+    // can prove the read sits inside the coarse lock. Defaults to undefined (no-op) —
+    // mirrors atomic-write.js#renameFn; inert in production (no commands/*.md caller passes it).
+    if (opts._afterRead) await opts._afterRead();
     await atomicWrite(ctxPath, appendToLockedDecisions(ctxExisting, decisions, today));
     wrote.push(ctxPath);
 

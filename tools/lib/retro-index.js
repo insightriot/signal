@@ -214,9 +214,14 @@ export function renderIndex(retros, existingHooks) {
  *   - S2.t4 initial generation (one-shot at Epic close)
  *
  * @param {string} baseDir
+ * @param {{_afterRead?: Function}} [opts] — `_afterRead` is the FR5 read-enclosure test
+ *   seam (B25/M5.E5.T3): awaited once after the version-establishing read of the file
+ *   under test (RETROSPECTIVES.md), before the write. Defaults to undefined (no-op);
+ *   mirrors atomic-write.js#renameFn.
  * @returns {Promise<{written: boolean, path: string, retroCount?: number, reason?: string}>}
  */
-async function regenerateIndexCore(baseDir) {
+async function regenerateIndexCore(baseDir, opts = {}) {
+  const { _afterRead } = opts;
   const indexPath = join(baseDir, '.planning', 'RETROSPECTIVES.md');
 
   const retros = await enumerateRetros(baseDir);
@@ -227,6 +232,7 @@ async function regenerateIndexCore(baseDir) {
   } catch {
     // No existing index — that's fine; we'll write the first one.
   }
+  if (_afterRead) await _afterRead();
 
   const hooks = parseExistingHooks(existing);
   const content = renderIndex(retros, hooks);
@@ -246,10 +252,11 @@ async function regenerateIndexCore(baseDir) {
  * commands/ship.md needs no edit.
  *
  * @param {string} baseDir
+ * @param {{_afterRead?: Function}} [opts] — forwarded verbatim to the Core (test seam).
  * @returns {Promise<{written: boolean, path: string, retroCount?: number, reason?: string}>}
  */
-export async function regenerateIndex(baseDir) {
-  return withStateLock(baseDir, () => regenerateIndexCore(baseDir));
+export async function regenerateIndex(baseDir, opts = {}) {
+  return withStateLock(baseDir, () => regenerateIndexCore(baseDir, opts));
 }
 
 // ---- Milestone meta-retro (S2.t6 / FR6 A6 downgrade) ----
@@ -335,7 +342,10 @@ function filterRetrosForMilestone(retros, milestoneId) {
  *
  * @param {string} baseDir
  * @param {string} milestoneId — e.g., "M4.5"
- * @param {{today?: string, force?: boolean}} [opts]
+ * @param {{today?: string, force?: boolean, _afterRead?: Function}} [opts] — `_afterRead`
+ *   is the FR5 read-enclosure test seam (B25/M5.E5.T3): awaited once after the
+ *   version-establishing read of the file under test, before the write. Defaults to
+ *   undefined (no-op); mirrors atomic-write.js#renameFn.
  * @returns {Promise<{written: boolean, path: string, retroCount: number, reason?: string}>}
  */
 async function generateMilestoneMetaRetroCore(baseDir, milestoneId, opts = {}) {
@@ -359,6 +369,7 @@ async function generateMilestoneMetaRetroCore(baseDir, milestoneId, opts = {}) {
       reason: 'file exists (pass force: true to regenerate)',
     };
   }
+  if (opts._afterRead) await opts._afterRead();
 
   const allRetros = await enumerateRetros(baseDir);
   const milestoneRetros = filterRetrosForMilestone(allRetros, milestoneId);
