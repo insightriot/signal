@@ -1486,6 +1486,18 @@ Open sub-question for PLAN: how much stack coverage in v1 — JS/.env only first
 
 ---
 
+## Resume-time retro nudge when parked at SHIP with no retro (B26 Layer-3 follow-up)
+
+**Status:** Logged 2026-07-21 (descoped from M5.E5/B26 — the executor's "Option 2").
+
+Enhancement descoped from M5.E5. The B26 fix (STATE-based Epic-close fallback for the FR1 retro gate) applies only at SHIP-time, so it's a no-op inside `detectDirtyExecute` (the SessionStart-resume warning), which is guarded on `phase === 'EXECUTE'` (`retrospective.js:697`). B26's enforcement harm is fully closed by Layers 1+2 (the SHIP hard-block + the write-guard).
+
+The nice-to-have left on the table: a **resume-time** nudge that also fires when you resume **parked at `phase: SHIP`** with all pre-SHIP phases done, `current_epic` set, and no retro on disk — "SHIP will hard-block; write the retro now." Today `detectDirtyExecute` only nudges from the EXECUTE-with-milestone-row-closed angle, so a hand-managed project sitting at SHIP with no retro gets no early heads-up (Layer 1 still hard-blocks at `/sig:ship` — this is purely an earlier, friendlier warning).
+
+Why it's a feature not the bug: broaden `detectDirtyExecute`'s `phase` guard to also cover SHIP, thread `completed_phases` + `profile` through `hooks/warn-dirty-execute.js` (today builds `state = {phase, current_epic}` only, `:44`), reuse `isEpicCloseByState`. Touches hook JS outside the B26 lane; advisory-only.
+
+---
+
 
 
 
