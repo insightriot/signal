@@ -13,7 +13,18 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { EPIC_ID_STRICT_RE } from './state.js';
+import { EPIC_ID_STRICT_RE, PHASES } from './state.js';
+
+// Pre-SHIP work phases in canonical order — everything in PHASES between
+// CALIBRATE and SHIP (both exclusive). Derived from PHASES (state.js:16) so the
+// sequence has a single source of truth. CALIBRATE is excluded (it's how we got
+// here, never a completed_phases gate requirement); SHIP is the phase being
+// entered, not a prerequisite. The tier-required set is this minus a profile's
+// `phases_skipped` (B26 / M5.E5.T2).
+const PRE_SHIP_PHASES = PHASES.slice(
+  PHASES.indexOf('DISCUSS'),
+  PHASES.indexOf('SHIP'),
+);
 
 // ---- Per-tier required sections (locked, exact-string match) ----
 
@@ -357,14 +368,96 @@ export function isEpicCloseShip(state, milestoneContent) {
   return !hasPending && !hasInFlight;
 }
 
+/**
+ * Does `completedPhases` contain an entry for `phase`? Entries are single-line
+ * scalars shaped `PHASE (YYYY-MM-DD)` or `PHASE (date) — note`, so match the
+ * leading phase-name token at a word boundary — the `(date)` suffix must not
+ * defeat the match (D2 assumption 3). Phase names are known uppercase-letter
+ * constants, so no regex escaping is needed.
+ *
+ * @param {string[]} completedPhases
+ * @param {string} phase
+ * @returns {boolean}
+ */
+function completedContainsPhase(completedPhases, phase) {
+  if (!Array.isArray(completedPhases)) return false;
+  const re = new RegExp(`^${phase}\\b`);
+  return completedPhases.some(
+    (entry) => typeof entry === 'string' && re.test(entry.trim()),
+  );
+}
+
+/**
+ * The STATE-based Epic-close fallback (B26 / M5.E5.T2). True when STATE alone
+ * shows the current Epic has reached its close: `current_epic` set, `phase ===
+ * 'SHIP'`, and `completed_phases` covers every tier-enabled pre-SHIP phase.
+ *
+ * The required set is `PRE_SHIP_PHASES` minus `profile.phases_skipped`
+ * (FULL/FEATURE → all 5; SKETCH `[REVIEW]` → through VERIFY; SPIKE `[REVIEW,
+ * SHIP]` skips SHIP, so a SHIP-phase state never arises and this never fires).
+ * When `profile` is absent, nothing is skipped — the full pre-SHIP set, which
+ * is the correct default for Signal's own FULL-tier self-hosted flow.
+ *
+ * This is the STATE half of the combined Epic-close predicate. Callers gate it
+ * on milestone-ROW ABSENCE (`findEpicStatusRow === null`), NOT a pure OR, so a
+ * maintained `pending` / `in flight` row still wins for a legit per-slice ship
+ * (D-E9-5). It never reads the milestone table itself.
+ *
+ * @param {{current_epic?: string|null, phase?: string, completed_phases?: string[], completedPhases?: string[]} | null | undefined} state
+ * @param {{phases_skipped?: string[]} | null | undefined} profile
+ * @returns {boolean}
+ */
+export function isEpicCloseByState(state, profile) {
+  if (!state) return false;
+  if (!state.current_epic) return false;
+  if (state.phase !== 'SHIP') return false;
+
+  const skipped = new Set(profile?.phases_skipped ?? []);
+  const required = PRE_SHIP_PHASES.filter((p) => !skipped.has(p));
+  const completed = state.completed_phases ?? state.completedPhases ?? [];
+
+  return required.every((phase) => completedContainsPhase(completed, phase));
+}
+
 // ---- Hook helpers (D-E9-8 layers 2 + 3) ----
+
+/**
+ * Extract `completed_phases` list entries from a raw STATE.md frontmatter
+ * block. Each entry is a single-line `- PHASE (date)` scalar; quotes are
+ * stripped. Returns `[]` for an absent or inline-empty (`completed_phases: []`)
+ * list. Raw-text parse (no YAML dep) to keep the PreToolUse hook synchronous
+ * and circular-import-free.
+ *
+ * @param {string} fm — the raw frontmatter text (between the `---` fences)
+ * @returns {string[]}
+ */
+function parseCompletedPhasesFromFrontmatter(fm) {
+  const lines = fm.split(/\r?\n/);
+  const idx = lines.findIndex((l) => /^completed_phases:/.test(l));
+  if (idx === -1) return [];
+  if (/^completed_phases:\s*\S/.test(lines[idx])) return []; // inline (e.g. [])
+  const out = [];
+  for (let i = idx + 1; i < lines.length; i++) {
+    if (/^[A-Za-z_][A-Za-z0-9_]*:/.test(lines[i])) break; // next top-level key
+    const item = lines[i].match(/^\s*-\s*(.+)$/);
+    if (item) out.push(item[1].replace(/^["']|["']$/g, '').trim());
+  }
+  return out;
+}
 
 /**
  * Decide whether a proposed STATE.md write should be blocked by the
  * PreToolUse hook (layer 2 of D-E9-8). The proposed new content is parsed,
- * and we look for the load-bearing signal: the write would mark the Epic
- * as SHIPped (`phase: SHIP` AND completed_phases contains a `SHIP ...` entry).
- * If the matching retro file isn't on disk, block.
+ * and we look for the load-bearing signal: the write would record an
+ * Epic-close SHIP (`phase: SHIP` AND `completed_phases` covering every
+ * tier-enabled pre-SHIP phase). If the matching retro file isn't on disk, block.
+ *
+ * B26 (M5.E5.T2): the prior trigger keyed off a `- SHIP` entry in
+ * `completed_phases`, but Signal never writes a SHIP completion entry
+ * (references/epic-native-flow.md:27) — so that path was structurally dead.
+ * Re-keyed off tier-complete pre-SHIP phases. Tier-awareness comes from
+ * `args.profile.phases_skipped`; with no profile it requires the full pre-SHIP
+ * set (the self-hosted FULL default).
  *
  * The check fires regardless of whether `/sig:ship` was the invoker — that's
  * the bypass-resistance the layer adds beyond the command-internal check.
@@ -372,6 +465,7 @@ export function isEpicCloseShip(state, milestoneContent) {
  * @param {object} args
  * @param {string} args.proposedContent — the post-write STATE.md content
  * @param {string} args.baseDir — project root
+ * @param {{phases_skipped?: string[]}} [args.profile] — tier profile (optional)
  * @param {(state: object) => string|null} [args.expectedRetroPathFn] — DI for testing
  * @param {(p: string) => boolean} [args.fileExistsFn] — DI for testing
  * @returns {{block: boolean, reason?: string, retroPath?: string}}
@@ -380,6 +474,7 @@ export function checkProposedStateWrite(args) {
   const {
     proposedContent,
     baseDir,
+    profile,
     expectedRetroPathFn = expectedRetroPath,
     fileExistsFn,
   } = args;
@@ -394,9 +489,13 @@ export function checkProposedStateWrite(args) {
   const phase = phaseMatch ? phaseMatch[1].trim() : null;
   if (phase !== 'SHIP') return { block: false };
 
-  // completed_phases as YAML list — look for any line starting with "- SHIP"
-  const hasShipCompletion = /(^|\n)\s*-\s*SHIP\b/.test(fm);
-  if (!hasShipCompletion) return { block: false };
+  // Epic-close signal (B26): phase SHIP + completed_phases covers every
+  // tier-enabled pre-SHIP phase. NOT a `- SHIP` entry (Signal never writes one).
+  const completed = parseCompletedPhasesFromFrontmatter(fm);
+  const skipped = new Set(profile?.phases_skipped ?? []);
+  const required = PRE_SHIP_PHASES.filter((p) => !skipped.has(p));
+  const coversPreShip = required.every((p) => completedContainsPhase(completed, p));
+  if (!coversPreShip) return { block: false };
 
   const currentEpicMatch = fm.match(/^current_epic:\s*(\S+)\s*$/m);
   const currentEpic = currentEpicMatch ? currentEpicMatch[1].replace(/['"]/g, '') : null;
@@ -664,7 +763,20 @@ export async function shipFR1Check(args) {
 
   // (2) Per-Epic vs per-Slice gating. If this isn't the closing SHIP for the
   // Epic, FR1 doesn't fire — slice ships are exempt per D-E9-5.
-  if (!isEpicCloseShip(state, milestoneContent)) {
+  //
+  // B26 (M5.E5.T2): the milestone table is the primary signal, but on the
+  // self-hosted flow MILESTONE-{n}.md can lack the Epic's row entirely (as
+  // MILESTONE-5.md had no E4 row), so findEpicStatusRow returns null and
+  // isEpicCloseShip is false — the gate silently skipped. Fall back to STATE,
+  // but ONLY when the row is ABSENT, so a maintained "pending"/"in flight" row
+  // still wins for a legit per-slice ship (not a pure OR).
+  const rowStatus = milestoneContent
+    ? findEpicStatusRow(milestoneContent, state.current_epic)
+    : null;
+  const isEpicClose =
+    isEpicCloseShip(state, milestoneContent) ||
+    (rowStatus === null && isEpicCloseByState(state, profile));
+  if (!isEpicClose) {
     return {
       halt: false,
       skipped: true,

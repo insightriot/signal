@@ -207,3 +207,169 @@ describe('shipFR1Check', () => {
     expect(r2).toEqual(r1);
   });
 });
+
+// B26 (M5.E5.T2) — STATE-based Epic-close fallback. The FR1 retro gate was
+// 100% milestone-table-driven: findEpicStatusRow returns null when the
+// MILESTONE-{n}.md file has no row for the current Epic (as MILESTONE-5.md had
+// no E4 row), so isEpicCloseShip returned false and the whole gate silently
+// skipped at M5.E4's SHIP. shipFR1Check now falls back to STATE — but ONLY when
+// the milestone row is ABSENT, so a maintained "pending" row still wins.
+
+// A milestone table with NO row for E4 — the self-hosted M5.E4 shape.
+const MILESTONE_NO_E4_ROW = `
+| **Epic** | Status | Notes |
+|---|---|---|
+| **E1 — foo** | **✓ shipped 2026-07-15** | |
+| **E2 — bar** | **✓ shipped 2026-07-18** | |
+| **E3 — baz** | **✓ shipped 2026-07-20** | |
+`;
+
+// A milestone table whose E4 row is MAINTAINED and reads "pending" — the
+// legit per-slice-ship shape that must still skip (D-E9-5).
+const MILESTONE_E4_PENDING = `
+| **Epic** | Status | Notes |
+|---|---|---|
+| E4 — carry-overs | S1 shipped; S2-S5 pending | |
+`;
+
+// STATE for a completed self-hosted Epic: phase SHIP, all FULL pre-SHIP phases
+// recorded (with the "(date)" suffix the match must tolerate).
+const SELF_HOSTED_STATE_FULL = {
+  current_epic: 'M5.E4',
+  phase: 'SHIP',
+  completed_phases: [
+    'DISCUSS (2026-07-20)',
+    'PLAN (2026-07-20)',
+    'EXECUTE (2026-07-20)',
+    'VERIFY (2026-07-21)',
+    'REVIEW (2026-07-21)',
+  ],
+};
+
+describe('shipFR1Check — B26 STATE-based Epic-close fallback (M5.E5.T2)', () => {
+  let base;
+  beforeEach(async () => {
+    base = await makeTempBase();
+  });
+  afterEach(async () => await rm(base, { recursive: true, force: true }));
+
+  it('AC2.1: fires on the self-hosted no-row Epic-close shape — halts NO_RETRO_FILE', async () => {
+    // No retro on disk + no milestone row for E4 → the M5.E4 scenario.
+    const result = await shipFR1Check({
+      state: SELF_HOSTED_STATE_FULL,
+      profile: { tier: 'FULL', phases_skipped: [] },
+      milestoneContent: MILESTONE_NO_E4_ROW,
+      baseDir: base,
+    });
+    expect(result.halt).toBe(true);
+    expect(result.code).toBe('NO_RETRO_FILE');
+    expect(result.retroPath).toBe('.planning/M5.E4-RETROSPECTIVE.md');
+  });
+
+  it('AC2.1: passes once a valid retro exists for the self-hosted no-row Epic', async () => {
+    await writeFile(
+      join(base, '.planning', 'M5.E4-RETROSPECTIVE.md'),
+      VALID_FULL_RETRO,
+    );
+    const result = await shipFR1Check({
+      state: SELF_HOSTED_STATE_FULL,
+      profile: { tier: 'FULL', phases_skipped: [] },
+      milestoneContent: MILESTONE_NO_E4_ROW,
+      baseDir: base,
+    });
+    expect(result.halt).toBe(false);
+    expect(result.retroPath).toBe('.planning/M5.E4-RETROSPECTIVE.md');
+    expect(result.isEpicClose).toBe(true);
+  });
+
+  it('AC2.2: no false-fire — a maintained "pending" row still skips even with full completed_phases', async () => {
+    // Row present + says pending → isEpicCloseShip false AND the STATE fallback
+    // is gated on row-ABSENCE, so a legit per-slice ship is not forced to retro.
+    const result = await shipFR1Check({
+      state: SELF_HOSTED_STATE_FULL,
+      profile: { tier: 'FULL', phases_skipped: [] },
+      milestoneContent: MILESTONE_E4_PENDING,
+      baseDir: base,
+    });
+    expect(result.halt).toBe(false);
+    expect(result.skipped).toBe(true);
+  });
+
+  it('AC2.3: tier-aware close — SKETCH closes at VERIFY, FEATURE/FULL at REVIEW (no row)', async () => {
+    const cases = [
+      { tier: 'FULL', phases_skipped: [], last: 'REVIEW' },
+      { tier: 'FEATURE', phases_skipped: [], last: 'REVIEW' },
+      { tier: 'SKETCH', phases_skipped: ['REVIEW'], last: 'VERIFY' },
+    ];
+    for (const { tier, phases_skipped, last } of cases) {
+      const completed = [
+        'DISCUSS (2026-07-20)',
+        'PLAN (2026-07-20)',
+        'EXECUTE (2026-07-20)',
+        'VERIFY (2026-07-21)',
+      ];
+      if (last === 'REVIEW') completed.push('REVIEW (2026-07-21)');
+      const result = await shipFR1Check({
+        state: { current_epic: 'M5.E4', phase: 'SHIP', completed_phases: completed },
+        profile: { tier, phases_skipped },
+        milestoneContent: MILESTONE_NO_E4_ROW,
+        baseDir: base,
+      });
+      expect(result.halt, `${tier} should reach Epic-close`).toBe(true);
+      expect(result.code).toBe('NO_RETRO_FILE');
+    }
+  });
+
+  it('AC2.3: SKETCH short of its last pre-SHIP phase (VERIFY missing) does NOT close', async () => {
+    // Only through EXECUTE — SKETCH still needs VERIFY, so this is not close.
+    const result = await shipFR1Check({
+      state: {
+        current_epic: 'M5.E4',
+        phase: 'SHIP',
+        completed_phases: ['DISCUSS (2026-07-20)', 'PLAN (2026-07-20)', 'EXECUTE (2026-07-20)'],
+      },
+      profile: { tier: 'SKETCH', phases_skipped: ['REVIEW'] },
+      milestoneContent: MILESTONE_NO_E4_ROW,
+      baseDir: base,
+    });
+    expect(result.halt).toBe(false);
+    expect(result.skipped).toBe(true);
+  });
+
+  it('AC2.3: SPIKE never reaches the STATE-based gate (SHIP is skipped, phase never SHIP)', async () => {
+    // SPIKE's last non-skipped phase is VERIFY; phase is never SHIP, so the
+    // STATE fallback (which requires phase: SHIP) can never fire.
+    const result = await shipFR1Check({
+      state: {
+        current_epic: 'M5.E4',
+        phase: 'VERIFY',
+        completed_phases: [
+          'DISCUSS (2026-07-20)',
+          'PLAN (2026-07-20)',
+          'EXECUTE (2026-07-20)',
+          'VERIFY (2026-07-21)',
+        ],
+      },
+      profile: { tier: 'SPIKE', phases_skipped: ['REVIEW', 'SHIP'] },
+      milestoneContent: MILESTONE_NO_E4_ROW,
+      baseDir: base,
+    });
+    expect(result.halt).toBe(false);
+    expect(result.skipped).toBe(true);
+  });
+
+  it('does not fall back to STATE when phase is not SHIP even with full completed_phases (no row)', async () => {
+    const result = await shipFR1Check({
+      state: {
+        current_epic: 'M5.E4',
+        phase: 'REVIEW',
+        completed_phases: SELF_HOSTED_STATE_FULL.completed_phases,
+      },
+      profile: { tier: 'FULL', phases_skipped: [] },
+      milestoneContent: MILESTONE_NO_E4_ROW,
+      baseDir: base,
+    });
+    expect(result.halt).toBe(false);
+    expect(result.skipped).toBe(true);
+  });
+});

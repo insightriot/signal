@@ -48,7 +48,11 @@ schema_version: 1
 phase: SHIP
 current_epic: null
 completed_phases:
-  - SHIP (2026-05-26)
+  - DISCUSS (2026-05-24)
+  - PLAN (2026-05-24)
+  - EXECUTE (2026-05-25)
+  - VERIFY (2026-05-25)
+  - REVIEW (2026-05-25)
 ---
 `;
 
@@ -83,19 +87,49 @@ describe('checkProposedStateWrite (PreToolUse layer)', () => {
     expect(result.block).toBe(false);
   });
 
-  it('allows SHIP-phase writes where completed_phases has no SHIP entry yet', () => {
-    const stateMidShip = STATE_SHIP_NO_RETRO.replace(
+  it('AC2.5: blocks on phase:SHIP + tier-complete pre-SHIP phases even with NO SHIP entry (B26 re-key)', () => {
+    // Signal never writes a `- SHIP` completion entry (epic-native-flow.md:27),
+    // so the old `- SHIP`-keyed trigger was structurally dead. The re-key fires
+    // on phase:SHIP + completed_phases covering the full pre-SHIP set — which is
+    // exactly the Epic-close write shape, SHIP entry or not.
+    const stateNoShipEntry = STATE_SHIP_NO_RETRO.replace(
       '  - SHIP (2026-05-26)\n',
       '',
     );
     const result = checkProposedStateWrite({
-      proposedContent: stateMidShip,
+      proposedContent: stateNoShipEntry,
       baseDir: '/tmp/fake',
       fileExistsFn: () => false,
     });
-    // Phase is SHIP but completion not recorded — the actual transition
-    // hasn't happened yet. Don't block; FR1 command-internal handles it.
+    expect(result.block).toBe(true);
+    expect(result.retroPath).toBe('.planning/M4.5.E3-RETROSPECTIVE.md');
+  });
+
+  it('AC2.5: allows a phase:SHIP write whose completed_phases is short of the pre-SHIP set', () => {
+    // phase SHIP but only through EXECUTE — not yet an Epic-close write.
+    const stateShort = STATE_SHIP_NO_RETRO
+      .replace('  - VERIFY (2026-05-25)\n', '')
+      .replace('  - REVIEW (2026-05-25)\n', '')
+      .replace('  - SHIP (2026-05-26)\n', '');
+    const result = checkProposedStateWrite({
+      proposedContent: stateShort,
+      baseDir: '/tmp/fake',
+      fileExistsFn: () => false,
+    });
     expect(result.block).toBe(false);
+  });
+
+  it('AC2.5: tier-aware — a SKETCH write (REVIEW skipped) blocks at VERIFY-complete', () => {
+    const sketchShip = STATE_SHIP_NO_RETRO
+      .replace('  - REVIEW (2026-05-25)\n', '')
+      .replace('  - SHIP (2026-05-26)\n', '');
+    const result = checkProposedStateWrite({
+      proposedContent: sketchShip,
+      baseDir: '/tmp/fake',
+      profile: { phases_skipped: ['REVIEW'] },
+      fileExistsFn: () => false,
+    });
+    expect(result.block).toBe(true);
   });
 
   it('allows when current_epic is null (no Epic to enforce against)', () => {

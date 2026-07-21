@@ -76,12 +76,18 @@ body
   });
 
   it('D-E11-5: SHIP-close without a retro now WARNS on the hook path (exit 0 + stderr)', () => {
+    // B26 re-key: the Epic-close signal is phase:SHIP + completed_phases
+    // covering the full pre-SHIP set (Signal never writes a `- SHIP` entry).
     const shipNoRetro = `---
 schema_version: 1
 phase: SHIP
 current_epic: M4.5.E3
 completed_phases:
-  - SHIP (2026-05-26)
+  - DISCUSS (2026-05-24)
+  - PLAN (2026-05-24)
+  - EXECUTE (2026-05-25)
+  - VERIFY (2026-05-25)
+  - REVIEW (2026-05-25)
 blockers: []
 ---
 body
@@ -99,13 +105,19 @@ body
 
   it('R2: SHIP-close with a malformed current_epic fails open (exit 0, no crash)', () => {
     // current_epic "v0.1.6" makes deriveRetroPath throw; the hook must fail
-    // open (exit 0), never crash a normal write.
+    // open (exit 0), never crash a normal write. Full pre-SHIP phases so the
+    // B26 re-keyed Epic-close signal is reached and deriveRetroPath is actually
+    // invoked (else the coverage check short-circuits before the throw path).
     const shipBadEpic = `---
 schema_version: 1
 phase: SHIP
 current_epic: v0.1.6
 completed_phases:
-  - SHIP (2026-07-15)
+  - DISCUSS (2026-07-14)
+  - PLAN (2026-07-14)
+  - EXECUTE (2026-07-15)
+  - VERIFY (2026-07-15)
+  - REVIEW (2026-07-15)
 blockers: []
 ---
 body

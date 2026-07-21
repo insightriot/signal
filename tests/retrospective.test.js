@@ -16,6 +16,7 @@ import {
   validateRetroContent,
   expectedRetroPath,
   isEpicCloseShip,
+  isEpicCloseByState,
 } from '../tools/lib/retrospective.js';
 
 describe('parseSections', () => {
@@ -467,5 +468,86 @@ describe('isEpicCloseShip', () => {
     expect(
       isEpicCloseShip({ current_epic: 'M99.E99' }, MILESTONE_CONTENT),
     ).toBe(false);
+  });
+});
+
+describe('isEpicCloseByState (B26 / M5.E5.T2 STATE fallback)', () => {
+  const FULL_COMPLETED = [
+    'DISCUSS (2026-07-20)',
+    'PLAN (2026-07-20)',
+    'EXECUTE (2026-07-20)',
+    'VERIFY (2026-07-21)',
+    'REVIEW (2026-07-21)',
+  ];
+
+  it('true when phase SHIP + all FULL pre-SHIP phases complete (no profile → full set)', () => {
+    expect(
+      isEpicCloseByState(
+        { current_epic: 'M5.E4', phase: 'SHIP', completed_phases: FULL_COMPLETED },
+        undefined,
+      ),
+    ).toBe(true);
+  });
+
+  it('tolerates the "(date)" suffix on completed_phases entries', () => {
+    // Same set but with an annotated entry — must still match by phase-name.
+    const annotated = [...FULL_COMPLETED.slice(0, 4), 'REVIEW (2026-07-21) — panel close'];
+    expect(
+      isEpicCloseByState(
+        { current_epic: 'M5.E4', phase: 'SHIP', completed_phases: annotated },
+        { phases_skipped: [] },
+      ),
+    ).toBe(true);
+  });
+
+  it('false when a required pre-SHIP phase is missing (REVIEW absent, FULL tier)', () => {
+    expect(
+      isEpicCloseByState(
+        {
+          current_epic: 'M5.E4',
+          phase: 'SHIP',
+          completed_phases: FULL_COMPLETED.slice(0, 4), // through VERIFY only
+        },
+        { phases_skipped: [] },
+      ),
+    ).toBe(false);
+  });
+
+  it('tier-aware: SKETCH (REVIEW skipped) closes at VERIFY-complete', () => {
+    expect(
+      isEpicCloseByState(
+        {
+          current_epic: 'M5.E4',
+          phase: 'SHIP',
+          completed_phases: FULL_COMPLETED.slice(0, 4), // through VERIFY
+        },
+        { phases_skipped: ['REVIEW'] },
+      ),
+    ).toBe(true);
+  });
+
+  it('false when phase is not SHIP (e.g. mid-EXECUTE) even with full completed_phases', () => {
+    expect(
+      isEpicCloseByState(
+        { current_epic: 'M5.E4', phase: 'EXECUTE', completed_phases: FULL_COMPLETED },
+        { phases_skipped: [] },
+      ),
+    ).toBe(false);
+  });
+
+  it('false when current_epic is missing / state is null', () => {
+    expect(
+      isEpicCloseByState({ phase: 'SHIP', completed_phases: FULL_COMPLETED }, {}),
+    ).toBe(false);
+    expect(isEpicCloseByState(null, {})).toBe(false);
+  });
+
+  it('reads the camelCase completedPhases alias when snake_case is absent', () => {
+    expect(
+      isEpicCloseByState(
+        { current_epic: 'M5.E4', phase: 'SHIP', completedPhases: FULL_COMPLETED },
+        { phases_skipped: [] },
+      ),
+    ).toBe(true);
   });
 });
