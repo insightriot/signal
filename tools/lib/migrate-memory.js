@@ -1464,10 +1464,17 @@ async function walkMarkdown(dir) {
 
 /**
  * Scan the project's `.planning/` for dangling inline `.md` links (a `](target)`
- * whose `.md` target doesn't resolve). Read-only. Returns `[{file, link, target}]`.
+ * whose `.md` target doesn't resolve). Read-only. Returns `[{file, link, target, abs}]`.
+ *
+ * `abs` (B24): the resolved repo-root-relative POSIX target — the ONE quantity the
+ * append-log evict's block-move + link-reroot holds invariant (`computeLinkEdits`
+ * rebuilds each link's `rel` to the IDENTICAL absolute target). `computeDanglingDelta`
+ * keys on `abs` so a pre-existing dangle survives a relocate+reroot and is not
+ * re-attributed to the migrate. `file`/`link`/`target` stay for display (renderDryRun
+ * and the abort message read them).
  *
  * @param {string} baseDir
- * @returns {Promise<Array<{file: string, link: string, target: string}>>}
+ * @returns {Promise<Array<{file: string, link: string, target: string, abs: string}>>}
  */
 export async function scanDanglingLinks(baseDir) {
   const files = await walkMarkdown(join(baseDir, PLANNING_DIR));
@@ -1488,8 +1495,9 @@ export async function scanDanglingLinks(baseDir) {
       if (isExternalLink(raw)) continue;
       const target = raw.split(/\s+/)[0].split('#')[0]; // strip title + anchor
       if (!target.endsWith('.md')) continue;
-      if (!existsSync(resolve(dirname(f), target))) {
-        dangling.push({ file: relative(baseDir, f), link: raw, target });
+      const resolved = resolve(dirname(f), target);
+      if (!existsSync(resolved)) {
+        dangling.push({ file: relative(baseDir, f), link: raw, target, abs: toPosix(relative(baseDir, resolved)) });
       }
     }
   }
@@ -1498,12 +1506,40 @@ export async function scanDanglingLinks(baseDir) {
 
 /**
  * The NEW dangling links in `after` that weren't in `before` (the baseline).
+ *
+ * B24: keyed on the RESOLVED repo-root-relative target (`abs`) — the invariant the
+ * append-log evict's block-move + link-reroot preserves — with COUNT/MULTISET
+ * semantics: subtract at MOST as many post-apply dangles as the baseline held for a
+ * given target. A plain `Set` would collapse "one pre-existing + one newly-introduced
+ * dangle to the same missing target" into a single key and silently let the introduced
+ * one through (the masking bug AC1.4 exists to catch); count semantics attribute the
+ * extra one. `abs ?? file\0link` fallback keeps injected/hand-built dangles (which omit
+ * `abs`) working unchanged.
+ *
+ * AC1.6 — NAMED, ACCEPTED LIMITATION (documented, not silently shipped): delete the
+ * SOLE pre-existing dangle to X *and* introduce a DIFFERENT new dangle to the same
+ * already-missing X in one migrate → the per-target count stays 1 → the new one is
+ * masked. Bounded/low-stakes: X was already a missing target BEFORE the migrate, so no
+ * previously-resolving reference is broken — the migrate cannot make X newly-absent, and
+ * a link to an already-missing target is at worst a cosmetic reference to nothing.
+ *
  * @param {Array} before @param {Array} after @returns {Array}
  */
 export function computeDanglingDelta(before, after) {
-  const key = (d) => `${d.file}\0${d.link}`;
-  const seen = new Set(before.map(key));
-  return after.filter((d) => !seen.has(key(d)));
+  const key = (d) => d.abs ?? `${d.file}\0${d.link}`;
+  const budget = new Map(); // resolved target → how many pre-existing dangles the baseline held
+  for (const d of before) {
+    const k = key(d);
+    budget.set(k, (budget.get(k) ?? 0) + 1);
+  }
+  const delta = [];
+  for (const d of after) {
+    const k = key(d);
+    const remaining = budget.get(k) ?? 0;
+    if (remaining > 0) budget.set(k, remaining - 1); // subtract one pre-existing dangle for this target
+    else delta.push(d); // NEW — no baseline budget left for this resolved target
+  }
+  return delta;
 }
 
 // --- blocking dangling-link gate (S2.t4, FM7) ---------------------------------
