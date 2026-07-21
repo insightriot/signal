@@ -1472,6 +1472,21 @@ feature in signal that a) scans the project's integrations (MCPs, CLIs, etc.) an
 
 ---
 
+## Config-drift hazard check in VERIFY (+ SHIP reminder)
+
+**Status:** Logged 2026-07-21 via `/sig:add`.
+
+Add a deterministic, offline VERIFY pass that reconciles config keys the code references against keys declared in `.env.example` / config templates: flag (a) referenced-but-undeclared, (b) declared-but-unreferenced (orphans), (c) alias pairs (two names, one logical key). Tier-gated: advisory in SKETCH, enforced in FULL. Explicitly local/offline/stack-aware — NOT a live vendor-API check.
+
+The deploy-target live reconciliation (e.g. Vercel live+preview) stays the project's own CI job; SHIP gets a checklist line reminding the user it's covered, not code that performs it.
+
+Origin: bit Brett in a real Vercel app (an env key renamed in code, but an old-name alias lingered in .env / .env.example / Vercel). Signal's VERIFY has no universal-hazard-check library today — it runs the project's own acceptance criteria + tests + Nyquist, so env drift that's in nobody's acceptance criteria goes unseen. The deeper gap this opens: should Signal carry a small set of stack-aware universal pre-ship hazard checks? Config-drift = the ideal first one (high-value, low stack-specificity at the local level, deterministic).
+
+Open sub-question for PLAN: how much stack coverage in v1 — JS/.env only first, or a small pluggable key-extractor set (Node/Vite/Python/Go)?
+
+---
+
+
 
 
 
