@@ -6,6 +6,31 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.9] — 2026-07-21 — Bug & doc-runtime hygiene close-out (M5.E4)
+
+The confirmed-bug backlog cleared before the v2-port re-audit: **12 known bugs fixed** (or dismissed) + the doc-runtime **concurrency-lock** (FR5). Additive; no breaking changes; no new runtime dependencies; no `.planning/` schema or slash-command-surface change (still 17 commands / 26 agents / 21 skills). 1492 → **1529 tests**; FULL/strict throughout; REVIEW ran a 3-specialist adversarial panel (PASS-WITH-FIXES) that caught a real path-confinement bypass shipping under a false-green test.
+
+### Fixed
+- **B19** (P2) — the v3 migrate's foreign-`INDEX.md` guard was a false-green: it keyed on a `**Tier legend:**` block the *old* curated format also carries, so it never fired on the real repro and clobbered hand-curated INDEX notes. Now keys on the new-format auto-gen marker, with dry-run/apply parity. RED-proven against the pre-fix code.
+- **B14** (security) — realpath directory-symlink confinement extended to the `evict.js` / `add.js` / `resume.js` write/read gateways (shared `path-confine.js`). REVIEW additionally caught + closed a leaf-level escape at the `evict.js` site that a mis-placed test had hidden.
+- **B6** — `/sig:resume` + `/sig:status` no longer false-positive their drift banners on the benign "+1" bookkeeping commit (gate on genuine `HEAD..origin` drift); also *removed* the user-editable `last_updated_commit` from the git-range computation (a net injection-surface reduction).
+- **B15** — the blocking dangling-link gate scans the full file (a dangle past the 1 MB cap no longer silently passes).
+- **B16** — a rolled-back `/sig:migrate-memory --apply` no longer leaves a stray `pre-migrate-memory-<stamp>` git tag.
+- **B21** — the append-log anchor gate builds the decision-ID map once, not per-ID (O(N×corpus) → O(corpus)).
+- **B22** — the doc-hygiene internal-link check is bounded to repo root (no disk read outside the tree).
+- **B18** — `regeneratePlanningIndex('.')` key corruption (fixed in v0.1.8; a regression guard added here).
+- **B17** — git-heavy test suites get a 15 s `testTimeout` (no more flakes under parallel load).
+- **B5 / B20** — `npm run lint` runs again (flat `eslint.config.js` for ESLint 9); B20 dismissed as a duplicate of B5.
+- **B23** — REVIEW-panel test-coverage bundle + two refactor nits (`blockKey` rename, fail-loud bugs dedupe marker).
+
+### Added
+- **FR5 — doc-runtime concurrency-lock.** The read-modify-write paths (`checkpoint`, `drain`, `retro-index`, `planning-index`) now serialize via the coarse `.state.lock` (lock-free-core + self-locking-wrapper split; migrate calls the lock-free core to avoid a re-entrant deadlock). Linear/single-session behavior is byte-identical.
+
+### Known / deferred
+- **B24** (P2, deferred) — a pre-existing broken `](*.md)` link inside a *closed* DECISIONS section makes `/sig:migrate-memory` abort (fail-safe, byte-identical rollback) instead of treating the pre-existing dangle as not-its-fault. Inert on Signal; the fix reworks the load-bearing dangling-delta gate, so it's deferred rather than rushed into a release that hardened that gate.
+
+---
+
 ## [0.1.8] — 2026-07-20 — Doc-runtime (M5.E1 + M5.E2 + M5.E3)
 
 The doc-runtime ships as **one release across three Epics** — E1 (model + eviction mechanics) + E2 (the auto-sensing `/sig:migrate-memory` command) + E3 (all-docs hygiene + living `BACKLOG.md` + append-log eviction). Signal's memory is now self-maintaining. Additive; no breaking changes; no new runtime dependencies; no `.planning/` schema bump (a new `docs_layout_version` **doc-layout** axis, distinct from `schema_version`, is stamped by the migrate). Two new commands: `/sig:index` and `/sig:migrate-memory` (**15 → 17**). 1300 → **1492 tests**; FULL/strict throughout; each Epic dogfooded on Signal's own `.planning/`.

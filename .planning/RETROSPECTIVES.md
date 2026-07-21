@@ -2,6 +2,7 @@
 
 > Per-Epic retrospectives, indexed for fast scan. Status flag (*stub* / *complete*) is auto-derived from the presence of `[FILL IN]` markers in the retro file. Hook lines (after the second em-dash) are hand-curated — they survive regeneration by Epic ID.
 
+- [M5.E4](M5.E4-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M5.E3](M5.E3-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M5.E2](M5.E2-RETROSPECTIVE.md) — *complete* — auto-sensing `/sig:migrate-memory` (FR6/FR7, unreleased) — relocate-never-delete, dry-run-default, git-reversible reorg of a bloated `.planning/`; un-wedged nextpass 546 KB→1.3 KB, 0 words dropped. REVIEW's 3-specialist adversarial panel caught a SHIP-blocking rollback gap (2 reviewers independently reproduced it) that a green 1296-test VERIFY missed; 5 RED-first fix batches, ≈1071→1300 tests. Landed on `main` batched into the E1+E2+E3 doc-runtime release (D-M5E2-6).
 - [M5.E1](M5.E1-RETROSPECTIVE.md) — *complete* — _(hook pending)_
