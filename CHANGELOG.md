@@ -6,6 +6,23 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.10] — 2026-07-21 — Carry-over bug squash (M5.E5)
+
+The four M5.E4 carry-overs cleared. Additive; no breaking changes; no new runtime dependencies; no `.planning/` schema or slash-command-surface change (still 17 commands / 26 agents / 21 skills). 1529 → **1561 tests**; FULL/strict throughout; REVIEW ran a 3-specialist adversarial panel (PASS) — the test-integrity pass built a 12-case mutation matrix and found **zero false-greens** (contrast v0.1.9's two).
+
+### Fixed
+- **B24** (P2) — `/sig:migrate-memory` no longer false-aborts on a pre-existing broken `](*.md)` link inside a *closed* DECISIONS section. `computeDanglingDelta` is re-keyed on the link's **resolved absolute target** (the invariant the append-log evict's move+reroot preserves) with multiset/count semantics, so a pre-existing dangle survives the relocation and dry-run/apply agree — while a genuinely migrate-*introduced* dangle is still caught (the multiset test was verified to fail against a `Set`).
+- **B26** — the FR1 retro gate now fires on the **self-hosted / Epic-prefixed flow**. When `MILESTONE-N.md` lacks the Epic's status row, `shipFR1Check` + the `check-state-write` hook fall back to a tier-aware STATE signal (`phase: SHIP` + all tier-required pre-SHIP phases complete), gated on row-absence so a maintained per-slice ship is never wrongly forced to write a retro. (Dogfooded on this very release — it hard-blocked its own SHIP until the retro existed.)
+- **B25** — FR5 read-enclosure now has a **behavioral interleaving test** (previously only throw-under-held-lock, which a read-outside-lock wrapper passes too). A test-only `_afterRead` seam — inert in production, mirroring the existing `renameFn` seam — pauses a writer mid-lock; a deliberately-broken read-outside-lock twin proves the new test genuinely fails on the bug it guards.
+- **B6** (refinement) — `/sig:resume` + `/sig:status` staleness now distinguishes bookkeeping from work by **file identity**: a committed `*-PLAN` / `*-PROGRESS` / `*-VERIFICATION` / `*-REVIEW` file never rolled into STATE now reads as *stale* (worth a refresh nudge), while a STATE/CONTEXT-only bookkeeping commit still suppresses. Count-independent (no false alarm on a split STATE refresh).
+
+### Known / deferred
+- **B27 / B28** — the migrate dangling gate still over-aborts (fail-safe) on two rarer link shapes inside evicted closed blocks: an inline link to an FR6-renamed target (B27) and an absolute-path `](/abs/foo.md)` link (B28). Both are fail-safe (block, never escape), near-zero on real corpora, and cluster around one design question (treat closed-block/archive links as flag-not-abort).
+- **B29** — the `_afterRead` test seam reads inherited props (an unreachable prototype-pollution gadget); a `typeof`/own-property guard is deferred hardening.
+- **B30** — the `/sig:ship` FR1 pre-check (Step 0.5) runs before the SHIP transition (Step 5), so B26's STATE fallback (which needs `phase: SHIP`) skips at the pre-check on a fresh flow and fires only once phase is SHIP. Surfaced by dogfooding B26 on this release.
+
+---
+
 ## [0.1.9] — 2026-07-21 — Bug & doc-runtime hygiene close-out (M5.E4)
 
 The confirmed-bug backlog cleared before the v2-port re-audit: **12 known bugs fixed** (or dismissed) + the doc-runtime **concurrency-lock** (FR5). Additive; no breaking changes; no new runtime dependencies; no `.planning/` schema or slash-command-surface change (still 17 commands / 26 agents / 21 skills). 1492 → **1529 tests**; FULL/strict throughout; REVIEW ran a 3-specialist adversarial panel (PASS-WITH-FIXES) that caught a real path-confinement bypass shipping under a false-green test.
