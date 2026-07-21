@@ -727,14 +727,25 @@ const STATE_AFFECTING_PATHS = [
   ':(glob).planning/*-REVIEW.md',
 ];
 
-// B6/FR4 — the exclude form of STATE_AFFECTING_PATHS. Paired with a leading `.`
-// pathspec, `git log <range> -- . <excludes>` lists commits that touch anything
-// OUTSIDE the state-affecting set — i.e. genuine work. Used to suppress the
-// bookkeeping "+1": markFresh records last_updated_commit = HEAD, then the
-// caller commits that STATE write, so HEAD is always one STATE-only commit ahead
-// of the recorded baseline. That pure-bookkeeping commit is not "ground state
-// moved" and must not read as stale.
-const STATE_AFFECTING_EXCLUDES = STATE_AFFECTING_PATHS.map((p) =>
+// B6/FR4 (M5.E5.T4) — the true "bookkeeping" subset of STATE_AFFECTING_PATHS:
+// curated orientation files that do NOT represent ground-state movement.
+// STATE.md is markFresh's own "+1" (it records last_updated_commit = HEAD, then
+// the caller commits that STATE write, so HEAD sits one STATE-only commit ahead
+// of the recorded baseline); CONTEXT.md is likewise curated bookkeeping (D4).
+// Deliberately SMALLER than STATE_AFFECTING_PATHS: a committed-but-unrolled
+// *-PLAN/*-PROGRESS/*-VERIFICATION/*-REVIEW.md is real work worth a nudge, so it
+// stays OUT of this set and is not swallowed by Walk 2's suppression.
+const BOOKKEEPING_PATHS = [
+  ':(glob).planning/STATE.md',
+  ':(glob).planning/CONTEXT.md',
+];
+
+// The exclude form of BOOKKEEPING_PATHS. Paired with a leading `.` pathspec,
+// `git log <range> -- . <excludes>` lists commits that touch anything OUTSIDE
+// the bookkeeping set — i.e. genuine work (including a phase artifact never
+// rolled into STATE). Used to suppress the pure-bookkeeping "+1" while still
+// nudging on unrolled work.
+const BOOKKEEPING_EXCLUDES = BOOKKEEPING_PATHS.map((p) =>
   p.replace(':(glob)', ':(glob,exclude)')
 );
 
@@ -814,11 +825,14 @@ export async function isStateStale(baseDir, opts = {}) {
     });
     if (commits.length === 0) return empty; // no state-affecting commits (D6 scope)
 
-    // B6/FR4: suppress the pure-bookkeeping "+1". The filtered walk above fires
-    // on the STATE-only commit that markFresh's caller creates. Only treat the
-    // range as stale when at least one commit touches a file OUTSIDE the
-    // state-affecting set — i.e. genuine work STATE.md doesn't reflect. If every
-    // commit touches only state-affecting paths, it's bookkeeping, not drift.
+    // B6/FR4 (M5.E5.T4): suppress the pure-bookkeeping "+1" without swallowing
+    // unrolled phase artifacts. Only treat the range as stale when at least one
+    // commit touches a file OUTSIDE BOOKKEEPING_PATHS (STATE.md/CONTEXT.md) —
+    // i.e. genuine work STATE.md doesn't reflect, which now includes a committed
+    // *-PLAN/*-PROGRESS/*-VERIFICATION/*-REVIEW that never reached STATE. If every
+    // commit touches only bookkeeping paths, it's curation, not drift. Keyed on
+    // file identity, not commit count, so a STATE refresh split across two
+    // commits still reads fresh.
     const workOut = execFn(
       'git',
       [
@@ -827,7 +841,7 @@ export async function isStateStale(baseDir, opts = {}) {
         `${lastCommit}..HEAD`,
         '--',
         '.',
-        ...STATE_AFFECTING_EXCLUDES,
+        ...BOOKKEEPING_EXCLUDES,
       ],
       { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
     );

@@ -31,6 +31,14 @@ function commitAll(dir, msg) {
   git(dir, ['add', '-A']);
   git(dir, ['commit', '-q', '-m', msg]);
 }
+// Stage + commit a SINGLE path (not `git add -A`), so a commit can touch exactly
+// one file even while the uncommitted STATE.md sits in the working tree. Using
+// commitAll here would sweep that STATE.md in and turn a PLAN/PROGRESS-only
+// commit into a mixed one (a false-green for the file-identity cases below).
+function commitPath(dir, relPath, msg) {
+  git(dir, ['add', relPath]);
+  git(dir, ['commit', '-q', '-m', msg]);
+}
 
 // Plant a schema-v1 STATE.md with the supplied frontmatter fields.
 async function plantState(tempDir, fm) {
@@ -261,5 +269,89 @@ describe('isStateStale', () => {
     commitAll(tempDir, 'feat: work + STATE refresh'); // mixed: STATE.md + app.js
     const result = await isStateStale(tempDir);
     expect(result.stale).toBe(true);
+  }, 30000); // real-git fixture: generous timeout for parallel-suite load
+
+  // --- B6/FR4 refinement (M5.E5.T4): file-identity, not commit count ---
+  //
+  // The over-suppression: Walk 2 previously derived its exclude from the FULL
+  // STATE_AFFECTING_PATHS (which lists *-PLAN/*-PROGRESS/*-VERIFICATION/*-REVIEW).
+  // So a committed-but-unrolled phase artifact had no non-excluded file ->
+  // genuineWork=0 -> NOT stale, even though it's real work STATE doesn't reflect.
+  // The tightening builds Walk 2's exclude from a smaller BOOKKEEPING_PATHS
+  // (STATE.md + CONTEXT.md only); phase artifacts now nudge, curation stays quiet.
+
+  // AC4.2 (the RED): a single *-PLAN.md-only commit that never reached STATE
+  // reads as stale. RED against current code (Walk 2 excludes *-PLAN.md ->
+  // genuineWork=0 -> not stale). commitPath stages ONLY the PLAN file, so the
+  // commit stays single-file with STATE.md uncommitted in the working tree; the
+  // commitCount:1 assertion pins the range to that one artifact commit.
+  it('B6/AC4.2: a single *-PLAN.md-only commit (never rolled into STATE) IS stale', async () => {
+    initRepo(tempDir);
+    await writeFile(join(tempDir, 'app.js'), 'v0\n', 'utf-8');
+    commitAll(tempDir, 'base: initial work');
+    const base = headSha(tempDir);
+    await plantState(tempDir, { last_updated_commit: base }); // STATE.md uncommitted
+    await writeFile(join(tempDir, '.planning', 'M5-PLAN.md'), '# plan\n', 'utf-8');
+    commitPath(tempDir, '.planning/M5-PLAN.md', 'plan: M5 plan'); // *-PLAN.md only
+    const result = await isStateStale(tempDir);
+    expect(result.stale).toBe(true);
+    expect(result.commitCount).toBe(1);
+  }, 30000); // real-git fixture: generous timeout for parallel-suite load
+
+  // AC4.3: two *-PROGRESS.md-only commits -> stale, count-independent (more than
+  // one artifact commit must not read as a false-negative). Also RED against
+  // current code (Walk 2 excludes *-PROGRESS.md).
+  it('B6/AC4.3: two *-PROGRESS.md-only commits are stale (commitCount 2)', async () => {
+    initRepo(tempDir);
+    await writeFile(join(tempDir, 'app.js'), 'v0\n', 'utf-8');
+    commitAll(tempDir, 'base: initial work');
+    const base = headSha(tempDir);
+    await plantState(tempDir, { last_updated_commit: base });
+    await writeFile(join(tempDir, '.planning', 'M5-PROGRESS.md'), '# step 1\n', 'utf-8');
+    commitPath(tempDir, '.planning/M5-PROGRESS.md', 'progress: step 1');
+    await writeFile(join(tempDir, '.planning', 'M5-PROGRESS.md'), '# step 1\n# step 2\n', 'utf-8');
+    commitPath(tempDir, '.planning/M5-PROGRESS.md', 'progress: step 2');
+    const result = await isStateStale(tempDir);
+    expect(result.stale).toBe(true);
+    expect(result.commitCount).toBe(2);
+  }, 30000); // real-git fixture: generous timeout for parallel-suite load
+
+  // AC4.4: two STATE.md-only commits (a refresh split across two commits) stay
+  // NOT stale -- suppression is by file identity, not commit count. This is the
+  // case the M4.5.E4 reviewer's rejected `commits.length === 1` candidate got
+  // wrong (it would flag two commits); the file-identity fix does not.
+  it('B6/AC4.4: two STATE.md-only commits (split refresh) are NOT stale', async () => {
+    initRepo(tempDir);
+    await writeFile(join(tempDir, 'app.js'), 'v0\n', 'utf-8');
+    commitAll(tempDir, 'base: initial work');
+    const base = headSha(tempDir);
+    await plantState(tempDir, {
+      last_updated_commit: base,
+      last_updated: '2026-05-17T00:00:00.000Z',
+    });
+    commitPath(tempDir, '.planning/STATE.md', 'chore: STATE refresh (1/2)');
+    await plantState(tempDir, {
+      last_updated_commit: base,
+      last_updated: '2026-05-18T00:00:00.000Z', // real diff -> a second STATE-only commit
+    });
+    commitPath(tempDir, '.planning/STATE.md', 'chore: STATE refresh (2/2)');
+    const result = await isStateStale(tempDir);
+    expect(result.stale).toBe(false);
+  }, 30000); // real-git fixture: generous timeout for parallel-suite load
+
+  // AC4.7: a CONTEXT.md-only commit is bookkeeping (curated orientation, like
+  // STATE.md) -> NOT stale. Guards the D4 sub-call classifying CONTEXT.md into
+  // BOOKKEEPING_PATHS. Green both before and after the fix (CONTEXT.md is in both
+  // lists); a regression that dropped it from BOOKKEEPING_PATHS would flip it.
+  it('B6/AC4.7: a CONTEXT.md-only commit is NOT stale (bookkeeping)', async () => {
+    initRepo(tempDir);
+    await writeFile(join(tempDir, 'app.js'), 'v0\n', 'utf-8');
+    commitAll(tempDir, 'base: initial work');
+    const base = headSha(tempDir);
+    await plantState(tempDir, { last_updated_commit: base });
+    await writeFile(join(tempDir, '.planning', 'CONTEXT.md'), '# context\n', 'utf-8');
+    commitPath(tempDir, '.planning/CONTEXT.md', 'docs: refresh CONTEXT');
+    const result = await isStateStale(tempDir);
+    expect(result.stale).toBe(false);
   }, 30000); // real-git fixture: generous timeout for parallel-suite load
 });
