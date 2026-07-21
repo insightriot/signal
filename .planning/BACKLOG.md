@@ -61,7 +61,7 @@ De-bloat test for CLAUDE.md + a command-frontmatter freshness check — both are
 
 ### `docs/map` refresh protocol — Stage 1
 **Tag:** hygiene
-One checklist line in `commands/ship.md` to keep the public `docs/map` fresh at Epic close. (Stages 2/3 are parked below.)
+One checklist line in `commands/ship.md` to keep the public `docs/map` fresh at Epic close. Scope widened 2026-07-21: the map app now has TWO screens — the structure/functionality view (data objects in `index.html`) and the "Signal, explained" tab, which mirrors `docs/signal-explained.md`. The checklist line must cover both: at each meaningful release, evaluate whether the map data AND the explainer doc + tab need updating (they won't change every cycle, but the evaluation should happen every cycle — "no change needed" is a valid outcome). (Stages 2/3 are parked below.)
 
 ### Concurrency-lock the doc-runtime RMW paths *(deferred from the 2026-07-19 memory-layer review)*
 **Tag:** hygiene

@@ -441,6 +441,39 @@
   .cmd-flag .flag-desc { color: var(--muted); }
   .cmd-noflags { margin-top: 8px; font-size: 11px; color: var(--dim); font-style: italic; }
 
+  /* VIEW TABS */
+  nav.view-tabs {
+    display: flex; gap: 8px; margin: 0 0 4px;
+  }
+  nav.view-tabs button {
+    background: var(--card); color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 10px 18px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; font-weight: 600;
+    transition: all 0.15s;
+  }
+  nav.view-tabs button:hover { color: var(--text); border-color: var(--accent); }
+  nav.view-tabs button.active {
+    color: var(--accent); background: var(--card-hi);
+    border-color: var(--accent);
+  }
+
+  /* EXPLAINER VIEW */
+  .explainer { max-width: 840px; }
+  .explainer h2 { margin-top: 48px; }
+  .explainer h3 { font-size: 16px; margin: 26px 0 8px; }
+  .explainer p { font-size: 14px; line-height: 1.65; }
+  .explainer p.lede { font-size: 15px; }
+  .explainer .k { color: var(--accent); font-weight: 600; }
+  .explainer .k2 { color: var(--purple); font-weight: 600; }
+  .explainer ol { padding-left: 22px; margin: 0 0 14px; }
+  .explainer ol li { font-size: 14px; line-height: 1.65; margin-bottom: 10px; }
+  .explainer .closer {
+    margin: 28px 0 0; padding: 16px 20px;
+    background: var(--card); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent); border-radius: 6px;
+  }
+
   /* footnote */
   footer {
     margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--border);
@@ -459,8 +492,15 @@
      ██ ██ ██    ██ ██  ████ ██   ██ ██
 ███████ ██  ██████  ██   ███ ██   ██ ███████</pre>
 <p class="tagline">Right-sized rigor for AI-assisted engineering.</p>
-<p class="meta">Map &middot; v0.1.5 &middot; generated 2026-07-13 &middot; <a href="../commands/">commands/</a> &middot; <a href="../.planning/PROJECT.md">PROJECT.md § Vocabulary</a> &middot; <a href="../references/tier-definitions.md">tier-definitions.md</a></p>
+<p class="meta">Map &middot; v0.1.9 &middot; generated 2026-07-21 &middot; <a href="../commands/">commands/</a> &middot; <a href="../.planning/PROJECT.md">PROJECT.md § Vocabulary</a> &middot; <a href="../references/tier-definitions.md">tier-definitions.md</a></p>
 </header>
+
+<nav class="view-tabs" aria-label="Views">
+  <button id="tab-explainer" class="active" onclick="switchView('explainer')">Signal, explained</button>
+  <button id="tab-map" onclick="switchView('map')">Functionality map</button>
+</nav>
+
+<div id="view-map">
 
 <nav class="toc">
   <a href="#commands">1. Command library</a>
@@ -552,8 +592,99 @@
 <div class="pattern-grid" id="pattern-grid"></div>
 </section>
 
+</div><!-- /view-map -->
+
+<div id="view-explainer" class="explainer" hidden>
+<!-- Mirrors docs/signal-explained.md — re-sync this view when that document changes. -->
+
+<h2><span class="glyph">◉</span>What Signal is</h2>
+<p class="lede">Signal is a system that manages how AI builds software for you.</p>
+<p>When you ask an AI to build something, the AI is like a brilliant contractor with no project manager: it works fast, but it can skip steps, forget what it decided yesterday, over-build simple things, under-build important things, and declare "done!" without really checking. Signal is the project manager. It wraps the AI in a proven step-by-step process — with checkpoints, written records, and independent inspections — so what comes out the other end is dependable, not just fast.</p>
+<p>The result: you get the speed of AI development <em>and</em> the reliability of a disciplined engineering team, without having to be the one enforcing the discipline yourself.</p>
+
+<h2><span class="glyph">◇</span>The big idea: effort that matches the job</h2>
+<p><strong class="k">What it does:</strong> Before any work starts, Signal asks you five simple questions about the project — How big is it? What happens if it breaks? Have you done something like this before? How hard would it be to undo? How long does it need to last? Based on your answers, it sorts the project into one of four sizes, from "quick throwaway" to "full production system," and writes that decision down. Every later step reads that decision and adjusts itself automatically.</p>
+<p><strong class="k2">Why it matters:</strong> Most development processes have one setting. Heavy ones force you to write plans and tests for a 20-minute script — so you stop using the process. Light ones let you skip safety checks on software that handles real customers' data — so things break in public. Both fail you, just at opposite ends. Signal turns rigor into a dial instead of a switch: a throwaway script gets built in minutes with no ceremony, while a production service automatically gets research, testing, a security inspection, and a paper trail. Same tool, same commands — the process right-sizes itself. You never waste effort on things that don't need it, and you never accidentally cut corners on things that do.</p>
+<p><strong class="k">And if the project grows mid-stream:</strong> there's an escape hatch. If a "quick experiment" turns into "actually, we're shipping this to customers," one command re-asks the sizing questions, upgrades the level of care, and records why. Scope creep stops being a silent risk — it becomes a deliberate, documented decision.</p>
+
+<h2><span class="glyph">█</span>The workflow: seven steps from idea to shipped</h2>
+<p class="lede">Signal walks every project through the same sequence. Each step produces a written record before the next step begins, and steps that a small project doesn't need are skipped automatically.</p>
+
+<h3>1. Calibrate — set the dial</h3>
+<p>The five sizing questions above. Thirty seconds of honesty up front that shapes everything downstream.</p>
+
+<h3>2. Discuss — decide before you build</h3>
+<p><strong class="k">What it does:</strong> Before writing any code, Signal interviews you about the judgment calls — the places where "it depends what you want" — presents you real options, and writes your choices down.</p>
+<p><strong class="k2">Why it matters:</strong> Most wasted effort in software comes from building the wrong thing confidently. This step catches the "wait, that's not what I meant" moments when they cost a conversation, not a rebuild. And because decisions are written down, they don't get silently re-decided differently next week.</p>
+
+<h3>3. Plan — map the work</h3>
+<p><strong class="k">What it does:</strong> Signal sends out multiple research assistants at once to study the problem — your existing code, the tools available, the best approaches — then turns the findings into a concrete, ordered plan. Bigger projects get a stricter treatment: the plan is stress-tested against an eight-point checklist, and every promise in it gets matched to a specific test that will prove it was kept.</p>
+<p><strong class="k2">Why it matters:</strong> A plan that's been checked before work starts is dramatically cheaper than discovering mid-build that step 4 contradicts step 9. The plan-to-test matching closes the most common quality loophole in AI development: the AI saying "this works" without anything actually verifying it. Under Signal, every requirement gets its own proof — nothing ships on the honor system.</p>
+
+<h3>4. Execute — build it, in parallel, in small safe pieces</h3>
+<p><strong class="k">What it does:</strong> Signal breaks the plan into tasks, runs independent tasks side-by-side with fresh, focused workers, and saves the project after every completed task — each with its own record in your project history. For high-stakes projects, tests are written <em>before</em> the code they check.</p>
+<p><strong class="k2">Why it matters:</strong> Parallel work is why this is fast. Small, individually-saved pieces are why it's safe — if anything goes wrong, you lose one small step, not an afternoon, and any single change can be undone cleanly. Fresh workers per task also solve an AI-specific problem: long sessions degrade, like a tired employee at hour eleven. Signal never lets a worker get tired.</p>
+
+<h3>5. Verify — prove it actually works</h3>
+<p><strong class="k">What it does:</strong> A separate check, walking backwards from the original goal: does what got built actually do what was promised? The full test suite runs; every acceptance promise from the plan gets confirmed.</p>
+<p><strong class="k2">Why it matters:</strong> The builder never grades their own homework. "I finished it" and "it works" are different claims, and this step is the difference. This is where "it worked when I tried it once" gets replaced with "it's proven."</p>
+
+<h3>6. Review — independent expert inspection</h3>
+<p><strong class="k">What it does:</strong> For projects that warrant it, a panel of specialist inspectors goes over the finished work from different angles: Is the code clear and maintainable? Is it secure against known attack patterns? Is it fast enough? Is there anything over-complicated that should be simpler? Findings come back ranked by seriousness.</p>
+<p><strong class="k2">Why it matters:</strong> This is the step humans skip when they're tired and AI skips when nobody asks. It's how a solo developer gets what big companies pay senior review teams for: a second, skeptical set of eyes on everything before it goes out the door. Quick experiments skip it automatically — the inspection effort goes only where the stakes justify it.</p>
+
+<h3>7. Ship — go out the door clean</h3>
+<p><strong class="k">What it does:</strong> A final pre-flight checklist, a tidy project history, and a properly documented release. One last gate checks that nothing was quietly skipped along the way.</p>
+<p><strong class="k2">Why it matters:</strong> Shipping is where loose ends become other people's problems. This step makes sure the release is something a teammate — or you in six months — can pick up and understand.</p>
+
+<p><strong class="k">The thread through all seven steps:</strong> Signal is built to resist its own shortcuts. At every gate, it runs "no excuses" checks — pre-written counters to the exact rationalizations that both people and AI reach for under pressure ("the tests mostly pass," "we can document it later," "this edge case probably won't happen"). Corners don't get cut silently; if a step is skipped, it's because the project's size says so, and it's on the record.</p>
+
+<h2><span class="glyph">▤</span>The project's memory: nothing gets lost</h2>
+<p>This may be Signal's most valuable trait day-to-day. Every project keeps a living memory folder — the plans, the decisions and <em>why</em> they were made, the current status, what's done, and what's next — stored right inside the project and saved with your code.</p>
+<p><strong class="k">Pick up exactly where you left off.</strong> One command reads the memory and gives you a briefing: here's the project, here's where we are, here's what's next — ready? Close your laptop mid-project, come back Tuesday (or hand the project to someone else, or to a brand-new AI session), and nothing has to be re-explained or re-discovered. It even checks whether work was pushed from another machine that your local status doesn't know about yet, so two computers can't quietly drift apart.</p>
+<p><strong class="k">Check status anytime.</strong> A read-only snapshot — current step, what's finished, open questions, recommended next move — without touching anything.</p>
+<p><strong class="k">Save your place deliberately.</strong> Before stepping away or clearing a session, one command brings the status up to date and prompts you to record any decisions or open questions worth remembering — so your future self gets a genuinely useful briefing instead of a stale one.</p>
+<p><strong class="k2">Why it matters:</strong> The most expensive thing in software isn't writing code — it's <em>re-establishing context</em>: re-explaining, re-deciding, re-discovering why things are the way they are. Signal makes context a permanent asset instead of something that evaporates when a session ends. That's what makes development <em>sustainably</em> fast, not just fast in bursts.</p>
+
+<h2><span class="glyph">＋</span>Capturing ideas without derailing the work</h2>
+<p><strong class="k">What it does:</strong> Mid-build, you'll think of things — a new feature, a question, a possible bug. One quick command captures the thought, word-for-word, into the right inbox (ideas, open questions, or bugs) and you keep working. The next time you plan, Signal walks you through the inbox: promote this idea into the plan, save it for later, merge it, or drop it — your call, every time.</p>
+<p><strong class="k2">Why it matters:</strong> The two ways good ideas die are being forgotten and being chased immediately (wrecking the current task). This gives every stray thought a safe landing spot in under ten seconds, and guarantees it resurfaces at exactly the right moment — planning time. Nothing falls through the cracks, and nothing derails you.</p>
+
+<h2><span class="glyph">♻</span>A memory that maintains itself</h2>
+<p>Written records are only valuable if they stay accurate and findable. Signal tends its own memory:</p>
+<ol>
+<li><strong>A living table of contents</strong> for the whole memory folder, rebuilt automatically each time you ship, so anyone can find any document.</li>
+<li><strong>A hygiene check</strong> that catches records drifting out of shape — bloated files, notes in the wrong place — before they rot.</li>
+<li><strong>Automatic archiving:</strong> when a chunk of work is finished and closed, its detailed paper trail moves to an archive (never deleted, always recoverable) so day-to-day files stay lean and readable.</li>
+<li><strong>A one-command cleanup</strong> for projects whose memory has grown messy over time — it reorganizes everything to the current layout, moving rather than deleting, with every change reversible.</li>
+</ol>
+<p><strong class="k2">Why it matters:</strong> Every documentation system ever tried dies the same death: it decays, people stop trusting it, people stop using it. Signal's memory is the first kind that cleans its own room. Six months in, the records are as trustworthy as on day one — which is precisely when you need them most.</p>
+
+<h2><span class="glyph">▶</span>Getting started — new project or existing one</h2>
+<p><strong class="k">Brand-new project:</strong> one command sets everything up, asks what you're building, and flows straight into the sizing questions. You're working within minutes.</p>
+<p><strong class="k">Existing codebase</strong> (the more common case): a different command sends four scanners through your code — read-only, touching nothing — and produces a "lay of the land" report: what languages and tools it uses, how it's organized, how active it's been, how healthy the tests are. It then drafts the project paperwork for you, honestly marking every guess as a guess ("inferred — please verify") and every blank it couldn't fill as needing your input. You correct the draft instead of writing from scratch, then calibrate and go.</p>
+<p><strong class="k">And if the plugin itself misbehaves:</strong> a built-in "doctor" diagnoses the known installation problems and generates the exact fix — so a broken install is a two-minute detour, not a lost evening.</p>
+<p><strong class="k2">Why it matters:</strong> Adopting a process is usually the hardest part of any process. Signal meets your project where it is — including years-old codebases — and does its own onboarding homework.</p>
+
+<h2><span class="glyph">◌</span>Private by design</h2>
+<p>Signal sends no analytics, no telemetry, no usage data — nothing. All records live in your project, on your machine, under your control. Its only network activity is checking for its own updates and checking your own code backup for new work — and there's a built-in audit tool that proves it, so you don't have to take that on faith.</p>
+
+<h2><span class="glyph">Σ</span>Why this adds up to rock-solid, faster development</h2>
+<p>Each piece is simple. Together they compound:</p>
+<ol>
+<li><strong>Right-sized effort</strong> means you're never paying a rigor tax on small things or skipping safety on big ones. Speed where speed is safe; care where care is owed.</li>
+<li><strong>Decide-before-build</strong> means the expensive mistakes — building the wrong thing — get caught while they're still cheap conversations.</li>
+<li><strong>Small, parallel, individually-saved steps</strong> mean the work is fast <em>and</em> every step is reversible. Mistakes cost minutes, not days.</li>
+<li><strong>Independent verification and inspection</strong> mean "done" actually means done. Every promise has a proof; every release got a skeptical second look.</li>
+<li><strong>Built-in resistance to excuses</strong> means quality doesn't depend on anyone's willpower on a tired Friday — the process holds the line automatically, and any exception is on the record.</li>
+<li><strong>Permanent, self-maintaining memory</strong> means momentum survives interruptions, handoffs, machine switches, and months of shelf time. The project never forgets, so you never start over.</li>
+</ol>
+<p class="closer">That's the trade most teams believe they have to make — fast <em>or</em> reliable — dissolved. Signal makes reliability the byproduct of the process rather than an act of discipline, which is the only way it survives contact with real life. You describe what you want and make the judgment calls; the system handles the rigor, remembers everything, and proves the work before it ships.</p>
+
+</div><!-- /view-explainer -->
+
 <footer>
-<p>Source-of-truth: <code>.planning/PROJECT.md § Vocabulary</code> (for VOCABULARY), <code>references/tier-definitions.md</code>, <code>commands/calibrate.md</code>, <code>references/question-patterns.md</code>. To update this viewer when Signal changes, edit the data objects at the top of the <code>&lt;script&gt;</code> block at the bottom of this file. <strong>Refresh cadence: on each release-cycle ship event, update the "currently active" lines in VOCABULARY.hierarchy and the COMMANDS array (commands + flags)</strong> — see <code>.planning/FUTURE-IDEAS.md § map-refresh-protocol</code>.</p>
+<p>Source-of-truth: <code>.planning/PROJECT.md § Vocabulary</code> (for VOCABULARY), <code>references/tier-definitions.md</code>, <code>commands/calibrate.md</code>, <code>references/question-patterns.md</code>. The "Signal, explained" view mirrors <code>docs/signal-explained.md</code>. To update this viewer when Signal changes, edit the data objects at the top of the <code>&lt;script&gt;</code> block at the bottom of this file (map view) and the <code>#view-explainer</code> markup (explainer view). <strong>Refresh cadence: at each meaningful release, update the "currently active" lines in VOCABULARY.hierarchy and the COMMANDS array (commands + flags), and evaluate whether <code>docs/signal-explained.md</code> + the explainer view need a re-sync — even if the answer is "no change."</strong> See <code>.planning/BACKLOG.md § docs/map refresh protocol — Stage 1</code>.</p>
 </footer>
 
 </div>
@@ -1456,6 +1587,24 @@ function renderGroupLib(data, rootId, openIndex) {
 function toggleAllGroups(rootId, open) {
   document.querySelectorAll('#' + rootId + ' .cmd-group').forEach(g => g.classList.toggle('open', open));
 }
+
+// VIEW SWITCHER — two screens: the plain-language explainer (default) and the functionality map.
+// Deep-linkable: #map or any map-section anchor opens the map view; anything else (or no hash) shows the explainer.
+const MAP_HASHES = ['#map', '#commands', '#agents', '#skills', '#calibrate', '#vocab', '#tiers', '#matrix', '#phases', '#patterns'];
+function applyView(isExplainer) {
+  document.getElementById('view-map').hidden = isExplainer;
+  document.getElementById('view-explainer').hidden = !isExplainer;
+  document.getElementById('tab-map').classList.toggle('active', !isExplainer);
+  document.getElementById('tab-explainer').classList.toggle('active', isExplainer);
+}
+function switchView(view) {
+  const isExplainer = view === 'explainer';
+  applyView(isExplainer);
+  location.hash = isExplainer ? '#explainer' : '#map';
+  window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', () => applyView(!MAP_HASHES.includes(location.hash)));
+applyView(!MAP_HASHES.includes(location.hash));
 
 // init
 renderCommands();
