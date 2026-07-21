@@ -226,3 +226,45 @@ describe('evictEpicNarrative — realpath confinement against a directory-symlin
     expect(await readFile(join(planningDir, 'STATE.md'), 'utf-8')).toBe(stateBefore);
   });
 });
+
+// M5.E4 REVIEW (B14 / FR2) — Site A, LEAF vector: the guard must anchor on the
+// archive dir ITSELF, not its parent. Here .planning/archive/M5 are REAL dirs and the
+// Epic LEAF .planning/archive/M5/E1 is the directory symlink. The original fix passed
+// the DIRECTORY archiveDir to the guard → it realpathed dirname(archiveDir) = the real
+// M5 parent and MISSED the leaf → the escape stayed open. RED (dir-anchored) lets the
+// narrative land in <outside>; GREEN (file-anchored, like archive-tree.js) refuses.
+describe('evictEpicNarrative — refuses a LEAF (Epic-dir) symlink escape (Site A, REVIEW)', () => {
+  let baseDir;
+  let planningDir;
+  let outside;
+
+  beforeEach(async () => {
+    baseDir = await mkdtemp(join(tmpdir(), 'signal-evict-leafsym-'));
+    planningDir = join(baseDir, '.planning');
+    await mkdir(planningDir, { recursive: true });
+    outside = await mkdtemp(join(tmpdir(), 'signal-evict-leaf-target-'));
+    await writeFile(join(planningDir, 'STATE.md'), FRONTMATTER + '\n' + BODY, 'utf-8');
+    await writeFile(join(planningDir, 'M5.E1-RETROSPECTIVE.md'), GOLDEN_RETRO, 'utf-8');
+    // Parents are REAL; only the Epic leaf is the hostile symlink → dirname(archiveDir)
+    // resolves to the real M5 parent and a dir-anchored guard never inspects the leaf.
+    await mkdir(join(planningDir, 'archive', 'M5'), { recursive: true });
+    await symlink(outside, join(planningDir, 'archive', 'M5', 'E1'));
+  });
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  });
+
+  it('REFUSES the eviction — nothing lands in the out-of-tree leaf, STATE untouched', async () => {
+    const stateBefore = await readFile(join(planningDir, 'STATE.md'), 'utf-8');
+    let threw = false;
+    try {
+      await evictEpicNarrative(baseDir, 'M5.E1');
+    } catch {
+      threw = true;
+    }
+    expect(await readdir(outside)).toEqual([]); // NOTHING escaped through the leaf symlink
+    expect(threw).toBe(true);
+    expect(await readFile(join(planningDir, 'STATE.md'), 'utf-8')).toBe(stateBefore);
+  });
+});

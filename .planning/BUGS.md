@@ -54,7 +54,7 @@ unverified.
 - **B5** → `fixed` (`b5f3631`): flat `eslint.config.js` — `npm run lint` runs clean (0 errors).
 - **B6** → `fixed` (`8fbdecf`): resume/status banners gate on genuine drift (`HEAD..origin`), not the bookkeeping "+1".
 - **B8** → `fixed`: both halves shipped v0.1.8 (`WHOLE_FILE_NOTE` + vector-1 de-prose); M5.E4 added the command-level `block:true→false` flip assertion in `migrate-all-vectors.test.js`.
-- **B14** → `fixed` (`b5ed3f0`): shared `path-confine.js` realpath guard at evict/add/resume (add.js reversal ratified, D-M5E4-5).
+- **B14** → `fixed` (`b5ed3f0` + REVIEW completion): shared `path-confine.js` realpath guard at evict/add/resume (add.js reversal ratified, D-M5E4-5). **REVIEW caught an incomplete fix at the `evict.js` site** — it passed the *directory* to the guard, so the guard resolved only the archive parent and a directory symlink at the Epic *leaf* still escaped (a false-green test planted the symlink one level too high). Completed in REVIEW: anchor the guard on the *file* path (matching `archive-tree.js`) + a RED-first leaf-symlink test.
 - **B15** → `fixed` (`cb4cbf9`): the blocking dangling scanner reads the full file (no 1 MB truncation).
 - **B16** → `fixed` (`9d36aa4`): the pre-apply tag is deleted after a successful rollback.
 - **B17** → `fixed` (`0c284b9`): `vitest.config.js testTimeout: 15000` for git-heavy suites.

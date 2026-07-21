@@ -351,13 +351,15 @@ export async function evictEpicNarrative(baseDir, epicId, opts = {}) {
     if (!resolve(baseDir, archiveDir).startsWith(planningRoot + sep)) {
       throw new Error(`evictEpicNarrative: archive path for ${epicId} escapes ${PLANNING_DIR}/`);
     }
-    // Symlink-aware re-assert (B14 / FR2): the lexical guard above is blind to a
-    // checked-in DIRECTORY symlink under .planning/ (e.g. archive → out of tree),
-    // which the mkdir/atomicWrite would follow OUT of the repo. realpath both sides.
-    assertRealInsidePlanning(baseDir, resolve(baseDir, archiveDir), 'evictEpicNarrative');
-    await mkdir(join(baseDir, archiveDir), { recursive: true });
     const narrativeRel = `${archiveDir}/STATE-NARRATIVE.md`;
     const narrativeAbs = join(baseDir, narrativeRel);
+    // Symlink-aware re-assert (B14 / FR2): pass the FILE path (not archiveDir) so the guard
+    // realpaths dirname(narrativeAbs) = the archive dir ITSELF — a checked-in DIRECTORY
+    // symlink AT the Epic leaf is caught. (REVIEW: passing archiveDir resolved only its
+    // PARENT, leaving a leaf-symlink escape open; archive-tree.js passes the file for this
+    // reason — the mkdir/atomicWrite would otherwise follow the link OUT of the repo.)
+    assertRealInsidePlanning(baseDir, narrativeAbs, 'evictEpicNarrative');
+    await mkdir(join(baseDir, archiveDir), { recursive: true });
     await atomicWrite(narrativeAbs, sec.section);
     // Zero-loss accounting: what we archived is byte-identical to the extracted
     // section (the original survives in full in archive).
