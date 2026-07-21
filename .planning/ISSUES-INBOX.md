@@ -1464,9 +1464,18 @@ Purpose: fast human QA + faithfulness eyeballs, demos, onboarding, and regressio
 
 ---
 
+## Scan project integrations into a tooling catalog for agents
+
+**Status:** Logged 2026-07-21 via `/sig:add`.
+
+feature in signal that a) scans the project's integrations (MCPs, CLIs, etc.) and denotes those in documentation so models instantly know what tooling they have available to them vs. agents either guessing or just being wrong, not knowing the appropriate tooling is there. Problem it solves: Avoid "I can't do that" or asking user for redundant installs or access when those things already exist // otherside of same coin; does a period scan to update that catalog (wherever that hook is best suited; ship maybe?)
+
+---
 
 
 
 
 
-*Last updated: 2026-07-17*
+
+
+*Last updated: 2026-07-21*
