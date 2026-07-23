@@ -1,25 +1,17 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: SHIP
-current_epic: M5.E5
+phase: PLAN
+current_epic: M5.E6
 current_wave: null
 current_tasks: []
 completed_phases:
-  - DISCUSS (2026-07-21)
-  - PLAN (2026-07-21)
-  - EXECUTE (2026-07-21)
-  - VERIFY (2026-07-21)
-  - REVIEW (2026-07-21)
+  - DISCUSS (2026-07-23)
 blockers: []
-last_completed_task:
-  id: M5.E5.T4
-  status: done
-  commit: 35f6a04
-  completedAt: 2026-07-21T22:09:15.100Z
+last_completed_task: null
 last_decision_at: 2026-07-21T22:09:15.100Z
 last_updated_commit: 715bd15040a6bbb701a9a6270c8f9031eed3e38f
-last_updated: 2026-07-21T23:36:25.015Z
+last_updated: 2026-07-23T17:12:01.424Z
 ---
 # Project State
 
@@ -27,11 +19,11 @@ last_updated: 2026-07-21T23:36:25.015Z
 
 **v0.1.10 — Carry-over bug squash (M5.E5) — ✅ SHIPPED 2026-07-21.** The four M5.E4 carry-overs cleared: **B24** (migrate dangling-gate over-abort — re-keyed on the resolved abs-target + multiset), **B26** (retro gate blind on the self-hosted flow — STATE-based Epic-close fallback, Layers 1+2), **B25** (FR5 read-enclosure behavioral interleaving test + `_afterRead` seam), **B6** (stale-nudge by file identity — `BOOKKEEPING_PATHS`). Full DISCUSS→SHIP at FULL/strict: 4 tasks / 2 waves (sequential dispatch), 1529 → **1561 tests**, REVIEW **PASS** — a 3-specialist adversarial panel ran a 12-case mutation matrix and found **0 false-greens** (contrast v0.1.9's two). **B26 dogfooded on its own SHIP** (hard-blocked until this retro existed). Tag `v0.1.10` → release commit `3f47cf1`. Retro: `M5.E5-RETROSPECTIVE.md`.
 
-**➡ NEXT: v0.1.10 released; no Epic open.** New carry-overs (all `needs-triage` in `BUGS.md`): **B27/B28** (migrate over-aborts, *fail-safe*, on two rarer link shapes inside evicted closed blocks — one design question: flag-not-abort for archive/closed-block links), **B29** (`_afterRead` prototype-pollution hardening — unreachable), **B30** (FR1 pre-check timing — the retro gate skips at `/sig:ship` Step 0.5 because it runs before the SHIP transition; surfaced dogfooding B26). Still slated: the **Sprint-3 hygiene commands** (`/sig:sweep`, CLAUDE.md de-bloat, `docs/map` checklist). Broader horizon per `MILESTONE-5.md`: the **v2-port re-audit (BR-8)** gating the speculative ports. Open a new Epic with `/sig:discuss --epic <name>`.
+**➡ NOW: M5.E6 — Doc-runtime close-out — DISCUSS complete (2026-07-22); ▶ PLAN — run `/sig:plan`.** The maintenance-command half of the doc-runtime flagship — finish Signal's self-maintenance so it's 100% locked *before* the v2-port re-audit (BR-8). Scope: **`/sig:sweep`** (invoking-project, `.planning/`-aware, read-only report) + its check set + the **`docs/map` Stage-1 ship-checklist line** + **concurrency-lock** the doc-runtime RMW paths (a *wanted* feature — parallel sessions do happen) + clear the four M5.E5 carry-overs: **B27/B28** (migrate gate → flag-not-abort for archive-inline + absolute-path links), **B29** (`_afterRead` own-property guard), **B30** (retro-gate fires on a fresh REVIEW→SHIP flow). Deferred out of scope: **OBSERVATIONS.md** → Sprint-4 compound Epic; `--code` sweep + inbox-curation. Decisions **D-M5E6-1…4** (`DECISIONS.md`); spec **`M5.E6-REQUIREMENTS.md`** (7 FRs). Tier FULL/strict.
 
 ## In-flight
 
-**None — M5.E5 shipped as v0.1.10; no Epic open.**
+**M5.E6 — PLAN.** DISCUSS closed: 4 decisions locked (D-M5E6-1…4), spec `M5.E6-REQUIREMENTS.md` (7 FRs). Run `/sig:plan` to build the phase plan. No tasks dispatched yet.
 
 ## Blockers
 
