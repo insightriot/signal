@@ -201,6 +201,36 @@ describe('M5.E6 FR6 — the _afterRead seam ignores a prototype-polluted _afterR
   );
 });
 
+// AC6.2 — the positive twin of the pollution test above: the guard must still FIRE a
+// legitimate OWN-property `_afterRead` function, so the B25 read-enclosure seam is
+// unaffected. (The full B25 interleaving suite below re-proves this across all 6 paths;
+// this is the focused, direct assertion.)
+describe('M5.E6 FR6 — the guard still fires a legitimate own-property _afterRead (B29, AC6.2)', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'signal-rmw-ownprop-'));
+    await mkdir(join(dir, '.planning'), { recursive: true });
+    await writeFile(join(dir, INBOX_REL), DRAIN_INBOX, 'utf-8');
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('applyDispositionToFile fires an own-property _afterRead function', async () => {
+    let fired = false;
+    await applyDispositionToFile(dir, INBOX_REL, {
+      entryIndex: 0,
+      verb: 'defer',
+      reason: 'AC6.2 own-property seam',
+      date: '2026-07-20',
+      _afterRead: async () => {
+        fired = true;
+      },
+    });
+    expect(fired).toBe(true);
+  });
+});
+
 describe('M5.E4 FR5a — applyMigrate INDEX regen fires the lock-free core under the held coarse lock (AC5.1)', () => {
   const git = (cwd, args) =>
     execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
