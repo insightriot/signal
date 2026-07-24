@@ -25,7 +25,7 @@ import {
   applyDispositionToFileCore,
 } from '../tools/lib/drain.js';
 import { regenerateIndex, generateMilestoneMetaRetro } from '../tools/lib/retro-index.js';
-import { regeneratePlanningIndexCore } from '../tools/lib/planning-index.js';
+import { regeneratePlanningIndex, regeneratePlanningIndexCore } from '../tools/lib/planning-index.js';
 import { applyMigrate } from '../tools/lib/migrate-memory.js';
 
 const INBOX_REL = '.planning/ISSUES-INBOX.md';
@@ -157,6 +157,18 @@ describe('M5.E4 FR5b — doc-runtime RMW writers are lock-guarded (AC5.2)', () =
         })
       ).resolves.toMatchObject({ written: true });
     });
+  });
+
+  // AC7.7 (coverage symmetry) — regeneratePlanningIndex is the 7th named RMW path (its
+  // BACKLOG close-out is FR7). Its Core takes only `baseDir` (no `_afterRead` seam), so it
+  // can't join the interleaving/pollution it.each blocks; this standalone assertion gives it
+  // the same lock-guard coverage the other 6 get above: rejects when invoked under an
+  // already-held state lock, resolves after release.
+  it('regeneratePlanningIndex: rejects when invoked under an already-held state lock, resolves after release (AC7.7)', async () => {
+    await withStateLock(dir, async () => {
+      await expect(regeneratePlanningIndex(dir)).rejects.toThrow(/lock|another .*state write/i);
+    });
+    await expect(regeneratePlanningIndex(dir)).resolves.toBeDefined();
   });
 });
 
