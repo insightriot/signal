@@ -44,7 +44,7 @@ const mkFinding = (check, severity, file, message) => ({ check, severity, file, 
 const findingCmp = (a, b) =>
   a.check.localeCompare(b.check) || a.file.localeCompare(b.file) || a.message.localeCompare(b.message);
 
-function walkDocs(dir, out) {
+function walkDocs(dir, out, walkIgnore = WALK_IGNORE) {
   let entries;
   try {
     entries = readdirSync(dir, { withFileTypes: true });
@@ -52,12 +52,38 @@ function walkDocs(dir, out) {
     return out;
   }
   for (const e of entries) {
-    if (WALK_IGNORE.has(e.name)) continue;
+    if (walkIgnore.has(e.name)) continue;
     const p = join(dir, e.name);
-    if (e.isDirectory()) walkDocs(p, out);
+    if (e.isDirectory()) walkDocs(p, out, walkIgnore);
     else if (e.name.endsWith('.md')) out.push(p);
   }
   return out;
+}
+
+// Remove fenced code blocks and inline code spans so a `](path.md)` written as a
+// code *sample* (research/plan docs legitimately quote link syntax) is never
+// mistaken for a live link. Line-based fence tracking mirrors drain.js's
+// `isFenceMarker`; the caller applies it AFTER the B15 cap-truncation so a
+// pathological doc is bounded first. Line count is preserved (fenced/marker
+// lines blank out) — only the link-scan surface changes.
+function stripCodeSpans(text) {
+  const out = [];
+  let inFence = false;
+  for (const line of text.split('\n')) {
+    const t = line.trimStart();
+    if (t.startsWith('```') || t.startsWith('~~~')) {
+      inFence = !inFence;
+      out.push(''); // the fence marker line itself is not a link surface
+      continue;
+    }
+    if (inFence) {
+      out.push(''); // fenced content: a code sample, never a live link
+      continue;
+    }
+    // Inline code spans on a prose line: `](x.md)` inside backticks is a sample.
+    out.push(line.replace(/`[^`]*`/g, ''));
+  }
+  return out.join('\n');
 }
 
 /**
@@ -66,17 +92,26 @@ function walkDocs(dir, out) {
  * it, and its research/plan docs legitimately quote link syntax like `](path.md)`
  * that a standing HARD guard would false-fail. Sorted, deterministic.
  *
+ * Scope is parameterized (M5.E6 FR1) so `/sig:sweep` can widen the walk to
+ * `.planning/` (still exempting `archive/` via `walkIgnore`) WITHOUT changing the
+ * standing test-suite guard — every opt defaults to today's behavior.
+ *
  * @param {string} [baseDir=ROOT]
+ * @param {object} [opts]
+ * @param {string[]} [opts.topFiles=['README.md','CLAUDE.md']] repo-root `.md` files to include
+ * @param {string[]} [opts.dirs=['docs','analysis']] dirs to walk (recursively)
+ * @param {Set<string>} [opts.walkIgnore=WALK_IGNORE] dir names never descended into
  * @returns {string[]} absolute paths, sorted
  */
-export function listDocFiles(baseDir = ROOT) {
+export function listDocFiles(baseDir = ROOT, opts = {}) {
+  const { topFiles = ['README.md', 'CLAUDE.md'], dirs = ['docs', 'analysis'], walkIgnore = WALK_IGNORE } = opts;
   const out = [];
-  for (const top of ['README.md', 'CLAUDE.md']) {
+  for (const top of topFiles) {
     const p = join(baseDir, top);
     if (existsSync(p)) out.push(p);
   }
-  for (const dir of ['docs', 'analysis']) {
-    walkDocs(join(baseDir, dir), out);
+  for (const dir of dirs) {
+    walkDocs(join(baseDir, dir), out, walkIgnore);
   }
   return out.sort();
 }
@@ -87,13 +122,21 @@ export function listDocFiles(baseDir = ROOT) {
  * (slug resolution is best-effort to avoid false HARD-fails). External /
  * scheme-prefixed targets are skipped.
  *
+ * Scope + `stripCode` are parameterized (M5.E6 FR1/FR2): `/sig:sweep` passes a
+ * widened scope and `stripCode: true` so code-quoted `](path.md)` samples in
+ * `.planning/` research/plan docs are not mis-flagged. Both default to today's
+ * behavior, so the standing guard is unchanged.
+ *
  * @param {string} [baseDir=ROOT]
+ * @param {object} [opts] scope opts forwarded to listDocFiles, plus:
+ * @param {boolean} [opts.stripCode=false] strip fenced/inline code before scanning
  * @returns {Array<{check: string, severity: string, file: string, message: string}>}
  */
-export function checkInternalLinks(baseDir = ROOT) {
+export function checkInternalLinks(baseDir = ROOT, opts = {}) {
+  const { stripCode = false } = opts;
   const findings = [];
   const root = resolve(baseDir);
-  for (const f of listDocFiles(baseDir)) {
+  for (const f of listDocFiles(baseDir, opts)) {
     let text;
     try {
       text = readFileSync(f, 'utf-8');
@@ -109,6 +152,8 @@ export function checkInternalLinks(baseDir = ROOT) {
       );
       text = text.slice(0, FILE_SCAN_CEILING);
     }
+    // Applied AFTER the cap so the strip operates on bounded text (FR2).
+    if (stripCode) text = stripCodeSpans(text);
     for (const m of text.matchAll(INLINE_LINK_RE)) {
       const raw = m[1].trim();
       if (isExternalTarget(raw)) continue;
@@ -271,18 +316,32 @@ const FILL_IN_TEMPLATE_EXCLUDE = new Set(['docs/tester-brief.md']);
 // for opportunistic completion — excluded by filename shape.
 const FILL_IN_NAME_EXCLUDE = /-RETROSPECTIVE\.md$|^MILESTONE-|-template\.md$/;
 
-/** README.md + top-level docs/*.md, minus templates / retros / milestone docs. */
-function fillInScope(baseDir) {
+/**
+ * README.md + top-level <dir>/*.md (each dir non-recursively), minus templates /
+ * retros / milestone docs. Scope is parameterized (M5.E6 FR1) so `/sig:sweep` can
+ * widen it; both opts default to today's behavior.
+ *
+ * @param {string} baseDir
+ * @param {object} [opts]
+ * @param {string[]} [opts.topFiles=['README.md']] repo-root files to include
+ * @param {string[]} [opts.dirs=['docs']] dirs whose top-level *.md are included
+ */
+function fillInScope(baseDir, opts = {}) {
+  const { topFiles = ['README.md'], dirs = ['docs'] } = opts;
   const rels = [];
-  if (existsSync(join(baseDir, 'README.md'))) rels.push('README.md');
-  let entries;
-  try {
-    entries = readdirSync(join(baseDir, 'docs'), { withFileTypes: true });
-  } catch {
-    entries = [];
+  for (const top of topFiles) {
+    if (existsSync(join(baseDir, top))) rels.push(top);
   }
-  for (const e of entries) {
-    if (e.isFile() && e.name.endsWith('.md')) rels.push(`docs/${e.name}`);
+  for (const dir of dirs) {
+    let entries;
+    try {
+      entries = readdirSync(join(baseDir, dir), { withFileTypes: true });
+    } catch {
+      entries = [];
+    }
+    for (const e of entries) {
+      if (e.isFile() && e.name.endsWith('.md')) rels.push(`${dir}/${e.name}`);
+    }
   }
   return rels
     .filter((rel) => !FILL_IN_TEMPLATE_EXCLUDE.has(rel) && !FILL_IN_NAME_EXCLUDE.test(rel.split('/').pop()))
@@ -294,12 +353,15 @@ function fillInScope(baseDir) {
  * Line-anchored via `isStubRetro` — inline mentions inside prose (e.g. text that
  * describes how the markers work) don't match.
  *
+ * Scope is parameterized (M5.E6 FR1) — forwarded to fillInScope; defaults today's.
+ *
  * @param {string} [baseDir=ROOT]
+ * @param {object} [opts] scope opts forwarded to fillInScope
  * @returns {Array<{check: string, severity: string, file: string, message: string}>}
  */
-export function checkFillInStubs(baseDir = ROOT) {
+export function checkFillInStubs(baseDir = ROOT, opts = {}) {
   const findings = [];
-  for (const rel of fillInScope(baseDir)) {
+  for (const rel of fillInScope(baseDir, opts)) {
     let text;
     try {
       text = readFileSync(join(baseDir, rel), 'utf-8');
