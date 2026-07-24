@@ -773,9 +773,39 @@ export async function shipFR1Check(args) {
   const rowStatus = milestoneContent
     ? findEpicStatusRow(milestoneContent, state.current_epic)
     : null;
+
+  // B30 (M5.E6 FR5): the FR1 pre-check runs at `/sig:ship` Step 0.5, BEFORE the
+  // SHIP transition, so on a fresh REVIEW→SHIP flow STATE still reads `phase:
+  // <last pre-ship phase>` (REVIEW for FULL) with SHIP not yet in
+  // completed_phases and no milestone row. isEpicCloseShip is false (no row) and
+  // B26's phase===SHIP fallback can't fire yet, so the gate silently skipped.
+  // Detect the about-to-close shape and evaluate isEpicCloseByState against an
+  // IN-MEMORY synthesized post-transition state — persist NOTHING (D-M5E6-5 /
+  // approach (c); chosen over reorder-transition-first, which would strand SHIP
+  // on a halt and mis-orient /sig:resume). `lastPreShip` is the tier's final
+  // required pre-SHIP phase (PRE_SHIP_PHASES minus phases_skipped); `shipsAtAll`
+  // is false for a tier that skips SHIP (SPIKE) so this never fires for it.
+  const skipped = new Set(profile?.phases_skipped ?? []);
+  const required = PRE_SHIP_PHASES.filter((p) => !skipped.has(p));
+  const lastPreShip = required[required.length - 1];
+  const shipsAtAll = !skipped.has('SHIP');
+  const aboutToClose =
+    shipsAtAll && state.phase === lastPreShip && rowStatus === null;
+  const synthState = aboutToClose
+    ? {
+        ...state,
+        phase: 'SHIP',
+        completed_phases: [
+          ...(state.completed_phases ?? state.completedPhases ?? []),
+          lastPreShip,
+        ],
+      }
+    : null;
+
   const isEpicClose =
     isEpicCloseShip(state, milestoneContent) ||
-    (rowStatus === null && isEpicCloseByState(state, profile));
+    (rowStatus === null && isEpicCloseByState(state, profile)) ||
+    (aboutToClose && isEpicCloseByState(synthState, profile));
   if (!isEpicClose) {
     return {
       halt: false,
