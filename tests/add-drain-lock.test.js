@@ -33,6 +33,7 @@ import {
   releaseLock,
 } from '../tools/lib/add.js';
 import { atomicWrite } from '../tools/lib/atomic-write.js';
+import { withStateLock } from '../tools/lib/state.js';
 
 const INBOX_REL = '.planning/ISSUES-INBOX.md';
 
@@ -159,5 +160,71 @@ describe('M5.E6 FR7 / B31 — /sig:add inbox-write vs drain disposition mutual e
     expect(r.bSucceeded).toBe(true); // B acquired the still-free .add.lock and committed
     expect(r.bReflected).toBe(false); // then A's stale-content write clobbered B's entry
     expect(r.aReflected).toBe(true);
+  });
+});
+
+describe('M5.E6 FR7 / B31 — /sig:add doc-write re-entrancy + prompt placement (AC7.4/AC7.5)', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'signal-add-drain-lock-'));
+    await mkdir(join(dir, '.planning'), { recursive: true });
+    await writeFile(join(dir, INBOX_REL), DRAIN_INBOX, 'utf-8');
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  // AC7.4 — add's doc-write is genuinely UNDER `.state.lock` (rejects when the coarse
+  // lock is externally held) AND completes ONCE the lock frees (no internal re-entrancy).
+  // The resolves-after-release leg is the re-entrancy witness: it would fail (the Core
+  // would re-enter and throw, "hang" in the plan's phrasing) if any pure insert helper
+  // self-locked. Mirrors the rmw-lock.test.js throw-under-held-lock idiom.
+  it('add rejects while .state.lock is externally held, then resolves after release (no re-entrant deadlock)', async () => {
+    await withStateLock(dir, async () => {
+      await expect(
+        captureToFutureIdeas(dir, {
+          body: 'an idea captured while the coarse lock is held',
+          today: '2026-07-20',
+          sensitivePrompt: async () => 'keep',
+        })
+      ).rejects.toThrow(/lock|another .*state write/i);
+    });
+    // Lock released — add acquires `.state.lock` exactly once inside its Core and
+    // completes. A helper that self-locked would re-enter here and throw instead.
+    await expect(
+      captureToFutureIdeas(dir, {
+        body: 'an idea captured after the coarse lock released',
+        today: '2026-07-20',
+        sensitivePrompt: async () => 'keep',
+      })
+    ).resolves.toMatchObject({ written: true });
+    const content = await readFile(join(dir, INBOX_REL), 'utf-8');
+    expect(content).toContain('an idea captured after the coarse lock released');
+  });
+
+  // AC7.5 (structural) — the sensitive-data scrub prompt must run OUTSIDE `.state.lock`,
+  // so a slow interactive prompt can never hold the coarse mutex for 30s. The probe
+  // acquires `.state.lock` from INSIDE the scrub prompt: it succeeds only because add
+  // has not yet taken the coarse lock (the prompt precedes it). If a future
+  // "simplification" moved the prompt INSIDE addDocWriteCore (under `.state.lock`), add
+  // would already hold the lock here, the nested acquire would re-enter → throw → record
+  // false → this assertion FAILS. That is the genuine bite (verified by mutation).
+  it('the sensitive-data scrub prompt runs OUTSIDE .state.lock (prompt precedes the coarse-lock acquire)', async () => {
+    let stateLockAcquirableDuringPrompt = null;
+    await captureToFutureIdeas(dir, {
+      // A github-token pattern (ghp_ + 36 alphanumerics) → the scrub prompt fires.
+      body: 'rotate deploy key ghp_abcdefghijklmnopqrstuvwxyz0123456789 today',
+      today: '2026-07-20',
+      sensitivePrompt: async () => {
+        try {
+          await withStateLock(dir, async () => {});
+          stateLockAcquirableDuringPrompt = true;
+        } catch {
+          stateLockAcquirableDuringPrompt = false;
+        }
+        return 'keep';
+      },
+    });
+    expect(stateLockAcquirableDuringPrompt).toBe(true);
   });
 });

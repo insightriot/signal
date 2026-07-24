@@ -30,6 +30,10 @@ import {
 } from './file-lock.js';
 import { currentMilestone } from './milestones.js';
 import { resolveInboxPath } from './inbox-path.js';
+// B31 (FR7): add's doc-WRITE runs under the SAME coarse `.planning/.state.lock` the
+// drain uses, so add-vs-drain writes on a shared file are mutually excluded. state.js
+// does not import add.js, so this introduces no import cycle.
+import { withStateLock } from './state.js';
 
 // Re-export atomicWrite so existing consumers (tests/add.test.js, future
 // callers) keep working while atomic-write.js is the canonical implementation
@@ -969,6 +973,64 @@ export async function releaseLock(baseDir) {
 // --- Orchestrator ---
 
 /**
+ * B31 (FR7 / AC7.3–7.5): the `/sig:add` doc-WRITE critical section, run under the
+ * coarse `.planning/.state.lock` so it is mutually exclusive with the drain's
+ * disposition writes on the SAME files (which also take `.state.lock`). It re-reads
+ * the target INSIDE the lock (or falls back to the lazy-create skeleton), splices the
+ * ALREADY-BUILT `entry` via the destination's pure `insert` closure, atomicWrites, and
+ * computes the new entry's line number.
+ *
+ * A DISTINCT no-prompt function by design (AC7.5): the sensitive-data scrub prompt and
+ * the entry-build ran already, BEFORE the lock, so this coarse section is non-
+ * interactive — a slow prompt can never hold `.state.lock` for its 30s TTL. Any future
+ * edit that slips a prompt in here changes this signature and trips the AC7.5
+ * structural test (which asserts `.state.lock` is acquirable during the scrub prompt).
+ *
+ * Re-entrancy (AC7.4 / FR7 §9): this Core self-locks NOTHING and calls only the pure
+ * inserts (`insertFutureIdeasEntry` / `insertIntoHoldingSection` / `insertAtEnd`) plus
+ * `atomicWrite`, never a self-locking function — so the single `.state.lock` acquire in
+ * the caller's `withStateLock` is the ONLY acquire and never re-enters. Those pure
+ * helpers stay lock-free precisely so drain's promote (which runs them INSIDE its own
+ * `.state.lock`) can reuse them without deadlock.
+ *
+ * @param {string} targetPath — absolute path to the destination doc
+ * @param {object} args
+ * @param {string} args.entry — the pre-built entry block (heading/body already rendered)
+ * @param {(content: string, entry: string, date: string) => string|{content: string, repaired?: boolean}} args.insert
+ * @param {string} args.today — ISO date YYYY-MM-DD
+ * @param {string} [args.lazyCreateContent] — skeleton used when the target is absent
+ *   (the pre-flight in `captureToDestination` already gated the absent-but-lazy case).
+ * @returns {Promise<{written: boolean, path: string, line: number, repaired: boolean}>}
+ */
+async function addDocWriteCore(targetPath, { entry, insert, today, lazyCreateContent }) {
+  // Re-read INSIDE the lock so a concurrent writer's committed change is seen, never a
+  // stale snapshot taken before the lock. Absent target (lazy-create path) → skeleton;
+  // the ONE atomicWrite writes skeleton + entry together, so a fresh file is never left
+  // empty on a crash.
+  const existing = existsSync(targetPath)
+    ? await readFile(targetPath, 'utf-8')
+    : lazyCreateContent;
+  // An `insert` closure may return a bare string (most destinations) or a
+  // `{content, repaired}` object (FUTURE-IDEAS footer-repair, S3.t2). Normalize
+  // both so the repair signal threads up to the command layer to announce.
+  const insertResult = insert(existing, entry, today);
+  const newContent =
+    typeof insertResult === 'string' ? insertResult : insertResult.content;
+  const repaired =
+    typeof insertResult === 'string' ? false : Boolean(insertResult.repaired);
+  await atomicWrite(targetPath, newContent);
+
+  // Compute the 1-indexed line number of the new entry generically: find the
+  // entry's first line in the written content. -1 when not found (e.g. the
+  // insert closure transformed the heading), which the caller may surface.
+  const firstEntryLine = entry.split('\n')[0];
+  const lineIdx = newContent.split('\n').findIndex((l) => l === firstEntryLine);
+  const line = lineIdx >= 0 ? lineIdx + 1 : -1;
+
+  return { written: true, path: targetPath, line, repaired };
+}
+
+/**
  * Generalized, destination-agnostic capture spine. All `/sig:add` destinations
  * (FUTURE-IDEAS, OPEN-QUESTIONS, milestone holding section, `--file`) route
  * through this one function so the safety substrate — scrub, body-length,
@@ -1066,35 +1128,24 @@ export async function captureToDestination(baseDir, opts) {
     }
   }
 
-  // Acquire lock. Released in finally.
+  // Acquire `.add.lock`. Retained (B31/AC7.5): it serializes concurrent `/sig:add`
+  // invocations and its 30s TTL covers the interactive prompt phase above — the
+  // "refuses concurrent capture (lock held)" contract depends on this acquire. Released
+  // in finally. The DOC-WRITE itself now runs under the coarse `.planning/.state.lock`
+  // NESTED inside, via `addDocWriteCore`, so drain's disposition writes on the same file
+  // are mutually excluded (B31/AC7.3). Lock order is add-only `.add.lock → .state.lock`
+  // (drain takes only `.state.lock`) → no deadlock cycle.
   const lock = await acquireLock(baseDir);
   try {
-    // Read the current file, or start from the lazy-create skeleton when the
-    // target was absent (the pre-flight above already allowed this path). The
-    // skeleton + the new entry get written in ONE atomicWrite — no separate
-    // create step, so a fresh inbox is never left empty on a crash.
-    const existing = existsSync(targetPath)
-      ? await readFile(targetPath, 'utf-8')
-      : lazyCreateContent;
+    // Build the entry OUTSIDE `.state.lock` (AC7.5): the coarse critical section stays
+    // non-interactive — the scrub prompt already ran above (before any lock) and this
+    // build is pure. The `await` on withStateLock is load-bearing: a bare
+    // `return withStateLock(...)` would run the finally (releasing `.add.lock`) BEFORE
+    // the write finished, reopening an add-vs-add race.
     const entry = buildEntry({ body, date: today, triggerContext, title });
-    // An `insert` closure may return a bare string (most destinations) or a
-    // `{content, repaired}` object (FUTURE-IDEAS footer-repair, S3.t2). Normalize
-    // both so the repair signal threads up to the command layer to announce.
-    const insertResult = insert(existing, entry, today);
-    const newContent =
-      typeof insertResult === 'string' ? insertResult : insertResult.content;
-    const repaired =
-      typeof insertResult === 'string' ? false : Boolean(insertResult.repaired);
-    await atomicWrite(targetPath, newContent);
-
-    // Compute the 1-indexed line number of the new entry generically: find the
-    // entry's first line in the written content. -1 when not found (e.g. the
-    // insert closure transformed the heading), which the caller may surface.
-    const firstEntryLine = entry.split('\n')[0];
-    const lineIdx = newContent.split('\n').findIndex((l) => l === firstEntryLine);
-    const line = lineIdx >= 0 ? lineIdx + 1 : -1;
-
-    return { written: true, path: targetPath, line, repaired };
+    return await withStateLock(baseDir, () =>
+      addDocWriteCore(targetPath, { entry, insert, today, lazyCreateContent })
+    );
   } finally {
     await lock.released();
   }
