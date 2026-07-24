@@ -20,6 +20,7 @@ import {
   renderDryRun,
   runMigrate,
 } from '../tools/lib/migrate-memory.js';
+import { computeLinkEdits } from '../tools/lib/archive-tree.js';
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
 const HUGE = 'meaningful narrative words across a sentence here. '.repeat(220);
@@ -331,6 +332,99 @@ describe('M5.E5.T1 — B24 AC1.3: a genuinely migrate-introduced dangle still ab
     expect(existsSync(join(dir, '.planning', 'FUTURE-IDEAS.md'))).toBe(true);
     expect(existsSync(join(dir, '.planning', 'ISSUES-INBOX.md'))).toBe(false);
     expect(await readFile(notePath, 'utf-8')).toBe(noteBefore);
+  });
+});
+
+// M5.E6.T10 — B28 (AC4.2): an absolute-path `](/abs/foo.md)` `.md` link is a
+// PRE-EXISTING dangle that migrate must NOT rewrite. The bug: `computeLinkEdits`
+// treats an absolute target with `posix.join()` (which concatenates it under the
+// linker dir) while `scanDanglingLinks` resolves it with `resolve()` (which RESETS
+// on an absolute path). When the linker MOVES, the reroot mangles `](/x.md)` into a
+// relative path, so the resolved before/after target diverges → the pre-existing
+// dangle is misread as migrate-INTRODUCED → a fail-safe false-abort (same class as
+// B27). Fix: `computeLinkEdits` skips absolute-path targets — they are left
+// byte-identical, so their resolved target is invariant and the gate subtracts them.
+describe('M5.E6.T10 — B28: computeLinkEdits leaves an absolute-path link byte-identical', () => {
+  it('AC4.2 (unit): produces NO edit for an absolute `](/x.md)` link even when the linker moves', () => {
+    // The linker MOVES (fNew !== f) — the condition under which the old code rewrote
+    // even an absolute target. RED: current code emits `](/x.md)` → `](../../x.md)`.
+    const moveMap = new Map([['.planning/OLD.md', '.planning/archive/M1/OLD.md']]);
+    const edits = computeLinkEdits('.planning/OLD.md', 'see [x](/x.md) here\n', moveMap);
+    expect(edits).toHaveLength(0);
+  });
+
+  it('AC4.2 (unit control): a RELATIVE `.md` link IS still rewritten when the linker moves', () => {
+    // The skip is surgical to absolute targets — relative links still reroot. Passes
+    // before AND after the fix (a guard against over-skipping).
+    const moveMap = new Map([['.planning/DIR/OLD.md', '.planning/archive/M1/OLD.md']]);
+    const edits = computeLinkEdits('.planning/DIR/OLD.md', 'see [s](./sib.md) here\n', moveMap);
+    expect(edits).toHaveLength(1);
+    expect(edits[0].from).toBe('](./sib.md)');
+  });
+});
+
+// M5.E6.T10 — B28 (AC4.2) end-to-end: an absolute-path pre-existing dangle inside an
+// EVICTED closed-milestone DECISIONS block migrates successfully and the evicted
+// block is byte-identical (the absolute link is NOT rewritten). Mirrors the B24
+// relative-link e2e (above) but with the absolute shape B24's abs-key fix did not
+// cover. RED against `main`: the reroot mangles `](/…​.md)` → the abs-key diverges →
+// false-abort. The append-log evict re-roots links via `rerootEvictPlan` →
+// `computeLinkEdits`, so the T10 fix reaches this path.
+describe('M5.E6.T10 — B28 (AC4.2): an absolute-path dangle in an evicted closed block migrates + byte-identical', () => {
+  const ABS = '/nonexistent-signal-t10-abs.md';
+  const V3_STATE =
+    `---\nschema_version: 1\ndocs_layout_version: 1\nphase: EXECUTE\ncurrent_epic: M5.E3\n` +
+    `current_tasks: []\ncompleted_phases:\n  - PLAN (2026-07-18)\nblockers: []\n---\n` +
+    `# Project State\n\nlive pointer\n`;
+  const CLOSED_BODY = 'Detailed rationale narrative for the closed milestone decision. '.repeat(40);
+  const V3_DECISIONS =
+    '# Decisions\n\nProject decision log.\n\n---\n\n' +
+    '## 2026-01-10 — Closed M1 decision\n\n' +
+    `**Decision:** Alpha baseline (D-A-1). See [the spec](${ABS}) for detail. ${CLOSED_BODY}\n\n---\n\n` +
+    '## 2026-03-05 — Current decision\n\n**Decision:** Current work (D-C-1).\n';
+  const EVICT_OPTS = { stamp: 'T1', dateStr: '2026-03-10', boundaryDate: '2026-03-01', milestoneOf: () => 'M1' };
+
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'signal-t10-abs-'));
+    const planning = join(dir, '.planning');
+    await mkdir(planning, { recursive: true });
+    await writeFile(join(planning, 'STATE.md'), V3_STATE, 'utf-8');
+    await writeFile(join(planning, 'DECISIONS.md'), V3_DECISIONS, 'utf-8');
+    git(dir, ['init', '-q', '-b', 'main']);
+    git(dir, ['config', 'user.email', 't@t.co']);
+    git(dir, ['config', 'user.name', 'T']);
+    git(dir, ['config', 'commit.gpgsign', 'false']);
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-q', '-m', 'init']);
+  });
+  afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
+
+  it('the migrate SUCCEEDS and the evicted block keeps the absolute link byte-identical', async () => {
+    const decisionsPath = join(dir, '.planning', 'DECISIONS.md');
+    const before = await readFile(decisionsPath, 'utf-8');
+    // The absolute link resolves to a filesystem-root path that genuinely does not exist.
+    expect(existsSync(ABS)).toBe(false);
+
+    const r = await applyMigrate(dir, EVICT_OPTS);
+
+    // B28 fix: the absolute-path dangle survives the block-move UN-rewritten (its
+    // resolved target is invariant under `resolve()`) → subtracted → no false abort.
+    expect(r.applied).toBe(true);
+
+    // The closed block relocated carrying the absolute link BYTE-IDENTICAL (not
+    // rewritten to a `../../…` relative form — that mangling was the bug).
+    const archivePath = join(dir, '.planning', 'archive', 'M1', 'DECISIONS.md');
+    expect(existsSync(archivePath)).toBe(true);
+    const archived = await readFile(archivePath, 'utf-8');
+    expect(archived).toContain(`](${ABS})`);
+    expect(archived).not.toContain('](../../nonexistent-signal-t10-abs.md)');
+
+    // The live DECISIONS.md shortened (closed section evicted; current section stays).
+    const after = await readFile(decisionsPath, 'utf-8');
+    expect(after.length).toBeLessThan(before.length);
+    expect(after).not.toContain('Alpha baseline (D-A-1)');
+    expect(after).toContain('Current work (D-C-1)');
   });
 });
 

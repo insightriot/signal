@@ -164,6 +164,13 @@ export function computeLinkEdits(fileRepoRel, text, moveMap) {
     const [pathPart, ...titleParts] = raw.trim().split(/\s+/);
     const [targetPath, anchor = ''] = pathPart.split(/(#.*)/);
     if (!targetPath.endsWith('.md')) continue;
+    // B28 (D-M5E6-4): NEVER rewrite an absolute-path target. `scanDanglingLinks`
+    // resolves it with `resolve()` (which RESETS on an absolute path), so an
+    // absolute link's resolved target is INVARIANT under a move; rerooting it with
+    // `posix.join()` (which concatenates it under the linker dir) mangles it and
+    // makes the before/after abs-key diverge → a pre-existing absolute dangle is
+    // misread as migrate-introduced (fail-safe false-abort). Left byte-identical.
+    if (targetPath.startsWith('/')) continue;
     // Resolve the target two ways (linker-relative OR repo-root-relative) and pick
     // whichever names a moved file — mirrors the prototype's dual candidate set.
     const cand1 = posix.normalize(posix.join(posix.dirname(f), targetPath));
