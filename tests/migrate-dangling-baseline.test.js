@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os';
 import {
   scanDanglingLinks,
   computeDanglingDelta,
+  partitionDangling,
   applyMigrate,
   renderDryRun,
   runMigrate,
@@ -269,20 +270,22 @@ describe('M5.E5.T1 — B24: a PRE-EXISTING dangle inside an EVICTED closed-miles
   });
 });
 
-// M5.E5.T1 — B24 AC1.3 (gate NOT weakened): a genuinely migrate-INTRODUCED dangle
-// still aborts + rolls back byte-identical, via a REAL (non-injected) fixture.
+// M5.E6.T11 — B27 (AC4.1): the FR6 rename orphans an ARCHIVE doc's inline link to a
+// renamed target — RECLASSIFIED flag-not-abort (D-M5E6-4). This INVERTS the former
+// "B24 AC1.3 gate-not-weakened" assertion this block carried: the exact shape that
+// used to be the migrate-introduced-abort witness is now the B27 flag case.
 //
-// Construction (the one real inline-introduced path — advisor-confirmed): a v3-pending
-// repo where an ARCHIVE doc carries an inline link `](../../FUTURE-IDEAS.md)` that
-// RESOLVES before the migrate. The FR6 inbox rename (FUTURE-IDEAS.md → ISSUES-INBOX.md)
-// fires; archive-doc referrer rewrites use the scaffold-only moveMap (the rename is
-// R7-excluded for PROSE flat-paths), so this INLINE link is NOT rewritten → after the
-// rename its resolved target `.planning/FUTURE-IDEAS.md` is gone. That target was
-// ABSENT from the pre-apply baseline (the link resolved), so it is a genuinely
-// migrate-introduced dangle. The re-keyed gate must still abort. (This is a
-// regression guard — current code over-aborts and passes it too; its teeth show
-// against a weakened re-key, e.g. a Set or a delta that drops introduced targets.)
-describe('M5.E5.T1 — B24 AC1.3: a genuinely migrate-introduced dangle still aborts + rolls back', () => {
+// Construction: a v3-pending repo where an ARCHIVE doc carries an inline link
+// `](../../FUTURE-IDEAS.md)` that RESOLVES before the migrate. The FR6 inbox rename
+// (FUTURE-IDEAS.md → ISSUES-INBOX.md) fires; archive-doc referrer rewrites use the
+// scaffold-only moveMap (the rename is R7-excluded for PROSE flat-paths), so this
+// INLINE link is NOT rewritten → after the rename its resolved target
+// `.planning/FUTURE-IDEAS.md` is gone. Pre-B27 the gate aborted (the target was ABSENT
+// from the baseline, so the dangle looked migrate-introduced). Per R7, an archived
+// doc's historical reference to a renamed target is a fact of the past, not a live
+// link to repair → migrate now FLAGS it and completes. (The gate STILL bites a genuine
+// non-exempt dangle — T13's residual-abort discriminator is the counterweight.)
+describe('M5.E6.T11 — B27 (AC4.1): the FR6 rename orphans a resolving archive link → FLAGGED, migrate succeeds', () => {
   const V3_STATE =
     `---\nschema_version: 1\ndocs_layout_version: 1\nphase: EXECUTE\ncurrent_epic: M5.E3\n` +
     `current_tasks: []\ncompleted_phases:\n  - PLAN (2026-07-18)\nblockers: []\n---\n` +
@@ -311,27 +314,58 @@ describe('M5.E5.T1 — B24 AC1.3: a genuinely migrate-introduced dangle still ab
   });
   afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
 
-  it('the FR6 rename orphans a resolving archive link → the gate aborts + rolls back byte-identical', async () => {
+  it('the archive-inline link to an FR6-renamed target is FLAGGED (R7-historical), migrate SUCCEEDS', async () => {
     const notePath = join(dir, '.planning', 'archive', 'M0', 'OLD-NOTE.md');
     const noteBefore = await readFile(notePath, 'utf-8');
     // The link RESOLVES pre-apply — so its resolved target is ABSENT from the baseline.
     expect(existsSync(join(dir, '.planning', 'FUTURE-IDEAS.md'))).toBe(true);
 
-    let err;
-    try {
-      await applyMigrate(dir, { stamp: 'T1', dateStr: '2026-07-21' });
-    } catch (e) {
-      err = e;
-    }
-    expect(err, 'applyMigrate must abort on the migrate-introduced dangle').toBeDefined();
-    expect(err.message).toMatch(/dangling/i);
-    expect(err.message).toContain('FUTURE-IDEAS.md');
+    // B27 (D-M5E6-4): no abort — the archive-inline link to a renamed target is
+    // R7-historical, flagged not aborted. (The warning SURFACING is asserted in T12.)
+    const r = await applyMigrate(dir, { stamp: 'T1', dateStr: '2026-07-21' });
+    expect(r.applied).toBe(true);
 
-    // Full rollback: the rename was undone (FUTURE-IDEAS.md back, ISSUES-INBOX.md never
-    // committed) and the archive referrer is byte-identical.
-    expect(existsSync(join(dir, '.planning', 'FUTURE-IDEAS.md'))).toBe(true);
-    expect(existsSync(join(dir, '.planning', 'ISSUES-INBOX.md'))).toBe(false);
+    // The rename LANDED (not rolled back): the new inbox exists, the legacy name is gone.
+    expect(existsSync(join(dir, '.planning', 'ISSUES-INBOX.md'))).toBe(true);
+    expect(existsSync(join(dir, '.planning', 'FUTURE-IDEAS.md'))).toBe(false);
+    // R7: the archived doc's historical reference is left byte-identical (never rewritten).
     expect(await readFile(notePath, 'utf-8')).toBe(noteBefore);
+  });
+});
+
+// M5.E6.T11 — B27 (AC4.1/AC4.5): partitionDangling routes an archive-doc inline dangle
+// whose resolved target ∈ archiveExemptFroms (the FR6 renameFroms) to FLAGS, never the
+// abort set. The tightness pair proves the exemption is a TIGHT `AND`, not a blanket
+// relaxation: widening it to an `OR` (dropping either conjunct) would make (a) or (b)
+// flag instead of abort, which these asserts catch BY CONSTRUCTION.
+describe('M5.E6.T11 — B27 partitionDangling exemption is tight (AND, not a blanket relaxation)', () => {
+  const EXEMPT = new Set(['.planning/FUTURE-IDEAS.md']);
+  const dangle = (abs, file = '.planning/archive/M0/OLD.md') => ({
+    file, link: '../../x.md', target: '../../x.md', abs,
+  });
+
+  it('AC4.1 (unit): archive-under AND target ∈ renameFroms → FLAG (kind archive-renamed-link)', () => {
+    const after = [dangle('.planning/FUTURE-IDEAS.md')];
+    const { aborting, flags } = partitionDangling({ after, archiveExemptFroms: EXEMPT });
+    expect(aborting).toHaveLength(0);
+    expect(flags).toHaveLength(1);
+    expect(flags[0].kind).toBe('archive-renamed-link');
+  });
+
+  it('tightness (a): archive-under BUT target ∉ renameFroms → still ABORTS', () => {
+    // isUnderArchive holds; the renameFroms conjunct does NOT → not exempt.
+    const after = [dangle('.planning/GONE.md')];
+    const { aborting, flags } = partitionDangling({ after, archiveExemptFroms: EXEMPT });
+    expect(aborting).toHaveLength(1);
+    expect(flags).toHaveLength(0);
+  });
+
+  it('tightness (b): target ∈ renameFroms BUT NOT archive-under → still ABORTS', () => {
+    // The renameFroms conjunct holds; isUnderArchive does NOT → not exempt.
+    const after = [dangle('.planning/FUTURE-IDEAS.md', '.planning/LIVE.md')];
+    const { aborting, flags } = partitionDangling({ after, archiveExemptFroms: EXEMPT });
+    expect(aborting).toHaveLength(1);
+    expect(flags).toHaveLength(0);
   });
 });
 

@@ -1443,6 +1443,12 @@ const FILE_SCAN_CEILING = 1024 * 1024;
 const INDEX_REL = `${PLANNING_DIR}/INDEX.md`;
 const isIndexRel = (fileRepoRel) => toPosix(fileRepoRel) === INDEX_REL;
 
+// B27 (D-M5E6-4): a repo-root-relative POSIX path under `.planning/archive/`. An
+// archived doc's inline link to a target the FR6 rename moved is R7-historical (a
+// fact of the past, not a live link to repair) → flagged, never aborted. Mirrors
+// archive-tree.js's private `isUnderArchive` + scanResidualFlatPaths' inline check.
+const isUnderArchive = (fileRepoRel) => toPosix(fileRepoRel).startsWith(`${PLANNING_DIR}/archive/`);
+
 async function walkMarkdown(dir) {
   const out = [];
   let entries;
@@ -1675,18 +1681,33 @@ export async function scanUnhandledLinkForms(baseDir) {
 
 /**
  * Partition post-apply dangling references into ABORTING (migrate-caused -> hard
- * fail) and FLAGS (INDEX.md SS10 dangles -- surfaced, never abort). Inline dangles
- * are the baseline-subtracted delta (FR6.3 "before"); residual flat paths are
- * already this-run-caused (moveMap-keyed) so they enter as-is.
+ * fail) and FLAGS (surfaced, never abort). Inline dangles are the baseline-subtracted
+ * delta (FR6.3 "before"); residual flat paths are already this-run-caused
+ * (moveMap-keyed) so they enter as-is.
  *
- * @param {{baseline: Array, after: Array, residual: Array}} args
+ * FLAG classes:
+ *   - INDEX.md dangles/residuals (§10) — the hand-curated INDEX is never auto-rewritten;
+ *   - B27 archive-renamed links (D-M5E6-4) — an INLINE `](*.md)` link inside a
+ *     `.planning/archive/` doc whose RESOLVED target (`abs`) is one the FR6 rename moved
+ *     (`abs ∈ archiveExemptFroms`). It RESOLVED before the rename, so it is NOT a
+ *     pre-existing dangle; per R7 an archived doc's historical reference is a fact of the
+ *     past → flagged (its OWN `archive-renamed-link` kind, AC4.4), never aborted. The
+ *     predicate is a TIGHT `AND` (`isUnderArchive` AND `abs ∈ archiveExemptFroms`): a
+ *     non-archive dangle to a renamed target, OR an archive dangle to a NON-renamed
+ *     target, STILL aborts (T11 tightness pair). Scoped, never a blanket relaxation.
+ *
+ * @param {{baseline?: Array, after?: Array, residual?: Array, archiveExemptFroms?: Set<string>}} args
  * @returns {{aborting: Array, flags: Array}}
  */
-export function partitionDangling({ baseline = [], after = [], residual = [] }) {
+export function partitionDangling({ baseline = [], after = [], residual = [], archiveExemptFroms = new Set() }) {
   const aborting = [];
   const flags = [];
   for (const d of computeDanglingDelta(baseline, after)) {
-    (isIndexRel(d.file) ? flags : aborting).push({ kind: 'dangling-link', ...d });
+    if (isUnderArchive(d.file) && archiveExemptFroms.has(d.abs)) {
+      flags.push({ kind: 'archive-renamed-link', ...d });
+    } else {
+      (isIndexRel(d.file) ? flags : aborting).push({ kind: 'dangling-link', ...d });
+    }
   }
   for (const r of residual) {
     (isIndexRel(r.file) ? flags : aborting).push({ kind: 'residual-flat-path', ...r });
@@ -1717,7 +1738,7 @@ export async function enforceNoDangling(baseDir, args = {}) {
   } = args;
   const after = await scanDangling(baseDir);
   const residual = await scanResidualFlatPaths(baseDir, moveMap, archiveExemptFroms);
-  const { aborting, flags } = partitionDangling({ baseline, after, residual });
+  const { aborting, flags } = partitionDangling({ baseline, after, residual, archiveExemptFroms });
   if (aborting.length > 0) {
     if (rollback) await rollback();
     throw new Error(
