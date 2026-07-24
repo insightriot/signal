@@ -27,10 +27,10 @@ import { tmpdir } from 'node:os';
 import { applyDispositionToFile } from '../tools/lib/drain.js';
 import {
   captureToFutureIdeas,
+  captureToBugs,
   insertFutureIdeasEntry,
   buildFutureIdeasEntry,
   acquireLock,
-  releaseLock,
 } from '../tools/lib/add.js';
 import { atomicWrite } from '../tools/lib/atomic-write.js';
 import { withStateLock } from '../tools/lib/state.js';
@@ -226,5 +226,49 @@ describe('M5.E6 FR7 / B31 — /sig:add doc-write re-entrancy + prompt placement 
       },
     });
     expect(stateLockAcquirableDuringPrompt).toBe(true);
+  });
+});
+
+// AC7.6 (byte-identical) — a single-session capture must produce EXACTLY the bytes it
+// produced before the B31 lock refactor (the write moved from `.add.lock` to a nested
+// `.state.lock`, but the WRITTEN CONTENT is unchanged: same read → same pure insert →
+// same atomicWrite → same line number). These snapshots pin that guarantee so a future
+// lock/refactor regression that silently alters single-session output is caught. Verified
+// byte-identical against the pre-fix add.js (T22 commit) at execution time.
+describe('M5.E6 FR7 / B31 — single-session add output is byte-identical (AC7.6)', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'signal-add-byte-'));
+    await mkdir(join(dir, '.planning'), { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('lazy-created inbox capture: exact bytes + line number', async () => {
+    const r = await captureToFutureIdeas(dir, {
+      body: 'a statusline idea — wire STATE frontmatter into the prompt',
+      today: '2026-07-20',
+      sensitivePrompt: async () => 'keep',
+    });
+    expect(r.line).toBe(5);
+    const content = await readFile(r.path, 'utf-8');
+    expect(content).toBe(
+      "# Issues Inbox\n\nRaw capture inbox for `/sig:add` — untyped work lands here first, unsorted. The planning drain classifies and promotes from here.\n\n## A statusline idea — wire STATE\n\n**Status:** Logged 2026-07-20 via `/sig:add`.\n\na statusline idea — wire STATE frontmatter into the prompt\n\n---\n\n\n*Last updated: 2026-07-20*\n"
+    );
+  });
+
+  it('BUGS append (insertAtEnd path): exact bytes + line number', async () => {
+    await writeFile(join(dir, '.planning', 'BUGS.md'), '# Bugs\n\nConfirmed defects.\n\n---\n', 'utf-8');
+    const r = await captureToBugs(dir, {
+      body: 'resume throws on schema drift ahead of head',
+      today: '2026-07-20',
+      sensitivePrompt: async () => 'keep',
+    });
+    expect(r.line).toBe(7);
+    const content = await readFile(r.path, 'utf-8');
+    expect(content).toBe(
+      "# Bugs\n\nConfirmed defects.\n\n---\n\n## Resume throws on schema drift ahead\n\n**Status:** needs-triage\n\nresume throws on schema drift ahead of head\n\n---\n"
+    );
   });
 });
