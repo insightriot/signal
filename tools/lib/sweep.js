@@ -12,6 +12,7 @@
 // source) stays green (AD3).
 
 import { readFile } from 'node:fs/promises';
+import { statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -101,6 +102,35 @@ export async function checkStaleInbox(baseDir) {
   if (n > 0) {
     return [
       mkFinding('stale-inbox', 'advisory', inboxRel, `inbox has ${n} undrained ${n === 1 ? 'entry' : 'entries'} — consider draining`),
+    ];
+  }
+  return [];
+}
+
+// CLAUDE.md bloat threshold (AD6). A COARSE advisory nudge — NOT the STATE size
+// threshold (STATE accretes history; CLAUDE.md loads every turn, so it must stay
+// lean). PLAN-set default; revisitable in VERIFY if dogfooding shows noise.
+export const CLAUDE_MD_BLOAT_BYTES = 40 * 1024;
+
+/**
+ * CLAUDE.md bloat nudge (portable, advisory — AC2.3). A CLAUDE.md whose size
+ * exceeds `CLAUDE_MD_BLOAT_BYTES` yields an advisory; under the threshold (or a
+ * missing file — a stranger repo may have none) yields no finding. Coarse and
+ * size-only; never structural, never throws.
+ *
+ * @param {string} baseDir — project root
+ * @returns {Array<{check: string, severity: string, file: string, message: string}>}
+ */
+export function checkClaudeMdBloat(baseDir) {
+  let size;
+  try {
+    size = statSync(join(baseDir, 'CLAUDE.md')).size;
+  } catch {
+    return []; // no CLAUDE.md → nothing to nudge
+  }
+  if (size > CLAUDE_MD_BLOAT_BYTES) {
+    return [
+      mkFinding('claude-md-bloat', 'advisory', 'CLAUDE.md', `CLAUDE.md is ${size} bytes (over the ${CLAUDE_MD_BLOAT_BYTES}-byte nudge threshold) — consider de-bloating`),
     ];
   }
   return [];

@@ -15,7 +15,12 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import { regeneratePlanningIndexCore } from '../tools/lib/planning-index.js';
-import { checkIndexFreshness, checkStaleInbox } from '../tools/lib/sweep.js';
+import {
+  checkIndexFreshness,
+  checkStaleInbox,
+  checkClaudeMdBloat,
+  CLAUDE_MD_BLOAT_BYTES,
+} from '../tools/lib/sweep.js';
 
 const structural = (findings) => findings.filter((f) => f.severity === 'structural');
 const advisory = (findings) => findings.filter((f) => f.severity === 'advisory');
@@ -177,5 +182,36 @@ describe('M5.E6.T3 checkStaleInbox', () => {
   it('AC2.2 — a missing inbox produces no finding (never throws)', async () => {
     await mkdir(join(dir, '.planning'), { recursive: true });
     expect(await checkStaleInbox(dir)).toHaveLength(0);
+  });
+});
+
+describe('M5.E6.T4 checkClaudeMdBloat', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'sig-sweep-bloat-'));
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('AC2.3 — a CLAUDE.md over the threshold → advisory', async () => {
+    await writeDoc(dir, 'CLAUDE.md', 'x'.repeat(CLAUDE_MD_BLOAT_BYTES + 1) + '\n');
+    const findings = checkClaudeMdBloat(dir);
+    expect(advisory(findings)).toHaveLength(1);
+    expect(structural(findings)).toHaveLength(0);
+    expect(findings[0].file).toBe('CLAUDE.md');
+  });
+
+  it('AC2.3 — a CLAUDE.md under the threshold → no finding', async () => {
+    await writeDoc(dir, 'CLAUDE.md', 'x'.repeat(1024) + '\n');
+    expect(checkClaudeMdBloat(dir)).toHaveLength(0);
+  });
+
+  it('AC2.3 — a missing CLAUDE.md → no finding (never throws)', () => {
+    expect(checkClaudeMdBloat(dir)).toHaveLength(0);
+  });
+
+  it('AC2.3 — the threshold is a named constant (40 KiB)', () => {
+    expect(CLAUDE_MD_BLOAT_BYTES).toBe(40 * 1024);
   });
 });
