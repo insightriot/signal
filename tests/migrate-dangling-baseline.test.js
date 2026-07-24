@@ -369,6 +369,64 @@ describe('M5.E6.T11 — B27 partitionDangling exemption is tight (AND, not a bla
   });
 });
 
+// M5.E6.T12 — B27 flag SURFACING (AC4.4). The B27 link resolves BEFORE the rename, so
+// it is NOT a pre-existing dangle — it gets its OWN distinct dry-run line ("Archive
+// links to FR6-renamed targets"), never the "Pre-existing dangling links" section. And
+// applyMigrate captures enforceNoDangling's returned `{flags}` (previously dropped) into
+// `result.warnings`. ONE shared predicate (isArchiveRenamedLink) feeds partitionDangling,
+// the dry-run scan, and the apply filter, so the preview and the apply warning agree.
+describe('M5.E6.T12 — B27 flag surfaces distinctly in dry-run + apply warnings (AC4.4)', () => {
+  const V3_STATE =
+    `---\nschema_version: 1\ndocs_layout_version: 1\nphase: EXECUTE\ncurrent_epic: M5.E3\n` +
+    `current_tasks: []\ncompleted_phases:\n  - PLAN (2026-07-18)\nblockers: []\n---\n` +
+    `# Project State\n\nlive pointer\n`;
+
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'signal-t12-b27-'));
+    const planning = join(dir, '.planning');
+    await mkdir(join(planning, 'archive', 'M0'), { recursive: true });
+    await writeFile(join(planning, 'STATE.md'), V3_STATE, 'utf-8');
+    // FUTURE-IDEAS.md exists (ISSUES-INBOX.md does not) → the FR6 rename fires.
+    await writeFile(join(planning, 'FUTURE-IDEAS.md'), '# Ideas\n\nsome ideas\n', 'utf-8');
+    // An archive doc whose INLINE link resolves to FUTURE-IDEAS.md pre-rename (B27).
+    await writeFile(
+      join(planning, 'archive', 'M0', 'OLD-NOTE.md'),
+      'historical: see [the inbox](../../FUTURE-IDEAS.md) for the backlog.\n',
+      'utf-8',
+    );
+    git(dir, ['init', '-q', '-b', 'main']);
+    git(dir, ['config', 'user.email', 't@t.co']);
+    git(dir, ['config', 'user.name', 'T']);
+    git(dir, ['config', 'commit.gpgsign', 'false']);
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-q', '-m', 'init']);
+  });
+  afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
+
+  it('renderDryRun shows a DISTINCT "Archive links to FR6-renamed targets" line, not pre-existing-dangling', async () => {
+    const out = await renderDryRun(dir);
+    // The distinct B27 line (AC4.4) with the count + the archive referrer.
+    expect(out).toMatch(/Archive links to FR6-renamed targets \(1\)/);
+    expect(out).toContain('.planning/archive/M0/OLD-NOTE.md');
+    // NOT double-counted as a pre-existing dangle — the link RESOLVES pre-rename.
+    expect(out).toMatch(/Pre-existing dangling links \(0\)/);
+  });
+
+  it('applyMigrate surfaces the B27 flag in result.warnings, consistent with the dry-run line', async () => {
+    // Read-only dry-run FIRST (no mutation), then apply — the two must agree.
+    const dry = await renderDryRun(dir);
+    const r = await applyMigrate(dir, { stamp: 'T1', dateStr: '2026-07-21' });
+    expect(r.applied).toBe(true);
+
+    const warn = (r.warnings ?? []).find((w) => /Archive links to FR6-renamed targets/.test(String(w)));
+    expect(warn, 'apply must surface the B27 flag as a warning').toBeDefined();
+    // Consistency: the SAME archive referrer appears in both the dry-run line and the warning.
+    expect(String(warn)).toContain('.planning/archive/M0/OLD-NOTE.md');
+    expect(dry).toContain('.planning/archive/M0/OLD-NOTE.md');
+  });
+});
+
 // M5.E6.T10 — B28 (AC4.2): an absolute-path `](/abs/foo.md)` `.md` link is a
 // PRE-EXISTING dangle that migrate must NOT rewrite. The bug: `computeLinkEdits`
 // treats an absolute target with `posix.join()` (which concatenates it under the

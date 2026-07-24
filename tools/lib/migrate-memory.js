@@ -1449,6 +1449,23 @@ const isIndexRel = (fileRepoRel) => toPosix(fileRepoRel) === INDEX_REL;
 // archive-tree.js's private `isUnderArchive` + scanResidualFlatPaths' inline check.
 const isUnderArchive = (fileRepoRel) => toPosix(fileRepoRel).startsWith(`${PLANNING_DIR}/archive/`);
 
+// AC4.4 display label — shared by the dry-run line AND the apply warning so the two
+// surfaces read identically.
+const ARCHIVE_RENAMED_LABEL = 'Archive links to FR6-renamed targets';
+
+/**
+ * The ONE shared B27 predicate (D-M5E6-4, AC4.4). `entry` is a dangle-shaped
+ * `{file, abs, …}`; returns true iff it is an INLINE link inside a `.planning/archive/`
+ * doc whose RESOLVED target (`abs`) is one the FR6 rename moved (`abs ∈ renameFroms`).
+ * `partitionDangling` uses it to route the delta dangle → flag, `scanArchiveRenamedLinks`
+ * uses it as its pre-apply scan filter, and `applyMigrate` uses it to project
+ * `enforceNoDangling`'s returned flags into warnings — so all three agree on the shape
+ * and the dry-run preview never drifts from what apply flags.
+ */
+export function isArchiveRenamedLink(entry, renameFroms) {
+  return !!entry && isUnderArchive(entry.file) && !!renameFroms && renameFroms.has(entry.abs);
+}
+
 async function walkMarkdown(dir) {
   const out = [];
   let entries;
@@ -1680,6 +1697,46 @@ export async function scanUnhandledLinkForms(baseDir) {
 }
 
 /**
+ * The B27 dry-run projection (AC4.4): scan `.planning/archive/**` for INLINE
+ * `](*.md)` links whose RESOLVED target ∈ `renameFroms`. Unlike `scanDanglingLinks`
+ * it does NOT require the link to dangle — a B27 link RESOLVES before the FR6 rename,
+ * so `renderDryRun` (which reads the PRE-apply corpus) can preview EXACTLY the set
+ * `applyMigrate` will flag post-rename. Filters through the SAME `isArchiveRenamedLink`
+ * predicate `partitionDangling` uses, so the preview never drifts from the apply flags.
+ * Read-only; returns `[{file, link, target, abs}]`. Empty `renameFroms` → no-op.
+ *
+ * @param {string} baseDir
+ * @param {Set<string>} [renameFroms]  repo-root-relative POSIX rename sources
+ * @returns {Promise<Array<{file: string, link: string, target: string, abs: string}>>}
+ */
+export async function scanArchiveRenamedLinks(baseDir, renameFroms = new Set()) {
+  if (!renameFroms || renameFroms.size === 0) return [];
+  const files = await walkMarkdown(join(baseDir, PLANNING_DIR));
+  const out = [];
+  for (const f of files) {
+    const rel = toPosix(relative(baseDir, f));
+    if (!isUnderArchive(rel)) continue;
+    let text;
+    try {
+      text = await readFile(f, 'utf-8');
+    } catch {
+      continue;
+    }
+    if (text.length > FILE_SCAN_CEILING) text = text.slice(0, FILE_SCAN_CEILING);
+    for (const m of text.matchAll(DANGLING_LINK_RE)) {
+      const raw = m[1].trim();
+      if (isExternalLink(raw)) continue;
+      const target = raw.split(/\s+/)[0].split('#')[0]; // strip title + anchor
+      if (!target.endsWith('.md')) continue;
+      const abs = toPosix(relative(baseDir, resolve(dirname(f), target)));
+      const entry = { file: rel, link: raw, target, abs };
+      if (isArchiveRenamedLink(entry, renameFroms)) out.push(entry);
+    }
+  }
+  return out;
+}
+
+/**
  * Partition post-apply dangling references into ABORTING (migrate-caused -> hard
  * fail) and FLAGS (surfaced, never abort). Inline dangles are the baseline-subtracted
  * delta (FR6.3 "before"); residual flat paths are already this-run-caused
@@ -1703,7 +1760,7 @@ export function partitionDangling({ baseline = [], after = [], residual = [], ar
   const aborting = [];
   const flags = [];
   for (const d of computeDanglingDelta(baseline, after)) {
-    if (isUnderArchive(d.file) && archiveExemptFroms.has(d.abs)) {
+    if (isArchiveRenamedLink(d, archiveExemptFroms)) {
       flags.push({ kind: 'archive-renamed-link', ...d });
     } else {
       (isIndexRel(d.file) ? flags : aborting).push({ kind: 'dangling-link', ...d });
@@ -1970,6 +2027,16 @@ export async function renderDryRun(baseDir, opts = {}) {
   for (const d of baseline) L.push(`  ${d.file} → ${d.target}`);
   if (baseline.length === 0) L.push('  (none)');
   L.push('');
+  // Archive links to FR6-renamed targets (B27, AC4.4) — a DISTINCT section, NOT
+  // "pre-existing dangling": these RESOLVE before the rename, but per R7 an archived
+  // doc's historical reference to a renamed target is flagged, never aborted. Same
+  // `isArchiveRenamedLink` predicate the apply gate + warnings use, so the preview
+  // matches what apply flags.
+  const archiveRenamed = await scanArchiveRenamedLinks(baseDir, archive.renameFroms);
+  L.push(`— ${ARCHIVE_RENAMED_LABEL} (${archiveRenamed.length}) — R7-historical, flagged not aborted —`);
+  for (const a of archiveRenamed) L.push(`  ${a.file} → ${a.target}`);
+  if (archiveRenamed.length === 0) L.push('  (none)');
+  L.push('');
   // At-risk anchors — the target section may move; the #heading is NOT auto-verified.
   L.push(`— At-risk anchors (${atRiskAnchors.length}) — target section may move; verify the #heading still resolves —`);
   for (const a of atRiskAnchors) L.push(`  ${a.file} → ${a.target}${a.anchor}`);
@@ -2178,6 +2245,10 @@ export async function applyMigrate(baseDir, opts = {}) {
     // Pre-apply dangling-link baseline (FR6.3 "before") — pre-existing dangles
     // are NOT attributed to the migrate; only NEW ones abort.
     const danglingBaseline = await scanDangling(baseDir);
+    // B27 (AC4.4): the gate's returned FLAG set (archive-renamed links etc.), captured
+    // here so a successful apply can surface them into result.warnings (previously
+    // dropped at the enforceNoDangling call site).
+    let danglingFlags = [];
 
     const moves = [];
     let text = raw;
@@ -2476,13 +2547,13 @@ export async function applyMigrate(baseDir, opts = {}) {
       // archive-touched files so a rewritten referrer is never left partly written).
       // `archiveExemptFroms` (R7): the FR6 rename's flat-path references inside
       // archive/ are intended history, not a skipped rewrite → never a residual abort.
-      await enforceNoDangling(baseDir, {
+      ({ flags: danglingFlags } = await enforceNoDangling(baseDir, {
         baseline: danglingBaseline,
         moveMap: archiveMoveMap,
         rollback,
         scanDangling,
         archiveExemptFroms: archiveSense.renameFroms,
-      });
+      }));
     } catch (e) {
       // Any throw in the mechanical phase → restore the WHOLE snapshot set
       // byte-identical (never a whole-tree reset), then rethrow. The durable snapshot
@@ -2533,6 +2604,18 @@ export async function applyMigrate(baseDir, opts = {}) {
       revertLine = `# reversibility via filesystem snapshot — restore the migrated files from ${snapshotDir}.`;
     }
 
+    // B27 (AC4.4): project the gate's returned flags through the SAME
+    // `isArchiveRenamedLink` predicate the dry-run uses → one summary warning, so the
+    // apply surface reads consistently with the dry-run's distinct line.
+    const archiveRenamedFlags = danglingFlags.filter((e) => isArchiveRenamedLink(e, archiveSense.renameFroms));
+    const archiveRenamedWarnings = archiveRenamedFlags.length
+      ? [
+          `${ARCHIVE_RENAMED_LABEL} (${archiveRenamedFlags.length}) — R7-historical, flagged not aborted: ${archiveRenamedFlags
+            .map((e) => `${e.file} → ${e.target ?? e.abs}`)
+            .join('; ')}`,
+        ]
+      : [];
+
     return {
       applied: true,
       changed: text !== raw || moves.length > 0,
@@ -2543,7 +2626,11 @@ export async function applyMigrate(baseDir, opts = {}) {
       revertLine,
       inputHash,
       mode: probe.mode,
-      warnings: indexRegenWarning ? [...probe.warnings, indexRegenWarning] : probe.warnings,
+      warnings: [
+        ...probe.warnings,
+        ...(indexRegenWarning ? [indexRegenWarning] : []),
+        ...archiveRenamedWarnings,
+      ],
     };
   });
 }
