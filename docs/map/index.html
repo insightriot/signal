@@ -524,7 +524,7 @@
 </nav>
 
 <section id="commands">
-<h2><span class="glyph">⌘</span>1. Command library — 17 commands</h2>
+<h2><span class="glyph">⌘</span>1. Command library — 18 commands</h2>
 <p class="lede">Every Signal command, grouped by when you'd reach for it. Click a category to expand it; flags shown are the documented options each command accepts.</p>
 <div class="cmd-controls">
   <button onclick="toggleAllCommands(true)">Expand all</button>
@@ -834,6 +834,12 @@ const COMMANDS = [
           { f: '--fix', d: 'Generate a surgical remediation script for you to review, then run yourself.' },
           { f: '--reinstall', d: 'Generate a full canonical reinstall script.' },
         ],
+      },
+      {
+        name: '/sig:sweep',
+        tags: ['read-only', 'not phase-gated'],
+        summary: 'Doc-hygiene sweep over the invoking project: dead internal links, unfilled [FILL IN] stubs, INDEX/roster/version drift, a stale capture inbox, and CLAUDE.md bloat. Detect-and-report only — writes nothing.',
+        flags: [],
       },
     ],
   },
