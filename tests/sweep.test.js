@@ -376,6 +376,17 @@ describe('M5.E6.T6 runSweep + renderSweepReport', () => {
     expect(report).toContain('dead internal link -> x.md');
     expect(report).toContain('3 undrained entries');
   });
+
+  it('renderSweepReport also accepts a bare findings array (renders groups, omits the Signal-only line)', () => {
+    // Honors the plain renderSweepReport(findings) call shape: no signalOnly info
+    // → no "Signal-only checks" section, but findings still group by severity.
+    const report = renderSweepReport([
+      { check: 'internal-links', severity: 'structural', file: 'a.md', message: 'dead internal link -> x.md' },
+    ]);
+    expect(report).toContain('dead internal link -> x.md');
+    expect(report).toContain('## Structural (1)');
+    expect(report).not.toContain('Signal-only checks');
+  });
 });
 
 // M5.E6.T7 — offline meta-tests + network-audit coverage (NFR1).
