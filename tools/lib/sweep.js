@@ -23,10 +23,17 @@ import {
 } from './planning-index.js';
 import { resolveInboxPath } from './inbox-path.js';
 import { listDrainCandidatesWithRecovery } from './drain.js';
+import { listCommands } from './roster.js';
+import { parseFrontmatter, StateSchemaError } from './state.js';
 
 const PLANNING_DIR = '.planning';
 
 const mkFinding = (check, severity, file, message) => ({ check, severity, file, message });
+
+// Stable finding order for deterministic reports (mirrors doc-hygiene.js's
+// findingCmp): by check, then file, then message.
+const findingCmp = (a, b) =>
+  a.check.localeCompare(b.check) || a.file.localeCompare(b.file) || a.message.localeCompare(b.message);
 
 /**
  * `.planning/INDEX.md` freshness (portable, AC2.1). Composes the EXPECTED index
@@ -134,4 +141,53 @@ export function checkClaudeMdBloat(baseDir) {
     ];
   }
   return [];
+}
+
+/**
+ * Command-frontmatter freshness (Signal-only, structural — AC2.4). Every
+ * `commands/*.md` must carry YAML frontmatter with a present, non-empty
+ * `description`. Enumerates the roster via `listCommands`, parses each file's
+ * frontmatter with the shared `parseFrontmatter`, and flags:
+ *   - no frontmatter at all (`data === null`);
+ *   - a missing/empty `description`;
+ *   - malformed frontmatter YAML — `parseFrontmatter` throws `StateSchemaError`
+ *     (invalid YAML OR a non-mapping frontmatter); it is CAUGHT and emitted as a
+ *     finding so a single broken command never crashes the whole sweep.
+ *
+ * Signal-only: `runSweep` runs this only under the plugin.json gate (a stranger
+ * repo has no command roster). A missing `commands/` dir yields no finding.
+ *
+ * @param {string} baseDir — project root (where `commands/` lives)
+ * @returns {Promise<Array<{check: string, severity: string, file: string, message: string}>>}
+ */
+export async function checkCommandFrontmatter(baseDir) {
+  const findings = [];
+  for (const rel of listCommands(baseDir)) {
+    let raw;
+    try {
+      raw = await readFile(join(baseDir, rel), 'utf-8');
+    } catch {
+      continue; // listed but unreadable (race) — not our failure mode
+    }
+    let data;
+    try {
+      ({ data } = parseFrontmatter(raw));
+    } catch (err) {
+      if (err instanceof StateSchemaError) {
+        // Stable message (no embedded parser detail) so two runs are byte-identical.
+        findings.push(mkFinding('command-frontmatter', 'structural', rel, 'malformed frontmatter (invalid YAML)'));
+        continue;
+      }
+      throw err;
+    }
+    if (data === null) {
+      findings.push(mkFinding('command-frontmatter', 'structural', rel, 'missing frontmatter'));
+      continue;
+    }
+    const desc = data.description;
+    if (desc === undefined || desc === null || String(desc).trim() === '') {
+      findings.push(mkFinding('command-frontmatter', 'structural', rel, 'frontmatter description is missing or empty'));
+    }
+  }
+  return findings.sort(findingCmp);
 }

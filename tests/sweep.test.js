@@ -19,6 +19,7 @@ import {
   checkIndexFreshness,
   checkStaleInbox,
   checkClaudeMdBloat,
+  checkCommandFrontmatter,
   CLAUDE_MD_BLOAT_BYTES,
 } from '../tools/lib/sweep.js';
 
@@ -213,5 +214,60 @@ describe('M5.E6.T4 checkClaudeMdBloat', () => {
 
   it('AC2.3 — the threshold is a named constant (40 KiB)', () => {
     expect(CLAUDE_MD_BLOAT_BYTES).toBe(40 * 1024);
+  });
+});
+
+describe('M5.E6.T5 checkCommandFrontmatter', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'sig-sweep-cmdfm-'));
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  // A well-formed command md frontmatter (matches commands/status.md's shape).
+  const good = '---\nname: sig:good\ndescription: "Does a well-described thing."\nargs: ""\n---\n\n# body\n';
+
+  it('AC2.4 — a command with a present, non-empty description → no finding', async () => {
+    await writeDoc(dir, 'commands/good.md', good);
+    expect(await checkCommandFrontmatter(dir)).toHaveLength(0);
+  });
+
+  it('AC2.4 — a command with an empty description → structural finding', async () => {
+    await writeDoc(dir, 'commands/good.md', good);
+    await writeDoc(dir, 'commands/empty.md', '---\nname: sig:empty\ndescription: ""\nargs: ""\n---\n\n# body\n');
+    const findings = await checkCommandFrontmatter(dir);
+    expect(structural(findings)).toHaveLength(1);
+    expect(advisory(findings)).toHaveLength(0);
+    expect(findings[0].file).toBe('commands/empty.md');
+  });
+
+  it('AC2.4 — a command with a missing description key → structural finding', async () => {
+    await writeDoc(dir, 'commands/nodesc.md', '---\nname: sig:nodesc\nargs: ""\n---\n\n# body\n');
+    const findings = await checkCommandFrontmatter(dir);
+    expect(structural(findings)).toHaveLength(1);
+    expect(findings[0].file).toBe('commands/nodesc.md');
+  });
+
+  it('AC2.4 — a command with no frontmatter at all → structural finding', async () => {
+    await writeDoc(dir, 'commands/bare.md', '# Just a heading\n\nNo frontmatter here.\n');
+    const findings = await checkCommandFrontmatter(dir);
+    expect(structural(findings)).toHaveLength(1);
+    expect(findings[0].file).toBe('commands/bare.md');
+  });
+
+  it('AC2.4 — malformed frontmatter YAML is caught and emitted as a finding (never throws / never crashes the sweep)', async () => {
+    // An unterminated flow sequence — parseFrontmatter throws StateSchemaError.
+    await writeDoc(dir, 'commands/broken.md', '---\nname: sig:broken\ndescription: [a, b, c\n---\n\n# body\n');
+    const findings = await checkCommandFrontmatter(dir); // must NOT throw
+    expect(structural(findings)).toHaveLength(1);
+    expect(findings[0].file).toBe('commands/broken.md');
+    expect(findings[0].message).toMatch(/malformed|frontmatter|YAML/i);
+  });
+
+  it('AC2.4 — no commands/ dir → no finding (never throws)', async () => {
+    await mkdir(join(dir, '.planning'), { recursive: true });
+    expect(await checkCommandFrontmatter(dir)).toHaveLength(0);
   });
 });
