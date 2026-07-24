@@ -221,7 +221,6 @@ export function renderIndex(retros, existingHooks) {
  * @returns {Promise<{written: boolean, path: string, retroCount?: number, reason?: string}>}
  */
 async function regenerateIndexCore(baseDir, opts = {}) {
-  const { _afterRead } = opts;
   const indexPath = join(baseDir, '.planning', 'RETROSPECTIVES.md');
 
   const retros = await enumerateRetros(baseDir);
@@ -232,7 +231,8 @@ async function regenerateIndexCore(baseDir, opts = {}) {
   } catch {
     // No existing index — that's fine; we'll write the first one.
   }
-  if (_afterRead) await _afterRead();
+  // FR6/B29: own-property + typeof guard (check `opts`, not a destructured local).
+  if (Object.hasOwn(opts, '_afterRead') && typeof opts._afterRead === 'function') await opts._afterRead();
 
   const hooks = parseExistingHooks(existing);
   const content = renderIndex(retros, hooks);
@@ -369,7 +369,9 @@ async function generateMilestoneMetaRetroCore(baseDir, milestoneId, opts = {}) {
       reason: 'file exists (pass force: true to regenerate)',
     };
   }
-  if (opts._afterRead) await opts._afterRead();
+  // FR6/B29: own-property + typeof guard — an inherited Object.prototype._afterRead
+  // must never reach this awaited-under-lock seam.
+  if (Object.hasOwn(opts, '_afterRead') && typeof opts._afterRead === 'function') await opts._afterRead();
 
   const allRetros = await enumerateRetros(baseDir);
   const milestoneRetros = filterRetrosForMilestone(allRetros, milestoneId);

@@ -313,7 +313,9 @@ async function captureCheckpointContextCore(baseDir, opts = {}) {
     // version-establishing read, before any write, so a behavioral interleaving test
     // can prove the read sits inside the coarse lock. Defaults to undefined (no-op) —
     // mirrors atomic-write.js#renameFn; inert in production (no commands/*.md caller passes it).
-    if (opts._afterRead) await opts._afterRead();
+    // FR6/B29: own-property + typeof guard — an inherited Object.prototype._afterRead
+    // must never reach this awaited-under-lock seam.
+    if (Object.hasOwn(opts, '_afterRead') && typeof opts._afterRead === 'function') await opts._afterRead();
     await atomicWrite(ctxPath, appendToLockedDecisions(ctxExisting, decisions, today));
     wrote.push(ctxPath);
 

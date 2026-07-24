@@ -470,10 +470,12 @@ export function applyDispositions(content, dispositions) {
  * @returns {Promise<{written: boolean, kept?: boolean, verb: string, heading: string, path?: string}>}
  */
 export async function applyDispositionToFileCore(baseDir, relPath, opts) {
-  const { entryIndex, verb, reason, date, confirmPrompt, renameFn, _afterRead } = opts;
+  const { entryIndex, verb, reason, date, confirmPrompt, renameFn } = opts;
   const targetPath = join(baseDir, relPath);
   const content = await readFile(targetPath, 'utf-8');
-  if (_afterRead) await _afterRead();
+  // FR6/B29: own-property + typeof guard — an inherited Object.prototype._afterRead
+  // must never reach this awaited-under-lock seam (check `opts`, not a destructured local).
+  if (Object.hasOwn(opts, '_afterRead') && typeof opts._afterRead === 'function') await opts._afterRead();
   const entry = parseEntries(content)[entryIndex];
   if (!entry) {
     throw new Error(`applyDispositionToFile: no entry at index ${entryIndex} in ${relPath}.`);
@@ -602,7 +604,7 @@ function danglingFenceOffset(content) {
  * @returns {Promise<{evicted: Array<{heading: string, key: string}>, planned: Array<{heading: string, key: string}>, danglingFence: boolean}>}
  */
 async function evictTerminalToLedgerCore(baseDir, opts = {}) {
-  const { dryRun = false, renameFn, _afterRead } = opts;
+  const { dryRun = false, renameFn } = opts;
   // Resolve inside the body (baseDir is the first arg, unavailable in a default
   // param). An explicit inboxRel/ledgerRel still wins; otherwise route through
   // the resolver so a legacy and a v3 repo both work (FR1 / R1).
@@ -612,7 +614,8 @@ async function evictTerminalToLedgerCore(baseDir, opts = {}) {
   const inboxPath = join(baseDir, inboxRel);
   const ledgerPath = join(baseDir, ledgerRel);
   const content = await readFile(inboxPath, 'utf-8');
-  if (_afterRead) await _afterRead();
+  // FR6/B29: own-property + typeof guard (check `opts`, not a destructured local).
+  if (Object.hasOwn(opts, '_afterRead') && typeof opts._afterRead === 'function') await opts._afterRead();
 
   // Reuse the existing dangling-fence signal (v0.1.6/AD5) — don't rebuild it.
   const { danglingFence } = listDrainCandidatesWithRecovery(content);
@@ -734,7 +737,7 @@ export async function evictTerminalToLedger(baseDir, opts = {}) {
  * @returns {Promise<{destination: 'backlog'|'bugs', deduped: boolean, heading: string}>}
  */
 async function promoteDrainEntryCore(baseDir, opts = {}) {
-  const { classification, block, tag, title, entryIndex, reason, date, renameFn, _afterRead } = opts;
+  const { classification, block, tag, title, entryIndex, reason, date, renameFn } = opts;
   const inboxRel = opts.inboxRel ?? resolveInboxPath(baseDir);
 
   // Step 1 — destination FIRST (dedupe-guarded → crash-safe re-run).
@@ -752,7 +755,8 @@ async function promoteDrainEntryCore(baseDir, opts = {}) {
     );
   }
 
-  if (_afterRead) await _afterRead();
+  // FR6/B29: own-property + typeof guard (check `opts`, not a destructured local).
+  if (Object.hasOwn(opts, '_afterRead') && typeof opts._afterRead === 'function') await opts._afterRead();
 
   // Step 2 — stamp the inbox entry `→ Promoted` (terminal; eviction is the batch
   // sweep). promote never prompts, so no confirmPrompt is needed. §9: this core runs
