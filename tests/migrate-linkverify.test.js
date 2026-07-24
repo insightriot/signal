@@ -211,3 +211,73 @@ describe('M5.E2.S2.t4 dry-run surfacing — anchors flagged + detect-and-warn fl
     expect(out).toContain('[html] M6.E1-REQUIREMENTS.md');
   });
 });
+
+// M5.E6.T13 — B27 (AC4.3) residual-abort discriminator: the COUNTERWEIGHT to T11's
+// relaxation. WITH the B27 exemption machinery ACTIVE (`archiveExemptFroms` non-empty),
+// a genuine migrate-introduced dangle that is NOT the B27 shape — a NON-archive live
+// doc's inline link to a scaffold the migrate archived — STILL aborts + rolls back
+// byte-identical. The gate was not weakened into a blanket relaxation.
+//
+// Construction mirrors MUTATION A (a real archive-tree move + a SIMULATED skipped
+// referrer rewrite — no injected scanner), but seeds `archiveExemptFroms` with the
+// dangle's OWN resolved target `.planning/M6.E1-PLAN.md`, so the ONLY thing denying the
+// exemption is `isUnderArchive('.planning/NOTES.md') === false`. This isolates the
+// archive-location conjunct: drop it (widen the predicate to an OR) and this abort
+// becomes a flag → the test goes RED (verified by construction against a mutated
+// predicate). A clean end-to-end `applyMigrate` cannot reach the abort branch (the
+// referrer rewrite is complete), so the honest "gate still bites" proof reuses the
+// S2.t4 mutation harness — no fabricated scanner.
+describe('M5.E6.T13 — B27 (AC4.3): a non-archive scaffold-move dangle STILL aborts with the exemption active', () => {
+  let dir;
+  let planningDir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'signal-t13-discrim-'));
+    planningDir = join(dir, '.planning');
+    await mkdir(planningDir, { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('the NON-archive referrer dangle aborts + rolls back byte-identical (the isUnderArchive conjunct bites)', async () => {
+    // A non-archive live doc links the scaffold that is about to be archived.
+    await archiveFixture(planningDir, {
+      extra: { 'NOTES.md': '# Notes\n\nsee [plan](M6.E1-PLAN.md)\n' },
+    });
+    const stateBefore = await readFile(join(planningDir, 'STATE.md'), 'utf-8');
+    const notesBefore = await readFile(join(planningDir, 'NOTES.md'), 'utf-8');
+    const planBefore = await readFile(join(planningDir, 'M6.E1-PLAN.md'), 'utf-8');
+
+    const { snap, rollback } = createSnapshotter(planningDir);
+    await snap('STATE.md');
+    await snap('NOTES.md');
+    await snap('M6.E1-PLAN.md');
+    await snap('archive/M6/E1/M6.E1-PLAN.md');
+
+    // Clean baseline (every link resolves) — no injected scanner.
+    const baseline = await scanDanglingLinks(dir);
+    expect(baseline).toHaveLength(0);
+
+    // Real archive-tree move + referrer rewrites, then SIMULATE a skipped referrer
+    // rewrite (revert NOTES.md to its pre-move bytes) so its link genuinely dangles.
+    const { moveMap } = await applyArchiveTree(dir, { apply: true });
+    await writeFile(join(planningDir, 'NOTES.md'), notesBefore, 'utf-8');
+
+    // Exemption ACTIVE and deliberately OVER-SEEDED with the dangle's own resolved
+    // target — yet the gate still aborts, because NOTES.md is not under .planning/archive/.
+    await expect(
+      enforceNoDangling(dir, {
+        baseline,
+        moveMap,
+        rollback,
+        archiveExemptFroms: new Set(['.planning/M6.E1-PLAN.md']),
+      }),
+    ).rejects.toThrow(/dangling/i);
+
+    // Full surgical rollback: every touched file byte-identical, the moved file back.
+    expect(await readFile(join(planningDir, 'STATE.md'), 'utf-8')).toBe(stateBefore);
+    expect(await readFile(join(planningDir, 'NOTES.md'), 'utf-8')).toBe(notesBefore);
+    expect(await readFile(join(planningDir, 'M6.E1-PLAN.md'), 'utf-8')).toBe(planBefore);
+    expect(existsSync(join(planningDir, 'archive', 'M6', 'E1', 'M6.E1-PLAN.md'))).toBe(false);
+  });
+});
