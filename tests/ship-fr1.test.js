@@ -373,3 +373,42 @@ describe('shipFR1Check — B26 STATE-based Epic-close fallback (M5.E5.T2)', () =
     expect(result.skipped).toBe(true);
   });
 });
+
+// B30 (M5.E6 FR5) — the FR1 retro pre-check runs at `/sig:ship` Step 0.5,
+// BEFORE the SHIP transition. On a fresh REVIEW→SHIP flow STATE still reads
+// `phase: <last pre-ship phase>` (REVIEW for FULL) with SHIP not yet in
+// completed_phases and no milestone row for the Epic. Neither isEpicCloseShip
+// (no row) nor B26's phase===SHIP fallback recognizes the imminent Epic-close,
+// so the gate SILENTLY SKIPPED — an Epic could ship with no retro (surfaced
+// dogfooding B26 on M5.E5's own SHIP). The fix detects the about-to-close shape
+// and evaluates isEpicCloseByState against an IN-MEMORY synthesized
+// post-transition state, persisting nothing (D-M5E6-5 / approach (c)).
+
+describe('shipFR1Check — B30 fresh REVIEW→SHIP retro gate (M5.E6 FR5)', () => {
+  let base;
+  beforeEach(async () => {
+    base = await makeTempBase();
+  });
+  afterEach(async () => await rm(base, { recursive: true, force: true }));
+
+  it('AC5.1: halts NO_RETRO_FILE on a fresh REVIEW→SHIP flow (REVIEW not yet in completed_phases, no row, no retro)', async () => {
+    const result = await shipFR1Check({
+      state: {
+        current_epic: 'M5.E4',
+        phase: 'REVIEW',
+        completed_phases: [
+          'DISCUSS (2026-07-20)',
+          'PLAN (2026-07-20)',
+          'EXECUTE (2026-07-20)',
+          'VERIFY (2026-07-21)',
+        ],
+      },
+      profile: { tier: 'FULL', phases_skipped: [] },
+      milestoneContent: MILESTONE_NO_E4_ROW,
+      baseDir: base,
+    });
+    expect(result.halt).toBe(true);
+    expect(result.code).toBe('NO_RETRO_FILE');
+    expect(result.retroPath).toBe('.planning/M5.E4-RETROSPECTIVE.md');
+  });
+});
