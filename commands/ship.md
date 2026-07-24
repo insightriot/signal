@@ -62,6 +62,7 @@ Verify before creating the PR:
 - [ ] Environment variables documented (`.env.example` updated)
 - [ ] README updated if public API or setup changed
 - [ ] CHANGELOG updated
+- [ ] docs/map (`docs/map/index.html`) refreshed if the command/agent/skill roster or structure changed — check both tabs ("Signal, explained" + "Functionality map"); "no change needed" is a valid outcome
 - [ ] All tests pass
 - [ ] Build succeeds
 - [ ] Linter passes
