@@ -20,6 +20,8 @@ import {
   checkStaleInbox,
   checkClaudeMdBloat,
   checkCommandFrontmatter,
+  runSweep,
+  renderSweepReport,
   CLAUDE_MD_BLOAT_BYTES,
 } from '../tools/lib/sweep.js';
 
@@ -269,5 +271,100 @@ describe('M5.E6.T5 checkCommandFrontmatter', () => {
   it('AC2.4 — no commands/ dir → no finding (never throws)', async () => {
     await mkdir(join(dir, '.planning'), { recursive: true });
     expect(await checkCommandFrontmatter(dir)).toHaveLength(0);
+  });
+});
+
+describe('M5.E6.T6 runSweep + renderSweepReport', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'sig-sweep-run-'));
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  // A stranger repo: a real .planning/ with a genuine dead link, NO plugin.json.
+  async function seedStranger(d) {
+    await seedPlanning(d);
+    await writeDoc(d, '.planning/NOTES.md', '# Notes\n\nSee [the missing doc](does-not-exist.md).\n');
+  }
+
+  // A Signal-shaped repo: the plugin manifest lives at .claude-plugin/plugin.json
+  // (never repo root — that is where every sibling tool reads it, so that is the
+  // gate the Signal-only checks key on).
+  async function seedSignal(d) {
+    await seedPlanning(d);
+    await writeDoc(d, '.claude-plugin/plugin.json', JSON.stringify({ name: 'sig', version: '9.9.9' }) + '\n');
+    await writeDoc(d, 'commands/good.md', '---\nname: sig:good\ndescription: "A described command."\nargs: ""\n---\n\n# body\n');
+  }
+
+  it('AC1.1/AC2.5 — a stranger repo: portable checks fire against ITS own .planning/', async () => {
+    await seedStranger(dir);
+    const { findings } = await runSweep(dir);
+    const dead = structural(findings).filter((f) => f.check === 'internal-links');
+    expect(dead.length).toBeGreaterThanOrEqual(1);
+    expect(dead.some((f) => f.file.includes('NOTES.md'))).toBe(true);
+  });
+
+  it('AC1.3/AC2.5 — with no plugin.json, Signal-only checks are SKIPPED and the report states it', async () => {
+    await seedStranger(dir);
+    const result = await runSweep(dir);
+    expect(result.signalOnly.ran).toBe(false);
+    // Signal-only findings are absent, not silently mixed into the portable set.
+    expect(result.findings.some((f) => f.check === 'command-frontmatter')).toBe(false);
+    expect(result.findings.some((f) => f.check === 'roster-counts')).toBe(false);
+    expect(result.findings.some((f) => f.check === 'version-consistency')).toBe(false);
+    // The report SAYS the checks were skipped — not failed (AC1.3).
+    expect(renderSweepReport(result)).toContain('skipped (not a plugin repo)');
+  });
+
+  it('AC1.4 — with plugin.json at .claude-plugin/, all checks run', async () => {
+    await seedSignal(dir);
+    const result = await runSweep(dir);
+    expect(result.signalOnly.ran).toBe(true);
+    expect(result.signalOnly.checks).toContain('command-frontmatter');
+    expect(result.signalOnly.checks).toContain('roster-counts');
+    expect(result.signalOnly.checks).toContain('version-consistency');
+    expect(renderSweepReport(result)).toMatch(/^ran:/m);
+  });
+
+  it('AC1.2 — a dead link inside .planning/archive/ is EXEMPT (not reported)', async () => {
+    await seedPlanning(dir);
+    await writeDoc(dir, '.planning/archive/OLD.md', '# Old\n\n[gone](vanished.md)\n');
+    const { findings } = await runSweep(dir);
+    expect(findings.some((f) => f.file.includes('archive/'))).toBe(false);
+  });
+
+  it('AC1.5 — runSweep is read-only (baseDir tree byte-identical before and after)', async () => {
+    await seedSignal(dir);
+    const before = await hashTree(dir);
+    await runSweep(dir);
+    const after = await hashTree(dir);
+    expect(after).toBe(before);
+  });
+
+  it('AC2.6 — two sweeps of the same fixture render byte-identical reports', async () => {
+    await seedSignal(dir);
+    const r1 = renderSweepReport(await runSweep(dir));
+    const r2 = renderSweepReport(await runSweep(dir));
+    expect(r1).toBe(r2);
+  });
+
+  it('AC1.6 — the report groups findings by severity (structural before advisory)', () => {
+    // Pure render over a hand-built result — structural and advisory land under
+    // their own headings, in deterministic order.
+    const report = renderSweepReport({
+      findings: [
+        { check: 'internal-links', severity: 'structural', file: 'a.md', message: 'dead internal link -> x.md' },
+        { check: 'stale-inbox', severity: 'advisory', file: '.planning/ISSUES-INBOX.md', message: '3 undrained entries' },
+      ],
+      signalOnly: { ran: true, checks: ['roster-counts'] },
+    });
+    const structIdx = report.indexOf('Structural');
+    const advIdx = report.indexOf('Advisory');
+    expect(structIdx).toBeGreaterThanOrEqual(0);
+    expect(advIdx).toBeGreaterThan(structIdx);
+    expect(report).toContain('dead internal link -> x.md');
+    expect(report).toContain('3 undrained entries');
   });
 });

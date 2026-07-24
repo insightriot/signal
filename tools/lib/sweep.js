@@ -12,7 +12,7 @@
 // source) stays green (AD3).
 
 import { readFile } from 'node:fs/promises';
-import { statSync } from 'node:fs';
+import { statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -25,6 +25,12 @@ import { resolveInboxPath } from './inbox-path.js';
 import { listDrainCandidatesWithRecovery } from './drain.js';
 import { listCommands } from './roster.js';
 import { parseFrontmatter, StateSchemaError } from './state.js';
+import {
+  checkInternalLinks,
+  checkFillInStubs,
+  checkRosterCounts,
+  checkVersionConsistency,
+} from './doc-hygiene.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -190,4 +196,106 @@ export async function checkCommandFrontmatter(baseDir) {
     }
   }
   return findings.sort(findingCmp);
+}
+
+// --- orchestrator -------------------------------------------------------------
+
+// Sweep's widened scan scope (FR1): repo docs (README/CLAUDE + docs/, analysis/)
+// PLUS `.planning/`. `archive/` stays exempt because it is in doc-hygiene's
+// default WALK_IGNORE (AC1.2) — the walk never descends into it. `stripCode`
+// keeps code-quoted `](path.md)` samples in `.planning/` research/plan docs from
+// being mis-flagged as live links.
+const SWEEP_LINK_SCOPE = { topFiles: ['README.md', 'CLAUDE.md'], dirs: ['docs', 'analysis', '.planning'], stripCode: true };
+const SWEEP_FILLIN_SCOPE = { topFiles: ['README.md'], dirs: ['docs', '.planning'] };
+
+// The Signal-only checks, named in report order. Run only under the plugin.json
+// gate; their names are surfaced in the report whether they ran or were skipped.
+const SIGNAL_ONLY_CHECKS = ['roster-counts', 'version-consistency', 'command-frontmatter'];
+
+// doc-hygiene.js findings speak `hard`/`soft`; sweep's report speaks
+// `structural`/`advisory` (AC1.6: hard-fail-class → structural, nudge → advisory).
+// The sweep-native checks already emit the target vocabulary, so this is a no-op
+// for them.
+const SEVERITY_MAP = { hard: 'structural', soft: 'advisory' };
+const normalizeSeverity = (f) => (SEVERITY_MAP[f.severity] ? { ...f, severity: SEVERITY_MAP[f.severity] } : f);
+
+/**
+ * The full read-only sweep (FR1). Composes the portable check set (dead-links +
+ * `[FILL IN]` over the widened `.planning/`-inclusive scope, index-freshness,
+ * stale-inbox, CLAUDE.md-bloat — meaningful in any repo) and, gated on the
+ * plugin manifest at its canonical `.claude-plugin/plugin.json` path, the
+ * Signal-only set (roster, version, command-frontmatter). When the manifest is
+ * absent the Signal-only checks are skipped and the fact is recorded on the
+ * result so the report can STATE the skip (AC1.3), never silently drop it.
+ *
+ * Writes nothing (AC1.5): index-freshness uses the pure compose-and-diff path,
+ * every other check only reads. Deterministic + offline (AC2.6 / NFR1).
+ *
+ * @param {string} [baseDir=process.cwd()] — the INVOKING project root
+ * @returns {Promise<{findings: Array, signalOnly: {ran: boolean, checks: string[]}}>}
+ */
+export async function runSweep(baseDir = process.cwd()) {
+  const raw = [];
+
+  // Portable checks — run in any repo.
+  raw.push(...checkInternalLinks(baseDir, SWEEP_LINK_SCOPE));
+  raw.push(...checkFillInStubs(baseDir, SWEEP_FILLIN_SCOPE));
+  raw.push(...(await checkIndexFreshness(baseDir)));
+  raw.push(...(await checkStaleInbox(baseDir)));
+  raw.push(...checkClaudeMdBloat(baseDir));
+
+  // Signal-only checks — gated on the plugin manifest (the roster/version/command
+  // checks are meaningless in a stranger repo). Canonical path only, never repo
+  // root: a stray root plugin.json in an unrelated project must not trip the gate.
+  const ran = existsSync(join(baseDir, '.claude-plugin', 'plugin.json'));
+  if (ran) {
+    raw.push(...checkRosterCounts(baseDir));
+    raw.push(...checkVersionConsistency(baseDir));
+    raw.push(...(await checkCommandFrontmatter(baseDir)));
+  }
+
+  const findings = raw.map(normalizeSeverity).sort(findingCmp);
+  return { findings, signalOnly: { ran, checks: SIGNAL_ONLY_CHECKS } };
+}
+
+/**
+ * Render a sweep result (or a bare findings array) into a deterministic,
+ * human-readable report. PURE — no I/O. Groups findings by severity (structural
+ * then advisory), each group sorted by `findingCmp` (already applied by
+ * `runSweep`), and — when given the full result object — states whether the
+ * Signal-only checks ran or were skipped (AC1.3). Two renders of equal input are
+ * byte-identical (AC2.6).
+ *
+ * @param {{findings: Array, signalOnly?: {ran: boolean, checks: string[]}} | Array} report
+ * @returns {string}
+ */
+export function renderSweepReport(report) {
+  const findings = Array.isArray(report) ? report : report.findings;
+  const signalOnly = Array.isArray(report) ? null : report.signalOnly;
+
+  const structural = findings.filter((f) => f.severity === 'structural');
+  const advisory = findings.filter((f) => f.severity === 'advisory');
+
+  const lines = ['# /sig:sweep — doc-hygiene report', ''];
+  lines.push(...renderGroup('Structural', structural), '');
+  lines.push(...renderGroup('Advisory', advisory));
+  if (signalOnly) {
+    lines.push('', '## Signal-only checks');
+    lines.push(
+      signalOnly.ran
+        ? `ran: ${signalOnly.checks.join(', ')}`
+        : `skipped (not a plugin repo): ${signalOnly.checks.join(', ')}`,
+    );
+  }
+  return lines.join('\n') + '\n';
+}
+
+function renderGroup(title, group) {
+  const out = [`## ${title} (${group.length})`];
+  if (group.length === 0) {
+    out.push('none');
+  } else {
+    for (const f of group) out.push(`- [${f.check}] ${f.file} — ${f.message}`);
+  }
+  return out;
 }
