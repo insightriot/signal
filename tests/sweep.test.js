@@ -10,9 +10,18 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(__dirname, '..');
+const SWEEP_SRC = join(ROOT, 'tools/lib/sweep.js');
+const AUDIT_SCRIPT = join(ROOT, 'tools/audit-network-calls.js');
+const SEEDED_FIXTURE = join(ROOT, 'tests/fixtures/audit-network-calls-seeded/with-fetch.js');
 
 import { regeneratePlanningIndexCore } from '../tools/lib/planning-index.js';
 import {
@@ -366,5 +375,34 @@ describe('M5.E6.T6 runSweep + renderSweepReport', () => {
     expect(advIdx).toBeGreaterThan(structIdx);
     expect(report).toContain('dead internal link -> x.md');
     expect(report).toContain('3 undrained entries');
+  });
+});
+
+// M5.E6.T7 — offline meta-tests + network-audit coverage (NFR1).
+//
+// A standing invariant (not RED-first-shaped): a "makes no network calls" guard
+// can only fail by breaking the very property it guards, so it lands green. Its
+// teeth are shown by pointing the same grep at a known-violating fixture — the
+// contrast is the discriminating evidence. (Mirrors tests/docs-hygiene.test.js's
+// AC4.3 source-grep meta-test.)
+describe('M5.E6.T7 sweep offline + network-audit coverage (NFR1)', () => {
+  it('NFR1 — sweep.js makes no network calls (offline source-grep, with teeth)', () => {
+    const src = readFileSync(SWEEP_SRC, 'utf-8');
+    expect(src).not.toMatch(/fetch|http|curl/i);
+    // Teeth: the same grep DOES catch a real network call, so the assertion above
+    // is discriminating, not vacuously true.
+    expect(readFileSync(SEEDED_FIXTURE, 'utf-8')).toMatch(/fetch|http|curl/i);
+  });
+
+  it('NFR1 — sweep.js is covered by tools/audit-network-calls.js (recursive tools/ scan) and the audit passes', () => {
+    // audit-network-calls.js has NO per-file registration list — it walks its
+    // DEFAULT_INCLUDE dirs recursively, so tools/lib/sweep.js is in scope by
+    // directory (there is nothing to append to). Assert 'tools' is in that
+    // include set, then run the audit over the live repo — a run that actually
+    // scans sweep.js — and confirm it exits 0 (clean).
+    const auditSrc = readFileSync(AUDIT_SCRIPT, 'utf-8');
+    expect(auditSrc).toMatch(/DEFAULT_INCLUDE\s*=\s*\[[^\]]*'tools'/);
+    const res = spawnSync('node', [AUDIT_SCRIPT], { encoding: 'utf-8' });
+    expect(res.status).toBe(0);
   });
 });
