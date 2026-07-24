@@ -5,6 +5,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, cp } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -358,7 +359,14 @@ describe('shipFR1Check — B26 STATE-based Epic-close fallback (M5.E5.T2)', () =
     expect(result.skipped).toBe(true);
   });
 
-  it('does not fall back to STATE when phase is not SHIP even with full completed_phases (no row)', async () => {
+  it('B30 (M5.E6 FR5): DOES fire on a fresh REVIEW→SHIP flow — phase REVIEW (last pre-ship) + full completed_phases + no row halts NO_RETRO_FILE', async () => {
+    // Sanctioned inversion (M5.E6.T16). The original B26-era expectation here
+    // was "phase must be SHIP to fall back" — assert skip. B30 supersedes it:
+    // the FR1 pre-check runs BEFORE the SHIP transition, so at Epic-close the
+    // state legitimately reads phase: REVIEW (the FULL tier's last pre-ship
+    // phase) with no milestone row. That is an about-to-close Epic, so
+    // shipFR1Check synthesizes the post-transition state in-memory and MUST halt
+    // for a missing retro rather than silently skip.
     const result = await shipFR1Check({
       state: {
         current_epic: 'M5.E4',
@@ -369,8 +377,8 @@ describe('shipFR1Check — B26 STATE-based Epic-close fallback (M5.E5.T2)', () =
       milestoneContent: MILESTONE_NO_E4_ROW,
       baseDir: base,
     });
-    expect(result.halt).toBe(false);
-    expect(result.skipped).toBe(true);
+    expect(result.halt).toBe(true);
+    expect(result.code).toBe('NO_RETRO_FILE');
   });
 });
 
@@ -410,5 +418,128 @@ describe('shipFR1Check — B30 fresh REVIEW→SHIP retro gate (M5.E6 FR5)', () =
     expect(result.halt).toBe(true);
     expect(result.code).toBe('NO_RETRO_FILE');
     expect(result.retroPath).toBe('.planning/M5.E4-RETROSPECTIVE.md');
+  });
+
+  it('AC5.2: once a valid retro exists, the same fresh flow proceeds and recognizes Epic-close (re-enables the §5.5/§6/§6.5 downstream paths)', async () => {
+    await writeFile(
+      join(base, '.planning', 'M5.E4-RETROSPECTIVE.md'),
+      VALID_FULL_RETRO,
+    );
+    const result = await shipFR1Check({
+      state: {
+        current_epic: 'M5.E4',
+        phase: 'REVIEW',
+        completed_phases: [
+          'DISCUSS (2026-07-20)',
+          'PLAN (2026-07-20)',
+          'EXECUTE (2026-07-20)',
+          'VERIFY (2026-07-21)',
+        ],
+      },
+      profile: { tier: 'FULL', phases_skipped: [] },
+      milestoneContent: MILESTONE_NO_E4_ROW,
+      baseDir: base,
+    });
+    expect(result.halt).toBe(false);
+    expect(result.retroPath).toBe('.planning/M5.E4-RETROSPECTIVE.md');
+    expect(result.isEpicClose).toBe(true);
+  });
+
+  // --- AC5.3 no-false-fire guards ---------------------------------------
+  // Each case must SKIP (not halt). They are constructed so a too-broad
+  // `aboutToClose` predicate would trip them:
+  //   • maintained-pending  → bites dropping the `rowStatus === null` guard
+  //   • SKETCH mid-flow      → bites dropping the `phase === lastPreShip` guard
+  //     (its short required set means synth-adding lastPreShip would complete it)
+  //   • FULL mid-flow EXECUTE → realistic mid-flow Epic that must never halt
+  // (the `shipsAtAll` guard's witness is the SPIKE test above at :339.)
+
+  it('AC5.3 no-false-fire (maintained-pending): a present "pending" row at phase REVIEW still SKIPS', async () => {
+    // If aboutToClose dropped the rowStatus===null guard, phase REVIEW (=last
+    // pre-ship) would synth-close and halt even though a maintained pending row
+    // says this is a legit per-slice ship. It must skip.
+    const result = await shipFR1Check({
+      state: {
+        current_epic: 'M5.E4',
+        phase: 'REVIEW',
+        completed_phases: SELF_HOSTED_STATE_FULL.completed_phases,
+      },
+      profile: { tier: 'FULL', phases_skipped: [] },
+      milestoneContent: MILESTONE_E4_PENDING,
+      baseDir: base,
+    });
+    expect(result.halt).toBe(false);
+    expect(result.skipped).toBe(true);
+  });
+
+  it('AC5.3 no-false-fire (SKETCH mid-flow): phase EXECUTE (not the last pre-ship VERIFY) SKIPS', async () => {
+    // SKETCH's last pre-ship phase is VERIFY. If aboutToClose dropped the
+    // `phase === lastPreShip` guard, synth-adding VERIFY would complete SKETCH's
+    // short required set and wrongly halt this mid-EXECUTE Epic. It must skip.
+    const result = await shipFR1Check({
+      state: {
+        current_epic: 'M5.E4',
+        phase: 'EXECUTE',
+        completed_phases: [
+          'DISCUSS (2026-07-20)',
+          'PLAN (2026-07-20)',
+          'EXECUTE (2026-07-20)',
+        ],
+      },
+      profile: { tier: 'SKETCH', phases_skipped: ['REVIEW'] },
+      milestoneContent: MILESTONE_NO_E4_ROW,
+      baseDir: base,
+    });
+    expect(result.halt).toBe(false);
+    expect(result.skipped).toBe(true);
+  });
+
+  it('AC5.3 no-false-fire (FULL mid-flow EXECUTE): a genuinely mid-flow Epic SKIPS', async () => {
+    const result = await shipFR1Check({
+      state: {
+        current_epic: 'M5.E4',
+        phase: 'EXECUTE',
+        completed_phases: [
+          'DISCUSS (2026-07-20)',
+          'PLAN (2026-07-20)',
+          'EXECUTE (2026-07-20)',
+        ],
+      },
+      profile: { tier: 'FULL', phases_skipped: [] },
+      milestoneContent: MILESTONE_NO_E4_ROW,
+      baseDir: base,
+    });
+    expect(result.halt).toBe(false);
+    expect(result.skipped).toBe(true);
+  });
+
+  it('AC5.4/5.5: halting on the fresh flow persists nothing — the caller state is not mutated and no STATE.md is written', async () => {
+    // approach (c): the post-transition state is synthesized IN MEMORY. Freeze
+    // the input (a mutation attempt would throw in strict-mode ESM) and confirm
+    // no state file is written to the fixture.
+    const state = Object.freeze({
+      current_epic: 'M5.E4',
+      phase: 'REVIEW',
+      completed_phases: Object.freeze([
+        'DISCUSS (2026-07-20)',
+        'PLAN (2026-07-20)',
+        'EXECUTE (2026-07-20)',
+        'VERIFY (2026-07-21)',
+      ]),
+    });
+    const result = await shipFR1Check({
+      state,
+      profile: { tier: 'FULL', phases_skipped: [] },
+      milestoneContent: MILESTONE_NO_E4_ROW,
+      baseDir: base,
+    });
+    // The synth path ran (gate fired) ...
+    expect(result.halt).toBe(true);
+    expect(result.code).toBe('NO_RETRO_FILE');
+    // ... without mutating the caller's state ...
+    expect(state.phase).toBe('REVIEW');
+    expect(state.completed_phases).toHaveLength(4);
+    // ... and without writing any state file to disk.
+    expect(existsSync(join(base, '.planning', 'STATE.md'))).toBe(false);
   });
 });
