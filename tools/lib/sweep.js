@@ -20,6 +20,8 @@ import {
   renderPlanningIndex,
   isForeignIndexFormat,
 } from './planning-index.js';
+import { resolveInboxPath } from './inbox-path.js';
+import { listDrainCandidatesWithRecovery } from './drain.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -73,6 +75,33 @@ export async function checkIndexFreshness(baseDir) {
 
   if (expected !== existing) {
     return [mkFinding('index-freshness', 'structural', rel, 'INDEX.md is stale — regenerate with /sig:index')];
+  }
+  return [];
+}
+
+/**
+ * Stale-inbox nudge (portable, advisory — AC2.2). Counts the undrained entries in
+ * the capture inbox (resolved by `resolveInboxPath` so a legacy or v3 repo both
+ * work — no inbox-name literal here) using the same `listDrainCandidatesWithRecovery`
+ * count `/sig:plan` surfaces, and reports "consider draining" when N > 0. Never
+ * structural; a missing inbox (or zero undrained entries) yields no finding.
+ *
+ * @param {string} baseDir — project root (where `.planning/` lives)
+ * @returns {Promise<Array<{check: string, severity: string, file: string, message: string}>>}
+ */
+export async function checkStaleInbox(baseDir) {
+  const inboxRel = resolveInboxPath(baseDir);
+  let content;
+  try {
+    content = await readFile(join(baseDir, inboxRel), 'utf-8');
+  } catch {
+    return []; // no inbox → nothing to nudge
+  }
+  const n = listDrainCandidatesWithRecovery(content).candidates.length;
+  if (n > 0) {
+    return [
+      mkFinding('stale-inbox', 'advisory', inboxRel, `inbox has ${n} undrained ${n === 1 ? 'entry' : 'entries'} — consider draining`),
+    ];
   }
   return [];
 }
