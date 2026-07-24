@@ -160,6 +160,47 @@ describe('M5.E4 FR5b — doc-runtime RMW writers are lock-guarded (AC5.2)', () =
   });
 });
 
+// -----------------------------------------------------------------------------
+// M5.E6 FR6 (B29): the `_afterRead` test seam is prototype-pollution-hardened.
+//
+// The seam is an OWN-property opt-in. A `_afterRead` injected onto Object.prototype
+// (prototype pollution) must NOT reach the awaited-under-lock path on any of the 6 RMW
+// Cores — the guard is `Object.hasOwn(opts, '_afterRead') && typeof … === 'function'`,
+// tested on the `opts` object itself (a destructured local would read THROUGH the
+// polluted prototype chain and defeat the guard). Currently unreachable in prod (no
+// caller passes a function; JSON/CLI can't carry one) — this is defense-in-depth.
+// -----------------------------------------------------------------------------
+describe('M5.E6 FR6 — the _afterRead seam ignores a prototype-polluted _afterRead (B29, AC6.1)', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'signal-rmw-protopollute-'));
+    await mkdir(join(dir, '.planning'), { recursive: true });
+    await writeFile(join(dir, INBOX_REL), DRAIN_INBOX, 'utf-8');
+    await writeFile(
+      join(dir, '.planning', 'M9.E1-RETROSPECTIVE.md'),
+      '# M9.E1 Retrospective\n\nComplete.\n',
+      'utf-8'
+    );
+  });
+  afterEach(async () => {
+    // MANDATORY: without this the pollution leaks into every other test in the run.
+    delete Object.prototype._afterRead;
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it.each(RMW_PATHS)(
+    '%s: an inherited (prototype-injected) _afterRead does NOT fire the seam',
+    async (_name, invoke) => {
+      let fired = false;
+      Object.prototype._afterRead = () => {
+        fired = true;
+      };
+      await invoke(dir);
+      expect(fired).toBe(false);
+    }
+  );
+});
+
 describe('M5.E4 FR5a — applyMigrate INDEX regen fires the lock-free core under the held coarse lock (AC5.1)', () => {
   const git = (cwd, args) =>
     execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
