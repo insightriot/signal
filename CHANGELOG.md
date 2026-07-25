@@ -6,6 +6,27 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.11] — 2026-07-25 — Doc-runtime close-out (M5.E6)
+
+The maintenance-command half of the doc-runtime flagship — finishing Signal's self-maintenance so it's locked before the BR-8 v2-port re-audit. Adds one slash command (`/sig:sweep`, **18 commands** now / 26 agents / 21 skills), clears the four M5.E5 carry-over bugs, and closes the FR7 concurrency work. Additive; no breaking changes; no new runtime dependencies; no `.planning/` schema change. 1561 → **1623 tests**; FULL/strict throughout. VERIFY PASS (strict — independent mutation proof-of-fail on the B27/B30/B29 gates); REVIEW PASS (a 3-specialist adversarial panel — code-quality + security OWASP/ASVS-L2 + test-integrity — found **0 Critical, 0 false-greens**).
+
+### Added
+- **`/sig:sweep`** — a read-only, invoking-project doc-hygiene report. Runs on `process.cwd()` (helps *stranger* repos, not just Signal): dead-links + `[FILL IN]` stubs + INDEX-freshness + stale-inbox + CLAUDE.md-bloat (portable, run anywhere), plus roster / version / command-frontmatter (Signal-only, auto-skip + *stated* when there's no `.claude-plugin/plugin.json`). Detect-and-report only — no `--fix`. Structural vs. advisory grouping; deterministic; offline.
+- **FR3** — a `docs/map` refresh line in the `/sig:ship` pre-ship checklist (both map tabs: "Signal, explained" + "Functionality map"; "no change needed" is a valid outcome).
+
+### Fixed
+- **B27 / B28** — `/sig:migrate-memory`'s dangling-link gate now **flags** (rather than aborting the whole migrate) a *pre-existing* archive-inline link to an FR6-renamed target (B27) or an absolute-path `.md` dangle in an evicted closed block (B28) — mirroring R7's archive-prose exemption. A genuinely migrate-*introduced* dangle still aborts + rolls back (a tightness pair + a residual-abort discriminator prove the gate still bites).
+- **B29** — the FR5 `_afterRead` test seam is hardened against prototype pollution: an `Object.hasOwn(opts,'_afterRead') && typeof …==='function'` guard at all 6 RMW sites, so an `Object.prototype`-injected `_afterRead` can never reach the awaited-under-lock seam. (Unreachable in practice — defense-in-depth.)
+- **B30** — the FR1 retro gate now fires on a **fresh REVIEW→SHIP flow** (previously it saw `phase: REVIEW` at the Step-0.5 pre-check and skipped). `shipFR1Check` synthesizes an in-memory post-transition state and evaluates Epic-close against it, persisting nothing — so an Epic can no longer ship with no retrospective just because the pre-check ran before the SHIP transition.
+
+### Changed
+- **FR7 concurrency close-out + B31** — the doc-runtime's RMW paths were already lock-protected (M5.E4 FR5 + M5.E5 B25); this marks that work done and closes the one genuine remaining hole: **B31** — `/sig:add`'s doc-write now runs under `.state.lock` (a re-read-inside-lock core), mutually exclusive with drain/ship writes to the same inbox / OPEN-QUESTIONS / BUGS files. The interactive scrub prompt stays outside under `.add.lock`; the pure insert helpers stay lock-free (no re-entrancy with drain's promote). `/sig:add` behavior is byte-identical for a single session.
+
+### Known / carried forward
+- **B36** (P2, `needs-triage`) — surfaced dogfooding *this* ship: the FR1 retro-gate's Step-0.5 check silently skips when a **stale/non-shipped milestone row** is present (both STATE fallbacks are row-absence-gated). The gate fired correctly here only after the E6 row was marked shipped — a third milestone-row residual after B26/B30.
+- **B34 / B35** (P3, `needs-triage`) — the `renameFn` seam is the B29-parity pollution sibling (unreachable), and `sweep.js checkIndexFreshness` has one unwrapped compose/diff (low-reach). Both batchable into a hardening pass.
+- **B32 / B33** (P3, `needs-triage`) — the `docs/map` COMMANDS enumeration array is missing 2 commands; a stale `add.js` `LOCK_TTL_MS` comment. Pre-existing, cosmetic.
+
 ## [0.1.10] — 2026-07-21 — Carry-over bug squash (M5.E5)
 
 The four M5.E4 carry-overs cleared. Additive; no breaking changes; no new runtime dependencies; no `.planning/` schema or slash-command-surface change (still 17 commands / 26 agents / 21 skills). 1529 → **1561 tests**; FULL/strict throughout; REVIEW ran a 3-specialist adversarial panel (PASS) — the test-integrity pass built a 12-case mutation matrix and found **zero false-greens** (contrast v0.1.9's two).
