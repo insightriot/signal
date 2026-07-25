@@ -982,7 +982,8 @@ export async function releaseLock(baseDir) {
  *
  * A DISTINCT no-prompt function by design (AC7.5): the sensitive-data scrub prompt and
  * the entry-build ran already, BEFORE the lock, so this coarse section is non-
- * interactive — a slow prompt can never hold `.state.lock` for its 30s TTL. Any future
+ * interactive — a slow prompt can never hold `.state.lock` (5s TTL) across the write; the
+ * interactive 30s TTL belongs to `.add.lock`, held OUTSIDE this section, before it. Any future
  * edit that slips a prompt in here changes this signature and trips the AC7.5
  * structural test (which asserts `.state.lock` is acquirable during the scrub prompt).
  *
