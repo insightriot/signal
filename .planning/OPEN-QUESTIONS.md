@@ -30,3 +30,17 @@ Unresolved design questions. Append new ones; delete resolved ones (or move to `
 ---
 
 *(The M4.5.E5 re-entry breadcrumb was removed 2026-06-06 — E5 shipped as v0.1.4. The pending outward loop, voice pass + recruit ≥3 testers, is tracked in `M4.5.E5-LAUNCH-KIT.md` §3 and `M4.5.E5-SHIP.md`, not here.)*
+
+## Should worktree-isolated agent dispatch become a build item?
+
+Raised 2026-07-25 (M5.E7 Wave 1 checkpoint). Concurrent agent dispatch against a
+shared worktree caused two agents to silently absorb each other's files (D-M5E7-9b).
+The demand signal is strong — Theme F (EXECUTE dispatch guidance) was raised
+independently in M5.E1, M5.E4, and M5.E5 with **zero coverage in any of the four
+ledgers**, and it then reproduced live during this Epic. The supply side is named:
+superpowers' `using-git-worktrees`, one of four skills with no Signal analog.
+
+The open part is **scope**, not merit: is the fix (i) an executor-guidance line only,
+(ii) `isolation: "worktree"` wired into the dispatch path, or (iii) the full
+`using-git-worktrees` port? M5.E7's disposition pass (S3.t8) should answer it — this
+entry exists so the question survives a context clear if it doesn't.
