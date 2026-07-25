@@ -181,7 +181,7 @@ These stay trigger-gated; the standing **WATCHLIST** entry (A1) in `ISSUES-INBOX
 
 - **E1 Slices 3–5** — Linux/WSL install matrix + versioning policy + validator hardening. *Trigger:* a platform tester volunteers.
 - **E3 contribution scaffolding** — *Triggers:* a/b/c in its entry.
-- **Synthesizer validator-side check** — *Trigger:* 2+ regressions by 2026-08-23 (**dated — expires unobserved without the watchlist**).
+- ~~**Synthesizer validator-side check** — *Trigger:* 2+ regressions by 2026-08-23~~ — **CLOSED 2026-07-25: trigger did not fire, evidence-backed.** Checked during M5.E7 (Brett-approved). **Zero** regressions in the window: none in `BUGS.md`, none in any retro, no fix commits touching `embedSection` since the 2026-05-23 deferral (its files were touched once, by unrelated M5.E3 born-on-v3 work). **The zero is informative, not vacuous** — `tests/synthesizer-regression.test.js` + `tests/landscape.test.js` carry a dedicated regression guard (24 `embedSection` references, plus `tests/fixtures/synthesizer-bug-r1/`) that has run green in every suite execution, so the code was continuously exercised rather than merely untouched. The deferral decision was correct and the build condition never arose. *Closed by decision rather than allowed to lapse at the date — the corpus's only dated expiry, and letting it pass unobserved would have been exactly the "no cut decision was ever recorded" failure this Epic catalogued against five un-cut ports.*
 - **`/sig:doctor` helper-script split** — deferred refactor.
 - **`docs/map` Stages 2/3** — the deeper map-refresh protocol.
 - **GitHub Issues full setup** — *Trigger:* first live external tester (already fired: onboarding began 2026-07-15).
