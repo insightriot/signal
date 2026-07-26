@@ -1520,6 +1520,55 @@ Scope note: this is genuine scope growth relative to M5.E7's spec, named rather 
 
 ---
 
+## Roadmap Advisor — sequencing and prioritization advisory (product discovery explicitly OUT)
+
+**Status:** Logged 2026-07-26 via `/sig:add`. M5.E7 EXECUTE — Brett ratification of Group A
+
+Brett, 2026-07-26, closing the M5.E7 audit's Group A question: 'figure out what to build' is NOT Signal — cut it. BUT: 'I do want more robust roadmapping and feature prioritization - eg office hours but against why the next thing should be the next thing AND/OR what the next thing should be in the first place? I can also see the same mechanism being used for bringing things to market (validation, etc.) - but at the very least a much more robust Roadmap Advisor would be a welcomed and valuable addition.'
+
+The split this makes: PRODUCT discovery (what product should exist — pm-skills /discover, /strategy) is out of scope. ROADMAP advisory (given a backlog, what should be next and why) is in, and is arguably Signal's weakest layer today.
+
+Why the audit could not see this, stated so the gap is not repeated: S3.t7's counterfactual asked two questions — 'would this have prevented a bug we shipped?' and 'would it have shortened an Epic we ran?' It never asked the third: 'would it have stopped us building the wrong thing, or in the wrong order?' Signal's record answers that one loudly and it went uncounted.
+
+Evidence already in the corpus, all first-party:
+- The 0-for-6 displacement chain: the seed recorded a six-Epic v2-port queue on 2026-07-13; the 2026-07-16 override displaced E1 three days later and every one of the six planned port Epics was displaced. Eleven releases shipped containing zero lines from that queue (D-M5E7-7).
+- P4's own justification: 'position is what got overridden six times.'
+- Five port candidates sat un-cut for the project's life with no cut decision ever recorded — the silence pattern M5.E7 catalogued three separate times.
+- B39: the trigger-evaluation mechanism ratified 2026-07-04 was never built, so nothing has ever evaluated a promote-back condition.
+- M5.E7 itself IS a manual Roadmap Advisor run — a full Epic of effort, one-off, non-repeatable, and it found real things (12 abandons, 4 unmarked BACKLOG closures, a 4.5x-wrong figure inside a locked decision).
+
+Supply available rather than invented: gstack's /office-hours six forcing questions (verified present, S2.t5) — the reframing mechanism, pointed at sequencing instead of ideation; gstack's /plan-ceo-review Step 0B 'Existing Code Leverage'; pm-skills' assumption mapping (Impact x Risk), which is a prioritization technique rather than a discovery one and should be carved out of the Group A cut.
+
+Second horizon Brett named: the same mechanism applied to bringing things to market (validation). Recorded, not scoped — it depends on the advisory core existing first.
+
+Naming is open. /sig:advise, extending /sig:plan, or folding into the already-planned /sig:audit readiness scorecard are all candidates; do not fix the name before the shape.
+
+---
+
+## Project-facing currency — dependency/release awareness + accurate, agent-navigable docs for the codebase and its external services
+
+**Status:** Logged 2026-07-26 via `/sig:add`. M5.E7 EXECUTE — Brett addition at S4.t9 hand-off
+
+Brett, 2026-07-26: two related gaps about the CODEBASE Signal is working on, as distinct from Signal's own .planning/ memory. Signal's doc-runtime governs .planning/ and nothing else — the project's own code docs and its external dependencies are ungoverned.
+
+(a) DEPENDENCY AND RELEASE CURRENCY. 'Keeping up on any meaningful releases/updates on the users' pkgs, etc. (eg - the Node transition from middleware to proxy (if memory serves) - what versions to use, etc.'
+
+Signal today has no notion that a project's dependency landscape moves underneath it. An agent picks versions and APIs from training data, which is stale by construction, and nothing in the flow checks whether a framework has since deprecated the pattern being written. The failure is silent: the code works, passes tests, and is built on a superseded API. Note this is the same failure CLASS as correction C6 in this Epic — a claim that was true when written, false when used, with nothing watching the gap — but pointed at the user's stack instead of at Signal's analysis docs.
+
+Related existing entries, to reconcile rather than duplicate: BACKLOG.md:40 'Re-source the stale external claims' (Signal's own external claims, same class, smaller scope); ISSUES-INBOX.md:1475 config-drift hazard check in VERIFY, whose body already opens the general question 'should Signal carry a small set of stack-aware universal pre-ship hazard checks?'
+
+(b) DOCUMENTATION CURRENCY AND NAVIGABILITY, for the codebase AND its external surface. Brett's three requirements, verbatim: documentation of BOTH codebase and any related tools (external database solutions, third party services a project ties into, etc.) needs to be 1) accurate 2) 100% up to date and 3) easy to navigate for the agents.
+
+The third requirement is the one that makes this Signal-shaped rather than generic: the consumer is an AGENT, not a human reader. Navigability for an agent means resolvable references, a traversal layer, and single-home content — which is precisely what Signal's doc-runtime already does for .planning/ and does not do for anything else.
+
+Related existing entries: BACKLOG.md:152 /sig:docs-update (GSD port, doc-vs-codebase drift verification) covers part of (b) for the codebase half only; ISSUES-INBOX.md:1467 'Scan project integrations into a tooling catalog for agents' is the external-surface half already captured smaller. Brett's ask supersedes both in scope — reconcile, do not re-derive.
+
+Sequencing observation, not a decision: (b) is the doc-runtime pointed outward at the project instead of inward at .planning/, which means the mechanism largely exists and the work is retargeting rather than inventing. (a) needs a live data source (registry/changelog reads) that Signal has never had, and is the harder of the two.
+
+---
+
+
+
 
 
 
