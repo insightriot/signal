@@ -67,13 +67,23 @@ byte-identical code).
   dispatch simultaneously.
 - **SHIP-time ledger reconcile.** *Slice:* a hygiene test asserting `BUGS.md` holds no `confirmed`
   bug whose fix already shipped. *Done-when:* it fails on a planted violation.
-- **The 10 open bugs** — `B32`–`B36` (`needs-triage`), `B37`–`B41` (`confirmed`). Required by
-  D-M5E7-10; **verified 2026-07-26 that no bug-squash sprint existed anywhere.** *Slice:* the **three**
-  P2s (`B36`, `B39`, **`B41`**). *Done-when:* zero `confirmed` P2 entries remain.
+- **The 13 open bugs** — `B32`–`B36` (`needs-triage`), `B37`–`B44` (`confirmed`). Required by
+  D-M5E7-10; **verified 2026-07-26 that no bug-squash sprint existed anywhere.** *Slice:* **`B42` first
+  (the only `P1`)**, then the four P2s (`B36`, `B39`, **`B41`**, **`B44`**). *Done-when:* zero
+  `confirmed` P1/P2 entries remain.
   **`B41` was cataloged by M5.E7 REVIEW (2026-07-26)** and belongs here rather than in M5.E8: four
   phase commands never call `transitionPhase`, so `completed_phases` omits PLAN/EXECUTE/VERIFY/REVIEW
   in any command-driven project while `markFresh` stamps the stale position fresh. **Deterministic and
   file-shaped — it needs no measurement layer**, which is exactly the rule §1 of the roadmap sets.
+  **`B42`/`B43`/`B44` were cataloged the same day from a live `nextpass` ship report** and are the same
+  class: **linear mode is first-class in six phase commands and unsupported in the seventh.** `B42` —
+  `/sig:ship`'s FR1 gate hard-halts on `current_epic: null`, no bypass, **live since v0.1.3 and asserted
+  by its own tests**, so the fix rescopes M4.5.E9's AC1-extended rather than patching a branch. `B44` —
+  `transitionPhase`'s per-Epic dedupe collapses a long linear history, and **fixing `B41` without it
+  multiplies the collapse sites**, so sequence `B44` before or with `B41`. `B43` is a one-line doc
+  correction in `ship.md:96`. **All three need no measurement layer either.** Together they say the
+  quiet part: **nothing exercises linear mode end-to-end** — a coverage gap worth naming in the slice,
+  since Signal-on-Signal has been Epic-mode since M4.5.E11 and cannot see it.
 - **Retro replay into the next Epic's DISCUSS/PLAN** → **kept in its Sprint 4 home**, sequenced here.
   Pointer rather than a copy (single-home). It shares `B39`'s shape — *a store exists and the reader
   was never built* — which is why it lands in this Epic and not in the abandoned Sprint-4 group.
@@ -336,4 +346,4 @@ These stay trigger-gated; the standing **WATCHLIST** entry (A1) in `ISSUES-INBOX
 - **PREPARE-phase early-promotion triggers** *(roadmap)* — 3 conditions; can also fire from lived signal ahead of the upstream-phases work.
 - **STATE auto-update Options B/C** (git hook / compute-on-read) — *Trigger:* Option A discipline demonstrably fails.
 
-*Last updated: 2026-07-26 — reconciled against the M5.E7 re-audit ([`../analysis/SIGNAL-V2-ROADMAP.md`](../analysis/SIGNAL-V2-ROADMAP.md)): M5.E8–E12 landed with triggers + first slices; Sprints 2/4/7 resolved; 4 unmarked closures struck; 5 new parked items with triggers.*
+*Last updated: 2026-07-26 — reconciled against the M5.E7 re-audit ([`../analysis/SIGNAL-V2-ROADMAP.md`](../analysis/SIGNAL-V2-ROADMAP.md)): M5.E8–E12 landed with triggers + first slices; Sprints 2/4/7 resolved; 4 unmarked closures struck; 5 new parked items with triggers. Later same day: M5.E9's bug slice re-scoped for `B42`/`B43`/`B44` (linear-mode findings from a live `nextpass` ship report; `B42` is the ledger's first `P1`).*
