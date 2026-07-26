@@ -46,6 +46,19 @@
 - [M5.E6-REVIEW.md](M5.E6-REVIEW.md) — `other` — _(note pending)_
 - [M5.E6-VALIDATION.md](M5.E6-VALIDATION.md) — `other` — _(note pending)_
 - [M5.E6-VERIFICATION.md](M5.E6-VERIFICATION.md) — `other` — _(note pending)_
+- [M5.E7-DEMAND-LEDGERS.md](M5.E7-DEMAND-LEDGERS.md) — `other` — _(note pending)_
+- [M5.E7-DEMAND-RETROS.md](M5.E7-DEMAND-RETROS.md) — `other` — _(note pending)_
+- [M5.E7-PLAN.md](M5.E7-PLAN.md) — `other` — _(note pending)_
+- [M5.E7-PROFILE.md](M5.E7-PROFILE.md) — `other` — _(note pending)_
+- [M5.E7-PROGRESS.md](M5.E7-PROGRESS.md) — `other` — _(note pending)_
+- [M5.E7-REQUIREMENTS.md](M5.E7-REQUIREMENTS.md) — `other` — _(note pending)_
+- [M5.E7-RESEARCH.md](M5.E7-RESEARCH.md) — `other` — _(note pending)_
+- [M5.E7-SUPPLY-COMPOUND-NEW.md](M5.E7-SUPPLY-COMPOUND-NEW.md) — `other` — _(note pending)_
+- [M5.E7-SUPPLY-COMPOUND.md](M5.E7-SUPPLY-COMPOUND.md) — `other` — _(note pending)_
+- [M5.E7-SUPPLY-GSTACK.md](M5.E7-SUPPLY-GSTACK.md) — `other` — _(note pending)_
+- [M5.E7-SUPPLY-PMSKILLS.md](M5.E7-SUPPLY-PMSKILLS.md) — `other` — _(note pending)_
+- [M5.E7-SUPPLY-SUPERPOWERS.md](M5.E7-SUPPLY-SUPERPOWERS.md) — `other` — _(note pending)_
+- [M5.E7-VALIDATION.md](M5.E7-VALIDATION.md) — `other` — _(note pending)_
 - [MILESTONE-4.5.md](MILESTONE-4.5.md) — `milestone` — Release-hardening / stranger-adoption milestone. **CLOSED 2026-07-15** — E1–E11 shipped (v0.1.1–v0.1.7); the ≥3-non-Signal-tester clause met (4 users onboarded). Superseded by M5.
 - [MILESTONE-5.md](MILESTONE-5.md) — `milestone` — **Active milestone** — v2 integrations + doc-runtime. Usage-signal gate lifted 2026-07-15. Epic-status table up top (M5.E1/E2 shipped-unreleased, M5.E3 in flight); the speculative v2-port queue below is unsequenced pending the landscape re-audit.
 - [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) — `other` — Unresolved questions surfaced across phases — the fourth doc-lifecycle home (questions, alongside inbox / backlog / bugs).
