@@ -46,8 +46,12 @@
 - [M5.E6-REVIEW.md](M5.E6-REVIEW.md) — `other` — _(note pending)_
 - [M5.E6-VALIDATION.md](M5.E6-VALIDATION.md) — `other` — _(note pending)_
 - [M5.E6-VERIFICATION.md](M5.E6-VERIFICATION.md) — `other` — _(note pending)_
+- [M5.E7-CORRECTIONS.md](M5.E7-CORRECTIONS.md) — `other` — _(note pending)_
+- [M5.E7-COUNTERFACTUAL.md](M5.E7-COUNTERFACTUAL.md) — `other` — _(note pending)_
 - [M5.E7-DEMAND-LEDGERS.md](M5.E7-DEMAND-LEDGERS.md) — `other` — _(note pending)_
+- [M5.E7-DEMAND-REGISTER.md](M5.E7-DEMAND-REGISTER.md) — `other` — _(note pending)_
 - [M5.E7-DEMAND-RETROS.md](M5.E7-DEMAND-RETROS.md) — `other` — _(note pending)_
+- [M5.E7-DISPOSITIONS.md](M5.E7-DISPOSITIONS.md) — `other` — _(note pending)_
 - [M5.E7-PLAN.md](M5.E7-PLAN.md) — `other` — _(note pending)_
 - [M5.E7-PROFILE.md](M5.E7-PROFILE.md) — `other` — _(note pending)_
 - [M5.E7-PROGRESS.md](M5.E7-PROGRESS.md) — `other` — _(note pending)_

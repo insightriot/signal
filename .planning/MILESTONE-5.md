@@ -48,7 +48,25 @@ table, not the candidate headings, for what the IDs mean.
 2. **Cleanup scan runs inside the test suite** (dead links / `[FILL IN]` stubs / roster+count drift across `docs/`, `README`, `CLAUDE.md`, `analysis/`); no new command — the `/sig:sweep` name stays reserved. Structural drift = hard test failure; soft findings = reported.
 3. **Living `BACKLOG.md` = full switch:** build it as the single sequenced roadmap, migrate `BACKLOG-REVIEW-2026-07-04.md`'s content in, archive that snapshot with a pointer (move-never-delete). `FUTURE-IDEAS.md` stays the raw inbox.
 
-## Candidate v2 feature-port scope (unsequenced — the re-audit assigns IDs)
+## Candidate v2 feature-port scope — **✅ SUPERSEDED 2026-07-26 by the M5.E7 re-audit**
+
+> **Read [`../analysis/SIGNAL-V2-ROADMAP.md`](../analysis/SIGNAL-V2-ROADMAP.md) instead. The
+> checkboxes below are history.**
+>
+> The re-audit this section was waiting on **ran and closed** (Epic **M5.E7**, 2026-07-25→26). All
+> 23 items below now carry a **`build` / `abandon` / `continue` verb** with a rationale
+> (`.planning/M5.E7-DISPOSITIONS.md`), and the surviving work is sequenced as **M5.E8–M5.E12** and
+> **landed in [`BACKLOG.md`](BACKLOG.md)** with triggers and first slices.
+>
+> **Headline: not one straight port survives.** The COMPOUND group is cut entirely (its premise was
+> falsified — the knowledge was in-context at the moment of every miss), gstack's `/cso` replacement
+> is cut on threat-model fit, `<HARD-GATE>` is cut because **it does not exist as a mechanism**
+> (correction **C3**), pm-skills GTM and product discovery are cut on product fit, and the Cursor
+> adapter is cut on demand.
+>
+> **These 25 checkboxes have never had one checked** — a fact the audit cites as its own evidence
+> that a roadmap enforced by nothing does not get executed (D-M5E7-8b). They are **left unchecked
+> and unedited on purpose**: editing them would erase that evidence. **Do not work from this list.**
 
 *Pre-override labels retained for continuity only; the `M5.E1–E6` numbers below no longer bind (see the status table + override note above).*
 

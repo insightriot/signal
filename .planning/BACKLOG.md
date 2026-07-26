@@ -17,29 +17,129 @@ Still-open roadmap follows, in sprint sequence.
 
 ---
 
-## Sprint 2 — Re-aim the map *(research; gates the v2-port arc)*
+## Since the re-audit — what M5.E7 changed (reconciliation, 2026-07-26)
 
-The v2 vision predates M4.5 and is stale; every item here is "look before designing." Output re-sequences Sprints 3–7. Sequence: parity audit first → compound audit + traversal spike in parallel → roadmap refresh last.
+**The BR-8 re-audit ran and closed** (Epic **M5.E7**, 2026-07-25→26). Deliverable:
+[`../analysis/SIGNAL-V2-ROADMAP.md`](../analysis/SIGNAL-V2-ROADMAP.md). It gave **45 candidates a
+verb** — **11 distinct builds** (+1 re-homed = **12 work items landed below**), 16 continue,
+19 abandon — and the sprint list below is reconciled against it.
+**Where a sprint entry and the roadmap disagree, the roadmap governs.**
 
-### Feature-parity + landscape re-audit → `SIGNAL-INTEGRATION-RUNDOWN-v2.md`
+Four rows below were also **shipped and never marked** (this file's stamp predated M5.E6's
+2026-07-25 release); they are struck in place.
+
+> ⚠ **`B39` applies to every trigger in this file.** The trigger-watchlist walk it describes
+> **has never run** — `ISSUES-INBOX.md:1407` instructs `/sig:plan` to walk the conditions at each
+> drain, and `grep -ril "watchlist" commands/ tools/` returns nothing. **Until M5.E9 lands, a
+> trigger here is a note, not an enforcement.**
+
+---
+
+## The v2 roadmap — M5.E8 → M5.E12 *(sequenced; the enforcement half of the re-audit)*
+
+Every `build` from the roadmap, landed here with its **trigger** and **first slice** so it is
+tracked by a live doc rather than by a document nothing checks. Full rationale and citations live in
+[`../analysis/SIGNAL-V2-ROADMAP.md`](../analysis/SIGNAL-V2-ROADMAP.md) — **single home; not restated
+here.**
+
+### M5.E8 — Measurement foundation
+**Tag:** roadmap · **Trigger: NONE — unconditional next.** Gates M5.E10, E12, and four parked items.
+The finding it answers: *Signal cannot detect whether its own interventions work, in any dimension*
+(no test asserts a prompt instruction was obeyed; 7-of-12 adherence and a 7.12× output spread on
+byte-identical code).
+- **(a) Behavioral measurement.** *First slice:* one test on gstack's `carve-section-loading.test.ts`
+  pattern (live model via the `claude -p` SDK) asserting a specific Signal command instruction is
+  obeyed. *Done-when:* a stranger runs `npm test`, deletes that instruction line from the command
+  markdown, re-runs, **and sees it fail.**
+- **(b) Second-opinion replay** (reopened per D-M5E7-11). *First slice:* re-run REVIEW against the
+  `B19` commit with a reviewer denied that Epic's own artifacts. *Done-when:* a one-page
+  caught/not-caught result with the transcript.
+
+### M5.E9 — Overdue enforcement + the bug pile
+**Tag:** hygiene · **Trigger: NONE.** Independent of E8 — can run in parallel.
+- **`B39` trigger walk.** *Slice:* one drain step in `commands/plan.md` + `tools/lib/drain.js`.
+  *Done-when:* a fired trigger surfaces at `/sig:plan`, **and a checked-and-declined trigger is
+  distinguishable from an unchecked one.**
+- **EXECUTE dispatch guidance + worktree isolation.** Demand cluster F, rank 1 — 4 retro items,
+  **0 hits across all four ledgers**, live incident during M5.E7. *Slice:* the executor rule
+  (`git add <path> && git commit`, never `--amend`) + `isolation: "worktree"` per concurrent agent.
+  *Done-when:* a stranger reads `commands/execute.md` and can tell whether two tasks are safe to
+  dispatch simultaneously.
+- **SHIP-time ledger reconcile.** *Slice:* a hygiene test asserting `BUGS.md` holds no `confirmed`
+  bug whose fix already shipped. *Done-when:* it fails on a planted violation.
+- **The 9 open bugs** — `B32`–`B36` (`needs-triage`), `B37`–`B40` (`confirmed`). Required by
+  D-M5E7-10; **verified 2026-07-26 that no bug-squash sprint existed anywhere.** *Slice:* the two
+  P2s (`B36`, `B39`). *Done-when:* zero `confirmed` P2 entries remain.
+
+### M5.E10 — Review hardening
+**Tag:** roadmap · **Trigger: M5.E8 lands** (both halves are partly prompt-shaped; E8 is what makes
+"did it help?" answerable).
+- **False-green audit + RED-against-`main`.** *Done-when:* every guard fix in the following Epic
+  ships with a test demonstrated to fail against `main`.
+- **`B38` — reclassify every anti-rationalization table entry** as *discipline* (keep the
+  prohibition form) or *shaping* (convert to a positive recipe). *Done-when:* a one-page table
+  names each entry's class and every shaping entry is a positive recipe.
+
+### M5.E11 — Roadmap Advisor
+**Tag:** roadmap · **Trigger: M5.E9 lands** (it advises on a backlog, so reconcile the backlog first).
+The best-evidenced *new* capability in the audit, and one it nearly missed: the counterfactual asked
+about shipped bugs and Epic duration and **never asked "would this have stopped us building the
+wrong thing, in the wrong order?"** — the failure Signal's record documents loudest (the 0-for-6
+displacement chain; five ports un-cut for the project's life; `B39`).
+**Scope:** product discovery is **out** (ratified 2026-07-26); *given a backlog, what's next and
+why* is **in**. Absorbs gstack's `/office-hours` forcing questions re-pointed at sequencing,
+`/plan-ceo-review` Step 0B, and pm-skills' assumption mapping (Impact × Risk).
+*First slice:* **make M5.E7 repeatable** — read `BACKLOG.md` + `BUGS.md` + the retro corpus, return
+*why this and not that* for the top N, every answer citing a path. *Done-when:* a stranger runs it
+on Signal's own backlog and the citations resolve. **Naming deliberately open** — do not fix the
+name before the shape.
+
+### M5.E12 — Project-facing currency
+**Tag:** roadmap · **Trigger: M5.E11 lands**, or a doc-drift incident in a Signal-built project.
+*The insight that makes it cheap:* this is Signal's doc-runtime **pointed outward at the project**
+instead of inward at `.planning/` — the work is **retargeting, not inventing.**
+- **Accurate, agent-navigable docs for the codebase and its external services.** Supersedes in scope
+  both `/sig:docs-update` (Sprint 7) and the tooling-catalog inbox entry — **reconcile, don't
+  re-derive.** *Slice:* run the existing hygiene + index generation over a project's own `docs/` and
+  its external-service surface. *Done-when:* a generated doc map whose links all resolve, and a
+  broken one fails the check.
+- **External-claim staleness stamps** (`verified-against: <ref> on <date>`, advisory, homed in
+  `/sig:sweep`) covering `analysis/` (correction **C6**) and the two ⚠-flagged untrustworthy claims
+  at Sprint 2 below. *Done-when:* an unsourced or expired claim produces a sweep advisory naming the
+  file and the claim.
+
+---
+
+## Sprint 2 — Re-aim the map *(research; gates the v2-port arc)* — **✅ CLOSED by M5.E7**
+
+**Ran as Epic M5.E7, 2026-07-25→26.** Four of five items are closed by it; one survives and is
+absorbed into M5.E12. *(Historical note: this sprint's framing — "the v2 vision is stale" — was
+itself corrected. The April analyses were **~3 months old, not ~15**; correction **C6**. Staleness
+carried **zero** weight in any cut.)*
+
+### ~~Feature-parity + landscape re-audit → `SIGNAL-INTEGRATION-RUNDOWN-v2.md`~~ — **✅ DONE (M5.E7)**
 **Tag:** roadmap
+**Delivered as [`../analysis/SIGNAL-V2-ROADMAP.md`](../analysis/SIGNAL-V2-ROADMAP.md)** — deliberately *not* named `-RUNDOWN-v2`, whose name presupposes the retired coverage frame (D-M5E7-5). 45 candidates verbed; the seed is partially superseded (its §1 scorecard dies, §2/§3 carry forward). Original entry preserved for provenance:
+
 Feature-parity audit across all inspiration repos → a *sequenced* Epic queue in a fresh `SIGNAL-INTEGRATION-RUNDOWN-v2.md` (only the `-SEED.md` exists today; the re-audit should verify it fresh and supersede it). This is M5's locked opening move (BR-8) and gates the speculative v2 feature ports.
 
-### Compound-engineering implementation audit
+### ~~Compound-engineering implementation audit~~ — **✅ DONE (M5.E7 S2.t6a/t6b), and it cut what it gated**
 **Tag:** roadmap
+**Delivered:** `.planning/M5.E7-SUPPLY-COMPOUND.md` + `-COMPOUND-NEW.md`. The audit it gated (`/sig:compound`, Sprint 4) is **abandoned** — the memory-loop premise was falsified, and **C5** found the two agents are not a unit upstream, so porting "the phase and its two agents" would build something the source does not have. Original entry preserved for provenance:
+
 Study compound-engineering's post-ship memory loop before designing `/sig:compound` (Sprint 4). Explicitly gates that design.
 
 ### Traversal-artifact decision spike
 **Tag:** roadmap
 One spike with a recommended default — **hierarchical markdown intent layer wins; graph is a later opt-in** (plain markdown in git is load-bearing; graphify adds a Python dep that dents the <5-min-install target). Run the installed `intent-layer` skill on one large repo, decide, and close the three circling entries (graphify / graph-only / Intent-Layers reframe).
 
-### Vocabulary attribution sweep
+### ~~Vocabulary attribution sweep~~ — **✅ largely DONE (M5.E7 S4.t10)**
 **Tag:** hygiene
-~45-min accuracy pass reconciling attribution across the analysis docs; bundled per its own note.
+**Delivered:** 10 dated correction markers over 6 IDs across four `analysis/` files (**C3** `<HARD-GATE>` is a syntax not a mechanism · **C4** pm-skills engineering integration · **C5** `learnings-researcher` location · **C6** the "~15 months" figure · **C7** the command count · **C8** the anti-rationalization generalization). **Residual, deliberately not claimed as done:** only the five claims M5.E7's supply verification touched were checked. The rest of the corpus was **not** re-verified — that is what the stamp below is for.
 
-### Re-source the stale external claims
+### Re-source the stale external claims → **absorbed into M5.E12**
 **Tag:** hygiene
-Verify the path-scoped-skills frontmatter claim and re-source the "5 CC tools" claims against current Claude Code docs (both flagged ⚠ in their entries — can't be trusted at face value).
+Verify the path-scoped-skills frontmatter claim and re-source the "5 CC tools" claims against current Claude Code docs (both flagged ⚠ in their entries — can't be trusted at face value). **M5.E7 promoted this from a one-off pass to a standing mechanism:** these two ⚠ claims are the *second recorded instance* of the failure class (C6 was the first), which is what graduated the external-claim staleness stamp from `continue` to `build`. Do the two re-sources **as the stamp's first fixtures**, not separately.
 
 ---
 
@@ -47,20 +147,26 @@ Verify the path-scoped-skills frontmatter claim and re-source the "5 CC tools" c
 
 The structure half (doc-model, eviction, migrate, index, hygiene) is shipping as M5.E1–E3. What remains is the maintenance-command half.
 
-### `/sig:sweep --docs / --code` — periodic hygiene sweep
+### ~~`/sig:sweep --docs / --code` — periodic hygiene sweep~~ — **✅ SHIPPED v0.1.11 (M5.E6, 2026-07-25)**
 **Tag:** roadmap
-New command (name resolved from the `/sig:audit` collision, BR-1); absorbs the old `/sig:doc-review` (stale indexes, drifted CLAUDE.md, `[FILL IN]` stubs, stale inbox) plus a Dreaming-style inbox-curation pass. `/sig:audit` keeps the readiness scorecard (Sprint 5). Confirmed not yet built.
+**Delivered:** `commands/sweep.md` + `tools/lib/sweep.js` — Signal's **18th** command. *This row read "Confirmed not yet built" until 2026-07-26; the file's stamp (2026-07-19) predated the release. Caught by M5.E7 S1.t3, which had to use this file as its subtraction authority and found the authority stale.* Original entry preserved for provenance:
+
+New command (name resolved from the `/sig:audit` collision, BR-1); absorbs the old `/sig:doc-review` (stale indexes, drifted CLAUDE.md, `[FILL IN]` stubs, stale inbox) plus a Dreaming-style inbox-curation pass. `/sig:audit` keeps the readiness scorecard (Sprint 5).
 
 ### Passive `OBSERVATIONS.md` capture
 **Tag:** roadmap
 A passive Stop-hook that captures observations to `OBSERVATIONS.md`, composing with E9's retro loop; drained by `/sig:checkpoint` and SHIP.
 
-### CLAUDE.md de-bloat + command-frontmatter freshness
+### ~~CLAUDE.md de-bloat + command-frontmatter freshness~~ — **✅ SHIPPED v0.1.11 (M5.E6), both halves**
 **Tag:** hygiene
+**Delivered:** `tools/lib/sweep.js:137` `checkClaudeMdBloat` (advisory, `CLAUDE_MD_BLOAT_BYTES`) + `:169` `checkCommandFrontmatter`. *Also unmarked until 2026-07-26.* Original entry preserved for provenance:
+
 De-bloat test for CLAUDE.md + a command-frontmatter freshness check — both are `--docs` sweep instances (build once the sweep command exists). (Index-freshness + link-health from workstream #4 are largely absorbed into M5.E3 FR3/FR4.)
 
-### `docs/map` refresh protocol — Stage 1
+### ~~`docs/map` refresh protocol — Stage 1~~ — **✅ SHIPPED v0.1.11 (M5.E6 FR3)**
 **Tag:** hygiene
+**Delivered:** `commands/ship.md:65` — the checklist line, covering both tabs. *Also unmarked until 2026-07-26.* Original entry preserved for provenance:
+
 One checklist line in `commands/ship.md` to keep the public `docs/map` fresh at Epic close. Scope widened 2026-07-21: the map app now has TWO screens — the structure/functionality view (data objects in `index.html`) and the "Signal, explained" tab, which mirrors `docs/signal-explained.md`. The checklist line must cover both: at each meaningful release, evaluate whether the map data AND the explainer doc + tab need updating (they won't change every cycle, but the evaluation should happen every cycle — "no change needed" is a valid outcome). (Stages 2/3 are parked below.)
 
 ### ~~Concurrency-lock the doc-runtime RMW paths~~ — **DONE** (M5.E4 FR5 + M5.E5 B25; closed-out M5.E6 FR7) *(deferred from the 2026-07-19 memory-layer review)*
@@ -71,25 +177,34 @@ The unlocked read-modify-write paths — `checkpoint.js` (`captureCheckpointCont
 
 ---
 
-## Sprint 4 — Compounding replay *(closes the "ship and forget" gap)*
+## Sprint 4 — Compounding replay — **✂ MOSTLY CUT by M5.E7**
 
-Input (retros) and output (context injection) are both already-shipped surfaces; this is the mechanism that connects them. Substrate is **per-repository** (locked 2026-07-15 — org-wide learning is an opt-in analysis on top, not a Signal primitive). Prefers Sprint 3's queryable substrate first.
+**The premise was falsified.** Read the three carry-over bug chains *with their dates and Epic IDs
+attached* and the knowledge was **in-context at the moment of every miss** — `B27` surfaced while
+building `B24`'s own fixture; `B34` was found by the same REVIEW panel that shipped `B29`'s fix;
+`B30` was found dogfooding `B26` on M5.E5's own SHIP. **Nobody forgot anything**, so a cross-session
+store prevents none of it. The real gap Signal already named is **class-completeness at fix time**
+(`M5.E6-RETROSPECTIVE.md:32`) — a review-scope rule, which is where it now lives (**M5.E10**).
+Substrate stays **per-repository** (locked 2026-07-15) — untouched by the re-audit.
 
-### `/sig:compound` phase — design + build
+### ~~`/sig:compound` phase — design + build~~ — **✂ ABANDONED (M5.E7, fit)**
 **Tag:** roadmap
-Shape set by Sprint 2's compound-engineering audit. The post-ship memory phase.
+The demand it was believed to serve does not exist — see above. Original entry preserved for provenance: *Shape set by Sprint 2's compound-engineering audit. The post-ship memory phase.*
 
-### Retro *replay* into the next Epic's DISCUSS/PLAN
+### Retro *replay* into the next Epic's DISCUSS/PLAN — **KEPT, re-homed**
 **Tag:** roadmap
-E9 built retro *capture* only; the gap (named in the very first inbox entry) is surfacing captured learnings into the next Epic's DISCUSS/PLAN context.
+**Survives the Sprint-4 cut and is the strongest thing in it.** *Not* a memory store — it is
+retrieval into a context that is already open, which is a different mechanism and one Signal has a
+live instance of: **`B39`**, where a store exists and *the reader was never built*. **Sequenced into
+M5.E9** alongside the `B39` trigger walk, which shares its shape. Original scope: E9 built retro *capture* only; the gap (named in the very first inbox entry) is surfacing captured learnings into the next Epic's DISCUSS/PLAN context.
 
-### Cross-Epic pattern detection
+### Cross-Epic pattern detection — **KEPT, absorbed into M5.E11**
 **Tag:** roadmap
-Detect recurring patterns across `RETROSPECTIVES.md` over time.
+Detect recurring patterns across `RETROSPECTIVES.md` over time. **M5.E7 was a manual instance of exactly this** — it harvested 12 retros into 11 themed clusters and found Theme F (EXECUTE dispatch) raised in four consecutive Epics with **zero ledger coverage**. That makes this a *component of the Roadmap Advisor*, not a standalone build.
 
-### Evaluate gstack's `/retro` + `/learn` port
+### ~~Evaluate gstack's `/retro` + `/learn` port~~ — **✂ ABANDONED (M5.E7 — evaluated, then cut)**
 **Tag:** roadmap
-Assess porting gstack's retro + learn loop as part of the compound phase.
+**The evaluation ran and returned no.** gstack's read-back surfaces a top-10 digest, decay-filtered, **at skill start in 10 of 54 skills**. Signal's one genuine cross-session recurrence (`B13`'s NUL byte, learned 2026-07-18, violated 2026-07-25) would not have been caught — the chance that *"don't paste control bytes"* surfaces at the moment someone edits a bug entry is not credible, and Signal's real defense for that class is a **deterministic content check** `doc-hygiene.js` already hosts. Cut on **overlap + fit**.
 
 ---
 
@@ -145,33 +260,37 @@ Are 4 tiers (SKETCH / FEATURE / SPIKE / FULL) the right number? Checked against 
 
 ---
 
-## Sprint 7 — Framework ports *(M5's remaining ports, re-sequenced by Sprint 2)*
+## Sprint 7 — Framework ports — **✂ RESOLVED by M5.E7: 0 straight ports survive**
 
-The ports MILESTONE-5.md enumerates; what's new is ordering discipline — Sprint 2's parity audit decides the actual sequence. Prefer after Sprint 3 (ports land into the wiki structure). The command harness (A5) must exist first.
+Sprint 2's audit ran and **decided the sequence by deciding most of these are not the work.** Not
+one entry below survives as a straight port. **Nothing here was cut for being stale or un-started** —
+every cut argues **fit** or **overlap** (AC2.3, mechanically asserted in `M5.E7-DISPOSITIONS.md` §6).
 
-### `/sig:docs-update` — GSD port
+### `/sig:docs-update` — GSD port → **absorbed into M5.E12**
 **Tag:** roadmap
-Tactical, fully spec'd, independent of the 10-phase work — can lead the sprint or pull forward.
+Tactical, fully spec'd, independent of the 10-phase work. **Superseded in scope**, not cut: M5.E12 covers doc-vs-codebase drift **plus** the external-service surface this entry never included, and does it by retargeting the existing doc-runtime rather than porting. **Reconcile against M5.E12 — do not build both.**
 
-### Upstream phases — IDEATE / VALIDATE / STRATEGIZE + the PREPARE seam
+### ~~Upstream phases — IDEATE / VALIDATE / STRATEGIZE~~ — **✂ ABANDONED (ratified by Brett 2026-07-26)** · **PREPARE seam survives, parked**
 **Tag:** roadmap
-The v2 upstream-phase skeleton + the PLAN→EXECUTE (PREPARE) seam decision, folding in PREPARE's ODI job-map analysis. Snapshot slotted this as M5.E1; M5.E1 was since repurposed to the doc-runtime flagship, so this re-enters the queue via the Sprint 2 re-audit.
+**Product-fit cut, and it is a positioning decision rather than an evidence one** — *"that's not signal."* Signal builds things well; it does not decide what product should exist. ⚠ **Read with the caveat (AC7.3):** Signal's corpus is silent about ideation, but Signal is built by someone who already knows what to build, from a spec written up front — **close to a worst case for detecting that demand.** The silence is weak evidence about other users; this cut rests on positioning, **not** on the corpus. *The prioritization half was NOT cut* — it became **M5.E11**. **The PREPARE seam** (PLAN→EXECUTE) is a separate question, untouched by the re-audit, and stays parked below.
 
-### Security upgrade — gstack's 15-phase audit
+### ~~Security upgrade — gstack's 15-phase audit~~ — **✂ ABANDONED (threat-model fit)** · Phase 8 parked
 **Tag:** roadmap
-Deepen REVIEW toward gstack's 15-phase security audit.
+`/cso` Phases 2–11 target secrets archaeology, dependency supply chain, CI/CD, infrastructure, webhooks and STRIDE — **an attack surface a markdown-plus-Node-CLI plugin does not have.** Signal's two security findings (`B14`, `B22`) were both caught by its **existing** REVIEW panel; replacing a working skill with one aimed at a different threat model is a downgrade. **Carved out and parked: Phase 8 (skill supply chain)** — *"SKILL.md files are NOT documentation… they are executable prompt code"* — the one phase matching Signal's shape. *Trigger:* first report of a malicious or tampered skill in any Claude Code plugin ecosystem.
 
-### Harder TDD — superpowers TDD + `<HARD-GATE>` + systematic-debugging
+### ~~Harder TDD + `<HARD-GATE>` + systematic-debugging~~ — **✂ SPLIT: 1 abandoned, 2 parked**
 **Tag:** roadmap
-Port superpowers' stricter TDD, the HARD-GATE mechanism, and systematic-debugging.
+- **`<HARD-GATE>` → ABANDONED. There is nothing to port** (**C3**): 4 grep hits repo-wide, exactly 1 in a live skill, **zero** in `hooks/` or `tests/`, no parser, no validator; the maintainer calls the mechanism unsettled. Signal already has the capability natively and better — the exit-2 write-guard, the `PreToolUse` hook, and an FR1 retro gate that **hard-blocked its own SHIP**. *The real upstream machinery — `subagent-driven-development`'s five-round breaker with `BLOCKED` propagation — is parked in its place.*
+- **Harder TDD → parked.** Prompt-shaped; *trigger:* **M5.E8 lands** and a measured run shows TDD-instruction adherence below target.
+- **`systematic-debugging` → parked.** No cataloged bug traces to its absence and the `debugger` agent covers the ground. *Trigger:* two consecutive Epics where a bug takes >3 fix attempts.
 
-### Context-discipline hooks
+### Context-discipline hooks — **parked, all three, with triggers**
 **Tag:** roadmap
-Hook-driven context discipline (planning-with-files lineage).
+Hook-driven context discipline (planning-with-files lineage). **2-Action Rule** — prompt-shaped; *trigger:* M5.E8 lands + one measured instance of executor context drift. **PostToolUse `PROFILE.md` re-read** — deterministic, so measurement does not gate it, but no bug traces to PROFILE drift; *trigger:* first recorded instance of a command acting on a stale tier. **Findings-quarantine for untrusted web content** — ⚠ **the highest-severity parked item in this file.** Signal's researcher agents *do* call `WebSearch`/`WebFetch` with no protection against fetched content carrying instructions. **No incident is recorded, so by the rules it stays parked** — flagged so a low verb is not read as low risk. *Trigger:* first injection-shaped finding in any Signal REVIEW, or a credible ecosystem report.
 
-### Multi-runtime adapters
+### Multi-runtime adapters — **✂ Cursor ABANDONED · Codex parked**
 **Tag:** roadmap
-Cursor / Codex adapters — last; least evidence of demand.
+**Cursor → cut on demand-fit** — this file already said *"least evidence of demand."* The trap avoided: Brett works **in** Cursor but runs **Claude Code** inside it; that is not demand for Signal on Cursor's own agent runtime. **Codex → parked** at the corrected ~6/10 estimate (direct analogs now exist: `AGENTS.md`, skills with on-demand loading, subagents with tool allowlists, a hooks framework; real gaps are Custom Prompts being deprecated — 18 commands re-cast as skills — and no `AskUserQuestion` equivalent). *Trigger:* a user asks in writing, or Brett wants a second runtime.
 
 ---
 
@@ -184,8 +303,12 @@ These stay trigger-gated; the standing **WATCHLIST** entry (A1) in `ISSUES-INBOX
 - ~~**Synthesizer validator-side check** — *Trigger:* 2+ regressions by 2026-08-23~~ — **CLOSED 2026-07-25: trigger did not fire, evidence-backed.** Checked during M5.E7 (Brett-approved). **Zero** regressions in the window: none in `BUGS.md`, none in any retro, no fix commits touching `embedSection` since the 2026-05-23 deferral (its files were touched once, by unrelated M5.E3 born-on-v3 work). **The zero is informative, not vacuous** — `tests/synthesizer-regression.test.js` + `tests/landscape.test.js` carry a dedicated regression guard (24 `embedSection` references, plus `tests/fixtures/synthesizer-bug-r1/`) that has run green in every suite execution, so the code was continuously exercised rather than merely untouched. The deferral decision was correct and the build condition never arose. *Closed by decision rather than allowed to lapse at the date — the corpus's only dated expiry, and letting it pass unobserved would have been exactly the "no cut decision was ever recorded" failure this Epic catalogued against five un-cut ports.*
 - **`/sig:doctor` helper-script split** — deferred refactor.
 - **`docs/map` Stages 2/3** — the deeper map-refresh protocol.
-- **GitHub Issues full setup** — *Trigger:* first live external tester (already fired: onboarding began 2026-07-15).
+- **GitHub Issues full setup** — *Trigger:* first live external tester — **FIRED 2026-07-15 and never acted on.** M5.E7 flagged this as the clearest instance of `B39`: a trigger that fires, is recorded as fired, and promotes nothing, across ≥2 `/sig:plan` drains. **Forcing the call is an M5.E9 deliverable** — promote it, or re-park it with a *new written trigger and a date*. Silence is not a decision.
+- **Dependency and release currency** *(roadmap; new 2026-07-26)* — is the user's stack moving underneath them? (Brett's worked example: Node's middleware→proxy transition — which versions to use.) **The item furthest from Signal's existing shape**: it needs a live external data source (registry / changelog / advisory reads) Signal has never had, which means network I/O, caching, and a staleness model. *Trigger:* **M5.E12 lands** (shared "watch an external surface" machinery), **or** a Signal-built project ships on a deprecated API and it is recorded.
+- **Cross-install telemetry bolt-on** *(roadmap; new 2026-07-26)* — pool performance data across Signal installs to improve the harness over time. Mass-market palatability **explicitly waived** by Brett, so consent is a design parameter, not a blocker. ⚠ **Hard ordering constraint: M5.E8 first** — you cannot pool across installs what you cannot measure in one; backwards it collects noise at scale. Honest caution: at 7-of-12 adherence, **four users will show nothing for a long while.** A compounding asset, not a near-term signal. *Trigger:* M5.E8 lands and local measurement is repeatable.
+- **`subagent-driven-development`'s five-round breaker + `BLOCKED` propagation** *(roadmap; new 2026-07-26)* — the mechanism Signal was actually reaching for when it queued `<HARD-GATE>`. 1,063 lines upstream, sized **L**, prompt-shaped. *Trigger:* M5.E8 lands.
+- **gstack `/cso` Phase 8 — skill supply chain** *(roadmap; new 2026-07-26)* — carved out of the abandoned security port. *Trigger:* first report of a malicious or tampered skill in any Claude Code plugin ecosystem.
 - **PREPARE-phase early-promotion triggers** *(roadmap)* — 3 conditions; can also fire from lived signal ahead of the upstream-phases work.
 - **STATE auto-update Options B/C** (git hook / compute-on-read) — *Trigger:* Option A discipline demonstrably fails.
 
-*Last updated: 2026-07-19*
+*Last updated: 2026-07-26 — reconciled against the M5.E7 re-audit ([`../analysis/SIGNAL-V2-ROADMAP.md`](../analysis/SIGNAL-V2-ROADMAP.md)): M5.E8–E12 landed with triggers + first slices; Sprints 2/4/7 resolved; 4 unmarked closures struck; 5 new parked items with triggers.*

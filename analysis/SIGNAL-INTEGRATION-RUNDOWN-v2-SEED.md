@@ -1,5 +1,27 @@
 # Signal — Integration Rundown v2: SEED (input, not the deliverable)
 
+> ## 📜 ARCHIVED 2026-07-26 — the audit this seeded has run
+>
+> **Deliverable: [`SIGNAL-V2-ROADMAP.md`](SIGNAL-V2-ROADMAP.md).** This file did its job and is kept
+> for provenance, not for guidance. **Partial supersede — read which half is which:**
+>
+> - **§1 (the reflection scorecard) is DEAD, in frame and not merely in content.** A coverage
+>   scorecard counts what is **absent**, so it structurally cannot see where Signal is *ahead* of a
+>   source — which the audit found on its first pass (D-M5E7-1). Its Epic IDs are also superseded,
+>   and three of its rows carry factual corrections (**C3**, **C5**, **C7**).
+> - **§2 (the five "flagged desirable, never queued" items) CARRIES FORWARD** — and it was right to
+>   demand a home or an explicit cut for each. **All five now have one** (`SIGNAL-V2-ROADMAP.md` §5
+>   and `.planning/M5.E7-DISPOSITIONS.md` §4): four abandoned on fit or overlap, one split, with the
+>   worktree half promoted to a **`build`**. *The GTM item in particular was cut here for the first
+>   time — it had read as "planned" for three months while belonging to no queue at all, which is
+>   exactly the silent drop §2 was written to prevent.*
+> - **§3 (the settled per-repository substrate decision) CARRIES FORWARD, unchanged and still
+>   locked.** The audit explicitly held it closed (AC3.5); cross-install telemetry is scoped as the
+>   opt-in analysis layer that lock already permits, not a change to the primitive.
+>
+> The name it anticipated — `SIGNAL-INTEGRATION-RUNDOWN-v2.md` — was **deliberately not used**: it
+> presupposes the coverage frame the audit retired (D-M5E7-5).
+
 > **Status.** This is a **seed / input**, captured 2026-07-13 — *not* the v2 rundown itself.
 > M5's locked opening Epic (BR-8, `DECISIONS.md` 2026-07-04) is to run a fresh feature-parity
 > re-audit across all inspiration repos and produce `SIGNAL-INTEGRATION-RUNDOWN-v2.md` with a

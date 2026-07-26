@@ -25,8 +25,21 @@
 >   class of gate.** Site: `:186`, marked inline. This is the widest-reaching of the five: Signal
 >   adopted it universally.
 >
-> **This document is superseded in direction, not in content.** M5.E7 produces
-> `analysis/SIGNAL-V2-ROADMAP.md`; where the two disagree, the roadmap governs.
+> ## 📜 HISTORICAL — superseded in direction 2026-07-26
+>
+> **The current answer to "what does Signal build next?" is
+> [`SIGNAL-V2-ROADMAP.md`](SIGNAL-V2-ROADMAP.md). Where the two disagree, the roadmap governs.**
+>
+> This document remains **the best account of what each source repo contributes and why Signal
+> found it interesting** — that content is still accurate and still worth reading. What it no
+> longer describes is **Signal's plan.** The 10-phase target architecture below assumed Signal
+> would absorb these repos feature-by-feature; the 2026-07-26 re-audit dispositioned all 45
+> candidates and **not one straight port survived.** Most of what Signal needs turned out to be
+> Signal-native, and the ports that remain are parked behind a measurement capability Signal does
+> not yet have.
+>
+> Three of this document's specific claims are also **factually false today** — see § Corrections
+> immediately below (**C3**, **C5**, **C8**). They are marked inline rather than rewritten.
 
 ---
 
