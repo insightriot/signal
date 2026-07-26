@@ -70,6 +70,9 @@ byte-identical code).
 - **The 9 open bugs** — `B32`–`B36` (`needs-triage`), `B37`–`B40` (`confirmed`). Required by
   D-M5E7-10; **verified 2026-07-26 that no bug-squash sprint existed anywhere.** *Slice:* the two
   P2s (`B36`, `B39`). *Done-when:* zero `confirmed` P2 entries remain.
+- **Retro replay into the next Epic's DISCUSS/PLAN** → **kept in its Sprint 4 home**, sequenced here.
+  Pointer rather than a copy (single-home). It shares `B39`'s shape — *a store exists and the reader
+  was never built* — which is why it lands in this Epic and not in the abandoned Sprint-4 group.
 
 ### M5.E10 — Review hardening
 **Tag:** roadmap · **Trigger: M5.E8 lands** (both halves are partly prompt-shaped; E8 is what makes
@@ -196,7 +199,7 @@ The demand it was believed to serve does not exist — see above. Original entry
 **Survives the Sprint-4 cut and is the strongest thing in it.** *Not* a memory store — it is
 retrieval into a context that is already open, which is a different mechanism and one Signal has a
 live instance of: **`B39`**, where a store exists and *the reader was never built*. **Sequenced into
-M5.E9** alongside the `B39` trigger walk, which shares its shape. Original scope: E9 built retro *capture* only; the gap (named in the very first inbox entry) is surfacing captured learnings into the next Epic's DISCUSS/PLAN context.
+M5.E9** alongside the `B39` trigger walk, which shares its shape. *First slice:* surface the prior Epic's `## What to feed back into Signal` items into the next Epic's DISCUSS context. *Done-when:* opening an Epic shows the previous Epic's feedback items without the author going to look for them. Original scope: E9 built retro *capture* only; the gap (named in the very first inbox entry) is surfacing captured learnings into the next Epic's DISCUSS/PLAN context.
 
 ### Cross-Epic pattern detection — **KEPT, absorbed into M5.E11**
 **Tag:** roadmap
