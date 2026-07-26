@@ -8,6 +8,17 @@
 > re-audit should **re-verify everything here against live repos** (the source analysis is
 > April 2026 — ~15 months stale by M5) and then **supersede this file**.
 >
+> **⚠ C6 — corrected 2026-07-26. "~15 months" is false by ~4.5×, and it is this line that
+> propagated the error.** `REPO-ANALYSIS.md` is dated **2026-04-21**; the first repo commit is
+> **2026-04-13**; the re-audit ran **2026-07-25** → **3 months and 4 days**. The figure was
+> inherited uncritically from here into a **locked decision** (`D-M5E7-1`), into
+> `M5.E7-REQUIREMENTS.md` FR2, and into the research briefs. It was load-bearing: it supplied one
+> of two supports for the audit's reframe and implied that a port left un-built that long had been
+> implicitly rejected. Three months — while shipping v1, closing an 11-Epic milestone, cutting 11
+> releases, and building the doc-runtime — is ordinary sequencing under finite capacity, not
+> evidence of rejection. **Ruling (`D-M5E7-6`): staleness carries zero weight in any abandon
+> decision.** The reframe stands on its surviving support, which is unaffected by dates.
+>
 > Complements `REPO-ANALYSIS.md` (original landscape) and `SIGNAL-INTEGRATION-RUNDOWN.md`
 > (v1 target vision). Feeds `MILESTONE-5.md` § opening move.
 
@@ -16,6 +27,17 @@
 ## 1. Reflection scorecard — how much of each inspiration repo is in Signal today (v0.1.5)
 
 Fills are **directional estimates**, not measured — the pattern matters, not the number.
+
+> **⚠ §1 is superseded in frame, not just in content (2026-07-26, M5.E7 / `D-M5E7-1`).** A coverage
+> scorecard asks *"how much of each source repo have we absorbed?"* — it can only count what is
+> **absent**, so it structurally cannot see where Signal is **ahead** of a source. M5.E7 found such
+> a case on its first pass: Signal's `performance-optimization` is measurement-first and refuses to
+> optimize without evidence, while pm-skills' `/performance-audit-static` **never measures**
+> (`.planning/M5.E7-SUPPLY-PMSKILLS.md`). The audit therefore runs on *"what does Signal need
+> next?"* instead. §2's five items and §3's settled decision carry forward; **§1's frame does not.**
+>
+> Two rows below also carry inline claim corrections — **C3** (superpowers) and **C5**
+> (compound-engineering).
 
 | Repo | Role in the vision | Status today |
 |---|---|---|
@@ -28,6 +50,23 @@ Fills are **directional estimates**, not measured — the pattern matters, not t
 | **compound-engineering** (Every) | Memory (Layer 5) | **Partial — retrospection seeded, the loop absent.** Native down-payment: E9 SHIP retro gate + `RETROSPECTIVES.md` + `/sig:index` doc-runtime work. But that's **memory-hygiene**, not the **compounding-improvement loop** (`learnings-researcher` mining sessions, `session-historian`, multi-lens panel) — **queued (M5.E2)**. |
 | **gstack** (Garry Tan) | Exec-team borrows (Layers 1/3/4/5) | **Not yet — ~nothing ported.** The repo the analysis called *"the sleeper — steal from it"* is the **least reflected of all nine.** `/cso` → M5.E3, `/office-hours` → M5.E1, `/retro`+`/learn` → M5.E2; only the scope-mode idea faintly echoes in calibrate. |
 | **pm-skills** (phuryn) | Upstream (Layer 1) | **Not yet — zero.** The entire IDEATE/VALIDATE/STRATEGIZE layer is empty — the analysis's named **#1 gap**, still #1. All **M5.E1**. |
+
+> **⚠ C3 — corrected 2026-07-26 · ⚠ C5 — corrected 2026-07-26 · ⚠ C7 — corrected 2026-07-26.**
+> Three row-level corrections, verified against live repos in M5.E7 Slice 2.
+>
+> - **C3, superpowers row.** *"`<HARD-GATE>` blocking mechanism"* names a thing that does not exist
+>   as a mechanism: no parser, no validator, 1 live occurrence in v6.2.0, author says the mechanism
+>   is unsettled. The portable machinery is `subagent-driven-development`'s five-round breaker with
+>   `BLOCKED` propagation (1,063 lines, shipped 2026-07-23). Signal has been queuing a **syntax**.
+> - **C5, compound-engineering row.** *"`learnings-researcher` mining sessions, `session-historian`"*
+>   presents two agents as one Compound-phase unit. Only `session-historian` is under `ce-compound`.
+> - **C7, Signal/Calibrate row.** *"six commands no source repo called for"* then lists six, but
+>   the count is stale: it is **nine** today (`init`, `status`, `resume`, `add`, `checkpoint`,
+>   `doctor`, `index`, `migrate-memory`, `sweep`).
+>
+> **The Epic IDs in every row are also superseded.** `M5.E1`–`M5.E5` here are pre-override port
+> labels; those IDs were reassigned to the doc-runtime and bug-squash Epics that actually shipped.
+> Read `MILESTONE-5.md` § Epic status, and after M5.E7 closes, `analysis/SIGNAL-V2-ROADMAP.md`.
 
 **Big picture.** Signal built the **middle of the stack to production quality and left both ends open** — Layer 2 (engine) + Calibrate + the Agent Skills quality half are in; **Layer 1 (strategy/upstream)** and **Layer 5 (compound/memory)** remain the real frontier. Shipped v1 is **deliberately narrower than the analysis's own "Minimum Viable Frankenstein"** (which included pm-skills upstream, superpowers TDD, gstack `/cso`, and the Compound phase) — a sanctioned choice (RUNDOWN Reconciliation § "ship the narrow MVP first"), and it worked (v1 shipped + hardened through M4.5).
 

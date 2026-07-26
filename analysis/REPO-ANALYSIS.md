@@ -8,6 +8,38 @@
 
 ---
 
+> ## ⚠ Corrections — 2026-07-26 (M5.E7, the v2 direction audit)
+>
+> This document was written **2026-04-21**. Three of its claims were re-verified against the live
+> source repos during M5.E7 Slice 2 and **do not hold today**. They are marked inline at the sites
+> below rather than rewritten, so the original reasoning stays readable and the drift stays visible.
+> Full evidence: `.planning/M5.E7-RESEARCH.md` §0 and the per-repo supply files
+> `.planning/M5.E7-SUPPLY-*.md`. Task record: `.planning/M5.E7-CORRECTIONS.md`.
+>
+> - **C3 — `<HARD-GATE>` is a syntax, not a mechanism.** Verified 2026-07-25 against superpowers
+>   v6.2.0: **4 grep hits repo-wide, exactly 1 in a live skill** (`brainstorming`), **zero** in
+>   `hooks/`, zero in `tests/`, no parser, no validator. One of the remaining hits is the
+>   maintainer's own planning doc saying *"we'll workshop the wording/mechanism together"* — the
+>   mechanism is **unsettled upstream**. The real blocking machinery is
+>   `subagent-driven-development`'s **five-round breaker with `BLOCKED` propagation**
+>   (`SKILL.md:96`, `:67`, `:98`, `:368`), which this document does not mention.
+>   **Signal has been planning to port a syntax instead of the mechanism.** Sites: `:122`, `:338`,
+>   `:394`, `:459`, `:471`, `:480`, `:497`.
+> - **C4 — pm-skills' "zero engineering integration" is false since June 2026.** A 9th plugin,
+>   `pm-ai-shipping` v2.0.0, ships `/security-audit-static`, `/performance-audit-static`,
+>   `/derive-tests`, `/ship-check`, and `intended-vs-implemented` (PRD-vs-code drift). Site: `:153`.
+> - **C5 — the Compound phase's two agents are not a unit.** `session-historian` **is** under
+>   `ce-compound`; `learnings-researcher` **is not** — it lives under `ce-ideate`, `ce-optimize`,
+>   `ce-plan`, and as a `ce-code-review` persona. Porting "the Compound phase and its two agents"
+>   would build **something the source does not have.** Sites: `:19`, `:209`, `:347`, `:370-371`,
+>   `:466`, `:500`.
+>
+> **Not a correction, but read it before trusting the dates:** the "~15 months stale" framing that
+> propagated from `SIGNAL-INTEGRATION-RUNDOWN-v2-SEED.md:9` is wrong by ~4.5× — this file is
+> **3 months old**, not 15 (correction **C6**, recorded in the seed).
+
+---
+
 ## TL;DR — The Five Insights
 
 1. **Your WIP solves the wrong half first.** GSD × Superpowers = two "engineer-for-quality" frameworks stacked on top of each other. Both assume the problem is already defined. The real coverage gap is *upstream* (idea → validation → strategy), not downstream quality.
@@ -16,7 +48,7 @@
 
 3. **gstack is the sleeper.** It's the closest single repo to what you're trying to build — broad journey coverage, production-grade rigor, "virtual exec team" metaphor. It's more ambitious than your WIP. You should steal from it, not just reference it.
 
-4. **The missing phase isn't REVIEW — it's COMPOUND.** Agent Skills' Review phase (code quality, security, perf) is great, but compound-engineering's *Compound* phase (learnings-researcher, session-historian, institutional memory) is the difference between "agent writes good code this time" and "agent writes better code every time."
+4. **The missing phase isn't REVIEW — it's COMPOUND.** Agent Skills' Review phase (code quality, security, perf) is great, but compound-engineering's *Compound* phase (learnings-researcher, session-historian, institutional memory) is the difference between "agent writes good code this time" and "agent writes better code every time." **⚠ C5 — corrected 2026-07-26:** `learnings-researcher` is **not** part of the Compound phase upstream (it lives under `ce-ideate` / `ce-optimize` / `ce-plan`); only `session-historian` is. See § Corrections above.
 
 5. **Three layers belong on every project; four skill libraries belong to the problem.** The Frankenstein isn't "pick the best skills" — it's a 3-layer core (orchestration + enforcement + compounding) that stays constant, with skill libraries swapped in per project type (product/app, SaaS, consulting deliverable, etc.).
 
@@ -121,6 +153,11 @@ Think of AI-assisted building as running a company with four organs. Each repo o
 
 **Rigor signal:** `<HARD-GATE>` tags prevent progression. `test-driven-development` skill forces deletion of pre-test code. `systematic-debugging` has 4-phase structure with "if 3+ fixes fail, STOP and question architecture" escalation. Two-stage review (spec compliance THEN code quality).
 
+> **⚠ C3 — corrected 2026-07-26.** `<HARD-GATE>` tags do **not** prevent progression: there is no
+> parser and no validator behind the tag, 1 live occurrence repo-wide, and the maintainer calls the
+> mechanism unsettled. The portable blocking machinery is `subagent-driven-development`'s five-round
+> breaker. See § Corrections at the top of this file.
+
 **Unique contributions:**
 - **Anti-rationalization tables** with reality checks for every excuse ("Too simple to test" → "Simple code breaks. Test takes 30 seconds.")
 - **`systematic-debugging`** as first-class 4-phase skill (root cause → pattern → hypothesis → implementation)
@@ -151,6 +188,11 @@ Think of AI-assisted building as running a company with four organs. Each repo o
 - **JTBD-centric** language across discovery, strategy, execution
 
 **Gap:** Zero engineering integration. No code review, no testing, no security, no deployment. Assumes PRD lands in engineers' hands magically.
+
+> **⚠ C4 — corrected 2026-07-26.** False since June 2026. `pm-ai-shipping` v2.0.0 ships
+> `/security-audit-static`, `/performance-audit-static`, `/derive-tests`, `/ship-check`, and
+> `intended-vs-implemented`. This also creates **overlap with the gstack `/cso` port** that Signal's
+> plan does not account for. See § Corrections at the top of this file.
 
 ---
 

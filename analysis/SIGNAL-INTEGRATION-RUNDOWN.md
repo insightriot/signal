@@ -8,6 +8,28 @@
 
 ---
 
+> ## ⚠ Corrections — 2026-07-26 (M5.E7, the v2 direction audit)
+>
+> This document inherits `REPO-ANALYSIS.md`'s April 2026 characterizations. Three claims were
+> re-verified against the live sources during M5.E7 Slice 2 and **do not hold today**. Marked
+> inline rather than rewritten. Evidence: `.planning/M5.E7-RESEARCH.md` §0 and
+> `.planning/M5.E7-SUPPLY-*.md`. Task record: `.planning/M5.E7-CORRECTIONS.md`.
+>
+> - **C3 — `<HARD-GATE>` is a syntax with no mechanism behind it.** No parser, no validator, 1 live
+>   occurrence across superpowers v6.2.0, and its own author calls the mechanism unsettled. The
+>   portable blocking machinery is `subagent-driven-development`'s five-round breaker with `BLOCKED`
+>   propagation. Sites: `:174`, `:187`, `:403`.
+> - **C5 — `learnings-researcher` and `session-historian` are not a unit.** Only `session-historian`
+>   sits under `ce-compound`. Sites: `:300`, `:311`, `:312`, `:406`.
+> - **C8 — the "every phase gate uses this format" generalization is measurably wrong for one
+>   class of gate.** Site: `:186`, marked inline. This is the widest-reaching of the five: Signal
+>   adopted it universally.
+>
+> **This document is superseded in direction, not in content.** M5.E7 produces
+> `analysis/SIGNAL-V2-ROADMAP.md`; where the two disagree, the roadmap governs.
+
+---
+
 ## TL;DR — the 9 ingredients, one line each
 
 | Source | Role in Signal | Why it earns its place |
@@ -172,6 +194,8 @@ Format for each: **(a) What it is · (b) What it does · (c) What Signal integra
 
 - **Anti-rationalization tables** with reality checks per excuse ("Too simple to test" → "Simple code breaks. Test takes 30 seconds.")
 - **`<HARD-GATE>` tags** — prevent progression; code literally can't proceed past them
+  — **⚠ C3, corrected 2026-07-26: they do not.** No parser, no validator, 1 live occurrence; the
+  real mechanism is `subagent-driven-development`'s five-round breaker. See § Corrections above.
 - **`test-driven-development` skill** — forces deletion of pre-test code
 - **`systematic-debugging` skill** — 4-phase structure (root cause → pattern → hypothesis → implementation) with "3+ fixes fail → STOP and question architecture" escalation
 - **`subagent-driven-development`** — parallel agents with mandatory two-stage review (spec compliance THEN code quality)
@@ -185,6 +209,23 @@ Format for each: **(a) What it is · (b) What it does · (c) What Signal integra
 | **`systematic-debugging` (4-phase)** | **Port into VERIFY** | First-class debugging skill; unique escalation logic |
 | **Anti-rationalization tables pattern** | **Adopt as Signal convention** | Every phase gate uses this format |
 | **`<HARD-GATE>` tag mechanism** | **Port as enforcement module** | Makes gates actually block vs. being suggestions |
+
+> **⚠ C8 — corrected 2026-07-26. The "every phase gate uses this format" generalization is wrong
+> for one class of gate, and Signal took the generalization.** Verified at source 2026-07-25
+> (superpowers v6.2.0, `skills/writing-skills/SKILL.md` § "Match the Form to the Failure"): the
+> prohibition + rationalization-table form is **correct for discipline failures** — *"skips/violates
+> a rule under pressure — knows better, does it anyway"* — which most of Signal's tables are, so
+> they are fine. It is the **wrong form for shaping failures** — *"complies, but output has the
+> wrong shape — bloated, buried verdict, restated spec"* — where the right form is a positive
+> recipe stating what the output IS. The source's evidence is empirical: *"in head-to-head wording
+> tests … the prohibition arm produced clearly more of the unwanted content than the recipe arm
+> (fully separated distributions), and trended worse than even the no-guidance control."*
+> Signal has at least one shaping rule wearing the prohibition form (`commands/resume.md` —
+> *"Render the full PROJECT.md / CONTEXT.md verbatim" → "Summarize"*). Tracked as **`B38`**
+> (`confirmed`, P2). **The fix is reclassification, not removal.**
+>
+> **⚠ C3 — corrected 2026-07-26.** The row above it is also wrong: the `<HARD-GATE>` tag is not an
+> enforcement module and does not make gates block. See § Corrections at the top of this file.
 | **`subagent-driven-development` pattern** | **Study, don't port directly** | GSD's wave execution already covers this ground |
 | **Cross-platform session-start hook** | **Study for multi-runtime adapter** | Useful reference for Signal's Cursor/Codex adapter later |
 | **Other ~10 skills** | **Don't port** | Most overlap with GSD (brainstorming, writing-plans, etc.) |
@@ -298,6 +339,10 @@ Format for each: **(a) What it is · (b) What it does · (c) What Signal integra
 
 - **Compound phase** — dedicated phase for knowledge capture after ship
 - **`learnings-researcher` + `session-historian` agents** — institutional memory as first-class engineering deliverable
+  — **⚠ C5, corrected 2026-07-26: not a pair.** Only `session-historian` is under `ce-compound`;
+  `learnings-researcher` lives under `ce-ideate` / `ce-optimize` / `ce-plan` and as a
+  `ce-code-review` persona. Porting "the Compound phase and its two agents" builds something the
+  source does not have. See § Corrections above.
 - **~50-agent review panel** — multiple lenses applied in parallel (simplicity, correctness, maintainability, coherence, DHH Rails style, data integrity, API contract, deployment readiness)
 - **Worktree-based task execution** with conventional commits
 - **Language-specific style agents** — DHH Rails style, Andrew-Kane gem-writer, etc.

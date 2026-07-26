@@ -4,6 +4,17 @@
 **Purpose:** Evaluate two well-reviewed coding harnesses — **Pi** and its fork **oh-my-pi (omp)** — for patterns Signal could adopt, focused on three areas: memory management, learning loops, and documentation/capability indexing & traversal.
 **Audience:** A future contributor or agent session with **zero prior context**. This doc is written to stand alone.
 
+> **⚠ C3 — corrected 2026-07-26 (M5.E7).** This note designs against `<HARD-GATE>` as though it
+> were a working blocking mechanism Signal was about to adopt (`:55`, `:176`, `:181`, `:187` — the
+> "severity: warn vs block → maps to soft gate vs `<HARD-GATE>`" mapping). **It is not one.**
+> Verified against superpowers v6.2.0 on 2026-07-25: 4 grep hits repo-wide, 1 in a live skill, zero
+> in `hooks/` or `tests/`, no parser, no validator; the maintainer's own planning doc says the
+> mechanism is still to be workshopped. **The `block` half of the TTSR proposal therefore has no
+> upstream target to map onto.** If the rulebook idea is pursued, the blocking semantics have to be
+> built — or borrowed from `subagent-driven-development`'s five-round breaker with `BLOCKED`
+> propagation, which is the real machinery. Evidence: `.planning/M5.E7-RESEARCH.md` §0,
+> `.planning/M5.E7-SUPPLY-SUPERPOWERS.md`. Task record: `.planning/M5.E7-CORRECTIONS.md`.
+
 ---
 
 ## 0. Orientation (read this first if you have no context)
