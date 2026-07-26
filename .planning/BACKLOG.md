@@ -73,6 +73,19 @@ byte-identical code).
 - **Retro replay into the next Epic's DISCUSS/PLAN** → **kept in its Sprint 4 home**, sequenced here.
   Pointer rather than a copy (single-home). It shares `B39`'s shape — *a store exists and the reader
   was never built* — which is why it lands in this Epic and not in the abandoned Sprint-4 group.
+- **⚠ The re-audit's own falsifier — a DATED check, not a trigger** *(added by M5.E7 REVIEW,
+  2026-07-26)*. `SIGNAL-V2-ROADMAP.md` §6.1 answers the confirmation-bias charge against itself with
+  one falsifier: *M5.E8 lands, measurement shows Signal's enforcement is as good as claimed, and the
+  parked ports still never happen — if that occurs, the reframe was decorative.* **It cannot ride a
+  trigger: "the ports still never happen" is a null result, and nothing fires on nothing** — the
+  failure class this file already documents twice (the synthesizer-validator trigger, closed only
+  because someone deliberately checked it; the GitHub-Issues trigger, which fired 2026-07-15 and
+  promoted nothing). *Check by:* **2026-10-26** — three months. *Done-when:* a written verdict, one
+  of *(i)* ports promoted on measurement, *(ii)* re-parked with a **new date**, or *(iii)* **the
+  reframe is recorded as decorative and the roadmap is re-run.** Silence past the date is verdict
+  *(iii)* by default. **Date is Brett's to move; letting it lapse unobserved is the one outcome the
+  falsifier exists to prevent.** *This is also the canonical instance of the `B39` fix's second
+  half — a checked-and-declined condition must be distinguishable from an unchecked one.*
 
 ### M5.E10 — Review hardening
 **Tag:** roadmap · **Trigger: M5.E8 lands** (both halves are partly prompt-shaped; E8 is what makes
@@ -183,10 +196,15 @@ The unlocked read-modify-write paths — `checkpoint.js` (`captureCheckpointCont
 ## Sprint 4 — Compounding replay — **✂ MOSTLY CUT by M5.E7**
 
 **The premise was falsified.** Read the three carry-over bug chains *with their dates and Epic IDs
-attached* and the knowledge was **in-context at the moment of every miss** — `B27` surfaced while
-building `B24`'s own fixture; `B34` was found by the same REVIEW panel that shipped `B29`'s fix;
-`B30` was found dogfooding `B26` on M5.E5's own SHIP. **Nobody forgot anything**, so a cross-session
-store prevents none of it. The real gap Signal already named is **class-completeness at fix time**
+attached* and the knowledge was **in-context at the moment of the miss in all three** — `B27`
+surfaced while building `B24`'s own fixture; `B34` was found by the same REVIEW panel that shipped
+`B29`'s fix; `B30` was found dogfooding `B26` on M5.E5's own SHIP. A cross-session store prevents
+none of *those*. **The one genuine cross-session recurrence — `B13`'s NUL byte — is cut separately
+and on stronger grounds** (see the `/retro` + `/learn` row below: a deterministic content check, not
+a digest). **Read the claim at that scope** — three documented chains plus one named exception, not
+"nobody ever forgot anything"; and the three were selected *because* they are documented, so a
+forgetting-caused miss nobody caught would not appear here at all.
+The real gap Signal already named is **class-completeness at fix time**
 (`M5.E6-RETROSPECTIVE.md:32`) — a review-scope rule, which is where it now lives (**M5.E10**).
 Substrate stays **per-repository** (locked 2026-07-15) — untouched by the re-audit.
 
@@ -289,7 +307,7 @@ Tactical, fully spec'd, independent of the 10-phase work. **Superseded in scope*
 
 ### Context-discipline hooks — **parked, all three, with triggers**
 **Tag:** roadmap
-Hook-driven context discipline (planning-with-files lineage). **2-Action Rule** — prompt-shaped; *trigger:* M5.E8 lands + one measured instance of executor context drift. **PostToolUse `PROFILE.md` re-read** — deterministic, so measurement does not gate it, but no bug traces to PROFILE drift; *trigger:* first recorded instance of a command acting on a stale tier. **Findings-quarantine for untrusted web content** — ⚠ **the highest-severity parked item in this file.** Signal's researcher agents *do* call `WebSearch`/`WebFetch` with no protection against fetched content carrying instructions. **No incident is recorded, so by the rules it stays parked** — flagged so a low verb is not read as low risk. *Trigger:* first injection-shaped finding in any Signal REVIEW, or a credible ecosystem report.
+Hook-driven context discipline (planning-with-files lineage). **2-Action Rule** — prompt-shaped; *trigger:* M5.E8 lands + one measured instance of executor context drift. **PostToolUse `PROFILE.md` re-read** — deterministic, so measurement does not gate it, but no bug traces to PROFILE drift; *trigger:* first recorded instance of a command acting on a stale tier. **Findings-quarantine for untrusted web content** — ⚠ **the highest-severity parked item in this file.** Signal's researcher agents *do* call `WebSearch`/`WebFetch` with no protection against fetched content carrying instructions. **No incident is recorded, so by the rules it stays parked** — flagged so a low verb is not read as low risk. *Trigger:* first injection-shaped finding in any Signal REVIEW, or a credible ecosystem report. **⚠ Restored by M5.E7 REVIEW (2026-07-26) — the audit's own recommendation was dropped between documents:** `M5.E7-DISPOSITIONS.md` §7 called this *"the biggest risk in this table"* and said plainly — *"if you want one `continue` promoted to `build` on precaution rather than evidence, make it that one."* The roadmap renders it as an open question and this file as a flagged park; **neither carries the recommendation.** The verb is unchanged and the promote/park call is Brett's — but the audit's advice should reach him as advice. **Note the trigger's own weakness:** both conditions require someone to *notice*, and per `B39` nothing evaluates them; unlike every other parked item, being late here has a **safety** cost rather than an opportunity cost.
 
 ### Multi-runtime adapters — **✂ Cursor ABANDONED · Codex parked**
 **Tag:** roadmap

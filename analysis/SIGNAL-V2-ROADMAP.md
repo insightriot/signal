@@ -56,10 +56,23 @@ Three beliefs Signal held going in did not survive contact with its own record. 
 Read the three carry-over chains *with their dates and Epic IDs attached* and they say the opposite:
 `B27` surfaced **while building `B24`'s own fixture**; `B34` was found by the same REVIEW panel that
 shipped `B29`'s fix; `B30` was found dogfooding `B26` on M5.E5's own SHIP
-(`M5.E7-COUNTERFACTUAL.md` §3.1). **In every case the knowledge was in-context at the moment of the
-miss.** Nobody forgot anything, so a cross-session store with confidence decay prevents none of it.
+(`M5.E7-COUNTERFACTUAL.md` §3.1). **In all three documented chains the knowledge was in-context at
+the moment of the miss**, so a cross-session store with confidence decay prevents none of *those*.
 The real gap has a name Signal already wrote down — **class-completeness at fix time**
 (`.planning/M5.E6-RETROSPECTIVE.md:32`) — and that is a review-scope rule, not a memory phase.
+
+**Stated at its true scope, because "nobody ever forgot anything" is not what the record says.**
+There is exactly one genuine cross-session recurrence in the corpus — **`B13`'s NUL byte, learned
+2026-07-18 and violated 2026-07-25** (§5, COMPOUND row). It is cut on a *separate and stronger*
+ground: its real defence is a deterministic content check `doc-hygiene.js` already hosts, and
+gstack's decay-filtered digest — surfaced at skill start in 10 of 54 skills — would not plausibly
+have fired at the moment someone edited a bug entry. **And the three chains are a selected sample:
+they were chosen because they are documented, so a miss caused by genuine forgetting that was never
+caught is absent from the corpus by construction** — the same survivorship argument §6.6 makes about
+the bug ledger, which applies here and was not applied. **The cut survives all of this** (n=3
+in-context + 1 recurrence with an independent deterministic defence), but it rests on *three chains
+plus one exception*, not on a universal.
+
 **Consequence: the entire COMPOUND port group is cut.**
 
 **2.2 — "`<HARD-GATE>` is the blocking mechanism Signal should port." There is nothing to port.**
@@ -238,14 +251,32 @@ consequential ones:
 **6.1 — Every `build` is Signal-native or a repair of Signal's own work. Not one is a straight port.
 That is exactly the shape a confirmation-biased audit would produce.** The risk was rated *High and
 structural* before the audit began (`M5.E7-VALIDATION.md` D7): it was run by the same pair that
-built the thing, over a corpus they wrote. Three reasons it is probably not that, offered so they
-can be attacked: **(a)** the largest cut group is the one the reframe's own thesis most wanted to
-keep, and it fell to an adversarial pass that falsified that thesis; **(b)** the parked ports are
-gated on a measurement layer that does not exist yet — **this defers them, it does not dismiss
-them**, and if M5.E8 shows Signal's prompts fire reliably, several become `build`s on evidence;
-**(c)** the one capability Brett pushed back on was reopened *against* the audit's conclusion.
+built the thing, over a corpus they wrote. Three reasons were offered so they could be attacked —
+**REVIEW attacked them, and only one survived intact.**
+
+**(b) survives, and it is now the only load-bearing one.** The parked ports are gated on a
+measurement layer that does not exist yet — **this defers them, it does not dismiss them**, and if
+M5.E8 shows Signal's prompts fire reliably, several become `build`s on evidence. **Checkable, and
+checked:** harder TDD, the 2-Action Rule, and the five-round breaker each carry a literal
+*"Trigger: M5.E8 lands"* in `.planning/BACKLOG.md` § Sprint 7 / § Parked.
+
+**(a) answers a charge that was not made.** It said the largest cut group is the one the reframe's
+own thesis most wanted to keep. True of the *going-in* thesis (the memory loop), and real evidence
+the audit would kill its own prior. But the bias charge in the heading is narrower — *a preference
+for Signal-native work over ports* — and cutting a port group **confirms that shape rather than
+rebutting it.** Kept as evidence against one bias; **it is not evidence against the stated one.**
+
+**(c) is inverted.** "The one capability Brett pushed back on was reopened against the audit's
+conclusion" is evidence that **a human corrected the audit** — which §6.2 states outright (*"A human
+caught it, not the process"*). An external catch is a symptom of the bias, not a defence against it.
+**Withdrawn as a defence; it belongs in §6.2, where it already is.**
+
 **The falsifier: M5.E8 lands, measurement shows Signal's enforcement is as good as claimed, and the
-ports still never happen. If that occurs, the reframe was decorative.**
+ports still never happen. If that occurs, the reframe was decorative.** ⚠ **A falsifier stated only
+here is enforced by nothing** — the exact failure D-M5E7-8(b) exists to close, and it cannot ride a
+trigger because *"the ports still never happen"* is a **null result, and no trigger fires on
+nothing.** It therefore needs a **date**, not a condition, and it has one: landed in
+`.planning/BACKLOG.md` under M5.E9 as a dated re-evaluation.
 
 **6.2 — The audit's method had a blind spot it did not discover on its own.** The counterfactual
 asked about shipped bugs and Epic duration and **never asked about building the wrong thing in the
