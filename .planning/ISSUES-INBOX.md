@@ -1498,6 +1498,27 @@ Why it's a feature not the bug: broaden `detectDirtyExecute`'s `phase` guard to 
 
 ---
 
+## Measurement layer + optional telemetry bolt-on — make Signal able to detect whether its own interventions work
+
+**Status:** Logged 2026-07-26 via `/sig:add`. M5.E7 EXECUTE — Wave 3 checkpoint, after S3.t7
+
+Signal cannot currently detect whether its own interventions work — in any dimension. M5.E7 measured the pieces separately (no test asserts a prompt instruction was obeyed; ce-retune's A/A noise floor shows 7-of-12 workflow adherence and a 7.12x output-token spread on byte-identical code; false-greens are the largest retro cluster at 9 items; B39 was specified 2026-07-04 and never built with nobody noticing). Brett's read at the M5.E7 Wave-3 checkpoint: these are one finding, not six, and the answer may be a measurement layer rather than more instructions.
+
+The idea: store and analyze Signal's own performance data, and use it to improve the harness over time — recursive self-improvement grounded in measurement instead of craft intuition.
+
+Brett's explicit framing (2026-07-26): 'I do NOT care about this being acceptable for the masses — in fact, I'm 100% fine either a) turning this back to private or b) having an optional-bolt-on that can catalog performance data / bugs, etc. to a system of record, across signal uses/installs and that way have a much more robust layer of recursive improvement(s).'
+
+So mass-market palatability is explicitly waived as an objection; consent/privacy is a design parameter of the optional bolt-on, not a blocker.
+
+Hard ordering constraint, from the same evidence that motivates it: you cannot aggregate across installs what you cannot measure in one install. Local behavioral measurement first (does a given prompt instruction actually fire, on this machine, repeatably) — cross-install aggregation second, as the amplifier. Backwards, it collects noise at scale.
+
+The A/A noise floor is simultaneously the argument for aggregation and the caution about it: at 7-of-12 adherence and 7x output spread, detecting a real effect needs many runs, which is exactly why pooling across installs is valuable — and exactly why data from four users will show nothing for a long while.
+
+Prior art to borrow rather than invent: gstack's carve-section-loading.test.ts drives a live model through the claude -p SDK to assert an agent actually Read a deferred file; superpowers' testing-skills-with-subagents is a RED/GREEN/VERIFY-GREEN harness for the same job. Signal has zero of either (verified by grep, M5.E7 S3.t7).
+
+Scope note: this is genuine scope growth relative to M5.E7's spec, named rather than absorbed silently (the D5 discipline). M5.E7 ships no code — this is a roadmap candidate for S3.t8 disposition and S4.t9 sequencing, not something to start building inside this Epic. Strong AC3.4 Signal-native candidate: no source repo supplies the aggregation half.
+
+---
 
 
 
@@ -1505,4 +1526,6 @@ Why it's a feature not the bug: broaden `detectDirtyExecute`'s `phase` guard to 
 
 
 
-*Last updated: 2026-07-21*
+
+
+*Last updated: 2026-07-26*
