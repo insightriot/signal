@@ -567,6 +567,8 @@ Reads the same `.planning/` substrate as `/sig:report`, but the *output transfor
 ## `/sig:audit` — engineering-readiness audit (codebase scorecard + refactor plan)
 
 > **Update 2026-07-04 (ratified BR-1):** keeps the `/sig:audit` name. The 2026-06-04 hygiene-sweep proposal below (which also claimed `/sig:audit`) is renamed `/sig:sweep` — evaluate-readiness vs clean-drift is the boundary. See DECISIONS 2026-07-04.
+>
+> **Update 2026-07-26 (candidate 7th dimension — agent executability):** the six dimensions below are all **human**-maintainability axes. **None asks whether an agent can set the project up, run it, and read the errors** — which the external evidence in [`../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md`](../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md) §4 rates as the single largest effect on agent output (88% higher merged-lines-per-human-turn per point, R² = 0.949 — the tightest fit of the study's three axes). Candidate inputs: one-command setup present · test suite runs green from clean · the same suite green **twice** (flaky is worse than none) · lint/typecheck/build runnable with machine-readable errors · an agent-facing `CLAUDE.md`/`AGENTS.md` at the repo root. **Blocked on `/sig:permissions`** (entry below) — five of those six are *executions*, and Signal is read-only by hard-coded default (`agents/scanners/quality-scanner.md:209`). Do not add the dimension before the permission model exists; scoring executability you are not permitted to test produces the same false comfort the security-model dimension exists to prevent.
 
 **Status:** Logged 2026-05-09. Source: review of *Code Evaluation Audit* (Nate Bjones, `promptkit.natebjones.com/20260504_qbn_promptkit_1`) — adapted, not ported. Two interview-style prompts in the source; the 6-dimension scorecard is the keeper insight, translated to Signal's artifact-driven substrate. Drop the source's "Mythos-class adversarial review readiness" framing — newsletter-bait tied to a 2026 news cycle; the underlying dimensions are evergreen without it.
 
@@ -1564,6 +1566,94 @@ The third requirement is the one that makes this Signal-shaped rather than gener
 Related existing entries: BACKLOG.md:152 /sig:docs-update (GSD port, doc-vs-codebase drift verification) covers part of (b) for the codebase half only; ISSUES-INBOX.md:1467 'Scan project integrations into a tooling catalog for agents' is the external-surface half already captured smaller. Brett's ask supersedes both in scope — reconcile, do not re-derive.
 
 Sequencing observation, not a decision: (b) is the doc-runtime pointed outward at the project instead of inward at .planning/, which means the mechanism largely exists and the work is retargeting rather than inventing. (a) needs a live data source (registry/changelog reads) that Signal has never had, and is the harder of the two.
+
+---
+
+## Task-handoff completeness — research findings, exemplar pointers, and out-of-scope never reach the executor
+
+**Status:** Logged 2026-07-26 via `/sig:add`. Surfaced by the alignment pass against Span's *Beyond the Model* (Q3 2026) — full evidence in [`../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md`](../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md) §2, which is its single home; not restated here.
+
+Three leaks in the same seam, all verified 2026-07-26. They should ship together.
+
+(1) `commands/plan.md:89-97` spawns a codebase researcher for "existing patterns, reusable code, integration points" and writes it to `{phase}-RESEARCH.md`. `agents/executors/executor.md:17-21` declares its Inputs as the PLAN task, `CONTEXT.md`, and `{phase}-VALIDATION.md` — RESEARCH.md is not among them, and nothing in `commands/execute.md:58-65`'s dispatch injects it. Signal pays four agents to find the exemplars and then hands the implementing agent a task that does not carry them.
+
+(2) `skills/plan/planning-and-task-breakdown/SKILL.md:99` has a **Files likely touched** field; `commands/plan.md:101-107` — the command's authoritative list of required plan contents — omits it. The skill is guidance, the command is the contract, and they disagree.
+
+(3) No per-task out-of-scope field exists anywhere. `agents/executors/executor.md:45`'s "every changed line should trace to the task's acceptance criteria" is a general discipline rule, not a named boundary ("don't touch the public API," "no dependency changes").
+
+Why it matters beyond tidiness: the external study measured a 27% reduction in token cost per merged AI-authored line per point of prompt clarity, and named exemplar pointers + explicit negative space as two of the six things that produce it. Treat the coefficient as directional, not as a target.
+
+Proposed home: **M5.E9**, which already owns EXECUTE dispatch guidance — same file, same Epic, one pass. *Done-when:* an executor dispatched on a task whose research names an exemplar file follows that exemplar rather than re-deriving the pattern; and a plan whose tasks lack either new field fails the 8-dimension pass at *scope discipline*.
+
+---
+
+## Self-critique at task and phase close — assumptions, unverified areas, missed edge cases
+
+**Status:** Logged 2026-07-26 via `/sig:add`. Surfaced by the alignment pass — evidence in [`../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md`](../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md) §3 (gap B).
+
+Signal has no step that asks the agent, after implementing, to list what it assumed, what it could not verify, and which edge cases it may have missed. The external study calls this cheap and high-yield — it "converts unknown unknowns into an explicit checklist."
+
+Two adjacent things exist and are not this: `agents/researchers/assumptions-analyzer.md` runs at PLAN time against the *approach*, and `skills/build/source-driven-development/SKILL.md:155` flags unverified *documentation claims*.
+
+`commands/verify.md:64-66` says only "Generate the VERIFICATION artifact with results" — no template, so no required "what this could not establish" section. Signal wrote exactly that section by hand in `M5.E7-VERIFICATION.md` §4 and it was one of that Epic's most useful outputs. It is a practice Signal reaches for under pressure, not an instruction it carries.
+
+Proposed home: **M5.E10** (review hardening). It is the false-green instinct pointed one phase earlier and it feeds the false-green audit directly — a self-declared "could not verify" is a candidate false-green before anyone goes looking. *Slice:* a required section in the VERIFICATION artifact template + a one-line self-critique at executor task close. *Done-when:* a VERIFICATION artifact with the section absent or empty fails the phase gate.
+
+---
+
+## Blast radius and rollback — known across four skills, asked by no phase
+
+**Status:** Logged 2026-07-26 via `/sig:add`. Surfaced by the alignment pass — evidence in [`../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md`](../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md) §3 (gap A).
+
+The knowledge is present: `skills/build/incremental-implementation/SKILL.md:147` (feature flags) and `:174` (Rollback-Friendly), `skills/ship/ci-cd-and-automation/SKILL.md:247` (Rollback Plan), `skills/ship/shipping-and-launch/SKILL.md:129` (canary vs. baseline). No phase asks the question.
+
+DISCUSS's FULL production-readiness row (`commands/discuss.md:132`) covers probes, shutdown, structured logging, security headers, rate limiting — not "what does this reach, and how do we undo it." SHIP's pre-ship checklist (`commands/ship.md:61-69`) has secrets, env vars, README, CHANGELOG, docs/map, tests, build, linter, review issues — no rollback line.
+
+Note the altitude distinction so this is not dismissed as already-covered: `reversibility` is one of calibrate's five diagnostic questions, but that tiers the **project**. Per-change blast radius is a different question and nothing asks it.
+
+Proposed home: **M5.E9**, hygiene. Two lines of markdown. *Done-when:* the SHIP checklist carries a rollback/undo line and DISCUSS's production-readiness row asks the blast-radius question at FULL and FEATURE.
+
+---
+
+## `/sig:permissions` — declared execution-authority levels per project
+
+**Status:** Logged 2026-07-26 via `/sig:add`. Brett's reframe of the environment-execution question raised by the alignment pass; recorded the moment it was made.
+
+The question posed was narrow — should Signal start executing build/test/lint commands in a stranger's repo, in order to close the environment-readiness gap ([`../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md`](../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md) §4, the axis with the study's largest measured effect: 88% higher turn yield per point, R² = 0.949).
+
+Brett, 2026-07-26, rejecting the framing as too small: *"Shouldn't that be a permission set? Maybe in onboarding? or some kind of sig:permissions kind of thing that allows various levels of execution/permission? I DO see a future where the user is really only required for decisions on what/why — EVERYthing else is left to Signal to execute against (so it could conceivably run autonomously from execute onward(?)"*
+
+Why the reframe is right rather than merely bigger: every item in the environment-readiness gap is blocked on the same missing thing — **Signal has no vocabulary for what it is allowed to do in a given repo.** Read-only is not a principle Signal chose per project; it is a hard-coded default in two files (`agents/scanners/quality-scanner.md:209`, `agents/scanners/stack-scanner.md:150`, both: "Never run `npm install`, `npm test`, `pytest`"). A permission model turns that hard-coded default into a per-project setting, and environment readiness becomes a consumer of it rather than an exception to it.
+
+It also makes mechanical a norm Brett already holds — *gate at product altitude* (decide plumbing yourself; interrupt only for product/scope calls). Today that lives in prose and depends on each agent honoring it. This is that norm with a schema.
+
+Open design questions, none resolved here:
+
+- **Where does it live?** PROFILE.md already carries `tier` + 10 typed `rigor_overrides`; an `authority` / `permissions` block is a natural sibling and would inherit tier defaults. Alternative: a separate file, since permission is a property of the *repo and the operator*, not of the work's complexity — the same argument that moved the audience-technicality dial to user level.
+- **Relationship to Claude Code's own permission system.** `.claude/settings.json` permissions and hooks already gate tool use at the harness layer. Does Signal declare intent and let the harness enforce, write harness config on the user's behalf (intrusive — a repo root and a settings file are both bigger intrusions than `.planning/`), or carry its own layer? Needs a verify step against the current Claude Code API before anything is designed.
+- **What are the levels?** Straw man only: read-only (today's behavior) → run declared read-only commands (test / lint / typecheck / build) → write within the project → commit → push / PR. The autonomous-from-EXECUTE future implies the ladder tops out somewhere above "commit."
+- **Consent and the blast radius of the act itself.** Running an unknown project's test suite can be slow, hit a live database, or cost money. Whatever the levels are, granting one has to be an explicit act with the risk stated.
+- **Downstream, both blocked on this:** the environment-readiness baseline check (run setup / test / lint once, record green / red / **flaky** — the study is explicit that a flaky suite is worse than none, so this means running the suite twice); and whether `/sig:init` should *offer* to draft or refresh the project's own `CLAUDE.md` / `AGENTS.md`, which the study calls "the cheapest environment-readiness investment we know of" and which Signal has never done for a user's project (only `.planning/` for itself).
+
+Reconcile with, do not duplicate: the `/sig:audit` entry above (its seventh dimension is downstream of this — you cannot score executability you are not permitted to test) and **M5.E12** project-facing currency (scoped to *drift in docs that exist*; authoring the build/test contract file would be a widening, and should be named as one rather than absorbed quietly).
+
+---
+
+## Trajectory scoring — the complementary measurement dimension to M5.E8's instruction-adherence
+
+**Status:** Logged 2026-07-26 via `/sig:add`. Parked with a trigger by Brett's call at the alignment pass; recorded so the *decline* is a decision rather than a silence.
+
+Proposed and declined: widening M5.E8 from instruction-adherence to scoring whole trajectories on the three axes of Span's *Beyond the Model* (prompt clarity, environment readiness, quality stewardship).
+
+Brett, 2026-07-26: *"I think we'd keep our current posture (limited to instruction-adherence). 'Trajectory Tracking' feels like another level / dimension of that and the two may be better served as separate but complimentary endeavors."*
+
+The distinction that makes the decline correct: the study measures **human→agent prompt clarity**; Signal's measured problem is **Signal's own instruction→agent adherence** (7 of 12, `../analysis/SIGNAL-V2-ROADMAP.md` §1). Different failure modes, so the 27%-per-point coefficient does not transfer, and one Epic chasing both would ship neither cleanly.
+
+What carries forward into M5.E8 without changing its scope — the study's Appendix method for building a rubric: qualitative trace review over the best and worst tails → rubrics written as **observable** criteria ("the prompt states acceptance criteria," "the agent successfully executed the test suite at least once") with any dimension that cannot be operationalized **dropped** → automated scoring → validation against blind human ratings. The "observable or dropped" rule is worth adopting in E8(a) now; the rest is reusable when this entry is promoted.
+
+Do not over-assume existing instrumentation: `tools/measure-phase-costs.js` + `tools/lib/context-monitor.js` measure the **static** token cost of loading skill markdown (`estimateTokens`, a ~4-chars/token heuristic over files). They are not per-run trajectory capture. The primitive exists; the run-level meter does not.
+
+*Trigger:* **M5.E8 lands and instruction-adherence measurement is repeatable.** Same ordering constraint as the cross-install telemetry bolt-on, and for the same reason — you cannot score a trajectory usefully until you can tell whether a single instruction fired.
 
 ---
 

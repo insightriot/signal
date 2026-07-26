@@ -40,6 +40,7 @@ For current state and active work, read in order: `.planning/CONTEXT.md` → `.p
 Key supporting docs:
 - `analysis/REPO-ANALYSIS.md` — landscape analysis of 7 AI-dev plugins; the seed of Signal.
 - `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` — v2 vision (10-phase architecture).
+- `analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md` — Signal vs. external field evidence (Span, *Beyond the Model*, Q3 2026). Strong on prompt clarity + quality stewardship; **environment readiness is the absent axis**, and it is blocked on a permission model (`/sig:permissions`), not on a one-off exception. M5.E8 stays scoped to instruction-adherence.
 - `analysis/JOURNEY-MAP.html` — visual companion.
 - `GSD-AgentSkills-Combination-Analysis.md` — historical (pre-landscape) two-framework analysis.
 

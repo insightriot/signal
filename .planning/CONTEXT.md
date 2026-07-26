@@ -95,6 +95,7 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 - `.planning/PROJECT.md` — the full v1 spec
 - `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` — the v2 vision
+- `analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md` — Signal measured rec-by-rec against Span's *Beyond the Model* (Q3 2026). Confirms M5.E8's priority from outside; finds one absent axis (**environment readiness**), now blocked on the `/sig:permissions` reframe. Decisions: `DECISIONS.md` 2026-07-26 (the alignment pass)
 - `CLAUDE.md` — project instructions
 - `.planning/MILESTONE-5.md` (**active** — the doc-runtime E1–E6 all closed; BR-8 re-audit + v2 ports next) + `MILESTONE-4.5.md` (closed 2026-07-15 — release-hardening / stranger-adoption). **M1–M4 archived** at `.planning/archive/milestones/` (M4 = `/sig:init` brownfield onboarding, closed 2026-05-12 + v0.1.0).
 - `.planning/DECISIONS.md` — append-only architecture decisions

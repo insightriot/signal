@@ -314,3 +314,72 @@ Brett's read at the same checkpoint: *"there is a theme here that we don't have 
 **The telemetry bolt-on is a roadmap candidate, with a hard ordering constraint.** Captured verbatim via `/sig:add` → `ISSUES-INBOX.md` (2026-07-26, *"Measurement layer + optional telemetry bolt-on"*); that entry is its single home and is not restated here. Two things ratified now: **(a) mass-market palatability is explicitly waived** as an objection (Brett: *"I do NOT care about this being acceptable for the masses"*), so consent is a **design parameter** of the optional bolt-on, not a blocker; **(b) local behavioral measurement is a prerequisite for cross-install aggregation** — you cannot pool across installs what you cannot measure in one, and getting it backwards collects noise at scale. The A/A noise floor argues both sides honestly: many runs are needed to see a real effect (so pooling is valuable), and **four users will show nothing for a long while** (so it is not a near-term signal source).
 
 **Named as scope growth, not absorbed silently** — the D5 discipline this Epic's own validation applied to FR6/FR7. **M5.E7 ships no code**; this is a candidate for S3.t8's disposition and S4.t9's sequence, and nothing here is built inside this Epic.
+
+---
+
+## 2026-07-26 — Agent-effectiveness alignment pass: two calls (permission model; M5.E8 scope held)
+
+Raised outside any Epic, at Brett's request, after reading Span's *Beyond the Model* (Q3 2026) — a
+103-team / 12-week observational study of what distinguishes effective agentic development. The
+assessment is `analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md`; **that document is its single home** and
+the evidence is not restated here. Findings captured to `ISSUES-INBOX.md` the same day for
+disposition at the next `/sig:plan` drain — deliberately **not** written straight to `BACKLOG.md`,
+so the capture lifecycle stays the one path in.
+
+**Headline of the assessment, for the record.** Signal is strong on the study's prompt-clarity and
+quality-stewardship axes — ahead of the recommendations in three places (DISCUSS as a gated phase,
+the REVIEW panel, and `nyquist_enforcement: strict`'s proof-of-fail, which is stricter than the
+study's "run the suite"). It is **absent on environment readiness**, the axis with the study's
+largest measured effect (88% higher merged-lines-per-human-turn per point; R² = 0.949). Signal
+*detects* readiness at `/sig:init`, never verifies it, and nothing reads it — `readLandscapeMeta`
+(`tools/lib/status.js:194-201`) extracts the captured-on date and nothing else.
+
+**Call A — environment execution is a *permission* question, not an exception. (Brett's reframe.)**
+The question posed was narrow: should Signal start executing build/test/lint commands in a
+stranger's repo? Brett rejected the framing as too small — the right shape is a **declared
+permission model** (`/sig:permissions`, or a PROFILE.md `authority` block), likely established at
+onboarding, with a future in which the user is required only for what/why decisions and Signal runs
+unattended from EXECUTE onward.
+
+The reframe is adopted because it names the actual blocker: **Signal has no vocabulary for what it
+is allowed to do in a given repo.** Read-only is not a per-project choice; it is a hard-coded
+default in two files (`agents/scanners/quality-scanner.md:209`,
+`agents/scanners/stack-scanner.md:150`). A permission model makes that a setting, and every
+environment-readiness item becomes a **consumer** of it rather than an exception to it. It also
+makes mechanical the *gate at product altitude* norm, which today lives in prose and depends on each
+agent honoring it.
+
+**Consequences recorded now, scope deliberately not set:** the readiness baseline check and the
+"should `/sig:init` offer to draft the project's own `CLAUDE.md`/`AGENTS.md`" question are both
+**downstream** of this and are not separate builds. `/sig:audit`'s candidate **7th dimension —
+agent executability** — is downstream too, and that entry is annotated in place rather than
+duplicated. **M5.E12 is not silently widened:** it is scoped to drift in docs that *exist*;
+authoring a build/test contract file is a widening and must be named as one.
+
+**Call B — M5.E8's scope holds at instruction-adherence. Trajectory scoring is parked with a
+trigger.** Proposed: widen M5.E8 to score whole trajectories on the study's three axes. **Declined**
+(Brett): *"keep our current posture… 'Trajectory Tracking' feels like another level / dimension of
+that and the two may be better served as separate but complimentary endeavors."*
+
+The distinction that makes the decline right: the study measures **human→agent prompt clarity**;
+Signal's measured problem is **Signal's own instruction→agent adherence** (7 of 12). Different
+failure modes — the 27%-per-point coefficient does not transfer, and one Epic chasing both ships
+neither cleanly. *Trigger for the parked half: M5.E8 lands and instruction-adherence measurement is
+repeatable* — the same ordering constraint as the cross-install telemetry bolt-on (D-M5E7-12), for
+the same reason.
+
+**What the study contributes to M5.E8 without changing its scope:** the Appendix's rubric-building
+method — trace review over the best/worst tails → rubrics written as **observable** criteria, with
+any dimension that cannot be operationalized **dropped** → automated scoring → validation against
+blind human ratings. **The "observable or dropped" rule is worth adopting in E8(a) now.**
+
+**Two things recorded so they are not later mistaken for findings.** (1) The study found no
+threshold below which clarity and stewardship stop paying, while Signal's calibration assumes one
+(SKETCH drops TDD and skips REVIEW). The study examined **merged production PRs** and says nothing
+about throwaways, so it cannot refute tier-calibration — but Signal adopted that threshold on
+judgment, not measurement, which is the same shape as `B38`. **An untested assumption worth a line
+in M5.E8's scope, not a redesign.** (2) The source is observational, vendor-authored (Span sells the
+evals), and its Appendix carries **literal unfilled placeholders** where the inter-rater agreement
+statistic and the list of controlled confounds should be. **Directional only — no coefficient from
+it is hard-coded into anything.** That is correction **C6**'s rule applied on arrival rather than
+three months late.
