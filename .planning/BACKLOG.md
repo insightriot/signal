@@ -67,9 +67,13 @@ byte-identical code).
   dispatch simultaneously.
 - **SHIP-time ledger reconcile.** *Slice:* a hygiene test asserting `BUGS.md` holds no `confirmed`
   bug whose fix already shipped. *Done-when:* it fails on a planted violation.
-- **The 9 open bugs** — `B32`–`B36` (`needs-triage`), `B37`–`B40` (`confirmed`). Required by
-  D-M5E7-10; **verified 2026-07-26 that no bug-squash sprint existed anywhere.** *Slice:* the two
-  P2s (`B36`, `B39`). *Done-when:* zero `confirmed` P2 entries remain.
+- **The 10 open bugs** — `B32`–`B36` (`needs-triage`), `B37`–`B41` (`confirmed`). Required by
+  D-M5E7-10; **verified 2026-07-26 that no bug-squash sprint existed anywhere.** *Slice:* the **three**
+  P2s (`B36`, `B39`, **`B41`**). *Done-when:* zero `confirmed` P2 entries remain.
+  **`B41` was cataloged by M5.E7 REVIEW (2026-07-26)** and belongs here rather than in M5.E8: four
+  phase commands never call `transitionPhase`, so `completed_phases` omits PLAN/EXECUTE/VERIFY/REVIEW
+  in any command-driven project while `markFresh` stamps the stale position fresh. **Deterministic and
+  file-shaped — it needs no measurement layer**, which is exactly the rule §1 of the roadmap sets.
 - **Retro replay into the next Epic's DISCUSS/PLAN** → **kept in its Sprint 4 home**, sequenced here.
   Pointer rather than a copy (single-home). It shares `B39`'s shape — *a store exists and the reader
   was never built* — which is why it lands in this Epic and not in the abandoned Sprint-4 group.
