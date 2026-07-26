@@ -6,6 +6,28 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased] — 2026-07-26 — The v2 direction audit (M5.E7)
+
+**No code shipped, so no version was cut.** The deliverable is a decision: **[`analysis/SIGNAL-V2-ROADMAP.md`](analysis/SIGNAL-V2-ROADMAP.md)** — what Signal builds next, in what order, and why, grounded in Signal's own record. **45 candidates verbed: 11 distinct builds · 16 continue · 19 abandon**, sequenced as **M5.E8 → M5.E12** and landed in [`.planning/BACKLOG.md`](.planning/BACKLOG.md) with a trigger, a first slice, and a stranger-checkable done-when apiece (a roadmap in `analysis/` is enforced by nothing — D-M5E7-8(b)). Suite unchanged at **1623/1623**; validator green; command / agent / skill roster unchanged at **18 / 26 / 21**. Ran at FULL tier under Signal's **first Epic-scoped PROFILE** (`M5.E7-PROFILE.md`) — *"strict thinking, zero test theater."*
+
+### The finding it is organized around
+- **Signal cannot detect whether its own interventions work, in any dimension.** No test anywhere asserts that a prompt instruction was obeyed, against a measured **7-of-12 workflow adherence and a 7.12× output-token spread on byte-identical code**. Six separately-logged observations turned out to be one. **M5.E8 (measurement) is therefore unconditional-next and gates every prompt-shaped port.**
+
+### Reversed
+- **The COMPOUND port group is cut — its premise was falsified.** Read with dates and Epic IDs attached, the knowledge was in-context at the moment of the miss **in all three documented carry-over chains**, so a cross-session store with confidence decay prevents none of those. The one genuine cross-session recurrence (`B13`) is cut separately, on a deterministic-content-check ground. The real gap is **class-completeness at fix time** — a review-scope rule, now M5.E10.
+- **`<HARD-GATE>` is cut because it does not exist as a mechanism** (correction **C3**, verified at source against superpowers v6.2.0): 4 grep hits repo-wide, 1 in a live skill, none in `hooks/` or `tests/`, no parser, no validator. Signal already has the capability natively — the exit-2 STATE write-guard, the `PreToolUse` hook, and an FR1 retro gate that hard-blocked its own SHIP.
+- **The coverage frame is superseded.** A scorecard counts what is absent, so it is structurally blind to Signal being *ahead* of a source — which happened on the first pass.
+- **Also cut:** gstack's 15-phase `/cso` (threat-model fit; Phase 8 carved out and parked), pm-skills GTM + product discovery (product fit, ratified), the Cursor adapter (demand fit), OMC `visual-verdict` + consensus-planning (overlap). **No cut cites dormancy or staleness** — mechanically asserted; correction **C6** found the "~15 months old" figure was **~3 months**, wrong by ~4.5× and sitting inside a locked decision.
+
+### Corrected
+- **C2** — the harvestable retro corpus is **12 files, not 16**; 4 are `[FILL IN]` stubs, reported and deliberately not reconstructed. **C5, C7, C8** likewise marked at source in `analysis/`.
+
+### Known / carried forward
+- **`B41`** (**P2**, `confirmed`, cataloged at REVIEW) — **four of the seven phase commands never call `transitionPhase`.** Only `calibrate` / `discuss` / `ship` do, so in a command-driven project a full run ends with `completed_phases: [DISCUSS]` and PLAN/EXECUTE/VERIFY/REVIEW **never recorded**, while `/sig:status` reports `DISCUSS` throughout; `plan.md:50`'s *"verify current phase is PLAN"* precondition is unsatisfiable by any command. Aggravated by `markFresh`, which stamps a fresh timestamp over the stale position — *stale-and-flagged* becomes *stale-and-silent*. Masked here because this repo maintains those fields by hand.
+- **`B37`–`B40`** (`confirmed`) and **`B32`–`B36`** (`needs-triage`) — **10 open bugs**, all homed in **M5.E9**, whose slice is the three P2s (`B36`, `B39`, `B41`).
+- **`B39` caveat, and it applies to every trigger Signal has written down:** the trigger-watchlist walk has **never run** — `/sig:plan` was never taught the drain step the standing entry instructs. **Until M5.E9 lands, a trigger is a note, not an enforcement.**
+- **A dated self-check, not a trigger** — the roadmap's own falsifier (*"M5.E8 lands, measurement shows enforcement is as good as claimed, and the ports still never happen"*) cannot fire on a trigger, because nothing fires on a null result. Landed under M5.E9 as a check dated **2026-10-26**, where silence past the date defaults to *"the reframe was decorative; re-run the roadmap."*
+
 ## [0.1.11] — 2026-07-25 — Doc-runtime close-out (M5.E6)
 
 The maintenance-command half of the doc-runtime flagship — finishing Signal's self-maintenance so it's locked before the BR-8 v2-port re-audit. Adds one slash command (`/sig:sweep`, **18 commands** now / 26 agents / 21 skills), clears the four M5.E5 carry-over bugs, and closes the FR7 concurrency work. Additive; no breaking changes; no new runtime dependencies; no `.planning/` schema change. 1561 → **1623 tests**; FULL/strict throughout. VERIFY PASS (strict — independent mutation proof-of-fail on the B27/B30/B29 gates); REVIEW PASS (a 3-specialist adversarial panel — code-quality + security OWASP/ASVS-L2 + test-integrity — found **0 Critical, 0 false-greens**).
