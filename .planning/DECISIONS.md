@@ -536,3 +536,54 @@ Epic-open prose would keep `state.js` pure and cost nothing today — and would 
 demonstrated they simply do not execute. It goes in the seam, where it cannot be skipped.
 **The coupling of `state.js` to the archive path is a real cost and is accepted deliberately, not
 overlooked.**
+
+---
+
+## 2026-07-27 — M5.E8 DISCUSS: measurement is an on-demand harness over observable traces (D-M5E8-1 … D-M5E8-3)
+
+M5.E7's headline finding — **Signal cannot detect whether its own interventions work** — becomes
+buildable here. M5.E9 made it urgent rather than theoretical: that Epic added instructions to four
+command files and **could not prove any agent follows them**, and said so in its own test-file header.
+
+**D-M5E8-1 — The measurement runs as an on-demand harness, not in CI, and not as transcript archaeology.**
+
+Chosen over wiring live agent runs into the test suite, and over analyzing recorded real sessions.
+
+*Against CI:* a real agent call costs money, takes minutes, and **returns different answers on
+identical input**. A test that fails for no reason gets switched off, and a switched-off test is worse
+than none — it reads as coverage. Signal's suite is deterministic and offline by design
+(`references/doc-runtime-model.md`); putting a nondeterministic paid call inside it would make the
+whole suite untrustworthy to protect one measurement.
+
+*Against transcript archaeology:* it **cannot answer the question the Epic exists for.** *"Does this
+instruction change behavior?"* requires a comparison against not having it, and recorded history has
+no control group. It measures what happened, never what caused it.
+
+**D-M5E8-2 — Only instructions with an OBSERVABLE TRACE are measured. The measurement is a
+delete-the-instruction control run.**
+
+The harness runs a command twice — once as written, once with the instruction line removed — and
+checks for a trace that needs no judgment: a file exists, a state field changed, a commit landed, a
+string appears in an artifact. **Chosen over rubric scoring by a second model**, which would cover
+Signal's prose-shaped guidance too but measures with the same instrument it is testing: a
+disagreement means either the agent disobeyed or the judge misjudged, **with no way to tell which**.
+That is the failure shape M5.E7 already catalogued.
+
+**The cost is real and must be stated in the deliverable, not discovered later: most of what Signal's
+command files say leaves no trace.** *"Surface ambiguity," "don't rationalize," "gate at product
+altitude"* — the guidance carrying most of Signal's value — is **out of reach of this method**.
+Quantifying that ceiling is itself a requirement (FR5), because *"we measured the measurable 12%"*
+is an honest finding and *"we measured adherence"* is not.
+
+**D-M5E8-3 — The harness is anchored to the SHIP pre-ship checklist, not to a trigger.**
+
+On-demand measurement has one failure mode, and it is the one this codebase keeps re-committing:
+**nobody runs it.** `B39` established that Signal's trigger-watchlist has **never been walked**;
+M5.E7's own falsifier needed a *dated* check because a null result fires nothing; `B46` found 45
+dispositions written where nothing reads them back.
+
+So the anchor is a line in `commands/ship.md` § 1 Pre-Ship Checklist — beside the `docs/map` line —
+because that list is **demonstrably read at every release**. **Not a trigger, not a backlog entry,
+not a note.** *Decided rather than asked: the reasoning is Signal's own record, and there is no
+product judgment left in it once that record is read.*
+
