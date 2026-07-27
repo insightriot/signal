@@ -23,7 +23,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { join, dirname, resolve, relative, sep } from 'node:path';
 
-import { PLANNING_DIR, withStateLock, EPIC_ID_STRICT_RE, PHASES } from './state.js';
+import { PLANNING_DIR, withStateLock, EPIC_ID_STRICT_RE } from './state.js';
 import { atomicWrite } from './atomic-write.js';
 import {
   extractEpicSection,
@@ -323,12 +323,6 @@ export async function relocateFaithful(args) {
 // flags EXACTLY what the write-guard blocks — kept honest by the post-transform
 // `block:false` re-check in the tests.
 const COMPLETED_PHASES_MAX = 150;
-
-// A well-formed completed_phases entry (M5.E9 FR7). Mirrors state.js's
-// COMPLETED_ENTRY_RE; kept in sync by being built from the same exported PHASES.
-const WELL_FORMED_PHASE_ENTRY_RE = new RegExp(
-  `^(${PHASES.join('|')})\\s*\\(\\d{4}-\\d{2}-\\d{2}\\)$`
-);
 const BLOCKER_TEXT_MAX = 500;
 
 // B12 (VERIFY): turn a frontmatter-list entry that lacks a leading "PHASE (date)"

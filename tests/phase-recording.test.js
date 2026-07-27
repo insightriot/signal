@@ -109,3 +109,37 @@ describe('FR6 — phase recording (B41)', () => {
     expect(src).toMatch(/^- `STATE\.md` — current phase is `PLAN`, set by the phase-entry step/m);
   });
 });
+
+// --- Gaps found at VERIFY (AC1.5, AC3.4) — closed rather than accepted. ------
+
+describe('M5.E9 VERIFY-found coverage gaps', () => {
+  it('records the superseded M4.5.E9 criterion in the archived verification (AC1.5)', async () => {
+    // The plan required a dated superseded-by pointer on M4.5.E9's AC1-extended
+    // row. It was written, but nothing asserted it — so a later cleanup could
+    // silently drop the record that Signal changed its mind about a shipped
+    // acceptance criterion. That record is the whole point.
+    const src = await readFile(
+      join(process.cwd(), '.planning/archive/M4.5/E9/M4.5.E9-VERIFICATION.md'),
+      'utf-8'
+    );
+    expect(src).toMatch(/AC1-extended is SUPERSEDED/);
+    expect(src).toMatch(/2026-07-27/);
+    expect(src).toMatch(/D-M5E9-1/);
+    // The surviving half must still be named as surviving.
+    expect(src).toMatch(/state itself is missing.*survives/is);
+  });
+
+  it('has no state writer that rebuilds completed_phases by derivation (AC3.4)', async () => {
+    // AC3.4 was verified by hand at PLAN and by a manual audit at EXECUTE, with
+    // nothing to keep it true. `transitionPhase`'s Map was the ONLY writer that
+    // rebuilt the array rather than patching it, and rebuilding is what made
+    // the data loss possible. This fails if another writer starts doing it.
+    const src = await readFile(join(process.cwd(), 'tools/lib/state.js'), 'utf-8');
+    // The specific construct that caused B44: keying entries into a Map.
+    expect(src).not.toMatch(/new Map\(\s*seen\.map/);
+    expect(src).not.toMatch(/completed_phases\s*=\s*Array\.from\(\s*new Map/);
+    // completed_phases is only assigned in the two audited places.
+    const assignments = src.match(/payload\.completed_phases\s*=/g) ?? [];
+    expect(assignments.length).toBeLessThanOrEqual(3);
+  });
+});
