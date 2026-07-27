@@ -1,6 +1,6 @@
 import { readFile, mkdir } from 'node:fs/promises';
 import { existsSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
@@ -454,6 +454,66 @@ export async function transitionPhase(baseDir, nextPhase) {
   });
 }
 
+// --- FR5: the phase log's trim rule (D-M5E9-6, D-M5E9-7) ---------------------
+//
+// A log that never trims trades silent deletion for silent growth — the same
+// failure wearing the other mask. So the live list holds ONE RUN, and finished
+// runs relocate (never delete) to an append-log.
+//
+// This is not optional hygiene. `resume.js:272` renders `{completed}/{total}
+// phases done` off the raw array length, and `isEpicCloseByState` tests the
+// array with `.some()`. BOTH silently assume the list is one run's worth — the
+// invariant the old dedupe was accidentally enforcing and no writer ever
+// stated. Remove the dedupe without this and a real project reads "53/7 phases
+// done" and its Epic-close detector fires off a PRIOR run's entries.
+
+const PHASE_LOG_MARKER = 'phase-log:archived';
+
+// Mirrors deriveEpicArchiveDir (evict.js:243). Duplicated deliberately: evict.js
+// imports from state.js, so importing it back would be a cycle. The duplication
+// is guarded by a parity test rather than left to drift — a second, silently
+// diverging implementation of a path rule is the "regex schism" shape that
+// state.js:100-108 records as already burning Signal once.
+function epicArchiveDirFor(epicId) {
+  const m = String(epicId).match(/^(M\d+(?:\.\d+)*)\.E(\d+)$/);
+  return m ? `.planning/archive/${m[1]}/E${m[2]}` : null;
+}
+
+/**
+ * Relocate a finished run's phase entries into an append-log, verbatim.
+ *
+ * Relocate-never-delete (NFR2): the caller only clears the live list after this
+ * resolves. Returns the count so callers can SURFACE it (NFR1).
+ *
+ * @param {string} baseDir
+ * @param {string[]} entries
+ * @param {string} targetRel — repo-relative destination
+ * @param {string} label — what this run was, for the section heading
+ * @returns {Promise<{archived: number, target: string}>}
+ */
+async function archivePhaseLog(baseDir, entries, targetRel, label) {
+  if (!entries || entries.length === 0) return { archived: 0, target: targetRel };
+  const abs = join(baseDir, targetRel);
+  await mkdir(dirname(abs), { recursive: true });
+  const today = new Date().toISOString().split('T')[0];
+  const section = [
+    '',
+    `## Phase log — ${label} (archived ${today}) <!-- ${PHASE_LOG_MARKER} -->`,
+    '',
+    ...entries.map((e) => `- ${e}`),
+    '',
+  ].join('\n');
+  let existing = '';
+  try {
+    existing = await readFile(abs, 'utf-8');
+  } catch (err) {
+    if (!err || err.code !== 'ENOENT') throw err;
+    existing = `# Phase log archive\n\nFinished runs relocated out of \`STATE.md\` by Signal (M5.E9 FR5). Append-only; nothing here is ever rewritten.\n`;
+  }
+  await atomicWrite(abs, `${existing.replace(/\s*$/, '')}\n${section}`);
+  return { archived: entries.length, target: targetRel };
+}
+
 /**
  * Record a phase complete WITHOUT transitioning away from it (M5.E9 FR2, B43).
  *
@@ -484,10 +544,53 @@ export async function completePhase(baseDir, phase) {
     const today = new Date().toISOString().split('T')[0];
     const prior = state.completed_phases ?? state.completedPhases ?? [];
     if (prior.includes(`${phase} (${today})`)) {
-      return { quarantined: [], recorded: false }; // idempotent same-day re-run
+      return { quarantined: [], recorded: false, trimmed: 0 }; // idempotent same-day re-run
+    }
+    // Second idempotence guard, and it is NOT redundant: the linear trim below
+    // EMPTIES the live list, which erases the evidence the first guard reads.
+    // Without this, a re-invoked `/sig:ship` re-records SHIP into the freshly
+    // emptied list and archives a second, near-empty run. Caught by the AC5.5
+    // test, which is the one that made this failure mode visible at all.
+    //
+    // `phase: SHIP` + an empty live list is unambiguous: the run was closed and
+    // relocated. (A hand-edited STATE with that exact shape and no prior ship
+    // would no-op here — accepted, and preferable to double-archiving.)
+    if (phase === state.phase && prior.length === 0 && detectMode(state) === 'linear') {
+      return { quarantined: [], recorded: false, trimmed: 0 };
     }
     const res = await recordPhase(baseDir, { leaving: phase, nextPhase: null });
-    return { ...res, recorded: true };
+
+    // FR5 linear trim (D-M5E9-6). A linear project's only close event is SHIP,
+    // so that is where the finished run leaves the live list. Ordered AFTER the
+    // SHIP record so the archived run contains its own SHIP (AC2.2).
+    //
+    // In the SEAM, not in ship.md's prose (AC5.3): a guarantee that lives in a
+    // command file is exactly the B41 failure mode — four commands have already
+    // demonstrated they simply do not run what their file says.
+    let trimmed = 0;
+    if (phase === 'SHIP' && detectMode(state) === 'linear') {
+      const after = await readStateForMutation(baseDir);
+      const run = after?.completed_phases ?? [];
+      if (run.length > 0) {
+        const label = `linear run ending ${today}`;
+        const { archived } = await archivePhaseLog(
+          baseDir,
+          run,
+          '.planning/STATE-HISTORY.md',
+          label
+        );
+        // Relocate-never-delete: the live list is cleared only after the
+        // archive write resolves, and only for exactly what was archived.
+        if (archived === run.length) {
+          const payload = stripStateMeta(after);
+          payload.completed_phases = [];
+          payload.last_updated = new Date().toISOString();
+          await writeStateFrontmatter(baseDir, payload);
+          trimmed = archived;
+        }
+      }
+    }
+    return { ...res, recorded: true, trimmed };
   });
 }
 
@@ -689,6 +792,32 @@ export async function setCurrentEpic(baseDir, epicId) {
     if (state.current_epic === epicId) {
       return; // idempotent — no roll, coupled fields preserved
     }
+    // FR5 Epic half (D-M5E9-7): ARCHIVE BEFORE RESET. B9's fix has zeroed
+    // completed_phases on every roll since M5.E2 — and Epic-close eviction
+    // operates on the STATE *body* (evict.js:296), never the frontmatter, so
+    // the phase list was deleted with no copy kept anywhere. Under log
+    // semantics that is unarchived history loss: the same defect this Epic
+    // exists to fix, in the mode that currently looks healthy.
+    //
+    // Runs BEFORE the reset below, inside the same lock. If the archive write
+    // fails it throws and the roll does not happen — losing the roll is
+    // recoverable, losing the history is not.
+    let archivedOut = 0;
+    const closingEpic = state.current_epic;
+    const closingLog = state.completed_phases ?? state.completedPhases ?? [];
+    if (closingEpic && closingLog.length > 0) {
+      const dir = epicArchiveDirFor(closingEpic);
+      if (dir) {
+        const { archived } = await archivePhaseLog(
+          baseDir,
+          closingLog,
+          `${dir}/STATE-NARRATIVE.md`,
+          `Epic ${closingEpic}`
+        );
+        archivedOut = archived;
+      }
+    }
+
     const payload = stripStateMeta(state);
     payload.current_epic = epicId;
     payload.current_wave = null; // roll resets coupled in-flight state...
@@ -706,6 +835,7 @@ export async function setCurrentEpic(baseDir, epicId) {
     payload.last_completed_task = null;
     payload.last_updated = new Date().toISOString();
     await writeStateFrontmatter(baseDir, payload);
+    return { archivedPhaseLog: archivedOut }; // surfaced, never silent (NFR1)
   });
 }
 

@@ -125,7 +125,7 @@ skeleton is the recommended structure that the eviction mechanics (FR2b) are des
 | `current_epic` | string \| null | When mid-Epic | E.g. `M4.5.E6`. Auto-migration sets to `null` since legacy STATE.md has no machine-readable epic. |
 | `current_wave` | integer \| null | When mid-wave | Optional even within an epic; meaningful for wave-parallel execution. |
 | `current_tasks` | array of `Task` | Mid-EXECUTE | See `Task` below. D10: array, not scalar — supports wave parallelism (Slice 1 of M4.5.E6 ships with sequential-only call sites but the schema accepts multi-entry). |
-| `completed_phases` | array of strings | After any `transitionPhase` | Entries shape `"PHASE_NAME (YYYY-MM-DD)"`. Dedupe by phase name on re-transition. |
+| `completed_phases` | array of strings | After any `transitionPhase` / `completePhase` | Entries shape `"PHASE_NAME (YYYY-MM-DD)"`. **An append-only log of the CURRENT run, never a set** — see § "The phase log" below for the three rules that were previously unwritten. |
 | `blockers` | array of `Blocker` | When blocked | See `Blocker` below. |
 | `last_decision_at` | ISO 8601 timestamp \| null | After `touchDecisionTimestamp` / `clearCurrentTask` | When the last decision-shaped event happened. |
 | `last_updated_commit` | string (git sha) \| null | After `markFresh` / `clearCurrentTask({commit})` / `upgradeStateFile` | The commit hash relative to which staleness is measured. |
@@ -159,6 +159,50 @@ last_completed_task:
   text: Marketplace install hangs on first run; tracked under F2
   raisedAt: 2026-05-16T10:00:00.000Z
 ```
+
+---
+
+## The phase log — `completed_phases` (M5.E9, D-M5E9-5/6/7)
+
+Three rules. **All three were load-bearing and unwritten before M5.E9**, which is how four
+bugs (`B42`–`B45`) lived here for nine releases.
+
+**1. It is an append-only LOG, not a set.** A phase re-entered during recovery is recorded
+*again* — it genuinely happened twice. Until M5.E9 `transitionPhase` deduped by phase name via
+a `Map` (last-write-wins), which is coherent only if the field means *"which phases has this
+project ever reached."* Used as a log — which is what every project past its first unit
+accumulates — that collapsed the whole history on the first call, silently, with no diff, no
+warning and no dropped-entry count. A real project lost 53 entries to one call.
+
+**2. An entry records the phase being LEFT, dated when it was recorded complete.**
+`transitionPhase(next)` appends the phase you are leaving — that is the phase that is actually
+finished. **The list must never contain a phase still in flight**: `resume.js` counts it
+against a `/7` denominator, and `isEpicCloseByState` tests it with `.some()`, so an in-flight
+entry makes an unfinished phase read as done and fires the Epic-close detector a phase early.
+*Consequence:* `SHIP` is terminal, so nothing ever leaves it — `transitionPhase` alone can
+never record a SHIP. **`completePhase(baseDir, phase)` exists for exactly that**, and
+`/sig:ship` calls it. *The date is when the phase was recorded complete; a phase closed days
+earlier is stamped with the call date — a stated imprecision, not a silent one.*
+
+**3. The live list holds ONE RUN. Finished runs relocate — they are never deleted.**
+
+| Mode | Trim fires at | Destination |
+|---|---|---|
+| **linear** (`current_epic: null`) | `completePhase(base,'SHIP')` — a linear project's only close event | `.planning/STATE-HISTORY.md` |
+| **Epic** | `setCurrentEpic` on a roll, **before** B9's reset | `.planning/archive/<milestone>/<epic>/STATE-NARRATIVE.md` |
+
+**The single-run scope is an invariant two consumers already depended on and no writer stated**
+— it is what the old dedupe was accidentally enforcing. Removing the dedupe without the trim
+would trade a silent data bug for a silent counting bug and a mis-firing gate. Both trims live
+**inside the state-mutation seam, not in command prose**: a guarantee that lives in a command
+file is the `B41` failure mode, where four commands demonstrably never ran what their file said.
+
+**Malformed entries are quarantined, never keyed on.** Anything not matching
+`PHASE_NAME (YYYY-MM-DD)` for a known phase is partitioned out and **returned to the caller so
+it can be surfaced** (`partitionCompletedPhases`). Previously only the *argument* to
+`transitionPhase` was validated; existing entries were keyed on blindly, so a stray prose line
+became a permanent phantom phase — the collapse destroyed real history while preserving junk,
+because a phantom key has no competitor to overwrite it.
 
 ---
 

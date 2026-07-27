@@ -93,8 +93,9 @@ If this phase introduced significant architectural decisions, document them:
 
 The PR is open and the Epic has shipped end-to-end. Bring STATE.md frontmatter into parity with the rest of the phase commands (RESEARCH § 1.1 surfaced that SHIP previously relied on prose "Update STATE.md" rather than programmatic state-writes — that gap is now closed):
 
-1. `await transitionPhase(baseDir, 'SHIP')` from `tools/lib/state.js` — appends `SHIP (YYYY-MM-DD)` to `completed_phases` and updates `phase: SHIP` if not already there.
-2. `await markFresh(baseDir, {commit: <git HEAD short>})` — advances `last_updated` to now and `last_updated_commit` to HEAD so `/sig:resume`'s staleness banner reads as fresh.
+1. `await transitionPhase(baseDir, 'SHIP')` from `tools/lib/state.js` — appends the phase being **left** (e.g. `REVIEW (YYYY-MM-DD)`) to `completed_phases` and sets `phase: SHIP`. *(Corrected M5.E9/`B43`: this line previously claimed it appends `SHIP`. It never did, and could not — `transitionPhase` records the phase you leave, and **SHIP is terminal**, so nothing ever leaves it. `retrospective.js:493` had the truth in a code comment — "Signal never writes one" — while this line asserted the opposite for nine releases.)*
+2. `await completePhase(baseDir, 'SHIP')` — **this is what finally records `SHIP (YYYY-MM-DD)`.** Records a phase complete without transitioning away from it; idempotent for the same phase on the same day, so a re-invoked `/sig:ship` cannot double-record. **In linear mode this call also fires FR5's trim** (D-M5E9-6): the finished run — its own `SHIP` entry included, which is why this runs *after* step 1 — relocates verbatim to `.planning/STATE-HISTORY.md` and the live list restarts. Surface the returned `{trimmed}` count; a state write that silently drops entries is the defect M5.E9 exists to fix.
+3. `await markFresh(baseDir, {commit: <git HEAD short>})` — advances `last_updated` to now and `last_updated_commit` to HEAD so `/sig:resume`'s staleness banner reads as fresh.
 
 If `markFresh` fails (lock contention, git unavailable):
 - Under `gate_strictness: strict`, surface the failure but **do not roll back the SHIP** — the work and PR are done; the state-write blip is a recovery item, not a SHIP failure.

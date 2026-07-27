@@ -187,14 +187,24 @@ describe('linear mode, end to end (COVERAGE-GAP GUARD — FR8)', () => {
     const res = await completePhase(base, 'SHIP');
     expect(res.recorded).toBe(true);
     const after = await readState(base);
-    expect(after.completed_phases).toContain(`SHIP (${today})`);
     expect(after.phase).toBe('SHIP'); // records completion, does not transition
 
-    // Idempotent: a re-invoked /sig:ship must not double-record.
+    // In LINEAR mode the SHIP record is immediately followed by FR5's trim, so
+    // the finished run — SHIP included — lands in the archive rather than the
+    // live list. Asserting the live list here would be asserting the absence of
+    // the trim. The ordering (record, THEN trim) is what puts SHIP inside its
+    // own run's archived section (AC2.2).
+    expect(after.completed_phases).toEqual([]);
+    const history = await readFile(join(base, '.planning', 'STATE-HISTORY.md'), 'utf-8');
+    expect(history).toContain(`SHIP (${today})`);
+    expect(history).toContain(`REVIEW (${today})`);
+    expect(history).toContain('DISCUSS (2026-05-10)'); // the whole run, verbatim
+
+    // Idempotent: a re-invoked /sig:ship must not double-record or re-archive.
     const again = await completePhase(base, 'SHIP');
     expect(again.recorded).toBe(false);
-    const final = await readState(base);
-    expect(final.completed_phases.filter((e) => e === `SHIP (${today})`)).toHaveLength(1);
+    const historyAgain = await readFile(join(base, '.planning', 'STATE-HISTORY.md'), 'utf-8');
+    expect(historyAgain).toBe(history);
   });
 
   // --- AC4.1 / AC4.3 / AC4.4: the live junk entry, quarantined + surfaced. -
