@@ -122,20 +122,46 @@ describe('shipFR1Check', () => {
     expect(result.message).toMatch(/missing required section heading/i);
   });
 
-  it('halts with NO_CURRENT_EPIC when state.current_epic is empty (AC1-extended)', async () => {
+  // REWRITTEN 2026-07-27 (M5.E9 S1.t6, B42 / D-M5E9-1). These two cases used to
+  // assert `{halt:true, NO_CURRENT_EPIC}` for a null current_epic — M4.5.E9's
+  // AC1-extended, shipped in v0.1.3. That criterion is SUPERSEDED, not merely
+  // relaxed: it made `/sig:ship` unrunnable for any project in linear mode,
+  // which six of the seven phase commands document as first-class.
+  //
+  // Kept as rewritten cases rather than deleted, deliberately: a deleted test
+  // and a fixed bug look identical in the suite count, and the pair below is
+  // what proves the fix is scoped rather than blanket. See
+  // .planning/M5.E9-REQUIREMENTS.md AC1.1/AC1.2 and
+  // .planning/archive/M4.5/E9/M4.5.E9-VERIFICATION.md (superseded-by pointer).
+  it('skips (does not halt) when current_epic is empty — linear mode (AC1.1, supersedes AC1-extended)', async () => {
     const result = await shipFR1Check({
       state: { current_epic: null },
       profile: { tier: 'FULL' },
       milestoneContent: MILESTONE_FIXTURE_FULL_SHIPPED,
       baseDir: base,
     });
-    expect(result.halt).toBe(true);
-    expect(result.code).toBe('NO_CURRENT_EPIC');
-    expect(result.message).toMatch(/current_epic/);
-    expect(result.message).toMatch(/sig:resume/);
+    expect(result.halt).toBe(false);
+    expect(result.skipped).toBe(true);
+    expect(result.reason).toMatch(/linear/i);
   });
 
-  it('halts with NO_CURRENT_EPIC when state itself is missing', async () => {
+  it('treats a malformed current_epic as linear, matching detectMode (AC1.1)', async () => {
+    // `v0.1.6` is a release tag, not an Epic ID (D-E11-4). detectMode fail-opens
+    // it to linear everywhere in Signal; this gate must not read it as "broken",
+    // or the regex schism state.js:100-108 records as fixed re-opens here.
+    const result = await shipFR1Check({
+      state: { current_epic: 'v0.1.6' },
+      profile: { tier: 'FULL' },
+      milestoneContent: MILESTONE_FIXTURE_FULL_SHIPPED,
+      baseDir: base,
+    });
+    expect(result.halt).toBe(false);
+    expect(result.skipped).toBe(true);
+  });
+
+  it('still halts when state itself is missing — a broken project, not a linear one (AC1.2)', async () => {
+    // The divergence proof: this is what stops a blanket "always skip" fix from
+    // passing the suite. Missing STATE.md is not a supported mode.
     const result = await shipFR1Check({
       state: null,
       profile: { tier: 'FULL' },
@@ -144,6 +170,7 @@ describe('shipFR1Check', () => {
     });
     expect(result.halt).toBe(true);
     expect(result.code).toBe('NO_CURRENT_EPIC');
+    expect(result.message).toMatch(/STATE\.md/);
   });
 
   it("returns skipped when SHIP is per-Slice, not Epic-close", async () => {

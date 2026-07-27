@@ -13,7 +13,7 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { EPIC_ID_STRICT_RE, PHASES } from './state.js';
+import { EPIC_ID_STRICT_RE, PHASES, detectMode } from './state.js';
 
 // Pre-SHIP work phases in canonical order — everything in PHASES between
 // CALIBRATE and SHIP (both exclusive). Derived from PHASES (state.js:16) so the
@@ -751,13 +751,42 @@ function defaultFileExists(path) {
 export async function shipFR1Check(args) {
   const { state, profile, milestoneContent, baseDir } = args;
 
-  // (1) current_epic edge cases (A2).
-  if (!state || !state.current_epic) {
+  // (1) No STATE at all is a broken project, not a linear one — still halts.
+  if (!state) {
     return {
       halt: true,
       code: 'NO_CURRENT_EPIC',
       message:
-        'No current_epic in STATE.md. Run `/sig:resume` or set current_epic before invoking `/sig:ship`.',
+        'No STATE.md found. Run `/sig:resume` or initialize the project before invoking `/sig:ship`.',
+    };
+  }
+
+  // (1b) LINEAR MODE — the FR1 retrospective gate is Epic-only (D-M5E9-1, B42).
+  //
+  // Until M5.E9 this returned {halt:true, NO_CURRENT_EPIC} for a null/absent
+  // current_epic, which meant a project that has never used Epics could not run
+  // `/sig:ship` AT ALL: §0.5 runs before every other step regardless of
+  // gate_strictness, and D-E9-3 designed the bypass out. Linear mode is
+  // documented as first-class in the other six phase commands and in
+  // new-project.md ("Without --epic, the project starts in linear mode"), so
+  // this gate was refusing a supported mode. Live since v0.1.3; invisible for
+  // nine releases because Signal-on-Signal has been Epic-mode since M4.5.E11.
+  //
+  // D-E9-3's "no bypass" is UNCHANGED for Epics. What it never decided is what a
+  // project with no Epics owes, and the code silently answered "it is broken."
+  //
+  // Mode comes from detectMode — the canonical detector every other command's
+  // preamble already uses — NOT a second local test. detectMode fail-opens
+  // malformed and version-string values to linear by ratified design (D-E11-4);
+  // reading them as "broken" here would re-open the regex schism state.js:100
+  // records as already fixed once.
+  if (detectMode(state) === 'linear') {
+    return {
+      halt: false,
+      skipped: true,
+      reason:
+        'linear mode (no current_epic) — the FR1 retrospective gate is Epic-only (D-M5E9-1); ' +
+        'a project with no Epics owes no Epic retrospective at SHIP',
     };
   }
 

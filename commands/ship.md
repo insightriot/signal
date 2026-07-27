@@ -31,14 +31,14 @@ Run **before any other Workflow step**, regardless of `gate_strictness`. This is
 **Steps:**
 
 1. Load STATE.md via `readState(baseDir)` — gives the `state` object.
-2. Determine the current milestone file: parse `state.current_epic` (e.g., `M4.5.E9`), drop the trailing `.E{N}`, prefix with `MILESTONE-`, append `.md`. Load `.planning/MILESTONE-{n}.md` content; if file missing, halt with *"current_epic `{epicId}` points to a milestone whose MILESTONE-{n}.md does not exist. Set current_epic to a real Epic or create the milestone file."*
+2. **Epic mode only** — `detectMode(state) === 'epic'` (`tools/lib/state.js`). Determine the current milestone file: parse `state.current_epic` (e.g., `M4.5.E9`), drop the trailing `.E{N}`, prefix with `MILESTONE-`, append `.md`. Load `.planning/MILESTONE-{n}.md` content; if file missing, halt with *"current_epic `{epicId}` points to a milestone whose MILESTONE-{n}.md does not exist. Set current_epic to a real Epic or create the milestone file."* **In linear mode, skip this step** and pass `milestoneContent: null` to step 3 — there is no Epic to derive a milestone file from, and halting on a file the mode cannot name is `B42`'s second gate (D-M5E9-1). *This halt remains correct for its real case: a **strict-shaped** `current_epic` whose milestone file genuinely does not exist.*
 3. Call `shipFR1Check({state, profile, milestoneContent, baseDir})` from `tools/lib/retrospective.js`.
 4. Interpret the result:
-   - `{halt: false, skipped: true, reason}` — this is a per-Slice SHIP, not an Epic-close. Continue with normal Workflow. No retro enforcement.
+   - `{halt: false, skipped: true, reason}` — **either** a per-Slice SHIP (not an Epic-close) **or** a linear-mode project, for which the FR1 retrospective gate is Epic-only (D-M5E9-1). Continue with normal Workflow. No retro enforcement. The `reason` string distinguishes the two.
    - `{halt: false, retroPath, isEpicClose: true}` — retro exists + passes validation. Continue with Workflow. The eventual STATE.md commit will include the Epic-close.
    - `{halt: true, code, message, retroPath?}` — emit `message` verbatim to the user and **halt**. Do not proceed to Workflow. The user creates / fixes the retro file, then re-invokes `/sig:ship`.
 
-**No bypass.** Per D-E9-3 there is no `--no-retro` flag, no environment variable escape hatch, and no extra-args trick. `shipFR1Check` ignores any extra properties passed to it.
+**No bypass.** Per D-E9-3 there is no `--no-retro` flag, no environment variable escape hatch, and no extra-args trick. `shipFR1Check` ignores any extra properties passed to it. **This is unchanged for Epics.** What D-E9-3 never decided is what a project with *no* Epics owes; until M5.E9 the code silently answered *"it is broken"* and refused to run. **The gate is Epic-only (D-M5E9-1) — that is a scope, not a bypass:** a linear project cannot opt out of a rule that never applied to it, and no flag was added.
 
 **Layered enforcement context:** even if a user manually edits STATE.md to skip `/sig:ship`, the `PreToolUse(Edit|Write)` hook in `hooks/hooks.json` (added in M4.5.E9.S1.t7) blocks that write. Even if the user clears context mid-EXECUTE without invoking SHIP, the `SessionStart(resume)` hook surfaces the missing retro on the next session resume.
 
