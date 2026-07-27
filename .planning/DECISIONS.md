@@ -490,3 +490,49 @@ and **Epic-close SHIP already evicts STATE narrative to `archive/.../STATE-NARRA
 project's phase log gets trimmed and to where**, or the fix trades silent deletion for silent bloat —
 the same failure wearing the opposite mask. Pin it in `references/state-schema.md:128`, which today
 specifies the dedupe without ever stating the scope it assumed.
+
+---
+
+## 2026-07-27 — M5.E9 DISCUSS: the phase log's trim rule, in both modes (D-M5E9-6, D-M5E9-7)
+
+The two gray areas the DISCUSS gate had left. Both answer the same question — **once the log stops
+being silently collapsed, where does the history actually go?** — and D-M5E9-5 is what made them
+owed. Spec: [`M5.E9-REQUIREMENTS.md`](M5.E9-REQUIREMENTS.md) FR5.
+
+**D-M5E9-6 — In linear mode the phase log trims at `/sig:ship`: the finished run's entries relocate
+to `.planning/STATE-HISTORY.md`, and the live list starts fresh.**
+
+Chosen over *warn-only* and *let it grow*. The reasoning that decided it: **a warning you can ignore
+is the weakest brake Signal has**, and this Epic is already fixing `B39` — a trigger that was written
+down, never walked, and enforced nothing. Adopting warn-only here would have re-created that shape in
+the same release that catalogues it. *Let it grow* was rejected on the record rather than on
+principle: `B8` is a **529 KB `STATE.md`** in a real project, so "it will not get big" is a claim
+Signal's own bug ledger contradicts.
+
+**Target is the existing `.planning/STATE-HISTORY.md`**, not a new file — it is already *"where STATE
+content goes when it leaves the live file"* (M5.E1 FR2a relocates the legacy narrative there), and
+[`../references/doc-runtime-model.md`](../references/doc-runtime-model.md) classifies append-logs as
+**grow-by-design, bounded by TOC + grep, never loaded whole**, which is exactly this data's shape.
+**`/sig:ship` is the right boundary** because it is the only close event a linear project actually
+has.
+
+**D-M5E9-7 — On an Epic roll, `setCurrentEpic` archives the closing Epic's phase list before it
+resets — and the write lives in the state-mutation seam, not in command prose.**
+
+`setCurrentEpic` (`state.js:614-616`) has zeroed `completed_phases` since the `B9` fix, and the
+Epic-close eviction it pairs with operates on the STATE **body**, never the frontmatter
+(`evict.js:296`) — so **the phase list is deleted with no copy kept anywhere.** Under D-M5E9-5 that is
+unarchived history loss: the same defect this Epic exists to fix, in the mode that currently looks
+healthy. Chosen over *leave Epic roll alone* — whose real argument (the retrospective already narrates
+the Epic, so the dated list is thin) is fair, but it buys a smaller blast radius at the price of
+turning the rule into *"a log is never silently deleted — except here,"* and an unstated exception is
+how the original bug survived nine releases. Entries append to
+`archive/<milestone>/<epic>/STATE-NARRATIVE.md`, the file that already holds that Epic's evicted STATE
+content.
+
+**The placement is the load-bearing half (AC5.3).** Putting the archive step in `discuss.md`'s
+Epic-open prose would keep `state.js` pure and cost nothing today — and would be **precisely the
+`B41` failure mode**: a guarantee that lives in a command file, which four commands have already
+demonstrated they simply do not execute. It goes in the seam, where it cannot be skipped.
+**The coupling of `state.js` to the archive path is a real cost and is accepted deliberately, not
+overlooked.**
