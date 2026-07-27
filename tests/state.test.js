@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -111,16 +111,49 @@ describe('State Management', () => {
       expect(state.completedPhases).toHaveLength(2);
     });
 
-    it('dedupes by phase name when transitioning to a phase already completed', async () => {
+    // REWRITTEN 2026-07-27 (M5.E9 S2.t7, B44 / D-M5E9-5). This case asserted
+    // "dedupes by phase name … no duplicate PLAN entries" — the behavior that
+    // destroyed 53 entries of a real project's history in one call.
+    //
+    // Two reasons it is rewritten rather than deleted. (1) A deleted test and a
+    // fixed bug look identical in a suite count. (2) It had ALREADY stopped
+    // testing its own claim: with the phase-being-LEFT recording, that exact
+    // sequence produces one PLAN entry with or without a dedupe, so it passed
+    // for a reason unrelated to its name — a green test guarding nothing.
+    it('is append-only: a re-entered phase is recorded again, not collapsed', async () => {
       await initState(tempDir, 'DISCUSS');
       await transitionPhase(tempDir, 'PLAN');
       await transitionPhase(tempDir, 'EXECUTE');
       await transitionPhase(tempDir, 'VERIFY');
-      // Re-transition through PLAN (recovery scenario): no duplicate PLAN entries.
-      await transitionPhase(tempDir, 'PLAN');
+      await transitionPhase(tempDir, 'PLAN'); // recovery: back to PLAN
+      await transitionPhase(tempDir, 'EXECUTE'); // and forward again
       const state = await readState(tempDir);
-      const planEntries = state.completedPhases.filter((p) => p.startsWith('PLAN'));
-      expect(planEntries).toHaveLength(1);
+      // PLAN was left twice — it genuinely happened twice, so the log says so.
+      const planEntries = state.completedPhases.filter((p) => p.startsWith('PLAN '));
+      expect(planEntries).toHaveLength(2);
+      // Nothing earlier was displaced to make room.
+      expect(state.completedPhases[0]).toMatch(/^DISCUSS /);
+      expect(state.completedPhases).toHaveLength(5);
+    });
+
+    it('quarantines a malformed entry rather than keying on it (B45)', async () => {
+      await initState(tempDir, 'DISCUSS');
+      const statePath = join(tempDir, '.planning', 'STATE.md');
+      const raw = await readFile(statePath, 'utf-8');
+      // Inject the shape that broke a real project: a stray prose line whose
+      // first whitespace token became a phantom phase key.
+      await writeFile(
+        statePath,
+        raw.replace(
+          /^completed_phases:.*$/m,
+          'completed_phases:\n  - "**▶ Active: Slice SEC1"'
+        )
+      );
+      const res = await transitionPhase(tempDir, 'PLAN');
+      expect(res.quarantined).toContain('**▶ Active: Slice SEC1');
+      const state = await readState(tempDir);
+      expect(state.completedPhases).not.toContain('**▶ Active: Slice SEC1');
+      expect(state.completedPhases).toEqual([expect.stringMatching(/^DISCUSS /)]);
     });
 
     it('rejects invalid phase names', async () => {

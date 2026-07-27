@@ -34,7 +34,7 @@ import {
   isEpicCloseByState,
   checkProposedStateWrite,
 } from '../tools/lib/retrospective.js';
-import { readState, transitionPhase } from '../tools/lib/state.js';
+import { readState, transitionPhase, completePhase } from '../tools/lib/state.js';
 
 // A phase ledger spanning many runs — the shape a real linear project reaches.
 // Deliberately built the way a linear project actually builds one: repeating
@@ -155,8 +155,63 @@ describe('linear mode, end to end (COVERAGE-GAP GUARD — FR8)', () => {
     expect(discusses.length).toBeGreaterThan(1); // repeats across units — the shape a dedupe destroys
   });
 
-  // --- Slice 2 extends this file (AC2.1, AC3.3, AC4.4, AC8.2 second count).
-  // The ledger assertions land with the change that makes them pass, per the
-  // atomic-commit rule: a task's commit leaves the suite green. They are NOT
-  // omitted — S2.t1 is their owning task, and the RED proof happens there.
+  // --- AC3.3 / AC8.2 (second count): the ledger survives. -----------------
+  it('preserves a multi-run phase history across a transition (AC3.3, B44)', async () => {
+    const before = await readState(base);
+    expect(before.completed_phases).toHaveLength(LEDGER.length);
+
+    await transitionPhase(base, 'SHIP');
+
+    const after = await readState(base);
+    // On `main` the Map dedupe collapsed 54 entries to one per phase NAME —
+    // every prior unit of work destroyed, silently, with no diff or count.
+    expect(after.completed_phases.length).toBeGreaterThan(LEDGER.length);
+    // Assert the OLDEST entry specifically: a collapse keeps the NEWEST per
+    // key, so a length check alone would pass a subtly wrong implementation.
+    expect(after.completed_phases).toContain('DISCUSS (2026-05-10)');
+    expect(after.completed_phases).toContain('REVIEW (2026-05-10)');
+  });
+
+  // --- AC2.1 / AC2.2: a terminal phase can finally be recorded. -----------
+  it('records SHIP via completePhase, which transitionPhase alone cannot (AC2.2, B43)', async () => {
+    const today = new Date().toISOString().split('T')[0];
+    await transitionPhase(base, 'SHIP');
+
+    const mid = await readState(base);
+    expect(mid.phase).toBe('SHIP');
+    // transitionPhase records the phase LEFT — correct, and why SHIP is
+    // unrecordable by it: SHIP is terminal, nothing ever leaves it.
+    expect(mid.completed_phases).toContain(`REVIEW (${today})`);
+    expect(mid.completed_phases).not.toContain(`SHIP (${today})`);
+
+    const res = await completePhase(base, 'SHIP');
+    expect(res.recorded).toBe(true);
+    const after = await readState(base);
+    expect(after.completed_phases).toContain(`SHIP (${today})`);
+    expect(after.phase).toBe('SHIP'); // records completion, does not transition
+
+    // Idempotent: a re-invoked /sig:ship must not double-record.
+    const again = await completePhase(base, 'SHIP');
+    expect(again.recorded).toBe(false);
+    const final = await readState(base);
+    expect(final.completed_phases.filter((e) => e === `SHIP (${today})`)).toHaveLength(1);
+  });
+
+  // --- AC4.1 / AC4.3 / AC4.4: the live junk entry, quarantined + surfaced. -
+  it('quarantines a malformed entry instead of keying on it (AC4.4, B45)', async () => {
+    const polluted = [...LEDGER];
+    polluted.splice(3, 0, '**▶ Active: Slice SEC1'); // the real 2026-07-26 instance
+    await writeFile(join(base, '.planning', 'STATE.md'), stateFile({ completed: polluted }));
+
+    const res = await transitionPhase(base, 'SHIP');
+
+    // AC4.3 — SURFACED, not silently handled. A silent drop is this Epic's bug.
+    expect(res.quarantined).toContain('**▶ Active: Slice SEC1');
+
+    const after = await readState(base);
+    // AC4.1 — never a phase, and never a phantom key that outlives real history.
+    expect(after.completed_phases).not.toContain('**▶ Active: Slice SEC1');
+    // The real entries are untouched.
+    expect(after.completed_phases).toContain('DISCUSS (2026-05-10)');
+  });
 });

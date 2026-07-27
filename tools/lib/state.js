@@ -362,16 +362,82 @@ function legacyParse(content) {
   return { phase, completedPhases, lastUpdated };
 }
 
+// A well-formed `completed_phases` entry: a known phase name + an ISO date.
+// Anything else is NOT a phase and must never be keyed on (B45).
+const COMPLETED_ENTRY_RE = new RegExp(
+  `^(${PHASES.join('|')}) \\(\\d{4}-\\d{2}-\\d{2}\\)$`
+);
+
 /**
- * Transition to the next phase. Appends the prior phase (with date suffix)
- * to `completed_phases`, dedupes by phase name (most-recent wins so recovery
- * re-transitions don't accumulate duplicates), and writes through the
- * frontmatter serializer + atomic-write + state lock.
+ * Split `completed_phases` into well-formed entries and malformed ones (B45).
+ *
+ * Before M5.E9 nothing validated existing entries — only the `nextPhase`
+ * ARGUMENT was checked — and the dedupe keyed on `entry.split(' ')[0]`. So a
+ * stray prose line keyed on its first whitespace token and became a phantom
+ * phase that survived every future write. The live instance was
+ * `"**▶ Active: Slice SEC1"`, keying on `**▶`.
+ *
+ * Pure and total: never throws, never mutates its input.
+ *
+ * @param {unknown} entries
+ * @returns {{valid: string[], malformed: string[]}}
+ */
+export function partitionCompletedPhases(entries) {
+  const valid = [];
+  const malformed = [];
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    if (typeof entry === 'string' && COMPLETED_ENTRY_RE.test(entry.trim())) {
+      valid.push(entry.trim());
+    } else if (entry !== null && entry !== undefined && String(entry).trim() !== '') {
+      malformed.push(String(entry));
+    }
+  }
+  return { valid, malformed };
+}
+
+// Shared writer for both phase-recording paths. `leaving` is the phase to
+// record complete (null records nothing — a post-Epic-roll `phase: null` has
+// no completed phase to append). Returns the quarantine report so callers can
+// SURFACE it: a state write that silently drops entries is the bug this Epic
+// exists to fix (NFR1).
+async function recordPhase(baseDir, { leaving, nextPhase }) {
+  const state = await readStateForMutation(baseDir);
+  if (!state) {
+    throw new Error('No project state found. Run /sig:new-project first.');
+  }
+  const today = new Date().toISOString().split('T')[0];
+  const prior = state.completed_phases ?? state.completedPhases ?? [];
+  const { valid, malformed } = partitionCompletedPhases(prior);
+
+  // APPEND-ONLY. No dedupe (B44, D-M5E9-5): `completed_phases` is a LOG, and a
+  // re-transition through a phase genuinely did happen twice. The old Map
+  // collapsed the list to one entry per phase NAME, destroying every prior
+  // unit's history the first time any project past its first unit called this.
+  const completed = leaving ? [...valid, `${leaving} (${today})`] : [...valid];
+
+  const payload = stripStateMeta(state);
+  if (nextPhase) payload.phase = nextPhase;
+  payload.completed_phases = completed;
+  payload.last_updated = new Date().toISOString();
+  await writeStateFrontmatter(baseDir, payload);
+  return { quarantined: malformed };
+}
+
+/**
+ * Transition to the next phase. Appends the phase being **LEFT** (with a date)
+ * to `completed_phases` — that is the phase which is actually complete; the
+ * list must never contain a phase still in flight, or `resume.js`'s progress
+ * count and `isEpicCloseByState`'s coverage test both read an unfinished phase
+ * as done.
+ *
+ * Append-only: no dedupe (B44). Malformed entries are quarantined out and
+ * returned rather than keyed on (B45).
  *
  * Auto-upgrades a legacy STATE.md on first call (via readStateForMutation).
  *
  * @param {string} baseDir
  * @param {string} nextPhase
+ * @returns {Promise<{quarantined: string[]}>}
  */
 export async function transitionPhase(baseDir, nextPhase) {
   if (!PHASES.includes(nextPhase)) {
@@ -384,20 +450,44 @@ export async function transitionPhase(baseDir, nextPhase) {
     if (!state) {
       throw new Error('No project state found. Run /sig:new-project first.');
     }
-    const today = new Date().toISOString().split('T')[0];
-    const phaseNameOf = (entry) => entry.split(' ')[0];
-    const priorCompleted = state.completed_phases ?? state.completedPhases ?? [];
-    const seen = state.phase
-      ? [...priorCompleted, `${state.phase} (${today})`]
-      : priorCompleted;
-    const completed = Array.from(
-      new Map(seen.map((entry) => [phaseNameOf(entry), entry])).values()
+    return recordPhase(baseDir, { leaving: state.phase ?? null, nextPhase });
+  });
+}
+
+/**
+ * Record a phase complete WITHOUT transitioning away from it (M5.E9 FR2, B43).
+ *
+ * `transitionPhase` can only record a phase you leave, and **SHIP is terminal**
+ * — nothing transitions out of it — so no `SHIP` completion could ever be
+ * written, in any mode, while `ship.md:96` claimed since v0.1.3 that it was.
+ * `retrospective.js`'s Epic-close detector even documents the symptom in a
+ * comment: *"NOT a `- SHIP` entry (Signal never writes one)"*.
+ *
+ * Idempotent for the same phase + same day, so a re-invoked `/sig:ship` does
+ * not double-record.
+ *
+ * @param {string} baseDir
+ * @param {string} phase
+ * @returns {Promise<{quarantined: string[], recorded: boolean}>}
+ */
+export async function completePhase(baseDir, phase) {
+  if (!PHASES.includes(phase)) {
+    throw new Error(
+      `Invalid phase: ${phase}. Must be one of: ${PHASES.join(', ')}`
     );
-    const payload = stripStateMeta(state);
-    payload.phase = nextPhase;
-    payload.completed_phases = completed;
-    payload.last_updated = new Date().toISOString();
-    await writeStateFrontmatter(baseDir, payload);
+  }
+  return withStateLock(baseDir, async () => {
+    const state = await readStateForMutation(baseDir);
+    if (!state) {
+      throw new Error('No project state found. Run /sig:new-project first.');
+    }
+    const today = new Date().toISOString().split('T')[0];
+    const prior = state.completed_phases ?? state.completedPhases ?? [];
+    if (prior.includes(`${phase} (${today})`)) {
+      return { quarantined: [], recorded: false }; // idempotent same-day re-run
+    }
+    const res = await recordPhase(baseDir, { leaving: phase, nextPhase: null });
+    return { ...res, recorded: true };
   });
 }
 
