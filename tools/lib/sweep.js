@@ -303,22 +303,26 @@ export async function checkPhaseLog(baseDir) {
     );
   }
 
-  // Truncation heuristic: a project with real git history whose ledger holds at
-  // most one entry per phase name is the fingerprint of the pre-M5.E9 collapse.
-  const names = new Set(valid.map((e) => e.split(' ')[0]));
-  if (valid.length >= 2 && names.size === valid.length && !existsSync(join(baseDir, '.planning', 'STATE-HISTORY.md'))) {
-    out.push(
-      mkFinding(
-        'phase-log',
-        'advisory',
-        rel,
-        `completed_phases holds exactly one entry per phase name — the fingerprint of the pre-v0.1.12 ` +
-          `dedupe, which collapsed multi-run histories. If this project ran more than one unit of work, ` +
-          `earlier entries were destroyed. THERE IS NO REPAIR — the entries are gone from the file and ` +
-          `cannot be reconstructed. Nothing further to do; future runs are protected.`
-      )
-    );
-  }
+  // NO TRUNCATION CHECK — deliberately, and this is the second attempt.
+  //
+  // The first implementation flagged "one entry per phase name" as the
+  // fingerprint of the pre-v0.1.12 collapse. REVIEW proved it fires on EVERY
+  // HEALTHY PROJECT: one entry per phase name is exactly what a normal
+  // single run looks like. A mid-run project at VERIFY holding
+  // [DISCUSS, PLAN, EXECUTE] tripped it. Signal's own repo escaped only
+  // because it happens to have a STATE-HISTORY.md.
+  //
+  // Telling a healthy user their history was destroyed is worse than saying
+  // nothing: it is alarming, unactionable, and false. It is the mirror image
+  // of the reassuring lie AC7.4 forbids — a frightening one.
+  //
+  // The deeper point: a past collapse is NOT DETECTABLE from the file. The
+  // evidence was destroyed by the very bug being detected, and a collapsed
+  // list is byte-indistinguishable from a healthy single run. No heuristic
+  // fixes that; a better heuristic would just fail less obviously.
+  //
+  // The disclosure moved to where a one-time fact belongs — the v0.1.12
+  // release notes — instead of a per-run alarm that cries wolf forever.
 
   return out;
 }

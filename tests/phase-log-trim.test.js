@@ -19,6 +19,7 @@ import {
 } from '../tools/lib/state.js';
 import { deriveEpicArchiveDir } from '../tools/lib/evict.js';
 import { isEpicCloseByState } from '../tools/lib/retrospective.js';
+import { checkPhaseLog } from '../tools/lib/sweep.js';
 
 function ledger(runs, startDay = 10) {
   const phases = ['DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW'];
@@ -233,5 +234,50 @@ describe('FR4 — quarantined entries are relocated, not deleted (NFR2, AC4.2)',
     const after = await readState(base);
     expect(after.completed_phases).not.toContain('**▶ Active: Slice SEC1');
     expect(after.completed_phases).toContain('DISCUSS (2026-05-10)'); // real entries untouched
+  });
+});
+
+describe('REVIEW C1 — sweep must not alarm a healthy project', () => {
+  let base;
+  beforeEach(async () => {
+    base = await mkdtemp(join(tmpdir(), 'sig-sweepfp-'));
+    await mkdir(join(base, '.planning'), { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(base, { recursive: true, force: true });
+  });
+
+  it('reports nothing for a normal mid-run project (no false "history destroyed")', async () => {
+    // The shape that broke the first implementation: one entry per phase name,
+    // which is simply what a healthy single run looks like. It was read as the
+    // fingerprint of a past collapse and told the user their history was gone.
+    await writeFile(
+      join(base, '.planning', 'STATE.md'),
+      stateFile({
+        epic: 'M5.E9',
+        phase: 'VERIFY',
+        completed: ['DISCUSS (2026-07-27)', 'PLAN (2026-07-27)', 'EXECUTE (2026-07-27)'],
+      })
+    );
+    expect(await checkPhaseLog(base)).toEqual([]);
+  });
+
+  it('still reports a genuinely malformed entry (the check is not simply disabled)', async () => {
+    await writeFile(
+      join(base, '.planning', 'STATE.md'),
+      stateFile({ phase: 'PLAN', completed: ['**▶ Active: Slice SEC1', 'PLAN (2026-07-27)'] })
+    );
+    const findings = await checkPhaseLog(base);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].severity).toBe('structural');
+  });
+
+  it('still reports a live list longer than one run', async () => {
+    await writeFile(
+      join(base, '.planning', 'STATE.md'),
+      stateFile({ phase: 'PLAN', completed: ledger(3) })
+    );
+    const findings = await checkPhaseLog(base);
+    expect(findings.some((f) => f.severity === 'advisory' && /more than one run/.test(f.message))).toBe(true);
   });
 });
