@@ -2,6 +2,7 @@
 
 > Per-Epic retrospectives, indexed for fast scan. Status flag (*stub* / *complete*) is auto-derived from the presence of `[FILL IN]` markers in the retro file. Hook lines (after the second em-dash) are hand-curated — they survive regeneration by Epic ID.
 
+- [M5.E9](M5.E9-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M5.E7](M5.E7-RETROSPECTIVE.md) — *complete* — the v2 direction audit (BR-8): **45 candidates verbed — 11 builds / 16 continue / 19 abandon**, sequenced M5.E8–M5.E12 and landed in `BACKLOG.md` with triggers, so the roadmap is enforced by a live doc rather than read by nobody. **No code shipped; the deliverable is a decision.** Headline: *Signal cannot detect whether its own interventions work* (no test asserts a prompt instruction was obeyed, against 7-of-12 adherence and a 7.12× output spread on byte-identical code) — so M5.E8 is unconditional-next. **Not one straight port survived**; COMPOUND cut on a falsified premise, `<HARD-GATE>` cut because it isn't a mechanism (C3), and a locked decision was found resting on a ~4.5×-wrong date (C6). **Six counts were wrong until re-derived** — the Epic's own strongest evidence for the ledger-reconcile it proposes. REVIEW (repurposed to attack the reasoning) cut §6.1's self-defence from three arguments to one and gave the falsifier a **date**, since a null result fires no trigger; it also caught `B41`.
 - [M5.E6](M5.E6-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M5.E5](M5.E5-RETROSPECTIVE.md) — *complete* — _(hook pending)_

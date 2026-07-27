@@ -28,6 +28,43 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 - **`B39` caveat, and it applies to every trigger Signal has written down:** the trigger-watchlist walk has **never run** — `/sig:plan` was never taught the drain step the standing entry instructs. **Until M5.E9 lands, a trigger is a note, not an enforcement.**
 - **A dated self-check, not a trigger** — the roadmap's own falsifier (*"M5.E8 lands, measurement shows enforcement is as good as claimed, and the ports still never happen"*) cannot fire on a trigger, because nothing fires on a null result. Landed under M5.E9 as a check dated **2026-10-26**, where silence past the date defaults to *"the reframe was decorative; re-run the roadmap."*
 
+## [0.1.12] — 2026-07-27 — M5.E9 (linear mode can ship; the phase ledger becomes an honest log)
+
+**A project that does not use Epics can run `/sig:ship` again — and the phase ledger stops silently destroying its own history.** Five confirmed bugs closed (`B41`–`B45`), all four of them reported from **outside** Signal's own use rather than found by its suite. 1623 → **1652 tests.**
+
+### `[BREAKING]` — `.planning/STATE.md` `completed_phases` semantics changed
+
+`completed_phases` is now an **append-only log of the current run**, not a set. Three rules, all previously load-bearing and unwritten (now in [`references/state-schema.md`](references/state-schema.md) § "The phase log"):
+
+1. **Append-only.** A phase re-entered during recovery is recorded again. The old `Map` dedupe collapsed the list to one entry per phase name — which destroyed **53 entries of a real project's history in a single call**, silently, with no diff, warning or count.
+2. **An entry records the phase being LEFT.** The list must never contain a phase still in flight: `/sig:resume` counts it against a `/7` denominator and the Epic-close detector tests it with `.some()`. Because **SHIP is terminal**, no ship date could ever be recorded — new **`completePhase(baseDir, phase)`** does that, and `/sig:ship` calls it.
+3. **The live list holds one run; finished runs relocate, never delete.** Linear projects trim at ship → `.planning/STATE-HISTORY.md`. Epic projects archive on roll → `archive/<milestone>/<epic>/STATE-NARRATIVE.md`, **before** the reset that has silently dropped the list since M5.E2.
+
+**No migration needed.** Existing projects converge on the next phase write.
+
+### ⚠ If your project ran more than one unit of work before v0.1.12, earlier phase entries were lost — and there is no recovery
+
+They were removed from `STATE.md` by the dedupe and cannot be reconstructed: the evidence was destroyed by the bug itself, and a collapsed list is byte-indistinguishable from a healthy one. **This is a one-time disclosure, deliberately placed here rather than as a `/sig:sweep` warning** — REVIEW proved any such detector fires on healthy projects too (see below). Future runs are protected; git history may still hold older `STATE.md` revisions.
+
+### Fixed
+
+- **`B42` (P1)** — **a project with no Epics could not run `/sig:ship` at all.** The FR1 retrospective gate hard-halted on `current_epic: null`, before every other step, with the bypass deliberately designed out — while linear mode is documented as first-class in the other six phase commands. **Live since v0.1.3, across nine releases**, invisible because Signal-on-Signal has been Epic-mode since M4.5.E11. The gate is now **Epic-only** (D-M5E9-1): a project with no Epics owes no Epic retrospective. Three gates had to move, not one. **`D-E9-3`'s "no bypass" is unchanged for Epics** — this is a scope, not a bypass, and no flag was added. Supersedes M4.5.E9's `AC1-extended`, annotated in place rather than deleted.
+- **`B43`** — `transitionPhase` could never record a `SHIP` date, because SHIP is terminal and it records the phase being left. `ship.md` claimed the opposite since v0.1.3 while the code carried the truth in a comment. Fixed by `completePhase`, not by inverting the recording.
+- **`B44`** — the dedupe removal above.
+- **`B45`** — existing ledger entries were never validated (only the argument was), so a stray line keyed on its first whitespace token and became a **permanent phantom phase**. Entries are now quarantined — **relocated verbatim, never dropped** — with the count surfaced.
+- **`B41`** — `plan` / `execute` / `verify` / `review` never advanced `phase`, so a command-driven build finished with `completed_phases: [DISCUSS]` while `/sig:status` reported `DISCUSS` throughout. All four now transition **at entry**. `plan.md`'s *"verify current phase is PLAN"* precondition — which **no command could ever satisfy** — is corrected.
+
+### Added
+
+- **`/sig:sweep` reports phase-log health** — malformed entries (structural) and a live list longer than one run (advisory). Read-only, like every sweep check.
+- **`tests/linear-mode-e2e.test.js`** — a labelled **coverage-gap guard** driving the one combination Signal cannot reach from its own development: no Epics, plus a history spanning many units. **16 of 22 new tests fail against the pre-release code**, verified by replay.
+
+### Known limits
+
+- **Nothing proves a phase command obeys its own instruction.** v0.1.12 makes four commands *say* to record their phase; obedience is unmeasurable today and is M5.E8's scope.
+- **`B47`** — `/sig:resume` reads `0/7 phases done` immediately after a linear ship (cosmetic; the archived run is intact and zero-loss-verified).
+- **`B46`** — M5.E7's 45 inbox dispositions were written to a side artifact and never stamped back, so they resurface at every drain.
+
 ## [0.1.11] — 2026-07-25 — Doc-runtime close-out (M5.E6)
 
 The maintenance-command half of the doc-runtime flagship — finishing Signal's self-maintenance so it's locked before the BR-8 v2-port re-audit. Adds one slash command (`/sig:sweep`, **18 commands** now / 26 agents / 21 skills), clears the four M5.E5 carry-over bugs, and closes the FR7 concurrency work. Additive; no breaking changes; no new runtime dependencies; no `.planning/` schema change. 1561 → **1623 tests**; FULL/strict throughout. VERIFY PASS (strict — independent mutation proof-of-fail on the B27/B30/B29 gates); REVIEW PASS (a 3-specialist adversarial panel — code-quality + security OWASP/ASVS-L2 + test-integrity — found **0 Critical, 0 false-greens**).
