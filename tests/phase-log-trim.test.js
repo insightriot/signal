@@ -203,3 +203,35 @@ describe('FR5 — phase-log trim', () => {
     });
   });
 });
+
+describe('FR4 — quarantined entries are relocated, not deleted (NFR2, AC4.2)', () => {
+  let base;
+  beforeEach(async () => {
+    base = await mkdtemp(join(tmpdir(), 'sig-quar-'));
+    await mkdir(join(base, '.planning'), { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(base, { recursive: true, force: true });
+  });
+
+  it('archives a malformed entry verbatim before dropping it from the live list', async () => {
+    await writeFile(
+      join(base, '.planning', 'STATE.md'),
+      stateFile({ phase: 'PLAN', completed: ['**▶ Active: Slice SEC1', ...ledger(1)] })
+    );
+
+    const res = await transitionPhase(base, 'EXECUTE');
+    expect(res.quarantined).toContain('**▶ Active: Slice SEC1');
+
+    // The point of NFR2: it LEFT the live list, so it must have LANDED somewhere.
+    // Returning it to the caller is not enough — a caller that ignores the value
+    // would silently destroy it, which is a smaller copy of the bug being fixed.
+    const history = await readFile(join(base, '.planning', 'STATE-HISTORY.md'), 'utf-8');
+    expect(history).toContain('**▶ Active: Slice SEC1');
+    expect(history).toContain('quarantined entries');
+
+    const after = await readState(base);
+    expect(after.completed_phases).not.toContain('**▶ Active: Slice SEC1');
+    expect(after.completed_phases).toContain('DISCUSS (2026-05-10)'); // real entries untouched
+  });
+});

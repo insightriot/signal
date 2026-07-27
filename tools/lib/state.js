@@ -409,6 +409,19 @@ async function recordPhase(baseDir, { leaving, nextPhase }) {
   const prior = state.completed_phases ?? state.completedPhases ?? [];
   const { valid, malformed } = partitionCompletedPhases(prior);
 
+  // RELOCATE, NEVER DELETE (NFR2). A quarantined entry leaves the live list, so
+  // it must land somewhere first — dropping it would be a smaller version of
+  // the exact bug this Epic exists to fix. Archived BEFORE the write below; if
+  // the archive throws, the write does not happen.
+  if (malformed.length > 0) {
+    await archivePhaseLog(
+      baseDir,
+      malformed,
+      '.planning/STATE-HISTORY.md',
+      `quarantined entries (${today})`
+    );
+  }
+
   // APPEND-ONLY. No dedupe (B44, D-M5E9-5): `completed_phases` is a LOG, and a
   // re-transition through a phase genuinely did happen twice. The old Map
   // collapsed the list to one entry per phase NAME, destroying every prior

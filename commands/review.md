@@ -44,6 +44,14 @@ Load review skills from `${CLAUDE_PLUGIN_ROOT}/skills/review/` per `review_depth
 
 Full load (~12,700 tokens) is the heaviest in the workflow but token-budget analysis confirmed it fits comfortably. `quality-only` cuts the load substantially for FEATURE-tier work.
 
+## Phase entry — record the phase (M5.E9 FR6, `B41`)
+
+**Before any Workflow step**, call `await transitionPhase(baseDir, 'REVIEW')` (`tools/lib/state.js`). It appends the phase being **left** to `completed_phases` and sets `phase: REVIEW`.
+
+**Why this exists.** Until M5.E9 only `calibrate` / `discuss` / `ship` ever called `transitionPhase`. `plan`, `execute`, `verify` and `review` advanced nothing — so a command-driven project finished a full build with `completed_phases: [DISCUSS]`, `phase: SHIP`, and **PLAN / EXECUTE / VERIFY / REVIEW never recorded at all**, while `/sig:status` and `/sig:resume` reported `DISCUSS` for the entire run. `markFresh` then stamped a fresh timestamp over that stale position, turning *stale-and-flagged* into *stale-and-silent*. It survived eleven releases because Signal's own repo maintained these fields **by hand**.
+
+**At entry, not exit** — the position must be true *while* the phase runs, which is what any "current phase is REVIEW" precondition depends on. Surface the returned `{quarantined}` list if non-empty: malformed ledger entries are relocated, never silently dropped.
+
 ## Workflow
 
 **Artifact naming (M4.5.E11).** Name each artifact this phase writes with `artifactName(ARTIFACT, { currentEpic })` (`tools/lib/resume.js`), and resolve ones it reads with `resolveArtifactPath(planningDir, ARTIFACT, { currentEpic, phase })` — `currentEpic` is `current_epic` from STATE. **Epic mode** → `{EpicID}-{ARTIFACT}.md` (e.g. `M4.5.E11-REVIEW.md`); **linear mode** → the `{phase}-{ARTIFACT}.md` forms below, byte-identical to pre-E11. Substitute the `artifactName` result wherever this file writes a literal `.planning/{phase}-*.md` path.

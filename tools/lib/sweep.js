@@ -24,7 +24,13 @@ import {
 import { resolveInboxPath } from './inbox-path.js';
 import { listDrainCandidatesWithRecovery } from './drain.js';
 import { listCommands } from './roster.js';
-import { parseFrontmatter, StateSchemaError } from './state.js';
+import {
+  parseFrontmatter,
+  StateSchemaError,
+  readState,
+  partitionCompletedPhases,
+  PHASES,
+} from './state.js';
 import {
   checkInternalLinks,
   checkFillInStubs,
@@ -234,6 +240,89 @@ const normalizeSeverity = (f) => (SEVERITY_MAP[f.severity] ? { ...f, severity: S
  * @param {string} [baseDir=process.cwd()] — the INVOKING project root
  * @returns {Promise<{findings: Array, signalOnly: {ran: boolean, checks: string[]}}>}
  */
+/**
+ * Phase-log health (M5.E9 FR7, AC7.1/AC7.4). Read-only, like every sweep check.
+ *
+ * Two findings, and they are deliberately NOT the same severity, because one is
+ * fixable and the other is not:
+ *
+ *   - MALFORMED entries → **structural**, and it names the repair command.
+ *     A stray line in `completed_phases` keys on its first whitespace token and
+ *     becomes a permanent phantom phase (`B45`). This is repairable.
+ *
+ *   - a TRUNCATED-looking history → **advisory**, and it says plainly that
+ *     **no repair exists** (AC7.4). Entries destroyed by the pre-M5.E9 dedupe
+ *     are gone from the file; nothing can reconstruct them. Pointing at a fix
+ *     that cannot deliver would be a reassuring lie, which is worse than
+ *     silence — the user would believe the history came back.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<Array<{check:string,severity:string,file:string,message:string}>>}
+ */
+export async function checkPhaseLog(baseDir) {
+  const rel = '.planning/STATE.md';
+  let state;
+  try {
+    state = await readState(baseDir);
+  } catch {
+    return []; // unparseable STATE is another check's problem; never throw here
+  }
+  if (!state) return [];
+
+  const entries = state.completed_phases ?? state.completedPhases ?? [];
+  const { valid, malformed } = partitionCompletedPhases(entries);
+  const out = [];
+
+  if (malformed.length > 0) {
+    const first = String(malformed[0]).slice(0, 60);
+    out.push(
+      mkFinding(
+        'phase-log',
+        'structural',
+        rel,
+        `completed_phases has ${malformed.length} malformed ${malformed.length === 1 ? 'entry' : 'entries'} ` +
+          `(first: "${first}") — before v0.1.12 these became permanent phantom phases. ` +
+          `They are now quarantined automatically on the next phase transition: relocated verbatim to ` +
+          `.planning/STATE-HISTORY.md, never deleted. To clear them now, run /sig:migrate-memory ` +
+          `(dry-run first) for prose-sized entries, or simply run the next phase command.`
+      )
+    );
+  }
+
+  // A live list longer than one run means the trim never ran — the growth half
+  // of the same problem. One run is at most the seven phases.
+  if (valid.length > PHASES.length) {
+    out.push(
+      mkFinding(
+        'phase-log',
+        'advisory',
+        rel,
+        `completed_phases holds ${valid.length} entries — more than one run (max ${PHASES.length}). ` +
+          `It should trim at ship (linear) or on an Epic roll. Recommended: run /sig:migrate-memory.`
+      )
+    );
+  }
+
+  // Truncation heuristic: a project with real git history whose ledger holds at
+  // most one entry per phase name is the fingerprint of the pre-M5.E9 collapse.
+  const names = new Set(valid.map((e) => e.split(' ')[0]));
+  if (valid.length >= 2 && names.size === valid.length && !existsSync(join(baseDir, '.planning', 'STATE-HISTORY.md'))) {
+    out.push(
+      mkFinding(
+        'phase-log',
+        'advisory',
+        rel,
+        `completed_phases holds exactly one entry per phase name — the fingerprint of the pre-v0.1.12 ` +
+          `dedupe, which collapsed multi-run histories. If this project ran more than one unit of work, ` +
+          `earlier entries were destroyed. THERE IS NO REPAIR — the entries are gone from the file and ` +
+          `cannot be reconstructed. Nothing further to do; future runs are protected.`
+      )
+    );
+  }
+
+  return out;
+}
+
 export async function runSweep(baseDir = process.cwd()) {
   const raw = [];
 
@@ -243,6 +332,7 @@ export async function runSweep(baseDir = process.cwd()) {
   raw.push(...(await checkIndexFreshness(baseDir)));
   raw.push(...(await checkStaleInbox(baseDir)));
   raw.push(...checkClaudeMdBloat(baseDir));
+  raw.push(...(await checkPhaseLog(baseDir)));
 
   // Signal-only checks — gated on the plugin manifest (the roster/version/command
   // checks are meaningless in a stranger repo). Canonical path only, never repo
