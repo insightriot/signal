@@ -436,3 +436,57 @@ ceremony — that exact combination is the blind spot all four bugs lived in for
 Signal-on-Signal has been Epic-mode since M4.5.E11 and structurally cannot reach it. **M5.E9's other
 items** (`B36`, `B39`, retro replay, EXECUTE dispatch guidance, SHIP-time ledger reconcile, the dated
 falsifier check) stay in the Epic as later slices — they are not in v0.1.12.
+
+---
+
+## 2026-07-27 — M5.E9 scope: B41 rides along; detect-in-`sweep` / repair-in-`migrate-memory`; the phase list is a log (D-M5E9-3 … D-M5E9-5)
+
+Three follow-on calls, same conversation as D-M5E9-1/2. **D-M5E9-4 corrects a recommendation I had
+just made**, which is the part worth keeping.
+
+**D-M5E9-3 — `B41` ships inside v0.1.12, not the release after.**
+
+`B41` is the only one of the four that is not pure repair: it makes `plan`/`execute`/`verify`/`review`
+start writing a phase they have never written, which every project will notice. The case for holding
+it was a smaller, safer unblock; the case for including it — **ratified** — is that the ordering
+constraint is already handled (it lands *after* the `state.js:388-395` cluster, never before), and
+splitting means every project records an incomplete history for another cycle. One release.
+
+**D-M5E9-4 — Detection belongs in `/sig:sweep`; repair belongs in `/sig:migrate-memory`. `/sig:doctor`
+is out of scope — it diagnoses the plugin install, never the invoking project's docs.**
+
+**Correcting myself:** I recommended teaching `/sig:doctor` to flag junk entries and collapsed
+histories. **Wrong scope, caught by Brett.** `doctor.md`'s own frontmatter is unambiguous — *"Claude
+Code plugin install-state diagnostician… 5 documented failure modes"* — it repairs the **install**,
+not the project. Signal already has the right two commands and they already have the right shapes:
+`/sig:sweep` is the **read-only, project-scoped hygiene reporter** with an existing
+`structural`/`advisory` split, and `/sig:migrate-memory` is the **propose-then-apply repairer**
+(dry-run by default, relocate-never-delete, git-reversible, *"only after the user has eyeballed the
+plan"*). **So the interaction Brett specified — warn, name the command, user agrees, then repair —
+is not a new mechanism; it is the one already built.** No new command.
+
+**The honest split, because the two problems are not equally fixable:** a **junk entry** is
+quarantinable → `sweep` reports it, `migrate-memory` gains a vector that relocates it out of the
+frontmatter. **Already-collapsed history is not recoverable** — the entries are gone from the file
+and no pass can reconstruct them → `sweep` warns that a history looks truncated and says so plainly;
+it must not imply a repair exists. **Both halves are affordable in v0.1.12 precisely because neither
+needs new machinery**, which is what changed my earlier "detection only" recommendation.
+
+**D-M5E9-5 — `completed_phases` is an append-only log, not a set. Keep it in markdown; this is not an
+issue-tracker question. But the log now owes a trim rule.**
+
+The dedupe (`state.js:393-395`) goes — the deletion is bigger than the addition. **Brett's follow-up
+was the right one to ask:** does "log" push Signal toward Linear / GitHub Issues? **No — different
+kind of data.** `completed_phases` is machine state read by commands at runtime; issue trackers hold
+**work items**, which for Signal are [`BUGS.md`](BUGS.md) and [`BACKLOG.md`](BACKLOG.md). That
+question is real and already parked with a trigger (*"GitHub Issues… deferred until Signal has live
+users"*, `BUGS.md` header) — it just lives one file over and is untouched by this call.
+
+**What the log decision does create is an obligation nobody has priced:** unbounded growth. The live
+report is at **53 entries** in YAML frontmatter, and Signal already has a 529 KB `STATE.md` incident
+on record (`B8`). Epic mode is covered by accident — `setCurrentEpic` zeroes the list on every roll —
+and **Epic-close SHIP already evicts STATE narrative to `archive/.../STATE-NARRATIVE.md`
+(`ship.md` §5.5, M5.E1 FR2b). Linear mode has neither.** So v0.1.12 must say **where a linear
+project's phase log gets trimmed and to where**, or the fix trades silent deletion for silent bloat —
+the same failure wearing the opposite mask. Pin it in `references/state-schema.md:128`, which today
+specifies the dedupe without ever stating the scope it assumed.
