@@ -383,3 +383,56 @@ evals), and its Appendix carries **literal unfilled placeholders** where the int
 statistic and the list of controlled confounds should be. **Directional only — no coefficient from
 it is hard-coded into anything.** That is correction **C6**'s rule applied on arrival rather than
 three months late.
+
+---
+
+## 2026-07-27 — M5.E9 goes first, and the retro gate becomes Epic-only (D-M5E9-1, D-M5E9-2)
+
+Both ratified by Brett 2026-07-27, off the `B42`–`B45` catalog. The occasion was an outside report:
+a live `/sig:ship` on **`nextpass`** — a project that has run in **linear mode** (`current_epic:
+null`) its whole life — halted on step zero, and two Signal helpers misbehaved on the same close.
+Three of the four items were Signal's; the fourth (`npm run ship:archive`) belongs to the reporting
+project's own tooling and is recorded as **not Signal's** in [`BUGS.md`](BUGS.md).
+
+**D-M5E9-1 — The FR1 retrospective gate is Epic-only. A linear-mode project owes no retrospective at
+SHIP, and `/sig:ship` must run for it.**
+
+`B42` (**P1**, the ledger's first) is not degraded behavior: `shipFR1Check` hard-halts on
+`current_epic: null` before any Epic-close reasoning, `ship.md:27` runs that check ahead of every
+other step regardless of `gate_strictness`, and `ship.md:41` states there is no bypass. **Linear mode
+is documented as first-class in the other six phase commands** and in `new-project.md:35`. So the
+fix is *"the requirement does not apply,"* not *"design a linear retro obligation now."* The
+alternative — building a milestone-scoped retro path for linear projects — was **considered and
+declined at this point**: it is more design than a P1 unblock warrants, and `resume.js:129` already
+asserts the milestone-scoped shape, so the option stays open as its own decision later.
+
+**This softens D-E9-3's "no bypass" and says so out loud.** D-E9-3 locked the retro gate with no
+flag, no env var, no extra-args trick — and that stands **for Epics**. What D-E9-3 never decided is
+what a project with no Epics owes, and the code silently answered *"it is broken"* rather than *"the
+rule does not reach it."* Two pieces of evidence that the halt was never a deliberate reading: the
+enforcement layers **disagree on the identical condition** (Layer 1 fails closed; Layer 2's
+`checkProposedStateWrite` fails **open** on a null `current_epic`, `retrospective.js:500-502`), and
+`isEpicCloseByState` returns `false` on the same input (`:412`), leaving the whole B26/B30 Epic-close
+machinery dead code in linear mode. **Scope note for whoever implements it:** three gates assume an
+Epic, and `ship.md:34`'s milestone-file derivation runs *before* `shipFR1Check` — fixing only the
+latter leaves ship blocked.
+
+**D-M5E9-2 — M5.E9 runs before M5.E8. The measurement Epic keeps its ID and its slot behind the
+patch release.**
+
+M5.E7 declared **M5.E8 (measurement) unconditional-next** (D-M5E7-8). That holds as *sequence
+intent*, not as a bar on a P1: a defect that fully blocks a documented mode for a real project
+outranks a research Epic, and the unblock is small. **IDs are not resequenced** — `## Vocabulary`
+in [`PROJECT.md`](PROJECT.md) locks ID-as-identity and explicitly anticipates this case (*"M4.t13
+might ship after M4.t17"*), so **M5.E9 shipping before M5.E8 is the rule working, not drift.**
+Recorded here because a future reader hitting E9-before-E8 in the log would otherwise read it as a
+mistake.
+
+**Scope of the release (v0.1.12, per the 0.1.x cadence):** `B42`, then the `state.js:388-395` cluster
+(`B43`+`B44`+`B45`) as one commit, then `B41` — **in that order**, because wiring four more commands
+to `transitionPhase` before the cluster is fixed multiplies the sites where history gets collapsed.
+Plus **one end-to-end test of a linear-mode project with a multi-unit history**: not coverage
+ceremony — that exact combination is the blind spot all four bugs lived in for nine releases, and
+Signal-on-Signal has been Epic-mode since M4.5.E11 and structurally cannot reach it. **M5.E9's other
+items** (`B36`, `B39`, retro replay, EXECUTE dispatch guidance, SHIP-time ledger reconcile, the dated
+falsifier check) stay in the Epic as later slices — they are not in v0.1.12.

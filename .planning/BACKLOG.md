@@ -68,10 +68,16 @@ byte-identical code).
 - **SHIP-time ledger reconcile.** *Slice:* a hygiene test asserting `BUGS.md` holds no `confirmed`
   bug whose fix already shipped. *Done-when:* it fails on a planted violation.
 - **The 14 open bugs** — `B32`–`B36` (`needs-triage`), `B37`–`B45` (`confirmed`). Required by
-  D-M5E7-10; **verified 2026-07-26 that no bug-squash sprint existed anywhere.** *Slice:* **`B42` first
-  (the only `P1`)**, then the `state.js:388-395` cluster as **one commit** (`B43`+`B44`+`B45`, which
-  must land before or with **`B41`**), then `B36` and `B39`. *Done-when:* zero `confirmed` P1/P2
-  entries remain.
+  D-M5E7-10; **verified 2026-07-26 that no bug-squash sprint existed anywhere.** ***Slice 1 = the
+  v0.1.12 release** (ratified 2026-07-27, **D-M5E9-2** — this Epic opens ahead of M5.E8):* **`B42`
+  first** (the only `P1`), then the `state.js:388-395` cluster as **one commit** (`B43`+`B44`+`B45`),
+  then **`B41`** — in that order, plus **one end-to-end test of a linear-mode project with a
+  multi-unit history**. `B36`, `B39` and the rest of this Epic are **later slices, not v0.1.12**.
+  *Done-when (Slice 1):* `/sig:ship` completes on a project with `current_epic: null`, and a
+  multi-unit `completed_phases` survives a `transitionPhase` call intact. *Done-when (Epic):* zero
+  `confirmed` P1/P2 entries remain. **`B42`'s shape is settled — D-M5E9-1: the FR1 retrospective gate
+  is Epic-only, and a linear-mode project owes no retro at SHIP.** The declined alternative (build a
+  milestone-scoped retro path for linear projects now) stays open as its own later decision.
   **`B41` was cataloged by M5.E7 REVIEW (2026-07-26)** and belongs here rather than in M5.E8: four
   phase commands never call `transitionPhase`, so `completed_phases` omits PLAN/EXECUTE/VERIFY/REVIEW
   in any command-driven project while `markFresh` stamps the stale position fresh. **Deterministic and
