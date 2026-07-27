@@ -49,7 +49,19 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 **Live `B36` sighting at this Epic's own SHIP:** the FR1 retro gate **skipped** (`{skipped:true}`) because `MILESTONE-5.md` carried a maintained non-shipped E9 row — the exact stale-row inertia `B36` describes. The retro existed only because it was written before the gate ran. **`B36` is confirmed by dogfooding, not just by reading.**
 
-**▶ OPEN: M5.E8 — the measurement foundation. DISCUSS closed 2026-07-27; NEXT is `/sig:plan`.** Spec: [`M5.E8-REQUIREMENTS.md`](M5.E8-REQUIREMENTS.md) — **6 FRs**, tier **FULL inherited**. Decisions **D-M5E8-1…3**. Epic opened by roll from M5.E9, which **live-fired v0.1.12's new archive-before-reset**: `setCurrentEpic` returned `{archivedPhaseLog: 6}` and M5.E9's complete six-phase run landed verbatim in `archive/M5/E9/STATE-NARRATIVE.md`. Before v0.1.12 those six entries would have been deleted with no copy anywhere.
+**▶ OPEN: M5.E8 — the measurement foundation. DISCUSS + PLAN both closed 2026-07-27.**
+
+**⏭ NEXT: `/sig:execute` — but it is GATED on Brett's approval, which was not given before the context clear.** The plan is written and committed; nothing has been built. Re-read [`M5.E8-PLAN.md`](M5.E8-PLAN.md) and re-ask for the go-ahead before dispatching Wave 1. *(Do not assume approval from the fact that PLAN is complete — that is the failure mode the 2026-07-26 CONTEXT refresh was written to stop.)*
+
+Artifacts: [`M5.E8-REQUIREMENTS.md`](M5.E8-REQUIREMENTS.md) (6 FRs) · [`M5.E8-RESEARCH.md`](M5.E8-RESEARCH.md) · [`M5.E8-PLAN.md`](M5.E8-PLAN.md) (4 slices / 3 waves) · [`M5.E8-VALIDATION.md`](M5.E8-VALIDATION.md) (28 ACs, 3 RED-first). Decisions **D-M5E8-1…3**. Tier FULL inherited. Suite **1652**, validator green, at `25a9e27`.
+
+**Wave plan:** W1 = S1 (publish the coverage ceiling) ∥ S2 (harness skeleton) · W2 = S3 (the control arm — the Epic's real work, split point named) · W3 = S4 (append-only log + ship-checklist anchor).
+
+**The number PLAN produced, which is the thing to carry into EXECUTE:** across all 18 command files there are **202 directive lines**; **22 (10.9%) leave an observable trace, 180 (89.1%) do not.** So the harness can only ever reach ~11% of what Signal instructs — and `execute.md`, `verify.md`, `review.md` and `calibrate.md` name **zero** library calls, meaning **the phases doing the most work are the least measurable.** Publishing that ceiling is **Slice 1**, deliberately ahead of the harness, so the figure cannot be accused of being fitted to the tool. **AC5.3 requires the log to state that the unmeasured remainder is *unmeasured, not passing*** — the sentence most likely to be softened later.
+
+**Named worst case, and it is the desired one:** if `B41`'s phase-entry rule (the first subject, chosen because M5.E9 shipped it unverified) shows **no difference between arms**, Signal will have spent an Epic proving one of its own shipped fixes is **inert**. That is what a real measurement is for. Written down so it is not rediscovered as a crisis mid-EXECUTE and answered by tuning the harness until the number improves.
+
+**Two open safety items from plan validation (F1, F2):** the harness runs a real agent that writes files, so **isolation needs a test** — the catastrophic bug is pointing it at the invoking project and letting an agent edit Signal's own `.planning/` (assigned to S2.t1, reusing `path-confine.js`). And **half this Epic is not suite-testable by construction**: a stub-driven test proves the harness *computes* correctly, never that its answer about a real agent is *true*.
 
 **The question:** does a Signal instruction change what an agent does? **The occasion is not theoretical** — M5.E9 added a phase-entry instruction to four command files and could not prove any agent follows it, and said so in its own test header. Every prompt-shaped port parked in `SIGNAL-V2-ROADMAP.md` is gated on this.
 
