@@ -6,9 +6,23 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased] — 2026-07-28 — The measurement foundation (M5.E8)
+## [0.1.13] — 2026-07-28 — The measurement foundation (M5.E8)
 
-**Signal can now measure whether one of its own instructions changes what an agent does — and it publishes how little of itself that method can reach.** 1652 → **1726 tests**, validator green, eslint clean.
+**Signal can now measure whether one of its own instructions changes what an agent does — and it publishes how little of itself that method can reach.** 1652 → **1736 tests**, validator green, eslint clean.
+
+### The first measurement
+
+```
+canary       B41-phase-entry — call transitionPhase() at phase entry
+as-written   3/3   unanimous
+deleted      0/3   unanimous
+failed runs  0
+VERDICT      OBEYED
+```
+
+**M5.E9's phase-entry fix works.** It shipped in v0.1.12 unverified — M5.E9 labelled that limit in its own test header rather than let a passing test imply otherwise, and that admission is what opened this Epic. The first thing the harness measured is the thing its predecessor could not.
+
+**`OBEYED` means "obeyed when the phase can actually run", not unconditionally** — see `B48` below. Every run record now generates its own scope boundaries (one canary is not a survey; N=3 is a weak split; the verdict is conditional on tool access; the unmeasured remainder is unmeasured, not passing).
 
 ### The number, published before the harness could influence it
 - **`.planning/ADHERENCE-LOG.md`** — of **407 directive lines** across the 18 `commands/*.md`, **91 (22.4%) leave an observable trace; 316 (77.6%) do not.** The split rule is written out in full in `tools/lib/directive-classifier.js`'s header so a reader can disagree with it line by line, and is pinned against a hand-labelled fixture.
@@ -30,6 +44,20 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 - **Half this Epic is not suite-testable by construction** (`M5.E8-VALIDATION` F2). The suite proves the harness **computes** correctly against a stub; it can never prove the harness's answer about a real agent is **true**. A green suite here is not evidence of measured adherence.
 - **The ship-checklist anchor is presence-only.** `commands/ship.md` § 1 gains an adherence line, and a test asserts it exists. It cannot prove a maintainer reads it — labelled in the test file itself, per M5.E9's precedent.
 - **Checklist items are not counted as directives.** Items written as completed states (*"docs/map refreshed if…"*, *"All tests pass"*) fire neither stage-A rule. Found by adding FR6's own checklist line and watching the ceiling not move; now recorded in the classifier's documented limits.
+
+### New bugs, both live in shipped code
+- **`B48`** (**P2**) — **`execute.md`'s phase-entry instruction is unconditional, and an agent refused it on correctness grounds.** Against a project with no PLAN artifact, `/sig:execute` halted at its preconditions and the agent **explicitly declined** the phase-entry write: calling `transitionPhase` there would record `phase: EXECUTE` for a project with nothing to execute and append `PLAN` to `completed_phases` when PLAN produced no artifact — a false record in the very ledger v0.1.12 had just made honest. Obeying the instruction literally corrupts the log; disobeying it reproduces `B41`. **Affects all four commands M5.E9 changed. Live since v0.1.12.** Found by reading a run transcript, not by a verdict.
+- **`B49`** (P3) — `package.json` and the plugin manifest disagreed on the version (`0.1.11` vs `0.1.12`). **Fixed in this release**; both now read `0.1.13`.
+
+### Fixed during REVIEW — every defect was in the measuring instrument
+Four instrument defects, and **each produced a plausible-looking result rather than an error**:
+- **`[CRITICAL]`** The source commit was captured *after* a run rather than before. An arm takes 20+ minutes, so a commit landing mid-run meant two arms measured against **different code** could record the **same sha** and be accepted as a valid pair — defeating the very guard that makes splitting the arms safe. Now captured at start, and a **dirty working tree** is recorded too.
+- A verdict shipped without its scope, authored by hand rather than generated.
+- The test guarding the published number was a substring check that could not detect staleness — while `--check` did the correct comparison and **nothing ever called it.** *Same shape as `B39` and `B46`: a guard written, shipped, and never wired up.*
+- A second writer to the append-only log inherited none of its guarantee.
+
+### `B36` sighted live for the third time
+The FR1 retrospective gate **skipped** at this Epic's own SHIP (`{skipped: true}` — *"not an Epic-close"*), because `MILESTONE-5.md` still carried E8 as `▶ NEXT`. The retro existed only because it was written before the gate ran. Same inertia as at M5.E9's ship. **`B36` is confirmed by dogfooding three times over now, not by reading.**
 
 ## [Unreleased] — 2026-07-26 — The v2 direction audit (M5.E7)
 
