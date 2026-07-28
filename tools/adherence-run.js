@@ -115,7 +115,16 @@ async function confirm(question) {
  * established. That is what the positive control (`--probe`) exists to settle,
  * and no verdict may be emitted until it passes.
  */
-function invokeAgent({ fixtureRoot, pluginRoot, prompt, allowedTools = ['Write'], timeoutMs = 300_000 }) {
+// A canary whose command does real work needs room to finish. The first live
+// re-run timed out every treatment arm at 300s — AFTER the trace had already
+// fired — which the verdict rule (correctly, as written) counts as a failed run
+// and forces to INDETERMINATE. Raising the timeout is an INSTRUMENT setting, not
+// a threshold: the verdict rule in the registry is untouched. Changing that rule
+// after seeing results is the rationalization the pre-declared threshold exists
+// to prevent; changing how long the instrument waits is not.
+const DEFAULT_RUN_TIMEOUT_MS = 900_000;
+
+function invokeAgent({ fixtureRoot, pluginRoot, prompt, allowedTools = ['Write'], timeoutMs = DEFAULT_RUN_TIMEOUT_MS }) {
   // Tool access is granted narrowly and explicitly. The probe needs only Write;
   // widening this is a deliberate act, not a default, even though the fixture is
   // an asserted-isolated temp dir.
