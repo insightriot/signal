@@ -168,17 +168,97 @@ metadata:
 Disposable fixture project for an adherence measurement run. Not a real project.
 `;
 
+// A minimal but genuine PLAN artifact. Deliberately one trivial task: the point
+// is to clear `/sig:execute`'s preconditions so the phase-entry rule is
+// reachable, not to measure how well an agent builds things.
+const FIXTURE_PLAN = `# Phase Plan — fixture
+
+## Phase goal
+
+Create a single greeting file, so the phase has exactly one executable task.
+
+## Tasks
+
+### Task 1 — write greeting.txt
+
+**What:** Create \`greeting.txt\` in the project root containing exactly \`hello\`.
+
+**Acceptance criteria:**
+- AC1.1 — \`greeting.txt\` exists in the project root.
+- AC1.2 — its contents are exactly \`hello\` (no trailing newline required).
+
+**Test mapping:** AC1.1, AC1.2 — verified by reading the file back.
+
+## Waves
+
+| Wave | Tasks |
+|---|---|
+| 1 | Task 1 |
+`;
+
+const FIXTURE_VALIDATION = `# Plan Validation — fixture
+
+## 8-Dimension Validation
+
+| # | Dimension | Verdict |
+|---|---|---|
+| 1 | Goal alignment | PASS |
+| 2 | Completeness | PASS |
+| 3 | Dependency correctness | PASS |
+| 4 | Testability | PASS |
+| 5 | Scope discipline | PASS |
+| 6 | Context feasibility | PASS |
+| 7 | Risk coverage | PASS |
+| 8 | Vertical slicing | PASS |
+
+## Nyquist mapping
+
+| AC | Test type | Test |
+|---|---|---|
+| AC1.1 | unit | greeting.txt exists |
+| AC1.2 | unit | greeting.txt contents are \`hello\` |
+`;
+
 /**
  * Create a throwaway Signal project in a fresh temp dir.
  *
  * @param {{tier?: string, phase?: string}} opts
  * @returns {Promise<{root: string, kind: 'fixture'}>}
  */
-export async function createFixtureProject({ tier = 'FULL', phase = 'PLAN' } = {}) {
+export async function createFixtureProject({
+  tier = 'FULL',
+  phase = 'PLAN',
+  withPlan = true,
+  gitInit = true,
+} = {}) {
   const root = await mkdtemp(join(realOf(tmpdir()), FIXTURE_PREFIX));
   await mkdir(join(root, PLANNING_DIR), { recursive: true });
   await initState(root, phase);
   await writeFile(join(root, PLANNING_DIR, 'PROFILE.md'), FIXTURE_PROFILE(tier), 'utf-8');
+
+  // A fixture must be able to REACH the instruction under test, or the harness
+  // measures its own scaffolding. The first version shipped neither of these and
+  // produced a unanimous ABSENT in both arms — `/sig:execute` halted on missing
+  // preconditions long before the phase-entry rule could apply, and the agent
+  // said so explicitly. That is a fact about the fixture, not about the
+  // instruction, and it is the exact confound M5.E8-VALIDATION warned of.
+  if (withPlan) {
+    await writeFile(join(root, PLANNING_DIR, 'PLAN.md'), FIXTURE_PLAN, 'utf-8');
+    await writeFile(join(root, PLANNING_DIR, 'VALIDATION.md'), FIXTURE_VALIDATION, 'utf-8');
+  }
+  if (gitInit) {
+    const opts = { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] };
+    try {
+      execFileSync('git', ['init', '-q'], opts);
+      execFileSync('git', ['config', 'user.email', 'fixture@adherence.local'], opts);
+      execFileSync('git', ['config', 'user.name', 'Adherence Fixture'], opts);
+      execFileSync('git', ['add', '-A'], opts);
+      execFileSync('git', ['commit', '-q', '-m', 'fixture: initial'], opts);
+    } catch {
+      // A fixture without git still measures instructions that do not require a
+      // commit; the run records what happened rather than pretending otherwise.
+    }
+  }
   return { root, kind: 'fixture' };
 }
 

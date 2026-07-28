@@ -28,7 +28,7 @@
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -72,7 +72,7 @@ function currentCommit() {
 }
 
 function parseArgs(argv) {
-  const args = { command: null, canary: null, allCanaries: false, runs: 3, dryRun: false, yes: false, keep: false, probe: false };
+  const args = { command: null, canary: null, allCanaries: false, runs: 3, dryRun: false, yes: false, keep: false, probe: false, transcripts: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--canary') args.canary = argv[++i];
@@ -83,6 +83,7 @@ function parseArgs(argv) {
     else if (a === '--yes' || a === '-y') args.yes = true;
     else if (a === '--keep') args.keep = true;
     else if (a === '--probe') args.probe = true;
+    else if (a === '--transcripts') args.transcripts = argv[++i];
   }
   return args;
 }
@@ -312,7 +313,7 @@ async function main() {
 }
 
 /** One arm: N runs, each on a fresh fixture, returning per-run trace booleans. */
-async function runArm({ canary, arm, runs, allowedTools }) {
+async function runArm({ canary, arm, runs, allowedTools, transcriptDir }) {
   const results = [];
   let failedRuns = 0;
 
@@ -343,6 +344,21 @@ async function runArm({ canary, arm, runs, allowedTools }) {
     if (failed) failedRuns++;
     const hit = traceHit(diff, canary.trace.field);
     results.push(hit);
+
+    // Retain the transcript for EVERY run, not only failures. `absent` is the
+    // verdict that most needs a reason — a run can exit 0, produce no trace, and
+    // the only evidence of WHY is what the agent said. The first version of this
+    // logged output on non-zero exit only, which meant a clean 0/3 arrived with a
+    // verdict and no way to explain it.
+    if (transcriptDir) {
+      mkdirSync(transcriptDir, { recursive: true });
+      writeFileSync(
+        join(transcriptDir, `${canary.id}-${arm}-${i}.txt`),
+        `exit=${res.status} timedOut=${res.timedOut} traceHit=${hit}\n` +
+        `diff=${JSON.stringify(diff, null, 2)}\n\n--- stdout ---\n${res.stdout}\n--- stderr ---\n${res.stderr}\n`,
+        'utf-8'
+      );
+    }
 
     console.log(
       `  ${arm.padEnd(9)} run ${i}/${runs}  trace=${hit ? 'YES' : 'no '}  exit=${res.status}${res.timedOut ? ' TIMEOUT' : ''}`
@@ -404,8 +420,10 @@ async function runCanary(args) {
   console.log(`Seam probe    ${seamProven ? 'PASS — the copied tree is the one read' : 'FAIL'}\n`);
 
   const ALLOWED = ['Write', 'Edit', 'Read', 'Bash'];
-  const treatment = await runArm({ canary, arm: 'treatment', runs: args.runs, allowedTools: ALLOWED });
-  const control = await runArm({ canary, arm: 'control', runs: args.runs, allowedTools: ALLOWED });
+  const transcriptDir = args.transcripts ?? null;
+  if (transcriptDir) console.log(`Transcripts   ${transcriptDir}\n`);
+  const treatment = await runArm({ canary, arm: 'treatment', runs: args.runs, allowedTools: ALLOWED, transcriptDir });
+  const control = await runArm({ canary, arm: 'control', runs: args.runs, allowedTools: ALLOWED, transcriptDir });
 
   const t = summarizeArm(treatment.results);
   const c = summarizeArm(control.results);

@@ -60,3 +60,19 @@ harness run as evidence about the whole corpus will not find it here.
 <!-- adherence:ceiling:end -->
 
 <!-- adherence:runs -->
+### 2026-07-28 · `B41-phase-entry` · **ABSENT**
+
+| | |
+|---|---|
+| Commit | `22aeb23` |
+| Command | `/sig:execute` |
+| Trace | `phaseChanged` |
+| Surface | claude 2.1.220 (Claude Code) · claude-opus-5 |
+| Runs per arm | 3 |
+| Seam precondition | PASS — the mutated tree is the one the agent read |
+| as-written (treatment) | **0/3** unanimous |
+| instruction deleted (control) | **0/3** unanimous |
+| Failed runs | 0 |
+
+**ABSENT** — the trace appeared in neither arm — nothing happened; check whether the fixture reached the instruction at all.
+
