@@ -76,3 +76,33 @@ harness run as evidence about the whole corpus will not find it here.
 
 **ABSENT** — the trace appeared in neither arm — nothing happened; check whether the fixture reached the instruction at all.
 
+### 2026-07-28 · `B41-phase-entry` · **OBEYED**
+
+| | |
+|---|---|
+| Commit | `f3ca9b2` |
+| Command | `/sig:execute` |
+| Trace | `phaseChanged` |
+| Surface | claude 2.1.220 (Claude Code) · claude-opus-5 |
+| Runs per arm | 3 |
+| Seam precondition | PASS — the mutated tree is the one the agent read |
+| as-written (treatment) | **3/3** unanimous |
+| instruction deleted (control) | **0/3** unanimous |
+| Failed runs | 0 |
+
+**OBEYED** — the trace appears only with the instruction present — the instruction changed what the agent did.
+
+> ### ⚠ INVALIDATED — the `ABSENT` record at commit `22aeb23` above
+>
+> **The fixture could not reach the instruction, so this measured the scaffolding, not the rule.**
+> 
+> The fixture project shipped a PROFILE and a STATE and nothing else. `/sig:execute` halted on two genuine preconditions — no PLAN artifact, and not a git repository — long before the phase-entry rule could apply. Both arms scored no-trace for a reason with nothing to do with the instruction.
+> 
+> **This run is also the most valuable one in the Epic.** Its transcript is where `B48` was found: the agent did not overlook the instruction, it read it and *explicitly refused* it, because calling `transitionPhase` on a halted phase would write a false record into the very ledger M5.E9 had just made honest. The verdict was uninformative; the artifact captured beside it was not.
+> 
+> **Superseded by the `OBEYED` record at commit `f3ca9b2`**, run against a fixture carrying a PLAN + VALIDATION artifact and an initialised git repo.
+>
+> *Left in place byte-identical rather than removed. This log is append-only: a
+> wrong answer that is deleted cannot be audited, and the run that produced this
+> one was the most informative of the Epic.*
+

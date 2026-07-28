@@ -166,6 +166,32 @@ export async function appendRunRecord(baseDir, record, { date, commit } = {}) {
   return { path };
 }
 
+/**
+ * Mark an earlier run record as invalidated — by APPENDING a notice, never by
+ * editing the record.
+ *
+ * This is the same rule `DECISIONS.md` states at its top: when something is
+ * reversed, add an entry noting the reversal; do not edit the old one. A log
+ * that quietly deletes its own wrong answers cannot be audited, and "the run
+ * that was wrong" is often the most informative thing in it — M5.E8's invalid
+ * ABSENT run is what surfaced `B48`.
+ */
+export async function appendInvalidation(baseDir, { commit, verdict, reason }) {
+  const path = join(baseDir, PLANNING_DIR, ADHERENCE_LOG);
+  const existing = await readFile(path, 'utf-8');
+  const note = `> ### ⚠ INVALIDATED — the \`${verdict}\` record at commit \`${commit}\` above
+>
+> ${reason.split('\n').join('\n> ')}
+>
+> *Left in place byte-identical rather than removed. This log is append-only: a
+> wrong answer that is deleted cannot be audited, and the run that produced this
+> one was the most informative of the Epic.*
+
+`;
+  await atomicWrite(path, `${existing}${existing.endsWith('\n') ? '' : '\n'}${note}`);
+  return { path };
+}
+
 const HEADER = `# Adherence Log
 
 Signal's measurement record: what its own instructions actually cause an agent to do.
