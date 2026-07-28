@@ -207,9 +207,13 @@ degraded mode, which is precisely the status-marker fallback of §6 item 4.
 **Signal (this repo):**
 - ~~`RETROSPECTIVES.md` missing M5.E8~~ — **fixed 2026-07-28** (regen run + hand-written hook). The
   freshness check (§6 item 8) is still unbuilt.
-- Stale citation: `AGENT-EFFECTIVENESS-ALIGNMENT.md` and the ISSUES-INBOX self-critique entry both cite
-  `commands/verify.md:64-66`; M5.E9's phase-entry block shifted the report instruction to ~`:72-74`.
-  Cosmetic, fix on next touch.
+- ~~Stale citation: `AGENT-EFFECTIVENESS-ALIGNMENT.md` and the ISSUES-INBOX self-critique entry both
+  cite `commands/verify.md:64-66`~~ — **fixed 2026-07-28 in `AGENT-EFFECTIVENESS-ALIGNMENT.md`**, and
+  re-cited by **section name** (§5 "Write Verification Report") rather than re-pinned to the current
+  line numbers, because a line cite rots on the next edit — this one rotted at M5.E9. The ISSUES-INBOX
+  copy is left as-is: it is a dated verbatim capture, not a live reference. *Generalizable:* prefer
+  section/symbol cites over line cites in `analysis/`; this is the cheap half of `B40` (citation
+  integrity unenforceable by construction) and of M5.E12's `verified-against:` stamps.
 
 **traction-engine (fix there, not here — listed so no agent re-trusts them):**
 - `.planning/PHASE11-VALIDATION.md:36` — still reads "2 NFRs, 0 gaps"; named as the NFR-9.2 root by two

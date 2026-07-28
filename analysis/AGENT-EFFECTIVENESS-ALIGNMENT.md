@@ -123,7 +123,7 @@ Signal has two adjacent things that are not this: `agents/researchers/assumption
 at **PLAN** time against the *approach*, and `skills/build/source-driven-development/SKILL.md:155`
 flags unverified **documentation claims**. Neither is a post-implementation self-critique.
 
-`commands/verify.md:64-66` says only *"Generate the VERIFICATION artifact with results"* — no
+`commands/verify.md` §5 *"Write Verification Report"* says only *"Generate the VERIFICATION artifact with results"* — no
 template, therefore no required "what this could not establish" section. **Signal did exactly this
 by hand in `M5.E7-VERIFICATION.md` §4** and it was among that Epic's most useful outputs. It is a
 practice Signal reaches for under pressure, not an instruction it carries.
