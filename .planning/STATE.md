@@ -38,7 +38,7 @@ last_updated: 2026-07-28T19:04:49.106Z
 
 ## In-flight
 
-**M5.E13 — "Guards that don't guard", phase DISCUSS.** Opened 2026-07-28; `current_epic` rolled `M5.E8 → M5.E13` and reset the ledger, so `completed_phases` is empty and fills as this Epic's own phases close. M5.E8's complete six-phase ledger (DISCUSS→SHIP) archived on the roll — the first one written entirely by the commands rather than by hand, which is `B41`'s fix working on Signal itself.
+**M5.E13 — "Guards that don't guard", phase DISCUSS.** Opened 2026-07-28; `current_epic` rolled `M5.E8 → M5.E13` and reset the ledger, so `completed_phases` is empty and fills as this Epic's own phases close. M5.E8's complete six-phase ledger (DISCUSS→SHIP) — the first written entirely by the commands rather than by hand, which is `B41`'s fix working on Signal itself — **[CORRECTED: this line originally claimed it was "archived on the roll"; it was NOT]**. The roll **silently discarded it** (`B52`): this session ran `state.js` from the **v0.1.11 plugin cache**, which predates M5.E9's archive-on-roll step. **Recovered verbatim from git and restored** to [`archive/M5/E8/STATE-NARRATIVE.md`](archive/M5/E8/STATE-NARRATIVE.md), zero entries lost.
 
 **Next command:** `/sig:plan`. Open questions PLAN must settle are named in `M5.E13-REQUIREMENTS.md` § "Open questions for PLAN" — whether FR1.2's refusal belongs in `recordPhase` or `transitionPhase`, and whether `B39` is fixed by implementing the watchlist walk or by retiring the standing entry that claims one happens.
 
