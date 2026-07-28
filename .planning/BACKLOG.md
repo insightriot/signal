@@ -201,9 +201,12 @@ record: [`../analysis/CLAIM-INTEGRITY-ANALYSIS.md`](../analysis/CLAIM-INTEGRITY-
 >
 > **Recorded as a `B50` sighting, not just a typo** — a status claim ("already claimed", "in-flight")
 > written from the author's mental model rather than checked against the artifact, in a commit made
-> the same day the class was named. **Fourth sighting in one session**, after M5.E8's retro mechanism
-> (covered 1 of its own 3 instances), this class's own inbox capture (filed with a body-less "Logged"
-> status line), and this. The class is not historical.
+> the same day the class was named. **Fourth sighting on one day (2026-07-28)** — enumerated so the
+> count matches its own list, since an unenumerated tally is the class in miniature: (1)
+> `RETROSPECTIVES.md` presented as the complete retro index while missing M5.E8 entirely
+> (`CLAIM-INTEGRITY-ANALYSIS.md` §8; fixed same day); (2) M5.E8's retro mechanism, which covers 1 of
+> its own 3 instances (**D-M5E13-3**); (3) this class's own inbox capture, filed with a body-less
+> *"Logged"* status line; (4) this ID note. The class is not historical.
 
 **The argument:** "closed" in a tracker is an *event* — actor, timestamp, audit trail; in markdown
 it is a string an agent rewrites wholesale on every edit (the `B41`–`B45` shape, aimed at status).
