@@ -176,6 +176,18 @@ name before the shape.
 
 ### M5.E12 — Project-facing currency
 **Tag:** roadmap · **Trigger: M5.E11 lands**, or a doc-drift incident in a Signal-built project.
+**⚠ The second condition has a candidate instance — checked 2026-07-28, not yet adjudicated.**
+On `traction-engine`, Curator's `.planning/INDEX.md` listed Phases 7–11 as *archived, closed* —
+linking to directories that do not exist — while Phase 11 was the current phase, edited that day;
+its post-commit hook rendered *proposed* archive moves as completed and rewrote the file every
+commit (~40 of 53 "integrity issues" were orphan advisories caused by that false belief). Removed
+by pulling Curator (`traction-engine` `f09c11b`), so **the incident is closed; what is open is
+whether it fires this Epic ahead of M5.E11.** Caveat against over-claiming: the drift was authored
+by an *external* tool contending for a Signal-owned file, not by Signal's own generator — the fix
+was tool removal, and this Epic's scope (index the project's own `docs/`) would not have prevented
+it. **Brett's call.** Recorded here because a checked-and-declined trigger must be distinguishable
+from an unchecked one (`B39`). Migration guidance shipped meanwhile:
+[`../docs/migration-curator-to-signal.md`](../docs/migration-curator-to-signal.md).
 *The insight that makes it cheap:* this is Signal's doc-runtime **pointed outward at the project**
 instead of inward at `.planning/` — the work is **retargeting, not inventing.**
 - **Accurate, agent-navigable docs for the codebase and its external services.** Supersedes in scope
