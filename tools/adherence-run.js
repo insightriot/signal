@@ -72,6 +72,37 @@ function currentCommit() {
   }
 }
 
+/**
+ * Is the working tree dirty? A run against uncommitted changes records a commit
+ * sha that does not describe the code that actually ran, which quietly breaks
+ * AC4.3 (reproducibility) — the record would name a state nobody can return to.
+ */
+function isTreeDirty() {
+  try {
+    return execFileSync('git', ['status', '--porcelain'], { cwd: ROOT, encoding: 'utf-8' }).trim() !== '';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Capture the source state at the START of a measurement, never at the end.
+ *
+ * An arm takes 20+ minutes. Calling currentCommit() when the results are WRITTEN
+ * records whatever HEAD happens to be then — not what ran. Two consequences, the
+ * second serious:
+ *
+ *   - AC4.3 breaks quietly: the record names a commit that is not the measured code.
+ *   - `--combine`'s guard is DEFEATED. It refuses to pair arms from different
+ *     commits, which is the property that makes splitting the arms safe. But if a
+ *     commit lands mid-run, two arms measured against DIFFERENT code can record
+ *     the SAME sha and be accepted as a valid pair — the exact failure the guard
+ *     exists to prevent, inverted.
+ */
+function captureSourceState() {
+  return { commit: currentCommit(), dirty: isTreeDirty() };
+}
+
 function parseArgs(argv) {
   const args = { command: null, canary: null, allCanaries: false, runs: 3, dryRun: false, yes: false, keep: false, probe: false, transcripts: null, arm: null, combine: null, skipProbe: false };
   for (let i = 0; i < argv.length; i++) {
@@ -428,6 +459,9 @@ async function runSingleArm(args) {
     throw err;
   }
 
+  // Captured BEFORE the runs, not after them. See captureSourceState().
+  const source = captureSourceState();
+
   const seamProven = args.skipProbe ? null : await probeSeam({ quiet: true });
   if (seamProven === false) {
     console.error('Seam probe FAILED — refusing to run an arm whose mutation may not reach the agent.');
@@ -435,6 +469,7 @@ async function runSingleArm(args) {
   }
 
   console.log(`\nArm: ${args.arm} · ${canary.id} · ${args.runs} runs · claude ${surface.cliVersion} · ${surface.model}`);
+  console.log(`Source        ${source.commit}${source.dirty ? ' (WORKING TREE DIRTY — this run is not reproducible from the sha)' : ''}`);
   console.log(`Seam probe    ${seamProven === null ? 'SKIPPED (--skip-probe)' : 'PASS'}\n`);
 
   const { results, failedRuns } = await runArm({
@@ -447,7 +482,7 @@ async function runSingleArm(args) {
     join(transcriptDir, `${canary.id}-${args.arm}-results.json`),
     JSON.stringify({
       canary: canary.id, arm: args.arm, results, failedRuns, summary,
-      commit: currentCommit(), surface, runsPerArm: args.runs, seamProven,
+      commit: source.commit, dirty: source.dirty, surface, runsPerArm: args.runs, seamProven,
     }, null, 2),
     'utf-8'
   );
@@ -509,6 +544,12 @@ async function combineArms(args) {
     treatment: treatment.summary, control: control.summary,
     failedRuns: treatment.failedRuns + control.failedRuns,
     seamProven, surface: treatment.surface, runsPerArm: treatment.runsPerArm,
+    caveats: buildCaveats({
+      canary,
+      runsPerArm: treatment.runsPerArm,
+      dirty: Boolean(treatment.dirty || control.dirty),
+      allowedTools: ['Write', 'Edit', 'Read', 'Bash'],
+    }),
   }, { commit: treatment.commit });
   console.log(`\nAppended to .planning/${ADHERENCE_LOG}\n`);
 }
@@ -559,6 +600,7 @@ async function runCanary(args) {
   console.log(`Seam probe    ${seamProven ? 'PASS — the copied tree is the one read' : 'FAIL'}\n`);
 
   const ALLOWED = ['Write', 'Edit', 'Read', 'Bash'];
+  const source = captureSourceState();
   const transcriptDir = args.transcripts ?? null;
   if (transcriptDir) console.log(`Transcripts   ${transcriptDir}\n`);
   const treatment = await runArm({ canary, arm: 'treatment', runs: args.runs, allowedTools: ALLOWED, transcriptDir });
@@ -600,9 +642,36 @@ async function runCanary(args) {
     seamProven,
     surface: { cliVersion: surface.cliVersion, model: surface.model },
     runsPerArm: args.runs,
+    caveats: buildCaveats({ canary, runsPerArm: args.runs, dirty: source.dirty, allowedTools: ALLOWED }),
   };
-  await appendRunRecord(ROOT, record, { commit: currentCommit() });
+  await appendRunRecord(ROOT, record, { commit: source.commit });
   console.log(`Appended to .planning/${ADHERENCE_LOG}\n`);
+}
+
+/**
+ * The scope boundaries every verdict carries. Generated, not remembered — the
+ * OBEYED record shipped without them and needed an appended correction.
+ */
+function buildCaveats({ canary, runsPerArm, dirty, allowedTools }) {
+  const out = [
+    `**One canary is not a survey.** This is a fact about \`${canary.id}\` in \`commands/${canary.command}.md\`, not evidence about Signal's instructions generally.`,
+    `**Tool access is part of the claim.** The agent ran with \`--allowedTools ${allowedTools.join(' ')}\`. An instruction that needs a tool the user denies cannot be obeyed regardless of wording.`,
+    '**The unmeasured remainder is unmeasured, not passing** — see the coverage ceiling above.',
+  ];
+  if (runsPerArm <= 3) {
+    out.push(
+      `**N=${runsPerArm} is a weak split.** A perfect separation of ${runsPerArm * 2} runs is roughly p=0.05 by permutation. Clean, not deep.`
+    );
+  }
+  if (canary.deleteSection) {
+    out.push(
+      `**The control removed a whole section** (\`${canary.deleteSection.trim()}\`), so anything else stated in it was removed too. Read that section before attributing the difference to this instruction alone.`
+    );
+  }
+  if (dirty) {
+    out.push('**The working tree was DIRTY at run time** — the recorded commit does not fully describe the code that ran, and this run is not reproducible from the sha alone.');
+  }
+  return out;
 }
 
 const VERDICT_NOTE = {
