@@ -31,9 +31,19 @@
       "declaredAt": "2026-07-28",
       "command": "execute",
       "instruction": "Before any Workflow step, call `await transitionPhase(baseDir, 'EXECUTE')` at phase entry.",
-      "deleteLine": "call `await transitionPhase(baseDir, 'EXECUTE')`",
+      "deleteSection": "## Phase entry — record the phase (M5.E9 FR6, `B41`)",
+      "$deletionNote": [
+        "SECTION-level, not line-level, and the difference decided a verdict.",
+        "The first control arm deleted only the imperative line. That left the section heading",
+        "('Phase entry — record the phase') plus two paragraphs naming `transitionPhase` and",
+        "explaining exactly when to call it — so the 'instruction-deleted' arm still contained the",
+        "instruction three more times. Its first live run produced the trace and would have been",
+        "recorded as INERT: 'M5.E9's fix does nothing.' It was not inert; the control was not a",
+        "control. A test now asserts the mutated file does not mention the function at all."
+      ],
       "trace": {
         "field": "phaseChanged",
+        "functionName": "transitionPhase",
         "expect": "STATE.md `phase` advances to EXECUTE, and `completed_phases` grows by the phase being left",
         "secondaryField": "completedPhasesGrew"
       },

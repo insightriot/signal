@@ -108,6 +108,44 @@ export function resolveVerdict({
 }
 
 /**
+ * Delete a whole markdown section — the heading and everything under it, up to
+ * the next heading of the same or higher level.
+ *
+ * WHY THIS EXISTS, and it is the most important comment in this file.
+ *
+ * The control arm originally deleted a single LINE. For the `B41` canary that
+ * left behind the section heading ("## Phase entry — record the phase") and two
+ * further paragraphs that named `transitionPhase` and explained precisely when
+ * and why to call it. The first live control run produced the trace — and would
+ * have been recorded as INERT, i.e. "M5.E9's fix does nothing".
+ *
+ * It was not inert. The instruction was still in the file. A one-line deletion is
+ * not a control when the surrounding prose repeats the instruction, and Signal's
+ * command files are written exactly that way: an instruction, then its rationale,
+ * then its timing rule. The false verdict would have been indistinguishable from
+ * a real finding — and the plan had pre-committed to accepting `inert` without
+ * alarm, which is what would have carried it into the log.
+ */
+export function applySectionDeletion(source, headingLine) {
+  const lines = source.split('\n');
+  const start = lines.findIndex(l => l.trim() === headingLine.trim());
+  if (start === -1) {
+    throw new Error(
+      `applySectionDeletion: section not found — no line equals ${JSON.stringify(headingLine)}. ` +
+      'Deleting nothing would leave both arms identical, which reads as INERT.'
+    );
+  }
+  const level = (lines[start].match(/^#+/) ?? ['#'])[0].length;
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    const m = lines[i].match(/^(#+)\s/);
+    if (m && m[1].length <= level) { end = i; break; }
+  }
+  lines.splice(start, end - start);
+  return lines.join('\n');
+}
+
+/**
  * Did one run produce the canary's declared trace?
  *
  * The field name comes from the registry and was declared before any run

@@ -49,6 +49,7 @@ import {
 import {
   CANARY_REGISTRY_PATH,
   applyDeletion,
+  applySectionDeletion,
   loadCanaryRegistry,
   resolveVerdict,
   summarizeArm,
@@ -340,7 +341,21 @@ async function runArm({ canary, arm, runs, allowedTools, transcriptDir }) {
     // The control arm deletes the instruction — from the COPY only (AC2.4).
     if (arm === 'control') {
       const target = join(plugin.root, 'commands', `${canary.command}.md`);
-      const mutated = applyDeletion(readFileSync(target, 'utf-8'), canary.deleteLine);
+      const src = readFileSync(target, 'utf-8');
+      const mutated = canary.deleteSection
+        ? applySectionDeletion(src, canary.deleteSection)
+        : applyDeletion(src, canary.deleteLine);
+
+      // Belt and braces: the control arm must not still contain the instruction.
+      // A one-line deletion once left the surrounding rationale intact and the
+      // resulting trace would have been recorded as INERT.
+      const residue = canary.trace.functionName;
+      if (residue && mutated.includes(residue)) {
+        throw new Error(
+          `Control arm is not a control: commands/${canary.command}.md still mentions ` +
+          `${residue} after the mutation. Any verdict from this run would be void.`
+        );
+      }
       writeFileSync(target, mutated, 'utf-8');
     }
 
