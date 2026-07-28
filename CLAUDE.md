@@ -41,6 +41,7 @@ Key supporting docs:
 - `analysis/REPO-ANALYSIS.md` — landscape analysis of 7 AI-dev plugins; the seed of Signal.
 - `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` — v2 vision (10-phase architecture).
 - `analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md` — Signal vs. external field evidence (Span, *Beyond the Model*, Q3 2026). Strong on prompt clarity + quality stewardship; **environment readiness is the absent axis**, and it is blocked on a permission model (`/sig:permissions`), not on a one-off exception. M5.E8 stays scoped to instruction-adherence.
+- `analysis/CLAIM-INTEGRITY-ANALYSIS.md` — the second defect class, named (2026-07-28): **completeness claims written from the shape of the work rather than from the artifact.** Field evidence from traction-engine Phase 11 (five false coverage claims in one FULL-tier phase; every catch incidental); Signal-side causes traced to `verify.md`/`review.md`/validators. Ranked fixes homed at **M5.E10** (trigger satisfied) + a tracker-integration epic (GitHub Issues as single home for obligation status). Every completeness claim must be derived, checked, or labeled unverified — never asserted from memory.
 - `analysis/JOURNEY-MAP.html` — visual companion.
 - `GSD-AgentSkills-Combination-Analysis.md` — historical (pre-landscape) two-framework analysis.
 

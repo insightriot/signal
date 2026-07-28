@@ -1657,6 +1657,13 @@ Do not over-assume existing instrumentation: `tools/measure-phase-costs.js` + `t
 
 ---
 
+## Claim integrity — the second defect class, named
+
+**Status:** Logged 2026-07-28 via `/sig:add`.
+
+
+
+---
 
 
 
@@ -1667,4 +1674,6 @@ Do not over-assume existing instrumentation: `tools/measure-phase-costs.js` + `t
 
 
 
-*Last updated: 2026-07-26*
+
+
+*Last updated: 2026-07-28*
