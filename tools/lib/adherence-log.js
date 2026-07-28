@@ -131,8 +131,16 @@ export function renderRunRecord(record, { date, commit }) {
 | Failed runs | ${record.failedRuns} |
 
 **${record.verdict.toUpperCase()}** — ${gloss}.
-
+${renderCaveats(record.caveats)}
 `;
+}
+
+// A verdict without its scope boundaries reads as a broader claim than it is.
+// The log outlives the conversation that produced it, so the caveats travel in
+// the record rather than in someone's memory.
+function renderCaveats(caveats) {
+  if (!caveats?.length) return '';
+  return `\n**Scope of this verdict:**\n${caveats.map(c => `- ${c}`).join('\n')}\n`;
 }
 
 /**
@@ -176,16 +184,22 @@ export async function appendRunRecord(baseDir, record, { date, commit } = {}) {
  * that was wrong" is often the most informative thing in it — M5.E8's invalid
  * ABSENT run is what surfaced `B48`.
  */
-export async function appendInvalidation(baseDir, { commit, verdict, reason }) {
+export const NOTICE_KINDS = Object.freeze({
+  INVALIDATED: 'INVALIDATED',
+  QUALIFIED: 'QUALIFIED',
+});
+
+export async function appendNotice(baseDir, { kind, commit, verdict, reason }) {
+  if (!NOTICE_KINDS[kind]) throw new Error(`appendNotice: unknown kind ${JSON.stringify(kind)}`);
   const path = join(baseDir, PLANNING_DIR, ADHERENCE_LOG);
   const existing = await readFile(path, 'utf-8');
-  const note = `> ### ⚠ INVALIDATED — the \`${verdict}\` record at commit \`${commit}\` above
+  const icon = kind === NOTICE_KINDS.INVALIDATED ? '⚠' : 'ℹ';
+  const note = `> ### ${icon} ${kind} — the \`${verdict}\` record at commit \`${commit}\` above
 >
 > ${reason.split('\n').join('\n> ')}
 >
-> *Left in place byte-identical rather than removed. This log is append-only: a
-> wrong answer that is deleted cannot be audited, and the run that produced this
-> one was the most informative of the Epic.*
+> *Appended, never edited into the record above. This log is append-only: a wrong
+> or incomplete answer that is silently rewritten cannot be audited.*
 
 `;
   await atomicWrite(path, `${existing}${existing.endsWith('\n') ? '' : '\n'}${note}`);

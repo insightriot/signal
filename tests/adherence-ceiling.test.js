@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeAll } from 'vitest';
-import { readFileSync, existsSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { describe, it, expect } from 'vitest';
+import { readFileSync, existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -90,13 +90,32 @@ describe('adherence ceiling — the published file (AC5.2)', () => {
     expect(content).toContain(RUNS_MARKER);
   });
 
-  it('the published fraction matches what the classifier computes from the tree now', () => {
+  it('the published fraction is CURRENT — via the staleness checker itself', () => {
+    // Was `expect(content).toContain('91')`, which passes if those digits appear
+    // anywhere in the file — a commit sha, another table cell, a future run
+    // record. It could not detect a stale ceiling, which is the only thing it
+    // was there to detect.
+    //
+    // `tools/adherence-ceiling.js --check` already does the correct structural
+    // comparison against the live corpus, and nothing called it. Now the test IS
+    // the caller: one source of truth, and the staleness guard runs on every
+    // `npm test`.
+    const result = spawnSync('node', [join(ROOT, 'tools/adherence-ceiling.js'), '--check'], {
+      encoding: 'utf-8',
+      cwd: ROOT,
+    });
+    expect(
+      result.status,
+      `ceiling is stale — run \`node tools/adherence-ceiling.js\`.\n${result.stderr ?? ''}`
+    ).toBe(0);
+  });
+
+  it('the published counts are the structural table rows, not stray digits', () => {
     const content = readFileSync(LOG_PATH, 'utf-8');
-    const corpus = classifyCommandCorpus(ROOT);
-    const { measurable, directives, unmeasurable } = corpus.counts;
-    expect(content).toContain(`${measurable}`);
-    expect(content).toContain(`${directives}`);
-    expect(content).toContain(`${unmeasurable}`);
+    const { measurable, directives, unmeasurable } = classifyCommandCorpus(ROOT).counts;
+    expect(content).toContain(`| Directive lines | **${directives}** |`);
+    expect(content).toContain(`| **Trace-measurable (either)** | **${measurable}** |`);
+    expect(content).toContain(`| **No observable trace** | **${unmeasurable}** |`);
   });
 
   it('the published file states the unmeasured/not-passing clause (AC5.3)', () => {

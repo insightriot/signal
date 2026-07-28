@@ -106,3 +106,30 @@ harness run as evidence about the whole corpus will not find it here.
 > wrong answer that is deleted cannot be audited, and the run that produced this
 > one was the most informative of the Epic.*
 
+> ### ℹ QUALIFIED — the `OBEYED` record at commit `f3ca9b2` above
+>
+> **`OBEYED` means "obeyed when the phase can actually run" — not unconditionally.**
+> 
+> The same instruction is **deliberately refused** when the command halts on its
+> preconditions, and refused *correctly*: see **`B48`** in [`BUGS.md`](BUGS.md). An agent
+> reading `execute.md` against a project with no PLAN artifact declined the phase-entry
+> write, because calling `transitionPhase` on a halted phase writes a false record into the
+> ledger M5.E9 had just made honest. `execute.md` states the instruction unconditionally, so
+> the instruction and the phase-log integrity rules are in direct conflict.
+> 
+> Recorded here because the headline verdict alone would read as "the instruction is followed,
+> full stop", which this Epic's own evidence contradicts.
+> 
+> **Other scope boundaries on this verdict:**
+> - **One canary is not a survey.** This is a fact about `B41`'s phase-entry rule in
+>   `execute.md`, at commit `f3ca9b2`, on `claude 2.1.220` / `claude-opus-5`. It is not
+>   evidence that Signal's instructions are followed generally.
+> - **N=3 is the weakest possible unanimous split.** A perfect 3/3 vs 0/3 separation of six
+>   runs is about p=0.05 by permutation. The result is clean; it is not deep.
+> - **Conditional on tool access.** The runs granted `Write Edit Read Bash`. The agent needs
+>   Bash to call `transitionPhase`; a setup that denies it cannot obey the instruction at all.
+> - **77.6% of Signal's directives remain unmeasured** — unmeasured, not passing.
+>
+> *Appended, never edited into the record above. This log is append-only: a wrong
+> or incomplete answer that is silently rewritten cannot be audited.*
+

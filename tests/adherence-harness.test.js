@@ -14,6 +14,7 @@ import {
   planCost,
   CliUnavailableError,
   PROBE_COMMAND,
+  PLUGIN_RUNTIME_DEPS,
   probeArtifactName,
   probeCommandBody,
   probeSucceeded,
@@ -107,6 +108,27 @@ describe('fixture and plugin copy are two different trees (R3)', () => {
     const realBefore = readFileSync(join(ROOT, 'commands', 'execute.md'), 'utf-8');
     writeFileSync(join(plugin.root, 'commands', 'execute.md'), 'MUTATED');
     expect(readFileSync(join(ROOT, 'commands', 'execute.md'), 'utf-8')).toBe(realBefore);
+  });
+});
+
+describe('the plugin copy can actually execute what a canary measures', () => {
+  it('PLUGIN_RUNTIME_DEPS matches package.json dependencies', () => {
+    // Hand-maintained lists drift. If a new production dependency is added and
+    // not copied, the plugin copy cannot import the tools/lib module a canary
+    // instructs the agent to call — and the harness scores that as "not obeyed"
+    // when the true cause is a missing package.
+    const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'));
+    expect([...PLUGIN_RUNTIME_DEPS].sort()).toEqual(Object.keys(pkg.dependencies ?? {}).sort());
+  });
+
+  it('copies the manifest, package.json and runtime deps', async () => {
+    const plugin = await createPluginCopy(ROOT);
+    created.push(plugin.root);
+    expect(existsSync(join(plugin.root, '.claude-plugin', 'plugin.json'))).toBe(true);
+    expect(existsSync(join(plugin.root, 'package.json'))).toBe(true);
+    for (const dep of PLUGIN_RUNTIME_DEPS) {
+      expect(existsSync(join(plugin.root, 'node_modules', dep)), `missing dep ${dep}`).toBe(true);
+    }
   });
 });
 

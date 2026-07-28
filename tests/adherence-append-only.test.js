@@ -10,6 +10,8 @@ import {
   CEILING_END,
   appendRunRecord,
   renderRunRecord,
+  appendNotice,
+  NOTICE_KINDS,
 } from '../tools/lib/adherence-log.js';
 
 /**
@@ -125,6 +127,43 @@ describe('append-only (AC4.2) — the Epic that shipped B44 does not collapse an
     await appendRunRecord(root, RECORD, { date: '2026-07-28', commit: 'aaa1111' });
     const out = readFileSync(join(root, '.planning', ADHERENCE_LOG), 'utf-8');
     expect(out).toContain(RUNS_MARKER);
+  });
+
+  it('appendNotice is ALSO append-only — a correction never edits the record it corrects', async () => {
+    // A second writer to an append-only file inherits none of the first writer's
+    // guarantee automatically. AC4.2 is a structural claim, so it has to be
+    // pinned for every writer, not just the one it was written about.
+    const root = scratchProject();
+    await appendRunRecord(root, RECORD, { date: '2026-07-28', commit: 'aaa1111' });
+    const before = readFileSync(join(root, '.planning', ADHERENCE_LOG), 'utf-8');
+
+    await appendNotice(root, {
+      kind: NOTICE_KINDS.QUALIFIED,
+      commit: 'aaa1111',
+      verdict: 'obeyed',
+      reason: 'scope note',
+    });
+    const after = readFileSync(join(root, '.planning', ADHERENCE_LOG), 'utf-8');
+
+    expect(after.startsWith(before)).toBe(true);
+    expect(after).toContain('QUALIFIED');
+  });
+
+  it('rejects an unknown notice kind rather than writing an unlabelled block', async () => {
+    const root = scratchProject();
+    await appendRunRecord(root, RECORD, { date: '2026-07-28', commit: 'aaa1111' });
+    await expect(
+      appendNotice(root, { kind: 'WHATEVER', commit: 'aaa1111', verdict: 'obeyed', reason: 'x' })
+    ).rejects.toThrow(/unknown kind/i);
+  });
+
+  it('renders caveats inline so a verdict cannot ship without its scope', () => {
+    const md = renderRunRecord(
+      { ...RECORD, caveats: ['one canary is not a survey', 'N=3 is a weak split'] },
+      { date: '2026-07-28', commit: 'abc1234' }
+    );
+    expect(md).toContain('Scope of this verdict');
+    expect(md).toContain('one canary is not a survey');
   });
 
   it('an INERT verdict is recorded as a result, never as a failure to retry (NFR4)', async () => {
