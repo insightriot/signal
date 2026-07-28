@@ -13,6 +13,11 @@ import {
   resolveAgentSurface,
   planCost,
   CliUnavailableError,
+  PROBE_COMMAND,
+  probeArtifactName,
+  probeCommandBody,
+  probeSucceeded,
+  writeProbeCommand,
 } from '../tools/lib/adherence-harness.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -175,6 +180,38 @@ describe('agent surface — absence must be LOUD, never a zero verdict (AC1.4, N
     expect(caught).toBeInstanceOf(CliUnavailableError);
     expect(caught.message).toMatch(/claude/i);
     expect(caught.message).toMatch(/not a measurement|no measurement|cannot measure/i);
+  });
+});
+
+describe('mutation-visibility precondition — the probe (S3 gate)', () => {
+  it('the probe command carries a unique token and instructs exactly one write', () => {
+    const body = probeCommandBody('tok-1234');
+    expect(body).toContain('tok-1234');
+    expect(body).toContain(probeArtifactName('tok-1234'));
+    expect(body).toMatch(/^---\nname: sig:/);
+  });
+
+  it('discovery mode writes a NEW command; precedence mode OVERWRITES an existing one', async () => {
+    const plugin = await createPluginCopy(ROOT);
+    created.push(plugin.root);
+
+    const disc = await writeProbeCommand(plugin.root, 'tok-a', { mode: 'discovery' });
+    expect(disc.commandName).toBe(PROBE_COMMAND);
+
+    const prec = await writeProbeCommand(plugin.root, 'tok-b', { mode: 'precedence', existingCommand: 'status' });
+    expect(prec.commandName).toBe('status');
+    // It must genuinely replace a command that already exists, or it proves nothing
+    // about shadowing the installed plugin.
+    expect(readFileSync(prec.path, 'utf-8')).toContain('tok-b');
+  });
+
+  it('probeSucceeded reports only on the exact token artifact', async () => {
+    const fixture = await createFixtureProject({ tier: 'FULL' });
+    created.push(fixture.root);
+    expect(probeSucceeded(fixture.root, 'tok-missing')).toBe(false);
+    writeFileSync(join(fixture.root, probeArtifactName('tok-present')), 'tok-present');
+    expect(probeSucceeded(fixture.root, 'tok-present')).toBe(true);
+    expect(probeSucceeded(fixture.root, 'tok-other')).toBe(false);
   });
 });
 

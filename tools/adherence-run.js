@@ -27,6 +27,7 @@
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { createInterface } from 'node:readline/promises';
 import { rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -40,14 +41,20 @@ import {
   createPluginCopy,
   diffTraces,
   planCost,
+  probeSucceeded,
   resolveAgentSurface,
+  writeProbeCommand,
 } from './lib/adherence-harness.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 
+// Pinned explicitly, not read from an env var that is usually unset. A run
+// record with `model: null` is not reproducible, and AC4.3 would fail quietly.
+const MODEL = process.env.ADHERENCE_MODEL ?? 'claude-opus-5';
+
 function parseArgs(argv) {
-  const args = { command: null, runs: 3, dryRun: false, yes: false, keep: false };
+  const args = { command: null, runs: 3, dryRun: false, yes: false, keep: false, probe: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--command') args.command = argv[++i];
@@ -55,6 +62,7 @@ function parseArgs(argv) {
     else if (a === '--dry-run') args.dryRun = true;
     else if (a === '--yes' || a === '-y') args.yes = true;
     else if (a === '--keep') args.keep = true;
+    else if (a === '--probe') args.probe = true;
   }
   return args;
 }
@@ -86,12 +94,20 @@ async function confirm(question) {
  * established. That is what the positive control (`--probe`) exists to settle,
  * and no verdict may be emitted until it passes.
  */
-function invokeAgent({ fixtureRoot, pluginRoot, prompt, timeoutMs = 300_000 }) {
-  const result = spawnSync('claude', ['--plugin-dir', pluginRoot, '-p', prompt], {
-    cwd: fixtureRoot,
-    encoding: 'utf-8',
-    timeout: timeoutMs,
-  });
+function invokeAgent({ fixtureRoot, pluginRoot, prompt, allowedTools = ['Write'], timeoutMs = 300_000 }) {
+  // Tool access is granted narrowly and explicitly. The probe needs only Write;
+  // widening this is a deliberate act, not a default, even though the fixture is
+  // an asserted-isolated temp dir.
+  const result = spawnSync(
+    'claude',
+    ['--plugin-dir', pluginRoot, '--allowedTools', ...allowedTools, '-p', prompt],
+    {
+      cwd: fixtureRoot,
+      encoding: 'utf-8',
+      timeout: timeoutMs,
+      env: { ...process.env, ADHERENCE_MODEL: MODEL },
+    }
+  );
   return {
     status: result.status,
     stdout: result.stdout ?? '',
@@ -100,8 +116,72 @@ function invokeAgent({ fixtureRoot, pluginRoot, prompt, timeoutMs = 300_000 }) {
   };
 }
 
+/**
+ * The positive control. Proves the tree we mutate is the tree the agent reads.
+ * Two agent calls, run before the control arm is trusted for anything.
+ */
+async function runProbe() {
+  let surface;
+  try {
+    surface = resolveAgentSurface({ exec: execFileSync, model: MODEL });
+  } catch (err) {
+    if (err instanceof CliUnavailableError) {
+      console.error(`\n${err.message}\n`);
+      process.exit(1);
+    }
+    throw err;
+  }
+
+  console.log('\nAdherence seam probe — 2 agent calls');
+  console.log('='.repeat(60));
+  console.log(`Surface: claude ${surface.cliVersion} · ${surface.model}\n`);
+
+  const results = {};
+  for (const mode of ['discovery', 'precedence']) {
+    const token = `${mode}-${randomBytes(4).toString('hex')}`;
+    const fixture = await createFixtureProject({ tier: 'FULL', phase: 'PLAN' });
+    const plugin = await createPluginCopy(ROOT);
+    assertIsolatedFixture(fixture.root, ROOT);
+    assertIsolatedFixture(plugin.root, ROOT);
+
+    const { commandName } = await writeProbeCommand(plugin.root, token, { mode });
+    const res = invokeAgent({
+      fixtureRoot: fixture.root,
+      pluginRoot: plugin.root,
+      prompt: `/sig:${commandName}`,
+    });
+    const ok = probeSucceeded(fixture.root, token);
+    results[mode] = ok;
+
+    console.log(`${mode.padEnd(11)} /sig:${commandName.padEnd(18)} ${ok ? 'PASS' : 'FAIL'}  (exit ${res.status}${res.timedOut ? ', TIMED OUT' : ''})`);
+    if (!ok) {
+      const detail = (res.stderr || res.stdout || '').trim().split('\n').slice(0, 3).join('\n    ');
+      if (detail) console.log(`    ${detail.slice(0, 400)}`);
+    }
+    await rm(fixture.root, { recursive: true, force: true });
+    await rm(plugin.root, { recursive: true, force: true });
+  }
+
+  console.log('='.repeat(60));
+  if (results.precedence) {
+    console.log('SEAM OK — the copied tree wins. The control arm can be trusted to');
+    console.log('be measuring the mutated command.');
+  } else if (results.discovery) {
+    console.log('SEAM BROKEN — the copy LOADS, but does not SHADOW the installed');
+    console.log('plugin. A mutation to an existing command would never reach the');
+    console.log('agent, and both arms would agree, and the harness would report');
+    console.log('INERT. No verdict may be emitted on this seam.');
+  } else {
+    console.log('SEAM BROKEN — the copied tree is not loaded at all. Same conclusion:');
+    console.log('no verdict may be emitted on this seam.');
+  }
+  console.log('='.repeat(60) + '\n');
+  process.exit(results.precedence ? 0 : 1);
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (args.probe) return runProbe();
   if (!args.command) {
     console.error('Usage: node tools/adherence-run.js --command <name> [--runs N] [--dry-run] [--yes]');
     process.exit(2);
@@ -129,10 +209,7 @@ async function main() {
   // so an unreachable CLI costs nothing and can never look like a result.
   let surface;
   try {
-    surface = resolveAgentSurface({
-      exec: execFileSync,
-      model: process.env.ANTHROPIC_MODEL ?? null,
-    });
+    surface = resolveAgentSurface({ exec: execFileSync, model: MODEL });
   } catch (err) {
     if (err instanceof CliUnavailableError) {
       console.error(`\n${err.message}\n`);

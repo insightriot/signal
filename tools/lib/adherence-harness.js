@@ -33,7 +33,7 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
-import { readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 
@@ -197,6 +197,62 @@ export async function createPluginCopy(pluginRoot) {
     }
   }
   return { root, kind: 'plugin-copy' };
+}
+
+// ── The mutation-visibility precondition ────────────────────────────────────
+//
+// Before any verdict is emitted, the harness must PROVE that the tree it mutated
+// is the tree the agent actually read. Without this, a seam failure (the agent
+// loading the installed plugin instead of the copy) produces: no difference
+// between arms → verdict `inert`. That is indistinguishable from a genuine
+// finding of an inert instruction, and this Epic pre-committed to `inert` as an
+// acceptable outcome — so the failure would pass through the one guardrail meant
+// to catch surprises and be written into ADHERENCE-LOG.md as a measurement.
+//
+// Same discipline as AC1.4: never emit a result-shaped output when you did not
+// measure.
+
+export const PROBE_COMMAND = 'adherence-probe';
+
+/** The proof file a probe run must leave behind. */
+export function probeArtifactName(token) {
+  return `ADHERENCE-PROBE-${token}.md`;
+}
+
+/** A trivial command that exists ONLY in the copied tree. */
+export function probeCommandBody(token) {
+  return `---
+name: sig:${PROBE_COMMAND}
+description: "Positive control for the adherence harness — proves which command tree was loaded."
+---
+
+# Adherence probe
+
+Create a file named \`${probeArtifactName(token)}\` in the current working directory,
+containing exactly the text \`${token}\`.
+
+Do nothing else. Do not read other files. Do not ask for confirmation.
+`;
+}
+
+/**
+ * Write the probe command into a plugin COPY. Two things get proven separately:
+ *   - `discovery`  — does --plugin-dir load this tree at all? (new command name)
+ *   - `precedence` — does this tree WIN over the installed plugin for a command
+ *                    name that already exists? (mutated existing command)
+ * Only `precedence` is what the control arm actually depends on, but when it
+ * fails, `discovery` tells you whether the cause is loading or shadowing.
+ */
+export async function writeProbeCommand(pluginCopyRoot, token, { mode = 'discovery', existingCommand = 'status' } = {}) {
+  const name = mode === 'precedence' ? existingCommand : PROBE_COMMAND;
+  const dest = join(pluginCopyRoot, 'commands', `${name}.md`);
+  await writeFile(dest, probeCommandBody(token), 'utf-8');
+  return { commandName: name, path: dest };
+}
+
+/** Did the probe's proof file appear in the fixture? */
+export function probeSucceeded(fixtureRoot, token) {
+  return existsSync(join(fixtureRoot, probeArtifactName(token)));
 }
 
 function sha(content) {
