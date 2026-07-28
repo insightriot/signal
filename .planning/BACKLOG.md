@@ -195,8 +195,8 @@ enumerated a requirements file). Added 2026-07-28, Brett's call at the claim-int
 record: [`../analysis/CLAIM-INTEGRITY-ANALYSIS.md`](../analysis/CLAIM-INTEGRITY-ANALYSIS.md) §7.
 **Not part of the M5.E7 sequencing — a post-audit widening, named as one.**
 
-> **⚠ ID note corrected 2026-07-28 (M5.E13 DISCUSS).** This entry originally read: *"`M5.E13` was
-> already claimed by the in-flight Lanes epic when this entry was written; E14 was the next free ID."*
+> **⚠ ID note corrected 2026-07-28 (M5.E13 DISCUSS).** This entry originally read, and this is
+> **[RETRACTED — FALSE]**: *"`M5.E13` was already claimed by the in-flight Lanes epic when this entry was written; E14 was the next free ID."* **[/RETRACTED]**
 > **That was false in both halves.** Lanes carried **no Epic ID** — not here, not in `MILESTONE-5.md`,
 > not in [`../analysis/LANES-IMPLEMENTATION-GUIDE.md`](../analysis/LANES-IMPLEMENTATION-GUIDE.md),
 > which describes itself as *"DISCUSS input for a new Epic"* — and it was **not in flight**; it was an

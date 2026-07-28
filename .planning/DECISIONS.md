@@ -734,7 +734,7 @@ and is recorded here: a tracker fixes obligation *status*; it does not check whe
 report enumerated the requirements file. Those are M5.E10's.
 
 **Addendum — a fourth `B50` sighting, found while reconciling with that parallel session.** The
-`M5.E14` entry justified its ID with *"`M5.E13` was already claimed by the in-flight Lanes epic."*
+`M5.E14` entry justified its ID with a claim now **[RETRACTED — FALSE]**: *"`M5.E13` was already claimed by the in-flight Lanes epic."*
 **False in both halves:** Lanes carried no Epic ID in `BACKLOG.md`, `MILESTONE-5.md`, or its own
 guide (which calls itself *"DISCUSS input for a new Epic"*), and it was not in flight — it was an
 uncommitted file in the working tree until `e61f614` the same day. Corrected in place; `M5.E14`
