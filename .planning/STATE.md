@@ -9,8 +9,8 @@ completed_phases: []
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-07-26T13:45:54.062Z
-last_updated_commit: 5b6e9ee089647a76820d1a6c1243a4cfc907280e
-last_updated: 2026-07-28T16:42:02.549Z
+last_updated_commit: 42d3f13537ccbc14129acb2edcef39f9e094268f
+last_updated: 2026-07-28T19:04:49.106Z
 ---
 # Project State
 
@@ -30,7 +30,7 @@ last_updated: 2026-07-28T16:42:02.549Z
 
 **The five triggers M5.E8 fired are now decided, not silent (D-M5E13-6)** — one promoted (M5.E10, re-scoped from two items to seven by the claim-integrity analysis, `B38` folded in with a purpose), four re-parked with new written conditions and dates. Plus **D-M5E13-7**: the tracker call in `analysis/CLAIM-INTEGRITY-ANALYSIS.md` §7 discharges the *GitHub Issues adoption* trigger that fired **2026-07-15** and sat unacted — `B39`'s own canonical instance.
 
-**The originating bug, for context:** `execute.md`'s phase-entry instruction is **unconditional**, and an agent **correctly refused** it rather than write a false record into the ledger v0.1.12 had just made honest (calling `transitionPhase` on a phase that halts at its preconditions records `phase: EXECUTE` for a project with nothing to execute). Affects **all four** commands M5.E9 changed — `plan`, `execute`, `verify`, `review`. Found by reading a run transcript, **not** by a verdict. Carries with it: **`B49`'s remaining half** (extend `checkVersionConsistency` to cover `package.json` — the guard exists and fired on `marketplace.json` during v0.1.13's own cut; only its *scope* is short), and **a defect class with three confirmed instances — a guard written, shipped, and never called** (`B39` a watchlist never walked · `B46` 45 dispositions nothing reads back · M5.E8's `I2` a `--check` nothing invoked). One class, not three bugs; candidate mechanism is a hygiene check asserting every `--check`-style guard in `tools/` has a caller.
+**The originating bug, for context:** `execute.md`'s phase-entry instruction is **unconditional**, and an agent **correctly refused** it rather than write a false record into the ledger v0.1.12 had just made honest (calling `transitionPhase` on a phase that halts at its preconditions records `phase: EXECUTE` for a project with nothing to execute). Affects **all four** commands M5.E9 changed — `plan`, `execute`, `verify`, `review`. Found by reading a run transcript, **not** by a verdict. Carries with it: **`B49`'s remaining half** (extend `checkVersionConsistency` to cover `package.json` — the guard exists and fired on `marketplace.json` during v0.1.13's own cut; only its *scope* is short), and **a defect class with three confirmed instances — a guard written, shipped, and never called** (`B39` a watchlist never walked · `B46` 45 dispositions nothing reads back · M5.E8's `I2` a `--check` nothing invoked). One class, not three bugs. ~~Candidate mechanism: a hygiene check asserting every `--check`-style guard in `tools/` has a caller.~~ **Falsified 2026-07-28 (D-M5E13-3)** — that test's population is one file, and it is `I2` itself; it covers **1 of the 3** instances. See the IN-FLIGHT block above.
 
 **Note for whoever plans v0.1.14:** `B48`'s fix **rewords a measured instruction**, which invalidates the `OBEYED` verdict recorded against it. That is exactly what the new `ship.md` adherence checklist line exists to catch — so v0.1.14 should re-run the canary (`node tools/adherence-run.js --canary B41-phase-entry`). It will be the first time the harness is used the way it was built to be used rather than to prove itself.
 
