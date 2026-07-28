@@ -115,12 +115,46 @@ byte-identical code).
 
 ### M5.E10 — Review hardening
 **Tag:** roadmap · **Trigger: M5.E8 lands** (both halves are partly prompt-shaped; E8 is what makes
-"did it help?" answerable).
+"did it help?" answerable). **Trigger satisfied 2026-07-28.** **Scope widened 2026-07-28** by the
+claim-integrity investigation ([`../analysis/CLAIM-INTEGRITY-ANALYSIS.md`](../analysis/CLAIM-INTEGRITY-ANALYSIS.md))
+— the false-green audit's target class now has a name and field evidence: **completeness claims
+written from the shape of the work rather than from the artifact** (five instances in one FULL-tier
+traction-engine phase, every catch incidental; ≥7 prior un-abstracted sightings in Signal's own
+corpus). Principle for every item below: *a completeness claim must be derived, checked, or labeled
+unverified — never asserted from memory* (the `buildCaveats()` lesson, generalized).
 - **False-green audit + RED-against-`main`.** *Done-when:* every guard fix in the following Epic
   ships with a test demonstrated to fail against `main`.
 - **`B38` — reclassify every anti-rationalization table entry** as *discipline* (keep the
   prohibition form) or *shaping* (convert to a positive recipe). *Done-when:* a one-page table
-  names each entry's class and every shaping entry is a positive recipe.
+  names each entry's class and every shaping entry is a positive recipe. **Add as a shaping
+  entry:** the claim-provenance rule — never restate or escalate an upstream claim about a third
+  artifact without opening that artifact (CLAIM-INTEGRITY §6 item 6).
+- **Requirement-coverage diff** (CLAIM-INTEGRITY §6 item 1) — deterministic `tools/lib` check +
+  `verify.md` instruction: every FR/NFR/AC ID in `REQUIREMENTS.md` must appear in the VERIFICATION
+  artifact (absent = red), plus an intra-file VALIDATION consistency check (dimension-2 assignments
+  and Nyquist-map rows must agree — Phase 11's root was a single-file self-contradiction nothing
+  read). *Done-when:* replaying traction-engine Phase 11's artifact pair fails both checks and the
+  amended pair passes.
+- **VERIFICATION template: denominator table + required "what this could not establish" section**
+  (§6 item 2; absorbs the ISSUES-INBOX self-critique entry and AGENT-EFFECTIVENESS Rec 3).
+  *Done-when:* an artifact missing the section or the table fails the phase gate. Structural only —
+  works **paired with the diff above**, never instead of it.
+- **REVIEW claims-audit** (§6 item 3) — implement the faithfulness backstop that `ship.md` §5.5 and
+  the `evict.js` header already assign to REVIEW: every coverage/status/completeness claim in
+  VERIFICATION and prior-phase artifacts verified against its source (the adversarial
+  `docs-verifier` design has been parked in ISSUES-INBOX since 2026-05-12). *Done-when:* a fixture
+  VERIFICATION with a seeded false claim is caught by the step.
+- **Correction protocol** (§6 item 5) — a correction is complete when a corpus grep for the claim
+  and its restatements returns only corrected instances: root + all carriers, not the files that
+  happened to be open. *Done-when:* a SHIP-time check fails on a fixture with a corrected root and
+  one live carrier.
+- **Wire up or fold in the verifier agents** (§6 item 7) — `agents/verifiers/verifier.md` and
+  `nyquist-auditor.md` carry the enumerate-with-a-denominator shape and are dispatched by no
+  command. *Done-when:* that discipline is reachable from `/sig:verify`, by dispatch or absorption.
+- **Retro-index freshness check** (§6 item 8) — sibling of `checkIndexFreshness`;
+  `regenerateIndex` is already deterministic and compare-before-write. *Done-when:* a repo whose
+  `RETROSPECTIVES.md` lacks a row for an existing retro fails `/sig:sweep` (the 2026-07-28
+  missing-M5.E8-row incident, mechanized).
 
 ### M5.E11 — Roadmap Advisor
 **Tag:** roadmap · **Trigger: M5.E9 lands** (it advises on a backlog, so reconcile the backlog first).
@@ -149,6 +183,45 @@ instead of inward at `.planning/` — the work is **retargeting, not inventing.*
   `/sig:sweep`) covering `analysis/` (correction **C6**) and the two ⚠-flagged untrustworthy claims
   at Sprint 2 below. *Done-when:* an unsourced or expired claim produces a sweep advisory naming the
   file and the claim.
+
+### M5.E14 — Obligation tracker integration (single home for open/closed work)
+**Tag:** roadmap · **Trigger: M5.E10 lands** (the claims fixes come first — the tracker is
+**additive to, never a substitute for**, claim verification: no tracker checks whether a report
+enumerated a requirements file). Added 2026-07-28, Brett's call at the claim-integrity pass; design
+record: [`../analysis/CLAIM-INTEGRITY-ANALYSIS.md`](../analysis/CLAIM-INTEGRITY-ANALYSIS.md) §7.
+**Not part of the M5.E7 sequencing — a post-audit widening, named as one.** *(ID note: `M5.E13` was
+already claimed by the in-flight Lanes epic when this entry was written; E14 was the next free ID.)*
+
+**The argument:** "closed" in a tracker is an *event* — actor, timestamp, audit trail; in markdown
+it is a string an agent rewrites wholesale on every edit (the `B41`–`B45` shape, aimed at status).
+Phase 11's false "still owed" was an inference from a list's shape; against a tracker there is
+nothing to infer — `gh issue list --state open` *is* the answer, and the ship-gate "anything still
+owed?" check becomes one query instead of a schema Signal maintains forever. The honest concession:
+Signal has been incrementally building its own issue tracker out of markdown (ISSUES-INBOX /
+BACKLOG / BUGS / dispositions / `backfill_warnings`) and keeps re-hitting bugs trackers solved
+decades ago — `B46` cannot happen when status has one home.
+
+**Two load-bearing conditions (both required, or don't build it):**
+1. **Single home** — the tracker is the *only* place obligation status lives; markdown references
+   issue numbers and never restates status. Mirroring status back into files recreates the `B46`
+   class with extra steps. Half-integration is worse than none.
+2. **Closing wired into the phase gates** — SHIP/REVIEW run "what's open, and did this phase close
+   what it claims it closed?" Phase 10 discharged an obligation and stamped nothing; a tracker makes
+   that check trivial and definitive — it does not make it automatic.
+
+**Boundary:** lifecycle items (backfills, bugs, deferred work, the capture inbox) → tracker.
+Records (decisions, retros, requirements, state narrative) → stay in `.planning/`, versioned with
+the code. **GitHub Issues first** (`gh` is already in the ship flow; zero new auth for Signal's
+audience); Linear at most a later adapter. **A degraded/offline mode is required** — Signal's
+guards are offline+deterministic and there is no `/sig:permissions` vocabulary yet: the fallback is
+the `discharged` status marker on `backfill_warnings`, **which can ship ahead of this Epic as a
+patch** (it is also the schema fix that ends the false-"still owed" class for tracker-less projects).
+
+*First slice:* the `discharged` marker + a SHIP-gate open-obligations query behind a capability
+check (`gh` present and authed; silent, logged skip otherwise). *Done-when:* a fixture with a
+discharged-but-unmarked obligation produces no false "still owed" through a full VERIFY→SHIP run —
+and the same fixture with a tracker present shows the obligation closed by the phase that
+discharged it.
 
 ---
 
