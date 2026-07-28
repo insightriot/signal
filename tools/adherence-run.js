@@ -70,15 +70,27 @@ async function confirm(question) {
 }
 
 /**
- * Invoke the agent headlessly against the fixture, with the mutated plugin tree
- * as CLAUDE_PLUGIN_ROOT so the command file under test is the copied one (R3).
+ * Invoke the agent headlessly against the fixture, loading the COPIED plugin
+ * tree so the command file under test is the mutated one (R3, AC2.4).
+ *
+ * The seam is `--plugin-dir`, a real CLI flag ("load a plugin from a directory
+ * for this session only"), NOT the `CLAUDE_PLUGIN_ROOT` env var this file first
+ * used. That variable is referenced *inside* command files for skill paths; it
+ * is not evidence the CLI resolves WHICH command file to load from it. Those are
+ * different mechanisms, and the difference matters enormously: if the override
+ * does not redirect resolution, both arms load the same unmutated command, both
+ * produce the trace, and the harness reports INERT — a plumbing failure wearing
+ * the exact costume of this Epic's pre-declared "desired worst case".
+ *
+ * Whether --plugin-dir actually wins over the installed `sig` plugin is NOT yet
+ * established. That is what the positive control (`--probe`) exists to settle,
+ * and no verdict may be emitted until it passes.
  */
 function invokeAgent({ fixtureRoot, pluginRoot, prompt, timeoutMs = 300_000 }) {
-  const result = spawnSync('claude', ['-p', prompt], {
+  const result = spawnSync('claude', ['--plugin-dir', pluginRoot, '-p', prompt], {
     cwd: fixtureRoot,
     encoding: 'utf-8',
     timeout: timeoutMs,
-    env: { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot },
   });
   return {
     status: result.status,

@@ -42,6 +42,22 @@ import { PLANNING_DIR, initState } from './state.js';
 export const FIXTURE_PREFIX = 'signal-adherence-fixture-';
 export const PLUGIN_COPY_PREFIX = 'signal-adherence-plugin-';
 
+// What a plugin copy must contain to be loadable by `claude --plugin-dir`.
+// `.claude-plugin/` holds plugin.json and is REQUIRED — a copy without it is not
+// a plugin, it is a directory of markdown, and the CLI will decline to load it.
+// The first version of this list omitted it, which would have produced a copy
+// that silently could never be the tree under test.
+export const PLUGIN_COPY_DIRS = [
+  '.claude-plugin',
+  'commands',
+  'skills',
+  'agents',
+  'references',
+  'hooks',
+  'tools',
+  'state',
+];
+
 /**
  * Raised when the agent CLI cannot be reached. Its own class so a caller can
  * never confuse "I could not measure" with "I measured zero" — the single most
@@ -171,7 +187,7 @@ export async function createFixtureProject({ tier = 'FULL', phase = 'PLAN' } = {
  */
 export async function createPluginCopy(pluginRoot) {
   const root = await mkdtemp(join(realOf(tmpdir()), PLUGIN_COPY_PREFIX));
-  for (const dir of ['commands', 'skills', 'agents', 'references']) {
+  for (const dir of PLUGIN_COPY_DIRS) {
     const src = join(pluginRoot, dir);
     try {
       await cp(src, join(root, dir), { recursive: true });
