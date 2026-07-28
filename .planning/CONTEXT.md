@@ -51,9 +51,17 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 **▶ OPEN: M5.E8 — the measurement foundation. DISCUSS + PLAN both closed 2026-07-27.**
 
-**⏭ NEXT: `/sig:execute` — but it is GATED on Brett's approval, which was not given before the context clear.** The plan is written and committed; nothing has been built. Re-read [`M5.E8-PLAN.md`](M5.E8-PLAN.md) and re-ask for the go-ahead before dispatching Wave 1. *(Do not assume approval from the fact that PLAN is complete — that is the failure mode the 2026-07-26 CONTEXT refresh was written to stop.)*
+**▶ EXECUTE ran 2026-07-28 (approved by Brett). All four slices built; 1652 → 1726 tests, validator green, eslint clean.** Progress detail: [`M5.E8-PROGRESS.md`](M5.E8-PROGRESS.md).
 
-Artifacts: [`M5.E8-REQUIREMENTS.md`](M5.E8-REQUIREMENTS.md) (6 FRs) · [`M5.E8-RESEARCH.md`](M5.E8-RESEARCH.md) · [`M5.E8-PLAN.md`](M5.E8-PLAN.md) (4 slices / 3 waves) · [`M5.E8-VALIDATION.md`](M5.E8-VALIDATION.md) (28 ACs, 3 RED-first). Decisions **D-M5E8-1…3**. Tier FULL inherited. Suite **1652**, validator green, at `25a9e27`.
+**⏭ NEXT: `/sig:verify`.** The harness exists and the ceiling is published; what remains is the VERIFY → REVIEW → SHIP tail.
+
+**The three things EXECUTE changed that the plan did not anticipate:**
+
+1. **The ceiling is 22.4%, not 10.9%** — and R1's inference that *"the phases doing the most work are the least measurable"* is **false**: `execute.md` / `verify.md` / `review.md` name **4 / 3 / 3** real library calls, including this Epic's own canary `transitionPhase`. Only `calibrate.md` names zero.
+2. **The control-arm seam was wrong and would have failed silently.** `CLAUDE_PLUGIN_ROOT` does not redirect command *resolution*; `claude --plugin-dir` does. The copy was also missing `.claude-plugin/plugin.json` and the `yaml` dependency. **If a mutation never reaches the agent, both arms agree and the harness reports `inert`** — the outcome this plan pre-committed to as acceptable. So a **seam probe is now a permanent precondition**: `resolveVerdict` refuses to return anything without it.
+3. **The verdict threshold is pinned in the registry**, before any run produced a number — AC3.3's logic applied to the thing AC3.3 forgot.
+
+Artifacts: [`M5.E8-REQUIREMENTS.md`](M5.E8-REQUIREMENTS.md) (6 FRs) · [`M5.E8-RESEARCH.md`](M5.E8-RESEARCH.md) *(R1 superseded)* · [`M5.E8-PLAN.md`](M5.E8-PLAN.md) · [`M5.E8-VALIDATION.md`](M5.E8-VALIDATION.md) (28 ACs) · [`M5.E8-PROGRESS.md`](M5.E8-PROGRESS.md) · [`ADHERENCE-LOG.md`](ADHERENCE-LOG.md) · `references/adherence-canaries.json`. Decisions **D-M5E8-1…6**. Tier FULL inherited.
 
 **Wave plan:** W1 = S1 (publish the coverage ceiling) ∥ S2 (harness skeleton) · W2 = S3 (the control arm — the Epic's real work, split point named) · W3 = S4 (append-only log + ship-checklist anchor).
 

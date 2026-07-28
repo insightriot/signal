@@ -58,6 +58,10 @@ export const PLUGIN_COPY_DIRS = [
   'state',
 ];
 
+// Production dependencies of the plugin (package.json `dependencies`). Copied so
+// the tools/lib modules a command instructs the agent to call actually import.
+export const PLUGIN_RUNTIME_DEPS = ['yaml'];
+
 /**
  * Raised when the agent CLI cannot be reached. Its own class so a caller can
  * never confuse "I could not measure" with "I measured zero" — the single most
@@ -196,6 +200,25 @@ export async function createPluginCopy(pluginRoot) {
       // only ever targets commands/.
     }
   }
+  // Runtime deps, so a command that instructs the agent to CALL a tools/lib
+  // function can actually be obeyed. The installed plugin ships node_modules;
+  // a copy without them would make every library-call canary fail to execute,
+  // and the harness would score that as "not obeyed" when the true cause is a
+  // missing import. Only production deps are copied — the full tree is 47 MB
+  // and would be re-copied on every run.
+  for (const dep of PLUGIN_RUNTIME_DEPS) {
+    try {
+      await cp(join(pluginRoot, 'node_modules', dep), join(root, 'node_modules', dep), { recursive: true });
+    } catch {
+      // Absent dep: the run will surface it as a failed run, not a false verdict.
+    }
+  }
+  // package.json carries `"type": "module"`; without it Node treats the copied
+  // .js files as CommonJS and every import throws.
+  try {
+    await cp(join(pluginRoot, 'package.json'), join(root, 'package.json'));
+  } catch { /* optional */ }
+
   return { root, kind: 'plugin-copy' };
 }
 

@@ -587,3 +587,63 @@ because that list is **demonstrably read at every release**. **Not a trigger, no
 not a note.** *Decided rather than asked: the reasoning is Signal's own record, and there is no
 product judgment left in it once that record is read.*
 
+
+---
+
+## 2026-07-28 — What the build found: the seam, the threshold, and a number that moved (D-M5E8-4 … D-M5E8-6)
+
+Three decisions taken during M5.E8's EXECUTE. All three are corrections to things the Epic's own
+DISCUSS/PLAN/RESEARCH had assumed, which is what an execution phase is supposed to surface.
+
+**D-M5E8-4 — The control-arm seam is `claude --plugin-dir`, not the `CLAUDE_PLUGIN_ROOT` env var,
+and proving the seam is a permanent precondition of every verdict.**
+
+R3 justified the env-var seam on the grounds that `commands/*.md` reference `${CLAUDE_PLUGIN_ROOT}`
+for skill paths. That is **text substitution inside an already-loaded command**, not command
+*resolution* — different mechanisms, and the difference is the whole Epic. Direct counter-evidence
+was available in the session that built this: invoking the `sig:execute` skill loaded the **v0.1.11
+plugin cache**, not the working repo. `--plugin-dir` is a documented CLI flag for exactly this.
+
+**Why it is a precondition and not a setup step.** If the mutation never reaches the agent, both
+arms produce the trace, and the harness reports **`inert`** — an outcome this Epic *pre-committed
+to* as acceptable, specifically so nobody would treat it as a crisis. A plumbing failure would have
+passed straight through the one guardrail meant to catch surprises and been written into
+`ADHERENCE-LOG.md` as a measurement. So `resolveVerdict` **refuses to return anything** unless the
+seam was proven that run. Same discipline as AC1.4: never emit a result-shaped output when you did
+not measure.
+
+Probed and **PASS** on both arms: `--plugin-dir` loads the copied tree, *and* shadows the installed
+`sig` plugin (a genuine conflict — `sig@signal` is enabled at user scope, so both trees offered
+`/sig:status` and the copy won).
+
+**D-M5E8-5 — The verdict threshold is fixed in the registry before any run, and it is conservative:
+anything short of a unanimous split is `indeterminate`.**
+
+AC3.3 pins each canary's *trace* before a run, because a trace chosen after seeing output is a
+rationalization. The **mapping from run counts to a verdict has exactly the same problem** and was
+not covered — so it now sits in `references/adherence-canaries.json` → `verdictRule`, written before
+the first measurement. Without that, the threshold gets chosen after seeing 3/3 versus 2/3.
+
+Four verdicts, three of which are not "pass": `obeyed`, `inert`, `absent`, `indeterminate`.
+**`indeterminate` is first-class** — a split vote, a failed run, or a backwards result is an honest
+*we do not know*, not something to round into a finding.
+
+**D-M5E8-6 — The published ceiling is 91/407 (22.4%), and R1's "the phases doing the most work are
+the least measurable" is withdrawn as false.**
+
+The pre-build estimate was 22/202 = 10.9%. The built classifier measures **22.4%** — the estimate
+required directives to *begin* with an imperative verb (dropping the corpus's most common shape, a
+leading clause) and matched library calls by shape rather than against the 263 real `tools/lib`
+exports. **The inference that died with it matters more than the number:** R1 claimed `execute.md`,
+`verify.md`, `review.md` and `calibrate.md` name *zero* library calls. They name **4 / 3 / 3 / 0**,
+including `transitionPhase` — this Epic's own canary. The canary set is **not** confined to the
+low-risk phases.
+
+The estimate is left **verbatim** in `M5.E8-RESEARCH.md` under a superseded-by-measurement block
+rather than rewritten, because the plan was built on that number and deleting it would hide that.
+
+**What survives unchanged:** roughly **three in four** of Signal's own instructions still leave no
+observable trace, and the guidance carrying the most value — *surface ambiguity*, *don't
+rationalize*, *gate at product altitude* — remains entirely out of reach of this method. The
+published log states the remainder is **unmeasured, not passing**, and a wording test pins that
+sentence.

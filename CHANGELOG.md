@@ -6,6 +6,31 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased] — 2026-07-28 — The measurement foundation (M5.E8)
+
+**Signal can now measure whether one of its own instructions changes what an agent does — and it publishes how little of itself that method can reach.** 1652 → **1726 tests**, validator green, eslint clean.
+
+### The number, published before the harness could influence it
+- **`.planning/ADHERENCE-LOG.md`** — of **407 directive lines** across the 18 `commands/*.md`, **91 (22.4%) leave an observable trace; 316 (77.6%) do not.** The split rule is written out in full in `tools/lib/directive-classifier.js`'s header so a reader can disagree with it line by line, and is pinned against a hand-labelled fixture.
+- **The remainder is stated as *unmeasured, not passing*** — and a **wording test** guards that sentence, because it is the one most likely to be quietly softened later.
+- **This corrects the Epic's own research.** The pre-build estimate was 22/202 = **10.9%**. More importantly, R1's claim that `execute.md` / `verify.md` / `review.md` / `calibrate.md` name **zero** library calls — and therefore *"the phases doing the most work are the least measurable"* — **is false against the tree**: they name **4 / 3 / 3 / 0**, including `transitionPhase`, this Epic's own canary. The estimate is left verbatim in `M5.E8-RESEARCH.md` under a superseded-by-measurement block, because the plan was built on it and deleting it would hide that.
+
+### The harness
+- **`tools/adherence-run.js --canary <id>`** — runs a command twice, as written and with the instruction line deleted from a **copy** of the command tree, N runs per arm, and reports the **difference** plus the spread. Out of the test suite by design (D-M5E8-1): `npm test` stays deterministic, offline and free, and a guard test asserts no test imports or spawns the entry point.
+- **Four verdicts, three of which are not "pass":** `obeyed` · `inert` (the trace appears in **both** arms — the instruction caused nothing; a finding, never retried until it passes) · `absent` · `indeterminate`. Anything short of a unanimous split is `indeterminate`, and the threshold was **fixed in `references/adherence-canaries.json` before the first run**, for the same reason AC3.3 pins traces pre-run.
+- **A refusal that outranks all four:** no verdict at all unless a **seam probe** proved that run's mutation actually reached the agent.
+- **Loud when it cannot measure** — an unreachable CLI aborts with *"this is not a measurement of zero"* and exits 1, before any fixture is built. A harness reporting "0 obeyed" because the CLI was missing is the most dangerous output this Epic could emit.
+
+### Two build-time corrections worth carrying
+- **`[FIXED IN-EPIC]` The control-arm seam was wrong.** S2 first set `CLAUDE_PLUGIN_ROOT`, on R3's reasoning that command files reference it for skill paths — but that is text substitution *inside an already-loaded command*, not command **resolution**. The real seam is the documented `claude --plugin-dir` flag. The copy was also missing `.claude-plugin/plugin.json` and the `yaml` runtime dependency, so it could neither be loaded as a plugin nor execute the library call the canary measures.
+- **Why that class of bug is the dangerous one here:** if a mutation never reaches the agent, **both arms produce the trace and the harness reports `inert`** — the outcome this Epic *pre-committed to* as acceptable so nobody would treat it as a crisis. A plumbing failure would have passed through the one guardrail meant to catch surprises. Hence the probe is a **permanent precondition**, not a setup step.
+- **Three throw-rather-than-degrade paths** guard the same disguised failure: a missing deletion target, a target matching twice, and an unknown trace field would each produce two identical arms.
+
+### Known limits, stated rather than discovered later
+- **Half this Epic is not suite-testable by construction** (`M5.E8-VALIDATION` F2). The suite proves the harness **computes** correctly against a stub; it can never prove the harness's answer about a real agent is **true**. A green suite here is not evidence of measured adherence.
+- **The ship-checklist anchor is presence-only.** `commands/ship.md` § 1 gains an adherence line, and a test asserts it exists. It cannot prove a maintainer reads it — labelled in the test file itself, per M5.E9's precedent.
+- **Checklist items are not counted as directives.** Items written as completed states (*"docs/map refreshed if…"*, *"All tests pass"*) fire neither stage-A rule. Found by adding FR6's own checklist line and watching the ceiling not move; now recorded in the classifier's documented limits.
+
 ## [Unreleased] — 2026-07-26 — The v2 direction audit (M5.E7)
 
 **No code shipped, so no version was cut.** The deliverable is a decision: **[`analysis/SIGNAL-V2-ROADMAP.md`](analysis/SIGNAL-V2-ROADMAP.md)** — what Signal builds next, in what order, and why, grounded in Signal's own record. **45 candidates verbed: 11 distinct builds · 16 continue · 19 abandon**, sequenced as **M5.E8 → M5.E12** and landed in [`.planning/BACKLOG.md`](.planning/BACKLOG.md) with a trigger, a first slice, and a stranger-checkable done-when apiece (a roadmap in `analysis/` is enforced by nothing — D-M5E7-8(b)). Suite unchanged at **1623/1623**; validator green; command / agent / skill roster unchanged at **18 / 26 / 21**. Ran at FULL tier under Signal's **first Epic-scoped PROFILE** (`M5.E7-PROFILE.md`) — *"strict thinking, zero test theater."*
