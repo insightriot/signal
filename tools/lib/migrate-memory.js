@@ -1301,7 +1301,10 @@ export function senseState(stateText) {
 // within-STATE vectors' job. Read-only, no lock — this is the sense layer (§9).
 
 // Append-log basenames (model §1 axis-2 examples). Grow by design, never evicted.
-const APPEND_LOG_BASENAMES = new Set(['DECISIONS.md', 'RETROSPECTIVES.md']);
+// ADHERENCE-LOG.md (M5.E8, FR4) is append-only by requirement: a later adherence
+// run never rewrites an earlier one. Classified here so its permanent growth is
+// never read as bloat and its body is never relocated.
+const APPEND_LOG_BASENAMES = new Set(['DECISIONS.md', 'RETROSPECTIVES.md', 'ADHERENCE-LOG.md']);
 // A milestone meta-doc: `MILESTONE-<n>[.<n>…>].md` (e.g. MILESTONE-4.5.md).
 const MILESTONE_DOC_RE = /^MILESTONE-\d+(?:\.\d+)*\.md$/;
 // A scaffold-family doc owns a strict Epic-ID PREFIX (archive-tree / live working set).
