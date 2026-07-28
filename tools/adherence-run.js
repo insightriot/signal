@@ -72,7 +72,7 @@ function currentCommit() {
 }
 
 function parseArgs(argv) {
-  const args = { command: null, canary: null, allCanaries: false, runs: 3, dryRun: false, yes: false, keep: false, probe: false, transcripts: null };
+  const args = { command: null, canary: null, allCanaries: false, runs: 3, dryRun: false, yes: false, keep: false, probe: false, transcripts: null, arm: null, combine: null, skipProbe: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--canary') args.canary = argv[++i];
@@ -84,6 +84,9 @@ function parseArgs(argv) {
     else if (a === '--keep') args.keep = true;
     else if (a === '--probe') args.probe = true;
     else if (a === '--transcripts') args.transcripts = argv[++i];
+    else if (a === '--arm') args.arm = argv[++i];
+    else if (a === '--combine') args.combine = argv[++i];
+    else if (a === '--skip-probe') args.skipProbe = true;
   }
   return args;
 }
@@ -217,6 +220,8 @@ async function runProbe() {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.probe) return runProbe();
+  if (args.combine) return combineArms(args);
+  if (args.arm) return runSingleArm(args);
   if (args.canary || args.allCanaries) return runCanary(args);
   if (!args.command) {
     console.error(
@@ -381,6 +386,116 @@ async function runArm({ canary, arm, runs, allowedTools, transcriptDir }) {
   }
 
   return { results, failedRuns };
+}
+
+/**
+ * Run ONE arm and persist its result, so a long measurement survives being
+ * interrupted. Methodologically equivalent to running both in one process: every
+ * run already builds a fresh fixture and a fresh plugin copy, so there is no
+ * within-process coupling between arms. The sidecar records the commit and
+ * surface, and `--combine` REFUSES to pair arms that disagree on either — which
+ * is the property that makes splitting safe rather than convenient.
+ */
+async function runSingleArm(args) {
+  const registry = loadCanaryRegistry(ROOT);
+  const canary = registry.canaries.find(c => c.id === args.canary) ?? registry.canaries[0];
+  const transcriptDir = args.transcripts;
+  if (!transcriptDir) {
+    console.error('--arm requires --transcripts <dir> (the arm result is persisted there).');
+    process.exit(2);
+  }
+
+  let surface;
+  try {
+    surface = resolveAgentSurface({ exec: execFileSync, model: MODEL });
+  } catch (err) {
+    if (err instanceof CliUnavailableError) { console.error(`\n${err.message}\n`); process.exit(1); }
+    throw err;
+  }
+
+  const seamProven = args.skipProbe ? null : await probeSeam({ quiet: true });
+  if (seamProven === false) {
+    console.error('Seam probe FAILED — refusing to run an arm whose mutation may not reach the agent.');
+    process.exit(1);
+  }
+
+  console.log(`\nArm: ${args.arm} · ${canary.id} · ${args.runs} runs · claude ${surface.cliVersion} · ${surface.model}`);
+  console.log(`Seam probe    ${seamProven === null ? 'SKIPPED (--skip-probe)' : 'PASS'}\n`);
+
+  const { results, failedRuns } = await runArm({
+    canary, arm: args.arm, runs: args.runs, allowedTools: ['Write', 'Edit', 'Read', 'Bash'], transcriptDir,
+  });
+  const summary = summarizeArm(results);
+
+  mkdirSync(transcriptDir, { recursive: true });
+  writeFileSync(
+    join(transcriptDir, `${canary.id}-${args.arm}-results.json`),
+    JSON.stringify({
+      canary: canary.id, arm: args.arm, results, failedRuns, summary,
+      commit: currentCommit(), surface, runsPerArm: args.runs, seamProven,
+    }, null, 2),
+    'utf-8'
+  );
+  console.log(`\n${args.arm}: ${summary.hits}/${summary.runs} ${summary.unanimous ? 'unanimous' : 'SPLIT'} · ${failedRuns} failed`);
+}
+
+/** Combine two persisted arms into a verdict. */
+async function combineArms(args) {
+  const dir = args.combine;
+  const registry = loadCanaryRegistry(ROOT);
+  const canary = registry.canaries.find(c => c.id === args.canary) ?? registry.canaries[0];
+
+  const read = arm => JSON.parse(readFileSync(join(dir, `${canary.id}-${arm}-results.json`), 'utf-8'));
+  let treatment, control;
+  try {
+    treatment = read('treatment');
+    control = read('control');
+  } catch (err) {
+    console.error(`Missing arm result in ${dir}: ${err.message}`);
+    process.exit(2);
+  }
+
+  // A verdict is only meaningful if both arms were measured on the same surface
+  // and the same source. Refuse rather than silently compare across versions.
+  if (treatment.commit !== control.commit) {
+    console.error(`Refusing to combine: arms ran at different commits (${treatment.commit} vs ${control.commit}).`);
+    process.exit(1);
+  }
+  if (treatment.surface.cliVersion !== control.surface.cliVersion || treatment.surface.model !== control.surface.model) {
+    console.error('Refusing to combine: arms ran on different agent surfaces.');
+    process.exit(1);
+  }
+  if (treatment.runsPerArm !== control.runsPerArm) {
+    console.error('Refusing to combine: arms used different run counts.');
+    process.exit(1);
+  }
+
+  // Strictly true on BOTH arms. `--skip-probe` records null, and null must not
+  // launder into "proven" — that would reopen the exact hole the precondition
+  // exists to close.
+  const seamProven = treatment.seamProven === true && control.seamProven === true;
+  const verdict = resolveVerdict({
+    treatmentHits: treatment.summary.hits,
+    controlHits: control.summary.hits,
+    runsPerArm: treatment.runsPerArm,
+    failedRuns: treatment.failedRuns + control.failedRuns,
+    seamProven,
+  });
+
+  console.log('\n' + '='.repeat(60));
+  console.log(`as-written (treatment)  ${treatment.summary.hits}/${treatment.summary.runs}  ${treatment.summary.unanimous ? 'unanimous' : 'SPLIT'}`);
+  console.log(`deleted    (control)    ${control.summary.hits}/${control.summary.runs}  ${control.summary.unanimous ? 'unanimous' : 'SPLIT'}`);
+  console.log(`VERDICT                 ${verdict.toUpperCase()}`);
+  console.log('='.repeat(60));
+  console.log(VERDICT_NOTE[verdict]);
+
+  await appendRunRecord(ROOT, {
+    canary: canary.id, command: canary.command, trace: canary.trace.field, verdict,
+    treatment: treatment.summary, control: control.summary,
+    failedRuns: treatment.failedRuns + control.failedRuns,
+    seamProven, surface: treatment.surface, runsPerArm: treatment.runsPerArm,
+  }, { commit: treatment.commit });
+  console.log(`\nAppended to .planning/${ADHERENCE_LOG}\n`);
 }
 
 /** The two-arm measurement (FR2). */
