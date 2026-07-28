@@ -59,9 +59,24 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 **The near-miss is the one to remember.** The plan pre-authorised `inert` in writing — as the desired worst case, so a null result would not be treated as a crisis and tuned away. That is good discipline, and it is **exactly what would have carried a broken control arm into the published log.** A pre-committed acceptable outcome needs a pre-committed way to tell the real thing from its impostor; that is what `M5.E8-REVIEW.md`'s four-verdict impostor table now is.
 
-**A defect class, three confirmed instances — a guard written, shipped, and never called:** `B39` (a trigger watchlist never walked) · `B46` (45 dispositions nothing reads back) · this Epic's `I2` (`adherence-ceiling.js --check` did the correct staleness comparison and nothing invoked it). **One class, not three bugs.** Candidate mechanism: a hygiene check asserting every `--check`-style guard in `tools/` has a caller.
+**A defect class, three confirmed instances — a guard written, shipped, and never called:** `B39` (a trigger watchlist never walked) · `B46` (45 dispositions nothing reads back) · this Epic's `I2` (`adherence-ceiling.js --check` did the correct staleness comparison and nothing invoked it). **One class, not three bugs.** ~~Candidate mechanism: a hygiene check asserting every `--check`-style guard in `tools/` has a caller.~~ **Corrected 2026-07-28 at M5.E13 DISCUSS (D-M5E13-3):** that mechanism covers **1 of its own 3 instances** — `--check` appears in exactly one file in all of `tools/` (`adherence-ceiling.js`, which *is* `I2`), while `B39` is an instruction no command implements and `B46` is a data write-back nothing ran. The candidate was written from the shape of the most recent instance rather than from all three — **an instance of `B50`, inside the retro that named the sibling class.**
 
-**⏭ NEXT: v0.1.14 — `B48`.** `execute.md`'s phase-entry instruction is unconditional, and an agent **correctly refused** it rather than write a false record into the ledger v0.1.12 had just made honest. Affects all four commands M5.E9 changed. **Live in shipped code.** Carries the `checkVersionConsistency` scope extension (`B49`'s remaining half) with it.
+---
+
+**▶ IN FLIGHT: M5.E13 — "Guards that don't guard" (v0.1.14). Opened 2026-07-28, phase DISCUSS.**
+
+Four defects, one story: *something was built to catch a mistake, and it does not catch it.* Requirements: [`M5.E13-REQUIREMENTS.md`](M5.E13-REQUIREMENTS.md) (6 FRs, 5 NFRs). Decisions **D-M5E13-1…8**. Tier **FULL inherited**.
+
+- **`B48`** — the unconditional phase-entry instruction in `plan`/`execute`/`verify`/`review`. An agent **correctly refused** it rather than write a false record into the ledger v0.1.12 had just made honest. **Live in shipped code.** Fixed in both halves (D-M5E13-4): reword the four commands *and* make `recordPhase` refuse a phase whose artifact does not exist — because Lanes will add two more commands that write phase records, and its own §10 says the precondition idiom must be settled before it is copied.
+- **`B39` / `B46` / `I2`** — fix the three; build the narrow `--check`-has-a-caller test with its scope **stated in its own name**; do not claim it covers the class (D-M5E13-3).
+- **`B36`** + a retro-index freshness check — a release gate that has skipped silently three times, most recently on M5.E8's own ship.
+- **`B49`'s remainder** — `checkVersionConsistency` covers `package.json`.
+
+**Explicit non-goal: no new status-tracking machinery for `B46`** — a one-time data correction only. Signal has been incrementally rebuilding an issue tracker out of markdown; the durable fix is the tracker Epic (D-M5E13-7), not more stamps.
+
+**Ordering (D-M5E13-5):** M5.E13 runs before M5.E10 on **collision** grounds — the claim-integrity fixes edit `verify.md` and `review.md`, `B48` edits those plus `plan.md` and `execute.md`. Smaller command-text fix first means the larger Epic edits them once. `B48` being live is the supporting reason, not the lead.
+
+**Queue behind it:** M5.E10 (claims integrity, re-scoped to seven items, `B38` folded in) → tracker integration (decided in direction, needs scoping) → Lanes (proposal only, `e61f614`).
 
 **`B36` sighted live a third time** at this Epic's own SHIP: the FR1 retro gate **skipped** because `MILESTONE-5.md` still carried E8 as `▶ NEXT`. The retro existed only because it was written before the gate ran.
 

@@ -1659,7 +1659,28 @@ Do not over-assume existing instrumentation: `tools/measure-phase-costs.js` + `t
 
 ## Claim integrity — the second defect class, named
 
-**Status:** Logged 2026-07-28 via `/sig:add`.
+**Status:** Logged 2026-07-28 via `/sig:add`. Body backfilled 2026-07-28 at M5.E13 DISCUSS — the
+entry was filed with a heading and this status line and **no content**, which is itself an instance
+of the class it names (a completeness claim written from the act rather than the artifact). The
+seven entries above it all carry their content on this same line, so this was an authoring miss, not
+a `/sig:add` defect. Ledger identity assigned: **`B50`**.
+
+**The class:** completeness claims written from the shape of the work rather than from the artifact —
+the author composes "0 gaps" / "all verified" / "checklist complete" from their mental model of what
+just happened instead of re-deriving it from the source. The false statement is always *plausible*,
+which is what makes it dangerous. Distinct from the class M5.E8 named (*a guard written, shipped,
+never called*), and the two compose badly: **one writes the false claim, the other ensures the check
+that would catch it never runs.**
+
+**Evidence and full analysis:** [`../analysis/CLAIM-INTEGRITY-ANALYSIS.md`](../analysis/CLAIM-INTEGRITY-ANALYSIS.md)
+— its single home; not restated here. Field evidence from traction-engine Phase 11 (five false
+coverage claims in one FULL-tier phase, every catch incidental), seven prior un-abstracted instances
+in Signal's own corpus, five structural causes traced to `verify.md` / `review.md` / the validators,
+and eight ranked fixes.
+
+**Routing:** fixes homed at **M5.E10** (§6 items 1–3, 5–8) — its trigger is satisfied. The
+retro-index freshness check (§6 item 8) was handed to **M5.E13** instead, per that item's own
+"whichever ships first" clause. Tracker integration is its own Epic (§7).
 
 
 

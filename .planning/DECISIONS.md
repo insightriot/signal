@@ -647,3 +647,98 @@ observable trace, and the guidance carrying the most value — *surface ambiguit
 rationalize*, *gate at product altitude* — remains entirely out of reach of this method. The
 published log states the remainder is **unmeasured, not passing**, and a wording test pins that
 sentence.
+
+## 2026-07-28 — M5.E13 DISCUSS: guards that don't guard (D-M5E13-1 … D-M5E13-8)
+
+**D-M5E13-1 — The Epic takes ID `M5.E13`, not the next-derived `M5.E10`.**
+
+`deriveNextEpicId` returns `M5.E10`, but `M5.E10`/`E11`/`E12` are live roadmap headings with inbound
+references — `BACKLOG.md:234` homes `B38` at M5.E10, and several entries read *"absorbed into
+M5.E12."* Renumbering breaks those; a fresh ID does not. `## Vocabulary` in `PROJECT.md` locks
+**ID-as-identity**, and M5.E9-before-M5.E8 (D-M5E9-2) is the precedent. **IDs are identity, not
+sequence.**
+
+**D-M5E13-2 — Scope: the four defects are one story, and the story is the Epic's name.**
+
+`B48` (an unconditional instruction a correct agent refused) · `B39`/`B46`/`I2` (the guard-never-called
+class) · `B36` + retro-index freshness (a release gate that skips silently) · `B49`'s remainder (a
+version check covering two of three files). Each is *something built to catch a mistake that does not
+catch it*. **Explicit non-goal: no new status-tracking machinery** — see D-M5E13-7.
+
+**D-M5E13-3 — The retro's candidate mechanism covers one of its own three instances. Fix the three,
+build the narrow test, label the gap.**
+
+M5.E8's retrospective proposed *"a hygiene check asserting every `--check`-style guard in `tools/`
+has a caller."* Checked against the artifact rather than accepted: `--check` appears in **exactly one
+file** in all of `tools/` — `adherence-ceiling.js`, which is `I2` itself. `B39` is an instruction in
+a document no command implements (`grep -ril watchlist commands/ tools/` → nothing). `B46` is a data
+write-back nothing ran (0 stamps in `ISSUES-INBOX.md`). **Population of the proposed test: one.
+Coverage of its own motivating set: one of three.**
+
+The retro wrote the mechanism from the shape of the most recent instance rather than from all three —
+**the class named in `analysis/CLAIM-INTEGRITY-ANALYSIS.md`, committed the same week, appearing in the
+document that named the sibling class.** Recorded as a sighting, not just a scope correction.
+
+Rejected: a cross-shape mechanism covering document-shaped obligations. It needs a declared registry
+— new schema, new authoring — and overlaps the tracker Epic. **The gap is labeled in the test's own
+name instead** (FR2.3), because an honest partial beats an over-promised mechanism, and because
+shipping a check that claims more than it does would repeat the exact error above.
+
+**D-M5E13-4 — `B48` is fixed in both the text and the code beneath it.**
+
+The agent that refused the instruction **obeyed correctly** — it declined because obeying would write
+a false record. So adherence is not the broken part; the instruction is simply wrong, which argues
+for a cheap text fix. Two things outweigh that: the Lanes proposal (`e61f614`) adds two more commands
+that write phase records and its own §10 says the precondition idiom must be settled before it is
+copied; and this Epic's thesis is that mechanisms beat instructions.
+
+So: reword all four commands in one shared wording, **and** make `recordPhase` refuse to append a
+phase whose artifact does not exist, resolved through the existing `resolveArtifactPath` rather than
+new detection logic. Accepted cost: this reopens `state.js`, which M5.E9 stabilized (`B43`/`B44`/`B45`
+all lived there). Mitigation is AC1.3 — a legitimately artifact-less phase must be enumerated in the
+tests, not assumed absent.
+
+**D-M5E13-5 — M5.E13 runs before M5.E10, on collision grounds first and urgency second.**
+
+`CLAIM-INTEGRITY-ANALYSIS.md` §6 items 1–3 and 7 edit `commands/verify.md` and `commands/review.md`;
+`B48` edits `plan`/`execute`/`verify`/`review`. **Both Epics land on the same four files.** Doing the
+smaller command-text fix first means the larger Epic edits them once, cleanly. That `B48` is live in
+shipped code is the supporting reason, not the lead one.
+
+**D-M5E13-6 — M5.E8 landing fired five triggers; each gets a decision, and four are re-parked.**
+
+Per `B39` nothing walks the watchlist, so leaving them untouched would be the class's fourth instance
+inside the Epic meant to fix it. **Promoted:** M5.E10 (review hardening), now re-scoped by the
+claim-integrity analysis from two small items to seven, with `B38` folded in and given a purpose it
+did not have (§6 item 6, the provenance rule as a positive recipe). **Re-parked with new written
+conditions and dates:** the `subagent-driven-development` five-round breaker (its trigger reads *"M5.E8
+lands"* full stop, while both its neighbours read *"M5.E8 lands **and** a measured run shows X"* — read
+as a lost second half, and argued as such rather than quietly deferred); cross-install telemetry (four
+users; nothing to pool); harder TDD (now a five-minute canary run rather than a vague park);
+the 2-Action Rule (needs one recorded instance of executor context drift).
+
+**This reverses advice given earlier the same day** to split M5.E10 and shelve `B38`, which was
+offered before `analysis/CLAIM-INTEGRITY-ANALYSIS.md` (`34972f4`) existed. Recorded so the reversal is
+visible rather than silent.
+
+**D-M5E13-7 — The tracker is decided in direction and needs its own Epic; that discharges the
+2026-07-15 trigger.**
+
+`CLAIM-INTEGRITY-ANALYSIS.md` §7 records the call: GitHub Issues as the single home for anything with
+an open/closed lifecycle, on two load-bearing conditions — the tracker is the **only** home for status,
+and closing is wired into the phase gates. This resolves the *GitHub Issues adoption* trigger that
+`BACKLOG.md:187` records as **fired 2026-07-15** and that `B39` names as its canonical
+never-acted-upon instance. **Promote branch taken; scoping is a separate Epic.** Its boundary matters
+and is recorded here: a tracker fixes obligation *status*; it does not check whether a verification
+report enumerated the requirements file. Those are M5.E10's.
+
+**D-M5E13-8 — Every fix ships with a test proven red before the fix; `B48`'s text half re-runs the
+canary.**
+
+M5.E10's own done-when standard (*"every guard fix in the following Epic ships with a test
+demonstrated to fail against `main`"*) is adopted here rather than waiting for M5.E10 to establish it —
+the standard is a working habit, not a dependency. For the half of `B48` that is command text, the
+proof is the adherence harness: rewording a measured instruction invalidates the `OBEYED` verdict
+recorded against it, so `B41-phase-entry` is re-run. **This is the first use of the harness for its
+intended purpose rather than to prove itself.** Test mechanics decided here rather than asked, per
+*gate at product altitude*.

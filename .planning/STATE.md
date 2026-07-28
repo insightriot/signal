@@ -1,22 +1,16 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: SHIP
-current_epic: M5.E8
+phase: DISCUSS
+current_epic: M5.E13
 current_wave: null
 current_tasks: []
-completed_phases:
-  - DISCUSS (2026-07-27)
-  - PLAN (2026-07-28)
-  - EXECUTE (2026-07-28)
-  - VERIFY (2026-07-28)
-  - REVIEW (2026-07-28)
-  - SHIP (2026-07-28)
+completed_phases: []
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-07-26T13:45:54.062Z
 last_updated_commit: 5b6e9ee089647a76820d1a6c1243a4cfc907280e
-last_updated: 2026-07-28T13:37:23.013Z
+last_updated: 2026-07-28T16:42:02.549Z
 ---
 # Project State
 
@@ -30,7 +24,13 @@ last_updated: 2026-07-28T13:37:23.013Z
 
 **The sentence worth carrying forward:** *every defect this Epic found was in the measuring instrument, and every one produced a plausible-looking result rather than an error.* Four — an unreachable fixture (`ABSENT`), a broken `--plugin-dir` seam, a control arm that deleted one line from a section restating the instruction three more times (near-miss `INERT`), and a commit captured after the run that defeated `--combine`'s pairing guard. **None would have made a reader doubt the number.** The near-miss matters most: the plan **pre-authorised `inert` in writing** so a null result would not be tuned away — and that guardrail is exactly what would have carried a broken control into the published log. A pre-committed acceptable outcome needs a pre-committed way to tell it from its impostor (→ the four-verdict impostor table in `M5.E8-REVIEW.md`).
 
-**➡ NEXT: v0.1.14 — `B48`, and it is live in shipped code.** `execute.md`'s phase-entry instruction is **unconditional**, and an agent **correctly refused** it rather than write a false record into the ledger v0.1.12 had just made honest (calling `transitionPhase` on a phase that halts at its preconditions records `phase: EXECUTE` for a project with nothing to execute). Affects **all four** commands M5.E9 changed — `plan`, `execute`, `verify`, `review`. Found by reading a run transcript, **not** by a verdict. Carries with it: **`B49`'s remaining half** (extend `checkVersionConsistency` to cover `package.json` — the guard exists and fired on `marketplace.json` during v0.1.13's own cut; only its *scope* is short), and **a defect class with three confirmed instances — a guard written, shipped, and never called** (`B39` a watchlist never walked · `B46` 45 dispositions nothing reads back · M5.E8's `I2` a `--check` nothing invoked). One class, not three bugs; candidate mechanism is a hygiene check asserting every `--check`-style guard in `tools/` has a caller.
+**▶ IN FLIGHT: M5.E13 — "Guards that don't guard" (v0.1.14). Opened 2026-07-28, phase DISCUSS.** Requirements: [`M5.E13-REQUIREMENTS.md`](M5.E13-REQUIREMENTS.md) (6 FRs). Decisions **D-M5E13-1…8**. Tier FULL inherited. Four defects, one story: *something was built to catch a mistake, and it does not catch it* — `B48`, the `B39`/`B46`/`I2` guard class, `B36` + retro-index freshness, and `B49`'s remainder.
+
+**Two things this DISCUSS corrected before planning anything.** (1) M5.E8's retro proposed a mechanism for the guard class — *a `--check`-has-a-caller test* — that covers **1 of its own 3 instances**: `--check` appears in exactly one file in all of `tools/`, and it is `I2` itself; `B39` is an instruction no command implements, `B46` a data write-back nothing ran. Scope corrected (**D-M5E13-3**): fix the three, build the narrow test, **label the gap in the test's own name**. (2) The Epic takes ID **`M5.E13`, not the next-derived `M5.E10`** — `M5.E10`–`E12` are live roadmap headings with inbound references, and ID-is-identity makes out-of-order legal (**D-M5E13-1**).
+
+**The five triggers M5.E8 fired are now decided, not silent (D-M5E13-6)** — one promoted (M5.E10, re-scoped from two items to seven by the claim-integrity analysis, `B38` folded in with a purpose), four re-parked with new written conditions and dates. Plus **D-M5E13-7**: the tracker call in `analysis/CLAIM-INTEGRITY-ANALYSIS.md` §7 discharges the *GitHub Issues adoption* trigger that fired **2026-07-15** and sat unacted — `B39`'s own canonical instance.
+
+**The originating bug, for context:** `execute.md`'s phase-entry instruction is **unconditional**, and an agent **correctly refused** it rather than write a false record into the ledger v0.1.12 had just made honest (calling `transitionPhase` on a phase that halts at its preconditions records `phase: EXECUTE` for a project with nothing to execute). Affects **all four** commands M5.E9 changed — `plan`, `execute`, `verify`, `review`. Found by reading a run transcript, **not** by a verdict. Carries with it: **`B49`'s remaining half** (extend `checkVersionConsistency` to cover `package.json` — the guard exists and fired on `marketplace.json` during v0.1.13's own cut; only its *scope* is short), and **a defect class with three confirmed instances — a guard written, shipped, and never called** (`B39` a watchlist never walked · `B46` 45 dispositions nothing reads back · M5.E8's `I2` a `--check` nothing invoked). One class, not three bugs; candidate mechanism is a hygiene check asserting every `--check`-style guard in `tools/` has a caller.
 
 **Note for whoever plans v0.1.14:** `B48`'s fix **rewords a measured instruction**, which invalidates the `OBEYED` verdict recorded against it. That is exactly what the new `ship.md` adherence checklist line exists to catch — so v0.1.14 should re-run the canary (`node tools/adherence-run.js --canary B41-phase-entry`). It will be the first time the harness is used the way it was built to be used rather than to prove itself.
 
@@ -38,7 +38,9 @@ last_updated: 2026-07-28T13:37:23.013Z
 
 ## In-flight
 
-**None — M5.E8 shipped as v0.1.13 (2026-07-28).** No Epic in flight; `current_epic` still reads `M5.E8` and will roll when the next Epic opens its DISCUSS. `completed_phases` holds M5.E8's complete six-phase ledger (DISCUSS→SHIP) — the first one written entirely by the commands rather than by hand, which is `B41`'s fix working on Signal itself.
+**M5.E13 — "Guards that don't guard", phase DISCUSS.** Opened 2026-07-28; `current_epic` rolled `M5.E8 → M5.E13` and reset the ledger, so `completed_phases` is empty and fills as this Epic's own phases close. M5.E8's complete six-phase ledger (DISCUSS→SHIP) archived on the roll — the first one written entirely by the commands rather than by hand, which is `B41`'s fix working on Signal itself.
+
+**Next command:** `/sig:plan`. Open questions PLAN must settle are named in `M5.E13-REQUIREMENTS.md` § "Open questions for PLAN" — whether FR1.2's refusal belongs in `recordPhase` or `transitionPhase`, and whether `B39` is fixed by implementing the watchlist walk or by retiring the standing entry that claims one happens.
 
 ## Blockers
 
