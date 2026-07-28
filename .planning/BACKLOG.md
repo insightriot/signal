@@ -189,8 +189,21 @@ instead of inward at `.planning/` — the work is **retargeting, not inventing.*
 **additive to, never a substitute for**, claim verification: no tracker checks whether a report
 enumerated a requirements file). Added 2026-07-28, Brett's call at the claim-integrity pass; design
 record: [`../analysis/CLAIM-INTEGRITY-ANALYSIS.md`](../analysis/CLAIM-INTEGRITY-ANALYSIS.md) §7.
-**Not part of the M5.E7 sequencing — a post-audit widening, named as one.** *(ID note: `M5.E13` was
-already claimed by the in-flight Lanes epic when this entry was written; E14 was the next free ID.)*
+**Not part of the M5.E7 sequencing — a post-audit widening, named as one.**
+
+> **⚠ ID note corrected 2026-07-28 (M5.E13 DISCUSS).** This entry originally read: *"`M5.E13` was
+> already claimed by the in-flight Lanes epic when this entry was written; E14 was the next free ID."*
+> **That was false in both halves.** Lanes carried **no Epic ID** — not here, not in `MILESTONE-5.md`,
+> not in [`../analysis/LANES-IMPLEMENTATION-GUIDE.md`](../analysis/LANES-IMPLEMENTATION-GUIDE.md),
+> which describes itself as *"DISCUSS input for a new Epic"* — and it was **not in flight**; it was an
+> uncommitted proposal in the working tree until `e61f614` the same day. `M5.E13` was free and is now
+> **"Guards that don't guard"** (opened `42d3f13`). This entry keeps **M5.E14**; nothing renumbers.
+>
+> **Recorded as a `B50` sighting, not just a typo** — a status claim ("already claimed", "in-flight")
+> written from the author's mental model rather than checked against the artifact, in a commit made
+> the same day the class was named. **Fourth sighting in one session**, after M5.E8's retro mechanism
+> (covered 1 of its own 3 instances), this class's own inbox capture (filed with a body-less "Logged"
+> status line), and this. The class is not historical.
 
 **The argument:** "closed" in a tracker is an *event* — actor, timestamp, audit trail; in markdown
 it is a string an agent rewrites wholesale on every edit (the `B41`–`B45` shape, aimed at status).

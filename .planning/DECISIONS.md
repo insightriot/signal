@@ -727,10 +727,25 @@ visible rather than silent.
 `CLAIM-INTEGRITY-ANALYSIS.md` §7 records the call: GitHub Issues as the single home for anything with
 an open/closed lifecycle, on two load-bearing conditions — the tracker is the **only** home for status,
 and closing is wired into the phase gates. This resolves the *GitHub Issues adoption* trigger that
-`BACKLOG.md:187` records as **fired 2026-07-15** and that `B39` names as its canonical
-never-acted-upon instance. **Promote branch taken; scoping is a separate Epic.** Its boundary matters
+`BACKLOG.md` records as **fired 2026-07-15** and that `B39` names as its canonical never-acted-upon
+instance. **Promote branch taken; scoping is a separate Epic — `M5.E14`, entered in `BACKLOG.md` by
+a parallel session at `4cd9f9d` (2026-07-28 12:45), trigger *M5.E10 lands*.** Its boundary matters
 and is recorded here: a tracker fixes obligation *status*; it does not check whether a verification
 report enumerated the requirements file. Those are M5.E10's.
+
+**Addendum — a fourth `B50` sighting, found while reconciling with that parallel session.** The
+`M5.E14` entry justified its ID with *"`M5.E13` was already claimed by the in-flight Lanes epic."*
+**False in both halves:** Lanes carried no Epic ID in `BACKLOG.md`, `MILESTONE-5.md`, or its own
+guide (which calls itself *"DISCUSS input for a new Epic"*), and it was not in flight — it was an
+uncommitted file in the working tree until `e61f614` the same day. Corrected in place; `M5.E14`
+keeps its ID and nothing renumbers. **Recorded because the pattern is the point:** a status claim
+written from a mental model rather than checked against the artifact, committed on the same day the
+class was named, by a session that had read the analysis naming it.
+
+**Operational note:** two Claude sessions were writing to this repo concurrently (`4cd9f9d` landed
+between `e61f614` and this Epic's `42d3f13`). No work was lost — the edits touched disjoint regions
+of `BACKLOG.md` — but the false ID note is exactly the failure mode the *don't run parallel sessions
+on one repo* rule exists to prevent: a second session reasoning about state it could not see.
 
 **D-M5E13-8 — Every fix ships with a test proven red before the fix; `B48`'s text half re-runs the
 canary.**
