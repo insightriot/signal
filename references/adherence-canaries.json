@@ -1,0 +1,57 @@
+{
+  "$comment": [
+    "THE CANARY REGISTRY (M5.E8, FR3). Every instruction the adherence harness measures,",
+    "paired with the observable trace it should produce — declared BEFORE any run.",
+    "",
+    "AC3.3 exists because a trace chosen after seeing the output is a rationalization, not a",
+    "prediction. Same reasoning applies to `verdictRule` below: the mapping from run counts to",
+    "a verdict is fixed here in advance, so nobody gets to pick a threshold after seeing 3/3",
+    "versus 2/3.",
+    "",
+    "`deleteLine` is the exact substring the control arm removes from a COPY of the command",
+    "file. It must occur EXACTLY ONCE in the real file — a target that has drifted out would",
+    "delete nothing, make both arms identical, and read as INERT. A test asserts that count."
+  ],
+  "version": 1,
+  "verdictRule": {
+    "$comment": [
+      "Deliberately conservative. With N runs of a nondeterministic process, anything short of",
+      "a unanimous split is reported as INDETERMINATE rather than rounded into a finding.",
+      "INDETERMINATE is an honest answer; a 2-of-3 'obeyed' is not."
+    ],
+    "obeyed": "treatmentHits == runsPerArm AND controlHits == 0",
+    "inert": "treatmentHits == runsPerArm AND controlHits == runsPerArm",
+    "absent": "treatmentHits == 0 AND controlHits == 0",
+    "indeterminate": "anything else, any failed run, or a backwards result",
+    "refuses": "no verdict at all unless the mutation was proven to reach the agent"
+  },
+  "canaries": [
+    {
+      "id": "B41-phase-entry",
+      "declaredAt": "2026-07-28",
+      "command": "execute",
+      "instruction": "Before any Workflow step, call `await transitionPhase(baseDir, 'EXECUTE')` at phase entry.",
+      "deleteLine": "call `await transitionPhase(baseDir, 'EXECUTE')`",
+      "trace": {
+        "field": "phaseChanged",
+        "expect": "STATE.md `phase` advances to EXECUTE, and `completed_phases` grows by the phase being left",
+        "secondaryField": "completedPhasesGrew"
+      },
+      "why": [
+        "This is the instruction M5.E9 shipped and could not verify. It said so in its own test",
+        "header rather than let a passing test imply otherwise, and that admission is what opened",
+        "this Epic. Measuring it first is the honest choice: the harness's first subject is the",
+        "claim its own author flagged as unproven.",
+        "",
+        "It is also a fair test rather than a rigged one. The rule was added to four command files",
+        "in the release immediately before this Epic, so there is no long history of agents having",
+        "been trained on it by repetition in this repo.",
+        "",
+        "Named worst case, and it is an acceptable one: if this comes back INERT, Signal will have",
+        "spent an Epic proving one of its own shipped fixes does nothing. That is what a real",
+        "measurement is for. It is recorded here, before the run, so the result cannot later be",
+        "reframed as a harness defect and tuned away."
+      ]
+    }
+  ]
+}

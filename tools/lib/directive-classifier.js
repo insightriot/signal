@@ -84,6 +84,14 @@
 //   • Prose-shaped guidance — "surface ambiguity", "don't rationalize", "gate at
 //     product altitude" — is unmeasurable BY CONSTRUCTION here. That is the
 //     finding, not a defect of the classifier.
+//   • CHECKLIST ITEMS PHRASED AS COMPLETED STATES ARE NOT COUNTED. `ship.md`'s
+//     "- [ ] README updated if the public API changed", "- [ ] All tests pass"
+//     and the FR6 adherence line are conditions to verify, written as past
+//     participles, so neither A1 nor A2 fires. Whether they are "directives" is
+//     genuinely arguable; they are excluded here because the rule keys on
+//     imperative form, and the exclusion is recorded rather than left for a
+//     reader to discover by diffing the corpus. Noticed when FR6's own checklist
+//     line was added and the published ceiling did not move.
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';

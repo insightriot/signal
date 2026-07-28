@@ -101,6 +101,71 @@ export function upsertCeiling(existing, section) {
   return `${existing}${existing.endsWith('\n') ? '' : '\n'}${block}\n`;
 }
 
+const VERDICT_GLOSS = {
+  obeyed: 'the trace appears only with the instruction present — the instruction changed what the agent did',
+  inert: 'the trace appears in BOTH arms — the instruction caused nothing. A **finding**, not a failure, and not retried until it passes',
+  absent: 'the trace appeared in neither arm — nothing happened; check whether the fixture reached the instruction at all',
+  indeterminate: 'not a clean split, or a run failed — an honest "we do not know", recorded rather than rounded into a finding',
+};
+
+/**
+ * Render one run record (AC4.1). Everything needed to repeat the run (AC4.3) is
+ * on the face of it: canary, command, runs per arm, surface, commit.
+ */
+export function renderRunRecord(record, { date, commit }) {
+  const { treatment: t, control: c } = record;
+  const gloss = VERDICT_GLOSS[record.verdict] ?? '(unknown verdict)';
+
+  return `### ${date} · \`${record.canary}\` · **${record.verdict.toUpperCase()}**
+
+| | |
+|---|---|
+| Commit | \`${commit}\` |
+| Command | \`/sig:${record.command}\` |
+| Trace | \`${record.trace}\` |
+| Surface | claude ${record.surface.cliVersion} · ${record.surface.model} |
+| Runs per arm | ${record.runsPerArm} |
+| Seam precondition | ${record.seamProven ? 'PASS — the mutated tree is the one the agent read' : 'FAIL'} |
+| as-written (treatment) | **${t.hits}/${t.runs}** ${t.unanimous ? 'unanimous' : '**SPLIT**'} |
+| instruction deleted (control) | **${c.hits}/${c.runs}** ${c.unanimous ? 'unanimous' : '**SPLIT**'} |
+| Failed runs | ${record.failedRuns} |
+
+**${record.verdict.toUpperCase()}** — ${gloss}.
+
+`;
+}
+
+/**
+ * AC4.2 — APPEND-ONLY. Adds a run record beneath the runs marker without
+ * touching a single byte above it, and without touching any earlier record.
+ *
+ * Implemented as a pure concatenation for a reason: there is no code path here
+ * that reads an existing record, so there is none that can rewrite one. The Epic
+ * that shipped `B44` — a silent write that dropped data — does not get to
+ * collapse another log, and M5.E9 established that a past collapse is not
+ * detectable from the file afterwards, because the evidence is what gets
+ * destroyed. So the guarantee is structural, not procedural.
+ */
+export async function appendRunRecord(baseDir, record, { date, commit } = {}) {
+  const path = join(baseDir, PLANNING_DIR, ADHERENCE_LOG);
+  const stamp = date ?? new Date().toISOString().slice(0, 10);
+
+  let existing;
+  try {
+    existing = await readFile(path, 'utf-8');
+  } catch {
+    existing = `${HEADER}${RUNS_MARKER}\n`;
+  }
+  if (!existing.includes(RUNS_MARKER)) {
+    existing = `${existing}${existing.endsWith('\n') ? '' : '\n'}\n${RUNS_MARKER}\n`;
+  }
+
+  const body = renderRunRecord(record, { date: stamp, commit: commit ?? 'unknown' });
+  const next = `${existing}${existing.endsWith('\n') ? '' : '\n'}${body}`;
+  await atomicWrite(path, next);
+  return { path };
+}
+
 const HEADER = `# Adherence Log
 
 Signal's measurement record: what its own instructions actually cause an agent to do.

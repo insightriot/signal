@@ -28,6 +28,7 @@
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -45,6 +46,15 @@ import {
   resolveAgentSurface,
   writeProbeCommand,
 } from './lib/adherence-harness.js';
+import {
+  CANARY_REGISTRY_PATH,
+  applyDeletion,
+  loadCanaryRegistry,
+  resolveVerdict,
+  summarizeArm,
+  traceHit,
+} from './lib/adherence-verdict.js';
+import { ADHERENCE_LOG, appendRunRecord } from './lib/adherence-log.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -53,11 +63,21 @@ const ROOT = join(__dirname, '..');
 // record with `model: null` is not reproducible, and AC4.3 would fail quietly.
 const MODEL = process.env.ADHERENCE_MODEL ?? 'claude-opus-5';
 
+function currentCommit() {
+  try {
+    return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf-8' }).trim();
+  } catch {
+    return 'unknown';
+  }
+}
+
 function parseArgs(argv) {
-  const args = { command: null, runs: 3, dryRun: false, yes: false, keep: false, probe: false };
+  const args = { command: null, canary: null, allCanaries: false, runs: 3, dryRun: false, yes: false, keep: false, probe: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--command') args.command = argv[++i];
+    if (a === '--canary') args.canary = argv[++i];
+    else if (a === '--all-canaries') args.allCanaries = true;
+    else if (a === '--command') args.command = argv[++i];
     else if (a === '--runs') args.runs = Number(argv[++i]);
     else if (a === '--dry-run') args.dryRun = true;
     else if (a === '--yes' || a === '-y') args.yes = true;
@@ -120,22 +140,7 @@ function invokeAgent({ fixtureRoot, pluginRoot, prompt, allowedTools = ['Write']
  * The positive control. Proves the tree we mutate is the tree the agent reads.
  * Two agent calls, run before the control arm is trusted for anything.
  */
-async function runProbe() {
-  let surface;
-  try {
-    surface = resolveAgentSurface({ exec: execFileSync, model: MODEL });
-  } catch (err) {
-    if (err instanceof CliUnavailableError) {
-      console.error(`\n${err.message}\n`);
-      process.exit(1);
-    }
-    throw err;
-  }
-
-  console.log('\nAdherence seam probe — 2 agent calls');
-  console.log('='.repeat(60));
-  console.log(`Surface: claude ${surface.cliVersion} · ${surface.model}\n`);
-
+async function probeSeam({ quiet = false } = {}) {
   const results = {};
   for (const mode of ['discovery', 'precedence']) {
     const token = `${mode}-${randomBytes(4).toString('hex')}`;
@@ -153,37 +158,64 @@ async function runProbe() {
     const ok = probeSucceeded(fixture.root, token);
     results[mode] = ok;
 
-    console.log(`${mode.padEnd(11)} /sig:${commandName.padEnd(18)} ${ok ? 'PASS' : 'FAIL'}  (exit ${res.status}${res.timedOut ? ', TIMED OUT' : ''})`);
-    if (!ok) {
-      const detail = (res.stderr || res.stdout || '').trim().split('\n').slice(0, 3).join('\n    ');
-      if (detail) console.log(`    ${detail.slice(0, 400)}`);
+    if (!quiet) {
+      console.log(`${mode.padEnd(11)} /sig:${commandName.padEnd(18)} ${ok ? 'PASS' : 'FAIL'}  (exit ${res.status}${res.timedOut ? ', TIMED OUT' : ''})`);
+      if (!ok) {
+        const detail = (res.stderr || res.stdout || '').trim().split('\n').slice(0, 3).join('\n    ');
+        if (detail) console.log(`    ${detail.slice(0, 400)}`);
+      }
     }
     await rm(fixture.root, { recursive: true, force: true });
     await rm(plugin.root, { recursive: true, force: true });
   }
 
+  return Boolean(results.precedence);
+}
+
+/** `--probe` mode: run the seam probe on its own and report it. */
+async function runProbe() {
+  let surface;
+  try {
+    surface = resolveAgentSurface({ exec: execFileSync, model: MODEL });
+  } catch (err) {
+    if (err instanceof CliUnavailableError) {
+      console.error(`\n${err.message}\n`);
+      process.exit(1);
+    }
+    throw err;
+  }
+
+  console.log('\nAdherence seam probe — 2 agent calls');
   console.log('='.repeat(60));
-  if (results.precedence) {
-    console.log('SEAM OK — the copied tree wins. The control arm can be trusted to');
-    console.log('be measuring the mutated command.');
-  } else if (results.discovery) {
-    console.log('SEAM BROKEN — the copy LOADS, but does not SHADOW the installed');
-    console.log('plugin. A mutation to an existing command would never reach the');
-    console.log('agent, and both arms would agree, and the harness would report');
-    console.log('INERT. No verdict may be emitted on this seam.');
+  console.log(`Surface: claude ${surface.cliVersion} · ${surface.model}\n`);
+
+  const ok = await probeSeam({ quiet: false });
+
+  console.log('='.repeat(60));
+  if (ok) {
+    console.log('SEAM OK — the copied tree wins over the installed plugin. The control');
+    console.log('arm can be trusted to be measuring the mutated command.');
   } else {
-    console.log('SEAM BROKEN — the copied tree is not loaded at all. Same conclusion:');
-    console.log('no verdict may be emitted on this seam.');
+    console.log('SEAM BROKEN — the mutation would not reach the agent. Both arms would');
+    console.log('agree and the harness would report INERT, which is indistinguishable');
+    console.log('from a real finding. No verdict may be emitted on this seam.');
   }
   console.log('='.repeat(60) + '\n');
-  process.exit(results.precedence ? 0 : 1);
+  process.exit(ok ? 0 : 1);
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.probe) return runProbe();
+  if (args.canary || args.allCanaries) return runCanary(args);
   if (!args.command) {
-    console.error('Usage: node tools/adherence-run.js --command <name> [--runs N] [--dry-run] [--yes]');
+    console.error(
+      'Usage:\n' +
+      '  node tools/adherence-run.js --probe                     # prove the seam (2 calls)\n' +
+      '  node tools/adherence-run.js --canary <id> [--runs N]    # the two-arm measurement\n' +
+      '  node tools/adherence-run.js --command <name> [--runs N] # single-arm observation\n' +
+      '  ... --dry-run --yes --keep'
+    );
     process.exit(2);
   }
 
@@ -265,9 +297,9 @@ async function main() {
   console.log('\n' + '='.repeat(52));
   console.log(`Observed a phase advance in ${withPhaseChange}/${args.runs} run(s).`);
   console.log(
-    'This is an OBSERVATION, not a verdict. Without the instruction-deleted\n' +
-    'control arm (S3), a trace present here could be caused by the instruction\n' +
-    'or by the agent doing it anyway — and those are opposite findings.'
+    'This is an OBSERVATION, not a verdict. Use --canary <id> for the two-arm\n' +
+    'measurement: a trace seen here could be caused by the instruction or by the\n' +
+    'agent doing it anyway, and those are opposite findings.'
   );
   console.log('='.repeat(52) + '\n');
 
@@ -278,6 +310,158 @@ async function main() {
     console.log(`Kept: ${fixture.root}\n      ${plugin.root}\n`);
   }
 }
+
+/** One arm: N runs, each on a fresh fixture, returning per-run trace booleans. */
+async function runArm({ canary, arm, runs, allowedTools }) {
+  const results = [];
+  let failedRuns = 0;
+
+  for (let i = 1; i <= runs; i++) {
+    const fixture = await createFixtureProject({ tier: 'FULL', phase: 'PLAN' });
+    const plugin = await createPluginCopy(ROOT);
+    assertIsolatedFixture(fixture.root, ROOT);
+    assertIsolatedFixture(plugin.root, ROOT);
+
+    // The control arm deletes the instruction — from the COPY only (AC2.4).
+    if (arm === 'control') {
+      const target = join(plugin.root, 'commands', `${canary.command}.md`);
+      const mutated = applyDeletion(readFileSync(target, 'utf-8'), canary.deleteLine);
+      writeFileSync(target, mutated, 'utf-8');
+    }
+
+    const before = await captureTrace(fixture.root);
+    const res = invokeAgent({
+      fixtureRoot: fixture.root,
+      pluginRoot: plugin.root,
+      prompt: `/sig:${canary.command}`,
+      allowedTools,
+    });
+    const after = await captureTrace(fixture.root);
+    const diff = diffTraces(before, after);
+
+    const failed = res.status !== 0 || res.timedOut;
+    if (failed) failedRuns++;
+    const hit = traceHit(diff, canary.trace.field);
+    results.push(hit);
+
+    console.log(
+      `  ${arm.padEnd(9)} run ${i}/${runs}  trace=${hit ? 'YES' : 'no '}  exit=${res.status}${res.timedOut ? ' TIMEOUT' : ''}`
+    );
+    if (failed && (res.stderr || res.stdout)) {
+      console.log(`      ${(res.stderr || res.stdout).trim().split('\n')[0].slice(0, 140)}`);
+    }
+
+    await rm(fixture.root, { recursive: true, force: true });
+    await rm(plugin.root, { recursive: true, force: true });
+  }
+
+  return { results, failedRuns };
+}
+
+/** The two-arm measurement (FR2). */
+async function runCanary(args) {
+  const registry = loadCanaryRegistry(ROOT);
+  const canary = args.canary
+    ? registry.canaries.find(c => c.id === args.canary)
+    : registry.canaries[0];
+  if (!canary) {
+    console.error(`No canary ${JSON.stringify(args.canary)} in ${CANARY_REGISTRY_PATH}.`);
+    process.exit(2);
+  }
+
+  const cost = planCost({ instructions: 1, runsPerArm: args.runs });
+  console.log('\nAdherence measurement');
+  console.log('='.repeat(60));
+  console.log(`Canary        ${canary.id}`);
+  console.log(`Instruction   ${canary.instruction}`);
+  console.log(`Command       /sig:${canary.command}`);
+  console.log(`Trace         ${canary.trace.field} — declared ${canary.declaredAt}`);
+  console.log(`Runs per arm  ${cost.runsPerArm}   Arms: ${cost.arms}`);
+  console.log(`Agent calls   ${cost.totalInvocations} measurement + 2 seam probe = ${cost.totalInvocations + 2}`);
+  console.log('='.repeat(60));
+
+  if (args.dryRun) return;
+
+  let surface;
+  try {
+    surface = resolveAgentSurface({ exec: execFileSync, model: MODEL });
+  } catch (err) {
+    if (err instanceof CliUnavailableError) {
+      console.error(`\n${err.message}\n`);
+      process.exit(1);
+    }
+    throw err;
+  }
+  console.log(`Surface       claude ${surface.cliVersion} · ${surface.model}\n`);
+
+  if (!args.yes && !(await confirm(`Spend ${cost.totalInvocations + 2} agent call(s)?`))) {
+    console.log('Aborted before spending.');
+    return;
+  }
+
+  // PRECONDITION — prove the mutation reaches the agent before measuring anything.
+  const seamProven = await probeSeam({ quiet: true });
+  console.log(`Seam probe    ${seamProven ? 'PASS — the copied tree is the one read' : 'FAIL'}\n`);
+
+  const ALLOWED = ['Write', 'Edit', 'Read', 'Bash'];
+  const treatment = await runArm({ canary, arm: 'treatment', runs: args.runs, allowedTools: ALLOWED });
+  const control = await runArm({ canary, arm: 'control', runs: args.runs, allowedTools: ALLOWED });
+
+  const t = summarizeArm(treatment.results);
+  const c = summarizeArm(control.results);
+
+  let verdict;
+  try {
+    verdict = resolveVerdict({
+      treatmentHits: t.hits,
+      controlHits: c.hits,
+      runsPerArm: args.runs,
+      failedRuns: treatment.failedRuns + control.failedRuns,
+      seamProven,
+    });
+  } catch (err) {
+    console.error(`\n${err.message}\n`);
+    process.exit(1);
+  }
+
+  console.log('\n' + '='.repeat(60));
+  console.log(`as-written (treatment)  ${t.hits}/${t.runs}  ${t.unanimous ? 'unanimous' : 'SPLIT'}`);
+  console.log(`deleted    (control)    ${c.hits}/${c.runs}  ${c.unanimous ? 'unanimous' : 'SPLIT'}`);
+  console.log(`VERDICT                 ${verdict.toUpperCase()}`);
+  console.log('='.repeat(60));
+  console.log(VERDICT_NOTE[verdict]);
+  console.log('');
+
+  const record = {
+    canary: canary.id,
+    command: canary.command,
+    trace: canary.trace.field,
+    verdict,
+    treatment: t,
+    control: c,
+    failedRuns: treatment.failedRuns + control.failedRuns,
+    seamProven,
+    surface: { cliVersion: surface.cliVersion, model: surface.model },
+    runsPerArm: args.runs,
+  };
+  await appendRunRecord(ROOT, record, { commit: currentCommit() });
+  console.log(`Appended to .planning/${ADHERENCE_LOG}\n`);
+}
+
+const VERDICT_NOTE = {
+  obeyed: 'The trace appears only with the instruction present. The instruction changed\nwhat the agent did.',
+  inert:
+    'The trace appears WITH AND WITHOUT the instruction. The instruction caused\n' +
+    'nothing — the agent did it anyway. This is a finding, not a failure, and it is\n' +
+    'not to be retried until it passes (NFR4).',
+  absent:
+    'The trace appeared in neither arm. The instruction was not followed, and the\n' +
+    'fixture may not have reached the point where it applies. Check the run output\n' +
+    'before reading this as a result about the instruction.',
+  indeterminate:
+    'Not a clean split, or a run failed. This is an honest "we do not know" — it is\n' +
+    'recorded as such rather than rounded into a finding.',
+};
 
 main().catch(err => {
   console.error(err?.stack || String(err));
