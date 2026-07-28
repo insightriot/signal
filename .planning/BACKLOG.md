@@ -146,8 +146,12 @@ unverified — never asserted from memory* (the `buildCaveats()` lesson, general
   VERIFICATION with a seeded false claim is caught by the step.
 - **Correction protocol** (§6 item 5) — a correction is complete when a corpus grep for the claim
   and its restatements returns only corrected instances: root + all carriers, not the files that
-  happened to be open. *Done-when:* a SHIP-time check fails on a fixture with a corrected root and
-  one live carrier.
+  happened to be open. **Plus the corollary: retract at the granularity people search at** — `grep`
+  prints one line, so an amendment appended three lines below leaves the claim's own line reading as
+  live; the line must carry its own inline retraction. (Resolves the real tension between *amend,
+  never rewrite* and *the grep must come back clean*: the matching line must be **self-correcting**,
+  not absent.) *Done-when:* a SHIP-time check fails on a fixture with a corrected root and one live
+  carrier, **and** on a fixture whose correction exists in the file but not on the claim's own line.
 - **Wire up or fold in the verifier agents** (§6 item 7) — `agents/verifiers/verifier.md` and
   `nyquist-auditor.md` carry the enumerate-with-a-denominator shape and are dispatched by no
   command. *Done-when:* that discipline is reachable from `/sig:verify`, by dispatch or absorption.

@@ -139,6 +139,17 @@ derived, (b) deterministically checked, or (c) explicitly labeled unverified.** 
 5. **Correction protocol** — a correction is complete when a corpus grep for the claim (and its
    restatements) returns only corrected instances: root + all carriers, not the files that happened to be
    open. Mechanically checkable at SHIP. *Kills #5 and the residue problem.* **Home: M5.E10.**
+   **Corollary — retract at the granularity people search at** *(added 2026-07-28, from a review of the
+   traction-engine correction pass)*: an amendment appended below a false claim leaves the claim's own
+   line reading as live. `grep -rn` prints **one line**; a correction three lines down is invisible to it,
+   and grep-shaped reading is exactly how the backfill claim propagated VERIFY→REVIEW in the first place.
+   So the claim's line must carry its own retraction inline (`~~still owed~~ **[RETRACTED — see
+   amendment below]**`), not merely be followed by one. Note the tension this resolves: *amend, never
+   rewrite* and *the grep must come back clean* cannot both hold if amending means appending — the
+   resolution is that the matching line must be **self-correcting**, not absent. `PHASE11-SHIP.md`
+   got this right by accident (its retraction fell on the same line); everything else needed the fix.
+   *Done-when, sharpened:* the SHIP check tests whether each matching **line**, read alone, still
+   asserts the false claim — not merely whether a correction exists somewhere in the file.
 6. **Provenance rule for cross-phase restatement** — never restate (and never *escalate*) an upstream
    claim about a third artifact without opening that artifact. Anti-rationalization tables, as a positive
    recipe — fits the B38 discipline-vs-shaping reclassification. *Degrades #4's compounding.* **Home: M5.E10 (B38 work).**
