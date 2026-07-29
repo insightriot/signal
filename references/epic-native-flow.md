@@ -30,6 +30,8 @@ The resolved ID is written by `setCurrentEpic(baseDir, epicId)` (`tools/lib/stat
 
 `artifactName(artifact, { currentEpic })` (`tools/lib/resume.js`) names what a phase command **writes**; `resolveArtifactPath(planningDir, artifact, { currentEpic, phase })` resolves what it **reads**. They are symmetric — whatever `artifactName` emits, `resolveArtifactPath` with the same opts resolves back.
 
+**How that is guaranteed (M5.E13, `B53`).** By construction, not by convention: `resolveArtifactPath`'s first candidate *is* `artifactName(artifact, { currentEpic })`. Neither seam guesses at the other's Epic-ID regex, so the sentence above holds for **every** value of `current_epic`, not only strict Epic IDs. It did not always: the two used different regexes (strict for the write, lenient for the read) and the read tried the Epic-prefixed name **first** — so a project with `current_epic: PHASE11` wrote `1-PLAN.md` while the next command resolved a stale `PHASE11-PLAN.md`, and this paragraph asserted the opposite for four releases. The lenient Epic-prefixed pattern is still tried, but **below** the write-seam candidate: projects that already carry non-strict Epic-prefixed artifacts keep resolving them.
+
 | Mode | Naming |
 |---|---|
 | **Epic** (strict `currentEpic`) | `{EpicID}-{ARTIFACT}.md` for all kinds (e.g. `M4.5.E11-PLAN.md`) |
