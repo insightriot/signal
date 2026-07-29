@@ -18,6 +18,7 @@ import {
   checkInternalLinks,
   checkRosterCounts,
   checkVersionConsistency,
+  VERSION_SOURCES,
   checkFillInStubs,
   runDocHygiene,
   hygieneReadSet,
@@ -212,6 +213,59 @@ describe('M5.E3.S3.t4 checkVersionConsistency', () => {
 
   it('is GREEN on the live Signal repo (all 0.1.7, doc-runtime in [Unreleased])', () => {
     expect(hard(checkVersionConsistency(ROOT))).toHaveLength(0);
+  });
+
+  // --- M5.E13 S4.t3 (`B49` remainder) ------------------------------------
+  //
+  // checkVersionConsistency works and fired correctly on marketplace.json
+  // during v0.1.13's own release cut. It simply did not LOOK at package.json —
+  // which is exactly why B49 (package.json and the plugin manifest disagreeing
+  // on the version) survived while the suite stayed green.
+
+  it('AC4.1 — flags a package.json version disagreeing with plugin.json, naming BOTH paths', async () => {
+    await writeDoc(dir, '.claude-plugin/plugin.json', JSON.stringify({ version: '1.2.3' }));
+    await writeDoc(dir, '.claude-plugin/marketplace.json', marketplace('v1.2.3'));
+    await writeDoc(dir, 'CHANGELOG.md', '## [1.2.3] — 2026-01-01\n');
+    await writeDoc(dir, 'package.json', JSON.stringify({ name: 'sig', version: '9.9.9' }));
+
+    const findings = hard(checkVersionConsistency(dir));
+    expect(findings.length).toBeGreaterThan(0);
+    // Both paths named: the offender in the finding's file, the baseline in its detail.
+    const blob = JSON.stringify(findings);
+    expect(blob).toContain('package.json');
+    expect(blob).toContain('.claude-plugin/plugin.json');
+  });
+
+  it('AC4.1 — an agreeing package.json is silent', async () => {
+    await writeDoc(dir, '.claude-plugin/plugin.json', JSON.stringify({ version: '1.2.3' }));
+    await writeDoc(dir, '.claude-plugin/marketplace.json', marketplace('v1.2.3'));
+    await writeDoc(dir, 'CHANGELOG.md', '## [1.2.3] — 2026-01-01\n');
+    await writeDoc(dir, 'package.json', JSON.stringify({ name: 'sig', version: '1.2.3' }));
+    expect(hard(checkVersionConsistency(dir))).toHaveLength(0);
+  });
+
+  it('AC4.2 — the covered set is enumerated in ONE place (VERSION_SOURCES)', () => {
+    // A fourth version file must be an EDIT to this table, not a rediscovery.
+    // Asserting the table exists and is the thing the checker walks is what
+    // makes that true; a list of three readers + three push lines was not.
+    expect(Array.isArray(VERSION_SOURCES)).toBe(true);
+    const files = VERSION_SOURCES.map((s) => s.file);
+    expect(files).toEqual([
+      '.claude-plugin/plugin.json',
+      '.claude-plugin/marketplace.json',
+      'CHANGELOG.md',
+      'package.json',
+    ]);
+    expect(VERSION_SOURCES.every((s) => typeof s.read === 'function')).toBe(true);
+  });
+
+  it('AC4.2 — package.json is genuinely reachable on the live repo (not just listed)', () => {
+    // Listing a file in the table proves nothing if its reader returns null —
+    // that is the shape of a guard that looks wired and is not.
+    const pkg = VERSION_SOURCES.find((s) => s.file === 'package.json');
+    const plugin = VERSION_SOURCES.find((s) => s.file === '.claude-plugin/plugin.json');
+    expect(pkg.read(ROOT)).toBeTruthy();
+    expect(pkg.read(ROOT)).toBe(plugin.read(ROOT));
   });
 });
 

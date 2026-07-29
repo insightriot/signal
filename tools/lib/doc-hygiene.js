@@ -283,14 +283,40 @@ function readLatestChangelogVersion(baseDir) {
  * @param {string} [baseDir=ROOT]
  * @returns {Array<{check: string, severity: string, file: string, message: string}>}
  */
+function readPackageVersion(baseDir) {
+  const j = readJsonSafe(join(baseDir, 'package.json'));
+  return j && typeof j.version === 'string' ? j.version : null;
+}
+
+/**
+ * Every file that states the plugin's version — the ONE place the covered set
+ * is enumerated (M5.E13 S4.t3, AC4.2).
+ *
+ * `B49` was: `package.json` and the plugin manifest disagreed on the version,
+ * and the suite stayed green because this check simply did not look at
+ * `package.json`. The set used to live as three reader functions plus three
+ * `push` lines, so adding a fourth file was a rediscovery rather than an edit.
+ * **Add a row here and the checker covers it.**
+ *
+ * ORDER IS LOAD-BEARING: `found[0]` becomes the comparison baseline, so the
+ * first readable entry is what everything else is compared against. That is
+ * why `plugin.json` — the plugin's own manifest — is first.
+ *
+ * @type {Array<{file: string, read: (baseDir: string) => string|null}>}
+ */
+export const VERSION_SOURCES = [
+  { file: '.claude-plugin/plugin.json', read: readPluginVersion },
+  { file: '.claude-plugin/marketplace.json', read: readMarketplaceRef },
+  { file: 'CHANGELOG.md', read: readLatestChangelogVersion },
+  { file: 'package.json', read: readPackageVersion },
+];
+
 export function checkVersionConsistency(baseDir = ROOT) {
   const found = [];
-  const plugin = readPluginVersion(baseDir);
-  const market = readMarketplaceRef(baseDir);
-  const changelog = readLatestChangelogVersion(baseDir);
-  if (plugin != null) found.push(['.claude-plugin/plugin.json', stripV(plugin)]);
-  if (market != null) found.push(['.claude-plugin/marketplace.json', stripV(market)]);
-  if (changelog != null) found.push(['CHANGELOG.md', stripV(changelog)]);
+  for (const { file, read } of VERSION_SOURCES) {
+    const v = read(baseDir);
+    if (v != null) found.push([file, stripV(v)]);
+  }
 
   const findings = [];
   if (found.length < 2) return findings; // nothing to cross-check
