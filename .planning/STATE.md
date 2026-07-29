@@ -1,16 +1,17 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: DISCUSS
+phase: PLAN
 current_epic: M5.E13
 current_wave: null
 current_tasks: []
-completed_phases: []
+completed_phases:
+  - DISCUSS (2026-07-29)
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-07-26T13:45:54.062Z
 last_updated_commit: 42d3f13537ccbc14129acb2edcef39f9e094268f
-last_updated: 2026-07-28T19:04:49.106Z
+last_updated: 2026-07-29T14:18:11.252Z
 ---
 # Project State
 
@@ -24,7 +25,7 @@ last_updated: 2026-07-28T19:04:49.106Z
 
 **The sentence worth carrying forward:** *every defect this Epic found was in the measuring instrument, and every one produced a plausible-looking result rather than an error.* Four — an unreachable fixture (`ABSENT`), a broken `--plugin-dir` seam, a control arm that deleted one line from a section restating the instruction three more times (near-miss `INERT`), and a commit captured after the run that defeated `--combine`'s pairing guard. **None would have made a reader doubt the number.** The near-miss matters most: the plan **pre-authorised `inert` in writing** so a null result would not be tuned away — and that guardrail is exactly what would have carried a broken control into the published log. A pre-committed acceptable outcome needs a pre-committed way to tell it from its impostor (→ the four-verdict impostor table in `M5.E8-REVIEW.md`).
 
-**▶ IN FLIGHT: M5.E13 — "Guards that don't guard" (v0.1.14). Opened 2026-07-28, phase DISCUSS.** Requirements: [`M5.E13-REQUIREMENTS.md`](M5.E13-REQUIREMENTS.md) (6 FRs). Decisions **D-M5E13-1…8**. Tier FULL inherited. Four defects, one story: *something was built to catch a mistake, and it does not catch it* — `B48`, the `B39`/`B46`/`I2` guard class, `B36` + retro-index freshness, and `B49`'s remainder.
+**▶ IN FLIGHT: M5.E13 — "Guards that don't guard" (v0.1.14). Opened 2026-07-28; PLAN closed 2026-07-29, phase PLAN → EXECUTE next.** Requirements: [`M5.E13-REQUIREMENTS.md`](M5.E13-REQUIREMENTS.md) (6 FRs) · Plan: [`M5.E13-PLAN.md`](M5.E13-PLAN.md). Decisions **D-M5E13-1…8**. Tier FULL inherited. Four defect groups, one story: *something was built to catch a mistake, and it does not catch it* — `B48`, the guard class, `B36` + retro-index freshness, and `B49`'s remainder. **The guard class went from three instances to four at PLAN** — `B39`/`B46`/`I2`/**`B54`**. Four groups, not five; the count that moved is the class's, and only that one.
 
 **Two things this DISCUSS corrected before planning anything.** (1) M5.E8's retro proposed a mechanism for the guard class — *a `--check`-has-a-caller test* — that covers **1 of its own 3 instances**: `--check` appears in exactly one file in all of `tools/`, and it is `I2` itself; `B39` is an instruction no command implements, `B46` a data write-back nothing ran. Scope corrected (**D-M5E13-3**): fix the three, build the narrow test, **label the gap in the test's own name**. (2) The Epic takes ID **`M5.E13`, not the next-derived `M5.E10`** — `M5.E10`–`E12` are live roadmap headings with inbound references, and ID-is-identity makes out-of-order legal (**D-M5E13-1**).
 
@@ -38,9 +39,17 @@ last_updated: 2026-07-28T19:04:49.106Z
 
 ## In-flight
 
-**M5.E13 — "Guards that don't guard", phase DISCUSS.** Opened 2026-07-28; `current_epic` rolled `M5.E8 → M5.E13` and reset the ledger, so `completed_phases` is empty and fills as this Epic's own phases close. M5.E8's complete six-phase ledger (DISCUSS→SHIP) — the first written entirely by the commands rather than by hand, which is `B41`'s fix working on Signal itself — **[CORRECTED: this line originally claimed it was "archived on the roll"; it was NOT]**. The roll **silently discarded it** (`B52`): this session ran `state.js` from the **v0.1.11 plugin cache**, which predates M5.E9's archive-on-roll step. **Recovered verbatim from git and restored** to [`archive/M5/E8/STATE-NARRATIVE.md`](archive/M5/E8/STATE-NARRATIVE.md), zero entries lost.
+**M5.E13 — "Guards that don't guard", phase PLAN.** Opened 2026-07-28; `current_epic` rolled `M5.E8 → M5.E13` and reset the ledger, so `completed_phases` is empty and fills as this Epic's own phases close. M5.E8's complete six-phase ledger (DISCUSS→SHIP) — the first written entirely by the commands rather than by hand, which is `B41`'s fix working on Signal itself — **[CORRECTED: this line originally claimed it was "archived on the roll"; it was NOT]**. The roll **silently discarded it** (`B52`): this session ran `state.js` from the **v0.1.11 plugin cache**, which predates M5.E9's archive-on-roll step. **Recovered verbatim from git and restored** to [`archive/M5/E8/STATE-NARRATIVE.md`](archive/M5/E8/STATE-NARRATIVE.md), zero entries lost.
 
-**Next command:** `/sig:plan`. Open questions PLAN must settle are named in `M5.E13-REQUIREMENTS.md` § "Open questions for PLAN" — whether FR1.2's refusal belongs in `recordPhase` or `transitionPhase`, and whether `B39` is fixed by implementing the watchlist walk or by retiring the standing entry that claims one happens.
+**▶ PLAN closed 2026-07-29.** Artifacts: [`M5.E13-PLAN.md`](M5.E13-PLAN.md) (5 slices, 16 tasks), [`M5.E13-RESEARCH.md`](M5.E13-RESEARCH.md), [`M5.E13-VALIDATION.md`](M5.E13-VALIDATION.md) (8/8 dimensions pass; 20 ACs, 19 automated, 8 proof-of-fail).
+
+**Both DISCUSS open questions are settled by measurement, not by preference.** (1) FR1.2's refusal goes in **`transitionPhase`, not `recordPhase`** — `completePhase` calls `recordPhase` (`state.js:574`) and exists to record **SHIP**, whose artifact is optional by design, so a guard in `recordPhase` would refuse the normal ship (a direct AC1.3 collision). (2) `B39` is fixed by **implementing the walk, not retiring the entry** — the watchlist carries a **dated** trigger live until **2026-08-23**, and retiring it would discard a live obligation ~3.5 weeks early, against the entry's own stated rationale.
+
+**PLAN found the class's FOURTH instance — `B54`, and it is the worst of them.** `checkGateArtifacts` (`state.js:616`) is an artifact-existence checker that **nothing calls** — an exhaustive grep returns the definition, four test references, and **three prose hits describing it as part of the flow**, one of which records a *fix once applied to it*. Unlike `B39`/`B46`/`I2`, which are merely absent, this one is **wrong if wired up**: executed against Signal it returns `{ready:false, missing:['REQUIREMENTS.md']}`, because it hardcodes the unprefixed name while Epic mode writes `M5.E13-REQUIREMENTS.md` — so the obvious remediation (switch it on) blocks PLAN for every Epic-mode project. Four of its five gates are vacuous empty lists. **Being uncalled is what protected its bug from discovery** — a dormant guard is not neutral; it rots, and its documentation rots with it. **Disposition ratified by Brett: replace** (delete + rebuild in `transitionPhase`), per M5.E9's remove-don't-re-tune precedent. **This corrects D-M5E13-3's locked count of three to four** — which is that decision's own lesson turned on this Epic.
+
+**Two couplings PLAN discovered that the requirements did not name.** (1) FR1.1's rewording **invalidates `references/adherence-canaries.json`** — the `B41-phase-entry` canary's control arm anchors on the exact section heading being reworded, so the JSON must change in the same commit or the canary measures stale text. (2) FR3.2's named sibling `checkIndexFreshness` lives in **`sweep.js:66`**, not `retro-index.js` — the new check homes there.
+
+**Next command:** `/sig:execute`. Wave 1 = S1 ∥ S3 ∥ S4 · Wave 2 = S2 · Wave 3 = S5.
 
 ## Blockers
 
