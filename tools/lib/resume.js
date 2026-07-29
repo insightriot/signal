@@ -60,17 +60,37 @@ export function resolveArtifactPath(planningDir, artifact, opts = {}) {
   const { currentEpic = null, phase = null, existsFn = existsSync, realpathFn = realpathSync } = opts;
   const planningRoot = resolve(planningDir);
 
-  const candidates = [];
+  const rawCandidates = [];
+  // Pattern W (M5.E13 S1.t1, `B53`) — the WRITE seam's own answer, tried FIRST.
+  //
+  // The two seams read `current_epic` with DIFFERENT regexes: `artifactName`
+  // uses EPIC_ID_STRICT_RE and fails open to linear naming, while pattern 0
+  // below uses the lenient EPIC_ID_RE. For a non-strict value (`PHASE11`,
+  // `v0.1.6`) that split meant a command WROTE `1-PLAN.md` while the next
+  // command READ a stale `PHASE11-PLAN.md` — pattern 0 shadowed the fresh
+  // write because it was tried first. `epic-native-flow.md` states the
+  // opposite as a guarantee ("whatever `artifactName` emits,
+  // `resolveArtifactPath` with the same opts resolves back").
+  //
+  // Asking `artifactName` directly makes that sentence true by construction,
+  // for EVERY value of `current_epic`, without either seam having to guess at
+  // the other's regex. Pattern 0 stays BELOW as a fallback rather than being
+  // tightened away: live non-strict projects (traction-engine) have only
+  // Epic-prefixed files on disk, and their reads must keep working.
+  rawCandidates.push(artifactName(artifact, { currentEpic }));
   if (typeof currentEpic === 'string' && currentEpic && EPIC_ID_RE.test(currentEpic)) {
-    candidates.push(`${currentEpic}-${artifact}.md`); // pattern 0
+    rawCandidates.push(`${currentEpic}-${artifact}.md`); // pattern 0
   }
   for (let n = 1; n <= 9; n++) {
-    candidates.push(`${n}-${artifact}.md`); // pattern 1 (ascending N tie-break)
+    rawCandidates.push(`${n}-${artifact}.md`); // pattern 1 (ascending N tie-break)
   }
-  candidates.push(`${artifact}.md`); // pattern 2
+  rawCandidates.push(`${artifact}.md`); // pattern 2
   if (typeof phase === 'string' && phase) {
-    candidates.push(`${phase}-${artifact}.md`); // pattern 3
+    rawCandidates.push(`${phase}-${artifact}.md`); // pattern 3
   }
+  // In strict Epic mode pattern W and pattern 0 are the same string; dedupe
+  // preserving first-seen order so precedence is unchanged.
+  const candidates = [...new Set(rawCandidates)];
 
   for (const name of candidates) {
     const full = resolve(planningRoot, name);

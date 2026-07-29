@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
-import { resolveArtifactPath } from '../tools/lib/resume.js';
+import { resolveArtifactPath, artifactName } from '../tools/lib/resume.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -141,5 +141,111 @@ describe('resolveArtifactPath — realpath confinement against a leaf-symlink es
     await writeFile(join(planningDir, 'M5.E1-PLAN.md'), '# plan\n', 'utf-8');
     const out = resolveArtifactPath(planningDir, 'PLAN', { currentEpic: 'M5.E1' });
     expect(out).toBe(join(planningDir, 'M5.E1-PLAN.md'));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M5.E13 S1.t1 — `B53`: the write seam and the read seam must agree.
+//
+// `references/epic-native-flow.md:31` states a guarantee:
+//   "They are symmetric — whatever `artifactName` emits, `resolveArtifactPath`
+//    with the same opts resolves back."
+//
+// That was true only for a STRICT Epic ID. The two seams read `current_epic`
+// with DIFFERENT regexes — `artifactName` uses EPIC_ID_STRICT_RE and fails open
+// to linear naming, while `resolveArtifactPath` used the lenient
+// `EPIC_ID_RE = /^[A-Za-z0-9._-]+$/` and placed the Epic-prefixed candidate
+// FIRST. So for `current_epic: PHASE11` the command WRITES `1-PLAN.md` while
+// the next command READS `PHASE11-PLAN.md` — a silent stale-read path, with a
+// live field case (`traction-engine`).
+//
+// A second divergence axis the requirements did not name: LINEAR_UNPREFIXED
+// makes REQUIREMENTS diverge on a different rule than PLAN, so both are covered.
+// ---------------------------------------------------------------------------
+
+describe('M5.E13 S1.t1 — artifactName/resolveArtifactPath symmetry (`B53`)', () => {
+  // AC53.1 — round-trip: what the write seam emits, the read seam finds.
+  describe('AC53.1 — round-trip for every current_epic shape × artifact kind', () => {
+    const EPICS = [
+      ['strict Epic ID', 'M5.E13'],
+      ['non-strict token (traction-engine\'s live value)', 'PHASE11'],
+      ['non-strict version-shaped', 'v0.1.6'],
+      ['null', null],
+      ['empty string', ''],
+    ];
+    const KINDS = ['PLAN', 'REQUIREMENTS', 'PROGRESS', 'VERIFICATION'];
+
+    for (const [label, currentEpic] of EPICS) {
+      for (const kind of KINDS) {
+        it(`${label} × ${kind}: resolves the name artifactName emits`, () => {
+          const written = artifactName(kind, { currentEpic });
+          // The written file is the ONLY one on disk.
+          const existsFn = existsOver(P, [written]);
+          const out = resolveArtifactPath(P, kind, { currentEpic, existsFn });
+          expect(out).toBe(join(P, written));
+        });
+      }
+    }
+  });
+
+  // AC53.2 — the actual bug: a stale Epic-prefixed file must not shadow the
+  // fresh write. Proof-of-fail: RED before the fix (pattern 0 was tried first).
+  describe('AC53.2 — a stale Epic-prefixed artifact does not shadow the fresh write', () => {
+    it('PHASE11: both PHASE11-PLAN.md (stale) and 1-PLAN.md (fresh) exist → resolves the fresh one', () => {
+      const currentEpic = 'PHASE11';
+      const written = artifactName('PLAN', { currentEpic }); // '1-PLAN.md'
+      const existsFn = existsOver(P, ['PHASE11-PLAN.md', written]);
+      const out = resolveArtifactPath(P, 'PLAN', { currentEpic, existsFn });
+      expect(out).toBe(join(P, written));
+    });
+
+    it('PHASE11 × REQUIREMENTS (the LINEAR_UNPREFIXED axis) → resolves REQUIREMENTS.md, not PHASE11-REQUIREMENTS.md', () => {
+      const currentEpic = 'PHASE11';
+      const written = artifactName('REQUIREMENTS', { currentEpic }); // 'REQUIREMENTS.md'
+      const existsFn = existsOver(P, ['PHASE11-REQUIREMENTS.md', written]);
+      const out = resolveArtifactPath(P, 'REQUIREMENTS', { currentEpic, existsFn });
+      expect(out).toBe(join(P, written));
+    });
+
+    it('v0.1.6: a version-shaped current_epic behaves the same way', () => {
+      const currentEpic = 'v0.1.6';
+      const written = artifactName('PLAN', { currentEpic }); // '1-PLAN.md'
+      const existsFn = existsOver(P, ['v0.1.6-PLAN.md', written]);
+      const out = resolveArtifactPath(P, 'PLAN', { currentEpic, existsFn });
+      expect(out).toBe(join(P, written));
+    });
+  });
+
+  // AC53.3 — no regression. The lenient pattern stays REACHABLE as a fallback,
+  // because live non-strict projects (traction-engine) have only the
+  // Epic-prefixed files on disk and their reads must keep working.
+  describe('AC53.3 — no regression for existing projects', () => {
+    it('strict Epic mode is unchanged (Signal-on-Signal)', () => {
+      const existsFn = existsOver(P, ['M5.E13-PLAN.md']);
+      const out = resolveArtifactPath(P, 'PLAN', { currentEpic: 'M5.E13', existsFn });
+      expect(out).toBe(join(P, 'M5.E13-PLAN.md'));
+    });
+
+    it('a non-strict project with ONLY Epic-prefixed files still resolves them (traction-engine today)', () => {
+      const existsFn = existsOver(P, ['PHASE11-PLAN.md']);
+      const out = resolveArtifactPath(P, 'PLAN', { currentEpic: 'PHASE11', existsFn });
+      expect(out).toBe(join(P, 'PHASE11-PLAN.md'));
+    });
+
+    it('the numeric and no-prefix ladder still works with no current_epic', () => {
+      expect(
+        resolveArtifactPath(P, 'PLAN', { currentEpic: null, existsFn: existsOver(P, ['3-PLAN.md']) })
+      ).toBe(join(P, '3-PLAN.md'));
+      expect(
+        resolveArtifactPath(P, 'PLAN', { currentEpic: null, existsFn: existsOver(P, ['PLAN.md']) })
+      ).toBe(join(P, 'PLAN.md'));
+    });
+
+    it('the phase-literal pattern still works', () => {
+      const existsFn = existsOver(P, ['PLAN-PLAN.md']);
+      expect(
+        resolveArtifactPath(P, 'PLAN', { currentEpic: null, phase: 'PLAN', existsFn })
+      ).toBe(join(P, 'PLAN-PLAN.md'));
+    });
   });
 });
