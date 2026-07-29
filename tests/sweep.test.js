@@ -26,6 +26,7 @@ const SEEDED_FIXTURE = join(ROOT, 'tests/fixtures/audit-network-calls-seeded/wit
 import { regeneratePlanningIndexCore } from '../tools/lib/planning-index.js';
 import {
   checkIndexFreshness,
+  checkRetroIndexFreshness,
   checkStaleInbox,
   checkClaudeMdBloat,
   checkCommandFrontmatter,
@@ -415,5 +416,72 @@ describe('M5.E6.T7 sweep offline + network-audit coverage (NFR1)', () => {
     expect(auditSrc).toMatch(/DEFAULT_INCLUDE\s*=\s*\[[^\]]*'tools'/);
     const res = spawnSync('node', [AUDIT_SCRIPT], { encoding: 'utf-8' });
     expect(res.status).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M5.E13 S4.t2 (FR3.2) — retro-index freshness, sibling of checkIndexFreshness.
+//
+// B36's ship at M5.E8 had RETROSPECTIVES.md missing its M5.E8 row entirely, and
+// nothing noticed. regenerateIndexCore is already deterministic and
+// compare-before-write, so the check is "would a regen write? then it's stale"
+// — composed READ-ONLY here, never by calling the writer (AC3.3, NFR2).
+// ---------------------------------------------------------------------------
+describe('M5.E13 S4.t2 checkRetroIndexFreshness (FR3.2)', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'sig-retroidx-'));
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  // A minimal Epic retro + a matching index, so the pair starts GREEN.
+  async function seedRetro(epicId) {
+    await writeDoc(dir, `.planning/${epicId}-RETROSPECTIVE.md`, `# ${epicId} Retrospective\n\nBody.\n`);
+  }
+
+  it('AC3.2 — a RETROSPECTIVES.md missing a row for an existing retro is STRUCTURAL', async () => {
+    await seedRetro('M9.E1');
+    await writeDoc(dir, '.planning/RETROSPECTIVES.md', '# Retrospectives\n\n(nothing here)\n');
+    const findings = await checkRetroIndexFreshness(dir);
+    expect(structural(findings).length).toBeGreaterThan(0);
+    expect(JSON.stringify(findings)).toContain('RETROSPECTIVES.md');
+  });
+
+  it('AC3.2 — regenerating makes it GREEN', async () => {
+    await seedRetro('M9.E1');
+    const { regenerateIndex } = await import('../tools/lib/retro-index.js');
+    await regenerateIndex(dir);
+    const findings = await checkRetroIndexFreshness(dir);
+    expect(structural(findings)).toHaveLength(0);
+  });
+
+  it('AC3.3 — the check is READ-ONLY (doc tree byte-identical across a run)', async () => {
+    await seedRetro('M9.E1');
+    await writeDoc(dir, '.planning/RETROSPECTIVES.md', '# Retrospectives\n\n(stale)\n');
+    const before = await hashTree(join(dir, '.planning'));
+    await checkRetroIndexFreshness(dir);
+    const after = await hashTree(join(dir, '.planning'));
+    expect(after).toBe(before);
+  });
+
+  it('an absent RETROSPECTIVES.md with retros present is ADVISORY, not structural (NFR3 fail-open)', async () => {
+    await seedRetro('M9.E1');
+    const findings = await checkRetroIndexFreshness(dir);
+    expect(structural(findings)).toHaveLength(0);
+    expect(advisory(findings).length).toBeGreaterThan(0);
+  });
+
+  it('a project with NO retros yet reports nothing (greenfield stays quiet)', async () => {
+    await mkdir(join(dir, '.planning'), { recursive: true });
+    expect(await checkRetroIndexFreshness(dir)).toHaveLength(0);
+  });
+
+  it('is wired into runSweep (a guard nobody calls is this Epic\'s whole subject)', async () => {
+    await seedRetro('M9.E1');
+    await writeDoc(dir, '.planning/RETROSPECTIVES.md', '# Retrospectives\n\n(stale)\n');
+    const { findings } = await runSweep(dir);
+    expect(findings.some((f) => f.check === 'retro-index-freshness')).toBe(true);
   });
 });

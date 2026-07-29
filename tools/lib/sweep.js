@@ -37,6 +37,7 @@ import {
   checkRosterCounts,
   checkVersionConsistency,
 } from './doc-hygiene.js';
+import { enumerateRetros, parseExistingHooks, renderIndex } from './retro-index.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -95,6 +96,72 @@ export async function checkIndexFreshness(baseDir) {
 
   if (expected !== existing) {
     return [mkFinding('index-freshness', 'structural', rel, 'INDEX.md is stale — regenerate with /sig:index')];
+  }
+  return [];
+}
+
+/**
+ * Retro-index freshness (M5.E13 S4.t2, FR3.2) — the sibling of
+ * `checkIndexFreshness`, for `RETROSPECTIVES.md`.
+ *
+ * `B36`'s third live sighting was at M5.E8's own ship: `RETROSPECTIVES.md` was
+ * missing its M5.E8 row entirely, and nothing noticed. `regenerateIndexCore` is
+ * already deterministic and compare-before-write, so the test is simply *"would
+ * a regen write? then the index is stale."*
+ *
+ * **Composed read-only, never by calling the writer** (AC3.3, NFR2): this walks
+ * the same pure `enumerateRetros → parseExistingHooks → renderIndex` path
+ * `regenerateIndexCore` uses, and diffs. A check that repaired what it measured
+ * could not be run from `/sig:sweep`, whose whole discipline is detect-and-report.
+ *
+ * Severity follows NFR3 — advisory paths fail open:
+ *   - no retros at all      → **no finding** (a greenfield project stays quiet)
+ *   - retros but no index   → **advisory** (nothing to diff; run the regen)
+ *   - index differs         → **structural** (a real, mechanical drift)
+ *
+ * @param {string} baseDir — project root (where `.planning/` lives)
+ * @returns {Promise<Array<{check: string, severity: string, file: string, message: string}>>}
+ */
+export async function checkRetroIndexFreshness(baseDir) {
+  const rel = PLANNING_DIR + '/RETROSPECTIVES.md';
+  const indexPath = join(baseDir, PLANNING_DIR, 'RETROSPECTIVES.md');
+
+  let retros;
+  try {
+    retros = await enumerateRetros(baseDir);
+  } catch {
+    return []; // unreadable project → fail open, report nothing (NFR3)
+  }
+  // Greenfield: the first retro lands at the next Epic close. Nothing to say.
+  if (!retros || retros.length === 0) return [];
+
+  let existing = null;
+  try {
+    existing = await readFile(indexPath, 'utf-8');
+  } catch {
+    existing = null;
+  }
+  if (existing === null || existing.trim() === '') {
+    return [
+      mkFinding(
+        'retro-index-freshness',
+        'advisory',
+        rel,
+        `${retros.length} retrospective(s) present but no RETROSPECTIVES.md index — regenerate it`
+      ),
+    ];
+  }
+
+  const expected = renderIndex(retros, parseExistingHooks(existing));
+  if (expected !== existing) {
+    return [
+      mkFinding(
+        'retro-index-freshness',
+        'structural',
+        rel,
+        'RETROSPECTIVES.md is stale — a regen would rewrite it (rows added, removed, or changed)'
+      ),
+    ];
   }
   return [];
 }
@@ -334,6 +401,7 @@ export async function runSweep(baseDir = process.cwd()) {
   raw.push(...checkInternalLinks(baseDir, SWEEP_LINK_SCOPE));
   raw.push(...checkFillInStubs(baseDir, SWEEP_FILLIN_SCOPE));
   raw.push(...(await checkIndexFreshness(baseDir)));
+  raw.push(...(await checkRetroIndexFreshness(baseDir)));
   raw.push(...(await checkStaleInbox(baseDir)));
   raw.push(...checkClaudeMdBloat(baseDir));
   raw.push(...(await checkPhaseLog(baseDir)));
