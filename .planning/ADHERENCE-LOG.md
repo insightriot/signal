@@ -133,3 +133,26 @@ harness run as evidence about the whole corpus will not find it here.
 > *Appended, never edited into the record above. This log is append-only: a wrong
 > or incomplete answer that is silently rewritten cannot be audited.*
 
+### 2026-07-30 · `B41-phase-entry` · **INDETERMINATE**
+
+| | |
+|---|---|
+| Commit | `230e569` |
+| Command | `/sig:execute` |
+| Trace | `phaseChanged` |
+| Surface | claude 2.1.220 (Claude Code) · claude-opus-5 |
+| Runs per arm | 3 |
+| Seam precondition | PASS — the mutated tree is the one the agent read |
+| as-written (treatment) | **3/3** unanimous |
+| instruction deleted (control) | **1/3** **SPLIT** |
+| Failed runs | 0 |
+
+**INDETERMINATE** — not a clean split, or a run failed — an honest "we do not know", recorded rather than rounded into a finding.
+
+**Scope of this verdict:**
+- **One canary is not a survey.** This is a fact about `B41-phase-entry` in `commands/execute.md`, not evidence about Signal's instructions generally.
+- **Tool access is part of the claim.** The agent ran with `--allowedTools Write Edit Read Bash`. An instruction that needs a tool the user denies cannot be obeyed regardless of wording.
+- **The unmeasured remainder is unmeasured, not passing** — see the coverage ceiling above.
+- **N=3 is a weak split.** A perfect separation of 6 runs is roughly p=0.05 by permutation. Clean, not deep.
+- **The control removed a whole section** (`## Phase entry — record the phase (M5.E9 FR6, `B41`)`), so anything else stated in it was removed too. Read that section before attributing the difference to this instruction alone.
+
