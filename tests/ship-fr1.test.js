@@ -570,3 +570,113 @@ describe('shipFR1Check — B30 fresh REVIEW→SHIP retro gate (M5.E6 FR5)', () =
     expect(existsSync(join(base, '.planning', 'STATE.md'))).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// M5.E13 S4.t1 (FR3.1) — `B36`: a STALE milestone row must not skip silently.
+//
+// Sighted live THREE times — M5.E6, M5.E9, and M5.E8's own ship, where the
+// retrospective existed only because someone wrote it before the gate ran.
+//
+// The mechanism: B26's and B30's fallbacks are BOTH row-absence-gated
+// (`rowStatus === null`, per D-E9-5 "a maintained row wins"). B36's case is a
+// row that EXISTS but is stale — "🔨 DISCUSS", "▶ NEXT" — so neither fallback
+// fires, isEpicCloseShip is false (the row does not say "shipped"), and the
+// gate returns {skipped} with a reason indistinguishable from a legitimate
+// per-slice ship.
+//
+// FR3.1's remedy is REPORT, not repair: a gate that cannot evaluate says so
+// loudly (NFR3). Repairing detection here would mean overriding a maintained
+// row, which is exactly what D-E9-5 decided against for per-slice ships.
+// ---------------------------------------------------------------------------
+describe('M5.E13 S4.t1 — B36: a stale milestone row skips LOUDLY (FR3.1)', () => {
+  let base;
+  const MILESTONE_STALE_E4_ROW = [
+    '# Milestone 5',
+    '',
+    '| Epic | Status | Notes |',
+    '|---|---|---|',
+    '| **E4** | 🔨 DISCUSS | in flight |',
+    '',
+  ].join('\n');
+
+  const CLOSING_STATE = {
+    current_epic: 'M5.E4',
+    phase: 'REVIEW',
+    completed_phases: [
+      'DISCUSS (2026-07-20)',
+      'PLAN (2026-07-20)',
+      'EXECUTE (2026-07-20)',
+      'VERIFY (2026-07-21)',
+    ],
+  };
+
+  beforeEach(async () => {
+    base = await makeTempBase();
+  });
+  afterEach(async () => await rm(base, { recursive: true, force: true }));
+
+  it('AC3.1 — the skip is FLAGGED as unevaluated, with its cause named', async () => {
+    const result = await shipFR1Check({
+      state: CLOSING_STATE,
+      profile: { tier: 'FULL', phases_skipped: [] },
+      milestoneContent: MILESTONE_STALE_E4_ROW,
+      baseDir: base,
+    });
+    expect(result.halt).toBe(false);
+    expect(result.skipped).toBe(true);
+    // The discriminating assertion: this skip is distinguishable from a
+    // legitimate per-slice skip, which is what made B36 invisible three times.
+    expect(result.unevaluated).toBe(true);
+    expect(result.cause).toBe('stale-milestone-row');
+  });
+
+  it('AC3.1 — the reason names the row\'s actual status and what to do', async () => {
+    const result = await shipFR1Check({
+      state: CLOSING_STATE,
+      profile: { tier: 'FULL', phases_skipped: [] },
+      milestoneContent: MILESTONE_STALE_E4_ROW,
+      baseDir: base,
+    });
+    expect(result.reason).toContain('🔨 DISCUSS');   // the row as it actually reads
+    expect(result.reason).toContain('M5.E4');        // which Epic
+    expect(result.rowStatus).toBe('🔨 DISCUSS');
+  });
+
+  it('a LEGITIMATE per-slice skip is NOT flagged (no false alarm)', async () => {
+    // Mid-Epic: phase is EXECUTE, nowhere near close. A maintained row wins and
+    // the skip is genuine, so it must stay unflagged — otherwise every slice
+    // ship cries wolf and the flag becomes noise.
+    const result = await shipFR1Check({
+      state: { current_epic: 'M5.E4', phase: 'EXECUTE', completed_phases: ['DISCUSS (2026-07-20)'] },
+      profile: { tier: 'FULL', phases_skipped: [] },
+      milestoneContent: MILESTONE_STALE_E4_ROW,
+      baseDir: base,
+    });
+    expect(result.skipped).toBe(true);
+    expect(result.unevaluated).toBeUndefined();
+  });
+
+  it('a row that DOES say shipped still evaluates the gate normally (no regression)', async () => {
+    const shipped = MILESTONE_STALE_E4_ROW.replace('🔨 DISCUSS', '✅ shipped');
+    const result = await shipFR1Check({
+      state: CLOSING_STATE,
+      profile: { tier: 'FULL', phases_skipped: [] },
+      milestoneContent: shipped,
+      baseDir: base,
+    });
+    // No retro on disk → the gate RAN and halted. That is the point.
+    expect(result.halt).toBe(true);
+    expect(result.code).toBe('NO_RETRO_FILE');
+  });
+
+  it('linear mode is untouched — still a clean, unflagged skip (D-M5E9-1)', async () => {
+    const result = await shipFR1Check({
+      state: { current_epic: null, phase: 'REVIEW', completed_phases: [] },
+      profile: { tier: 'FULL', phases_skipped: [] },
+      milestoneContent: MILESTONE_STALE_E4_ROW,
+      baseDir: base,
+    });
+    expect(result.skipped).toBe(true);
+    expect(result.unevaluated).toBeUndefined();
+  });
+});

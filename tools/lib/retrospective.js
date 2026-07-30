@@ -818,8 +818,23 @@ export async function shipFR1Check(args) {
   const required = PRE_SHIP_PHASES.filter((p) => !skipped.has(p));
   const lastPreShip = required[required.length - 1];
   const shipsAtAll = !skipped.has('SHIP');
-  const aboutToClose =
-    shipsAtAll && state.phase === lastPreShip && rowStatus === null;
+  const atLastPreShip = shipsAtAll && state.phase === lastPreShip;
+  const aboutToClose = atLastPreShip && rowStatus === null;
+  // B36 (M5.E13 S4.t1): the SAME synthesized post-transition state, computed
+  // WITHOUT the row-absence gate. Nothing acts on it — it exists so the
+  // stale-row case can be DETECTED and reported below. Deriving it here rather
+  // than re-deriving it in the skip branch keeps one definition of "what STATE
+  // would say," which is the divergence B53 was about.
+  const synthIfClosing = atLastPreShip
+    ? {
+        ...state,
+        phase: 'SHIP',
+        completed_phases: [
+          ...(state.completed_phases ?? state.completedPhases ?? []),
+          lastPreShip,
+        ],
+      }
+    : null;
   const synthState = aboutToClose
     ? {
         ...state,
@@ -836,6 +851,35 @@ export async function shipFR1Check(args) {
     (rowStatus === null && isEpicCloseByState(state, profile)) ||
     (aboutToClose && isEpicCloseByState(synthState, profile));
   if (!isEpicClose) {
+    // B36 (M5.E13 S4.t1, FR3.1) — THE STALE-ROW SKIP, MADE LOUD.
+    //
+    // Sighted live three times (M5.E6, M5.E9, and M5.E8's own ship, where the
+    // retro existed only because someone wrote it before the gate ran). Both
+    // fallbacks above are row-absence-gated per D-E9-5 ("a maintained row
+    // wins"), so a row that EXISTS but is stale — "🔨 DISCUSS", "▶ NEXT" —
+    // blocks both, `isEpicCloseShip` is false because the row does not say
+    // "shipped", and the skip below is indistinguishable from a legitimate
+    // per-slice ship. That indistinguishability IS the bug.
+    //
+    // REPORT, NOT REPAIR (NFR3): overriding a maintained row is exactly what
+    // D-E9-5 decided against for per-slice ships, so the gate still does not
+    // fire. What changes is that it can no longer fail QUIETLY — the caller
+    // gets a flag it can surface, and `/sig:ship` prints it.
+    if (rowStatus !== null && synthIfClosing && isEpicCloseByState(synthIfClosing, profile)) {
+      return {
+        halt: false,
+        skipped: true,
+        unevaluated: true,
+        cause: 'stale-milestone-row',
+        rowStatus,
+        reason:
+          `FR1 retro gate NOT EVALUATED for ${state.current_epic}: STATE.md shows this Epic at close ` +
+          `(phase ${state.phase}, all pre-SHIP phases recorded), but its milestone row still reads ` +
+          `"${rowStatus}". A maintained row wins (D-E9-5), so the gate deferred to it and did not run. ` +
+          `If this IS the Epic-close ship, update the row before continuing — otherwise the Epic can ` +
+          `ship with no retrospective and nothing will say so (B36).`,
+      };
+    }
     return {
       halt: false,
       skipped: true,
