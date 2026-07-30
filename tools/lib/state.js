@@ -607,35 +607,6 @@ export async function completePhase(baseDir, phase) {
   });
 }
 
-/**
- * Check if the required artifacts exist for a phase transition.
- * @param {string} baseDir - The project root directory
- * @param {string} targetPhase - The phase to transition to
- * @returns {Promise<{ready: boolean, missing: string[]}>}
- */
-export async function checkGateArtifacts(baseDir, targetPhase) {
-  const planningDir = join(baseDir, PLANNING_DIR);
-  const missing = [];
-
-  const requirements = {
-    PLAN: ['PROJECT.md', 'CONTEXT.md', 'REQUIREMENTS.md'],
-    EXECUTE: [],  // Dynamically checked based on phase number
-    VERIFY: [],
-    REVIEW: [],
-    SHIP: [],
-  };
-
-  const required = requirements[targetPhase] || [];
-
-  for (const file of required) {
-    if (!existsSync(join(planningDir, file))) {
-      missing.push(file);
-    }
-  }
-
-  return { ready: missing.length === 0, missing };
-}
-
 export { PHASES, PLANNING_DIR, SCHEMA_VERSION, EPIC_ID_STRICT_RE, withStateLock };
 
 // --- current_tasks helpers (M4.5.E6.S1.t6, D10) ---

@@ -167,7 +167,7 @@ Artifacts: [`M5.E8-REQUIREMENTS.md`](M5.E8-REQUIREMENTS.md) (6 FRs) · [`M5.E8-R
 - `anti-rationalization.md` — anti-rationalization patterns
 
 **Tooling (in `tools/`):**
-- `lib/state.js` — `initState`, `readState`, `transitionPhase`, `checkGateArtifacts`, `PHASES`
+- `lib/state.js` — `initState`, `readState`, `transitionPhase`, `completePhase`, `PHASES` *(`checkGateArtifacts` was removed in M5.E13/`B54` — it was exported, documented here as part of the API, and called by nothing; executed against this repo it returned `missing: ['REQUIREMENTS.md']` because it hardcoded the unprefixed name. Its job is now done inside `transitionPhase`.)*
 - `lib/profile.js` — `readProfile`, `isPhaseEnabled`, `applyRigorOverrides`, `ProfileSchemaError`
 - `lib/landscape.js` — `readScan`, `readAllScans`, `extractSection`, `extractField` (consumed by `/sig:init` Step 3 synthesis)
 - `lib/walkthrough.js` — `countMarkers`, `appendNote` (consumed by `/sig:init` Step 5 walkthrough)
