@@ -17,11 +17,12 @@
 // gets described as an obedience check is test theater with a good disguise.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { initState, readState, transitionPhase, completePhase } from '../tools/lib/state.js';
+import { initState, readState, transitionPhase, completePhase, setCurrentEpic } from '../tools/lib/state.js';
+import { seedPhaseArtifacts } from './helpers/phase-artifacts.js';
 
 const MIDDLE_COMMANDS = ['plan', 'execute', 'verify', 'review'];
 
@@ -36,6 +37,7 @@ describe('FR6 — phase recording (B41)', () => {
 
   it('drives the documented sequence and records every phase (AC6.2, AC6.4)', async () => {
     await initState(base, 'DISCUSS');
+    await seedPhaseArtifacts(base);
 
     // The full command-driven run, in the order the command files specify.
     for (const phase of ['PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'SHIP']) {
@@ -71,6 +73,7 @@ describe('FR6 — phase recording (B41)', () => {
 
   it('keeps position and freshness in agreement (AC6.3)', async () => {
     await initState(base, 'DISCUSS');
+    await seedPhaseArtifacts(base);
     await transitionPhase(base, 'PLAN');
     const state = await readState(base);
     // markFresh's stated purpose is to make /sig:resume read fresh after a
@@ -141,5 +144,104 @@ describe('M5.E9 VERIFY-found coverage gaps', () => {
     // completed_phases is only assigned in the two audited places.
     const assignments = src.match(/payload\.completed_phases\s*=/g) ?? [];
     expect(assignments.length).toBeLessThanOrEqual(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M5.E13 S2.t2/t3 (FR1.2, `B48`) — a phase with no artifact is not recordable.
+//
+// B48: execute.md's phase-entry instruction was UNCONDITIONAL, and an agent
+// correctly REFUSED it — obeying would record `phase: EXECUTE` for a project
+// that halted at its preconditions with nothing to execute. Rewording alone
+// (FR1.1) leaves the code able to write the false record; D-M5E13-4 fixes both
+// halves.
+//
+// Homed in transitionPhase, NOT recordPhase (Open Question #1, settled at PLAN
+// by evidence): completePhase also calls recordPhase, and completePhase exists
+// to record SHIP — whose artifact is optional by design — so a guard in
+// recordPhase would refuse the normal ship.
+// ---------------------------------------------------------------------------
+describe('M5.E13 S2.t2 — transitionPhase refuses to record an artifact-less phase (B48)', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'sig-b48-'));
+    await initState(dir);
+  });
+  afterEach(async () => await rm(dir, { recursive: true, force: true }));
+
+  const seed = async (name, body = '# x\n') =>
+    writeFile(join(dir, '.planning', name), body, 'utf-8');
+
+  it('AC1.2 — refuses when the leaving phase produced no artifact, and NAMES it', async () => {
+    // CALIBRATE -> DISCUSS is exempt (see AC1.3). Get to DISCUSS legitimately,
+    // then try to leave it with no REQUIREMENTS.md on disk.
+    await transitionPhase(dir, 'DISCUSS');
+    await expect(transitionPhase(dir, 'PLAN')).rejects.toThrow(/REQUIREMENTS/);
+  });
+
+  it('AC1.2 — the refusal is explicit, never a silent no-op', async () => {
+    await transitionPhase(dir, 'DISCUSS');
+    const before = await readState(dir);
+    await expect(transitionPhase(dir, 'PLAN')).rejects.toThrow();
+    const after = await readState(dir);
+    // Nothing moved: not the phase, not the ledger.
+    expect(after.phase).toBe(before.phase);
+    expect(after.completed_phases).toEqual(before.completed_phases);
+  });
+
+  it('AC1.2 — with the artifact present, it appends exactly as before', async () => {
+    await transitionPhase(dir, 'DISCUSS');
+    await seed('REQUIREMENTS.md');
+    await transitionPhase(dir, 'PLAN');
+    const st = await readState(dir);
+    expect(st.phase).toBe('PLAN');
+    expect(st.completed_phases.some((e) => e.startsWith('DISCUSS ('))).toBe(true);
+  });
+
+  it('B48 proper — the EXECUTE case that opened this Epic', async () => {
+    // A project at PLAN with no PLAN artifact: /sig:execute halts at its
+    // preconditions, so recording `phase: EXECUTE` would be a false record.
+    await transitionPhase(dir, 'DISCUSS');
+    await seed('REQUIREMENTS.md');
+    await transitionPhase(dir, 'PLAN');
+    await expect(transitionPhase(dir, 'EXECUTE')).rejects.toThrow(/PLAN/);
+  });
+
+  it('resolves through the S1-corrected seam — an Epic-prefixed artifact satisfies it', async () => {
+    await setCurrentEpic(dir, 'M9.E1');
+    await transitionPhase(dir, 'DISCUSS');
+    await seed('M9.E1-REQUIREMENTS.md');
+    await transitionPhase(dir, 'PLAN');
+    expect((await readState(dir)).phase).toBe('PLAN');
+  });
+});
+
+describe('M5.E13 S2.t3 — the exemption list is enumerated, not assumed empty (AC1.3)', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'sig-b48-ex-'));
+    await initState(dir);
+  });
+  afterEach(async () => await rm(dir, { recursive: true, force: true }));
+
+  it('CALIBRATE is exempt — its output is PROFILE.md, not a phase artifact', async () => {
+    // initState leaves phase CALIBRATE; leaving it must not require an artifact.
+    await expect(transitionPhase(dir, 'DISCUSS')).resolves.toBeTruthy();
+    expect((await readState(dir)).completed_phases.some((e) => e.startsWith('CALIBRATE ('))).toBe(true);
+  });
+
+  it('SHIP is exempt — completePhase(SHIP) succeeds with no SHIP.md (the normal ship)', async () => {
+    // The collision that decided placement: SHIP's artifact is optional by
+    // design ("{phase}-SHIP.md (if present) OR pre-ship checklist from STATE").
+    await writeFile(join(dir, '.planning', 'REQUIREMENTS.md'), '# r\n', 'utf-8');
+    await transitionPhase(dir, 'DISCUSS');
+    const res = await completePhase(dir, 'SHIP');
+    expect(res.recorded).toBe(true);
+  });
+
+  it('the exemption set is EXPORTED so it can be read, not inferred from behaviour', async () => {
+    const { PHASE_ARTIFACT_EXEMPT } = await import('../tools/lib/state.js');
+    expect(PHASE_ARTIFACT_EXEMPT instanceof Set).toBe(true);
+    expect([...PHASE_ARTIFACT_EXEMPT].sort()).toEqual(['CALIBRATE', 'SHIP']);
   });
 });

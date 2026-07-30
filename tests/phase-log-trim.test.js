@@ -20,6 +20,7 @@ import {
 import { deriveEpicArchiveDir } from '../tools/lib/evict.js';
 import { isEpicCloseByState } from '../tools/lib/retrospective.js';
 import { checkPhaseLog } from '../tools/lib/sweep.js';
+import { seedPhaseArtifacts } from './helpers/phase-artifacts.js';
 
 function ledger(runs, startDay = 10) {
   const phases = ['DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW'];
@@ -210,6 +211,7 @@ describe('FR4 — quarantined entries are relocated, not deleted (NFR2, AC4.2)',
   beforeEach(async () => {
     base = await mkdtemp(join(tmpdir(), 'sig-quar-'));
     await mkdir(join(base, '.planning'), { recursive: true });
+    await seedPhaseArtifacts(base);
   });
   afterEach(async () => {
     await rm(base, { recursive: true, force: true });

@@ -35,6 +35,7 @@ import {
   checkProposedStateWrite,
 } from '../tools/lib/retrospective.js';
 import { readState, transitionPhase, completePhase } from '../tools/lib/state.js';
+import { seedPhaseArtifacts } from './helpers/phase-artifacts.js';
 
 // A phase ledger spanning many runs — the shape a real linear project reaches.
 // Deliberately built the way a linear project actually builds one: repeating
@@ -81,6 +82,7 @@ describe('linear mode, end to end (COVERAGE-GAP GUARD — FR8)', () => {
     base = await mkdtemp(join(tmpdir(), 'sig-linear-'));
     await mkdir(join(base, '.planning'), { recursive: true });
     await writeFile(join(base, '.planning', 'STATE.md'), stateFile({}));
+    await seedPhaseArtifacts(base);
   });
 
   afterEach(async () => {

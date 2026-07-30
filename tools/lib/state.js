@@ -452,6 +452,71 @@ async function recordPhase(baseDir, { leaving, nextPhase }) {
  * @param {string} nextPhase
  * @returns {Promise<{quarantined: string[]}>}
  */
+// --- FR1.2 / `B48`: a phase with no artifact is not recordable ---------------
+//
+// `B48`: `execute.md`'s phase-entry instruction was UNCONDITIONAL, and an agent
+// correctly REFUSED it — obeying would have recorded `phase: EXECUTE` for a
+// project that halted at its preconditions with nothing to execute. Rewording
+// the instruction alone (FR1.1) leaves the code still able to write that false
+// record, so D-M5E13-4 fixes both halves.
+//
+// The artifact each phase must have produced to be recordable as COMPLETE.
+const PHASE_ARTIFACT = {
+  DISCUSS: 'REQUIREMENTS',
+  PLAN: 'PLAN',
+  EXECUTE: 'PROGRESS',
+  VERIFY: 'VERIFICATION',
+  REVIEW: 'REVIEW',
+};
+
+/**
+ * Phases that are legitimately artifact-less, ENUMERATED rather than assumed
+ * absent (AC1.3). Exported so the exemption can be READ, not inferred from
+ * behaviour — an unwritten exemption is how a guard quietly stops guarding.
+ *
+ *  - **CALIBRATE** — its output is `PROFILE.md`, which is not one of the
+ *    Epic-scoped artifact kinds and is not named by `artifactName`.
+ *  - **SHIP** — terminal, and its artifact is optional *by design*:
+ *    `/sig:resume`'s artifact table reads "`{phase}-SHIP.md` (if present) **or**
+ *    pre-ship checklist from STATE.md". This is the collision that decided the
+ *    guard's placement: `completePhase` exists to record SHIP and also routes
+ *    through `recordPhase`, so putting the check one level down would refuse
+ *    the normal ship on most projects.
+ *
+ * @type {Set<string>}
+ */
+export const PHASE_ARTIFACT_EXEMPT = new Set(['CALIBRATE', 'SHIP']);
+
+/**
+ * Throw if `leaving` produced no artifact. Resolution goes through
+ * `resolveArtifactPath` — the seam S1 corrected, so an existing-but-stale
+ * Epic-prefixed file can no longer satisfy the check for a project whose
+ * commands write a different name (`B53`).
+ *
+ * Dynamic import: `resume.js` imports from this module, so a static import back
+ * would be a cycle. Duplicating the resolution here instead is the "two
+ * implementations of one rule" shape `B53` itself was — not worth repeating.
+ */
+async function assertLeavingArtifactExists(baseDir, leaving, state) {
+  if (!leaving || PHASE_ARTIFACT_EXEMPT.has(leaving)) return;
+  const artifact = PHASE_ARTIFACT[leaving];
+  if (!artifact) return; // unknown phase → nothing declared, nothing to enforce
+  const { resolveArtifactPath } = await import('./resume.js');
+  const planningDir = join(baseDir, PLANNING_DIR);
+  const found = resolveArtifactPath(planningDir, artifact, {
+    currentEpic: state.current_epic ?? null,
+    phase: leaving,
+  });
+  if (found) return;
+  throw new Error(
+    `Refusing to record ${leaving} as complete: no ${artifact} artifact found in ` +
+      `${PLANNING_DIR}/. A phase that produced nothing is not a phase that finished — ` +
+      `recording it would put a false entry in completed_phases (B48). ` +
+      `Write the ${artifact} artifact, or fix the precondition that halted ${leaving}, ` +
+      `then re-run. Exempt phases: ${[...PHASE_ARTIFACT_EXEMPT].join(', ')}.`
+  );
+}
+
 export async function transitionPhase(baseDir, nextPhase) {
   if (!PHASES.includes(nextPhase)) {
     throw new Error(
@@ -463,7 +528,11 @@ export async function transitionPhase(baseDir, nextPhase) {
     if (!state) {
       throw new Error('No project state found. Run /sig:new-project first.');
     }
-    return recordPhase(baseDir, { leaving: state.phase ?? null, nextPhase });
+    const leaving = state.phase ?? null;
+    // Refuse BEFORE any write, so a rejected transition leaves STATE.md
+    // byte-identical rather than half-applied.
+    await assertLeavingArtifactExists(baseDir, leaving, state);
+    return recordPhase(baseDir, { leaving, nextPhase });
   });
 }
 

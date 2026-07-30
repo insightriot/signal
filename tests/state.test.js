@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { initState, readState, transitionPhase, SCHEMA_VERSION } from '../tools/lib/state.js';
+import { seedPhaseArtifacts } from './helpers/phase-artifacts.js';
 
 // S1.t1 (M4.5.E10): SCHEMA_VERSION must be a public named export — the S4
 // schema-drift detector (detectSchemaDrift) numeric-compares raw STATE.md
@@ -35,6 +36,7 @@ describe('State Management', () => {
 
     it('creates STATE.md with CALIBRATE as default initial phase (matches /sig:new-project)', async () => {
       await initState(tempDir);
+      await seedPhaseArtifacts(tempDir);
       const state = await readState(tempDir);
       expect(state.phase).toBe('CALIBRATE');
       expect(state.completedPhases).toEqual([]);
@@ -42,6 +44,7 @@ describe('State Management', () => {
 
     it('accepts an explicit initial phase (e.g., DISCUSS for post-calibrate paths)', async () => {
       await initState(tempDir, 'DISCUSS');
+      await seedPhaseArtifacts(tempDir);
       const state = await readState(tempDir);
       expect(state.phase).toBe('DISCUSS');
     });
@@ -52,7 +55,9 @@ describe('State Management', () => {
 
     it('is idempotent — does not error on existing directory', async () => {
       await initState(tempDir);
-      await initState(tempDir); // should not throw
+      await seedPhaseArtifacts(tempDir);
+      await initState(tempDir);
+      await seedPhaseArtifacts(tempDir); // should not throw
       const state = await readState(tempDir);
       expect(state.phase).toBe('CALIBRATE');
     });
@@ -61,6 +66,7 @@ describe('State Management', () => {
       // Fresh STATE.md body must carry the normative skeleton (state-schema.md
       // § Body skeleton) so writer-agents have fixed slots, not free prose.
       await initState(tempDir);
+      await seedPhaseArtifacts(tempDir);
       const raw = await readFile(join(tempDir, '.planning', 'STATE.md'), 'utf-8');
       for (const heading of [
         '## Resume pointer',
@@ -85,6 +91,7 @@ describe('State Management', () => {
 
     it('parses phase and completed phases correctly', async () => {
       await initState(tempDir);
+      await seedPhaseArtifacts(tempDir);
       const state = await readState(tempDir);
       expect(state.phase).toBe('CALIBRATE');
       expect(state.completedPhases).toEqual([]);
@@ -95,6 +102,7 @@ describe('State Management', () => {
   describe('transitionPhase', () => {
     it('transitions from DISCUSS to PLAN', async () => {
       await initState(tempDir, 'DISCUSS');
+      await seedPhaseArtifacts(tempDir);
       await transitionPhase(tempDir, 'PLAN');
       const state = await readState(tempDir);
       expect(state.phase).toBe('PLAN');
@@ -104,6 +112,7 @@ describe('State Management', () => {
 
     it('tracks multiple completed phases', async () => {
       await initState(tempDir, 'DISCUSS');
+      await seedPhaseArtifacts(tempDir);
       await transitionPhase(tempDir, 'PLAN');
       await transitionPhase(tempDir, 'EXECUTE');
       const state = await readState(tempDir);
@@ -122,6 +131,7 @@ describe('State Management', () => {
     // for a reason unrelated to its name — a green test guarding nothing.
     it('is append-only: a re-entered phase is recorded again, not collapsed', async () => {
       await initState(tempDir, 'DISCUSS');
+      await seedPhaseArtifacts(tempDir);
       await transitionPhase(tempDir, 'PLAN');
       await transitionPhase(tempDir, 'EXECUTE');
       await transitionPhase(tempDir, 'VERIFY');
@@ -138,6 +148,7 @@ describe('State Management', () => {
 
     it('quarantines a malformed entry rather than keying on it (B45)', async () => {
       await initState(tempDir, 'DISCUSS');
+      await seedPhaseArtifacts(tempDir);
       const statePath = join(tempDir, '.planning', 'STATE.md');
       const raw = await readFile(statePath, 'utf-8');
       // Inject the shape that broke a real project: a stray prose line whose
@@ -158,6 +169,7 @@ describe('State Management', () => {
 
     it('rejects invalid phase names', async () => {
       await initState(tempDir);
+      await seedPhaseArtifacts(tempDir);
       await expect(transitionPhase(tempDir, 'INVALID')).rejects.toThrow('Invalid phase');
     });
 
