@@ -174,6 +174,68 @@ why* is **in**. Absorbs gstack's `/office-hours` forcing questions re-pointed at
 on Signal's own backlog and the citations resolve. **Naming deliberately open** — do not fix the
 name before the shape.
 
+### M5.E16 — The other two shapes of "shipped but never run"
+**Tag:** roadmap · **Trigger: NONE — promoted on evidence 2026-07-30 (Brett).**
+Was M5.E13's explicit *"not doing — a cross-shape mechanism for the guard class."* Promoted
+because the class turned out to be a **search strategy**, not a bug list.
+
+**The evidence that changed its status.** Every significant find of the last three Epics came
+from a **first execution** — not from working harder, but from the first time anyone actually
+ran something instead of assuming it:
+
+| Found | Circumstance |
+|---|---|
+| `B55` — the adherence control arm was never isolated | first real use of the harness for its purpose |
+| `B54` — a guard both uncalled **and** wrong if wired up | first read of `state.js` while implementing FR1.2 |
+| 2 fired, unmarked triggers | first time the watchlist was ever walked |
+| `B42` (P1, live 9 releases) + `B43`/`B44`/`B45` | first ship report from a non-Signal project |
+| `B53` | first check of a downstream project's claim |
+| `B48` — opened M5.E13 | first read of an adherence run transcript |
+
+**So "shipped but never run" is the best defect predictor Signal has** — better than complexity,
+age, or coverage. M5.E13 treated that category as *four bugs to fix*. It is a **way of looking**.
+
+**What is already built (M5.E13 S3.t3):** the **code-shaped** detector —
+`tests/guard-callers.test.js`, asserting every `--flag` CLI guard in `tools/` has a non-self
+caller, plus a regression guard on `B54`. It covers **2 of the 4 known instances** and says so in
+its own name, per D-M5E13-3.
+
+**What this Epic builds — the two shapes left uncovered, and note that both hosted a real bug:**
+- **Document-shaped** — a doc instructs an action **no command implements**. `B39`'s home: a
+  standing entry told `/sig:plan` to walk a watchlist for **three weeks** while `grep -ril
+  watchlist commands/ tools/` returned nothing. Detection needs a declared registry of
+  obligations, which is the hard part and the reason M5.E13 declined it.
+- **Data-shaped** — data written that **nothing ever reads back**. `B46`'s home. Note `B46`'s own
+  premise later proved wrong, which sharpens rather than weakens the case: nobody could tell
+  whether that data was read, because **nothing tracks readership**.
+
+**Ordering note:** M5.E15 (`B55`) has a leak-check sub-item — *refuse to run when the instruction
+is still reachable in the mutated tree* — which is this same class in a third shape. Build the
+registry here first, or knowingly duplicate it there.
+
+**Cost of leaving it:** the guard class keeps being discovered one instance at a time, by
+accident, which is the mechanism this whole line of work exists to replace.
+
+### Add a "first use" step to `/sig:plan`
+**Tag:** hygiene · **Trigger: NONE — filed 2026-07-30 (Brett). Small; one instruction.**
+
+**The problem, concretely.** `B55` — the biggest finding of M5.E13 — surfaced on the Epic's
+**very last task**, because that is when the adherence harness was first genuinely used for its
+intended purpose rather than to prove itself. Had it surfaced in Wave 1, M5.E13 would have been
+scoped differently: FR1.1's single-shared-wording requirement is in direct tension with the
+harness's control arm, and nobody could have known that before running it.
+
+**The change.** One instruction in `commands/plan.md`: *name the thing this Epic will do for the
+first time — a tool used for its real purpose, a doc executed rather than read, a path taken by a
+project shape we have not tried — and schedule it in the first wave.*
+
+**Why it is worth an entry rather than just doing it:** it changes wave ordering, which touches
+the plan-validation dimensions (dependency correctness, vertical slicing). Small, but not
+zero-design.
+
+**Evidence base:** the same table as M5.E16 above. First-execution is where the yield is, and
+right now it lands wherever it happens to land.
+
 ### M5.E15 — The control arm, made real (`B55`)
 **Tag:** roadmap · **Trigger: NONE — fires on the next adherence claim.** Blocks any new
 `OBEYED`/`INERT` verdict being trusted, and any published number derived from one.
