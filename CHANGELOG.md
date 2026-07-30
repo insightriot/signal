@@ -6,6 +6,32 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.14] — 2026-07-30 — Guards that don't guard (M5.E13)
+
+**Four defects that shared one shape: something was built to catch a mistake, and it did not catch it.** 1736 → **1806 tests**, validator green, eslint clean. **CI added** — Signal had none until now.
+
+### Fixed
+
+- **`B48` — the phase-entry instruction demanded a false record.** `plan`/`execute`/`verify`/`review` told the agent to call `transitionPhase` *"before any Workflow step"* with no precondition clause. Observed live: an agent running `/sig:execute` against a project with no PLAN artifact **refused it**, correctly — obeying would have recorded `phase: EXECUTE` for a project with nothing to execute. Fixed in both halves (D-M5E13-4): the four commands now state the transition as conditional, in a **single shared wording** so they cannot drift, and `transitionPhase` itself refuses to record a phase that produced no artifact. Exempt phases are enumerated and **exported** (`PHASE_ARTIFACT_EXEMPT`), each with a written reason.
+- **`B53` — a non-strict `current_epic` split artifact write-naming from read-resolution.** `artifactName` used the strict Epic-ID shape and emitted `1-PLAN.md`; `resolveArtifactPath` used a lenient regex and resolved `PHASE11-PLAN.md` **first** — so a fresh write was shadowed by a stale file, while `references/epic-native-flow.md` guaranteed the opposite. The resolver's first candidate is now `artifactName`'s own output, making the guarantee true **by construction** for every value of `current_epic`. The lenient pattern remains below it, so existing non-strict projects keep resolving.
+- **`B54` — `checkGateArtifacts` was uncalled *and* wrong.** An exported phase-gate checker nothing invoked; executed against Signal it returned `{ready:false, missing:['REQUIREMENTS.md']}`, hardcoding the unprefixed name while Epic mode writes `M5.E13-REQUIREMENTS.md` — so switching it on would have blocked PLAN for every Epic-mode project. Four of its five gates were empty arrays. **Deleted**, its job rebuilt in `transitionPhase`.
+- **`B39` — the trigger watchlist was never walked.** A standing inbox entry instructed `/sig:plan`'s drain to check its conditions at every drain; no command implemented it. `parseTriggerWatchlist` added and wired in. On its first run: **11 rows, all unevaluated**, two of which had already fired — including one whose condition said *escalate*.
+- **`B36` — the release retro gate skipped silently on a stale milestone row.** Sighted live three times. The gate still defers to a maintained row (D-E9-5), but can no longer fail *quietly*: it returns `{unevaluated, cause:'stale-milestone-row', rowStatus}` and `/sig:ship` must print the reason.
+- **`B49` remainder — the version check now covers `package.json`.** The covered set moved from three reader functions to **one exported table** (`VERSION_SOURCES`), so a fourth version file is an edit rather than a rediscovery.
+- **`B51` — `discuss.md` instructed a phase transition `/sig:plan` also performs.** Doubly stale: the pre-M5.E9 convention *and* the pre-`schema_version: 1` file format.
+
+### Added
+
+- **Retro-index freshness check** (`checkRetroIndexFreshness`), sibling of `checkIndexFreshness`, wired into `/sig:sweep`. Read-only by construction.
+- **Guard-caller hygiene test** — asserts every `--flag` CLI guard in `tools/` has a non-self caller. **States its own scope limit**: it covers the *code-shaped* instances only (2 of the class's 4), and says so in its name.
+- **CI** (`.github/workflows/test.yml`) — `npm test` on push and PR. Its first run caught a latent dependency nothing had stated: the suite walks real git history, and `actions/checkout` shallow-clones by default.
+
+### Known limits — stated, not hidden
+
+- **The adherence canary for `B41-phase-entry` re-ran INDETERMINATE** (treatment 3/3, control 1/3), replacing v0.1.13's `OBEYED`. Cause is **`B55`**: the control arm mutates one command file while `transitionPhase` is named 4× each in three siblings, so it was **never isolated across files**. v0.1.13's `OBEYED` is not falsified but was *unisolated* — clean by luck, not construction. Deliberately **not re-run for a better number**. Homed at M5.E15.
+- **The published coverage share fell, 22.4% → 21.1%, and nothing got worse.** The `B48` rewording added conditional prose that is directive but names no library call, so it lands in the denominator only. `ADHERENCE-LOG.md` now explains this above the table, and warns that under this metric *clarifying an instruction lowers the score*.
+- **`B46` re-triaged, not fixed.** Its premise does not survive measurement: 0 of 48 inbox candidates correspond to any disposition row. Stamping would have written verbs from one population onto another.
+
 ## [0.1.13] — 2026-07-28 — The measurement foundation (M5.E8)
 
 **Signal can now measure whether one of its own instructions changes what an agent does — and it publishes how little of itself that method can reach.** 1652 → **1736 tests**, validator green, eslint clean.
