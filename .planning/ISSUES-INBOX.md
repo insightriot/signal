@@ -1414,13 +1414,13 @@ Adopt an explicit maintenance discipline for Signal's own instruction surface, t
 |---|---|---|
 | E1 Slices 3–5 — Linux/WSL install matrix + versioning policy + validator hardening (`MILESTONE-4.5.md` § E1) | A Linux or WSL tester volunteers (D-E3-12) | — |
 | E3 contribution scaffolding — CONTRIBUTING.md / issue templates / `docs/compatibility.md` | (a) external PR opens; (b) ~5+ non-author issues; (c) Linux/WSL tester (pairs with the row above) | — |
-| Synthesizer-output validator-side sanity check | 2+ new synthesizer quality regressions by **2026-08-23** — dated; if the date passes with <2, mark expired-clean | — |
+| Synthesizer-output validator-side sanity check | 2+ new synthesizer quality regressions by **2026-08-23** — dated; if the date passes with <2, mark expired-clean | ⏳ **PENDING, live until 2026-08-23** — checked 2026-07-29, 0 regressions so far. This is the row whose existence argued for implementing the walk rather than retiring the entry. |
 | `/sig:doctor` helper-script split | Inline `node -e` payloads reported hard to audit, OR a P-state needs JSON mutations beyond delete-a-key | — |
 | `docs/map` refresh Stage 2 (auto-generate) | Stage 1 checklist forgotten on 3+ consecutive Epic ships | — |
-| GitHub Issues adoption (setup checklist in its entry) | First live external tester (expected to fire in Sprint 0 — `BACKLOG-REVIEW-2026-07-04.md` §4) | — |
+| GitHub Issues adoption (setup checklist in its entry) | First live external tester (expected to fire in Sprint 0 — `BACKLOG-REVIEW-2026-07-04.md` §4) | ✅ **FIRED 2026-07-15** (4 non-Signal testers). Decided 2026-07-29: direction ratified, needs its own Epic — `analysis/CLAIM-INTEGRITY-ANALYSIS.md` §7 + D-M5E13-7. |
 | PREPARE phase early promotion | Any of: PLAN skill-load approaches ~40K tokens; 2+ independent "this is prep, not planning" observations; 2+ new skills land homeless | — |
 | STATE auto-update Options B/C | Option A discipline demonstrably fails (frontmatter stale despite the refresh steps) | — |
-| Second dogfood project (BR-9) | Committed in Sprint 0; if not started by the time M5 PLAN runs, escalate — M5's usage-signal gate has no other source | — |
+| Second dogfood project (BR-9) | Committed in Sprint 0; if not started by the time M5 PLAN runs, escalate — M5's usage-signal gate has no other source | ⚠ **FIRED** — M5 PLAN has run repeatedly (E3–E9, E13) and this was never escalated. Surfaced 2026-07-29 by the first actual walk. **Escalation owed; Brett's call.** |
 | Multi-feature lifecycle design | First real "feature #2" added to a Signal-built project (likely the second dogfood project) | — |
 | Option C concerns block (calibration granularity) | Users hand-edit dials against tier defaults, or want a rigor level their tier doesn't offer | — |
 

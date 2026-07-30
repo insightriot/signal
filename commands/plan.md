@@ -96,6 +96,18 @@ Run the route via `promoteDrainEntry(baseDir, { classification, block, tag, titl
 
 **promote** entries flow into Step 3 (Create Plan) as candidate tasks. This step never blocks planning: skip it, batch-defer it, or triage entry-by-entry — all three leave you ready for Step 2.
 
+#### Walk the trigger watchlist (M5.E13 FR2.1, `B39`)
+
+The inbox carries a **standing entry** — *"Trigger watchlist … (check conditions at every drain)"*, marked *never promote, merge, or delete* — whose parked items each hold a promote-back condition. Call `parseTriggerWatchlist(content)` (`tools/lib/drain.js`) on the same inbox content loaded above. It returns `null` when the project has no watchlist (skip silently), else `{rows, unevaluated, decided, dated}`.
+
+**Surface all three groups, then decide each `unevaluated` row — promote it, or re-park it with a new written condition and a date.** Leaving a row at `—` is the bug this exists to fix.
+
+- **`dated`** — conditions carrying an explicit date. Report these **first**: they expire whether or not anyone looks. If a date has passed and the condition was not met, mark it **expired-clean** rather than leaving it pending forever.
+- **`unevaluated`** — verdict cell still `—` / blank. Nobody has looked.
+- **`decided`** — already carries a verdict. Show the count only; a *checked-and-declined* row must stay visibly distinct from an unchecked one, which is `B39`'s second half.
+
+**Why this step exists.** The standing entry instructed this walk since 2026-07-04 and **no command implemented it** — an instruction in a document that nothing executes. When it was finally run by hand at M5.E13 PLAN, **all 11 rows read `—`**, and at least two had fired: *GitHub Issues adoption* (its condition, "first live external tester", was met 2026-07-15) and the *BR-9 second dogfood project*, whose condition reads *"escalate if not started by the time M5 PLAN runs"* — M5 PLAN had run repeatedly. Neither was noticed for weeks. This is the drain's answer to a guard that existed only as prose.
+
 **Physically evict terminal entries (FR3).** promote / ship / merge / delete are *terminal* dispositions — once stamped, the entry is done and should physically leave the inbox so the inbox converges instead of only growing (**DEFERRED is parked-but-live and stays**). After the disposition pass, call `evictTerminalToLedger(baseDir, { dryRun: true })` from `tools/lib/drain.js` to **preview** which terminal entries would move to the archive ledger (`ISSUES-INBOX-LEDGER.md`, back-compat `FUTURE-IDEAS-LEDGER.md`, resolved by `resolveLedgerPath`) — a dry run leaves the inbox byte-identical; then, on confirm (honoring `gate_strictness`), call `evictTerminalToLedger(baseDir)` for real. It appends to the ledger **first**, then removes the blocks from the inbox — crash-safe and keyed, so a re-run never dupes or loses. If it reports `danglingFence: true` it performed a **scoped no-op** (never cutting across an unclosed fence); report that and leave the file for the fence to be fixed.
 
 ### 2. Research (Parallel Agents)

@@ -787,3 +787,84 @@ async function promoteDrainEntryCore(baseDir, opts = {}) {
 export async function promoteDrainEntry(baseDir, opts = {}) {
   return withStateLock(baseDir, () => promoteDrainEntryCore(baseDir, opts));
 }
+
+// --- M5.E13 S3.t1 (FR2.1, `B39`): the trigger-watchlist walk -----------------
+//
+// `ISSUES-INBOX.md` carries a standing entry — "Trigger watchlist … (check
+// conditions at every drain)", marked *never promote, merge, or delete* —
+// instructing `/sig:plan`'s drain to walk its conditions and act on any that
+// have fired. **Nothing implemented that walk.** Measured at M5.E13 PLAN: 11
+// rows, `Fired?` reading `—` on every one, with at least two demonstrably
+// fired and one DATED trigger still pending.
+//
+// The entry's own stated rationale was *"one dated trigger that would otherwise
+// expire unobserved"* — which is precisely what happened, to the whole table.
+
+const WATCHLIST_HEADING_RE = /^##\s+.*trigger watchlist.*$/im;
+
+// A row is DECIDED when its verdict cell says something other than a dash /
+// blank — a tick, a date, a word. `—` (em dash), `-`, and empty all mean
+// "nobody looked", which is the state B39 is about.
+const UNDECIDED_CELL_RE = /^[\s—–-]*$/;
+
+/**
+ * Parse the standing trigger watchlist out of an inbox document.
+ *
+ * Returns `null` when the project has no such entry — portable, so a stranger
+ * repo never sees a false alarm.
+ *
+ * @param {string} content — the inbox file's text
+ * @returns {{rows: Array<{item:string, condition:string, verdict:string, evaluated:boolean}>,
+ *            unevaluated: Array<object>, decided: Array<object>,
+ *            dated: Array<{item:string, date:string}>} | null}
+ */
+export function parseTriggerWatchlist(content) {
+  const src = String(content ?? '');
+  const m = src.match(WATCHLIST_HEADING_RE);
+  if (!m) return null;
+
+  // Scope to this entry: from its heading to the next top-level `## `.
+  const start = src.indexOf(m[0]);
+  const rest = src.slice(start + m[0].length);
+  const nextIdx = rest.search(/^##\s+/m);
+  const block = nextIdx === -1 ? rest : rest.slice(0, nextIdx);
+
+  const rows = [];
+  for (const line of block.split('\n')) {
+    if (!line.trim().startsWith('|')) continue;
+    const cells = line.split('|').slice(1, -1).map((c) => c.trim());
+    if (cells.length < 3) continue;
+    // Skip the header and its separator.
+    if (/^-{2,}$|^:?-+:?$/.test(cells[0])) continue;
+    if (/^parked item/i.test(cells[0])) continue;
+    const [item, condition, verdict] = cells;
+    rows.push({
+      item,
+      condition,
+      verdict,
+      evaluated: !UNDECIDED_CELL_RE.test(verdict),
+    });
+  }
+  if (rows.length === 0) return null;
+
+  // A DATED condition is the one shape that expires whether or not anyone
+  // looks, so it is surfaced separately rather than left to be spotted.
+  const dated = [];
+  for (const r of rows) {
+    // Strip inline code spans BEFORE looking for a date. Caught dogfooding this
+    // very function at M5.E13: the GitHub-Issues row's condition cites
+    // `BACKLOG-REVIEW-2026-07-04.md`, and a naive match reported that FILENAME
+    // as an expiry — a dated-trigger report that cries wolf is worse than none,
+    // since the whole point is that these are the rows you can trust to matter.
+    const prose = r.condition.replace(/`[^`]*`/g, ' ');
+    const d = prose.match(/(\d{4}-\d{2}-\d{2})/);
+    if (d) dated.push({ item: r.item, date: d[1], condition: r.condition, evaluated: r.evaluated });
+  }
+
+  return {
+    rows,
+    unevaluated: rows.filter((r) => !r.evaluated),
+    decided: rows.filter((r) => r.evaluated),
+    dated,
+  };
+}
