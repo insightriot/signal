@@ -6,10 +6,39 @@ Signal's measurement record: what its own instructions actually cause an agent t
 corpus changes. The run records beneath the runs marker are **append-only** — a later
 run never rewrites an earlier one.
 
+## ⚠ Read this before comparing the coverage number across releases
+
+**The share can fall without anything getting worse, and it just did.** At v0.1.13 the
+ceiling read **91/407 = 22.4%**. At M5.E13 it reads **87/411 = 21.2%**. Nothing became
+less obedient. Three things moved, none of them quality:
+
+1. **M5.E13 reworded the phase-entry instruction in four commands** (FR1.1, fixing `B48`
+   — the instruction was unconditional, and an agent correctly refused it). The rewording
+   added *conditional prose*: "call this only if every precondition passed." That prose is
+   **directive** — it tells the agent what to do — but it names no library call and writes
+   no artifact, so the classifier counts it in the denominator and not the numerator.
+2. **`plan.md` gained the trigger-watchlist walk** (FR2.1, `B39`), which is more directive
+   prose for the same reason.
+3. The corpus grew 407 → 411 lines while trace-measurable fell 91 → 87.
+
+**The perverse incentive, stated so nobody has to rediscover it.** Under this metric,
+*clarifying an instruction lowers the score*. The clearest possible instruction — a
+precondition, a caveat, an explanation of when **not** to act — is usually the least
+mechanically checkable. Anyone optimising this number would be pushed toward terser, more
+absolute instructions, which is exactly the defect (`B48`) that caused the drop.
+
+**So: do not treat this share as a quality metric, and do not tune it.** It is a *bound on
+what the harness can see* — nothing more. A falling share may simply mean the corpus got
+more honest. The line below still holds: the untraceable remainder is **unmeasured, not
+passing**.
+
+*(This section sits outside the regenerated block deliberately — `tools/adherence-ceiling.js`
+rewrites only between the `adherence:ceiling` markers, so this survives every regen.)*
+
 <!-- adherence:ceiling:begin -->
 ## The coverage ceiling
 
-**Computed:** 2026-07-30 · **Commit:** `2ee601d` · **Corpus:** 18 `commands/*.md` files
+**Computed:** 2026-07-30 · **Commit:** `3a2a66e` · **Corpus:** 18 `commands/*.md` files
 
 This is the bound on everything the adherence harness can ever report. It is computed
 directly from the command corpus by `tools/lib/directive-classifier.js`, whose split
@@ -156,3 +185,36 @@ harness run as evidence about the whole corpus will not find it here.
 - **N=3 is a weak split.** A perfect separation of 6 runs is roughly p=0.05 by permutation. Clean, not deep.
 - **The control removed a whole section** (`## Phase entry — record the phase (M5.E9 FR6, `B41`)`), so anything else stated in it was removed too. Read that section before attributing the difference to this instruction alone.
 
+
+> ### ⚠ DIAGNOSED — the `INDETERMINATE` record above is a fact about the INSTRUMENT
+>
+> **The control arm was never isolated across files, so `deleteSection` removed the
+> instruction from one file and left it standing in three others.** Filed as **`B55`**
+> ([`BUGS.md`](BUGS.md)).
+>
+> `adherence-run.js` copies the **whole plugin** (`createPluginCopy(ROOT)`) and mutates
+> **exactly one** command file. But `transitionPhase` is named **4× in `plan.md`**, **4× in
+> `verify.md`**, **4× in `review.md`**, plus `calibrate.md`, `discuss.md`, `ship.md` and
+> `references/state-schema.md`. A control-arm agent that opens any sibling command finds
+> the instruction it was supposed to be deprived of. **The one control run that produced a
+> trace is that leak, not a fact about the wording.**
+>
+> **M5.E13 amplified it, by design and unavoidably.** FR1.1 required a **single shared
+> wording** across the four middle commands *precisely so they cannot drift apart* — which
+> puts a **byte-identical** copy of the deleted instruction into `plan.md`. The requirement
+> and the measurement are in direct tension, and nothing in the Epic said so until the
+> harness was pointed at itself.
+>
+> **What this says about the `OBEYED` record at `f3ca9b2`:** it is **not falsified** — 0/3
+> means no leak was observed in those three runs — but it was **unisolated**. It could never
+> have distinguished *"the instruction works"* from *"the agent found it elsewhere."* Signal's
+> flagship adherence verdict was clean by luck rather than by construction.
+>
+> **Not re-run for a better number, deliberately.** A second run is a coin-flip, and taking
+> the better of two is exactly the tuning the four-verdict impostor table in
+> `M5.E8-REVIEW.md` exists to forbid. The fix is a corpus-level deletion, which needs a
+> decision about what a verdict means when an instruction legitimately appears in four
+> commands — design work, homed in its own Epic rather than bolted onto this one.
+>
+> *Left byte-identical rather than removed. This log is append-only: a wrong answer that is
+> deleted cannot be audited.*

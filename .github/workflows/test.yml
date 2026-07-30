@@ -1,0 +1,38 @@
+# CI — M5.E13, added 2026-07-30.
+#
+# Why this exists: during M5.E13 EXECUTE a commit was pushed while two tests
+# were failing. It was caught within minutes, but only because someone looked.
+# There was no automatic check — this repo had no CI at all.
+#
+# That absence had two symptoms, not one: a red suite could reach `main`, and
+# the proof-of-fail discipline (every fix demonstrated RED before the fix) had
+# to be run by hand because nothing enforced it. A guard that depends on a
+# human remembering is the defect class this Epic is named for, so the fix is
+# a mechanism rather than more discipline.
+
+name: test
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches the engines floor in package.json. Signal is Node 22+.
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # The suite is deliberately offline, deterministic and free —
+      # tools/adherence-run.js (which spends money by invoking the claude CLI)
+      # is excluded from it by design, and a guard test asserts no test spawns
+      # it. So this job needs no secrets and no network beyond the install.
+      - run: npm test

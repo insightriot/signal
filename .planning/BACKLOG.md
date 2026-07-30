@@ -174,6 +174,44 @@ why* is **in**. Absorbs gstack's `/office-hours` forcing questions re-pointed at
 on Signal's own backlog and the citations resolve. **Naming deliberately open** — do not fix the
 name before the shape.
 
+### M5.E15 — The control arm, made real (`B55`)
+**Tag:** roadmap · **Trigger: NONE — fires on the next adherence claim.** Blocks any new
+`OBEYED`/`INERT` verdict being trusted, and any published number derived from one.
+**Filed 2026-07-30 (Brett's call: its own piece of work, not bolted onto M5.E13).**
+
+**The defect (`B55`, `confirmed`, P2).** `adherence-run.js` copies the whole plugin and mutates
+**exactly one** command file, while `transitionPhase` is named **4× each** in `plan.md`,
+`verify.md` and `review.md` plus four more files. **The control arm has never been isolated
+across files** — a control-arm agent simply opens a sibling command and finds the instruction it
+was supposed to be deprived of.
+
+**Why it is an Epic and not a patch.** The fix is not "delete from more files." M5.E13's FR1.1
+*required* one shared wording across the four middle commands so they cannot drift — so the
+instruction **legitimately** appears four times, and deleting it corpus-wide changes the
+question being asked from *"does this line in `execute.md` do work?"* to *"does this rule,
+wherever stated, do work?"* Those are different claims with different validity. **Deciding what a
+verdict means for a multi-homed instruction is the actual deliverable**; the code change follows
+from it.
+
+**Scope sketch (not a plan).**
+- A canary declares a **corpus-level** deletion target, not a single `deleteSection` anchor.
+- A verdict states its **isolation scope** on its face, so a reader cannot mistake a
+  one-file result for a corpus result.
+- A pre-run **leak check**: refuse to run when the instruction is still reachable in the
+  mutated tree. This is the guard whose absence is `B55`, and it is the same shape as the
+  `--check`-has-a-caller test — so M5.E13's own mechanism should cover it.
+- Re-run `B41-phase-entry` **after** the arm is fixed, never before.
+
+**Standing prohibition until this lands.** Do **not** re-run a canary hoping for a cleaner
+number. A second run is a coin-flip and taking the better of two is precisely the tuning the
+four-verdict impostor table in `M5.E8-REVIEW.md` forbids. `ADHERENCE-LOG.md` carries an
+**INDETERMINATE** and that is the truthful state to sit on.
+
+**What it costs to leave.** M5.E8's `OBEYED` — Signal's flagship adherence result — is **not
+falsified** but **unisolated**: it could never have distinguished *"the instruction works"* from
+*"the agent found it elsewhere."* Every future verdict inherits that defect until this is fixed,
+so the harness cannot support the claims it was built to support.
+
 ### M5.E12 — Project-facing currency
 **Tag:** roadmap · **Trigger: M5.E11 lands**, or a doc-drift incident in a Signal-built project.
 **⚠ The second condition has a candidate instance — checked 2026-07-28, not yet adjudicated.**
