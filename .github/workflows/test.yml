@@ -22,6 +22,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # FULL history, not the default shallow clone. The suite has a real
+          # dependency on it: tests/backfill-retros.test.js:195 is an
+          # integration smoke that walks actual Signal commit history
+          # (`commitRangeForEpic('M4.5.E3')` expects >5 matching commits).
+          # At depth 1 there is no history and it fails — which is exactly what
+          # this workflow's first run reported, on its first attempt. A latent
+          # environment assumption that nothing had ever stated, surfaced by
+          # the act of adding CI.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
