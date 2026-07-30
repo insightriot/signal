@@ -41,7 +41,11 @@ Load from `${CLAUDE_PLUGIN_ROOT}/skills/build/`:
 
 ## Phase entry — record the phase (M5.E9 FR6, `B41`)
 
-**Before any Workflow step**, call `await transitionPhase(baseDir, 'EXECUTE')` (`tools/lib/state.js`). It appends the phase being **left** to `completed_phases` and sets `phase: EXECUTE`.
+**Call this only if every precondition above passed.** The tier gate must have let this command through, and any halt condition in it must not have fired. If this command is halting — wrong tier, a missing prerequisite artifact, a failed gate — **do not call `transitionPhase`**: return the halt instead.
+
+**Then, before any Workflow step**, call `await transitionPhase(baseDir, 'EXECUTE')` (`tools/lib/state.js`). It appends the phase being **left** to `completed_phases` and sets `phase: EXECUTE`.
+
+**Why the condition (M5.E13, `B48`).** This instruction used to be unconditional, and an agent running `/sig:execute` against a project with no PLAN artifact **correctly refused it** — obeying would have recorded `phase: EXECUTE` for a project with nothing to execute, writing a false entry into the ledger M5.E9 had just made honest. Obeying corrupted the record; disobeying reproduced `B41`. The instruction was the thing that was wrong. `transitionPhase` now also refuses to record a phase that produced no artifact, so the text and the code agree rather than one relying on the other.
 
 **Why this exists.** Until M5.E9 only `calibrate` / `discuss` / `ship` ever called `transitionPhase`. `plan`, `execute`, `verify` and `review` advanced nothing — so a command-driven project finished a full build with `completed_phases: [DISCUSS]`, `phase: SHIP`, and **PLAN / EXECUTE / VERIFY / REVIEW never recorded at all**, while `/sig:status` and `/sig:resume` reported `DISCUSS` for the entire run. `markFresh` then stamped a fresh timestamp over that stale position, turning *stale-and-flagged* into *stale-and-silent*. It survived eleven releases because Signal's own repo maintained these fields **by hand**.
 

@@ -155,15 +155,11 @@ Before transitioning to PLAN, verify:
 - [ ] No unresolved gray areas that would block PLAN
 - [ ] User explicitly approves transition to PLAN
 
-Update `STATE.md`:
-```markdown
-## Current Phase
-PLAN
+**Do NOT set `phase: PLAN` here** (M5.E13, `B51`). `/sig:plan` performs its own at-entry `transitionPhase` — since M5.E9 the **incoming** command advances the phase, not the outgoing one. This file used to instruct the DISCUSS close to set it too, and both instructions survived the change. Obeying both makes `/sig:plan`'s at-entry call resolve the phase being *left* as **PLAN** and append `PLAN (date)` **before PLAN has run**; `completed_phases` is deliberately append-only with no dedupe (D-M5E9-5), so that false entry is permanent.
 
-## Completed Phases
-- CALIBRATE ({date})
-- DISCUSS ({current_date})
-```
+The stale block was wrong twice over: the **convention** (outgoing-sets-phase, superseded by M5.E9) and the **file format** — it showed `## Current Phase` / `## Completed Phases` markdown headings, which predate `schema_version: 1` and mean nothing to `parseFrontmatter`. An agent obeying it literally appended dead markdown to STATE.md's body.
+
+DISCUSS's own close is recorded by `/sig:plan` when it transitions in. Nothing to write here.
 
 ### Mark STATE.md fresh (M4.5.E10.S1.t5, FR3)
 

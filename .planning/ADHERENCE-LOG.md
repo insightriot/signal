@@ -9,7 +9,7 @@ run never rewrites an earlier one.
 <!-- adherence:ceiling:begin -->
 ## The coverage ceiling
 
-**Computed:** 2026-07-30 · **Commit:** `ef91bf3` · **Corpus:** 18 `commands/*.md` files
+**Computed:** 2026-07-30 · **Commit:** `81f9a1c` · **Corpus:** 18 `commands/*.md` files
 
 This is the bound on everything the adherence harness can ever report. It is computed
 directly from the command corpus by `tools/lib/directive-classifier.js`, whose split
@@ -19,14 +19,14 @@ by line.
 | | count | share |
 |---|---:|---:|
 | Directive lines | **408** | 100% |
-| …naming a real `tools/lib` export | 74 | 18.1% |
-| …writing a named artifact | 17 | 4.2% |
-| **Trace-measurable (either)** | **91** | **22.3%** |
-| **No observable trace** | **317** | **77.7%** |
+| …naming a real `tools/lib` export | 70 | 17.2% |
+| …writing a named artifact | 16 | 3.9% |
+| **Trace-measurable (either)** | **86** | **21.1%** |
+| **No observable trace** | **322** | **78.9%** |
 
 ### What the remainder is, stated plainly
 
-The 317 directives with no observable trace are **unmeasured, not passing.**
+The 322 directives with no observable trace are **unmeasured, not passing.**
 
 They are not "probably fine", not "covered by the test suite", and not "verified by the
 fact that Signal works". Nothing in this repository establishes whether an agent follows
@@ -40,22 +40,22 @@ harness run as evidence about the whole corpus will not find it here.
 | File | directives | measurable | unmeasured |
 |---|---:|---:|---:|
 | `add.md` | 42 | 10 | 32 |
-| `discuss.md` | 25 | 9 | 16 |
 | `status.md` | 14 | 9 | 5 |
-| `plan.md` | 41 | 8 | 33 |
+| `discuss.md` | 25 | 8 | 17 |
 | `init.md` | 41 | 7 | 34 |
+| `plan.md` | 41 | 7 | 34 |
 | `ship.md` | 30 | 7 | 23 |
 | `checkpoint.md` | 21 | 5 | 16 |
 | `doctor.md` | 23 | 5 | 18 |
 | `new-project.md` | 9 | 5 | 4 |
 | `resume.md` | 15 | 5 | 10 |
-| `execute.md` | 20 | 4 | 16 |
 | `migrate-memory.md` | 15 | 4 | 11 |
-| `review.md` | 34 | 3 | 31 |
+| `execute.md` | 20 | 3 | 17 |
 | `sweep.md` | 9 | 3 | 6 |
-| `verify.md` | 26 | 3 | 23 |
 | `calibrate.md` | 20 | 2 | 18 |
 | `index.md` | 7 | 2 | 5 |
+| `review.md` | 34 | 2 | 32 |
+| `verify.md` | 26 | 2 | 24 |
 | `escalate.md` | 16 | 0 | 16 |
 <!-- adherence:ceiling:end -->
 

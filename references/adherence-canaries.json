@@ -30,7 +30,7 @@
       "id": "B41-phase-entry",
       "declaredAt": "2026-07-28",
       "command": "execute",
-      "instruction": "Before any Workflow step, call `await transitionPhase(baseDir, 'EXECUTE')` at phase entry.",
+      "instruction": "Call transitionPhase only if every precondition passed; then, before any Workflow step, call `await transitionPhase(baseDir, 'EXECUTE')` at phase entry.",
       "deleteSection": "## Phase entry — record the phase (M5.E9 FR6, `B41`)",
       "$deletionNote": [
         "SECTION-level, not line-level, and the difference decided a verdict.",
@@ -61,6 +61,17 @@
         "spent an Epic proving one of its own shipped fixes does nothing. That is what a real",
         "measurement is for. It is recorded here, before the run, so the result cannot later be",
         "reframed as a harness defect and tuned away."
+      ],
+      "$rewordedAt": "2026-07-29",
+      "$rewordNote": [
+        "M5.E13 S2.t4 (`B48`) reworded the measured instruction to be CONDITIONAL on",
+        "preconditions passing. That invalidates the OBEYED verdict M5.E8 recorded",
+        "against the previous wording — a verdict measures a specific text, not a topic.",
+        "`deleteSection` is unchanged because the section HEADING was deliberately left",
+        "alone; only the body moved. The control arm's guarantee (the mutated file must",
+        "not mention transitionPhase at all) still holds because every mention lives",
+        "inside this section.",
+        "The canary MUST be re-run before v0.1.14 ships (FR1.3 / AC1.4)."
       ]
     }
   ]
