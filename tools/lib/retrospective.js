@@ -835,16 +835,12 @@ export async function shipFR1Check(args) {
         ],
       }
     : null;
-  const synthState = aboutToClose
-    ? {
-        ...state,
-        phase: 'SHIP',
-        completed_phases: [
-          ...(state.completed_phases ?? state.completedPhases ?? []),
-          lastPreShip,
-        ],
-      }
-    : null;
+  // `aboutToClose` implies `atLastPreShip`, so this is exactly `synthIfClosing`
+  // narrowed by the row-absence gate. Derived rather than rebuilt: the literal
+  // was duplicated here verbatim, which is the two-implementations-of-one-rule
+  // shape `B53` was — in the same commit whose comment above claims otherwise.
+  // Caught at M5.E13 REVIEW.
+  const synthState = aboutToClose ? synthIfClosing : null;
 
   const isEpicClose =
     isEpicCloseShip(state, milestoneContent) ||

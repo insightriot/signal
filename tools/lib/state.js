@@ -476,6 +476,19 @@ const PHASE_ARTIFACT = {
  *
  *  - **CALIBRATE** — its output is `PROFILE.md`, which is not one of the
  *    Epic-scoped artifact kinds and is not named by `artifactName`.
+ *  - **EXECUTE** — `PROGRESS` is **documented optional** (`commands/execute.md`
+ *    § "Optional for single-task plans": *"typical at SKETCH tier … the commit
+ *    log substitutes for it. Skip without ceremony"*). Caught at M5.E13 REVIEW:
+ *    without this exemption a SKETCH project **could not ship at all**, because
+ *    `/sig:ship`'s transition leaves EXECUTE and no PROGRESS exists. That is
+ *    `B42`'s exact shape — a gate refusing a supported mode — reintroduced by
+ *    the Epic that exists to stop unconditional rules.
+ *
+ *    **This costs nothing that `B48` needed.** `B48`'s case is `/sig:execute`
+ *    against a project with no PLAN artifact: that transition *leaves PLAN*, so
+ *    it is `PLAN`'s artifact the guard checks, and it is still refused. The
+ *    exemption only relaxes the *leaving EXECUTE* check, which is a different
+ *    event (the ship), on an artifact the docs already call optional.
  *  - **SHIP** — terminal, and its artifact is optional *by design*:
  *    `/sig:resume`'s artifact table reads "`{phase}-SHIP.md` (if present) **or**
  *    pre-ship checklist from STATE.md". This is the collision that decided the
@@ -485,7 +498,7 @@ const PHASE_ARTIFACT = {
  *
  * @type {Set<string>}
  */
-export const PHASE_ARTIFACT_EXEMPT = new Set(['CALIBRATE', 'SHIP']);
+export const PHASE_ARTIFACT_EXEMPT = new Set(['CALIBRATE', 'EXECUTE', 'SHIP']);
 
 /**
  * Throw if `leaving` produced no artifact. Resolution goes through

@@ -239,9 +239,36 @@ describe('M5.E13 S2.t3 — the exemption list is enumerated, not assumed empty (
     expect(res.recorded).toBe(true);
   });
 
+  it('SKETCH ship path: EXECUTE with no PROGRESS artifact does NOT block the ship (M5.E13 REVIEW, Critical)', async () => {
+    // Found at REVIEW, not by the plan. execute.md § "Optional for single-task
+    // plans" states PROGRESS may be skipped — "typical at SKETCH tier … the
+    // commit log substitutes for it. Skip without ceremony". The first version
+    // of this guard demanded it unconditionally, so a SKETCH project could not
+    // ship AT ALL. That is `B42`'s exact shape — a gate refusing a supported
+    // mode — reintroduced by the Epic that exists to stop unconditional rules.
+    await writeFile(join(dir, '.planning', 'REQUIREMENTS.md'), '# r\n', 'utf-8');
+    await transitionPhase(dir, 'DISCUSS');
+    await transitionPhase(dir, 'PLAN');
+    await writeFile(join(dir, '.planning', '1-PLAN.md'), '# p\n', 'utf-8');
+    await transitionPhase(dir, 'EXECUTE');
+    // No PROGRESS artifact — legitimate at SKETCH.
+    await expect(transitionPhase(dir, 'SHIP')).resolves.toBeTruthy();
+    expect((await readState(dir)).phase).toBe('SHIP');
+  });
+
+  it('...and the exemption costs B48 nothing: /sig:execute with no PLAN artifact is still refused', async () => {
+    // The exemption relaxes only the LEAVING-EXECUTE check (the ship). B48's
+    // case leaves PLAN, so it is PLAN's artifact that is checked, and it is
+    // still refused. Pins that the fix did not hollow out the guard.
+    await writeFile(join(dir, '.planning', 'REQUIREMENTS.md'), '# r\n', 'utf-8');
+    await transitionPhase(dir, 'DISCUSS');
+    await transitionPhase(dir, 'PLAN');
+    await expect(transitionPhase(dir, 'EXECUTE')).rejects.toThrow(/PLAN/);
+  });
+
   it('the exemption set is EXPORTED so it can be read, not inferred from behaviour', async () => {
     const { PHASE_ARTIFACT_EXEMPT } = await import('../tools/lib/state.js');
     expect(PHASE_ARTIFACT_EXEMPT instanceof Set).toBe(true);
-    expect([...PHASE_ARTIFACT_EXEMPT].sort()).toEqual(['CALIBRATE', 'SHIP']);
+    expect([...PHASE_ARTIFACT_EXEMPT].sort()).toEqual(['CALIBRATE', 'EXECUTE', 'SHIP']);
   });
 });
