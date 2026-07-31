@@ -4,12 +4,7 @@ docs_layout_version: 3
 phase: SHIP
 current_epic: M5.E13
 current_wave: null
-current_tasks:
-  - id: M5.E13.S3.t2
-    epic: M5.E13
-    wave: 1
-    status: in_progress
-    startedAt: 2026-07-30T00:17:04.562Z
+current_tasks: []
 completed_phases:
   - DISCUSS (2026-07-29)
   - PLAN (2026-07-29)
@@ -19,13 +14,13 @@ completed_phases:
   - SHIP (2026-07-30)
 blockers: []
 last_completed_task:
-  id: M5.E13.S3.t1
-  status: done
-  commit: 5a677717f03ca1d8cf890330a41276703592e4f5
-  completedAt: 2026-07-30T00:16:49.677Z
-last_decision_at: 2026-07-30T00:16:49.677Z
-last_updated_commit: 9e3950987adcdacb95b945212d9276c955ae7598
-last_updated: 2026-07-30T21:06:36.257Z
+  id: M5.E13.S3.t2
+  status: aborted
+  commit: null
+  completedAt: 2026-07-31T02:50:26.294Z
+last_decision_at: 2026-07-31T02:50:26.294Z
+last_updated_commit: b76420a72aa0e8c33871e698a6c583c67edb33bb
+last_updated: 2026-07-31T02:50:26.321Z
 ---
 # Project State
 
