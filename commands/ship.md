@@ -97,11 +97,7 @@ The PR is open and the Epic has shipped end-to-end. Bring STATE.md frontmatter i
 
 1. `await transitionPhase(baseDir, 'SHIP')` from `tools/lib/state.js` — appends the phase being **left** (e.g. `REVIEW (YYYY-MM-DD)`) to `completed_phases` and sets `phase: SHIP`. *(Corrected M5.E9/`B43`: this line previously claimed it appends `SHIP`. It never did, and could not — `transitionPhase` records the phase you leave, and **SHIP is terminal**, so nothing ever leaves it. `retrospective.js:493` had the truth in a code comment — "Signal never writes one" — while this line asserted the opposite for nine releases.)*
 2. `await completePhase(baseDir, 'SHIP')` — **this is what finally records `SHIP (YYYY-MM-DD)`.** Records a phase complete without transitioning away from it; idempotent for the same phase on the same day, so a re-invoked `/sig:ship` cannot double-record. **In linear mode this call also fires FR5's trim** (D-M5E9-6): the finished run — its own `SHIP` entry included, which is why this runs *after* step 1 — relocates verbatim to `.planning/STATE-HISTORY.md` and the live list restarts. Surface the returned `{trimmed}` count; a state write that silently drops entries is the defect M5.E9 exists to fix.
-3. `await markFresh(baseDir, {commit: <git HEAD short>})` — advances `last_updated` to now and `last_updated_commit` to HEAD so `/sig:resume`'s staleness banner reads as fresh.
-
-If `markFresh` fails (lock contention, git unavailable):
-- Under `gate_strictness: strict`, surface the failure but **do not roll back the SHIP** — the work and PR are done; the state-write blip is a recovery item, not a SHIP failure.
-- Under `light` / `off`, log to stderr and continue.
+**`markFresh` does NOT belong here.** It used to be step 3 of this section, and that was wrong — see §9. Steps §5.5, §6, §6.5 and §8 all still have files to write, and stamping `last_updated_commit` before they are committed records a sha that predates them.
 
 This step is now required even if no PR was created (e.g., direct-to-main shipping for the Signal-on-Signal flow) so STATE.md never lags behind the Epic-close.
 
@@ -162,6 +158,16 @@ Regenerate the planning index so `.planning/` ships reconciled. This is Signal's
 Call `regeneratePlanningIndex(baseDir)` from `tools/lib/planning-index.js`. It enumerates every tracked `.planning/` (and `archive/`) doc, re-renders `INDEX.md` preserving hand-curated annotations by ID (the survive-by-ID pattern), and **compare-before-write** — idempotent, so a SHIP that didn't change the doc set produces no diff (`{written: false}`). Run it unconditionally (like the old §8 ran every SHIP); the compare-before-write makes a no-op SHIP a clean pass.
 
 When it reports `{written: true}`, stage the modified `.planning/INDEX.md` into the SHIP commit alongside the state-write (§5) and retro index (§6). The rest of what that step did is now covered natively and needs no step here: the FR4 all-docs hygiene guard (`tools/lib/doc-hygiene.js`, in the test suite) turns structural doc drift red, and the FR2 light inbox sweep (§6.5) reconciles the capture inbox at Epic-close.
+
+### 9. Create the SHIP commit, then mark STATE.md fresh (M5.E17 FR3)
+
+Four steps above — §5.5 (evicted narrative), §6 (retro index), §6.5 (inbox + ledger), §8 (INDEX.md) — each instruct staging into **"the SHIP commit."** This is the step that makes it. Commit everything those steps staged, as one atomic commit.
+
+**Then, and only then:** `await markFresh(baseDir, {commit: <git HEAD short>})` from `tools/lib/state.js` — advances `last_updated` + `last_updated_commit` to the SHIP commit so `/sig:resume`'s staleness banner reads fresh. Run it **after** the commit — passing a pre-commit HEAD records a stale sha and silently defeats the freshness check (AC3.4).
+
+Wrap the call in a **catch-all**: if `markFresh` throws for *any* reason — `StateSchemaError` on a schema-mismatched STATE.md, `StateWriteError` on lock contention, git unavailable — warn and continue. Under `gate_strictness: strict`, surface the failure but **do not roll back the SHIP**: the work and the PR are done, and a state-write blip is a recovery item, not a SHIP failure. (Mirrors plan/verify/review/discuss.)
+
+**Why this step exists (M5.E17 `FR3`).** Until v0.1.15, `markFresh` was step **5.3** — ahead of all four staging steps — and **no step in this file ever instructed making the commit they staged into.** Four steps referenced a commit that nothing created. Following `ship.md` as written therefore stamped a HEAD that predated every file those steps produced, **by construction rather than by accident**, and `isStateStale` immediately reported the release commit as unreflected work. Observed live during M5.E13's own ship, 2026-07-30. `plan.md:173` had stated the correct rule since v0.1.5; this file contradicted it, and only a live run surfaced the disagreement.
 
 ## Phase Gate
 

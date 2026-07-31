@@ -81,7 +81,7 @@ Generate the VERIFICATION artifact (`artifactName('VERIFICATION', { currentEpic 
 
 **SKETCH tier:** skip this step. STATE.md updates only via manual `/sig:checkpoint`.
 
-**FEATURE/SPIKE/FULL:** call `markFresh(baseDir, {commit: <git HEAD>})` from `tools/lib/state.js`. This advances `last_updated` to now and `last_updated_commit` to HEAD so the staleness banner in `/sig:resume` reads as fresh after VERIFY closes.
+**FEATURE/SPIKE/FULL:** after the VERIFY artifacts (`{phase}-VERIFICATION.md`) are committed, call `markFresh(baseDir, {commit: <git HEAD>})` from `tools/lib/state.js`. This advances `last_updated` + `last_updated_commit` to the phase-close commit so the staleness banner in `/sig:resume` reads fresh after VERIFY. Run it **after** the commit — passing a pre-commit HEAD records a stale sha and silently defeats the freshness check (AC3.4).
 
 If `markFresh` fails (lock contention, git unavailable, etc.):
 - Under `gate_strictness: strict`, surface the failure to the user but **do not halt phase exit** — the work is already done; the state-write blip is a recovery item, not a verification failure.

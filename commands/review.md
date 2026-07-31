@@ -118,23 +118,25 @@ Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic })` — `{ph
 
 ## Verdict
 - [ ] PASS — ready for SHIP
-- [ ] PASS-WITH-FIXES — Important issues fixed in-phase; ready for SHIP
+- [ ] PASS-WITH-FIXES — Important issues, or a Critical, fixed in-phase; ready for SHIP
 - [ ] FAIL — issues must be addressed (return to EXECUTE)
 ```
 
-**PASS-WITH-FIXES guidance.** Use this verdict when REVIEW found Important issues but the fix is small enough to land in REVIEW itself rather than ceremonially looping back to EXECUTE. Rule of thumb: total change ≤ 50 LOC, all tests still pass, no design impact. Document each fix in the report (path, summary, why fix-in-phase was chosen). Fixes that touch architecture, ripple beyond a single file, or require new tests should FAIL and loop back to EXECUTE — that's what the loop is for.
+**PASS-WITH-FIXES guidance.** Use this verdict when REVIEW found Important issues — **or a Critical** — but the fix is small enough to land in REVIEW itself rather than ceremonially looping back to EXECUTE. The conditions are **conjunctive, and all four are load-bearing**: the issue was *discovered and closed inside REVIEW*, **and** total change ≤ 50 LOC, **and** all tests still pass, **and** no design impact. Failing any one of them is FAIL. Document each fix in the report (path, summary, why fix-in-phase was chosen). Fixes that touch architecture, ripple beyond a single file, or require new tests should FAIL and loop back to EXECUTE — that's what the loop is for.
+
+**Why a Critical can qualify (D-M5E17-1).** A Critical *discovered and closed inside REVIEW*, with a small diff and green tests, is not the same event as a Critical discovered at ship or one needing re-planning. This table used to read *"FAIL | Any Critical"* while practice went the other way twice — M5.E9 and M5.E13 both shipped PASS-WITH-FIXES with an in-phase Critical — so the rule and the work disagreed for two releases and only a live REVIEW surfaced it. The rule was miscalibrated, not the practice. **The counter-argument is recorded because it is real:** "Critical" exists to force a harder stop, and *"the diff was small"* is exactly how a Critical gets under-fixed — which is why the four conditions above are conjunctive rather than a rule of thumb.
 
 | Verdict | When |
 |---|---|
 | PASS | 0 Critical, 0 Important. Suggestions optional. |
-| PASS-WITH-FIXES | Important issues found AND total fix < 50 LOC AND tests still green AND no architectural impact. |
-| FAIL | Any Critical, OR Important fix > 50 LOC, OR tests can't stay green without re-planning. |
+| PASS-WITH-FIXES | Important issues **or a Critical** found AND closed in-phase AND total fix < 50 LOC AND tests still green AND no architectural impact. |
+| FAIL | A Critical **not** fixed in-phase, OR any fix > 50 LOC, OR tests can't stay green without re-planning. |
 
 ### 5b. Mark STATE.md fresh (M4.5.E6.S4)
 
 **SKETCH tier:** skip — REVIEW is in `phases_skipped` for SKETCH anyway, but if a re-calibration brought REVIEW back, STATE.md updates only via manual `/sig:checkpoint`.
 
-**FEATURE/SPIKE/FULL:** call `markFresh(baseDir, {commit: <git HEAD>})` from `tools/lib/state.js`. Advances `last_updated` / `last_updated_commit` so `/sig:resume` reads fresh after REVIEW closes.
+**FEATURE/SPIKE/FULL:** after the REVIEW artifacts (`{phase}-REVIEW.md`) are committed, call `markFresh(baseDir, {commit: <git HEAD>})` from `tools/lib/state.js`. This advances `last_updated` + `last_updated_commit` to the phase-close commit so `/sig:resume` reads fresh after REVIEW. Run it **after** the commit — passing a pre-commit HEAD records a stale sha and silently defeats the freshness check (AC3.4).
 
 If `markFresh` fails (lock contention, git unavailable):
 - Under `gate_strictness: strict`, surface but **do not halt phase exit** — the review is already written; the state-write blip is a recovery item, not a review failure.

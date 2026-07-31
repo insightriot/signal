@@ -757,3 +757,57 @@ proof is the adherence harness: rewording a measured instruction invalidates the
 recorded against it, so `B41-phase-entry` is re-run. **This is the first use of the harness for its
 intended purpose rather than to prove itself.** Test mechanics decided here rather than asked, per
 *gate at product altitude*.
+
+## 2026-07-31 — M5.E17 PLAN: verdict rule for an in-phase Critical + where "park" lives (D-M5E17-1 … D-M5E17-3)
+
+**D-M5E17-1 — A Critical discovered and closed inside REVIEW is PASS-WITH-FIXES, under the
+conditions already written for Important.**
+
+`commands/review.md` stated Critical ⇒ FAIL in three places (checklist bullet, guidance paragraph,
+verdict table row). Practice went the other way twice: M5.E9 and M5.E13 both shipped
+PASS-WITH-FIXES with a Critical closed inside REVIEW. The document and the practice disagreed, and
+PLAN had to pick a direction rather than assume the convenient one.
+
+**Direction chosen: the rule was miscalibrated, not the practice.** A Critical *found and fixed
+inside REVIEW*, with a small diff and green tests, is a different event from a Critical found at
+ship or one needing re-planning — and the guidance paragraph already makes exactly that argument
+for Important issues; it simply never extended it to Critical. Two Epics reaching the same judgment
+independently under strict gating reads as a rule out of step with the work, not as discipline
+slipping twice.
+
+**The counter-argument, recorded because it is real:** "Critical" exists to force a harder stop, and
+"the diff was small" is precisely how a Critical gets under-fixed. Therefore the three conditions
+are **conjunctive and load-bearing, not a rule of thumb**: ≤ 50 LOC **and** tests green **and** no
+design impact **and** fixed in-phase. A Critical failing any one of them is **FAIL**.
+
+**D-M5E17-2 — "Park with a condition" routes through the existing trigger watchlist. No new
+disposition verb, no schema change.**
+
+The drain has two states: undecided (shows every drain, forever) or dispositioned (never shows
+again — `defer` included, verified against `listDrainCandidates`, which filters on
+`!e.dispositioned`). There is no "parked, remind me," so every capture is either permanent noise or
+permanently buried.
+
+The watchlist already solved this — each row carries a promote-back condition and a review-by date,
+and `/sig:plan` now walks it every drain. An entry needing "not now, but genuinely revisit" is
+therefore promoted **into** the watchlist rather than given a fourth verb. Satisfies NFR2 (no new
+schema) using machinery that exists and is exercised. A `parked` verb was considered and rejected:
+it touches `drain.js`'s terminal/non-terminal handling, which is the schema change NFR2 says should
+trigger escalation.
+
+**D-M5E17-3 — M5.E17 ships as FR1 + FR2 + FR3 only. FR4 (the 48-entry inbox triage) is cut to
+M5.E14.**
+
+Called by Brett 2026-07-31 at the PLAN approval gate. The stated reason is the one that matters:
+**six consecutive M5 Epics have been Signal working on Signal** (E8 measure, E9 ledger, E13 guards,
+E15 the measuring instrument, E16 detectors, E17 contradicting instructions), and the last release
+adding a user-facing capability was `/sig:sweep` in v0.1.11. The introspection loop generates its
+own work and has no natural exit unless one is forced.
+
+FR1–FR3 are three document corrections plus three tests, two of them for defects hit live by hand.
+FR4 is a triage of 48 captures dating to April that requires sustained product judgment from Brett —
+the scarcest input, and the one least available right now. It moves to **M5.E14** (the tracker Epic),
+where migrating the inbox to a real tracker and deciding its contents are the same conversation
+rather than two.
+
+**Not deferred, decided:** the inbox wall is not a papercut and will not be cleared as one.

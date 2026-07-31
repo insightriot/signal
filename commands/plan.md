@@ -130,6 +130,30 @@ Generate the PLAN artifact (`artifactName('PLAN', { currentEpic })` — `{phase}
 - Test strategy per task (TDD where applicable)
 - Estimated complexity (S/M/L — not time)
 
+#### Name what this Epic does for the first time — and schedule it in the FIRST WAVE (M5.E17 FR1)
+
+Before finalising the wave order, add a short section to the PLAN that **names the thing this Epic will do for the first time.** Not the thing it *builds* — the thing it **runs**. Three kinds count:
+
+- **A tool used for its real purpose** rather than to prove itself.
+- **A document executed** rather than read — an instruction nothing has ever actually followed.
+- **A code path taken by a project shape not previously tried** — a different tier, a linear-mode project, a first outside contact.
+
+**Then put it in wave 1.** Not "early", not "consider it" — the first wave, ahead of the work that looks more important. If nothing in the Epic qualifies, say so explicitly; "nothing is new here" is a result, and it is usually wrong on inspection.
+
+**Why this is an instruction and not advice.** *"Shipped but never run"* is the best defect predictor Signal has, and until v0.1.15 nothing scheduled the running. Every significant find of the last three Epics came from a **first execution**, and every one arrived late: `B54` (the first read of that file — a guard that was wrong if wired up, protected from discovery by being uncalled), `B39` (the first walk of a watchlist that had instructed the walk since 2026-07-04 — 11 rows, all unevaluated, **two already fired**), `B42`/`B53` (first contact with a non-Epic project), `B48` (the first read of a transcript), and `B55` — M5.E13's **largest** finding, which surfaced on that Epic's **very last task**, because that is when the adherence harness was first used for its real purpose. Had `B55` landed in wave 1, the requirement it contradicts would have been recognised as in tension with the measurement *before* it was built.
+
+**Worked example — M5.E17's own PLAN, which is the first Epic to run this step:**
+
+> **What this Epic does for the first time:** the drain's write path has never run at scale.
+> `applyDispositions` and `evictTerminalToLedger` have only ever executed over a handful of
+> entries; FR4 puts **48** through them in one pass. Second first: routing an entry *into* the
+> trigger watchlist is a path that has **never been executed at all**.
+> **Therefore S1 is wave 1** — the mechanical pass and the *dry runs* of both write paths, before
+> any real mutation. If the bulk path is broken, it breaks against a dry run rather than against 48
+> captured ideas.
+
+Note what the example is **not**: it does not name the new instruction M5.E17 was writing. A newly-authored thing has no history to be wrong about — the risk lives in the machinery that already exists, was built for a purpose, and has **never been run for that purpose**. That is the distinction the instruction turns on.
+
 ### 4. Plan Validation (8 Dimensions)
 
 Validate the plan against:
