@@ -1,26 +1,16 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: SHIP
-current_epic: M5.E13
+phase: DISCUSS
+current_epic: M5.E17
 current_wave: null
 current_tasks: []
-completed_phases:
-  - DISCUSS (2026-07-29)
-  - PLAN (2026-07-29)
-  - EXECUTE (2026-07-30)
-  - VERIFY (2026-07-30)
-  - REVIEW (2026-07-30)
-  - SHIP (2026-07-30)
+completed_phases: []
 blockers: []
-last_completed_task:
-  id: M5.E13.S3.t2
-  status: aborted
-  commit: null
-  completedAt: 2026-07-31T02:50:26.294Z
+last_completed_task: null
 last_decision_at: 2026-07-31T02:50:26.294Z
 last_updated_commit: b76420a72aa0e8c33871e698a6c583c67edb33bb
-last_updated: 2026-07-31T02:50:26.321Z
+last_updated: 2026-07-31T15:14:30.886Z
 ---
 # Project State
 
