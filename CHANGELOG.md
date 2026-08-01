@@ -6,6 +6,28 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.15] — 2026-08-01 — Instructions that contradict other instructions (M5.E17)
+
+Three Signal instructions disagreed with another Signal instruction, or with ratified practice. Nothing compares one instruction against another, so two documents can give an agent conflicting orders indefinitely and only a live run reveals it. Each fix ships with a test that pins one document against another.
+
+### Fixed
+- **`ship.md` referenced a commit that no step created.** Four steps (§5.5, §6, §6.5, §8) instructed staging "into the SHIP commit" — and no step in the file ever made it. `markFresh` sat at §5.3, ahead of all four, so it stamped a pre-commit HEAD **by construction**. Observed live during M5.E13's own ship. New §9 creates the commit, with `markFresh` after it.
+- **`verify.md` and `review.md` stated no `markFresh` ordering at all.** Not wrong — silent, which means the agent picks. Both now carry `plan.md`'s wording verbatim.
+- **`review.md`'s verdict table contradicted two shipped Epics.** It read *"FAIL | Any Critical"* in three places while M5.E9 and M5.E13 both shipped PASS-WITH-FIXES with a Critical closed inside REVIEW. The rule was miscalibrated, not the practice (**D-M5E17-1**). A Critical *discovered and closed in-phase* is now PASS-WITH-FIXES — under four **conjunctive** conditions, with the counter-argument recorded in the file.
+
+### Added
+- **`plan.md` now schedules first-use.** The planner must name what the Epic will do **for the first time** — a tool used for its real purpose, a document executed rather than read, a code path a new project shape takes — and put it in **wave 1**. *"Shipped but never run"* is Signal's best defect predictor: `B54`, `B39`, `B42`/`B53`, `B48` and `B55` all surfaced on a first execution, all late. `B55` — M5.E13's largest finding — landed on that Epic's very last task.
+- **Four cross-document instruction tests** (`tests/commands-wording.test.js`). 1806 → **1822 tests.**
+
+### Notes
+- **AC corrections, recorded openly.** Two of this Epic's own acceptance criteria were satisfiable by a **no-op** — `review.md`'s three statements already agreed *with each other* (the disagreement was with practice), and a command that states *no* ordering passes "does not instruct `markFresh` before the commit." Both were executed in corrected forms.
+- **The red baseline was measured, not predicted** — and running it caught an error in the probe itself: a naive regex false-RED'd the two files that were already correct, because they read `Run it **after** the commit` and the markdown bold broke the match.
+- **`B56` filed:** `references/facts.md` publishes 894 tests (actual: 1806), and the guard over it pins `facts.md` to `README.md` but never to the real count — both drift together, test stays green.
+- **Deferred:** the 48-entry inbox triage (FR4) moved to **M5.E14** with the tracker migration (**D-M5E17-3**).
+- Adherence ceiling regenerated: 414 directives, 87 trace-measurable (**21.0%**). Clarifying an instruction lowers the published share.
+
+---
+
 ## [0.1.14] — 2026-07-30 — Guards that don't guard (M5.E13)
 
 **Four defects that shared one shape: something was built to catch a mistake, and it did not catch it.** 1736 → **1806 tests**, validator green, eslint clean. **CI added** — Signal had none until now.
