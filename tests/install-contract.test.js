@@ -98,3 +98,54 @@ describe('CHANGELOG.md — release history', () => {
     expect(content).toMatch(/^##\s+\[0\.1\.0\]/m);
   });
 });
+
+// ---------------------------------------------------------------------------
+// B58 — the pinned sha must RESOLVE to the ref tag, not merely look like a sha.
+//
+// Found 2026-08-01 by the user running `/plugin` -> update and being told
+// "sig is already at the latest version (0.1.13)" -- two releases after
+// v0.1.14 shipped and twenty minutes after v0.1.15 did.
+//
+// marketplace.json read `ref: "v0.1.15"` with `sha: "8d20193..."`, and
+// 8d20193 is v0.1.13's release commit. Claude Code resolves the SHA, so the
+// ref was decorative: every install since v0.1.14 silently delivered v0.1.13.
+//
+// The two assertions above are why it survived. One checks the sha's SHAPE
+// (40 hex chars -- a stale sha passes). The other checks the REF against
+// plugin.json (correct, and not the field being resolved). Neither compares
+// the two fields to each other, so `ref` advanced every release while `sha`
+// sat still and the suite stayed green. B7 noted this exact drift at v0.1.7
+// as "secondary drift (needs a look, not the test cause)" and it was never
+// closed -- the note was the guard.
+// ---------------------------------------------------------------------------
+describe('B58 — marketplace sha resolves to the ref tag', () => {
+  it('source.sha is the commit that source.ref points at', async () => {
+    const { execFileSync } = await import('node:child_process');
+    const raw = await readFile(join(ROOT, '.claude-plugin/marketplace.json'), 'utf-8');
+    const { ref, sha } = JSON.parse(raw).plugins[0].source;
+
+    let resolved;
+    try {
+      resolved = execFileSync('git', ['rev-list', '-n1', ref], {
+        cwd: ROOT,
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim();
+    } catch {
+      // Deliberately a FAILURE, not a silent skip. This guard protects the
+      // release from never reaching a user; a checkout that cannot verify it
+      // must say so loudly. CI uses fetch-depth: 0, so tags are present there.
+      throw new Error(
+        `cannot resolve tag ${ref} — run \`git fetch --tags\` and re-run. ` +
+          `This check must never pass by being unable to run (B58).`
+      );
+    }
+
+    expect(
+      sha,
+      `marketplace.json pins sha ${sha.slice(0, 7)} but ${ref} is ${resolved.slice(0, 7)}. ` +
+        `Claude Code resolves the SHA, so users would receive the wrong release. ` +
+        `Bump the sha whenever you bump the ref.`
+    ).toBe(resolved);
+  });
+});
