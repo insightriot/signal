@@ -37,7 +37,20 @@ const isExternalTarget = (t) => SCHEME_OR_ANCHOR_RE.test(t);
 // dogfood-status duplicate plugin tree (a 2nd plugin.json + commands/ + agents/)
 // that would double-count the roster / false-fail version-consistency; the rest
 // are vendored / generated / historical and out of the standing guard's scope.
-const WALK_IGNORE = new Set(['.claude', 'node_modules', 'examples', 'archive', '.git', '.planning']);
+// `.migrate` joins `archive` for the same reason (B57): it holds the pre-reorg
+// snapshot /sig:migrate-memory takes before relocating anything, so its links
+// point at pre-migration paths BY DESIGN. Walking it reports a frozen backup as
+// broken live docs — 11 of nextpass's 12 structural findings, 92% noise, which
+// is how a checker gets muted.
+const WALK_IGNORE = new Set([
+  '.claude',
+  'node_modules',
+  'examples',
+  'archive',
+  '.migrate',
+  '.git',
+  '.planning',
+]);
 
 const toPosix = (p) => p.split('\\').join('/');
 const mkFinding = (check, severity, file, message) => ({ check, severity, file, message });

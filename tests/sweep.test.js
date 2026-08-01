@@ -485,3 +485,51 @@ describe('M5.E13 S4.t2 checkRetroIndexFreshness (FR3.2)', () => {
     expect(findings.some((f) => f.check === 'retro-index-freshness')).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// B57 — the migrate snapshot is a frozen backup, not live docs.
+//
+// Found 2026-08-01 running /sig:sweep against four real non-Signal projects.
+// nextpass reported 12 structural findings; ELEVEN were dead links inside
+// `.planning/.migrate/snapshot/`, the pre-reorg backup /sig:migrate-memory
+// takes before it relocates anything. Those links point at pre-migration
+// paths BY DESIGN — the snapshot is supposed to be frozen.
+//
+// 92% noise is how a checker gets muted, and a muted checker looks like
+// coverage while providing none. `archive/` is already exempt for exactly
+// this reason (AC1.2); `.migrate/` is the same kind of directory and was
+// simply never added.
+// ---------------------------------------------------------------------------
+describe('B57 — sweep does not walk into the migrate snapshot backup', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'sig-sweep-migrate-'));
+    await mkdir(join(dir, '.planning/.migrate/snapshot'), { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('a dead link inside .planning/.migrate/ produces NO finding', async () => {
+    // Exactly nextpass's shape: a snapshot INDEX pointing at pre-migration paths.
+    await writeFile(
+      join(dir, '.planning/.migrate/snapshot/INDEX.md'),
+      '# Snapshot\n\n- [gone](ideas/relocated-by-the-migration.md)\n'
+    );
+    const { findings } = await runSweep(dir);
+    const linkFindings = findings.filter((f) => f.check === 'internal-links');
+    expect(
+      linkFindings,
+      `snapshot links must not be flagged — got ${JSON.stringify(linkFindings)}`
+    ).toEqual([]);
+  });
+
+  it('a dead link in LIVE .planning/ is still flagged (the exemption is scoped, not a mute)', async () => {
+    await writeFile(
+      join(dir, '.planning/NOTES.md'),
+      '# Notes\n\n- [gone](does-not-exist.md)\n'
+    );
+    const { findings } = await runSweep(dir);
+    expect(findings.some((f) => f.check === 'internal-links')).toBe(true);
+  });
+});
