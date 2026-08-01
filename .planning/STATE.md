@@ -1,16 +1,17 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: DISCUSS
+phase: PLAN
 current_epic: M5.E16
 current_wave: null
 current_tasks: []
-completed_phases: []
+completed_phases:
+  - DISCUSS (2026-08-01)
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-07-31T02:50:26.294Z
 last_updated_commit: 66d5343
-last_updated: 2026-08-01T20:08:01.249Z
+last_updated: 2026-08-01T23:25:13.303Z
 ---
 # Project State
 
@@ -96,8 +97,42 @@ Three documents corrected, each pinned by a test comparing one document against 
 
 ## In-flight
 
-**M5.E16 is in DISCUSS** (opened 2026-08-01, target v0.1.16). Requirements written; no tasks started.
-Next command: `/sig:plan`.
+**M5.E16 is in PLAN** (opened 2026-08-01, target v0.1.16). Plan, research and validation written;
+no tasks started. Next command: `/sig:execute`.
+
+**PLAN's first step found `B59` and stopped for it.** The tier-gating preamble was the first time any
+code read `M5.E16-PROFILE.md`, and it **threw**: two values outside their enums (`stakes: moderate`,
+valid only for `reversibility`; `reversibility: easy`, valid nowhere). `readEffectiveProfile` fails
+open, so **the Epic that declares FEATURE ran the whole of DISCUSS at the project's FULL** and every
+override the file existed to set was inert. Written by hand in `18741a8` — the same commit as the
+DISCUSS it was meant to govern. Fixed in the fix lane (PR #6) and pinned by
+`tests/own-profiles-parse.test.js`; `B60` filed for the ten command files that handle *"PROFILE not
+found"* and say nothing about a malformed one — **6 silent / 4 explicit**, and the six that are
+silent are the six that consume the tier to set rigor.
+
+**Research was replaced by measurement** (`research_parallelism: 0`, and there was nothing to read).
+The candidate checks were prototyped against **13 real `.planning/` projects** on this machine —
+FR2.1 asked for one. Results in `M5.E16-RESEARCH.md`:
+
+- **6 checks ship, 2 are dropped with written reasons.** `(e)` duplicates `detectOrphans`; **`(f)`
+  cannot be validated at all — zero of thirteen projects have a non-empty `blockers[]`.**
+- **Two checks were added.** `(g)` PROFILE-parses (Brett's call). **`(h)` — `current_epic` set but
+  not a strict Epic ID — was found by measuring**, fires on `agent-tools-sync` (`"M1"`) and
+  `traction-engine` (`"PHASE12"`), and is **`B53`'s class live in the field** on half the Epic-mode
+  corpus.
+- **Check `(b)` is proven against real history**, not a fixture: red at `4421105` / `137b9ca` /
+  `8acd1d2` — the three commits spanning the drift that opened this Epic — and green at `18741a8`,
+  the commit that repaired it.
+- **The number that shapes the plan: checks `(a)` and `(b)`, the two aimed at the originating
+  incident, can evaluate 2 of 13 projects.** Signal's own shape is the *minority* shape — 4 of 12
+  readable projects are Epic-mode, 7 of 12 have a canonical `phase`, and `readState` **throws** on
+  one outright. A sweep that prints nothing there reads as *clean* when it never looked, which is
+  `B39`'s and `B54`'s shape. **The report must distinguish checked-clean from could-not-check**, and
+  the coverage numbers get published the way M5.E8 published its 22.4% ceiling.
+
+Decisions **D-M5E16-1 … 5**. `/sig:sweep` **stays read-only** — FR4 ("Signal runs it") contradicted
+NFR2 ("no writes"), Brett resolved it in NFR2's favour, and healing moved to FR5's phase-transition
+regeneration plus an opt-in `--heal`. Validation found **AC4.3 had no owner** and added `S4.t4`.
 
 **Scope, after the 2026-08-01 additions — six FRs, and FR4 is the load-bearing one:**
 - **FR1** six deterministic STATE-vs-world checks in `/sig:sweep` · **FR2** precision discipline

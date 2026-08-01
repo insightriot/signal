@@ -877,3 +877,99 @@ the guard.** `main` therefore carries a GitHub ruleset requiring a pull request 
 check, with zero required approvals (Brett is sole maintainer; a self-approval requirement would
 deadlock). That is ~30 seconds per change via `gh pr create --fill && gh pr merge --squash`, and it
 is the mechanism that makes users-track-`main` safe.
+
+---
+
+## 2026-08-01 — M5.E16 PLAN: the check set, where healing lives, and what the checks cannot see (D-M5E16-1 … D-M5E16-5)
+
+**D-M5E16-1 — `/sig:sweep` stays read-only. Category-2 healing lives at the phase transition and
+behind an opt-in flag (Brett, 2026-08-01).**
+
+**The requirements contradicted themselves and PLAN could not settle it alone.** FR4.1 category 2
+says a command-healable finding is one where *"**Signal runs it**; it does not tell the user to go
+run it."* NFR2 says *"**No writes, no network.** `/sig:sweep` is detect-and-report; that holds,"* and
+FR1.3 repeats the read-only contract. **Sweep cannot both run a fix and never write.** This is
+M5.E17's own defect class — instructions that contradict other instructions — sitting unresolved
+inside the requirements of the very next Epic, and it was found by reading FR4 against NFR2 rather
+than by any mechanism.
+
+**Chosen: sweep stays pure.** NFR2 is the older contract, and M5.E9's REVIEW set the precedent of
+**removing** a bad sweep behaviour rather than softening it. Healing arrives two other ways —
+**FR5's phase-transition regeneration**, which covers the only category-2 case the 16-finding
+baseline actually produced (a stale `INDEX.md`) without anyone typing anything, and an explicit
+**`/sig:sweep --heal`** for anything later.
+
+**The cost is recorded because it is real.** FR4 calls itself *"the load-bearing requirement, and the
+reason the Epic exists in this form,"* and its argument is that detect-only *"manufactures chores."*
+An opt-in flag is detect-only for anyone who never types it. The counter-argument that carried:
+FR4's own evidence pointed at exactly one category-2 case, and FR5 heals that one automatically.
+
+**D-M5E16-2 — STATE findings surface at `/sig:resume`, but only category 3, as a single line (FR3).**
+
+FR3 asked PLAN to decide **with a written reason**, and both sides were real. The live incident
+happened *at* `/sig:resume`, which is run constantly; but resume's briefing is capped at 50 lines,
+and a detector nobody runs is `B39` in a new costume.
+
+**Decision: one line, category-3 findings only, with a count and a pointer to `/sig:sweep`.**
+Categories 1 and 2 never appear — one heals itself and the other is a command away, so both are
+noise in a briefing. The line sits in the **advisory tier**, below the schema-drift and staleness
+banners: a STATE *content* contradiction makes the briefing's narrative suspect, but not its
+**parse**, and the existing banner order already encodes that distinction. One line for the finding
+a whole Epic exists to catch is the right trade against the cap.
+
+**D-M5E16-3 — Two checks added, two dropped; every disposition backed by a measurement (AC1.4).**
+
+Ships: **(a)**, **(b)** narrowed, **(c)** restructured, **(d)** narrowed, **(g)**, **(h)**.
+
+- **(g) — every `PROFILE.md` parses** (Brett, 2026-08-01). Highest precision available: a file
+  either loads or throws, so there is no threshold and nothing for FR2.2 to kill. Its live instance
+  is **`B59`**, found hours earlier at this Epic's own PLAN preamble.
+- **(h) — `current_epic` is set but is not a strict Epic ID.** *Not in the requirements; it exists
+  because the corpus was measured.* `agent-tools-sync` carries `"M1"` and `traction-engine` carries
+  `"PHASE12"`; both fail `EPIC_ID_STRICT_RE`, so every resolver falls open to linear mode while the
+  project believes it is running Epics. **That is `B53`'s class, live in the field**, on half the
+  Epic-mode corpus, after being fixed as a Signal-side bug in v0.1.14. Included without a second
+  approval round because it sits inside FR1.1's existing frame (a STATE field versus how the code
+  reads it), where (g) genuinely widened the frame.
+- **(e) dropped — duplicate.** `detectOrphans` already finds it and `/sig:resume` already prompts on
+  it, always-on regardless of `gate_strictness` (D12).
+- **(f) dropped — unvalidatable.** FR2.1 requires every check to run against a real non-Signal
+  project before shipping. **Zero of thirteen** real projects have a non-empty `blockers[]`, so (f)
+  cannot meet that bar even in principle. Its bug-status half also depends on `BUGS.md`'s table
+  format, which is a **Signal convention**, not something a Signal-managed project has. Re-open when
+  a real project carries a blocker.
+
+**Restructured, not merely narrowed: (c).** As written it keys off `completed_phases` containing
+`SHIP` — which **does not fire on the one live instance available to it**, because this repo's
+`completed_phases` is `[]` while `M5.E17` sits shipped with no retrospective. Re-keyed to
+artifacts-on-disk, it fires. **A requirement that would have been silent on its own motivating case
+is a requirement written from the shape of the work rather than from the artifact.**
+
+**D-M5E16-4 — The applicability numbers are published, not merely measured.**
+
+Across 13 real `.planning/` trees, **checks (a) and (b) — the two aimed at the incident that opened
+this Epic — can evaluate 2 projects.** Signal's own shape (hand-maintained, Epic-mode,
+`schema_version: 1`) is the **minority** shape: 4 of 12 readable projects are in Epic mode, 7 of 12
+have a canonical `phase`, and `readState` **throws** on one project outright.
+
+A sweep that runs those checks against `traction-engine` prints nothing, and a user reads that as
+*clean*. It is not clean — the check could not look. **Zero-findings and not-applicable rendering
+identically is `B39`'s shape and `B54`'s**, and building it into the Epic written to catch that class
+would be the fourth recurrence.
+
+Therefore the report distinguishes **checked-clean** from **could-not-check** as a shipped
+requirement with a RED-first test, and the coverage numbers go in `references/` the way M5.E8
+published its 22.4% ceiling with the words *"the remainder is unmeasured, not passing."* This is the
+third Signal measurement in a row — adherence ceiling, claim integrity, now applicability — to find
+the instrument covering less than it appeared to.
+
+**D-M5E16-5 — FR6 is the last slice and splits rather than shrinks.**
+
+The requirements delegate this to PLAN: *"If PLAN finds the scope does not slice cleanly, split FR6
+into its own Epic rather than dropping requirements."* `/sig:update` has **zero dependency** on
+FR1–FR5, and its feasibility was confirmed by execution rather than by reading docs (`claude plugin
+list` exits 0 on this machine). It stays as **S6, the final independent slice**, under a standing
+rule: **if S1–S5 overrun, S6 becomes M5.E18 intact — it is never trimmed to fit.**
+
+`M5.E16-VALIDATION.md` Dimension 1 records that S6 **does not serve the phase goal**. Carrying it is
+a deliberate choice, flagged rather than rationalised into alignment.
