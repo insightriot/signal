@@ -32,9 +32,18 @@ prose did not, and the command whose only job is orientation read straight past 
 
 ---
 
+**⚠ HOW CHANGES REACH `main` CHANGED 2026-08-01 — read before your first commit.** `main` is
+**protected**; direct pushes are rejected by the server. Every change needs a branch, a PR, and a
+green `test` check (0 approvals required). **Two lanes:** the Epic lane runs six phases, the fix lane
+runs none — **both** require the PR. Delivery moved to the relative `.` marketplace source, so
+**users track `main`**, not a pinned tag. Full rules in `CLAUDE.md` § *How changes reach `main`*;
+rationale in **`D-M5E17-4`** / **`D-M5E17-5`**.
+
+---
+
 **v0.1.15 — M5.E17, "instructions that contradict other instructions" — ✅ SHIPPED 2026-08-01.**
 Three documents corrected, each pinned by a test comparing one document against another. 1806 →
-**1822 tests**. Decisions **D-M5E17-1…3**.
+**1828 tests**. Decisions **D-M5E17-1…5**.
 
 - **`ship.md` referenced a commit that no step created** — four steps staged "into the SHIP commit",
   none made it, and `markFresh` sat at §5.3 ahead of all four, stamping a pre-commit HEAD **by
@@ -49,8 +58,24 @@ Three documents corrected, each pinned by a test comparing one document against 
 - **Two of the Epic's own ACs were satisfiable by a no-op** — corrected in the open. The red baseline
   was **measured, not predicted**, and running it caught an error in the probe itself.
 - **Cut: FR4**, the 48-entry inbox triage → **M5.E14** with the tracker migration (`D-M5E17-3`).
-- **`B56` filed:** `references/facts.md` publishes 894 tests (actual **1822**); the guard pins
+- **`B56` filed:** `references/facts.md` publishes 894 tests (actual **1828**); the guard pins
   `facts.md` to `README.md` but never to the real count — both drift together, test stays green.
+
+**Fixed same day, outside the Epic (fix lane):**
+- **`B58` (P1)** — `marketplace.json` pinned `sha` to **v0.1.13's commit** while `ref` said v0.1.15.
+  Claude Code resolves the **sha**, so **every install since v0.1.14 silently delivered v0.1.13** —
+  two releases undeliverable, and Signal's only regular outside user was running v0.1.13 machinery
+  against live projects. **Found by Brett running `/plugin`.** The guard checked the sha's *shape*
+  and the ref's *value* and never compared them. **`B7` recorded this exact drift at v0.1.7 as
+  "needs a look" and nothing enforced it for eight releases.** Closed by **deletion** — the source is
+  now the relative `.` form, so there is no second place to record which commit ships.
+- **`B57`** — `/sig:sweep` walked `.planning/.migrate/snapshot/`, a frozen backup, and reported it as
+  broken live docs: **11 of nextpass's 12 findings were noise.** Found by the first run of sweep
+  against real non-Signal projects — the FR1 first-use discipline, applied the day it shipped.
+- **`ship.md`'s direct-to-main self-exemption removed.** Its Exit Criteria require a PR and an
+  approval; §5 exempted "the Signal-on-Signal flow" from exactly that. Written 2026-05-26 —
+  **thirteen releases shipped under it and exactly one PR existed in that span.** Fourth contradicting
+  instruction pair found in that one file. Now pinned by a test.
 
 ---
 

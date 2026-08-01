@@ -103,6 +103,24 @@ tools/          # GSD's CLI tools layer
 
 Behavioral rules that apply to every conversation and every agent, in addition to anything Signal's phase commands add on top.
 
+### How changes reach `main` (as of 2026-08-01 — read this before your first commit)
+
+**`main` is protected. You cannot push to it directly — the server rejects it.** Every change goes through a branch and a pull request with a green `test` check. Zero approvals are required, so nothing deadlocks, but the PR is not optional.
+
+**Two lanes, one gate** (`D-M5E17-5`):
+
+| | Epic lane | Fix lane |
+|---|---|---|
+| For | features, design work | bugs, papercuts, doc fixes |
+| Six phases | yes | **no** |
+| Branch + PR + green CI | **yes** | **yes** |
+
+A one-line fix does **not** need DISCUSS→SHIP. It **does** need a branch, a PR, and a green suite. `gh pr create --fill` then `gh pr merge --squash` is the whole overhead.
+
+**Why this is enforced rather than written down.** `ship.md` used to carry a parenthetical exempting "the Signal-on-Signal flow" from its own Exit Criteria — which require a PR and an approval. It was written 2026-05-26; **thirteen releases shipped under it and exactly one pull request existed in that span.** The file defining the rule was the file granting the exception, so nothing caught it. Removed in v0.1.15, and the gate now lives in a GitHub ruleset because this repo has twice been bitten by rules that existed only as prose (`B7`→`B58`, `B39`).
+
+**Delivery** (`D-M5E17-4`): `marketplace.json` uses the relative `.` source — the plugin *is* this repo — so **users track `main`**, not a pinned tag. There is no `ref` or `sha` to keep in sync, and reintroducing them fails `install-contract.test.js`. Bumping `plugin.json` is what makes an update visible to users. Tags are bookmarks, not delivery.
+
 ### Naming & plain language
 - **Use real names.** Refer to features, functions, files, tables, and flows by the name that exists in the code, plan, or spec. If you don't know the real name, grep for it before using it. Never invent a label that sounds plausible.
 - **Mark dev-only terms.** If you reference an internal identifier (a function, a flag, a table), say it's the code-level name — don't present it as user-facing language.
