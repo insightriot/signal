@@ -276,3 +276,68 @@ describe('M5.E17 S4 — plan.md schedules what the Epic does for the FIRST TIME 
     expect(text.toLowerCase()).toMatch(/never (been )?run|real purpose|not previously/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// M5.E17 follow-up — ship.md's body must not contradict its own Exit Criteria.
+//
+// The fourth instruction pair in this one file, and the one that let Signal
+// exempt itself from the discipline it exists to enforce.
+//
+// §3 instructs "Create a pull request" and the Exit Criteria require "PR
+// created with description, test plan" and "User approves PR for merge".
+// §5 read: "required even if no PR was created (e.g., direct-to-main shipping
+// for the Signal-on-Signal flow)".
+//
+// Written 2026-05-26. THIRTEEN releases shipped under it (v0.1.3 -> v0.1.15)
+// and exactly ONE pull request existed across that span -- so both exit boxes
+// were checked from the fact of having shipped rather than from an artifact.
+// Nothing was ever going to catch it: the file defining the rule was the file
+// granting the exception.
+// ---------------------------------------------------------------------------
+describe('M5.E17 follow-up — ship.md grants itself no PR exemption (D-M5E17-5)', () => {
+  const ship = () => read('ship');
+
+  it('the Exit Criteria still require a PR and an approval', () => {
+    const exit = ship().slice(ship().indexOf('### Exit Criteria'));
+    expect(exit).toMatch(/PR created/i);
+    expect(exit).toMatch(/approves PR for merge/i);
+  });
+
+  it('no LIVE instruction says the PR is optional', () => {
+    // The removal note necessarily quotes the old wording, so a naive
+    // substring match flags the explanation as the defect — exactly the trap
+    // B51's test documents ("the prose that replaced the block necessarily
+    // names it"). Quoted spans are stripped first: a live instruction is never
+    // inside quotation marks, so this separates the rule from its history
+    // without hard-coding either.
+    const stripQuoted = (s) => s.replace(/"[^"\n]*"/g, '');
+    const text = stripQuoted(denorm(ship()));
+    expect(
+      /required even if no PR was created/i.test(text),
+      'ship.md reinstated the direct-to-main exemption that contradicts its Exit Criteria'
+    ).toBe(false);
+  });
+
+  it('REGRESSION: the guard still catches the exemption as a LIVE instruction', () => {
+    // Proof it has teeth. The unquoted sentence — how it actually appeared in
+    // ship.md from 2026-05-26 through v0.1.15 — must trip the same check.
+    const stripQuoted = (s) => s.replace(/"[^"\n]*"/g, '');
+    const asItShipped =
+      'This step is now required even if no PR was created (e.g., direct-to-main ' +
+      'shipping for the Signal-on-Signal flow) so STATE.md never lags behind.';
+    expect(/required even if no PR was created/i.test(stripQuoted(asItShipped))).toBe(true);
+  });
+
+  it('the removal is recorded, not silently dropped (AC1.5 convention)', () => {
+    expect(ship()).toMatch(/No direct-to-main exemption/i);
+    expect(ship()).toContain('D-M5E17-5');
+  });
+
+  it('DECISIONS.md carries D-M5E17-5 with the two-lane rule', () => {
+    const d = readFileSync(join(ROOT, '.planning/DECISIONS.md'), 'utf-8');
+    expect(d).toContain('D-M5E17-5');
+    // PR discipline is constant; Epic ceremony is what varies.
+    expect(d).toMatch(/Fix lane/i);
+    expect(d).toMatch(/Epic lane/i);
+  });
+});
