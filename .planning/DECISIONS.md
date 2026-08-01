@@ -836,9 +836,44 @@ release and is the release channel by construction. CI gates every push, so gree
 installable `main`.
 
 **Scoped deliberately light (Brett, 2026-08-01).** Signal has three users, is explicitly built for
-Brett's own projects, and is not being optimised for commercial or open-source viability. So this is
-**not** a release process: no PR ceremony, no review gate, no required tagging. The whole discipline
-is *(a)* bump `plugin.json` — the only thing that makes an update visible — and *(b)* branch when a
-change would leave `main` genuinely half-wired. Tags stay as bookmarks, not as delivery. Anything
-heavier than that is stifling structure for a three-person audience and was rejected on those
-grounds.
+Brett's own projects, and is not being optimised for commercial or open-source viability. Tags stay
+as bookmarks, not as delivery. The release action is *(a)* bump `plugin.json` — the only thing that
+makes an update visible.
+
+> **⚠ CORRECTED SAME DAY (2026-08-01), before anything was built on it.** This paragraph originally
+> read *"no PR ceremony, no review gate, no required tagging"* and *"branch when a change would leave
+> `main` genuinely half-wired."* **That was wrong on the review half, and it was an inference, not a
+> decision Brett made.** Brett's actual position, stated when he caught it: *every* change goes
+> through a PR — *"as should all things frankly"* — and what varies is **Epic ceremony**, not PR
+> discipline. His only concern was that a small fix shouldn't need a full six-phase Epic.
+>
+> The error mattered because of what it combined with. This same decision moved users from a pinned
+> tag onto `main`, so an ungated `main` is now **live to users** — the moment the gate matters most.
+> The original text removed the gate at exactly that moment, and would have made the arrangement
+> strictly worse than the pinned form it replaced. **Seven commits landed directly on `main` in the
+> session that wrote it**, `B57` and `B58` among them — both textbook small-fix-still-wants-a-PR
+> cases. → **`D-M5E17-5`.**
+
+**D-M5E17-5 — PR discipline is constant; Epic ceremony is what varies.**
+
+Two lanes, one gate:
+
+| | **Epic lane** | **Fix lane** |
+|---|---|---|
+| For | features, design work | bugs, papercuts, doc fixes |
+| Six phases | yes | **no** |
+| Branch + PR | **yes** | **yes** |
+| CI green to merge | **yes** | **yes** |
+
+A one-line fix does **not** need DISCUSS→SHIP. It **does** need a branch, a PR, and a green suite.
+Collapsing those two axes into one dial — and then turning that dial down — is the mistake corrected
+above.
+
+**Enforced by branch protection, not by this entry.** A rule written in a document and enforced by
+nothing is the defect class this project has hit twice in one day: `B7` recorded the marketplace sha
+drift at v0.1.7 as *"needs a look"* and nothing enforced it for eight releases (→ `B58`, P1), and
+`B39` was a watchlist that instructed its own walk while no command performed it. **The note is not
+the guard.** `main` therefore carries a GitHub ruleset requiring a pull request and a passing `test`
+check, with zero required approvals (Brett is sole maintainer; a self-approval requirement would
+deadlock). That is ~30 seconds per change via `gh pr create --fill && gh pr merge --squash`, and it
+is the mechanism that makes users-track-`main` safe.
