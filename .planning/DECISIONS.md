@@ -904,6 +904,19 @@ reason the Epic exists in this form,"* and its argument is that detect-only *"ma
 An opt-in flag is detect-only for anyone who never types it. The counter-argument that carried:
 FR4's own evidence pointed at exactly one category-2 case, and FR5 heals that one automatically.
 
+> **The concrete consequence, added after the plan's second validation pass:
+> the category-2 bucket contains zero shipped checks.** Every check that ships is category 1
+> (self-healing) or category 3 (needs a person). This surfaced because **(d) was first declared
+> category 2 — *"Signal runs it"* — while no slice ran anything**, which is precisely what FR4.2
+> forbids; the render would have promised *"heals on next phase command"* for a finding nothing
+> healed. Re-measuring settled it: `markFresh` is not tier-gated in code and the live instance
+> (`cm-mentor-coach`) is FULL tier, so the finding clears unaided — **(d) is category 1**.
+> FR4's middle bucket therefore exists in the registry and holds nothing, and `/sig:sweep --heal` is
+> scaffolding for a check that does not exist yet. Stated here rather than left to be discovered at
+> REVIEW. `S1.t5` now tests that every declared category has an implementation, because the
+> validation question *"is a category declared?"* passes this defect and *"does its promise come
+> true?"* catches it.
+
 **D-M5E16-2 — STATE findings surface at `/sig:resume`, but only category 3, as a single line (FR3).**
 
 FR3 asked PLAN to decide **with a written reason**, and both sides were real. The live incident
