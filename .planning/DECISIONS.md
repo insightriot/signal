@@ -811,3 +811,34 @@ where migrating the inbox to a real tracker and deciding its contents are the sa
 rather than two.
 
 **Not deferred, decided:** the inbox wall is not a papercut and will not be cleared as one.
+
+## 2026-08-01 — Release delivery: relative source + branch-per-Epic (D-M5E17-4)
+
+**D-M5E17-4 — `marketplace.json` uses the relative `.` source; Epic work happens on a branch and
+`main` is the release channel.**
+
+`B58` (P1) established that the pinned `url` + `ref` + `sha` form had been delivering v0.1.13 to
+every install since v0.1.14 — the `ref` advanced each release, the `sha` did not, and Claude Code
+resolves the `sha`. The first fix corrected the value and added a test resolving the tag through
+git. **That guarded the problem; this decision deletes it.**
+
+The plugin *is* this repo, so `.` is the whole address. With no second place to record which commit
+ships, two places cannot disagree. Signal was the **only** marketplace on the machine using a pinned
+remote source — `prose`, `cloudflare`, `openai-codex` and `anthropics/claude-code` all use a
+relative path. The v0.1.1 change that introduced `url` was choosing against the **`github`
+shorthand** (which resolved to SSH and broke stranger installs); the relative form was never
+considered at the time.
+
+**The trade, accepted knowingly.** Users now track `main` instead of a pinned tag, which couples
+"what is pushed" to "what is delivered." Signal has been committing mid-Epic work straight to
+`main`, so the counterweight is **Epic work on a branch, merged at ship** — `main` moves once per
+release and is the release channel by construction. CI gates every push, so green `main` means
+installable `main`.
+
+**Scoped deliberately light (Brett, 2026-08-01).** Signal has three users, is explicitly built for
+Brett's own projects, and is not being optimised for commercial or open-source viability. So this is
+**not** a release process: no PR ceremony, no review gate, no required tagging. The whole discipline
+is *(a)* bump `plugin.json` — the only thing that makes an update visible — and *(b)* branch when a
+change would leave `main` genuinely half-wired. Tags stay as bookmarks, not as delivery. Anything
+heavier than that is stifling structure for a three-person audience and was rejected on those
+grounds.

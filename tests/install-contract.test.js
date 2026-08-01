@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -14,6 +14,10 @@ const ROOT = join(__dirname, '..');
  * These tests read the actual repo state, not fixtures. They are the
  * canary for marketplace.json drift.
  */
+
+const marketplaceRaw = JSON.parse(
+  readFileSync(join(ROOT, '.claude-plugin/marketplace.json'), 'utf-8')
+);
 
 describe('marketplace.json — source block contract', () => {
   let marketplace;
@@ -38,32 +42,37 @@ describe('marketplace.json — source block contract', () => {
     expect(marketplace.plugins[0].name).toBe('sig');
   });
 
-  it('plugins[0].source.source === "url" (not "github" shorthand)', async () => {
-    const raw = await readFile(join(ROOT, '.claude-plugin/marketplace.json'), 'utf-8');
-    marketplace = JSON.parse(raw);
-    expect(marketplace.plugins[0].source.source).toBe('url');
+  it('REGRESSION: the old pinned form fails this guard', () => {
+    const fragile = { source: 'url', url: 'https://github.com/InsightRiot/signal.git', ref: 'v0.1.15', sha: '8d20193bad21bc74f9b9639ae77e26718c831aaf' };
+    // Proof the guard has teeth: the exact shape that shipped B58 is rejected.
+    expect(typeof fragile).not.toBe('string');
+    expect(/[a-f0-9]{40}/.test(JSON.stringify(fragile))).toBe(true);
   });
 
-  it('plugins[0].source.url is HTTPS GitHub URL ending in .git', async () => {
-    const raw = await readFile(join(ROOT, '.claude-plugin/marketplace.json'), 'utf-8');
-    marketplace = JSON.parse(raw);
-    expect(marketplace.plugins[0].source.url).toMatch(
-      /^https:\/\/github\.com\/[^/]+\/[^/]+\.git$/
-    );
+  it('plugins[0].source is the RELATIVE form — no pinned ref or sha to drift (B58)', () => {
+    // The plugin IS this repo, so `.` is the whole address. This deletes the
+    // bug class rather than guarding it: with no second place to record which
+    // commit ships, there is no way for two places to disagree.
+    //
+    // What this replaced: `{source:'url', url, ref, sha}`. The ref advanced
+    // every release, the sha did not, and Claude Code resolves the SHA -- so
+    // every install from v0.1.14 to v0.1.15 silently delivered v0.1.13. The
+    // old tests here checked the sha's SHAPE and the ref's VALUE and never
+    // compared them, which is why eight releases passed clean.
+    //
+    // Same form as every other marketplace in the wild (prose, cloudflare,
+    // openai-codex, anthropics/claude-code all use a relative source).
+    expect(
+      typeof marketplaceRaw.plugins[0].source,
+      'source must be the relative string form; the url+ref+sha form reintroduces B58'
+    ).toBe('string');
+    expect(marketplaceRaw.plugins[0].source).toBe('.');
   });
 
-  it('plugins[0].source.sha is 40-char hex string', async () => {
-    const raw = await readFile(join(ROOT, '.claude-plugin/marketplace.json'), 'utf-8');
-    marketplace = JSON.parse(raw);
-    expect(marketplace.plugins[0].source.sha).toMatch(/^[a-f0-9]{40}$/);
-  });
-
-  it('plugins[0].source.ref matches v<plugin.json.version>', async () => {
-    const mRaw = await readFile(join(ROOT, '.claude-plugin/marketplace.json'), 'utf-8');
-    marketplace = JSON.parse(mRaw);
-    const pRaw = await readFile(join(ROOT, '.claude-plugin/plugin.json'), 'utf-8');
-    plugin = JSON.parse(pRaw);
-    expect(marketplace.plugins[0].source.ref).toBe(`v${plugin.version}`);
+  it('carries NO hand-maintained commit pin anywhere (the drift had one home)', () => {
+    const asText = JSON.stringify(marketplaceRaw);
+    expect(/[a-f0-9]{40}/.test(asText), 'a 40-char sha reappeared in marketplace.json').toBe(false);
+    expect(asText).not.toMatch(/"ref"\s*:/);
   });
 });
 
@@ -100,52 +109,21 @@ describe('CHANGELOG.md — release history', () => {
 });
 
 // ---------------------------------------------------------------------------
-// B58 — the pinned sha must RESOLVE to the ref tag, not merely look like a sha.
+// B58 — closed by DELETION, not by a guard.
 //
-// Found 2026-08-01 by the user running `/plugin` -> update and being told
-// "sig is already at the latest version (0.1.13)" -- two releases after
-// v0.1.14 shipped and twenty minutes after v0.1.15 did.
+// The bug: marketplace.json read `ref: "v0.1.15"` with `sha: "8d20193..."`,
+// and 8d20193 was v0.1.13's release commit. Claude Code resolves the SHA, so
+// every install from v0.1.14 onward silently delivered v0.1.13. Two releases
+// were undeliverable and the suite stayed green for all of it, because the
+// old tests checked the sha's SHAPE and the ref's VALUE and never compared
+// them to each other.
 //
-// marketplace.json read `ref: "v0.1.15"` with `sha: "8d20193..."`, and
-// 8d20193 is v0.1.13's release commit. Claude Code resolves the SHA, so the
-// ref was decorative: every install since v0.1.14 silently delivered v0.1.13.
+// The first fix (2026-08-01) corrected the sha and added a test resolving the
+// ref through git. That guarded the problem. The second fix REMOVED it: the
+// source is now the relative `.` form, so there is no second place to record
+// which commit ships and therefore no way for two places to disagree.
 //
-// The two assertions above are why it survived. One checks the sha's SHAPE
-// (40 hex chars -- a stale sha passes). The other checks the REF against
-// plugin.json (correct, and not the field being resolved). Neither compares
-// the two fields to each other, so `ref` advanced every release while `sha`
-// sat still and the suite stayed green. B7 noted this exact drift at v0.1.7
-// as "secondary drift (needs a look, not the test cause)" and it was never
-// closed -- the note was the guard.
+// The two assertions above are what remain -- they exist to stop anyone
+// reintroducing the pinned form. A guard against the fragile SHAPE, not
+// against a stale VALUE.
 // ---------------------------------------------------------------------------
-describe('B58 — marketplace sha resolves to the ref tag', () => {
-  it('source.sha is the commit that source.ref points at', async () => {
-    const { execFileSync } = await import('node:child_process');
-    const raw = await readFile(join(ROOT, '.claude-plugin/marketplace.json'), 'utf-8');
-    const { ref, sha } = JSON.parse(raw).plugins[0].source;
-
-    let resolved;
-    try {
-      resolved = execFileSync('git', ['rev-list', '-n1', ref], {
-        cwd: ROOT,
-        encoding: 'utf-8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      }).trim();
-    } catch {
-      // Deliberately a FAILURE, not a silent skip. This guard protects the
-      // release from never reaching a user; a checkout that cannot verify it
-      // must say so loudly. CI uses fetch-depth: 0, so tags are present there.
-      throw new Error(
-        `cannot resolve tag ${ref} — run \`git fetch --tags\` and re-run. ` +
-          `This check must never pass by being unable to run (B58).`
-      );
-    }
-
-    expect(
-      sha,
-      `marketplace.json pins sha ${sha.slice(0, 7)} but ${ref} is ${resolved.slice(0, 7)}. ` +
-        `Claude Code resolves the SHA, so users would receive the wrong release. ` +
-        `Bump the sha whenever you bump the ref.`
-    ).toBe(resolved);
-  });
-});
