@@ -99,6 +99,24 @@ Three documents corrected, each pinned by a test comparing one document against 
 **M5.E16 is in DISCUSS** (opened 2026-08-01, target v0.1.16). Requirements written; no tasks started.
 Next command: `/sig:plan`.
 
+**Scope, after the 2026-08-01 additions — six FRs, and FR4 is the load-bearing one:**
+- **FR1** six deterministic STATE-vs-world checks in `/sig:sweep` · **FR2** precision discipline
+  (validate on a real non-Signal project; a false-positive check is **removed**, not tuned quiet)
+- **FR3** do findings also surface at `/sig:resume`? — PLAN decides with a reason
+- **FR4 — every check declares a heal path.** *Measured 2026-08-01 across four real projects: 16
+  structural findings, and **15 should never have reached a person** (11 false alarms, 3
+  self-healing, 1 one-command-fixable). Detect-only would have manufactured 15 chores.* Three
+  categories: self-healing → report as reassurance; command-healable → **Signal runs it**;
+  needs-a-person → **the only category allowed to interrupt.** A check that cannot state its
+  category does not ship.
+- **FR5** `INDEX.md` regenerates at **every phase transition**, not only SHIP (Brett, 2026-08-01).
+  Session-start regeneration rejected: no Signal hook writes anything today, and that line holds.
+- **FR6 — `/sig:update`.** Reports installed vs available, **shows the CHANGELOG delta** (the half
+  `/plugin` cannot do), updates on confirm, then **states that a restart is required** — `B52`, and
+  Brett wants the timing to be his. Feasibility confirmed, not assumed: `claude plugin update` /
+  `marketplace update` / `list` all exist. Fully separable — **if the Epic does not slice cleanly,
+  FR6 becomes its own Epic rather than dropping requirements.**
+
 **Open questions carried into PLAN** (all three stated in `M5.E16-REQUIREMENTS.md`):
 1. Do STATE findings also surface at `/sig:resume`, and at what banner cost? A detector nobody runs
    is `B39` in a new costume; resume's briefing is capped at 50 lines. **Decide with a reason.**
