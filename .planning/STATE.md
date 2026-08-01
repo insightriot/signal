@@ -1,21 +1,58 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: PLAN
-current_epic: M5.E17
+phase: DISCUSS
+current_epic: M5.E16
 current_wave: null
 current_tasks: []
-completed_phases:
-  - DISCUSS (2026-07-31)
+completed_phases: []
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-07-31T02:50:26.294Z
-last_updated_commit: 137b9ca
-last_updated: 2026-07-31T19:19:34.450Z
+last_updated_commit: 8acd1d2
+last_updated: 2026-08-01T15:28:59.922Z
 ---
 # Project State
 
 ## Resume pointer
+
+**▶ ACTIVE: M5.E16 — STATE-vs-world drift detection. DISCUSS, opened 2026-08-01.** Target v0.1.16.
+`/sig:sweep` gains deterministic checks comparing what STATE.md **asserts** against what is on disk
+and in git. **20 of 56 catalogued bugs are STATE-related (36%)** — the largest cluster — and nothing
+verifies any STATE field except `last_updated_commit`. **This one ships as a capability for the
+invoking project, not as Signal hygiene**; that reframe is the point, and it retires M5.E16's prior
+"detectors for Signal's own guard class" framing (both original homes moved: `B39` fixed in M5.E13,
+`B46` → M5.E14). Requirements: `M5.E16-REQUIREMENTS.md` · Profile: FEATURE, **`nyquist: strict`**
+because precision — not recall — is the deliverable.
+
+**The live instance that opened it, from this repo, 2026-07-31:** frontmatter read
+`current_epic: M5.E17`, while the body's *"Next candidates"* list named M5.E15 / M5.E16 / M5.E10 and
+**omitted M5.E17 entirely**. `/sig:resume` read both halves and flagged neither. *The data moved, the
+prose did not, and the command whose only job is orientation read straight past it.*
+
+---
+
+**v0.1.15 — M5.E17, "instructions that contradict other instructions" — ✅ SHIPPED 2026-08-01.**
+Three documents corrected, each pinned by a test comparing one document against another. 1806 →
+**1822 tests**. Decisions **D-M5E17-1…3**.
+
+- **`ship.md` referenced a commit that no step created** — four steps staged "into the SHIP commit",
+  none made it, and `markFresh` sat at §5.3 ahead of all four, stamping a pre-commit HEAD **by
+  construction**. New §9 creates it; `markFresh` follows.
+- **`verify.md` / `review.md` stated no `markFresh` ordering at all** — silent, not wrong, which is
+  the same defect one step earlier. Audit: **2 explicit / 2 silent / 1 wrong** across 5 call sites.
+- **`review.md`'s verdict table contradicted two shipped Epics** (`FAIL | Any Critical` vs M5.E9 and
+  M5.E13 both shipping PASS-WITH-FIXES with an in-phase Critical). Rule was miscalibrated, not
+  practice — **D-M5E17-1**, four conjunctive conditions, counter-argument recorded in the file.
+- **`plan.md` now schedules first-use** — name what the Epic does *for the first time*, put it in
+  **wave 1**. `B54`, `B39`, `B42`/`B53`, `B48`, `B55` all surfaced on a first execution, all late.
+- **Two of the Epic's own ACs were satisfiable by a no-op** — corrected in the open. The red baseline
+  was **measured, not predicted**, and running it caught an error in the probe itself.
+- **Cut: FR4**, the 48-entry inbox triage → **M5.E14** with the tracker migration (`D-M5E17-3`).
+- **`B56` filed:** `references/facts.md` publishes 894 tests (actual **1822**); the guard pins
+  `facts.md` to `README.md` but never to the real count — both drift together, test stays green.
+
+---
 
 **v0.1.14 — M5.E13, "guards that don't guard" — ✅ SHIPPED 2026-07-30.** Four defects, one shape: *something was built to catch a mistake, and it does not catch it.* Full DISCUSS→SHIP at FULL/strict. 1736 → **1806 tests**. Retro: `M5.E13-RETROSPECTIVE.md`. Decisions **D-M5E13-1…8**.
 
@@ -34,12 +71,26 @@ last_updated: 2026-07-31T19:19:34.450Z
 
 ## In-flight
 
-**Nothing in flight.** M5.E13 shipped 2026-07-30 as v0.1.14; the six-phase ledger below was written entirely by the commands, SHIP included.
+**M5.E16 is in DISCUSS** (opened 2026-08-01, target v0.1.16). Requirements written; no tasks started.
+Next command: `/sig:plan`.
 
-**Next candidates, in the order the evidence argues for:**
+**Open questions carried into PLAN** (all three stated in `M5.E16-REQUIREMENTS.md`):
+1. Do STATE findings also surface at `/sig:resume`, and at what banner cost? A detector nobody runs
+   is `B39` in a new costume; resume's briefing is capped at 50 lines. **Decide with a reason.**
+2. Which of the six checks ship — (d) and (e) already have partial coverage via `isStateStale` /
+   `detectOrphans`; overlapping findings are their own kind of noise.
+3. What counts as "the body mentions `{Epic}`" for check (b) — highest false-positive risk of the
+   six, and the most likely to be killed by FR2.2.
+
+**Queued behind it, in the order the evidence argues for:**
 - **M5.E15** — `B55`, the control arm made real. Blocks any new adherence verdict being trusted. **Standing prohibition: do not re-run a canary for a cleaner number before the arm is fixed.**
-- **M5.E16** — the guard class's **document-shaped** (`B39`'s home) and **data-shaped** (`B46`'s home) detectors. The code-shaped one is built and covers 2 of 4.
-- **M5.E10** — review hardening / claim integrity. Three `B50` sightings this Epic alone feed it.
+- **M5.E14** — tracker migration **plus** the 48-entry inbox triage cut from M5.E17 (`D-M5E17-3`). The
+  deeper problem is the capture *channel*: the findings that reached the backlog (`B42`, `B53`, `B48`)
+  all arrived incidentally, from someone reading an artifact. Day-to-day hand-corrections never
+  become entries at all.
+- **M5.E10** — review hardening / claim integrity. The judge-based, semantic half of M5.E16's
+  question (claims-vs-artifacts, the traction-engine Phase 11 evidence) lands here — **after** the
+  deterministic checks, not with them.
 
 ## Blockers
 
