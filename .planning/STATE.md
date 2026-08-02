@@ -35,9 +35,19 @@ last_updated: 2026-08-02T18:07:01.251Z
 `discuss.md` still carries the block **`B51` deleted** (*"Update `STATE.md`: `## Current Phase` /
 `PLAN`"*), which writes a permanent false `PLAN (date)` entry — `completed_phases` is append-only
 with no dedupe (`D-M5E9-5`), so a later correct run cannot undo it. **`B52`'s second live sighting,
-recorded in its row.** No `setCurrentEpic`, no `transitionPhase`, no artifacts were written. A
-context clear is **not** sufficient — plugin resolution is process-level. Verify the fix the way
-`B52` prescribes: after restarting, run any `/sig:` command and read the cache path it cites.
+recorded in its row.** No `setCurrentEpic`, no `transitionPhase`, no artifacts were written.
+
+**Cache updated to `0.1.16` at 18:40 (sha `0d27b9e`, byte-identical to `main` across `commands/`,
+`tools/lib/`, `skills/`, `agents/`, `references/`, `hooks/`). The disk is fixed; a running process
+is not.** A context clear is **not** sufficient — now measured, not reasoned: a `/clear` ran at
+12:50 and the process kept its 0.1.13 binding. After restarting, run any `/sig:` command and read
+the cache path it cites.
+
+**And it is not just this window.** `ps` found **five** live CLI processes — `elicitation-engine`
+(Jul 25), `mps` (Jul 25), `traction-engine` (Jul 28), `signal` (Jul 28), `nextpass` (Aug 2) — so
+four of five were running 5-to-8-day-old machinery against real projects. `traction-engine` is
+already the live instance behind `B53`, `B70` and check `(h)`. **Restart every window you intend to
+run `/sig:` commands in, not only this one.**
 
 **▶ No Epic open. NEXT IS `M5.E18` — unconditional, no trigger to wait on** (Brett, 2026-08-02:
 *"get past this document crap so all my projects can migrate and be healthy"*). Full scope in
