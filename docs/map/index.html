@@ -524,7 +524,7 @@
 </nav>
 
 <section id="commands">
-<h2><span class="glyph">⌘</span>1. Command library — 18 commands</h2>
+<h2><span class="glyph">⌘</span>1. Command library — 19 commands</h2>
 <p class="lede">Every Signal command, grouped by when you'd reach for it. Click a category to expand it; flags shown are the documented options each command accepts.</p>
 <div class="cmd-controls">
   <button onclick="toggleAllCommands(true)">Expand all</button>
@@ -838,7 +838,13 @@ const COMMANDS = [
       {
         name: '/sig:sweep',
         tags: ['read-only', 'not phase-gated'],
-        summary: 'Doc-hygiene sweep over the invoking project: dead internal links, unfilled [FILL IN] stubs, INDEX/roster/version drift, a stale capture inbox, and CLAUDE.md bloat. Detect-and-report only — writes nothing.',
+        summary: 'Doc-hygiene sweep over the invoking project: dead internal links, unfilled [FILL IN] stubs, INDEX/roster/version drift, a stale capture inbox, CLAUDE.md bloat, and STATE-vs-world drift — what .planning/ asserts measured against what is on disk and in git, each finding declaring whether it needs you or clears itself. Detect-and-report only — writes nothing.',
+        flags: [],
+      },
+      {
+        name: '/sig:update',
+        tags: ['read-only until confirmed', 'not phase-gated'],
+        summary: 'Installed version vs. available, plus the CHANGELOG entries in between — the half /plugin cannot show you. Updates only on confirmation, then states plainly that a restart is required.',
         flags: [],
       },
     ],
