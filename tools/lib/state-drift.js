@@ -322,12 +322,20 @@ export async function runDriftChecks(baseDir, checks = STATE_DRIFT_CHECKS) {
 
   results.sort((a, b) => a.id.localeCompare(b.id));
 
+  const withFindings = results.filter((r) => r.status === STATUS.FINDINGS);
+  const countFindings = (rows) => rows.reduce((n, r) => n + r.findings.length, 0);
+
   const summary = {
     total: results.length,
-    withFindings: results.filter((r) => r.status === STATUS.FINDINGS).length,
+    withFindings: withFindings.length,
     clean: results.filter((r) => r.status === STATUS.CLEAN).length,
     notApplicable: results.filter((r) => r.status === STATUS.NOT_APPLICABLE).length,
     cannotEvaluate: results.filter((r) => r.status === STATUS.CANNOT_EVALUATE).length,
+    // Counted in FINDINGS, not checks: what a person decides whether to act on
+    // is a contradiction, not a detector. `needsAPerson` is the only number
+    // permitted to interrupt at /sig:resume (D-M5E16-2).
+    needsAPerson: countFindings(withFindings.filter((r) => r.healCategory === HEAL.NEEDS_A_PERSON)),
+    selfClearing: countFindings(withFindings.filter((r) => r.healCategory !== HEAL.NEEDS_A_PERSON)),
   };
 
   return { results, summary };

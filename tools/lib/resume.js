@@ -212,6 +212,7 @@ export function renderResumeBriefing(params = {}) {
     originDriftResult = null,
     schemaDriftResult = null,
     stateSizeResult = null,
+    stateDriftResult = null,
     layoutBanner = null,
     nextAction = '',
     retroSummary = null,
@@ -254,6 +255,40 @@ export function renderResumeBriefing(params = {}) {
       lines.push(`   Run git pull to sync, or continue (this was a read-only check).`);
     }
     lines.push('');
+  }
+
+  // STATE-vs-world drift (M5.E16 FR3 / D-M5E16-2). ONE line, CATEGORY 3 ONLY.
+  //
+  // FR3 asked PLAN to decide with a reason, and both sides were real: the
+  // originating incident happened at /sig:resume, which people run constantly —
+  // but the briefing is capped at 50 lines, and a briefing that buries its own
+  // signal is the problem restated one level up.
+  //
+  // So only findings that NEED A PERSON appear here. Self-clearing findings are
+  // deliberately absent: spending briefing budget on something the reader cannot
+  // usefully act on is how a detector earns the mute that makes it useless.
+  //
+  // The count of checks that COULD NOT LOOK gets its own sentence, because
+  // silence about blindness is the exact bug this Epic exists to fix — and on
+  // the real corpus this is not hypothetical: 3 of 13 projects cannot be
+  // evaluated by the Epic-mode checks at all.
+  const driftSummary = stateDriftResult?.summary;
+  if (driftSummary) {
+    const needsAPerson = driftSummary.needsAPerson ?? 0;
+    const cannotEvaluate = driftSummary.cannotEvaluate ?? 0;
+    if (needsAPerson > 0) {
+      lines.push(
+        `⚠ ${needsAPerson} STATE-vs-world finding${needsAPerson === 1 ? '' : 's'} ` +
+          `need${needsAPerson === 1 ? 's' : ''} you — run /sig:sweep for detail.`
+      );
+    }
+    if (cannotEvaluate > 0) {
+      lines.push(
+        `   ${cannotEvaluate} check${cannotEvaluate === 1 ? '' : 's'} could not be checked ` +
+          'on this project — that is not the same as clean.'
+      );
+    }
+    if (needsAPerson > 0 || cannotEvaluate > 0) lines.push('');
   }
 
   // Size is the lowest-priority (advisory) banner — it doesn't cast doubt on

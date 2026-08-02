@@ -76,6 +76,14 @@ Two pre-render checks routed through `tools/lib/state.js` + `tools/lib/resume.js
 
 1d. **Pre-reorg layout nudge** (M5.E2.S3.t2, FR7.2) — call `readLayoutBanner(baseDir)` from `tools/lib/status.js` and pass the returned string (or `null`) to `renderResumeBriefing` as `layoutBanner`. Read-only + **fail-open** (never throws → `null` on any error). It reads in **two tiers** (M5.E2 REVIEW, perf): a cheap capped-prefix `docs_layout_version` stamp read first (an integer stamp at/above CURRENT → silent, below → nudge — returning WITHOUT the full-corpus `senseProject` walk), then a **structural sniff** via the migrate engine's `senseProject` ONLY when the stamp is absent/unparseable (an unstamped project stays silent unless it carries pending reorg work — so a clean-but-unstamped project is never false-bannered). Same **advisory tier** as the size banner (rendered near it, never above the schema-drift banner). It's the command-path counterpart to the SessionStart hook (`hooks/warn-layout-drift.js`, S3.t1), whose stamp-first-only read the structural sniff here corrects.
 
+1e. **STATE-vs-world drift** (M5.E16, FR3 / `D-M5E16-2`) — call `runDriftChecks(baseDir)` from `tools/lib/state-drift.js` and pass the result to `renderResumeBriefing` as `stateDriftResult`. Read-only, offline, deterministic; fail-open (any failure → pass `null` and no line renders).
+
+**One line, category 3 only.** FR3 asked PLAN to decide **with a reason**, and both sides were real: the incident that opened M5.E16 happened *here*, at `/sig:resume`, which people run constantly — but this briefing is capped at 50 lines, and a briefing that buries its own signal is the same problem one level up.
+
+So only findings that **need a person** appear. Self-clearing findings are deliberately absent: spending briefing budget on something the reader cannot usefully act on is exactly how a detector earns the mute that makes it useless. The count of checks that **could not look** gets its own sentence — silence about blindness is the bug this Epic exists to fix, and on the real corpus it is not hypothetical (3 of 13 projects cannot be evaluated by the Epic-mode checks at all).
+
+Placed in the **advisory tier**, near the size banner: a STATE *content* contradiction makes the briefing's narrative suspect, but not its **parse**, so it never renders above the schema-drift banner.
+
 #### 3c. Retro completeness (M4.5.E9.S2.t7)
 
 Call `enumerateRetros(baseDir)` from `tools/lib/retro-index.js`. Build a summary `{total, complete, stub}` where `complete = total - stub` (and `stub = records.filter(r => r.isStub).length`). Pass as `retroSummary` to `renderResumeBriefing`. The renderer adds one line:
@@ -115,6 +123,7 @@ renderResumeBriefing({
   originDriftResult,              // origin drift — from Step 3b(1a); fail-open
   schemaDriftResult,             // schema drift — from Step 3b(1b); read-only
   stateSizeResult,               // STATE.md size — from Step 3b(1c); advisory, read-only
+  stateDriftResult,              // STATE-vs-world — from Step 3b(1e); advisory, category 3 only
   layoutBanner,                  // pre-reorg layout nudge string|null — from Step 3b(1d); advisory, fail-open
   nextAction: nextActionForPhase(state.phase, profile.phases_skipped),
   retroSummary,                   // {total, complete, stub} — see Step 3c
