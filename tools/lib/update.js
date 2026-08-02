@@ -147,8 +147,12 @@ export function changelogBetween(changelogText, fromVersion, toVersion) {
       version: s.version,
       // Everything after the version bracket on the heading line — the release's
       // one-line name, which is the most useful thing in the whole report.
-      title: s.heading.replace(CHANGELOG_HEADING, '').trim() ||
-        s.heading.replace(/^##\s*\[[^\]]+\]\s*[—-]?\s*/, '').trim(),
+      //
+      // (M5.E16 REVIEW `S1`: this used to try `heading.replace(CHANGELOG_HEADING, '')`
+      // first and fall back to the expression below. That regex is fully anchored,
+      // so it matches the whole line and the first operand was ALWAYS the empty
+      // string — the fallback ran every time. Two strategies where there was one.)
+      title: s.heading.replace(/^##\s*\[[^\]]+\]\s*[—-]?\s*/, '').trim(),
       body: s.body.join('\n').trim(),
     }))
     .sort((a, b) => compareVersions(b.version, a.version));
