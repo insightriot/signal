@@ -77,11 +77,11 @@ The REVIEW phase (between VERIFY and SHIP) is the key addition over GSD's origin
 ## Planned Plugin Structure
 
 ```
-commands/       # 18 slash commands — /sig:new-project, /sig:init, /sig:calibrate,
+commands/       # 19 slash commands — /sig:new-project, /sig:init, /sig:calibrate,
                 # /sig:discuss, /sig:plan, /sig:execute, /sig:verify,
                 # /sig:review, /sig:ship, /sig:escalate, /sig:status,
                 # /sig:resume, /sig:add, /sig:checkpoint, /sig:doctor,
-                # /sig:index, /sig:migrate-memory, /sig:sweep
+                # /sig:index, /sig:migrate-memory, /sig:sweep, /sig:update
 agents/         # 26 agents (19 GSD + 3 Agent Skills specialists + 4 brownfield scanners)
 skills/         # 21 quality skills organized by phase (define/, plan/, build/, verify/, review/, ship/)
 references/     # Merged checklists and gates from both frameworks,

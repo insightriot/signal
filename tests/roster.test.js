@@ -14,12 +14,12 @@ import { join } from 'node:path';
 import { listCommands, listAgents, listSkills, roster, ROOT } from '../tools/lib/roster.js';
 
 describe('roster — canonical filesystem-glob counts (Signal repo)', () => {
-  // 18 commands as of M5.E6.T8 (the new `/sig:sweep` command landed — was 17
+  // 19 commands as of M5.E16.S6 (`/sig:update` landed — was 18 at M5.E6.T8,
   // since M5.E3.S2.t6, when `/sig:index` landed). The count tracks disk: because
   // validate-plugin sources its command list from this same glob, a new command
   // needs no validator edit; only this assertion follows the roster up.
-  it('returns 18 commands from commands/*.md', () => {
-    expect(listCommands(ROOT).length).toBe(18);
+  it('returns 19 commands from commands/*.md', () => {
+    expect(listCommands(ROOT).length).toBe(19);
   });
 
   it('returns 26 agents from agents/**/*.md', () => {
@@ -32,8 +32,8 @@ describe('roster — canonical filesystem-glob counts (Signal repo)', () => {
 
   it('roster() aggregates the counts + lists', () => {
     const r = roster(ROOT);
-    expect(r.counts).toEqual({ commands: 18, agents: 26, skills: 21 });
-    expect(r.commands.length).toBe(18);
+    expect(r.counts).toEqual({ commands: 19, agents: 26, skills: 21 });
+    expect(r.commands.length).toBe(19);
     expect(r.agents.length).toBe(26);
     expect(r.skills.length).toBe(21);
   });

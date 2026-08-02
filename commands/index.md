@@ -8,6 +8,10 @@ args: ""
 
 You are running `/sig:index`, a not-phase-gated meta command. Same class as `/sig:status`, `/sig:checkpoint`, `/sig:add` — no tier-gating preamble, no skill loading, no agent spawning. Its one job: regenerate `.planning/INDEX.md` from disk so the documentation map never drifts from the corpus it indexes.
 
+**You rarely need to run this by hand.** Since M5.E16 (FR5) the index regenerates on **every phase transition** — `transitionPhase` calls the regenerator, so any `/sig:` phase command refreshes the map as a side effect. Before that it ran only at `/sig:ship` and here, which meant the docs map was accurate at the moment an Epic *finished* and drifted through the whole span of work — the span when someone is actually re-orienting from it. All four projects surveyed on 2026-08-01 had a stale, missing or foreign `INDEX.md`. This command stays for the cases the transition does not cover: a dormant project you have returned to, or a corpus you edited without running a phase command.
+
+*(Regenerating on **session start** was considered and rejected: no Signal hook writes anything, and a hook that edits files before you have asked for anything crosses a line the design holds deliberately. A test asserts the hooks stay warn-only.)*
+
 `INDEX.md` is **fully auto-generated** (hand-curation retired, M5.E3 FR3). The generator walks `.planning/` (including `archive/`), renders one mechanical row per tracked doc (path + growth-policy), and re-attaches the **hand-curated notes** — the per-file gotchas, the per-Epic one-liners, and the tier legend — **by key**, exactly the survive-by-ID pattern `RETROSPECTIVES.md` already uses. You edit the notes; the rows regenerate. It is the load-bearing traversal layer that keeps archived decisions findable (FR5's lifeline).
 
 Authoritative reference:

@@ -38,6 +38,7 @@ import {
   checkVersionConsistency,
 } from './doc-hygiene.js';
 import { enumerateRetros, parseExistingHooks, renderIndex } from './retro-index.js';
+import { runDriftChecks, renderDriftReport, STATE_DRIFT_CHECKS } from './state-drift.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -417,7 +418,17 @@ export async function runSweep(baseDir = process.cwd()) {
   }
 
   const findings = raw.map(normalizeSeverity).sort(findingCmp);
-  return { findings, signalOnly: { ran, checks: SIGNAL_ONLY_CHECKS } };
+
+  // M5.E16 — what `.planning/` ASSERTS vs. what is on disk and in git.
+  //
+  // Deliberately NOT merged into `findings` (FR1.2). A STATE contradiction is a
+  // different kind of wrong from a dead link: it carries a heal category, it can
+  // be *unevaluable* rather than merely absent, and folding it into the
+  // structural/advisory buckets would lose both distinctions. Its own group also
+  // means "could not check" has somewhere to live that "clean" does not.
+  const stateDrift = await runDriftChecks(baseDir, STATE_DRIFT_CHECKS);
+
+  return { findings, stateDrift, signalOnly: { ran, checks: SIGNAL_ONLY_CHECKS } };
 }
 
 /**
@@ -434,6 +445,7 @@ export async function runSweep(baseDir = process.cwd()) {
 export function renderSweepReport(report) {
   const findings = Array.isArray(report) ? report : report.findings;
   const signalOnly = Array.isArray(report) ? null : report.signalOnly;
+  const stateDrift = Array.isArray(report) ? null : report.stateDrift;
 
   const structural = findings.filter((f) => f.severity === 'structural');
   const advisory = findings.filter((f) => f.severity === 'advisory');
@@ -441,6 +453,9 @@ export function renderSweepReport(report) {
   const lines = ['# /sig:sweep — doc-hygiene report', ''];
   lines.push(...renderGroup('Structural', structural), '');
   lines.push(...renderGroup('Advisory', advisory));
+  if (stateDrift) {
+    lines.push('', renderDriftReport(stateDrift).trimEnd());
+  }
   if (signalOnly) {
     lines.push('', '## Signal-only checks');
     lines.push(

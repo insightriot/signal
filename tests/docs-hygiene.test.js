@@ -176,7 +176,7 @@ describe('M5.E3.S3.t3 checkRosterCounts', () => {
     expect(hard(checkRosterCounts(dir))).toHaveLength(0);
   });
 
-  it('is GREEN on the live Signal repo (17/26/21 at every canonical site)', () => {
+  it('is GREEN on the live Signal repo (19/26/21 at every canonical site)', () => {
     expect(hard(checkRosterCounts(ROOT))).toHaveLength(0);
   });
 });

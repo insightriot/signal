@@ -8,9 +8,9 @@ run never rewrites an earlier one.
 
 ## ⚠ Read this before comparing the coverage number across releases
 
-**The share can fall without anything getting worse, and it just did.** At v0.1.13 the
-ceiling read **91/407 = 22.4%**. At M5.E13 it reads **87/411 = 21.2%**. Nothing became
-less obedient. Three things moved, none of them quality:
+**The share can fall without anything getting worse, and it keeps happening.** At v0.1.13 the
+ceiling read **91/407 = 22.4%**. At M5.E13 it read **87/411 = 21.2%**. At M5.E16 it reads
+**87/419 = 20.8%**. Nothing became less obedient. What moved was never quality:
 
 1. **M5.E13 reworded the phase-entry instruction in four commands** (FR1.1, fixing `B48`
    — the instruction was unconditional, and an agent correctly refused it). The rewording
@@ -20,6 +20,21 @@ less obedient. Three things moved, none of them quality:
 2. **`plan.md` gained the trigger-watchlist walk** (FR2.1, `B39`), which is more directive
    prose for the same reason.
 3. The corpus grew 407 → 411 lines while trace-measurable fell 91 → 87.
+4. **M5.E16 documented the STATE-vs-world group in `sweep.md` and the drift line in
+   `resume.md`** — explaining what a check does, which bucket a finding lands in, and why
+   "cannot evaluate" is not "clean". Eight more directive lines, **zero** more library
+   calls named. Trace-measurable held at 87 while the denominator went 411 → 419.
+
+5. **`/sig:update` shipped** (M5.E16 FR6) — a nineteenth command, whose steps name three real
+   `tools/lib/update.js` exports. Trace-measurable rose 87 → **90** and the denominator rose
+   419 → **429**, so the share went **20.8% → 21.0%**. **Up**, for once.
+
+**The pattern across all five, and it cuts both ways.** Every time this project makes an existing
+instruction *clearer*, the published share goes **down**; every time it adds a step that names a
+real library call, the share goes **up**. Neither movement is a quality signal. The metric measures
+what can be *traced*, not what is *right* — which is why this section sits above the table rather
+than below it, and why the number is never quoted release-to-release without it. The 339
+untraceable directives remain **unmeasured, not passing.**
 
 **The perverse incentive, stated so nobody has to rediscover it.** Under this metric,
 *clarifying an instruction lowers the score*. The clearest possible instruction — a
@@ -38,7 +53,7 @@ rewrites only between the `adherence:ceiling` markers, so this survives every re
 <!-- adherence:ceiling:begin -->
 ## The coverage ceiling
 
-**Computed:** 2026-08-01 · **Commit:** `20db008` · **Corpus:** 18 `commands/*.md` files
+**Computed:** 2026-08-02 · **Commit:** `36510f9` · **Corpus:** 19 `commands/*.md` files
 
 This is the bound on everything the adherence harness can ever report. It is computed
 directly from the command corpus by `tools/lib/directive-classifier.js`, whose split
@@ -47,15 +62,15 @@ by line.
 
 | | count | share |
 |---|---:|---:|
-| Directive lines | **415** | 100% |
-| …naming a real `tools/lib` export | 71 | 17.1% |
-| …writing a named artifact | 16 | 3.9% |
-| **Trace-measurable (either)** | **87** | **21.0%** |
-| **No observable trace** | **328** | **79.0%** |
+| Directive lines | **429** | 100% |
+| …naming a real `tools/lib` export | 74 | 17.2% |
+| …writing a named artifact | 16 | 3.7% |
+| **Trace-measurable (either)** | **90** | **21.0%** |
+| **No observable trace** | **339** | **79.0%** |
 
 ### What the remainder is, stated plainly
 
-The 328 directives with no observable trace are **unmeasured, not passing.**
+The 339 directives with no observable trace are **unmeasured, not passing.**
 
 They are not "probably fine", not "covered by the test suite", and not "verified by the
 fact that Signal works". Nothing in this repository establishes whether an agent follows
@@ -77,10 +92,11 @@ harness run as evidence about the whole corpus will not find it here.
 | `checkpoint.md` | 21 | 5 | 16 |
 | `doctor.md` | 23 | 5 | 18 |
 | `new-project.md` | 9 | 5 | 4 |
-| `resume.md` | 15 | 5 | 10 |
+| `resume.md` | 16 | 5 | 11 |
 | `migrate-memory.md` | 15 | 4 | 11 |
 | `execute.md` | 20 | 3 | 17 |
-| `sweep.md` | 9 | 3 | 6 |
+| `sweep.md` | 12 | 3 | 9 |
+| `update.md` | 10 | 3 | 7 |
 | `calibrate.md` | 20 | 2 | 18 |
 | `index.md` | 7 | 2 | 5 |
 | `review.md` | 34 | 2 | 32 |

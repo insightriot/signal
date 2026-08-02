@@ -11,6 +11,17 @@ You are running `/sig:sweep`, a not-phase-gated, read-only meta command. Same cl
 The report groups findings into two severities:
 - **structural** — the drift the standing test-suite guard hard-fails on (dead internal links, unfilled `[FILL IN]` stubs, a stale auto-generated `INDEX.md`, roster/version count drift, a broken command frontmatter).
 - **advisory** — nudges that never block (a stale capture inbox, an oversized `CLAUDE.md`, an absent/foreign `INDEX.md`).
+- **STATE vs. world** (M5.E16) — what `.planning/` **asserts** measured against what is on disk and in git. Its own group by design (FR1.2): a STATE contradiction is a different kind of wrong from a dead link — it carries a **heal category**, and it can be *unevaluable* rather than merely absent.
+
+  Each finding lands in exactly one heal bucket, and a check that cannot state its bucket does not ship (FR4.2):
+
+  | Bucket | Meaning | Interrupts? |
+  |---|---|---|
+  | **needs you** | two documents disagree and only you know which is right | **yes — the only one that does** |
+  | **clears the next time Signal writes STATE here** | normal use fixes it; reported as reassurance | no |
+  | **cannot evaluate** | the check could not look, and says why | no — but it is **NOT** "clean" |
+
+  That last row is the point of the group. Measured across 13 real projects, the two Epic-mode checks can evaluate **2** of them: Signal's own hand-maintained, Epic-mode, `schema_version: 1` shape is the *minority* shape. A sweep that printed nothing for the other 11 would read as *clean* when it never looked — `B39`'s shape. So "could not check" is reported as loudly as "checked".
 
 Authoritative reference:
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/sweep.js` — `runSweep`, `renderSweepReport`
@@ -27,7 +38,7 @@ Authoritative reference:
 Call `runSweep(process.cwd())` from `tools/lib/sweep.js`. It:
 1. runs the **portable** checks in any repo — dead internal `.md` links and unfilled `[FILL IN]` markers over the widened `.planning/`-inclusive scope (still exempting `archive/`), `INDEX.md` freshness (pure compose-and-diff — never the writing regenerator), a stale-inbox count, and a `CLAUDE.md`-bloat size nudge;
 2. gated on the plugin manifest, runs the **Signal-only** checks — roster-count drift, version consistency, and command-frontmatter freshness;
-3. returns `{ findings, signalOnly: { ran, checks } }` — findings already normalized to `structural`/`advisory` and sorted deterministically.
+3. returns `{ findings, stateDrift, signalOnly: { ran, checks } }` — `findings` already normalized to `structural`/`advisory` and sorted deterministically; `stateDrift` is `{results, summary}` from `runDriftChecks`, kept **separate from `findings`** so the heal category and the cannot-evaluate state are not flattened away.
 
 It is **read-only** (AC1.5): the index-freshness check composes the expected index and diffs it, never calling the atomic-writing Core; every other check only reads. It is offline and deterministic — two runs on unchanged input are byte-identical.
 
@@ -36,6 +47,8 @@ It is **read-only** (AC1.5): the index-freshness check composes the expected ind
 Call `renderSweepReport(result)` (pure — no I/O) and print the returned markdown verbatim. It groups the findings by severity, each group sorted, and states whether the Signal-only checks ran or were skipped (so a stranger repo sees the skip, never a silent drop).
 
 If the report surfaces structural drift, point the user at the fix rather than mutating anything here — e.g. a stale `INDEX.md` is closed by `/sig:index`, a stale inbox by draining it during `/sig:plan`, a roster/version mismatch by reconciling the declaration site. `/sig:sweep` diagnoses; it does not repair.
+
+**That holds for the STATE-vs-world group too, and it was a real decision** (`D-M5E16-1`). FR4 said a command-healable finding is one where *"Signal runs it"*; NFR2 and FR1.3 said sweep never writes. Those cannot both be true, and it was settled in NFR2's favour: sweep stays read-only, healing arrives at the **phase transition** (an `INDEX.md` regenerates whenever you run a phase command) and behind an explicit `/sig:sweep --heal`. **The recorded cost:** the "Signal runs it" bucket currently contains **zero** checks, and a test asserts that emptiness — so registering one without `--heal` existing to run it fails the suite rather than promising a user something nothing keeps.
 
 ## Anti-Rationalization Check
 
@@ -50,6 +63,7 @@ If the report surfaces structural drift, point the user at the fix rather than m
 ## Gate: Sweep Complete
 
 - [ ] Ran `runSweep(process.cwd())` (invoking project — no hard-coded Signal path).
-- [ ] Printed `renderSweepReport` output verbatim (structural then advisory, Signal-only ran/skipped stated).
+- [ ] Printed `renderSweepReport` output verbatim (structural, advisory, **STATE vs. world**, Signal-only ran/skipped stated).
+- [ ] The **cannot evaluate** count was shown even when it was zero — a group that disappears when empty cannot be distinguished from a group that never ran.
 - [ ] Nothing written — read-only (verify no file mtime changed if uncertain).
 - [ ] No skills loaded, no agents spawned, no tier-gating preamble run.

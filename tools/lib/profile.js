@@ -50,82 +50,166 @@ function extractFrontmatter(content) {
   return match[1];
 }
 
-function ensureObject(value, fieldName) {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    throw new ProfileSchemaError(`${fieldName} must be an object.`);
-  }
-}
+// Every validator below reports through a `fail` sink instead of throwing
+// directly, so ONE implementation serves two modes:
+//
+//   fail = THROW (default)  →  first error throws — the behaviour every caller
+//                              has always had, byte-identical messages.
+//   fail = arr.push         →  ALL errors accumulate — what `collectProfileIssues`
+//                              needs.
+//
+// The second mode exists because of `B59` (M5.E16): `M5.E16-PROFILE.md` carried
+// TWO out-of-enum values, validation short-circuited on the first, and a fix
+// driven by the error message alone would have repaired one of two and left the
+// file still unloadable. A sink was chosen over a second validator because two
+// implementations of one rule is itself a defect this project has shipped before
+// (M5.E13 REVIEW).
+const THROW = (message) => {
+  throw new ProfileSchemaError(message);
+};
 
-function ensureArray(value, fieldName) {
-  if (!Array.isArray(value)) {
-    throw new ProfileSchemaError(`${fieldName} must be an array.`);
+function validateCalibration(calibration, fail = THROW) {
+  if (calibration === null || typeof calibration !== 'object' || Array.isArray(calibration)) {
+    fail('calibration must be an object.');
+    return;
   }
-}
-
-function validateCalibration(calibration) {
-  ensureObject(calibration, 'calibration');
   for (const [field, validValues] of Object.entries(CALIBRATION_ENUMS)) {
     const actual = calibration[field];
     if (actual === undefined) {
-      throw new ProfileSchemaError(`calibration.${field} is required.`);
+      fail(`calibration.${field} is required.`);
+      continue;
     }
     if (!validValues.includes(actual)) {
-      throw new ProfileSchemaError(
-        `calibration.${field} must be one of [${validValues.join(', ')}], got "${actual}".`
-      );
+      fail(`calibration.${field} must be one of [${validValues.join(', ')}], got "${actual}".`);
     }
   }
 }
 
-function validatePhasesSkipped(phasesSkipped) {
-  ensureArray(phasesSkipped, 'phases_skipped');
+function validatePhasesSkipped(phasesSkipped, fail = THROW) {
+  if (!Array.isArray(phasesSkipped)) {
+    fail('phases_skipped must be an array.');
+    return;
+  }
   for (const phase of phasesSkipped) {
     if (typeof phase !== 'string') {
-      throw new ProfileSchemaError(`phases_skipped entries must be strings, got ${typeof phase}.`);
+      fail(`phases_skipped entries must be strings, got ${typeof phase}.`);
+      continue;
     }
     if (NEVER_SKIPPED_PHASES.includes(phase)) {
-      throw new ProfileSchemaError(`phases_skipped must not contain "${phase}" — that phase is never skipped.`);
+      fail(`phases_skipped must not contain "${phase}" — that phase is never skipped.`);
+      continue;
     }
     if (!SKIPPABLE_PHASES.includes(phase)) {
-      throw new ProfileSchemaError(
-        `phases_skipped contains invalid phase "${phase}". Valid: [${SKIPPABLE_PHASES.join(', ')}].`
-      );
+      fail(`phases_skipped contains invalid phase "${phase}". Valid: [${SKIPPABLE_PHASES.join(', ')}].`);
     }
   }
 }
 
-function validateRigorOverrides(overrides) {
-  ensureObject(overrides, 'rigor_overrides');
+function validateRigorOverrides(overrides, fail = THROW) {
+  if (overrides === null || typeof overrides !== 'object' || Array.isArray(overrides)) {
+    fail('rigor_overrides must be an object.');
+    return;
+  }
   for (const [key, schema] of Object.entries(RIGOR_OVERRIDE_SCHEMA)) {
     if (!(key in overrides)) {
-      throw new ProfileSchemaError(`rigor_overrides.${key} is required.`);
+      fail(`rigor_overrides.${key} is required.`);
+      continue;
     }
     const value = overrides[key];
     if (schema.type === 'boolean' && typeof value !== 'boolean') {
-      throw new ProfileSchemaError(`rigor_overrides.${key} must be a boolean, got ${typeof value}.`);
+      fail(`rigor_overrides.${key} must be a boolean, got ${typeof value}.`);
     }
     if (schema.type === 'integer' && (typeof value !== 'number' || !Number.isInteger(value))) {
-      throw new ProfileSchemaError(`rigor_overrides.${key} must be an integer, got ${typeof value}.`);
+      fail(`rigor_overrides.${key} must be an integer, got ${typeof value}.`);
     }
     if (schema.type === 'enum' && !schema.values.includes(value)) {
-      throw new ProfileSchemaError(
-        `rigor_overrides.${key} must be one of [${schema.values.join(', ')}], got "${value}".`
-      );
+      fail(`rigor_overrides.${key} must be one of [${schema.values.join(', ')}], got "${value}".`);
     }
   }
 }
 
-function validateMetadata(metadata) {
-  ensureObject(metadata, 'metadata');
+function validateMetadata(metadata, fail = THROW) {
+  if (metadata === null || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    fail('metadata must be an object.');
+    return;
+  }
   if (typeof metadata.created_at !== 'string' || !ISO_8601_RE.test(metadata.created_at)) {
-    throw new ProfileSchemaError(
-      `metadata.created_at must be an ISO-8601 timestamp string, got "${metadata.created_at}".`
-    );
+    fail(`metadata.created_at must be an ISO-8601 timestamp string, got "${metadata.created_at}".`);
   }
   if (typeof metadata.created_by !== 'string' || metadata.created_by.length === 0) {
-    throw new ProfileSchemaError('metadata.created_by must be a non-empty string.');
+    fail('metadata.created_by must be a non-empty string.');
   }
-  ensureArray(metadata.escalation_history, 'metadata.escalation_history');
+  if (!Array.isArray(metadata.escalation_history)) {
+    fail('metadata.escalation_history must be an array.');
+  }
+}
+
+/**
+ * Every schema violation in a parsed PROFILE frontmatter, in the same order the
+ * throwing path would surface them one at a time.
+ *
+ * `readProfileFromPath` throws `issues[0]`, so the two paths cannot drift: the
+ * thrown message is by construction the first element of this list.
+ *
+ * @param {object} parsed — parsed YAML frontmatter
+ * @returns {string[]} — empty when the profile is valid
+ */
+export function collectProfileIssues(parsed) {
+  const issues = [];
+  const fail = (message) => issues.push(message);
+
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return ['PROFILE.md frontmatter must be a YAML mapping.'];
+  }
+  if (!TIERS.includes(parsed.tier)) {
+    fail(`tier must be one of [${TIERS.join(', ')}], got "${parsed.tier}".`);
+  }
+  if (parsed.schema_version !== 1) {
+    fail(`schema_version must be 1, got ${JSON.stringify(parsed.schema_version)}.`);
+  }
+  validateCalibration(parsed.calibration, fail);
+  validatePhasesSkipped(parsed.phases_skipped, fail);
+  validateRigorOverrides(parsed.rigor_overrides, fail);
+  validateMetadata(parsed.metadata, fail);
+  return issues;
+}
+
+/**
+ * Read one PROFILE.md and return every reason it will not load — without
+ * throwing. Used by the M5.E16 `profile-parses` drift check, which must report
+ * ALL bad fields: `B59`'s file had two, and fixing only the one named by the
+ * error message leaves the profile unloadable.
+ *
+ * @param {string} profilePath — absolute path to a PROFILE.md
+ * @returns {Promise<{path: string, ok: boolean, issues: string[]}>}
+ */
+export async function readProfileIssues(profilePath) {
+  if (!existsSync(profilePath)) {
+    return { path: profilePath, ok: false, issues: ['file does not exist'] };
+  }
+  let raw;
+  try {
+    raw = await readFile(profilePath, 'utf-8');
+  } catch (err) {
+    return { path: profilePath, ok: false, issues: [`unreadable — ${err.message}`] };
+  }
+
+  let frontmatter;
+  try {
+    frontmatter = extractFrontmatter(raw);
+  } catch (err) {
+    return { path: profilePath, ok: false, issues: [err.message] };
+  }
+
+  let parsed;
+  try {
+    parsed = parseYaml(frontmatter);
+  } catch (err) {
+    return { path: profilePath, ok: false, issues: [`frontmatter is not valid YAML: ${err.message}`] };
+  }
+
+  const issues = collectProfileIssues(parsed);
+  return { path: profilePath, ok: issues.length === 0, issues };
 }
 
 /**
@@ -178,22 +262,13 @@ async function readProfileFromPath(profilePath) {
     throw new ProfileSchemaError('PROFILE.md frontmatter must be a YAML mapping.');
   }
 
-  if (!TIERS.includes(parsed.tier)) {
-    throw new ProfileSchemaError(
-      `tier must be one of [${TIERS.join(', ')}], got "${parsed.tier}".`
-    );
+  // Throw the FIRST issue. Routing through `collectProfileIssues` rather than
+  // re-checking inline is what keeps the throwing path and the collecting path
+  // from drifting — the thrown message is, by construction, `issues[0]`.
+  const issues = collectProfileIssues(parsed);
+  if (issues.length > 0) {
+    throw new ProfileSchemaError(issues[0]);
   }
-
-  if (parsed.schema_version !== 1) {
-    throw new ProfileSchemaError(
-      `schema_version must be 1, got ${JSON.stringify(parsed.schema_version)}.`
-    );
-  }
-
-  validateCalibration(parsed.calibration);
-  validatePhasesSkipped(parsed.phases_skipped);
-  validateRigorOverrides(parsed.rigor_overrides);
-  validateMetadata(parsed.metadata);
 
   return {
     tier: parsed.tier,
