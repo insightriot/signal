@@ -32,6 +32,7 @@
 - [M5.E16-REQUIREMENTS.md](M5.E16-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M5.E16-RESEARCH.md](M5.E16-RESEARCH.md) — `other` — _(note pending)_
 - [M5.E16-VALIDATION.md](M5.E16-VALIDATION.md) — `other` — _(note pending)_
+- [M5.E16-VERIFICATION.md](M5.E16-VERIFICATION.md) — `other` — _(note pending)_
 - [M5.E17-PLAN.md](M5.E17-PLAN.md) — `other` — _(note pending)_
 - [M5.E17-PROFILE.md](M5.E17-PROFILE.md) — `other` — _(note pending)_
 - [M5.E17-REQUIREMENTS.md](M5.E17-REQUIREMENTS.md) — `other` — _(note pending)_
