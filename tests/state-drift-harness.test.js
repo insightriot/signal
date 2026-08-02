@@ -294,6 +294,62 @@ describe('M5.E16 S1.t5 — every declared heal category has an implementation', 
   });
 });
 
+describe('M5.E16 S1 — every check lands in exactly one bucket, always', () => {
+  // Without this, a check that returns early from `runDriftChecks` — an
+  // unhandled applicability shape, a future `continue` — vanishes from every
+  // bucket and the report still looks perfectly coherent. A detector silently
+  // dropping out of its own summary is the exact failure this Epic exists to
+  // prevent, reproduced in the reporter. So the buckets must SUM.
+  const cases = [
+    ['a healthy project', HEALTHY_STATE],
+    ['a project whose STATE cannot be read', UNREADABLE_STATE],
+  ];
+
+  for (const [label, state] of cases) {
+    it(`the four buckets sum to the number of checks run — ${label}`, async () => {
+      const dir = await makeProject({ 'STATE.md': state });
+      try {
+        const { results, summary } = await runDriftChecks(dir, STATE_DRIFT_CHECKS);
+        expect(results).toHaveLength(STATE_DRIFT_CHECKS.length);
+        expect(summary.total).toBe(STATE_DRIFT_CHECKS.length);
+        expect(
+          summary.withFindings + summary.clean + summary.notApplicable + summary.cannotEvaluate
+        ).toBe(summary.total);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  }
+
+  it('an applicability function returning nonsense is bucketed, not dropped', async () => {
+    const dir = await makeProject({ 'STATE.md': HEALTHY_STATE });
+    try {
+      const nonsense = defineCheck({
+        id: 'fixture-nonsense',
+        healCategory: HEAL.NEEDS_A_PERSON,
+        applicability: () => 'MAYBE',
+        run: () => [],
+      });
+      const { results, summary } = await runDriftChecks(dir, [nonsense]);
+      expect(results).toHaveLength(1);
+      expect(results[0].status).toBe('cannot-evaluate');
+      expect(
+        summary.withFindings + summary.clean + summary.notApplicable + summary.cannotEvaluate
+      ).toBe(1);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('holds on this repo, where five checks are genuinely evaluable', async () => {
+    const { results, summary } = await runDriftChecks(join(import.meta.dirname, '..'), STATE_DRIFT_CHECKS);
+    expect(results).toHaveLength(STATE_DRIFT_CHECKS.length);
+    expect(
+      summary.withFindings + summary.clean + summary.notApplicable + summary.cannotEvaluate
+    ).toBe(STATE_DRIFT_CHECKS.length);
+  });
+});
+
 describe('M5.E16 S1.t4 — the probe runs', () => {
   // A measuring script nobody executes is this Epic's own subject matter: `B39`
   // was an instruction nothing performed, and the numbers in M5.E16-PLAN.md rest
