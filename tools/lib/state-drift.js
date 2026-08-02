@@ -29,12 +29,12 @@
 // `clean` and `cannot-evaluate` collapsing into one another is the bug this
 // module is built to make impossible.
 
-import { readdir } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 
-import { readState } from './state.js';
+import { readState, PHASES, EPIC_ID_STRICT_RE } from './state.js';
 import { readProfileIssues } from './profile.js';
 
 const PLANNING_DIR = '.planning';
@@ -182,7 +182,20 @@ export async function buildDriftContext(baseDir) {
     return { ok: false, reason: `${PLANNING_DIR}/ could not be listed — ${err.message}` };
   }
 
-  return { ok: true, ctx: Object.freeze({ baseDir, planningDir, state, files }) };
+  // The raw file, so a check can compare the frontmatter against the PROSE.
+  // That comparison is the whole reason this Epic exists: at the originating
+  // incident the frontmatter was RIGHT and the body was stale, and the two
+  // halves of one file disagreed for three commits and a release.
+  let stateBody = '';
+  try {
+    const raw = await readFile(join(planningDir, 'STATE.md'), 'utf-8');
+    const fm = raw.match(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/);
+    stateBody = fm ? raw.slice(fm[0].length) : raw;
+  } catch {
+    stateBody = '';
+  }
+
+  return { ok: true, ctx: Object.freeze({ baseDir, planningDir, state, files, stateBody }) };
 }
 
 function normalizeApplicability(raw) {
@@ -525,6 +538,167 @@ export const checkProfilesParse = defineCheck({
   },
 });
 
+// ─────────────────────── the Epic-mode three (S3) ───────────────────────
+//
+// These can evaluate 2 of 13 real projects. That is not a reason to skip them —
+// it is the reason the `cannot-evaluate` bucket exists, and (h) ships first
+// because it is what turns their blindness into a reported result.
+
+/** Every Epic ID mentioned anywhere in a body of prose. */
+const EPIC_ID_ANYWHERE = /\bM\d+(?:\.\d+)?\.E\d+\b/g;
+
+const epicIsSet = (state) =>
+  state.current_epic !== null &&
+  state.current_epic !== undefined &&
+  String(state.current_epic).length > 0;
+
+const LINEAR_MODE_NA = {
+  status: APPLICABILITY.NA,
+  reason: 'linear mode — no current_epic to check against',
+};
+
+/**
+ * (h) `current_epic` is set to something no resolver accepts.
+ *
+ * NOT IN THE REQUIREMENTS — this check exists because the corpus was measured.
+ * `agent-tools-sync` carries `"M1"` and `traction-engine` carries `"PHASE12"`;
+ * both fail `EPIC_ID_STRICT_RE`, so `readEffectiveProfile`, `artifactName` and
+ * `resolveArtifactPath` all fail open to LINEAR mode while the project believes
+ * it is running Epics. That is `B53`'s class — fixed as a Signal-side bug in
+ * v0.1.14 and now observed live on half the Epic-mode corpus.
+ *
+ * It ships FIRST of the Epic-mode three because the two projects where it fires
+ * are exactly the two where (a) and (b) go blind. It is the check that reports
+ * why the other checks cannot see.
+ */
+export const checkEpicIdNotStrict = defineCheck({
+  id: 'epic-id-not-strict',
+  describe: 'current_epic is set but is not an Epic ID any resolver will accept',
+  healCategory: HEAL.NEEDS_A_PERSON,
+  applicability: ({ state }) => (epicIsSet(state) ? APPLICABILITY.EVAL : LINEAR_MODE_NA),
+  run: ({ state }) => {
+    const raw = String(state.current_epic);
+    if (EPIC_ID_STRICT_RE.test(raw)) return [];
+    return [{
+      file: `${PLANNING_DIR}/STATE.md`,
+      message:
+        `current_epic is "${raw}", which is not an Epic ID (expected e.g. M5.E16). ` +
+        'Signal resolves artifacts and the effective PROFILE in LINEAR mode for this ' +
+        'project, while STATE says an Epic is active — so Epic-scoped artifacts and ' +
+        'per-Epic profiles are being written or read under the wrong names.',
+    }];
+  },
+});
+
+/**
+ * (a) `phase` names an earlier phase than the artifacts on disk.
+ *
+ * FIXTURE-ONLY EVIDENCE. This check fired zero times across all 13 real
+ * projects, and a live corpus cannot distinguish "precise" from "inert" — so
+ * the red fixture is the only thing establishing that it works. Recorded in the
+ * plan and repeated here rather than left for VERIFY to rediscover.
+ */
+export const checkPhaseBehindArtifacts = defineCheck({
+  id: 'phase-behind-artifacts',
+  describe: 'an artifact exists for a phase later than the one STATE names',
+  healCategory: HEAL.NEEDS_A_PERSON,
+  applicability: ({ state }) => {
+    if (!epicIsSet(state)) return LINEAR_MODE_NA;
+    if (!EPIC_ID_STRICT_RE.test(String(state.current_epic))) {
+      return {
+        status: APPLICABILITY.BLIND,
+        reason:
+          `current_epic "${state.current_epic}" is not a strict Epic ID, so no artifact ` +
+          'name can be derived — see the epic-id-not-strict finding',
+      };
+    }
+    if (!PHASES.includes(state.phase)) {
+      return {
+        status: APPLICABILITY.BLIND,
+        reason: `phase is ${JSON.stringify(String(state.phase).slice(0, 40))}, not a phase name`,
+      };
+    }
+    return APPLICABILITY.EVAL;
+  },
+  run: ({ state, files }) => {
+    const epic = String(state.current_epic);
+    const order = PHASES.filter((p) => p !== 'CALIBRATE');
+    const at = order.indexOf(state.phase);
+    if (at === -1) return [];
+
+    const artifactFor = {
+      PLAN: 'PLAN',
+      EXECUTE: 'PROGRESS',
+      VERIFY: 'VERIFICATION',
+      REVIEW: 'REVIEW',
+      SHIP: 'RETROSPECTIVE',
+    };
+
+    for (const later of order.slice(at + 1)) {
+      const suffix = artifactFor[later];
+      if (suffix && files.includes(`${epic}-${suffix}.md`)) {
+        return [{
+          file: `${PLANNING_DIR}/${epic}-${suffix}.md`,
+          message:
+            `STATE says phase ${state.phase}, but ${epic}-${suffix}.md exists — that is a ` +
+            `${later}-phase artifact. Either the phase advanced without being recorded, or ` +
+            'the artifact is left over from an earlier run.',
+        }];
+      }
+    }
+    return [];
+  },
+});
+
+/**
+ * (b) The body never mentions the Epic the frontmatter names.
+ *
+ * THE ORIGINATING INCIDENT. Frontmatter read `current_epic: M5.E17` while the
+ * body's "Next candidates" list named M5.E15 / M5.E16 / M5.E10 and omitted
+ * M5.E17 entirely. `/sig:resume` read both halves and flagged neither. The data
+ * moved, the prose did not, and it survived three commits and a release.
+ *
+ * NARROWED STRUCTURALLY, NOT BY A THRESHOLD: it fires only when the body names
+ * at least one OTHER Epic ID. A body naming no Epic at all is a young or
+ * skeletal STATE, not drift. FR2.2 forbids tuning a check into silence with a
+ * knob, so this adds a precondition instead — and the history regression in
+ * `tests/state-drift-checks-epic.test.js` proves the narrowing does not cost the
+ * real signal: red at 4421105 / 137b9ca / 8acd1d2, green at 18741a8.
+ */
+export const checkBodyOmitsCurrentEpic = defineCheck({
+  id: 'body-omits-current-epic',
+  describe: 'STATE.md\'s prose never mentions the Epic its own frontmatter names',
+  healCategory: HEAL.NEEDS_A_PERSON,
+  applicability: ({ state }) => {
+    if (!epicIsSet(state)) return LINEAR_MODE_NA;
+    if (!EPIC_ID_STRICT_RE.test(String(state.current_epic))) {
+      return {
+        status: APPLICABILITY.BLIND,
+        reason:
+          `current_epic "${state.current_epic}" is not a strict Epic ID, so there is no ID ` +
+          'to look for in the prose — see the epic-id-not-strict finding',
+      };
+    }
+    return APPLICABILITY.EVAL;
+  },
+  run: ({ state, stateBody }) => {
+    const epic = String(state.current_epic);
+    const mentioned = new Set(stateBody.match(EPIC_ID_ANYWHERE) ?? []);
+    if (mentioned.has(epic)) return [];
+    if (mentioned.size === 0) return []; // young STATE, not drift — the narrowing
+
+    const others = [...mentioned].sort();
+    return [{
+      file: `${PLANNING_DIR}/STATE.md`,
+      message:
+        `frontmatter says current_epic: ${epic}, but the body never mentions ${epic} — ` +
+        `it names ${others.slice(0, 4).join(', ')}${others.length > 4 ? ', …' : ''}. ` +
+        'The frontmatter advanced and the prose did not; anyone orienting from the ' +
+        'narrative is reading about different work than the one in flight.',
+    }];
+  },
+});
+
 /**
  * The shipped registry.
  *
@@ -540,4 +714,7 @@ export const STATE_DRIFT_CHECKS = Object.freeze([
   checkEpicWithoutRetro,
   checkBaselineCommitOffHistory,
   checkProfilesParse,
+  checkEpicIdNotStrict,
+  checkPhaseBehindArtifacts,
+  checkBodyOmitsCurrentEpic,
 ]);
