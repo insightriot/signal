@@ -30,9 +30,12 @@
 // module is built to make impossible.
 
 import { readdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 
 import { readState } from './state.js';
+import { readProfileIssues } from './profile.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -380,14 +383,161 @@ export function renderDriftReport(report) {
   return lines.join('\n') + '\n';
 }
 
+// ─────────────────────────────── the checks ───────────────────────────────
+//
+// Ordered as the plan sequences them: the three that work on every project
+// shape first (c, d, g — 12/12, 8/8 and 12/12 applicable), then the Epic-mode
+// three (h, a, b) which the corpus can only exercise on 2 of 13.
+
+const EPIC_ID_IN_FILENAME = /^(M\d+(?:\.\d+)?\.E\d+)-(PLAN|PROGRESS|VERIFICATION|REVIEW)\.md$/;
+
+/**
+ * (c) An Epic was worked and never retrospected.
+ *
+ * Keyed off artifacts on disk, NOT off `completed_phases` containing `SHIP` as
+ * FR1.1 originally specified. The requirement's version does not fire on the one
+ * live instance available to it: this repo's `completed_phases` is `[]` while
+ * `M5.E17` sits shipped with no retrospective. A criterion that stays silent on
+ * its own motivating case was written from the shape of the work rather than
+ * from the artifact.
+ *
+ * "Worked" deliberately means a PLAN/PROGRESS/VERIFICATION/REVIEW artifact, not
+ * a REQUIREMENTS one: an Epic can be scoped and parked, and firing on that would
+ * manufacture a chore for every idea anyone ever wrote down — FR2's failure mode.
+ */
+export const checkEpicWithoutRetro = defineCheck({
+  id: 'epic-without-retro',
+  describe: 'an Epic with phase artifacts on disk and no retrospective',
+  healCategory: HEAL.NEEDS_A_PERSON,
+  applicability: () => APPLICABILITY.EVAL,
+  run: ({ files, state }) => {
+    const worked = new Set();
+    for (const f of files) {
+      const m = f.match(EPIC_ID_IN_FILENAME);
+      if (m) worked.add(m[1]);
+    }
+    const findings = [];
+    for (const epic of [...worked].sort()) {
+      if (epic === state.current_epic) continue; // mid-flight, not abandoned
+      if (files.includes(`${epic}-RETROSPECTIVE.md`)) continue;
+      findings.push({
+        file: `${PLANNING_DIR}/${epic}-RETROSPECTIVE.md`,
+        message:
+          `${epic} has phase artifacts on disk but no retrospective — it was either ` +
+          'finished without one, or abandoned. Only you know which.',
+      });
+    }
+    return findings;
+  },
+});
+
+/**
+ * (d) `last_updated_commit` points at a commit that is not in this history.
+ *
+ * NARROWED to the not-an-ancestor case only. "N commits behind" is already
+ * `isStateStale`'s job, and two findings for one condition is its own kind of
+ * noise (the requirements' open question 2).
+ *
+ * Category 1 — self-healing. The next STATE write re-stamps the field, and that
+ * promise is EXERCISED in the tests rather than asserted: a fixture whose
+ * baseline is off-history goes clean after a `markFresh`.
+ *
+ * The heal mechanism is worded tier-independently on purpose. At
+ * FEATURE/SPIKE/FULL the next write is a phase-close `markFresh`; at SKETCH four
+ * command files skip `markFresh`, so it is a manual `/sig:checkpoint`. A promise
+ * of "heals on next phase command" would be false at SKETCH — `B42`'s shape.
+ */
+export const checkBaselineCommitOffHistory = defineCheck({
+  id: 'baseline-commit-off-history',
+  describe: 'STATE.md\'s last_updated_commit is not an ancestor of HEAD',
+  healCategory: HEAL.SELF_HEALING,
+  healMechanism: 'the next STATE write — a phase-close markFresh, or /sig:checkpoint at SKETCH',
+  applicability: ({ baseDir, state }) => {
+    const commit = state.last_updated_commit;
+    if (!commit || !/^[0-9a-f]{7,40}$/.test(String(commit))) {
+      return { status: APPLICABILITY.NA, reason: 'no usable last_updated_commit to check' };
+    }
+    if (!existsSync(join(baseDir, '.git'))) {
+      return { status: APPLICABILITY.NA, reason: 'not a git repository' };
+    }
+    return APPLICABILITY.EVAL;
+  },
+  run: ({ baseDir, state }) => {
+    const commit = String(state.last_updated_commit);
+    try {
+      execFileSync('git', ['merge-base', '--is-ancestor', commit, 'HEAD'], {
+        cwd: baseDir,
+        stdio: 'ignore',
+      });
+      return [];
+    } catch {
+      // Distinguish "commit is gone" from "commit exists but is off-history" —
+      // they read very differently to someone deciding whether work was lost.
+      let known = false;
+      try {
+        execFileSync('git', ['cat-file', '-e', `${commit}^{commit}`], { cwd: baseDir, stdio: 'ignore' });
+        known = true;
+      } catch {
+        known = false;
+      }
+      return [{
+        file: `${PLANNING_DIR}/STATE.md`,
+        message:
+          `last_updated_commit ${commit} is not an ancestor of HEAD — ` +
+          (known
+            ? 'the commit exists but no branch reaches it (a reset or a rewritten branch), '
+            : 'the commit is not in this repository at all, ') +
+          'so every staleness comparison against it is meaningless.',
+      }];
+    }
+  },
+});
+
+/**
+ * (g) A PROFILE.md the code cannot read.
+ *
+ * The highest-precision check on the board: a file either parses or it throws,
+ * so there is no threshold and nothing for FR2.2 to kill.
+ *
+ * Reports EVERY bad field, not just the first. Validation short-circuits, so a
+ * fix driven by the error message alone repairs one of two — which is exactly
+ * what `B59` presented as: `stakes: moderate` masked `reversibility: easy`, and
+ * the profile would still not have loaded after "the" fix.
+ */
+export const checkProfilesParse = defineCheck({
+  id: 'profile-parses',
+  describe: 'every PROFILE.md in the project loads with the loader that reads it',
+  healCategory: HEAL.NEEDS_A_PERSON,
+  applicability: ({ files }) =>
+    files.some((f) => f.endsWith('PROFILE.md'))
+      ? APPLICABILITY.EVAL
+      : { status: APPLICABILITY.NA, reason: 'project has no PROFILE.md — uncalibrated, not drifted' },
+  run: async ({ planningDir, files }) => {
+    const findings = [];
+    for (const file of files.filter((f) => f.endsWith('PROFILE.md'))) {
+      const { ok, issues } = await readProfileIssues(join(planningDir, file));
+      if (ok) continue;
+      for (const issue of issues) {
+        findings.push({ file: `${PLANNING_DIR}/${file}`, message: issue });
+      }
+    }
+    return findings;
+  },
+});
+
 /**
  * The shipped registry.
  *
- * EMPTY AT S1 BY CONSTRUCTION — this slice ships the harness, and S2/S3 register
- * the six checks (c, d, g, then h, a, b). The emptiness is asserted rather than
- * assumed: `tests/state-drift-harness.test.js` pins that the category-2 bucket
- * holds nothing, so the day someone registers a "Signal runs it" check without
- * `/sig:sweep --heal` existing to run it, the suite fails instead of the user
- * receiving a promise nothing keeps.
+ * S2 registers the three general checks. S3 adds the Epic-mode three (h, a, b).
+ *
+ * The category-2 bucket stays empty, and that emptiness is ASSERTED rather than
+ * assumed (`tests/state-drift-harness.test.js`): after D-M5E16-1 resolved FR4
+ * against NFR2, sweep never runs a heal itself, so the day a "Signal runs it"
+ * check is registered without `/sig:sweep --heal` existing to run it, the suite
+ * fails instead of a user receiving a promise nothing keeps.
  */
-export const STATE_DRIFT_CHECKS = Object.freeze([]);
+export const STATE_DRIFT_CHECKS = Object.freeze([
+  checkEpicWithoutRetro,
+  checkBaselineCommitOffHistory,
+  checkProfilesParse,
+]);
