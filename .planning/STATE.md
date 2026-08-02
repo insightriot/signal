@@ -29,10 +29,42 @@ last_updated: 2026-08-02T14:18:13.834Z
 
 ## Resume pointer
 
-**▶ No Epic open.** M5.E16 shipped as **v0.1.16** on 2026-08-02. Next candidates, in the order the
-evidence argues for: **M5.E15** (`B55`, the adherence control arm — blocks any new adherence verdict
-being trusted) → **M5.E14** (tracker migration + the 48-entry inbox triage cut from M5.E17) →
-**M5.E10** (review hardening / claim integrity — the semantic half of M5.E16's question).
+**▶ No Epic open. NEXT IS `M5.E18` — unconditional, no trigger to wait on** (Brett, 2026-08-02:
+*"get past this document crap so all my projects can migrate and be healthy"*). Full scope in
+[`BACKLOG.md`](BACKLOG.md) § *"M5.E18 — The archive half, for the 8 projects out of 12 it does not
+reach."* **Open it with `/sig:discuss --epic M5.E18`** — the `--epic` flag is required, because
+`current_epic` still points at the now-closed M5.E16 and `discuss` refuses to reopen a done Epic.
+
+**Why it outranks everything else queued:** Signal's two archive paths are Epic-gated **by
+construction** — `planArchiveMoves` filters through `EPIC_ID_STRICT_RE`, `extractEpicSection` and
+`deriveEpicArchiveDir` reject non-strict IDs. M5.E16 measured the consequence: **Epic mode is 4 of
+12 readable projects**, so **8 of 12 cannot archive at all.** This is the capability gap standing
+between the doc-runtime and "all my projects are healthy."
+
+**Do two cheap things first — both change what you'd decide inside M5.E18:**
+1. **Reconcile `BUGS.md`'s status column against the code** (fix lane, ~half a day). 26 rows read
+   `confirmed`; **`B42`, `B44`, `B45` and `B53` are verifiably fixed** — their fixes carry the bug
+   number in the comment beside them — and nobody flipped the status. The linear-mode rows are
+   exactly the stale ones, and M5.E18 is about linear projects, so entering it with a false ledger
+   would mis-scope it.
+2. **Fix `current_epic` in `traction-engine` (`"PHASE12"`) and `agent-tools-sync` (`"M1"`)**
+   (fix lane, minutes). Both fail `EPIC_ID_STRICT_RE`, so each project believes it is in Epic mode
+   while every resolver treats it as linear — M5.E16's check `(h)`, live.
+
+**Then queued behind M5.E18:** **M5.E15** (`B55`, the adherence control arm — blocks trusting any
+new adherence verdict) → **M5.E14** (tracker migration + the 48-entry inbox triage) → **M5.E10**
+(review hardening / claim integrity — the semantic half of M5.E16's question).
+
+**A sequencing note worth keeping, from the 2026-08-02 review of the bug record.** The last four
+releases were, by title, *the measurement foundation · guards that don't guard · instructions that
+contradict other instructions · STATE-vs-world drift detection* — **four consecutive bug-FINDING
+Epics.** The rising bug count is what looking harder produces, not decay: of 67 catalogued findings,
+**17 state in their own text that the defect pre-dated its discovery, and 2 were caused by a Signal
+change** (both P3, both fixed). What is *not* healthy is that no release has been a **closing** one,
+and `M5.E18`'s own capture says why — **`B63` is *"C1's class in the command next door"***, filed the
+day after `C1` was fixed. **Signal has been finding classes and fixing instances.** M5.E18 should fix
+by class and prove it by searching for siblings, and a stopping rule — *no new detector Epic while
+the verified-open count is high* — is the missing gate.
 
 ---
 
