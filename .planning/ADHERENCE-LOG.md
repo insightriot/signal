@@ -48,7 +48,7 @@ rewrites only between the `adherence:ceiling` markers, so this survives every re
 <!-- adherence:ceiling:begin -->
 ## The coverage ceiling
 
-**Computed:** 2026-08-02 · **Commit:** `85cc32e` · **Corpus:** 18 `commands/*.md` files
+**Computed:** 2026-08-02 · **Commit:** `6a32f34` · **Corpus:** 18 `commands/*.md` files
 
 This is the bound on everything the adherence harness can ever report. It is computed
 directly from the command corpus by `tools/lib/directive-classifier.js`, whose split

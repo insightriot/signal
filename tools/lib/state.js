@@ -545,8 +545,50 @@ export async function transitionPhase(baseDir, nextPhase) {
     // Refuse BEFORE any write, so a rejected transition leaves STATE.md
     // byte-identical rather than half-applied.
     await assertLeavingArtifactExists(baseDir, leaving, state);
-    return recordPhase(baseDir, { leaving, nextPhase });
+    const result = await recordPhase(baseDir, { leaving, nextPhase });
+    const index = await refreshPlanningIndexAfterTransition(baseDir);
+    return index ? { ...result, index } : result;
   });
+}
+
+/**
+ * Regenerate `.planning/INDEX.md` as part of a phase transition (M5.E16 FR5).
+ *
+ * **Why here and not in the command files.** `regeneratePlanningIndex` was
+ * called from `/sig:ship` §8 and `/sig:index`, and nowhere else — so the docs
+ * map was accurate at exactly the moment an Epic *finished*, and drifted through
+ * the entire span of work, which is when someone is actually re-orienting from
+ * it. All four projects surveyed on 2026-08-01 had a stale, missing or foreign
+ * `INDEX.md`, and `CLAUDE.md` tells every reader to *"read it first."*
+ *
+ * Putting the call in ten command files instead would be `B60`'s shape — an
+ * instruction stated in some files and silent in others — and this repo has been
+ * bitten twice by rules that lived only as prose (`B7`→`B58`, `B39`). Here it
+ * cannot be forgotten.
+ *
+ * **Three constraints, all load-bearing:**
+ *
+ * 1. Calls the **lock-free Core**. `regeneratePlanningIndex` self-locks on the
+ *    same `.state.lock` this function already holds; calling it would deadlock.
+ *    Same discipline `/sig:migrate-memory` follows with `evictEpicNarrative`.
+ * 2. **Dynamic import.** `planning-index.js` imports `withStateLock` from this
+ *    module, so a static import back would be a cycle.
+ * 3. **Never throws.** The phase record is load-bearing; the docs map is not. A
+ *    docs problem must not become a state-corruption problem.
+ *
+ * Compare-before-write means an unchanged doc set produces no write, no diff and
+ * no mtime churn — which is what makes running this on every transition free.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<{written: boolean}|null>} null if regeneration was impossible
+ */
+async function refreshPlanningIndexAfterTransition(baseDir) {
+  try {
+    const { regeneratePlanningIndexCore } = await import('./planning-index.js');
+    return await regeneratePlanningIndexCore(baseDir);
+  } catch {
+    return null;
+  }
 }
 
 // --- FR5: the phase log's trim rule (D-M5E9-6, D-M5E9-7) ---------------------
