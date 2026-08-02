@@ -29,6 +29,16 @@ last_updated: 2026-08-02T17:18:25.301Z
 
 ## Resume pointer
 
+**⚠ BEFORE OPENING M5.E18: RESTART THE CLI PROCESS.** `/sig:discuss --epic M5.E18` was attempted
+2026-08-02 and **halted before mutating anything** — the session had bound to plugin cache
+**`0.1.13`** while `installed_plugins.json` records `0.1.15` and the repo is at `0.1.16`. v0.1.13's
+`discuss.md` still carries the block **`B51` deleted** (*"Update `STATE.md`: `## Current Phase` /
+`PLAN`"*), which writes a permanent false `PLAN (date)` entry — `completed_phases` is append-only
+with no dedupe (`D-M5E9-5`), so a later correct run cannot undo it. **`B52`'s second live sighting,
+recorded in its row.** No `setCurrentEpic`, no `transitionPhase`, no artifacts were written. A
+context clear is **not** sufficient — plugin resolution is process-level. Verify the fix the way
+`B52` prescribes: after restarting, run any `/sig:` command and read the cache path it cites.
+
 **▶ No Epic open. NEXT IS `M5.E18` — unconditional, no trigger to wait on** (Brett, 2026-08-02:
 *"get past this document crap so all my projects can migrate and be healthy"*). Full scope in
 [`BACKLOG.md`](BACKLOG.md) § *"M5.E18 — The archive half, for the 8 projects out of 12 it does not
@@ -81,6 +91,13 @@ came back refuted, and it moves M5.E18's scope.**
 - **`B68` (P3)** — the detected Epic/linear mode is printed by nothing, so a non-strict project
   reads as Epic to a human and linear to Signal. The unimplemented third of `B53`'s fix shape,
   split out rather than buried in a row now marked `fixed`.
+
+**M5.E18's scope, decided 2026-08-02 (Brett):** **`B70` is absorbed as the Epic's first slice**,
+ahead of the archive planner. Two reasons, both recorded at the time: shipping the archive half for
+projects whose orientation commands throw is the second half of a door, and `B70` shares part 2's
+root question — `readState` validates neither `phase` nor closure, and the `B45` fix already
+established the answer shape (quarantine the off-enum value, surface it, never key on it). Deciding
+it once for both fields is why it is one Epic and not two.
 
 **Then queued behind M5.E18:** **M5.E15** (`B55`, the adherence control arm — blocks trusting any
 new adherence verdict) → **M5.E14** (tracker migration + the 48-entry inbox triage) → **M5.E10**
