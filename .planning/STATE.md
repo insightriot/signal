@@ -41,15 +41,44 @@ construction** — `planArchiveMoves` filters through `EPIC_ID_STRICT_RE`, `extr
 12 readable projects**, so **8 of 12 cannot archive at all.** This is the capability gap standing
 between the doc-runtime and "all my projects are healthy."
 
-**Do two cheap things first — both change what you'd decide inside M5.E18:**
-1. **Reconcile `BUGS.md`'s status column against the code** (fix lane, ~half a day). 26 rows read
-   `confirmed`; **`B42`, `B44`, `B45` and `B53` are verifiably fixed** — their fixes carry the bug
-   number in the comment beside them — and nobody flipped the status. The linear-mode rows are
-   exactly the stale ones, and M5.E18 is about linear projects, so entering it with a false ledger
-   would mis-scope it.
-2. **Fix `current_epic` in `traction-engine` (`"PHASE12"`) and `agent-tools-sync` (`"M1"`)**
-   (fix lane, minutes). Both fail `EPIC_ID_STRICT_RE`, so each project believes it is in Epic mode
-   while every resolver treats it as linear — M5.E16's check `(h)`, live.
+**Both pre-M5.E18 items are DONE (2026-08-02, fix lane). Read what they returned — the second one
+came back refuted, and it moves M5.E18's scope.**
+
+1. ✅ **`BUGS.md` status column reconciled against the code.** Not 4 stale rows — **17**. Eleven
+   were fixed and never flipped (`B39`, `B41`, `B42`, `B43`, `B44`, `B45`, `B48`, `B51`, `B53`,
+   `B54`, and `B36` from `needs-triage`); `B20` was mis-statused `dismissed` on a real, fixed bug;
+   five `needs-triage` rows triaged to `confirmed`, emptying that bucket. The framing above — *"the
+   linear-mode rows are exactly the stale ones"* — was half right: `B41`–`B45` are linear-mode, but
+   `B39`/`B48`/`B51`/`B53`/`B54` are M5.E13 rows and were equally stale. Every flip carries a
+   `file:line` or a test that fails if it regresses.
+2. ❌ **Do NOT "fix" `current_epic` in `traction-engine` or `agent-tools-sync` — the instruction was
+   wrong, and executing it would have broken both projects.** Measured, not reasoned:
+   `resolveArtifactPath(…, {currentEpic: null})` returns **`null`** for both, because every artifact
+   they own is named after the non-strict value — 19+ `PHASE1*-*.md` files and 6 `M1-*.md` files.
+   Nulling the field to make STATE "honest" makes all of them unresolvable. **The finding is better
+   than the fix: two projects independently used `current_epic` as an artifact-prefix field, and
+   Signal has no such field.** That is an M5.E18 design input, and changing the values now would
+   erase the evidence. (`B53`'s divergence itself is genuinely fixed — verified by execution: a
+   fresh write to `1-PLAN.md` is found first by Pattern W, so it no longer hides behind the stale
+   Epic-prefixed file.)
+
+**Three findings came out of measuring for step 2 — one of them outranks M5.E18's current framing:**
+
+- **`B70` (P1)** — **`/sig:status` and `/sig:resume` throw outright on 5 of 12 readable projects.**
+  `nextActionForPhase` rejects any `phase` outside the seven canonical names and **both commands
+  call it unwrapped**, so a hand-maintained project that parked narrative in the `phase:` scalar
+  gets no briefing at all. Nothing upstream stops it: `readState` does not validate `phase`, and
+  the frontmatter-shape guard only ever inspects `completed_phases`. Measured across the real
+  corpus: **7 ok · 5 crash · 1 `readState` throws**. M5.E16's table already recorded the input
+  (*"Canonical `phase`: 7 of 12"*) — nobody executed the consequence. **Same population as M5.E18,
+  and it should land with or before the archive work: shipping the archive half for projects whose
+  `/sig:resume` throws is the second half of a door.**
+- **`B69` (P3)** — the SHIP retro write-guard **throws** on a non-strict `current_epic` and the
+  hook swallows it. The fail-open is deliberate and correct; the silence is not. `B63`'s shape one
+  layer over, so it belongs with M5.E18's port of the four-status model.
+- **`B68` (P3)** — the detected Epic/linear mode is printed by nothing, so a non-strict project
+  reads as Epic to a human and linear to Signal. The unimplemented third of `B53`'s fix shape,
+  split out rather than buried in a row now marked `fixed`.
 
 **Then queued behind M5.E18:** **M5.E15** (`B55`, the adherence control arm — blocks trusting any
 new adherence verdict) → **M5.E14** (tracker migration + the 48-entry inbox triage) → **M5.E10**

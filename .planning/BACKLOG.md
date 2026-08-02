@@ -263,6 +263,36 @@ where the corpus is being re-measured anyway.
 a second, external doc tool alive to do the half Signal cannot — which is the exact
 two-tools-one-corpus state the doc-runtime flagship was built to end.
 
+**Scope inputs added 2026-08-02, from measuring the two pre-M5.E18 fix-lane items.** The second
+one (*"fix `current_epic` in `traction-engine` and `agent-tools-sync`"*) came back **refuted**, and
+what it returned instead is design input for this Epic:
+
+- **`current_epic` is being used as an artifact-prefix field, and Signal has no such field.**
+  Both projects name every artifact after their non-strict value (19+ `PHASE1*-*.md`, 6 `M1-*.md`),
+  and `resolveArtifactPath(…, {currentEpic: null})` returns **`null`** for both — so "make STATE
+  honest by nulling it" **loses** read resolution for every document they own. Signal's linear mode
+  assumes a `{N}-` numeric prefix or none; neither project matches, and neither is wrong. **An
+  archive planner for non-Epic units has to answer what the prefix is** before it can group
+  anything, and the answer is not in `current_epic`'s current contract.
+- **`B70` (P1) belongs here, and arguably ahead of part 1.** `/sig:status` and `/sig:resume`
+  **throw** on 5 of 12 readable projects — every one of them a hand-maintained linear project whose
+  `phase:` scalar holds narrative rather than one of the seven canonical names. Building the
+  archive half for a population that cannot run the two orientation commands is the second half of
+  a door. It also shares part 2's root question: `readState` validates neither `phase` nor closure,
+  and the `B45` fix already established the answer shape (quarantine the off-enum value, surface it,
+  do not key on it).
+- **`B69` (P3) folds into part 3.** The SHIP retro write-guard throws on a non-strict
+  `current_epic` and the hook swallows it — `could not evaluate` rendered as silence, which is
+  exactly the four-status model part 3 is porting.
+- **`B68` (P3), cheap, same corpus.** Nothing prints the detected Epic/linear mode, so these
+  projects read as Epic to a human and linear to every resolver. One `detectMode` call in each of
+  two renderers.
+
+**The stopping rule this Epic was given** (STATE.md, 2026-08-02): fix **by class**, and prove it by
+searching for siblings before closing. `B70` is what that discipline produced on its first
+application — `B45` quarantines an off-enum `completed_phases` entry, and nobody asked whether the
+`phase` scalar next to it had the same hole. It did, on five real projects.
+
 ### Add a "first use" step to `/sig:plan`
 **Tag:** hygiene · **Trigger: NONE — filed 2026-07-30 (Brett). Small; one instruction.**
 
