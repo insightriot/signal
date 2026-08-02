@@ -6,6 +6,34 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.16] — 2026-08-02 — STATE-vs-world drift detection (M5.E16)
+
+`/sig:sweep` gains six deterministic checks comparing what a project's `.planning/` **asserts** against what is on disk and in git. Each declares whether it needs a person or clears itself — and, crucially, the report distinguishes **"checked and clean"** from **"could not check"**.
+
+That distinction is the release. Measured across 13 real projects, the two checks aimed at the incident that opened this Epic can evaluate **2 of them**: Signal's own hand-maintained, Epic-mode, `schema_version: 1` shape is the *minority* shape. A detector printing nothing on the other 11 would read as *clean* when it never looked.
+
+### Added
+- **Six STATE-vs-world checks** in `/sig:sweep`, in their own report group: an Epic worked without a retrospective · a `last_updated_commit` that is not an ancestor of `HEAD` · a `PROFILE.md` the loader cannot read · a `current_epic` that is not a valid Epic ID · a `phase` behind the artifacts on disk · a body that never mentions the Epic its own frontmatter names.
+- **Heal categories.** Every check declares one, enforced by the constructor — *needs you*, or *clears the next time Signal writes STATE here*. A check that cannot name what clears it cannot be registered.
+- **`INDEX.md` regenerates at every phase transition**, not only at `/sig:ship`. Compare-before-write, so an unchanged doc set produces no diff. All four projects surveyed had a stale, missing or foreign index while `CLAUDE.md` told every reader to open it first.
+- **`/sig:update`** — installed vs. available version, **plus the CHANGELOG entries in between**, which is the half `/plugin` cannot show you. Updates only on confirmation, then states plainly that a restart is required (`B52`). Roster **18 → 19 commands**.
+- `tools/state-drift-probe.mjs` — runs the checks across many projects and prints the applicability table, so the coverage numbers are re-derivable rather than asserted.
+
+### Fixed
+- **`B59`** — Signal's own `M5.E16-PROFILE.md` carried **two** values outside their enums, so `readEffectiveProfile` threw and the Epic declaring FEATURE ran its whole DISCUSS at the project's FULL. Found at this Epic's own PLAN preamble — the first time any code read the file. Pinned by `tests/own-profiles-parse.test.js`.
+- **`(c)` reported "clean" on a project it could not see** — found at REVIEW, in shipped code. `traction-engine` has 19 phase artifacts and 0 retrospectives; the check declared itself unconditionally evaluable while keying detection to a strict `M{n}.E{n}` filename. **REVIEW returned FAIL and the Epic looped back to EXECUTE** rather than take the small-diff exit.
+
+### Notes
+- **`/sig:sweep` stays read-only** (**D-M5E16-1**). FR4 said *"Signal runs it"*; NFR2 said sweep never writes. Resolved in NFR2's favour: healing arrives at the phase transition and behind an explicit `--heal`. The recorded cost — **the command-healable bucket ships empty**, and a test asserts that emptiness.
+- **Two checks dropped, with reasons.** Orphan detection duplicates `detectOrphans`; the blockers check is **unvalidatable** — *zero of thirteen* real projects have a non-empty `blockers[]`, so FR2.1 cannot be satisfied for it even in principle.
+- **Precision, measured:** 13 projects, **5 findings, all true positives, 0 false positives**. NFR3: **+19 ms** against a 200 ms budget.
+- **Nyquist published honestly: 87 of 98 tests measured red-first**, not 98/98. Ten passed against their own pre-implementation baseline — 3 regression guards, 2 posture locks, 5 absence assertions that are vacuous by construction. Measuring rather than attesting is what surfaced it.
+- **`B60`** filed: six phase commands handle only *"PROFILE not found"* while four meta commands also handle a malformed one — 6 silent / 4 explicit. **`B61`** filed: a hand-edited numeric-looking `last_updated_commit` is YAML-coerced (Signal's own writers are safe; only hand-edited state is exposed).
+- Adherence ceiling regenerated: 429 directives, 90 trace-measurable (**21.0%**). It rose this time, because a new command names real library calls — the mirror of the three previous releases where clarifying an instruction lowered it.
+- `references/facts.md` test count corrected 894 → 1938. **`B56`'s guard half stays open** — nothing yet pins that number to the real suite.
+
+---
+
 ## [0.1.15] — 2026-08-01 — Instructions that contradict other instructions (M5.E17)
 
 Three Signal instructions disagreed with another Signal instruction, or with ratified practice. Nothing compares one instruction against another, so two documents can give an agent conflicting orders indefinitely and only a live run reveals it. Each fix ships with a test that pins one document against another.

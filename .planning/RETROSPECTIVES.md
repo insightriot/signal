@@ -2,6 +2,7 @@
 
 > Per-Epic retrospectives, indexed for fast scan. Status flag (*stub* / *complete*) is auto-derived from the presence of `[FILL IN]` markers in the retro file. Hook lines (after the second em-dash) are hand-curated — they survive regeneration by Epic ID.
 
+- [M5.E16](M5.E16-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M5.E13](M5.E13-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M5.E8](M5.E8-RETROSPECTIVE.md) — *complete* — the measurement foundation: can Signal prove an instruction changes what an agent does? First paired-arm verdict: canary `B41-phase-entry` **OBEYED** (3/3 as-written vs 0/3 with the instruction deleted, N=3 — clean, not deep). The honest ceiling is published: **91 of 407 directives (22.4%) are trace-measurable; the other 77.6% are unmeasured, not passing.** Every defect the Epic found was in the measuring instrument, and every one produced a plausible-looking result rather than an error. An agent **correctly refused** an unconditional `execute.md` instruction rather than write a false record — now `B48`. Named the class Signal keeps re-committing: *a guard written, shipped, and never called* (`B39`, `B46`, I2). Lesson shipped as code: *generate scope, never remember it* (`buildCaveats()`). **This index row was itself the class's fourth sighting** — the regen is Epic-close-gated, the gate skipped (B36, third sighting), and the row was missing until 2026-07-28.
 - [M5.E9](M5.E9-RETROSPECTIVE.md) — *complete* — _(hook pending)_

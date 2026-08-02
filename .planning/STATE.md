@@ -1,7 +1,7 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: REVIEW
+phase: SHIP
 current_epic: M5.E16
 current_wave: null
 current_tasks: []
@@ -13,6 +13,8 @@ completed_phases:
   - REVIEW (2026-08-02)
   - EXECUTE (2026-08-02)
   - VERIFY (2026-08-02)
+  - REVIEW (2026-08-02)
+  - SHIP (2026-08-02)
 blockers: []
 last_completed_task:
   id: M5.E16.S1
@@ -21,25 +23,63 @@ last_completed_task:
   completedAt: 2026-08-02T00:20:21.679Z
 last_decision_at: 2026-08-02T00:20:21.679Z
 last_updated_commit: c5d267b
-last_updated: 2026-08-02T13:44:36.274Z
+last_updated: 2026-08-02T14:06:11.440Z
 ---
 # Project State
 
 ## Resume pointer
 
-**▶ ACTIVE: M5.E16 — STATE-vs-world drift detection. DISCUSS, opened 2026-08-01.** Target v0.1.16.
-`/sig:sweep` gains deterministic checks comparing what STATE.md **asserts** against what is on disk
-and in git. **20 of 56 catalogued bugs are STATE-related (36%)** — the largest cluster — and nothing
-verifies any STATE field except `last_updated_commit`. **This one ships as a capability for the
-invoking project, not as Signal hygiene**; that reframe is the point, and it retires M5.E16's prior
-"detectors for Signal's own guard class" framing (both original homes moved: `B39` fixed in M5.E13,
-`B46` → M5.E14). Requirements: `M5.E16-REQUIREMENTS.md` · Profile: FEATURE, **`nyquist: strict`**
-because precision — not recall — is the deliverable.
+**▶ No Epic open.** M5.E16 shipped as **v0.1.16** on 2026-08-02. Next candidates, in the order the
+evidence argues for: **M5.E15** (`B55`, the adherence control arm — blocks any new adherence verdict
+being trusted) → **M5.E14** (tracker migration + the 48-entry inbox triage cut from M5.E17) →
+**M5.E10** (review hardening / claim integrity — the semantic half of M5.E16's question).
 
-**The live instance that opened it, from this repo, 2026-07-31:** frontmatter read
-`current_epic: M5.E17`, while the body's *"Next candidates"* list named M5.E15 / M5.E16 / M5.E10 and
-**omitted M5.E17 entirely**. `/sig:resume` read both halves and flagged neither. *The data moved, the
-prose did not, and the command whose only job is orientation read straight past it.*
+---
+
+**v0.1.16 — M5.E16, "what `.planning/` asserts vs. what is on disk" — ✅ SHIPPED 2026-08-02.**
+`/sig:sweep` gained six deterministic STATE-vs-world checks, each declaring whether it **needs a
+person** or **clears itself**. 1836 → **1938 tests**. 18 → **19 commands**. Decisions
+**D-M5E16-1…5**. Retro: [`M5.E16-RETROSPECTIVE.md`](M5.E16-RETROSPECTIVE.md).
+
+**The number that shaped the release.** Measured across **13 real `.planning/` projects**: the two
+checks aimed at the incident that opened this Epic can evaluate **2 of them**. Signal's own
+hand-maintained, Epic-mode, `schema_version: 1` shape is the **minority** shape — 4 of 12 readable
+projects are Epic-mode, 7 of 12 have a canonical `phase`, and `readState` **throws** on one outright.
+A detector printing nothing on the other 11 would read as *clean* when it never looked, which is
+`B39`'s shape and `B54`'s. So the report separates **"checked and clean"** from **"could not
+check,"** and `(h)` — a check found only by measuring — reports *why* the others cannot see.
+
+- **Six ship, two dropped with reasons.** Orphan detection duplicates `detectOrphans`; the blockers
+  check is **unvalidatable** — *zero of thirteen* real projects have a non-empty `blockers[]`.
+- **Precision measured, not asserted:** 13 projects, **5 findings, all true positives, 0 false
+  positives**. NFR3 **+19 ms** against a 200 ms budget.
+- **Also shipped:** `INDEX.md` regenerates at **every phase transition** (was: only at ship), and
+  **`/sig:update`** — installed vs. available *plus the CHANGELOG delta*, the half `/plugin` cannot
+  show you.
+- **`D-M5E16-1`:** FR4 said *"Signal runs it"*, NFR2 said sweep never writes. Resolved in NFR2's
+  favour, and the recorded cost is that **the command-healable bucket ships empty** — asserted by a
+  test.
+
+**Two defects in the Epic's own work, both found by reading documents against each other:**
+
+- **`B59`** — `M5.E16-PROFILE.md` carried **two** out-of-enum values, so `readEffectiveProfile`
+  threw and **the Epic declaring FEATURE ran its whole DISCUSS at the project's FULL.** Found at its
+  own PLAN preamble, the first time any code read the file. Fixed and pinned.
+- **`C1` at REVIEW** — check `(c)` reported **"clean"** on `traction-engine` (19 phase artifacts, 0
+  retrospectives) because it declared itself unconditionally evaluable while keying detection to a
+  strict filename. **REVIEW returned FAIL and the Epic looped back to EXECUTE**, rather than take the
+  small-diff exit `D-M5E17-1` explicitly warns about. The fix then introduced a *false positive*,
+  which FR2.1's re-measure requirement caught inside the same loop.
+
+**The sentence worth carrying forward:** *check `(a)` had zero live hits and fixture-only evidence
+until the REVIEW→EXECUTE loop-back moved the recorded phase backwards past an artifact that already
+existed — so the Epic's own process produced the first field instance of the drift its own check was
+built to detect.*
+
+**Published honestly rather than rounded:** Nyquist **87 of 98 red-first**, not 98/98 — measuring the
+baseline rather than attesting to it is what surfaced the ten that could not have failed. New:
+**`B60`** (P2, six phase commands have no branch for a malformed PROFILE while four meta commands
+do), **`B61`** (P3, hand-edited numeric-looking `last_updated_commit` is YAML-coerced).
 
 ---
 
@@ -107,78 +147,13 @@ Three documents corrected, each pinned by a test comparing one document against 
 
 ## In-flight
 
-**M5.E16 is in PLAN** (opened 2026-08-01, target v0.1.16). Plan, research and validation written;
-no tasks started. Next command: `/sig:execute`.
+**Nothing.** M5.E16 closed 2026-08-02.
 
-**PLAN's first step found `B59` and stopped for it.** The tier-gating preamble was the first time any
-code read `M5.E16-PROFILE.md`, and it **threw**: two values outside their enums (`stakes: moderate`,
-valid only for `reversibility`; `reversibility: easy`, valid nowhere). `readEffectiveProfile` fails
-open, so **the Epic that declares FEATURE ran the whole of DISCUSS at the project's FULL** and every
-override the file existed to set was inert. Written by hand in `18741a8` — the same commit as the
-DISCUSS it was meant to govern. Fixed in the fix lane (PR #6) and pinned by
-`tests/own-profiles-parse.test.js`; `B60` filed for the ten command files that handle *"PROFILE not
-found"* and say nothing about a malformed one — **6 silent / 4 explicit**, and the six that are
-silent are the six that consume the tier to set rigor.
-
-**Research was replaced by measurement** (`research_parallelism: 0`, and there was nothing to read).
-The candidate checks were prototyped against **13 real `.planning/` projects** on this machine —
-FR2.1 asked for one. Results in `M5.E16-RESEARCH.md`:
-
-- **6 checks ship, 2 are dropped with written reasons.** `(e)` duplicates `detectOrphans`; **`(f)`
-  cannot be validated at all — zero of thirteen projects have a non-empty `blockers[]`.**
-- **Two checks were added.** `(g)` PROFILE-parses (Brett's call). **`(h)` — `current_epic` set but
-  not a strict Epic ID — was found by measuring**, fires on `agent-tools-sync` (`"M1"`) and
-  `traction-engine` (`"PHASE12"`), and is **`B53`'s class live in the field** on half the Epic-mode
-  corpus.
-- **Check `(b)` is proven against real history**, not a fixture: red at `4421105` / `137b9ca` /
-  `8acd1d2` — the three commits spanning the drift that opened this Epic — and green at `18741a8`,
-  the commit that repaired it.
-- **The number that shapes the plan: checks `(a)` and `(b)`, the two aimed at the originating
-  incident, can evaluate 2 of 13 projects.** Signal's own shape is the *minority* shape — 4 of 12
-  readable projects are Epic-mode, 7 of 12 have a canonical `phase`, and `readState` **throws** on
-  one outright. A sweep that prints nothing there reads as *clean* when it never looked, which is
-  `B39`'s and `B54`'s shape. **The report must distinguish checked-clean from could-not-check**, and
-  the coverage numbers get published the way M5.E8 published its 22.4% ceiling.
-
-Decisions **D-M5E16-1 … 5**. `/sig:sweep` **stays read-only** — FR4 ("Signal runs it") contradicted
-NFR2 ("no writes"), Brett resolved it in NFR2's favour, and healing moved to FR5's phase-transition
-regeneration plus an opt-in `--heal`. Validation found **AC4.3 had no owner** and added `S4.t4`.
-
-**Scope, after the 2026-08-01 additions — six FRs, and FR4 is the load-bearing one:**
-- **FR1** six deterministic STATE-vs-world checks in `/sig:sweep` · **FR2** precision discipline
-  (validate on a real non-Signal project; a false-positive check is **removed**, not tuned quiet)
-- **FR3** do findings also surface at `/sig:resume`? — PLAN decides with a reason
-- **FR4 — every check declares a heal path.** *Measured 2026-08-01 across four real projects: 16
-  structural findings, and **15 should never have reached a person** (11 false alarms, 3
-  self-healing, 1 one-command-fixable). Detect-only would have manufactured 15 chores.* Three
-  categories: self-healing → report as reassurance; command-healable → **Signal runs it**;
-  needs-a-person → **the only category allowed to interrupt.** A check that cannot state its
-  category does not ship.
-- **FR5** `INDEX.md` regenerates at **every phase transition**, not only SHIP (Brett, 2026-08-01).
-  Session-start regeneration rejected: no Signal hook writes anything today, and that line holds.
-- **FR6 — `/sig:update`.** Reports installed vs available, **shows the CHANGELOG delta** (the half
-  `/plugin` cannot do), updates on confirm, then **states that a restart is required** — `B52`, and
-  Brett wants the timing to be his. Feasibility confirmed, not assumed: `claude plugin update` /
-  `marketplace update` / `list` all exist. Fully separable — **if the Epic does not slice cleanly,
-  FR6 becomes its own Epic rather than dropping requirements.**
-
-**Open questions carried into PLAN** (all three stated in `M5.E16-REQUIREMENTS.md`):
-1. Do STATE findings also surface at `/sig:resume`, and at what banner cost? A detector nobody runs
-   is `B39` in a new costume; resume's briefing is capped at 50 lines. **Decide with a reason.**
-2. Which of the six checks ship — (d) and (e) already have partial coverage via `isStateStale` /
-   `detectOrphans`; overlapping findings are their own kind of noise.
-3. What counts as "the body mentions `{Epic}`" for check (b) — highest false-positive risk of the
-   six, and the most likely to be killed by FR2.2.
-
-**Queued behind it, in the order the evidence argues for:**
-- **M5.E15** — `B55`, the control arm made real. Blocks any new adherence verdict being trusted. **Standing prohibition: do not re-run a canary for a cleaner number before the arm is fixed.**
-- **M5.E14** — tracker migration **plus** the 48-entry inbox triage cut from M5.E17 (`D-M5E17-3`). The
-  deeper problem is the capture *channel*: the findings that reached the backlog (`B42`, `B53`, `B48`)
-  all arrived incidentally, from someone reading an artifact. Day-to-day hand-corrections never
-  become entries at all.
-- **M5.E10** — review hardening / claim integrity. The judge-based, semantic half of M5.E16's
-  question (claims-vs-artifacts, the traction-engine Phase 11 evidence) lands here — **after** the
-  deterministic checks, not with them.
+**Carried from M5.E16's retro, unhomed:** `review_depth: quality-only` silently disables
+`simplification_pass`, and `M5.E16-PROFILE.md`'s prose claimed the dial anyway — so the profile
+asserted rigor it did not receive for the whole Epic. That is `B59`'s shape one level up (`B59` was a
+profile the code could not *parse*; this is one it parses and then overrides). Detecting it is a
+prose-vs-precedence comparison — **M5.E10's semantic territory**, not M5.E16's deterministic one.
 
 ## Blockers
 
