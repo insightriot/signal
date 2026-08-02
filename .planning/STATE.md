@@ -65,9 +65,11 @@ came back refuted, and it moves M5.E18's scope.**
 **Three findings came out of measuring for step 2 — one of them outranks M5.E18's current framing:**
 
 - **`B70` (P1)** — **`/sig:status` and `/sig:resume` throw outright on 5 of 12 readable projects.**
-  `nextActionForPhase` rejects any `phase` outside the seven canonical names and **both commands
-  call it unwrapped**, so a hand-maintained project that parked narrative in the `phase:` scalar
-  gets no briefing at all. Nothing upstream stops it: `readState` does not validate `phase`, and
+  `nextActionForPhase` rejects any `phase` outside the seven canonical names, and it is **the one
+  call in either command that nobody marked fail-open** — every neighbouring optional read is.
+  So a hand-maintained project that parked narrative in the `phase:` scalar loses its
+  next-action step with nothing telling the agent to continue without it. (The throw is
+  measured; the user-facing consequence is read from the command files, not run.) Nothing upstream stops it: `readState` does not validate `phase`, and
   the frontmatter-shape guard only ever inspects `completed_phases`. Measured across the real
   corpus: **7 ok · 5 crash · 1 `readState` throws**. M5.E16's table already recorded the input
   (*"Canonical `phase`: 7 of 12"*) — nobody executed the consequence. **Same population as M5.E18,
