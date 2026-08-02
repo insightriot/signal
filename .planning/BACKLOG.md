@@ -216,6 +216,53 @@ registry here first, or knowingly duplicate it there.
 **Cost of leaving it:** the guard class keeps being discovered one instance at a time, by
 accident, which is the mechanism this whole line of work exists to replace.
 
+### M5.E18 — The archive half, for the 8 projects out of 12 it does not reach
+**Tag:** roadmap · **Trigger: NONE — unconditional next for doc-health (Brett, 2026-08-02:
+*"get past this document crap so all my projects can migrate and be healthy"*).**
+
+*(`M5.E18` was reserved as M5.E16's contingent split target for `/sig:update` and released
+unused — `M5.E16-PROGRESS.md:210`, "It did **not** need to split to M5.E18." The ID is free.)*
+
+**The measurement that sequences this above everything else in doc-health.** M5.E16's own
+research walked 13 real `.planning/` trees: **Epic mode is 4 of 12 readable projects**
+(`M5.E16-RESEARCH.md:55` — *"Signal's own shape is the minority shape"*). Both of Signal's
+archive paths are Epic-gated **by construction**, not by omission:
+
+- `planArchiveMoves` filters its input through `EPIC_ID_STRICT_RE` and only matches
+  `.planning/{epicId}-{suffix}.md` (`archive-tree.js:96-110`).
+- `extractEpicSection` rejects any non-strict ID (`evict.js:175`); `deriveEpicArchiveDir`
+  throws on one (`:243`).
+
+So the de-prose, stamp, `BACKLOG`-create and v3-rename halves of `/sig:migrate-memory` work
+everywhere, and **the halves that actually stop `.planning/` from growing forever reach a
+third of the corpus.** That is the whole reason nextpass still runs Curator: reported
+2026-08-02, with the citations checked — *"`reconcile --apply`'s move half has no Signal
+equivalent for linear slices … so the move stays curator's until Signal's built-in covers
+linear work."* Their conclusion is correct.
+
+**This is `B42`'s shape one layer over** — a documented mode that a whole subsystem silently
+does not serve, invisible because Signal-on-Signal has been Epic-mode since M4.5.E11.
+
+**Three parts, one design:**
+1. **An archive planner for non-Epic units** — what Curator's `reconcile --apply` does today.
+2. **Real closure verification, folding in `B64`.** Do not sequence that bug separately:
+   Signal currently proves *closed* by a retro **file existing** and throws away the `isStub`
+   flag it already computed, so whatever verifies closure for linear slices is the same
+   verification Epic mode is missing. nextpass named the failure precisely — *"a label, not a
+   guard."*
+3. **Port M5.E16's four-status model into the migrate's dry-run** (`B63`), so `0` stops
+   meaning both *could not look* and *checked and clean*.
+
+**Related, already recorded and deliberately not fixed:** M5.E16 REVIEW-2 `S3` — check `(c)`'s
+applicability probe misses the unprefixed `RETROSPECTIVE.md` that linear projects write
+(`M5.E16-REVIEW-2.md:70-84`). Left alone there because it fails **safe** (`not-applicable`,
+never a false clean). Same root — linear projects name things differently — so fold it in here
+where the corpus is being re-measured anyway.
+
+**Cost of leaving it:** every non-Epic project either grows `.planning/` without bound or keeps
+a second, external doc tool alive to do the half Signal cannot — which is the exact
+two-tools-one-corpus state the doc-runtime flagship was built to end.
+
 ### Add a "first use" step to `/sig:plan`
 **Tag:** hygiene · **Trigger: NONE — filed 2026-07-30 (Brett). Small; one instruction.**
 
