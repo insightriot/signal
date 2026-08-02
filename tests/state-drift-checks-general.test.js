@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -40,7 +41,7 @@ const STATE = (over = {}) => {
     completed_phases: '[]',
     blockers: '[]',
     last_completed_task: null,
-    last_updated_commit: 'abc1234',
+    last_updated_commit: "'abc1234'",
     last_updated: '2026-08-02T00:00:00.000Z',
     ...over,
   };
@@ -115,6 +116,10 @@ describe('M5.E16 S2.t1 — (c) an Epic was worked and never retrospected', () =>
       'STATE.md': STATE(),
       'M5.E17-PLAN.md': '# plan',
       'M5.E17-REQUIREMENTS.md': '# reqs',
+      // The project must USE retrospectives for the check to apply at all —
+      // otherwise it is a convention difference, not drift (C1 fix).
+      'M5.E13-PLAN.md': '# plan',
+      'M5.E13-RETROSPECTIVE.md': '# retro',
     });
     try {
       const r = await statusOf(dir, checkEpicWithoutRetro);
@@ -139,7 +144,12 @@ describe('M5.E16 S2.t1 — (c) an Epic was worked and never retrospected', () =>
   });
 
   it('GREEN: the CURRENT Epic is mid-flight, not un-retrospected', async () => {
-    const dir = await makeProject({ 'STATE.md': STATE(), 'M5.E16-PLAN.md': '# plan' });
+    const dir = await makeProject({
+      'STATE.md': STATE(),
+      'M5.E16-PLAN.md': '# plan',
+      'M5.E13-PLAN.md': '# plan',
+      'M5.E13-RETROSPECTIVE.md': '# retro',
+    });
     try {
       expect((await statusOf(dir, checkEpicWithoutRetro)).status).toBe(STATUS.CLEAN);
     } finally {
@@ -150,7 +160,12 @@ describe('M5.E16 S2.t1 — (c) an Epic was worked and never retrospected', () =>
   it('GREEN: requirements alone are not "worked" — an Epic can be opened and parked', async () => {
     // DISCUSS-only artifacts mean the Epic was scoped, not executed. Firing here
     // would manufacture a chore for every parked idea, which is FR2's failure.
-    const dir = await makeProject({ 'STATE.md': STATE(), 'M5.E14-REQUIREMENTS.md': '# reqs' });
+    const dir = await makeProject({
+      'STATE.md': STATE(),
+      'M5.E14-REQUIREMENTS.md': '# reqs',
+      'M5.E13-PLAN.md': '# plan',
+      'M5.E13-RETROSPECTIVE.md': '# retro',
+    });
     try {
       expect((await statusOf(dir, checkEpicWithoutRetro)).status).toBe(STATUS.CLEAN);
     } finally {
@@ -160,6 +175,97 @@ describe('M5.E16 S2.t1 — (c) an Epic was worked and never retrospected', () =>
 
   it('needs a person — nobody else knows whether the Epic was finished or abandoned', () => {
     expect(checkEpicWithoutRetro.healCategory).toBe(HEAL.NEEDS_A_PERSON);
+  });
+});
+
+describe('M5.E16 C1 (REVIEW) — (c) must not report clean on a project it cannot see', () => {
+  // The Critical found at REVIEW. `checkEpicWithoutRetro` declared
+  // `applicability: () => EVAL` unconditionally while keying detection to a
+  // STRICT M{n}.E{n} filename. traction-engine names artifacts PHASE10-PLAN.md:
+  // 19 phase artifacts, 0 retrospectives, and the check reported CLEAN.
+  //
+  // That is the collapse this module's own header says it exists to make
+  // impossible. These fixtures use traction-engine's real naming.
+
+  it('RED: a non-strict prefix with no retro anywhere is NOT reported clean', async () => {
+    const dir = await makeProject({
+      'STATE.md': STATE({ current_epic: 'PHASE12' }),
+      'PHASE10-PLAN.md': '# plan',
+      'PHASE10-REVIEW.md': '# review',
+      'PHASE11-VERIFICATION.md': '# verification',
+    });
+    try {
+      const r = await statusOf(dir, checkEpicWithoutRetro);
+      expect(r.status).not.toBe(STATUS.CLEAN);
+      expect(r.status).toBe(STATUS.NOT_APPLICABLE);
+      expect(r.reason).toMatch(/retrospective/i);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('a non-strict prefix IS seen once the project uses retrospectives at all', async () => {
+    // The project has the convention; one unit is missing its retro. That is
+    // real drift, and the prefix shape must not hide it.
+    const dir = await makeProject({
+      'STATE.md': STATE({ current_epic: 'PHASE12' }),
+      'PHASE10-PLAN.md': '# plan',
+      'PHASE10-RETROSPECTIVE.md': '# retro',
+      'PHASE11-PLAN.md': '# plan',
+    });
+    try {
+      const r = await statusOf(dir, checkEpicWithoutRetro);
+      expect(r.status).toBe(STATUS.FINDINGS);
+      expect(r.findings.map((f) => f.message).join()).toMatch(/PHASE11/);
+      expect(r.findings.map((f) => f.message).join()).not.toMatch(/PHASE10/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('a project with no retrospectives at all is not-applicable, never clean', async () => {
+    // A project that does not use retrospectives has a DIFFERENT CONVENTION,
+    // not drift. Flagging all 19 would be telling them their process is wrong.
+    // This is a structural narrowing — a categorical property of the project —
+    // not a threshold, which FR2.2 forbids.
+    const dir = await makeProject({
+      'STATE.md': STATE(),
+      'M5.E17-PLAN.md': '# plan',
+    });
+    try {
+      const r = await statusOf(dir, checkEpicWithoutRetro);
+      expect(r.status).toBe(STATUS.NOT_APPLICABLE);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('a phase-named prefix is not a unit of work — conversor has EXECUTE-PROGRESS.md', async () => {
+    // `resolveArtifactPath` pattern 3 is the literal-substitution form
+    // `{PHASE}-{ARTIFACT}.md`, so a linear-mode project legitimately has
+    // EXECUTE-PROGRESS.md. Broadening the prefix for C1 made that read as an
+    // un-retrospected unit named "EXECUTE". Found by RE-MEASURING the corpus
+    // after the fix, not by reasoning about it.
+    const dir = await makeProject({
+      'STATE.md': STATE({ current_epic: null }),
+      'EXECUTE-PROGRESS.md': '# progress',
+      'PLAN-PLAN.md': '# plan',
+      'M2.9.E1-PLAN.md': '# plan',
+      'M2.9.E1-RETROSPECTIVE.md': '# retro',
+    });
+    try {
+      const r = await statusOf(dir, checkEpicWithoutRetro);
+      expect(r.status).toBe(STATUS.CLEAN);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('the real traction-engine is not-applicable, not clean', async () => {
+    const dir = '/Users/macstudio/dev-biz/traction-engine';
+    if (!existsSync(dir)) return; // corpus not on this machine
+    const r = await statusOf(dir, checkEpicWithoutRetro);
+    expect(r.status).not.toBe(STATUS.CLEAN);
   });
 });
 
@@ -174,7 +280,7 @@ describe('M5.E16 S2.t2 — (d) the STATE baseline commit is not in this history'
     git(dir, 'add', '-A');
     git(dir, 'commit', '-q', '-m', 'one');
     const head = git(dir, 'rev-parse', '--short', 'HEAD');
-    await writeFile(join(dir, '.planning', 'STATE.md'), STATE({ last_updated_commit: lastUpdatedCommit ?? head }));
+    await writeFile(join(dir, '.planning', 'STATE.md'), STATE({ last_updated_commit: `'${lastUpdatedCommit ?? head}'` }));
     git(dir, 'add', '-A');
     git(dir, 'commit', '-q', '-m', 'state');
     return dir;
@@ -191,7 +297,11 @@ describe('M5.E16 S2.t2 — (d) the STATE baseline commit is not in this history'
       git(dir, 'commit', '-q', '-m', 'orphan');
       const orphan = git(dir, 'rev-parse', '--short', 'HEAD');
       git(dir, 'reset', '-q', '--hard', base);
-      await writeFile(join(dir, '.planning', 'STATE.md'), STATE({ last_updated_commit: orphan }));
+      // QUOTED. Unquoted, a numeric-looking short sha is type-coerced by the YAML
+      // reader — `0012345` -> 12345, `1e23456` -> Infinity — which made this test
+      // flake at ~1-in-10. Signal's own writer quotes these correctly; only this
+      // hand-written fixture did not. (M5.E16 REVIEW loop.)
+      await writeFile(join(dir, '.planning', 'STATE.md'), STATE({ last_updated_commit: `'${orphan}'` }));
 
       const r = await statusOf(dir, checkBaselineCommitOffHistory);
       expect(r.status).toBe(STATUS.FINDINGS);
@@ -230,7 +340,11 @@ describe('M5.E16 S2.t2 — (d) the STATE baseline commit is not in this history'
       git(dir, 'commit', '-q', '-m', 'orphan');
       const orphan = git(dir, 'rev-parse', '--short', 'HEAD');
       git(dir, 'reset', '-q', '--hard', base);
-      await writeFile(join(dir, '.planning', 'STATE.md'), STATE({ last_updated_commit: orphan }));
+      // QUOTED. Unquoted, a numeric-looking short sha is type-coerced by the YAML
+      // reader — `0012345` -> 12345, `1e23456` -> Infinity — which made this test
+      // flake at ~1-in-10. Signal's own writer quotes these correctly; only this
+      // hand-written fixture did not. (M5.E16 REVIEW loop.)
+      await writeFile(join(dir, '.planning', 'STATE.md'), STATE({ last_updated_commit: `'${orphan}'` }));
 
       expect((await statusOf(dir, checkBaselineCommitOffHistory)).status).toBe(STATUS.FINDINGS);
 

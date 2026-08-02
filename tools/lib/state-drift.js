@@ -410,10 +410,18 @@ export function renderDriftReport(report) {
 // shape first (c, d, g — 12/12, 8/8 and 12/12 applicable), then the Epic-mode
 // three (h, a, b) which the corpus can only exercise on 2 of 13.
 
-const EPIC_ID_IN_FILENAME = /^(M\d+(?:\.\d+)?\.E\d+)-(PLAN|PROGRESS|VERIFICATION|REVIEW)\.md$/;
+// ANY prefix, not only a strict Epic ID (M5.E16 REVIEW, `C1`).
+//
+// The first version of this anchored on `M{n}.E{n}` — Signal's own convention —
+// while declaring itself unconditionally evaluable. Against `traction-engine`,
+// which names artifacts `PHASE10-PLAN.md`, it matched nothing, returned no
+// findings, and reported **clean** for a project with 19 phase artifacts and 0
+// retrospectives. A confident wrong answer on the one project shape this Epic's
+// own research had already identified as most divergent.
+const WORKED_UNIT_IN_FILENAME = /^(.+?)-(PLAN|PROGRESS|VERIFICATION|REVIEW)\.md$/;
 
 /**
- * (c) An Epic was worked and never retrospected.
+ * (c) A unit of work was executed and never retrospected.
  *
  * Keyed off artifacts on disk, NOT off `completed_phases` containing `SHIP` as
  * FR1.1 originally specified. The requirement's version does not fire on the one
@@ -423,28 +431,54 @@ const EPIC_ID_IN_FILENAME = /^(M\d+(?:\.\d+)?\.E\d+)-(PLAN|PROGRESS|VERIFICATION
  * from the artifact.
  *
  * "Worked" deliberately means a PLAN/PROGRESS/VERIFICATION/REVIEW artifact, not
- * a REQUIREMENTS one: an Epic can be scoped and parked, and firing on that would
+ * a REQUIREMENTS one: a unit can be scoped and parked, and firing on that would
  * manufacture a chore for every idea anyone ever wrote down — FR2's failure mode.
+ *
+ * **Not applicable when the project has NO retrospectives at all.** A project
+ * that does not use retrospectives has a *different convention*, not drift, and
+ * flagging all nineteen of `traction-engine`'s units would be telling its author
+ * their process is wrong. This is a **structural narrowing** — a categorical
+ * property of the project, checked once — and not a threshold, which FR2.2
+ * forbids. The distinction matters: a threshold hides findings by degree, a
+ * categorical precondition declares the check inapplicable and says so.
  */
 export const checkEpicWithoutRetro = defineCheck({
   id: 'epic-without-retro',
-  describe: 'an Epic with phase artifacts on disk and no retrospective',
+  describe: 'a unit with phase artifacts on disk and no retrospective',
   healCategory: HEAL.NEEDS_A_PERSON,
-  applicability: () => APPLICABILITY.EVAL,
+  applicability: ({ files }) =>
+    files.some((f) => f.endsWith('-RETROSPECTIVE.md'))
+      ? APPLICABILITY.EVAL
+      : {
+          status: APPLICABILITY.NA,
+          reason:
+            'this project has no retrospectives at all — a different convention, not drift. ' +
+            'The check has nothing to compare against.',
+        },
   run: ({ files, state }) => {
     const worked = new Set();
     for (const f of files) {
-      const m = f.match(EPIC_ID_IN_FILENAME);
-      if (m) worked.add(m[1]);
+      const m = f.match(WORKED_UNIT_IN_FILENAME);
+      if (!m) continue;
+      // A PHASE NAME is not a unit of work. `resolveArtifactPath` pattern 3 is
+      // the literal-substitution form `{PHASE}-{ARTIFACT}.md`, so a linear-mode
+      // project legitimately has `EXECUTE-PROGRESS.md` — and `conversor` does.
+      // Broadening the prefix in the C1 fix made that look like an
+      // un-retrospected unit called "EXECUTE". Excluding the seven phase names
+      // is CATEGORICAL (a closed, enumerated set), not a threshold — FR2.2
+      // forbids the latter, and this was caught by re-measuring the corpus
+      // rather than by reasoning about it.
+      if (PHASES.includes(m[1])) continue;
+      worked.add(m[1]);
     }
     const findings = [];
-    for (const epic of [...worked].sort()) {
-      if (epic === state.current_epic) continue; // mid-flight, not abandoned
-      if (files.includes(`${epic}-RETROSPECTIVE.md`)) continue;
+    for (const unit of [...worked].sort()) {
+      if (unit === state.current_epic) continue; // mid-flight, not abandoned
+      if (files.includes(`${unit}-RETROSPECTIVE.md`)) continue;
       findings.push({
-        file: `${PLANNING_DIR}/${epic}-RETROSPECTIVE.md`,
+        file: `${PLANNING_DIR}/${unit}-RETROSPECTIVE.md`,
         message:
-          `${epic} has phase artifacts on disk but no retrospective — it was either ` +
+          `${unit} has phase artifacts on disk but no retrospective — it was either ` +
           'finished without one, or abandoned. Only you know which.',
       });
     }
