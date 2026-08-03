@@ -986,3 +986,115 @@ rule: **if S1–S5 overrun, S6 becomes M5.E18 intact — it is never trimmed to 
 
 `M5.E16-VALIDATION.md` Dimension 1 records that S6 **does not serve the phase goal**. Carrying it is
 a deliberate choice, flagged rather than rationalised into alignment.
+
+## 2026-08-03 — M5.E18 DISCUSS: the archive half for linear projects (D-M5E18-1 … D-M5E18-5)
+
+**D-M5E18-1 — M5.E18 opens after M5.E16 and M5.E17, and the queue that said otherwise was stale.**
+
+Out-of-order by ID, deliberate, and legal under `## Vocabulary`'s ID-is-identity rule — same
+precedent as **D-M5E9-2** (*"E9 runs before E8 — deliberate, not drift"*) and **D-M5E13-1**.
+Recorded because without it the next reader sees drift.
+
+**What made the call.** `/sig:resume` reported M5.E15 as next, sourcing `CONTEXT.md`'s queue. That
+queue was written in **PR #19** (the v0.1.16 ship). `BACKLOG.md`'s M5.E18 entry landed in **PR #21**
+and was updated in **#24** — both after — and carries a Brett quote dated 2026-08-02, *"get past
+this document crap so all my projects can migrate and be healthy,"* marked **unconditional next for
+doc-health**. `CONTEXT.md` was the stale document, and the briefing repeated its ordering without
+checking it against the newer file.
+
+Two facts decided it against M5.E15: **M5.E15's own trigger is `NONE — fires on the next adherence
+claim`** and no adherence claim is pending, while **M5.E18 carries `B70`, a P1** that makes
+`/sig:status` and `/sig:resume` throw on 5 of 12 real projects. M5.E15's standing prohibition
+survives untouched — **no canary re-run for a cleaner number until its control arm is fixed.**
+
+**The `CONTEXT.md` staleness is itself the finding.** That file was rewritten whole at v0.1.16 *for
+being seven Epics stale*, and was stale again within two PRs — because the queue lives in two places
+and only one of them is the one people edit. Noted here; not fixed here.
+
+**D-M5E18-2 — A unit of work is derived from its filenames, not declared in a field.**
+
+The archive planner groups `.planning/*.md` by matching **known artifact suffixes from the right**:
+`PHASE10-S4-PLAN.md` → unit `PHASE10-S4`; `PLAN-GATE-A-RESEARCH.md` → unit `PLAN-GATE-A`;
+`M1-PLAN.md` → unit `M1`. Nesting and awkward unit names fall out for free.
+
+**Measured, not assumed** — three real trees, three different conventions:
+
+| Project | `current_epic` | Naming |
+|---|---|---|
+| `agent-tools-sync` | `M1` | one consistent prefix |
+| `traction-engine` | `PHASE12` | **nested** units (`PHASE10`, `PHASE10-S4`, `PHASE10-S5`) |
+| `nextpass` | `null` | **10+ unit names** (`PROXY`, `GATE-A`, `PLAN-SC1`, `NEXTPASS`, …) |
+
+`BACKLOG.md` framed this as *"the prefix is not in `current_epic`'s contract."* True, and an
+understatement: **nextpass has no single prefix to put in a field.** Some of its unit names begin
+with the word `PLAN`, so `PLAN-GATE-A.md` is ambiguous alone — only the sibling
+`PLAN-GATE-A-RESEARCH.md` reveals the unit. A declared-prefix field cannot express this shape; a
+suffix match can. Verified against `traction-engine`: the rule produced exactly the five real units
+and correctly left `CONTEXT.md` / `DECISIONS.md` / `INDEX.md` ungrouped.
+
+**The cost is accepted and must be visible:** files with no recognised suffix
+(`NEXTPASS-STACK-DECISION.md`, `BUGHUNT-2026-06-12.md`, `PLAN-SLICE-VOICE1.md`) do not group. The
+ungrouped set is **reported**, never dropped — an unreported `0 ungrouped` would read as full
+coverage, which is `B39`'s shape.
+
+**D-M5E18-3 — Closure is a terminal artifact plus not-current plus a verdict where one is readable —
+and it has three outcomes, not two.**
+
+Today closure is *"a `{EpicID}-RETROSPECTIVE.md` exists"* (`retrospective.js:168` — `existsSync`).
+**None of the three field projects has a single retrospective file.** So the existing rule returns
+*nothing is closed* everywhere, and fixing unit-grouping alone would still archive **zero files** on
+all three. The retro requirement — not the prefix — is the harder blocker.
+
+A unit is **closed** when it has a `VERIFICATION` or `SHIP` artifact, it is **not** the current unit,
+and — where a verdict line is readable — that verdict passed. Verdict parseability is **1 of 3**
+measured (`PHASE8-VERIFICATION.md` → `Verdict: PASS`; `M1-VERIFICATION.md` → prose *"Verdict
+remains"*; nextpass → none), so `cannotDetermine` is a **first-class status in the return shape**,
+not a rendering note. If it is not in the data, the dry-run's `0` means both *nothing closed* and
+*could not look* — which is exactly what **`B63`** asks to fix by porting M5.E16's four-status model.
+
+**This also closes `B64`.** `archive-tree.js:357` is `closedEpicIds = retros.map(r => r.epicId)` —
+**no `isStub` filter**, though `retro-index.js` already computes one. Signal's own tree has **4 stub
+retros** (`M4.5.E1`, `M4.5.E3`, `M4.5.E6`, `M4.5.E7`), all currently counted as closed. nextpass named
+it exactly: *"a label, not a guard."*
+
+**Known weakness, stated rather than discovered later.** `PHASE11-SHIP.md` exists and `PHASE11` was
+the current, actively-edited unit as recently as 2026-07-28; it is archivable now only because
+`PHASE12` took over. **A terminal artifact written mid-unit is a real shape in this corpus**, so the
+not-current clause carries the whole guard. `agent-tools-sync` supplies the regression test for
+free: `M1` has a `VERIFICATION` **and is current** — it must never be proposed for archive.
+
+**D-M5E18-4 — The current-unit guard reads the raw `current_epic` string, never a strict-gated
+helper.**
+
+Confirmed by execution against `traction-engine`, and it would have made D-M5E18-3 wrong:
+
+```
+readState().current_epic          → "PHASE12"   (raw value survives)
+detectMode()                      → linear
+EPIC_ID_STRICT_RE.test('PHASE12') → false
+EPIC_ID_STRICT_RE.test('M1')      → false
+```
+
+Both field projects sit in **linear** mode while still carrying a usable unit name. Any code that
+asks *"which unit is current"* through a strict-gated path receives `null`, the not-current clause
+**silently never fires**, and `PHASE12-*.md` — the unit being edited today — becomes archivable.
+This is `B53`'s seam one field over: two readers of the same field disagreeing, with the failure
+mode being *silence* rather than an error.
+
+**D-M5E18-5 — `B70` ships in the fix lane, ahead of this Epic's design work.**
+
+`B70` (P1): `nextActionForPhase` throws on any `phase` outside the seven canonical names —
+5 of 12 real projects. In `resume.md:128` the call sits **inside `renderResumeBriefing`'s argument
+list**, so the whole briefing dies before rendering. Every neighbouring optional read
+(`isStaleVsOrigin`, `readLayoutBanner`, `readStateSizeForTier`, `readEffectiveProfile`) is marked
+fail-open; this one call nobody marked safe. `traction-engine`'s `phase` holds a **multi-paragraph
+prose blob** — the concrete trigger.
+
+**Behavior (Brett's call): render everything, name the problem.** The briefing renders in full; the
+next-action line states the phase is not one Signal recognises, shows what STATE actually holds, and
+names the seven valid values. Staying silent was rejected as `B39`'s shape — a field that drifted by
+accident would look identical to one set deliberately.
+
+**Lane and ordering:** its own branch off `main`, its own PR, no six phases — per `D-M5E17-5`. It
+does **not** ride along in the Epic branch. `BACKLOG.md` homes it in M5.E18 *"arguably ahead of part
+1"*; this ratifies the *ahead* and moves the delivery out of the Epic.
