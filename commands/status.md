@@ -14,7 +14,7 @@ Authoritative references (read if you need to refresh):
 - `${CLAUDE_PLUGIN_ROOT}/references/profile-schema.md` — PROFILE.md format
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `readEffectiveProfile`, `ProfileSchemaError`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `nextActionForPhase`, `readOpenQuestions`, `formatEscalationSummary`, `reachedDoneViaSkip`, `readLandscapeMeta`, `readLayoutBanner`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `describeNextAction`, `formatNextActionCopy`, `readOpenQuestions`, `formatEscalationSummary`, `reachedDoneViaSkip`, `readLandscapeMeta`, `readLayoutBanner`
 
 ## Workflow
 
@@ -172,10 +172,11 @@ Landscape: captured {capturedOn or "date unknown"}
 
 #### 2.6 Next action
 
-Compute `next = nextActionForPhase(state.phase, profile.phases_skipped)`. Then:
+Compute `desc = describeNextAction(state.phase, profile.phases_skipped)` — the **fail-open** read (`B70`). `nextActionForPhase` **throws** on a `phase` outside the canonical seven, which is 5 of 12 real projects; every neighbouring optional read here is fail-open and this one was not. Then:
 
-- If `next` starts with `/sig:` → emit `Next: {next}`.
-- If `next === 'done'`:
+- If `desc.recognized` is `false` → emit `formatNextActionCopy(desc)`: the phase is not one Signal recognizes, a one-line excerpt of what STATE.md holds, and the seven valid values. **Emit the rest of the report normally** — an unrecognized phase invalidates the next-action line, not the whole status.
+- Else if `desc.action` starts with `/sig:` → emit `Next: {desc.action}`.
+- Else if `desc.action === 'done'`:
   - If `reachedDoneViaSkip(state.phase, profile.phases_skipped)` is `true` → `Next: done — all remaining phases are skipped for this tier.`
   - Else → `Next: done — work is complete.`
 

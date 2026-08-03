@@ -6,6 +6,17 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **`/sig:status` and `/sig:resume` no longer die on a project whose `phase` is not one of the seven canonical names** (`B70`, P1 — **5 of 12 real projects**). `nextActionForPhase` throws on anything outside `PHASES`, and in `resume.md` the call sits *inside* `renderResumeBriefing`'s argument list — so the whole briefing was lost, not just its next-action line. Every neighbouring optional read (`isStaleVsOrigin`, `readLayoutBanner`, `readStateSizeForTier`, `readEffectiveProfile`) is marked fail-open; this one call nobody marked safe, while `reachedDoneViaSkip` — the sibling function directly below it in the same file — already failed open.
+
+  Both commands now route through **`describeNextAction`**, which never throws, and **`formatNextActionCopy`**, which renders the copy. `nextActionForPhase` keeps its strict contract unchanged, so callers that want the guard still get it.
+
+  **The briefing renders in full and names the problem** — that the phase is unrecognized, a one-line excerpt of what STATE.md actually holds (the real value on one project is five paragraphs of prose, so it is collapsed and elided), and the seven valid values. Rendering nothing was rejected: a field that drifted by accident would look identical to one set deliberately, which is `B39`'s shape.
+
+---
+
 ## [0.1.16] — 2026-08-02 — STATE-vs-world drift detection (M5.E16)
 
 `/sig:sweep` gains six deterministic checks comparing what a project's `.planning/` **asserts** against what is on disk and in git. Each declares whether it needs a person or clears itself — and, crucially, the report distinguishes **"checked and clean"** from **"could not check"**.
