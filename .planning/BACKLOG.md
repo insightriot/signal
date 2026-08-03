@@ -293,6 +293,49 @@ searching for siblings before closing. `B70` is what that discipline produced on
 application — `B45` quarantines an off-enum `completed_phases` entry, and nobody asked whether the
 `phase` scalar next to it had the same hole. It did, on five real projects.
 
+### `B52` — warn at session start when the bound plugin cache is not the installed one
+**Tag:** correctness · **Trigger: SATISFIED — third live sighting 2026-08-03. Filed as a home for a
+P1 that has had no home across three sightings in six days.**
+
+**Recommended lane: fix lane, ahead of M5.E18's EXECUTE work.** It is a confirmed P1 whose fix is a
+guard inside an existing hook, not new design — but it adds a user-facing warning, so if PLAN judges
+it Epic-shaped, absorb it as an M5.E18 slice rather than leaving it unhomed a fourth time. **The
+recommendation is the disposition, not the decision — Brett's to override.**
+
+**Why now.** `B52` is *"a session binds to one plugin-cache version for its whole life."* Sightings:
+**2026-07-28** (bound 0.1.11, installed 0.1.13 — **destroyed M5.E8's phase ledger silently**),
+**2026-08-02** (bound 0.1.13, installed 0.1.15 — re-issued an instruction `B51` had deleted),
+**2026-08-03** (bound 0.1.16, installed 0.1.17 — no damage, near-miss on `B70`). **Three in six days,
+each found by a human noticing a version string in passing, and the version gap is narrowing — a
+smaller gap is harder to spot, not easier.** The row's own conclusion after sighting two: a
+session-start check is *"the only thing that would have caught either sighting."*
+
+**The mechanism is cheap, and the pieces are already on disk** — verified 2026-08-03, not assumed:
+
+- Hooks are registered as `${CLAUDE_PLUGIN_ROOT}/hooks/…` (`hooks/hooks.json`), so **the hook runs
+  from the same resolved path the session bound to** — it is the bound version reporting on itself,
+  which is exactly the needed vantage point.
+- Every cached copy carries its own version: `…/cache/signal/sig/0.1.16/.claude-plugin/plugin.json`
+  reads `0.1.16`, `…/0.1.17/…` reads `0.1.17`. So the comparison reads a **file**, not a path
+  segment — no brittle string-parsing of the cache directory name.
+- `~/.claude/plugins/installed_plugins.json` records the version that *should* be running
+  (`installPath` + `version`), and has been **correct in all three sightings** — the config is not
+  the broken part.
+
+So: two file reads, offline, deterministic, fail-open, inside a SessionStart hook that already runs.
+
+**Do not skip the second half.** The row also asks whether `setCurrentEpic` should refuse to reset a
+non-empty `completed_phases` it did not archive. The warning makes the *cause* visible; that guard
+makes the *damage* loud regardless of version, and it is the half that would have saved M5.E8's
+ledger. A warning alone leaves the silent-data-loss path intact.
+
+**The counter-argument, recorded.** STATE.md's sequencing note says *"no new detector Epic while the
+verified-open count is high"* — Signal has shipped four consecutive bug-finding releases and this
+would be a fifth detector. The reply is that this is not a detector for a **class**, it is a guard on
+the **install layer** that corrupts the evidence every other detector depends on: a stale binding
+makes a fixed bug look live and a live bug look fixed. It is infrastructure for the stopping rule,
+not another instance of what the stopping rule is aimed at.
+
 ### Add a "first use" step to `/sig:plan`
 **Tag:** hygiene · **Trigger: NONE — filed 2026-07-30 (Brett). Small; one instruction.**
 
