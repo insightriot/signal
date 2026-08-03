@@ -61,9 +61,11 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 
 ## Active work
 
-**No Epic is open.** M5.E16 shipped 2026-08-02.
+**M5.E18 is open — DISCUSS closed 2026-08-03.** *The archive half, for the projects Epic-gating does not reach.* Both of Signal's archive paths are Epic-gated by construction, so they reach 4 of 12 readable projects; the halves that stop `.planning/` growing forever reach a third of the corpus. Requirements: [`M5.E18-REQUIREMENTS.md`](M5.E18-REQUIREMENTS.md). Decisions: `D-M5E18-1 … D-M5E18-5`.
 
-**Queued, in the order the evidence argues for:**
+**Read the queue below against `BACKLOG.md`, not instead of it.** This list was wrong on 2026-08-03 — it named M5.E15 next while `BACKLOG.md`'s newer M5.E18 entry (PRs #21/#24, vs this file's #19) carried an unconditional-next marker and a Brett quote from that day. `/sig:resume` repeated the stale ordering. **The queue lives in two places and only `BACKLOG.md` gets edited when work is filed** (D-M5E18-1).
+
+**Queued after M5.E18, in the order the evidence argues for:**
 
 1. **M5.E15** — `B55`, the adherence control arm made real. Blocks any new adherence verdict being trusted. **Standing prohibition: do not re-run a canary for a cleaner number before the arm is fixed.**
 2. **M5.E14** — tracker migration **plus** the 48-entry inbox triage cut from M5.E17 (`D-M5E17-3`). The deeper problem is the capture *channel*: findings that reach the backlog arrive incidentally, from someone reading an artifact.
@@ -75,4 +77,4 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 
 ---
 
-*Last updated: 2026-08-02 (**v0.1.16 / M5.E16 shipped**). This file had gone **seven Epics stale** — it described M5.E7 as in-flight while M5.E16 was closing — and was flagged at a `/sig:resume` on 2026-08-01. Rewritten whole rather than patched, because `CLAUDE.md` tells every reader to open it first.*
+*Last updated: 2026-08-03 (**M5.E18 opened; DISCUSS closed**). Prior update 2026-08-02 (v0.1.16 / M5.E16 shipped), when this file had gone **seven Epics stale** — it described M5.E7 as in-flight while M5.E16 was closing — and was rewritten whole rather than patched, because `CLAUDE.md` tells every reader to open it first. **It went stale again within two PRs**, on the "Active work" queue specifically; see D-M5E18-1.*
