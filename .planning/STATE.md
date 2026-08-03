@@ -16,19 +16,16 @@ last_updated: 2026-08-03T17:29:45.340Z
 
 ## Resume pointer
 
-**⚠ BEFORE OPENING M5.E18: RESTART THE CLI PROCESS.** `/sig:discuss --epic M5.E18` was attempted
-2026-08-02 and **halted before mutating anything** — the session had bound to plugin cache
-**`0.1.13`** while `installed_plugins.json` records `0.1.15` and the repo is at `0.1.16`. v0.1.13's
-`discuss.md` still carries the block **`B51` deleted** (*"Update `STATE.md`: `## Current Phase` /
-`PLAN`"*), which writes a permanent false `PLAN (date)` entry — `completed_phases` is append-only
-with no dedupe (`D-M5E9-5`), so a later correct run cannot undo it. **`B52`'s second live sighting,
-recorded in its row.** No `setCurrentEpic`, no `transitionPhase`, no artifacts were written.
+**⚠ RESTART THE CLI PROCESS BEFORE RUNNING ANY WRITING `/sig:` COMMAND.** Still true, and it fired
+again: a `/sig:resume` on **2026-08-03** loaded from cache **`0.1.16`** while `installed_plugins.json`
+records **`0.1.17`** and the `0.1.17` cache exists on disk. **`B52`'s third live sighting, recorded
+in its row.** One release behind rather than four, and no damage this time — Signal's own `phase` is
+canonical, so `nextActionForPhase` did not throw — but v0.1.17 *is* the `B70` fix, so a stale-bound
+session still crashes `/sig:status` and `/sig:resume` on the 5-of-12 projects that need it.
 
-**Cache updated to `0.1.16` at 18:40 (sha `0d27b9e`, byte-identical to `main` across `commands/`,
-`tools/lib/`, `skills/`, `agents/`, `references/`, `hooks/`). The disk is fixed; a running process
-is not.** A context clear is **not** sufficient — now measured, not reasoned: a `/clear` ran at
-12:50 and the process kept its 0.1.13 binding. After restarting, run any `/sig:` command and read
-the cache path it cites.
+**A context clear is not sufficient** — measured, not reasoned: a `/clear` ran 2026-08-02 at 12:50
+and the process kept its binding. After restarting, run any `/sig:` command and read the cache path
+it cites.
 
 **And it is not just this window.** `ps` found **five** live CLI processes — `elicitation-engine`
 (Jul 25), `mps` (Jul 25), `traction-engine` (Jul 28), `signal` (Jul 28), `nextpass` (Aug 2) — so
@@ -36,11 +33,22 @@ four of five were running 5-to-8-day-old machinery against real projects. `tract
 already the live instance behind `B53`, `B70` and check `(h)`. **Restart every window you intend to
 run `/sig:` commands in, not only this one.**
 
-**▶ No Epic open. NEXT IS `M5.E18` — unconditional, no trigger to wait on** (Brett, 2026-08-02:
-*"get past this document crap so all my projects can migrate and be healthy"*). Full scope in
-[`BACKLOG.md`](BACKLOG.md) § *"M5.E18 — The archive half, for the 8 projects out of 12 it does not
-reach."* **Open it with `/sig:discuss --epic M5.E18`** — the `--epic` flag is required, because
-`current_epic` still points at the now-closed M5.E16 and `discuss` refuses to reopen a done Epic.
+**▶ `M5.E18` IS OPEN. DISCUSS closed 2026-08-03 — next is `/sig:plan`.** Requirements are written:
+[`M5.E18-REQUIREMENTS.md`](M5.E18-REQUIREMENTS.md), FR1–FR6 + NFR1–NFR5, decisions `D-M5E18-1` …
+`D-M5E18-5` in [`DECISIONS.md`](DECISIONS.md). Tier **FULL** (project default; no Epic-scoped
+override). `completed_phases` is `[]` because the DISCUSS→PLAN transition has not run yet.
+
+**DISCUSS walked three real trees rather than quoting the backlog, and two findings reshaped the
+scope.** (1) There is no single "prefix" to read — nextpass has **10+ unit names**, some beginning
+with the word `PLAN`, so a declared-prefix field cannot express the shape (`D-M5E18-2`). (2) **The
+retro requirement, not the prefix, is the harder blocker** — none of the three projects has a single
+retrospective file, so closure-by-retro returns *nothing is closed* everywhere (`D-M5E18-3`).
+
+**`B70` shipped ahead of the build work as `v0.1.17` (2026-08-03), fix lane, per `D-M5E18-5`** — it
+is listed under M5.E18's *Out* section and nothing in FR1–FR6 is gated on it. **Three open questions
+are queued for PLAN**, listed at the foot of the requirements: where unit derivation lives, what the
+archive directory is for a non-Epic unit, and whether `isEpicDone`'s tightening reaches
+`/sig:discuss`'s done-Epic guard (`B71` answers the third in advance: yes, in scope).
 
 **Why it outranks everything else queued:** Signal's two archive paths are Epic-gated **by
 construction** — `planArchiveMoves` filters through `EPIC_ID_STRICT_RE`, `extractEpicSection` and
