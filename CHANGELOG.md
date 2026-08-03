@@ -6,6 +6,23 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **`docs/map/index.html` can no longer silently drift from the plugin it documents** (`B32`). The public map page is hand-authored and nothing regenerates it, so two things had rotted in place: its `COMMANDS` array listed **17** commands under a heading that said **19** (`/sig:index` and `/sig:migrate-memory` had been missing since v0.1.8), and its header stamp read **v0.1.9** against a v0.1.17 plugin — with the word *"generated"*, which was never true.
+
+  The old guard is why it survived. `checkRosterCounts` pinned the **heading number** to `roster.js` and nothing checked the **list underneath it**, so the count stayed honest while the thing it counted drifted.
+
+  `tests/map-roster-reconcile.test.js` now reconciles all three arrays (`COMMANDS`, `AGENTS`, `SKILLS`) against `roster.js` **in both directions**, naming the offending entries — a name on disk with no map entry, and a map entry with no file. The three headings render their count **from the arrays**, so the number is no longer a second claim that can disagree. The stamp is pinned to `plugin.json` through `VERSION_SOURCES`.
+
+  Nothing is generated: the map's per-item prose is deliberately friendlier than the source frontmatter and stays hand-written. Only the **set of names** is reconciled, the way `/sig:index` reconciles mechanical rows against curated notes.
+
+### Changed
+- **The three `docs/map/index.html` sites were removed from `ROSTER_SITES`** — mandatory, not incidental. Once those headings render their count from JS the source HTML holds no digits, the patterns stop matching, and `checkRosterCounts` **skips a site whose pattern is absent** — which would have left three guards that look alive and verify nothing (`B39`/`B54`'s shape). `analysis/CLAIM-INTEGRITY-ANALYSIS.md` counts `checkRosterCounts` among only two claim-vs-reality checks in all of Signal, so the trade is stated plainly: one number-comparison replaced by a full both-directions name-set comparison. Strictly stronger.
+- Both new guards are pinned against their own removal — tests assert the `map-roster` markers and the version stamp **exist**, because deleting either would have disabled a check rather than failed it.
+
+---
+
 ## [0.1.17] — 2026-08-03 — The briefing survives a phase it doesn't recognize (`B70`)
 
 A one-bug patch, cut ahead of M5.E18's build work because the bug is a **P1 on the two read-only commands people run most**, and it fails by taking the whole output rather than one line of it.

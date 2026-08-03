@@ -161,8 +161,25 @@ describe('M5.E3.S3.t3 checkRosterCounts', () => {
 
   it('passes when the canonical counts match the roster', async () => {
     await writeDoc(dir, 'CLAUDE.md', '# 2 slash commands — /sig:a\n# 1 agents\n# 1 quality skills\n');
-    await writeDoc(dir, 'docs/map/index.html', '<h2>Command library — 2 commands</h2>\n');
     expect(hard(checkRosterCounts(dir))).toHaveLength(0);
+  });
+
+  it('no longer covers docs/map — superseded by tests/map-roster-reconcile.test.js', async () => {
+    // The three docs/map sites were removed 2026-08-03 when those headings
+    // started rendering their count from the JS arrays, leaving no digits in
+    // the HTML for the patterns to match. Pinned so the removal has to be
+    // reversed deliberately rather than undone by a passing edit.
+    //
+    // Asserted BEHAVIOURALLY and in both directions: a blatantly wrong docs/map
+    // count produces nothing, AND a wrong CLAUDE.md count still fires. The
+    // second half is what stops this from passing on a checker that broke
+    // entirely — "no findings" is only meaningful next to a known finding.
+    await writeDoc(dir, 'CLAUDE.md', '# 2 slash commands — /sig:a\n# 1 agents\n# 1 quality skills\n');
+    await writeDoc(dir, 'docs/map/index.html', '<h2>Command library — 999 commands</h2>\n');
+    expect(hard(checkRosterCounts(dir))).toHaveLength(0);
+
+    await writeDoc(dir, 'CLAUDE.md', '# 999 slash commands — /sig:a\n');
+    expect(hard(checkRosterCounts(dir)).length).toBeGreaterThan(0);
   });
 
   it('does NOT scrape the historical narrative (# prefix required)', async () => {
@@ -255,6 +272,10 @@ describe('M5.E3.S3.t4 checkVersionConsistency', () => {
       '.claude-plugin/marketplace.json',
       'CHANGELOG.md',
       'package.json',
+      // Added 2026-08-03: the public map page's header stamp had drifted to
+      // v0.1.9 against a v0.1.17 plugin. Nothing regenerates that file, so the
+      // stamp is only honest if CI fails when it disagrees.
+      'docs/map/index.html',
     ]);
     expect(VERSION_SOURCES.every((s) => typeof s.read === 'function')).toBe(true);
   });
