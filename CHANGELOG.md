@@ -9,6 +9,17 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 ## [Unreleased]
 
 ### Fixed
+- **`references/tier-definitions.md` contradicted `commands/calibrate.md` about the tier-routing order, and the disagreement changed real answers.** `calibrate.md` § 3 — the file that executes — says *"Apply these rules in order. First match wins"* and orders them FULL → **SPIKE** → **SKETCH** → FEATURE. `tier-definitions.md` listed them FULL → **SKETCH** → **SPIKE** → FEATURE and never said precedence mattered. It does: the gate sets overlap, and for `{scope: throwaway, stakes: none, novelty: first-for-org, reversibility: trivial, horizon: hours}` Signal returns **SPIKE** while a reader of `tier-definitions.md` concluded **SKETCH**.
+
+  `tier-definitions.md` now states the precedence, lists the gates in executed order, and shows the overlapping input that makes the order load-bearing. `tests/tier-precedence-consistency.test.js` pins the two documents to each other — changing one without the other fails the suite. This is `M5.E17`'s class (instructions that contradict other instructions) found in the routing decision the whole product is built on.
+
+  Found by checking the map page's calibrate simulator against both documents. **The simulator was correct**; the reference doc was not.
+
+### Changed
+- **The map's calibrate simulator and tier matrix are now reconciled against their sources.** The simulator is a second implementation of tier routing, and nothing compared it to anything — the position `COMMANDS` was in before `B32`. Its answer enums are now checked against `profile.js`'s `CALIBRATION_ENUMS` **in both directions** (a sixth axis can't leave it silently asking five questions), and all 11 rigor rows × 4 tiers — including `phases_skipped` — are checked against `tier-definitions.md`'s authoritative table. The decision *logic* stays duplicated by design; pinning it would mean a third copy of the rules.
+- **The map's vocabulary examples no longer name live project state.** Four read `Currently: M4.5`, `Most recently shipped: … v0.1.5`, `Last shipped slice: … 2026-07-05` — under a code comment instructing maintainers to refresh them every release. Nothing enforced it and they sat four releases stale. They now teach timeless distinctions instead (*"a decimal Milestone is how scope gets inserted without renumbering everything after it"*), a test rejects any example that re-introduces a version or a *currently / most recently / last shipped* claim, and the refresh obligation is gone rather than merely satisfied.
+
+### Fixed
 - **`docs/map/index.html` can no longer silently drift from the plugin it documents** (`B32`). The public map page is hand-authored and nothing regenerates it, so two things had rotted in place: its `COMMANDS` array listed **17** commands under a heading that said **19** (`/sig:index` and `/sig:migrate-memory` had been missing since v0.1.8), and its header stamp read **v0.1.9** against a v0.1.17 plugin — with the word *"generated"*, which was never true.
 
   The old guard is why it survived. `checkRosterCounts` pinned the **heading number** to `roster.js` and nothing checked the **list underneath it**, so the count stayed honest while the thing it counted drifted.

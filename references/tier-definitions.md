@@ -73,29 +73,55 @@ The quick intuition:
 
 This is the rough mapping, useful for explanation. It's not the whole story — `/sig:calibrate` also weighs Scope, Reversibility, and Horizon.
 
-### FULL escalators (any single one triggers FULL regardless of 2×2)
+### The gates are ordered, and the order decides real cases
+
+**Apply these rules in the order given below. First match wins.** This is not a
+presentation choice — the gate sets **overlap**, so evaluation order changes the answer for
+inputs a user can actually give:
+
+```
+{scope: throwaway, stakes: none, novelty: first-for-org,
+ reversibility: trivial, horizon: hours}
+```
+
+satisfies the SPIKE gates **and** the SKETCH gates. Signal returns **SPIKE**, because SPIKE is
+evaluated first. Exploratory work that happens to be small and safe is still exploratory, and
+SPIKE's job — skip REVIEW *and* SHIP — is the right handling for it.
+
+This ordering is mirrored in [`../commands/calibrate.md`](../commands/calibrate.md) § 3, which is
+the file that executes. The two are pinned to each other by
+`tests/tier-precedence-consistency.test.js`; changing one without the other fails the suite.
+
+*(Corrected 2026-08-03. This section previously listed SKETCH before SPIKE and said nothing about
+precedence, so a reader following it reached **SKETCH** on the input above while Signal produced
+**SPIKE**. The rules themselves were right in both files — only the stated order and the missing
+"first match wins" were wrong here. Found by checking the map's calibrate simulator against both
+documents; the simulator was correct, this file was not.)*
+
+**1. FULL escalators** — any single one triggers FULL, regardless of the 2×2:
 
 - `stakes: catastrophic`
 - `reversibility: irreversible`
 - `horizon: years`
 
-### SKETCH gates (all four must hold to land in SKETCH)
-
-- `scope: throwaway`
-- `stakes: none`
-- `reversibility: trivial`
-- `horizon: hours` *or* `horizon: days`
-
-### SPIKE gates (exploratory work specifically)
+**2. SPIKE gates** (exploratory work specifically) — all four must hold:
 
 - `stakes: none` *or* `stakes: minor`
 - `novelty: first-for-org` *or* `novelty: first-in-industry`
 - `horizon: hours` *or* `horizon: days`
 - `scope: throwaway` *or* `scope: feature`
 
-### FEATURE is the default
+**3. SKETCH gates** — all four must hold:
 
-If the diagnostic answers don't clearly match SKETCH, SPIKE, or FULL, the answer is FEATURE. Most work lands here.
+- `scope: throwaway`
+- `stakes: none`
+- `reversibility: trivial`
+- `horizon: hours` *or* `horizon: days`
+
+**4. FEATURE is the default**
+
+If the diagnostic answers don't match FULL, SPIKE, or SKETCH, the answer is FEATURE. Most work
+lands here.
 
 ---
 

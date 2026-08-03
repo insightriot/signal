@@ -868,6 +868,7 @@ const COMMANDS = [
 ];
 // map-roster:end COMMANDS
 
+// map-roster:begin QUESTIONS
 const QUESTIONS = [
   {
     id: 'scope',
@@ -925,7 +926,9 @@ const QUESTIONS = [
     ],
   },
 ];
+// map-roster:end QUESTIONS
 
+// map-roster:begin TIERS
 const TIERS = {
   SKETCH: {
     glyph: '◦',
@@ -1004,6 +1007,7 @@ const TIERS = {
     },
   },
 };
+// map-roster:end TIERS
 
 const RIGOR_KEYS = [
   'tdd_required', 'security_audit', 'performance_pass', 'simplification_pass',
@@ -1071,7 +1075,11 @@ const PHASES = [
 ];
 
 const VOCABULARY = {
-  // Last refreshed: 2026-07-13. Update "currently active" lines on each release.
+  // Examples here are deliberately TIMELESS. They used to name live project
+  // state ("Currently: M4.5", "Most recently shipped: ... v0.1.5") under a
+  // comment telling maintainers to refresh them every release. Nothing enforced
+  // that, so they sat four releases stale. A page that teaches vocabulary does
+  // not need live state to do it — see tests/map-roster-reconcile.test.js.
   hierarchy: [
     {
       name: 'Milestone',
@@ -1079,7 +1087,7 @@ const VOCABULARY = {
       required: true,
       desc: 'Top-level scoped work, weeks-to-months. Every Signal project has at least one.',
       ids: 'M1 · M2 · M3 · M4 · M4.5 · M5',
-      example: 'Currently: M4.5 (Release Hardening / Stranger-Adoption Readiness)',
+      example: 'M4.5 sits between M4 and M5 — a decimal Milestone is how scope gets inserted without renumbering everything after it.',
     },
     {
       name: 'Epic',
@@ -1087,7 +1095,7 @@ const VOCABULARY = {
       required: false,
       desc: 'Mid-layer grouping related tasks within a Milestone. Used when a Milestone has obvious sub-themes; skipped when it\'s a flat task list (M1–M4 had no Epics).',
       ids: 'M5.E1 · M4.5.E8',
-      example: 'Most recently shipped: M4.5.E10 (resume trust & capture integrity, v0.1.5); no Epic currently in flight',
+      example: 'M1 through M4 had no Epics at all — a flat task list is a legitimate shape, not a missing layer.',
     },
     {
       name: 'Slice',
@@ -1095,7 +1103,7 @@ const VOCABULARY = {
       required: false,
       desc: 'Epic subdivision; a coherent group of tasks that ships as ONE atomic event (one commit chain, one CHANGELOG entry, one user-visible "thing happened").',
       ids: 'M4.5.E2.S1 · M4.5.E7.S2',
-      example: 'Last shipped slice: M4.5.E10.S5 (capture-integrity guards + hook harness, 2026-07-05)',
+      example: 'The test: if two changes cannot ship without each other, they belong in the same Slice.',
     },
     {
       name: 'Task',
@@ -1103,7 +1111,7 @@ const VOCABULARY = {
       required: true,
       desc: 'Atomic unit, small enough to ship in a focused session. Lowercase t so M / E / S / t stay visually distinct in IDs.',
       ids: 'M4.t17 · M5.E3.t2 · M4.5.E8.S2.t3',
-      example: 'Last completed task: M4.5.E10.S5.t3 (2026-07-05)',
+      example: 'The test: a Task that needs a plan of its own is really a Slice.',
     },
   ],
   address: {
@@ -1366,7 +1374,7 @@ function renderVocabulary() {
       </div>
       <div class="vdesc">${n.desc}</div>
       <div class="vid"><span class="lbl">ID shapes:</span>${n.ids}</div>
-      <div class="vex">${n.example}</div>
+      ${n.example ? `<div class="vex">${n.example}</div>` : ''}
     </div>
     ${i < VOCABULARY.hierarchy.length - 1 ? '<div class="vocab-arrow">▼</div>' : ''}
   `).join('');
