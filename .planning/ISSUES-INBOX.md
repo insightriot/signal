@@ -1697,4 +1697,42 @@ retro-index freshness check (§6 item 8) was handed to **M5.E13** instead, per t
 
 
 
-*Last updated: 2026-07-28*
+## M5.E17 shipped without a retrospective — and the honest fix is not to write one
+
+**Status:** Logged 2026-08-03 at the `/sig:resume` that opened M5.E18. Needs triage: this is an
+obligation with no owner, not a defect.
+
+**How it surfaced — the detector working.** `/sig:sweep`'s `epic-without-retro` check fired for the
+**first time in normal use**: *"M5.E17 has phase artifacts on disk but no retrospective — it was
+either finished without one, or abandoned. Only you know which."* It shipped in v0.1.16 one day
+earlier. M5.E17 **did** ship, as v0.1.15 on 2026-08-01, and is also absent from
+[`RETROSPECTIVES.md`](RETROSPECTIVES.md)'s index.
+
+**Why it was deliberately not backfilled.** M5.E17 has `PLAN`, `REQUIREMENTS`, `RESEARCH` and
+`VALIDATION` on disk — and **no `PROGRESS`, `VERIFICATION` or `REVIEW`**. The artifacts that record
+the *running* are precisely the missing ones. A retro composed now would be prose about what an Epic
+learned, derived from documents written **before it executed** — which is
+[`../analysis/CLAIM-INTEGRITY-ANALYSIS.md`](../analysis/CLAIM-INTEGRITY-ANALYSIS.md)'s named class
+exactly: *a completeness claim written from the shape of the work rather than from the artifact.*
+Writing it would **silence the detector by manufacturing the artifact it asked for**, which is worse
+than the gap.
+
+**`tools/backfill-retros.js` is not the instrument.** Checked, not assumed: it is a one-shot scoped
+to **M4.5** (`--dry-run` plans 11 writes over already-written M4.5 retros and renders `(no content)`),
+and it enumerates Epics from `MILESTONE-{N}.md`'s status table — which had no E17 row at all until
+2026-08-03.
+
+**What was done instead:** the E16/E17/E18 rows were added to
+[`MILESTONE-5.md`](MILESTONE-5.md) (derived from `CHANGELOG.md` and the shipped PRs, not composed),
+with a blockquote recording the gap and this reasoning.
+
+**Open question for triage — this is the part that needs a person:** is a **stub** retro the right
+resolution (the repo already carries 4, and `isStub` is a first-class flag), or does M5.E17 stay
+open until someone who ran it writes a real one? Note the interaction with **M5.E18 FR5/AC5.2**,
+which asserts the four existing stubs are *not* proposed for archive — a fifth stub is safe today
+(the stub tests use fixtures, verified, not Signal's live tree) but the two decisions touch the same
+mechanism.
+
+---
+
+*Last updated: 2026-08-03*
