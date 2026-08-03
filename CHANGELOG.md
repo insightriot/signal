@@ -8,6 +8,15 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ## [Unreleased]
 
+### Added
+- **`tools/cut-release.js` — repo-local release tooling.** Cutting a release meant hand-editing four files that must all agree. `checkVersionConsistency` turns any disagreement red, so a wrong one could not ship — but nothing did the edit for you, so every release was a manual checklist with a tripwire at the end. v0.1.17 was cut with an ad-hoc `node -e` one-liner and its map stamp updated in a separate pass.
+
+  One command now bumps `plugin.json`, `package.json`, the map header stamp, and folds `[Unreleased]` into a dated, titled heading. **Dry-run by default**; `--apply` is required to write. It refuses on a dirty tree, refuses without release notes (a release with no notes is the failure it exists to prevent), and **does not commit, tag, or push** — it prepares the edit and stops.
+
+  **It also closes `B56`.** The published test count in `references/facts.md` has gone stale at three consecutive releases, corrected by hand each time while the guard over it — which compares documents to each other, never to the suite — stayed green. Under the release reading recommended in that bug, the count is a release-time fact, so it is set here from **the same `vitest` run that gates the release**. One run answers both *"is the suite green"* and *"how many tests are there"*; deriving the count any other way undercounts, because several suites generate cases in a loop.
+
+  **Scope: this repo only.** It lives in `tools/`, not `commands/` — anything in `commands/` ships to users as a `/sig:` command and would change Signal's own roster and every count pinned to it. Same category as `tools/validate-plugin.js`: tooling for *building* Signal, not a feature of it. A test pins that placement.
+
 ### Fixed
 - **`references/tier-definitions.md` contradicted `commands/calibrate.md` about the tier-routing order, and the disagreement changed real answers.** `calibrate.md` § 3 — the file that executes — says *"Apply these rules in order. First match wins"* and orders them FULL → **SPIKE** → **SKETCH** → FEATURE. `tier-definitions.md` listed them FULL → **SKETCH** → **SPIKE** → FEATURE and never said precedence mattered. It does: the gate sets overlap, and for `{scope: throwaway, stakes: none, novelty: first-for-org, reversibility: trivial, horizon: hours}` Signal returns **SPIKE** while a reader of `tier-definitions.md` concluded **SKETCH**.
 
