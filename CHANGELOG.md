@@ -6,7 +6,9 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.17] — 2026-08-03 — The briefing survives a phase it doesn't recognize (`B70`)
+
+A one-bug patch, cut ahead of M5.E18's build work because the bug is a **P1 on the two read-only commands people run most**, and it fails by taking the whole output rather than one line of it.
 
 ### Fixed
 - **`/sig:status` and `/sig:resume` no longer die on a project whose `phase` is not one of the seven canonical names** (`B70`, P1 — **5 of 12 real projects**). `nextActionForPhase` throws on anything outside `PHASES`, and in `resume.md` the call sits *inside* `renderResumeBriefing`'s argument list — so the whole briefing was lost, not just its next-action line. Every neighbouring optional read (`isStaleVsOrigin`, `readLayoutBanner`, `readStateSizeForTier`, `readEffectiveProfile`) is marked fail-open; this one call nobody marked safe, while `reachedDoneViaSkip` — the sibling function directly below it in the same file — already failed open.

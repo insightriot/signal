@@ -33,7 +33,7 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-**v1 is feature-complete and shipped. Latest: v0.1.16 (2026-08-02, M5.E16 — STATE-vs-world drift detection).** `/sig:sweep` compares what a project's `.planning/` **asserts** against what is on disk and in git; each finding declares whether it needs a person or clears itself, and the report separates **"checked and clean"** from **"could not check."** **19 slash commands, 26 agents, 21 skills, 1938 tests, validator green.**
+**v1 is feature-complete and shipped. Latest: v0.1.17 (2026-08-03) — `B70`, a one-bug patch: `/sig:status` and `/sig:resume` threw outright on a project whose `phase` is not one of the canonical seven (5 of 12 real projects), losing the whole briefing rather than one line. Cut ahead of M5.E18's build work. 1954 tests.** Prior: **v0.1.16 (2026-08-02, M5.E16 — STATE-vs-world drift detection).** `/sig:sweep` compares what a project's `.planning/` **asserts** against what is on disk and in git; each finding declares whether it needs a person or clears itself, and the report separates **"checked and clean"** from **"could not check."** **19 slash commands, 26 agents, 21 skills, 1938 tests, validator green.**
 
 Recent releases, newest first — full detail in `CHANGELOG.md`:
 
