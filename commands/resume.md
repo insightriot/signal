@@ -14,7 +14,7 @@ Authoritative references:
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `readEffectiveProfile`, `ProfileSchemaError`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `isStateStale`, `isStaleVsOrigin`, `readSchemaDrift`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/resume.js` — `renderResumeBriefing`, `handleOrphansAtResume`, `resolveArtifactPath`
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `nextActionForPhase`, `formatEscalationSummary`, `readOpenQuestions`, `readLandscapeMeta`, `readStateSizeForTier`, `readLayoutBanner`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `describeNextAction`, `formatNextActionCopy`, `formatEscalationSummary`, `readOpenQuestions`, `readLandscapeMeta`, `readStateSizeForTier`, `readLayoutBanner`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/landscape.js` — `extractSection` (used to pull "What this project is" from LANDSCAPE.md when PROJECT.md Vision is still `[INFERRED]` or `[FILL IN]`)
 
 ## Workflow
@@ -125,7 +125,7 @@ renderResumeBriefing({
   stateSizeResult,               // STATE.md size — from Step 3b(1c); advisory, read-only
   stateDriftResult,              // STATE-vs-world — from Step 3b(1e); advisory, category 3 only
   layoutBanner,                  // pre-reorg layout nudge string|null — from Step 3b(1d); advisory, fail-open
-  nextAction: nextActionForPhase(state.phase, profile.phases_skipped),
+  nextAction: formatNextActionCopy(describeNextAction(state.phase, profile.phases_skipped)), // fail-open (B70)
   retroSummary,                   // {total, complete, stub} — see Step 3c
 });
 ```
@@ -179,7 +179,9 @@ Landscape: captured {capturedOn or "date unknown"} (brownfield init)
 {first 3 truncated headings; section omitted if file absent}
 
 — Work remaining —
-Next phase: {nextActionForPhase result}
+{formatNextActionCopy result — "Next phase: /sig:{cmd}", or, when STATE.md's `phase`
+ is not one of the seven canonical names (B70), three lines: that it is unrecognized,
+ a one-line excerpt of what STATE.md actually holds, and the seven valid values}
 
 Ready to continue with {next-command}? (Reply "yes" to proceed, or run any /sig:* command directly.)
 ```

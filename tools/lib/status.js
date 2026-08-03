@@ -64,6 +64,78 @@ export function nextActionForPhase(currentPhase, phasesSkipped = []) {
 }
 
 /**
+ * Fail-open companion to `nextActionForPhase` (`B70`).
+ *
+ * `nextActionForPhase` throws on a phase outside `PHASES`, and in `resume.md`
+ * the call sits inside `renderResumeBriefing`'s argument list — so a project
+ * whose `phase` drifted off the canonical seven loses the ENTIRE briefing, not
+ * just its next-action line. Measured: 5 of 12 real projects, every one of them
+ * hand-maintained. `traction-engine` holds a multi-paragraph prose blob there.
+ *
+ * This never throws. `nextActionForPhase` keeps its strict contract — callers
+ * that want the guard still get it; the two read-only meta commands use this.
+ * (`reachedDoneViaSkip` below already fails open the same way.)
+ *
+ * @param {string} currentPhase - canonical phase, or anything at all
+ * @param {string[]} phasesSkipped - phases the current tier skips
+ * @returns {{recognized: boolean, action: string|null, rawPhase: string, valid: string[]}}
+ */
+export function describeNextAction(currentPhase, phasesSkipped = []) {
+  const valid = [...PHASES];
+  if (typeof currentPhase !== 'string' || !PHASES.includes(currentPhase)) {
+    return {
+      recognized: false,
+      action: null,
+      rawPhase: typeof currentPhase === 'string' ? currentPhase : String(currentPhase),
+      valid,
+    };
+  }
+  return {
+    recognized: true,
+    action: nextActionForPhase(currentPhase, phasesSkipped),
+    rawPhase: currentPhase,
+    valid,
+  };
+}
+
+/** Longest raw-phase excerpt echoed back before eliding (`B70`). */
+const RAW_PHASE_EXCERPT_MAX = 60;
+
+/**
+ * Render the "Work remaining" copy from `describeNextAction` output (`B70`).
+ *
+ * Recognized phase → the plain command, byte-identical to what callers passed
+ * before this existed. Unrecognized → say so, echo what STATE actually holds
+ * (collapsed to ONE short line, because the briefing is capped at 50 lines and
+ * the real-world value is five paragraphs), and name the seven valid values so
+ * the reader can fix it.
+ *
+ * Rendering nothing was rejected (D-M5E18-5): a field that drifted by accident
+ * would look identical to one set deliberately — `B39`'s shape.
+ *
+ * @param {{recognized: boolean, action: string|null, rawPhase: string, valid: string[]}} desc
+ * @returns {string}
+ */
+export function formatNextActionCopy(desc) {
+  if (!desc || typeof desc !== 'object') return '';
+  if (desc.recognized) return `Next phase: ${desc.action}`;
+
+  const collapsed = String(desc.rawPhase ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const excerpt =
+    collapsed.length > RAW_PHASE_EXCERPT_MAX
+      ? `${collapsed.slice(0, RAW_PHASE_EXCERPT_MAX)}…`
+      : collapsed;
+
+  return [
+    `Next phase: unknown — STATE.md's \`phase\` is not a phase Signal recognizes.`,
+    `   STATE.md holds: "${excerpt || '(empty)'}"`,
+    `   Valid values: ${desc.valid.join(', ')}.`,
+  ].join('\n');
+}
+
+/**
  * Did `nextActionForPhase` walk past any skipped phases to reach 'done'?
  * Used by /sig:status to decide between two 'done' messages.
  *
