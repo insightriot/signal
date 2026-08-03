@@ -208,9 +208,22 @@ const ROSTER_SITES = [
   { file: 'CLAUDE.md', kind: 'commands', re: /#[ \t]*(\d+) slash commands/ },
   { file: 'CLAUDE.md', kind: 'agents', re: /#[ \t]*(\d+) agents/ },
   { file: 'CLAUDE.md', kind: 'skills', re: /#[ \t]*(\d+) (?:quality )?skills/ },
-  { file: 'docs/map/index.html', kind: 'commands', re: /Command library[^\d\n]*(\d+) commands/ },
-  { file: 'docs/map/index.html', kind: 'agents', re: /Agent roster[^\d\n]*(\d+) agents/ },
-  { file: 'docs/map/index.html', kind: 'skills', re: /Skill library[^\d\n]*(\d+) skills/ },
+  // The three `docs/map/index.html` sites were REMOVED 2026-08-03, superseded by
+  // `tests/map-roster-reconcile.test.js`. This removal is deliberate and had to
+  // be explicit: those headings now render their count from the JS arrays
+  // (`renderRosterCount`), so the source HTML holds no digits and the patterns
+  // stopped matching. Per this check's own contract three lines below — "a site
+  // whose pattern is absent is simply not checked" — leaving them here would
+  // have left three guards that look alive and verify nothing, which is exactly
+  // `B39`/`B54`'s shape.
+  //
+  // This is strictly STRONGER, not weaker. `analysis/CLAIM-INTEGRITY-ANALYSIS.md`
+  // counts checkRosterCounts as one of only two claim-vs-reality checks in all
+  // of Signal, so the trade matters: the old check compared ONE NUMBER to the
+  // roster and never looked at the list beneath it — which is how `B32` survived
+  // with a heading of 19 over an array of 17. The reconcile test compares the
+  // full SET OF NAMES in both directions, and the number is no longer an
+  // independent claim that can drift at all.
 ];
 
 /**
@@ -289,6 +302,34 @@ function readLatestChangelogVersion(baseDir) {
 }
 
 /**
+ * The `docs/map/index.html` header stamp (or null).
+ *
+ * The map is Signal's public-facing page and is entirely hand-authored —
+ * nothing regenerates it — so its version claim drifted to v0.1.9 while the
+ * plugin shipped v0.1.17. Adding it here makes the stamp fail CI the moment it
+ * disagrees with `plugin.json`, which is the only thing that has ever kept a
+ * hand-maintained number honest in this repo.
+ *
+ * The stamp deliberately carries NO date and does not say "generated": both
+ * would be further unpinned claims, and the second was simply false.
+ *
+ * NOTE: a null return means this source is SKIPPED by checkVersionConsistency,
+ * so deleting the stamp would disable the check rather than fail it.
+ * `tests/map-roster-reconcile.test.js` asserts the stamp exists, which is the
+ * half this reader cannot cover on its own.
+ */
+function readMapVersion(baseDir) {
+  let text;
+  try {
+    text = readFileSync(join(baseDir, 'docs', 'map', 'index.html'), 'utf-8');
+  } catch {
+    return null;
+  }
+  const m = text.match(/Map\s+&middot;\s+v(\d+\.\d+\.\d+)/);
+  return m ? m[1] : null;
+}
+
+/**
  * Version-consistency (HARD, B7 class): plugin.json version === marketplace ref
  * === latest real CHANGELOG heading (skipping `[Unreleased]`), all normalized by
  * stripping a leading `v`. Drift between any two turns the suite red.
@@ -322,6 +363,7 @@ export const VERSION_SOURCES = [
   { file: '.claude-plugin/marketplace.json', read: readMarketplaceRef },
   { file: 'CHANGELOG.md', read: readLatestChangelogVersion },
   { file: 'package.json', read: readPackageVersion },
+  { file: 'docs/map/index.html', read: readMapVersion },
 ];
 
 export function checkVersionConsistency(baseDir = ROOT) {
