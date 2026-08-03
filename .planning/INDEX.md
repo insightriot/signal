@@ -40,6 +40,7 @@
 - [M5.E17-REQUIREMENTS.md](M5.E17-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M5.E17-RESEARCH.md](M5.E17-RESEARCH.md) — `other` — _(note pending)_
 - [M5.E17-VALIDATION.md](M5.E17-VALIDATION.md) — `other` — _(note pending)_
+- [M5.E18-REQUIREMENTS.md](M5.E18-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M5.E3-PLAN.md](M5.E3-PLAN.md) — `other` — _(note pending)_
 - [M5.E3-PROGRESS.md](M5.E3-PROGRESS.md) — `other` — _(note pending)_
 - [M5.E3-REQUIREMENTS.md](M5.E3-REQUIREMENTS.md) — `other` — _(note pending)_
@@ -133,6 +134,7 @@
 - [M5.E1-RETROSPECTIVE.md](M5.E1-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E13-RETROSPECTIVE.md](M5.E13-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E16-RETROSPECTIVE.md](M5.E16-RETROSPECTIVE.md) — `other` — _(note pending)_
+- [M5.E17-RETROSPECTIVE.md](M5.E17-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E2-RETROSPECTIVE.md](M5.E2-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E3-RETROSPECTIVE.md](M5.E3-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E4-RETROSPECTIVE.md](M5.E4-RETROSPECTIVE.md) — `other` — _(note pending)_
@@ -262,3 +264,4 @@
 - [M5.E9](M5.E9-RETROSPECTIVE.md) — _(note pending)_
 - [M5.E13](M5.E13-RETROSPECTIVE.md) — _(note pending)_
 - [M5.E16](M5.E16-RETROSPECTIVE.md) — _(note pending)_
+- [M5.E17](M5.E17-RETROSPECTIVE.md) — _(note pending)_
