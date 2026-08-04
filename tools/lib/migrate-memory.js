@@ -1943,13 +1943,19 @@ export async function renderDryRun(baseDir, opts = {}) {
   // clean. M5.E16 fixed the same shape for /sig:sweep the week `B63` was filed
   // against this command.
   //
-  // The count line above is left byte-identical; the explanation is APPENDED,
-  // and only when the number is ambiguous (nothing proposed) or something was
-  // withheld. A clean project with real moves reads exactly as it did.
+  // The count line above is left byte-identical; the explanation is APPENDED.
+  //
+  // WHEN to append is `explainArchiveOutcome`'s decision, not this caller's.
+  // VERIFY caught the first version gating on `moves.length === 0`, which
+  // re-implemented "is this number ambiguous" here and got it wrong: a project
+  // with 2 moves AND 1 unevaluable unit printed `archive-tree moves: 2` and
+  // said nothing about the unit needing a person — AC4.1 unmet, and `B63`'s own
+  // class surviving inside the fix for `B63`. A duplicated rule is the
+  // `isStubRetro` mistake; the renderer returns [] when there is nothing to say.
   //
   // Fail-open: this is an explanatory read on a dry-run display. If closure
   // resolution throws, the migrate preview must still render.
-  if (archive.moves.length === 0 || (archive.dropped?.length ?? 0) > 0) {
+  {
     try {
       const closures = await resolveClosures(baseDir);
       for (const line of explainArchiveOutcome({
