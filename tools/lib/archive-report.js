@@ -104,27 +104,23 @@ export function explainArchiveOutcome(args = {}) {
     }
   }
 
+  // NFR5 / AC4.5 — the bound is reported by count AND reason, and when it bound
+  // NOTHING that is stated rather than left silent. A reader cannot tell
+  // "nothing was dropped" from "dropping is not reported", and the second is how
+  // a bound becomes invisible.
+  //
+  // VERIFY (2nd pass) found this half unreachable: it lived in a `renderDropped`
+  // helper that only the deleted standalone report ever called, so no command
+  // said it. Folded in here, on the wired path, and `renderDropped` deleted.
   if (dropped.length > 0) {
     L.push(`${indent}↳ ${dropped.length} unit(s) were skipped and not considered:`);
     for (const d of dropped) L.push(`${indent}    ${d.unit} — ${d.reason}`);
+  } else if (closures.length > 0) {
+    L.push(`${indent}↳ Nothing was dropped: every derived unit was considered.`);
   }
   return L;
 }
 
-/**
- * NFR5 / AC4.5 — a bound the planner applied is reported by count AND reason,
- * and when it bounded nothing that is STATED. A silent absence is exactly how a
- * bound becomes invisible: the reader cannot tell "nothing was dropped" from
- * "dropping is not reported."
- */
-export function renderDropped(dropped, indent = '  ') {
-  if (!dropped || dropped.length === 0) {
-    return `${indent}Nothing was dropped: every derived unit was considered.`;
-  }
-  const lines = [`${indent}${dropped.length} unit(s) were skipped and NOT considered:`];
-  for (const d of dropped) lines.push(`${indent}  ${d.unit}  — ${d.reason}`);
-  return lines.join('\n');
-}
 
 /**
  * The move breakdown — where files actually go, as indented lines.
