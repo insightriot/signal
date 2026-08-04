@@ -456,7 +456,11 @@ export async function senseArchiveTree(baseDir, opts = {}) {
   const closedUnits = opts.closedUnits ?? closedEpicIds;
 
   const files = await walkPlanningMd(baseDir);
-  const { moves, moveMap } = planArchiveMoves(closedUnits, files, opts);
+  // `dropped` is forwarded, not discarded (NFR5 / AC4.5). Left off the
+  // destructure it would be reachable only by calling `planArchiveMoves`
+  // directly, so no command could ever surface a skipped unit — the bound would
+  // exist and be invisible, which is the thing NFR5 forbids.
+  const { moves, moveMap, dropped } = planArchiveMoves(closedUnits, files, opts);
 
   // Fold in the FR6 rename (existence-gated). renameFroms marks the entries the
   // archive-exclusion (R7) applies to; the scaffold-only moveMap drives archive
@@ -490,7 +494,7 @@ export async function senseArchiveTree(baseDir, opts = {}) {
     const merged = [...computeLinkEdits(f, text, useMap), ...useProse];
     editsByFile.set(f, merged);
   }
-  return { moves, moveMap, closedEpicIds, files, editsByFile, renameFroms };
+  return { moves, moveMap, closedEpicIds, files, editsByFile, renameFroms, dropped };
 }
 
 /**

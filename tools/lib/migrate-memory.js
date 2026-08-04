@@ -33,6 +33,8 @@ import {
   deriveEpicArchiveDir,
 } from './evict.js';
 import { enumerateRetros } from './retro-index.js';
+import { resolveClosures } from './closure.js';
+import { explainArchiveOutcome } from './archive-report.js';
 import { checkStateFrontmatterShape } from './retrospective.js';
 import {
   toPosix,
@@ -1936,6 +1938,33 @@ export async function renderDryRun(baseDir, opts = {}) {
   L.push(`  vector-2 (big body):  ${v2.candidate ? `yes (${v2.bytes} B → STATE-HISTORY.md)` : 'no'}`);
   L.push(`  vector-3 (closed-Epic evicts): ${v3.evicts.length}`);
   L.push(`  archive-tree moves:   ${archive.moves.length}`);
+  // `B63` (M5.E18 S7 / FR4). This count is the defect: on a project this pass
+  // cannot evaluate, a bare `0` is byte-identical to a project that is already
+  // clean. M5.E16 fixed the same shape for /sig:sweep the week `B63` was filed
+  // against this command.
+  //
+  // The count line above is left byte-identical; the explanation is APPENDED,
+  // and only when the number is ambiguous (nothing proposed) or something was
+  // withheld. A clean project with real moves reads exactly as it did.
+  //
+  // Fail-open: this is an explanatory read on a dry-run display. If closure
+  // resolution throws, the migrate preview must still render.
+  if (archive.moves.length === 0 || (archive.dropped?.length ?? 0) > 0) {
+    try {
+      const closures = await resolveClosures(baseDir);
+      for (const line of explainArchiveOutcome({
+        closures: closures.units,
+        dropped: archive.dropped,
+        moveCount: archive.moves.length,
+        stateReadable: closures.stateReadable,
+        stateReason: closures.reason,
+      })) {
+        L.push(line);
+      }
+    } catch {
+      L.push('  ↳ (could not resolve unit closure to explain this count)');
+    }
+  }
   L.push(`  append-logs (left alone): ${corpus.appendLogs.length}`);
   if (needsV3) {
     const routableEvicts =
