@@ -19,6 +19,25 @@
 // person.
 //
 // The ordering of the clauses is load-bearing and is documented at each step.
+//
+// ---- On read failures, this module deliberately disagrees with its neighbours.
+//
+// Three places now read a retro/artifact and must decide what an EACCES means.
+// They do NOT answer the same way, and that is intentional — do not "fix" one
+// to match the others:
+//
+//   detectDirtyExecute      unreadable -> stay silent   (don't ACCUSE)
+//   checkEpicWithoutRetro   unreadable -> treat present (don't ACCUSE)
+//   resolveUnitClosure      unreadable -> cannotDetermine (SURFACE it)
+//
+// The first two are accusations aimed at a person — "you never wrote this" —
+// and a permissions error is not evidence for that claim, so they fall silent.
+// Closure is a decision aimed at a FILE: `closed` authorises archiving. Staying
+// quiet there would let a unit be archived because we failed to read the thing
+// that would have said not to. Never close what you could not read.
+//
+// Same failure, opposite postures, because the cost of being wrong points in
+// opposite directions.
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
