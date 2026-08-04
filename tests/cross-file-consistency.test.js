@@ -106,7 +106,14 @@ describe('cross-file consistency: references/facts.md <-> README + SECURITY.md',
     expect(readme).toMatch(/^### Requirements & compatibility$/m);
   });
 
-  it('8. README links to docs/map/index.html', () => {
+  it('8. README links the live map AND its in-repo source', () => {
+    // The live URL is what a README reader can actually open — GitHub renders
+    // `./docs/map/index.html` as source, not as a page. Pinned here because a
+    // URL in a doc is a drift surface (B58 shipped the wrong version for two
+    // releases off exactly one stale reference), and this is its only home.
+    expect(readme).toContain('https://signal.insightriot.com');
+    // The source path stays pinned too: the live site is a deploy of this file,
+    // so a README that links only the URL loses the pointer to what generates it.
     expect(readme).toContain('docs/map/index.html');
   });
 
