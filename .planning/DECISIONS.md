@@ -1158,3 +1158,123 @@ exists to force a harder stop and *"the diff was small"* is how a Critical gets 
 invented a seventh (*"requires re-validation"*), but returned FAIL on *"no design impact"* — a real
 condition — so the outcome was correct regardless. That record is left as written: it is a record of
 a REVIEW that happened, not a statement of the rule.
+
+---
+
+## 2026-08-04 — M5.E15 DISCUSS: what a verdict claims, and how far the control arm deletes (D-M5E15-1 … D-M5E15-7)
+
+**D-M5E15-1 — The verdict is DIRECTIVE-scoped: the control arm deletes every site that *orders* the
+call, and nothing else.**
+
+`B55` prescribes the fix as *"delete the instruction corpus-wide across the copied plugin."* Measured
+against the copy, that is not a coherent operation. `PLUGIN_COPY_DIRS`
+(`tools/lib/adherence-harness.js:50-62`) copies `.claude-plugin`, `commands`, `skills`, `agents`,
+`references`, `hooks`, `tools`, `state` — and `transitionPhase` occurs in **13 files** across that
+tree in **five different kinds of statement**:
+
+| Kind | Files (mentions) | Deletable? |
+|---|---|---|
+| **Orders the call** | `execute.md` (4, the target), `plan.md` (4), `verify.md` (4), `review.md` (4) — byte-identical wording per M5.E13 FR1.1 — and `ship.md:98` (1) | **Yes. This is the instruction.** |
+| Teaches the rule without ordering it | `discuss.md:158` (*"do NOT set `phase` here — the **incoming** command advances it"*), `index.md:11`, `calibrate.md:251` | No — removes a convention, not an instruction |
+| Documents the semantics | `references/state-schema.md` (6, incl. *"appends the phase you are leaving"*) | No — same problem, larger |
+| The experiment itself | `references/adherence-canaries.json` (4) — carries the measured sentence **verbatim** in `instruction`, plus the `deleteSection` anchor | Handled by D-M5E15-4 |
+| The capability | `tools/lib/state.js` (3) — the function | **Never.** See below. |
+
+**There are two ways to be wrong here, and `B55` names only one.** Under-delete (today) and the
+instruction leaks — the recorded defect. **Over-delete and you get a different invalidity:** a
+control-arm agent stripped of `state-schema.md` is not an *uninstructed* agent, it is a
+*differently-informed* one, and its 0/3 is equally unreadable. The extreme case makes it obvious —
+delete `transitionPhase` from `tools/lib/state.js` and a control arm that does not transition means
+**"could not"**, not **"was not told"**. The capability must survive; only the order to use it is
+removed.
+
+**So the claim this harness makes, stated so it cannot be inflated:** *this rule, as instructed
+anywhere a command tells an agent to act on it, does work.* Not *"this line does work"* (too weak to
+be worth the run) and not *"this rule, wherever stated"* (a claim the mutation cannot support).
+
+Ratified by Brett at DISCUSS against the two alternatives, both costed: site-scoped-but-labeled
+(fixes the overclaiming, leaves the arm leaking) and corpus-total (maximum isolation, buys the
+confound above).
+
+**D-M5E15-2 — The leak check greps the copied tree independently; the canary's anchors are used to
+delete, never to decide what is clean.**
+
+This is the whole anti-regression property of the Epic, and it is a direct answer to how `B55`
+happened. The current guard (`tools/adherence-run.js:383-384`) reads
+`mutated.includes(residue)` — it inspects **the one string it just edited**. A file it never opened
+cannot fail it. A *declared list* of deletion sites has exactly the same defect one level up: it is
+correct on the day it is written and silently stops matching the corpus the moment a sixth command
+names the function. `B55` **is** that failure — the anchor was widened line → section and stopped one
+scope short.
+
+So the two jobs are split:
+
+- The canary **declares** its deletion anchors per file (needed to perform the mutation).
+- The leak check **independently walks the whole copied tree** for the residue token and classifies
+  what survives. It never consults the canary's list to decide whether the tree is clean.
+
+**Fail-closed on the unknown.** Descriptive sites are enumerated in an explicit allowlist pinned by a
+test; anything the walk finds that is not on it is treated as **directive** and refuses the run. A
+new command file naming `transitionPhase` therefore breaks the harness loudly instead of leaking
+into a verdict quietly. This is the inverse of today's behavior and the point of the Epic.
+
+**D-M5E15-3 — Surviving directive residue REFUSES; descriptive residue is REPORTED and rides on the
+verdict record.**
+
+Consistent with the harness's existing refusal discipline (`adherence-verdict.js:20-26` — no verdict
+at all unless the mutation was proven to reach the agent). A directive site the deletion missed voids
+any verdict, so the run stops with the file and line named.
+
+Descriptive residue is **never empty by construction** under D-M5E15-1 — `state-schema.md` and
+`discuss.md:158` survive every run by design. Printing it once and discarding it would leave the next
+reader unable to tell a clean isolation from an unexamined one, so it is carried **on the verdict
+record itself**, next to the isolation scope. A reader who sees `OBEYED` sees, in the same table, what
+the control arm could still reach.
+
+**D-M5E15-4 — `references/adherence-canaries.json` is excluded from the plugin copy.**
+
+It states the measured instruction verbatim in its `instruction` field and names the exact section
+being removed. Leaving it in the copy hands the control-arm agent both the deleted sentence *and* the
+fact that it is being tested — the sharpest leak of the five, and it is the measuring apparatus
+leaking into its own measurement.
+
+Cheap and safe: `loadCanaryRegistry(ROOT)` (`tools/adherence-run.js:446`, `:495`, `:559`) reads the
+registry from the **real repo root**, never from the copy. Nothing in the copy needs it. Users are
+unaffected — this changes what the harness copies into a temp dir, not what the plugin ships.
+
+**D-M5E15-5 — The leak check is registered in `tests/guard-callers.test.js`.**
+
+`BACKLOG.md` says the leak check is *"the same shape as the `--check`-has-a-caller test — so M5.E13's
+own mechanism should cover it."* That mechanism exists under a different name: `tests/guard-callers.test.js`
+(M5.E13 S3.t3 / FR2.3, the `I2` case). The backlog's pointer is corrected here rather than left to be
+re-derived.
+
+The reasoning is self-referential and deliberate: `B55` is a guard that under-reached, and the class
+directly above it is *a guard written and never called*. A leak check nothing invokes would be this
+Epic committing the defect it exists to fix, in the code that fixes it.
+
+**D-M5E15-6 — The Epic does not close until `B41-phase-entry` is re-run under the fixed arm, and it
+publishes whatever comes back.**
+
+Ratified by Brett at DISCUSS with the worst case named in advance: **`INERT` would mean M5.E9's
+phase-entry instruction — four command files and FR1.1's shared wording — changes nothing.** That
+result gets written to `ADHERENCE-LOG.md` like any other. Same discipline M5.E8 pre-committed to for
+this same canary, and the reason is unchanged: a result that is only publishable when it flatters the
+project is not a measurement.
+
+The standing prohibition is satisfied, not waived — it forbids re-running *before* the arm is fixed,
+and explicitly requires a re-run after.
+
+**D-M5E15-7 — The three existing log records are amended in place, never rewritten.**
+
+`ADHERENCE-LOG.md` is append-only below the runs marker and already carries the convention: the
+`ABSENT` record has an **⚠ INVALIDATED** block, the `OBEYED` record an **ℹ QUALIFIED** block, the
+`INDETERMINATE` record a **⚠ DIAGNOSED** block, each left byte-identical beneath its annotation.
+
+M5.E8's `OBEYED` gains a second annotation recording that it was **unisolated** — true when written,
+and a reader landing on that record must not have to read forward to a later record to learn it. It
+is **not** retracted: 0/3 means no leak was observed in those three runs. Unisolated is not falsified,
+and the log has to be able to say the difference.
+
+**Nothing outside the log needs correcting** — `README.md` and `references/facts.md` cite no adherence
+verdict. Checked, so that a later reader knows the surface was examined rather than assumed.

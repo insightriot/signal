@@ -231,6 +231,7 @@
 - [archive/M5/E13/STATE-NARRATIVE.md](archive/M5/E13/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/E16/STATE-NARRATIVE.md](archive/M5/E16/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/E17/STATE-NARRATIVE.md](archive/M5/E17/STATE-NARRATIVE.md) — `other` — _(note pending)_
+- [archive/M5/E18/STATE-NARRATIVE.md](archive/M5/E18/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/E2/M5.E2-PLAN.md](archive/M5/E2/M5.E2-PLAN.md) — `other` — _(note pending)_
 - [archive/M5/E2/M5.E2-PROGRESS.md](archive/M5/E2/M5.E2-PROGRESS.md) — `other` — _(note pending)_
 - [archive/M5/E2/M5.E2-REQUIREMENTS.md](archive/M5/E2/M5.E2-REQUIREMENTS.md) — `other` — _(note pending)_
