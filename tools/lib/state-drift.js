@@ -36,6 +36,7 @@ import { join } from 'node:path';
 
 import { readState, PHASES, EPIC_ID_STRICT_RE } from './state.js';
 import { readProfileIssues } from './profile.js';
+import { deriveUnits, WORKED_SUFFIXES } from './work-units.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -418,7 +419,23 @@ export function renderDriftReport(report) {
 // findings, and reported **clean** for a project with 19 phase artifacts and 0
 // retrospectives. A confident wrong answer on the one project shape this Epic's
 // own research had already identified as most divergent.
-const WORKED_UNIT_IN_FILENAME = /^(.+?)-(PLAN|PROGRESS|VERIFICATION|REVIEW)\.md$/;
+// Unit derivation moved to `work-units.js` at M5.E18 S1.t2 (FR1). It used to
+// live here as a local regex, written by M5.E16's C1 fix — but M5.E18's archive
+// planner needs the identical rule, and two implementations of one rule is the
+// defect class M5.E13's REVIEW flagged. One home, two consumers.
+//
+// AC1.7' required the extraction's effect be ENUMERATED rather than assumed
+// away, and the enumeration immediately earned itself. The first attempt shared
+// the rule AND the vocabulary, defaulting this check to `SCAFFOLD_SUFFIXES` (8)
+// — and six of check (c)'s own tests went red, because the local 4-suffix list
+// was never a narrower version of the 8. It answers a DIFFERENT QUESTION:
+// "what evidences a unit was EXECUTED", where `SCAFFOLD_SUFFIXES` answers "what
+// archives with a closed unit". Including `REQUIREMENTS` would fire on any unit
+// that was scoped and parked, manufacturing a chore for every idea anyone wrote
+// down. So the rule is shared and the vocabulary is the caller's:
+// `WORKED_SUFFIXES` lives in `work-units.js` beside it, with that reasoning.
+// Net effect on findings across all 12 real projects: unchanged, 0 before and
+// 0 after. Pinned by `tests/state-drift-*.test.js`.
 
 /**
  * (c) A unit of work was executed and never retrospected.
@@ -456,21 +473,16 @@ export const checkEpicWithoutRetro = defineCheck({
             'The check has nothing to compare against.',
         },
   run: ({ files, state }) => {
-    const worked = new Set();
-    for (const f of files) {
-      const m = f.match(WORKED_UNIT_IN_FILENAME);
-      if (!m) continue;
-      // A PHASE NAME is not a unit of work. `resolveArtifactPath` pattern 3 is
-      // the literal-substitution form `{PHASE}-{ARTIFACT}.md`, so a linear-mode
-      // project legitimately has `EXECUTE-PROGRESS.md` — and `conversor` does.
-      // Broadening the prefix in the C1 fix made that look like an
-      // un-retrospected unit called "EXECUTE". Excluding the seven phase names
-      // is CATEGORICAL (a closed, enumerated set), not a threshold — FR2.2
-      // forbids the latter, and this was caught by re-measuring the corpus
-      // rather than by reasoning about it.
-      if (PHASES.includes(m[1])) continue;
-      worked.add(m[1]);
-    }
+    // `deriveUnits` owns the whole rule now: the right-anchored suffix match,
+    // the categorical seven-phase-name exclusion (a linear project legitimately
+    // has `EXECUTE-PROGRESS.md` — `conversor` does — and C1 briefly made that
+    // look like an un-retrospected unit called "EXECUTE"), and the conservative
+    // fold that keeps a slice split across `PLAN-{unit}-*` and `{unit}-*` from
+    // counting as two units.
+    // `.keys()` — `deriveUnits` returns a Map of unit -> files, and spreading
+    // the Map itself yields [key, files] ENTRIES, which stringify into the
+    // finding as "M5.E13,M5.E13-PLAN.md".
+    const worked = new Set(deriveUnits(files, { suffixes: WORKED_SUFFIXES }).units.keys());
     const findings = [];
     for (const unit of [...worked].sort()) {
       if (unit === state.current_epic) continue; // mid-flight, not abandoned
