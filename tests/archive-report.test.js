@@ -23,7 +23,6 @@ import { tmpdir } from 'node:os';
 
 import {
   explainArchiveOutcome,
-  renderDropped,
   renderMoveBreakdown,
 } from '../tools/lib/archive-report.js';
 import { planArchiveMoves } from '../tools/lib/archive-tree.js';
@@ -71,14 +70,13 @@ const render = (args = {}) => {
   }
   const explained = explainArchiveOutcome({
     closures,
-    dropped: [],
+    dropped: args.dropped ?? [],
     moveCount: moves.length,
     stateReadable: args.stateReadable ?? true,
     stateReason: args.stateReason ?? null,
     indent: '  ',
   });
   if (explained.length > 0) parts.push(...explained, '');
-  parts.push(renderDropped(args.dropped ?? []));
   return parts.join('\n') + '\n';
 };
 
@@ -236,7 +234,7 @@ describe('REVIEW — the distinction has exactly ONE definition', () => {
     expect(src.match(/if \(!stateReadable\)/g)?.length ?? 0).toBe(1);
   });
 
-  it('the empty-dropped statement is owned by exactly one renderer', () => {
+  it('the dropped section is owned by exactly one renderer', () => {
     const text = render({
       ...base,
       closures: [closed('X')],
@@ -407,6 +405,37 @@ describe('S7 — explainArchiveOutcome is reachable from the migrate dry-run (B6
     expect(lines.toLowerCase()).not.toMatch(/nothing to do/);
     expect(lines.toLowerCase()).toContain('gap');
     expect(lines).toContain('1 unit(s) resolve as CLOSED');
+  });
+});
+
+describe('AC4.5 second half — the empty bound is stated ON THE WIRED PATH', () => {
+  it('the migrate dry-run says a bound found nothing, rather than staying silent', async () => {
+    // VERIFY (2nd pass) found this unreachable: the statement lived in a helper
+    // only the deleted standalone report called, so no command ever said it. A
+    // reader cannot tell "nothing was dropped" from "dropping is not reported".
+    const { renderDryRun } = await import('../tools/lib/migrate-memory.js');
+    const dir = await mkdtemp(join(tmpdir(), 'signal-e18-ac45-'));
+    try {
+      await mkdir(join(dir, P), { recursive: true });
+      await writeFile(
+        join(dir, P, 'STATE.md'),
+        '---\nschema_version: 1\nphase: EXECUTE\ncurrent_epic: null\ncurrent_wave: null\n' +
+          'current_tasks: []\ncompleted_phases: []\nblockers: []\nlast_completed_task: null\n---\n# S\n',
+        'utf-8'
+      );
+      await writeFile(join(dir, P, 'GATE-C-VERIFICATION.md'), '**Verdict:** PASS\n', 'utf-8');
+      await writeFile(join(dir, P, 'GATE-C-PLAN.md'), '# plan\n', 'utf-8');
+      const out = await renderDryRun(dir);
+      expect(out, 'no command states the bound').toMatch(/dropped|skipped/i);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('a project with no derived units does NOT get the line — nothing was bounded', () => {
+    expect(explainArchiveOutcome({ closures: [], dropped: [] }).join('\n')).not.toMatch(
+      /Nothing was dropped/
+    );
   });
 });
 
