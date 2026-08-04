@@ -35,16 +35,21 @@ four of five were running 5-to-8-day-old machinery against real projects. `tract
 already the live instance behind `B53`, `B70` and check `(h)`. **Restart every window you intend to
 run `/sig:` commands in, not only this one.**
 
-**▶ QUEUED BEHIND M5.E18 — two fix-lane items reconciled from parallel sessions 2026-08-03/04.**
-Both are captured as numbered bugs; neither blocks M5.E18. Detail in their rows, not here.
+**▶ FIX-LANE ITEMS reconciled from parallel sessions 2026-08-03/04.** Captured as numbered bugs;
+neither blocks M5.E18. Detail in their rows, not here.
 
-1. **`B78` — `review.md`'s PASS-WITH-FIXES rule contradicts itself four ways, and its test is a
-   fifth voice.** ~20-line doc+test diff, fix lane. **This one has a deadline: fix it before M5.E18
-   reaches its own REVIEW**, or the same paragraph misfires a third time on the Epic auditing it
-   (`M5.E16-REVIEW.md:60-67` is the second — a real REVIEW that invented a condition
-   `review.md` does not contain). **Blocked on one product call from Brett**, recorded in the row:
-   *is "requires new tests" a real disqualifier, or shorthand for the LOC cap?* Steps 2–5 of the fix
-   proceed either way.
+1. ✅ **`B78` — FIXED 2026-08-04, fix lane, ahead of its deadline** (`D-M5E18-6`). `review.md` stated
+   the PASS-WITH-FIXES rule in four disagreeing places and the test block was a fifth voice; it now
+   states it once. **The product call went the other way from the recommendation, and found a real
+   hole doing it:** *"requires new tests"* flips from **disqualifier to obligation** — the fix
+   carries new coverage, in-phase, green. The old wording penalised the reviewer who wrote a
+   regression test, *and* `"all tests still pass"` only ever constrained tests that **already
+   existed**, so a fix could close in-phase with **zero** new coverage and satisfy every condition.
+   The rule read strict while leaving the test-debt door open. Cap is now `≤ 50 LOC of non-test
+   source`, with the required coverage **excluded from it** — otherwise the obligation fights the
+   cap. Nothing was cut: *"ripples beyond a single file"* is demoted to an illustration of design
+   impact, the condition it was always failing. **Deadline met** — the paragraph that will audit
+   M5.E18's own REVIEW is now the fixed one. 2054 → **2062 tests**.
 2. **`B77` — `BUGS.md`'s tally could not see the capture format Signal itself writes.** Fixed in the
    record (both formats now derived, new `captured-untriaged` column); the **code** fix — have the
    tooling count both, or report captures as their own line — is still open.

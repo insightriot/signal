@@ -192,9 +192,14 @@ describe("M5.E17 S2 — every markFresh call site states its ordering (AC3.1', F
 
 describe("M5.E17 S3 — review.md's three Critical statements express one rule (AC2.1', FR2)", () => {
   // D-M5E17-1: a Critical DISCOVERED AND CLOSED inside REVIEW, under the
-  // conditions already written for Important (<=50 LOC AND tests green AND no
-  // design impact), is PASS-WITH-FIXES. A Critical failing any one of those, or
-  // not fixed in-phase, stays FAIL.
+  // conditions already written for Important, is PASS-WITH-FIXES. A Critical
+  // failing any one of those, or not fixed in-phase, stays FAIL.
+  //
+  // This comment used to enumerate THREE conditions while review.md stated
+  // four — B78 counted this block as the rule's fifth disagreeing voice, and
+  // the count is deliberately not restated here now. D-M5E18-6 settles the set
+  // at five and the block below pins it; naming a number in two places is the
+  // defect being fixed.
   //
   // As-written AC2.1 asked only that the table and the guidance paragraph agree
   // WITH EACH OTHER. They already did — all three said Critical => FAIL — so
@@ -232,7 +237,7 @@ describe("M5.E17 S3 — review.md's three Critical statements express one rule (
     ).toContain('critical');
   });
 
-  it('the three conditions stay CONJUNCTIVE — "small diff" alone must not qualify', () => {
+  it('the conditions stay CONJUNCTIVE — "small diff" alone must not qualify', () => {
     // The recorded counter-argument to D-M5E17-1: "Critical" exists to force a
     // harder stop, and "the diff was small" is how a Critical gets under-fixed.
     const para = review().match(/\*\*PASS-WITH-FIXES guidance\.\*\*[\s\S]*?\n\n/)?.[0] ?? '';
@@ -248,6 +253,95 @@ describe("M5.E17 S3 — review.md's three Critical statements express one rule (
     // The counter-argument is part of the decision, not decoration — a rule
     // about how Signal judges its own work records why it might be wrong.
     expect(decisions.toLowerCase()).toContain('conjunctive');
+  });
+});
+
+describe('B78 — review.md states the PASS-WITH-FIXES rule ONCE (D-M5E18-6)', () => {
+  // review.md stated this rule in four places and no two agreed, and the test
+  // block above was a fifth voice. Three disagreements, each pinned here:
+  //   (1) the condition SET — the paragraph declared four, then named further
+  //       disqualifiers that were in neither the four nor the table;
+  //   (2) the OPERATOR — <= 50 / < 50 / > 50 across three statements, so a fix
+  //       of exactly 50 lines fell through both table rows and had no verdict;
+  //   (3) the DENOMINATOR — "50 LOC" of what was never stated, and under every
+  //       reading tests inflated the count, so the reviewer who wrote a
+  //       regression test landed nearer FAIL than the one who did not.
+  //
+  // These assert the statements against EACH OTHER, not against a remembered
+  // rule. That is the only shape that catches the next drift.
+  const review = () => readFileSync(join(CMD, 'review.md'), 'utf-8');
+  const para = () =>
+    denorm(review().match(/\*\*PASS-WITH-FIXES guidance\.\*\*[\s\S]*?\n\n/)?.[0] ?? '');
+  const row = (verdict) =>
+    denorm(review().match(new RegExp(`^\\|\\s*${verdict}\\s*\\|.*$`, 'm'))?.[0] ?? '');
+
+  it('the guidance paragraph is one unbroken paragraph (the capture above depends on it)', () => {
+    // Guard for the regex every assertion in this block and the last one runs
+    // through: break the paragraph into a list and `para` silently shrinks to
+    // the intro sentence, turning real pins vacuous instead of red.
+    expect(para().length, 'guidance paragraph not found or truncated').toBeGreaterThan(400);
+  });
+
+  it('paragraph and table agree on the OPERATOR — no strict "< 50" survives', () => {
+    expect(para(), 'paragraph uses a strict operator').not.toMatch(/<\s*50/);
+    expect(row('PASS-WITH-FIXES'), 'PASS-WITH-FIXES row uses a strict operator').not.toMatch(/<\s*50/);
+    expect(para(), 'paragraph lost the <= 50 cap').toMatch(/≤\s*50/);
+    expect(row('PASS-WITH-FIXES'), 'PASS-WITH-FIXES row lost the <= 50 cap').toMatch(/≤\s*50/);
+  });
+
+  it('a fix of EXACTLY 50 lines has a verdict — the rows must not leave a gap', () => {
+    // The concrete failure: paragraph said <= 50, PASS row said < 50, FAIL row
+    // said > 50. Exactly 50 matched the paragraph and neither row.
+    expect(row('PASS-WITH-FIXES')).toMatch(/≤\s*50/); // 50 admitted here
+    expect(row('FAIL')).toMatch(/>\s*50/); // and excluded only above 50
+  });
+
+  it('the cap states its DENOMINATOR everywhere it states the number', () => {
+    for (const [where, text] of [
+      ['paragraph', para()],
+      ['PASS-WITH-FIXES row', row('PASS-WITH-FIXES')],
+      ['FAIL row', row('FAIL')],
+    ]) {
+      expect(text.toLowerCase(), `${where} states 50 LOC without saying of what`).toMatch(
+        /non-test source/
+      );
+    }
+  });
+
+  it('needing new coverage is an OBLIGATION, not a disqualifier (Brett, 2026-08-04)', () => {
+    const text = para().toLowerCase();
+    // The old rule bounced a fix back to EXECUTE for needing a test, which
+    // penalised the reviewer who wrote one. It now requires the coverage.
+    expect(text, 'still bounces a fix back for needing new tests').not.toMatch(
+      /require new tests should fail/
+    );
+    expect(text, 'the new-coverage obligation is missing').toMatch(/new coverage/);
+  });
+
+  it('the new tests a fix carries do NOT count against its own cap', () => {
+    // Without this the obligation above fights the cap: writing the required
+    // regression test would push the fix over 50 and into FAIL.
+    expect(para().toLowerCase(), 'the cap does not exempt the required coverage').toMatch(
+      /(do(es)? not count|excluded from|never count)/
+    );
+  });
+
+  it('no statement in review.md hardcodes a condition COUNT that can drift', () => {
+    // Both ":125" and the D-M5E17-1 rationale paragraph said "four conditions"
+    // while the trailing sentence smuggled in more. A count written in two
+    // places is what drifted; the set is enumerated instead.
+    expect(denorm(review()).toLowerCase(), 'a stale condition count survives').not.toMatch(
+      /\b(one|two|three|four|five|six|seven)\s+conditions\b/
+    );
+  });
+
+  it('DECISIONS.md records D-M5E18-6 without rewriting D-M5E17-1 in place', () => {
+    const decisions = readFileSync(join(ROOT, '.planning/DECISIONS.md'), 'utf-8');
+    expect(decisions).toContain('D-M5E18-6');
+    // PROJECT.md makes IDs permanent addresses: a refinement supersedes by new
+    // dated entry. D-M5E17-1 must still be readable where it was written.
+    expect(decisions).toContain('D-M5E17-1');
+    expect(decisions.toLowerCase()).toMatch(/non-test source/);
   });
 });
 

@@ -1098,3 +1098,63 @@ accident would look identical to one set deliberately.
 **Lane and ordering:** its own branch off `main`, its own PR, no six phases — per `D-M5E17-5`. It
 does **not** ride along in the Epic branch. `BACKLOG.md` homes it in M5.E18 *"arguably ahead of part
 1"*; this ratifies the *ahead* and moves the delivery out of the Epic.
+
+---
+
+## 2026-08-04 — Fix lane (`B78`): the PASS-WITH-FIXES rule, stated once (D-M5E18-6)
+
+*Not an M5.E18 phase decision — a fix-lane call carrying an Epic ID, same shape as `D-M5E17-4`.
+Taken ahead of M5.E18's own REVIEW so the paragraph auditing that Epic is not the one being fixed.*
+
+**D-M5E18-6 — Needing new coverage is an obligation, not a disqualifier; and the 50-LOC cap counts
+non-test source only. Supersedes `D-M5E17-1`'s condition set without rewriting it.**
+
+`D-M5E17-1` settled *whether a Critical can qualify*. It did not settle **what the conditions are**,
+and `commands/review.md` went on to state them in four places that no two of which agreed —
+`tests/commands-wording.test.js` being a fifth voice with its own count. Three disagreements, all
+recorded in `B78`:
+
+1. **The set.** The guidance paragraph declared a count, then named *"ripple beyond a single file"*
+   and *"require new tests"* as further disqualifiers — neither among the counted set, neither in
+   the table.
+2. **The operator.** `≤ 50` / `< 50` / `> 50` across three statements, so a fix of **exactly 50
+   lines** was PASS-WITH-FIXES per the paragraph and matched **neither table row**.
+3. **The denominator.** *50 LOC of what?* Source only, or source plus tests? Under every reading
+   tests inflated the count.
+
+**The product call (Brett, 2026-08-04): the fix carries new coverage, in-phase, and it must be
+green.** The old wording bounced a fix back to EXECUTE for needing a test. That is backwards on two
+counts. First, it penalised the careful reviewer: writing a regression test moved you *toward* FAIL,
+so the rule trained reviewers not to test. Second — and this is the hole nobody had named — *"all
+tests still pass"* only ever constrained the tests that **already existed**. Nothing in the rule
+required a fix to be covered at all, so a defect could be closed in-phase with zero new coverage and
+satisfy every condition. The rule read as strict while leaving the actual test-debt door open.
+
+Flipping it closes that door and removes the perverse incentive in one move: **more rigor than
+either prior reading, and no penalty for testing.**
+
+**The denominator follows from the flip.** The cap is **≤ 50 LOC of non-test source, insertions plus
+deletions**, and the required coverage is **excluded from it**. It has to be — otherwise the new
+obligation fights the cap, and the regression test a fix is now required to carry would be the thing
+that pushes it into FAIL.
+
+**Resolved consistently, not per-statement:** `≤ 50` in the paragraph and the PASS-WITH-FIXES row,
+`> 50` in the FAIL row — no gap at exactly 50. *"No design impact"* replaces the row's *"no
+architectural impact"*; *"touches architecture"* and *"ripples beyond a single file"* are demoted to
+what they always were — **illustrations of design impact, not extra conditions**. Nothing is cut:
+a fix rippling across files still fails, on the condition it was always failing.
+
+**No count is written anywhere.** The set is enumerated. A number stated in two places is precisely
+what drifted, and `tests/commands-wording.test.js` now fails on any spelled condition-count in
+`review.md` — including the correct one.
+
+**Why a new entry rather than an edit.** `PROJECT.md` makes IDs permanent addresses. `D-M5E17-1` is
+cited from `review.md`, from `M5.E16-REVIEW.md` and from the test suite; it stays readable where it
+was written, and this entry supersedes its condition set. Its *counter-argument* — that "Critical"
+exists to force a harder stop and *"the diff was small"* is how a Critical gets under-fixed — is
+**unchanged and still load-bearing**, which is why these conditions remain conjunctive.
+
+**No wrong verdict is on record.** `M5.E16-REVIEW.md:60-67` read the rule as six conditions and
+invented a seventh (*"requires re-validation"*), but returned FAIL on *"no design impact"* — a real
+condition — so the outcome was correct regardless. That record is left as written: it is a record of
+a REVIEW that happened, not a statement of the rule.
