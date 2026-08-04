@@ -236,6 +236,37 @@ describe('S7 — explainArchiveOutcome is reachable from the migrate dry-run (B6
     }
   });
 
+  it('AC4.1 — moves > 0 AND an unevaluable unit: the count never stands alone either', async () => {
+    // Caught by VERIFY. The first wiring gated on `moves.length === 0`, so a
+    // project with real moves AND an unreadable unit printed the count and said
+    // nothing about the unit needing a person. B63's own class surviving inside
+    // the fix for B63 — and the cause was the CALLER re-implementing "is this
+    // ambiguous" instead of letting the renderer decide.
+    const { renderDryRun } = await import('../tools/lib/migrate-memory.js');
+    const dir = await mkdtemp(join(tmpdir(), 'signal-e18-ac41-'));
+    try {
+      await mkdir(join(dir, P), { recursive: true });
+      await writeFile(
+        join(dir, P, 'STATE.md'),
+        '---\nschema_version: 1\nphase: EXECUTE\ncurrent_epic: null\ncurrent_wave: null\n' +
+          'current_tasks: []\ncompleted_phases: []\nblockers: []\nlast_completed_task: null\n---\n# S\n',
+        'utf-8'
+      );
+      await writeFile(join(dir, P, 'M9.E1-RETROSPECTIVE.md'), '# retro\n\nReal.\n', 'utf-8');
+      await writeFile(join(dir, P, 'M9.E1-VERIFICATION.md'), '**Verdict:** PASS\n', 'utf-8');
+      await writeFile(join(dir, P, 'M9.E1-PLAN.md'), '# plan\n', 'utf-8');
+      await writeFile(join(dir, P, 'T25-VERIFICATION.md'), '## Verdict\n\nAll criteria pass.\n', 'utf-8');
+
+      const out = (await renderDryRun(dir)).split('\n');
+      const i = out.findIndex((l) => l.includes('archive-tree moves:'));
+      expect(out[i]).toMatch(/archive-tree moves:\s+[1-9]/); // there ARE moves
+      expect(out[i + 1], 'a real move count hid an unevaluable unit').toMatch(/↳/);
+      expect(out.join('\n')).toContain('T25');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it('senseArchiveTree FORWARDS dropped — otherwise no command can surface it', async () => {
     const { senseArchiveTree } = await import('../tools/lib/archive-tree.js');
     const res = await senseArchiveTree(join(import.meta.dirname, '..'));
