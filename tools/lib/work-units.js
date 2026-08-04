@@ -44,6 +44,27 @@ import { PHASES } from './state.js';
 const PHASE_NAMES = new Set(PHASES);
 
 /**
+ * The artifacts that prove a unit was **executed**, as opposed to merely scoped.
+ *
+ * NOT a narrower `SCAFFOLD_SUFFIXES` — a different question. `SCAFFOLD_SUFFIXES`
+ * answers *"what archives with a closed unit"*; this answers *"what evidences
+ * that work actually happened"*. `REQUIREMENTS` is deliberately absent: a unit
+ * can be scoped and parked, and treating that as worked would manufacture a
+ * chore for every idea anyone ever wrote down.
+ *
+ * Extracted from `state-drift.js` at M5.E18 S1.t2, where it was a local regex.
+ * Its own tests caught the conflation when the extraction first defaulted
+ * everything to `SCAFFOLD_SUFFIXES` — the rule is shared, the vocabulary is the
+ * caller's.
+ */
+export const WORKED_SUFFIXES = Object.freeze([
+  'PLAN',
+  'PROGRESS',
+  'VERIFICATION',
+  'REVIEW',
+]);
+
+/**
  * Match a scaffold suffix at the END of a filename stem.
  *
  * Prefers the LONGEST suffix, which is what keeps the match right-anchored:
@@ -54,9 +75,9 @@ const PHASE_NAMES = new Set(PHASES);
  * @param {string} stem  filename without the `.md`
  * @returns {string|null} the unit name, or null when no suffix matches
  */
-function matchSuffix(stem) {
+function matchSuffix(stem, suffixes) {
   let best = null;
-  for (const suffix of SCAFFOLD_SUFFIXES) {
+  for (const suffix of suffixes) {
     if (stem === suffix) continue;
     if (!stem.endsWith(`-${suffix}`)) continue;
     if (best === null || suffix.length > best.length) best = suffix;
@@ -97,17 +118,24 @@ function foldTarget(unit, derived) {
  * `ungrouped` is ALWAYS an array, including when empty — an empty collection
  * must stay distinguishable from one that was never computed (`B39`'s shape).
  *
+ * The RULE is shared; the SUFFIX VOCABULARY is the caller's. `SCAFFOLD_SUFFIXES`
+ * (the default) answers *"what archives with a closed unit"*; `WORKED_SUFFIXES`
+ * answers *"what evidences work happened"*. Passing the wrong one silently
+ * changes the question — see `WORKED_SUFFIXES`' note.
+ *
  * @param {string[]} filenames  bare filenames, not paths
+ * @param {{suffixes?: readonly string[]}} [opts]
  * @returns {{units: Map<string, string[]>, ungrouped: string[]}}
  */
-export function deriveUnits(filenames) {
+export function deriveUnits(filenames, opts = {}) {
+  const suffixes = opts.suffixes ?? SCAFFOLD_SUFFIXES;
   const ungrouped = [];
   const raw = new Map();
 
   // Pass 1 + 2 — suffix match, then the categorical phase-name exclusion.
   for (const name of [...(filenames ?? [])].sort()) {
     if (typeof name !== 'string' || !name.endsWith('.md')) continue;
-    const unit = matchSuffix(name.slice(0, -3));
+    const unit = matchSuffix(name.slice(0, -3), suffixes);
     if (unit === null || PHASE_NAMES.has(unit)) {
       ungrouped.push(name);
       continue;

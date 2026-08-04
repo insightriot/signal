@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { deriveUnits } from '../tools/lib/work-units.js';
+import { deriveUnits, WORKED_SUFFIXES } from '../tools/lib/work-units.js';
+import { SCAFFOLD_SUFFIXES } from '../tools/lib/archive-tree.js';
 
 /**
  * M5.E18 S1 — units of work, derived from filenames.
@@ -203,6 +204,32 @@ describe('M5.E18 S1 / FR1 — deriveUnits', () => {
     it('a unit merely STARTING with a phase word is untouched', () => {
       // The exclusion is on the whole name, not a prefix — `PLANNER` is a unit.
       expect(unitNames(['PLANNER-PLAN.md'])).toEqual(['PLANNER']);
+    });
+  });
+
+  describe('the suffix vocabulary is the CALLER\'s question, not a narrower default', () => {
+    // Found by AC1.7' during the state-drift.js extraction: sharing the rule AND
+    // defaulting the vocabulary broke six of check (c)'s own tests. WORKED_SUFFIXES
+    // is not a subset-for-convenience — it answers "was this EXECUTED", where
+    // SCAFFOLD_SUFFIXES answers "does this archive with a closed unit".
+    const PARKED = ['M5.E14-REQUIREMENTS.md', 'M5.E13-PLAN.md', 'M5.E13-RETROSPECTIVE.md'];
+
+    it('the default vocabulary sees a scoped-and-parked unit', () => {
+      expect([...deriveUnits(PARKED).units.keys()].sort()).toEqual(['M5.E13', 'M5.E14']);
+    });
+
+    it('WORKED_SUFFIXES does NOT — REQUIREMENTS alone is not evidence of work', () => {
+      // If this ever equals the line above, check (c) starts manufacturing a
+      // chore for every idea anyone wrote down and parked.
+      const u = deriveUnits(PARKED, { suffixes: WORKED_SUFFIXES }).units;
+      expect([...u.keys()]).toEqual(['M5.E13']);
+      expect(u.has('M5.E14')).toBe(false);
+    });
+
+    it('the two vocabularies are genuinely different sets', () => {
+      expect(WORKED_SUFFIXES).not.toEqual(SCAFFOLD_SUFFIXES);
+      expect(WORKED_SUFFIXES).not.toContain('REQUIREMENTS');
+      for (const s of WORKED_SUFFIXES) expect(SCAFFOLD_SUFFIXES).toContain(s);
     });
   });
 
