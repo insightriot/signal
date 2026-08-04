@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.18] — 2026-08-04 — The archive half, for the projects Epic-gating did not reach (M5.E18)
 
 ### Added
 - **The archive half, for the projects Epic-gating did not reach (M5.E18).** Signal's two archive paths were Epic-gated **by construction** — `planArchiveMoves` filtered through `EPIC_ID_STRICT_RE` and `deriveEpicArchiveDir` **throws** on anything else — so a project naming its work `PHASE10-S4` or `GATE-A` could not archive at all.
