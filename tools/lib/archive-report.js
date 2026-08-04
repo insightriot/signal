@@ -24,6 +24,8 @@
 // `resolveClosures`. That was found in S4's own code by first use, pinned by a
 // closure test, and carried forward as this slice's obligation. Here it is paid.
 
+import { PLANNING_DIR } from './state.js';
+
 const CLOSED = 'closed';
 const OPEN = 'open';
 const CANNOT = 'cannotDetermine';
@@ -32,11 +34,12 @@ const CANNOT = 'cannotDetermine';
  * Why an archive pass proposed what it proposed — the discriminating sentences,
  * with no header, as indented lines.
  *
- * Split out from `renderArchivePlan` so `/sig:migrate-memory`'s dry-run can say
- * the same thing inside its own tiered display without a SECOND definition of
- * the distinction drifting away from this one. That is the defect class this
- * Epic keeps finding (`isStubRetro` had five readers and one consumer); one
- * rule, two presentations.
+ * THE definition of the distinction. It was briefly split out of a standalone
+ * report renderer that then kept its own copy of the same branches — one rule,
+ * two implementations, already drifting (only the report said "needs a person").
+ * REVIEW caught that; the report was deleted rather than kept in sync, because
+ * nothing rendered it and an unused second copy is a drift source with no
+ * upside. `/sig:migrate-memory`'s dry-run is the one consumer.
  *
  * @returns {string[]} lines, already indented, possibly empty
  */
@@ -109,91 +112,64 @@ export function explainArchiveOutcome(args = {}) {
 }
 
 /**
- * Render the archive dry-run report.
- *
- * @param {object} args
- * @param {Array<{unit:string,status:string,reason:string}>} args.closures  from resolveClosures
- * @param {Array<{from:string,to:string}>} [args.moves]
- * @param {Array<{unit:string,reason:string}>} [args.dropped]  units the planner refused (NFR5)
- * @param {boolean} [args.stateReadable]
- * @param {string|null} [args.stateReason]
- * @returns {string}
- */
-export function renderArchivePlan(args = {}) {
-  const closures = args.closures ?? [];
-  const moves = args.moves ?? [];
-  const dropped = args.dropped ?? [];
-  const stateReadable = args.stateReadable ?? true;
-  const stateReason = args.stateReason ?? null;
-
-  const byStatus = (s) => closures.filter((c) => c.status === s);
-  const closed = byStatus(CLOSED);
-  const open = byStatus(OPEN);
-  const cannot = byStatus(CANNOT);
-
-  const out = ['Archive plan — dry run (nothing has been written)', ''];
-
-  // Counts first — but only when there is something to count. A project whose
-  // STATE is unreadable, or which derives no units, has no meaningful counts and
-  // printing `0/0/0` for it is exactly the collapse this module exists to stop.
-  if (stateReadable && closures.length > 0) {
-    if (moves.length > 0) {
-      out.push(`  ${moves.length} file(s) to archive across ${closed.length} closed unit(s):`);
-      for (const c of closed) {
-        const n = moves.filter((m) => m.from.includes(`/${c.unit}-`)).length;
-        if (n > 0) out.push(`    ${c.unit}  →  ${n} file(s)`);
-      }
-    } else {
-      out.push('  0 file(s) to archive.');
-    }
-    out.push(
-      '',
-      `  Closed (ready to archive):  ${closed.length} unit(s)`,
-      `  Open (still in flight):     ${open.length} unit(s)`,
-      `  Could not determine:        ${cannot.length} unit(s)`,
-      ''
-    );
-  }
-
-  // The four-fact distinction itself is NOT restated here — it is
-  // `explainArchiveOutcome`'s, and this function delegates to it.
-  //
-  // REVIEW caught the first version carrying its own `!stateReadable` /
-  // `closures.length === 0` / `cannot.length > 0` branches while
-  // `explainArchiveOutcome`'s docblock claimed it existed so no second
-  // definition could drift. The comment asserted a property the code did not
-  // have — one rule, two implementations, which is this Epic's own defect class
-  // (`isStubRetro`: one definition, five discarding consumers) in the module
-  // written to fix it. Delegating also means the golden tests for AC4.2/AC4.4
-  // now pin the SAME code the migrate dry-run runs.
-  //
-  // `dropped` is passed empty on purpose: `renderDropped` owns that section here
-  // (it must also state the EMPTY case, which the inline explainer does not).
-  const explained = explainArchiveOutcome({
-    closures,
-    dropped: [],
-    moveCount: moves.length,
-    stateReadable,
-    stateReason,
-    indent: '  ',
-  });
-  if (explained.length > 0) out.push(...explained, '');
-
-  out.push(renderDropped(dropped));
-  return out.join('\n') + '\n';
-}
-
-/**
  * NFR5 / AC4.5 — a bound the planner applied is reported by count AND reason,
  * and when it bounded nothing that is STATED. A silent absence is exactly how a
  * bound becomes invisible: the reader cannot tell "nothing was dropped" from
  * "dropping is not reported."
  */
-function renderDropped(dropped) {
+export function renderDropped(dropped, indent = '  ') {
   if (!dropped || dropped.length === 0) {
-    return '  Nothing was dropped: every derived unit was considered.';
+    return `${indent}Nothing was dropped: every derived unit was considered.`;
   }
-  const lines = [`  ${dropped.length} unit(s) were skipped and NOT considered:`];
-  for (const d of dropped) lines.push(`    ${d.unit}  — ${d.reason}`);
+  const lines = [`${indent}${dropped.length} unit(s) were skipped and NOT considered:`];
+  for (const d of dropped) lines.push(`${indent}  ${d.unit}  — ${d.reason}`);
   return lines.join('\n');
+}
+
+/**
+ * The move breakdown — where files actually go, as indented lines.
+ *
+ * Grouped by DESTINATION DIRECTORY, not by a unit name guessed from the
+ * filename. The first version stripped a trailing `-SUFFIX.md` to recover the
+ * unit and mislabelled the v3 rename moves that share this move set:
+ * `FUTURE-IDEAS.md` became a unit called `FUTURE`, and `FUTURE-IDEAS-LEDGER.md`
+ * one called `FUTURE-IDEAS`. The destination already encodes the unit exactly,
+ * so nothing needs to be inferred.
+ *
+ * Non-archive moves (the renames) are counted separately rather than dressed up
+ * as unit archives — they are folded into the same count line by pre-existing
+ * design, and silently presenting them as archives would be a small lie in the
+ * one place a user checks before saying go.
+ *
+ * @param {Array} moves
+ * @param {{indent?: string, renameFroms?: Set<string>}} [opts]
+ * @returns {string[]}
+ */
+export function renderMoveBreakdown(moves = [], opts = {}) {
+  if (!moves || moves.length === 0) return [];
+  const indent = opts.indent ?? '  ';
+  // PRECISE, not heuristic: `senseArchiveTree` already knows which moves are the
+  // v3 renames. A first version guessed from the destination path and still
+  // mislabelled the archive-ledger rename, which lands under `.planning/archive/`
+  // and so looked like a unit archive. Ask the producer instead of inferring.
+  const renameFroms = opts.renameFroms ?? new Set();
+  const ARCHIVE = `${PLANNING_DIR}/archive/`;
+  const byDest = new Map();
+  let renames = 0;
+  for (const m of moves) {
+    if (renameFroms.has(m.from) || !String(m.to).startsWith(ARCHIVE)) {
+      renames += 1;
+      continue;
+    }
+    const dir = m.to.slice(0, m.to.lastIndexOf('/') + 1);
+    byDest.set(dir, (byDest.get(dir) ?? 0) + 1);
+  }
+  const lines = [];
+  for (const [dir, n] of [...byDest].sort(([a], [b]) => a.localeCompare(b))) {
+    lines.push(`${indent}  ${dir}  (${n} file${n === 1 ? '' : 's'})`);
+  }
+  if (renames > 0) {
+    lines.push(`${indent}  ${renames} rename(s), not a unit archive`);
+  }
+  return lines;
 }

@@ -201,3 +201,71 @@ describe('S6 AC6.4 — dry-run is default and writes nothing', () => {
     expect(again.moves).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// M5.E18 wave 6 — the mover uses BOTH definitions of "done"
+//
+// Measured across 12 real projects: with the retro-only rule the mover archives
+// 67 files, ALL of them in Signal's own tree — every other project archives
+// nothing, because 8 of 12 keep no retrospectives at all. The Epic built the
+// capability and the command still could not reach it.
+//
+// Swapping to the verdict rule is NOT the fix: M5.E17 has a retrospective but
+// never wrote a VERIFICATION, so the verdict rule reads it as still running and
+// 4 files would STOP archiving. Neither definition dominates. Either counts:
+// 67 -> 114 files, 1 -> 6 projects, nothing lost.
+// ---------------------------------------------------------------------------
+
+describe('S6 wave 6 — closed by a retro OR by a passing verdict, and a stub vetoes both', () => {
+  let baseDir;
+  beforeEach(async () => {
+    baseDir = await mkdtemp(join(tmpdir(), 'signal-e18-union-'));
+    await mkdir(join(baseDir, P), { recursive: true });
+    await writeFile(
+      join(baseDir, P, 'STATE.md'),
+      '---\nschema_version: 1\nphase: EXECUTE\ncurrent_epic: null\ncurrent_wave: null\n' +
+        'current_tasks: []\ncompleted_phases: []\nblockers: []\nlast_completed_task: null\n---\n# S\n',
+      'utf-8'
+    );
+  });
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true });
+  });
+
+  const w = (n, c) => writeFile(join(baseDir, P, n), c, 'utf-8');
+
+  it('a unit closed by RETRO with no verdict still archives (the M5.E17 shape)', async () => {
+    await w('M9.E1-RETROSPECTIVE.md', '# retro\n\nReal content.\n');
+    await w('M9.E1-PLAN.md', '# plan\n');
+    const { moves } = await senseArchiveTree(baseDir);
+    expect(moves.map((m) => m.from)).toContain(`${P}/M9.E1-PLAN.md`);
+  });
+
+  it('a unit closed by VERDICT with no retro now archives too (the v0.1.6 shape)', async () => {
+    await w('GATE-B-VERIFICATION.md', '**Verdict:** PASS\n');
+    await w('GATE-B-PLAN.md', '# plan\n');
+    const { moves } = await senseArchiveTree(baseDir);
+    expect(moves.map((m) => m.from)).toContain(`${P}/GATE-B-PLAN.md`);
+  });
+
+  it('a STUB retro VETOES closure even with a passing verdict — B64 must not come back', async () => {
+    // The union's one real hazard. On the real corpus no stub-retro unit also
+    // carries a passing verdict, so this would pass by inventory luck — which is
+    // exactly the reasoning this Epic keeps rejecting.
+    await w('M9.E3-RETROSPECTIVE.md', '# retro\n\n## What went well\n\n[FILL IN]\n');
+    await w('M9.E3-VERIFICATION.md', '**Verdict:** PASS\n');
+    await w('M9.E3-PLAN.md', '# plan\n');
+    const { moves } = await senseArchiveTree(baseDir);
+    expect(
+      moves.map((m) => m.from),
+      'a stub-retro unit archived via the verdict path'
+    ).not.toContain(`${P}/M9.E3-PLAN.md`);
+  });
+
+  it('an explicit opts.closedUnits still overrides the default entirely', async () => {
+    await w('M9.E1-RETROSPECTIVE.md', '# retro\n\nReal.\n');
+    await w('M9.E1-PLAN.md', '# plan\n');
+    const { moves } = await senseArchiveTree(baseDir, { closedUnits: [] });
+    expect(moves).toEqual([]);
+  });
+});

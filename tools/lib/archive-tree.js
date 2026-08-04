@@ -42,6 +42,7 @@ import { PLANNING_DIR, EPIC_ID_STRICT_RE } from './state.js';
 import { atomicWrite } from './atomic-write.js';
 import { deriveEpicArchiveDir } from './evict.js';
 import { enumerateRetros } from './retro-index.js';
+import { resolveClosures } from './closure.js';
 import { INBOX_NEW, INBOX_LEGACY, LEDGER_NEW, LEDGER_LEGACY } from './inbox-path.js';
 
 // The scaffold doc-types that archive with a closed Epic. A project-AGNOSTIC
@@ -441,19 +442,43 @@ export async function senseArchiveTree(baseDir, opts = {}) {
   // of 23 retros — M4.5.E1, M4.5.E3, M4.5.E6, M4.5.E7 (AC5.2).
   const closedEpicIds = retros.filter((r) => !r.isStub).map((r) => r.epicId);
 
-  // M5.E18 S6. `opts.closedUnits` lets a caller supply the closed set directly —
-  // including NON-Epic units, which the retro-derived path cannot express (8 of
-  // 12 real projects have no strict Epic IDs at all). Default is unchanged:
-  // absent the option, the closed set is exactly the non-stub retros, so every
-  // existing caller plans exactly the moves it planned before (AC6.1).
+  // M5.E18 wave 6 — a unit is closed if EITHER definition says so.
   //
-  // Deliberately an explicit input rather than a call into `resolveClosures`:
-  // S4's resolver answers a STRICTER question (terminal artifact + not-current +
-  // a passing readable verdict), and wiring it in here would silently change
-  // which EPICS archive — an Epic with a complete retro but a FAIL verdict would
-  // stop archiving. That is a behaviour change AC6.1 forbids in this slice, and
-  // it belongs to S7 where the four-status reporting can show what moved and why.
-  const closedUnits = opts.closedUnits ?? closedEpicIds;
+  // Signal has two, and neither dominates. Measured across 12 real projects:
+  //
+  //   retro-only (the old default)  67 files, and all 67 are Signal's own tree —
+  //                                 every other project archives NOTHING, because
+  //                                 8 of 12 keep no retrospectives at all
+  //   verdict-only                  110 files, but 4 STOP: `M5.E17` has a retro
+  //                                 and never wrote a VERIFICATION, so the verdict
+  //                                 rule reads a shipped Epic as still running
+  //   either                        114 files, 6 projects, nothing lost
+  //
+  // Swapping one for the other loses real work in both directions, so the default
+  // is the union. `opts.closedUnits` still overrides it completely.
+  //
+  // **A stub retro VETOES closure**, whatever the verdict says. Without that the
+  // union quietly undoes `B64`/S5: a `[FILL IN]` card plus a passing VERIFICATION
+  // would archive a live unit through the verdict path. No unit in the real
+  // corpus is currently in that state — which is inventory luck, not safety, and
+  // is the reasoning this Epic exists to reject.
+  //
+  // Fail-open: closure resolution is additive here, so if it throws the mover
+  // falls back to exactly the retro-derived behaviour rather than losing moves.
+  let closedUnits = opts.closedUnits;
+  if (!closedUnits) {
+    const stubbed = new Set(retros.filter((r) => r.isStub).map((r) => r.epicId));
+    let verdictClosed = [];
+    try {
+      const resolved = await resolveClosures(baseDir);
+      verdictClosed = resolved.units
+        .filter((u) => u.status === 'closed' && !stubbed.has(u.unit))
+        .map((u) => u.unit);
+    } catch {
+      verdictClosed = [];
+    }
+    closedUnits = [...new Set([...closedEpicIds, ...verdictClosed])];
+  }
 
   const files = await walkPlanningMd(baseDir);
   // `dropped` is forwarded, not discarded (NFR5 / AC4.5). Left off the
@@ -494,7 +519,11 @@ export async function senseArchiveTree(baseDir, opts = {}) {
     const merged = [...computeLinkEdits(f, text, useMap), ...useProse];
     editsByFile.set(f, merged);
   }
-  return { moves, moveMap, closedEpicIds, files, editsByFile, renameFroms, dropped };
+  // `closedEpicIds` keeps its historical meaning — RETRO-derived only — because
+  // callers and tests read it as "which Epics have a finished retrospective".
+  // `closedUnits` is what actually drove the moves. Two names because they are
+  // two facts; collapsing them would be the drift this Epic keeps finding.
+  return { moves, moveMap, closedEpicIds, closedUnits, files, editsByFile, renameFroms, dropped };
 }
 
 /**
