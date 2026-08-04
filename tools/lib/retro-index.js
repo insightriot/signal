@@ -30,6 +30,42 @@ export function isStubRetro(content) {
 }
 
 /**
+ * The three answers a retrospective can give about its unit (M5.E18 S5).
+ *
+ * `isStubRetro` has existed since M4.5.E9 and `enumerateRetros` has reported
+ * `isStub` on every record since — but until this slice the flag was consumed
+ * in exactly ONE place: rendering "*stub*" vs "*complete*" into INDEX.md.
+ * Five separate call sites asked "is this unit finished?", got a file-exists
+ * boolean, and threw the flag away. A `[FILL IN]` placeholder therefore read
+ * as a finished unit at all five — archiving live Epics, silencing the
+ * write-the-retro reminder, and muting a drift check built to catch it.
+ *
+ * Existence and completeness are different questions and now have different
+ * answers. This is the single vocabulary all five sites share, so they cannot
+ * drift apart again.
+ */
+export const RETRO_STATUS = Object.freeze({
+  COMPLETE: 'complete',
+  STUB: 'stub',
+  ABSENT: 'absent',
+});
+
+/**
+ * Classify a retrospective from its content.
+ *
+ * Deliberately delegates to `isStubRetro` rather than re-implementing the
+ * `[FILL IN]` rule: a second definition of "stub" is the same defect one layer
+ * up, and this Epic exists because one value had five readers.
+ *
+ * @param {string|null|undefined} content — file body, or null/'' if absent
+ * @returns {'complete'|'stub'|'absent'}
+ */
+export function retroStatusFromContent(content) {
+  if (!content || content.length === 0) return RETRO_STATUS.ABSENT;
+  return isStubRetro(content) ? RETRO_STATUS.STUB : RETRO_STATUS.COMPLETE;
+}
+
+/**
  * Walk `.planning/` (recursively) and return one record per `*-RETROSPECTIVE.md`
  * file, sorted by Epic ID ascending. Records:
  *

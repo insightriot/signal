@@ -354,7 +354,11 @@ function assertInsidePlanning(baseDir, destAbs) {
  */
 export async function senseArchiveTree(baseDir, opts = {}) {
   const retros = await enumerateRetros(baseDir);
-  const closedEpicIds = retros.map((r) => r.epicId);
+  // M5.E18 S5.t1 (`B64`): a STUB retro is not closure. `enumerateRetros` has
+  // always reported `isStub`; this call discarded it, so a card that is still
+  // all `[FILL IN]` archived a live Epic. Against Signal's own tree that is 4
+  // of 23 retros — M4.5.E1, M4.5.E3, M4.5.E6, M4.5.E7 (AC5.2).
+  const closedEpicIds = retros.filter((r) => !r.isStub).map((r) => r.epicId);
   const files = await walkPlanningMd(baseDir);
   const { moves, moveMap } = planArchiveMoves(closedEpicIds, files, opts);
 
