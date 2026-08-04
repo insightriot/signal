@@ -93,20 +93,87 @@ function compareEpicIds(a, b) {
  * @param {{scaffoldSuffixes?: string[]}} [opts]
  * @returns {{moves: Array<{from,to}>, moveMap: Map<string,string>}}
  */
-export function planArchiveMoves(closedEpicIds, planningRelFiles, opts = {}) {
+// M5.E18 S6 (NFR4) — what may become a directory name under `.planning/archive/`.
+//
+// Units are DERIVED from filenames (S1), so a `/` cannot occur in practice and
+// the real corpus has no hostile name. That is luck of inventory, not safety:
+// the derivation rule could widen, and a project could name a file anything. So
+// the constraint is stated rather than assumed.
+//
+// First character must be alphanumeric — that alone blocks `.`, `..`, `.hidden`
+// and `/abs`. The charset excludes `/` and `\`. `..` anywhere is rejected
+// separately because `.` must remain legal INSIDE a name: `M4.5.E1` and `v0.1.6`
+// are both real units.
+const SAFE_UNIT_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+/**
+ * Is this unit name safe to use as a path component under `.planning/archive/`?
+ * @param {unknown} unit
+ * @returns {boolean}
+ */
+export function isSafeUnitName(unit) {
+  if (typeof unit !== 'string' || unit.length === 0 || unit.length > 100) return false;
+  if (unit.includes('..')) return false;
+  return SAFE_UNIT_RE.test(unit);
+}
+
+/**
+ * Where a closed unit's scaffold archives to.
+ *
+ * A strict Epic ID keeps `deriveEpicArchiveDir`'s existing `{M}/E{n}` layout, so
+ * nothing that archives today moves (AC6.1). Everything else gets a FLAT
+ * per-unit directory — `PHASE10-S4` and `GATE-A` have no milestone to key on,
+ * and inventing a hierarchy for them would be deriving structure from names that
+ * carry none.
+ *
+ * Throws on a name that fails `isSafeUnitName`, so a caller that skips the
+ * filter still cannot produce a path outside `.planning/archive/`.
+ *
+ * @param {string} unit
+ * @returns {string} repo-relative POSIX directory
+ */
+export function deriveUnitArchiveDir(unit) {
+  if (!isSafeUnitName(unit)) {
+    throw new Error(
+      `deriveUnitArchiveDir: unsafe unit name ${JSON.stringify(unit)} — ` +
+        'a unit must start alphanumeric and contain no path separators or "..".'
+    );
+  }
+  if (EPIC_ID_STRICT_RE.test(unit)) return toPosix(deriveEpicArchiveDir(unit));
+  return `${PLANNING_DIR}/archive/${unit}`;
+}
+
+export function planArchiveMoves(closedUnitIds, planningRelFiles, opts = {}) {
   const suffixes = opts.scaffoldSuffixes ?? SCAFFOLD_SUFFIXES;
-  const present = new Set((planningRelFiles ?? []).map(toPosix));
+  // M5.E18 S6 / AC6.3. `archive/` is excluded from the move-planning input
+  // EXPLICITLY, not incidentally. Today `from` is always a top-level path so an
+  // archived file could never match it — but that is a property of how `from`
+  // happens to be built, and NFR2's idempotency guarantee should not rest on a
+  // coincidence one refactor away from being false. The full walk (including
+  // archive/) is still what `senseArchiveTree` uses for LINK EDITS: archived
+  // files' references do get rewritten, so the exclusion belongs here and only
+  // here.
+  const present = new Set(
+    (planningRelFiles ?? []).map(toPosix).filter((f) => !isUnderArchive(f))
+  );
   const moves = [];
   const moveMap = new Map();
-  const epics = [...new Set(closedEpicIds ?? [])]
-    .filter((id) => EPIC_ID_STRICT_RE.test(id))
-    .sort(compareEpicIds);
-  for (const epicId of epics) {
-    const archiveDir = toPosix(deriveEpicArchiveDir(epicId)); // .planning/archive/<m>/E<n>
+
+  // NFR4: a unit name that could escape `.planning/archive/` is DROPPED, not
+  // thrown on. Throwing would let one hostile name deny the whole plan; dropping
+  // keeps every other unit archivable and is reported by the caller.
+  const safe = [...new Set(closedUnitIds ?? [])].filter(isSafeUnitName);
+  // Strict Epic IDs first, in their existing order, then everything else
+  // lexically. AC6.1: a strict-only input must produce a byte-identical plan.
+  const epics = safe.filter((id) => EPIC_ID_STRICT_RE.test(id)).sort(compareEpicIds);
+  const others = safe.filter((id) => !EPIC_ID_STRICT_RE.test(id)).sort();
+
+  for (const unit of [...epics, ...others]) {
+    const archiveDir = toPosix(deriveUnitArchiveDir(unit));
     for (const suffix of suffixes) {
-      const from = `${PLANNING_DIR}/${epicId}-${suffix}.md`;
+      const from = `${PLANNING_DIR}/${unit}-${suffix}.md`;
       if (!present.has(from)) continue;
-      const to = `${archiveDir}/${epicId}-${suffix}.md`;
+      const to = `${archiveDir}/${unit}-${suffix}.md`;
       if (from === to) continue;
       moves.push({ from, to });
       moveMap.set(from, to);
@@ -359,8 +426,23 @@ export async function senseArchiveTree(baseDir, opts = {}) {
   // all `[FILL IN]` archived a live Epic. Against Signal's own tree that is 4
   // of 23 retros — M4.5.E1, M4.5.E3, M4.5.E6, M4.5.E7 (AC5.2).
   const closedEpicIds = retros.filter((r) => !r.isStub).map((r) => r.epicId);
+
+  // M5.E18 S6. `opts.closedUnits` lets a caller supply the closed set directly —
+  // including NON-Epic units, which the retro-derived path cannot express (8 of
+  // 12 real projects have no strict Epic IDs at all). Default is unchanged:
+  // absent the option, the closed set is exactly the non-stub retros, so every
+  // existing caller plans exactly the moves it planned before (AC6.1).
+  //
+  // Deliberately an explicit input rather than a call into `resolveClosures`:
+  // S4's resolver answers a STRICTER question (terminal artifact + not-current +
+  // a passing readable verdict), and wiring it in here would silently change
+  // which EPICS archive — an Epic with a complete retro but a FAIL verdict would
+  // stop archiving. That is a behaviour change AC6.1 forbids in this slice, and
+  // it belongs to S7 where the four-status reporting can show what moved and why.
+  const closedUnits = opts.closedUnits ?? closedEpicIds;
+
   const files = await walkPlanningMd(baseDir);
-  const { moves, moveMap } = planArchiveMoves(closedEpicIds, files, opts);
+  const { moves, moveMap } = planArchiveMoves(closedUnits, files, opts);
 
   // Fold in the FR6 rename (existence-gated). renameFroms marks the entries the
   // archive-exclusion (R7) applies to; the scaffold-only moveMap drives archive
