@@ -1735,4 +1735,13 @@ mechanism.
 
 ---
 
+## Loop engineering: split attention from rigor
+
+**Status:** Logged 2026-08-03 via `/sig:add`. during PLAN on M5.E18
+
+Loop engineering: split attention from rigor — full analysis + build path in analysis/LOOP-ENGINEERING-ANALYSIS.md. Audit of all human gates found ~48–86 synchronous touchpoints per FULL Epic, most enforced only in prose; gate_strictness already has an auto-advance mode but it's welded to tier. Proposal: an `attention` axis (attended/checkpointed/unattended) orthogonal to tier, async decision queue with reversibility-weighted auto-adopt, a /sig:run driver, PR-merge stays human (merge = delivery), parallel Epic lanes last. Brett wants to approach this work soon. Also flags 4 defects (LE-1..LE-4 in the doc §3.3) to file via /sig:add --bug.
+
+---
+
+
 *Last updated: 2026-08-03*
