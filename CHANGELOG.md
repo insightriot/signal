@@ -9,6 +9,29 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 ## [Unreleased]
 
 ### Added
+- **The archive half, for the projects Epic-gating did not reach (M5.E18).** Signal's two archive paths were Epic-gated **by construction** — `planArchiveMoves` filtered through `EPIC_ID_STRICT_RE` and `deriveEpicArchiveDir` **throws** on anything else — so a project naming its work `PHASE10-S4` or `GATE-A` could not archive at all.
+
+  **Measured end-to-end across 12 real projects: `/sig:migrate-memory` went from archiving 67 files across 1 of 12 projects — every one of those 67 in Signal's own tree — to 114 files across 6.** `traction-engine` 0 → 26.
+
+  A non-Epic unit now archives to `.planning/archive/{unit}/`; a strict Epic ID keeps `.planning/archive/{M}/E{n}/` unchanged (verified: **0 previously-planned moves lost** across all 12 projects). Unit names are path-confined against 12 adversarial fixtures — a hostile name is **dropped, not thrown on**, so one bad name cannot deny the whole plan.
+
+- **Closure has three outcomes, and the third is the point.** `closed` requires a terminal artifact **and** not-the-current-unit **and** a passing, *readable* verdict. Anything else that is not clearly `open` is `cannotDetermine` — **a value on the returned record, not a rendering decision**. Measured on the corpus: 30 terminal artifacts, **9 (30 %) carry no verdict this code will read**. Under a two-way answer those 9 silently became whichever side the implementer defaulted to.
+
+- **The closed-set is a union, measured in both directions.** Retro-only sees 67 files and is blind to 8 projects; verdict-only sees 110 but **loses 4** (`M5.E17` has a retrospective and never wrote a VERIFICATION, so the verdict rule reads a shipped Epic as still running). Either counts → 114, nothing lost. **A stub retrospective vetoes closure regardless of verdict**, or the union would silently undo the `B64` fix below.
+
+### Fixed
+- **`B64` — a stub retrospective is not closure, at five decision sites (not the two that were planned).** `isStubRetro` has existed since M4.5.E9 and `enumerateRetros` reported `isStub` on every record — and it was consumed in **exactly one place**: rendering `*stub*` into `INDEX.md`. Every caller that used a retrospective to make a *decision* threw it away. A `[FILL IN]` placeholder therefore archived live Epics, **silenced the "you haven't written the retro" reminder** (writing the placeholder is what turned it off), evicted live narrative against an empty card, and **muted `checkEpicWithoutRetro` — the check shipped eight days earlier in v0.1.16 to catch exactly this shape**.
+
+- **`B72` — `/sig:discuss`'s done-Epic guard had never fired on 8 of 12 real projects.** `isEpicDone` returned `false` for a non-strict unit id, collapsing *"I cannot evaluate this"* into *"evaluated, the answer is no"* — which the caller reads as permission to proceed. It now returns three answers; `/sig:discuss` proceeds only on a clean `not-done` and halts on `done` **or** `cannot-evaluate` unless `--epic` was passed, which stays the escape hatch so a linear project is never locked out.
+
+- **`B63` — `/sig:migrate-memory`'s dry-run printed a bare `0`.** On a project it could not evaluate, *could not apply* was byte-identical to *already clean*. The count is now followed by what it means, and the four facts that produce "0 files to archive" render as four distinct things. The dry-run also lists **which** units move and where.
+
+- **`B78` — `commands/review.md` stated the PASS-WITH-FIXES rule in four places and no two agreed** (the test pinning it was a fifth voice). The operator split three ways, so a fix of **exactly 50 lines** matched neither table row; the cap never stated its denominator. Now stated once: **≤ 50 LOC of non-test source**, with **required new coverage excluded from the cap** — the old wording made *"requires new tests"* a disqualifier, which penalised the reviewer who wrote a regression test, while `"all tests still pass"` only ever constrained tests that already existed.
+
+### Changed
+- **`checkEpicWithoutRetro` now counts an unprefixed `RETROSPECTIVE.md`.** Measured blast radius is **0 of 12** — the one project with an unprefixed retro also has prefixed ones, so it already evaluated. A latent gap that failed safe by inventory, not design; **this release does not claim to have fixed an observed problem.**
+
+### Added
 - **`tools/cut-release.js` — repo-local release tooling.** Cutting a release meant hand-editing four files that must all agree. `checkVersionConsistency` turns any disagreement red, so a wrong one could not ship — but nothing did the edit for you, so every release was a manual checklist with a tripwire at the end. v0.1.17 was cut with an ad-hoc `node -e` one-liner and its map stamp updated in a separate pass.
 
   One command now bumps `plugin.json`, `package.json`, the map header stamp, and folds `[Unreleased]` into a dated, titled heading. **Dry-run by default**; `--apply` is required to write. It refuses on a dirty tree, refuses without release notes (a release with no notes is the failure it exists to prevent), and **does not commit, tag, or push** — it prepares the edit and stops.
