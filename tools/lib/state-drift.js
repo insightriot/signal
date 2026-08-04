@@ -464,8 +464,18 @@ export const checkEpicWithoutRetro = defineCheck({
   id: 'epic-without-retro',
   describe: 'a unit with phase artifacts on disk and no retrospective',
   healCategory: HEAL.NEEDS_A_PERSON,
+  // FR6 (M5.E18 S7). The test was `endsWith('-RETROSPECTIVE.md')`, which a
+  // LINEAR project's unprefixed `RETROSPECTIVE.md` does not satisfy — so a
+  // project that plainly does keep retrospectives was told it keeps none, and
+  // the check declared itself not-applicable rather than evaluating.
+  //
+  // Scoped honestly: the measured blast radius is **0 of 12**. The one project
+  // with an unprefixed `RETROSPECTIVE.md` (`conversor`) also has prefixed ones,
+  // so it already evaluated. This is a latent gap that fails safe today by
+  // INVENTORY, not by design — the Epic does not claim it fixed an observed
+  // problem (RESEARCH §9.5).
   applicability: ({ files }) =>
-    files.some((f) => f.endsWith('-RETROSPECTIVE.md'))
+    files.some((f) => f === 'RETROSPECTIVE.md' || f.endsWith('-RETROSPECTIVE.md'))
       ? APPLICABILITY.EVAL
       : {
           status: APPLICABILITY.NA,

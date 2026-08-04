@@ -63,7 +63,7 @@ because anything enforces it. `analysis/LOOP-ENGINEERING-ANALYSIS.md`'s attentio
 
 ---
 
-**▶ `M5.E18` IS OPEN AND EXECUTING. Waves 1–4 shipped; next is wave 5 (S7, four-status reporting).** Live progress and
+**▶ `M5.E18` — ALL SEVEN SLICES BUILT (waves 1–5). EXECUTE is complete; VERIFY is next.** Live progress and
 every wave's findings: [`M5.E18-PROGRESS.md`](M5.E18-PROGRESS.md) — read that, not this, for where
 EXECUTE actually is. Plan: [`M5.E18-PLAN.md`](M5.E18-PLAN.md) (7 slices, 40 ACs, 18 RED-first) ·
 Research: [`M5.E18-RESEARCH.md`](M5.E18-RESEARCH.md) · Requirements:
@@ -72,8 +72,9 @@ Research: [`M5.E18-RESEARCH.md`](M5.E18-RESEARCH.md) · Requirements:
 **Shipped so far:** `tools/lib/work-units.js` (units derived from filenames — one home, consumed by
 `state-drift.js` and the archive planner), `tools/lib/verdict.js` (verdicts read as values, never
 guessed), and **wave 3**: `tools/lib/closure.js` (S4 — closure has three outcomes) + the five-site
-stub fix (S5), and **wave 4**: S6 (a non-Epic unit archives to `.planning/archive/{unit}/`, path-confined).
-**1994 → 2131 tests.** Wave 5 is S7 (four-status reporting, FR4/FR6) — the last one.
+stub fix (S5), **wave 4**: S6 (a non-Epic unit archives to `.planning/archive/{unit}/`, path-confined),
+and **wave 5**: S7 (`tools/lib/archive-report.js` — four facts, four renderings).
+**1994 → 2151 tests.** All seven slices are built; **VERIFY is next.**
 
 **S6's payoff, measured across all 12 real projects: files archivable 63 → 110, and projects that can
 archive at all 1 → 6 of 12.** `traction-engine` 0 → 26; Signal's own tree 63 → 70, the gain being
