@@ -29,6 +29,85 @@ const OPEN = 'open';
 const CANNOT = 'cannotDetermine';
 
 /**
+ * Why an archive pass proposed what it proposed — the discriminating sentences,
+ * with no header, as indented lines.
+ *
+ * Split out from `renderArchivePlan` so `/sig:migrate-memory`'s dry-run can say
+ * the same thing inside its own tiered display without a SECOND definition of
+ * the distinction drifting away from this one. That is the defect class this
+ * Epic keeps finding (`isStubRetro` had five readers and one consumer); one
+ * rule, two presentations.
+ *
+ * @returns {string[]} lines, already indented, possibly empty
+ */
+export function explainArchiveOutcome(args = {}) {
+  const closures = args.closures ?? [];
+  const dropped = args.dropped ?? [];
+  const moveCount = args.moveCount ?? 0;
+  const stateReadable = args.stateReadable ?? true;
+  const stateReason = args.stateReason ?? null;
+  const indent = args.indent ?? '  ';
+  const L = [];
+
+  if (!stateReadable) {
+    L.push(
+      `${indent}↳ ${stateReason || 'STATE.md could not be read.'}`,
+      `${indent}  Nothing is proposed because nothing could be evaluated — a refusal, not a`,
+      `${indent}  clean result. Without STATE.md there is no way to tell which unit is current,`,
+      `${indent}  and a current unit must never be archived.`
+    );
+  } else if (closures.length === 0) {
+    L.push(
+      `${indent}↳ No work units were derived from this project's filenames, so nothing was`,
+      `${indent}  checked. That is not the same as checked-and-clean. Units come from scaffold`,
+      `${indent}  suffixes (PLAN, VERIFICATION, SHIP, …); another naming convention derives`,
+      `${indent}  zero units by convention, not by fault.`
+    );
+  } else {
+    const cannot = closures.filter((c) => c.status === CANNOT);
+    const open = closures.filter((c) => c.status === OPEN);
+    if (moveCount === 0 && cannot.length > 0) {
+      L.push(
+        `${indent}↳ 0 does NOT mean "nothing to archive": ${cannot.length} of ${closures.length} unit(s) could not be`,
+        `${indent}  evaluated at all. Each needs a person:`
+      );
+      for (const c of cannot) L.push(`${indent}    ${c.unit} — ${c.reason}`);
+    } else if (moveCount === 0 && closures.filter((c) => c.status === CLOSED).length > 0) {
+      // The two sources genuinely disagree here, and saying "nothing to do"
+      // would assert the weaker one. `senseArchiveTree`'s default closed-set is
+      // RETRO-derived; `resolveClosures` reads terminal artifact + verdict. A
+      // unit closed by verdict with no retrospective is invisible to the mover.
+      //
+      // Caught by running it: `nextpass` printed "none closed … genuinely
+      // nothing to do" while the resolver had found 1 closed unit. That gap IS
+      // this Epic's subject, so the report names it instead of papering it.
+      const n = closures.filter((c) => c.status === CLOSED).length;
+      L.push(
+        `${indent}↳ ${n} unit(s) resolve as CLOSED, but this pass proposes no move for them.`,
+        `${indent}  Its closed-set comes from retrospectives; a unit closed by a passing verdict`,
+        `${indent}  with no retrospective is not reachable here. This is a gap, not a clean bill.`
+      );
+    } else if (moveCount === 0) {
+      L.push(
+        `${indent}↳ Checked ${closures.length} unit(s): ${open.length} in flight, ${cannot.length} unreadable,`,
+        `${indent}  none closed. Nothing to do — and this pass could see the project.`
+      );
+    } else if (cannot.length > 0) {
+      L.push(
+        `${indent}↳ ${cannot.length} further unit(s) could not be evaluated and are NOT included above:`
+      );
+      for (const c of cannot) L.push(`${indent}    ${c.unit} — ${c.reason}`);
+    }
+  }
+
+  if (dropped.length > 0) {
+    L.push(`${indent}↳ ${dropped.length} unit(s) were skipped and not considered:`);
+    for (const d of dropped) L.push(`${indent}    ${d.unit} — ${d.reason}`);
+  }
+  return L;
+}
+
+/**
  * Render the archive dry-run report.
  *
  * @param {object} args

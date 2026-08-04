@@ -20,7 +20,7 @@ import { mkdtemp, rm, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { renderArchivePlan } from '../tools/lib/archive-report.js';
+import { renderArchivePlan, explainArchiveOutcome } from '../tools/lib/archive-report.js';
 import { planArchiveMoves } from '../tools/lib/archive-tree.js';
 import { checkEpicWithoutRetro, APPLICABILITY } from '../tools/lib/state-drift.js';
 
@@ -201,6 +201,58 @@ describe('S7 AC4.5 — what the planner dropped is reported by count AND reason'
     // bound becomes invisible.
     const text = renderArchivePlan({ ...base, closures: [closed('M5.E13')] });
     expect(text.toLowerCase()).toMatch(/nothing (was )?(dropped|skipped)|no units (were )?(dropped|skipped)/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The command seam. FR4 names B63, which is /sig:migrate-memory's dry-run — so
+// the distinction has to be reachable from the COMMAND, not only the library.
+// An AC set can be fully covered by unit tests while the feature is unreachable
+// from anything a user runs; that is B54's shape ("being uncalled is what
+// protected its bug from discovery").
+// ---------------------------------------------------------------------------
+
+describe('S7 — explainArchiveOutcome is reachable from the migrate dry-run (B63)', () => {
+  it('a bare "archive-tree moves: 0" never stands alone', async () => {
+    const { renderDryRun } = await import('../tools/lib/migrate-memory.js');
+    const dir = await mkdtemp(join(tmpdir(), 'signal-e18-s7-b63-'));
+    try {
+      await mkdir(join(dir, P), { recursive: true });
+      await writeFile(
+        join(dir, P, 'STATE.md'),
+        '---\nschema_version: 1\nphase: EXECUTE\ncurrent_epic: null\ncurrent_wave: null\n' +
+          'current_tasks: []\ncompleted_phases: []\nblockers: []\nlast_completed_task: null\n---\n# S\n',
+        'utf-8'
+      );
+      await writeFile(join(dir, P, '1-PLAN.md'), '# plan\n', 'utf-8');
+      const out = (await renderDryRun(dir)).split('\n');
+      const i = out.findIndex((l) => l.includes('archive-tree moves:'));
+      expect(i, 'the archive tier is missing from the dry-run').toBeGreaterThan(-1);
+      expect(out[i]).toMatch(/archive-tree moves:\s+0/);
+      // B63: the 0 must be followed by what it means.
+      expect(out[i + 1], 'the 0 stands bare — B63 is not fixed').toMatch(/↳/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('senseArchiveTree FORWARDS dropped — otherwise no command can surface it', async () => {
+    const { senseArchiveTree } = await import('../tools/lib/archive-tree.js');
+    const res = await senseArchiveTree(join(import.meta.dirname, '..'));
+    expect(Array.isArray(res.dropped), 'dropped is not forwarded').toBe(true);
+  });
+
+  it('a closed unit the mover cannot reach is reported as a GAP, not as clean', () => {
+    // Found by running it: nextpass printed "none closed … genuinely nothing to
+    // do" while resolveClosures had found 1 closed unit. senseArchiveTree's
+    // default closed-set is retro-derived; the resolver reads verdicts.
+    const lines = explainArchiveOutcome({
+      closures: [closed('SLICE-SSO'), open('SLICE-VOICE')],
+      moveCount: 0,
+    }).join('\n');
+    expect(lines.toLowerCase()).not.toMatch(/nothing to do/);
+    expect(lines.toLowerCase()).toContain('gap');
+    expect(lines).toContain('1 unit(s) resolve as CLOSED');
   });
 });
 
