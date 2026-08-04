@@ -65,6 +65,33 @@ export const WORKED_SUFFIXES = Object.freeze([
 ]);
 
 /**
+ * The unit currently being worked, read from the RAW `current_epic` string
+ * (M5.E18 FR3).
+ *
+ * Deliberately routed through NOTHING. `EPIC_ID_STRICT_RE`, `detectMode`,
+ * `isEpicDone` and `readEffectiveProfile` all answer null / false / `'linear'`
+ * for a non-strict value like `PHASE12` or `M1` — which is the right answer to
+ * *"is this a strict Epic ID"* and the wrong answer to *"which unit is current"*.
+ * Any not-current guard routed through one of them receives `null`, silently
+ * never fires, and the unit being edited today becomes archivable. That is the
+ * seam `B53` opened and `B72` widened.
+ *
+ * The four shapes on the real corpus, measured: 4 projects hold a value, 3 hold
+ * `null`, 1 has the field absent from its frontmatter, and 4 have no frontmatter
+ * at all (their `readState` returns null or throws). All four collapse to "no
+ * unit is current" — the collapse is asserted in the tests so that splitting
+ * them later has to be a decision.
+ *
+ * @param {object|null|undefined} state  a `readState()` result
+ * @returns {string|null} the raw value, byte-for-byte, or null
+ */
+export function currentUnit(state) {
+  const raw = state?.current_epic;
+  if (typeof raw !== 'string') return null;
+  return raw.trim() === '' ? null : raw;
+}
+
+/**
  * Match a scaffold suffix at the END of a filename stem.
  *
  * Prefers the LONGEST suffix, which is what keeps the match right-anchored:
