@@ -21,7 +21,7 @@ Source-of-truth for facts cross-cited in `README.md` and `SECURITY.md`. Other do
 
 - **Test count:** 2168
 
-Updated at the v0.1.6 release (doc-integrity guardrail, 2026-07-14). The cross-file consistency test (`tests/cross-file-consistency.test.js`) asserts that any test-count mention in README or SECURITY.md matches this value.
+Set at each release by `tools/cut-release.js`, from the same `vitest` run that gates the release — most recently **v0.1.18 (2026-08-04)**. Deriving it any other way undercounts: several suites generate cases in a loop. The cross-file consistency test (`tests/cross-file-consistency.test.js`) asserts that any test-count mention in README or SECURITY.md matches this value.
 
 ## License + repo
 
