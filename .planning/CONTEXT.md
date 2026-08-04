@@ -63,7 +63,7 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 
 ## Active work
 
-**M5.E15 is open — DISCUSS closed 2026-08-04.** *The control arm, made real (`B55`).* The adherence harness mutates one command file while the instruction it deletes lives in **13 files** of the copied plugin — so no verdict it has ever produced was isolated. Requirements: [`M5.E15-REQUIREMENTS.md`](M5.E15-REQUIREMENTS.md). Decisions: `D-M5E15-1 … D-M5E15-7`.
+**M5.E15 is open — DISCUSS closed 2026-08-04.** *The control arm, made real (`B55`).* The adherence harness mutates one command file while the instruction it deletes lives in **13 files** of the copied plugin — so no verdict it has ever produced was isolated. Requirements: [`M5.E15-REQUIREMENTS.md`](M5.E15-REQUIREMENTS.md). Decisions: `D-M5E15-1 … D-M5E15-9`.
 
 **The two calls that shaped it.** The verdict is **directive-scoped** — the control arm deletes the five sites that *order* the call and leaves the schema docs and the implementation alone, because over-deleting produces a *differently-informed* control agent whose 0/3 is as unreadable as a leaky one (`D-M5E15-1`). And the Epic **does not close until `B41-phase-entry` is re-run under the fixed arm, publishing whatever comes back** — `INERT` would mean M5.E9's phase-entry instruction changes nothing, pre-committed at DISCUSS (`D-M5E15-6`).
 

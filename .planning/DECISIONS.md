@@ -1161,7 +1161,7 @@ a REVIEW that happened, not a statement of the rule.
 
 ---
 
-## 2026-08-04 — M5.E15 DISCUSS: what a verdict claims, and how far the control arm deletes (D-M5E15-1 … D-M5E15-7)
+## 2026-08-04 — M5.E15 DISCUSS: what a verdict claims, and how far the control arm deletes (D-M5E15-1 … D-M5E15-9)
 
 **D-M5E15-1 — The verdict is DIRECTIVE-scoped: the control arm deletes every site that *orders* the
 call, and nothing else.**
@@ -1278,3 +1278,36 @@ and the log has to be able to say the difference.
 
 **Nothing outside the log needs correcting** — `README.md` and `references/facts.md` cite no adherence
 verdict. Checked, so that a later reader knows the surface was examined rather than assumed.
+
+**D-M5E15-8 — `ship.md:98` is a directive site, and it is deleted by line, not by section.**
+
+Recorded because it is exactly the *"one scope short"* judgment that produced `B55`, and because the
+requirements briefly carried both answers at once.
+
+Measured against the live corpus: `plan.md:42`, `verify.md:36` and `review.md:47` each carry
+`## Phase entry — record the phase (M5.E9 FR6, `B41`)` — **byte-identical to `execute.md`'s existing
+anchor** — with all four mentions inside and `## Workflow` next, so `applySectionDeletion` works on
+them unchanged. `ship.md` is different in kind: the mention at `:98` is a numbered list item inside
+`### 5. Update State (programmatic, not prose)` (`:94-105`), a section holding unrelated ship steps.
+
+Two questions were being conflated. **Is it directive?** Yes — it orders
+`transitionPhase(baseDir, 'SHIP')`, which teaches the same rule the canary measures; excluding it
+because `/sig:ship` is unreachable from the fixture would isolate against the agent's *path* rather
+than its *reach*, and reach is what leaked. **Is it section-shaped?** No. So the deletion primitive
+becomes per-entry `{file, section}` **or** `{file, line}`, and the two facts stop being traded
+against each other.
+
+**D-M5E15-9 — A repeat `INDETERMINATE` is read as "multi-homed beyond isolation", declared before the
+run, and does not auto-escalate to corpus scope.**
+
+It is the likely outcome, so leaving it uninterpreted would mean choosing a reading after seeing the
+number — the tuning M5.E8's impostor table exists to forbid. Directive scope **deliberately** leaves
+`discuss.md:158` and `state-schema.md` in the control arm's reach (D-M5E15-1), and an agent reading
+either can derive the rule.
+
+With the leak check passing and the seam proven, a control arm that hits again means the rule is
+multi-homed beyond what deleting instructions can isolate. The log records that permanently, with the
+residue list naming the sites the control agent could still reach.
+
+**It does not fall back to corpus scope.** That would silently overturn a decision Brett made *with*
+the corpus option costed in front of him. Re-opening it is a human call on the evidence.
