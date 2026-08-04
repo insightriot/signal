@@ -33,13 +33,15 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-**v1 is feature-complete and shipped. Latest: v0.1.17 (2026-08-03) — `B70`, a one-bug patch: `/sig:status` and `/sig:resume` threw outright on a project whose `phase` is not one of the canonical seven (5 of 12 real projects), losing the whole briefing rather than one line. Cut ahead of M5.E18's build work. 1954 tests.** Prior: **v0.1.16 (2026-08-02, M5.E16 — STATE-vs-world drift detection).** `/sig:sweep` compares what a project's `.planning/` **asserts** against what is on disk and in git; each finding declares whether it needs a person or clears itself, and the report separates **"checked and clean"** from **"could not check."** **19 slash commands, 26 agents, 21 skills, 1938 tests, validator green.**
+**v1 is feature-complete and shipped. Latest: v0.1.18 (2026-08-04, M5.E18 — the archive half, for the projects Epic-gating did not reach).** Both archive paths were Epic-gated by construction; `/sig:migrate-memory` went from **67 files across 1 of 12 projects** to **114 across 6**. Closure gained a third outcome (`cannotDetermine`) because 9 of 30 terminal artifacts carry no readable verdict, and the closed-set is a **union** — retro-only is blind to 8 projects, verdict-only loses 4. Fixed `B64`, `B72`, `B63`, `B78`. Prior: **v0.1.17 (2026-08-03 — `B70`,** `/sig:status` and `/sig:resume` threw outright on a project whose `phase` is not one of the canonical seven, losing the whole briefing rather than one line**)**; **v0.1.16 (2026-08-02, M5.E16 — STATE-vs-world drift detection).** **19 slash commands, 26 agents, 21 skills, 2168 tests, validator green.**
 
 Recent releases, newest first — full detail in `CHANGELOG.md`:
 
 | Version | Epic | What it was |
 |---|---|---|
-| **v0.1.16** | M5.E16 | STATE-vs-world drift detection · `INDEX.md` at every phase transition · `/sig:update` |
+| **v0.1.18** | M5.E18 | The archive half — non-Epic units archive; three-outcome closure; a stub retro is not closure |
+| v0.1.17 | — (fix lane) | `B70` — the briefing survives a phase it doesn't recognize |
+| v0.1.16 | M5.E16 | STATE-vs-world drift detection · `INDEX.md` at every phase transition · `/sig:update` |
 | v0.1.15 | M5.E17 | Instructions that contradict other instructions; `ship.md`'s direct-to-main self-exemption removed |
 | v0.1.14 | M5.E13 | Guards that don't guard · **CI added** (Signal had none) |
 | v0.1.13 | M5.E8 | The measurement foundation — the adherence harness + published coverage ceiling |
@@ -61,20 +63,20 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 
 ## Active work
 
-**M5.E18 is open — DISCUSS closed 2026-08-03.** *The archive half, for the projects Epic-gating does not reach.* Both of Signal's archive paths are Epic-gated by construction, so they reach 4 of 12 readable projects; the halves that stop `.planning/` growing forever reach a third of the corpus. Requirements: [`M5.E18-REQUIREMENTS.md`](M5.E18-REQUIREMENTS.md). Decisions: `D-M5E18-1 … D-M5E18-5`.
+**Nothing is open. M5.E18 closed 2026-08-04** and shipped as v0.1.18 — retrospective at [`M5.E18-RETROSPECTIVE.md`](M5.E18-RETROSPECTIVE.md). **Next: M5.E15.**
 
 **Read the queue below against `BACKLOG.md`, not instead of it.** This list was wrong on 2026-08-03 — it named M5.E15 next while `BACKLOG.md`'s newer M5.E18 entry (PRs #21/#24, vs this file's #19) carried an unconditional-next marker and a Brett quote from that day. `/sig:resume` repeated the stale ordering. **The queue lives in two places and only `BACKLOG.md` gets edited when work is filed** (D-M5E18-1).
 
-**Queued after M5.E18, in the order the evidence argues for:**
+**The queue, in the order the evidence argues for:**
 
 1. **M5.E15** — `B55`, the adherence control arm made real. Blocks any new adherence verdict being trusted. **Standing prohibition: do not re-run a canary for a cleaner number before the arm is fixed.**
 2. **M5.E14** — tracker migration **plus** the 48-entry inbox triage cut from M5.E17 (`D-M5E17-3`). The deeper problem is the capture *channel*: findings that reach the backlog arrive incidentally, from someone reading an artifact.
 3. **M5.E10** — review hardening / claim integrity. The **judge-based, semantic** half of M5.E16's question (claims-vs-artifacts) lands here, after the deterministic checks rather than with them.
 
-**Open bug tail:** `B60` (P2, `needs-triage` — six phase commands have no branch for a malformed PROFILE while four meta commands do), `B61` (P3, `confirmed` — hand-edited numeric-looking `last_updated_commit` is YAML-coerced), `B56` (P3 — `facts.md`'s test count has no guard pinning it to the real suite; the *number* was corrected at v0.1.16, the *guard* is still missing).
+**Open bug tail:** `B79` (filed at M5.E18's SHIP — `evictEpicNarrative` has never been able to fire for Signal's own STATE.md and reports it as a clean no-op), `B77` (a tally that greps for exact cell values cannot see one of its own file's two formats), `B73`–`B76` (the loop-engineering audit's `LE-1…LE-4`), `B60` (P2, `needs-triage` — six phase commands have no branch for a malformed PROFILE while four meta commands do), `B61` (P3, `confirmed` — hand-edited numeric-looking `last_updated_commit` is YAML-coerced), `B56` (P3 — `facts.md`'s test count still has no guard pinning it to the real suite; `tools/cut-release.js` now sets the number from the gating `vitest` run, but only if the script is used, so the bug stays `confirmed`).
 
 **Carried from M5.E16's retro, unhomed:** `review_depth: quality-only` silently disables `simplification_pass`, and a profile's prose can claim a dial the precedence rules turn off. That is a prose-vs-precedence comparison — M5.E10's semantic territory, not M5.E16's deterministic one.
 
 ---
 
-*Last updated: 2026-08-03 (**M5.E18 opened; DISCUSS closed**). Prior update 2026-08-02 (v0.1.16 / M5.E16 shipped), when this file had gone **seven Epics stale** — it described M5.E7 as in-flight while M5.E16 was closing — and was rewritten whole rather than patched, because `CLAUDE.md` tells every reader to open it first. **It went stale again within two PRs**, on the "Active work" queue specifically; see D-M5E18-1.*
+*Last updated: 2026-08-04 (**M5.E18 shipped as v0.1.18; M5.E15 next**) — patched, not rewritten. Caught by `/sig:resume` reading this file against `M5.E18-RETROSPECTIVE.md`, one day after the stamp below promised the same section would be watched. Prior update 2026-08-03 (**M5.E18 opened; DISCUSS closed**). Prior update 2026-08-02 (v0.1.16 / M5.E16 shipped), when this file had gone **seven Epics stale** — it described M5.E7 as in-flight while M5.E16 was closing — and was rewritten whole rather than patched, because `CLAUDE.md` tells every reader to open it first. **It went stale again within two PRs**, on the "Active work" queue specifically; see D-M5E18-1.*

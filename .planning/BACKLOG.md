@@ -216,7 +216,14 @@ registry here first, or knowingly duplicate it there.
 **Cost of leaving it:** the guard class keeps being discovered one instance at a time, by
 accident, which is the mechanism this whole line of work exists to replace.
 
-### M5.E18 — The archive half, for the 8 projects out of 12 it does not reach
+### ~~M5.E18 — The archive half, for the 8 projects out of 12 it does not reach~~ — **✅ SHIPPED v0.1.18 (M5.E18, 2026-08-04)**
+
+**Delivered against the measurement below:** 67 files across 1 of 12 projects → **114 files across 6**
+(`traction-engine` 0 → 26), with **0 previously-planned moves lost**. Closure gained a third outcome
+(`cannotDetermine`), the closed-set became a **union** of retro-and-verdict, and a **stub retrospective
+vetoes closure** (`B64`, found at five decision sites, not the two planned). Retro:
+[`M5.E18-RETROSPECTIVE.md`](M5.E18-RETROSPECTIVE.md).
+
 **Tag:** roadmap · **Trigger: NONE — unconditional next for doc-health (Brett, 2026-08-02:
 *"get past this document crap so all my projects can migrate and be healthy"*).**
 
