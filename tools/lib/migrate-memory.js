@@ -34,7 +34,7 @@ import {
 } from './evict.js';
 import { enumerateRetros } from './retro-index.js';
 import { resolveClosures } from './closure.js';
-import { explainArchiveOutcome } from './archive-report.js';
+import { explainArchiveOutcome, renderMoveBreakdown } from './archive-report.js';
 import { checkStateFrontmatterShape } from './retrospective.js';
 import {
   toPosix,
@@ -1938,6 +1938,10 @@ export async function renderDryRun(baseDir, opts = {}) {
   L.push(`  vector-2 (big body):  ${v2.candidate ? `yes (${v2.bytes} B → STATE-HISTORY.md)` : 'no'}`);
   L.push(`  vector-3 (closed-Epic evicts): ${v3.evicts.length}`);
   L.push(`  archive-tree moves:   ${archive.moves.length}`);
+  // The per-unit breakdown — WHICH units move and where. This was the one useful
+  // thing the deleted standalone report had that the count line does not, and it
+  // belongs in the display people already read rather than on a second page.
+  for (const line of renderMoveBreakdown(archive.moves, { renameFroms: archive.renameFroms })) L.push(line);
   // `B63` (M5.E18 S7 / FR4). This count is the defect: on a project this pass
   // cannot evaluate, a bare `0` is byte-identical to a project that is already
   // clean. M5.E16 fixed the same shape for /sig:sweep the week `B63` was filed

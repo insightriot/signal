@@ -17,13 +17,19 @@
 
 import { describe, it, expect } from 'vitest';
 import { mkdtemp, rm, writeFile, mkdir, readdir } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { renderArchivePlan, explainArchiveOutcome } from '../tools/lib/archive-report.js';
+import {
+  explainArchiveOutcome,
+  renderDropped,
+  renderMoveBreakdown,
+} from '../tools/lib/archive-report.js';
 import { planArchiveMoves } from '../tools/lib/archive-tree.js';
 import { checkEpicWithoutRetro, APPLICABILITY } from '../tools/lib/state-drift.js';
 
+const ROOT = join(import.meta.dirname, '..');
 const P = '.planning';
 
 // Shorthand builders for the four shapes a project can be in.
@@ -43,13 +49,46 @@ const base = {
   stateReason: null,
 };
 
+// AC4.1–AC4.4 were originally verified against a standalone `renderArchivePlan`.
+// REVIEW found that renderer carried a SECOND copy of the distinction and had no
+// production caller, so it was deleted. The golden ACs now compose the SAME
+// functions `/sig:migrate-memory` calls — which is what they should always have
+// pinned: the code a user's output actually comes from.
+const render = (args = {}) => {
+  const moves = args.moves ?? [];
+  const closures = args.closures ?? [];
+  const parts = ['Archive plan — dry run (nothing has been written)', ''];
+  if ((args.stateReadable ?? true) && closures.length > 0) {
+    parts.push(
+      moves.length > 0 ? `  ${moves.length} file(s) to archive:` : '  0 file(s) to archive.',
+      ...renderMoveBreakdown(moves),
+      '',
+      `  Closed (ready to archive):  ${closures.filter((c) => c.status === 'closed').length} unit(s)`,
+      `  Open (still in flight):     ${closures.filter((c) => c.status === 'open').length} unit(s)`,
+      `  Could not determine:        ${closures.filter((c) => c.status === 'cannotDetermine').length} unit(s)`,
+      ''
+    );
+  }
+  const explained = explainArchiveOutcome({
+    closures,
+    dropped: [],
+    moveCount: moves.length,
+    stateReadable: args.stateReadable ?? true,
+    stateReason: args.stateReason ?? null,
+    indent: '  ',
+  });
+  if (explained.length > 0) parts.push(...explained, '');
+  parts.push(renderDropped(args.dropped ?? []));
+  return parts.join('\n') + '\n';
+};
+
 // ---------------------------------------------------------------------------
 // AC4.1 — checked-and-clean vs could-not-check, per unit, with its own line
 // ---------------------------------------------------------------------------
 
 describe('S7 AC4.1 — the dry-run separates checked-and-clean from could-not-check', () => {
   const out = () =>
-    renderArchivePlan({
+    render({
       ...base,
       closures: [closed('M5.E13'), open('M5.E18'), cannot('T25'), cannot('PHASE8')],
       moves: [{ from: `${P}/M5.E13-PLAN.md`, to: `${P}/archive/M5/E13/M5.E13-PLAN.md` }],
@@ -74,8 +113,12 @@ describe('S7 AC4.1 — the dry-run separates checked-and-clean from could-not-ch
     expect(out().toLowerCase()).toMatch(/needs? (a person|you)|review/);
   });
 
-  it('still reports the moves it DID find', () => {
-    expect(out()).toContain('M5.E13');
+  it('still reports the moves it DID find, by destination', () => {
+    // Asserts the DESTINATION, not the unit name. The breakdown deliberately
+    // stopped inferring unit names from filenames after that inference produced
+    // two mislabelling bugs; for an Epic the destination splits the id across
+    // directories (`archive/M5/E13/`), which is precise where a guess was not.
+    expect(out()).toContain('.planning/archive/M5/E13/');
     expect(out()).toMatch(/1 file/);
   });
 });
@@ -86,9 +129,9 @@ describe('S7 AC4.1 — the dry-run separates checked-and-clean from could-not-ch
 
 describe('S7 AC4.2 — a wholly un-evaluable project cannot read as clean', () => {
   const allCannot = () =>
-    renderArchivePlan({ ...base, closures: [cannot('A'), cannot('B'), cannot('C')] });
+    render({ ...base, closures: [cannot('A'), cannot('B'), cannot('C')] });
   const allClean = () =>
-    renderArchivePlan({ ...base, closures: [open('A'), open('B'), open('C')] });
+    render({ ...base, closures: [open('A'), open('B'), open('C')] });
 
   it('the two renderings DIFFER — asserted by diff, not by inspection', () => {
     expect(allCannot()).not.toBe(allClean());
@@ -130,8 +173,8 @@ describe('S7 AC4.2 — a wholly un-evaluable project cannot read as clean', () =
 // ---------------------------------------------------------------------------
 
 describe('S7 AC4.4 — "no units" and "no unit could be read" are not the same fact', () => {
-  const zeroUnits = () => renderArchivePlan({ ...base, closures: [] });
-  const allCannot = () => renderArchivePlan({ ...base, closures: [cannot('A'), cannot('B')] });
+  const zeroUnits = () => render({ ...base, closures: [] });
+  const allCannot = () => render({ ...base, closures: [cannot('A'), cannot('B')] });
 
   it('they render differently — the exact defect wave 3 found in S4\'s own code', () => {
     // affiliate-mojo (STATE unreadable, 0 units) vs prompt-library (readable,
@@ -145,7 +188,7 @@ describe('S7 AC4.4 — "no units" and "no unit could be read" are not the same f
   });
 
   it('an unreadable STATE renders differently again — a THIRD distinct fact', () => {
-    const blind = renderArchivePlan({
+    const blind = render({
       ...base,
       closures: [],
       stateReadable: false,
@@ -159,7 +202,7 @@ describe('S7 AC4.4 — "no units" and "no unit could be read" are not the same f
     // affiliate-mojo rendered "STATE.md could not be read — STATE.md could not
     // be read — …" with a doubled full stop, because resolveClosures' reason is
     // already a sentence naming the file. Caught on the first real render.
-    const blind = renderArchivePlan({
+    const blind = render({
       ...base,
       closures: [],
       stateReadable: false,
@@ -174,51 +217,76 @@ describe('S7 AC4.4 — "no units" and "no unit could be read" are not the same f
 // REVIEW finding — one definition, two presentations
 // ---------------------------------------------------------------------------
 
-describe('REVIEW — renderArchivePlan and the migrate dry-run share ONE definition', () => {
-  it('renderArchivePlan delegates the distinction rather than restating it', () => {
-    // The defect this pins: renderArchivePlan carried its own !stateReadable /
-    // zero-units / cannotDetermine branches while explainArchiveOutcome's
-    // docblock claimed it existed so no second definition could drift. Two
-    // implementations of one rule — this Epic's own class, in the module
-    // written to fix it.
-    const shapes = [
-      { closures: [], stateReadable: false, stateReason: 'STATE.md could not be read — bad.' },
-      { closures: [] },
-      { closures: [cannot('A'), cannot('B')] },
-      { closures: [closed('X'), cannot('B')], moves: [{ from: '.planning/X-PLAN.md', to: '.planning/archive/X/X-PLAN.md' }] },
-      { closures: [open('A')] },
-    ];
-    for (const shape of shapes) {
-      const full = renderArchivePlan({ ...base, ...shape });
-      const lines = explainArchiveOutcome({
-        closures: shape.closures,
-        dropped: [],
-        moveCount: (shape.moves ?? []).length,
-        stateReadable: shape.stateReadable ?? true,
-        stateReason: shape.stateReason ?? null,
-        indent: '  ',
-      });
-      // Every sentence the shared explainer produces must appear verbatim in the
-      // full report. If renderArchivePlan ever re-implements the rule, its
-      // wording drifts and this fails.
-      for (const line of lines) {
-        expect(full, `report dropped a shared line: ${line.trim()}`).toContain(line);
-      }
-    }
+describe('REVIEW — the distinction has exactly ONE definition', () => {
+  it('renderArchivePlan is GONE — it cannot come back as a second copy', async () => {
+    // It carried its own !stateReadable / zero-units / cannotDetermine branches
+    // while explainArchiveOutcome's docblock claimed no second definition could
+    // drift, and the two were already drifting (only the report said "needs a
+    // person"). It had no production caller, so it was deleted rather than kept
+    // in sync. This asserts the deletion sticks.
+    const mod = await import('../tools/lib/archive-report.js');
+    expect(mod.renderArchivePlan).toBeUndefined();
+    expect(typeof mod.explainArchiveOutcome).toBe('function');
   });
 
-  it('the empty-dropped statement is owned by exactly one of them', () => {
-    // renderDropped states the EMPTY case; the inline explainer does not. Passing
-    // dropped through both would double-render it.
-    // Format-agnostic: count a distinctive marker rather than re-encoding
-    // renderDropped's exact spacing, which is presentation, not contract.
-    const text = renderArchivePlan({
+  it('the module exports no second function that branches on stateReadable', async () => {
+    // A cheap structural guard: the source may test `stateReadable` in exactly
+    // one place. A future re-implementation trips this before it can drift.
+    const src = readFileSync(join(ROOT, 'tools', 'lib', 'archive-report.js'), 'utf-8');
+    expect(src.match(/if \(!stateReadable\)/g)?.length ?? 0).toBe(1);
+  });
+
+  it('the empty-dropped statement is owned by exactly one renderer', () => {
+    const text = render({
       ...base,
       closures: [closed('X')],
       dropped: [{ unit: 'zz-unit', reason: 'UNSAFE-MARKER' }],
     });
     expect(text.match(/UNSAFE-MARKER/g)?.length ?? 0).toBe(1);
     expect(text.match(/zz-unit/g)?.length ?? 0).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The move breakdown — found wrong by running it, twice
+// ---------------------------------------------------------------------------
+
+describe('wave 6 — the breakdown never guesses a unit name', () => {
+  const M = (from, to) => ({ from, to });
+
+  it('groups by DESTINATION, so a unit name is never inferred from a filename', () => {
+    // The first version stripped a trailing -SUFFIX.md to recover the unit and
+    // turned FUTURE-IDEAS.md into a unit called "FUTURE".
+    const lines = renderMoveBreakdown([
+      M('.planning/PHASE8-PLAN.md', '.planning/archive/PHASE8/PHASE8-PLAN.md'),
+      M('.planning/PHASE8-SHIP.md', '.planning/archive/PHASE8/PHASE8-SHIP.md'),
+    ]).join('\n');
+    expect(lines).toContain('.planning/archive/PHASE8/');
+    expect(lines).toMatch(/2 files/);
+    expect(lines).not.toMatch(/FUTURE/);
+  });
+
+  it('a RENAME is counted as a rename, not dressed up as a unit archive', () => {
+    // The second version filtered on the destination path and STILL mislabelled
+    // the archive-ledger rename, which lands under .planning/archive/. The
+    // producer knows which moves are renames — ask it.
+    const renameFroms = new Set(['.planning/FUTURE-IDEAS-LEDGER.md']);
+    const lines = renderMoveBreakdown(
+      [
+        M('.planning/PHASE8-PLAN.md', '.planning/archive/PHASE8/PHASE8-PLAN.md'),
+        M('.planning/FUTURE-IDEAS-LEDGER.md', '.planning/archive/ISSUES-INBOX-LEDGER.md'),
+      ],
+      { renameFroms }
+    ).join('\n');
+    expect(lines).toContain('.planning/archive/PHASE8/');
+    expect(lines).toMatch(/1 rename\(s\)/);
+    expect(lines, 'the rename was grouped as an archive destination').not.toMatch(
+      /archive\/ {2}\(/
+    );
+  });
+
+  it('no moves → no lines (a zero deserves a sentence, not an empty heading)', () => {
+    expect(renderMoveBreakdown([])).toEqual([]);
   });
 });
 
@@ -239,7 +307,7 @@ describe('S7 AC4.5 — what the planner dropped is reported by count AND reason'
   });
 
   it('the report surfaces dropped units with the reason', () => {
-    const text = renderArchivePlan({
+    const text = render({
       ...base,
       closures: [closed('M5.E13')],
       dropped: [{ unit: '../etc', reason: 'unsafe unit name — cannot be a path component' }],
@@ -251,7 +319,7 @@ describe('S7 AC4.5 — what the planner dropped is reported by count AND reason'
   it('when NOTHING was dropped, the report says so rather than staying silent', () => {
     // "If it bounds nothing, that is stated." A silent absence is exactly how a
     // bound becomes invisible.
-    const text = renderArchivePlan({ ...base, closures: [closed('M5.E13')] });
+    const text = render({ ...base, closures: [closed('M5.E13')] });
     expect(text.toLowerCase()).toMatch(/nothing (was )?(dropped|skipped)|no units (were )?(dropped|skipped)/);
   });
 });
@@ -282,7 +350,7 @@ describe('S7 — explainArchiveOutcome is reachable from the migrate dry-run (B6
       expect(i, 'the archive tier is missing from the dry-run').toBeGreaterThan(-1);
       expect(out[i]).toMatch(/archive-tree moves:\s+0/);
       // B63: the 0 must be followed by what it means.
-      expect(out[i + 1], 'the 0 stands bare — B63 is not fixed').toMatch(/↳/);
+      expect(out.slice(i + 1, i + 8).join('\n'), 'the 0 stands bare — B63 is not fixed').toMatch(/↳/);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -312,8 +380,11 @@ describe('S7 — explainArchiveOutcome is reachable from the migrate dry-run (B6
       const out = (await renderDryRun(dir)).split('\n');
       const i = out.findIndex((l) => l.includes('archive-tree moves:'));
       expect(out[i]).toMatch(/archive-tree moves:\s+[1-9]/); // there ARE moves
-      expect(out[i + 1], 'a real move count hid an unevaluable unit').toMatch(/↳/);
-      expect(out.join('\n')).toContain('T25');
+      // Position-agnostic: the per-unit breakdown may sit between the count and
+      // the explanation. What matters is that the count is not the last word.
+      const after = out.slice(i + 1, i + 12).join('\n');
+      expect(after, 'a real move count hid an unevaluable unit').toMatch(/↳/);
+      expect(after).toContain('T25');
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -350,7 +421,7 @@ describe('S7 AC4.3 — Signal\'s own tree: only real retros move, the rest are r
     const root = join(import.meta.dirname, '..');
     const res = await resolveClosures(root);
     const { moves } = await senseArchiveTree(root);
-    const text = renderArchivePlan({
+    const text = render({
       ...base,
       closures: res.units,
       moves,
