@@ -63,13 +63,17 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 
 ## Active work
 
-**Nothing is open. M5.E18 closed 2026-08-04** and shipped as v0.1.18 — retrospective at [`M5.E18-RETROSPECTIVE.md`](M5.E18-RETROSPECTIVE.md). **Next: M5.E15.**
+**M5.E15 is open — DISCUSS closed 2026-08-04.** *The control arm, made real (`B55`).* The adherence harness mutates one command file while the instruction it deletes lives in **13 files** of the copied plugin — so no verdict it has ever produced was isolated. Requirements: [`M5.E15-REQUIREMENTS.md`](M5.E15-REQUIREMENTS.md). Decisions: `D-M5E15-1 … D-M5E15-7`.
+
+**The two calls that shaped it.** The verdict is **directive-scoped** — the control arm deletes the five sites that *order* the call and leaves the schema docs and the implementation alone, because over-deleting produces a *differently-informed* control agent whose 0/3 is as unreadable as a leaky one (`D-M5E15-1`). And the Epic **does not close until `B41-phase-entry` is re-run under the fixed arm, publishing whatever comes back** — `INERT` would mean M5.E9's phase-entry instruction changes nothing, pre-committed at DISCUSS (`D-M5E15-6`).
+
+**Prior: M5.E18 closed 2026-08-04**, shipped as v0.1.18 — retrospective at [`M5.E18-RETROSPECTIVE.md`](M5.E18-RETROSPECTIVE.md).
 
 **Read the queue below against `BACKLOG.md`, not instead of it.** This list was wrong on 2026-08-03 — it named M5.E15 next while `BACKLOG.md`'s newer M5.E18 entry (PRs #21/#24, vs this file's #19) carried an unconditional-next marker and a Brett quote from that day. `/sig:resume` repeated the stale ordering. **The queue lives in two places and only `BACKLOG.md` gets edited when work is filed** (D-M5E18-1).
 
 **The queue, in the order the evidence argues for:**
 
-1. **M5.E15** — `B55`, the adherence control arm made real. Blocks any new adherence verdict being trusted. **Standing prohibition: do not re-run a canary for a cleaner number before the arm is fixed.**
+1. ~~**M5.E15**~~ — **open, DISCUSS closed 2026-08-04** (above). The standing prohibition is now *satisfied by* the Epic rather than pending: it forbids a re-run before the arm is fixed, and `D-M5E15-6` requires one after.
 2. **M5.E14** — tracker migration **plus** the 48-entry inbox triage cut from M5.E17 (`D-M5E17-3`). The deeper problem is the capture *channel*: findings that reach the backlog arrive incidentally, from someone reading an artifact.
 3. **M5.E10** — review hardening / claim integrity. The **judge-based, semantic** half of M5.E16's question (claims-vs-artifacts) lands here, after the deterministic checks rather than with them.
 
