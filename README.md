@@ -86,7 +86,7 @@ Without it, command markdown still works — Claude resolves the literal path fr
 
 ## Your first project
 
-Visual companion: [Signal map](./docs/map/index.html) — workflow phases, tier matrix, and the 5 calibration questions on one page.
+Visual companion: **[signal.insightriot.com](https://signal.insightriot.com)** — workflow phases, tier matrix, and the 5 calibration questions on one page. ([source](./docs/map/index.html))
 
 ```bash
 mkdir my-project && cd my-project
