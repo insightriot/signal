@@ -37,6 +37,7 @@ import { join } from 'node:path';
 import { readState, PHASES, EPIC_ID_STRICT_RE } from './state.js';
 import { readProfileIssues } from './profile.js';
 import { deriveUnits, WORKED_SUFFIXES } from './work-units.js';
+import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -472,7 +473,7 @@ export const checkEpicWithoutRetro = defineCheck({
             'this project has no retrospectives at all — a different convention, not drift. ' +
             'The check has nothing to compare against.',
         },
-  run: ({ files, state }) => {
+  run: async ({ files, state, planningDir }) => {
     // `deriveUnits` owns the whole rule now: the right-anchored suffix match,
     // the categorical seven-phase-name exclusion (a linear project legitimately
     // has `EXECUTE-PROGRESS.md` — `conversor` does — and C1 briefly made that
@@ -486,12 +487,34 @@ export const checkEpicWithoutRetro = defineCheck({
     const findings = [];
     for (const unit of [...worked].sort()) {
       if (unit === state.current_epic) continue; // mid-flight, not abandoned
-      if (files.includes(`${unit}-RETROSPECTIVE.md`)) continue;
+      const retroName = `${unit}-RETROSPECTIVE.md`;
+
+      // M5.E18 S5 (sweep site 5). `files.includes(...)` made the FILE the
+      // answer, so a card that is still all `[FILL IN]` cleared the unit and
+      // this check went quiet. That is `B39`'s shape inside the detector M5.E16
+      // shipped to catch `B39`'s shape — the reason the sibling sweep (t4) runs
+      // before the two fixes the plan named, not after them.
+      let status = RETRO_STATUS.ABSENT;
+      if (files.includes(retroName)) {
+        try {
+          status = retroStatusFromContent(await readFile(join(planningDir, retroName), 'utf-8'));
+        } catch {
+          // Unreadable: existence is all we can prove, and this check needs a
+          // person either way. Treat as present so it does not accuse falsely.
+          status = RETRO_STATUS.COMPLETE;
+        }
+      }
+      if (status === RETRO_STATUS.COMPLETE) continue;
+
       findings.push({
-        file: `${PLANNING_DIR}/${unit}-RETROSPECTIVE.md`,
+        file: `${PLANNING_DIR}/${retroName}`,
         message:
-          `${unit} has phase artifacts on disk but no retrospective — it was either ` +
-          'finished without one, or abandoned. Only you know which.',
+          status === RETRO_STATUS.STUB
+            ? `${unit} has phase artifacts on disk and a retrospective that is still a ` +
+              'stub — the file exists but holds `[FILL IN]` placeholders, so nothing ' +
+              'records what happened. Fill it in, or say the unit was abandoned.'
+            : `${unit} has phase artifacts on disk but no retrospective — it was either ` +
+              'finished without one, or abandoned. Only you know which.',
       });
     }
     return findings;

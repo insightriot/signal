@@ -258,7 +258,15 @@ describe('S1.t7 deriveNextEpicId', () => {
   });
 });
 
-// ---- S1.t5 — isEpicDone (done-signal = retro file exists, NOT phase=SHIP) ----
+// ---- S1.t5 — isEpicDone (done-signal = a COMPLETE retro, NOT phase=SHIP) ----
+//
+// M5.E18 S5 replaced the boolean with three answers. This block originally
+// asserted `.toBe(true)` / `.toBe(false)` — and the `false` for a non-Epic-shaped
+// id was `B72` in test form: it PINNED the collapse of "cannot evaluate" into
+// "evaluated, the answer is no", which is why the done-Epic guard never fired
+// on the 8-of-12 real projects that are not in Epic mode. Rewritten against the
+// three-value contract; the behaviours M4.5.E11 cared about are unchanged.
+// Stub-vs-complete and the B72 split are covered in stub-retro-closure.test.js.
 describe('S1.t5 isEpicDone', () => {
   let baseDir;
   beforeEach(async () => {
@@ -269,20 +277,23 @@ describe('S1.t5 isEpicDone', () => {
     await rm(baseDir, { recursive: true, force: true });
   });
 
-  it('is true when {EpicID}-RETROSPECTIVE.md exists', async () => {
+  it('is done when a COMPLETE {EpicID}-RETROSPECTIVE.md exists', async () => {
     await writeFile(join(baseDir, '.planning', 'M4.5.E11-RETROSPECTIVE.md'), '# retro', 'utf-8');
-    expect(isEpicDone(baseDir, 'M4.5.E11')).toBe(true);
+    expect(isEpicDone(baseDir, 'M4.5.E11').status).toBe('done');
   });
 
-  it('is false when no retro file exists (in/past SHIP is not done)', async () => {
+  it('is not-done when no retro file exists (in/past SHIP is not done)', async () => {
     await writeFile(join(baseDir, '.planning', 'M4.5.E11-PLAN.md'), 'x', 'utf-8');
-    expect(isEpicDone(baseDir, 'M4.5.E11')).toBe(false);
+    expect(isEpicDone(baseDir, 'M4.5.E11').status).toBe('not-done');
   });
 
   it.each(['v0.1.6', '', 'garbage', null, undefined])(
-    'is false (no throw) for non-Epic-shaped id %j',
+    'is cannot-evaluate (no throw) for non-Epic-shaped id %j',
     (bad) => {
-      expect(isEpicDone(baseDir, bad)).toBe(false);
+      const r = isEpicDone(baseDir, bad);
+      expect(r.status).toBe('cannot-evaluate');
+      // The point of B72: this must NOT be the same answer as a real not-done.
+      expect(r.status).not.toBe('not-done');
     },
   );
 });

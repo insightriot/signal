@@ -10,10 +10,11 @@
 // in S1.t11 — they're shaped roughly per RESEARCH § 3.5 recommendations.
 
 import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { EPIC_ID_STRICT_RE, PHASES, detectMode } from './state.js';
+import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
 
 // Pre-SHIP work phases in canonical order — everything in PHASES between
 // CALIBRATE and SHIP (both exclusive). Derived from PHASES (state.js:16) so the
@@ -153,21 +154,69 @@ export function deriveRetroPath(epicId) {
 }
 
 /**
- * Is the given Epic "done"? True iff its `{EpicID}-RETROSPECTIVE.md` exists on
- * disk — the unambiguous SHIP-complete signal (M4.5.E11.S1.t5). NOT `phase:
- * SHIP`: Signal's STATE never moves SHIP into `completed_phases`, so `phase:
- * SHIP` means "in/past SHIP", not done. Returns false for a malformed/empty
- * `epicId` (never throws — a non-Epic-shaped value isn't a done Epic). Powers
- * the done-Epic guard: a writing command against a done Epic with no `--epic`
- * must halt rather than clobber that Epic's artifacts.
+ * Is the given unit "done"? The done-signal is a **complete**
+ * `{EpicID}-RETROSPECTIVE.md` on disk (M4.5.E11.S1.t5) — NOT `phase: SHIP`:
+ * Signal's STATE never moves SHIP into `completed_phases`, so `phase: SHIP`
+ * means "in/past SHIP", not done.
+ *
+ * **Three answers, not two (M5.E18 S5.t2/t3).** This returned a boolean and
+ * carried two defects at once, both of which read as "not done, proceed":
+ *
+ *   - `B64` — a **stub** retro (`[FILL IN]` placeholders) satisfied the
+ *     file-exists check, so writing the placeholder was enough to report the
+ *     Epic finished.
+ *   - `B72` — a **non-strict** unit id returned `false`, collapsing *"I cannot
+ *     evaluate this"* into *"evaluated, the answer is no."* 8 of 12 real
+ *     projects are not in Epic mode, so the done-Epic guard this powers had
+ *     never once fired for them.
+ *
+ * `cannot-evaluate` must not be treated as permission to proceed. The caller
+ * (`commands/discuss.md`) halts on anything other than a clean `not-done`,
+ * with `--epic <name>` as the explicit escape hatch — asserted from both
+ * directions by AC5.4 and AC5.6, because a newly-unconditional guard that
+ * makes a documented mode unusable is `B42`'s failure mode.
+ *
+ * Never throws.
  *
  * @param {string} baseDir
  * @param {string} epicId
- * @returns {boolean}
+ * @returns {{status: 'done'|'not-done'|'cannot-evaluate', reason: string}}
  */
 export function isEpicDone(baseDir, epicId) {
-  if (typeof epicId !== 'string' || !EPIC_ID_STRICT_RE.test(epicId)) return false;
-  return existsSync(join(baseDir, deriveRetroPath(epicId)));
+  if (typeof epicId !== 'string' || epicId.length === 0) {
+    return { status: 'cannot-evaluate', reason: 'no unit id to evaluate' };
+  }
+  if (!EPIC_ID_STRICT_RE.test(epicId)) {
+    return {
+      status: 'cannot-evaluate',
+      reason:
+        `\`${epicId}\` is not a strict Epic ID, so its retrospective path cannot be ` +
+        'derived — this project names its units by another convention. Whether it is ' +
+        'finished cannot be answered from here.',
+    };
+  }
+
+  const path = join(baseDir, deriveRetroPath(epicId));
+  let content = '';
+  try {
+    content = existsSync(path) ? readFileSync(path, 'utf-8') : '';
+  } catch {
+    content = '';
+  }
+
+  const status = retroStatusFromContent(content);
+  if (status === RETRO_STATUS.COMPLETE) {
+    return { status: 'done', reason: `${epicId} has a complete retrospective` };
+  }
+  if (status === RETRO_STATUS.STUB) {
+    return {
+      status: 'not-done',
+      reason:
+        `${epicId}'s retrospective is a stub — it still holds \`[FILL IN]\` ` +
+        'placeholders, so the Epic is not closed.',
+    };
+  }
+  return { status: 'not-done', reason: `${epicId} has no retrospective on disk` };
 }
 
 // ---- Template loader ----
@@ -702,16 +751,37 @@ export function detectDirtyExecute(args) {
   if (!isEpicCloseShip(state, milestoneContent)) return null;
   const retroPath = expectedRetroPath(state);
   if (!retroPath) return null;
-  const exists = fileExistsFn
-    ? fileExistsFn(join(baseDir, retroPath))
-    : defaultFileExists(join(baseDir, retroPath));
-  if (exists) return null;
+  const abs = join(baseDir, retroPath);
+  const exists = fileExistsFn ? fileExistsFn(abs) : defaultFileExists(abs);
+
+  // M5.E18 S5 (sweep site 3): existence was the whole test, so creating the
+  // file from the template — every heading present, every section still
+  // `[FILL IN]` — silenced the reminder. This banner's entire job is to say
+  // "write the retro", and writing the placeholder is what turned it off.
+  let status = RETRO_STATUS.ABSENT;
+  if (exists) {
+    let content = '';
+    try {
+      content = readFileSync(abs, 'utf-8');
+    } catch {
+      // Unreadable: fall back to what existence alone can prove. A permissions
+      // error must not manufacture a "you never wrote it" accusation.
+      return null;
+    }
+    status = retroStatusFromContent(content);
+  }
+  if (status === RETRO_STATUS.COMPLETE) return null;
+
+  const problem =
+    status === RETRO_STATUS.STUB
+      ? `the retro at \`${retroPath}\` is still a stub (it holds \`[FILL IN]\` placeholders)`
+      : `no retro file exists at \`${retroPath}\``;
 
   return (
     `[signal] M4.5.E9 enforcement reminder: Epic ${state.current_epic} ` +
     `looks closed in MILESTONE.md but STATE.md still says EXECUTE, and ` +
-    `no retro file exists at \`${retroPath}\`. Before \`/sig:ship\` can ` +
-    `close this Epic, create the retro from the tier-appropriate template ` +
+    `${problem}. Before \`/sig:ship\` can ` +
+    `close this Epic, ${status === RETRO_STATUS.STUB ? 'fill it in' : 'create the retro from the tier-appropriate template'} ` +
     `(see \`references/retrospective-template.md\`). The SHIP command will ` +
     `hard-block until the retro lands.`
   );

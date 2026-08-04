@@ -995,6 +995,12 @@ export async function senseVector3(baseDir, stateText) {
   const retros = await enumerateRetros(baseDir);
   const cards = new Map();
   for (const r of retros) {
+    // M5.E18 S5 (sweep site 4): a STUB card is not the closed-signal. Evicting
+    // against a retro that is still `[FILL IN]` replaces live STATE narrative
+    // with a pointer to a card that says nothing — the no-fabricate gate one
+    // step further in refuses to INVENT a card, but this path happily accepted
+    // an empty one. `evict.js` is protected by verifyCardCoverage; this was not.
+    if (r.isStub) continue;
     let content = '';
     try {
       content = await readFile(join(baseDir, r.path), 'utf-8');
