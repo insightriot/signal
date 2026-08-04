@@ -26,21 +26,19 @@ last_updated: 2026-08-04T16:49:44.525Z
 ## Resume pointer
 
 **⚠ RESTART THE CLI PROCESS BEFORE RUNNING ANY WRITING `/sig:` COMMAND.** Still true, and it fired
-again: a `/sig:resume` on **2026-08-03** loaded from cache **`0.1.16`** while `installed_plugins.json`
-records **`0.1.17`** and the `0.1.17` cache exists on disk. **`B52`'s third live sighting, recorded
-in its row.** One release behind rather than four, and no damage this time — Signal's own `phase` is
-canonical, so `nextActionForPhase` did not throw — but v0.1.17 *is* the `B70` fix, so a stale-bound
-session still crashes `/sig:status` and `/sig:resume` on the 5-of-12 projects that need it.
+**five times in one session** on 2026-08-04: every `/sig:` command of the M5.E18 build loaded from
+cache **`0.1.16`** while `0.1.17` was installed. **Both `/sig:review` passes were therefore handed the
+pre-`B78` PASS-WITH-FIXES text** and the corrected on-disk rule had to be applied by hand. *A stale
+binding that serves the wrong version of a **decision document** is worse than one serving stale
+code.* `B52`'s worst showing to date.
 
-**A context clear is not sufficient** — measured, not reasoned: a `/clear` ran 2026-08-02 at 12:50
-and the process kept its binding. After restarting, run any `/sig:` command and read the cache path
-it cites.
+**A context clear is NOT sufficient** — measured, not reasoned: a `/clear` ran 2026-08-02 at 12:50
+and the process kept its binding. **Restart the CLI process**, then run any `/sig:` command and read
+the cache path it cites.
 
-**And it is not just this window.** `ps` found **five** live CLI processes — `elicitation-engine`
-(Jul 25), `mps` (Jul 25), `traction-engine` (Jul 28), `signal` (Jul 28), `nextpass` (Aug 2) — so
-four of five were running 5-to-8-day-old machinery against real projects. `traction-engine` is
-already the live instance behind `B53`, `B70` and check `(h)`. **Restart every window you intend to
-run `/sig:` commands in, not only this one.**
+**After v0.1.18 (2026-08-04) the cache is also a release behind:** `~/.claude/plugins/cache/signal/sig/`
+tops out at `0.1.17`. Run **`/sig:update`** (or `/plugin`) after restarting so the new
+archive behaviour is what actually executes.
 
 **▶ FIX-LANE ITEMS reconciled from parallel sessions 2026-08-03/04.** Captured as numbered bugs;
 neither blocks M5.E18. Detail in their rows, not here.
@@ -70,42 +68,46 @@ because anything enforces it. `analysis/LOOP-ENGINEERING-ANALYSIS.md`'s attentio
 
 ---
 
-**▶ `M5.E18` — ALL SEVEN SLICES BUILT (waves 1–5). EXECUTE is complete; VERIFY is next.** Live progress and
-every wave's findings: [`M5.E18-PROGRESS.md`](M5.E18-PROGRESS.md) — read that, not this, for where
-EXECUTE actually is. Plan: [`M5.E18-PLAN.md`](M5.E18-PLAN.md) (7 slices, 40 ACs, 18 RED-first) ·
-Research: [`M5.E18-RESEARCH.md`](M5.E18-RESEARCH.md) · Requirements:
-[`M5.E18-REQUIREMENTS.md`](M5.E18-REQUIREMENTS.md) · Decisions `D-M5E18-1`…`5`.
+**✅ `M5.E18` SHIPPED as `v0.1.18` (2026-08-04) — the archive half, for the projects Epic-gating did
+not reach.** Retro: [`M5.E18-RETROSPECTIVE.md`](M5.E18-RETROSPECTIVE.md) — read that first.
+Plan: [`M5.E18-PLAN.md`](M5.E18-PLAN.md) · Progress: [`M5.E18-PROGRESS.md`](M5.E18-PROGRESS.md) ·
+Decisions `D-M5E18-1`…`6`. Closed `B64`, `B70`, `B72`, `B78`. **1994 → 2168 tests.**
 
-**Shipped so far:** `tools/lib/work-units.js` (units derived from filenames — one home, consumed by
-`state-drift.js` and the archive planner), `tools/lib/verdict.js` (verdicts read as values, never
-guessed), and **wave 3**: `tools/lib/closure.js` (S4 — closure has three outcomes) + the five-site
-stub fix (S5), **wave 4**: S6 (a non-Epic unit archives to `.planning/archive/{unit}/`, path-confined),
-and **wave 5**: S7 (`tools/lib/archive-report.js` — four facts, four renderings).
-**1994 → 2151 tests.** All seven slices are built; **VERIFY is next.**
+**The number the release is about:** `/sig:migrate-memory` went from archiving **67 files across 1 of
+12 real projects — every one of those 67 in Signal's own tree — to 114 across 6.** `traction-engine`
+0 → 26. The closed-set is a **union**, measured in both directions: retro-only sees 67 and is blind
+to 8 projects; verdict-only sees 110 but **loses 4** (`M5.E17` has a retro and no VERIFICATION, so
+the verdict rule reads a shipped Epic as running). A **stub retro vetoes** closure regardless of
+verdict, or the union silently undoes `B64`.
 
-**S6's payoff, measured across all 12 real projects: files archivable 63 → 110, and projects that can
-archive at all 1 → 6 of 12.** `traction-engine` 0 → 26; Signal's own tree 63 → 70, the gain being
-`v0.1.6` — the non-Epic unit S1 flagged in wave 1 as one its own archive path could not reach. Both
-columns use S4's closure set and vary only the Epic-gating, so the number isolates S6.
+**Two loop-backs, both recorded in `completed_phases` rather than smoothed.** REVIEW returned **FAIL**
+on a 112-LOC in-phase fix against a ≤ 50 cap — the *"71 of those are deletions"* argument was
+available and is rejected on the record, because *"insertions plus deletions"* had been written into
+the rule the previous day (`D-M5E18-6`). The loop-back was substantive: the second VERIFY then found
+`AC4.5`'s half unreachable.
 
-**Wave 3's two results worth carrying.** (1) **S5's sibling sweep, run FIRST rather than last as the
-plan ordered, found the class has FIVE decision sites, not the two the plan named** — and the shape
-is better than five bugs: `isStubRetro` has existed since M4.5.E9 and `enumerateRetros` reports
-`isStub` on every record, but it was consumed in **exactly one place**, rendering `*stub*` in
-`INDEX.md`. Every caller that used a retro to make a *decision* threw it away. The three unplanned
-sites include `detectDirtyExecute` (writing the `[FILL IN]` placeholder is what silenced the
-write-the-retro reminder) and **`checkEpicWithoutRetro` — the check M5.E16 shipped eight days
-earlier to catch un-retrospected units, which a stub made go quiet.** `B39`'s shape inside the
-detector built for `B39`'s shape. (2) **First use of the closure resolver across all 12 real
-projects: 44 units → 18 closed · 21 open · 5 cannotDetermine, with 18 closed units sitting in 8
-projects the Epic-gated archive paths cannot see.** The capability gap, measured rather than argued.
+**The finding worth carrying into the next Epic:** **three separate "correct library code, no command
+path" gaps, and none was caught by the same mechanism twice** — one internally, one by a question
+from Brett, one by the second VERIFY. The retro proposes making *reachable from a command* an
+acceptance criterion rather than a review question.
 
-**Two process facts recorded rather than smoothed over.** **S4 did not achieve RED-first** (the
-module preceded its tests; all 18 passed first run) — mutation testing of four load-bearing clauses
-was run as a substitute and is labelled as one, not as an equivalent. And **first use found a defect
-in S4's own code**: a project whose STATE is unreadable returns counts byte-identical to a readable
-project with no units, so counts alone cannot separate blindness from cleanliness. Pinned by a test
-and carried forward as an obligation on S7's reporting.
+**Filed at the ship, not fixed:** **`B79`** — `evictEpicNarrative` has **never** been able to fire for
+Signal's own STATE.md (`extractEpicSection` wants a `## {EpicID}` heading; this file uses
+bold-prefixed paragraphs under one `## Resume pointer`), and reports it as a clean `no-section`
+no-op. `C1`'s class. Nothing is lost — relocate-never-delete — but STATE.md grows unbounded in the
+repo that runs this flow most.
+
+**Known limit carried:** strict Nyquist is **14 of 18**; S4's four have no red-first evidence and
+cannot acquire it. Mutation testing is recorded as a substitute, not an equivalent.
+
+---
+
+**▶ NEXT: `M5.E15`** (`B55` — the adherence control arm; blocks trusting any new adherence verdict)
+→ then **`M5.E14`** (tracker migration + the 48-entry inbox triage) → then **`M5.E10`** (review
+hardening / claim integrity). `analysis/LOOP-ENGINEERING-ANALYSIS.md`'s attention-axis proposal is a
+**future DISCUSS** now that M5.E18 has shipped.
+
+---
 
 **Three PLAN-time acceptance criteria were corrected in the open before EXECUTE** — `AC1.2`
 (the behaviour it called correct was the defect: the flat rule split one nextpass slice into two
