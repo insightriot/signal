@@ -432,6 +432,30 @@ describe('AC4.5 second half — the empty bound is stated ON THE WIRED PATH', ()
     }
   });
 
+  it('ALWAYS says something — no input produces an empty result', () => {
+    // REVIEW pass 2. migrate-memory's wiring comment claimed the renderer
+    // returns [] "when there is nothing to say" — untrue once the empty-bound
+    // statement moved in. The first correction claimed "[] only when no units
+    // were derived", which is backwards: that case produces the MOST lines.
+    // Two wrong comments in a row, both prose about behaviour with nothing
+    // failing when it went stale. This enumerates every shape instead.
+    const U = (status) => ({ unit: 'U', status, reason: 'r' });
+    const shapes = [
+      ['no units at all', { closures: [], dropped: [], moveCount: 0 }],
+      ['STATE unreadable', { closures: [], dropped: [], stateReadable: false, stateReason: 'x' }],
+      ['units, moves, all clean', { closures: [U('closed')], dropped: [], moveCount: 5 }],
+      ['units, no moves, all open', { closures: [U('open')], dropped: [], moveCount: 0 }],
+      ['units, cannotDetermine', { closures: [U('cannotDetermine')], dropped: [], moveCount: 0 }],
+      [
+        'units + dropped',
+        { closures: [U('closed')], dropped: [{ unit: 'z', reason: 'r' }], moveCount: 1 },
+      ],
+    ];
+    for (const [name, args] of shapes) {
+      expect(explainArchiveOutcome(args).length, `${name} produced no line`).toBeGreaterThan(0);
+    }
+  });
+
   it('a project with no derived units does NOT get the line — nothing was bounded', () => {
     expect(explainArchiveOutcome({ closures: [], dropped: [] }).join('\n')).not.toMatch(
       /Nothing was dropped/
