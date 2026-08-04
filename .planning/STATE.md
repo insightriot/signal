@@ -35,10 +35,44 @@ four of five were running 5-to-8-day-old machinery against real projects. `tract
 already the live instance behind `B53`, `B70` and check `(h)`. **Restart every window you intend to
 run `/sig:` commands in, not only this one.**
 
-**▶ `M5.E18` IS OPEN. DISCUSS closed 2026-08-03 — next is `/sig:plan`.** Requirements are written:
-[`M5.E18-REQUIREMENTS.md`](M5.E18-REQUIREMENTS.md), FR1–FR6 + NFR1–NFR5, decisions `D-M5E18-1` …
-`D-M5E18-5` in [`DECISIONS.md`](DECISIONS.md). Tier **FULL** (project default; no Epic-scoped
-override). `completed_phases` is `[]` because the DISCUSS→PLAN transition has not run yet.
+**▶ QUEUED BEHIND M5.E18 — two fix-lane items reconciled from parallel sessions 2026-08-03/04.**
+Both are captured as numbered bugs; neither blocks M5.E18. Detail in their rows, not here.
+
+1. **`B78` — `review.md`'s PASS-WITH-FIXES rule contradicts itself four ways, and its test is a
+   fifth voice.** ~20-line doc+test diff, fix lane. **This one has a deadline: fix it before M5.E18
+   reaches its own REVIEW**, or the same paragraph misfires a third time on the Epic auditing it
+   (`M5.E16-REVIEW.md:60-67` is the second — a real REVIEW that invented a condition
+   `review.md` does not contain). **Blocked on one product call from Brett**, recorded in the row:
+   *is "requires new tests" a real disqualifier, or shorthand for the LOC cap?* Steps 2–5 of the fix
+   proceed either way.
+2. **`B77` — `BUGS.md`'s tally could not see the capture format Signal itself writes.** Fixed in the
+   record (both formats now derived, new `captured-untriaged` column); the **code** fix — have the
+   tooling count both, or report captures as their own line — is still open.
+
+**`B73`–`B76`** are the loop-engineering audit's findings, triaged from heading-captures into
+numbered rows. `B74`/`B76` need new capability → Epic-homed. `B75` is worth knowing while M5.E18
+runs: **`gate_strictness` `light` and `strict` differ by one boolean in code** — every other
+difference is prose, so M5.E18's wave gates are being honoured because the command text says so, not
+because anything enforces it. `analysis/LOOP-ENGINEERING-ANALYSIS.md`'s attention-axis proposal is a
+**future DISCUSS**, after M5.E18 ships.
+
+---
+
+**▶ `M5.E18` IS OPEN AND EXECUTING. Waves 1–2 shipped; next is wave 3 (S4 ‖ S5).** Live progress and
+every wave's findings: [`M5.E18-PROGRESS.md`](M5.E18-PROGRESS.md) — read that, not this, for where
+EXECUTE actually is. Plan: [`M5.E18-PLAN.md`](M5.E18-PLAN.md) (7 slices, 40 ACs, 18 RED-first) ·
+Research: [`M5.E18-RESEARCH.md`](M5.E18-RESEARCH.md) · Requirements:
+[`M5.E18-REQUIREMENTS.md`](M5.E18-REQUIREMENTS.md) · Decisions `D-M5E18-1`…`5`.
+
+**Shipped so far:** `tools/lib/work-units.js` (units derived from filenames — one home, consumed by
+`state-drift.js` and the archive planner) and `tools/lib/verdict.js` (verdicts read as values, never
+guessed). **1994 → 2054 tests.** Wave 3 is S4 (three-outcome closure) ‖ S5 (stub retro + `B72`).
+
+**Three PLAN-time acceptance criteria were corrected in the open before EXECUTE** — `AC1.2`
+(the behaviour it called correct was the defect: the flat rule split one nextpass slice into two
+units, so FR2 would have archived half of it), `AC1.4` (expected set wrong in both directions), and
+`AC2.2` (both named fixtures invalid — one file does not exist). Corrections live in the PLAN, not
+in the requirements, per `B59`'s precedent.
 
 **DISCUSS walked three real trees rather than quoting the backlog, and two findings reshaped the
 scope.** (1) There is no single "prefix" to read — nextpass has **10+ unit names**, some beginning
