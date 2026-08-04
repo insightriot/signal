@@ -161,8 +161,22 @@ export function planArchiveMoves(closedUnitIds, planningRelFiles, opts = {}) {
 
   // NFR4: a unit name that could escape `.planning/archive/` is DROPPED, not
   // thrown on. Throwing would let one hostile name deny the whole plan; dropping
-  // keeps every other unit archivable and is reported by the caller.
-  const safe = [...new Set(closedUnitIds ?? [])].filter(isSafeUnitName);
+  // keeps every other unit archivable.
+  //
+  // NFR5 / AC4.5: dropping is a BOUND on what the planner proposes, so it is
+  // returned rather than done quietly. A caller that reports `moves` and never
+  // mentions `dropped` would show a shorter plan with no indication anything was
+  // withheld — the same silence-about-blindness this Epic exists to remove.
+  const all = [...new Set(closedUnitIds ?? [])];
+  const safe = all.filter(isSafeUnitName);
+  const dropped = all
+    .filter((u) => !isSafeUnitName(u))
+    .map((u) => ({
+      unit: typeof u === 'string' ? u : String(u),
+      reason:
+        'unsafe unit name — cannot be used as a directory under .planning/archive/ ' +
+        '(must start alphanumeric, no path separators, no "..")',
+    }));
   // Strict Epic IDs first, in their existing order, then everything else
   // lexically. AC6.1: a strict-only input must produce a byte-identical plan.
   const epics = safe.filter((id) => EPIC_ID_STRICT_RE.test(id)).sort(compareEpicIds);
@@ -179,7 +193,7 @@ export function planArchiveMoves(closedUnitIds, planningRelFiles, opts = {}) {
       moveMap.set(from, to);
     }
   }
-  return { moves, moveMap };
+  return { moves, moveMap, dropped };
 }
 
 /**
