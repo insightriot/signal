@@ -1955,7 +1955,18 @@ export async function renderDryRun(baseDir, opts = {}) {
   // with 2 moves AND 1 unevaluable unit printed `archive-tree moves: 2` and
   // said nothing about the unit needing a person — AC4.1 unmet, and `B63`'s own
   // class surviving inside the fix for `B63`. A duplicated rule is the
-  // `isStubRetro` mistake; the renderer returns [] when there is nothing to say.
+  // `isStubRetro` mistake.
+  //
+  // It ALWAYS returns at least one line: there is no input for which this pass
+  // has nothing to say. That is deliberate — M5.E16's model is that silence is
+  // the bug — so the caller appends unconditionally and never guards on length.
+  //
+  // Two wrong comments preceded this one. The original claimed "[] when there is
+  // nothing to say" (untrue once VERIFY pass 2 folded the empty-bound statement
+  // in), and its first correction claimed "[] only when no units were derived"
+  // — backwards, since that case produces the MOST lines. Both were prose about
+  // behaviour with nothing failing when the prose went stale. A test now
+  // enumerates all six shapes.
   //
   // Fail-open: this is an explanatory read on a dry-run display. If closure
   // resolution throws, the migrate preview must still render.
