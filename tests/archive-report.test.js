@@ -171,6 +171,58 @@ describe('S7 AC4.4 — "no units" and "no unit could be read" are not the same f
 });
 
 // ---------------------------------------------------------------------------
+// REVIEW finding — one definition, two presentations
+// ---------------------------------------------------------------------------
+
+describe('REVIEW — renderArchivePlan and the migrate dry-run share ONE definition', () => {
+  it('renderArchivePlan delegates the distinction rather than restating it', () => {
+    // The defect this pins: renderArchivePlan carried its own !stateReadable /
+    // zero-units / cannotDetermine branches while explainArchiveOutcome's
+    // docblock claimed it existed so no second definition could drift. Two
+    // implementations of one rule — this Epic's own class, in the module
+    // written to fix it.
+    const shapes = [
+      { closures: [], stateReadable: false, stateReason: 'STATE.md could not be read — bad.' },
+      { closures: [] },
+      { closures: [cannot('A'), cannot('B')] },
+      { closures: [closed('X'), cannot('B')], moves: [{ from: '.planning/X-PLAN.md', to: '.planning/archive/X/X-PLAN.md' }] },
+      { closures: [open('A')] },
+    ];
+    for (const shape of shapes) {
+      const full = renderArchivePlan({ ...base, ...shape });
+      const lines = explainArchiveOutcome({
+        closures: shape.closures,
+        dropped: [],
+        moveCount: (shape.moves ?? []).length,
+        stateReadable: shape.stateReadable ?? true,
+        stateReason: shape.stateReason ?? null,
+        indent: '  ',
+      });
+      // Every sentence the shared explainer produces must appear verbatim in the
+      // full report. If renderArchivePlan ever re-implements the rule, its
+      // wording drifts and this fails.
+      for (const line of lines) {
+        expect(full, `report dropped a shared line: ${line.trim()}`).toContain(line);
+      }
+    }
+  });
+
+  it('the empty-dropped statement is owned by exactly one of them', () => {
+    // renderDropped states the EMPTY case; the inline explainer does not. Passing
+    // dropped through both would double-render it.
+    // Format-agnostic: count a distinctive marker rather than re-encoding
+    // renderDropped's exact spacing, which is presentation, not contract.
+    const text = renderArchivePlan({
+      ...base,
+      closures: [closed('X')],
+      dropped: [{ unit: 'zz-unit', reason: 'UNSAFE-MARKER' }],
+    });
+    expect(text.match(/UNSAFE-MARKER/g)?.length ?? 0).toBe(1);
+    expect(text.match(/zz-unit/g)?.length ?? 0).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // AC4.5 (NFR5) — a bound the planner applies must be reported, or its absence stated
 // ---------------------------------------------------------------------------
 

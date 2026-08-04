@@ -94,7 +94,8 @@ export function explainArchiveOutcome(args = {}) {
       );
     } else if (cannot.length > 0) {
       L.push(
-        `${indent}↳ ${cannot.length} further unit(s) could not be evaluated and are NOT included above:`
+        `${indent}↳ ${cannot.length} further unit(s) could not be evaluated and are NOT included`,
+        `${indent}  above. Each needs a person:`
       );
       for (const c of cannot) L.push(`${indent}    ${c.unit} — ${c.reason}`);
     }
@@ -132,83 +133,52 @@ export function renderArchivePlan(args = {}) {
 
   const out = ['Archive plan — dry run (nothing has been written)', ''];
 
-  // ---- The fifth fact, first: if STATE could not be read, nothing below it is
-  // trustworthy, so it leads. Same reasoning as /sig:resume's schema-drift
-  // banner sitting above every other banner.
-  if (!stateReadable) {
-    // The reason from `resolveClosures` already names STATE.md and is already
-    // a sentence — prefixing it produced "STATE.md could not be read — STATE.md
-    // could not be read — …" with a doubled full stop, which first use against
-    // `affiliate-mojo` showed on the very first render. Pass it through; only
-    // supply a sentence when there is none.
-    out.push(
-      `  ⚠ ${stateReason || 'STATE.md could not be read.'}`,
-      '    Without it there is no way to tell which unit is current, and a unit that is',
-      '    current must never be archived. Nothing is proposed, and that is a refusal,',
-      '    not a clean result. Fix STATE.md and re-run.',
-      ''
-    );
-    out.push(renderDropped(dropped));
-    return out.join('\n') + '\n';
-  }
-
-  // ---- Fact 4: nothing derived. Distinct from "derived, but unreadable".
-  if (closures.length === 0) {
-    out.push(
-      '  No work units were derived from this project’s filenames, so there was',
-      '  nothing to evaluate. This is not "checked and clean" — nothing was checked.',
-      '',
-      '  Units come from scaffold suffixes (PLAN, VERIFICATION, SHIP, …). A project',
-      '  that names its documents another way derives zero units by convention, not',
-      '  by fault.',
-      ''
-    );
-    out.push(renderDropped(dropped));
-    return out.join('\n') + '\n';
-  }
-
-  // ---- Facts 1–3.
-  if (moves.length > 0) {
-    const dirs = new Map();
-    for (const m of moves) {
-      const dir = m.to.slice(0, m.to.lastIndexOf('/'));
-      dirs.set(dir, (dirs.get(dir) ?? 0) + 1);
+  // Counts first — but only when there is something to count. A project whose
+  // STATE is unreadable, or which derives no units, has no meaningful counts and
+  // printing `0/0/0` for it is exactly the collapse this module exists to stop.
+  if (stateReadable && closures.length > 0) {
+    if (moves.length > 0) {
+      out.push(`  ${moves.length} file(s) to archive across ${closed.length} closed unit(s):`);
+      for (const c of closed) {
+        const n = moves.filter((m) => m.from.includes(`/${c.unit}-`)).length;
+        if (n > 0) out.push(`    ${c.unit}  →  ${n} file(s)`);
+      }
+    } else {
+      out.push('  0 file(s) to archive.');
     }
-    out.push(`  ${moves.length} file(s) to archive across ${closed.length} closed unit(s):`);
-    for (const c of closed) {
-      const n = moves.filter((m) => m.from.includes(`/${c.unit}-`)).length;
-      if (n > 0) out.push(`    ${c.unit}  →  ${n} file(s)`);
-    }
-    out.push('');
-  } else {
-    out.push('  0 file(s) to archive.', '');
-  }
-
-  out.push(`  Closed (ready to archive):  ${closed.length} unit(s)`);
-  out.push(`  Open (still in flight):     ${open.length} unit(s)`);
-  out.push(`  Could not determine:        ${cannot.length} unit(s)`);
-
-  if (cannot.length > 0) {
     out.push(
       '',
-      '  The units below need a person. Each has something that claims to be terminal,',
-      '  but nothing this tool will read as a verdict — and guessing at prose is how a',
-      '  confident wrong answer gets made:'
+      `  Closed (ready to archive):  ${closed.length} unit(s)`,
+      `  Open (still in flight):     ${open.length} unit(s)`,
+      `  Could not determine:        ${cannot.length} unit(s)`,
+      ''
     );
-    for (const c of cannot) out.push(`    ${c.unit}  — ${c.reason}`);
-
-    // Fact 3, said out loud. This is the sentence the whole slice exists for.
-    if (closed.length === 0) {
-      out.push(
-        '',
-        '  ⚠ Nothing is proposed, but that is NOT the same as nothing to archive:',
-        `    every one of the ${cannot.length} unit(s) above could not be evaluated. A zero here`,
-        '    means this tool could not look, not that it looked and found nothing.'
-      );
-    }
   }
 
-  out.push('');
+  // The four-fact distinction itself is NOT restated here — it is
+  // `explainArchiveOutcome`'s, and this function delegates to it.
+  //
+  // REVIEW caught the first version carrying its own `!stateReadable` /
+  // `closures.length === 0` / `cannot.length > 0` branches while
+  // `explainArchiveOutcome`'s docblock claimed it existed so no second
+  // definition could drift. The comment asserted a property the code did not
+  // have — one rule, two implementations, which is this Epic's own defect class
+  // (`isStubRetro`: one definition, five discarding consumers) in the module
+  // written to fix it. Delegating also means the golden tests for AC4.2/AC4.4
+  // now pin the SAME code the migrate dry-run runs.
+  //
+  // `dropped` is passed empty on purpose: `renderDropped` owns that section here
+  // (it must also state the EMPTY case, which the inline explainer does not).
+  const explained = explainArchiveOutcome({
+    closures,
+    dropped: [],
+    moveCount: moves.length,
+    stateReadable,
+    stateReason,
+    indent: '  ',
+  });
+  if (explained.length > 0) out.push(...explained, '');
+
   out.push(renderDropped(dropped));
   return out.join('\n') + '\n';
 }
