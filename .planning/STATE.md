@@ -11,8 +11,8 @@ completed_phases:
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-08-02T00:20:21.679Z
-last_updated_commit: fc0a400419060dff97ae4b40c51a4c15f123ae6a
-last_updated: 2026-08-04T01:03:13.788Z
+last_updated_commit: 1b5f870231672edaebdb4e145f5f92724487c98b
+last_updated: 2026-08-04T03:30:26.779Z
 ---
 # Project State
 
@@ -63,15 +63,35 @@ because anything enforces it. `analysis/LOOP-ENGINEERING-ANALYSIS.md`'s attentio
 
 ---
 
-**▶ `M5.E18` IS OPEN AND EXECUTING. Waves 1–2 shipped; next is wave 3 (S4 ‖ S5).** Live progress and
+**▶ `M5.E18` IS OPEN AND EXECUTING. Waves 1–3 shipped; next is wave 4 (S6, archive destination).** Live progress and
 every wave's findings: [`M5.E18-PROGRESS.md`](M5.E18-PROGRESS.md) — read that, not this, for where
 EXECUTE actually is. Plan: [`M5.E18-PLAN.md`](M5.E18-PLAN.md) (7 slices, 40 ACs, 18 RED-first) ·
 Research: [`M5.E18-RESEARCH.md`](M5.E18-RESEARCH.md) · Requirements:
 [`M5.E18-REQUIREMENTS.md`](M5.E18-REQUIREMENTS.md) · Decisions `D-M5E18-1`…`5`.
 
 **Shipped so far:** `tools/lib/work-units.js` (units derived from filenames — one home, consumed by
-`state-drift.js` and the archive planner) and `tools/lib/verdict.js` (verdicts read as values, never
-guessed). **1994 → 2054 tests.** Wave 3 is S4 (three-outcome closure) ‖ S5 (stub retro + `B72`).
+`state-drift.js` and the archive planner), `tools/lib/verdict.js` (verdicts read as values, never
+guessed), and **wave 3**: `tools/lib/closure.js` (S4 — closure has three outcomes) + the five-site
+stub fix (S5). **1994 → 2102 tests.** Wave 4 is S6 (archive destination, `NFR4`); wave 5 is S7.
+
+**Wave 3's two results worth carrying.** (1) **S5's sibling sweep, run FIRST rather than last as the
+plan ordered, found the class has FIVE decision sites, not the two the plan named** — and the shape
+is better than five bugs: `isStubRetro` has existed since M4.5.E9 and `enumerateRetros` reports
+`isStub` on every record, but it was consumed in **exactly one place**, rendering `*stub*` in
+`INDEX.md`. Every caller that used a retro to make a *decision* threw it away. The three unplanned
+sites include `detectDirtyExecute` (writing the `[FILL IN]` placeholder is what silenced the
+write-the-retro reminder) and **`checkEpicWithoutRetro` — the check M5.E16 shipped eight days
+earlier to catch un-retrospected units, which a stub made go quiet.** `B39`'s shape inside the
+detector built for `B39`'s shape. (2) **First use of the closure resolver across all 12 real
+projects: 44 units → 18 closed · 21 open · 5 cannotDetermine, with 18 closed units sitting in 8
+projects the Epic-gated archive paths cannot see.** The capability gap, measured rather than argued.
+
+**Two process facts recorded rather than smoothed over.** **S4 did not achieve RED-first** (the
+module preceded its tests; all 18 passed first run) — mutation testing of four load-bearing clauses
+was run as a substitute and is labelled as one, not as an equivalent. And **first use found a defect
+in S4's own code**: a project whose STATE is unreadable returns counts byte-identical to a readable
+project with no units, so counts alone cannot separate blindness from cleanliness. Pinned by a test
+and carried forward as an obligation on S7's reporting.
 
 **Three PLAN-time acceptance criteria were corrected in the open before EXECUTE** — `AC1.2`
 (the behaviour it called correct was the defect: the flat rule split one nextpass slice into two
