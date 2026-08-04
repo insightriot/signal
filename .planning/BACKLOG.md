@@ -300,6 +300,57 @@ searching for siblings before closing. `B70` is what that discipline produced on
 application — `B45` quarantines an off-enum `completed_phases` entry, and nobody asked whether the
 `phase` scalar next to it had the same hole. It did, on five real projects.
 
+### A closure-gated archive **command** — wire `resolveClosures` to the mover
+
+**Tag:** roadmap · **Trigger: FIRED 2026-08-04** — `curator`, the external tool that did this job
+across `nextpass` and `cm-mentor-coach`, was **removed from the machine that day**. Archiving in
+those repos is now a hand-written `git mv` runbook. This entry is the permanent replacement.
+
+**Why curator went, because the replacement must not repeat it.** It chose what to archive by
+matching **filenames** and never checked whether the work was finished. Its only protection was a
+hand-maintained `live_zone` list you had to update *before* you started writing a file. It got this
+wrong three times across two projects: `nextpass` proposed archiving the **same 4 live units twice**
+(ENV1, MOD1, PILOT0, VOICE1 — 2026-08-01 and again 2026-08-04), and `cm-mentor-coach` failed in the
+opposite direction, falsely *refusing* an archive by prefix-matching the unit `ADMIN-UI` against
+`ADMIN`. The 2026-08-01 remedy was a **printed warning**, and it failed the way warnings fail: it
+asks a human to be vigilant forever. **A warning asks; a gate refuses.**
+
+**M5.E18 built the hard half and wired none of it.** That Epic's own retro records the shape —
+*"the library could do 110; nothing wired it."* This entry is the wiring.
+
+**What works, measured 2026-08-04 against nextpass's real corpus:** `tools/lib/closure.js`
+(`resolveClosures`) returns finished / not-finished / cannot-tell per unit — **1 closed, 7 open, 0
+cannot-tell**, and it correctly reads **PILOT0** and **VOICE1** as *open*. Those are two of the four
+units the old tool wanted to archive.
+
+**What is broken, same measurement — and it is the blocker.** `planArchiveMoves` builds every
+candidate as `` `${PLANNING_DIR}/${unit}-${suffix}.md` `` — the `<UNIT>-<SUFFIX>.md` form only.
+nextpass and cm-mentor-coach both carry **two filename shapes for one unit**: `SLICE-SSO` exists as
+`SLICE-SSO-{PROGRESS,REVIEW,VERIFICATION}.md` **and** `PLAN-SLICE-SSO{,-RESEARCH,-VALIDATION}.md`.
+Run against it today the planner returns **3 of 6 files**.
+
+> **A unit split across live and archive is worse than one never archived.** `INDEX.md`, cross-doc
+> links, and the next reader all disagree about where the unit lives. The old tool at least moved
+> all-or-nothing. **Do not wire the mover in as a substitute until this is fixed**, and do not write
+> documentation implying it is close — the two consuming repos' runbooks were corrected on
+> 2026-08-04 to describe manual archiving as *the method*, not a stopgap.
+
+**Three requirements for whoever builds it:**
+
+1. **One unit at a time.** All-or-nothing is why reading the old tool's warning never helped: a
+   correct read left **no safe partial action**, so the only move was doing it by hand.
+2. **A manual override alongside the automatic check.** Signal's checker reads Slice SSO as
+   *finished*; nextpass deliberately holds it **live** (merged but dormant pending Wolverine
+   go-live — the reason is a comment in that repo's `.curator.yml` `live_zone`). Both layers are
+   required; **either one alone is wrong.**
+3. **Refuse to re-move a unit already present in `archive/`.** *(Carried forward from the deleted
+   `ship-archive.mjs` — the one idea in it worth keeping.)* It was that script's only guard, and it
+   is the guard that prevents the split-unit failure above.
+
+**Prior art to read, not to re-derive:** the two rewritten runbooks
+(`nextpass/docs/operational/ship-archive-runbook.md` and cm-mentor-coach's) carry the manual
+sequence, and the deleted wrapper is in those repos' git history.
+
 ### `B52` — warn at session start when the bound plugin cache is not the installed one
 **Tag:** correctness · **Trigger: SATISFIED — third live sighting 2026-08-03. Filed as a home for a
 P1 that has had no home across three sightings in six days.**
