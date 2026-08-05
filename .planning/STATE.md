@@ -94,8 +94,9 @@ cannot acquire it. Mutation testing is recorded as a substitute, not an equivale
 
 ---
 
-**▶ NEXT: `M5.E15`** (`B55` — the adherence control arm; blocks trusting any new adherence verdict)
-→ then **`M5.E14`** (tracker migration + the 48-entry inbox triage) → then **`M5.E10`** (review
+**▶ OPEN: `M5.E15`** (`B55` — the adherence control arm; blocks trusting any new adherence verdict).
+DISCUSS + PLAN closed 2026-08-04; EXECUTE next.
+→ then **`M5.E14`** (tracker migration + the 50-entry inbox triage) → then **`M5.E10`** (review
 hardening / claim integrity). `analysis/LOOP-ENGINEERING-ANALYSIS.md`'s attention-axis proposal is a
 **future DISCUSS** now that M5.E18 has shipped.
 
@@ -301,7 +302,10 @@ Three documents corrected, each pinned by a test comparing one document against 
 
 ## In-flight
 
-**Nothing.** M5.E16 closed 2026-08-02.
+**`M5.E15`** — the control arm, made real (`B55`). DISCUSS + PLAN closed 2026-08-04; **EXECUTE next**
+(7 slices, 3 waves; wave 1 = S1 ‖ S2 ‖ S3 ‖ S4). Since this line last read *"Nothing, M5.E16 closed
+2026-08-02"*, M5.E17 and M5.E18 both shipped and M5.E15 opened — **the body contradicted this file's
+own frontmatter by two Epics**, and the frontmatter is the declared machine-truth (`INDEX.md:119`).
 
 **Carried from M5.E16's retro, unhomed:** `review_depth: quality-only` silently disables
 `simplification_pass`, and `M5.E16-PROFILE.md`'s prose claimed the dial anyway — so the profile
