@@ -32,7 +32,7 @@
 
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { cp, mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
@@ -47,6 +47,28 @@ export const PLUGIN_COPY_PREFIX = 'signal-adherence-plugin-';
 // a plugin, it is a directory of markdown, and the CLI will decline to load it.
 // The first version of this list omitted it, which would have produced a copy
 // that silently could never be the tree under test.
+/**
+ * Copied, then removed from the copy (M5.E15, FR4).
+ *
+ * `references/adherence-canaries.json` carries the measured instruction VERBATIM,
+ * the deletion anchors, and the reasoning about what the control arm is trying to
+ * prove. `references/` is inside the copied tree, so without this the control
+ * agent — the one that is supposed never to have been told to call the function —
+ * could read the entire experiment, including the sentence deleted from its own
+ * command file, one directory over.
+ *
+ * COPY-TIME ONLY, never a packaging change (AC4.3). `commands/ship.md` orders
+ * `node tools/adherence-run.js`, so a shipped plugin missing its own registry
+ * could not run the harness at all.
+ *
+ * Deliberately ONE file. Excluding the harness modules wholesale was considered
+ * and rejected for the same reason: removing `tools/` would break a documented
+ * instruction for any future canary measuring `ship.md`. The apparatus leak that
+ * would have covered is handled at source instead — S1.t7 scrubbed the verbatim
+ * instruction text out of the comments in `adherence-verdict.js`.
+ */
+export const PLUGIN_COPY_EXCLUDE = ['references/adherence-canaries.json'];
+
 export const PLUGIN_COPY_DIRS = [
   '.claude-plugin',
   'commands',
@@ -279,6 +301,10 @@ export async function createPluginCopy(pluginRoot) {
       // A plugin without one of these dirs is still measurable; the mutation
       // only ever targets commands/.
     }
+  }
+  // FR4 — the experiment leaves the room it is measuring. See PLUGIN_COPY_EXCLUDE.
+  for (const rel of PLUGIN_COPY_EXCLUDE) {
+    await rm(join(root, rel), { force: true });
   }
   // Runtime deps, so a command that instructs the agent to CALL a tools/lib
   // function can actually be obeyed. The installed plugin ships node_modules;
