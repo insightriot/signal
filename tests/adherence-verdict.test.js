@@ -261,6 +261,53 @@ describe('M5.E15 FR1 — directive-scoped deletion (AC1.1, AC1.4, AC1.5)', () =>
     expect(() => assertRegistryShape(bad)).toThrow(/legacy-shape/);
   });
 
+  /**
+   * REVIEW finding — a canary with no `trace.functionName` must be refused.
+   *
+   * The old control-arm check guarded it: `if (residue && mutated.includes(residue))`.
+   * Replacing that with the independent walk dropped the guard, and `walkResidue`
+   * takes the token straight to `String.prototype.includes` — so an absent token
+   * becomes the LITERAL string "undefined", which occurs all over a JavaScript
+   * corpus. Measured: a two-line fixture containing `const a = undefined;` returns
+   * a hit.
+   *
+   * The run then refuses, naming `undefined` as the leaked instruction. Fail-closed,
+   * so no bad verdict escapes — but the operator is handed a nonsense reason for a
+   * measurement that cost money, and the real cause (an under-specified canary) is
+   * invisible. The registry validated `deletions` and `isolation` and never checked
+   * the one field the entire leak check depends on.
+   */
+  it('a canary whose trace declares no functionName is refused at load', () => {
+    const bad = {
+      canaries: [{
+        id: 'no-token',
+        isolation: 'directive',
+        deletions: [{ file: 'commands/execute.md', section: '## x' }],
+        trace: { field: 'phaseChanged' },
+      }],
+    };
+    expect(() => assertRegistryShape(bad)).toThrow(/no-token/);
+    expect(() => assertRegistryShape(bad)).toThrow(/functionName/);
+  });
+
+  it('an empty-string functionName is refused too — it matches every file', () => {
+    const bad = {
+      canaries: [{
+        id: 'empty-token',
+        isolation: 'directive',
+        deletions: [{ file: 'commands/execute.md', section: '## x' }],
+        trace: { field: 'phaseChanged', functionName: '' },
+      }],
+    };
+    expect(() => assertRegistryShape(bad)).toThrow(/empty-token/);
+  });
+
+  it('the live registry passes the token check', () => {
+    for (const c of loadCanaryRegistry(ROOT).canaries) {
+      expect(c.trace.functionName, `${c.id} must declare the residue token`).toBeTruthy();
+    }
+  });
+
   it('AC1.4 — the dispatcher routes section entries to applySectionDeletion', () => {
     const src = '# top\n\n## target\nbody\n\n## keep\nkept\n';
     expect(applyDeletions(src, [{ file: 'f.md', section: '## target' }]))

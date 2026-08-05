@@ -91,6 +91,19 @@ export function assertRegistryShape(registry) {
         );
       }
     }
+
+    // The residue token the leak walk greps for. Checked here because the walk
+    // hands it straight to String.includes: an absent token becomes the literal
+    // "undefined", which occurs throughout a JavaScript corpus, so the run
+    // refuses while naming a token that was never declared. Fail-closed, but the
+    // operator is given a nonsense cause for a measurement that cost money.
+    // An empty string is worse — it matches every line of every file.
+    if (typeof c.trace?.functionName !== 'string' || c.trace.functionName.length === 0) {
+      throw new Error(
+        `${id}: canary must declare trace.functionName — the residue token the leak ` +
+        'check greps for. Without it the control arm cannot be verified at all.'
+      );
+    }
   }
   return registry;
 }
