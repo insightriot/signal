@@ -414,8 +414,18 @@ zero-design.
 **Evidence base:** the same table as M5.E16 above. First-execution is where the yield is, and
 right now it lands wherever it happens to land.
 
-### M5.E15 — The control arm, made real (`B55`)
-**Tag:** roadmap · **Trigger: NONE — fires on the next adherence claim.** Blocks any new
+### M5.E15 — The control arm, made real (`B55`) — **▶ OPEN: DISCUSS + PLAN closed 2026-08-04, EXECUTE next**
+
+> **Marked open 2026-08-04, late — and the lateness is the finding.** `D-M5E18-1` made *this file*
+> the single home for the queue **because** it drifted on 2026-08-03. Three days later M5.E15 opened,
+> nine decisions were recorded, and PLAN artifacts were written — and the open marker went into
+> `CONTEXT.md`, the file that decision demoted. **Second use, second failure**, because the rule
+> lives only in prose and nothing derives this row from `STATE.md`'s `current_epic`. Filed as a
+> capture; the durable fix is derivation, not another reminder.
+>
+> Artifacts: `M5.E15-{REQUIREMENTS,RESEARCH,PLAN,VALIDATION}.md` · Decisions: `D-M5E15-1 … D-M5E15-9`
+
+**Tag:** roadmap · **Trigger: FIRED — the arm is being fixed now.** Blocks any new
 `OBEYED`/`INERT` verdict being trusted, and any published number derived from one.
 **Filed 2026-07-30 (Brett's call: its own piece of work, not bolted onto M5.E13).**
 
