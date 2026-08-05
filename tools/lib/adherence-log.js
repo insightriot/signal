@@ -184,16 +184,35 @@ export async function appendRunRecord(baseDir, record, { date, commit } = {}) {
  * that was wrong" is often the most informative thing in it — M5.E8's invalid
  * ABSENT run is what surfaced `B48`.
  */
+/**
+ * The annotation vocabulary.
+ *
+ * `DIAGNOSED` was added by M5.E15 (`B80`). The log had been using it since M5.E13
+ * — in a block written BY HAND, because this frozen object held two values and
+ * `appendNotice` threw on everything else. A kind the record uses and the writer
+ * refuses means every annotation of that kind is produced outside the append-only
+ * guarantee this module exists to provide, which is the one property the log
+ * cannot afford to lose.
+ *
+ * The three are distinct claims, not severities:
+ *   INVALIDATED — the verdict does not hold; something about the run was wrong.
+ *   QUALIFIED   — the verdict holds, within a narrower scope than it reads.
+ *   DIAGNOSED   — a finding about the INSTRUMENT, not the verdict. The number
+ *                 stands; what it could ever have shown is what changed.
+ */
 export const NOTICE_KINDS = Object.freeze({
   INVALIDATED: 'INVALIDATED',
   QUALIFIED: 'QUALIFIED',
+  DIAGNOSED: 'DIAGNOSED',
 });
 
 export async function appendNotice(baseDir, { kind, commit, verdict, reason }) {
   if (!NOTICE_KINDS[kind]) throw new Error(`appendNotice: unknown kind ${JSON.stringify(kind)}`);
   const path = join(baseDir, PLANNING_DIR, ADHERENCE_LOG);
   const existing = await readFile(path, 'utf-8');
-  const icon = kind === NOTICE_KINDS.INVALIDATED ? '⚠' : 'ℹ';
+  // DIAGNOSED shares INVALIDATED's ⚠ — both say "do not read the record above at
+  // face value". QUALIFIED's ℹ says "read it, but narrower".
+  const icon = kind === NOTICE_KINDS.QUALIFIED ? 'ℹ' : '⚠';
   const note = `> ### ${icon} ${kind} — the \`${verdict}\` record at commit \`${commit}\` above
 >
 > ${reason.split('\n').join('\n> ')}

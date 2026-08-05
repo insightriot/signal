@@ -234,3 +234,28 @@ harness run as evidence about the whole corpus will not find it here.
 >
 > *Left byte-identical rather than removed. This log is append-only: a wrong answer that is
 > deleted cannot be audited.*
+> ### ⚠ DIAGNOSED — the `OBEYED` record at commit `f3ca9b2` above
+>
+> **This verdict was measured with an unisolated control arm.** It is **not retracted** and
+> not falsified: control 0/3 means no leak was *observed* in those three runs, and that
+> observation stands exactly as recorded.
+> 
+> What changed is what the run could ever have shown. The control arm deleted the instruction
+> from ONE command file while four others — `plan.md`, `verify.md`, `review.md` and `ship.md`
+> — still ordered the same call. The arm labelled "instruction deleted" therefore contained
+> the instruction four more times, so the design could not distinguish "the instruction works"
+> from "the agent found it elsewhere." A 0/3 control is consistent with both.
+> 
+> Filed as `B55`. M5.E15 fixes the scope: the canary now declares all five directive sites and
+> the control arm deletes every one of them.
+> 
+> Why this block exists when the `INDETERMINATE` record below already diagnoses the same
+> defect: that annotation is addressed to a different record. A reader auditing `f3ca9b2`
+> itself would have found only the `QUALIFIED` note about `B48` and no indication that the
+> headline verdict was unisolated. The finding now sits on the record it is about.
+> 
+> First annotation in this log written BY CODE rather than by hand (`B80`, AC7.1).
+>
+> *Appended, never edited into the record above. This log is append-only: a wrong
+> or incomplete answer that is silently rewritten cannot be audited.*
+

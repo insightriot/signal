@@ -1,7 +1,10 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 import {
   ADHERENCE_LOG,
@@ -155,6 +158,76 @@ describe('append-only (AC4.2) — the Epic that shipped B44 does not collapse an
     await expect(
       appendNotice(root, { kind: 'WHATEVER', commit: 'aaa1111', verdict: 'obeyed', reason: 'x' })
     ).rejects.toThrow(/unknown kind/i);
+  });
+
+  /**
+   * AC7.3 / `B80` — the log used a kind the code could not produce.
+   *
+   * `.planning/ADHERENCE-LOG.md` carries a `DIAGNOSED` annotation block, written
+   * by hand because `NOTICE_KINDS` was frozen to two values and `appendNotice`
+   * threw on anything else. A vocabulary the record uses and the writer rejects
+   * means every future annotation of that kind is hand-written — outside the
+   * append-only guarantee this module exists to enforce.
+   */
+  it('AC7.3 — accepts DIAGNOSED, the third kind the log already uses', async () => {
+    const root = scratchProject();
+    await appendRunRecord(root, RECORD, { date: '2026-07-28', commit: 'aaa1111' });
+    await expect(
+      appendNotice(root, {
+        kind: NOTICE_KINDS.DIAGNOSED,
+        commit: 'aaa1111',
+        verdict: 'obeyed',
+        reason: 'a finding about the instrument',
+      })
+    ).resolves.toBeTruthy();
+    const after = readFileSync(join(root, '.planning', ADHERENCE_LOG), 'utf-8');
+    expect(after).toContain('DIAGNOSED');
+  });
+
+  it('AC7.3 — an unknown kind STILL throws after the vocabulary grew', async () => {
+    const root = scratchProject();
+    await appendRunRecord(root, RECORD, { date: '2026-07-28', commit: 'aaa1111' });
+    await expect(
+      appendNotice(root, { kind: 'DIAGNOSTIC', commit: 'aaa1111', verdict: 'obeyed', reason: 'x' })
+    ).rejects.toThrow(/unknown kind/i);
+  });
+
+  it('AC7.2 — the annotated record is byte-identical beneath its annotation', async () => {
+    const root = scratchProject();
+    await appendRunRecord(root, RECORD, { date: '2026-07-28', commit: 'aaa1111' });
+    const before = readFileSync(join(root, '.planning', ADHERENCE_LOG), 'utf-8');
+
+    await appendNotice(root, {
+      kind: NOTICE_KINDS.DIAGNOSED,
+      commit: 'aaa1111',
+      verdict: 'obeyed',
+      reason: 'unisolated: the control arm deleted one of five directive sites.',
+    });
+    const after = readFileSync(join(root, '.planning', ADHERENCE_LOG), 'utf-8');
+
+    // Not "starts with" alone — the record itself must be untouched, character
+    // for character. A diagnosis that quietly edits its subject is not a
+    // diagnosis, it is a retraction wearing one.
+    expect(after.slice(0, before.length)).toBe(before);
+  });
+});
+
+describe('M5.E15 S2 — the unisolated stamp on M5.E8s OBEYED record (FR7)', () => {
+  const LOG = readFileSync(join(ROOT, '.planning', ADHERENCE_LOG), 'utf-8');
+
+  it('AC7.1 — the OBEYED record at f3ca9b2 carries a DIAGNOSED annotation', () => {
+    expect(LOG).toMatch(/> ### ⚠ DIAGNOSED — the `OBEYED` record at commit `f3ca9b2` above/);
+  });
+
+  it('AC7.2 — the annotation states the verdict is NOT retracted', () => {
+    const block = LOG.slice(LOG.indexOf('DIAGNOSED — the `OBEYED` record at commit `f3ca9b2`'));
+    expect(block).toMatch(/not\s+(?:being\s+)?retracted|is not falsified|not falsified/i);
+  });
+
+  it('AC7.2 — it says what was actually wrong: unisolated, not wrong', () => {
+    const block = LOG.slice(LOG.indexOf('DIAGNOSED — the `OBEYED` record at commit `f3ca9b2`'));
+    expect(block).toMatch(/unisolated/i);
+    expect(block).toMatch(/0\/3|no leak was observed/i);
   });
 
   it('renders caveats inline so a verdict cannot ship without its scope', () => {
