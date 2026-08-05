@@ -484,7 +484,7 @@ async function runSingleArm(args) {
   console.log(`Source        ${source.commit}${source.dirty ? ' (WORKING TREE DIRTY — this run is not reproducible from the sha)' : ''}`);
   console.log(`Seam probe    ${seamProven === null ? 'SKIPPED (--skip-probe)' : 'PASS'}\n`);
 
-  const { results, failedRuns } = await runArm({
+  const { results, failedRuns, descriptiveResidue } = await runArm({
     canary, arm: args.arm, runs: args.runs, allowedTools: ['Write', 'Edit', 'Read', 'Bash'], transcriptDir,
   });
   const summary = summarizeArm(results);
@@ -494,6 +494,10 @@ async function runSingleArm(args) {
     join(transcriptDir, `${canary.id}-${args.arm}-results.json`),
     JSON.stringify({
       canary: canary.id, arm: args.arm, results, failedRuns, summary,
+      // Persisted, or `--combine` rebuilds the record without it and the scope
+      // disclosure silently empties — the same defect as reading it off the
+      // summary object, arriving by a different route.
+      descriptiveResidue,
       commit: source.commit, dirty: source.dirty, surface, runsPerArm: args.runs, seamProven,
     }, null, 2),
     'utf-8'
@@ -619,14 +623,19 @@ async function runCanary(args) {
   const treatment = await runArm({ canary, arm: 'treatment', runs: args.runs, allowedTools: ALLOWED, transcriptDir });
   const control = await runArm({ canary, arm: 'control', runs: args.runs, allowedTools: ALLOWED, transcriptDir });
 
-  const t = summarizeArm(treatment.results);
-  const c = summarizeArm(control.results);
+  // Named in full, deliberately. These were `t` and `c`, one character from the
+  // ARM results (`treatment`, `control`) that sit beside them in this scope — and
+  // the caveat wiring picked the wrong one, reading `descriptiveResidue` off a
+  // summary object that never had it. The residue silently rendered as empty on a
+  // published record. Confusable names were the cause, so the names are the fix.
+  const treatmentSummary = summarizeArm(treatment.results);
+  const controlSummary = summarizeArm(control.results);
 
   let verdict;
   try {
     verdict = resolveVerdict({
-      treatmentHits: t.hits,
-      controlHits: c.hits,
+      treatmentHits: treatmentSummary.hits,
+      controlHits: controlSummary.hits,
       runsPerArm: args.runs,
       failedRuns: treatment.failedRuns + control.failedRuns,
       seamProven,
@@ -637,8 +646,8 @@ async function runCanary(args) {
   }
 
   console.log('\n' + '='.repeat(60));
-  console.log(`as-written (treatment)  ${t.hits}/${t.runs}  ${t.unanimous ? 'unanimous' : 'SPLIT'}`);
-  console.log(`deleted    (control)    ${c.hits}/${c.runs}  ${c.unanimous ? 'unanimous' : 'SPLIT'}`);
+  console.log(`as-written (treatment)  ${treatmentSummary.hits}/${treatmentSummary.runs}  ${treatmentSummary.unanimous ? 'unanimous' : 'SPLIT'}`);
+  console.log(`deleted    (control)    ${controlSummary.hits}/${controlSummary.runs}  ${controlSummary.unanimous ? 'unanimous' : 'SPLIT'}`);
   console.log(`VERDICT                 ${verdict.toUpperCase()}`);
   console.log('='.repeat(60));
   console.log(VERDICT_NOTE[verdict]);
@@ -649,13 +658,13 @@ async function runCanary(args) {
     command: canary.command,
     trace: canary.trace.field,
     verdict,
-    treatment: t,
-    control: c,
+    treatment: treatmentSummary,
+    control: controlSummary,
     failedRuns: treatment.failedRuns + control.failedRuns,
     seamProven,
     surface: { cliVersion: surface.cliVersion, model: surface.model },
     runsPerArm: args.runs,
-    caveats: buildCaveats({ canary, runsPerArm: args.runs, dirty: source.dirty, allowedTools: ALLOWED, descriptiveResidue: c.descriptiveResidue ?? [] }),
+    caveats: buildCaveats({ canary, runsPerArm: args.runs, dirty: source.dirty, allowedTools: ALLOWED, descriptiveResidue: control.descriptiveResidue ?? [] }),
   };
   await appendRunRecord(ROOT, record, { commit: source.commit });
   console.log(`Appended to .planning/${ADHERENCE_LOG}\n`);

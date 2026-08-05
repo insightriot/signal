@@ -1,4 +1,9 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 import { buildCaveats } from '../tools/lib/adherence-caveats.js';
 
@@ -104,6 +109,35 @@ describe('buildCaveats reads deletions[] (M5.E15 S1.t4)', () => {
   it('omits the residue caveat entirely when the tree came back clean', () => {
     const out = buildCaveats({ canary: CANARY, ...base, descriptiveResidue: [] }).join('\n');
     expect(out).not.toMatch(/Descriptive residue/i);
+  });
+
+  /**
+   * THE WIRING, pinned at source — because a unit test on this function cannot
+   * see it, and that gap already cost a published record.
+   *
+   * `buildCaveats` was exercised with residue handed straight in, and passed. The
+   * runner meanwhile read `descriptiveResidue` off `c` — the SUMMARY object from
+   * `summarizeArm`, one character away from `control`, the arm result that
+   * actually carries it. `undefined ?? []` rendered as empty, so the 2026-08-05
+   * OBEYED record published its isolation scope with no residue list at all. Every
+   * unit test was green.
+   *
+   * `tests/adherence-suite-guard.test.js` forbids importing the runner, so this
+   * reads its source — the same technique `guard-callers.test.js` uses for the
+   * refusal path. Weaker than an integration test, and much stronger than nothing.
+   */
+  it('the runner reads residue from the ARM result, never from the summary', () => {
+    const runner = readFileSync(join(ROOT, 'tools/adherence-run.js'), 'utf-8');
+    expect(runner).toMatch(/descriptiveResidue:\s*control\.descriptiveResidue/);
+    // The exact regression: reading it off a summarizeArm() result.
+    expect(runner).not.toMatch(/descriptiveResidue:\s*c\.descriptiveResidue/);
+    expect(runner).not.toMatch(/descriptiveResidue:\s*(?:controlSummary|treatmentSummary)\./);
+  });
+
+  it('the split-arm sidecar persists residue, so --combine cannot drop it', () => {
+    const runner = readFileSync(join(ROOT, 'tools/adherence-run.js'), 'utf-8');
+    expect(runner).toMatch(/const \{ results, failedRuns, descriptiveResidue \} = await runArm/);
+    expect(runner).toMatch(/canary: canary\.id, arm: args\.arm[\s\S]{0,400}descriptiveResidue,/);
   });
 
   it('keeps the caveats that never depended on the deletion shape', () => {
