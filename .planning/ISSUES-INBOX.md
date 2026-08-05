@@ -1308,6 +1308,72 @@ Passive Stop-hook → continuous in-the-moment observation capture. Add a passiv
 
 ---
 
+## Cross-document contradiction sweep — 11 open findings (2026-08-04)
+
+**Status:** Captured 2026-08-04. **Needs triage.** From the first real run of the `auditor` agent's
+contradiction sweep over Signal's own live-instruction surface — the capability the
+`/sig:sweep --docs / --code` entry describes and did not ship. **Five findings were fixed in PR #86**
+(`B63` mis-statused; `CLAUDE.md` "Active: none"; `STATE.md` body-vs-frontmatter; `▶ NEXT` on a
+started Epic; the `BACKLOG.md` single-home miss). These eleven remain.
+
+**Read the coverage limit before trusting the count.** The sweep read **4 of 141** live
+`.planning/*.md` files whole and reached roughly 31 in total; `DECISIONS.md` was read
+**headings-only**, so a decision contradicting another decision would not have been found, and three
+of four `M5.E15-*` artifacts were not read. **Eleven is a floor, not a total.**
+
+**Contradictions**
+- **C2 — four live docs disagree about which bugs v0.1.18 closed.** `STATE.md:66` +
+  `MILESTONE-5.md:42` say `B70`; `CHANGELOG.md` `[0.1.18]`, `CLAUDE.md:34`, `CONTEXT.md:36` say
+  `B63`. `MILESTONE-5.md:42` contradicts *itself* — its narrative describes the B63 fix by name while
+  its list omits it. Crediting `B70` also contradicts scope: it shipped as v0.1.17 and `STATE.md:116`
+  says it is in M5.E18's *Out* section. The CHANGELOG is right.
+- **C5 — `ISSUES-INBOX.md` describes itself as what it stopped being at docs-layout v3.** Its `:1`
+  title is `# Future Ideas`, `:5` says "not committed work", `:7` says "promote to a milestone file" —
+  while `INDEX.md:22` says captures here drain to `BACKLOG.md`/`BUGS.md`. Its own last entry is a
+  bug-bearing capture. A reader following the file routes captures wrongly. `:3` also cites
+  `MILESTONE-4.md`, now under `archive/milestones/`. Nothing mechanical catches either — the
+  reference is in backticks, not a link.
+- **C6 — adherence share, minor.** `STATE.md:298` prints `21.1%`; `ADHERENCE-LOG.md:12` prints
+  `21.2%` for 87/411 (= 21.17%). The log is right.
+
+**Stale claims**
+- **S1 — `OPEN-QUESTIONS.md` is the only live governance doc untouched since 2026-07-25.** `:26`
+  says "**96 vitest tests**" against a live 2168 — and that claim is load-bearing, since the open
+  question is whether to build a command-testing harness. `:24`/`:28` defer to **MILESTONE-4**,
+  closed. `:18`'s resolve-by condition (post-v1 + real-user data) **has been met** and nothing was
+  recorded either way — `B39`'s shape in a file `/sig:plan` does not drain.
+- **S3 — `BACKLOG.md`'s M5.E15 trigger line.** Partly fixed in PR #86; the entry body still reads as
+  pre-open.
+- **S4 — the withdrawn `OBEYED` verdict, restated without correction** at `STATE.md:322` and
+  `MILESTONE-5.md:39`, while the re-run returned `INDETERMINATE`. Both files record the correction
+  elsewhere, so a full read recovers and a grep does not. *(`ADHERENCE-LOG.md:124` is deliberately
+  excluded — that is `AC7.1` of the open Epic, planned work.)*
+- **S5 — "the 48-entry inbox"** at `CONTEXT.md:77`, `STATE.md:98`, `:177`, `:265`. Measured today:
+  **50**. A point-in-time measurement carried as a live descriptor.
+
+**Single-home violations**
+- **SH2 — v0.1.18's release summary is narrated in five places** and has drifted in two dimensions
+  (the closed-bug list, C2; the test baseline, SH4).
+- **SH3 — the `B41-phase-entry` verdict is narrated in four places, corrected in two.**
+- **SH4 — the test-count baseline, and this one needs a decision rather than an edit.**
+  `CLAUDE.md:34` says "1954 → 2168"; `STATE.md:66` and `MILESTONE-5.md:42` say "1994 → 2168".
+  **Both are true** — 1954 is what v0.1.17 shipped, 1994 was HEAD at Epic open. The defect is that a
+  *release delta* and an *Epic delta* are published in identical shape with no label. **`B56` already
+  names this exact missing semantic** and recommends the release reading. Adopt it; do not "correct"
+  either number.
+- **SH5 — the inbox size**, four places (S5).
+- **Judgment call, not a hard finding:** `CONTEXT.md:80`'s "**Open bug tail:**" reads as an
+  enumeration, names 8 of 30 `confirmed` rows, and omits `B52` — the only open **P1** and the subject
+  of `STATE.md`'s entire resume pointer. If it is a selection, say "selected"; if not, it is a
+  completeness claim written from memory.
+
+**Method limit, worth keeping when this is built.** Timestamp triage ranks what to read first and
+**cannot find contradictions between two files both updated the same day** — and `C1`, `C2`, `C3` and
+`SH1` were all same-day divergences. The cheap staleness heuristic is structurally blind to where
+this corpus's defects currently live.
+
+---
+
 ## New command /sig:audit --docs / --code
 
 > **Update 2026-07-04 (ratified BR-1):** renamed **`/sig:sweep --docs / --code`** (the `/sig:audit` name stays with the readiness scorecard above). Absorbs workstream #4's `/sig:doc-review` — its scope (stale indexes, drifted CLAUDE.md, `[FILL IN]` stubs, stale FUTURE-IDEAS) is a subset of `--docs`. Slotted in the memory/doc-runtime cluster (`BACKLOG-REVIEW-2026-07-04.md` §4 Sprint 3).
