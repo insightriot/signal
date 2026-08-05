@@ -48,14 +48,14 @@ import {
 } from './lib/adherence-harness.js';
 import {
   CANARY_REGISTRY_PATH,
-  applyDeletion,
-  applySectionDeletion,
+  applyDeletions,
   loadCanaryRegistry,
   resolveVerdict,
   summarizeArm,
   traceHit,
 } from './lib/adherence-verdict.js';
 import { ADHERENCE_LOG, appendRunRecord } from './lib/adherence-log.js';
+import { buildCaveats } from './lib/adherence-caveats.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -371,23 +371,27 @@ async function runArm({ canary, arm, runs, allowedTools, transcriptDir }) {
 
     // The control arm deletes the instruction — from the COPY only (AC2.4).
     if (arm === 'control') {
-      const target = join(plugin.root, 'commands', `${canary.command}.md`);
-      const src = readFileSync(target, 'utf-8');
-      const mutated = canary.deleteSection
-        ? applySectionDeletion(src, canary.deleteSection)
-        : applyDeletion(src, canary.deleteLine);
-
-      // Belt and braces: the control arm must not still contain the instruction.
-      // A one-line deletion once left the surrounding rationale intact and the
-      // resulting trace would have been recorded as INERT.
+      // Every declared directive site, not just the measured command's file
+      // (M5.E15 / `B55`). Deleting only commands/execute.md left plan, verify,
+      // review and ship still ordering the same call, so the "instruction
+      // deleted" arm still carried the instruction four more times.
       const residue = canary.trace.functionName;
-      if (residue && mutated.includes(residue)) {
-        throw new Error(
-          `Control arm is not a control: commands/${canary.command}.md still mentions ` +
-          `${residue} after the mutation. Any verdict from this run would be void.`
-        );
+      for (const entry of canary.deletions) {
+        const target = join(plugin.root, entry.file);
+        const src = readFileSync(target, 'utf-8');
+        const mutated = applyDeletions(src, [entry]);
+
+        // Belt and braces: no declared site may still contain the instruction.
+        // A one-line deletion once left the surrounding rationale intact and the
+        // resulting trace would have been recorded as INERT.
+        if (residue && mutated.includes(residue)) {
+          throw new Error(
+            `Control arm is not a control: ${entry.file} still mentions ` +
+            `${residue} after the mutation. Any verdict from this run would be void.`
+          );
+        }
+        writeFileSync(target, mutated, 'utf-8');
       }
-      writeFileSync(target, mutated, 'utf-8');
     }
 
     const before = await captureTrace(fixture.root);
@@ -652,27 +656,6 @@ async function runCanary(args) {
  * The scope boundaries every verdict carries. Generated, not remembered — the
  * OBEYED record shipped without them and needed an appended correction.
  */
-function buildCaveats({ canary, runsPerArm, dirty, allowedTools }) {
-  const out = [
-    `**One canary is not a survey.** This is a fact about \`${canary.id}\` in \`commands/${canary.command}.md\`, not evidence about Signal's instructions generally.`,
-    `**Tool access is part of the claim.** The agent ran with \`--allowedTools ${allowedTools.join(' ')}\`. An instruction that needs a tool the user denies cannot be obeyed regardless of wording.`,
-    '**The unmeasured remainder is unmeasured, not passing** — see the coverage ceiling above.',
-  ];
-  if (runsPerArm <= 3) {
-    out.push(
-      `**N=${runsPerArm} is a weak split.** A perfect separation of ${runsPerArm * 2} runs is roughly p=0.05 by permutation. Clean, not deep.`
-    );
-  }
-  if (canary.deleteSection) {
-    out.push(
-      `**The control removed a whole section** (\`${canary.deleteSection.trim()}\`), so anything else stated in it was removed too. Read that section before attributing the difference to this instruction alone.`
-    );
-  }
-  if (dirty) {
-    out.push('**The working tree was DIRTY at run time** — the recorded commit does not fully describe the code that ran, and this run is not reproducible from the sha alone.');
-  }
-  return out;
-}
 
 const VERDICT_NOTE = {
   obeyed: 'The trace appears only with the instruction present. The instruction changed\nwhat the agent did.',

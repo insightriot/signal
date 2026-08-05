@@ -10,7 +10,10 @@ import {
   resolveVerdict,
   summarizeArm,
   applyDeletion,
+  applyDeletions,
   applySectionDeletion,
+  assertRegistryShape,
+  assertSectionAnchorIsDiscrete,
   traceHit,
 } from '../tools/lib/adherence-verdict.js';
 
@@ -152,15 +155,18 @@ describe('the control arm must actually REMOVE the instruction', () => {
    * the instruction's function at all. Any residue means the control arm is not
    * a control, and every verdict drawn from it is void.
    */
-  it('after mutation, the command file no longer mentions the instruction at all', () => {
+  it('after mutation, NO declared directive site still mentions the instruction (M5.E15)', () => {
+    // Widened from one file to every declared site. The single-file version of
+    // this test passed while four other command files still ordered the call —
+    // which is `B55`: the arm was mutated, the instruction was not isolated.
     for (const c of loadCanaryRegistry(ROOT).canaries) {
-      const src = readFileSync(join(ROOT, 'commands', `${c.command}.md`), 'utf-8');
-      const mutated = c.deleteSection
-        ? applySectionDeletion(src, c.deleteSection)
-        : applyDeletion(src, c.deleteLine);
       const residue = c.trace.functionName ?? 'transitionPhase';
-      expect(mutated, `${c.id}: mutated commands/${c.command}.md still mentions ${residue}`)
-        .not.toContain(residue);
+      for (const entry of c.deletions) {
+        const src = readFileSync(join(ROOT, entry.file), 'utf-8');
+        const mutated = applyDeletions(src, [entry]);
+        expect(mutated, `${c.id}: mutated ${entry.file} still mentions ${residue}`)
+          .not.toContain(residue);
+      }
     }
   });
 });
@@ -196,9 +202,9 @@ describe('canary registry (AC3.1–AC3.3)', () => {
       expect(c.trace, `${c.id} must declare a trace`).toBeTruthy();
       expect(c.declaredAt, `${c.id} must record when its trace was declared`).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(
-        c.deleteSection ?? c.deleteLine,
+        c.deletions?.length,
         `${c.id} must name exactly what the control arm deletes`
-      ).toBeTruthy();
+      ).toBeGreaterThan(0);
     }
   });
 
@@ -209,16 +215,120 @@ describe('canary registry (AC3.1–AC3.3)', () => {
     }
   });
 
-  it("the canary's deletion target actually exists in the command file it names", () => {
-    // A registry entry whose target has drifted out of the command file would
-    // delete nothing, make both arms identical, and read as INERT.
+  it('AC1.3 — EVERY declared anchor occurs exactly once in its real file (live corpus)', () => {
+    // A registry entry whose target has drifted out of its file would delete
+    // nothing, make both arms identical, and read as INERT. Widened from the
+    // single `deleteSection ?? deleteLine` anchor to every entry in deletions[]:
+    // this now fails if anyone edits ANY of the five phase-entry headings.
     for (const c of loadCanaryRegistry(ROOT).canaries) {
-      const src = readFileSync(join(ROOT, 'commands', `${c.command}.md`), 'utf-8');
-      const target = c.deleteSection ?? c.deleteLine;
-      const occurrences = c.deleteSection
-        ? src.split('\n').filter(l => l.trim() === c.deleteSection.trim()).length
-        : src.split('\n').filter(l => l.includes(c.deleteLine)).length;
-      expect(occurrences, `${c.id}: ${JSON.stringify(target)} occurs ${occurrences}x in commands/${c.command}.md`).toBe(1);
+      for (const entry of c.deletions) {
+        const src = readFileSync(join(ROOT, entry.file), 'utf-8');
+        const target = entry.section ?? entry.line;
+        const occurrences = entry.section
+          ? src.split('\n').filter(l => l.trim() === entry.section.trim()).length
+          : src.split('\n').filter(l => l.includes(entry.line)).length;
+        expect(
+          occurrences,
+          `${c.id}: ${JSON.stringify(target)} occurs ${occurrences}x in ${entry.file}`
+        ).toBe(1);
+      }
+    }
+  });
+
+  it('AC1.2 — B41-phase-entry declares its five directive sites, four by section + ship by line', () => {
+    const c = loadCanaryRegistry(ROOT).canaries.find(x => x.id === 'B41-phase-entry');
+    expect(c.isolation).toBe('directive');
+    const bySection = c.deletions.filter(d => d.section).map(d => d.file).sort();
+    const byLine = c.deletions.filter(d => d.line).map(d => d.file);
+    expect(bySection).toEqual([
+      'commands/execute.md',
+      'commands/plan.md',
+      'commands/review.md',
+      'commands/verify.md',
+    ]);
+    expect(byLine).toEqual(['commands/ship.md']);
+  });
+});
+
+describe('M5.E15 FR1 — directive-scoped deletion (AC1.1, AC1.4, AC1.5)', () => {
+  it('AC1.1 — a canary entry declaring neither section nor line throws, naming the canary id', () => {
+    const bad = { canaries: [{ id: 'no-anchor', isolation: 'directive', deletions: [{ file: 'commands/execute.md' }] }] };
+    expect(() => assertRegistryShape(bad)).toThrow(/no-anchor/);
+  });
+
+  it('AC1.1 — a canary with no deletions[] at all throws rather than falling back to one file', () => {
+    const bad = { canaries: [{ id: 'legacy-shape', isolation: 'directive', deleteSection: '## x' }] };
+    expect(() => assertRegistryShape(bad)).toThrow(/legacy-shape/);
+  });
+
+  it('AC1.4 — the dispatcher routes section entries to applySectionDeletion', () => {
+    const src = '# top\n\n## target\nbody\n\n## keep\nkept\n';
+    expect(applyDeletions(src, [{ file: 'f.md', section: '## target' }]))
+      .toBe('# top\n\n## keep\nkept\n');
+  });
+
+  it('AC1.4 — the dispatcher routes line entries to applyDeletion', () => {
+    const src = 'alpha\ncall foo()\nomega\n';
+    expect(applyDeletions(src, [{ file: 'f.md', line: 'call foo()' }]))
+      .toBe('alpha\nomega\n');
+  });
+
+  it('AC1.4 — an absent anchor throws rather than skipping that file', () => {
+    expect(() => applyDeletions('a\nb\n', [{ file: 'f.md', line: 'nope' }])).toThrow(/not found/i);
+    expect(() => applyDeletions('a\nb\n', [{ file: 'f.md', section: '## nope' }])).toThrow(/not found/i);
+  });
+
+  it('AC1.4 — a line anchor matching more than once throws', () => {
+    expect(() => applyDeletions('dup\ndup\n', [{ file: 'f.md', line: 'dup' }]))
+      .toThrow(/more than once/i);
+  });
+
+  /**
+   * AC1.5 — over-deletion wearing the costume of a controlled change.
+   *
+   * `applySectionDeletion` deletes to the next same-or-higher heading. Declaring
+   * a section anchor over a heading that ALSO orders unrelated calls removes
+   * those too — the control arm then differs from the treatment arm in more than
+   * the one instruction being measured, and the verdict is not about that
+   * instruction any more. This fixture is shaped like `commands/ship.md`'s
+   * `### 5. Update State`, which is exactly why that site is declared by LINE.
+   */
+  it('AC1.5 — a section anchor that also orders a different function fails', () => {
+    const shipShaped = [
+      '### 5. Update State',
+      '',
+      "1. `await transitionPhase(baseDir, 'SHIP')` — the measured instruction.",
+      "2. `await completePhase(baseDir, 'SHIP')` — a DIFFERENT instruction that must survive.",
+      '',
+      '## next',
+    ].join('\n');
+    expect(() => assertSectionAnchorIsDiscrete(shipShaped, '### 5. Update State', 'transitionPhase'))
+      .toThrow(/completePhase/);
+  });
+
+  it('AC1.5 — a section dedicated to the measured instruction passes', () => {
+    const dedicated = [
+      '## Phase entry',
+      '',
+      "Call `await transitionPhase(baseDir, 'EXECUTE')` at entry.",
+      'Surface the returned `{quarantined}` list if non-empty.',
+      '',
+      '## next',
+    ].join('\n');
+    expect(() => assertSectionAnchorIsDiscrete(dedicated, '## Phase entry', 'transitionPhase'))
+      .not.toThrow();
+  });
+
+  it('AC1.5 — every declared section anchor in the live registry is discrete', () => {
+    for (const c of loadCanaryRegistry(ROOT).canaries) {
+      const residue = c.trace.functionName;
+      for (const entry of c.deletions.filter(d => d.section)) {
+        const src = readFileSync(join(ROOT, entry.file), 'utf-8');
+        expect(
+          () => assertSectionAnchorIsDiscrete(src, entry.section, residue),
+          `${c.id}: ${entry.file} § ${entry.section}`
+        ).not.toThrow();
+      }
     }
   });
 });
