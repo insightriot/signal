@@ -134,6 +134,42 @@ describe('buildCaveats reads deletions[] (M5.E15 S1.t4)', () => {
     expect(runner).not.toMatch(/descriptiveResidue:\s*(?:controlSummary|treatmentSummary)\./);
   });
 
+  /**
+   * AC3.1 — directive residue must throw BEFORE any agent is invoked, so no
+   * verdict is ever emitted from a compromised arm. Same discipline as the seam
+   * precondition: refuse rather than measure something that cannot mean anything.
+   *
+   * Ordering is the property, and ordering is what a unit test on `checkLeak`
+   * cannot see — it would pass identically if the refusal sat AFTER the six paid
+   * agent calls, which would still be a bug: a void run that cost money and
+   * produced a number somebody might read. The suite guard forbids importing the
+   * runner, so this asserts the order in its source.
+   */
+  it('AC3.1 — the leak refusal precedes agent invocation in the control arm', () => {
+    const runner = readFileSync(join(ROOT, 'tools/adherence-run.js'), 'utf-8');
+
+    // Scoped to runArm. A whole-file search finds probeSeam's OWN invokeAgent
+    // call first — the seam precondition, which legitimately runs before any
+    // mutation — and would report a failure that is not there.
+    const start = runner.indexOf('async function runArm(');
+    expect(start, 'runArm not found — this test needs rewiring').toBeGreaterThan(-1);
+    const body = runner.slice(start, runner.indexOf('\n}', runner.indexOf('return { results, failedRuns')));
+
+    const refusal = body.indexOf('if (!leak.ok) throw');
+    const invocation = body.indexOf('invokeAgent(');
+    expect(refusal, 'the leak refusal is missing from runArm entirely').toBeGreaterThan(-1);
+    expect(invocation, 'invokeAgent call not found in runArm').toBeGreaterThan(-1);
+    expect(
+      refusal,
+      'the leak check refuses AFTER the agent runs — a void run that still spends money'
+    ).toBeLessThan(invocation);
+  });
+
+  it('AC3.1 — the refusal throws rather than warning, so no record can be emitted', () => {
+    const runner = readFileSync(join(ROOT, 'tools/adherence-run.js'), 'utf-8');
+    expect(runner).toMatch(/if \(!leak\.ok\) throw new Error\(formatLeakRefusal\(/);
+  });
+
   it('the split-arm sidecar persists residue, so --combine cannot drop it', () => {
     const runner = readFileSync(join(ROOT, 'tools/adherence-run.js'), 'utf-8');
     expect(runner).toMatch(/const \{ results, failedRuns, descriptiveResidue \} = await runArm/);
