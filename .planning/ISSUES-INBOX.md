@@ -1312,7 +1312,42 @@ Passive Stop-hook → continuous in-the-moment observation capture. Add a passiv
 
 > **Update 2026-07-04 (ratified BR-1):** renamed **`/sig:sweep --docs / --code`** (the `/sig:audit` name stays with the readiness scorecard above). Absorbs workstream #4's `/sig:doc-review` — its scope (stale indexes, drifted CLAUDE.md, `[FILL IN]` stubs, stale FUTURE-IDEAS) is a subset of `--docs`. Slotted in the memory/doc-runtime cluster (`BACKLOG-REVIEW-2026-07-04.md` §4 Sprint 3).
 
-**Status:** Logged 2026-06-04 via `/sig:add`. mid-EXECUTE on M4.5.E5
+> **Update 2026-08-04 — what shipped, what didn't, and the first real test case.**
+>
+> `/sig:sweep` shipped at v0.1.11 and `BACKLOG.md` marked this row **✅ SHIPPED**. Measured against
+> the scope described below, that is wrong in two places (the backlog row is corrected):
+>
+> **Shipped — all mechanical.** Dead internal `.md` links · unfilled `[FILL IN]` markers · roster-count
+> drift · version consistency · command-frontmatter freshness · stale-inbox count · CLAUDE.md bloat ·
+> and M5.E16's six STATE-vs-world checks (`epic-without-retro`, `baseline-commit-off-history`,
+> `profile-parses`, `epic-id-not-strict`, `phase-behind-artifacts`, `body-omits-current-epic`).
+>
+> **Not shipped — the judgment half named in this very entry:** *"internal contradictions,
+> duplication."* **Every one of the checks above compares STATE or PROFILE against the filesystem or
+> git. None compares two prose documents against each other.** Nor is there a `--docs` / `--code`
+> flag; `/sig:sweep` takes no scope argument, and the `--code` half was never built.
+>
+> **Nothing else in Signal covers it either.** `M5.E10` is adjacent but different — *claims vs
+> artifacts* (a completeness claim written from the shape of the work), not *document vs document*.
+> The only tool that does this is the **`auditor` agent**, whose contradiction sweep is pure
+> Read/Grep/Glob and works standalone. Its problem is the trigger: the external tool that used to
+> schedule it "daily and at ship" was removed 2026-08-04, and no Signal command has ever invoked it.
+> **It never lapsed — it was never running.**
+>
+> **First real test case, already found by hand.** `nextpass/.planning/CONTEXT.md:1117` records an
+> audio-retention contradiction: four passages in `docs/security/tech-stack-and-security-profile.md`
+> (`:26,59,107,129`) state audio is never stored or recorded, while `AC-A.2`
+> (`REQUIREMENTS.md:2078`) requires `zero_retention_mode === true` / `record_voice: false` and is
+> **knowingly violated in prod**. A human found it. Nothing would have. Use it as the fixture: a
+> detector that cannot find this one is not worth shipping.
+>
+> **Design note, cheap and unbuilt:** the judgment half does not need to be a new engine. It needs a
+> **trigger** and a **scope** — invoke the existing agent over `.planning/` + `docs/` at a named point
+> (slice close / SHIP), report-only, never editing a document to resolve a contradiction it found.
+> Decide whether that trigger lives in `/sig:sweep`, in `ship.md`, or stays manual.
+
+**Status:** Logged 2026-06-04 via `/sig:add`. mid-EXECUTE on M4.5.E5. **Partially shipped — see the
+2026-08-04 update above.**
 
 New command /sig:audit --docs / --code — a periodic deep-dive audit + cleaning sweep for alignment, accuracy, organization, and simplicity, run on demand (not phase-gated). --docs audits documentation: accuracy + alignment (stale prose, drift between STATE narrative / README / CHANGELOG / retrospectives / CLAUDE.md, internal contradictions, dead pointers and links, duplication) and organization (structure, findability, dedup). --code audits the codebase: organization (sprawl, inconsistent structure, misplaced files, dead code / orphans) and simplicity (over-engineering, redundant abstractions, needless indirection). No flag could default to a combined pass or prompt for scope. Inspired by — but deliberately broader than — Anthropic's "delete-the-line" staleness test (if removing a rule/line doesn't change behavior, cut it) plus their every-3-6-months re-audit cadence, generalized from CLAUDE.md hygiene into a whole-project sweep. Relates to the "docs always accurate" value and the learn/memory loop, but is a PROACTIVE periodic deep-clean rather than a reactive in-the-moment fix (contrast the Stop-hook capture idea, which is reactive/continuous). Likely implemented as read-only scanner-agent fan-out — reuse the brownfield scanner pattern, write findings to a report — feeding a remediation pass the user approves before anything changes; could extend /sig:doctor or stand alone; tier-aware depth. Motivation (user, observed across several long-running projects): a recurring feeling that projects accrete cruft and drift over time and periodically need a real organization + cleaning sweep, not just incremental edits.
 

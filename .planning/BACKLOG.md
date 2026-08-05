@@ -572,7 +572,18 @@ Verify the path-scoped-skills frontmatter claim and re-source the "5 CC tools" c
 
 The structure half (doc-model, eviction, migrate, index, hygiene) is shipping as M5.E1–E3. What remains is the maintenance-command half.
 
-### ~~`/sig:sweep --docs / --code` — periodic hygiene sweep~~ — **✅ SHIPPED v0.1.11 (M5.E6, 2026-07-25)**
+### `/sig:sweep --docs / --code` — periodic hygiene sweep — **⚠ PARTIALLY SHIPPED (v0.1.11, M5.E6, 2026-07-25)**
+
+> **Corrected 2026-08-04.** This row read a flat **✅ SHIPPED**. The mechanical half shipped; **two
+> halves did not**, and marking the whole row done is what hid them for ten days:
+> - **The `--docs` judgment half** — *"internal contradictions, duplication"*, in the entry's own
+>   words. Every shipped check compares STATE/PROFILE against **the filesystem or git**; none
+>   compares two prose documents against each other. See the sharpened entry in `ISSUES-INBOX.md`.
+> - **The `--code` half entirely** — sprawl, dead code, over-engineering. Not built.
+>
+> There is also **no `--docs` / `--code` flag**: `/sig:sweep` takes no scope argument. The row was
+> marked from the command's existence rather than from its scope — the class `M5.E10` exists to
+> catch, in this file.
 **Tag:** roadmap
 **Delivered:** `commands/sweep.md` + `tools/lib/sweep.js` — Signal's **18th** command. *This row read "Confirmed not yet built" until 2026-07-26; the file's stamp (2026-07-19) predated the release. Caught by M5.E7 S1.t3, which had to use this file as its subtraction authority and found the authority stale.* Original entry preserved for provenance:
 
