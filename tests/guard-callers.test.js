@@ -10,6 +10,28 @@
 //
 //   ✅ I2   — `adherence-ceiling.js --check`, a CLI guard nothing invoked
 //   ✅ B54  — `checkGateArtifacts`, an exported function nothing called
+//
+// ─── TWO POPULATIONS, NOT ONE (M5.E15 S6, `B81`) ───────────────────────────
+//
+// Guards reach this file by two different routes, and conflating them would
+// misread the coverage above:
+//
+//   1. AUTO-DISCOVERED — `findCliGuards` scans for three argv idioms and checks
+//      each hit has a caller. Growth is free: a new guard matching an idiom is
+//      governed the day it is written.
+//   2. GOVERNED BY NAME — a bespoke assertion per guard. Growth is manual: a
+//      guard nobody writes an assertion for is not covered, and nothing says so.
+//
+// `checkLeak` (M5.E15) is in the SECOND group, deliberately. `D-M5E15-5` planned
+// to register it in the first, and that does not land: `adherence-run.js`
+// contributes ZERO of its twelve flags to the auto-discovered population, so
+// registering there would have appeared to work while checking nothing — an
+// uncalled guard-caller check, which is the very defect this file exists to
+// catch. Widening the regex was rejected too; the ten orphans it surfaces are
+// mostly options, not guards. Filed as `B81`.
+//
+// The consequence a reader must carry: the auto-discovered count is NOT the
+// coverage count. Named guards have to be counted by reading the assertions.
 //   ❌ B39  — a trigger watchlist that a DOCUMENT instructs someone to walk,
 //             which no command implements. Not code. Invisible here.
 //   ❌ B46  — 45 dispositions written to a side artifact that nothing reads
@@ -159,6 +181,48 @@ describe('M5.E13 S3.t3 — code-shaped guards have a caller (FR2.3; covers 2 of 
     expect(self).toMatch(/B39/);
     expect(self).toMatch(/B46/);
     expect(self).toContain('NOT a check for the');
+  });
+
+  /**
+   * M5.E15 S6 (FR5, AC5.1) — the leak check has a caller, asserted BY NAME.
+   *
+   * `D-M5E15-5` planned to register this with `findCliGuards`, the auto-discovered
+   * population above. It does not land as written, and the reason is worth keeping:
+   * `findCliGuards` detects three argv idioms, and `adherence-run.js` contributes
+   * ZERO of its twelve flags to that population. Registering there would have
+   * *appeared* to work while checking nothing — a guard-caller check that is
+   * itself an uncalled guard. Filed as `B81`.
+   *
+   * So this is a bespoke named assertion, the shape `B54` already established in
+   * this file. It is deliberately NOT a widening of the regex: the ten orphans
+   * that would surface are mostly options, not guards.
+   *
+   * What it protects: `checkLeak` is the entire reason a verdict from this harness
+   * can be trusted after `B55`. An exported function nothing calls is precisely
+   * the defect class this file exists for, and the leak check is the highest-cost
+   * possible instance — the run would still complete, still print a verdict, and
+   * still append a record, with nothing having been checked.
+   */
+  it('AC5.1 — `checkLeak` is invoked by something other than its own test', () => {
+    const callers = jsFilesUnder(join(ROOT, 'tools')).filter((abs) =>
+      readFileSync(abs, 'utf-8').includes('checkLeak(')
+    );
+    const nonSelf = callers
+      .map((p) => relative(ROOT, p))
+      .filter((p) => p !== 'tools/lib/adherence-leak.js');
+
+    expect(
+      nonSelf,
+      'checkLeak is defined but nothing in tools/ calls it — the control arm is unverified'
+    ).not.toEqual([]);
+    expect(nonSelf).toContain('tools/adherence-run.js');
+  });
+
+  it('AC5.1 — the refusal path is wired, not just the check', () => {
+    // Calling checkLeak and ignoring its result is the same defect one level in.
+    const runner = readFileSync(join(ROOT, 'tools/adherence-run.js'), 'utf-8');
+    expect(runner).toMatch(/formatLeakRefusal/);
+    expect(runner).toMatch(/if\s*\(!leak\.ok\)\s*throw/);
   });
 
   it('B54 stays fixed: `checkGateArtifacts` is gone from tools/ (the other code-shaped instance)', () => {

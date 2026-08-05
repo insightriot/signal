@@ -25,7 +25,7 @@
  * @param {{canary:object, runsPerArm:number, dirty:boolean, allowedTools:string[]}} input
  * @returns {string[]} caveats, in publication order
  */
-export function buildCaveats({ canary, runsPerArm, dirty, allowedTools }) {
+export function buildCaveats({ canary, runsPerArm, dirty, allowedTools, descriptiveResidue = [] }) {
   const out = [
     `**One canary is not a survey.** This is a fact about \`${canary.id}\` in \`commands/${canary.command}.md\`, not evidence about Signal's instructions generally.`,
     `**Tool access is part of the claim.** The agent ran with \`--allowedTools ${allowedTools.join(' ')}\`. An instruction that needs a tool the user denies cannot be obeyed regardless of wording.`,
@@ -49,6 +49,18 @@ export function buildCaveats({ canary, runsPerArm, dirty, allowedTools }) {
   if (sectionSites.length > 0) {
     out.push(
       `**The control removed ${sectionSites.length === 1 ? 'a whole section' : 'whole sections'}** (${sectionSites.map(d => `\`${d.file}\` § \`${d.section.trim()}\``).join('; ')}), so anything else stated in ${sectionSites.length === 1 ? 'it' : 'them'} was removed too. Read those sections before attributing the difference to this instruction alone.`
+    );
+  }
+
+  // AC3.3 — what the control agent could still read about the instruction, named
+  // rather than summarised. Descriptive residue does NOT block a run (AC3.2): it
+  // is legitimate for the schema reference and the capability itself to survive.
+  // But an unstated remainder is how `B55` stayed invisible for two releases, so
+  // the record carries the list and lets the reader judge.
+  if (descriptiveResidue.length > 0) {
+    const byFile = [...new Set(descriptiveResidue.map(h => h.file))];
+    out.push(
+      `**Descriptive residue survived, by design** (${descriptiveResidue.length} mention(s) across ${byFile.length} file(s): ${byFile.map(f => `\`${f}\``).join(', ')}). These state or implement the rule without ordering it, so deleting them would produce a differently-invalid control. They were reviewed and allowlisted, not overlooked — but the control agent could read them, and that is part of this verdict's scope.`
     );
   }
 

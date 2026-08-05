@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, cpSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, cpSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -108,6 +108,43 @@ describe('the descriptive allowlist is pinned, not inferred (AC2.3, AC2.4)', () 
       expect(typeof why, `${file} has no reason`).toBe('string');
       expect(why.length, `${file}'s reason is too thin to audit`).toBeGreaterThan(40);
     }
+  });
+});
+
+/**
+ * Closing the gap between AC2.3 and S1.t7, which pull against each other.
+ *
+ * S1.t7 scrubbed the measured instruction out of `adherence-verdict.js` BECAUSE
+ * its presence there was a leak: `tools/` ships inside the tree the control agent
+ * reads. AC2.3 then requires that same file on the descriptive allowlist — so if
+ * a mention ever came back, the walk would classify it descriptive and let the
+ * run proceed. Written at different times, and both are defensible in isolation.
+ *
+ * Resolved by keeping the allowlist entry exactly as AC2.3 specifies AND pinning
+ * the scrub here. A reacquired mention now fails at commit time, which is
+ * strictly earlier and cheaper than refusing a run that costs money.
+ *
+ * `directive-classifier.js` is excluded deliberately: it names the token as DATA
+ * while classifying instruction kinds, which is its job.
+ */
+describe('the apparatus stays scrubbed (S1.t7 regression)', () => {
+  const APPARATUS = [
+    'tools/lib/adherence-verdict.js',
+    'tools/lib/adherence-leak.js',
+    'tools/lib/adherence-caveats.js',
+    'tools/lib/adherence-harness.js',
+    'tools/lib/adherence-log.js',
+    'tools/adherence-run.js',
+  ];
+
+  it.each(APPARATUS)('%s does not restate the measured instruction', file => {
+    const src = readFileSync(join(ROOT, file), 'utf-8');
+    expect(src).not.toContain(TOKEN);
+  });
+
+  it('the allowlist entry for adherence-verdict.js says why it is retained', () => {
+    const why = DESCRIPTIVE_ALLOWLIST.get('tools/lib/adherence-verdict.js');
+    expect(why).toMatch(/S1\.t7|scrub/i);
   });
 });
 

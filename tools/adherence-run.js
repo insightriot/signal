@@ -55,6 +55,7 @@ import {
   traceHit,
 } from './lib/adherence-verdict.js';
 import { ADHERENCE_LOG, appendRunRecord } from './lib/adherence-log.js';
+import { checkLeak, formatLeakRefusal } from './lib/adherence-leak.js';
 import { buildCaveats } from './lib/adherence-caveats.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -362,6 +363,10 @@ async function main() {
 async function runArm({ canary, arm, runs, allowedTools, transcriptDir }) {
   const results = [];
   let failedRuns = 0;
+  // Descriptive residue observed in the control arm's copied tree. Carried onto
+  // the run record (AC3.3) so a reader can see exactly what the control agent
+  // could still read about the instruction — the thing `B55` made invisible.
+  let descriptiveResidue = [];
 
   for (let i = 1; i <= runs; i++) {
     const fixture = await createFixtureProject({ tier: 'FULL', phase: 'PLAN' });
@@ -379,19 +384,22 @@ async function runArm({ canary, arm, runs, allowedTools, transcriptDir }) {
       for (const entry of canary.deletions) {
         const target = join(plugin.root, entry.file);
         const src = readFileSync(target, 'utf-8');
-        const mutated = applyDeletions(src, [entry]);
-
-        // Belt and braces: no declared site may still contain the instruction.
-        // A one-line deletion once left the surrounding rationale intact and the
-        // resulting trace would have been recorded as INERT.
-        if (residue && mutated.includes(residue)) {
-          throw new Error(
-            `Control arm is not a control: ${entry.file} still mentions ` +
-            `${residue} after the mutation. Any verdict from this run would be void.`
-          );
-        }
-        writeFileSync(target, mutated, 'utf-8');
+        writeFileSync(target, applyDeletions(src, [entry]), 'utf-8');
       }
+
+      // FR3 — the INDEPENDENT check, replacing the per-file `includes(residue)`
+      // test this block used to do. That test could only ever inspect the files
+      // the canary had just named, so it confirmed the mutation against itself
+      // and reported a clean arm while four other command files still ordered
+      // the call (`B55`). This walks the whole copied tree instead and never
+      // consults `canary.deletions`.
+      //
+      // AC3.1 — directive residue throws HERE, before any agent is invoked, so a
+      // void run costs nothing. AC3.2 — descriptive residue never blocks; it is
+      // carried onto the record instead (AC3.3).
+      const leak = checkLeak(plugin.root, residue);
+      if (!leak.ok) throw new Error(formatLeakRefusal(residue, leak.directive));
+      descriptiveResidue = leak.descriptive;
     }
 
     const before = await captureTrace(fixture.root);
@@ -435,7 +443,7 @@ async function runArm({ canary, arm, runs, allowedTools, transcriptDir }) {
     await rm(plugin.root, { recursive: true, force: true });
   }
 
-  return { results, failedRuns };
+  return { results, failedRuns, descriptiveResidue };
 }
 
 /**
@@ -553,6 +561,7 @@ async function combineArms(args) {
       runsPerArm: treatment.runsPerArm,
       dirty: Boolean(treatment.dirty || control.dirty),
       allowedTools: ['Write', 'Edit', 'Read', 'Bash'],
+      descriptiveResidue: control.descriptiveResidue ?? [],
     }),
   }, { commit: treatment.commit });
   console.log(`\nAppended to .planning/${ADHERENCE_LOG}\n`);
@@ -646,7 +655,7 @@ async function runCanary(args) {
     seamProven,
     surface: { cliVersion: surface.cliVersion, model: surface.model },
     runsPerArm: args.runs,
-    caveats: buildCaveats({ canary, runsPerArm: args.runs, dirty: source.dirty, allowedTools: ALLOWED }),
+    caveats: buildCaveats({ canary, runsPerArm: args.runs, dirty: source.dirty, allowedTools: ALLOWED, descriptiveResidue: c.descriptiveResidue ?? [] }),
   };
   await appendRunRecord(ROOT, record, { commit: source.commit });
   console.log(`Appended to .planning/${ADHERENCE_LOG}\n`);
