@@ -44,3 +44,15 @@ The open part is **scope**, not merit: is the fix (i) an executor-guidance line 
 (ii) `isolation: "worktree"` wired into the dispatch path, or (iii) the full
 `using-git-worktrees` port? M5.E7's disposition pass (S3.t8) should answer it — this
 entry exists so the question survives a context clear if it doesn't.
+
+## Should FULL tier REQUIRE an independent review pass at REVIEW, rather than leaving it to the maintainer to remember? M5.E15's self-review found nothing and had to hand-write its own limitation; the independent cloud pass then found the one thing it missed. Evidence for, from one Epic.
+
+*Logged 2026-08-06 via /sig:checkpoint*
+
+## Does M5.E7 ever get a version number? `CHANGELOG.md` carries a DATED `## [Unreleased] — 2026-07-26 — The v2 direction audit (M5.E7)` heading. A dated "Unreleased" is a contradiction, and doc-hygiene deliberately SKIPS `[Unreleased]` for version-consistency, so that section is invisible to the guard that would catch it. Latent trap: the next release cut is one reordering away from folding the wrong section. May be deliberate — M5.E7 shipped analysis, not code.
+
+*Logged 2026-08-06 via /sig:checkpoint*
+
+## Should the "one canary is not a survey" caveat name all declared deletion sites instead of just `canary.command`? It renders "a fact about {id} in commands/{command}.md", accurate when a canary had one anchor. The instruction now lives at five declared sites. `canary.command` is genuinely the measured command, so the sentence is defensible — but a reader could take it as the full footprint. Deliberately not changed in REVIEW: wording on a published-record template deserves its own decision.
+
+*Logged 2026-08-06 via /sig:checkpoint*
