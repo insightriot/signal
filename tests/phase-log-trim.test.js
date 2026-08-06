@@ -18,6 +18,7 @@ import {
   transitionPhase,
 } from '../tools/lib/state.js';
 import { deriveEpicArchiveDir } from '../tools/lib/evict.js';
+import { deriveUnitArchiveDir } from '../tools/lib/archive-tree.js';
 import { isEpicCloseByState } from '../tools/lib/retrospective.js';
 import { checkPhaseLog } from '../tools/lib/sweep.js';
 import { seedPhaseArtifacts } from './helpers/phase-artifacts.js';
@@ -183,6 +184,81 @@ describe('FR5 — phase-log trim', () => {
     });
   });
 
+  // B52 half 2. The reset in setCurrentEpic is unconditional, so "archive
+  // first" was a step that could be skipped rather than an invariant that held.
+  // Three branches reached the zeroing write with an unarchived log; only one
+  // was covered. This is how M5.E8's six-phase run was discarded with no error,
+  // no warning and no record — the guard that would have caught it existed and
+  // was correct, it just was not the code that ran.
+  describe('B52 — refuses to clear a phase log it did not archive', () => {
+    it('archives a LINEAR project\'s history when it opens its first Epic', async () => {
+      // The old `if (closingEpic && …)` never entered on a null current_epic,
+      // so a linear project's whole shipped history was zeroed silently.
+      const run = ledger(2);
+      await writeFile(join(base, '.planning', 'STATE.md'), stateFile({ epic: null, completed: run }));
+
+      const res = await setCurrentEpic(base, 'M5.E1');
+      expect(res.archivedPhaseLog).toBe(run.length);
+
+      // STATE-HISTORY.md — the same destination completePhase's linear trim
+      // already uses for the identical shape, not a new one invented here.
+      const archived = await readFile(join(base, '.planning', 'STATE-HISTORY.md'), 'utf-8');
+      for (const entry of run) expect(archived).toContain(entry);
+
+      const after = await readState(base);
+      expect(after.current_epic).toBe('M5.E1');
+      expect(after.completed_phases).toEqual([]);
+    });
+
+    it('archives a non-strict but safe unit name to a flat per-unit directory', async () => {
+      // `PHASE11` is a real live value (measured in traction-engine, B53).
+      // epicArchiveDirFor returned null for it and the caller read that null as
+      // "skip the archive" — live data loss with no stale cache involved.
+      const run = ledger(1);
+      await writeFile(
+        join(base, '.planning', 'STATE.md'),
+        stateFile({ epic: 'PHASE11', completed: run })
+      );
+
+      const res = await setCurrentEpic(base, 'M5.E1');
+      expect(res.archivedPhaseLog).toBe(run.length);
+
+      const archived = await readFile(
+        join(base, '.planning', 'archive', 'PHASE11', 'STATE-NARRATIVE.md'),
+        'utf-8'
+      );
+      for (const entry of run) expect(archived).toContain(entry);
+    });
+
+    it('THROWS rather than clearing a log with no safe destination', async () => {
+      // A name that cannot become a directory under .planning/archive/.
+      await writeFile(
+        join(base, '.planning', 'STATE.md'),
+        stateFile({ epic: '../escape', completed: ledger(1) })
+      );
+      await expect(setCurrentEpic(base, 'M5.E1')).rejects.toThrow(/not archived/i);
+    });
+
+    it('leaves STATE.md byte-identical when it refuses', async () => {
+      // The whole point is that the refusal happens BEFORE any write. Asserting
+      // only that it threw would pass even if the roll had already landed.
+      const original = stateFile({ epic: '../escape', completed: ledger(1) });
+      const statePath = join(base, '.planning', 'STATE.md');
+      await writeFile(statePath, original);
+
+      await expect(setCurrentEpic(base, 'M5.E1')).rejects.toThrow();
+
+      expect(await readFile(statePath, 'utf-8')).toBe(original);
+    });
+
+    it('still rolls normally when there is nothing to archive', async () => {
+      await writeFile(join(base, '.planning', 'STATE.md'), stateFile({ epic: null, completed: [] }));
+      await setCurrentEpic(base, 'M5.E1');
+      expect((await readState(base)).current_epic).toBe('M5.E1');
+      expect(existsSync(join(base, '.planning', 'STATE-HISTORY.md'))).toBe(false);
+    });
+  });
+
   describe('drift guard', () => {
     it('state.js\'s archive path agrees with evict.js\'s deriveEpicArchiveDir', async () => {
       // state.js duplicates this path rule because importing evict.js would be
@@ -200,6 +276,25 @@ describe('FR5 — phase-log trim', () => {
         await setCurrentEpic(base, 'M99.E99');
         expect(
           existsSync(join(base, deriveEpicArchiveDir(epic), 'STATE-NARRATIVE.md'))
+        ).toBe(true);
+      }
+    });
+
+    it('state.js\'s WIDENED archive path agrees with archive-tree\'s deriveUnitArchiveDir', async () => {
+      // B52 half 2 widened state.js's rule from Epic-only to unit-wide, so the
+      // parity obligation widened with it: M5.E18 already decided where a
+      // non-strict unit archives to, and a second answer to that question is
+      // the same schism the test above exists to prevent.
+      for (const unit of ['M5.E1', 'PHASE11', 'PHASE10-S4', 'GATE-A', 'v0.1.6']) {
+        await rm(base, { recursive: true, force: true });
+        await mkdir(join(base, '.planning'), { recursive: true });
+        await writeFile(
+          join(base, '.planning', 'STATE.md'),
+          stateFile({ epic: unit, completed: ledger(1) })
+        );
+        await setCurrentEpic(base, 'M99.E99');
+        expect(
+          existsSync(join(base, deriveUnitArchiveDir(unit), 'STATE-NARRATIVE.md'))
         ).toBe(true);
       }
     });
