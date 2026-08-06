@@ -19,6 +19,24 @@
  *
  * Building the caveats is pure string work over declared data: no agent, no
  * filesystem, no network. It belongs where it can be tested.
+ *
+ * ── THE SCOPE BOUNDARIES ARE GENERATED, NOT REMEMBERED ───────────────────────
+ *
+ * Carried here from the docstring that stood over this function in the runner,
+ * because the fact outlived the location: an `OBEYED` record once shipped
+ * WITHOUT its scope boundaries and needed an appended correction (M5.E8).
+ *
+ * It happened again in M5.E15, to the record this Epic exists to make honest —
+ * the descriptive-residue list resolved to empty because the runner read it off
+ * the arm summary instead of the arm result, and the published record understated
+ * its own scope until a `QUALIFIED` annotation supplied the list.
+ *
+ * Twice, in the same place, by two different mechanisms. The lesson is not "be
+ * careful": it is that a caveat which silently degrades to nothing looks
+ * identical to a run that had nothing to declare. Every caveat whose absence
+ * would be indistinguishable from a clean result should render unconditionally
+ * (as the isolation scope now does, saying `undeclared` out loud) or be pinned by
+ * a test that fails when it stops rendering.
  */
 
 /**

@@ -670,11 +670,6 @@ async function runCanary(args) {
   console.log(`Appended to .planning/${ADHERENCE_LOG}\n`);
 }
 
-/**
- * The scope boundaries every verdict carries. Generated, not remembered — the
- * OBEYED record shipped without them and needed an appended correction.
- */
-
 const VERDICT_NOTE = {
   obeyed: 'The trace appears only with the instruction present. The instruction changed\nwhat the agent did.',
   inert:
