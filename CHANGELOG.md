@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.19] — 2026-08-06 — The control arm, made real (M5.E15)
 
 ### Fixed
 - **`B55` — the control arm was never a control, and every verdict inherited the defect (M5.E15).** The adherence harness deleted the measured instruction from **one** command file while `plan.md`, `verify.md`, `review.md` and `ship.md` still ordered the same call. The arm labelled *"instruction deleted"* therefore contained the instruction four more times, so no run could distinguish *"the instruction works"* from *"the agent found it elsewhere."*
