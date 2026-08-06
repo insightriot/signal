@@ -27,7 +27,20 @@ waits on `M5.E11` and `M5.E14`-in-full waits on `M5.E10`, and **neither has any 
 (checked 2026-08-06). A checked-and-declined trigger must be distinguishable from an unchecked one
 (`B39`).
 
-### 1. `B52` — the session binds to a stale plugin cache · **fix lane** · small
+### 1. ~~`B52` — the session binds to a stale plugin cache~~ · **DONE, v0.1.20 (2026-08-06)**
+
+**Shipped in the fix lane, both halves.** `tools/lib/plugin-binding.js` + a SessionStart hook + wiring into `/sig:status` and `/sig:resume`; plus the `setCurrentEpic` guard. **Item 2 is now the next work.**
+
+**Two things the build learned that this entry did not know:**
+
+1. **A hook-only fix would have been the band-aid.** The binding is resolved *before* `SessionStart` runs, so a mid-session auto-update — the originating 78-second sighting — is structurally invisible to a hook. The command path (`/sig:status`, `/sig:resume`) re-reads both files at the moment of use, which is the only moment that can observe it. Both surfaces ship; neither is sufficient alone.
+2. **The ledger loss was never only a stale-cache consequence.** Two of the three branches that zero an unarchived phase log are reachable with no stale cache at all (a linear project opening its first Epic; a non-strict `current_epic` like `PHASE11`). The entry's framing — *"the guard makes the damage loud regardless of version"* — turned out to be more literally true than it read.
+
+`B84` was filed from this release's own cut: `cut-release.js`'s no-release-notes guard is unreachable and relabelled a historical section instead of refusing. Not folded in — it is a separate defect in a separate tool.
+
+<details><summary>Original entry (kept for the reasoning that set the order)</summary>
+
+### `B52` — the session binds to a stale plugin cache · **fix lane** · small
 
 *Plain: stop the tool lying about which version of itself is running.*
 
@@ -48,7 +61,9 @@ deterministic, fail-open.
 *damage* loud regardless of version, and it is the half that would have saved M5.E8's ledger. A
 warning alone leaves the silent-data-loss path intact.
 
-### 2. The closure-gated archive command · **Epic lane** · medium · **fold in `B82`**
+</details>
+
+### 2. The closure-gated archive command · **Epic lane** · medium · **fold in `B82`** · **▶ NEXT**
 
 *Plain: finish the archiving tool, because the thing it replaced is gone.*
 

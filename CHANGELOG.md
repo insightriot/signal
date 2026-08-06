@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.20] — 2026-08-06 — Which copy of Signal is actually running (B52)
 
 ### Fixed
 - **`B52` — a session runs whichever copy of Signal it happened to bind to, and nothing said so.** Claude Code resolves a plugin's install path **once, at session start**, and holds it for the life of the **process**. A session alive across a plugin auto-update therefore keeps running the version it started with while every config file on disk correctly records the new one. Three live sightings in six days, each caught only because a human noticed a version string in passing: one **silently discarded M5.E8's six-phase ledger** (the archive-before-reset step existed and was correct — it just was not the code that ran), one **re-issued an instruction a release had deleted**, one bound 0.1.16 against an installed 0.1.17.

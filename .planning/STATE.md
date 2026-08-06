@@ -22,22 +22,28 @@ last_updated: 2026-08-06T15:06:22.229Z
 
 ## Resume pointer
 
-**⚠ RESTART THE CLI PROCESS BEFORE RUNNING ANY WRITING `/sig:` COMMAND.** Still true, and it fired
-**five times in one session** on 2026-08-04: every `/sig:` command of the M5.E18 build loaded from
-cache **`0.1.16`** while `0.1.17` was installed. **Both `/sig:review` passes were therefore handed the
-pre-`B78` PASS-WITH-FIXES text** and the corrected on-disk rule had to be applied by hand. *A stale
-binding that serves the wrong version of a **decision document** is worse than one serving stale
-code.* `B52`'s worst showing to date.
+**⚠ RESTART THE CLI PROCESS BEFORE RUNNING ANY WRITING `/sig:` COMMAND — but as of `v0.1.20` the
+tool now tells you when it matters, instead of leaving it to you to remember.** `B52` is fixed:
+`/sig:status`, `/sig:resume` and a SessionStart hook compare the copy the process actually resolved
+against what `installed_plugins.json` records, and banner loudly when they disagree.
+
+**Read this rule as narrowed, not lifted.** The check ships **inside the cache copy it inspects**, so
+it cannot fire until a session binds to a version that has it — the first `0.1.20` session is exactly
+the one that cannot warn itself. And the banner reports; it does not block. So the habit still
+applies, and the *reason* it applies is unchanged: a stale binding served the pre-`B78`
+PASS-WITH-FIXES text to **both** `/sig:review` passes of the M5.E18 build (five hits in one session,
+2026-08-04), and *a stale binding that serves the wrong version of a **decision document** is worse
+than one serving stale code.*
 
 **A context clear is NOT sufficient** — measured, not reasoned: a `/clear` ran 2026-08-02 at 12:50
-and the process kept its binding. **Restart the CLI process**, then run any `/sig:` command and read
-the cache path it cites.
+and the process kept its binding. **Restart the CLI process.** The banner says so in those words for
+that reason. To check by hand, run any `/sig:` command and read the cache path it cites.
 
-**Cache status as of 2026-08-06: `0.1.18` IS present and was the bound version for the whole
-M5.E15 build** (verified — `~/.claude/plugins/cache/signal/sig/` holds `0.1.18`, and the loaded
-command files cited that path). The earlier note that the cache "tops out at `0.1.17`" is **stale and
-has been removed.** ⚠ **`v0.1.19` shipped 2026-08-06 and the cache will be a release behind again
-until you restart + `/sig:update`** — which is precisely `B52`, now the **next work item** (see below).
+**Cache status 2026-08-06: `0.1.19` was the bound version for the `B52` fix work itself** (verified —
+`installed_plugins.json` records `0.1.19` and this session's `/sig:resume` cited that path, so the
+two agreed and no banner was due). ⚠ **`v0.1.20` ships 2026-08-06, so the cache will be a release
+behind again until you restart + `/sig:update`** — and the *next* session after that is the first one
+this fix can protect.
 
 ## ▶ NEXT WORK — agreed 2026-08-06, in this order
 
@@ -45,12 +51,15 @@ until you restart + `/sig:update`** — which is precisely `B52`, now the **next
 [`BACKLOG.md`](BACKLOG.md) → *"Next work — the agreed sequence"*. That file is the queue
 (`D-M5E18-1`); this is the pointer, not a second home for the ordering.
 
-1. **`B52` — the session binds to a stale plugin cache.** P1. Trigger satisfied (3 sightings in 6
-   days; 5 hits in one session on 2026-08-04). **Fix lane.** Two file reads in the existing
-   SessionStart hook, plus the second half — the `setCurrentEpic` guard that refuses to silently
-   reset a `completed_phases` it did not archive. *Chosen first because a stale binding makes a fixed
-   bug look live and a live bug look fixed — it corrupts the evidence every other item depends on.*
-2. **The closure-gated archive command** — wire `resolveClosures` to the mover. **Epic lane.** Trigger
+1. ~~**`B52` — the session binds to a stale plugin cache.**~~ **DONE — shipped as `v0.1.20`,
+   2026-08-06, fix lane, both halves.** Two corrections to how this item was scoped, both found by
+   building it: (a) the SessionStart hook **structurally cannot** see the originating sighting — the
+   binding is resolved before the hook runs — so the fix also wires the **command path**
+   (`/sig:status`, `/sig:resume`), which reads at the moment of use; (b) the `setCurrentEpic` half was
+   not merely a stale-cache backstop — **two** of the three branches that zero an unarchived phase log
+   are reachable with no stale cache at all (a linear project opening its first Epic; a non-strict
+   `current_epic` such as `PHASE11`). `B84` filed from the release cut itself.
+2. **▶ NEXT — the closure-gated archive command** — wire `resolveClosures` to the mover. **Epic lane.** Trigger
    FIRED 2026-08-04: `curator` was removed from the machine and `nextpass` + `cm-mentor-coach` are
    archiving by hand-written runbook today. M5.E18 built the engine and wired none of it. **Fold in
    `B82`** (P2 — `planArchiveMoves` ignores `deriveUnits` and moves half a unit). The bar: the
