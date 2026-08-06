@@ -15,6 +15,7 @@ Authoritative references:
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `isStateStale`, `isStaleVsOrigin`, `readSchemaDrift`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/resume.js` — `renderResumeBriefing`, `handleOrphansAtResume`, `resolveArtifactPath`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `describeNextAction`, `formatNextActionCopy`, `formatEscalationSummary`, `readOpenQuestions`, `readLandscapeMeta`, `readStateSizeForTier`, `readLayoutBanner`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/plugin-binding.js` — `readBindingBanner`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/landscape.js` — `extractSection` (used to pull "What this project is" from LANDSCAPE.md when PROJECT.md Vision is still `[INFERRED]` or `[FILL IN]`)
 
 ## Workflow
@@ -84,6 +85,12 @@ So only findings that **need a person** appear. Self-clearing findings are delib
 
 Placed in the **advisory tier**, near the size banner: a STATE *content* contradiction makes the briefing's narrative suspect, but not its **parse**, so it never renders above the schema-drift banner.
 
+1f. **Stale plugin binding** (B52) — call `readBindingBanner({ homeDir: os.homedir() })` from `tools/lib/plugin-binding.js` and pass the returned string (or `null`) to `renderResumeBriefing` as `bindingBanner`. Read-only, offline, two file reads; **fail-open** (never throws → `null`).
+
+It compares the plugin copy **this process actually resolved** (derived from the module's own path, not `CLAUDE_PLUGIN_ROOT` — the env var says where the plugin is *supposed* to be, and this bug is exactly the case where those disagree) against the version `installed_plugins.json` records. A bound root outside the plugin cache is a local/dev install and stays **silent** — otherwise Signal-on-Signal would banner itself on every session the moment a release bump lands on a branch.
+
+It renders **above every other banner**, including schema drift. That ordering is the finding, not a preference: a schema banner says one field below may be misparsed; a stale binding says the code that read *every* field — the schema check included — is a release the maintainer already retired. **This is also the surface that catches the case the SessionStart hook structurally cannot.** Claude Code resolves the plugin path once, at session start, and holds it for the life of the process, so an auto-update landing mid-session is invisible to a hook that already ran. `/sig:resume` re-reads both files at the moment of use, which is the only moment that can observe it.
+
 #### 3c. Retro completeness (M4.5.E9.S2.t7)
 
 Call `enumerateRetros(baseDir)` from `tools/lib/retro-index.js`. Build a summary `{total, complete, stub}` where `complete = total - stub` (and `stub = records.filter(r => r.isStub).length`). Pass as `retroSummary` to `renderResumeBriefing`. The renderer adds one line:
@@ -125,6 +132,7 @@ renderResumeBriefing({
   stateSizeResult,               // STATE.md size — from Step 3b(1c); advisory, read-only
   stateDriftResult,              // STATE-vs-world — from Step 3b(1e); advisory, category 3 only
   layoutBanner,                  // pre-reorg layout nudge string|null — from Step 3b(1d); advisory, fail-open
+  bindingBanner,                 // stale plugin binding string|null — from Step 3b(1f); renders ABOVE all others
   nextAction: formatNextActionCopy(describeNextAction(state.phase, profile.phases_skipped)), // fail-open (B70)
   retroSummary,                   // {total, complete, stub} — see Step 3c
 });
@@ -133,7 +141,12 @@ renderResumeBriefing({
 The rendered briefing has these blocks (in order):
 
 ```
-{If schema-drift banner active (S4.t2) — topmost, most fundamental trust signal:}
+{If stale-binding banner active (B52) — topmost: it says the code that produced every line
+ below is a retired release, so it outranks banners about the data that code read:}
+⚠ Signal is running RETIRED code: this process is bound to v{X}, but v{Y} is installed.
+   {what it costs} + Fix: RESTART THE CLI PROCESS (a /clear is not enough) + both paths
+
+{If schema-drift banner active (S4.t2) — most fundamental trust signal about STATE.md itself:}
 ⚠ STATE.md schema drift ({status}).
    {migration pointer (behind) / upgrade-Signal note (ahead) / unreadable note}
 

@@ -15,6 +15,7 @@ Authoritative references (read if you need to refresh):
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `readEffectiveProfile`, `ProfileSchemaError`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `describeNextAction`, `formatNextActionCopy`, `readOpenQuestions`, `formatEscalationSummary`, `reachedDoneViaSkip`, `readLandscapeMeta`, `readLayoutBanner`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/plugin-binding.js` — `readBindingBanner`
 
 ## Workflow
 
@@ -75,11 +76,22 @@ Both succeed. Continue to Step 2.
 
 Emit the following six fields in this order, as a markdown report. Aim for ≤30 lines of output.
 
+#### 2.0-pre Stale plugin binding (prepended above everything)
+
+Call `readBindingBanner({ homeDir: os.homedir() })` from `tools/lib/plugin-binding.js`. If it returns a string, prepend it **above every other banner**, including 2.0's staleness warning. If `null`, skip silently. Read-only, offline, two file reads, **fail-open** (never throws).
+
+This is B52: Claude Code resolves a plugin's install path **once, at session start**, and holds it for the life of the process — so a session alive across an auto-update keeps running the version it started with while every config file on disk correctly records the new one. Three live sightings in six days; one silently discarded a six-phase ledger, another re-issued an instruction a release had deleted.
+
+It compares the copy **this process actually resolved** (derived from the module's own path — `CLAUDE_PLUGIN_ROOT` states where the plugin is *supposed* to be, and this bug is exactly the disagreement) against what `installed_plugins.json` records. A bound root outside the plugin cache is a local/dev install and stays silent.
+
+**Why here and not only in the SessionStart hook** (`hooks/warn-stale-plugin-binding.js`): the binding is resolved before that hook runs, so an update landing mid-session is invisible to it. `/sig:status` re-reads both files at the moment of use — the only moment that can observe it. It sorts above 2.0 because 2.0 asks *is a newer release available?* while this asks *is the code answering you the code you installed?* — and a stale binding makes every other line in the report, this one included, the output of a retired release.
+
 #### 2.0 Version staleness check (prepended)
 
 Before rendering 2.1, call `readStalenessWarning({ homeDir: os.homedir() })` from `tools/lib/status.js`. If it returns a string, prepend that line to the briefing (single line, no extra blank line above). If it returns null, skip silently. This is the FR6 surface added in M4.5.E8.S3 — version-check is **advisory only** and MUST NOT break `/sig:status` if the GitHub API is unreachable (try/catch is inside `readStalenessWarning`; callers don't need to wrap).
 
 ```
+{bindingBanner if non-null}
 {stalenessWarning if non-null}
 
 Project: {cwd}

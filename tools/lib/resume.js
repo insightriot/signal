@@ -195,7 +195,9 @@ function formatAge(iso) {
  * @param {{stale: boolean, aheadCount: number, touchedPlanning: boolean}} [params.originDriftResult]
  *   - isStaleVsOrigin() output; renders a distinct banner from isStaleResult
  * @param {{status: string, message: string} | null} [params.schemaDriftResult]
- *   - readSchemaDrift() output; renders a schema-drift banner above all others
+ *   - readSchemaDrift() output; renders a schema-drift banner above the rest
+ * @param {string|null} [params.bindingBanner]
+ *   - readBindingBanner() output (B52); renders ABOVE every other banner
  * @param {string} [params.nextAction]  - "Work remaining" copy
  * @returns {string}
  */
@@ -214,6 +216,7 @@ export function renderResumeBriefing(params = {}) {
     stateSizeResult = null,
     stateDriftResult = null,
     layoutBanner = null,
+    bindingBanner = null,
     nextAction = '',
     retroSummary = null,
     projectTier = null,
@@ -221,9 +224,19 @@ export function renderResumeBriefing(params = {}) {
 
   const lines = [];
 
-  // Schema drift is the most fundamental trust signal — if STATE.md's schema is
-  // wrong, every field the briefing reads below could be misparsed. Surfaced
-  // first, above the staleness banners (AD2: platform-agnostic, non-blocking).
+  // A stale plugin binding outranks even schema drift (B52), and the ordering
+  // is not a taste call: schema drift says a field below may be misparsed, while
+  // a stale binding says the CODE that read every field — including the schema
+  // check itself — is a release the maintainer already retired. It casts doubt
+  // on the other banners, so it cannot render beneath them.
+  if (bindingBanner) {
+    lines.push(...String(bindingBanner).split('\n'));
+    lines.push('');
+  }
+
+  // Schema drift is the most fundamental trust signal about STATE.md itself —
+  // if its schema is wrong, every field the briefing reads below could be
+  // misparsed. Above the staleness banners (AD2: platform-agnostic, non-blocking).
   const schemaBanner = formatSchemaDriftBanner(schemaDriftResult);
   if (schemaBanner) {
     lines.push(...schemaBanner.split('\n'));

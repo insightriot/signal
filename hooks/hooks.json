@@ -25,6 +25,14 @@
             "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/warn-layout-drift.js"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/warn-stale-plugin-binding.js"
+          }
+        ]
       }
     ],
     "PreToolUse": [
