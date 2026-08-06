@@ -77,6 +77,18 @@ Ensure commit history tells a coherent story:
 - No "fix typo" or "WIP" commits in the final history
 - Interactive rebase to clean up if needed (with user approval)
 
+**Merge with `--merge`, not `--squash`, on the Epic lane.** This section asks you to curate a
+history; squashing an Epic then discards it, and curate-then-destroy is wasted work. The harder
+reason is `.planning/ADHERENCE-LOG.md`: it **pins commit SHAs as its reproducibility anchor**, and
+this file's own harness states the failure mode — AC4.3 breaks when *"the record would name a state
+nobody can return to."* Squash never lands those commits on `main`; rebase rewrites them. Either
+leaves a published verdict pointing at a commit absent from `main`'s history.
+
+`--squash` remains correct for the **fix lane**, where there is nothing underneath worth keeping.
+See `CLAUDE.md` → *How changes reach `main`* for the two-lane table. *(Added v0.1.19: the rule was
+inferred from the fix-lane example for several releases and stated nowhere, which is how `#88` came
+within one command of squashing away the SHA its own verdict names.)*
+
 ### 3. PR Creation
 
 Create a pull request with:

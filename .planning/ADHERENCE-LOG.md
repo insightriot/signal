@@ -53,7 +53,7 @@ rewrites only between the `adherence:ceiling` markers, so this survives every re
 <!-- adherence:ceiling:begin -->
 ## The coverage ceiling
 
-**Computed:** 2026-08-02 · **Commit:** `36510f9` · **Corpus:** 19 `commands/*.md` files
+**Computed:** 2026-08-06 · **Commit:** `baa4c3a` · **Corpus:** 19 `commands/*.md` files
 
 This is the bound on everything the adherence harness can ever report. It is computed
 directly from the command corpus by `tools/lib/directive-classifier.js`, whose split
@@ -62,15 +62,15 @@ by line.
 
 | | count | share |
 |---|---:|---:|
-| Directive lines | **429** | 100% |
+| Directive lines | **431** | 100% |
 | …naming a real `tools/lib` export | 74 | 17.2% |
 | …writing a named artifact | 16 | 3.7% |
-| **Trace-measurable (either)** | **90** | **21.0%** |
-| **No observable trace** | **339** | **79.0%** |
+| **Trace-measurable (either)** | **90** | **20.9%** |
+| **No observable trace** | **341** | **79.1%** |
 
 ### What the remainder is, stated plainly
 
-The 339 directives with no observable trace are **unmeasured, not passing.**
+The 341 directives with no observable trace are **unmeasured, not passing.**
 
 They are not "probably fine", not "covered by the test suite", and not "verified by the
 fact that Signal works". Nothing in this repository establishes whether an agent follows
@@ -88,7 +88,7 @@ harness run as evidence about the whole corpus will not find it here.
 | `discuss.md` | 25 | 8 | 17 |
 | `plan.md` | 47 | 8 | 39 |
 | `init.md` | 41 | 7 | 34 |
-| `ship.md` | 31 | 7 | 24 |
+| `ship.md` | 33 | 7 | 26 |
 | `checkpoint.md` | 21 | 5 | 16 |
 | `doctor.md` | 23 | 5 | 18 |
 | `new-project.md` | 9 | 5 | 4 |

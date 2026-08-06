@@ -119,8 +119,15 @@ Behavioral rules that apply to every conversation and every agent, in addition t
 | For | features, design work | bugs, papercuts, doc fixes |
 | Six phases | yes | **no** |
 | Branch + PR + green CI | **yes** | **yes** |
+| Merge strategy | **`--merge`** (merge commit) | `--squash` |
 
 A one-line fix does **not** need DISCUSS→SHIP. It **does** need a branch, a PR, and a green suite. `gh pr create --fill` then `gh pr merge --squash` is the whole overhead.
+
+**Why the Epic lane merges instead of squashing** (`v0.1.19`, the first PR to set the precedent). Squash is right for the fix lane: one small change, one commit, nothing worth preserving underneath. It is **wrong** for an Epic, for a reason specific to this repo rather than a taste in git history.
+
+`.planning/ADHERENCE-LOG.md` **pins commit SHAs as its reproducibility anchor** — every run record names the commit that produced the verdict, and `adherence-run.js` states the failure mode in its own words: AC4.3 breaks when *"the record would name a state nobody can return to."* Squash-merging never lands those commits on `main`; rebase-merging rewrites them. Either leaves a published verdict pointing at a commit absent from `main`'s history.
+
+There is a second, softer reason: `commands/ship.md` §2 asks you to curate a coherent history of atomic, descriptively-messaged commits. Squashing an Epic discards that curation, which makes §2 wasted work. Under `--merge` the section means something — and an Epic's commit messages are frequently the best surviving account of *why* a line exists.
 
 **Why this is enforced rather than written down.** `ship.md` used to carry a parenthetical exempting "the Signal-on-Signal flow" from its own Exit Criteria — which require a PR and an approval. It was written 2026-05-26; **thirteen releases shipped under it and exactly one pull request existed in that span.** The file defining the rule was the file granting the exception, so nothing caught it. Removed in v0.1.15, and the gate now lives in a GitHub ruleset because this repo has twice been bitten by rules that existed only as prose (`B7`→`B58`, `B39`).
 
