@@ -6,6 +6,24 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **`B52` — a session runs whichever copy of Signal it happened to bind to, and nothing said so.** Claude Code resolves a plugin's install path **once, at session start**, and holds it for the life of the **process**. A session alive across a plugin auto-update therefore keeps running the version it started with while every config file on disk correctly records the new one. Three live sightings in six days, each caught only because a human noticed a version string in passing: one **silently discarded M5.E8's six-phase ledger** (the archive-before-reset step existed and was correct — it just was not the code that ran), one **re-issued an instruction a release had deleted**, one bound 0.1.16 against an installed 0.1.17.
+
+  **`tools/lib/plugin-binding.js` compares the copy the process actually resolved against what `installed_plugins.json` records.** The bound root is derived from the module's **own path**, never `CLAUDE_PLUGIN_ROOT`: the env var states where the plugin is *supposed* to be, and this bug is precisely that disagreement. The banner names both versions, both paths, and the one remedy — **restart the CLI process**, with the explicit note that a `/clear` is not enough, because that was measured (a clear at 12:50 on 2026-08-02, inside a process alive since Jul 28, kept its binding) and because SessionStart re-fires on a clear, so a user who tries it will see the banner again.
+
+  **Wired at two surfaces, and the second is not optional.** The SessionStart hook (`hooks/warn-stale-plugin-binding.js`) **structurally cannot see the originating sighting**: the binding is resolved before the hook runs, so a mid-session auto-update is invisible to it and the 78-second race would still be silent. `/sig:status` and `/sig:resume` re-read both files **at the moment of use** — the only moment that can observe an update that landed after binding. A hook-only fix would have covered the case that mostly is not the bug.
+
+  A bound root outside `~/.claude/plugins/cache/` is a local checkout and stays **silent**, or Signal-on-Signal would banner itself from the moment a release bump lands on a branch. Read-only, offline, two file reads, fail-open throughout. **Inherent limit, stated so nobody tests it wrong:** the check ships inside the cache copy it inspects, so it cannot fire until a session binds to a version that has it.
+
+- **`setCurrentEpic` no longer clears a phase log it did not archive — and building the guard found the loss has two causes with no stale cache involved.** The reset is unconditional, so *"archive first"* was a step that could be skipped rather than an invariant that held: **three** branches reached the zeroing write with an unarchived log and only one was covered. A **linear** project opening its first Epic never entered the archive branch at all, so its whole shipped history was zeroed silently; and `epicArchiveDirFor` returned null for any non-strict `current_epic` — `PHASE11`, measured live in traction-engine by `B53` — whereupon the caller read that null as *"skip the archive"* and reset anyway.
+
+  Linear history now archives to `.planning/STATE-HISTORY.md` (the destination `completePhase`'s trim already uses, not a new one), non-strict-but-safe units get M5.E18's flat per-unit directory, and a log with **no** safe destination **throws before any write** — pinned by a test asserting STATE.md is byte-identical after the refusal, not merely that it threw. The warning makes the *cause* visible; this makes the *damage* loud regardless of which version is running.
+
+### Known limits
+- **`B84` filed, not fixed** (P2): `cut-release.js`'s own "you forgot to write release notes" guard cannot fire in this repo, and it silently relabelled a historical section instead of refusing. Found by running the tool for this release.
+
 ## [0.1.19] — 2026-08-06 — The control arm, made real (M5.E15)
 
 ### Fixed
