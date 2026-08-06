@@ -4,6 +4,25 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
+## Where things stand (2026-08-06)
+
+**`v0.1.19` shipped** — M5.E15, *the control arm, made real* (`B55`). The adherence harness's control
+arm now deletes the measured instruction from all five sites that order it, and an independent leak
+walk verifies the tree without consulting what the canary declared. `B41-phase-entry` re-ran
+**`OBEYED`** (treatment 3/3, control 0/3, seam PASS) — the first verdict the harness has produced
+that means what it says. Closed `B55`, `B80`, `B83`. Suite **2233**.
+
+**Merged with `--merge`, deliberately** — `ADHERENCE-LOG.md` pins commit SHAs as its reproducibility
+anchor, so squashing would leave a published verdict naming a commit absent from `main`. The two-lane
+merge rule is now stated in `CLAUDE.md` and `commands/ship.md` (`#89`).
+
+**▶ Next work is agreed and sequenced: `B52` → the closure-gated archive command (+`B82`) →
+`M5.E14`'s shippable slice.** The reasoning lives in **`BACKLOG.md` → "Next work — the agreed
+sequence"**; `STATE.md`'s resume pointer carries a summary. Read the BACKLOG entry before starting —
+it records *why* this order and what was excluded on evidence.
+
+**Start item 1 in the fix lane** (branch + PR + green CI; no six phases). Items 2 is Epic-shaped.
+
 ## Project
 
 **Signal** (market-facing: *SignalOS*) — a Claude Code plugin that integrates patterns from the Claude Code plugin ecosystem with a project-complexity calibration router. Command prefix: `/sig:`.

@@ -33,9 +33,35 @@ code.* `B52`'s worst showing to date.
 and the process kept its binding. **Restart the CLI process**, then run any `/sig:` command and read
 the cache path it cites.
 
-**After v0.1.18 (2026-08-04) the cache is also a release behind:** `~/.claude/plugins/cache/signal/sig/`
-tops out at `0.1.17`. Run **`/sig:update`** (or `/plugin`) after restarting so the new
-archive behaviour is what actually executes.
+**Cache status as of 2026-08-06: `0.1.18` IS present and was the bound version for the whole
+M5.E15 build** (verified — `~/.claude/plugins/cache/signal/sig/` holds `0.1.18`, and the loaded
+command files cited that path). The earlier note that the cache "tops out at `0.1.17`" is **stale and
+has been removed.** ⚠ **`v0.1.19` shipped 2026-08-06 and the cache will be a release behind again
+until you restart + `/sig:update`** — which is precisely `B52`, now the **next work item** (see below).
+
+## ▶ NEXT WORK — agreed 2026-08-06, in this order
+
+**Brett's call: do all three, sequentially.** Full reasoning and the plain-language framing are in
+[`BACKLOG.md`](BACKLOG.md) → *"Next work — the agreed sequence"*. That file is the queue
+(`D-M5E18-1`); this is the pointer, not a second home for the ordering.
+
+1. **`B52` — the session binds to a stale plugin cache.** P1. Trigger satisfied (3 sightings in 6
+   days; 5 hits in one session on 2026-08-04). **Fix lane.** Two file reads in the existing
+   SessionStart hook, plus the second half — the `setCurrentEpic` guard that refuses to silently
+   reset a `completed_phases` it did not archive. *Chosen first because a stale binding makes a fixed
+   bug look live and a live bug look fixed — it corrupts the evidence every other item depends on.*
+2. **The closure-gated archive command** — wire `resolveClosures` to the mover. **Epic lane.** Trigger
+   FIRED 2026-08-04: `curator` was removed from the machine and `nextpass` + `cm-mentor-coach` are
+   archiving by hand-written runbook today. M5.E18 built the engine and wired none of it. **Fold in
+   `B82`** (P2 — `planArchiveMoves` ignores `deriveUnits` and moves half a unit). The bar: the
+   replacement must **refuse**, not warn.
+3. **`M5.E14`'s shippable slice** — the `discharged` marker + a SHIP-gate open-obligations query.
+   **Its stated trigger (`M5.E10` lands) is NOT met** — take only the slice the backlog explicitly
+   allows to ship ahead as a patch, not the whole tracker Epic. *Live evidence it is needed: `B55`
+   and `B80` sat as `confirmed` for hours after v0.1.19 fixed them.*
+
+**Not proposed, and why:** `M5.E12` and `M5.E14`-in-full both have unmet triggers (`M5.E11` and
+`M5.E10` have never landed — no artifacts on disk). Verified 2026-08-06, not assumed.
 
 **▶ FIX-LANE ITEMS reconciled from parallel sessions 2026-08-03/04.** Captured as numbered bugs;
 neither blocks M5.E18. Detail in their rows, not here.
