@@ -17,6 +17,80 @@ Still-open roadmap follows, in sprint sequence.
 
 ---
 
+## Next work — the agreed sequence *(Brett, 2026-08-06, after v0.1.19 shipped)*
+
+**Do all three, in this order.** Recorded here because this file is the queue (`D-M5E18-1`);
+`STATE.md` carries a pointer to it, not a second copy of the ordering.
+
+The two big roadmap Epics were **considered and excluded on evidence, not overlooked**: `M5.E12`
+waits on `M5.E11` and `M5.E14`-in-full waits on `M5.E10`, and **neither has any artifact on disk**
+(checked 2026-08-06). A checked-and-declined trigger must be distinguishable from an unchecked one
+(`B39`).
+
+### 1. `B52` — the session binds to a stale plugin cache · **fix lane** · small
+
+*Plain: stop the tool lying about which version of itself is running.*
+
+**Trigger satisfied** — three sightings in six days, and **five hits in one session** on 2026-08-04,
+where every command of the M5.E18 build ran `0.1.16` while `0.1.17` was installed and both REVIEW
+passes were handed a superseded decision document. One earlier sighting **silently destroyed a phase
+ledger**.
+
+**Why first.** A stale binding makes a fixed bug look live and a live bug look fixed, so it corrupts
+the evidence every other item on this list depends on. Doing items 2 and 3 first means doing them on
+that footing. It is also the cheapest of the three: the pieces are already on disk (the hook runs
+from the bound path; each cached copy carries its own `plugin.json` version; `installed_plugins.json`
+records what *should* run and was correct in all three sightings). Two file reads, offline,
+deterministic, fail-open.
+
+**Do not skip the second half:** the `setCurrentEpic` guard that refuses to reset a non-empty
+`completed_phases` it did not archive. The warning makes the *cause* visible; the guard makes the
+*damage* loud regardless of version, and it is the half that would have saved M5.E8's ledger. A
+warning alone leaves the silent-data-loss path intact.
+
+### 2. The closure-gated archive command · **Epic lane** · medium · **fold in `B82`**
+
+*Plain: finish the archiving tool, because the thing it replaced is gone.*
+
+**Trigger FIRED 2026-08-04** — `curator` was removed from the machine; `nextpass` and
+`cm-mentor-coach` archive by hand-written runbook **today**. This is the only item with users
+waiting.
+
+**M5.E18 built the hard half and wired none of it** — its own retro: *"the library could do 110;
+nothing wired it."* This is the wiring.
+
+**`B82` is in scope, not separate** (P2): `planArchiveMoves` rebuilds candidate names from a template
+instead of consuming `deriveUnits`, so it **archives half a unit** — the two functions disagree about
+which files belong together, and a unit ends up split across `.planning/` and `.planning/archive/`.
+Shipping the command over that defect ships the split.
+
+**The bar, set by how curator failed:** it matched filenames and never checked whether the work was
+finished, and its only protection was a hand-maintained list you had to update *before* writing a
+file. It proposed archiving the same four **live** units twice. The 2026-08-01 remedy was a printed
+warning and it failed the way warnings fail. **A warning asks; a gate refuses.**
+
+### 3. `M5.E14`'s shippable slice only · **small** · *not the tracker Epic*
+
+*Plain: make "is this actually done?" answerable.*
+
+**Take the carve-out, not the Epic.** `M5.E14`'s trigger (`M5.E10` lands) is **unmet**, but the entry
+explicitly allows one piece to ship ahead as a patch: the **`discharged` status marker** on
+`backfill_warnings` plus a **SHIP-gate open-obligations query** behind a capability check (`gh`
+present and authed; silent, logged skip otherwise). That is also the schema fix that ends the false
+*"still owed"* class for tracker-less projects.
+
+**Live evidence it is needed, from v0.1.19's own ship:** `B55` and `B80` — the two bugs that release
+was *about* — still read `confirmed` for hours after shipping, while `B83`, the bug the Epic stumbled
+into, was filed correctly. Caught only because someone went looking for the next task. Status lives
+in a hand-maintained table that nothing reconciles.
+
+**Do NOT start the full tracker integration here.** Its two load-bearing conditions (single home;
+closing wired into the phase gates) are Epic-shaped and its trigger is unmet.
+
+
+
+---
+
 ## Since the re-audit — what M5.E7 changed (reconciliation, 2026-07-26)
 
 **The BR-8 re-audit ran and closed** (Epic **M5.E7**, 2026-07-25→26). Deliverable:
