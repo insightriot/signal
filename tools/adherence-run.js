@@ -48,14 +48,15 @@ import {
 } from './lib/adherence-harness.js';
 import {
   CANARY_REGISTRY_PATH,
-  applyDeletion,
-  applySectionDeletion,
+  applyDeletions,
   loadCanaryRegistry,
   resolveVerdict,
   summarizeArm,
   traceHit,
 } from './lib/adherence-verdict.js';
 import { ADHERENCE_LOG, appendRunRecord } from './lib/adherence-log.js';
+import { checkLeak, formatLeakRefusal } from './lib/adherence-leak.js';
+import { buildCaveats } from './lib/adherence-caveats.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -362,6 +363,10 @@ async function main() {
 async function runArm({ canary, arm, runs, allowedTools, transcriptDir }) {
   const results = [];
   let failedRuns = 0;
+  // Descriptive residue observed in the control arm's copied tree. Carried onto
+  // the run record (AC3.3) so a reader can see exactly what the control agent
+  // could still read about the instruction — the thing `B55` made invisible.
+  let descriptiveResidue = [];
 
   for (let i = 1; i <= runs; i++) {
     const fixture = await createFixtureProject({ tier: 'FULL', phase: 'PLAN' });
@@ -371,23 +376,30 @@ async function runArm({ canary, arm, runs, allowedTools, transcriptDir }) {
 
     // The control arm deletes the instruction — from the COPY only (AC2.4).
     if (arm === 'control') {
-      const target = join(plugin.root, 'commands', `${canary.command}.md`);
-      const src = readFileSync(target, 'utf-8');
-      const mutated = canary.deleteSection
-        ? applySectionDeletion(src, canary.deleteSection)
-        : applyDeletion(src, canary.deleteLine);
-
-      // Belt and braces: the control arm must not still contain the instruction.
-      // A one-line deletion once left the surrounding rationale intact and the
-      // resulting trace would have been recorded as INERT.
+      // Every declared directive site, not just the measured command's file
+      // (M5.E15 / `B55`). Deleting only commands/execute.md left plan, verify,
+      // review and ship still ordering the same call, so the "instruction
+      // deleted" arm still carried the instruction four more times.
       const residue = canary.trace.functionName;
-      if (residue && mutated.includes(residue)) {
-        throw new Error(
-          `Control arm is not a control: commands/${canary.command}.md still mentions ` +
-          `${residue} after the mutation. Any verdict from this run would be void.`
-        );
+      for (const entry of canary.deletions) {
+        const target = join(plugin.root, entry.file);
+        const src = readFileSync(target, 'utf-8');
+        writeFileSync(target, applyDeletions(src, [entry]), 'utf-8');
       }
-      writeFileSync(target, mutated, 'utf-8');
+
+      // FR3 — the INDEPENDENT check, replacing the per-file `includes(residue)`
+      // test this block used to do. That test could only ever inspect the files
+      // the canary had just named, so it confirmed the mutation against itself
+      // and reported a clean arm while four other command files still ordered
+      // the call (`B55`). This walks the whole copied tree instead and never
+      // consults `canary.deletions`.
+      //
+      // AC3.1 — directive residue throws HERE, before any agent is invoked, so a
+      // void run costs nothing. AC3.2 — descriptive residue never blocks; it is
+      // carried onto the record instead (AC3.3).
+      const leak = checkLeak(plugin.root, residue);
+      if (!leak.ok) throw new Error(formatLeakRefusal(residue, leak.directive));
+      descriptiveResidue = leak.descriptive;
     }
 
     const before = await captureTrace(fixture.root);
@@ -431,7 +443,7 @@ async function runArm({ canary, arm, runs, allowedTools, transcriptDir }) {
     await rm(plugin.root, { recursive: true, force: true });
   }
 
-  return { results, failedRuns };
+  return { results, failedRuns, descriptiveResidue };
 }
 
 /**
@@ -472,7 +484,7 @@ async function runSingleArm(args) {
   console.log(`Source        ${source.commit}${source.dirty ? ' (WORKING TREE DIRTY — this run is not reproducible from the sha)' : ''}`);
   console.log(`Seam probe    ${seamProven === null ? 'SKIPPED (--skip-probe)' : 'PASS'}\n`);
 
-  const { results, failedRuns } = await runArm({
+  const { results, failedRuns, descriptiveResidue } = await runArm({
     canary, arm: args.arm, runs: args.runs, allowedTools: ['Write', 'Edit', 'Read', 'Bash'], transcriptDir,
   });
   const summary = summarizeArm(results);
@@ -482,6 +494,10 @@ async function runSingleArm(args) {
     join(transcriptDir, `${canary.id}-${args.arm}-results.json`),
     JSON.stringify({
       canary: canary.id, arm: args.arm, results, failedRuns, summary,
+      // Persisted, or `--combine` rebuilds the record without it and the scope
+      // disclosure silently empties — the same defect as reading it off the
+      // summary object, arriving by a different route.
+      descriptiveResidue,
       commit: source.commit, dirty: source.dirty, surface, runsPerArm: args.runs, seamProven,
     }, null, 2),
     'utf-8'
@@ -549,6 +565,7 @@ async function combineArms(args) {
       runsPerArm: treatment.runsPerArm,
       dirty: Boolean(treatment.dirty || control.dirty),
       allowedTools: ['Write', 'Edit', 'Read', 'Bash'],
+      descriptiveResidue: control.descriptiveResidue ?? [],
     }),
   }, { commit: treatment.commit });
   console.log(`\nAppended to .planning/${ADHERENCE_LOG}\n`);
@@ -606,14 +623,19 @@ async function runCanary(args) {
   const treatment = await runArm({ canary, arm: 'treatment', runs: args.runs, allowedTools: ALLOWED, transcriptDir });
   const control = await runArm({ canary, arm: 'control', runs: args.runs, allowedTools: ALLOWED, transcriptDir });
 
-  const t = summarizeArm(treatment.results);
-  const c = summarizeArm(control.results);
+  // Named in full, deliberately. These were `t` and `c`, one character from the
+  // ARM results (`treatment`, `control`) that sit beside them in this scope — and
+  // the caveat wiring picked the wrong one, reading `descriptiveResidue` off a
+  // summary object that never had it. The residue silently rendered as empty on a
+  // published record. Confusable names were the cause, so the names are the fix.
+  const treatmentSummary = summarizeArm(treatment.results);
+  const controlSummary = summarizeArm(control.results);
 
   let verdict;
   try {
     verdict = resolveVerdict({
-      treatmentHits: t.hits,
-      controlHits: c.hits,
+      treatmentHits: treatmentSummary.hits,
+      controlHits: controlSummary.hits,
       runsPerArm: args.runs,
       failedRuns: treatment.failedRuns + control.failedRuns,
       seamProven,
@@ -624,8 +646,8 @@ async function runCanary(args) {
   }
 
   console.log('\n' + '='.repeat(60));
-  console.log(`as-written (treatment)  ${t.hits}/${t.runs}  ${t.unanimous ? 'unanimous' : 'SPLIT'}`);
-  console.log(`deleted    (control)    ${c.hits}/${c.runs}  ${c.unanimous ? 'unanimous' : 'SPLIT'}`);
+  console.log(`as-written (treatment)  ${treatmentSummary.hits}/${treatmentSummary.runs}  ${treatmentSummary.unanimous ? 'unanimous' : 'SPLIT'}`);
+  console.log(`deleted    (control)    ${controlSummary.hits}/${controlSummary.runs}  ${controlSummary.unanimous ? 'unanimous' : 'SPLIT'}`);
   console.log(`VERDICT                 ${verdict.toUpperCase()}`);
   console.log('='.repeat(60));
   console.log(VERDICT_NOTE[verdict]);
@@ -636,42 +658,16 @@ async function runCanary(args) {
     command: canary.command,
     trace: canary.trace.field,
     verdict,
-    treatment: t,
-    control: c,
+    treatment: treatmentSummary,
+    control: controlSummary,
     failedRuns: treatment.failedRuns + control.failedRuns,
     seamProven,
     surface: { cliVersion: surface.cliVersion, model: surface.model },
     runsPerArm: args.runs,
-    caveats: buildCaveats({ canary, runsPerArm: args.runs, dirty: source.dirty, allowedTools: ALLOWED }),
+    caveats: buildCaveats({ canary, runsPerArm: args.runs, dirty: source.dirty, allowedTools: ALLOWED, descriptiveResidue: control.descriptiveResidue ?? [] }),
   };
   await appendRunRecord(ROOT, record, { commit: source.commit });
   console.log(`Appended to .planning/${ADHERENCE_LOG}\n`);
-}
-
-/**
- * The scope boundaries every verdict carries. Generated, not remembered — the
- * OBEYED record shipped without them and needed an appended correction.
- */
-function buildCaveats({ canary, runsPerArm, dirty, allowedTools }) {
-  const out = [
-    `**One canary is not a survey.** This is a fact about \`${canary.id}\` in \`commands/${canary.command}.md\`, not evidence about Signal's instructions generally.`,
-    `**Tool access is part of the claim.** The agent ran with \`--allowedTools ${allowedTools.join(' ')}\`. An instruction that needs a tool the user denies cannot be obeyed regardless of wording.`,
-    '**The unmeasured remainder is unmeasured, not passing** — see the coverage ceiling above.',
-  ];
-  if (runsPerArm <= 3) {
-    out.push(
-      `**N=${runsPerArm} is a weak split.** A perfect separation of ${runsPerArm * 2} runs is roughly p=0.05 by permutation. Clean, not deep.`
-    );
-  }
-  if (canary.deleteSection) {
-    out.push(
-      `**The control removed a whole section** (\`${canary.deleteSection.trim()}\`), so anything else stated in it was removed too. Read that section before attributing the difference to this instruction alone.`
-    );
-  }
-  if (dirty) {
-    out.push('**The working tree was DIRTY at run time** — the recorded commit does not fully describe the code that ran, and this run is not reproducible from the sha alone.');
-  }
-  return out;
 }
 
 const VERDICT_NOTE = {

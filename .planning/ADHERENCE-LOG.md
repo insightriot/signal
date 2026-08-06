@@ -234,3 +234,89 @@ harness run as evidence about the whole corpus will not find it here.
 >
 > *Left byte-identical rather than removed. This log is append-only: a wrong answer that is
 > deleted cannot be audited.*
+> ### ⚠ DIAGNOSED — the `OBEYED` record at commit `f3ca9b2` above
+>
+> **This verdict was measured with an unisolated control arm.** It is **not retracted** and
+> not falsified: control 0/3 means no leak was *observed* in those three runs, and that
+> observation stands exactly as recorded.
+> 
+> What changed is what the run could ever have shown. The control arm deleted the instruction
+> from ONE command file while four others — `plan.md`, `verify.md`, `review.md` and `ship.md`
+> — still ordered the same call. The arm labelled "instruction deleted" therefore contained
+> the instruction four more times, so the design could not distinguish "the instruction works"
+> from "the agent found it elsewhere." A 0/3 control is consistent with both.
+> 
+> Filed as `B55`. M5.E15 fixes the scope: the canary now declares all five directive sites and
+> the control arm deletes every one of them.
+> 
+> Why this block exists when the `INDETERMINATE` record below already diagnoses the same
+> defect: that annotation is addressed to a different record. A reader auditing `f3ca9b2`
+> itself would have found only the `QUALIFIED` note about `B48` and no indication that the
+> headline verdict was unisolated. The finding now sits on the record it is about.
+> 
+> First annotation in this log written BY CODE rather than by hand (`B80`, AC7.1).
+>
+> *Appended, never edited into the record above. This log is append-only: a wrong
+> or incomplete answer that is silently rewritten cannot be audited.*
+
+### 2026-08-05 · `B41-phase-entry` · **OBEYED**
+
+| | |
+|---|---|
+| Commit | `7669644` |
+| Command | `/sig:execute` |
+| Trace | `phaseChanged` |
+| Surface | claude 2.1.222 (Claude Code) · claude-opus-5 |
+| Runs per arm | 3 |
+| Seam precondition | PASS — the mutated tree is the one the agent read |
+| as-written (treatment) | **3/3** unanimous |
+| instruction deleted (control) | **0/3** unanimous |
+| Failed runs | 0 |
+
+**OBEYED** — the trace appears only with the instruction present — the instruction changed what the agent did.
+
+**Scope of this verdict:**
+- **One canary is not a survey.** This is a fact about `B41-phase-entry` in `commands/execute.md`, not evidence about Signal's instructions generally.
+- **Tool access is part of the claim.** The agent ran with `--allowedTools Write Edit Read Bash`. An instruction that needs a tool the user denies cannot be obeyed regardless of wording.
+- **The unmeasured remainder is unmeasured, not passing** — see the coverage ceiling above.
+- **N=3 is a weak split.** A perfect separation of 6 runs is roughly p=0.05 by permutation. Clean, not deep.
+- **Isolation scope: `directive`.** The control arm deleted the instruction from 5 declared site(s): `commands/execute.md`, `commands/plan.md`, `commands/verify.md`, `commands/review.md`, `commands/ship.md`. Sites that teach or document the rule without ordering it were deliberately left in place — a control stripped of the reference docs is a different agent, not the same agent minus one instruction.
+- **The control removed whole sections** (`commands/execute.md` § `## Phase entry — record the phase (M5.E9 FR6, `B41`)`; `commands/plan.md` § `## Phase entry — record the phase (M5.E9 FR6, `B41`)`; `commands/verify.md` § `## Phase entry — record the phase (M5.E9 FR6, `B41`)`; `commands/review.md` § `## Phase entry — record the phase (M5.E9 FR6, `B41`)`), so anything else stated in them was removed too. Read those sections before attributing the difference to this instruction alone.
+
+> ### ℹ QUALIFIED — the `OBEYED` record at commit `7669644` above
+>
+> **The scope statement above is incomplete: the descriptive-residue list is missing, and it
+> should have been there.** The verdict stands. This adds what the record failed to print.
+> 
+> AC3.3 requires every record to name what the control agent could still read about the
+> instruction after the deletions. The runner read `descriptiveResidue` off the arm SUMMARY
+> object rather than the arm RESULT — two variables one character apart in the same scope —
+> so it resolved to `undefined`, fell back to an empty list, and the caveat silently did not
+> render. Every unit test was green, because the tests handed the residue to the caveat
+> builder directly and never exercised the wiring. Fixed, with the wiring now pinned by a
+> test that reads the runner source.
+> 
+> **What the control arm could still read** — 14 mentions across 6 files, recomputed offline
+> by rebuilding the copied tree and re-applying the same five deletions:
+> 
+> | File | Mentions | Why it survives |
+> |---|---|---|
+> | `references/state-schema.md` | 6 | Documents the semantics of the file the function writes |
+> | `tools/lib/state.js` | 3 | The capability itself — deleting it makes "was not told" into "could not" |
+> | `commands/discuss.md` | 2 | Teaches the rule by prohibiting it here, without ordering the call |
+> | `commands/calibrate.md` | 1 | Names it while explaining phase interaction; does not order it |
+> | `commands/index.md` | 1 | Names it while describing what regenerates the doc map |
+> | `tools/lib/directive-classifier.js` | 1 | Apparatus; names the token as data |
+> 
+> **This does not weaken the verdict, and the same recomputation is what shows why:** the walk
+> returned **zero directive hits**. Every site that ORDERS the call was gone from the tree the
+> control agent read. The residue above states or implements the rule without instructing
+> anyone to follow it, which is the distinction `D-M5E15-1` draws and the reason these files
+> are deliberately left in place — a control arm stripped of the schema reference is a
+> different agent, not the same agent minus one instruction.
+> 
+> Recorded here rather than edited into the record above, per this log's append-only rule.
+>
+> *Appended, never edited into the record above. This log is append-only: a wrong
+> or incomplete answer that is silently rewritten cannot be audited.*
+

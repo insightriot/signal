@@ -6,6 +6,35 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.19] — 2026-08-06 — The control arm, made real (M5.E15)
+
+### Fixed
+- **`B55` — the control arm was never a control, and every verdict inherited the defect (M5.E15).** The adherence harness deleted the measured instruction from **one** command file while `plan.md`, `verify.md`, `review.md` and `ship.md` still ordered the same call. The arm labelled *"instruction deleted"* therefore contained the instruction four more times, so no run could distinguish *"the instruction works"* from *"the agent found it elsewhere."*
+
+  **The canary now declares all five directive sites and the control arm deletes every one.** `commands/ship.md` is declared by **line**, not section, because its `### 5. Update State` heading also orders `completePhase` — a section delete there is *over-deletion*, which invalidates a verdict exactly as under-deletion does. Sites that *teach* the rule (`discuss.md`, `index.md`, `calibrate.md`), *document* it (`references/state-schema.md`), or *are* it (`tools/lib/state.js`) are deliberately left in place: a control agent stripped of the schema reference is a different agent, not the same agent minus one instruction.
+
+  **Re-measured live: `B41-phase-entry` returned `OBEYED`** — treatment 3/3, control 0/3, seam probe PASS, 0 failed runs. The same numbers M5.E8 recorded, now meaning something: that control arm carried the instruction four times over, this one carried it zero times.
+
+- **`B80` — the log used an annotation kind the code could not produce.** `NOTICE_KINDS` was frozen to `INVALIDATED` and `QUALIFIED` while `ADHERENCE-LOG.md` carried a `DIAGNOSED` block written **by hand**, outside the append-only guarantee the module exists to provide. `DIAGNOSED` is now a real kind — a finding about the *instrument*, where the number stands and what it could ever have shown is what changed. M5.E8's `OBEYED` record now carries its unisolated stamp, appended **from code**: the first annotation in that log not written by hand.
+
+- **`B83` — a scope-limit assertion that could never fail.** `guard-callers.test.js` read its **own whole file** and asserted it contained `SCOPE LIMIT`, `2 of the 4 known instances`, `B39`, `B46` — every one of which also appears in the `expect()` line asserting it. **Deleting the entire header comment block left the test green.** Shipped M5.E13, unguarded for three releases. This is the exact failure the file was written to catch, and it says so forty lines above about `hasCaller`: *"a checker that satisfies itself is the failure it looks for."* Both that assertion and M5.E15's new one now read a header-scoped helper, with the non-vacuity itself pinned by a further test.
+
+### Added
+- **The leak check walks the copied tree independently, and fails closed** (`tools/lib/adherence-leak.js`). It **never** reads `canary.deletions` — a check that consults the deletion list can only find sites the list already knows about, which is how `B55` reported a clean arm. It greps every file under every copied directory (not just `commands/`) and classifies survivors against a seven-entry allowlist pinned by test; **anything unrecognised is directive and refuses the run**. A coupling guard hands it an empty deletions list and still requires a failure — the assertion that the independence is real rather than intended.
+
+- **Directive residue refuses *before* any agent is invoked**, so a void run costs nothing; descriptive residue never blocks and is instead **named file-by-file on the record**. The **isolation scope now renders unconditionally** — when a canary declares none it says `undeclared` out loud, rather than omitting the line and reading as though the question never arose. Every verdict published before this one was measured at a scope nobody stated.
+
+- **The experiment leaves the room it is measuring.** `references/adherence-canaries.json` carries the measured instruction verbatim and sat inside the copied tree, one directory from the control agent. It is now removed from the copy — **copy-time only, never packaging**: `ship.md` orders `node tools/adherence-run.js`, so a shipped plugin without its registry could not run the harness at all.
+
+### Changed
+- **The canary registry validates what the code depends on.** `isolation: "directive"` and a `deletions[]` list are required; an entry declaring neither `section` nor `line` **throws naming the canary id** rather than silently falling back to one-file behaviour — that fallback *is* `B55`. `trace.functionName` is required too: absent, the leak walk greps for the literal string `"undefined"`, which occurs throughout a JavaScript corpus.
+
+- **`buildCaveats` moved to `tools/lib/adherence-caveats.js`** so it can be tested. It lived in a CLI script that exports nothing, which `tests/adherence-suite-guard.test.js` forbids any test from importing — deliberately, since importing the runner is how a suite spawns the paid CLI. It branched on the field this release replaces, so in place the rename would have left the branch permanently false and the *"a whole section was removed"* caveat would have silently stopped rendering, **with no test going red**.
+
+### Known limits
+- **`B81` remains open** (P2, filed not fixed): the guard-caller mechanism auto-detects 1 of ~25 CLI flags in `tools/`. Reconciling it needs a guard-vs-option definition written down first, so the leak check is governed by a **named** assertion instead and the file now states that the auto-discovered count is not the coverage count.
+- Six acceptance criteria were **mutation-verified rather than RED-first** — the implementation landed before its assertions, so each was proven to discriminate by breaking the code and requiring the test to fail. Weaker than test-first, and declared as a deviation rather than counted as compliance.
+
 ## [0.1.18] — 2026-08-04 — The archive half, for the projects Epic-gating did not reach (M5.E18)
 
 ### Added

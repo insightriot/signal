@@ -10,6 +10,7 @@
 //
 //   ✅ I2   — `adherence-ceiling.js --check`, a CLI guard nothing invoked
 //   ✅ B54  — `checkGateArtifacts`, an exported function nothing called
+//
 //   ❌ B39  — a trigger watchlist that a DOCUMENT instructs someone to walk,
 //             which no command implements. Not code. Invisible here.
 //   ❌ B46  — 45 dispositions written to a side artifact that nothing reads
@@ -21,6 +22,28 @@
 // schema, new authoring, overlapping the tracker Epic — and M5.E13
 // deliberately did not attempt it (D-M5E13-3: fix the instances, build the
 // narrow mechanism, label the gap).
+//
+// ─── TWO POPULATIONS, NOT ONE (M5.E15 S6, `B81`) ───────────────────────────
+//
+// Guards reach this file by two different routes, and conflating them would
+// misread the coverage above:
+//
+//   1. AUTO-DISCOVERED — `findCliGuards` scans for three argv idioms and checks
+//      each hit has a caller. Growth is free: a new guard matching an idiom is
+//      governed the day it is written.
+//   2. GOVERNED BY NAME — a bespoke assertion per guard. Growth is manual: a
+//      guard nobody writes an assertion for is not covered, and nothing says so.
+//
+// `checkLeak` (M5.E15) is in the SECOND group, deliberately. `D-M5E15-5` planned
+// to register it in the first, and that does not land: `adherence-run.js`
+// contributes ZERO of its twelve flags to the auto-discovered population, so
+// registering there would have appeared to work while checking nothing — an
+// uncalled guard-caller check, which is the very defect this file exists to
+// catch. Widening the regex was rejected too; the ten orphans it surfaces are
+// mostly options, not guards. Filed as `B81`.
+//
+// The consequence a reader must carry: the auto-discovered count is NOT the
+// coverage count. Named guards have to be counted by reading the assertions.
 //
 // ─── ON WHAT COUNTS AS A "CALLER" ──────────────────────────────────────────
 //
@@ -128,6 +151,28 @@ function hasCaller(guardFile, flag) {
   return null;
 }
 
+/**
+ * Read ONLY the header comment block — everything above the first import.
+ *
+ * WHY THIS EXISTS (`B83`, found at M5.E15 VERIFY). These assertions used to read
+ * the whole file, and every string they pinned also appears inside the assertion
+ * that pins it. So `expect(self).toContain('SCOPE LIMIT')` was matched by its own
+ * source line. Proven by deleting the ENTIRE header — all five pinned strings —
+ * and watching the test stay green.
+ *
+ * That is precisely the failure this file was written to catch, and it says so
+ * forty lines up, about `hasCaller`: "a checker that satisfies itself is the
+ * failure it looks for." The scope-limit label M5.E13 shipped to stop the
+ * mechanism over-claiming its coverage was itself unguarded for three releases.
+ *
+ * Scoping to the header makes the assertions real: the strings must appear where
+ * a reader actually encounters them, not merely somewhere in the file.
+ */
+function headerBlock() {
+  const self = readFileSync(join(__dirname, 'guard-callers.test.js'), 'utf-8');
+  return self.slice(0, self.indexOf('import {'));
+}
+
 describe('M5.E13 S3.t3 — code-shaped guards have a caller (FR2.3; covers 2 of the class\'s 4 instances)', () => {
   it('finds at least one CLI guard to govern (the population is not empty)', () => {
     const guards = findCliGuards();
@@ -153,12 +198,84 @@ describe('M5.E13 S3.t3 — code-shaped guards have a caller (FR2.3; covers 2 of 
   it('AC2.4 — this file states its own scope limit, in its own text', () => {
     // A mechanism that over-claims its coverage is the defect D-M5E13-3 was
     // written to correct. The label has to live where a reader will hit it.
+    const header = headerBlock();
+    expect(header).toContain('SCOPE LIMIT');
+    expect(header).toContain('2 of the 4 known instances');
+    expect(header).toMatch(/B39/);
+    expect(header).toMatch(/B46/);
+    expect(header).toContain('NOT a check for the');
+  });
+
+  it('AC2.4 — the scope-limit assertion is not vacuous (`B83`)', () => {
+    // Guards the guard: if someone widens the read back to the whole file, the
+    // strings become self-satisfying again and this goes red.
     const self = readFileSync(join(__dirname, 'guard-callers.test.js'), 'utf-8');
-    expect(self).toContain('SCOPE LIMIT');
-    expect(self).toContain('2 of the 4 known instances');
-    expect(self).toMatch(/B39/);
-    expect(self).toMatch(/B46/);
-    expect(self).toContain('NOT a check for the');
+    const header = headerBlock();
+    expect(header.length, 'header block did not parse').toBeGreaterThan(500);
+    expect(header.length, 'headerBlock() is reading the test bodies too').toBeLessThan(self.length);
+    expect(header).not.toContain('expect(header)');
+  });
+
+  /**
+   * M5.E15 S6 (FR5, AC5.1) — the leak check has a caller, asserted BY NAME.
+   *
+   * `D-M5E15-5` planned to register this with `findCliGuards`, the auto-discovered
+   * population above. It does not land as written, and the reason is worth keeping:
+   * `findCliGuards` detects three argv idioms, and `adherence-run.js` contributes
+   * ZERO of its twelve flags to that population. Registering there would have
+   * *appeared* to work while checking nothing — a guard-caller check that is
+   * itself an uncalled guard. Filed as `B81`.
+   *
+   * So this is a bespoke named assertion, the shape `B54` already established in
+   * this file. It is deliberately NOT a widening of the regex: the ten orphans
+   * that would surface are mostly options, not guards.
+   *
+   * What it protects: `checkLeak` is the entire reason a verdict from this harness
+   * can be trusted after `B55`. An exported function nothing calls is precisely
+   * the defect class this file exists for, and the leak check is the highest-cost
+   * possible instance — the run would still complete, still print a verdict, and
+   * still append a record, with nothing having been checked.
+   */
+  it('AC5.1 — `checkLeak` is invoked by something other than its own test', () => {
+    const callers = jsFilesUnder(join(ROOT, 'tools')).filter((abs) =>
+      readFileSync(abs, 'utf-8').includes('checkLeak(')
+    );
+    const nonSelf = callers
+      .map((p) => relative(ROOT, p))
+      .filter((p) => p !== 'tools/lib/adherence-leak.js');
+
+    expect(
+      nonSelf,
+      'checkLeak is defined but nothing in tools/ calls it — the control arm is unverified'
+    ).not.toEqual([]);
+    expect(nonSelf).toContain('tools/adherence-run.js');
+  });
+
+  it('AC5.1 — the refusal path is wired, not just the check', () => {
+    // Calling checkLeak and ignoring its result is the same defect one level in.
+    const runner = readFileSync(join(ROOT, 'tools/adherence-run.js'), 'utf-8');
+    expect(runner).toMatch(/formatLeakRefusal/);
+    expect(runner).toMatch(/if\s*\(!leak\.ok\)\s*throw/);
+  });
+
+  it('AC5.2 — the header records that this guard is governed by NAME, and why', () => {
+    // The pinned-strings test above proves the OLD header survived. It cannot
+    // prove the new note landed — a header edit that dropped it would leave every
+    // existing assertion green while the reader lost the one fact that stops them
+    // reading the auto-discovered count as the coverage count.
+    const header = headerBlock();
+    expect(header).toContain('TWO POPULATIONS');
+    expect(header).toMatch(/B81/);
+    expect(header).toMatch(/auto-discovered count is NOT the\s*\/\/\s*coverage count/i);
+  });
+
+  it('AC5.2 — the note sits BELOW the four-instance list, not inside it', () => {
+    // It was first committed between `✅ B54` and `❌ B39`, splitting the
+    // enumeration the paragraph beneath then summarises as "2 of the 4". A
+    // reader hitting a 20-line digression mid-list loses the count.
+    const header = headerBlock();
+    expect(header.indexOf('❌ B46')).toBeLessThan(header.indexOf('TWO POPULATIONS'));
+    expect(header.indexOf('2 of the 4 known instances')).toBeLessThan(header.indexOf('TWO POPULATIONS'));
   });
 
   it('B54 stays fixed: `checkGateArtifacts` is gone from tools/ (the other code-shaped instance)', () => {
