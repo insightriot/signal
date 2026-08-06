@@ -21,8 +21,11 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
   Linear history now archives to `.planning/STATE-HISTORY.md` (the destination `completePhase`'s trim already uses, not a new one), non-strict-but-safe units get M5.E18's flat per-unit directory, and a log with **no** safe destination **throws before any write** — pinned by a test asserting STATE.md is byte-identical after the refusal, not merely that it threw. The warning makes the *cause* visible; this makes the *damage* loud regardless of which version is running.
 
+- **A symlinked `HOME` would have silenced the whole check, permanently.** `boundPluginRoot()` resolves symlinks — it must, since it answers *"which file is really executing?"* — while the cache-membership gate compared that resolved path against an unresolved `join(homeDir, …)`. Any symlink anywhere in HOME (a home directory on a linked volume; macOS's own `/var` → `/private/var`) made the prefix test fail, so the banner would never render on exactly the machines that needed it. **Caught by the hook's first end-to-end emit test** — every unit test passed while the hook printed nothing, which is `B39`'s shape: a detector that cannot see. Both sides are realpathed now, pinned by a test that builds the symlink deliberately rather than relying on the platform's temp dir happening to have one.
+
 ### Known limits
 - **`B84` filed, not fixed** (P2): `cut-release.js`'s own "you forgot to write release notes" guard cannot fire in this repo, and it silently relabelled a historical section instead of refusing. Found by running the tool for this release.
+- Suite **2233 → 2269**.
 
 ## [0.1.19] — 2026-08-06 — The control arm, made real (M5.E15)
 

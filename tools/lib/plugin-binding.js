@@ -78,6 +78,19 @@ export function readPluginVersionAt(root, fsImpl) {
 }
 
 /**
+ * Resolve symlinks when the path exists; fall back to a plain resolve when it
+ * does not (or when realpath fails). Both sides of the cache comparison must
+ * go through this — see `isCacheInstall`.
+ */
+function realpathOrResolve(p) {
+  try {
+    return realpathSync(p);
+  } catch {
+    return resolve(p);
+  }
+}
+
+/**
  * Is `root` inside the plugin cache tree (`<home>/.claude/plugins/cache/`)?
  *
  * This is the false-positive gate, and it is the difference between a banner
@@ -89,6 +102,19 @@ export function readPluginVersionAt(root, fsImpl) {
  * Compared as a path PREFIX with a trailing separator, so `…/cache-sideways/`
  * cannot pass as `…/cache/`.
  *
+ * BOTH SIDES ARE REALPATHED, and that is not defensive tidying — it is the
+ * difference between this check working and silently never firing.
+ * `boundPluginRoot()` resolves symlinks (it must: it is answering "which file
+ * is really executing?"), so comparing its output against a raw
+ * `join(homeDir, …)` compares a resolved path to an unresolved one. Any symlink
+ * anywhere in HOME — a home directory on a linked volume, macOS's
+ * `/var` → `/private/var` — makes the prefix test fail, `isCacheInstall`
+ * return false, and the banner stay silent forever on exactly the machines
+ * that need it. Caught by the hook's first end-to-end emit test, where the
+ * temp HOME was `/var/folders/…` and the bound root realpathed to
+ * `/private/var/folders/…`; every unit test passed while the hook printed
+ * nothing. A detector that cannot see is this repo's `B39`.
+ *
  * @param {string|null} root
  * @param {string} homeDir
  * @returns {boolean}
@@ -96,8 +122,8 @@ export function readPluginVersionAt(root, fsImpl) {
 export function isCacheInstall(root, homeDir) {
   if (typeof root !== 'string' || root === '') return false;
   if (typeof homeDir !== 'string' || homeDir === '') return false;
-  const cacheRoot = join(homeDir, '.claude', 'plugins', 'cache');
-  const r = resolve(root);
+  const cacheRoot = realpathOrResolve(join(homeDir, '.claude', 'plugins', 'cache'));
+  const r = realpathOrResolve(root);
   return r === cacheRoot || r.startsWith(cacheRoot + sep);
 }
 

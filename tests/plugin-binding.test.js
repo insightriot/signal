@@ -27,6 +27,7 @@ import {
   boundPluginRoot,
   PLUGIN_MANIFEST_KEY,
 } from '../tools/lib/plugin-binding.js';
+import { renderResumeBriefing } from '../tools/lib/resume.js';
 
 const REPO = dirname(dirname(fileURLToPath(import.meta.url)));
 const HOOK = join(REPO, 'hooks', 'warn-stale-plugin-binding.js');
@@ -142,6 +143,30 @@ describe('B52 — stale plugin-cache binding', () => {
   });
 
   describe('isCacheInstall', () => {
+    // REGRESSION, and it must be explicit rather than incidental. The emit test
+    // below happens to exercise this because macOS temp dirs are symlinked
+    // (/var → /private/var), which is precisely the "clean by luck, not by
+    // construction" this repo keeps having to name. Here the symlink is
+    // deliberate, so the guarantee survives a platform where tmp is not linked.
+    //
+    // What breaks without it: boundPluginRoot() realpaths (it must — it answers
+    // "which file is really executing?"), so comparing it against a raw
+    // join(homeDir, …) compares resolved to unresolved. Any symlink in HOME and
+    // the gate returns false, the banner never renders, and nothing says so.
+    it('sees through a symlinked HOME — otherwise the banner silently never fires', async () => {
+      const real = join(home, 'real-home');
+      const cacheDir = join(real, '.claude', 'plugins', 'cache', 'signal', 'sig', '0.1.17');
+      await mkdir(cacheDir, { recursive: true });
+
+      const linked = join(home, 'linked-home');
+      const { symlink } = await import('node:fs/promises');
+      await symlink(real, linked);
+
+      // Bound root given via the REAL path (as realpathSync would return it),
+      // HOME given via the symlink — the shape of a linked home directory.
+      expect(isCacheInstall(cacheDir, linked)).toBe(true);
+    });
+
     it('accepts the cache tree and rejects a sibling with a shared prefix', () => {
       expect(isCacheInstall('/h/.claude/plugins/cache/signal/sig/0.1.19', '/h')).toBe(true);
       // `cache-sideways` must not pass as `cache` — prefix match with separator.
@@ -336,6 +361,49 @@ describe('B52 — stale plugin-cache binding', () => {
     expect(doctorSrc).toContain(`'${PLUGIN_MANIFEST_KEY}'`);
   });
 
+  // --- the briefing's banner order -----------------------------------------
+
+  describe('renderResumeBriefing places the binding banner above all others', () => {
+    // The ordering is currently asserted in a code comment, in resume.md and
+    // in status.md — and NOTHING fails if it moves. It is load-bearing, not
+    // cosmetic: a schema banner says one field below may be misparsed, while a
+    // stale binding says the code that read every field, the schema check
+    // included, is a release the maintainer already retired. It cannot render
+    // beneath the checks it casts doubt on.
+    const render = () =>
+      renderResumeBriefing({
+        cwd: '/x',
+        state: { phase: 'SHIP', completed_phases: [], current_tasks: [], blockers: [] },
+        profile: { tier: 'FULL', phases_skipped: [] },
+        bindingBanner: '⚠ BINDING BANNER MARKER',
+        schemaDriftResult: { status: 'behind', message: 'schema is behind' },
+        isStaleResult: { stale: true, commitCount: 3 },
+        nextAction: 'Next phase: done',
+      });
+
+    it('renders above the schema-drift and staleness banners', () => {
+      const lines = render().split('\n');
+      const at = (needle) => lines.findIndex((l) => l.includes(needle));
+      const binding = at('BINDING BANNER MARKER');
+      expect(binding).toBeGreaterThanOrEqual(0);
+      expect(binding).toBeLessThan(at('schema'));
+      expect(binding).toBeLessThan(at('STATE.md is 3 commit'));
+      expect(binding).toBeLessThan(at('== Project Briefing =='));
+    });
+
+    it('omits the block entirely when there is no drift', () => {
+      const out = renderResumeBriefing({
+        cwd: '/x',
+        state: { phase: 'SHIP', completed_phases: [], current_tasks: [], blockers: [] },
+        profile: { tier: 'FULL', phases_skipped: [] },
+        bindingBanner: null,
+        nextAction: 'Next phase: done',
+      });
+      expect(out).not.toContain('RETIRED code');
+      expect(out.startsWith('== Project Briefing ==')).toBe(true);
+    });
+  });
+
   // --- the hook, as a process ----------------------------------------------
 
   describe('warn-stale-plugin-binding.js hook (spawn harness)', () => {
@@ -348,6 +416,46 @@ describe('B52 — stale plugin-cache binding', () => {
       });
       return { status: r.status, stdout: (r.stdout ?? '').toString(), stderr: (r.stderr ?? '').toString() };
     }
+
+    // THE LOUD CASE. Every other spawn assertion here proves the hook stays
+    // quiet; without this one, a hook that could never emit at all would pass
+    // the whole matrix — which is B83's shape (an assertion that cannot fail)
+    // sitting in the release that exists to fix that class.
+    //
+    // The files are COPIED, never symlinked: boundPluginRoot() calls
+    // realpathSync, so a symlink resolves back to the repo and the test
+    // degrades to `not-a-cache-install` — passing for the wrong reason.
+    it('EMITS a SessionStart banner when bound to a stale cache', async () => {
+      const cache = join(home, '.claude', 'plugins', 'cache', 'signal', 'sig');
+      const bound = join(cache, '0.1.17');
+
+      await plantPluginTree(bound, '0.1.17');
+      await mkdir(join(bound, 'hooks'), { recursive: true });
+      await mkdir(join(bound, 'tools', 'lib'), { recursive: true });
+      await writeFile(join(bound, 'hooks', 'warn-stale-plugin-binding.js'), await readFile(HOOK, 'utf-8'));
+      await writeFile(
+        join(bound, 'tools', 'lib', 'plugin-binding.js'),
+        await readFile(join(REPO, 'tools', 'lib', 'plugin-binding.js'), 'utf-8')
+      );
+
+      const installed = await plantPluginTree(join(cache, '0.1.19'), '0.1.19');
+      await plantManifest(home, { installPath: installed, version: '0.1.19' });
+
+      const r = spawnSync('node', [join(bound, 'hooks', 'warn-stale-plugin-binding.js')], {
+        cwd: home,
+        encoding: 'utf-8',
+        env: { ...process.env, HOME: home },
+        input: JSON.stringify({ hook_event_name: 'SessionStart', source: 'startup', cwd: home }),
+      });
+
+      expect(r.status).toBe(0);
+      const payload = JSON.parse(r.stdout);
+      expect(payload.hookSpecificOutput.hookEventName).toBe('SessionStart');
+      const ctx = payload.hookSpecificOutput.additionalContext;
+      expect(ctx).toContain('RESTART THE CLI PROCESS');
+      expect(ctx).toContain('0.1.17');
+      expect(ctx).toContain('0.1.19');
+    });
 
     // Running from the repo checkout, the hook's own tree is NOT under the
     // plugin cache — so the dev case is silent, which is the state every
