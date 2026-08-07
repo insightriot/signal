@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.22] — 2026-08-07 — File finished work away — /sig:archive (M5.E19)
 
 ### Added
 - **`/sig:archive` — file finished work away, and say why you didn't.** Signal could already archive closed units; it had no command whose job that was. Archiving happened inside `/sig:migrate-memory`, a command about document **layout**, whose dry-run interleaves a reorganization plan with an archive plan — so filing away finished work meant running a command about something else and reading past half its output.
