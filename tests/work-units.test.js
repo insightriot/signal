@@ -88,6 +88,14 @@ describe('M5.E18 S1 / FR1 — deriveUnits', () => {
     // `PLAN-GATE-A-RESEARCH.md` -> `PLAN-GATE-A` as CORRECT. It is the defect —
     // it puts the VERIFICATION on one side of a split and the PLAN on the
     // other, so FR2 would archive half a slice.
+    //
+    // `B82` (fixed): that last clause described a defect this fold prevents in
+    // the DERIVATION and `planArchiveMoves` then reintroduced in the MOVER, by
+    // rebuilding candidates from a `{unit}-{suffix}` template that cannot
+    // express a fold. Measured live on `nextpass` and `cm-mentor-coach`: the
+    // derivation resolved `SLICE-SSO` to 5 files while the mover planned 3.
+    // The end-to-end invariant is now pinned in `archive-destination.test.js`
+    // ("B82"); this block keeps pinning the derivation half.
     const { units } = deriveUnits(NEXTPASS_SPLIT_PAIRS);
 
     it('GATE-A: the plan-side and execution-side files land in one unit', () => {
