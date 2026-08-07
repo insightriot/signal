@@ -96,7 +96,7 @@ nothing is re-proposed.
 
 | Temptation | Check |
 |---|---|
-| "Archive a unit whose closure I could not read — it's probably done." | No. `cannotDetermine` is a refusal. 9 of 30 terminal artifacts in the real corpus carry no readable verdict; guessing at that rate is how the retired tool proposed archiving live work. |
+| "Archive a unit whose closure I could not read — it's probably done." | No. `cannotDetermine` is a refusal. **9 of 30** terminal artifacts carried no readable verdict when M5.E18 measured the real corpus (2026-08-04 — inherited figure, not re-derived here); guessing at that rate is how the retired tool proposed archiving live work. |
 | "A retrospective file exists, so the unit is closed." | No — a **stub** retro still holding `[FILL IN]` is not closure (`B64`). The file existing is not the unit being finished, and this is the refusal most likely to surprise, so it is reported with its reason rather than silently. |
 | "Skip the ungrouped line when it's zero — it's noise." | No. An empty collection must stay distinguishable from one that was never computed (`B39`). It renders at 0. |
 | "Archive the current unit; it looks finished." | No. The unit named by `STATE.md`'s `current_epic` is mid-flight by definition. Without a readable `STATE.md` there is no way to know which unit that is, which is why an unreadable STATE refuses *everything*. |

@@ -54,8 +54,14 @@
 - [M5.E18-REVIEW.md](M5.E18-REVIEW.md) — `other` — _(note pending)_
 - [M5.E18-VALIDATION.md](M5.E18-VALIDATION.md) — `other` — _(note pending)_
 - [M5.E18-VERIFICATION.md](M5.E18-VERIFICATION.md) — `other` — _(note pending)_
+- [M5.E19-PLAN.md](M5.E19-PLAN.md) — `other` — _(note pending)_
 - [M5.E19-PROFILE.md](M5.E19-PROFILE.md) — `other` — _(note pending)_
+- [M5.E19-PROGRESS.md](M5.E19-PROGRESS.md) — `other` — _(note pending)_
 - [M5.E19-REQUIREMENTS.md](M5.E19-REQUIREMENTS.md) — `other` — _(note pending)_
+- [M5.E19-RESEARCH.md](M5.E19-RESEARCH.md) — `other` — _(note pending)_
+- [M5.E19-REVIEW.md](M5.E19-REVIEW.md) — `other` — _(note pending)_
+- [M5.E19-VALIDATION.md](M5.E19-VALIDATION.md) — `other` — _(note pending)_
+- [M5.E19-VERIFICATION.md](M5.E19-VERIFICATION.md) — `other` — _(note pending)_
 - [M5.E3-PLAN.md](M5.E3-PLAN.md) — `other` — _(note pending)_
 - [M5.E3-PROGRESS.md](M5.E3-PROGRESS.md) — `other` — _(note pending)_
 - [M5.E3-REQUIREMENTS.md](M5.E3-REQUIREMENTS.md) — `other` — _(note pending)_

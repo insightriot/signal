@@ -66,7 +66,10 @@ export async function buildArchiveReport(baseDir) {
 
   const closures = await resolveClosures(baseDir);
   const sense = await senseArchiveTree(baseDir);
-  const { ungrouped } = deriveUnits(names);
+  // ONE derivation, used for both the ungrouped set and unit membership. It was
+  // briefly two calls — harmless in output, but two derivations of one fact is
+  // the shape this module exists to stop.
+  const { units: derivedUnits, ungrouped } = deriveUnits(names);
 
   // AN UNREADABLE STATE.md REFUSES EVERYTHING — and this guard is load-bearing,
   // not defensive. Found by this module's own test (AC-S2.5), which is the only
@@ -101,47 +104,48 @@ export async function buildArchiveReport(baseDir) {
     };
   }
 
-  // Group the flat move list by unit. Keyed on the destination directory, which
-  // `planArchiveMoves` derived — NOT re-derived from the unit name here, which
-  // would be a second implementation of the same mapping.
+  // Group the flat move list by unit. Membership comes from `deriveUnits` — the
+  // SAME authority `planArchiveMoves` consumes — and the destination directory
+  // comes from the move itself. Nothing here reconstructs the unit→directory
+  // mapping.
+  //
+  // REVIEW rewrote this. The first version reverse-engineered the unit from the
+  // destination path (`archive/M1/E1` → `M1.E1`) under a comment claiming it did
+  // NOT re-derive the mapping — a comment asserting a property the code did not
+  // have, which is a defect M5.E18's retro lists by name. It also carried a
+  // `m.to.startsWith(dir + '/')` test that was VACUOUSLY TRUE, since `dir` was
+  // sliced out of `m.to` one line above: a guard that guards nothing, read as
+  // validation by anyone skimming.
+  const ownerOf = new Map();
+  for (const unit of sense.closedUnits ?? []) {
+    for (const f of derivedUnits.get(unit) ?? []) ownerOf.set(f, unit);
+  }
+
   const byUnit = new Map();
-  for (const unit of sense.closedUnits ?? []) byUnit.set(unit, { unit, dir: null, files: [] });
   for (const m of sense.moves) {
     const file = m.from.slice(m.from.lastIndexOf('/') + 1);
-    const dir = m.to.slice(0, m.to.lastIndexOf('/'));
-    // Find the owning unit by asking which closed unit's plan contains this file.
-    for (const [unit, rec] of byUnit) {
-      if (m.to.startsWith(`${dir}/`) && dirOwns(dir, unit)) {
-        rec.dir = dir;
-        rec.files.push(file);
-        break;
-      }
+    const unit = ownerOf.get(file);
+    if (unit === undefined) continue; // a rename, not a unit archive
+    if (!byUnit.has(unit)) {
+      byUnit.set(unit, { unit, dir: m.to.slice(0, m.to.lastIndexOf('/')), files: [] });
     }
+    // Push in move order, which `planArchiveMoves` already put in LIFECYCLE
+    // order (REQUIREMENTS → PLAN → VERIFICATION). Re-sorting alphabetically here
+    // would make the report disagree with the plan it is describing.
+    byUnit.get(unit).files.push(file);
   }
-  const plan = [...byUnit.values()].filter((r) => r.files.length > 0);
-  plan.forEach((r) => r.files.sort());
-  plan.sort((a, b) => a.unit.localeCompare(b.unit));
+  const plan = [...byUnit.values()].sort((a, b) => a.unit.localeCompare(b.unit));
 
   const archiving = new Set(plan.map((r) => r.unit));
 
   // EVERY unit the resolver knows about that is not archiving is a refusal with
   // its reason. This is the S1 finding: previously only `cannotDetermine` was
   // surfaced, so open and stub-vetoed units vanished from the output entirely.
+  const droppedReason = new Map((sense.dropped ?? []).map((d) => [d.unit, d.reason]));
   const refusals = [];
   for (const u of closures.units) {
     if (archiving.has(u.unit)) continue;
-    refusals.push({
-      unit: u.unit,
-      status: u.status,
-      // A closed-by-verdict unit that is NOT archiving was vetoed downstream —
-      // today that means a stub retrospective (`B64`). Naming the veto is the
-      // point: without it the most surprising refusal is the least explained.
-      reason:
-        u.status === CLOSURE.CLOSED
-          ? `${u.reason} — but it is NOT archiving: its retrospective is a stub ` +
-            '(a file existing is not the unit being finished)'
-          : u.reason,
-    });
+    refusals.push({ unit: u.unit, status: u.status, reason: refusalReason(u, droppedReason) });
   }
   refusals.sort((a, b) => a.unit.localeCompare(b.unit));
 
@@ -162,15 +166,27 @@ export async function buildArchiveReport(baseDir) {
   };
 }
 
-/** Does `dir` belong to `unit`? Epic dirs are `archive/M5/E1`, flat ones `archive/UNIT`. */
-function dirOwns(dir, unit) {
-  const last = dir.slice(dir.lastIndexOf('/') + 1);
-  if (last === unit) return true; // flat per-unit directory
-  // Epic form: `.planning/archive/M1/E1` for unit `M1.E1`
-  const parts = dir.split('/');
-  if (parts.length < 2) return false;
-  const guess = `${parts[parts.length - 2]}.${last}`;
-  return guess === unit;
+/**
+ * Why a unit the resolver knows about is not archiving.
+ *
+ * A CLOSED-by-verdict unit that is not in the plan was excluded downstream, and
+ * there are exactly two ways that happens — so the reason names the actual one
+ * rather than assuming. An earlier version asserted "its retrospective is a stub"
+ * for every such unit, which would have been a FALSE claim for a unit dropped on
+ * an unsafe name: stating a cause you did not check is the defect class this Epic
+ * keeps finding.
+ */
+function refusalReason(u, droppedReason) {
+  if (droppedReason.has(u.unit)) {
+    return `${u.reason} — but it is NOT archiving: ${droppedReason.get(u.unit)}`;
+  }
+  if (u.status === CLOSURE.CLOSED) {
+    return (
+      `${u.reason} — but it is NOT archiving: its retrospective is a stub ` +
+      '(a file existing is not the unit being finished)'
+    );
+  }
+  return u.reason;
 }
 
 /**
@@ -271,5 +287,8 @@ export function renderArchiveReport(report, opts = {}) {
  */
 export async function applyArchive(baseDir) {
   const res = await applyArchiveTree(baseDir, { apply: true, v3Rename: false });
-  return { applied: true, moves: res.moves, rewrittenFiles: res.rewrittenFiles };
+  // Pass `applied` through rather than hardcoding true — the value is the
+  // mover's to report, and asserting it here would be this module claiming a
+  // fact it did not observe.
+  return { applied: res.applied, moves: res.moves, rewrittenFiles: res.rewrittenFiles };
 }
