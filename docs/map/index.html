@@ -855,6 +855,14 @@ const COMMANDS = [
         flags: [],
       },
       {
+        name: '/sig:archive',
+        tags: ['dry-run by default', 'not phase-gated'],
+        summary: 'File finished work out of the live .planning/ root into .planning/archive/. Only units that are provably closed move — everything else is reported with the reason it was declined, so "checked and clean" never looks like "could not check".',
+        flags: [
+          { f: '--apply', d: 'Actually move the files. Without it nothing is written.' },
+        ],
+      },
+      {
         name: '/sig:migrate-memory',
         tags: ['dry-run by default', 'git-reversible'],
         summary: 'Bring an older project\'s .planning/ up to the current layout: trim bloated frontmatter, relocate oversized bodies, evict closed-Epic narrative into the archive tree. Relocates, never deletes — and prints the whole plan before touching anything.',
