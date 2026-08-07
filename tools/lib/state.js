@@ -606,14 +606,32 @@ async function refreshPlanningIndexAfterTransition(baseDir) {
 
 const PHASE_LOG_MARKER = 'phase-log:archived';
 
-// Mirrors deriveEpicArchiveDir (evict.js:243). Duplicated deliberately: evict.js
-// imports from state.js, so importing it back would be a cycle. The duplication
-// is guarded by a parity test rather than left to drift — a second, silently
-// diverging implementation of a path rule is the "regex schism" shape that
-// state.js:100-108 records as already burning Signal once.
-function epicArchiveDirFor(epicId) {
-  const m = String(epicId).match(/^(M\d+(?:\.\d+)*)\.E(\d+)$/);
-  return m ? `.planning/archive/${m[1]}/E${m[2]}` : null;
+// Mirrors deriveUnitArchiveDir (archive-tree.js:136), which in turn keeps
+// deriveEpicArchiveDir's (evict.js:243) layout for strict IDs. Duplicated
+// deliberately: both of those modules import from state.js, so importing either
+// back would be a cycle. The duplication is guarded by a parity test rather
+// than left to drift — a second, silently diverging implementation of a path
+// rule is the "regex schism" shape that state.js:100-108 records as already
+// burning Signal once.
+//
+// B52 half 2 widened this from Epic-only to unit-wide. It previously returned
+// null for anything but a strict `M{N}.E{N}`, and the sole caller read that
+// null as "skip the archive" and reset anyway — so a project whose
+// `current_epic` is a real-but-non-strict value like `PHASE11` (measured live
+// in traction-engine, B53) lost its phase ledger with no stale cache involved
+// at all. M5.E18 already settled where those units archive to: strict IDs keep
+// `{M}/E{n}`, everything else gets a flat per-unit directory, because
+// `PHASE10-S4` has no milestone to key on and inventing one derives structure
+// from a name that carries none. Null now means only "no safe destination
+// exists", which the caller refuses to proceed past.
+const SAFE_UNIT_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+function unitArchiveDirFor(unit) {
+  const s = String(unit);
+  const m = s.match(/^(M\d+(?:\.\d+)*)\.E(\d+)$/);
+  if (m) return `.planning/archive/${m[1]}/E${m[2]}`;
+  if (s.length === 0 || s.length > 100 || s.includes('..')) return null;
+  return SAFE_UNIT_NAME_RE.test(s) ? `.planning/archive/${s}` : null;
 }
 
 /**
@@ -913,17 +931,56 @@ export async function setCurrentEpic(baseDir, epicId) {
     let archivedOut = 0;
     const closingEpic = state.current_epic;
     const closingLog = state.completed_phases ?? state.completedPhases ?? [];
-    if (closingEpic && closingLog.length > 0) {
-      const dir = epicArchiveDirFor(closingEpic);
-      if (dir) {
-        const { archived } = await archivePhaseLog(
-          baseDir,
-          closingLog,
-          `${dir}/STATE-NARRATIVE.md`,
-          `Epic ${closingEpic}`
-        );
+    if (closingLog.length > 0) {
+      // Three destinations, because there were three ways to reach the reset
+      // below with an unarchived log and only one of them was covered (B52
+      // half 2):
+      //
+      //   (a) closingEpic set + safe name → its own archive dir. The original
+      //       path; unchanged for every strict Epic ID, so nothing that
+      //       archives today moves.
+      //   (b) closingEpic null/empty → `.planning/STATE-HISTORY.md`. A linear
+      //       project opening its FIRST Epic never entered the old `if` at all,
+      //       so its whole shipped history was zeroed silently. That file is
+      //       already where completePhase's linear trim sends the identical
+      //       shape, so this is the established destination, not a new one.
+      //   (c) no safe destination → nothing is written, and the guard below
+      //       refuses the roll.
+      const dir = closingEpic ? unitArchiveDirFor(closingEpic) : null;
+      const target = dir ? `${dir}/STATE-NARRATIVE.md` : (closingEpic ? null : '.planning/STATE-HISTORY.md');
+      if (target) {
+        const label = closingEpic
+          ? `Epic ${closingEpic}`
+          : `linear run ending ${new Date().toISOString().split('T')[0]}`;
+        const { archived } = await archivePhaseLog(baseDir, closingLog, target, label);
         archivedOut = archived;
       }
+    }
+
+    // RELOCATE-NEVER-DELETE, ENFORCED (B52 half 2). The reset below is
+    // unconditional, so until now "archive first" was a step that could be
+    // skipped rather than an invariant that held: every branch that failed to
+    // produce a destination fell through to the same zeroing write, with no
+    // error, no warning, and no record. That is exactly how M5.E8's six-phase
+    // DISCUSS→SHIP run was discarded — recoverable then only because
+    // `.planning/` is tracked in git.
+    //
+    // The stale-cache warning makes the CAUSE visible; this makes the DAMAGE
+    // loud regardless of which version is running, which is the half that would
+    // have saved that ledger. Placed ABOVE the payload build so the throw
+    // happens before any write — STATE.md is left byte-identical on disk.
+    //
+    // Losing the roll is recoverable. Losing the history is not.
+    if (closingLog.length > 0 && archivedOut !== closingLog.length) {
+      throw new StateWriteError(
+        `setCurrentEpic: refusing to roll ${closingEpic ? `${closingEpic} → ` : ''}${epicId} — ` +
+          `it would clear ${closingLog.length} completed-phase ${
+            closingLog.length === 1 ? 'entry' : 'entries'
+          } that were not archived (${archivedOut} archived). ` +
+          (closingEpic
+            ? `"${closingEpic}" has no safe archive destination; rename it to a strict Epic ID (M{N}.E{N}) or to a plain name with no path separators.`
+            : 'Copy completed_phases somewhere durable, then clear it by hand before rolling.')
+      );
     }
 
     const payload = stripStateMeta(state);

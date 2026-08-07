@@ -53,7 +53,7 @@ rewrites only between the `adherence:ceiling` markers, so this survives every re
 <!-- adherence:ceiling:begin -->
 ## The coverage ceiling
 
-**Computed:** 2026-08-06 · **Commit:** `baa4c3a` · **Corpus:** 19 `commands/*.md` files
+**Computed:** 2026-08-06 · **Commit:** `9ac8052` · **Corpus:** 19 `commands/*.md` files
 
 This is the bound on everything the adherence harness can ever report. It is computed
 directly from the command corpus by `tools/lib/directive-classifier.js`, whose split
@@ -62,11 +62,11 @@ by line.
 
 | | count | share |
 |---|---:|---:|
-| Directive lines | **431** | 100% |
-| …naming a real `tools/lib` export | 74 | 17.2% |
+| Directive lines | **433** | 100% |
+| …naming a real `tools/lib` export | 76 | 17.6% |
 | …writing a named artifact | 16 | 3.7% |
-| **Trace-measurable (either)** | **90** | **20.9%** |
-| **No observable trace** | **341** | **79.1%** |
+| **Trace-measurable (either)** | **92** | **21.2%** |
+| **No observable trace** | **341** | **78.8%** |
 
 ### What the remainder is, stated plainly
 
@@ -84,15 +84,15 @@ harness run as evidence about the whole corpus will not find it here.
 | File | directives | measurable | unmeasured |
 |---|---:|---:|---:|
 | `add.md` | 42 | 10 | 32 |
-| `status.md` | 14 | 9 | 5 |
+| `status.md` | 15 | 10 | 5 |
 | `discuss.md` | 25 | 8 | 17 |
 | `plan.md` | 47 | 8 | 39 |
 | `init.md` | 41 | 7 | 34 |
 | `ship.md` | 33 | 7 | 26 |
+| `resume.md` | 17 | 6 | 11 |
 | `checkpoint.md` | 21 | 5 | 16 |
 | `doctor.md` | 23 | 5 | 18 |
 | `new-project.md` | 9 | 5 | 4 |
-| `resume.md` | 16 | 5 | 11 |
 | `migrate-memory.md` | 15 | 4 | 11 |
 | `execute.md` | 20 | 3 | 17 |
 | `sweep.md` | 12 | 3 | 9 |
