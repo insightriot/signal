@@ -501,7 +501,7 @@
      ██ ██ ██    ██ ██  ████ ██   ██ ██
 ███████ ██  ██████  ██   ███ ██   ██ ███████</pre>
 <p class="tagline">Right-sized rigor for AI-assisted engineering.</p>
-<p class="meta">Map &middot; v0.1.21 &middot; <a href="../commands/">commands/</a> &middot; <a href="../.planning/PROJECT.md">PROJECT.md § Vocabulary</a> &middot; <a href="../references/tier-definitions.md">tier-definitions.md</a></p>
+<p class="meta">Map &middot; v0.1.22 &middot; <a href="../commands/">commands/</a> &middot; <a href="../.planning/PROJECT.md">PROJECT.md § Vocabulary</a> &middot; <a href="../references/tier-definitions.md">tier-definitions.md</a></p>
 </header>
 
 <nav class="view-tabs" aria-label="Views">
@@ -853,6 +853,14 @@ const COMMANDS = [
         tags: ['idempotent', 'not phase-gated'],
         summary: 'Regenerate .planning/INDEX.md, the documentation map. Walks the corpus, renders the mechanical rows, and re-attaches your curated notes by key so hand-written context survives the rebuild. Writes only when the content actually changed; runs at every phase transition.',
         flags: [],
+      },
+      {
+        name: '/sig:archive',
+        tags: ['dry-run by default', 'not phase-gated'],
+        summary: 'File finished work out of the live .planning/ root into .planning/archive/. Only units that are provably closed move — everything else is reported with the reason it was declined, so "checked and clean" never looks like "could not check".',
+        flags: [
+          { f: '--apply', d: 'Actually move the files. Without it nothing is written.' },
+        ],
       },
       {
         name: '/sig:migrate-memory',

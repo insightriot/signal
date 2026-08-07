@@ -1858,5 +1858,65 @@ Loop engineering: split attention from rigor — full analysis + build path in a
 
 ---
 
+## STATE drift: no check compares body *characterization* against the frontmatter
 
-*Last updated: 2026-08-03*
+**Status:** Logged 2026-08-07 during `/sig:checkpoint`, before opening the archive Epic.
+
+**Measured, not reasoned — from this session.** `/sig:resume` ran `runDriftChecks` and reported
+**6/6 clean, 0 need a person**. At that same moment `STATE.md`'s `## In-flight` section read
+*"**`M5.E15`** … DISCUSS + PLAN closed 2026-08-04; **EXECUTE next**"* while the frontmatter read
+`phase: SHIP`, `completed_phases` containing SHIP, and `current_tasks: []` — M5.E15 had shipped as
+`v0.1.19` the previous day.
+
+**Not a broken guard — a gap between two honest ones.** Checked both before filing:
+
+- `body-omits-current-epic` does exactly what its `describe` says: `mentioned.has(epic)`. The body
+  named `M5.E15` six times, so it returned clean. **Presence is not agreement.**
+- `phase-behind-artifacts` compares frontmatter `phase` against *artifacts on disk*, never against
+  the prose.
+
+So a body can name the right Epic, describe it in the wrong phase, and both checks pass by
+construction.
+
+**Why it is worth a check rather than more care — and the FOURTH instance settles it.** This section
+has now gone stale the same way **four times**. The third happened **inside the commit that fixed the
+second**; the fourth happened across a **full phase sequence**, inside the Epic that filed `B87`
+about exactly this class:
+
+1. *"Nothing, M5.E16 closed 2026-08-02"* while M5.E17 and M5.E18 shipped and M5.E15 opened —
+   **two Epics behind** the frontmatter. Caught by a person re-reading.
+2. *"`M5.E15` … EXECUTE next"* for a day after that Epic shipped. Caught by a person re-reading.
+3. *"Nothing in flight"* — **written as the correction to (2)**, then contradicted by
+   `setCurrentEpic` writing `current_epic: M5.E19` into the frontmatter directly above it, and
+   committed in that state. Caught by review, not by any check.
+
+4. *"`M5.E19` … At `PLAN`, and PAUSED … no `M5.E19-PLAN.md` yet, deliberately"* — falsified by
+   **four** `transitionPhase` calls (EXECUTE → VERIFY → REVIEW → SHIP) while `M5.E19-PLAN.md` sat on
+   disk. Caught at the release gate, in the Epic that filed `B87`.
+
+**The fourth instance is the argument.** (1) and (2) look like inattention, and inattention invites
+"be more careful" as the remedy. (3) already refuted that — the prose was accurate when written and
+falsified by the **next state write**. (4) closes it: falsified by a *full phase sequence* of machine
+writes that structurally cannot touch prose, while the author was actively filing a bug about the
+record disagreeing with the work. A hand-maintained narrative beside a machine-written frontmatter
+goes stale **by construction**, not by neglect. `/sig:checkpoint` and `transitionPhase` both advance
+the frontmatter only.
+
+**Sibling of `B87`.** Both are *the record disagreeing with the work*: `B87` is the ledger missing a
+phase that ran; this is the narrative describing a phase that has passed. A fix for one should be
+weighed against the other.
+
+Note also that `runDriftChecks` reported **6/6 clean** across all three instances — the finding
+above — so the existing detector cannot distinguish any of them from a healthy file.
+
+**For triage — the part that needs a person.** The obvious check ("does the body's phase claim for
+`current_epic` match the frontmatter's?") is a **prose-vs-frontmatter comparison**, which is
+`M5.E10`'s semantic territory, not the deterministic territory `M5.E16` scoped `state-drift.js` to.
+The same boundary already deferred the `review_depth: quality-only` finding carried in STATE's
+In-flight section. Decide whether a narrow deterministic slice exists (e.g. only the phase-name
+token nearest the `current_epic` mention) or whether this waits for `M5.E10`.
+
+---
+
+
+*Last updated: 2026-08-07*

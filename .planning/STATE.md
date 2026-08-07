@@ -2,21 +2,19 @@
 schema_version: 1
 docs_layout_version: 3
 phase: SHIP
-current_epic: M5.E15
+current_epic: M5.E19
 current_wave: null
 current_tasks: []
 completed_phases:
-  - DISCUSS (2026-08-04)
-  - PLAN (2026-08-05)
-  - EXECUTE (2026-08-05)
-  - VERIFY (2026-08-05)
-  - REVIEW (2026-08-06)
-  - SHIP (2026-08-06)
+  - DISCUSS (2026-08-07)
+  - PLAN (2026-08-07)
+  - VERIFY (2026-08-07)
+  - REVIEW (2026-08-07)
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-08-02T00:20:21.679Z
-last_updated_commit: a5dc76c
-last_updated: 2026-08-06T15:06:22.229Z
+last_updated_commit: de27f1bbda950c2145d98790f8fdf2874444d8e3
+last_updated: 2026-08-07T20:35:52.910Z
 ---
 # Project State
 
@@ -59,7 +57,7 @@ this fix can protect.
    not merely a stale-cache backstop — **two** of the three branches that zero an unarchived phase log
    are reachable with no stale cache at all (a linear project opening its first Epic; a non-strict
    `current_epic` such as `PHASE11`). `B84` filed from the release cut itself.
-2. **▶ NEXT — the closure-gated archive command** — wire `resolveClosures` to the mover. **Epic lane.** Trigger
+2. ~~**The closure-gated archive command**~~ **DONE — shipped as `v0.1.22` (`M5.E19`), 2026-08-07.** `/sig:archive`; `B82` shipped separately in v0.1.21. Original entry: — wire `resolveClosures` to the mover. **Epic lane.** Trigger
    FIRED 2026-08-04: `curator` was removed from the machine and `nextpass` + `cm-mentor-coach` are
    archiving by hand-written runbook today. M5.E18 built the engine and wired none of it. **Fold in
    `B82`** (P2 — `planArchiveMoves` ignores `deriveUnits` and moves half a unit). The bar: the
@@ -342,10 +340,38 @@ Three documents corrected, each pinned by a test comparing one document against 
 
 ## In-flight
 
-**`M5.E15`** — the control arm, made real (`B55`). DISCUSS + PLAN closed 2026-08-04; **EXECUTE next**
-(7 slices, 3 waves; wave 1 = S1 ‖ S2 ‖ S3 ‖ S4). Since this line last read *"Nothing, M5.E16 closed
-2026-08-02"*, M5.E17 and M5.E18 both shipped and M5.E15 opened — **the body contradicted this file's
-own frontmatter by two Epics**, and the frontmatter is the declared machine-truth (`INDEX.md:119`).
+**Nothing in flight. `M5.E19` closed and shipped as `v0.1.22` (2026-08-07)** — `/sig:archive`,
+the command archiving never had. Retro:
+[`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md). Decisions `D-M5E19-1`…`9`. Filed `B87`.
+2284 → **2300 tests**, **20 commands**.
+
+**This section has now gone stale FOUR times, the same way, and the fourth is the strongest
+evidence yet.** The sequence: (1) *"Nothing, M5.E16 closed"* while two Epics shipped and a third
+opened — **two Epics behind** the frontmatter; (2) *"`M5.E15` … EXECUTE next"* for a day after that
+Epic shipped; (3) *"Nothing in flight"* — written as the correction to (2) and falsified minutes
+later by `setCurrentEpic`; (4) *"At `PLAN`, and PAUSED … no `M5.E19-PLAN.md` yet, deliberately"* —
+falsified by **four** `transitionPhase` calls across EXECUTE → VERIFY → REVIEW → SHIP, while a
+`M5.E19-PLAN.md` sat on disk, **inside the Epic that filed `B87` about ledger honesty.**
+
+(3) could still be read as inattention. (4) cannot: the prose was accurate when written and was
+falsified by a **full phase sequence** of machine writes that structurally cannot touch it.
+`transitionPhase` moves frontmatter only; the frontmatter is the declared machine-truth
+(`INDEX.md:119`); this narrative is hand-maintained and **nothing reconciles it.** Filed in
+`ISSUES-INBOX.md`; it is a sibling of `B87` — both are *the record disagreeing with the work*.
+
+**Prior:** `M5.E15` — the control arm, made real (`B55`) — **closed and shipped as `v0.1.19`,
+2026-08-06**; `B52` shipped as `v0.1.20` the same day in the fix lane. Its six-phase log is archived
+at [`archive/M5/E15/STATE-NARRATIVE.md`](archive/M5/E15/STATE-NARRATIVE.md).
+
+**This section has now gone stale three times, the same way — and the third time was inside the
+commit that fixed the second.** The sequence, because the last instance is the informative one:
+(1) *"Nothing, M5.E16 closed 2026-08-02"* while M5.E17 and M5.E18 shipped and M5.E15 opened —
+**two Epics behind the frontmatter**; (2) *"`M5.E15` … EXECUTE next"* for a day after that Epic
+shipped; (3) *"Nothing in flight"* — written as the correction to (2), then contradicted minutes
+later by `setCurrentEpic` writing `current_epic: M5.E19` into the frontmatter above it, and
+committed that way. **A hand-edit is stale the moment the next state write lands**, which is why
+care is not the remedy. The frontmatter is the declared machine-truth (`INDEX.md:119`); this prose
+is hand-maintained and nothing reconciles it.
 
 **Carried from M5.E16's retro, unhomed:** `review_depth: quality-only` silently disables
 `simplification_pass`, and `M5.E16-PROFILE.md`'s prose claimed the dial anyway — so the profile

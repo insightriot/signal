@@ -1319,3 +1319,175 @@ the corpus option costed in front of him. Re-opening it is a human call on the e
 ## 2026-08-06 — Checkpoint-captured: Mutation-verification is a DECLARED DEVIATION from RED-first, never counted as strict-Nyquist compliance. Where a test was written after its implementation, breaking the code and requiring the test to go red proves the assertion discriminates today — it does not prove the test was written honestly. M5.E15 declared six such criteria rather than attesting falsely.
 
 ## 2026-08-06 — Checkpoint-captured: A caveat whose absence is indistinguishable from a clean result must either render unconditionally or be pinned by a test that fails when it stops rendering. Written into tools/lib/adherence-caveats.js after the same defect occurred twice in the same file three months apart (M5.E8 and M5.E15 S7) — a published record silently omitting its own scope. The isolation scope now renders `undeclared` out loud rather than omitting the line.
+
+## 2026-08-07 — M5.E19 DISCUSS: wiring the archive half, and the gate that refuses (D-M5E19-1 … D-M5E19-5)
+
+**D-M5E19-1 — M5.E19 runs at Epic-scoped FEATURE, and `review_depth: full` is set against the tier's own default.**
+
+The project is FULL; `BACKLOG.md` sizes this item as *medium*. M5.E18 already built and measured the
+library, so this Epic is wiring plus one defect in a function that exists. FEATURE is the honest tier.
+
+But FEATURE's defaults are calibrated for additive feature work, and this is a **destructive file
+mover** replacing a tool that failed by being too permissive. Three dials stay up: `security_audit:
+basic` (the mover feeds a path-confinement boundary), `nyquist_enforcement: strict` (an unpinned
+refusal is a warning wearing a gate's clothes), and `review_depth: full`.
+
+**The third one is load-bearing and non-obvious.** Under `quality-only`, `commands/review.md:17`
+skips REVIEW Steps 2/3/4 *"regardless of what `security_audit` / `performance_pass` /
+`simplification_pass` say."* Setting FEATURE's default would have made the other two dials **inert**
+while this file claimed them — a profile asserting rigor the Epic never receives. That is precisely
+the finding carried unhomed in STATE's In-flight section from M5.E16's retro, and it is `B59`'s shape
+one level up: `B59` was a profile the code could not *parse*; this is one it parses and then silently
+overrides.
+
+**Verified, not assumed:** `readEffectiveProfile(base, {currentEpic: 'M5.E19'})` was executed before
+PLAN and returns `FEATURE` with all ten overrides intact. `B59` shipped because nobody ran that call
+until the Epic's own PLAN preamble, by which point a whole DISCUSS had run at the project's FULL.
+
+**D-M5E19-2 — Archiving is a new `/sig:archive`, not a flag on `/sig:migrate-memory`.**
+
+`/sig:migrate-memory` is a layout reorganizer keyed to `docs_layout_version` — it answers *"is this
+project's `.planning/` in the current shape?"* Archiving closed work answers *"is this unit
+finished?"*, on a different cadence (every Epic close, not every layout bump). Folding them produces
+one command with two unrelated triggers, where the dry-run output would mix a reorganization plan
+with a closure plan and the reader could not tell which refusal belonged to which question.
+
+Cost accepted, and stated rather than elided: **a 20th command**. The alternative was judged worse.
+
+**D-M5E19-3 — `cannotDetermine` refuses the unit; the run completes anyway.**
+
+The bar for this Epic is *"a warning asks; a gate refuses"* — so an unreadable closure must never
+result in a move. The question this decision settles is what happens to the **rest of the run**.
+
+It completes. **From the corpus, not from principle:** 9 of 30 terminal artifacts (30%) carry no
+readable verdict, and `resolveClosures` is explicit that a project-scoped failure — `affiliate-mojo`
+throws on `readState` — makes **every** unit `cannotDetermine` rather than dropping units or
+throwing. If `cannotDetermine` aborted the run, one unreadable project would block archiving
+everywhere, and the command would be least useful exactly where the corpus is messiest.
+
+Each refusal carries the `reason` string `resolveClosures` already produces. A refusal with no reason
+is indistinguishable from a unit that was never examined.
+
+**D-M5E19-4 — `B82` is fixed by making the closure record carry its own files.**
+
+`resolveClosures` already calls `deriveUnits` and iterates `[unit, unitFiles]` — it **has** the
+correct membership and discards it, keeping only `{unit, status, reason, evidence}`.
+`planArchiveMoves` then rebuilds candidates as `` `${PLANNING_DIR}/${unit}-${suffix}.md` `` from a
+fixed suffix list, which cannot express `deriveUnits`' conservative fold. Two implementations of one
+rule, in two modules.
+
+The fix adds `files` to the record and has the mover consume it. **The rejected alternative** — pass
+`deriveUnits`' output into `planArchiveMoves` as a second argument — is rejected precisely because it
+preserves the defect's shape: two callers, each free to derive membership its own way, disagreeing
+again the next time one is edited.
+
+**Re-measured 2026-08-07 across all 12 local projects with a `.planning/`, because the row's number
+was too small.** `B82` splits **3 units across 2 projects, stranding 6 files**: `SLICE-SSO` in both
+`nextpass` and `cm-mentor-coach`, and `GATE-A` in `nextpass`. `BUGS.md` records one unit on one
+project. **Signal's own tree shows 0 splits** (13 units, 57 ungrouped) — so dogfooding alone would
+have shipped this defect, and the two projects it does hit are the two archiving by hand-written
+runbook today. The regression test is therefore keyed to the real corpus, not to a fixture
+(`AC3.3`).
+
+**D-M5E19-5 — Dry-run by default; the ungrouped set is reported unconditionally, including at zero.**
+
+Dry-run matches `/sig:migrate-memory`'s posture and is the correct default for a tool whose
+predecessor's failure mode was moving things it should not have. Writes require an explicit flag.
+
+The ungrouped half is `D-M5E18-2` applied here, and it is not a formality: Signal's own tree carries
+**57 ungrouped files against 13 units**. A run that archives 13 units and says nothing about 57 files
+reads as complete when it is not. Reporting at **0** as well as at 57 is `B39`'s rule — an empty
+collection must stay distinguishable from one that was never computed.
+
+## 2026-08-07 — M5.E19 PLAN: the premise did not survive execution (D-M5E19-6, D-M5E19-7)
+
+**D-M5E19-6 — `B82` leaves this Epic and ships in the fix lane. `D-M5E19-4` is superseded on its
+mechanism, upheld on its principle.**
+
+Running the seam at PLAN falsified the entry this Epic was opened on. `BACKLOG.md` and `STATE.md`
+both said *"M5.E18 built the engine and wired none of it"*, quoting the retro's *"the library could
+do 110; nothing wired it."* **That quote describes what M5.E18 found mid-Epic**; its wave 6 fixed it,
+and the release's headline *114 files across 6 projects* is the delivery. Verified by execution:
+`applyArchiveTree({apply:true})` is reachable at `migrate-memory.js:2554` behind
+`if (archiveMoveMap.size > 0)` — **not** gated on a layout bump — so `/sig:migrate-memory --apply`
+archives closed units on any project today.
+
+The closure **gate** also already exists: `senseArchiveTree` computes `closedUnits = retro ∪ verdict`
+(stub retros veto) and only those units get moves. Default-deny. The `resolveClosures` call at
+`migrate-memory.js:1975` is **narration** — `try`/`catch`, feeding `explainArchiveOutcome`, and its
+own comment says *"an explanatory read on a dry-run display."* The word *"wired"* in the backlog
+entry hid the difference between **called** and **load-bearing**.
+
+What remained genuinely broken was `B82` — live, measured, and hurting the two projects that archive
+by hand today. Splitting it out: a data-integrity defect should not wait on six phases for a feature
+nobody is blocked by. Shipped as `#98`, 2026-08-07, squash-merged.
+
+**`D-M5E19-4` is superseded on mechanism.** It specified *the closure record carries its files*. The
+shipped fix has `planArchiveMoves` call `deriveUnits` directly and exports `suffixOf` from
+`work-units.js` so the mover preserves lifecycle ordering without re-deriving the suffix rule. The
+**principle** — one implementation of unit membership, never two — is what the decision was for, and
+it holds; `resolveClosures` simply turned out not to be the caller that needed changing. Recorded as
+superseded rather than edited, because the original reasoning is why the fix took the shape it did.
+
+**D-M5E19-7 — the Epic's remaining scope is smaller than what was approved, and that is stated
+before PLAN rather than discovered at REVIEW.**
+
+With `B82` gone and the gate found to exist, M5.E19 is: **a standalone `/sig:archive` command**
+(FR1), **tests pinning the gate that already works** (FR2, re-scoped from *build* to *verify and
+surface*), and the reporting requirements (FR4–FR6). That is a command wrapper over working
+machinery.
+
+The real user-facing gap is unchanged and still real: archiving today is a **side effect of a
+document-layout reorganizer**, so there is no way to archive at an Epic close without running a
+command about something else and reading past the parts that do not apply. That is why `nextpass` and
+`cm-mentor-coach` wrote runbooks. But it is a convenience gap, not damage.
+
+**Open for the user, deliberately not resolved here:** whether that remainder is Epic-shaped at all,
+or a fix-lane command addition. Put in front of them with the fix already shipped as context, rather
+than allowed to re-inflate inside PLAN to justify six phases.
+## 2026-08-07 — Command taxonomy: the ontology existed, the rule did not (D-M5E19-8, D-M5E19-9)
+
+**D-M5E19-8 — the new command is `/sig:archive`, a bare verb, and NOT `/sig:memory-archive`.**
+
+Raised by Brett while approving it: *"do we make similar taxonomy for the commands — something like
+`sig:memory-organize` and then `sig:memory-archive` — or are those flags? But if every command is
+super different and doesn't have any ontology (reflected in taxonomy) then feels like it gets more
+and more confusing over time."*
+
+The worry is well-founded and the evidence was already on disk. **Five coherent groups exist** —
+derived by reading `commands/*.md`, not invented: flow, orientation, capture, document upkeep, and
+Signal's own health. What did not exist was a written rule, so each of 19 commands was named on the
+day it was built. The **document-upkeep** group shows the drift directly: `index` and `sweep` are
+bare verbs while `migrate-memory` is a verb-noun compound.
+
+**The decisive argument against `memory-archive` today** is not taste. Adding it while `index` and
+`sweep` stay bare introduces a **third** naming style into a four-member group — the cost of
+inconsistency without the benefit of grouping. Either the group converts wholesale or the existing
+convention holds. **Half-migrating a namespace is worse than either end state.**
+
+`archive` also satisfies the rule now written down: name the act as a bare verb unless the verb is
+ambiguous without its object. `migrate-memory` earns its noun (*migrate* alone would not say what
+moves); `archive` does not need one.
+
+**Also settled: separate command, not a flag on `/sig:migrate-memory`** — restating `D-M5E19-2`
+against the taxonomy rather than against convenience. The test is *what question is the user
+answering*: layout changes when the structure does, archiving happens at every unit close. A flag
+would assert they are variants of one operation.
+
+**Written down as `references/command-taxonomy.md`.** A group nobody can see from the command file
+is a group that drifts, so each command states its group where it already states whether it is
+phase-gated.
+
+**D-M5E19-9 — whether group 4 becomes a prefixed namespace is filed, not decided, and not
+"someday."**
+
+The case for `memory-*` / `docs-*` is real: at 30 commands a flat namespace is harder to learn.
+The case against doing it *now* is that a rename is **user-visible and breaking** — deprecation
+aliases, a `[BREAKING]` entry, a `0.2.0` bump, and a pass over every doc naming a command. That is
+separate work from adding a command, and bundling them means a wrong taxonomy would make the new
+command wrong too.
+
+**But "later" is bounded.** Pre-1.0 with a small user base is when this is cheapest, and the cost
+rises with every command added. Filed as `BACKLOG.md` item 4, tagged **hygiene**, with the explicit
+note that it means *the next naming-shaped thing*, not *someday*. Recording the deadline-shaped
+reasoning because `B39` is this repo's standing lesson about triggers nobody walks.

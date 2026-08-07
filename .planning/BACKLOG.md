@@ -63,9 +63,31 @@ warning alone leaves the silent-data-loss path intact.
 
 </details>
 
-### 2. The closure-gated archive command · **Epic lane** · medium · **fold in `B82`** · **▶ NEXT**
+### 2. ~~The closure-gated archive command~~ · **DONE — `v0.1.22` (`M5.E19`), 2026-08-07** · `B82` shipped in `v0.1.21`
 
 *Plain: finish the archiving tool, because the thing it replaced is gone.*
+
+**▶ TWO CORRECTIONS from `M5.E19`'s own research (2026-08-07), both found by running the code
+rather than reading this entry.** Left in place rather than rewritten, because the entry's error is
+the useful part.
+
+1. **`B82` is DONE** — shipped in the fix lane as part of `v0.1.21` (#98), not folded into the Epic.
+   A live data-integrity defect should not wait on six phases. Measured across 12 local projects:
+   **3 split units / 6 stranded files → 0 / 0.**
+2. **"M5.E18 built the engine and wired none of it" is WRONG.** That sentence quotes M5.E18's retro
+   — but the retro is describing what it found **mid-Epic**, and its wave 6 fixed it. The release's
+   headline *114 files across 6 projects* **is** the delivery. Verified by execution:
+   `applyArchiveTree({apply:true})` is reachable from `/sig:migrate-memory` behind
+   `if (archiveMoveMap.size > 0)`, **ungated by layout version**. The closure **gate** also already
+   exists — `senseArchiveTree`'s retro ∪ verdict union is default-deny. The `resolveClosures` call
+   at `migrate-memory.js:1975` is **narration**, not gating, and its own comment says so.
+   **The word "wired" hid the difference between *called* and *load-bearing*.** `D-M5E19-6`.
+
+**So the real gap is narrower than this entry claimed, and still worth building:** archiving works,
+but it has **no command of its own** — it happens inside a document-*layout* reorganizer, so filing
+away finished work means running a command about something else and reading past half its output.
+Brett, 2026-08-07: *"YES — definitely want sig:archive."* Named per
+[`../references/command-taxonomy.md`](../references/command-taxonomy.md) (`D-M5E19-8`).
 
 **Trigger FIRED 2026-08-04** — `curator` was removed from the machine; `nextpass` and
 `cm-mentor-coach` archive by hand-written runbook **today**. This is the only item with users
@@ -103,6 +125,38 @@ in a hand-maintained table that nothing reconciles.
 closing wired into the phase gates) are Epic-shaped and its trigger is unmet.
 
 
+
+### 4. Command namespace — decide whether group 4 gets a prefix · **hygiene** · small-to-medium
+
+*Plain: decide now, deliberately, whether commands get grouped names — before there are 30 of them.*
+
+**Raised by Brett 2026-08-07** while approving `/sig:archive`: *"if every command is super different
+and doesn't have any ontology (reflected in taxonomy) then feels like it gets more and more
+confusing over time."* Correct, and the evidence was already on disk.
+
+**The ontology existed; the taxonomy did not.** Five coherent groups were derived by reading
+`commands/*.md` and are now written down in
+[`../references/command-taxonomy.md`](../references/command-taxonomy.md) with a naming rule. **That
+doc is the cheap half and it is done.** What remains is one decision it deliberately does not make.
+
+**The open question:** should group 4 (document upkeep — `index`, `sweep`, `migrate-memory`,
+`archive`) become `memory-*` or `docs-*`? The group already carries **two naming styles**
+(`index`/`sweep` are bare verbs, `migrate-memory` is a compound), which is the drift Brett is
+describing.
+
+**Why it was NOT folded into `/sig:archive`.** Adding `memory-archive` while `index` and `sweep`
+stayed bare would introduce a **third** style into one group — the inconsistency without the
+grouping. Either convert the group wholesale or keep the convention; half-migrating is the worst of
+the three. `D-M5E19-8`.
+
+**What makes it non-trivial:** a rename is **user-visible and breaking**. It needs deprecation
+aliases, a `[BREAKING]` CHANGELOG entry, a minor bump (`0.2.0` — pre-1.0 allows it), and a pass over
+every doc that names a command. `install-contract.test.js` and the roster-count checks will both
+have opinions.
+
+**Why it should not sit indefinitely:** pre-1.0 with a small user base is when this is cheapest, and
+it only gets more expensive per command added. Treat *"later"* as *"the next naming-shaped thing,"*
+not *"someday."*
 
 ---
 
