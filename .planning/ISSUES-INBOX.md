@@ -1844,5 +1844,40 @@ Loop engineering: split attention from rigor — full analysis + build path in a
 
 ---
 
+## STATE drift: no check compares body *characterization* against the frontmatter
 
-*Last updated: 2026-08-03*
+**Status:** Logged 2026-08-07 during `/sig:checkpoint`, before opening the archive Epic.
+
+**Measured, not reasoned — from this session.** `/sig:resume` ran `runDriftChecks` and reported
+**6/6 clean, 0 need a person**. At that same moment `STATE.md`'s `## In-flight` section read
+*"**`M5.E15`** … DISCUSS + PLAN closed 2026-08-04; **EXECUTE next**"* while the frontmatter read
+`phase: SHIP`, `completed_phases` containing SHIP, and `current_tasks: []` — M5.E15 had shipped as
+`v0.1.19` the previous day.
+
+**Not a broken guard — a gap between two honest ones.** Checked both before filing:
+
+- `body-omits-current-epic` does exactly what its `describe` says: `mentioned.has(epic)`. The body
+  named `M5.E15` six times, so it returned clean. **Presence is not agreement.**
+- `phase-behind-artifacts` compares frontmatter `phase` against *artifacts on disk*, never against
+  the prose.
+
+So a body can name the right Epic, describe it in the wrong phase, and both checks pass by
+construction.
+
+**Why it is worth a check rather than more care.** This section has now gone stale the same way
+twice — the prose it carried before this one (*"Nothing, M5.E16 closed 2026-08-02"*) contradicted
+the frontmatter **by two Epics**, and that contradiction is recorded *in the section itself*. It was
+caught by a person re-reading, both times. `/sig:checkpoint` advances the frontmatter only; nothing
+reconciles the narrative.
+
+**For triage — the part that needs a person.** The obvious check ("does the body's phase claim for
+`current_epic` match the frontmatter's?") is a **prose-vs-frontmatter comparison**, which is
+`M5.E10`'s semantic territory, not the deterministic territory `M5.E16` scoped `state-drift.js` to.
+The same boundary already deferred the `review_depth: quality-only` finding carried in STATE's
+In-flight section. Decide whether a narrow deterministic slice exists (e.g. only the phase-name
+token nearest the `current_epic` mention) or whether this waits for `M5.E10`.
+
+---
+
+
+*Last updated: 2026-08-07*

@@ -15,8 +15,8 @@ completed_phases:
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-08-02T00:20:21.679Z
-last_updated_commit: a5dc76c
-last_updated: 2026-08-06T15:06:22.229Z
+last_updated_commit: 3ca1e6e08a639481d03241a6ce979ea81719a44c
+last_updated: 2026-08-07T12:07:14.842Z
 ---
 # Project State
 
@@ -342,10 +342,15 @@ Three documents corrected, each pinned by a test comparing one document against 
 
 ## In-flight
 
-**`M5.E15`** — the control arm, made real (`B55`). DISCUSS + PLAN closed 2026-08-04; **EXECUTE next**
-(7 slices, 3 waves; wave 1 = S1 ‖ S2 ‖ S3 ‖ S4). Since this line last read *"Nothing, M5.E16 closed
-2026-08-02"*, M5.E17 and M5.E18 both shipped and M5.E15 opened — **the body contradicted this file's
-own frontmatter by two Epics**, and the frontmatter is the declared machine-truth (`INDEX.md:119`).
+**Nothing in flight.** `M5.E15` — the control arm, made real (`B55`) — **closed and shipped as
+`v0.1.19`, 2026-08-06**; `B52` shipped as `v0.1.20` the same day in the fix lane. Next work is item 2
+of *▶ NEXT WORK* above: the closure-gated archive command.
+
+**This section has now gone stale twice, the same way.** It previously read *"`M5.E15` … EXECUTE
+next"* for a day after that Epic shipped — and before that, *"Nothing, M5.E16 closed 2026-08-02"*
+while M5.E17 and M5.E18 both shipped and M5.E15 opened, **contradicting this file's own frontmatter
+by two Epics**. The frontmatter is the declared machine-truth (`INDEX.md:119`); this prose is
+hand-maintained and nothing reconciles it.
 
 **Carried from M5.E16's retro, unhomed:** `review_depth: quality-only` silently disables
 `simplification_pass`, and `M5.E16-PROFILE.md`'s prose claimed the dial anyway — so the profile
