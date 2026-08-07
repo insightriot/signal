@@ -6,22 +6,37 @@ Load this at the start of every work session. Short on purpose.
 
 ## Where things stand (2026-08-06)
 
-**`v0.1.19` shipped** — M5.E15, *the control arm, made real* (`B55`). The adherence harness's control
+**`v0.1.20` shipped** — `B52`, *which copy of Signal is actually running*. Fix lane, both halves.
+Claude Code resolves a plugin's install path **once, at session start**, and holds it for the life of
+the **process**, so a session alive across an auto-update runs the version it started with while
+every config file on disk correctly records the new one. `tools/lib/plugin-binding.js` compares the
+copy the process *actually resolved* against what `installed_plugins.json` records, at **two**
+surfaces — the SessionStart hook **structurally cannot see** a mid-session update (the binding is
+resolved before it runs), so `/sig:status` and `/sig:resume` read at the moment of use. Half 2's
+`setCurrentEpic` guard proved **wider than the bug report**: two of the three branches that zero an
+unarchived phase log need no stale cache at all. Closed `B52`; filed `B84`. Suite **2269**.
+
+⚠ **The first session after this merge is the one session the fix cannot protect** — the check ships
+inside the cache copy it inspects, so it cannot fire until a session binds to a version that has it.
+Restart the CLI process, then `/sig:update`.
+
+**Prior — `v0.1.19`** — M5.E15, *the control arm, made real* (`B55`). The adherence harness's control
 arm now deletes the measured instruction from all five sites that order it, and an independent leak
 walk verifies the tree without consulting what the canary declared. `B41-phase-entry` re-ran
 **`OBEYED`** (treatment 3/3, control 0/3, seam PASS) — the first verdict the harness has produced
-that means what it says. Closed `B55`, `B80`, `B83`. Suite **2233**.
+that means what it says. Closed `B55`, `B80`, `B83`.
 
-**Merged with `--merge`, deliberately** — `ADHERENCE-LOG.md` pins commit SHAs as its reproducibility
-anchor, so squashing would leave a published verdict naming a commit absent from `main`. The two-lane
-merge rule is now stated in `CLAUDE.md` and `commands/ship.md` (`#89`).
+**Two lanes, two merge strategies** — `ADHERENCE-LOG.md` pins commit SHAs as its reproducibility
+anchor, so squashing an **Epic** would leave a published verdict naming a commit absent from `main`;
+v0.1.19 merged with `--merge` for that reason. The **fix lane** squashes (v0.1.20 did). The rule is
+stated in `CLAUDE.md` and `commands/ship.md` (`#89`).
 
-**▶ Next work is agreed and sequenced: `B52` → the closure-gated archive command (+`B82`) →
-`M5.E14`'s shippable slice.** The reasoning lives in **`BACKLOG.md` → "Next work — the agreed
-sequence"**; `STATE.md`'s resume pointer carries a summary. Read the BACKLOG entry before starting —
-it records *why* this order and what was excluded on evidence.
+**▶ Next work: the closure-gated archive command (+`B82`), then `M5.E14`'s shippable slice.**
+`B52` is done. The reasoning lives in **`BACKLOG.md` → "Next work — the agreed sequence"**;
+`STATE.md`'s resume pointer carries a summary. Read the BACKLOG entry before starting — it records
+*why* this order and what was excluded on evidence.
 
-**Start item 1 in the fix lane** (branch + PR + green CI; no six phases). Items 2 is Epic-shaped.
+**The next item is Epic-shaped** (six phases), unlike `B52` which ran in the fix lane.
 
 ## Project
 
@@ -52,13 +67,15 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-**v1 is feature-complete and shipped. Latest: v0.1.18 (2026-08-04, M5.E18 — the archive half, for the projects Epic-gating did not reach).** Both archive paths were Epic-gated by construction; `/sig:migrate-memory` went from **67 files across 1 of 12 projects** to **114 across 6**. Closure gained a third outcome (`cannotDetermine`) because 9 of 30 terminal artifacts carry no readable verdict, and the closed-set is a **union** — retro-only is blind to 8 projects, verdict-only loses 4. Fixed `B64`, `B72`, `B63`, `B78`. Prior: **v0.1.17 (2026-08-03 — `B70`,** `/sig:status` and `/sig:resume` threw outright on a project whose `phase` is not one of the canonical seven, losing the whole briefing rather than one line**)**; **v0.1.16 (2026-08-02, M5.E16 — STATE-vs-world drift detection).** **19 slash commands, 26 agents, 21 skills, 2168 tests, validator green.**
+**v1 is feature-complete and shipped. Latest: v0.1.20 (2026-08-06 — `B52`, which copy of Signal is actually running).** A session binds to one plugin-cache version for the life of the process, so it can run a release two versions behind the repo while every config file on disk reads correctly; the tool now says so, at a hook **and** on the command path, because the hook alone cannot see a mid-session update. Prior: **v0.1.19 (2026-08-06, M5.E15 — the control arm, made real: `B41-phase-entry` re-ran `OBEYED` on an arm that finally contained zero copies of the deleted instruction)**; **v0.1.18 (2026-08-04, M5.E18 — the archive half, for the projects Epic-gating did not reach:** `/sig:migrate-memory` went from **67 files across 1 of 12 projects** to **114 across 6**, and closure gained a third outcome (`cannotDetermine`) because 9 of 30 terminal artifacts carry no readable verdict**)**. **19 slash commands, 26 agents, 21 skills, 2269 tests, validator green.**
 
 Recent releases, newest first — full detail in `CHANGELOG.md`:
 
 | Version | Epic | What it was |
 |---|---|---|
-| **v0.1.18** | M5.E18 | The archive half — non-Epic units archive; three-outcome closure; a stub retro is not closure |
+| **v0.1.20** | — (fix lane) | `B52` — which copy of Signal is actually running; `setCurrentEpic` refuses to clear a log it did not archive |
+| v0.1.19 | M5.E15 | The control arm, made real — the harness's first verdict that means what it says |
+| v0.1.18 | M5.E18 | The archive half — non-Epic units archive; three-outcome closure; a stub retro is not closure |
 | v0.1.17 | — (fix lane) | `B70` — the briefing survives a phase it doesn't recognize |
 | v0.1.16 | M5.E16 | STATE-vs-world drift detection · `INDEX.md` at every phase transition · `/sig:update` |
 | v0.1.15 | M5.E17 | Instructions that contradict other instructions; `ship.md`'s direct-to-main self-exemption removed |
@@ -82,27 +99,29 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 
 ## Active work
 
-**M5.E15 is open — DISCUSS closed 2026-08-04.** *The control arm, made real (`B55`).* The adherence harness mutates one command file while the instruction it deletes lives in **13 files** of the copied plugin — so no verdict it has ever produced was isolated. Requirements: [`M5.E15-REQUIREMENTS.md`](M5.E15-REQUIREMENTS.md). Decisions: `D-M5E15-1 … D-M5E15-9`.
+**Nothing is in flight.** The last two pieces of work both closed on 2026-08-06: **M5.E15** shipped as **v0.1.19** (retrospective at [`M5.E15-RETROSPECTIVE.md`](M5.E15-RETROSPECTIVE.md)), and **`B52`** shipped as **v0.1.20** in the fix lane — no six phases, so no Epic artifacts and no retrospective. **Next up is the closure-gated archive command**, which is Epic-shaped.
 
-**The two calls that shaped it.** The verdict is **directive-scoped** — the control arm deletes the five sites that *order* the call and leaves the schema docs and the implementation alone, because over-deleting produces a *differently-informed* control agent whose 0/3 is as unreadable as a leaky one (`D-M5E15-1`). And the Epic **does not close until `B41-phase-entry` is re-run under the fixed arm, publishing whatever comes back** — `INERT` would mean M5.E9's phase-entry instruction changes nothing, pre-committed at DISCUSS (`D-M5E15-6`).
+**What M5.E15's close settled.** The verdict is **directive-scoped** — the control arm deletes the five sites that *order* the call and leaves the schema docs and the implementation alone, because over-deleting produces a *differently-informed* control agent whose 0/3 is as unreadable as a leaky one (`D-M5E15-1`). Its closing condition (`D-M5E15-6`) was met rather than waived: `B41-phase-entry` was re-run under the fixed arm and published — **`OBEYED`**, not the `INERT` the Epic pre-committed to publishing if that is what came back.
 
-**Prior: M5.E18 closed 2026-08-04**, shipped as v0.1.18 — retrospective at [`M5.E18-RETROSPECTIVE.md`](M5.E18-RETROSPECTIVE.md).
+**Earlier: M5.E18 closed 2026-08-04**, shipped as v0.1.18 — retrospective at [`M5.E18-RETROSPECTIVE.md`](M5.E18-RETROSPECTIVE.md).
 
 **Read the queue below against `BACKLOG.md`, not instead of it.** This list was wrong on 2026-08-03 — it named M5.E15 next while `BACKLOG.md`'s newer M5.E18 entry (PRs #21/#24, vs this file's #19) carried an unconditional-next marker and a Brett quote from that day. `/sig:resume` repeated the stale ordering. **The queue lives in two places and only `BACKLOG.md` gets edited when work is filed** (D-M5E18-1).
 
 **The queue, in the order the evidence argues for:**
 
-1. ~~**M5.E15**~~ — **open, DISCUSS closed 2026-08-04** (above). The standing prohibition is now *satisfied by* the Epic rather than pending: it forbids a re-run before the arm is fixed, and `D-M5E15-6` requires one after.
-2. **M5.E14** — tracker migration **plus** the 48-entry inbox triage cut from M5.E17 (`D-M5E17-3`). The deeper problem is the capture *channel*: findings that reach the backlog arrive incidentally, from someone reading an artifact.
-3. **M5.E10** — review hardening / claim integrity. The **judge-based, semantic** half of M5.E16's question (claims-vs-artifacts) lands here, after the deterministic checks rather than with them.
+1. ~~**M5.E15**~~ — **closed, shipped as v0.1.19** (2026-08-06). The standing prohibition on re-running the canary is now discharged, not pending: it forbade a re-run before the arm was fixed, and `D-M5E15-6` required one after — which happened and published `OBEYED`.
+2. ~~**`B52`**~~ — **closed, shipped as v0.1.20** (2026-08-06, fix lane).
+3. **▶ The closure-gated archive command** (+`B82`) — Epic lane. Trigger **fired** 2026-08-04 when `curator` was removed from the machine; `nextpass` and `cm-mentor-coach` archive by hand-written runbook today. This is the only queued item with users waiting. M5.E18 built the engine and wired none of it.
+4. **`M5.E14`'s shippable slice only** — the `discharged` marker + a SHIP-gate open-obligations query behind a capability check. **Not** the tracker Epic: its stated trigger (`M5.E10` lands) is unmet, and the backlog entry explicitly allows this one piece to ship ahead as a patch.
+5. **M5.E10** — review hardening / claim integrity. The **judge-based, semantic** half of M5.E16's question (claims-vs-artifacts) lands here, after the deterministic checks rather than with them.
 
-**Open bug tail:** `B79` (filed at M5.E18's SHIP — `evictEpicNarrative` has never been able to fire for Signal's own STATE.md and reports it as a clean no-op), `B77` (a tally that greps for exact cell values cannot see one of its own file's two formats), `B73`–`B76` (the loop-engineering audit's `LE-1…LE-4`), `B60` (P2, `needs-triage` — six phase commands have no branch for a malformed PROFILE while four meta commands do), `B61` (P3, `confirmed` — hand-edited numeric-looking `last_updated_commit` is YAML-coerced), `B56` (P3 — `facts.md`'s test count still has no guard pinning it to the real suite; `tools/cut-release.js` now sets the number from the gating `vitest` run, but only if the script is used, so the bug stays `confirmed`).
+**Open bug tail:** `B84` (**new, v0.1.20** — `cut-release.js`'s no-release-notes guard is unreachable, because a historical `## [Unreleased]` heading satisfies it forever; the tool then relabelled *that* section as the new release rather than refusing. Found by running the tool, not by reading it), `B82` (`planArchiveMoves` rebuilds candidate names instead of consuming `deriveUnits`, so it archives half a unit — **in scope for the next Epic, not separate**), `B79` (filed at M5.E18's SHIP — `evictEpicNarrative` has never been able to fire for Signal's own STATE.md and reports it as a clean no-op), `B77` (a tally that greps for exact cell values cannot see one of its own file's two formats), `B73`–`B76` (the loop-engineering audit's `LE-1…LE-4`), `B60` (P2, `needs-triage` — six phase commands have no branch for a malformed PROFILE while four meta commands do), `B61` (P3, `confirmed` — hand-edited numeric-looking `last_updated_commit` is YAML-coerced), `B56` (P3 — `facts.md`'s test count still has no guard pinning it to the real suite; `tools/cut-release.js` now sets the number from the gating `vitest` run, but only if the script is used, so the bug stays `confirmed`).
 
 **Carried from M5.E16's retro, unhomed:** `review_depth: quality-only` silently disables `simplification_pass`, and a profile's prose can claim a dial the precedence rules turn off. That is a prose-vs-precedence comparison — M5.E10's semantic territory, not M5.E16's deterministic one.
 
 ---
 
-*Last updated: 2026-08-04 (**M5.E18 shipped as v0.1.18; M5.E15 next**) — patched, not rewritten. Caught by `/sig:resume` reading this file against `M5.E18-RETROSPECTIVE.md`, one day after the stamp below promised the same section would be watched. Prior update 2026-08-03 (**M5.E18 opened; DISCUSS closed**). Prior update 2026-08-02 (v0.1.16 / M5.E16 shipped), when this file had gone **seven Epics stale** — it described M5.E7 as in-flight while M5.E16 was closing — and was rewritten whole rather than patched, because `CLAUDE.md` tells every reader to open it first. **It went stale again within two PRs**, on the "Active work" queue specifically; see D-M5E18-1.*
+*Last updated: 2026-08-06 (**M5.E15 shipped as v0.1.19; `B52` shipped as v0.1.20; the archive command is next**). **Caught by `/sig:resume` again, and this time the file contradicted itself rather than the world:* its top section already said `v0.1.19` shipped with a suite of 2233 while "Current state" 60 lines below still read `v0.1.18` / 2168 tests. A patch had updated the section a reader hits first and left the section that carries the numbers — so the stamp said "current" and the file held two different answers. **Both were two releases stale by the time anyone read them.** Fixed together with `CLAUDE.md`, which had the same two defects (`Latest: v0.1.18`, and `Active: M5.E15 — EXECUTE not started` describing an Epic that had shipped). Prior update 2026-08-04 (**M5.E18 shipped as v0.1.18**) — patched, not rewritten, and caught by `/sig:resume` reading this file against `M5.E18-RETROSPECTIVE.md`, one day after the stamp below promised the same section would be watched. Prior update 2026-08-03 (**M5.E18 opened; DISCUSS closed**). Prior update 2026-08-02 (v0.1.16 / M5.E16 shipped), when this file had gone **seven Epics stale** — it described M5.E7 as in-flight while M5.E16 was closing — and was rewritten whole rather than patched, because `CLAUDE.md` tells every reader to open it first. **It went stale again within two PRs**, on the "Active work" queue specifically; see D-M5E18-1.*
 
 ## Locked Decisions
 
