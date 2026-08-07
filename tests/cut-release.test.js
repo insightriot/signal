@@ -73,6 +73,58 @@ describe('cut-release: the edits', () => {
     );
   });
 
+  // B84. The fixture above omits [Unreleased] entirely — but the REAL
+  // CHANGELOG.md always has one, permanently: M5.E7's v2 direction audit
+  // shipped no code and was never versioned. So the guard above was proven on
+  // a corpus that could not exhibit the bug, and in the real file the refusal
+  // branch was unreachable while the replace silently relabelled that historical
+  // section as the new release. Observed on the v0.1.20 cut.
+  describe('B84 — a historical [Unreleased] below the newest release is not notes', () => {
+    const WITH_HISTORICAL = [
+      '# CL',
+      '',
+      '## [0.1.19] — 2026-08-06 — Newest release',
+      '- shipped',
+      '',
+      '## [Unreleased] — 2026-07-26 — The v2 direction audit (M5.E7)',
+      '- no code shipped, so no version was cut',
+      '',
+    ].join('\n');
+
+    it('REFUSES rather than relabelling it', () => {
+      expect(() => foldChangelog(WITH_HISTORICAL, '0.1.20', '2026-08-06', 'T')).toThrow(/B84/);
+    });
+
+    it('leaves the historical heading byte-identical when it refuses', () => {
+      // Asserting only that it threw would pass even if the damage had landed.
+      let after = WITH_HISTORICAL;
+      try {
+        after = foldChangelog(WITH_HISTORICAL, '0.1.20', '2026-08-06', 'T');
+      } catch {
+        /* expected */
+      }
+      expect(after).toBe(WITH_HISTORICAL);
+      expect(after).toContain('## [Unreleased] — 2026-07-26 — The v2 direction audit (M5.E7)');
+    });
+
+    it('folds the PENDING section and leaves the historical one alone', () => {
+      const src = ['# CL', '', '## [Unreleased]', '- the real notes', '', WITH_HISTORICAL.split('\n').slice(2).join('\n')].join('\n');
+      const out = foldChangelog(src, '0.1.20', '2026-08-06', 'A thing');
+      expect(out).toContain('## [0.1.20] — 2026-08-06 — A thing');
+      expect(out).toContain('- the real notes');
+      // The historical heading survives, untouched.
+      expect(out).toContain('## [Unreleased] — 2026-07-26 — The v2 direction audit (M5.E7)');
+    });
+
+    // The guarantee stated against the file that actually ships, not a fixture.
+    it('the real CHANGELOG.md would refuse a cut with no notes written', async () => {
+      const { readFile } = await import('node:fs/promises');
+      const real = await readFile(new URL('../CHANGELOG.md', import.meta.url), 'utf-8');
+      expect(real).toMatch(/^## \[Unreleased\]/m); // the historical one is still there
+      expect(() => foldChangelog(real, '9.9.9', '2026-01-01', 'T')).toThrow(/B84/);
+    });
+  });
+
   it('sets the facts.md test count', () => {
     expect(setFactsTestCount('- **Test count:** 1954\n', 1978)).toContain('**Test count:** 1978');
   });
@@ -83,7 +135,20 @@ describe('cut-release: the edits', () => {
 });
 
 describe('cut-release covers every version site', () => {
-  const read = (rel) => readFileSync(join(ROOT, rel), 'utf8');
+  // These three tests are about VERSION-SITE COVERAGE, not about the fold
+  // guard, so they need a CHANGELOG in the state a real cut runs against: notes
+  // already written under a pending `## [Unreleased]` at the top.
+  //
+  // Before B84 they read the file raw and it happened to work — because the
+  // historical `[Unreleased]` heading lower down always satisfied the old
+  // guard. That silent dependency is exactly the defect: these tests were
+  // green *because* the bug existed. The precondition is now stated instead of
+  // borrowed.
+  const read = (rel) => {
+    const raw = readFileSync(join(ROOT, rel), 'utf8');
+    if (rel !== 'CHANGELOG.md') return raw;
+    return raw.replace(/^---$/m, '---\n\n## [Unreleased]\n\n### Fixed\n- seeded by the test\n');
+  };
 
   it('touches every file in VERSION_SOURCES that carries a version', () => {
     // The actual regression risk: someone adds a sixth entry to VERSION_SOURCES
