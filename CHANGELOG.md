@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.21] — 2026-08-07 — A closed unit archives whole, not half (B82)
 
 ### Fixed
 - **`B82` — a closed unit archived HALF of itself, and the split was invisible.** `planArchiveMoves` rebuilt every candidate as `` `{unit}-{suffix}.md` `` from a fixed suffix list — a **second implementation of "which files belong to this unit"**, disagreeing with the first. `deriveUnits` performs a conservative single-hop fold that a name template cannot express: `PLAN-SLICE-SSO-RESEARCH.md` belongs to `SLICE-SSO`, and no `{unit}-{suffix}` string ever produces it. The mover moved what it could name and left the rest, so a unit ended up split across `.planning/` and `.planning/archive/` with nothing reporting it.
