@@ -1319,3 +1319,82 @@ the corpus option costed in front of him. Re-opening it is a human call on the e
 ## 2026-08-06 — Checkpoint-captured: Mutation-verification is a DECLARED DEVIATION from RED-first, never counted as strict-Nyquist compliance. Where a test was written after its implementation, breaking the code and requiring the test to go red proves the assertion discriminates today — it does not prove the test was written honestly. M5.E15 declared six such criteria rather than attesting falsely.
 
 ## 2026-08-06 — Checkpoint-captured: A caveat whose absence is indistinguishable from a clean result must either render unconditionally or be pinned by a test that fails when it stops rendering. Written into tools/lib/adherence-caveats.js after the same defect occurred twice in the same file three months apart (M5.E8 and M5.E15 S7) — a published record silently omitting its own scope. The isolation scope now renders `undeclared` out loud rather than omitting the line.
+
+## 2026-08-07 — M5.E19 DISCUSS: wiring the archive half, and the gate that refuses (D-M5E19-1 … D-M5E19-5)
+
+**D-M5E19-1 — M5.E19 runs at Epic-scoped FEATURE, and `review_depth: full` is set against the tier's own default.**
+
+The project is FULL; `BACKLOG.md` sizes this item as *medium*. M5.E18 already built and measured the
+library, so this Epic is wiring plus one defect in a function that exists. FEATURE is the honest tier.
+
+But FEATURE's defaults are calibrated for additive feature work, and this is a **destructive file
+mover** replacing a tool that failed by being too permissive. Three dials stay up: `security_audit:
+basic` (the mover feeds a path-confinement boundary), `nyquist_enforcement: strict` (an unpinned
+refusal is a warning wearing a gate's clothes), and `review_depth: full`.
+
+**The third one is load-bearing and non-obvious.** Under `quality-only`, `commands/review.md:17`
+skips REVIEW Steps 2/3/4 *"regardless of what `security_audit` / `performance_pass` /
+`simplification_pass` say."* Setting FEATURE's default would have made the other two dials **inert**
+while this file claimed them — a profile asserting rigor the Epic never receives. That is precisely
+the finding carried unhomed in STATE's In-flight section from M5.E16's retro, and it is `B59`'s shape
+one level up: `B59` was a profile the code could not *parse*; this is one it parses and then silently
+overrides.
+
+**Verified, not assumed:** `readEffectiveProfile(base, {currentEpic: 'M5.E19'})` was executed before
+PLAN and returns `FEATURE` with all ten overrides intact. `B59` shipped because nobody ran that call
+until the Epic's own PLAN preamble, by which point a whole DISCUSS had run at the project's FULL.
+
+**D-M5E19-2 — Archiving is a new `/sig:archive`, not a flag on `/sig:migrate-memory`.**
+
+`/sig:migrate-memory` is a layout reorganizer keyed to `docs_layout_version` — it answers *"is this
+project's `.planning/` in the current shape?"* Archiving closed work answers *"is this unit
+finished?"*, on a different cadence (every Epic close, not every layout bump). Folding them produces
+one command with two unrelated triggers, where the dry-run output would mix a reorganization plan
+with a closure plan and the reader could not tell which refusal belonged to which question.
+
+Cost accepted, and stated rather than elided: **a 20th command**. The alternative was judged worse.
+
+**D-M5E19-3 — `cannotDetermine` refuses the unit; the run completes anyway.**
+
+The bar for this Epic is *"a warning asks; a gate refuses"* — so an unreadable closure must never
+result in a move. The question this decision settles is what happens to the **rest of the run**.
+
+It completes. **From the corpus, not from principle:** 9 of 30 terminal artifacts (30%) carry no
+readable verdict, and `resolveClosures` is explicit that a project-scoped failure — `affiliate-mojo`
+throws on `readState` — makes **every** unit `cannotDetermine` rather than dropping units or
+throwing. If `cannotDetermine` aborted the run, one unreadable project would block archiving
+everywhere, and the command would be least useful exactly where the corpus is messiest.
+
+Each refusal carries the `reason` string `resolveClosures` already produces. A refusal with no reason
+is indistinguishable from a unit that was never examined.
+
+**D-M5E19-4 — `B82` is fixed by making the closure record carry its own files.**
+
+`resolveClosures` already calls `deriveUnits` and iterates `[unit, unitFiles]` — it **has** the
+correct membership and discards it, keeping only `{unit, status, reason, evidence}`.
+`planArchiveMoves` then rebuilds candidates as `` `${PLANNING_DIR}/${unit}-${suffix}.md` `` from a
+fixed suffix list, which cannot express `deriveUnits`' conservative fold. Two implementations of one
+rule, in two modules.
+
+The fix adds `files` to the record and has the mover consume it. **The rejected alternative** — pass
+`deriveUnits`' output into `planArchiveMoves` as a second argument — is rejected precisely because it
+preserves the defect's shape: two callers, each free to derive membership its own way, disagreeing
+again the next time one is edited.
+
+**Re-measured 2026-08-07 across all 12 local projects with a `.planning/`, because the row's number
+was too small.** `B82` splits **3 units across 2 projects, stranding 6 files**: `SLICE-SSO` in both
+`nextpass` and `cm-mentor-coach`, and `GATE-A` in `nextpass`. `BUGS.md` records one unit on one
+project. **Signal's own tree shows 0 splits** (13 units, 57 ungrouped) — so dogfooding alone would
+have shipped this defect, and the two projects it does hit are the two archiving by hand-written
+runbook today. The regression test is therefore keyed to the real corpus, not to a fixture
+(`AC3.3`).
+
+**D-M5E19-5 — Dry-run by default; the ungrouped set is reported unconditionally, including at zero.**
+
+Dry-run matches `/sig:migrate-memory`'s posture and is the correct default for a tool whose
+predecessor's failure mode was moving things it should not have. Writes require an explicit flag.
+
+The ungrouped half is `D-M5E18-2` applied here, and it is not a formality: Signal's own tree carries
+**57 ungrouped files against 13 units**. A run that archives 13 units and says nothing about 57 files
+reads as complete when it is not. Reporting at **0** as well as at 57 is `B39`'s rule — an empty
+collection must stay distinguishable from one that was never computed.
