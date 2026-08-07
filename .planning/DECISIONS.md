@@ -1398,3 +1398,50 @@ The ungrouped half is `D-M5E18-2` applied here, and it is not a formality: Signa
 **57 ungrouped files against 13 units**. A run that archives 13 units and says nothing about 57 files
 reads as complete when it is not. Reporting at **0** as well as at 57 is `B39`'s rule — an empty
 collection must stay distinguishable from one that was never computed.
+
+## 2026-08-07 — M5.E19 PLAN: the premise did not survive execution (D-M5E19-6, D-M5E19-7)
+
+**D-M5E19-6 — `B82` leaves this Epic and ships in the fix lane. `D-M5E19-4` is superseded on its
+mechanism, upheld on its principle.**
+
+Running the seam at PLAN falsified the entry this Epic was opened on. `BACKLOG.md` and `STATE.md`
+both said *"M5.E18 built the engine and wired none of it"*, quoting the retro's *"the library could
+do 110; nothing wired it."* **That quote describes what M5.E18 found mid-Epic**; its wave 6 fixed it,
+and the release's headline *114 files across 6 projects* is the delivery. Verified by execution:
+`applyArchiveTree({apply:true})` is reachable at `migrate-memory.js:2554` behind
+`if (archiveMoveMap.size > 0)` — **not** gated on a layout bump — so `/sig:migrate-memory --apply`
+archives closed units on any project today.
+
+The closure **gate** also already exists: `senseArchiveTree` computes `closedUnits = retro ∪ verdict`
+(stub retros veto) and only those units get moves. Default-deny. The `resolveClosures` call at
+`migrate-memory.js:1975` is **narration** — `try`/`catch`, feeding `explainArchiveOutcome`, and its
+own comment says *"an explanatory read on a dry-run display."* The word *"wired"* in the backlog
+entry hid the difference between **called** and **load-bearing**.
+
+What remained genuinely broken was `B82` — live, measured, and hurting the two projects that archive
+by hand today. Splitting it out: a data-integrity defect should not wait on six phases for a feature
+nobody is blocked by. Shipped as `#98`, 2026-08-07, squash-merged.
+
+**`D-M5E19-4` is superseded on mechanism.** It specified *the closure record carries its files*. The
+shipped fix has `planArchiveMoves` call `deriveUnits` directly and exports `suffixOf` from
+`work-units.js` so the mover preserves lifecycle ordering without re-deriving the suffix rule. The
+**principle** — one implementation of unit membership, never two — is what the decision was for, and
+it holds; `resolveClosures` simply turned out not to be the caller that needed changing. Recorded as
+superseded rather than edited, because the original reasoning is why the fix took the shape it did.
+
+**D-M5E19-7 — the Epic's remaining scope is smaller than what was approved, and that is stated
+before PLAN rather than discovered at REVIEW.**
+
+With `B82` gone and the gate found to exist, M5.E19 is: **a standalone `/sig:archive` command**
+(FR1), **tests pinning the gate that already works** (FR2, re-scoped from *build* to *verify and
+surface*), and the reporting requirements (FR4–FR6). That is a command wrapper over working
+machinery.
+
+The real user-facing gap is unchanged and still real: archiving today is a **side effect of a
+document-layout reorganizer**, so there is no way to archive at an Epic close without running a
+command about something else and reading past the parts that do not apply. That is why `nextpass` and
+`cm-mentor-coach` wrote runbooks. But it is a convenience gap, not damage.
+
+**Open for the user, deliberately not resolved here:** whether that remainder is Epic-shaped at all,
+or a fix-lane command addition. Put in front of them with the fix already shipped as context, rather
+than allowed to re-inflate inside PLAN to justify six phases.

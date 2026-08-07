@@ -337,10 +337,20 @@ Three documents corrected, each pinned by a test comparing one document against 
 
 ## In-flight
 
-**`M5.E19` — the closure-gated archive command. Opened 2026-08-07, at `DISCUSS`.** Epic-scoped
-**FEATURE** (`M5.E19-PROFILE.md`) against the project's FULL. Decisions `D-M5E19-1`…`5`;
-requirements in [`M5.E19-REQUIREMENTS.md`](M5.E19-REQUIREMENTS.md). Wires M5.E18's library to a
-command and folds in `B82`.
+**`M5.E19` — the closure-gated archive command. At `PLAN`, and PAUSED pending a scope call.**
+Epic-scoped **FEATURE** (`M5.E19-PROFILE.md`). DISCUSS closed; `M5.E19-RESEARCH.md` written;
+**no `M5.E19-PLAN.md` yet, deliberately.**
+
+**PLAN's research falsified the entry the Epic was opened on.** Archiving is **already wired** —
+`applyArchiveTree({apply:true})` runs from `/sig:migrate-memory` on any project, ungated by layout
+version — and the closure **gate** already exists (`senseArchiveTree`'s retro ∪ verdict union,
+default-deny). The backlog's *"wired none of it"* quoted M5.E18's **mid-Epic** finding as an end
+state. `D-M5E19-6`.
+
+**`B82` left this Epic and shipped in the fix lane** (#98, 2026-08-07): 3 split units / 6 stranded
+files → **0 / 0** across 12 projects. What remains is a standalone `/sig:archive` command over
+machinery that works — **smaller than what was approved**, and the open question (`D-M5E19-7`) is
+whether that remainder is Epic-shaped or a fix-lane addition. Not resolved inside PLAN by design.
 
 **Prior:** `M5.E15` — the control arm, made real (`B55`) — **closed and shipped as `v0.1.19`,
 2026-08-06**; `B52` shipped as `v0.1.20` the same day in the fix lane. Its six-phase log is archived
