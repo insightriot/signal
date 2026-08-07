@@ -117,11 +117,26 @@ describe('cut-release: the edits', () => {
     });
 
     // The guarantee stated against the file that actually ships, not a fixture.
-    it('the real CHANGELOG.md would refuse a cut with no notes written', async () => {
+    //
+    // Written first as "the real CHANGELOG refuses a cut" — which was true when
+    // written and FALSE ten minutes later, the moment notes were written for
+    // the next release. That version tested a transient property of the file
+    // rather than the invariant, so it is phrased against the durable fact
+    // instead: strip whatever pending section happens to exist, and what
+    // REMAINS — the historical M5.E7 heading — must not satisfy the guard.
+    it('the real CHANGELOG.md refuses once its pending notes are removed', async () => {
       const { readFile } = await import('node:fs/promises');
       const real = await readFile(new URL('../CHANGELOG.md', import.meta.url), 'utf-8');
-      expect(real).toMatch(/^## \[Unreleased\]/m); // the historical one is still there
-      expect(() => foldChangelog(real, '9.9.9', '2026-01-01', 'T')).toThrow(/B84/);
+
+      // The historical heading is the whole reason this bug existed; if it ever
+      // goes away, this test should say so rather than silently pass.
+      expect(real).toContain('## [Unreleased] — 2026-07-26 — The v2 direction audit (M5.E7)');
+
+      const firstRelease = real.search(/^## \[\d+\.\d+\.\d+\]/m);
+      const noPending =
+        real.slice(0, real.indexOf('---') + 3) + '\n\n' + real.slice(firstRelease);
+
+      expect(() => foldChangelog(noPending, '9.9.9', '2026-01-01', 'T')).toThrow(/B84/);
     });
   });
 
