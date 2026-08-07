@@ -1864,11 +1864,25 @@ Loop engineering: split attention from rigor — full analysis + build path in a
 So a body can name the right Epic, describe it in the wrong phase, and both checks pass by
 construction.
 
-**Why it is worth a check rather than more care.** This section has now gone stale the same way
-twice — the prose it carried before this one (*"Nothing, M5.E16 closed 2026-08-02"*) contradicted
-the frontmatter **by two Epics**, and that contradiction is recorded *in the section itself*. It was
-caught by a person re-reading, both times. `/sig:checkpoint` advances the frontmatter only; nothing
-reconciles the narrative.
+**Why it is worth a check rather than more care — and the third instance settles it.** This section
+has now gone stale the same way **three times**, and the third happened **inside the commit that
+fixed the second**, minutes later, in this session:
+
+1. *"Nothing, M5.E16 closed 2026-08-02"* while M5.E17 and M5.E18 shipped and M5.E15 opened —
+   **two Epics behind** the frontmatter. Caught by a person re-reading.
+2. *"`M5.E15` … EXECUTE next"* for a day after that Epic shipped. Caught by a person re-reading.
+3. *"Nothing in flight"* — **written as the correction to (2)**, then contradicted by
+   `setCurrentEpic` writing `current_epic: M5.E19` into the frontmatter directly above it, and
+   committed in that state. Caught by review, not by any check.
+
+**The third instance is the argument.** (1) and (2) look like inattention, and inattention invites
+"be more careful" as the remedy. (3) cannot: the prose was accurate when written and was falsified
+by the **next state write**, which is a mechanical event no amount of care anticipates. A
+hand-maintained narrative next to a machine-written frontmatter goes stale by construction, not by
+neglect. `/sig:checkpoint` advances the frontmatter only.
+
+Note also that `runDriftChecks` reported **6/6 clean** across all three instances — the finding
+above — so the existing detector cannot distinguish any of them from a healthy file.
 
 **For triage — the part that needs a person.** The obvious check ("does the body's phase claim for
 `current_epic` match the frontmatter's?") is a **prose-vs-frontmatter comparison**, which is

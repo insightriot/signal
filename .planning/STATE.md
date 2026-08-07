@@ -53,7 +53,7 @@ this fix can protect.
    not merely a stale-cache backstop — **two** of the three branches that zero an unarchived phase log
    are reachable with no stale cache at all (a linear project opening its first Epic; a non-strict
    `current_epic` such as `PHASE11`). `B84` filed from the release cut itself.
-2. **▶ NEXT — the closure-gated archive command** — wire `resolveClosures` to the mover. **Epic lane.** Trigger
+2. **▶ RUNNING as `M5.E19` (opened 2026-08-07, DISCUSS closed) — the closure-gated archive command** — wire `resolveClosures` to the mover. **Epic lane.** Trigger
    FIRED 2026-08-04: `curator` was removed from the machine and `nextpass` + `cm-mentor-coach` are
    archiving by hand-written runbook today. M5.E18 built the engine and wired none of it. **Fold in
    `B82`** (P2 — `planArchiveMoves` ignores `deriveUnits` and moves half a unit). The bar: the
@@ -336,15 +336,24 @@ Three documents corrected, each pinned by a test comparing one document against 
 
 ## In-flight
 
-**Nothing in flight.** `M5.E15` — the control arm, made real (`B55`) — **closed and shipped as
-`v0.1.19`, 2026-08-06**; `B52` shipped as `v0.1.20` the same day in the fix lane. Next work is item 2
-of *▶ NEXT WORK* above: the closure-gated archive command.
+**`M5.E19` — the closure-gated archive command. Opened 2026-08-07, at `DISCUSS`.** Epic-scoped
+**FEATURE** (`M5.E19-PROFILE.md`) against the project's FULL. Decisions `D-M5E19-1`…`5`;
+requirements in [`M5.E19-REQUIREMENTS.md`](M5.E19-REQUIREMENTS.md). Wires M5.E18's library to a
+command and folds in `B82`.
 
-**This section has now gone stale twice, the same way.** It previously read *"`M5.E15` … EXECUTE
-next"* for a day after that Epic shipped — and before that, *"Nothing, M5.E16 closed 2026-08-02"*
-while M5.E17 and M5.E18 both shipped and M5.E15 opened, **contradicting this file's own frontmatter
-by two Epics**. The frontmatter is the declared machine-truth (`INDEX.md:119`); this prose is
-hand-maintained and nothing reconciles it.
+**Prior:** `M5.E15` — the control arm, made real (`B55`) — **closed and shipped as `v0.1.19`,
+2026-08-06**; `B52` shipped as `v0.1.20` the same day in the fix lane. Its six-phase log is archived
+at [`archive/M5/E15/STATE-NARRATIVE.md`](archive/M5/E15/STATE-NARRATIVE.md).
+
+**This section has now gone stale three times, the same way — and the third time was inside the
+commit that fixed the second.** The sequence, because the last instance is the informative one:
+(1) *"Nothing, M5.E16 closed 2026-08-02"* while M5.E17 and M5.E18 shipped and M5.E15 opened —
+**two Epics behind the frontmatter**; (2) *"`M5.E15` … EXECUTE next"* for a day after that Epic
+shipped; (3) *"Nothing in flight"* — written as the correction to (2), then contradicted minutes
+later by `setCurrentEpic` writing `current_epic: M5.E19` into the frontmatter above it, and
+committed that way. **A hand-edit is stale the moment the next state write lands**, which is why
+care is not the remedy. The frontmatter is the declared machine-truth (`INDEX.md:119`); this prose
+is hand-maintained and nothing reconciles it.
 
 **Carried from M5.E16's retro, unhomed:** `review_depth: quality-only` silently disables
 `simplification_pass`, and `M5.E16-PROFILE.md`'s prose claimed the dial anyway — so the profile
