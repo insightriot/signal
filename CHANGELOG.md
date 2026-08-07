@@ -6,6 +6,22 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### Added
+- **`/sig:archive` — file finished work away, and say why you didn't.** Signal could already archive closed units; it had no command whose job that was. Archiving happened inside `/sig:migrate-memory`, a command about document **layout**, whose dry-run interleaves a reorganization plan with an archive plan — so filing away finished work meant running a command about something else and reading past half its output.
+
+  **Closure is a gate, not a note.** A unit that is not provably closed is not moved. Dry-run by default; `--apply` writes; a second `--apply` is a no-op.
+
+  **The report names every unit exactly once.** This is the release's actual content. Pointed at a corpus, the pre-existing helpers reported the units that *would* move and the one that *could not be evaluated* — and said nothing at all about the units considered and **refused**. Three of six vanished, and the sharpest omission was the stub-retrospective veto, where closure reports a unit CLOSED and the archive gate declines it one layer later: the most surprising thing the tool does was the least explained. Every refusal now carries the reason its resolver produced, and *"checked and clean"* never renders the same as *"could not check."*
+
+- **`references/command-taxonomy.md`** — the five command groups that already existed, written down, with a naming rule. Signal had 19 commands and no written ontology, so each was named on the day it was built; the document-upkeep group had drifted into two naming styles. `/sig:archive` is a bare verb because adding a prefixed name to that group would have introduced a **third** style — the cost of inconsistency without the benefit of grouping. Whether the group should be prefixed wholesale is filed, not decided.
+
+- **`examples/sandbox/`** — a throwaway `.planning/` corpus with six units forcing all three closure outcomes, so no Signal command ever needs to be pointed at a real project. **Production repos are not test beds**, dry-run included.
+
+### Fixed
+- **An unreadable `STATE.md` now refuses everything.** `buildArchiveReport` composed its plan from `senseArchiveTree` and its refusals from `resolveClosures` — which disagree about a missing STATE: one degrades every unit to *cannot tell*, the other needs no STATE at all and still calls a unit closed on the strength of a retrospective file. The plan came from the source that **cannot see the danger**, so a project with no readable STATE would have been handed a plan to archive work that might be the **current unit**. Found by the Epic's own acceptance test; `commands/archive.md` asserted the correct behaviour before the code did it.
+
 ## [0.1.21] — 2026-08-07 — A closed unit archives whole, not half (B82)
 
 ### Fixed
