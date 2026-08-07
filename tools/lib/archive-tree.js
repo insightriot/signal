@@ -38,6 +38,8 @@ import { readFile, mkdir, rm, readdir } from 'node:fs/promises';
 import { realpathSync, existsSync } from 'node:fs';
 import { join, dirname, resolve, relative, sep, posix } from 'node:path';
 
+import { deriveUnits, suffixOf } from './work-units.js';
+
 import { PLANNING_DIR, EPIC_ID_STRICT_RE } from './state.js';
 import { atomicWrite } from './atomic-write.js';
 import { deriveEpicArchiveDir } from './evict.js';
@@ -146,6 +148,28 @@ export function deriveUnitArchiveDir(unit) {
 
 export function planArchiveMoves(closedUnitIds, planningRelFiles, opts = {}) {
   const suffixes = opts.scaffoldSuffixes ?? SCAFFOLD_SUFFIXES;
+  // `B82`. This used to rebuild every candidate as `{unit}-{suffix}.md` from
+  // `suffixes`, which is a SECOND implementation of "which files belong to this
+  // unit" — and it disagrees with the first one. `deriveUnits` performs a
+  // conservative single-hop fold (`work-units.js` pass 3) that a name template
+  // cannot express: `PLAN-SLICE-SSO-RESEARCH.md` folds into `SLICE-SSO`, and no
+  // `${unit}-${suffix}` string ever produces it.
+  //
+  // Measured on the real corpus before the fix, through `senseArchiveTree` (the
+  // path `/sig:migrate-memory` actually calls): `SLICE-SSO` resolved to 5 files
+  // in BOTH `nextpass` and `cm-mentor-coach` while this function planned 3 —
+  // so an apply moved three files and left two, splitting the unit across
+  // `.planning/` and `.planning/archive/`. That is the outcome
+  // `tests/work-units.test.js`'s own fixture comment said the fold prevents.
+  //
+  // Signal's own tree could never show it: every unit here is a strict Epic ID
+  // whose files really are `{EpicID}-{SUFFIX}.md`, so template and derivation
+  // agree by construction. The bug lives only where unit names are not Epic IDs
+  // — 8 of 12 real projects.
+  //
+  // The fold's files archive INTO the target unit's directory under their own
+  // names (`archive/SLICE-SSO/PLAN-SLICE-SSO-RESEARCH.md`): the unit is the
+  // thing being archived, and a unit that lands in two places is the defect.
   // M5.E18 S6 / AC6.3. `archive/` is excluded from the move-planning input
   // EXPLICITLY, not incidentally. Today `from` is always a top-level path so an
   // archived file could never match it — but that is a property of how `from`
@@ -183,12 +207,33 @@ export function planArchiveMoves(closedUnitIds, planningRelFiles, opts = {}) {
   const epics = safe.filter((id) => EPIC_ID_STRICT_RE.test(id)).sort(compareEpicIds);
   const others = safe.filter((id) => !EPIC_ID_STRICT_RE.test(id)).sort();
 
+  // One derivation, shared with every other consumer of unit membership.
+  // Keyed on the same `present` set the moves are drawn from, so an archived
+  // file can never be re-proposed.
+  const bareNames = [...present].map((f) => f.slice(f.lastIndexOf('/') + 1));
+  const { units } = deriveUnits(bareNames, { suffixes });
+
   for (const unit of [...epics, ...others]) {
     const archiveDir = toPosix(deriveUnitArchiveDir(unit));
-    for (const suffix of suffixes) {
-      const from = `${PLANNING_DIR}/${unit}-${suffix}.md`;
+    // Lifecycle order, not alphabetical. The old template loop iterated
+    // `suffixes`, so a plan read REQUIREMENTS → PLAN → VERIFICATION; `deriveUnits`
+    // returns each unit's files sorted by NAME. Preserving the old order is not
+    // cosmetic — `AC6.1` guarantees a strict-Epic-only plan stays byte-identical
+    // while the gate widens, and `archive-destination.test.js` pins it. Folded
+    // files interleave by their own suffix, so a dry-run still reads as the
+    // lifecycle it describes.
+    const ordered = [...(units.get(unit) ?? [])].sort((a, b) => {
+      const ia = suffixes.indexOf(suffixOf(a.slice(0, -3), suffixes));
+      const ib = suffixes.indexOf(suffixOf(b.slice(0, -3), suffixes));
+      if (ia !== ib) return ia - ib;
+      return a < b ? -1 : a > b ? 1 : 0;
+    });
+    // A closed unit with no scaffold files on disk contributes no moves —
+    // same as the old template loop finding nothing `present`.
+    for (const name of ordered) {
+      const from = `${PLANNING_DIR}/${name}`;
       if (!present.has(from)) continue;
-      const to = `${archiveDir}/${unit}-${suffix}.md`;
+      const to = `${archiveDir}/${name}`;
       if (from === to) continue;
       moves.push({ from, to });
       moveMap.set(from, to);

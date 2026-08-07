@@ -103,15 +103,36 @@ export function currentUnit(state) {
  * @returns {string|null} the unit name, or null when no suffix matches
  */
 function matchSuffix(stem, suffixes) {
+  const best = suffixOf(stem, suffixes);
+  if (best === null) return null;
+  const unit = stem.slice(0, -(best.length + 1));
+  return unit === '' ? null : unit;
+}
+
+/**
+ * The scaffold suffix a stem carries, or null.
+ *
+ * Longest match wins, and a stem that IS a bare suffix (`PLAN`) carries none —
+ * it is a root singleton, not a unit's file.
+ *
+ * Exported because `planArchiveMoves` needs to ORDER a unit's files by lifecycle
+ * (`REQUIREMENTS` before `PLAN` before `VERIFICATION`) and had no way to ask
+ * which suffix a file carries. Re-deriving that inside the mover is precisely
+ * `B82` — two implementations of one rule — so the rule is exported once and
+ * `matchSuffix` above now calls it rather than repeating it.
+ *
+ * @param {string} stem  filename without the `.md`
+ * @param {readonly string[]} [suffixes]
+ * @returns {string|null}
+ */
+export function suffixOf(stem, suffixes = SCAFFOLD_SUFFIXES) {
   let best = null;
   for (const suffix of suffixes) {
     if (stem === suffix) continue;
     if (!stem.endsWith(`-${suffix}`)) continue;
     if (best === null || suffix.length > best.length) best = suffix;
   }
-  if (best === null) return null;
-  const unit = stem.slice(0, -(best.length + 1));
-  return unit === '' ? null : unit;
+  return best;
 }
 
 /**

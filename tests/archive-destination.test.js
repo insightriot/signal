@@ -24,6 +24,7 @@ import {
   senseArchiveTree,
   applyArchiveTree,
 } from '../tools/lib/archive-tree.js';
+import { deriveUnits } from '../tools/lib/work-units.js';
 
 const P = '.planning';
 
@@ -267,5 +268,95 @@ describe('S6 wave 6 — closed by a retro OR by a passing verdict, and a stub ve
     await w('M9.E1-PLAN.md', '# plan\n');
     const { moves } = await senseArchiveTree(baseDir, { closedUnits: [] });
     expect(moves).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// B82 — the mover must agree with the derivation about which files are a unit.
+//
+// `planArchiveMoves` used to rebuild candidates as `{unit}-{suffix}.md`, a
+// SECOND implementation of unit membership that cannot express `deriveUnits`'
+// conservative fold. Measured live before the fix, through `senseArchiveTree`
+// (the path `/sig:migrate-memory` calls): `SLICE-SSO` resolved to 5 files in
+// BOTH `nextpass` and `cm-mentor-coach` while the mover planned 3 — an apply
+// moved three files and left two, splitting the unit across `.planning/` and
+// `.planning/archive/`.
+//
+// The fixture is `NEXTPASS_SPLIT_PAIRS`, real filenames transcribed from the
+// measured corpus. It runs anywhere; a test keyed to a developer's local
+// checkout would fail or silently skip in CI, and a silent skip is the
+// blindness this repo keeps shipping Epics to remove.
+//
+// `cm-mentor-coach` needs no separate case: its `SLICE-SSO` carries the
+// byte-identical filenames, verified in the same run. A second copy would
+// assert the same thing twice and read as broader coverage than it is.
+// ---------------------------------------------------------------------------
+
+const NEXTPASS_SPLIT_PAIRS = [
+  'PLAN-GATE-A-RESEARCH.md',
+  'PLAN-GATE-A-VALIDATION.md',
+  'GATE-A-PROGRESS.md',
+  'PLAN-SC1-RESEARCH.md',
+  'PLAN-SC1-VALIDATION.md',
+  'SC1-PROGRESS.md',
+  'SC1-VERIFICATION.md',
+  'PLAN-SLICE-SSO-RESEARCH.md',
+  'PLAN-SLICE-SSO-VALIDATION.md',
+  'SLICE-SSO-PROGRESS.md',
+  'SLICE-SSO-REVIEW.md',
+  'SLICE-SSO-VERIFICATION.md',
+  'PLAN-SLICE-VOICE1-RESEARCH.md',
+  'PLAN-SLICE-VOICE1-VALIDATION.md',
+  'VOICE1-PROGRESS.md',
+];
+
+describe('B82 — a closed unit archives whole, never half', () => {
+  const rel = NEXTPASS_SPLIT_PAIRS.map((f) => `${P}/${f}`);
+  const { units } = deriveUnits(NEXTPASS_SPLIT_PAIRS);
+
+  it('every derived unit is a unit the mover fully agrees with', () => {
+    // Guard the guard: if the fold ever stops folding, this suite must not
+    // quietly start asserting over an empty set.
+    expect(units.size).toBeGreaterThanOrEqual(4);
+
+    for (const [unit, derived] of units) {
+      const { moves } = planArchiveMoves([unit], rel);
+      const planned = moves.map((m) => m.from.replace(`${P}/`, '')).sort();
+      expect(planned, `unit ${unit} must archive whole`).toEqual([...derived].sort());
+    }
+  });
+
+  it('SLICE-SSO plans all 5 files — it planned 3 before the fix', () => {
+    const { moves } = planArchiveMoves(['SLICE-SSO'], rel);
+    expect(moves.length).toBe(5);
+    expect(moves.map((m) => m.from.replace(`${P}/`, '')).sort()).toEqual([
+      'PLAN-SLICE-SSO-RESEARCH.md',
+      'PLAN-SLICE-SSO-VALIDATION.md',
+      'SLICE-SSO-PROGRESS.md',
+      'SLICE-SSO-REVIEW.md',
+      'SLICE-SSO-VERIFICATION.md',
+    ]);
+    // Every file lands in ONE directory — the split is the defect.
+    for (const m of moves) {
+      expect(m.to.startsWith(`${P}/archive/SLICE-SSO/`)).toBe(true);
+    }
+  });
+
+  it('a folded file keeps its own name inside the unit directory', () => {
+    const { moveMap } = planArchiveMoves(['SLICE-SSO'], rel);
+    expect(moveMap.get(`${P}/PLAN-SLICE-SSO-RESEARCH.md`)).toBe(
+      `${P}/archive/SLICE-SSO/PLAN-SLICE-SSO-RESEARCH.md`
+    );
+  });
+
+  it('moves stay in lifecycle order, not alphabetical (AC6.1 ordering)', () => {
+    const { moves } = planArchiveMoves(['SC1'], rel);
+    // RESEARCH(1) -> PROGRESS(3) -> VERIFICATION(4) -> VALIDATION(5).
+    expect(moves.map((m) => m.from.replace(`${P}/`, ''))).toEqual([
+      'PLAN-SC1-RESEARCH.md',
+      'SC1-PROGRESS.md',
+      'SC1-VERIFICATION.md',
+      'PLAN-SC1-VALIDATION.md',
+    ]);
   });
 });
