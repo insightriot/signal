@@ -4,21 +4,26 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-08-06)
+## Where things stand (2026-08-07)
 
-**`v0.1.20` shipped** — `B52`, *which copy of Signal is actually running*. Fix lane, both halves.
-Claude Code resolves a plugin's install path **once, at session start**, and holds it for the life of
-the **process**, so a session alive across an auto-update runs the version it started with while
-every config file on disk correctly records the new one. `tools/lib/plugin-binding.js` compares the
-copy the process *actually resolved* against what `installed_plugins.json` records, at **two**
-surfaces — the SessionStart hook **structurally cannot see** a mid-session update (the binding is
-resolved before it runs), so `/sig:status` and `/sig:resume` read at the moment of use. Half 2's
-`setCurrentEpic` guard proved **wider than the bug report**: two of the three branches that zero an
-unarchived phase log need no stale cache at all. Closed `B52`; filed `B84`. Suite **2269**.
+**`v0.1.22` shipped** — `M5.E19`, *file finished work away*. **`/sig:archive`**: Signal could already
+archive closed units but had **no command whose job that was** — it happened inside
+`/sig:migrate-memory`, a command about document *layout*. Closure is a **gate**, dry-run by default.
+**The release's content is the report:** the pre-existing helpers named what would move and what
+could not be evaluated, and said **nothing** about units considered and **refused** — three of six
+vanished, the stub-retro veto among them. Every refusal now carries its reason. **The Epic's premise
+was false** and running it proved so (`D-M5E19-6`): *"wired none of it"* quoted M5.E18's **mid-Epic**
+finding as an end state. Also shipped `references/command-taxonomy.md` and `examples/sandbox/`.
+Filed **`B87`**. Suite **2300**; **20 commands**.
 
-⚠ **The first session after this merge is the one session the fix cannot protect** — the check ships
-inside the cache copy it inspects, so it cannot fire until a session binds to a version that has it.
-Restart the CLI process, then `/sig:update`.
+**`v0.1.21` shipped** — **`B82`**, fix lane. A closed unit archived **half of itself**: the mover
+rebuilt candidates from a `{unit}-{suffix}` template that cannot express `deriveUnits`' fold. Across
+12 local projects: **3 split units / 6 stranded files → 0 / 0.** Signal's own tree shows 0 before and
+after — every unit here is a strict Epic ID, so **dogfooding was structurally blind to it**.
+
+⚠ **Production repos are never test beds.** `nextpass`, `cm-mentor-coach` and any live project are
+off-limits to Signal commands, `--apply` or not. Use `examples/sandbox/`, which exists for exactly
+this. Read-only diagnosis is fine.
 
 **Prior — `v0.1.19`** — M5.E15, *the control arm, made real* (`B55`). The adherence harness's control
 arm now deletes the measured instruction from all five sites that order it, and an independent leak
@@ -31,12 +36,12 @@ anchor, so squashing an **Epic** would leave a published verdict naming a commit
 v0.1.19 merged with `--merge` for that reason. The **fix lane** squashes (v0.1.20 did). The rule is
 stated in `CLAUDE.md` and `commands/ship.md` (`#89`).
 
-**▶ Next work: the closure-gated archive command (+`B82`), then `M5.E14`'s shippable slice.**
-`B52` is done. The reasoning lives in **`BACKLOG.md` → "Next work — the agreed sequence"**;
-`STATE.md`'s resume pointer carries a summary. Read the BACKLOG entry before starting — it records
-*why* this order and what was excluded on evidence.
-
-**The next item is Epic-shaped** (six phases), unlike `B52` which ran in the fix lane.
+**▶ Next work: `M5.E14`'s shippable slice** — the `discharged` marker + a SHIP-gate
+open-obligations query. Behind it: **`B87`** (the phase ledger misses phases in hand-driven runs)
+and the **command-namespace decision** (`BACKLOG.md` item 4 — whether document-upkeep commands get
+a prefix; pre-1.0 is when a rename is cheapest). The reasoning lives in **`BACKLOG.md` → "Next work
+— the agreed sequence"**; read it before starting, it records *why* that order and what was excluded
+on evidence.
 
 ## Project
 
@@ -67,13 +72,15 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-**v1 is feature-complete and shipped. Latest: v0.1.20 (2026-08-06 — `B52`, which copy of Signal is actually running).** A session binds to one plugin-cache version for the life of the process, so it can run a release two versions behind the repo while every config file on disk reads correctly; the tool now says so, at a hook **and** on the command path, because the hook alone cannot see a mid-session update. Prior: **v0.1.19 (2026-08-06, M5.E15 — the control arm, made real: `B41-phase-entry` re-ran `OBEYED` on an arm that finally contained zero copies of the deleted instruction)**; **v0.1.18 (2026-08-04, M5.E18 — the archive half, for the projects Epic-gating did not reach:** `/sig:migrate-memory` went from **67 files across 1 of 12 projects** to **114 across 6**, and closure gained a third outcome (`cannotDetermine`) because 9 of 30 terminal artifacts carry no readable verdict**)**. **19 slash commands, 26 agents, 21 skills, 2269 tests, validator green.**
+**v1 is feature-complete and shipped. Latest: v0.1.22 (2026-08-07 — `M5.E19`, `/sig:archive`: file finished work away, and say why you didn't).** Archiving worked but had no front door — it happened inside a document-*layout* command — and the reporting named what would move while staying silent about every unit it **refused**. Prior: **v0.1.21 (2026-08-07 — `B82`: a closed unit archived half of itself; 3 split units / 6 stranded files → 0 / 0 across 12 projects, and Signal's own tree could never have shown it)**; **v0.1.20 (2026-08-06 — `B52`: a session binds to one plugin-cache version for the life of the process, so it can run a release two versions behind the repo while every config file on disk reads correctly; the tool now says so at a hook **and** on the command path, because the hook alone cannot see a mid-session update)**; **v0.1.19 (2026-08-06, M5.E15 — the control arm, made real)**. **20 slash commands, 26 agents, 21 skills, 2300 tests, validator green.**
 
 Recent releases, newest first — full detail in `CHANGELOG.md`:
 
 | Version | Epic | What it was |
 |---|---|---|
-| **v0.1.20** | — (fix lane) | `B52` — which copy of Signal is actually running; `setCurrentEpic` refuses to clear a log it did not archive |
+| **v0.1.22** | M5.E19 | `/sig:archive` — a front door for archiving; every refused unit reported with its reason |
+| **v0.1.21** | — (fix lane) | `B82` — a closed unit archives whole, not half; 3 split units / 6 stranded files → 0 / 0 |
+| v0.1.20 | — (fix lane) | `B52` — which copy of Signal is actually running; `setCurrentEpic` refuses to clear a log it did not archive |
 | v0.1.19 | M5.E15 | The control arm, made real — the harness's first verdict that means what it says |
 | v0.1.18 | M5.E18 | The archive half — non-Epic units archive; three-outcome closure; a stub retro is not closure |
 | v0.1.17 | — (fix lane) | `B70` — the briefing survives a phase it doesn't recognize |
@@ -99,7 +106,7 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 
 ## Active work
 
-**Nothing is in flight.** The last two pieces of work both closed on 2026-08-06: **M5.E15** shipped as **v0.1.19** (retrospective at [`M5.E15-RETROSPECTIVE.md`](M5.E15-RETROSPECTIVE.md)), and **`B52`** shipped as **v0.1.20** in the fix lane — no six phases, so no Epic artifacts and no retrospective. **Next up is the closure-gated archive command**, which is Epic-shaped.
+**Nothing is in flight.** `M5.E19` closed and shipped as **v0.1.22** (retrospective at [`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md)); `B82` shipped as **v0.1.21** in the fix lane — no six phases, so no Epic artifacts and no retrospective. **Next up is `M5.E14`'s shippable slice**, which is small and not the tracker Epic.
 
 **What M5.E15's close settled.** The verdict is **directive-scoped** — the control arm deletes the five sites that *order* the call and leaves the schema docs and the implementation alone, because over-deleting produces a *differently-informed* control agent whose 0/3 is as unreadable as a leaky one (`D-M5E15-1`). Its closing condition (`D-M5E15-6`) was met rather than waived: `B41-phase-entry` was re-run under the fixed arm and published — **`OBEYED`**, not the `INERT` the Epic pre-committed to publishing if that is what came back.
 

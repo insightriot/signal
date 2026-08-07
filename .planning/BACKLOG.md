@@ -63,7 +63,7 @@ warning alone leaves the silent-data-loss path intact.
 
 </details>
 
-### 2. The closure-gated archive command · **Epic lane** · **▶ RUNNING as `M5.E19`** · `B82` DONE
+### 2. ~~The closure-gated archive command~~ · **DONE — `v0.1.22` (`M5.E19`), 2026-08-07** · `B82` shipped in `v0.1.21`
 
 *Plain: finish the archiving tool, because the thing it replaced is gone.*
 

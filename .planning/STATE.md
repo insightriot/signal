@@ -57,7 +57,7 @@ this fix can protect.
    not merely a stale-cache backstop — **two** of the three branches that zero an unarchived phase log
    are reachable with no stale cache at all (a linear project opening its first Epic; a non-strict
    `current_epic` such as `PHASE11`). `B84` filed from the release cut itself.
-2. **▶ RUNNING as `M5.E19` (opened 2026-08-07, DISCUSS closed) — the closure-gated archive command** — wire `resolveClosures` to the mover. **Epic lane.** Trigger
+2. ~~**The closure-gated archive command**~~ **DONE — shipped as `v0.1.22` (`M5.E19`), 2026-08-07.** `/sig:archive`; `B82` shipped separately in v0.1.21. Original entry: — wire `resolveClosures` to the mover. **Epic lane.** Trigger
    FIRED 2026-08-04: `curator` was removed from the machine and `nextpass` + `cm-mentor-coach` are
    archiving by hand-written runbook today. M5.E18 built the engine and wired none of it. **Fold in
    `B82`** (P2 — `planArchiveMoves` ignores `deriveUnits` and moves half a unit). The bar: the
@@ -340,20 +340,24 @@ Three documents corrected, each pinned by a test comparing one document against 
 
 ## In-flight
 
-**`M5.E19` — the closure-gated archive command. At `PLAN`, and PAUSED pending a scope call.**
-Epic-scoped **FEATURE** (`M5.E19-PROFILE.md`). DISCUSS closed; `M5.E19-RESEARCH.md` written;
-**no `M5.E19-PLAN.md` yet, deliberately.**
+**Nothing in flight. `M5.E19` closed and shipped as `v0.1.22` (2026-08-07)** — `/sig:archive`,
+the command archiving never had. Retro:
+[`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md). Decisions `D-M5E19-1`…`9`. Filed `B87`.
+2284 → **2300 tests**, **20 commands**.
 
-**PLAN's research falsified the entry the Epic was opened on.** Archiving is **already wired** —
-`applyArchiveTree({apply:true})` runs from `/sig:migrate-memory` on any project, ungated by layout
-version — and the closure **gate** already exists (`senseArchiveTree`'s retro ∪ verdict union,
-default-deny). The backlog's *"wired none of it"* quoted M5.E18's **mid-Epic** finding as an end
-state. `D-M5E19-6`.
+**This section has now gone stale FOUR times, the same way, and the fourth is the strongest
+evidence yet.** The sequence: (1) *"Nothing, M5.E16 closed"* while two Epics shipped and a third
+opened — **two Epics behind** the frontmatter; (2) *"`M5.E15` … EXECUTE next"* for a day after that
+Epic shipped; (3) *"Nothing in flight"* — written as the correction to (2) and falsified minutes
+later by `setCurrentEpic`; (4) *"At `PLAN`, and PAUSED … no `M5.E19-PLAN.md` yet, deliberately"* —
+falsified by **four** `transitionPhase` calls across EXECUTE → VERIFY → REVIEW → SHIP, while a
+`M5.E19-PLAN.md` sat on disk, **inside the Epic that filed `B87` about ledger honesty.**
 
-**`B82` left this Epic and shipped in the fix lane** (#98, 2026-08-07): 3 split units / 6 stranded
-files → **0 / 0** across 12 projects. What remains is a standalone `/sig:archive` command over
-machinery that works — **smaller than what was approved**, and the open question (`D-M5E19-7`) is
-whether that remainder is Epic-shaped or a fix-lane addition. Not resolved inside PLAN by design.
+(3) could still be read as inattention. (4) cannot: the prose was accurate when written and was
+falsified by a **full phase sequence** of machine writes that structurally cannot touch it.
+`transitionPhase` moves frontmatter only; the frontmatter is the declared machine-truth
+(`INDEX.md:119`); this narrative is hand-maintained and **nothing reconciles it.** Filed in
+`ISSUES-INBOX.md`; it is a sibling of `B87` — both are *the record disagreeing with the work*.
 
 **Prior:** `M5.E15` — the control arm, made real (`B55`) — **closed and shipped as `v0.1.19`,
 2026-08-06**; `B52` shipped as `v0.1.20` the same day in the fix lane. Its six-phase log is archived

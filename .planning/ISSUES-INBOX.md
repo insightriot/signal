@@ -1878,9 +1878,10 @@ Loop engineering: split attention from rigor — full analysis + build path in a
 So a body can name the right Epic, describe it in the wrong phase, and both checks pass by
 construction.
 
-**Why it is worth a check rather than more care — and the third instance settles it.** This section
-has now gone stale the same way **three times**, and the third happened **inside the commit that
-fixed the second**, minutes later, in this session:
+**Why it is worth a check rather than more care — and the FOURTH instance settles it.** This section
+has now gone stale the same way **four times**. The third happened **inside the commit that fixed the
+second**; the fourth happened across a **full phase sequence**, inside the Epic that filed `B87`
+about exactly this class:
 
 1. *"Nothing, M5.E16 closed 2026-08-02"* while M5.E17 and M5.E18 shipped and M5.E15 opened —
    **two Epics behind** the frontmatter. Caught by a person re-reading.
@@ -1889,11 +1890,21 @@ fixed the second**, minutes later, in this session:
    `setCurrentEpic` writing `current_epic: M5.E19` into the frontmatter directly above it, and
    committed in that state. Caught by review, not by any check.
 
-**The third instance is the argument.** (1) and (2) look like inattention, and inattention invites
-"be more careful" as the remedy. (3) cannot: the prose was accurate when written and was falsified
-by the **next state write**, which is a mechanical event no amount of care anticipates. A
-hand-maintained narrative next to a machine-written frontmatter goes stale by construction, not by
-neglect. `/sig:checkpoint` advances the frontmatter only.
+4. *"`M5.E19` … At `PLAN`, and PAUSED … no `M5.E19-PLAN.md` yet, deliberately"* — falsified by
+   **four** `transitionPhase` calls (EXECUTE → VERIFY → REVIEW → SHIP) while `M5.E19-PLAN.md` sat on
+   disk. Caught at the release gate, in the Epic that filed `B87`.
+
+**The fourth instance is the argument.** (1) and (2) look like inattention, and inattention invites
+"be more careful" as the remedy. (3) already refuted that — the prose was accurate when written and
+falsified by the **next state write**. (4) closes it: falsified by a *full phase sequence* of machine
+writes that structurally cannot touch prose, while the author was actively filing a bug about the
+record disagreeing with the work. A hand-maintained narrative beside a machine-written frontmatter
+goes stale **by construction**, not by neglect. `/sig:checkpoint` and `transitionPhase` both advance
+the frontmatter only.
+
+**Sibling of `B87`.** Both are *the record disagreeing with the work*: `B87` is the ledger missing a
+phase that ran; this is the narrative describing a phase that has passed. A fix for one should be
+weighed against the other.
 
 Note also that `runDriftChecks` reported **6/6 clean** across all three instances — the finding
 above — so the existing detector cannot distinguish any of them from a healthy file.
