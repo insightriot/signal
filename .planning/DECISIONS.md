@@ -1319,3 +1319,50 @@ the corpus option costed in front of him. Re-opening it is a human call on the e
 ## 2026-08-06 — Checkpoint-captured: Mutation-verification is a DECLARED DEVIATION from RED-first, never counted as strict-Nyquist compliance. Where a test was written after its implementation, breaking the code and requiring the test to go red proves the assertion discriminates today — it does not prove the test was written honestly. M5.E15 declared six such criteria rather than attesting falsely.
 
 ## 2026-08-06 — Checkpoint-captured: A caveat whose absence is indistinguishable from a clean result must either render unconditionally or be pinned by a test that fails when it stops rendering. Written into tools/lib/adherence-caveats.js after the same defect occurred twice in the same file three months apart (M5.E8 and M5.E15 S7) — a published record silently omitting its own scope. The isolation scope now renders `undeclared` out loud rather than omitting the line.
+
+## 2026-08-07 — Command taxonomy: the ontology existed, the rule did not (D-M5E19-8, D-M5E19-9)
+
+**D-M5E19-8 — the new command is `/sig:archive`, a bare verb, and NOT `/sig:memory-archive`.**
+
+Raised by Brett while approving it: *"do we make similar taxonomy for the commands — something like
+`sig:memory-organize` and then `sig:memory-archive` — or are those flags? But if every command is
+super different and doesn't have any ontology (reflected in taxonomy) then feels like it gets more
+and more confusing over time."*
+
+The worry is well-founded and the evidence was already on disk. **Five coherent groups exist** —
+derived by reading `commands/*.md`, not invented: flow, orientation, capture, document upkeep, and
+Signal's own health. What did not exist was a written rule, so each of 19 commands was named on the
+day it was built. The **document-upkeep** group shows the drift directly: `index` and `sweep` are
+bare verbs while `migrate-memory` is a verb-noun compound.
+
+**The decisive argument against `memory-archive` today** is not taste. Adding it while `index` and
+`sweep` stay bare introduces a **third** naming style into a four-member group — the cost of
+inconsistency without the benefit of grouping. Either the group converts wholesale or the existing
+convention holds. **Half-migrating a namespace is worse than either end state.**
+
+`archive` also satisfies the rule now written down: name the act as a bare verb unless the verb is
+ambiguous without its object. `migrate-memory` earns its noun (*migrate* alone would not say what
+moves); `archive` does not need one.
+
+**Also settled: separate command, not a flag on `/sig:migrate-memory`** — restating `D-M5E19-2`
+against the taxonomy rather than against convenience. The test is *what question is the user
+answering*: layout changes when the structure does, archiving happens at every unit close. A flag
+would assert they are variants of one operation.
+
+**Written down as `references/command-taxonomy.md`.** A group nobody can see from the command file
+is a group that drifts, so each command states its group where it already states whether it is
+phase-gated.
+
+**D-M5E19-9 — whether group 4 becomes a prefixed namespace is filed, not decided, and not
+"someday."**
+
+The case for `memory-*` / `docs-*` is real: at 30 commands a flat namespace is harder to learn.
+The case against doing it *now* is that a rename is **user-visible and breaking** — deprecation
+aliases, a `[BREAKING]` entry, a `0.2.0` bump, and a pass over every doc naming a command. That is
+separate work from adding a command, and bundling them means a wrong taxonomy would make the new
+command wrong too.
+
+**But "later" is bounded.** Pre-1.0 with a small user base is when this is cheapest, and the cost
+rises with every command added. Filed as `BACKLOG.md` item 4, tagged **hygiene**, with the explicit
+note that it means *the next naming-shaped thing*, not *someday*. Recording the deadline-shaped
+reasoning because `B39` is this repo's standing lesson about triggers nobody walks.
