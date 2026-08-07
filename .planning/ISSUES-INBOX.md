@@ -1561,6 +1561,20 @@ Map drift-guard (v0.1.6 doc-integrity candidate). docs/map/index.html silently f
 
 **Status:** Logged 2026-07-17 via `/sig:add`. Surfaced 2026-07-17 during M5.E2 S4.t1 dogfood — verifying a live 28-move migration on the real repo took ~6 introspection passes; a curated sandbox would make it a glance.
 
+**▶ PARTIALLY DELIVERED 2026-08-07 — `examples/sandbox/` exists, covering the closure/archive
+surface only.** Built after a recommendation to dry-run against `nextpass` was correctly rejected:
+**production repos are not test beds**, and the absence of this sandbox is what made that the
+obvious-looking move. Six units force all three closure outcomes plus the two interactions that
+matter — `M1.E2` (closed by verdict, **vetoed** by a stub retro — `B64`) and `SLICE-AUTH` (the
+non-Epic fold shape Signal's own tree structurally cannot reproduce — `B82`).
+`tests/sandbox-corpus.test.js` pins the corpus so it cannot drift into agreeing with whatever the
+code does.
+
+**Still open, and listed in the sandbox README so an empty result is never read as a clean one:**
+un-sectioned body bloat, append-logs (`DECISIONS.md`), milestone bloat, dangling / anchor /
+reference-style / HTML links, CRLF, unstamped-but-conformant, and pre-reorg (v2) layouts. **Do not
+close this entry** — add shapes as the commands needing them get worked on.
+
 **Dedicated test-sandbox project for Signal QA.** A committed, browsable fixture project — one `.planning/` corpus deliberately seeded with every situation Signal's commands must handle plus edge cases (closed Epics with and without retros; un-sectioned body bloat; append-logs like `DECISIONS.md`; milestone bloat; dangling / anchor / reference-style / HTML links; CRLF; non-standard and linear layouts; unstamped-but-conformant; pre- and post-reorg) — that any `/sig:` command (especially `/sig:migrate-memory`) can be run against and diffed.
 
 Purpose: fast human QA + faithfulness eyeballs, demos, onboarding, and regression — instead of "go read 10k lines of markdown and tell me if it's good." Complements the inline per-shape test fixtures (which prove the code) with something a human can open and reason about. Sibling to `examples/url-shortener/`, deliberately isolated from Signal's real `.planning/`. Candidate framing: its own small M5 Epic.
