@@ -6,6 +6,15 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **`B84` — the release tool's own "you forgot to write the release notes" guard could not fire, and instead of refusing it rewrote history.** `foldChangelog` tested `/^## \[Unreleased\]/m` **anywhere** in the file and replaced the **first** match. This CHANGELOG carries a permanent historical `[Unreleased]` section — M5.E7's v2 direction audit shipped no code and was never versioned — so that heading satisfied the guard unconditionally and forever. A cut with no notes written therefore did not fail: it **relabelled M5.E7's section as the new release**, destroying the only heading marking it as no-code-shipped. Observed on the v0.1.20 cut and caught by reading the diff, not by the tool or the suite.
+
+  The anchor is now **positional**: the pending section is the one **above** the newest released `## [x.y.z]` heading, so anything below is history and can neither satisfy the guard nor be replaced. Verified by running the real tool — `cut-release.js 0.1.21` refuses by name and leaves M5.E7's heading byte-identical.
+
+  **Two tests were green because of the bug, not despite it.** The old refusal test's fixture omitted the `[Unreleased]` heading the real file always has — a guard proven on a corpus that could not exhibit the defect — so the new assertions run against the shipped `CHANGELOG.md` itself. And three version-site tests depended on that historical heading to make `releaseEdits` succeed at all; they now seed their pending section explicitly. M5.E7's heading is deliberately left alone: renaming it would silently change the status of the separately-filed `changelogBetween` heading-capture, which is a different bug's call.
+
 ## [0.1.20] — 2026-08-06 — Which copy of Signal is actually running (B52)
 
 ### Fixed

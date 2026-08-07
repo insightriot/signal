@@ -62,19 +62,53 @@ export function bumpMapStamp(source, version) {
 }
 
 /**
- * CHANGELOG — fold `## [Unreleased]` into the released heading.
+ * CHANGELOG — fold the PENDING `## [Unreleased]` section into a released heading.
  *
- * Refuses when there is no `[Unreleased]` section: that means the release notes
- * were never written, and a release with no notes is the failure this is meant
- * to prevent, not a case to paper over with an empty heading.
+ * Refuses when there is no pending section: that means the release notes were
+ * never written, and a release with no notes is the failure this is meant to
+ * prevent, not a case to paper over with an empty heading.
+ *
+ * "PENDING" is the whole fix (`B84`). This used to test `/^## \[Unreleased\]/m`
+ * anywhere in the file and replace the first match — and `CHANGELOG.md` carries
+ * a **permanent, historical** `[Unreleased]` section: M5.E7's v2 direction
+ * audit, which deliberately shipped no code and so was never versioned. That
+ * section satisfied the old guard **unconditionally and forever**, making the
+ * refusal branch unreachable; and because the replace took the first match, a
+ * cut with no notes written did not fail — it **relabelled the historical
+ * section as the new release**, destroying the only heading that marked M5.E7
+ * as no-code-shipped. Observed on the v0.1.20 cut and caught by reading the
+ * diff, not by the tool or the suite.
+ *
+ * So the anchor is POSITIONAL: the pending section is the one above the newest
+ * released `## [x.y.z]` heading. Anything below that is history and can neither
+ * satisfy the guard nor be the replace target. The old test passed throughout,
+ * because its fixture omitted the `[Unreleased]` heading the real file always
+ * has — a guard proven on a corpus that could not exhibit the bug.
  */
+const UNRELEASED_HEADING_RE = /^## \[Unreleased\].*$/m;
+const RELEASED_HEADING_RE = /^## \[\d+\.\d+\.\d+\]/m;
+
 export function foldChangelog(source, version, date, title) {
-  if (!/^## \[Unreleased\]/m.test(source)) {
+  const pending = source.match(UNRELEASED_HEADING_RE);
+  const newestReleased = source.match(RELEASED_HEADING_RE);
+  const isPending = pending && (!newestReleased || pending.index < newestReleased.index);
+
+  if (!isPending) {
     throw new Error(
-      'CHANGELOG.md has no `## [Unreleased]` section — write the release notes first',
+      pending
+        ? 'CHANGELOG.md has no PENDING `## [Unreleased]` section — write the release notes ' +
+          `first. (One exists at offset ${pending.index}, but it sits BELOW the newest ` +
+          'released heading, so it is history, not this release. Folding it would relabel ' +
+          'a closed record — see B84.)'
+        : 'CHANGELOG.md has no `## [Unreleased]` section — write the release notes first',
     );
   }
-  return source.replace(/^## \[Unreleased\].*$/m, `## [${version}] — ${date} — ${title}`);
+
+  return (
+    source.slice(0, pending.index) +
+    `## [${version}] — ${date} — ${title}` +
+    source.slice(pending.index + pending[0].length)
+  );
 }
 
 /** references/facts.md — the published test count (`B56`, release reading). */
