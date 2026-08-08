@@ -515,3 +515,61 @@ export async function readLayoutBanner(baseDir) {
     return null; // advisory + fail-open — never break the command
   }
 }
+
+// --- tier advisory (B90) ---------------------------------------------------
+
+/**
+ * Say, where the user actually is, that rigor can be dialled DOWN per unit.
+ *
+ * `B90`: Signal has had per-unit tiering, `/sig:escalate`'s de-escalation branch
+ * (`escalate.md:87`) and `phases_skipped` for releases — and every surface that
+ * introduces them says the dial only turns UP. The command is named *escalate*;
+ * `CLAUDE.md` said *"promotes"* and *"upgrades … if scope grows"*. Measured
+ * across the local corpus on 2026-08-08: **7 of 12 projects run FULL and exactly
+ * 1 of 12 has ever written a per-unit PROFILE.** A real user paid seven-phase
+ * FULL ceremony on a two-hour UI fix and concluded Signal has no opinion about
+ * types of work.
+ *
+ * A DOC FIX ALONE WOULD REPEAT THE DEFECT. `UNREACHED-MECHANISM-ANALYSIS.md`'s
+ * whole argument is that Signal's habitual answer to *"the rule wasn't followed"*
+ * is to write the rule more carefully, and `B75` measured that ceiling
+ * (`gate_strictness` light vs strict differ by one boolean; the rest is prose).
+ * So this is a check that fires at the moment of use, not a paragraph.
+ *
+ * Deliberately advisory and NOT a gate: the right tier is a judgment call, and a
+ * project legitimately at FULL for everything must not be nagged into lying. It
+ * states the situation and the two ways out, once.
+ *
+ * Read-only, offline, fail-open (any error → `null`).
+ *
+ * @param {string} baseDir
+ * @returns {Promise<string|null>}
+ */
+export async function readTierAdvisory(baseDir) {
+  try {
+    const profile = await readProfile(baseDir);
+    if (profile?.tier !== 'FULL') return null; // only FULL pays every phase
+
+    const planningDir = join(baseDir, '.planning');
+    let names = [];
+    try {
+      const { readdir } = await import('node:fs/promises');
+      names = await readdir(planningDir);
+    } catch {
+      return null;
+    }
+    // Any per-unit PROFILE at all means the dial has been found. Say nothing.
+    if (names.some((n) => /^.+-PROFILE\.md$/.test(n))) return null;
+
+    return [
+      'ℹ This project is FULL tier, and every unit of work is paying all seven phases.',
+      '   FULL is a CEILING, not a floor — it was calibrated for the riskiest work here,',
+      '   not for every slice. A small, reversible change can run lighter:',
+      '     • per unit:  write {UnitID}-PROFILE.md at FEATURE or SKETCH before DISCUSS',
+      '     • mid-flight: /sig:escalate also goes DOWN (de-escalation), despite the name',
+      '   SKETCH drops REVIEW entirely; SPIKE drops REVIEW and SHIP.',
+    ].join('\n');
+  } catch {
+    return null;
+  }
+}

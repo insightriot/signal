@@ -65,7 +65,7 @@ describe('cross-project analysis — reporting discipline', () => {
       { name: 'a', findings: [{ id: 'real-finding' }], blind: [{ id: 'unreadable', why: 'boom' }] },
     ]).join('\n');
 
-    const findingsAt = out.indexOf('ranked by how many projects');
+    const findingsAt = out.indexOf('DEFECTS IN SIGNAL');
     const blindAt = out.indexOf('Could NOT be checked');
     expect(findingsAt).toBeGreaterThan(-1);
     expect(blindAt).toBeGreaterThan(findingsAt);
@@ -75,7 +75,26 @@ describe('cross-project analysis — reporting discipline', () => {
 
   it('says so plainly when a corpus is clean, rather than printing nothing', () => {
     const out = render([{ name: 'a', findings: [], blind: [] }]).join('\n');
-    expect(out).toMatch(/No findings across the corpus/);
+    // BOTH sections must say "none" rather than be omitted — an absent section
+    // teaches the reader that absence means clean.
+    expect(out).toMatch(/DEFECTS IN SIGNAL/);
+    expect(out).toMatch(/PROJECT ADVISORIES/);
+    expect((out.match(/none across the corpus/g) ?? []).length).toBe(2);
+  });
+
+  it('never mixes a Signal defect with a project to-do (the loop must be falsifiable)', () => {
+    const out = render([
+      { name: 'a', findings: [{ id: 'a-bug', kind: 'signal-defect' }], blind: [] },
+      { name: 'b', findings: [{ id: 'a-todo', kind: 'project-advisory' }], blind: [] },
+      { name: 'c', findings: [{ id: 'a-todo', kind: 'project-advisory' }], blind: [] },
+    ]).join('\n');
+    const defectsAt = out.indexOf('DEFECTS IN SIGNAL');
+    const advisoriesAt = out.indexOf('PROJECT ADVISORIES');
+    // The 2-project to-do must NOT outrank the 1-project defect by appearing
+    // above it — they are not on the same list at all.
+    expect(out.indexOf('a-bug')).toBeGreaterThan(defectsAt);
+    expect(out.indexOf('a-bug')).toBeLessThan(advisoriesAt);
+    expect(out.indexOf('a-todo')).toBeGreaterThan(advisoriesAt);
   });
 });
 
