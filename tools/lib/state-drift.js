@@ -797,6 +797,94 @@ export const checkBodyOmitsCurrentEpic = defineCheck({
  * check is registered without `/sig:sweep --heal` existing to run it, the suite
  * fails instead of a user receiving a promise nothing keeps.
  */
+
+/**
+ * A phase LEFT no entry in the log, though its artifact is on disk (`B87`).
+ *
+ * `checkPhaseBehindArtifacts` asks whether `phase` is behind the artifacts. This
+ * asks a different question the same data answers: **is there a HOLE in
+ * `completed_phases`?** A phase can be correctly positioned and still have
+ * skipped its own record.
+ *
+ * WHY THIS EXISTS AND WHY `B41`'S FIX CANNOT COVER IT. M5.E9 closed `B41` by
+ * putting the phase-entry call INSIDE each phase command — which does nothing for a
+ * run that never invokes the commands. Signal-on-Signal is exactly that run, and
+ * so is any Epic a maintainer drives by hand, which is how most of this repo's
+ * own Epics execute. Caught live at `M5.E19` VERIFY: `M5.E19-PROGRESS.md` on
+ * disk, five slices recorded in it, and EXECUTE absent from the ledger.
+ *
+ * NOTE FOR FUTURE EDITORS: do not name the phase-entry function here. The
+ * adherence leak walk treats a bare mention in `tools/` as a directive an
+ * agent could read (`B55`), and the only alternative is allowlisting this whole
+ * file — a broad grant to save two words. "The phase-entry call" is also better
+ * user-facing copy than an internal identifier.
+ *
+ * DETECT ONLY, and that is a decision rather than a limitation. The phase log is
+ * append-only with no dedupe (`D-M5E9-5`); writing the missing entry would be
+ * inventing a record the flow never produced, which is `B48`'s lesson. So this
+ * needs a person: only they know whether the phase truly ran.
+ */
+const checkPhaseLogGap = defineCheck({
+  id: 'phase-log-gap',
+  describe: "a phase's artifact is on disk but the phase never entered completed_phases",
+  healCategory: HEAL.NEEDS_A_PERSON,
+  applicability: ({ state }) => {
+    if (!epicIsSet(state)) return LINEAR_MODE_NA;
+    if (!EPIC_ID_STRICT_RE.test(String(state.current_epic))) {
+      return {
+        status: APPLICABILITY.BLIND,
+        reason:
+          `current_epic "${state.current_epic}" is not a strict Epic ID, so no artifact ` +
+          'name can be derived — see the epic-id-not-strict finding',
+      };
+    }
+    if (!PHASES.includes(state.phase)) {
+      return {
+        status: APPLICABILITY.BLIND,
+        reason: `phase is ${JSON.stringify(String(state.phase).slice(0, 40))}, not a phase name`,
+      };
+    }
+    return APPLICABILITY.EVAL;
+  },
+  run: ({ state, files }) => {
+    const epic = String(state.current_epic);
+    const order = PHASES.filter((p) => p !== 'CALIBRATE');
+    const at = order.indexOf(state.phase);
+    if (at === -1) return [];
+
+    // The artifact that PROVES a phase ran. SHIP is deliberately absent: it is
+    // terminal, so it can never be a phase already left (`B43`).
+    const provenBy = { PLAN: 'PLAN', EXECUTE: 'PROGRESS', VERIFY: 'VERIFICATION', REVIEW: 'REVIEW' };
+
+    const logged = new Set(
+      (state.completed_phases ?? []).map((e) => String(e).trim().split(/[\s(]/)[0])
+    );
+
+    const missing = [];
+    // Only phases STRICTLY BEFORE the current one can be missing a record — the
+    // current phase has not been left yet, so its absence is correct.
+    for (const phase of order.slice(0, at)) {
+      const suffix = provenBy[phase];
+      if (!suffix) continue;
+      if (!files.includes(`${epic}-${suffix}.md`)) continue;
+      if (logged.has(phase)) continue;
+      missing.push({ phase, artifact: `${epic}-${suffix}.md` });
+    }
+    if (missing.length === 0) return [];
+
+    return [{
+      file: `${PLANNING_DIR}/STATE.md`,
+      message:
+        `${missing.map((m) => m.phase).join(', ')} left no entry in completed_phases, but ` +
+        `${missing.map((m) => m.artifact).join(', ')} ${missing.length === 1 ? 'is' : 'are'} on ` +
+        'disk — the phase ran and the ledger does not say so. This happens when an Epic is ' +
+        'driven by hand rather than through the phase commands, since the phase-entry call ' +
+        'lives inside them. Not auto-repaired: the log is append-only and inventing an entry ' +
+        'the flow never produced is worse than the gap.',
+    }];
+  },
+});
+
 export const STATE_DRIFT_CHECKS = Object.freeze([
   checkEpicWithoutRetro,
   checkBaselineCommitOffHistory,
@@ -804,4 +892,5 @@ export const STATE_DRIFT_CHECKS = Object.freeze([
   checkEpicIdNotStrict,
   checkPhaseBehindArtifacts,
   checkBodyOmitsCurrentEpic,
+  checkPhaseLogGap,
 ]);
