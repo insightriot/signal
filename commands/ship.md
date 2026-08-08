@@ -43,6 +43,20 @@ Run **before any other Workflow step**, regardless of `gate_strictness`. This is
 
 **Layered enforcement context:** even if a user manually edits STATE.md to skip `/sig:ship`, the `PreToolUse(Edit|Write)` hook in `hooks/hooks.json` (added in M4.5.E9.S1.t7) blocks that write. Even if the user clears context mid-EXECUTE without invoking SHIP, the `SessionStart(resume)` hook surfaces the missing retro on the next session resume.
 
+## 0.6 Branch precondition (`B88`) — run before any Workflow step
+
+Call `checkBranchPosture(baseDir, { tier: profile.tier, override })` from `tools/lib/branch-guard.js`, where `override` is true only if the user passed `--allow-default-branch`. Read-only, offline, never throws.
+
+Act on `status`:
+
+- **`ok`** — continue silently.
+- **`on-default`** — **HALT.** Emit `formatBranchHalt(result, { command: '/sig:ship' })` verbatim. Do not run §2 (git history) and do not run §9 (the SHIP commit). §5's state-update rule for a halted command governs the ledger; it is not restated here, for the reason `B55` records — an instruction restated outside its declared site survives the control arm that was supposed to delete it.
+- **`overridden`** — continue, but emit `formatBranchLine(result)` so the deviation is on the record rather than invisible.
+- **`not-applicable`** — continue silently. Either the tier does not end at a PR (SKETCH / SPIKE) or there is no remote, so there is no pull request for this gate to protect.
+- **`cannot-determine`** — **do not halt.** Emit `formatBranchUnknown(result)` and continue. A gate that cannot look must say so; a gate that halts on its own blindness is unusable.
+
+**Why this is a precondition and not advice.** §3 below says *"Create a pull request"* — but once every commit has landed on the default branch there is nothing to open one from, and the step fails with nothing to report. That is `B88`, found on a `nextpass` slice where five commits of real code reached `main` with no branch and CI ran *after* each push instead of gating it. **The paragraph at §3's foot is the one that removed the direct-to-main exemption** (`D-M5E17-5`) and states in copy that a change *"does need a branch, a PR, and a green suite"* — while this file provided no mechanism to make that true and no check that it happened. The file that stated the rule supplied no enforcement, which is the precise shape `D-M5E17-5` was filed to end.
+
 ## Skill Loading
 
 Load from `${CLAUDE_PLUGIN_ROOT}/skills/ship/`:
@@ -90,6 +104,8 @@ inferred from the fix-lane example for several releases and stated nowhere, whic
 within one command of squashing away the SHA its own verdict names.)*
 
 ### 3. PR Creation
+
+**Precondition, already established at §0.6.** If the branch gate returned `on-default` this command halted before reaching here. If it returned `cannot-determine`, verify by hand that a PR is possible before continuing — §0.6 said out loud that it could not check.
 
 Create a pull request with:
 - **Title**: Short, imperative, under 70 characters
@@ -195,7 +211,7 @@ Wrap the call in a **catch-all**: if `markFresh` throws for *any* reason — `St
 
 ### Exit Criteria
 - [ ] Pre-ship checklist complete
-- [ ] PR created with description, test plan, and screenshots (if applicable)
+- **PR — filled from evidence, never ticked from memory (`B88`).** Call `readPullRequestEvidence(baseDir)` (`tools/lib/branch-guard.js`) and render `formatPrEvidenceLine(evidence)` in place of a checkbox. It ticks only on a real PR URL; `none` and `cannot-determine` render as distinct unticked lines carrying their reason. *This line used to read `- [ ] PR created with description, test plan` — a box satisfied from the felt sense of having shipped. **Thirteen releases were ticked against it while exactly one pull request existed in that span** (`D-M5E17-5`). That is the `CLAIM-INTEGRITY-ANALYSIS.md` class, and a checkbox is not fixable by wording: it had to start reading an artifact.*
 - [ ] Git history is clean and meaningful
 - [ ] CHANGELOG updated
 - [ ] README updated (if applicable)

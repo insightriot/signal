@@ -39,6 +39,22 @@ Load from `${CLAUDE_PLUGIN_ROOT}/skills/build/`:
 - `source-driven-development/SKILL.md`
 - `frontend-ui-engineering/SKILL.md` (load only if the project has a frontend; conditional loading is a v1.5 candidate — see `.planning/FUTURE-IDEAS.md`)
 
+## Precondition — you must be on a branch (`B88`)
+
+**Run before the phase-entry step below.** A halt here is a halt condition in exactly the sense that section already defines — its rule for a *"failed gate"* governs this one, and is deliberately **not restated here**. Two copies of one instruction is how the `B89` class starts, and a restatement outside the phase-entry heading would also sit outside the `B41-phase-entry` canary's deletion scope, leaving the control arm carrying the instruction it is supposed to have removed (`B55`).
+
+Call `checkBranchPosture(baseDir, { tier: profile.tier, override })` from `tools/lib/branch-guard.js`; `override` is true only if the user passed `--allow-default-branch`. Read-only, offline, never throws.
+
+- **`ok`** — continue silently.
+- **`on-default`** — **HALT.** Emit `formatBranchHalt(result, { command: '/sig:execute' })` verbatim.
+- **`overridden`** — continue and emit `formatBranchLine(result)`, so a deliberate deviation is recorded rather than invisible.
+- **`not-applicable`** — continue silently (SKETCH / SPIKE, no git, or no remote).
+- **`cannot-determine`** — emit `formatBranchUnknown(result)` and **continue**.
+
+**Why here.** This command's Step 2 says *"create an atomic git commit"* and, before this gate existed, **the word "branch" appeared in this file zero times** — so every commit went to whatever branch the operator happened to be standing on. EXECUTE is the earliest moment that matters: a slice that cannot *begin* on the default branch cannot strand commits there, whereas catching it at SHIP means recovering after the fact.
+
+**Tier-gated deliberately.** SKETCH has gates off by definition, and SPIKE's own tier definition says its output is *"A findings document… Not a PR."* Halting a spike for lacking a branch, in a tier documented to produce no PR, would be a fresh instance of `B89` — one instruction contradicting another. Enforcement is FEATURE and FULL, the two tiers that end at a pull request.
+
 ## Phase entry — record the phase (M5.E9 FR6, `B41`)
 
 **Call this only if every precondition above passed.** The tier gate must have let this command through, and any halt condition in it must not have fired. If this command is halting — wrong tier, a missing prerequisite artifact, a failed gate — **do not call `transitionPhase`**: return the halt instead.
