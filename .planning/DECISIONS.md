@@ -1491,3 +1491,46 @@ command wrong too.
 rises with every command added. Filed as `BACKLOG.md` item 4, tagged **hygiene**, with the explicit
 note that it means *the next naming-shaped thing*, not *someday*. Recording the deadline-shaped
 reasoning because `B39` is this repo's standing lesson about triggers nobody walks.
+
+## 2026-08-08 — The tracker split: adoption here vs. an adapter for users (D-M5E14-1 … D-M5E14-3)
+
+**Context.** Brett, reading the archive/backlog/inbox loop for the third time: *"a roadmap and
+backlog are solved problems… almost makes me want to make the leap to github issues and be done
+with this circle jerk."* Correct, and Signal's own `BACKLOG.md` already concedes it in writing —
+Signal *"has been incrementally building its own issue tracker out of markdown"*. The leap is
+**deferred, not declined** (*"not ready quite yet — but soon"*). Recorded now because the reason it
+kept looping is that the call was parked behind a trigger nobody walked (`B39`'s standing lesson),
+and a deferral that isn't written down is indistinguishable from another lap.
+
+**D-M5E14-1 — These are two decisions, and conflating them is what made this feel unresolvable.**
+
+**(a) Signal-the-repo adopts a tracker on its own merit.** An operations call about this project:
+90 `BUGS.md` rows, 52 untriaged inbox entries, a hand-sequenced backlog, and nothing that
+reconciles them. It needs **no Signal code** and could happen in an afternoon.
+
+**(b) Signal-the-product grows a tracker adapter** so *users* can point Signal at GitHub Issues.
+That is `M5.E14`, an Epic: a migration, a capability check, and the ship gate rewired.
+
+They were previously discussed as one thing, which made (a) — cheap, local, reversible — inherit
+(b)'s Epic-sized cost and unmet trigger. Separated, (a) is unblocked whenever Brett wants it.
+
+**D-M5E14-2 — (a) should go first, and it is the field evidence (b) needs — with a named blind
+spot.** Running Signal's own lifecycle on GitHub for a few weeks answers what the adapter must do
+far better than designing it dry. **The caveat is `B82`'s lesson, restated:** Signal's own tree is
+an unrepresentative corpus, so (a) validates the *GitHub* path only. It says nothing about the
+no-tracker path or a second provider, and those must be measured elsewhere — a blind spot named in
+advance rather than discovered in a retro.
+
+**D-M5E14-3 — GitHub Issues first; Linear is an adapter, not a peer, and the reason is auth.**
+`gh` is already in the ship flow, so GitHub costs Signal's audience **zero new credentials**. Linear
+needs a per-user API key, which is a **permission-model** question — and Signal has no vocabulary
+for one (`/sig:permissions` is unbuilt; `AGENT-EFFECTIVENESS-ALIGNMENT.md` names environment
+readiness as the absent axis and blocks it on exactly that). So Linear is gated on `/sig:permissions`,
+not on interest. Confirms `BACKLOG.md`'s existing "Linear at most a later adapter" line, with the
+reason attached.
+
+**What this changes in the near term: nothing is cancelled, and one thing is built differently.**
+The `discharged` marker still ships — it is the **offline fallback the tracker Epic requires
+regardless** (a user with no GitHub repo must still be able to record that an obligation is
+discharged). But the SHIP-time question is built as *"is anything still open?"* against a **named
+source**, so adopting a tracker later swaps the source rather than rewriting the gate.
