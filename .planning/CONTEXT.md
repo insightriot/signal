@@ -4,7 +4,25 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-08-07)
+## Where things stand (2026-08-08)
+
+**`v0.1.23` shipped** — **`B85`**, fix lane. `/sig:update`'s one mutating step had never worked as
+written: it told users to run `claude plugin update sig`, which the CLI rejects — an installed plugin
+is identified as `{plugin}@{marketplace}`, so the working string is `sig@signal`. Live for four
+releases, because **nothing in the suite ever inspected a CLI string a command file prescribes**.
+`tests/prescribed-cli.test.js` now walks every `claude plugin <verb> <target>` across `commands/` and
+checks the target against an identity **derived from** `plugin.json` + `marketplace.json` — pinning
+the literal string would have recreated the bug inside the test.
+
+**⚠ 11 commits sit on `main` past the `v0.1.23` tag — unreleased.** `plugin.json` still reads
+`0.1.23` while two P1 fixes and two new tools are live for anyone tracking `main`:
+- **`B87` fixed** (`58f5097`, `0340448`) — a phase that ran and never entered `completed_phases`.
+- **`B90` fixed** (`f7b452f`) — the tier dial made visible **as a mechanism**, not a paragraph.
+- **`B88`** (P1, `confirmed`), **`B89`** (P2, `confirmed`) filed — both from `nextpass`, both
+  **unsequenced**: they landed after Brett's 2026-08-06 ordering and the priority call is his.
+- Cross-project analysis tooling (`35d3fa5`) and a pre-release corpus stress test (`ab7a564`).
+- The defect class behind `B87`–`B90` named (`17e445c`): **the unreached mechanism** — the capability
+  exists, nothing reaches for it, and correctness depends on the operator already knowing.
 
 **`v0.1.22` shipped** — `M5.E19`, *file finished work away*. **`/sig:archive`**: Signal could already
 archive closed units but had **no command whose job that was** — it happened inside
@@ -37,11 +55,13 @@ v0.1.19 merged with `--merge` for that reason. The **fix lane** squashes (v0.1.2
 stated in `CLAUDE.md` and `commands/ship.md` (`#89`).
 
 **▶ Next work: `M5.E14`'s shippable slice** — the `discharged` marker + a SHIP-gate
-open-obligations query. Behind it: **`B87`** (the phase ledger misses phases in hand-driven runs)
-and the **command-namespace decision** (`BACKLOG.md` item 4 — whether document-upkeep commands get
-a prefix; pre-1.0 is when a rename is cheapest). The reasoning lives in **`BACKLOG.md` → "Next work
-— the agreed sequence"**; read it before starting, it records *why* that order and what was excluded
-on evidence.
+open-obligations query. It is **item 3 of Brett's 2026-08-06 ordering**; items 1 (`B52`) and 2
+(`/sig:archive`) are done, and `B87` — which that ordering listed behind it — was fixed 2026-08-08.
+Behind it: the **command-namespace decision** (`BACKLOG.md` item 4 — whether document-upkeep
+commands get a prefix; pre-1.0 is when a rename is cheapest). The reasoning lives in **`BACKLOG.md`
+→ "Next work — the agreed sequence"**; read it before starting, it records *why* that order and what
+was excluded on evidence. **`B88` and `B89` are filed but deliberately outside that sequence** —
+see the section below it, *"Filed since that agreement — not yet sequenced."*
 
 ## Project
 
