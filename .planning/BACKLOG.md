@@ -126,7 +126,15 @@ closing wired into the phase gates) are Epic-shaped and its trigger is unmet.
 
 
 
-### 4. `B88` — Signal is branch-blind · **P1** · **needs a product call, then small**
+---
+
+## Filed since that agreement — **not yet sequenced**
+
+Everything above is Brett's 2026-08-06 ordering. Everything below was filed
+**after** it and has **not** been placed in that sequence — the priority call is his,
+not the filer's. Kept separate so *"the agreed sequence"* keeps meaning what it says.
+
+### `B88` — Signal is branch-blind · **P1** · **needs a product call, then small**
 
 *Plain: the workflow never puts you on a branch, and never notices you aren't on one.*
 
@@ -158,7 +166,7 @@ enforcement**, which is exactly what `D-M5E17-5` was filed to end.
 because `CLAUDE.md` says so and the operator remembered. Same *depends-on-remembering* mode as
 `B87`.
 
-### 5. Command namespace — decide whether group 4 gets a prefix · **hygiene** · small-to-medium
+### Command namespace — decide whether group 4 gets a prefix · **hygiene** · small-to-medium
 
 *Plain: decide now, deliberately, whether commands get grouped names — before there are 30 of them.*
 
@@ -189,6 +197,58 @@ have opinions.
 **Why it should not sit indefinitely:** pre-1.0 with a small user base is when this is cheapest, and
 it only gets more expensive per command added. Treat *"later"* as *"the next naming-shaped thing,"*
 not *"someday."*
+
+
+### Write down which tool new work goes into — Signal or prose · **hygiene** · tiny
+
+*Plain: one rule so this question stops getting re-argued.*
+
+**Nothing anywhere says.** Grepped `.planning/`, `analysis/` and `CLAUDE.md` on 2026-08-08: every
+hit for "prose" is the English word (*de-prose*, *self-attested prose*). There is **no decision,
+note, or plan** about the `/prose:` plugin — it was never declined, it was never written down. So
+the question gets re-derived from scratch every time it comes up, which it did today.
+
+**The rule to write:**
+
+> If it looks at the work you are doing **right now** — the change in progress, the slice, the
+> phase — it belongs in **Signal**.
+> If it looks at the **whole codebase, whenever you ask** — no phase, no `.planning/` required — it
+> belongs in **prose**.
+
+Plus one line recording that prose is separate *on purpose*, so it can run in any repo without
+Signal's state files.
+
+**Why it is worth writing rather than remembering:** `/prose:audit` and Signal's
+`agents/specialists/security-auditor.md` already cover the same ground at different scopes, and one
+person maintains both. Without a stated rule the overlap grows by accident.
+
+**Home:** a short section in `CLAUDE.md` (where a fresh session reads it) plus a `D-` entry.
+
+### Adopt prose's "actually fine" rule into Signal's own reports · **hygiene** · small
+
+*Plain: make every report say what it looked at and deliberately did NOT flag.*
+
+**Verified missing 2026-08-08.** `grep -rin "actually fine|deliberately not flag|exclusion" agents/
+skills/review/` returns **nothing** relevant — the only hits are `grep` exclusions in
+`quality-scanner.md`. Signal's `code-reviewer`, `security-auditor` and `test-engineer` have no
+requirement to report what they considered and cleared.
+
+**Prose requires it of every report**, and its README states the reasoning: *a findings list with no
+exclusions is a warning sign — it means real issues weren't separated from things that merely look
+off.*
+
+**This is Signal's own principle, unenforced.** *"Checked and clean must never read like could not
+check"* is `B39`, the whole of `M5.E16`, and the archive report shipped in `v0.1.22`. Signal enforces
+it at **three specific sites** and nowhere as a **rule**. Prose arrived at the same idea
+independently and states it once, generally.
+
+**Scope:** a required "Considered and not flagged" section for the REVIEW specialists and the
+report-producing commands. **Note the interaction with `review_depth`** — under `quality-only` only
+Step 1 runs, so the requirement must attach to whichever steps actually execute, or it becomes a
+rule that silently does not apply (`M5.E16`'s carried finding).
+
+**Not a merge.** Borrowing the discipline is Signal's stated model (*"integration of existing
+frameworks, not reinvention"*); it settles nothing about whether the plugins combine.
 
 ---
 
