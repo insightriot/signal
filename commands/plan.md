@@ -61,16 +61,24 @@ Read from `.planning/`:
 - `PROJECT.md`, `PROFILE.md`, `CONTEXT.md`, `REQUIREMENTS.md`
 - `STATE.md` — current phase is `PLAN`, set by the phase-entry step above. *(Until M5.E9 this line read "verify current phase is PLAN" — a precondition **no command could ever satisfy**, since nothing advanced `phase` between DISCUSS and SHIP. `B41`'s symptom was written into the instructions as an unsatisfiable check.)*
 
-### 1b. Drain the inbox (advisory — classify + promote captured ideas into this plan)
+### 1b. Drain the inbox (required — classify + promote captured ideas into this plan)
 
-`/sig:add` captures ideas to the inbox (`ISSUES-INBOX.md`, back-compat `FUTURE-IDEAS.md`) between planning passes; PLAN is where they get dispositioned, so captures don't rot in a write-only file. This step is **advisory and fully skippable** — if you'd rather not triage now, skip the whole step and planning proceeds unchanged.
+`/sig:add` captures ideas to the inbox (`ISSUES-INBOX.md`, back-compat `FUTURE-IDEAS.md`) between planning passes; PLAN is where they get dispositioned, so captures don't rot in a write-only file.
+
+**This step is required. The escape is bounded, not open** (`B89`): you never have to *think about* the entries, but the inbox must always advance. If you don't want to triage now, take **"defer all remaining"** — one action, one batch write, every non-recovered entry stamped `→ Deferred`. What is no longer available is walking away leaving the entries unstamped.
+
+> **Why this changed.** This step used to read — **[RETIRED v0.1.24, no longer in force]** *"advisory and fully skippable — skip the whole step and planning proceeds unchanged"* **[/RETIRED]** — while the Anti-Rationalization table in **this same file** answered *"The plan's decided — skip the FUTURE-IDEAS drain"* with *"**No.** … Skip it and captures rot in a write-only file."* Both were live. An agent that skipped was simultaneously obeying Step 1b and committing the exact rationalization the table forbids, and **neither instruction was wrong on its own terms** — which is why nothing caught it. That is `M5.E17`'s class (instructions contradicting instructions), but **inside one file**, where the cross-document tests M5.E17 shipped do not look.
+>
+> **It was live and had already fired:** during `M5.E19` PLAN on 2026-08-07 the drain was skipped citing this step's permission, with **52 candidates** in the inbox, the oldest dating to 2026-05 — the precise outcome the table exists to prevent. Visible only because the skip was declared out loud.
+>
+> **Resolved toward required rather than toward optional**, because the consequence is not symmetric. The drain is Signal's **only** culling mechanism for `/sig:add` captures and it runs **only here**, so a permission to skip is a permission for the inbox to grow without bound. `evictTerminalToLedger` makes the inbox *converge* once entries are dispositioned — nothing makes them get dispositioned. Deferring all is one keystroke; an unbounded inbox is a file people stop reading, which silently converts `/sig:add` into a place ideas go to die.
 
 Load candidates with `listDrainCandidatesWithRecovery(content)` from `tools/lib/drain.js`. It reads the inbox resolved by `resolveInboxPath(baseDir)` (`ISSUES-INBOX.md` if present, else the legacy `FUTURE-IDEAS.md`) and returns `{candidates, danglingFence, recoveredCount}`: `candidates` is every top-level `## ` entry that is **not** already dispositioned (no date window, so the first run surfaces the whole standing backlog by design), plus any entries a **dangling (unclosed) code fence** had swallowed. If `danglingFence` is true, **announce** it before listing candidates — e.g. `⚠ the inbox has an unclosed code fence; recovered {recoveredCount} otherwise-hidden entr(y/ies). Fix the fence when convenient.` — so a malformed fenced sample can't silently drop captured ideas. (`listDrainCandidates` remains the bare-return primitive for callers that don't need the recovery signal.)
 
 **Recovered entries are read-only-visible, NOT dispositionable.** A candidate carrying `recovered: true` was resurfaced from below the dangling fence; it has a valid `range` but **no `entryIndex` in `parseEntries(content)`** (the fence swallowed it), so `applyDisposition`/`applyDispositions` cannot target it. **List recovered entries for awareness but do NOT offer promote/defer/merge/delete on them, and exclude them from the "defer all remaining" batch.** The only correct action is: fix the unclosed fence, then re-run the drain — they become normal, dispositionable entries. Disposition acts only on the non-`recovered` candidates.
 
 - **No candidates** → emit the one-line note `(no inbox candidates to drain)` and continue to Step 2.
-- **Candidates present** → render them **compactly** — heading + the one-line Status, numbered (recovered entries flagged and un-numbered / not selectable). On a large first run, offer **"defer all remaining"** up front (a single `applyDispositions` batch over the **non-recovered** candidates only) so the user can clear the wall in one action instead of N prompts.
+- **Candidates present** → render them **compactly** — heading + the one-line Status, numbered (recovered entries flagged and un-numbered / not selectable). **Always offer "defer all remaining" up front**, not only on a large first run (a single `applyDispositions` batch over the **non-recovered** candidates only). It is the bounded escape this step's requirement depends on, so it has to be present every time the step runs — an escape that appears only above some unstated size threshold is not one a user can rely on, and this step may no longer be skipped.
 
 For each entry the user keeps triaging, offer a `strict-enum [promote, defer, merge, delete]` choice plus an explicit **skip** (leave the entry untouched and move on):
 
@@ -207,7 +215,7 @@ Wrap the call in a **catch-all**: if `markFresh` throws for *any* reason — `St
 | "This task is too small to need acceptance criteria" | If it doesn't have criteria, how will you know it's done? |
 | "We can figure out the test strategy during execution" | TDD requires knowing what to test before writing code |
 | "Vertical slicing is overkill for this" | Horizontal slicing creates integration debt |
-| "The plan's decided — skip the FUTURE-IDEAS drain" | No. FUTURE-IDEAS is `/sig:add`'s default destination; the PLAN drain (Step 1b) IS the promotion step. Skip it and captures rot in a write-only file. |
+| "The plan's decided — skip the inbox drain" | No, and Step 1b no longer offers it. `ISSUES-INBOX.md` (back-compat `FUTURE-IDEAS.md`) is `/sig:add`'s default destination; the PLAN drain (Step 1b) IS the promotion step, and it is the only one. Skip it and captures rot in a write-only file. **The legitimate move is "defer all remaining"** — one action, every entry stamped, the inbox still advances. Not triaging is fine; leaving the entries unstamped is not. |
 
 ### Exit Criteria
 - [ ] `{phase}-PLAN.md` exists with vertical slices and acceptance criteria

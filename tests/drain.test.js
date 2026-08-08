@@ -567,8 +567,17 @@ describe('S5.t4 docs + anti-rationalization (FR7.5 / FR8.2)', () => {
     const tableStart = planMd.indexOf('### Anti-Rationalization Check');
     expect(tableStart).toBeGreaterThan(-1);
     const table = planMd.slice(tableStart);
-    expect(table).toMatch(/skip the (FUTURE-IDEAS )?drain/i);
+    // Qualifier deliberately name-AGNOSTIC (`B89`, 2026-08-08). This read
+    // `(FUTURE-IDEAS )?` and broke when the row was updated to say "inbox" —
+    // the current filename is `ISSUES-INBOX.md`, with FUTURE-IDEAS only a
+    // back-compat fallback. FR7.5's intent is that the table REFUSES the skip;
+    // pinning which noun the row uses for the file tests the spelling instead,
+    // and would fail again at the next rename.
+    expect(table).toMatch(/skip the (?:[A-Za-z-]+ )?drain/i);
     expect(table.toLowerCase()).toContain('rot');
+    // The row must also point at the legitimate alternative — a refusal with no
+    // permitted move is what made the original contradiction survivable.
+    expect(table).toContain('defer all remaining');
   });
 
   it('FR8.2: README `/sig:plan` mentions the FUTURE-IDEAS drain', () => {
