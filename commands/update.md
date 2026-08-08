@@ -46,7 +46,9 @@ If — and only if — the installed version is behind, ask a `strict-enum [upda
 
 ### 5. On confirm: update, then state the restart
 
-Run `claude plugin update sig`, then print `RESTART_NOTICE` verbatim:
+Run **`claude plugin update sig@signal`**, then print `RESTART_NOTICE` verbatim:
+
+**The name must be marketplace-qualified.** Bare `sig` is rejected — `Failed to update plugin "sig": Plugin "sig" not found` — because the CLI identifies an installed plugin as `{plugin}@{marketplace}`. Both halves are on disk: `.claude-plugin/plugin.json` → `name: "sig"`, `.claude-plugin/marketplace.json` → `name: "signal"`. This file prescribed the bare form through four releases (`B85`), and nothing caught it because **nothing in the suite ever executed a CLI string a command file prescribes**. `tests/prescribed-cli.test.js` now derives the expected identity from those two manifests and fails if this line drifts from it — a document checked against the manifests it describes, which is the shape that has caught the last several of these.
 
 > Restart Claude Code to pick this up — a session binds to one plugin version for its whole life, so the update is inert until you do.
 
