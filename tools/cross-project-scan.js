@@ -215,6 +215,50 @@ export async function scanProject(dir) {
   return r;
 }
 
+/**
+ * Scan a corpus and return the split, for programmatic callers (the release
+ * gate). Returns data, never text — a caller that greps a human report is a
+ * second implementation of the classification.
+ *
+ * @param {string[]} [roots] directories to search; defaults to the repo's parent
+ * @returns {Promise<{scanned: number, defects: Array, advisories: Array, blind: Array}>}
+ */
+export async function scanCorpus(roots) {
+  let projects = [];
+  if (roots?.length) {
+    for (const r of roots) {
+      const abs = resolve(r);
+      projects.push(...(existsSync(join(abs, '.planning')) ? [abs] : await discover(abs)));
+    }
+  } else {
+    projects = await discover(dirname(ROOT));
+  }
+
+  const results = [];
+  for (const p of projects) results.push(await scanProject(p));
+
+  const bucket = (want) => {
+    const by = new Map();
+    for (const r of results) {
+      for (const f of r.findings) {
+        if ((f.kind ?? 'signal-defect') !== want) continue;
+        if (!by.has(f.id)) by.set(f.id, []);
+        by.get(f.id).push(r.name);
+      }
+    }
+    return [...by.entries()]
+      .map(([id, projectsHit]) => ({ id, projects: projectsHit }))
+      .sort((a, b) => b.projects.length - a.projects.length);
+  };
+
+  return {
+    scanned: results.length,
+    defects: bucket('signal-defect'),
+    advisories: bucket('project-advisory'),
+    blind: results.flatMap((r) => r.blind.map((b) => ({ project: r.name, ...b }))),
+  };
+}
+
 export function render(results) {
   const L = [];
   const n = results.length;

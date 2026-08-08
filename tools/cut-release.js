@@ -169,7 +169,7 @@ function runSuite() {
   return { green: report.success === true, testCount: report.numTotalTests };
 }
 
-function main(argv) {
+async function main(argv) {
   const { version, title, apply } = parseReleaseArgs(argv);
 
   if (!version || !SEMVER_RE.test(version)) {
@@ -198,6 +198,54 @@ function main(argv) {
   }
   console.log(`  green — ${testCount} tests\n`);
 
+  // --- corpus pre-flight (2026-08-08) --------------------------------------
+  // The suite runs against fixtures and Signal's own tree. BOTH are structurally
+  // unrepresentative, and that is measured rather than suspected: `B82` could
+  // not exist in this repo by construction (every unit here is a strict Epic ID,
+  // so template and derivation agree) and was live in 8 of 12 real projects;
+  // `M5.E16` found Signal's own `.planning/` shape is the MINORITY shape.
+  //
+  // So before shipping to ~23 projects at once, run the working tree's logic
+  // against the messiest inputs available — the real corpus. This is a GATE on
+  // defects, not on advisories: an advisory is work waiting in someone's repo
+  // and cannot be fixed by a release.
+  //
+  // FAIL-OPEN, LOUDLY. A CI runner or a fresh clone has no sibling projects, and
+  // refusing to release there would be absurd. But a skipped check must never
+  // read as a passed one (`B39`, and the whole of `M5.E16`), so the absence is
+  // announced in the same breath.
+  try {
+    const { scanCorpus } = await import('./cross-project-scan.js');
+    const corpus = await scanCorpus();
+    if (corpus.scanned === 0) {
+      console.log('Corpus pre-flight: SKIPPED — no sibling projects found to scan.');
+      console.log('  (Not a pass. This machine has nothing to test the release against.)\n');
+    } else {
+      console.log(`Corpus pre-flight: ran against ${corpus.scanned} real project(s)…`);
+      if (corpus.blind.length > 0) {
+        const ids = [...new Set(corpus.blind.map((b) => b.id))].join(', ');
+        console.log(`  note: ${corpus.blind.length} check(s) could not be evaluated (${ids})`);
+      }
+      if (corpus.defects.length > 0) {
+        console.error('\n  DEFECTS IN SIGNAL found in the corpus. Not cutting a release:\n');
+        for (const d of corpus.defects) {
+          console.error(`    ${d.projects.length}/${corpus.scanned}  ${d.id}`);
+          console.error(`           ${d.projects.join(', ')}`);
+        }
+        console.error(
+          '\n  These are regressions this working tree would ship to every project at once.\n' +
+            '  Run `node tools/cross-project-scan.js` for the full report.\n'
+        );
+        process.exit(1);
+      }
+      console.log(`  clean — 0 defects (${corpus.advisories.length} project advisor${corpus.advisories.length === 1 ? 'y' : 'ies'}, not blocking)\n`);
+    }
+  } catch (err) {
+    // A broken scanner must not block a release, but it must not be silent.
+    console.log(`Corpus pre-flight: SKIPPED — the scan itself failed (${err.message}).`);
+    console.log('  (Not a pass.)\n');
+  }
+
   const date = new Date().toISOString().slice(0, 10);
   const edits = releaseEdits({ version, date, title, testCount, read });
 
@@ -223,7 +271,10 @@ function main(argv) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   try {
-    main(process.argv);
+    // AWAITED: main became async when the corpus pre-flight landed, and an
+    // un-awaited call would leave this catch unable to see a rejection —
+    // turning a failed release into a silent exit 0.
+    await main(process.argv);
   } catch (err) {
     console.error('cut-release: ' + err.message);
     process.exit(1);

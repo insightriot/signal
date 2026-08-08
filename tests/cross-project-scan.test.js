@@ -134,3 +134,66 @@ describe('cross-project analysis — safety', () => {
     expect(r.findings.map((f) => f.id)).toContain('B87-phase-ran-unlogged');
   });
 });
+
+describe('scanCorpus — the data the release gate consumes', () => {
+  it('returns structured buckets, not text', async () => {
+    const { scanCorpus } = await import('../tools/cross-project-scan.js');
+    const r = await scanCorpus([tmpdir()]); // a dir with no Signal projects
+    expect(r).toHaveProperty('scanned');
+    expect(Array.isArray(r.defects)).toBe(true);
+    expect(Array.isArray(r.advisories)).toBe(true);
+    expect(Array.isArray(r.blind)).toBe(true);
+  });
+
+  it('an empty corpus is scanned: 0 — distinguishable from a clean one', async () => {
+    // The release gate turns on exactly this. `scanned: 0` must mean "nothing
+    // to test against", never "tested and fine" (B39).
+    const { scanCorpus } = await import('../tools/cross-project-scan.js');
+    const empty = await mkdtemp(join(tmpdir(), 'sig-empty-'));
+    try {
+      const r = await scanCorpus([empty]);
+      expect(r.scanned).toBe(0);
+      expect(r.defects).toEqual([]);
+    } finally {
+      await rm(empty, { recursive: true, force: true });
+    }
+  });
+
+  it('buckets a defect and an advisory separately, ranked by incidence', async () => {
+    const { scanCorpus } = await import('../tools/cross-project-scan.js');
+    const base = await mkdtemp(join(tmpdir(), 'sig-corpus-'));
+    try {
+      // Two projects, each with the B87 shape -> one advisory hitting both.
+      for (const name of ['p1', 'p2']) {
+        const d = join(base, name, '.planning');
+        await mkdir(d, { recursive: true });
+        await writeFile(
+          join(d, 'STATE.md'),
+          '---\nschema_version: 1\nphase: VERIFY\ncurrent_epic: M1.E1\ncompleted_phases: []\n---\n# s\n'
+        );
+        await writeFile(join(d, 'M1.E1-PROGRESS.md'), '# p\n');
+      }
+      const r = await scanCorpus([base]);
+      expect(r.scanned).toBe(2);
+      expect(r.defects).toEqual([]); // B87 is an advisory now that Signal detects it
+      const b87 = r.advisories.find((a) => a.id === 'B87-phase-ran-unlogged');
+      expect(b87?.projects.sort()).toEqual(['p1', 'p2']);
+    } finally {
+      await rm(base, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('the release gate wires the corpus scan', () => {
+  it('cut-release blocks on defects and announces a SKIP as not-a-pass', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const src = await readFile(new URL('../tools/cut-release.js', import.meta.url), 'utf-8');
+    expect(src).toMatch(/scanCorpus/);
+    // Blocks on defects...
+    expect(src).toMatch(/DEFECTS IN SIGNAL found in the corpus\. Not cutting a release/);
+    // ...and a skip must never read as a pass. Both skip paths say so.
+    expect((src.match(/Not a pass/g) ?? []).length).toBe(2);
+    // The async main must be awaited, or a rejection exits 0 silently.
+    expect(src).toMatch(/await main\(process\.argv\)/);
+  });
+});
