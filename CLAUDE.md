@@ -79,7 +79,7 @@ Three-layer design, plus a Phase 0 router above it:
     routes by tier)
 ```
 
-Escape hatch: `/sig:escalate` promotes tier mid-flight if scope grows.
+Escape hatch: **`/sig:escalate` moves the tier in EITHER direction mid-flight** — up if scope or stakes grow, **down if the work turns out to be smaller than the project's ceiling** (the command is named for the common case; `escalate.md` §Case C is de-escalation). **Project tier is a CEILING, not a floor:** a per-unit `{UnitID}-PROFILE.md` runs one slice lighter without touching the project's calibration.
 
 The REVIEW phase (between VERIFY and SHIP) is the key addition over GSD's original flow. It covers code quality, security hardening, performance optimization, and code simplification via Agent Skills' specialist agents.
 

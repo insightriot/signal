@@ -203,6 +203,28 @@ Ready to continue with {next-command}? (Reply "yes" to proceed, or run any /sig:
 
 End with the literal one-line prompt. Do **not** auto-invoke the next phase command; the user explicitly confirms (this is the safety gate that distinguishes `/sig:resume` from "auto-continue"). The user's reply lands as a normal turn — they can type `yes` (and Claude can then offer to invoke the next command), or type any other `/sig:*` command directly, or say "let me think" without anything happening.
 
+### Tier advisory (B90) — say that the dial turns down
+
+Call `readTierAdvisory(baseDir)` from `tools/lib/status.js` and print the returned string (or
+nothing on `null`). Read-only, offline, **fail-open**.
+
+It fires on exactly one situation: **project tier is FULL and no `{UnitID}-PROFILE.md` exists
+anywhere** — i.e. every unit of work is paying all seven phases and the per-unit dial has never
+been used. It states that FULL is a **ceiling, not a floor**, and names the two ways down (a
+per-unit profile; `/sig:escalate` downward).
+
+**Advisory, never a gate.** The right tier is a judgment call, and a project legitimately at FULL
+for everything must not be nagged into lying about its work. It says the thing once and stops.
+
+**Why a check and not a paragraph** (`B90`): per-unit tiering, de-escalation and `phases_skipped`
+have all existed for releases, and every doc that introduced them said the dial only turns up.
+Measured 2026-08-08 across 12 local projects — **7 ran FULL, exactly 1 had ever written a per-unit
+profile.** Writing the rule more carefully is the remedy that produced that number
+(`analysis/UNREACHED-MECHANISM-ANALYSIS.md`).
+
+Render it in the **advisory tier**, alongside the STATE-size and layout banners — never above the
+schema-drift or stale-binding banners, which cast doubt on the reading itself.
+
 ## Anti-Rationalization Check
 
 | Temptation | Check |

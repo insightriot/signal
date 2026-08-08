@@ -103,12 +103,12 @@ export async function scanProject(dir) {
     const hasProgress = unit && names.includes(`${unit}-PROGRESS.md`);
     if (hasProgress && !logged.includes('EXECUTE')) {
       r.findings.push({
-        id: 'B87-phase-ran-unlogged',
+        id: 'B87-phase-ran-unlogged', kind: 'signal-defect',
         detail: `${unit}-PROGRESS.md exists but EXECUTE is absent from completed_phases`,
       });
     }
     if (state.phase && !PHASES.includes(state.phase)) {
-      r.findings.push({ id: 'phase-not-canonical', detail: `phase: ${state.phase}` });
+      r.findings.push({ id: 'phase-not-canonical', kind: 'project-advisory', detail: `phase: ${state.phase}` });
     }
   }
 
@@ -123,7 +123,7 @@ export async function scanProject(dir) {
     r.perUnitProfiles = epicProfiles.length;
     if (proj.tier === 'FULL' && epicProfiles.length === 0) {
       r.findings.push({
-        id: 'B90-full-tier-no-per-unit-override',
+        id: 'B90-tier-dial-unused', kind: 'project-advisory',
         detail: 'project tier FULL and no {unit}-PROFILE.md exists — every slice pays FULL',
       });
     }
@@ -132,7 +132,7 @@ export async function scanProject(dir) {
         const eff = await readEffectiveProfile(dir, { currentEpic: state.current_epic });
         r.effectiveTier = eff.tier;
       } catch (err) {
-        r.findings.push({ id: 'B59-epic-profile-unparseable', detail: err.message });
+        r.findings.push({ id: 'B59-epic-profile-unparseable', kind: 'signal-defect', detail: err.message });
       }
     }
   } catch (err) {
@@ -144,7 +144,7 @@ export async function scanProject(dir) {
     const d = await runDriftChecks(dir);
     for (const c of d.results) {
       if (c.status === 'findings' || (c.findings?.length ?? 0) > 0) {
-        r.findings.push({ id: `drift:${c.id}`, detail: c.findings?.[0]?.message ?? c.reason ?? '' });
+        r.findings.push({ id: `drift:${c.id}`, kind: 'project-advisory', detail: c.findings?.[0]?.message ?? c.reason ?? '' });
       } else if (c.status === 'blind' || c.status === 'cannotEvaluate') {
         r.blind.push({ id: `drift:${c.id}`, why: c.reason ?? 'not evaluable' });
       }
@@ -161,7 +161,7 @@ export async function scanProject(dir) {
     const undecidable = c.units.filter((u) => u.status === CLOSURE.CANNOT_DETERMINE).length;
     if (undecidable > 0) {
       r.findings.push({
-        id: 'closure-undecidable',
+        id: 'closure-undecidable', kind: 'project-advisory',
         detail: `${undecidable} of ${c.units.length} unit(s) have no readable verdict`,
       });
     }
@@ -186,11 +186,11 @@ export async function scanProject(dir) {
       if (missed.length && derived.length !== missed.length) stranded += missed.length;
     }
     if (stranded > 0) {
-      r.findings.push({ id: 'B82-unit-split', detail: `${stranded} file(s) stranded` });
+      r.findings.push({ id: 'B82-unit-split', kind: 'signal-defect', detail: `${stranded} file(s) stranded` });
     }
     if (a.moves.length > 0) {
       r.findings.push({
-        id: 'archivable-work-pending',
+        id: 'archivable-work-pending', kind: 'project-advisory',
         detail: `${a.moves.length} file(s) in closed units still in the live root`,
       });
     }
@@ -217,11 +217,37 @@ export function render(results) {
       byId.get(f.id).push(r);
     }
   }
-  if (byId.size === 0) {
-    L.push('No findings across the corpus.');
+  // Two categories, never one list. A DEFECT IN SIGNAL is something to fix here;
+  // a PROJECT ADVISORY is work waiting in someone's repo. Ranking them together
+  // reads as "Signal is broken in six ways" when most rows are a to-do list, and
+  // it makes a fix-and-rescan loop unfalsifiable: advisory counts cannot move
+  // until a human acts on a project, so chasing them tempts you to weaken the
+  // check instead. Found by using this tool on its own first output.
+  const kindOf = new Map();
+  for (const r of results) for (const f of r.findings) kindOf.set(f.id, f.kind ?? 'signal-defect');
+  const rank = (want) =>
+    [...byId.entries()]
+      .filter(([id]) => (kindOf.get(id) ?? 'signal-defect') === want)
+      .sort((a, b) => b[1].length - a[1].length);
+
+  const defects = rank('signal-defect');
+  L.push('— DEFECTS IN SIGNAL — fix these here (this is what a fix/rescan loop drives to zero) —', '');
+  if (defects.length === 0) {
+    L.push('  none across the corpus.');
   } else {
-    L.push('— Findings, ranked by how many projects they hit —', '');
-    for (const [id, hits] of [...byId.entries()].sort((a, b) => b[1].length - a[1].length)) {
+    for (const [id, hits] of defects) {
+      L.push(`  ${String(hits.length).padStart(2)}/${n}  ${id}`);
+      L.push(`         ${hits.map((h) => h.name).join(', ')}`);
+    }
+  }
+  L.push('');
+
+  const advisories = rank('project-advisory');
+  L.push('— PROJECT ADVISORIES — work waiting in a repo, not a Signal bug —', '');
+  if (advisories.length === 0) {
+    L.push('  none across the corpus.');
+  } else {
+    for (const [id, hits] of advisories) {
       L.push(`  ${String(hits.length).padStart(2)}/${n}  ${id}`);
       L.push(`         ${hits.map((h) => h.name).join(', ')}`);
     }

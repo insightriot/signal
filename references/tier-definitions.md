@@ -145,9 +145,29 @@ This is the authoritative mapping `/sig:calibrate` uses to write PROFILE.md's `r
 
 ---
 
+## Project tier is a CEILING, not a floor
+
+**The project tier is calibrated for the riskiest work the project contains — not for every slice
+in it.** A project that is FULL because it handles payments should still be able to fix a button
+label without paying seven phases for it.
+
+Two ways to run one unit lighter, neither of which touches the project's calibration:
+
+- **Per-unit profile** — write `{UnitID}-PROFILE.md` at FEATURE or SKETCH before DISCUSS.
+  `readEffectiveProfile` honours it for that unit's phases only.
+- **`/sig:escalate` downward** — with an Epic open it targets that Epic's profile
+  (`escalate.md` §Epic-scoped target), so the project PROFILE is left alone.
+
+**This was true for releases and effectively invisible** (`B90`). Measured across 12 local projects
+on 2026-08-08: **7 ran FULL and exactly 1 had ever written a per-unit profile.** A user paid
+FULL-tier ceremony on a two-hour UI fix and reasonably concluded Signal had no opinion about types
+of work. `/sig:status` and `/sig:resume` now say this out loud on a FULL project with no per-unit
+override, because a rule nothing surfaces is a rule nobody follows.
+
 ## Escalation
 
-`/sig:escalate` shifts a profile up or down. Common paths:
+**`/sig:escalate` shifts a profile UP OR DOWN.** The name describes the common case, not the
+capability. Common paths:
 
 - **SKETCH → FEATURE** when throwaway-scope work turns out to have real users.
 - **FEATURE → FULL** when the feature is handling unexpected sensitivity (e.g., added auth, added PII).

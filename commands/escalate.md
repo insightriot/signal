@@ -1,6 +1,6 @@
 ---
 name: sig:escalate
-description: "Escape hatch — re-run calibration carrying current context, update PROFILE.md tier, and append to escalation_history. Use when scope, stakes, or risk profile shifts mid-flight."
+description: "Adjust tier mid-flight, UP OR DOWN. Re-runs calibration carrying current context, updates PROFILE.md (the active Epic's, if one is open), and appends to escalation_history. Use when scope or stakes grow — and equally when the work turns out smaller than the project's ceiling (de-escalation; no back-fill needed going down)."
 args: ""
 ---
 
