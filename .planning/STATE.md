@@ -40,7 +40,7 @@ that reason. To check by hand, run any `/sig:` command and read the cache path i
 **Cache status 2026-08-06: `0.1.19` was the bound version for the `B52` fix work itself** (verified —
 `installed_plugins.json` records `0.1.19` and this session's `/sig:resume` cited that path, so the
 two agreed and no banner was due). ⚠ **`v0.1.20` ships 2026-08-06, so the cache will be a release
-behind again until you restart + `/sig:update`** — and the *next* session after that is the first one
+behind again until you `/sig:update` **and then** restart — in that order, because a restart before the update has nothing new to bind to** — and the *next* session after that is the first one
 this fix can protect.
 
 ## ▶ NEXT WORK — agreed 2026-08-06, in this order

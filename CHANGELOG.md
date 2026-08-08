@@ -6,6 +6,15 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **`B85` — `/sig:update`'s one mutating step had never worked as written.** The file told users to run `claude plugin update sig`; the CLI rejects it — `Failed to update plugin "sig": Plugin "sig" not found` — because an installed plugin is identified as `{plugin}@{marketplace}`. The correct string is **`claude plugin update sig@signal`**. Everything else in the command was fine: the version report, the marketplace refresh, and the CHANGELOG delta all worked, so a user got a correct report followed by a copy-paste line that errored. Live for four releases.
+
+  **The class is now guarded, not just the instance.** It survived because **nothing in the suite ever inspected a CLI string a command file prescribes**. `tests/prescribed-cli.test.js` walks every `claude plugin <verb> <target>` invocation across `commands/` and checks the target against an identity **derived from `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`** — no CLI, no network, no flakiness, and it keeps holding if either name changes. Pinning the literal string would have recreated the bug inside the test.
+
+  Also corrected: `STATE.md` described the recovery as *"restart + `/sig:update`"*, which reads as restart-first. It is **update, then restart** — a restart before the update has nothing new to bind to.
+
 ## [0.1.22] — 2026-08-07 — File finished work away — /sig:archive (M5.E19)
 
 ### Added
