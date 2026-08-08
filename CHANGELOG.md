@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.23] — 2026-08-08 — /sig:update tells you a command that works (B85)
 
 ### Fixed
 - **`B85` — `/sig:update`'s one mutating step had never worked as written.** The file told users to run `claude plugin update sig`; the CLI rejects it — `Failed to update plugin "sig": Plugin "sig" not found` — because an installed plugin is identified as `{plugin}@{marketplace}`. The correct string is **`claude plugin update sig@signal`**. Everything else in the command was fine: the version report, the marketplace refresh, and the CHANGELOG delta all worked, so a user got a correct report followed by a copy-paste line that errored. Live for four releases.
