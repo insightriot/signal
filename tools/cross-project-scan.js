@@ -102,8 +102,22 @@ export async function scanProject(dir) {
     const unit = state.current_epic;
     const hasProgress = unit && names.includes(`${unit}-PROGRESS.md`);
     if (hasProgress && !logged.includes('EXECUTE')) {
+      // RECLASSIFIED 2026-08-08, and the reasoning is recorded because the
+      // change makes a counter go green and therefore deserves scrutiny.
+      //
+      // Before `B87`'s fix this was a SIGNAL DEFECT: nothing in Signal could see
+      // a phase that ran and left no ledger entry, so every instance was
+      // Signal's blindness. After the fix, `phase-log-gap` in `state-drift.js`
+      // detects it and `/sig:sweep` + `/sig:resume` report it — so a remaining
+      // instance is a fact about that PROJECT's ledger that a person must judge,
+      // not a bug here. The log is append-only (`D-M5E9-5`), so some instances
+      // are permanent and correct to leave.
+      //
+      // The test of whether this is honest rather than convenient: Signal now
+      // SURFACES the condition where it occurs. If that ever stops being true,
+      // this belongs back in `signal-defect`.
       r.findings.push({
-        id: 'B87-phase-ran-unlogged', kind: 'signal-defect',
+        id: 'B87-phase-ran-unlogged', kind: 'project-advisory',
         detail: `${unit}-PROGRESS.md exists but EXECUTE is absent from completed_phases`,
       });
     }
