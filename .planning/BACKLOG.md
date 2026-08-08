@@ -250,6 +250,35 @@ rule that silently does not apply (`M5.E16`'s carried finding).
 **Not a merge.** Borrowing the discipline is Signal's stated model (*"integration of existing
 frameworks, not reinvention"*); it settles nothing about whether the plugins combine.
 
+
+### Re-aim on "the unreached mechanism" — the class behind `B87`–`B90` · **roadmap** · medium
+
+*Plain: four bugs in one day were the same bug. Fix the pattern, not the four.*
+
+Analysis: [`../analysis/UNREACHED-MECHANISM-ANALYSIS.md`](../analysis/UNREACHED-MECHANISM-ANALYSIS.md).
+
+**The shape:** a mechanism exists, is correct, and is never reached — because reaching it depends on
+a person remembering and nothing observes whether they did. `B87` (phase ledger), `B88` (branch),
+`B89` (drain), `B90` (per-unit tier) are all one defect wearing four hats.
+
+**Why it needs a decision rather than four fixes.** Signal's standard remedy for *"the rule wasn't
+followed"* has been to **write the rule more carefully** — and `B75` already measured that ceiling:
+`gate_strictness` `light` and `strict` **differ by one boolean in code; every other difference is
+prose.** More prose does not move that number. The durable remedies are: make the rule executable or
+delete it (`B48`'s model — refusal beats instruction); put the check where the *situation* is, not
+where the *topic* is; and file these as *unreached*, not *absent*, because that turns **build** into
+**wire**.
+
+**The cheap first move, and it is a measurement, not a build:** classify the 30 `confirmed` rows in
+`BUGS.md` into *exists-but-unreached* / *absent* / *wrong*. If the first bucket dominates, the
+roadmap should be re-aimed at wiring. **That count has not been run** — it is stated as an open
+measurement rather than assumed, and it is an afternoon's work.
+
+**The uncomfortable input:** three of the four came from **outside** Signal's own use.
+Signal-on-Signal is driven by an operator who already knows where every mechanism is, so it is
+structurally poor at finding this class — the same blindness `B82` proved by construction and
+`M5.E16` measured (Signal's own `.planning/` shape is the *minority* shape).
+
 ---
 
 ## Since the re-audit — what M5.E7 changed (reconciliation, 2026-07-26)
