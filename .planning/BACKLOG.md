@@ -126,7 +126,39 @@ closing wired into the phase gates) are Epic-shaped and its trigger is unmet.
 
 
 
-### 4. Command namespace — decide whether group 4 gets a prefix · **hygiene** · small-to-medium
+### 4. `B88` — Signal is branch-blind · **P1** · **needs a product call, then small**
+
+*Plain: the workflow never puts you on a branch, and never notices you aren't on one.*
+
+**Reported from `nextpass` 2026-08-08, verified here and broader than reported.** `grep -rln
+"git branch --show-current|rev-parse --abbrev-ref" commands/ tools/lib/` returns **nothing** — not
+one of 20 commands, not one library module. `execute.md` has **zero** occurrences of the word
+"branch"; `ship.md` §3 says *"Create a pull request with:"* with no precondition that one is still
+possible; the Exit Criteria is a **checkbox**, not a PR URL.
+
+**Where it lives is the finding.** `ship.md:116` is the paragraph that *removed* the direct-to-main
+exemption and states in prose that a change *"does need a branch, a PR, and a green suite"* — in a
+file that supplies no mechanism and no check. **The file states the rule and still supplies no
+enforcement**, which is exactly what `D-M5E17-5` was filed to end.
+
+**The decision, not the code, is what's blocking.** Three candidate sites, not equivalent:
+
+1. **Assert a non-default branch at `/sig:execute` entry** — earliest point that matters; a slice
+   cannot *begin* on the default branch. **But the fix lane skips EXECUTE entirely**, so it covers
+   one lane only.
+2. **Halt at `/sig:ship` when `HEAD == default`** — `B48`'s remedy one level up: the code refuses
+   instead of the text asking. **Covers both lanes**, and forces the conversation the reporter chose
+   to have with a summary file instead.
+3. **Read the Exit Criteria from a PR URL** — closes the claim-integrity half, but only after the
+   fact.
+
+**Recommended: (2) with (3)**, together small. (1) is worth adding later for the Epic lane.
+
+**Live here today and masked only by habit** — every branch in the 2026-08-08 session existed
+because `CLAUDE.md` says so and the operator remembered. Same *depends-on-remembering* mode as
+`B87`.
+
+### 5. Command namespace — decide whether group 4 gets a prefix · **hygiene** · small-to-medium
 
 *Plain: decide now, deliberately, whether commands get grouped names — before there are 30 of them.*
 
@@ -443,7 +475,7 @@ searching for siblings before closing. `B70` is what that discipline produced on
 application — `B45` quarantines an off-enum `completed_phases` entry, and nobody asked whether the
 `phase` scalar next to it had the same hole. It did, on five real projects.
 
-### A closure-gated archive **command** — wire `resolveClosures` to the mover
+### ~~A closure-gated archive **command** — wire `resolveClosures` to the mover~~ — **✅ SHIPPED v0.1.22 (`M5.E19`, 2026-08-07)**; its premise was corrected at PLAN (`D-M5E19-6`) — archiving was already wired, the gap was the missing front door
 
 **Tag:** roadmap · **Trigger: FIRED 2026-08-04** — `curator`, the external tool that did this job
 across `nextpass` and `cm-mentor-coach`, was **removed from the machine that day**. Archiving in
@@ -494,7 +526,7 @@ Run against it today the planner returns **3 of 6 files**.
 (`nextpass/docs/operational/ship-archive-runbook.md` and cm-mentor-coach's) carry the manual
 sequence, and the deleted wrapper is in those repos' git history.
 
-### `B52` — warn at session start when the bound plugin cache is not the installed one
+### ~~`B52` — warn at session start when the bound plugin cache is not the installed one~~ — **✅ SHIPPED v0.1.20 (2026-08-06)**
 **Tag:** correctness · **Trigger: SATISFIED — third live sighting 2026-08-03. Filed as a home for a
 P1 that has had no home across three sightings in six days.**
 
@@ -557,7 +589,7 @@ zero-design.
 **Evidence base:** the same table as M5.E16 above. First-execution is where the yield is, and
 right now it lands wherever it happens to land.
 
-### M5.E15 — The control arm, made real (`B55`) — **▶ OPEN: DISCUSS + PLAN closed 2026-08-04, EXECUTE next**
+### ~~M5.E15 — The control arm, made real (`B55`)~~ — **✅ SHIPPED v0.1.19 (2026-08-06)**
 
 > **Marked open 2026-08-04, late — and the lateness is the finding.** `D-M5E18-1` made *this file*
 > the single home for the queue **because** it drifted on 2026-08-03. Three days later M5.E15 opened,
