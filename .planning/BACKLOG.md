@@ -497,7 +497,20 @@ byte-identical code).
   falsifier exists to prevent.** *This is also the canonical instance of the `B39` fix's second
   half — a checked-and-declined condition must be distinguishable from an unchecked one.*
 
-### M5.E10 — Review hardening
+### ▶ M5.E10 — Review hardening · **NEXT (confirmed 2026-08-09, `D-BR0809-1`)**
+
+> **Dispositioned, not merely scheduled.** This Epic had a satisfied trigger and **no artifact on
+> disk** for six weeks while six unplanned Epics shipped past it — two recording the override in
+> their own status rows (*"ran ahead of E10–E12"*). Six legal deferrals of one item is
+> indistinguishable from a silent cut, which is what `B39` exists to prevent. **Confirmed next**
+> because its evidence compounded during the very review that dispositioned it: three fresh
+> claim-integrity instances in one session (`BUGS.md`'s tally wrong in two cells while its own
+> narrative named the cause; `B91`; and the review's own unverified *"three of five figures"*
+> claim), none caught by any existing mechanism.
+>
+> **Shipping this closes Milestone 5** (`D-BR0809-2`). Sibling dispositions: `M5.E11` kept, first
+> slice only, sequenced behind this; `M5.E12` parked unchanged.
+
 **Tag:** roadmap · **Trigger: M5.E8 lands** (both halves are partly prompt-shaped; E8 is what makes
 "did it help?" answerable). **Trigger satisfied 2026-07-28.** **Scope widened 2026-07-28** by the
 claim-integrity investigation ([`../analysis/CLAIM-INTEGRITY-ANALYSIS.md`](../analysis/CLAIM-INTEGRITY-ANALYSIS.md))
@@ -544,7 +557,22 @@ unverified — never asserted from memory* (the `buildCaveats()` lesson, general
   `RETROSPECTIVES.md` lacks a row for an existing retro fails `/sig:sweep` (the 2026-07-28
   missing-M5.E8-row incident, mechanized).
 
-### M5.E11 — Roadmap Advisor
+### M5.E11 — Roadmap Advisor · **KEPT — first slice only, sequenced behind `M5.E10`** *(2026-08-09, `D-BR0809-1`)*
+
+> **Two things changed on 2026-08-09, and they cut in opposite directions.** The
+> [backlog review](BACKLOG-REVIEW-2026-08-09.md) **did this Epic's job by hand** — so the
+> automation's value is now demonstrably *repeatability*, not capability, and the manual version
+> costs one pass. That is an argument for shrinking it to the first slice, not for cutting it: a
+> judgement made once by hand and never again is exactly the *"0-for-6 displacement chain"* this
+> Epic was proposed to fix.
+>
+> It also means the done-when is now **testable against a known-good output** — that review is the
+> answer the first slice must reproduce.
+>
+> **Sequenced behind `M5.E10` for a specific reason, not politeness:** an advisor that emits
+> unverified claims is the claim-integrity defect with a wider blast radius. Build the claim checks
+> first, then the thing that makes claims at scale. **Moves to M6** (`D-BR0809-2`).
+
 **Tag:** roadmap · **Trigger: M5.E9 lands** (it advises on a backlog, so reconcile the backlog first).
 The best-evidenced *new* capability in the audit, and one it nearly missed: the counterfactual asked
 about shipped bugs and Epic duration and **never asked "would this have stopped us building the
@@ -558,7 +586,26 @@ why* is **in**. Absorbs gstack's `/office-hours` forcing questions re-pointed at
 on Signal's own backlog and the citations resolve. **Naming deliberately open** — do not fix the
 name before the shape.
 
-### M5.E16 — The other two shapes of "shipped but never run"
+### M5.E20 — The other two shapes of "shipped but never run" *(renumbered from `M5.E16`, 2026-08-09)*
+
+> **This entry carried a dead ID for nine days — `B91`.** It was promoted as `M5.E16` on 2026-07-30.
+> On **2026-08-01** a different Epic opened under the same ID — *"M5.E16 — STATE-vs-world drift
+> detection"* (`M5.E16-REQUIREMENTS.md:1`) — and shipped as **v0.1.16**. Two Epics, one ID, one day
+> apart, breaking **ID-is-identity** (`PROJECT.md` § Vocabulary) in the direction that hurts: asking
+> *"did `M5.E16` ship?"* returned **yes**, for work that is not this item, so this entry was
+> invisible to anything keying on the ID — including the trigger walk, which reads this file.
+>
+> **Renumbered to `M5.E20`** (next free; `E10`–`E12` are reserved, `E19` shipped). **The old ID is
+> not reused and not silently swapped** — the whole value of the rule is that the collision stays
+> legible. `M5.E16` now means one thing: the shipped drift-detection Epic.
+>
+> **The cause is a missing mechanism, not carelessness:** IDs are allocated by *promotion* in this
+> file and by *Epic-open* in `.planning/{EpicID}-*.md`, and **nothing reconciles the two
+> allocators.** `B91` carries the candidate fix — a hygiene test asserting every `M5.E{n}` heading
+> here either has no `{EpicID}-REQUIREMENTS.md` on disk or matches its title, which would have gone
+> red on 2026-08-01.
+>
+> **Scope and trigger below are unchanged.** Only the identifier moved.
 **Tag:** roadmap · **Trigger: NONE — promoted on evidence 2026-07-30 (Brett).**
 Was M5.E13's explicit *"not doing — a cross-shape mechanism for the guard class."* Promoted
 because the class turned out to be a **search strategy**, not a bug list.
