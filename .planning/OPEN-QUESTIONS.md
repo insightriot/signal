@@ -23,9 +23,31 @@ Unresolved design questions. Append new ones; delete resolved ones (or move to `
 
 **Deferred to MILESTONE-4 (or post-v1).** Slash commands are markdown interpreted by Claude — testing them requires a fixture-based command-execution harness (start project at known state, drive command, diff against golden output) or a prompt-replay system. Both are non-trivial. The two M3 dogfood passes provide more practical coverage than any unit-test harness would.
 
-**Current state:** 96 vitest tests cover tooling helpers (`state.js`, `profile.js`, `context-monitor.js`, `status.js`). No tests for command markdowns themselves. Validator (`tools/validate-plugin.js`) checks file existence + structure but not behavior.
+> **Refreshed 2026-08-09 (backlog-review triage, finding `S1`).** Three claims below were stale, and
+> this file was the only live governance doc untouched since 2026-07-25. **Milestone 4 closed
+> 2026-05-12 and M4.5 closed 2026-07-15**, so both the deferral target and the resolve-by named a
+> milestone that no longer exists. The question itself is still open and is **more** decidable now,
+> not less — see the corrected state below.
 
-**Resolve by:** MILESTONE-4. Couples to the v2 architecture additions (more commands → more surface to verify mechanically).
+**Current state (2026-08-09):** **2389 vitest tests across 142 files** cover the `tools/lib` layer.
+There is now partial mechanical coverage of the command markdowns themselves, which did not exist
+when this question was written: `tests/commands-wording.test.js`, `tests/prescribed-cli.test.js`
+(walks every `claude plugin` string a command prescribes and checks it against an identity derived
+from `plugin.json` + `marketplace.json`), `tests/intra-file-consistency.test.js` (`B89` — a command
+may not permit what the same file forbids), `tests/cross-file-consistency.test.js`, and
+`tests/guard-callers.test.js` (whose own coverage gap is `B81`). **Behavioural** execution of a
+command is still untested; `tools/validate-plugin.js` still checks structure, not behaviour.
+
+**What has changed the decision inputs.** `M5.E8` built the adherence harness — Signal *can* now
+measure whether a specific instruction changes what an agent does — and published the ceiling:
+**91 of 407 directive lines (22.4%) are trace-measurable.** That is the honest answer to "can we
+test command markdown," and it is a partial yes with a measured bound rather than the flat no this
+entry assumed. The open question is therefore narrower: **is a fixture-based execution harness worth
+building for the other 77.6%, given the adherence harness already covers the measurable slice?**
+Related open item: the slash-command testing harness (A5) in [`BACKLOG.md`](BACKLOG.md) § Sprint 5.
+
+**Resolve by:** unchanged in substance — when command count or a measured adherence failure makes the
+gap concrete. **No longer keyed to a closed milestone.**
 
 ---
 

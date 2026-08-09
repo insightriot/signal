@@ -1,10 +1,10 @@
-# Future Ideas
+# Issues Inbox
 
-Post-v1 architectural ideas for Signal itself — **distinct from `MILESTONE-4.md`**, which is specifically the "rundown v2" integrations (porting patterns from other repos).
+**The capture inbox.** Everything `/sig:add` records lands here first — ideas, bugs, questions, observations — in the words they were captured in, before anyone decides what they are.
 
-This file is for evolutions of Signal's *own* mechanisms that surface during v1 build/use. Entries here are candidates for later milestones (v1.5 or v2), not committed work.
+**Where entries go from here.** Captures **drain to [`BACKLOG.md`](BACKLOG.md) (roadmap work) or [`BUGS.md`](BUGS.md) (defects)**, via `/sig:plan`'s Step 1b, which stamps each entry with its disposition (`promote` / `defer` / `merge` / `delete`). Nothing is built from this file directly. An entry with no stamp has not been decided on — it has only been written down.
 
-Append new ideas; promote to a milestone file when ready to build.
+> **Header corrected 2026-08-09 (backlog-review triage, finding `C5`).** This file described itself as what it stopped being at docs-layout **v3**: it was titled *"Future Ideas"*, called itself *"distinct from `MILESTONE-4.md`"* (a file now under `archive/milestones/`), said entries were *"not committed work"* candidates for *"v1.5 or v2"*, and instructed *"promote to a milestone file when ready to build."* **All four were wrong in the same direction** — they route a reader to milestone files, while `INDEX.md:22` and the live drain both route to `BACKLOG.md`/`BUGS.md`. The file's own most recent entries are bug-bearing captures, which the old header had no route for. Nothing mechanical caught this: the `MILESTONE-4.md` reference was in backticks, not a link, so the dead-link check could not see it.
 
 ---
 
@@ -1310,6 +1310,26 @@ Passive Stop-hook → continuous in-the-moment observation capture. Add a passiv
 
 ## Cross-document contradiction sweep — 11 open findings (2026-08-04)
 
+**Status:** Captured 2026-08-04. **✅ TRIAGED 2026-08-09** (backlog-review pass) — dispositions below, each re-verified against the current files rather than accepted from the capture. **3 of 11 were already dead; 3 more collapse into one root; 5 were fixed in this pass.**
+
+| # | Verdict 2026-08-09 | Disposition |
+|---|---|---|
+| `C2` · v0.1.18's closed-bug list | **Live, but reframed** | Not a wrong list — `B70` *was* closed by Epic `M5.E18`, in the fix lane, and *released* as v0.1.17. Two true facts published in one shape. **Same root as `SH2` + `SH4`: no label distinguishes a release delta from an Epic delta.** Merged into one item; `B56` already recommends the release reading. |
+| `C5` · inbox describes itself as pre-v3 | **Live, verbatim** | **FIXED** — header rewritten (see the note at the top of this file). |
+| `C6` · adherence share 21.1 vs 21.2 | **Dead** | No longer present; `STATE.md`'s figure is gone and `ADHERENCE-LOG.md:12` reads `87/411 = 21.2%`, which is correct. **Dismissed as resolved.** |
+| `S1` · `OPEN-QUESTIONS.md` stale | **Live, and the worst of the eleven** | **FIXED** — it claimed **96 vitest tests** against a live **2389**, and both its deferral target and resolve-by named milestones closed in May and July. Refreshed, and the question re-stated against what `M5.E8` actually established. |
+| `S3` · `BACKLOG.md`'s M5.E15 trigger line | **Dead** | Entry is struck and marked `✅ SHIPPED v0.1.19`. **Dismissed as resolved.** |
+| `S4` · withdrawn `OBEYED` restated | **Live, and inverted since capture** | The verdict was withdrawn at `M5.E13` (`INDETERMINATE`), then **re-established by `M5.E15`** with a real control arm. So the conclusion is now correct and the **provenance** is not: `MILESTONE-5.md:39` and `STATE.md:392` credit `M5.E8`'s run, which was unisolated. Needs one clause, not a correction. |
+| `S5` · "the 48-entry inbox" | **Live and worse** | `STATE.md` now carries **two different numbers** — `50` at `:137`, `48` at `:216` and `:304` — against a live **52**. A point-in-time measurement published as a live descriptor, three times, disagreeing with itself. |
+| `SH2` · v0.1.18 narrated in five places | **Live** | Merged into `C2`. |
+| `SH3` · `B41` verdict in four places | **Live, and larger than filed** | 36 sites repo-wide; **7 are live governance docs** (`MILESTONE-5.md`, `STATE.md`, `CONTEXT.md` ×2, `CLAUDE.md`, `RETROSPECTIVES.md`, `BACKLOG.md`). The rest are frozen Epic artifacts and are correctly left alone. |
+| `SH4` · test-count baseline | **Instance dead, semantic live** | The specific numbers (`1954`/`1994 → 2168`) are gone — the suite is at 2389. The missing **release-vs-Epic label** survives and is merged into `C2`. |
+| Judgment call · `CONTEXT.md`'s "Open bug tail" | **Live** | Still an unlabeled enumeration naming a subset of `confirmed` rows. Either label it *selected* or derive it. |
+
+**Two things this triage establishes beyond the eleven.** The capture's own warning held — *"eleven is a floor, not a total"* — and its stated method limit was right: it read 4 of 141 files whole, and **three of the eleven had already resolved themselves** in the five days since, which no re-reading of the capture would have revealed. **A contradiction list is a perishable good.** Second: the largest live item is not any single finding but the **release-delta vs Epic-delta** conflation now carrying three of them, which is a labelling decision, not eleven edits.
+
+<details><summary>Original capture (2026-08-04)</summary>
+
 **Status:** Captured 2026-08-04. **Needs triage.** From the first real run of the `auditor` agent's
 contradiction sweep over Signal's own live-instruction surface — the capability the
 `/sig:sweep --docs / --code` entry describes and did not ship. **Five findings were fixed in PR #86**
@@ -1371,6 +1391,8 @@ of four `M5.E15-*` artifacts were not read. **Eleven is a floor, not a total.**
 **cannot find contradictions between two files both updated the same day** — and `C1`, `C2`, `C3` and
 `SH1` were all same-day divergences. The cheap staleness heuristic is structurally blind to where
 this corpus's defects currently live.
+
+</details>
 
 ---
 
@@ -1814,8 +1836,22 @@ retro-index freshness check (§6 item 8) was handed to **M5.E13** instead, per t
 
 ## M5.E17 shipped without a retrospective — and the honest fix is not to write one
 
-**Status:** Logged 2026-08-03 at the `/sig:resume` that opened M5.E18. Needs triage: this is an
-obligation with no owner, not a defect.
+**Status:** Logged 2026-08-03 at the `/sig:resume` that opened M5.E18. ~~Needs triage: this is an
+obligation with no owner, not a defect.~~ **✅ TRIAGED 2026-08-09 — RESOLVED, AND THE DECISION BELOW
+WAS REVERSED.**
+
+> **`M5.E17-RETROSPECTIVE.md` was written on 2026-08-03**, the same day this entry argued it should
+> not be — 10,890 bytes on disk, and `MILESTONE-5.md` records the reversal explicitly: *"✅ M5.E17's
+> retrospective was backfilled 2026-08-03 … This reverses the decision recorded [here]."*
+> `isEpicDone('M5.E17')` is now true, which is what closed `B71`'s live consequence.
+>
+> **The entry is left standing rather than deleted, because its argument is the useful part** — a
+> retro composed from `PLAN`/`REQUIREMENTS`/`RESEARCH` alone would be prose about what an Epic
+> learned, derived from documents written *before it executed*. Whoever reads the backfilled retro
+> should know it was produced under exactly that constraint. **What is corrected is only the status
+> line**: this stopped being an open obligation six days ago, and it sat in the inbox reading
+> *"needs triage"* while the thing it asked for had already happened — which is the same
+> perishability the contradiction-sweep entry above demonstrates.
 
 **How it surfaced — the detector working.** `/sig:sweep`'s `epic-without-retro` check fired for the
 **first time in normal use**: *"M5.E17 has phase artifacts on disk but no retrospective — it was
