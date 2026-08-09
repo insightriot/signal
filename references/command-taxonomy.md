@@ -86,13 +86,25 @@ Ask **what question the user is answering**, not what code is shared.
 - **Same question, different intensity or target → a flag.** `--apply` versus dry-run, `--epic`,
   `--fix`. These do not change what is being asked.
 
-## Known open question — prefixed namespaces
+## Prefixed namespaces — decided 2026-08-09: no
 
-Whether group 4 should eventually become `memory-*` (or `docs-*`) is **open and deliberately not
-decided here**. The argument for it is real: at 30 commands a flat namespace is harder to learn than
-a grouped one. The argument against acting now is that renaming is a **breaking change** for
-existing users and needs deprecation aliases plus a version bump — separate work from adding a
-command, and doing both at once means a wrong taxonomy makes the new command wrong too.
+**Group 4 keeps bare verbs. There is no `memory-*` or `docs-*` prefix, and none is planned.**
+`migrate-memory` becomes `migrate` at the next breaking window, so the group is four bare verbs:
+`index`, `sweep`, `migrate`, `archive`. Decision: `D-BR0809-3` (closes `D-M5E19-9`, which filed this
+as explicitly undecided).
 
-Filed in `BACKLOG.md`. Pre-1.0 is when a rename is cheapest, so *"later"* means *"deliberately, and
-soon"* — not *"someday."*
+**The reason is this document.** `/sig:` is already the namespace, and **writing the grouping down is
+what makes the prefix unnecessary** — a prefix encodes in every future keystroke what one page
+explains once. The argument for prefixing was learnability at ~30 commands; the taxonomy buys that
+learnability without charging every invocation for it.
+
+Against acting: a rename is user-visible and **breaking** — deprecation aliases, a `[BREAKING]`
+CHANGELOG entry, a minor bump, and a pass over every doc naming a command, with
+`install-contract.test.js` and the roster checks both holding opinions. The group's only genuine
+inconsistency is **one compound name**, and the fix for that is renaming it *down* to a bare verb,
+not applying a prefix *up* to the other three.
+
+**Revisit if** the roster approaches ~30 commands **and** a flat namespace measurably hurts — new
+users mis-guessing command names, or this page going unread. That is a trigger, and it belongs on the
+watchlist in `ISSUES-INBOX.md` rather than in anyone's memory. Pre-1.0 remains when a rename is
+cheapest, so a revisit would still be *"deliberately, and soon"* — not *"someday."*

@@ -166,7 +166,24 @@ From planning-with-files.
 
 ## Exit Criteria
 
-When the 10-phase architecture from `SIGNAL-INTEGRATION-RUNDOWN.md` is functional end-to-end on real projects.
+**M5 closes when `M5.E10` (review hardening / claim integrity) ships.** `M5.E11`, `M5.E12` and the
+loop-engineering work become **M6**. *(Restated 2026-08-09, `D-BR0809-2`.)*
+
+**M5's theme, named from what it actually shipped:** *making Signal's own record trustworthy.* Every
+Epic from E1 to E19 fits it — the doc runtime (E1–E3, E6), the bug and hygiene close-outs (E4, E5),
+the direction audit (E7), measurement (E8, E15), ledger integrity (E9), the guard and contradiction
+classes (E13, E17), drift detection (E16), and archiving (E18, E19). `E10` is the last piece of that
+theme, which makes it the honest terminus rather than an arbitrary one.
+
+> **What this replaces, and why it had to be replaced.** This section previously read: *"When the
+> 10-phase architecture from `SIGNAL-INTEGRATION-RUNDOWN.md` is functional end-to-end on real
+> projects."* That architecture was **largely abandoned by M5's own `E7` re-audit** — *"Not one
+> straight port survived"* (the E7 row above) — and no corrected criterion was written afterward. So
+> for six weeks **every Epic M5 shipped fell outside the sentence that defined closing it**, and the
+> milestone could not close against its own definition while continuing to accumulate work. Found by
+> the 2026-08-09 backlog review ([`BACKLOG-REVIEW-2026-08-09.md`](BACKLOG-REVIEW-2026-08-09.md) `F4`).
+> The old criterion is quoted here rather than deleted, because *why* a milestone's definition went
+> stale is the part worth keeping.
 
 ## Notes
 

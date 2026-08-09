@@ -145,7 +145,20 @@ Separately and still live: the "footer" is no longer at the foot — `/sig:add -
 
 Ordered by dependency and risk. Each is independently shippable.
 
-### Wave 1 — Decide, don't build *(hours; zero code; unblocks everything below)*
+### Wave 1 — Decide, don't build · **✅ COMPLETE 2026-08-09** *(hours; zero code; unblocked everything below)*
+
+> **All six items closed the day this review was written.** Decisions: `D-BR0809-1` (`M5.E10`
+> confirmed next; `M5.E11` kept at first-slice and sequenced behind it; `M5.E12` parked),
+> `D-BR0809-2` (**M5 closes when `M5.E10` ships**; `E11`/`E12`/loop work become M6), `D-BR0809-3`
+> (group 4 keeps bare verbs; `migrate-memory` → `migrate` at the next breaking window — closes
+> `D-M5E19-9`). `B91` fixed: the unbuilt Epic is renumbered **`M5.E20`**, with the dead ID left
+> legible rather than swapped. `M5.E8`'s heading struck. The 11 contradiction findings triaged —
+> 3 dead, 3 merged into one root, 5 fixed. Both `needs-triage` inbox entries closed, one of which
+> turned out to be **reversed** rather than stale.
+>
+> **What Wave 1 did not close, and should not be read as closing:** the allocator reconciliation
+> behind `B91` (named, not built), and the release-vs-Epic delta label carrying `C2`/`SH2`/`SH4`
+> (a decision, still open). Both are in Wave 2's territory.
 
 `A1` re-disposition `E10`–`E12` **and restate M5's exit criterion** (`F4`) · file and resolve the `M5.E16` ID collision (`F1`) · strike `M5.E8`'s unclosed heading · the namespace **decision** half · triage the 11 contradiction findings · triage the two `needs-triage` inbox entries (`ISSUES-INBOX.md:1311`, `:1815`).
 

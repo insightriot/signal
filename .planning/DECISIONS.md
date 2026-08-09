@@ -1534,3 +1534,80 @@ The `discharged` marker still ships — it is the **offline fallback the tracker
 regardless** (a user with no GitHub repo must still be able to record that an obligation is
 discharged). But the SHIP-time question is built as *"is anything still open?"* against a **named
 source**, so adopting a tracker later swaps the source rather than rewriting the gate.
+
+---
+
+## 2026-08-09 — Backlog review: the disposition pass (D-BR0809-1 … D-BR0809-3)
+
+*Source: [`BACKLOG-REVIEW-2026-08-09.md`](BACKLOG-REVIEW-2026-08-09.md), Wave 1. The 2026-07-04 pass
+used bare `BR-n` IDs; this pass uses `D-BR0809-n` so the two ID spaces cannot collide — a
+distinction `B91`, filed the same day, exists to enforce.*
+
+**D-BR0809-1 — `M5.E10` is confirmed as the next Epic. `M5.E11` is kept, re-scoped to its first
+slice, and sequenced behind it. `M5.E12` stays parked.**
+
+The three had **never started** — no artifact on disk — while their triggers read satisfied and six
+unplanned Epics shipped past them, two recording the override in their own status rows (*"ran ahead
+of E10–E12"*). Six legal deferrals of the same three items is indistinguishable from a silent cut,
+and `B39` exists to force that distinction. This is the distinction, made.
+
+**`M5.E10` (review hardening / claim integrity) — CONFIRMED NEXT.** Trigger satisfied 2026-07-28.
+Eight sub-items, each with a stranger-checkable done-when. It is the only one of the three whose
+evidence **compounded during the review that dispositioned it**: `BUGS.md`'s tally was wrong in two
+of five cells *while its own narrative named both flips that caused it*; `B91` is a live ID whose
+provenance nobody checked; and the review itself published a completeness claim
+(*"three of five figures"*) extrapolated from one verified cell rather than derived — `B50`'s shape,
+inside the document about `B50`'s shape. Three instances in one session, none of which any existing
+mechanism caught.
+
+**`M5.E11` (Roadmap Advisor) — KEPT, first slice only, sequenced behind E10.** Two things changed on
+2026-08-09: this review **did E11's job by hand**, so the automation's value is now demonstrably
+*repeatability*, not capability — and its own done-when (*"a stranger runs it on Signal's own backlog
+and the citations resolve"*) now has a **known-good output to test against**. It goes behind E10 for
+a specific reason, not politeness: an advisor emitting unverified claims is the claim-integrity
+defect with a wider blast radius.
+
+**`M5.E12` (project-facing currency) — PARKED, unchanged.** Trigger (`E11` lands) genuinely unmet; no
+new evidence.
+
+**The basis is stated, because the usual one is unusable.** This disposition rests on Brett's
+judgment plus measured defect density in Signal's own corpus. It explicitly does **not** rest on
+*"real user pain points from v1 usage"* (`MILESTONE-5.md`) — `D-M5E7-3` already recorded that the
+input for that criterion does not exist in written form (*"'4 non-Signal users, positive reception'
+is recollection, not artifact"*), and every recent externally-sourced defect came from `nextpass`, a
+second **project**, not a second **reporter**. Repeating the user-pain justification would be the
+exact move this review exists to catch.
+
+**D-BR0809-2 — Milestone 5 closes when `M5.E10` ships. `E11`, `E12` and the loop-engineering work
+become M6.**
+
+M5's stated Exit Criteria named the 10-phase architecture from `SIGNAL-INTEGRATION-RUNDOWN.md` — an
+architecture **M5's own `E7` re-audit largely abandoned** (*"Not one straight port survived"*), and
+nothing restated a criterion afterward. Every Epic M5 actually shipped falls outside the sentence
+that defines closing it, so **the milestone could not close against its own definition** and had been
+accumulating unrelated work for six weeks.
+
+What M5 has actually been, across E1–E19 without exception, is **making Signal's own record
+trustworthy** — the doc runtime, measurement, archiving, drift detection, and the two named defect
+classes. `E10` is the last piece of that theme, which makes it the honest terminus rather than an
+arbitrary one. The alternative — leaving M5 open as *"whatever Signal does next"* — is precisely how
+it acquired a dead exit criterion in the first place.
+
+**D-BR0809-3 — Group 4 keeps bare verbs. No prefixed namespace. `migrate-memory` → `migrate` at the
+next breaking window. This closes `D-M5E19-9`, which filed the question as explicitly not decided.**
+
+`/sig:` is already the namespace. [`../references/command-taxonomy.md`](../references/command-taxonomy.md)
+already supplies the ontology, and **writing the grouping down is what makes the prefix unnecessary**
+— a prefix encodes in every future keystroke what one document explains once. Against that, a rename
+is user-visible and breaking: deprecation aliases, a `[BREAKING]` CHANGELOG entry, a minor bump, and
+a pass over every doc naming a command, with `install-contract.test.js` and the roster checks both
+holding opinions.
+
+The group's only real inconsistency is **one compound name**, and the fix for that is a rename *down*
+to a bare verb, not a prefix applied *up* to the other three. Deferred to the next breaking window
+rather than done now, because it is the one genuinely expensive part and there is no `0.2.0` pending.
+
+**What this decision is worth, stated honestly:** it is cheap and reversible. If the roster reaches
+~30 commands and a flat namespace measurably hurts — new users mis-guessing names, the taxonomy doc
+going unread — this should be revisited, and pre-1.0 remains when a rename is cheapest. That is a
+*trigger*, and it belongs on the watchlist rather than in someone's memory.
