@@ -18,6 +18,22 @@ last_updated: 2026-08-09T14:27:13.660Z
 ---
 # Project State
 
+> ## ▶ THE FRONTMATTER ABOVE IS STALE — session paused 2026-08-09
+>
+> **`phase: SHIP` / `current_epic: M5.E19` describe an Epic that shipped as v0.1.22, two releases
+> ago.** Everything since ran in the **fix lane**, so no phase command executed and nothing updated
+> those fields — they are not wrong about a *current* Epic, there simply is not one.
+> `last_updated_commit` predates six merges (#126, #128–#131, and the handoff commit).
+>
+> **Do not orient from the frontmatter. Read
+> [`CONTEXT.md`](CONTEXT.md) § Active work → HANDOFF**, which carries the three decisions taken
+> today (`D-BR0809-1…3`), what shipped, where the session stopped, and the two open calls.
+> Then run **`/sig:checkpoint --context`** to reconcile this file against git.
+>
+> **The one-line version:** `M5.E10` is the next Epic and **shipping it closes Milestone 5**; the
+> session paused mid-Wave-2 of [`BACKLOG-REVIEW-2026-08-09.md`](BACKLOG-REVIEW-2026-08-09.md), with
+> the 52-entry inbox triage as the immediate next action.
+
 ## Resume pointer
 
 **⚠ RESTART THE CLI PROCESS BEFORE RUNNING ANY WRITING `/sig:` COMMAND — but as of `v0.1.20` the
