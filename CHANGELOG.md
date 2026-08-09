@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.24] — 2026-08-09 — the unreached mechanism — five rules that now check themselves
 
 **One defect class, five instances, named before it was fixed: the unreached mechanism.** Signal kept building a capability, writing down the rule that should invoke it, and shipping — with nothing that reaches for it. Correctness then rests on the operator already knowing. `UNREACHED-MECHANISM-ANALYSIS.md` argues Signal's habitual answer to *"the rule wasn't followed"* is to write the rule more carefully, and `B75` already measured that ceiling: `light` and `strict` differ by **one boolean** in code. So every fix in this release is a **check that fires where the situation is**, not a paragraph.
 
