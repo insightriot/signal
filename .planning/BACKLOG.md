@@ -415,7 +415,18 @@ tracked by a live doc rather than by a document nothing checks. Full rationale a
 [`../analysis/SIGNAL-V2-ROADMAP.md`](../analysis/SIGNAL-V2-ROADMAP.md) — **single home; not restated
 here.**
 
-### M5.E8 — Measurement foundation
+### ~~M5.E8 — Measurement foundation~~ — **✅ SHIPPED v0.1.13 (2026-07-28)**
+
+> **Struck 2026-08-09 (backlog-review triage).** This heading carried **no closure marker** and read
+> `Trigger: NONE — unconditional next` while `:1108` of *this same file* said *"M5.E8 landed as
+> v0.1.13."* One file, two answers about whether its own foundational Epic had shipped — and the
+> unstruck heading is what a trigger walk reads. Retro:
+> [`M5.E8-RETROSPECTIVE.md`](M5.E8-RETROSPECTIVE.md); status row: `MILESTONE-5.md:39`.
+> **Its downstream gates are the live part:** it gates `M5.E10`, `M5.E12` and four parked items, and
+> `M5.E10`'s trigger has therefore read **satisfied since 2026-07-28** with no work started — which
+> is the subject of the disposition pass in
+> [`BACKLOG-REVIEW-2026-08-09.md`](BACKLOG-REVIEW-2026-08-09.md) §1.
+
 **Tag:** roadmap · **Trigger: NONE — unconditional next.** Gates M5.E10, E12, and four parked items.
 The finding it answers: *Signal cannot detect whether its own interventions work, in any dimension*
 (no test asserts a prompt instruction was obeyed; 7-of-12 adherence and a 7.12× output spread on

@@ -134,7 +134,7 @@ cannot acquire it. Mutation testing is recorded as a substitute, not an equivale
 
 **▶ OPEN: `M5.E15`** (`B55` — the adherence control arm; blocks trusting any new adherence verdict).
 DISCUSS + PLAN closed 2026-08-04; EXECUTE next.
-→ then **`M5.E14`** (tracker migration + the 50-entry inbox triage) → then **`M5.E10`** (review
+→ then **`M5.E14`** (tracker migration + the inbox triage (52 entries as of 2026-08-09)) → then **`M5.E10`** (review
 hardening / claim integrity). `analysis/LOOP-ENGINEERING-ANALYSIS.md`'s attention-axis proposal is a
 **future DISCUSS** now that M5.E18 has shipped.
 
@@ -213,7 +213,7 @@ established the answer shape (quarantine the off-enum value, surface it, never k
 it once for both fields is why it is one Epic and not two.
 
 **Then queued behind M5.E18:** **M5.E15** (`B55`, the adherence control arm — blocks trusting any
-new adherence verdict) → **M5.E14** (tracker migration + the 48-entry inbox triage) → **M5.E10**
+new adherence verdict) → **M5.E14** (tracker migration + the inbox triage (52 entries as of 2026-08-09)) → **M5.E10**
 (review hardening / claim integrity — the semantic half of M5.E16's question).
 
 **A sequencing note worth keeping, from the 2026-08-02 review of the bug record.** The last four
@@ -301,7 +301,7 @@ Three documents corrected, each pinned by a test comparing one document against 
   **wave 1**. `B54`, `B39`, `B42`/`B53`, `B48`, `B55` all surfaced on a first execution, all late.
 - **Two of the Epic's own ACs were satisfiable by a no-op** — corrected in the open. The red baseline
   was **measured, not predicted**, and running it caught an error in the probe itself.
-- **Cut: FR4**, the 48-entry inbox triage → **M5.E14** with the tracker migration (`D-M5E17-3`).
+- **Cut: FR4**, the inbox triage (52 entries as of 2026-08-09) → **M5.E14** with the tracker migration (`D-M5E17-3`).
 - **`B56` filed:** `references/facts.md` publishes 894 tests (actual **1828**); the guard pins
   `facts.md` to `README.md` but never to the real count — both drift together, test stays green.
 
