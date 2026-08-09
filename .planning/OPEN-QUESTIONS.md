@@ -29,7 +29,7 @@ Unresolved design questions. Append new ones; delete resolved ones (or move to `
 > milestone that no longer exists. The question itself is still open and is **more** decidable now,
 > not less — see the corrected state below.
 
-**Current state (2026-08-09):** **2389 vitest tests across 142 files** cover the `tools/lib` layer.
+**Current state (2026-08-09):** **2410 vitest tests across 143 files** cover the `tools/lib` layer.
 There is now partial mechanical coverage of the command markdowns themselves, which did not exist
 when this question was written: `tests/commands-wording.test.js`, `tests/prescribed-cli.test.js`
 (walks every `claude plugin` string a command prescribes and checks it against an identity derived
@@ -78,3 +78,11 @@ entry exists so the question survives a context clear if it doesn't.
 ## Should the "one canary is not a survey" caveat name all declared deletion sites instead of just `canary.command`? It renders "a fact about {id} in commands/{command}.md", accurate when a canary had one anchor. The instruction now lives at five declared sites. `canary.command` is genuinely the measured command, so the sentence is defensible — but a reader could take it as the full footprint. Deliberately not changed in REVIEW: wording on a published-record template deserves its own decision.
 
 *Logged 2026-08-06 via /sig:checkpoint*
+
+## Is `B46` dismissed with the row kept? Its stated cause is disproved — the 45 dispositions were the v2 port list, not the inbox — so the fix as written would corrupt data, and the residual symptom discharges when the 52-capture inbox triage runs. Recommendation on the table since 2026-08-09, not actioned. Resolve by: when the inbox triage completes.
+
+*Logged 2026-08-09 via /sig:checkpoint*
+
+## Where do decisions get recorded outside `/sig:plan` (`A2`)? Recommendation was park-with-trigger, because `B89` had just made the drain required and nobody had seen the new behaviour yet; Brett pushed back that it may be worth building sooner. The reframe that shrinks it: `/prose:backlog` ANALYSES and only Signal RECORDS, so `A2` is 'somewhere to record decisions outside PLAN' — fix-lane sized, not an Epic. Undecided as of 2026-08-09.
+
+*Logged 2026-08-09 via /sig:checkpoint*

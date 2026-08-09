@@ -13,22 +13,26 @@ completed_phases:
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-08-02T00:20:21.679Z
-last_updated_commit: 584a7463c6dbf18462d9efaf772422f813d7645a
-last_updated: 2026-08-09T14:27:13.660Z
+last_updated_commit: 6405bf3f0fe6064c0e7d18c05c0fc3a4cb1686c7
+last_updated: 2026-08-09T23:34:16.224Z
 ---
 # Project State
 
-> ## ▶ THE FRONTMATTER ABOVE IS STALE — session paused 2026-08-09
+> ## ▶ `phase` / `current_epic` ABOVE ARE STALE — session paused 2026-08-09
 >
 > **`phase: SHIP` / `current_epic: M5.E19` describe an Epic that shipped as v0.1.22, two releases
 > ago.** Everything since ran in the **fix lane**, so no phase command executed and nothing updated
 > those fields — they are not wrong about a *current* Epic, there simply is not one.
-> `last_updated_commit` predates six merges (#126, #128–#131, and the handoff commit).
+>
+> **`last_updated_commit` is current again** as of the `/sig:checkpoint` run on 2026-08-09 (now
+> `6405bf3`, was `584a746`, which predated six merges: #126, #128–#131 and the handoff commit).
+> **That refresh did not touch `phase` or `current_epic`** — `markFresh` advances the commit
+> baseline only, and `setCurrentEpic` is the sole writer of `current_epic`, so those two fields stay
+> wrong until `M5.E10` opens and this prose is what carries the truth until then.
 >
 > **Do not orient from the frontmatter. Read
 > [`CONTEXT.md`](CONTEXT.md) § Active work → HANDOFF**, which carries the three decisions taken
 > today (`D-BR0809-1…3`), what shipped, where the session stopped, and the two open calls.
-> Then run **`/sig:checkpoint --context`** to reconcile this file against git.
 >
 > **The one-line version:** `M5.E10` is the next Epic and **shipping it closes Milestone 5**; the
 > session paused mid-Wave-2 of [`BACKLOG-REVIEW-2026-08-09.md`](BACKLOG-REVIEW-2026-08-09.md), with
