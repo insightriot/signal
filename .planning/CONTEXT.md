@@ -151,7 +151,51 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 
 ## Active work
 
-**Nothing is in flight.** `M5.E19` closed and shipped as **v0.1.22** (retrospective at [`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md)); `B82` shipped as **v0.1.21** in the fix lane — no six phases, so no Epic artifacts and no retrospective. **Next up is `M5.E14`'s shippable slice**, which is small and not the tracker Epic.
+> ## ▶ HANDOFF — session paused 2026-08-09, mid-Wave-2. READ THIS FIRST.
+>
+> **`STATE.md`'s frontmatter is stale and will mis-orient you.** It reads
+> `phase: SHIP`, `current_epic: M5.E19` — that Epic shipped as **v0.1.22, two releases ago**. Every
+> piece of work below ran in the **fix lane**, so no phase command executed and nothing updated
+> those fields. `last_updated_commit` points at the v0.1.24 release; **six merges have landed since**
+> (#126, #128, #129, #130, #131 and this one). The staleness banner will fire — believe the banner,
+> not the fields. **Run `/sig:checkpoint --context` before anything else.**
+>
+> **What was decided today** (full text in [`DECISIONS.md`](DECISIONS.md), `D-BR0809-1…3`):
+> 1. **`M5.E10` (review hardening / claim integrity) is the next Epic.** `M5.E11` kept but cut to its
+>    first slice and sequenced behind it; `M5.E12` parked.
+> 2. **Milestone 5 closes when `M5.E10` ships.** `E11`, `E12` and the loop work become **M6**. The
+>    old exit criterion named an architecture M5's own `E7` abandoned, so M5 could not close against
+>    its own definition.
+> 3. **Command names keep bare verbs** — no `docs-*`/`memory-*` prefix; `migrate-memory` → `migrate`
+>    at the next breaking window. Closes `D-M5E19-9`.
+>
+> **What shipped today, all fix lane:** the [backlog review](BACKLOG-REVIEW-2026-08-09.md) (#126);
+> Wave 1 triage — 11 contradiction findings dispositioned, `M5.E8`'s heading struck, `OPEN-QUESTIONS.md`
+> refreshed off a 25×-stale test count (#128); the three decisions (#129); **`B77` fixed** — `BUGS.md`'s
+> tally is now derived by `tools/lib/bugs-tally.js` and pinned by a test that caught its own author on
+> first use (#130); **the `shipped` drain verb** — the drain could read a `SHIPPED` marker it could not
+> write, so completed captures had no honest disposition (#131).
+>
+> **Where the session stopped.** Mid **Wave 2** of the review. Next action was to **triage the 52
+> inbox captures** — Brett is ready to work through them; the plan was to cluster them, recommend a
+> verb + reason each, and take his calls in batches. `shipped` now exists precisely so completed
+> entries are not mislabelled `defer` or destroyed with `delete`.
+>
+> **Two open calls carried into the next session:**
+> - **`B46`** — recommendation on the table: **dismiss it, keep the row.** Its stated cause is
+>   disproved (the 45 dispositions were the v2 port list, not the inbox), so the fix as written would
+>   corrupt data; the residual symptom discharges when the triage runs. Not yet actioned.
+> - **`A2`** (a drain home outside `/sig:plan`) — recommended **park with a trigger**, because `B89`
+>   just made the drain required and nobody has seen the new behaviour yet. Brett pushed back that it
+>   may be a big deal worth building soon; the reframe that shrinks it is that `/prose:backlog`
+>   *analyses* and only Signal *records*, so `A2` is "somewhere to record decisions outside PLAN,"
+>   which is fix-lane sized. **Undecided.**
+>
+> **Also owed:** the `captureToBugs` insertion half of `B77` (cause identified — `FUTURE_IDEAS_FOOTER_RE`
+> cannot match this file's tally-shaped footer), to be done next time anyone is in `add.js`'s
+> insertion path.
+
+**Nothing is in flight as an Epic.** `M5.E19` closed and shipped as **v0.1.22** (retrospective at [`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md)); `B82` shipped as **v0.1.21** in the fix lane — no six phases, so no Epic artifacts and no retrospective. `M5.E14`'s shippable slice **shipped as v0.1.24**. **Next up is `M5.E10`** (`D-BR0809-1`), which is also what closes Milestone 5.
 
 **What M5.E15's close settled.** The verdict is **directive-scoped** — the control arm deletes the five sites that *order* the call and leaves the schema docs and the implementation alone, because over-deleting produces a *differently-informed* control agent whose 0/3 is as unreadable as a leaky one (`D-M5E15-1`). Its closing condition (`D-M5E15-6`) was met rather than waived: `B41-phase-entry` was re-run under the fixed arm and published — **`OBEYED`**, not the `INERT` the Epic pre-committed to publishing if that is what came back.
 
