@@ -80,15 +80,18 @@ Load candidates with `listDrainCandidatesWithRecovery(content)` from `tools/lib/
 - **No candidates** → emit the one-line note `(no inbox candidates to drain)` and continue to Step 2.
 - **Candidates present** → render them **compactly** — heading + the one-line Status, numbered (recovered entries flagged and un-numbered / not selectable). **Always offer "defer all remaining" up front**, not only on a large first run (a single `applyDispositions` batch over the **non-recovered** candidates only). It is the bounded escape this step's requirement depends on, so it has to be present every time the step runs — an escape that appears only above some unstated size threshold is not one a user can rely on, and this step may no longer be skipped.
 
-For each entry the user keeps triaging, offer a `strict-enum [promote, defer, merge, delete]` choice plus an explicit **skip** (leave the entry untouched and move on):
+For each entry the user keeps triaging, offer a `strict-enum [promote, defer, shipped, merge, delete]` choice plus an explicit **skip** (leave the entry untouched and move on):
 
 | Verb | Effect |
 |---|---|
 | **promote** | Fold the idea into this plan as a candidate task (feeds Step 3) **and** classify + route it to a home (see **Classify + promote** below). Stamps the entry's Status inline — `→ Promoted {date} ({Epic} drain).` — so the entry stays in the inbox, marked done (terminal → evicted on the next sweep), and never resurfaces on a later drain. |
 | **defer** | Leave it for a later pass. Stamps `→ Deferred {date} ({Epic} drain).`. |
+| **shipped** | **The work described here is already done.** Stamps `→ Shipped {date} ({Epic} drain).`; the block **stays**, because the capture usually holds the reasoning behind the shipped work. Terminal, so it is eligible to leave for the archive ledger later. |
 | **merge** | The idea folds into another entry; the source block is **removed**. |
 | **delete** | Drop the idea entirely; the block is **removed**. |
 | **skip** | No change; the entry stays a candidate for the next drain. |
+
+> **Do not offer `defer` for work that is already finished, and do not reach for `delete` to get it out of the way.** `defer` postpones a completed thing, which is nonsense, and `delete` destroys the record of *why* the thing exists in a repo whose standing rule is relocate-never-delete. `shipped` is the honest verb, and it was added on 2026-08-09 because the drain had no way to say it — the readers had understood `SHIPPED` since M5.E1 while the writer's verb set stopped at four, so completed captures were being mislabelled or destroyed. A verb set that cannot describe the situation is how 52 captures accumulated 5 stamps.
 
 **Classify + promote (FR2).** A `promote` is a two-part move — pick a *destination* (and, for work, a *tag*), then physically route the idea:
 
