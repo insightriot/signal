@@ -83,6 +83,13 @@ Verify before creating the PR:
 - [ ] Build succeeds
 - [ ] Linter passes
 - [ ] Review report issues resolved
+- **Open obligations — queried, not recalled (`M5.E14` first slice).** Call `readOpenObligations(baseDir)` (`tools/lib/obligations.js`) and emit `formatObligationReport(result)`. **This reports; it never halts.** Unlike the branch gate at §0.6, "yes, something is open, and I am shipping anyway" is frequently the correct call — a gate that blocks on a judgement trains people to route around it.
+
+  Three outcomes stay separate, and the third is the point: items still **open**, items **discharged** (recorded as done, so not owed), and sources that **could not be read** — which render as `UNKNOWN, not none`. A source that failed to load has not reported zero.
+
+  *Why this is a query. `PROFILE.md`'s `backfill_warnings` was append-only with no way to record completion, so a discharged obligation read as open forever. In traction-engine's Phase 11 a security backfill discharged by Phase 10 — and ticked in four places — was reported "still owed" by VERIFY, escalated to a bolded warning by REVIEW, then copied into STATE.md. The claim gained confidence at every hop and never gained evidence (`CLAIM-INTEGRITY-ANALYSIS.md` specimen #4). Mark one done with `dischargeObligation(baseDir, {text, by, at})`.*
+
+  *The answer comes from a **named source**, so the tracker decision stays open (`D-M5E14-1`). Adding GitHub Issues later means registering a second resolver, not rewriting this step.*
 
 ### 2. Git History
 
