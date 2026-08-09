@@ -16,7 +16,9 @@ Signal's rigor is built around a human making decisions at every phase: answer c
 
 1. **Policy author** before the run (standing decisions, calibration, autonomy envelope).
 2. **Async exception handler** during the run (a queue, not an interrupt).
-3. **Batch auditor** after the run (review the decision log + diff + retro in one sitting).
+3. **Batch auditor** after the run (review the decision log + **diff** + retro in one sitting — the diff, meaning the code, not a diffstat; see FM-3).
+
+**And one role that is not a position but a floor** *(added 2026-08-08)*: the human keeps reading the code of shipped work at every attention level, because that is what keeps the system diagnosable when something eventually goes wrong that neither the human nor the agent can explain. This is the sixth row of §5.2's conversion table and the only row that does not convert. Attention is relocated by this design; **comprehension is not relocatable**, and the counter-evidence for what happens when it is treated as if it were is in `analysis/AUTONOMY-COUNTERWEIGHT.md` §1.
 
 One gate stays hard under the current delivery contract: **PR merge**. Because `marketplace.json` uses the relative `.` source, users track `main` — merging *is* shipping (`D-M5E17-4`). An unattended loop that merges its own PRs is unattended deployment to real users. The loop terminates at PR-open and keeps working; the human merges on their own schedule.
 
@@ -126,7 +128,7 @@ attention: attended | checkpointed | unattended
 
 ### 5.2 Move 2 — convert each gate by what the human is actually doing there
 
-The ~48 touchpoints sort into five roles. Each converts differently:
+The ~48 touchpoints sort into six roles. Five convert. **One does not** — and the sixth row was added after the fact (2026-08-08, see `analysis/AUTONOMY-COUNTERWEIGHT.md` §4.1); its absence from the original five is the defect that analysis found in this document.
 
 | The human is… | Examples | Conversion |
 |---|---|---|
@@ -135,6 +137,7 @@ The ~48 touchpoints sort into five roles. Each converts differently:
 | **A circuit breaker** | VERIFY's FAIL ask; escalation confirms | Keep, made async: take the recommended default when reversible, file the exception to the queue, continue other work. Generalize VERIFY's 3-loop ceiling to **every** loop-back (fixes LE-4 as a prerequisite). Add: same-failure-twice ⇒ escalate, don't retry. |
 | **An irreversibility guard** | delete/merge confirms; drain diff-preview; retro pre-check halt | Where possible, **make the action reversible by mechanism and stop asking**: dispositions are already git-reversible; a documented revert lane converts these to logged evidence. The retro pre-check halt **stays** — it is a fail-closed quality gate, and the loop writing/fixing the retro itself is legitimate work, after which it re-invokes ship. |
 | **The delivery authority** | "User approves PR for merge" | **Stays human.** The loop stops at PR-open (the floor `ship.md:21` already preserves at `off`). PRs accumulate; the human merges in batch. Throughput cost ≈ zero because the loop moves on to the next lane. |
+| **Maintaining the mental model** | reading the diff of shipped work — the code, not a report about it | **Does not convert.** Survives every `attention` level, including `unattended`. This is the comprehension floor: the loop may remove the human from every *decision* in the middle and still must not remove them from *knowing what the system now does*. Enforcement mechanism **TBD** (not urgent, decided 2026-08-08) — the natural home is the merge gate, which is already the one structurally-human point, in the evidence-rendered shape `B88` established for the PR line (`ship.md:214`, *"filled from evidence, never ticked from memory"*). Until it exists, this row is a stated principle and nothing checks it — which is, by `UNREACHED-MECHANISM-ANALYSIS.md`'s own argument, exactly as durable as any other unenforced rule. |
 
 **The decision queue.** *(Proposed artifact; name TBD — could extend `OPEN-QUESTIONS.md` rather than add a file.)* When the loop meets a decision it may not auto-adopt, it writes the full 3-options-plus-other content (options, trade-offs, recommendation, reversibility tag) to the queue, adopts the recommendation *only if* reversibility permits (marking it `provisional` in `DECISIONS.md` / `CONTEXT.md` Locked Decisions), and continues. The human processes the queue in one sitting; overriding a provisional decision triggers targeted rework, which the loop executes.
 
@@ -202,7 +205,18 @@ Promotion criterion: N consecutive Epics whose batch audits surfaced no decision
 
 **FM-2 — Oscillation.** M5.E16's REVIEW→EXECUTE loop-back fired its own drift detector; LE-4 shows REVIEW has no ceiling at all. Countermeasure: uniform loop ceilings everywhere, same-failure-twice ⇒ escalate. Prerequisite fix, not an optional hardening.
 
-**FM-3 — The human bottleneck just moves.** 86 interrupts becoming one batch review is only a win if the batch is auditable in minutes: the decision queue with recommendations and provisional markers, the retro, a diffstat, and a one-screen "what was auto-decided and why" summary. If the loop produces five Epics overnight and the audit takes five hours, autonomy delivered nothing. **The success metric is not touchpoints removed — it is minutes-of-attention per shipped Epic, and defects caught late.**
+**FM-3 — The human bottleneck just moves.** 86 interrupts becoming one batch review is only a win if the batch is auditable in minutes: the decision queue with recommendations and provisional markers, the retro, **the diff** (not a diffstat — see the correction below), and a one-screen "what was auto-decided and why" summary. If the loop produces five Epics overnight and the audit takes five hours, autonomy delivered nothing.
+
+> **Correction, 2026-08-08.** This paragraph originally listed *"a diffstat"* while §2 listed *"the decision log + **diff** + retro"* — the same document asking for the code in one place and a line-count summary of it in the other, with the weaker version sitting in the section that defines the success criteria. That is the `M5.E17` defect class (instructions contradicting instructions) inside a document about running with less supervision, and it is the disagreement that would have decided the floor: **a diffstat cannot maintain a mental model.** Both now read *diff*. The originating comparison is `analysis/AUTONOMY-COUNTERWEIGHT.md` §4.1.
+
+**The success metric is not touchpoints removed, and it is not total attention minimized.** *(Revised 2026-08-08.)* It is:
+
+- **Mid-flight attention → down.** Synchronous interrupts between phase start and PR-open. This is the number the whole design exists to reduce.
+- **Input attention and diff attention → held or up.** Minutes spent on the Epic's inputs (outcome, architecture, program design) and on reading the shipped diff. These are the two positions where human time compounds instead of costing.
+- **Defects caught late** (batch audit or post-merge) vs. caught by gates — unchanged, and now the check on whether the split above is real rather than declared.
+- **Comprehension probe:** can the operator describe what a changed module does without asking the agent? A cheap, subjective, and *directional* signal — the one thing a lights-off factory loses first and notices last.
+
+**Why the revision.** The original read *"minutes-of-attention per shipped Epic"*, minimized — a target that scores its best result on the exact behaviour that produced the July-2025 incident in `analysis/AUTONOMY-COUNTERWEIGHT.md` §1: a team that stopped reading code, kept reviewing plans and tickets, and lost the ability to diagnose its own system. Attention is not a cost to minimize; **it is a cost to relocate**, and one of its destinations is after the work, not before it.
 
 **FM-4 — A wrong auto-decision compounds.** A bad provisional DISCUSS decision poisons PLAN and EXECUTE downstream. Countermeasure: the reversibility-weighted auto-adopt rule (5.2) — only cheaply-reversible decisions are ever taken without a human; and provisional decisions are first-class artifacts the audit walks, newest-first, before anything merges.
 
@@ -239,7 +253,11 @@ Sized in Signal's own units. Each phase is shippable alone and valuable alone.
 
 ## 8. Success metrics
 
-- **Minutes of human attention per shipped Epic** (the real target), not touchpoint count.
+**The target is a split, not a single number** *(revised 2026-08-08 — the original read "minutes of human attention per shipped Epic (the real target)", minimized; see FM-3 for why that scores its best result on the failure mode this design is trying to avoid).*
+
+- **Minutes of *mid-flight* attention per shipped Epic → down.** Synchronous interrupts between phase start and PR-open. Not touchpoint count — minutes.
+- **Minutes at the inputs and at the diff → held or up.** Attention spent before the work (outcome, architecture, program design) and after it (reading the shipped diff, not a summary of it). A run that drops these has not become efficient; it has become blind.
+- **Comprehension probe:** can the operator describe what a changed module does without asking the agent? Directional and subjective, and still the earliest available signal that the floor has eroded.
 - **Defects caught late** (at batch audit or post-merge) vs. caught by gates — the claim-integrity health signal. Any false "checked and clean" is a P1 on the loop itself.
 - **Queue latency tolerance:** how long the loop keeps productive (other lanes / other phases) while decisions sit unanswered.
 - **Override rate at batch audit:** what fraction of provisional decisions the human reverses. High and rising ⇒ the recommendation engine or the altitude routing is miscalibrated; demote the ramp.
