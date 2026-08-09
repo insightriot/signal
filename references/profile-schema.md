@@ -168,8 +168,29 @@ escalation_history:
     timestamp: 2026-04-23T10:15:00Z
     reason: "scope grew — added auth integration"
     backfill_warnings:
+      # Plain string = an OPEN obligation. Every profile written before
+      # v0.1.24 uses this form and stays valid; there is no migration.
       - "REVIEW phase was previously skipped — run /sig:review on prior commits"
+      # Object form = the same warning, able to record that it was DONE.
+      - warning: "Phase-8 security backfill — run /sig:review on prior commits"
+        discharged: true
+        discharged_by: "PHASE10-REVIEW.md"
+        discharged_at: "2026-03-01"
 ```
+
+#### `backfill_warnings` entry shape
+
+| Field | Type | Description |
+|---|---|---|
+| *(bare string)* | string | An open obligation. The legacy and still-valid short form. |
+| `warning` | string | The obligation text. Required in the object form. |
+| `discharged` | boolean | `true` — and **only literal `true`** — means no longer owed. A truthy string does not discharge. |
+| `discharged_by` | string | What discharged it: an artifact path, an Epic ID, a PR. |
+| `discharged_at` | ISO-8601 date | Optional. When. |
+
+**Why the object form exists (`M5.E14` first slice, v0.1.24).** This array was append-only with **no way to express completion**, so the schema made the true state unrepresentable and a discharged obligation read as open forever. That is not a hypothetical: traction-engine's Phase 11 reported a security backfill "still owed" that Phase 10's REVIEW had discharged and ticked in four places — the claim was restated by VERIFY, escalated to a bolded warning by REVIEW, then absorbed into STATE.md, gaining confidence at every hop and evidence at none (`CLAIM-INTEGRITY-ANALYSIS.md` specimen #4).
+
+**Read it with `readOpenObligations(baseDir)`** (`tools/lib/obligations.js`) rather than by hand — it normalizes both forms, and it distinguishes *"nothing is open"* from *"the source could not be read,"* which is the failure the whole change is about. `/sig:ship`'s pre-ship checklist asks that question and **reports** the answer without blocking; write a marker with `dischargeObligation`.
 
 ---
 
