@@ -926,3 +926,63 @@ describe('evictTerminalToLedger (S4.t1/t2 — physical eviction, crash-safe)', (
     expect((finalLedger.match(/<!-- evicted-key: /g) || []).length).toBe(2);
   });
 });
+
+// ---------------------------------------------------------------------------
+// The `shipped` verb (2026-08-09). Surfaced by an objection, not by a test:
+// "let's not 'defer' things that are completed — that doesn't make any sense."
+// It didn't. The readers had recognised SHIPPED since M5.E1 — HEADING_DISPOSED,
+// HEADING_TERMINAL and both blockquote variants — while VERB_PAST stopped at
+// four verbs, so Signal could read a marker it could not write. A completed
+// capture's only options were `defer` (postpone a finished thing) or `delete`
+// (destroy the reasoning behind shipped work).
+// ---------------------------------------------------------------------------
+describe('applyDisposition — the `shipped` verb', () => {
+  const entry = ['## An idea', '', '**Status:** Logged 2026-05-01.', '', 'body', '', '---'].join('\n');
+
+  it('stamps rather than removing — the reasoning stays in the file', () => {
+    const out = applyDisposition(entry, 0, 'shipped', 'M5 drain', '2026-08-09');
+    expect(out).toContain('→ Shipped 2026-08-09 (M5 drain).');
+    expect(out).toContain('## An idea');
+    expect(out).toContain('body');
+  });
+
+  it('THE REGRESSION THAT MATTERS: a shipped stamp does not resurface', () => {
+    // Adding `shipped` to VERB_PAST alone would have written a marker that
+    // looks disposed to a human and reads LIVE to the code, because
+    // STATUS_DISPOSED_RE did not list the word. The entry would return as a
+    // candidate at every future drain, forever. This is the assertion that
+    // pins the pair.
+    const out = applyDisposition(entry, 0, 'shipped', 'M5 drain', '2026-08-09');
+    const reparsed = parseEntries(out)[0];
+    expect(reparsed.dispositioned).toBe(true);
+  });
+
+  it('is TERMINAL — eligible to leave for the archive ledger, unlike defer', () => {
+    const shipped = parseEntries(
+      applyDisposition(entry, 0, 'shipped', 'M5 drain', '2026-08-09')
+    )[0];
+    const deferred = parseEntries(
+      applyDisposition(entry, 0, 'defer', 'M5 drain', '2026-08-09')
+    )[0];
+    expect(shipped.dispositionKind).toBe('terminal');
+    expect(deferred.dispositionKind).toBe('deferred');
+  });
+
+  it('needs no confirm gate — it is not destructive', async () => {
+    // delete/merge throw without a confirmPrompt. `shipped` must not, or it
+    // would inherit a ceremony that exists to guard block removal.
+    const out = applyDisposition(entry, 0, 'shipped', 'M5 drain', '2026-08-09');
+    expect(out).toContain('## An idea');
+  });
+});
+
+describe('commands/plan.md offers the verb it now has', () => {
+  it('lists `shipped` in the drain enum — a verb no command offers is unreachable', () => {
+    // The B39/B46 class, applied to this change on the day it shipped: a
+    // capability with no caller. plan.md is the only surface that offers
+    // disposition verbs to a user.
+    const planMd = readFileSync(join(ROOT, 'commands/plan.md'), 'utf-8');
+    expect(planMd).toContain('[promote, defer, shipped, merge, delete]');
+    expect(planMd).toMatch(/\|\s*\*\*shipped\*\*\s*\|/);
+  });
+});

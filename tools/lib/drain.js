@@ -57,8 +57,13 @@ const HEADING_DISPOSED_RE = /^##\s*(✓\s*)?(SHIPPED|PROMOTED|DEFERRED|MERGED|DE
 // signature fixes that false-negative: only an actual drain disposition counts,
 // not the word appearing in a sentence. (Heading markers like `## ✓ SHIPPED`
 // are still caught by HEADING_DISPOSED_RE.)
+// `Shipped` added 2026-08-09 alongside the `shipped` verb (see VERB_PAST). It
+// MUST be here, not just in VERB_PAST: a stamp this regex cannot see is a stamp
+// that does not stop the entry resurfacing at the next drain, which is the
+// whole job of this pattern. Adding the verb without adding it here would have
+// produced a marker that looks disposed to a human and reads live to the code.
 const STATUS_DISPOSED_RE =
-  /\b(Promoted|Deferred|Merged|Deleted)\s+\d{4}-\d{2}-\d{2}\s+\([^)\n]*\bdrain\b\)/;
+  /\b(Promoted|Deferred|Merged|Shipped|Deleted)\s+\d{4}-\d{2}-\d{2}\s+\([^)\n]*\bdrain\b\)/;
 
 // FR3 (v0.1.6): the 2026-07-04 backlog review stamped promotions as a LEADING
 // blockquote (`> **Promoted 2026-07-04 → M4.5.E10** …`), which neither of the
@@ -74,11 +79,21 @@ const BLOCKQUOTE_DISPOSED_RE =
 // disposed-for-good, so the entry is eligible to physically LEAVE the inbox for
 // the archive ledger; DEFERRED is parked-but-live, so it stays. Each mirrors its
 // disposed counterpart exactly (verb list minus DEFERRED) so classification can
-// never drift from detection — the status variant keeps its counterpart's verb
-// set (no `Shipped`; the drain never stamps "Shipped" onto a Status line).
+// never drift from detection.
+//
+// **`Shipped` added to the status variant 2026-08-09.** The parenthetical here
+// used to read *"no `Shipped`; the drain never stamps 'Shipped' onto a Status
+// line"* — true, and a description of the gap rather than of a design. The
+// heading and blockquote variants have always recognised `SHIPPED`, because the
+// live file carries a hand-written `## ✓ SHIPPED` from the plugin rename; only
+// the *writer* lacked the verb. So Signal could read a marker it could not
+// produce, and a completed capture had no honest disposition available: `defer`
+// postpones something already finished, and `delete` destroys the record of why
+// it exists. Both were offered; neither was true. Now `shipped` stamps, and
+// every reader that already understood the word understands the stamp.
 const HEADING_TERMINAL_RE = /^##\s*(✓\s*)?(SHIPPED|PROMOTED|MERGED|DELETED)\b/i;
 const STATUS_TERMINAL_RE =
-  /\b(Promoted|Merged|Deleted)\s+\d{4}-\d{2}-\d{2}\s+\([^)\n]*\bdrain\b\)/;
+  /\b(Promoted|Merged|Shipped|Deleted)\s+\d{4}-\d{2}-\d{2}\s+\([^)\n]*\bdrain\b\)/;
 const BLOCKQUOTE_TERMINAL_RE =
   /^\s*>\s*\*\*(Promoted|Merged|Shipped|Deleted)\b/i;
 
@@ -322,13 +337,35 @@ export function listDrainCandidatesWithRecovery(content) {
 }
 
 // Disposition verb → the past-tense word recorded in the Status stamp. Only
-// promote/defer ever stamp (delete/merge remove the block); merge/delete are
-// listed for completeness but their entries are gone before a stamp would show.
+// promote/defer/shipped ever stamp (delete/merge remove the block); merge/delete
+// are listed for completeness but their entries are gone before a stamp shows.
+//
+// `shipped` added 2026-08-09, and it is a WIRING change, not a new capability:
+// `HEADING_DISPOSED_RE`, `HEADING_TERMINAL_RE` and both blockquote variants have
+// recognised `SHIPPED` since M5.E1, and the comment at the `dispositioned`
+// branch states the model outright — *"the disposed verbs are exactly
+// SHIPPED/PROMOTED/DEFERRED/MERGED/DELETED"*. Five verbs in the reader, four in
+// the writer. The one `## ✓ SHIPPED` entry in the live inbox was written by
+// hand, because nothing could produce one.
+//
+// WHY IT MATTERS RATHER THAN BEING TIDY. Without it, an entry describing work
+// that is already done has no honest disposition: `defer` postpones a finished
+// thing, and `delete` removes the record of why the thing exists — in a repo
+// whose standing rule is relocate-never-delete. Both were on offer; neither was
+// true, and a verb set that cannot describe the situation is how 52 captures
+// accumulated 5 stamps. Surfaced 2026-08-09 by Brett, refusing to defer
+// completed work — the objection was to the vocabulary, and the vocabulary was
+// the defect.
+//
+// `shipped` is TERMINAL (the entry may later leave for the archive ledger) and
+// STAMPS rather than removing, so the reasoning behind shipped work stays
+// readable in the file where it was captured.
 const VERB_PAST = {
   promote: 'Promoted',
   defer: 'Deferred',
   merge: 'Merged',
   delete: 'Deleted',
+  shipped: 'Shipped',
 };
 
 // Index of the first non-fenced `**Status:**` line within a block's line array,
@@ -358,6 +395,10 @@ function statusLineIdxInBlock(lines) {
  *   - delete / merge → remove the whole block (returns ''); the next heading
  *       slides up against the prior entry's trailing `---`. The reason is
  *       carried in the commit message, not the file.
+ *   - shipped → stamps exactly like promote/defer. It is TERMINAL (eligible to
+ *       leave for the archive ledger later) but it does NOT remove the block,
+ *       because the capture usually holds the reasoning behind the shipped
+ *       work and that reasoning is the part worth keeping.
  */
 function transformBlock(block, verb, reason, date) {
   if (verb === 'delete' || verb === 'merge') return '';
@@ -391,7 +432,7 @@ function transformBlock(block, verb, reason, date) {
  *
  * @param {string} content
  * @param {number} entryIndex — index into `parseEntries(content)`
- * @param {'promote'|'defer'|'merge'|'delete'} verb
+ * @param {'promote'|'defer'|'shipped'|'merge'|'delete'} verb
  * @param {string} reason — stamp context, e.g. "M4.5.E2 drain"
  * @param {string} date — ISO date YYYY-MM-DD
  * @returns {string} the new content
@@ -459,7 +500,7 @@ export function applyDispositions(content, dispositions) {
  * @param {string} relPath — destination path relative to baseDir (e.g. `.planning/FUTURE-IDEAS.md`)
  * @param {object} opts
  * @param {number} opts.entryIndex
- * @param {'promote'|'defer'|'merge'|'delete'} opts.verb
+ * @param {'promote'|'defer'|'shipped'|'merge'|'delete'} opts.verb
  * @param {string} opts.reason
  * @param {string} opts.date
  * @param {(entry: object) => Promise<'confirm'|'keep'>} [opts.confirmPrompt] — required for delete/merge
