@@ -305,6 +305,89 @@ Signal-on-Signal is driven by an operator who already knows where every mechanis
 structurally poor at finding this class — the same blindness `B82` proved by construction and
 `M5.E16` measured (Signal's own `.planning/` shape is the *minority* shape).
 
+### Three items from the autonomy-counterweight analysis *(filed 2026-08-08, all accepted by Brett the same day)*
+
+Source: [`../analysis/AUTONOMY-COUNTERWEIGHT.md`](../analysis/AUTONOMY-COUNTERWEIGHT.md) — Signal's
+loop-engineering plan compared against an external workflow guide whose central case is a team that
+stopped reading its own code and lost the ability to diagnose its own system. Two amendments to
+`LOOP-ENGINEERING-ANALYSIS.md` were applied immediately (the `diff`/`diffstat` contradiction; the
+success metric, which as written scored its best result on that exact failure). These three are the
+build work that came out of it. **None is sequenced — the priority call is Brett's.**
+
+**A binding constraint on all three, from that analysis §5.3:** the source guide is entirely honor
+system, and its author's own team abandoned its most important rule for a month without noticing.
+**Adopt these as gates or not at all.** Landing any of them as a paragraph in a command file
+reproduces the unreached-mechanism class named directly above.
+
+#### `.planning/ENVIRONMENT.md` — the environment the agent can't see · **small** · *roadmap*
+
+*Plain: write down the things about this project that aren't in the code.*
+
+External services, configuration-variable **names** (never values), test accounts, support channels,
+deploy targets. Drafted at `/sig:init` — the four scanners already detect stack, CI, and quality
+signals — plus one `/sig:calibrate` question for what a scanner cannot see.
+
+**Why this one first among the three.** `analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md` names
+**environment readiness** as Signal's absent axis and blocks it on a permission model
+(`/sig:permissions`). **Half of it is not blocked on anything** — it is a markdown file. An
+independent source arriving at the same absent axis and supplying the unblocked half is the
+strongest evidence in that analysis for building something. Useful attended; a **prerequisite** for
+unattended, where it converts a halt into a lookup.
+
+*Watch the obvious footgun:* a file of variable names is one careless edit from a file of variable
+values. The write path needs the same sensitive-data scrub `/sig:add` already runs.
+
+#### The measurable-outcome question in DISCUSS · **small** · *roadmap*
+
+*Plain: ask "how will we know this worked?" before building.*
+
+Tier-gated — FULL and FEATURE ask, SKETCH and SPIKE do not. Signal's REQUIREMENTS carry
+stranger-verifiable acceptance criteria, which is a **completion** oracle; this is an **outcome**
+oracle, and the two are not the same. The argument for it is that without one, the agent makes
+product decisions by default — the same concern as the standing *"gate at product altitude"* norm,
+stated as an input rather than as an interrupt.
+
+**The design constraint is the whole difficulty.** For infrastructure and tooling work an outcome
+metric frequently does not exist, so the gate **must** accept *"no outcome metric, and here's why"*
+as a valid, recorded answer. A gate that cannot be satisfied honestly becomes a gate that gets
+rationalized past — which is the failure the anti-rationalization tables exist to prevent, arriving
+by way of the mechanism meant to prevent it.
+
+#### Cross-model review at REVIEW — **scope it, don't build it yet** · **question first** · *roadmap*
+
+*Plain: have a different AI check the first one's work.*
+
+`FM-1` of the loop analysis correctly names claim integrity as autonomy's central risk, and its
+countermeasure is adversarial verification with *fresh context*. Fresh context removes the writer's
+**conversation**; it does not remove the writer's **priors**. The evidence in FM-1's own paragraph is
+that every major catch in this project came from *a human reading documents against each other* —
+two different readers, not one reader twice.
+
+**Verified 2026-08-08: no agent in `agents/` pins `model:` in frontmatter**, so this is new
+machinery either way. Two very different scopes, and the entry exists to force the choice before any
+build:
+
+- **Cross-tier** (a different-strength model, same family) — reachable: frontmatter plus a decision
+  about which agent gets it.
+- **Cross-vendor** (write with Claude, review with Codex) — **Signal cannot assume this.** It depends
+  on a plugin the user may not have installed, so it is a capability-checked optional path at best,
+  and a broken promise at worst. `/sig:doctor`'s capability-detection idiom is the precedent.
+
+Fold whichever is chosen into FM-1's existing countermeasure. **Do not add a phase step.**
+
+#### The entry price for *any* Phase A autonomy work: `B73`–`B76` · **agreed 2026-08-08**
+
+Not a new item — a **precondition**, recorded here because this file is the queue. All four were
+filed by the loop-engineering gate audit on 2026-08-03 and all four still read `confirmed`. The loop
+plan's own Phase A step 1 lists them, and step 1's own note says they are *"worth doing even if loop
+engineering never ships — they are documented-vs-enforced gaps today."*
+
+`B76` is the one that is not merely untidy: **REVIEW's FAIL path is a bare "return to EXECUTE" with
+no user ask and no loop ceiling**, where VERIFY's equivalent asks via the 3-options pattern and stops
+after three. Attended, that asymmetry is tolerable and `M5.E16` lived through one loop-back in the
+field. **Unattended, it is a loop that does not stop** — and any driver built on top inherits it on
+day one. Brett, 2026-08-08: *"agreed."*
+
 ---
 
 ## Since the re-audit — what M5.E7 changed (reconciliation, 2026-07-26)
