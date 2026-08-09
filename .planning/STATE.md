@@ -24,11 +24,17 @@ last_updated: 2026-08-09T23:34:16.224Z
 > ago.** Everything since ran in the **fix lane**, so no phase command executed and nothing updated
 > those fields — they are not wrong about a *current* Epic, there simply is not one.
 >
-> **`last_updated_commit` is current again** as of the `/sig:checkpoint` run on 2026-08-09 (now
-> `6405bf3`, was `584a746`, which predated six merges: #126, #128–#131 and the handoff commit).
-> **That refresh did not touch `phase` or `current_epic`** — `markFresh` advances the commit
-> baseline only, and `setCurrentEpic` is the sole writer of `current_epic`, so those two fields stay
-> wrong until `M5.E10` opens and this prose is what carries the truth until then.
+> **`last_updated_commit` is maintained; `phase` and `current_epic` are not.** `/sig:checkpoint`
+> advances the commit baseline, and the commit that *records* that refresh necessarily lands after
+> it — so this file reads **exactly one commit behind immediately after a checkpoint**. That is the
+> mechanism, not drift, and re-running the command only produces another commit and another
+> one-behind. A staleness banner of 1 right after a checkpoint is expected.
+>
+> **The fields to distrust are `phase` and `current_epic`.** `markFresh` moves the baseline only,
+> and `setCurrentEpic` is the sole writer of `current_epic`, so both stay wrong until `M5.E10`
+> opens — and this prose is what carries the truth until then. **Do not put a commit sha in this
+> block:** naming one is what made the two previous versions of this paragraph rot, each falsified
+> by the very run it described.
 >
 > **Do not orient from the frontmatter. Read
 > [`CONTEXT.md`](CONTEXT.md) § Active work → HANDOFF**, which carries the three decisions taken
