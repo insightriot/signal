@@ -141,6 +141,68 @@ describe('readProfileObligations', () => {
     expect(open.map((o) => o.text)).toEqual(['REVIEW phase was previously skipped']);
   });
 
+  it('MULTIPLE escalations parse as separate entries, with no phantom obligations', async () => {
+    // Regression. The first cut of the parser kept `inWarnings` true across the
+    // end of a warnings list, so the NEXT entry's `- from_tier: FULL` matched
+    // the warning-item branch. Measured output was one entry carrying a phantom
+    // open obligation literally reading `from_tier: FEATURE`, with the second
+    // escalation's real warnings folded into the first.
+    //
+    // It reported a FALSE OPEN OBLIGATION — specimen #4 inverted, inside the
+    // change written to end specimen #4. Multi-escalation is the designed case:
+    // escalate.md says "APPEND … never replace the array, always push."
+    await writeProfile(`  escalation_history:
+    - from_tier: SKETCH
+      to_tier: FEATURE
+      timestamp: 2026-01-01T00:00:00Z
+      reason: "first"
+      backfill_warnings:
+        - "first warning"
+    - from_tier: FEATURE
+      to_tier: FULL
+      timestamp: 2026-02-01T00:00:00Z
+      reason: "second"
+      backfill_warnings:
+        - warning: "second warning"
+          discharged: true
+          discharged_by: "PHASE10-REVIEW.md"
+        - "third warning"`);
+
+    const parsed = parseEscalationHistory(
+      await readFile(join(dir, '.planning', 'PROFILE.md'), 'utf8')
+    );
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0].warnings).toEqual(['first warning']);
+
+    const r = await readOpenObligations(dir);
+    expect(r.open.map((o) => o.text).sort()).toEqual(['first warning', 'third warning']);
+    expect(r.discharged.map((o) => o.text)).toEqual(['second warning']);
+    // No entry-level key may ever surface as an obligation.
+    for (const o of [...r.open, ...r.discharged]) {
+      expect(o.text).not.toMatch(/^(from_tier|to_tier|timestamp|reason):/);
+    }
+  });
+
+  it('an entry with NO backfill_warnings key does not absorb the next entry\'s', async () => {
+    await writeProfile(`  escalation_history:
+    - from_tier: SKETCH
+      to_tier: FEATURE
+      timestamp: 2026-01-01T00:00:00Z
+      reason: "no warnings on this one"
+    - from_tier: FEATURE
+      to_tier: FULL
+      timestamp: 2026-02-01T00:00:00Z
+      reason: "second"
+      backfill_warnings:
+        - "only warning"`);
+    const parsed = parseEscalationHistory(
+      await readFile(join(dir, '.planning', 'PROFILE.md'), 'utf8')
+    );
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0].warnings).toEqual([]);
+    expect(parsed[1].warnings).toEqual(['only warning']);
+  });
+
   it('an empty backfill_warnings list yields no obligations', async () => {
     await writeProfile(`  escalation_history:
     - from_tier: FULL

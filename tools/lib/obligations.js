@@ -176,32 +176,44 @@ export function parseEscalationHistory(content) {
   if (start === -1) return null;
   if (/escalation_history:\s*\[\s*\]\s*$/.test(lines[start])) return [];
 
+  const indentOf = (l) => l.length - l.trimStart().length;
+  const baseIndent = indentOf(lines[start]);
+
   const entries = [];
   let current = null;
-  let inWarnings = false;
-  let warningsIndent = -1;
+  let entryIndent = -1; // indent of the `- ` that opens each history entry
+  let warningsIndent = -1; // indent of `backfill_warnings:`; -1 when outside one
 
   for (let i = start + 1; i < lines.length; i++) {
     const line = lines[i];
     if (line.trim() === '') continue;
-    const indent = line.length - line.trimStart().length;
-    const baseIndent = lines[start].length - lines[start].trimStart().length;
-    // Dedent back to or past `escalation_history:` ends the block.
-    if (indent <= baseIndent && !/^\s*-/.test(line)) break;
+    const indent = indentOf(line);
+    if (indent <= baseIndent) break; // dedented out of the history block
 
-    const item = line.match(/^(\s*)-\s+(.*)$/);
-    if (item && !inWarnings) {
-      current = { warnings: [] };
-      entries.push(current);
-      inWarnings = false;
-      continue;
+    // "Am I inside a warnings list?" is decided by INDENT, every line, rather
+    // than by a flag that latches until something clears it. The flag version
+    // stayed true past the end of a warnings list, so the next entry's
+    // `- from_tier: FULL` matched the warning-item branch and became a phantom
+    // OPEN obligation. Indent cannot latch: a warning is nested deeper than its
+    // `backfill_warnings:` key, and the next entry's dash is not.
+    const insideWarnings = warningsIndent !== -1 && indent > warningsIndent;
+    const dash = line.match(/^\s*-\s+(.*)$/);
+
+    if (dash && !insideWarnings) {
+      if (entryIndent === -1) entryIndent = indent;
+      if (indent <= entryIndent) {
+        current = { warnings: [] };
+        entries.push(current);
+        warningsIndent = -1; // a new entry closes any previous warnings list
+        continue;
+      }
     }
+
     if (/^\s*backfill_warnings:\s*\[\s*\]\s*$/.test(line)) {
-      inWarnings = false;
+      warningsIndent = -1;
       continue;
     }
     if (/^\s*backfill_warnings:\s*$/.test(line)) {
-      inWarnings = true;
       warningsIndent = indent;
       if (!current) {
         current = { warnings: [] };
@@ -209,26 +221,22 @@ export function parseEscalationHistory(content) {
       }
       continue;
     }
-    if (inWarnings) {
-      if (indent <= warningsIndent && !/^\s*-/.test(line)) {
-        inWarnings = false;
-        i--; // reprocess this line outside the warnings block
-        continue;
-      }
-      const w = line.match(/^\s*-\s+(.*)$/);
-      if (w) {
-        current.warnings.push(parseWarningScalarOrObject(w[1], lines, i));
+
+    if (insideWarnings && current) {
+      if (dash) {
+        current.warnings.push(parseWarningScalarOrObject(dash[1]));
         continue;
       }
       // A continuation key belonging to the previous object-form warning.
       const kv = line.match(/^\s*(discharged|discharged_by|discharged_at|warning):\s*(.*)$/);
       if (kv && current.warnings.length > 0) {
         const last = current.warnings[current.warnings.length - 1];
-        if (typeof last === 'object') applyWarningKey(last, kv[1], kv[2]);
-        continue;
+        if (last && typeof last === 'object') applyWarningKey(last, kv[1], kv[2]);
       }
-      if (indent <= warningsIndent) inWarnings = false;
+      continue;
     }
+    // Anything else is an entry-level key (from_tier / to_tier / timestamp /
+    // reason). Not an obligation, and deliberately not parsed.
   }
   return entries;
 }
@@ -248,13 +256,11 @@ function applyWarningKey(obj, key, rawValue) {
   else obj[key] = value;
 }
 
-function parseWarningScalarOrObject(firstToken, lines, index) {
+function parseWarningScalarOrObject(firstToken) {
   const kv = firstToken.match(/^(warning|discharged|discharged_by|discharged_at):\s*(.*)$/);
   if (!kv) return unquote(firstToken); // legacy plain string
   const obj = {};
   applyWarningKey(obj, kv[1], kv[2]);
-  void lines;
-  void index;
   return obj;
 }
 
