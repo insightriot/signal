@@ -158,7 +158,24 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 > piece of work below ran in the **fix lane**, so no phase command executed and nothing updated
 > those fields. `last_updated_commit` points at the v0.1.24 release; **six merges have landed since**
 > (#126, #128, #129, #130, #131 and this one). The staleness banner will fire — believe the banner,
-> not the fields. **Run `/sig:checkpoint --context` before anything else.**
+> not the fields.
+>
+> **The order, and what each command will and will not fix** *(corrected 2026-08-09 — an earlier
+> version of this line said "run `/sig:checkpoint --context` before anything else", which overstated
+> what it does):*
+> 1. **`/sig:resume`** — read-only orientation. It reads this file and `STATE.md`, so it surfaces
+>    this handoff. Start here.
+> 2. **`/sig:checkpoint --context`** — walks the git log since `last_updated_commit` and calls
+>    `markFresh` to advance it to HEAD, which silences the staleness banner. **It does not touch
+>    `current_epic` or `phase`.**
+> 3. **Neither command corrects `current_epic: M5.E19`.** That field only moves when an Epic opens,
+>    because `setCurrentEpic` is what writes it — so it stays wrong until `M5.E10` starts, and this
+>    prose is what carries the truth until then.
+>
+> **Expect a guard when `M5.E10` opens:** `setCurrentEpic` refuses to zero a non-empty
+> `completed_phases` it did not archive (`B52`'s second half). `M5.E19`'s ledger holds four phases.
+> It should archive cleanly — that Epic shipped with all its artifacts — but if it halts, that is
+> the guard doing its job, not a fault.
 >
 > **What was decided today** (full text in [`DECISIONS.md`](DECISIONS.md), `D-BR0809-1…3`):
 > 1. **`M5.E10` (review hardening / claim integrity) is the next Epic.** `M5.E11` kept but cut to its
