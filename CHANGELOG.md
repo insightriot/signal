@@ -6,6 +6,60 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.24] — 2026-08-09 — the unreached mechanism — five rules that now check themselves
+
+**One defect class, five instances, named before it was fixed: the unreached mechanism.** Signal kept building a capability, writing down the rule that should invoke it, and shipping — with nothing that reaches for it. Correctness then rests on the operator already knowing. `UNREACHED-MECHANISM-ANALYSIS.md` argues Signal's habitual answer to *"the rule wasn't followed"* is to write the rule more carefully, and `B75` already measured that ceiling: `light` and `strict` differ by **one boolean** in code. So every fix in this release is a **check that fires where the situation is**, not a paragraph.
+
+### Added
+
+- **`/sig:execute` and `/sig:ship` now refuse to run on the default branch (`B88`).** `[BREAKING]` for anyone who commits straight to `main` — see *Changed* below.
+
+  Signal's rules said every change reaches `main` through a branch and a PR. **Nothing enforced it.** Measured before the fix: not one of 20 commands and not one library module read the current branch, and none created one — `execute.md` contained the word *"branch"* **zero times** while instructing *"create an atomic git commit."* It worked because whoever was driving read `CLAUDE.md` and remembered. On a `nextpass` slice nobody did: five commits of real code reached `main` with no branch and therefore no PR, CI ran *after* each push instead of gating it, and `git push` printed *"Bypassed rule violations"* and succeeded.
+
+  `tools/lib/branch-guard.js`, wired at **all three** candidate sites because they catch different failures: EXECUTE stops a slice from *beginning* on the default branch (nothing can be stranded), SHIP catches hand-driven work that never invoked EXECUTE (`B87`'s shape), and the Exit Criteria is **filled from a real PR URL** instead of ticked — that box was ticked across thirteen releases while exactly **one** pull request existed in the span (`D-M5E17-5`).
+
+  **Tier-gated to FEATURE and FULL, derived from `tier-definitions.md` rather than taste:** SKETCH has *"Gates off"*, and SPIKE's output is *"A findings document… Not a PR"* — so halting a spike for lacking a branch would have shipped a fresh `B89` inside the fix for `B89`.
+
+  **It deliberately does not reuse `state.js`'s default-branch resolution**, which falls back to the literal `main`. Correct for an advisory banner; wrong for a halt, where the same fallback yields a false halt (no remote) *and* a false clear (a `master`-default repo) from one line. Pinned by a `master`-repo regression test.
+
+- **A discharged obligation can finally be recorded as done (`M5.E14` first slice).** `PROFILE.md`'s `backfill_warnings` was append-only with **no way to express completion**, so the schema made the true state unrepresentable and a finished obligation read as owed forever.
+
+  In traction-engine's Phase 11 a security backfill discharged by Phase 10 — and ticked in four places — was reported *"still owed"* by VERIFY, escalated to a **bolded warning** by REVIEW, then absorbed into `STATE.md` as fact. The claim gained confidence at every hop and evidence at none (`CLAIM-INTEGRITY-ANALYSIS.md` specimen #4). One grep would have refuted it at any of them.
+
+  Entries may now be an object carrying `discharged` / `discharged_by` / `discharged_at`. **A bare string still means open, so every profile in the field stays valid and nothing migrates** — a migration that must run before the fix works is a second thing that can silently not happen. `/sig:ship` asks `readOpenObligations` and **reports without halting**: unlike the branch gate, *"yes, something is open, and I'm shipping anyway"* is frequently correct, and a gate that blocks on a judgement gets routed around. Three outcomes stay separate — open, discharged, and **could-not-read**, which renders `UNKNOWN, not none`.
+
+  **Scope, stated plainly: `dischargeObligation` is called by nothing.** The marker is readable and writable, but only a maintainer invoking the library function by hand can set one. Wiring discharge into the phase gates is the tracker Epic's job (`M5.E14` proper), not this slice's. Said out loud because a release note implying the class is closed would be a sixth instance of the very defect this release is about.
+
+- **A tier advisory that fires where the situation is (`B90`).** Per-unit tiering, `/sig:escalate`'s de-escalation branch, and `phases_skipped` have existed for releases — and every surface introducing them said the dial only turns **up**. Measured across 12 local projects: **7 run FULL, and exactly one had ever written a per-unit PROFILE.** A real user paid seven-phase FULL ceremony on a two-hour UI fix. `readTierAdvisory()` names both ways down, goes silent the moment either is used, and is **advisory, never a gate** — the right tier is a judgment call and a project legitimately at FULL must not be nagged into lying. Wired into `/sig:status` and `/sig:resume`.
+
+- **`phase-log-gap` — a phase that ran and never entered the ledger (`B87`).** `M5.E9` closed `B41` by putting the phase-entry call inside each phase command, which does nothing for a run that **never invokes them** — and Signal-on-Signal is exactly that run, as is any Epic a maintainer drives by hand. Caught live at `M5.E19` VERIFY: PROGRESS on disk with five slices recorded, EXECUTE absent from `completed_phases`. **Detect only, by decision** — the log is append-only with no dedupe (`D-M5E9-5`), and writing an entry the flow never produced is `B48`'s lesson.
+
+- **`tools/cross-project-scan.js`** — cross-project analysis over the evidence 23 projects already generate, splitting **defects in Signal** from **advisories about a project**. Mixing them made a fix-and-rescan loop unfalsifiable: advisory counts cannot move until a human acts on a repo, so chasing them tempts weakening the check instead of fixing anything.
+
+- **`cut-release.js` stress-tests a release against the real corpus before cutting it.** The suite runs against fixtures and Signal's own tree, and **both are structurally unrepresentative** — `B82` could not exist in this repo by construction and was live in 8 of 12 real projects; `M5.E16` found Signal's own `.planning/` shape is the *minority* shape. A green suite has therefore never been evidence that a release behaves in the field. **Gates on defects only**, and **fails open, loudly**: a skipped check says *"Not a pass"* in the same breath (`B39`).
+
+- **`tests/intra-file-consistency.test.js`** — a command file may not permit what the same file forbids. `M5.E17` was an entire Epic about contradictory instructions and shipped **cross-document** tests; nothing ever compared a file against **itself**, though an anti-rationalization table is by construction the list of what a file forbids and its steps the list of what it permits.
+
+### Fixed
+
+- **`B89` — `/sig:plan` granted permission to skip the inbox drain and forbade skipping it, in the same file.** Step 1b read *"advisory and fully skippable"*; the Anti-Rationalization table 144 lines later answered *"The plan's decided — skip the drain"* with *"**No.** … Skip it and captures rot in a write-only file."* Both live, and **neither wrong on its own terms** — which is why nothing caught it. It had already fired: `M5.E19` PLAN skipped the drain on 2026-08-07 citing Step 1b, with **52 candidates** in the inbox, the oldest from May.
+
+  **Resolved toward required, because the consequence is asymmetric.** The drain is Signal's only culling mechanism for `/sig:add` captures and it runs only at PLAN, so a permission to skip is a permission for the inbox to grow without bound. *"Defer all remaining"* is the bounded escape and is now offered **unconditionally** rather than *"on a large first run"* — an escape appearing only above an unstated threshold is not one a required step can rely on.
+
+- **The new obligation parser invented a phantom "still owed."** `parseEscalationHistory` decided *"am I inside a warnings list?"* with a flag that latched past the end of one entry, so a **second** escalation's `- from_tier: FULL` was read as a warning and reported as open. A false *"still owed"* is specimen #4 **inverted**, inside the change written to end specimen #4. Fixed by deciding nesting from **indent** on every line; indent cannot latch. Every fixture in the file had exactly one escalation, so the parser's only stateful transition was never exercised.
+
+  **Measured read-only across 12 local projects: 3 phantom obligations → 0**, in `cm-mentor-coach`, `nextpass`, and `nextpass-codex-review`. Signal's own tree read 0 both before and after — its `escalation_history` is empty, so it has nothing to mis-parse. `B82`'s shape exactly: **dogfooding was structurally blind, and the bug lived only where the corpus is real.**
+
+### Changed
+
+- **`[BREAKING]` — committing straight to the default branch is now blocked at FEATURE and FULL tier.** `--allow-default-branch` is the deliberate way past, and the halt names it. SKETCH and SPIKE are unaffected. Projects with no git remote are unaffected (no remote, no PR to protect). If the gate **cannot determine** the default branch it says so and **proceeds** — a gate that halts on its own blindness is unusable.
+- **`CLAUDE.md`, `escalate.md` and `tier-definitions.md` now say the tier dial turns both ways** (`B90`). `CLAUDE.md` described `/sig:escalate` twice as *"promotes tier mid-flight"*; `escalate.md`'s own description said the same while `§Case C` at line 87 — the de-escalation branch — was invisible to anyone reading the command list. **Project tier is a ceiling, not a floor.**
+- `/sig:ship`'s PR Exit Criterion is rendered from evidence rather than presented as a checkbox.
+
+### Notes
+
+**Three of this release's fixes found a defect in their own work, and one converged independently.** `B88`'s new text placed a directive outside the `B41-phase-entry` canary's deletion scope — `B55`'s shape, in the change that cites `B55`. `B87`'s fix hit the identical wall in a different file. **Both chose rewording over an allowlist entry, separately, for the same reason:** `DESCRIPTIVE_ALLOWLIST` is per-**file**, so an entry would permanently blind the leak walk to any real directive that file later acquires. The M5.E15 harness earning its keep twice in one release is the strongest evidence yet that it measures something.
+
 ## [0.1.23] — 2026-08-08 — /sig:update tells you a command that works (B85)
 
 ### Fixed

@@ -22,6 +22,13 @@ Still-open roadmap follows, in sprint sequence.
 **Do all three, in this order.** Recorded here because this file is the queue (`D-M5E18-1`);
 `STATE.md` carries a pointer to it, not a second copy of the ordering.
 
+> **✅ ALL THREE ARE DONE as of `v0.1.24` (2026-08-09).** `B52` → v0.1.20, the archive command →
+> v0.1.22, `M5.E14`'s slice → v0.1.24. **This sequence is closed; it is history, not a queue.**
+> Live work is the section below, *"Filed since that agreement"* — where `B88`, `B89` and `B90` have
+> also now shipped in v0.1.24, leaving the **command-namespace decision** (item 4) as the only
+> sequenced item still open. Kept rather than deleted because it records *why* that order and what
+> was excluded on evidence.
+
 The two big roadmap Epics were **considered and excluded on evidence, not overlooked**: `M5.E12`
 waits on `M5.E11` and `M5.E14`-in-full waits on `M5.E10`, and **neither has any artifact on disk**
 (checked 2026-08-06). A checked-and-declined trigger must be distinguishable from an unchecked one
@@ -106,7 +113,18 @@ finished, and its only protection was a hand-maintained list you had to update *
 file. It proposed archiving the same four **live** units twice. The 2026-08-01 remedy was a printed
 warning and it failed the way warnings fail. **A warning asks; a gate refuses.**
 
-### 3. `M5.E14`'s shippable slice only · **small** · *not the tracker Epic*
+### 3. ~~`M5.E14`'s shippable slice only~~ · **DONE — `v0.1.24`, 2026-08-09** · *not the tracker Epic*
+
+**Shipped in the fix lane.** The `discharged` marker (`discharged` / `discharged_by` / `discharged_at` on `backfill_warnings`, with a bare string still meaning open so nothing migrates) plus `readOpenObligations` wired into `/sig:ship`'s pre-ship checklist. **Reports, never halts** — Brett's call, and the opposite of the `B88` branch gate in the same release: that one asks *"did you follow the process?"* (one right answer); this asks *"is anything outstanding?"*, where shipping anyway is often correct.
+
+**What the slice did NOT do, stated so nothing reads it as closed:** `dischargeObligation` exists and **is called by nothing**. Only a maintainer invoking the library function by hand can set a marker. Wiring discharge into the phase gates is the Epic's second load-bearing condition and stays with the Epic.
+
+**Two things the build learned:**
+
+1. **The parser shipped a false *"still owed"* and the corpus proved it.** `parseEscalationHistory` latched its "inside a warnings list" flag past the end of an entry, so a **second** escalation's `- from_tier: FULL` became a phantom open obligation — specimen #4 **inverted**, inside the fix for specimen #4. Measured read-only across 12 projects: **3 phantoms → 0**, in `cm-mentor-coach`, `nextpass`, `nextpass-codex-review`. **Signal's own tree read 0 both ways** (its `escalation_history` is empty), so this is `B82`'s shape again — dogfooding was structurally blind and only the real corpus could see it.
+2. **The named-source registry has exactly one resolver and no placeholder for the tracker.** A declared-but-unimplemented source would be the unreached-mechanism defect this release is named after. Adding GitHub Issues later is registering a resolver (`D-M5E14-1`).
+
+<details><summary>Original entry (kept for the reasoning that set the order)</summary>
 
 *Plain: make "is this actually done?" answerable.*
 
@@ -124,7 +142,7 @@ in a hand-maintained table that nothing reconciles.
 **Do NOT start the full tracker integration here.** Its two load-bearing conditions (single home;
 closing wired into the phase gates) are Epic-shaped and its trigger is unmet.
 
-
+</details>
 
 ---
 
@@ -133,6 +151,12 @@ closing wired into the phase gates) are Epic-shaped and its trigger is unmet.
 Everything above is Brett's 2026-08-06 ordering. Everything below was filed
 **after** it and has **not** been placed in that sequence — the priority call is his,
 not the filer's. Kept separate so *"the agreed sequence"* keeps meaning what it says.
+
+### ~~`B88` — Signal is branch-blind~~ · **DONE — `v0.1.24`, 2026-08-09**
+
+**The product call was made** (Brett, 2026-08-08): all three remediation sites, **hard stop** with `--allow-default-branch` as the deliberate override, tier-gated to FEATURE + FULL. Full detail in `BUGS.md`. `B89` and `B90` also shipped in `v0.1.24`; **`B87` shipped ahead of them** in the same release.
+
+<details><summary>Original entry (the product call it was waiting on)</summary>
 
 ### `B88` — Signal is branch-blind · **P1** · **needs a product call, then small**
 
@@ -165,6 +189,8 @@ enforcement**, which is exactly what `D-M5E17-5` was filed to end.
 **Live here today and masked only by habit** — every branch in the 2026-08-08 session existed
 because `CLAUDE.md` says so and the operator remembered. Same *depends-on-remembering* mode as
 `B87`.
+
+</details>
 
 ### Command namespace — decide whether group 4 gets a prefix · **hygiene** · small-to-medium
 

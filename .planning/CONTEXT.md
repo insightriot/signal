@@ -4,9 +4,34 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-08-08)
+## Where things stand (2026-08-09)
 
-**`v0.1.23` shipped** — **`B85`**, fix lane. `/sig:update`'s one mutating step had never worked as
+**`v0.1.24` shipped** — *the unreached mechanism*: **one defect class, five instances.** Signal kept
+building a capability, writing down the rule that should invoke it, and shipping with **nothing that
+reaches for it** — so correctness rested on the operator already knowing.
+`analysis/UNREACHED-MECHANISM-ANALYSIS.md` names it, and `B75` had already measured the ceiling on
+Signal's habitual answer (write the rule more carefully): `light` and `strict` differ by **one
+boolean** in code. Every fix in the release is a **check that fires where the situation is**.
+
+- **`B88`** — Signal was branch-blind: **not one of 20 commands read the current branch and none
+  created one**, while `execute.md` said *"create an atomic git commit"* and contained the word
+  *branch* zero times. `/sig:execute` and `/sig:ship` now **refuse the default branch** at
+  FEATURE/FULL (`--allow-default-branch` overrides), and the PR exit criterion is filled from a real
+  URL — that box was ticked across **thirteen releases while one PR existed**.
+- **`B89`** — `plan.md` permitted and forbade skipping the inbox drain, **in the same file**. Now
+  required, with *"defer all remaining"* as the bounded escape.
+- **`B90`** — the tier dial turns **both ways**, and every surface said otherwise. 7 of 12 projects
+  run FULL; exactly one had ever written a per-unit PROFILE.
+- **`B87`** — `phase-log-gap` detects a phase that ran and never entered the ledger.
+- **`M5.E14`'s slice** — a discharged obligation is finally **recordable**. Its parser shipped a
+  phantom *"still owed"* caught pre-release: **3 phantoms → 0 across 12 projects**, and **0 both ways
+  in Signal's own tree** — `B82`'s blindness again.
+
+⚠ **`dischargeObligation` is called by nothing.** The marker is readable and writable by hand; wiring
+discharge into the phase gates stays with the tracker Epic. Said out loud so nothing reads the class
+as closed.
+
+**Prior — `v0.1.23`** — **`B85`**, fix lane. `/sig:update`'s one mutating step had never worked as
 written: it told users to run `claude plugin update sig`, which the CLI rejects — an installed plugin
 is identified as `{plugin}@{marketplace}`, so the working string is `sig@signal`. Live for four
 releases, because **nothing in the suite ever inspected a CLI string a command file prescribes**.
