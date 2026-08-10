@@ -127,7 +127,7 @@ Per the working-norms baseline (`CLAUDE.md` § "Naming & plain language" — *"U
 
 ## "Spec-internal consistency" as a PLAN-validation axis
 
-**Status:** Logged 2026-05-26 at M4.5.E9 REVIEW close.
+**Status:** Logged 2026-05-26 at M4.5.E9 REVIEW close. → Promoted 2026-08-10 (promoted to BACKLOG § Twelve promoted from the inbox drain — inbox drain).
 
 **Trigger.** M4.5.E9.S1.t11 surfaced an incompatibility internal to the PLAN itself: the threshold formula stated in the task spec (`template_floor + 150B × section_count`) was inconsistent with the AC stated in the same task (`minimally-filled template — one sentence per section — passes`). One sentence is ~50-70B of body; 150B per section pushes the threshold beyond what one sentence can clear. The 8-dimension VALIDATION pass did not catch this because it audits goal alignment / completeness / dependency / testability / scope / context / risk / vertical-slicing — none of which check whether the formula stated in the PLAN actually satisfies the AC stated in the PLAN.
 
@@ -145,7 +145,7 @@ The fix landed inline in EXECUTE (60B coefficient, AC as binding constraint, dev
 
 ## Dry-run gate as a standard PLAN pattern
 
-**Status:** Logged 2026-05-26 at M4.5.E9 REVIEW close.
+**Status:** Logged 2026-05-26 at M4.5.E9 REVIEW close. → Promoted 2026-08-10 (promoted to BACKLOG § Twelve promoted from the inbox drain — inbox drain).
 
 **Trigger.** Two of two recent M4.5 Epics that included a dry-run-with-user-approval gate caught real issues that would have shipped otherwise:
 
@@ -1312,7 +1312,7 @@ Passive Stop-hook → continuous in-the-moment observation capture. Add a passiv
 
 ## Cross-document contradiction sweep — 11 open findings (2026-08-04)
 
-**Status:** Captured 2026-08-04. **✅ TRIAGED 2026-08-09** (backlog-review pass) — dispositions below, each re-verified against the current files rather than accepted from the capture. **3 of 11 were already dead; 3 more collapse into one root; 5 were fixed in this pass.**
+**Status:** Captured 2026-08-04. **✅ TRIAGED 2026-08-09** (backlog-review pass) — dispositions below, each re-verified against the current files rather than accepted from the capture. **3 of 11 were already dead; 3 more collapse into one root; 5 were fixed in this pass.** → Promoted 2026-08-10 (promoted to BACKLOG § Twelve promoted from the inbox drain as the live residual — inbox drain).
 
 | # | Verdict 2026-08-09 | Disposition |
 |---|---|---|
@@ -1574,7 +1574,7 @@ The other three candidate changes (body skeleton in `references/state-schema.md`
 
 ## Map drift-guard (v0.1.6 doc-integrity candidate)
 
-**Status:** Logged 2026-07-13 via `/sig:add`.
+**Status:** Logged 2026-07-13 via `/sig:add`. → Promoted 2026-08-10 (promoted to BACKLOG § Twelve promoted from the inbox drain — inbox drain).
 
 Map drift-guard (v0.1.6 doc-integrity candidate). docs/map/index.html silently fell two releases behind — showed v0.1.3 while prod was v0.1.5, omitted all 26 agents + 21 skills (incl. ui-auditor), and carried stale "currently active" work-unit examples — because its refresh protocol is manual. Fix = a drift-GUARD, not a full regenerator and not a literal hook. Recommended: a small tools/ check that compares the map's listed commands/agents/skills + version stamp against the actual repo files (commands/*.md, agents/**/*.md, skills/**/SKILL.md, package.json version) and FAILS when the roster or version is stale/missing. Wire it two places: (1) the existing validator/test suite that must stay green — so a PR that adds an agent but forgets the map turns red; (2) a /sig:ship checklist line (the slot the old Curator step occupied). The guard checks roster membership + counts + version only — the one-line summaries, flag curation, vocab examples, tiers, rigor matrix, and calibrate simulator stay HAND-CURATED; it never auto-writes prose. Explicitly NOT a Claude Code hook (those fire on session/tool events; there is no "on version bump" event) and NOT a git post-commit hook (per-commit not per-version, unversioned, the Curator footgun — see DECISIONS 2026-07-13). Down-payment on M5 future /sig:index doc-runtime (the map footer already says structural rows will move to a future /sig:index). Fits the queued v0.1.6 doc-integrity guardrail batch, alongside the STATE.md write-hook guardrail. Deferred from building now to avoid colliding with the concurrent agent editing v0.1.6-REQUIREMENTS.md.
 
@@ -1614,7 +1614,7 @@ feature in signal that a) scans the project's integrations (MCPs, CLIs, etc.) an
 
 ## Config-drift hazard check in VERIFY (+ SHIP reminder)
 
-**Status:** Logged 2026-07-21 via `/sig:add`.
+**Status:** Logged 2026-07-21 via `/sig:add`. → Promoted 2026-08-10 (promoted to BACKLOG § Twelve promoted from the inbox drain — inbox drain).
 
 Add a deterministic, offline VERIFY pass that reconciles config keys the code references against keys declared in `.env.example` / config templates: flag (a) referenced-but-undeclared, (b) declared-but-unreferenced (orphans), (c) alias pairs (two names, one logical key). Tier-gated: advisory in SKETCH, enforced in FULL. Explicitly local/offline/stack-aware — NOT a live vendor-API check.
 
@@ -1628,7 +1628,7 @@ Open sub-question for PLAN: how much stack coverage in v1 — JS/.env only first
 
 ## Resume-time retro nudge when parked at SHIP with no retro (B26 Layer-3 follow-up)
 
-**Status:** Logged 2026-07-21 (descoped from M5.E5/B26 — the executor's "Option 2").
+**Status:** Logged 2026-07-21 (descoped from M5.E5/B26 — the executor's "Option 2"). → Promoted 2026-08-10 (promoted to BACKLOG § Twelve promoted from the inbox drain — inbox drain).
 
 Enhancement descoped from M5.E5. The B26 fix (STATE-based Epic-close fallback for the FR1 retro gate) applies only at SHIP-time, so it's a no-op inside `detectDirtyExecute` (the SessionStart-resume warning), which is guarded on `phase === 'EXECUTE'` (`retrospective.js:697`). B26's enforcement harm is fully closed by Layers 1+2 (the SHIP hard-block + the write-guard).
 
@@ -1709,7 +1709,7 @@ Sequencing observation, not a decision: (b) is the doc-runtime pointed outward a
 
 ## Task-handoff completeness — research findings, exemplar pointers, and out-of-scope never reach the executor
 
-**Status:** Logged 2026-07-26 via `/sig:add`. Surfaced by the alignment pass against Span's *Beyond the Model* (Q3 2026) — full evidence in [`../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md`](../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md) §2, which is its single home; not restated here.
+**Status:** Logged 2026-07-26 via `/sig:add`. Surfaced by the alignment pass against Span's *Beyond the Model* (Q3 2026) — full evidence in [`../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md`](../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md) §2, which is its single home; not restated here. → Promoted 2026-08-10 (promoted to BACKLOG § Twelve promoted from the inbox drain — inbox drain).
 
 Three leaks in the same seam, all verified 2026-07-26. They should ship together.
 
@@ -1741,7 +1741,7 @@ Proposed home: **M5.E10** (review hardening). It is the false-green instinct poi
 
 ## Blast radius and rollback — known across four skills, asked by no phase
 
-**Status:** Logged 2026-07-26 via `/sig:add`. Surfaced by the alignment pass — evidence in [`../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md`](../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md) §3 (gap A).
+**Status:** Logged 2026-07-26 via `/sig:add`. Surfaced by the alignment pass — evidence in [`../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md`](../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md) §3 (gap A). → Promoted 2026-08-10 (promoted to BACKLOG § Twelve promoted from the inbox drain — inbox drain).
 
 The knowledge is present: `skills/build/incremental-implementation/SKILL.md:147` (feature flags) and `:174` (Rollback-Friendly), `skills/ship/ci-cd-and-automation/SKILL.md:247` (Rollback Plan), `skills/ship/shipping-and-launch/SKILL.md:129` (canary vs. baseline). No phase asks the question.
 
@@ -1755,7 +1755,7 @@ Proposed home: **M5.E9**, hygiene. Two lines of markdown. *Done-when:* the SHIP 
 
 ## `/sig:permissions` — declared execution-authority levels per project
 
-**Status:** Logged 2026-07-26 via `/sig:add`. Brett's reframe of the environment-execution question raised by the alignment pass; recorded the moment it was made.
+**Status:** Logged 2026-07-26 via `/sig:add`. Brett's reframe of the environment-execution question raised by the alignment pass; recorded the moment it was made. → Promoted 2026-08-10 (promoted to BACKLOG § Twelve promoted from the inbox drain — inbox drain).
 
 The question posed was narrow — should Signal start executing build/test/lint commands in a stranger's repo, in order to close the environment-readiness gap ([`../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md`](../analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md) §4, the axis with the study's largest measured effect: 88% higher turn yield per point, R² = 0.949).
 
@@ -1779,7 +1779,7 @@ Reconcile with, do not duplicate: the `/sig:audit` entry above (its seventh dime
 
 ## Trajectory scoring — the complementary measurement dimension to M5.E8's instruction-adherence
 
-**Status:** Logged 2026-07-26 via `/sig:add`. Parked with a trigger by Brett's call at the alignment pass; recorded so the *decline* is a decision rather than a silence.
+**Status:** Logged 2026-07-26 via `/sig:add`. Parked with a trigger by Brett's call at the alignment pass; recorded so the *decline* is a decision rather than a silence. → Promoted 2026-08-10 (UNPARKED by D-BR0810-1, fed by the local project corpus; promoted to BACKLOG § Twelve promoted from the inbox drain — inbox drain).
 
 Proposed and declined: widening M5.E8 from instruction-adherence to scoring whole trajectories on the three axes of Span's *Beyond the Model* (prompt clarity, environment readiness, quality stewardship).
 
@@ -1883,7 +1883,7 @@ mechanism.
 
 ## Loop engineering: split attention from rigor
 
-**Status:** Logged 2026-08-03 via `/sig:add`. during PLAN on M5.E18
+**Status:** Logged 2026-08-03 via `/sig:add`. during PLAN on M5.E18 → Promoted 2026-08-10 (promoted to BACKLOG § Twelve promoted from the inbox drain, sequenced into M6 — inbox drain).
 
 Loop engineering: split attention from rigor — full analysis + build path in analysis/LOOP-ENGINEERING-ANALYSIS.md. Audit of all human gates found ~48–86 synchronous touchpoints per FULL Epic, most enforced only in prose; gate_strictness already has an auto-advance mode but it's welded to tier. Proposal: an `attention` axis (attended/checkpointed/unattended) orthogonal to tier, async decision queue with reversibility-weighted auto-adopt, a /sig:run driver, PR-merge stays human (merge = delivery), parallel Epic lanes last. Brett wants to approach this work soon. Also flags 4 defects (LE-1..LE-4 in the doc §3.3) to file via /sig:add --bug.
 
@@ -1891,7 +1891,7 @@ Loop engineering: split attention from rigor — full analysis + build path in a
 
 ## STATE drift: no check compares body *characterization* against the frontmatter
 
-**Status:** Logged 2026-08-07 during `/sig:checkpoint`, before opening the archive Epic.
+**Status:** Logged 2026-08-07 during `/sig:checkpoint`, before opening the archive Epic. → Promoted 2026-08-10 (folded into M5.E10 by D-BR0810-2; promoted to BACKLOG § Twelve promoted from the inbox drain — inbox drain).
 
 **Measured, not reasoned — from this session.** `/sig:resume` ran `runDriftChecks` and reported
 **6/6 clean, 0 need a person**. At that same moment `STATE.md`'s `## In-flight` section read

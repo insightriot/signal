@@ -390,6 +390,241 @@ day one. Brett, 2026-08-08: *"agreed."*
 
 ---
 
+### Twelve promoted from the inbox drain *(2026-08-10, `D-BR0810-1` … `D-BR0810-3`)*
+
+Filed by the 52-entry inbox drain. Each had **no row anywhere** — several name a proposed home in
+their own text that was never written down, which is why they sat un-sequenced for months while
+reading as decided. Ordered small-to-large; **not** placed in the agreed sequence.
+
+#### Trajectory scoring — score whole runs, not single instructions · **roadmap** · medium · **UNPARKED 2026-08-10**
+
+*Plain: measure whether a whole piece of work went well, not just whether one instruction was obeyed.*
+
+**Its trigger fired and its blocker dissolved, and the second is the reason this is unparked.** The
+trigger — *"`M5.E8` lands and instruction-adherence measurement is repeatable"* — was met when
+`M5.E15` gave the canary a real control arm and published a verdict that means what it says. But the
+entry was parked on a *supply* problem, inherited from its sibling: **"four users will show nothing
+for a long while."**
+
+**Brett, 2026-08-10: use the dozens of local projects as the initial data feed** (`D-BR0810-1`). That
+replaces the blocked input with one that exists today — 12+ real corpora already used as the
+measurement substrate for `B82`, `B88` and `B90`, all of which produced findings Signal's own tree
+structurally could not. The caution was about *external* users; it was never about *runs*.
+
+**Carry forward the method the entry already banked**, from the study's appendix: qualitative review
+of the best and worst tails → rubrics written as **observable** criteria → any dimension that cannot
+be operationalized is **dropped** → automated scoring validated against blind human ratings. The
+observable-or-dropped rule is the load-bearing half.
+
+*Done-when:* a trajectory from the local corpus is scored on published, observable criteria, and a
+dimension that could not be operationalized is recorded as dropped rather than fudged.
+
+#### `STATE.md`'s narrative vs. its frontmatter · **hygiene** · small · **FOLDED INTO `M5.E10`**
+
+*Plain: the machine-written half of the status file is right and the hand-written half beside it is often wrong.*
+
+**Folded into `M5.E10` by Brett's call, 2026-08-10** (`D-BR0810-2`) rather than built as a standalone
+deterministic check — it is a prose-vs-frontmatter comparison, which is that Epic's territory.
+
+**Four instances, and the fourth is the argument.** The `In-flight` section has gone stale four
+times; the third was *written as the correction to the second* and falsified by the next state write;
+the fourth was falsified by a full phase sequence — four `transitionPhase` calls — **while the author
+was filing `B87` about the record disagreeing with the work.** A hand-maintained narrative beside a
+machine-written frontmatter goes stale **by construction**, not by neglect.
+
+**`runDriftChecks` reported 6/6 clean across every instance**, and correctly: `body-omits-current-epic`
+tests `mentioned.has(epic)` — presence, not agreement — and `phase-behind-artifacts` never reads the
+prose. Two honest checks with a gap between them.
+
+*Done-when:* a body that names the right Epic in the wrong phase is caught. **Sibling of `B87`** —
+the ledger missing a phase that ran, vs. the narrative describing a phase already passed; a fix for
+one should be weighed against the other.
+
+#### Blast radius and rollback — asked by no phase · **hygiene** · tiny
+
+*Plain: nothing ever asks what a change touches, or how you would undo it.*
+
+The knowledge is already in four skills (`incremental-implementation` feature flags + rollback-friendly,
+`ci-cd-and-automation` rollback plan, `shipping-and-launch` canary). **No phase asks the question.**
+DISCUSS's production-readiness row covers probes, shutdown, logging, headers, rate limiting; SHIP's
+checklist covers secrets, env vars, README, CHANGELOG, tests, build, linter — neither has a rollback line.
+
+**Not already covered by calibration:** `reversibility` is one of the five calibrate questions, but it
+tiers the *project*. Per-change blast radius is a different altitude and nothing asks it.
+
+*Done-when:* the SHIP checklist carries a rollback line and DISCUSS asks the blast-radius question at
+FEATURE and FULL. Two lines of markdown.
+
+#### Spec-internal consistency — a plan that contradicts itself · **hygiene** · small
+
+*Plain: check that a plan's own numbers can satisfy its own acceptance criteria.*
+
+`M4.5.E9` shipped a task whose stated threshold formula could not satisfy the acceptance criterion
+stated in the same task. **The 8-dimension validation pass cannot catch this class** — it audits goal
+alignment, completeness, dependency, testability, scope, context, risk and vertical slicing, none of
+which compare a plan's stated formula against a plan's stated criterion.
+
+*Done-when:* a validation pass on a plan carrying a quantitative threshold walks the matching
+criterion and states whether the formula's output satisfies it. **Cheap because it is scoped:** only
+tasks with a number in them.
+
+#### The dry-run gate, written down as a pattern · **hygiene** · small
+
+*Plain: "show me what you'd change before you change it" is house style; say so out loud.*
+
+Two of two Epics that used it caught real bugs that would otherwise have shipped (`M4.5.E6` D15 on a
+live STATE.md; `M4.5.E9` S1.t10, which caught two — a `git log --grep` matching commit bodies, and
+link paths resolving one directory too high — before they propagated to five committed files).
+
+**It has since become practice without ever being written as a rule:** `/sig:migrate-memory` and
+`/sig:archive` are both dry-run-by-default (`D-M5E19-5`). The gap is that a *pattern nobody wrote down*
+is applied when someone remembers it — the shape `B90` and `B87` share.
+
+*Done-when:* `references/` names the pattern, and PLAN inserts a dry-run task ahead of any task that
+writes to existing user state.
+
+#### Resume-time retro nudge · **hygiene** · small
+
+*Plain: warn earlier when you are parked at ship with no retrospective, instead of hard-stopping later.*
+
+Descoped from `M5.E5`/`B26` as the executor's Option 2. The `B26` fix applies at SHIP-time only, so it
+is a no-op inside `detectDirtyExecute`, which is guarded on `phase === 'EXECUTE'` (`retrospective.js:697`).
+A hand-managed project sitting at `phase: SHIP` with no retro gets no early heads-up — Layer 1 still
+hard-blocks at `/sig:ship`, so this is purely a friendlier, earlier warning.
+
+*Slice:* broaden the phase guard to cover SHIP, thread `completed_phases` + `profile` through
+`hooks/warn-dirty-execute.js`, reuse `isEpicCloseByState`. Advisory-only, touches hook JS.
+
+#### Map drift-guard · **hygiene** · small
+
+*Plain: make the suite fail when the diagram page falls behind the code.*
+
+`docs/map/index.html` silently sat two releases behind — showed v0.1.3 while prod was v0.1.5, omitted
+all 26 agents and 21 skills, and carried stale work-unit examples — because its refresh protocol is a
+checklist line a human runs.
+
+**A guard, not a regenerator.** Compare the map's listed commands/agents/skills and version stamp
+against `commands/*.md`, `agents/**/*.md`, `skills/**/SKILL.md` and `plugin.json`; **fail** on roster
+or version drift. The one-line summaries, flag curation, vocabulary examples, tiers and rigor matrix
+stay hand-curated — it never auto-writes prose.
+
+**Explicitly not a hook:** there is no "on version bump" event, and a per-commit git hook is the
+Curator footgun (`DECISIONS` 2026-07-13).
+
+*Done-when:* a PR that adds an agent without touching the map turns the suite red.
+
+#### Config-drift hazard check before shipping · **roadmap** · medium
+
+*Plain: catch a config key the code uses but nothing declares — and the stale alias left behind.*
+
+**Origin is a real outage, not a hypothetical:** an env key renamed in code while an old-name alias
+lingered in `.env`, `.env.example` and Vercel.
+
+*Slice:* a deterministic, offline VERIFY pass reconciling keys the code references against keys
+declared in `.env.example` / config templates — flagging **referenced-but-undeclared**,
+**declared-but-unreferenced**, and **alias pairs**. Tier-gated: advisory at SKETCH, enforced at FULL.
+Explicitly local and offline — **not** a live vendor-API check; deploy-target reconciliation stays the
+project's own CI job, and SHIP gets a checklist line saying so.
+
+**The wider question it opens, worth answering here rather than drifting:** should Signal carry a small
+set of stack-aware universal pre-ship hazard checks? Config drift is the ideal first one — high value,
+low stack-specificity, deterministic. *Open for PLAN:* JS/`.env` only first, or a small pluggable
+key-extractor set.
+
+#### Task-handoff completeness — the research never reaches the builder · **roadmap** · medium
+
+*Plain: Signal pays four agents to find the good examples, then hands the builder a task without them.*
+
+Three leaks in one seam, all verified 2026-07-26:
+
+1. `commands/plan.md:89-97` spawns a codebase researcher for *"existing patterns, reusable code,
+   integration points"* and writes `{phase}-RESEARCH.md`. `agents/executors/executor.md:17-21` declares
+   its inputs as the PLAN task, `CONTEXT.md` and `{phase}-VALIDATION.md` — **RESEARCH.md is not among
+   them**, and nothing in `commands/execute.md:58-65`'s dispatch injects it.
+2. The planning skill has a **Files likely touched** field; `commands/plan.md:101-107`, the
+   authoritative list of required plan contents, omits it. Skill and command disagree.
+3. **No per-task out-of-scope field exists anywhere** — the executor's "every changed line traces to
+   the acceptance criteria" is a discipline rule, not a named boundary.
+
+*Done-when:* an executor dispatched on a task whose research names an exemplar follows it rather than
+re-deriving the pattern, and a plan lacking the new fields fails the 8-dimension pass at scope discipline.
+
+#### The contradiction sweep's live residual · **hygiene** · medium
+
+*Plain: finish the last third of the document-vs-document cleanup, and stop writing live counts into prose.*
+
+Eleven findings, triaged 2026-08-09: five fixed, three already dead, three merged into one root. **The
+root is a labelling decision, not eleven edits** — nothing distinguishes a *release* delta from an *Epic*
+delta, so two true facts published in identical shape read as a contradiction. `B56` already recommends
+the release reading; adopt it rather than "correcting" either number. Residual also covers the `B41`
+verdict restated across **7 live governance docs** (the rest are frozen Epic artifacts, correctly left
+alone) and `CONTEXT.md`'s unlabelled "Open bug tail" enumeration.
+
+**Demonstrated perishable, twice.** Three of the eleven resolved themselves within five days of capture.
+And the finding that four documents cited a *"48-entry inbox"* against a live 52 **is wrong again as of
+this drain** — 52 total, 38 dispositioned, 2 standing, 12 live. A point-in-time measurement published as
+a live descriptor will always drift; **derive it or drop it.**
+
+#### `/sig:permissions` — what Signal is allowed to do here · **roadmap** · large
+
+*Plain: Signal has no way to say what it may run in a given project, so it may run nothing.*
+
+**Read-only is not a principle Signal chose per project; it is hard-coded in two scanner files**
+(`quality-scanner.md:209`, `stack-scanner.md:150` — both *"Never run `npm install`, `npm test`,
+`pytest`"*). A permission model turns that default into a per-project setting.
+
+**It is a bottleneck, not just an item.** Two filed items are blocked on it: the readiness scorecard's
+seventh dimension (agent executability — five of its six inputs are *executions*, and scoring
+executability you are not permitted to test produces exactly the false comfort that dimension exists to
+prevent), and the environment-readiness baseline, which the external evidence rates as the largest
+single effect on agent output.
+
+*Open, none resolved:* where it lives (a `PROFILE.md` block vs. a separate file, since permission is a
+property of the repo and operator rather than the work's complexity); its relationship to Claude Code's
+own permission system — **needs a verify step against the current API before anything is designed**;
+what the levels are (straw man: read-only → run declared read-only commands → write → commit → push);
+and consent, since running an unknown project's suite can be slow, hit a live database, or cost money.
+
+#### Loop engineering — split attention from rigor · **roadmap** · large · **M6**
+
+*Plain: let Signal run longer without checking in, without lowering its standards.*
+
+Full analysis in [`../analysis/LOOP-ENGINEERING-ANALYSIS.md`](../analysis/LOOP-ENGINEERING-ANALYSIS.md).
+The audit found **~48–86 synchronous human touchpoints per FULL Epic**, most enforced only in prose, and
+that `gate_strictness` already has an auto-advance mode **welded to tier** — so rigor and attention are
+two dials sharing one knob.
+
+*Proposal:* an `attention` axis (attended / checkpointed / unattended) orthogonal to tier; an async
+decision queue with reversibility-weighted auto-adopt; a driver command; **PR-merge stays human**
+(merge = delivery); parallel Epic lanes last.
+
+**Three items already derive from this analysis and are filed above** (the autonomy-counterweight
+cluster) — this is the parent idea, which had no row of its own. Brett wants to approach it soon;
+`D-BR0809-2` puts the loop work in **M6**.
+
+#### Standing inbox entries are counted as undecided · **hygiene** · small
+
+*Plain: two notes are meant to stay open forever, and the count can't tell them from unanswered ones.*
+
+The trigger watchlist says *"never promote, merge, or delete"* and the QA sandbox says *"do not close
+this entry"* — both correctly, and both therefore read as live drain candidates forever. **A
+deliberately-permanent entry is indistinguishable from an unanswered one**, which is the same
+can't-tell-checked-from-unchecked shape as `B39` and `B90`.
+
+**Raised by Brett at the 2026-08-10 drain**, conditionally — *"fix if there is a reliable/recommended
+fix"* — and filed rather than built, because the reliable fix is a **feature**, not a stamp: it changes
+`parseEntries`' shape and `listDrainCandidates`' contract, both consumed by `commands/plan.md` and the
+drain tests.
+
+*Open design question, and it is the whole decision:* a new explicit marker (e.g. an HTML-comment
+`<!-- standing -->`, the shape already used for the `backlog-key` dedupe markers) **or** widen the
+existing `parseTriggerWatchlist`, which already special-cases exactly one of the two. **Do not ship
+both** — two mechanisms for one concept is what this row exists to avoid.
+
+*Done-when:* the drain reports standing entries separately from live candidates, and the count of live
+candidates excludes them.
+
+
 ## Since the re-audit — what M5.E7 changed (reconciliation, 2026-07-26)
 
 **The BR-8 re-audit ran and closed** (Epic **M5.E7**, 2026-07-25→26). Deliverable:

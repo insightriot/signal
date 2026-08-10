@@ -1611,3 +1611,45 @@ rather than done now, because it is the one genuinely expensive part and there i
 ~30 commands and a flat namespace measurably hurts — new users mis-guessing names, the taxonomy doc
 going unread — this should be revisited, and pre-1.0 remains when a rename is cheapest. That is a
 *trigger*, and it belongs on the watchlist rather than in someone's memory.
+
+## 2026-08-10 — Inbox drain: the two calls that changed a premise (D-BR0810-1 … D-BR0810-3)
+
+*Source: the 52-entry inbox drain (PRs #136, #137 and this one), the pass the 2026-08-09 session
+stopped mid-way through. Rows filed in [`BACKLOG.md`](BACKLOG.md) § "Twelve promoted from the inbox
+drain".*
+
+**D-BR0810-1 — Trajectory scoring is UNPARKED and will be built, fed by the local project corpus.**
+
+The entry carried a trigger (*"`M5.E8` lands and instruction-adherence measurement is repeatable"*)
+that fired when `M5.E15` gave the canary a real control arm. But it was parked on a **supply**
+problem inherited from its sibling — *"four users will show nothing for a long while."*
+
+Brett, 2026-08-10: **use the dozens of local projects as the initial data feed.** That replaces the
+blocked input with one that exists today. The distinction the parked caution missed: it was about
+**external users**, and it was never about **runs**. Twelve-plus local corpora have already produced
+`B82`, `B88` and `B90` — every one a finding Signal's own tree was structurally blind to.
+
+**This does not unpark the cross-install telemetry sibling.** That one pools data *across installs*;
+a local corpus is one install. Its stated caution stands and its 2026-12-31 review date is unchanged.
+
+**D-BR0810-2 — The `STATE.md` narrative-vs-frontmatter check folds into `M5.E10` rather than shipping
+as a standalone deterministic check.**
+
+The entry itself posed the question: a narrow deterministic slice now, or wait for the Epic that owns
+prose-vs-prose comparison? Brett's call: **fold it in.** `M5.E10` is next and already owns the
+territory; a separate deterministic check would be a second mechanism for one concept.
+
+Sibling of `B87` — the ledger missing a phase that ran, vs. the narrative describing a phase already
+passed. Both are *the record disagreeing with the work*; a fix for either should be weighed against
+the other.
+
+**D-BR0810-3 — All twelve homeless inbox entries are filed as backlog rows; the standing-entry
+mechanism is filed, not built.**
+
+Brett approved all four groups, the fourth conditionally — *"fix if there is a reliable/recommended
+fix."* **The reliable fix is a feature, not a stamp:** making the drain distinguish a
+deliberately-permanent entry from an unanswered one changes `parseEntries`' return shape and
+`listDrainCandidates`' contract, both consumed by `commands/plan.md` and the drain tests. That is
+Epic-lane work, and doing it inside a chore branch would convert a hedged yes into a semantics change
+in a shared module. Filed with its design question stated — a new marker, or widen the existing
+`parseTriggerWatchlist` — and explicitly **not both**.
