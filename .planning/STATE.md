@@ -40,9 +40,12 @@ last_updated: 2026-08-09T23:34:16.224Z
 > [`CONTEXT.md`](CONTEXT.md) § Active work → HANDOFF**, which carries the three decisions taken
 > today (`D-BR0809-1…3`), what shipped, where the session stopped, and the two open calls.
 >
-> **The one-line version:** `M5.E10` is the next Epic and **shipping it closes Milestone 5**; the
-> session paused mid-Wave-2 of [`BACKLOG-REVIEW-2026-08-09.md`](BACKLOG-REVIEW-2026-08-09.md), with
-> the 52-entry inbox triage as the immediate next action.
+> **The one-line version:** `M5.E10` is the next Epic and **shipping it closes Milestone 5**. The
+> inbox triage that was the immediate next action is **DONE** — 2026-08-10, PRs #136/#137/#138: 52
+> entries → 50 dispositioned + 2 standing, `B92` filed, 13 rows added to `BACKLOG.md`, decisions
+> `D-BR0810-1…3`. **The routing below that sends the inbox triage to `M5.E14` is now historical**
+> (`D-M5E17-3` cut it there when nothing else had a home for it); it ran in the fix lane instead and
+> `M5.E14` no longer carries it.
 
 ## Resume pointer
 
