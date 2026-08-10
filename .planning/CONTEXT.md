@@ -198,10 +198,33 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 > verb + reason each, and take his calls in batches. `shipped` now exists precisely so completed
 > entries are not mislabelled `defer` or destroyed with `delete`.
 >
+> ## ▶ THE TRIAGE IS DONE — 2026-08-10, PRs #136 / #137 / #138
+>
+> **52 entries → 50 dispositioned + 2 standing.** Live drain candidates **52 → 2**, and 2 is the
+> finished state: the trigger watchlist and the QA sandbox each forbid their own disposition in their
+> own text.
+>
+> **The file was never 52 undecided items.** `BACKLOG.md` already carried 26 of them as sequenced
+> rows and 12 more described work that had shipped — the decisions were made and the inbox copy was
+> never stamped. It had been running as a shadow of the backlog. Only **12** were genuinely homeless,
+> and five of those named a proposed home *in their own text* that was never written into any row.
+>
+> **What came out of it:** `B92` (a disposition stamp is only recognised when the reason's **last**
+> word is `drain`, so a natural reason reads disposed to a human and live to the code — found by
+> asserting the candidate count rather than reading the file); **13 new `BACKLOG.md` rows**; and
+> **`D-BR0810-1…3`** — trajectory scoring **unparked** and fed by the local project corpus, the
+> `STATE.md` narrative check **folded into `M5.E10`**, and the standing-entry mechanism **filed, not
+> built** (the reliable fix is a feature, not a stamp).
+>
+> **`A2` gained direct evidence rather than an argument:** this drain ran entirely **outside**
+> `/sig:plan`, by hand, because there is nowhere else for it to live. That is the entry's whole claim,
+> demonstrated.
+>
 > **Two open calls carried into the next session:**
 > - **`B46`** — recommendation on the table: **dismiss it, keep the row.** Its stated cause is
 >   disproved (the 45 dispositions were the v2 port list, not the inbox), so the fix as written would
->   corrupt data; the residual symptom discharges when the triage runs. Not yet actioned.
+>   corrupt data. **Its residual symptom is now discharged** — the triage ran and 50 entries carry
+>   stamps, so nothing resurfaces identically at the next drain. Still not formally actioned.
 > - **`A2`** (a drain home outside `/sig:plan`) — recommended **park with a trigger**, because `B89`
 >   just made the drain required and nobody has seen the new behaviour yet. Brett pushed back that it
 >   may be a big deal worth building soon; the reframe that shrinks it is that `/prose:backlog`
