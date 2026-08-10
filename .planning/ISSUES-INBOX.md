@@ -10,7 +10,7 @@
 
 ## Compound-engineering audit before `/sig:compound` design
 
-**Status:** Logged 2026-05-27 after M4.5.E9 SHIP retrospective conversation surfaced the relationship between E9's mechanism and compound-engineering's Compound phase.
+**Status:** Logged 2026-05-27 after M4.5.E9 SHIP retrospective conversation surfaced the relationship between E9's mechanism and compound-engineering's Compound phase. → Shipped 2026-08-10 (audited at M5.E7 S2.t6a/t6b — inbox drain).
 
 **Trigger.** M4.5.E9 built the **capture** half of what compound-engineering does: each Epic now produces a tier-aware retrospective, validated at SHIP, indexed in `RETROSPECTIVES.md`. M4.5.E9 did **not** build the **replay** half: lessons captured in retro files don't yet surface anywhere — no automation reads them during the next Epic's DISCUSS or PLAN, no research agent uses them as context, no pattern detection flags repeat mistakes.
 
@@ -48,7 +48,7 @@ Then audit E9's retro format against the answers:
 
 ## Roadmap refresh — post-M4.5 reality check on v2 vision
 
-**Status:** Logged 2026-05-27 after M4.5.E9 SHIP retrospective conversation surfaced that `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` was written before M4.5 existed as a milestone.
+**Status:** Logged 2026-05-27 after M4.5.E9 SHIP retrospective conversation surfaced that `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` was written before M4.5 existed as a milestone. → Shipped 2026-08-10 (done as the M5.E7 feature-parity re-audit — inbox drain).
 
 **Trigger.** The two canonical comparison documents (`analysis/REPO-ANALYSIS.md` and `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`) lay out a 10-phase v2 vision drawn from the original 7-plugin landscape. Both docs predate v1's shipping (M4 closed 2026-05-12) and predate M4.5's entire scope. Active Epic-by-Epic comparison against those source plugins has drifted: M4.5.E6 / E7 / E9 were built from internal-emergence rather than against "what does {gstack, superpowers, compound-engineering, pm-skills} do here that we should match?"
 
@@ -88,7 +88,7 @@ The choice between these depends on whether the original vision still holds — 
 
 ## Vocabulary attribution sweep on E9 retro mechanism
 
-**Status:** Logged 2026-05-27 after M4.5.E9 SHIP retrospective conversation surfaced unattributed compound-engineering vocabulary in the milestone meta-retro template.
+**Status:** Logged 2026-05-27 after M4.5.E9 SHIP retrospective conversation surfaced unattributed compound-engineering vocabulary in the milestone meta-retro template. → Shipped 2026-08-10 (swept at M5.E7 S4.t10 — inbox drain).
 
 **Trigger.** M4.5.E9.S2.t6 created `composeMilestoneMetaRetro` in `tools/lib/retro-index.js`. The output template includes a section heading `## Compound learnings`. *"Compound"* is compound-engineering's term, lifted into Signal's template without attribution. It captures the right concept — milestone-scale insights that compound across Epics — but credit is owed, or the term should be replaced with Signal-native vocabulary.
 
@@ -717,7 +717,7 @@ This is a real-world use case the user flagged explicitly — it deserves spec i
 
 ## `/sig:add` — capture-and-route new work to the right altitude in `.planning/`
 
-**Status:** Logged 2026-05-13 during M4.t19 follow-up conversation about release-hardening and stranger-adoption readiness. Surfaced when user wanted to add a release-hardening idea ("F2 resolution, README rewrite, etc.") and had to decide themselves whether it was a Task, Epic, Milestone, FUTURE-IDEAS entry, or OPEN-QUESTIONS entry — a routing decision that requires already-internalized fluency with Signal's locked vocabulary (Milestone / Epic / Phase / Wave / Task per M4.t18). That fluency burden is stranger-hostile and a daily papercut even for experienced users.
+**Status:** Logged 2026-05-13 during M4.t19 follow-up conversation about release-hardening and stranger-adoption readiness. Surfaced when user wanted to add a release-hardening idea ("F2 resolution, README rewrite, etc.") and had to decide themselves whether it was a Task, Epic, Milestone, FUTURE-IDEAS entry, or OPEN-QUESTIONS entry — a routing decision that requires already-internalized fluency with Signal's locked vocabulary (Milestone / Epic / Phase / Wave / Task per M4.t18). That fluency burden is stranger-hostile and a daily papercut even for experienced users. → Shipped 2026-08-10 (delivered by M4.5.E2 — inbox drain).
 
 **Context.** Signal today has commands for moving work *through* the system (`/sig:calibrate → /sig:discuss → /sig:plan → /sig:execute → /sig:verify → /sig:review → /sig:ship`) and one read-only inspection command (`/sig:status`). It has **no command for capturing new work and routing it to the right altitude** in `.planning/`. The user must decide manually:
 
@@ -885,7 +885,7 @@ I wonder aloud at having a feature of Signal be a 'you are here' breadcrumb in s
 
 ## `docs/map/index.html` — refresh protocol (auto-generated vs. manual sync)
 
-**Status:** Logged 2026-05-24. Trigger: added the "Work-unit vocabulary" section to `docs/map/index.html` (commit `629b629`); the new section includes "currently active" lines (Milestone / Epic / Slice / Task) populated from STATE.md as of 2026-05-24. Without an explicit refresh protocol these lines go stale within days during active development — Task lines change daily during EXECUTE, Slice lines every few days, Epic lines every few weeks. **Updated 2026-06-03:** the map gained a Command library (Section 1, `COMMANDS` array, commit `2f66bd1`); Stage 1's checklist below now also covers command/flag changes. This same protocol gap was confirmed live — the map sat at `generated 2026-05-24` through the entire v0.1.3 release until manually refreshed.
+**Status:** Logged 2026-05-24. Trigger: added the "Work-unit vocabulary" section to `docs/map/index.html` (commit `629b629`); the new section includes "currently active" lines (Milestone / Epic / Slice / Task) populated from STATE.md as of 2026-05-24. Without an explicit refresh protocol these lines go stale within days during active development — Task lines change daily during EXECUTE, Slice lines every few days, Epic lines every few weeks. **Updated 2026-06-03:** the map gained a Command library (Section 1, `COMMANDS` array, commit `2f66bd1`); Stage 1's checklist below now also covers command/flag changes. This same protocol gap was confirmed live — the map sat at `generated 2026-05-24` through the entire v0.1.3 release until manually refreshed. → Shipped 2026-08-10 (Stage 1 shipped v0.1.11; Stage 2 trigger sits in the watchlist — inbox drain).
 
 **Context.** The map (`docs/map/index.html`) is intentionally a side note — single-file static HTML, no build step, data lives in JS objects at the bottom of `<script>`. It was a one-time visualization of *static* concepts: the 4 tiers, the 7 phases, the rigor matrix, the 5 calibration questions. None of those go stale unless Signal's architecture changes. The new vocabulary section breaks that pattern: it embeds "currently active" project state (`M4.5`, `M4.5.E3`, `M4.5.E7.S2`, `M4.5.E7.S2.t8`) directly into the visualization. That data has its own staleness cadence.
 
@@ -958,7 +958,7 @@ Convert `docs/map/index.html` to fetch state at page load via a GitHub raw URL p
 
 > **Update 2026-07-04 (ratified BR-8):** confirmed — this is M5's opening Epic. Scope + sequencing in `BACKLOG-REVIEW-2026-07-04.md` §4 Sprint 2; MILESTONE-5.md carries the opening-move note.
 
-**Status:** Logged 2026-06-01 via `/sig:add`.
+**Status:** Logged 2026-06-01 via `/sig:add`. → Shipped 2026-08-10 (M5.E7 was this audit — inbox drain).
 
 M5 opening move — feature-parity audit across ALL inspirational repos. Before/at the start of v2 (Milestone 5), do a deliberate re-read of every inspirational repo against current Signal, then refresh analysis/SIGNAL-INTEGRATION-RUNDOWN.md (it predates M4.5 and is now stale). Repos: GSD, Agent Skills, gstack, pm-skills, superpowers, compound-engineering, planning-with-files, oh-my-claudecode, + Pi / oh-my-pi (see analysis/PI-OMP-PATTERNS.md).
 
@@ -982,7 +982,7 @@ signal should acclimate it's language to how technical the person is. I keep fin
 
 ## FUTURE-IDEAS drain process — disposition protocol folds into M4.5.E2.S5
 
-**Status:** Logged 2026-05-24 during conversation about the asymmetry between FUTURE-IDEAS' input pipe and its (nonexistent) output pipe. Trigger: user reviewing 16 live entries asked aloud *"at some point they all need to get into Epics — any process for that?"* The honest answer was no, there isn't one.
+**Status:** Logged 2026-05-24 during conversation about the asymmetry between FUTURE-IDEAS' input pipe and its (nonexistent) output pipe. Trigger: user reviewing 16 live entries asked aloud *"at some point they all need to get into Epics — any process for that?"* The honest answer was no, there isn't one. → Shipped 2026-08-10 (shipped as /sig:plan Step 1b at M4.5.E2.S5 — inbox drain).
 
 **Decision (2026-05-24): Option A locked in.** The drain process is a four-verb disposition protocol — **promote / defer / merge / delete** — applied at the M4.5.E2.S5 planning-gate sweep. No new command. No new ceremony. S5's spec is sharpened to include the protocol; this entry becomes its own first triage candidate when S5 ships. See `DECISIONS.md` 2026-05-24 for full rationale. Options B (milestone-boundary sweep) and C (`/sig:groom` command) are not killed — they're deferred until 2–3 Epics of lived experience with S5 reveal whether option A is sufficient.
 
@@ -1121,7 +1121,7 @@ Where it would actually help:
 
 > **Update 2026-07-04 (ratified BR-5):** workstreams #1 + #2 SHIPPED as M4.5.E9 (v0.1.3) — SHIP retro gate + `RETROSPECTIVES.md` index. The "SHIP has no retro step" premise below is historical. Remaining scope = #3-active (live-doc wiki restructure; the archive half was dogfooded 2026-06-05) + #4 (doc-runtime), with the six ⚠ lessons from the archive-migration entry as design inputs. Workstream #4's `/sig:doc-review` is absorbed into `/sig:sweep --docs` (BR-1). See DECISIONS 2026-07-04 + `BACKLOG-REVIEW-2026-07-04.md` §4 Sprint 3.
 
-**Status:** Logged 2026-05-25. Originator: user, in response to two concrete pain points: (1) a retrospective got skipped because conversation context cleared first — the learning evaporated; (2) ad-hoc retros routinely have more depth than whatever "summary RETROSPECTIVE" is supposed to be — even though discovery during scoping confirmed **no formal retro step exists in `commands/ship.md` today**. Companion observation: `.planning/` is already at 40 files in the flat root (trending toward 56+ this milestone) — the doc-sprawl problem the user described isn't a future risk, it's already here. Reference: Andrej Karpathy's personal wiki pattern (https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) — markdown files as queryable knowledge base, with index/hub files and explicit cross-links. Signal's own auto-memory (the user's `MEMORY.md` + topical files + `[[name]]` links) already implements exactly this pattern — adopting it for `.planning/` would be internally consistent.
+**Status:** Logged 2026-05-25. Originator: user, in response to two concrete pain points: (1) a retrospective got skipped because conversation context cleared first — the learning evaporated; (2) ad-hoc retros routinely have more depth than whatever "summary RETROSPECTIVE" is supposed to be — even though discovery during scoping confirmed **no formal retro step exists in `commands/ship.md` today**. Companion observation: `.planning/` is already at 40 files in the flat root (trending toward 56+ this milestone) — the doc-sprawl problem the user described isn't a future risk, it's already here. Reference: Andrej Karpathy's personal wiki pattern (https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) — markdown files as queryable knowledge base, with index/hub files and explicit cross-links. Signal's own auto-memory (the user's `MEMORY.md` + topical files + `[[name]]` links) already implements exactly this pattern — adopting it for `.planning/` would be internally consistent. → Shipped 2026-08-10 (workstreams 1-3 shipped at M4.5.E9 and M5.E1-E3; workstream 4 residual sits in BACKLOG Sprint 3 — inbox drain).
 
 **Companion entry:** `## Codebase knowledge-graph as a Signal-managed artifact (graphify, graph-only)` — logged 2026-05-24, narrowly scoped to the artifact (not graphify-the-tool). The doc-wiki and code-graph share a thesis: **persistent, queryable structure beats grep + context-bloat**. They should ship as siblings inside this milestone, not as separate efforts that drift apart.
 
@@ -1443,7 +1443,7 @@ New command /sig:audit --docs / --code — a periodic deep-dive audit + cleaning
 
 ## Archive-migration dogfood → `/sig:migrate-memory` lessons
 
-**Status:** Logged 2026-06-05 after a manual `.planning/` archive-restructure (the "do it by hand first" dogfood plan from the *Memory & Documentation Management* entry). **⚠ REQUIRES ANOTHER ROUND OF REVIEW — these are lessons from a single pass on the archive subset; do NOT harden them into `/sig:migrate-memory`'s design without re-validating at full-wiki scale.** Captured in the moment per the "document in the moment" norm; face-value risk is real because the dogfood only exercised *closed* docs, not the active-doc move workstream #3 actually needs.
+**Status:** Logged 2026-06-05 after a manual `.planning/` archive-restructure (the "do it by hand first" dogfood plan from the *Memory & Documentation Management* entry). **⚠ REQUIRES ANOTHER ROUND OF REVIEW — these are lessons from a single pass on the archive subset; do NOT harden them into `/sig:migrate-memory`'s design without re-validating at full-wiki scale.** Captured in the moment per the "document in the moment" norm; face-value risk is real because the dogfood only exercised *closed* docs, not the active-doc move workstream #3 actually needs. → Shipped 2026-08-10 (lessons landed in /sig:migrate-memory at M5.E2 — inbox drain).
 
 **What happened.** Archived 48 closed-cycle files (8 Epics' scaffolding + M1–M4) into `.planning/archive/M4.5/E{n}/` (nested, Epic-ID-prefixed) and added `.planning/INDEX.md` as a tiered map. Built `tools/archive-migrate.mjs` — a path-aware migration script (dry-run + self-verify) kept as a throwaway-but-committed prototype. Shipped as commit `be9d87d`. Working set dropped 72 → 24 root files; 0 dangling links; 773 tests green.
 
@@ -1523,7 +1523,7 @@ Signal scopes skill loading by **workflow phase** only (`state/config.json` keys
 
 ## CLAUDE.md "de-bloat" test + command-frontmatter freshness discipline
 
-**Status:** Logged 2026-06-07 (from the same "execution harness" doc review; subsumes the command-frontmatter freshness sweep deferred at the v0.1.4 close). **Triage hint.** P3 (low).
+**Status:** Logged 2026-06-07 (from the same "execution harness" doc review; subsumes the command-frontmatter freshness sweep deferred at the v0.1.4 close). **Triage hint.** P3 (low). → Shipped 2026-08-10 (both halves shipped v0.1.11 — inbox drain).
 
 Adopt an explicit maintenance discipline for Signal's own instruction surface, two parts. (1) **The De-Bloat Test** — for any line in CLAUDE.md or a command's frontmatter, ask *"if I delete this, does Claude break in a way it wouldn't have?"*; if no, it's dead weight, cut it. The cost of bloat isn't tokens, it's that signal drowns and the one critical gotcha gets ignored. (2) **A recurring freshness review** (quarterly, or at each release) — old rules actively brake newer models (the classic "edit one file at a time" example), and descriptions drift: the stale `/sig:add` "naked-invocation lands in a subsequent slice" blurb caught + fixed at the v0.1.4 close was the visible tip; sibling command descriptions likely carry similar drift. **Signal-specific caveat (the load-bearing nuance):** de-bloat *reference/pointer* content only — **never** the behavioral gates (anti-rationalization tables, phase gates, exit criteria). Those are *deliberately* "redundant" because models rationalize them away; minimal-context optimization and behavioral-reliability optimization pull opposite directions, and the gates win. Could ship as a `/sig:` maintenance command or a `references/` checklist. Source: Anthropic "How Claude Code works in large codebases" (De-Bloat Test + quarterly review).
 
@@ -1553,7 +1553,7 @@ Adopt an explicit maintenance discipline for Signal's own instruction surface, t
 
 > **HIGH PRIORITY** (flagged 2026-07-04, Brett). Independent code-read confirmed the entry and sharpened the fix — the enforcement seam is the write hook, not the CLI writer. See the **Correction** note at the end of this entry.
 
-**Status:** Logged 2026-07-04 via `/sig:add`.
+**Status:** Logged 2026-07-04 via `/sig:add`. → Shipped 2026-08-10 (shipped M5.E1 with the write-guard hook and size banner; residual is B79 — inbox drain).
 
 STATE.md append-without-evict — closed-work narrative must leave the live file (evidence: CMMC dogfood). Second-dogfood STATE.md (examples/Example-cmmc-STATE.md) hit 60,551 words / 455KB, ~90% closed-work history; frontmatter completed_phases polluted with a ~550-word stale narrative blob that contradicts both the body and the archive — an accuracy failure, not just bloat. Four root causes in Signal's own contract: (1) writer doesn't validate completed_phases entry shape; (2) no machine home for per-slice lifecycle so agents invent prose slots (ties to the Multi-feature project lifecycle entry — this file is the BR-9 evidence it was waiting for); (3) body contract is append-only, "preserved across writes", with no eviction step at SHIP; (4) no size tripwire, so drift compounds silently. Signal's own STATE.md (7,624 words) is on the same curve. Candidate direction — four changes: writer-side shape enforcement in tools/lib/state.js; normative live-above-the-fold body skeleton in references/state-schema.md (resume pointer → in-flight → blockers → pending ops → one-line pointers to closed work); evict-on-close step in /sig:ship + /sig:checkpoint (closed-slice narrative moves to archive SUMMARY, one-line pointer stays); size warning in /sig:status + /sig:checkpoint over ~2K words live / 8K total. Companion to M4.5.E10's auto-update-protocol extension. Resolve by: next STATE.md-touching Epic (E10 is the natural host) or when a third project shows the same curve.
 
@@ -1836,9 +1836,7 @@ retro-index freshness check (§6 item 8) was handed to **M5.E13** instead, per t
 
 ## M5.E17 shipped without a retrospective — and the honest fix is not to write one
 
-**Status:** Logged 2026-08-03 at the `/sig:resume` that opened M5.E18. ~~Needs triage: this is an
-obligation with no owner, not a defect.~~ **✅ TRIAGED 2026-08-09 — RESOLVED, AND THE DECISION BELOW
-WAS REVERSED.**
+**Status:** Logged 2026-08-03 at the `/sig:resume` that opened M5.E18. ~~Needs triage: this is an obligation with no owner, not a defect.~~ **✅ TRIAGED 2026-08-09 — RESOLVED, AND THE DECISION BELOW WAS REVERSED.** → Shipped 2026-08-10 (retro written 2026-08-03; the entry records the reversal — inbox drain).
 
 > **`M5.E17-RETROSPECTIVE.md` was written on 2026-08-03**, the same day this entry argued it should
 > not be — 10,890 bytes on disk, and `MILESTONE-5.md` records the reversal explicitly: *"✅ M5.E17's
