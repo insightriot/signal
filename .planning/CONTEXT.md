@@ -235,7 +235,13 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 > cannot match this file's tally-shaped footer), to be done next time anyone is in `add.js`'s
 > insertion path.
 
-**Nothing is in flight as an Epic.** `M5.E19` closed and shipped as **v0.1.22** (retrospective at [`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md)); `B82` shipped as **v0.1.21** in the fix lane — no six phases, so no Epic artifacts and no retrospective. `M5.E14`'s shippable slice **shipped as v0.1.24**. **Next up is `M5.E10`** (`D-BR0809-1`), which is also what closes Milestone 5.
+**▶ `M5.E10` is IN FLIGHT — opened 2026-08-11, DISCUSS closed.** Review hardening / claim integrity; **shipping it closes Milestone 5** (`D-BR0809-2`). Running at the project's **FULL/strict** — no Epic-scoped PROFILE. Requirements: [`M5.E10-REQUIREMENTS.md`](M5.E10-REQUIREMENTS.md); decisions `D-M5E10-1…5`.
+
+**The scope call** (`D-M5E10-1`, Brett): **checkable parts + writing rules.** In — the requirement-coverage diff, VALIDATION self-consistency, the VERIFICATION denominator + *"what this could not establish"* section, the correction-protocol grep, retro-index freshness, and the `STATE.md` narrative check folded in by `D-BR0810-2`; plus the provenance rule and the `B38` reclassification, which cost text rather than machinery. **Out** — the adversarial claims-audit agent, *and its absence has to be visible in what ships* (`AC0.1`): that is the half which catches what determinism cannot, so letting the docs read as though claim integrity were solved would be this Epic's own defect, committed while closing the milestone named after it.
+
+**Filed at its own DISCUSS: `B93`** — `commands/discuss.md` reads the tier *before* the Epic roll, so a `--epic` run gates the whole phase on the **previous** Epic's profile. Measured at this open: pre-roll **FEATURE/light**, post-roll **FULL/strict**. Not hit here, because the tier was deliberately re-read after the roll — so the exposure is the instruction, not the run.
+
+*Prior: `M5.E19` closed and shipped as **v0.1.22** (retrospective at [`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md)); `B82` shipped as **v0.1.21** in the fix lane — no six phases, so no Epic artifacts and no retrospective. `M5.E14`'s shippable slice shipped as **v0.1.24**.*
 
 **What M5.E15's close settled.** The verdict is **directive-scoped** — the control arm deletes the five sites that *order* the call and leaves the schema docs and the implementation alone, because over-deleting produces a *differently-informed* control agent whose 0/3 is as unreadable as a leaky one (`D-M5E15-1`). Its closing condition (`D-M5E15-6`) was met rather than waived: `B41-phase-entry` was re-run under the fixed arm and published — **`OBEYED`**, not the `INERT` the Epic pre-committed to publishing if that is what came back.
 

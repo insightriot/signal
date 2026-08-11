@@ -1653,3 +1653,70 @@ deliberately-permanent entry from an unanswered one changes `parseEntries`' retu
 Epic-lane work, and doing it inside a chore branch would convert a hedged yes into a semantics change
 in a shared module. Filed with its design question stated — a new marker, or widen the existing
 `parseTriggerWatchlist` — and explicitly **not both**.
+
+## 2026-08-11 — M5.E10 DISCUSS: the scope call, and what refusing it would have cost (D-M5E10-1 … D-M5E10-5)
+
+*Epic: `M5.E10`, review hardening / claim integrity. Shipping it closes Milestone 5 (`D-BR0809-2`).
+Requirements: [`M5.E10-REQUIREMENTS.md`](M5.E10-REQUIREMENTS.md). Evidence:
+[`../analysis/CLAIM-INTEGRITY-ANALYSIS.md`](../analysis/CLAIM-INTEGRITY-ANALYSIS.md), its single home.*
+
+**D-M5E10-1 — Scope is "checkable parts + writing rules". The adversarial claims-audit agent is
+deferred, and the deferral must be VISIBLE in what ships.**
+
+Brett, 2026-08-11. In: everything a machine can verify — requirement-coverage diff, VALIDATION
+self-consistency, the VERIFICATION denominator + *"what this could not establish"* section, the
+correction-protocol grep, retro-index freshness, the `STATE.md` narrative check — plus the guidance
+changes that cost text rather than machinery (the provenance rule, the `B38` reclassification).
+
+Out: `CLAIM-INTEGRITY` §6 item 3, an agent re-reading every claim against its source.
+
+**The deferral carries an acceptance criterion of its own (`AC0.1`), and that is the point.** §6 item
+3 is the piece that *"kills the class generally; catches what determinism can't."* Shipping the
+deterministic half and letting the docs read as though claim integrity were solved would be **a
+completeness claim written from the shape of the work** — this Epic's own defect, committed by the
+Epic while closing the milestone named after it. So the shipped output must state that the semantic
+backstop is not built and what it would have caught.
+
+**D-M5E10-2 — §6 item 7's either/or resolves to the text half: the denominator discipline moves into
+the command text; VERIFY does not gain an agent dispatch.**
+
+Follows from `D-M5E10-1` — dispatch is machinery. `agents/verifiers/verifier.md` and
+`nyquist-auditor.md` already carry the enumerate-with-a-denominator discipline and **no command
+dispatches either**; `commands/verify.md` spawns no agents at all. Moving the discipline into the
+command is what makes it run.
+
+**The agents do not get to stay quietly unreachable.** `AC6.2` requires them to be made reachable or
+**documented as unreachable** — an uncalled guard left undocumented is `M5.E8`'s named class, and
+leaving one inside the Epic about false claims would be the joke telling itself.
+
+**D-M5E10-3 — The correction-protocol check blocks at FULL and is advisory below.**
+
+Consistent with every other tier-gated gate. Decided rather than asked: this is gate mechanics, not a
+product call, and the tier system already answers "how hard should this bite."
+
+**D-M5E10-4 — The `STATE.md` narrative check is a NARROW deterministic slice, not a prose reading.**
+
+Folded into this Epic by `D-BR0810-2`. Scope: the phase-name token nearest the `current_epic`
+mention, compared against the frontmatter — **not** a general narrative-vs-frontmatter comparison,
+which is the deferred semantic half.
+
+**The bar is that it must fail where the existing checks pass** (`AC8.3`). `runDriftChecks` reported
+**6/6 clean** across every instance, and it was right to: `body-omits-current-epic` tests
+`mentioned.has(epic)` — presence, not agreement — and `phase-behind-artifacts` never reads the prose.
+A check that duplicates either reading adds nothing.
+
+**Five instances, and the fifth happened during this Epic's opening commit** — *"Nothing in flight"*
+while `current_epic: M5.E10` sat twenty lines above, **in the section that catalogues instances 1–4
+and argues the defect is structural.** The catalogue did not protect the file it lives in. That is the
+strongest available evidence that the remedy is not documentation.
+
+**D-M5E10-5 — Read the effective tier AFTER the Epic roll, never before.**
+
+Recorded as a repeatable trap, not a one-off. At this Epic's open, `readEffectiveProfile` returned
+**`M5.E19`'s FEATURE/light** right up until `setCurrentEpic` ran, because the closing Epic's PROFILE
+was still shadowing. `M5.E10` inherits the project's **FULL/strict**.
+
+This is `B59`'s shape — an Epic running a whole phase at the wrong tier because the tier was read one
+step too early — and `B59` cost `M5.E16` its entire DISCUSS at the wrong rigor. The command file's
+preamble ordering (tier-gate first, Epic mode second) reads naturally and is wrong for `--epic` runs.
+**Filed as a `commands/discuss.md` ordering defect for this Epic's own build queue.**
