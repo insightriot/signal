@@ -1,51 +1,49 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: SHIP
-current_epic: M5.E19
+phase: DISCUSS
+current_epic: M5.E10
 current_wave: null
 current_tasks: []
-completed_phases:
-  - DISCUSS (2026-08-07)
-  - PLAN (2026-08-07)
-  - VERIFY (2026-08-07)
-  - REVIEW (2026-08-07)
+completed_phases: []
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-08-02T00:20:21.679Z
 last_updated_commit: 6405bf3f0fe6064c0e7d18c05c0fc3a4cb1686c7
-last_updated: 2026-08-09T23:34:16.224Z
+last_updated: 2026-08-11T16:50:00.181Z
 ---
 # Project State
 
-> ## ▶ `phase` / `current_epic` ABOVE ARE STALE — session paused 2026-08-09
+> ## ▶ IN FLIGHT — `M5.E10`, opened 2026-08-11. The frontmatter is now authoritative again.
 >
-> **`phase: SHIP` / `current_epic: M5.E19` describe an Epic that shipped as v0.1.22, two releases
-> ago.** Everything since ran in the **fix lane**, so no phase command executed and nothing updated
-> those fields — they are not wrong about a *current* Epic, there simply is not one.
+> **`phase: DISCUSS` / `current_epic: M5.E10` are correct.** The Epic that closes **Milestone 5**
+> (`D-BR0809-1`, `D-BR0809-2`) is open; `M5.E19`'s four-phase ledger archived cleanly to
+> [`archive/M5/E19/STATE-NARRATIVE.md`](archive/M5/E19/STATE-NARRATIVE.md) on the roll.
 >
-> **`last_updated_commit` is maintained; `phase` and `current_epic` are not.** `/sig:checkpoint`
-> advances the commit baseline, and the commit that *records* that refresh necessarily lands after
-> it — so this file reads **exactly one commit behind immediately after a checkpoint**. That is the
-> mechanism, not drift, and re-running the command only produces another commit and another
-> one-behind. A staleness banner of 1 right after a checkpoint is expected.
+> **The block that used to sit here retired itself, and that is worth keeping.** It read *"do not
+> orient from the frontmatter"* and named its own expiry in the same breath — *"both stay wrong
+> until `M5.E10` opens."* That condition fired at the roll, which is why it could be removed with
+> confidence rather than guessed at. **A staleness note that states its own expiry condition is
+> strictly better than one that merely rots** — but nothing retired it automatically, and for the
+> ~18 hours between the roll and this edit it was actively steering readers away from the half of
+> the file that had just become correct.
 >
-> **The fields to distrust are `phase` and `current_epic`.** `markFresh` moves the baseline only,
-> and `setCurrentEpic` is the sole writer of `current_epic`, so both stay wrong until `M5.E10`
-> opens — and this prose is what carries the truth until then. **Do not put a commit sha in this
-> block:** naming one is what made the two previous versions of this paragraph rot, each falsified
-> by the very run it described.
+> **Log that as instance five** of the narrative-vs-frontmatter defect this Epic absorbed
+> (`D-BR0810-2`), and note what makes it different from the first four: the prose was not careless,
+> it was *conditional and correct*, and it still went wrong the moment its condition flipped. It is
+> the strongest available argument that the fix cannot be "write the note more carefully."
 >
-> **Do not orient from the frontmatter. Read
-> [`CONTEXT.md`](CONTEXT.md) § Active work → HANDOFF**, which carries the three decisions taken
-> today (`D-BR0809-1…3`), what shipped, where the session stopped, and the two open calls.
+> **`last_updated_commit` is maintained; the narrative is not.** `/sig:checkpoint` advances the
+> commit baseline, and the commit that *records* that refresh necessarily lands after it — so this
+> file reads **exactly one commit behind immediately after a checkpoint**. That is the mechanism,
+> not drift. **Do not put a commit sha in this block:** naming one is what made two earlier versions
+> of this paragraph rot, each falsified by the very run it described.
 >
-> **The one-line version:** `M5.E10` is the next Epic and **shipping it closes Milestone 5**. The
-> inbox triage that was the immediate next action is **DONE** — 2026-08-10, PRs #136/#137/#138: 52
-> entries → 50 dispositioned + 2 standing, `B92` filed, 13 rows added to `BACKLOG.md`, decisions
-> `D-BR0810-1…3`. **The routing below that sends the inbox triage to `M5.E14` is now historical**
-> (`D-M5E17-3` cut it there when nothing else had a home for it); it ran in the fix lane instead and
-> `M5.E14` no longer carries it.
+> **For the fuller picture** read [`CONTEXT.md`](CONTEXT.md) § Active work → HANDOFF: the inbox
+> triage is **done** (2026-08-10, PRs #136/#137/#138 — 52 entries → 50 dispositioned + 2 standing,
+> `B92` filed, 13 rows added to `BACKLOG.md`, `D-BR0810-1…3`), and `B46` is **dismissed** (#140).
+> **The routing further down this file that sends the inbox triage to `M5.E14` is historical**
+> (`D-M5E17-3` cut it there when nothing else had a home for it); it ran in the fix lane instead.
 
 ## Resume pointer
 
@@ -369,21 +367,38 @@ Three documents corrected, each pinned by a test comparing one document against 
 
 ## In-flight
 
-**Nothing in flight. `M5.E19` closed and shipped as `v0.1.22` (2026-08-07)** — `/sig:archive`,
-the command archiving never had. Retro:
-[`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md). Decisions `D-M5E19-1`…`9`. Filed `B87`.
-2284 → **2300 tests**, **20 commands**.
+**▶ `M5.E10` — review hardening / claim integrity — opened 2026-08-11, at DISCUSS.** Shipping it
+**closes Milestone 5** (`D-BR0809-2`). Running at the project's **FULL / strict** (no Epic-scoped
+PROFILE; see the tier note in `M5.E10-REQUIREMENTS.md`). `M5.E19`'s ledger archived to
+[`archive/M5/E19/STATE-NARRATIVE.md`](archive/M5/E19/STATE-NARRATIVE.md) on the roll.
 
-**This section has now gone stale FOUR times, the same way, and the fourth is the strongest
-evidence yet.** The sequence: (1) *"Nothing, M5.E16 closed"* while two Epics shipped and a third
+*Prior: `M5.E19` closed and shipped as `v0.1.22` (2026-08-07) — `/sig:archive`, the command
+archiving never had. Retro: [`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md). Decisions
+`D-M5E19-1`…`9`. Filed `B87`. 2284 → 2300 tests, 20 commands.*
+
+**FIVE times now — and instance five happened to THIS paragraph, in the edit that opened the Epic
+chartered to fix it.** For roughly twenty minutes after `setCurrentEpic` wrote `current_epic:
+M5.E10` into the frontmatter directly above, this section read *"Nothing in flight"* — the same
+words as instance (3), falsified the same way, in the section that already catalogued (1) through
+(4) and argued they were structural. **The catalogue did not protect the file it lives in.** That is
+the finding: awareness of the defect, written at length, at the top of the very section, did not
+prevent the next occurrence twenty lines below. Whatever the fix is, it is not documentation.
+
+The sequence: (1) *"Nothing, M5.E16 closed"* while two Epics shipped and a third
 opened — **two Epics behind** the frontmatter; (2) *"`M5.E15` … EXECUTE next"* for a day after that
 Epic shipped; (3) *"Nothing in flight"* — written as the correction to (2) and falsified minutes
 later by `setCurrentEpic`; (4) *"At `PLAN`, and PAUSED … no `M5.E19-PLAN.md` yet, deliberately"* —
 falsified by **four** `transitionPhase` calls across EXECUTE → VERIFY → REVIEW → SHIP, while a
 `M5.E19-PLAN.md` sat on disk, **inside the Epic that filed `B87` about ledger honesty.**
 
+(5) *"Nothing in flight"* — while `current_epic: M5.E10` sat in the frontmatter twenty lines above,
+written by `setCurrentEpic` in the act of opening the Epic that owns this defect. Caught in the same
+session that caused it, by the author re-reading rather than by any check.
+
 (3) could still be read as inattention. (4) cannot: the prose was accurate when written and was
-falsified by a **full phase sequence** of machine writes that structurally cannot touch it.
+falsified by a **full phase sequence** of machine writes that structurally cannot touch it. (5)
+closes the argument from the other end — the author *knew about the defect, was working on it, and
+had just written a paragraph about it*, and the paragraph still went stale.
 `transitionPhase` moves frontmatter only; the frontmatter is the declared machine-truth
 (`INDEX.md:119`); this narrative is hand-maintained and **nothing reconciles it.** Filed in
 `ISSUES-INBOX.md`; it is a sibling of `B87` — both are *the record disagreeing with the work*.

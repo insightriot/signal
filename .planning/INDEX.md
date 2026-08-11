@@ -13,6 +13,7 @@
 ## Live — working set
 
 - [ADHERENCE-LOG.md](ADHERENCE-LOG.md) — `append-log` — _(note pending)_
+- [BACKLOG-REVIEW-2026-08-09.md](BACKLOG-REVIEW-2026-08-09.md) — `other` — _(note pending)_
 - [BACKLOG.md](BACKLOG.md) — `other` — The sequenced roadmap, promoted from `ISSUES-INBOX.md`; every entry tagged `roadmap` or `hygiene`. Supersedes the point-in-time `BACKLOG-REVIEW-2026-07-04` snapshot (folded in + archived under `archive/`).
 - [BUGS.md](BUGS.md) — `other` — Bugs & verified-findings catalog — where findings get logged (catalog → triage → confirm / dismiss / fixed). GitHub Issues deferred until Signal has live users.
 - [CONTEXT.md](CONTEXT.md) — `other` — Locked + deferred decisions for the *current* work — what DISCUSS settled for the active Epic.
@@ -158,6 +159,7 @@
 - [M5.E16-RETROSPECTIVE.md](M5.E16-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E17-RETROSPECTIVE.md](M5.E17-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E18-RETROSPECTIVE.md](M5.E18-RETROSPECTIVE.md) — `other` — _(note pending)_
+- [M5.E19-RETROSPECTIVE.md](M5.E19-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E2-RETROSPECTIVE.md](M5.E2-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E3-RETROSPECTIVE.md](M5.E3-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E4-RETROSPECTIVE.md](M5.E4-RETROSPECTIVE.md) — `other` — _(note pending)_
@@ -249,6 +251,7 @@
 - [archive/M5/E16/STATE-NARRATIVE.md](archive/M5/E16/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/E17/STATE-NARRATIVE.md](archive/M5/E17/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/E18/STATE-NARRATIVE.md](archive/M5/E18/STATE-NARRATIVE.md) — `other` — _(note pending)_
+- [archive/M5/E19/STATE-NARRATIVE.md](archive/M5/E19/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/E2/M5.E2-PLAN.md](archive/M5/E2/M5.E2-PLAN.md) — `other` — _(note pending)_
 - [archive/M5/E2/M5.E2-PROGRESS.md](archive/M5/E2/M5.E2-PROGRESS.md) — `other` — _(note pending)_
 - [archive/M5/E2/M5.E2-REQUIREMENTS.md](archive/M5/E2/M5.E2-REQUIREMENTS.md) — `other` — _(note pending)_
@@ -292,3 +295,4 @@
 - [M5.E16](M5.E16-RETROSPECTIVE.md) — _(note pending)_
 - [M5.E17](M5.E17-RETROSPECTIVE.md) — _(note pending)_
 - [M5.E18](M5.E18-RETROSPECTIVE.md) — _(note pending)_
+- [M5.E19](M5.E19-RETROSPECTIVE.md) — _(note pending)_
