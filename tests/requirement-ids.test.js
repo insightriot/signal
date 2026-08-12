@@ -48,7 +48,7 @@ describe('AC S1.2 — NFR ids are recognised', () => {
   });
 
   // The AC's example is necessary but not sufficient. The field artifact this
-  // Epic must read (traction-engine Phase 11) writes NFR-9.2, not NFR1 — a
+  // Epic must read (see tests/fixtures/claim-integrity/) writes NFR-9.2, not NFR1 — a
   // matcher passing the AC and still unable to read the fixture would be this
   // Epic's own defect class.
   it('matches the field spellings: NFR-9 and NFR-9.2', () => {

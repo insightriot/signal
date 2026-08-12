@@ -1727,8 +1727,8 @@ preamble ordering (tier-gate first, Epic mode second) reads naturally and is wro
 `cannot-evaluate`, never a diff against the whole file.**
 
 Found at S1.t3, by opening the artifact the plan had only described. **AC1.5 assumes a
-REQUIREMENTS/VERIFICATION pair and on disk there is none:** traction-engine has no
-`PHASE11-REQUIREMENTS.md`. Its requirements live in a **project-scoped** `REQUIREMENTS.md` — 713
+REQUIREMENTS/VERIFICATION pair and on disk there is none:** `field-project-A` has no phase-scoped
+REQUIREMENTS artifact. Its requirements live in a **project-scoped** `REQUIREMENTS.md` — 713
 lines, every phase — while VERIFICATION is **phase-scoped**. A naive diff reports every id from every
 other phase as `missing`.
 

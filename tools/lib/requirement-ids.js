@@ -17,7 +17,7 @@
 //
 //   A SPELLING is one concept written differently. `FR-16` and `FR2b` are both
 //   functional-requirement IDs, and real projects use both — Signal writes
-//   `FR2b`, traction-engine writes `FR-16`. Excluding a spelling here would BE
+//   `FR2b`, the field-fixture project writes `FR-16`. Excluding a spelling would BE
 //   the second definition this module exists to prevent, so every pattern is
 //   spelling-tolerant and BOTH consumers inherit that.
 //
