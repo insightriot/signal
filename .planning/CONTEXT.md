@@ -43,7 +43,7 @@ the literal string would have recreated the bug inside the test.
 `0.1.23` while two P1 fixes and two new tools are live for anyone tracking `main`:
 - **`B87` fixed** (`58f5097`, `0340448`) — a phase that ran and never entered `completed_phases`.
 - **`B90` fixed** (`f7b452f`) — the tier dial made visible **as a mechanism**, not a paragraph.
-- **`B88`** (P1, `confirmed`), **`B89`** (P2, `confirmed`) filed — both from `nextpass`, both
+- **`B88`** (P1, `confirmed`), **`B89`** (P2, `confirmed`) filed — both from `eval-project-A`, both
   **unsequenced**: they landed after Brett's 2026-08-06 ordering and the priority call is his.
 - Cross-project analysis tooling (`35d3fa5`) and a pre-release corpus stress test (`ab7a564`).
 - The defect class behind `B87`–`B90` named (`17e445c`): **the unreached mechanism** — the capability
@@ -64,7 +64,7 @@ rebuilt candidates from a `{unit}-{suffix}` template that cannot express `derive
 12 local projects: **3 split units / 6 stranded files → 0 / 0.** Signal's own tree shows 0 before and
 after — every unit here is a strict Epic ID, so **dogfooding was structurally blind to it**.
 
-⚠ **Production repos are never test beds.** `nextpass`, `cm-mentor-coach` and any live project are
+⚠ **Production repos are never test beds.** `eval-project-A`, `eval-project-D` and any live project are
 off-limits to Signal commands, `--apply` or not. Use `examples/sandbox/`, which exists for exactly
 this. Read-only diagnosis is fine.
 
@@ -293,7 +293,7 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 
 1. ~~**M5.E15**~~ — **closed, shipped as v0.1.19** (2026-08-06). The standing prohibition on re-running the canary is now discharged, not pending: it forbade a re-run before the arm was fixed, and `D-M5E15-6` required one after — which happened and published `OBEYED`.
 2. ~~**`B52`**~~ — **closed, shipped as v0.1.20** (2026-08-06, fix lane).
-3. **▶ The closure-gated archive command** (+`B82`) — Epic lane. Trigger **fired** 2026-08-04 when `curator` was removed from the machine; `nextpass` and `cm-mentor-coach` archive by hand-written runbook today. This is the only queued item with users waiting. M5.E18 built the engine and wired none of it.
+3. **▶ The closure-gated archive command** (+`B82`) — Epic lane. Trigger **fired** 2026-08-04 when `curator` was removed from the machine; `eval-project-A` and `eval-project-D` archive by hand-written runbook today. This is the only queued item with users waiting. M5.E18 built the engine and wired none of it.
 4. **`M5.E14`'s shippable slice only** — the `discharged` marker + a SHIP-gate open-obligations query behind a capability check. **Not** the tracker Epic: its stated trigger (`M5.E10` lands) is unmet, and the backlog entry explicitly allows this one piece to ship ahead as a patch.
 5. **M5.E10** — review hardening / claim integrity. The **judge-based, semantic** half of M5.E16's question (claims-vs-artifacts) lands here, after the deterministic checks rather than with them.
 
@@ -313,6 +313,6 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 - A caveat whose absence is indistinguishable from a clean result must either render unconditionally or be pinned by a test that fails when it stops rendering. Written into tools/lib/adherence-caveats.js after the same defect occurred twice in the same file three months apart (M5.E8 and M5.E15 S7) — a published record silently omitting its own scope. The isolation scope now renders `undeclared` out loud rather than omitting the line. (2026-08-06)
 - **M5.E19 opened as the closure-gated archive command, at Epic-scoped FEATURE against the project's FULL** (`M5.E19-PROFILE.md`). `review_depth: full` is set deliberately *against* the tier's default: under `quality-only`, `commands/review.md:17` skips Steps 2/3/4 regardless of `security_audit` / `performance_pass` / `simplification_pass`, so those dials would be inert and the profile would assert rigor the Epic never receives — the unhomed M5.E16 retro finding. Verified through `readEffectiveProfile` before PLAN rather than assumed (`B59` threw silently and ran a whole DISCUSS at project FULL). (2026-08-07) → `D-M5E19-1`
 - **Archiving gets its own `/sig:archive`, not a flag on `/sig:migrate-memory`** — different trigger (every Epic close vs. every `docs_layout_version` bump), so folding them makes one command with two unrelated cadences. Cost accepted: a 20th command. (2026-08-07) → `D-M5E19-2`
-- **`cannotDetermine` refuses the unit and the run still completes.** Never archived, always reported with its reason; the run does not abort. On the real corpus this is not an edge case — 9 of 30 terminal artifacts carry no readable verdict and `affiliate-mojo` throws on `readState`, making every unit `cannotDetermine`; aborting would let one unreadable project block archiving everywhere. (2026-08-07) → `D-M5E19-3`
+- **`cannotDetermine` refuses the unit and the run still completes.** Never archived, always reported with its reason; the run does not abort. On the real corpus this is not an edge case — 9 of 30 terminal artifacts carry no readable verdict and `eval-project-B` throws on `readState`, making every unit `cannotDetermine`; aborting would let one unreadable project block archiving everywhere. (2026-08-07) → `D-M5E19-3`
 - **`B82` shipped in the FIX LANE 2026-08-07 (#98), not in this Epic** — a live data-integrity defect should not wait on six phases. `planArchiveMoves` now calls `deriveUnits` directly and `suffixOf` is exported from `work-units.js` so lifecycle ordering survives. **This supersedes `D-M5E19-4`'s mechanism** (which said the closure record carries its files) while upholding its principle — one implementation of unit membership; `resolveClosures` was simply not the caller that needed changing. Measured across 12 projects: 3 split units / 6 stranded files → **0 / 0**. (2026-08-07) → `D-M5E19-4`, superseded by `D-M5E19-6`
 - **Dry-run by default; the ungrouped set is reported unconditionally, including at 0.** Matches `/sig:migrate-memory`'s posture, and the tool being replaced failed by moving things it shouldn't have. Signal's tree carries 57 ungrouped against 13 units — a run that archives 13 and says nothing about 57 reads as complete when it isn't (`B39`, `D-M5E18-2`). (2026-08-07) → `D-M5E19-5`

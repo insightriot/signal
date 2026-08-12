@@ -24,25 +24,32 @@ const read = (f) => readFile(join(DIR, f), 'utf8');
 describe('the frozen field fixture — AC S1.4', () => {
   it('records its provenance: source, date, and that it is never re-read', async () => {
     const readme = await read('README.md');
-    expect(readme).toMatch(/field-project-A/);
+    expect(readme).toMatch(/eval-project-C/);
     expect(readme).toMatch(/2026-08-12/);
     expect(readme).toMatch(/never re-read from the source/i);
     // The limit of a derived fixture has to be stated, not left to be found.
     expect(readme).toMatch(/Not real/);
   });
 
-  it('names no project, and no source-project subject matter', async () => {
+  it('refers to its source only by the corpus label', async () => {
     // This repository is public and the source is a commercial specification.
+    // The real name is kept out by `tests/private-name-guard.test.js`, which
+    // checks the whole tree against a hashed denylist; what belongs HERE is the
+    // positive half — the fixture speaks of its source the agreed way.
+    const readme = await read('README.md');
+    expect(readme).toMatch(/`eval-project-C`/);
+    expect(readme).toMatch(/references\/eval-corpus\.md|eval corpus/i);
+
+    // And the artifacts themselves name no project at all — not even the label.
     for (const f of [
-      'README.md',
       'field-REQUIREMENTS.md',
       'field-VERIFICATION-before.md',
       'field-VERIFICATION-after.md',
+      'field-VALIDATION.md',
     ]) {
-      const content = (await read(f)).toLowerCase();
-      for (const name of ['traction-engine', 'traction engine']) {
-        expect(content, `${f} must not name the source project`).not.toContain(name);
-      }
+      expect((await read(f)).toLowerCase(), `${f} must name no project`).not.toContain(
+        'eval-project'
+      );
     }
   });
 });

@@ -46,7 +46,7 @@ This is the load-bearing one, and the repo already found it. `DECISIONS.md` (`D-
 
 ### `F3` · Every recent "found from outside" defect came from one person on a second project
 
-`UNREACHED-MECHANISM-ANALYSIS.md:77` — *"Three of today's four came from outside. That is the loudest signal in the file."* Checked against the source rows: **all of them read `Reported from nextpass`** (`B87`, `B88`, `B90`, plus the earlier `B82`). `nextpass` is Brett's own project.
+`UNREACHED-MECHANISM-ANALYSIS.md:77` — *"Three of today's four came from outside. That is the loudest signal in the file."* Checked against the source rows: **all of them read `Reported from eval-project-A`** (`B87`, `B88`, `B90`, plus the earlier `B82`). `eval-project-A` is Brett's own project.
 
 The claim is true but reads stronger than it is. *"Outside"* means **a structurally different corpus, not a different reporter** — which is exactly why it works (`B82` proved a bug that could not reproduce in Signal's tree by construction). But it means **zero defects have arrived from the four claimed users**, which is the same absence `F2` describes from the other side, and it makes Wave 5 more urgent rather than less: the second project is doing the work four users were supposed to do.
 

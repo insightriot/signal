@@ -315,7 +315,7 @@ export async function relocateFaithful(args) {
 
 // --- vector-1 de-prose (S1.t4) — relocate frontmatter-list prose to the body --
 //
-// The acute nextpass/cmmc case: completed_phases entries and blockers[].text
+// The acute eval-project-A/cmmc case: completed_phases entries and blockers[].text
 // fields became huge prose blocks, wedging the check-state-write write-guard. The
 // LOCATOR (net-new — checkStateFrontmatterShape only returns a boolean) finds the
 // offending entries + their line ranges; the TRANSFORM relocates each entry's
@@ -2128,7 +2128,7 @@ export async function renderDryRun(baseDir, opts = {}) {
 // Composes the pure vector cores in memory under a SINGLE coarse `.state.lock`
 // (§9 — never the self-locking wrappers), reaches conformance in one invocation
 // (advisor: V1 de-prose can push the body past the V2 threshold, so V1→V2 must
-// chain or idempotency breaks + nextpass keeps a 529 KB body), stamps on
+// chain or idempotency breaks + eval-project-A keeps a 529 KB body), stamps on
 // conformance, verifies, and rolls back SURGICALLY from an in-memory snapshot on
 // any failure (never `git reset --hard` — that would nuke a --force user's other
 // uncommitted work). TOCTOU: aborts before any write if STATE.md drifted since

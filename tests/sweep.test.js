@@ -490,7 +490,7 @@ describe('M5.E13 S4.t2 checkRetroIndexFreshness (FR3.2)', () => {
 // B57 — the migrate snapshot is a frozen backup, not live docs.
 //
 // Found 2026-08-01 running /sig:sweep against four real non-Signal projects.
-// nextpass reported 12 structural findings; ELEVEN were dead links inside
+// eval-project-A reported 12 structural findings; ELEVEN were dead links inside
 // `.planning/.migrate/snapshot/`, the pre-reorg backup /sig:migrate-memory
 // takes before it relocates anything. Those links point at pre-migration
 // paths BY DESIGN — the snapshot is supposed to be frozen.
@@ -511,7 +511,7 @@ describe('B57 — sweep does not walk into the migrate snapshot backup', () => {
   });
 
   it('a dead link inside .planning/.migrate/ produces NO finding', async () => {
-    // Exactly nextpass's shape: a snapshot INDEX pointing at pre-migration paths.
+    // Exactly eval-project-A's shape: a snapshot INDEX pointing at pre-migration paths.
     await writeFile(
       join(dir, '.planning/.migrate/snapshot/INDEX.md'),
       '# Snapshot\n\n- [gone](ideas/relocated-by-the-migration.md)\n'

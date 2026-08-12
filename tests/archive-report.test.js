@@ -8,7 +8,7 @@
 // clean*. Same week M5.E16 fixed it for `/sig:sweep`.
 //
 // AC4.4 is not a hypothetical. It is the defect wave 3 found in S4's OWN code:
-// affiliate-mojo (STATE unreadable, 0 units) returns counts {0,0,0}, byte-
+// eval-project-B (STATE unreadable, 0 units) returns counts {0,0,0}, byte-
 // identical to prompt-library, which is readable and simply has no units. That
 // finding was pinned by a closure test and carried forward as an obligation on
 // this slice. This is where it gets paid.
@@ -175,7 +175,7 @@ describe('S7 AC4.4 — "no units" and "no unit could be read" are not the same f
   const allCannot = () => render({ ...base, closures: [cannot('A'), cannot('B')] });
 
   it('they render differently — the exact defect wave 3 found in S4\'s own code', () => {
-    // affiliate-mojo (STATE unreadable, 0 units) vs prompt-library (readable,
+    // eval-project-B (STATE unreadable, 0 units) vs prompt-library (readable,
     // 0 units) produced byte-identical counts {0,0,0}. Counts could not tell
     // blindness from cleanliness; the RENDERING must.
     expect(zeroUnits()).not.toBe(allCannot());
@@ -197,7 +197,7 @@ describe('S7 AC4.4 — "no units" and "no unit could be read" are not the same f
   });
 
   it('the STATE reason is passed through, not re-prefixed — found by first use', () => {
-    // affiliate-mojo rendered "STATE.md could not be read — STATE.md could not
+    // eval-project-B rendered "STATE.md could not be read — STATE.md could not
     // be read — …" with a doubled full stop, because resolveClosures' reason is
     // already a sentence naming the file. Caught on the first real render.
     const blind = render({
@@ -395,7 +395,7 @@ describe('S7 — explainArchiveOutcome is reachable from the migrate dry-run (B6
   });
 
   it('a closed unit the mover cannot reach is reported as a GAP, not as clean', () => {
-    // Found by running it: nextpass printed "none closed … genuinely nothing to
+    // Found by running it: eval-project-A printed "none closed … genuinely nothing to
     // do" while resolveClosures had found 1 closed unit. senseArchiveTree's
     // default closed-set is retro-derived; the resolver reads verdicts.
     const lines = explainArchiveOutcome({

@@ -21,7 +21,7 @@
  *      `PLAN-PLAN.md` (`resolveArtifactPath` pattern 3), and deriving a unit
  *      called "PLAN" would archive its live plan. The seven canonical phases
  *      are a CLOSED, ENUMERATED set — this is a category, not a threshold.
- *   3. Conservative fold. `nextpass` writes plan-side artifacts as
+ *   3. Conservative fold. `eval-project-A` writes plan-side artifacts as
  *      `PLAN-{unit}-{ARTIFACT}.md` and execution-side as `{unit}-{ARTIFACT}.md`,
  *      so one slice derives as two units — with the VERIFICATION on one side
  *      and the PLAN on the other. Left alone, closure resolution archives HALF

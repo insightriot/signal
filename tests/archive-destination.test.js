@@ -278,21 +278,21 @@ describe('S6 wave 6 — closed by a retro OR by a passing verdict, and a stub ve
 // SECOND implementation of unit membership that cannot express `deriveUnits`'
 // conservative fold. Measured live before the fix, through `senseArchiveTree`
 // (the path `/sig:migrate-memory` calls): `SLICE-SSO` resolved to 5 files in
-// BOTH `nextpass` and `cm-mentor-coach` while the mover planned 3 — an apply
+// BOTH `eval-project-A` and `eval-project-D` while the mover planned 3 — an apply
 // moved three files and left two, splitting the unit across `.planning/` and
 // `.planning/archive/`.
 //
-// The fixture is `NEXTPASS_SPLIT_PAIRS`, real filenames transcribed from the
+// The fixture is `EVAL_PROJECT_A_SPLIT_PAIRS`, real filenames transcribed from the
 // measured corpus. It runs anywhere; a test keyed to a developer's local
 // checkout would fail or silently skip in CI, and a silent skip is the
 // blindness this repo keeps shipping Epics to remove.
 //
-// `cm-mentor-coach` needs no separate case: its `SLICE-SSO` carries the
+// `eval-project-D` needs no separate case: its `SLICE-SSO` carries the
 // byte-identical filenames, verified in the same run. A second copy would
 // assert the same thing twice and read as broader coverage than it is.
 // ---------------------------------------------------------------------------
 
-const NEXTPASS_SPLIT_PAIRS = [
+const EVAL_PROJECT_A_SPLIT_PAIRS = [
   'PLAN-GATE-A-RESEARCH.md',
   'PLAN-GATE-A-VALIDATION.md',
   'GATE-A-PROGRESS.md',
@@ -311,8 +311,8 @@ const NEXTPASS_SPLIT_PAIRS = [
 ];
 
 describe('B82 — a closed unit archives whole, never half', () => {
-  const rel = NEXTPASS_SPLIT_PAIRS.map((f) => `${P}/${f}`);
-  const { units } = deriveUnits(NEXTPASS_SPLIT_PAIRS);
+  const rel = EVAL_PROJECT_A_SPLIT_PAIRS.map((f) => `${P}/${f}`);
+  const { units } = deriveUnits(EVAL_PROJECT_A_SPLIT_PAIRS);
 
   it('every derived unit is a unit the mover fully agrees with', () => {
     // Guard the guard: if the fold ever stops folding, this suite must not

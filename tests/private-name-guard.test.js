@@ -1,27 +1,32 @@
 /**
  * tests/private-name-guard.test.js — private project names do not spread.
  *
- * This repository is public. Signal's own evidence is drawn from the
- * maintainer's private projects, and for several releases those projects were
- * named directly in requirements, decisions, retrospectives and analysis. The
- * standing rule as of 2026-08-12 is that they are referred to by an anonymous
- * label instead (`field-project-A`, and so on).
+ * This repository is public. Signal's evidence comes from a set of real private
+ * projects — the eval corpus (`references/eval-corpus.md`) — and for several
+ * releases those projects were named directly in requirements, decisions,
+ * retrospectives and analysis. They are now referred to only by stable
+ * anonymous labels: `eval-project-A`, `eval-project-B`, and so on.
  *
  * A rule that exists only as prose gets violated here — `B7` → `B58`, `B39`,
  * and `ship.md`'s self-exemption that survived thirteen releases. So the rule
  * is a test.
  *
- * WHAT IT DOES NOT DO: it does not clean the existing mentions. Those are
- * inventoried in `private-name-allowlist.json` and are a separate piece of
- * work — the commit history containing them is not scrubbable at all, since
- * `.planning/ADHERENCE-LOG.md` pins commit shas as its reproducibility anchor
- * and `main` is protected. This test is a RATCHET: no NEW file may carry one.
+ * THE WORKING TREE IS CLEAN, AND THE INVENTORY IS EMPTY. 521 mentions across 95
+ * files were replaced on 2026-08-12; `private-name-allowlist.json` now lists
+ * nothing, so any failure here is a genuinely NEW mention rather than one of the
+ * historical ones.
+ *
+ * WHAT IT STILL CANNOT REACH: the commit history. Those mentions are in commits
+ * already on `main`, and `.planning/ADHERENCE-LOG.md` pins commit shas as its
+ * reproducibility anchor while `main` is protected — rewriting that history
+ * would break the anchor. The names are permanent in the log, whatever the tree
+ * says. Stated here rather than left to be discovered.
  *
  * WHY THE DENYLIST IS HASHED: a guard that stores the names in plaintext
  * publishes the very strings it exists to keep out of a public repository. The
- * hashes below are `sha256(name).slice(0, 16)`, and the plaintext lives only in
- * the maintainer's head and in the files still awaiting the scrub. To add a
- * name:  node -e "console.log(require('crypto').createHash('sha256')
+ * hashes below are `sha256(name).slice(0, 16)`; no plaintext appears anywhere in
+ * this repository. To add a name:
+ *   node -e "console.log(require('crypto').createHash('sha256')
  *                  .update('the-name').digest('hex').slice(0,16))"
  */
 
@@ -86,6 +91,9 @@ describe('private project names do not spread to new files', () => {
   });
 
   it('the inventory is honest: every path in it still exists and still carries a name', async () => {
+    // Vacuously true while the list is empty, and kept anyway: it is what stops
+    // a future partial scrub from leaving rows that permit files they no longer
+    // describe.
     // Without this, the allowlist rots into a blanket exemption — paths linger
     // after a scrub and quietly re-permit what they no longer contain.
     const { files } = JSON.parse(await readFile(ALLOWLIST, 'utf8'));
@@ -110,7 +118,23 @@ describe('private project names do not spread to new files', () => {
       join(ROOT, 'tests', 'fixtures', 'claim-integrity', 'README.md'),
       'utf8'
     );
-    expect(readme).toMatch(/`field-project-A`/);
+    expect(readme).toMatch(/`eval-project-[A-Z]`/);
     expect(deniedTokensIn(readme).size).toBe(0);
+  });
+
+  it('the inventory is EMPTY — the scrub is done, not merely ratcheted', async () => {
+    // It was 92 files. An empty allowlist means the ratchet no longer has
+    // anything to permit, so any future failure is a genuinely new mention
+    // rather than one of the historical ones.
+    const { files } = JSON.parse(await readFile(ALLOWLIST, 'utf8'));
+    expect(files).toEqual([]);
+  });
+
+  it('the corpus convention is documented, not just enforced', async () => {
+    // A rule enforced by a test nobody can find the reasoning for gets deleted
+    // the first time it is inconvenient.
+    const doc = await readFile(join(ROOT, 'references', 'eval-corpus.md'), 'utf8');
+    expect(doc).toMatch(/eval-project-A/);
+    expect(doc).toMatch(/No mapping is published/i);
   });
 });

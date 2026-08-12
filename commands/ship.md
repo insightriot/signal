@@ -55,7 +55,7 @@ Act on `status`:
 - **`not-applicable`** — continue silently. Either the tier does not end at a PR (SKETCH / SPIKE) or there is no remote, so there is no pull request for this gate to protect.
 - **`cannot-determine`** — **do not halt.** Emit `formatBranchUnknown(result)` and continue. A gate that cannot look must say so; a gate that halts on its own blindness is unusable.
 
-**Why this is a precondition and not advice.** §3 below says *"Create a pull request"* — but once every commit has landed on the default branch there is nothing to open one from, and the step fails with nothing to report. That is `B88`, found on a `nextpass` slice where five commits of real code reached `main` with no branch and CI ran *after* each push instead of gating it. **The paragraph at §3's foot is the one that removed the direct-to-main exemption** (`D-M5E17-5`) and states in copy that a change *"does need a branch, a PR, and a green suite"* — while this file provided no mechanism to make that true and no check that it happened. The file that stated the rule supplied no enforcement, which is the precise shape `D-M5E17-5` was filed to end.
+**Why this is a precondition and not advice.** §3 below says *"Create a pull request"* — but once every commit has landed on the default branch there is nothing to open one from, and the step fails with nothing to report. That is `B88`, found on a `eval-project-A` slice where five commits of real code reached `main` with no branch and CI ran *after* each push instead of gating it. **The paragraph at §3's foot is the one that removed the direct-to-main exemption** (`D-M5E17-5`) and states in copy that a change *"does need a branch, a PR, and a green suite"* — while this file provided no mechanism to make that true and no check that it happened. The file that stated the rule supplied no enforcement, which is the precise shape `D-M5E17-5` was filed to end.
 
 ## Skill Loading
 
@@ -87,7 +87,7 @@ Verify before creating the PR:
 
   Three outcomes stay separate, and the third is the point: items still **open**, items **discharged** (recorded as done, so not owed), and sources that **could not be read** — which render as `UNKNOWN, not none`. A source that failed to load has not reported zero.
 
-  *Why this is a query. `PROFILE.md`'s `backfill_warnings` was append-only with no way to record completion, so a discharged obligation read as open forever. In traction-engine's Phase 11 a security backfill discharged by Phase 10 — and ticked in four places — was reported "still owed" by VERIFY, escalated to a bolded warning by REVIEW, then copied into STATE.md. The claim gained confidence at every hop and never gained evidence (`CLAIM-INTEGRITY-ANALYSIS.md` specimen #4). Mark one done with `dischargeObligation(baseDir, {text, by, at})`.*
+  *Why this is a query. `PROFILE.md`'s `backfill_warnings` was append-only with no way to record completion, so a discharged obligation read as open forever. In eval-project-C's Phase 11 a security backfill discharged by Phase 10 — and ticked in four places — was reported "still owed" by VERIFY, escalated to a bolded warning by REVIEW, then copied into STATE.md. The claim gained confidence at every hop and never gained evidence (`CLAIM-INTEGRITY-ANALYSIS.md` specimen #4). Mark one done with `dischargeObligation(baseDir, {text, by, at})`.*
 
   *The answer comes from a **named source**, so the tracker decision stays open (`D-M5E14-1`). Adding GitHub Issues later means registering a second resolver, not rewriting this step.*
 

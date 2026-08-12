@@ -1,6 +1,6 @@
 // M5.E2.S1.t4 — vector-1 de-prose: relocate frontmatter-list prose to the body.
 //
-// The acute 529 KB nextpass / 455 KB cmmc case: completed_phases entries and
+// The acute 529 KB eval-project-A / 455 KB cmmc case: completed_phases entries and
 // blockers[].text fields became huge prose blocks, wedging the write-guard hook.
 // The migrate must RELOCATE that prose into the STATE body (leaving a short
 // scalar), never DELETE it (the B8 catastrophe). Size is incidental — these
@@ -26,7 +26,7 @@ import {
 } from '../tools/lib/migrate-memory.js';
 import { checkStateFrontmatterShape } from '../tools/lib/retrospective.js';
 
-// A STATE.md carrying every offending shape at once (the whole-file nextpass case):
+// A STATE.md carrying every offending shape at once (the whole-file eval-project-A case):
 //  - a CLEAN completed_phases entry (must be left untouched)
 //  - a MULTI-LINE quoted completed_phases entry (the cmmc pollution)
 //  - an OVER-LENGTH single-line completed_phases entry (>150)
@@ -169,7 +169,7 @@ describe('M5.E2.S1.t4 applyDeproseVector1 (on disk, standalone wrapper)', () => 
 // must de-prose to a MEANINGFUL truncated label (never the generic "[relocated…]"
 // placeholder that erases which entry it was), and the dry-run must WARN that a
 // non-standard/active-looking entry was relocated (verify it was actually done).
-// The real nextpass dogfood find: an over-length "▶ Active: Slice SEC1 …" marker
+// The real eval-project-A dogfood find: an over-length "▶ Active: Slice SEC1 …" marker
 // parked in completed_phases placeholdered + was swept into history.
 const ACTIVE_MARKER =
   `▶ Active: Slice SEC1 — Supabase Security-Advisor Hardening: DISCUSS ✅ → ` +

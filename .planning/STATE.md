@@ -112,7 +112,7 @@ this fix can protect.
    are reachable with no stale cache at all (a linear project opening its first Epic; a non-strict
    `current_epic` such as `PHASE11`). `B84` filed from the release cut itself.
 2. ~~**The closure-gated archive command**~~ **DONE — shipped as `v0.1.22` (`M5.E19`), 2026-08-07.** `/sig:archive`; `B82` shipped separately in v0.1.21. Original entry: — wire `resolveClosures` to the mover. **Epic lane.** Trigger
-   FIRED 2026-08-04: `curator` was removed from the machine and `nextpass` + `cm-mentor-coach` are
+   FIRED 2026-08-04: `curator` was removed from the machine and `eval-project-A` + `eval-project-D` are
    archiving by hand-written runbook today. M5.E18 built the engine and wired none of it. **Fold in
    `B82`** (P2 — `planArchiveMoves` ignores `deriveUnits` and moves half a unit). The bar: the
    replacement must **refuse**, not warn.
@@ -158,7 +158,7 @@ Plan: [`M5.E18-PLAN.md`](M5.E18-PLAN.md) · Progress: [`M5.E18-PROGRESS.md`](M5.
 Decisions `D-M5E18-1`…`6`. Closed `B64`, `B70`, `B72`, `B78`. **1994 → 2168 tests.**
 
 **The number the release is about:** `/sig:migrate-memory` went from archiving **67 files across 1 of
-12 real projects — every one of those 67 in Signal's own tree — to 114 across 6.** `traction-engine`
+12 real projects — every one of those 67 in Signal's own tree — to 114 across 6.** `eval-project-C`
 0 → 26. The closed-set is a **union**, measured in both directions: retro-only sees 67 and is blind
 to 8 projects; verdict-only sees 110 but **loses 4** (`M5.E17` has a retro and no VERIFICATION, so
 the verdict rule reads a shipped Epic as running). A **stub retro vetoes** closure regardless of
@@ -195,13 +195,13 @@ hardening / claim integrity). `analysis/LOOP-ENGINEERING-ANALYSIS.md`'s attentio
 ---
 
 **Three PLAN-time acceptance criteria were corrected in the open before EXECUTE** — `AC1.2`
-(the behaviour it called correct was the defect: the flat rule split one nextpass slice into two
+(the behaviour it called correct was the defect: the flat rule split one eval-project-A slice into two
 units, so FR2 would have archived half of it), `AC1.4` (expected set wrong in both directions), and
 `AC2.2` (both named fixtures invalid — one file does not exist). Corrections live in the PLAN, not
 in the requirements, per `B59`'s precedent.
 
 **DISCUSS walked three real trees rather than quoting the backlog, and two findings reshaped the
-scope.** (1) There is no single "prefix" to read — nextpass has **10+ unit names**, some beginning
+scope.** (1) There is no single "prefix" to read — eval-project-A has **10+ unit names**, some beginning
 with the word `PLAN`, so a declared-prefix field cannot express the shape (`D-M5E18-2`). (2) **The
 retro requirement, not the prefix, is the harder blocker** — none of the three projects has a single
 retrospective file, so closure-by-retro returns *nothing is closed* everywhere (`D-M5E18-3`).
@@ -228,7 +228,7 @@ came back refuted, and it moves M5.E18's scope.**
    linear-mode rows are exactly the stale ones"* — was half right: `B41`–`B45` are linear-mode, but
    `B39`/`B48`/`B51`/`B53`/`B54` are M5.E13 rows and were equally stale. Every flip carries a
    `file:line` or a test that fails if it regresses.
-2. ❌ **Do NOT "fix" `current_epic` in `traction-engine` or `agent-tools-sync` — the instruction was
+2. ❌ **Do NOT "fix" `current_epic` in `eval-project-C` or `agent-tools-sync` — the instruction was
    wrong, and executing it would have broken both projects.** Measured, not reasoned:
    `resolveArtifactPath(…, {currentEpic: null})` returns **`null`** for both, because every artifact
    they own is named after the non-strict value — 19+ `PHASE1*-*.md` files and 6 `M1-*.md` files.
@@ -312,7 +312,7 @@ check,"** and `(h)` — a check found only by measuring — reports *why* the ot
 - **`B59`** — `M5.E16-PROFILE.md` carried **two** out-of-enum values, so `readEffectiveProfile`
   threw and **the Epic declaring FEATURE ran its whole DISCUSS at the project's FULL.** Found at its
   own PLAN preamble, the first time any code read the file. Fixed and pinned.
-- **`C1` at REVIEW** — check `(c)` reported **"clean"** on `traction-engine` (19 phase artifacts, 0
+- **`C1` at REVIEW** — check `(c)` reported **"clean"** on `eval-project-C` (19 phase artifacts, 0
   retrospectives) because it declared itself unconditionally evaluable while keying detection to a
   strict filename. **REVIEW returned FAIL and the Epic looped back to EXECUTE**, rather than take the
   small-diff exit `D-M5E17-1` explicitly warns about. The fix then introduced a *false positive*,
@@ -368,7 +368,7 @@ Three documents corrected, each pinned by a test comparing one document against 
   "needs a look" and nothing enforced it for eight releases.** Closed by **deletion** — the source is
   now the relative `.` form, so there is no second place to record which commit ships.
 - **`B57`** — `/sig:sweep` walked `.planning/.migrate/snapshot/`, a frozen backup, and reported it as
-  broken live docs: **11 of nextpass's 12 findings were noise.** Found by the first run of sweep
+  broken live docs: **11 of eval-project-A's 12 findings were noise.** Found by the first run of sweep
   against real non-Signal projects — the FR1 first-use discipline, applied the day it shipped.
 - **`ship.md`'s direct-to-main self-exemption removed.** Its Exit Criteria require a PR and an
   approval; §5 exempted "the Signal-on-Signal flow" from exactly that. Written 2026-05-26 —

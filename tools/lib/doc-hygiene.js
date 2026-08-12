@@ -40,7 +40,7 @@ const isExternalTarget = (t) => SCHEME_OR_ANCHOR_RE.test(t);
 // `.migrate` joins `archive` for the same reason (B57): it holds the pre-reorg
 // snapshot /sig:migrate-memory takes before relocating anything, so its links
 // point at pre-migration paths BY DESIGN. Walking it reports a frozen backup as
-// broken live docs — 11 of nextpass's 12 structural findings, 92% noise, which
+// broken live docs — 11 of eval-project-A's 12 structural findings, 92% noise, which
 // is how a checker gets muted.
 const WALK_IGNORE = new Set([
   '.claude',

@@ -211,7 +211,7 @@ describe('FR5 — phase-log trim', () => {
     });
 
     it('archives a non-strict but safe unit name to a flat per-unit directory', async () => {
-      // `PHASE11` is a real live value (measured in traction-engine, B53).
+      // `PHASE11` is a real live value (measured in eval-project-C, B53).
       // epicArchiveDirFor returned null for it and the caller read that null as
       // "skip the archive" — live data loss with no stale cache involved.
       const run = ledger(1);

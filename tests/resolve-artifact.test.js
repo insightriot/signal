@@ -157,7 +157,7 @@ describe('resolveArtifactPath — realpath confinement against a leaf-symlink es
 // `EPIC_ID_RE = /^[A-Za-z0-9._-]+$/` and placed the Epic-prefixed candidate
 // FIRST. So for `current_epic: PHASE11` the command WRITES `1-PLAN.md` while
 // the next command READS `PHASE11-PLAN.md` — a silent stale-read path, with a
-// live field case (`traction-engine`).
+// live field case (`eval-project-C`).
 //
 // A second divergence axis the requirements did not name: LINEAR_UNPREFIXED
 // makes REQUIREMENTS diverge on a different rule than PLAN, so both are covered.
@@ -168,7 +168,7 @@ describe('M5.E13 S1.t1 — artifactName/resolveArtifactPath symmetry (`B53`)', (
   describe('AC53.1 — round-trip for every current_epic shape × artifact kind', () => {
     const EPICS = [
       ['strict Epic ID', 'M5.E13'],
-      ['non-strict token (traction-engine\'s live value)', 'PHASE11'],
+      ['non-strict token (eval-project-C\'s live value)', 'PHASE11'],
       ['non-strict version-shaped', 'v0.1.6'],
       ['null', null],
       ['empty string', ''],
@@ -217,7 +217,7 @@ describe('M5.E13 S1.t1 — artifactName/resolveArtifactPath symmetry (`B53`)', (
   });
 
   // AC53.3 — no regression. The lenient pattern stays REACHABLE as a fallback,
-  // because live non-strict projects (traction-engine) have only the
+  // because live non-strict projects (eval-project-C) have only the
   // Epic-prefixed files on disk and their reads must keep working.
   describe('AC53.3 — no regression for existing projects', () => {
     it('strict Epic mode is unchanged (Signal-on-Signal)', () => {
@@ -226,7 +226,7 @@ describe('M5.E13 S1.t1 — artifactName/resolveArtifactPath symmetry (`B53`)', (
       expect(out).toBe(join(P, 'M5.E13-PLAN.md'));
     });
 
-    it('a non-strict project with ONLY Epic-prefixed files still resolves them (traction-engine today)', () => {
+    it('a non-strict project with ONLY Epic-prefixed files still resolves them (eval-project-C today)', () => {
       const existsFn = existsOver(P, ['PHASE11-PLAN.md']);
       const out = resolveArtifactPath(P, 'PLAN', { currentEpic: 'PHASE11', existsFn });
       expect(out).toBe(join(P, 'PHASE11-PLAN.md'));

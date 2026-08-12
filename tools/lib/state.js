@@ -618,7 +618,7 @@ const PHASE_LOG_MARKER = 'phase-log:archived';
 // null for anything but a strict `M{N}.E{N}`, and the sole caller read that
 // null as "skip the archive" and reset anyway — so a project whose
 // `current_epic` is a real-but-non-strict value like `PHASE11` (measured live
-// in traction-engine, B53) lost its phase ledger with no stale cache involved
+// in eval-project-C, B53) lost its phase ledger with no stale cache involved
 // at all. M5.E18 already settled where those units archive to: strict IDs keep
 // `{M}/E{n}`, everything else gets a flat per-unit directory, because
 // `PHASE10-S4` has no milestone to key on and inventing one derives structure

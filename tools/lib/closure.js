@@ -11,7 +11,7 @@
 // every ambiguity into one of the two buckets. Measured on the real corpus at
 // S3: **30 terminal artifacts, 9 of them (30%) carry no verdict this code will
 // read**. Under a boolean those 9 become whichever side the implementer
-// defaulted to, silently. `agent-builder`'s VERIFICATION is the case that
+// defaulted to, silently. `eval-project-E`'s VERIFICATION is the case that
 // settles it — its body says `**All 22 acceptance criteria pass.**`, a
 // lowercase `pass` inside prose that a body scan cannot distinguish from
 // "Only 3 of 22 criteria pass." Reading it would produce a CONFIDENT WRONG
@@ -196,7 +196,7 @@ export async function resolveUnitClosure(args) {
 
   // AC2.2′ — terminal artifacts exist but not one of them states a value we
   // will read. Never `closed` (it was never claimed), never `open` (something
-  // does claim to be terminal). Fixtures: traction-engine/PHASE8-SHIP.md,
+  // does claim to be terminal). Fixtures: eval-project-C/PHASE8-SHIP.md,
   // consensus/T25-VERIFICATION.md.
   return {
     unit,
@@ -224,7 +224,7 @@ export async function resolveClosures(baseDir, opts = {}) {
   const planningDir = join(baseDir, PLANNING_DIR);
 
   // AC2.11 — a throwing `readState` is a LIVE path, not a defensive one:
-  // `affiliate-mojo` throws on one of the 12 real projects. Without the current
+  // `eval-project-B` throws on one of the 12 real projects. Without the current
   // unit we cannot evaluate the not-current clause for ANY unit, so nothing is
   // closed and every unit says why. Reporting them as `open` would be a guess;
   // dropping them would be the silence this Epic exists to stop.

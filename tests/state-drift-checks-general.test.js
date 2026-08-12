@@ -24,7 +24,7 @@ import { markFresh } from '../tools/lib/state.js';
  * rather than only a fixture:
  *
  *   (c) M5.E17 shipped with no retrospective, in this repo
- *   (d) cm-mentor-coach's baseline commit is reachable from no ref at all
+ *   (d) eval-project-D's baseline commit is reachable from no ref at all
  *   (g) B59 — Signal's own Epic profile carried two out-of-enum values
  *
  * `nyquist_enforcement: strict` means each check needs BOTH fixtures: red on
@@ -181,11 +181,11 @@ describe('M5.E16 S2.t1 — (c) an Epic was worked and never retrospected', () =>
 describe('M5.E16 C1 (REVIEW) — (c) must not report clean on a project it cannot see', () => {
   // The Critical found at REVIEW. `checkEpicWithoutRetro` declared
   // `applicability: () => EVAL` unconditionally while keying detection to a
-  // STRICT M{n}.E{n} filename. traction-engine names artifacts PHASE10-PLAN.md:
+  // STRICT M{n}.E{n} filename. eval-project-C names artifacts PHASE10-PLAN.md:
   // 19 phase artifacts, 0 retrospectives, and the check reported CLEAN.
   //
   // That is the collapse this module's own header says it exists to make
-  // impossible. These fixtures use traction-engine's real naming.
+  // impossible. These fixtures use eval-project-C's real naming.
 
   it('RED: a non-strict prefix with no retro anywhere is NOT reported clean', async () => {
     const dir = await makeProject({
@@ -261,8 +261,8 @@ describe('M5.E16 C1 (REVIEW) — (c) must not report clean on a project it canno
     }
   });
 
-  it('the real traction-engine is not-applicable, not clean', async () => {
-    const dir = '/Users/macstudio/dev-biz/traction-engine';
+  it('the real eval-project-C is not-applicable, not clean', async () => {
+    const dir = '/Users/macstudio/dev-biz/eval-project-C';
     if (!existsSync(dir)) return; // corpus not on this machine
     const r = await statusOf(dir, checkEpicWithoutRetro);
     expect(r.status).not.toBe(STATUS.CLEAN);
@@ -290,7 +290,7 @@ describe('M5.E16 S2.t2 — (d) the STATE baseline commit is not in this history'
     const dir = await makeRepo();
     try {
       // Create a commit, then reset away from it — the object survives, but no
-      // ref reaches it. This is cm-mentor-coach's exact situation.
+      // ref reaches it. This is eval-project-D's exact situation.
       const base = git(dir, 'rev-parse', 'HEAD');
       await writeFile(join(dir, 'f.txt'), 'orphan');
       git(dir, 'add', '-A');

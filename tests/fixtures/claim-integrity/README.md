@@ -1,7 +1,7 @@
 # Claim-integrity fixtures — provenance
 
-**Source: a private project in the maintainer's local corpus, referred to here and everywhere in
-Signal's docs as `field-project-A`.** Captured **2026-08-12**, once, read-only. **These files are
+**Source: one project in Signal's [eval corpus](../../../references/eval-corpus.md), referred to here
+and everywhere in Signal's docs as `eval-project-C`.** Captured **2026-08-12**, once, read-only. **These files are
 never re-read from the source** — they are frozen inputs, and a test that reached back to a live
 project would make its own result depend on someone else's working tree (AC S1.4).
 

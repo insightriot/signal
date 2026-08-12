@@ -1704,7 +1704,7 @@ this corpus's defects currently live.
 > schedule it "daily and at ship" was removed 2026-08-04, and no Signal command has ever invoked it.
 > **It never lapsed — it was never running.**
 >
-> **First real test case, already found by hand.** `nextpass/.planning/CONTEXT.md:1117` records an
+> **First real test case, already found by hand.** `eval-project-A/.planning/CONTEXT.md:1117` records an
 > audio-retention contradiction: four passages in `docs/security/tech-stack-and-security-profile.md`
 > (`:26,59,107,129`) state audio is never stored or recorded, while `AC-A.2`
 > (`REQUIREMENTS.md:2078`) requires `zero_retention_mode === true` / `record_voice: false` and is
@@ -2081,7 +2081,7 @@ never called*), and the two compose badly: **one writes the false claim, the oth
 that would catch it never runs.**
 
 **Evidence and full analysis:** [`../analysis/CLAIM-INTEGRITY-ANALYSIS.md`](../analysis/CLAIM-INTEGRITY-ANALYSIS.md)
-— its single home; not restated here. Field evidence from traction-engine Phase 11 (five false
+— its single home; not restated here. Field evidence from eval-project-C Phase 11 (five false
 coverage claims in one FULL-tier phase, every catch incidental), seven prior un-abstracted instances
 in Signal's own corpus, five structural causes traced to `verify.md` / `review.md` / the validators,
 and eight ranked fixes.

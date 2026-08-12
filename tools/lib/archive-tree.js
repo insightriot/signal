@@ -157,7 +157,7 @@ export function planArchiveMoves(closedUnitIds, planningRelFiles, opts = {}) {
   //
   // Measured on the real corpus before the fix, through `senseArchiveTree` (the
   // path `/sig:migrate-memory` actually calls): `SLICE-SSO` resolved to 5 files
-  // in BOTH `nextpass` and `cm-mentor-coach` while this function planned 3 —
+  // in BOTH `eval-project-A` and `eval-project-D` while this function planned 3 —
   // so an apply moved three files and left two, splitting the unit across
   // `.planning/` and `.planning/archive/`. That is the outcome
   // `tests/work-units.test.js`'s own fixture comment said the fold prevents.

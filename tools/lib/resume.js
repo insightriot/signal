@@ -75,7 +75,7 @@ export function resolveArtifactPath(planningDir, artifact, opts = {}) {
   // Asking `artifactName` directly makes that sentence true by construction,
   // for EVERY value of `current_epic`, without either seam having to guess at
   // the other's regex. Pattern 0 stays BELOW as a fallback rather than being
-  // tightened away: live non-strict projects (traction-engine) have only
+  // tightened away: live non-strict projects (eval-project-C) have only
   // Epic-prefixed files on disk, and their reads must keep working.
   rawCandidates.push(artifactName(artifact, { currentEpic }));
   if (typeof currentEpic === 'string' && currentEpic && EPIC_ID_RE.test(currentEpic)) {

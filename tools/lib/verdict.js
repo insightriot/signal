@@ -20,7 +20,7 @@
  *      one at line 5 and a restatement at line 83.
  *
  * WHY NOT READ THE BODY UNDER A HEADING. Measured: 3 of the 6 heading-style
- * files do have a value in the body. But `agent-builder`'s reads **"All 22
+ * files do have a value in the body. But `eval-project-E`'s reads **"All 22
  * acceptance criteria pass."** — a lowercase `pass` inside prose, which a body
  * scan cannot distinguish from **"Only 3 of 22 criteria pass."** It would
  * produce a confident wrong answer, which is the exact defect class this Epic
@@ -103,7 +103,7 @@ export function parseVerdict(content) {
  * Order a unit's files by verdict authority, dropping non-terminal ones.
  *
  * FR2(a) accepted *"a `VERIFICATION` **or** `SHIP` artifact"* without ranking
- * them — and `traction-engine`'s `PHASE8` has BOTH, one carrying `Verdict: PASS`
+ * them — and `eval-project-C`'s `PHASE8` has BOTH, one carrying `Verdict: PASS`
  * and one carrying no verdict at all. Unranked, `PHASE8` resolved `closed` or
  * `cannotDetermine` purely by directory walk order. `VERIFICATION` wins because
  * it is where the criteria are actually checked; `SHIP` records that a release

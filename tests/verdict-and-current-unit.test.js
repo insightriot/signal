@@ -28,15 +28,15 @@ describe('S2 / FR3 — currentUnit reads the RAW field', () => {
     // 4 of 12 projects have no STATE frontmatter at all, 1 has frontmatter
     // without the field, 3 hold null, 4 hold a value. AC3.2 covered null;
     // ABSENT arrives by a different path and is asserted separately.
-    it('a value (4 projects: agent-tools-sync, conversor, signal, traction-engine)', () => {
+    it('a value (4 projects: agent-tools-sync, conversor, signal, eval-project-C)', () => {
       expect(currentUnit({ current_epic: 'M1' })).toBe('M1');
     });
 
-    it('AC3.2 — null (3 projects: cm-mentor-coach, nextpass, operator-os-lean-loop)', () => {
+    it('AC3.2 — null (3 projects: eval-project-D, eval-project-A, operator-os-lean-loop)', () => {
       expect(currentUnit({ current_epic: null })).toBe(null);
     });
 
-    it('field absent from frontmatter (1 project: affiliate-mojo)', () => {
+    it('field absent from frontmatter (1 project: eval-project-B)', () => {
       expect(currentUnit({})).toBe(null);
     });
 
@@ -67,7 +67,7 @@ describe('S2 / FR3 — currentUnit reads the RAW field', () => {
 
 describe('S3 / FR2 — parseVerdict reads a VALUE, never a heading', () => {
   describe('AC2.3 + the readable formats found on the corpus', () => {
-    it('traction-engine PHASE8-VERIFICATION.md:3 — plain', () => {
+    it('eval-project-C PHASE8-VERIFICATION.md:3 — plain', () => {
       const r = parseVerdict('# PHASE8\n\n**Verdict: PASS.** All 9 acceptance criteria verified.\n');
       expect(r.status).toBe('pass');
       expect(r.evidence).toContain('Verdict: PASS');
@@ -78,7 +78,7 @@ describe('S3 / FR2 — parseVerdict reads a VALUE, never a heading', () => {
       expect(r.status).toBe('pass');
     });
 
-    it('nextpass SLICE-SSO-VERIFICATION.md:3 — qualified, multi-clause', () => {
+    it('eval-project-A SLICE-SSO-VERIFICATION.md:3 — qualified, multi-clause', () => {
       const r = parseVerdict(
         '# Slice SSO\n\n**Verdict:** ✅ **PASS (structural) — with the real-Entra-walk exit ' +
         'gate (NFR-SSO.5) explicitly DEFERRED as externally-gated.**\n',
@@ -121,17 +121,17 @@ describe('S3 / FR2 — parseVerdict reads a VALUE, never a heading', () => {
 
   describe('AC2.6 — a heading is not a value', () => {
     // MEASURED, not assumed. Of the 6 heading-style files, 3 do have a value in
-    // the body — but agent-builder's body reads "**All 22 acceptance criteria
+    // the body — but eval-project-E's body reads "**All 22 acceptance criteria
     // pass.**", a lowercase "pass" inside prose. A body scan cannot tell that
     // from "**Only 3 of 22 criteria pass.**", so it would produce a CONFIDENT
     // WRONG ANSWER. That is the whole defect class this Epic exists to end.
     const HEADINGS = [
-      ['agent-builder VERIFY-VERIFICATION.md', '## Verdict\n\n**All 22 acceptance criteria pass.** Test suite clean.\n'],
+      ['eval-project-E VERIFY-VERIFICATION.md', '## Verdict\n\n**All 22 acceptance criteria pass.** Test suite clean.\n'],
       ['operator-os-lean-loop R1-VERIFICATION.md', '## Verdict\n\n**PASS on all automated acceptance criteria + Nyquist compliance.**\n'],
       ['mps 3-VERIFICATION.md', '## VERIFY phase verdict\n\n**PASS** at strict gate. 44/44 ACs covered.\n'],
       ['consensus T24-VERIFICATION.md', '## 5. Verdict\n\n**Verification status: ✓ PASS — all acceptance criteria met.**\n'],
       ['consensus T26-VERIFICATION.md', '## 6. Verdict\n\n| Acceptance criterion | Status |\n'],
-      ['nextpass SC1-VERIFICATION.md', '## Verdict — **one gate left, and it needs a browser**\n\nStill outstanding.\n'],
+      ['eval-project-A SC1-VERIFICATION.md', '## Verdict — **one gate left, and it needs a browser**\n\nStill outstanding.\n'],
     ];
 
     for (const [name, content] of HEADINGS) {
@@ -175,7 +175,7 @@ describe('S3 / FR2 — parseVerdict reads a VALUE, never a heading', () => {
   });
 
   describe('no verdict at all', () => {
-    it('traction-engine PHASE8-SHIP.md — 4 corpus files carry no verdict mention', () => {
+    it('eval-project-C PHASE8-SHIP.md — 4 corpus files carry no verdict mention', () => {
       expect(parseVerdict('# PHASE8 — SHIP\n\nMerged and deployed.\n').status).toBe('unreadable');
     });
 
@@ -191,7 +191,7 @@ describe('S3 / FR2 — parseVerdict reads a VALUE, never a heading', () => {
 });
 
 describe('S3 / AC2.8 — VERIFICATION outranks SHIP', () => {
-  // traction-engine PHASE8 has BOTH: PHASE8-VERIFICATION.md carries
+  // eval-project-C PHASE8 has BOTH: PHASE8-VERIFICATION.md carries
   // "Verdict: PASS", PHASE8-SHIP.md carries no verdict at all. FR2(a) accepted
   // "a VERIFICATION OR SHIP artifact" without ranking them, so PHASE8 resolved
   // closed or cannotDetermine purely by which file was read first.

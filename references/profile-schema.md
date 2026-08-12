@@ -188,7 +188,7 @@ escalation_history:
 | `discharged_by` | string | What discharged it: an artifact path, an Epic ID, a PR. |
 | `discharged_at` | ISO-8601 date | Optional. When. |
 
-**Why the object form exists (`M5.E14` first slice, v0.1.24).** This array was append-only with **no way to express completion**, so the schema made the true state unrepresentable and a discharged obligation read as open forever. That is not a hypothetical: traction-engine's Phase 11 reported a security backfill "still owed" that Phase 10's REVIEW had discharged and ticked in four places — the claim was restated by VERIFY, escalated to a bolded warning by REVIEW, then absorbed into STATE.md, gaining confidence at every hop and evidence at none (`CLAIM-INTEGRITY-ANALYSIS.md` specimen #4).
+**Why the object form exists (`M5.E14` first slice, v0.1.24).** This array was append-only with **no way to express completion**, so the schema made the true state unrepresentable and a discharged obligation read as open forever. That is not a hypothetical: eval-project-C's Phase 11 reported a security backfill "still owed" that Phase 10's REVIEW had discharged and ticked in four places — the claim was restated by VERIFY, escalated to a bolded warning by REVIEW, then absorbed into STATE.md, gaining confidence at every hop and evidence at none (`CLAIM-INTEGRITY-ANALYSIS.md` specimen #4).
 
 **Read it with `readOpenObligations(baseDir)`** (`tools/lib/obligations.js`) rather than by hand — it normalizes both forms, and it distinguishes *"nothing is open"* from *"the source could not be read,"* which is the failure the whole change is about. `/sig:ship`'s pre-ship checklist asks that question and **reports** the answer without blocking; write a marker with `dischargeObligation`.
 

@@ -18,7 +18,7 @@ Curator only manages `.planning/` can move now; a repo where Curator also indexe
 This is the part that matters more than tidiness. Two tools generating the same index file is not
 neutral — one wins the file, and the loser's assumptions get written down as fact.
 
-**What happened on `traction-engine` (2026-07-28, commit `f09c11b`):** Curator's `.planning/INDEX.md`
+**What happened on `eval-project-C` (2026-07-28, commit `f09c11b`):** Curator's `.planning/INDEX.md`
 — the file whose own header says *"read me first"* — listed Phases 7 through 11 under **"Archived
 units (closed — pull on demand)"**, linking to `archive/phase7/` … `archive/phase11/`. Those
 directories do not exist. The archive holds phases 1–6 only, and the real Phase 7–11 documents were
@@ -86,14 +86,14 @@ pointing it *outward at the project* instead of inward at `.planning/` — retar
 not inventing new ones.
 
 Its trigger is **"M5.E11 lands, or a doc-drift incident in a Signal-built project."** The
-`traction-engine` false-index above is a candidate instance of that second condition; whether it
+`eval-project-C` false-index above is a candidate instance of that second condition; whether it
 fires the Epic early is a live call, not a settled one.
 
 ---
 
 ## How to cut over
 
-The recipe below is what `traction-engine` did on 2026-07-28.
+The recipe below is what `eval-project-C` did on 2026-07-28.
 
 1. **Get `.planning/` onto Signal's current layout** — run `/sig:migrate-memory` if it isn't already.
    Dry-run by default; nothing is deleted; every move is reversible with git.
@@ -125,9 +125,9 @@ find ~/dev-biz -maxdepth 3 -name .curator.yml -not -path "*/node_modules/*"
 for d in ~/dev-biz/*/; do grep -l curator "$d.git/hooks/post-commit" 2>/dev/null; done
 ```
 
-Both empty means nothing depends on it. Signal and `traction-engine` are already off it; four repos
-were still wired as of 2026-07-28 (`operator-os`, `operator-os-lean-loop`, `cm-mentor-coach`,
-`nextpass`) — that list will go stale, so run the commands rather than trusting it.
+Both empty means nothing depends on it. Signal and `eval-project-C` are already off it; four repos
+were still wired as of 2026-07-28 (`operator-os`, `operator-os-lean-loop`, `eval-project-D`,
+`eval-project-A`) — that list will go stale, so run the commands rather than trusting it.
 
 Leftover `Bash(command -v curator)` entries in a project's `.claude/settings.local.json` are
 permission grants, not wiring. Harmless; remove them whenever.
