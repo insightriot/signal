@@ -56,6 +56,35 @@ For each task in `{phase}-PLAN.md`:
 2. Verify the implementation satisfies each criterion
 3. Record pass/fail with evidence
 
+### 1b. Requirement coverage — derived, never recalled (M5.E10 FR1 / FR6)
+
+**Step 1 above enumerates `{phase}-PLAN.md` tasks. That is structurally incomplete**, and it is the
+gap this step closes: a requirement that never became a task acceptance criterion is invisible to a
+loop over tasks. `REQUIREMENTS.md` is the declaration; the PLAN is one reading of it.
+
+Call `diffRequirementCoverage({requirementsText, verificationText})` from
+`tools/lib/requirement-coverage.js`, resolving `{Unit}-REQUIREMENTS.md` with `resolveArtifactPath`.
+Then call `checkValidationConsistency(validationText)` from `tools/lib/validation-consistency.js` on
+`{Unit}-VALIDATION.md`. Both are read-only, offline, deterministic, and never throw.
+
+Record all three fields in the report, **including at zero**:
+
+- `missing` — requirements declared and not verified. **Name them.** A count is a completeness claim
+  wearing a number.
+- `deferred` — requirements the REQUIREMENTS artifact itself struck out of the unit. Reported, never
+  silently dropped.
+- `unattributableGroups` / `cannot-evaluate` reasons — **what the check could not look at.** This is
+  not optional detail: *"could not evaluate"* rendered as *"checked and clean"* is `B39`'s shape, and
+  the reason a detector earns the mute that makes it useless.
+
+**Write the denominator, not just the numerator (FR6 / AC6.1).** Every coverage statement in the
+report reads `{n} of {total}` and says where `{total}` came from — the diff returns `basis`, which
+names the requirement groups it scoped to and whether it scoped at all. *"All criteria verified"* with
+no denominator is the exact sentence this Epic exists to stop, and it is unfalsifiable by
+construction: a reader cannot check a total that was never stated.
+
+**A `missing` result is a FAIL, not a note.** Loop back rather than recording it as a known limit.
+
 ### 2. Full Test Suite
 
 Run the complete test suite. All tests must pass.
@@ -100,6 +129,8 @@ If `markFresh` fails (lock contention, git unavailable, etc.):
 - [ ] All acceptance criteria verified with evidence
 - [ ] Full test suite passes
 - [ ] Nyquist compliance check passes
+- [ ] Requirement coverage run (Step 1b): `missing` is empty, `deferred` and the un-evaluable set are
+      stated in the report, and every coverage claim carries its denominator
 - [ ] Build succeeds cleanly
 - [ ] User approves verification results
 
