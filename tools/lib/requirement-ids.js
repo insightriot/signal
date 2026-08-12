@@ -83,3 +83,59 @@ export function extractRequirementIds(text) {
     ...matchIds(text, AC_ID_RE),
   ];
 }
+
+/**
+ * One spelling for comparison: `AC-16.1` and `AC16.1` are the same requirement.
+ *
+ * Comparison only — the ORIGINAL spelling is what gets reported, because a
+ * report naming an id the reader cannot find in their own file is worse than
+ * no report.
+ *
+ * @param {string} id
+ * @returns {string}
+ */
+export function canonicalId(id) {
+  return id.replace(/^(NFR|FR|AC)-/, '$1');
+}
+
+/**
+ * The requirement GROUP an id belongs to: `AC-16.10` → `FR-16`, `FR2b` →
+ * `FR-2`, `NFR-9.2` → `NFR-9`.
+ *
+ * An acceptance criterion is numbered after the functional requirement it
+ * belongs to — `AC-16.*` are the criteria OF `FR-16` — so they share a group.
+ * `NFR` keeps its own namespace: `NFR-9` and `FR-9` are unrelated requirements
+ * that merely share a number.
+ *
+ * @param {string} id
+ * @returns {string}
+ */
+export function groupOf(id) {
+  const m = /^(NFR|FR|AC)-?(\d+)/.exec(id);
+  if (!m) return id;
+  return `${m[1] === 'NFR' ? 'NFR' : 'FR'}-${m[2]}`;
+}
+
+/**
+ * Drop ids that are group HEADINGS rather than checkable requirements.
+ *
+ * `FR-16` sitting above `AC-16.1`…`AC-16.11` is the name of a group whose
+ * criteria are the things a VERIFICATION covers and a test map maps; counting
+ * it as its own requirement inflates every denominator by one and reports the
+ * heading itself as unverified. A group with no sub-numbered children keeps its
+ * id — there, the id IS the requirement.
+ *
+ * Shared rather than duplicated: both FR1's coverage diff and FR2's
+ * self-consistency check need exactly this rule, and two copies of "which token
+ * is a real requirement" is the drift `B82` was.
+ *
+ * @param {string[]} ids
+ * @returns {string[]}
+ */
+export function dropGroupLabels(ids) {
+  const hasChildren = new Set();
+  for (const id of ids) {
+    if (/\.\d+$/.test(id)) hasChildren.add(groupOf(id));
+  }
+  return ids.filter((id) => /\.\d+$/.test(id) || !hasChildren.has(groupOf(id)));
+}

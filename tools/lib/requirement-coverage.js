@@ -29,7 +29,7 @@
 // group reads as out-of-scope. That is why `unattributableGroups` is on the
 // record and reported by count, never passed over.
 
-import { extractRequirementIds } from './requirement-ids.js';
+import { extractRequirementIds, groupOf, dropGroupLabels } from './requirement-ids.js';
 
 /** @enum {string} */
 export const COVERAGE = Object.freeze({
@@ -38,25 +38,6 @@ export const COVERAGE = Object.freeze({
   CANNOT_EVALUATE: 'cannot-evaluate',
 });
 
-/**
- * The requirement GROUP an id belongs to: `AC-16.10` → `FR-16`, `FR2b` →
- * `FR-2`, `NFR-9.2` → `NFR-9`.
- *
- * An acceptance criterion is numbered after the functional requirement it
- * belongs to — `AC-16.*` are the criteria OF `FR-16` — so they share a group.
- * Keying them separately would scope a unit's own criteria out of its own
- * denominator, which is how the first version of this function read.
- *
- * `NFR` keeps its own namespace: `NFR-9` and `FR-9` are unrelated requirements
- * that merely share a number, and merging them pulls a foreign unit's criteria
- * in — the contamination this whole derivation exists to avoid.
- */
-function groupOf(id) {
-  const m = /^(NFR|FR|AC)-?(\d+)/.exec(id);
-  if (!m) return id;
-  return `${m[1] === 'NFR' ? 'NFR' : 'FR'}-${m[2]}`;
-}
-
 /** A `~~struck~~` id the document has taken out of the unit (AC1.7). */
 function deferredIds(text) {
   const out = new Set();
@@ -64,21 +45,6 @@ function deferredIds(text) {
     for (const id of extractRequirementIds(m[1])) out.add(id);
   }
   return out;
-}
-
-/**
- * A bare group token (`NFR-9`) is a heading label, not a criterion, whenever
- * the document also declares sub-numbered children (`NFR-9.1`…). Counting it
- * inflates the denominator by one and reports the label itself as unverified.
- * Measured on the field pair; invisible in Signal's own corpus, where group
- * labels are not written as ids.
- */
-function dropGroupLabels(ids) {
-  const hasChildren = new Set();
-  for (const id of ids) {
-    if (/\.\d+$/.test(id)) hasChildren.add(groupOf(id));
-  }
-  return ids.filter((id) => /\.\d+$/.test(id) || !hasChildren.has(groupOf(id)));
 }
 
 /**
