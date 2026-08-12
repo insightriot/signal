@@ -10,23 +10,18 @@ current_tasks:
     wave: 3
     status: in_progress
     startedAt: 2026-08-12T16:33:49.026Z
-  - id: S6.t2
-    epic: M5.E10
-    wave: 4
-    status: in_progress
-    startedAt: 2026-08-12T18:39:40.528Z
 completed_phases:
   - DISCUSS (2026-08-12)
   - PLAN (2026-08-12)
 blockers: []
 last_completed_task:
-  id: S6.t1
+  id: S6.t2
   status: done
   commit: null
-  completedAt: 2026-08-12T18:39:40.520Z
-last_decision_at: 2026-08-12T18:39:40.520Z
+  completedAt: 2026-08-12T18:43:35.468Z
+last_decision_at: 2026-08-12T18:43:35.468Z
 last_updated_commit: 5086fba
-last_updated: 2026-08-12T18:39:40.528Z
+last_updated: 2026-08-12T18:43:35.469Z
 ---
 # Project State
 
