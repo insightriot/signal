@@ -1739,12 +1739,32 @@ would have been one task earlier.
 Three options were weighed. *Require a unit-scoped REQUIREMENTS file, else `cannot-evaluate`* is
 honest and cheap, but returns "could not look" on the one real project that motivated the Epic.
 *Always scope by section* catches the field case but converts a wrong guess into a confident answer.
-**Chosen: scope where the scope is derivable, refuse where it is not** — a REQUIREMENTS section whose
-heading or body names the unit supplies the denominator (here `FR-16` and `NFR-9` both name Phase
-11); no section names it → `cannot-evaluate` with the reason. The output **states its denominator and
-where it came from**, which is FR3's table discipline applied to FR1's input rather than its output.
+**Chosen: scope where the scope is derivable, refuse where it is not.** The output **states its
+denominator and where it came from**, which is FR3's table discipline applied to FR1's input rather
+than its output. NFR4 is upheld: three outcomes, and *"could not look"* never renders as clean.
 
-Lands as **AC1.6**. NFR4 is upheld: three outcomes, and *"could not look"* never renders as clean.
+**How the scope is derived — corrected the same day this decision was written, and the first version
+is retracted rather than annotated.** ⚠ **This decision originally said the denominator comes from
+"a REQUIREMENTS section whose heading or body names the unit." That rule is wrong and is not what
+ships.** Measured against the actual file the moment the fixture work started:
+
+- **`NFR-10` — Phase 13's section — names Phase 11 in its body** (it cites `NFR-9.2` as precedent).
+  Under the retracted rule it would have contributed **70+ ids** to Phase 11's denominator. The wrong
+  guess converted into a confident answer, which is precisely why *always scope by section* was
+  rejected — the same flaw, hiding inside the option chosen over it.
+- **`FR-16`'s heading does not name Phase 11**; only its body does. So heading-only scoping drops the
+  main requirement group, and body-scoping drags in a foreign one. Neither half of the retracted rule
+  survives contact.
+
+**What ships instead: ID-group correspondence.** The denominator is the union of the requirement
+**groups the VERIFICATION artifact itself cites** — cite `AC-16.8`, and all of `AC-16.*` is in scope.
+No prose is read, so no prose can be misread. On the field pair this derives **17 requirements from
+2 cited groups (`AC-16`, `NFR-9`)** and names **11 missing** — 10 after `AC-16.3` is set aside as
+deferred (`D-M5E10-7`).
+
+**Its blind spot, stated rather than discovered later:** a group the VERIFICATION cites *nothing*
+from is invisible to the diff — total omission of a requirement group reads as out-of-scope. That is
+reported as an unattributable-group count, never silently. Lands as **AC1.6**.
 
 **D-M5E10-7 — a requirement the document marks deferred is reported as deferred, not as missing.**
 
