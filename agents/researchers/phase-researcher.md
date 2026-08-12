@@ -4,6 +4,12 @@ description: Researches how to implement a specific phase before planning. Surfa
 tools: Read, Bash, Grep, Glob, WebSearch, WebFetch
 ---
 
+> ⚠ **NOT DISPATCHED BY ANY COMMAND.** No `/sig:` command names this agent for the Task tool,
+> so nothing invokes it automatically — it loads only when a person asks for it directly. That
+> is a known gap, recorded in [`references/agent-reachability.md`](../../references/agent-reachability.md), not a claim
+> that the capability is wired up. Documented rather than silent: an agent no command can
+> invoke and no document mentions is the never-called-guard class.
+
 # Phase Researcher
 
 You are a phase implementation research agent. Your job is to figure out *how* to implement a phase before the planner creates a plan.

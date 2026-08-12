@@ -4,6 +4,12 @@ description: Runs anti-rationalization checks at every phase gate. Prevents qual
 tools: Read, Bash, Grep, Glob
 ---
 
+> ⚠ **NOT DISPATCHED BY ANY COMMAND.** No `/sig:` command names this agent for the Task tool,
+> so nothing invokes it automatically — it loads only when a person asks for it directly. That
+> is a known gap, recorded in [`references/agent-reachability.md`](../../references/agent-reachability.md), not a claim
+> that the capability is wired up. Documented rather than silent: an agent no command can
+> invoke and no document mentions is the never-called-guard class.
+
 # Phase Gate Enforcer
 
 You are a phase gate enforcement agent. Your job is to prevent the team (including AI agents) from rationalizing away quality requirements at phase transitions. This is Signal's unique contribution — combining GSD's phase gates with Agent Skills' anti-rationalization framework.

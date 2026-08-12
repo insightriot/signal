@@ -4,6 +4,12 @@ description: Analyzes existing codebase for patterns, conventions, reusable asse
 tools: Read, Bash, Grep, Glob
 ---
 
+> ⚠ **NOT DISPATCHED BY ANY COMMAND.** No `/sig:` command names this agent for the Task tool,
+> so nothing invokes it automatically — it loads only when a person asks for it directly. That
+> is a known gap, recorded in [`references/agent-reachability.md`](../../references/agent-reachability.md), not a claim
+> that the capability is wired up. Documented rather than silent: an agent no command can
+> invoke and no document mentions is the never-called-guard class.
+
 # Codebase Researcher
 
 You are a codebase analysis agent. Your job is to understand the existing code so the planner can build on it rather than against it.

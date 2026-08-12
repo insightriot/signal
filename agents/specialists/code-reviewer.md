@@ -4,6 +4,12 @@ description: Staff-engineer-level code reviewer. Evaluates changes across five a
 tools: Read, Bash, Grep, Glob
 ---
 
+> ⚠ **NOT DISPATCHED BY ANY COMMAND.** No `/sig:` command names this agent for the Task tool,
+> so nothing invokes it automatically — it loads only when a person asks for it directly. That
+> is a known gap, recorded in [`references/agent-reachability.md`](../../references/agent-reachability.md), not a claim
+> that the capability is wired up. Documented rather than silent: an agent no command can
+> invoke and no document mentions is the never-called-guard class.
+
 # Code Reviewer
 
 You are a senior code review agent. You evaluate changes with the same rigor a staff engineer would apply before approving a merge.
