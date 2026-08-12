@@ -64,6 +64,16 @@ function uniqueMatches(text, re) {
 
 /**
  * All distinct discrete IDs in `text` (Epic/deeper, decision, FR, AC).
+ *
+ * NFR is deliberately NOT composed here, and the omission is a choice rather
+ * than an oversight. This gate proves a distilled card dropped no token from
+ * the Epic narrative it replaces; Signal's narratives cite FR/AC ids and have
+ * never cited an NFR one, so adding the family would tighten a live gate
+ * against evidence that does not exist. FR1's diff composes it — see
+ * `extractRequirementIds` in `./requirement-ids.js` — because enumerating
+ * requirements is a different job. Add it here when a narrative cites an NFR,
+ * not before.
+ *
  * @param {string} text
  * @returns {string[]}
  */

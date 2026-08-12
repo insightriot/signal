@@ -13,13 +13,32 @@
 // implementations of it (`B82`'s shape: a second definition of "which files
 // belong to this unit" that could not express the first). Hence one module.
 //
-// S1.t1 is a MOVE, not a change: the two patterns below are byte-identical to
-// the ones `evict.js` carried, and the existing evict suite is what proves it.
+// SPELLINGS vs. FAMILIES — the distinction that governs what belongs here.
+//
+//   A SPELLING is one concept written differently. `FR-16` and `FR2b` are both
+//   functional-requirement IDs, and real projects use both — Signal writes
+//   `FR2b`, traction-engine writes `FR-16`. Excluding a spelling here would BE
+//   the second definition this module exists to prevent, so every pattern is
+//   spelling-tolerant and BOTH consumers inherit that.
+//
+//   A FAMILY is a different concept: `NFR` is not `FR`. Which families a
+//   consumer composes is that consumer's call, made explicitly at its call
+//   site — see `extractIds` in `evict.js`, which deliberately omits NFR.
+//
+// The hyphenated spellings are not hypothetical and were not guessed: the
+// artifact pair FR1's field fixture is taken from writes `AC-16.10`, `FR-16`
+// and `NFR-9.2` throughout, and the pre-M5.E10 patterns matched NONE of it.
 
-// Functional-requirement IDs: FR1, FR2a, FR2b.
-export const FR_ID_RE = /\bFR\d+[a-z]?\b/g;
-// Acceptance-criterion IDs: AC1, AC6.4, AC-seed is excluded (needs a digit).
-export const AC_ID_RE = /\bAC\d+(?:\.\d+)?\b/g;
+// Functional-requirement IDs: FR1, FR2a, FR2b, FR-16, FR-16.2.
+export const FR_ID_RE = /\bFR-?\d+(?:\.\d+)?[a-z]?\b/g;
+// Non-functional-requirement IDs: NFR1, NFR-9, NFR-9.2. `\bFR` cannot match
+// inside `NFR` — there is no word boundary between `N` and `F` — so FR and NFR
+// never double-count the same token.
+export const NFR_ID_RE = /\bNFR-?\d+(?:\.\d+)?[a-z]?\b/g;
+// Acceptance-criterion IDs: AC1, AC6.4, AC-16.10. `AC-seed` is excluded — the
+// digit is what makes it an id, or every hyphenated `AC-` word in prose becomes
+// one.
+export const AC_ID_RE = /\bAC-?\d+(?:\.\d+)?\b/g;
 
 /**
  * Distinct matches of `re` in `text`, in order of first appearance.
@@ -39,4 +58,23 @@ export function matchIds(text, re) {
   for (const m of text.matchAll(re)) out.add(m[0]);
   re.lastIndex = 0;
   return [...out];
+}
+
+/**
+ * Every requirement ID declared in `text` — FR + NFR + AC.
+ *
+ * This is FR1's DENOMINATOR: the set a VERIFICATION artifact is diffed against.
+ * It composes all three families because a requirement-coverage diff that
+ * silently ignored non-functional requirements would report itself complete
+ * while never having looked at them.
+ *
+ * @param {string|null|undefined} text
+ * @returns {string[]}
+ */
+export function extractRequirementIds(text) {
+  return [
+    ...matchIds(text, FR_ID_RE),
+    ...matchIds(text, NFR_ID_RE),
+    ...matchIds(text, AC_ID_RE),
+  ];
 }

@@ -2,7 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { FR_ID_RE, AC_ID_RE, matchIds } from '../tools/lib/requirement-ids.js';
+import {
+  FR_ID_RE,
+  NFR_ID_RE,
+  AC_ID_RE,
+  matchIds,
+  extractRequirementIds,
+} from '../tools/lib/requirement-ids.js';
 
 const LIB_DIR = join(process.cwd(), 'tools', 'lib');
 
@@ -31,6 +37,63 @@ describe('FR_ID_RE / AC_ID_RE — the shapes evict.js already recognised', () =>
   it('matches AC1 and AC6.4, and excludes AC-seed (needs a digit)', () => {
     expect(matchIds('AC1 AC6.4', AC_ID_RE)).toEqual(['AC1', 'AC6.4']);
     expect(matchIds('AC-seed', AC_ID_RE)).toEqual([]);
+  });
+});
+
+describe('AC S1.2 — NFR ids are recognised', () => {
+  // The AC's literal example. `\bFR\d+` does not match `NFR1`: the word
+  // boundary fails between `N` and `F`, mid-token.
+  it('matches NFR1', () => {
+    expect(matchIds('NFR1', NFR_ID_RE)).toEqual(['NFR1']);
+  });
+
+  // The AC's example is necessary but not sufficient. The field artifact this
+  // Epic must read (traction-engine Phase 11) writes NFR-9.2, not NFR1 — a
+  // matcher passing the AC and still unable to read the fixture would be this
+  // Epic's own defect class.
+  it('matches the field spellings: NFR-9 and NFR-9.2', () => {
+    expect(matchIds('NFR-9 and NFR-9.2', NFR_ID_RE)).toEqual(['NFR-9', 'NFR-9.2']);
+  });
+
+  it('NFR-9 is not double-counted as an FR id', () => {
+    // `\bFR` cannot match inside `NFR` — no word boundary between N and F.
+    expect(matchIds('NFR-9.2', FR_ID_RE)).toEqual([]);
+  });
+});
+
+describe('hyphenated spellings — the same concept, written differently', () => {
+  it('matches FR-16 and FR-16.2', () => {
+    expect(matchIds('FR-16 and FR-16.2', FR_ID_RE)).toEqual(['FR-16', 'FR-16.2']);
+  });
+
+  it('matches AC-16.10', () => {
+    expect(matchIds('AC-16.10', AC_ID_RE)).toEqual(['AC-16.10']);
+  });
+
+  it('still excludes AC-seed — the digit is what makes it an id', () => {
+    expect(matchIds('AC-seed', AC_ID_RE)).toEqual([]);
+  });
+});
+
+describe('extractRequirementIds — FR1’s denominator', () => {
+  it('composes FR + NFR + AC, and de-duplicates', () => {
+    const text = 'FR1 covers AC1.2 and AC1.2 again; NFR1 is separate.';
+    expect(extractRequirementIds(text).sort()).toEqual(['AC1.2', 'FR1', 'NFR1']);
+  });
+
+  it('reads a hyphen-scheme artifact — the field case', () => {
+    const text = 'FR-16 with AC-16.1, AC-16.10 and NFR-9.2.';
+    expect(extractRequirementIds(text).sort()).toEqual([
+      'AC-16.1',
+      'AC-16.10',
+      'FR-16',
+      'NFR-9.2',
+    ]);
+  });
+
+  it('returns [] for empty input rather than throwing', () => {
+    expect(extractRequirementIds('')).toEqual([]);
+    expect(extractRequirementIds(null)).toEqual([]);
   });
 });
 
