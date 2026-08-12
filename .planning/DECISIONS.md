@@ -1720,3 +1720,39 @@ This is `B59`'s shape — an Epic running a whole phase at the wrong tier becaus
 step too early — and `B59` cost `M5.E16` its entire DISCUSS at the wrong rigor. The command file's
 preamble ordering (tier-gate first, Epic mode second) reads naturally and is wrong for `--epic` runs.
 **Filed as a `commands/discuss.md` ordering defect for this Epic's own build queue.**
+
+## 2026-08-12 — M5.E10 EXECUTE: the field pair is not a pair (D-M5E10-6, D-M5E10-7)
+
+**D-M5E10-6 — FR1's denominator is unit-scoped, derived, and reported; an underivable scope is
+`cannot-evaluate`, never a diff against the whole file.**
+
+Found at S1.t3, by opening the artifact the plan had only described. **AC1.5 assumes a
+REQUIREMENTS/VERIFICATION pair and on disk there is none:** traction-engine has no
+`PHASE11-REQUIREMENTS.md`. Its requirements live in a **project-scoped** `REQUIREMENTS.md` — 713
+lines, every phase — while VERIFICATION is **phase-scoped**. A naive diff reports every id from every
+other phase as `missing`.
+
+That red wall would be a completeness claim **written from the shape of the files rather than from
+Phase 11** — this Epic's defect class, in this Epic's first deliverable, exactly as `NFR` blindness
+would have been one task earlier.
+
+Three options were weighed. *Require a unit-scoped REQUIREMENTS file, else `cannot-evaluate`* is
+honest and cheap, but returns "could not look" on the one real project that motivated the Epic.
+*Always scope by section* catches the field case but converts a wrong guess into a confident answer.
+**Chosen: scope where the scope is derivable, refuse where it is not** — a REQUIREMENTS section whose
+heading or body names the unit supplies the denominator (here `FR-16` and `NFR-9` both name Phase
+11); no section names it → `cannot-evaluate` with the reason. The output **states its denominator and
+where it came from**, which is FR3's table discipline applied to FR1's input rather than its output.
+
+Lands as **AC1.6**. NFR4 is upheld: three outcomes, and *"could not look"* never renders as clean.
+
+**D-M5E10-7 — a requirement the document marks deferred is reported as deferred, not as missing.**
+
+Root `REQUIREMENTS.md` line 227 strikes `AC-16.3` through and states it was deferred out of Phase 11.
+Counting it uncovered would be the check being **wrong in the field on its first run**; dropping it
+silently would be `B39`'s shape. It gets its own named category. Lands as **AC1.7**.
+
+**Both were caught by reading the artifact instead of the plan's description of it** — the same move
+that found the `NFR`/hyphen gap at S1.t2. Two of three defects this Epic has found in its own work so
+far came from opening a file the plan had characterised from memory. That is `FR5`'s provenance rule
+(S5.t3) earning its place before it is written.
