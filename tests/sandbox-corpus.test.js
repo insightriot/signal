@@ -17,9 +17,12 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readdirSync } from 'node:fs';
 
+import { readFile } from 'node:fs/promises';
+
 import { senseArchiveTree } from '../tools/lib/archive-tree.js';
 import { resolveClosures, CLOSURE } from '../tools/lib/closure.js';
 import { deriveUnits } from '../tools/lib/work-units.js';
+import { extractRequirementIds } from '../tools/lib/requirement-ids.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const SANDBOX = join(ROOT, 'examples', 'sandbox');
@@ -83,6 +86,47 @@ describe('QA sandbox — the corpus still forces every answer it advertises', ()
         expect(m.to.startsWith('.planning/archive/SLICE-AUTH/')).toBe(true);
       }
     }
+  });
+
+  it('M1.E4 carries the claim-integrity shapes without touching the archive surface', async () => {
+    // The coverage gap has to be real in the corpus, not just described in the
+    // README — the checks that read it land in S2, and a fixture that quietly
+    // stopped having a gap would let them pass while testing nothing.
+    const dir = join(SANDBOX, '.planning');
+    const req = extractRequirementIds(await readFile(join(dir, 'M1.E4-REQUIREMENTS.md'), 'utf8'));
+    const ver = extractRequirementIds(await readFile(join(dir, 'M1.E4-VERIFICATION.md'), 'utf8'));
+    const missing = req.filter((id) => !ver.includes(id));
+
+    expect(req.sort()).toEqual(['AC1.1', 'AC1.2', 'FR1', 'NFR1']);
+    // NFR1 must be among the missing: it is the id the pre-M5.E10 pattern could
+    // not see at all, so it is the one worth pinning by name.
+    expect(missing.sort()).toEqual(['AC1.2', 'NFR1']);
+
+    // A FAIL verdict keeps the unit open, which is what keeps this shape out of
+    // the archive expectations asserted above.
+    const { units } = await resolveClosures(SANDBOX);
+    expect(statusOf(units, 'M1.E4')).toBe(CLOSURE.OPEN);
+  });
+
+  it('M1.E4-VALIDATION contradicts itself, and the contradiction survives edits', async () => {
+    const content = await readFile(
+      join(SANDBOX, '.planning', 'M1.E4-VALIDATION.md'),
+      'utf8'
+    );
+    const [, completeness = '', nyquist = ''] = content.split(/^## /m).map((s) => `## ${s}`);
+
+    // Dimension 2 owns four requirements; the Nyquist map rows cover three, and
+    // assigns one of them to a different slice. Both disagreements are the
+    // fixture's whole purpose (FR2), so both are pinned.
+    expect(extractRequirementIds(completeness).sort()).toEqual([
+      'AC1.1',
+      'AC1.2',
+      'FR1',
+      'NFR1',
+    ]);
+    expect(extractRequirementIds(nyquist)).not.toContain('NFR1');
+    expect(completeness).toMatch(/\|\s*AC1\.2\s*\|\s*S2\s*\|/);
+    expect(nyquist).toMatch(/\|\s*AC1\.2\s*\|\s*\*\*S1\*\*\s*\|/);
   });
 
   it('the live unit is never proposed for archive', async () => {
