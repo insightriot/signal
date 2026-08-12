@@ -17,9 +17,17 @@ last_updated: 2026-08-12T11:58:01.611Z
 
 > ## ▶ IN FLIGHT — `M5.E10`, opened 2026-08-11. The frontmatter is now authoritative again.
 >
-> **`phase: DISCUSS` / `current_epic: M5.E10` are correct.** The Epic that closes **Milestone 5**
+> **`phase: PLAN` / `current_epic: M5.E10` are correct.** The Epic that closes **Milestone 5**
 > (`D-BR0809-1`, `D-BR0809-2`) is open; `M5.E19`'s four-phase ledger archived cleanly to
 > [`archive/M5/E19/STATE-NARRATIVE.md`](archive/M5/E19/STATE-NARRATIVE.md) on the roll.
+>
+> **DISCUSS and PLAN are both closed. Next action: EXECUTE, wave 1 = `S1`.**
+>
+> ⚠ **This line said `phase: DISCUSS` until it was corrected at the PLAN close — instance SIX,
+> forming inside the Epic chartered to fix it, four commits after instance five was written up two
+> paragraphs below.** It is not evidence of carelessness; it is the mechanism: `transitionPhase`
+> moves the frontmatter and structurally cannot touch this prose. Every phase transition creates a
+> fresh opportunity, and there have now been two in this Epic alone.
 >
 > **The block that used to sit here retired itself, and that is worth keeping.** It read *"do not
 > orient from the frontmatter"* and named its own expiry in the same breath — *"both stay wrong
@@ -368,7 +376,7 @@ Three documents corrected, each pinned by a test comparing one document against 
 
 ## In-flight
 
-**▶ `M5.E10` — review hardening / claim integrity — opened 2026-08-11, at DISCUSS.** Shipping it
+**▶ `M5.E10` — review hardening / claim integrity — opened 2026-08-11. DISCUSS + PLAN closed; next is EXECUTE wave 1 (`S1`).** Shipping it
 **closes Milestone 5** (`D-BR0809-2`). Running at the project's **FULL / strict** (no Epic-scoped
 PROFILE; see the tier note in `M5.E10-REQUIREMENTS.md`). `M5.E19`'s ledger archived to
 [`archive/M5/E19/STATE-NARRATIVE.md`](archive/M5/E19/STATE-NARRATIVE.md) on the roll.

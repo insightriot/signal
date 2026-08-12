@@ -235,7 +235,47 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 > cannot match this file's tally-shaped footer), to be done next time anyone is in `add.js`'s
 > insertion path.
 
-**▶ `M5.E10` is IN FLIGHT — opened 2026-08-11, DISCUSS closed.** Review hardening / claim integrity; **shipping it closes Milestone 5** (`D-BR0809-2`). Running at the project's **FULL/strict** — no Epic-scoped PROFILE. Requirements: [`M5.E10-REQUIREMENTS.md`](M5.E10-REQUIREMENTS.md); decisions `D-M5E10-1…5`.
+> ## ▶ HANDOFF — context cleared 2026-08-12 after PLAN close. READ THIS FIRST.
+>
+> **`STATE.md`'s frontmatter is CORRECT this time** — `phase: PLAN`, `current_epic: M5.E10`. Believe
+> it. (The long "do not orient from the frontmatter" block that used to sit there was retired when
+> this Epic opened; it had named its own expiry condition and the condition fired.)
+>
+> **Work is on a branch, not `main`.** `epic/m5-e10-review-hardening`, **PR #141**, CI green, four
+> commits ahead. Nothing is unpushed and nothing is uncommitted. The Epic lane merges with
+> `--merge` (never squash) — `ADHERENCE-LOG.md` pins commit SHAs.
+>
+> **Next action: `/sig:execute`, wave 1 = `S1`.** Do not start with the coverage diff, however much
+> it looks like the main event.
+>
+> **Why `S1` first, in one paragraph, because this is the thing worth not re-deriving:**
+> `tools/lib/evict.js` already owns the regexes that recognise requirement IDs — built to prove no
+> token was lost during eviction. `FR1` is about to repurpose them as the authority on *what
+> requirements exist*, and **they are already wrong for that job**: `\bFR\d+[a-z]?\b` does not match
+> `NFR1`, and `M5.E10-REQUIREMENTS.md` declares **five NFRs**. Consumed unchanged, the coverage check
+> would ignore every non-functional requirement **while reporting itself complete** — this Epic's own
+> defect class, in its first deliverable. `S1` extracts the matcher into one shared module, adds NFR
+> support **RED-first**, and makes `evict.js` call it so the two can never drift (`B82`'s shape).
+>
+> **Three things this session found that the artifacts now carry:**
+> - **`B93`** — `commands/discuss.md` reads the tier *before* the Epic roll, so a `--epic` run gates
+>   the whole phase on the **previous** Epic's profile. Measured: pre-roll FEATURE/light, post-roll
+>   FULL/strict. Five sibling phase commands share the ordering.
+> - **The 8-dimension pass found a real gap** — `NFR5` was declared and mapped to no task. Closed by
+>   **adding `S6.t3`**, not by narrowing the requirement.
+> - **The `AC1.5` fixture does not exist.** `PHASE11` in `tests/` is the non-strict Epic-ID case, not
+>   the field artifacts, and the real source is a live project. `S1.t3` imports a **frozen** copy;
+>   nothing points at the live repo.
+>
+> **A method deviation is on the record, not hidden:** FULL calls for 4 parallel research agents and
+> this session could not spawn subagents, so `M5.E10-RESEARCH.md` was written inline. What it costs
+> is stated there — no disagreeing second reading — and every finding cites a file and line.
+>
+> **Open, unrelated to this Epic:** `A2` (a home for the drain outside `/sig:plan`) is still
+> undecided. This session's drain is direct evidence *for* it — the whole 52-entry pass ran by hand,
+> outside the command, because there is nowhere else for it to live.
+
+**▶ `M5.E10` is IN FLIGHT — opened 2026-08-11; DISCUSS + PLAN closed.** Review hardening / claim integrity; **shipping it closes Milestone 5** (`D-BR0809-2`). Running at the project's **FULL/strict** — no Epic-scoped PROFILE. Artifacts: [`M5.E10-REQUIREMENTS.md`](M5.E10-REQUIREMENTS.md), [`M5.E10-RESEARCH.md`](M5.E10-RESEARCH.md), [`M5.E10-PLAN.md`](M5.E10-PLAN.md), [`M5.E10-VALIDATION.md`](M5.E10-VALIDATION.md); decisions `D-M5E10-1…5`.
 
 **The scope call** (`D-M5E10-1`, Brett): **checkable parts + writing rules.** In — the requirement-coverage diff, VALIDATION self-consistency, the VERIFICATION denominator + *"what this could not establish"* section, the correction-protocol grep, retro-index freshness, and the `STATE.md` narrative check folded in by `D-BR0810-2`; plus the provenance rule and the `B38` reclassification, which cost text rather than machinery. **Out** — the adversarial claims-audit agent, *and its absence has to be visible in what ships* (`AC0.1`): that is the half which catches what determinism cannot, so letting the docs read as though claim integrity were solved would be this Epic's own defect, committed while closing the milestone named after it.
 
