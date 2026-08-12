@@ -68,6 +68,11 @@ export function matchIds(text, re) {
  * silently ignored non-functional requirements would report itself complete
  * while never having looked at them.
  *
+ * ORDER IS PART OF THE CONTRACT: FR, then NFR, then AC, each in order of first
+ * appearance. S2 names missing ids to a person, and family-grouped reads as a
+ * report where id-sorted reads as a dump — `AC-16.1, AC-16.2, …` buries the one
+ * missing NFR among ten ACs. Pinned by test, not left to the caller to sort.
+ *
  * @param {string|null|undefined} text
  * @returns {string[]}
  */

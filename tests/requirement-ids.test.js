@@ -95,6 +95,13 @@ describe('extractRequirementIds — FR1’s denominator', () => {
     expect(extractRequirementIds('')).toEqual([]);
     expect(extractRequirementIds(null)).toEqual([]);
   });
+
+  it('orders by family — FR, then NFR, then AC — because S2 prints this to a person', () => {
+    // Not incidental: a family-grouped list reads as a report, an id-sorted one
+    // reads as a dump and buries a lone missing NFR among ten ACs.
+    const text = 'AC-16.10 comes first in the text, then NFR-9.2, then FR-16.';
+    expect(extractRequirementIds(text)).toEqual(['FR-16', 'NFR-9.2', 'AC-16.10']);
+  });
 });
 
 describe('AC S1.1 — one module is the only place a requirement ID is recognised', () => {
