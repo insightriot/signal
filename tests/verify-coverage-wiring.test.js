@@ -57,9 +57,28 @@ describe('AC6.1 — the denominator discipline is in the command text', () => {
   });
 });
 
-describe('the step is in the exit criteria, not only the workflow', () => {
-  it('a run cannot pass the gate without it', () => {
+describe('AC3.1 — the template gate blocks the phase', () => {
+  it('orders the validator by name and points at the template', () => {
+    expect(verify).toMatch(/validateVerificationContent/);
+    expect(verify).toMatch(/references\/verification-template\.md/);
+  });
+
+  it('names all three structural failure modes, including present-but-empty', () => {
+    expect(verify).toMatch(/empty body/i);
+    expect(verify).toMatch(/says nothing/i);
+    expect(verify).toMatch(/no denominator appears anywhere/i);
+  });
+
+  it('states the pairing, so a green structural result is not read as verification', () => {
+    expect(verify).toMatch(/cannot check the answers/i);
+    expect(verify).toMatch(/theatre/i);
+  });
+});
+
+describe('the steps are in the exit criteria, not only the workflow', () => {
+  it('a run cannot pass the gate without either half', () => {
     const exitSection = verify.slice(verify.indexOf('### Exit Criteria'));
     expect(exitSection).toMatch(/Requirement coverage run/);
+    expect(exitSection).toMatch(/validateVerificationContent/);
   });
 });

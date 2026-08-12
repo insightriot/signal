@@ -106,6 +106,30 @@ Compare `{phase}-VALIDATION.md` test mapping against actual tests:
 
 Generate the VERIFICATION artifact (`artifactName('VERIFICATION', { currentEpic })` — `{phase}-VERIFICATION.md` linear / `{EpicID}-VERIFICATION.md` Epic) with results.
 
+**Write it from `references/verification-template.md`** — per-tier locked headings, a denominator
+table, and a required `## What this could not establish` section.
+
+**Then validate it before the phase closes (M5.E10 FR3).** Call `validateVerificationContent(content,
+tier)` from `tools/lib/verification-template.js`. **A failure blocks the gate** — fix the report and
+re-run rather than recording the failure as a note.
+
+Three ways it fails, all deliberate:
+
+- a required heading is **missing**;
+- a required heading is present with an **empty body**;
+- `## What this could not establish` is present, non-empty, and **says nothing** — *"None"*, *"N/A"*,
+  one word. Structural presence was never the requirement (`AC3.2`). If a limit genuinely does not
+  apply, write the sentence explaining why; that sentence is the content.
+
+It also fails when **no denominator appears anywhere** in the report. *"All criteria verified"* is
+unfalsifiable by construction.
+
+**What this validation does not do**, so nobody reads a green result as more than it is: it checks
+that the report **asked** the questions. It cannot check the answers — a denominator can be wrong,
+and a limits section can omit the limit that mattered. Step 1b's `diffRequirementCoverage` is the
+half that compares the report against the requirements. **The structure without the derived check is
+theatre; the check without the structure lets a run report a number with no stated total.**
+
 ### 5b. Mark STATE.md fresh (M4.5.E6.S4)
 
 **SKETCH tier:** skip this step. STATE.md updates only via manual `/sig:checkpoint`.
@@ -131,6 +155,8 @@ If `markFresh` fails (lock contention, git unavailable, etc.):
 - [ ] Nyquist compliance check passes
 - [ ] Requirement coverage run (Step 1b): `missing` is empty, `deferred` and the un-evaluable set are
       stated in the report, and every coverage claim carries its denominator
+- [ ] `validateVerificationContent` passes on the report (Step 5) — locked headings present and
+      filled, a denominator stated, and `## What this could not establish` says something
 - [ ] Build succeeds cleanly
 - [ ] User approves verification results
 
