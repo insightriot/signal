@@ -39,6 +39,7 @@ import {
 import { deriveRetroPath } from './retrospective.js';
 import { atomicWrite } from './atomic-write.js';
 import { assertRealInsidePlanning } from './path-confine.js';
+import { FR_ID_RE, AC_ID_RE } from './requirement-ids.js';
 
 // --- ID / date / status-token extractors (the deterministic backstop) --------
 
@@ -47,10 +48,8 @@ import { assertRealInsidePlanning } from './path-confine.js';
 const EPIC_DEEP_ID_RE = /\bM\d+(?:\.\d+)*\.E\d+(?:\.S\d+)?(?:\.t\d+)?\b/g;
 // Decision IDs: D-M5E1-3, D-E11-4, D-v016-1, BR-9 is NOT a D- id so excluded.
 const DECISION_ID_RE = /\bD-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*\b/g;
-// Functional-requirement IDs: FR1, FR2a, FR2b.
-const FR_ID_RE = /\bFR\d+[a-z]?\b/g;
-// Acceptance-criterion IDs: AC1, AC6.4, AC-seed is excluded (needs a digit).
-const AC_ID_RE = /\bAC\d+(?:\.\d+)?\b/g;
+// FR / AC id patterns live in `./requirement-ids.js` — imported above, so this
+// module and FR1's coverage diff cannot drift apart (M5.E10 AC S1.1).
 // ISO dates: 2026-07-16.
 const ISO_DATE_RE = /\b\d{4}-\d{2}-\d{2}\b/g;
 // Status tokens whose *disappearance* would silently drop a still-open item.
