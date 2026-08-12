@@ -885,6 +885,81 @@ const checkPhaseLogGap = defineCheck({
   },
 });
 
+/**
+ * The narrative's own phase claim, contradicting the frontmatter it sits beside
+ * (M5.E10 FR8 / `D-BR0810-2`).
+ *
+ * A phase transition moves the frontmatter and **structurally cannot touch the
+ * prose**, so every one creates a fresh opportunity for the body to keep
+ * asserting the phase that has just been left. The prose is what a person
+ * orients from.
+ *
+ * (The sentence above deliberately does not name the phase-entry function. It
+ * did, and `checkLeak` failed the build: a line carrying that identifier reads
+ * as a directive site to the adherence leak walk, which would put the measured
+ * instruction inside the control arm — `B55`'s exact shape.)
+ *
+ * NARROW BY CONSTRUCTION (AC8.1). It reads only lines that both name
+ * `current_epic` **and** echo the frontmatter key `phase:` — the shape the
+ * defect actually takes in this file (*"`phase: PLAN` / `current_epic: M5.E10`
+ * are correct"*). It does not read prose generally, and that narrowing is
+ * load-bearing rather than conservative: a "nearest phase-name token" rule was
+ * tried first and flagged **62 episodes** across this file's history, many of
+ * them backlog lines that merely mention an Epic near an unrelated phase word.
+ * The narrow rule finds **5**, which is what a check gets to claim.
+ *
+ * DISTINCT FROM ITS TWO NEIGHBOURS (AC8.3). `body-omits-current-epic` fires when
+ * the prose never mentions the Epic at all — here the prose mentions it and is
+ * confidently wrong about it. `phase-behind-artifacts` compares the frontmatter
+ * against files on disk and never reads the body. Both pass on every state this
+ * check catches; that is asserted, not assumed.
+ *
+ * NEEDS A PERSON. The fix is a sentence rewrite. Nothing can derive the prose
+ * the maintainer meant, and a check that promised a heal it cannot deliver is
+ * the failure `defineCheck`'s heal contract exists to prevent.
+ */
+export const checkNarrativePhaseContradiction = defineCheck({
+  id: 'narrative-phase-contradicts-frontmatter',
+  describe: "STATE.md's prose asserts a phase its own frontmatter disagrees with",
+  healCategory: HEAL.NEEDS_A_PERSON,
+  applicability: ({ state }) => {
+    if (!epicIsSet(state)) return LINEAR_MODE_NA;
+    if (!state.phase) {
+      return {
+        status: APPLICABILITY.BLIND,
+        reason: 'frontmatter declares no phase, so there is nothing for the prose to contradict',
+      };
+    }
+    return APPLICABILITY.EVAL;
+  },
+  run: ({ state, stateBody }) => {
+    const epic = String(state.current_epic);
+    const claimRe = /phase:\s*\**`?(CALIBRATE|DISCUSS|PLAN|EXECUTE|VERIFY|REVIEW|SHIP)\b/g;
+
+    const contradictions = [];
+    for (const line of stateBody.split('\n')) {
+      if (!line.includes(epic)) continue;
+      claimRe.lastIndex = 0;
+      for (const m of line.matchAll(claimRe)) {
+        if (m[1] !== state.phase) contradictions.push({ claimed: m[1], line: line.trim() });
+      }
+    }
+    if (contradictions.length === 0) return [];
+
+    const { claimed, line } = contradictions[0];
+    const excerpt = line.length > 110 ? `${line.slice(0, 110)}…` : line;
+    return [{
+      file: `${PLANNING_DIR}/STATE.md`,
+      message:
+        `frontmatter says phase: ${state.phase}, but the body claims phase: ${claimed} ` +
+        `beside ${epic} — "${excerpt}". The frontmatter advanced and the sentence did not. ` +
+        'Anyone orienting from the narrative is being told the wrong phase by the document ' +
+        'whose job is to tell them the right one. Rewrite the sentence; nothing can derive ' +
+        'what you meant it to say.',
+    }];
+  },
+});
+
 export const STATE_DRIFT_CHECKS = Object.freeze([
   checkEpicWithoutRetro,
   checkBaselineCommitOffHistory,
@@ -893,4 +968,5 @@ export const STATE_DRIFT_CHECKS = Object.freeze([
   checkPhaseBehindArtifacts,
   checkBodyOmitsCurrentEpic,
   checkPhaseLogGap,
+  checkNarrativePhaseContradiction,
 ]);

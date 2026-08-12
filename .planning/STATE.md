@@ -27,7 +27,7 @@ last_updated: 2026-08-12T16:33:49.027Z
 
 > ## ▶ IN FLIGHT — `M5.E10`, opened 2026-08-11. The frontmatter is now authoritative again.
 >
-> **`phase: PLAN` / `current_epic: M5.E10` are correct.** The Epic that closes **Milestone 5**
+> **`phase: EXECUTE` / `current_epic: M5.E10` are correct.** The Epic that closes **Milestone 5**
 > (`D-BR0809-1`, `D-BR0809-2`) is open; `M5.E19`'s four-phase ledger archived cleanly to
 > [`archive/M5/E19/STATE-NARRATIVE.md`](archive/M5/E19/STATE-NARRATIVE.md) on the roll.
 >
