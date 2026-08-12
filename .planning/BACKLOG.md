@@ -771,11 +771,21 @@ unverified — never asserted from memory* (the `buildCaveats()` lesson, general
   (§6 item 2; absorbs the ISSUES-INBOX self-critique entry and AGENT-EFFECTIVENESS Rec 3).
   *Done-when:* an artifact missing the section or the table fails the phase gate. Structural only —
   works **paired with the diff above**, never instead of it.
-- **REVIEW claims-audit** (§6 item 3) — implement the faithfulness backstop that `ship.md` §5.5 and
-  the `evict.js` header already assign to REVIEW: every coverage/status/completeness claim in
+- **REVIEW claims-audit** (§6 item 3) — ⚠ **NOT BUILT. Deliberately deferred out of `M5.E10` by
+  `D-M5E10-1`, and still open.** This is the **semantic** half of claim integrity, and nothing
+  shipped in `v0.1.23` covers it. Implement the faithfulness backstop that `ship.md` §5.5 and the
+  `evict.js` header already assign to REVIEW: every coverage/status/completeness claim in
   VERIFICATION and prior-phase artifacts verified against its source (the adversarial
   `docs-verifier` design has been parked in ISSUES-INBOX since 2026-05-12). *Done-when:* a fixture
   VERIFICATION with a seeded false claim is caught by the step.
+
+  **What the deterministic half cannot see, stated so the gap has a shape.** `M5.E10` shipped checks
+  that compare *tokens* — requirement IDs present or absent, sections present or empty, a line
+  retracting itself. **A VERIFICATION naming every requirement, with a denominator, whose evidence
+  column is wrong about what the tests actually assert, passes every one of them.** The claims in a
+  document are only checkable against the thing they describe, and no regular expression opens that
+  thing. `AC0.1` exists so this sentence is somewhere a reader lands, rather than inferred from
+  silence.
 - **Correction protocol** (§6 item 5) — a correction is complete when a corpus grep for the claim
   and its restatements returns only corrected instances: root + all carriers, not the files that
   happened to be open. **Plus the corollary: retract at the granularity people search at** — `grep`

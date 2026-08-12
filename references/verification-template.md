@@ -16,6 +16,24 @@ not establish. **The structural gate catches an artifact that never asked the qu
 A template without the derived check is theatre. The check without the template lets a run report a
 number with no stated total. Both, or neither is worth much.
 
+## What is NOT built (`AC0.1`)
+
+**The semantic backstop does not exist.** Everything Signal ships for claim integrity compares
+**tokens**: requirement IDs present or absent, sections present or empty, a line that retracts
+itself, a denominator that is stated. Every one of those is a regular expression over a document.
+
+**So a VERIFICATION that names every requirement, carries a denominator, fills every section, and is
+simply *wrong* about what its evidence establishes passes all of them.** A row reading
+*"AC-16.10 | covered by `login.test.js`"* is checked for the ID and never for whether that test
+asserts anything of the kind. The claims in a document are only checkable against the thing they
+describe, and no pattern-matcher opens that thing.
+
+Closing it needs an agent that re-reads each claim against its source — the **REVIEW claims-audit**,
+live in [`../.planning/BACKLOG.md`](../.planning/BACKLOG.md) and deferred out of `M5.E10` by
+`D-M5E10-1`. It is named here because a reader who finds a template, a gate and five checks would
+otherwise reasonably conclude that claim integrity is guarded. **It is half-guarded, and this is the
+half that is missing.**
+
 ## How to use this file
 
 1. **Find your tier** — `.planning/PROFILE.md` → `tier:`.

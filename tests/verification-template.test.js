@@ -182,3 +182,68 @@ describe('AC3.3 — the template states that it proves nothing alone', () => {
     }
   });
 });
+
+describe('AC0.1 — the deferred half is impossible to miss', () => {
+  it('the shipped template names the semantic backstop as NOT built', async () => {
+    // Checked, not intended. The whole Epic is about claims that were true in
+    // someone's head — including the claim that the deferral is visible.
+    const template = await readFile(join(ROOT, 'references', 'verification-template.md'), 'utf8');
+    expect(template).toMatch(/## What is NOT built/);
+    expect(template).toMatch(/semantic backstop does not exist/i);
+    expect(template).toMatch(/claims-audit/i);
+    // It must say what the built half CANNOT see, or "not built" is a label
+    // without a shape and a reader cannot tell what they are missing.
+    expect(template).toMatch(/wrong\* about what its evidence establishes/i);
+  });
+
+  it('BACKLOG.md carries a live row that does not read as complete', async () => {
+    const backlog = await readFile(join(ROOT, '.planning', 'BACKLOG.md'), 'utf8');
+    const idx = backlog.indexOf('REVIEW claims-audit');
+    expect(idx, 'the row must exist').toBeGreaterThan(-1);
+    const row = backlog.slice(idx, idx + 900);
+    expect(row).toMatch(/NOT BUILT/);
+    expect(row).toMatch(/still open/i);
+    // A row that says "done-when" and nothing else reads like planned work.
+    // This one has to say it was deferred, and by which decision.
+    expect(row).toMatch(/D-M5E10-1/);
+  });
+
+  it('neither surface claims claim-integrity is solved', async () => {
+    const template = await readFile(join(ROOT, 'references', 'verification-template.md'), 'utf8');
+    expect(template).toMatch(/half-guarded/i);
+  });
+});
+
+describe('AC S6.3 — the corpus measurement is shipped, per check', () => {
+  it('states, for every check, how many corpora it could and could not evaluate', async () => {
+    const doc = await readFile(
+      join(ROOT, '.planning', 'M5.E10-CORPUS-MEASUREMENT.md'),
+      'utf8'
+    );
+    for (const check of ['FR1', 'FR2', 'FR3', 'FR4', 'FR7', 'FR8']) {
+      expect(doc, `${check} must have a row`).toMatch(new RegExp(`\\*\\*${check} [^|]+\\|`));
+    }
+    // Both halves of the fraction, per row — a count of successes alone is the
+    // completeness claim this Epic exists to stop.
+    expect(doc).toMatch(/\*\*2 \/ 12\*\*/);
+    expect(doc).toMatch(/\| Could evaluate \| Could not \|/);
+  });
+
+  it('does not let the flagship check’s 2/12 read as a clean result', async () => {
+    const doc = await readFile(
+      join(ROOT, '.planning', 'M5.E10-CORPUS-MEASUREMENT.md'),
+      'utf8'
+    );
+    expect(doc).toMatch(/Not "found nothing wrong in 10"/i);
+    expect(doc).toMatch(/Could not look at 10/i);
+  });
+
+  it('states what the measurement itself could not establish', async () => {
+    const doc = await readFile(
+      join(ROOT, '.planning', 'M5.E10-CORPUS-MEASUREMENT.md'),
+      'utf8'
+    );
+    expect(doc).toMatch(/could not establish/i);
+    expect(doc).toMatch(/measures applicability, not correctness/i);
+  });
+});
