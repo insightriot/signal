@@ -10,8 +10,8 @@ completed_phases:
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-08-02T00:20:21.679Z
-last_updated_commit: c8200b920e67bae5c504682d76135cc22411dcc3
-last_updated: 2026-08-12T11:58:01.611Z
+last_updated_commit: fb36496e1876ecd4ffb754d4bf51dc03160a79cb
+last_updated: 2026-08-12T12:48:31.764Z
 ---
 # Project State
 
@@ -79,7 +79,15 @@ two agreed and no banner was due). ⚠ **`v0.1.20` ships 2026-08-06, so the cach
 behind again until you `/sig:update` **and then** restart — in that order, because a restart before the update has nothing new to bind to** — and the *next* session after that is the first one
 this fix can protect.
 
-## ▶ NEXT WORK — agreed 2026-08-06, in this order
+## ~~▶ NEXT WORK — agreed 2026-08-06, in this order~~ · **CLOSED — all three shipped**
+
+> **Historical as of 2026-08-12. Kept for the reasoning, not the ordering.** All three shipped
+> (`B52` → v0.1.20, the archive command → v0.1.22, `M5.E14`'s slice → v0.1.24). **Two claims below
+> are now false and are corrected here rather than edited in place**, since the section is a dated
+> record: item 3 says `M5.E10`'s trigger *"is NOT met"*, and the closing note says `M5.E10` has
+> *"never landed — no artifacts on disk."* `M5.E10` is **open and in flight** with four artifacts on
+> disk. Both statements were true when written on 2026-08-06. **The live queue is
+> [`BACKLOG.md`](BACKLOG.md)** (`D-M5E18-1`).
 
 **Brett's call: do all three, sequentially.** Full reasoning and the plain-language framing are in
 [`BACKLOG.md`](BACKLOG.md) → *"Next work — the agreed sequence"*. That file is the queue
