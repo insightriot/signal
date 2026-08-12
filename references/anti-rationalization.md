@@ -42,6 +42,33 @@ AI agents optimize for completion speed. When quality steps slow them down, they
 - "The PR description doesn't matter" → PR descriptions are documentation for your future self.
 - "I'll update the docs after merge" → Post-merge docs have a near-zero completion rate.
 
+## Output contract (shaping failures — stated as recipes, `B38`)
+
+Everything above is a **prohibition**, and that is the right form for a *discipline* failure: knowing
+the rule and skipping it under pressure. It is the **wrong** form when the output merely comes out
+the wrong shape — measured, not asserted: in head-to-head wording tests the prohibition arm produced
+*more* of the unwanted content than a positive recipe, and did worse than no guidance at all.
+
+So the entries below state what the output **is**. Classification of every entry in the corpus:
+[`anti-rationalization-forms.md`](anti-rationalization-forms.md).
+
+- **Provenance: an upstream claim about a third artifact is repeated only after opening that
+  artifact.** If you have not read the thing being described, the sentence says who claimed it and
+  that you did not check — *"`BACKLOG.md` says M5.E18 wired none of it (unverified)"* — never the
+  claim in your own voice. **And never at higher confidence than the source gave it**: a source's
+  *"appears to"* stays *"appears to"*. Escalating a hedge into a fact is the same defect as inventing
+  one, and harder to catch because the hedge is gone.
+
+  *Why this is a recipe and not a prohibition:* the failure is not "restated a claim it knew to be
+  unchecked". It is a **shape** failure — the sentence came out asserting, because asserting is the
+  shape sentences take. Measured in this Epic: `M5.E10`'s own charter quoted `BACKLOG.md` saying
+  `M5.E18` *"built the engine and wired none of it"*, which was a quote of that Epic's **mid-build**
+  finding that its own wave 6 had already fixed. The claim was false, load-bearing, and nobody had
+  opened `M5.E18` to check. Two more instances landed inside this Epic: `AC1.5` described an artifact
+  pair that does not exist, and `FR7` specified a check that shipped three releases ago. **In all
+  three the plan characterised a file from memory, and in all three opening the file was what found
+  it.**
+
 ## How to Use This Document
 
 At every phase gate:

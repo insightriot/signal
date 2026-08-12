@@ -243,9 +243,19 @@ schema-drift or stale-binding banners, which cast doubt on the reading itself.
 | Temptation | Check |
 |---|---|
 | "Users can read .planning/ themselves; this is redundant." | `/sig:status` is the diff between *has memory* and *doesn't* for project resumption. Reading 5 files manually every time you context-switch is the opposite of what `.planning/` exists to provide. |
-| "Make it longer with more sections / artifact lists / activity logs." | Every line earns its place. Aim for ≤30 lines. Users wanting depth use `/sig:resume` (which reads the current-phase artifact) or `cat .planning/*.md` directly. |
 | "Add a `--json` flag for hooks." | v1 has no hook needing it. Adding flags before there's a use case adds maintenance for nothing. Log to FUTURE-IDEAS if a real hook lands. |
 | "Mutate state to record 'last checked' so we can show recency." | `/sig:status` is read-only by design. Mutating breaks its value as the check-without-disturbing tool. If you want recency, look at `git log -1 .planning/STATE.md`. |
+
+### Output contract (shaping failures — stated as recipes, `B38`)
+
+These are not prohibitions. A prohibition is the right form when the failure is *discipline* —
+knowing the rule and skipping it under pressure. It is the **wrong** form when the output merely
+comes out the wrong shape, where head-to-head wording tests measured the prohibition arm producing
+**more** of the unwanted content than a positive recipe, and worse than no guidance at all.
+So these say what the output IS. See `references/anti-rationalization-forms.md`.
+
+- **The report is one screen: the blocks specified below, and nothing else.** A status nobody finishes reading is a status nobody read.
+
 
 ## Gate: Status Complete
 

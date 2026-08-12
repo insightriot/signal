@@ -497,7 +497,17 @@ inferred.
 | "Walk LANDSCAPE.md too — it has markers." | No (v1). Scope locked to PROJECT.md-only. LANDSCAPE.md is reference material the user reads manually before `/sig:calibrate`. Walking it would double the question count for marginal benefit; revisit if dogfood-2 surfaces real friction. |
 | "Skip Step 5's Defer option to force completeness." | No. Forcing completeness on the brownfield entry-point command kills adoption. Defer must be a first-class option for every marker; the cost of "calibration is slightly less accurate on this dimension" is dramatically lower than "user abandoned `/sig:init` halfway through." |
 | "Auto-accept high-confidence `[INFERRED]` markers without asking." | No. Even if Signal's confidence is high, the user is the source of truth on their own project's purpose. The walkthrough exists to surface, not to auto-decide — the recommendation steers, the user decides. |
-| "Make each Step 5 question multi-paragraph and exhaustively framed." | No. Keep the per-marker question to ≤ 8 lines (option enumeration + recommendation). Brevity matters; the walkthrough has 7 fields and a 50-line question per field is fatigue-inducing — exactly the failure mode the question-pattern convention exists to prevent. |
+
+### Output contract (shaping failures — stated as recipes, `B38`)
+
+These are not prohibitions. A prohibition is the right form when the failure is *discipline* —
+knowing the rule and skipping it under pressure. It is the **wrong** form when the output merely
+comes out the wrong shape, where head-to-head wording tests measured the prohibition arm producing
+**more** of the unwanted content than a positive recipe, and worse than no guidance at all.
+So these say what the output IS. See `references/anti-rationalization-forms.md`.
+
+- **Each Step 5 question is one sentence, plus at most one clarifying line.** The user is answering, not reading.
+
 
 ## Gate: Init Complete
 

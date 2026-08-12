@@ -149,7 +149,17 @@ For Case C (de-escalation): simpler message — no back-fill list, just the new 
 | "The user wants more rigor — skip the questions, just bump the tier." | Re-ask the 5 questions. Sometimes the user thinks scope grew when only stakes changed; sometimes they think stakes are higher than they are. The dimensions catch real shifts vs. perceived ones. |
 | "The 5 questions feel repetitive — they were just answered." | That's the point. Calibration drift is real and accumulates over weeks. Re-asking is the cheapest possible re-grounding. |
 | "Back-fill warnings feel preachy — skip them." | Don't. Without explicit warnings, escalation up creates silent debt: tests that don't exist, security passes that didn't happen, REVIEW phases that were skipped on production code. The user needs to see the consequences explicitly to decide what to actually back-fill. |
-| "Tier didn't change — exit silently without saying anything." | No. Print the comparison anyway. The user came to escalate; a "no change needed" result is information, not a non-event. |
+
+### Output contract (shaping failures — stated as recipes, `B38`)
+
+These are not prohibitions. A prohibition is the right form when the failure is *discipline* —
+knowing the rule and skipping it under pressure. It is the **wrong** form when the output merely
+comes out the wrong shape, where head-to-head wording tests measured the prohibition arm producing
+**more** of the unwanted content than a positive recipe, and worse than no guidance at all.
+So these say what the output IS. See `references/anti-rationalization-forms.md`.
+
+- **Every run ends by stating the resulting tier**, whether or not it moved. "No change" is a result, and a command that says nothing is indistinguishable from one that failed.
+
 
 ## Gate: Escalation Complete
 

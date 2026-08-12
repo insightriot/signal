@@ -180,6 +180,19 @@ Do **not** preview the entry before write (capture latency dies on every confirm
 | `EXDEV` cross-FS | Silent fallback in atomicWrite; user sees normal success. |
 | Other I/O failure | Propagate the error verbatim. The user has `git diff` to inspect any partial state. |
 
+### Output contract (shaping failures — stated as recipes, `B38`)
+
+These are not prohibitions. A prohibition is the right form when the failure is *discipline* —
+knowing the rule and skipping it under pressure. It is the **wrong** form when the output merely
+comes out the wrong shape, where head-to-head wording tests measured the prohibition arm producing
+**more** of the unwanted content than a positive recipe, and worse than no guidance at all.
+So these say what the output IS. See `references/anti-rationalization-forms.md`.
+
+- **The body written is byte-identical to what the user typed** — same characters, same casing, same punctuation. Capture is a recording, not an edit.
+- **The file's shape is: one heading, then entries appended in order.** New content goes at the end of its section and nowhere else.
+- **The onboarding note renders once per repo**, gated by its marker file. After that the command's output is the capture confirmation alone.
+
+
 ## Anti-Rationalization Check
 
 | Temptation | Check |
@@ -188,10 +201,7 @@ Do **not** preview the entry before write (capture latency dies on every confirm
 | "Skip the lock — solo dev never races." | Cheap to keep; the corruption mode is silent. Per plan locked decision #8. |
 | "Auto-redact secrets without asking." | No. Silent modification of user input is the worst failure mode — user can't trust what was captured. Always prompt; never auto-redact. Per plan locked decision #14. |
 | "Show entry preview before write so user can confirm." | No. Capture latency dies on confirmation steps. Diff *after* write is the confirmation. Linear "C" lesson; GSD `--note` pattern. Per plan locked decision #6. |
-| "Tidy / smart-quote / capitalize the body." | No. **Verbatim capture is non-negotiable.** The user's exact phrasing is the signal. From GSD `note.md`: *"Never modify the note text — capture verbatim, including typos."* Per plan locked decision #5. |
-| "Add a `## Recently captured` summary at the top of the file." | No. The file's existing structure (heading → entries separated by `---` → footer) is the contract. New entries land above the footer in the same shape as existing ones. |
 | "`gate_strictness: strict` means I should confirm the destination before writing." | No. Q1 is locked + user-reconfirmed: `gate_strictness` modulates **only** the one-time first-run onboarding note (Step 1b) — never a destination confirm. Capture stays instant at every level (Decision 4). |
-| "Show the onboarding note every run so the warning sticks." | No. It's one-time per repo, gated by `.planning/.add-onboarded`. Repeating it on every capture is exactly the friction `/sig:add` exists to remove. |
 | "Write to a different file if the inbox (`ISSUES-INBOX.md`) is too long." | No. File size isn't a concern at scale. Single file = single grep target = single read. |
 
 ## Gate: Capture Complete

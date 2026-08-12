@@ -211,10 +211,20 @@ Wrap the call in a **catch-all**: if `markFresh` throws for *any* reason — `St
 ### Anti-Rationalization Check
 | Temptation | Check |
 |---|---|
-| "The PR description doesn't need to be detailed" | PR descriptions are documentation for future developers |
 | "Nobody reads CHANGELOGs" | Changelogs are for users and for yourself in 6 months |
 | "I'll clean up the git history later" | Later never comes. Clean it now |
 | "Docs can wait until after merge" | If docs aren't in the PR, they won't get written |
+
+### Output contract (shaping failures — stated as recipes, `B38`)
+
+These are not prohibitions. A prohibition is the right form when the failure is *discipline* —
+knowing the rule and skipping it under pressure. It is the **wrong** form when the output merely
+comes out the wrong shape, where head-to-head wording tests measured the prohibition arm producing
+**more** of the unwanted content than a positive recipe, and worse than no guidance at all.
+So these say what the output IS. See `references/anti-rationalization-forms.md`.
+
+- **The PR body states what changed, why, and how it was verified.** Those three, in that order; the diff shows the rest.
+
 
 ### Exit Criteria
 - [ ] Pre-ship checklist complete

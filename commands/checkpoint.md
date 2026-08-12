@@ -128,7 +128,17 @@ Emit a one-screen summary:
 | "Auto-redact sensitive data in `--context` capture." | Never. Same rule as `/sig:add`: surface the hits, let the user decide. Auto-redact corrupts the captured decision. |
 | "If `--context` is given, skip the quick-mode refresh." | No. `--context` is **additive**, not exclusive. The quick refresh has to run for the captured decisions to be situated against a fresh STATE.md. |
 | "Don't bother running pre-CALIBRATE — just emit empty diff." | Wasted I/O + confusing UI. Scope-cut: refuse cleanly with the "nothing to refresh yet" message. |
-| "Render the diff differently from `renderStateDiff` — make it prettier." | Use the canonical renderer. Ad-hoc rendering drifts from what other commands (S4 resume.md banner) display, fragmenting the user's mental model. |
+
+### Output contract (shaping failures — stated as recipes, `B38`)
+
+These are not prohibitions. A prohibition is the right form when the failure is *discipline* —
+knowing the rule and skipping it under pressure. It is the **wrong** form when the output merely
+comes out the wrong shape, where head-to-head wording tests measured the prohibition arm producing
+**more** of the unwanted content than a positive recipe, and worse than no guidance at all.
+So these say what the output IS. See `references/anti-rationalization-forms.md`.
+
+- **The diff renders through `renderStateDiff`, unchanged.** One renderer means a reader who has seen one checkpoint can read every checkpoint.
+
 
 ## Gate: Checkpoint Complete
 

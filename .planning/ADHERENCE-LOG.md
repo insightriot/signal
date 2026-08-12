@@ -53,7 +53,7 @@ rewrites only between the `adherence:ceiling` markers, so this survives every re
 <!-- adherence:ceiling:begin -->
 ## The coverage ceiling
 
-**Computed:** 2026-08-12 · **Commit:** `26e1b8f` · **Corpus:** 20 `commands/*.md` files
+**Computed:** 2026-08-12 · **Commit:** `af9b88e` · **Corpus:** 20 `commands/*.md` files
 
 This is the bound on everything the adherence harness can ever report. It is computed
 directly from the command corpus by `tools/lib/directive-classifier.js`, whose split
@@ -85,11 +85,11 @@ harness run as evidence about the whole corpus will not find it here.
 |---|---:|---:|---:|
 | `ship.md` | 39 | 13 | 26 |
 | `status.md` | 20 | 11 | 9 |
-| `add.md` | 42 | 10 | 32 |
+| `add.md` | 41 | 10 | 31 |
 | `discuss.md` | 25 | 8 | 17 |
 | `plan.md` | 49 | 8 | 41 |
 | `init.md` | 41 | 7 | 34 |
-| `resume.md` | 22 | 7 | 15 |
+| `resume.md` | 23 | 7 | 16 |
 | `checkpoint.md` | 21 | 5 | 16 |
 | `doctor.md` | 23 | 5 | 18 |
 | `new-project.md` | 9 | 5 | 4 |
