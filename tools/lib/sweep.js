@@ -125,36 +125,9 @@ export async function checkIndexFreshness(baseDir) {
  */
 export async function checkRetroIndexFreshness(baseDir) {
   const rel = PLANNING_DIR + '/RETROSPECTIVES.md';
-  const indexPath = join(baseDir, PLANNING_DIR, 'RETROSPECTIVES.md');
+  const result = await retroIndexFreshness(baseDir);
 
-  let retros;
-  try {
-    retros = await enumerateRetros(baseDir);
-  } catch {
-    return []; // unreadable project → fail open, report nothing (NFR3)
-  }
-  // Greenfield: the first retro lands at the next Epic close. Nothing to say.
-  if (!retros || retros.length === 0) return [];
-
-  let existing = null;
-  try {
-    existing = await readFile(indexPath, 'utf-8');
-  } catch {
-    existing = null;
-  }
-  if (existing === null || existing.trim() === '') {
-    return [
-      mkFinding(
-        'retro-index-freshness',
-        'advisory',
-        rel,
-        `${retros.length} retrospective(s) present but no RETROSPECTIVES.md index — regenerate it`
-      ),
-    ];
-  }
-
-  const expected = renderIndex(retros, parseExistingHooks(existing));
-  if (expected !== existing) {
+  if (result.outcome === RETRO_FRESHNESS.STALE) {
     return [
       mkFinding(
         'retro-index-freshness',
@@ -164,7 +137,76 @@ export async function checkRetroIndexFreshness(baseDir) {
       ),
     ];
   }
+  if (result.outcome === RETRO_FRESHNESS.CANNOT_EVALUATE) {
+    // A greenfield project genuinely has nothing to say, and saying it every
+    // run is how a detector earns the mute that makes it useless. Every OTHER
+    // un-evaluable reason is reported: an unreadable project and a missing
+    // index both used to render as silence, indistinguishable from "checked
+    // and clean" — `B39`'s shape (M5.E10 AC7.2).
+    if (result.reason === REASON_GREENFIELD) return [];
+    return [mkFinding('retro-index-freshness', 'advisory', rel, result.reason)];
+  }
   return [];
+}
+
+/** @enum {string} */
+export const RETRO_FRESHNESS = Object.freeze({
+  FRESH: 'fresh',
+  STALE: 'stale',
+  CANNOT_EVALUATE: 'cannot-evaluate',
+});
+
+const REASON_GREENFIELD =
+  'no retrospectives on disk yet — nothing to compare (the first lands at the next Epic close)';
+
+/**
+ * Retro-index freshness as a THREE-outcome record (M5.E10 FR7 / AC7.2).
+ *
+ * The finding-shaped wrapper above predates this and stays the `/sig:sweep`
+ * surface; this is the half that distinguishes **"checked and clean"** from
+ * **"could not check"**. Before it, four different situations all returned an
+ * empty finding list — index matches, no retros exist, the project is
+ * unreadable — and a reader could not tell which. Three of those are not clean
+ * results; they are absences of a result.
+ *
+ * @param {string} baseDir — project root (where `.planning/` lives)
+ * @returns {Promise<{outcome: string, reason: string|null, retroCount: number}>}
+ */
+export async function retroIndexFreshness(baseDir) {
+  const indexPath = join(baseDir, PLANNING_DIR, 'RETROSPECTIVES.md');
+  const cannot = (reason, retroCount = 0) => ({
+    outcome: RETRO_FRESHNESS.CANNOT_EVALUATE,
+    reason,
+    retroCount,
+  });
+
+  let retros;
+  try {
+    retros = await enumerateRetros(baseDir);
+  } catch {
+    return cannot('the retrospectives on disk could not be read — freshness was not checked');
+  }
+  if (!retros || retros.length === 0) return cannot(REASON_GREENFIELD);
+
+  let existing = null;
+  try {
+    existing = await readFile(indexPath, 'utf-8');
+  } catch {
+    existing = null;
+  }
+  if (existing === null || existing.trim() === '') {
+    return cannot(
+      `${retros.length} retrospective(s) present but no RETROSPECTIVES.md index — regenerate it`,
+      retros.length
+    );
+  }
+
+  const expected = renderIndex(retros, parseExistingHooks(existing));
+  return {
+    outcome: expected === existing ? RETRO_FRESHNESS.FRESH : RETRO_FRESHNESS.STALE,
+    reason: null,
+    retroCount: retros.length,
+  };
 }
 
 /**

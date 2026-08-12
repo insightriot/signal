@@ -533,3 +533,65 @@ describe('B57 — sweep does not walk into the migrate snapshot backup', () => {
     expect(findings.some((f) => f.check === 'internal-links')).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// M5.E10 S4.t1 (FR7 / AC7.2) — the third outcome.
+//
+// FR7 asked for a check that already existed: `checkRetroIndexFreshness`
+// shipped in M5.E13, is called from `runSweep`, and has five tests above. What
+// it did NOT have is AC7.2's three-outcome rule — four different situations all
+// returned an empty finding list, so "checked and clean" and "could not check"
+// were indistinguishable. That is the exact defect this Epic exists to kill.
+// ---------------------------------------------------------------------------
+describe('M5.E10 S4.t1 retroIndexFreshness (FR7 / AC7.2)', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'sig-retro3-'));
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('FRESH is distinguishable from CANNOT_EVALUATE, which an empty list was not', async () => {
+    const { retroIndexFreshness, RETRO_FRESHNESS } = await import('../tools/lib/sweep.js');
+    const { regenerateIndex } = await import('../tools/lib/retro-index.js');
+
+    await writeDoc(dir, '.planning/M9.E1-RETROSPECTIVE.md', '# M9.E1 Retrospective\n\nBody.\n');
+    await regenerateIndex(dir);
+    const fresh = await retroIndexFreshness(dir);
+    expect(fresh.outcome).toBe(RETRO_FRESHNESS.FRESH);
+    expect(fresh.retroCount).toBe(1);
+
+    // Both of these produced `[]` from the finding wrapper — identical output,
+    // opposite meanings.
+    const empty = await mkdtemp(join(tmpdir(), 'sig-retro3-empty-'));
+    await mkdir(join(empty, '.planning'), { recursive: true });
+    const none = await retroIndexFreshness(empty);
+    expect(none.outcome).toBe(RETRO_FRESHNESS.CANNOT_EVALUATE);
+    expect(none.reason).toMatch(/nothing to compare/);
+    await rm(empty, { recursive: true, force: true });
+  });
+
+  it('STALE carries the count it compared against', async () => {
+    const { retroIndexFreshness, RETRO_FRESHNESS } = await import('../tools/lib/sweep.js');
+    await writeDoc(dir, '.planning/M9.E1-RETROSPECTIVE.md', '# M9.E1 Retrospective\n\nBody.\n');
+    await writeDoc(dir, '.planning/RETROSPECTIVES.md', '# Retrospectives\n\n(nothing here)\n');
+    const r = await retroIndexFreshness(dir);
+    expect(r.outcome).toBe(RETRO_FRESHNESS.STALE);
+    expect(r.retroCount).toBe(1);
+  });
+
+  it('a greenfield project still stays quiet in the sweep output', async () => {
+    // The distinction lives in the record, not in a line printed every run: a
+    // detector that speaks when there is nothing to say gets muted.
+    await mkdir(join(dir, '.planning'), { recursive: true });
+    expect(await checkRetroIndexFreshness(dir)).toHaveLength(0);
+  });
+
+  it('but an index that could not be compared is no longer silent', async () => {
+    await writeDoc(dir, '.planning/M9.E1-RETROSPECTIVE.md', '# M9.E1 Retrospective\n\nBody.\n');
+    const findings = await checkRetroIndexFreshness(dir);
+    expect(advisory(findings).length).toBeGreaterThan(0);
+    expect(JSON.stringify(findings)).toMatch(/no RETROSPECTIVES\.md index/);
+  });
+});
