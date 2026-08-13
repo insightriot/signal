@@ -27,17 +27,26 @@ last_updated: 2026-08-13T16:36:33.177Z
 > (`D-BR0809-1`, `D-BR0809-2`) is open; `M5.E19`'s four-phase ledger archived cleanly to
 > [`archive/M5/E19/STATE-NARRATIVE.md`](archive/M5/E19/STATE-NARRATIVE.md) on the roll.
 >
-> **DISCUSS, PLAN and all four EXECUTE waves are closed. Next action: build `B94`, then `/sig:verify`.**
+> **DISCUSS, PLAN, all five EXECUTE waves and VERIFY are closed. Next action: `/sig:review`.**
 >
-> ⚠ **`B94` (P1) landed after the planned slices and is IN SCOPE for this Epic.** `BACKLOG.md` is
-> append-only — nothing in Signal marks a row done when work ships, so the queue asserts false status
-> indefinitely. A row reading *"pending"* about shipped work is this Epic's own defect class, in the
-> document a user trusts most. Read `BUGS.md` → `B94` and `CONTEXT.md` § HANDOFF before starting.
+> ✅ **`B94` (P1) is FIXED** — it landed after the planned slices and was taken in scope as **FR9 /
+> S7** (`92ad0df`, `4e3bfe5`). `BACKLOG.md` gains a discharge path, a SHIP §6.6 step that uses it, and
+> a `/sig:sweep` `backlog-discharge` check. **The check evaluates 1 of 12 corpus projects and cannot
+> see `eval-project-A`, the project the bug was filed from** — that number belongs in the release
+> notes, not a footnote.
 >
-> **All build work is done** (2026-08-12): S1–S6, 2410 → **2554 tests**. VERIFY is the real dogfood —
-> this Epic's own VERIFICATION artifact has to pass the template gate and the coverage diff it just
-> shipped, or the gate blocks it. Then REVIEW, an independent `/code-review` pass Brett triggers, and
-> SHIP as **v0.1.23**, which closes Milestone 5.
+> **All build work is done. 2410 → 2586 tests.** VERIFY ran as a real dogfood and
+> [`M5.E10-VERIFICATION.md`](M5.E10-VERIFICATION.md) is **PASS with documented limits** — coverage
+> `45/45`, template gate `valid`. **Its own first draft failed the coverage diff**: it asserted
+> *"56 of 56, none missing"* and the check returned **6 missing**, every one an id written only inside
+> an en-dash range. Left standing in the report as a boxed note; it is the Epic's best evidence.
+>
+> Two findings the phase produced: **`B95`** (filed, P2, not fixed — `RETROSPECTIVES.md` orders by
+> file mtime, so FR7 reports ordering-only drift) and a **second live FR8 sighting caused by this
+> phase's own transition**, fixed above.
+>
+> Next: REVIEW, an independent `/code-review` pass Brett triggers, then SHIP as **v0.1.25** — *not*
+> v0.1.23, which shipped 2026-08-08; `plugin.json` is already at `0.1.24`. Shipping closes Milestone 5.
 >
 > **Read [`M5.E10-PROGRESS.md`](M5.E10-PROGRESS.md) first** — it carries every finding, including the
 > ones that falsified the plan.
