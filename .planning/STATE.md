@@ -1,7 +1,7 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: REVIEW
+phase: SHIP
 current_epic: M5.E10
 current_wave: null
 current_tasks: []
@@ -10,6 +10,8 @@ completed_phases:
   - PLAN (2026-08-12)
   - EXECUTE (2026-08-13)
   - VERIFY (2026-08-13)
+  - REVIEW (2026-08-13)
+  - SHIP (2026-08-13)
 blockers: []
 last_completed_task:
   id: S4.t1
@@ -18,77 +20,9 @@ last_completed_task:
   completedAt: 2026-08-13T14:47:23.449Z
 last_decision_at: 2026-08-13T14:47:23.449Z
 last_updated_commit: 29dfe4e34151fdea884bb14b1a53b58a8c4a9550
-last_updated: 2026-08-13T22:10:21.156Z
+last_updated: 2026-08-13T22:47:00.350Z
 ---
 # Project State
-
-> ## ▶ IN FLIGHT — `M5.E10`, opened 2026-08-11. The frontmatter is now authoritative again.
->
-> **`phase: REVIEW` / `current_epic: M5.E10` are correct.** The Epic that closes **Milestone 5**
-> (`D-BR0809-1`, `D-BR0809-2`) is open; `M5.E19`'s four-phase ledger archived cleanly to
-> [`archive/M5/E19/STATE-NARRATIVE.md`](archive/M5/E19/STATE-NARRATIVE.md) on the roll.
->
-> **DISCUSS, PLAN, all five EXECUTE waves, VERIFY and REVIEW are all closed. Next action: `/sig:ship`.**
->
-> ✅ **`B94` (P1) is FIXED** — it landed after the planned slices and was taken in scope as **FR9 /
-> S7** (`92ad0df`, `4e3bfe5`). `BACKLOG.md` gains a discharge path, a SHIP §6.6 step that uses it, and
-> a `/sig:sweep` `backlog-discharge` check. **The check evaluates 1 of 12 corpus projects and cannot
-> see `eval-project-A`, the project the bug was filed from** — that number belongs in the release
-> notes, not a footnote.
->
-> **All build work is done. 2410 → 2586 tests.** VERIFY ran as a real dogfood and
-> [`M5.E10-VERIFICATION.md`](M5.E10-VERIFICATION.md) is **PASS with documented limits** — coverage
-> `45/45`, template gate `valid`. **Its own first draft failed the coverage diff**: it asserted
-> *"56 of 56, none missing"* and the check returned **6 missing**, every one an id written only inside
-> an en-dash range. Left standing in the report as a boxed note; it is the Epic's best evidence.
->
-> Two findings the phase produced: **`B95`** (filed, P2, not fixed — `RETROSPECTIVES.md` orders by
-> file mtime, so FR7 reports ordering-only drift) and a **second live FR8 sighting caused by this
-> phase's own transition**, fixed above.
->
-> **REVIEW returned PASS-WITH-FIXES**, and the independent `/code-review` pass Brett triggers has
-> **already run** — 7 findings, all reproduced, 5 fixed in code and 2 (`B97`/`B98`) fixed as a corpus
-> scrub. **`B97` was the serious one: this repo is public and 8 of 13 eval-corpus projects were named
-> in it, because the guard covered only 5.** 113 replacements across 30 files; all 13 now denied.
->
-> Next: SHIP as **v0.1.25** — *not* v0.1.23, which shipped 2026-08-08; `plugin.json` reads `0.1.24`.
-> Shipping closes Milestone 5. Suite **2602**, CI green, PR #141 mergeable.
->
-> **Read [`M5.E10-PROGRESS.md`](M5.E10-PROGRESS.md) first** — it carries every finding, including the
-> ones that falsified the plan.
->
-> ⚠ **This line said `phase: DISCUSS` at the PLAN close and `Next action: EXECUTE` at the EXECUTE
-> close — instances SIX and EIGHT, both forming inside the Epic chartered to fix them.** It is not
-> carelessness; it is the mechanism: a phase transition moves the frontmatter and structurally cannot
-> touch this prose. **Instance eight is the one the shipped check does not catch** — FR8 reads
-> `phase:` claims beside the Epic id, and *"Next action: EXECUTE"* is neither. The narrow rule was
-> chosen deliberately (a literal reading flagged 62 episodes, most of them false), and this is the
-> cost of that choice, paid immediately and on the record.
->
-> **The block that used to sit here retired itself, and that is worth keeping.** It read *"do not
-> orient from the frontmatter"* and named its own expiry in the same breath — *"both stay wrong
-> until `M5.E10` opens."* That condition fired at the roll, which is why it could be removed with
-> confidence rather than guessed at. **A staleness note that states its own expiry condition is
-> strictly better than one that merely rots** — but nothing retired it automatically, and for the
-> ~18 hours between the roll and this edit it was actively steering readers away from the half of
-> the file that had just become correct.
->
-> **Log that as instance five** of the narrative-vs-frontmatter defect this Epic absorbed
-> (`D-BR0810-2`), and note what makes it different from the first four: the prose was not careless,
-> it was *conditional and correct*, and it still went wrong the moment its condition flipped. It is
-> the strongest available argument that the fix cannot be "write the note more carefully."
->
-> **`last_updated_commit` is maintained; the narrative is not.** `/sig:checkpoint` advances the
-> commit baseline, and the commit that *records* that refresh necessarily lands after it — so this
-> file reads **exactly one commit behind immediately after a checkpoint**. That is the mechanism,
-> not drift. **Do not put a commit sha in this block:** naming one is what made two earlier versions
-> of this paragraph rot, each falsified by the very run it described.
->
-> **For the fuller picture** read [`CONTEXT.md`](CONTEXT.md) § Active work → HANDOFF: the inbox
-> triage is **done** (2026-08-10, PRs #136/#137/#138 — 52 entries → 50 dispositioned + 2 standing,
-> `B92` filed, 13 rows added to `BACKLOG.md`, `D-BR0810-1…3`), and `B46` is **dismissed** (#140).
-> **The routing further down this file that sends the inbox triage to `M5.E14` is historical**
-> (`D-M5E17-3` cut it there when nothing else had a home for it); it ran in the fix lane instead.
 
 ## Resume pointer
 
@@ -419,6 +353,7 @@ Three documents corrected, each pinned by a test comparing one document against 
 **New this release:** **CI** (`.github/workflows/test.yml`) — Signal had none. Its first run caught a latent dependency nothing had stated: the suite walks real git history, and `actions/checkout` shallow-clones by default.
 
 ## In-flight
+- [carried from M5.E10] > (`D-BR0809-1`, `D-BR0809-2`) is open; `M5.E19`'s four-phase ledger archived cleanly to
 
 **▶ `M5.E10` — review hardening / claim integrity — opened 2026-08-11. DISCUSS + PLAN closed; next is EXECUTE wave 1 (`S1`).** Shipping it
 **closes Milestone 5** (`D-BR0809-2`). Running at the project's **FULL / strict** (no Epic-scoped
@@ -485,6 +420,7 @@ None.
 None currently open.
 
 ## Closed work
+- M5.E10 — evicted to .planning/archive/M5/E10/STATE-NARRATIVE.md · card: M5.E10-RETROSPECTIVE.md
 
 - **M5.E8** (The measurement foundation) — SHIPPED as **v0.1.13** (2026-07-28). The adherence harness + the published coverage ceiling (**91/407 = 22.4%** trace-measurable). First verdict: `B41-phase-entry` **OBEYED** (3/3 vs 0/3). 1652→1736 tests; VERIFY PASS (28 ACs); REVIEW PASS-WITH-FIXES (1 Critical — the source commit was captured after the run, defeating `--combine`'s pairing guard). New: **B48** (P2, live), **B49** (P3, fixed). → [M5.E8-RETROSPECTIVE.md](M5.E8-RETROSPECTIVE.md).
 - **M5.E9** (Linear mode & the phase ledger) — SHIPPED as **v0.1.12** (2026-07-27), **ran ahead of E8** (D-M5E9-2). Closed B41–B45; `[BREAKING]` `completed_phases` became an append-only trimming log. 1623→1652 tests. → [M5.E9-RETROSPECTIVE.md](M5.E9-RETROSPECTIVE.md).

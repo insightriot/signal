@@ -732,7 +732,7 @@ byte-identical code).
   falsifier exists to prevent.** *This is also the canonical instance of the `B39` fix's second
   half — a checked-and-declined condition must be distinguishable from an unchecked one.*
 
-### ▶ M5.E10 — Review hardening · **NEXT (confirmed 2026-08-09, `D-BR0809-1`)**
+### ~~▶ M5.E10 — Review hardening · **NEXT (confirmed 2026-08-09, `D-BR0809-1`)**~~ · **DONE — v0.1.25, 2026-08-13**
 
 > ⚠ **CORRECTED 2026-08-13, at this Epic's own REVIEW.** Four sub-bullets below read
 > ***"✅ DISCHARGED — `v0.1.23` (M5.E10), 2026-08-12"***. **Both halves were false.** `v0.1.23`

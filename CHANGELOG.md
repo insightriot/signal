@@ -6,6 +6,96 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.25] — 2026-08-13 — claim integrity: the checks, and what they cannot see
+
+**`M5.E10`. Shipping this closes Milestone 5.** Seven deterministic checks for one defect class —
+**completeness claims written from the shape of the work rather than from the artifact** — plus the
+number that matters more than the count of checks.
+
+### Read this before the feature list
+
+**"Seven checks shipped" is not an honest summary.** Measured read-only across twelve real local
+projects ([`M5.E10-CORPUS-MEASUREMENT.md`](.planning/M5.E10-CORPUS-MEASUREMENT.md)):
+
+| Check | Can evaluate |
+|---|---|
+| Correction protocol | **12 / 12** |
+| VERIFICATION template gate | **10 / 12** |
+| STATE narrative vs frontmatter | 5 / 12 |
+| VALIDATION self-consistency | 3 / 12 |
+| **Requirement-coverage diff** (the flagship) | **2 / 12** |
+| Retro-index freshness | 2 / 12 |
+| **Backlog discharge** | **1 / 12** |
+
+**One check works everywhere. One nearly everywhere. Five apply to between 1 and 5 of twelve** —
+because they need document conventions most projects do not have. Signal's own repository is in the
+minority on every one of those five, and on the last it is the *entire* majority. Those are
+**could-not-look** numbers, not found-nothing-wrong numbers, and every check says which.
+
+The integers also **move between runs** — one read 5, then 4, then 5 across two days — because the
+corpus is twelve *live* projects. The measurement is a dated snapshot; the stable claims are the
+shapes.
+
+### Added
+
+- **A deterministic requirement-coverage diff.** Every requirement id in a REQUIREMENTS artifact must
+  appear in the matching VERIFICATION; absent is red, and absent ones are **named**, never counted.
+  The denominator is **derived by id-group correspondence**, not assumed — a project-scoped
+  REQUIREMENTS diffed naively against a unit-scoped VERIFICATION reports every other unit's
+  requirements as missing, which is the defect class wearing a red wall.
+- **A VERIFICATION template with a locked shape and a mandatory limits section.** A denominator table
+  (`{n} of {total}`, never a bare count) and a required *"What this could not establish"*. An unfilled
+  template **fails** — copying it is not shipping it. Present-but-empty fails as hard as absent.
+- **VALIDATION self-consistency, retro-index freshness, and a STATE narrative check.** Each reports
+  **three** outcomes; *"could not evaluate"* never renders as *"clean."*
+- **A correction protocol** enforced at line granularity, because `grep` prints one line and a
+  correction three lines below is invisible to the reading that matters.
+- **`/sig:ship` §6.6 — the backlog can finally record that a row's work shipped (`B94`).** It was
+  append-only: two write paths, no discharge function, and SHIP reconciling five document surfaces
+  while touching the queue in none of them. The discharge rewrites the **heading a reader sees**, not
+  a hidden marker — an HTML comment leaves the rendered document asserting the same false thing.
+  Ambiguous matches **refuse** rather than striking the wrong row.
+- **`references/anti-rationalization-forms.md`** — 109 entries classified (93 discipline, 16 shaping);
+  the 15 output-shape prohibitions became recipes. The page is re-derived by a test in **both**
+  directions.
+- **`references/agent-reachability.md`** — **22 of 26 agents are dispatched by no command.** Documented
+  rather than quietly left; `plan.md` names four research agents and **three do not exist**.
+
+### Fixed
+
+- **`B97` (P1) — private project names in a public repository.** The guard covering that rule knew
+  **5 of 13** corpus projects, so eight stayed named in ~30 tracked files and this Epic **added one**.
+  113 replacements; all 13 now denied in two match modes. **The residual hole is stated, not claimed
+  away:** three names are ordinary English words and are caught only in project shape.
+- **`B98`** — all 13 corpus labels pinned by hash. Previously `F` onward came from list position, so
+  adding one project renamed every unpinned one. **References to `eval-project-F`+ written before
+  2026-08-13 may not name the same project they name today.**
+- **`B95`** — the retrospective index sorted by file mtime, which git does not store, so any clone
+  reported drift. Sorted by Epic ID. *(The proposed fix — each retro's own `**Closed:**` date — was
+  measured out first: 3 of 28 retros carry one.)*
+- **`B96`** — a blockquoted heading was invisible to Epic-close eviction, which reported `no-section`
+  — documented as *"a safe no-op."* Safe, but not a no-op.
+- Five defects found by an independent review, each reproduced before being accepted: a bare decimal
+  in a Notes cell became a requirement id (and **blocked the VERIFY phase on a contradiction it
+  invented**); the denominator gate was satisfied by `Node 22/24` anywhere in the document; a stale
+  backlog row hid ten unreadable ones; a live row followed by a `<details>` block **vanished
+  entirely**; and a `DEFERRED` marker in one table cell silenced an unmapped requirement in another.
+
+### The Epic's own verification failed its own check, and that is left standing
+
+`M5.E10-VERIFICATION.md`'s first draft wrote requirement ranges (`AC2.1–2.3`) and asserted **"56 of
+56, none missing."** The coverage diff returned **six missing** — every one an id that exists only
+inside an en-dash range. The same draft was wrong about the denominator in two further ways.
+
+Three false completeness claims, in the verification report of the Epic chartered to kill that class,
+written by the author of the check that caught them. The refutation is a boxed note in the shipped
+artifact rather than a silent correction.
+
+**Still not built, and named so nobody concludes otherwise:** the **semantic backstop**. Everything
+here compares *tokens*. A VERIFICATION naming every requirement, carrying a denominator and filling
+every section, whose evidence column is simply wrong about what the tests assert, passes all seven
+checks.
+
 ## [0.1.24] — 2026-08-09 — the unreached mechanism — five rules that now check themselves
 
 **One defect class, five instances, named before it was fixed: the unreached mechanism.** Signal kept building a capability, writing down the rule that should invoke it, and shipping — with nothing that reaches for it. Correctness then rests on the operator already knowing. `UNREACHED-MECHANISM-ANALYSIS.md` argues Signal's habitual answer to *"the rule wasn't followed"* is to write the rule more carefully, and `B75` already measured that ceiling: `light` and `strict` differ by **one boolean** in code. So every fix in this release is a **check that fires where the situation is**, not a paragraph.

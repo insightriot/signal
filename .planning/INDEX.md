@@ -255,6 +255,7 @@
 - [archive/M5/E1/M5.E1-SHIP.md](archive/M5/E1/M5.E1-SHIP.md) — `other` — _(note pending)_
 - [archive/M5/E1/M5.E1-VALIDATION.md](archive/M5/E1/M5.E1-VALIDATION.md) — `other` — _(note pending)_
 - [archive/M5/E1/M5.E1-VERIFICATION.md](archive/M5/E1/M5.E1-VERIFICATION.md) — `other` — _(note pending)_
+- [archive/M5/E10/STATE-NARRATIVE.md](archive/M5/E10/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/E13/STATE-NARRATIVE.md](archive/M5/E13/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/E15/STATE-NARRATIVE.md](archive/M5/E15/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/E16/STATE-NARRATIVE.md](archive/M5/E16/STATE-NARRATIVE.md) — `other` — _(note pending)_
