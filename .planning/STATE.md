@@ -1,13 +1,14 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: EXECUTE
+phase: VERIFY
 current_epic: M5.E10
 current_wave: null
 current_tasks: []
 completed_phases:
   - DISCUSS (2026-08-12)
   - PLAN (2026-08-12)
+  - EXECUTE (2026-08-13)
 blockers: []
 last_completed_task:
   id: S4.t1
@@ -16,13 +17,13 @@ last_completed_task:
   completedAt: 2026-08-13T14:47:23.449Z
 last_decision_at: 2026-08-13T14:47:23.449Z
 last_updated_commit: 4e3bfe5cda9f2c872056e3e41aca5ef37247da9f
-last_updated: 2026-08-13T16:27:56.715Z
+last_updated: 2026-08-13T16:29:50.373Z
 ---
 # Project State
 
 > ## ▶ IN FLIGHT — `M5.E10`, opened 2026-08-11. The frontmatter is now authoritative again.
 >
-> **`phase: EXECUTE` / `current_epic: M5.E10` are correct.** The Epic that closes **Milestone 5**
+> **`phase: VERIFY` / `current_epic: M5.E10` are correct.** The Epic that closes **Milestone 5**
 > (`D-BR0809-1`, `D-BR0809-2`) is open; `M5.E19`'s four-phase ledger archived cleanly to
 > [`archive/M5/E19/STATE-NARRATIVE.md`](archive/M5/E19/STATE-NARRATIVE.md) on the roll.
 >

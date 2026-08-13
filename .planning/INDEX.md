@@ -20,7 +20,9 @@
 - [DECISIONS.md](DECISIONS.md) — `append-log` — Architectural decision log (append-only, `D-…-n` IDs). Post-eviction at docs-layout v3 it keeps only the recent/live tail (date-cutoff — currently M5.E1–E3 + M4.5.E11); older decisions relocated verbatim to `archive/milestones/DECISIONS.md` (M1–M4) + `archive/M4.5/DECISIONS.md` (M4.5 through 2026-07-13) behind dated EOF pointers. Resolve a `D-ID` to its home via `/sig:index`.
 - [ISSUES-INBOX.md](ISSUES-INBOX.md) — `other` — The capture inbox (renamed from `FUTURE-IDEAS.md` at docs-layout v3). Raw `/sig:add` captures land here; `/sig:plan` drains + classifies them into `BACKLOG.md` (work) or `BUGS.md` (defects); also holds the standing trigger WATCHLIST. Large + append-heavy — grep/TOC, don't load whole.
 - [M4.5.E5-LAUNCH-KIT.md](M4.5.E5-LAUNCH-KIT.md) — `other` — Internal launch-ops doc from M4.5.E5 (version rubric · release-notes draft · tester-handoff checklist §3 · distribution channels). Not user-facing, not validator-registered; still in root pending archive.
+- [M5.E10-CORPUS-MEASUREMENT.md](M5.E10-CORPUS-MEASUREMENT.md) — `other` — _(note pending)_
 - [M5.E10-PLAN.md](M5.E10-PLAN.md) — `other` — _(note pending)_
+- [M5.E10-PROGRESS.md](M5.E10-PROGRESS.md) — `other` — _(note pending)_
 - [M5.E10-REQUIREMENTS.md](M5.E10-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M5.E10-RESEARCH.md](M5.E10-RESEARCH.md) — `other` — _(note pending)_
 - [M5.E10-VALIDATION.md](M5.E10-VALIDATION.md) — `other` — _(note pending)_
