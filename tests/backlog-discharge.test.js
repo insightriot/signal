@@ -413,3 +413,20 @@ describe('a done-word in prose is not a status marker', () => {
     expect(rows[0].dischargedBy).toBe('v0.1.12');
   });
 });
+
+describe('REVIEW findings — the leading-id matcher (M5.E10 REVIEW)', () => {
+  it('does not backtrack catastrophically on a heavily decorated heading', () => {
+    // Found at REVIEW: the first LEADING_ID_RE used two adjacent unbounded
+    // decoration runs, which backtrack quadratically on a NON-matching heading.
+    // Measured 3.9s on 50k backticks, inside a check /sig:sweep runs over every
+    // heading in the file. Bounded runs make it linear.
+    const start = Date.now();
+    parseBacklogRows(['# Backlog', '', '### ' + '`'.repeat(200_000) + 'x', '', 'body', ''].join('\n'));
+    expect(Date.now() - start).toBeLessThan(1000);
+  });
+
+  it('still reads a real decorated heading', () => {
+    const rows = parseBacklogRows(['# Backlog', '', '### 1. ~~`B52` — thing~~ · **DONE, v0.1.20**', '', 'x', ''].join('\n'));
+    expect(rows[0].leadingId).toBe('B52');
+  });
+});

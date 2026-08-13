@@ -29,7 +29,7 @@
 // group reads as out-of-scope. That is why `unattributableGroups` is on the
 // record and reported by count, never passed over.
 
-import { extractRequirementIds, groupOf, dropGroupLabels } from './requirement-ids.js';
+import { extractRequirementIds, groupOf, dropGroupLabels, canonicalId } from './requirement-ids.js';
 
 /** @enum {string} */
 export const COVERAGE = Object.freeze({
@@ -114,15 +114,24 @@ export function diffRequirementCoverage(input) {
   const unattributableGroups = declaredGroups.filter((g) => !inScope.includes(g)).sort();
 
   // --- the diff -------------------------------------------------------------
-  const deferredDeclared = deferredIds(requirementsText);
-  const verifiedSet = new Set(verified);
+  //
+  // Matching is on the CANONICAL spelling; what gets REPORTED is the original.
+  // `AC-16.1` and `AC16.1` are one requirement, and a check that called the
+  // second a missing requirement would produce a red wall derived from
+  // punctuation — this module's own stated failure mode, one layer down. Its
+  // sibling `checkValidationConsistency` was built from the same extractor in
+  // the same slice and has canonicalized since it shipped; this half did not,
+  // and the asymmetry is what S1 exists to prevent. Found at REVIEW.
+  const deferredDeclared = new Set([...deferredIds(requirementsText)].map(canonicalId));
+  const verifiedSet = new Set(verified.map(canonicalId));
+  const isVerified = (id) => verifiedSet.has(canonicalId(id));
 
-  const covered = denominator.filter((id) => verifiedSet.has(id));
-  const unverified = denominator.filter((id) => !verifiedSet.has(id));
+  const covered = denominator.filter(isVerified);
+  const unverified = denominator.filter((id) => !isVerified(id));
   // A deferred requirement that WAS verified is covered, not deferred: the
   // document deferring it does not un-verify the evidence.
-  const deferred = unverified.filter((id) => deferredDeclared.has(id));
-  const missing = unverified.filter((id) => !deferredDeclared.has(id));
+  const deferred = unverified.filter((id) => deferredDeclared.has(canonicalId(id)));
+  const missing = unverified.filter((id) => !deferredDeclared.has(canonicalId(id)));
 
   return {
     outcome: missing.length > 0 ? COVERAGE.MISSING : COVERAGE.COVERED,

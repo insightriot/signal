@@ -257,8 +257,15 @@ const VERSION_RE = /\bv\d+\.\d+(?:\.\d+)?\b/;
 const UNIT_ID_RE = /\bM\d+(?:\.\d+)?\.E\d+\b/;
 // The id a row LEADS with, past the decoration real headings carry: an ordinal
 // (`1. `), a status glyph, backticks, bold, strikethrough.
+//
+// **Both decoration runs are BOUNDED, and that is a fix rather than a style.**
+// Written first as `[…]*(?:\d+\.\s*)?[…]*`, two adjacent overlapping star-runs
+// backtrack quadratically on a non-matching heading: measured at REVIEW, a line
+// of 50,000 backticks took **3.9 seconds** inside `parseBacklogRows`, and
+// `/sig:sweep` runs this over every heading in the file. Real heading decoration
+// is a handful of characters, so a bound costs nothing and removes the class.
 const LEADING_ID_RE =
-  /^[\s`*_~✅▶⚠✂]*(?:\d+\.\s*)?[\s`*_~]*((?:M\d+(?:\.\d+)?\.E\d+)|(?:B\d+))\b/;
+  /^[\s`*_~✅▶⚠✂]{0,40}(?:\d+\.\s{0,4})?[\s`*_~]{0,10}((?:M\d+(?:\.\d+)?\.E\d+)|(?:B\d+))\b/;
 
 /**
  * Whether a heading records its own closure, and what it records.

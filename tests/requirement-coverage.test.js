@@ -213,3 +213,30 @@ describe('AC1.5 — the field case', () => {
     expect(r.unattributableGroups).toContain('NFR-10');
   });
 });
+
+describe('REVIEW finding — one requirement, two spellings (M5.E10 REVIEW)', () => {
+  it('`AC-16.1` in REQUIREMENTS is covered by `AC16.1` in VERIFICATION', () => {
+    // Found at REVIEW: this module compared raw strings while its sibling
+    // checkValidationConsistency — same extractor, same slice — canonicalized.
+    // A punctuation variant reported `missing`, which is a red wall derived
+    // from spelling: this module's own stated failure mode one layer down.
+    const r = diffRequirementCoverage({
+      requirementsText: '# R\n\n- **AC-16.1** a\n- **AC-16.2** b\n',
+      verificationText: '# V\n\n| AC16.1 | x |\n| AC-16.2 | y |\n',
+    });
+    expect(r.outcome).toBe(COVERAGE.COVERED);
+    expect(r.missing).toEqual([]);
+    // Reported in the ORIGINAL spelling — an id the reader cannot find in
+    // their own file is worse than no report.
+    expect(r.covered).toEqual(['AC-16.1', 'AC-16.2']);
+  });
+
+  it('a deferred id matches across spellings too', () => {
+    const r = diffRequirementCoverage({
+      requirementsText: '# R\n\n- ~~AC-16.3~~ deferred out of the unit\n- **AC-16.1** a\n',
+      verificationText: '# V\n\n| AC16.1 | x |\n',
+    });
+    expect(r.outcome).toBe(COVERAGE.COVERED);
+    expect(r.deferred).toEqual(['AC-16.3']);
+  });
+});
