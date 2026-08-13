@@ -243,11 +243,11 @@ describe('backlogDischargeStatus — three outcomes (AC9.4, NFR4)', () => {
     expect(res.reason).toMatch(/no .*row/i);
   });
 
-  it('a backlog naming units, in a project recording no closures, is CANNOT-EVALUATE', async () => {
-    await write(BACKLOG_REL, HAND_GROOMED); // no retros, no BUGS.md
+  it('a backlog naming units, in a project whose closure records are unreadable, is CANNOT-EVALUATE', async () => {
+    await write(BACKLOG_REL, HAND_GROOMED); // no STATE.md, no BUGS.md
     const res = await backlogDischargeStatus(dir);
     expect(res.outcome).toBe(BACKLOG_DISCHARGE.CANNOT_EVALUATE);
-    expect(res.reason).toMatch(/closed/i);
+    expect(res.reason).toMatch(/closure could not be read/i);
   });
 
   it('no BACKLOG.md at all is CANNOT-EVALUATE with its own reason', async () => {
@@ -354,5 +354,62 @@ describe('a row may declare itself open on purpose', () => {
     // how a detector earns the mute that makes it useless. Found by running the
     // check against Signal's own file, not by a fixture.
     expect((await backlogDischargeStatus(dir)).outcome).toBe(BACKLOG_DISCHARGE.CLEAN);
+  });
+});
+
+describe('one blind source is not the other source reporting zero', () => {
+  it('an Epic-named row is CANNOT-EVALUATE when unit closure is unknowable, even with a readable BUGS.md', async () => {
+    // `M5.E19`'s defect verbatim: a report taking its plan from the half that
+    // cannot see an unreadable STATE.md and its refusals from the half that can.
+    // With no STATE.md every unit resolves cannotDetermine, so a merged
+    // "is this id closed?" map made a MISSING answer look like a NO — and a
+    // readable BUGS.md kept the map non-empty, so the check said `clean`.
+    await writeFile(join(dir, BACKLOG_REL), ['# Backlog', '', '### M5.E9 — Overdue enforcement', '', 'Body.', ''].join('\n'), 'utf-8');
+    await writeFile(join(dir, '.planning/BUGS.md'), '# Bugs\n\n| ID | Status |\n|---|---|\n| B1 | `fixed` |\n', 'utf-8');
+
+    const res = await backlogDischargeStatus(dir);
+    expect(res.outcome).toBe(BACKLOG_DISCHARGE.CANNOT_EVALUATE);
+    expect(res.blind).toHaveLength(1);
+    expect(res.blind[0].source).toBe('unit closure');
+  });
+
+  it('a bug-named row is CANNOT-EVALUATE when there is no bug catalog, even with readable unit closure', async () => {
+    await writeFile(join(dir, '.planning/STATE.md'), STATE_MD, 'utf-8');
+    await writeFile(join(dir, '.planning/M5.E9-VERIFICATION.md'), VERIFICATION_PASS, 'utf-8');
+    await writeFile(join(dir, BACKLOG_REL), ['# Backlog', '', '### B7 — something', '', 'Body.', ''].join('\n'), 'utf-8');
+
+    const res = await backlogDischargeStatus(dir);
+    expect(res.outcome).toBe(BACKLOG_DISCHARGE.CANNOT_EVALUATE);
+    expect(res.blind[0].source).toBe('BUGS.md');
+  });
+
+  it('a real stale row still reports STALE while another row is blind', async () => {
+    await writeFile(join(dir, '.planning/STATE.md'), STATE_MD, 'utf-8');
+    await writeFile(join(dir, '.planning/M5.E9-VERIFICATION.md'), VERIFICATION_PASS, 'utf-8');
+    await writeFile(join(dir, BACKLOG_REL), ['# Backlog', '', '### M5.E9 — done work', '', 'a', '', '### B7 — unknowable', '', 'b', ''].join('\n'), 'utf-8');
+
+    const res = await backlogDischargeStatus(dir);
+    expect(res.outcome).toBe(BACKLOG_DISCHARGE.STALE);
+    expect(res.stale).toHaveLength(1);
+    expect(res.blind).toHaveLength(1); // reported alongside, never folded into "clean"
+  });
+});
+
+describe('a done-word in prose is not a status marker', () => {
+  it('"Get the migration done" is a LIVE row, not a discharged one', () => {
+    // Measured on the real BACKLOG.md: 4 headings carry a done-word that is
+    // neither bold nor struck, and all 4 are prose — "what shipped", "after
+    // v0.1.19 shipped", "shipped but never run", "open/closed work". Two are
+    // live rows the check was silently skipping, which is a false NEGATIVE and
+    // therefore the half nobody notices.
+    const rows = parseBacklogRows(['# Backlog', '', '### M5.E9 — get the migration done', '', 'a', ''].join('\n'));
+    expect(rows[0].discharged).toBe(false);
+    expect(rows[0].leadingId).toBe('M5.E9');
+  });
+
+  it('a bold marker still discharges', () => {
+    const rows = parseBacklogRows(['# Backlog', '', '### M5.E9 — thing · **DONE, v0.1.12**', '', 'a', ''].join('\n'));
+    expect(rows[0].discharged).toBe(true);
+    expect(rows[0].dischargedBy).toBe('v0.1.12');
   });
 });

@@ -39,7 +39,7 @@ import {
 } from './doc-hygiene.js';
 import { enumerateRetros, parseExistingHooks, renderIndex } from './retro-index.js';
 import { runDriftChecks, renderDriftReport, STATE_DRIFT_CHECKS } from './state-drift.js';
-import { backlogDischargeStatus, BACKLOG_DISCHARGE } from './backlog.js';
+import { backlogDischargeStatus, BACKLOG_DISCHARGE, REASON_NO_BACKLOG } from './backlog.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -253,7 +253,7 @@ export async function checkBacklogDischarge(baseDir) {
     ];
   }
   if (result.outcome === BACKLOG_DISCHARGE.CANNOT_EVALUATE) {
-    if (result.reason.startsWith('no BACKLOG.md')) return [];
+    if (result.reason === REASON_NO_BACKLOG) return [];
     return [mkFinding('backlog-discharge', 'advisory', rel, result.reason)];
   }
   return [];

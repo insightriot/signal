@@ -214,6 +214,15 @@ export const ROW_DISCHARGE = Object.freeze({
   AMBIGUOUS: 'ambiguous',
 });
 
+/**
+ * The one un-evaluable reason `/sig:sweep` renders as silence rather than a
+ * finding. EXPORTED and compared by equality, never by prefix: a reworded string
+ * would silently turn the sweep noisy on the 8 of 12 corpus projects that keep no
+ * backlog, and nothing would fail. `REASON_GREENFIELD` in `sweep.js` solved the
+ * same problem the same way.
+ */
+export const REASON_NO_BACKLOG = 'no BACKLOG.md — this project keeps no queue here';
+
 /** The `/sig:sweep` check's three outcomes (NFR4). */
 export const BACKLOG_DISCHARGE = Object.freeze({
   CLEAN: 'clean',
@@ -222,7 +231,15 @@ export const BACKLOG_DISCHARGE = Object.freeze({
 });
 
 const STRUCK_RE = /~~[^~]+~~/;
-const DONE_WORD_RE = /\b(DONE|SHIPPED|ABANDONED|CLOSED|CUT|RESOLVED)\b/i;
+// The done-word must sit inside a **bold status marker**, not merely somewhere in
+// the heading. `/\bDONE\b/i` matches ordinary English: measured on the real file,
+// 4 headings carry a done-word that is neither bold nor struck and ALL FOUR are
+// prose — *"what shipped"*, *"after v0.1.19 shipped"*, *"shipped but never run"*,
+// *"open/closed work"*. Two of them are live rows the check was therefore
+// skipping in silence, which is a false negative rather than a false alarm and so
+// the harder one to notice. Zero of the 26 genuinely-closed rows lose their
+// marker under this rule: every one is struck, bolded, or both.
+const DONE_WORD_RE = /\*\*[^*]{0,80}?\b(DONE|SHIPPED|ABANDONED|CLOSED|CUT|RESOLVED)\b/i;
 // "PARTIALLY SHIPPED" / "largely DONE" assert OPEN work. The qualifier is
 // stripped before the done-word test rather than special-cased after it, so a
 // row carrying both a qualified and an unqualified marker still reads closed.
@@ -260,7 +277,7 @@ function readRowDischarge(text) {
 
   // Look for the attribution AFTER the marker: a row named `B52` in its title
   // and discharged by `v0.1.20` must not report `B52` as the discharger.
-  const from = doneMatch ? unqualified.indexOf(doneMatch[0]) + doneMatch[0].length : 0;
+  const from = doneMatch ? doneMatch.index + doneMatch[0].length : 0;
   const tail = unqualified.slice(from);
   const by = tail.match(VERSION_RE) ?? tail.match(UNIT_ID_RE);
   const at = tail.match(ISO_DATE_RE) ?? text.match(ISO_DATE_RE);
@@ -429,7 +446,7 @@ export async function backlogDischargeStatus(baseDir) {
     ...extra,
   });
 
-  if (!existsSync(path)) return cannot(`no BACKLOG.md — this project keeps no queue here`);
+  if (!existsSync(path)) return cannot(REASON_NO_BACKLOG);
 
   let content;
   try {
@@ -459,18 +476,46 @@ export async function backlogDischargeStatus(baseDir) {
     );
   }
 
-  const closed = await readClosedUnits(baseDir);
-  if (closed === null) return cannot('closure records could not be read', counts);
-  if (closed.size === 0) {
-    return cannot('the project records no closed unit this check can read', counts);
-  }
+  // Closure comes from TWO sources answering two different id families, and the
+  // blindness of one is not the silence of the other. Asking a single merged
+  // map "is this id closed?" made a MISSING answer indistinguishable from a NO:
+  // with no readable STATE.md every unit resolves `cannotDetermine`, so Epic
+  // closure was unknowable while a readable BUGS.md kept the map non-empty and
+  // the check reported **clean** on Epic-named rows. That is `M5.E19`'s defect
+  // verbatim — a report taking its answer from the half that cannot see an
+  // unreadable STATE.md — reproduced inside the release whose NFR4 forbids it.
+  const { units, bugs, blind: blindSources } = await readClosureSources(baseDir);
 
   const stale = [];
+  const blind = [];
   for (const row of candidates) {
     if (row.discharged) continue; // already records its own closure
     if (HELD_OPEN_RE.test(row.text)) continue; // declared open on purpose
-    const evidence = closed.get(row.leadingId);
-    if (evidence) stale.push({ heading: row.text, line: row.line, id: row.leadingId, evidence });
+
+    const isBug = /^B\d+$/.test(row.leadingId);
+    const source = isBug ? bugs : units;
+    if (source === null) {
+      blind.push({ heading: row.text, line: row.line, id: row.leadingId, source: isBug ? 'BUGS.md' : 'unit closure' });
+      continue;
+    }
+    const verdict = source.get(row.leadingId);
+    if (verdict === undefined) {
+      // The id names nothing this source records. For a UNIT that is a real
+      // answer — `resolveUnitClosure` calls a unit with no terminal artifact
+      // open. For a BUG it is not: the catalog is the whole population, so an
+      // id missing from it is one the check could not look up.
+      if (isBug) blind.push({ heading: row.text, line: row.line, id: row.leadingId, source: 'BUGS.md' });
+      continue;
+    }
+    if (verdict.closed) stale.push({ heading: row.text, line: row.line, id: row.leadingId, evidence: verdict.reason });
+  }
+
+  if (stale.length === 0 && blind.length > 0) {
+    const why = [...new Set(blind.map((b) => b.source))].join(' and ');
+    return cannot(
+      `${blind.length} row(s) name work whose closure could not be read (${why}${blindSources.length ? ` — ${blindSources.join('; ')}` : ''})`,
+      { ...counts, blind }
+    );
   }
 
   return {
@@ -478,51 +523,65 @@ export async function backlogDischargeStatus(baseDir) {
     reason: null,
     ...counts,
     stale,
+    blind,
   };
 }
 
 /**
- * Every unit id this project records as finished → why it is considered so.
+ * The two closure sources, kept apart.
  *
- * Two sources, both existing. `resolveClosures` owns Epic/unit closure;
- * `walkBugEntries` owns the bug catalog. Returns null only if BOTH reads throw,
- * which is a blind check rather than an empty one.
+ * `resolveClosures` owns unit closure — including the current-unit exclusion and
+ * `B64`'s stub-retrospective veto — and `walkBugEntries` owns the bug catalog.
+ * A source that could not answer returns **null**, never an empty map: an empty
+ * map says "nothing is closed", which is a result, and a null says "I could not
+ * look", which is not. Collapsing the two is the whole defect class.
  *
  * **A stated limit:** `resolveClosures` derives units from the LIVE `.planning/`
- * tree, so a row naming an already-archived unit resolves to nothing and is
- * never flagged. That is a miss, not a false clean — it lands in `resolvable`
- * either way, and widening it means teaching the closure resolver to read the
- * archive, which is that module's decision to make, not this one's.
+ * tree, so a row naming an already-archived unit finds no entry and is read as
+ * open. That is a miss rather than a false clean, and widening it means teaching
+ * the closure resolver to read the archive — that module's decision, not this one's.
+ *
+ * @returns {Promise<{units: Map|null, bugs: Map|null, blind: string[]}>}
  */
-async function readClosedUnits(baseDir) {
-  const closed = new Map();
-  let anyRead = false;
+async function readClosureSources(baseDir) {
+  const blind = [];
+  let units = null;
+  let bugs = null;
 
   try {
     const { resolveClosures, CLOSURE } = await import('./closure.js');
     const res = await resolveClosures(baseDir);
-    anyRead = true;
-    for (const u of res.units) {
-      if (u.status === CLOSURE.CLOSED) closed.set(u.unit, u.reason);
+    if (!res.stateReadable) {
+      // Every unit came back `cannotDetermine` for one project-wide reason.
+      blind.push(res.reason ?? 'unit closure is unknowable');
+    } else {
+      units = new Map();
+      for (const u of res.units) {
+        if (u.status === CLOSURE.CANNOT_DETERMINE) continue; // no answer for this unit
+        units.set(u.unit, { closed: u.status === CLOSURE.CLOSED, reason: u.reason });
+      }
     }
-  } catch {
-    /* one blind source; the bug catalog may still answer */
+  } catch (err) {
+    blind.push(`unit closure could not be resolved — ${err.message}`);
   }
 
   try {
     const { walkBugEntries } = await import('./bugs-tally.js');
-    const bugs = await readFile(join(baseDir, BUGS_REL), 'utf-8');
-    anyRead = true;
-    for (const e of walkBugEntries(bugs)) {
+    const content = await readFile(join(baseDir, BUGS_REL), 'utf-8');
+    bugs = new Map();
+    for (const e of walkBugEntries(content)) {
       if (e.kind !== 'row' || !e.id) continue;
-      if (e.status === 'fixed') closed.set(e.id, `BUGS.md records ${e.id} fixed`);
-      else if (e.status === 'dismissed') closed.set(e.id, `BUGS.md records ${e.id} dismissed`);
+      if (e.status === null) continue; // unreadable status cell — no answer
+      bugs.set(e.id, {
+        closed: e.status === 'fixed' || e.status === 'dismissed',
+        reason: `BUGS.md records ${e.id} ${e.status}`,
+      });
     }
-  } catch {
-    /* no BUGS.md, or unreadable */
+  } catch (err) {
+    blind.push(`the bug catalog could not be read — ${err.message}`);
   }
 
-  return anyRead ? closed : null;
+  return { units, bugs, blind };
 }
 
 /** The minimal BUGS.md skeleton used only when a promote must create it. */
