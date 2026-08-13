@@ -4,24 +4,19 @@ docs_layout_version: 3
 phase: EXECUTE
 current_epic: M5.E10
 current_wave: null
-current_tasks:
-  - id: S4.t1
-    epic: M5.E10
-    wave: 3
-    status: in_progress
-    startedAt: 2026-08-12T16:33:49.026Z
+current_tasks: []
 completed_phases:
   - DISCUSS (2026-08-12)
   - PLAN (2026-08-12)
 blockers: []
 last_completed_task:
-  id: S6.t2
+  id: S4.t1
   status: done
-  commit: null
-  completedAt: 2026-08-12T18:43:35.468Z
-last_decision_at: 2026-08-12T18:43:35.468Z
-last_updated_commit: 5086fba
-last_updated: 2026-08-12T18:43:35.469Z
+  commit: 5b35110
+  completedAt: 2026-08-13T14:47:23.449Z
+last_decision_at: 2026-08-13T14:47:23.449Z
+last_updated_commit: ee65ccd2b58e94005457e905ac785b2dce0b242d
+last_updated: 2026-08-13T14:47:50.844Z
 ---
 # Project State
 
@@ -31,13 +26,23 @@ last_updated: 2026-08-12T18:43:35.469Z
 > (`D-BR0809-1`, `D-BR0809-2`) is open; `M5.E19`'s four-phase ledger archived cleanly to
 > [`archive/M5/E19/STATE-NARRATIVE.md`](archive/M5/E19/STATE-NARRATIVE.md) on the roll.
 >
-> **DISCUSS and PLAN are both closed. Next action: EXECUTE, wave 1 = `S1`.**
+> **DISCUSS, PLAN and all four EXECUTE waves are closed. Next action: `/sig:verify`.**
 >
-> ⚠ **This line said `phase: DISCUSS` until it was corrected at the PLAN close — instance SIX,
-> forming inside the Epic chartered to fix it, four commits after instance five was written up two
-> paragraphs below.** It is not evidence of carelessness; it is the mechanism: `transitionPhase`
-> moves the frontmatter and structurally cannot touch this prose. Every phase transition creates a
-> fresh opportunity, and there have now been two in this Epic alone.
+> **All build work is done** (2026-08-12): S1–S6, 2410 → **2554 tests**. VERIFY is the real dogfood —
+> this Epic's own VERIFICATION artifact has to pass the template gate and the coverage diff it just
+> shipped, or the gate blocks it. Then REVIEW, an independent `/code-review` pass Brett triggers, and
+> SHIP as **v0.1.23**, which closes Milestone 5.
+>
+> **Read [`M5.E10-PROGRESS.md`](M5.E10-PROGRESS.md) first** — it carries every finding, including the
+> ones that falsified the plan.
+>
+> ⚠ **This line said `phase: DISCUSS` at the PLAN close and `Next action: EXECUTE` at the EXECUTE
+> close — instances SIX and EIGHT, both forming inside the Epic chartered to fix them.** It is not
+> carelessness; it is the mechanism: a phase transition moves the frontmatter and structurally cannot
+> touch this prose. **Instance eight is the one the shipped check does not catch** — FR8 reads
+> `phase:` claims beside the Epic id, and *"Next action: EXECUTE"* is neither. The narrow rule was
+> chosen deliberately (a literal reading flagged 62 episodes, most of them false), and this is the
+> cost of that choice, paid immediately and on the record.
 >
 > **The block that used to sit here retired itself, and that is worth keeping.** It read *"do not
 > orient from the frontmatter"* and named its own expiry in the same breath — *"both stay wrong
