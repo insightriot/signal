@@ -430,3 +430,49 @@ describe('REVIEW findings — the leading-id matcher (M5.E10 REVIEW)', () => {
     expect(rows[0].leadingId).toBe('B52');
   });
 });
+
+describe('/code-review findings on M5.E10 (2026-08-13)', () => {
+  it('a live `##` row followed by a <details> holding a `###` is NOT swallowed as a container', () => {
+    // The container fold ran over ALL headings, so the live row was folded
+    // against the `###` inside <details>, and that `###` was then removed by
+    // each call site's inDetails filter — the row vanished entirely. This is
+    // the drain-written shape (rows at `##`), which cannot occur in Signal's
+    // own file, so dogfooding was blind to it. B82's shape.
+    const md = [
+      '# Backlog', '',
+      '## M5.E14 — obligation tracker', '',
+      '**Tag:** roadmap', '', 'Body of the live row.', '',
+      '<details><summary>Original entry</summary>', '',
+      '### M5.E14 — the older framing', '', 'old body.', '',
+      '</details>', '',
+      '*Last updated: 2026-08-01*', '',
+    ].join('\n');
+    const rows = parseBacklogRows(md);
+    const live = rows.filter((r) => !r.inDetails);
+    expect(live.map((r) => r.text)).toEqual(['M5.E14 — obligation tracker']);
+    expect(live[0].leadingId).toBe('M5.E14');
+    expect(rows.filter((r) => r.inDetails)).toHaveLength(1);
+  });
+
+  it('a real container is still folded away', () => {
+    const rows = parseBacklogRows(HAND_GROOMED).filter((r) => !r.inDetails);
+    expect(rows.some((r) => r.text.includes('Next work'))).toBe(false);
+  });
+
+  it('the sweep reports blind rows ALONGSIDE a stale one, never instead of it', async () => {
+    // backlogDischargeStatus returns cannot-evaluate only when nothing is
+    // stale, so one stale row plus ten unreadable ones took the STALE branch
+    // and the renderer printed the one and dropped the ten. B39's shape, one
+    // layer above the AC9.8 fix in the library.
+    await writeFile(join(dir, '.planning/STATE.md'), STATE_MD.replace('M5.E10', 'M5.E99'), 'utf-8');
+    await writeFile(join(dir, '.planning/M5.E9-VERIFICATION.md'), VERIFICATION_PASS, 'utf-8');
+    await writeFile(
+      join(dir, BACKLOG_REL),
+      ['# Backlog', '', '### M5.E9 — shipped work', '', 'a', '', '### B7 — unknowable', '', 'b', ''].join('\n'),
+      'utf-8'
+    );
+    const findings = await checkBacklogDischarge(dir);
+    expect(findings).toHaveLength(2);
+    expect(findings.some((f) => /UNKNOWN, not clean/.test(f.message))).toBe(true);
+  });
+});

@@ -247,3 +247,33 @@ describe('AC S6.3 — the corpus measurement is shipped, per check', () => {
     expect(doc).toMatch(/measures applicability, not correctness/i);
   });
 });
+
+describe('/code-review finding on M5.E10 (2026-08-13) — where the denominator must be', () => {
+  const report = (coverage) => [
+    '## Verdict', '',
+    'PASS. All 22 acceptance criteria pass, so the phase is done and the work is complete.', '',
+    '## Coverage', '',
+    coverage, '',
+    '## What this could not establish', '',
+    'Suite green on Node 22/24 only; other runtimes were not exercised in this pass at all.', '',
+  ].join('\n');
+
+  it('an unfalsifiable coverage claim FAILS even when an unrelated N/M appears elsewhere', () => {
+    // "All 22 acceptance criteria pass" is the exact sentence this gate exists
+    // to reject. It passed, because the limits section said "Node 22/24".
+    const r = validateVerificationContent(
+      report('All 22 acceptance criteria pass. Every one was walked and confirmed against its implementation.'),
+      'SKETCH'
+    );
+    expect(r.valid).toBe(false);
+    expect(r.errors.join(' ')).toMatch(/no denominator found in "## Coverage"/);
+  });
+
+  it('a real denominator in the coverage section passes', () => {
+    const r = validateVerificationContent(
+      report('22 of 22 acceptance criteria pass. Every one was walked and confirmed against its implementation.'),
+      'SKETCH'
+    );
+    expect(r.valid).toBe(true);
+  });
+});

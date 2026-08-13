@@ -87,9 +87,39 @@ function expandRanges(text) {
  * group is unknown or claimed by more than one family.
  */
 function resolveShorthand(text, knownByGroup) {
-  return text.replace(/(^|[^\w.-])(\d+)\.(\d+)\b/g, (whole, lead, group, sub) => {
+  return text.replace(/(^|[^\w.-])(\d+)\.(\d+)\b/g, (whole, lead, group, sub, offset, full) => {
     const families = knownByGroup.get(group);
     if (!families || families.size !== 1) return whole;
+
+    // A WORD adjacent to the decimal means it is prose, not an id.
+    //
+    // Without this, every bare decimal became a requirement id: a Notes cell
+    // reading `took 3.4 seconds` became `AC-3.4`, landed in `mappedNotAssigned`,
+    // and the artifact was reported `inconsistent`. `verify.md` §1b orders this
+    // call on every VERIFY run and treats the result as a FAIL to loop back on,
+    // so the check MANUFACTURED a contradiction and blocked the phase on it —
+    // this module's own stated defect, committed by the module.
+    //
+    // **The obvious fix was measured wrong and is not what shipped.** Restricting
+    // resolution to a row's first cell — the shape a key-position id takes — was
+    // written first and broke the field fixture immediately: `eval-project-C`
+    // writes its dimension-2 assignments inside a NOTES cell
+    // (`AC-16.6→S3, 16.7→S2/S3, … AC-16.1/16.2/16.4/16.5 are …`), so three of the
+    // four expected findings disappeared. Shorthand lives wherever ids are
+    // listed; what it never does is sit against a word.
+    // Prose on BOTH sides, not either: measured against the fixture again. The
+    // list `AC-16.1/16.2/16.4/16.5 are satisfied across S3–S5` ends with a
+    // shorthand id followed by a word, so an either-side rule dropped `16.5`
+    // and the fixture lost a fourth expected finding. An id-list separator on
+    // one side is enough evidence; a word on both sides is prose.
+    //
+    // The residual case is stated rather than hidden: `version 1.2, then …`
+    // resolves, because a comma follows. It needs a group that declares exactly
+    // one sub-numbered family, which is what keeps it narrow.
+    const before = full.slice(0, offset + lead.length).replace(/\s+$/, '');
+    const after = full.slice(offset + whole.length).replace(/^\s+/, '');
+    if (/[A-Za-z]$/.test(before) && /^[A-Za-z]/.test(after)) return whole;
+
     return `${lead}${[...families][0]}-${group}.${sub}`;
   });
 }
@@ -146,6 +176,30 @@ function deferredIds(text) {
   // cuts `AC-16.3` in half and loses the very id the sentence is deferring.
   for (const line of text.split(/\n|;|(?<=[.!?])\s+/)) {
     if (!/\bDEFERRED\b/i.test(line)) continue;
+
+    // A TABLE ROW is not one statement — it is several cells, and the marker
+    // belongs to the cell it sits in. Read whole, a row like
+    // `| AC3.1 | S1 | blocked on AC3.9, which is DEFERRED |` deferred BOTH ids,
+    // silencing `AC3.1` from `assignedNotMapped` while it was genuinely
+    // unmapped: a real contradiction relabelled as a deferral, and a false
+    // NEGATIVE, which this module elsewhere calls the harder half to notice.
+    if (/^\s*\|/.test(line)) {
+      const cells = line.split('|').filter((c) => c.trim() !== '');
+      const marked = cells.filter((c) => /\bDEFERRED\b/i.test(c));
+      const withId = marked.flatMap((c) => extractRequirementIds(c));
+      if (withId.length > 0) {
+        // The marker names its own ids — take exactly those.
+        for (const id of withId) out.add(id);
+      } else {
+        // The marker names none, so it is about the row itself — but only when
+        // the row HAS one subject. `| AC-16.3 | — | DEFERRED out of Phase 11 |`
+        // is the field shape and must keep working; a row citing two ids with a
+        // bare DEFERRED is ambiguous, and guessing is what produced the bug.
+        const rowIds = [...new Set(extractRequirementIds(line))];
+        if (rowIds.length === 1) out.add(rowIds[0]);
+      }
+      continue;
+    }
     for (const id of extractRequirementIds(line)) out.add(id);
   }
   return out;

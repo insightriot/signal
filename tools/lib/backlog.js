@@ -328,8 +328,29 @@ export function parseBacklogRows(content) {
     if (detailsDepth < 0) detailsDepth = 0;
   });
 
+  // The container fold runs over LIVE headings only, and the ordering is the fix.
+  //
+  // Folded over every heading, a live `## row` whose next heading is a `###`
+  // inside a following `<details>` block is classified as a container and
+  // DROPPED — and the `<details>` heading it was folded against is then removed
+  // by each call site's `inDetails` filter, so the row vanishes entirely:
+  // `dischargeBacklogRows` answers `not-found` for a row that exists, and
+  // `backlogDischargeStatus` never evaluates it. That is exactly rule 2's shape
+  // above (a discharged row keeping its original entry underneath) crossed with
+  // the drain-written shape (rows at `##`) — so it cannot occur in Signal's own
+  // file, where rows and their `<details>` headings sit at the same depth, and
+  // it hits every command-driven project. `B82`'s dogfood blindness again.
+  //
+  // Preserved-history headings are never containers: they are a record, not a
+  // structure, and nothing nests under them that a reader is meant to act on.
+  const live = heads.filter((h) => !h.inDetails);
+  const containers = new Set();
+  live.forEach((h, i) => {
+    if (i + 1 < live.length && live[i + 1].depth > h.depth) containers.add(h);
+  });
+
   return heads
-    .filter((h, i) => !(i + 1 < heads.length && heads[i + 1].depth > h.depth))
+    .filter((h) => !containers.has(h))
     .map((h) => {
       const lead = h.text.match(LEADING_ID_RE);
       return { ...h, leadingId: lead ? lead[1] : null, ...readRowDischarge(h.text) };

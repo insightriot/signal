@@ -203,3 +203,74 @@ describe('the sandbox corpus shape', () => {
     expect(r.assignedNotMapped).toEqual(['NFR1']);
   });
 });
+
+describe('/code-review findings on M5.E10 (2026-08-13)', () => {
+  const doc = (notes, deferralRow) => [
+    '# V', '',
+    '## 2. Completeness', '',
+    '| Requirement | Owning task(s) | Notes |',
+    '|---|---|---|',
+    deferralRow ?? '| AC3.1 | S1.t1 | fine |',
+    '| AC3.2 | S1.t2 | fine |', '',
+    '## 9. Nyquist test-coverage map', '',
+    '| AC | Slice | Test type | Fixture |',
+    '|---|---|---|---|',
+    ...(deferralRow ? [] : ['| AC3.1 | S1.t1 | unit | — |']),
+    `| AC3.2 | S1.t2 | unit | ${notes} |`, '',
+  ].join('\n');
+
+  it('a bare decimal in a Notes cell is not a requirement id', () => {
+    // `took 3.4 seconds` became AC-3.4, landed in mappedNotAssigned, and the
+    // artifact was reported inconsistent — and verify.md §1b treats that as a
+    // FAIL to loop back on. The check manufactured a contradiction and blocked
+    // the phase on it.
+    const r = checkValidationConsistency(doc('took 3.4 seconds on the slow box'));
+    expect(r.outcome).toBe(CONSISTENCY.CONSISTENT);
+    expect(r.mappedNotAssigned).toEqual([]);
+  });
+
+  it('shorthand in the KEY position still resolves', () => {
+    const shorthand = [
+      '# V', '',
+      '## 2. Completeness', '',
+      '| Requirement | Owning task(s) |',
+      '|---|---|',
+      '| AC3.1 | S1 |',
+      '| 3.2 | S1 |', '',
+      '## 9. Nyquist test-coverage map', '',
+      '| AC | Slice |',
+      '|---|---|',
+      '| AC3.1 | S1 |',
+      '| AC3.2 | S1 |', '',
+    ].join('\n');
+    expect(checkValidationConsistency(shorthand).outcome).toBe(CONSISTENCY.CONSISTENT);
+  });
+
+  it('DEFERRED in one cell does not silence an id in another', () => {
+    // `| AC3.1 | S1 | blocked on AC3.9, which is DEFERRED |` deferred BOTH ids,
+    // hiding a genuine contradiction as a deferral. A false negative.
+    const r = checkValidationConsistency(
+      doc('—', '| AC3.1 | S1 | blocked on AC3.9, which is DEFERRED |')
+    );
+    expect(r.assignedNotMapped).toContain('AC3.1');
+    expect(r.deferred).toEqual(['AC3.9']);
+  });
+
+  it('the field shape — a row keyed by one id and marked DEFERRED — still defers it', () => {
+    const field = [
+      '# V', '',
+      '## 2. Completeness', '',
+      '| Requirement | Owning task(s) | Notes |',
+      '|---|---|---|',
+      '| AC-16.3 | — | DEFERRED out of Phase 11 |',
+      '| AC-16.4 | S1 | fine |', '',
+      '## 9. Nyquist test-coverage map', '',
+      '| AC | Slice |',
+      '|---|---|',
+      '| AC-16.4 | S1 |', '',
+    ].join('\n');
+    const r = checkValidationConsistency(field);
+    expect(r.outcome).toBe(CONSISTENCY.CONSISTENT);
+    expect(r.deferred).toEqual(['AC-16.3']);
+  });
+});

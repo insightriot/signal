@@ -238,11 +238,26 @@ export async function checkBacklogDischarge(baseDir) {
     return [mkFinding('backlog-discharge', 'advisory', rel, `the backlog could not be checked — ${err.message}`)];
   }
 
+  // A finding and a blindness are reported TOGETHER, never one instead of the
+  // other. `backlogDischargeStatus` returns `cannot-evaluate` only when nothing
+  // is stale, so a run with one stale row and ten unreadable ones took the STALE
+  // branch — and this renderer printed the one and dropped the ten. "Could not
+  // check" rendering as a result is `B39`'s shape, which is what `AC9.8` fixed
+  // one layer down in the library while this layer quietly undid it.
+  const blindLine = (blind) =>
+    mkFinding(
+      'backlog-discharge',
+      'advisory',
+      rel,
+      `${blind.length} row(s) name work whose closure could not be read (${[...new Set(blind.map((b) => b.source))].join(' and ')}) — ` +
+        `their status is UNKNOWN, not clean.`
+    );
+
   if (result.outcome === BACKLOG_DISCHARGE.STALE) {
     const named = result.stale
       .map((s) => `${s.id} (line ${s.line}: "${s.heading.slice(0, 60)}")`)
       .join('; ');
-    return [
+    const out = [
       mkFinding(
         'backlog-discharge',
         'advisory',
@@ -251,6 +266,11 @@ export async function checkBacklogDischarge(baseDir) {
           `Discharge them at ship, or mark the heading "STILL OPEN" and say why.`
       ),
     ];
+    if (result.blind?.length) out.push(blindLine(result.blind));
+    return out;
+  }
+  if (result.outcome === BACKLOG_DISCHARGE.CLEAN && result.blind?.length) {
+    return [blindLine(result.blind)];
   }
   if (result.outcome === BACKLOG_DISCHARGE.CANNOT_EVALUATE) {
     if (result.reason === REASON_NO_BACKLOG) return [];

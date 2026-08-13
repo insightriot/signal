@@ -58,6 +58,22 @@ const LIMITS_BODY_MIN_BYTES = 60;
 // `6 of 11`, `6/11`, `6 of 11 criteria`. A bare count never matches.
 const DENOMINATOR_RE = /\b\d+\s*(?:of|\/)\s*\d+\b/;
 
+// WHERE the denominator has to be, per tier — the section carrying the coverage
+// claim, not the document.
+//
+// Tested against the whole document, the pattern was satisfied by any `N/M`
+// anywhere: a report whose only coverage claim was *"All 22 acceptance criteria
+// pass"* — the exact unfalsifiable sentence this gate exists to reject — passed
+// because an unrelated line read `Suite green on Node 22/24`. Dates (`8/13`),
+// version pairs and ratios inside the limits section did the same, so the gate
+// was reliably satisfied by prose with nothing to do with coverage.
+const COVERAGE_HEADING = Object.freeze({
+  SKETCH: '## Coverage',
+  FEATURE: '## Requirement coverage',
+  SPIKE: '## What the spike established',
+  FULL: '## Requirement coverage',
+});
+
 /**
  * The locked headings for a tier.
  * @param {string} tier
@@ -116,9 +132,11 @@ export function validateVerificationContent(content, tier) {
     }
   }
 
-  if (!DENOMINATOR_RE.test(content)) {
+  const coverageHeading = COVERAGE_HEADING[tier];
+  const coverageBody = sectionsByHeading[coverageHeading] ?? '';
+  if (!DENOMINATOR_RE.test(coverageBody)) {
     errors.push(
-      'no denominator found — every coverage claim must read "{n} of {total}", never a bare count. A total that was never stated cannot be checked by a reader'
+      `no denominator found in "${coverageHeading}" — every coverage claim must read "{n} of {total}", never a bare count. A total that was never stated cannot be checked by a reader`
     );
   }
 
