@@ -210,11 +210,32 @@ for (const c of CHECKS) {
 // themselves appear nowhere in this repository (see `references/eval-corpus.md`
 // and `tests/private-name-guard.test.js`).
 const KNOWN_LABELS = new Map([
-  ['ae0162a32c456b36', 'A'],
-  ['4b3e37e57f00dcdc', 'B'],
-  ['b1785dc8b4c98350', 'C'],
+  // ALL corpus members are pinned, not just the first five (`B98`).
+  //
+  // Before this, `A`–`E` were pinned and `F` onward came from `spare.shift()`
+  // over a hash-sorted list — so adding or removing ONE project renamed every
+  // unpinned one. The comment below already claimed stability; it held for
+  // `A`–`E` and for nothing past it, while `references/eval-corpus.md` published
+  // A–L and `CLAUDE.md` cited `eval-project-L`. Measured while fixing it: the
+  // set changed twice inside ten minutes, and `c983…` moved `M` → `L` between
+  // two runs. A letter is now a property of the project, not of the roster.
+  //
+  // A NEW project takes the next free letter and keeps it forever. A project
+  // that leaves does NOT free its letter — reusing one would make two different
+  // projects share a label across releases, which is the whole failure.
   ['089f4667dcc1924d', 'D'],
+  ['1a6ed3839eed3172', 'F'],
+  ['26eab90d2b0be7cd', 'G'],
+  ['38dfd52ec35ea8b8', 'H'],
+  ['4b3e37e57f00dcdc', 'B'],
   ['5709cb590880d6d6', 'E'],
+  ['733aee8b43e1f22f', 'I'],
+  ['aafd6a4c64386852', 'J'],
+  ['ae0162a32c456b36', 'A'],
+  ['b1785dc8b4c98350', 'C'],
+  ['b984b04187721cbc', 'K'],
+  ['bee98bf120e89063', 'L'],
+  ['c983c585ac3c40d9', 'M'],
 ]);
 
 const { createHash } = await import('node:crypto');

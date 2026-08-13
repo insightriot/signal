@@ -28,11 +28,11 @@ describe('S2 / FR3 — currentUnit reads the RAW field', () => {
     // 4 of 12 projects have no STATE frontmatter at all, 1 has frontmatter
     // without the field, 3 hold null, 4 hold a value. AC3.2 covered null;
     // ABSENT arrives by a different path and is asserted separately.
-    it('a value (4 projects: agent-tools-sync, conversor, signal, eval-project-C)', () => {
+    it('a value (4 projects: eval-project-I, eval-project-F, signal, eval-project-C)', () => {
       expect(currentUnit({ current_epic: 'M1' })).toBe('M1');
     });
 
-    it('AC3.2 — null (3 projects: eval-project-D, eval-project-A, operator-os-lean-loop)', () => {
+    it('AC3.2 — null (3 projects: eval-project-D, eval-project-A, eval-project-K)', () => {
       expect(currentUnit({ current_epic: null })).toBe(null);
     });
 
@@ -73,7 +73,7 @@ describe('S3 / FR2 — parseVerdict reads a VALUE, never a heading', () => {
       expect(r.evidence).toContain('Verdict: PASS');
     });
 
-    it('agent-tools-sync M1-VERIFICATION.md:5 — emoji inside the bold', () => {
+    it('eval-project-I M1-VERIFICATION.md:5 — emoji inside the bold', () => {
       const r = parseVerdict('# M1\n\n**Verdict: ✅ PASS** — all acceptance criteria met.\n');
       expect(r.status).toBe('pass');
     });
@@ -127,7 +127,7 @@ describe('S3 / FR2 — parseVerdict reads a VALUE, never a heading', () => {
     // WRONG ANSWER. That is the whole defect class this Epic exists to end.
     const HEADINGS = [
       ['eval-project-E VERIFY-VERIFICATION.md', '## Verdict\n\n**All 22 acceptance criteria pass.** Test suite clean.\n'],
-      ['operator-os-lean-loop R1-VERIFICATION.md', '## Verdict\n\n**PASS on all automated acceptance criteria + Nyquist compliance.**\n'],
+      ['eval-project-K R1-VERIFICATION.md', '## Verdict\n\n**PASS on all automated acceptance criteria + Nyquist compliance.**\n'],
       ['mps 3-VERIFICATION.md', '## VERIFY phase verdict\n\n**PASS** at strict gate. 44/44 ACs covered.\n'],
       ['consensus T24-VERIFICATION.md', '## 5. Verdict\n\n**Verification status: ✓ PASS — all acceptance criteria met.**\n'],
       ['consensus T26-VERIFICATION.md', '## 6. Verdict\n\n| Acceptance criterion | Status |\n'],
@@ -159,7 +159,7 @@ describe('S3 / FR2 — parseVerdict reads a VALUE, never a heading', () => {
   });
 
   describe('AC2.9 — multiple verdict mentions resolve by a STATED rule: first value wins', () => {
-    it('agent-tools-sync M1-VERIFICATION.md — line 5 and line 83', () => {
+    it('eval-project-I M1-VERIFICATION.md — line 5 and line 83', () => {
       const r = parseVerdict(
         '**Verdict: ✅ PASS** — all acceptance criteria met.\n' +
         'REVIEW found 1 Critical; fixed in S9. Verdict remains **PASS** on the hardened tree.\n',

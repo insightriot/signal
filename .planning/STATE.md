@@ -249,7 +249,7 @@ came back refuted, and it moves M5.E18's scope.**
    linear-mode rows are exactly the stale ones"* — was half right: `B41`–`B45` are linear-mode, but
    `B39`/`B48`/`B51`/`B53`/`B54` are M5.E13 rows and were equally stale. Every flip carries a
    `file:line` or a test that fails if it regresses.
-2. ❌ **Do NOT "fix" `current_epic` in `eval-project-C` or `agent-tools-sync` — the instruction was
+2. ❌ **Do NOT "fix" `current_epic` in `eval-project-C` or `eval-project-I` — the instruction was
    wrong, and executing it would have broken both projects.** Measured, not reasoned:
    `resolveArtifactPath(…, {currentEpic: null})` returns **`null`** for both, because every artifact
    they own is named after the non-strict value — 19+ `PHASE1*-*.md` files and 6 `M1-*.md` files.

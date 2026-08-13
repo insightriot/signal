@@ -20,7 +20,7 @@
 //
 // (3), (4) and (+) all produce "0 files to archive". Wave 3 proved they collapse
 // if you only render counts: `eval-project-B` (STATE unreadable, 0 units) and
-// `prompt-library` (readable, 0 units) return byte-identical `{0,0,0}` from
+// `eval-project-H` (readable, 0 units) return byte-identical `{0,0,0}` from
 // `resolveClosures`. That was found in S4's own code by first use, pinned by a
 // closure test, and carried forward as this slice's obligation. Here it is paid.
 

@@ -126,7 +126,7 @@ for d in ~/dev-biz/*/; do grep -l curator "$d.git/hooks/post-commit" 2>/dev/null
 ```
 
 Both empty means nothing depends on it. Signal and `eval-project-C` are already off it; four repos
-were still wired as of 2026-07-28 (`operator-os`, `operator-os-lean-loop`, `eval-project-D`,
+were still wired as of 2026-07-28 (`operator-os`, `eval-project-K`, `eval-project-D`,
 `eval-project-A`) — that list will go stale, so run the commands rather than trusting it.
 
 Leftover `Bash(command -v curator)` entries in a project's `.claude/settings.local.json` are

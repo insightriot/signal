@@ -29,8 +29,33 @@ evaluate **2 of 13** projects. That number is the finding; it could not have com
   evidence. The identity never was.
 
 This repository is public and the corpus is a set of private commercial projects.
-`tests/private-name-guard.test.js` enforces the rule rather than trusting it: a file naming a corpus
-project fails the suite.
+`tests/private-name-guard.test.js` enforces the rule rather than trusting it.
+
+> ### ⚠ Corrected 2026-08-13 — this paragraph used to overstate the guard, and it was published
+>
+> It read: *"a file naming a corpus project fails the suite."* **It did not.** The guard covered
+> **5 of the 13** corpus projects for a day, while the other eight were named in about thirty tracked
+> files, and `M5.E10` added one more without anything objecting. Found by an independent review
+> (`B97`), not by the guard.
+>
+> **What is true now, stated in two parts because the two are not equally strong:**
+>
+> - **Ten names are caught anywhere they appear**, including embedded inside a longer hyphenated
+>   token — the shape the old tokeniser was blind to.
+> - **Three are caught only in project shape** — a path prefix (`name/FILE.md`) or a backticked
+>   identifier. They are two, three and nine characters long and are ordinary English words; one of
+>   them appears in more than a hundred tracked files as ordinary prose. Matching them as bare tokens
+>   would turn the suite red on every commit, which is how a guard gets deleted rather than obeyed.
+>   **A bare prose mention of one of those three is not caught**, and cannot be without false
+>   positives on English.
+>
+> The labels themselves are also now **pinned by hash for all thirteen projects**, not just the first
+> five (`B98`). Before that, `F` onward were handed out by list position, so adding or removing one
+> project renamed every unpinned one — measured moving twice within ten minutes while this was being
+> fixed. **A consequence worth knowing: references to `eval-project-F` and beyond written before
+> 2026-08-13 may not name the same project they name today.** The original assignment was never
+> recorded and cannot be recovered. `A`–`E` were pinned from the start and are traceable across
+> releases; `F`–`M` are traceable from this date forward.
 
 ## How it is used
 

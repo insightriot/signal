@@ -9,7 +9,7 @@
 //
 // AC4.4 is not a hypothetical. It is the defect wave 3 found in S4's OWN code:
 // eval-project-B (STATE unreadable, 0 units) returns counts {0,0,0}, byte-
-// identical to prompt-library, which is readable and simply has no units. That
+// identical to eval-project-H, which is readable and simply has no units. That
 // finding was pinned by a closure test and carried forward as an obligation on
 // this slice. This is where it gets paid.
 //
@@ -175,7 +175,7 @@ describe('S7 AC4.4 — "no units" and "no unit could be read" are not the same f
   const allCannot = () => render({ ...base, closures: [cannot('A'), cannot('B')] });
 
   it('they render differently — the exact defect wave 3 found in S4\'s own code', () => {
-    // eval-project-B (STATE unreadable, 0 units) vs prompt-library (readable,
+    // eval-project-B (STATE unreadable, 0 units) vs eval-project-H (readable,
     // 0 units) produced byte-identical counts {0,0,0}. Counts could not tell
     // blindness from cleanliness; the RENDERING must.
     expect(zeroUnits()).not.toBe(allCannot());

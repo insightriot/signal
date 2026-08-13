@@ -938,7 +938,7 @@ Ships: **(a)**, **(b)** narrowed, **(c)** restructured, **(d)** narrowed, **(g)*
   either loads or throws, so there is no threshold and nothing for FR2.2 to kill. Its live instance
   is **`B59`**, found hours earlier at this Epic's own PLAN preamble.
 - **(h) — `current_epic` is set but is not a strict Epic ID.** *Not in the requirements; it exists
-  because the corpus was measured.* `agent-tools-sync` carries `"M1"` and `eval-project-C` carries
+  because the corpus was measured.* `eval-project-I` carries `"M1"` and `eval-project-C` carries
   `"PHASE12"`; both fail `EPIC_ID_STRICT_RE`, so every resolver falls open to linear mode while the
   project believes it is running Epics. **That is `B53`'s class, live in the field**, on half the
   Epic-mode corpus, after being fixed as a Signal-side bug in v0.1.14. Included without a second
@@ -1021,7 +1021,7 @@ The archive planner groups `.planning/*.md` by matching **known artifact suffixe
 
 | Project | `current_epic` | Naming |
 |---|---|---|
-| `agent-tools-sync` | `M1` | one consistent prefix |
+| `eval-project-I` | `M1` | one consistent prefix |
 | `eval-project-C` | `PHASE12` | **nested** units (`PHASE10`, `PHASE10-S4`, `PHASE10-S5`) |
 | `eval-project-A` | `null` | **10+ unit names** (`PROXY`, `GATE-A`, `PLAN-SC1`, `eval-project-A`, …) |
 
@@ -1060,7 +1060,7 @@ it exactly: *"a label, not a guard."*
 **Known weakness, stated rather than discovered later.** `PHASE11-SHIP.md` exists and `PHASE11` was
 the current, actively-edited unit as recently as 2026-07-28; it is archivable now only because
 `PHASE12` took over. **A terminal artifact written mid-unit is a real shape in this corpus**, so the
-not-current clause carries the whole guard. `agent-tools-sync` supplies the regression test for
+not-current clause carries the whole guard. `eval-project-I` supplies the regression test for
 free: `M1` has a `VERIFICATION` **and is current** — it must never be proposed for archive.
 
 **D-M5E18-4 — The current-unit guard reads the raw `current_epic` string, never a strict-gated

@@ -75,7 +75,7 @@ function terminalSuffix(filename) {
  *
  *  1. **Current unit → `open`.** Checked first and without reading anything.
  *     A unit being actively worked cannot be closed no matter what its
- *     artifacts say — `agent-tools-sync`'s `M1` has a VERIFICATION and IS the
+ *     artifacts say — `eval-project-I`'s `M1` has a VERIFICATION and IS the
  *     current unit (AC2.4), and this clause is the whole not-current gate.
  *  2. **STATE unreadable → `cannotDetermine`.** Handled by the caller, which
  *     cannot evaluate clause 1 at all in that case. Never `closed`: closing a
@@ -197,7 +197,7 @@ export async function resolveUnitClosure(args) {
   // AC2.2′ — terminal artifacts exist but not one of them states a value we
   // will read. Never `closed` (it was never claimed), never `open` (something
   // does claim to be terminal). Fixtures: eval-project-C/PHASE8-SHIP.md,
-  // consensus/T25-VERIFICATION.md.
+  // eval-project-L/T25-VERIFICATION.md.
   return {
     unit,
     status: CLOSURE.CANNOT_DETERMINE,

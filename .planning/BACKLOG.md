@@ -960,7 +960,7 @@ a second, external doc tool alive to do the half Signal cannot — which is the 
 two-tools-one-corpus state the doc-runtime flagship was built to end.
 
 **Scope inputs added 2026-08-02, from measuring the two pre-M5.E18 fix-lane items.** The second
-one (*"fix `current_epic` in `eval-project-C` and `agent-tools-sync`"*) came back **refuted**, and
+one (*"fix `current_epic` in `eval-project-C` and `eval-project-I`"*) came back **refuted**, and
 what it returned instead is design input for this Epic:
 
 - **`current_epic` is being used as an artifact-prefix field, and Signal has no such field.**

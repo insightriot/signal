@@ -81,7 +81,7 @@ describe("S4 AC2.2′ — an unreadable verdict is never closed and never open",
     expect(r.status).not.toBe(CLOSURE.OPEN);
   });
 
-  it('a heading that defers its value to prose (consensus/T25-VERIFICATION.md shape)', async () => {
+  it('a heading that defers its value to prose (eval-project-L/T25-VERIFICATION.md shape)', async () => {
     await planning({ 'STATE.md': STATE_FM(null), 'T25-VERIFICATION.md': PROSE_ONLY });
     const r = await resolveUnitClosure({
       unit: 'T25',
@@ -111,7 +111,7 @@ describe("S4 AC2.2′ — an unreadable verdict is never closed and never open",
 // ---------------------------------------------------------------------------
 
 describe('S4 AC2.4 — the current unit is open even with a passing VERIFICATION', () => {
-  it("agent-tools-sync's M1 shape: VERIFICATION present AND current → open", async () => {
+  it("eval-project-I's M1 shape: VERIFICATION present AND current → open", async () => {
     const r = await resolveUnitClosure({
       unit: 'M1',
       files: ['M1-VERIFICATION.md'],
@@ -138,7 +138,7 @@ describe('S4 AC2.4 — the current unit is open even with a passing VERIFICATION
   });
 
   it('the raw current_epic is compared, so a NON-STRICT unit name still matches (D-M5E18-4)', async () => {
-    // eval-project-C / agent-tools-sync both park a non-strict name here. A
+    // eval-project-C / eval-project-I both park a non-strict name here. A
     // strict-gated read returns null and this clause silently never fires.
     await planning({ 'STATE.md': STATE_FM('PHASE12'), 'PHASE12-VERIFICATION.md': PASS });
     const { units } = await resolveClosures(baseDir);
@@ -279,7 +279,7 @@ describe('S4 AC2.11 — one unit\'s failure never takes the run down', () => {
   it('"could not look" is distinguishable from "nothing to look at" — found in first use', async () => {
     // Found by running the resolver over all 12 real projects: eval-project-B
     // (STATE.md unreadable) returns counts {0,0,0} — BYTE-IDENTICAL to
-    // prompt-library, a perfectly readable project that simply has no units.
+    // eval-project-H, a perfectly readable project that simply has no units.
     // A caller rendering only the counts cannot tell blindness from cleanliness,
     // which is C1's shape in code written by this very slice. The distinction
     // exists on the record (`stateReadable` + `reason`); this pins it so S7's

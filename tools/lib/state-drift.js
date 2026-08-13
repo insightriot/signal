@@ -470,7 +470,7 @@ export const checkEpicWithoutRetro = defineCheck({
   // the check declared itself not-applicable rather than evaluating.
   //
   // Scoped honestly: the measured blast radius is **0 of 12**. The one project
-  // with an unprefixed `RETROSPECTIVE.md` (`conversor`) also has prefixed ones,
+  // with an unprefixed `RETROSPECTIVE.md` (`eval-project-F`) also has prefixed ones,
   // so it already evaluated. This is a latent gap that fails safe today by
   // INVENTORY, not by design — the Epic does not claim it fixed an observed
   // problem (RESEARCH §9.5).
@@ -486,7 +486,7 @@ export const checkEpicWithoutRetro = defineCheck({
   run: async ({ files, state, planningDir }) => {
     // `deriveUnits` owns the whole rule now: the right-anchored suffix match,
     // the categorical seven-phase-name exclusion (a linear project legitimately
-    // has `EXECUTE-PROGRESS.md` — `conversor` does — and C1 briefly made that
+    // has `EXECUTE-PROGRESS.md` — `eval-project-F` does — and C1 briefly made that
     // look like an un-retrospected unit called "EXECUTE"), and the conservative
     // fold that keeps a slice split across `PLAN-{unit}-*` and `{unit}-*` from
     // counting as two units.
@@ -648,7 +648,7 @@ const LINEAR_MODE_NA = {
  * (h) `current_epic` is set to something no resolver accepts.
  *
  * NOT IN THE REQUIREMENTS — this check exists because the corpus was measured.
- * `agent-tools-sync` carries `"M1"` and `eval-project-C` carries `"PHASE12"`;
+ * `eval-project-I` carries `"M1"` and `eval-project-C` carries `"PHASE12"`;
  * both fail `EPIC_ID_STRICT_RE`, so `readEffectiveProfile`, `artifactName` and
  * `resolveArtifactPath` all fail open to LINEAR mode while the project believes
  * it is running Epics. That is `B53`'s class — fixed as a Signal-side bug in
