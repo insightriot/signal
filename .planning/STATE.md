@@ -28,7 +28,7 @@ last_updated: 2026-08-13T16:52:29.118Z
 > (`D-BR0809-1`, `D-BR0809-2`) is open; `M5.E19`'s four-phase ledger archived cleanly to
 > [`archive/M5/E19/STATE-NARRATIVE.md`](archive/M5/E19/STATE-NARRATIVE.md) on the roll.
 >
-> **DISCUSS, PLAN, all five EXECUTE waves and VERIFY are closed. REVIEW is running.**
+> **DISCUSS, PLAN, all five EXECUTE waves, VERIFY and REVIEW are all closed. Next action: `/sig:ship`.**
 >
 > ✅ **`B94` (P1) is FIXED** — it landed after the planned slices and was taken in scope as **FR9 /
 > S7** (`92ad0df`, `4e3bfe5`). `BACKLOG.md` gains a discharge path, a SHIP §6.6 step that uses it, and
@@ -46,8 +46,13 @@ last_updated: 2026-08-13T16:52:29.118Z
 > file mtime, so FR7 reports ordering-only drift) and a **second live FR8 sighting caused by this
 > phase's own transition**, fixed above.
 >
-> Next: REVIEW, an independent `/code-review` pass Brett triggers, then SHIP as **v0.1.25** — *not*
-> v0.1.23, which shipped 2026-08-08; `plugin.json` is already at `0.1.24`. Shipping closes Milestone 5.
+> **REVIEW returned PASS-WITH-FIXES**, and the independent `/code-review` pass Brett triggers has
+> **already run** — 7 findings, all reproduced, 5 fixed in code and 2 (`B97`/`B98`) fixed as a corpus
+> scrub. **`B97` was the serious one: this repo is public and 8 of 13 eval-corpus projects were named
+> in it, because the guard covered only 5.** 113 replacements across 30 files; all 13 now denied.
+>
+> Next: SHIP as **v0.1.25** — *not* v0.1.23, which shipped 2026-08-08; `plugin.json` reads `0.1.24`.
+> Shipping closes Milestone 5. Suite **2602**, CI green, PR #141 mergeable.
 >
 > **Read [`M5.E10-PROGRESS.md`](M5.E10-PROGRESS.md) first** — it carries every finding, including the
 > ones that falsified the plan.

@@ -186,7 +186,20 @@ export function extractEpicSection(body, epicId) {
   }
   const escId = epicId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   // Find a heading line (#..######) that contains the Epic ID.
-  const headingRe = new RegExp(`(?:^|\\n)(#{1,6})[ \\t]+([^\\n]*\\b${escId}\\b[^\\n]*)`, '');
+  //
+  // The `> ` prefix is not cosmetic tolerance — it is `B96`. Signal's own live
+  // STATE.md carries its in-flight block as `> ## ▶ IN FLIGHT — M5.E10`, inside
+  // a blockquote, so a regex anchored to the line start found nothing,
+  // `evictEpicNarrative` returned `no-section`, and `ship.md` §5.5 documents that
+  // outcome as *"a safe no-op"*. It is safe; it is not a no-op — the narrative
+  // was 5 KB and would have stayed in live STATE.md forever, which is the exact
+  // growth `M5.E1` built eviction to prevent. `B39`'s shape: *could not find it*
+  // rendering identically to *there is nothing to find*.
+  //
+  // Fixed here rather than by un-blockquoting the document, deliberately: the
+  // code should read the shape the maintainer writes, not require the maintainer
+  // to write the shape the code reads.
+  const headingRe = new RegExp(`(?:^|\\n)>? ?(#{1,6})[ \\t]+([^\\n]*\\b${escId}\\b[^\\n]*)`, '');
   const hm = body.match(headingRe);
   if (!hm) return { found: false };
 
@@ -199,7 +212,9 @@ export function extractEpicSection(body, epicId) {
   // Skip the heading's own line before scanning for the next boundary heading.
   const afterHeadingLine = rest.indexOf('\n');
   const scanFrom = afterHeadingLine === -1 ? rest.length : afterHeadingLine + 1;
-  const boundaryRe = new RegExp(`\\n(#{1,${level}})[ \\t]+`, '');
+  // The boundary must accept the same `> ` prefix, or a blockquoted section runs
+  // to end-of-file and swallows every heading after it.
+  const boundaryRe = new RegExp(`\\n>? ?(#{1,${level}})[ \\t]+`, '');
   const bm = rest.slice(scanFrom).match(boundaryRe);
   const sectionEnd =
     bm === null ? body.length : headingStart + scanFrom + bm.index; // bm.index is offset of the leading \n
