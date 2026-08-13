@@ -36,7 +36,7 @@ Authoritative reference:
 ### 2. Run the sweep
 
 Call `runSweep(process.cwd())` from `tools/lib/sweep.js`. It:
-1. runs the **portable** checks in any repo — dead internal `.md` links and unfilled `[FILL IN]` markers over the widened `.planning/`-inclusive scope (still exempting `archive/`), `INDEX.md` freshness (pure compose-and-diff — never the writing regenerator), a stale-inbox count, and a `CLAUDE.md`-bloat size nudge;
+1. runs the **portable** checks in any repo — dead internal `.md` links and unfilled `[FILL IN]` markers over the widened `.planning/`-inclusive scope (still exempting `archive/`), `INDEX.md` freshness (pure compose-and-diff — never the writing regenerator), a stale-inbox count, a `CLAUDE.md`-bloat size nudge, and a **backlog-discharge** check (`B94`) reporting rows that read as pending while the work they name is recorded closed;
 2. gated on the plugin manifest, runs the **Signal-only** checks — roster-count drift, version consistency, and command-frontmatter freshness;
 3. returns `{ findings, stateDrift, signalOnly: { ran, checks } }` — `findings` already normalized to `structural`/`advisory` and sorted deterministically; `stateDrift` is `{results, summary}` from `runDriftChecks`, kept **separate from `findings`** so the heal category and the cannot-evaluate state are not flattened away.
 
@@ -58,7 +58,17 @@ If the report surfaces structural drift, point the user at the fix rather than m
 | "Add an arg parser / flags." | No — v1 ships no flags (AD1). `runSweep(process.cwd())` is the whole surface. Adding flags before a real use case is maintenance for nothing; log to FUTURE-IDEAS if one lands. |
 | "Regenerate `INDEX.md` while I'm here — the freshness check already computed the expected content." | No. The freshness check uses the **pure** compose-and-diff path precisely so the sweep never writes. Regenerating is `/sig:index`'s job — keep the read-only guarantee (AC1.5). |
 | "Point it at Signal's repo so the Signal-only checks always run." | No. It runs on `process.cwd()` — the invoking project. In a stranger repo the Signal-only checks auto-skip and the report states the skip; that's the correct behavior, not a gap to paper over. |
-| "Suppress the Signal-only skip line to keep the report short." | No (AC1.3). A skipped check must be stated, never silently dropped — the user needs to know roster/version/frontmatter were not evaluated. |
+
+### Output contract (shaping failures — stated as recipes, `B38`)
+
+These are not prohibitions. A prohibition is the right form when the failure is *discipline* —
+knowing the rule and skipping it under pressure. It is the **wrong** form when the output merely
+comes out the wrong shape, where head-to-head wording tests measured the prohibition arm producing
+**more** of the unwanted content than a positive recipe, and worse than no guidance at all.
+So these say what the output IS. See `references/anti-rationalization-forms.md`.
+
+- **The report always states which checks were skipped and why.** A check that could not run and a check that found nothing must never render the same.
+
 
 ## Gate: Sweep Complete
 

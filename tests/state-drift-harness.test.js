@@ -54,7 +54,7 @@ M5.E16 is in PLAN.
 `;
 
 // STATE.md with frontmatter but no schema_version — `readState` THROWS on this
-// shape. `affiliate-mojo` is the live instance found by the PLAN-time probe.
+// shape. `eval-project-B` is the live instance found by the PLAN-time probe.
 const UNREADABLE_STATE = `---
 phase: EXECUTE
 current_epic: M5.E16

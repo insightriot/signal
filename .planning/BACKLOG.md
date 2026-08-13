@@ -96,8 +96,8 @@ away finished work means running a command about something else and reading past
 Brett, 2026-08-07: *"YES — definitely want sig:archive."* Named per
 [`../references/command-taxonomy.md`](../references/command-taxonomy.md) (`D-M5E19-8`).
 
-**Trigger FIRED 2026-08-04** — `curator` was removed from the machine; `nextpass` and
-`cm-mentor-coach` archive by hand-written runbook **today**. This is the only item with users
+**Trigger FIRED 2026-08-04** — `curator` was removed from the machine; `eval-project-A` and
+`eval-project-D` archive by hand-written runbook **today**. This is the only item with users
 waiting.
 
 **M5.E18 built the hard half and wired none of it** — its own retro: *"the library could do 110;
@@ -121,7 +121,7 @@ warning and it failed the way warnings fail. **A warning asks; a gate refuses.**
 
 **Two things the build learned:**
 
-1. **The parser shipped a false *"still owed"* and the corpus proved it.** `parseEscalationHistory` latched its "inside a warnings list" flag past the end of an entry, so a **second** escalation's `- from_tier: FULL` became a phantom open obligation — specimen #4 **inverted**, inside the fix for specimen #4. Measured read-only across 12 projects: **3 phantoms → 0**, in `cm-mentor-coach`, `nextpass`, `nextpass-codex-review`. **Signal's own tree read 0 both ways** (its `escalation_history` is empty), so this is `B82`'s shape again — dogfooding was structurally blind and only the real corpus could see it.
+1. **The parser shipped a false *"still owed"* and the corpus proved it.** `parseEscalationHistory` latched its "inside a warnings list" flag past the end of an entry, so a **second** escalation's `- from_tier: FULL` became a phantom open obligation — specimen #4 **inverted**, inside the fix for specimen #4. Measured read-only across 12 projects: **3 phantoms → 0**, in `eval-project-D`, `eval-project-A`, `eval-project-A-codex-review`. **Signal's own tree read 0 both ways** (its `escalation_history` is empty), so this is `B82`'s shape again — dogfooding was structurally blind and only the real corpus could see it.
 2. **The named-source registry has exactly one resolver and no placeholder for the tracker.** A declared-but-unimplemented source would be the unreached-mechanism defect this release is named after. Adding GitHub Issues later is registering a resolver (`D-M5E14-1`).
 
 <details><summary>Original entry (kept for the reasoning that set the order)</summary>
@@ -162,7 +162,7 @@ not the filer's. Kept separate so *"the agreed sequence"* keeps meaning what it 
 
 *Plain: the workflow never puts you on a branch, and never notices you aren't on one.*
 
-**Reported from `nextpass` 2026-08-08, verified here and broader than reported.** `grep -rln
+**Reported from `eval-project-A` 2026-08-08, verified here and broader than reported.** `grep -rln
 "git branch --show-current|rev-parse --abbrev-ref" commands/ tools/lib/` returns **nothing** — not
 one of 20 commands, not one library module. `execute.md` has **zero** occurrences of the word
 "branch"; `ship.md` §3 says *"Create a pull request with:"* with no precondition that one is still
@@ -674,7 +674,7 @@ byte-identical code).
   `B19` commit with a reviewer denied that Epic's own artifacts. *Done-when:* a one-page
   caught/not-caught result with the transcript.
 
-### M5.E9 — Overdue enforcement + the bug pile
+### ~~M5.E9 — Overdue enforcement + the bug pile~~ · **DONE — v0.1.12, 2026-07-27**
 **Tag:** hygiene · **Trigger: NONE.** Independent of E8 — can run in parallel.
 - **`B39` trigger walk.** *Slice:* one drain step in `commands/plan.md` + `tools/lib/drain.js`.
   *Done-when:* a fired trigger surfaces at `/sig:plan`, **and a checked-and-declined trigger is
@@ -701,7 +701,7 @@ byte-identical code).
   phase commands never call `transitionPhase`, so `completed_phases` omits PLAN/EXECUTE/VERIFY/REVIEW
   in any command-driven project while `markFresh` stamps the stale position fresh. **Deterministic and
   file-shaped — it needs no measurement layer**, which is exactly the rule §1 of the roadmap sets.
-  **`B42`–`B45` were cataloged the same day from a live `nextpass` ship report.** `B42` stands alone:
+  **`B42`–`B45` were cataloged the same day from a live `eval-project-A` ship report.** `B42` stands alone:
   **linear mode is first-class in six phase commands and unsupported in the seventh** — `/sig:ship`'s
   FR1 gate hard-halts on `current_epic: null`, no bypass, **live since v0.1.3 and asserted by its own
   tests**, so the fix rescopes M4.5.E9's AC1-extended rather than patching a branch. `B43`/`B44`/`B45`
@@ -732,7 +732,20 @@ byte-identical code).
   falsifier exists to prevent.** *This is also the canonical instance of the `B39` fix's second
   half — a checked-and-declined condition must be distinguishable from an unchecked one.*
 
-### ▶ M5.E10 — Review hardening · **NEXT (confirmed 2026-08-09, `D-BR0809-1`)**
+### ~~▶ M5.E10 — Review hardening · **NEXT (confirmed 2026-08-09, `D-BR0809-1`)**~~ · **DONE — v0.1.25, 2026-08-13**
+
+> ⚠ **CORRECTED 2026-08-13, at this Epic's own REVIEW.** Four sub-bullets below read
+> ***"✅ DISCHARGED — `v0.1.23` (M5.E10), 2026-08-12"***. **Both halves were false.** `v0.1.23`
+> shipped **2026-08-08** and its content was `B85` (`/sig:update` naming a command that works) —
+> a release that *predates* the work these lines claim it carried. And nothing here is discharged,
+> because `M5.E10` **has not shipped**; it is at REVIEW, and it will ship as **`v0.1.25`**.
+>
+> They were written mid-EXECUTE, from the shape of the work — *the slice is done, so write it down as
+> released* — which is the exact class this Epic exists to kill, in this Epic's own queue entry.
+> **Nothing caught it**: the `backlog-discharge` check `M5.E10` itself shipped reads **headings**, and
+> these are sub-bullets, so the tool built to find this could not see it. That limit is now stated in
+> `M5.E10-REVIEW.md` rather than left to be discovered.
+
 
 > **Dispositioned, not merely scheduled.** This Epic had a satisfied trigger and **no artifact on
 > disk** for six weeks while six unplanned Epics shipped past it — two recording the override in
@@ -751,32 +764,42 @@ byte-identical code).
 claim-integrity investigation ([`../analysis/CLAIM-INTEGRITY-ANALYSIS.md`](../analysis/CLAIM-INTEGRITY-ANALYSIS.md))
 — the false-green audit's target class now has a name and field evidence: **completeness claims
 written from the shape of the work rather than from the artifact** (five instances in one FULL-tier
-traction-engine phase, every catch incidental; ≥7 prior un-abstracted sightings in Signal's own
+eval-project-C phase, every catch incidental; ≥7 prior un-abstracted sightings in Signal's own
 corpus). Principle for every item below: *a completeness claim must be derived, checked, or labeled
 unverified — never asserted from memory* (the `buildCaveats()` lesson, generalized).
 - **False-green audit + RED-against-`main`.** *Done-when:* every guard fix in the following Epic
   ships with a test demonstrated to fail against `main`.
-- **`B38` — reclassify every anti-rationalization table entry** as *discipline* (keep the
+- **`B38` — reclassify every anti-rationalization table entry** **✅ BUILT in `M5.E10` (2026-08-12); ships in `v0.1.25` — UNRELEASED at the time of writing.** Shipped: 109 entries classified (93 discipline / 16 shaping), `references/anti-rationalization-forms.md` generated from the corpus and pinned both ways, provenance rule added as a shaping entry. as *discipline* (keep the
   prohibition form) or *shaping* (convert to a positive recipe). *Done-when:* a one-page table
   names each entry's class and every shaping entry is a positive recipe. **Add as a shaping
   entry:** the claim-provenance rule — never restate or escalate an upstream claim about a third
   artifact without opening that artifact (CLAIM-INTEGRITY §6 item 6).
-- **Requirement-coverage diff** (CLAIM-INTEGRITY §6 item 1) — deterministic `tools/lib` check +
+- **Requirement-coverage diff** **✅ BUILT in `M5.E10` (2026-08-12); ships in `v0.1.25` — UNRELEASED at the time of writing.** Shipped: `tools/lib/requirement-coverage.js` + `tools/lib/validation-consistency.js`, wired into `commands/verify.md` §1b. **Read the done-when critically — it is not met as written:** the field pair has no unit-scoped REQUIREMENTS artifact, so `AC1.6`/`D-M5E10-6` changed the contract, and the amended copy does not pass a full diff. See `M5.E10-PROGRESS.md`. (CLAIM-INTEGRITY §6 item 1) — deterministic `tools/lib` check +
   `verify.md` instruction: every FR/NFR/AC ID in `REQUIREMENTS.md` must appear in the VERIFICATION
   artifact (absent = red), plus an intra-file VALIDATION consistency check (dimension-2 assignments
   and Nyquist-map rows must agree — Phase 11's root was a single-file self-contradiction nothing
-  read). *Done-when:* replaying traction-engine Phase 11's artifact pair fails both checks and the
+  read). *Done-when:* replaying eval-project-C Phase 11's artifact pair fails both checks and the
   amended pair passes.
-- **VERIFICATION template: denominator table + required "what this could not establish" section**
+- **VERIFICATION template: denominator table + required "what this could not establish" section** **✅ BUILT in `M5.E10` (2026-08-12); ships in `v0.1.25` — UNRELEASED at the time of writing.** Shipped: `references/verification-template.md` + `tools/lib/verification-template.js`, gate wired into `commands/verify.md` §5 and its exit criteria. Present-but-vacuous fails, not just present-but-empty.
   (§6 item 2; absorbs the ISSUES-INBOX self-critique entry and AGENT-EFFECTIVENESS Rec 3).
   *Done-when:* an artifact missing the section or the table fails the phase gate. Structural only —
   works **paired with the diff above**, never instead of it.
-- **REVIEW claims-audit** (§6 item 3) — implement the faithfulness backstop that `ship.md` §5.5 and
-  the `evict.js` header already assign to REVIEW: every coverage/status/completeness claim in
+- **REVIEW claims-audit** (§6 item 3) — ⚠ **NOT BUILT. Deliberately deferred out of `M5.E10` by
+  `D-M5E10-1`, and still open.** This is the **semantic** half of claim integrity, and nothing
+  shipped in `v0.1.23` covers it. Implement the faithfulness backstop that `ship.md` §5.5 and the
+  `evict.js` header already assign to REVIEW: every coverage/status/completeness claim in
   VERIFICATION and prior-phase artifacts verified against its source (the adversarial
   `docs-verifier` design has been parked in ISSUES-INBOX since 2026-05-12). *Done-when:* a fixture
   VERIFICATION with a seeded false claim is caught by the step.
-- **Correction protocol** (§6 item 5) — a correction is complete when a corpus grep for the claim
+
+  **What the deterministic half cannot see, stated so the gap has a shape.** `M5.E10` shipped checks
+  that compare *tokens* — requirement IDs present or absent, sections present or empty, a line
+  retracting itself. **A VERIFICATION naming every requirement, with a denominator, whose evidence
+  column is wrong about what the tests actually assert, passes every one of them.** The claims in a
+  document are only checkable against the thing they describe, and no regular expression opens that
+  thing. `AC0.1` exists so this sentence is somewhere a reader lands, rather than inferred from
+  silence.
+- **Correction protocol** **✅ BUILT in `M5.E10` (2026-08-12); ships in `v0.1.25` — UNRELEASED at the time of writing.** Shipped: `tools/lib/correction-protocol.js`, blocks at FULL / advisory below. Known limit, pinned by its own test: a claim that WRAPS across lines is invisible. (§6 item 5) — a correction is complete when a corpus grep for the claim
   and its restatements returns only corrected instances: root + all carriers, not the files that
   happened to be open. **Plus the corollary: retract at the granularity people search at** — `grep`
   prints one line, so an amendment appended three lines below leaves the claim's own line reading as
@@ -885,7 +908,7 @@ accident, which is the mechanism this whole line of work exists to replace.
 ### ~~M5.E18 — The archive half, for the 8 projects out of 12 it does not reach~~ — **✅ SHIPPED v0.1.18 (M5.E18, 2026-08-04)**
 
 **Delivered against the measurement below:** 67 files across 1 of 12 projects → **114 files across 6**
-(`traction-engine` 0 → 26), with **0 previously-planned moves lost**. Closure gained a third outcome
+(`eval-project-C` 0 → 26), with **0 previously-planned moves lost**. Closure gained a third outcome
 (`cannotDetermine`), the closed-set became a **union** of retro-and-verdict, and a **stub retrospective
 vetoes closure** (`B64`, found at five decision sites, not the two planned). Retro:
 [`M5.E18-RETROSPECTIVE.md`](M5.E18-RETROSPECTIVE.md).
@@ -908,7 +931,7 @@ archive paths are Epic-gated **by construction**, not by omission:
 
 So the de-prose, stamp, `BACKLOG`-create and v3-rename halves of `/sig:migrate-memory` work
 everywhere, and **the halves that actually stop `.planning/` from growing forever reach a
-third of the corpus.** That is the whole reason nextpass still runs Curator: reported
+third of the corpus.** That is the whole reason eval-project-A still runs Curator: reported
 2026-08-02, with the citations checked — *"`reconcile --apply`'s move half has no Signal
 equivalent for linear slices … so the move stays curator's until Signal's built-in covers
 linear work."* Their conclusion is correct.
@@ -921,7 +944,7 @@ does not serve, invisible because Signal-on-Signal has been Epic-mode since M4.5
 2. **Real closure verification, folding in `B64`.** Do not sequence that bug separately:
    Signal currently proves *closed* by a retro **file existing** and throws away the `isStub`
    flag it already computed, so whatever verifies closure for linear slices is the same
-   verification Epic mode is missing. nextpass named the failure precisely — *"a label, not a
+   verification Epic mode is missing. eval-project-A named the failure precisely — *"a label, not a
    guard."*
 3. **Port M5.E16's four-status model into the migrate's dry-run** (`B63`), so `0` stops
    meaning both *could not look* and *checked and clean*.
@@ -937,7 +960,7 @@ a second, external doc tool alive to do the half Signal cannot — which is the 
 two-tools-one-corpus state the doc-runtime flagship was built to end.
 
 **Scope inputs added 2026-08-02, from measuring the two pre-M5.E18 fix-lane items.** The second
-one (*"fix `current_epic` in `traction-engine` and `agent-tools-sync`"*) came back **refuted**, and
+one (*"fix `current_epic` in `eval-project-C` and `eval-project-I`"*) came back **refuted**, and
 what it returned instead is design input for this Epic:
 
 - **`current_epic` is being used as an artifact-prefix field, and Signal has no such field.**
@@ -969,14 +992,14 @@ application — `B45` quarantines an off-enum `completed_phases` entry, and nobo
 ### ~~A closure-gated archive **command** — wire `resolveClosures` to the mover~~ — **✅ SHIPPED v0.1.22 (`M5.E19`, 2026-08-07)**; its premise was corrected at PLAN (`D-M5E19-6`) — archiving was already wired, the gap was the missing front door
 
 **Tag:** roadmap · **Trigger: FIRED 2026-08-04** — `curator`, the external tool that did this job
-across `nextpass` and `cm-mentor-coach`, was **removed from the machine that day**. Archiving in
+across `eval-project-A` and `eval-project-D`, was **removed from the machine that day**. Archiving in
 those repos is now a hand-written `git mv` runbook. This entry is the permanent replacement.
 
 **Why curator went, because the replacement must not repeat it.** It chose what to archive by
 matching **filenames** and never checked whether the work was finished. Its only protection was a
 hand-maintained `live_zone` list you had to update *before* you started writing a file. It got this
-wrong three times across two projects: `nextpass` proposed archiving the **same 4 live units twice**
-(ENV1, MOD1, PILOT0, VOICE1 — 2026-08-01 and again 2026-08-04), and `cm-mentor-coach` failed in the
+wrong three times across two projects: `eval-project-A` proposed archiving the **same 4 live units twice**
+(ENV1, MOD1, PILOT0, VOICE1 — 2026-08-01 and again 2026-08-04), and `eval-project-D` failed in the
 opposite direction, falsely *refusing* an archive by prefix-matching the unit `ADMIN-UI` against
 `ADMIN`. The 2026-08-01 remedy was a **printed warning**, and it failed the way warnings fail: it
 asks a human to be vigilant forever. **A warning asks; a gate refuses.**
@@ -984,14 +1007,14 @@ asks a human to be vigilant forever. **A warning asks; a gate refuses.**
 **M5.E18 built the hard half and wired none of it.** That Epic's own retro records the shape —
 *"the library could do 110; nothing wired it."* This entry is the wiring.
 
-**What works, measured 2026-08-04 against nextpass's real corpus:** `tools/lib/closure.js`
+**What works, measured 2026-08-04 against eval-project-A's real corpus:** `tools/lib/closure.js`
 (`resolveClosures`) returns finished / not-finished / cannot-tell per unit — **1 closed, 7 open, 0
 cannot-tell**, and it correctly reads **PILOT0** and **VOICE1** as *open*. Those are two of the four
 units the old tool wanted to archive.
 
 **What is broken, same measurement — and it is the blocker.** `planArchiveMoves` builds every
 candidate as `` `${PLANNING_DIR}/${unit}-${suffix}.md` `` — the `<UNIT>-<SUFFIX>.md` form only.
-nextpass and cm-mentor-coach both carry **two filename shapes for one unit**: `SLICE-SSO` exists as
+eval-project-A and eval-project-D both carry **two filename shapes for one unit**: `SLICE-SSO` exists as
 `SLICE-SSO-{PROGRESS,REVIEW,VERIFICATION}.md` **and** `PLAN-SLICE-SSO{,-RESEARCH,-VALIDATION}.md`.
 Run against it today the planner returns **3 of 6 files**.
 
@@ -1006,7 +1029,7 @@ Run against it today the planner returns **3 of 6 files**.
 1. **One unit at a time.** All-or-nothing is why reading the old tool's warning never helped: a
    correct read left **no safe partial action**, so the only move was doing it by hand.
 2. **A manual override alongside the automatic check.** Signal's checker reads Slice SSO as
-   *finished*; nextpass deliberately holds it **live** (merged but dormant pending Wolverine
+   *finished*; eval-project-A deliberately holds it **live** (merged but dormant pending Wolverine
    go-live — the reason is a comment in that repo's `.curator.yml` `live_zone`). Both layers are
    required; **either one alone is wrong.**
 3. **Refuse to re-move a unit already present in `archive/`.** *(Carried forward from the deleted
@@ -1014,7 +1037,7 @@ Run against it today the planner returns **3 of 6 files**.
    is the guard that prevents the split-unit failure above.
 
 **Prior art to read, not to re-derive:** the two rewritten runbooks
-(`nextpass/docs/operational/ship-archive-runbook.md` and cm-mentor-coach's) carry the manual
+(`eval-project-A/docs/operational/ship-archive-runbook.md` and eval-project-D's) carry the manual
 sequence, and the deleted wrapper is in those repos' git history.
 
 ### ~~`B52` — warn at session start when the bound plugin cache is not the installed one~~ — **✅ SHIPPED v0.1.20 (2026-08-06)**
@@ -1131,11 +1154,11 @@ so the harness cannot support the claims it was built to support.
 ### M5.E12 — Project-facing currency
 **Tag:** roadmap · **Trigger: M5.E11 lands**, or a doc-drift incident in a Signal-built project.
 **⚠ The second condition has a candidate instance — checked 2026-07-28, not yet adjudicated.**
-On `traction-engine`, Curator's `.planning/INDEX.md` listed Phases 7–11 as *archived, closed* —
+On `eval-project-C`, Curator's `.planning/INDEX.md` listed Phases 7–11 as *archived, closed* —
 linking to directories that do not exist — while Phase 11 was the current phase, edited that day;
 its post-commit hook rendered *proposed* archive moves as completed and rewrote the file every
 commit (~40 of 53 "integrity issues" were orphan advisories caused by that false belief). Removed
-by pulling Curator (`traction-engine` `f09c11b`), so **the incident is closed; what is open is
+by pulling Curator (`eval-project-C` `f09c11b`), so **the incident is closed; what is open is
 whether it fires this Epic ahead of M5.E11.** Caveat against over-claiming: the drift was authored
 by an *external* tool contending for a Signal-owned file, not by Signal's own generator — the fix
 was tool removal, and this Epic's scope (index the project's own `docs/`) would not have prevented
@@ -1428,4 +1451,4 @@ These stay trigger-gated; the standing **WATCHLIST** entry (A1) in `ISSUES-INBOX
 - **PREPARE-phase early-promotion triggers** *(roadmap)* — 3 conditions; can also fire from lived signal ahead of the upstream-phases work.
 - **STATE auto-update Options B/C** (git hook / compute-on-read) — *Trigger:* Option A discipline demonstrably fails.
 
-*Last updated: 2026-07-26 — reconciled against the M5.E7 re-audit ([`../analysis/SIGNAL-V2-ROADMAP.md`](../analysis/SIGNAL-V2-ROADMAP.md)): M5.E8–E12 landed with triggers + first slices; Sprints 2/4/7 resolved; 4 unmarked closures struck; 5 new parked items with triggers. Later same day: M5.E9's bug slice re-scoped for `B42`/`B43`/`B44` (linear-mode findings from a live `nextpass` ship report; `B42` is the ledger's first `P1`).*
+*Last updated: 2026-08-13*

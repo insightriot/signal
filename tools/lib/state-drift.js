@@ -157,7 +157,7 @@ export function defineCheck(def) {
  *
  * Fail-closed into a REPORTED result, never an exception and never silence:
  * `readState` throws `StateSchemaError` on a real project in the corpus
- * (`affiliate-mojo` — "has frontmatter but no schema_version key"), and a crash
+ * (`eval-project-B` — "has frontmatter but no schema_version key"), and a crash
  * there would take the whole sweep down while a silent skip would report that
  * project as clean.
  *
@@ -415,7 +415,7 @@ export function renderDriftReport(report) {
 // ANY prefix, not only a strict Epic ID (M5.E16 REVIEW, `C1`).
 //
 // The first version of this anchored on `M{n}.E{n}` — Signal's own convention —
-// while declaring itself unconditionally evaluable. Against `traction-engine`,
+// while declaring itself unconditionally evaluable. Against `eval-project-C`,
 // which names artifacts `PHASE10-PLAN.md`, it matched nothing, returned no
 // findings, and reported **clean** for a project with 19 phase artifacts and 0
 // retrospectives. A confident wrong answer on the one project shape this Epic's
@@ -454,7 +454,7 @@ export function renderDriftReport(report) {
  *
  * **Not applicable when the project has NO retrospectives at all.** A project
  * that does not use retrospectives has a *different convention*, not drift, and
- * flagging all nineteen of `traction-engine`'s units would be telling its author
+ * flagging all nineteen of `eval-project-C`'s units would be telling its author
  * their process is wrong. This is a **structural narrowing** — a categorical
  * property of the project, checked once — and not a threshold, which FR2.2
  * forbids. The distinction matters: a threshold hides findings by degree, a
@@ -470,7 +470,7 @@ export const checkEpicWithoutRetro = defineCheck({
   // the check declared itself not-applicable rather than evaluating.
   //
   // Scoped honestly: the measured blast radius is **0 of 12**. The one project
-  // with an unprefixed `RETROSPECTIVE.md` (`conversor`) also has prefixed ones,
+  // with an unprefixed `RETROSPECTIVE.md` (`eval-project-F`) also has prefixed ones,
   // so it already evaluated. This is a latent gap that fails safe today by
   // INVENTORY, not by design — the Epic does not claim it fixed an observed
   // problem (RESEARCH §9.5).
@@ -486,7 +486,7 @@ export const checkEpicWithoutRetro = defineCheck({
   run: async ({ files, state, planningDir }) => {
     // `deriveUnits` owns the whole rule now: the right-anchored suffix match,
     // the categorical seven-phase-name exclusion (a linear project legitimately
-    // has `EXECUTE-PROGRESS.md` — `conversor` does — and C1 briefly made that
+    // has `EXECUTE-PROGRESS.md` — `eval-project-F` does — and C1 briefly made that
     // look like an un-retrospected unit called "EXECUTE"), and the conservative
     // fold that keeps a slice split across `PLAN-{unit}-*` and `{unit}-*` from
     // counting as two units.
@@ -648,7 +648,7 @@ const LINEAR_MODE_NA = {
  * (h) `current_epic` is set to something no resolver accepts.
  *
  * NOT IN THE REQUIREMENTS — this check exists because the corpus was measured.
- * `agent-tools-sync` carries `"M1"` and `traction-engine` carries `"PHASE12"`;
+ * `eval-project-I` carries `"M1"` and `eval-project-C` carries `"PHASE12"`;
  * both fail `EPIC_ID_STRICT_RE`, so `readEffectiveProfile`, `artifactName` and
  * `resolveArtifactPath` all fail open to LINEAR mode while the project believes
  * it is running Epics. That is `B53`'s class — fixed as a Signal-side bug in
@@ -885,6 +885,81 @@ const checkPhaseLogGap = defineCheck({
   },
 });
 
+/**
+ * The narrative's own phase claim, contradicting the frontmatter it sits beside
+ * (M5.E10 FR8 / `D-BR0810-2`).
+ *
+ * A phase transition moves the frontmatter and **structurally cannot touch the
+ * prose**, so every one creates a fresh opportunity for the body to keep
+ * asserting the phase that has just been left. The prose is what a person
+ * orients from.
+ *
+ * (The sentence above deliberately does not name the phase-entry function. It
+ * did, and `checkLeak` failed the build: a line carrying that identifier reads
+ * as a directive site to the adherence leak walk, which would put the measured
+ * instruction inside the control arm — `B55`'s exact shape.)
+ *
+ * NARROW BY CONSTRUCTION (AC8.1). It reads only lines that both name
+ * `current_epic` **and** echo the frontmatter key `phase:` — the shape the
+ * defect actually takes in this file (*"`phase: PLAN` / `current_epic: M5.E10`
+ * are correct"*). It does not read prose generally, and that narrowing is
+ * load-bearing rather than conservative: a "nearest phase-name token" rule was
+ * tried first and flagged **62 episodes** across this file's history, many of
+ * them backlog lines that merely mention an Epic near an unrelated phase word.
+ * The narrow rule finds **5**, which is what a check gets to claim.
+ *
+ * DISTINCT FROM ITS TWO NEIGHBOURS (AC8.3). `body-omits-current-epic` fires when
+ * the prose never mentions the Epic at all — here the prose mentions it and is
+ * confidently wrong about it. `phase-behind-artifacts` compares the frontmatter
+ * against files on disk and never reads the body. Both pass on every state this
+ * check catches; that is asserted, not assumed.
+ *
+ * NEEDS A PERSON. The fix is a sentence rewrite. Nothing can derive the prose
+ * the maintainer meant, and a check that promised a heal it cannot deliver is
+ * the failure `defineCheck`'s heal contract exists to prevent.
+ */
+export const checkNarrativePhaseContradiction = defineCheck({
+  id: 'narrative-phase-contradicts-frontmatter',
+  describe: "STATE.md's prose asserts a phase its own frontmatter disagrees with",
+  healCategory: HEAL.NEEDS_A_PERSON,
+  applicability: ({ state }) => {
+    if (!epicIsSet(state)) return LINEAR_MODE_NA;
+    if (!state.phase) {
+      return {
+        status: APPLICABILITY.BLIND,
+        reason: 'frontmatter declares no phase, so there is nothing for the prose to contradict',
+      };
+    }
+    return APPLICABILITY.EVAL;
+  },
+  run: ({ state, stateBody }) => {
+    const epic = String(state.current_epic);
+    const claimRe = /phase:\s*\**`?(CALIBRATE|DISCUSS|PLAN|EXECUTE|VERIFY|REVIEW|SHIP)\b/g;
+
+    const contradictions = [];
+    for (const line of stateBody.split('\n')) {
+      if (!line.includes(epic)) continue;
+      claimRe.lastIndex = 0;
+      for (const m of line.matchAll(claimRe)) {
+        if (m[1] !== state.phase) contradictions.push({ claimed: m[1], line: line.trim() });
+      }
+    }
+    if (contradictions.length === 0) return [];
+
+    const { claimed, line } = contradictions[0];
+    const excerpt = line.length > 110 ? `${line.slice(0, 110)}…` : line;
+    return [{
+      file: `${PLANNING_DIR}/STATE.md`,
+      message:
+        `frontmatter says phase: ${state.phase}, but the body claims phase: ${claimed} ` +
+        `beside ${epic} — "${excerpt}". The frontmatter advanced and the sentence did not. ` +
+        'Anyone orienting from the narrative is being told the wrong phase by the document ' +
+        'whose job is to tell them the right one. Rewrite the sentence; nothing can derive ' +
+        'what you meant it to say.',
+    }];
+  },
+});
+
 export const STATE_DRIFT_CHECKS = Object.freeze([
   checkEpicWithoutRetro,
   checkBaselineCommitOffHistory,
@@ -893,4 +968,5 @@ export const STATE_DRIFT_CHECKS = Object.freeze([
   checkPhaseBehindArtifacts,
   checkBodyOmitsCurrentEpic,
   checkPhaseLogGap,
+  checkNarrativePhaseContradiction,
 ]);

@@ -4,6 +4,12 @@ description: Retroactive visual audit of implemented frontend code. Reviews UI q
 tools: Read, Bash, Grep, Glob
 ---
 
+> ⚠ **NOT DISPATCHED BY ANY COMMAND.** No `/sig:` command names this agent for the Task tool,
+> so nothing invokes it automatically — it loads only when a person asks for it directly. That
+> is a known gap, recorded in [`references/agent-reachability.md`](../../references/agent-reachability.md), not a claim
+> that the capability is wired up. Documented rather than silent: an agent no command can
+> invoke and no document mentions is the never-called-guard class.
+
 # UI Auditor
 
 You are a UI audit agent. Unlike the UI checker (which validates against a spec), you perform a retroactive quality audit of frontend code that may not have had a formal design spec.

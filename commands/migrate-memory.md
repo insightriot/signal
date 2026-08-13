@@ -18,7 +18,7 @@ This command is **meta** — same class as `/sig:status` and `/sig:resume`. It d
 
 ## The three bloat vectors (model §3), each RELOCATE-not-delete
 
-- **Vector 1 — frontmatter-list prose** (the acute 529 KB `nextpass` case): de-prose = relocate the narrative out of the YAML list into the STATE body, leaving a short scalar.
+- **Vector 1 — frontmatter-list prose** (the acute 529 KB `eval-project-A` case): de-prose = relocate the narrative out of the YAML list into the STATE body, leaving a short scalar.
 - **Vector 2 — inlined legacy body**: relocate an already-migrated inlined body → `STATE-HISTORY.md` + a one-line pointer.
 - **Vector 3 — closed-Epic narrative accretion**: apply evict-on-close retroactively to a project's backlog of already-closed Epics (card + pointer + archive tree).
 

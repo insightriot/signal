@@ -55,7 +55,7 @@ Act on `status`:
 - **`not-applicable`** — continue silently. Either the tier does not end at a PR (SKETCH / SPIKE) or there is no remote, so there is no pull request for this gate to protect.
 - **`cannot-determine`** — **do not halt.** Emit `formatBranchUnknown(result)` and continue. A gate that cannot look must say so; a gate that halts on its own blindness is unusable.
 
-**Why this is a precondition and not advice.** §3 below says *"Create a pull request"* — but once every commit has landed on the default branch there is nothing to open one from, and the step fails with nothing to report. That is `B88`, found on a `nextpass` slice where five commits of real code reached `main` with no branch and CI ran *after* each push instead of gating it. **The paragraph at §3's foot is the one that removed the direct-to-main exemption** (`D-M5E17-5`) and states in copy that a change *"does need a branch, a PR, and a green suite"* — while this file provided no mechanism to make that true and no check that it happened. The file that stated the rule supplied no enforcement, which is the precise shape `D-M5E17-5` was filed to end.
+**Why this is a precondition and not advice.** §3 below says *"Create a pull request"* — but once every commit has landed on the default branch there is nothing to open one from, and the step fails with nothing to report. That is `B88`, found on a `eval-project-A` slice where five commits of real code reached `main` with no branch and CI ran *after* each push instead of gating it. **The paragraph at §3's foot is the one that removed the direct-to-main exemption** (`D-M5E17-5`) and states in copy that a change *"does need a branch, a PR, and a green suite"* — while this file provided no mechanism to make that true and no check that it happened. The file that stated the rule supplied no enforcement, which is the precise shape `D-M5E17-5` was filed to end.
 
 ## Skill Loading
 
@@ -87,7 +87,7 @@ Verify before creating the PR:
 
   Three outcomes stay separate, and the third is the point: items still **open**, items **discharged** (recorded as done, so not owed), and sources that **could not be read** — which render as `UNKNOWN, not none`. A source that failed to load has not reported zero.
 
-  *Why this is a query. `PROFILE.md`'s `backfill_warnings` was append-only with no way to record completion, so a discharged obligation read as open forever. In traction-engine's Phase 11 a security backfill discharged by Phase 10 — and ticked in four places — was reported "still owed" by VERIFY, escalated to a bolded warning by REVIEW, then copied into STATE.md. The claim gained confidence at every hop and never gained evidence (`CLAIM-INTEGRITY-ANALYSIS.md` specimen #4). Mark one done with `dischargeObligation(baseDir, {text, by, at})`.*
+  *Why this is a query. `PROFILE.md`'s `backfill_warnings` was append-only with no way to record completion, so a discharged obligation read as open forever. In eval-project-C's Phase 11 a security backfill discharged by Phase 10 — and ticked in four places — was reported "still owed" by VERIFY, escalated to a bolded warning by REVIEW, then copied into STATE.md. The claim gained confidence at every hop and never gained evidence (`CLAIM-INTEGRITY-ANALYSIS.md` specimen #4). Mark one done with `dischargeObligation(baseDir, {text, by, at})`.*
 
   *The answer comes from a **named source**, so the tracker decision stays open (`D-M5E14-1`). Adding GitHub Issues later means registering a second resolver, not rewriting this step.*
 
@@ -173,6 +173,40 @@ On an **Epic-close** SHIP (when `shipFR1Check` returned `{isEpicClose: true}` in
 
 **DEFERRED entries stay** (parked-but-live). When entries were evicted, stage the modified inbox **and** the ledger into the SHIP commit alongside §5/§6. Per-slice (non-Epic-close) SHIPs skip this step. This sweep is anchored at `/sig:plan` (primary) and `/sig:ship` (this step) only — **`/sig:execute` never runs it** (AC2.6).
 
+### 6.6 Discharge the backlog rows this Epic closed (`B94`) — Epic-close SHIP only
+
+On an **Epic-close** SHIP (when `shipFR1Check` returned `{isEpicClose: true}` in §0.5), record in
+`.planning/BACKLOG.md` that the rows this Epic finished are done.
+
+Call `dischargeBacklogRows(baseDir, {rows, by: state.current_epic, at: <today>})` from `tools/lib/backlog.js`, where `rows` are heading substrings **you name** from the Epic's own scope.
+
+*(That call sits on one line deliberately. `directive-classifier.js` reads at line granularity, so a
+call name wrapped across a break is invisible to it and the instruction ships **unmeasurable** —
+the same wrap limit `S5.t1` pinned for `checkCorrectionProtocol`, hit here while writing the step.)*
+
+1. **The Epic names the rows. Nothing here infers them.** Read the Epic's REQUIREMENTS / PLAN and
+   list the backlog rows its work closed. If it closed none, say so — *"no backlog rows discharged;
+   this Epic closed no queued item"* — and continue. A step that skips silently when it has nothing
+   to do is indistinguishable from a step that did not run.
+2. Report every result. Four outcomes come back and they mean different things: `discharged`,
+   `already-discharged` (someone struck it by hand — fine, and not an error), `not-found` (your
+   heading substring matched no live row — check the wording), and **`ambiguous`**, which **wrote
+   nothing** because the substring matched more than one row. Name the row exactly and re-run.
+3. When `{written: true}`, stage the modified `.planning/BACKLOG.md` into the SHIP commit alongside
+   §5/§6/§6.5.
+
+Per-slice (non-Epic-close) SHIPs skip this step.
+
+**Why this step exists.** `BACKLOG.md` was append-only: `backlog.js` had exactly two write paths
+(create-if-missing, promote-append) and **no discharge function was ever written**, while this file
+reconciled five other document surfaces at Epic close and touched the backlog in none of them. The
+backlog and §6.5's inbox sweep were built by the **same Epic** (`M5.E3` FR2), which gave the inbox
+both ends of the pipeline and the backlog only the intake end. So the one document users treat as
+*the queue* asserted `pending` about shipped work indefinitely — measured 2026-08-13 in this repo
+(four rows describing work finished that same day) and in the field (a backlog two weeks stale, ~15
+shipped slices reading as pending). That is not a convenience gap; it is a document actively
+asserting false completeness, which is the `CLAIM-INTEGRITY-ANALYSIS.md` class.
+
 ### 7. Manual milestone meta-retro (`--milestone-meta` flag, optional)
 
 If the user invokes `/sig:ship --milestone-meta` (or otherwise explicitly requests a milestone-level meta-retrospective), call `generateMilestoneMetaRetro(baseDir, milestoneId, opts)` from `tools/lib/retro-index.js` where `milestoneId` is derived from `state.current_epic` (drop the trailing `.E{N}` segment, e.g., `M4.5.E9` → `M4.5`).
@@ -198,7 +232,7 @@ When it reports `{written: true}`, stage the modified `.planning/INDEX.md` into 
 
 ### 9. Create the SHIP commit, then mark STATE.md fresh (M5.E17 FR3)
 
-Four steps above — §5.5 (evicted narrative), §6 (retro index), §6.5 (inbox + ledger), §8 (INDEX.md) — each instruct staging into **"the SHIP commit."** This is the step that makes it. Commit everything those steps staged, as one atomic commit.
+Five steps above — §5.5 (evicted narrative), §6 (retro index), §6.5 (inbox + ledger), §6.6 (discharged backlog rows), §8 (INDEX.md) — each instruct staging into **"the SHIP commit."** This is the step that makes it. Commit everything those steps staged, as one atomic commit.
 
 **Then, and only then:** `await markFresh(baseDir, {commit: <git HEAD short>})` from `tools/lib/state.js` — advances `last_updated` + `last_updated_commit` to the SHIP commit so `/sig:resume`'s staleness banner reads fresh. Run it **after** the commit — passing a pre-commit HEAD records a stale sha and silently defeats the freshness check (AC3.4).
 
@@ -211,10 +245,20 @@ Wrap the call in a **catch-all**: if `markFresh` throws for *any* reason — `St
 ### Anti-Rationalization Check
 | Temptation | Check |
 |---|---|
-| "The PR description doesn't need to be detailed" | PR descriptions are documentation for future developers |
 | "Nobody reads CHANGELOGs" | Changelogs are for users and for yourself in 6 months |
 | "I'll clean up the git history later" | Later never comes. Clean it now |
 | "Docs can wait until after merge" | If docs aren't in the PR, they won't get written |
+
+### Output contract (shaping failures — stated as recipes, `B38`)
+
+These are not prohibitions. A prohibition is the right form when the failure is *discipline* —
+knowing the rule and skipping it under pressure. It is the **wrong** form when the output merely
+comes out the wrong shape, where head-to-head wording tests measured the prohibition arm producing
+**more** of the unwanted content than a positive recipe, and worse than no guidance at all.
+So these say what the output IS. See `references/anti-rationalization-forms.md`.
+
+- **The PR body states what changed, why, and how it was verified.** Those three, in that order; the diff shows the rest.
+
 
 ### Exit Criteria
 - [ ] Pre-ship checklist complete

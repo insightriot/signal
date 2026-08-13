@@ -4,6 +4,12 @@ description: Executes plan tasks with TDD, atomic commits, and context rot preve
 tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
+> ⚠ **NOT DISPATCHED BY ANY COMMAND.** No `/sig:` command names this agent for the Task tool,
+> so nothing invokes it automatically — it loads only when a person asks for it directly. That
+> is a known gap, recorded in [`references/agent-reachability.md`](../../references/agent-reachability.md), not a claim
+> that the capability is wired up. Documented rather than silent: an agent no command can
+> invoke and no document mentions is the never-called-guard class.
+
 # Executor
 
 You are a task execution agent. You implement exactly one task from the plan with passing tests and an atomic commit.

@@ -19,9 +19,9 @@ const STATE_FM = (epic) =>
 
 const PASS = '# Verification\n\n**Verdict:** ✅ **PASS**\n';
 const FAIL = '# Verification\n\n**Verdict:** **FAIL** — three criteria unmet\n';
-// The traction-engine/PHASE8-SHIP.md shape: a terminal artifact with no verdict.
+// The eval-project-C/PHASE8-SHIP.md shape: a terminal artifact with no verdict.
 const NO_VERDICT = '# Ship\n\nRelease cut and pushed.\n';
-// The agent-builder shape AC2.6 settled: a lowercase `pass` inside prose, which
+// The eval-project-E shape AC2.6 settled: a lowercase `pass` inside prose, which
 // a body scan cannot tell from "Only 3 of 22 criteria pass."
 const PROSE_ONLY = '## Verdict\n\n**All 22 acceptance criteria pass.**\n';
 
@@ -68,7 +68,7 @@ describe('S4 AC2.1 — cannotDetermine is a value, not a rendering decision', ()
 // ---------------------------------------------------------------------------
 
 describe("S4 AC2.2′ — an unreadable verdict is never closed and never open", () => {
-  it('a SHIP artifact with no verdict at all (traction-engine/PHASE8-SHIP.md shape)', async () => {
+  it('a SHIP artifact with no verdict at all (eval-project-C/PHASE8-SHIP.md shape)', async () => {
     await planning({ 'STATE.md': STATE_FM(null), 'PHASE8-SHIP.md': NO_VERDICT });
     const r = await resolveUnitClosure({
       unit: 'PHASE8',
@@ -81,7 +81,7 @@ describe("S4 AC2.2′ — an unreadable verdict is never closed and never open",
     expect(r.status).not.toBe(CLOSURE.OPEN);
   });
 
-  it('a heading that defers its value to prose (consensus/T25-VERIFICATION.md shape)', async () => {
+  it('a heading that defers its value to prose (eval-project-L/T25-VERIFICATION.md shape)', async () => {
     await planning({ 'STATE.md': STATE_FM(null), 'T25-VERIFICATION.md': PROSE_ONLY });
     const r = await resolveUnitClosure({
       unit: 'T25',
@@ -111,7 +111,7 @@ describe("S4 AC2.2′ — an unreadable verdict is never closed and never open",
 // ---------------------------------------------------------------------------
 
 describe('S4 AC2.4 — the current unit is open even with a passing VERIFICATION', () => {
-  it("agent-tools-sync's M1 shape: VERIFICATION present AND current → open", async () => {
+  it("eval-project-I's M1 shape: VERIFICATION present AND current → open", async () => {
     const r = await resolveUnitClosure({
       unit: 'M1',
       files: ['M1-VERIFICATION.md'],
@@ -138,7 +138,7 @@ describe('S4 AC2.4 — the current unit is open even with a passing VERIFICATION
   });
 
   it('the raw current_epic is compared, so a NON-STRICT unit name still matches (D-M5E18-4)', async () => {
-    // traction-engine / agent-tools-sync both park a non-strict name here. A
+    // eval-project-C / eval-project-I both park a non-strict name here. A
     // strict-gated read returns null and this clause silently never fires.
     await planning({ 'STATE.md': STATE_FM('PHASE12'), 'PHASE12-VERIFICATION.md': PASS });
     const { units } = await resolveClosures(baseDir);
@@ -190,7 +190,7 @@ describe('S4 AC2.10 — conflicting verdicts at the same authority → cannotDet
   });
 
   it('a VERIFICATION outranking a SHIP is RESOLUTION, not conflict (S3 ranking still applies)', async () => {
-    // traction-engine's PHASE8 has both, one with a verdict and one without.
+    // eval-project-C's PHASE8 has both, one with a verdict and one without.
     // Different authority levels must not read as a disagreement.
     await planning({
       'STATE.md': STATE_FM(null),
@@ -229,7 +229,7 @@ describe('S4 AC2.10 — conflicting verdicts at the same authority → cannotDet
 
 describe('S4 AC2.11 — one unit\'s failure never takes the run down', () => {
   it('(a) a THROWING readState — every unit is reported, none is closed', async () => {
-    // Live path, not defensive: affiliate-mojo's readState throws on one of the
+    // Live path, not defensive: eval-project-B's readState throws on one of the
     // 12 real projects. Without the current unit the not-current clause cannot
     // be evaluated for ANY unit, so nothing may close.
     await planning({
@@ -277,9 +277,9 @@ describe('S4 AC2.11 — one unit\'s failure never takes the run down', () => {
   });
 
   it('"could not look" is distinguishable from "nothing to look at" — found in first use', async () => {
-    // Found by running the resolver over all 12 real projects: affiliate-mojo
+    // Found by running the resolver over all 12 real projects: eval-project-B
     // (STATE.md unreadable) returns counts {0,0,0} — BYTE-IDENTICAL to
-    // prompt-library, a perfectly readable project that simply has no units.
+    // eval-project-H, a perfectly readable project that simply has no units.
     // A caller rendering only the counts cannot tell blindness from cleanliness,
     // which is C1's shape in code written by this very slice. The distinction
     // exists on the record (`stateReadable` + `reason`); this pins it so S7's

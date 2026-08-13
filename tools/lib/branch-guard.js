@@ -9,7 +9,7 @@
 // default branch NAME) for the staleness baseline; it never asks where you are.
 //
 // So the discipline lived entirely in `CLAUDE.md` and in whoever was driving
-// remembering to read it. On a `nextpass` slice nobody did: five commits of real
+// remembering to read it. On a `eval-project-A` slice nobody did: five commits of real
 // code reached `main` with no branch and therefore no PR, CI ran AFTER each push
 // instead of gating it, and `git push` printed "Bypassed rule violations" and
 // succeeded because `enforce_admins=false`.

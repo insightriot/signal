@@ -39,6 +39,7 @@ import {
 } from './doc-hygiene.js';
 import { enumerateRetros, parseExistingHooks, renderIndex } from './retro-index.js';
 import { runDriftChecks, renderDriftReport, STATE_DRIFT_CHECKS } from './state-drift.js';
+import { backlogDischargeStatus, BACKLOG_DISCHARGE, REASON_NO_BACKLOG } from './backlog.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -125,36 +126,9 @@ export async function checkIndexFreshness(baseDir) {
  */
 export async function checkRetroIndexFreshness(baseDir) {
   const rel = PLANNING_DIR + '/RETROSPECTIVES.md';
-  const indexPath = join(baseDir, PLANNING_DIR, 'RETROSPECTIVES.md');
+  const result = await retroIndexFreshness(baseDir);
 
-  let retros;
-  try {
-    retros = await enumerateRetros(baseDir);
-  } catch {
-    return []; // unreadable project → fail open, report nothing (NFR3)
-  }
-  // Greenfield: the first retro lands at the next Epic close. Nothing to say.
-  if (!retros || retros.length === 0) return [];
-
-  let existing = null;
-  try {
-    existing = await readFile(indexPath, 'utf-8');
-  } catch {
-    existing = null;
-  }
-  if (existing === null || existing.trim() === '') {
-    return [
-      mkFinding(
-        'retro-index-freshness',
-        'advisory',
-        rel,
-        `${retros.length} retrospective(s) present but no RETROSPECTIVES.md index — regenerate it`
-      ),
-    ];
-  }
-
-  const expected = renderIndex(retros, parseExistingHooks(existing));
-  if (expected !== existing) {
+  if (result.outcome === RETRO_FRESHNESS.STALE) {
     return [
       mkFinding(
         'retro-index-freshness',
@@ -163,6 +137,144 @@ export async function checkRetroIndexFreshness(baseDir) {
         'RETROSPECTIVES.md is stale — a regen would rewrite it (rows added, removed, or changed)'
       ),
     ];
+  }
+  if (result.outcome === RETRO_FRESHNESS.CANNOT_EVALUATE) {
+    // A greenfield project genuinely has nothing to say, and saying it every
+    // run is how a detector earns the mute that makes it useless. Every OTHER
+    // un-evaluable reason is reported: an unreadable project and a missing
+    // index both used to render as silence, indistinguishable from "checked
+    // and clean" — `B39`'s shape (M5.E10 AC7.2).
+    if (result.reason === REASON_GREENFIELD) return [];
+    return [mkFinding('retro-index-freshness', 'advisory', rel, result.reason)];
+  }
+  return [];
+}
+
+/** @enum {string} */
+export const RETRO_FRESHNESS = Object.freeze({
+  FRESH: 'fresh',
+  STALE: 'stale',
+  CANNOT_EVALUATE: 'cannot-evaluate',
+});
+
+const REASON_GREENFIELD =
+  'no retrospectives on disk yet — nothing to compare (the first lands at the next Epic close)';
+
+/**
+ * Retro-index freshness as a THREE-outcome record (M5.E10 FR7 / AC7.2).
+ *
+ * The finding-shaped wrapper above predates this and stays the `/sig:sweep`
+ * surface; this is the half that distinguishes **"checked and clean"** from
+ * **"could not check"**. Before it, four different situations all returned an
+ * empty finding list — index matches, no retros exist, the project is
+ * unreadable — and a reader could not tell which. Three of those are not clean
+ * results; they are absences of a result.
+ *
+ * @param {string} baseDir — project root (where `.planning/` lives)
+ * @returns {Promise<{outcome: string, reason: string|null, retroCount: number}>}
+ */
+export async function retroIndexFreshness(baseDir) {
+  const indexPath = join(baseDir, PLANNING_DIR, 'RETROSPECTIVES.md');
+  const cannot = (reason, retroCount = 0) => ({
+    outcome: RETRO_FRESHNESS.CANNOT_EVALUATE,
+    reason,
+    retroCount,
+  });
+
+  let retros;
+  try {
+    retros = await enumerateRetros(baseDir);
+  } catch {
+    return cannot('the retrospectives on disk could not be read — freshness was not checked');
+  }
+  if (!retros || retros.length === 0) return cannot(REASON_GREENFIELD);
+
+  let existing = null;
+  try {
+    existing = await readFile(indexPath, 'utf-8');
+  } catch {
+    existing = null;
+  }
+  if (existing === null || existing.trim() === '') {
+    return cannot(
+      `${retros.length} retrospective(s) present but no RETROSPECTIVES.md index — regenerate it`,
+      retros.length
+    );
+  }
+
+  const expected = renderIndex(retros, parseExistingHooks(existing));
+  return {
+    outcome: expected === existing ? RETRO_FRESHNESS.FRESH : RETRO_FRESHNESS.STALE,
+    reason: null,
+    retroCount: retros.length,
+  };
+}
+
+/**
+ * Backlog rows asserting `pending` about finished work (portable, advisory —
+ * M5.E10 FR9 / AC9.4, `B94`).
+ *
+ * The finding-shaped surface over `backlogDischargeStatus`. Severity is advisory
+ * in every case, including a confirmed stale row: whether a row should close is
+ * a judgment (work can legitimately outlive the unit that named it), and a
+ * structural finding on a judgment is how a check earns the mute that makes it
+ * useless.
+ *
+ * The silent case is deliberate and narrow — a project with **no BACKLOG.md at
+ * all**, which is 8 of the 12 local projects. Nudging them every run about a
+ * document they have chosen not to keep is noise. Every OTHER un-evaluable
+ * reason reports, because "could not check" rendering as silence is `B39`'s
+ * shape and the reason `S4.t1` exists three slices above this one.
+ *
+ * @param {string} baseDir — project root (where `.planning/` lives)
+ * @returns {Promise<Array<{check: string, severity: string, file: string, message: string}>>}
+ */
+export async function checkBacklogDischarge(baseDir) {
+  const rel = PLANNING_DIR + '/BACKLOG.md';
+  let result;
+  try {
+    result = await backlogDischargeStatus(baseDir);
+  } catch (err) {
+    return [mkFinding('backlog-discharge', 'advisory', rel, `the backlog could not be checked — ${err.message}`)];
+  }
+
+  // A finding and a blindness are reported TOGETHER, never one instead of the
+  // other. `backlogDischargeStatus` returns `cannot-evaluate` only when nothing
+  // is stale, so a run with one stale row and ten unreadable ones took the STALE
+  // branch — and this renderer printed the one and dropped the ten. "Could not
+  // check" rendering as a result is `B39`'s shape, which is what `AC9.8` fixed
+  // one layer down in the library while this layer quietly undid it.
+  const blindLine = (blind) =>
+    mkFinding(
+      'backlog-discharge',
+      'advisory',
+      rel,
+      `${blind.length} row(s) name work whose closure could not be read (${[...new Set(blind.map((b) => b.source))].join(' and ')}) — ` +
+        `their status is UNKNOWN, not clean.`
+    );
+
+  if (result.outcome === BACKLOG_DISCHARGE.STALE) {
+    const named = result.stale
+      .map((s) => `${s.id} (line ${s.line}: "${s.heading.slice(0, 60)}")`)
+      .join('; ');
+    const out = [
+      mkFinding(
+        'backlog-discharge',
+        'advisory',
+        rel,
+        `${result.stale.length} row(s) read as pending while the work they name is recorded closed — ${named}. ` +
+          `Discharge them at ship, or mark the heading "STILL OPEN" and say why.`
+      ),
+    ];
+    if (result.blind?.length) out.push(blindLine(result.blind));
+    return out;
+  }
+  if (result.outcome === BACKLOG_DISCHARGE.CLEAN && result.blind?.length) {
+    return [blindLine(result.blind)];
+  }
+  if (result.outcome === BACKLOG_DISCHARGE.CANNOT_EVALUATE) {
+    if (result.reason === REASON_NO_BACKLOG) return [];
+    return [mkFinding('backlog-discharge', 'advisory', rel, result.reason)];
   }
   return [];
 }
@@ -404,6 +516,7 @@ export async function runSweep(baseDir = process.cwd()) {
   raw.push(...(await checkIndexFreshness(baseDir)));
   raw.push(...(await checkRetroIndexFreshness(baseDir)));
   raw.push(...(await checkStaleInbox(baseDir)));
+  raw.push(...(await checkBacklogDischarge(baseDir)));
   raw.push(...checkClaudeMdBloat(baseDir));
   raw.push(...(await checkPhaseLog(baseDir)));
 

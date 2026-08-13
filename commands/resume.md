@@ -230,11 +230,21 @@ schema-drift or stale-binding banners, which cast doubt on the reading itself.
 | Temptation | Check |
 |---|---|
 | "Auto-invoke the next phase to save the user a step." | No. `/sig:resume` is a briefing, not a launcher. Auto-invocation collapses the value of explicit phase entry — users sometimes want to re-read PROFILE before continuing, or escalate first. The safety gate is the entire point. |
-| "Load every artifact for every phase, just in case." | Token cost is real; load only the most-recent artifact for the current phase plus PROJECT.md + CONTEXT.md. Users who want more depth `cat` the file. |
 | "Refresh STATE.md with a 'last resumed' timestamp." | `/sig:resume` is read-only by design (matches `/sig:status`). Mutation muddies the trust contract. |
-| "Render the full PROJECT.md / CONTEXT.md verbatim." | Summarize. The briefing is for re-anchoring, not re-reading from scratch. |
-| "Move the staleness banner to the bottom of the briefing so users see it after the situational read." | No. The banner is a **trust signal** about the briefing itself — if STATE.md is stale, every line below is potentially wrong. The banner goes **at the top**, where a user who's deciding whether to continue can see it before they invest attention in the rest. |
 | "Skip the orphan prompt under `gate_strictness: off` — too chatty." | Per D12, orphan detection is always-on regardless of strictness. Without it, a crashed mid-task wedges `current_tasks[]` forever and `/sig:resume` can't recover. The prompt itself **is** the recovery mechanism. |
+
+### Output contract (shaping failures — stated as recipes, `B38`)
+
+These are not prohibitions. A prohibition is the right form when the failure is *discipline* —
+knowing the rule and skipping it under pressure. It is the **wrong** form when the output merely
+comes out the wrong shape, where head-to-head wording tests measured the prohibition arm producing
+**more** of the unwanted content than a positive recipe, and worse than no guidance at all.
+So these say what the output IS. See `references/anti-rationalization-forms.md`.
+
+- **Load the current phase's artifact, plus `PROJECT.md` and `CONTEXT.md`.** That set is what re-anchors a reader; anything more spends context they need for the work.
+- **The Vision renders in three sentences or fewer, and decisions as their first five bullets.** The briefing is for re-anchoring, not re-reading.
+- **Trust banners render above the body, in the order given** — binding, schema, staleness, origin, then advisory. A reader decides whether to trust the briefing before spending attention on it.
+
 
 ## Gate: Briefing Complete
 

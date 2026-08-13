@@ -219,8 +219,8 @@ describe('warn-layout-drift.js hook (spawn harness)', () => {
   // "Malformed → no banner" is defined STRUCTURALLY (no `---` fence, see the no-fence
   // case above) — NOT by YAML validity. Parsing to detect corruption would throw on a
   // 529 KB frontmatter-bloat file whose closing fence is past the cap, silencing the
-  // exact nextpass case the Epic exists to nag. Regex-scan is the only design that both
-  // banners nextpass AND never crashes; the cost is a banner on a corrupt value, which
+  // exact eval-project-A case the Epic exists to nag. Regex-scan is the only design that both
+  // banners eval-project-A AND never crashes; the cost is a banner on a corrupt value, which
   // is harmless (advisory) and correct (that file needs migrating too).
   it('invalid-YAML frontmatter → exit 0, no crash, advisory banner (regex reader never parses)', async () => {
     const dir = join(tempDir, 'badyaml');

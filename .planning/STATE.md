@@ -2,50 +2,27 @@
 schema_version: 1
 docs_layout_version: 3
 phase: SHIP
-current_epic: M5.E19
+current_epic: M5.E10
 current_wave: null
 current_tasks: []
 completed_phases:
-  - DISCUSS (2026-08-07)
-  - PLAN (2026-08-07)
-  - VERIFY (2026-08-07)
-  - REVIEW (2026-08-07)
+  - DISCUSS (2026-08-12)
+  - PLAN (2026-08-12)
+  - EXECUTE (2026-08-13)
+  - VERIFY (2026-08-13)
+  - REVIEW (2026-08-13)
+  - SHIP (2026-08-13)
 blockers: []
-last_completed_task: null
-last_decision_at: 2026-08-02T00:20:21.679Z
-last_updated_commit: 6405bf3f0fe6064c0e7d18c05c0fc3a4cb1686c7
-last_updated: 2026-08-09T23:34:16.224Z
+last_completed_task:
+  id: S4.t1
+  status: done
+  commit: 5b35110
+  completedAt: 2026-08-13T14:47:23.449Z
+last_decision_at: 2026-08-13T14:47:23.449Z
+last_updated_commit: 0535548268af03ffc11a3df70b361c8b8ceea5c0
+last_updated: 2026-08-13T22:48:21.791Z
 ---
 # Project State
-
-> ## ▶ `phase` / `current_epic` ABOVE ARE STALE — session paused 2026-08-09
->
-> **`phase: SHIP` / `current_epic: M5.E19` describe an Epic that shipped as v0.1.22, two releases
-> ago.** Everything since ran in the **fix lane**, so no phase command executed and nothing updated
-> those fields — they are not wrong about a *current* Epic, there simply is not one.
->
-> **`last_updated_commit` is maintained; `phase` and `current_epic` are not.** `/sig:checkpoint`
-> advances the commit baseline, and the commit that *records* that refresh necessarily lands after
-> it — so this file reads **exactly one commit behind immediately after a checkpoint**. That is the
-> mechanism, not drift, and re-running the command only produces another commit and another
-> one-behind. A staleness banner of 1 right after a checkpoint is expected.
->
-> **The fields to distrust are `phase` and `current_epic`.** `markFresh` moves the baseline only,
-> and `setCurrentEpic` is the sole writer of `current_epic`, so both stay wrong until `M5.E10`
-> opens — and this prose is what carries the truth until then. **Do not put a commit sha in this
-> block:** naming one is what made the two previous versions of this paragraph rot, each falsified
-> by the very run it described.
->
-> **Do not orient from the frontmatter. Read
-> [`CONTEXT.md`](CONTEXT.md) § Active work → HANDOFF**, which carries the three decisions taken
-> today (`D-BR0809-1…3`), what shipped, where the session stopped, and the two open calls.
->
-> **The one-line version:** `M5.E10` is the next Epic and **shipping it closes Milestone 5**. The
-> inbox triage that was the immediate next action is **DONE** — 2026-08-10, PRs #136/#137/#138: 52
-> entries → 50 dispositioned + 2 standing, `B92` filed, 13 rows added to `BACKLOG.md`, decisions
-> `D-BR0810-1…3`. **The routing below that sends the inbox triage to `M5.E14` is now historical**
-> (`D-M5E17-3` cut it there when nothing else had a home for it); it ran in the fix lane instead and
-> `M5.E14` no longer carries it.
 
 ## Resume pointer
 
@@ -72,7 +49,15 @@ two agreed and no banner was due). ⚠ **`v0.1.20` ships 2026-08-06, so the cach
 behind again until you `/sig:update` **and then** restart — in that order, because a restart before the update has nothing new to bind to** — and the *next* session after that is the first one
 this fix can protect.
 
-## ▶ NEXT WORK — agreed 2026-08-06, in this order
+## ~~▶ NEXT WORK — agreed 2026-08-06, in this order~~ · **CLOSED — all three shipped**
+
+> **Historical as of 2026-08-12. Kept for the reasoning, not the ordering.** All three shipped
+> (`B52` → v0.1.20, the archive command → v0.1.22, `M5.E14`'s slice → v0.1.24). **Two claims below
+> are now false and are corrected here rather than edited in place**, since the section is a dated
+> record: item 3 says `M5.E10`'s trigger *"is NOT met"*, and the closing note says `M5.E10` has
+> *"never landed — no artifacts on disk."* `M5.E10` is **open and in flight** with four artifacts on
+> disk. Both statements were true when written on 2026-08-06. **The live queue is
+> [`BACKLOG.md`](BACKLOG.md)** (`D-M5E18-1`).
 
 **Brett's call: do all three, sequentially.** Full reasoning and the plain-language framing are in
 [`BACKLOG.md`](BACKLOG.md) → *"Next work — the agreed sequence"*. That file is the queue
@@ -87,7 +72,7 @@ this fix can protect.
    are reachable with no stale cache at all (a linear project opening its first Epic; a non-strict
    `current_epic` such as `PHASE11`). `B84` filed from the release cut itself.
 2. ~~**The closure-gated archive command**~~ **DONE — shipped as `v0.1.22` (`M5.E19`), 2026-08-07.** `/sig:archive`; `B82` shipped separately in v0.1.21. Original entry: — wire `resolveClosures` to the mover. **Epic lane.** Trigger
-   FIRED 2026-08-04: `curator` was removed from the machine and `nextpass` + `cm-mentor-coach` are
+   FIRED 2026-08-04: `curator` was removed from the machine and `eval-project-A` + `eval-project-D` are
    archiving by hand-written runbook today. M5.E18 built the engine and wired none of it. **Fold in
    `B82`** (P2 — `planArchiveMoves` ignores `deriveUnits` and moves half a unit). The bar: the
    replacement must **refuse**, not warn.
@@ -133,7 +118,7 @@ Plan: [`M5.E18-PLAN.md`](M5.E18-PLAN.md) · Progress: [`M5.E18-PROGRESS.md`](M5.
 Decisions `D-M5E18-1`…`6`. Closed `B64`, `B70`, `B72`, `B78`. **1994 → 2168 tests.**
 
 **The number the release is about:** `/sig:migrate-memory` went from archiving **67 files across 1 of
-12 real projects — every one of those 67 in Signal's own tree — to 114 across 6.** `traction-engine`
+12 real projects — every one of those 67 in Signal's own tree — to 114 across 6.** `eval-project-C`
 0 → 26. The closed-set is a **union**, measured in both directions: retro-only sees 67 and is blind
 to 8 projects; verdict-only sees 110 but **loses 4** (`M5.E17` has a retro and no VERIFICATION, so
 the verdict rule reads a shipped Epic as running). A **stub retro vetoes** closure regardless of
@@ -170,13 +155,13 @@ hardening / claim integrity). `analysis/LOOP-ENGINEERING-ANALYSIS.md`'s attentio
 ---
 
 **Three PLAN-time acceptance criteria were corrected in the open before EXECUTE** — `AC1.2`
-(the behaviour it called correct was the defect: the flat rule split one nextpass slice into two
+(the behaviour it called correct was the defect: the flat rule split one eval-project-A slice into two
 units, so FR2 would have archived half of it), `AC1.4` (expected set wrong in both directions), and
 `AC2.2` (both named fixtures invalid — one file does not exist). Corrections live in the PLAN, not
 in the requirements, per `B59`'s precedent.
 
 **DISCUSS walked three real trees rather than quoting the backlog, and two findings reshaped the
-scope.** (1) There is no single "prefix" to read — nextpass has **10+ unit names**, some beginning
+scope.** (1) There is no single "prefix" to read — eval-project-A has **10+ unit names**, some beginning
 with the word `PLAN`, so a declared-prefix field cannot express the shape (`D-M5E18-2`). (2) **The
 retro requirement, not the prefix, is the harder blocker** — none of the three projects has a single
 retrospective file, so closure-by-retro returns *nothing is closed* everywhere (`D-M5E18-3`).
@@ -203,7 +188,7 @@ came back refuted, and it moves M5.E18's scope.**
    linear-mode rows are exactly the stale ones"* — was half right: `B41`–`B45` are linear-mode, but
    `B39`/`B48`/`B51`/`B53`/`B54` are M5.E13 rows and were equally stale. Every flip carries a
    `file:line` or a test that fails if it regresses.
-2. ❌ **Do NOT "fix" `current_epic` in `traction-engine` or `agent-tools-sync` — the instruction was
+2. ❌ **Do NOT "fix" `current_epic` in `eval-project-C` or `eval-project-I` — the instruction was
    wrong, and executing it would have broken both projects.** Measured, not reasoned:
    `resolveArtifactPath(…, {currentEpic: null})` returns **`null`** for both, because every artifact
    they own is named after the non-strict value — 19+ `PHASE1*-*.md` files and 6 `M1-*.md` files.
@@ -287,7 +272,7 @@ check,"** and `(h)` — a check found only by measuring — reports *why* the ot
 - **`B59`** — `M5.E16-PROFILE.md` carried **two** out-of-enum values, so `readEffectiveProfile`
   threw and **the Epic declaring FEATURE ran its whole DISCUSS at the project's FULL.** Found at its
   own PLAN preamble, the first time any code read the file. Fixed and pinned.
-- **`C1` at REVIEW** — check `(c)` reported **"clean"** on `traction-engine` (19 phase artifacts, 0
+- **`C1` at REVIEW** — check `(c)` reported **"clean"** on `eval-project-C` (19 phase artifacts, 0
   retrospectives) because it declared itself unconditionally evaluable while keying detection to a
   strict filename. **REVIEW returned FAIL and the Epic looped back to EXECUTE**, rather than take the
   small-diff exit `D-M5E17-1` explicitly warns about. The fix then introduced a *false positive*,
@@ -343,7 +328,7 @@ Three documents corrected, each pinned by a test comparing one document against 
   "needs a look" and nothing enforced it for eight releases.** Closed by **deletion** — the source is
   now the relative `.` form, so there is no second place to record which commit ships.
 - **`B57`** — `/sig:sweep` walked `.planning/.migrate/snapshot/`, a frozen backup, and reported it as
-  broken live docs: **11 of nextpass's 12 findings were noise.** Found by the first run of sweep
+  broken live docs: **11 of eval-project-A's 12 findings were noise.** Found by the first run of sweep
   against real non-Signal projects — the FR1 first-use discipline, applied the day it shipped.
 - **`ship.md`'s direct-to-main self-exemption removed.** Its Exit Criteria require a PR and an
   approval; §5 exempted "the Signal-on-Signal flow" from exactly that. Written 2026-05-26 —
@@ -368,22 +353,40 @@ Three documents corrected, each pinned by a test comparing one document against 
 **New this release:** **CI** (`.github/workflows/test.yml`) — Signal had none. Its first run caught a latent dependency nothing had stated: the suite walks real git history, and `actions/checkout` shallow-clones by default.
 
 ## In-flight
+- [carried from M5.E10] > (`D-BR0809-1`, `D-BR0809-2`) is open; `M5.E19`'s four-phase ledger archived cleanly to
 
-**Nothing in flight. `M5.E19` closed and shipped as `v0.1.22` (2026-08-07)** — `/sig:archive`,
-the command archiving never had. Retro:
-[`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md). Decisions `D-M5E19-1`…`9`. Filed `B87`.
-2284 → **2300 tests**, **20 commands**.
+**▶ `M5.E10` — review hardening / claim integrity — opened 2026-08-11. DISCUSS + PLAN closed; next is EXECUTE wave 1 (`S1`).** Shipping it
+**closes Milestone 5** (`D-BR0809-2`). Running at the project's **FULL / strict** (no Epic-scoped
+PROFILE; see the tier note in `M5.E10-REQUIREMENTS.md`). `M5.E19`'s ledger archived to
+[`archive/M5/E19/STATE-NARRATIVE.md`](archive/M5/E19/STATE-NARRATIVE.md) on the roll.
 
-**This section has now gone stale FOUR times, the same way, and the fourth is the strongest
-evidence yet.** The sequence: (1) *"Nothing, M5.E16 closed"* while two Epics shipped and a third
+*Prior: `M5.E19` closed and shipped as `v0.1.22` (2026-08-07) — `/sig:archive`, the command
+archiving never had. Retro: [`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md). Decisions
+`D-M5E19-1`…`9`. Filed `B87`. 2284 → 2300 tests, 20 commands.*
+
+**FIVE times now — and instance five happened to THIS paragraph, in the edit that opened the Epic
+chartered to fix it.** For roughly twenty minutes after `setCurrentEpic` wrote `current_epic:
+M5.E10` into the frontmatter directly above, this section read *"Nothing in flight"* — the same
+words as instance (3), falsified the same way, in the section that already catalogued (1) through
+(4) and argued they were structural. **The catalogue did not protect the file it lives in.** That is
+the finding: awareness of the defect, written at length, at the top of the very section, did not
+prevent the next occurrence twenty lines below. Whatever the fix is, it is not documentation.
+
+The sequence: (1) *"Nothing, M5.E16 closed"* while two Epics shipped and a third
 opened — **two Epics behind** the frontmatter; (2) *"`M5.E15` … EXECUTE next"* for a day after that
 Epic shipped; (3) *"Nothing in flight"* — written as the correction to (2) and falsified minutes
 later by `setCurrentEpic`; (4) *"At `PLAN`, and PAUSED … no `M5.E19-PLAN.md` yet, deliberately"* —
 falsified by **four** `transitionPhase` calls across EXECUTE → VERIFY → REVIEW → SHIP, while a
 `M5.E19-PLAN.md` sat on disk, **inside the Epic that filed `B87` about ledger honesty.**
 
+(5) *"Nothing in flight"* — while `current_epic: M5.E10` sat in the frontmatter twenty lines above,
+written by `setCurrentEpic` in the act of opening the Epic that owns this defect. Caught in the same
+session that caused it, by the author re-reading rather than by any check.
+
 (3) could still be read as inattention. (4) cannot: the prose was accurate when written and was
-falsified by a **full phase sequence** of machine writes that structurally cannot touch it.
+falsified by a **full phase sequence** of machine writes that structurally cannot touch it. (5)
+closes the argument from the other end — the author *knew about the defect, was working on it, and
+had just written a paragraph about it*, and the paragraph still went stale.
 `transitionPhase` moves frontmatter only; the frontmatter is the declared machine-truth
 (`INDEX.md:119`); this narrative is hand-maintained and **nothing reconciles it.** Filed in
 `ISSUES-INBOX.md`; it is a sibling of `B87` — both are *the record disagreeing with the work*.
@@ -417,6 +420,7 @@ None.
 None currently open.
 
 ## Closed work
+- M5.E10 — evicted to .planning/archive/M5/E10/STATE-NARRATIVE.md · card: M5.E10-RETROSPECTIVE.md
 
 - **M5.E8** (The measurement foundation) — SHIPPED as **v0.1.13** (2026-07-28). The adherence harness + the published coverage ceiling (**91/407 = 22.4%** trace-measurable). First verdict: `B41-phase-entry` **OBEYED** (3/3 vs 0/3). 1652→1736 tests; VERIFY PASS (28 ACs); REVIEW PASS-WITH-FIXES (1 Critical — the source commit was captured after the run, defeating `--combine`'s pairing guard). New: **B48** (P2, live), **B49** (P3, fixed). → [M5.E8-RETROSPECTIVE.md](M5.E8-RETROSPECTIVE.md).
 - **M5.E9** (Linear mode & the phase ledger) — SHIPPED as **v0.1.12** (2026-07-27), **ran ahead of E8** (D-M5E9-2). Closed B41–B45; `[BREAKING]` `completed_phases` became an append-only trimming log. 1623→1652 tests. → [M5.E9-RETROSPECTIVE.md](M5.E9-RETROSPECTIVE.md).

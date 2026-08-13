@@ -43,7 +43,7 @@ the literal string would have recreated the bug inside the test.
 `0.1.23` while two P1 fixes and two new tools are live for anyone tracking `main`:
 - **`B87` fixed** (`58f5097`, `0340448`) — a phase that ran and never entered `completed_phases`.
 - **`B90` fixed** (`f7b452f`) — the tier dial made visible **as a mechanism**, not a paragraph.
-- **`B88`** (P1, `confirmed`), **`B89`** (P2, `confirmed`) filed — both from `nextpass`, both
+- **`B88`** (P1, `confirmed`), **`B89`** (P2, `confirmed`) filed — both from `eval-project-A`, both
   **unsequenced**: they landed after Brett's 2026-08-06 ordering and the priority call is his.
 - Cross-project analysis tooling (`35d3fa5`) and a pre-release corpus stress test (`ab7a564`).
 - The defect class behind `B87`–`B90` named (`17e445c`): **the unreached mechanism** — the capability
@@ -64,7 +64,7 @@ rebuilt candidates from a `{unit}-{suffix}` template that cannot express `derive
 12 local projects: **3 split units / 6 stranded files → 0 / 0.** Signal's own tree shows 0 before and
 after — every unit here is a strict Epic ID, so **dogfooding was structurally blind to it**.
 
-⚠ **Production repos are never test beds.** `nextpass`, `cm-mentor-coach` and any live project are
+⚠ **Production repos are never test beds.** `eval-project-A`, `eval-project-D` and any live project are
 off-limits to Signal commands, `--apply` or not. Use `examples/sandbox/`, which exists for exactly
 this. Read-only diagnosis is fine.
 
@@ -235,7 +235,89 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 > cannot match this file's tally-shaped footer), to be done next time anyone is in `add.js`'s
 > insertion path.
 
-**Nothing is in flight as an Epic.** `M5.E19` closed and shipped as **v0.1.22** (retrospective at [`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md)); `B82` shipped as **v0.1.21** in the fix lane — no six phases, so no Epic artifacts and no retrospective. `M5.E14`'s shippable slice **shipped as v0.1.24**. **Next up is `M5.E10`** (`D-BR0809-1`), which is also what closes Milestone 5.
+> ## ▶ HANDOFF — context cleared 2026-08-13 (second clear). REVIEW IS DONE. READ THIS FIRST.
+>
+> **`STATE.md`'s frontmatter is CORRECT** — `phase: REVIEW`, `current_epic: M5.E10`, no in-flight
+> tasks, `completed_phases` holds DISCUSS / PLAN / EXECUTE / VERIFY. Believe it; `/sig:resume` was
+> made to land cleanly before this clear.
+>
+> **Work is on a branch, not `main`.** `epic/m5-e10-review-hardening`, **PR #141**. Everything is
+> committed and pushed; suite is **2602 tests**, green; CI green. The Epic lane merges with
+> `--merge` (never squash) — `ADHERENCE-LOG.md` pins commit SHAs.
+>
+> ### The only thing left is SHIP.
+>
+> DISCUSS → PLAN → EXECUTE → VERIFY → REVIEW are all closed, and the independent `/code-review` pass
+> Brett triggers has **already run**. Remaining: bump `plugin.json` to **`0.1.25`**, write the
+> CHANGELOG entry, run `/sig:ship`, merge #141. **Shipping closes Milestone 5.**
+>
+> ⚠ **The release is `v0.1.25`, NOT `v0.1.23`.** `v0.1.23` shipped 2026-08-08 (`B85`) and `v0.1.24`
+> on 2026-08-09; `plugin.json` already reads `0.1.24`. Any document still saying v0.1.23 is stale.
+>
+> ### What happened after EXECUTE, in one pass
+>
+> - **`B94` was folded in as `FR9` / `S7`** and shipped — the backlog can finally record that a row's
+>   work is done. **Its detector evaluates 1 of 12 corpus projects and cannot see `eval-project-A`,
+>   the project the bug was filed from.** That number belongs in the release notes, not a footnote.
+> - **VERIFY passed with documented limits — and its own first draft failed the coverage diff it was
+>   verifying.** It asserted *"56 of 56, none missing"*; the check returned **6 missing**, every one an
+>   id written only inside an en-dash range. The refutation is left standing in
+>   `M5.E10-VERIFICATION.md` as a boxed note. It is the Epic's best evidence; **do not tidy it away.**
+> - **REVIEW returned PASS-WITH-FIXES** — two Important defects found and closed in-phase (32 LOC).
+> - **The `/code-review` pass found 7 more. All 7 were reproduced before being accepted; 5 were fixed
+>   in code**, one of them by a rule the reviewer suggested that **measurement showed to be wrong**
+>   (restricting shorthand to a row's first cell broke the field fixture immediately).
+>
+> ### The serious one, now closed: `B97`
+>
+> **This repository is public, and 8 of the 13 eval-corpus projects were named in it.** The guard that
+> exists to prevent that covered only 5, so it passed while the other 8 were named in ~30 files — and
+> this Epic **added one**. Fixed: 113 replacements across 30 files, all 13 names denied in two match
+> modes, all 13 labels pinned by hash (`B98`). **A residual hole is stated, not claimed away:** three
+> names are ordinary English words and are caught only in project shape (`name/FILE`, backticked); a
+> bare prose mention of those three is not caught and cannot be without false positives.
+>
+> **Brett's call, recorded:** pin today's label mapping and publish the caveat rather than reconstruct
+> `F`–`L` by hand. References to `eval-project-F`+ written before 2026-08-13 may not name the same
+> project they name today; `A`–`E` are traceable throughout.
+>
+> ### Open, filed, deliberately not fixed
+>
+> - **`B99`** — an install carries ~11 MB of tracked files, 4.7 MB of it `.planning/`, where ~1.9 MB
+>   is what running the commands needs. No other installed plugin ships `tests/` or `node_modules`.
+>   **Brett raised this and deferred the fix past the release.** The row was **corrected in place**
+>   after its first version asserted "57 MB delivered to users" — that figure was a local-path install
+>   including untracked `node_modules`.
+> - **The `.planning/`-should-be-public question** — deferred past this release by Brett, deliberately.
+> - **`CLAUDE.md` still names Brett's portfolio system** in a section he wrote on purpose. Left alone;
+>   it needs his call, not a scrub.
+>
+> ### One expected drift finding — do not "fix" it
+>
+> `/sig:sweep` reports `phase-behind-artifacts`: *"STATE says phase REVIEW, but
+> `M5.E10-RETROSPECTIVE.md` exists — that is a SHIP-phase artifact."* **That is correct and
+> deliberate.** `ship.md` §0.5 HALTS with `NO_RETRO_FILE` if the retro is absent, so it has to be
+> written before `/sig:ship` is invoked, which necessarily puts a SHIP artifact on disk while the
+> phase still reads REVIEW. The check is doing its job; the situation is benign and clears the moment
+> SHIP records. **Do not advance the phase by hand to silence it.**
+>
+> Also pre-checked, so it is not discovered mid-ship: `shipFR1Check` returns
+> `{halt:false, isEpicClose:true}`, the retro passes `validateRetroContent`, and §5.5's coverage gate
+> now **passes** (it refused first, naming six decision ids the retro did not carry — they were added).
+> For §6.6, `dischargeBacklogRows` with `'M5.E10'` matches **two** live rows and will refuse;
+> `'M5.E10 — Review hardening'` resolves to one. **Do not discharge the REVIEW claims-audit row** —
+> `AC0.1` requires it to stay live, and a test checks it.
+>
+> **Read [`M5.E10-PROGRESS.md`](M5.E10-PROGRESS.md) first for the build detail**, then
+> `M5.E10-VERIFICATION.md` and `M5.E10-REVIEW.md`. `BUGS.md` is the live bug list and its tally is
+> derived, never incremented by hand.
+**▶ `M5.E10` is IN FLIGHT — opened 2026-08-11; DISCUSS + PLAN closed.** Review hardening / claim integrity; **shipping it closes Milestone 5** (`D-BR0809-2`). Running at the project's **FULL/strict** — no Epic-scoped PROFILE. Artifacts: [`M5.E10-REQUIREMENTS.md`](M5.E10-REQUIREMENTS.md), [`M5.E10-RESEARCH.md`](M5.E10-RESEARCH.md), [`M5.E10-PLAN.md`](M5.E10-PLAN.md), [`M5.E10-VALIDATION.md`](M5.E10-VALIDATION.md); decisions `D-M5E10-1…5`.
+
+**The scope call** (`D-M5E10-1`, Brett): **checkable parts + writing rules.** In — the requirement-coverage diff, VALIDATION self-consistency, the VERIFICATION denominator + *"what this could not establish"* section, the correction-protocol grep, retro-index freshness, and the `STATE.md` narrative check folded in by `D-BR0810-2`; plus the provenance rule and the `B38` reclassification, which cost text rather than machinery. **Out** — the adversarial claims-audit agent, *and its absence has to be visible in what ships* (`AC0.1`): that is the half which catches what determinism cannot, so letting the docs read as though claim integrity were solved would be this Epic's own defect, committed while closing the milestone named after it.
+
+**Filed at its own DISCUSS: `B93`** — `commands/discuss.md` reads the tier *before* the Epic roll, so a `--epic` run gates the whole phase on the **previous** Epic's profile. Measured at this open: pre-roll **FEATURE/light**, post-roll **FULL/strict**. Not hit here, because the tier was deliberately re-read after the roll — so the exposure is the instruction, not the run.
+
+*Prior: `M5.E19` closed and shipped as **v0.1.22** (retrospective at [`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md)); `B82` shipped as **v0.1.21** in the fix lane — no six phases, so no Epic artifacts and no retrospective. `M5.E14`'s shippable slice shipped as **v0.1.24**.*
 
 **What M5.E15's close settled.** The verdict is **directive-scoped** — the control arm deletes the five sites that *order* the call and leaves the schema docs and the implementation alone, because over-deleting produces a *differently-informed* control agent whose 0/3 is as unreadable as a leaky one (`D-M5E15-1`). Its closing condition (`D-M5E15-6`) was met rather than waived: `B41-phase-entry` was re-run under the fixed arm and published — **`OBEYED`**, not the `INERT` the Epic pre-committed to publishing if that is what came back.
 
@@ -247,7 +329,7 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 
 1. ~~**M5.E15**~~ — **closed, shipped as v0.1.19** (2026-08-06). The standing prohibition on re-running the canary is now discharged, not pending: it forbade a re-run before the arm was fixed, and `D-M5E15-6` required one after — which happened and published `OBEYED`.
 2. ~~**`B52`**~~ — **closed, shipped as v0.1.20** (2026-08-06, fix lane).
-3. **▶ The closure-gated archive command** (+`B82`) — Epic lane. Trigger **fired** 2026-08-04 when `curator` was removed from the machine; `nextpass` and `cm-mentor-coach` archive by hand-written runbook today. This is the only queued item with users waiting. M5.E18 built the engine and wired none of it.
+3. **▶ The closure-gated archive command** (+`B82`) — Epic lane. Trigger **fired** 2026-08-04 when `curator` was removed from the machine; `eval-project-A` and `eval-project-D` archive by hand-written runbook today. This is the only queued item with users waiting. M5.E18 built the engine and wired none of it.
 4. **`M5.E14`'s shippable slice only** — the `discharged` marker + a SHIP-gate open-obligations query behind a capability check. **Not** the tracker Epic: its stated trigger (`M5.E10` lands) is unmet, and the backlog entry explicitly allows this one piece to ship ahead as a patch.
 5. **M5.E10** — review hardening / claim integrity. The **judge-based, semantic** half of M5.E16's question (claims-vs-artifacts) lands here, after the deterministic checks rather than with them.
 
@@ -267,6 +349,6 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 - A caveat whose absence is indistinguishable from a clean result must either render unconditionally or be pinned by a test that fails when it stops rendering. Written into tools/lib/adherence-caveats.js after the same defect occurred twice in the same file three months apart (M5.E8 and M5.E15 S7) — a published record silently omitting its own scope. The isolation scope now renders `undeclared` out loud rather than omitting the line. (2026-08-06)
 - **M5.E19 opened as the closure-gated archive command, at Epic-scoped FEATURE against the project's FULL** (`M5.E19-PROFILE.md`). `review_depth: full` is set deliberately *against* the tier's default: under `quality-only`, `commands/review.md:17` skips Steps 2/3/4 regardless of `security_audit` / `performance_pass` / `simplification_pass`, so those dials would be inert and the profile would assert rigor the Epic never receives — the unhomed M5.E16 retro finding. Verified through `readEffectiveProfile` before PLAN rather than assumed (`B59` threw silently and ran a whole DISCUSS at project FULL). (2026-08-07) → `D-M5E19-1`
 - **Archiving gets its own `/sig:archive`, not a flag on `/sig:migrate-memory`** — different trigger (every Epic close vs. every `docs_layout_version` bump), so folding them makes one command with two unrelated cadences. Cost accepted: a 20th command. (2026-08-07) → `D-M5E19-2`
-- **`cannotDetermine` refuses the unit and the run still completes.** Never archived, always reported with its reason; the run does not abort. On the real corpus this is not an edge case — 9 of 30 terminal artifacts carry no readable verdict and `affiliate-mojo` throws on `readState`, making every unit `cannotDetermine`; aborting would let one unreadable project block archiving everywhere. (2026-08-07) → `D-M5E19-3`
+- **`cannotDetermine` refuses the unit and the run still completes.** Never archived, always reported with its reason; the run does not abort. On the real corpus this is not an edge case — 9 of 30 terminal artifacts carry no readable verdict and `eval-project-B` throws on `readState`, making every unit `cannotDetermine`; aborting would let one unreadable project block archiving everywhere. (2026-08-07) → `D-M5E19-3`
 - **`B82` shipped in the FIX LANE 2026-08-07 (#98), not in this Epic** — a live data-integrity defect should not wait on six phases. `planArchiveMoves` now calls `deriveUnits` directly and `suffixOf` is exported from `work-units.js` so lifecycle ordering survives. **This supersedes `D-M5E19-4`'s mechanism** (which said the closure record carries its files) while upholding its principle — one implementation of unit membership; `resolveClosures` was simply not the caller that needed changing. Measured across 12 projects: 3 split units / 6 stranded files → **0 / 0**. (2026-08-07) → `D-M5E19-4`, superseded by `D-M5E19-6`
 - **Dry-run by default; the ungrouped set is reported unconditionally, including at 0.** Matches `/sig:migrate-memory`'s posture, and the tool being replaced failed by moving things it shouldn't have. Signal's tree carries 57 ungrouped against 13 units — a run that archives 13 and says nothing about 57 reads as complete when it isn't (`B39`, `D-M5E18-2`). (2026-08-07) → `D-M5E19-5`

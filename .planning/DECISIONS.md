@@ -102,7 +102,7 @@ Append-only. When a decision is reversed, *add* a new entry noting the reversal 
 
 ## 2026-07-16 — M5.E2 sequencing pivot + migrate-command scope (D-M5E2-1 … D-M5E2-5)
 
-**Context:** Brett reports live doc-bloat blocking him across ~5 projects (`nextpass/.planning/STATE.md` write-wedged at 529 KB — `BUGS.md` B8). During M5.E2's DISCUSS he directed: build the *complete* cross-project fix, not per-file band-aids ("stay the course until we get to the proper upgrade number that will solve this across ALL my projects, not just one offs").
+**Context:** Brett reports live doc-bloat blocking him across ~5 projects (`eval-project-A/.planning/STATE.md` write-wedged at 529 KB — `BUGS.md` B8). During M5.E2's DISCUSS he directed: build the *complete* cross-project fix, not per-file band-aids ("stay the course until we get to the proper upgrade number that will solve this across ALL my projects, not just one offs").
 
 **D-M5E2-1 — E2/E3 swapped; the migrate command is pulled forward.** M5.E2 becomes the **auto-sensing migrate command (FR6/FR7)**; the all-docs hygiene runtime + living `BACKLOG.md` (FR4/FR5) moves to **M5.E3**. *Rationale:* the migrate command is what reorganizes an *existing* bloated project's docs — the live pain; FR4/FR5 is prevention/maintenance that can follow. (Reverses the E1-era slice order `MILESTONE-5.md` recorded; the 3 FR4/FR5 DISCUSS pre-decisions are preserved for E3 in `MILESTONE-5.md`.)
 
@@ -116,7 +116,7 @@ Append-only. When a decision is reversed, *add* a new entry noting the reversal 
 
 **Also this session:** B8 discoverability mitigation shipped standalone (`56593a2` — the guard reason now states the whole-file semantics); **B9** logged confirmed (`setCurrentEpic` doesn't reset `phase`/`completed_phases`/`last_completed_task` on an Epic roll — candidate to fold into M5.E2's state-mutation work).
 
-**D-M5E2-6 — fold M5.E3 into the release (2026-07-18).** Supersedes D-M5E2-3's "E1+E2 releasable on its own." Brett's call after M5.E2 REVIEW: the doc-runtime ships as **ONE 0.1.x = E1 + E2 + E3**, not E1+E2 alone. *Rationale:* "the full, real intended functionality… battle-tested and 100% reliable before using in other repos." E1+E2 fix STATE/FUTURE-IDEAS bloat + the migrate command (unwedges nextpass); **E3 (FR4/FR5) extends auto-hygiene to every other planning doc** (the append-logs the E2 migrate *protects but doesn't clean* — e.g. nextpass's 169 KB `DECISIONS.md`) + a living `BACKLOG.md`, so "entire memory/doc cleanup" is genuinely complete at release. **Sequence:** open M5.E3 (`/sig:discuss --epic M5.E3`) → full DISCUSS→SHIP → cut the combined **E1+E2+E3** marketplace release → then per-project `/plugin update` + `/sig:migrate-memory`.
+**D-M5E2-6 — fold M5.E3 into the release (2026-07-18).** Supersedes D-M5E2-3's "E1+E2 releasable on its own." Brett's call after M5.E2 REVIEW: the doc-runtime ships as **ONE 0.1.x = E1 + E2 + E3**, not E1+E2 alone. *Rationale:* "the full, real intended functionality… battle-tested and 100% reliable before using in other repos." E1+E2 fix STATE/FUTURE-IDEAS bloat + the migrate command (unwedges eval-project-A); **E3 (FR4/FR5) extends auto-hygiene to every other planning doc** (the append-logs the E2 migrate *protects but doesn't clean* — e.g. eval-project-A's 169 KB `DECISIONS.md`) + a living `BACKLOG.md`, so "entire memory/doc cleanup" is genuinely complete at release. **Sequence:** open M5.E3 (`/sig:discuss --epic M5.E3`) → full DISCUSS→SHIP → cut the combined **E1+E2+E3** marketplace release → then per-project `/plugin update` + `/sig:migrate-memory`.
 
 **M5.E2 REVIEW outcome (2026-07-18) — PASS-WITH-FIXES.** 3-specialist adversarial panel (code-reviewer + security-auditor + test-engineer) caught a **SHIP-blocking rollback gap** (rollback not wired around the mechanical move/rewrite phase → unrecoverable partial write in fs-backup/`--force` modes; **2 reviewers independently reproduced it**) + a directory-symlink path escape (out-of-tree write + source deletion) + fence-less false-success + a `readLayoutBanner` perf/DoS + test-adequacy gaps (no real-parser round-trip; confounded conservation test; missing blocker-label/CRLF coverage). **All fixed in-phase across 5 RED-first batches (`50ad065`..`dd77ef1`)**, 1071→**1300 tests** green, real-file faithfulness re-confirmed 0-dropped on the final code (`ca6ec22`). Confirmed SAFE: path traversal (`EPIC_ID_STRICT_RE`), git command/option injection (`execFileSync`), `--force` destructive-safety (surgical, never `reset --hard`), TOCTOU, coarse-lock non-reentrancy. Bugs **B10–B16** logged: B10 (SHIP-suffix), B11 (flag over-fire), B12 (de-prose label), B13 (NUL byte) **fixed**; **B14** (codebase-wide lexical symlink confinement in evict/add/resume — not in E2's attack surface per §9), **B15** (>1 MB scan-ceiling truncation), **B16** (tag-lingers-on-failure) ticketed.
 
@@ -186,7 +186,7 @@ The M4.5 closed-milestone decision sections were relocated verbatim to [archive/
 
 **D-M5E4-3 — The concurrency-lock refactor is bundled but *isolated*.** It gets its own PLAN slice and does **not** ride a parallel quick-fix wave — it's a ~4-module refactor with a documented deadlock trap (the naive `file-lock.js` reuse re-enters the non-reentrant `.state.lock` via `migrate-memory.js:2375`). Built via the prescribed **lock-free core + self-locking wrapper** split: lock only true command entries, keep inner helpers (`backlog.js`, `applyDispositionToFile`) lock-free, keep `regeneratePlanningIndex` lock-free where `applyMigrate` calls it inside its coarse lock.
 
-**D-M5E4-4 — Container = `M5.E4`, ships as v0.1.9; B8 closes-on-verify; B20 dedups to B5; eslint bounded.** Epic ID ≠ version — the E11 `--epic` machinery requires a strict `M{N}.E{N}` ID (`state.js:109/587`; a bare `v0.1.9` forces linear-mode hand-management, the exact friction E11 killed), so the work-container is `M5.E4` and the *release* is the v0.1.9 patch (as M4.5.E11→v0.1.7, M5.E3→v0.1.8). **B8** flips `confirmed→fixed` on verification (both halves shipped v0.1.8: `WHOLE_FILE_NOTE` discoverability + the vector-1 de-prose auto-remediation, dogfooded on nextpass per B12) once a regression test guards the wedged→unwedged path. **B20** is dismissed as a duplicate of **B5** (identical ESLint-9-no-flat-config break; B20's "no B5 entry exists" premise is false). The eslint fix (FR6) is bounded to "`npm run lint` *runs*" — mechanical `--fix` only, residual violations ticketed, no lint-backlog rabbit hole.
+**D-M5E4-4 — Container = `M5.E4`, ships as v0.1.9; B8 closes-on-verify; B20 dedups to B5; eslint bounded.** Epic ID ≠ version — the E11 `--epic` machinery requires a strict `M{N}.E{N}` ID (`state.js:109/587`; a bare `v0.1.9` forces linear-mode hand-management, the exact friction E11 killed), so the work-container is `M5.E4` and the *release* is the v0.1.9 patch (as M4.5.E11→v0.1.7, M5.E3→v0.1.8). **B8** flips `confirmed→fixed` on verification (both halves shipped v0.1.8: `WHOLE_FILE_NOTE` discoverability + the vector-1 de-prose auto-remediation, dogfooded on eval-project-A per B12) once a regression test guards the wedged→unwedged path. **B20** is dismissed as a duplicate of **B5** (identical ESLint-9-no-flat-config break; B20's "no B5 entry exists" premise is false). The eslint fix (FR6) is bounded to "`npm run lint` *runs*" — mechanical `--fix` only, residual violations ticketed, no lint-backlog rabbit hole.
 
 **Cross-references.** `M5.E4-REQUIREMENTS.md` (7 FRs + ACs); `BUGS.md` (B5/B6/B8/B14–B23 — the triaged surface); `MILESTONE-5.md` (BACKLOG Sprint 3 residual — the concurrency-lock entry + the deferred hygiene commands); `tools/lib/migrate-memory.js` (B19 tail regen, `deproseFrontmatter` B8, `.state.lock` §9), `tools/lib/planning-index.js` / `doc-hygiene.js` / `evict.js` / `add.js` / `resume.js` (FR2 targets), `retrospective.js:454` (`WHOLE_FILE_NOTE`, B8 discoverability half).
 
@@ -389,7 +389,7 @@ three months late.
 ## 2026-07-27 — M5.E9 goes first, and the retro gate becomes Epic-only (D-M5E9-1, D-M5E9-2)
 
 Both ratified by Brett 2026-07-27, off the `B42`–`B45` catalog. The occasion was an outside report:
-a live `/sig:ship` on **`nextpass`** — a project that has run in **linear mode** (`current_epic:
+a live `/sig:ship` on **`eval-project-A`** — a project that has run in **linear mode** (`current_epic:
 null`) its whole life — halted on step zero, and two Signal helpers misbehaved on the same close.
 Three of the four items were Signal's; the fourth (`npm run ship:archive`) belongs to the reporting
 project's own tooling and is recorded as **not Signal's** in [`BUGS.md`](BUGS.md).
@@ -910,7 +910,7 @@ FR4's own evidence pointed at exactly one category-2 case, and FR5 heals that on
 > category 2 — *"Signal runs it"* — while no slice ran anything**, which is precisely what FR4.2
 > forbids; the render would have promised *"heals on next phase command"* for a finding nothing
 > healed. Re-measuring settled it: `markFresh` is not tier-gated in code and the live instance
-> (`cm-mentor-coach`) is FULL tier, so the finding clears unaided — **(d) is category 1**.
+> (`eval-project-D`) is FULL tier, so the finding clears unaided — **(d) is category 1**.
 > FR4's middle bucket therefore exists in the registry and holds nothing, and `/sig:sweep --heal` is
 > scaffolding for a check that does not exist yet. Stated here rather than left to be discovered at
 > REVIEW. `S1.t5` now tests that every declared category has an implementation, because the
@@ -938,7 +938,7 @@ Ships: **(a)**, **(b)** narrowed, **(c)** restructured, **(d)** narrowed, **(g)*
   either loads or throws, so there is no threshold and nothing for FR2.2 to kill. Its live instance
   is **`B59`**, found hours earlier at this Epic's own PLAN preamble.
 - **(h) — `current_epic` is set but is not a strict Epic ID.** *Not in the requirements; it exists
-  because the corpus was measured.* `agent-tools-sync` carries `"M1"` and `traction-engine` carries
+  because the corpus was measured.* `eval-project-I` carries `"M1"` and `eval-project-C` carries
   `"PHASE12"`; both fail `EPIC_ID_STRICT_RE`, so every resolver falls open to linear mode while the
   project believes it is running Epics. **That is `B53`'s class, live in the field**, on half the
   Epic-mode corpus, after being fixed as a Signal-side bug in v0.1.14. Included without a second
@@ -965,7 +965,7 @@ this Epic — can evaluate 2 projects.** Signal's own shape (hand-maintained, Ep
 `schema_version: 1`) is the **minority** shape: 4 of 12 readable projects are in Epic mode, 7 of 12
 have a canonical `phase`, and `readState` **throws** on one project outright.
 
-A sweep that runs those checks against `traction-engine` prints nothing, and a user reads that as
+A sweep that runs those checks against `eval-project-C` prints nothing, and a user reads that as
 *clean*. It is not clean — the check could not look. **Zero-findings and not-applicable rendering
 identically is `B39`'s shape and `B54`'s**, and building it into the Epic written to catch that class
 would be the fourth recurrence.
@@ -1021,19 +1021,19 @@ The archive planner groups `.planning/*.md` by matching **known artifact suffixe
 
 | Project | `current_epic` | Naming |
 |---|---|---|
-| `agent-tools-sync` | `M1` | one consistent prefix |
-| `traction-engine` | `PHASE12` | **nested** units (`PHASE10`, `PHASE10-S4`, `PHASE10-S5`) |
-| `nextpass` | `null` | **10+ unit names** (`PROXY`, `GATE-A`, `PLAN-SC1`, `NEXTPASS`, …) |
+| `eval-project-I` | `M1` | one consistent prefix |
+| `eval-project-C` | `PHASE12` | **nested** units (`PHASE10`, `PHASE10-S4`, `PHASE10-S5`) |
+| `eval-project-A` | `null` | **10+ unit names** (`PROXY`, `GATE-A`, `PLAN-SC1`, `eval-project-A`, …) |
 
 `BACKLOG.md` framed this as *"the prefix is not in `current_epic`'s contract."* True, and an
-understatement: **nextpass has no single prefix to put in a field.** Some of its unit names begin
+understatement: **eval-project-A has no single prefix to put in a field.** Some of its unit names begin
 with the word `PLAN`, so `PLAN-GATE-A.md` is ambiguous alone — only the sibling
 `PLAN-GATE-A-RESEARCH.md` reveals the unit. A declared-prefix field cannot express this shape; a
-suffix match can. Verified against `traction-engine`: the rule produced exactly the five real units
+suffix match can. Verified against `eval-project-C`: the rule produced exactly the five real units
 and correctly left `CONTEXT.md` / `DECISIONS.md` / `INDEX.md` ungrouped.
 
 **The cost is accepted and must be visible:** files with no recognised suffix
-(`NEXTPASS-STACK-DECISION.md`, `BUGHUNT-2026-06-12.md`, `PLAN-SLICE-VOICE1.md`) do not group. The
+(`eval-project-A-STACK-DECISION.md`, `BUGHUNT-2026-06-12.md`, `PLAN-SLICE-VOICE1.md`) do not group. The
 ungrouped set is **reported**, never dropped — an unreported `0 ungrouped` would read as full
 coverage, which is `B39`'s shape.
 
@@ -1048,25 +1048,25 @@ all three. The retro requirement — not the prefix — is the harder blocker.
 A unit is **closed** when it has a `VERIFICATION` or `SHIP` artifact, it is **not** the current unit,
 and — where a verdict line is readable — that verdict passed. Verdict parseability is **1 of 3**
 measured (`PHASE8-VERIFICATION.md` → `Verdict: PASS`; `M1-VERIFICATION.md` → prose *"Verdict
-remains"*; nextpass → none), so `cannotDetermine` is a **first-class status in the return shape**,
+remains"*; eval-project-A → none), so `cannotDetermine` is a **first-class status in the return shape**,
 not a rendering note. If it is not in the data, the dry-run's `0` means both *nothing closed* and
 *could not look* — which is exactly what **`B63`** asks to fix by porting M5.E16's four-status model.
 
 **This also closes `B64`.** `archive-tree.js:357` is `closedEpicIds = retros.map(r => r.epicId)` —
 **no `isStub` filter**, though `retro-index.js` already computes one. Signal's own tree has **4 stub
-retros** (`M4.5.E1`, `M4.5.E3`, `M4.5.E6`, `M4.5.E7`), all currently counted as closed. nextpass named
+retros** (`M4.5.E1`, `M4.5.E3`, `M4.5.E6`, `M4.5.E7`), all currently counted as closed. eval-project-A named
 it exactly: *"a label, not a guard."*
 
 **Known weakness, stated rather than discovered later.** `PHASE11-SHIP.md` exists and `PHASE11` was
 the current, actively-edited unit as recently as 2026-07-28; it is archivable now only because
 `PHASE12` took over. **A terminal artifact written mid-unit is a real shape in this corpus**, so the
-not-current clause carries the whole guard. `agent-tools-sync` supplies the regression test for
+not-current clause carries the whole guard. `eval-project-I` supplies the regression test for
 free: `M1` has a `VERIFICATION` **and is current** — it must never be proposed for archive.
 
 **D-M5E18-4 — The current-unit guard reads the raw `current_epic` string, never a strict-gated
 helper.**
 
-Confirmed by execution against `traction-engine`, and it would have made D-M5E18-3 wrong:
+Confirmed by execution against `eval-project-C`, and it would have made D-M5E18-3 wrong:
 
 ```
 readState().current_epic          → "PHASE12"   (raw value survives)
@@ -1087,7 +1087,7 @@ mode being *silence* rather than an error.
 5 of 12 real projects. In `resume.md:128` the call sits **inside `renderResumeBriefing`'s argument
 list**, so the whole briefing dies before rendering. Every neighbouring optional read
 (`isStaleVsOrigin`, `readLayoutBanner`, `readStateSizeForTier`, `readEffectiveProfile`) is marked
-fail-open; this one call nobody marked safe. `traction-engine`'s `phase` holds a **multi-paragraph
+fail-open; this one call nobody marked safe. `eval-project-C`'s `phase` holds a **multi-paragraph
 prose blob** — the concrete trigger.
 
 **Behavior (Brett's call): render everything, name the problem.** The briefing renders in full; the
@@ -1360,7 +1360,7 @@ The bar for this Epic is *"a warning asks; a gate refuses"* — so an unreadable
 result in a move. The question this decision settles is what happens to the **rest of the run**.
 
 It completes. **From the corpus, not from principle:** 9 of 30 terminal artifacts (30%) carry no
-readable verdict, and `resolveClosures` is explicit that a project-scoped failure — `affiliate-mojo`
+readable verdict, and `resolveClosures` is explicit that a project-scoped failure — `eval-project-B`
 throws on `readState` — makes **every** unit `cannotDetermine` rather than dropping units or
 throwing. If `cannotDetermine` aborted the run, one unreadable project would block archiving
 everywhere, and the command would be least useful exactly where the corpus is messiest.
@@ -1383,7 +1383,7 @@ again the next time one is edited.
 
 **Re-measured 2026-08-07 across all 12 local projects with a `.planning/`, because the row's number
 was too small.** `B82` splits **3 units across 2 projects, stranding 6 files**: `SLICE-SSO` in both
-`nextpass` and `cm-mentor-coach`, and `GATE-A` in `nextpass`. `BUGS.md` records one unit on one
+`eval-project-A` and `eval-project-D`, and `GATE-A` in `eval-project-A`. `BUGS.md` records one unit on one
 project. **Signal's own tree shows 0 splits** (13 units, 57 ungrouped) — so dogfooding alone would
 have shipped this defect, and the two projects it does hit are the two archiving by hand-written
 runbook today. The regression test is therefore keyed to the real corpus, not to a fixture
@@ -1439,8 +1439,8 @@ machinery.
 
 The real user-facing gap is unchanged and still real: archiving today is a **side effect of a
 document-layout reorganizer**, so there is no way to archive at an Epic close without running a
-command about something else and reading past the parts that do not apply. That is why `nextpass` and
-`cm-mentor-coach` wrote runbooks. But it is a convenience gap, not damage.
+command about something else and reading past the parts that do not apply. That is why `eval-project-A` and
+`eval-project-D` wrote runbooks. But it is a convenience gap, not damage.
 
 **Open for the user, deliberately not resolved here:** whether that remainder is Epic-shaped at all,
 or a fix-lane command addition. Put in front of them with the fix already shipped as context, rather
@@ -1574,7 +1574,7 @@ new evidence.
 judgment plus measured defect density in Signal's own corpus. It explicitly does **not** rest on
 *"real user pain points from v1 usage"* (`MILESTONE-5.md`) — `D-M5E7-3` already recorded that the
 input for that criterion does not exist in written form (*"'4 non-Signal users, positive reception'
-is recollection, not artifact"*), and every recent externally-sourced defect came from `nextpass`, a
+is recollection, not artifact"*), and every recent externally-sourced defect came from `eval-project-A`, a
 second **project**, not a second **reporter**. Repeating the user-pain justification would be the
 exact move this review exists to catch.
 
@@ -1653,3 +1653,126 @@ deliberately-permanent entry from an unanswered one changes `parseEntries`' retu
 Epic-lane work, and doing it inside a chore branch would convert a hedged yes into a semantics change
 in a shared module. Filed with its design question stated — a new marker, or widen the existing
 `parseTriggerWatchlist` — and explicitly **not both**.
+
+## 2026-08-11 — M5.E10 DISCUSS: the scope call, and what refusing it would have cost (D-M5E10-1 … D-M5E10-5)
+
+*Epic: `M5.E10`, review hardening / claim integrity. Shipping it closes Milestone 5 (`D-BR0809-2`).
+Requirements: [`M5.E10-REQUIREMENTS.md`](M5.E10-REQUIREMENTS.md). Evidence:
+[`../analysis/CLAIM-INTEGRITY-ANALYSIS.md`](../analysis/CLAIM-INTEGRITY-ANALYSIS.md), its single home.*
+
+**D-M5E10-1 — Scope is "checkable parts + writing rules". The adversarial claims-audit agent is
+deferred, and the deferral must be VISIBLE in what ships.**
+
+Brett, 2026-08-11. In: everything a machine can verify — requirement-coverage diff, VALIDATION
+self-consistency, the VERIFICATION denominator + *"what this could not establish"* section, the
+correction-protocol grep, retro-index freshness, the `STATE.md` narrative check — plus the guidance
+changes that cost text rather than machinery (the provenance rule, the `B38` reclassification).
+
+Out: `CLAIM-INTEGRITY` §6 item 3, an agent re-reading every claim against its source.
+
+**The deferral carries an acceptance criterion of its own (`AC0.1`), and that is the point.** §6 item
+3 is the piece that *"kills the class generally; catches what determinism can't."* Shipping the
+deterministic half and letting the docs read as though claim integrity were solved would be **a
+completeness claim written from the shape of the work** — this Epic's own defect, committed by the
+Epic while closing the milestone named after it. So the shipped output must state that the semantic
+backstop is not built and what it would have caught.
+
+**D-M5E10-2 — §6 item 7's either/or resolves to the text half: the denominator discipline moves into
+the command text; VERIFY does not gain an agent dispatch.**
+
+Follows from `D-M5E10-1` — dispatch is machinery. `agents/verifiers/verifier.md` and
+`nyquist-auditor.md` already carry the enumerate-with-a-denominator discipline and **no command
+dispatches either**; `commands/verify.md` spawns no agents at all. Moving the discipline into the
+command is what makes it run.
+
+**The agents do not get to stay quietly unreachable.** `AC6.2` requires them to be made reachable or
+**documented as unreachable** — an uncalled guard left undocumented is `M5.E8`'s named class, and
+leaving one inside the Epic about false claims would be the joke telling itself.
+
+**D-M5E10-3 — The correction-protocol check blocks at FULL and is advisory below.**
+
+Consistent with every other tier-gated gate. Decided rather than asked: this is gate mechanics, not a
+product call, and the tier system already answers "how hard should this bite."
+
+**D-M5E10-4 — The `STATE.md` narrative check is a NARROW deterministic slice, not a prose reading.**
+
+Folded into this Epic by `D-BR0810-2`. Scope: the phase-name token nearest the `current_epic`
+mention, compared against the frontmatter — **not** a general narrative-vs-frontmatter comparison,
+which is the deferred semantic half.
+
+**The bar is that it must fail where the existing checks pass** (`AC8.3`). `runDriftChecks` reported
+**6/6 clean** across every instance, and it was right to: `body-omits-current-epic` tests
+`mentioned.has(epic)` — presence, not agreement — and `phase-behind-artifacts` never reads the prose.
+A check that duplicates either reading adds nothing.
+
+**Five instances, and the fifth happened during this Epic's opening commit** — *"Nothing in flight"*
+while `current_epic: M5.E10` sat twenty lines above, **in the section that catalogues instances 1–4
+and argues the defect is structural.** The catalogue did not protect the file it lives in. That is the
+strongest available evidence that the remedy is not documentation.
+
+**D-M5E10-5 — Read the effective tier AFTER the Epic roll, never before.**
+
+Recorded as a repeatable trap, not a one-off. At this Epic's open, `readEffectiveProfile` returned
+**`M5.E19`'s FEATURE/light** right up until `setCurrentEpic` ran, because the closing Epic's PROFILE
+was still shadowing. `M5.E10` inherits the project's **FULL/strict**.
+
+This is `B59`'s shape — an Epic running a whole phase at the wrong tier because the tier was read one
+step too early — and `B59` cost `M5.E16` its entire DISCUSS at the wrong rigor. The command file's
+preamble ordering (tier-gate first, Epic mode second) reads naturally and is wrong for `--epic` runs.
+**Filed as a `commands/discuss.md` ordering defect for this Epic's own build queue.**
+
+## 2026-08-12 — M5.E10 EXECUTE: the field pair is not a pair (D-M5E10-6, D-M5E10-7)
+
+**D-M5E10-6 — FR1's denominator is unit-scoped, derived, and reported; an underivable scope is
+`cannot-evaluate`, never a diff against the whole file.**
+
+Found at S1.t3, by opening the artifact the plan had only described. **AC1.5 assumes a
+REQUIREMENTS/VERIFICATION pair and on disk there is none:** `eval-project-C` has no phase-scoped
+REQUIREMENTS artifact. Its requirements live in a **project-scoped** `REQUIREMENTS.md` — 713
+lines, every phase — while VERIFICATION is **phase-scoped**. A naive diff reports every id from every
+other phase as `missing`.
+
+That red wall would be a completeness claim **written from the shape of the files rather than from
+Phase 11** — this Epic's defect class, in this Epic's first deliverable, exactly as `NFR` blindness
+would have been one task earlier.
+
+Three options were weighed. *Require a unit-scoped REQUIREMENTS file, else `cannot-evaluate`* is
+honest and cheap, but returns "could not look" on the one real project that motivated the Epic.
+*Always scope by section* catches the field case but converts a wrong guess into a confident answer.
+**Chosen: scope where the scope is derivable, refuse where it is not.** The output **states its
+denominator and where it came from**, which is FR3's table discipline applied to FR1's input rather
+than its output. NFR4 is upheld: three outcomes, and *"could not look"* never renders as clean.
+
+**How the scope is derived — corrected the same day this decision was written, and the first version
+is retracted rather than annotated.** ⚠ **This decision originally said the denominator comes from
+"a REQUIREMENTS section whose heading or body names the unit." That rule is wrong and is not what
+ships.** Measured against the actual file the moment the fixture work started:
+
+- **`NFR-10` — Phase 13's section — names Phase 11 in its body** (it cites `NFR-9.2` as precedent).
+  Under the retracted rule it would have contributed **70+ ids** to Phase 11's denominator. The wrong
+  guess converted into a confident answer, which is precisely why *always scope by section* was
+  rejected — the same flaw, hiding inside the option chosen over it.
+- **`FR-16`'s heading does not name Phase 11**; only its body does. So heading-only scoping drops the
+  main requirement group, and body-scoping drags in a foreign one. Neither half of the retracted rule
+  survives contact.
+
+**What ships instead: ID-group correspondence.** The denominator is the union of the requirement
+**groups the VERIFICATION artifact itself cites** — cite `AC-16.8`, and all of `AC-16.*` is in scope.
+No prose is read, so no prose can be misread. On the field pair this derives **17 requirements from
+2 cited groups (`AC-16`, `NFR-9`)** and names **11 missing** — 10 after `AC-16.3` is set aside as
+deferred (`D-M5E10-7`).
+
+**Its blind spot, stated rather than discovered later:** a group the VERIFICATION cites *nothing*
+from is invisible to the diff — total omission of a requirement group reads as out-of-scope. That is
+reported as an unattributable-group count, never silently. Lands as **AC1.6**.
+
+**D-M5E10-7 — a requirement the document marks deferred is reported as deferred, not as missing.**
+
+Root `REQUIREMENTS.md` line 227 strikes `AC-16.3` through and states it was deferred out of Phase 11.
+Counting it uncovered would be the check being **wrong in the field on its first run**; dropping it
+silently would be `B39`'s shape. It gets its own named category. Lands as **AC1.7**.
+
+**Both were caught by reading the artifact instead of the plan's description of it** — the same move
+that found the `NFR`/hyphen gap at S1.t2. Two of three defects this Epic has found in its own work so
+far came from opening a file the plan had characterised from memory. That is `FR5`'s provenance rule
+(S5.t3) earning its place before it is written.

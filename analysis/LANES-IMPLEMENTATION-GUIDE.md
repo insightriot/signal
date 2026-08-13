@@ -3,7 +3,7 @@
 
 **Status:** Proposal — intended as DISCUSS input for a new Epic in the **signal** repo
 **Date:** 2026-07-28
-**Origin:** Concurrency assessment of nextpass × signal (2026-07-28). Absorbs and extends the existing BACKLOG item *"EXECUTE dispatch guidance + worktree isolation"* (demand cluster F, rank 1 — 4 retro items, live incident during M5.E7).
+**Origin:** Concurrency assessment of eval-project-A × signal (2026-07-28). Absorbs and extends the existing BACKLOG item *"EXECUTE dispatch guidance + worktree isolation"* (demand cluster F, rank 1 — 4 retro items, live incident during M5.E7).
 **Suggested entry path:** `/sig:add` this document's summary to the inbox, then open a DISCUSS with this file as the pre-read. Calibration recommendation for the Epic itself: **FULL** — this changes the harness's own state machine, and a defect here corrupts every project Signal manages.
 
 ---
@@ -20,12 +20,12 @@
 
 ## 1 · Problem statement
 
-Signal parallelizes **tasks within a slice** (wave-based EXECUTE, fresh executor per task) but serializes **slices themselves**. For a solo operator with a well-groomed, surface-disjoint backlog — nextpass's is the live example — this is the binding constraint on calendar throughput. The evidence, all from Signal's own repo:
+Signal parallelizes **tasks within a slice** (wave-based EXECUTE, fresh executor per task) but serializes **slices themselves**. For a solo operator with a well-groomed, surface-disjoint backlog — eval-project-A's is the live example — this is the binding constraint on calendar throughput. The evidence, all from Signal's own repo:
 
 1. **The state model is single-flight by construction.** `STATE.md` frontmatter carries one `phase`, one `current_epic`, one `current_wave`, one `completed_phases` ledger. There is no representation for "two slices in different phases at once."
 2. **Concurrency safety stops at the session boundary.** `.state.lock` protects parallel wave-executors *within* a session. The doc-runtime RMW paths (`checkpoint.js`, `drain.js`, `retro-index.js`, `planning-index.js`) are torn-write-safe but deliberately not cross-session-safe — the BACKLOG entry closing that item states the rationale: it "only defends concurrent cross-session writes on one repo, **a mode Signal discourages**."
 3. **Demand is already recorded.** *"EXECUTE dispatch guidance + worktree isolation"* sits at rank 1 of demand cluster F, with a live incident during M5.E7. That item hardens *task-level* concurrency; this proposal is its slice-level generalization.
-4. **The consumer project proves the cost.** nextpass's pre-pilot backlog partitions into 4–6 file-disjoint surfaces (debrief, session-integrity, voice, onboarding, ops, content), yet the Signal workflow admits exactly one at a time. The queue, not the coding, is the schedule.
+4. **The consumer project proves the cost.** eval-project-A's pre-pilot backlog partitions into 4–6 file-disjoint surfaces (debrief, session-integrity, voice, onboarding, ops, content), yet the Signal workflow admits exactly one at a time. The queue, not the coding, is the schedule.
 
 **Non-problems, for scope discipline:** this is not about multi-human teams, not about multi-machine sync (the existing pushed-work check covers that), and not about parallelizing DISCUSS/PLAN — planning is cheap and *benefits* from serialization (it is where shared docs get written).
 
@@ -47,7 +47,7 @@ Signal parallelizes **tasks within a slice** (wave-based EXECUTE, fresh executor
 | Every guard must have a caller | The three-instance defect class: B39 (watchlist never walked), B46 (dispositions nothing reads), M5.E8-I2 (a `--check` nothing invoked) |
 | Rigor is a dial, per lane | `/sig:calibrate`'s founding idea, recursed into the project |
 
-**Falsifiers** (pre-committed, per Signal norm): the hypothesis fails if, across the first 4 dogfooded lanes on nextpass, (a) any land produces a merge conflict or a regression traced to cross-lane interaction, or (b) wall-clock slice throughput does not improve because lanes queue idle at the hub. Either outcome is a finding, not a tuning opportunity.
+**Falsifiers** (pre-committed, per Signal norm): the hypothesis fails if, across the first 4 dogfooded lanes on eval-project-A, (a) any land produces a merge conflict or a regression traced to cross-lane interaction, or (b) wall-clock slice throughput does not improve because lanes queue idle at the hub. Either outcome is a finding, not a tuning opportunity.
 
 ---
 
@@ -94,7 +94,7 @@ A **lane** is *not* a new phase and *not* a fork of the workflow. It is a contai
 | `.planning/lanes/<ID>/BRIEF.md` | hub, at dispatch, never after | main (branch inherits it) | The contract (§6). YAML frontmatter: `slice`, `branch`, `tier`, `manifest:` (globs), `phase` pointer, `dispatched_at` |
 | `.planning/lanes/<ID>/PROGRESS.md` | that lane only | lane branch → arrives on main at land | Lane-scoped equivalent of today's slice progress file |
 | `.planning/lanes/<ID>/NOTES.md` | that lane only | lane branch → drained at land | Lane-local capture inbox — ideas/bugs found mid-lane. **Lanes never write the shared `ISSUES-INBOX.md`** |
-| `.planning/SERIALIZED.md` | hub / human | main | Project-specific deny-list with reasons (for nextpass: `supabase/migrations/**`, `package.json`, `proxy.ts`, `vercel.json`, `app/(authed)/layout.tsx`, `CLAUDE.md`, …) |
+| `.planning/SERIALIZED.md` | hub / human | main | Project-specific deny-list with reasons (for eval-project-A: `supabase/migrations/**`, `package.json`, `proxy.ts`, `vercel.json`, `app/(authed)/layout.tsx`, `CLAUDE.md`, …) |
 | `.planning/GUARDED-SURFACES.md` | hub / human | main | Paths whose presence in a manifest auto-escalates tier (webhook receiver, state machine, provisioning scripts, spend-adjacent code) |
 | `STATE.md` | hub only (unchanged) | main | **Additive, minimal:** one new frontmatter key `lanes_active: [ids]` — a pointer, not a payload. Lane detail stays in LANES.md to keep STATE.md lean and lock contention unchanged |
 
@@ -172,9 +172,9 @@ Proposed as one Epic (**"Lanes core,"** slices S1–S5) with a fast-follow Epic 
 | **S5** | `/sig:land` | `commands/land.md`, `.landing.lock`, rebase + Ring 3 + test gate + drain + archive; `--abort` | Landing a clean fixture lane merges + drains + archives; a lane with an out-of-fence file **aborts at Ring 3** with files listed; two simultaneous lands serialize on the lock |
 | **S6** | Tier engine | GUARDED-SURFACES loading, tier computation, YELLOW merge-gate flag, one-way escalation | A manifest touching a guarded path auto-escalates and the dispatch output says why; a GREEN lane lands without the hub VERIFY step; a YELLOW lane blocks until the human-review flag is set |
 | **S7** | Guard-caller + adherence insurance | Hygiene test (every lane-guard mode has a command caller); `lane-manifest` canary in the adherence harness | Deleting the Ring 3 call from `land.md` fails the hygiene test; the canary produces an as-written vs. instruction-deleted verdict pair |
-| **S8** | Dogfood on nextpass + retro | Lane briefs for 2 real slices (candidates: a debrief-surface slice + ONB1-class work); metrics capture | **2 real lanes landed, 0 land-time conflicts, 0 cross-lane regressions**; wall-clock vs. the serial baseline recorded; retro written; falsifiers (§2) formally judged |
+| **S8** | Dogfood on eval-project-A + retro | Lane briefs for 2 real slices (candidates: a debrief-surface slice + ONB1-class work); metrics capture | **2 real lanes landed, 0 land-time conflicts, 0 cross-lane regressions**; wall-clock vs. the serial baseline recorded; retro written; falsifiers (§2) formally judged |
 
-**Sequencing & prerequisites.** (1) Land v0.1.14 first — the B48 fix rewords a measured instruction and owes the canary re-run; dispatch/land add *more* phase-entry surface, so the precondition idiom must be settled before it's copied. (2) This Epic **absorbs** the cluster-F worktree item — its executor rule becomes brief clause 7; close the backlog entry into this one, single-home. (3) Run the *manual* lane convention on nextpass in parallel starting now (briefs as markdown, worktrees by hand, hub ritual by habit) — it is both the pilot's throughput win and S8's evidence base. The feature is the automation of a convention already proven by hand, which is the cheapest possible spec.
+**Sequencing & prerequisites.** (1) Land v0.1.14 first — the B48 fix rewords a measured instruction and owes the canary re-run; dispatch/land add *more* phase-entry surface, so the precondition idiom must be settled before it's copied. (2) This Epic **absorbs** the cluster-F worktree item — its executor rule becomes brief clause 7; close the backlog entry into this one, single-home. (3) Run the *manual* lane convention on eval-project-A in parallel starting now (briefs as markdown, worktrees by hand, hub ritual by habit) — it is both the pilot's throughput win and S8's evidence base. The feature is the automation of a convention already proven by hand, which is the cheapest possible spec.
 
 **Rough size honestly stated:** comparable to two M5.E6-scale Epics. S2/S5 carry the risk; S1/S3/S4 are mostly authoring; S6–S8 are small. If it must shrink, the minimum honest v0 is S2 + S5's Ring 3 + hand-written briefs — mechanical safety first, convenience commands second.
 
@@ -198,7 +198,7 @@ Proposed as one Epic (**"Lanes core,"** slices S1–S5) with a fast-follow Epic 
 ## 12 · Open questions for DISCUSS
 
 1. Should GREEN lanes run REVIEW at all, or is land-time spot-check + CI the whole gate? (Rigor-dial question — the answer probably differs per project tier.)
-2. Migration allocation: hub pre-allocates numbers at dispatch ("you get 0044") vs. lanes never migrate and schema work is always hub-side? (Simpler is safer; nextpass evidence suggests YELLOW lanes with pre-allocated numbers work.)
+2. Migration allocation: hub pre-allocates numbers at dispatch ("you get 0044") vs. lanes never migrate and schema work is always hub-side? (Simpler is safer; eval-project-A evidence suggests YELLOW lanes with pre-allocated numbers work.)
 3. Does a lane get its own `PROFILE.md`-style rigor override file, or is tier-in-brief sufficient? (Recommend: brief-only until dogfooding demands more.)
 4. Ring 2 hook: warn vs. block at v1? (Recommend warn → block after S8 confirms false-positive rate ≈ 0.)
 5. Hub `phase` semantics once lanes exist — rename or just re-document? (`completed_phases` just became an append-only run log in v0.1.12; touching its semantics again deserves its own decision.)
@@ -210,6 +210,6 @@ Proposed as one Epic (**"Lanes core,"** slices S1–S5) with a fast-follow Epic 
 
 - **0** merge conflicts at land, across ≥4 dogfooded lanes (structural claim — any conflict is a design defect, not bad luck)
 - **0** regressions traced to cross-lane interaction
-- ≥**2** lanes concurrently open on nextpass during real pre-pilot work
+- ≥**2** lanes concurrently open on eval-project-A during real pre-pilot work
 - Wall-clock throughput: ≥1.5× slices-landed-per-week vs. the serial baseline (honest bar; 3–4 lanes ≠ 3–4×, because the hub serializes planning and landing)
 - Adherence canary verdict recorded for the manifest directive (whatever it shows — a low obedience rate *vindicates* Rings 2–3 rather than indicting the feature)

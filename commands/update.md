@@ -61,10 +61,20 @@ The constraint is real, not a rough edge: the session that built this command ra
 | Temptation | Check |
 |---|---|
 | "Parse the version out of `claude plugin list` and move on." | Prefer the structured `plugin.json`. The list output has no `--json` and its format is not a contract; when it changes, report *unknown* rather than a plausible wrong number. `B58` was two releases of a plausible wrong number. |
-| "Just show the version numbers — the changelog is a nice-to-have." | The changelog delta **is** the requirement. A number tells you something changed; it does not tell you whether you want it, which is the exact gap this command was asked for. |
 | "Restart for the user — it's one more step otherwise." | No. `B52` makes the restart consequential, and the user asked to own the timing. State it; never do it. |
-| "Skip the restart line when the update is small." | It is stated on **every** successful update, and a test pins the wording. A session on the old version does not care how small the release was. |
 | "Offline? Assume they're current." | That is `B58`'s failure exactly — a confident, wrong "you're up to date." Say the marketplace could not be reached and change nothing. |
+
+### Output contract (shaping failures — stated as recipes, `B38`)
+
+These are not prohibitions. A prohibition is the right form when the failure is *discipline* —
+knowing the rule and skipping it under pressure. It is the **wrong** form when the output merely
+comes out the wrong shape, where head-to-head wording tests measured the prohibition arm producing
+**more** of the unwanted content than a positive recipe, and worse than no guidance at all.
+So these say what the output IS. See `references/anti-rationalization-forms.md`.
+
+- **The report shows installed, available, AND the CHANGELOG entries between them.** The delta is the half `/plugin` cannot show, and the reason to run this at all.
+- **The restart line renders on every update.** Size does not predict whether a stale binding bites; `B52` was a one-line release.
+
 
 ## Gate: Update Complete
 

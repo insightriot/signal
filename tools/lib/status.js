@@ -70,7 +70,7 @@ export function nextActionForPhase(currentPhase, phasesSkipped = []) {
  * the call sits inside `renderResumeBriefing`'s argument list — so a project
  * whose `phase` drifted off the canonical seven loses the ENTIRE briefing, not
  * just its next-action line. Measured: 5 of 12 real projects, every one of them
- * hand-maintained. `traction-engine` holds a multi-paragraph prose blob there.
+ * hand-maintained. `eval-project-C` holds a multi-paragraph prose blob there.
  *
  * This never throws. `nextActionForPhase` keeps its strict contract — callers
  * that want the guard still get it; the two read-only meta commands use this.

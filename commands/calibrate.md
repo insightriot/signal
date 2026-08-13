@@ -272,7 +272,17 @@ If the derived tier was one that skips phases (SKETCH skips REVIEW; SPIKE skips 
 | "I know this is a FULL project, skip the questions." | Answer all 5 anyway — each dimension catches details you may have skipped. Over-confident skipping is how "FULL" projects accidentally under-audit reversibility or novelty. |
 | "This feels like SKETCH but I should say FEATURE to be safe." | Over-tiering IS the failure mode Signal exists to prevent. If the answers honestly derive to SKETCH, trust SKETCH — you can always `/sig:escalate` later. Under-tiering is recoverable; over-tiering wastes days on ceremony. |
 | "The user said to skip the .gitignore check." | Don't. Without the check, `.planning/` gets silently ignored on clone and the project's memory is lost. Non-negotiable. Surface it, then let the user decide — but always surface it. |
-| "Writing all 10 rigor_overrides is verbose; I'll just note the tier." | No. Downstream commands read the literal values, not the tier. A partial profile breaks every phase command's first action. Write all 10. |
+
+### Output contract (shaping failures — stated as recipes, `B38`)
+
+These are not prohibitions. A prohibition is the right form when the failure is *discipline* —
+knowing the rule and skipping it under pressure. It is the **wrong** form when the output merely
+comes out the wrong shape, where head-to-head wording tests measured the prohibition arm producing
+**more** of the unwanted content than a positive recipe, and worse than no guidance at all.
+So these say what the output IS. See `references/anti-rationalization-forms.md`.
+
+- **`PROFILE.md` carries all ten `rigor_overrides` keys with explicit values, every run.** A downstream command reads a key; an absent key is a different answer from a stated default.
+
 
 ## Gate: Calibration Complete
 

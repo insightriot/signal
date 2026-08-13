@@ -222,10 +222,34 @@ export function renderIndex(retros, existingHooks) {
     return `${header}\n\n${preamble}\n\n_(no retros yet — the first one lands when the next Epic closes)_\n`;
   }
 
-  // Reverse-chronological by lastModified (newest first).
-  const sorted = [...retros].sort(
-    (a, b) => b.lastModified.getTime() - a.lastModified.getTime(),
-  );
+  // Descending Epic ID — NOT chronological, and the difference is the fix (`B96`… `B95`).
+  //
+  // This sorted by `stat().mtime`, which **git does not store**. So a clone, a
+  // checkout, a rebase or a stray `touch` reordered the index while every retro
+  // was byte-identical, and `checkRetroIndexFreshness` reported `structural`
+  // drift carrying no information — a hard finding that means nothing, in a
+  // check whose severity tells the reader to act.
+  //
+  // **The obvious replacement does not exist in the data.** `B95` proposed
+  // sorting by a date parsed from each retro's own `**Closed:**` line, which is
+  // the field actually claiming chronology. Measured before writing it: **3 of
+  // 28** retros carry a parseable date. Twenty-five would have had no key.
+  //
+  // So the key is the Epic ID, which every retro has by construction (it comes
+  // from the filename) and which no filesystem operation can change. **It is
+  // deliberately not a timeline** — `M5.E19` shipped before `M5.E10` — and the
+  // preamble does not claim one. An index is a lookup table; what it owes the
+  // reader is the same answer twice, not a chronology it cannot derive.
+  const idOrder = (a, b) => {
+    const na = a.epicId.match(/\d+/g)?.map(Number) ?? [];
+    const nb = b.epicId.match(/\d+/g)?.map(Number) ?? [];
+    for (let i = 0; i < Math.max(na.length, nb.length); i++) {
+      const d = (nb[i] ?? 0) - (na[i] ?? 0);
+      if (d !== 0) return d;
+    }
+    return a.epicId.localeCompare(b.epicId);
+  };
+  const sorted = [...retros].sort(idOrder);
 
   const lines = [];
   for (const r of sorted) {

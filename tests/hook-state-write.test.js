@@ -299,7 +299,7 @@ blockers:
     expect(r.reason).toMatch(/blockers/);
   });
 
-  it('B8: the block reason states the check is whole-file so incremental cleanup is not attempted (multiple prose entries, the 529 KB nextpass case)', () => {
+  it('B8: the block reason states the check is whole-file so incremental cleanup is not attempted (multiple prose entries, the 529 KB eval-project-A case)', () => {
     const content = `${FM_HEAD}
 completed_phases:
   - "DISCUSS (2026-07-01) — full narrative prose that pollutes the frontmatter and far exceeds the single-line scalar budget for a completed_phases entry, exactly the shape that wedged the live file"

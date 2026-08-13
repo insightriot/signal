@@ -6,6 +6,96 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.25] — 2026-08-13 — claim integrity: the checks, and what they cannot see
+
+**`M5.E10`. Shipping this closes Milestone 5.** Seven deterministic checks for one defect class —
+**completeness claims written from the shape of the work rather than from the artifact** — plus the
+number that matters more than the count of checks.
+
+### Read this before the feature list
+
+**"Seven checks shipped" is not an honest summary.** Measured read-only across twelve real local
+projects ([`M5.E10-CORPUS-MEASUREMENT.md`](.planning/M5.E10-CORPUS-MEASUREMENT.md)):
+
+| Check | Can evaluate |
+|---|---|
+| Correction protocol | **12 / 12** |
+| VERIFICATION template gate | **10 / 12** |
+| STATE narrative vs frontmatter | 5 / 12 |
+| VALIDATION self-consistency | 3 / 12 |
+| **Requirement-coverage diff** (the flagship) | **2 / 12** |
+| Retro-index freshness | 2 / 12 |
+| **Backlog discharge** | **1 / 12** |
+
+**One check works everywhere. One nearly everywhere. Five apply to between 1 and 5 of twelve** —
+because they need document conventions most projects do not have. Signal's own repository is in the
+minority on every one of those five, and on the last it is the *entire* majority. Those are
+**could-not-look** numbers, not found-nothing-wrong numbers, and every check says which.
+
+The integers also **move between runs** — one read 5, then 4, then 5 across two days — because the
+corpus is twelve *live* projects. The measurement is a dated snapshot; the stable claims are the
+shapes.
+
+### Added
+
+- **A deterministic requirement-coverage diff.** Every requirement id in a REQUIREMENTS artifact must
+  appear in the matching VERIFICATION; absent is red, and absent ones are **named**, never counted.
+  The denominator is **derived by id-group correspondence**, not assumed — a project-scoped
+  REQUIREMENTS diffed naively against a unit-scoped VERIFICATION reports every other unit's
+  requirements as missing, which is the defect class wearing a red wall.
+- **A VERIFICATION template with a locked shape and a mandatory limits section.** A denominator table
+  (`{n} of {total}`, never a bare count) and a required *"What this could not establish"*. An unfilled
+  template **fails** — copying it is not shipping it. Present-but-empty fails as hard as absent.
+- **VALIDATION self-consistency, retro-index freshness, and a STATE narrative check.** Each reports
+  **three** outcomes; *"could not evaluate"* never renders as *"clean."*
+- **A correction protocol** enforced at line granularity, because `grep` prints one line and a
+  correction three lines below is invisible to the reading that matters.
+- **`/sig:ship` §6.6 — the backlog can finally record that a row's work shipped (`B94`).** It was
+  append-only: two write paths, no discharge function, and SHIP reconciling five document surfaces
+  while touching the queue in none of them. The discharge rewrites the **heading a reader sees**, not
+  a hidden marker — an HTML comment leaves the rendered document asserting the same false thing.
+  Ambiguous matches **refuse** rather than striking the wrong row.
+- **`references/anti-rationalization-forms.md`** — 109 entries classified (93 discipline, 16 shaping);
+  the 15 output-shape prohibitions became recipes. The page is re-derived by a test in **both**
+  directions.
+- **`references/agent-reachability.md`** — **22 of 26 agents are dispatched by no command.** Documented
+  rather than quietly left; `plan.md` names four research agents and **three do not exist**.
+
+### Fixed
+
+- **`B97` (P1) — private project names in a public repository.** The guard covering that rule knew
+  **5 of 13** corpus projects, so eight stayed named in ~30 tracked files and this Epic **added one**.
+  113 replacements; all 13 now denied in two match modes. **The residual hole is stated, not claimed
+  away:** three names are ordinary English words and are caught only in project shape.
+- **`B98`** — all 13 corpus labels pinned by hash. Previously `F` onward came from list position, so
+  adding one project renamed every unpinned one. **References to `eval-project-F`+ written before
+  2026-08-13 may not name the same project they name today.**
+- **`B95`** — the retrospective index sorted by file mtime, which git does not store, so any clone
+  reported drift. Sorted by Epic ID. *(The proposed fix — each retro's own `**Closed:**` date — was
+  measured out first: 3 of 28 retros carry one.)*
+- **`B96`** — a blockquoted heading was invisible to Epic-close eviction, which reported `no-section`
+  — documented as *"a safe no-op."* Safe, but not a no-op.
+- Five defects found by an independent review, each reproduced before being accepted: a bare decimal
+  in a Notes cell became a requirement id (and **blocked the VERIFY phase on a contradiction it
+  invented**); the denominator gate was satisfied by `Node 22/24` anywhere in the document; a stale
+  backlog row hid ten unreadable ones; a live row followed by a `<details>` block **vanished
+  entirely**; and a `DEFERRED` marker in one table cell silenced an unmapped requirement in another.
+
+### The Epic's own verification failed its own check, and that is left standing
+
+`M5.E10-VERIFICATION.md`'s first draft wrote requirement ranges (`AC2.1–2.3`) and asserted **"56 of
+56, none missing."** The coverage diff returned **six missing** — every one an id that exists only
+inside an en-dash range. The same draft was wrong about the denominator in two further ways.
+
+Three false completeness claims, in the verification report of the Epic chartered to kill that class,
+written by the author of the check that caught them. The refutation is a boxed note in the shipped
+artifact rather than a silent correction.
+
+**Still not built, and named so nobody concludes otherwise:** the **semantic backstop**. Everything
+here compares *tokens*. A VERIFICATION naming every requirement, carrying a denominator and filling
+every section, whose evidence column is simply wrong about what the tests assert, passes all seven
+checks.
+
 ## [0.1.24] — 2026-08-09 — the unreached mechanism — five rules that now check themselves
 
 **One defect class, five instances, named before it was fixed: the unreached mechanism.** Signal kept building a capability, writing down the rule that should invoke it, and shipping — with nothing that reaches for it. Correctness then rests on the operator already knowing. `UNREACHED-MECHANISM-ANALYSIS.md` argues Signal's habitual answer to *"the rule wasn't followed"* is to write the rule more carefully, and `B75` already measured that ceiling: `light` and `strict` differ by **one boolean** in code. So every fix in this release is a **check that fires where the situation is**, not a paragraph.
@@ -14,7 +104,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 - **`/sig:execute` and `/sig:ship` now refuse to run on the default branch (`B88`).** `[BREAKING]` for anyone who commits straight to `main` — see *Changed* below.
 
-  Signal's rules said every change reaches `main` through a branch and a PR. **Nothing enforced it.** Measured before the fix: not one of 20 commands and not one library module read the current branch, and none created one — `execute.md` contained the word *"branch"* **zero times** while instructing *"create an atomic git commit."* It worked because whoever was driving read `CLAUDE.md` and remembered. On a `nextpass` slice nobody did: five commits of real code reached `main` with no branch and therefore no PR, CI ran *after* each push instead of gating it, and `git push` printed *"Bypassed rule violations"* and succeeded.
+  Signal's rules said every change reaches `main` through a branch and a PR. **Nothing enforced it.** Measured before the fix: not one of 20 commands and not one library module read the current branch, and none created one — `execute.md` contained the word *"branch"* **zero times** while instructing *"create an atomic git commit."* It worked because whoever was driving read `CLAUDE.md` and remembered. On a `eval-project-A` slice nobody did: five commits of real code reached `main` with no branch and therefore no PR, CI ran *after* each push instead of gating it, and `git push` printed *"Bypassed rule violations"* and succeeded.
 
   `tools/lib/branch-guard.js`, wired at **all three** candidate sites because they catch different failures: EXECUTE stops a slice from *beginning* on the default branch (nothing can be stranded), SHIP catches hand-driven work that never invoked EXECUTE (`B87`'s shape), and the Exit Criteria is **filled from a real PR URL** instead of ticked — that box was ticked across thirteen releases while exactly **one** pull request existed in the span (`D-M5E17-5`).
 
@@ -24,7 +114,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 - **A discharged obligation can finally be recorded as done (`M5.E14` first slice).** `PROFILE.md`'s `backfill_warnings` was append-only with **no way to express completion**, so the schema made the true state unrepresentable and a finished obligation read as owed forever.
 
-  In traction-engine's Phase 11 a security backfill discharged by Phase 10 — and ticked in four places — was reported *"still owed"* by VERIFY, escalated to a **bolded warning** by REVIEW, then absorbed into `STATE.md` as fact. The claim gained confidence at every hop and evidence at none (`CLAIM-INTEGRITY-ANALYSIS.md` specimen #4). One grep would have refuted it at any of them.
+  In eval-project-C's Phase 11 a security backfill discharged by Phase 10 — and ticked in four places — was reported *"still owed"* by VERIFY, escalated to a **bolded warning** by REVIEW, then absorbed into `STATE.md` as fact. The claim gained confidence at every hop and evidence at none (`CLAIM-INTEGRITY-ANALYSIS.md` specimen #4). One grep would have refuted it at any of them.
 
   Entries may now be an object carrying `discharged` / `discharged_by` / `discharged_at`. **A bare string still means open, so every profile in the field stays valid and nothing migrates** — a migration that must run before the fix works is a second thing that can silently not happen. `/sig:ship` asks `readOpenObligations` and **reports without halting**: unlike the branch gate, *"yes, something is open, and I'm shipping anyway"* is frequently correct, and a gate that blocks on a judgement gets routed around. Three outcomes stay separate — open, discharged, and **could-not-read**, which renders `UNKNOWN, not none`.
 
@@ -48,7 +138,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 - **The new obligation parser invented a phantom "still owed."** `parseEscalationHistory` decided *"am I inside a warnings list?"* with a flag that latched past the end of one entry, so a **second** escalation's `- from_tier: FULL` was read as a warning and reported as open. A false *"still owed"* is specimen #4 **inverted**, inside the change written to end specimen #4. Fixed by deciding nesting from **indent** on every line; indent cannot latch. Every fixture in the file had exactly one escalation, so the parser's only stateful transition was never exercised.
 
-  **Measured read-only across 12 local projects: 3 phantom obligations → 0**, in `cm-mentor-coach`, `nextpass`, and `nextpass-codex-review`. Signal's own tree read 0 both before and after — its `escalation_history` is empty, so it has nothing to mis-parse. `B82`'s shape exactly: **dogfooding was structurally blind, and the bug lived only where the corpus is real.**
+  **Measured read-only across 12 local projects: 3 phantom obligations → 0**, in `eval-project-D`, `eval-project-A`, and `eval-project-A-codex-review`. Signal's own tree read 0 both before and after — its `escalation_history` is empty, so it has nothing to mis-parse. `B82`'s shape exactly: **dogfooding was structurally blind, and the bug lived only where the corpus is real.**
 
 ### Changed
 
@@ -90,7 +180,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 ### Fixed
 - **`B82` — a closed unit archived HALF of itself, and the split was invisible.** `planArchiveMoves` rebuilt every candidate as `` `{unit}-{suffix}.md` `` from a fixed suffix list — a **second implementation of "which files belong to this unit"**, disagreeing with the first. `deriveUnits` performs a conservative single-hop fold that a name template cannot express: `PLAN-SLICE-SSO-RESEARCH.md` belongs to `SLICE-SSO`, and no `{unit}-{suffix}` string ever produces it. The mover moved what it could name and left the rest, so a unit ended up split across `.planning/` and `.planning/archive/` with nothing reporting it.
 
-  **Measured live, through the path `/sig:migrate-memory` actually calls** (`senseArchiveTree`), not through the library in isolation: `SLICE-SSO` resolved to **5 files and planned 3** in **both** `nextpass` and `cm-mentor-coach` — the two projects archiving by hand-written runbook today. Across all 12 local projects: **3 split units, 6 stranded files → 0 and 0.**
+  **Measured live, through the path `/sig:migrate-memory` actually calls** (`senseArchiveTree`), not through the library in isolation: `SLICE-SSO` resolved to **5 files and planned 3** in **both** `eval-project-A` and `eval-project-D` — the two projects archiving by hand-written runbook today. Across all 12 local projects: **3 split units, 6 stranded files → 0 and 0.**
 
   The mover now consumes the derivation instead of re-deriving. **Signal's own tree could never have caught this:** every unit here is a strict Epic ID whose files really are `{EpicID}-{SUFFIX}.md`, so template and derivation agree by construction — 21 units, 88 moves, 0 stranded, before and after. The bug lives only where unit names are not Epic IDs, which is **8 of 12 real projects**, so dogfooding was structurally blind to it.
 
@@ -112,7 +202,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
   A bound root outside `~/.claude/plugins/cache/` is a local checkout and stays **silent**, or Signal-on-Signal would banner itself from the moment a release bump lands on a branch. Read-only, offline, two file reads, fail-open throughout. **Inherent limit, stated so nobody tests it wrong:** the check ships inside the cache copy it inspects, so it cannot fire until a session binds to a version that has it.
 
-- **`setCurrentEpic` no longer clears a phase log it did not archive — and building the guard found the loss has two causes with no stale cache involved.** The reset is unconditional, so *"archive first"* was a step that could be skipped rather than an invariant that held: **three** branches reached the zeroing write with an unarchived log and only one was covered. A **linear** project opening its first Epic never entered the archive branch at all, so its whole shipped history was zeroed silently; and `epicArchiveDirFor` returned null for any non-strict `current_epic` — `PHASE11`, measured live in traction-engine by `B53` — whereupon the caller read that null as *"skip the archive"* and reset anyway.
+- **`setCurrentEpic` no longer clears a phase log it did not archive — and building the guard found the loss has two causes with no stale cache involved.** The reset is unconditional, so *"archive first"* was a step that could be skipped rather than an invariant that held: **three** branches reached the zeroing write with an unarchived log and only one was covered. A **linear** project opening its first Epic never entered the archive branch at all, so its whole shipped history was zeroed silently; and `epicArchiveDirFor` returned null for any non-strict `current_epic` — `PHASE11`, measured live in eval-project-C by `B53` — whereupon the caller read that null as *"skip the archive"* and reset anyway.
 
   Linear history now archives to `.planning/STATE-HISTORY.md` (the destination `completePhase`'s trim already uses, not a new one), non-strict-but-safe units get M5.E18's flat per-unit directory, and a log with **no** safe destination **throws before any write** — pinned by a test asserting STATE.md is byte-identical after the refusal, not merely that it threw. The warning makes the *cause* visible; this makes the *damage* loud regardless of which version is running.
 
@@ -156,7 +246,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 ### Added
 - **The archive half, for the projects Epic-gating did not reach (M5.E18).** Signal's two archive paths were Epic-gated **by construction** — `planArchiveMoves` filtered through `EPIC_ID_STRICT_RE` and `deriveEpicArchiveDir` **throws** on anything else — so a project naming its work `PHASE10-S4` or `GATE-A` could not archive at all.
 
-  **Measured end-to-end across 12 real projects: `/sig:migrate-memory` went from archiving 67 files across 1 of 12 projects — every one of those 67 in Signal's own tree — to 114 files across 6.** `traction-engine` 0 → 26.
+  **Measured end-to-end across 12 real projects: `/sig:migrate-memory` went from archiving 67 files across 1 of 12 projects — every one of those 67 in Signal's own tree — to 114 files across 6.** `eval-project-C` 0 → 26.
 
   A non-Epic unit now archives to `.planning/archive/{unit}/`; a strict Epic ID keeps `.planning/archive/{M}/E{n}/` unchanged (verified: **0 previously-planned moves lost** across all 12 projects). Unit names are path-confined against 12 adversarial fixtures — a hostile name is **dropped, not thrown on**, so one bad name cannot deny the whole plan.
 
@@ -241,7 +331,7 @@ That distinction is the release. Measured across 13 real projects, the two check
 
 ### Fixed
 - **`B59`** — Signal's own `M5.E16-PROFILE.md` carried **two** values outside their enums, so `readEffectiveProfile` threw and the Epic declaring FEATURE ran its whole DISCUSS at the project's FULL. Found at this Epic's own PLAN preamble — the first time any code read the file. Pinned by `tests/own-profiles-parse.test.js`.
-- **`(c)` reported "clean" on a project it could not see** — found at REVIEW, in shipped code. `traction-engine` has 19 phase artifacts and 0 retrospectives; the check declared itself unconditionally evaluable while keying detection to a strict `M{n}.E{n}` filename. **REVIEW returned FAIL and the Epic looped back to EXECUTE** rather than take the small-diff exit.
+- **`(c)` reported "clean" on a project it could not see** — found at REVIEW, in shipped code. `eval-project-C` has 19 phase artifacts and 0 retrospectives; the check declared itself unconditionally evaluable while keying detection to a strict `M{n}.E{n}` filename. **REVIEW returned FAIL and the Epic looped back to EXECUTE** rather than take the small-diff exit.
 
 ### Notes
 - **`/sig:sweep` stays read-only** (**D-M5E16-1**). FR4 said *"Signal runs it"*; NFR2 said sweep never writes. Resolved in NFR2's favour: healing arrives at the phase transition and behind an explicit `--heal`. The recorded cost — **the command-healable bucket ships empty**, and a test asserts that emptiness.
@@ -501,7 +591,7 @@ Signal's answer to unbounded `.planning/` growth — the *eviction/organization*
 
 ### M5.E2 — auto-sensing migrate command (`/sig:migrate-memory`)
 
-The risky, go-big piece of the doc-runtime: the command that reorganizes an **existing** bloated project's `.planning/` in place. Un-sticks live pain (`nextpass/.planning/STATE.md` was write-wedged at 546 KB → **1.3 KB, 0 words dropped**; BUGS.md B8 auto-remediation). Full DISCUSS→SHIP at FULL/strict; REVIEW ran a 3-specialist adversarial panel (PASS-WITH-FIXES — a SHIP-blocking rollback gap, independently reproduced by two reviewers, caught + fixed in-phase). 1070 → 1300 tests. Reference: [`references/doc-runtime-model.md`](references/doc-runtime-model.md) §5 (faithfulness gate).
+The risky, go-big piece of the doc-runtime: the command that reorganizes an **existing** bloated project's `.planning/` in place. Un-sticks live pain (`eval-project-A/.planning/STATE.md` was write-wedged at 546 KB → **1.3 KB, 0 words dropped**; BUGS.md B8 auto-remediation). Full DISCUSS→SHIP at FULL/strict; REVIEW ran a 3-specialist adversarial panel (PASS-WITH-FIXES — a SHIP-blocking rollback gap, independently reproduced by two reviewers, caught + fixed in-phase). 1070 → 1300 tests. Reference: [`references/doc-runtime-model.md`](references/doc-runtime-model.md) §5 (faithfulness gate).
 
 #### Added — `/sig:migrate-memory` (M5.E2, FR6)
 - Auto-senses an old-layout project's `.planning/`, plans the **smallest safe** reorg, is **dry-run by default** (changes nothing), and applies only on explicit confirm. **Relocate-never-delete, git-backed rollback, idempotent** (a re-run on a migrated project is a no-op). Handles all three bloat vectors — v1 frontmatter-prose de-prose (relocated, never dropped), v2 whole-body relocate → `STATE-HISTORY.md`, v3 closed-Epic narrative eviction — plus archive-tree scaffold relocation. Engine: `tools/lib/migrate-memory.js` + `tools/lib/archive-tree.js`.

@@ -197,7 +197,7 @@ Promotion criterion: N consecutive Epics whose batch audits surfaced no decision
 
 ### 6.2 Failure modes and countermeasures
 
-**FM-1 — The claim-integrity problem is the central risk.** Every major recent catch in this project came from a human reading documents against each other: `B59` (the Epic that ran DISCUSS at the wrong tier), REVIEW check (c) reporting "clean" on a project it could not see, traction-engine's five false coverage claims (`analysis/CLAIM-INTEGRITY-ANALYSIS.md`). In attended mode the human catches these incidentally; unattended, a false PASS compounds silently downstream. Countermeasures — all of which Signal has already invented and this work makes load-bearing:
+**FM-1 — The claim-integrity problem is the central risk.** Every major recent catch in this project came from a human reading documents against each other: `B59` (the Epic that ran DISCUSS at the wrong tier), REVIEW check (c) reporting "clean" on a project it could not see, eval-project-C's five false coverage claims (`analysis/CLAIM-INTEGRITY-ANALYSIS.md`). In attended mode the human catches these incidentally; unattended, a false PASS compounds silently downstream. Countermeasures — all of which Signal has already invented and this work makes load-bearing:
 - Claims **derived, checked, or labeled unverified — never asserted** (the existing doctrine, now enforced at gates).
 - Every gate report distinguishes **checked-and-clean** from **could-not-check**, and could-not-check **halts** (M5.E16's sweep protocol, generalized).
 - **Adversarial verification at gates:** verifier agents prompted with fresh context to *refute* the phase's claims, not confirm them. Signal's verifier/checker agents exist; the change is the adversarial stance.

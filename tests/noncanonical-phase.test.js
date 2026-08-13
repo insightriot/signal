@@ -26,7 +26,7 @@ import { PHASES } from '../tools/lib/state.js';
  * look identical to one set deliberately.
  */
 
-// The real value on disk in traction-engine's .planning/STATE.md — a
+// The real value on disk in eval-project-C's .planning/STATE.md — a
 // multi-paragraph prose blob, not a phase name. Verbatim prefix.
 const TRACTION_ENGINE_PHASE = `**PHASE 12 — REPRIORITIZED 2026-08-02 to: GET IT OPERATIONAL.** Brett, after
 four days that produced 54 commits of which 52 were planning docs and zero
@@ -43,7 +43,7 @@ describe('B70 — a non-canonical STATE phase must not kill the briefing', () =>
   });
 
   describe('describeNextAction — fail-open', () => {
-    it('does not throw on the real traction-engine phase blob', () => {
+    it('does not throw on the real eval-project-C phase blob', () => {
       expect(() => describeNextAction(TRACTION_ENGINE_PHASE, [])).not.toThrow();
     });
 
@@ -133,7 +133,7 @@ describe('B70 — a non-canonical STATE phase must not kill the briefing', () =>
     it('renders without throwing when the phase is non-canonical', () => {
       expect(() =>
         renderResumeBriefing({
-          cwd: '/tmp/traction-engine',
+          cwd: '/tmp/eval-project-C',
           state,
           profile: { tier: 'FULL', phases_skipped: [] },
           visionText: 'A project.',
@@ -144,7 +144,7 @@ describe('B70 — a non-canonical STATE phase must not kill the briefing', () =>
 
     it('still renders the sections above the next-action line', () => {
       const out = renderResumeBriefing({
-        cwd: '/tmp/traction-engine',
+        cwd: '/tmp/eval-project-C',
         state,
         profile: { tier: 'FULL', phases_skipped: [] },
         visionText: 'A project that exists.',
@@ -157,7 +157,7 @@ describe('B70 — a non-canonical STATE phase must not kill the briefing', () =>
 
     it('the briefing stays within the 50-line cap despite the blob', () => {
       const out = renderResumeBriefing({
-        cwd: '/tmp/traction-engine',
+        cwd: '/tmp/eval-project-C',
         state,
         profile: { tier: 'FULL', phases_skipped: [] },
         visionText: 'A project.',

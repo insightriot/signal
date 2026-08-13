@@ -16,11 +16,11 @@ import { SCAFFOLD_SUFFIXES } from '../tools/lib/archive-tree.js';
 
 // ---- Real filename inventories, transcribed from the measured corpus ----
 
-// nextpass: writes PLAN-phase artifacts as `PLAN-{unit}-{ARTIFACT}.md` and
+// eval-project-A: writes PLAN-phase artifacts as `PLAN-{unit}-{ARTIFACT}.md` and
 // execution artifacts as `{unit}-{ARTIFACT}.md`, so a naive rule sees one slice
 // as two. Verified as ONE slice by reading them: `GATE-A-PROGRESS.md` links
 // "Plan: [PLAN-GATE-A.md]" directly.
-const NEXTPASS_SPLIT_PAIRS = [
+const EVAL_PROJECT_A_SPLIT_PAIRS = [
   'PLAN-GATE-A-RESEARCH.md',
   'PLAN-GATE-A-VALIDATION.md',
   'GATE-A-PROGRESS.md',
@@ -38,7 +38,7 @@ const NEXTPASS_SPLIT_PAIRS = [
   'VOICE1-PROGRESS.md',
 ];
 
-// agent-builder: `resolveArtifactPath` pattern 3 — the literal-substitution
+// eval-project-E: `resolveArtifactPath` pattern 3 — the literal-substitution
 // `{PHASE}-{ARTIFACT}.md` form a linear project legitimately writes.
 const AGENT_BUILDER = [
   'PLAN-PLAN.md',
@@ -52,7 +52,7 @@ const AGENT_BUILDER = [
   'STATE.md',
 ];
 
-// traction-engine, the AC1.4' fixture. PHASE10-S5 under-forms on purpose:
+// eval-project-C, the AC1.4' fixture. PHASE10-S5 under-forms on purpose:
 // its only file is a RUNBOOK, which is not a scaffold suffix.
 const TRACTION_ENGINE = [
   'PHASE7-PLAN.md', 'PHASE7-VERIFICATION.md',
@@ -92,11 +92,11 @@ describe('M5.E18 S1 / FR1 — deriveUnits', () => {
     // `B82` (fixed): that last clause described a defect this fold prevents in
     // the DERIVATION and `planArchiveMoves` then reintroduced in the MOVER, by
     // rebuilding candidates from a `{unit}-{suffix}` template that cannot
-    // express a fold. Measured live on `nextpass` and `cm-mentor-coach`: the
+    // express a fold. Measured live on `eval-project-A` and `eval-project-D`: the
     // derivation resolved `SLICE-SSO` to 5 files while the mover planned 3.
     // The end-to-end invariant is now pinned in `archive-destination.test.js`
     // ("B82"); this block keeps pinning the derivation half.
-    const { units } = deriveUnits(NEXTPASS_SPLIT_PAIRS);
+    const { units } = deriveUnits(EVAL_PROJECT_A_SPLIT_PAIRS);
 
     it('GATE-A: the plan-side and execution-side files land in one unit', () => {
       expect(units.has('GATE-A')).toBe(true);
@@ -127,8 +127,8 @@ describe('M5.E18 S1 / FR1 — deriveUnits', () => {
       ]);
     });
 
-    it('the whole nextpass split set collapses to exactly four units', () => {
-      expect(unitNames(NEXTPASS_SPLIT_PAIRS)).toEqual(['GATE-A', 'SC1', 'SLICE-SSO', 'VOICE1']);
+    it('the whole eval-project-A split set collapses to exactly four units', () => {
+      expect(unitNames(EVAL_PROJECT_A_SPLIT_PAIRS)).toEqual(['GATE-A', 'SC1', 'SLICE-SSO', 'VOICE1']);
     });
   });
 
@@ -154,7 +154,7 @@ describe('M5.E18 S1 / FR1 — deriveUnits', () => {
     });
   });
 
-  describe("AC1.4' — traction-engine, the corrected expected set", () => {
+  describe("AC1.4' — eval-project-C, the corrected expected set", () => {
     it('derives exactly the measured units', () => {
       expect(unitNames(TRACTION_ENGINE)).toEqual([
         'PHASE10', 'PHASE10-S4', 'PHASE11', 'PHASE12', 'PHASE13',
@@ -180,10 +180,11 @@ describe('M5.E18 S1 / FR1 — deriveUnits', () => {
   describe('AC1.5 — ungrouped is a named collection, reported unconditionally', () => {
     it('files with no recognised suffix land in ungrouped', () => {
       const { ungrouped } = deriveUnits([
-        'NEXTPASS-STACK-DECISION.md', 'BUGHUNT-2026-06-12.md', 'PLAN-SLICE-VOICE1.md',
+        'eval-project-A-STACK-DECISION.md', 'BUGHUNT-2026-06-12.md', 'PLAN-SLICE-VOICE1.md',
       ]);
+      // Sorted, so the lowercase corpus label sorts after the uppercase names.
       expect(ungrouped.sort()).toEqual([
-        'BUGHUNT-2026-06-12.md', 'NEXTPASS-STACK-DECISION.md', 'PLAN-SLICE-VOICE1.md',
+        'BUGHUNT-2026-06-12.md', 'PLAN-SLICE-VOICE1.md', 'eval-project-A-STACK-DECISION.md',
       ]);
     });
 
@@ -196,7 +197,7 @@ describe('M5.E18 S1 / FR1 — deriveUnits', () => {
   });
 
   describe('AC1.6 — a PHASE NAME is not a unit of work', () => {
-    it('agent-builder derives ZERO units', () => {
+    it('eval-project-E derives ZERO units', () => {
       // `PLAN-PLAN.md` etc. are resolveArtifactPath pattern 3 — phase artifacts
       // of one linear project. Deriving a unit called "PLAN" and archiving it
       // would archive the project's live plan.
@@ -244,7 +245,7 @@ describe('M5.E18 S1 / FR1 — deriveUnits', () => {
   describe('totality and idempotence', () => {
     // De-duplicated: CONTEXT.md legitimately appears in two of the fixture
     // inventories above, and `deriveUnits` takes a file LIST, not a multiset.
-    const CORPUS = [...new Set([...NEXTPASS_SPLIT_PAIRS, ...AGENT_BUILDER, ...TRACTION_ENGINE])];
+    const CORPUS = [...new Set([...EVAL_PROJECT_A_SPLIT_PAIRS, ...AGENT_BUILDER, ...TRACTION_ENGINE])];
 
     it('every input file lands in exactly one of units/ungrouped', () => {
       const { units, ungrouped } = deriveUnits(CORPUS);

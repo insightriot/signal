@@ -120,7 +120,7 @@ describe('cross-project analysis — safety', () => {
   });
 
   it('a project it cannot read becomes a reported blindness, never a throw', async () => {
-    // affiliate-mojo throws on readState today. Losing the other 22 projects to
+    // eval-project-B throws on readState today. Losing the other 22 projects to
     // it would be the defect this tool exists to remove.
     const r = await scanProject(join(tmpdir(), 'does-not-exist-xyz'));
     expect(r.blind.length).toBeGreaterThan(0);

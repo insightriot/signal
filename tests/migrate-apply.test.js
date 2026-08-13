@@ -5,7 +5,7 @@
 // vector-2 threshold. A naive "apply the sensed vectors once" harness would
 // leave v2.candidate:true → unstamped → a 2nd --apply changes files. The apply
 // engine must chain V1→V2→stamp in memory so ONE --apply reaches conformance and
-// a 2nd --apply is a byte-identical no-op (nextpass's real post-V1 shape).
+// a 2nd --apply is a byte-identical no-op (eval-project-A's real post-V1 shape).
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
@@ -26,14 +26,14 @@ function initRepo(dir) {
 
 // Frontmatter prose big enough that de-prose pushes the body past 8 KB → V2 fires.
 const HUGE_PROSE = 'a narrative sentence carrying real meaning across many words. '.repeat(200); // ~12 KB
-const NEXTPASS_SHAPE =
+const EVAL_PROJECT_A_SHAPE =
   `---\nschema_version: 1\nphase: PLAN\ncurrent_epic: M5.E2\ncurrent_tasks: []\n` +
   `completed_phases:\n  - CALIBRATE (2026-05-13)\n  - "DISCUSS (2026-07-01) — ${HUGE_PROSE}"\n` +
   `blockers: []\n---\n# Project State\n\n## Resume pointer\n\nlive pointer\n`;
 
 async function setup(dir) {
   await mkdir(join(dir, '.planning'), { recursive: true });
-  await writeFile(join(dir, '.planning', 'STATE.md'), NEXTPASS_SHAPE, 'utf-8');
+  await writeFile(join(dir, '.planning', 'STATE.md'), EVAL_PROJECT_A_SHAPE, 'utf-8');
   initRepo(dir);
   git(dir, ['add', '-A']);
   git(dir, ['commit', '-q', '-m', 'init']);
@@ -108,7 +108,7 @@ describe('M5.E2.S1.t7b applyMigrate — V1→V2→stamp composition', () => {
   it('runMigrate wires dry-run (inputHash) → apply', async () => {
     const dry = await runMigrate(dir, { apply: false });
     expect(dry.applied).toBe(false);
-    expect(dry.inputHash).toBe(hashState(NEXTPASS_SHAPE));
+    expect(dry.inputHash).toBe(hashState(EVAL_PROJECT_A_SHAPE));
     const applied = await runMigrate(dir, { apply: true, stamp: 'T1', dateStr: '2026-07-17' });
     expect(applied.applied).toBe(true);
   });

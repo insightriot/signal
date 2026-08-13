@@ -24,7 +24,7 @@ export const LAYOUT_VERSION = 3;
 
 // Capped-prefix read budget (FM8). The stamp sits right after `schema_version:` at
 // the very top of the frontmatter, so 64 KB is orders of magnitude past where the
-// stamp can be, yet a tiny fraction of a bloated STATE.md (nextpass's is 529 KB).
+// stamp can be, yet a tiny fraction of a bloated STATE.md (eval-project-A's is 529 KB).
 // NOTE: this is NOT FRONTMATTER_SCAN_CEILING (retrospective.js, 1 MB) — that is a
 // post-read length bail, not a read cap; reusing 1 MB here would read the whole
 // 529 KB body and violate FM8's "never the whole body".

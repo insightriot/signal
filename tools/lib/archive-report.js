@@ -19,8 +19,8 @@
 //   (+) STATE.md unreadable               -> a fifth: we could not even look
 //
 // (3), (4) and (+) all produce "0 files to archive". Wave 3 proved they collapse
-// if you only render counts: `affiliate-mojo` (STATE unreadable, 0 units) and
-// `prompt-library` (readable, 0 units) return byte-identical `{0,0,0}` from
+// if you only render counts: `eval-project-B` (STATE unreadable, 0 units) and
+// `eval-project-H` (readable, 0 units) return byte-identical `{0,0,0}` from
 // `resolveClosures`. That was found in S4's own code by first use, pinned by a
 // closure test, and carried forward as this slice's obligation. Here it is paid.
 
@@ -81,7 +81,7 @@ export function explainArchiveOutcome(args = {}) {
       // RETRO-derived; `resolveClosures` reads terminal artifact + verdict. A
       // unit closed by verdict with no retrospective is invisible to the mover.
       //
-      // Caught by running it: `nextpass` printed "none closed … genuinely
+      // Caught by running it: `eval-project-A` printed "none closed … genuinely
       // nothing to do" while the resolver had found 1 closed unit. That gap IS
       // this Epic's subject, so the report names it instead of papering it.
       const n = closures.filter((c) => c.status === CLOSED).length;

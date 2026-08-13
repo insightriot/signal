@@ -69,7 +69,7 @@ async function discover(dir) {
 
 /**
  * Scan one project. Never throws: a project that cannot be read is a REPORTED
- * blindness, not a crash that takes the corpus with it. `affiliate-mojo` throws
+ * blindness, not a crash that takes the corpus with it. `eval-project-B` throws
  * on `readState` today, and losing the other 22 to it would be the defect this
  * whole tool exists to remove.
  */

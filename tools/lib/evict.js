@@ -39,6 +39,7 @@ import {
 import { deriveRetroPath } from './retrospective.js';
 import { atomicWrite } from './atomic-write.js';
 import { assertRealInsidePlanning } from './path-confine.js';
+import { FR_ID_RE, AC_ID_RE } from './requirement-ids.js';
 
 // --- ID / date / status-token extractors (the deterministic backstop) --------
 
@@ -47,10 +48,8 @@ import { assertRealInsidePlanning } from './path-confine.js';
 const EPIC_DEEP_ID_RE = /\bM\d+(?:\.\d+)*\.E\d+(?:\.S\d+)?(?:\.t\d+)?\b/g;
 // Decision IDs: D-M5E1-3, D-E11-4, D-v016-1, BR-9 is NOT a D- id so excluded.
 const DECISION_ID_RE = /\bD-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*\b/g;
-// Functional-requirement IDs: FR1, FR2a, FR2b.
-const FR_ID_RE = /\bFR\d+[a-z]?\b/g;
-// Acceptance-criterion IDs: AC1, AC6.4, AC-seed is excluded (needs a digit).
-const AC_ID_RE = /\bAC\d+(?:\.\d+)?\b/g;
+// FR / AC id patterns live in `./requirement-ids.js` — imported above, so this
+// module and FR1's coverage diff cannot drift apart (M5.E10 AC S1.1).
 // ISO dates: 2026-07-16.
 const ISO_DATE_RE = /\b\d{4}-\d{2}-\d{2}\b/g;
 // Status tokens whose *disappearance* would silently drop a still-open item.
@@ -65,6 +64,16 @@ function uniqueMatches(text, re) {
 
 /**
  * All distinct discrete IDs in `text` (Epic/deeper, decision, FR, AC).
+ *
+ * NFR is deliberately NOT composed here, and the omission is a choice rather
+ * than an oversight. This gate proves a distilled card dropped no token from
+ * the Epic narrative it replaces; Signal's narratives cite FR/AC ids and have
+ * never cited an NFR one, so adding the family would tighten a live gate
+ * against evidence that does not exist. FR1's diff composes it — see
+ * `extractRequirementIds` in `./requirement-ids.js` — because enumerating
+ * requirements is a different job. Add it here when a narrative cites an NFR,
+ * not before.
+ *
  * @param {string} text
  * @returns {string[]}
  */
@@ -177,7 +186,20 @@ export function extractEpicSection(body, epicId) {
   }
   const escId = epicId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   // Find a heading line (#..######) that contains the Epic ID.
-  const headingRe = new RegExp(`(?:^|\\n)(#{1,6})[ \\t]+([^\\n]*\\b${escId}\\b[^\\n]*)`, '');
+  //
+  // The `> ` prefix is not cosmetic tolerance — it is `B96`. Signal's own live
+  // STATE.md carries its in-flight block as `> ## ▶ IN FLIGHT — M5.E10`, inside
+  // a blockquote, so a regex anchored to the line start found nothing,
+  // `evictEpicNarrative` returned `no-section`, and `ship.md` §5.5 documents that
+  // outcome as *"a safe no-op"*. It is safe; it is not a no-op — the narrative
+  // was 5 KB and would have stayed in live STATE.md forever, which is the exact
+  // growth `M5.E1` built eviction to prevent. `B39`'s shape: *could not find it*
+  // rendering identically to *there is nothing to find*.
+  //
+  // Fixed here rather than by un-blockquoting the document, deliberately: the
+  // code should read the shape the maintainer writes, not require the maintainer
+  // to write the shape the code reads.
+  const headingRe = new RegExp(`(?:^|\\n)>? ?(#{1,6})[ \\t]+([^\\n]*\\b${escId}\\b[^\\n]*)`, '');
   const hm = body.match(headingRe);
   if (!hm) return { found: false };
 
@@ -190,7 +212,9 @@ export function extractEpicSection(body, epicId) {
   // Skip the heading's own line before scanning for the next boundary heading.
   const afterHeadingLine = rest.indexOf('\n');
   const scanFrom = afterHeadingLine === -1 ? rest.length : afterHeadingLine + 1;
-  const boundaryRe = new RegExp(`\\n(#{1,${level}})[ \\t]+`, '');
+  // The boundary must accept the same `> ` prefix, or a blockquoted section runs
+  // to end-of-file and swallows every heading after it.
+  const boundaryRe = new RegExp(`\\n>? ?(#{1,${level}})[ \\t]+`, '');
   const bm = rest.slice(scanFrom).match(boundaryRe);
   const sectionEnd =
     bm === null ? body.length : headingStart + scanFrom + bm.index; // bm.index is offset of the leading \n

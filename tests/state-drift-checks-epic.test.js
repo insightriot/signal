@@ -24,7 +24,7 @@ import {
  * a finding.
  *
  * Evidence quality differs sharply between them, and the tests say so:
- *   (h) two live true positives — agent-tools-sync "M1", traction-engine "PHASE12"
+ *   (h) two live true positives — eval-project-I "M1", eval-project-C "PHASE12"
  *   (b) red on three real historical commits, green on the one that fixed it
  *   (a) FIXTURE ONLY — zero live hits. The fixture is the sole evidence it works.
  */
@@ -66,7 +66,7 @@ async function statusOf(dir, check) {
 // ───────────────────────────── (h) ─────────────────────────────
 
 describe('M5.E16 S3.t1 — (h) current_epic is set but no resolver accepts it', () => {
-  it('RED: fires on traction-engine\'s real value, "PHASE12"', async () => {
+  it('RED: fires on eval-project-C\'s real value, "PHASE12"', async () => {
     const dir = await makeProject({ 'STATE.md': STATE({ current_epic: 'PHASE12' }) });
     try {
       const r = await statusOf(dir, checkEpicIdNotStrict);
@@ -78,7 +78,7 @@ describe('M5.E16 S3.t1 — (h) current_epic is set but no resolver accepts it', 
     }
   });
 
-  it('RED: fires on agent-tools-sync\'s real value, "M1" — a milestone, not an Epic', async () => {
+  it('RED: fires on eval-project-I\'s real value, "M1" — a milestone, not an Epic', async () => {
     const dir = await makeProject({ 'STATE.md': STATE({ current_epic: 'M1' }) });
     try {
       expect((await statusOf(dir, checkEpicIdNotStrict)).status).toBe(STATUS.FINDINGS);

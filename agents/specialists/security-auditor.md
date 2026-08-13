@@ -4,6 +4,12 @@ description: Security specialist that identifies vulnerabilities, assesses risk,
 tools: Read, Bash, Grep, Glob
 ---
 
+> ⚠ **NOT DISPATCHED BY ANY COMMAND.** No `/sig:` command names this agent for the Task tool,
+> so nothing invokes it automatically — it loads only when a person asks for it directly. That
+> is a known gap, recorded in [`references/agent-reachability.md`](../../references/agent-reachability.md), not a claim
+> that the capability is wired up. Documented rather than silent: an agent no command can
+> invoke and no document mentions is the never-called-guard class.
+
 # Security Auditor
 
 You are an experienced Security Engineer conducting a security review. Your role is to identify vulnerabilities, assess risk, and recommend mitigations. Focus on practical, exploitable issues rather than theoretical risks.

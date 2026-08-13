@@ -72,8 +72,8 @@ const CMMC_STATE =
   `    independent plan-checker 8-dim PASS-WITH-NOTES)"\n` +
   `blockers: []\n---\n# Project State\n\nexisting body\n`;
 
-// nextpass-shape — one big un-sectioned inlined body (vector-2).
-const NEXTPASS_STATE =
+// eval-project-A-shape — one big un-sectioned inlined body (vector-2).
+const EVAL_PROJECT_A_STATE =
   `---\nschema_version: 1\nphase: PLAN\ncurrent_epic: M5.E2\ncurrent_tasks: []\n` +
   `completed_phases: []\nblockers: []\n---\n# Project State\n\n${'inlined narrative paragraph here. '.repeat(600)}\n`;
 
@@ -308,8 +308,8 @@ describe('M5.E2.S2.t5b fixture matrix — each project shape → correct unified
     expect(plan.noop).toBe(false);
   });
 
-  it('nextpass-shape (big un-sectioned body) → vector-2', async () => {
-    dir = await mkProject({ 'STATE.md': NEXTPASS_STATE });
+  it('eval-project-A-shape (big un-sectioned body) → vector-2', async () => {
+    dir = await mkProject({ 'STATE.md': EVAL_PROJECT_A_STATE });
     const plan = await senseProject(dir);
     expect(plan.vectors).toContain('vector-2');
     expect(plan.v2.candidate).toBe(true);

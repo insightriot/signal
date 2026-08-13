@@ -13,12 +13,21 @@
 ## Live — working set
 
 - [ADHERENCE-LOG.md](ADHERENCE-LOG.md) — `append-log` — _(note pending)_
+- [BACKLOG-REVIEW-2026-08-09.md](BACKLOG-REVIEW-2026-08-09.md) — `other` — _(note pending)_
 - [BACKLOG.md](BACKLOG.md) — `other` — The sequenced roadmap, promoted from `ISSUES-INBOX.md`; every entry tagged `roadmap` or `hygiene`. Supersedes the point-in-time `BACKLOG-REVIEW-2026-07-04` snapshot (folded in + archived under `archive/`).
 - [BUGS.md](BUGS.md) — `other` — Bugs & verified-findings catalog — where findings get logged (catalog → triage → confirm / dismiss / fixed). GitHub Issues deferred until Signal has live users.
 - [CONTEXT.md](CONTEXT.md) — `other` — Locked + deferred decisions for the *current* work — what DISCUSS settled for the active Epic.
 - [DECISIONS.md](DECISIONS.md) — `append-log` — Architectural decision log (append-only, `D-…-n` IDs). Post-eviction at docs-layout v3 it keeps only the recent/live tail (date-cutoff — currently M5.E1–E3 + M4.5.E11); older decisions relocated verbatim to `archive/milestones/DECISIONS.md` (M1–M4) + `archive/M4.5/DECISIONS.md` (M4.5 through 2026-07-13) behind dated EOF pointers. Resolve a `D-ID` to its home via `/sig:index`.
 - [ISSUES-INBOX.md](ISSUES-INBOX.md) — `other` — The capture inbox (renamed from `FUTURE-IDEAS.md` at docs-layout v3). Raw `/sig:add` captures land here; `/sig:plan` drains + classifies them into `BACKLOG.md` (work) or `BUGS.md` (defects); also holds the standing trigger WATCHLIST. Large + append-heavy — grep/TOC, don't load whole.
 - [M4.5.E5-LAUNCH-KIT.md](M4.5.E5-LAUNCH-KIT.md) — `other` — Internal launch-ops doc from M4.5.E5 (version rubric · release-notes draft · tester-handoff checklist §3 · distribution channels). Not user-facing, not validator-registered; still in root pending archive.
+- [M5.E10-CORPUS-MEASUREMENT.md](M5.E10-CORPUS-MEASUREMENT.md) — `other` — _(note pending)_
+- [M5.E10-PLAN.md](M5.E10-PLAN.md) — `other` — _(note pending)_
+- [M5.E10-PROGRESS.md](M5.E10-PROGRESS.md) — `other` — _(note pending)_
+- [M5.E10-REQUIREMENTS.md](M5.E10-REQUIREMENTS.md) — `other` — _(note pending)_
+- [M5.E10-RESEARCH.md](M5.E10-RESEARCH.md) — `other` — _(note pending)_
+- [M5.E10-REVIEW.md](M5.E10-REVIEW.md) — `other` — _(note pending)_
+- [M5.E10-VALIDATION.md](M5.E10-VALIDATION.md) — `other` — _(note pending)_
+- [M5.E10-VERIFICATION.md](M5.E10-VERIFICATION.md) — `other` — _(note pending)_
 - [M5.E13-PLAN.md](M5.E13-PLAN.md) — `other` — _(note pending)_
 - [M5.E13-PROGRESS.md](M5.E13-PROGRESS.md) — `other` — _(note pending)_
 - [M5.E13-REQUIREMENTS.md](M5.E13-REQUIREMENTS.md) — `other` — _(note pending)_
@@ -153,11 +162,13 @@
 - [M4.5.E8-RETROSPECTIVE.md](M4.5.E8-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M4.5.E9-RETROSPECTIVE.md](M4.5.E9-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E1-RETROSPECTIVE.md](M5.E1-RETROSPECTIVE.md) — `other` — _(note pending)_
+- [M5.E10-RETROSPECTIVE.md](M5.E10-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E13-RETROSPECTIVE.md](M5.E13-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E15-RETROSPECTIVE.md](M5.E15-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E16-RETROSPECTIVE.md](M5.E16-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E17-RETROSPECTIVE.md](M5.E17-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E18-RETROSPECTIVE.md](M5.E18-RETROSPECTIVE.md) — `other` — _(note pending)_
+- [M5.E19-RETROSPECTIVE.md](M5.E19-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E2-RETROSPECTIVE.md](M5.E2-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E3-RETROSPECTIVE.md](M5.E3-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M5.E4-RETROSPECTIVE.md](M5.E4-RETROSPECTIVE.md) — `other` — _(note pending)_
@@ -244,11 +255,13 @@
 - [archive/M5/E1/M5.E1-SHIP.md](archive/M5/E1/M5.E1-SHIP.md) — `other` — _(note pending)_
 - [archive/M5/E1/M5.E1-VALIDATION.md](archive/M5/E1/M5.E1-VALIDATION.md) — `other` — _(note pending)_
 - [archive/M5/E1/M5.E1-VERIFICATION.md](archive/M5/E1/M5.E1-VERIFICATION.md) — `other` — _(note pending)_
+- [archive/M5/E10/STATE-NARRATIVE.md](archive/M5/E10/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/E13/STATE-NARRATIVE.md](archive/M5/E13/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/E15/STATE-NARRATIVE.md](archive/M5/E15/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/E16/STATE-NARRATIVE.md](archive/M5/E16/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/E17/STATE-NARRATIVE.md](archive/M5/E17/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/E18/STATE-NARRATIVE.md](archive/M5/E18/STATE-NARRATIVE.md) — `other` — _(note pending)_
+- [archive/M5/E19/STATE-NARRATIVE.md](archive/M5/E19/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/E2/M5.E2-PLAN.md](archive/M5/E2/M5.E2-PLAN.md) — `other` — _(note pending)_
 - [archive/M5/E2/M5.E2-PROGRESS.md](archive/M5/E2/M5.E2-PROGRESS.md) — `other` — _(note pending)_
 - [archive/M5/E2/M5.E2-REQUIREMENTS.md](archive/M5/E2/M5.E2-REQUIREMENTS.md) — `other` — _(note pending)_
@@ -287,8 +300,10 @@
 - [M5.E7](M5.E7-RETROSPECTIVE.md) — _(note pending)_
 - [M5.E8](M5.E8-RETROSPECTIVE.md) — _(note pending)_
 - [M5.E9](M5.E9-RETROSPECTIVE.md) — _(note pending)_
+- [M5.E10](M5.E10-RETROSPECTIVE.md) — _(note pending)_
 - [M5.E13](M5.E13-RETROSPECTIVE.md) — _(note pending)_
 - [M5.E15](M5.E15-RETROSPECTIVE.md) — _(note pending)_
 - [M5.E16](M5.E16-RETROSPECTIVE.md) — _(note pending)_
 - [M5.E17](M5.E17-RETROSPECTIVE.md) — _(note pending)_
 - [M5.E18](M5.E18-RETROSPECTIVE.md) — _(note pending)_
+- [M5.E19](M5.E19-RETROSPECTIVE.md) — _(note pending)_

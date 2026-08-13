@@ -1,0 +1,5 @@
+{
+  "note": "Files that still name a private eval-corpus project. Public repo; see tests/private-name-guard.test.js and references/eval-corpus.md. This list may only SHRINK — remove a row in the same commit that cleans its file.",
+  "recorded": "2026-08-12",
+  "files": []
+}

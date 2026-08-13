@@ -2,12 +2,12 @@
 
 > **What this is:** the combined analysis of a cross-repo investigation (2026-07-28) into why Signal-run
 > projects keep producing false completeness claims — "0 gaps", "all criteria verified", "checklist
-> complete" — in artifacts that look authoritative. Field evidence is traction-engine Phase 11; the causes
+> complete" — in artifacts that look authoritative. Field evidence is eval-project-C Phase 11; the causes
 > are in Signal. This doc names the class, traces the mechanism, ranks the fixes, and records the
 > tracker-integration decision. It is the seed for M5.E10 scoping, the same way
 > `AGENT-EFFECTIVENESS-ALIGNMENT.md` seeded M5.E8.
 >
-> `verified-against:` traction-engine working tree (Phase 11 shipped, `ae55179`+) and Signal `aff4098`
+> `verified-against:` eval-project-C working tree (Phase 11 shipped, `ae55179`+) and Signal `aff4098`
 > (v0.1.13) on 2026-07-28. Line numbers were verified that day and will drift; claims were re-derived from
 > the files, not from memory of them — which is the whole point of this document.
 
@@ -39,7 +39,7 @@ class has been **observed at least seven times and never abstracted** — until 
 Where it strikes: **the summary-shaped parts of artifacts** — closing tallies, "Next:" handoff sections,
 pre-ship checklists, correction notices. Sections written last, about other things, from memory.
 
-## §2 Field evidence — traction-engine Phase 11 (FULL tier, v0.1.13, ~36h DISCUSS→SHIP)
+## §2 Field evidence — eval-project-C Phase 11 (FULL tier, v0.1.13, ~36h DISCUSS→SHIP)
 
 Five instances in one phase. Maximum tier rigor (`nyquist_enforcement: strict`, `gate_strictness: strict`,
 all dims) prevented none of them, because tier rigor dials up prose obligations, not derivations.
@@ -140,7 +140,7 @@ derived, (b) deterministically checked, or (c) explicitly labeled unverified.** 
    restatements) returns only corrected instances: root + all carriers, not the files that happened to be
    open. Mechanically checkable at SHIP. *Kills #5 and the residue problem.* **Home: M5.E10.**
    **Corollary — retract at the granularity people search at** *(added 2026-07-28, from a review of the
-   traction-engine correction pass)*: an amendment appended below a false claim leaves the claim's own
+   eval-project-C correction pass)*: an amendment appended below a false claim leaves the claim's own
    line reading as live. `grep -rn` prints **one line**; a correction three lines down is invisible to it,
    and grep-shaped reading is exactly how the backfill claim propagated VERIFY→REVIEW in the first place.
    So the claim's line must carry its own retraction inline (`~~still owed~~ **[RETRACTED — see
@@ -215,7 +215,7 @@ degraded mode, which is precisely the status-marker fallback of §6 item 4.
   section/symbol cites over line cites in `analysis/`; this is the cheap half of `B40` (citation
   integrity unenforceable by construction) and of M5.E12's `verified-against:` stamps.
 
-**traction-engine (fix there, not here — listed so no agent re-trusts them):**
+**eval-project-C (fix there, not here — listed so no agent re-trusts them):**
 - `.planning/PHASE11-VALIDATION.md:36` — still reads "2 NFRs, 0 gaps"; named as the NFR-9.2 root by two
   other artifacts, never amended.
 - `.planning/PHASE11-VERIFICATION.md:139` — still says the Phase-8 backfill is "still owed"; it was
