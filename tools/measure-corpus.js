@@ -24,6 +24,7 @@ import { checkValidationConsistency, CONSISTENCY } from './lib/validation-consis
 import { validateVerificationContent } from './lib/verification-template.js';
 import { checkCorrectionProtocol, CORRECTION } from './lib/correction-protocol.js';
 import { retroIndexFreshness, RETRO_FRESHNESS } from './lib/sweep.js';
+import { backlogDischargeStatus, BACKLOG_DISCHARGE } from './lib/backlog.js';
 import { runDriftChecks } from './lib/state-drift.js';
 
 const EVALUABLE = 'evaluable';
@@ -62,7 +63,7 @@ async function measureProject(dir) {
   const files = planningDocs(dir);
   const r = {};
   if (!files) {
-    for (const k of ['coverage', 'validation', 'template', 'correction', 'retro-index', 'narrative'])
+    for (const k of ['coverage', 'validation', 'template', 'correction', 'retro-index', 'narrative', 'backlog'])
       r[k] = { status: BLIND, reason: 'no .planning/ directory' };
     return r;
   }
@@ -149,6 +150,13 @@ async function measureProject(dir) {
     r.narrative = { status: BLIND, reason: `drift checks threw — ${err.message}` };
   }
 
+  // FR9 — backlog rows asserting `pending` about closed work
+  const backlog = await backlogDischargeStatus(dir);
+  r.backlog =
+    backlog.outcome === BACKLOG_DISCHARGE.CANNOT_EVALUATE
+      ? { status: BLIND, reason: backlog.reason }
+      : { status: EVALUABLE, detail: `${backlog.outcome} (${backlog.resolvable} resolvable rows)` };
+
   return r;
 }
 
@@ -170,7 +178,7 @@ for (const root of roots) {
   }
 }
 
-const CHECKS = ['coverage', 'validation', 'template', 'correction', 'retro-index', 'narrative'];
+const CHECKS = ['coverage', 'validation', 'template', 'correction', 'retro-index', 'narrative', 'backlog'];
 const results = [];
 for (const p of projects) results.push({ name: basename(p), r: await measureProject(p) });
 

@@ -39,6 +39,7 @@ import {
 } from './doc-hygiene.js';
 import { enumerateRetros, parseExistingHooks, renderIndex } from './retro-index.js';
 import { runDriftChecks, renderDriftReport, STATE_DRIFT_CHECKS } from './state-drift.js';
+import { backlogDischargeStatus, BACKLOG_DISCHARGE } from './backlog.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -207,6 +208,55 @@ export async function retroIndexFreshness(baseDir) {
     reason: null,
     retroCount: retros.length,
   };
+}
+
+/**
+ * Backlog rows asserting `pending` about finished work (portable, advisory —
+ * M5.E10 FR9 / AC9.4, `B94`).
+ *
+ * The finding-shaped surface over `backlogDischargeStatus`. Severity is advisory
+ * in every case, including a confirmed stale row: whether a row should close is
+ * a judgment (work can legitimately outlive the unit that named it), and a
+ * structural finding on a judgment is how a check earns the mute that makes it
+ * useless.
+ *
+ * The silent case is deliberate and narrow — a project with **no BACKLOG.md at
+ * all**, which is 8 of the 12 local projects. Nudging them every run about a
+ * document they have chosen not to keep is noise. Every OTHER un-evaluable
+ * reason reports, because "could not check" rendering as silence is `B39`'s
+ * shape and the reason `S4.t1` exists three slices above this one.
+ *
+ * @param {string} baseDir — project root (where `.planning/` lives)
+ * @returns {Promise<Array<{check: string, severity: string, file: string, message: string}>>}
+ */
+export async function checkBacklogDischarge(baseDir) {
+  const rel = PLANNING_DIR + '/BACKLOG.md';
+  let result;
+  try {
+    result = await backlogDischargeStatus(baseDir);
+  } catch (err) {
+    return [mkFinding('backlog-discharge', 'advisory', rel, `the backlog could not be checked — ${err.message}`)];
+  }
+
+  if (result.outcome === BACKLOG_DISCHARGE.STALE) {
+    const named = result.stale
+      .map((s) => `${s.id} (line ${s.line}: "${s.heading.slice(0, 60)}")`)
+      .join('; ');
+    return [
+      mkFinding(
+        'backlog-discharge',
+        'advisory',
+        rel,
+        `${result.stale.length} row(s) read as pending while the work they name is recorded closed — ${named}. ` +
+          `Discharge them at ship, or mark the heading "STILL OPEN" and say why.`
+      ),
+    ];
+  }
+  if (result.outcome === BACKLOG_DISCHARGE.CANNOT_EVALUATE) {
+    if (result.reason.startsWith('no BACKLOG.md')) return [];
+    return [mkFinding('backlog-discharge', 'advisory', rel, result.reason)];
+  }
+  return [];
 }
 
 /**
@@ -446,6 +496,7 @@ export async function runSweep(baseDir = process.cwd()) {
   raw.push(...(await checkIndexFreshness(baseDir)));
   raw.push(...(await checkRetroIndexFreshness(baseDir)));
   raw.push(...(await checkStaleInbox(baseDir)));
+  raw.push(...(await checkBacklogDischarge(baseDir)));
   raw.push(...checkClaudeMdBloat(baseDir));
   raw.push(...(await checkPhaseLog(baseDir)));
 

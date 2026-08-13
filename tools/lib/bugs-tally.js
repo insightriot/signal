@@ -107,6 +107,47 @@ export function parseStatusCell(raw) {
 }
 
 /**
+ * Walk every catalog entry in a BUGS.md body, once, fence-aware.
+ *
+ * Extracted from `deriveBugCounts` when M5.E10's FR9 needed per-id statuses
+ * rather than totals. Counting and looking up an id are two readings of the
+ * same rows, and writing the walk twice is `B82`'s shape — a second
+ * implementation of "which lines are entries" that agrees with the first only
+ * by construction.
+ *
+ * @param {string} content
+ * @returns {Array<{kind:'row'|'capture', id:string|null, status:string|null, cell:string}>}
+ */
+export function walkBugEntries(content) {
+  const out = [];
+  let inFence = false;
+
+  for (const line of String(content).split('\n')) {
+    const t = line.trimStart();
+    if (t.startsWith('```') || t.startsWith('~~~')) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+
+    const row = line.match(TABLE_ROW_RE);
+    if (row) {
+      out.push({
+        kind: 'row',
+        id: `B${row[1]}`,
+        status: parseStatusCell(row[2]),
+        cell: row[2].trim(),
+      });
+      continue;
+    }
+
+    const cap = line.match(CAPTURE_STATUS_RE);
+    if (cap) out.push({ kind: 'capture', id: null, status: cap[1], cell: cap[1] });
+  }
+  return out;
+}
+
+/**
  * Count every entry in a BUGS.md body, in both formats.
  *
  * Fence-aware: a table row or status line inside a ``` block is a literal
@@ -122,27 +163,15 @@ export function deriveBugCounts(content) {
   const unreadable = [];
   let capturedUntriaged = 0;
   let tableRows = 0;
-  let inFence = false;
 
-  for (const line of String(content).split('\n')) {
-    const t = line.trimStart();
-    if (t.startsWith('```') || t.startsWith('~~~')) {
-      inFence = !inFence;
+  for (const entry of walkBugEntries(content)) {
+    if (entry.kind === 'capture') {
+      capturedUntriaged++;
       continue;
     }
-    if (inFence) continue;
-
-    const row = line.match(TABLE_ROW_RE);
-    if (row) {
-      tableRows++;
-      const status = parseStatusCell(row[2]);
-      if (status) counts[status]++;
-      else unreadable.push({ id: `B${row[1]}`, cell: row[2].trim() });
-      continue;
-    }
-
-    const cap = line.match(CAPTURE_STATUS_RE);
-    if (cap) capturedUntriaged++;
+    tableRows++;
+    if (entry.status) counts[entry.status]++;
+    else unreadable.push({ id: entry.id, cell: entry.cell });
   }
 
   return {

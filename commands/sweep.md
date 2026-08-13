@@ -36,7 +36,7 @@ Authoritative reference:
 ### 2. Run the sweep
 
 Call `runSweep(process.cwd())` from `tools/lib/sweep.js`. It:
-1. runs the **portable** checks in any repo — dead internal `.md` links and unfilled `[FILL IN]` markers over the widened `.planning/`-inclusive scope (still exempting `archive/`), `INDEX.md` freshness (pure compose-and-diff — never the writing regenerator), a stale-inbox count, and a `CLAUDE.md`-bloat size nudge;
+1. runs the **portable** checks in any repo — dead internal `.md` links and unfilled `[FILL IN]` markers over the widened `.planning/`-inclusive scope (still exempting `archive/`), `INDEX.md` freshness (pure compose-and-diff — never the writing regenerator), a stale-inbox count, a `CLAUDE.md`-bloat size nudge, and a **backlog-discharge** check (`B94`) reporting rows that read as pending while the work they name is recorded closed;
 2. gated on the plugin manifest, runs the **Signal-only** checks — roster-count drift, version consistency, and command-frontmatter freshness;
 3. returns `{ findings, stateDrift, signalOnly: { ran, checks } }` — `findings` already normalized to `structural`/`advisory` and sorted deterministically; `stateDrift` is `{results, summary}` from `runDriftChecks`, kept **separate from `findings`** so the heal category and the cannot-evaluate state are not flattened away.
 

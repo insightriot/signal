@@ -674,7 +674,7 @@ byte-identical code).
   `B19` commit with a reviewer denied that Epic's own artifacts. *Done-when:* a one-page
   caught/not-caught result with the transcript.
 
-### M5.E9 — Overdue enforcement + the bug pile
+### ~~M5.E9 — Overdue enforcement + the bug pile~~ · **DONE — v0.1.12, 2026-07-27**
 **Tag:** hygiene · **Trigger: NONE.** Independent of E8 — can run in parallel.
 - **`B39` trigger walk.** *Slice:* one drain step in `commands/plan.md` + `tools/lib/drain.js`.
   *Done-when:* a fired trigger surfaces at `/sig:plan`, **and a checked-and-declined trigger is
@@ -1438,4 +1438,4 @@ These stay trigger-gated; the standing **WATCHLIST** entry (A1) in `ISSUES-INBOX
 - **PREPARE-phase early-promotion triggers** *(roadmap)* — 3 conditions; can also fire from lived signal ahead of the upstream-phases work.
 - **STATE auto-update Options B/C** (git hook / compute-on-read) — *Trigger:* Option A discipline demonstrably fails.
 
-*Last updated: 2026-07-26 — reconciled against the M5.E7 re-audit ([`../analysis/SIGNAL-V2-ROADMAP.md`](../analysis/SIGNAL-V2-ROADMAP.md)): M5.E8–E12 landed with triggers + first slices; Sprints 2/4/7 resolved; 4 unmarked closures struck; 5 new parked items with triggers. Later same day: M5.E9's bug slice re-scoped for `B42`/`B43`/`B44` (linear-mode findings from a live `eval-project-A` ship report; `B42` is the ledger's first `P1`).*
+*Last updated: 2026-08-13*
