@@ -235,82 +235,43 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 > cannot match this file's tally-shaped footer), to be done next time anyone is in `add.js`'s
 > insertion path.
 
-> ## ▶ HANDOFF — context cleared 2026-08-13 (second clear). REVIEW IS DONE. READ THIS FIRST.
+> ## ▶ HANDOFF — `M5.E10` SHIPPED as `v0.1.25`, 2026-08-13. **Milestone 5 is closed.**
 >
-> **`STATE.md`'s frontmatter is CORRECT** — `phase: REVIEW`, `current_epic: M5.E10`, no in-flight
-> tasks, `completed_phases` holds DISCUSS / PLAN / EXECUTE / VERIFY. Believe it; `/sig:resume` was
-> made to land cleanly before this clear.
+> **Nothing is in flight.** PR **#141** is **MERGED** (merge commit `6f7cfd5`, `--merge` not squash);
+> the local checkout is on **`main`**, clean and up to date. Suite **2602**, green on `main`.
+> `plugin.json` reads **`0.1.25`** — users track `main`, so that bump *is* the delivery.
 >
-> **Work is on a branch, not `main`.** `epic/m5-e10-review-hardening`, **PR #141**. Everything is
-> committed and pushed; suite is **2602 tests**, green; CI green. The Epic lane merges with
-> `--merge` (never squash) — `ADHERENCE-LOG.md` pins commit SHAs.
+> **Verified after the merge, because it is the reason the Epic lane does not squash:** every commit
+> SHA `ADHERENCE-LOG.md` pins as its reproducibility anchor is reachable from `main`. A squash would
+> have left published verdicts naming commits that never landed.
 >
-> ### The only thing left is SHIP.
+> ⚠ **Restart the CLI process before running any writing `/sig:` command.** This session shipped
+> `0.1.25` while bound to the `0.1.24` cache — which is why the `ship.md` it loaded was missing the
+> §6.6 step the same release added. `B52`'s exact shape, observed live during its own ship.
 >
-> DISCUSS → PLAN → EXECUTE → VERIFY → REVIEW are all closed, and the independent `/code-review` pass
-> Brett triggers has **already run**. Remaining: bump `plugin.json` to **`0.1.25`**, write the
-> CHANGELOG entry, run `/sig:ship`, merge #141. **Shipping closes Milestone 5.**
+> ### What shipped, in one line each
 >
-> ⚠ **The release is `v0.1.25`, NOT `v0.1.23`.** `v0.1.23` shipped 2026-08-08 (`B85`) and `v0.1.24`
-> on 2026-08-09; `plugin.json` already reads `0.1.24`. Any document still saying v0.1.23 is stale.
+> Seven claim-integrity checks; the honest headline is **not** the count but the reach — one check
+> evaluates 12 of 12 projects, one 10 of 12, and **five apply to between 1 and 5 of twelve**. The
+> Epic's own VERIFICATION **failed its own coverage check** on its first draft (asserted *"56 of 56"*,
+> the check returned **six missing**) and the refutation ships as a boxed note. `B94`, `B95`, `B96`,
+> `B97`, `B98` all closed, plus five defects from an independent `/code-review` pass.
 >
-> ### What happened after EXECUTE, in one pass
+> ### Open work — read `BACKLOG.md`, not this file (`D-M5E18-1`)
 >
-> - **`B94` was folded in as `FR9` / `S7`** and shipped — the backlog can finally record that a row's
->   work is done. **Its detector evaluates 1 of 12 corpus projects and cannot see `eval-project-A`,
->   the project the bug was filed from.** That number belongs in the release notes, not a footnote.
-> - **VERIFY passed with documented limits — and its own first draft failed the coverage diff it was
->   verifying.** It asserted *"56 of 56, none missing"*; the check returned **6 missing**, every one an
->   id written only inside an en-dash range. The refutation is left standing in
->   `M5.E10-VERIFICATION.md` as a boxed note. It is the Epic's best evidence; **do not tidy it away.**
-> - **REVIEW returned PASS-WITH-FIXES** — two Important defects found and closed in-phase (32 LOC).
-> - **The `/code-review` pass found 7 more. All 7 were reproduced before being accepted; 5 were fixed
->   in code**, one of them by a rule the reviewer suggested that **measurement showed to be wrong**
->   (restricting shorthand to a row's first cell broke the field fixture immediately).
->
-> ### The serious one, now closed: `B97`
->
-> **This repository is public, and 8 of the 13 eval-corpus projects were named in it.** The guard that
-> exists to prevent that covered only 5, so it passed while the other 8 were named in ~30 files — and
-> this Epic **added one**. Fixed: 113 replacements across 30 files, all 13 names denied in two match
-> modes, all 13 labels pinned by hash (`B98`). **A residual hole is stated, not claimed away:** three
-> names are ordinary English words and are caught only in project shape (`name/FILE`, backticked); a
-> bare prose mention of those three is not caught and cannot be without false positives.
->
-> **Brett's call, recorded:** pin today's label mapping and publish the caveat rather than reconstruct
-> `F`–`L` by hand. References to `eval-project-F`+ written before 2026-08-13 may not name the same
-> project they name today; `A`–`E` are traceable throughout.
->
-> ### Open, filed, deliberately not fixed
->
-> - **`B99`** — an install carries ~11 MB of tracked files, 4.7 MB of it `.planning/`, where ~1.9 MB
->   is what running the commands needs. No other installed plugin ships `tests/` or `node_modules`.
->   **Brett raised this and deferred the fix past the release.** The row was **corrected in place**
->   after its first version asserted "57 MB delivered to users" — that figure was a local-path install
->   including untracked `node_modules`.
-> - **The `.planning/`-should-be-public question** — deferred past this release by Brett, deliberately.
+> - **`B99`** (filed, deferred by Brett) — an install carries ~11 MB of tracked files, 4.7 MB of it
+>   `.planning/`, where ~1.9 MB is what the commands need. No other installed plugin ships `tests/`
+>   or `node_modules`. **The fix needs research**: whether the manifest supports an include/exclude
+>   list, or whether the plugin should ship from a subdirectory rather than the repo root.
+> - **Should `.planning/` be public at all** — deliberately deferred past this release by Brett. The
+>   distinction he drew is the useful one: keeping it *in the repository* was chosen and it must
+>   travel with the project; *copying it into every user's plugin cache* was never separately decided.
 > - **`CLAUDE.md` still names Brett's portfolio system** in a section he wrote on purpose. Left alone;
->   it needs his call, not a scrub.
->
-> ### One expected drift finding — do not "fix" it
->
-> `/sig:sweep` reports `phase-behind-artifacts`: *"STATE says phase REVIEW, but
-> `M5.E10-RETROSPECTIVE.md` exists — that is a SHIP-phase artifact."* **That is correct and
-> deliberate.** `ship.md` §0.5 HALTS with `NO_RETRO_FILE` if the retro is absent, so it has to be
-> written before `/sig:ship` is invoked, which necessarily puts a SHIP artifact on disk while the
-> phase still reads REVIEW. The check is doing its job; the situation is benign and clears the moment
-> SHIP records. **Do not advance the phase by hand to silence it.**
->
-> Also pre-checked, so it is not discovered mid-ship: `shipFR1Check` returns
-> `{halt:false, isEpicClose:true}`, the retro passes `validateRetroContent`, and §5.5's coverage gate
-> now **passes** (it refused first, naming six decision ids the retro did not carry — they were added).
-> For §6.6, `dischargeBacklogRows` with `'M5.E10'` matches **two** live rows and will refuse;
-> `'M5.E10 — Review hardening'` resolves to one. **Do not discharge the REVIEW claims-audit row** —
-> `AC0.1` requires it to stay live, and a test checks it.
->
-> **Read [`M5.E10-PROGRESS.md`](M5.E10-PROGRESS.md) first for the build detail**, then
-> `M5.E10-VERIFICATION.md` and `M5.E10-REVIEW.md`. `BUGS.md` is the live bug list and its tally is
-> derived, never incremented by hand.
+>   his call, not a scrub.
+> - **The semantic backstop is still not built** (`AC0.1`, `D-M5E10-1`). Everything shipped compares
+>   *tokens*; a report that names every requirement and is simply wrong about its evidence passes all
+>   seven checks. It has a live `BACKLOG.md` row and a test keeps it live.
+> - **Milestone 6 is not opened.** Next work is a decision, not a queue item.
 **▶ `M5.E10` is IN FLIGHT — opened 2026-08-11; DISCUSS + PLAN closed.** Review hardening / claim integrity; **shipping it closes Milestone 5** (`D-BR0809-2`). Running at the project's **FULL/strict** — no Epic-scoped PROFILE. Artifacts: [`M5.E10-REQUIREMENTS.md`](M5.E10-REQUIREMENTS.md), [`M5.E10-RESEARCH.md`](M5.E10-RESEARCH.md), [`M5.E10-PLAN.md`](M5.E10-PLAN.md), [`M5.E10-VALIDATION.md`](M5.E10-VALIDATION.md); decisions `D-M5E10-1…5`.
 
 **The scope call** (`D-M5E10-1`, Brett): **checkable parts + writing rules.** In — the requirement-coverage diff, VALIDATION self-consistency, the VERIFICATION denominator + *"what this could not establish"* section, the correction-protocol grep, retro-index freshness, and the `STATE.md` narrative check folded in by `D-BR0810-2`; plus the provenance rule and the `B38` reclassification, which cost text rather than machinery. **Out** — the adversarial claims-audit agent, *and its absence has to be visible in what ships* (`AC0.1`): that is the half which catches what determinism cannot, so letting the docs read as though claim integrity were solved would be this Epic's own defect, committed while closing the milestone named after it.
