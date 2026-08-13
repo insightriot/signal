@@ -734,6 +734,19 @@ byte-identical code).
 
 ### ▶ M5.E10 — Review hardening · **NEXT (confirmed 2026-08-09, `D-BR0809-1`)**
 
+> ⚠ **CORRECTED 2026-08-13, at this Epic's own REVIEW.** Four sub-bullets below read
+> ***"✅ DISCHARGED — `v0.1.23` (M5.E10), 2026-08-12"***. **Both halves were false.** `v0.1.23`
+> shipped **2026-08-08** and its content was `B85` (`/sig:update` naming a command that works) —
+> a release that *predates* the work these lines claim it carried. And nothing here is discharged,
+> because `M5.E10` **has not shipped**; it is at REVIEW, and it will ship as **`v0.1.25`**.
+>
+> They were written mid-EXECUTE, from the shape of the work — *the slice is done, so write it down as
+> released* — which is the exact class this Epic exists to kill, in this Epic's own queue entry.
+> **Nothing caught it**: the `backlog-discharge` check `M5.E10` itself shipped reads **headings**, and
+> these are sub-bullets, so the tool built to find this could not see it. That limit is now stated in
+> `M5.E10-REVIEW.md` rather than left to be discovered.
+
+
 > **Dispositioned, not merely scheduled.** This Epic had a satisfied trigger and **no artifact on
 > disk** for six weeks while six unplanned Epics shipped past it — two recording the override in
 > their own status rows (*"ran ahead of E10–E12"*). Six legal deferrals of one item is
@@ -756,18 +769,18 @@ corpus). Principle for every item below: *a completeness claim must be derived, 
 unverified — never asserted from memory* (the `buildCaveats()` lesson, generalized).
 - **False-green audit + RED-against-`main`.** *Done-when:* every guard fix in the following Epic
   ships with a test demonstrated to fail against `main`.
-- **`B38` — reclassify every anti-rationalization table entry** **✅ DISCHARGED — `v0.1.23` (M5.E10), 2026-08-12.** Shipped: 109 entries classified (93 discipline / 16 shaping), `references/anti-rationalization-forms.md` generated from the corpus and pinned both ways, provenance rule added as a shaping entry. as *discipline* (keep the
+- **`B38` — reclassify every anti-rationalization table entry** **✅ BUILT in `M5.E10` (2026-08-12); ships in `v0.1.25` — UNRELEASED at the time of writing.** Shipped: 109 entries classified (93 discipline / 16 shaping), `references/anti-rationalization-forms.md` generated from the corpus and pinned both ways, provenance rule added as a shaping entry. as *discipline* (keep the
   prohibition form) or *shaping* (convert to a positive recipe). *Done-when:* a one-page table
   names each entry's class and every shaping entry is a positive recipe. **Add as a shaping
   entry:** the claim-provenance rule — never restate or escalate an upstream claim about a third
   artifact without opening that artifact (CLAIM-INTEGRITY §6 item 6).
-- **Requirement-coverage diff** **✅ DISCHARGED — `v0.1.23` (M5.E10), 2026-08-12.** Shipped: `tools/lib/requirement-coverage.js` + `tools/lib/validation-consistency.js`, wired into `commands/verify.md` §1b. **Read the done-when critically — it is not met as written:** the field pair has no unit-scoped REQUIREMENTS artifact, so `AC1.6`/`D-M5E10-6` changed the contract, and the amended copy does not pass a full diff. See `M5.E10-PROGRESS.md`. (CLAIM-INTEGRITY §6 item 1) — deterministic `tools/lib` check +
+- **Requirement-coverage diff** **✅ BUILT in `M5.E10` (2026-08-12); ships in `v0.1.25` — UNRELEASED at the time of writing.** Shipped: `tools/lib/requirement-coverage.js` + `tools/lib/validation-consistency.js`, wired into `commands/verify.md` §1b. **Read the done-when critically — it is not met as written:** the field pair has no unit-scoped REQUIREMENTS artifact, so `AC1.6`/`D-M5E10-6` changed the contract, and the amended copy does not pass a full diff. See `M5.E10-PROGRESS.md`. (CLAIM-INTEGRITY §6 item 1) — deterministic `tools/lib` check +
   `verify.md` instruction: every FR/NFR/AC ID in `REQUIREMENTS.md` must appear in the VERIFICATION
   artifact (absent = red), plus an intra-file VALIDATION consistency check (dimension-2 assignments
   and Nyquist-map rows must agree — Phase 11's root was a single-file self-contradiction nothing
   read). *Done-when:* replaying eval-project-C Phase 11's artifact pair fails both checks and the
   amended pair passes.
-- **VERIFICATION template: denominator table + required "what this could not establish" section** **✅ DISCHARGED — `v0.1.23` (M5.E10), 2026-08-12.** Shipped: `references/verification-template.md` + `tools/lib/verification-template.js`, gate wired into `commands/verify.md` §5 and its exit criteria. Present-but-vacuous fails, not just present-but-empty.
+- **VERIFICATION template: denominator table + required "what this could not establish" section** **✅ BUILT in `M5.E10` (2026-08-12); ships in `v0.1.25` — UNRELEASED at the time of writing.** Shipped: `references/verification-template.md` + `tools/lib/verification-template.js`, gate wired into `commands/verify.md` §5 and its exit criteria. Present-but-vacuous fails, not just present-but-empty.
   (§6 item 2; absorbs the ISSUES-INBOX self-critique entry and AGENT-EFFECTIVENESS Rec 3).
   *Done-when:* an artifact missing the section or the table fails the phase gate. Structural only —
   works **paired with the diff above**, never instead of it.
@@ -786,7 +799,7 @@ unverified — never asserted from memory* (the `buildCaveats()` lesson, general
   document are only checkable against the thing they describe, and no regular expression opens that
   thing. `AC0.1` exists so this sentence is somewhere a reader lands, rather than inferred from
   silence.
-- **Correction protocol** **✅ DISCHARGED — `v0.1.23` (M5.E10), 2026-08-12.** Shipped: `tools/lib/correction-protocol.js`, blocks at FULL / advisory below. Known limit, pinned by its own test: a claim that WRAPS across lines is invisible. (§6 item 5) — a correction is complete when a corpus grep for the claim
+- **Correction protocol** **✅ BUILT in `M5.E10` (2026-08-12); ships in `v0.1.25` — UNRELEASED at the time of writing.** Shipped: `tools/lib/correction-protocol.js`, blocks at FULL / advisory below. Known limit, pinned by its own test: a claim that WRAPS across lines is invisible. (§6 item 5) — a correction is complete when a corpus grep for the claim
   and its restatements returns only corrected instances: root + all carriers, not the files that
   happened to be open. **Plus the corollary: retract at the granularity people search at** — `grep`
   prints one line, so an amendment appended three lines below leaves the claim's own line reading as
