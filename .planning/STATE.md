@@ -26,7 +26,12 @@ last_updated: 2026-08-13T14:48:05.903Z
 > (`D-BR0809-1`, `D-BR0809-2`) is open; `M5.E19`'s four-phase ledger archived cleanly to
 > [`archive/M5/E19/STATE-NARRATIVE.md`](archive/M5/E19/STATE-NARRATIVE.md) on the roll.
 >
-> **DISCUSS, PLAN and all four EXECUTE waves are closed. Next action: `/sig:verify`.**
+> **DISCUSS, PLAN and all four EXECUTE waves are closed. Next action: build `B94`, then `/sig:verify`.**
+>
+> ⚠ **`B94` (P1) landed after the planned slices and is IN SCOPE for this Epic.** `BACKLOG.md` is
+> append-only — nothing in Signal marks a row done when work ships, so the queue asserts false status
+> indefinitely. A row reading *"pending"* about shipped work is this Epic's own defect class, in the
+> document a user trusts most. Read `BUGS.md` → `B94` and `CONTEXT.md` § HANDOFF before starting.
 >
 > **All build work is done** (2026-08-12): S1–S6, 2410 → **2554 tests**. VERIFY is the real dogfood —
 > this Epic's own VERIFICATION artifact has to pass the template gate and the coverage diff it just

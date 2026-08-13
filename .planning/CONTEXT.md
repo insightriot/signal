@@ -244,7 +244,30 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 > committed and pushed; suite is **2554 tests**, green. The Epic lane merges with `--merge` (never
 > squash) — `ADHERENCE-LOG.md` pins commit SHAs.
 >
-> **Next action: `/sig:verify`.** All six slices are built. VERIFY is a genuine dogfood — the Epic's
+> **Next action: fold `B94` into this Epic, THEN `/sig:verify`.** All six planned slices are built,
+> but a **P1 landed after them** and it belongs in this release rather than after it.
+>
+> **`B94` — `BACKLOG.md` is append-only. Nothing in Signal ever marks a row done when work ships.**
+> Full diagnosis in [`BUGS.md`](BUGS.md); the short version is that `commands/ship.md` reconciles five
+> document surfaces at Epic close — including a **light inbox sweep at §6.5** — and touches the
+> backlog in none of them, while `tools/lib/backlog.js` has only create and append paths. Field
+> evidence: a corpus project's backlog was two weeks stale with ~15 shipped slices reading as pending,
+> while its BUGS and INBOX were both accurate.
+>
+> **It is in scope for `M5.E10`, not a separate fix lane, and the reason is the Epic's own charter:**
+> a backlog row asserting "pending" about shipped work is a completeness claim written from the shape
+> of the work rather than the artifact. Shipping a claim-integrity release on top of a queue that lies
+> about its own contents would be the defect class escaping through the Epic built to kill it. **None
+> of the six checks shipped here detect it, and the NFR5 corpus run did not look for it.**
+>
+> **Three pieces:** `dischargeBacklogRows()` in `backlog.js` using the `discharged`/`dischargedBy`
+> shape `obligations.js` already defines; a SHIP §6.6 step symmetrical with the inbox sweep, requiring
+> the Epic to name the rows it discharges; a `/sig:sweep` check that flags rows whose work looks
+> shipped. Signal's own four stale rows are **already corrected by hand** (2026-08-13) — that was done
+> before the mechanism exists, so the tree stops lying immediately; the mechanism is what stops it
+> recurring.
+>
+> **After `B94`: `/sig:verify`.** VERIFY is a genuine dogfood — the Epic's
 > own VERIFICATION artifact must satisfy `validateVerificationContent` (locked headings, a stated
 > denominator, a `## What this could not establish` section that says something) and its own
 > `diffRequirementCoverage` run. **If those gates fail on this Epic's own artifact, that is a
