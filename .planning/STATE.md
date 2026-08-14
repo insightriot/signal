@@ -427,6 +427,9 @@ is hand-maintained and nothing reconciles it.
 asserted rigor it did not receive for the whole Epic. That is `B59`'s shape one level up (`B59` was a
 profile the code could not *parse*; this is one it parses and then overrides). Detecting it is a
 prose-vs-precedence comparison — **M5.E10's semantic territory**, not M5.E16's deterministic one.
+**Still unhomed, and now more so:** `M5.E10` shipped (v0.1.25) with the semantic half deliberately
+left out (`AC0.1`), so this item pointed at a destination that no longer exists. It travels with the
+semantic claims-audit backstop, wherever that lands.
 
 ## Blockers
 
