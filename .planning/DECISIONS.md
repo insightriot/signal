@@ -1776,3 +1776,36 @@ silently would be `B39`'s shape. It gets its own named category. Lands as **AC1.
 that found the `NFR`/hyphen gap at S1.t2. Two of three defects this Epic has found in its own work so
 far came from opening a file the plan had characterised from memory. That is `FR5`'s provenance rule
 (S5.t3) earning its place before it is written.
+
+## 2026-08-14 — Post-Milestone-5 queue clearing: the Signal/prose boundary (D-BR0814-1)
+
+*Source: the three-item pass Brett approved 2026-08-14 after Milestone 5 closed — the
+unreached-mechanism count, the `B99` packaging lookup, and the tiny-items sweep this decision belongs
+to. Backlog entry: "Write down which tool new work goes into — Signal or prose."*
+
+**D-BR0814-1 — the boundary between Signal and the `/prose:` plugin is written down, and prose stays
+separate on purpose.**
+
+> If it looks at the work you are doing **right now** — the change in progress, the slice, the phase
+> — it belongs in **Signal**.
+> If it looks at the **whole codebase, whenever you ask** — no phase, no `.planning/` required — it
+> belongs in **prose**.
+
+**Why this needed a decision rather than a memory.** Grepped 2026-08-08: every hit for "prose" across
+`.planning/`, `analysis/` and `CLAUDE.md` was the English word. There was **no decision, note or
+plan** about the plugin — it was never declined and never recorded, so the question got re-derived
+from scratch every time it came up. The concrete cost is that `/prose:audit` and Signal's
+`agents/specialists/security-auditor.md` already cover the same ground at different scopes, one
+person maintains both, and without a stated rule that overlap grows by accident.
+
+**Prose being a separate plugin is deliberate, not an accident of history:** it must run in any repo,
+including one with no `.planning/` and no Signal install. Folding it into Signal would cost it that.
+
+**What this decision does NOT settle:** whether the two plugins should ever combine, and whether any
+specific prose capability should be ported. Adopting prose's *"actually fine" / considered-and-not-
+flagged* discipline into Signal's own reports is a separate open backlog row, and borrowing a
+discipline is Signal's stated model (*"integration of existing frameworks, not reinvention"*) — it
+settles nothing about the plugins.
+
+**Home:** stated in `CLAUDE.md` so a fresh session reads it, per the backlog entry's own
+recommendation. This entry is the record; `CLAUDE.md` is the surface.

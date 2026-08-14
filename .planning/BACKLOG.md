@@ -225,7 +225,13 @@ it only gets more expensive per command added. Treat *"later"* as *"the next nam
 not *"someday."*
 
 
-### Write down which tool new work goes into — Signal or prose · **hygiene** · tiny
+### ~~Write down which tool new work goes into — Signal or prose~~ · **DONE 2026-08-14** · `D-BR0814-1`
+
+**Shipped in the fix lane.** The rule below is now stated in `CLAUDE.md` § *Signal or prose* (the
+surface a fresh session reads) and recorded as `D-BR0814-1` in `DECISIONS.md` (the record). Entry
+kept for the reasoning that produced it. **What the decision deliberately does not settle:** whether
+the plugins ever combine, and whether any specific prose capability gets ported — the *"actually
+fine" / considered-and-not-flagged* row below is still open and is a separate call.
 
 *Plain: one rule so this question stops getting re-argued.*
 
@@ -461,7 +467,15 @@ prose. Two honest checks with a gap between them.
 the ledger missing a phase that ran, vs. the narrative describing a phase already passed; a fix for
 one should be weighed against the other.
 
-#### Blast radius and rollback — asked by no phase · **hygiene** · tiny
+#### ~~Blast radius and rollback — asked by no phase~~ · **DONE 2026-08-14**
+
+**Shipped in the fix lane, both halves, as the done-when specified.** `commands/ship.md` §1 carries a
+**Rollback stated** checklist line; `commands/discuss.md` §6 asks the blast-radius question at FULL
+and FEATURE and skips it at SPIKE and SKETCH. **One deliberate shaping choice, made against this
+entry's neighbours:** both lines state that the easy honest answer — *"revert the commit"*, *"nothing
+downstream"* — **satisfies** them. The `#### The measurable-outcome question in DISCUSS` row two
+items down names the failure this avoids: a gate that cannot be satisfied honestly is a gate that
+gets rationalized past. Entry kept for the evidence that these were absent.
 
 *Plain: nothing ever asks what a change touches, or how you would undo it.*
 

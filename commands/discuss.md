@@ -134,6 +134,8 @@ If the discussion surface enough detail, generate the REQUIREMENTS artifact (`ar
 | SPIKE | Skip — exploratory work doesn't need ops hygiene. |
 | SKETCH | Skip — one-shot work. |
 
+**Blast radius — ask at FULL and FEATURE; skip at SPIKE and SKETCH.** Alongside the NFR prompt, ask: *"What does this change touch that we are not changing — callers, stored data, published artifacts, anything downstream already consuming it?"* Record the answer in REQUIREMENTS.md next to the NFRs. **Not already covered by calibration:** `reversibility` is one of the five `/sig:calibrate` questions, but it tiers the **project**; this is the same question at the altitude of **one change**, and nothing else in the six phases asks it. The knowledge to act on the answer already lives in the `incremental-implementation`, `ci-cd-and-automation` and `shipping-and-launch` skills — the gap was that no phase asked. Pairs with `ship.md`'s rollback line, which asks the other half at the other end.
+
 For FULL specifically, REQUIREMENTS.md is effectively mandatory (strict Nyquist in PLAN needs acceptance criteria to map tests against). For SKETCH, REQUIREMENTS.md is usually unnecessary — PROJECT.md "Done when" carries the same weight.
 
 ## Phase Gate

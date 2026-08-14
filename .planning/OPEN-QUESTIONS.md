@@ -79,9 +79,13 @@ entry exists so the question survives a context clear if it doesn't.
 
 *Logged 2026-08-06 via /sig:checkpoint*
 
-## Is `B46` dismissed with the row kept? Its stated cause is disproved — the 45 dispositions were the v2 port list, not the inbox — so the fix as written would corrupt data, and the residual symptom discharges when the 52-capture inbox triage runs. Recommendation on the table since 2026-08-09, not actioned. Resolve by: when the inbox triage completes.
-
-*Logged 2026-08-09 via /sig:checkpoint*
+*(The `B46` question — "is it dismissed with the row kept?" — was **answered 2026-08-11**: `B46` was
+re-triaged to `dismissed` with its row intact, in PR #140. Removed here per this file's own rule
+(delete resolved questions; the record lives in `BUGS.md`). **Worth noting how it was found:** the
+question outlived its answer by three days and was caught by a sweep of this file, not by anything
+that reconciles a question against the bug it asks about — the second such stale record found on
+2026-08-14, alongside `B38` reading `confirmed` after shipping. The rest of this file was **not**
+audited in that pass.)*
 
 ## Where do decisions get recorded outside `/sig:plan` (`A2`)? Recommendation was park-with-trigger, because `B89` had just made the drain required and nobody had seen the new behaviour yet; Brett pushed back that it may be worth building sooner. The reframe that shrinks it: `/prose:backlog` ANALYSES and only Signal RECORDS, so `A2` is 'somewhere to record decisions outside PLAN' — fix-lane sized, not an Epic. Undecided as of 2026-08-09.
 
