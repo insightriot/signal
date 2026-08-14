@@ -134,6 +134,7 @@
 - [M5.E9-VERIFICATION.md](M5.E9-VERIFICATION.md) — `other` — _(note pending)_
 - [MILESTONE-4.5.md](MILESTONE-4.5.md) — `milestone` — Release-hardening / stranger-adoption milestone. **CLOSED 2026-07-15** — E1–E11 shipped (v0.1.1–v0.1.7); the ≥3-non-Signal-tester clause met (4 users onboarded). Superseded by M5.
 - [MILESTONE-5.md](MILESTONE-5.md) — `milestone` — **Active milestone** — v2 integrations + doc-runtime. Usage-signal gate lifted 2026-07-15. Epic-status table up top (M5.E1/E2 shipped-unreleased, M5.E3 in flight); the speculative v2-port queue below is unsequenced pending the landscape re-audit.
+- [MILESTONE-6.md](MILESTONE-6.md) — `milestone` — _(note pending)_
 - [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) — `other` — Unresolved questions surfaced across phases — the fourth doc-lifecycle home (questions, alongside inbox / backlog / bugs).
 - [PROFILE.md](PROFILE.md) — `other` — Active tier + rigor overrides — the calibration contract every phase command reads first.
 - [PROJECT.md](PROJECT.md) — `other` — v1 spec + locked vocabulary. **Gotcha:** the ID-is-identity rule (Milestone / Epic / Slice / Task / Phase / Wave / Tier are fixed terms).

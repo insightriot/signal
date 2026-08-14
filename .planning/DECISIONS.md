@@ -1809,3 +1809,106 @@ settles nothing about the plugins.
 
 **Home:** stated in `CLAUDE.md` so a fresh session reads it, per the backlog entry's own
 recommendation. This entry is the record; `CLAUDE.md` is the surface.
+
+## 2026-08-14 — M6.E1 DISCUSS: the plugin payload (D-M6E1-1 … D-M6E1-6)
+
+*Epic: `M6.E1`, the plugin payload. Milestone 6 opened on this Epic rather than on a theme
+(`MILESTONE-6.md`). Route A (move the files) and the URL catalog were decided **before** DISCUSS
+opened, by Brett on 2026-08-14; they are recorded in `MILESTONE-6.md` and are not re-litigated here.
+Research and measurements: `B99`.*
+
+**D-M6E1-1 — the plugin root is `plugin/`, and `tests/` stays at the repository root.**
+
+Everything an install needs moves under one directory: `commands/`, `agents/`, `skills/`,
+`references/`, `hooks/`, `tools/lib/`, and `.claude-plugin/plugin.json` → `plugin/`. Named for what
+it is; `sig/` was rejected because it reads like a source module rather than a payload boundary, and
+the plugin docs already call this directory "the plugin root."
+
+**`tests/` must not move.** It is 2.1 MB and it is the second-largest thing users currently receive.
+Tests import across the boundary (`../plugin/tools/lib/…`) — 138 files, mechanical. The boundary is
+one-directional and that is the invariant worth stating: **the plugin may never import from outside
+`plugin/`**, because the docs are explicit that paths traversing outside the plugin root *"will not
+work after installation."* A test import pointing inward is fine; a plugin import pointing outward is
+a shipped defect that passes locally.
+
+**D-M6E1-2 — the nine `tools/*.js` maintainer scripts stay at the repository root; `ship.md`'s
+reference to `adherence-run.js` is amended rather than followed.**
+
+`tools/lib/` is runtime and ships. The top-level scripts (`cut-release.js`, `validate-plugin.js`,
+`measure-corpus.js`, …) are Signal-maintainer tooling and have no business on a user's machine.
+**Exactly one is named by a command file** — `ship.md`'s checklist line *"node
+tools/adherence-run.js"*. Shipping the script to satisfy that line would be the tail wagging the dog;
+the line is a Signal-on-Signal instruction that a user shipping their own project can never
+meaningfully run.
+
+**But leaving the line as-is would be worse than either.** A command file instructing a user to run a
+file their install does not contain is the unreached-mechanism class inverted — an instruction
+pointing at nothing. The line is amended to name itself as a Signal-repository step. *Filed as an
+open PLAN item, not settled here: whether any other command file cites a path that will not exist
+post-move. It must be a grep, not a recollection.*
+
+**D-M6E1-3 — the plugin ships a two-file dependency manifest (`package.json` + lockfile) declaring
+`yaml` only.**
+
+The 47 MB is the single largest number in the install and it is not copied — Claude Code *installs*
+it, triggered by `package.json` + a lockfile in the plugin root, and *"you can't turn the automatic
+install off."* Measured: Signal's entire shipped surface has **one** external import, `yaml`, in
+**two** files (`tools/lib/profile.js`, `tools/lib/state.js`). Everything else is `node:` builtins.
+
+So the plugin root carries a manifest naming `yaml` and nothing else: the install still runs, and
+installs ~1.2 MB instead of 47 MB.
+
+**Two alternatives rejected, with reasons:**
+
+- **Bundle `yaml` in with esbuild** (the `build` script already exists). Rejected because command
+  files cite `tools/lib/*.js` **by path** as the thing to call. Shipping generated bundles would make
+  every one of those citations describe a file that is not what is running — trading a size problem
+  for a claim-integrity problem.
+- **Drop `yaml` for a hand-rolled frontmatter parser.** Rejected on evidence: `B61` is a live bug
+  about YAML type coercion in exactly this field, and Signal's writers are safe **because** the
+  `yaml` package quotes numeric-looking strings on stringify. Re-implementing that is re-opening a
+  bug we only survive by delegation.
+
+**The cost is stated, not waved away:** two `package.json` files now exist and can drift. Pinned by a
+test asserting the plugin manifest's `yaml` version matches the root's.
+
+**D-M6E1-4 — two catalogs, deliberately different, pinned on the invariant rather than on equality.**
+
+`.claude-plugin/marketplace.json` (repo root) keeps the **relative string** source, changing `"."` →
+`"./plugin"`. `install-contract.test.js`'s `toBe('.')` becomes `toBe('./plugin')`; **`B58`'s lesson
+survives untouched**, because the assertion that matters is that the source is the *string* form and
+carries no `ref`/`sha`.
+
+The published catalog at `docs/map/install/marketplace.json` uses **`git-subdir`** (`url` = this repo,
+`path` = `plugin`, **no `ref`, no `sha`**) — the only form that both fetches a subdirectory and works
+from a URL-hosted marketplace, since a URL marketplace downloads only the JSON and cannot resolve
+relative paths.
+
+**A byte-equality test between the two would therefore be wrong** — they describe the same plugin
+through two different fetch mechanisms, and forcing them identical would break one of them. The
+honest invariants, and what the test pins: both name the same plugin `name`, and **neither carries a
+`ref` or a `sha`**, so *"users track `main`"* (`D-M5E17-4`) cannot regress silently into a pin.
+
+**D-M6E1-5 — the old install path keeps working, and `/sig:doctor` tells you to move (Brett,
+2026-08-14).**
+
+Existing installs are **not** broken by this Epic: `add insightriot/signal` still resolves, because
+the root catalog keeps a working relative source — those users simply keep receiving the full clone
+until they re-add.
+
+The chosen option was not "both work" but **"both work *and Signal says so*."** The reasoning is this
+repo's own: a migration note on a web page is precisely the mechanism that exists, is correct, and is
+never reached — `analysis/UNREACHED-MECHANISM-ANALYSIS.md`. `/sig:doctor` gains a check that reads
+`~/.claude/plugins/known_marketplaces.json`, detects the `github`-sourced `signal` marketplace, and
+prints the one-line switch. **Put the check where the situation is.**
+
+**D-M6E1-6 — FULL tier NFRs are answered explicitly, and most are N/A by shape.**
+
+Recorded rather than skipped, because a silently-skipped gate is indistinguishable from a passed one.
+Health probes, graceful shutdown, structured request logging, security headers and rate limiting are
+**N/A**: this Epic ships no service and opens no port. The two that *do* apply are in scope: **supply
+integrity** (the published catalog is fetched over HTTPS from a domain we control, and carries no
+`ref`/`sha` to be pinned to a compromised commit) and **failure at the boundary** (an install whose
+dependency install fails must not leave a half-working plugin — the documented behaviour is that a
+failed install never blocks the plugin, so `yaml`'s absence must surface as a clear error from the
+two files that import it, not as a mystery).
