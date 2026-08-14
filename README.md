@@ -34,6 +34,8 @@ That FULL run is committed as a worked example you can read end to end: **[`exam
 
 ### Via Claude Code plugin marketplace
 
+Walkthrough with copyable steps: **[signal.insightriot.com/install](https://signal.insightriot.com/install)** ([source](./docs/map/install/index.html)). Or just run:
+
 ```
 /plugin marketplace add insightriot/signal
 /plugin install sig@signal
