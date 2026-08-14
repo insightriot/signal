@@ -297,8 +297,29 @@ where the *topic* is; and file these as *unreached*, not *absent*, because that 
 
 **The cheap first move, and it is a measurement, not a build:** classify the 30 `confirmed` rows in
 `BUGS.md` into *exists-but-unreached* / *absent* / *wrong*. If the first bucket dominates, the
-roadmap should be re-aimed at wiring. **That count has not been run** — it is stated as an open
-measurement rather than assumed, and it is an afternoon's work.
+roadmap should be re-aimed at wiring. ~~**That count has not been run**~~ — **RUN 2026-08-14
+(Brett's call). The stated decision rule was NOT satisfied: unreached leads at 10 of 25 (40%), a
+plurality, not a majority** (`absent` 8, `wrong` 7). Full table, classification rule, and limits:
+[`../analysis/UNREACHED-MECHANISM-ANALYSIS.md`](../analysis/UNREACHED-MECHANISM-ANALYSIS.md)
+§ *The count, run*.
+
+**Three findings the count produced that this entry did not anticipate**, and the second is the one
+that should drive sequencing:
+
+1. **The count is rule-sensitive.** Writing the unreached/absent boundary down moved two rows and
+   swung the split 20%. The rule ships with the number.
+2. **Collapsing *unreached* + *wrong* gives 17 of 25 (68%) — "a mechanism exists and does not do its
+   job"** vs. 8 (32%) that need building. That reading *does* argue for re-aiming at existing
+   mechanisms, but it is a **different claim** than this entry made, and 7 of those 17 are the
+   sibling class (`B39` — a mechanism silent about its own limits), not this one. **A roadmap aimed
+   only at wiring leaves all seven.**
+3. **The sample is biased against the hypothesis:** `B87`–`B90`, the four instances that named the
+   class, all shipped in `v0.1.24` and are therefore outside a `confirmed`-only denominator. The
+   count measures what is **left**, not what the repo **produces**. A pass over all 95 triaged rows
+   would answer the intended question; not run.
+
+**Byproduct:** `B38` reads `confirmed` and shipped in `v0.1.25` — a stale status found by measuring
+the file, and one more instance for `M5.E14`'s uncalled `dischargeObligation`.
 
 **The uncomfortable input:** three of the four came from **outside** Signal's own use.
 Signal-on-Signal is driven by an operator who already knows where every mechanism is, so it is
