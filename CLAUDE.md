@@ -170,6 +170,23 @@ There is a second, softer reason: `commands/ship.md` §2 asks you to curate a co
 - Pre-existing dead code or issues you notice but weren't asked to fix: mention them. Don't delete or "improve" them unsolicited.
 - Orphans your changes created (now-unused imports, variables, helpers): remove them.
 
+### Signal or prose — which tool does new work go into (`D-BR0814-1`)
+
+Both plugins are installed and one person maintains both, so this gets asked. The rule:
+
+> If it looks at the work you are doing **right now** — the change in progress, the slice, the phase —
+> it belongs in **Signal**.
+> If it looks at the **whole codebase, whenever you ask** — no phase, no `.planning/` required — it
+> belongs in **prose**.
+
+`/prose:` is a **separate plugin on purpose**: it must run in any repo, including one with no
+`.planning/` and no Signal install. That is the property Signal cannot give it.
+
+They already overlap — `/prose:audit` and `agents/specialists/security-auditor.md` cover the same
+ground at different scopes. The rule exists so the overlap stays deliberate. It settles nothing about
+whether the plugins ever combine; borrowing a discipline from prose is Signal's stated model and is a
+separate call each time.
+
 ## Reference Repositories
 
 - **Agent Skills**: https://github.com/addyosmani/agent-skills

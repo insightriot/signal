@@ -79,6 +79,7 @@ Verify before creating the PR:
 - [ ] CHANGELOG updated
 - [ ] docs/map (`docs/map/index.html`) refreshed if the command/agent/skill roster or structure changed — check both tabs ("Signal, explained" + "Functionality map"); "no change needed" is a valid outcome
 - [ ] Adherence re-measured (`node tools/adherence-run.js --canary <id>`) if the **wording** of a measured instruction in `commands/*.md` changed — a reworded instruction invalidates the verdict recorded against it; "no run needed" is a valid outcome
+- [ ] **Rollback stated** — how this change is undone if it goes wrong after merge. *"Revert the commit"* is a valid and, for most changes, the correct answer. What this line exists to catch is the change where it is **not** true: a data migration, a published or cached artifact, a breaking rename, anything already consumed downstream. Those say what undoing actually costs. **An honest "revert is sufficient" satisfies this line** — a checklist item that cannot be answered plainly becomes one that gets answered from memory.
 - [ ] All tests pass
 - [ ] Build succeeds
 - [ ] Linter passes
