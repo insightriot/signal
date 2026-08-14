@@ -353,19 +353,36 @@ Three documents corrected, each pinned by a test comparing one document against 
 **New this release:** **CI** (`.github/workflows/test.yml`) — Signal had none. Its first run caught a latent dependency nothing had stated: the suite walks real git history, and `actions/checkout` shallow-clones by default.
 
 ## In-flight
-- [carried from M5.E10] > (`D-BR0809-1`, `D-BR0809-2`) is open; `M5.E19`'s four-phase ledger archived cleanly to
 
-**▶ `M5.E10` — review hardening / claim integrity — opened 2026-08-11. DISCUSS + PLAN closed; next is EXECUTE wave 1 (`S1`).** Shipping it
-**closes Milestone 5** (`D-BR0809-2`). Running at the project's **FULL / strict** (no Epic-scoped
-PROFILE; see the tier note in `M5.E10-REQUIREMENTS.md`). `M5.E19`'s ledger archived to
-[`archive/M5/E19/STATE-NARRATIVE.md`](archive/M5/E19/STATE-NARRATIVE.md) on the roll.
+**Nothing.** `M5.E10` (review hardening / claim integrity) **shipped as `v0.1.25` on 2026-08-13**,
+and **Milestone 5 is closed** (`D-BR0809-2`). PR #141 merged with `--merge` (commit `6f7cfd5`); suite
+**2602**, green on `main`. Retro: [`M5.E10-RETROSPECTIVE.md`](M5.E10-RETROSPECTIVE.md); narrative
+evicted to [`archive/M5/E10/STATE-NARRATIVE.md`](archive/M5/E10/STATE-NARRATIVE.md).
+
+**Milestone 6 is not opened. Next work is a decision, not a queue item** — the candidates and the
+reasoning are in [`BACKLOG.md`](BACKLOG.md), which is the queue (`D-M5E18-1`). This line is the
+pointer, not a second copy of it.
 
 *Prior: `M5.E19` closed and shipped as `v0.1.22` (2026-08-07) — `/sig:archive`, the command
 archiving never had. Retro: [`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md). Decisions
 `D-M5E19-1`…`9`. Filed `B87`. 2284 → 2300 tests, 20 commands.*
 
-**FIVE times now — and instance five happened to THIS paragraph, in the edit that opened the Epic
-chartered to fix it.** For roughly twenty minutes after `setCurrentEpic` wrote `current_epic:
+**SIX times now — and instance six ran the full length of the Epic chartered to fix it.** For the
+whole of `M5.E10`'s EXECUTE → VERIFY → REVIEW → SHIP, the release, and the merge, this section read
+*"`M5.E10` … DISCUSS + PLAN closed; next is EXECUTE wave 1 (`S1`)"* — falsified by four
+`transitionPhase` calls and then by the ship itself, while the frontmatter twenty lines above
+recorded all six phases done. Instance (5) was caught in the session that caused it; **(6) survived
+that session, the release, and a doc-refresh commit aimed at this exact problem**, and was found by
+a `/sig:resume` on 2026-08-13.
+
+**The doc-refresh commit is the sharper half.** `24bd626`'s message reads *"The handoff and STATE
+narrative still read 'next action: /sig:ship' after the release merged"* and states it is refreshing
+them. `git show --name-only` returns **`.planning/CONTEXT.md` alone** — STATE.md was never touched.
+A completeness claim written from the shape of the work rather than the artifact, in the commit that
+closed the milestone named after that defect, about the file the defect is catalogued in.
+
+*(Instance five, kept because it is the one that argued the class is structural:)* For roughly
+twenty minutes after `setCurrentEpic` wrote `current_epic:
 M5.E10` into the frontmatter directly above, this section read *"Nothing in flight"* — the same
 words as instance (3), falsified the same way, in the section that already catalogued (1) through
 (4) and argued they were structural. **The catalogue did not protect the file it lives in.** That is
