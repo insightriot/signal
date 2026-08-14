@@ -30,7 +30,7 @@
 
 ## **Dedicated test-sandbox project for Signal QA.** A commi...
 
-**Status:** Logged 2026-07-17 via `/sig:add`. Surfaced 2026-07-17 during M5.E2 S4.t1 dogfood — verifying a live 28-move migration on the real repo took ~6 introspection passes; a curated sandbox would make it a glance.
+**Status:** Logged 2026-07-17 via `/sig:add`. Surfaced 2026-07-17 during M5.E2 S4.t1 dogfood — verifying a live 28-move migration on the real repo took ~6 introspection passes; a curated sandbox would make it a glance. → Deferred 2026-08-14 (M6.E1 drain).
 
 **▶ PARTIALLY DELIVERED 2026-08-07 — `examples/sandbox/` exists, covering the closure/archive
 surface only.** Built after a recommendation to dry-run against `eval-project-A` was correctly rejected:
