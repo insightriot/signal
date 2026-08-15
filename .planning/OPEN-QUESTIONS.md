@@ -90,3 +90,24 @@ audited in that pass.)*
 ## Where do decisions get recorded outside `/sig:plan` (`A2`)? Recommendation was park-with-trigger, because `B89` had just made the drain required and nobody had seen the new behaviour yet; Brett pushed back that it may be worth building sooner. The reframe that shrinks it: `/prose:backlog` ANALYSES and only Signal RECORDS, so `A2` is 'somewhere to record decisions outside PLAN' — fix-lane sized, not an Epic. Undecided as of 2026-08-09.
 
 *Logged 2026-08-09 via /sig:checkpoint*
+
+## `M6.E1` S3: manifest or vendor for `yaml`? Decide before building S3.t2.
+
+`AC3.5` requires PLAN's A-vs-B call to be made explicitly rather than defaulted into. **A (a
+two-file `plugin/package.json` + lockfile declaring `yaml` only)** is the recommendation on the
+evidence in `M6.E1-RESEARCH.md` §4; **B (commit `plugin/node_modules/yaml/`)** removes the install
+entirely but needs a `.gitignore` exception and hand-updates. **If B wins, `D-M6E1-3` is superseded
+in DECISIONS.md, not silently drifted from.**
+
+*Logged 2026-08-15 via /sig:checkpoint (M6.E1 EXECUTE, S2 close)*
+
+## `M6.E1`: the `depSource` fallback in `adherence-harness.js` becomes dead code when S3 lands — remove it or it is an unreached branch.
+
+S2 added `const depSource = existsSync(join(pluginRoot,'package.json')) ? pluginRoot : join(pluginRoot,'..')`
+because the payload has no manifest **yet**. The moment S3.t2 adds one, the `..` branch stops being
+taken and becomes a path nothing reaches — **the exact class
+`analysis/UNREACHED-MECHANISM-ANALYSIS.md` names**, introduced by this Epic while it was being
+careful about the same thing elsewhere. Either delete the fallback at S3, or keep it and state in a
+comment why an unreachable branch is retained.
+
+*Logged 2026-08-15 via /sig:checkpoint (M6.E1 EXECUTE, S2 close)*
