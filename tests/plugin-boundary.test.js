@@ -38,6 +38,13 @@
 //      are complements: this one reads text, that one runs code.
 //   c. Paths inside prose that do not look like paths ("the analysis doc",
 //      "the sandbox project").
+//   c2. QUOTED-DEAD references. Rule 4 matched a `${CLAUDE_PLUGIN_ROOT}/...`
+//      token written inside the sentence explaining that it had just been
+//      REMOVED. The detector reads text, so a path being discussed and a path
+//      being used are the same thing to it. Resolved by rewording the prose,
+//      not by teaching the detector to parse intent — the fix for a
+//      false positive at this rate is cheaper than the machinery to avoid it,
+//      and machinery that guessed intent would be the more dangerous artifact.
 //   d. Runtime-constructed paths from user input or config.
 //   e. `.planning/...` is deliberately NOT treated as an escape: it names the
 //      USER'S project directory, not anything in the plugin, and flagging it
@@ -67,7 +74,19 @@ export const PAYLOAD_ROOT = existsSync(join(REPO, 'plugin', 'commands'))
   ? join(REPO, 'plugin')
   : REPO;
 
-const PAYLOAD_DIRS = ['commands', 'agents', 'skills', 'references', 'hooks', join('tools', 'lib')];
+// `state/` is payload: new-project.md copies ${CLAUDE_PLUGIN_ROOT}/state/config.json
+// into the user's project. It was MISSING from the plan's payload list and from
+// the first version of this file — found by rule 4 below, during the move.
+const PAYLOAD_DIRS = [
+  'commands',
+  'agents',
+  'skills',
+  'references',
+  'hooks',
+  'state',
+  '.claude-plugin',
+  join('tools', 'lib'),
+];
 
 function walk(dir, out = []) {
   if (!existsSync(dir)) return out;
@@ -145,6 +164,37 @@ describe('M6.E1 — the payload never reaches outside the payload root', () => {
     }
     expect(bad, `CLAUDE_PLUGIN_ROOT references escaping the plugin root:\n${bad.join('\n')}`)
       .toEqual([]);
+  });
+
+  // Rule 4 — the one that earns its keep.
+  //
+  // The `..`-segment rule above is nearly useless on its own: NONE of the three
+  // real escapes in this repo used `..`. They named payload-root-relative paths
+  // to things that simply are not in the payload:
+  //
+  //   ${CLAUDE_PLUGIN_ROOT}/state/config.json          → state/ was not moved
+  //   ${CLAUDE_PLUGIN_ROOT}/docs/install-troubleshooting.md → docs/ never ships
+  //   ${CLAUDE_PLUGIN_ROOT}/.planning/DECISIONS.md     → Signal's OWN notes
+  //
+  // "Does it climb out?" was the wrong question. "Is it there?" is the right
+  // one, and it is decidable by existsSync. The first two rules test SHAPE; this
+  // one tests REALITY, which is why it found what they could not.
+  it('every ${CLAUDE_PLUGIN_ROOT} target exists inside the payload', () => {
+    const missing = [];
+    for (const file of payloadFiles) {
+      const src = readFileSync(file, 'utf8');
+      for (const m of src.matchAll(/\$\{CLAUDE_PLUGIN_ROOT\}\/([A-Za-z0-9_.][A-Za-z0-9_./-]*)/g)) {
+        const target = m[1].replace(/[.,)]+$/, '');
+        if (!existsSync(join(PAYLOAD_ROOT, target))) {
+          missing.push(`${relative(REPO, file)} → \${CLAUDE_PLUGIN_ROOT}/${target}`);
+        }
+      }
+    }
+    expect(
+      missing,
+      `\${CLAUDE_PLUGIN_ROOT} reference(s) pointing at something not in the payload — ` +
+        `these resolve to nothing on a user's machine:\n${missing.join('\n')}`
+    ).toEqual([]);
   });
 });
 

@@ -16,8 +16,8 @@ Three modes:
 
 Authoritative references:
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/doctor.js` — `detectP1StaleGitCommitSha`, `detectP2OrphanCacheEntry`, `detectP3OrphanEnabledFlag`, `detectP4PreRenameSlug`, `detectP5SshMultiIdentity`, `runAllDetectors`, `readInstallState`, `checkDoctorEnvironment`, `DoctorDetectionError`, `DoctorEnvironmentError`
-- `${CLAUDE_PLUGIN_ROOT}/docs/install-troubleshooting.md` — human-readable troubleshooting docs (referenced from doctor output)
-- `${CLAUDE_PLUGIN_ROOT}/.planning/DECISIONS.md` — D-E8-1 through D-E8-12 (locked decisions)
+- [`docs/install-troubleshooting.md`](https://github.com/InsightRiot/signal/blob/main/docs/install-troubleshooting.md) — human-readable troubleshooting docs (referenced from doctor output). **A URL, not a `${CLAUDE_PLUGIN_ROOT}` path (`M6.E1`):** `docs/` is not part of the plugin payload, so this file does not exist in an install and the old path resolved to nothing on every user's machine.
+- [`.planning/DECISIONS.md`](https://github.com/InsightRiot/signal/blob/main/.planning/DECISIONS.md) — D-E8-1 through D-E8-12 (locked decisions). Same reason, and worse: the old plugin-root-relative form named **Signal's own** `.planning/` working notes, which are deliberately not shipped.
 
 ## Workflow
 
