@@ -17,7 +17,7 @@ import {
   expectedRetroPath,
   isEpicCloseShip,
   isEpicCloseByState,
-} from '../tools/lib/retrospective.js';
+} from '../plugin/tools/lib/retrospective.js';
 
 describe('parseSections', () => {
   it('identifies all ## headings and captures section bodies', () => {
@@ -219,10 +219,10 @@ Prose between.
   it('loads from the real references/retrospective-template.md', async () => {
     // Smoke test against the actual file shipped in S1.t2.
     const repoRoot = process.cwd();
-    const full = await loadTemplate('FULL', repoRoot);
+    const full = await loadTemplate('FULL', join(repoRoot, 'plugin'));
     const sections = parseSections(full).headings;
     expect(sections).toEqual(getRequiredSections('FULL'));
-    const sketch = await loadTemplate('SKETCH', repoRoot);
+    const sketch = await loadTemplate('SKETCH', join(repoRoot, 'plugin'));
     const sketchSections = parseSections(sketch).headings;
     expect(sketchSections).toEqual(getRequiredSections('SKETCH'));
   });

@@ -7,7 +7,7 @@ import {
   checkContextBudget,
   findSkillPath,
   estimatePhaseSkillCost,
-} from '../tools/lib/context-monitor.js';
+} from '../plugin/tools/lib/context-monitor.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = join(__dirname, '..');

@@ -7,7 +7,7 @@ import {
   extractEpicSection,
   extractCarryOvers,
   deriveEpicArchiveDir,
-} from '../tools/lib/evict.js';
+} from '../plugin/tools/lib/evict.js';
 
 // A realistic closed-Epic narrative (the thing evict-on-close relocates).
 const SOURCE = [

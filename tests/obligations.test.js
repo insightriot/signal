@@ -33,7 +33,7 @@ import {
   parseEscalationHistory,
   readOpenObligations,
   readProfileObligations,
-} from '../tools/lib/obligations.js';
+} from '../plugin/tools/lib/obligations.js';
 
 let dir;
 beforeEach(async () => {
@@ -314,21 +314,21 @@ describe('readOpenObligations + formatObligationReport', () => {
 
 describe('the query is wired into SHIP and the schema documents the shape', () => {
   it('ship.md asks the question and renders the answer', async () => {
-    const src = await readFile(join(REPO, 'commands', 'ship.md'), 'utf8');
+    const src = await readFile(join(REPO, 'plugin', 'commands', 'ship.md'), 'utf8');
     expect(src).toContain('readOpenObligations');
     expect(src).toContain('formatObligationReport');
     expect(src).toContain('obligations.js');
   });
 
   it('ship.md states that this reports rather than halts', async () => {
-    const src = await readFile(join(REPO, 'commands', 'ship.md'), 'utf8');
+    const src = await readFile(join(REPO, 'plugin', 'commands', 'ship.md'), 'utf8');
     // The distinction from §0.6's branch gate is a decision, not a detail: a
     // later edit that turns this into a halt should have to change this line.
     expect(src).toMatch(/never halts/i);
   });
 
   it('profile-schema.md documents the discharged fields it now accepts', async () => {
-    const src = await readFile(join(REPO, 'references', 'profile-schema.md'), 'utf8');
+    const src = await readFile(join(REPO, 'plugin', 'references', 'profile-schema.md'), 'utf8');
     for (const field of ['discharged', 'discharged_by', 'discharged_at', 'warning']) {
       expect(src, `schema must document ${field}`).toContain(field);
     }

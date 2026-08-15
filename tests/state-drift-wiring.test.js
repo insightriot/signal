@@ -3,9 +3,9 @@ import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { runSweep, renderSweepReport } from '../tools/lib/sweep.js';
-import { renderResumeBriefing } from '../tools/lib/resume.js';
-import { HEAL, STATUS } from '../tools/lib/state-drift.js';
+import { runSweep, renderSweepReport } from '../plugin/tools/lib/sweep.js';
+import { renderResumeBriefing } from '../plugin/tools/lib/resume.js';
+import { HEAL, STATUS } from '../plugin/tools/lib/state-drift.js';
 
 /**
  * M5.E16 S4 — reachability.
@@ -206,7 +206,7 @@ describe('M5.E16 S4 — the summary the resume line reads is produced by the run
   });
 
   it('a self-clearing finding never counts as needing a person', async () => {
-    const { runDriftChecks, defineCheck, APPLICABILITY } = await import('../tools/lib/state-drift.js');
+    const { runDriftChecks, defineCheck, APPLICABILITY } = await import('../plugin/tools/lib/state-drift.js');
     const dir = await makeProject({ 'STATE.md': STATE() });
     try {
       const selfHeal = defineCheck({

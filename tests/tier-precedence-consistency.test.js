@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 
-const CALIBRATE = readFileSync(join(ROOT, 'commands/calibrate.md'), 'utf8');
-const TIER_DEFS = readFileSync(join(ROOT, 'references/tier-definitions.md'), 'utf8');
+const CALIBRATE = readFileSync(join(ROOT, 'plugin/commands/calibrate.md'), 'utf8');
+const TIER_DEFS = readFileSync(join(ROOT, 'plugin/references/tier-definitions.md'), 'utf8');
 
 /**
  * Instructions that contradict other instructions (`M5.E17`'s class), found in

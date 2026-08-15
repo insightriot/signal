@@ -24,8 +24,8 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { parseTriggerWatchlist } from '../tools/lib/drain.js';
-import { resolveInboxPath } from '../tools/lib/inbox-path.js';
+import { parseTriggerWatchlist } from '../plugin/tools/lib/drain.js';
+import { resolveInboxPath } from '../plugin/tools/lib/inbox-path.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -108,7 +108,7 @@ describe('M5.E13 S3.t1 — the walk runs against Signal\'s real inbox', () => {
 
 describe('M5.E13 S3.t1 — the walk is actually wired into /sig:plan (B39 is about a walk that never ran)', () => {
   it('plan.md instructs the drain to walk the watchlist and names the function', () => {
-    const planMd = readFileSync(join(ROOT, 'commands/plan.md'), 'utf-8');
+    const planMd = readFileSync(join(ROOT, 'plugin/commands/plan.md'), 'utf-8');
     expect(planMd).toContain('parseTriggerWatchlist');
     expect(planMd.toLowerCase()).toContain('watchlist');
   });

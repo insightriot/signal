@@ -23,12 +23,14 @@ import { dirname, join } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
-import { classifyCommandCorpus } from './lib/directive-classifier.js';
-import { ADHERENCE_LOG, writeCeiling } from './lib/adherence-log.js';
-import { PLANNING_DIR } from './lib/state.js';
+import { classifyCommandCorpus } from '../plugin/tools/lib/directive-classifier.js';
+import { ADHERENCE_LOG, writeCeiling } from '../plugin/tools/lib/adherence-log.js';
+import { PLANNING_DIR } from '../plugin/tools/lib/state.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
+// M6.E1: plugin content lives under plugin/; ROOT stays the repo root.
+const PLUGIN = join(ROOT, 'plugin');
 
 function currentCommit() {
   try {

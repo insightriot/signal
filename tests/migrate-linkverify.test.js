@@ -16,7 +16,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { applyArchiveTree } from '../tools/lib/archive-tree.js';
+import { applyArchiveTree } from '../plugin/tools/lib/archive-tree.js';
 import {
   createSnapshotter,
   scanDanglingLinks,
@@ -24,7 +24,7 @@ import {
   partitionDangling,
   enforceNoDangling,
   renderDryRun,
-} from '../tools/lib/migrate-memory.js';
+} from '../plugin/tools/lib/migrate-memory.js';
 
 const PLAN_BODY = '# M6.E1 plan\n\nContent that must survive verbatim.\n';
 const HUGE = 'meaningful narrative words across a sentence here. '.repeat(220); // > 8 KB → V1+V2

@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
-const PAGE = join(ROOT, 'references', 'agent-reachability.md');
+const PAGE = join(ROOT, 'plugin', 'references', 'agent-reachability.md');
 
 function walk(dir, out = []) {
   for (const e of readdirSync(dir)) {
@@ -26,11 +26,11 @@ function walk(dir, out = []) {
 }
 
 function measure() {
-  const agentsDir = join(ROOT, 'agents');
+  const agentsDir = join(ROOT, 'plugin', 'agents');
   const agents = walk(agentsDir).map((p) => p.replace(agentsDir + '/', ''));
   const dispatched = new Set();
-  for (const f of readdirSync(join(ROOT, 'commands')).filter((f) => f.endsWith('.md'))) {
-    const content = readFileSync(join(ROOT, 'commands', f), 'utf8');
+  for (const f of readdirSync(join(ROOT, 'plugin', 'commands')).filter((f) => f.endsWith('.md'))) {
+    const content = readFileSync(join(ROOT, 'plugin', 'commands', f), 'utf8');
     if (!/subagent_type/.test(content)) continue;
     for (const a of agents) {
       const base = a.split('/').pop().replace('.md', '');
@@ -75,7 +75,7 @@ describe('AC6.2 — the roster is documented, and the documentation is derived',
     for (const a of measured.agents) {
       const base = a.split('/').pop().replace('.md', '');
       if (measured.dispatched.has(base)) continue;
-      const content = readFileSync(join(ROOT, 'agents', a), 'utf8');
+      const content = readFileSync(join(ROOT, 'plugin', 'agents', a), 'utf8');
       if (!/NOT DISPATCHED BY ANY COMMAND/.test(content)) undocumented.push(a);
     }
     expect(undocumented).toEqual([]);
@@ -88,7 +88,7 @@ describe('AC6.2 — the roster is documented, and the documentation is derived',
     for (const a of measured.agents) {
       const base = a.split('/').pop().replace('.md', '');
       if (!measured.dispatched.has(base)) continue;
-      const content = readFileSync(join(ROOT, 'agents', a), 'utf8');
+      const content = readFileSync(join(ROOT, 'plugin', 'agents', a), 'utf8');
       if (/NOT DISPATCHED BY ANY COMMAND/.test(content)) stale.push(a);
     }
     expect(stale).toEqual([]);

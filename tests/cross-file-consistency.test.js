@@ -8,7 +8,7 @@ import { findJargonHits } from './helpers/template-lint.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 
-const FACTS_PATH = join(ROOT, 'references/facts.md');
+const FACTS_PATH = join(ROOT, 'plugin/references/facts.md');
 const README_PATH = join(ROOT, 'README.md');
 const SECURITY_PATH = join(ROOT, 'SECURITY.md');
 

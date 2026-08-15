@@ -20,7 +20,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { extractSection } from '../tools/lib/landscape.js';
+import { extractSection } from '../plugin/tools/lib/landscape.js';
 
 const FIXTURE_DIR = new URL('./fixtures/synthesizer-bug-r1/', import.meta.url).pathname;
 const EXPECTED_LANDSCAPE = join(FIXTURE_DIR, 'expected', 'LANDSCAPE.md');
@@ -139,7 +139,7 @@ describe('synthesizer Layer B: sibling heading boundaries', () => {
 
 describe('synthesizer Layer B: embedSection helper (RED until M4.5.E7.S1.t5)', () => {
   it('embedSection helper is exported from tools/lib/landscape.js', async () => {
-    const landscape = await import('../tools/lib/landscape.js');
+    const landscape = await import('../plugin/tools/lib/landscape.js');
     expect(typeof landscape.embedSection, 'embedSection is not exported from landscape.js — implement in S1.t5').toBe('function');
   });
 });
@@ -148,7 +148,7 @@ describe('synthesizer Layer B: embedSection helper (RED until M4.5.E7.S1.t5)', (
 
 describe('synthesizer Layer B: init.md template wiring (S1.t6)', () => {
   it('commands/init.md Step 3 references embedSection for the structure-scan Source Tree', async () => {
-    const initMd = await read(new URL('../commands/init.md', import.meta.url).pathname);
+    const initMd = await read(new URL('../plugin/commands/init.md', import.meta.url).pathname);
     expect(initMd).toContain("embedSection(scans.structure, 'Source Tree (depth-3)')");
     expect(initMd.match(/embedSection/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });

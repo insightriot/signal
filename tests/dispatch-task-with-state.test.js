@@ -13,11 +13,11 @@ import { fileURLToPath } from 'node:url';
 import {
   dispatchTaskWithState,
   clearOrphansBeforeDispatch,
-} from '../tools/lib/execute.js';
+} from '../plugin/tools/lib/execute.js';
 import {
   setCurrentTask,
   readState,
-} from '../tools/lib/state.js';
+} from '../plugin/tools/lib/state.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const STATE_FIXTURES = join(__dirname, 'fixtures', 'state');

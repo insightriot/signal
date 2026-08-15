@@ -16,7 +16,7 @@ const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 let verify;
 
 beforeAll(async () => {
-  verify = await readFile(join(ROOT, 'commands', 'verify.md'), 'utf8');
+  verify = await readFile(join(ROOT, 'plugin', 'commands', 'verify.md'), 'utf8');
 });
 
 describe('AC1.4 — VERIFY is instructed to read REQUIREMENTS.md', () => {

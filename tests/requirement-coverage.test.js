@@ -11,7 +11,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { diffRequirementCoverage, COVERAGE } from '../tools/lib/requirement-coverage.js';
+import { diffRequirementCoverage, COVERAGE } from '../plugin/tools/lib/requirement-coverage.js';
 
 const FIXTURES = join(fileURLToPath(new URL('.', import.meta.url)), 'fixtures', 'claim-integrity');
 const fixture = (f) => readFile(join(FIXTURES, f), 'utf8');

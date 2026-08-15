@@ -8,7 +8,7 @@ import {
   classifyLine,
   classifyMarkdown,
   classifyCommandCorpus,
-} from '../tools/lib/directive-classifier.js';
+} from '../plugin/tools/lib/directive-classifier.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -40,7 +40,7 @@ function readHandLabels(path) {
 }
 
 describe('directive classifier — split rule (AC5.1)', () => {
-  const libExports = collectLibExports(join(ROOT, 'tools/lib'));
+  const libExports = collectLibExports(join(ROOT, 'plugin/tools/lib'));
 
   it('resolves library calls against the REAL tools/lib export set, not the shape', () => {
     expect(libExports.has('readState')).toBe(true);

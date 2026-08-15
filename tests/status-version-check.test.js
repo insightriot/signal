@@ -16,9 +16,9 @@ import {
   fetchLatestVersionCached,
   compareVersions,
   computeStalenessRecommendation,
-} from '../tools/lib/doctor.js';
+} from '../plugin/tools/lib/doctor.js';
 
-import { readStalenessWarning, formatStalenessWarning } from '../tools/lib/status.js';
+import { readStalenessWarning, formatStalenessWarning } from '../plugin/tools/lib/status.js';
 
 // ---- fetchLatestTag ----
 

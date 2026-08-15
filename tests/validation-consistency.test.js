@@ -11,7 +11,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { checkValidationConsistency, CONSISTENCY } from '../tools/lib/validation-consistency.js';
+import { checkValidationConsistency, CONSISTENCY } from '../plugin/tools/lib/validation-consistency.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const fixture = (f) =>

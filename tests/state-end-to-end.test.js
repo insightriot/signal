@@ -29,9 +29,9 @@ import {
   setCurrentTask,
   clearCurrentTask,
   readState,
-} from '../tools/lib/state.js';
-import { renderResumeBriefing } from '../tools/lib/resume.js';
-import { readProfile } from '../tools/lib/profile.js';
+} from '../plugin/tools/lib/state.js';
+import { renderResumeBriefing } from '../plugin/tools/lib/resume.js';
+import { readProfile } from '../plugin/tools/lib/profile.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIX = join(__dirname, 'fixtures', 'end-to-end');

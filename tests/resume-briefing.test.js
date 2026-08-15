@@ -9,8 +9,8 @@ import { fileURLToPath } from 'node:url';
 import {
   renderResumeBriefing,
   handleOrphansAtResume,
-} from '../tools/lib/resume.js';
-import { readState, setCurrentTask, stringifyFrontmatter } from '../tools/lib/state.js';
+} from '../plugin/tools/lib/resume.js';
+import { readState, setCurrentTask, stringifyFrontmatter } from '../plugin/tools/lib/state.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIX_ROOT = join(__dirname, 'fixtures', 'resume');

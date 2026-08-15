@@ -32,11 +32,11 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-import { isStubRetro, retroStatusFromContent, RETRO_STATUS } from '../tools/lib/retro-index.js';
-import { isEpicDone, detectDirtyExecute } from '../tools/lib/retrospective.js';
-import { senseArchiveTree } from '../tools/lib/archive-tree.js';
-import { checkEpicWithoutRetro } from '../tools/lib/state-drift.js';
-import { senseVector3 } from '../tools/lib/migrate-memory.js';
+import { isStubRetro, retroStatusFromContent, RETRO_STATUS } from '../plugin/tools/lib/retro-index.js';
+import { isEpicDone, detectDirtyExecute } from '../plugin/tools/lib/retrospective.js';
+import { senseArchiveTree } from '../plugin/tools/lib/archive-tree.js';
+import { checkEpicWithoutRetro } from '../plugin/tools/lib/state-drift.js';
+import { senseVector3 } from '../plugin/tools/lib/migrate-memory.js';
 
 // A retro body that `isStubRetro` calls a stub, and one it calls complete.
 const STUB = '# M9.E1 — Retrospective\n\n## What went well\n\n[FILL IN]\n';
@@ -287,7 +287,7 @@ describe('S5.t4 sweep site 5 — a stub does not suppress a true drift finding',
 
 describe('S5.t3 — discuss.md reads three answers, not a boolean (AC5.4, AC5.6)', () => {
   const guard = () => {
-    const text = readFileSync(join(ROOT, 'commands', 'discuss.md'), 'utf-8');
+    const text = readFileSync(join(ROOT, 'plugin', 'commands', 'discuss.md'), 'utf-8');
     return text.match(/\*\*Done-Epic guard\.\*\*[\s\S]*?\n\n/)?.[0] ?? '';
   };
 

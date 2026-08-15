@@ -10,7 +10,7 @@ import { execFileSync } from 'node:child_process';
 import {
   isStateStale,
   stringifyFrontmatter,
-} from '../tools/lib/state.js';
+} from '../plugin/tools/lib/state.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

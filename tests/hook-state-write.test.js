@@ -6,7 +6,7 @@ import {
   checkProposedStateWrite,
   checkStateFrontmatterShape,
   detectDirtyExecute,
-} from '../tools/lib/retrospective.js';
+} from '../plugin/tools/lib/retrospective.js';
 
 const STATE_SHIP_NO_RETRO = `---
 schema_version: 1

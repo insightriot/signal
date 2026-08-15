@@ -13,9 +13,9 @@ import {
   renderStateDiff,
   captureCheckpointContext,
   handleCheckpointOrphans,
-} from '../tools/lib/checkpoint.js';
+} from '../plugin/tools/lib/checkpoint.js';
 import { readFile } from 'node:fs/promises';
-import { stringifyFrontmatter, setCurrentTask } from '../tools/lib/state.js';
+import { stringifyFrontmatter, setCurrentTask } from '../plugin/tools/lib/state.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const STATE_FIXTURES = join(__dirname, 'fixtures', 'state');
@@ -371,7 +371,7 @@ describe('handleCheckpointOrphans (S2.t7)', () => {
   });
 
   it('clears orphans (status: aborted) when prompt returns "clear"', async () => {
-    const { setCurrentTask, readState } = await import('../tools/lib/state.js');
+    const { setCurrentTask, readState } = await import('../plugin/tools/lib/state.js');
     const oldStart = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     await setCurrentTask(tempDir, { id: 'T-OLD', startedAt: oldStart });
     const prompt = vi.fn(async () => 'clear');
@@ -389,7 +389,7 @@ describe('handleCheckpointOrphans (S2.t7)', () => {
   });
 
   it('leaves orphans intact when prompt returns "keep"', async () => {
-    const { setCurrentTask, readState } = await import('../tools/lib/state.js');
+    const { setCurrentTask, readState } = await import('../plugin/tools/lib/state.js');
     const oldStart = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     await setCurrentTask(tempDir, { id: 'T-OLD', startedAt: oldStart });
     const prompt = vi.fn(async () => 'keep');
@@ -403,7 +403,7 @@ describe('handleCheckpointOrphans (S2.t7)', () => {
   });
 
   it('returns action: "pending" with orphans when no prompt is supplied', async () => {
-    const { setCurrentTask } = await import('../tools/lib/state.js');
+    const { setCurrentTask } = await import('../plugin/tools/lib/state.js');
     const oldStart = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     await setCurrentTask(tempDir, { id: 'T-OLD', startedAt: oldStart });
     const result = await handleCheckpointOrphans(tempDir, {

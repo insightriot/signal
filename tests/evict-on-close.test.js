@@ -3,7 +3,7 @@ import { mkdtemp, rm, mkdir, writeFile, readFile, readdir, symlink } from 'node:
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { evictEpicNarrative, extractEpicSection } from '../tools/lib/evict.js';
+import { evictEpicNarrative, extractEpicSection } from '../plugin/tools/lib/evict.js';
 
 const FRONTMATTER = [
   '---',

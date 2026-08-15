@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 
-import { transitionPhase } from '../tools/lib/state.js';
+import { transitionPhase } from '../plugin/tools/lib/state.js';
 
 /**
  * M5.E16 S5 (FR5) — `INDEX.md` regenerates at every phase transition.

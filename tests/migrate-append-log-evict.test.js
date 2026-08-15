@@ -13,11 +13,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 
-import { ROOT } from '../tools/lib/roster.js';
-import * as planningIndex from '../tools/lib/planning-index.js';
+import { ROOT as PLUGIN_ROOT } from '../plugin/tools/lib/roster.js';
+// M6.E1: roster's ROOT is the PLUGIN root now. Repo files need the repo root.
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+import * as planningIndex from '../plugin/tools/lib/planning-index.js';
 import {
   parseDecisionSections,
   selectEvictableSections,
@@ -26,7 +29,7 @@ import {
   runAppendLogEvict,
   createSnapshotter,
   buildArchiveContent,
-} from '../tools/lib/migrate-memory.js';
+} from '../plugin/tools/lib/migrate-memory.js';
 
 const FIXTURE = join(ROOT, 'tests', 'fixtures', 'decisions-evict', 'DECISIONS.md');
 const BOUNDARY = '2026-03-01'; // fixture's synthetic current-milestone open date
@@ -204,7 +207,7 @@ describe('t3 — anchor-resolvability gate (fail-closed to detect-only)', () => 
     expect(res.detectOnly).toBeFalsy();
     // Post-regen the D-ID map (rebuilt fresh from disk) resolves each evicted anchor
     // to the SPECIFIC archive file it landed in — not merely "somewhere".
-    const { resolveDecisionId } = await import('../tools/lib/planning-index.js');
+    const { resolveDecisionId } = await import('../plugin/tools/lib/planning-index.js');
     expect(await resolveDecisionId(dir, 'D-A-1')).toBe('.planning/archive/M1/DECISIONS.md');
     expect(await resolveDecisionId(dir, 'D-B-2')).toBe('.planning/archive/M2/DECISIONS.md');
   });
@@ -215,7 +218,7 @@ describe('t3 — anchor-resolvability gate (fail-closed to detect-only)', () => 
     // A deliberately broken map: force D-A-1 to resolve to the live file.
     const brokenResolve = async (baseDir, id) => {
       if (id === 'D-A-1') return '.planning/DECISIONS.md';
-      const { resolveDecisionId } = await import('../tools/lib/planning-index.js');
+      const { resolveDecisionId } = await import('../plugin/tools/lib/planning-index.js');
       return resolveDecisionId(baseDir, id);
     };
     const res = await runAppendLogEvict(dir, {
@@ -270,7 +273,7 @@ describe('t4 — standalone end-to-end (NOT wired into applyMigrate)', () => {
     expect(index).toContain('archive/M1/DECISIONS.md');
     expect(index).toContain('archive/M2/DECISIONS.md');
     // anchor-check passed: evicted IDs resolve to their archive home (independent verify).
-    const { resolveDecisionId } = await import('../tools/lib/planning-index.js');
+    const { resolveDecisionId } = await import('../plugin/tools/lib/planning-index.js');
     expect(await resolveDecisionId(dir, 'D-A-1')).toBe('.planning/archive/M1/DECISIONS.md');
     expect(await resolveDecisionId(dir, 'D-B-1')).toBe('.planning/archive/M2/DECISIONS.md');
   });
@@ -320,7 +323,7 @@ describe('t5 — compatibility (checkpoint appends + full-file read)', () => {
     // /sig:checkpoint --context appends `## <today> — Checkpoint-captured: …` to
     // the LIVE DECISIONS.md. Today is always ≥ the current-milestone open date, so
     // the append must survive the evict (eviction only moves closed-milestone blocks).
-    const { captureCheckpointContext } = await import('../tools/lib/checkpoint.js');
+    const { captureCheckpointContext } = await import('../plugin/tools/lib/checkpoint.js');
     await captureCheckpointContext(dir, { decisions: ['A fresh current decision (D-C-9)'] });
 
     await runAppendLogEvict(dir, { boundaryDate: BOUNDARY, milestoneOf, dateStr: RUN_DATE });

@@ -33,13 +33,13 @@ import {
   STAMP_SCAN_BYTES,
   HOOK_LAYOUT_VERSION,
   LAYOUT_DRIFT_BANNER,
-} from '../hooks/warn-layout-drift.js';
-import { CURRENT_LAYOUT_VERSION } from '../tools/lib/migrate-memory.js';
+} from '../plugin/hooks/warn-layout-drift.js';
+import { CURRENT_LAYOUT_VERSION } from '../plugin/tools/lib/migrate-memory.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Resolve `..` so the spawned argv[1] matches the hook's own import.meta.url
 // under the main-guard (the guard realpath-compares both).
-const HOOK = resolve(__dirname, '..', 'hooks', 'warn-layout-drift.js');
+const HOOK = resolve(__dirname, '..', 'plugin', 'hooks', 'warn-layout-drift.js');
 
 // --- fixtures ---------------------------------------------------------------
 

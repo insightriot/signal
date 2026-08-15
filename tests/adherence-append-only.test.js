@@ -15,7 +15,7 @@ import {
   renderRunRecord,
   appendNotice,
   NOTICE_KINDS,
-} from '../tools/lib/adherence-log.js';
+} from '../plugin/tools/lib/adherence-log.js';
 
 /**
  * FR4 — the run record (M5.E8.S4).

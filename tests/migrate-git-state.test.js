@@ -10,7 +10,7 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { probeGitState } from '../tools/lib/migrate-memory.js';
+import { probeGitState } from '../plugin/tools/lib/migrate-memory.js';
 
 const git = (cwd, args) =>
   execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });

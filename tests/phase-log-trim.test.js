@@ -16,11 +16,11 @@ import {
   completePhase,
   setCurrentEpic,
   transitionPhase,
-} from '../tools/lib/state.js';
-import { deriveEpicArchiveDir } from '../tools/lib/evict.js';
-import { deriveUnitArchiveDir } from '../tools/lib/archive-tree.js';
-import { isEpicCloseByState } from '../tools/lib/retrospective.js';
-import { checkPhaseLog } from '../tools/lib/sweep.js';
+} from '../plugin/tools/lib/state.js';
+import { deriveEpicArchiveDir } from '../plugin/tools/lib/evict.js';
+import { deriveUnitArchiveDir } from '../plugin/tools/lib/archive-tree.js';
+import { isEpicCloseByState } from '../plugin/tools/lib/retrospective.js';
+import { checkPhaseLog } from '../plugin/tools/lib/sweep.js';
 import { seedPhaseArtifacts } from './helpers/phase-artifacts.js';
 
 function ledger(runs, startDay = 10) {

@@ -11,7 +11,9 @@ import { join } from 'node:path';
 
 import { readFile } from 'node:fs/promises';
 
-import { ROOT } from '../tools/lib/roster.js';
+// M6.E1: roster's ROOT is the PLUGIN root now (plugin/). This suite reads
+// REPOSITORY files (.planning/, tests/fixtures/), so it derives its own.
+const ROOT = new URL('..', import.meta.url).pathname;
 import {
   enumeratePlanningDocs,
   parseExistingAnnotations,
@@ -19,7 +21,7 @@ import {
   regeneratePlanningIndex,
   buildDecisionIdMap,
   resolveDecisionId,
-} from '../tools/lib/planning-index.js';
+} from '../plugin/tools/lib/planning-index.js';
 
 // A representative INDEX in the generator's canonical format — the shape t4's
 // renderPlanningIndex emits. Used to prove parse recovers curated notes by key

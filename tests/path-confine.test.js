@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os';
 import {
   realpathNearestExisting,
   assertRealInsidePlanning,
-} from '../tools/lib/path-confine.js';
+} from '../plugin/tools/lib/path-confine.js';
 
 describe('realpathNearestExisting', () => {
   let base;

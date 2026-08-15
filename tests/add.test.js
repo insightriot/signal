@@ -8,7 +8,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
-import * as addModule from '../tools/lib/add.js';
+import * as addModule from '../plugin/tools/lib/add.js';
 import {
   parseInput,
   resolveOnboardingMode,
@@ -42,7 +42,7 @@ import {
   captureToFile,
   isBlank,
   BODY_LENGTH_SOFT_CAP,
-} from '../tools/lib/add.js';
+} from '../plugin/tools/lib/add.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = join(__dirname, 'fixtures', 'add');
@@ -2091,7 +2091,7 @@ describe('no-heuristics guard (FR5.4 / Decision 5)', () => {
   });
 
   it('the source contains no `suggestDestination` identifier (catches non-exported helpers)', async () => {
-    const src = await readFile(join(__dirname, '..', 'tools', 'lib', 'add.js'), 'utf-8');
+    const src = await readFile(join(__dirname, '..', 'plugin', 'tools', 'lib', 'add.js'), 'utf-8');
     // Match the bare identifier only — the prose comment that *names* the cut
     // heuristic (`suggestDestination`-style) is allowed, so require a word
     // boundary followed by `(` to flag an actual call/definition site.

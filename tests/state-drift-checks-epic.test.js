@@ -11,7 +11,7 @@ import {
   checkEpicIdNotStrict,
   checkPhaseBehindArtifacts,
   checkBodyOmitsCurrentEpic,
-} from '../tools/lib/state-drift.js';
+} from '../plugin/tools/lib/state-drift.js';
 
 /**
  * M5.E16 S3 — the Epic-mode three.

@@ -10,7 +10,7 @@ import {
   setFactsTestCount,
   releaseEdits,
 } from '../tools/cut-release.js';
-import { VERSION_SOURCES } from '../tools/lib/doc-hygiene.js';
+import { VERSION_SOURCES } from '../plugin/tools/lib/doc-hygiene.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -208,7 +208,7 @@ describe('cut-release covers every version site', () => {
       read,
     });
     const byFile = Object.fromEntries(edits.map((e) => [e.file, e.next]));
-    expect(byFile['.claude-plugin/plugin.json']).toContain('"version": "9.9.9"');
+    expect(byFile['plugin/.claude-plugin/plugin.json']).toContain('"version": "9.9.9"');
     expect(byFile['package.json']).toContain('"version": "9.9.9"');
     expect(byFile['CHANGELOG.md']).toMatch(/^## \[9\.9\.9\] — 2026-01-01 — T$/m);
     expect(byFile['docs/map/index.html']).toContain('Map &middot; v9.9.9');
@@ -222,7 +222,7 @@ describe('cut-release stays repo-local', () => {
     // Same category as tools/validate-plugin.js: tooling for BUILDING Signal.
     const src = readFileSync(join(ROOT, 'tools/cut-release.js'), 'utf8');
     expect(src).toMatch(/SCOPE: this repo only/);
-    expect(() => readFileSync(join(ROOT, 'commands/cut-release.md'), 'utf8')).toThrow();
+    expect(() => readFileSync(join(ROOT, 'plugin/commands/cut-release.md'), 'utf8')).toThrow();
   });
 
   it('does not commit, tag, or push — it prepares the edit and stops', () => {

@@ -11,8 +11,8 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { lintFutureIdeasFooter } from '../tools/lib/add.js';
-import { resolveInboxPath } from '../tools/lib/inbox-path.js';
+import { lintFutureIdeasFooter } from '../plugin/tools/lib/add.js';
+import { resolveInboxPath } from '../plugin/tools/lib/inbox-path.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');

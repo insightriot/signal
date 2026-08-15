@@ -236,7 +236,17 @@ const ROSTER_SITES = [
  * @returns {Array<{check: string, severity: string, file: string, message: string}>}
  */
 export function checkRosterCounts(baseDir = ROOT) {
-  const counts = roster(baseDir).counts;
+  // M6.E1 — two roots. The count sites (README.md, CLAUDE.md, docs/map) live at
+  // the REPOSITORY root; the things being counted (commands/, agents/, skills/)
+  // live in the PAYLOAD. Before the move those were one directory and this
+  // function could use `baseDir` for both. Passing the repo root to `roster()`
+  // now returns 0 of everything and reports every site as a mismatch — a
+  // check that fails loudly rather than silently, which is the only reason
+  // this was cheap to find.
+  const payloadRoot = existsSync(join(baseDir, 'plugin', 'commands'))
+    ? join(baseDir, 'plugin')
+    : baseDir;
+  const counts = roster(payloadRoot).counts;
   const findings = [];
   for (const site of ROSTER_SITES) {
     let text;
@@ -272,7 +282,11 @@ function readJsonSafe(abs) {
 
 /** plugin.json `.version` (or null). */
 function readPluginVersion(baseDir) {
-  const j = readJsonSafe(join(baseDir, '.claude-plugin', 'plugin.json'));
+  // M6.E1: the manifest moved into the payload. The path is hardcoded here
+  // rather than taken from the VERSION_SOURCES entry's `file`, so repointing
+  // that entry alone left this reader returning null — the "listed but not
+  // reachable" shape AC4.2 was written to catch, caught by AC4.2.
+  const j = readJsonSafe(join(baseDir, 'plugin', '.claude-plugin', 'plugin.json'));
   return j && typeof j.version === 'string' ? j.version : null;
 }
 
@@ -359,7 +373,9 @@ function readPackageVersion(baseDir) {
  * @type {Array<{file: string, read: (baseDir: string) => string|null}>}
  */
 export const VERSION_SOURCES = [
-  { file: '.claude-plugin/plugin.json', read: readPluginVersion },
+  // M6.E1: the manifest moved into the payload; the repo-root path it used
+  // to have now holds only marketplace.json.
+  { file: 'plugin/.claude-plugin/plugin.json', read: readPluginVersion },
   { file: '.claude-plugin/marketplace.json', read: readMarketplaceRef },
   { file: 'CHANGELOG.md', read: readLatestChangelogVersion },
   { file: 'package.json', read: readPackageVersion },

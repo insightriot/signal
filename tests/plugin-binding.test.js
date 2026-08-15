@@ -26,11 +26,11 @@ import {
   readPluginVersionAt,
   boundPluginRoot,
   PLUGIN_MANIFEST_KEY,
-} from '../tools/lib/plugin-binding.js';
-import { renderResumeBriefing } from '../tools/lib/resume.js';
+} from '../plugin/tools/lib/plugin-binding.js';
+import { renderResumeBriefing } from '../plugin/tools/lib/resume.js';
 
 const REPO = dirname(dirname(fileURLToPath(import.meta.url)));
-const HOOK = join(REPO, 'hooks', 'warn-stale-plugin-binding.js');
+const HOOK = join(REPO, 'plugin', 'hooks', 'warn-stale-plugin-binding.js');
 
 // --- fixture builders -------------------------------------------------------
 
@@ -339,7 +339,11 @@ describe('B52 — stale plugin-cache binding', () => {
       const prev = process.env.CLAUDE_PLUGIN_ROOT;
       process.env.CLAUDE_PLUGIN_ROOT = '/somewhere/else/entirely';
       try {
-        expect(boundPluginRoot()).toBe(REPO);
+        // M6.E1: the payload moved to plugin/, so this module's own path is
+        // <repo>/plugin/tools/lib/plugin-binding.js and up-three is the PLUGIN
+        // root. That is the value B52 wants — "which plugin copy am I?" — and
+        // it was only ever equal to REPO by coincidence of layout.
+        expect(boundPluginRoot()).toBe(join(REPO, 'plugin'));
       } finally {
         if (prev === undefined) delete process.env.CLAUDE_PLUGIN_ROOT;
         else process.env.CLAUDE_PLUGIN_ROOT = prev;
@@ -357,7 +361,7 @@ describe('B52 — stale plugin-cache binding', () => {
   // --- the manifest key is shared, not guessed ------------------------------
 
   it('uses the same installed_plugins.json key doctor.js looks up', async () => {
-    const doctorSrc = await readFile(join(REPO, 'tools', 'lib', 'doctor.js'), 'utf-8');
+    const doctorSrc = await readFile(join(REPO, 'plugin', 'tools', 'lib', 'doctor.js'), 'utf-8');
     expect(doctorSrc).toContain(`'${PLUGIN_MANIFEST_KEY}'`);
   });
 
@@ -435,7 +439,7 @@ describe('B52 — stale plugin-cache binding', () => {
       await writeFile(join(bound, 'hooks', 'warn-stale-plugin-binding.js'), await readFile(HOOK, 'utf-8'));
       await writeFile(
         join(bound, 'tools', 'lib', 'plugin-binding.js'),
-        await readFile(join(REPO, 'tools', 'lib', 'plugin-binding.js'), 'utf-8')
+        await readFile(join(REPO, 'plugin', 'tools', 'lib', 'plugin-binding.js'), 'utf-8')
       );
 
       const installed = await plantPluginTree(join(cache, '0.1.19'), '0.1.19');

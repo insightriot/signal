@@ -12,13 +12,13 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { withStateLock } from '../tools/lib/state.js';
+import { withStateLock } from '../plugin/tools/lib/state.js';
 import {
   applyMigrate,
   setDocsLayoutVersion,
   applyDeproseVector1,
   relocateInlinedBody,
-} from '../tools/lib/migrate-memory.js';
+} from '../plugin/tools/lib/migrate-memory.js';
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
 const HUGE = 'meaningful narrative words across a sentence here. '.repeat(220);

@@ -21,7 +21,7 @@ import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { initState, readState, transitionPhase, completePhase, setCurrentEpic } from '../tools/lib/state.js';
+import { initState, readState, transitionPhase, completePhase, setCurrentEpic } from '../plugin/tools/lib/state.js';
 import { seedPhaseArtifacts } from './helpers/phase-artifacts.js';
 
 const MIDDLE_COMMANDS = ['plan', 'execute', 'verify', 'review'];
@@ -87,7 +87,7 @@ describe('FR6 — phase recording (B41)', () => {
   // PRESENCE ONLY — see the file header. Not an obedience check.
   it('every middle phase command documents its entry transition (presence, not obedience)', async () => {
     for (const cmd of MIDDLE_COMMANDS) {
-      const src = await readFile(join(process.cwd(), 'commands', `${cmd}.md`), 'utf-8');
+      const src = await readFile(join(process.cwd(), 'plugin', 'commands', `${cmd}.md`), 'utf-8');
       expect(src, `${cmd}.md must instruct a phase-entry transition`).toMatch(
         new RegExp(`transitionPhase\\(baseDir, '${cmd.toUpperCase()}'\\)`)
       );
@@ -99,7 +99,7 @@ describe('FR6 — phase recording (B41)', () => {
   });
 
   it('no longer states a precondition no command can satisfy (AC6.1)', async () => {
-    const src = await readFile(join(process.cwd(), 'commands', 'plan.md'), 'utf-8');
+    const src = await readFile(join(process.cwd(), 'plugin', 'commands', 'plan.md'), 'utf-8');
     // plan.md:50 used to read "verify current phase is PLAN" while nothing in
     // Signal could ever make that true — the bug written into the spec.
     //
@@ -267,7 +267,7 @@ describe('M5.E13 S2.t3 — the exemption list is enumerated, not assumed empty (
   });
 
   it('the exemption set is EXPORTED so it can be read, not inferred from behaviour', async () => {
-    const { PHASE_ARTIFACT_EXEMPT } = await import('../tools/lib/state.js');
+    const { PHASE_ARTIFACT_EXEMPT } = await import('../plugin/tools/lib/state.js');
     expect(PHASE_ARTIFACT_EXEMPT instanceof Set).toBe(true);
     expect([...PHASE_ARTIFACT_EXEMPT].sort()).toEqual(['CALIBRATE', 'EXECUTE', 'SHIP']);
   });

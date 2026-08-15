@@ -18,9 +18,9 @@ import {
   senseV3Rename,
   senseArchiveTree,
   applyArchiveTree,
-} from '../tools/lib/archive-tree.js';
-import { scanDanglingLinks } from '../tools/lib/migrate-memory.js';
-import { evictTerminalToLedger } from '../tools/lib/drain.js';
+} from '../plugin/tools/lib/archive-tree.js';
+import { scanDanglingLinks } from '../plugin/tools/lib/migrate-memory.js';
+import { evictTerminalToLedger } from '../plugin/tools/lib/drain.js';
 
 // A project with the legacy inbox + ledger, a NON-archive referrer (NOTES.md), and
 // an ARCHIVE doc that mentions the flat inbox path in prose (must stay untouched).

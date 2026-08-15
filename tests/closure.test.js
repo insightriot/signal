@@ -10,7 +10,7 @@ import { mkdtemp, rm, writeFile, mkdir, chmod } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { resolveUnitClosure, resolveClosures, CLOSURE } from '../tools/lib/closure.js';
+import { resolveUnitClosure, resolveClosures, CLOSURE } from '../plugin/tools/lib/closure.js';
 
 const STATE_FM = (epic) =>
   `---\nschema_version: 1\nphase: EXECUTE\ncurrent_epic: ${epic === null ? 'null' : epic}\n` +

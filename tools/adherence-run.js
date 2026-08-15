@@ -45,7 +45,7 @@ import {
   probeSucceeded,
   resolveAgentSurface,
   writeProbeCommand,
-} from './lib/adherence-harness.js';
+} from '../plugin/tools/lib/adherence-harness.js';
 import {
   CANARY_REGISTRY_PATH,
   applyDeletions,
@@ -53,13 +53,15 @@ import {
   resolveVerdict,
   summarizeArm,
   traceHit,
-} from './lib/adherence-verdict.js';
-import { ADHERENCE_LOG, appendRunRecord } from './lib/adherence-log.js';
-import { checkLeak, formatLeakRefusal } from './lib/adherence-leak.js';
-import { buildCaveats } from './lib/adherence-caveats.js';
+} from '../plugin/tools/lib/adherence-verdict.js';
+import { ADHERENCE_LOG, appendRunRecord } from '../plugin/tools/lib/adherence-log.js';
+import { checkLeak, formatLeakRefusal } from '../plugin/tools/lib/adherence-leak.js';
+import { buildCaveats } from '../plugin/tools/lib/adherence-caveats.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
+// M6.E1: plugin content lives under plugin/; ROOT stays the repo root.
+const PLUGIN = join(ROOT, 'plugin');
 
 // Pinned explicitly, not read from an env var that is usually unset. A run
 // record with `model: null` is not reproducible, and AC4.3 would fail quietly.

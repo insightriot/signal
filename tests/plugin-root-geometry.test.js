@@ -43,7 +43,7 @@ async function planted(tmp, segments, moduleName) {
   const dir = join(tmp, ...segments);
   await mkdir(dir, { recursive: true });
   const dest = join(dir, moduleName);
-  await copyFile(join(REPO, 'tools', 'lib', moduleName), dest);
+  await copyFile(join(REPO, 'plugin', 'tools', 'lib', moduleName), dest);
   // Cache-bust: the same specifier must not resolve to a previous plant.
   return import(`${pathToFileURL(dest).href}?v=${segments.join('-')}`);
 }

@@ -11,7 +11,7 @@ import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { listCommands, listAgents, listSkills, roster, ROOT } from '../tools/lib/roster.js';
+import { listCommands, listAgents, listSkills, roster, ROOT } from '../plugin/tools/lib/roster.js';
 
 describe('roster — canonical filesystem-glob counts (Signal repo)', () => {
   // 20 commands as of M5.E19 (`/sig:archive` landed — was 19 at M5.E16.S6 when

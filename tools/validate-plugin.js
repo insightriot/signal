@@ -10,10 +10,16 @@ import { readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { listCommands } from './lib/roster.js';
+import { listCommands } from '../plugin/tools/lib/roster.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-export const ROOT = join(__dirname, '..');
+// M6.E1 (AC1.5): this script validates the PLUGIN, and every path it builds
+// from ROOT is plugin content — commands/, agents/, .claude-plugin/plugin.json,
+// state/config.json, tools/lib/add.js. The script itself stays at the repo root
+// (it is maintainer tooling and does not ship), so this is the one expression
+// in the tree that BREAKS rather than silently retargeting: `join(__dirname,
+// '..')` used to mean both roots at once, and now has to pick.
+export const ROOT = join(__dirname, '..', 'plugin');
 
 // Legacy vocabulary that must never reappear: "Tranche" was renamed to
 // "Milestone" in M4.t18. Guards against drift back into the canonical
@@ -49,9 +55,11 @@ export function checkBannedVocabulary(errors, baseDir = ROOT, files = VOCABULARY
   return hits;
 }
 
+// M6.E1: this list used to mix two kinds of file, and pointing ROOT at the
+// plugin is what made the mixture visible — the three below are repository
+// artifacts, not plugin payload, and a user's install has never contained them.
 const REQUIRED_FILES = [
   '.claude-plugin/plugin.json',
-  '.claude-plugin/marketplace.json',
   'hooks/hooks.json',
   'state/config.json',
   'references/anti-rationalization.md',
@@ -59,6 +67,13 @@ const REQUIRED_FILES = [
   'references/profile-schema.md',
   'references/tier-definitions.md',
   'references/hooks-api.md',
+];
+
+// Checked against the REPOSITORY root. `marketplace.json` describes the
+// marketplace rather than the plugin and deliberately stays outside the
+// payload; the two docs are launch collateral.
+const REQUIRED_REPO_FILES = [
+  '.claude-plugin/marketplace.json',
   'docs/vs.md',
   'docs/launch-post.md',
 ];
@@ -102,6 +117,13 @@ async function validate() {
   for (const file of REQUIRED_FILES) {
     if (!existsSync(join(ROOT, file))) {
       errors.push(`Missing required file: ${file}`);
+    }
+  }
+
+  // Check required REPOSITORY files (outside the plugin payload, M6.E1)
+  for (const file of REQUIRED_REPO_FILES) {
+    if (!existsSync(join(ROOT, '..', file))) {
+      errors.push(`Missing required repo file: ${file}`);
     }
   }
 

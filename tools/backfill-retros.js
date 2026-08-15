@@ -24,8 +24,8 @@ import {
   parseSections,
   deriveRetroPath,
   loadTemplate,
-} from './lib/retrospective.js';
-import { atomicWrite } from './lib/atomic-write.js';
+} from '../plugin/tools/lib/retrospective.js';
+import { atomicWrite } from '../plugin/tools/lib/atomic-write.js';
 
 // ----- Epic enumeration -----
 

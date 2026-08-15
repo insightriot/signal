@@ -12,8 +12,8 @@ import {
   checkEpicWithoutRetro,
   checkBaselineCommitOffHistory,
   checkProfilesParse,
-} from '../tools/lib/state-drift.js';
-import { markFresh } from '../tools/lib/state.js';
+} from '../plugin/tools/lib/state-drift.js';
+import { markFresh } from '../plugin/tools/lib/state.js';
 
 /**
  * M5.E16 S2 — the three checks that work everywhere.

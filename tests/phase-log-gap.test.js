@@ -16,7 +16,7 @@ import { mkdtemp, rm, mkdir, writeFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { runDriftChecks } from '../tools/lib/state-drift.js';
+import { runDriftChecks } from '../plugin/tools/lib/state-drift.js';
 
 const state = ({ phase = 'VERIFY', epic = 'M1.E1', completed = [] }) =>
   `---

@@ -14,11 +14,11 @@ import {
   formatStateSizeBanner,
   resolveStateSizeThreshold,
   STATE_SIZE_WARN_BYTES,
-} from '../tools/lib/state.js';
+} from '../plugin/tools/lib/state.js';
 import {
   readStateSizeForTier,
   readStateSizeBannerForTier,
-} from '../tools/lib/status.js';
+} from '../plugin/tools/lib/status.js';
 
 const KB = 1024;
 

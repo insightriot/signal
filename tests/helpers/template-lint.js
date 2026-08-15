@@ -8,12 +8,15 @@
 import { readFile } from 'node:fs/promises';
 
 /**
- * Read a commands/*.md file from the repo root.
+ * Read a commands/*.md file from the PLUGIN root (M6.E1 — the payload moved
+ * under plugin/; callers still pass plugin-relative paths like
+ * 'commands/init.md', which is why the prefix changed here and not at 20 call
+ * sites).
  * @param {string} relPath - e.g. 'commands/init.md'
  * @returns {Promise<{path: string, content: string, lines: string[]}>}
  */
 export async function loadTemplate(relPath) {
-  const path = new URL('../../' + relPath, import.meta.url).pathname;
+  const path = new URL('../../plugin/' + relPath, import.meta.url).pathname;
   const content = await readFile(path, 'utf8');
   return { path, content, lines: content.split('\n') };
 }

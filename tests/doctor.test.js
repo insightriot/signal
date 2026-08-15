@@ -19,7 +19,7 @@ import {
   checkDoctorEnvironment,
   DoctorDetectionError,
   DoctorEnvironmentError,
-} from '../tools/lib/doctor.js';
+} from '../plugin/tools/lib/doctor.js';
 
 // ---- detectP1 ----
 

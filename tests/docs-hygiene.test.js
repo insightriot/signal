@@ -23,11 +23,11 @@ import {
   runDocHygiene,
   hygieneReadSet,
   listDocFiles,
-} from '../tools/lib/doc-hygiene.js';
+} from '../plugin/tools/lib/doc-hygiene.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
-const MODULE_SRC = join(ROOT, 'tools/lib/doc-hygiene.js');
+const MODULE_SRC = join(ROOT, 'plugin/tools/lib/doc-hygiene.js');
 
 /** Content-hash the guard's entire read set (order-stable). */
 function hashReadSet(base) {
@@ -213,7 +213,7 @@ describe('M5.E3.S3.t4 checkVersionConsistency', () => {
   });
 
   it('flags a version mismatch as HARD', async () => {
-    await writeDoc(dir, '.claude-plugin/plugin.json', JSON.stringify({ version: '9.9.9' }));
+    await writeDoc(dir, 'plugin/.claude-plugin/plugin.json', JSON.stringify({ version: '9.9.9' }));
     await writeDoc(dir, '.claude-plugin/marketplace.json', marketplace('v0.0.1'));
     await writeDoc(dir, 'CHANGELOG.md', '## [Unreleased] — x\n\n## [1.2.3] — 2026-01-01\n');
     expect(hard(checkVersionConsistency(dir)).length).toBeGreaterThan(0);
@@ -222,7 +222,7 @@ describe('M5.E3.S3.t4 checkVersionConsistency', () => {
   it('passes the batched-unreleased state: skips [Unreleased], strips the v-prefix', async () => {
     // The live shape: plugin/marketplace at X.Y.Z, doc-runtime still in
     // [Unreleased], the top REAL heading is X.Y.Z.
-    await writeDoc(dir, '.claude-plugin/plugin.json', JSON.stringify({ version: '1.2.3' }));
+    await writeDoc(dir, 'plugin/.claude-plugin/plugin.json', JSON.stringify({ version: '1.2.3' }));
     await writeDoc(dir, '.claude-plugin/marketplace.json', marketplace('v1.2.3'));
     await writeDoc(dir, 'CHANGELOG.md', '## [Unreleased] — doc-runtime\n\n## [1.2.3] — 2026-01-01\n');
     expect(hard(checkVersionConsistency(dir))).toHaveLength(0);
@@ -240,7 +240,7 @@ describe('M5.E3.S3.t4 checkVersionConsistency', () => {
   // on the version) survived while the suite stayed green.
 
   it('AC4.1 — flags a package.json version disagreeing with plugin.json, naming BOTH paths', async () => {
-    await writeDoc(dir, '.claude-plugin/plugin.json', JSON.stringify({ version: '1.2.3' }));
+    await writeDoc(dir, 'plugin/.claude-plugin/plugin.json', JSON.stringify({ version: '1.2.3' }));
     await writeDoc(dir, '.claude-plugin/marketplace.json', marketplace('v1.2.3'));
     await writeDoc(dir, 'CHANGELOG.md', '## [1.2.3] — 2026-01-01\n');
     await writeDoc(dir, 'package.json', JSON.stringify({ name: 'sig', version: '9.9.9' }));
@@ -250,11 +250,11 @@ describe('M5.E3.S3.t4 checkVersionConsistency', () => {
     // Both paths named: the offender in the finding's file, the baseline in its detail.
     const blob = JSON.stringify(findings);
     expect(blob).toContain('package.json');
-    expect(blob).toContain('.claude-plugin/plugin.json');
+    expect(blob).toContain('plugin/.claude-plugin/plugin.json');
   });
 
   it('AC4.1 — an agreeing package.json is silent', async () => {
-    await writeDoc(dir, '.claude-plugin/plugin.json', JSON.stringify({ version: '1.2.3' }));
+    await writeDoc(dir, 'plugin/.claude-plugin/plugin.json', JSON.stringify({ version: '1.2.3' }));
     await writeDoc(dir, '.claude-plugin/marketplace.json', marketplace('v1.2.3'));
     await writeDoc(dir, 'CHANGELOG.md', '## [1.2.3] — 2026-01-01\n');
     await writeDoc(dir, 'package.json', JSON.stringify({ name: 'sig', version: '1.2.3' }));
@@ -268,7 +268,7 @@ describe('M5.E3.S3.t4 checkVersionConsistency', () => {
     expect(Array.isArray(VERSION_SOURCES)).toBe(true);
     const files = VERSION_SOURCES.map((s) => s.file);
     expect(files).toEqual([
-      '.claude-plugin/plugin.json',
+      'plugin/.claude-plugin/plugin.json',
       '.claude-plugin/marketplace.json',
       'CHANGELOG.md',
       'package.json',
@@ -284,7 +284,7 @@ describe('M5.E3.S3.t4 checkVersionConsistency', () => {
     // Listing a file in the table proves nothing if its reader returns null —
     // that is the shape of a guard that looks wired and is not.
     const pkg = VERSION_SOURCES.find((s) => s.file === 'package.json');
-    const plugin = VERSION_SOURCES.find((s) => s.file === '.claude-plugin/plugin.json');
+    const plugin = VERSION_SOURCES.find((s) => s.file === 'plugin/.claude-plugin/plugin.json');
     expect(pkg.read(ROOT)).toBeTruthy();
     expect(pkg.read(ROOT)).toBe(plugin.read(ROOT));
   });

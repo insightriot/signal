@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { currentUnit } from '../tools/lib/work-units.js';
-import { parseVerdict, rankTerminalArtifacts } from '../tools/lib/verdict.js';
+import { currentUnit } from '../plugin/tools/lib/work-units.js';
+import { parseVerdict, rankTerminalArtifacts } from '../plugin/tools/lib/verdict.js';
 
 /**
  * M5.E18 wave 2 — S2 (FR3, the raw current-unit guard) + S3 (FR2, verdicts).

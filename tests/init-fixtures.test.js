@@ -5,7 +5,7 @@ import {
   readAllScans,
   extractSection,
   extractField,
-} from '../tools/lib/landscape.js';
+} from '../plugin/tools/lib/landscape.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = join(__dirname, 'fixtures', 'init');

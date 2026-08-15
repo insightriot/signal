@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readProfile } from '../tools/lib/profile.js';
-import { readState } from '../tools/lib/state.js';
+import { readProfile } from '../plugin/tools/lib/profile.js';
+import { readState } from '../plugin/tools/lib/state.js';
 
 // Currency guard for the committed worked example (M4.5.E4).
 //

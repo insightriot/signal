@@ -41,12 +41,12 @@ import { existsSync } from 'node:fs';
 import { join, resolve, basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { readState, PHASES } from './lib/state.js';
-import { readProfile, readEffectiveProfile } from './lib/profile.js';
-import { runDriftChecks } from './lib/state-drift.js';
-import { resolveClosures, CLOSURE } from './lib/closure.js';
-import { senseArchiveTree } from './lib/archive-tree.js';
-import { deriveUnits } from './lib/work-units.js';
+import { readState, PHASES } from '../plugin/tools/lib/state.js';
+import { readProfile, readEffectiveProfile } from '../plugin/tools/lib/profile.js';
+import { runDriftChecks } from '../plugin/tools/lib/state-drift.js';
+import { resolveClosures, CLOSURE } from '../plugin/tools/lib/closure.js';
+import { senseArchiveTree } from '../plugin/tools/lib/archive-tree.js';
+import { deriveUnits } from '../plugin/tools/lib/work-units.js';
 
 const ROOT = resolve(join(dirname(fileURLToPath(import.meta.url)), '..'));
 

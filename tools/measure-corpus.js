@@ -19,13 +19,13 @@
 import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { join, basename } from 'node:path';
 
-import { diffRequirementCoverage, COVERAGE } from './lib/requirement-coverage.js';
-import { checkValidationConsistency, CONSISTENCY } from './lib/validation-consistency.js';
-import { validateVerificationContent } from './lib/verification-template.js';
-import { checkCorrectionProtocol, CORRECTION } from './lib/correction-protocol.js';
-import { retroIndexFreshness, RETRO_FRESHNESS } from './lib/sweep.js';
-import { backlogDischargeStatus, BACKLOG_DISCHARGE } from './lib/backlog.js';
-import { runDriftChecks } from './lib/state-drift.js';
+import { diffRequirementCoverage, COVERAGE } from '../plugin/tools/lib/requirement-coverage.js';
+import { checkValidationConsistency, CONSISTENCY } from '../plugin/tools/lib/validation-consistency.js';
+import { validateVerificationContent } from '../plugin/tools/lib/verification-template.js';
+import { checkCorrectionProtocol, CORRECTION } from '../plugin/tools/lib/correction-protocol.js';
+import { retroIndexFreshness, RETRO_FRESHNESS } from '../plugin/tools/lib/sweep.js';
+import { backlogDischargeStatus, BACKLOG_DISCHARGE } from '../plugin/tools/lib/backlog.js';
+import { runDriftChecks } from '../plugin/tools/lib/state-drift.js';
 
 const EVALUABLE = 'evaluable';
 const BLIND = 'could-not-evaluate';

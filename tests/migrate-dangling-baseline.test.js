@@ -20,8 +20,8 @@ import {
   applyMigrate,
   renderDryRun,
   runMigrate,
-} from '../tools/lib/migrate-memory.js';
-import { computeLinkEdits } from '../tools/lib/archive-tree.js';
+} from '../plugin/tools/lib/migrate-memory.js';
+import { computeLinkEdits } from '../plugin/tools/lib/archive-tree.js';
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
 const HUGE = 'meaningful narrative words across a sentence here. '.repeat(220);

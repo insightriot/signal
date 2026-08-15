@@ -1,12 +1,15 @@
 import { describe, it, expect, afterEach } from 'vitest';
+import { resolveSignalPath, PLUGIN_ROOT } from './helpers/roots.js';
 import { existsSync, readdirSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createPluginCopy, PLUGIN_COPY_EXCLUDE } from '../tools/lib/adherence-harness.js';
-import { loadCanaryRegistry, CANARY_REGISTRY_PATH } from '../tools/lib/adherence-verdict.js';
+import { createPluginCopy, PLUGIN_COPY_EXCLUDE } from '../plugin/tools/lib/adherence-harness.js';
+import { loadCanaryRegistry, CANARY_REGISTRY_PATH } from '../plugin/tools/lib/adherence-verdict.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+// M6.E1: plugin-relative paths resolve against the plugin root.
+const PLUGIN_DIR = join(ROOT, 'plugin');
 
 /**
  * FR4 — the experiment leaves the room it is measuring.
@@ -45,7 +48,7 @@ describe('the canary registry leaves the plugin copy (FR4)', () => {
 
   it('AC4.1 — the rest of references/ is copied unchanged', async () => {
     const c = await copy();
-    const real = readdirSync(join(ROOT, 'references')).filter(f => f !== 'adherence-canaries.json');
+    const real = readdirSync(join(ROOT, 'plugin', 'references')).filter(f => f !== 'adherence-canaries.json');
     const copied = readdirSync(join(c.root, 'references'));
     expect(copied.sort()).toEqual(real.sort());
     // state-schema.md in particular: an agent stripped of it cannot understand
@@ -55,7 +58,7 @@ describe('the canary registry leaves the plugin copy (FR4)', () => {
 
   it('AC4.2 — a run still resolves the registry, because it reads the REAL root', async () => {
     await copy();
-    const reg = loadCanaryRegistry(ROOT);
+    const reg = loadCanaryRegistry(PLUGIN_DIR);
     expect(reg.canaries.find(c => c.id === 'B41-phase-entry')).toBeTruthy();
   });
 
@@ -63,7 +66,7 @@ describe('the canary registry leaves the plugin copy (FR4)', () => {
     // commands/ship.md instructs running `node tools/adherence-run.js`. A
     // packaging-level exclusion would break that documented instruction for
     // every user, to solve a problem that only exists inside a measurement.
-    expect(existsSync(join(ROOT, CANARY_REGISTRY_PATH))).toBe(true);
+    expect(existsSync(resolveSignalPath(CANARY_REGISTRY_PATH))).toBe(true);
   });
 
   it('the exclusion is declared as data, so a reader can see what is withheld', () => {

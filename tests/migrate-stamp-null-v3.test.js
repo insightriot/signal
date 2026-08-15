@@ -33,8 +33,8 @@ import {
   renderDryRun,
   applyMigrate,
   CURRENT_LAYOUT_VERSION,
-} from '../tools/lib/migrate-memory.js';
-import { readLayoutBanner } from '../tools/lib/status.js';
+} from '../plugin/tools/lib/migrate-memory.js';
+import { readLayoutBanner } from '../plugin/tools/lib/status.js';
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
 function initRepo(dir) {

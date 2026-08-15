@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { countMarkers, appendNote } from '../tools/lib/walkthrough.js';
+import { countMarkers, appendNote } from '../plugin/tools/lib/walkthrough.js';
 
 describe('countMarkers', () => {
   it('returns zeros for null content', () => {

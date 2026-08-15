@@ -19,7 +19,7 @@ const HEADER = /^(Temptation|Rationalization|Impostor|Excuse|Shortcut|Claim)$/i;
 /** Re-derive both halves of the classification straight from the corpus. */
 function collect() {
   const files = [
-    ...readdirSync(join(ROOT, 'commands')).map((f) => 'commands/' + f),
+    ...readdirSync(join(ROOT, 'plugin', 'commands')).map((f) => 'commands/' + f),
     'references/anti-rationalization.md',
     'agents/support/phase-gate-enforcer.md',
   ];
@@ -158,7 +158,7 @@ describe('AC5.3 — the provenance rule is a shaping entry', () => {
   it('covers ESCALATION, not just restatement', () => {
     // Repeating a hedge as a fact is the same defect as inventing one, and
     // harder to catch, because the hedge is gone.
-    const src = readFileSync(join(ROOT, 'references', 'anti-rationalization.md'), 'utf8');
+    const src = readFileSync(join(ROOT, 'plugin', 'references', 'anti-rationalization.md'), 'utf8');
     expect(src).toMatch(/never at higher confidence than the source gave it/i);
   });
 });

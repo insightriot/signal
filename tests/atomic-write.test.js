@@ -7,7 +7,7 @@ import { mkdtemp, rm, writeFile, readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { atomicWrite } from '../tools/lib/atomic-write.js';
+import { atomicWrite } from '../plugin/tools/lib/atomic-write.js';
 
 describe('atomicWrite — happy path', () => {
   let tempDir;

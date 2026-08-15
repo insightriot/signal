@@ -24,9 +24,9 @@ import { tmpdir } from 'node:os';
 import {
   explainArchiveOutcome,
   renderMoveBreakdown,
-} from '../tools/lib/archive-report.js';
-import { planArchiveMoves } from '../tools/lib/archive-tree.js';
-import { checkEpicWithoutRetro, APPLICABILITY } from '../tools/lib/state-drift.js';
+} from '../plugin/tools/lib/archive-report.js';
+import { planArchiveMoves } from '../plugin/tools/lib/archive-tree.js';
+import { checkEpicWithoutRetro, APPLICABILITY } from '../plugin/tools/lib/state-drift.js';
 
 const ROOT = join(import.meta.dirname, '..');
 const P = '.planning';
@@ -222,7 +222,7 @@ describe('REVIEW — the distinction has exactly ONE definition', () => {
     // drift, and the two were already drifting (only the report said "needs a
     // person"). It had no production caller, so it was deleted rather than kept
     // in sync. This asserts the deletion sticks.
-    const mod = await import('../tools/lib/archive-report.js');
+    const mod = await import('../plugin/tools/lib/archive-report.js');
     expect(mod.renderArchivePlan).toBeUndefined();
     expect(typeof mod.explainArchiveOutcome).toBe('function');
   });
@@ -230,7 +230,7 @@ describe('REVIEW — the distinction has exactly ONE definition', () => {
   it('the module exports no second function that branches on stateReadable', async () => {
     // A cheap structural guard: the source may test `stateReadable` in exactly
     // one place. A future re-implementation trips this before it can drift.
-    const src = readFileSync(join(ROOT, 'tools', 'lib', 'archive-report.js'), 'utf-8');
+    const src = readFileSync(join(ROOT, 'plugin', 'tools', 'lib', 'archive-report.js'), 'utf-8');
     expect(src.match(/if \(!stateReadable\)/g)?.length ?? 0).toBe(1);
   });
 
@@ -332,7 +332,7 @@ describe('S7 AC4.5 — what the planner dropped is reported by count AND reason'
 
 describe('S7 — explainArchiveOutcome is reachable from the migrate dry-run (B63)', () => {
   it('a bare "archive-tree moves: 0" never stands alone', async () => {
-    const { renderDryRun } = await import('../tools/lib/migrate-memory.js');
+    const { renderDryRun } = await import('../plugin/tools/lib/migrate-memory.js');
     const dir = await mkdtemp(join(tmpdir(), 'signal-e18-s7-b63-'));
     try {
       await mkdir(join(dir, P), { recursive: true });
@@ -360,7 +360,7 @@ describe('S7 — explainArchiveOutcome is reachable from the migrate dry-run (B6
     // nothing about the unit needing a person. B63's own class surviving inside
     // the fix for B63 — and the cause was the CALLER re-implementing "is this
     // ambiguous" instead of letting the renderer decide.
-    const { renderDryRun } = await import('../tools/lib/migrate-memory.js');
+    const { renderDryRun } = await import('../plugin/tools/lib/migrate-memory.js');
     const dir = await mkdtemp(join(tmpdir(), 'signal-e18-ac41-'));
     try {
       await mkdir(join(dir, P), { recursive: true });
@@ -389,7 +389,7 @@ describe('S7 — explainArchiveOutcome is reachable from the migrate dry-run (B6
   });
 
   it('senseArchiveTree FORWARDS dropped — otherwise no command can surface it', async () => {
-    const { senseArchiveTree } = await import('../tools/lib/archive-tree.js');
+    const { senseArchiveTree } = await import('../plugin/tools/lib/archive-tree.js');
     const res = await senseArchiveTree(join(import.meta.dirname, '..'));
     expect(Array.isArray(res.dropped), 'dropped is not forwarded').toBe(true);
   });
@@ -413,7 +413,7 @@ describe('AC4.5 second half — the empty bound is stated ON THE WIRED PATH', ()
     // VERIFY (2nd pass) found this unreachable: the statement lived in a helper
     // only the deleted standalone report called, so no command ever said it. A
     // reader cannot tell "nothing was dropped" from "dropping is not reported".
-    const { renderDryRun } = await import('../tools/lib/migrate-memory.js');
+    const { renderDryRun } = await import('../plugin/tools/lib/migrate-memory.js');
     const dir = await mkdtemp(join(tmpdir(), 'signal-e18-ac45-'));
     try {
       await mkdir(join(dir, P), { recursive: true });
@@ -469,8 +469,8 @@ describe('AC4.5 second half — the empty bound is stated ON THE WIRED PATH', ()
 
 describe('S7 AC4.3 — Signal\'s own tree: only real retros move, the rest are reported', () => {
   it('renders without throwing and reports every unit by status', async () => {
-    const { resolveClosures } = await import('../tools/lib/closure.js');
-    const { senseArchiveTree } = await import('../tools/lib/archive-tree.js');
+    const { resolveClosures } = await import('../plugin/tools/lib/closure.js');
+    const { senseArchiveTree } = await import('../plugin/tools/lib/archive-tree.js');
     const root = join(import.meta.dirname, '..');
     const res = await resolveClosures(root);
     const { moves } = await senseArchiveTree(root);
@@ -488,7 +488,7 @@ describe('S7 AC4.3 — Signal\'s own tree: only real retros move, the rest are r
   });
 
   it('the four STUB-retro Epics are not among the proposed moves (S5 still holds)', async () => {
-    const { senseArchiveTree } = await import('../tools/lib/archive-tree.js');
+    const { senseArchiveTree } = await import('../plugin/tools/lib/archive-tree.js');
     const { moves } = await senseArchiveTree(join(import.meta.dirname, '..'));
     for (const stub of ['M4.5.E1', 'M4.5.E3', 'M4.5.E6', 'M4.5.E7']) {
       expect(moves.some((m) => m.from.includes(`${stub}-`)), stub).toBe(false);

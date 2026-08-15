@@ -19,7 +19,7 @@ import {
   buildArchiveReport,
   renderArchiveReport,
   applyArchive,
-} from '../tools/lib/archive-command.js';
+} from '../plugin/tools/lib/archive-command.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SANDBOX = join(ROOT, 'examples', 'sandbox');

@@ -18,13 +18,13 @@ import {
   setCurrentEpic,
   setCurrentTask,
   StateWriteError,
-} from '../tools/lib/state.js';
-import { deriveRetroPath, isEpicDone } from '../tools/lib/retrospective.js';
-import { currentMilestone, deriveNextEpicId } from '../tools/lib/milestones.js';
-import { resolveArtifactPath, artifactName } from '../tools/lib/resume.js';
-import { readProfile, readEffectiveProfile, ProfileSchemaError } from '../tools/lib/profile.js';
-import { formatTierLine } from '../tools/lib/status.js';
-import { renderResumeBriefing } from '../tools/lib/resume.js';
+} from '../plugin/tools/lib/state.js';
+import { deriveRetroPath, isEpicDone } from '../plugin/tools/lib/retrospective.js';
+import { currentMilestone, deriveNextEpicId } from '../plugin/tools/lib/milestones.js';
+import { resolveArtifactPath, artifactName } from '../plugin/tools/lib/resume.js';
+import { readProfile, readEffectiveProfile, ProfileSchemaError } from '../plugin/tools/lib/profile.js';
+import { formatTierLine } from '../plugin/tools/lib/status.js';
+import { renderResumeBriefing } from '../plugin/tools/lib/resume.js';
 
 // Write a COMPLETE schema_v1 STATE.md (all fields) so readStateForMutation
 // accepts it — used where we need a non-null current_wave to prove the roll

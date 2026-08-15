@@ -16,11 +16,11 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { evictEpicNarrative } from '../tools/lib/evict.js';
+import { evictEpicNarrative } from '../plugin/tools/lib/evict.js';
 import {
   classifyClosedEpicBody,
   relocateInlinedBody,
-} from '../tools/lib/migrate-memory.js';
+} from '../plugin/tools/lib/migrate-memory.js';
 
 const FRONTMATTER = [
   '---',

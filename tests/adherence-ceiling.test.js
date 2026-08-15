@@ -4,8 +4,8 @@ import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { classifyCommandCorpus } from '../tools/lib/directive-classifier.js';
-import { classifyDocGrowthPolicy } from '../tools/lib/migrate-memory.js';
+import { classifyCommandCorpus } from '../plugin/tools/lib/directive-classifier.js';
+import { classifyDocGrowthPolicy } from '../plugin/tools/lib/migrate-memory.js';
 import {
   ADHERENCE_LOG,
   CEILING_BEGIN,
@@ -13,7 +13,7 @@ import {
   RUNS_MARKER,
   renderCeilingSection,
   upsertCeiling,
-} from '../tools/lib/adherence-log.js';
+} from '../plugin/tools/lib/adherence-log.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');

@@ -78,13 +78,13 @@ describe('marketplace.json — source block contract', () => {
 
 describe('plugin.json — version field contract', () => {
   it('version is semver-shaped (MAJOR.MINOR.PATCH)', async () => {
-    const raw = await readFile(join(ROOT, '.claude-plugin/plugin.json'), 'utf-8');
+    const raw = await readFile(join(ROOT, 'plugin', '.claude-plugin/plugin.json'), 'utf-8');
     const plugin = JSON.parse(raw);
     expect(plugin.version).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   it('version is at least 0.1.1 (the E1 release)', async () => {
-    const raw = await readFile(join(ROOT, '.claude-plugin/plugin.json'), 'utf-8');
+    const raw = await readFile(join(ROOT, 'plugin', '.claude-plugin/plugin.json'), 'utf-8');
     const plugin = JSON.parse(raw);
     const [major, minor, patch] = plugin.version.split('.').map(Number);
     const isAtLeast = major > 0 || minor > 1 || (minor === 1 && patch >= 1);

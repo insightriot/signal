@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
+import { resolveSignalPath, PLUGIN_ROOT } from './helpers/roots.js';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, cpSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -9,8 +10,8 @@ import {
   walkResidue,
   classifyResidue,
   checkLeak,
-} from '../tools/lib/adherence-leak.js';
-import { PLUGIN_COPY_DIRS } from '../tools/lib/adherence-harness.js';
+} from '../plugin/tools/lib/adherence-leak.js';
+import { PLUGIN_COPY_DIRS } from '../plugin/tools/lib/adherence-harness.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -138,7 +139,7 @@ describe('the apparatus stays scrubbed (S1.t7 regression)', () => {
   ];
 
   it.each(APPARATUS)('%s does not restate the measured instruction', file => {
-    const src = readFileSync(join(ROOT, file), 'utf-8');
+    const src = readFileSync(resolveSignalPath(file), 'utf-8');
     expect(src).not.toContain(TOKEN);
   });
 
@@ -173,7 +174,7 @@ describe('checkLeak against a real copied tree (AC2.1)', () => {
   function realCopy() {
     const root = fixtureTree();
     for (const d of PLUGIN_COPY_DIRS) {
-      try { cpSync(join(ROOT, d), join(root, d), { recursive: true }); } catch { /* absent dir */ }
+      try { cpSync(join(ROOT, 'plugin', d), join(root, d), { recursive: true }); } catch { /* absent dir */ }
     }
     return root;
   }

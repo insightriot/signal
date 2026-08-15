@@ -12,7 +12,7 @@ import {
   correctionGateSeverity,
   lineSelfCorrects,
   CORRECTION,
-} from '../tools/lib/correction-protocol.js';
+} from '../plugin/tools/lib/correction-protocol.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 

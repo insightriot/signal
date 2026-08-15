@@ -9,7 +9,7 @@ import { mkdtemp, rm, mkdir, writeFile, access, readFile } from 'node:fs/promise
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { regenerateIndex, enumerateRetros } from '../tools/lib/retro-index.js';
+import { regenerateIndex, enumerateRetros } from '../plugin/tools/lib/retro-index.js';
 
 const STUB = `# M4.5.E1 Retrospective
 

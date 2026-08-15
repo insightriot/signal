@@ -62,7 +62,7 @@ describe('adherence harness — suite isolation (AC1.2)', () => {
     // The pure mechanics module may NAME the CLI (it resolves --version through an
     // injectable exec), but must never spawn it with `-p` / `--print`, which is
     // what costs money.
-    const mechanics = readFileSync(join(ROOT, 'tools/lib/adherence-harness.js'), 'utf-8');
+    const mechanics = readFileSync(join(ROOT, 'plugin/tools/lib/adherence-harness.js'), 'utf-8');
     expect(mechanics).not.toMatch(/['"]--print['"]/);
     expect(mechanics).not.toMatch(/\[\s*['"]-p['"]/);
   });

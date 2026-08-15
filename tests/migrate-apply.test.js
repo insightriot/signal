@@ -13,8 +13,8 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { applyMigrate, runMigrate, senseState, hashState } from '../tools/lib/migrate-memory.js';
-import { checkStateFrontmatterShape } from '../tools/lib/retrospective.js';
+import { applyMigrate, runMigrate, senseState, hashState } from '../plugin/tools/lib/migrate-memory.js';
+import { checkStateFrontmatterShape } from '../plugin/tools/lib/retrospective.js';
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
 function initRepo(dir) {

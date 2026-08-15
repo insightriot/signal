@@ -19,7 +19,7 @@ import {
   probeCommandBody,
   probeSucceeded,
   writeProbeCommand,
-} from '../tools/lib/adherence-harness.js';
+} from '../plugin/tools/lib/adherence-harness.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -67,7 +67,7 @@ describe('isolation — the guarantee that can destroy work, not merely mislead 
 
   it('REFUSES a path inside the invoking project — including .planning/', () => {
     expect(() => assertIsolatedFixture(join(ROOT, '.planning'), ROOT)).toThrow(/invoking project/i);
-    expect(() => assertIsolatedFixture(join(ROOT, 'tools', 'lib'), ROOT)).toThrow(/invoking project/i);
+    expect(() => assertIsolatedFixture(join(ROOT, 'plugin', 'tools', 'lib'), ROOT)).toThrow(/invoking project/i);
   });
 
   it('REFUSES a fixture that is not under the OS temp dir', () => {
@@ -105,9 +105,9 @@ describe('fixture and plugin copy are two different trees (R3)', () => {
   it('the plugin copy is a copy — mutating it leaves the real commands/ untouched (AC2.4)', async () => {
     const plugin = await createPluginCopy(ROOT);
     created.push(plugin.root);
-    const realBefore = readFileSync(join(ROOT, 'commands', 'execute.md'), 'utf-8');
+    const realBefore = readFileSync(join(ROOT, 'plugin', 'commands', 'execute.md'), 'utf-8');
     writeFileSync(join(plugin.root, 'commands', 'execute.md'), 'MUTATED');
-    expect(readFileSync(join(ROOT, 'commands', 'execute.md'), 'utf-8')).toBe(realBefore);
+    expect(readFileSync(join(ROOT, 'plugin', 'commands', 'execute.md'), 'utf-8')).toBe(realBefore);
   });
 });
 

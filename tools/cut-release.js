@@ -121,11 +121,11 @@ export function setFactsTestCount(source, count) {
 /** The file set a release touches, in the order a reviewer reads them. */
 export function releaseEdits({ version, date, title, testCount, read }) {
   return [
-    { file: '.claude-plugin/plugin.json', next: bumpJsonVersion(read('.claude-plugin/plugin.json'), version) },
+    { file: 'plugin/.claude-plugin/plugin.json', next: bumpJsonVersion(read('plugin/.claude-plugin/plugin.json'), version) },
     { file: 'package.json', next: bumpJsonVersion(read('package.json'), version) },
     { file: 'CHANGELOG.md', next: foldChangelog(read('CHANGELOG.md'), version, date, title) },
     { file: 'docs/map/index.html', next: bumpMapStamp(read('docs/map/index.html'), version) },
-    { file: 'references/facts.md', next: setFactsTestCount(read('references/facts.md'), testCount) },
+    { file: 'plugin/references/facts.md', next: setFactsTestCount(read('plugin/references/facts.md'), testCount) },
   ];
 }
 
@@ -134,7 +134,7 @@ export function releaseEdits({ version, date, title, testCount, read }) {
 const read = (rel) => readFileSync(join(ROOT, rel), 'utf8');
 
 function currentVersion() {
-  return JSON.parse(read('.claude-plugin/plugin.json')).version;
+  return JSON.parse(read('plugin/.claude-plugin/plugin.json')).version;
 }
 
 function assertCleanTree() {

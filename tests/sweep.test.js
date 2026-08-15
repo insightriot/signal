@@ -19,11 +19,11 @@ import { tmpdir } from 'node:os';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
-const SWEEP_SRC = join(ROOT, 'tools/lib/sweep.js');
+const SWEEP_SRC = join(ROOT, 'plugin/tools/lib/sweep.js');
 const AUDIT_SCRIPT = join(ROOT, 'tools/audit-network-calls.js');
 const SEEDED_FIXTURE = join(ROOT, 'tests/fixtures/audit-network-calls-seeded/with-fetch.js');
 
-import { regeneratePlanningIndexCore } from '../tools/lib/planning-index.js';
+import { regeneratePlanningIndexCore } from '../plugin/tools/lib/planning-index.js';
 import {
   checkIndexFreshness,
   checkRetroIndexFreshness,
@@ -33,7 +33,7 @@ import {
   runSweep,
   renderSweepReport,
   CLAUDE_MD_BLOAT_BYTES,
-} from '../tools/lib/sweep.js';
+} from '../plugin/tools/lib/sweep.js';
 
 const structural = (findings) => findings.filter((f) => f.severity === 'structural');
 const advisory = (findings) => findings.filter((f) => f.severity === 'advisory');
@@ -451,7 +451,7 @@ describe('M5.E13 S4.t2 checkRetroIndexFreshness (FR3.2)', () => {
 
   it('AC3.2 — regenerating makes it GREEN', async () => {
     await seedRetro('M9.E1');
-    const { regenerateIndex } = await import('../tools/lib/retro-index.js');
+    const { regenerateIndex } = await import('../plugin/tools/lib/retro-index.js');
     await regenerateIndex(dir);
     const findings = await checkRetroIndexFreshness(dir);
     expect(structural(findings)).toHaveLength(0);
@@ -553,8 +553,8 @@ describe('M5.E10 S4.t1 retroIndexFreshness (FR7 / AC7.2)', () => {
   });
 
   it('FRESH is distinguishable from CANNOT_EVALUATE, which an empty list was not', async () => {
-    const { retroIndexFreshness, RETRO_FRESHNESS } = await import('../tools/lib/sweep.js');
-    const { regenerateIndex } = await import('../tools/lib/retro-index.js');
+    const { retroIndexFreshness, RETRO_FRESHNESS } = await import('../plugin/tools/lib/sweep.js');
+    const { regenerateIndex } = await import('../plugin/tools/lib/retro-index.js');
 
     await writeDoc(dir, '.planning/M9.E1-RETROSPECTIVE.md', '# M9.E1 Retrospective\n\nBody.\n');
     await regenerateIndex(dir);
@@ -573,7 +573,7 @@ describe('M5.E10 S4.t1 retroIndexFreshness (FR7 / AC7.2)', () => {
   });
 
   it('STALE carries the count it compared against', async () => {
-    const { retroIndexFreshness, RETRO_FRESHNESS } = await import('../tools/lib/sweep.js');
+    const { retroIndexFreshness, RETRO_FRESHNESS } = await import('../plugin/tools/lib/sweep.js');
     await writeDoc(dir, '.planning/M9.E1-RETROSPECTIVE.md', '# M9.E1 Retrospective\n\nBody.\n');
     await writeDoc(dir, '.planning/RETROSPECTIVES.md', '# Retrospectives\n\n(nothing here)\n');
     const r = await retroIndexFreshness(dir);

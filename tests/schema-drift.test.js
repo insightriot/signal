@@ -17,7 +17,7 @@ import {
   readSchemaDrift,
   stringifyFrontmatter,
   SCHEMA_VERSION,
-} from '../tools/lib/state.js';
+} from '../plugin/tools/lib/state.js';
 
 async function plantRawState(tempDir, raw) {
   await mkdir(join(tempDir, '.planning'), { recursive: true });

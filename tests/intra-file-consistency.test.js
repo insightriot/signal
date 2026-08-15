@@ -30,7 +30,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO = dirname(dirname(fileURLToPath(import.meta.url)));
-const COMMANDS = join(REPO, 'commands');
+const COMMANDS = join(REPO, 'plugin', 'commands');
 
 const commandFiles = readdirSync(COMMANDS).filter((f) => f.endsWith('.md'));
 
