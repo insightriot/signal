@@ -49,7 +49,7 @@ function today() {
 
 async function main() {
   const check = process.argv.includes('--check');
-  const corpus = classifyCommandCorpus(ROOT);
+  const corpus = classifyCommandCorpus(PLUGIN);
   const { directives, measurable, unmeasurable, libCall, artifactWrite } = corpus.counts;
   const pct = ((measurable / directives) * 100).toFixed(1);
 

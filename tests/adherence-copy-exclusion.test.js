@@ -35,7 +35,7 @@ afterEach(() => {
 });
 
 async function copy() {
-  const c = await createPluginCopy(ROOT);
+  const c = await createPluginCopy(PLUGIN_DIR);
   scratch.push(c.root);
   return c;
 }
@@ -75,11 +75,16 @@ describe('the canary registry leaves the plugin copy (FR4)', () => {
 
   it('the exclusion stays ONE file — the harness modules are still copied', async () => {
     const c = await copy();
-    // Excluding tools/ wholesale was considered and rejected: ship.md orders
-    // `node tools/adherence-run.js`, so removing it would break a documented
-    // instruction for any future canary measuring ship.md. The apparatus leak
-    // that would have covered is handled at source by S1.t7 instead.
-    expect(existsSync(join(c.root, 'tools', 'adherence-run.js'))).toBe(true);
+    // M6.E1 CHANGED THIS, and the reason is worth keeping. The original note
+    // read: "Excluding tools/ wholesale was considered and rejected: ship.md
+    // orders `node tools/adherence-run.js`, so removing it would break a
+    // documented instruction." That reasoning was sound while tools/ was one
+    // directory. The payload move split it — tools/lib/ ships, the maintainer
+    // scripts do not — so the plugin copy legitimately no longer contains
+    // adherence-run.js, and ship.md's line was marked a Signal-repository step
+    // instead (AC2.2). The instruction and the tree agree again, by amending
+    // the instruction rather than by shipping a script to satisfy it.
+    expect(existsSync(join(c.root, 'tools', 'adherence-run.js'))).toBe(false);
     expect(existsSync(join(c.root, 'tools', 'lib', 'adherence-verdict.js'))).toBe(true);
     expect(PLUGIN_COPY_EXCLUDE).toHaveLength(1);
   });

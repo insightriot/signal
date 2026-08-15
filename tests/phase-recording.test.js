@@ -137,7 +137,7 @@ describe('M5.E9 VERIFY-found coverage gaps', () => {
     // nothing to keep it true. `transitionPhase`'s Map was the ONLY writer that
     // rebuilt the array rather than patching it, and rebuilding is what made
     // the data loss possible. This fails if another writer starts doing it.
-    const src = await readFile(join(process.cwd(), 'tools/lib/state.js'), 'utf-8');
+    const src = await readFile(join(process.cwd(), 'plugin/tools/lib/state.js'), 'utf-8');
     // The specific construct that caused B44: keying entries into a Map.
     expect(src).not.toMatch(/new Map\(\s*seen\.map/);
     expect(src).not.toMatch(/completed_phases\s*=\s*Array\.from\(\s*new Map/);

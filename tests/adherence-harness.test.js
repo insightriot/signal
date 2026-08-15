@@ -23,6 +23,8 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
+// M6.E1: the plugin copy is made from the PAYLOAD, not the repo.
+const PLUGIN_DIR = join(ROOT, 'plugin');
 
 /**
  * FR1 — the harness skeleton (M5.E8.S2).
@@ -93,7 +95,7 @@ describe('fixture and plugin copy are two different trees (R3)', () => {
   it('copies the command tree to a SEPARATE root from the fixture project', async () => {
     const fixture = await createFixtureProject({ tier: 'FULL' });
     created.push(fixture.root);
-    const plugin = await createPluginCopy(ROOT);
+    const plugin = await createPluginCopy(PLUGIN_DIR);
     created.push(plugin.root);
 
     expect(plugin.root).not.toBe(fixture.root);
@@ -103,7 +105,7 @@ describe('fixture and plugin copy are two different trees (R3)', () => {
   });
 
   it('the plugin copy is a copy — mutating it leaves the real commands/ untouched (AC2.4)', async () => {
-    const plugin = await createPluginCopy(ROOT);
+    const plugin = await createPluginCopy(PLUGIN_DIR);
     created.push(plugin.root);
     const realBefore = readFileSync(join(ROOT, 'plugin', 'commands', 'execute.md'), 'utf-8');
     writeFileSync(join(plugin.root, 'commands', 'execute.md'), 'MUTATED');
@@ -122,7 +124,7 @@ describe('the plugin copy can actually execute what a canary measures', () => {
   });
 
   it('copies the manifest, package.json and runtime deps', async () => {
-    const plugin = await createPluginCopy(ROOT);
+    const plugin = await createPluginCopy(PLUGIN_DIR);
     created.push(plugin.root);
     expect(existsSync(join(plugin.root, '.claude-plugin', 'plugin.json'))).toBe(true);
     expect(existsSync(join(plugin.root, 'package.json'))).toBe(true);
@@ -214,7 +216,7 @@ describe('mutation-visibility precondition — the probe (S3 gate)', () => {
   });
 
   it('discovery mode writes a NEW command; precedence mode OVERWRITES an existing one', async () => {
-    const plugin = await createPluginCopy(ROOT);
+    const plugin = await createPluginCopy(PLUGIN_DIR);
     created.push(plugin.root);
 
     const disc = await writeProbeCommand(plugin.root, 'tok-a', { mode: 'discovery' });

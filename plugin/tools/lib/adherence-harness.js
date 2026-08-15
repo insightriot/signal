@@ -307,6 +307,11 @@ export async function createPluginCopy(pluginRoot) {
     await rm(join(root, rel), { force: true });
   }
   // Runtime deps, so a command that instructs the agent to CALL a tools/lib
+  // M6.E1: the payload does not carry its own package.json / node_modules yet
+  // (S3 gives it one); until then the runtime deps live one level up, at the
+  // repository root. Resolved rather than assumed so this keeps working when
+  // S3 lands and the plugin gains its own manifest.
+  const depSource = existsSync(join(pluginRoot, 'package.json')) ? pluginRoot : join(pluginRoot, '..');
   // function can actually be obeyed. The installed plugin ships node_modules;
   // a copy without them would make every library-call canary fail to execute,
   // and the harness would score that as "not obeyed" when the true cause is a
@@ -314,7 +319,7 @@ export async function createPluginCopy(pluginRoot) {
   // and would be re-copied on every run.
   for (const dep of PLUGIN_RUNTIME_DEPS) {
     try {
-      await cp(join(pluginRoot, 'node_modules', dep), join(root, 'node_modules', dep), { recursive: true });
+      await cp(join(depSource, 'node_modules', dep), join(root, 'node_modules', dep), { recursive: true });
     } catch {
       // Absent dep: the run will surface it as a failed run, not a false verdict.
     }
@@ -322,7 +327,7 @@ export async function createPluginCopy(pluginRoot) {
   // package.json carries `"type": "module"`; without it Node treats the copied
   // .js files as CommonJS and every import throws.
   try {
-    await cp(join(pluginRoot, 'package.json'), join(root, 'package.json'));
+    await cp(join(depSource, 'package.json'), join(root, 'package.json'));
   } catch { /* optional */ }
 
   return { root, kind: 'plugin-copy' };

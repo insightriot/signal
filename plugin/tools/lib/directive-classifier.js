@@ -289,6 +289,7 @@ export function classifyMarkdown(content, { libExports }) {
  * produces the published ceiling.
  */
 export function classifyCommandCorpus(rootDir) {
+  // M6.E1: `rootDir` is the PLUGIN root — tools/lib is payload.
   const libExports = collectLibExports(join(rootDir, 'tools/lib'));
   const commandsDir = join(rootDir, 'commands');
   const files = [];

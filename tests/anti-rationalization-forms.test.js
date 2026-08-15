@@ -13,7 +13,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
-const PAGE = 'references/anti-rationalization-forms.md';
+const PAGE = 'plugin/references/anti-rationalization-forms.md';
 const HEADER = /^(Temptation|Rationalization|Impostor|Excuse|Shortcut|Claim)$/i;
 
 /** Re-derive both halves of the classification straight from the corpus. */
@@ -30,7 +30,7 @@ function collect() {
   for (const f of files) {
     let content;
     try {
-      content = readFileSync(join(ROOT, f), 'utf8');
+      content = readFileSync(join(ROOT, 'plugin', f), 'utf8');
     } catch {
       continue;
     }

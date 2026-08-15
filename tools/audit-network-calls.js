@@ -36,8 +36,6 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
-// M6.E1: plugin content lives under plugin/; ROOT stays the repo root.
-const PLUGIN = join(ROOT, 'plugin');
 const SELF = fileURLToPath(import.meta.url);
 
 const DEFAULT_INCLUDE = ['tools', 'skills', 'agents', 'commands'];

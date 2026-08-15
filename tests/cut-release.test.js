@@ -196,7 +196,7 @@ describe('cut-release covers every version site', () => {
       testCount: 1,
       read,
     }).map((e) => e.file);
-    expect(files).toContain('references/facts.md');
+    expect(files).toContain('plugin/references/facts.md');
   });
 
   it('produces edits that satisfy checkVersionConsistency for every file it writes', () => {

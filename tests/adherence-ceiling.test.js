@@ -32,7 +32,7 @@ const LOG_PATH = join(ROOT, '.planning', ADHERENCE_LOG);
  */
 
 describe('adherence ceiling — rendering (AC5.2)', () => {
-  const corpus = classifyCommandCorpus(ROOT);
+  const corpus = classifyCommandCorpus(join(ROOT, 'plugin'));
 
   it('renders the fraction as both counts and a percentage', () => {
     const section = renderCeilingSection(corpus, { computedAt: '2026-07-28', commit: 'abc1234' });
@@ -55,7 +55,7 @@ describe('adherence ceiling — rendering (AC5.2)', () => {
 });
 
 describe('adherence ceiling — upsert preserves run records (AC4.2 boundary)', () => {
-  const corpus = classifyCommandCorpus(ROOT);
+  const corpus = classifyCommandCorpus(join(ROOT, 'plugin'));
   const section = renderCeilingSection(corpus, { computedAt: '2026-07-28', commit: 'abc1234' });
 
   it('replaces only the marked ceiling block, never anything below the runs marker', () => {
@@ -112,7 +112,7 @@ describe('adherence ceiling — the published file (AC5.2)', () => {
 
   it('the published counts are the structural table rows, not stray digits', () => {
     const content = readFileSync(LOG_PATH, 'utf-8');
-    const { measurable, directives, unmeasurable } = classifyCommandCorpus(ROOT).counts;
+    const { measurable, directives, unmeasurable } = classifyCommandCorpus(join(ROOT, 'plugin')).counts;
     expect(content).toContain(`| Directive lines | **${directives}** |`);
     expect(content).toContain(`| **Trace-measurable (either)** | **${measurable}** |`);
     expect(content).toContain(`| **No observable trace** | **${unmeasurable}** |`);
