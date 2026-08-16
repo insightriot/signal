@@ -637,6 +637,44 @@ decision queue with reversibility-weighted auto-adopt; a driver command; **PR-me
 cluster) — this is the parent idea, which had no row of its own. Brett wants to approach it soon;
 `D-BR0809-2` puts the loop work in **M6**.
 
+**Phase C is now a build-vs-adopt question, not a build question** *(2026-08-16)*. Phase C and all of
+[`../analysis/LANES-IMPLEMENTATION-GUIDE.md`](../analysis/LANES-IMPLEMENTATION-GUIDE.md) propose
+hand-building `/sig:dispatch`, `/sig:land`, a `LANES.md` registry, worktree lifecycle, `.landing.lock`
+and a serial merge queue. **The runtime beneath Signal now ships part of that** — parallel and
+pipelined agent fan-out, per-agent worktree isolation, schema-validated agent returns, a concurrency
+cap, a token budget with a hard ceiling, resume-by-run-id. *Observed directly in a Claude Code session's
+tool surface on 2026-08-16; the term "dynamic workflow" returns **zero** hits repo-wide, so Signal has
+never recorded it.* [`../analysis/PI-OMP-PATTERNS.md`](../analysis/PI-OMP-PATTERNS.md)`:54` predicted
+exactly this — *"some of what Signal adds as a methodology layer is migrating **down** into
+harnesses… worth tracking"* — and
+[`../analysis/SIGNAL-INTEGRATION-RUNDOWN-v2-SEED.md`](../analysis/SIGNAL-INTEGRATION-RUNDOWN-v2-SEED.md)`:105`
+already caught the smaller half of it (*"worktree is now partly moot"*).
+
+*Three constraints, and skipping them turns this from a finding into a mistake:*
+- **Verify before designing.** One session's tool list is not the user's runtime. Signal ships to
+  users, so this is a **capability-detection** question — precedent `/sig:doctor`, and the same
+  verify-against-the-current-API precondition already attached to `/sig:permissions`. Nothing should
+  be designed against it until that check is run.
+- **The tool requires explicit user opt-in**, so a `/sig:` command cannot silently invoke it. That is
+  a constraint on any design, and arguably a feature given the sequencing note below.
+- **It does not make lanes moot.** A workflow run is **ephemeral and returns a value**; a lane is a
+  **durable git branch with a human merge gate** (`D-M5E17-4`: merging *is* delivery). The runtime is
+  a candidate substrate for the *dispatch / fan-out* half only. The *branch → land → reconcile →
+  merge-queue* half stays Signal's, and it is the half the hard gate lives in.
+
+*Done-when (this note only):* the current plugin/tool API has been checked, and Phase C's scope says
+which half Signal builds and which half it adopts. **The sequencing does not change** — parallelism
+still comes last (§5.4: it multiplies unaudited output), and `B76`'s missing loop ceiling is still the
+entry price.
+
+*Source: a July-2026 "graph engineering" explainer assessed against the loop plan on 2026-08-16. The
+rest of that piece was **confirmation, not information** — its fan-out/verify/anchor material is
+already `B39`, `FM-1` and `B88` here, its worktree answer is weaker than the lane manifest, and its
+"when not to use a graph" list is the third independent source to need `/sig:calibrate`'s dial after
+Marks's binary `auto` label and Horthy's pre-PMF exclusion. Its cost figures are third-hand and
+fleet-scale; `FM-5`'s secondary ranking stands for Signal's audience, but the article is a fair
+calibration input for **where the runaway budget cap in §5.3 is set**, which is currently unsized.*
+
 #### Standing inbox entries are counted as undecided · **hygiene** · small
 
 *Plain: two notes are meant to stay open forever, and the count can't tell them from unanswered ones.*
@@ -834,6 +872,25 @@ unverified — never asserted from memory* (the `buildCaveats()` lesson, general
   document are only checkable against the thing they describe, and no regular expression opens that
   thing. `AC0.1` exists so this sentence is somewhere a reader lands, rather than inferred from
   silence.
+
+  **A second candidate mechanism, alongside the judge: make the agent's return a contract, not a
+  template** *(2026-08-16)*. Signal's agents define output as a **markdown skeleton they are asked to
+  fill in** — verified at `plugin/agents/verifiers/verifier.md:30` (*"## Output Format"* → a fenced
+  template) and `plugin/agents/verifiers/plan-checker.md:35`. **Nothing validates the return shape**,
+  so a report can omit the denominator, drop the verdict line, or render the table as prose, and the
+  deterministic checks then parse whatever arrived. A schema-validated return moves some claims out of
+  *prose-a-checker-must-parse* and into *a field that exists or does not*. **It does not solve
+  faithfulness** — a schema cannot tell you the evidence supports the claim — so this is a
+  complement to the judge, never a substitute for it.
+
+  *Two limits, stated so it is not oversold:* (1) Signal's artifacts are **files, not return values**,
+  and deliberately so — the artifact *is* the record, readable months later. Any design produces
+  **both**: structured return **plus** rendered markdown, not one replacing the other. (2) Enforcement
+  sits at the agent-return boundary, which is **runtime surface**, so it carries the same
+  verify-the-API-first precondition as the Phase C note on the loop-engineering row. *And the binding
+  rule from `AUTONOMY-COUNTERWEIGHT.md` §5.3 applies with force here:* a paragraph in an agent file
+  saying *"return valid JSON"* is the **unreached-mechanism class committed inside the fix for claim
+  integrity**. Adopt it as a gate or not at all.
 - **Correction protocol** **✅ SHIPPED in `v0.1.25` (`M5.E10`), 2026-08-13.** Shipped: `tools/lib/correction-protocol.js`, blocks at FULL / advisory below. Known limit, pinned by its own test: a claim that WRAPS across lines is invisible. (§6 item 5) — a correction is complete when a corpus grep for the claim
   and its restatements returns only corrected instances: root + all carriers, not the files that
   happened to be open. **Plus the corollary: retract at the granularity people search at** — `grep`
