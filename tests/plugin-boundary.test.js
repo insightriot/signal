@@ -64,6 +64,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { join, dirname, resolve, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -288,5 +289,70 @@ describe('M6.E1 — citations of paths that will not exist in an install', () =>
     // B81's lesson stated numerically: 31 today. If this number moves, the
     // move should be visible in a diff rather than absorbed silently.
     expect(cited.size).toBe(31);
+  });
+});
+
+// ── S5 (AC5 / FR1) — what an install actually receives ─────────────────────
+//
+// The assertions above govern what the payload may REFERENCE. These govern
+// what it CONTAINS, because the two fail differently: a bad reference breaks
+// on a user's machine, while a bad inclusion works perfectly and ships
+// Signal's working notes to strangers. That is B99's second cost, and it is
+// the half no path check can see.
+//
+// Derived from `git ls-files plugin/` rather than from the working directory:
+// only tracked files are fetched, and the working directory carries untracked
+// build output that would make this read clean for the wrong reason.
+//
+// Measured against a real isolated install on 2026-08-17: 382 files, 3.2 MB
+// delivered, identical to what this list predicts.
+describe('M6.E1 S5 — the delivered payload contains nothing it should not', () => {
+  const shipped = execSync('git ls-files plugin/', { cwd: REPO, encoding: 'utf-8' })
+    .split('\n')
+    .filter(Boolean);
+
+  // A path is forbidden if it names one of Signal's development surfaces.
+  // Kept as a predicate rather than inline greps so the teeth test below can
+  // exercise the same function the real check uses.
+  const forbidden = (p) =>
+    /^plugin\/(\.planning|tests|analysis|examples|docs)\//.test(p) ||
+    /^plugin\/node_modules\/(vitest|eslint|esbuild)\//.test(p) ||
+    /^plugin\/(package\.json|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml)$/.test(p);
+
+  it('finds a non-empty population to govern (this check is not vacuous)', () => {
+    expect(shipped.length).toBeGreaterThan(100);
+  });
+
+  it('the predicate has teeth — planted paths are rejected', () => {
+    // Without this, a predicate that matched nothing would report a clean
+    // payload forever. B39's shape, pre-empted rather than discovered.
+    for (const planted of [
+      'plugin/.planning/STATE.md',
+      'plugin/tests/foo.test.js',
+      'plugin/node_modules/vitest/index.js',
+      'plugin/package.json',
+      'plugin/package-lock.json',
+    ]) {
+      expect(forbidden(planted), `${planted} should be rejected`).toBe(true);
+    }
+    expect(forbidden('plugin/commands/plan.md')).toBe(false);
+    expect(forbidden('plugin/node_modules/yaml/dist/index.js')).toBe(false);
+  });
+
+  it('ships no development surface and no install trigger', () => {
+    const violations = shipped.filter(forbidden);
+    expect(
+      violations,
+      `these tracked paths would be copied into every user's plugin cache:\n${violations.join('\n')}`
+    ).toEqual([]);
+  });
+
+  it('ships exactly one third-party package, and it is the one declared', () => {
+    const vendored = new Set(
+      shipped
+        .filter((p) => p.startsWith('plugin/node_modules/'))
+        .map((p) => p.split('/')[2])
+    );
+    expect([...vendored]).toEqual(['yaml']);
   });
 });
