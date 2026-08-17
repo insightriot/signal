@@ -1912,3 +1912,61 @@ integrity** (the published catalog is fetched over HTTPS from a domain we contro
 dependency install fails must not leave a half-working plugin — the documented behaviour is that a
 failed install never blocks the plugin, so `yaml`'s absence must surface as a clear error from the
 two files that import it, not as a mystery).
+
+**D-M6E1-7 — the plugin *carries* `yaml` instead of declaring it. Supersedes `D-M6E1-3`** (Brett,
+2026-08-17, at `S3.t1` as `AC3.5` required).
+
+`plugin/node_modules/yaml/` is committed — the package as published, 233 files, extracted from the
+`yaml@2.8.3` tarball and verified byte-identical to the installed copy. **The plugin root carries no
+`package.json` and no lockfile**, which is the whole mechanism: Claude Code's automatic dependency
+install fires on that pair and *"can't be turned off; no setting or environment variable disables
+it."* Absence is the only off switch. The bare specifier still resolves, because Node walks up from
+`plugin/tools/lib/` and finds the package already sitting there.
+
+**What changed the decision was a measurement, not a preference.** `M6.E1-RESEARCH.md` §4 recommended
+the manifest while describing a failed install as costing *"the 18 commands that never touch
+`profile.js`/`state.js`"* — a minority tail. **That sentence is inverted.** Computed as a transitive
+closure rather than a grep: **28 of 51 `tools/lib` modules reach `yaml`, and 17 of 20 commands break
+without it.** `archive`, `sweep`, `index` and `migrate-memory` are among them and reach it through
+`archive-command.js`, `sweep.js`, `planning-index.js` and `migrate-memory.js` — never through
+`profile.js`/`state.js`, which is why the original grep missed them. Only `doctor`, `escalate` and
+`update` survive.
+
+So `AC3.4`'s subject was never *"a tail of commands degrades."* It was **"the plugin does not work,
+silently, at import, on a restricted network"** — because a failed dependency install *"never blocks
+the plugin."* `AC3.4` asked for that outcome to be made legible rather than prevented. **Preventing it
+outright was available the whole time and costs nothing at the boundary:** the ~1.2 MB is bytes the
+manifest option would have installed into the same cache anyway, moved from install-time to tracked.
+
+**Why this and not `plugin/vendor/yaml/` with rewritten imports** (`AC3.5`'s literal proposal, and
+option C in `RESEARCH` §4): the import line keeps reading `from 'yaml'`, so the two files stay
+ordinary source and every command file and doc citing them still describes what runs. That is
+`D-M6E1-3`'s own reason for rejecting the esbuild bundle, applied consistently. Zero code change.
+*`RESEARCH` rejected C outright on named-export interop being "the fragile part" — that is **false**,
+verified directly: a relative deep import of `dist/index.js` yields both named exports, because an
+`exports` map governs bare specifiers only. C was rejected on citation fidelity, not on the stated
+grounds, and the record says so rather than inheriting a wrong reason.*
+
+**Costs, stated:**
+
+- **A committed `node_modules` is exactly the shape `B99` complained about** (*"no other installed
+  plugin ships `tests/` or `node_modules`"*). Accepted knowingly: 1.2 MB of the one package the
+  plugin cannot run without is a different object from 47 MB of `vitest`/`eslint`/`esbuild`, and the
+  cache total still falls by ~46 MB. Recorded so nobody later reads it as an oversight.
+- **`.gitignore` needs an exception, and the exception had a trap.** `dist/` unanchored also matched
+  `plugin/node_modules/yaml/dist/` — the 796 KB that *is* the package. `git add -An` listed `LICENSE`,
+  `README.md` and `bin.mjs` and would have committed a vendored dependency **containing nothing that
+  runs**. Fixed by anchoring the repo's own build output as `/dist/`; both directions are pinned by
+  test.
+- **Updates are manual.** `AC3.3`'s pin moves rather than disappearing: a test asserts the vendored
+  `package.json`'s version equals the version the root lockfile resolves, so the copy cannot drift
+  from the declaration silently.
+
+**`A` (the manifest) remains the fallback, with its trigger written down** so a reversal is a decision
+and not a drift: **adopt `A` if the vendored copy ever needs to become two packages** — the moment a
+second runtime dependency exists, or `yaml` acquires one of its own, hand-maintained vendoring stops
+being cheap and npm should do the work. A test asserts `yaml` declares no dependencies, so that
+trigger fires mechanically rather than waiting to be noticed.
+
+**`FR3` is rewritten in `M6.E1-REQUIREMENTS.md` accordingly**, per `AC3.5`'s instruction that this
+outcome be a decision rather than a drift.
