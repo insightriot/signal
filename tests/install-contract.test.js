@@ -66,13 +66,84 @@ describe('marketplace.json — source block contract', () => {
       typeof marketplaceRaw.plugins[0].source,
       'source must be the relative string form; the url+ref+sha form reintroduces B58'
     ).toBe('string');
-    expect(marketplaceRaw.plugins[0].source).toBe('.');
+    // `.` → `./plugin` at M6.E1 S4: the plugin is now a subdirectory of this
+    // repo rather than the whole of it. Still the relative STRING form, which
+    // is the half B58 turns on — only the path changed.
+    expect(marketplaceRaw.plugins[0].source).toBe('./plugin');
   });
 
   it('carries NO hand-maintained commit pin anywhere (the drift had one home)', () => {
     const asText = JSON.stringify(marketplaceRaw);
     expect(/[a-f0-9]{40}/.test(asText), 'a 40-char sha reappeared in marketplace.json').toBe(false);
     expect(asText).not.toMatch(/"ref"\s*:/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FR4 — two catalogs, deliberately different (D-M6E1-4).
+//
+// The root catalog is fetched by cloning this repo, so its source is a
+// relative path. The published catalog is fetched as a bare URL — nothing is
+// cloned, so a relative path has nothing to be relative TO, and it must name
+// the repo and the subdirectory outright via `git-subdir`.
+//
+// They therefore CANNOT be byte-equal, and a test demanding they were would
+// break one of the two fetch paths. What is pinned instead is the invariant:
+// same plugin, and neither one pinned to a commit.
+// ---------------------------------------------------------------------------
+
+const publishedRaw = existsSync(join(ROOT, 'docs/map/install/marketplace.json'))
+  ? JSON.parse(readFileSync(join(ROOT, 'docs/map/install/marketplace.json'), 'utf-8'))
+  : null;
+
+describe('published catalog — the URL-hosted fetch path', () => {
+  it('exists at docs/map/install/marketplace.json', () => {
+    expect(publishedRaw, 'the published catalog is what removes the 19 MB marketplace clone').toBeTruthy();
+  });
+
+  it('AC4.2 — plugins[0].source is the git-subdir object form naming this repo and the subdirectory', () => {
+    const source = publishedRaw.plugins[0].source;
+    expect(typeof source, 'a URL marketplace downloads only this file; a relative path has nothing to resolve against').toBe('object');
+    expect(source.source).toBe('git-subdir');
+    expect(source.url).toMatch(/^https:\/\/github\.com\/.+\.git$/);
+    expect(source.path).toBe('plugin');
+  });
+
+  it('AC4.2 — carries no ref and no sha, so users still track main (D-M5E17-4)', () => {
+    // Absence must not read as compliance: JSON.stringify(null) is "null",
+    // which contains no sha and no ref and would pass every assertion below.
+    // A missing catalog is a failure here, not a clean sheet.
+    expect(publishedRaw, 'no published catalog to check — this is a FAIL, not a pass').toBeTruthy();
+    const asText = JSON.stringify(publishedRaw);
+    expect(/[a-f0-9]{40}/.test(asText), 'a 40-char sha appeared in the published catalog').toBe(false);
+    expect(asText).not.toMatch(/"ref"\s*:/);
+    expect(asText).not.toMatch(/"sha"\s*:/);
+    expect(asText).not.toMatch(/"commit"\s*:/);
+  });
+});
+
+describe('AC4.3 — the invariant between the two catalogs, not their equality', () => {
+  it('both name the same plugin', () => {
+    expect(publishedRaw.plugins).toHaveLength(marketplaceRaw.plugins.length);
+    expect(publishedRaw.plugins[0].name).toBe(marketplaceRaw.plugins[0].name);
+    expect(publishedRaw.name).toBe(marketplaceRaw.name);
+  });
+
+  it('neither carries a pin — the property that must survive in BOTH places', () => {
+    expect(publishedRaw, 'no published catalog to check — this is a FAIL, not a pass').toBeTruthy();
+    for (const [label, catalog] of [['root', marketplaceRaw], ['published', publishedRaw]]) {
+      const asText = JSON.stringify(catalog);
+      expect(/[a-f0-9]{40}/.test(asText), `${label} catalog gained a sha`).toBe(false);
+      expect(asText, `${label} catalog gained a ref`).not.toMatch(/"ref"\s*:/);
+    }
+  });
+
+  it('they are NOT byte-equal, and that is the point', () => {
+    // Stated as an assertion rather than a comment: if someone later
+    // "fixes" the difference by copying one over the other, one of the two
+    // fetch paths stops working and this is where they find out.
+    expect(JSON.stringify(publishedRaw.plugins[0].source))
+      .not.toBe(JSON.stringify(marketplaceRaw.plugins[0].source));
   });
 });
 
