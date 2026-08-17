@@ -121,3 +121,36 @@ The following repositories contributed architectural ideas to Signal's design wi
 **Repository:** https://github.com/Tibsfox/gsd-skill-creator
 **Author:** Tibsfox
 **Reference use:** Format-bridging precedent between GSD workflows and Agent Skills; DACP protocol study. No code ported.
+
+---
+
+## Redistributed verbatim: `yaml`
+
+Everything above is a pattern source — ideas adapted into Signal's own files. **This one is
+different: the package is redistributed as published, unmodified,** at
+`plugin/node_modules/yaml/`, so that installing the plugin never has to install anything
+(`D-M6E1-7`). Its own `LICENSE` travels with the copy; this entry exists so the obligation is
+discharged somewhere a reader looks, not only inside a vendored directory.
+
+**Package:** `yaml@2.8.3`
+**Repository:** https://github.com/eemeli/yaml
+**Author:** Eemeli Aro <eemeli@gmail.com>
+**License:** ISC
+**Used by:** `plugin/tools/lib/profile.js` and `plugin/tools/lib/state.js` — the only external import
+in Signal's shipped surface. Everything else is a `node:` builtin.
+
+```
+Copyright Eemeli Aro <eemeli@gmail.com>
+
+Permission to use, copy, modify, and/or distribute this software for any purpose
+with or without fee is hereby granted, provided that the above copyright notice
+and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+THIS SOFTWARE.
+```
