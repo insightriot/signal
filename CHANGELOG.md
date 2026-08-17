@@ -6,6 +6,58 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.26] — 2026-08-17 — the plugin payload: what an install actually copies
+
+**`M6.E1`.** An install shipped the whole repository. It now ships the plugin.
+
+**Measured on a real install, not projected:** **985 files / 12.4 MB → 382 files / 3.2 MB**, and the
+**47 MB dependency install no longer fires at all**. `.planning/` goes from **270 files to 0**;
+`tests/` from **218 to 0**. `B99`'s two costs were size *and content* — `.planning/` is Signal's
+working memory, including measurements taken against real client projects — and the second one is why
+this was not a tidiness release. ⚠ **This stops `.planning/` being copied to users. It does not make
+it private** — it remains readable in a public repository, which is a separate, still-deferred
+decision.
+
+**The payload moved to `plugin/`** and the catalogs moved with it: the root catalog's `source` becomes
+`"./plugin"` — still the relative **string** form, so `B58`'s lesson is untouched — and a second,
+published catalog now lives at `signal.insightriot.com/install/marketplace.json` using `git-subdir`
+with **no `ref` and no `sha`**, so *"users track `main`"* (`D-M5E17-4`) survives. A URL marketplace
+downloads one file instead of cloning 19 MB. The two catalogs are pinned on an **invariant, not
+byte-equality** — they describe the same plugin through two different fetch mechanisms, and forcing
+them identical would break one.
+
+**`yaml` is now carried, not declared** (`D-M6E1-7`, superseding `D-M6E1-3`). The plugin root has no
+`package.json` and no lockfile, which is the entire mechanism — that pair is what triggers Claude
+Code's automatic dependency install, and it cannot be disabled. **The decision reversed on a
+measurement the research had backwards:** a failed install was documented as costing a minority of
+commands; computed as a transitive closure it is **17 of 20**, with only `doctor`, `escalate` and
+`update` surviving. So the outcome was never a degraded mode — it was a plugin that does not work,
+silently, on a restricted network. The vendored copy is the package **as published** (233 files),
+with its SHA-256 and obtain/extract commands now recorded in `LICENSES.md` so a third party can
+verify it without trusting their own install.
+
+**`/sig:doctor` tells you to move.** A new `P6` check reads `known_marketplaces.json` and, if your
+marketplace is still GitHub-sourced, prints the two commands that switch. **Info-only — the old path
+still works and nobody is stranded.** A migration note on a web page is exactly the mechanism that
+never gets reached, so the check goes where the situation is. `runAllDetectors` also gained
+`checked_all` / `undetermined`: it was silently discarding any detector that *could not run*, which
+would have printed a clean bill of health from a check that never looked.
+
+**Existing installs keep working.** `/plugin marketplace add insightriot/signal` still resolves. To
+switch, `remove` then `add` the URL. You do **not** need to delete anything under
+`~/.claude/plugins/cache/` — 11 of 13 cached versions clear themselves inside the documented ~14-day
+sweep; the marketplace clone is the part that does not, and that is what `remove` handles.
+
+**Filed during the Epic, and both are defects in Signal's own claim-checking:** `B100`
+(`diffRequirementCoverage` cannot see a letter-suffixed criterion id and reports `covered` anyway) and
+`B101` (the same tool empties its own *unattributable* list when a report merely **names** a group —
+including in a sentence saying the group was not checked). Both turn *"I could not look"* into a
+reassuring word. Neither is fixed here.
+
+2602 → **2657 tests**; **20 commands**, unchanged.
+
+---
+
 ## [0.1.25] — 2026-08-13 — claim integrity: the checks, and what they cannot see
 
 **`M5.E10`. Shipping this closes Milestone 5.** Seven deterministic checks for one defect class —

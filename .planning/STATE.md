@@ -1,7 +1,7 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: REVIEW
+phase: SHIP
 current_epic: M6.E1
 current_wave: null
 current_tasks: []
@@ -10,11 +10,13 @@ completed_phases:
   - PLAN (2026-08-15)
   - EXECUTE (2026-08-17)
   - VERIFY (2026-08-17)
+  - REVIEW (2026-08-17)
+  - SHIP (2026-08-17)
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-08-13T14:47:23.449Z
 last_updated_commit: f779e4e2539ec8bc298137e3a0c025917b4a85db
-last_updated: 2026-08-17T21:11:35.700Z
+last_updated: 2026-08-17T22:24:47.070Z
 ---
 # Project State
 

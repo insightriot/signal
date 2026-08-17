@@ -9,7 +9,7 @@ A ~45–60 second screen recording that shows the **calibration wedge** in one s
 - **Record on macOS.** That's the only verified install path today (see [`./install-verification.md`](./install-verification.md)).
 - **Record from a real marketplace install, not a dev checkout.** This matters: in dev mode the scanner agents resolve as `general-purpose` fallbacks instead of the real `sig:scanners:*` names, and `${CLAUDE_PLUGIN_ROOT}` isn't set. A dev-mode recording would show behavior a peer installing from the marketplace won't see. Install with:
   ```
-  /plugin marketplace add insightriot/signal
+  /plugin marketplace add https://signal.insightriot.com/install/marketplace.json
   /plugin install sig@signal
   /reload-plugins
   ```

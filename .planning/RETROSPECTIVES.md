@@ -2,6 +2,7 @@
 
 > Per-Epic retrospectives, indexed for fast scan. Status flag (*stub* / *complete*) is auto-derived from the presence of `[FILL IN]` markers in the retro file. Hook lines (after the second em-dash) are hand-curated — they survive regeneration by Epic ID.
 
+- [M6.E1](M6.E1-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M5.E19](M5.E19-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M5.E18](M5.E18-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M5.E17](M5.E17-RETROSPECTIVE.md) — *complete* — **backfilled 2026-08-03, two days after the v0.1.15 ship; the only retro in this project not written at Epic close.** `/sig:ship` was never invoked, so no retro was ever requested — and `B71` showed the gate could not have fired anyway: at the release commit `STATE.md` read `phase: PLAN` with **one of five** pre-SHIP phases logged, and `MILESTONE-5.md` had **zero** E17 rows, so both Epic-close detectors return `false`. **An Epic that runs all six phases is the one least likely to skip its retro, and it is the only shape the gate can see.** Reconstructed from records that *were* written at the time — `137b9ca`'s commit message (the de-facto `PROGRESS`), the `[0.1.15]` CHANGELOG entry, `B71` — with every claim sourced and `PROGRESS`/`VERIFICATION`/`REVIEW` named as absent rather than inferred. Content: two of the Epic's own ACs were satisfiable by a **no-op** and were re-executed rather than claimed; measuring the red baseline caught an error **in the probe**; FR3.2 predicted three sibling call sites and the sweep found **five**.
