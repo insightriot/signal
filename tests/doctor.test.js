@@ -656,6 +656,19 @@ describe('detectP6LegacyMarketplaceSource', () => {
     expect(r.cannotDetermine).toBe(true);
   });
 
+  it('never throws on a missing home directory either — the gap the old test left', () => {
+    // REVIEW finding. The test below asserted "never throws" while supplying a
+    // valid homeDir, so it could not fail for the one input that actually
+    // threw: `join(undefined, ...)` raised a TypeError before any try block.
+    // A test whose name is broader than its coverage is the shape this repo
+    // keeps finding, so the missing case gets its own assertion rather than a
+    // widened comment.
+    for (const home of [undefined, null, '', 0]) {
+      expect(() => detectP6LegacyMarketplaceSource(fsWith({}), home), String(home)).not.toThrow();
+      expect(detectP6LegacyMarketplaceSource(fsWith({}), home).cannotDetermine).toBe(true);
+    }
+  });
+
   it('never throws — the whole detector is fail-open', () => {
     const hostile = {
       existsSync: () => {

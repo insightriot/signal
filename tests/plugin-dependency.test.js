@@ -77,6 +77,42 @@ describe('FR3 — the vendored dependency', () => {
     expect(vendored.dependencies ?? {}).toEqual({});
   });
 
+  // REVIEW finding. AC3.7 called this copy "provable", and it was only
+  // provable by diffing against your own npm install — which requires already
+  // trusting that install. LICENSES.md now records the tarball's SHA-256 and
+  // the exact commands. This pins the half a test can check offline: that the
+  // recorded version and the vendored version are the same number. A stale
+  // provenance block claiming an older version is the drift that would make
+  // the recorded checksum a lie.
+  it('the recorded provenance names the version actually vendored', () => {
+    const licenses = readFileSync(join(ROOT, 'LICENSES.md'), 'utf-8');
+    const vendored = JSON.parse(readFileSync(join(VENDORED, 'package.json'), 'utf-8'));
+
+    // Scoped to the provenance section, NOT the whole file. The first version
+    // of this test asserted `yaml@{version}` appeared anywhere in LICENSES.md
+    // and PASSED a mutation that changed the `npm pack` line to 2.8.2 — the
+    // "Package: yaml@2.8.3" heading two paragraphs up satisfied it. A token
+    // matched in the wrong place is not evidence about the right one, which is
+    // the same defect M5.E10's denominator work exists for.
+    const start = licenses.indexOf('### Provenance');
+    expect(start, 'LICENSES.md must carry a Provenance section').toBeGreaterThan(-1);
+    const block = licenses.slice(start, licenses.indexOf('\n## ', start) + 1 || undefined);
+
+    expect(block, 'a checksum a third party can re-derive').toMatch(/[a-f0-9]{64}/);
+
+    // EVERY version the block names must be the vendored one — not "at least
+    // one of them". The block states the version twice (the table row and the
+    // re-verify instruction), and a `toContain` was satisfied by the second
+    // while the first said 2.8.2. Two mutations were needed to find that:
+    // the first one "passed" and the passing was the finding.
+    const named = [...block.matchAll(/npm pack yaml@([\d.]+)/g)].map((m) => m[1]);
+    expect(named.length, 'the block must state the command it was obtained by').toBeGreaterThan(0);
+    expect(
+      [...new Set(named)],
+      `the provenance block names ${[...new Set(named)].join(' and ')}; the vendored copy is ${vendored.version}`
+    ).toEqual([vendored.version]);
+  });
+
   // ISC attribution has to travel with the copy.
   it('carries its LICENSE', () => {
     expect(existsSync(join(VENDORED, 'LICENSE'))).toBe(true);

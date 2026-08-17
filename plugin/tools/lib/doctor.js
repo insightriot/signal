@@ -349,6 +349,16 @@ export function runAllDetectors({ manifest, settings, fsImpl, homeDir }) {
  * @returns {{detected:boolean, cannotDetermine?:boolean, reason?:string, evidence?:object, recommendation?:'info-only', code:'P6'}}
  */
 export function detectP6LegacyMarketplaceSource(fsImpl, homeDir) {
+  // `join` throws a TypeError on a non-string, and it sat OUTSIDE the try
+  // below — so the "never throws" promise three lines up was false for
+  // `undefined`/`null`, and the test asserting it passed only because it
+  // supplied a valid homeDir. Found at REVIEW by probing the claim instead of
+  // reading it. Unreachable through `runAllDetectors` today (`readInstallState`
+  // demands homeDir first), which is exactly why it would have survived.
+  if (typeof homeDir !== 'string' || homeDir === '') {
+    return { detected: false, cannotDetermine: true, code: 'P6', reason: `Could not read known_marketplaces.json: no home directory given` };
+  }
+
   const path = join(homeDir, '.claude', 'plugins', 'known_marketplaces.json');
 
   let exists;
