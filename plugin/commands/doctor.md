@@ -41,9 +41,26 @@ Call `readInstallState({ homeDir: os.homedir() })`. If it throws `DoctorDetectio
 
 ### 4. Run all detectors
 
-Call `runAllDetectors(state)`. Returns `{ healthy, findings, aggregate_recommendation }`.
+Call `runAllDetectors(state)`. Returns
+`{ healthy, checked_all, findings, undetermined, aggregate_recommendation }`.
+
+**`healthy` does not mean "everything was checked."** If `checked_all === false`, one or more
+detectors could not run — read `undetermined` and render §5's *"could not check"* block. A clean
+report that silently omits a check that never looked is `B39`, which this command exists downstream
+of.
 
 ### 5. Report findings
+
+#### Could-not-check block — renders BEFORE any verdict, whenever `checked_all === false`
+
+Unconditional. Never suppressed because the rest of the report looks clean — that suppression *is*
+the defect.
+
+```
+? {code} — could not check.
+    {reason}
+    This is not a clean result. It is an unknown.
+```
 
 #### Healthy path
 
@@ -51,6 +68,12 @@ If `healthy === true` and `findings.length === 0`:
 
 ```
 ✓ Signal v{version} installed and healthy — no action needed.
+```
+
+If `checked_all === false`, the line above must instead read:
+
+```
+✓ Signal v{version} — no problems found in the checks that ran ({n} could not).
 ```
 
 Read `version` from `<state.manifest.plugins["sig@signal"][0].installPath>/.claude-plugin/plugin.json` for accuracy. Exit 0.
@@ -67,7 +90,25 @@ If `healthy === true` and `findings.length > 0` (P5 info-only path):
       export CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1
 ```
 
-Exit 0.
+For a **P6** finding (`recommendation: 'info-only'`), render:
+
+```
+[i] P6 — Signal's marketplace is still fetched from GitHub.
+    Evidence: marketplace "{evidence.marketplace}" → {evidence.repo}
+
+    Your install works and nothing is broken. But a github-sourced
+    marketplace clones the whole repository (~19 MB) on every refresh,
+    where the published catalog is a single file.
+
+    To switch:
+      claude plugin marketplace remove {evidence.marketplace}
+      claude plugin marketplace add https://signal.insightriot.com/install/marketplace.json
+
+    Your installed plugin and its settings are untouched by this.
+```
+
+Exit 0. **P6 never makes the install unhealthy** — the old path keeps working (`AC5.1`,
+`D-M6E1-5`), so this is a nudge and must read as one.
 
 #### Findings path
 

@@ -130,13 +130,24 @@
 <p>Three lines in Claude Code:</p>
 
 <div class="snip">
-  <pre>/plugin marketplace add insightriot/signal
+  <pre>/plugin marketplace add https://signal.insightriot.com/install/marketplace.json
 /plugin install sig@signal
 /reload-plugins</pre>
   <button type="button">Copy</button>
 </div>
 
 <p>Then type <code>/sig:</code> and check the commands autocomplete. That's the whole install.</p>
+
+<div class="note">
+  <strong>Installed Signal before?</strong> If you added the marketplace as <code>insightriot/signal</code>, it still works — nothing is broken and you are not stranded. But that form clones the entire repository (~19&nbsp;MB) every time it refreshes, where the address above fetches a single file. To switch:
+  <div class="snip">
+    <pre>/plugin marketplace remove signal
+/plugin marketplace add https://signal.insightriot.com/install/marketplace.json</pre>
+    <button type="button">Copy</button>
+  </div>
+  <p>Your installed plugin, your settings and your projects are untouched. <code>/sig:doctor</code> will also tell you if you're still on the old form — you don't have to remember to check.</p>
+  <p>You do <strong>not</strong> need to delete anything under <code>~/.claude/plugins/cache/</code>. Old plugin versions are swept automatically about two weeks after they're replaced. The marketplace clone is the one thing that doesn't clean itself up, which is what the <code>remove</code> line above handles.</p>
+</div>
 
 <div class="note">
   <strong>If the install fails with a permissions or SSH error</strong>, your machine has a non-default SSH setup and the plugin loader is reaching for SSH when it should use HTTPS. Run <code>export CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1</code> in your shell and retry. Other symptoms are covered in <a href="https://github.com/InsightRiot/signal/blob/main/docs/install-troubleshooting.md">install troubleshooting</a>.

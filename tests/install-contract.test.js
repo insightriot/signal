@@ -198,3 +198,71 @@ describe('CHANGELOG.md — release history', () => {
 // reintroducing the pinned form. A guard against the fragile SHAPE, not
 // against a stale VALUE.
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// M6.E1 S6 — the migration (FR5, FR6).
+//
+// D-M6E1-5's reasoning, restated because it is what these tests enforce: a
+// migration note on a web page is precisely the mechanism that exists, is
+// correct, and is never reached (UNREACHED-MECHANISM-ANALYSIS.md). So the page
+// is necessary and NOT sufficient — the detector is what makes it reached, and
+// the last test here is the one that keeps the detector wired.
+// ---------------------------------------------------------------------------
+
+const INSTALL_PAGE = join(ROOT, 'docs/map/install/index.html');
+const URL_FORM = 'https://signal.insightriot.com/install/marketplace.json';
+
+describe('FR6 — the install page carries the migration', () => {
+  const page = readFileSync(INSTALL_PAGE, 'utf-8');
+
+  it('AC6.3 — the primary install snippet is the URL form', () => {
+    const firstAdd = page.indexOf('marketplace add');
+    expect(firstAdd, 'the page must contain an install snippet at all').toBeGreaterThan(-1);
+    const line = page.slice(firstAdd, page.indexOf('\n', firstAdd));
+    expect(line, 'the FIRST marketplace add on the page is what people copy').toContain(URL_FORM);
+  });
+
+  it('AC6.1 — an existing-user section names the old form and the switch', () => {
+    expect(page).toMatch(/installed signal before/i);
+    expect(page, 'the section must name the form users are actually on').toContain('insightriot/signal');
+    expect(page).toContain('marketplace remove');
+  });
+
+  it('AC6.2 — it does NOT tell users to delete plugin version directories', () => {
+    // Measured in B99: 11 of 13 cached versions sit inside the documented
+    // ~14-day orphan sweep and clear themselves. Telling people to rm -rf
+    // inside their Claude config for something that self-heals is bad advice,
+    // and the obvious version of this section would have done exactly that.
+    expect(page, 'no rm -rf in a migration note').not.toMatch(/rm\s+-rf/);
+    expect(page).not.toMatch(/delete[^.]{0,40}cache/i);
+  });
+
+  it('AC6.2 — it DOES cover the marketplace clone, which does not self-clean', () => {
+    expect(page).toMatch(/marketplace remove signal/);
+    expect(page, 'the reason the clone is different must be stated, not assumed').toMatch(/clean|sweep|automatic/i);
+  });
+});
+
+describe('AC5.2 — the detector is REACHED, not merely built', () => {
+  // The defect class this repo named: a mechanism exists, is correct, and
+  // nothing invokes it, so correctness rests on the operator already knowing.
+  // B99's own fix shipped a detector; this asserts the command file calls it.
+  const doctorCmd = readFileSync(join(ROOT, 'plugin/commands/doctor.md'), 'utf-8');
+  const doctorLib = readFileSync(join(ROOT, 'plugin/tools/lib/doctor.js'), 'utf-8');
+
+  it('the P6 detector is in the detector list runAllDetectors executes', () => {
+    const list = doctorLib.slice(doctorLib.indexOf('const detectors = ['));
+    expect(list.slice(0, list.indexOf(']'))).toContain('detectP6LegacyMarketplaceSource');
+  });
+
+  it('doctor.md renders the P6 finding and the switch command', () => {
+    expect(doctorCmd).toContain('P6');
+    expect(doctorCmd, 'the nudge is worthless without the command to act on').toContain(URL_FORM);
+  });
+
+  it('doctor.md renders the could-not-check case rather than only the verdict (B39)', () => {
+    expect(doctorCmd).toContain('checked_all');
+    expect(doctorCmd).toContain('undetermined');
+    expect(doctorCmd, 'silence must not read as clean').toMatch(/could not check/i);
+  });
+});

@@ -290,12 +290,21 @@ export function runAllDetectors({ manifest, settings, fsImpl, homeDir }) {
     detectP3OrphanEnabledFlag(settings, manifest),
     detectP4PreRenameSlug(manifest, settings, fsImpl, homeDir),
     detectP5SshMultiIdentity(fsImpl, homeDir),
+    detectP6LegacyMarketplaceSource(fsImpl, homeDir),
   ];
   for (const d of detectors) {
     if (d.detected) findings.push(d);
   }
 
-  // P5 is info-only; doesn't change healthy.
+  // A detector that COULD NOT RUN is not a detector that found nothing.
+  // The loop above filters on `detected`, so without this a cannotDetermine
+  // result would vanish and the report would read "healthy" off a check that
+  // never looked — B39's exact shape. `checked_all` is what stops `healthy`
+  // being read as "everything was checked".
+  const undetermined = detectors.filter((d) => d.cannotDetermine);
+  const checked_all = undetermined.length === 0;
+
+  // P5 and P6 are info-only; they don't change healthy.
   const consequential = findings.filter((f) => f.recommendation !== 'info-only');
   const healthy = consequential.length === 0;
 
@@ -306,7 +315,7 @@ export function runAllDetectors({ manifest, settings, fsImpl, homeDir }) {
     aggregate_recommendation = '--fix';
   }
 
-  return { healthy, findings, aggregate_recommendation };
+  return { healthy, checked_all, findings, undetermined, aggregate_recommendation };
 }
 
 /**
@@ -317,6 +326,84 @@ export function runAllDetectors({ manifest, settings, fsImpl, homeDir }) {
  * @param {string} homeDir
  * @returns {{detected:boolean, evidence?:string, recommendation?:'info-only', code:'P5'}}
  */
+/**
+ * P6 — the Signal marketplace is still fetched from GitHub (M6.E1, AC5.2/AC5.3).
+ *
+ * A `github`-sourced marketplace clones this whole repository — measured at
+ * 19 MB, `.planning/` included — and no plugin `source` value changes that,
+ * because `source` describes the plugin, not the marketplace. Re-adding from
+ * the published URL downloads one JSON file instead.
+ *
+ * INFO-ONLY BY DESIGN. The old path still installs a working plugin
+ * (`AC5.1`, `D-M6E1-5`), so a user on it is not broken and this must never
+ * flip `healthy`. It is a nudge, placed where the situation is rather than on
+ * a web page nobody re-reads — `UNREACHED-MECHANISM-ANALYSIS.md`'s whole point.
+ *
+ * FAIL-OPEN AND B39-SAFE. This never throws, and it distinguishes three
+ * outcomes rather than two: found / looked-and-found-nothing /
+ * **could not look**. An unreadable, malformed, or absent file is
+ * `cannotDetermine`, never a clean bill of health.
+ *
+ * @param {{existsSync: (p:string)=>boolean, readFileSync: (p:string,enc:string)=>string}} fsImpl
+ * @param {string} homeDir
+ * @returns {{detected:boolean, cannotDetermine?:boolean, reason?:string, evidence?:object, recommendation?:'info-only', code:'P6'}}
+ */
+export function detectP6LegacyMarketplaceSource(fsImpl, homeDir) {
+  const path = join(homeDir, '.claude', 'plugins', 'known_marketplaces.json');
+
+  let exists;
+  try {
+    exists = fsImpl.existsSync(path);
+  } catch (err) {
+    return { detected: false, cannotDetermine: true, code: 'P6', reason: `Could not read ${path}: ${err.message}` };
+  }
+
+  // AC5.2 is explicit that an ABSENT file reports "could not check". That is
+  // deliberate and is NOT the same case as AC5.3's "no Signal marketplace":
+  // a missing file means the check never looked, while a present file with no
+  // Signal entry means it looked and found nothing. Collapsing the two would
+  // let "I could not tell" render as "you are fine".
+  if (!exists) {
+    return { detected: false, cannotDetermine: true, code: 'P6', reason: `No known_marketplaces.json at ${path} — could not check` };
+  }
+
+  let raw;
+  try {
+    raw = fsImpl.readFileSync(path, 'utf8');
+  } catch (err) {
+    return { detected: false, cannotDetermine: true, code: 'P6', reason: `Could not read ${path}: ${err.message}` };
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    return { detected: false, cannotDetermine: true, code: 'P6', reason: `${path} is not valid JSON: ${err.message}` };
+  }
+
+  // Identify Signal's marketplace by the REPO it points at, not by the key.
+  // The key is user-chosen at `marketplace add` time; the repo is not.
+  // Case-insensitive on purpose: the live entry observed on a real machine
+  // reads `Insightriot/signal` while every document writes `insightriot/signal`,
+  // and a case-sensitive match would simply never fire.
+  const SIGNAL_REPO = /^insightriot\/signal$/i;
+
+  for (const [name, entry] of Object.entries(parsed ?? {})) {
+    const source = entry?.source;
+    if (!source || source.source !== 'github') continue;
+    if (!SIGNAL_REPO.test(String(source.repo ?? ''))) continue;
+
+    return {
+      detected: true,
+      code: 'P6',
+      recommendation: 'info-only',
+      evidence: { marketplace: name, repo: source.repo },
+    };
+  }
+
+  return { detected: false, code: 'P6' };
+}
+
 export function detectP5SshMultiIdentity(fsImpl, homeDir) {
   const sshConfigPath = join(homeDir, '.ssh', 'config');
   if (!fsImpl.existsSync(sshConfigPath)) {

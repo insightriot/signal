@@ -14,6 +14,7 @@ import {
   detectP3OrphanEnabledFlag,
   detectP4PreRenameSlug,
   detectP5SshMultiIdentity,
+  detectP6LegacyMarketplaceSource,
   runAllDetectors,
   readInstallState,
   checkDoctorEnvironment,
@@ -536,5 +537,184 @@ describe('checkDoctorEnvironment', () => {
     expect(() =>
       checkDoctorEnvironment({ platform: 'darwin', homeDir: '/Users/x', fsImpl: okFs })
     ).not.toThrow();
+  });
+});
+
+// ---- detectP6 — M6.E1 S6 (AC5.2, AC5.3) ----
+//
+// The migration nudge. `D-M6E1-5`: the old install path keeps working, AND
+// Signal says so. The reasoning is this repo's own — a migration note on a web
+// page is precisely the mechanism that exists, is correct, and is never
+// reached (`UNREACHED-MECHANISM-ANALYSIS.md`). Put the check where the
+// situation is.
+//
+// P6 is INFO-ONLY by design. A user on the old path is not broken (`AC5.1`),
+// so this must not flip `healthy` — it is a nudge, not a defect.
+
+const KNOWN_MARKETPLACES = '/home/u/.claude/plugins/known_marketplaces.json';
+
+/** Minimal fsImpl serving one file; everything else absent. */
+function fsWith(contentsByPath) {
+  return {
+    existsSync: (p) => Object.prototype.hasOwnProperty.call(contentsByPath, p),
+    readFileSync: (p) => {
+      if (!Object.prototype.hasOwnProperty.call(contentsByPath, p)) {
+        throw new Error(`ENOENT: ${p}`);
+      }
+      return contentsByPath[p];
+    },
+  };
+}
+
+describe('detectP6LegacyMarketplaceSource', () => {
+  it('detects a github-sourced signal marketplace and names the switch', () => {
+    const fsImpl = fsWith({
+      [KNOWN_MARKETPLACES]: JSON.stringify({
+        signal: { source: { source: 'github', repo: 'Insightriot/signal' } },
+      }),
+    });
+    const r = detectP6LegacyMarketplaceSource(fsImpl, '/home/u');
+    expect(r.code).toBe('P6');
+    expect(r.detected).toBe(true);
+    expect(r.recommendation).toBe('info-only');
+    expect(r.evidence.marketplace).toBe('signal');
+    expect(r.evidence.repo).toBe('Insightriot/signal');
+  });
+
+  it('matches the repo case-insensitively — the live entry is capitalised differently than the docs', () => {
+    // Observed on a real machine: `Insightriot/signal`, while every document
+    // writes `insightriot/signal`. A case-sensitive match would silently never
+    // fire, which is the failure mode this whole check exists to avoid.
+    for (const repo of ['insightriot/signal', 'InsightRiot/Signal', 'INSIGHTRIOT/SIGNAL']) {
+      const fsImpl = fsWith({
+        [KNOWN_MARKETPLACES]: JSON.stringify({ signal: { source: { source: 'github', repo } } }),
+      });
+      expect(detectP6LegacyMarketplaceSource(fsImpl, '/home/u').detected, repo).toBe(true);
+    }
+  });
+
+  it('AC5.3 — no nag for a user already on the URL form', () => {
+    const fsImpl = fsWith({
+      [KNOWN_MARKETPLACES]: JSON.stringify({
+        signal: {
+          source: { source: 'url', url: 'https://signal.insightriot.com/install/marketplace.json' },
+        },
+      }),
+    });
+    const r = detectP6LegacyMarketplaceSource(fsImpl, '/home/u');
+    expect(r.detected).toBe(false);
+    expect(r.cannotDetermine).toBeFalsy();
+  });
+
+  it('AC5.3 — a machine with marketplaces but no Signal one is clean, not an error', () => {
+    const fsImpl = fsWith({
+      [KNOWN_MARKETPLACES]: JSON.stringify({
+        cloudflare: { source: { source: 'github', repo: 'cloudflare/skills' } },
+      }),
+    });
+    const r = detectP6LegacyMarketplaceSource(fsImpl, '/home/u');
+    expect(r.detected).toBe(false);
+    expect(r.cannotDetermine).toBeFalsy();
+  });
+
+  it('ignores another project\'s github marketplace even when it is insightriot\'s', () => {
+    const fsImpl = fsWith({
+      [KNOWN_MARKETPLACES]: JSON.stringify({
+        prose: { source: { source: 'github', repo: 'insightriot/prose' } },
+      }),
+    });
+    expect(detectP6LegacyMarketplaceSource(fsImpl, '/home/u').detected).toBe(false);
+  });
+
+  it('B39 — an unreadable file reports cannotDetermine, never clean', () => {
+    const fsImpl = {
+      existsSync: () => true,
+      readFileSync: () => {
+        throw new Error('EACCES');
+      },
+    };
+    const r = detectP6LegacyMarketplaceSource(fsImpl, '/home/u');
+    expect(r.detected).toBe(false);
+    expect(r.cannotDetermine).toBe(true);
+    expect(r.reason).toMatch(/could not read/i);
+  });
+
+  it('B39 — malformed JSON reports cannotDetermine, never clean', () => {
+    const fsImpl = fsWith({ [KNOWN_MARKETPLACES]: '{ not json' });
+    const r = detectP6LegacyMarketplaceSource(fsImpl, '/home/u');
+    expect(r.cannotDetermine).toBe(true);
+    expect(r.reason).toMatch(/not valid JSON/i);
+  });
+
+  it('B39 — an ABSENT file is cannotDetermine, not clean (AC5.2 says so explicitly)', () => {
+    // The distinction AC5.2 and AC5.3 draw between them, made concrete:
+    // an absent FILE means the check could not look, while a present file
+    // with no Signal entry means it looked and found nothing. Those are
+    // different answers and must not render the same.
+    const r = detectP6LegacyMarketplaceSource(fsWith({}), '/home/u');
+    expect(r.detected).toBe(false);
+    expect(r.cannotDetermine).toBe(true);
+  });
+
+  it('never throws — the whole detector is fail-open', () => {
+    const hostile = {
+      existsSync: () => {
+        throw new Error('exploding fs');
+      },
+      readFileSync: () => {
+        throw new Error('exploding fs');
+      },
+    };
+    expect(() => detectP6LegacyMarketplaceSource(hostile, '/home/u')).not.toThrow();
+    expect(detectP6LegacyMarketplaceSource(hostile, '/home/u').cannotDetermine).toBe(true);
+  });
+});
+
+describe('runAllDetectors — P6 integration', () => {
+  const base = { manifest: { plugins: {} }, settings: { enabledPlugins: {} }, homeDir: '/home/u' };
+
+  it('P6 does not flip healthy — the old path works, it is a nudge (AC5.1)', () => {
+    const fsImpl = fsWith({
+      [KNOWN_MARKETPLACES]: JSON.stringify({
+        signal: { source: { source: 'github', repo: 'insightriot/signal' } },
+      }),
+    });
+    const r = runAllDetectors({ ...base, fsImpl });
+    expect(r.findings.some((f) => f.code === 'P6')).toBe(true);
+    expect(r.healthy).toBe(true);
+    expect(r.aggregate_recommendation).toBeNull();
+  });
+
+  it('a check that could not run is surfaced, not dropped (B39)', () => {
+    // The trap this test exists for: runAllDetectors filters on `detected`,
+    // so a cannotDetermine result has detected:false and would vanish —
+    // reporting a clean bill of health from a check that never looked.
+    // Only the marketplaces file exists, and it is unreadable. Scoped this
+    // narrowly so the other detectors stay clean and the assertion is about
+    // P6 alone — a blanket `existsSync: () => true` sends P2 looking for a
+    // cache directory instead.
+    const fsImpl = {
+      existsSync: (p) => p === KNOWN_MARKETPLACES,
+      readFileSync: (p) => {
+        if (p === KNOWN_MARKETPLACES) throw new Error('EACCES');
+        return '';
+      },
+      readdirSync: () => [],
+    };
+    const r = runAllDetectors({ ...base, fsImpl });
+    expect(r.undetermined, 'a check that could not run must appear somewhere').toHaveLength(1);
+    expect(r.undetermined[0].code).toBe('P6');
+    expect(r.checked_all, 'healthy must not read as "everything was checked"').toBe(false);
+  });
+
+  it('checked_all is true when every detector actually ran', () => {
+    const fsImpl = fsWith({
+      [KNOWN_MARKETPLACES]: JSON.stringify({
+        signal: { source: { source: 'url', url: 'https://example.com/m.json' } },
+      }),
+    });
+    const r = runAllDetectors({ ...base, fsImpl });
+    expect(r.checked_all).toBe(true);
+    expect(r.undetermined).toEqual([]);
   });
 });
