@@ -133,6 +133,7 @@
 - [M5.E9-VALIDATION.md](M5.E9-VALIDATION.md) — `other` — _(note pending)_
 - [M5.E9-VERIFICATION.md](M5.E9-VERIFICATION.md) — `other` — _(note pending)_
 - [M6.E1-PLAN.md](M6.E1-PLAN.md) — `other` — _(note pending)_
+- [M6.E1-PROGRESS.md](M6.E1-PROGRESS.md) — `other` — _(note pending)_
 - [M6.E1-REQUIREMENTS.md](M6.E1-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E1-RESEARCH.md](M6.E1-RESEARCH.md) — `other` — _(note pending)_
 - [M6.E1-VALIDATION.md](M6.E1-VALIDATION.md) — `other` — _(note pending)_
