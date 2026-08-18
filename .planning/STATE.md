@@ -2,21 +2,21 @@
 schema_version: 1
 docs_layout_version: 3
 phase: SHIP
-current_epic: M6.E1
+current_epic: M6.E2
 current_wave: null
 current_tasks: []
 completed_phases:
-  - DISCUSS (2026-08-14)
-  - PLAN (2026-08-15)
-  - EXECUTE (2026-08-17)
-  - VERIFY (2026-08-17)
-  - REVIEW (2026-08-17)
-  - SHIP (2026-08-17)
+  - DISCUSS (2026-08-18)
+  - PLAN (2026-08-18)
+  - EXECUTE (2026-08-18)
+  - VERIFY (2026-08-18)
+  - REVIEW (2026-08-18)
+  - SHIP (2026-08-18)
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-08-13T14:47:23.449Z
-last_updated_commit: 5ae127ec3701d1e237998d362f931652f67f3a4c
-last_updated: 2026-08-17T22:26:11.195Z
+last_updated_commit: 26df52c2cac63f20a9fd702da783b9d12f84bc40
+last_updated: 2026-08-18T23:41:39.465Z
 ---
 # Project State
 
@@ -350,14 +350,35 @@ Three documents corrected, each pinned by a test comparing one document against 
 
 ## In-flight
 
-**Nothing.** `M5.E10` (review hardening / claim integrity) **shipped as `v0.1.25` on 2026-08-13**,
-and **Milestone 5 is closed** (`D-BR0809-2`). PR #141 merged with `--merge` (commit `6f7cfd5`); suite
-**2602**, green on `main`. Retro: [`M5.E10-RETROSPECTIVE.md`](M5.E10-RETROSPECTIVE.md); narrative
-evicted to [`archive/M5/E10/STATE-NARRATIVE.md`](archive/M5/E10/STATE-NARRATIVE.md).
+**`M6.E2` — the facts Signal publishes about itself. SHIPPED as `v0.1.29`, 2026-08-18.** Six phases
+closed in one day; PR #156, suite **2747**. Retro:
+[`M6.E2-RETROSPECTIVE.md`](M6.E2-RETROSPECTIVE.md).
 
-**Milestone 6 is not opened. Next work is a decision, not a queue item** — the candidates and the
-reasoning are in [`BACKLOG.md`](BACKLOG.md), which is the queue (`D-M5E18-1`). This line is the
-pointer, not a second copy of it.
+**Five checks for one class**, reached from `/sig:sweep` and `/sig:resume`, plus the `/sig:add --bug`
+write-path fix. ⚠ **Three of the five evaluate one project: this one** — measured before scope was
+locked, and printed in the report next to the clean count rather than buried
+([`M6.E2-CORPUS-MEASUREMENT.md`](M6.E2-CORPUS-MEASUREMENT.md)).
+
+**Eight times the Epic committed its own defect while building the checks for it** — en-dash-ranged
+criteria invisible to the coverage tool, a non-existent commit sha, a test count two too high, a
+report heading that stopped being true, a silent no-op in `rewriteBugTally`, and at SHIP itself a
+check that would have fired on every Epic close forever. Three of the eight were found by **running**
+a tool, not by reading code.
+
+**Left open on purpose:** the dated `[Unreleased]` heading needs a product call
+([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md)), and the **semantic half** of claim integrity stays
+unbuilt (`D-M6E2-7`) — everything shipped here compares tokens.
+
+**Nothing is in flight.**
+
+**Milestone 6 is open.** `M6.E1` (the plugin payload) shipped as `v0.1.26` on 2026-08-17; two fix-lane
+releases followed — `B102`/`v0.1.27` and `B103`/`v0.1.28`. The queue remains
+[`BACKLOG.md`](BACKLOG.md) (`D-M5E18-1`); this is the pointer, not a second copy of it.
+
+*Prior: `M5.E10` (review hardening / claim integrity) shipped as `v0.1.25` on 2026-08-13, closing
+**Milestone 5** (`D-BR0809-2`). PR #141 merged with `--merge` (commit `6f7cfd5`); suite **2602**.
+Retro: [`M5.E10-RETROSPECTIVE.md`](M5.E10-RETROSPECTIVE.md); narrative evicted to
+[`archive/M5/E10/STATE-NARRATIVE.md`](archive/M5/E10/STATE-NARRATIVE.md).*
 
 *Prior: `M5.E19` closed and shipped as `v0.1.22` (2026-08-07) — `/sig:archive`, the command
 archiving never had. Retro: [`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md). Decisions

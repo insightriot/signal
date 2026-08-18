@@ -362,9 +362,12 @@ export async function runDriftChecks(baseDir, checks = STATE_DRIFT_CHECKS) {
  * @param {{results: Array, summary: object}} report
  * @returns {string}
  */
-export function renderDriftReport(report) {
+export function renderDriftReport(report, { reach = null } = {}) {
   const { results, summary } = report;
-  const lines = ['## STATE vs. world', ''];
+  // The heading names what the section CONTAINS. It read "STATE vs. world"
+  // while `M6.E2` added published-fact checks to the same render — a heading
+  // asserting something the body is not, inside the Epic about exactly that.
+  const lines = ['## Document drift — STATE and published facts', ''];
 
   const needsYou = results
     .filter((r) => r.status === STATUS.FINDINGS && r.healCategory === HEAL.NEEDS_A_PERSON)
@@ -391,6 +394,29 @@ export function renderDriftReport(report) {
 
   lines.push(`✓ checked, clean (${summary.clean})`);
   lines.push(`— not applicable to this project (${summary.notApplicable})`);
+
+  // A clean verdict from a narrow check reads as broad coverage unless
+  // something says otherwise (`M6.E2` AC4.1/AC4.2). ONE grouped line, placed
+  // immediately after the clean count so it is read with it — five separate
+  // caveats would be the noise `AC5.3` exists to prevent, and a reach figure
+  // recorded in a field nothing renders is this Epic's own defect.
+  //
+  // Opt-in: with no `reach` map the output is byte-identical to before, so the
+  // STATE-only callers are untouched.
+  if (reach) {
+    const narrow = results
+      .map((r) => ({ id: r.id, reach: reach[r.id] }))
+      .filter((x) => x.reach && x.reach.evaluable < x.reach.total / 2);
+    if (narrow.length > 0) {
+      const grouped = narrow
+        .map((x) => `${x.id} (${x.reach.evaluable} of ${x.reach.total})`)
+        .join(', ');
+      lines.push(
+        `ℹ reach — ${narrow.length} of these checks evaluate few project shapes, ` +
+          `so a clean result above says little about projects unlike this one: ${grouped}`
+      );
+    }
+  }
   lines.push('');
 
   lines.push(`— cannot evaluate (${cannotEvaluate.length})`);

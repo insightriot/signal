@@ -6,6 +6,69 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.29] — 2026-08-18 — the facts Signal publishes about itself
+
+**`M6.E2`.** A document states a fact about the project — a count, a status, a version, a phase — and
+nothing derives it from the artifact it summarises. Five checks for that class, plus the write-path
+fix that stops `/sig:add --bug` falsifying the file it writes to.
+
+**The mechanism already existed and nothing reached it.** `bugs-tally.js` has derived-then-compared
+correctly since `B77`; its **only caller was a test**, so it fired in this repository alone, only
+under `vitest`, and only after a bad write had landed. `state-drift.js`'s `defineCheck` harness is
+general by contract but had never been used from outside its own file. Both are now reached from
+`/sig:sweep` and `/sig:resume` — the two commands that run drift checks in any project.
+
+**⚠ Three of the five checks evaluate one project: this one.** Measured read-only across 12 local
+projects *before* scope was locked: the `BUGS.md` tally check and the milestone-status check each
+reach **1 of 12** — **0 of 11** excluding Signal — and `facts.md` is a Signal artifact. Only the
+`[Unreleased]` check reaches elsewhere (4 of 11). That is not hidden in a planning file: the sweep
+report prints one grouped line naming every narrow check with its fraction, next to the clean count
+it qualifies. Narrow reach has never been the disqualifying property here; **claiming generality you
+do not have is**, and this release very nearly did.
+
+**`/sig:add --bug` was falsifying the file it wrote to.** `captureToBugs` appended at end-of-file on
+the documented belief that `BUGS.md` has *"no footer to rewrite"*. It has one — the italic tally line
+— so every capture landed **below the file's own summary** and nothing re-derived the count. Captures
+now land above the tally and the counts are re-derived, never incremented. The author's date and
+narrative in that line are **not** touched: stamping today's date on an automated capture would make
+the line claim a freshness its prose does not have.
+
+**`AC3.2` shipped with its precision published rather than its weakness hidden.** Three rules for
+*"a bug row says `confirmed` but the CHANGELOG says it shipped"*, measured over 28 rows: any mention
+→ **13 flags, 1 real**; mention plus fix-language → **3, 1**; mention in the entry's headline →
+**2, 1**. The natural rule fails on *"`B81` remains open (filed not fixed)"* — the word is there and
+the meaning is inverted. The headline rule ships as the best of three, not a good one, and says so in
+the check's description **and in every finding**. A test pins the known false positive so nobody
+"improves" the rule back into the measurably worse one.
+
+**The Epic kept committing its own defect while building the checks for it.** Acceptance criteria
+written as en-dash ranges went **invisible to the coverage tool** — `M5.E10`'s exact finding,
+reproduced at PLAN. A commit sha in `PROGRESS.md` that does not exist. A test count two too high in
+`REVIEW.md`. A report heading, `## STATE vs. world`, that stopped being true the moment this release
+added non-STATE checks to it. And at REVIEW, a **Critical**: `rewriteBugTally` spliced only the
+*bolded* total marker while the reader accepts the unbolded form, so on such a file the rewrite was a
+**silent no-op** and the capture reported success — a silent no-op inside the fix for silently wrong
+counts. Every fixture used the bolded shape, because that is Signal's own; `B82`'s blind spot exactly.
+
+**`B102` was corrected by a check finding it, not by anyone remembering.** Its row read `confirmed`
+while it shipped fixed in `v0.1.27`, and it was **left wrong on purpose** so the detector would ship
+tested against the only real instance available. `B38` carried the identical drift in August and was
+found by a hand count.
+
+⚠ **The semantic half stays unbuilt.** Everything here compares tokens against tokens. A document
+internally consistent and simply wrong about what its evidence means passes all five checks. Two real
+findings also ship **open by choice**: the dated `[Unreleased]` heading needs a product decision, and
+`facts.md`'s figures are re-derived at release, which is this one.
+
+2681 → **2747 tests**.
+
+**One more found at SHIP, by the Epic's own checks running against its own release.**
+`milestone-status-vs-state` flagged `M6.E2`'s row the instant it was marked *shipped* — because
+`current_epic` stays at the Epic just closed until the next one opens, making *"shipped row + current
+Epic"* the normal post-ship state. Uncaught, it would have fired on **every Epic close, forever**.
+
+---
+
 ## [0.1.28] — 2026-08-18 — the cleanup deleted the copy you were running
 
 **`B103`, fix lane. A P1 in `/sig:doctor --fix`, found by running it.**

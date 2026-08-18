@@ -128,13 +128,16 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-**v1 is feature-complete and shipped. Latest: v0.1.25 (2026-08-13 — `M5.E10`, claim integrity: the checks, and what they cannot see).** **20 slash commands, 26 agents, 21 skills, 2602 tests, validator green.** The narrative lives in *"Where things stand"* at the top of this file — **this section carries the numbers and the table only.** (The two sections have contradicted each other before, in exactly this gap; see the footer stamp below.)
+**v1 is feature-complete and shipped. Latest: v0.1.28 (2026-08-18 — `B103`, fix lane: the cleanup deleted the copy you were running).** **20 slash commands, 26 agents, 21 skills, 2681 tests, validator green.** The narrative lives in *"Where things stand"* at the top of this file — **this section carries the numbers and the table only.** (The two sections have contradicted each other before, in exactly this gap; see the footer stamp below.)
 
 Recent releases, newest first — full detail in `CHANGELOG.md`:
 
 | Version | Epic | What it was |
 |---|---|---|
-| **v0.1.25** | M5.E10 | Claim integrity — seven deterministic checks; the reach measured and published, the semantic half deliberately not built |
+| **v0.1.28** | — (fix lane) | `B103` — `/sig:doctor --fix` no longer offers to delete the cache copy a live session is running |
+| v0.1.27 | — (fix lane) | `B102` — the migration instructions uninstalled Signal and said they didn't |
+| v0.1.26 | M6.E1 | The plugin payload — an install ships the plugin, not the repository (985 files / 12.4 MB → 382 / 3.2 MB) |
+| v0.1.25 | M5.E10 | Claim integrity — seven deterministic checks; the reach measured and published, the semantic half deliberately not built |
 | **v0.1.24** | — (fix lane) | The unreached mechanism — five rules that now check themselves (`B87`–`B90`, `M5.E14`'s slice) |
 | v0.1.23 | — (fix lane) | `B85` — `/sig:update` prescribes a CLI string that works (`sig@signal`) |
 | v0.1.22 | M5.E19 | `/sig:archive` — a front door for archiving; every refused unit reported with its reason |
@@ -150,7 +153,7 @@ Recent releases, newest first — full detail in `CHANGELOG.md`:
 | v0.1.12 | M5.E9 | Linear mode & the phase ledger |
 | v0.1.8–v0.1.11 | M5.E1–E6 | The doc-runtime: capture lifecycle, auto `/sig:index`, `/sig:migrate-memory`, `/sig:sweep` |
 
-Milestones 1–4 closed; **M4.5 closed 2026-07-15** (release hardening; 4 non-Signal testers onboarded). **Milestone 5 closed 2026-08-13** when `M5.E10` shipped (`D-BR0809-2`); **M6 is not opened.**
+Milestones 1–4 closed; **M4.5 closed 2026-07-15** (release hardening; 4 non-Signal testers onboarded). **Milestone 5 closed 2026-08-13** when `M5.E10` shipped (`D-BR0809-2`). **Milestone 6 is open**: `M6.E1` shipped as v0.1.26, `M6.E2` is in flight.
 
 - **Conventions locked**: question-patterns (strict enum / 3+other / open-ended); PROFILE.md schema + tier-to-defaults + escalation_history; ID-is-identity vocabulary; `.planning/` always tracked in git; STATE.md YAML frontmatter (`schema_version: 1`) with auto-migration.
 - **`.planning/INDEX.md` is the documentation map — read it first.** It now regenerates at every phase transition, so it should be current.
@@ -164,6 +167,27 @@ Milestones 1–4 closed; **M4.5 closed 2026-07-15** (release hardening; 4 non-Si
 Delivery uses the relative `.` marketplace source, so **users track `main`**, not a pinned tag. Bumping `plugin.json` is what makes an update visible.
 
 ## Active work
+
+> ## ▶ IN FLIGHT — `M6.E2`, DISCUSS closed 2026-08-18. READ THIS FIRST.
+>
+> **The facts Signal publishes about itself, and what re-derives them.** Requirements:
+> `M6.E2-REQUIREMENTS.md` (26 criteria). Decisions: `DECISIONS.md` § *2026-08-18 — M6.E2 DISCUSS*
+> (`D-M6E2-1` … `D-M6E2-7`). Reach evidence: `M6.E2-CORPUS-MEASUREMENT.md`.
+>
+> **Read the measurement before the requirements.** The Epic was pitched on five instances found in
+> five files of this repository; the corpus run found **three of the five reach only this
+> repository** — the `BUGS.md` tally check evaluates 1 of 12 projects, the milestone Epic-status
+> check 1 of 12, and excluding Signal itself both reach **0 of 11**. Brett ruled *no trimming*
+> (`D-M6E2-1`), so all five ship **with their reach printed**. The obligation that creates is
+> disclosure, not scope discipline.
+>
+> **Two things are deliberately left broken until a check catches them** (`D-M6E2-5`): `B102`'s
+> status row reads `confirmed` while it shipped fixed in `v0.1.27`, and the `[Unreleased]` defect is
+> filed in two places. Fixing them before the detectors exist would ship the detectors untested
+> against the only real instances available.
+>
+> **Next phase: PLAN.** `/sig:plan` performs its own at-entry `transitionPhase` — DISCUSS's close is
+> recorded there, not here (`B51`).
 
 > ## ▶ HANDOFF — session paused 2026-08-09, mid-Wave-2. READ THIS FIRST.
 >
@@ -316,7 +340,7 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 
 ---
 
-*Last updated: 2026-08-13 (**`M5.E10` shipped as v0.1.25; Milestone 5 closed; nothing in flight**). **Caught by `/sig:resume` again — the fourth consecutive time this file has been refreshed because a briefing read it against the world and lost.** What was stale this round: both "what's current" sections (one at v0.1.24, one at v0.1.22, against a live v0.1.25), the next-work pointer (naming an item that shipped in v0.1.24), a resolved warning about unreleased commits, a five-item queue whose every item had shipped, and an open-bug tail listing three fixed bugs. **The structural note the last stamp made is still true and still unaddressed: this file answers "what's current" in two places.** Collapsing them to one is the fix; it was raised rather than done, because it is a whole-file restructure and Brett's call. Also refreshed in the same pass: `STATE.md`'s In-flight section (stale through the entire Epic — logged as instance (6) there), `CLAUDE.md`'s Current State, `references/facts.md`'s test count (2389 → 2602), and four `BACKLOG.md` sub-bullets reading "UNRELEASED at the time of writing" about a shipped release. **Prior stamp, 2026-08-06** (**M5.E15 shipped as v0.1.19; `B52` shipped as v0.1.20; the archive command is next**) — *and this time the file contradicted itself rather than the world:* its top section already said `v0.1.19` shipped with a suite of 2233 while "Current state" 60 lines below still read `v0.1.18` / 2168 tests. A patch had updated the section a reader hits first and left the section that carries the numbers — so the stamp said "current" and the file held two different answers. **Both were two releases stale by the time anyone read them.** Fixed together with `CLAUDE.md`, which had the same two defects (`Latest: v0.1.18`, and `Active: M5.E15 — EXECUTE not started` describing an Epic that had shipped). Prior update 2026-08-04 (**M5.E18 shipped as v0.1.18**) — patched, not rewritten, and caught by `/sig:resume` reading this file against `M5.E18-RETROSPECTIVE.md`, one day after the stamp below promised the same section would be watched. Prior update 2026-08-03 (**M5.E18 opened; DISCUSS closed**). Prior update 2026-08-02 (v0.1.16 / M5.E16 shipped), when this file had gone **seven Epics stale** — it described M5.E7 as in-flight while M5.E16 was closing — and was rewritten whole rather than patched, because `CLAUDE.md` tells every reader to open it first. **It went stale again within two PRs**, on the "Active work" queue specifically; see D-M5E18-1.*
+*Last updated: 2026-08-18 (**`M6.E2` DISCUSS closed; v0.1.26/27/28 shipped; Milestone 6 open**). This round the file was five releases and one milestone stale — it still said *"M6 is not opened"* while `M6.E1` had shipped and `M6.E2` was in flight. Refreshed: the current-state headline, three release rows, the milestone line, and a new in-flight handoff block. **The structural note below is still true and still unaddressed** — this file answers "what's current" in two places, and only one of them was wrong this time, which is exactly how the gap survives. Prior stamp, 2026-08-13 (**`M5.E10` shipped as v0.1.25; Milestone 5 closed**). **Caught by `/sig:resume` again — the fourth consecutive time this file has been refreshed because a briefing read it against the world and lost.** What was stale this round: both "what's current" sections (one at v0.1.24, one at v0.1.22, against a live v0.1.25), the next-work pointer (naming an item that shipped in v0.1.24), a resolved warning about unreleased commits, a five-item queue whose every item had shipped, and an open-bug tail listing three fixed bugs. **The structural note the last stamp made is still true and still unaddressed: this file answers "what's current" in two places.** Collapsing them to one is the fix; it was raised rather than done, because it is a whole-file restructure and Brett's call. Also refreshed in the same pass: `STATE.md`'s In-flight section (stale through the entire Epic — logged as instance (6) there), `CLAUDE.md`'s Current State, `references/facts.md`'s test count (2389 → 2602), and four `BACKLOG.md` sub-bullets reading "UNRELEASED at the time of writing" about a shipped release. **Prior stamp, 2026-08-06** (**M5.E15 shipped as v0.1.19; `B52` shipped as v0.1.20; the archive command is next**) — *and this time the file contradicted itself rather than the world:* its top section already said `v0.1.19` shipped with a suite of 2233 while "Current state" 60 lines below still read `v0.1.18` / 2168 tests. A patch had updated the section a reader hits first and left the section that carries the numbers — so the stamp said "current" and the file held two different answers. **Both were two releases stale by the time anyone read them.** Fixed together with `CLAUDE.md`, which had the same two defects (`Latest: v0.1.18`, and `Active: M5.E15 — EXECUTE not started` describing an Epic that had shipped). Prior update 2026-08-04 (**M5.E18 shipped as v0.1.18**) — patched, not rewritten, and caught by `/sig:resume` reading this file against `M5.E18-RETROSPECTIVE.md`, one day after the stamp below promised the same section would be watched. Prior update 2026-08-03 (**M5.E18 opened; DISCUSS closed**). Prior update 2026-08-02 (v0.1.16 / M5.E16 shipped), when this file had gone **seven Epics stale** — it described M5.E7 as in-flight while M5.E16 was closing — and was rewritten whole rather than patched, because `CLAUDE.md` tells every reader to open it first. **It went stale again within two PRs**, on the "Active work" queue specifically; see D-M5E18-1.*
 
 ## Locked Decisions
 
