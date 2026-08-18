@@ -346,14 +346,31 @@ Three documents corrected, each pinned by a test comparing one document against 
 
 ## In-flight
 
-**Nothing.** `M5.E10` (review hardening / claim integrity) **shipped as `v0.1.25` on 2026-08-13**,
-and **Milestone 5 is closed** (`D-BR0809-2`). PR #141 merged with `--merge` (commit `6f7cfd5`); suite
-**2602**, green on `main`. Retro: [`M5.E10-RETROSPECTIVE.md`](M5.E10-RETROSPECTIVE.md); narrative
-evicted to [`archive/M5/E10/STATE-NARRATIVE.md`](archive/M5/E10/STATE-NARRATIVE.md).
+**`M6.E2` — the facts Signal publishes about itself.** Opened 2026-08-18. DISCUSS and PLAN closed;
+**EXECUTE in progress, wave 1**. Branch `epic/m6-e2-published-facts`.
 
-**Milestone 6 is not opened. Next work is a decision, not a queue item** — the candidates and the
-reasoning are in [`BACKLOG.md`](BACKLOG.md), which is the queue (`D-M5E18-1`). This line is the
-pointer, not a second copy of it.
+- **Requirements:** [`M6.E2-REQUIREMENTS.md`](M6.E2-REQUIREMENTS.md) — 26 criteria, all attributed.
+- **Decisions:** `D-M6E2-1` … `D-M6E2-7` in [`DECISIONS.md`](DECISIONS.md).
+- **Reach evidence:** [`M6.E2-CORPUS-MEASUREMENT.md`](M6.E2-CORPUS-MEASUREMENT.md) — **read this
+  before the requirements.** Three of the five instances reach only this repository; Brett ruled
+  *no trimming* (`D-M6E2-1`), so all five ship with their reach printed.
+
+**Two things are deliberately left broken** until a check catches them (`D-M6E2-5`): `B102`'s status
+row reads `confirmed` while it shipped fixed in `v0.1.27`, and the `[Unreleased]` defect is filed in
+two places. Fixing them first would ship the detectors untested against the only real instances.
+
+*This section was itself the defect, one hour into the Epic named after it: `body-omits-current-epic`
+returned **findings** on the first `/sig:sweep` after the new check was wired in — frontmatter said
+`M6.E2`, the prose still said "Milestone 6 is not opened."*
+
+**Milestone 6 is open.** `M6.E1` (the plugin payload) shipped as `v0.1.26` on 2026-08-17; two fix-lane
+releases followed — `B102`/`v0.1.27` and `B103`/`v0.1.28`. The queue remains
+[`BACKLOG.md`](BACKLOG.md) (`D-M5E18-1`); this is the pointer, not a second copy of it.
+
+*Prior: `M5.E10` (review hardening / claim integrity) shipped as `v0.1.25` on 2026-08-13, closing
+**Milestone 5** (`D-BR0809-2`). PR #141 merged with `--merge` (commit `6f7cfd5`); suite **2602**.
+Retro: [`M5.E10-RETROSPECTIVE.md`](M5.E10-RETROSPECTIVE.md); narrative evicted to
+[`archive/M5/E10/STATE-NARRATIVE.md`](archive/M5/E10/STATE-NARRATIVE.md).*
 
 *Prior: `M5.E19` closed and shipped as `v0.1.22` (2026-08-07) — `/sig:archive`, the command
 archiving never had. Retro: [`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md). Decisions
