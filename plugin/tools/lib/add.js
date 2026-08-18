@@ -1316,8 +1316,13 @@ export async function captureToOpenQuestions(baseDir, opts) {
 export function rewriteBugTally(content) {
   const tally = readPublishedTally(content);
   if (!tally) return content;
+  // Both marker shapes. `readPublishedTally` accepts `(9 total)` as readily as
+  // `(**9 total**)`, and the first version of this only spliced the bolded one —
+  // so on an unbolded tally the replace was a NO-OP, the file stayed wrong, and
+  // the capture reported success. A silent no-op inside the fix for silently
+  // wrong published counts. Found at REVIEW by running it, not by reading it.
   const corrected = tally.line.replace(
-    /^\*.*?\(\*\*\d+\s+total\*\*\)/,
+    /^\*.*?\(\*{0,2}\d+\s+total\*{0,2}\)/,
     `*${formatTallySegment(deriveBugCounts(content))}`
   );
   const lines = content.split('\n');

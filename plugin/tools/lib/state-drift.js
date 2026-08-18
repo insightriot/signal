@@ -364,7 +364,10 @@ export async function runDriftChecks(baseDir, checks = STATE_DRIFT_CHECKS) {
  */
 export function renderDriftReport(report, { reach = null } = {}) {
   const { results, summary } = report;
-  const lines = ['## STATE vs. world', ''];
+  // The heading names what the section CONTAINS. It read "STATE vs. world"
+  // while `M6.E2` added published-fact checks to the same render — a heading
+  // asserting something the body is not, inside the Epic about exactly that.
+  const lines = ['## Document drift — STATE and published facts', ''];
 
   const needsYou = results
     .filter((r) => r.status === STATUS.FINDINGS && r.healCategory === HEAL.NEEDS_A_PERSON)

@@ -174,3 +174,61 @@ describe('AC1.5 — the command file no longer states the wrong belief', () => {
     expect(md).toMatch(/re-derive|rederive/i);
   });
 });
+
+describe('REVIEW fix — rewriteBugTally must not silently no-op', () => {
+  // readPublishedTally accepts an unbolded `(9 total)`. The first version of
+  // rewriteBugTally spliced only the bolded marker, so on such a file the
+  // replace did nothing, the count stayed wrong, and the capture reported
+  // success — a silent no-op inside the fix for silently wrong counts.
+  const UNBOLDED = [
+    '| ID | Status | Pri | S |',
+    '|---|---|---|---|',
+    '| B1 | `fixed` | P1 | x |',
+    '',
+    '*0 needs-triage · 0 captured-untriaged · 0 confirmed · 0 dismissed · 9 fixed (9 total). Last updated: 2026-01-01.*',
+    '',
+  ].join('\n');
+
+  it('rewrites a tally whose total marker is not bolded', async () => {
+    const { rewriteBugTally } = await import('../plugin/tools/lib/add.js');
+    const after = rewriteBugTally(UNBOLDED);
+    expect(after).not.toBe(UNBOLDED);
+    expect(compareBugTally(after).ok).toBe(true);
+  });
+
+  it('a capture into an unbolded-tally file leaves the file self-consistent', async () => {
+    await write(UNBOLDED);
+    await captureToBugs(dir, opts('body'));
+    expect(compareBugTally(await read()).ok).toBe(true);
+  });
+});
+
+describe('REVIEW probe — the drifted reconstruction and fenced samples', () => {
+  // readPublishedTally is fence-aware; insertBugsEntry's strandedBelow scan and
+  // its slice-reconstruction are NOT. Raised at REVIEW as a suspected second
+  // defect of the same shape as the no-op above. Probed rather than assumed:
+  // the path is clean, and this pins it so it stays that way.
+  const WITH_FENCED_SAMPLE = [
+    '| ID | Status | Pri | S |',
+    '|---|---|---|---|',
+    '| B1 | `fixed` | P1 | x |',
+    '',
+    '*0 needs-triage · **0 captured-untriaged** · 0 confirmed · 0 dismissed · 1 fixed (**1 total**). Last updated: 2026-01-01.*',
+    '',
+    '## A doc note',
+    '',
+    '```',
+    '*0 needs-triage · **0 captured-untriaged** · 0 confirmed · 0 dismissed · 9 fixed (**9 total**). Last updated: sample.*',
+    '```',
+    '',
+  ].join('\n');
+
+  it('does not eat a fenced tally-shaped sample when absorbing stranded content', async () => {
+    await write(WITH_FENCED_SAMPLE);
+    await captureToBugs(dir, opts('body'));
+    const after = await read();
+    expect(after).toContain('Last updated: sample.');
+    expect((after.match(/```/g) || []).length % 2).toBe(0);
+    expect(compareBugTally(after).ok).toBe(true);
+  });
+});

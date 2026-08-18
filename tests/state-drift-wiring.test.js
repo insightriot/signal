@@ -61,7 +61,7 @@ describe('M5.E16 S4.t1 — STATE findings get their own group in the sweep repor
       expect(report.findings.some((f) => f.check === 'body-omits-current-epic')).toBe(false);
 
       const out = renderSweepReport(report);
-      expect(out).toMatch(/## STATE vs\. world/);
+      expect(out).toMatch(/## Document drift — STATE and published facts/);
       expect(out).toMatch(/M5\.E17/);
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -84,7 +84,7 @@ describe('M5.E16 S4.t1 — STATE findings get their own group in the sweep repor
     const dir = await makeProject({ 'STATE.md': STATE() });
     try {
       const out = renderSweepReport(await runSweep(dir));
-      expect(out).toMatch(/## STATE vs\. world/);
+      expect(out).toMatch(/## Document drift — STATE and published facts/);
       expect(out).toMatch(/needs you \(0\)/);
     } finally {
       await rm(dir, { recursive: true, force: true });

@@ -11,7 +11,7 @@ You are running `/sig:sweep`, a not-phase-gated, read-only meta command. Same cl
 The report groups findings into two severities:
 - **structural** — the drift the standing test-suite guard hard-fails on (dead internal links, unfilled `[FILL IN]` stubs, a stale auto-generated `INDEX.md`, roster/version count drift, a broken command frontmatter).
 - **advisory** — nudges that never block (a stale capture inbox, an oversized `CLAUDE.md`, an absent/foreign `INDEX.md`).
-- **STATE vs. world** (M5.E16) — what `.planning/` **asserts** measured against what is on disk and in git. Its own group by design (FR1.2): a STATE contradiction is a different kind of wrong from a dead link — it carries a **heal category**, and it can be *unevaluable* rather than merely absent.
+- **Document drift — STATE and published facts** (M5.E16; extended by `M6.E2`) — what `.planning/` and its sibling documents **assert**, measured against what is on disk and in git. Its own group by design (FR1.2): a STATE contradiction is a different kind of wrong from a dead link — it carries a **heal category**, and it can be *unevaluable* rather than merely absent.
 
   Each finding lands in exactly one heal bucket, and a check that cannot state its bucket does not ship (FR4.2):
 
@@ -73,7 +73,7 @@ So these say what the output IS. See `references/anti-rationalization-forms.md`.
 ## Gate: Sweep Complete
 
 - [ ] Ran `runSweep(process.cwd())` (invoking project — no hard-coded Signal path).
-- [ ] Printed `renderSweepReport` output verbatim (structural, advisory, **STATE vs. world**, Signal-only ran/skipped stated).
+- [ ] Printed `renderSweepReport` output verbatim (structural, advisory, **document drift**, Signal-only ran/skipped stated).
 - [ ] The **cannot evaluate** count was shown even when it was zero — a group that disappears when empty cannot be distinguished from a group that never ran.
 - [ ] Nothing written — read-only (verify no file mtime changed if uncertain).
 - [ ] No skills loaded, no agents spawned, no tier-gating preamble run.
