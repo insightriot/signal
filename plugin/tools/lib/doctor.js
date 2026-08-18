@@ -17,9 +17,11 @@
 // D-E8-12: doctor exits 0 healthy / 1 P-states detected / 2 doctor errored.
 //          DoctorDetectionError + DoctorEnvironmentError signal exit-2 cases.
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { atomicWrite } from './atomic-write.js';
 
 /**
@@ -47,7 +49,7 @@ export class DoctorEnvironmentError extends Error {
   }
 }
 
-const DEFAULT_FS_IMPL = { existsSync, readFileSync, readdirSync };
+const DEFAULT_FS_IMPL = { existsSync, readFileSync, readdirSync, statSync };
 
 /**
  * Positive-allowlist environment check (D-E8-2; RESEARCH § 4 risk #5).
@@ -489,6 +491,210 @@ function bashStep(label, command) {
   ].join('\n');
 }
 
+// ===== Live-session binding guard (B103) =====
+//
+// `--fix` proposes `rm -rf` on every cache dir the manifest does not name as
+// current. That set includes copies that OTHER RUNNING SESSIONS are still
+// executing: Claude Code resolves a plugin's install path once at session
+// start and holds it for the life of the process (`B52`). Deleting one breaks
+// that session mid-flight, and the per-step `[y/N]` prompt reads as a
+// formality, so the obvious answer is the destructive one.
+//
+// There is no API that reports another session's resolved path — `lsof` shows
+// nothing, because Claude Code reads plugin files on demand rather than
+// holding handles, and `CLAUDE_PLUGIN_ROOT` is the env var `B52` exists
+// because it disagrees with reality. So this INFERS, and says so: the copy a
+// session resolved is the newest cache dir that existed when the process
+// started. The inference errs toward HOLDING a directory — a false hold costs
+// disk, a false delete costs someone's session.
+
+/**
+ * Parse `ps -eo pid=,lstart=,comm=` output into running Claude Code sessions.
+ *
+ * Pure — takes the text, returns the processes. `lstart` is used rather than
+ * `etime` because it is an absolute instant, which is what has to be compared
+ * against a directory's birth time.
+ *
+ * @param {string} psOutput
+ * @returns {Array<{pid:number, startedAtMs:number}>}
+ */
+export function parseClaudeProcesses(psOutput) {
+  if (typeof psOutput !== 'string' || psOutput.trim() === '') return [];
+  const out = [];
+  for (const line of psOutput.split('\n')) {
+    // pid, then lstart's fixed 5-field form ("Sun Aug 16 11:57:59 2026"), then comm.
+    const m = line.match(/^\s*(\d+)\s+(\w{3}\s+\w{3}\s+\d+\s+\d+:\d+:\d+\s+\d{4})\s+(\S.*)$/);
+    if (!m) continue;
+    const comm = m[3].trim();
+    // The CLI's process name, not a path containing the word (`claude-foo`,
+    // `/opt/claude` both excluded). Signal-scoped in spirit: this guard must
+    // not reason about other people's processes.
+    if (comm !== 'claude' && !comm.endsWith('/claude')) continue;
+    const startedAtMs = Date.parse(m[2]);
+    if (Number.isNaN(startedAtMs)) continue;
+    out.push({ pid: Number(m[1]), startedAtMs });
+  }
+  return out;
+}
+
+/**
+ * Decide which cache directories running sessions are probably bound to.
+ *
+ * @param {{cacheDirs: Array<{path:string, birthMs:number}>, processes: Array<{pid:number, startedAtMs:number}>}} input
+ * @returns {{held: Array<{path:string, pids:number[]}>, cannotDetermine?:boolean, reason?:string}}
+ */
+export function detectLiveBindings({ cacheDirs, processes } = {}) {
+  if (!Array.isArray(cacheDirs) || !Array.isArray(processes)) {
+    return { held: [], cannotDetermine: true, reason: 'no cache-dir or process list to compare' };
+  }
+  const dated = cacheDirs
+    .filter((d) => d && typeof d.path === 'string' && Number.isFinite(d.birthMs))
+    .sort((a, b) => a.birthMs - b.birthMs);
+
+  // A dir list we could not date is NOT an empty held set — it is an unknown.
+  // Reporting [] here would read as "checked, nothing at risk" off a check
+  // that never looked (`B39`).
+  if (cacheDirs.length > 0 && dated.length !== cacheDirs.length) {
+    return { held: [], cannotDetermine: true, reason: 'some cache directories have no readable birth time' };
+  }
+  if (dated.length === 0) return { held: [], reason: 'no cache directories to check' };
+
+  const byPath = new Map();
+  for (const proc of processes) {
+    // Newest dir that already existed when this process started — the copy it
+    // would have resolved. A process older than every dir resolved a copy that
+    // is already gone, so it constrains nothing here.
+    let bound = null;
+    for (const d of dated) {
+      if (d.birthMs <= proc.startedAtMs) bound = d;
+      else break;
+    }
+    if (!bound) continue;
+    if (!byPath.has(bound.path)) byPath.set(bound.path, []);
+    byPath.get(bound.path).push(proc.pid);
+  }
+
+  return {
+    held: [...byPath.entries()].map(([path, pids]) => ({ path, pids: pids.sort((a, b) => a - b) })),
+  };
+}
+
+/**
+ * I/O wrapper — read cache-dir birth times and running processes, then defer
+ * to `detectLiveBindings`. Never throws: every failure is `cannotDetermine`,
+ * because a guard that dies is a guard that silently stops guarding.
+ *
+ * @param {{homeDir:string, fsImpl?:object, execImpl?:Function}} opts
+ * @returns {{held: Array<{path:string, pids:number[]}>, cannotDetermine?:boolean, reason?:string}}
+ */
+export function readLiveBindings({ homeDir, fsImpl = DEFAULT_FS_IMPL, execImpl } = {}) {
+  if (typeof homeDir !== 'string' || homeDir === '') {
+    return { held: [], cannotDetermine: true, reason: 'no home directory given' };
+  }
+  const cacheBase = join(homeDir, '.claude', 'plugins', 'cache', 'signal', 'sig');
+
+  let cacheDirs;
+  try {
+    if (!fsImpl.existsSync(cacheBase)) return { held: [], reason: 'no Signal cache directory' };
+    cacheDirs = (fsImpl.readdirSync(cacheBase) || []).map((v) => {
+      const path = join(cacheBase, v);
+      return { path, birthMs: fsImpl.statSync(path).birthtimeMs };
+    });
+  } catch (err) {
+    return { held: [], cannotDetermine: true, reason: `could not stat cache directories: ${err.message}` };
+  }
+
+  let psOutput;
+  try {
+    const exec = execImpl || defaultPsReader();
+    psOutput = exec();
+  } catch (err) {
+    return { held: [], cannotDetermine: true, reason: `could not list running processes: ${err.message}` };
+  }
+  if (typeof psOutput !== 'string') {
+    return { held: [], cannotDetermine: true, reason: 'process listing returned no output' };
+  }
+
+  return detectLiveBindings({ cacheDirs, processes: parseClaudeProcesses(psOutput) });
+}
+
+function defaultPsReader() {
+  return () => execFileSync('ps', ['-eo', 'pid=,lstart=,comm='], { encoding: 'utf8' });
+}
+
+// The live-binding guard, as bash. Emitted into the generated script so the
+// check runs AT DELETION TIME rather than at generation time — a session can
+// start in the gap, and `~/.claude/sig-doctor.sh` survives to be re-run days
+// later. It calls back into THIS module rather than reimplementing the
+// inference in bash: a second implementation of "which copy is in use" is how
+// `B82` happened.
+function liveBindingGuard({ homeDir, libPath, mode }) {
+  const heldLine =
+    mode === '--reinstall'
+      ? '"    The wipe below DELETES these. Close those sessions first unless you mean to break them."'
+      : '"    Deleting one breaks that session mid-flight. Close them, then re-run /sig:doctor --fix."';
+  return [
+    '# ─── live-session binding guard ───',
+    '# Claude Code resolves a plugin path once per session and holds it for the',
+    '# life of the process, so deleting a cached copy a running session resolved',
+    '# breaks that session. Checked now, not when this script was written.',
+    `SIG_DOCTOR_LIB="${libPath}"`,
+    'SIG_HELD=""',
+    'SIG_HELD_OK=0',
+    'if command -v node >/dev/null 2>&1 && [ -r "$SIG_DOCTOR_LIB" ]; then',
+    '  SIG_HELD="$(node --input-type=module -e "' +
+      "import{readLiveBindings}from'file://$SIG_DOCTOR_LIB';" +
+      `const r=readLiveBindings({homeDir:'${homeDir}'});` +
+      'if(r.cannotDetermine)process.exit(3);' +
+      "for(const h of r.held)console.log(h.path+'  (pid '+h.pids.join(', ')+')')" +
+      '" 2>/dev/null)" && SIG_HELD_OK=1',
+    'fi',
+    'SIG_WARN=""',
+    'if [ "$SIG_HELD_OK" -eq 1 ]; then',
+    '  if [ -n "$SIG_HELD" ]; then',
+    '    echo "[!] Running Claude Code sessions resolved these cached copies:"',
+    "    printf '%s\\n' \"$SIG_HELD\" | sed 's/^/      /'",
+    `    echo ${heldLine}`,
+    '    echo ""',
+    '  fi',
+    'else',
+    '  SIG_WARN=" [UNVERIFIED: live-session check did not run]"',
+    '  echo "[!] Could NOT check which cached copies running Claude Code sessions are using."',
+    '  echo "    This is not a clean result. It is an unknown, and the steps below are marked so."',
+    '  echo ""',
+    'fi',
+    'sig_held() {',
+    '  [ "$SIG_HELD_OK" -eq 1 ] || return 1',
+    "  printf '%s\\n' \"$SIG_HELD\" | awk '{print $1}' | grep -qxF \"$1\"",
+    '}',
+    '',
+    '',
+  ].join('\n');
+}
+
+// A `rm -rf` step that refuses outright when a live session resolved the
+// target. Held is NOT a declined prompt — the prompt is never shown, because
+// the whole defect was that the prompt reads as a formality.
+function guardedRmStep(label, targetPath) {
+  const safeLabel = label.replace(/"/g, '\\"');
+  return [
+    `# ─── ${label} ───`,
+    `if sig_held "${targetPath}"; then`,
+    `  echo "  [held] ${targetPath}"`,
+    '  echo "         a running Claude Code session resolved this copy; not deleting."',
+    'else',
+    `  read -p "Execute: ${safeLabel}\${SIG_WARN} ? [y/N] " ans`,
+    '  if [[ "$ans" == "y" ]]; then',
+    `    rm -rf "${targetPath}"`,
+    '    echo "  [done]"',
+    '  else',
+    '    echo "  [skipped]"',
+    '  fi',
+    'fi',
+    '',
+  ].join('\n');
+}
+
 // Inline `node -e` to delete a key from settings.enabledPlugins atomically.
 // Length intentionally > 80 chars — helper-script split deferred to S2.t4
 // review point; tradeoff documented in M4.5.E8-PLAN.md.
@@ -514,7 +720,7 @@ function settingsPath(homeDir) {
  * @param {{homeDir:string}} opts
  * @returns {string} bash script body
  */
-export function buildFixScript(findings, { homeDir }) {
+export function buildFixScript(findings, { homeDir, libPath = fileURLToPath(import.meta.url) }) {
   // No-op on healthy installs — caller skips writing the script entirely.
   if (!findings || findings.length === 0) return null;
 
@@ -523,9 +729,7 @@ export function buildFixScript(findings, { homeDir }) {
     switch (f.code) {
       case 'P2':
         for (const orphanPath of f.evidence) {
-          steps.push(
-            bashStep(`rm -rf orphan cache dir ${orphanPath}`, `rm -rf "${orphanPath}"`)
-          );
+          steps.push(guardedRmStep(`rm -rf orphan cache dir ${orphanPath}`, orphanPath));
         }
         break;
       case 'P3':
@@ -582,7 +786,12 @@ export function buildFixScript(findings, { homeDir }) {
         break;
     }
   }
-  return BASH_HEADER('--fix') + steps.join('') + BASH_FOOTER;
+  return (
+    BASH_HEADER('--fix') +
+    liveBindingGuard({ homeDir, libPath, mode: '--fix' }) +
+    steps.join('') +
+    BASH_FOOTER
+  );
 }
 
 /**
@@ -593,7 +802,7 @@ export function buildFixScript(findings, { homeDir }) {
  * @param {{homeDir:string}} opts
  * @returns {string} bash script body
  */
-export function buildReinstallScript({ homeDir }) {
+export function buildReinstallScript({ homeDir, libPath = fileURLToPath(import.meta.url) }) {
   const cacheRoot = join(homeDir, '.claude', 'plugins', 'cache', 'signal');
   const preRenameCache = join(cacheRoot, 'signal');
   const sigCache = join(cacheRoot, 'sig');
@@ -613,7 +822,15 @@ export function buildReinstallScript({ homeDir }) {
     bashStep('claude plugin install sig@signal --scope user', 'claude plugin install sig@signal --scope user'),
   ];
 
-  return BASH_HEADER('--reinstall') + steps.join('') + BASH_FOOTER;
+  return (
+    BASH_HEADER('--reinstall') +
+    // The wipe is the point here, so this cannot hold a directory back the way
+    // `--fix` does. What it can do is name the sessions the wipe will break
+    // BEFORE the [y/N], instead of after.
+    liveBindingGuard({ homeDir, libPath, mode: '--reinstall' }) +
+    steps.join('') +
+    BASH_FOOTER
+  );
 }
 
 /**
