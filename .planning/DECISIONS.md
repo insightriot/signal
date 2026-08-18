@@ -1970,3 +1970,86 @@ trigger fires mechanically rather than waiting to be noticed.
 
 **`FR3` is rewritten in `M6.E1-REQUIREMENTS.md` accordingly**, per `AC3.5`'s instruction that this
 outcome be a decision rather than a drift.
+
+## 2026-08-18 — M6.E2 DISCUSS: the facts Signal publishes about itself (D-M6E2-1 … D-M6E2-7)
+
+*Epic: `M6.E2`. Opened 2026-08-18 on the `/sig:doctor` session that filed and fixed `B103` and hit
+the same capture defect twice in one hour. Scope evidence: `M6.E2-CORPUS-MEASUREMENT.md`, run before
+these decisions were taken rather than after.*
+
+**D-M6E2-1 — the Epic carries all five instances, and every check publishes its own measured reach.**
+
+The corpus measurement found that **three of the five reach only this repository**: the `BUGS.md`
+tally check evaluates 1 of 12 projects, the milestone Epic-status check 1 of 12, and `B56`'s
+`facts.md` figures are a Signal artifact. Excluding Signal itself the first two reach **0 of 11**.
+The recommendation put to Brett was therefore either *carry all five with reach printed* or *trim to
+the two that generalise and drop to the fix lane*. **Brett, 2026-08-18: "no trimming."**
+
+The precedent that makes this coherent rather than indulgent is `M5.E10`, which shipped seven checks
+where **five apply to between 1 and 5 of twelve projects** and was right to. Narrow reach has never
+been the disqualifying property in this repository; **claiming generality you do not have** is. So
+the obligation this decision creates is not scope discipline, it is disclosure: a check that
+evaluates one project must say so where a reader will see it, not in a document nobody re-opens.
+
+**D-M6E2-2 — the population is the five named instances plus the registrable shape. A derived corpus
+sweep for other published facts is explicitly NOT this Epic.**
+
+The five were found by reading five files; the measurement says so and calls itself a floor. The
+tempting expansion — *sweep the corpus for every published fact and check them all* — is a different
+Epic with a different risk profile, because the sweep would itself be a completeness claim, and this
+Epic exists downstream of the class where those go wrong. Recorded as excluded on evidence rather
+than unconsidered (`B39`): a checked-and-declined trigger must be distinguishable from an unchecked
+one.
+
+**D-M6E2-3 — the checks live in a new `plugin/tools/lib/published-facts.js`, composed into the
+existing runner. They are NOT appended to `STATE_DRIFT_CHECKS`.**
+
+`defineCheck` (`state-drift.js:110`) is general — a check declares `applicability(ctx)` and
+`run(ctx)`, and `ctx` carries `{baseDir, planningDir, state, files, stateBody}`, so a check can read
+any `.planning/` file. That generality was **verified by reading the contract**, not inferred from
+the registry, because all eight registered checks are STATE-shaped and the inference could have been
+wrong. It was the premise check that could have sunk the Epic.
+
+But the module is named `state-drift.js` and its entries are about STATE. Adding "published fact vs.
+artifact" checks to that array would put two subjects in one home. The new module exports its own
+frozen registry and the call sites compose the two. Single-home discipline is the reason; it is a
+standing rule here, not a preference.
+
+**D-M6E2-4 — the `/sig:add` defect is fixed at WRITE time. The other four fire at sweep/resume time.
+Nothing is added to the ship gate.**
+
+These are not the same kind of problem and one firing rule does not fit them. `captureToBugs` writing
+below a footer is a **write-path defect**: the command has everything it needs at the moment of the
+write, and `captureToFutureIdeas` in the same file already does it correctly with `insertAboveFooter`
++ `rewriteFooter`. Detecting it later would be building a detector for a bug that should not occur.
+
+The other four are **reconciliation between two documents**, which cannot be evaluated at any single
+write — a bug's status row cannot know at write time whether a fix will later ship. Those belong at
+sweep/resume, where `runDriftChecks` already reaches. **No ship-time gate**: a gate that blocks SHIP
+on a stale status row would be the loudest possible response to the least urgent defect in the set.
+
+**D-M6E2-5 — `B102`'s wrong status row and the double-filed `[Unreleased]` defect are folded into
+this Epic rather than fixed separately.**
+
+`B102` reads `confirmed` while it shipped fixed in `v0.1.27`, and `B38` carried the identical drift
+("read `confirmed` for one day"). It is left wrong on purpose until the check that would catch it
+exists — **fixing the evidence before building the detector is how a detector ships untested against
+the only real instance available.** The `[Unreleased]` problem is filed twice (`BUGS.md:186` and
+`OPEN-QUESTIONS.md:74`), which is a single-home violation sitting inside this Epic's own subject
+matter; it is consolidated here.
+
+**D-M6E2-6 — no `M6.E2-PROFILE.md`. The Epic runs at the project's FULL / `gate_strictness: strict`.**
+
+The design work — what counts as a published fact, where each check fires, where they live — is the
+Epic, and that is FULL-shaped even if the implementation is small. A per-Epic PROFILE is also where
+`B59` lived: a malformed one meant `M5.E16` ran its entire DISCUSS at the project's FULL without
+knowing, found only the first time code read the file. If PLAN comes back mechanical, `escalate.md`
+§Case C de-escalates mid-flight with no back-fill; that path costs nothing to take later.
+
+**D-M6E2-7 — semantic faithfulness stays out of scope, again.**
+
+Everything here compares a **derived value** against a **published value**. A document that is
+internally consistent and simply wrong about what its evidence means passes every check this Epic
+ships. That is `AC0.1` / `D-M5E10-1`, still deliberately unbuilt, and its absence stays visible in
+`BACKLOG.md` rather than being quietly narrowed away by an Epic that sounds like it covers it.
+
