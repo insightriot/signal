@@ -25,7 +25,7 @@ Routing is **flags or nothing in between**: with no flag, capture always lands i
 - `DECISIONS.md` / `STATE.md` — **never** written by `/sig:add` (DECISIONS is post-deliberation; STATE is regenerated)
 
 Authoritative references:
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/add.js` — `parseInput`, `resolveDestination`, `scrubSensitive`, `buildFutureIdeasEntry`, `buildOpenQuestionsEntry`, `buildMilestoneEntry`, `buildBugsEntry`, `insertAboveFooter`, `rewriteFooter`, `atomicWrite`, `acquireLock`, `releaseLock`, `captureToFutureIdeas`, `captureToOpenQuestions`, `captureToMilestone`, `captureToBugs`, `checkBodyLength`, `BODY_LENGTH_SOFT_CAP`, `resolveOnboardingMode`, `isOnboarded`, `markOnboarded`, `detectProjectKind`, `buildMissingPlanningError`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/add.js` — `parseInput`, `resolveDestination`, `scrubSensitive`, `buildFutureIdeasEntry`, `buildOpenQuestionsEntry`, `buildMilestoneEntry`, `buildBugsEntry`, `insertAboveFooter`, `rewriteFooter`, `insertBugsEntry`, `rewriteBugTally`, `atomicWrite`, `acquireLock`, `releaseLock`, `captureToFutureIdeas`, `captureToOpenQuestions`, `captureToMilestone`, `captureToBugs`, `checkBodyLength`, `BODY_LENGTH_SOFT_CAP`, `resolveOnboardingMode`, `isOnboarded`, `markOnboarded`, `detectProjectKind`, `buildMissingPlanningError`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/inbox-path.js` — `resolveInboxPath`, `resolveLedgerPath` (back-compat inbox/ledger path resolution: `ISSUES-INBOX.md` else legacy `FUTURE-IDEAS.md`)
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/milestones.js` — `currentMilestone`, `listMilestones` (target resolution for `--milestone [N]`)
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState` (for trigger-context detection in mid-phase captures)
@@ -140,7 +140,11 @@ Dispatch on the destination resolved in Step 2. Every capture function shares th
 
 - `future-ideas` → `captureToFutureIdeas(baseDir, opts)` — routes through `resolveInboxPath` to the inbox (`ISSUES-INBOX.md` or legacy `FUTURE-IDEAS.md`), inserts above the `*Last updated:*` footer, and rewrites the footer date. If `.planning/` exists but the inbox file does not (a fresh v3 project), it **lazy-creates** the `ISSUES-INBOX.md` skeleton on first capture (AC6.3) — no separate init step needed.
 - `open-questions` → `captureToOpenQuestions(baseDir, opts)` — appends at end-of-file in the OPEN-QUESTIONS Status/Resolve-by shape (no footer to rewrite).
-- `bugs` → `captureToBugs(baseDir, opts)` — appends a **simple** entry (`## heading` + `**Status:** needs-triage` + verbatim body + `---`) at end-of-file in `.planning/BUGS.md`. No B-ID, no table row — triage assigns those later. `BUGS.md` must already exist (no lazy-create).
+- `bugs` → `captureToBugs(baseDir, opts)` — inserts a **simple** entry (`## heading` + `**Status:** needs-triage` + verbatim body + `---`) into `.planning/BUGS.md`. No B-ID, no table row — triage assigns those later. `BUGS.md` must already exist (no lazy-create).
+
+  **`BUGS.md` HAS a footer, and the entry goes ABOVE it** (`M6.E2` FR1). This file used to say it had none, and `captureToBugs` appended at end-of-file to match — so every capture landed physically **below** the file's own summary, and nothing **re-derived** the published tally. The count was silently falsified by the command whose job is capture.
+
+  The footer is the italic tally line, not the inbox's `*Last updated: …*` shape, so `insertAboveFooter`/`rewriteFooter` do **not** apply here — the anchor is `readPublishedTally().lineNumber`. After the insert the counts are **re-derived** by `rewriteBugTally`, never incremented. **The date and narrative in that line are the author's and are left untouched:** stamping today's date on an automated capture would make the line claim a freshness its prose does not have. As with the inbox, `result.repaired` is `true` when entries were already stranded below the tally and the capture normalised the file — announce it.
 - `milestone` → `captureToMilestone(baseDir, {...opts, milestoneArg})` — find-or-create the `## Captured via /sig:add` holding section near the end of the target milestone file and append the entry there. It **never** edits the structured plan body. `milestoneArg: null` resolves the current milestone from STATE.md; if there is none, it throws the no-current-milestone error (FR2.2). An explicit `--milestone N` whose `MILESTONE-N.md` does not exist throws the file-absent error (FR2.4 — no scaffolding).
 
 All destinations share the same spine: scrub + body-length check run before the lock; then lock acquisition, read-current, build-entry, insert, atomic-write, lock-release.
@@ -208,7 +212,7 @@ So these say what the output IS. See `references/anti-rationalization-forms.md`.
 
 - [ ] Either the destination file was written and the success message printed, OR an explicit abort/error message surfaced.
 - [ ] No `.planning/*` files mutated on abort paths (incl. the multi-flag and milestone-resolution errors, which refuse before any lock or write).
-- [ ] For an inbox write (`ISSUES-INBOX.md` / legacy `FUTURE-IDEAS.md`): footer date matches today afterward (OPEN-QUESTIONS, BUGS, and milestone holding sections have no footer to rewrite).
+- [ ] For an inbox write (`ISSUES-INBOX.md` / legacy `FUTURE-IDEAS.md`): footer date matches today afterward. For a `BUGS.md` write: the entry sits **above** the tally and `compareBugTally` agrees with the file afterward (the counts are re-derived; the author's date and narrative are not touched). OPEN-QUESTIONS and milestone holding sections have no footer.
 - [ ] `.planning/.add.lock` removed (released or never acquired).
 - [ ] Entry body matches user input verbatim (verifiable via `git diff`).
 - [ ] First-run onboarding note shown at most once per repo (gated by `.planning/.add-onboarded`); shape matched `gate_strictness` (strict = blocking once / light + absent = one-line FYI once / off = silent). A `strict`-abort wrote no flag and no capture.

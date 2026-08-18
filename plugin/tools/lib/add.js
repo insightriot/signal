@@ -23,6 +23,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join, resolve, sep, basename, dirname } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
+import { readPublishedTally, deriveBugCounts, formatTallySegment } from './bugs-tally.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import {
   acquireLock as fileAcquireLock,
@@ -1299,14 +1300,91 @@ export async function captureToOpenQuestions(baseDir, opts) {
  *
  * @returns {Promise<{written: boolean, path?: string, line?: number, aborted?: string}>}
  */
+/**
+ * Re-derive `BUGS.md`'s published tally from the file's own contents.
+ *
+ * ONLY THE COUNTS MOVE. The tally line is
+ * `*<counts>. Last updated: <date> — <narrative>*`, and the date and narrative
+ * are the author's — a capture that stamped today's date would make the line
+ * claim a freshness its prose does not have, which is a fresh instance of the
+ * defect this exists to fix. The leading segment is spliced; everything from
+ * `(**N total**)` onward is preserved byte-for-byte.
+ *
+ * @param {string} content
+ * @returns {string}
+ */
+export function rewriteBugTally(content) {
+  const tally = readPublishedTally(content);
+  if (!tally) return content;
+  const corrected = tally.line.replace(
+    /^\*.*?\(\*\*\d+\s+total\*\*\)/,
+    `*${formatTallySegment(deriveBugCounts(content))}`
+  );
+  const lines = content.split('\n');
+  lines[tally.lineNumber - 1] = corrected;
+  return lines.join('\n');
+}
+
+/**
+ * Insert a BUGS.md entry above the published tally, then re-derive the tally.
+ *
+ * WHY NOT `insertAboveFooter` (`M6.E2` S2 / `RESEARCH` §3). `BUGS.md` has a
+ * footer, but not the inbox's footer: `FUTURE_IDEAS_FOOTER_RE` requires a line
+ * beginning `*Last updated:` with no interior asterisk, and this one begins
+ * with the tally and carries bold spans. The anchor is
+ * `readPublishedTally().lineNumber` instead. The *pattern* transfers from the
+ * inbox path; the helpers do not.
+ *
+ * Three shapes, mirroring `insertFutureIdeasEntry`:
+ *   - no tally      → historical `insertAtEnd`, byte-for-byte, `repaired:false`
+ *   - well-formed   → entry lands directly above the tally, `repaired:false`
+ *   - drifted       → content already stranded below the tally is absorbed
+ *                     above it, entry + tally land at true EOF, `repaired:true`
+ *
+ * @param {string} content
+ * @param {string} entry
+ * @returns {{content: string, repaired: boolean}}
+ */
+export function insertBugsEntry(content, entry) {
+  const tally = readPublishedTally(content);
+  if (!tally) return { content: insertAtEnd(content, entry), repaired: false };
+
+  const lines = content.split('\n');
+  const tallyIdx = tally.lineNumber - 1;
+  const strandedBelow = lines.slice(tallyIdx + 1).some((l) => l.trim() !== '');
+
+  let next;
+  if (!strandedBelow) {
+    let insertIdx = tallyIdx;
+    while (insertIdx > 0 && lines[insertIdx - 1].trim() === '') insertIdx--;
+    next = [
+      ...lines.slice(0, insertIdx),
+      '',
+      ...entry.split('\n'),
+      '',
+      ...lines.slice(insertIdx),
+    ].join('\n');
+  } else {
+    const kept = [...lines.slice(0, tallyIdx), ...lines.slice(tallyIdx + 1)]
+      .join('\n')
+      .replace(/\s+$/, '');
+    next = `${kept}\n\n${entry}\n\n${tally.line}\n`;
+  }
+
+  return { content: rewriteBugTally(next), repaired: strandedBelow };
+}
+
 export async function captureToBugs(baseDir, opts) {
   const { body, today, triggerContext, title, sensitivePrompt, bodyLengthPrompt } = opts;
 
   return captureToDestination(baseDir, {
     relPath: BUGS,
     buildEntry: ({ body, title }) => buildBugsEntry({ body, title }),
-    // Simple entry appended at EOF — same shape as OPEN-QUESTIONS; no footer.
-    insert: (content, entry) => insertAtEnd(content, entry),
+    // BUGS.md HAS a footer — the tally line — and the entry goes above it, with
+    // the counts re-derived after the insert (`M6.E2` FR1). This file used to
+    // say it had none, and every capture landed below the file's own summary
+    // while nothing re-derived the count.
+    insert: (content, entry) => insertBugsEntry(content, entry),
     missingFileError:
       `Cannot capture: .planning/BUGS.md not found at ${join(baseDir, BUGS)}. ` +
       `Run \`/sig:init\` first if this is an existing codebase, or \`/sig:new-project\` for a fresh project.`,
