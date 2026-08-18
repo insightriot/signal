@@ -5,7 +5,7 @@
 > and the corpus disagree. A hand-kept list of what a corpus contains is a completeness claim,
 > and this repository is done writing those.
 
-**109 entries: 93 discipline, 16 shaping.**
+**112 entries: 96 discipline, 16 shaping.**
 
 ## The rule (`B38`)
 
@@ -120,8 +120,11 @@ output. Listed so the classification is complete rather than asserted.
 - "We don't need a spec for something this simple"
 - "The user seems impatient, let's move on"
 
-### `commands/doctor.md` (12)
+### `commands/doctor.md` (15)
 
+- An orphan cache dir is by definition unused — just `rm -rf` it
+- Do the live-session check once, when the script is generated
+- No live sessions found → nothing to warn about
 - Skip the platform check — most users are on macOS anyway
 - Skip Signal-scoping detectors — `~/.claude/` is Signal's domain
 - Treat `--fix` as `--auto-fix` and execute the script directly

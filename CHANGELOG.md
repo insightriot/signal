@@ -6,6 +6,47 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.28] — 2026-08-18 — the cleanup deleted the copy you were running
+
+**`B103`, fix lane. A P1 in `/sig:doctor --fix`, found by running it.**
+
+`--fix` offered `rm -rf` on every cache directory the manifest does not name as current. "Orphan"
+means *not the current version* — it says **nothing about who is still executing it.** Claude Code
+resolves a plugin's install path once at session start and holds it for the life of the process
+(**`B52`**), so a copy two versions back can have live sessions on it. Deleting one breaks that
+session mid-flight.
+
+**The per-step `[y/N]` was not mitigation.** It reads as a formality across eleven near-identical
+prompts, so the reflexive answer is the destructive one.
+
+**Found by running the command, not by reading it.** Three `claude` processes were live; two of them
+(pids 29938 and 78473) had resolved `sig/0.1.25`, and the generated script listed `sig/0.1.25` for
+deletion. The step was declined by hand. **Nothing in Signal would have declined it** — `v0.1.20`
+shipped `tools/lib/plugin-binding.js` to answer exactly "which copy is actually running," and this
+path never asked it. `UNREACHED-MECHANISM-ANALYSIS.md`'s class, again.
+
+Both script builders now emit a **live-session binding guard**, and it **re-checks at script-run
+time** rather than at generation time — a session can start in the gap, and `~/.claude/sig-doctor.sh`
+survives to be re-run days later. It calls back into the same module instead of reimplementing the
+inference in bash, because a second implementation of "which copy is in use" is how **`B82`**
+happened. Under `--fix` a held directory is skipped outright and never prompted; under `--reinstall`
+the wipe is the point, so the guard names the sessions it will break *before* the `[y/N]`. The
+detect-only report names held copies too.
+
+⚠ **The inference is a heuristic, and the code says so.** No API reports another session's resolved
+path — `lsof` shows nothing (plugin files are read on demand, not held open) and `CLAUDE_PLUGIN_ROOT`
+is the env var `B52` exists because it disagrees with reality. So a session's copy is inferred as the
+newest cache directory that existed when the process started. A downgrade or a hand-moved directory
+can mis-attribute. It errs toward **holding**: a false hold costs disk, a false delete costs
+someone's session. `ps` unavailable, an unreadable directory, or no `node` on PATH are
+`cannotDetermine` — those steps render `[UNVERIFIED]` rather than prompting as though the check had
+run (**`B39`**).
+
+Verified end-to-end on the machine that produced the bug: answering `y` to every prompt now deletes
+nothing while a live session holds the copy. 2664 → **2681 tests**.
+
+---
+
 ## [0.1.27] — 2026-08-18 — the migration instructions uninstalled Signal and said they didn't
 
 **`B102`, fix lane. A P1 against `v0.1.26`'s own migration advice, found by running it.**
