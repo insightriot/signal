@@ -46,8 +46,10 @@ Then try `/sig:calibrate` to confirm the install. Signal's `/sig:*` commands sho
 
 > **Installed before v0.1.26?** `/plugin marketplace add insightriot/signal` still works — you are not
 > stranded. But that form clones this whole repository on every refresh, where the address above
-> fetches a single file. Switch with `/plugin marketplace remove signal` followed by the `add` line
-> above; your installed plugin and settings are untouched. `/sig:doctor` will tell you if you are
+> fetches a single file. Switching takes **three** commands, and the first uninstalls the plugin:
+> `/plugin marketplace remove signal`, then the `add` line above, then `/plugin install sig@signal`.
+> `add` alone does **not** bring it back, so run all three together. Your settings and your projects
+> are untouched; the plugin itself is removed and reinstalled. `/sig:doctor` will tell you if you are
 > still on the old form. You do **not** need to delete anything under `~/.claude/plugins/cache/` —
 > old versions are swept automatically.
 

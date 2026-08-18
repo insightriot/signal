@@ -100,11 +100,15 @@ For a **P6** finding (`recommendation: 'info-only'`), render:
     marketplace clones the whole repository (~19 MB) on every refresh,
     where the published catalog is a single file.
 
-    To switch:
+    To switch — THREE commands, and the first one uninstalls Signal:
       claude plugin marketplace remove {evidence.marketplace}
       claude plugin marketplace add https://signal.insightriot.com/install/marketplace.json
+      claude plugin install sig@signal
 
-    Your installed plugin and its settings are untouched by this.
+    `marketplace remove` uninstalls the plugin, and `add` alone does not
+    bring it back — the third line is required, not optional. Your
+    settings and your projects are untouched; the plugin itself is
+    removed and reinstalled. Do this when you can finish all three.
 ```
 
 Exit 0. **P6 never makes the install unhealthy** — the old path keeps working (`AC5.1`,
