@@ -1,7 +1,7 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: REVIEW
+phase: SHIP
 current_epic: M6.E2
 current_wave: null
 current_tasks: []
@@ -10,11 +10,13 @@ completed_phases:
   - PLAN (2026-08-18)
   - EXECUTE (2026-08-18)
   - VERIFY (2026-08-18)
+  - REVIEW (2026-08-18)
+  - SHIP (2026-08-18)
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-08-13T14:47:23.449Z
 last_updated_commit: f24f3bad5f77ff06187e8f7a7ff2110ed28a870b
-last_updated: 2026-08-18T23:35:32.290Z
+last_updated: 2026-08-18T23:41:15.259Z
 ---
 # Project State
 
@@ -348,22 +350,26 @@ Three documents corrected, each pinned by a test comparing one document against 
 
 ## In-flight
 
-**`M6.E2` — the facts Signal publishes about itself.** Opened 2026-08-18. DISCUSS and PLAN closed;
-**EXECUTE in progress, wave 1**. Branch `epic/m6-e2-published-facts`.
+**`M6.E2` — the facts Signal publishes about itself. SHIPPED as `v0.1.29`, 2026-08-18.** Six phases
+closed in one day; PR #156, suite **2747**. Retro:
+[`M6.E2-RETROSPECTIVE.md`](M6.E2-RETROSPECTIVE.md).
 
-- **Requirements:** [`M6.E2-REQUIREMENTS.md`](M6.E2-REQUIREMENTS.md) — 26 criteria, all attributed.
-- **Decisions:** `D-M6E2-1` … `D-M6E2-7` in [`DECISIONS.md`](DECISIONS.md).
-- **Reach evidence:** [`M6.E2-CORPUS-MEASUREMENT.md`](M6.E2-CORPUS-MEASUREMENT.md) — **read this
-  before the requirements.** Three of the five instances reach only this repository; Brett ruled
-  *no trimming* (`D-M6E2-1`), so all five ship with their reach printed.
+**Five checks for one class**, reached from `/sig:sweep` and `/sig:resume`, plus the `/sig:add --bug`
+write-path fix. ⚠ **Three of the five evaluate one project: this one** — measured before scope was
+locked, and printed in the report next to the clean count rather than buried
+([`M6.E2-CORPUS-MEASUREMENT.md`](M6.E2-CORPUS-MEASUREMENT.md)).
 
-**Two things are deliberately left broken** until a check catches them (`D-M6E2-5`): `B102`'s status
-row reads `confirmed` while it shipped fixed in `v0.1.27`, and the `[Unreleased]` defect is filed in
-two places. Fixing them first would ship the detectors untested against the only real instances.
+**Eight times the Epic committed its own defect while building the checks for it** — en-dash-ranged
+criteria invisible to the coverage tool, a non-existent commit sha, a test count two too high, a
+report heading that stopped being true, a silent no-op in `rewriteBugTally`, and at SHIP itself a
+check that would have fired on every Epic close forever. Three of the eight were found by **running**
+a tool, not by reading code.
 
-*This section was itself the defect, one hour into the Epic named after it: `body-omits-current-epic`
-returned **findings** on the first `/sig:sweep` after the new check was wired in — frontmatter said
-`M6.E2`, the prose still said "Milestone 6 is not opened."*
+**Left open on purpose:** the dated `[Unreleased]` heading needs a product call
+([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md)), and the **semantic half** of claim integrity stays
+unbuilt (`D-M6E2-7`) — everything shipped here compares tokens.
+
+**Nothing is in flight.**
 
 **Milestone 6 is open.** `M6.E1` (the plugin payload) shipped as `v0.1.26` on 2026-08-17; two fix-lane
 releases followed — `B102`/`v0.1.27` and `B103`/`v0.1.28`. The queue remains
