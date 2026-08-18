@@ -7,7 +7,7 @@ import {
   compareVersions,
   changelogBetween,
   renderUpdateReport,
-} from '../tools/lib/update.js';
+} from '../plugin/tools/lib/update.js';
 
 /**
  * M5.E16 S6 (FR6) — `/sig:update`.

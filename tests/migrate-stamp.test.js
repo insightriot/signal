@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { stampOnConformance, senseState, CURRENT_LAYOUT_VERSION } from '../tools/lib/migrate-memory.js';
+import { stampOnConformance, senseState, CURRENT_LAYOUT_VERSION } from '../plugin/tools/lib/migrate-memory.js';
 
 const CONFORMANT =
   `---\nschema_version: 1\nphase: PLAN\ncurrent_epic: M5.E2\ncurrent_tasks: []\n` +

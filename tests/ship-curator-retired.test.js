@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
-const COMMANDS_DIR = join(ROOT, 'commands');
+const COMMANDS_DIR = join(ROOT, 'plugin', 'commands');
 
 describe('SHIP §8 — Curator retired, native INDEX reconcile (S6b.t2 / FR6 / AC6.4)', () => {
   it('AC6.4: ship.md reconciles INDEX natively via regeneratePlanningIndex', async () => {

@@ -12,7 +12,7 @@ import { mkdtemp, rm, mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { conserves, relocateFaithful, BYTE, WORD } from '../tools/lib/migrate-memory.js';
+import { conserves, relocateFaithful, BYTE, WORD } from '../plugin/tools/lib/migrate-memory.js';
 
 describe('M5.E2.S1.t3 conserves — BYTE mode (archive/verbatim)', () => {
   it('passes when the new home is byte-identical', () => {

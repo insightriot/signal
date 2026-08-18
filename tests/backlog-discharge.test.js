@@ -24,8 +24,8 @@ import {
   backlogDischargeStatus,
   BACKLOG_DISCHARGE,
   ROW_DISCHARGE,
-} from '../tools/lib/backlog.js';
-import { checkBacklogDischarge } from '../tools/lib/sweep.js';
+} from '../plugin/tools/lib/backlog.js';
+import { checkBacklogDischarge } from '../plugin/tools/lib/sweep.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -311,7 +311,7 @@ describe('the /sig:sweep surface (AC9.4)', () => {
 });
 
 describe('commands/ship.md wires the discharge (AC9.3)', () => {
-  const ship = readFileSync(join(ROOT, 'commands', 'ship.md'), 'utf-8');
+  const ship = readFileSync(join(ROOT, 'plugin', 'commands', 'ship.md'), 'utf-8');
 
   it('names the discharge helper at an Epic-close step', () => {
     expect(ship).toContain('dischargeBacklogRows');

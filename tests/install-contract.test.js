@@ -66,7 +66,10 @@ describe('marketplace.json — source block contract', () => {
       typeof marketplaceRaw.plugins[0].source,
       'source must be the relative string form; the url+ref+sha form reintroduces B58'
     ).toBe('string');
-    expect(marketplaceRaw.plugins[0].source).toBe('.');
+    // `.` → `./plugin` at M6.E1 S4: the plugin is now a subdirectory of this
+    // repo rather than the whole of it. Still the relative STRING form, which
+    // is the half B58 turns on — only the path changed.
+    expect(marketplaceRaw.plugins[0].source).toBe('./plugin');
   });
 
   it('carries NO hand-maintained commit pin anywhere (the drift had one home)', () => {
@@ -76,15 +79,83 @@ describe('marketplace.json — source block contract', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// FR4 — two catalogs, deliberately different (D-M6E1-4).
+//
+// The root catalog is fetched by cloning this repo, so its source is a
+// relative path. The published catalog is fetched as a bare URL — nothing is
+// cloned, so a relative path has nothing to be relative TO, and it must name
+// the repo and the subdirectory outright via `git-subdir`.
+//
+// They therefore CANNOT be byte-equal, and a test demanding they were would
+// break one of the two fetch paths. What is pinned instead is the invariant:
+// same plugin, and neither one pinned to a commit.
+// ---------------------------------------------------------------------------
+
+const publishedRaw = existsSync(join(ROOT, 'docs/map/install/marketplace.json'))
+  ? JSON.parse(readFileSync(join(ROOT, 'docs/map/install/marketplace.json'), 'utf-8'))
+  : null;
+
+describe('published catalog — the URL-hosted fetch path', () => {
+  it('exists at docs/map/install/marketplace.json', () => {
+    expect(publishedRaw, 'the published catalog is what removes the 19 MB marketplace clone').toBeTruthy();
+  });
+
+  it('AC4.2 — plugins[0].source is the git-subdir object form naming this repo and the subdirectory', () => {
+    const source = publishedRaw.plugins[0].source;
+    expect(typeof source, 'a URL marketplace downloads only this file; a relative path has nothing to resolve against').toBe('object');
+    expect(source.source).toBe('git-subdir');
+    expect(source.url).toMatch(/^https:\/\/github\.com\/.+\.git$/);
+    expect(source.path).toBe('plugin');
+  });
+
+  it('AC4.2 — carries no ref and no sha, so users still track main (D-M5E17-4)', () => {
+    // Absence must not read as compliance: JSON.stringify(null) is "null",
+    // which contains no sha and no ref and would pass every assertion below.
+    // A missing catalog is a failure here, not a clean sheet.
+    expect(publishedRaw, 'no published catalog to check — this is a FAIL, not a pass').toBeTruthy();
+    const asText = JSON.stringify(publishedRaw);
+    expect(/[a-f0-9]{40}/.test(asText), 'a 40-char sha appeared in the published catalog').toBe(false);
+    expect(asText).not.toMatch(/"ref"\s*:/);
+    expect(asText).not.toMatch(/"sha"\s*:/);
+    expect(asText).not.toMatch(/"commit"\s*:/);
+  });
+});
+
+describe('AC4.3 — the invariant between the two catalogs, not their equality', () => {
+  it('both name the same plugin', () => {
+    expect(publishedRaw.plugins).toHaveLength(marketplaceRaw.plugins.length);
+    expect(publishedRaw.plugins[0].name).toBe(marketplaceRaw.plugins[0].name);
+    expect(publishedRaw.name).toBe(marketplaceRaw.name);
+  });
+
+  it('neither carries a pin — the property that must survive in BOTH places', () => {
+    expect(publishedRaw, 'no published catalog to check — this is a FAIL, not a pass').toBeTruthy();
+    for (const [label, catalog] of [['root', marketplaceRaw], ['published', publishedRaw]]) {
+      const asText = JSON.stringify(catalog);
+      expect(/[a-f0-9]{40}/.test(asText), `${label} catalog gained a sha`).toBe(false);
+      expect(asText, `${label} catalog gained a ref`).not.toMatch(/"ref"\s*:/);
+    }
+  });
+
+  it('they are NOT byte-equal, and that is the point', () => {
+    // Stated as an assertion rather than a comment: if someone later
+    // "fixes" the difference by copying one over the other, one of the two
+    // fetch paths stops working and this is where they find out.
+    expect(JSON.stringify(publishedRaw.plugins[0].source))
+      .not.toBe(JSON.stringify(marketplaceRaw.plugins[0].source));
+  });
+});
+
 describe('plugin.json — version field contract', () => {
   it('version is semver-shaped (MAJOR.MINOR.PATCH)', async () => {
-    const raw = await readFile(join(ROOT, '.claude-plugin/plugin.json'), 'utf-8');
+    const raw = await readFile(join(ROOT, 'plugin', '.claude-plugin/plugin.json'), 'utf-8');
     const plugin = JSON.parse(raw);
     expect(plugin.version).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   it('version is at least 0.1.1 (the E1 release)', async () => {
-    const raw = await readFile(join(ROOT, '.claude-plugin/plugin.json'), 'utf-8');
+    const raw = await readFile(join(ROOT, 'plugin', '.claude-plugin/plugin.json'), 'utf-8');
     const plugin = JSON.parse(raw);
     const [major, minor, patch] = plugin.version.split('.').map(Number);
     const isAtLeast = major > 0 || minor > 1 || (minor === 1 && patch >= 1);
@@ -127,3 +198,71 @@ describe('CHANGELOG.md — release history', () => {
 // reintroducing the pinned form. A guard against the fragile SHAPE, not
 // against a stale VALUE.
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// M6.E1 S6 — the migration (FR5, FR6).
+//
+// D-M6E1-5's reasoning, restated because it is what these tests enforce: a
+// migration note on a web page is precisely the mechanism that exists, is
+// correct, and is never reached (UNREACHED-MECHANISM-ANALYSIS.md). So the page
+// is necessary and NOT sufficient — the detector is what makes it reached, and
+// the last test here is the one that keeps the detector wired.
+// ---------------------------------------------------------------------------
+
+const INSTALL_PAGE = join(ROOT, 'docs/map/install/index.html');
+const URL_FORM = 'https://signal.insightriot.com/install/marketplace.json';
+
+describe('FR6 — the install page carries the migration', () => {
+  const page = readFileSync(INSTALL_PAGE, 'utf-8');
+
+  it('AC6.3 — the primary install snippet is the URL form', () => {
+    const firstAdd = page.indexOf('marketplace add');
+    expect(firstAdd, 'the page must contain an install snippet at all').toBeGreaterThan(-1);
+    const line = page.slice(firstAdd, page.indexOf('\n', firstAdd));
+    expect(line, 'the FIRST marketplace add on the page is what people copy').toContain(URL_FORM);
+  });
+
+  it('AC6.1 — an existing-user section names the old form and the switch', () => {
+    expect(page).toMatch(/installed signal before/i);
+    expect(page, 'the section must name the form users are actually on').toContain('insightriot/signal');
+    expect(page).toContain('marketplace remove');
+  });
+
+  it('AC6.2 — it does NOT tell users to delete plugin version directories', () => {
+    // Measured in B99: 11 of 13 cached versions sit inside the documented
+    // ~14-day orphan sweep and clear themselves. Telling people to rm -rf
+    // inside their Claude config for something that self-heals is bad advice,
+    // and the obvious version of this section would have done exactly that.
+    expect(page, 'no rm -rf in a migration note').not.toMatch(/rm\s+-rf/);
+    expect(page).not.toMatch(/delete[^.]{0,40}cache/i);
+  });
+
+  it('AC6.2 — it DOES cover the marketplace clone, which does not self-clean', () => {
+    expect(page).toMatch(/marketplace remove signal/);
+    expect(page, 'the reason the clone is different must be stated, not assumed').toMatch(/clean|sweep|automatic/i);
+  });
+});
+
+describe('AC5.2 — the detector is REACHED, not merely built', () => {
+  // The defect class this repo named: a mechanism exists, is correct, and
+  // nothing invokes it, so correctness rests on the operator already knowing.
+  // B99's own fix shipped a detector; this asserts the command file calls it.
+  const doctorCmd = readFileSync(join(ROOT, 'plugin/commands/doctor.md'), 'utf-8');
+  const doctorLib = readFileSync(join(ROOT, 'plugin/tools/lib/doctor.js'), 'utf-8');
+
+  it('the P6 detector is in the detector list runAllDetectors executes', () => {
+    const list = doctorLib.slice(doctorLib.indexOf('const detectors = ['));
+    expect(list.slice(0, list.indexOf(']'))).toContain('detectP6LegacyMarketplaceSource');
+  });
+
+  it('doctor.md renders the P6 finding and the switch command', () => {
+    expect(doctorCmd).toContain('P6');
+    expect(doctorCmd, 'the nudge is worthless without the command to act on').toContain(URL_FORM);
+  });
+
+  it('doctor.md renders the could-not-check case rather than only the verdict (B39)', () => {
+    expect(doctorCmd).toContain('checked_all');
+    expect(doctorCmd).toContain('undetermined');
+    expect(doctorCmd, 'silence must not read as clean').toMatch(/could not check/i);
+  });
+});

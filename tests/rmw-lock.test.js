@@ -13,9 +13,9 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { withStateLock } from '../tools/lib/state.js';
-import { atomicWrite } from '../tools/lib/atomic-write.js';
-import { captureCheckpointContext } from '../tools/lib/checkpoint.js';
+import { withStateLock } from '../plugin/tools/lib/state.js';
+import { atomicWrite } from '../plugin/tools/lib/atomic-write.js';
+import { captureCheckpointContext } from '../plugin/tools/lib/checkpoint.js';
 import {
   parseEntries,
   applyDisposition,
@@ -23,10 +23,10 @@ import {
   evictTerminalToLedger,
   applyDispositionToFile,
   applyDispositionToFileCore,
-} from '../tools/lib/drain.js';
-import { regenerateIndex, generateMilestoneMetaRetro } from '../tools/lib/retro-index.js';
-import { regeneratePlanningIndex, regeneratePlanningIndexCore } from '../tools/lib/planning-index.js';
-import { applyMigrate } from '../tools/lib/migrate-memory.js';
+} from '../plugin/tools/lib/drain.js';
+import { regenerateIndex, generateMilestoneMetaRetro } from '../plugin/tools/lib/retro-index.js';
+import { regeneratePlanningIndex, regeneratePlanningIndexCore } from '../plugin/tools/lib/planning-index.js';
+import { applyMigrate } from '../plugin/tools/lib/migrate-memory.js';
 
 const INBOX_REL = '.planning/ISSUES-INBOX.md';
 

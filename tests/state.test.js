@@ -3,7 +3,7 @@ import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { initState, readState, transitionPhase, SCHEMA_VERSION } from '../tools/lib/state.js';
+import { initState, readState, transitionPhase, SCHEMA_VERSION } from '../plugin/tools/lib/state.js';
 import { seedPhaseArtifacts } from './helpers/phase-artifacts.js';
 
 // S1.t1 (M4.5.E10): SCHEMA_VERSION must be a public named export — the S4

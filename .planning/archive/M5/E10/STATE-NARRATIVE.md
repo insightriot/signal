@@ -65,3 +65,12 @@
 > `B92` filed, 13 rows added to `BACKLOG.md`, `D-BR0810-1…3`), and `B46` is **dismissed** (#140).
 > **The routing further down this file that sends the inbox triage to `M5.E14` is historical**
 > (`D-M5E17-3` cut it there when nothing else had a home for it); it ran in the fix lane instead.
+
+## Phase log — Epic M5.E10 (archived 2026-08-14) <!-- phase-log:archived -->
+
+- DISCUSS (2026-08-12)
+- PLAN (2026-08-12)
+- EXECUTE (2026-08-13)
+- VERIFY (2026-08-13)
+- REVIEW (2026-08-13)
+- SHIP (2026-08-13)

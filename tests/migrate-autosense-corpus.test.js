@@ -31,7 +31,7 @@ import {
   renderDryRun,
   applyMigrate,
   CURRENT_LAYOUT_VERSION,
-} from '../tools/lib/migrate-memory.js';
+} from '../plugin/tools/lib/migrate-memory.js';
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
 

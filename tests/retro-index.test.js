@@ -14,7 +14,7 @@ import {
   renderIndex,
   parseExistingHooks,
   regenerateIndex,
-} from '../tools/lib/retro-index.js';
+} from '../plugin/tools/lib/retro-index.js';
 
 const STUB_RETRO = `# M4.5.E1 Retrospective
 

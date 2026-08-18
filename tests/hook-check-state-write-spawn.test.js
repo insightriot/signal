@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const HOOK = join(__dirname, '..', 'hooks', 'check-state-write.js');
+const HOOK = join(__dirname, '..', 'plugin', 'hooks', 'check-state-write.js');
 
 // Spawn the hook with a PreToolUse event on stdin. Returns { status, stderr }.
 // spawnSync captures stderr on ANY exit code — needed since the retro path now

@@ -21,7 +21,7 @@ import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { readState, setCurrentEpic } from '../tools/lib/state.js';
+import { readState, setCurrentEpic } from '../plugin/tools/lib/state.js';
 
 // Write a COMPLETE schema_v1 STATE.md that looks like a just-SHIPPED Epic:
 // a progressed phase, an accumulated per-Epic completed_phases, a

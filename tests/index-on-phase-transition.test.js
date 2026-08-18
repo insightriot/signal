@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 
-import { transitionPhase } from '../tools/lib/state.js';
+import { transitionPhase } from '../plugin/tools/lib/state.js';
 
 /**
  * M5.E16 S5 (FR5) — `INDEX.md` regenerates at every phase transition.
@@ -143,7 +143,7 @@ describe('M5.E16 S5.t3 — no hook gains write capability (AC5.3)', () => {
     // fresher, because no Signal hook writes anything today and a hook that
     // edits files before the user has asked for anything crosses a trust line
     // the design holds deliberately. That line is asserted here, not assumed.
-    const hooksDir = join(import.meta.dirname, '..', 'hooks');
+    const hooksDir = join(import.meta.dirname, '..', 'plugin', 'hooks');
     const files = (await readdir(hooksDir)).filter((f) => f.endsWith('.js'));
     expect(files.length).toBeGreaterThan(0);
 
@@ -155,7 +155,7 @@ describe('M5.E16 S5.t3 — no hook gains write capability (AC5.3)', () => {
   });
 
   it('no hook imports the index regenerator', async () => {
-    const hooksDir = join(import.meta.dirname, '..', 'hooks');
+    const hooksDir = join(import.meta.dirname, '..', 'plugin', 'hooks');
     const files = (await readdir(hooksDir)).filter((f) => f.endsWith('.js'));
     for (const file of files) {
       const src = await readFile(join(hooksDir, file), 'utf-8');

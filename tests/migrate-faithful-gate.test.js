@@ -17,8 +17,8 @@ import { mkdtemp, rm, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { relocateFaithful, verifyFaithful, WORD, BYTE } from '../tools/lib/migrate-memory.js';
-import { verifyCardCoverage } from '../tools/lib/evict.js';
+import { relocateFaithful, verifyFaithful, WORD, BYTE } from '../plugin/tools/lib/migrate-memory.js';
+import { verifyCardCoverage } from '../plugin/tools/lib/evict.js';
 
 // Pure narrative — NO M*.E* / D-* / FR* / AC* ids, NO ISO dates, NO status
 // tokens. This is the exact shape of the frontmatter prose the B8 recipe dropped.

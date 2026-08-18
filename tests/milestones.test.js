@@ -9,7 +9,7 @@ import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { currentMilestone, listMilestones } from '../tools/lib/milestones.js';
+import { currentMilestone, listMilestones } from '../plugin/tools/lib/milestones.js';
 
 // Write a schema_version-1 STATE.md fixture with the given current_epic value.
 // `epic` may be a string (quoted in YAML), the literal 'null', or omitted to

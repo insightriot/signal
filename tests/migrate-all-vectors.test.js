@@ -25,9 +25,9 @@ import {
   deproseFrontmatter,
   conserves,
   WORD,
-} from '../tools/lib/migrate-memory.js';
-import { extractEpicSection } from '../tools/lib/evict.js';
-import { checkStateFrontmatterShape } from '../tools/lib/retrospective.js';
+} from '../plugin/tools/lib/migrate-memory.js';
+import { extractEpicSection } from '../plugin/tools/lib/evict.js';
+import { checkStateFrontmatterShape } from '../plugin/tools/lib/retrospective.js';
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
 

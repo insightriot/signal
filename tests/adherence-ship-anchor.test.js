@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
-const SHIP = join(ROOT, 'commands/ship.md');
+const SHIP = join(ROOT, 'plugin/commands/ship.md');
 
 /**
  * FR6 / AC6.1–AC6.3 — the pre-ship checklist anchor.

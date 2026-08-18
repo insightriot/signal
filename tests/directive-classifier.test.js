@@ -8,7 +8,7 @@ import {
   classifyLine,
   classifyMarkdown,
   classifyCommandCorpus,
-} from '../tools/lib/directive-classifier.js';
+} from '../plugin/tools/lib/directive-classifier.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -40,7 +40,7 @@ function readHandLabels(path) {
 }
 
 describe('directive classifier — split rule (AC5.1)', () => {
-  const libExports = collectLibExports(join(ROOT, 'tools/lib'));
+  const libExports = collectLibExports(join(ROOT, 'plugin/tools/lib'));
 
   it('resolves library calls against the REAL tools/lib export set, not the shape', () => {
     expect(libExports.has('readState')).toBe(true);
@@ -97,7 +97,7 @@ describe('directive classifier — split rule (AC5.1)', () => {
 
 describe('directive classifier — the corpus ceiling (AC5.1)', () => {
   it('classifies the real commands/*.md corpus with consistent totals', () => {
-    const corpus = classifyCommandCorpus(ROOT);
+    const corpus = classifyCommandCorpus(join(ROOT, 'plugin'));
     expect(corpus.files.length).toBeGreaterThanOrEqual(18);
     const { directives, measurable, unmeasurable } = corpus.counts;
     expect(directives).toBeGreaterThan(0);
@@ -109,7 +109,7 @@ describe('directive classifier — the corpus ceiling (AC5.1)', () => {
   });
 
   it('reports per-file counts so a reader can audit where the traces are', () => {
-    const corpus = classifyCommandCorpus(ROOT);
+    const corpus = classifyCommandCorpus(join(ROOT, 'plugin'));
     const byName = new Map(corpus.files.map(f => [f.file, f]));
     expect(byName.has('ship.md')).toBe(true);
     for (const f of corpus.files) {

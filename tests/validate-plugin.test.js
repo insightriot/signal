@@ -19,6 +19,9 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { findJargonHits } from './helpers/template-lint.js';
 import { checkBannedVocabulary, ROOT } from '../tools/validate-plugin.js';
+// M6.E1: that ROOT is the PLUGIN root now (the script validates the plugin).
+// Spawning the script needs the REPOSITORY root — two different directories.
+const REPO_ROOT = join(ROOT, '..');
 
 describe('findJargonHits — banned-term primitive', () => {
   it('catches a planted tranche', () => {
@@ -102,7 +105,7 @@ describe('checkBannedVocabulary — validator lint', () => {
 describe('validate-plugin.js subprocess', () => {
   it('exits 0 on the clean repo', () => {
     const out = execFileSync('node', ['tools/validate-plugin.js'], {
-      cwd: ROOT,
+      cwd: REPO_ROOT,
       encoding: 'utf8',
     });
     expect(out).toContain('Plugin validation passed.');

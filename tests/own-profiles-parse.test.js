@@ -3,7 +3,7 @@ import { readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { readEffectiveProfile, readProfile } from '../tools/lib/profile.js';
+import { readEffectiveProfile, readProfile } from '../plugin/tools/lib/profile.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');

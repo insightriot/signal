@@ -8,7 +8,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { acquireLock, releaseLock } from '../tools/lib/file-lock.js';
+import { acquireLock, releaseLock } from '../plugin/tools/lib/file-lock.js';
 
 describe('acquireLock', () => {
   let tempDir;

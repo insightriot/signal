@@ -22,7 +22,7 @@ import {
   applyDispositionToFile,
   isEvictable,
   evictTerminalToLedger,
-} from '../tools/lib/drain.js';
+} from '../plugin/tools/lib/drain.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -35,7 +35,7 @@ const FIXTURE = join(
   'FUTURE-IDEAS.md'
 );
 const content = readFileSync(FIXTURE, 'utf-8');
-const planMd = readFileSync(join(ROOT, 'commands', 'plan.md'), 'utf-8');
+const planMd = readFileSync(join(ROOT, 'plugin', 'commands', 'plan.md'), 'utf-8');
 const readmeMd = readFileSync(join(ROOT, 'README.md'), 'utf-8');
 const changelogMd = readFileSync(join(ROOT, 'CHANGELOG.md'), 'utf-8');
 
@@ -981,7 +981,7 @@ describe('commands/plan.md offers the verb it now has', () => {
     // The B39/B46 class, applied to this change on the day it shipped: a
     // capability with no caller. plan.md is the only surface that offers
     // disposition verbs to a user.
-    const planMd = readFileSync(join(ROOT, 'commands/plan.md'), 'utf-8');
+    const planMd = readFileSync(join(ROOT, 'plugin/commands/plan.md'), 'utf-8');
     expect(planMd).toContain('[promote, defer, shipped, merge, delete]');
     expect(planMd).toMatch(/\|\s*\*\*shipped\*\*\s*\|/);
   });

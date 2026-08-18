@@ -9,7 +9,7 @@ import {
   extractField,
   embedSection,
   SCANNERS,
-} from '../tools/lib/landscape.js';
+} from '../plugin/tools/lib/landscape.js';
 
 let baseDir;
 

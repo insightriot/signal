@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
-const MODEL_DOC = join(ROOT, 'references', 'doc-runtime-model.md');
+const MODEL_DOC = join(ROOT, 'plugin', 'references', 'doc-runtime-model.md');
 
 /**
  * Section-presence lint for the FR1 canonical doc-runtime model. The doc is the

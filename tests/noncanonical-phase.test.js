@@ -3,9 +3,9 @@ import {
   nextActionForPhase,
   describeNextAction,
   formatNextActionCopy,
-} from '../tools/lib/status.js';
-import { renderResumeBriefing } from '../tools/lib/resume.js';
-import { PHASES } from '../tools/lib/state.js';
+} from '../plugin/tools/lib/status.js';
+import { renderResumeBriefing } from '../plugin/tools/lib/resume.js';
+import { PHASES } from '../plugin/tools/lib/state.js';
 
 /**
  * B70 — `/sig:status` and `/sig:resume` throw outright on a project whose

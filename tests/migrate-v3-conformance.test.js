@@ -19,9 +19,9 @@ import {
   senseVector3,
   applyMigrate,
   CURRENT_LAYOUT_VERSION,
-} from '../tools/lib/migrate-memory.js';
-import { LAYOUT_VERSION } from '../tools/lib/layout-stamp.js';
-import { readLayoutBanner, decideLayoutBanner, LAYOUT_DRIFT_BANNER_COMMAND } from '../tools/lib/status.js';
+} from '../plugin/tools/lib/migrate-memory.js';
+import { LAYOUT_VERSION } from '../plugin/tools/lib/layout-stamp.js';
+import { readLayoutBanner, decideLayoutBanner, LAYOUT_DRIFT_BANNER_COMMAND } from '../plugin/tools/lib/status.js';
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
 

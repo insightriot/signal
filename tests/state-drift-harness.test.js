@@ -11,7 +11,7 @@ import {
   runDriftChecks,
   renderDriftReport,
   STATE_DRIFT_CHECKS,
-} from '../tools/lib/state-drift.js';
+} from '../plugin/tools/lib/state-drift.js';
 
 /**
  * M5.E16 S1 — the harness, wave 1.

@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import {
   validateVerificationContent,
   getRequiredVerificationSections,
-} from '../tools/lib/verification-template.js';
+} from '../plugin/tools/lib/verification-template.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 
@@ -140,7 +140,7 @@ describe('NFR3 — malformed input never throws', () => {
 
 describe('AC3.3 — the template states that it proves nothing alone', () => {
   it('says so in its own text, and names the check it is paired with', async () => {
-    const template = await readFile(join(ROOT, 'references', 'verification-template.md'), 'utf8');
+    const template = await readFile(join(ROOT, 'plugin', 'references', 'verification-template.md'), 'utf8');
     expect(template).toMatch(/proves nothing on its own/i);
     expect(template).toMatch(/diffRequirementCoverage/);
     // The pairing is the claim: structure catches a report that never asked;
@@ -149,7 +149,7 @@ describe('AC3.3 — the template states that it proves nothing alone', () => {
   });
 
   it('the locked headings in the template match the validator exactly', async () => {
-    const template = await readFile(join(ROOT, 'references', 'verification-template.md'), 'utf8');
+    const template = await readFile(join(ROOT, 'plugin', 'references', 'verification-template.md'), 'utf8');
     for (const tier of ['SKETCH', 'FEATURE', 'SPIKE', 'FULL']) {
       const block = template.slice(
         template.indexOf(`<!-- TEMPLATE: ${tier} -->`),
@@ -168,7 +168,7 @@ describe('AC3.3 — the template states that it proves nothing alone', () => {
     // denominator. Making the blank form pass would mean accepting the exact
     // artifact this gate exists to reject — so the real requirement is the
     // opposite one, pinned here.
-    const template = await readFile(join(ROOT, 'references', 'verification-template.md'), 'utf8');
+    const template = await readFile(join(ROOT, 'plugin', 'references', 'verification-template.md'), 'utf8');
     for (const tier of ['SKETCH', 'FULL']) {
       const block = template
         .slice(
@@ -187,7 +187,7 @@ describe('AC0.1 — the deferred half is impossible to miss', () => {
   it('the shipped template names the semantic backstop as NOT built', async () => {
     // Checked, not intended. The whole Epic is about claims that were true in
     // someone's head — including the claim that the deferral is visible.
-    const template = await readFile(join(ROOT, 'references', 'verification-template.md'), 'utf8');
+    const template = await readFile(join(ROOT, 'plugin', 'references', 'verification-template.md'), 'utf8');
     expect(template).toMatch(/## What is NOT built/);
     expect(template).toMatch(/semantic backstop does not exist/i);
     expect(template).toMatch(/claims-audit/i);
@@ -209,7 +209,7 @@ describe('AC0.1 — the deferred half is impossible to miss', () => {
   });
 
   it('neither surface claims claim-integrity is solved', async () => {
-    const template = await readFile(join(ROOT, 'references', 'verification-template.md'), 'utf8');
+    const template = await readFile(join(ROOT, 'plugin', 'references', 'verification-template.md'), 'utf8');
     expect(template).toMatch(/half-guarded/i);
   });
 });

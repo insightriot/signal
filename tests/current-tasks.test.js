@@ -16,7 +16,7 @@ import {
   readState,
   parseFrontmatter,
   StateWriteError,
-} from '../tools/lib/state.js';
+} from '../plugin/tools/lib/state.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = join(__dirname, 'fixtures', 'state');

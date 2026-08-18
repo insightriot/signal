@@ -30,9 +30,9 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const COMMANDS = join(ROOT, 'commands');
+const COMMANDS = join(ROOT, 'plugin', 'commands');
 
-const plugin = JSON.parse(readFileSync(join(ROOT, '.claude-plugin', 'plugin.json'), 'utf-8'));
+const plugin = JSON.parse(readFileSync(join(ROOT, 'plugin', '.claude-plugin', 'plugin.json'), 'utf-8'));
 const marketplace = JSON.parse(
   readFileSync(join(ROOT, '.claude-plugin', 'marketplace.json'), 'utf-8')
 );

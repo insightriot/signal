@@ -15,7 +15,7 @@ import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { spliceDocsLayoutVersion, setDocsLayoutVersion } from '../tools/lib/migrate-memory.js';
+import { spliceDocsLayoutVersion, setDocsLayoutVersion } from '../plugin/tools/lib/migrate-memory.js';
 
 // Irregular spacing (`phase:   PLAN`) + a trailing comment: a stringifyYaml
 // round-trip normalizes the spacing and DROPS the comment; a raw splice keeps

@@ -12,7 +12,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { relocateInlinedBody } from '../tools/lib/migrate-memory.js';
+import { relocateInlinedBody } from '../plugin/tools/lib/migrate-memory.js';
 
 const BIG_BODY =
   '# Project State\n\n' +

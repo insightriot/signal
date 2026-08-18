@@ -7,7 +7,7 @@ import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { resolveInboxPath, resolveLedgerPath } from '../tools/lib/inbox-path.js';
+import { resolveInboxPath, resolveLedgerPath } from '../plugin/tools/lib/inbox-path.js';
 
 describe('resolveInboxPath (R1 — ISSUES-INBOX wins; back-compat to FUTURE-IDEAS)', () => {
   let tempDir;

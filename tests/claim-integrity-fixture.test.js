@@ -16,7 +16,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { extractRequirementIds } from '../tools/lib/requirement-ids.js';
+import { extractRequirementIds } from '../plugin/tools/lib/requirement-ids.js';
 
 const DIR = join(fileURLToPath(new URL('.', import.meta.url)), 'fixtures', 'claim-integrity');
 const read = (f) => readFile(join(DIR, f), 'utf8');

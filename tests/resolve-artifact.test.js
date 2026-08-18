@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
-import { resolveArtifactPath, artifactName } from '../tools/lib/resume.js';
+import { resolveArtifactPath, artifactName } from '../plugin/tools/lib/resume.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

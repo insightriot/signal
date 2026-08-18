@@ -33,8 +33,8 @@ import {
   shipFR1Check,
   isEpicCloseByState,
   checkProposedStateWrite,
-} from '../tools/lib/retrospective.js';
-import { readState, transitionPhase, completePhase } from '../tools/lib/state.js';
+} from '../plugin/tools/lib/retrospective.js';
+import { readState, transitionPhase, completePhase } from '../plugin/tools/lib/state.js';
 import { seedPhaseArtifacts } from './helpers/phase-artifacts.js';
 
 // A phase ledger spanning many runs — the shape a real linear project reaches.

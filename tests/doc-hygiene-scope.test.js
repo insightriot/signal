@@ -16,7 +16,7 @@ import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { checkInternalLinks, checkFillInStubs } from '../tools/lib/doc-hygiene.js';
+import { checkInternalLinks, checkFillInStubs } from '../plugin/tools/lib/doc-hygiene.js';
 
 // WALK_IGNORE with `.planning` removed but `archive` retained — the exact set
 // `/sig:sweep` passes so its scan includes `.planning/` yet still exempts

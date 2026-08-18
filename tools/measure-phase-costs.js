@@ -15,15 +15,17 @@ import { readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { estimatePhaseSkillCost } from './lib/context-monitor.js';
+import { estimatePhaseSkillCost } from '../plugin/tools/lib/context-monitor.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
+// M6.E1: plugin content lives under plugin/; ROOT stays the repo root.
+const PLUGIN = join(ROOT, 'plugin');
 const BUDGET_THRESHOLD = 40_000;
 const CONTEXT_WINDOW = 200_000;
 
 async function main() {
-  const config = JSON.parse(await readFile(join(ROOT, 'state/config.json'), 'utf-8'));
+  const config = JSON.parse(await readFile(join(PLUGIN, 'state/config.json'), 'utf-8'));
   const bindings = config.skills.phase_bindings;
   const phases = Object.keys(bindings);
 

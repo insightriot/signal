@@ -24,7 +24,7 @@ import {
   detectUnhandledLinkForms,
   toPosix,
   SCAFFOLD_SUFFIXES,
-} from '../tools/lib/archive-tree.js';
+} from '../plugin/tools/lib/archive-tree.js';
 
 // --- PURE literal-independence: the RED tripwire --------------------------------
 describe('M5.E2.S2.t3 planArchiveMoves — computed from signals, not literals', () => {

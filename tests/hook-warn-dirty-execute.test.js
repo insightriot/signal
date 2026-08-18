@@ -20,7 +20,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const HOOK = join(__dirname, '..', 'hooks', 'warn-dirty-execute.js');
+const HOOK = join(__dirname, '..', 'plugin', 'hooks', 'warn-dirty-execute.js');
 
 // STATE.md mid-EXECUTE for an Epic (E3) that the milestone shows shipped.
 const STATE_EXECUTE_E3 = `---

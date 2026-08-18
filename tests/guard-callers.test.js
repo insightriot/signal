@@ -127,7 +127,7 @@ function hasCaller(guardFile, flag) {
     }
   }
   // Markdown command files can document the invocation as the caller of record.
-  for (const abs of readdirSync(join(ROOT, 'commands')).map((f) => join(ROOT, 'commands', f))) {
+  for (const abs of readdirSync(join(ROOT, 'plugin', 'commands')).map((f) => join(ROOT, 'plugin', 'commands', f))) {
     if (abs.endsWith('.md')) files.push(abs);
   }
 

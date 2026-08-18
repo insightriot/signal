@@ -17,7 +17,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 
-import { isStaleVsOrigin, stringifyFrontmatter } from '../tools/lib/state.js';
+import { isStaleVsOrigin, stringifyFrontmatter } from '../plugin/tools/lib/state.js';
 
 // Real git-fixture helpers (B6/FR4). The subcommand-dispatch mock above is
 // range-agnostic, so it can't prove the HEAD..origin range swap; the

@@ -8,9 +8,9 @@ import {
   AC_ID_RE,
   matchIds,
   extractRequirementIds,
-} from '../tools/lib/requirement-ids.js';
+} from '../plugin/tools/lib/requirement-ids.js';
 
-const LIB_DIR = join(process.cwd(), 'tools', 'lib');
+const LIB_DIR = join(process.cwd(), 'plugin', 'tools', 'lib');
 
 describe('matchIds', () => {
   it('returns distinct matches and never mutates the shared regex lastIndex', () => {

@@ -25,7 +25,7 @@ import {
   compareBugTally,
   parseStatusCell,
   formatTallySegment,
-} from '../tools/lib/bugs-tally.js';
+} from '../plugin/tools/lib/bugs-tally.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BUGS_PATH = join(__dirname, '..', '.planning', 'BUGS.md');

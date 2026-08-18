@@ -9,7 +9,7 @@ import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { shipFR1Check } from '../tools/lib/retrospective.js';
+import { shipFR1Check } from '../plugin/tools/lib/retrospective.js';
 
 const VALID_FULL_RETRO = `# M4.5.E3 Retrospective
 
@@ -62,7 +62,7 @@ async function makeTempBase() {
   await mkdir(join(base, 'references'), { recursive: true });
   // Need real template so loadTemplate can be called downstream.
   await cp(
-    join(process.cwd(), 'references', 'retrospective-template.md'),
+    join(process.cwd(), 'plugin', 'references', 'retrospective-template.md'),
     join(base, 'references', 'retrospective-template.md'),
   );
   return base;

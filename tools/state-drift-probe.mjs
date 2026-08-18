@@ -31,8 +31,8 @@ import { readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, resolve, dirname, basename } from 'node:path';
 
-import { readState, PHASES, EPIC_ID_STRICT_RE } from './lib/state.js';
-import { runDriftChecks, STATE_DRIFT_CHECKS, STATUS } from './lib/state-drift.js';
+import { readState, PHASES, EPIC_ID_STRICT_RE } from '../plugin/tools/lib/state.js';
+import { runDriftChecks, STATE_DRIFT_CHECKS, STATUS } from '../plugin/tools/lib/state-drift.js';
 
 const args = process.argv.slice(2);
 const asJson = args.includes('--json');

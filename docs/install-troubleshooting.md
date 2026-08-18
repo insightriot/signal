@@ -59,7 +59,7 @@ Use this when you want a guaranteed-clean reinstall, or when no specific symptom
 
    ```bash
    # In a Claude Code session:
-   /plugin marketplace add insightriot/signal
+   /plugin marketplace add https://signal.insightriot.com/install/marketplace.json
    /plugin install sig@signal
    ```
 
@@ -177,7 +177,7 @@ rm -rf ~/.claude/plugins/cache/signal/sig/
 # 3. If the marketplace registration is also stale:
 #    in a Claude Code session, run:
 #      /plugin marketplace remove signal
-#      /plugin marketplace add insightriot/signal
+#      /plugin marketplace add https://signal.insightriot.com/install/marketplace.json
 ```
 
 The cache directory path is `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`. For Signal, that's `~/.claude/plugins/cache/signal/sig/<version>/`.

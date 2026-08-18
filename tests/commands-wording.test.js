@@ -17,7 +17,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CMD = join(ROOT, 'commands');
+const CMD = join(ROOT, 'plugin', 'commands');
 const MIDDLE = ['plan', 'execute', 'verify', 'review'];
 const read = (f) => readFileSync(join(CMD, `${f}.md`), 'utf-8');
 

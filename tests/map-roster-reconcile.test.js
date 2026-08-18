@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { listCommands, listAgents, listSkills } from '../tools/lib/roster.js';
+import { listCommands, listAgents, listSkills } from '../plugin/tools/lib/roster.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -114,17 +114,17 @@ describe('B32 — docs/map arrays reconcile against roster.js', () => {
 
   it('COMMANDS matches commands/ on disk, in both directions', () => {
     const mapNames = namesOf(extractArray(readMap(), 'COMMANDS'));
-    expectSameSet(mapNames, listCommands(ROOT).map(commandName), 'commands');
+    expectSameSet(mapNames, listCommands(join(ROOT, 'plugin')).map(commandName), 'commands');
   });
 
   it('AGENTS matches agents/ on disk, in both directions', () => {
     const mapNames = namesOf(extractArray(readMap(), 'AGENTS'));
-    expectSameSet(mapNames, listAgents(ROOT).map(agentName), 'agents');
+    expectSameSet(mapNames, listAgents(join(ROOT, 'plugin')).map(agentName), 'agents');
   });
 
   it('SKILLS matches skills/ on disk, in both directions', () => {
     const mapNames = namesOf(extractArray(readMap(), 'SKILLS'));
-    expectSameSet(mapNames, listSkills(ROOT).map(skillName), 'skills');
+    expectSameSet(mapNames, listSkills(join(ROOT, 'plugin')).map(skillName), 'skills');
   });
 
   it('no duplicate names within an array', () => {
@@ -149,7 +149,7 @@ describe('B32 — docs/map arrays reconcile against roster.js', () => {
 
     it('the simulator offers exactly the answers profile.js accepts', () => {
       const questions = extractArray(readMap(), 'QUESTIONS');
-      const profileSrc = readFileSync(join(ROOT, 'tools/lib/profile.js'), 'utf8');
+      const profileSrc = readFileSync(join(ROOT, 'plugin/tools/lib/profile.js'), 'utf8');
 
       for (const q of questions) {
         const m = profileSrc.match(
@@ -168,7 +168,7 @@ describe('B32 — docs/map arrays reconcile against roster.js', () => {
       // The other direction: adding a sixth calibration axis must not leave the
       // simulator quietly asking five questions and reporting a tier anyway.
       const asked = extractArray(readMap(), 'QUESTIONS').map((q) => q.id);
-      const profileSrc = readFileSync(join(ROOT, 'tools/lib/profile.js'), 'utf8');
+      const profileSrc = readFileSync(join(ROOT, 'plugin/tools/lib/profile.js'), 'utf8');
       const block = profileSrc.match(/CALIBRATION_ENUMS?\s*=\s*\{([\s\S]*?)\n\}/);
       const declared = block
         ? [...block[1].matchAll(/^\s{2}([a-z_]+):\s*\[/gm)].map((m) => m[1])
@@ -179,7 +179,7 @@ describe('B32 — docs/map arrays reconcile against roster.js', () => {
 
     it('the tier rigor defaults match references/tier-definitions.md', () => {
       const tiers = extractArray(readMap(), 'TIERS');
-      const defs = readFileSync(join(ROOT, 'references/tier-definitions.md'), 'utf8');
+      const defs = readFileSync(join(ROOT, 'plugin/references/tier-definitions.md'), 'utf8');
 
       // The authoritative table: | `override` | SKETCH | FEATURE | SPIKE | FULL |
       const rows = [...defs.matchAll(/^\|\s*`([a-z_]+)`\s*\|([^\n]+)\|\s*$/gm)];

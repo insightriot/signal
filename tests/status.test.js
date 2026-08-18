@@ -13,8 +13,8 @@ import {
   readLandscapeMeta,
   readSchemaDriftBanner,
   readStateSizeBanner,
-} from '../tools/lib/status.js';
-import { readProfile, ProfileSchemaError } from '../tools/lib/profile.js';
+} from '../plugin/tools/lib/status.js';
+import { readProfile, ProfileSchemaError } from '../plugin/tools/lib/profile.js';
 
 describe('readSchemaDriftBanner (S4.t2, FR5)', () => {
   let tempDir;
@@ -51,7 +51,7 @@ describe('readSchemaDriftBanner (S4.t2, FR5)', () => {
     expect(banner).toMatch(/schema drift/i);
   });
 });
-import { readState } from '../tools/lib/state.js';
+import { readState } from '../plugin/tools/lib/state.js';
 
 describe('Status helpers', () => {
   describe('nextActionForPhase', () => {
@@ -487,7 +487,7 @@ EXECUTE
 });
 
 describe('status.md — static contract', () => {
-  const statusMdPath = new URL('../commands/status.md', import.meta.url);
+  const statusMdPath = new URL('../plugin/commands/status.md', import.meta.url);
 
   it('file exists', () => {
     expect(existsSync(statusMdPath)).toBe(true);

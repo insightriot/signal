@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-import { buildCaveats } from '../tools/lib/adherence-caveats.js';
+import { buildCaveats } from '../plugin/tools/lib/adherence-caveats.js';
 
 /**
  * M5.E15 S1.t4 — the caveat that explains a whole section was removed.

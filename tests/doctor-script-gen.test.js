@@ -13,7 +13,7 @@ import {
   writeDoctorScript,
   checkCacheCasingClash,
   DoctorDetectionError,
-} from '../tools/lib/doctor.js';
+} from '../plugin/tools/lib/doctor.js';
 
 // ---- buildFixScript — script-content lint ----
 

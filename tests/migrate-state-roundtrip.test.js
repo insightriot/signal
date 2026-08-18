@@ -21,9 +21,9 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { applyMigrate } from '../tools/lib/migrate-memory.js';
+import { applyMigrate } from '../plugin/tools/lib/migrate-memory.js';
 // The REAL consumer path — the same parser /sig:resume|status|doctor read through.
-import { parseFrontmatter, readState } from '../tools/lib/state.js';
+import { parseFrontmatter, readState } from '../plugin/tools/lib/state.js';
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
 function initRepo(dir) {

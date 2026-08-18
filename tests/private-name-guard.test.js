@@ -220,7 +220,7 @@ describe('private project names do not spread to new files', () => {
   it('the corpus convention is documented, not just enforced', async () => {
     // A rule enforced by a test nobody can find the reasoning for gets deleted
     // the first time it is inconvenient.
-    const doc = await readFile(join(ROOT, 'references', 'eval-corpus.md'), 'utf8');
+    const doc = await readFile(join(ROOT, 'plugin', 'references', 'eval-corpus.md'), 'utf8');
     expect(doc).toMatch(/eval-project-A/);
     expect(doc).toMatch(/No mapping is published/i);
   });

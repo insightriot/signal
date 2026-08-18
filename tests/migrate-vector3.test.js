@@ -16,13 +16,13 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { withStateLock } from '../tools/lib/state.js';
-import { evictEpicNarrative } from '../tools/lib/evict.js';
+import { withStateLock } from '../plugin/tools/lib/state.js';
+import { evictEpicNarrative } from '../plugin/tools/lib/evict.js';
 import {
   planVector3,
   senseVector3,
   applyMigrate,
-} from '../tools/lib/migrate-memory.js';
+} from '../plugin/tools/lib/migrate-memory.js';
 
 const FRONTMATTER = [
   '---',

@@ -1,5 +1,13 @@
 node_modules/
-dist/
+# The plugin carries its one dependency instead of installing it (D-M6E1-7).
+# A package.json + lockfile in the plugin root triggers Claude Code's automatic
+# dependency install, which cannot be disabled — so the plugin root has neither,
+# and `yaml` is committed where the bare specifier already resolves.
+!plugin/node_modules/
+# Root-anchored: this is `npm run build`'s output (dist/lib). Unanchored, it
+# also matched plugin/node_modules/yaml/dist/ — the 796 KB that IS the package —
+# so the vendored copy would have committed as LICENSE, README and nothing that runs.
+/dist/
 .env
 .env.local
 .env.*.local

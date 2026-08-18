@@ -23,8 +23,8 @@ import {
   isSafeUnitName,
   senseArchiveTree,
   applyArchiveTree,
-} from '../tools/lib/archive-tree.js';
-import { deriveUnits } from '../tools/lib/work-units.js';
+} from '../plugin/tools/lib/archive-tree.js';
+import { deriveUnits } from '../plugin/tools/lib/work-units.js';
 
 const P = '.planning';
 

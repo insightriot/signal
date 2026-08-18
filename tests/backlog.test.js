@@ -20,19 +20,19 @@ import {
   createBacklogIfMissing,
   promoteToBacklog,
   promoteToBugs,
-} from '../tools/lib/backlog.js';
+} from '../plugin/tools/lib/backlog.js';
 import {
   parseEntries,
   isEvictable,
   promoteDrainEntry,
   evictTerminalToLedger,
-} from '../tools/lib/drain.js';
+} from '../plugin/tools/lib/drain.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
-const planMd = readFileSync(join(ROOT, 'commands', 'plan.md'), 'utf-8');
-const shipMd = readFileSync(join(ROOT, 'commands', 'ship.md'), 'utf-8');
-const executeMd = readFileSync(join(ROOT, 'commands', 'execute.md'), 'utf-8');
+const planMd = readFileSync(join(ROOT, 'plugin', 'commands', 'plan.md'), 'utf-8');
+const shipMd = readFileSync(join(ROOT, 'plugin', 'commands', 'ship.md'), 'utf-8');
+const executeMd = readFileSync(join(ROOT, 'plugin', 'commands', 'execute.md'), 'utf-8');
 
 const BACKLOG_REL = '.planning/BACKLOG.md';
 

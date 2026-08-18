@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import {
   composeMilestoneMetaRetro,
   generateMilestoneMetaRetro,
-} from '../tools/lib/retro-index.js';
+} from '../plugin/tools/lib/retro-index.js';
 
 const RETRO_FIXTURE = `# X Retrospective
 

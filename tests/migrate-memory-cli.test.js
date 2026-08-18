@@ -9,7 +9,7 @@ import { mkdtemp, rm, mkdir, writeFile, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { parseMigrateArgs, runMigrate } from '../tools/lib/migrate-memory.js';
+import { parseMigrateArgs, runMigrate } from '../plugin/tools/lib/migrate-memory.js';
 
 // Recursive snapshot: path → mtimeMs, so any write (new file OR rewrite of an
 // existing one) shows up as a diff.

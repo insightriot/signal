@@ -35,7 +35,7 @@ import {
   readCurrentBranch,
   readPullRequestEvidence,
   resolveDefaultBranch,
-} from '../tools/lib/branch-guard.js';
+} from '../plugin/tools/lib/branch-guard.js';
 
 // --- fixture builders -------------------------------------------------------
 
@@ -302,7 +302,7 @@ describe('rendering', () => {
 // a command file against a manifest rather than against someone's memory.
 
 describe('B88 — the guard is wired into the commands that need it', () => {
-  const COMMANDS = join(REPO, 'commands');
+  const COMMANDS = join(REPO, 'plugin', 'commands');
 
   it('execute.md and ship.md both call checkBranchPosture from the module', async () => {
     for (const file of ['execute.md', 'ship.md']) {

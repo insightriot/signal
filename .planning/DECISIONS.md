@@ -1809,3 +1809,164 @@ settles nothing about the plugins.
 
 **Home:** stated in `CLAUDE.md` so a fresh session reads it, per the backlog entry's own
 recommendation. This entry is the record; `CLAUDE.md` is the surface.
+
+## 2026-08-14 — M6.E1 DISCUSS: the plugin payload (D-M6E1-1 … D-M6E1-6)
+
+*Epic: `M6.E1`, the plugin payload. Milestone 6 opened on this Epic rather than on a theme
+(`MILESTONE-6.md`). Route A (move the files) and the URL catalog were decided **before** DISCUSS
+opened, by Brett on 2026-08-14; they are recorded in `MILESTONE-6.md` and are not re-litigated here.
+Research and measurements: `B99`.*
+
+**D-M6E1-1 — the plugin root is `plugin/`, and `tests/` stays at the repository root.**
+
+Everything an install needs moves under one directory: `commands/`, `agents/`, `skills/`,
+`references/`, `hooks/`, `tools/lib/`, and `.claude-plugin/plugin.json` → `plugin/`. Named for what
+it is; `sig/` was rejected because it reads like a source module rather than a payload boundary, and
+the plugin docs already call this directory "the plugin root."
+
+**`tests/` must not move.** It is 2.1 MB and it is the second-largest thing users currently receive.
+Tests import across the boundary (`../plugin/tools/lib/…`) — 138 files, mechanical. The boundary is
+one-directional and that is the invariant worth stating: **the plugin may never import from outside
+`plugin/`**, because the docs are explicit that paths traversing outside the plugin root *"will not
+work after installation."* A test import pointing inward is fine; a plugin import pointing outward is
+a shipped defect that passes locally.
+
+**D-M6E1-2 — the nine `tools/*.js` maintainer scripts stay at the repository root; `ship.md`'s
+reference to `adherence-run.js` is amended rather than followed.**
+
+`tools/lib/` is runtime and ships. The top-level scripts (`cut-release.js`, `validate-plugin.js`,
+`measure-corpus.js`, …) are Signal-maintainer tooling and have no business on a user's machine.
+**Exactly one is named by a command file** — `ship.md`'s checklist line *"node
+tools/adherence-run.js"*. Shipping the script to satisfy that line would be the tail wagging the dog;
+the line is a Signal-on-Signal instruction that a user shipping their own project can never
+meaningfully run.
+
+**But leaving the line as-is would be worse than either.** A command file instructing a user to run a
+file their install does not contain is the unreached-mechanism class inverted — an instruction
+pointing at nothing. The line is amended to name itself as a Signal-repository step. *Filed as an
+open PLAN item, not settled here: whether any other command file cites a path that will not exist
+post-move. It must be a grep, not a recollection.*
+
+**D-M6E1-3 — the plugin ships a two-file dependency manifest (`package.json` + lockfile) declaring
+`yaml` only.**
+
+The 47 MB is the single largest number in the install and it is not copied — Claude Code *installs*
+it, triggered by `package.json` + a lockfile in the plugin root, and *"you can't turn the automatic
+install off."* Measured: Signal's entire shipped surface has **one** external import, `yaml`, in
+**two** files (`tools/lib/profile.js`, `tools/lib/state.js`). Everything else is `node:` builtins.
+
+So the plugin root carries a manifest naming `yaml` and nothing else: the install still runs, and
+installs ~1.2 MB instead of 47 MB.
+
+**Two alternatives rejected, with reasons:**
+
+- **Bundle `yaml` in with esbuild** (the `build` script already exists). Rejected because command
+  files cite `tools/lib/*.js` **by path** as the thing to call. Shipping generated bundles would make
+  every one of those citations describe a file that is not what is running — trading a size problem
+  for a claim-integrity problem.
+- **Drop `yaml` for a hand-rolled frontmatter parser.** Rejected on evidence: `B61` is a live bug
+  about YAML type coercion in exactly this field, and Signal's writers are safe **because** the
+  `yaml` package quotes numeric-looking strings on stringify. Re-implementing that is re-opening a
+  bug we only survive by delegation.
+
+**The cost is stated, not waved away:** two `package.json` files now exist and can drift. Pinned by a
+test asserting the plugin manifest's `yaml` version matches the root's.
+
+**D-M6E1-4 — two catalogs, deliberately different, pinned on the invariant rather than on equality.**
+
+`.claude-plugin/marketplace.json` (repo root) keeps the **relative string** source, changing `"."` →
+`"./plugin"`. `install-contract.test.js`'s `toBe('.')` becomes `toBe('./plugin')`; **`B58`'s lesson
+survives untouched**, because the assertion that matters is that the source is the *string* form and
+carries no `ref`/`sha`.
+
+The published catalog at `docs/map/install/marketplace.json` uses **`git-subdir`** (`url` = this repo,
+`path` = `plugin`, **no `ref`, no `sha`**) — the only form that both fetches a subdirectory and works
+from a URL-hosted marketplace, since a URL marketplace downloads only the JSON and cannot resolve
+relative paths.
+
+**A byte-equality test between the two would therefore be wrong** — they describe the same plugin
+through two different fetch mechanisms, and forcing them identical would break one of them. The
+honest invariants, and what the test pins: both name the same plugin `name`, and **neither carries a
+`ref` or a `sha`**, so *"users track `main`"* (`D-M5E17-4`) cannot regress silently into a pin.
+
+**D-M6E1-5 — the old install path keeps working, and `/sig:doctor` tells you to move (Brett,
+2026-08-14).**
+
+Existing installs are **not** broken by this Epic: `add insightriot/signal` still resolves, because
+the root catalog keeps a working relative source — those users simply keep receiving the full clone
+until they re-add.
+
+The chosen option was not "both work" but **"both work *and Signal says so*."** The reasoning is this
+repo's own: a migration note on a web page is precisely the mechanism that exists, is correct, and is
+never reached — `analysis/UNREACHED-MECHANISM-ANALYSIS.md`. `/sig:doctor` gains a check that reads
+`~/.claude/plugins/known_marketplaces.json`, detects the `github`-sourced `signal` marketplace, and
+prints the one-line switch. **Put the check where the situation is.**
+
+**D-M6E1-6 — FULL tier NFRs are answered explicitly, and most are N/A by shape.**
+
+Recorded rather than skipped, because a silently-skipped gate is indistinguishable from a passed one.
+Health probes, graceful shutdown, structured request logging, security headers and rate limiting are
+**N/A**: this Epic ships no service and opens no port. The two that *do* apply are in scope: **supply
+integrity** (the published catalog is fetched over HTTPS from a domain we control, and carries no
+`ref`/`sha` to be pinned to a compromised commit) and **failure at the boundary** (an install whose
+dependency install fails must not leave a half-working plugin — the documented behaviour is that a
+failed install never blocks the plugin, so `yaml`'s absence must surface as a clear error from the
+two files that import it, not as a mystery).
+
+**D-M6E1-7 — the plugin *carries* `yaml` instead of declaring it. Supersedes `D-M6E1-3`** (Brett,
+2026-08-17, at `S3.t1` as `AC3.5` required).
+
+`plugin/node_modules/yaml/` is committed — the package as published, 233 files, extracted from the
+`yaml@2.8.3` tarball and verified byte-identical to the installed copy. **The plugin root carries no
+`package.json` and no lockfile**, which is the whole mechanism: Claude Code's automatic dependency
+install fires on that pair and *"can't be turned off; no setting or environment variable disables
+it."* Absence is the only off switch. The bare specifier still resolves, because Node walks up from
+`plugin/tools/lib/` and finds the package already sitting there.
+
+**What changed the decision was a measurement, not a preference.** `M6.E1-RESEARCH.md` §4 recommended
+the manifest while describing a failed install as costing *"the 18 commands that never touch
+`profile.js`/`state.js`"* — a minority tail. **That sentence is inverted.** Computed as a transitive
+closure rather than a grep: **28 of 51 `tools/lib` modules reach `yaml`, and 17 of 20 commands break
+without it.** `archive`, `sweep`, `index` and `migrate-memory` are among them and reach it through
+`archive-command.js`, `sweep.js`, `planning-index.js` and `migrate-memory.js` — never through
+`profile.js`/`state.js`, which is why the original grep missed them. Only `doctor`, `escalate` and
+`update` survive.
+
+So `AC3.4`'s subject was never *"a tail of commands degrades."* It was **"the plugin does not work,
+silently, at import, on a restricted network"** — because a failed dependency install *"never blocks
+the plugin."* `AC3.4` asked for that outcome to be made legible rather than prevented. **Preventing it
+outright was available the whole time and costs nothing at the boundary:** the ~1.2 MB is bytes the
+manifest option would have installed into the same cache anyway, moved from install-time to tracked.
+
+**Why this and not `plugin/vendor/yaml/` with rewritten imports** (`AC3.5`'s literal proposal, and
+option C in `RESEARCH` §4): the import line keeps reading `from 'yaml'`, so the two files stay
+ordinary source and every command file and doc citing them still describes what runs. That is
+`D-M6E1-3`'s own reason for rejecting the esbuild bundle, applied consistently. Zero code change.
+*`RESEARCH` rejected C outright on named-export interop being "the fragile part" — that is **false**,
+verified directly: a relative deep import of `dist/index.js` yields both named exports, because an
+`exports` map governs bare specifiers only. C was rejected on citation fidelity, not on the stated
+grounds, and the record says so rather than inheriting a wrong reason.*
+
+**Costs, stated:**
+
+- **A committed `node_modules` is exactly the shape `B99` complained about** (*"no other installed
+  plugin ships `tests/` or `node_modules`"*). Accepted knowingly: 1.2 MB of the one package the
+  plugin cannot run without is a different object from 47 MB of `vitest`/`eslint`/`esbuild`, and the
+  cache total still falls by ~46 MB. Recorded so nobody later reads it as an oversight.
+- **`.gitignore` needs an exception, and the exception had a trap.** `dist/` unanchored also matched
+  `plugin/node_modules/yaml/dist/` — the 796 KB that *is* the package. `git add -An` listed `LICENSE`,
+  `README.md` and `bin.mjs` and would have committed a vendored dependency **containing nothing that
+  runs**. Fixed by anchoring the repo's own build output as `/dist/`; both directions are pinned by
+  test.
+- **Updates are manual.** `AC3.3`'s pin moves rather than disappearing: a test asserts the vendored
+  `package.json`'s version equals the version the root lockfile resolves, so the copy cannot drift
+  from the declaration silently.
+
+**`A` (the manifest) remains the fallback, with its trigger written down** so a reversal is a decision
+and not a drift: **adopt `A` if the vendored copy ever needs to become two packages** — the moment a
+second runtime dependency exists, or `yaml` acquires one of its own, hand-maintained vendoring stops
+being cheap and npm should do the work. A test asserts `yaml` declares no dependencies, so that
+trigger fires mechanically rather than waiting to be noticed.
+
+**`FR3` is rewritten in `M6.E1-REQUIREMENTS.md` accordingly**, per `AC3.5`'s instruction that this
+outcome be a decision rather than a drift.

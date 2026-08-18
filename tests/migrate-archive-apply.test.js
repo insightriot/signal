@@ -18,7 +18,7 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { applyMigrate } from '../tools/lib/migrate-memory.js';
+import { applyMigrate } from '../plugin/tools/lib/migrate-memory.js';
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
 

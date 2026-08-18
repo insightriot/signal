@@ -23,8 +23,8 @@ import {
   renderDryRun,
   conserves,
   WORD,
-} from '../tools/lib/migrate-memory.js';
-import { checkStateFrontmatterShape } from '../tools/lib/retrospective.js';
+} from '../plugin/tools/lib/migrate-memory.js';
+import { checkStateFrontmatterShape } from '../plugin/tools/lib/retrospective.js';
 
 // A STATE.md carrying every offending shape at once (the whole-file eval-project-A case):
 //  - a CLEAN completed_phases entry (must be left untouched)

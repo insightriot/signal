@@ -7,10 +7,12 @@ import {
   checkContextBudget,
   findSkillPath,
   estimatePhaseSkillCost,
-} from '../tools/lib/context-monitor.js';
+} from '../plugin/tools/lib/context-monitor.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PLUGIN_ROOT = join(__dirname, '..');
+// M6.E1: the payload moved; this constant's NAME was already right and its
+// VALUE was the repo root — true only while the two were one directory.
+const PLUGIN_ROOT = join(__dirname, '..', 'plugin');
 
 describe('Context Monitor', () => {
   describe('estimateTokens', () => {

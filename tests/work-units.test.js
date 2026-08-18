@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { deriveUnits, WORKED_SUFFIXES } from '../tools/lib/work-units.js';
-import { SCAFFOLD_SUFFIXES } from '../tools/lib/archive-tree.js';
+import { deriveUnits, WORKED_SUFFIXES } from '../plugin/tools/lib/work-units.js';
+import { SCAFFOLD_SUFFIXES } from '../plugin/tools/lib/archive-tree.js';
 
 /**
  * M5.E18 S1 — units of work, derived from filenames.

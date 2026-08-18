@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { resolveSignalPath, PLUGIN_ROOT } from './helpers/roots.js';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,10 +16,12 @@ import {
   assertRegistryShape,
   assertSectionAnchorIsDiscrete,
   traceHit,
-} from '../tools/lib/adherence-verdict.js';
+} from '../plugin/tools/lib/adherence-verdict.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
+// M6.E1: plugin-relative paths resolve against the plugin root.
+const PLUGIN_DIR = join(ROOT, 'plugin');
 
 /**
  * FR2 + FR3 — the control arm's verdict logic (M5.E8.S3).
@@ -159,10 +162,10 @@ describe('the control arm must actually REMOVE the instruction', () => {
     // Widened from one file to every declared site. The single-file version of
     // this test passed while four other command files still ordered the call —
     // which is `B55`: the arm was mutated, the instruction was not isolated.
-    for (const c of loadCanaryRegistry(ROOT).canaries) {
+    for (const c of loadCanaryRegistry(PLUGIN_DIR).canaries) {
       const residue = c.trace.functionName ?? 'transitionPhase';
       for (const entry of c.deletions) {
-        const src = readFileSync(join(ROOT, entry.file), 'utf-8');
+        const src = readFileSync(resolveSignalPath(entry.file), 'utf-8');
         const mutated = applyDeletions(src, [entry]);
         expect(mutated, `${c.id}: mutated ${entry.file} still mentions ${residue}`)
           .not.toContain(residue);
@@ -184,11 +187,11 @@ describe('seam precondition cannot be laundered', () => {
 
 describe('canary registry (AC3.1–AC3.3)', () => {
   it('the registry file exists and a reader can audit it', () => {
-    expect(existsSync(join(ROOT, CANARY_REGISTRY_PATH))).toBe(true);
+    expect(existsSync(resolveSignalPath(CANARY_REGISTRY_PATH))).toBe(true);
   });
 
   it("B41's phase-entry rule is in the set (AC3.2)", () => {
-    const reg = loadCanaryRegistry(ROOT);
+    const reg = loadCanaryRegistry(PLUGIN_DIR);
     const b41 = reg.canaries.find(c => c.id === 'B41-phase-entry');
     expect(b41).toBeTruthy();
     expect(b41.command).toBe('execute');
@@ -196,7 +199,7 @@ describe('canary registry (AC3.1–AC3.3)', () => {
   });
 
   it('every canary declares its trace BEFORE any run (AC3.3)', () => {
-    const reg = loadCanaryRegistry(ROOT);
+    const reg = loadCanaryRegistry(PLUGIN_DIR);
     expect(reg.canaries.length).toBeGreaterThan(0);
     for (const c of reg.canaries) {
       expect(c.trace, `${c.id} must declare a trace`).toBeTruthy();
@@ -210,7 +213,7 @@ describe('canary registry (AC3.1–AC3.3)', () => {
 
   it('each canary names a trace field the harness can actually observe', () => {
     const OBSERVABLE = new Set(['phaseChanged', 'completedPhasesGrew', 'filesAdded', 'filesChanged', 'commitsAdded']);
-    for (const c of loadCanaryRegistry(ROOT).canaries) {
+    for (const c of loadCanaryRegistry(PLUGIN_DIR).canaries) {
       expect(OBSERVABLE.has(c.trace.field), `${c.id} trace.field=${c.trace.field}`).toBe(true);
     }
   });
@@ -220,9 +223,9 @@ describe('canary registry (AC3.1–AC3.3)', () => {
     // nothing, make both arms identical, and read as INERT. Widened from the
     // single `deleteSection ?? deleteLine` anchor to every entry in deletions[]:
     // this now fails if anyone edits ANY of the five phase-entry headings.
-    for (const c of loadCanaryRegistry(ROOT).canaries) {
+    for (const c of loadCanaryRegistry(PLUGIN_DIR).canaries) {
       for (const entry of c.deletions) {
-        const src = readFileSync(join(ROOT, entry.file), 'utf-8');
+        const src = readFileSync(resolveSignalPath(entry.file), 'utf-8');
         const target = entry.section ?? entry.line;
         const occurrences = entry.section
           ? src.split('\n').filter(l => l.trim() === entry.section.trim()).length
@@ -236,7 +239,7 @@ describe('canary registry (AC3.1–AC3.3)', () => {
   });
 
   it('AC1.2 — B41-phase-entry declares its five directive sites, four by section + ship by line', () => {
-    const c = loadCanaryRegistry(ROOT).canaries.find(x => x.id === 'B41-phase-entry');
+    const c = loadCanaryRegistry(PLUGIN_DIR).canaries.find(x => x.id === 'B41-phase-entry');
     expect(c.isolation).toBe('directive');
     const bySection = c.deletions.filter(d => d.section).map(d => d.file).sort();
     const byLine = c.deletions.filter(d => d.line).map(d => d.file);
@@ -303,7 +306,7 @@ describe('M5.E15 FR1 — directive-scoped deletion (AC1.1, AC1.4, AC1.5)', () =>
   });
 
   it('the live registry passes the token check', () => {
-    for (const c of loadCanaryRegistry(ROOT).canaries) {
+    for (const c of loadCanaryRegistry(PLUGIN_DIR).canaries) {
       expect(c.trace.functionName, `${c.id} must declare the residue token`).toBeTruthy();
     }
   });
@@ -367,10 +370,10 @@ describe('M5.E15 FR1 — directive-scoped deletion (AC1.1, AC1.4, AC1.5)', () =>
   });
 
   it('AC1.5 — every declared section anchor in the live registry is discrete', () => {
-    for (const c of loadCanaryRegistry(ROOT).canaries) {
+    for (const c of loadCanaryRegistry(PLUGIN_DIR).canaries) {
       const residue = c.trace.functionName;
       for (const entry of c.deletions.filter(d => d.section)) {
-        const src = readFileSync(join(ROOT, entry.file), 'utf-8');
+        const src = readFileSync(resolveSignalPath(entry.file), 'utf-8');
         expect(
           () => assertSectionAnchorIsDiscrete(src, entry.section, residue),
           `${c.id}: ${entry.file} § ${entry.section}`

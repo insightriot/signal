@@ -17,7 +17,7 @@ import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { readTierAdvisory } from '../tools/lib/status.js';
+import { readTierAdvisory } from '../plugin/tools/lib/status.js';
 
 const PROFILE = (tier) => `---
 tier: ${tier}
@@ -118,14 +118,14 @@ describe('B90 — the one-way framing is gone from the docs that introduce the d
     // says "escape hatch when scope grows", the down path stays invisible no
     // matter what §Case C says 87 lines in.
     const { readFile } = await import('node:fs/promises');
-    const s = await readFile(new URL('../commands/escalate.md', import.meta.url), 'utf-8');
+    const s = await readFile(new URL('../plugin/commands/escalate.md', import.meta.url), 'utf-8');
     const frontmatter = s.slice(0, s.indexOf('---', 4));
     expect(frontmatter).toMatch(/UP OR DOWN/);
   });
 
   it('tier-definitions.md states the ceiling rule', async () => {
     const { readFile } = await import('node:fs/promises');
-    const s = await readFile(new URL('../references/tier-definitions.md', import.meta.url), 'utf-8');
+    const s = await readFile(new URL('../plugin/references/tier-definitions.md', import.meta.url), 'utf-8');
     expect(s).toMatch(/CEILING, not a floor/);
     expect(s).toMatch(/shifts a profile UP OR DOWN/);
   });

@@ -8,8 +8,8 @@ import {
   isPhaseEnabled,
   applyRigorOverrides,
   ProfileSchemaError,
-} from '../tools/lib/profile.js';
-import { PHASES } from '../tools/lib/state.js';
+} from '../plugin/tools/lib/profile.js';
+import { PHASES } from '../plugin/tools/lib/state.js';
 
 const FULL_PROFILE = `---
 tier: FULL

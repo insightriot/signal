@@ -19,10 +19,10 @@ import { readdirSync } from 'node:fs';
 
 import { readFile } from 'node:fs/promises';
 
-import { senseArchiveTree } from '../tools/lib/archive-tree.js';
-import { resolveClosures, CLOSURE } from '../tools/lib/closure.js';
-import { deriveUnits } from '../tools/lib/work-units.js';
-import { extractRequirementIds } from '../tools/lib/requirement-ids.js';
+import { senseArchiveTree } from '../plugin/tools/lib/archive-tree.js';
+import { resolveClosures, CLOSURE } from '../plugin/tools/lib/closure.js';
+import { deriveUnits } from '../plugin/tools/lib/work-units.js';
+import { extractRequirementIds } from '../plugin/tools/lib/requirement-ids.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const SANDBOX = join(ROOT, 'examples', 'sandbox');

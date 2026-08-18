@@ -37,12 +37,19 @@ That FULL run is committed as a worked example you can read end to end: **[`exam
 Walkthrough with copyable steps: **[signal.insightriot.com/install](https://signal.insightriot.com/install)** ([source](./docs/map/install/index.html)). Or just run:
 
 ```
-/plugin marketplace add insightriot/signal
+/plugin marketplace add https://signal.insightriot.com/install/marketplace.json
 /plugin install sig@signal
 /reload-plugins
 ```
 
 Then try `/sig:calibrate` to confirm the install. Signal's `/sig:*` commands should autocomplete.
+
+> **Installed before v0.1.26?** `/plugin marketplace add insightriot/signal` still works — you are not
+> stranded. But that form clones this whole repository on every refresh, where the address above
+> fetches a single file. Switch with `/plugin marketplace remove signal` followed by the `add` line
+> above; your installed plugin and settings are untouched. `/sig:doctor` will tell you if you are
+> still on the old form. You do **not** need to delete anything under `~/.claude/plugins/cache/` —
+> old versions are swept automatically.
 
 #### Troubleshooting install
 
@@ -147,7 +154,7 @@ Two modes:
 
 You don't strictly need to run `/sig:checkpoint` — `/sig:execute` auto-records each task to `STATE.md` (the auto-state-protocol) so resume works out of the box. `/sig:checkpoint` is the manual safety net for when you've done work outside the `/sig:execute` loop, or want to capture decisions and questions explicitly before stepping away.
 
-See [`references/state-schema.md`](references/state-schema.md) for the full `STATE.md` schema and the auto-update protocol's tier-aware behavior.
+See [`references/state-schema.md`](plugin/references/state-schema.md) for the full `STATE.md` schema and the auto-update protocol's tier-aware behavior.
 
 ## Bringing Signal to an existing codebase
 
@@ -211,7 +218,7 @@ Any new network call or future telemetry would require a major-version bump, an 
 - **`/sig:migrate-memory`** — auto-sensing memory/doc migration for a bloated or old-layout `.planning/`. **Relocate-never-delete, dry-run by default, git-reversible, idempotent.** Senses frontmatter-prose, an oversized `STATE.md` body, and **closed-unit scaffolding — Epic-named or not** (a unit closed by a complete retrospective **or** by a passing verdict; a stub retro never counts), and (on explicit confirm) reorganizes — including the v2→v3 doc-layout transition (capture-inbox rename, `BACKLOG.md` create, closed-milestone `DECISIONS.md` eviction behind resolvable anchors) — then stamps `docs_layout_version`. An out-of-date project is prompted to run it by a fail-open banner on `/sig:resume` / `/sig:status` / SessionStart. Not tier-gated.
 - **`/sig:index`** — regenerate `.planning/INDEX.md` (the documentation map) from disk. Mechanical rows (path · growth-policy, two-tier Live/Cold) regenerate; hand-curated one-line notes survive by key (file path or Epic ID). Idempotent — a no-op run produces no diff. The Signal-native successor to external doc-reconcile tooling; runs automatically at `/sig:ship`. Not tier-gated.
 
-**Epic mode (optional).** For larger projects, Signal can run the work as a series of **Epics** instead of one linear pass. Pass `--epic <name>` to `/sig:discuss` or `/sig:new-project` to open an Epic: commands then write Epic-scoped artifacts (`{EpicID}-*.md`), track the active Epic in `STATE.md`, and let each Epic carry its own tier (a spike inside a production project can honestly run at SKETCH — `/sig:status` and `/sig:resume` surface the override so it's never silent). Without `--epic`, projects run in **linear mode** exactly as described above — Epic mode is fully additive and opt-in, with no migration. See [`references/epic-native-flow.md`](./references/epic-native-flow.md).
+**Epic mode (optional).** For larger projects, Signal can run the work as a series of **Epics** instead of one linear pass. Pass `--epic <name>` to `/sig:discuss` or `/sig:new-project` to open an Epic: commands then write Epic-scoped artifacts (`{EpicID}-*.md`), track the active Epic in `STATE.md`, and let each Epic carry its own tier (a spike inside a production project can honestly run at SKETCH — `/sig:status` and `/sig:resume` surface the override so it's never silent). Without `--epic`, projects run in **linear mode** exactly as described above — Epic mode is fully additive and opt-in, with no migration. See [`references/epic-native-flow.md`](./plugin/references/epic-native-flow.md).
 
 ## Open Source Origins
 

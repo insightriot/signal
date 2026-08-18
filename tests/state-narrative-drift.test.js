@@ -19,8 +19,8 @@ import {
   STATE_DRIFT_CHECKS,
   HEAL,
   APPLICABILITY,
-} from '../tools/lib/state-drift.js';
-import { parseFrontmatter } from '../tools/lib/state.js';
+} from '../plugin/tools/lib/state-drift.js';
+import { parseFrontmatter } from '../plugin/tools/lib/state.js';
 
 const FIXTURES = join(
   fileURLToPath(new URL('.', import.meta.url)),

@@ -43,7 +43,7 @@ async function makeTempBase() {
   await mkdir(join(base, 'references'), { recursive: true });
   // Copy the real template so loadTemplate works.
   await cp(
-    join(process.cwd(), 'references', 'retrospective-template.md'),
+    join(process.cwd(), 'plugin', 'references', 'retrospective-template.md'),
     join(base, 'references', 'retrospective-template.md'),
   );
   // Write the milestone fixture.
@@ -158,7 +158,7 @@ describe('composeStub', () => {
       commitRange: { first: 'aaa', last: 'bbb', count: 10, missing: false },
     });
     const { validateRetroContent } = await import(
-      '../tools/lib/retrospective.js'
+      '../plugin/tools/lib/retrospective.js'
     );
     const result = validateRetroContent(stub, 'FULL');
     expect(

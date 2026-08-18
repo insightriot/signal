@@ -34,7 +34,7 @@ import { tmpdir } from 'node:os';
 // injection can't produce the RED (the pre-fix impl ignores the arg and calls the
 // real senseProject regardless). A module spy on the real export is the only honest
 // way to observe the unconditional call the fix removes.
-vi.mock('../tools/lib/migrate-memory.js', async (importOriginal) => {
+vi.mock('../plugin/tools/lib/migrate-memory.js', async (importOriginal) => {
   const actual = await importOriginal();
   return { ...actual, senseProject: vi.fn(actual.senseProject) };
 });
@@ -43,14 +43,14 @@ import {
   decideLayoutBanner,
   readLayoutBanner,
   LAYOUT_DRIFT_BANNER_COMMAND,
-} from '../tools/lib/status.js';
-import { renderResumeBriefing } from '../tools/lib/resume.js';
-import { CURRENT_LAYOUT_VERSION, senseProject } from '../tools/lib/migrate-memory.js';
-import { LAYOUT_VERSION } from '../tools/lib/layout-stamp.js';
+} from '../plugin/tools/lib/status.js';
+import { renderResumeBriefing } from '../plugin/tools/lib/resume.js';
+import { CURRENT_LAYOUT_VERSION, senseProject } from '../plugin/tools/lib/migrate-memory.js';
+import { LAYOUT_VERSION } from '../plugin/tools/lib/layout-stamp.js';
 // The S3.t1 hook decision — stamp-first ONLY. Imported here to PROVE, as a lasting
 // regression guard, that it false-banners the unstamped-conformant case while the
 // command path stays silent (the reason t2 exists on top of t1).
-import { decideLayoutDrift } from '../hooks/warn-layout-drift.js';
+import { decideLayoutDrift } from '../plugin/hooks/warn-layout-drift.js';
 
 // --- fixtures ---------------------------------------------------------------
 

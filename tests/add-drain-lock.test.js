@@ -24,16 +24,16 @@ import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { applyDispositionToFile } from '../tools/lib/drain.js';
+import { applyDispositionToFile } from '../plugin/tools/lib/drain.js';
 import {
   captureToFutureIdeas,
   captureToBugs,
   insertFutureIdeasEntry,
   buildFutureIdeasEntry,
   acquireLock,
-} from '../tools/lib/add.js';
-import { atomicWrite } from '../tools/lib/atomic-write.js';
-import { withStateLock } from '../tools/lib/state.js';
+} from '../plugin/tools/lib/add.js';
+import { atomicWrite } from '../plugin/tools/lib/atomic-write.js';
+import { withStateLock } from '../plugin/tools/lib/state.js';
 
 const INBOX_REL = '.planning/ISSUES-INBOX.md';
 

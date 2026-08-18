@@ -21,15 +21,15 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-import { initState } from '../tools/lib/state.js';
+import { initState } from '../plugin/tools/lib/state.js';
 import {
   readCappedPrefix,
   readLayoutStampFromPrefix,
   LAYOUT_VERSION,
-} from '../tools/lib/layout-stamp.js';
-import { readLayoutBanner } from '../tools/lib/status.js';
-import { CURRENT_LAYOUT_VERSION } from '../tools/lib/migrate-memory.js';
-import { captureToFutureIdeas } from '../tools/lib/add.js';
+} from '../plugin/tools/lib/layout-stamp.js';
+import { readLayoutBanner } from '../plugin/tools/lib/status.js';
+import { CURRENT_LAYOUT_VERSION } from '../plugin/tools/lib/migrate-memory.js';
+import { captureToFutureIdeas } from '../plugin/tools/lib/add.js';
 
 describe('born-on-v3 scaffolding (S6b.t1 / FR6 / AC6.3)', () => {
   let tempDir;
@@ -89,14 +89,14 @@ describe('born-on-v3 scaffolding (S6b.t1 / FR6 / AC6.3)', () => {
 // assertion is the one that bites: it fails on any bypass-the-stamp inline template.
 describe('born-on-v3 command wiring (S6b.t1 / AC6.3)', () => {
   it('AC6.3: new-project.md wires STATE.md through initState (the stamp path)', async () => {
-    const md = await readFile(join(ROOT, 'commands', 'new-project.md'), 'utf-8');
+    const md = await readFile(join(ROOT, 'plugin', 'commands', 'new-project.md'), 'utf-8');
     expect(md).toMatch(/initState/);
     // No inline STATE template that would bypass the born-on-v3 stamp.
     expect(md).not.toMatch(/## Current Phase\s*\nCALIBRATE/);
   });
 
   it('AC6.3: init.md wires STATE.md through initState (the stamp path)', async () => {
-    const md = await readFile(join(ROOT, 'commands', 'init.md'), 'utf-8');
+    const md = await readFile(join(ROOT, 'plugin', 'commands', 'init.md'), 'utf-8');
     expect(md).toMatch(/initState/);
     expect(md).not.toMatch(/## Current Phase\s*\nCALIBRATE/);
   });
