@@ -38,7 +38,8 @@ import {
   checkVersionConsistency,
 } from './doc-hygiene.js';
 import { enumerateRetros, parseExistingHooks, renderIndex } from './retro-index.js';
-import { runDriftChecks, renderDriftReport, STATE_DRIFT_CHECKS } from './state-drift.js';
+import { runDriftChecks, renderDriftReport } from './state-drift.js';
+import { ALL_DRIFT_CHECKS } from './published-facts.js';
 import { backlogDischargeStatus, BACKLOG_DISCHARGE, REASON_NO_BACKLOG } from './backlog.js';
 
 const PLANNING_DIR = '.planning';
@@ -539,7 +540,7 @@ export async function runSweep(baseDir = process.cwd()) {
   // be *unevaluable* rather than merely absent, and folding it into the
   // structural/advisory buckets would lose both distinctions. Its own group also
   // means "could not check" has somewhere to live that "clean" does not.
-  const stateDrift = await runDriftChecks(baseDir, STATE_DRIFT_CHECKS);
+  const stateDrift = await runDriftChecks(baseDir, ALL_DRIFT_CHECKS);
 
   return { findings, stateDrift, signalOnly: { ran, checks: SIGNAL_ONLY_CHECKS } };
 }

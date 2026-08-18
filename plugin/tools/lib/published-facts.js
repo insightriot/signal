@@ -15,7 +15,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { defineCheck, HEAL, APPLICABILITY } from './state-drift.js';
+import { defineCheck, HEAL, APPLICABILITY, STATE_DRIFT_CHECKS } from './state-drift.js';
 import { compareBugTally, readPublishedTally, formatTallySegment } from './bugs-tally.js';
 
 /**
@@ -117,3 +117,14 @@ export const checkPublishedBugTally = defineCheck({
 
 /** The registry. Composed with `STATE_DRIFT_CHECKS` at the call sites. */
 export const PUBLISHED_FACT_CHECKS = Object.freeze([checkPublishedBugTally]);
+
+/**
+ * Everything `runDriftChecks` should run, composed.
+ *
+ * It lives HERE rather than in `state-drift.js` because the dependency runs one
+ * way: this module already imports that one, and the reverse would be a cycle.
+ * The call sites (`/sig:sweep`, `/sig:resume`) import this instead of either
+ * registry, so adding a published-fact check reaches both commands without
+ * touching a call site again.
+ */
+export const ALL_DRIFT_CHECKS = Object.freeze([...STATE_DRIFT_CHECKS, ...PUBLISHED_FACT_CHECKS]);

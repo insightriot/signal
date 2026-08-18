@@ -151,3 +151,44 @@ describe('AC4.3 — reach is rendered from one recorded figure, never retyped', 
     expect(src).not.toContain(`${r.evaluable} of ${r.total}`);
   });
 });
+
+describe('AC2.3 / AC2.4 — the check reaches a command, proven behaviourally', () => {
+  it('ALL_DRIFT_CHECKS composes both registries and stays frozen', async () => {
+    const { ALL_DRIFT_CHECKS } = await import('../plugin/tools/lib/published-facts.js');
+    expect(Object.isFrozen(ALL_DRIFT_CHECKS)).toBe(true);
+    for (const c of STATE_DRIFT_CHECKS) expect(ALL_DRIFT_CHECKS).toContain(c);
+    for (const c of PUBLISHED_FACT_CHECKS) expect(ALL_DRIFT_CHECKS).toContain(c);
+    expect(ALL_DRIFT_CHECKS.length).toBe(STATE_DRIFT_CHECKS.length + PUBLISHED_FACT_CHECKS.length);
+  });
+
+  // AC2.4 is asserted BEHAVIOURALLY, not by grepping for an import. A grep is
+  // B81's shape — it cannot tell one governed thing from all of them, and it
+  // passes the day someone imports the symbol without calling it. Running the
+  // real command entry point against a wrong tally can only pass if the caller
+  // exists AND works.
+  it('/sig:sweep surfaces the tally finding — the caller exists and works', async () => {
+    await writeBugs(
+      TABLE(['| B1 | `confirmed` | P2 | a |']) + '\n\n' + TALLY({ confirmed: 4, fixed: 0, total: 4 })
+    );
+    const { runSweep } = await import('../plugin/tools/lib/sweep.js');
+    const report = await runSweep(dir);
+    const hit = report.stateDrift.results.find((r) => r.id === 'published-bug-tally');
+    expect(hit).toBeDefined();
+    expect(hit.status).toBe(STATUS.FINDINGS);
+  });
+
+  it('/sig:sweep reports the check as could-not-check when BUGS.md publishes no tally', async () => {
+    await writeBugs(TABLE(['| B1 | `confirmed` | P2 | a |']));
+    const { runSweep } = await import('../plugin/tools/lib/sweep.js');
+    const report = await runSweep(dir);
+    const hit = report.stateDrift.results.find((r) => r.id === 'published-bug-tally');
+    expect(hit.status).toBe(STATUS.CANNOT_EVALUATE);
+  });
+
+  it('both commands compose the same registry — resume.md names it too', () => {
+    const resume = readFileSync(join(ROOT, 'plugin/commands/resume.md'), 'utf8');
+    const sweep = readFileSync(join(ROOT, 'plugin/tools/lib/sweep.js'), 'utf8');
+    expect(resume).toContain('ALL_DRIFT_CHECKS');
+    expect(sweep).toContain('ALL_DRIFT_CHECKS');
+  });
+});
