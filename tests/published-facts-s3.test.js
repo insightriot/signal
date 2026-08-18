@@ -145,6 +145,16 @@ describe('AC3.4 — a milestone Epic-status row against STATE and the retro on d
     expect(r.findings[0].message).toContain('M9.E2');
   });
 
+  // Found at this Epic's own SHIP: current_epic stays at the Epic just shipped
+  // until the next one opens, so "shipped row + current Epic" is the normal
+  // post-ship state once a complete retro exists. Without the retro clause the
+  // check fires on every Epic close, forever.
+  it('does NOT flag a shipped row for the current Epic when its retrospective is complete', async () => {
+    await planning('MILESTONE-9.md', MS(['| `M9.E2` | **shipped** — v9.9.9 | just closed |']));
+    await planning('M9.E2-RETROSPECTIVE.md', '# M9.E2 retro\n\n## What happened\n\nIt shipped.\n');
+    expect((await only(checkMilestoneStatusVsState)).status).toBe(STATUS.CLEAN);
+  });
+
   it('is CLEAN when the rows agree with STATE and the retros on disk', async () => {
     await planning(
       'MILESTONE-9.md',

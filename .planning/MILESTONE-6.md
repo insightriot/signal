@@ -21,7 +21,7 @@ The two candidate themes are recorded in `BACKLOG.md` and remain live for `E2` o
 | Epic | Status | Summary |
 |---|---|---|
 | `M6.E1` | **shipped** — `v0.1.26`, 2026-08-17 | The plugin payload: what an install actually copies. |
-| `M6.E2` | **in flight** — opened 2026-08-18 | The facts Signal publishes about itself, and what re-derives them. |
+| `M6.E2` | **shipped** — `v0.1.29`, 2026-08-18 | The facts Signal publishes about itself, and what re-derives them. |
 
 ---
 

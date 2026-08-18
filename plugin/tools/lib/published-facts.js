@@ -320,12 +320,17 @@ export const checkMilestoneStatusVsState = defineCheck({
               'The Epic closed and the table did not.',
           });
         }
-        if (/shipped|closed|done/.test(cell) && current && epic === current) {
+        // `current_epic` STAYS at the Epic just shipped until the next one
+        // opens, so "shipped row + current Epic" is the NORMAL post-ship state
+        // whenever a complete retrospective exists. Without this clause the
+        // check fires on every Epic close forever — found by running it against
+        // this Epic's own SHIP, one step before it would have shipped.
+        if (/shipped|closed|done/.test(cell) && current && epic === current && !complete) {
           out.push({
             file: p,
             message:
-              `${epic}'s row reads as finished, but STATE.md names it as the current Epic. ` +
-              'One of the two is wrong.',
+              `${epic}'s row reads as finished, but STATE.md names it as the current Epic ` +
+              'and no complete retrospective is on disk. One of the two is wrong.',
           });
         }
       });
