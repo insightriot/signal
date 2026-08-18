@@ -39,7 +39,7 @@ import {
 } from './doc-hygiene.js';
 import { enumerateRetros, parseExistingHooks, renderIndex } from './retro-index.js';
 import { runDriftChecks, renderDriftReport } from './state-drift.js';
-import { ALL_DRIFT_CHECKS } from './published-facts.js';
+import { ALL_DRIFT_CHECKS, REACH } from './published-facts.js';
 import { backlogDischargeStatus, BACKLOG_DISCHARGE, REASON_NO_BACKLOG } from './backlog.js';
 
 const PLANNING_DIR = '.planning';
@@ -568,7 +568,7 @@ export function renderSweepReport(report) {
   lines.push(...renderGroup('Structural', structural), '');
   lines.push(...renderGroup('Advisory', advisory));
   if (stateDrift) {
-    lines.push('', renderDriftReport(stateDrift).trimEnd());
+    lines.push('', renderDriftReport(stateDrift, { reach: REACH }).trimEnd());
   }
   if (signalOnly) {
     lines.push('', '## Signal-only checks');
