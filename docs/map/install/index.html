@@ -142,10 +142,11 @@
   <strong>Installed Signal before?</strong> If you added the marketplace as <code>insightriot/signal</code>, it still works — nothing is broken and you are not stranded. But that form clones the entire repository (~19&nbsp;MB) every time it refreshes, where the address above fetches a single file. To switch:
   <div class="snip">
     <pre>/plugin marketplace remove signal
-/plugin marketplace add https://signal.insightriot.com/install/marketplace.json</pre>
+/plugin marketplace add https://signal.insightriot.com/install/marketplace.json
+/plugin install sig@signal</pre>
     <button type="button">Copy</button>
   </div>
-  <p>Your installed plugin, your settings and your projects are untouched. <code>/sig:doctor</code> will also tell you if you're still on the old form — you don't have to remember to check.</p>
+  <p><strong>All three lines are required.</strong> <code>marketplace remove</code> uninstalls the plugin, and <code>add</code> alone does not bring it back — so run them together rather than stopping after the second. Your settings and your projects are untouched; the plugin itself is removed and reinstalled. <code>/sig:doctor</code> will also tell you if you're still on the old form — you don't have to remember to check.</p>
   <p>You do <strong>not</strong> need to delete anything under <code>~/.claude/plugins/cache/</code>. Old plugin versions are swept automatically about two weeks after they're replaced. The marketplace clone is the one thing that doesn't clean itself up, which is what the <code>remove</code> line above handles.</p>
 </div>
 

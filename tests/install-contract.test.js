@@ -266,3 +266,70 @@ describe('AC5.2 — the detector is REACHED, not merely built', () => {
     expect(doctorCmd, 'silence must not read as clean').toMatch(/could not check/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// B102 — the migration instructions uninstalled the plugin and said they didn't.
+//
+// Measured in an isolated config on 2026-08-18: `marketplace remove signal`
+// UNINSTALLS the plugin (`plugin list` → "No plugins installed" immediately
+// after), and `marketplace add <url>` does NOT restore it. A third command,
+// `plugin install sig@signal`, is required.
+//
+// v0.1.26 shipped two-command instructions on three surfaces, two of which
+// also asserted "your installed plugin and its settings are untouched" — false
+// in its first half. Anyone following them landed with Signal uninstalled.
+//
+// Derived rather than enumerated: ANY tracked surface that prescribes
+// `marketplace remove` must also prescribe `plugin install`, so a fourth
+// surface added later cannot drift out of this the way the first three did.
+// ---------------------------------------------------------------------------
+
+describe('B102 — a surface that says "remove" must also say "install"', () => {
+  const SURFACES = [
+    'README.md',
+    'docs/map/install/index.html',
+    'plugin/commands/doctor.md',
+  ];
+
+  it('governs a non-empty population (this check is not vacuous)', () => {
+    const prescribing = SURFACES.filter((f) =>
+      readFileSync(join(ROOT, f), 'utf-8').includes('marketplace remove')
+    );
+    expect(prescribing.length, 'no surface prescribes the migration — has it moved?').toBeGreaterThan(0);
+  });
+
+  for (const file of SURFACES) {
+    it(`${file} — prescribes the reinstall, not just the removal`, () => {
+      const text = readFileSync(join(ROOT, file), 'utf-8');
+      const at = text.indexOf('marketplace remove');
+      if (at === -1) return; // nothing to govern here
+
+      // Scoped to the migration block, NOT the file. The first version of
+      // this assertion searched the whole file and PASSED when the line was
+      // stripped from the migration section of two of the three surfaces —
+      // both carry `plugin install sig@signal` in their PRIMARY install
+      // snippet higher up, which satisfied it. Same match-anywhere defect as
+      // B100/B101 and the provenance test, found the same way: by mutating.
+      const block = text.slice(at, at + 600);
+
+      expect(
+        block,
+        `${file} tells users to remove the marketplace but never tells them to reinstall the plugin — ` +
+          `following it leaves Signal uninstalled (B102)`
+      ).toMatch(/plugin install sig@signal/);
+    });
+
+    it(`${file} — does not claim the installed plugin is untouched`, () => {
+      const text = readFileSync(join(ROOT, file), 'utf-8');
+      if (!text.includes('marketplace remove')) return;
+
+      // The exact false claim, and the near-misses of it. Settings ARE
+      // untouched; the plugin is not, and conflating them is the defect.
+      expect(
+        text,
+        `${file} claims the installed plugin survives the migration. It does not — ` +
+          `\`marketplace remove\` uninstalls it (B102)`
+      ).not.toMatch(/installed plugin[^.]{0,40}(are|is) untouched/i);
+    });
+  }
+});

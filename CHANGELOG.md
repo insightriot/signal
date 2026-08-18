@@ -6,6 +6,37 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.27] — 2026-08-18 — the migration instructions uninstalled Signal and said they didn't
+
+**`B102`, fix lane. A P1 against `v0.1.26`'s own migration advice, found by running it.**
+
+`claude plugin marketplace remove signal` **uninstalls the plugin.** Measured in an isolated config:
+`claude plugin list` reports *"No plugins installed"* immediately after, and `marketplace add <url>`
+does **not** bring it back — a third command, `plugin install sig@signal`, is required.
+
+`v0.1.26` prescribed **two** commands on all three surfaces (`/sig:doctor`'s `P6` block, the install
+page, and the README), so anyone following them landed with **Signal uninstalled**. Two of the three
+additionally asserted *"your installed plugin and its settings are untouched"* — false in its first
+half: settings survive, the plugin does not.
+
+**Nobody is broken by inaction.** `P6` is info-only and the old install path keeps working; the
+damage was only to users who **took the advice**.
+
+All three surfaces now prescribe the three-command sequence and say plainly that the first line
+uninstalls the plugin. Pinned by a test that is **derived, not enumerated** — any tracked surface
+prescribing `marketplace remove` must also prescribe `plugin install`, scoped to the migration block
+so a fourth surface cannot drift out of it.
+
+**Recorded because it is the same defect three times in one week:** the first version of that test
+searched the whole file and **passed** when the line was stripped, because two surfaces carry
+`plugin install sig@signal` in their *primary* install snippet higher up. That is `B100`/`B101`'s
+match-anywhere shape, in the guard written to close a claim-integrity defect. Caught by mutation, as
+those were.
+
+2657 → **2664 tests**.
+
+---
+
 ## [0.1.26] — 2026-08-17 — the plugin payload: what an install actually copies
 
 **`M6.E1`.** An install shipped the whole repository. It now ships the plugin.
