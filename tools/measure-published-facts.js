@@ -52,7 +52,9 @@ for (const root of roots) {
         if (!/^MILESTONE-.*\.md$/.test(f)) continue;
         if (EPIC_STATUS_ROW.test(read(join(planning,f)) ?? '')) { milestoneWithStatus = true; break; }
       }
-    } catch {}
+    } catch {
+      /* a project with no readable MILESTONE files simply reports false */
+    }
 
     rows.push({
       label,
