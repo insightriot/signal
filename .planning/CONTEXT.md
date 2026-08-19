@@ -56,9 +56,11 @@ being *copied to users*; it does **not** make it private.
 three fix-lane releases. **Next work is a decision, not a queue item, and it is Brett's.** Open and
 deliberately deferred: **`B99`'s remaining half** (the packaging half shipped in `M6.E1`); **whether
 `.planning/` should be public at all** (keeping it *in the repo* was chosen; *copying it into every
-user's plugin cache* never was); **the semantic claims-audit backstop** (`AC0.1`); and two findings
-that ship open by choice — the dated `[Unreleased]` heading (a product call, in `OPEN-QUESTIONS.md`)
-and `bug-status-vs-changelog` running at a measured 1-in-2 precision. The queue itself is
+user's plugin cache* never was); **the semantic claims-audit backstop** (`AC0.1`); and one finding
+that ships open by choice — `bug-status-vs-changelog` running at a measured 1-in-2 precision. *(The
+dated `[Unreleased]` heading was the second until **2026-08-18**, when Brett answered it: relabel,
+do not version. It was copied into this file on 2026-08-19 as still-open, from a `CLAUDE.md` line
+that had gone stale the day before.)* The queue itself is
 [`BACKLOG.md`](BACKLOG.md) (`D-M5E18-1`).
 
 **Prior — `v0.1.25`** — `M5.E10`, and it closed Milestone 5. *Claim integrity: the checks, and what
