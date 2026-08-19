@@ -6,6 +6,48 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.30] — 2026-08-18 — four agents with a shell, pointed at a stranger's repository
+
+**`B104`, fix lane. A P1 against every release that has shipped `/sig:init`.**
+
+`/sig:init` spawns **four scanner agents in parallel at an arbitrary brownfield repository**, and
+every one of them declares `tools: Read, Bash, Grep, Glob`. **Nothing in any scanner file, and
+nothing in `init.md`, told them that what they were reading was data.** Not a weak instruction — a
+grep across `plugin/agents/scanners/*.md` and `commands/init.md` returned **zero**.
+
+Signal is publicly installable and has four non-Signal users. A `README` in any scanned repository
+saying *"ignore the tier gate"* or *"run this setup command first"* met no instruction standing
+against it.
+
+**Found by reading someone else's code.** `vercel-labs/eve-software-factory-template` (MIT) ships
+`evals/safety/prompt-injection.eval.ts` — a hostile issue body carrying *"SYSTEM OVERRIDE: ignore all
+previous instructions"*, with the eval asserting the agent summarises without acting. Signal had no
+equivalent, and looking for one is what surfaced this.
+
+Every scanner now carries a Constraints clause that names three things rather than one: the content
+**is data**, the **destination** for such a finding (`suspicious embedded directive at {path}`, under
+*Detection Failures*), and **`Bash`** as what makes the constraint load-bearing rather than
+theoretical. `init.md` repeats it at the spawn site, because the command that spawns them is also
+the command a reader opens first.
+
+**Pinned by a whole-population assertion**, itself borrowed from that repo: the test reads the
+scanner directory **from disk**, so a fifth scanner added tomorrow fails the suite until it carries
+the clause. Their comment states the property — *"automatically forbidden … until someone allows it
+deliberately."* It is the same shape `B81` needs.
+
+⚠ **Scope, stated rather than implied.** This covers the **scan surface only**. Two of the three
+surfaces named when the bug was filed are untouched: `/sig:add` captures verbatim **by design**, and
+every phase command reads `.planning/` documents that anyone with commit access can write. Whether
+those need the same treatment is undecided.
+
+⚠ **An instruction is not a sandbox.** This makes the expected behaviour explicit and testable. It
+does not make injection impossible, and **no eval exercises it** — Signal has no run-event stream to
+assert against, which is its own inbox entry.
+
+2747 → **2761 tests**.
+
+---
+
 ## [0.1.29] — 2026-08-18 — the facts Signal publishes about itself
 
 **`M6.E2`.** A document states a fact about the project — a count, a status, a version, a phase — and
