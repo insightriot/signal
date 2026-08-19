@@ -4,28 +4,66 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-08-13)
+## Where things stand (2026-08-19)
 
-**`v0.1.25` shipped — `M5.E10`, and it closes Milestone 5.** *Claim integrity: the checks, and what
+**`v0.1.30` shipped — `B104`, fix lane.** *Four agents with a shell, reading text nobody checked.*
+`/sig:init` spawns **four scanner agents in parallel**, all four declaring `tools: Read, Bash, Grep,
+Glob`, and **nothing in any scanner file or in `init.md` told them what they read was data** — a grep
+returned **zero**, not weak instructions. ⚠ **The first headline was overstated and was corrected the
+same day**, after Brett asked how scanners write to a codebase: they do not. `/sig:init` runs on
+**your own** codebase and every scanner is confined to `.planning/scan/{name}.md`. The real exposure
+is **command execution** (they hold `Bash` — *"run this setup command first"*) and **downstream
+propagation** (scanner output becomes `LANDSCAPE.md` → `PROJECT.md` → every later phase), not file
+writes. Still real, because your own repo carries text you did not write — vendored deps, contributor
+commits, forked files — and because people do point `/sig:init` at a clone they are evaluating.
+**Found by reading someone else's code:** `vercel-labs/eve-software-factory-template` (MIT) ships a
+prompt-injection eval Signal had no equivalent of. Pinned by a whole-population assertion that reads
+the scanner directory **from disk**, so a fifth scanner fails the suite until it carries the clause.
+⚠ **Scope is the scan surface only**, and **an instruction is not a sandbox** — explicit and testable,
+not impossible, and **no eval exercises it**. Suite **2761**; **20 commands**.
+
+**Prior — `v0.1.29`, `M6.E2`** — *the facts Signal publishes about itself.* A document states a fact
+about the project — a count, a status, a version — and **nothing derives it from the artifact it
+summarises**. Five checks for that class, reached from `/sig:sweep` and `/sig:resume`, plus the
+write-path fix that stops **`/sig:add --bug` falsifying the file it writes to**. **The mechanism
+already existed and nothing reached it:** `bugs-tally.js` has derived-then-compared correctly since
+`B77` and its **only caller was a test**. ⚠ **Three of the five checks evaluate one project: this
+one** — measured across 12 local projects *before* scope was locked; the tally and milestone checks
+reach **1 of 12**, **0 of 11** excluding Signal. Brett ruled *no trimming* (`D-M6E2-1`), so all five
+ship **with their reach printed next to the clean count** — narrow reach has never been the
+disqualifying property; claiming generality you do not have is. ⚠ **The semantic half stays unbuilt**
+(`D-M6E2-7`) — everything here compares tokens.
+
+**Prior — `v0.1.28`** (`B103`, fix lane) — `/sig:doctor --fix` offered `rm -rf` on cache directories
+a live session was running, because *orphan* meant "not current", not "nobody is using it". Both
+script builders now emit a guard that **re-checks at script-run time**. **Prior — `v0.1.27`**
+(`B102`, fix lane) — `v0.1.26`'s own migration advice **uninstalled Signal and said it didn't**.
+**Prior — `v0.1.26`, `M6.E1`** — the plugin payload: an install ships the plugin, not the repository
+(**985 files / 12.4 MB → 382 / 3.2 MB**; `.planning/` **270 files → 0**). ⚠ That stops `.planning/`
+being *copied to users*; it does **not** make it private.
+
+**Nothing is in flight. Milestone 6 is open** — `M6.E1` shipped as v0.1.26, `M6.E2` as v0.1.29, plus
+three fix-lane releases. **Next work is a decision, not a queue item, and it is Brett's.** Open and
+deliberately deferred: **`B99`'s remaining half** (the packaging half shipped in `M6.E1`); **whether
+`.planning/` should be public at all** (keeping it *in the repo* was chosen; *copying it into every
+user's plugin cache* never was); **the semantic claims-audit backstop** (`AC0.1`); and two findings
+that ship open by choice — the dated `[Unreleased]` heading (a product call, in `OPEN-QUESTIONS.md`)
+and `bug-status-vs-changelog` running at a measured 1-in-2 precision. The queue itself is
+[`BACKLOG.md`](BACKLOG.md) (`D-M5E18-1`).
+
+**Prior — `v0.1.25`** — `M5.E10`, and it closed Milestone 5. *Claim integrity: the checks, and what
 they cannot see.* Seven deterministic checks for one defect class — **completeness claims written
 from the shape of the work rather than from the artifact**. **The honest headline is the reach, not
 the count:** one check evaluates 12 of 12 corpus projects, one 10 of 12, and **five apply to between
 1 and 5 of twelve**. The Epic's own VERIFICATION **failed its own coverage check** on the first draft
 (asserted *"56 of 56"*; the check returned **six missing**) and that refutation ships as a boxed note
 rather than being tidied away. Closed `B94`–`B98`, plus five defects from an independent
-`/code-review` pass. Suite **2602**; **20 commands**.
+`/code-review` pass.
 
 ⚠ **The semantic half is deliberately NOT built** (`AC0.1`, `D-M5E10-1`). Everything shipped compares
 *tokens*. A report that names every requirement, carries a denominator, and is simply **wrong about
 what its evidence asserts** passes all seven checks. A live `BACKLOG.md` row and a test keep that
 absence visible — do not let the docs read as though claim integrity were solved.
-
-**Nothing is in flight, and Milestone 6 is not opened. Next work is a decision, not a queue item.**
-Open and deliberately deferred by Brett: **`B99`** (an install ships ~11 MB tracked, 4.7 MB of it
-`.planning/`, against ~1.9 MB the commands actually need — the fix needs research, not a patch);
-**whether `.planning/` should be public at all** (keeping it *in the repo* was chosen; *copying it
-into every user's plugin cache* never was); and **`CLAUDE.md` naming Brett's portfolio system**, which
-is his call rather than a scrub. The queue itself is [`BACKLOG.md`](BACKLOG.md) (`D-M5E18-1`).
 
 **Prior — `v0.1.24`** — *the unreached mechanism*: **one defect class, five instances.** Signal kept
 building a capability, writing down the rule that should invoke it, and shipping with **nothing that
@@ -128,13 +166,15 @@ Hand-rolled `.planning/` (this directory) drives the build. **No GSD install.** 
 
 ## Current state
 
-**v1 is feature-complete and shipped. Latest: v0.1.28 (2026-08-18 — `B103`, fix lane: the cleanup deleted the copy you were running).** **20 slash commands, 26 agents, 21 skills, 2681 tests, validator green.** The narrative lives in *"Where things stand"* at the top of this file — **this section carries the numbers and the table only.** (The two sections have contradicted each other before, in exactly this gap; see the footer stamp below.)
+**v1 is feature-complete and shipped. Latest: v0.1.30 (2026-08-18 — `B104`, fix lane: four agents with a shell, reading text nobody checked).** **20 slash commands, 26 agents, 21 skills, 2761 tests, validator green.** The narrative lives in *"Where things stand"* at the top of this file — **this section carries the numbers and the table only.** (The two sections have contradicted each other before, in exactly this gap; see the footer stamp below.)
 
 Recent releases, newest first — full detail in `CHANGELOG.md`:
 
 | Version | Epic | What it was |
 |---|---|---|
-| **v0.1.28** | — (fix lane) | `B103` — `/sig:doctor --fix` no longer offers to delete the cache copy a live session is running |
+| **v0.1.30** | — (fix lane) | `B104` — scanned repository content is data, not instructions; the scan surface only, and no eval exercises it |
+| v0.1.29 | M6.E2 | The facts Signal publishes about itself — five published-fact checks, three of which evaluate only this project, each shipping with its reach printed |
+| v0.1.28 | — (fix lane) | `B103` — `/sig:doctor --fix` no longer offers to delete the cache copy a live session is running |
 | v0.1.27 | — (fix lane) | `B102` — the migration instructions uninstalled Signal and said they didn't |
 | v0.1.26 | M6.E1 | The plugin payload — an install ships the plugin, not the repository (985 files / 12.4 MB → 382 / 3.2 MB) |
 | v0.1.25 | M5.E10 | Claim integrity — seven deterministic checks; the reach measured and published, the semantic half deliberately not built |
@@ -153,7 +193,7 @@ Recent releases, newest first — full detail in `CHANGELOG.md`:
 | v0.1.12 | M5.E9 | Linear mode & the phase ledger |
 | v0.1.8–v0.1.11 | M5.E1–E6 | The doc-runtime: capture lifecycle, auto `/sig:index`, `/sig:migrate-memory`, `/sig:sweep` |
 
-Milestones 1–4 closed; **M4.5 closed 2026-07-15** (release hardening; 4 non-Signal testers onboarded). **Milestone 5 closed 2026-08-13** when `M5.E10` shipped (`D-BR0809-2`). **Milestone 6 is open**: `M6.E1` shipped as v0.1.26, `M6.E2` is in flight.
+Milestones 1–4 closed; **M4.5 closed 2026-07-15** (release hardening; 4 non-Signal testers onboarded). **Milestone 5 closed 2026-08-13** when `M5.E10` shipped (`D-BR0809-2`). **Milestone 6 is open**: `M6.E1` shipped as v0.1.26 and `M6.E2` as v0.1.29; three fix-lane releases (v0.1.27, v0.1.28, v0.1.30) followed. Nothing is in flight.
 
 - **Conventions locked**: question-patterns (strict enum / 3+other / open-ended); PROFILE.md schema + tier-to-defaults + escalation_history; ID-is-identity vocabulary; `.planning/` always tracked in git; STATE.md YAML frontmatter (`schema_version: 1`) with auto-migration.
 - **`.planning/INDEX.md` is the documentation map — read it first.** It now regenerates at every phase transition, so it should be current.
@@ -168,9 +208,10 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 
 ## Active work
 
-> ## ▶ IN FLIGHT — `M6.E2`, DISCUSS closed 2026-08-18. READ THIS FIRST.
+> ## ▶ CLOSED — `M6.E2` SHIPPED as `v0.1.29`, 2026-08-18. Kept for the reach evidence.
 >
-> **The facts Signal publishes about itself, and what re-derives them.** Requirements:
+> **The facts Signal publishes about itself, and what re-derives them.** All six phases closed the
+> same day; retro at [`M6.E2-RETROSPECTIVE.md`](M6.E2-RETROSPECTIVE.md). Requirements:
 > `M6.E2-REQUIREMENTS.md` (26 criteria). Decisions: `DECISIONS.md` § *2026-08-18 — M6.E2 DISCUSS*
 > (`D-M6E2-1` … `D-M6E2-7`). Reach evidence: `M6.E2-CORPUS-MEASUREMENT.md`.
 >
@@ -186,10 +227,19 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 > filed in two places. Fixing them before the detectors exist would ship the detectors untested
 > against the only real instances available.
 >
-> **Next phase: PLAN.** `/sig:plan` performs its own at-entry `transitionPhase` — DISCUSS's close is
-> recorded there, not here (`B51`).
+> **What happened to the two deliberate breaks:** `B102`'s row was corrected **by a check finding
+> it**, so the detector shipped tested. The `[Unreleased]` heading **ships open by choice** — it
+> needs a product call and is filed in [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md).
+>
+> **The Epic committed its own defect eight times while building the checks for it** — including a
+> silent no-op in `rewriteBugTally` (every fixture used Signal's own shape) and, at SHIP, a check
+> that would have fired on **every Epic close forever**. Three of the eight were found by *running*
+> a tool, not reading code.
 
-> ## ▶ HANDOFF — session paused 2026-08-09, mid-Wave-2. READ THIS FIRST.
+> ## ▶ SUPERSEDED HANDOFF — session paused 2026-08-09, mid-Wave-2. History, not instructions.
+>
+> ⚠ **Do not act on the STATE.md claims below** — they describe `current_epic: M5.E19` and a
+> baseline four releases old. Kept for the reasoning about what each command does and does not fix.
 >
 > **`STATE.md`'s frontmatter is stale and will mis-orient you.** It reads
 > `phase: SHIP`, `current_epic: M5.E19` — that Epic shipped as **v0.1.22, two releases ago**. Every
@@ -273,7 +323,11 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 > cannot match this file's tally-shaped footer), to be done next time anyone is in `add.js`'s
 > insertion path.
 
-> ## ▶ HANDOFF — `M5.E10` SHIPPED as `v0.1.25`, 2026-08-13. **Milestone 5 is closed.**
+> ## ▶ SUPERSEDED HANDOFF — `M5.E10` SHIPPED as `v0.1.25`, 2026-08-13. Milestone 5 closed. History.
+>
+> ⚠ **The open-work list at the end of this block is out of date** — `B99`'s packaging half shipped
+> in `M6.E1`/v0.1.26, and Milestone 6 has since opened and closed two Epics. Current open work is in
+> *"Where things stand"* at the top of this file, and the queue is [`BACKLOG.md`](BACKLOG.md).
 >
 > **Nothing is in flight.** PR **#141** is **MERGED** (merge commit `6f7cfd5`, `--merge` not squash);
 > the local checkout is on **`main`**, clean and up to date. Suite **2602**, green on `main`.
@@ -310,7 +364,9 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 >   *tokens*; a report that names every requirement and is simply wrong about its evidence passes all
 >   seven checks. It has a live `BACKLOG.md` row and a test keeps it live.
 > - **Milestone 6 is not opened.** Next work is a decision, not a queue item.
-**▶ Nothing is in flight. `M5.E10` closed and shipped as `v0.1.25` (2026-08-13), which closed Milestone 5** (`D-BR0809-2`). Review hardening / claim integrity; ran at the project's **FULL/strict** — no Epic-scoped PROFILE. Retro: [`M5.E10-RETROSPECTIVE.md`](M5.E10-RETROSPECTIVE.md); artifacts [`M5.E10-REQUIREMENTS.md`](M5.E10-REQUIREMENTS.md), [`M5.E10-RESEARCH.md`](M5.E10-RESEARCH.md), [`M5.E10-PLAN.md`](M5.E10-PLAN.md), [`M5.E10-VALIDATION.md`](M5.E10-VALIDATION.md), [`M5.E10-VERIFICATION.md`](M5.E10-VERIFICATION.md), [`M5.E10-REVIEW.md`](M5.E10-REVIEW.md); decisions `D-M5E10-1…5`.
+**▶ Nothing is in flight. The last Epic was `M6.E2`, shipped as `v0.1.29` (2026-08-18)** — the facts Signal publishes about itself; ran at the project's **FULL/strict**. Retro: [`M6.E2-RETROSPECTIVE.md`](M6.E2-RETROSPECTIVE.md); reach evidence [`M6.E2-CORPUS-MEASUREMENT.md`](M6.E2-CORPUS-MEASUREMENT.md); decisions `D-M6E2-1…7`. Three fix-lane releases followed: `v0.1.27` (`B102`), `v0.1.28` (`B103`), `v0.1.30` (`B104`).
+
+*Prior: `M5.E10` closed and shipped as `v0.1.25` (2026-08-13), which closed Milestone 5* (`D-BR0809-2`). Review hardening / claim integrity; ran at the project's **FULL/strict** — no Epic-scoped PROFILE. Retro: [`M5.E10-RETROSPECTIVE.md`](M5.E10-RETROSPECTIVE.md); artifacts [`M5.E10-REQUIREMENTS.md`](M5.E10-REQUIREMENTS.md), [`M5.E10-RESEARCH.md`](M5.E10-RESEARCH.md), [`M5.E10-PLAN.md`](M5.E10-PLAN.md), [`M5.E10-VALIDATION.md`](M5.E10-VALIDATION.md), [`M5.E10-VERIFICATION.md`](M5.E10-VERIFICATION.md), [`M5.E10-REVIEW.md`](M5.E10-REVIEW.md); decisions `D-M5E10-1…5`.
 
 **The scope call** (`D-M5E10-1`, Brett): **checkable parts + writing rules.** In — the requirement-coverage diff, VALIDATION self-consistency, the VERIFICATION denominator + *"what this could not establish"* section, the correction-protocol grep, retro-index freshness, and the `STATE.md` narrative check folded in by `D-BR0810-2`; plus the provenance rule and the `B38` reclassification, which cost text rather than machinery. **Out** — the adversarial claims-audit agent, *and its absence has to be visible in what ships* (`AC0.1`): that is the half which catches what determinism cannot, so letting the docs read as though claim integrity were solved would be this Epic's own defect, committed while closing the milestone named after it.
 
@@ -334,13 +390,13 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 
 **Nothing replaces this list yet. Milestone 6 is not opened — the next move is a decision, and it is Brett's.** Read [`BACKLOG.md`](BACKLOG.md) for the candidates.
 
-**Open bug tail** *(statuses read off `BUGS.md` 2026-08-13; `B84`, `B82` and `B77` have since been fixed and are dropped from this line)*: `B99` (**new, v0.1.25** — an install carries ~11 MB of tracked files, 4.7 MB of it `.planning/`, against ~1.9 MB the commands need; **deferred by Brett, and the fix needs research** — whether the manifest supports an include/exclude list, or whether the plugin should ship from a subdirectory), `B93` (`commands/discuss.md` reads the tier *before* the Epic roll, so a `--epic` run gates the phase on the **previous** Epic's profile), `B79` (`evictEpicNarrative` has never been able to fire for Signal's own STATE.md and reports it as a clean no-op), `B73`–`B76` (the loop-engineering audit's `LE-1…LE-4`), `B60` (P2 — six phase commands have no branch for a malformed PROFILE while four meta commands do), `B61` (P3 — hand-edited numeric-looking `last_updated_commit` is YAML-coerced), `B56` (P3 — `facts.md`'s test count still has no guard pinning it to the real suite; `tools/cut-release.js` sets it from the gating `vitest` run, but only if the script is used, so the bug stays `confirmed` — **this refresh corrected the number by hand for the fourth time, which is the recurrence the row predicts**).
+**Open bug tail** *(statuses re-read off `BUGS.md` 2026-08-19; `B99` has since shipped **`fixed`** in `M6.E1`/v0.1.26 and is dropped from this line — the packaging half is done, the "should `.planning/` be public at all" question is not a bug and stays open above. `B84`, `B82` and `B77` were dropped at the prior refresh.)*: `B93` (`commands/discuss.md` reads the tier *before* the Epic roll, so a `--epic` run gates the phase on the **previous** Epic's profile), `B79` (`evictEpicNarrative` has never been able to fire for Signal's own STATE.md and reports it as a clean no-op), `B73`–`B76` (the loop-engineering audit's `LE-1…LE-4`), `B60` (P2 — six phase commands have no branch for a malformed PROFILE while four meta commands do), `B61` (P3 — hand-edited numeric-looking `last_updated_commit` is YAML-coerced), `B56` (P3 — `facts.md`'s test count still has no guard pinning it to the real suite; `tools/cut-release.js` sets it from the gating `vitest` run, but only if the script is used, so the bug stays `confirmed` — **this refresh corrected the number by hand for the fourth time, which is the recurrence the row predicts**).
 
 **Carried from M5.E16's retro, unhomed:** `review_depth: quality-only` silently disables `simplification_pass`, and a profile's prose can claim a dial the precedence rules turn off. That is a prose-vs-precedence comparison — M5.E10's semantic territory, not M5.E16's deterministic one. **Still unhomed, and now more so:** `M5.E10` shipped with the semantic half deliberately left out (`AC0.1`), so this item pointed at a destination that no longer exists. It travels with the semantic claims-audit backstop, wherever that lands.
 
 ---
 
-*Last updated: 2026-08-18 (**`M6.E2` DISCUSS closed; v0.1.26/27/28 shipped; Milestone 6 open**). This round the file was five releases and one milestone stale — it still said *"M6 is not opened"* while `M6.E1` had shipped and `M6.E2` was in flight. Refreshed: the current-state headline, three release rows, the milestone line, and a new in-flight handoff block. **The structural note below is still true and still unaddressed** — this file answers "what's current" in two places, and only one of them was wrong this time, which is exactly how the gap survives. Prior stamp, 2026-08-13 (**`M5.E10` shipped as v0.1.25; Milestone 5 closed**). **Caught by `/sig:resume` again — the fourth consecutive time this file has been refreshed because a briefing read it against the world and lost.** What was stale this round: both "what's current" sections (one at v0.1.24, one at v0.1.22, against a live v0.1.25), the next-work pointer (naming an item that shipped in v0.1.24), a resolved warning about unreleased commits, a five-item queue whose every item had shipped, and an open-bug tail listing three fixed bugs. **The structural note the last stamp made is still true and still unaddressed: this file answers "what's current" in two places.** Collapsing them to one is the fix; it was raised rather than done, because it is a whole-file restructure and Brett's call. Also refreshed in the same pass: `STATE.md`'s In-flight section (stale through the entire Epic — logged as instance (6) there), `CLAUDE.md`'s Current State, `references/facts.md`'s test count (2389 → 2602), and four `BACKLOG.md` sub-bullets reading "UNRELEASED at the time of writing" about a shipped release. **Prior stamp, 2026-08-06** (**M5.E15 shipped as v0.1.19; `B52` shipped as v0.1.20; the archive command is next**) — *and this time the file contradicted itself rather than the world:* its top section already said `v0.1.19` shipped with a suite of 2233 while "Current state" 60 lines below still read `v0.1.18` / 2168 tests. A patch had updated the section a reader hits first and left the section that carries the numbers — so the stamp said "current" and the file held two different answers. **Both were two releases stale by the time anyone read them.** Fixed together with `CLAUDE.md`, which had the same two defects (`Latest: v0.1.18`, and `Active: M5.E15 — EXECUTE not started` describing an Epic that had shipped). Prior update 2026-08-04 (**M5.E18 shipped as v0.1.18**) — patched, not rewritten, and caught by `/sig:resume` reading this file against `M5.E18-RETROSPECTIVE.md`, one day after the stamp below promised the same section would be watched. Prior update 2026-08-03 (**M5.E18 opened; DISCUSS closed**). Prior update 2026-08-02 (v0.1.16 / M5.E16 shipped), when this file had gone **seven Epics stale** — it described M5.E7 as in-flight while M5.E16 was closing — and was rewritten whole rather than patched, because `CLAUDE.md` tells every reader to open it first. **It went stale again within two PRs**, on the "Active work" queue specifically; see D-M5E18-1.*
+*Last updated: 2026-08-19 (**`M6.E2` shipped as v0.1.29; v0.1.30 shipped; nothing in flight**). **Caught by `/sig:resume` for the fifth consecutive time**, and this round the two-places gap is no longer a structural worry — it is measured. The 2026-08-18 stamp, written one day earlier, said the gap survives because *"only one of them was wrong this time."* **Today both were wrong**: *"Where things stand"* sat at v0.1.25 and still read *"Milestone 6 is not opened"* while `M6.E1` and `M6.E2` had both shipped, and *"Current state"* sat at v0.1.28 — against a live v0.1.30. One section was five releases and one milestone stale; the other, two releases. **A patch that updates one section and leaves the other is not the exception here, it is the pattern**, now observed on three consecutive refreshes. Collapsing the two sections into one remains the fix and remains Brett's call; it is recorded here as evidence rather than re-requested. Refreshed this round: both current-state sections, two release rows (v0.1.29, v0.1.30), the test count (2681 → 2761, verified against a full `vitest` run rather than copied), the milestone line, the `M6.E2` in-flight block (retitled **CLOSED** — it still said *"Next phase: PLAN"* for an Epic that had shipped), the trailing in-flight paragraph, and the open-bug tail (`B99` now `fixed`). **Two superseded handoff blocks were retitled, not deleted** — both said *"READ THIS FIRST"* over claims four releases out of date, which is misdirection rather than history; the bodies are kept intact with a dated warning on top. **`STATE.md`'s body was read, not just its frontmatter** — its *Resume pointer* and *NEXT WORK* sections still narrate the 2026-08-06 queue, and both `narrative-phase-contradicts-frontmatter` and `body-omits-current-epic` return **clean** on it, because they compare tokens. That is the semantic gap (`AC0.1`) demonstrated on this repository's own state file, and it is left standing rather than tidied. Prior stamp, 2026-08-18 (**`M6.E2` DISCUSS closed; v0.1.26/27/28 shipped; Milestone 6 open**). This round the file was five releases and one milestone stale — it still said *"M6 is not opened"* while `M6.E1` had shipped and `M6.E2` was in flight. Refreshed: the current-state headline, three release rows, the milestone line, and a new in-flight handoff block. **The structural note below is still true and still unaddressed** — this file answers "what's current" in two places, and only one of them was wrong this time, which is exactly how the gap survives. Prior stamp, 2026-08-13 (**`M5.E10` shipped as v0.1.25; Milestone 5 closed**). **Caught by `/sig:resume` again — the fourth consecutive time this file has been refreshed because a briefing read it against the world and lost.** What was stale this round: both "what's current" sections (one at v0.1.24, one at v0.1.22, against a live v0.1.25), the next-work pointer (naming an item that shipped in v0.1.24), a resolved warning about unreleased commits, a five-item queue whose every item had shipped, and an open-bug tail listing three fixed bugs. **The structural note the last stamp made is still true and still unaddressed: this file answers "what's current" in two places.** Collapsing them to one is the fix; it was raised rather than done, because it is a whole-file restructure and Brett's call. Also refreshed in the same pass: `STATE.md`'s In-flight section (stale through the entire Epic — logged as instance (6) there), `CLAUDE.md`'s Current State, `references/facts.md`'s test count (2389 → 2602), and four `BACKLOG.md` sub-bullets reading "UNRELEASED at the time of writing" about a shipped release. **Prior stamp, 2026-08-06** (**M5.E15 shipped as v0.1.19; `B52` shipped as v0.1.20; the archive command is next**) — *and this time the file contradicted itself rather than the world:* its top section already said `v0.1.19` shipped with a suite of 2233 while "Current state" 60 lines below still read `v0.1.18` / 2168 tests. A patch had updated the section a reader hits first and left the section that carries the numbers — so the stamp said "current" and the file held two different answers. **Both were two releases stale by the time anyone read them.** Fixed together with `CLAUDE.md`, which had the same two defects (`Latest: v0.1.18`, and `Active: M5.E15 — EXECUTE not started` describing an Epic that had shipped). Prior update 2026-08-04 (**M5.E18 shipped as v0.1.18**) — patched, not rewritten, and caught by `/sig:resume` reading this file against `M5.E18-RETROSPECTIVE.md`, one day after the stamp below promised the same section would be watched. Prior update 2026-08-03 (**M5.E18 opened; DISCUSS closed**). Prior update 2026-08-02 (v0.1.16 / M5.E16 shipped), when this file had gone **seven Epics stale** — it described M5.E7 as in-flight while M5.E16 was closing — and was rewritten whole rather than patched, because `CLAUDE.md` tells every reader to open it first. **It went stale again within two PRs**, on the "Active work" queue specifically; see D-M5E18-1.*
 
 ## Locked Decisions
 
