@@ -39,11 +39,14 @@ than one serving stale code.*
 and the process kept its binding. **Restart the CLI process.** The banner says so in those words for
 that reason. To check by hand, run any `/sig:` command and read the cache path it cites.
 
-**Cache status 2026-08-06: `0.1.19` was the bound version for the `B52` fix work itself** (verified —
-`installed_plugins.json` records `0.1.19` and this session's `/sig:resume` cited that path, so the
-two agreed and no banner was due). ⚠ **`v0.1.20` ships 2026-08-06, so the cache will be a release
-behind again until you `/sig:update` **and then** restart — in that order, because a restart before the update has nothing new to bind to** — and the *next* session after that is the first one
-this fix can protect.
+**Cache status 2026-08-19: bound copy and `installed_plugins.json` both read `0.1.30`** — verified
+via `readBindingBanner`, which returns `null`, so no banner is due. Three cache copies sit on disk
+(`0.1.25`, `0.1.27`, `0.1.30`); since `B103` (`v0.1.28`) `/sig:doctor --fix` will not offer to delete
+one a live session is running, so the extras are disk cost, not a hazard.
+
+⚠ **The sequence after any release is `/sig:update` **and then** restart, in that order** — a restart
+before the update has nothing new to bind to, and the *next* session is the first one the fix can
+protect.
 
 ## ~~▶ NEXT WORK — agreed 2026-08-06, in this order~~ · **CLOSED — all three shipped**
 
@@ -51,8 +54,10 @@ this fix can protect.
 > (`B52` → v0.1.20, the archive command → v0.1.22, `M5.E14`'s slice → v0.1.24). **Two claims below
 > are now false and are corrected here rather than edited in place**, since the section is a dated
 > record: item 3 says `M5.E10`'s trigger *"is NOT met"*, and the closing note says `M5.E10` has
-> *"never landed — no artifacts on disk."* `M5.E10` is **open and in flight** with four artifacts on
-> disk. Both statements were true when written on 2026-08-06. **The live queue is
+> *"never landed — no artifacts on disk."* **Both statements were true when written on 2026-08-06, and
+> the correction itself has since expired**: `M5.E10` shipped as `v0.1.25` on 2026-08-13, closing
+> Milestone 5. Left as a three-layer record rather than flattened, because it shows how fast a
+> correction goes stale when it is written in prose next to a dated claim. **The live queue is
 > [`BACKLOG.md`](BACKLOG.md)** (`D-M5E18-1`).
 
 **Brett's call: do all three, sequentially.** Full reasoning and the plain-language framing are in
@@ -371,8 +376,10 @@ unbuilt (`D-M6E2-7`) — everything shipped here compares tokens.
 
 **Nothing is in flight.**
 
-**Milestone 6 is open.** `M6.E1` (the plugin payload) shipped as `v0.1.26` on 2026-08-17; two fix-lane
-releases followed — `B102`/`v0.1.27` and `B103`/`v0.1.28`. The queue remains
+**Milestone 6 is open.** `M6.E1` (the plugin payload) shipped as `v0.1.26` on 2026-08-17; three
+fix-lane releases followed — `B102`/`v0.1.27`, `B103`/`v0.1.28`, and `B104`/`v0.1.30`, the last of
+which shipped **after** this section was written and had to be added by hand on 2026-08-19. The queue
+remains
 [`BACKLOG.md`](BACKLOG.md) (`D-M5E18-1`); this is the pointer, not a second copy of it.
 
 *Prior: `M5.E10` (review hardening / claim integrity) shipped as `v0.1.25` on 2026-08-13, closing
