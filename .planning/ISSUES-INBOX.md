@@ -52,3 +52,75 @@ Purpose: fast human QA + faithfulness eyeballs, demos, onboarding, and regressio
 
 ---
 
+## Behavioral evals as a second measurement shape (eve factory)
+
+**Status:** Logged 2026-08-18 via `/sig:add`.
+
+**Behavioral evals as a SECOND measurement shape, next to the adherence harness.** From `vercel-labs/eve-software-factory-template` (MIT), `evals/`.
+
+`tools/adherence-ceiling.js` currently reports **105 of 493 directives trace-measurable (21.3%)** — 388 directives with no observable trace, and the tool is explicit that those are *unmeasured, NOT passing*. Signal's harness measures by **deleting** an instruction and comparing treatment against control; that only works where obedience leaves a trace it can name.
+
+The eve evals measure differently: send a prompt, then assert against the run's **event stream** — `t.calledSubagent("implementer", {count: 0})`, `t.notCalledTool(...)`, `t.eventsSatisfy("classifier before analyst", events => calledInOrder(events, [...]))` — and add a **soft LLM judge** (`t.judge.autoevals.closedQA(...).atLeast(0.5)`) for the part that is a wording judgement. Hard assertions and a soft judge in the same eval, so the graded part is scoped to what actually needs grading.
+
+**What this would cover that the canary cannot:** ordering directives ("read PROFILE.md before anything else"), negative directives ("do not spawn agents at SKETCH"), and refusal directives ("halt on the default branch") — all of which are behaviours, not artifacts.
+
+⚠ **Not a straight port.** Signal has no equivalent of `MessageStreamEvent` to assert over; a Claude Code plugin does not get a structured trace of its own run. Whether this shape is even implementable here is the first question, not an implementation detail — and `claude plugin eval` may be the missing substrate. Park it against that, rather than treating it as ready work.
+
+---
+
+## /sig:permissions principle — authority from outside the model input surface
+
+**Status:** Logged 2026-08-18 via `/sig:add`.
+
+**A principle for `/sig:permissions`: derive authority from something the model cannot influence.** From `vercel-labs/eve-software-factory-template` (MIT), `agent/lib/trust.ts` and `agent/lib/factory-brain.ts`.
+
+`AGENT-EFFECTIVENESS-ALIGNMENT.md` names environment readiness as Signal's absent axis and says it is blocked on a permission model, not a one-off exception. That model needs a founding principle, and this repo states one twice, in two unrelated places:
+
+- **Trust:** *"Trust is decided once, at dispatch, on the signed webhook… Nothing downstream re-derives trust from model-readable content."* The channel stamps a `trusted` attribute only for commenters whose GitHub `author_association` is OWNER / MEMBER / COLLABORATOR — a fact from the signed payload, never from anything the model read.
+- **Scoping:** the shared memory document's storage key is *"derived entirely from `FACTORY_REPO`… **never from model input or a caller's principal**"*, and lives under a reserved namespace so no general-purpose storage tool can use it as a side channel.
+
+One rule, stated twice: **authority and scope come from outside the model's input surface.** Signal's current gates are the opposite — every one of them reads a document (`PROFILE.md`, `STATE.md`, `BUGS.md`) that a model can also write.
+
+This is a note for whenever `/sig:permissions` is designed, not a work item. It settles nothing about scope; it says what the first design constraint should be.
+
+---
+
+## Prior art for the attention axis — an unattended principal that parks
+
+**Status:** Logged 2026-08-18 via `/sig:add`.
+
+**Prior art for `LOOP-ENGINEERING-ANALYSIS.md`'s `attention` axis — a working unattended principal that parks.** From `vercel-labs/eve-software-factory-template` (MIT), `agent/lib/trust.ts`.
+
+The analysis proposes splitting `gate_strictness` into rigor and **attention** (attended / checkpointed / unattended), with an async decision queue and reversibility-weighted auto-adopt. This repo has a shipped version of the hard part.
+
+An unattended run gets a **distinct constructed principal** (`github:foreman-factory`, deliberately shaped so it can never collide with a real user id), and the approval policies deny it everything except: labels, progress comments **on its own intake issue**, closing/reopening issues, and **draft** pull requests. The reasoning is stated in the source: *"an unattended turn has nobody to answer an approval card and would park forever."*
+
+**The three transferable pieces:**
+1. **Unattended is an identity, not a flag.** The permitted set hangs off the principal, so a new capability inherits the right behaviour by default instead of needing its own attended/unattended branch — which is `B75`'s failure mode (`light` and `strict` differing by one boolean because every other difference was prose).
+2. **The split is by reversibility, exactly as the analysis proposed** — reversible writes run unattended, anything that *ships* parks for a person. Their scheduled-run principal follows the same rule even though no schedule ships in the template.
+3. **The unattended run may narrate only on its own thread**, scoped by an attribute stamped at dispatch. Signal has no equivalent notion of "where this run is allowed to write."
+
+Pairs with the `/sig:permissions` principle entry; both come from the same file.
+
+---
+
+## A hard size bound on the curated memory document
+
+**Status:** Logged 2026-08-18 via `/sig:add`.
+
+**A hard size bound on the curated memory document.** From `vercel-labs/eve-software-factory-template` (MIT), `agent/lib/factory-brain.ts`.
+
+`MAX_FACTORY_BRAIN_LENGTH = 40_000` characters, with the intent written next to the constant: the brain is *"a short, curated set of durable notes about the target repository, not a transcript of every run… The bound keeps it small and cheap to load into context at the start of every task."*
+
+Signal's equivalent surfaces have no bound and show it: `.planning/` is ~4.7 MB, `CONTEXT.md` answers *"what's current"* in **two places** (a known, still-unfixed structural defect recorded in its own footer), and `CLAUDE.md`'s Current State has gone stale enough to need correcting three times in this repository's recent history. `checkClaudeMdBloat` exists but **advises**; nothing bounds anything.
+
+The borrowable part is not the number — 40k is theirs, for one document, on a different runtime. It is that **the bound is a constant in code with its rationale beside it**, so "this file is getting long" becomes a failing check rather than a judgement someone has to make while tired.
+
+Open question this does not answer: which Signal document should carry a bound. `CONTEXT.md` is the obvious candidate; `.planning/` as a whole is the wrong unit, because archive growth is correct behaviour.
+
+---
+
+
+
+
+*Last updated: 2026-08-18*
