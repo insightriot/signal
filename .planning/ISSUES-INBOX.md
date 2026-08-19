@@ -54,7 +54,7 @@ Purpose: fast human QA + faithfulness eyeballs, demos, onboarding, and regressio
 
 ## Behavioral evals as a second measurement shape (eve factory)
 
-**Status:** Logged 2026-08-18 via `/sig:add`.
+**Status:** Logged 2026-08-18 via `/sig:add`. → Deferred 2026-08-19 (M6.E3 drain).
 
 **Behavioral evals as a SECOND measurement shape, next to the adherence harness.** From `vercel-labs/eve-software-factory-template` (MIT), `evals/`.
 
@@ -70,7 +70,7 @@ The eve evals measure differently: send a prompt, then assert against the run's 
 
 ## /sig:permissions principle — authority from outside the model input surface
 
-**Status:** Logged 2026-08-18 via `/sig:add`.
+**Status:** Logged 2026-08-18 via `/sig:add`. → Deferred 2026-08-19 (M6.E3 drain).
 
 **A principle for `/sig:permissions`: derive authority from something the model cannot influence.** From `vercel-labs/eve-software-factory-template` (MIT), `agent/lib/trust.ts` and `agent/lib/factory-brain.ts`.
 
@@ -87,7 +87,7 @@ This is a note for whenever `/sig:permissions` is designed, not a work item. It 
 
 ## Prior art for the attention axis — an unattended principal that parks
 
-**Status:** Logged 2026-08-18 via `/sig:add`.
+**Status:** Logged 2026-08-18 via `/sig:add`. → Deferred 2026-08-19 (M6.E3 drain).
 
 **Prior art for `LOOP-ENGINEERING-ANALYSIS.md`'s `attention` axis — a working unattended principal that parks.** From `vercel-labs/eve-software-factory-template` (MIT), `agent/lib/trust.ts`.
 
@@ -106,7 +106,7 @@ Pairs with the `/sig:permissions` principle entry; both come from the same file.
 
 ## A hard size bound on the curated memory document
 
-**Status:** Logged 2026-08-18 via `/sig:add`.
+**Status:** Logged 2026-08-18 via `/sig:add`. → Deferred 2026-08-19 (M6.E3 drain).
 
 **A hard size bound on the curated memory document.** From `vercel-labs/eve-software-factory-template` (MIT), `agent/lib/factory-brain.ts`.
 
@@ -120,27 +120,3 @@ Open question this does not answer: which Signal document should carry a bound. 
 
 ---
 
-## CLAUDE.md's version headline: derive it at release, check it as backstop
-
-**Status:** Logged 2026-08-18 via `/sig:add`.
-
-**`CLAUDE.md`'s "Latest: vX" is a published fact nothing derives — and it went stale one commit after a release THREE times on 2026-08-18 alone** (v0.1.28, v0.1.29, v0.1.30), each time needing its own follow-up PR.
-
-`M6.E2` shipped five checks for exactly this class and **none of them reads `CLAUDE.md`**. The five look at `BUGS.md`, `CHANGELOG.md`, milestone files and `facts.md`; the one document every reader and every agent opens first is not among them.
-
-**Two candidate fixes, and they are not equivalent:**
-
-1. **A sixth published-fact check** — `CLAUDE.md`'s `**Latest: vX**` against `plugin/.claude-plugin/plugin.json`. Mechanically trivial, reuses the harness, and reach is **1 of 12** like the others (only Signal keeps a release headline in its `CLAUDE.md`). It detects; it does not prevent.
-2. **Make it part of the release** — `tools/cut-release.js` already sets `facts.md`'s test count from the gating vitest run. The version headline is the same kind of value. This *prevents* rather than detects, and prevention is the better answer for a value that has one correct source.
-
-**Recommendation is (2), with (1) as the backstop** — the same pairing `M6.E2` used for `BUGS.md` (the write path re-derives, and a check catches what the write path missed). Doing only (1) means a check that fires on every release until someone hand-fixes it, which trains the mute.
-
-⚠ Worth noting against (2): `cut-release.js` currently has its own open defect (`B84` — its no-release-notes guard is unreachable and relabels a historical section instead of refusing), so touching it means reading that first.
-
----
-
-
-
-
-
-*Last updated: 2026-08-18*
