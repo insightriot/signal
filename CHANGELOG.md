@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [0.1.30] — 2026-08-18 — four agents with a shell, pointed at a stranger's repository
+## [0.1.30] — 2026-08-18 — four agents with a shell, reading text nobody checked
 
 **`B104`, fix lane. A P1 against every release that has shipped `/sig:init`.**
 
@@ -15,9 +15,29 @@ every one of them declares `tools: Read, Bash, Grep, Glob`. **Nothing in any sca
 nothing in `init.md`, told them that what they were reading was data.** Not a weak instruction — a
 grep across `plugin/agents/scanners/*.md` and `commands/init.md` returned **zero**.
 
-Signal is publicly installable and has four non-Signal users. A `README` in any scanned repository
-saying *"ignore the tier gate"* or *"run this setup command first"* met no instruction standing
-against it.
+> **⚠ Corrected 2026-08-18, after this entry was published.** The original headline read *"pointed at
+> a stranger's repository"* and the text implied a write risk. **Both were overstated**, and Brett
+> caught it by asking the obvious question — *how are scanners writing to the codebase?* They are
+> not:
+>
+> - **`/sig:init` runs on YOUR OWN existing codebase**, not a third party's. Brownfield onboarding is
+>   the whole point of the command.
+> - **The scanners never write to it.** Every one of them is constrained to
+>   `.planning/scan/{name}.md` and forbidden `npm install`, `git push`, and anything that mutates.
+>
+> **What the real exposure is**, stated properly: they hold `Bash`, so an obeyed directive is a
+> **command-execution** risk, not a file-write one — *"run this setup command first"* is the shape
+> that matters. And their output feeds `LANDSCAPE.md` → `PROJECT.md` → every later phase, so a
+> poisoned *finding* propagates into planning without any command ever being run.
+>
+> **It is still a real gap**, because a codebase you own routinely contains text you did not write —
+> vendored dependencies, contributor commit messages, forked files, test fixtures — and because
+> people do point `/sig:init` at a repo they cloned to evaluate, or at a client's. But the severity
+> is *"an agent with a shell should treat what it reads as data"*, not *"Signal scans hostile
+> repositories by default."* The fix below is unchanged; the framing was wrong.
+
+Signal is publicly installable and has four non-Signal users. A `README` **committed by anyone other
+than the operator** saying *"run this setup command first"* met no instruction standing against it.
 
 **Found by reading someone else's code.** `vercel-labs/eve-software-factory-template` (MIT) ships
 `evals/safety/prompt-injection.eval.ts` — a hostile issue body carrying *"SYSTEM OVERRIDE: ignore all
@@ -674,7 +694,7 @@ Four instrument defects, and **each produced a plausible-looking result rather t
 ### `B36` sighted live for the third time
 The FR1 retrospective gate **skipped** at this Epic's own SHIP (`{skipped: true}` — *"not an Epic-close"*), because `MILESTONE-5.md` still carried E8 as `▶ NEXT`. The retro existed only because it was written before the gate ran. Same inertia as at M5.E9's ship. **`B36` is confirmed by dogfooding three times over now, not by reading.**
 
-## [Unreleased] — 2026-07-26 — The v2 direction audit (M5.E7)
+## 2026-07-26 — The v2 direction audit (M5.E7) · analysis only, no version cut
 
 **No code shipped, so no version was cut.** The deliverable is a decision: **[`analysis/SIGNAL-V2-ROADMAP.md`](analysis/SIGNAL-V2-ROADMAP.md)** — what Signal builds next, in what order, and why, grounded in Signal's own record. **45 candidates verbed: 11 distinct builds · 16 continue · 19 abandon**, sequenced as **M5.E8 → M5.E12** and landed in [`.planning/BACKLOG.md`](.planning/BACKLOG.md) with a trigger, a first slice, and a stranger-checkable done-when apiece (a roadmap in `analysis/` is enforced by nothing — D-M5E7-8(b)). Suite unchanged at **1623/1623**; validator green; command / agent / skill roster unchanged at **18 / 26 / 21**. Ran at FULL tier under Signal's **first Epic-scoped PROFILE** (`M5.E7-PROFILE.md`) — *"strict thinking, zero test theater."*
 

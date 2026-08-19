@@ -118,25 +118,34 @@ describe('cut-release: the edits', () => {
 
     // The guarantee stated against the file that actually ships, not a fixture.
     //
-    // Written first as "the real CHANGELOG refuses a cut" — which was true when
-    // written and FALSE ten minutes later, the moment notes were written for
-    // the next release. That version tested a transient property of the file
-    // rather than the invariant, so it is phrased against the durable fact
-    // instead: strip whatever pending section happens to exist, and what
-    // REMAINS — the historical M5.E7 heading — must not satisfy the guard.
-    it('the real CHANGELOG.md refuses once its pending notes are removed', async () => {
+    // ── History of this assertion, kept because it is the point ──────────────
+    // v1: "the real CHANGELOG refuses a cut" — true when written, FALSE ten
+    //     minutes later once notes existed for the next release. It tested a
+    //     transient property of the file rather than the invariant.
+    // v2: strip whatever pending section exists; what REMAINS — the historical
+    //     M5.E7 `[Unreleased]` heading — must not satisfy the guard. It carried
+    //     an explicit instruction: "if it ever goes away, this test should say
+    //     so rather than silently pass."
+    // v3 (2026-08-18): IT WENT AWAY, and the test said so — it failed the
+    //     moment the heading was relabelled to
+    //     `## 2026-07-26 — … · analysis only, no version cut`, which resolved
+    //     the contradiction the heading carried (finished work labelled
+    //     unreleased). The instruction was honoured rather than the assertion
+    //     weakened.
+    //
+    // What is durable now: this repository contains NO `[Unreleased]` heading,
+    // so `B84`'s hazard cannot arise from this file at all. The invariant
+    // itself stays pinned by the synthetic fixture in the test above, which
+    // owns its input and cannot be invalidated by editing the changelog.
+    it('the real CHANGELOG.md carries no [Unreleased] heading for B84 to trip over', async () => {
       const { readFile } = await import('node:fs/promises');
       const real = await readFile(new URL('../CHANGELOG.md', import.meta.url), 'utf-8');
 
-      // The historical heading is the whole reason this bug existed; if it ever
-      // goes away, this test should say so rather than silently pass.
-      expect(real).toContain('## [Unreleased] — 2026-07-26 — The v2 direction audit (M5.E7)');
+      expect(real).not.toMatch(/^##\s*\[Unreleased\]/m);
 
-      const firstRelease = real.search(/^## \[\d+\.\d+\.\d+\]/m);
-      const noPending =
-        real.slice(0, real.indexOf('---') + 3) + '\n\n' + real.slice(firstRelease);
-
-      expect(() => foldChangelog(noPending, '9.9.9', '2026-01-01', 'T')).toThrow(/B84/);
+      // And the section that used to carry it is still present, now labelled
+      // for what it is — so this cannot pass by the entry having been deleted.
+      expect(real).toContain('## 2026-07-26 — The v2 direction audit (M5.E7) · analysis only, no version cut');
     });
   });
 

@@ -71,18 +71,15 @@ entry exists so the question survives a context clear if it doesn't.
 
 *Logged 2026-08-06 via /sig:checkpoint*
 
-## Does M5.E7 ever get a version number?
+## ~~Does M5.E7 ever get a version number?~~ · **ANSWERED 2026-08-18 — no, and the heading changed instead**
 
-`M5.E7` shipped analysis rather than code, and its CHANGELOG section was never given one. The
-question is a product call — give it a version, or convert the heading to something that is not
-`[Unreleased]`.
+**Decision (Brett, 2026-08-18): relabel, do not version.** The section now reads `## 2026-07-26 — The v2 direction audit (M5.E7) · analysis only, no version cut`.
 
-**The defect this causes is filed once, in `BUGS.md`** (*"M5.E7's changelog section is invisible to
-`/sig:update`"*) — not restated here. `M6.E2` found both copies: the same problem was written up in
-two files, which is a single-home violation sitting inside the Epic about published facts being
-wrong. This entry now carries only the undecided part.
+**Why not a version.** The entry's own opening line is *"No code shipped, so no version was cut."* Assigning one would record a release that never happened — a false published fact in the changelog, which is precisely the class `M6.E2` shipped checks for. The contradiction was never *"this needs a version"*; it was a heading claiming *unreleased* about work that was finished.
 
-*Logged 2026-08-06 via /sig:checkpoint. Single-homed 2026-08-18 (`M6.E2` `AC6.2`).*
+**And its absence from `/sig:update` is now correct rather than a defect** — there is no version delta for any user to have received. The matching `BUGS.md` entry is closed on the same reasoning.
+
+*Logged 2026-08-06 via /sig:checkpoint. Single-homed 2026-08-18 (`M6.E2` `AC6.2`). Answered 2026-08-18.*
 
 ## Should the "one canary is not a survey" caveat name all declared deletion sites instead of just `canary.command`? It renders "a fact about {id} in commands/{command}.md", accurate when a canary had one anchor. The instruction now lives at five declared sites. `canary.command` is genuinely the measured command, so the sentence is defensible — but a reader could take it as the full footprint. Deliberately not changed in REVIEW: wording on a published-record template deserves its own decision.
 
