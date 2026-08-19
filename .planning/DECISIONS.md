@@ -2053,3 +2053,112 @@ internally consistent and simply wrong about what its evidence means passes ever
 ships. That is `AC0.1` / `D-M5E10-1`, still deliberately unbuilt, and its absence stays visible in
 `BACKLOG.md` rather than being quietly narrowed away by an Epic that sounds like it covers it.
 
+
+## 2026-08-19 — M6.E3 DISCUSS: a reviewer that must show its work (D-M6E3-1 … D-M6E3-6)
+
+*Epic: `M6.E3`. Opened 2026-08-19 on the session that refreshed `CONTEXT.md` and `STATE.md` after
+`/sig:resume` caught both stale for the fifth consecutive time. The Epic's founding evidence was
+produced by that refresh rather than argued for: **`STATE.md`'s narrative body was wrong in three
+places for days while `narrative-phase-contradicts-frontmatter` and `body-omits-current-epic` both
+returned clean on it**, because they compare tokens. This is `AC0.1` / `D-M5E10-1`'s deliberately
+unbuilt semantic half, demonstrated on this repository's own state file and found by a person
+reading, not by any check.*
+
+**D-M6E3-1 — the reviewer may BLOCK only when it produces an inspectable receipt.**
+
+A bare verdict — *"this claim is unsupported"* — is **report-only, always**. To stop anything, the
+reviewer must hand over something a human can check in seconds: the claim, and the thing that
+contradicts it, side by side.
+
+The reasoning is a choice between two documented failure modes rather than a preference for rigor.
+**If it blocks on judgment**, it will sometimes be wrong — it is making a judgment call, not
+arithmetic — and the predictable response is to override by reflex. Once overriding is routine the
+gate protects nothing and is *worse* than no gate, because everyone believes one exists. **If it only
+reports**, it becomes one more advisory line, and this repository has measured what happens to those:
+`UNREACHED-MECHANISM-ANALYSIS.md` catalogues **five** rules shipped with nothing reaching for them,
+and `B75` established the ceiling on the habitual remedy — `gate_strictness` `light` and `strict`
+differ by **one boolean** in code; every other difference is prose.
+
+The receipt breaks the tie: a wrong stop costs a glance instead of an argument, so the override
+reflex never forms. **Precedent, not theory:** the one check that has ever caught a genuinely false
+completeness claim here worked exactly this way — `M5.E10`'s VERIFICATION asserted *"56 of 56"* and
+the coverage check returned **the six specific ids** that were missing. Nobody had to trust it; it
+named them.
+
+**D-M6E3-2 — three situations, three receipt strengths, and only two of them may block freely.**
+
+| Situation | Receipt | May block? |
+|---|---|---|
+| Two documents contradict each other | Quote both | Yes |
+| Marked **not-done**, actually **done** | Produce the code/commit that does it | Yes |
+| Marked **done**, code does not show it | A search that came back empty | **Only against a closed list** |
+
+The asymmetry is the finding, and it inverts the intuition. Proving *"this was done after all"* is a
+**positive find** — here is the line — and is therefore the *easy* case. Proving *"this was never
+done"* requires establishing a negative, and *"I looked and did not find it"* is the weakest evidence
+available; the thing may exist under another name, in a file nobody opened, built differently than
+expected.
+
+**Absence is provable only against a closed, enumerable list** — requirement ids, named tests, the
+files a plan said it would touch. That is precisely why the *"56 of 56"* catch worked: there were
+exactly 56 ids. An unbounded question — *"is this behaviour implemented anywhere?"* — has no such
+list, so nothing makes the empty result trustworthy, and it never blocks.
+
+**D-M6E3-3 — build order inverted from the backlog's framing: the false "still open" ships FIRST.**
+
+`BACKLOG.md`'s row homes this Epic at the false-**done** claim, the class
+`CLAIM-INTEGRITY-ANALYSIS.md` is named after. **That order is wrong on this evidence**, for three
+reasons: the false *not-done* case has the **strongest** receipts (`D-M6E3-2`); it has a repeatedly
+demonstrated record here — `B38`, `B102`, `B55` and `B80` all read open after they had shipped, and
+`dischargeObligation` exists to close such records and **is called by nothing**; and it **repairs a
+check that has already shipped and is misfiring** rather than adding a new one.
+
+Nobody audits the *"still open"* column — there is no pressure to — so a false *not-done* is the
+quieter and more expensive error: it makes the project look less finished than it is and drives
+sequencing decisions off a false picture.
+
+**D-M6E3-4 — slice 1 covers two record types: `BUGS.md` rows and `OPEN-QUESTIONS.md` entries.**
+*(Brett, 2026-08-19, chosen over `BUGS.md` alone and over all five record types.)*
+
+Both carry **documented** stale instances — the four bug rows above, and the `B46` question that
+*"outlived its answer by three days"* and was caught by a sweep of the file rather than by anything
+reconciling a question against the bug it asks about. They share one mechanism: a record with a
+status, plus a place to look for proof it closed.
+
+**Two record types, not one, is the point.** One cannot show whether the shape generalises — the
+mistake `B82` made by construction, where every fixture used Signal's own shape and the defect lived
+only where that shape did not hold. **Three deferred deliberately:** `BACKLOG.md` rows, obligations
+(`dischargeObligation`), and `ISSUES-INBOX` captures. Wiring `dischargeObligation` is the standing
+open item and is the natural slice 2 — it is *not* claimed as done here.
+
+**D-M6E3-5 — it fires in `/sig:sweep` for reach AND refuses at the SHIP gate for teeth.**
+*(Brett, 2026-08-19, chosen over sweep-only and over the REVIEW phase gate.)*
+
+`/sig:sweep` is phase-free and runs in any project, and already hosts `bug-status-vs-changelog`.
+**SHIP is where it acquires consequence:** an Epic does not close while a receipt-backed stale record
+stands, and `ship.md` §6.6 already walks discharged backlog rows, so the hook exists.
+
+**Both surfaces are required, and the reason is lane coverage.** The REVIEW phase gate — the home
+`BACKLOG.md` and `evict.js` originally assigned — **never runs in the fix lane**, and the fix lane is
+where `B85`, `B102`, `B103` and `B104` all shipped. Homing the check there would leave the lane that
+*produces* these stale rows unchecked. Sweep-only was rejected as the exact shape that has gone
+unreached five times.
+
+**D-M6E3-6 — the fourth matching rule is MEASURED before adoption, inside this Epic.**
+*(Claude's call, product-neutral; stated here so it is not mistaken for a settled fact.)*
+
+`bug-status-vs-changelog` currently flags `B75` and will do so forever: `v0.1.24`'s lead paragraph
+**cites** `B75` as prior evidence and `B75` is genuinely open. The obvious narrowing — match the
+heading line only — was **tested and rejected**: `B102`, the check's only true positive, also matched
+in the body, so that narrowing loses the real catch.
+
+A promising rule remains — *the id must be the **subject** of the entry's lead line, not a
+mid-sentence citation* — which separates `B102` (`**\`B102\`, fix lane…`) from `B75` (cited several
+hundred characters in). **It is tuned on two data points and will not be adopted on that basis.** It
+gets measured over the same 28-row corpus that produced the three published rules (13 flags/1 real,
+3/1, 2/1), and **ships with its number** whatever the number turns out to be.
+
+⚠ **The published `2 flags / 1 real` figure is CORRECT and is not being revised.** It was briefly
+claimed in this session to be `3 / 1`; running the check against the tree as it stood at `v0.1.29`
+returned **`B75` alone**, confirming the original pair was `B102` (real) + `B75` (false) and that
+`B75` was already counted. The wrong figure was caught before it reached any file.
