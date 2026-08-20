@@ -1,0 +1,59 @@
+# PR review — added 2026-08-20.
+#
+# INERT UNTIL A SECRET EXISTS. This workflow needs `CLAUDE_CODE_OAUTH_TOKEN`
+# (generate with `claude setup-token`, bills to an existing Claude subscription)
+# or `ANTHROPIC_API_KEY`. Neither is set today, so the job is skipped rather than
+# failing red — see the `if:` guard below. Committed now so that adding the
+# secret is the only remaining step.
+#
+# The fastest way to add it is `/install-github-app` from Claude Code in this
+# repo, which installs the GitHub App and writes the secret.
+#
+# WHY IT COMMENTS AND DOES NOT BLOCK. `test` stays the only required check. A
+# failing test names itself — you can confirm it in seconds. A reviewer that
+# blocks on judgment will be wrong sometimes, and the predictable response is to
+# override it by reflex; once overriding is routine the gate protects nothing
+# while everyone believes one exists. Same reasoning as `D-M6E3-1`'s receipt
+# rule: block only on what you can show, report everything else.
+#
+# WHAT IT RUNS. Signal reviews Signal — the action installs this plugin from its
+# own marketplace and invokes `/sig:review`. That makes it the first thing that
+# has ever dispatched `agents/specialists/*`: code-reviewer, security-auditor and
+# test-engineer all carry a "NOT DISPATCHED BY ANY COMMAND" banner today.
+#
+# PUBLIC-REPO CAVEAT. GitHub withholds secrets from fork-triggered runs, so this
+# reviews only pull requests from branches in this repository. A PR from an
+# outside contributor gets no review, silently. Stated here because a reviewer
+# that is absent looks identical to a reviewer that found nothing.
+
+name: review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  review:
+    # Skips cleanly when no credential is configured, instead of failing red on
+    # every PR. Remove nothing to enable it — just add the secret.
+    if: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.ANTHROPIC_API_KEY != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          plugin_marketplaces: 'https://github.com/insightriot/signal.git'
+          plugins: 'sig@signal'
+          prompt: '/sig:review'
+          # --max-turns caps a runaway review; the model is named explicitly so a
+          # default change upstream cannot silently alter what reviews this repo.
+          claude_args: '--model claude-sonnet-5 --max-turns 8'
