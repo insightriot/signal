@@ -855,6 +855,12 @@ const COMMANDS = [
         flags: [],
       },
       {
+        name: '/sig:drive',
+        tags: ['fails closed', 'never merges'],
+        summary: 'Run the phase flow without sitting at every gate. Reads the attention setting \u2014 attended, checkpointed, or unattended \u2014 advances while it may, and stops the moment something genuinely needs you, naming the reason. Decisions it can honestly defer are queued with the recommendation that would have been offered. It never merges, and it never overrides a gate that was deliberately made tier-independent.',
+        flags: [],
+      },
+      {
         name: '/sig:archive',
         tags: ['dry-run by default', 'not phase-gated'],
         summary: 'File finished work out of the live .planning/ root into .planning/archive/. Only units that are provably closed move — everything else is reported with the reason it was declined, so "checked and clean" never looks like "could not check".',
