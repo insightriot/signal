@@ -662,10 +662,35 @@ already caught the smaller half of it (*"worktree is now partly moot"*).
   a candidate substrate for the *dispatch / fan-out* half only. The *branch → land → reconcile →
   merge-queue* half stays Signal's, and it is the half the hard gate lives in.
 
-*Done-when (this note only):* the current plugin/tool API has been checked, and Phase C's scope says
-which half Signal builds and which half it adopts. **The sequencing does not change** — parallelism
-still comes last (§5.4: it multiplies unaudited output), and `B76`'s missing loop ceiling is still the
-entry price.
+*Done-when (this note only):* ~~the current plugin/tool API has been checked, and Phase C's scope says
+which half Signal builds and which half it adopts.~~ **MET 2026-08-21 —
+[`../analysis/PHASE-C-BUILD-VS-ADOPT.md`](../analysis/PHASE-C-BUILD-VS-ADOPT.md).**
+
+**The check's answer is that there is no capability detection to check with.** A plugin cannot
+declare a tool dependency, cannot query the session's tool roster, and has no minimum-version field;
+the manifest's `dependencies` is plugin-to-plugin only. So detection exists at the **prompt** layer
+(the model sees its own tools) and **not** at the **deterministic** layer (`tools/lib` cannot know) —
+and Signal puts load-bearing checks in the deterministic layer *precisely because* the prompt layer
+is measured-unreliable (`M5.E8`: **77.6%** of directive lines not trace-measurable). **Adoption may
+make lanes faster; it must never be what makes them correct.**
+
+**Scope, decided:** ADOPT the ephemeral fan-out half (parallel subagents, cap 20; `isolation:
+worktree`). BUILD everything durable — `lane-guard` overlap + Ring 3 diff gate, the registry and
+brief artifacts, the lane worktree lifecycle, `.landing.lock` and the merge queue. ⚠ **A documented
+detail rules out the drop-in that prompted the re-check:** the runtime's worktree branches from the
+**default branch, not parent `HEAD`**, while `/sig:dispatch` branches from the brief commit — not the
+same object. ⚠ **Do not build detection on the environment**: docs name two exported variables, this
+machine exports thirteen, neither set enumerates tools, and a surface that undercounts itself is not
+a contract (`B52`'s precedent).
+
+**Net: the Epic's hard half does not shrink.** The guide's honest minimum — *S2 + Ring 3 +
+hand-written briefs* — is unchanged, because adoption touches only the convenience half. The runtime's
+arrival was a reason to re-check and is **not** a reason to re-scope. *(Also corrected there: the
+`/sig:permissions` precedent this note cites is an **unbuilt** command.)*
+
+**The sequencing does not change** — parallelism still comes last (§5.4: it multiplies unaudited
+output). `B76`'s loop ceiling, the stated entry price, was **paid 2026-08-21** (one release after
+`/sig:drive` shipped and inherited the unbounded loop it predicted).
 
 *Source: a July-2026 "graph engineering" explainer assessed against the loop plan on 2026-08-16. The
 rest of that piece was **confirmation, not information** — its fan-out/verify/anchor material is
