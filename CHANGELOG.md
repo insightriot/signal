@@ -126,9 +126,16 @@ for a diff**. Not faked in the meantime.
   test (`B85`'s lesson). ⚠ It asserts the figures were **re-derived at that release**, not that they
   are correct — the check's own stated limit, unchanged.
 
-**20 → 21 commands.** Test count at the time of writing: **2786** (2761 at `v0.1.30`) — a
-release-time figure, re-derived by `cut-release.js` into `references/facts.md` at the cut, so treat
-the number in this sentence as of 2026-08-20 rather than as of the release.
+**2761 → 2789 tests; 20 → 21 commands.** The count is a release-time figure, derived by the same
+`vitest` run that gated this cut and written into `references/facts.md` by `cut-release.js` — which,
+as of `B106` above, now sets the attribution beside it in the same edit.
+
+> ⚠ **This sentence was wrong until it was checked.** It read **2786** — the count before the three
+> tests that `B106`'s own fix added — while `facts.md` correctly published **2789**. A release note
+> contradicting the artifact it summarises, inside the entry announcing two fixes for exactly that
+> class. Caught by reading the assembled entry against `facts.md` before reporting the release done,
+> and corrected here rather than quietly. It is the third instance of this class in one release, and
+> the only one no tool would have caught.
 
 ## [0.1.30] — 2026-08-18 — four agents with a shell, reading text nobody checked
 
