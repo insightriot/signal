@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased] — the loop, built instead of discussed
+## [0.1.31] — 2026-08-21 — the loop, built instead of discussed
 
 **The direction changed on 2026-08-20, and it changed because the numbers said so.** 23 releases
 since 2026-07-15 were almost entirely *Signal auditing Signal*. Command count moved 18 → 20 in five

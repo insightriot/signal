@@ -34,7 +34,13 @@ than one serving stale code.*
 and the process kept its binding. **Restart the CLI process.** The banner says so in those words for
 that reason. To check by hand, run any `/sig:` command and read the cache path it cites.
 
-**Cache status 2026-08-19: bound copy and `installed_plugins.json` both read `0.1.30`** — verified
+**Cache status 2026-08-21, after the `v0.1.31` cut: EXPECT THE BANNER, and it will be correct.**
+This session's process is bound to `0.1.30` and the release just published `0.1.31`, so once
+`/sig:update` runs, `readBindingBanner` will report the disagreement — that is the mechanism working,
+not a fault. The order is **`/sig:update` first, then restart the CLI process**; a restart before the
+update has nothing new to bind to, and a `/clear` is not sufficient (measured 2026-08-02).
+
+**Prior — cache status 2026-08-19: bound copy and `installed_plugins.json` both read `0.1.30`** — verified
 via `readBindingBanner`, which returns `null`, so no banner is due. Three cache copies sit on disk
 (`0.1.25`, `0.1.27`, `0.1.30`); since `B103` (`v0.1.28`) `/sig:doctor --fix` will not offer to delete
 one a live session is running, so the extras are disk cost, not a hazard.

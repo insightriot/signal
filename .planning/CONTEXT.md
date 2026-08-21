@@ -56,9 +56,23 @@ phase work rather than a PR diff. A Signal-native CI reviewer is still worth bui
 the first thing ever to dispatch `agents/specialists/*`, all three of which carry a *"NOT DISPATCHED
 BY ANY COMMAND"* banner) but it needs a command **designed for a diff**. Not faked in the meantime.
 
-⚠ **Unreleased.** `plugin.json` still reads `0.1.30`. Users track `main`, so the code is live, but
-`/sig:update` shows no delta until the version is bumped. **A release cut is Brett's call and has
-not been made.**
+**RELEASED as `v0.1.31` (2026-08-21).** Brett made the call on 2026-08-20 and the cut ran the same
+session. `plugin.json`, `package.json`, `CHANGELOG.md`, the map stamp and `references/facts.md` all
+read `0.1.31`, so `/sig:update` now shows the delta. Users track `main`, so the *code* had been live
+since 2026-08-20 — what the cut changed is that it is now **versioned and documented**, which is the
+half that was actually missing.
+
+⚠ **Writing the notes surfaced two defects, both catalogued and fixed in the same release.** `B105`:
+a guard asserted `CHANGELOG.md` carries **no** `[Unreleased]` heading at all, so writing the release
+notes turned the suite red — the guard blocked the workflow it exists to protect, and its own comment
+history had already recorded that identical transient-property error one revision earlier, inverted.
+`B106`: `cut-release.js` rewrote the published test count and left the sentence attributing it to the
+**previous** release — **the detector worked and the tool did not**, since `M6.E2`'s
+`facts-attribution` check fired on the cut while the tool that creates that condition at every
+release had never been taught to fix it.
+
+⚠ **Restart is still required to run the new code**, and the order matters: **`/sig:update` first,
+then restart the CLI process.** A restart before the update has nothing new to bind to (`B52`).
 
 ### `M6.E3` is PLANNED AND PARKED — do not read it as awaiting execution
 
@@ -80,7 +94,7 @@ backstop: more Signal-inspecting-Signal, which is the class the 2026-08-20 call 
 > rule that they move together. **They are merged here. Update this section, or the file is wrong.**
 > The refresh history is preserved verbatim in the stamp at the end of *"Active work"*.
 
-**v1 is feature-complete and shipped, at `v0.1.30` (2026-08-18).** **20 slash commands, 26 agents, 21 skills, 2761 tests, validator green** — these counts describe that release; the releases themselves are below, newest first.
+**v1 is feature-complete and shipped, at `v0.1.31` (2026-08-21).** **21 slash commands, 26 agents, 21 skills, 2789 tests, validator green** — these counts describe that release; the releases themselves are below, newest first.
 
 **`v0.1.30` shipped — `B104`, fix lane.** *Four agents with a shell, reading text nobody checked.*
 `/sig:init` spawns **four scanner agents in parallel**, all four declaring `tools: Read, Bash, Grep,
