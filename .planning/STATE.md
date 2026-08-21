@@ -350,6 +350,27 @@ Three documents corrected, each pinned by a test comparing one document against 
 
 ## In-flight
 
+**Nothing is in flight. `M6.E3` is PLANNED AND PARKED (2026-08-20).**
+
+`phase: PLAN` above is accurate — DISCUSS and PLAN both ran and their artifacts are on disk. It does
+**not** mean work is queued. The plan was never approved (its exit criterion asks for explicit
+approval; it was not given), nothing is built, and parking it costs nothing.
+
+**The direction changed on 2026-08-20.** Brett's call: months of releases had shipped no
+inspiration-repo functionality and no loop functionality — checked against the record and correct on
+both counts. `M6.E3` is the claims-audit backstop, i.e. more Signal-inspecting-Signal, which is the
+class that call was about. **Do not resume it by default.** Read `CONTEXT.md` §*Where things stand
+(2026-08-20)* before deciding anything.
+
+**What shipped instead:** the `attention` axis (rigor and attention are separate dials at last) and
+**`/sig:drive`**, the 21st command. ⚠ The obvious next slice is making the phase commands actually
+read `confirm_in_phase` — today the setting is honest but only `/sig:drive` acts on it.
+
+⚠ **`plugin.json` reads `0.1.30` and the above is unreleased.** Users track `main` so the code is
+live, but `/sig:update` shows no delta until someone bumps it. That cut has not been made.
+
+
+
 **`M6.E2` — the facts Signal publishes about itself. SHIPPED as `v0.1.29`, 2026-08-18.** Six phases
 closed in one day; PR #156, suite **2747**. Retro:
 [`M6.E2-RETROSPECTIVE.md`](M6.E2-RETROSPECTIVE.md).
