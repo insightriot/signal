@@ -118,6 +118,35 @@ export function setFactsTestCount(source, count) {
   return out;
 }
 
+/**
+ * references/facts.md — the "most recently **vX.Y.Z (date)**" attribution
+ * beneath the figures (`B106`).
+ *
+ * `setFactsTestCount` updated the NUMBER and left the sentence naming the
+ * release that produced it, so every cut published a fresh count attributed to
+ * the PREVIOUS version. `M6.E2`'s `facts-attribution` check exists to catch
+ * exactly that and fired on the v0.1.31 cut — the check worked; the tool that
+ * created the condition did not fix it. Found by cutting a release, not by
+ * reading this file.
+ *
+ * The attribution is a release-time fact for the same reason the count is: it
+ * is only knowable at the cut, and nothing between cuts can re-derive it. So it
+ * is set here, next to the figure it describes, rather than left to whoever
+ * remembers — which is `UNREACHED-MECHANISM-ANALYSIS.md`'s class.
+ *
+ * The pattern is kept in step with `published-facts.js`'s `FACTS_REL`
+ * (`/most recently\s+\**v?(\d+\.\d+\.\d+)/i`) — the check reads what this
+ * writes, so a divergence here goes straight back to a red check.
+ */
+export function setFactsAttribution(source, version, date) {
+  const out = source.replace(
+    /(most recently\s+)\*{0,2}v?\d+\.\d+\.\d+\s*\([^)]*\)\*{0,2}/i,
+    `$1**v${version} (${date})**`
+  );
+  if (out === source) throw new Error('facts.md "most recently vX.Y.Z (date)" attribution not found');
+  return out;
+}
+
 /** The file set a release touches, in the order a reviewer reads them. */
 export function releaseEdits({ version, date, title, testCount, read }) {
   return [
@@ -125,7 +154,14 @@ export function releaseEdits({ version, date, title, testCount, read }) {
     { file: 'package.json', next: bumpJsonVersion(read('package.json'), version) },
     { file: 'CHANGELOG.md', next: foldChangelog(read('CHANGELOG.md'), version, date, title) },
     { file: 'docs/map/index.html', next: bumpMapStamp(read('docs/map/index.html'), version) },
-    { file: 'plugin/references/facts.md', next: setFactsTestCount(read('plugin/references/facts.md'), testCount) },
+    {
+      file: 'plugin/references/facts.md',
+      next: setFactsAttribution(
+        setFactsTestCount(read('plugin/references/facts.md'), testCount),
+        version,
+        date
+      ),
+    },
   ];
 }
 

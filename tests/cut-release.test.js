@@ -8,6 +8,7 @@ import {
   bumpMapStamp,
   foldChangelog,
   setFactsTestCount,
+  setFactsAttribution,
   releaseEdits,
 } from '../tools/cut-release.js';
 import { VERSION_SOURCES } from '../plugin/tools/lib/doc-hygiene.js';
@@ -167,6 +168,52 @@ describe('cut-release: the edits', () => {
 
   it('throws when the facts.md count line is absent', () => {
     expect(() => setFactsTestCount('- **Tests:** 10\n', 20)).toThrow(/Test count.*not found/);
+  });
+
+  // B106. `setFactsTestCount` updated the number and left the sentence naming
+  // the release that produced it, so every cut published a fresh count
+  // attributed to the PREVIOUS version. Caught by M6.E2's `facts-attribution`
+  // check firing on the v0.1.31 cut — the check worked, the tool did not.
+  describe('setFactsAttribution', () => {
+    const LINE =
+      'Set at each release by `tools/cut-release.js` — most recently **v0.1.30 (2026-08-18)**. Deriving it any other way undercounts.';
+
+    it('re-points the attribution at the release being cut', () => {
+      const out = setFactsAttribution(LINE, '0.1.31', '2026-08-21');
+      expect(out).toContain('most recently **v0.1.31 (2026-08-21)**');
+      expect(out).not.toContain('0.1.30');
+      // The surrounding prose is untouched — this rewrites a fact, not a sentence.
+      expect(out).toContain('Deriving it any other way undercounts.');
+    });
+
+    it('throws rather than silently no-opping when the attribution is absent', () => {
+      // `rewriteBugTally`'s lesson (B82/M6.E2): a replace that matches nothing
+      // returns the input unchanged, and the caller reports success on a file
+      // it never fixed. A release must fail loudly instead.
+      expect(() => setFactsAttribution('no attribution here', '1.0.0', '2026-01-01')).toThrow(
+        /attribution not found/
+      );
+    });
+
+    // The check reads what the tool writes. If these two patterns drift, the
+    // cut goes green and `facts-attribution` goes red — which is the failure
+    // this pins, not a hypothetical.
+    it('produces output that published-facts.js FACTS_REL can parse back', async () => {
+      const { readFile } = await import('node:fs/promises');
+      const checkSrc = await readFile(
+        new URL('../plugin/tools/lib/published-facts.js', import.meta.url),
+        'utf-8'
+      );
+      const declared = checkSrc.match(/^const FACTS_REL = (\/.*\/[a-z]*);$/m);
+      expect(declared, 'FACTS_REL not found in published-facts.js').not.toBeNull();
+
+      const body = declared[1].replace(/^\/(.*)\/([a-z]*)$/, '$1');
+      const flags = declared[1].replace(/^\/(.*)\/([a-z]*)$/, '$2');
+      const factsRel = new RegExp(body, flags);
+
+      const out = setFactsAttribution(LINE, '0.1.31', '2026-08-21');
+      expect(out.match(factsRel)?.[1]).toBe('0.1.31');
+    });
   });
 });
 
