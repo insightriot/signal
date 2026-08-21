@@ -1543,4 +1543,35 @@ These stay trigger-gated; the standing **WATCHLIST** entry (A1) in `ISSUES-INBOX
 - **PREPARE-phase early-promotion triggers** *(roadmap)* — 3 conditions; can also fire from lived signal ahead of the upstream-phases work.
 - **STATE auto-update Options B/C** (git hook / compute-on-read) — *Trigger:* Option A discipline demonstrably fails.
 
-*Last updated: 2026-08-13*
+## CLAUDE.md version headline: derive at release, check as backstop
+
+**Tag:** roadmap
+<!-- backlog-key: cfbef0eda31a4cb16a5b83e57d2613905e98e969 -->
+
+**Status:** Logged 2026-08-18 via `/sig:add`.
+
+**`CLAUDE.md`'s "Latest: vX" is a published fact nothing derives — and it went stale one commit after a release THREE times on 2026-08-18 alone** (v0.1.28, v0.1.29, v0.1.30), each time needing its own follow-up PR.
+
+`M6.E2` shipped five checks for exactly this class and **none of them reads `CLAUDE.md`**. The five look at `BUGS.md`, `CHANGELOG.md`, milestone files and `facts.md`; the one document every reader and every agent opens first is not among them.
+
+**Two candidate fixes, and they are not equivalent:**
+
+1. **A sixth published-fact check** — `CLAUDE.md`'s `**Latest: vX**` against `plugin/.claude-plugin/plugin.json`. Mechanically trivial, reuses the harness, and reach is **1 of 12** like the others (only Signal keeps a release headline in its `CLAUDE.md`). It detects; it does not prevent.
+2. **Make it part of the release** — `tools/cut-release.js` already sets `facts.md`'s test count from the gating vitest run. The version headline is the same kind of value. This *prevents* rather than detects, and prevention is the better answer for a value that has one correct source.
+
+**Recommendation is (2), with (1) as the backstop** — the same pairing `M6.E2` used for `BUGS.md` (the write path re-derives, and a check catches what the write path missed). Doing only (1) means a check that fires on every release until someone hand-fixes it, which trains the mute.
+
+⚠ Worth noting against (2): `cut-release.js` currently has its own open defect (`B84` — its no-release-notes guard is unreachable and relabels a historical section instead of refusing), so touching it means reading that first.
+
+---
+
+
+
+
+
+*Last updated: 2026-08-18*
+
+---
+
+
+*Last updated: 2026-08-19*
