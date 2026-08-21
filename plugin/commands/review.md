@@ -132,6 +132,51 @@ Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic })` — `{ph
 | PASS-WITH-FIXES | Important issues **or a Critical** found AND closed in-phase AND total fix ≤ 50 LOC of non-test source AND tests still green AND new coverage written for the defect AND no design impact. |
 | FAIL | A Critical **not** fixed in-phase, OR any fix > 50 LOC of non-test source, OR a fix that needs new coverage and does not get it, OR tests can't stay green without re-planning. |
 
+### Loop Back (`B76`)
+
+**A FAIL is not a silent return to EXECUTE.** Ask the user with the
+**3-options-plus-other** pattern (`references/question-patterns.md`), exactly as `verify.md` does —
+**render via `AskUserQuestion(multiSelect: false)`**, with each option's name / "Pick this if" /
+recommendation flowing into the per-option `description` rather than being printed as markdown.
+
+A. **Loop back to EXECUTE.** Fix the Critical/Important issues and re-run REVIEW.
+   Pick this if: the issues are well-scoped and this would be pass 1 or 2 for REVIEW on this unit.
+
+B. **Escalate via `/sig:escalate`.** If the ceiling is in reach and the findings reveal a missing
+   dimension of the work, move the tier and re-plan.
+   Pick this if: the failure pattern says the original calibration was too low.
+
+C. **Accept and document.** Record the unfixed issues as known limits in `{phase}-REVIEW.md` and
+   ship with explicit caveats.
+   Pick this if: the issue is real but the cost of fixing exceeds the cost of shipping a documented
+   limit (rare; defaults to A or B).
+
+If none fit, describe what you'd prefer and capture the reasoning in `{phase}-REVIEW.md`.
+
+**The ceiling is counted, not remembered.**
+
+Call `loopStatusFor(state, 'REVIEW')` from `tools/lib/loop-ceiling.js` to get the count.
+It derives that count from `completed_phases` — which is **append-only**
+and records the phase being *left* (`B44`), so the number of `REVIEW` entries **is** the number of
+completed REVIEW passes, per Epic (`setCurrentEpic` resets the log on a roll, `B9`). Two re-entries
+run; **the third stops for a person** — `verify.md`'s existing rule (*"A for the first 2 loops;
+reassess at loop 3"*), now enforceable rather than re-tuned.
+
+Render the halt with `formatLoopCeilingHalt(status)` so this file and `/sig:drive` cannot describe
+the same stop two ways.
+
+> **Why this is code and not a sentence.** `verify.md` has carried this ceiling as prose since v1,
+> enforced by nothing — a reader counts loops from memory. Attended, that is survivable. Unattended
+> it is not: `B76` was filed 2026-08-03 warning that *any driver built on top inherits an unbounded
+> loop on day one*, `/sig:drive` shipped in `v0.1.31`, and it did. Writing the rule more carefully is
+> the remedy that produced that outcome — `UNREACHED-MECHANISM-ANALYSIS.md`'s named class. So
+> `canProceedUnattended` **refuses** on the count, and refuses equally when it cannot read the count
+> at all (`loop-unknown`): an actor that cannot tell should stop.
+
+After choosing:
+1. Document the FAIL, the loop count, and the chosen path in `{phase}-REVIEW.md`.
+2. Execute the chosen path.
+
 ### 5b. Mark STATE.md fresh (M4.5.E6.S4)
 
 **SKETCH tier:** skip — REVIEW is in `phases_skipped` for SKETCH anyway, but if a re-calibration brought REVIEW back, STATE.md updates only via manual `/sig:checkpoint`.

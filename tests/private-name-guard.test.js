@@ -153,9 +153,23 @@ function deniedTokensIn(text) {
 
 describe('private project names do not spread to new files', () => {
   it('no file outside the recorded inventory names a private project', async () => {
-    const tracked = execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8' })
-      .split('\n')
-      .filter(Boolean)
+    // TRACKED **PLUS UNTRACKED-NOT-IGNORED** (`B107`).
+    //
+    // This walked `git ls-files` alone, which is tracked files only — so a
+    // BRAND NEW file was invisible until it was staged, and a local `npm test`
+    // run before `git add` returned clean on exactly the files most likely to
+    // introduce a new name. Found 2026-08-21 when `loop-ceiling.js` passed
+    // locally and failed in CI on the same content: an identifier collided with
+    // a private project name, and only the tracked-file walk in CI could see it.
+    //
+    // A guard reporting clean on files it never opened is `B39`'s shape, and it
+    // is the exact failure `B97` was: that guard passed while 8 of 13 names sat
+    // in the repo. `--exclude-standard` honours `.gitignore`, so scratch and
+    // build output stay out; what comes in is the set a commit would carry.
+    const gitList = (args) =>
+      execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
+
+    const tracked = [...gitList(['ls-files']), ...gitList(['ls-files', '--others', '--exclude-standard'])]
       .filter((p) => !SELF.includes(p) && !GENERATED.includes(p));
 
     const allowed = new Set(JSON.parse(await readFile(ALLOWLIST, 'utf8')).files);
