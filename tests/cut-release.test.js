@@ -133,15 +133,27 @@ describe('cut-release: the edits', () => {
     //     unreleased). The instruction was honoured rather than the assertion
     //     weakened.
     //
-    // What is durable now: this repository contains NO `[Unreleased]` heading,
-    // so `B84`'s hazard cannot arise from this file at all. The invariant
-    // itself stays pinned by the synthetic fixture in the test above, which
-    // owns its input and cannot be invalidated by editing the changelog.
-    it('the real CHANGELOG.md carries no [Unreleased] heading for B84 to trip over', async () => {
+    // v4 (2026-08-20): v3 REPEATED v1's error, inverted. "No `[Unreleased]`
+    //     heading anywhere" is a transient property too — it holds only while
+    //     no release notes are pending, so WRITING THE NOTES failed the suite.
+    //     That is the normal, required first step of every cut (`foldChangelog`
+    //     refuses without a pending section), so the guard blocked the workflow
+    //     it exists to protect. Found by writing notes for the 0.1.20-era loop
+    //     work, not by reading this file.
+    //
+    // What is durable: `B84`'s hazard is POSITIONAL, and so is the anchor in
+    // `foldChangelog` — a pending section sits ABOVE the newest released
+    // heading, and anything below it is history that must never satisfy the
+    // guard. So that is what this asserts. A pending `[Unreleased]` at the top
+    // is not a defect; it is a release in progress.
+    it('the real CHANGELOG.md carries no [Unreleased] heading BELOW the newest release, for B84 to trip over', async () => {
       const { readFile } = await import('node:fs/promises');
       const real = await readFile(new URL('../CHANGELOG.md', import.meta.url), 'utf-8');
 
-      expect(real).not.toMatch(/^##\s*\[Unreleased\]/m);
+      const newestReleased = real.match(/^## \[\d+\.\d+\.\d+\]/m);
+      expect(newestReleased, 'CHANGELOG.md has no released heading at all').not.toBeNull();
+      const history = real.slice(newestReleased.index);
+      expect(history).not.toMatch(/^##\s*\[Unreleased\]/m);
 
       // And the section that used to carry it is still present, now labelled
       // for what it is — so this cannot pass by the entry having been deleted.
