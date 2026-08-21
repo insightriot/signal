@@ -34,8 +34,8 @@ than one serving stale code.*
 and the process kept its binding. **Restart the CLI process.** The banner says so in those words for
 that reason. To check by hand, run any `/sig:` command and read the cache path it cites.
 
-**Cache status 2026-08-21, after the `v0.1.31` cut: EXPECT THE BANNER, and it will be correct.**
-This session's process is bound to `0.1.30` and the release just published `0.1.31`, so once
+**Cache status 2026-08-21, after the `v0.1.32` cut: EXPECT THE BANNER, and it will be correct.**
+This session's process is bound to `0.1.30` and the release just published `0.1.32`, so once
 `/sig:update` runs, `readBindingBanner` will report the disagreement — that is the mechanism working,
 not a fault. The order is **`/sig:update` first, then restart the CLI process**; a restart before the
 update has nothing new to bind to, and a `/clear` is not sufficient (measured 2026-08-02).
