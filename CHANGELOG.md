@@ -105,6 +105,27 @@ for a diff**. Not faked in the meantime.
   sibling instances was done**, so how many other assertions read a live artifact this way is
   **unknown, not zero**.
 
+- **`B106` (P3) — the release tool rewrote the published test count and left the sentence saying
+  which release produced it.** `references/facts.md` carries a count followed by *"Set at each
+  release … most recently **vX.Y.Z (date)**"*. `setFactsTestCount` updated the number; **nothing
+  updated the attribution** — which is a release-time fact for the same reason the count is (`B56`):
+  only knowable at the cut, unre-derivable between cuts. So every release published a fresh figure
+  credited to the **previous** version. Found by cutting this release, not by reading the file.
+
+  ⚠ **The detector worked and the tool did not.** `M6.E2`'s `facts-attribution` check exists for
+  exactly this condition and **fired on the cut**. That makes it the unreached-mechanism class one
+  layer over: the check names the situation, and the tool that *creates* the situation at every
+  single release was never taught to fix it. Left alone it re-fires forever and trains the operator
+  to clear it by hand.
+
+  Fixed by `setFactsAttribution`, composed into the same `releaseEdits` entry as the count so the two
+  are written by **one edit** and cannot diverge. It **throws rather than silently no-opping** when
+  the attribution is absent (`rewriteBugTally`'s lesson). **Pinned by a cross-file assertion:** a
+  test reads `FACTS_REL` out of `published-facts.js` source and parses this function's output with
+  it, so writer and reader cannot drift — pinning the literal would have recreated the bug inside the
+  test (`B85`'s lesson). ⚠ It asserts the figures were **re-derived at that release**, not that they
+  are correct — the check's own stated limit, unchanged.
+
 **20 → 21 commands.** Test count at the time of writing: **2786** (2761 at `v0.1.30`) — a
 release-time figure, re-derived by `cut-release.js` into `references/facts.md` at the cut, so treat
 the number in this sentence as of 2026-08-20 rather than as of the release.
