@@ -18,9 +18,10 @@ Read the **effective profile** before any other workflow step: `readEffectivePro
 
 | Override | Effect on this phase |
 |---|---|
-| `gate_strictness: off` | Auto-advance through pre-ship checklist; confirm only at PR creation. |
-| `gate_strictness: light` | Confirm at PR creation (default). |
-| `gate_strictness: strict` | Confirm at every checklist step + run final anti-rationalization (existing Step 5 / "Final Anti-Rationalization" already does this — make it mandatory under strict). |
+| `attention: unattended` | Auto-advance through the pre-ship checklist. **The PR and its approval still happen** — they are floors (`ship-pr`, `ship-retro`), not asks the dial can clear. |
+| `attention: checkpointed` | Confirm at PR creation (the default). |
+| `attention: attended` | Confirm at every checklist step (`gates.confirm_in_phase`). |
+| `gate_strictness: strict` | Runs the anti-rationalization check at the gate. **That is all `gate_strictness` does to gates** (`v0.1.31`) — it no longer sets confirm cadence. | Step 5's final anti-rationalization is what it switches on here.
 
 Tooling: `tools/lib/profile.js` exposes `readProfile`, `readEffectiveProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question convention: `references/question-patterns.md`.
 
@@ -268,7 +269,7 @@ So these say what the output IS. See `references/anti-rationalization-forms.md`.
 - [ ] CHANGELOG updated
 - [ ] README updated (if applicable)
 - [ ] All CI checks pass
-- [ ] User approves PR for merge
+- [ ] User approves PR for merge — **unconditional at every `attention` level.** This box is a **floor** (`ship-pr` in `FLOORS`, `tools/lib/drive.js`), not a tier-gated ask: merge is delivery (`D-M5E17-5`). The other four phase-approval boxes became conditional in `B74`; **this one did not, deliberately** — do not "fix" the inconsistency. An autonomy layer that quietly cleared this would re-litigate `D-M5E17-5` by omission, which is how `ship.md` came to carry a self-exemption that survived thirteen releases.
 
 ### Final Anti-Rationalization
 

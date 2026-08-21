@@ -21,9 +21,10 @@ Read the **effective profile** before any other workflow step: `readEffectivePro
 | `nyquist_enforcement: off` | Skip Step 3 (Nyquist Compliance) entirely. |
 | `nyquist_enforcement: basic` | Run Step 3 — check that planned tests exist and cover specified scenarios; do not require evidence each test failed before passing. |
 | `nyquist_enforcement: strict` | Run Step 3 with full strictness — every test must have a documented "failed before fixed" record. **Two valid evidence forms (either is sufficient):** (a) per-test red→green git evidence — a commit where only the test was added and CI showed red, followed by the implementation commit that turned it green; or (b) explicit attestation in `{phase}-VERIFICATION.md` that the test was written *before* the implementation, naming the file and the implementation commit it predates. (b) is the lighter-weight default that EXECUTE's atomic-commit-per-slice workflow naturally supports; (a) is required only if a stricter audit trail is being kept. **Permanent gap warning:** code that shipped before strict mode was active is structurally non-recoverable for strict Nyquist (see `references/tier-definitions.md` § "Recoverable vs. permanent backfills"). Surface this as a known limit if escalation enabled strict mode mid-flight. |
-| `gate_strictness: off` | Auto-advance through verification; no per-step confirmation. |
-| `gate_strictness: light` | Confirm at end of phase. |
-| `gate_strictness: strict` | Confirm at every step + run anti-rationalization at exit. |
+| `attention: unattended` | Auto-advance through verification; no per-step confirmation. |
+| `attention: checkpointed` | Confirm at end of phase. |
+| `attention: attended` | Confirm at every step inside the phase (`gates.confirm_in_phase`). |
+| `gate_strictness: strict` | Runs the anti-rationalization check at the gate. **That is all `gate_strictness` does to gates** (`v0.1.31`) — it no longer sets confirm cadence. |
 
 Tooling: `tools/lib/profile.js` exposes `readProfile`, `readEffectiveProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question convention: `references/question-patterns.md`.
 
@@ -158,7 +159,7 @@ If `markFresh` fails (lock contention, git unavailable, etc.):
 - [ ] `validateVerificationContent` passes on the report (Step 5) — locked headings present and
       filled, a denominator stated, and `## What this could not establish` says something
 - [ ] Build succeeds cleanly
-- [ ] User approves verification results
+- [ ] User approves verification results — **when `gates.confirm_verify` is set** (`attention` ≠ `unattended`). Unattended: no ask; the transition is recorded, not approved (`B74`).
 
 ### Loop Back
 
