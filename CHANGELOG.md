@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased] — the loop that did not stop
+## [0.1.32] — 2026-08-21 — the loop that did not stop
 
 **`B76`, `B73`, fix lane.** The entry price for autonomy work, paid one release late.
 

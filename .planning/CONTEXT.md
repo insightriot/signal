@@ -56,7 +56,14 @@ phase work rather than a PR diff. A Signal-native CI reviewer is still worth bui
 the first thing ever to dispatch `agents/specialists/*`, all three of which carry a *"NOT DISPATCHED
 BY ANY COMMAND"* banner) but it needs a command **designed for a diff**. Not faked in the meantime.
 
-**RELEASED as `v0.1.31` (2026-08-21).** Brett made the call on 2026-08-20 and the cut ran the same
+**RELEASED as `v0.1.32` (2026-08-21) — the entry price, paid.** `B76` (the unbounded REVIEW loop
+`/sig:drive` inherited on day one), `B73`, `B74`, `B107`, `B108`, plus the Phase C build-vs-adopt
+check. ⚠ **`B75` ships open on purpose** — the `attention` dial is documented end to end and enforced
+nowhere; nothing fails if a command ignores `confirm_in_phase`. ⚠ **Phase C's check answers *no*:**
+there is no capability detection, so Signal cannot gate on presence, and the lanes Epic's hard half
+**does not shrink**.
+
+**Prior — released as `v0.1.31` (2026-08-21).** Brett made the call on 2026-08-20 and the cut ran the same
 session. `plugin.json`, `package.json`, `CHANGELOG.md`, the map stamp and `references/facts.md` all
 read `0.1.31`, so `/sig:update` now shows the delta. Users track `main`, so the *code* had been live
 since 2026-08-20 — what the cut changed is that it is now **versioned and documented**, which is the
@@ -94,7 +101,7 @@ backstop: more Signal-inspecting-Signal, which is the class the 2026-08-20 call 
 > rule that they move together. **They are merged here. Update this section, or the file is wrong.**
 > The refresh history is preserved verbatim in the stamp at the end of *"Active work"*.
 
-**v1 is feature-complete and shipped, at `v0.1.31` (2026-08-21).** **21 slash commands, 26 agents, 21 skills, 2789 tests, validator green** — these counts describe that release; the releases themselves are below, newest first.
+**v1 is feature-complete and shipped, at `v0.1.32` (2026-08-21).** **21 slash commands, 26 agents, 21 skills, 2841 tests, validator green** — these counts describe that release; the releases themselves are below, newest first.
 
 **`v0.1.30` shipped — `B104`, fix lane.** *Four agents with a shell, reading text nobody checked.*
 `/sig:init` spawns **four scanner agents in parallel**, all four declaring `tools: Read, Bash, Grep,
