@@ -20,6 +20,7 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 
 import { attentionFor } from './profile.js';
+import { LOOP_BOUNDED_PHASES } from './loop-ceiling.js';
 import { atomicWrite } from './atomic-write.js';
 
 export const QUEUE_REL = '.planning/DECISION-QUEUE.md';
@@ -74,12 +75,35 @@ export function floorsFor(phase) {
  * used for *reporting*, and deliberately so: a detector that cannot look should
  * say so and continue; an actor that cannot tell should stop.
  */
-export function canProceedUnattended(phase, profile, { hasFloor = null } = {}) {
+export function canProceedUnattended(phase, profile, { hasFloor = null, loopStatus } = {}) {
   const attention = attentionFor(profile);
   const floors = hasFloor ?? floorsFor(phase).length > 0;
 
   if (floors) {
     return { proceed: false, reason: 'floor', attention, floors: floorsFor(phase) };
+  }
+
+  // THE LOOP CEILING, CHECKED BEFORE ATTENTION (`B76`).
+  //
+  // A ceiling is not a preference the attention dial can turn off. `unattended`
+  // buys freedom from being ASKED; it does not buy an unbounded loop, and
+  // `review.md`'s FAIL path returning straight to EXECUTE is precisely how one
+  // arises. So this sits above the attention branches, next to the floors, and
+  // is reached on every call rather than only on the unattended path.
+  //
+  // FAIL CLOSED ON NOT KNOWING. For a phase that loops, a caller that supplies
+  // no `loopStatus` — or one derived from state this could not read — gets a
+  // refusal, not a pass. That is this file's stated posture: a detector that
+  // cannot look should say so and continue; an actor that cannot tell should
+  // stop. `loop-unknown` is kept distinct from `loop-ceiling` so the halt says
+  // which of the two happened instead of implying a count it never had.
+  if (LOOP_BOUNDED_PHASES.includes(phase)) {
+    if (!loopStatus) {
+      return { proceed: false, reason: 'loop-unknown', attention, floors: [] };
+    }
+    if (loopStatus.atCeiling) {
+      return { proceed: false, reason: 'loop-ceiling', attention, floors: [], loopStatus };
+    }
   }
   if (attention === 'attended') {
     return { proceed: false, reason: 'attended', attention, floors: [] };

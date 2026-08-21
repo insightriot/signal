@@ -6,6 +6,105 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased] — the loop that did not stop
+
+**`B76`, `B73`, fix lane.** The entry price for autonomy work, paid one release late.
+
+### The defect
+
+`/sig:drive` shipped in `v0.1.31`. `B76` — filed 2026-08-03, agreed by the maintainer 2026-08-08 as
+*"the entry price for any Phase A autonomy work"* — had warned that **any driver built on top
+inherits an unbounded loop on day one.** It did, and the shape was exactly as filed:
+
+- `review.md`'s FAIL path read `FAIL — issues must be addressed (return to EXECUTE)`. **No user ask,
+  no ceiling.**
+- `verify.md`'s sibling path has both: the 3-options pattern, and *"you've looped <3 times"*.
+- `drive.js`'s `FLOORS` had five entries — **none at REVIEW** — and no iteration cap anywhere.
+
+So under `attention: unattended`, a REVIEW FAIL looped EXECUTE → VERIFY → REVIEW → FAIL with nothing
+stopping it.
+
+### Why the fix is a counter and not a sentence
+
+⚠ **Mirroring `verify.md`'s wording would have closed `B76` on paper and left the loop exactly as
+unbounded.** That ceiling is **prose enforced by nothing** — a reader counts loops from memory.
+Writing the rule more carefully is precisely the remedy `UNREACHED-MECHANISM-ANALYSIS.md` names as
+the failure, and `B75` already measured its ceiling.
+
+So the count is **derived from state**, using a mechanism that already exists rather than a new one.
+`completed_phases` is **append-only** and records the phase being *left* (`B44` / `D-M5E9-5`), so the
+number of `REVIEW` entries **is** the number of completed REVIEW passes — and it is per-Epic for free,
+because `setCurrentEpic` resets the log on an Epic roll (`B9`). Nothing new is written to track this.
+
+New `tools/lib/loop-ceiling.js` — `loopStatusFor`, `countPhaseCompletions`, `formatLoopCeilingHalt`.
+It reuses `partitionCompletedPhases` rather than reimplementing the parse, which is `B82`'s lesson: a
+second implementation of *"which entries belong to X"* is how half a unit got archived invisibly.
+
+`canProceedUnattended` now **refuses** on the count, checked **above the attention branches** — a
+ceiling is not a preference the dial can turn off. `unattended` buys freedom from being *asked*; it
+does not buy an unbounded loop. **It refuses equally when it cannot read the count** (`loop-unknown`,
+kept distinct from `loop-ceiling` so a halt never implies evidence it does not hold) — this file's
+stated posture, that a detector which cannot look should say so and continue while **an actor that
+cannot tell should stop**.
+
+**The arithmetic is `verify.md`'s existing rule, unchanged and now enforceable:** two re-entries run,
+the third stops for a person. `review.md` gains the 3-options ask it never had.
+
+**Proof-of-fail, not just green:** 4 of the 21 new tests fail against the pre-fix `drive.js` — the
+four asserting the refusal — and pass after.
+
+### Also fixed
+
+- **`B73`** — `phase-gates.md` opened with *"Every phase transition requires explicit approval. No
+  exceptions."* while `gate_strictness: off` had been exactly that exception for releases, and
+  `/sig:drive` now advances phases unattended. **The reference whose job is to state the rule was the
+  file contradicting the code** (`M5.E17`'s class). It now states the `attention` dial and names the
+  two things the dial cannot turn off — the `FLOORS` roster (referenced, not re-listed, so there is
+  one roster rather than two) and the loop ceiling. The old absolute is kept as a boxed correction.
+
+- **A formatting trap in the adherence measure, found by tripping it.** The first draft of
+  `review.md`'s new section buried its imperatives behind bolded lead-ins — `**The ceiling is
+  counted…** Call \`loopStatusFor(…)\`` classifies as `directive: false`, so a genuinely
+  trace-measurable instruction was **invisible to the measure**. Reworded so the verb leads;
+  trace-measurable directives went **107 → 109** (21.1% → 21.4%). The instruction was always
+  enforced in code — what was wrong was Signal's published claim about how much of its own guidance
+  is measurable.
+
+### Not fixed, and deliberately not
+
+⚠ **`B74` stays `confirmed`.** Its *documentable* half is recorded — `phase-gates.md` now says
+EXECUTE has no approval checkbox **by design**, because *"a reader cannot tell design from omission"*
+is `B39`'s shape. Its load-bearing half is untouched: five `"User approves…"` checkboxes remain
+**unconditional** while the dial above them is conditional. **What changed is the premise, not the
+size** — its triage said it "needs new capability" and `attention` is now that capability, so the
+remaining work is wiring rather than design; but it is five command files plus the phase-gate
+rendering, and the row homes it to an Epic. Marking it `fixed` for the half that was cheap would be
+the claim-integrity defect this repository is named after.
+
+⚠ **Scope: this bounds the driver's decision, not the model's obedience.** `/sig:drive` will now
+stop. A human or agent that reads `review.md`'s ask and ignores it is the adherence problem, as
+unmeasured as ever.
+
+- **`B107` — the private-name guard walked tracked files only, so a brand-new file was invisible to a
+  local run.** Found by tripping it: this Epic's two new files passed the **full local suite** and
+  then **failed in CI on identical content**, because by then they were tracked. The collision was
+  real — an ordinary-looking camelCase identifier introduced here **is** one of the thirteen denied
+  project names, which is exactly the residual hole `B97` recorded (*"three names are ordinary
+  English words, caught only in project shape"*). Renamed; **no private name reached a commit.**
+
+  ⚠ **The guard was not wrong about what it read — it was wrong about what it had read**, reporting
+  clean for a population it never opened. That is `B39`'s shape, and the same failure `B97` itself
+  was: that guard passed while 8 of 13 names sat in the repo. A guard whose local signal is green and
+  whose CI signal is red trains the operator to trust the run that is structurally blind.
+
+  The walk is now tracked **plus** `ls-files --others --exclude-standard` — the set a commit would
+  actually carry, with `.gitignore` still keeping scratch and build output out. **Proved in both
+  directions:** an untracked file carrying the collision fails the guard, and deleting it passes.
+  ⚠ CI was never blind; what closes is the gap between what a developer sees *before* committing and
+  what the gate sees after.
+
+2789 → **2810 tests**.
+
 ## [0.1.31] — 2026-08-21 — the loop, built instead of discussed
 
 **The direction changed on 2026-08-20, and it changed because the numbers said so.** 23 releases
