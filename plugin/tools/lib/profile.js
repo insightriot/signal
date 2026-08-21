@@ -29,9 +29,47 @@ const RIGOR_OVERRIDE_SCHEMA = {
   plan_validation_dims: { type: 'enum', values: ['none', 'core', 'all'] },
   research_parallelism: { type: 'integer' },
   gate_strictness: { type: 'enum', values: ['off', 'light', 'strict'] },
+  // The ATTENTION axis, split out from gate_strictness (LOOP-ENGINEERING-ANALYSIS 3.2.1/3.2.2).
+  // gate_strictness answers "how rigorous"; attention answers "how much of your time".
+  // Welding them meant the only way to get SKETCH-level attention was SKETCH-level rigor.
+  // OPTIONAL: absent means derive from gate_strictness, so every existing PROFILE.md keeps
+  // its exact current behaviour (see attentionFor).
+  attention: { type: 'enum', values: ['attended', 'checkpointed', 'unattended'], optional: true },
   context_rot_reread: { type: 'boolean' },
   review_depth: { type: 'enum', values: ['none', 'quality-only', 'full'] },
 };
+
+export const ATTENTION_LEVELS = ['attended', 'checkpointed', 'unattended'];
+
+// gate_strictness -> attention, for every profile written before the axis existed.
+// This mapping is chosen so a profile with no `attention` produces byte-identical
+// gate config to what it produces today (see applyRigorOverrides): `off` already
+// meant auto-advance, and `light`/`strict` already differed by exactly one boolean
+// (`anti_rationalization`) — measured, not assumed. LOOP-ENGINEERING-ANALYSIS 3.2.2.
+const ATTENTION_FROM_GATE_STRICTNESS = {
+  off: 'unattended',
+  light: 'checkpointed',
+  strict: 'attended',
+};
+
+/**
+ * The attention level in force for a profile.
+ *
+ * Attention answers "how much of your time does this cost", where gate_strictness
+ * answers "how rigorous is this". They were one dial, which meant the only way to
+ * buy less of your attention was to buy less rigor. Splitting them is the point:
+ * FULL rigor, unattended, is now expressible.
+ *
+ * Fail-open by design — an unreadable or absent profile yields the most cautious
+ * answer ('attended'), never an autonomous one. A missing setting must never be
+ * the reason something ran without asking.
+ */
+export function attentionFor(profile) {
+  const overrides = profile?.rigor_overrides;
+  if (!overrides || typeof overrides !== 'object') return 'attended';
+  if (ATTENTION_LEVELS.includes(overrides.attention)) return overrides.attention;
+  return ATTENTION_FROM_GATE_STRICTNESS[overrides.gate_strictness] ?? 'attended';
+}
 
 const ISO_8601_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
@@ -112,7 +150,11 @@ function validateRigorOverrides(overrides, fail = THROW) {
   }
   for (const [key, schema] of Object.entries(RIGOR_OVERRIDE_SCHEMA)) {
     if (!(key in overrides)) {
-      fail(`rigor_overrides.${key} is required.`);
+      // An optional key may be absent; absence is not a schema violation. Without
+      // this branch, adding ANY new override field would make every PROFILE.md on
+      // disk throw — `B59`'s failure (a profile that cannot be read silently runs
+      // the whole phase at the wrong tier) reached by addition instead of by typo.
+      if (!schema.optional) fail(`rigor_overrides.${key} is required.`);
       continue;
     }
     const value = overrides[key];
@@ -389,38 +431,28 @@ export function applyRigorOverrides(config, profile) {
     merged.parallelization.max_concurrent_agents = overrides.research_parallelism;
   }
 
-  switch (overrides.gate_strictness) {
-    case 'off':
-      merged.workflow.auto_advance = true;
-      merged.gates.confirm_discuss = false;
-      merged.gates.confirm_plan = false;
-      merged.gates.confirm_execute = false;
-      merged.gates.confirm_verify = false;
-      merged.gates.confirm_review = false;
-      merged.gates.confirm_ship = false;
-      merged.gates.anti_rationalization = false;
-      break;
-    case 'light':
-      merged.workflow.auto_advance = false;
-      merged.gates.confirm_discuss = true;
-      merged.gates.confirm_plan = true;
-      merged.gates.confirm_execute = true;
-      merged.gates.confirm_verify = true;
-      merged.gates.confirm_review = true;
-      merged.gates.confirm_ship = true;
-      merged.gates.anti_rationalization = false;
-      break;
-    case 'strict':
-      merged.workflow.auto_advance = false;
-      merged.gates.confirm_discuss = true;
-      merged.gates.confirm_plan = true;
-      merged.gates.confirm_execute = true;
-      merged.gates.confirm_verify = true;
-      merged.gates.confirm_review = true;
-      merged.gates.confirm_ship = true;
-      merged.gates.anti_rationalization = true;
-      break;
-  }
+  // RIGOR: gate_strictness keeps exactly one job, which is the only one it ever
+  // had in code — whether the anti-rationalization check runs.
+  merged.gates.anti_rationalization = overrides.gate_strictness === 'strict';
+
+  // ATTENTION: how many times this asks you something.
+  const attention = attentionFor(profile);
+  merged.workflow.attention = attention;
+
+  const confirmsPhases = attention !== 'unattended';
+  merged.workflow.auto_advance = attention === 'unattended';
+  merged.gates.confirm_discuss = confirmsPhases;
+  merged.gates.confirm_plan = confirmsPhases;
+  merged.gates.confirm_execute = confirmsPhases;
+  merged.gates.confirm_verify = confirmsPhases;
+  merged.gates.confirm_review = confirmsPhases;
+  merged.gates.confirm_ship = confirmsPhases;
+
+  // The new gate, and the reason `checkpointed` is not just a rename of `light`:
+  // it confirms at PHASE BOUNDARIES and not at every step inside a phase. That
+  // in-phase ceremony is where the ~48-86 touchpoints per FULL Epic actually live,
+  // and until now it existed only in command prose, enforced by nothing.
+  merged.gates.confirm_in_phase = attention === 'attended';
 
   return merged;
 }
