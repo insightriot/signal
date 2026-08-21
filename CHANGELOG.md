@@ -6,6 +6,109 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased] — the loop, built instead of discussed
+
+**The direction changed on 2026-08-20, and it changed because the numbers said so.** 23 releases
+since 2026-07-15 were almost entirely *Signal auditing Signal*. Command count moved 18 → 20 in five
+weeks and **both new commands managed Signal's own files**. Inspiration-repo ports shipped: **zero**.
+Loop functionality shipped: **zero** — `analysis/LOOP-ENGINEERING-ANALYSIS.md` and nothing else.
+Every release had an articulate justification; that is precisely why it ran so long. This entry is
+the first one in that span that is not about Signal's own documents.
+
+### `attention` is a real dial, split from rigor
+
+`attention: attended | checkpointed | unattended` is now a field on `PROFILE.md`. **FULL rigor,
+unattended, is now expressible** — it was not before, and that was the whole complaint the loop
+analysis made. The audit measured a FULL-tier Epic at ~48–86 synchronous human touchpoints, with
+Signal already spanning a ~10× attention range, and **the only way to buy less of your time was to
+buy less rigor.**
+
+`gate_strictness` keeps exactly one job — **whether anti-rationalization runs**. That is the only
+job it ever had *in code*: `light` and `strict` were measured to expand to identical gate config
+except that single boolean (`B75`), and `off` already meant auto-advance. Attention now drives
+`auto_advance`, the `confirm_*` gates, and a new **`confirm_in_phase`** — which is the difference
+between *checkpointed* and a rename of *light*. In-phase ceremony is where most of those 48–86
+touchpoints live, and **it existed only in command prose, enforced by nothing.**
+
+⚠ **Back-compat is derived, not defaulted — and that was the whole risk.** A profile with no
+`attention` **derives** it from `gate_strictness` (`off`→unattended, `light`→checkpointed,
+`strict`→attended) rather than falling back to a constant, so every `PROFILE.md` written before the
+field produces **byte-identical** gate config. The full suite passing unchanged is the proof.
+
+Adding the field also required teaching the validator to honour **`optional`**. Without it, adding
+*any* new override field makes every `PROFILE.md` on disk throw — **`B59`'s failure reached by
+addition instead of by typo**, where an unreadable profile silently runs the phase at the wrong tier.
+
+### `/sig:drive` — the 21st command: run the flow, stop when it must
+
+`plugin/commands/drive.md` + `plugin/tools/lib/drive.js`. It **reuses what already existed** rather
+than reinventing: `describeNextAction` (`B70`) as the what's-next primitive, and `/sig:sweep`'s
+**needs-a-person vs. clears-itself** split as the halt protocol.
+
+**What it will not do**, stated as capability rather than promise:
+
+- **It never merges.** Merge is delivery (`D-M5E17-5`).
+- **It never overrides a `FLOORS` entry** — SHIP's pull request, the Epic-close retro gate, the
+  drain's diff preview and destructive confirms, the orphan prompt. Each was made tier-independent
+  by a **specific decision**, and overriding one silently would re-litigate that decision by
+  omission.
+- **It fails closed.** An unreadable profile, an unknown phase, or a missing attention value stops
+  the loop. Deliberately the **opposite** of `B39`'s fail-open posture for *reporting*: a detector
+  that cannot look should say so and continue; **an actor that cannot tell should stop.**
+
+⚠ **The setting is honest, but only `/sig:drive` acts on it.** **No phase command reads
+`confirm_in_phase` yet** — it is present in `plugin/tools/lib/profile.js` and its tests and nowhere
+else. That is the obvious next slice and it is **not** claimed as done. Shipping the dial while one
+command reads it is the `UNREACHED-MECHANISM-ANALYSIS.md` class, disclosed here rather than
+discovered later.
+
+### CI review is live — and the first workflow written for it was wrong
+
+`.github/workflows/claude-code-review.yml` (purpose-built PR review, inline comments) and
+`claude.yml` (`@claude` mentions in issues and PRs), authenticating with `CLAUDE_CODE_OAUTH_TOKEN`.
+**It comments; it never blocks.** `test` stays the only required check — a failing test names
+itself, while a reviewer blocking on judgment will sometimes be wrong and **train an override
+reflex** (`D-M6E3-1`'s receipt rule applied to CI).
+
+⚠ **A review workflow written earlier the same day was wrong and was replaced** (`#173` → `#174`).
+It pointed the runner at **`/sig:review`, which is a phase command**: tier-gated, halts without
+`PROFILE.md`, and reviews an Epic's phase work against `.planning/` state rather than a pull-request
+diff. On an arbitrary PR it would have halted at the preamble or reviewed the wrong thing. Keeping
+both would also have reviewed every PR **twice, at double cost**. A Signal-native CI reviewer is
+still worth building — it would be the first thing ever to dispatch `agents/specialists/*`, all
+three of which carry a *"NOT DISPATCHED BY ANY COMMAND"* banner — but it needs a command **designed
+for a diff**. Not faked in the meantime.
+
+### Fixed
+
+- **`B105` (P3) — a guard on this file asserted a property that is only true while no release is in
+  progress, so writing the release notes failed the suite.** `tests/cut-release.test.js` asserted
+  that `CHANGELOG.md` contains **no `[Unreleased]` heading at all**. That holds only while nothing is
+  pending — and `foldChangelog` **refuses a cut without a pending section**, correctly, because a
+  release with no notes is the failure it exists to prevent. So writing the notes is the required
+  first step of every release, and doing it turned the suite red: **the guard blocked the workflow it
+  exists to protect.** Found by writing the notes above, not by reading the file.
+
+  **The assertion's own comment predicted this and was ignored.** Its recorded `v1` was *"the real
+  CHANGELOG refuses a cut"*, annotated *"true when written, FALSE ten minutes later once notes
+  existed for the next release. It tested a transient property of the file rather than the
+  invariant."* `v3` repeated that error **inverted**, with the paragraph explaining `v1`'s failure
+  directly above it.
+
+  `B84`'s hazard is **positional**, and so is `foldChangelog`'s anchor: a pending section sits
+  **above** the newest released heading, and anything below it is history that must never satisfy the
+  guard. The assertion now tests exactly that. **Proof-of-fail, not just green:** injecting a
+  historical `[Unreleased]` below the newest release fails the repaired test; reverting passes 20/20.
+
+  ⚠ **Class, stated rather than implied:** this is `M5.E13`'s *guards that don't guard*, sub-shape
+  *a test pinned to a transient state of the repository rather than to an invariant*. **No sweep for
+  sibling instances was done**, so how many other assertions read a live artifact this way is
+  **unknown, not zero**.
+
+**20 → 21 commands.** Test count at the time of writing: **2786** (2761 at `v0.1.30`) — a
+release-time figure, re-derived by `cut-release.js` into `references/facts.md` at the cut, so treat
+the number in this sentence as of 2026-08-20 rather than as of the release.
+
 ## [0.1.30] — 2026-08-18 — four agents with a shell, reading text nobody checked
 
 **`B104`, fix lane. A P1 against every release that has shipped `/sig:init`.**
