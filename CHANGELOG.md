@@ -103,7 +103,58 @@ unmeasured as ever.
   ⚠ CI was never blind; what closes is the gap between what a developer sees *before* committing and
   what the gate sees after.
 
-2789 → **2810 tests**.
+### The `attention` dial, wired where it is read (`B74`, `B108`; `B75` deliberately not closed)
+
+`v0.1.31` made `attention` a real field and left every command file describing the **old** dial.
+
+- **`B108` (P2)** — **six** command files still mapped `gate_strictness: off/light/strict` to
+  auto-advance and confirm timing that it no longer controls. `applyRigorOverrides` gives
+  `gate_strictness` exactly one gate (`anti_rationalization`); `attention` drives `auto_advance`, the
+  six `confirm_*` flags, and `confirm_in_phase`. **`M5.E17`'s class — instructions contradicting the
+  code — created by the release that fixed the dial.**
+
+  ⚠ **Found by a check, not by the sweep before it.** A manual grep found three files. The test
+  written to pin the fix immediately failed on **three more** (`verify.md`, `review.md`, `ship.md`).
+  The sweep was wrong and the assertion was right; that is the argument for writing the assertion.
+  Pinned by a whole-population walk of the command directory **read from disk** (`B104`'s shape), so
+  a new command reintroducing the mapping fails the suite — plus a **derived** assertion that
+  `gate_strictness` really does set only `anti_rationalization`, which fails if a future change gives
+  it another gate and quietly makes these docs wrong.
+
+  ⚠ **One false positive was designed out rather than suppressed.** Anti-rationalization tables quote
+  the temptation in the first cell (*"`strict` means I should confirm the destination"*), so the
+  check skips quoted-temptation rows — matching them would flag a **denial** of the mapping as the
+  bug. And `add.md`'s `gate_strictness` use is **real and untouched**: `resolveOnboardingMode` reads
+  it in code.
+
+- **`B74` (P3) — closed.** Four of the five phase-approval checkboxes now read *"when
+  `gates.confirm_{phase}` is set"* and name their flag. **The fifth is deliberately still
+  unconditional:** `ship.md`'s *"User approves PR for merge"* is a **floor** (`ship-pr`), not a
+  tier-gated ask — merge is delivery (`D-M5E17-5`). The box says so at the box, and a test asserts
+  both halves, so nobody tidies the asymmetry away later. **14 of the 31 new tests fail against the
+  pre-fix command files.**
+
+  The lane call was **revised rather than quietly ignored**: `B74` and `phase-gates.md` both said
+  *"Epic-homed, not fix-lane"*, on the strength of a triage that said it *"needs new capability"*.
+  `attention` **is** that capability, leaving wiring with no design surface. The `phase-gates.md`
+  sentence was corrected **in the same commit that did the work** — leaving it standing would be
+  `M5.E17`'s class committed inside the file just fixed for `B73`.
+
+### ⚠ `B75` stays open, and this is the honest part
+
+The flag now has consumers — **but they are prose consumers.** Ask what would *fail* if a command
+ignored `confirm_in_phase`: **nothing.** No test breaks, no gate refuses, no run halts. The in-phase
+asks are now **conditional in prose** rather than **unconditional in prose**. That is real progress
+and it is not enforcement.
+
+Closing `B75` here would be this repository's named defect, committed in the same week as
+`analysis/PHASE-C-BUILD-VS-ADOPT.md` — whose central finding is that Signal puts load-bearing checks
+in JS *because* the prompt layer is **77.6% unmeasurable**. A document cannot be both the argument
+and the exception. What would actually close it is something that **fails** when an in-phase ask is
+skipped; the adherence canary is the existing mechanism, and `B55` is the precedent for how easily
+such a canary measures the wrong thing.
+
+2789 → **2841 tests**.
 
 ## [0.1.31] — 2026-08-21 — the loop, built instead of discussed
 

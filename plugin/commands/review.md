@@ -26,9 +26,10 @@ Read the **effective profile** before any other workflow step: `readEffectivePro
 | `security_audit: full` | Step 2 = OWASP + ASVS Level 2 audit. |
 | `performance_pass: false` | Skip Step 3 (Performance Analysis). |
 | `simplification_pass: false` | Skip Step 4 (Simplification Pass). |
-| `gate_strictness: off` | Auto-advance through review; no per-step confirmation. |
-| `gate_strictness: light` | Confirm at end of phase. |
-| `gate_strictness: strict` | Confirm at every step + run anti-rationalization at exit. |
+| `attention: unattended` | Auto-advance through review; no per-step confirmation. |
+| `attention: checkpointed` | Confirm at end of phase. |
+| `attention: attended` | Confirm at every step inside the phase (`gates.confirm_in_phase`). |
+| `gate_strictness: strict` | Runs the anti-rationalization check at the gate. **That is all `gate_strictness` does to gates** (`v0.1.31`) — it no longer sets confirm cadence. |
 
 Skill loading below assumes `review_depth: full`. If `review_depth: quality-only`, only load the first skill in the list.
 
@@ -204,4 +205,4 @@ If `markFresh` fails (lock contention, git unavailable):
 - [ ] Performance anti-patterns addressed
 - [ ] Simplification pass completed
 - [ ] Review report written
-- [ ] User approves review results
+- [ ] User approves review results — **when `gates.confirm_review` is set** (`attention` ≠ `unattended`). Unattended: no ask; the transition is recorded, not approved (`B74`).

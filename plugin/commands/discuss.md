@@ -18,9 +18,10 @@ Read the **effective profile** before any other workflow step: `readEffectivePro
 
 | Override | Effect on this phase |
 |---|---|
-| `gate_strictness: off` | Auto-advance — present recommendations as a batch, accept all without confirmation. |
-| `gate_strictness: light` | Confirm once at the end of Step 4 (batch approval). |
-| `gate_strictness: strict` | Confirm each gray-area decision individually; run anti-rationalization check at the gate. |
+| `attention: unattended` | Auto-advance — present recommendations as a batch, accept all without confirmation. |
+| `attention: checkpointed` | Confirm once at the end of Step 4 (batch approval). No per-decision ask. |
+| `attention: attended` | Confirm each gray-area decision individually (`gates.confirm_in_phase`) — one `AskUserQuestion` per gray area. |
+| `gate_strictness: strict` | Runs the anti-rationalization check at the gate. **That is all `gate_strictness` does to gates** (`v0.1.31`) — it no longer sets confirm cadence. |
 
 Tooling: `tools/lib/profile.js` exposes `readProfile`, `readEffectiveProfile`, `isPhaseEnabled`, and `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question-asking convention: `references/question-patterns.md`.
 
@@ -97,7 +98,7 @@ For each call:
 
 In `--auto` mode: select the recommended option for every gray area without invoking `AskUserQuestion`. Log each auto-pick to STDOUT and write to `CONTEXT.md`. Then ask once at the end for batch approval (plain prompt, not `AskUserQuestion`).
 
-`gate_strictness` from PROFILE.md modulates: `off` → batch-approve at end (`--auto` shape); `light` → confirm once at the end; `strict` → confirm each decision individually as it's made (one `AskUserQuestion` per gray area, as above — `strict` is the default for FULL tier).
+**`attention` from the effective profile modulates this**, not `gate_strictness` (`B108`): `unattended` → batch-approve at end (`--auto` shape); `checkpointed` → confirm once at the end; `attended` → confirm each decision individually as it is made, one `AskUserQuestion` per gray area. Read it from the expanded config as **`gates.confirm_in_phase`** (true only at `attended`) rather than re-deriving it here — `applyRigorOverrides` already computed it, and a second derivation is how two dials drift apart.
 
 ### 5. Capture Decisions
 
@@ -155,7 +156,7 @@ Before transitioning to PLAN, verify:
 - [ ] CONTEXT.md captures all locked decisions
 - [ ] REQUIREMENTS.md exists with acceptance criteria
 - [ ] No unresolved gray areas that would block PLAN
-- [ ] User explicitly approves transition to PLAN
+- [ ] User explicitly approves transition to PLAN — **when `gates.confirm_discuss` is set** (`attention` ≠ `unattended`). Unattended: no ask; the transition is recorded, not approved (`B74`).
 
 **Do NOT set `phase: PLAN` here** (M5.E13, `B51`). `/sig:plan` performs its own at-entry `transitionPhase` — since M5.E9 the **incoming** command advances the phase, not the outgoing one. This file used to instruct the DISCUSS close to set it too, and both instructions survived the change. Obeying both makes `/sig:plan`'s at-entry call resolve the phase being *left* as **PLAN** and append `PLAN (date)` **before PLAN has run**; `completed_phases` is deliberately append-only with no dedupe (D-M5E9-5), so that false entry is permanent.
 

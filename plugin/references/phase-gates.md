@@ -43,13 +43,18 @@ all plan tasks completed, tests passing, atomic commits present — so there is 
 to adjudicate that a check cannot decide. Recorded here because *"a reader cannot tell design from
 omission"* is `B39`'s shape, and an undocumented absence in a gate reference reads as a missing gate.
 
-> ⚠ **`B74`'s other half is NOT fixed here and is not fix-lane.** The five approval checkboxes are
-> still written **unconditionally** while the `attention` dial above makes approval conditional — the
-> same gate stated two ways in one file. Closing it means the phase-gate rendering learns about
-> `attention`, which is a capability change across five command files, and `B74`'s own triage homes
-> it to an Epic. **What has changed is the premise, not the size:** that triage said it "needs new
-> capability", and `attention` (`v0.1.31`) is that capability, so the work is now wiring rather than
-> design. It stays open, and stays Epic-homed.
+> **`B74` — CLOSED 2026-08-21, and the lane call recorded here was revised rather than left standing.**
+> An earlier version of this note said the remaining work *"stays Epic-homed"*, on the strength of
+> `B74`'s original triage (*"needs new capability"*). **`attention` (`v0.1.31`) is that capability**,
+> so what was left was wiring with no design surface — a bug fix across command text, which is the
+> fix lane by this repo's own two-lane rule. Revised in the same commit that did the work, because
+> leaving a "this is Epic-homed" sentence in the file while doing it fix-lane would be `M5.E17`'s
+> class committed **inside the file just fixed for `B73`**.
+>
+> Four of the five approval checkboxes are now conditional on their `gates.confirm_*` flag. **The
+> fifth — `ship.md`'s "User approves PR for merge" — is deliberately still unconditional**, because
+> it is a **floor** (`ship-pr`), not a tier-gated ask. That asymmetry is the correct shape and
+> `ship.md` says so at the box, so nobody tidies it away later.
 
 ## Gate Summary
 

@@ -8,7 +8,7 @@ args: "[--context]"
 
 You are running `/sig:checkpoint`, a not-phase-gated state-refresh command. Same class as `/sig:status`, `/sig:resume`, `/sig:add` — no tier-gating preamble, no skill loading, no agent spawning. Two modes:
 
-- **Quick mode** (default): walk the git log since `last_updated_commit`, propose a refreshed STATE.md, confirm-and-write per `gate_strictness`. Use this any time you want the current `STATE.md` to reflect the actual state of the work.
+- **Quick mode** (default): walk the git log since `last_updated_commit`, propose a refreshed STATE.md, confirm-and-write per **`attention`** (`B108` — not `gate_strictness`). Use this any time you want the current `STATE.md` to reflect the actual state of the work.
 - **`--context` mode**: as above, plus prompt the user for **decisions** and **open questions** worth preserving, then dual-write decisions to `CONTEXT.md` § Locked Decisions AND `DECISIONS.md` (per D16), and questions to `OPEN-QUESTIONS.md`. Use this **before any planned context clear** — it's the ritual that makes the next session's `/sig:resume` valuable.
 
 Authoritative references:
@@ -38,7 +38,7 @@ Call `parseCheckpointArgs($ARGUMENTS)`. Branch on the returned `{contextMode, un
 
 Call `detectStateChanges(baseDir)`. Returns `{current, proposed, diff}` where `diff = {commitsBehind, commits, taskIdsInCommits}`.
 
-### 4. Diff + confirm (per D8 + `gate_strictness`)
+### 4. Diff + confirm (per D8 + `attention`)
 
 Read `gate_strictness` from PROFILE.md (via `readProfile`):
 
@@ -123,7 +123,7 @@ Emit a one-screen summary:
 
 | Temptation | Check |
 |---|---|
-| "Auto-apply the refresh without confirming — saves a step." | No. `gate_strictness: strict` requires explicit user approval before any state mutation; that's the whole point of strict. |
+| "Auto-apply the refresh without confirming — saves a step." | No. **`attention` ≠ `unattended` requires explicit user approval before any state mutation** — that is the point of the dial. *(Was written against `gate_strictness: strict`; corrected in `B108` — since `v0.1.31` `gate_strictness` sets only whether anti-rationalization runs, not confirm cadence.)* |
 | "Skip the orphan prompt under strict — too chatty." | D12 specifically rules orphan detection in. Without it, a crashed mid-task wedges `current_tasks[]` forever — `/sig:resume` can't recover. |
 | "Auto-redact sensitive data in `--context` capture." | Never. Same rule as `/sig:add`: surface the hits, let the user decide. Auto-redact corrupts the captured decision. |
 | "If `--context` is given, skip the quick-mode refresh." | No. `--context` is **additive**, not exclusive. The quick refresh has to run for the captured decisions to be situated against a fresh STATE.md. |
@@ -143,7 +143,7 @@ So these say what the output IS. See `references/anti-rationalization-forms.md`.
 ## Gate: Checkpoint Complete
 
 - [ ] Pre-flight scenarios handled (no `.planning/`, no STATE.md, pre-CALIBRATE).
-- [ ] `gate_strictness` honored at the diff/confirm step.
+- [ ] `attention` honored at the diff/confirm step (`gates.confirm_*`), not `gate_strictness`.
 - [ ] `markFresh` called on apply (last_updated + last_updated_commit advance).
 - [ ] Orphan check fired (interactive prompt regardless of strictness, per D12).
 - [ ] In `--context` mode: D16 dual-write hit both CONTEXT.md and DECISIONS.md.
