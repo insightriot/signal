@@ -147,3 +147,15 @@ turns out **not** to be a reason to re-scope.
 - **It does not settle the sequencing.** Parallelism still comes last (§5.4), and `B76`'s loop
   ceiling — the stated entry price — was only paid on 2026-08-21, one release after `/sig:drive`
   shipped.
+- **It checked the runtime's fan-out half and never its loop half** *(added 2026-08-22)*. The
+  runtime also ships loop primitives — a goal command whose stop condition is judged each turn by a
+  separate evaluator model, an interval re-runner, and a cloud-scheduled routine. None is named
+  anywhere in this repository, and none was considered here. **The verdict transfers unchanged,
+  which is why this is a completeness note and not a re-scope:** all three are user-invoked
+  prompt-layer commands, a `/sig:` command cannot invoke them, there is still no capability
+  detection to gate on, and *"adoption may make lanes faster; it must never be what makes them
+  correct"* applies verbatim. One documented detail belongs against `LOOP-ENGINEERING-ANALYSIS.md`
+  §5.3's brakes rather than against adoption: that evaluator **reads the transcript and runs nothing
+  itself**, so any condition handed to it must be demonstrable from visible output — the same
+  constraint `M5.E10` hit when it shipped token-comparing checks and left the semantic half unbuilt
+  (`AC0.1`).

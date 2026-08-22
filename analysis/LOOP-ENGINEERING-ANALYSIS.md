@@ -90,6 +90,23 @@ Four defects surfaced while mapping the gates. Three are the M5.E17 defect class
 
 ---
 
+### 3.4 Signal audited against a standard parts list *(added 2026-08-22)*
+
+An external course names six components every durable loop has, and the failure mode for each missing one. This document had no equivalent parts list. Signal, scored against it:
+
+| Component | Signal's answer | State |
+|---|---|---|
+| **Trigger** — starts a cycle | A person types `/sig:drive` | **Human.** The trigger is not handed off; see §5.5. |
+| **Work-finding** — what to do this cycle | `describeNextAction` (`B70`) | Built, but scoped **within** an Epic; nothing selects the Epic. |
+| **Action** — the work, isolated | Phase commands; wave-parallel EXECUTE | Built. |
+| **Verification** — decided by someone other than the maker | Verifier agents with read-only tools (`nyquist-auditor`'s `Write, Edit` is by design — it generates tests), and `agents/verifiers/verifier.md:52` returns a machine-readable `PASS \| FAIL` | Built. This is Signal's strongest component and it predates this analysis. |
+| **Memory** — survives between cycles, on disk | `.planning/` in its entirety | Built, and unusually strong. |
+| **Stop condition** — ends the cycle and the run | `FLOORS` + `canProceedUnattended` + `tools/lib/loop-ceiling.js` | Two brakes of three; see §5.3. |
+
+**The one real gap the list exposes is in Memory, and it is a read gap, not a write gap.** The course's point is that most state files record successes — which the code already shows — while the dead ends are what stop cycle four from repeating cycle two. Signal records dead ends richly and by habit: `BACKLOG.md` preserves dated "checked and declined" and "RE-PARKED" reasoning, `M5.E10` shipped required *"what this could not establish"* sections, and `references/retrospective-template.md:43` prompts for friction and dead ends explicitly. **Nothing in the loop reads any of it forward at cycle start.** `commands/drive.md`'s only retrospective reference is the Epic-close *floor* (`:29`); its opening reads are the profile, the decision queue, and `describeNextAction`. Attended, the operator supplies this from memory. Unattended, cycle four is free to repeat cycle two.
+
+---
+
 ## 4. The design insight: rigor and attention are orthogonal
 
 `gate_strictness` currently conflates two questions:
@@ -162,7 +179,7 @@ The loop, per iteration:
 - Loop ceiling reached, or the same failure signature twice.
 - A queued decision blocks downstream work (irreversible + depended-upon).
 - The SHIP floor: PR opened → lane complete.
-- Budget/iteration cap (a runaway backstop).
+- Budget/iteration cap (a runaway backstop). **Two of the three brakes are built; the third is not.** An external loop-engineering course (assessed 2026-08-22) states the stop condition as three *independent* brakes, because they fail differently: the success condition, a turn/time cap for when the condition is unreachable, and a **cost ceiling**. Measured against the shipped driver: the condition is `FLOORS` + `canProceedUnattended` ✅; the turn cap is `tools/lib/loop-ceiling.js`, derived per-Epic from `completed_phases` and paid in `v0.1.32` ✅; **the cost ceiling does not exist** — `drive.js`, `loop-ceiling.js` and `drive.md` contain no budget, token or spend term. `BACKLOG.md` already records this cap as *"currently unsized."* An independent source arriving at cost-as-a-third-brake is the evidence that row was waiting for; it does not size it.
 
 **Checkpointed mode** is the same driver pausing at each phase boundary, emitting the briefing `/sig:resume` already knows how to render. Notably, `resume.md:197` explicitly forbids auto-invoking the next phase — that is *correct* for resume (a briefing, not a launcher) and is exactly why the driver must be a separate command with an explicit opt-in, not a modified resume.
 
@@ -186,6 +203,12 @@ Not a switch — a ratchet, earned per-Epic:
 1. **attended** (today) → 2. **checkpointed** (phase-boundary pauses) → 3. **unattended** (PR-open terminus).
 
 Promotion criterion: N consecutive Epics whose batch audits surfaced no decision the human would have made differently and no false gate claim. Demotion is automatic on either. High-stakes Epics (FULL escalators: `stakes: catastrophic`, `reversibility: irreversible`) cap at **checkpointed** until the track record justifies otherwise.
+
+**A second axis the ramp does not cover** *(external course, 2026-08-22)*. The ramp measures **how much attention** a run costs. The course's ladder measures **which piece of judgment was handed off**, and the two are orthogonal: (1) hand off the check, (2) hand off the stop condition, (3) hand off the trigger, (4) hand off the prompt. Its rule — *do not climb past the point where you can still verify the output* — is `AUTONOMY-COUNTERWEIGHT.md`'s comprehension floor stated as a sequencing constraint rather than as a principle.
+
+**Where Signal actually sits: the first two handoffs, not the third.** `/sig:drive` hands off the check (verifier agents, read-only, machine-readable verdict) and the stop condition (`FLOORS`, `loop-ceiling.js`). It does **not** hand off the trigger: a person types `/sig:drive`, and `describeNextAction` finds the next *phase* inside an Epic that `STATE.md` already names — `tools/lib/drive.js` contains zero references to `current_epic`. **Nothing in Signal picks what to work on.** By the course's own test (*"a loop that needs you to say what to work on has you as its trigger"*), Signal's work-finding component is scoped to a phase, not to a queue. This is a characterization, not a defect: handing off the trigger is where §5.4's warning bites (parallelism multiplies unaudited output), and no roadmap row currently states which handoff the plan is aiming at next.
+
+*External vocabulary, deliberately not imported.* "Rung", "turn-based", "goal-based" and "proactive" are the course's labels, used here to locate Signal against an outside frame. `PROJECT.md` §Vocabulary is locked; none of these become Signal terms.
 
 ---
 
@@ -221,6 +244,8 @@ Promotion criterion: N consecutive Epics whose batch audits surfaced no decision
 **FM-4 — A wrong auto-decision compounds.** A bad provisional DISCUSS decision poisons PLAN and EXECUTE downstream. Countermeasure: the reversibility-weighted auto-adopt rule (5.2) — only cheaply-reversible decisions are ever taken without a human; and provisional decisions are first-class artifacts the audit walks, newest-first, before anything merges.
 
 **FM-5 — Cost.** Unattended loops with `research_parallelism: 4` and adversarial verifiers burn real tokens. Secondary concern; bounded by the iteration cap and by tier (the loop inherits the Epic's rigor profile, so a FEATURE Epic runs 2 researchers, not 4).
+
+> *Amended 2026-08-22.* "Secondary concern" is defensible for the *magnitude*; it is not a reason the brake is absent. An external source treats the cost ceiling as one of three **independent** brakes precisely because the other two do not catch its failure — an unreachable condition and a bounded turn count can both be satisfied while spend runs away. The ranking stands; the missing mechanism is now stated as missing (§5.3).
 
 ---
 

@@ -700,6 +700,27 @@ Marks's binary `auto` label and Horthy's pre-PMF exclusion. Its cost figures are
 fleet-scale; `FM-5`'s secondary ranking stands for Signal's audience, but the article is a fair
 calibration input for **where the runaway budget cap in §5.3 is set**, which is currently unsized.*
 
+*Source: a 5-module "Loop Engineering" working course assessed against the loop plan on 2026-08-22
+(the Claude Code team's definition of a loop; lineage credited to Steinberger, Osmani, Cherny). The
+bulk of it is **confirmation, not information** — its maker-must-not-be-the-checker rule is already
+`agents/verifiers/` with read-only tools and a machine-readable verdict, its verification-debt and
+comprehension-debt warnings are `FM-1` and
+[`../analysis/AUTONOMY-COUNTERWEIGHT.md`](../analysis/AUTONOMY-COUNTERWEIGHT.md) (its "around result
+forty, you quietly stop reading the diffs" line is that analysis's §1 restated by an unrelated
+practitioner), its "use a script for deterministic steps rather than re-reasoning them" rule is
+Signal's deterministic-layer doctrine, and its "when not to build a loop" list is the fourth
+independent source to need `/sig:calibrate`'s dial. **Four things are information**, all landed as
+amendments rather than as new build items: (1) the **cost ceiling** as a third *independent* brake —
+Signal has two of three, and the *"currently unsized"* cap in the paragraph directly above is the
+missing one (§5.3, and `FM-5` amended); (2) a six-component parts list the analysis had no
+equivalent of, whose one real gap is that **dead ends are recorded everywhere and read forward
+nowhere** at cycle start (§3.4); (3) the handoff ladder, which places `/sig:drive` at the first two
+handoffs and names the **trigger** as un-handed-off — `drive.js` has no `current_epic` reference, so
+nothing in Signal picks what to work on (§5.5); (4) a completeness gap in
+[`../analysis/PHASE-C-BUILD-VS-ADOPT.md`](../analysis/PHASE-C-BUILD-VS-ADOPT.md) — that check
+covered the runtime's fan-out half and never its loop half, and the verdict transfers unchanged.
+**No new build item is proposed and the sequencing does not change.***
+
 #### Standing inbox entries are counted as undecided · **hygiene** · small
 
 *Plain: two notes are meant to stay open forever, and the count can't tell them from unanswered ones.*
