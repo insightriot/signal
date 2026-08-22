@@ -6,6 +6,49 @@ Unresolved design questions. Append new ones; delete resolved ones (or move to `
 
 ---
 
+## Is `AskUserQuestion` hookable? — **BLOCKS `B75`'s enforcement design; test before designing**
+
+*Raised 2026-08-22, mid-design, after Brett approved building `B75`'s closure condition.*
+
+**Why it matters.** `B75` ships open because the `attention` dial is documented end to end and
+**enforced nowhere** — nothing fails if a command skips an in-phase ask. Brett's call: *"needs to be
+built if we're claiming it."* The strongest design is a **mechanical observer** — a `PostToolUse`
+hook matching `AskUserQuestion` that records the ask **as it actually happened**, rather than
+trusting the model's self-report. Signal already ships a `PreToolUse` hook with a matcher
+(`Edit|Write` → `check-state-write.js`), so the mechanism is proven here.
+
+**The question is unresolved, and two readings of the same doc page disagree:**
+
+| Reading | Says |
+|---|---|
+| First fetch | *"`AskUserQuestion` is NOT hookable… it wouldn't appear as a regular tool name."* |
+| Second fetch, asking for the **positive** enumeration | The docs give **no complete list**; the only tool documented as skipping both hooks is **`EndConversation`**. |
+
+**The second is the load-bearing one and it contradicts the first.** The first answer's negative was
+an **inference by the summarising model**, not a quoted sentence — the exact failure mode
+`v0.1.25` shipped a provenance rule for (*do not restate an upstream summary about a third artifact
+without opening it*). So: **not settled, and it must not be designed against in either direction.**
+
+**How to settle it — empirically, in one cheap test.** Add a `PostToolUse` hook with matcher
+`AskUserQuestion` that appends one line to a scratch file, restart the CLI (hooks load at session
+start), trigger any `AskUserQuestion`, and look. A fired hook settles it yes; a silent one settles it
+no. **Do this before writing any of the design below.**
+
+**If hookable → the real thing.** Hook records the ask; a phase-exit gate refuses when
+`gates.confirm_in_phase` was set and zero asks were recorded for that phase. Mechanical observation,
+so it catches both omission *and* a false self-report.
+
+**If NOT hookable → the honest fallback, and the claim must narrow with it.** Self-recorded ledger +
+the same phase-exit gate. That catches **omission** (the realistic case: the ceremony just does not
+happen) and **cannot** catch **fabrication** (a recorded ask that never occurred). ⚠ If this is what
+ships, `B75`'s closure note must say so in those words — *"fails when the ask is skipped, not when it
+is falsely reported"* — because claiming enforcement it does not have is the defect this repository
+is named after.
+
+**Undecided either way:** where the ledger lives (STATE.md frontmatter costs lock contention and
+size; a separate file costs a doc-runtime artifact), and whether it is tracked (high-churn,
+machine-local) — which decides what a fresh clone's gate does when no ledger exists.
+
 ## Tier count: validate 4 tiers — confirmed for v1, revisit on real-user data
 
 **Status:** No tier-count change for v1. Two data points (FULL URL shortener + SKETCH CSV-to-JSON) didn't surface "between SKETCH and FEATURE" or "SPIKE/SKETCH redundant" cases. Two data points isn't statistically meaningful but is enough to *not change* the schema speculatively.
