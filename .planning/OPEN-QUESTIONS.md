@@ -6,9 +6,35 @@ Unresolved design questions. Append new ones; delete resolved ones (or move to `
 
 ---
 
-## Is `AskUserQuestion` hookable? — **BLOCKS `B75`'s enforcement design; test before designing**
+## ~~Is `AskUserQuestion` hookable?~~ — **ANSWERED YES, 2026-08-22, by running it**
 
-*Raised 2026-08-22, mid-design, after Brett approved building `B75`'s closure condition.*
+> **Result: it fires.** A `PostToolUse` hook with matcher `AskUserQuestion` ran and logged
+> `FIRED tool=AskUserQuestion` when a question was answered. **`B75` takes the mechanical-observer
+> branch below**, not the self-recorded fallback.
+>
+> **Method, so it can be re-run.** Two matchers in `.claude/settings.local.json`, both running the
+> same one-line command: the real arm (`AskUserQuestion`) and a **control** (`Read`) — because a
+> silent log cannot distinguish *"the hook did not fire"* from *"the setup is broken."* The control
+> logged first, proving the setup live; the real arm logged on the next answered question. This
+> control is not in the procedure as originally written above — it was added because `M5.E15`/`B55`
+> is exactly the defect of an experiment whose negative arm was never verified to be a real negative.
+>
+> ⚠ **Two corrections to the procedure as written.** (1) **No restart was needed** — the settings
+> watcher picked up the hooks mid-session, so *"restart the CLI (hooks load at session start)"*
+> overstates the cost. (2) The first command drafted used `jq`, **which is not installed on this
+> machine**; it wrote an empty tool name and would have produced a log that looked like a
+> partial failure. Caught by piping a synthetic payload through the command before it went
+> anywhere near the config — a step worth keeping.
+>
+> ⚠ **What this does NOT establish, and the closure note must say so.** The hook observes *that a
+> question was asked*. It cannot observe that the **right** question was asked, or that it related to
+> the phase in progress. So the gate catches **omission** (no ask happened) and a **false
+> self-report** (a claim with no matching observation) — but **not** a pointless question asked to
+> satisfy the check. Stronger than the fallback; not airtight. Claiming otherwise is this
+> repository's named defect.
+
+*Raised 2026-08-22, mid-design, after Brett approved building `B75`'s closure condition. Settled the
+same day, by running it rather than reading about it.*
 
 **Why it matters.** `B75` ships open because the `attention` dial is documented end to end and
 **enforced nowhere** — nothing fails if a command skips an in-phase ask. Brett's call: *"needs to be
