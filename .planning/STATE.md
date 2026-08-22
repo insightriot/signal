@@ -10,12 +10,39 @@ completed_phases:
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-08-13T14:47:23.449Z
-last_updated_commit: bfdcd26c9c9737107b23d6ca8a95f9157cf37685
-last_updated: 2026-08-21T18:24:48.963Z
+last_updated_commit: d1a20132b86f64588caf200cffbecd8062feb658
+last_updated: 2026-08-22T20:01:23.143Z
 ---
 # Project State
 
 ## Resume pointer
+
+### ▶ WHERE THE WORK IS — read this first (2026-08-22, before a context clear)
+
+**`v0.1.32` shipped** (`B76` loop ceiling, `B73`, `B74`, `B107`, `B108`, plus the Phase C
+build-vs-adopt check). `main` is clean, everything merged, suite **2841** green.
+
+**⚠ FIRST ACTION IN THE NEW SESSION: `/sig:update`, then restart the CLI process — in that order.**
+The previous session was bound to `0.1.30`. A restart before the update has nothing new to bind to.
+
+**▶ NEXT WORK — approved by Brett 2026-08-22, not started.** Build the enforcement that closes
+**`B75`**. His words: *"needs to be built if we're claiming it."* Today the `attention` dial is
+documented end to end and **enforced nowhere** — nothing fails if a command skips an in-phase ask,
+which is why `B75` shipped open in `v0.1.32` rather than being marked done.
+
+**It is BLOCKED on one cheap empirical test, and the test must run before any design:**
+*is `AskUserQuestion` hookable?* Full statement of the question, the two contradicting doc readings,
+the one-test procedure, and both design branches are in
+[`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) → *"Is `AskUserQuestion` hookable?"*. **Do not design
+against either reading until it is settled** — the first reading's *"not hookable"* was a
+summarising model's **inference**, and the authoritative sentence names only `EndConversation` as
+skipping hooks.
+
+Lane: undecided. A mechanical observer is a new capability (Epic-shaped); the self-recorded fallback
+is closer to fix-lane. **The test result decides it**, which is another reason to run it first.
+
+*(Everything below is the standing plugin-binding guidance, unchanged.)*
+
 
 **⚠ RESTART THE CLI PROCESS BEFORE RUNNING ANY WRITING `/sig:` COMMAND — but as of `v0.1.20` the
 tool now tells you when it matters, instead of leaving it to you to remember.** `B52` is fixed:
