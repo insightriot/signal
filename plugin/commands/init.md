@@ -276,6 +276,29 @@ Above the embedded table, prepend a one-line monorepo summary from `extractSecti
 
 Write the file to `.planning/LANDSCAPE.md`.
 
+### 3b. Pre-fill `.planning/ENVIRONMENT.md` from what the scanners found
+
+`ENVIRONMENT.md` records what an agent cannot see from the code — external services, configuration
+variable **names**, test accounts, deploy targets, escalation paths. The scanners already surface
+some of it, so a brownfield init should not hand the user a blank form.
+
+Build the body with `renderEnvironmentTemplate({projectName, today})` from
+`tools/lib/environment.js`, then replace a `[FILL IN]` stub **only where a scan actually supports
+it** — CI workflow files and deploy config name deploy targets; a `.env.example` or a config module
+names variables. Leave everything else as `[FILL IN]`; `/sig:sweep` reports unfilled markers, and an
+invented answer is worse than a visible gap. Label an inference the same way §3 does.
+
+> ⚠ **Read a `.env.example` for NAMES ONLY, and never read `.env` itself.** The whole failure mode
+> of this file is a `.env` paste. Take the left-hand side of each assignment and discard the rest.
+
+**Then run `checkEnvironmentBody(body, {scrub: scrubSensitive})` before writing** (`scrubSensitive`
+from `tools/lib/add.js`). It **refuses** the write when a line states a value, names the offending
+line, and never echoes the value. On a refusal: write nothing, tell the user which line, and
+continue the init — a blocked environment file must not abort onboarding.
+
+**If `.planning/ENVIRONMENT.md` already exists, leave it alone.** `/sig:calibrate` §5c creates the
+stub on every project, brownfield or not, precisely because init does not run on greenfield.
+
 ### 4. Generate baseline `.planning/PROJECT.md`
 
 Draft a baseline PROJECT.md in Signal's standard shape, drawn from LANDSCAPE.md + scan data. **Every inferred field is marked `[INFERRED — please verify]`**. **Every blank field is marked `[FILL IN — Signal could not infer this]`**. Never fabricate.

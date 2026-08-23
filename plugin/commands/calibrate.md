@@ -252,6 +252,29 @@ After PROFILE.md is written, ensure STATE.md exists with `Current Phase: DISCUSS
 
 Programmatic equivalent: `await initState(baseDir, 'DISCUSS')` from `tools/lib/state.js`. If STATE.md already exists, leave it alone (idempotent — `initState` overwrites, but that's fine on a clean post-calibrate path because the state should be `DISCUSS` anyway).
 
+### 5c. Create `.planning/ENVIRONMENT.md` (if absent)
+
+Write the stub with `renderEnvironmentTemplate({projectName, today})` from
+`tools/lib/environment.js`, then `checkEnvironmentBody(body)` before writing — **the template must
+pass its own guard**, and a check the writer skips on the way out is the shape `B39` is filed for.
+**If the file already exists, leave it alone.** Never overwrite; a re-calibrate must not discard
+what someone filled in.
+
+**Why calibrate and not `/sig:init`.** Every section is a `[FILL IN]` stub, and the information is
+brownfield-shaped — so `/sig:init` looks like the natural home. It is the wrong one: **`/sig:init`
+runs on brownfield only.** `/sig:new-project` never invokes the scanners and never writes
+`LANDSCAPE.md`, so an init-homed file would reach one kind of project and report clean everywhere
+else — the "measured 1 of 12 projects" reach problem this repo has filed repeatedly (`M6.E2`,
+`M5.E16`). **Calibrate is the one command both paths pass through.** `/sig:init` still fills in what
+its scanners already found (`init.md` §3b); calibrate only guarantees the file exists.
+
+**No sixth calibration question, deliberately.** `BACKLOG.md`'s accepted item said "plus one
+`/sig:calibrate` question for what a scanner cannot see." All five questions here feed tier
+derivation into `PROFILE.md`; a sixth whose answer goes to a different file changes this command's
+contract, and the item is marked **small**. The stub carries `[FILL IN]` markers instead, which
+`/sig:sweep` already reports — so the prompt to fill it arrives without a new interview. If the
+stubs sit unfilled in practice, add the question then, on evidence. (`D-BR0822-3`.)
+
 ### 6. Print next-step message
 
 Exactly:
@@ -262,6 +285,9 @@ Profile written to .planning/PROFILE.md — tier: {TIER}.
 Next: /sig:discuss to continue the workflow.
 Later: /sig:escalate if scope changes and rigor needs to shift.
 ```
+
+If `ENVIRONMENT.md` was created in 5c, add one line: `Also created .planning/ENVIRONMENT.md — fill
+it in so an agent knows what it can't see from the code. Names, never values.`
 
 If the derived tier was one that skips phases (SKETCH skips REVIEW; SPIKE skips REVIEW + SHIP), include a one-liner noting which phases will be skipped and that `/sig:escalate` is the way to re-enable them.
 

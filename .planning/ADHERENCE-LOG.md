@@ -53,7 +53,7 @@ rewrites only between the `adherence:ceiling` markers, so this survives every re
 <!-- adherence:ceiling:begin -->
 ## The coverage ceiling
 
-**Computed:** 2026-08-21 · **Commit:** `6d712ab` · **Corpus:** 21 `commands/*.md` files
+**Computed:** 2026-08-23 · **Commit:** `533b96b` · **Corpus:** 21 `commands/*.md` files
 
 This is the bound on everything the adherence harness can ever report. It is computed
 directly from the command corpus by `tools/lib/directive-classifier.js`, whose split
@@ -62,15 +62,15 @@ by line.
 
 | | count | share |
 |---|---:|---:|
-| Directive lines | **510** | 100% |
-| …naming a real `tools/lib` export | 92 | 18.0% |
+| Directive lines | **520** | 100% |
+| …naming a real `tools/lib` export | 94 | 18.1% |
 | …writing a named artifact | 17 | 3.3% |
-| **Trace-measurable (either)** | **109** | **21.4%** |
-| **No observable trace** | **401** | **78.6%** |
+| **Trace-measurable (either)** | **111** | **21.3%** |
+| **No observable trace** | **409** | **78.7%** |
 
 ### What the remainder is, stated plainly
 
-The 401 directives with no observable trace are **unmeasured, not passing.**
+The 409 directives with no observable trace are **unmeasured, not passing.**
 
 They are not "probably fine", not "covered by the test suite", and not "verified by the
 fact that Signal works". Nothing in this repository establishes whether an agent follows
@@ -88,18 +88,18 @@ harness run as evidence about the whole corpus will not find it here.
 | `status.md` | 20 | 11 | 9 |
 | `discuss.md` | 25 | 8 | 17 |
 | `plan.md` | 49 | 8 | 41 |
-| `init.md` | 41 | 7 | 34 |
+| `init.md` | 43 | 7 | 36 |
 | `resume.md` | 23 | 7 | 16 |
 | `doctor.md` | 33 | 6 | 27 |
 | `checkpoint.md` | 21 | 5 | 16 |
 | `new-project.md` | 9 | 5 | 4 |
+| `calibrate.md` | 28 | 4 | 24 |
 | `execute.md` | 22 | 4 | 18 |
 | `migrate-memory.md` | 15 | 4 | 11 |
 | `review.md` | 42 | 4 | 38 |
 | `verify.md` | 40 | 4 | 36 |
 | `sweep.md` | 12 | 3 | 9 |
 | `update.md` | 11 | 3 | 8 |
-| `calibrate.md` | 20 | 2 | 18 |
 | `index.md` | 7 | 2 | 5 |
 | `drive.md` | 7 | 1 | 6 |
 | `archive.md` | 11 | 0 | 11 |

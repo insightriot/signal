@@ -26,6 +26,33 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   mid-session), and the first drafted command used `jq`, **which is not installed here** — caught by
   piping a synthetic payload through it before it went near any config.
 
+- **`.planning/ENVIRONMENT.md` — what an agent can't see from the code.** External services,
+  configuration variable **names**, test accounts, deploy targets, escalation paths, and what
+  automation must not touch. Created as a stub by `/sig:calibrate`; `/sig:init` pre-fills what its
+  scanners actually found. First of three autonomy items accepted 2026-08-08 — useful attended, and
+  a prerequisite unattended, where it turns a halt into a lookup.
+- **The names-never-values guard refuses the write** rather than redacting, and never echoes the
+  value back — it reports the offending line and the value's length. Same posture `/sig:add` and
+  `/sig:checkpoint` already take on a sensitive hit.
+
+### Changed from what was approved — three deviations, recorded not substituted
+
+- **The guard is value-shaped, not the secret-shaped scrub the backlog specified** (`D-BR0822-1`).
+  Measured: `/sig:add`'s patterns return **zero hits** on
+  `DATABASE_URL=postgres://admin:hunter2@db.internal:5432/app` — a `.env` paste, which is how this
+  file realistically goes wrong. And `hex-blob-40` matches **every git SHA**, so reusing the scrub
+  unchanged would fire on ordinary commit references. So any populated assignment is a violation in
+  a names-only file, secret-shaped or not; the scrub still runs as a second pass for a bare token.
+- **It refuses where `B75` (above, same day) only warns** (`D-BR0822-2`). A skipped confirmation is
+  a judgment call about process; a value in a names-only file breaks the file's stated contract, and
+  the cost of being wrong is a published secret in a tracked directory (`B97`).
+- **Created at `/sig:calibrate`, and no sixth calibration question** (`D-BR0822-3`). `/sig:init`
+  runs on **brownfield only** — `/sig:new-project` never invokes the scanners — so an init-homed
+  file would reach one kind of project and be silently absent elsewhere. Calibrate is the one
+  command both paths pass through. The question was dropped because all five existing ones feed
+  tier derivation; the `[FILL IN]` stubs `/sig:sweep` already reports do that job instead. ⚠ A bet
+  that can be checked: if the stubs sit unfilled on real projects, add the question then.
+
 ### Known limits — stated because overclaiming is this project's named defect
 
 - ⚠ **`B75` stays open, by choice rather than by neglect.** Asked as a direct either/or whether a
@@ -43,7 +70,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 - ⚠ **An absent record reads `cannot-check`, never clean** (`B39`) — no `.signal/asks.jsonl` means
   the hook has never run here, not that nobody was asked.
 
-2841 → **2869 tests**.
+2841 → **2886 tests**.
 
 ## [0.1.32] — 2026-08-21 — the loop that did not stop
 
