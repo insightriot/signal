@@ -42,17 +42,73 @@ export function environmentPath(baseDir) {
  * Placeholders that are NOT values — the template ships full of them, and a
  * stub must not fail its own guard on the way to disk.
  */
+/**
+ * A value that is a PLACEHOLDER rather than a secret.
+ *
+ * ⚠ The bracketed forms require **whitespace inside them**. A first attempt
+ * accepted any bracketed content — `\[[^\]]*\]|<[^>]*>` — to let documentation
+ * examples like `<value from 1Password>` through. That opened a bypass in the
+ * same change that closed six others: `API_KEY=[sk_live_51H8abc]` read as a
+ * placeholder and passed. Found by the CI reviewer on `#197`.
+ *
+ * The space requirement is what separates them: a placeholder is a phrase
+ * (`<value from 1Password>`, `[FILL IN — where the value lives]`), while a
+ * credential is a single token. The enumerated single-word markers below stay
+ * listed explicitly rather than being swept in by a pattern.
+ */
 const PLACEHOLDER_RE =
-  /^(\[FILL IN[^\]]*\]|\[INFERRED[^\]]*\]|<none>|<unset>|<unknown>|none|unknown|n\/a|tbd|—|-)$/i;
+  /^(\[[^\]]*\s[^\]]*\]|<[^>]*\s[^>]*>|\[FILL IN\]|\[INFERRED\]|<none>|<unset>|<unknown>|none|unknown|n\/a|tbd|—|-)$/i;
 
 /**
- * A populated `NAME=value` assignment, the `.env`-paste shape.
+ * For the COLON form only: does this value look like a credential rather than a
+ * label?
  *
- * Deliberately narrow on the key (SCREAMING_SNAKE, 3+ chars) so ordinary prose
- * containing an equals sign does not trip it. Tolerates a leading list marker
- * and backticks, because that is how these get written in markdown.
+ * ⚠ Requiring merely "no whitespace" was wrong, and wrong in the expensive
+ * direction — it flagged `SLACK: #eng-help`, `STATUS: active` and
+ * `NODE_ENV: production`, and because the guard REFUSES the write, that made
+ * the file unusable for exactly the content it exists to hold. The template's
+ * own filled-in examples (`#eng-help in Slack`, `Vercel, auto-deploys main`)
+ * invite that shape. Found by the CI reviewer on `#197`.
+ *
+ * The discriminator is length plus mixed letters-and-digits: real keys and
+ * tokens are long and alphanumeric; labels are short words. ⚠ Residual, stated
+ * rather than hidden: a SHORT secret in colon form is missed — `PIN: 1234` has
+ * no letters and `KEY: abc` is too short. The equals form has no such floor, so
+ * the gap is narrow, but it is real.
  */
-const ASSIGNMENT_RE = /^\s*(?:[-*]\s*)?`?([A-Z][A-Z0-9_]{2,})`?\s*=\s*(.+?)\s*`?$/;
+function looksLikeCredential(value) {
+  return value.length >= 12 && /[A-Za-z]/.test(value) && /[0-9]/.test(value);
+}
+
+/**
+ * Leading markdown decoration to look past before the key: any depth of
+ * blockquote, an optional bullet OR numbered-list marker, and optional bold or
+ * code emphasis.
+ *
+ * ⚠ EVERY ONE OF THESE FORMS WAS A HOLE ON FIRST SHIP, found by the CI
+ * reviewer on `#195` and confirmed by running it — blockquote, bold, numbered
+ * list and the colon form all passed a guard whose stated contract is "any
+ * populated assignment is a violation". The blockquote miss was the worst of
+ * them: `renderEnvironmentTemplate`'s own "Names, never values" warning box is
+ * written in `>`-prefixed style, so the file primed editors toward the exact
+ * shape it could not see.
+ */
+const LEAD = String.raw`^[ \t]*(?:>[ \t]*)*(?:(?:[-*+]|\d+[.)])[ \t]+)?(?:\*\*|__|\x60)?`;
+const KEY = String.raw`([A-Z][A-Z0-9_]{2,})`;
+const CLOSE = String.raw`(?:\*\*|__|\x60)?`;
+
+/** `KEY = value` — the `.env`-paste shape. */
+const ASSIGNMENT_RE = new RegExp(`${LEAD}${KEY}${CLOSE}[ \\t]*=[ \\t]*(.+?)[ \\t]*\x60?$`);
+
+/**
+ * `KEY: value` — the other way people write these down.
+ *
+ * Narrower than the equals form ON PURPOSE: the value must be a single
+ * whitespace-free token. `NOTE: remember to rotate this` is prose and must not
+ * fail the file, while `API_KEY: sk-live-abc123` must. A real credential, URL,
+ * or token never contains a space; a sentence almost always does.
+ */
+const COLON_ASSIGNMENT_RE = new RegExp(`${LEAD}${KEY}${CLOSE}[ \\t]*:[ \\t]+(\\S+)[ \\t]*\x60?$`);
 
 /**
  * A URL carrying inline credentials — `postgres://user:pw@host/db`.
@@ -70,21 +126,42 @@ const CREDENTIALED_URL_RE = /\b[a-z][a-z0-9+.-]*:\/\/[^\s:@/]+:[^\s@/]+@/gi;
  */
 export function findStatedValues(body) {
   const found = [];
-  const lines = String(body ?? '').split('\n');
-  let inFence = false;
+  // ⚠ Split on CRLF as well as LF. Tightening the trailing match from `\s*` to
+  // `[ \t]*` (to stop it eating the line ending) meant a leftover `\r` made
+  // every pattern fail on a CRLF checkout — a silent fail-open in a guard whose
+  // job is refusing secrets, and this module was the only `.planning/` reader
+  // in the repo not normalising line endings (`state.js`, `retrospective.js`,
+  // `migrate-memory.js` and `archive-tree.js` all do). Found by the CI reviewer
+  // on `#197`, in the change that fixed the previous six holes.
+  const lines = String(body ?? '').split(/\r?\n/);
 
+  // ⚠ FENCED CODE IS SCANNED, and the first version of this file skipped it.
+  // The reasoning was "an example belongs in a fence" — which inverted the
+  // threat model, because pasting a `.env` block into markdown NORMALLY puts it
+  // in a fence. So the one shape this guard exists to catch was the one shape
+  // it waved through, and a test shipped pinning that as intended behaviour.
+  // Found by the CI reviewer on `#195`, confirmed by running it.
+  //
+  // Skipping fences also left a second defect: `inFence = !inFence` is a bare
+  // parity toggle, so one unterminated fence disabled detection for the whole
+  // rest of the file while still reporting `ok: true`. Scanning every line
+  // removes the toggle and the failure mode with it.
+  //
+  // There is no legitimate populated assignment in a names-only file, inside a
+  // fence or out. Documentation examples use a placeholder — `<value from
+  // 1Password>`, `[FILL IN]` — and `PLACEHOLDER_RE` accepts any bracketed form.
   lines.forEach((line, i) => {
-    if (/^\s*```/.test(line)) {
-      inFence = !inFence;
-      return;
-    }
-    if (inFence) return;
-
-    const assignment = line.match(ASSIGNMENT_RE);
+    const equals = line.match(ASSIGNMENT_RE);
+    const colon = equals ? null : line.match(COLON_ASSIGNMENT_RE);
+    const assignment = equals ?? colon;
     if (assignment) {
       const [, key, rawValue] = assignment;
       const value = rawValue.replace(/^`|`$/g, '').trim();
-      if (value && !PLACEHOLDER_RE.test(value)) {
+      // The colon form additionally requires the value to look like a
+      // credential — see `looksLikeCredential`. `KEY: label` is how this file
+      // is meant to be written; `KEY=value` never is.
+      const credentialShaped = equals ? true : looksLikeCredential(value);
+      if (value && credentialShaped && !PLACEHOLDER_RE.test(value)) {
         found.push({
           kind: 'assignment',
           line: i + 1,
