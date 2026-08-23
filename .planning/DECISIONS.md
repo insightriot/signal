@@ -2162,3 +2162,69 @@ gets measured over the same 28-row corpus that produced the three published rule
 claimed in this session to be `3 / 1`; running the check against the tree as it stood at `v0.1.29`
 returned **`B75` alone**, confirming the original pair was `B102` (real) + `B75` (false) and that
 `B75` was already counted. The wrong figure was caught before it reached any file.
+
+---
+
+## 2026-08-22 — `ENVIRONMENT.md`: three deviations from the accepted item (D-BR0822-1 … D-BR0822-3)
+
+The backlog item *"`.planning/ENVIRONMENT.md` — the environment the agent can't see"* was accepted
+by Brett on 2026-08-08 and sequenced first of three. Building it turned up three points where the
+accepted wording does not survive contact. Recorded rather than quietly substituted, per CLAUDE.md
+§ *Surface ambiguity, don't resolve silently*.
+
+### D-BR0822-1 — the guard is VALUE-shaped, not the secret-shaped scrub the item specified
+
+**The item said:** *"the write path needs the same sensitive-data scrub `/sig:add` already runs."*
+
+**Measured, not reasoned — that is insufficient for this file.** `SENSITIVE_PATTERNS`
+(`tools/lib/add.js:72`) matches AWS keys, `ghp_` tokens, `Bearer …`, and 40-char hex. Run it over
+`DATABASE_URL=postgres://admin:hunter2@db.internal:5432/app` and it returns **zero hits** — pinned
+by a test that asserts exactly that, because the evidence is the reason for the deviation. A `.env`
+paste is the realistic way this file goes wrong, and the approved guard is blind to it.
+
+Worse in the other direction: `hex-blob-40` (`\b[a-f0-9]{40}\b`) matches **every git SHA**, so
+reusing the scrub unchanged would fire on any commit reference legitimately present in a project
+note — a guard that cries wolf on ordinary content is one people learn to ignore.
+
+**So the guard asks a different question.** In a file whose contract is *names only*, **any**
+populated assignment is a violation, whether or not the value resembles a known secret. Plus
+credentialed URLs, which survive being written as prose. `scrubSensitive` still runs as a **second**
+pass (minus `hex-blob-40`) because a bare token on its own line is not an assignment and the
+value-shaped rule would miss it. Neither check subsumes the other; both run.
+
+### D-BR0822-2 — this REFUSES the write, where `B75` earlier the same day only warns
+
+Two enforcement calls made hours apart landed on opposite sides, so the difference is stated rather
+than left to look like inconsistency.
+
+`B75`'s phase-close check **warns and never blocks** (asked as a direct either/or; answer: report).
+This one **refuses to write** and mutates nothing. The distinction: a skipped confirmation is a
+judgment call about *process* — reasonable people set the dial differently, and a false stop lands
+at the worst moment. A value in a names-only file is a violation of the file's own stated
+**contract**, it is not a matter of taste, and the cost of being wrong is a published secret in a
+tracked directory (`B97` is what that looks like).
+
+Refuse-to-write is also **the established posture**, not a new one: `/sig:add` and
+`/sig:checkpoint` both return `aborted: 'sensitive-data-pending'` with nothing mutated, and both
+anti-rationalization tables forbid auto-redaction outright. **This never redacts** — it refuses,
+names the line, and reports the value's length rather than the value, because an error message is
+another surface a secret can be read from.
+
+### D-BR0822-3 — the file is created at `/sig:calibrate`, and there is NO sixth question
+
+**The item said:** *"Drafted at `/sig:init` … plus one `/sig:calibrate` question for what a scanner
+cannot see."* Both halves changed.
+
+**Home: calibrate, not init.** `/sig:init` runs on **brownfield only** — verified by reading
+`new-project.md`, which never invokes the scanners and never writes `LANDSCAPE.md`. An init-homed
+file would reach one kind of project and be silently absent everywhere else: the *"measured 1 of 12
+projects"* reach problem (`M6.E2`, `M5.E16`). **Calibrate is the one command both entry paths pass
+through.** `/sig:init` §3b still pre-fills from scanner output where a scan supports it; calibrate
+§5c only guarantees the file exists.
+
+**No sixth question.** All five calibration questions feed tier derivation into `PROFILE.md`; a
+sixth whose answer goes to a *different file* changes that command's contract, and the item is
+marked **small** — that is the single most likely way this becomes an Epic. The stub ships with
+`[FILL IN]` markers instead, which `/sig:sweep` **already** reports, so the prompt to fill it
+arrives through an existing mechanism rather than a new interview. ⚠ **This is a bet that can be
+checked:** if the stubs sit unfilled across real projects, add the question then, on evidence.

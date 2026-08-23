@@ -346,7 +346,7 @@ system, and its author's own team abandoned its most important rule for a month 
 **Adopt these as gates or not at all.** Landing any of them as a paragraph in a command file
 reproduces the unreached-mechanism class named directly above.
 
-#### `.planning/ENVIRONMENT.md` — the environment the agent can't see · **small** · *roadmap*
+#### ~~`.planning/ENVIRONMENT.md` — the environment the agent can't see~~ · **DONE 2026-08-22** · three deviations recorded at `D-BR0822-1`…`3`
 
 *Plain: write down the things about this project that aren't in the code.*
 
