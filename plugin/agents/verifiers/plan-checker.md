@@ -25,6 +25,9 @@ Score each dimension PASS / WARN / FAIL:
 
 1. **Goal alignment** — Does every task directly serve the phase goal? Flag tasks that seem tangential.
 2. **Completeness** — Are all requirements from REQUIREMENTS.md covered by at least one task?
+   **And does each task carry its Files-likely-touched, Out-of-scope, and (where research found one)
+   exemplar reference?** ⚠ **Advisory — report their absence, do not fail the plan for it**
+   (`D-M6E4-7`): corpus plans predate these fields. Part of this dimension, not a ninth one.
 3. **Dependency correctness** — Are task dependencies accurate? Are there circular dependencies? Missing dependencies?
 4. **Testability** — Does every task have clear acceptance criteria that can be tested? **And, for
    any task carrying a quantity: does the task's own stated formula or threshold actually satisfy

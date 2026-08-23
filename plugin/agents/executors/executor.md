@@ -24,6 +24,18 @@ When you finish, surface the commit sha (or whatever the run produced) back to t
 - The specific task from `{phase}-PLAN.md` (provided by orchestrator)
 - `.planning/CONTEXT.md` — locked decisions
 - `.planning/{phase}-VALIDATION.md` — test mapping for this task
+- `.planning/{phase}-RESEARCH.md` — **the exemplars PLAN's researchers already found** (M6.E4 FR3.1)
+
+**About RESEARCH.md (M6.E4 S3).** PLAN spawns a codebase researcher to find *"existing patterns,
+reusable code, integration points"* and writes them here — and until now this list did not mention
+the file, so the work was paid for and thrown away. If your task **names an exemplar**, follow it
+rather than re-deriving the pattern from scratch; an exemplar exists because someone already
+established it is the right shape for this codebase.
+
+⚠ **You are given a reference, not the whole document.** RESEARCH.md can be large, and injecting it
+in full into every task's context fights the constraint this project names as its highest risk.
+Read the section your task points at. If your task names no exemplar, that is a normal answer —
+proceed as before.
 
 ## Process
 1. Read the task's acceptance criteria and test mapping

@@ -154,6 +154,18 @@ Generate the PLAN artifact (`artifactName('PLAN', { currentEpic })` — `{phase}
 - Acceptance criteria per task
 - Test strategy per task (TDD where applicable)
 - Estimated complexity (S/M/L — not time)
+- **Files likely touched** per task — reconciles this list with
+  `skills/plan/planning-and-task-breakdown/SKILL.md`, which has carried the field all along while
+  this list, the authoritative one, omitted it (M6.E4 FR3.2)
+- **Out of scope** per task — what this task explicitly does *not* do. The executor's rule that
+  *"every changed line traces to the acceptance criteria"* was a discipline with no named boundary
+  to point at; this is the boundary
+- **An exemplar reference** where `{phase}-RESEARCH.md` found one — a pointer to the section, not
+  the document (M6.E4 FR3.1)
+
+⚠ **These four are ADVISORY, not fatal** (`D-M6E4-7`). A plan lacking them is **reported**, never
+failed. Every plan already on disk across the corpus predates them and was correct when written;
+failing them retroactively would be a guard punishing authors for not having read the future.
 
 #### Name what this Epic does for the first time — and schedule it in the FIRST WAVE (M5.E17 FR1)
 
