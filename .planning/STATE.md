@@ -50,11 +50,13 @@ each other; read the section and pick, rather than assuming the file's order is 
 **The one result to carry forward, because it changes how to work here.** The scoping pass took a
 measurement nobody had taken: Signal has run an independent reviewer on every PR since `v0.1.31`
 (`.github/workflows/claude-code-review.yml`) and **nobody had ever read its output**. Reading it:
-**7 findings across 11 PRs, 7 of 7 real.** Four were in this repo's own two-day-old work — two holes
-in the `ENVIRONMENT.md` guard that had a green 2886-test suite and four mutation tests behind it,
-then **three more in the fix for those two**, written immediately after reading the report.
+**7 findings across 11 PRs, 7 of 7 real.** **Five were in code written in the previous two days** —
+two holes in the `ENVIRONMENT.md` guard that had a green 2886-test suite and four mutation tests
+behind it, then **three more in the fix for those two**, written immediately after reading the
+report. The other two were contradictions inside `analysis/LOOP-ENGINEERING-ANALYSIS.md` (`#190`),
+filed two days before anyone opened them.
 
-`/sig:ship` now lists unresolved PR review comments before merge (`tools/lib/pr-review-findings.js`,
+`/sig:ship` now lists unresolved PR review comments before merge (`plugin/tools/lib/pr-review-findings.js`,
 `#198`) — it **reports, never refuses**, `cannot-check` never renders as "none", and an *outdated*
 thread is counted separately because a push marks threads outdated whether or not anything was
 fixed. **Read the reviewer on every PR.** The measured hit rate here is roughly 1 in 4, and it
@@ -112,11 +114,15 @@ that reason. To check by hand, run any `/sig:` command and read the cache path i
 `readBindingBanner` returns `null`, no banner is due.** The update-then-restart sequence prescribed
 after the `v0.1.32` cut was carried out; nothing is pending.
 
-> *Superseded, kept because the correction is the point:* this paragraph read **"Cache status
-> 2026-08-21 … EXPECT THE BANNER, and it will be correct"** while the block at the top of this file
-> said the binding was current and no update was needed — **the same file telling a fresh reader
-> both things**, which is `M5.E17`'s class in the document a fresh session reads first. Caught
-> 2026-08-23 while writing that top block, by reading down rather than by any check.
+> *Superseded, and the correction is mine to own:* this paragraph read **"Cache status 2026-08-21 …
+> EXPECT THE BANNER, and it will be correct"**, which was **accurate when written** — the update had
+> not yet run. It went stale when the update ran, and it became an outright **contradiction** the
+> moment the new top block above said the binding was current and no update was needed. **The
+> contradiction was introduced by that edit, not discovered in the file** — I noticed it a minute
+> later by reading down, and nothing would have caught it otherwise. Recorded this way because
+> describing it as a pre-existing defect would be dressing up my own mistake, and because it is the
+> ordinary way `M5.E17`'s class arrives: not by anyone writing something false, but by someone
+> updating one end of a document and not the other.
 
 **Prior — cache status 2026-08-19: bound copy and `installed_plugins.json` both read `0.1.30`** — verified
 via `readBindingBanner`, which returns `null`, so no banner is due. Three cache copies sit on disk
