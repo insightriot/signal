@@ -36,6 +36,14 @@ export const REACH = Object.freeze({
   'changelog-unreleased-dated': Object.freeze({ evaluable: 5, total: 12, measured: '2026-08-18' }),
   'milestone-status-vs-state': Object.freeze({ evaluable: 1, total: 12, measured: '2026-08-18' }),
   'facts-attribution': Object.freeze({ evaluable: 1, total: 12, measured: '2026-08-18' }),
+  // M6.E4 S1. Not a published-fact check — it runs at PLAN, not at sweep — but
+  // reach belongs in the one table that holds reach, and `describeReach` is
+  // "the one place a reach figure becomes prose". A second table would be the
+  // B82 shape: two implementations of one concept, free to disagree.
+  //
+  // 10 of 13 evaluable. 1 project has no PLAN artifact; 2 build their plans
+  // entirely from `##` headings with no level-3+ task units. Measured read-only.
+  'plan-internal-consistency': Object.freeze({ evaluable: 10, total: 13, measured: '2026-08-23' }),
 });
 
 /**
