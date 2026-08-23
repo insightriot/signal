@@ -137,6 +137,14 @@ If the discussion surface enough detail, generate the REQUIREMENTS artifact (`ar
 
 **Blast radius — ask at FULL and FEATURE; skip at SPIKE and SKETCH.** Alongside the NFR prompt, ask: *"What does this change touch that we are not changing — callers, stored data, published artifacts, anything downstream already consuming it?"* Record the answer in REQUIREMENTS.md next to the NFRs. **Not already covered by calibration:** `reversibility` is one of the five `/sig:calibrate` questions, but it tiers the **project**; this is the same question at the altitude of **one change**, and nothing else in the six phases asks it. The knowledge to act on the answer already lives in the `incremental-implementation`, `ci-cd-and-automation` and `shipping-and-launch` skills — the gap was that no phase asked. Pairs with `ship.md`'s rollback line, which asks the other half at the other end.
 
+**Outcome oracle — ask at FULL and FEATURE; skip at SPIKE and SKETCH.** Alongside the two prompts above, ask: *"How will we know this worked?"* Write the answer into REQUIREMENTS.md under a `## Outcome` heading.
+
+**This is not the acceptance criteria you already have.** Those are a **completion** oracle — they say when the thing is *built*. This is an **outcome** oracle: how you would know it *worked*, in use. Work can satisfy every acceptance criterion and change nothing anyone cares about, and without the question the agent makes that product call by default — the standing *"gate at product altitude"* norm arriving as an input rather than an interrupt.
+
+> ⚠ **"No outcome metric, and here is why" is a VALID answer, and for tooling it is usually the honest one.** Say so out loud when you ask. For infrastructure work an outcome metric frequently does not exist, and **a gate that cannot be satisfied honestly is a gate that gets rationalized past** — the anti-rationalization failure arriving by way of the mechanism built to prevent it. What keeps the hatch from swallowing the gate is not refusing it but requiring the **reason** to be substantive: `checkOutcomeOracle` fails an unexplained decline (`N/A`, `none`, a bare "not applicable") and passes a one-sentence explanation. Present-but-vacuous fails, not merely present-but-empty (`M5.E10`'s rule, one artifact over).
+
+Verify with `checkOutcomeOracle(requirementsContent, tier)` from `tools/lib/outcome-oracle.js`. It returns `metric`, `declined-with-reason`, `not-required` (ok) or `missing` / `empty` / `vacuous` (not ok, each with a message naming the fix). ⚠ **It reads tokens, not meaning** — a metric nobody will look at, or a fluent reason that is untrue, passes. Same published limit as `M5.E10`'s checks and `B75`'s ask record.
+
 For FULL specifically, REQUIREMENTS.md is effectively mandatory (strict Nyquist in PLAN needs acceptance criteria to map tests against). For SKETCH, REQUIREMENTS.md is usually unnecessary — PROJECT.md "Done when" carries the same weight.
 
 ## Phase Gate
@@ -155,6 +163,7 @@ Before transitioning to PLAN, verify:
 - [ ] PROJECT.md is complete and approved
 - [ ] CONTEXT.md captures all locked decisions
 - [ ] REQUIREMENTS.md exists with acceptance criteria
+- [ ] **At FULL and FEATURE:** `checkOutcomeOracle(requirementsContent, tier)` returns `ok` — a stated measure, or a decline with a substantive reason. Skipped at SPIKE and SKETCH, where it returns `not-required`.
 - [ ] No unresolved gray areas that would block PLAN
 - [ ] User explicitly approves transition to PLAN — **when `gates.confirm_discuss` is set** (`attention` ≠ `unattended`). Unattended: no ask; the transition is recorded, not approved (`B74`).
 
