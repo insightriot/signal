@@ -364,7 +364,7 @@ unattended, where it converts a halt into a lookup.
 *Watch the obvious footgun:* a file of variable names is one careless edit from a file of variable
 values. The write path needs the same sensitive-data scrub `/sig:add` already runs.
 
-#### The measurable-outcome question in DISCUSS · **small** · *roadmap*
+#### ~~The measurable-outcome question in DISCUSS~~ · **DONE 2026-08-23** · asked at FULL+FEATURE; the honest decline is first-class and pinned
 
 *Plain: ask "how will we know this worked?" before building.*
 

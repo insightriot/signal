@@ -35,6 +35,22 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   value back — it reports the offending line and the value's length. Same posture `/sig:add` and
   `/sig:checkpoint` already take on a sensitive hit.
 
+- **DISCUSS now asks how we will know it worked** — at FULL and FEATURE; skipped at SPIKE and
+  SKETCH. **Not the acceptance criteria Signal already has:** those are a *completion* oracle (the
+  thing is built), this is an *outcome* oracle (it worked, in use). Work can satisfy every
+  acceptance criterion and change nothing anyone cares about, and without the question the agent
+  makes that product call by default. Second of the three autonomy items accepted 2026-08-08.
+  Verified by `checkOutcomeOracle` (`tools/lib/outcome-oracle.js`).
+- ⚠ **"No outcome metric, and here is why" is a first-class PASS, not a loophole.** For
+  infrastructure and tooling work a metric frequently does not exist, and **a gate that cannot be
+  satisfied honestly is a gate that gets rationalized past** — the anti-rationalization failure
+  arriving through the mechanism built to prevent it. What stops the hatch swallowing the gate is
+  not refusing it but requiring the **reason** to be substantive: a bare `N/A` or `none` fails,
+  a one-sentence explanation passes. Present-but-vacuous fails, not merely present-but-empty
+  (`M5.E10`'s rule, one artifact over). The failure message says declining is legitimate, so nobody
+  learns to invent a metric instead. ⚠ **It reads tokens, not meaning** — a metric nobody will look
+  at, or a fluent reason that is untrue, passes. Same published limit as `M5.E10` and `B75`.
+
 ### Changed from what was approved — three deviations, recorded not substituted
 
 - **The guard is value-shaped, not the secret-shaped scrub the backlog specified** (`D-BR0822-1`).
@@ -70,7 +86,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 - ⚠ **An absent record reads `cannot-check`, never clean** (`B39`) — no `.signal/asks.jsonl` means
   the hook has never run here, not that nobody was asked.
 
-2841 → **2886 tests**.
+2841 → **2900 tests**.
 
 ## [0.1.32] — 2026-08-21 — the loop that did not stop
 
