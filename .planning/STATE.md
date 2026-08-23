@@ -10,20 +10,55 @@ completed_phases:
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-08-13T14:47:23.449Z
-last_updated_commit: aafd5f52e54e30a06c7a55d273a2a65dc20d84d9
-last_updated: 2026-08-22T20:38:42.230Z
+last_updated_commit: 07fba3b05dea634a8850c0b3cf4bf13e0addecfc
+last_updated: 2026-08-23T14:54:03.945Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-08-22, before a context clear)
+### ▶ WHERE THE WORK IS — read this first (2026-08-23, before a context clear)
 
-**`v0.1.32` shipped** (`B76` loop ceiling, `B73`, `B74`, `B107`, `B108`, plus the Phase C
-build-vs-adopt check). `main` is clean, everything merged, suite **2841** green.
+`main` is clean at **`07fba3b`**, everything merged, suite **2927** green. Nothing in flight, no
+branch open, working tree clean. Plugin binding is current — **no `/sig:update` needed** (the
+2026-08-22 instruction to update-then-restart is discharged).
 
-**⚠ FIRST ACTION IN THE NEW SESSION: `/sig:update`, then restart the CLI process — in that order.**
-The previous session was bound to `0.1.30`. A restart before the update has nothing new to bind to.
+> ### ⚠ IGNORE THE FRONTMATTER'S NEXT-PHASE LINE. It points at parked work.
+>
+> `phase: PLAN` / `current_epic: M6.E3` is an **accurate record of a parked Epic** — `M6.E3` closed
+> DISCUSS, wrote a plan, and was never approved or started, and CLAUDE.md records that *"if it is
+> never built that is a fine outcome."* It is **not** what anyone is working on.
+>
+> So `/sig:resume` will mechanically render **"Next phase: `/sig:execute`"**. That is wrong, and it
+> is wrong for a structural reason worth knowing: `describeNextAction` reads `phase` and cannot
+> know an Epic is parked. **This pointer is authoritative over that line.** It was flagged by the
+> `/sig:resume` run on 2026-08-22 and is left standing rather than papered over, because clearing
+> `current_epic` would fabricate a transition that never happened.
+
+**▶ NEXT WORK: the twelve items promoted from the inbox drain** — `BACKLOG.md` §*"Twelve promoted
+from the inbox drain"* (`D-BR0810-1` … `D-BR0810-3`, promoted 2026-08-10). Not yet sequenced against
+each other; read the section and pick, rather than assuming the file's order is a priority order.
+
+**Just finished — all three autonomy-counterweight items are now discharged** (accepted 2026-08-08):
+
+| Item | Outcome |
+|---|---|
+| `.planning/ENVIRONMENT.md` | Shipped `#195` + `#197`. Created by `/sig:calibrate`, pre-filled by `/sig:init`. Names-never-values guard **refuses** the write. |
+| The measurable-outcome question in DISCUSS | Shipped `#196`. FULL + FEATURE ask; *"no metric, and here is why"* is a first-class pass, an unexplained decline is not. |
+| Cross-model review at REVIEW | **Scoped, build neither** — `analysis/CROSS-MODEL-REVIEW-SCOPE.md`. |
+
+**The one result to carry forward, because it changes how to work here.** The scoping pass took a
+measurement nobody had taken: Signal has run an independent reviewer on every PR since `v0.1.31`
+(`.github/workflows/claude-code-review.yml`) and **nobody had ever read its output**. Reading it:
+**7 findings across 11 PRs, 7 of 7 real.** Four were in this repo's own two-day-old work — two holes
+in the `ENVIRONMENT.md` guard that had a green 2886-test suite and four mutation tests behind it,
+then **three more in the fix for those two**, written immediately after reading the report.
+
+`/sig:ship` now lists unresolved PR review comments before merge (`tools/lib/pr-review-findings.js`,
+`#198`) — it **reports, never refuses**, `cannot-check` never renders as "none", and an *outdated*
+thread is counted separately because a push marks threads outdated whether or not anything was
+fixed. **Read the reviewer on every PR.** The measured hit rate here is roughly 1 in 4, and it
+catches things a full suite plus mutation testing plus the author does not.
 
 ### ~~▶ NEXT WORK — B75's enforcement~~ · **UNBLOCKED, BUILT AND MERGED 2026-08-22 (`#193`)**
 
@@ -73,11 +108,15 @@ than one serving stale code.*
 and the process kept its binding. **Restart the CLI process.** The banner says so in those words for
 that reason. To check by hand, run any `/sig:` command and read the cache path it cites.
 
-**Cache status 2026-08-21, after the `v0.1.32` cut: EXPECT THE BANNER, and it will be correct.**
-This session's process is bound to `0.1.30` and the release just published `0.1.32`, so once
-`/sig:update` runs, `readBindingBanner` will report the disagreement — that is the mechanism working,
-not a fault. The order is **`/sig:update` first, then restart the CLI process**; a restart before the
-update has nothing new to bind to, and a `/clear` is not sufficient (measured 2026-08-02).
+**Cache status 2026-08-23: CURRENT — bound copy and `installed_plugins.json` agree on `0.1.32`,
+`readBindingBanner` returns `null`, no banner is due.** The update-then-restart sequence prescribed
+after the `v0.1.32` cut was carried out; nothing is pending.
+
+> *Superseded, kept because the correction is the point:* this paragraph read **"Cache status
+> 2026-08-21 … EXPECT THE BANNER, and it will be correct"** while the block at the top of this file
+> said the binding was current and no update was needed — **the same file telling a fresh reader
+> both things**, which is `M5.E17`'s class in the document a fresh session reads first. Caught
+> 2026-08-23 while writing that top block, by reading down rather than by any check.
 
 **Prior — cache status 2026-08-19: bound copy and `installed_plugins.json` both read `0.1.30`** — verified
 via `readBindingBanner`, which returns `null`, so no banner is due. Three cache copies sit on disk
