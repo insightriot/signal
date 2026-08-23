@@ -9,6 +9,7 @@
 ---
 
 ## Trigger watchlist — standing entry (check conditions at every drain)
+<!-- standing -->
 
 **Status:** Added 2026-07-04 (backlog review, ratified BR-6). **Standing entry — never promote, merge, or delete.** At each `/sig:plan` drain, walk the conditions below and act on any that have fired; update rows as triggers fire or as new trigger-parked items land. Rationale: 10+ parked entries carry promote-back conditions that nothing evaluated — including one *dated* trigger that would otherwise expire unobserved. See `BACKLOG-REVIEW-2026-07-04.md` §2 A1 + DECISIONS 2026-07-04.
 

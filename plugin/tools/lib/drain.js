@@ -148,6 +148,11 @@ function lineOffsets(lines) {
  * @param {string} content
  * @returns {Array<{heading: string, statusLine: string|null, dateISO: string|null, dispositioned: boolean, dispositionKind: 'terminal'|'deferred'|null, range: {start: number, end: number}}>}
  */
+// M6.E4 FR2.1. HTML-comment marker, matching the shape already used in this
+// corpus for `backlog-key`, `bugs-key`, `evicted-key` and `phase-log:archived`
+// — deliberately not a new mechanism (D-M6E4-4).
+const STANDING_MARKER_RE = /^\s*<!--\s*standing\s*-->\s*$/;
+
 export function parseEntries(content) {
   if (typeof content !== 'string' || content === '') return [];
 
@@ -173,6 +178,7 @@ export function parseEntries(content) {
     const heading = headingLineRaw.replace(HEADING_RE, '').trim();
 
     let statusLine = null;
+    let statusLineIdx = -1;
     let innerFence = false;
     for (let i = startLine + 1; i < endLine; i++) {
       if (isFenceMarker(lines[i])) {
@@ -181,6 +187,7 @@ export function parseEntries(content) {
       }
       if (!innerFence && STATUS_LINE_RE.test(lines[i])) {
         statusLine = lines[i].trim();
+        statusLineIdx = i;
         break;
       }
     }
@@ -232,10 +239,51 @@ export function parseEntries(content) {
         : 'deferred'
       : null;
 
+    // M6.E4 FR2.1 — a STANDING entry is one deliberately meant to stay open
+    // forever (the trigger watchlist: "never promote, merge, or delete"). Without
+    // this it is indistinguishable from an unanswered entry and is counted a live
+    // candidate at every drain — the same can't-tell-checked-from-unchecked shape
+    // as B39 and B90. On this repo it was the ONLY live candidate, so the live
+    // count was pinned at >= 1 and plan.md Step 1b's "no candidates" branch could
+    // never run.
+    //
+    // HEADER REGION = heading → Status line, INCLUSIVE, fence-aware. Bounding it
+    // at the Status line rather than "first N non-blank lines" is what keeps a
+    // marker quoted deeper in a body from marking the entry: an entry discussing
+    // the marker in its prose (this very file's own backlog row does) must not
+    // become standing by talking about it. With no Status line the window closes
+    // at the first non-blank line — conservative by construction.
+    let standing = false;
+    {
+      const limit = statusLineIdx >= 0 ? statusLineIdx : endLine;
+      let mkFence = false;
+      for (let i = startLine + 1; i <= limit && i < endLine; i++) {
+        if (isFenceMarker(lines[i])) {
+          mkFence = !mkFence;
+          continue;
+        }
+        if (mkFence) continue;
+        if (STANDING_MARKER_RE.test(lines[i])) {
+          standing = true;
+          break;
+        }
+        // No Status line in this entry: the window is the first non-blank line.
+        if (statusLineIdx < 0 && lines[i].trim() !== '') break;
+      }
+    }
+
     const start = offsets[startLine];
     const end = endLine < lines.length ? offsets[endLine] : content.length;
 
-    return { heading, statusLine, dateISO, dispositioned, dispositionKind, range: { start, end } };
+    return {
+      heading,
+      statusLine,
+      dateISO,
+      dispositioned,
+      dispositionKind,
+      standing,
+      range: { start, end },
+    };
   });
 }
 
@@ -264,7 +312,22 @@ export function isEvictable(entry) {
  * @returns {ReturnType<typeof parseEntries>}
  */
 export function listDrainCandidates(content) {
-  return parseEntries(content).filter((e) => !e.dispositioned);
+  return parseEntries(content).filter((e) => !e.dispositioned && !e.standing);
+}
+
+/**
+ * The STANDING entries — deliberately-permanent notes, reported as their own
+ * category rather than silently dropped (M6.E4 FR2.2).
+ *
+ * A value on the record, not a rendering choice: the drain must be able to say
+ * "0 live, 1 standing" instead of "1 live", which is the difference between an
+ * inbox that can report itself clear and one that structurally cannot.
+ *
+ * @param {string} content
+ * @returns {ReturnType<typeof parseEntries>}
+ */
+export function listStandingEntries(content) {
+  return parseEntries(content).filter((e) => e.standing);
 }
 
 /**
