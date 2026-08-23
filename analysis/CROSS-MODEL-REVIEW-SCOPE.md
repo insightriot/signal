@@ -4,7 +4,10 @@
 don't build it yet** · question first"*, third of the three autonomy-counterweight items accepted
 2026-08-08. The item's own instruction was to force a choice between two scopes before any build.
 
-**Result: neither, yet — and the reason is a measurement nobody has taken that costs nothing.**
+**Result: build neither — because a measurement nobody had taken, and which cost nothing, says the
+binding problem is somewhere else entirely.** Signal has run an independent reviewer on every pull
+request since `v0.1.31`. Nobody had ever read its output. Reading it produced **7 real findings
+across 11 PRs**, four of them in this repository's own work from the last two days.
 
 ---
 
@@ -66,7 +69,7 @@ an argument from theory while the evidence sat uncollected in the PR history.
 
 | PRs since the reviewer went live | Produced nothing | Produced findings | Findings | Real on inspection |
 | --- | --- | --- | --- | --- |
-| **10** (`#187`–`#196`) | **8** | **2** | **4** | **4 of 4** |
+| **11** (`#187`–`#197`) | **8** | **3** | **7** | **7 of 7** |
 
 - **`#190`** — two contradictions inside `LOOP-ENGINEERING-ANALYSIS.md`: a table row rating Memory
   *"Built, and unusually strong"* with no shortfall while the prose directly beneath calls Memory
@@ -78,6 +81,14 @@ an argument from theory while the evidence sat uncollected in the PR history.
   bold, numbered-list and colon forms of an assignment. Six shapes tested, six passed. Fixed in this
   pass.
 
+- **`#197`** — **three more, in the fix for `#195`.** A CRLF regression (tightening the trailing
+  match to `[ \t]*` left a `\r` that made every pattern fail on a CRLF checkout — a silent
+  fail-open, in the repo's only `.planning/` reader not normalising line endings); a **new bypass**
+  (widening the placeholder rule to accept any bracketed content let `API_KEY=[sk_live_…]` through,
+  opened in the same change that closed six holes); and a **false positive that would have made the
+  file unusable** (`SLACK: #eng-help`, `STATUS: active` all refused — and the guard refuses the
+  *write*, so the file could not hold the content it exists for). All three confirmed by execution.
+
 **The `#195` result is the one that matters, because of what it survived.** Those two defects were
 in a change that had a green 2886-test suite, four mutation tests verified red, and an author who
 had just written the threat model. The fenced-paste hole was *pinned by a test asserting it as
@@ -85,14 +96,24 @@ intended behaviour* — the author's own reasoning ("an example belongs in a fen
 threat model, and no amount of the author re-reading the author's code was going to surface that. A
 second reader did it in 46 seconds.
 
-**And all four findings sat unread for days.** The reviewer was not failing. Nobody was looking.
-That is `analysis/UNREACHED-MECHANISM-ANALYSIS.md` one step further along: not a mechanism nothing
-reaches, but a mechanism that runs, produces correct output, and **has no reader**.
+**And `#197` is the result that settles it.** Those three were introduced by an author *who had just
+read the reviewer's report and was writing a targeted fix for it*. Being told about six holes, and
+concentrating on exactly those six, produced a regression, a fresh bypass, and a usability-breaking
+false positive. **Attention on the problem is not the scarce resource; a second reader is.**
+
+**The four findings on `#190` and `#195` sat unread for days.** The reviewer was not failing. Nobody
+was looking. That is `analysis/UNREACHED-MECHANISM-ANALYSIS.md` one step further along: not a
+mechanism nothing reaches, but a mechanism that runs, produces correct output, and **has no reader**.
+
+`#197`'s three were read before merge — but only because this scoping pass happened to be about the
+reviewer. **That is not a process, it is a coincidence**, and it is exactly what step 1 below has to
+replace.
 
 ⚠ The reviewer is *not* cross-vendor and its tier is unpinned, so this does **not** settle the priors
 question — it does not show that a *different family* catches different defects. What it shows is
 that a **different reader of any kind**, on this project, catches real defects at a rate of roughly
-**1 in 5 pull requests**, including in work its author had just verified four ways.
+**1 in 4 pull requests** — including in work its author had just verified four ways, and including in
+a fix written specifically in response to that same reviewer hours earlier.
 
 ## Finding 4 — the honest mechanism, if a build is ever warranted, is DECLARE not DETECT
 
@@ -131,8 +152,8 @@ reviewer to that arrangement buys nothing: it would produce better findings for 
 
 ⚠ **What this scoping did not establish.** It did not test whether a different-**vendor** reviewer
 catches *different* defects — the actual question in the item, still unanswered by anything but
-argument. The measured 1-in-5 rate is one project, ten PRs, and four findings; that is an
-observation, not a sample, and two of the four came from a single PR. It also cannot say what the
+argument. The measured 1-in-4 rate is one project, eleven PRs, and seven findings; that is an
+observation, not a sample, and all seven came from just three PRs. It also cannot say what the
 reviewer **missed**, since nothing independently audited the eight quiet PRs — a silent reviewer and
 a clean diff look identical from here, which is this repository's oldest recurring shape (`B39`).
 

@@ -58,8 +58,12 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   which inverted the threat model, because a `.env` paste normally lands in a fence. **A test
   shipped pinning that as intended behaviour.** Also missed: blockquote, bold, numbered-list and
   colon forms of an assignment, and one unterminated fence disabled detection for the rest of the
-  file while still reporting clean. All six now caught, all six pinned, six false-positive cases
-  checked (prose with a colon, bracketed placeholders, the shipped template itself).
+  file while still reporting clean. All six now caught. ⚠ **The fix then shipped three more defects, caught by the same reviewer on the
+  next PR** — a CRLF regression that silently disabled the guard on a CRLF checkout, a new bypass
+  (`API_KEY=[sk_live_…]` read as a placeholder), and a false positive that refused ordinary content
+  like `SLACK: #eng-help` — and since the guard refuses the WRITE, that last one made the file
+  unusable for what it exists to hold. Eleven shapes now caught, ten benign shapes checked, one
+  residual documented (a short secret in colon form).
 - **Two contradictions in `LOOP-ENGINEERING-ANALYSIS.md`.** A table rated Memory *"Built, and
   unusually strong"* with no shortfall while the prose beneath it called Memory *"the one real
   gap"*; and a 2026-08-22 amendment refuted the sentence above it (*"bounded by the iteration
@@ -121,7 +125,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 - ⚠ **An absent record reads `cannot-check`, never clean** (`B39`) — no `.signal/asks.jsonl` means
   the hook has never run here, not that nobody was asked.
 
-2841 → **2908 tests**.
+2841 → **2913 tests**.
 
 ## [0.1.32] — 2026-08-21 — the loop that did not stop
 

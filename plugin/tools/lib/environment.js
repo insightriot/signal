@@ -42,8 +42,43 @@ export function environmentPath(baseDir) {
  * Placeholders that are NOT values — the template ships full of them, and a
  * stub must not fail its own guard on the way to disk.
  */
+/**
+ * A value that is a PLACEHOLDER rather than a secret.
+ *
+ * ⚠ The bracketed forms require **whitespace inside them**. A first attempt
+ * accepted any bracketed content — `\[[^\]]*\]|<[^>]*>` — to let documentation
+ * examples like `<value from 1Password>` through. That opened a bypass in the
+ * same change that closed six others: `API_KEY=[sk_live_51H8abc]` read as a
+ * placeholder and passed. Found by the CI reviewer on `#197`.
+ *
+ * The space requirement is what separates them: a placeholder is a phrase
+ * (`<value from 1Password>`, `[FILL IN — where the value lives]`), while a
+ * credential is a single token. The enumerated single-word markers below stay
+ * listed explicitly rather than being swept in by a pattern.
+ */
 const PLACEHOLDER_RE =
-  /^(\[[^\]]*\]|<[^>]*>|none|unknown|n\/a|tbd|—|-)$/i;
+  /^(\[[^\]]*\s[^\]]*\]|<[^>]*\s[^>]*>|\[FILL IN\]|\[INFERRED\]|<none>|<unset>|<unknown>|none|unknown|n\/a|tbd|—|-)$/i;
+
+/**
+ * For the COLON form only: does this value look like a credential rather than a
+ * label?
+ *
+ * ⚠ Requiring merely "no whitespace" was wrong, and wrong in the expensive
+ * direction — it flagged `SLACK: #eng-help`, `STATUS: active` and
+ * `NODE_ENV: production`, and because the guard REFUSES the write, that made
+ * the file unusable for exactly the content it exists to hold. The template's
+ * own filled-in examples (`#eng-help in Slack`, `Vercel, auto-deploys main`)
+ * invite that shape. Found by the CI reviewer on `#197`.
+ *
+ * The discriminator is length plus mixed letters-and-digits: real keys and
+ * tokens are long and alphanumeric; labels are short words. ⚠ Residual, stated
+ * rather than hidden: a SHORT secret in colon form is missed — `PIN: 1234` has
+ * no letters and `KEY: abc` is too short. The equals form has no such floor, so
+ * the gap is narrow, but it is real.
+ */
+function looksLikeCredential(value) {
+  return value.length >= 12 && /[A-Za-z]/.test(value) && /[0-9]/.test(value);
+}
 
 /**
  * Leading markdown decoration to look past before the key: any depth of
@@ -91,7 +126,14 @@ const CREDENTIALED_URL_RE = /\b[a-z][a-z0-9+.-]*:\/\/[^\s:@/]+:[^\s@/]+@/gi;
  */
 export function findStatedValues(body) {
   const found = [];
-  const lines = String(body ?? '').split('\n');
+  // ⚠ Split on CRLF as well as LF. Tightening the trailing match from `\s*` to
+  // `[ \t]*` (to stop it eating the line ending) meant a leftover `\r` made
+  // every pattern fail on a CRLF checkout — a silent fail-open in a guard whose
+  // job is refusing secrets, and this module was the only `.planning/` reader
+  // in the repo not normalising line endings (`state.js`, `retrospective.js`,
+  // `migrate-memory.js` and `archive-tree.js` all do). Found by the CI reviewer
+  // on `#197`, in the change that fixed the previous six holes.
+  const lines = String(body ?? '').split(/\r?\n/);
 
   // ⚠ FENCED CODE IS SCANNED, and the first version of this file skipped it.
   // The reasoning was "an example belongs in a fence" — which inverted the
@@ -109,11 +151,17 @@ export function findStatedValues(body) {
   // fence or out. Documentation examples use a placeholder — `<value from
   // 1Password>`, `[FILL IN]` — and `PLACEHOLDER_RE` accepts any bracketed form.
   lines.forEach((line, i) => {
-    const assignment = line.match(ASSIGNMENT_RE) ?? line.match(COLON_ASSIGNMENT_RE);
+    const equals = line.match(ASSIGNMENT_RE);
+    const colon = equals ? null : line.match(COLON_ASSIGNMENT_RE);
+    const assignment = equals ?? colon;
     if (assignment) {
       const [, key, rawValue] = assignment;
       const value = rawValue.replace(/^`|`$/g, '').trim();
-      if (value && !PLACEHOLDER_RE.test(value)) {
+      // The colon form additionally requires the value to look like a
+      // credential — see `looksLikeCredential`. `KEY: label` is how this file
+      // is meant to be written; `KEY=value` never is.
+      const credentialShaped = equals ? true : looksLikeCredential(value);
+      if (value && credentialShaped && !PLACEHOLDER_RE.test(value)) {
         found.push({
           kind: 'assignment',
           line: i + 1,

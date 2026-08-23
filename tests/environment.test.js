@@ -131,6 +131,58 @@ describe('holes found by the CI reviewer on #195, each confirmed by running it',
   });
 });
 
+describe('holes the CI reviewer found in the FIX for the holes above (#197)', () => {
+  // Three more, all in the repair itself, all confirmed by execution. Worth its
+  // own block: the first round is a story about one careless guard, and the
+  // second round is the actual finding — that a focused fix, written by someone
+  // who had just read the reviewer's report, introduced a regression, a bypass,
+  // and a false positive that would have made the file unusable.
+
+  it('catches an assignment on a CRLF line ending', () => {
+    // Tightening the trailing match from \s* to [ \t]* stopped it eating the
+    // line ending — and left a \r that made every pattern fail on a CRLF
+    // checkout. A silent fail-open in a guard whose job is refusing secrets,
+    // and this module was the repo's only .planning/ reader not normalising.
+    expect(checkEnvironmentBody('API_KEY=sk-live-abc123\r\n').ok).toBe(false);
+    expect(checkEnvironmentBody('API_KEY: sk-live-abc123\r\n').ok).toBe(false);
+  });
+
+  it('does not treat a bracketed secret as a placeholder', () => {
+    // Widening PLACEHOLDER_RE to "any bracketed content" — to let
+    // <value from 1Password> through — opened a bypass in the same change that
+    // closed six holes. A placeholder is a phrase; a credential is one token.
+    expect(checkEnvironmentBody('API_KEY=[sk_live_51H8abc]').ok).toBe(false);
+    expect(checkEnvironmentBody('API_KEY=<sk_live_51H8abc>').ok).toBe(false);
+    expect(checkEnvironmentBody('DATABASE_URL=<value from 1Password>').ok).toBe(true);
+  });
+
+  it('does not refuse the ordinary content this file exists to hold', () => {
+    // The expensive direction. `KEY: single-word` matched, and because the
+    // guard REFUSES the write, this made the file unusable for exactly what it
+    // is for — and the template's own filled-in examples invite the shape.
+    for (const line of [
+      'SLACK: #eng-help',
+      'STATUS: active',
+      'NODE_ENV: production',
+      'DEPLOY: Vercel',
+    ]) {
+      expect(checkEnvironmentBody(line).ok, `"${line}" was refused`).toBe(true);
+    }
+  });
+
+  it('still catches a credential-shaped value in the colon form', () => {
+    expect(checkEnvironmentBody('API_KEY: sk-live-abc123').ok).toBe(false);
+  });
+
+  it('documents the residual: a SHORT secret in colon form is missed', () => {
+    // Stated as a known gap rather than left for someone to discover. The
+    // length-plus-mixed-characters rule is what keeps the false positives out,
+    // and it cannot also catch `PIN: 1234`. The equals form has no such floor.
+    expect(checkEnvironmentBody('PIN: 1234').ok).toBe(true);
+    expect(checkEnvironmentBody('PIN=1234').ok).toBe(false);
+  });
+});
+
 describe('the refusal', () => {
   it('never echoes the value back', () => {
     // The error message is another surface the secret can be read from — a
