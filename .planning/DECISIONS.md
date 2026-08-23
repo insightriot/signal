@@ -2298,3 +2298,100 @@ it** — recorded because the second is this repository's named defect class:
    the shape of the thing rather than from the artifact — `M6.E2`'s class — in the file announcing
    the tier choice. Found by calling `attentionFor`; corrected in place, with the error left on the
    record rather than tidied away.
+
+## 2026-08-23 — M6.E4 DISCUSS: what PLAN reads and writes (D-M6E4-1 … D-M6E4-7)
+
+### D-M6E4-1 — S2's premise was half wrong, and the half that survives is SHARPER
+
+The backlog row says *"two notes are meant to stay open forever"* and quotes the QA-sandbox entry as
+saying **"do not close this entry."** **That phrase exists nowhere in the repo, and
+`git log -S"do not close this entry" --all` returns nothing — it never has.** The quote was written
+from the shape of the thing rather than from the artifact: `M6.E2`'s defect class, inside the row
+about not being able to tell checked from unchecked.
+
+**Measured 2026-08-23 against the live inbox:** 6 entries, 5 dispositioned, **1 live candidate** —
+and the one live candidate **is** the trigger watchlist. The QA-sandbox entry already carries a
+`→ Deferred 2026-08-14 (M6.E1 drain)` stamp, so it is counted dispositioned and is not a second
+instance.
+
+**So there is ONE standing entry, not two — and the problem is worse than the row states, not
+better.** With a single permanent entry that is also the only live candidate, the drain's live count
+**can never reach zero**. The inbox cannot report itself clear, ever. The row's framing ("the count
+can't tell them apart") understates it: at n=1 live, the count is *entirely* the thing it cannot
+tell apart.
+
+⚠ **The row is left standing with this correction recorded, not rewritten** — the fabricated quote
+is better evidence of the class than the row's own argument was.
+
+### D-M6E4-2 — S1 splits: a deterministic detector, plus a prompt obligation it creates
+
+The 8-dimension pass is `agents/verifiers/plan-checker.md` — a **prompt**, not code. Two bad options
+and one good one:
+
+- **Prompt-only** is what the pass already is, and `B75` is the standing proof of where that ends:
+  a dial documented end to end and enforced by nothing. `analysis/PHASE-C-BUILD-VS-ADOPT.md` puts a
+  number on it — the prompt layer is **77.6% unmeasurable**.
+- **Fully deterministic** cannot work: "does this formula satisfy this criterion" is semantic, and
+  `M5.E10` refused to build exactly that half on purpose (`AC0.1`), shipping token comparison and
+  publishing the limit rather than faking the judgment.
+
+**So the check is split at the seam where the two halves actually differ.** A deterministic JS
+detector finds tasks carrying **both a number and an acceptance criterion** — token-level, cheap,
+and precisely the row's own scoping (*"only tasks with a number in them"*). It cannot judge
+satisfaction, and does not try. What it produces is a **named list the plan-checker prompt must
+speak to task by task**. The JS makes an omission visible; the judgment stays where judgment
+belongs.
+
+**This is the `B75` lesson applied rather than restated:** the enforceable half is enforced in code,
+and the unenforceable half is at least made **non-optional to address**.
+
+### D-M6E4-3 — S1 and S3 fold into EXISTING core dimensions, never a 9th
+
+Found at DISCUSS, and it would have invalidated both slices' acceptance criteria: at FEATURE,
+`plan_validation_dims: core` runs **three** dimensions — goal alignment, completeness, testability.
+S3's row says a plan lacking the new fields *"fails the 8-dimension pass at **scope discipline**"* —
+a dimension that **does not run at FEATURE**, which is most real work, **including this Epic**.
+A new 9th dimension would be `all`-only and therefore invisible to its own Epic's plan.
+
+**So S1 folds into `testability` and S3's field requirement into `completeness`** — both core, both
+always run. The dimension count stays 8.
+
+### D-M6E4-4 — S2 uses an explicit marker; `parseTriggerWatchlist` is NOT widened
+
+The row named the fork and forbade shipping both. Widening loses:
+`parseTriggerWatchlist` **returns `null` for any project without a trigger-watchlist entry**, so
+widening it keys "standing" to *being that one Signal-specific entry*. That is the reach problem
+`M6.E2` had to publish next to its clean counts, chosen deliberately this time instead.
+
+The marker generalizes and is **not a new mechanism**: `backlog-key`, `bugs-key` and
+`evicted-key` HTML-comment markers all already exist in this corpus.
+
+### D-M6E4-5 — the marker is hand-added; there is NO `/sig:add --standing` flag
+
+One entry in the entire corpus does not justify a new flag on the capture command, and a flag would
+make "standing" reachable as a way to **dodge the drain count** — manufacturing the disposal
+workaround the QA-sandbox entry already demonstrates (`D-M6E4-1`). Hand-added keeps the act
+deliberate and rare.
+
+### D-M6E4-6 — S3 wires BOTH paths; they compose, and neither alone closes the leak
+
+Unlike S2's fork, these are complementary. `executor.md`'s `## Inputs` declares three artifacts and
+**RESEARCH.md is not among them** (verified on disk); `execute.md`'s dispatch reads PLAN and
+VALIDATION only. So:
+
+1. **Declare** `{phase}-RESEARCH.md` in the executor's inputs, and
+2. **Have each plan task name its specific exemplar**, rather than the executor being handed the
+   whole document.
+
+(2) is not redundant with (1): RESEARCH.md is large, and injecting all of it into every task's
+context fights the constraint CLAUDE.md calls the project's **highest risk**. Targeted beats bulk.
+
+### D-M6E4-7 — the new plan fields ship ADVISORY first, not as an instant hard failure
+
+Blast radius, asked at FEATURE per `discuss.md` §6. Changing what a PLAN must contain touches every
+downstream consumer of `{phase}-PLAN.md`: `plan-checker`, `execute.md`'s dispatch, and the executor.
+**Plans already on disk across the corpus do not carry `Files likely touched` or an out-of-scope
+field** — so a hard requirement would retroactively fail existing plans that were correct when
+written. Additive and advisory first; escalation to a failure is a later, evidence-backed call.
+
+**Rollback:** revert the commit. No stored data, no published artifact, no migration.
