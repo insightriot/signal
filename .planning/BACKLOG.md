@@ -380,7 +380,7 @@ as a valid, recorded answer. A gate that cannot be satisfied honestly becomes a 
 rationalized past — which is the failure the anti-rationalization tables exist to prevent, arriving
 by way of the mechanism meant to prevent it.
 
-#### Cross-model review at REVIEW — **scope it, don't build it yet** · **question first** · *roadmap*
+#### ~~Cross-model review at REVIEW~~ · **SCOPED 2026-08-23** · `analysis/CROSS-MODEL-REVIEW-SCOPE.md` — verdict: **build neither**; the binding problem is that nothing READS the reviewer already running (measured: 4 real findings across 10 PRs, all four unread until the scoping pass went looking)
 
 *Plain: have a different AI check the first one's work.*
 

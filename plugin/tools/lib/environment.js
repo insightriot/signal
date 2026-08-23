@@ -43,16 +43,37 @@ export function environmentPath(baseDir) {
  * stub must not fail its own guard on the way to disk.
  */
 const PLACEHOLDER_RE =
-  /^(\[FILL IN[^\]]*\]|\[INFERRED[^\]]*\]|<none>|<unset>|<unknown>|none|unknown|n\/a|tbd|—|-)$/i;
+  /^(\[[^\]]*\]|<[^>]*>|none|unknown|n\/a|tbd|—|-)$/i;
 
 /**
- * A populated `NAME=value` assignment, the `.env`-paste shape.
+ * Leading markdown decoration to look past before the key: any depth of
+ * blockquote, an optional bullet OR numbered-list marker, and optional bold or
+ * code emphasis.
  *
- * Deliberately narrow on the key (SCREAMING_SNAKE, 3+ chars) so ordinary prose
- * containing an equals sign does not trip it. Tolerates a leading list marker
- * and backticks, because that is how these get written in markdown.
+ * ⚠ EVERY ONE OF THESE FORMS WAS A HOLE ON FIRST SHIP, found by the CI
+ * reviewer on `#195` and confirmed by running it — blockquote, bold, numbered
+ * list and the colon form all passed a guard whose stated contract is "any
+ * populated assignment is a violation". The blockquote miss was the worst of
+ * them: `renderEnvironmentTemplate`'s own "Names, never values" warning box is
+ * written in `>`-prefixed style, so the file primed editors toward the exact
+ * shape it could not see.
  */
-const ASSIGNMENT_RE = /^\s*(?:[-*]\s*)?`?([A-Z][A-Z0-9_]{2,})`?\s*=\s*(.+?)\s*`?$/;
+const LEAD = String.raw`^[ \t]*(?:>[ \t]*)*(?:(?:[-*+]|\d+[.)])[ \t]+)?(?:\*\*|__|\x60)?`;
+const KEY = String.raw`([A-Z][A-Z0-9_]{2,})`;
+const CLOSE = String.raw`(?:\*\*|__|\x60)?`;
+
+/** `KEY = value` — the `.env`-paste shape. */
+const ASSIGNMENT_RE = new RegExp(`${LEAD}${KEY}${CLOSE}[ \\t]*=[ \\t]*(.+?)[ \\t]*\x60?$`);
+
+/**
+ * `KEY: value` — the other way people write these down.
+ *
+ * Narrower than the equals form ON PURPOSE: the value must be a single
+ * whitespace-free token. `NOTE: remember to rotate this` is prose and must not
+ * fail the file, while `API_KEY: sk-live-abc123` must. A real credential, URL,
+ * or token never contains a space; a sentence almost always does.
+ */
+const COLON_ASSIGNMENT_RE = new RegExp(`${LEAD}${KEY}${CLOSE}[ \\t]*:[ \\t]+(\\S+)[ \\t]*\x60?$`);
 
 /**
  * A URL carrying inline credentials — `postgres://user:pw@host/db`.
@@ -71,16 +92,24 @@ const CREDENTIALED_URL_RE = /\b[a-z][a-z0-9+.-]*:\/\/[^\s:@/]+:[^\s@/]+@/gi;
 export function findStatedValues(body) {
   const found = [];
   const lines = String(body ?? '').split('\n');
-  let inFence = false;
 
+  // ⚠ FENCED CODE IS SCANNED, and the first version of this file skipped it.
+  // The reasoning was "an example belongs in a fence" — which inverted the
+  // threat model, because pasting a `.env` block into markdown NORMALLY puts it
+  // in a fence. So the one shape this guard exists to catch was the one shape
+  // it waved through, and a test shipped pinning that as intended behaviour.
+  // Found by the CI reviewer on `#195`, confirmed by running it.
+  //
+  // Skipping fences also left a second defect: `inFence = !inFence` is a bare
+  // parity toggle, so one unterminated fence disabled detection for the whole
+  // rest of the file while still reporting `ok: true`. Scanning every line
+  // removes the toggle and the failure mode with it.
+  //
+  // There is no legitimate populated assignment in a names-only file, inside a
+  // fence or out. Documentation examples use a placeholder — `<value from
+  // 1Password>`, `[FILL IN]` — and `PLACEHOLDER_RE` accepts any bracketed form.
   lines.forEach((line, i) => {
-    if (/^\s*```/.test(line)) {
-      inFence = !inFence;
-      return;
-    }
-    if (inFence) return;
-
-    const assignment = line.match(ASSIGNMENT_RE);
+    const assignment = line.match(ASSIGNMENT_RE) ?? line.match(COLON_ASSIGNMENT_RE);
     if (assignment) {
       const [, key, rawValue] = assignment;
       const value = rawValue.replace(/^`|`$/g, '').trim();

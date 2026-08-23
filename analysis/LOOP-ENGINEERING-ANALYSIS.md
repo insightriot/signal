@@ -100,7 +100,7 @@ An external course names six components every durable loop has, and the failure 
 | **Work-finding** — what to do this cycle | `describeNextAction` (`B70`) | Built, but scoped **within** an Epic; nothing selects the Epic. |
 | **Action** — the work, isolated | Phase commands; wave-parallel EXECUTE | Built. |
 | **Verification** — decided by someone other than the maker | Verifier agents with read-only tools (`nyquist-auditor`'s `Write, Edit` is by design — it generates tests), and `agents/verifiers/verifier.md:52` returns a machine-readable `PASS \| FAIL` | Built. This is Signal's strongest component and it predates this analysis. |
-| **Memory** — survives between cycles, on disk | `.planning/` in its entirety | Built, and unusually strong. |
+| **Memory** — survives between cycles, on disk | `.planning/` in its entirety | Built, and unusually strong **to write** — but **nothing reads it forward at cycle start**. The one real gap in the table; see below. |
 | **Stop condition** — ends the cycle and the run | `FLOORS` + `canProceedUnattended` + `tools/lib/loop-ceiling.js` | Two brakes of three; see §5.3. |
 
 **The one real gap the list exposes is in Memory, and it is a read gap, not a write gap.** The course's point is that most state files record successes — which the code already shows — while the dead ends are what stop cycle four from repeating cycle two. Signal records dead ends richly and by habit: `BACKLOG.md` preserves dated "checked and declined" and "RE-PARKED" reasoning, `M5.E10` shipped required *"what this could not establish"* sections, and `references/retrospective-template.md:43` prompts for friction and dead ends explicitly. **Nothing in the loop reads any of it forward at cycle start.** `commands/drive.md`'s only retrospective reference is the Epic-close *floor* (`:29`); its opening reads are the profile, the decision queue, and `describeNextAction`. Attended, the operator supplies this from memory. Unattended, cycle four is free to repeat cycle two.
@@ -243,7 +243,7 @@ Promotion criterion: N consecutive Epics whose batch audits surfaced no decision
 
 **FM-4 — A wrong auto-decision compounds.** A bad provisional DISCUSS decision poisons PLAN and EXECUTE downstream. Countermeasure: the reversibility-weighted auto-adopt rule (5.2) — only cheaply-reversible decisions are ever taken without a human; and provisional decisions are first-class artifacts the audit walks, newest-first, before anything merges.
 
-**FM-5 — Cost.** Unattended loops with `research_parallelism: 4` and adversarial verifiers burn real tokens. Secondary concern; bounded by the iteration cap and by tier (the loop inherits the Epic's rigor profile, so a FEATURE Epic runs 2 researchers, not 4).
+**FM-5 — Cost.** Unattended loops with `research_parallelism: 4` and adversarial verifiers burn real tokens. Secondary concern by *magnitude*; **shaped** by the iteration cap and by tier (the loop inherits the Epic's rigor profile, so a FEATURE Epic runs 2 researchers, not 4) — but **not bounded by them**, for the reason the amendment below gives. There is no spend ceiling.
 
 > *Amended 2026-08-22.* "Secondary concern" is defensible for the *magnitude*; it is not a reason the brake is absent. An external source treats the cost ceiling as one of three **independent** brakes precisely because the other two do not catch its failure — an unreachable condition and a bounded turn count can both be satisfied while spend runs away. The ranking stands; the missing mechanism is now stated as missing (§5.3).
 

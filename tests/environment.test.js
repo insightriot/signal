@@ -66,12 +66,68 @@ describe('what counts as stating a value', () => {
     expect(hits.map((h) => h.kind)).toContain('credentialed-url');
   });
 
-  it('ignores fenced code, where an example belongs', () => {
-    expect(findStatedValues('```\nDATABASE_URL=postgres://u:p@h/db\n```\n')).toEqual([]);
-  });
-
   it('ignores prose containing an equals sign', () => {
     expect(findStatedValues('Set when count = 3 or more.\n')).toEqual([]);
+  });
+
+  it('ignores prose written with a colon, which the colon form must not eat', () => {
+    // `NOTE: remember to rotate this` is prose; `API_KEY: sk-live-…` is not.
+    // The colon form therefore requires a whitespace-free value.
+    expect(findStatedValues('NOTE: remember to rotate this key every 90 days\n')).toEqual([]);
+  });
+
+  it('treats any bracketed form as a placeholder, so documentation examples pass', () => {
+    expect(findStatedValues('DATABASE_URL=<value from 1Password>\n')).toEqual([]);
+    expect(findStatedValues('API_KEY=[FILL IN — where the value lives]\n')).toEqual([]);
+  });
+});
+
+describe('holes found by the CI reviewer on #195, each confirmed by running it', () => {
+  // ⚠ ALL SIX PASSED THE FIRST SHIPPED VERSION. A full suite, three mutation
+  // tests, and my own read of the code did not find one of them; the automated
+  // PR review found them in the change that introduced them, and the findings
+  // sat unread until the cross-model scoping pass went looking for evidence.
+  // That is the measurement recorded in analysis/CROSS-MODEL-REVIEW-SCOPE.md.
+  const F = '```';
+
+  it('catches a .env paste inside a code fence — the motivating case, first waved through', () => {
+    // The original skipped fences reasoning "an example belongs in a fence".
+    // That inverted the threat model: a .env paste NORMALLY lands in a fence,
+    // so the one shape the guard exists for was the one shape it ignored — and
+    // a test shipped pinning that as intended behaviour. This test replaces it.
+    const body = `${F}\nDATABASE_URL=postgres://admin:hunter2@db.internal:5432/app\n${F}\n`;
+    expect(checkEnvironmentBody(body, { scrub: scrubSensitive }).ok).toBe(false);
+  });
+
+  it('is not disabled for the rest of the file by one unterminated fence', () => {
+    // `inFence = !inFence` was a bare parity toggle with no reconciliation, so
+    // an odd fence count silently switched detection off and still said ok.
+    const body = `${F}\nsomething\n\nAPI_KEY=sk-live-abc123\n`;
+    expect(checkEnvironmentBody(body, { scrub: scrubSensitive }).ok).toBe(false);
+  });
+
+  it('catches a blockquoted assignment — the shape the template itself primes', () => {
+    // renderEnvironmentTemplate's own "Names, never values" box is written in
+    // `>`-prefixed style, so an edit near it lands in exactly this form.
+    expect(findStatedValues('> API_KEY=sk-live-abc123\n')).toHaveLength(1);
+  });
+
+  it('catches a bold key', () => {
+    expect(findStatedValues('- **API_KEY** = sk-live-abc123\n')).toHaveLength(1);
+  });
+
+  it('catches a numbered-list assignment', () => {
+    // The doc comment claimed to tolerate "a leading list marker"; it tolerated
+    // only bullets, so the claim was wider than the code.
+    expect(findStatedValues('1. API_KEY=sk-live-abc123\n')).toHaveLength(1);
+  });
+
+  it('catches the colon form', () => {
+    expect(findStatedValues('API_KEY: sk-live-abc123\n')).toHaveLength(1);
+  });
+
+  it('catches them nested together', () => {
+    expect(findStatedValues('> - `STRIPE_SECRET_KEY` = sk_live_51H8\n')).toHaveLength(1);
   });
 });
 

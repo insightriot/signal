@@ -51,6 +51,41 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   learns to invent a metric instead. ⚠ **It reads tokens, not meaning** — a metric nobody will look
   at, or a fluent reason that is untrue, passes. Same published limit as `M5.E10` and `B75`.
 
+### Fixed
+
+- **The names-never-values guard shipped with six holes, and a `.env` paste in a code fence was
+  one of them.** The first version skipped fenced code, reasoning *"an example belongs in a fence"* —
+  which inverted the threat model, because a `.env` paste normally lands in a fence. **A test
+  shipped pinning that as intended behaviour.** Also missed: blockquote, bold, numbered-list and
+  colon forms of an assignment, and one unterminated fence disabled detection for the rest of the
+  file while still reporting clean. All six now caught, all six pinned, six false-positive cases
+  checked (prose with a colon, bracketed placeholders, the shipped template itself).
+- **Two contradictions in `LOOP-ENGINEERING-ANALYSIS.md`.** A table rated Memory *"Built, and
+  unusually strong"* with no shortfall while the prose beneath it called Memory *"the one real
+  gap"*; and a 2026-08-22 amendment refuted the sentence above it (*"bounded by the iteration
+  cap"*) while leaving that sentence unedited. Both are the `M5.E17` class — instructions
+  contradicting instructions — inside the document about running with less supervision.
+
+### Scoped, not built
+
+- **Cross-model review at REVIEW** (`analysis/CROSS-MODEL-REVIEW-SCOPE.md`) — third of the three
+  autonomy items, whose instruction was *"scope it, don't build it yet."* **Verdict: build neither
+  proposed scope.** Cross-tier is reachable but shares the writer's priors, so it does not answer
+  the objection that motivated the item; cross-vendor answers it but **cannot be capability-detected
+  at all** (`PHASE-C-BUILD-VS-ADOPT.md`: no environment variable enumerates the tool roster, and the
+  documented surface undercounts reality 13-to-2). If ever built, it must be **declared** in
+  `ENVIRONMENT.md`, not detected.
+- ⚠ **The finding that changed the call, and it is measured:** Signal has run an independent PR
+  reviewer since `v0.1.31`. Across **10 PRs** it produced **4 findings — all 4 real on inspection**,
+  and **all 4 sat unread**. Two were in this release's own guard and were confirmed by execution;
+  they had survived a green 2886-test suite, four mutation tests, and their author. **So the binding
+  problem is not the reviewer — it is that nothing reads it.** `/sig:ship`'s Exit Criteria require a
+  PR and say nothing about its review comments. That gap is now stated; closing it is the
+  recommended next step and is **not** a second reviewer.
+- ⚠ Limits published: one project, ten PRs, four findings, two of them from a single PR — an
+  observation, not a sample. And nothing audited the eight quiet PRs, so what the reviewer *missed*
+  is unknown; a silent reviewer and a clean diff look identical from here (`B39`).
+
 ### Changed from what was approved — three deviations, recorded not substituted
 
 - **The guard is value-shaped, not the secret-shaped scrub the backlog specified** (`D-BR0822-1`).
@@ -86,7 +121,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 - ⚠ **An absent record reads `cannot-check`, never clean** (`B39`) — no `.signal/asks.jsonl` means
   the hook has never run here, not that nobody was asked.
 
-2841 → **2900 tests**.
+2841 → **2908 tests**.
 
 ## [0.1.32] — 2026-08-21 — the loop that did not stop
 
