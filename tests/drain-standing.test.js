@@ -133,6 +133,36 @@ describe('M6.E4 S2 — standing entries leave the live count (FR2.2)', () => {
   });
 });
 
+describe('M6.E4 S2 — an entry with NO Status line (AC2.1b edge)', () => {
+  // Hand-added entries are exactly the ones likely to be permanent, and they are
+  // the shape most likely to lack the `**Status:**` line /sig:add writes. The
+  // header-region window is bounded by the Status line, so this shape needs its
+  // own pin: with no Status line the window closes at the FIRST non-blank line.
+  it('a marker on the first non-blank line marks the entry', () => {
+    const noStatus = `# Inbox
+
+## A hand-added permanent note
+<!-- standing -->
+
+Body prose with no Status line anywhere.
+`;
+    const [entry] = parseEntries(noStatus);
+    expect(entry.standing).toBe(true);
+  });
+
+  it('a marker AFTER the first non-blank line does not', () => {
+    const noStatus = `# Inbox
+
+## A hand-added note
+Body prose comes first, with no Status line.
+
+<!-- standing -->
+`;
+    const [entry] = parseEntries(noStatus);
+    expect(entry.standing).toBe(false);
+  });
+});
+
 describe('M6.E4 S2 — the mechanism stays single (FR2.2)', () => {
   it('AC2.2e — /sig:add gained no --standing flag', () => {
     // D-M6E4-5: one entry in the whole corpus does not justify a capture flag,
