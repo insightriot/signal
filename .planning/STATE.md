@@ -25,21 +25,33 @@ build-vs-adopt check). `main` is clean, everything merged, suite **2841** green.
 **⚠ FIRST ACTION IN THE NEW SESSION: `/sig:update`, then restart the CLI process — in that order.**
 The previous session was bound to `0.1.30`. A restart before the update has nothing new to bind to.
 
-**▶ NEXT WORK — approved by Brett 2026-08-22, not started.** Build the enforcement that closes
-**`B75`**. His words: *"needs to be built if we're claiming it."* Today the `attention` dial is
-documented end to end and **enforced nowhere** — nothing fails if a command skips an in-phase ask,
-which is why `B75` shipped open in `v0.1.32` rather than being marked done.
+### ~~▶ NEXT WORK — B75's enforcement~~ · **UNBLOCKED, BUILT AND MERGED 2026-08-22 (`#193`)**
 
-**It is BLOCKED on one cheap empirical test, and the test must run before any design:**
-*is `AskUserQuestion` hookable?* Full statement of the question, the two contradicting doc readings,
-the one-test procedure, and both design branches are in
-[`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) → *"Is `AskUserQuestion` hookable?"*. **Do not design
-against either reading until it is settled** — the first reading's *"not hookable"* was a
-summarising model's **inference**, and the authoritative sentence names only `EndConversation` as
-skipping hooks.
+**The blocking test ran and answered YES:** a `PostToolUse` hook on `AskUserQuestion` fires. Settled
+by running it, not by reading — see [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md), which now carries the
+result, the control-arm method, and two corrections to its own procedure (no CLI restart is needed;
+the first drafted command used `jq`, which is not installed here).
 
-Lane: undecided. A mechanical observer is a new capability (Epic-shaped); the self-recorded fallback
-is closer to fix-lane. **The test result decides it**, which is another reason to run it first.
+**What shipped:** `hooks/record-ask.js` appends every observed question and its running phase to
+`.signal/asks.jsonl`; `hooks/check-state-write.js` reports at phase close. `confirm_in_phase` has a
+consumer for the first time. 2841 → **2869 tests**, four mutations verified red.
+
+⚠ **`B75` IS STILL OPEN, and that is a decision rather than an oversight.** Asked as a direct
+either/or whether a phase closing with zero observed asks should be **refused** or **reported**, the
+answer on 2026-08-22 was **reported**. So the dial is now *checked and reported*, **not enforced** —
+nothing fails when a command ignores it, and `references/phase-gates.md` says so in those words.
+The row's original sentence still describes reality, which is why the status was not flipped.
+
+⚠ **It also counts nothing, by design:** `confirm_in_phase` is a countable quantity in only two of
+six commands (`execute.md`'s waves, `ship.md`'s checklist); `discuss.md` is one per gray area found
+as you go, and `plan.md`/`verify.md`/`review.md` say "every step" without defining a step. So the
+check answers *"were you asked anything at all?"* — total omission and no finer, and a box-ticking
+question satisfies it.
+
+**What would actually close `B75`:** something that FAILS on a skipped ask. The
+`adherence-run --canary` shape named in the row remains the candidate, and `B55` is the precedent
+for how easily such a canary measures the wrong thing. **Not started, and not obviously worth it
+until the warn has been lived with.**
 
 *(Everything below is the standing plugin-binding guidance, unchanged.)*
 
