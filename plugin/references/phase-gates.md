@@ -34,6 +34,44 @@ Each gate has three components:
 3. **Human approval** — the user explicitly says "proceed", **when `attention` calls for it, or
    whenever a floor or the loop ceiling applies regardless of `attention`**
 
+## In-phase asks are now OBSERVED — and observed is not enforced (`B75`)
+
+`attention: attended` sets `gates.confirm_in_phase`, which every phase command's preamble describes
+as confirming with you **as the phase runs**, not just at its boundary. Until 2026-08-22 that
+boolean was written by `applyRigorOverrides` and **read by one test and nothing else** — the dial
+was documented end to end and observed nowhere.
+
+It now has an observer. A `PostToolUse` hook on `AskUserQuestion` (`hooks/record-ask.js`) appends
+each question, with the phase that was running, to `.signal/asks.jsonl`. When a phase closes —
+detected as a single new entry appended to `completed_phases`, which is append-only and records the
+phase being *left* (`B44`) — `hooks/check-state-write.js` reports whether anything was observed.
+
+**That `AskUserQuestion` is hookable was settled by running it, not by reading about it.** Two
+readings of the same documentation page disagreed, and the one saying "not hookable" was a
+summarising model's inference rather than a quoted sentence. The test carried a **control arm** — a
+second matcher on a tool that could be triggered on purpose — because a silent log cannot
+distinguish *"the hook did not fire"* from *"the setup is broken"*, which is `M5.E15`/`B55` exactly.
+
+**Three things this deliberately does NOT do**, stated here so the absence reads as design rather
+than omission (`B39`):
+
+- **It reports; it never refuses.** Decided 2026-08-22, asked as a direct either/or. A skipped
+  confirmation is process, not malformed data, so it takes the WARN side of this file's two-tier
+  posture. ⚠ **So `B75` closes as *checked and reported*, not *enforced*.** Nothing fails if a
+  command ignores `confirm_in_phase`. Any document that says the dial is enforced is wrong.
+- **It counts nothing.** It answers *"were you asked anything at all during this phase?"* — total
+  omission and no finer. A count is impossible to derive honestly, because `confirm_in_phase` means
+  a different quantity in each command: **countable** in `execute.md` (every wave boundary) and
+  `ship.md` (every checklist step), **discovered as you go** in `discuss.md` (one per gray area),
+  and **undefined** in `plan.md`, `verify.md` and `review.md`, which say "every step" without ever
+  saying what a step is. Comparing against a number would fabricate one for four of six phases.
+- **It cannot tell a real ask from a box-ticking one.** A single irrelevant question satisfies it.
+
+**An absent record is reported as *could not check*, never as clean.** No `.signal/asks.jsonl` means
+the hook has never run here — a fresh clone, a plugin not yet loaded, a session started before the
+install — which is not evidence that nobody was asked. Same distinction `/sig:sweep` draws between
+"checked and clean" and "could not check", and for the same reason.
+
 ## EXECUTE has no approval checkbox, and that is deliberate
 
 Five phase commands carry a *"User approves…"* line in their Exit Criteria — `discuss.md`,
