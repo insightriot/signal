@@ -70,6 +70,14 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   cap"*) while leaving that sentence unedited. Both are the `M5.E17` class — instructions
   contradicting instructions — inside the document about running with less supervision.
 
+- **`/sig:ship` now reads the pull request's review findings before you merge.** Every unresolved
+  review thread is listed with file, line and headline. **`cannot-check`** — no `gh`, no auth, no
+  network, no PR — renders as its own line and **never as "none"**. An unresolved thread marked
+  **outdated** is counted and named separately, because a later push marks threads outdated whether
+  or not the finding was fixed. ⚠ **It reports; it does not refuse** (same call as `B75`).
+  *This closes the gap the scoping pass found: `ship.md`'s Exit Criteria required a PR and said
+  nothing about its review comments, so four correct findings were merged over unread.*
+
 ### Scoped, not built
 
 - **Cross-model review at REVIEW** (`analysis/CROSS-MODEL-REVIEW-SCOPE.md`) — third of the three
@@ -125,7 +133,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 - ⚠ **An absent record reads `cannot-check`, never clean** (`B39`) — no `.signal/asks.jsonl` means
   the hook has never run here, not that nobody was asked.
 
-2841 → **2913 tests**.
+2841 → **2927 tests**.
 
 ## [0.1.32] — 2026-08-21 — the loop that did not stop
 
