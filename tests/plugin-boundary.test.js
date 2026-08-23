@@ -288,6 +288,13 @@ describe('M6.E1 — citations of paths that will not exist in an install', () =>
   it('governs a population whose size is stated, not implied', () => {
     // B81's lesson stated numerically: 31 today. If this number moves, the
     // move should be visible in a diff rather than absorbed silently.
+    //
+    // It moved to 32 briefly on 2026-08-23 and was moved back: `ship.md` cited
+    // `analysis/CROSS-MODEL-REVIEW-SCOPE.md` for the measured evidence behind
+    // its new review-findings line, and `analysis/` is not in the payload. The
+    // sibling assertion above caught it. The citation was dropped rather than
+    // the number raised — a command file must not point a user at a path their
+    // install does not contain.
     expect(cited.size).toBe(31);
   });
 });

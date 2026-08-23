@@ -139,12 +139,16 @@ reviewer to that arrangement buys nothing: it would produce better findings for 
 
 **In order:**
 
-1. **Make the existing reviewer's findings reachable.** Whatever the mechanism — `/sig:ship`
-   surfacing open PR review comments before merge, `/sig:resume` counting them, a line in the SHIP
-   checklist — the requirement is that a merge cannot quietly step over unread findings. This is the
-   cheapest available correctness win in the repository and it is not a new reviewer.
-   ⚠ **`/sig:ship`'s Exit Criteria already require a PR; they say nothing about its review
-   comments.** That is the gap, stated in one line.
+1. ~~**Make the existing reviewer's findings reachable.**~~ **DONE 2026-08-23, same day.** The gap
+   was one line wide: `/sig:ship`'s Exit Criteria required a PR and said nothing about its review
+   comments, so a merge could step over correct findings without anything noticing.
+   `readPrReviewFindings` + `formatPrReviewFindings` (`tools/lib/pr-review-findings.js`) now list
+   every unresolved thread with file, line and headline in `ship.md`'s Exit Criteria.
+   **It reports; it does not refuse** — consistent with the `B75` call that a skipped step is
+   process, and process warns. **`cannot-check` never renders as "none"**, and an unresolved thread
+   marked OUTDATED is counted and named rather than treated as handled — measured on this
+   repository, all three `#197` findings were still unresolved after being fixed, and one was
+   already outdated.
 2. **Then, if a second reviewer is still wanted, go cross-vendor and DECLARED** (Finding 4) — never
    cross-tier, which does not answer the objection that motivated the item.
 3. **Do not add a phase step** either way. The item said so and nothing here changes it; fold any
