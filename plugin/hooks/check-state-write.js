@@ -120,4 +120,48 @@ try {
   // Retro predicate threw (e.g. a malformed current_epic) — fail open.
 }
 
+// B75 — was the user actually asked anything during the phase now closing?
+//
+// WARN, never block (Brett, 2026-08-22, asked directly). That keeps the two-tier
+// posture above intact: a skipped confirmation is process, not malformed data,
+// and this hook fires on arbitrary STATE edits in stranger repos. The cost is
+// stated rather than hidden — `B75` closes as CHECKED AND REPORTED, not
+// ENFORCED. Nothing here fails a command that ignores `confirm_in_phase`.
+//
+// `cannot-check` is surfaced with the same weight as `warn` on purpose. An
+// absent record means the PostToolUse hook has never run here, not that zero
+// questions were asked; printing nothing would read as a clean pass, which is
+// `B39`'s shape.
+try {
+  const { checkPhaseAsks } = await import('../tools/lib/ask-record.js');
+  const { readEffectiveProfile, applyRigorOverrides } = await import(
+    '../tools/lib/profile.js'
+  );
+
+  let currentContent = '';
+  try {
+    currentContent = readFileSync(filePath, 'utf-8');
+  } catch {
+    currentContent = '';
+  }
+
+  const currentEpic =
+    (currentContent.match(/^current_epic:[ \t]*(.+)$/m)?.[1] ?? '').trim() || null;
+  const profile = await readEffectiveProfile(baseDir, {
+    currentEpic: currentEpic === 'null' ? null : currentEpic,
+  });
+  const gates = applyRigorOverrides({}, profile)?.gates ?? {};
+
+  const asks = checkPhaseAsks({
+    proposedContent,
+    currentContent,
+    baseDir,
+    confirmInPhase: gates.confirm_in_phase === true,
+  });
+  if (asks.status === 'warn' || asks.status === 'cannot-check') warn(asks.reason);
+} catch {
+  // No PROFILE.md, a malformed one, or an unreadable record — fail open. This
+  // check is advisory; it must never be the reason an edit fails.
+}
+
 process.exit(0);

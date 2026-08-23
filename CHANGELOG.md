@@ -6,6 +6,45 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **The `attention` dial finally has an observer — and it reports rather than enforces (`B75`).**
+  `attention: attended` sets `gates.confirm_in_phase`, which every phase command describes as
+  confirming with you *as the phase runs*. Until now that boolean was written by
+  `applyRigorOverrides` and **read by one test and nothing else**. A `PostToolUse` hook on
+  `AskUserQuestion` (`hooks/record-ask.js`) now appends each question and its running phase to
+  `.signal/asks.jsonl`, and `hooks/check-state-write.js` reports at phase close.
+- **Whether `AskUserQuestion` is hookable was settled by running it, not by reading about it.** Two
+  readings of the same documentation page disagreed, and the *"not hookable"* one turned out to be a
+  summarising model's inference rather than a quoted sentence — the exact provenance failure
+  `v0.1.25` shipped a rule against. The test carried a **control arm** (a second matcher on a tool
+  that could be triggered deliberately), because a silent log cannot distinguish *"the hook did not
+  fire"* from *"the setup is broken"* — `M5.E15`/`B55`. Two corrections to the procedure as filed
+  came out of running it: **no CLI restart was needed** (the settings watcher picked the hooks up
+  mid-session), and the first drafted command used `jq`, **which is not installed here** — caught by
+  piping a synthetic payload through it before it went near any config.
+
+### Known limits — stated because overclaiming is this project's named defect
+
+- ⚠ **`B75` stays open, by choice rather than by neglect.** Asked as a direct either/or whether a
+  phase closing with zero observed asks should be **refused** or **reported**, the answer was
+  reported. That keeps `check-state-write.js`'s two-tier posture intact (integrity blocks, process
+  warns) at the cost of being a nudge. **Nothing fails when a command ignores the dial**, so this
+  ships as *checked and reported*, never *enforced*, and `references/phase-gates.md` says so in
+  those words.
+- ⚠ **It counts nothing, and that is design, not an unfinished edge.** `confirm_in_phase` means a
+  countable quantity in only two of six commands — `execute.md` (every wave boundary) and `ship.md`
+  (every checklist step). `discuss.md` is one ask per gray area *found as you go*, and `plan.md`,
+  `verify.md` and `review.md` say "every step" without anywhere defining a step. A count comparison
+  would be fabricated for four of six phases, so the check answers exactly one question: **were you
+  asked anything at all during this phase?** A single box-ticking question satisfies it.
+- ⚠ **An absent record reads `cannot-check`, never clean** (`B39`) — no `.signal/asks.jsonl` means
+  the hook has never run here, not that nobody was asked.
+
+2841 → **2869 tests**.
+
 ## [0.1.32] — 2026-08-21 — the loop that did not stop
 
 **`B76`, `B73`, fix lane.** The entry price for autonomy work, paid one release late.
