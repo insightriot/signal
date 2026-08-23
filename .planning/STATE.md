@@ -1,43 +1,67 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: PLAN
-current_epic: M6.E3
+phase: DISCUSS
+current_epic: M6.E4
 current_wave: null
 current_tasks: []
-completed_phases:
-  - DISCUSS (2026-08-19)
+completed_phases: []
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-08-13T14:47:23.449Z
 last_updated_commit: 07fba3b05dea634a8850c0b3cf4bf13e0addecfc
-last_updated: 2026-08-23T14:54:03.945Z
+last_updated: 2026-08-23T18:08:52.364Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-08-23, before a context clear)
+### ▶ WHERE THE WORK IS — read this first (2026-08-23)
 
-`main` is clean at **`07fba3b`**, everything merged, suite **2927** green. Nothing in flight, no
-branch open, working tree clean. Plugin binding is current — **no `/sig:update` needed** (the
-2026-08-22 instruction to update-then-restart is discharged).
+**`M6.E4` is OPEN and in DISCUSS**, on branch `epic/m6-e4-plan-seam`. It runs at **FEATURE**, not
+the project's FULL, via `M6.E4-PROFILE.md` (`D-BR0823-2`). Base was `1deac6f` on `main`, clean,
+suite **2929** green (173 files). Plugin binding current — no `/sig:update` needed.
 
-> ### ⚠ IGNORE THE FRONTMATTER'S NEXT-PHASE LINE. It points at parked work.
+> ⚠ **`/sig:resume` will now report `M6.E3` as an Epic with no retrospective, on every run.**
+> That is a **true positive, and permanent** — not something to fix by writing one. The
+> `epic-without-retro` drift check skips whatever is `current_epic` (`state-drift.js:525`,
+> *"mid-flight, not abandoned"*), so `M6.E3` was invisible to it only while it sat in the
+> frontmatter. Rolling to `M6.E4` un-blinded the check.
 >
-> `phase: PLAN` / `current_epic: M6.E3` is an **accurate record of a parked Epic** — `M6.E3` closed
-> DISCUSS, wrote a plan, and was never approved or started, and CLAUDE.md records that *"if it is
-> never built that is a fine outcome."* It is **not** what anyone is working on.
->
-> So `/sig:resume` will mechanically render **"Next phase: `/sig:execute`"**. That is wrong, and it
-> is wrong for a structural reason worth knowing: `describeNextAction` reads `phase` and cannot
-> know an Epic is parked. **This pointer is authoritative over that line.** It was flagged by the
-> `/sig:resume` run on 2026-08-22 and is left standing rather than papered over, because clearing
-> `current_epic` would fabricate a transition that never happened.
+> **Nothing in Signal expresses "parked" as distinct from "abandoned"**, so the check cannot tell
+> them apart and correctly asks a person. **Do not write `M6.E3-RETROSPECTIVE.md` to silence it** —
+> a retrospective for work that was never built is the stub-as-closure that `B64` was filed about.
+> Expect the line; it means the check is working.
 
-**▶ NEXT WORK: the twelve items promoted from the inbox drain** — `BACKLOG.md` §*"Twelve promoted
-from the inbox drain"* (`D-BR0810-1` … `D-BR0810-3`, promoted 2026-08-10). Not yet sequenced against
-each other; read the section and pick, rather than assuming the file's order is a priority order.
+**The Epic: "what PLAN reads and writes."** Three backlog items batched by **subject**, not by size,
+each a slice:
+
+| Slice | Item | Was sized |
+|---|---|---|
+| S1 | Spec-internal consistency — a plan whose own numbers can't satisfy its own criteria | small |
+| S2 | Standing inbox entries counted as undecided | small |
+| S3 | Task-handoff completeness — the research never reaches the builder | medium |
+
+All three land on `commands/plan.md`, the plan-validation pass, or the drain contract that
+`plan.md` consumes. One goal: **a plan carries what the builder needs, and its own numbers hold up.**
+
+> ### The frontmatter is now LIVE, and the old "ignore it" warning is gone on purpose
+>
+> Until 2026-08-23 this block said *"IGNORE THE FRONTMATTER'S NEXT-PHASE LINE — it points at parked
+> work."* That was true while `phase: PLAN` / `current_epic: M6.E3` described a parked Epic. It is
+> **no longer true**: `setCurrentEpic` rolled `M6.E3 → M6.E4` and the pointer now describes work
+> actually in flight. `/sig:resume` renders the right thing again; this note is authoritative over
+> nothing.
+>
+> **`M6.E3` is still PARKED, not cancelled and not completed.** Its DISCUSS artifacts and plan stay
+> in `.planning/`. Its one completed-phase entry — `DISCUSS (2026-08-19)` — was **archived, not
+> discarded**, to `archive/M6/E3/STATE-NARRATIVE.md` by the roll itself (`B52` half 2 refuses a roll
+> that would clear an unarchived log). CLAUDE.md's *"if it is never built that is a fine outcome"*
+> still stands.
+
+**▶ AFTER `M6.E4`: the rest of the twelve promoted from the inbox drain** — `BACKLOG.md` §*"Twelve
+promoted from the inbox drain"*. **Not a priority order**, and explicitly **not** to be worked in
+size batches: that grouping was considered on 2026-08-23 and rejected with a reason (`D-BR0823-1`).
 
 **Just finished — all three autonomy-counterweight items are now discharged** (accepted 2026-08-08):
 

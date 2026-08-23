@@ -423,6 +423,14 @@ Filed by the 52-entry inbox drain. Each had **no row anywhere** — several name
 their own text that was never written down, which is why they sat un-sequenced for months while
 reading as decided. Ordered small-to-large; **not** placed in the agreed sequence.
 
+> ⚠ **The small/medium/large sizing below is NOT a batching key** (`D-BR0823-1`, 2026-08-23).
+> Batching these by size — all smalls, then all mediums, then all larges — was proposed and
+> **rejected**: size measures diff cost, and the six phases exist to pay *decision* cost. Two rows
+> here are both marked `small` and belong in opposite lanes (map drift-guard is one fix-lane PR;
+> standing inbox entries is a contract change with an unresolved either/or). **Batch by subject.**
+> The first such batch is **`M6.E4` — "what PLAN reads and writes"**, taking the three rows marked
+> `→ M6.E4` below.
+
 #### Trajectory scoring — score whole runs, not single instructions · **roadmap** · medium · **UNPARKED 2026-08-10**
 
 *Plain: measure whether a whole piece of work went well, not just whether one instruction was obeyed.*
@@ -490,7 +498,7 @@ tiers the *project*. Per-change blast radius is a different altitude and nothing
 *Done-when:* the SHIP checklist carries a rollback line and DISCUSS asks the blast-radius question at
 FEATURE and FULL. Two lines of markdown.
 
-#### Spec-internal consistency — a plan that contradicts itself · **hygiene** · small
+#### Spec-internal consistency — a plan that contradicts itself · **hygiene** · small · **→ `M6.E4` SLICE 1** *(2026-08-23)*
 
 *Plain: check that a plan's own numbers can satisfy its own acceptance criteria.*
 
@@ -566,7 +574,7 @@ set of stack-aware universal pre-ship hazard checks? Config drift is the ideal f
 low stack-specificity, deterministic. *Open for PLAN:* JS/`.env` only first, or a small pluggable
 key-extractor set.
 
-#### Task-handoff completeness — the research never reaches the builder · **roadmap** · medium
+#### Task-handoff completeness — the research never reaches the builder · **roadmap** · medium · **→ `M6.E4` SLICE 3** *(2026-08-23)*
 
 *Plain: Signal pays four agents to find the good examples, then hands the builder a task without them.*
 
@@ -721,7 +729,7 @@ nothing in Signal picks what to work on (§5.5); (4) a completeness gap in
 covered the runtime's fan-out half and never its loop half, and the verdict transfers unchanged.
 **No new build item is proposed and the sequencing does not change.***
 
-#### Standing inbox entries are counted as undecided · **hygiene** · small
+#### Standing inbox entries are counted as undecided · **hygiene** · small · **→ `M6.E4` SLICE 2** *(2026-08-23)*
 
 *Plain: two notes are meant to stay open forever, and the count can't tell them from unanswered ones.*
 
