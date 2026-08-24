@@ -39,6 +39,14 @@ a per-Epic profile inside a FULL project. Retro: [`M6.E4-RETROSPECTIVE.md`](M6.E
 > on a roll, and rolling to an Epic that has not been chosen yet would fabricate a transition.
 > **The next Epic's `/sig:discuss --epic <name>` does the roll.**
 
+**⚠ `/sig:resume` will show "STATE.md is 1 commit behind work history." That is EXPECTED here, and
+it is not drift.** `main` is protected, so every state re-point goes through a PR, and the fix lane
+**squashes** — which replaces the commit `markFresh` recorded with a new sha. The baseline is
+therefore one behind the moment it merges, **by construction**, and any commit that "fixes" it
+becomes the next one behind. The banner is correct and self-clearing: run `/sig:checkpoint`, or
+ignore it. Nothing is out of sync — `isStaleVsOrigin` reports **in sync**, schema drift **none**,
+binding banner **none**.
+
 **▶ NEXT WORK: nine of the twelve promoted rows remain** — `BACKLOG.md` §*"Twelve promoted from the
 inbox drain"*. Three are struck (`M6.E4` S1/S2/S3). **Not a priority order**, and explicitly **not**
 to be worked in size batches — that was considered and rejected on 2026-08-23 with a reason
