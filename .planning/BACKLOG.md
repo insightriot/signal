@@ -498,7 +498,15 @@ tiers the *project*. Per-change blast radius is a different altitude and nothing
 *Done-when:* the SHIP checklist carries a rollback line and DISCUSS asks the blast-radius question at
 FEATURE and FULL. Two lines of markdown.
 
-#### Spec-internal consistency — a plan that contradicts itself · **hygiene** · small · **→ `M6.E4` SLICE 1** *(2026-08-23)*
+> ⚠ **These three were struck BY HAND, and that is a defect worth knowing about.**
+> `dischargeBacklogRows` (`B94`'s mechanism, the one that exists so this file stops asserting false
+> completeness) returned **`not-found` for all three** — not a wording problem. `parseBacklogRows`
+> matches `^(#{2,3})\s` (`backlog.js:325`), and every row in this section sits at `####` because it
+> is correctly nested under its `###` section heading. **The twelve promoted rows are structurally
+> invisible to the discharge mechanism.** Filed; struck by hand meanwhile, because a backlog that
+> reads `pending` for shipped work is the exact failure `B94` was filed about.
+
+#### ~~Spec-internal consistency — a plan that contradicts itself~~ · **DONE — `M6.E4` S1, 2026-08-24**
 
 *Plain: check that a plan's own numbers can satisfy its own acceptance criteria.*
 
@@ -574,7 +582,7 @@ set of stack-aware universal pre-ship hazard checks? Config drift is the ideal f
 low stack-specificity, deterministic. *Open for PLAN:* JS/`.env` only first, or a small pluggable
 key-extractor set.
 
-#### Task-handoff completeness — the research never reaches the builder · **roadmap** · medium · **→ `M6.E4` SLICE 3** *(2026-08-23)*
+#### ~~Task-handoff completeness — the research never reaches the builder~~ · **DONE — `M6.E4` S3, 2026-08-24**
 
 *Plain: Signal pays four agents to find the good examples, then hands the builder a task without them.*
 
@@ -729,7 +737,7 @@ nothing in Signal picks what to work on (§5.5); (4) a completeness gap in
 covered the runtime's fan-out half and never its loop half, and the verdict transfers unchanged.
 **No new build item is proposed and the sequencing does not change.***
 
-#### Standing inbox entries are counted as undecided · **hygiene** · small · **→ `M6.E4` SLICE 2** *(2026-08-23)*
+#### ~~Standing inbox entries are counted as undecided~~ · **DONE — `M6.E4` S2, 2026-08-24**
 
 *Plain: two notes are meant to stay open forever, and the count can't tell them from unanswered ones.*
 

@@ -10,6 +10,63 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ### Added
 
+- **`M6.E4` — "what PLAN reads and writes": three backlog rows batched by SUBJECT, not size.**
+  Batching the twelve promoted rows by size — all smalls, then mediums, then larges — was proposed
+  and **rejected** (`D-BR0823-1`): size measures *diff* cost, and the six phases exist to pay
+  *decision* cost. Two rows both marked `small` belong in opposite lanes. An all-mediums Epic would
+  have had **no goal statement**, so goal-backward verification has no goal and the plan-checker's
+  goal-alignment dimension nothing to align against.
+- **Standing inbox entries leave the live candidate count.** A `<!-- standing -->` marker in an
+  entry's header region marks it deliberately permanent; `listDrainCandidates` excludes it and
+  `listStandingEntries` reports it as its own category. **This repo's inbox now reports 0 live
+  candidates and 1 standing** — it reported 1 live before and structurally *could never reach zero*,
+  because its only live candidate was the trigger-watchlist entry marked *"never promote, merge, or
+  delete"*, for which every disposition verb is illegal or nonsensical. `commands/plan.md` Step 1b's
+  **"no candidates" branch had therefore never executed on this repo**; it has now, and works.
+  The marker's header region is bounded **by the Status line**, so an entry that merely *discusses*
+  the marker in its prose — this repo's own backlog row does — never becomes standing by talking
+  about it.
+- **A plan's own numbers are checked against its own criteria** (`tools/lib/plan-consistency.js`).
+  `M4.5.E9` shipped a task whose formula `template_floor + 150B × section_count` **rejects exactly
+  what its own acceptance criterion requires** (*"one sentence per section passes"* — one sentence
+  is ~50–70B). A human caught it during execution; no gate did, and that Epic's retrospective
+  recommended this check **twice, in May**, with nothing routing it anywhere. The detector returns
+  task units carrying both a quantity and a criterion, and `agents/verifiers/plan-checker.md` must
+  address each **by name** under `testability` — the dimension count stays **8**.
+  ⚠ It **does not judge whether the numbers work**: that is semantic, and `M5.E10` deliberately
+  refused to fake that half. The code finds candidates; the reviewer does the arithmetic.
+  ⚠ Its precision contract is **inverted** relative to `M6.E2`'s checks and says so at the point of
+  use — it produces a *worklist*, not findings, so it optimises **recall**.
+  **Reach: 10 of 13 corpus projects**, 432 task units, **40 flagged (9.3%)**; Signal's own tree runs
+  **20.9%**, ~2.2× denser. **No `##` fallback**, refused on measurement rather than taste: in the two
+  non-evaluable projects the h2 headings are **8 of 12** and **10 of 12** *section* vocabulary, so
+  parsing them would flag `## Phase goal` as a task.
+- **The research finally reaches the builder.** `agents/executors/executor.md` declared the PLAN
+  task, `CONTEXT.md` and `VALIDATION.md` as its inputs — **`RESEARCH.md` was not among them**, so
+  PLAN paid a codebase researcher to find the good exemplars and the executor was never told the
+  file exists. Now declared, along with a per-task **exemplar reference** (a pointer, not the
+  document — bulk injection fights the context budget). `commands/plan.md`'s required-contents list
+  also gained **Files likely touched** — which the planning *skill* has carried all along while the
+  authoritative *command* list omitted it — and a per-task **Out of scope** field. All **advisory,
+  never fatal**: every corpus plan predates them and was correct when written.
+
+### Fixed
+
+- **A standing entry below a dangling fence was recovered back into the live candidate set.**
+  `listDrainCandidatesWithRecovery` kept a bare `!dispositioned` filter while its sibling
+  `listDrainCandidates` gained `!standing` — two implementations of one predicate, one updated
+  (`B107`/`B82`'s shape). Found **at REVIEW, by reading**: Signal's own inbox could not have hit it,
+  since its standing entry sits above any fence. The regression test is **mutation-verified** —
+  reverting the one-line fix turns exactly that test red and nothing else.
+- **`parseEntries`' JSDoc was detached from its function** — a const had been inserted between the
+  doc block's closing `*/` and the `export`, and its `@returns` still listed the pre-`standing`
+  shape.
+- **`plan-checker.md`'s reach figures were hand-typed**, duplicating `REACH` in a codebase whose own
+  module states that `describeReach` is *"the one place a reach figure becomes prose… nothing types
+  the numbers."* A prompt is static text and cannot call a function at render time, so the fix is
+  `M6.E2`'s own mechanism applied to a prompt: **derive from `REACH`, compare against the file.**
+  Editing one without the other now turns the suite red.
+
 - **The `attention` dial finally has an observer — and it reports rather than enforces (`B75`).**
   `attention: attended` sets `gates.confirm_in_phase`, which every phase command describes as
   confirming with you *as the phase runs*. Until now that boolean was written by
