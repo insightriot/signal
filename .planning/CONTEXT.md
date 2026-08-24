@@ -6,8 +6,10 @@ Load this at the start of every work session. Short on purpose.
 
 ## Where things stand (2026-08-24)
 
-**`M6.E4` IS MERGED** — PR **#200**, `--merge` per the Epic lane, branch deleted. Suite 2929 →
-**2979**. It is the first Epic to run at a **per-unit tier**: FEATURE via `M6.E4-PROFILE.md`, not the project's FULL
+**`M6.E4` IS MERGED AND RELEASED** — PR **#200**, `--merge` per the Epic lane, branch deleted. Suite 2929 →
+**2979**. Cut as **v0.1.33** (2026-08-24, *"what nobody was reading"*) — the release also carries `B75`'s
+observer, `.planning/ENVIRONMENT.md`, DISCUSS's outcome oracle and `/sig:ship` reading PR review findings,
+none of which were M6.E4. It is the first Epic to run at a **per-unit tier**: FEATURE via `M6.E4-PROFILE.md`, not the project's FULL
 (`D-BR0823-2`). `B90`'s advisory fired at `/sig:resume` and this is the first time it changed a
 decision rather than being read past — measured 2026-08-08, 7 of 12 projects ran FULL and exactly
 **1** had ever written a per-unit profile.
