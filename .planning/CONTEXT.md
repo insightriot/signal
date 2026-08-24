@@ -4,7 +4,7 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-08-23)
+## Where things stand (2026-08-24)
 
 **`M6.E4` IS MERGED** — PR **#200**, `--merge` per the Epic lane, branch deleted. Suite 2929 →
 **2979**. It is the first Epic to run at a **per-unit tier**: FEATURE via `M6.E4-PROFILE.md`, not the project's FULL

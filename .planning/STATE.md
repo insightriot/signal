@@ -32,8 +32,7 @@ writes"* — three backlog rows batched by **subject, not size** (`D-BR0823-1`),
 a per-Epic profile inside a FULL project. Retro: [`M6.E4-RETROSPECTIVE.md`](M6.E4-RETROSPECTIVE.md).
 2929 → **2979 tests**.
 
-> ### ⚠ The frontmatter reads `phase: SHIP` / `current_epic: M6.E4`. That is FINISHED work, not
-> current work.
+> ### ⚠ `phase: SHIP` / `current_epic: M6.E4` is FINISHED work, not current work
 >
 > `/sig:resume` will render **"Next phase: done"**, which is correct — SHIP is terminal and nothing
 > leaves it. `current_epic` is deliberately **not** cleared: `setCurrentEpic` archives the phase log
@@ -64,7 +63,8 @@ rows will hit this too.**
 
 **The habit this Epic paid for twice — read the CI reviewer on every PR, and read it AGAIN after
 pushing fixes.** On PR #200 it went **10 for 10 on real findings**, and three of those arrived on the
-*re-review*, after a green 2974-test suite, a mutation-verified regression test, a PASS-WITH-FIXES
+*re-review*, after a green 2974-test suite (the count **then**; the fixes took it to 2979), a
+mutation-verified regression test, a PASS-WITH-FIXES
 review and a 26-of-26 VERIFY had all passed. One of them invalidated a published measurement.
 
 **Just finished — all three autonomy-counterweight items are now discharged** (accepted 2026-08-08):
