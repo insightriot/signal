@@ -122,6 +122,11 @@ function lineOffsets(lines) {
   return offsets;
 }
 
+// M6.E4 FR2.1. HTML-comment marker, matching the shape already used in this
+// corpus for `backlog-key`, `bugs-key`, `evicted-key` and `phase-log:archived`
+// — deliberately not a new mechanism (D-M6E4-4).
+const STANDING_MARKER_RE = /^\s*<!--\s*standing\s*-->\s*$/;
+
 /**
  * Parse a FUTURE-IDEAS-shaped markdown string into its top-level `## ` entries.
  * Fence-aware and tolerant of an orphaned mid-file footer. Content before the
@@ -146,13 +151,8 @@ function lineOffsets(lines) {
  *                      editing one block leaves every other byte identical (R1).
  *
  * @param {string} content
- * @returns {Array<{heading: string, statusLine: string|null, dateISO: string|null, dispositioned: boolean, dispositionKind: 'terminal'|'deferred'|null, range: {start: number, end: number}}>}
+ * @returns {Array<{heading: string, statusLine: string|null, dateISO: string|null, dispositioned: boolean, dispositionKind: 'terminal'|'deferred'|null, standing: boolean, range: {start: number, end: number}}>}
  */
-// M6.E4 FR2.1. HTML-comment marker, matching the shape already used in this
-// corpus for `backlog-key`, `bugs-key`, `evicted-key` and `phase-log:archived`
-// — deliberately not a new mechanism (D-M6E4-4).
-const STANDING_MARKER_RE = /^\s*<!--\s*standing\s*-->\s*$/;
-
 export function parseEntries(content) {
   if (typeof content !== 'string' || content === '') return [];
 
@@ -390,7 +390,16 @@ export function listDrainCandidatesWithRecovery(content) {
       recovered: true,
       range: { start: e.range.start + tailStart, end: e.range.end + tailStart },
     }))
-    .filter((e) => !e.dispositioned && !seenStarts.has(e.range.start));
+    .filter(
+      (e) =>
+        // `!e.standing` mirrors listDrainCandidates deliberately. Found at REVIEW:
+        // this filter was left as `!dispositioned` while its sibling gained the
+        // standing exclusion, so a standing entry sitting BELOW a dangling fence
+        // would be recovered straight back into the live candidate set — the bug
+        // S2 removed, reintroduced by the one path that exists for malformed
+        // inboxes. Two filters that must agree; only one had been updated.
+        !e.dispositioned && !e.standing && !seenStarts.has(e.range.start)
+    );
 
   return {
     candidates: [...candidates, ...recovered],

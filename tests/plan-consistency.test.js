@@ -144,6 +144,24 @@ describe('M6.E4 S1 — reach is published, not typed (AC1.1d)', () => {
     expect(REACH['plan-internal-consistency'].total).toBe(13);
   });
 
+  it('plan-checker.md\'s stated reach MATCHES REACH — derived, then compared', () => {
+    // Found at REVIEW. describeReach exists so that "nothing types the numbers",
+    // but plan-checker.md is a PROMPT — static text that cannot call a function
+    // at render time — so its reach sentence is necessarily hand-written. That
+    // makes it a published fact duplicated from REACH and free to drift, which
+    // is precisely M6.E2's defect class.
+    //
+    // The prompt cannot be made dynamic, so the number is DERIVED here and
+    // COMPARED against the file. Editing REACH without editing the prompt now
+    // turns the suite red.
+    const checkerMd = readFileSync(
+      join(repoRoot, 'plugin/agents/verifiers/plan-checker.md'),
+      'utf8'
+    );
+    const { evaluable, total } = REACH['plan-internal-consistency'];
+    expect(checkerMd).toMatch(new RegExp(`${evaluable} of ${total}`));
+  });
+
   it('the reach sentence comes from describeReach, not a hand-typed string', () => {
     const prose = describeReach(REACH['plan-internal-consistency']);
     expect(prose).toMatch(/10/);

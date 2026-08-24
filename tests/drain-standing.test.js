@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import {
   parseEntries,
   listDrainCandidates,
+  listDrainCandidatesWithRecovery,
   listStandingEntries,
   parseTriggerWatchlist,
 } from '../plugin/tools/lib/drain.js';
@@ -188,6 +189,56 @@ describe('M6.E4 S2 — the mechanism is REACHED, not merely exported', () => {
     const planMd = readFileSync(join(repoRoot, 'plugin/commands/plan.md'), 'utf8');
     expect(planMd).toMatch(/standing/i);
     expect(planMd).toMatch(/never promote, merge, or delete/);
+  });
+});
+
+describe('M6.E4 S2 — the recovery path agrees with the normal path (REVIEW fix)', () => {
+  // Found at REVIEW, not by a test. listDrainCandidates gained the standing
+  // exclusion; listDrainCandidatesWithRecovery kept a bare `!e.dispositioned`.
+  // So a standing entry BELOW a dangling fence was recovered straight back into
+  // the live candidate set — S2's bug reintroduced by the one code path that
+  // exists to handle malformed inboxes. Two filters that must agree, one updated.
+  const STANDING_BELOW_FENCE = `# Inbox
+
+## An entry with an unclosed fence
+
+**Status:** Logged 2026-08-01.
+
+\`\`\`js
+never closed
+
+## A standing note that the fence swallowed
+<!-- standing -->
+
+**Status:** Added 2026-07-04. Never promote, merge, or delete.
+`;
+
+  it('the dangling fence is detected and the entry is recovered', () => {
+    const r = listDrainCandidatesWithRecovery(STANDING_BELOW_FENCE);
+    expect(r.danglingFence).toBe(true);
+  });
+
+  it('a recovered STANDING entry does not re-enter the live candidate set', () => {
+    const r = listDrainCandidatesWithRecovery(STANDING_BELOW_FENCE);
+    expect(r.candidates.some((e) => /standing note/i.test(e.heading))).toBe(false);
+  });
+
+  it('a recovered NON-standing entry still surfaces — the fix is not a blanket drop', () => {
+    const ordinary = `# Inbox
+
+## An entry with an unclosed fence
+
+**Status:** Logged 2026-08-01.
+
+\`\`\`js
+never closed
+
+## An ordinary swallowed idea
+
+**Status:** Logged 2026-08-02.
+`;
+    const r = listDrainCandidatesWithRecovery(ordinary);
+    expect(r.candidates.some((e) => /ordinary swallowed/i.test(e.heading))).toBe(true);
   });
 });
 
