@@ -190,7 +190,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 - ⚠ **An absent record reads `cannot-check`, never clean** (`B39`) — no `.signal/asks.jsonl` means
   the hook has never run here, not that nobody was asked.
 
-2841 → **2927 tests**.
+2841 → **2979 tests**.
 
 ## [0.1.32] — 2026-08-21 — the loop that did not stop
 
