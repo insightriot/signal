@@ -6,8 +6,10 @@ Load this at the start of every work session. Short on purpose.
 
 ## Where things stand (2026-08-24)
 
-**`M6.E4` IS MERGED** — PR **#200**, `--merge` per the Epic lane, branch deleted. Suite 2929 →
-**2979**. It is the first Epic to run at a **per-unit tier**: FEATURE via `M6.E4-PROFILE.md`, not the project's FULL
+**`M6.E4` IS MERGED AND RELEASED** — PR **#200**, `--merge` per the Epic lane, branch deleted. Suite 2929 →
+**2979**. Cut as **v0.1.33** (2026-08-24, *"what nobody was reading"*) — the release also carries `B75`'s
+observer, `.planning/ENVIRONMENT.md`, DISCUSS's outcome oracle and `/sig:ship` reading PR review findings,
+none of which were M6.E4. It is the first Epic to run at a **per-unit tier**: FEATURE via `M6.E4-PROFILE.md`, not the project's FULL
 (`D-BR0823-2`). `B90`'s advisory fired at `/sig:resume` and this is the first time it changed a
 decision rather than being read past — measured 2026-08-08, 7 of 12 projects ran FULL and exactly
 **1** had ever written a per-unit profile.
@@ -135,7 +137,7 @@ backstop: more Signal-inspecting-Signal, which is the class the 2026-08-20 call 
 > rule that they move together. **They are merged here. Update this section, or the file is wrong.**
 > The refresh history is preserved verbatim in the stamp at the end of *"Active work"*.
 
-**v1 is feature-complete and shipped, at `v0.1.32` (2026-08-21).** **21 slash commands, 26 agents, 21 skills, 2841 tests, validator green** — these counts describe that release; the releases themselves are below, newest first.
+**v1 is feature-complete and shipped, at `v0.1.33` (2026-08-24).** **21 slash commands, 26 agents, 21 skills, 2979 tests, validator green** — these counts describe that release; the releases themselves are below, newest first.
 
 **`v0.1.30` shipped — `B104`, fix lane.** *Four agents with a shell, reading text nobody checked.*
 `/sig:init` spawns **four scanner agents in parallel**, all four declaring `tools: Read, Bash, Grep,
