@@ -422,16 +422,26 @@ describe('M5.E16 S2.t3 — (g) a PROFILE.md the code cannot read', () => {
 // ─────────────────────── live corpus regression ───────────────────────
 
 describe('M5.E16 S2 — the live true positives that motivated each check', () => {
-  it('(c) still fires on this repo: M5.E17 was worked and has no retrospective', async () => {
+  it('(c) still runs on this repo and reaches a verdict', async () => {
     const repo = join(import.meta.dirname, '..');
     const r = await statusOf(repo, checkEpicWithoutRetro);
-    // If someone writes M5.E17-RETROSPECTIVE.md this flips to CLEAN, which is
-    // the correct outcome — the assertion is that the check RAN, not that the
-    // repo stays broken.
+    // The assertion is that the check RAN, not that the repo stays broken —
+    // which is what the original comment here said, while the code below it
+    // additionally pinned ONE Epic by name (M5.E17). Both halves of that pin
+    // have since moved, and neither move was a regression:
+    //
+    //   - `M5.E17-RETROSPECTIVE.md` was written 2026-08-03 (7220bf3), so
+    //     M5.E17 is correctly no longer a finding.
+    //   - M6.E3 is parked with phase artifacts and no retro, and became
+    //     visible to the check the moment it stopped being `current_epic`
+    //     (state-drift.js:525 skips the in-flight Epic). A true positive.
+    //
+    // So the repo legitimately has findings that are not about M5.E17. The
+    // name is not re-pinned to M6.E3: that would re-arm the same trap for
+    // whoever unparks it. Deliberately NOT re-deriving "does this retro exist
+    // on disk" here either — that is the predicate under test, and a second
+    // copy of it passes whenever both copies are wrong the same way (B82).
     expect([STATUS.FINDINGS, STATUS.CLEAN]).toContain(r.status);
-    if (r.status === STATUS.FINDINGS) {
-      expect(r.findings.some((f) => f.message.includes('M5.E17'))).toBe(true);
-    }
   });
 
   it('(g) is clean on this repo — B59 is fixed and stays fixed', async () => {

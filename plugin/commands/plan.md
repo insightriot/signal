@@ -79,6 +79,19 @@ Load candidates with `listDrainCandidatesWithRecovery(content)` from `tools/lib/
 **Recovered entries are read-only-visible, NOT dispositionable.** A candidate carrying `recovered: true` was resurfaced from below the dangling fence; it has a valid `range` but **no `entryIndex` in `parseEntries(content)`** (the fence swallowed it), so `applyDisposition`/`applyDispositions` cannot target it. **List recovered entries for awareness but do NOT offer promote/defer/merge/delete on them, and exclude them from the "defer all remaining" batch.** The only correct action is: fix the unclosed fence, then re-run the drain — they become normal, dispositionable entries. Disposition acts only on the non-`recovered` candidates.
 
 - **No candidates** → emit the one-line note `(no inbox candidates to drain)` and continue to Step 2.
+
+**Report standing entries separately, every time (M6.E4 FR2.2).** Call `listStandingEntries(content)`
+from `tools/lib/drain.js` and state the count alongside the candidates — e.g.
+`(no inbox candidates to drain; 1 standing entry not counted)`. A **standing** entry carries a
+`<!-- standing -->` marker in its header region and is deliberately permanent — the trigger
+watchlist below is the canonical one, marked *"never promote, merge, or delete."*
+
+**Do not offer it a disposition verb.** Every one is wrong: `promote`, `merge` and `delete` are
+forbidden by the entry itself, `defer` postpones something permanent, and `shipped` is nonsense.
+Before the marker existed the only lawful action was `skip`, and `skip` returned it to the next
+drain forever — so this repo's live count was **pinned at ≥ 1** and the no-candidates branch above
+**could never execute**. Reporting the count is what keeps a deliberately-permanent entry
+distinguishable from an unanswered one (`B39`'s shape) without it being counted as work.
 - **Candidates present** → render them **compactly** — heading + the one-line Status, numbered (recovered entries flagged and un-numbered / not selectable). **Always offer "defer all remaining" up front**, not only on a large first run (a single `applyDispositions` batch over the **non-recovered** candidates only). It is the bounded escape this step's requirement depends on, so it has to be present every time the step runs — an escape that appears only above some unstated size threshold is not one a user can rely on, and this step may no longer be skipped.
 
 For each entry the user keeps triaging, offer a `strict-enum [promote, defer, shipped, merge, delete]` choice plus an explicit **skip** (leave the entry untouched and move on):
@@ -141,6 +154,18 @@ Generate the PLAN artifact (`artifactName('PLAN', { currentEpic })` — `{phase}
 - Acceptance criteria per task
 - Test strategy per task (TDD where applicable)
 - Estimated complexity (S/M/L — not time)
+- **Files likely touched** per task — reconciles this list with
+  `skills/plan/planning-and-task-breakdown/SKILL.md`, which has carried the field all along while
+  this list, the authoritative one, omitted it (M6.E4 FR3.2)
+- **Out of scope** per task — what this task explicitly does *not* do. The executor's rule that
+  *"every changed line traces to the acceptance criteria"* was a discipline with no named boundary
+  to point at; this is the boundary
+- **An exemplar reference** where `{phase}-RESEARCH.md` found one — a pointer to the section, not
+  the document (M6.E4 FR3.1)
+
+⚠ **These three are ADVISORY, not fatal** (`D-M6E4-7`). A plan lacking them is **reported**, never
+failed. Every plan already on disk across the corpus predates them and was correct when written;
+failing them retroactively would be a guard punishing authors for not having read the future.
 
 #### Name what this Epic does for the first time — and schedule it in the FIRST WAVE (M5.E17 FR1)
 

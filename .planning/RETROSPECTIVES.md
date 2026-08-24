@@ -2,6 +2,7 @@
 
 > Per-Epic retrospectives, indexed for fast scan. Status flag (*stub* / *complete*) is auto-derived from the presence of `[FILL IN]` markers in the retro file. Hook lines (after the second em-dash) are hand-curated — they survive regeneration by Epic ID.
 
+- [M6.E4](M6.E4-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M6.E2](M6.E2-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M6.E1](M6.E1-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M5.E19](M5.E19-RETROSPECTIVE.md) — *complete* — _(hook pending)_

@@ -4,6 +4,41 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
+## Where things stand (2026-08-23)
+
+**`M6.E4` IS COMPLETE through all seven phases, awaiting merge approval** — branch
+`epic/m6-e4-plan-seam`, PR **#200**, CI green. Suite 2929 → **2974**. It is the first
+Epic to run at a **per-unit tier**: FEATURE via `M6.E4-PROFILE.md`, not the project's FULL
+(`D-BR0823-2`). `B90`'s advisory fired at `/sig:resume` and this is the first time it changed a
+decision rather than being read past — measured 2026-08-08, 7 of 12 projects ran FULL and exactly
+**1** had ever written a per-unit profile.
+
+**The Epic is "what PLAN reads and writes"** — three backlog rows batched by **subject, not size**,
+each a slice: spec-internal consistency (S1), standing inbox entries (S2), task-handoff
+completeness (S3). Batching the twelve promoted rows by size was proposed and **rejected**
+(`D-BR0823-1`): size measures diff cost, and the six phases exist to pay decision cost. Two rows
+both marked `small` belong in opposite lanes.
+
+**DISCUSS found two things that changed the work:**
+
+1. **S2's premise was half wrong.** The row quotes a second standing entry as saying *"do not close
+   this entry."* **That phrase is absent from the repo and from all git history.** Measured: 6
+   inbox entries, **1 live candidate — which is itself the permanent trigger-watchlist entry**, so
+   the live count can never reach zero. One standing entry, not two, and the real problem is
+   sharper than the row states (`D-M6E4-1`).
+2. **S1 and S3's done-whens named a dimension that does not run at their own tier.** At FEATURE,
+   `plan_validation_dims: core` runs three dimensions and **scope discipline is not one of them**.
+   Both fold into `testability` / `completeness` instead; the count stays 8 (`D-M6E4-3`).
+
+Decisions: `D-M6E4-1 … D-M6E4-7`. Requirements: [`M6.E4-REQUIREMENTS.md`](M6.E4-REQUIREMENTS.md).
+
+⚠ **`/sig:resume` now reports `M6.E3` as an Epic with no retrospective, every run.** True positive
+and permanent: the check skips whatever is `current_epic` (`state-drift.js:525`), so rolling to
+`M6.E4` un-blinded it. Nothing expresses *parked* as distinct from *abandoned*. **Do not write
+`M6.E3-RETROSPECTIVE.md` to silence it** — that is the stub-as-closure `B64` was filed about.
+
+---
+
 ## Where things stand (2026-08-20)
 
 **Read this first: the direction changed on 2026-08-20, and it changed because the numbers said so.**
@@ -459,7 +494,7 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 >   *tokens*; a report that names every requirement and is simply wrong about its evidence passes all
 >   seven checks. It has a live `BACKLOG.md` row and a test keeps it live.
 > - **Milestone 6 is not opened.** Next work is a decision, not a queue item.
-**▶ Nothing is in flight. The last Epic was `M6.E2`, shipped as `v0.1.29` (2026-08-18)** — the facts Signal publishes about itself; ran at the project's **FULL/strict**. Retro: [`M6.E2-RETROSPECTIVE.md`](M6.E2-RETROSPECTIVE.md); reach evidence [`M6.E2-CORPUS-MEASUREMENT.md`](M6.E2-CORPUS-MEASUREMENT.md); decisions `D-M6E2-1…7`. Three fix-lane releases followed: `v0.1.27` (`B102`), `v0.1.28` (`B103`), `v0.1.30` (`B104`).
+**▶ `M6.E4` IS COMPLETE AND AWAITING MERGE (PR #200, all seven phases, CI green) — see *Where things stand (2026-08-23)* at the top of this file. The last MERGED Epic was `M6.E2`, as `v0.1.29` (2026-08-18)** — the facts Signal publishes about itself; ran at the project's **FULL/strict**. Retro: [`M6.E2-RETROSPECTIVE.md`](M6.E2-RETROSPECTIVE.md); reach evidence [`M6.E2-CORPUS-MEASUREMENT.md`](M6.E2-CORPUS-MEASUREMENT.md); decisions `D-M6E2-1…7`. Three fix-lane releases followed: `v0.1.27` (`B102`), `v0.1.28` (`B103`), `v0.1.30` (`B104`).
 
 *Prior: `M5.E10` closed and shipped as `v0.1.25` (2026-08-13), which closed Milestone 5* (`D-BR0809-2`). Review hardening / claim integrity; ran at the project's **FULL/strict** — no Epic-scoped PROFILE. Retro: [`M5.E10-RETROSPECTIVE.md`](M5.E10-RETROSPECTIVE.md); artifacts [`M5.E10-REQUIREMENTS.md`](M5.E10-REQUIREMENTS.md), [`M5.E10-RESEARCH.md`](M5.E10-RESEARCH.md), [`M5.E10-PLAN.md`](M5.E10-PLAN.md), [`M5.E10-VALIDATION.md`](M5.E10-VALIDATION.md), [`M5.E10-VERIFICATION.md`](M5.E10-VERIFICATION.md), [`M5.E10-REVIEW.md`](M5.E10-REVIEW.md); decisions `D-M5E10-1…5`.
 
