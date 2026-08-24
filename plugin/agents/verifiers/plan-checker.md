@@ -62,7 +62,7 @@ the code finds the candidates, you do the arithmetic.
   a pass. Report it as unexamined; the returned `reason` names the file and the cause.
 
 **Expect a worklist, not an alarm.** Measured across the eval corpus: **10 of 13 projects
-evaluable**, 432 task units, **40 flagged (9.3%)**; Signal's own tree runs 20.9%. The detector
+evaluable**, 432 task units, **46 flagged (10.6%)**; Signal's own tree runs 14.0%. The detector
 optimises **recall** — a false positive costs you a paragraph, a false negative lets a contradiction
 ship. Do not treat a flagged task as an accusation.
 

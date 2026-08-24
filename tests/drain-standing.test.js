@@ -151,6 +151,26 @@ Body prose with no Status line anywhere.
     expect(entry.standing).toBe(true);
   });
 
+  it('a leading CODE FENCE closes the window — marker past it does not mark (PR #200 review)', () => {
+    // The fence-marker `continue` ran BEFORE the window-close check, so an entry
+    // with no Status line whose first non-blank line opens a fence was scanned
+    // straight through the fence and past it. The comment promised "conservative
+    // by construction"; the code was the opposite — silently removing an entry
+    // from the live drain count.
+    const fenceFirst = `# Inbox
+
+## No status line, fence first
+
+\`\`\`markdown
+sample content
+\`\`\`
+
+<!-- standing -->
+`;
+    const [entry] = parseEntries(fenceFirst);
+    expect(entry.standing).toBe(false);
+  });
+
   it('a marker AFTER the first non-blank line does not', () => {
     const noStatus = `# Inbox
 

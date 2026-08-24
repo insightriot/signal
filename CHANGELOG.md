@@ -37,8 +37,8 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   refused to fake that half. The code finds candidates; the reviewer does the arithmetic.
   ⚠ Its precision contract is **inverted** relative to `M6.E2`'s checks and says so at the point of
   use — it produces a *worklist*, not findings, so it optimises **recall**.
-  **Reach: 10 of 13 corpus projects**, 432 task units, **40 flagged (9.3%)**; Signal's own tree runs
-  **20.9%**, ~2.2× denser. **No `##` fallback**, refused on measurement rather than taste: in the two
+  **Reach: 10 of 13 corpus projects**, 432 task units, **46 flagged (10.6%)**; Signal's own tree
+  runs **14.0%**. **No `##` fallback**, refused on measurement rather than taste: in the two
   non-evaluable projects the h2 headings are **8 of 12** and **10 of 12** *section* vocabulary, so
   parsing them would flag `## Phase goal` as a task.
 - **The research finally reaches the builder.** `agents/executors/executor.md` declared the PLAN

@@ -258,17 +258,23 @@ export function parseEntries(content) {
       const limit = statusLineIdx >= 0 ? statusLineIdx : endLine;
       let mkFence = false;
       for (let i = startLine + 1; i <= limit && i < endLine; i++) {
-        if (isFenceMarker(lines[i])) {
-          mkFence = !mkFence;
-          continue;
-        }
-        if (mkFence) continue;
-        if (STANDING_MARKER_RE.test(lines[i])) {
+        const line = lines[i];
+        const fence = isFenceMarker(line);
+
+        if (!fence && !mkFence && STANDING_MARKER_RE.test(line)) {
           standing = true;
           break;
         }
-        // No Status line in this entry: the window is the first non-blank line.
-        if (statusLineIdx < 0 && lines[i].trim() !== '') break;
+        // No Status line: the window closes at the first non-blank line — and a
+        // FENCE MARKER IS A NON-BLANK LINE. The first draft `continue`d on fences
+        // before reaching this check, so an entry with no Status line whose body
+        // opened with a fence was scanned straight through it and past it, and a
+        // marker beyond still set `standing` — silently dropping the entry from
+        // the live count, the exact opposite of the "conservative by
+        // construction" this comment claims. (PR #200 review.)
+        if (statusLineIdx < 0 && line.trim() !== '') break;
+
+        if (fence) mkFence = !mkFence;
       }
     }
 

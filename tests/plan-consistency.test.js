@@ -137,6 +137,44 @@ unclosed fence
   });
 });
 
+describe('M6.E4 S1 — QUANTITY_RE precision and recall (PR #200 review)', () => {
+  const plan = (body) => `# Plan\n\n### S1 — a task\n\n${body}\n`;
+
+  it('RECALL: a percentage threshold is detected', () => {
+    // The \b after the unit alternation could never hold for `%` — a non-word
+    // char followed by a space is not a boundary — so "80%" silently never
+    // matched. Percentages are one of the commonest ways a plan states a numeric
+    // threshold, and missing them directly undercuts the recall-first contract.
+    const r = detectQuantitativeTasks(
+      plan('- **Acceptance criteria:** coverage must be at least 80% of lines')
+    );
+    expect(r.status).toBe(STATUS.FINDINGS);
+  });
+
+  it('RECALL: a × expression is detected', () => {
+    const r = detectQuantitativeTasks(
+      plan('- Compute threshold = floor + 150B × sections.\n- **Acceptance criteria:** it passes.')
+    );
+    expect(r.status).toBe(STATUS.FINDINGS);
+  });
+
+  it('PRECISION: an ISO date is not an arithmetic expression', () => {
+    const r = detectQuantitativeTasks(
+      plan('- Captured 2026-07-04.\n- **Acceptance criteria:** the entry is filed.')
+    );
+    expect(r.status).toBe(STATUS.CLEAN);
+  });
+
+  it('PRECISION: two adjacent list lines are not one expression', () => {
+    // `\s` spans newlines, so `- **Wave:** 1` followed by `- 2 new tests` read
+    // as "1 - 2". Quantity matching must not cross a line boundary.
+    const r = detectQuantitativeTasks(
+      plan('- **Wave:** 1\n- 2 new tests\n- **Acceptance criteria:** they pass.')
+    );
+    expect(r.status).toBe(STATUS.CLEAN);
+  });
+});
+
 describe('M6.E4 S1 — reach is published, not typed (AC1.1d)', () => {
   it('REACH carries a row for this check', () => {
     expect(REACH['plan-internal-consistency']).toBeDefined();

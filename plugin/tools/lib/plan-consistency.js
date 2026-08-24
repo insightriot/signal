@@ -36,9 +36,16 @@
  * ## Reach (measured 2026-08-23, read-only, across the eval corpus)
  *
  * **10 of 13 projects evaluable.** 1 has no PLAN artifact; 2 have plans built
- * entirely from `##` headings with no level-3+ units. 432 task units seen, 40
- * flagged (9.3%). Signal's own tree runs 20.9% — ~2.2× denser — so sizing the
- * reviewer's burden from this repo alone would have overestimated it.
+ * entirely from `##` headings with no level-3+ units. 432 task units seen, **46
+ * flagged (10.6%)**. Signal's own tree runs **14.0%** — ~1.3× denser.
+ *
+ * ⚠ **Re-measured after the PR #200 review.** The first figures (40 / 9.3%;
+ * Signal 20.9%) were taken with two regex defects present, and correcting them
+ * moved the numbers in BOTH directions: corpus recall rose (percentages became
+ * visible) while Signal's own rate FELL by a third, because Signal's date-heavy
+ * plan prose was disproportionately hit by the ISO-date false positive. The
+ * published "~2.2× denser" claim was therefore an artifact of that bug, not a
+ * property of Signal's plans.
  *
  * **There is no `##` fallback, and that is a measurement rather than a taste.**
  * In both non-evaluable projects the h2 headings are predominantly *section*
@@ -67,8 +74,29 @@ const SECTION_HEADING_RE = /^#{1,2}\s/;
  * expression, or an explicit threshold/coefficient word. A bare year or list
  * index is not a threshold, which is why this is not simply `/\d/`.
  */
-const QUANTITY_RE =
-  /\b\d+\s*(?:B|KB|MB|GB|%|ms|s|×|x)\b|\b\d+\s*[+\-*/×]\s*\d+|\bthreshold\b|\bcoefficient\b/i;
+const QUANTITY_RE = new RegExp(
+  [
+    // Word-character units NEED the trailing \b: "2 slices" must not match on `s`.
+    '\\b\\d+[ \\t]*(?:KB|MB|GB|ms|B|s|x)\\b',
+    // Symbol units must NOT have one. `\b` is a word/non-word transition, so after
+    // `%` or `×` followed by a space it can never hold — the first draft used one
+    // alternation for both and silently never matched "80%", the commonest way a
+    // plan states a numeric threshold. In a recall-first detector that is the
+    // worst direction to be wrong in. (PR #200 review.)
+    '\\d+[ \\t]*[%×]',
+    // Arithmetic. Two deliberate narrowings, both from the same review:
+    //   * `[ \t]` not `\s` — `\s` spans newlines, so two adjacent list lines
+    //     ("- **Wave:** 1" / "- 2 new tests") read as one expression.
+    //   * no `-` — it makes every ISO date an expression (2026-07-04 → "2026-07"),
+    //     contradicting this module's own rule that a bare year is not a threshold.
+    //     Subtraction does not appear in the plan formulas this detects; the
+    //     motivating case is `template_floor + 150B × required_section_count`.
+    '\\d+[ \\t]*[+*/×][ \\t]*\\d+',
+    '\\bthreshold\\b',
+    '\\bcoefficient\\b',
+  ].join('|'),
+  'i'
+);
 
 /**
  * Prose that announces acceptance criteria without citing an ID.

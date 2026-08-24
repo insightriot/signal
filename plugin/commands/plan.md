@@ -163,7 +163,7 @@ Generate the PLAN artifact (`artifactName('PLAN', { currentEpic })` — `{phase}
 - **An exemplar reference** where `{phase}-RESEARCH.md` found one — a pointer to the section, not
   the document (M6.E4 FR3.1)
 
-⚠ **These four are ADVISORY, not fatal** (`D-M6E4-7`). A plan lacking them is **reported**, never
+⚠ **These three are ADVISORY, not fatal** (`D-M6E4-7`). A plan lacking them is **reported**, never
 failed. Every plan already on disk across the corpus predates them and was correct when written;
 failing them retroactively would be a guard punishing authors for not having read the future.
 
