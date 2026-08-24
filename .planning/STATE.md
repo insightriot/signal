@@ -15,70 +15,57 @@ completed_phases:
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-08-13T14:47:23.449Z
-last_updated_commit: 7adbd42
-last_updated: 2026-08-24T15:12:00.476Z
+last_updated_commit: 76f84e6
+last_updated: 2026-08-24T17:34:50.365Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-08-23)
+### ▶ WHERE THE WORK IS — read this first (2026-08-24, after a context clear)
 
-**`M6.E4` is COMPLETE through all seven phases and awaiting merge approval** on branch
-`epic/m6-e4-plan-seam`, PR **#200** — CI green (`test` ×2, `claude-review`). It ran at **FEATURE**,
-not the project's FULL, via `M6.E4-PROFILE.md` (`D-BR0823-2`). Base was `1deac6f`; suite
-2929 → **2974** (176 files). Plugin binding current — no `/sig:update` needed.
+**Nothing is in flight. `main` is clean at `b09cf59`, suite 2979 green (176 files), working tree
+clean, no branch open.** Plugin binding current — no `/sig:update` needed.
 
-> ⚠ **This paragraph said *"OPEN and in DISCUSS"* until SHIP, while the frontmatter had moved
-> through EXECUTE, VERIFY, REVIEW and SHIP — and `CONTEXT.md` said it in two more places.** Caught by
-> the **CI reviewer on PR #200**, not by any check here, and its sharpest point is the one worth
-> keeping: this Epic **removed the old "ignore the frontmatter" warning on the premise that prose and
-> frontmatter now agree** — and then let the prose go stale. That is `BACKLOG.md`'s
-> *"`STATE.md`'s narrative vs. its frontmatter"* row happening for the **fifth** time, and its own
-> diagnosis stands: a hand-maintained narrative beside a machine-written frontmatter goes stale **by
-> construction, not by neglect**. `runDriftChecks` still reports clean, correctly —
-> `body-omits-current-epic` tests *presence*, not *agreement*.
+**`M6.E4` is MERGED** (PR #200, `--merge` per the Epic lane; branch deleted). *"What PLAN reads and
+writes"* — three backlog rows batched by **subject, not size** (`D-BR0823-1`), run at **FEATURE** via
+a per-Epic profile inside a FULL project. Retro: [`M6.E4-RETROSPECTIVE.md`](M6.E4-RETROSPECTIVE.md).
+2929 → **2979 tests**.
 
-> ⚠ **`/sig:resume` will now report `M6.E3` as an Epic with no retrospective, on every run.**
-> That is a **true positive, and permanent** — not something to fix by writing one. The
-> `epic-without-retro` drift check skips whatever is `current_epic` (`state-drift.js:525`,
-> *"mid-flight, not abandoned"*), so `M6.E3` was invisible to it only while it sat in the
-> frontmatter. Rolling to `M6.E4` un-blinded the check.
+> ### ⚠ `phase: SHIP` / `current_epic: M6.E4` is FINISHED work, not current work
 >
-> **Nothing in Signal expresses "parked" as distinct from "abandoned"**, so the check cannot tell
-> them apart and correctly asks a person. **Do not write `M6.E3-RETROSPECTIVE.md` to silence it** —
-> a retrospective for work that was never built is the stub-as-closure that `B64` was filed about.
-> Expect the line; it means the check is working.
+> `/sig:resume` will render **"Next phase: done"**, which is correct — SHIP is terminal and nothing
+> leaves it. `current_epic` is deliberately **not** cleared: `setCurrentEpic` archives the phase log
+> on a roll, and rolling to an Epic that has not been chosen yet would fabricate a transition.
+> **The next Epic's `/sig:discuss --epic <name>` does the roll.**
 
-**The Epic: "what PLAN reads and writes."** Three backlog items batched by **subject**, not by size,
-each a slice:
+**▶ NEXT WORK: nine of the twelve promoted rows remain** — `BACKLOG.md` §*"Twelve promoted from the
+inbox drain"*. Three are struck (`M6.E4` S1/S2/S3). **Not a priority order**, and explicitly **not**
+to be worked in size batches — that was considered and rejected on 2026-08-23 with a reason
+(`D-BR0823-1`): size measures diff cost, the six phases pay decision cost.
 
-| Slice | Item | Was sized |
-|---|---|---|
-| S1 | Spec-internal consistency — a plan whose own numbers can't satisfy its own criteria | small |
-| S2 | Standing inbox entries counted as undecided | small |
-| S3 | Task-handoff completeness — the research never reaches the builder | medium |
+**Two expected `/sig:resume` findings — both correct, neither actionable:**
 
-All three land on `commands/plan.md`, the plan-validation pass, or the drain contract that
-`plan.md` consumes. One goal: **a plan carries what the builder needs, and its own numbers hold up.**
+1. **`epic-without-retro` flags `M6.E3`, every run, permanently.** True positive. The check skips
+   whatever is `current_epic` (`state-drift.js:525`), so `M6.E3` was invisible only while it sat in
+   the frontmatter; rolling to `M6.E4` un-blinded it. Nothing expresses *parked* as distinct from
+   *abandoned*. **Do not write `M6.E3-RETROSPECTIVE.md` to silence it** — a retro for work never
+   built is the stub-as-closure `B64` was filed about.
+2. **`bug-status-vs-changelog` flags `B75`.** Known 1-in-2 precision, shipped open on purpose
+   (`M6.E2`). `B75` is genuinely still open: the `attention` dial is checked and **reported**, never
+   enforced.
 
-> ### The frontmatter is now LIVE, and the old "ignore it" warning is gone on purpose
->
-> Until 2026-08-23 this block said *"IGNORE THE FRONTMATTER'S NEXT-PHASE LINE — it points at parked
-> work."* That was true while `phase: PLAN` / `current_epic: M6.E3` described a parked Epic. It is
-> **no longer true**: `setCurrentEpic` rolled `M6.E3 → M6.E4` and the pointer now describes work
-> actually in flight. `/sig:resume` renders the right thing again; this note is authoritative over
-> nothing.
->
-> **`M6.E3` is still PARKED, not cancelled and not completed.** Its DISCUSS artifacts and plan stay
-> in `.planning/`. Its one completed-phase entry — `DISCUSS (2026-08-19)` — was **archived, not
-> discarded**, to `archive/M6/E3/STATE-NARRATIVE.md` by the roll itself (`B52` half 2 refuses a roll
-> that would clear an unarchived log). CLAUDE.md's *"if it is never built that is a fine outcome"*
-> still stands.
+**⚠ One new bug filed and NOT fixed: `dischargeBacklogRows` is blind to rows nested below `h3`.**
+`parseBacklogRows` matches `^(#{2,3})\s` (`backlog.js:325`) and the twelve promoted rows sit at
+`####` — correct nesting under their `###` section. So `B94`'s own mechanism could not discharge
+`M6.E4`'s rows; they were struck by hand. Filed in `BUGS.md`. **Any Epic closing one of those nine
+rows will hit this too.**
 
-**▶ AFTER `M6.E4`: the rest of the twelve promoted from the inbox drain** — `BACKLOG.md` §*"Twelve
-promoted from the inbox drain"*. **Not a priority order**, and explicitly **not** to be worked in
-size batches: that grouping was considered on 2026-08-23 and rejected with a reason (`D-BR0823-1`).
+**The habit this Epic paid for twice — read the CI reviewer on every PR, and read it AGAIN after
+pushing fixes.** On PR #200 it went **10 for 10 on real findings**, and three of those arrived on the
+*re-review*, after a green 2974-test suite (the count **then**; the fixes took it to 2979), a
+mutation-verified regression test, a PASS-WITH-FIXES
+review and a 26-of-26 VERIFY had all passed. One of them invalidated a published measurement.
 
 **Just finished — all three autonomy-counterweight items are now discharged** (accepted 2026-08-08):
 
