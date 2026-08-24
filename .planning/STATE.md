@@ -24,9 +24,20 @@ last_updated: 2026-08-24T15:12:00.476Z
 
 ### ▶ WHERE THE WORK IS — read this first (2026-08-23)
 
-**`M6.E4` is OPEN and in DISCUSS**, on branch `epic/m6-e4-plan-seam`. It runs at **FEATURE**, not
-the project's FULL, via `M6.E4-PROFILE.md` (`D-BR0823-2`). Base was `1deac6f` on `main`, clean,
-suite **2929** green (173 files). Plugin binding current — no `/sig:update` needed.
+**`M6.E4` is COMPLETE through all seven phases and awaiting merge approval** on branch
+`epic/m6-e4-plan-seam`, PR **#200** — CI green (`test` ×2, `claude-review`). It ran at **FEATURE**,
+not the project's FULL, via `M6.E4-PROFILE.md` (`D-BR0823-2`). Base was `1deac6f`; suite
+2929 → **2974** (176 files). Plugin binding current — no `/sig:update` needed.
+
+> ⚠ **This paragraph said *"OPEN and in DISCUSS"* until SHIP, while the frontmatter had moved
+> through EXECUTE, VERIFY, REVIEW and SHIP — and `CONTEXT.md` said it in two more places.** Caught by
+> the **CI reviewer on PR #200**, not by any check here, and its sharpest point is the one worth
+> keeping: this Epic **removed the old "ignore the frontmatter" warning on the premise that prose and
+> frontmatter now agree** — and then let the prose go stale. That is `BACKLOG.md`'s
+> *"`STATE.md`'s narrative vs. its frontmatter"* row happening for the **fifth** time, and its own
+> diagnosis stands: a hand-maintained narrative beside a machine-written frontmatter goes stale **by
+> construction, not by neglect**. `runDriftChecks` still reports clean, correctly —
+> `body-omits-current-epic` tests *presence*, not *agreement*.
 
 > ⚠ **`/sig:resume` will now report `M6.E3` as an Epic with no retrospective, on every run.**
 > That is a **true positive, and permanent** — not something to fix by writing one. The

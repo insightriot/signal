@@ -6,7 +6,8 @@ Load this at the start of every work session. Short on purpose.
 
 ## Where things stand (2026-08-23)
 
-**`M6.E4` IS OPEN and in DISCUSS** — branch `epic/m6-e4-plan-seam`, PR **#200**. It is the first
+**`M6.E4` IS COMPLETE through all seven phases, awaiting merge approval** — branch
+`epic/m6-e4-plan-seam`, PR **#200**, CI green. Suite 2929 → **2974**. It is the first
 Epic to run at a **per-unit tier**: FEATURE via `M6.E4-PROFILE.md`, not the project's FULL
 (`D-BR0823-2`). `B90`'s advisory fired at `/sig:resume` and this is the first time it changed a
 decision rather than being read past — measured 2026-08-08, 7 of 12 projects ran FULL and exactly
@@ -493,7 +494,7 @@ Delivery uses the relative `.` marketplace source, so **users track `main`**, no
 >   *tokens*; a report that names every requirement and is simply wrong about its evidence passes all
 >   seven checks. It has a live `BACKLOG.md` row and a test keeps it live.
 > - **Milestone 6 is not opened.** Next work is a decision, not a queue item.
-**▶ `M6.E4` IS IN FLIGHT (DISCUSS, branch `epic/m6-e4-plan-seam`, PR #200) — see *Where things stand (2026-08-23)* at the top of this file. The last SHIPPED Epic was `M6.E2`, as `v0.1.29` (2026-08-18)** — the facts Signal publishes about itself; ran at the project's **FULL/strict**. Retro: [`M6.E2-RETROSPECTIVE.md`](M6.E2-RETROSPECTIVE.md); reach evidence [`M6.E2-CORPUS-MEASUREMENT.md`](M6.E2-CORPUS-MEASUREMENT.md); decisions `D-M6E2-1…7`. Three fix-lane releases followed: `v0.1.27` (`B102`), `v0.1.28` (`B103`), `v0.1.30` (`B104`).
+**▶ `M6.E4` IS COMPLETE AND AWAITING MERGE (PR #200, all seven phases, CI green) — see *Where things stand (2026-08-23)* at the top of this file. The last MERGED Epic was `M6.E2`, as `v0.1.29` (2026-08-18)** — the facts Signal publishes about itself; ran at the project's **FULL/strict**. Retro: [`M6.E2-RETROSPECTIVE.md`](M6.E2-RETROSPECTIVE.md); reach evidence [`M6.E2-CORPUS-MEASUREMENT.md`](M6.E2-CORPUS-MEASUREMENT.md); decisions `D-M6E2-1…7`. Three fix-lane releases followed: `v0.1.27` (`B102`), `v0.1.28` (`B103`), `v0.1.30` (`B104`).
 
 *Prior: `M5.E10` closed and shipped as `v0.1.25` (2026-08-13), which closed Milestone 5* (`D-BR0809-2`). Review hardening / claim integrity; ran at the project's **FULL/strict** — no Epic-scoped PROFILE. Retro: [`M5.E10-RETROSPECTIVE.md`](M5.E10-RETROSPECTIVE.md); artifacts [`M5.E10-REQUIREMENTS.md`](M5.E10-REQUIREMENTS.md), [`M5.E10-RESEARCH.md`](M5.E10-RESEARCH.md), [`M5.E10-PLAN.md`](M5.E10-PLAN.md), [`M5.E10-VALIDATION.md`](M5.E10-VALIDATION.md), [`M5.E10-VERIFICATION.md`](M5.E10-VERIFICATION.md), [`M5.E10-REVIEW.md`](M5.E10-REVIEW.md); decisions `D-M5E10-1…5`.
 
