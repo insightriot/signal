@@ -322,6 +322,66 @@ describe('B109 — the CHANGELOG test-count trailer', () => {
     });
   });
 
+  /**
+   * Found by running the tool against the REAL `CHANGELOG.md`, not by the suite.
+   *
+   * The notes for this very fix quote `2841 → **2927 tests**` as an example in
+   * their prose, above the section's actual trailer. Taking the FIRST match
+   * rewrote the quoted example, left the real trailer stale, and reported
+   * "corrected" — a false green, inside the function written to prevent one.
+   *
+   * `B82` again: a hand-written fixture has one trailer, the real file has two.
+   */
+  describe('the trailer is the LAST match, because prose above it may quote one', () => {
+    const WITH_QUOTED_EXAMPLE = [
+      '# Changelog',
+      '',
+      '## [Unreleased]',
+      '',
+      "- **A fix.** `v0.1.33`'s said `2841 → **2927 tests**` while facts.md said 2979.",
+      '',
+      '2979 → **2992 tests**.',
+      '',
+      '## [0.1.33] — 2026-08-24 — prior',
+      '',
+    ].join('\n');
+
+    it('rewrites the foot trailer, not the quoted example', () => {
+      const { next } = setChangelogTestCount(WITH_QUOTED_EXAMPLE, 3000);
+      expect(next).toContain('2979 → **3000 tests**.');
+      expect(next).toContain('`2841 → **2927 tests**`'); // prose preserved verbatim
+    });
+
+    it('reports the count it actually changed, not the one it skipped', () => {
+      // The pre-fix bug reported "2927 → 3000" while editing the wrong line.
+      const { note } = setChangelogTestCount(WITH_QUOTED_EXAMPLE, 3000);
+      expect(note).toMatch(/2992 → 3000/);
+      expect(note).not.toMatch(/2927/);
+    });
+
+    it('discloses that more than one candidate was present', () => {
+      const { note } = setChangelogTestCount(WITH_QUOTED_EXAMPLE, 3000);
+      expect(note).toMatch(/2 candidates/);
+      expect(note).toMatch(/used the last/);
+    });
+  });
+
+  /**
+   * The `**N tests.**` variant — period INSIDE the bold — is real and frozen in
+   * history (v0.1.14, v0.1.11). Pinned against the live file because released
+   * sections never change; asserting anything about the PENDING section would
+   * be `B105`'s trap, a test on a transient property of the repository.
+   */
+  it('matches the historical `tests.**` variant that real releases used', () => {
+    const real = readFileSync(join(ROOT, 'CHANGELOG.md'), 'utf8');
+    expect(real).toMatch(/→ \*\*\d+ tests\.\*\*/); // the variant exists in history
+    const { next } = setChangelogTestCount(
+      ['# CL', '', '## [Unreleased]', '', '1736 → **1806 tests.**', '', '## [0.1.13] — x — y', ''].join('\n'),
+      1900,
+    );
+    expect(next).toContain('1736 → **1900 tests.**');
+  });
+
   it('reads the published count back out of facts.md', () => {
     expect(readFactsTestCount('- **Test count:** 2979 (set at each release)')).toBe(2979);
     expect(readFactsTestCount('nothing here')).toBeNull();

@@ -110,7 +110,6 @@ function pendingSectionBounds(source) {
     start: pending.index,
     headingLength: pending[0].length,
     end: newestReleased ? newestReleased.index : source.length,
-    pendingIndex: pending.index,
   };
 }
 
@@ -173,7 +172,7 @@ export function readFactsTestCount(source) {
  * silently overwriting a number someone chose is a bigger fault than printing a
  * question about it.
  */
-export const CHANGELOG_TRAILER_RE = /(\d+)(\s*→\s*\*\*)(\d+)(\s+tests\*\*)/;
+export const CHANGELOG_TRAILER_RE = /(\d+)(\s*→\s*\*\*)(\d+)(\s+tests\.?\*\*)/;
 
 export function setChangelogTestCount(source, testCount, previousCount = null) {
   const bounds = pendingSectionBounds(source);
@@ -184,26 +183,46 @@ export function setChangelogTestCount(source, testCount, previousCount = null) {
   }
 
   const section = source.slice(bounds.start, bounds.end);
-  const m = section.match(CHANGELOG_TRAILER_RE);
 
-  if (!m) {
+  // LAST match, not first. A trailer is by definition at the FOOT of the
+  // section, and the prose above it may legitimately contain the same shape —
+  // release notes about this very mechanism quote `2841 → **2927 tests**` as an
+  // example. Taking the first match rewrote that quoted example, left the real
+  // trailer stale, and reported "corrected": a FALSE GREEN, and the exact
+  // failure this function exists to prevent, committed inside it.
+  //
+  // `B82`'s shape once more — the fixture could not exhibit it, because a
+  // hand-written fixture has one trailer and the real file has two. Caught by
+  // running the tool against the real `CHANGELOG.md`, not by the suite.
+  const matches = [...section.matchAll(new RegExp(CHANGELOG_TRAILER_RE.source, 'g'))];
+
+  if (matches.length === 0) {
     return {
       next: source,
       note: `CHANGELOG trailer: none in this section — nothing to reconcile (optional; 19 of 33 past releases carry none)`,
     };
   }
 
+  const m = matches[matches.length - 1];
   const wasBaseline = Number(m[1]);
   const wasCount = Number(m[3]);
   const next =
     source.slice(0, bounds.start) +
-    section.replace(CHANGELOG_TRAILER_RE, `$1$2${testCount}$4`) +
+    section.slice(0, m.index) +
+    `${m[1]}${m[2]}${testCount}${m[4]}` +
+    section.slice(m.index + m[0].length) +
     source.slice(bounds.end);
 
   let note =
     wasCount === testCount
       ? `CHANGELOG trailer: already ${testCount} — unchanged`
       : `CHANGELOG trailer: ${wasCount} → ${testCount} (corrected from the gating run)`;
+
+  if (matches.length > 1) {
+    note +=
+      `\n  note: ${matches.length} candidates in this section; used the last (the foot). ` +
+      `Earlier ones read as prose examples and were left alone.`;
+  }
 
   if (previousCount !== null && wasBaseline !== previousCount) {
     note +=

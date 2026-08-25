@@ -39,7 +39,18 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   mutation in both directions, and **replayed against the real pre-cut `CHANGELOG.md` from git**,
   where it corrects `2927 → 2979` and leaves history byte-identical.
 
-2979 → **2992 tests**.
+- ⚠ **The first implementation shipped the false green it was written to prevent, and CI review
+  caught it.** `CHANGELOG_TRAILER_RE` took the **first** match in the pending section — and the notes
+  for this very fix quote `2841 → **2927 tests**` as an example in their prose, above the real
+  trailer. So the tool rewrote the **quoted example**, left the actual trailer stale, and reported
+  *"corrected"*. `B82`'s shape a third time: a hand-written fixture has one trailer, the real file
+  has two, and it was found by **running the tool against the real `CHANGELOG.md`** rather than by
+  the suite. The trailer is now the **last** match — a trailer is by definition at the foot — and a
+  section with more than one candidate says so in the note. Also widened for the `**N tests.**`
+  variant frozen in `v0.1.14` and `v0.1.11`, pinned against released sections only, because
+  asserting anything about the pending section is `B105`'s transient-property trap.
+
+2979 → **2996 tests**.
 
 ## [0.1.33] — 2026-08-24 — what nobody was reading
 
