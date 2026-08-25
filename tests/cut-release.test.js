@@ -9,6 +9,8 @@ import {
   foldChangelog,
   setFactsTestCount,
   setFactsAttribution,
+  setChangelogTestCount,
+  readFactsTestCount,
   releaseEdits,
 } from '../tools/cut-release.js';
 import { VERSION_SOURCES } from '../plugin/tools/lib/doc-hygiene.js';
@@ -214,6 +216,150 @@ describe('cut-release: the edits', () => {
       const out = setFactsAttribution(LINE, '0.1.31', '2026-08-21');
       expect(out.match(factsRel)?.[1]).toBe('0.1.31');
     });
+  });
+});
+
+/**
+ * `B109` — the release notes' own test-count trailer.
+ *
+ * `setFactsTestCount` set the figure in `facts.md`; nothing set the same figure
+ * where a reader actually meets it. The trailer is typed by hand into
+ * `[Unreleased]` while the Epic is still adding tests, so it is stale BY
+ * CONSTRUCTION at the cut.
+ */
+describe('B109 — the CHANGELOG test-count trailer', () => {
+  const PENDING = [
+    '# Changelog',
+    '',
+    '## [Unreleased]',
+    '',
+    '### Added',
+    '- a thing',
+    '',
+    '2841 → **2927 tests**.',
+    '',
+    '## [0.1.32] — 2026-08-21 — prior',
+    '',
+    '2789 → **2841 tests**.',
+    '',
+  ].join('\n');
+
+  it('corrects the pending trailer to the gating run count', () => {
+    const { next, note } = setChangelogTestCount(PENDING, 2979);
+    expect(next).toContain('2841 → **2979 tests**.');
+    expect(note).toMatch(/2927 → 2979/);
+  });
+
+  it('reproduces the exact v0.1.33 defect and fixes it', () => {
+    // The real numbers: the trailer said 2927 while facts.md, CLAUDE.md and
+    // CONTEXT.md — written in the same PR — all said 2979.
+    expect(PENDING).toContain('**2927 tests**');
+    expect(setChangelogTestCount(PENDING, 2979).next).not.toContain('**2927 tests**');
+  });
+
+  it('leaves the RELEASED section\'s trailer byte-identical (B84\'s anchor)', () => {
+    const { next } = setChangelogTestCount(PENDING, 2979);
+    expect(next).toContain('2789 → **2841 tests**.');
+    // The released heading and everything under it is history.
+    const history = (src) => src.slice(src.indexOf('## [0.1.32]'));
+    expect(history(next)).toBe(history(PENDING));
+  });
+
+  /**
+   * The design call this function exists to record. The first draft THREW on a
+   * missing trailer; measuring first said 14 of 33 released sections carry one
+   * and 19 do not, so throwing would fail the cut for the more common shape.
+   */
+  describe('absence is legitimate — 19 of 33 past releases carry no trailer', () => {
+    const NO_TRAILER = [
+      '# Changelog',
+      '',
+      '## [Unreleased]',
+      '',
+      '- notes with no test count',
+      '',
+      '## [0.1.32] — 2026-08-21 — prior',
+      '',
+      '2789 → **2841 tests**.',
+      '',
+    ].join('\n');
+
+    it('does NOT throw', () => {
+      expect(() => setChangelogTestCount(NO_TRAILER, 2979)).not.toThrow();
+    });
+
+    it('returns the source unchanged', () => {
+      expect(setChangelogTestCount(NO_TRAILER, 2979).next).toBe(NO_TRAILER);
+    });
+
+    it('says so rather than passing silently — rewriteBugTally\'s lesson', () => {
+      const { note } = setChangelogTestCount(NO_TRAILER, 2979);
+      expect(note).toMatch(/none in this section/);
+      // An absent trailer must never render as a completed reconciliation.
+      expect(note).not.toMatch(/corrected|already/);
+    });
+
+    it('does not reach DOWN into the released section for a trailer', () => {
+      // NO_TRAILER's only `N → **M tests**` lives below the newest release.
+      // Matching it would rewrite history — B84's failure, one function over.
+      expect(setChangelogTestCount(NO_TRAILER, 2979).next).toContain('2789 → **2841 tests**.');
+    });
+  });
+
+  describe('the baseline is checked and deliberately not rewritten', () => {
+    it('flags a baseline that disagrees with what facts.md published', () => {
+      const { note } = setChangelogTestCount(PENDING, 2979, 2800);
+      expect(note).toMatch(/baseline reads 2841/);
+      expect(note).toMatch(/facts\.md published 2800/);
+    });
+
+    it('leaves the baseline number itself alone', () => {
+      expect(setChangelogTestCount(PENDING, 2979, 2800).next).toContain('2841 → **2979 tests**');
+    });
+
+    it('stays quiet when the baseline agrees', () => {
+      expect(setChangelogTestCount(PENDING, 2979, 2841).note).not.toMatch(/baseline/);
+    });
+  });
+
+  it('reads the published count back out of facts.md', () => {
+    expect(readFactsTestCount('- **Test count:** 2979 (set at each release)')).toBe(2979);
+    expect(readFactsTestCount('nothing here')).toBeNull();
+  });
+
+  /**
+   * THE ORDERING INVARIANT. The trailer edit is scoped by the `[Unreleased]`
+   * heading, which the fold replaces — so folding first makes the pending
+   * section unfindable and the trailer silently unreconciled. That is the bug
+   * this closes, reintroduced by a line swap, and nothing else would catch it.
+   */
+  it('releaseEdits reconciles the trailer AND folds the heading, in that order', () => {
+    const read = (rel) => {
+      if (rel === 'CHANGELOG.md') return PENDING;
+      if (rel === 'plugin/references/facts.md')
+        return '- **Test count:** 2841\n\nSet at each release, most recently **v0.1.32 (2026-08-21)**.';
+      return '{"version": "0.1.32"}';
+    };
+    const edits = releaseEdits({
+      version: '0.1.33',
+      date: '2026-08-24',
+      title: 'a title',
+      testCount: 2979,
+      read: (rel) => (rel === 'docs/map/index.html' ? 'Map &middot; v0.1.32' : read(rel)),
+    });
+    const changelog = edits.find((e) => e.file === 'CHANGELOG.md');
+    expect(changelog.next).toContain('## [0.1.33] — 2026-08-24 — a title');
+    expect(changelog.next).toContain('2841 → **2979 tests**.');
+    expect(changelog.next).not.toContain('**2927 tests**');
+    expect(changelog.note).toBeTruthy();
+  });
+
+  it('every releaseEdits entry that carries a note is surfaced, not swallowed', () => {
+    // The CLI prints `e.note` on BOTH the dry-run and apply paths. A note that
+    // exists and is never printed is the same failure as no note at all.
+    const src = readFileSync(join(ROOT, 'tools/cut-release.js'), 'utf8');
+    const printsNote = src.match(/if \(e\.note\) console\.log/g) ?? [];
+    expect(printsNote.length).toBeGreaterThanOrEqual(2);
   });
 });
 

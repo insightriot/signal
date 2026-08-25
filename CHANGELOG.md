@@ -6,6 +6,41 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **The release notes' own test-count trailer is now reconciled from the gating run (`B109`).**
+  `setFactsTestCount` set the figure in `facts.md` and **nothing set the same figure where a reader
+  actually meets it** — the `N → **M tests**` line at the foot of the release notes. That trailer is
+  typed by hand into `[Unreleased]` while the Epic is still adding tests, so it was stale **by
+  construction** at every cut, not occasionally: `v0.1.33`'s said `2841 → **2927 tests**` while
+  `facts.md`, `CLAUDE.md` and `CONTEXT.md` — all written in the same PR — said **2979**. Caught by a
+  reviewer comparing two files by hand, because nothing in the suite read it. `B106`'s shape, one
+  file over.
+- ⚠ **The first design was wrong and measuring is what said so.** It threw on a missing trailer, on
+  the reasoning that a cut which stops beats one that publishes a stale figure. Measured before
+  building: **14 of 33 released sections carry a trailer and 19 do not** — `v0.1.31`, `v0.1.25` and
+  every release before `v0.1.8` among them. Throwing would have failed the cut for the *more common*
+  shape, which is `B42`'s defect — a newly-unconditional guard making a legitimate mode unusable.
+  The trailer is an optional flourish, not a contract.
+- **So absence returns unchanged and SAYS SO.** A silent no-op is `rewriteBugTally`'s bug (a replace
+  matching nothing returns the input and the caller reports success on a file it never fixed), so
+  every outcome carries a note the CLI prints on **both** the dry-run and the apply path — *absent*
+  reads as absent, never as reconciled (`B39`). The baseline is **checked against what `facts.md`
+  published and deliberately not rewritten**: an author may legitimately span two releases, and
+  silently overwriting a number someone chose is worse than printing a question about it.
+- **`foldChangelog` and the trailer now share one implementation of "which section is pending"**
+  (`pendingSectionBounds`) rather than two — `B82`'s lesson. They must agree, or the trailer could
+  rewrite a released section while the fold correctly refuses to (`B84`, one function over).
+- ⚠ **The ordering is load-bearing and pinned by a test:** the trailer edit is scoped by the
+  `[Unreleased]` heading that the fold replaces, so folding first makes the pending section
+  unfindable and the trailer silently unreconciled — the bug reintroduced by a line swap. Proved by
+  mutation in both directions, and **replayed against the real pre-cut `CHANGELOG.md` from git**,
+  where it corrects `2927 → 2979` and leaves history byte-identical.
+
+2979 → **2992 tests**.
+
 ## [0.1.33] — 2026-08-24 — what nobody was reading
 
 ### Added
