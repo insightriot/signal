@@ -15,6 +15,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -226,5 +231,63 @@ describe('the live .planning/BUGS.md tally', () => {
             `  Re-derive it — do not increment. Correct segment:\n` +
             `  ${formatTallySegment(result.derived)}`
     ).toBe(true);
+  });
+});
+
+/**
+ * The table's own shape. A row with more cells than the header has the overflow
+ * DROPPED at render time, so content disappears for a reader while every count
+ * derived from the file stays correct — nothing in the suite noticed when the
+ * `B109` row shipped a stray pipe and a whole restated paragraph went invisible.
+ *
+ * Whole-population over the real file (`B104`'s shape): a new row with the wrong
+ * column count fails the suite rather than rendering short.
+ */
+describe('BUGS.md table shape', () => {
+  /**
+   * A row with MORE cells than the header has the overflow DROPPED at render,
+   * so content vanishes for a reader while every count derived from the file
+   * stays correct — nothing noticed when the `B109` row shipped a stray pipe
+   * and a restated paragraph went invisible.
+   *
+   * PINNED AS AN EXACT SET, not a threshold. Four rows were already overflowing
+   * when this guard was written — all four from unescaped pipes inside code
+   * spans (`'done'|'not-done'`, `(?:^|\n)`), which GFM treats as delimiters
+   * even inside backticks. They are frozen records of fixed bugs and rewriting
+   * them was out of scope for the change that added this guard, so they are
+   * NAMED rather than silently tolerated. A fifth fails the suite; fixing one
+   * also fails, which is how the list shrinks instead of ossifying.
+   */
+  const KNOWN_OVERFLOW = ['B63', 'B72', 'B88', 'B96'];
+
+  const cellCount = (line) => line.replace(/\\\|/g, '\u0000').split('|').length;
+
+  it('has no overflowing row beyond the four already known', () => {
+    const src = readFileSync(join(ROOT, '.planning/BUGS.md'), 'utf8');
+    const lines = src.split('\n');
+    const header = lines.find((l) => /^\| ID \| Status \| Pri \| Summary \|/.test(l));
+    expect(header).toBeTruthy();
+    const want = cellCount(header);
+
+    const rows = lines.filter((l) => /^\| B\d+ \|/.test(l));
+    expect(rows.length).toBeGreaterThan(50); // the population is real, not empty
+
+    const overflowing = rows
+      .filter((r) => cellCount(r) > want)
+      .map((r) => r.match(/^\| (B\d+)/)[1])
+      .sort();
+
+    expect(overflowing).toEqual([...KNOWN_OVERFLOW].sort());
+  });
+
+  it('the four known ones are code-span pipes, not stray delimiters', () => {
+    // Recorded so the next reader knows what fixing them means: escape the
+    // pipes inside the backticks, do not restructure the row.
+    const src = readFileSync(join(ROOT, '.planning/BUGS.md'), 'utf8');
+    for (const id of KNOWN_OVERFLOW) {
+      const row = src.split('\n').find((l) => l.startsWith(`| ${id} |`));
+      expect(row, `${id} row present`).toBeTruthy();
+      expect(row).toMatch(/`/); // the overflow lives inside a code span
+    }
   });
 });

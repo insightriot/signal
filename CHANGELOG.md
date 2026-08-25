@@ -50,7 +50,27 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   variant frozen in `v0.1.14` and `v0.1.11`, pinned against released sections only, because
   asserting anything about the pending section is `B105`'s transient-property trap.
 
-2979 → **2996 tests**.
+- ⚠ **CI review then found the same false green one layer deeper, and it is the COMMON shape.**
+  "Last match" only rescues a quotation sitting *above* a real trailer. **19 of 33 released sections
+  carry no trailer at all**, so the ordinary case is a section that quotes the pattern and has none —
+  there the single match *is* the quotation, and the tool rewrote a factual quotation and reported
+  *"corrected"*. The rule is now **backtick parity**, not position: a match inside an inline code span
+  is a quotation and is never a candidate. Line-anchoring was rejected because real trailers appear
+  mid-line (`nothing while a live session holds the copy. 2664 → **2681 tests**.`).
+- **The trailer no longer throws when there is no pending section.** `releaseEdits` runs it *before*
+  the fold, so throwing pre-empted `foldChangelog`'s `B84` message — the one that names the offset and
+  explains the heading is history — leaving an operator staring at a visible `[Unreleased]` heading
+  while being told there is none. The fold owns the fatal; a test asserts the composed path still
+  surfaces `B84` by name.
+- **`.planning/BUGS.md`'s table shape is now guarded.** The `B109` row shipped a stray pipe, giving it
+  one more column than the header, and GFM **drops** the overflow — a whole restated paragraph was
+  invisible while every derived count stayed correct. ⚠ **Four rows were already overflowing**
+  (`B63`, `B72`, `B88`, `B96`), all from unescaped pipes inside code spans, which GFM treats as
+  delimiters even within backticks. They are **named and pinned as an exact set** rather than fixed —
+  they are frozen records and rewriting them was outside this change — so a fifth fails the suite and
+  fixing one also fails, which makes the list shrink instead of ossify.
+
+2979 → **3004 tests**.
 
 ## [0.1.33] — 2026-08-24 — what nobody was reading
 

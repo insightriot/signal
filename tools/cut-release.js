@@ -172,14 +172,42 @@ export function readFactsTestCount(source) {
  * silently overwriting a number someone chose is a bigger fault than printing a
  * question about it.
  */
+/**
+ * Is this offset inside an inline code span?
+ *
+ * The distinguishing feature of a QUOTED trailer is backticks, not position.
+ * "Take the last match" only rescued the case where a real trailer sits BELOW a
+ * quotation — and 19 of 33 released sections carry no trailer at all, so the
+ * common shape is a section that quotes the pattern and has none. There,
+ * `matches.length === 1`, the single match IS the quotation, and the code
+ * rewrote a factual quotation and reported "corrected": the same false green,
+ * one layer down, inside the fix for it.
+ *
+ * Line-anchoring was rejected — real trailers appear mid-line
+ * (`nothing while a live session holds the copy. 2664 → **2681 tests**.`), so
+ * `^...$` would drop genuine ones. Backtick parity is what actually separates
+ * the two.
+ */
+function isInsideCodeSpan(section, index) {
+  const lineStart = section.lastIndexOf('\n', index) + 1;
+  const before = section.slice(lineStart, index);
+  return (before.match(/`/g) ?? []).length % 2 === 1;
+}
+
 export const CHANGELOG_TRAILER_RE = /(\d+)(\s*→\s*\*\*)(\d+)(\s+tests\.?\*\*)/;
 
 export function setChangelogTestCount(source, testCount, previousCount = null) {
   const bounds = pendingSectionBounds(source);
   if (!bounds) {
-    throw new Error(
-      'CHANGELOG.md has no PENDING `## [Unreleased]` section — write the release notes first',
-    );
+    // NOT a throw. `pendingSectionBounds` returns null for two conditions, and
+    // `foldChangelog` is the one that tells them apart — including `B84`'s
+    // "a heading exists but it is history" message, which names the offset and
+    // the risk. Because `releaseEdits` runs this FIRST, throwing here made that
+    // more specific diagnostic unreachable from the CLI: an operator in the
+    // B84 state saw "no PENDING section" while looking at an `[Unreleased]`
+    // heading in the file — the precise confusion B84's message was written to
+    // pre-empt. The fold throws a few microseconds later; it owns the fatal.
+    return { next: source, note: 'CHANGELOG trailer: no pending section — the fold will report why' };
   }
 
   const section = source.slice(bounds.start, bounds.end);
@@ -194,7 +222,9 @@ export function setChangelogTestCount(source, testCount, previousCount = null) {
   // `B82`'s shape once more — the fixture could not exhibit it, because a
   // hand-written fixture has one trailer and the real file has two. Caught by
   // running the tool against the real `CHANGELOG.md`, not by the suite.
-  const matches = [...section.matchAll(new RegExp(CHANGELOG_TRAILER_RE.source, 'g'))];
+  const matches = [...section.matchAll(new RegExp(CHANGELOG_TRAILER_RE.source, 'g'))].filter(
+    (hit) => !isInsideCodeSpan(section, hit.index),
+  );
 
   if (matches.length === 0) {
     return {

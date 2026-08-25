@@ -359,10 +359,24 @@ describe('B109 — the CHANGELOG test-count trailer', () => {
       expect(note).not.toMatch(/2927/);
     });
 
-    it('discloses that more than one candidate was present', () => {
+    it('does NOT count the quotation as a candidate at all', () => {
+      // Backtick filtering runs first, so the quoted example never competes.
+      // The multi-candidate disclosure is therefore silent here — one real
+      // trailer, one quotation, no ambiguity to report.
       const { note } = setChangelogTestCount(WITH_QUOTED_EXAMPLE, 3000);
+      expect(note).not.toMatch(/candidates/);
+    });
+
+    it('discloses ambiguity only when two REAL trailers are present', () => {
+      const two = [
+        '# CL', '', '## [Unreleased]', '',
+        '1 → **2 tests**.', '', 'more prose', '', '2979 → **2992 tests**.', '',
+        '## [0.1.33] — x — y', '',
+      ].join('\n');
+      const { next, note } = setChangelogTestCount(two, 3000);
       expect(note).toMatch(/2 candidates/);
-      expect(note).toMatch(/used the last/);
+      expect(next).toContain('2979 → **3000 tests**.');
+      expect(next).toContain('1 → **2 tests**.'); // the earlier one is left alone
     });
   });
 
@@ -380,6 +394,71 @@ describe('B109 — the CHANGELOG test-count trailer', () => {
       1900,
     );
     expect(next).toContain('1736 → **1900 tests.**');
+  });
+
+  /**
+   * The deeper half of the same bug, found by CI review on the fix for the
+   * shallow half. "Last match" only rescues a quotation that sits ABOVE a real
+   * trailer. 19 of 33 released sections carry NO trailer, so the common shape
+   * is a section that quotes the pattern and has none — there the single match
+   * IS the quotation, and the pre-fix code rewrote it and said "corrected".
+   */
+  describe('a quotation is not a trailer, even when it is the only match', () => {
+    const QUOTE_ONLY = [
+      '# CL',
+      '',
+      '## [Unreleased]',
+      '',
+      '- A fix. The old notes said `2841 → **2927 tests**`, which was wrong.',
+      '',
+      '## [0.1.33] — 2026-08-24 — prior',
+      '',
+    ].join('\n');
+
+    it('leaves a quoted figure alone when there is no real trailer', () => {
+      expect(setChangelogTestCount(QUOTE_ONLY, 3000).next).toBe(QUOTE_ONLY);
+    });
+
+    it('reports absence rather than a false "corrected"', () => {
+      const { note } = setChangelogTestCount(QUOTE_ONLY, 3000);
+      expect(note).toMatch(/none in this section/);
+      expect(note).not.toMatch(/corrected/);
+    });
+
+    it('still finds a real trailer that sits BELOW a quotation', () => {
+      const src = QUOTE_ONLY.replace('\n## [0.1.33]', '\n2979 → **2992 tests**.\n\n## [0.1.33]');
+      const { next } = setChangelogTestCount(src, 3000);
+      expect(next).toContain('2979 → **3000 tests**.');
+      expect(next).toContain('`2841 → **2927 tests**`');
+    });
+
+    it('is backtick parity, not line position — real trailers appear mid-line', () => {
+      // e.g. v0.1.28's: "…while a live session holds the copy. 2664 → **2681 tests**."
+      const midLine = ['# CL', '', '## [Unreleased]', '', 'Some prose. 2664 → **2681 tests**.', '', '## [0.1.27] — x — y', ''].join('\n');
+      expect(setChangelogTestCount(midLine, 2700).next).toContain('2664 → **2700 tests**.');
+    });
+  });
+
+  /**
+   * `releaseEdits` runs the trailer BEFORE the fold, so a throw here would fire
+   * first and hide `foldChangelog`'s `B84` message — the one that names the
+   * offset and explains that the heading is history. That message exists
+   * precisely for the state an operator finds most confusing.
+   */
+  it('leaves the fatal B84 diagnostic to foldChangelog rather than pre-empting it', () => {
+    const HISTORICAL_ONLY = ['# CL', '', '## [0.1.33] — x — y', '', '## [Unreleased]', '', '- history', ''].join('\n');
+    expect(() => setChangelogTestCount(HISTORICAL_ONLY, 3000)).not.toThrow();
+
+    const read = (rel) => {
+      if (rel === 'CHANGELOG.md') return HISTORICAL_ONLY;
+      if (rel === 'plugin/references/facts.md') return '- **Test count:** 1\n\nmost recently **v0.1.32 (2026-08-21)**.';
+      if (rel === 'docs/map/index.html') return 'Map &middot; v0.1.32';
+      return '{"version": "0.1.32"}';
+    };
+    // The composed path must still surface B84's specific wording.
+    expect(() =>
+      releaseEdits({ version: '0.1.34', date: '2026-08-25', title: 't', testCount: 2, read }),
+    ).toThrow(/B84/);
   });
 
   it('reads the published count back out of facts.md', () => {
