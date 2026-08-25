@@ -417,7 +417,12 @@ day one. Brett, 2026-08-08: *"agreed."*
 
 ---
 
-### Twelve promoted from the inbox drain *(2026-08-10, `D-BR0810-1` … `D-BR0810-3`)*
+### Promoted from the inbox drain *(2026-08-10, `D-BR0810-1` … `D-BR0810-3`)*
+
+> The heading used to read *"Twelve promoted"* and **thirteen** rows sat under it — the count was
+> written at capture time and never re-derived as rows moved in. It was used to derive a wrong answer
+> on 2026-08-24 before being caught (`B110`). The number is gone rather than corrected: this is a live
+> queue whose length is not a fact worth pinning, and a heading that claims no number cannot go stale.
 
 Filed by the 52-entry inbox drain. Each had **no row anywhere** — several name a proposed home in
 their own text that was never written down, which is why they sat un-sequenced for months while
