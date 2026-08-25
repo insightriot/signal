@@ -148,6 +148,50 @@ closing wired into the phase gates) are Epic-shaped and its trigger is unmet.
 
 ## Filed since that agreement — **not yet sequenced**
 
+### The row that doesn't know what the platform already does · **roadmap** · small · **filed 2026-08-25**
+
+*Plain: three times in five weeks we planned to build something Claude Code already owns. Check first, size second.*
+
+**Three instances, all inside five weeks, all found the same way — by checking the platform before
+building:**
+
+| Doc | Date | What was proposed | What the check returned |
+|---|---|---|---|
+| `analysis/PHASE-C-BUILD-VS-ADOPT.md` | 2026-08-21 | capability detection to gate on | **no capability detection exists** — a plugin cannot declare a tool dependency or query the session's roster. *Adopt* the ephemeral half, *build* the durable half |
+| `analysis/CROSS-MODEL-REVIEW-SCOPE.md` | 2026-08-22 | one of two cross-model review scopes | **build neither** — a measurement nobody had taken, costing nothing, answered it |
+| `analysis/PERMISSIONS-SPIKE.md` | 2026-08-25 | a permission model (`large`) | **cannot be built** — enforced by Claude Code not the model, and closed to plugins three ways. Remainder is **small** |
+
+**The class:** a backlog row is written from the shape of a problem, and the shape does not know what
+the platform already does about it. **The row's own size estimate is then the least reliable thing on
+it** — `/sig:permissions` was filed `large` and most of the largeness was work that cannot be done at
+all.
+
+**Why this is not just "read the docs."** Each of the three rows was written by someone competent,
+and two of them *already contained* the instruction to check — `/sig:permissions` said in its own
+text *"needs a verify step against the current API before anything is designed,"* and it sat unread
+from 2026-08-10 to 2026-08-25. **The instruction existed and nothing reached for it**, which is
+`UNREACHED-MECHANISM-ANALYSIS.md`'s class applied to the queue rather than to the code.
+
+**Why the obvious fix is the wrong one.** *"Write the rule more carefully"* is the remedy `B75`
+measured the ceiling on — `light` and `strict` differed by one boolean in code and everything else was
+prose. A paragraph in `plan.md` saying *"verify platform assumptions first"* is that same paragraph.
+
+*Fix shape, cheapest first:*
+
+1. **A dated verify stamp on any row asserting a platform capability**, checked when the row is
+   batched into an Epic rather than when it is written. The batching step already exists — `/sig:plan`
+   Step 1b's drain — so this has a place to live that a new preamble paragraph does not.
+2. A `state-drift`-style check reading `BACKLOG.md` for platform-assumption language without a stamp.
+
+⚠ **Option 2 reaches one project — this one.** That is the reach problem `M6.E2` published rather
+than solved, and it is a reason to prefer option 1, not a reason to build option 2 and print its reach
+next to a clean count.
+
+⚠ **Filed rather than built, and the observation is the deliverable for now.** Three instances is a
+pattern; it is not yet evidence that a mechanism beats simply having noticed. **The next roadmap-class
+row that assumes a platform capability is the test** — if it also goes unverified, build option 1.
+
+
 Everything above is Brett's 2026-08-06 ordering. Everything below was filed
 **after** it and has **not** been placed in that sequence — the priority call is his,
 not the filer's. Kept separate so *"the agreed sequence"* keeps meaning what it says.
