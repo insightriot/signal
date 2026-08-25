@@ -616,7 +616,19 @@ And the finding that four documents cited a *"48-entry inbox"* against a live 52
 this drain** — 52 total, 38 dispositioned, 2 standing, 12 live. A point-in-time measurement published as
 a live descriptor will always drift; **derive it or drop it.**
 
-#### `/sig:permissions` — what Signal is allowed to do here · **roadmap** · large
+#### `/sig:permissions` — what Signal is allowed to do here · **roadmap** · ~~large~~ **small** · ⚠ **PREMISE VERIFIED FALSE 2026-08-25 — needs a scope call before any build**
+
+> **The row's own instruction was carried out and it changed the answer.** This row said the > relationship to Claude Code's own permission system *"needs a verify step against the current API > before anything is designed."* That check ran on 2026-08-25 — **`analysis/PERMISSIONS-SPIKE.md`**.
+>
+> **Signal cannot build a permission model.** The mechanism exists, is enforced by Claude Code and > **not by the model** (quoted: *"Instructions in your prompt or `CLAUDE.md` … don't change what > Claude Code allows"*), and is **closed to plugins** — verified three ways: no `permissions` key in > the plugin manifest, `permissionMode` explicitly unsupported for plugin-shipped agents *"for > security reasons"*, and plugins are not a settings source at all. Zero of seven installed plugins > on this machine ship one.
+>
+> **Three of this row's four opens are closed by that check:** the platform relationship (above); > **consent** — the three options anyone would design are the three modes that already ship > (`default`, an `allow` rule, `dontAsk`), so a Signal consent vocabulary would be a fourth > unenforced dial next to `tier` / `gate_strictness` / `attention`, which is `B75`; and **the levels** > — the straw man read-only → run → write → commit → push is `permissions.allow` patterns, already > expressible. *Where it lives* is trivial once there is this much less to place.
+>
+> **What remains is real and much smaller:** a dry-run generator that proposes an intentional > allowlist for what the flow needs at this tier, which **the user** installs into their own > settings — DECLARE-not-DETECT, the shape `PHASE-C-BUILD-VS-ADOPT.md` reached for a different > question. Authority stays where the platform put it.
+>
+> ⚠ **The two items this row said were blocked on it are NOT unblocked by shipping that.** The > readiness scorecard's executability dimension and the environment-readiness baseline are blocked > on *being permitted to run things* — a user act in a user-owned file. The generator makes that act > easier to perform correctly; it does not perform it.
+>
+> **Open, and it is a product call, not a queue item:** whether the generator ships at all. Read the > spike, not this summary.
 
 *Plain: Signal has no way to say what it may run in a given project, so it may run nothing.*
 
