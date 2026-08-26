@@ -2395,3 +2395,31 @@ field** — so a hard requirement would retroactively fail existing plans that w
 written. Additive and advisory first; escalation to a failure is a later, evidence-backed call.
 
 **Rollback:** revert the commit. No stored data, no published artifact, no migration.
+
+---
+
+## 2026-08-26 — the permission generator (D-BR0826-1)
+
+### D-BR0826-1 — build the permission-rule generator; the hand-cleanup alternative was run and argued against itself
+
+**Context.** `analysis/PERMISSIONS-SPIKE.md` (2026-08-25) carried out the `/sig:permissions` backlog row's own instruction — *"needs a verify step against the current API before anything is designed"* — and returned that **Signal cannot build a permission model at all**: rules are enforced by Claude Code and not by the model, and plugins are locked out three ways (no `permissions` key in the plugin manifest; `permissionMode` explicitly unsupported for plugin-shipped agents *"for security reasons"*; plugins are not a settings source). Zero of seven installed plugins ship one. What remained was one small slice — **(b)**, a dry-run generator that proposes an allowlist the **user** installs.
+
+The spike recommended **cleaning the 91 accumulated rules by hand first**, then deciding, on the reasoning that a tool saving one paste operation might not be worth a slice. **Brett rejected that ordering on 2026-08-26** in his own words: *"if it's an issue here, it will be an issue in other repos, and cleaning that all up by hand doesn't seem to make much sense."* The cleanup was then run anyway — and it produced the evidence that settles the question against the recommendation that proposed it.
+
+**Decision.** **Build it.** Sized **small**, not `large` as filed. `/sig:permissions` **emits** a proposed allowlist for what the flow needs at the project's tier; the user installs it. It never writes a settings file itself. Dry-run by default, consistent with house style.
+
+**Why — three findings, two of which only appeared by doing the cleanup.**
+
+1. **The project-scope file is gitignored and untracked** (`.gitignore:18`). It cannot be shared, committed, or carried between machines. So every repo on every machine **starts empty and re-accumulates its own**. Hand-cleanup is `O(repos × machines)`; the generator is `O(1)`. This is Brett's argument, confirmed on disk rather than accepted on assertion.
+2. **The cleaned list is 20 rules and nearly all of it is derivable from the flow** — git, npm/npx/node, gh, two doc domains. Measured: **91 → 43 rules total** (user 37 → 23, project 54 → 20). Cleaning it by hand *wrote the generator's target output by hand*, which is the strongest possible evidence that the output is well-defined and small.
+3. **The classifier refused a programmatic write to the settings files**, and the working route was the `update-config` skill. The design constraint the spike inferred from documentation — *emit a suggestion, never write authority* — is now confirmed **by experiment**.
+
+**What the accumulation actually is.** Not sloppiness: *"Yes, and don't ask again"* is **documented** to save the rule into `.claude/settings.local.json` at the git root. The 54 entries there are 54 answered prompts. This is what the platform's default path produces over months, on the machine of someone who thinks about the problem professionally — so **any design assuming operators hand-curate an allowlist is contradicted by the only sample available.**
+
+**In scope.** The generator; its dry-run report; a proposed **`deny` list**, because there are currently **43 allow rules and zero deny rules** across both files and no `defaultMode`. Clicking *"don't ask again"* only ever teaches the system to say yes, so the protective half is empty **by construction** and cannot fill itself. The deny proposal ships as a suggestion for the same reason everything else does: a badly-chosen block rule stops work the operator wants.
+
+**Rules out.** A Signal permission *model* (not available to plugins; a prose one is `B75`). A Signal **consent vocabulary** — the three options anyone would design are the three modes that already ship (`default`, an `allow` rule, `dontAsk`), and a fourth unenforced dial beside `tier` / `gate_strictness` / `attention` is exactly `B75`. Making the scanners' hard-coded read-only stance configurable — it converts a hard stop into a suggestion while reading as a control.
+
+**⚠ Does NOT unblock what the row claimed.** The readiness scorecard's executability dimension and the environment-readiness baseline are blocked on *being permitted to run things* — a user act in a user-owned file. The generator makes that act easier to perform correctly; it does not perform it. A plan asserting otherwise is a completeness claim written from the shape of the work rather than the artifact.
+
+**Cross-references.** `analysis/PERMISSIONS-SPIKE.md` (the verify step and its three-way confirmation); `.planning/BACKLOG.md` → `/sig:permissions` (row updated to record this decision); `analysis/PHASE-C-BUILD-VS-ADOPT.md` and `analysis/CROSS-MODEL-REVIEW-SCOPE.md` (the two prior platform checks); `.planning/BACKLOG.md` → *"The row that doesn't know what the platform already does"* (the class all three belong to, filed 2026-08-25); `B75` (a dial documented end to end and enforced nowhere).

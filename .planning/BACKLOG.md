@@ -665,7 +665,7 @@ And the finding that four documents cited a *"48-entry inbox"* against a live 52
 this drain** — 52 total, 38 dispositioned, 2 standing, 12 live. A point-in-time measurement published as
 a live descriptor will always drift; **derive it or drop it.**
 
-#### `/sig:permissions` — what Signal is allowed to do here · **roadmap** · ~~large~~ **small** · ⚠ **PREMISE VERIFIED FALSE 2026-08-25 — needs a scope call before any build**
+#### `/sig:permissions` — what Signal is allowed to do here · **roadmap** · ~~large~~ **small** · ▶ **DECIDED 2026-08-26 — BUILD IT** (`D-BR0826-1`) · **NEXT**
 
 > **The row's own instruction was carried out and it changed the answer.** This row said the > relationship to Claude Code's own permission system *"needs a verify step against the current API > before anything is designed."* That check ran on 2026-08-25 — **`analysis/PERMISSIONS-SPIKE.md`**.
 >
@@ -677,7 +677,17 @@ a live descriptor will always drift; **derive it or drop it.**
 >
 > ⚠ **The two items this row said were blocked on it are NOT unblocked by shipping that.** The > readiness scorecard's executability dimension and the environment-readiness baseline are blocked > on *being permitted to run things* — a user act in a user-owned file. The generator makes that act > easier to perform correctly; it does not perform it.
 >
-> **Open, and it is a product call, not a queue item:** whether the generator ships at all. Read the > spike, not this summary.
+> **DECIDED 2026-08-26 (`D-BR0826-1`): build it.** The spike recommended cleaning the 91 accumulated rules by hand first and then deciding. Brett rejected that ordering — *"if it's an issue here, it will be an issue in other repos, and cleaning that all up by hand doesn't seem to make much sense"* — and the cleanup was then run anyway and **produced the evidence against the recommendation that proposed it**:
+>
+> 1. **The project-scope file is gitignored and untracked** (`.gitignore:18`) — it cannot be shared, committed, or carried between machines, so every repo on every machine starts empty and re-accumulates. Hand-cleanup is `O(repos × machines)`; the generator is `O(1)`.
+> 2. **The cleaned list is 20 rules, nearly all derivable from the flow** (git, npm/npx/node, gh, two doc domains). Measured **91 → 43** total. Cleaning by hand *wrote the generator's target output by hand* — the job is small and well-defined, not a guess.
+> 3. **The classifier refused a programmatic write** to the settings files; the working route was the `update-config` skill. *Emit a suggestion, never write authority* is now confirmed by experiment, not inferred from docs.
+>
+> **Scope:** emit a proposed allowlist for what the flow needs at this tier; the **user** installs it. Dry-run by default. Never writes a settings file itself. **Also in scope: a proposed `deny` list** — there are **43 allow rules and zero deny rules** and no `defaultMode`, because *"don't ask again"* only ever teaches the system to say yes, so the protective half is empty **by construction** and cannot fill itself.
+>
+> ⚠ **Still does not unblock** the readiness-scorecard executability dimension or the environment-readiness baseline — both need someone to actually grant permission in a user-owned file.
+>
+> **Start here:** `analysis/PERMISSIONS-SPIKE.md`, then `D-BR0826-1` in `DECISIONS.md`. This row is a summary; those two are the evidence.
 
 *Plain: Signal has no way to say what it may run in a given project, so it may run nothing.*
 
