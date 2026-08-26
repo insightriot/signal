@@ -2423,3 +2423,135 @@ The spike recommended **cleaning the 91 accumulated rules by hand first**, then 
 **⚠ Does NOT unblock what the row claimed.** The readiness scorecard's executability dimension and the environment-readiness baseline are blocked on *being permitted to run things* — a user act in a user-owned file. The generator makes that act easier to perform correctly; it does not perform it. A plan asserting otherwise is a completeness claim written from the shape of the work rather than the artifact.
 
 **Cross-references.** `analysis/PERMISSIONS-SPIKE.md` (the verify step and its three-way confirmation); `.planning/BACKLOG.md` → `/sig:permissions` (row updated to record this decision); `analysis/PHASE-C-BUILD-VS-ADOPT.md` and `analysis/CROSS-MODEL-REVIEW-SCOPE.md` (the two prior platform checks); `.planning/BACKLOG.md` → *"The row that doesn't know what the platform already does"* (the class all three belong to, filed 2026-08-25); `B75` (a dial documented end to end and enforced nowhere).
+
+---
+
+## 2026-08-26 — M6.E5 DISCUSS: `/sig:permissions` (D-M6E5-1 … D-M6E5-5)
+
+Opened as **M6.E5** at DISCUSS on 2026-08-26. Scope is `D-BR0826-1`; nothing below re-opens it.
+Requirements: `.planning/M6.E5-REQUIREMENTS.md`.
+
+### D-M6E5-1 — M6.E5 runs at FEATURE, not the project's FULL
+
+**Decision.** Write `.planning/M6.E5-PROFILE.md` at FEATURE. Second use of the per-unit dial after
+`M6.E4` (`D-BR0823-2`).
+
+**Why.** None of FULL's stated triggers in `references/tier-definitions.md` are present — no auth,
+no payments, no data integrity, no public API, no one-way architectural decision. It is new work on
+an existing system applying a known pattern (a dry-run reporter, the shape `/sig:doctor` and
+`/sig:archive` already ship), revertible with the commit.
+
+**The counter-argument was real and is recorded rather than dropped.** The deliverable is a
+*permission* artifact, and FULL's `security_audit: full` + `review_depth: full` are the two
+overrides that would look hardest at a generated `allow` rule. What settles it the other way is
+that **Signal never installs anything** — the command emits markdown and a human performs the
+install into a file Signal cannot write, so the blast radius of a bad proposed rule is bounded by
+that human step. That constraint predates this Epic (`D-BR0826-1`); it is not a mitigation invented
+to justify the tier.
+
+⚠ **The cost is named at the profile, with its own escalation trigger:** `security_audit: basic`
+and `review_depth: quality-only`. If the proposed `deny` list grows past a handful of obvious
+entries, or the command ever gains a write path, `/sig:escalate` **upward** is the response.
+
+### D-M6E5-2 — Derive the candidate set, then classify it; neither half alone
+
+**Decision.** A deterministic scan of the plugin payload supplies **candidates**; a committed
+classification decides `propose-allow` / `propose-deny` / `never-propose`. A whole-population test
+fails the suite when the scan returns a binary the classification does not know.
+
+**Why — this was measured, and the measurement changed the design.** Scanning
+`plugin/{commands,agents,skills,hooks,references}` on 2026-08-26 returns **49 distinct
+binary+subcommand pairs across 130 backticked occurrences**. `git` (49) and `npm` (29) dominate, as
+expected. **The same set also contains `rm` (5 occurrences)**, `git reset`, `git rebase`,
+`git revert`, `pip install`, and `pytest` / `cargo build` / `go test`. The destructive entries are
+there because `/sig:doctor --fix` *describes* `rm -rf` on cache directories; the language entries
+are there because command files describe other people's stacks.
+
+**So a generator that emitted its own scan would propose `Bash(rm *)`.** Derivation alone is not a
+design.
+
+**And a hand-written table alone is the other failure.** That is `light`-vs-`strict` — the remedy
+`B75` measured the ceiling on, where two settings expanded to identical config except one boolean.
+A table nothing checks drifts the moment a command file adds a tool.
+
+The whole-population test is what makes the pairing load-bearing rather than tidy: it reads the
+scan's **live** output, so a new command prescribing a new binary cannot ship unclassified. Same
+shape `v0.1.30` used for the scanner corpus.
+
+### D-M6E5-3 — Cover the host project's stack, not only Signal's flow
+
+**Decision.** The proposal covers what the six phases run **and** the host project's detected stack.
+Flow-derived and stack-derived rules are labelled separately so either half can be refused.
+
+**⚠ This went against the DISCUSS recommendation, and the reasoning on both sides is kept.**
+Flow-only was recommended on the measurement above: `pytest`, `cargo build` and `go test` appear in
+Signal's corpus only as descriptions of other stacks, so treating them as signal would propose a
+Python rule in a Node repo. **The answer was flow-plus-stack**, on the ground that stopping the
+prompts a user actually hits is the `O(repos × machines)` argument the whole decision rests on — a
+generator that leaves a Python developer prompting for their own test runner has not solved the
+problem it was built for.
+
+**What it costs, accepted knowingly:** a new deterministic manifest reader
+(`package.json` / `pyproject.toml` / `setup.py` / `Cargo.toml` / `go.mod` / `Gemfile` /
+`composer.json`), file-presence plus shallow parse.
+
+⚠ **This is a new detector and must not be described as a reuse.** `/sig:init`'s four scanners are
+**agent prose holding `Bash`**; there is no deterministic stack-detection function anywhere in
+`plugin/tools/lib/` to call. Claiming reuse would be false. Claiming it is therefore `B82`'s
+duplicate-implementation shape would **also** be false — `B82` was two implementations of one rule,
+and here there is one. The real hazard is recorded instead: if `/sig:init` ever wants a
+deterministic detector, this module is the one to extend, not the second one to write.
+
+### D-M6E5-4 — Output is a report plus a tracked artifact; the install target is the tracked settings file
+
+**Decision.** `/sig:permissions` prints a report and writes the proposal to
+`.planning/PERMISSIONS.md` — the `ENVIRONMENT.md` shape (*what an agent can't see*) with *what an
+agent may do* alongside it, which is the pairing the spike named. It **never** writes a settings
+file. The `update-config` skill is **named** as the install route and is **not invoked**.
+
+**Why a tracked artifact rather than a paste.** Verified on disk 2026-08-26, at the altitude of this
+repo: `.claude/settings.local.json` is gitignored at `.gitignore:18`, `.claude/settings.json` does
+not exist, and **`git ls-files .claude/` returns nothing** — so this project's permission state is
+not merely unshared, nothing in `.claude/` is under version control at all. A proposal that dies
+with the session leaves the sharing problem that justified building this entirely unsolved.
+
+**The recommended install target is `.claude/settings.json`** — the **tracked** project scope — not
+`settings.local.json`. That is the actual fix for finding 1 of `D-BR0826-1`, and the report says so
+rather than leaving the user to install into the gitignored file the platform's *"don't ask again"*
+path writes to.
+
+⚠ **Nothing downstream reads `.planning/PERMISSIONS.md`.** No phase command consumes it, gates on
+it, or fails without it. It is a document for a person, and making it load-bearing later is a
+decision someone must take deliberately.
+
+### D-M6E5-5 — Ship a small, conservative deny list
+
+**Decision.** Propose a short `deny` set — clearly destructive or exfiltrating shapes only — every
+entry naming why it is there, proposed on exactly the same footing as the allow rules.
+
+**Why.** Re-derived 2026-08-26: **43 allow rules, 0 deny, 0 ask, no `defaultMode`** (user 23,
+project 20). *"Yes, and don't ask again"* only ever teaches the system to say yes, so the protective
+half is empty **by construction** and cannot fill itself. `D-BR0826-1` puts it in scope.
+
+⚠ **Small is not timidity, it is the precedence rule.** Deny is absolute and **cannot carry
+exceptions** — a broad deny beats a narrower allow. A rule that is slightly too wide is a work
+stoppage with a confusing message rather than a prompt, so the report states this at the deny list
+itself.
+
+**No fourth dial.** The report names the three platform modes (`default`, an `allow` rule,
+`dontAsk`) by their platform names and proposes no Signal vocabulary beside them (`B75`).
+
+### Numbers in these entries were re-derived, not inherited
+
+`analysis/PERMISSIONS-SPIKE.md` publishes 94 rules and `D-BR0826-1` publishes 91. **Both describe a
+state that no longer exists** — the hand-cleanup ran between them and this Epic. Every count above
+was measured on 2026-08-26. Restating an inherited figure about this project, in the artifact that
+cites it, is `M6.E2`'s class.
+
+### Filed during this phase
+
+**`B111`** (captured, `BUGS.md`) — `AC_ID_RE` lacks the `[a-z]?` its two sibling patterns carry, so
+`AC1.1a`…`AC1.1d` all collapse to `AC1`, and `requirement-coverage.js` reads the collapsed ids on
+both sides of its diff. Found by running the coverage extractor over this Epic's own REQUIREMENTS to
+check it for the en-dash defect `M5.E10` and `M6.E2` both committed. Not fixed here — the fold may
+be load-bearing for `groupOf` / `dropGroupLabels`, and reach is unmeasured.

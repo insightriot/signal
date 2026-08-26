@@ -665,7 +665,7 @@ And the finding that four documents cited a *"48-entry inbox"* against a live 52
 this drain** — 52 total, 38 dispositioned, 2 standing, 12 live. A point-in-time measurement published as
 a live descriptor will always drift; **derive it or drop it.**
 
-#### `/sig:permissions` — what Signal is allowed to do here · **roadmap** · ~~large~~ **small** · ▶ **DECIDED 2026-08-26 — BUILD IT** (`D-BR0826-1`) · **NEXT**
+#### `/sig:permissions` — what Signal is allowed to do here · **roadmap** · ~~large~~ **small** · ▶ **IN FLIGHT as `M6.E5`** — DISCUSS closed 2026-08-26 (`D-BR0826-1` scope; `D-M6E5-1`…`D-M6E5-5` design)
 
 > **The row's own instruction was carried out and it changed the answer.** This row said the > relationship to Claude Code's own permission system *"needs a verify step against the current API > before anything is designed."* That check ran on 2026-08-25 — **`analysis/PERMISSIONS-SPIKE.md`**.
 >

@@ -305,6 +305,7 @@
 - [archive/M6/E1/STATE-NARRATIVE.md](archive/M6/E1/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E2/STATE-NARRATIVE.md](archive/M6/E2/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E3/STATE-NARRATIVE.md](archive/M6/E3/STATE-NARRATIVE.md) — `other` — _(note pending)_
+- [archive/M6/E4/STATE-NARRATIVE.md](archive/M6/E4/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/milestones/DECISIONS.md](archive/milestones/DECISIONS.md) — `append-log` — Evicted M1–M4 decision history (2026-04-22 → 2026-05-12, date-keyed, pre-`D-…-n` convention). Relocated verbatim at docs-layout v3 behind a dated pointer in live `DECISIONS.md`.
 - [archive/milestones/MILESTONE-1.md](archive/milestones/MILESTONE-1.md) — `milestone` — _(note pending)_
 - [archive/milestones/MILESTONE-2.md](archive/milestones/MILESTONE-2.md) — `milestone` — _(note pending)_

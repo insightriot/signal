@@ -4,7 +4,45 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-08-26) — NEXT WORK IS DECIDED
+## Where things stand (2026-08-26) — M6.E5 IS OPEN, DISCUSS CLOSED
+
+**`/sig:permissions` is in flight as `M6.E5`.** Epic opened 2026-08-26; DISCUSS is written and the
+next phase is PLAN. Read `.planning/M6.E5-REQUIREMENTS.md` and `D-M6E5-1`…`D-M6E5-5` in
+[`DECISIONS.md`](DECISIONS.md) before planning it.
+
+**It runs at FEATURE, not the project's FULL** (`M6.E5-PROFILE.md`, `D-M6E5-1`) — the second use of
+the per-unit dial after `M6.E4`. The cost of that tier and the trigger for escalating back up are
+written at the profile.
+
+**Five things were decided at DISCUSS, and one went against the recommendation:**
+
+1. Derive the candidate command set from the payload, then **classify** it — neither half alone.
+   Measured: the corpus scan returns **49 binary+subcommand pairs across 130 occurrences**, and that
+   set contains **`rm`**, `git reset`, `git rebase` and `pip install`. **A generator that emitted its
+   own scan would propose `Bash(rm *)`.**
+2. Cover the **host project's stack** as well as Signal's flow — ⚠ **against the DISCUSS
+   recommendation** (`D-M6E5-3`), on the ground that a generator leaving a Python developer
+   prompting for their own test runner has not solved the problem it was built for. Cost accepted: a
+   new deterministic manifest reader, which is **not** a reuse of `/sig:init`'s scanners (they are
+   agent prose; no deterministic detector exists to call).
+3. Output is a report **plus** `.planning/PERMISSIONS.md`, a tracked artifact. **The recommended
+   install target is `.claude/settings.json` — the tracked project scope**, not the gitignored
+   `settings.local.json` the platform's *"don't ask again"* path writes to.
+4. A **small, conservative deny list** — 43 allow rules and zero deny is a protective half empty by
+   construction. Deny is absolute and cannot carry exceptions, and the report says so at the list.
+5. FEATURE tier, above.
+
+⚠ **Every count in those documents was re-derived on 2026-08-26.** The spike publishes 94 rules and
+`D-BR0826-1` publishes 91; **both describe a state that no longer exists.** The live figure is
+**43 allow, 0 deny, 0 ask, no `defaultMode`**.
+
+**Filed during the phase:** `B111` — `AC_ID_RE` drops the sub-letter, so `AC1.1a`…`AC1.1d` collapse
+to `AC1` and `requirement-coverage.js` reads the collapsed ids on both sides of its diff. Found by
+running the coverage checker over this Epic's own REQUIREMENTS. Not fixed; reach unmeasured.
+
+---
+
+### The scope call this Epic implements (2026-08-26)
 
 **Build `/sig:permissions` — the permission-rule generator.** Decided by Brett 2026-08-26
 (`D-BR0826-1`). Sized **small**, not the `large` it was filed as. This is the next unit of work and
