@@ -2555,3 +2555,17 @@ cites it, is `M6.E2`'s class.
 both sides of its diff. Found by running the coverage extractor over this Epic's own REQUIREMENTS to
 check it for the en-dash defect `M5.E10` and `M6.E2` both committed. Not fixed here — the fold may
 be load-bearing for `groupOf` / `dropGroupLabels`, and reach is unmeasured.
+
+**Observed, deliberately NOT filed — `checkOutcomeOracle` matches its heading exactly.**
+`## Outcome — how we will know it worked` returns `missing`; only the five literals in
+`OUTCOME_HEADINGS` are accepted. This Epic hit it and renamed the heading. **Awareness-only, and
+that is a judgement not an omission:** the explicit list is deliberate (an agent can read it and
+know it will be understood, rather than guessing at a parser), and the failure message names the
+fix. Recorded here so the next person who trips it does not re-diagnose it. Filing it would put a
+row in `BUGS.md` for something behaving as designed.
+
+**Scope gap closed at DISCUSS rather than discovered at PLAN — `FR5.3`.** `D-BR0826-1` argues
+`O(repos × machines)` — *every* repo re-accumulates — while the deliverable as first written landed
+only in `.planning/`, i.e. Signal-initialized repos. The report now runs anywhere and the
+tracked-artifact step reports itself skipped with a reason where there is no `.planning/`. The
+command does **not** create one.
