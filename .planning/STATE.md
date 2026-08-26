@@ -9,42 +9,68 @@ completed_phases: []
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-08-13T14:47:23.449Z
-last_updated_commit: 2b95afc49a22a8431a3cfd2499b8fba5814b6b36
-last_updated: 2026-08-26T16:54:47.329Z
+last_updated_commit: a0ab91d35cb5578bed75388c229dc7fda75291c5
+last_updated: 2026-08-26T17:11:40.064Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-08-24, after a context clear)
+### ▶ WHERE THE WORK IS — read this first (2026-08-26)
 
-**Nothing is in flight. `main` is clean at `b09cf59`, suite 2979 green (176 files), working tree
-clean, no branch open.** Plugin binding current — no `/sig:update` needed.
+**`M6.E5` is OPEN and at DISCUSS.** `/sig:permissions` — the permission-rule generator. DISCUSS is
+written and committed; **PR #210 is open** on branch `epic/m6-e5-permissions-discuss`. Suite **3006**
+green (176 files). **The next phase is PLAN.**
 
-**`M6.E4` is MERGED** (PR #200, `--merge` per the Epic lane; branch deleted). *"What PLAN reads and
-writes"* — three backlog rows batched by **subject, not size** (`D-BR0823-1`), run at **FEATURE** via
-a per-Epic profile inside a FULL project. Retro: [`M6.E4-RETROSPECTIVE.md`](M6.E4-RETROSPECTIVE.md).
-2929 → **2979 tests**.
+**Read before planning it, in this order:** [`M6.E5-REQUIREMENTS.md`](M6.E5-REQUIREMENTS.md) →
+`D-M6E5-1`…`D-M6E5-5` in [`DECISIONS.md`](DECISIONS.md) → `analysis/PERMISSIONS-SPIKE.md` (the
+evidence the scope rests on) → `D-BR0826-1`.
 
-> ### ⚠ `phase: SHIP` / `current_epic: M6.E4` is FINISHED work, not current work
+**It runs at FEATURE, not the project's FULL** ([`M6.E5-PROFILE.md`](M6.E5-PROFILE.md),
+`D-M6E5-1`) — second use of the per-unit dial after `M6.E4`. So: `plan_validation_dims: core`
+(3 dimensions, not 8), `research_parallelism: 2`, `gate_strictness: light`, `security_audit: basic`,
+`review_depth: quality-only`. **The cost of that tier and the trigger for escalating back up are
+written at the profile** — if the proposed `deny` list grows past a handful of obvious entries, or
+the command ever gains a write path, `/sig:escalate` **upward** is the response.
+
+> ### ⚠ One decision went AGAINST the DISCUSS recommendation — do not silently re-decide it
 >
-> `/sig:resume` will render **"Next phase: done"**, which is correct — SHIP is terminal and nothing
-> leaves it. `current_epic` is deliberately **not** cleared: `setCurrentEpic` archives the phase log
-> on a roll, and rolling to an Epic that has not been chosen yet would fabricate a transition.
-> **The next Epic's `/sig:discuss --epic <name>` does the roll.**
+> `D-M6E5-3`: the proposal covers the **host project's stack** as well as Signal's flow. Flow-only
+> was recommended on a measurement (`pytest`/`cargo`/`go` appear in Signal's corpus only as
+> descriptions of other stacks) and was **overruled** — a generator that leaves a Python developer
+> prompting for their own test runner has not solved the problem it was built for. Both sides are
+> recorded. PLAN implements the decision, not the recommendation.
 
-**⚠ `/sig:resume` will show "STATE.md is 1 commit behind work history." That is EXPECTED here, and
-it is not drift.** `main` is protected, so every state re-point goes through a PR, and the fix lane
-**squashes** — which replaces the commit `markFresh` recorded with a new sha. The baseline is
-therefore one behind the moment it merges, **by construction**, and any commit that "fixes" it
-becomes the next one behind. The banner is correct and self-clearing: run `/sig:checkpoint`, or
-ignore it. Nothing is out of sync — `isStaleVsOrigin` reports **in sync**, schema drift **none**,
-binding banner **none**.
+**The measurement PLAN must not lose.** The corpus scan returns **49 binary+subcommand pairs across
+130 occurrences**, and that set contains **`rm` (5)**, `git reset`, `git rebase`, `git revert` and
+`pip install`. **A generator that emitted its own scan would propose `Bash(rm *)`.** Hence
+derive-then-classify plus a whole-population test that fails the suite on an unclassified binary
+(`D-M6E5-2`). Neither half alone works.
 
-**▶ NEXT WORK: nine of the twelve promoted rows remain** — `BACKLOG.md` §*"Twelve promoted from the
-inbox drain"*. Three are struck (`M6.E4` S1/S2/S3). **Not a priority order**, and explicitly **not**
-to be worked in size batches — that was considered and rejected on 2026-08-23 with a reason
-(`D-BR0823-1`): size measures diff cost, the six phases pay decision cost.
+**⚠ Every permission count was re-derived 2026-08-26 — do not restate the older figures.** The spike
+publishes **94** rules and `D-BR0826-1` publishes **91**; both describe a state that no longer
+exists. Live: **43 allow, 0 deny, 0 ask, no `defaultMode`** (user 23, project 20). Also verified:
+`git ls-files .claude/` returns **nothing** — `settings.local.json` is gitignored at `.gitignore:18`
+and `settings.json` does not exist.
+
+**⚠ `/sig:resume` may show "STATE.md is 1 commit behind work history." That is EXPECTED, and it is
+not drift.** `main` is protected, so every state re-point goes through a PR; the baseline lags by
+construction and any commit that "fixes" it becomes the next one behind. Self-clearing — run
+`/sig:checkpoint`, or ignore it.
+
+**▶ AFTER `M6.E5`: nine of the twelve promoted rows remain** — `BACKLOG.md` §*"Twelve promoted from
+the inbox drain"*. Three are struck (`M6.E4` S1/S2/S3); `/sig:permissions` is **not** one of them,
+it is its own roadmap row. **Not a priority order**, and explicitly **not** to be worked in size
+batches — considered and rejected 2026-08-23 with a reason (`D-BR0823-1`): size measures diff cost,
+the six phases pay decision cost. ⚠ That heading reads *"Twelve promoted"* and **thirteen `####`
+rows sit under it** (`B110`) — read the file, not the count.
+
+**Filed during `M6.E5` DISCUSS and NOT fixed: `B111`.** `AC_ID_RE` lacks the `[a-z]?` that
+`FR_ID_RE` and `NFR_ID_RE` both carry, so `AC1.1a`…`AC1.1d` all collapse to `AC1` — and
+`requirement-coverage.js` reads the collapsed ids on **both** sides of its diff (`:89` denominator,
+`:94` numerator). A VERIFICATION naming one sub-lettered criterion marks the whole group covered.
+**This affects `M6.E5`'s own VERIFY**: its REQUIREMENTS use sub-lettered ACs throughout, so the
+coverage tool will report group-level ids. Verify by hand against the artifact, or fix `B111` first.
 
 **Two expected `/sig:resume` findings — both correct, neither actionable:**
 
