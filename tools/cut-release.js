@@ -88,12 +88,36 @@ export function bumpMapStamp(source, version) {
 const UNRELEASED_HEADING_RE = /^## \[Unreleased\].*$/m;
 const RELEASED_HEADING_RE = /^## \[\d+\.\d+\.\d+\]/m;
 
-export function foldChangelog(source, version, date, title) {
+/**
+ * Locate the PENDING section — the one this cut is about.
+ *
+ * ONE implementation of "which section is pending", because `B82` is what
+ * happens when the same question gets answered twice: a second derivation
+ * cannot express what the first one means, and the two agree only on the shapes
+ * that happen to be in the fixtures. `foldChangelog` and
+ * `setChangelogTestCount` must agree about this or the second could rewrite a
+ * released section while the first correctly refuses to.
+ *
+ * Returns `null` when there is no pending section — callers decide whether that
+ * is fatal. It is for the fold (a release with no notes) and it is NOT for the
+ * trailer (see below).
+ */
+function pendingSectionBounds(source) {
   const pending = source.match(UNRELEASED_HEADING_RE);
   const newestReleased = source.match(RELEASED_HEADING_RE);
-  const isPending = pending && (!newestReleased || pending.index < newestReleased.index);
+  if (!pending || (newestReleased && pending.index > newestReleased.index)) return null;
+  return {
+    start: pending.index,
+    headingLength: pending[0].length,
+    end: newestReleased ? newestReleased.index : source.length,
+  };
+}
 
-  if (!isPending) {
+export function foldChangelog(source, version, date, title) {
+  const bounds = pendingSectionBounds(source);
+
+  if (!bounds) {
+    const pending = source.match(UNRELEASED_HEADING_RE);
     throw new Error(
       pending
         ? 'CHANGELOG.md has no PENDING `## [Unreleased]` section — write the release notes ' +
@@ -105,10 +129,138 @@ export function foldChangelog(source, version, date, title) {
   }
 
   return (
-    source.slice(0, pending.index) +
+    source.slice(0, bounds.start) +
     `## [${version}] — ${date} — ${title}` +
-    source.slice(pending.index + pending[0].length)
+    source.slice(bounds.start + bounds.headingLength)
   );
+}
+
+/** `plugin/references/facts.md` — read the count currently published. */
+export function readFactsTestCount(source) {
+  const m = source.match(/\*\*Test count:\*\*\s+(\d+)/);
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * The pending section's own `N → **M tests**` trailer (`B109`).
+ *
+ * `setFactsTestCount` sets the count in `facts.md` from the gating run, and
+ * NOTHING set the same figure where a reader actually meets it — the release
+ * notes. That trailer is typed by hand into `[Unreleased]` while the Epic is
+ * still adding tests, so it is stale **by construction** at the cut, not
+ * occasionally: `v0.1.33`'s said `2841 → **2927 tests**` while three files
+ * written in the same PR said **2979**. `B106` is the same shape one file over.
+ *
+ * ⚠ **ABSENCE IS NORMAL AND MUST NOT THROW.** The first design for this threw
+ * on a missing trailer, reasoning that a cut which stops beats one that
+ * publishes a stale figure. **Measured before building: 14 of 33 released
+ * sections carry a trailer and 19 do not** — `v0.1.31`, `v0.1.25` and every
+ * release before `v0.1.8` among them. Throwing would fail the cut for the more
+ * common shape, which is `B42`'s defect: a newly-unconditional guard that makes
+ * a legitimate mode unusable. The trailer is an optional flourish, not a
+ * contract.
+ *
+ * ⚠ **But a no-op must not be silent** — that is `rewriteBugTally`'s bug, where
+ * a replace matching nothing returned the input unchanged and the caller
+ * reported success on a file it never fixed. So this returns a `note` for every
+ * outcome and the CLI prints it, including the boring ones: *absent* reads as
+ * absent, never as done (`B39`).
+ *
+ * The BASELINE is checked and deliberately NOT rewritten. `facts.md`'s pre-edit
+ * count is the previous release's figure, so a disagreeing baseline is worth
+ * saying out loud — but an author may legitimately span two releases, and
+ * silently overwriting a number someone chose is a bigger fault than printing a
+ * question about it.
+ */
+/**
+ * Is this offset inside an inline code span?
+ *
+ * The distinguishing feature of a QUOTED trailer is backticks, not position.
+ * "Take the last match" only rescued the case where a real trailer sits BELOW a
+ * quotation — and 19 of 33 released sections carry no trailer at all, so the
+ * common shape is a section that quotes the pattern and has none. There,
+ * `matches.length === 1`, the single match IS the quotation, and the code
+ * rewrote a factual quotation and reported "corrected": the same false green,
+ * one layer down, inside the fix for it.
+ *
+ * Line-anchoring was rejected — real trailers appear mid-line
+ * (`nothing while a live session holds the copy. 2664 → **2681 tests**.`), so
+ * `^...$` would drop genuine ones. Backtick parity is what actually separates
+ * the two.
+ */
+function isInsideCodeSpan(section, index) {
+  const lineStart = section.lastIndexOf('\n', index) + 1;
+  const before = section.slice(lineStart, index);
+  return (before.match(/`/g) ?? []).length % 2 === 1;
+}
+
+export const CHANGELOG_TRAILER_RE = /(\d+)(\s*→\s*\*\*)(\d+)(\s+tests\.?\*\*)/;
+
+export function setChangelogTestCount(source, testCount, previousCount = null) {
+  const bounds = pendingSectionBounds(source);
+  if (!bounds) {
+    // NOT a throw. `pendingSectionBounds` returns null for two conditions, and
+    // `foldChangelog` is the one that tells them apart — including `B84`'s
+    // "a heading exists but it is history" message, which names the offset and
+    // the risk. Because `releaseEdits` runs this FIRST, throwing here made that
+    // more specific diagnostic unreachable from the CLI: an operator in the
+    // B84 state saw "no PENDING section" while looking at an `[Unreleased]`
+    // heading in the file — the precise confusion B84's message was written to
+    // pre-empt. The fold throws a few microseconds later; it owns the fatal.
+    return { next: source, note: 'CHANGELOG trailer: no pending section — the fold will report why' };
+  }
+
+  const section = source.slice(bounds.start, bounds.end);
+
+  // LAST match, not first. A trailer is by definition at the FOOT of the
+  // section, and the prose above it may legitimately contain the same shape —
+  // release notes about this very mechanism quote `2841 → **2927 tests**` as an
+  // example. Taking the first match rewrote that quoted example, left the real
+  // trailer stale, and reported "corrected": a FALSE GREEN, and the exact
+  // failure this function exists to prevent, committed inside it.
+  //
+  // `B82`'s shape once more — the fixture could not exhibit it, because a
+  // hand-written fixture has one trailer and the real file has two. Caught by
+  // running the tool against the real `CHANGELOG.md`, not by the suite.
+  const matches = [...section.matchAll(new RegExp(CHANGELOG_TRAILER_RE.source, 'g'))].filter(
+    (hit) => !isInsideCodeSpan(section, hit.index),
+  );
+
+  if (matches.length === 0) {
+    return {
+      next: source,
+      note: `CHANGELOG trailer: none in this section — nothing to reconcile (optional; 19 of 33 past releases carry none)`,
+    };
+  }
+
+  const m = matches[matches.length - 1];
+  const wasBaseline = Number(m[1]);
+  const wasCount = Number(m[3]);
+  const next =
+    source.slice(0, bounds.start) +
+    section.slice(0, m.index) +
+    `${m[1]}${m[2]}${testCount}${m[4]}` +
+    section.slice(m.index + m[0].length) +
+    source.slice(bounds.end);
+
+  let note =
+    wasCount === testCount
+      ? `CHANGELOG trailer: already ${testCount} — unchanged`
+      : `CHANGELOG trailer: ${wasCount} → ${testCount} (corrected from the gating run)`;
+
+  if (matches.length > 1) {
+    note +=
+      `\n  note: ${matches.length} candidates in this section; used the last (the foot). ` +
+      `Earlier ones read as prose examples and were left alone.`;
+  }
+
+  if (previousCount !== null && wasBaseline !== previousCount) {
+    note +=
+      `\n  ⚠ trailer baseline reads ${wasBaseline}; facts.md published ${previousCount} for the ` +
+      `previous release. Left as written — check it is deliberate.`;
+  }
+
+  return { next, note };
 }
 
 /** references/facts.md — the published test count (`B56`, release reading). */
@@ -149,10 +301,24 @@ export function setFactsAttribution(source, version, date) {
 
 /** The file set a release touches, in the order a reviewer reads them. */
 export function releaseEdits({ version, date, title, testCount, read }) {
+  // The count facts.md publishes BEFORE this edit is the previous release's
+  // figure (`B56`'s release reading), which is what the trailer's baseline
+  // should say. Read it here, before `setFactsTestCount` overwrites it.
+  const previousCount = readFactsTestCount(read('plugin/references/facts.md'));
+  const trailer = setChangelogTestCount(read('CHANGELOG.md'), testCount, previousCount);
+
   return [
     { file: 'plugin/.claude-plugin/plugin.json', next: bumpJsonVersion(read('plugin/.claude-plugin/plugin.json'), version) },
     { file: 'package.json', next: bumpJsonVersion(read('package.json'), version) },
-    { file: 'CHANGELOG.md', next: foldChangelog(read('CHANGELOG.md'), version, date, title) },
+    {
+      file: 'CHANGELOG.md',
+      // Trailer FIRST, fold second: the trailer edit is scoped by the
+      // `[Unreleased]` heading, which the fold replaces. Reversing these makes
+      // the pending section unfindable and the trailer silently unreconciled —
+      // the bug this function exists to close, reintroduced by ordering.
+      next: foldChangelog(trailer.next, version, date, title),
+      note: trailer.note,
+    },
     { file: 'docs/map/index.html', next: bumpMapStamp(read('docs/map/index.html'), version) },
     {
       file: 'plugin/references/facts.md',
@@ -290,6 +456,7 @@ async function main(argv) {
     for (const e of edits) console.log(`  ${e.file}`);
     console.log(`\n  CHANGELOG heading: ## [${version}] — ${date} — ${title}`);
     console.log(`  facts.md test count: ${testCount}`);
+    for (const e of edits) if (e.note) console.log(`  ${e.note}`);
     console.log('\nRe-run with --apply to write.');
     return;
   }
@@ -297,6 +464,9 @@ async function main(argv) {
   for (const e of edits) writeFileSync(join(ROOT, e.file), e.next);
   console.log('Written (not committed, not tagged):\n');
   for (const e of edits) console.log(`  ${e.file}`);
+  // Printed on the APPLY path too, not just the dry run: the whole point of
+  // `B109` is that a figure nobody reconciled looks identical to one that was.
+  for (const e of edits) if (e.note) console.log(`\n  ${e.note}`);
   console.log('\nNext:');
   console.log('  git checkout -b release/v' + version);
   console.log('  git add -A && git commit');

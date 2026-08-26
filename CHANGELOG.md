@@ -6,6 +6,72 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **The release notes' own test-count trailer is now reconciled from the gating run (`B109`).**
+  `setFactsTestCount` set the figure in `facts.md` and **nothing set the same figure where a reader
+  actually meets it** — the `N → **M tests**` line at the foot of the release notes. That trailer is
+  typed by hand into `[Unreleased]` while the Epic is still adding tests, so it was stale **by
+  construction** at every cut, not occasionally: `v0.1.33`'s said `2841 → **2927 tests**` while
+  `facts.md`, `CLAUDE.md` and `CONTEXT.md` — all written in the same PR — said **2979**. Caught by a
+  reviewer comparing two files by hand, because nothing in the suite read it. `B106`'s shape, one
+  file over.
+- ⚠ **The first design was wrong and measuring is what said so.** It threw on a missing trailer, on
+  the reasoning that a cut which stops beats one that publishes a stale figure. Measured before
+  building: **14 of 33 released sections carry a trailer and 19 do not** — `v0.1.31`, `v0.1.25` and
+  every release before `v0.1.8` among them. Throwing would have failed the cut for the *more common*
+  shape, which is `B42`'s defect — a newly-unconditional guard making a legitimate mode unusable.
+  The trailer is an optional flourish, not a contract.
+- **So absence returns unchanged and SAYS SO.** A silent no-op is `rewriteBugTally`'s bug (a replace
+  matching nothing returns the input and the caller reports success on a file it never fixed), so
+  every outcome carries a note the CLI prints on **both** the dry-run and the apply path — *absent*
+  reads as absent, never as reconciled (`B39`). The baseline is **checked against what `facts.md`
+  published and deliberately not rewritten**: an author may legitimately span two releases, and
+  silently overwriting a number someone chose is worse than printing a question about it.
+- **`foldChangelog` and the trailer now share one implementation of "which section is pending"**
+  (`pendingSectionBounds`) rather than two — `B82`'s lesson. They must agree, or the trailer could
+  rewrite a released section while the fold correctly refuses to (`B84`, one function over).
+- ⚠ **The ordering is load-bearing and pinned by a test:** the trailer edit is scoped by the
+  `[Unreleased]` heading that the fold replaces, so folding first makes the pending section
+  unfindable and the trailer silently unreconciled — the bug reintroduced by a line swap. Proved by
+  mutation in both directions, and **replayed against the real pre-cut `CHANGELOG.md` from git**,
+  where it corrects `2927 → 2979` and leaves history byte-identical.
+
+- ⚠ **The first implementation shipped the false green it was written to prevent, and CI review
+  caught it.** `CHANGELOG_TRAILER_RE` took the **first** match in the pending section — and the notes
+  for this very fix quote `2841 → **2927 tests**` as an example in their prose, above the real
+  trailer. So the tool rewrote the **quoted example**, left the actual trailer stale, and reported
+  *"corrected"*. `B82`'s shape a third time: a hand-written fixture has one trailer, the real file
+  has two, and it was found by **running the tool against the real `CHANGELOG.md`** rather than by
+  the suite. The trailer is now the **last** match — a trailer is by definition at the foot — and a
+  section with more than one candidate says so in the note. Also widened for the `**N tests.**`
+  variant frozen in `v0.1.14` and `v0.1.11`, pinned against released sections only, because
+  asserting anything about the pending section is `B105`'s transient-property trap.
+
+- ⚠ **CI review then found the same false green one layer deeper, and it is the COMMON shape.**
+  "Last match" only rescues a quotation sitting *above* a real trailer. **19 of 33 released sections
+  carry no trailer at all**, so the ordinary case is a section that quotes the pattern and has none —
+  there the single match *is* the quotation, and the tool rewrote a factual quotation and reported
+  *"corrected"*. The rule is now **backtick parity**, not position: a match inside an inline code span
+  is a quotation and is never a candidate. Line-anchoring was rejected because real trailers appear
+  mid-line (`nothing while a live session holds the copy. 2664 → **2681 tests**.`).
+- **The trailer no longer throws when there is no pending section.** `releaseEdits` runs it *before*
+  the fold, so throwing pre-empted `foldChangelog`'s `B84` message — the one that names the offset and
+  explains the heading is history — leaving an operator staring at a visible `[Unreleased]` heading
+  while being told there is none. The fold owns the fatal; a test asserts the composed path still
+  surfaces `B84` by name.
+- **`.planning/BUGS.md`'s table shape is now guarded.** The `B109` row shipped a stray pipe, giving it
+  one more column than the header, and GFM **drops** the overflow — a whole restated paragraph was
+  invisible while every derived count stayed correct. ⚠ **Four rows were already overflowing**
+  (`B63`, `B72`, `B88`, `B96`), all from unescaped pipes inside code spans, which GFM treats as
+  delimiters even within backticks. They are **named and pinned as an exact set** rather than fixed —
+  they are frozen records and rewriting them was outside this change — so a fifth fails the suite and
+  fixing one also fails, which makes the list shrink instead of ossify.
+
+2979 → **3004 tests**.
+
 ## [0.1.33] — 2026-08-24 — what nobody was reading
 
 ### Added

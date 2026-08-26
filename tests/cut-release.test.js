@@ -9,6 +9,8 @@ import {
   foldChangelog,
   setFactsTestCount,
   setFactsAttribution,
+  setChangelogTestCount,
+  readFactsTestCount,
   releaseEdits,
 } from '../tools/cut-release.js';
 import { VERSION_SOURCES } from '../plugin/tools/lib/doc-hygiene.js';
@@ -214,6 +216,289 @@ describe('cut-release: the edits', () => {
       const out = setFactsAttribution(LINE, '0.1.31', '2026-08-21');
       expect(out.match(factsRel)?.[1]).toBe('0.1.31');
     });
+  });
+});
+
+/**
+ * `B109` — the release notes' own test-count trailer.
+ *
+ * `setFactsTestCount` set the figure in `facts.md`; nothing set the same figure
+ * where a reader actually meets it. The trailer is typed by hand into
+ * `[Unreleased]` while the Epic is still adding tests, so it is stale BY
+ * CONSTRUCTION at the cut.
+ */
+describe('B109 — the CHANGELOG test-count trailer', () => {
+  const PENDING = [
+    '# Changelog',
+    '',
+    '## [Unreleased]',
+    '',
+    '### Added',
+    '- a thing',
+    '',
+    '2841 → **2927 tests**.',
+    '',
+    '## [0.1.32] — 2026-08-21 — prior',
+    '',
+    '2789 → **2841 tests**.',
+    '',
+  ].join('\n');
+
+  it('corrects the pending trailer to the gating run count', () => {
+    const { next, note } = setChangelogTestCount(PENDING, 2979);
+    expect(next).toContain('2841 → **2979 tests**.');
+    expect(note).toMatch(/2927 → 2979/);
+  });
+
+  it('reproduces the exact v0.1.33 defect and fixes it', () => {
+    // The real numbers: the trailer said 2927 while facts.md, CLAUDE.md and
+    // CONTEXT.md — written in the same PR — all said 2979.
+    expect(PENDING).toContain('**2927 tests**');
+    expect(setChangelogTestCount(PENDING, 2979).next).not.toContain('**2927 tests**');
+  });
+
+  it('leaves the RELEASED section\'s trailer byte-identical (B84\'s anchor)', () => {
+    const { next } = setChangelogTestCount(PENDING, 2979);
+    expect(next).toContain('2789 → **2841 tests**.');
+    // The released heading and everything under it is history.
+    const history = (src) => src.slice(src.indexOf('## [0.1.32]'));
+    expect(history(next)).toBe(history(PENDING));
+  });
+
+  /**
+   * The design call this function exists to record. The first draft THREW on a
+   * missing trailer; measuring first said 14 of 33 released sections carry one
+   * and 19 do not, so throwing would fail the cut for the more common shape.
+   */
+  describe('absence is legitimate — 19 of 33 past releases carry no trailer', () => {
+    const NO_TRAILER = [
+      '# Changelog',
+      '',
+      '## [Unreleased]',
+      '',
+      '- notes with no test count',
+      '',
+      '## [0.1.32] — 2026-08-21 — prior',
+      '',
+      '2789 → **2841 tests**.',
+      '',
+    ].join('\n');
+
+    it('does NOT throw', () => {
+      expect(() => setChangelogTestCount(NO_TRAILER, 2979)).not.toThrow();
+    });
+
+    it('returns the source unchanged', () => {
+      expect(setChangelogTestCount(NO_TRAILER, 2979).next).toBe(NO_TRAILER);
+    });
+
+    it('says so rather than passing silently — rewriteBugTally\'s lesson', () => {
+      const { note } = setChangelogTestCount(NO_TRAILER, 2979);
+      expect(note).toMatch(/none in this section/);
+      // An absent trailer must never render as a completed reconciliation.
+      expect(note).not.toMatch(/corrected|already/);
+    });
+
+    it('does not reach DOWN into the released section for a trailer', () => {
+      // NO_TRAILER's only `N → **M tests**` lives below the newest release.
+      // Matching it would rewrite history — B84's failure, one function over.
+      expect(setChangelogTestCount(NO_TRAILER, 2979).next).toContain('2789 → **2841 tests**.');
+    });
+  });
+
+  describe('the baseline is checked and deliberately not rewritten', () => {
+    it('flags a baseline that disagrees with what facts.md published', () => {
+      const { note } = setChangelogTestCount(PENDING, 2979, 2800);
+      expect(note).toMatch(/baseline reads 2841/);
+      expect(note).toMatch(/facts\.md published 2800/);
+    });
+
+    it('leaves the baseline number itself alone', () => {
+      expect(setChangelogTestCount(PENDING, 2979, 2800).next).toContain('2841 → **2979 tests**');
+    });
+
+    it('stays quiet when the baseline agrees', () => {
+      expect(setChangelogTestCount(PENDING, 2979, 2841).note).not.toMatch(/baseline/);
+    });
+  });
+
+  /**
+   * Found by running the tool against the REAL `CHANGELOG.md`, not by the suite.
+   *
+   * The notes for this very fix quote `2841 → **2927 tests**` as an example in
+   * their prose, above the section's actual trailer. Taking the FIRST match
+   * rewrote the quoted example, left the real trailer stale, and reported
+   * "corrected" — a false green, inside the function written to prevent one.
+   *
+   * `B82` again: a hand-written fixture has one trailer, the real file has two.
+   */
+  describe('the trailer is the LAST match, because prose above it may quote one', () => {
+    const WITH_QUOTED_EXAMPLE = [
+      '# Changelog',
+      '',
+      '## [Unreleased]',
+      '',
+      "- **A fix.** `v0.1.33`'s said `2841 → **2927 tests**` while facts.md said 2979.",
+      '',
+      '2979 → **2992 tests**.',
+      '',
+      '## [0.1.33] — 2026-08-24 — prior',
+      '',
+    ].join('\n');
+
+    it('rewrites the foot trailer, not the quoted example', () => {
+      const { next } = setChangelogTestCount(WITH_QUOTED_EXAMPLE, 3000);
+      expect(next).toContain('2979 → **3000 tests**.');
+      expect(next).toContain('`2841 → **2927 tests**`'); // prose preserved verbatim
+    });
+
+    it('reports the count it actually changed, not the one it skipped', () => {
+      // The pre-fix bug reported "2927 → 3000" while editing the wrong line.
+      const { note } = setChangelogTestCount(WITH_QUOTED_EXAMPLE, 3000);
+      expect(note).toMatch(/2992 → 3000/);
+      expect(note).not.toMatch(/2927/);
+    });
+
+    it('does NOT count the quotation as a candidate at all', () => {
+      // Backtick filtering runs first, so the quoted example never competes.
+      // The multi-candidate disclosure is therefore silent here — one real
+      // trailer, one quotation, no ambiguity to report.
+      const { note } = setChangelogTestCount(WITH_QUOTED_EXAMPLE, 3000);
+      expect(note).not.toMatch(/candidates/);
+    });
+
+    it('discloses ambiguity only when two REAL trailers are present', () => {
+      const two = [
+        '# CL', '', '## [Unreleased]', '',
+        '1 → **2 tests**.', '', 'more prose', '', '2979 → **2992 tests**.', '',
+        '## [0.1.33] — x — y', '',
+      ].join('\n');
+      const { next, note } = setChangelogTestCount(two, 3000);
+      expect(note).toMatch(/2 candidates/);
+      expect(next).toContain('2979 → **3000 tests**.');
+      expect(next).toContain('1 → **2 tests**.'); // the earlier one is left alone
+    });
+  });
+
+  /**
+   * The `**N tests.**` variant — period INSIDE the bold — is real and frozen in
+   * history (v0.1.14, v0.1.11). Pinned against the live file because released
+   * sections never change; asserting anything about the PENDING section would
+   * be `B105`'s trap, a test on a transient property of the repository.
+   */
+  it('matches the historical `tests.**` variant that real releases used', () => {
+    const real = readFileSync(join(ROOT, 'CHANGELOG.md'), 'utf8');
+    expect(real).toMatch(/→ \*\*\d+ tests\.\*\*/); // the variant exists in history
+    const { next } = setChangelogTestCount(
+      ['# CL', '', '## [Unreleased]', '', '1736 → **1806 tests.**', '', '## [0.1.13] — x — y', ''].join('\n'),
+      1900,
+    );
+    expect(next).toContain('1736 → **1900 tests.**');
+  });
+
+  /**
+   * The deeper half of the same bug, found by CI review on the fix for the
+   * shallow half. "Last match" only rescues a quotation that sits ABOVE a real
+   * trailer. 19 of 33 released sections carry NO trailer, so the common shape
+   * is a section that quotes the pattern and has none — there the single match
+   * IS the quotation, and the pre-fix code rewrote it and said "corrected".
+   */
+  describe('a quotation is not a trailer, even when it is the only match', () => {
+    const QUOTE_ONLY = [
+      '# CL',
+      '',
+      '## [Unreleased]',
+      '',
+      '- A fix. The old notes said `2841 → **2927 tests**`, which was wrong.',
+      '',
+      '## [0.1.33] — 2026-08-24 — prior',
+      '',
+    ].join('\n');
+
+    it('leaves a quoted figure alone when there is no real trailer', () => {
+      expect(setChangelogTestCount(QUOTE_ONLY, 3000).next).toBe(QUOTE_ONLY);
+    });
+
+    it('reports absence rather than a false "corrected"', () => {
+      const { note } = setChangelogTestCount(QUOTE_ONLY, 3000);
+      expect(note).toMatch(/none in this section/);
+      expect(note).not.toMatch(/corrected/);
+    });
+
+    it('still finds a real trailer that sits BELOW a quotation', () => {
+      const src = QUOTE_ONLY.replace('\n## [0.1.33]', '\n2979 → **2992 tests**.\n\n## [0.1.33]');
+      const { next } = setChangelogTestCount(src, 3000);
+      expect(next).toContain('2979 → **3000 tests**.');
+      expect(next).toContain('`2841 → **2927 tests**`');
+    });
+
+    it('is backtick parity, not line position — real trailers appear mid-line', () => {
+      // e.g. v0.1.28's: "…while a live session holds the copy. 2664 → **2681 tests**."
+      const midLine = ['# CL', '', '## [Unreleased]', '', 'Some prose. 2664 → **2681 tests**.', '', '## [0.1.27] — x — y', ''].join('\n');
+      expect(setChangelogTestCount(midLine, 2700).next).toContain('2664 → **2700 tests**.');
+    });
+  });
+
+  /**
+   * `releaseEdits` runs the trailer BEFORE the fold, so a throw here would fire
+   * first and hide `foldChangelog`'s `B84` message — the one that names the
+   * offset and explains that the heading is history. That message exists
+   * precisely for the state an operator finds most confusing.
+   */
+  it('leaves the fatal B84 diagnostic to foldChangelog rather than pre-empting it', () => {
+    const HISTORICAL_ONLY = ['# CL', '', '## [0.1.33] — x — y', '', '## [Unreleased]', '', '- history', ''].join('\n');
+    expect(() => setChangelogTestCount(HISTORICAL_ONLY, 3000)).not.toThrow();
+
+    const read = (rel) => {
+      if (rel === 'CHANGELOG.md') return HISTORICAL_ONLY;
+      if (rel === 'plugin/references/facts.md') return '- **Test count:** 1\n\nmost recently **v0.1.32 (2026-08-21)**.';
+      if (rel === 'docs/map/index.html') return 'Map &middot; v0.1.32';
+      return '{"version": "0.1.32"}';
+    };
+    // The composed path must still surface B84's specific wording.
+    expect(() =>
+      releaseEdits({ version: '0.1.34', date: '2026-08-25', title: 't', testCount: 2, read }),
+    ).toThrow(/B84/);
+  });
+
+  it('reads the published count back out of facts.md', () => {
+    expect(readFactsTestCount('- **Test count:** 2979 (set at each release)')).toBe(2979);
+    expect(readFactsTestCount('nothing here')).toBeNull();
+  });
+
+  /**
+   * THE ORDERING INVARIANT. The trailer edit is scoped by the `[Unreleased]`
+   * heading, which the fold replaces — so folding first makes the pending
+   * section unfindable and the trailer silently unreconciled. That is the bug
+   * this closes, reintroduced by a line swap, and nothing else would catch it.
+   */
+  it('releaseEdits reconciles the trailer AND folds the heading, in that order', () => {
+    const read = (rel) => {
+      if (rel === 'CHANGELOG.md') return PENDING;
+      if (rel === 'plugin/references/facts.md')
+        return '- **Test count:** 2841\n\nSet at each release, most recently **v0.1.32 (2026-08-21)**.';
+      return '{"version": "0.1.32"}';
+    };
+    const edits = releaseEdits({
+      version: '0.1.33',
+      date: '2026-08-24',
+      title: 'a title',
+      testCount: 2979,
+      read: (rel) => (rel === 'docs/map/index.html' ? 'Map &middot; v0.1.32' : read(rel)),
+    });
+    const changelog = edits.find((e) => e.file === 'CHANGELOG.md');
+    expect(changelog.next).toContain('## [0.1.33] — 2026-08-24 — a title');
+    expect(changelog.next).toContain('2841 → **2979 tests**.');
+    expect(changelog.next).not.toContain('**2927 tests**');
+    expect(changelog.note).toBeTruthy();
+  });
+
+  it('every releaseEdits entry that carries a note is surfaced, not swallowed', () => {
+    // The CLI prints `e.note` on BOTH the dry-run and apply paths. A note that
+    // exists and is never printed is the same failure as no note at all.
+    const src = readFileSync(join(ROOT, 'tools/cut-release.js'), 'utf8');
+    const printsNote = src.match(/if \(e\.note\) console\.log/g) ?? [];
+    expect(printsNote.length).toBeGreaterThanOrEqual(2);
   });
 });
 
