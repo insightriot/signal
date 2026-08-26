@@ -4,6 +4,54 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
+## Where things stand (2026-08-26) — NEXT WORK IS DECIDED
+
+**Build `/sig:permissions` — the permission-rule generator.** Decided by Brett 2026-08-26
+(`D-BR0826-1`). Sized **small**, not the `large` it was filed as. This is the next unit of work and
+it does **not** need another scope call.
+
+**Read in this order before starting:** [`analysis/PERMISSIONS-SPIKE.md`](../analysis/PERMISSIONS-SPIKE.md)
+→ `D-BR0826-1` in [`DECISIONS.md`](DECISIONS.md) → the `/sig:permissions` row in
+[`BACKLOG.md`](BACKLOG.md). The row is a summary; the first two are the evidence.
+
+**What it is, in one line:** it **emits** a proposed permission allowlist for what the flow needs at
+this project's tier, and the **user** installs it. Dry-run by default. It never writes a settings
+file itself.
+
+⚠ **Signal cannot build a permission model and must not try.** Rules are enforced by Claude Code and
+**not by the model**; plugins are locked out three ways (no `permissions` key in the plugin manifest,
+`permissionMode` unsupported for plugin-shipped agents *"for security reasons"*, plugins are not a
+settings source). Verified 2026-08-25 against the live docs plus every plugin on this machine.
+Anything Signal writes *about* permission in a command file or `PROFILE.md` is prose — which is
+`B75`, still open, still the repository's named defect.
+
+⚠ **Do not invent a consent dial.** The three options anyone would design are the three modes that
+already ship: `default` (ask every time), an `allow` rule (ask once, remember), `dontAsk` (only what
+was declared). A fourth unenforced dial beside `tier` / `gate_strictness` / `attention` is `B75` again.
+
+**The evidence came from running the alternative.** The spike recommended hand-cleaning the 91
+accumulated rules first and then deciding; that cleanup was performed on 2026-08-26 (**91 → 43**:
+user 37 → 23, project 54 → 20) and produced three findings that argue *against* the recommendation
+that proposed it: the project-scope file is **gitignored and untracked** so every repo re-accumulates
+from empty; the cleaned list is **20 rules and nearly all derivable** from the flow, i.e. the
+generator's output was written by hand; and **the classifier refused a programmatic write** to the
+settings files, confirming by experiment that the tool must suggest rather than write.
+
+**Also in scope: a proposed `deny` list.** There are **43 allow rules and zero deny rules** and no
+`defaultMode`. *"Yes, and don't ask again"* only ever teaches the system to say yes, so the
+protective half is empty **by construction** and cannot fill itself. Ships as a suggestion — a
+badly-chosen block rule stops work the operator wants.
+
+⚠ **It does NOT unblock** the readiness-scorecard executability dimension or the
+environment-readiness baseline, whatever the old row implied. Both need a person to grant permission
+in a user-owned file. Claiming otherwise is `M6.E2`'s class.
+
+**Released since the last section:** `v0.1.33` (2026-08-24, *"what nobody was reading"*), tag pushed,
+3004 tests on `main`. `B109` and `B110` filed and fixed. `analysis/PERMISSIONS-SPIKE.md` and the
+*"row that doesn't know what the platform already does"* backlog row both landed.
+
+---
+
 ## Where things stand (2026-08-24)
 
 **`M6.E4` IS MERGED AND RELEASED** — PR **#200**, `--merge` per the Epic lane, branch deleted. Suite 2929 →
