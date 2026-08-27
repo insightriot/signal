@@ -159,8 +159,11 @@
 - [M6.E4-REVIEW.md](M6.E4-REVIEW.md) — `other` — _(note pending)_
 - [M6.E4-VALIDATION.md](M6.E4-VALIDATION.md) — `other` — _(note pending)_
 - [M6.E4-VERIFICATION.md](M6.E4-VERIFICATION.md) — `other` — _(note pending)_
+- [M6.E5-PLAN.md](M6.E5-PLAN.md) — `other` — _(note pending)_
 - [M6.E5-PROFILE.md](M6.E5-PROFILE.md) — `other` — _(note pending)_
 - [M6.E5-REQUIREMENTS.md](M6.E5-REQUIREMENTS.md) — `other` — _(note pending)_
+- [M6.E5-RESEARCH.md](M6.E5-RESEARCH.md) — `other` — _(note pending)_
+- [M6.E5-VALIDATION.md](M6.E5-VALIDATION.md) — `other` — _(note pending)_
 - [MILESTONE-4.5.md](MILESTONE-4.5.md) — `milestone` — Release-hardening / stranger-adoption milestone. **CLOSED 2026-07-15** — E1–E11 shipped (v0.1.1–v0.1.7); the ≥3-non-Signal-tester clause met (4 users onboarded). Superseded by M5.
 - [MILESTONE-5.md](MILESTONE-5.md) — `milestone` — **Active milestone** — v2 integrations + doc-runtime. Usage-signal gate lifted 2026-07-15. Epic-status table up top (M5.E1/E2 shipped-unreleased, M5.E3 in flight); the speculative v2-port queue below is unsequenced pending the landscape re-audit.
 - [MILESTONE-6.md](MILESTONE-6.md) — `milestone` — _(note pending)_
