@@ -837,6 +837,14 @@ const COMMANDS = [
         ],
       },
       {
+        name: '/sig:permissions',
+        tags: ['read-only by default', 'proposes, never installs'],
+        summary: "Proposes an intentional permission set — what the flow needs plus what this project's own stack needs — as an allowlist and a short deny list you install yourself. Signal cannot grant itself permission: rules are enforced by Claude Code, not the model.",
+        flags: [
+          { f: '--apply', d: 'Write the proposal to .planning/PERMISSIONS.md. Writes the DOCUMENT, never a settings file.' },
+        ],
+      },
+      {
         name: '/sig:sweep',
         tags: ['read-only', 'not phase-gated'],
         summary: 'Doc-hygiene sweep over the invoking project: dead internal links, unfilled [FILL IN] stubs, INDEX/roster/version drift, a stale capture inbox, CLAUDE.md bloat, and STATE-vs-world drift — what .planning/ asserts measured against what is on disk and in git, each finding declaring whether it needs you or clears itself. Detect-and-report only — writes nothing.',

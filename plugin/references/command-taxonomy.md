@@ -56,10 +56,22 @@ answer *"is the corpus healthy / current / tidy?"*, a question with its own cade
 
 ### 5. Signal's own health — acts on the tool, not your project
 
-`doctor` · `update`
+`doctor` · `update` · **`permissions`**
 
 The distinction from group 4 is the **object**: group 4 acts on *your documents*, group 5 on
-*Signal's installation*. `doctor` diagnoses the install; `update` reports and applies a new version.
+*Signal's installation*. `doctor` diagnoses the install; `update` reports and applies a new version;
+`permissions` proposes what Signal may be allowed to run here.
+
+⚠ **`permissions` is the least clean placement in this file, and that is recorded rather than
+smoothed over.** Group 2 is disqualified by its own contract — *"writes nothing"* — because
+`--apply` writes `.planning/PERMISSIONS.md`. Group 4 is *"acts on `.planning/` as a corpus"*, and
+this adds a single document rather than operating over the tree. Group 5 wins on the **object**:
+what is being described is Signal's operating envelope in this environment, not your documents.
+
+The file's own test — *does a command that seems to belong to two groups do two things?* — was put
+to it at `M6.E5` REVIEW and answered **no**: it does one thing (propose an envelope) and writing the
+document is how it reports, not a second job. Recorded so the next person does not re-litigate it
+from scratch.
 
 ## The naming rule
 

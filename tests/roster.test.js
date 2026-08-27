@@ -20,7 +20,7 @@ describe('roster — canonical filesystem-glob counts (Signal repo)', () => {
   // validate-plugin sources its command list from this same glob, a new command
   // needs no validator edit; only this assertion follows the roster up.
   it('returns 21 commands from commands/*.md', () => {
-    expect(listCommands(ROOT).length).toBe(21);
+    expect(listCommands(ROOT).length).toBe(22);
   });
 
   it('returns 26 agents from agents/**/*.md', () => {
@@ -33,8 +33,8 @@ describe('roster — canonical filesystem-glob counts (Signal repo)', () => {
 
   it('roster() aggregates the counts + lists', () => {
     const r = roster(ROOT);
-    expect(r.counts).toEqual({ commands: 21, agents: 26, skills: 21 });
-    expect(r.commands.length).toBe(21);
+    expect(r.counts).toEqual({ commands: 22, agents: 26, skills: 21 });
+    expect(r.commands.length).toBe(22);
     expect(r.agents.length).toBe(26);
     expect(r.skills.length).toBe(21);
   });
@@ -43,6 +43,7 @@ describe('roster — canonical filesystem-glob counts (Signal repo)', () => {
     const cmds = listCommands(ROOT);
     expect(cmds).toContain('commands/calibrate.md');
     expect(cmds).toContain('commands/index.md'); // the new /sig:index command
+    expect(cmds).toContain('commands/permissions.md'); // M6.E5
     expect([...cmds].sort()).toEqual(cmds); // already sorted
     expect(listAgents(ROOT)).toContain('agents/scanners/stack-scanner.md');
     expect(listSkills(ROOT).every((p) => p.endsWith('/SKILL.md'))).toBe(true);
