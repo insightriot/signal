@@ -291,10 +291,17 @@ export function formatReport(p) {
       out.push(`  ${d.rule}`);
       out.push(`      ${d.why}`);
     }
-    for (const c of p.denyConflicts ?? []) {
-      out.push(`  ⚠ CONFLICT: ${c} is proposed as a deny AND is already in your allow list.`);
-      out.push('      Deny wins outright, so installing this silently overrides that allow. Decide deliberately.');
-    }
+    out.push('');
+  }
+
+  // ⚠ OUTSIDE the "is anything proposable" branch, deliberately. Conflicts were
+  // rendered inside it, so a project where every deny is already installed and
+  // nothing new is proposable dropped the conflict line entirely — the one case
+  // where the reader most needs it, since it means a dangerous rule sits in
+  // their ALLOW list. (PR #211 review.)
+  for (const c of p.denyConflicts ?? []) {
+    out.push(`⚠ CONFLICT: ${c} is proposed as a deny AND is already in your allow list.`);
+    out.push('    Deny wins outright, so installing this silently overrides that allow. Decide deliberately.');
     out.push('');
   }
 

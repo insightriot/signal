@@ -390,3 +390,20 @@ describe('deny/allow conflict surfacing (REVIEW fix)', () => {
     rmSync(w.root, { recursive: true, force: true });
   });
 });
+
+describe('PR #211 review — a conflict is never silently omitted', () => {
+  it('renders even when nothing at all is proposable', () => {
+    // Conflicts were rendered inside the "is anything proposable" branch, so a
+    // project where every deny is already installed and nothing new is proposed
+    // dropped the line — the one case where the reader most needs it, because it
+    // means a dangerous rule is sitting in their ALLOW list.
+    const p = {
+      flow: [], stack: [], deny: [], denyConflicts: ['Bash(curl:*)'], suppressedCount: 0,
+      state: { scopes: [], totals: { allow: 0, deny: 0, ask: 0 }, defaultMode: null, unreadable: [] },
+      stackInfo: { detected: false, reason: 'none' }, scanStatus: 'ok',
+    };
+    const out = formatReport(p);
+    expect(out).toMatch(/CONFLICT/);
+    expect(out).toMatch(/Bash\(curl:\*\)/);
+  });
+});
