@@ -371,3 +371,22 @@ describe('overlap resolution — one rule, one heading, one decision', () => {
     rmSync(w.root, { recursive: true, force: true });
   });
 });
+
+describe('deny/allow conflict surfacing (REVIEW fix)', () => {
+  it('a proposed deny colliding with an existing allow is a VISIBLE line', () => {
+    const w = world({ 'repo/.claude/settings.json': JSON.stringify({ permissions: { allow: ['Bash(curl:*)'] } }) });
+    const p = build(w);
+    expect(p.denyConflicts).toContain('Bash(curl:*)');
+    const out = formatReport(p);
+    expect(out).toMatch(/CONFLICT/);
+    expect(out).toMatch(/silently overrides/i);
+    rmSync(w.root, { recursive: true, force: true });
+  });
+
+  it('the deny proposal SURVIVES an existing allow — it is not suppressed', () => {
+    const w = world({ 'repo/.claude/settings.json': JSON.stringify({ permissions: { allow: ['Bash(curl:*)'] } }) });
+    const p = build(w);
+    expect(p.deny.map((d) => d.rule)).toContain('Bash(curl:*)');
+    rmSync(w.root, { recursive: true, force: true });
+  });
+});

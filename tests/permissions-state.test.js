@@ -29,6 +29,7 @@ import { join } from 'node:path';
 import {
   readPermissionScopes,
   proposalDelta,
+  denyDelta,
   formatScopeReport,
   APPROXIMATION_LIMIT,
   SCOPE_STATUS,
@@ -145,6 +146,51 @@ describe('proposalDelta — never re-propose what is already granted (AC2.1c)', 
     const state = readPermissionScopes({ homeDir: home, baseDir: base });
     const d = proposalDelta(['Bash(npm test:*)'], state);
     expect(d.fresh).toEqual(['Bash(npm test:*)']);
+    rmSync(root, { recursive: true, force: true });
+  });
+});
+
+describe('deny is compared against DENY, not against allow (REVIEW, Critical)', () => {
+  it('collects existing deny rules into their own set', () => {
+    const { root, home, base } = env({
+      'repo/.claude/settings.json': JSON.stringify({ permissions: { allow: [], deny: ['Bash(sudo:*)'] } }),
+    });
+    const r = readPermissionScopes({ homeDir: home, baseDir: base });
+    expect([...r.denied]).toEqual(['Bash(sudo:*)']);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('an existing ALLOW rule does not suppress the matching DENY proposal', () => {
+    // The defect: proposalDelta compared deny proposals against `granted`, so a
+    // user who had already allowed curl silently lost the proposal to deny it —
+    // the exact case where the deny matters most. The protective half shrank
+    // precisely where it was needed, and reported the loss as "already granted".
+    const { root, home, base } = env({
+      'repo/.claude/settings.json': rules(['Bash(curl:*)']),
+    });
+    const state = readPermissionScopes({ homeDir: home, baseDir: base });
+    const d = denyDelta(['Bash(curl:*)'], state);
+    expect(d.fresh).toEqual(['Bash(curl:*)']);
+    expect(d.suppressedCount).toBe(0);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('an existing DENY rule DOES suppress the matching deny proposal', () => {
+    const { root, home, base } = env({
+      'repo/.claude/settings.json': JSON.stringify({ permissions: { allow: [], deny: ['Bash(sudo:*)'] } }),
+    });
+    const state = readPermissionScopes({ homeDir: home, baseDir: base });
+    expect(denyDelta(['Bash(sudo:*)'], state).fresh).toEqual([]);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('a proposed deny that collides with an existing allow is reported as a CONFLICT', () => {
+    // Not a suppression and not a silent pass: the user has explicitly allowed
+    // something this proposes blocking. That is a decision for them to make
+    // knowingly, so it gets its own line.
+    const { root, home, base } = env({ 'repo/.claude/settings.json': rules(['Bash(curl:*)']) });
+    const state = readPermissionScopes({ homeDir: home, baseDir: base });
+    expect(denyDelta(['Bash(curl:*)'], state).conflicts).toEqual(['Bash(curl:*)']);
     rmSync(root, { recursive: true, force: true });
   });
 });

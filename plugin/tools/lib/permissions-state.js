@@ -107,12 +107,14 @@ function readScope({ name, path }) {
 export function readPermissionScopes({ homeDir, baseDir }) {
   const scopes = scopePaths({ homeDir, baseDir }).map(readScope);
   const granted = new Set();
+  const denied = new Set();
   const totals = { allow: 0, deny: 0, ask: 0 };
   let defaultMode = null;
 
   for (const s of scopes) {
     if (s.status !== SCOPE_STATUS.OK) continue;
     for (const r of s.rules.allow) granted.add(r);
+    for (const r of s.rules.deny) denied.add(r);
     totals.allow += s.rules.allow.length;
     totals.deny += s.rules.deny.length;
     totals.ask += s.rules.ask.length;
@@ -122,6 +124,7 @@ export function readPermissionScopes({ homeDir, baseDir }) {
   return {
     scopes,
     granted,
+    denied,
     totals,
     defaultMode,
     unreadable: scopes.filter((s) => s.status === SCOPE_STATUS.CANNOT_CHECK).map((s) => s.name),
@@ -147,6 +150,39 @@ export function proposalDelta(proposed, state) {
   const suppressed = [];
   for (const rule of proposed) (granted.has(rule) ? suppressed : fresh).push(rule);
   return { fresh, suppressed, suppressedCount: suppressed.length };
+}
+
+/**
+ * Split proposed DENY rules against the existing DENY set — never against allow.
+ *
+ * ⚠ THE DEFECT THIS REPLACES, found at REVIEW. Deny proposals were routed
+ * through `proposalDelta`, which suppresses against `granted` — the ALLOW set.
+ * So a user who had already allowed `curl` silently lost the proposal to deny
+ * it, and the loss was counted as "already granted". **The protective half shrank
+ * precisely in the case it exists for**, and said nothing.
+ *
+ * A collision between a proposed deny and an existing allow is not a suppression
+ * — it is a CONFLICT, and it is the most interesting thing the report can tell
+ * anyone: they have explicitly permitted something this proposes blocking.
+ * Deny-first precedence means installing it would silently override that allow,
+ * so it must be a decision taken knowingly.
+ *
+ * @param {string[]} proposed
+ * @param {ReturnType<typeof readPermissionScopes>} state
+ * @returns {{fresh: string[], suppressed: string[], suppressedCount: number, conflicts: string[]}}
+ */
+export function denyDelta(proposed, state) {
+  const denied = state?.denied ?? new Set();
+  const granted = state?.granted ?? new Set();
+  const fresh = [];
+  const suppressed = [];
+  const conflicts = [];
+  for (const rule of proposed) {
+    if (denied.has(rule)) suppressed.push(rule);
+    else fresh.push(rule);
+    if (granted.has(rule)) conflicts.push(rule);
+  }
+  return { fresh, suppressed, suppressedCount: suppressed.length, conflicts };
 }
 
 /**

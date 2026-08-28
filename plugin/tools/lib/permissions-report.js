@@ -25,7 +25,9 @@ import { join } from 'node:path';
 import {
   scanPrescribedCommands, classify, CLASSIFICATION, VERDICT, LAYER, SCAN_STATUS,
 } from './permissions-scan.js';
-import { readPermissionScopes, proposalDelta, formatScopeReport, APPROXIMATION_LIMIT } from './permissions-state.js';
+import {
+  readPermissionScopes, proposalDelta, denyDelta, formatScopeReport, APPROXIMATION_LIMIT,
+} from './permissions-state.js';
 import { detectStack, stackRules } from './stack-detect.js';
 
 /** Where the proposal is written, relative to the project root. */
@@ -207,7 +209,7 @@ export function buildProposal({ pluginRoot, baseDir, homeDir }) {
 
   const flowDelta = proposalDelta(flowProposed, state);
   const stackDelta = proposalDelta(stackProposed, state);
-  const denyDelta = proposalDelta(
+  const denyD = denyDelta(
     DENY_PROPOSALS.map((d) => d.rule),
     state
   );
@@ -225,8 +227,9 @@ export function buildProposal({ pluginRoot, baseDir, homeDir }) {
     stackInfo: stack,
     flow: flowDelta.fresh,
     stack: stackDelta.fresh,
-    deny: DENY_PROPOSALS.filter((d) => denyDelta.fresh.includes(d.rule)),
-    suppressedCount: flowDelta.suppressedCount + stackDelta.suppressedCount + denyDelta.suppressedCount,
+    deny: DENY_PROPOSALS.filter((d) => denyD.fresh.includes(d.rule)),
+    denyConflicts: denyD.conflicts,
+    suppressedCount: flowDelta.suppressedCount + stackDelta.suppressedCount + denyD.suppressedCount,
   };
 }
 
@@ -287,6 +290,10 @@ export function formatReport(p) {
     for (const d of p.deny ?? []) {
       out.push(`  ${d.rule}`);
       out.push(`      ${d.why}`);
+    }
+    for (const c of p.denyConflicts ?? []) {
+      out.push(`  ⚠ CONFLICT: ${c} is proposed as a deny AND is already in your allow list.`);
+      out.push('      Deny wins outright, so installing this silently overrides that allow. Decide deliberately.');
     }
     out.push('');
   }
