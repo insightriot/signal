@@ -149,6 +149,30 @@ describe('the deny proposal (S4.t2 / FR4.1)', () => {
     rmSync(w.root, { recursive: true, force: true });
   });
 
+  it('AC4.1c — deny rules are PROPOSED on the same footing as allow, never installed', () => {
+    // Found missing at VERIFY: every other AC4.1 criterion had a named test and
+    // this one did not. The risk it guards is asymmetry — a deny list that gets
+    // written somewhere allow rules would not, on the reasoning that blocking is
+    // "safer". It is not: a deny rule stops work, and installing one nobody read
+    // is the same category of act as installing an allow rule nobody read.
+    const w = world();
+    const p = build(w);
+
+    // Proposed: it reaches the artifact's installable block, beside allow.
+    const md = renderArtifact(p);
+    const block = JSON.parse(md.slice(md.indexOf('{'), md.lastIndexOf('}') + 1));
+    expect(Object.keys(block.permissions).sort()).toEqual(['allow', 'deny']);
+    expect(block.permissions.deny.length).toBeGreaterThan(0);
+
+    // Never installed: after a full render AND write, no settings file exists in
+    // either scope — the same assertion AC5.1a makes for allow, made for deny.
+    writeArtifact(w.base, md);
+    expect(existsSync(join(w.base, '.claude', 'settings.json'))).toBe(false);
+    expect(existsSync(join(w.base, '.claude', 'settings.local.json'))).toBe(false);
+    expect(existsSync(join(w.home, '.claude', 'settings.json'))).toBe(false);
+    rmSync(w.root, { recursive: true, force: true });
+  });
+
   it('AC4.1d — names the three platform modes and invents no fourth', () => {
     expect(PLATFORM_MODES).toEqual(['default', 'allow rule', 'dontAsk']);
     const w = world();
