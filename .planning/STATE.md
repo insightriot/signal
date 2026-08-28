@@ -24,61 +24,38 @@ last_updated: 2026-08-28T00:53:27.269Z
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-08-26)
+### ▶ WHERE THE WORK IS — read this first (2026-08-28)
 
-**`M6.E5` is OPEN and at DISCUSS.** `/sig:permissions` — the permission-rule generator. DISCUSS is
-written and committed; **PR #210 is open** on branch `epic/m6-e5-permissions-discuss`. Suite **3006**
-green (176 files). **The next phase is PLAN.**
+**`M6.E5` IS SHIPPED and awaiting merge.** `/sig:permissions` — PR **#211**, branch
+`epic/m6-e5-permissions`, Epic lane (`--merge`, never squash: `ADHERENCE-LOG.md` pins commit SHAs).
+Suite **3094** green, 180 files. **22 commands.** Retro:
+[`M6.E5-RETROSPECTIVE.md`](M6.E5-RETROSPECTIVE.md).
 
-**Read before planning it, in this order:** [`M6.E5-REQUIREMENTS.md`](M6.E5-REQUIREMENTS.md) →
-`D-M6E5-1`…`D-M6E5-5` in [`DECISIONS.md`](DECISIONS.md) → `analysis/PERMISSIONS-SPIKE.md` (the
-evidence the scope rests on) → `D-BR0826-1`.
-
-**It runs at FEATURE, not the project's FULL** ([`M6.E5-PROFILE.md`](M6.E5-PROFILE.md),
-`D-M6E5-1`) — second use of the per-unit dial after `M6.E4`. So: `plan_validation_dims: core`
-(3 dimensions, not 8), `research_parallelism: 2`, `gate_strictness: light`, `security_audit: basic`,
-`review_depth: quality-only`. **The cost of that tier and the trigger for escalating back up are
-written at the profile** — if the proposed `deny` list grows past a handful of obvious entries, or
-the command ever gains a write path, `/sig:escalate` **upward** is the response.
-
-> ### ⚠ One decision went AGAINST the DISCUSS recommendation — do not silently re-decide it
+> ### ⚠ NEXT WORK IS DECIDED AND IT IS NOT A BACKLOG PICK
 >
-> `D-M6E5-3`: the proposal covers the **host project's stack** as well as Signal's flow. Flow-only
-> was recommended on a measurement (`pytest`/`cargo`/`go` appear in Signal's corpus only as
-> descriptions of other stacks) and was **overruled** — a generator that leaves a Python developer
-> prompting for their own test runner has not solved the problem it was built for. Both sides are
-> recorded. PLAN implements the decision, not the recommendation.
+> **An analysis scoped strictly to loop / goal functionality — what Signal needs to hold up on
+> autonomous runs.** Brett, 2026-08-28. **Nothing else in it.** This is the direction the 2026-08-20
+> numbers argued for and that `v0.1.31` began; `M6.E5` was the last queued item standing in front of
+> it. Do **not** open another Signal-auditing-Signal Epic ahead of this.
 
-**The measurement PLAN must not lose.** The corpus scan returns **49 binary+subcommand pairs across
-130 occurrences**, and that set contains **`rm` (5)**, `git reset`, `git rebase`, `git revert` and
-`pip install`. **A generator that emitted its own scan would propose `Bash(rm *)`.** Hence
-derive-then-classify plus a whole-population test that fails the suite on an unclassified binary
-(`D-M6E5-2`). Neither half alone works.
+**The one sentence to carry forward from `M6.E5`, because it is a limit and not a win:** `git commit`
+is classified `propose-allow` and was never proposed — it appears **zero times** as a runnable
+command string anywhere in the payload. The generator's reach is bounded by how the payload phrases
+things, and the payload phrases its most important actions as English sentences.
 
-**⚠ Every permission count was re-derived 2026-08-26 — do not restate the older figures.** The spike
-publishes **94** rules and `D-BR0826-1` publishes **91**; both describe a state that no longer
-exists. Live: **43 allow, 0 deny, 0 ask, no `defaultMode`** (user 23, project 20). Also verified:
-`git ls-files .claude/` returns **nothing** — `settings.local.json` is gitignored at `.gitignore:18`
-and `settings.json` does not exist.
+**Filed and NOT fixed — `B111` is the one that affects other work.** `AC_ID_RE` lacks the `[a-z]?`
+that `FR_ID_RE` and `NFR_ID_RE` both carry, so sub-lettered acceptance criteria collapse to their
+group on **both** sides of `requirement-coverage.js`'s diff. It reported **5** criteria where **34**
+exist, so `M6.E5`'s coverage denominator was derived by hand. **Any Epic using sub-lettered ACs has
+the same problem.** `B112`: `detectProjectKind` calls every non-git directory `greenfield`.
 
-**⚠ `/sig:resume` may show "STATE.md is 1 commit behind work history." That is EXPECTED, and it is
-not drift.** `main` is protected, so every state re-point goes through a PR; the baseline lags by
-construction and any commit that "fixes" it becomes the next one behind. Self-clearing — run
-`/sig:checkpoint`, or ignore it.
+**⚠ `dischargeBacklogRows` failed again — second Epic running.** `parseBacklogRows` matches
+`^(#{2,3})\s` and the promoted rows sit at `####`. `M6.E5`'s row was struck by hand with the reason
+recorded at the row, exactly as `M6.E4`'s three were. **Any Epic closing one of those rows will hit
+this.**
 
-**▶ AFTER `M6.E5`: nine of the twelve promoted rows remain** — `BACKLOG.md` §*"Twelve promoted from
-the inbox drain"*. Three are struck (`M6.E4` S1/S2/S3); `/sig:permissions` is **not** one of them,
-it is its own roadmap row. **Not a priority order**, and explicitly **not** to be worked in size
-batches — considered and rejected 2026-08-23 with a reason (`D-BR0823-1`): size measures diff cost,
-the six phases pay decision cost. ⚠ That heading reads *"Twelve promoted"* and **thirteen `####`
-rows sit under it** (`B110`) — read the file, not the count.
-
-**Filed during `M6.E5` DISCUSS and NOT fixed: `B111`.** `AC_ID_RE` lacks the `[a-z]?` that
-`FR_ID_RE` and `NFR_ID_RE` both carry, so `AC1.1a`…`AC1.1d` all collapse to `AC1` — and
-`requirement-coverage.js` reads the collapsed ids on **both** sides of its diff (`:89` denominator,
-`:94` numerator). A VERIFICATION naming one sub-lettered criterion marks the whole group covered.
-**This affects `M6.E5`'s own VERIFY**: its REQUIREMENTS use sub-lettered ACs throughout, so the
-coverage tool will report group-level ids. Verify by hand against the artifact, or fix `B111` first.
+**⚠ `/sig:resume` may show "STATE.md is 1 commit behind."** Expected and self-clearing — `main` is
+protected, so every state re-point goes through a PR and the baseline lags by construction.
 
 **Two expected `/sig:resume` findings — both correct, neither actionable:**
 

@@ -4,7 +4,41 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-08-26) — M6.E5 IS OPEN, DISCUSS CLOSED
+## Where things stand (2026-08-28) — M6.E5 IS SHIPPED
+
+**`/sig:permissions` is built and merged-ready.** PR **#211**, branch `epic/m6-e5-permissions`,
+Epic lane (`--merge`). Suite **3006 → 3094**. Commands **21 → 22**. Retro:
+[`M6.E5-RETROSPECTIVE.md`](M6.E5-RETROSPECTIVE.md).
+
+**What it does, in one line:** proposes an allowlist (and a short deny list) for what the flow needs
+here, and **you** install it. It never writes a settings file — Signal cannot grant itself
+permission, and that is settled, not a limitation to be worked around.
+
+**⚠ The honest headline is a limit, not a win.** `git commit` is classified `propose-allow` and was
+**never proposed**, because it appears **zero times** as a runnable command string anywhere in the
+payload — `execute.md:93` says *"create an atomic git commit"* in English. Same for `gh`. **The
+generator's reach is bounded by how the payload phrases things, and the payload phrases its most
+important actions as sentences.** Measured against the 43 hand-cleaned rules: 29 generated, **14
+agree**; most of the gap is the generator correctly declining machine-specific tools from other
+projects.
+
+**Three defects found by running code rather than reading it** — the pattern the plan was built
+around: `B112` (`detectProjectKind` calls every non-git directory `greenfield`), `Bash(git:*)` being
+proposed and re-granting what the classification withholds, and cross-ecosystem contamination in the
+flow half. The last two survived 25 green tests and were visible in the first render.
+
+**Filed and NOT fixed: `B111`, `B112`.** `B111` matters beyond this Epic — `AC_ID_RE` lacks the
+`[a-z]?` its two siblings carry, so sub-lettered acceptance criteria collapse on **both** sides of
+`requirement-coverage.js`'s diff. The tool built to catch completeness claims reported **5** criteria
+where **34** exist.
+
+**⚠ NEXT: an analysis scoped strictly to loop / goal functionality** — what Signal needs to hold up
+on autonomous runs. Brett's call, 2026-08-28. **Nothing else in it.** This is the direction the
+2026-08-20 numbers argued for and that `v0.1.31` started; `M6.E5` was the last queued item before it.
+
+---
+
+## Where things stood (2026-08-26) — M6.E5 opened
 
 **`/sig:permissions` is in flight as `M6.E5`.** Epic opened 2026-08-26; DISCUSS is written and the
 next phase is PLAN. Read `.planning/M6.E5-REQUIREMENTS.md` and `D-M6E5-1`…`D-M6E5-5` in
