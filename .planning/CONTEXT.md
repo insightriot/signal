@@ -6,9 +6,19 @@ Load this at the start of every work session. Short on purpose.
 
 ## Where things stand (2026-08-28) — M6.E5 IS SHIPPED
 
-**`/sig:permissions` is built and merged-ready.** PR **#211**, branch `epic/m6-e5-permissions`,
-Epic lane (`--merge`). Suite **3006 → 3094**. Commands **21 → 22**. Retro:
-[`M6.E5-RETROSPECTIVE.md`](M6.E5-RETROSPECTIVE.md).
+**`/sig:permissions` is MERGED.** PR **#211** merged 2026-08-28, branch deleted. Suite **3006 →
+3107**. Commands **21 → 22**. Retro: [`M6.E5-RETROSPECTIVE.md`](M6.E5-RETROSPECTIVE.md).
+
+⚠ **The merge SQUASHED despite `--merge`, and the predicted damage happened immediately.** All 24
+commits are absent from `main`; `ADHERENCE-LOG.md` was left pinning `0e88e03`, a commit nobody can
+reach from `main` — verbatim the failure the Epic lane's `--merge` rule exists to prevent. Repaired
+by recomputing against `d0ac0c5`. Filed; root cause **not** established, and the next Epic merge is
+the experiment: pass `--merge`, then run `git rev-list --parents -n1 HEAD` before anything else.
+
+⚠ **The independent PR reviewer found 43 issues this Epic's own six phases did not** — including
+`Bash(node:*)` (unrestricted shell execution) in a permissions proposal, a fabricated decision id, a
+duplicate bug filing, and a headline claim that was false and had been propagated into five
+documents. All fixed. **This is the single most useful input to the loop analysis below.**
 
 **What it does, in one line:** proposes an allowlist (and a short deny list) for what the flow needs
 here, and **you** install it. It never writes a settings file — Signal cannot grant itself
