@@ -281,6 +281,16 @@ export function formatReport(p) {
     out.push('');
     out.push('Proposed allow — from THIS project\'s stack:');
     out.push(stack.length ? stack.map((r) => `  ${r}`).join('\n') : '  (none)');
+    if (stack.some((r) => r.startsWith('Bash(npm run '))) {
+      // ⚠ The one place in this report where a proposed rule is NOT derived the
+      // way everything else is. `npm run test` names a script, and what that
+      // script executes is whatever the host manifest says — no table can know
+      // it. Said out loud rather than left in a code comment. (PR #211 review.)
+      out.push('');
+      out.push('  ⚠ An `npm run <script>` rule grants whatever that script CONTAINS, not the name.');
+      out.push('     These come from your own package.json, so they are the one group here that no');
+      out.push('     classification can vet — read the scripts before installing them.');
+    }
     out.push('');
     out.push('Proposed deny:');
     out.push(

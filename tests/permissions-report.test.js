@@ -407,3 +407,21 @@ describe('PR #211 review — a conflict is never silently omitted', () => {
     expect(out).toMatch(/Bash\(curl:\*\)/);
   });
 });
+
+describe('PR #211 review — the npm-script caveat is in the REPORT, not just a code comment', () => {
+  it('warns that an npm run rule grants what the script contains', () => {
+    // This is the one group of proposed rules that no classification can vet:
+    // `npm run test` names a script, and what it executes is whatever the host
+    // manifest says. Every other rule in the report is derived and classified.
+    const w = world({ 'repo/package.json': '{"scripts":{"test":"vitest"}}' });
+    const out = formatReport(build(w));
+    expect(out).toMatch(/grants whatever that script CONTAINS/);
+    rmSync(w.root, { recursive: true, force: true });
+  });
+
+  it('does not warn when there are no npm-script rules', () => {
+    const w = world({ 'repo/Cargo.toml': '[package]\nname="x"\n' });
+    expect(formatReport(build(w))).not.toMatch(/grants whatever that script CONTAINS/);
+    rmSync(w.root, { recursive: true, force: true });
+  });
+});
