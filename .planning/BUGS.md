@@ -239,55 +239,31 @@ dischargeBacklogRows cannot see any row nested deeper than h3. Found 2026-08-24 
 
 ---
 
-## `AC_ID_RE` drops the sub-letter, so requirement coverage cannot tell `AC1.1a` from `AC1.1d`
+## ⚠ WITHDRAWN as a duplicate of `B100` — `AC_ID_RE` drops the sub-letter
 
-**Status:** needs-triage
+**Status:** withdrawn (duplicate)
 
-**Status: verified by execution, not merely observed.** `AC_ID_RE` is missing the trailing
-`[a-z]?` that its two sibling patterns both carry, so every sub-lettered acceptance-criterion id
-collapses to its group id — and the requirement-coverage diff that `M5.E10` built to catch
-completeness claims reads the collapsed ids.
+**This was filed at `M6.E5` DISCUSS on 2026-08-27 as `B111`. It is a duplicate of `B100`**
+(`confirmed`, P2, filed **2026-08-14**), which already says the same thing and says it first:
+*"`diffRequirementCoverage` cannot see a letter-suffixed acceptance-criterion id, and reports
+`covered` while blind to it."* `B100` found it on `M6.E1-VALIDATION.md` — 24 ACs by grep, a
+denominator of 22, outcome `covered`.
 
-```
-tools/lib/requirement-ids.js:33   FR_ID_RE  = /\bFR-?\d+(?:\.\d+)?[a-z]?\b/g
-tools/lib/requirement-ids.js:37   NFR_ID_RE = /\bNFR-?\d+(?:\.\d+)?[a-z]?\b/g
-tools/lib/requirement-ids.js:41   AC_ID_RE  = /\bAC-?\d+(?:\.\d+)?\b/g          <-- no [a-z]?
-```
+⚠ **It was never assigned the id `B111` in this file** — it was captured as a heading, not a table
+row — **while five other documents in the same PR cited `B111` as though it were.** Caught by the
+independent reviewer on PR #211, not by the filer.
 
-**Executed 2026-08-26, both sides of the diff:**
+**How it happened, because that is the useful part.** `BUGS.md` was not grepped before filing. The
+defect was rediscovered by running the coverage extractor over a fresh Epic's REQUIREMENTS, which is
+exactly how `B100` was found two weeks earlier — the same route, the same tool, the same conclusion,
+by someone who did not know the row existed. **A capture command with no duplicate check makes this
+the default outcome, not an unlucky one.**
 
-```
-extractRequirementIds('- **AC1.1a** ... **AC1.1b** ... **AC1.1c** ... **AC1.1d**') -> ["AC1"]
-extractRequirementIds('We verified **AC1.1a** only. Nothing else was checked.')   -> ["AC1"]
-```
-
-**The consequence.** `requirement-coverage.js` feeds both artifacts through this same extractor —
-`:89` for the REQUIREMENTS denominator (`dropGroupLabels(extractRequirementIds(requirementsText))`)
-and `:94` for the VERIFICATION numerator. So a VERIFICATION naming **one** sub-lettered criterion
-marks **every** criterion in that group covered. On the shipped `M6.E4-REQUIREMENTS.md` the
-extractor returns `AC1, AC2, AC3` for what the document writes as `AC1.1a`-`AC1.2c`,
-`AC2.1a`-`AC2.2e`, and so on.
-
-**Why it matters more than a regex typo.** This is the tool built for *"completeness claims written
-from the shape of the work rather than from the artifact."* Its denominator is the thing that makes
-a coverage claim checkable, and the denominator silently coarsens by roughly the sub-letter count.
-It is `M5.E10`'s own en-dash finding — ids invisible to the coverage tool — arriving through a
-different token, in the regex one line below the two that got it right.
-
-⚠ **Reach is not yet measured.** The corpus effect is unknown; this was found on Signal's own
-artifacts. Whether other projects write sub-lettered ACs at all is exactly the reach question
-`M6.E2` publishes rather than assumes, and it should be measured before the fix is sized.
-
-**Fix shape (candidate, not decided).** Adding `[a-z]?` to `AC_ID_RE` is the one-character
-version and it is **not obviously safe**: `dropGroupLabels` and `groupOf` exist to fold ids to
-their group, and something downstream may be relying on the current fold. The honest sequence is
-(1) measure how many artifacts use sub-lettered ACs, (2) decide whether the coverage denominator
-should be per-criterion or per-group — a design call, not a typo — and (3) if per-criterion, pin it
-with a test that fails on the collapse rather than on the regex text.
-
-**Found 2026-08-26** at `M6.E5` DISCUSS, while running `extractRequirementIds` over a
-freshly-written REQUIREMENTS to check it for the en-dash defect `M5.E10` and `M6.E2` both
-committed. The check for one defect found a different one, in the checker.
+**What this entry adds to `B100`, and it is small but real:** a second, independent measurement
+(`M6.E5-REQUIREMENTS.md` — the shipped extractor returns **5** ids where **34** exist), and the
+observation that the collapse propagates into `checkValidationConsistency`, which reads both halves
+of its diff through the same extractor and can therefore only confirm agreement at **group**
+granularity. Both are folded into `B100` rather than tracked here.
 
 ---
 

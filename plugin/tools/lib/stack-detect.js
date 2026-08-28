@@ -31,6 +31,8 @@
 import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { classify, VERDICT } from './permissions-scan.js';
+
 /**
  * The manifests recognised, and the ecosystem each implies (`AC3.1a`).
  *
@@ -49,13 +51,25 @@ export const MANIFESTS = Object.freeze([
 
 /** Rules proposed per ecosystem, beyond anything read from a manifest's contents. */
 const ECOSYSTEM_RULES = Object.freeze({
-  node: ['Bash(npm test:*)', 'Bash(npx vitest:*)', 'Bash(node:*)'],
-  python: ['Bash(pytest:*)', 'Bash(python3:*)'],
+  // ⚠ `Bash(node:*)` and `Bash(python3:*)` were here and are GONE. `node -e` and
+  // `python3 -c` are unrestricted shell execution, so proposing them from the
+  // stack half was a blanket grant that walked straight around the flow half's
+  // classification — the Epic's own thesis, unenforced on this side of the
+  // split. Every rule below now also passes through `classify()`. (PR #211
+  // review.)
+  node: ['Bash(npm test:*)', 'Bash(npx vitest:*)'],
+  python: ['Bash(pytest:*)'],
   rust: ['Bash(cargo check:*)', 'Bash(cargo test:*)', 'Bash(cargo build:*)'],
   go: ['Bash(go test:*)', 'Bash(go build:*)', 'Bash(go vet:*)'],
   ruby: ['Bash(bundle exec:*)', 'Bash(rspec:*)'],
   php: ['Bash(composer:*)'],
 });
+
+/** `Bash(x y:*)` / `Bash(x:*)` → the `x y` / `x` key `classify` understands. */
+function keyOfRule(rule) {
+  const m = /^Bash\((.+?):\*\)$/.exec(rule);
+  return m ? m[1] : null;
+}
 
 function exists(p) {
   try {
@@ -142,6 +156,22 @@ export function stackRules(stack) {
   if (!stack?.detected) return [];
   const out = new Set();
   for (const eco of stack.ecosystems) for (const r of ECOSYSTEM_RULES[eco] ?? []) out.add(r);
+  // A host `npm run <script>` rule names the SCRIPT, not what it executes —
+  // `scripts.test` can be any command at all. It is proposed because the user's
+  // own manifest declares it, and the report says so; it is not derived the way
+  // the flow half is.
   for (const s of stack.npmScripts) out.add(`Bash(npm run ${s}:*)`);
-  return [...out].sort();
+
+  // ⚠ THE SAME GATE THE FLOW HALF USES. Without this, `ECOSYSTEM_RULES` strings
+  // went straight into the proposal with no classification at all — so the
+  // Epic's central claim ("derivation alone is not a design") held on one side
+  // of the split and not the other. `npm run …` is exempt because its key is the
+  // user's script name, which no table can know. (PR #211 review.)
+  return [...out]
+    .filter((r) => {
+      if (r.startsWith('Bash(npm run ')) return true;
+      const key = keyOfRule(r);
+      return key === null || classify(key) === VERDICT.PROPOSE_ALLOW;
+    })
+    .sort();
 }

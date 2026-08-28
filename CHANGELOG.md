@@ -39,12 +39,19 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   and `go test` for a Node repo, from agent files describing other people's stacks. Both fixed and
   pinned.
 
-  ⚠ **The reach is published, not implied.** Measured against 43 hand-cleaned rules: 29 generated,
-  **14 agree**. Most of the gap is the generator being *right* — ~12 misses are machine-specific
-  tools belonging to other projects. **The honest limit: `git commit` is classified allow and was
-  never proposed, because it appears zero times as a runnable command string anywhere in the
-  payload** — `execute.md` says *"create an atomic git commit"* in English. The generator's reach is
-  bounded by how the payload phrases things.
+  ⚠ **The reach is published, not implied.** Measured against 43 hand-cleaned rules: **36 generated,
+  15 agree**. Most of the gap is the generator being *right* — ~12 misses are machine-specific tools
+  belonging to other projects, and reproducing them would have reproduced the accreted mess the
+  decision was written about. The surviving limits: `gh` is prescribed nowhere in the payload (its
+  guidance lives in the repo-root `CLAUDE.md`, which is not shipped), and the generator emits only
+  `Bash()` rules, so `Read()` / `WebFetch()` / `Skill()` / `mcp__` are out of reach by construction.
+
+  ⚠ **An earlier draft of this entry published a headline limit that was false** — *"`git commit`
+  appears zero times as a runnable command string anywhere in the payload"* — and it was an artifact
+  of two defects in this feature's own scanner: the code layer captured each `execFileSync`
+  subcommand and discarded it, and the prose layer could not match inside fenced code blocks. Both
+  found by the independent PR reviewer, both fixed and pinned. **A measurement taken with a broken
+  instrument reads as a finding about the world.**
 
   ⚠ **It does NOT unblock** the readiness scorecard's executability dimension or the
   environment-readiness baseline. Both need a person to grant permission in a user-owned file.

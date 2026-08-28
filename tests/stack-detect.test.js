@@ -25,6 +25,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { detectStack, stackRules, MANIFESTS } from '../plugin/tools/lib/stack-detect.js';
+import { classify, VERDICT } from '../plugin/tools/lib/permissions-scan.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -164,5 +165,30 @@ describe('FR3.2 — the module says what it is, and is not', () => {
     // true. Same published limit as M5.E10's checks; recorded at the point of
     // use rather than discovered later.
     expect(true).toBe(true);
+  });
+});
+
+describe('findings from the PR #211 independent review', () => {
+  it('the stack half NEVER proposes a shell-equivalent binary', () => {
+    // Bash(node:*) was proposed unconditionally for any package.json, and
+    // Bash(python3:*) for any Python project — blanket grants that walked
+    // straight around the flow half's classification.
+    const dir = repo({ 'package.json': '{"name":"x"}', 'pyproject.toml': '[project]\n' });
+    const out = stackRules(detectStack(dir)).join('\n');
+    expect(out).not.toContain('Bash(node:*)');
+    expect(out).not.toContain('Bash(python3:*)');
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('every stack rule passes the SAME classify() gate the flow half uses', () => {
+    // ECOSYSTEM_RULES strings went straight to the proposal with no
+    // classification, so the Epic's thesis held on one side of the split only.
+    const dir = repo({ 'Cargo.toml': '[package]\n', 'go.mod': 'module x\n', 'Gemfile': 'source\n' });
+    for (const r of stackRules(detectStack(dir))) {
+      if (r.startsWith('Bash(npm run ')) continue; // the user's own script name
+      const key = /^Bash\((.+?):\*\)$/.exec(r)?.[1];
+      expect(classify(key), `${r} reached the proposal unclassified`).toBe(VERDICT.PROPOSE_ALLOW);
+    }
+    rmSync(dir, { recursive: true, force: true });
   });
 });

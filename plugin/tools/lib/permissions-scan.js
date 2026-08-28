@@ -93,8 +93,28 @@ export const CODE_DIRS = Object.freeze(['tools', 'hooks']);
  */
 const INVOCATION_RE = /`([a-z][a-z0-9_.-]*)((?:\s+[^`\n]{1,120})?)`/g;
 
-/** An argument that reads as a flag: `-l`, `--force`. */
-const FLAG_RE = /(^|\s)--?[a-z]/;
+/**
+ * Commands inside a fenced block — ```sh … ``` — one per line.
+ *
+ * ⚠ WITHOUT THIS THE WHOLE-POPULATION GUARD FALSELY READS CLEAN. `INVOCATION_RE`
+ * is anchored on inline backticks and its character class excludes newlines, so
+ * a command written inside a multi-line fence is invisible to it — and
+ * `unclassifiedBinaries` then reports zero unclassified binaries for a payload
+ * that prescribes several. `AC1.2c` is the Epic's load-bearing guard, and it was
+ * blind to the most natural way to write a runnable example. (PR #211 review.)
+ */
+const FENCE_RE = /^```[a-z]*\n([\s\S]*?)^```/gm;
+
+/**
+ * A FIRST argument that reads as a flag: `-l`, `--force`.
+ *
+ * ⚠ ANCHORED AT THE FIRST TOKEN ON PURPOSE. Matching a flag anywhere in the
+ * remainder admits prose: `commands/calibrate.md:87` reads *"feature fits it) or
+ * run /sig:calibrate --re-calibrate if the risk profile…"*, whose `--re` made
+ * `feature` look like a binary. Real invocations put their flags first or carry
+ * a known binary. (PR #211 review.)
+ */
+const FLAG_RE = /^--?[a-z]/;
 
 /**
  * Binaries recognised without a flag. A RECOGNISER, not a classifier — being on
@@ -111,7 +131,10 @@ export const KNOWN_BINARIES = new Set([
 ]);
 
 /** `execFileSync('git', [...])` and friends — a string-literal first argument. */
-const SPAWN_RE = /\b(?:execFileSync|execFile|spawnSync|spawn)\(\s*'([a-z][a-z0-9_.-]*)'/g;
+const SPAWN_RE =
+  /\b(?:execFileSync|execFile|spawnSync|spawn)\(\s*'([a-z][a-z0-9_.-]*)'\s*,\s*\[\s*'([a-z][a-z0-9:_-]*)'/g;
+/** Same call shape, but with no array literal to read a subcommand from. */
+const SPAWN_BARE_RE = /\b(?:execFileSync|execFile|spawnSync|spawn)\(\s*'([a-z][a-z0-9_.-]*)'/g;
 
 /** A token that reads as a subcommand rather than a flag or a path. */
 const SUBCOMMAND_RE = /^[a-z][a-z0-9:_-]*$/;
@@ -141,6 +164,10 @@ export const CLASSIFICATION = Object.freeze({
   'git revert': VERDICT.NEVER_PROPOSE,
   'git checkout': VERDICT.NEVER_PROPOSE,
   'git clean': VERDICT.NEVER_PROPOSE,
+  // NOTE: not reachable from the scan. Keys are binary + ONE token, so the scan
+  // can only ever produce `git push`. Kept because `classify` is called directly
+  // elsewhere and the intent should be readable — but the deny that actually
+  // ships comes from DENY_PROPOSALS, not from here. (PR #211 review.)
   'git push --force': VERDICT.PROPOSE_DENY,
 
   // ── The flow's ordinary git surface ───────────────────────────────────────
@@ -177,7 +204,12 @@ export const CLASSIFICATION = Object.freeze({
   'npm ls': VERDICT.PROPOSE_ALLOW,
   npm: VERDICT.PROPOSE_ALLOW,
   npx: VERDICT.PROPOSE_ALLOW,
-  node: VERDICT.PROPOSE_ALLOW,
+  // ⚠ `node` is NEVER proposed. `node -e "require('child_process').execSync(...)"`
+  // is unrestricted shell execution, so `Bash(node:*)` is a blanket grant wearing
+  // a specific name — and this file denies `bash`, `sh` and `curl` for exactly
+  // that reason. Proposing it while denying those was incoherent. (PR #211
+  // review.)
+  node: VERDICT.NEVER_PROPOSE,
   vitest: VERDICT.PROPOSE_ALLOW,
   eslint: VERDICT.PROPOSE_ALLOW,
   prettier: VERDICT.PROPOSE_ALLOW,
@@ -185,14 +217,18 @@ export const CLASSIFICATION = Object.freeze({
 
   // ── Read-only shell the flow leans on ─────────────────────────────────────
   grep: VERDICT.PROPOSE_ALLOW,
-  find: VERDICT.PROPOSE_ALLOW,
+  // ⚠ `find` is not read-only: `find . -delete` and `find . -exec rm -rf {} +`
+  // are the same capability `rm` is refused for. (PR #211 review.)
+  find: VERDICT.NEVER_PROPOSE,
   cat: VERDICT.PROPOSE_ALLOW,
   ls: VERDICT.PROPOSE_ALLOW,
   ps: VERDICT.PROPOSE_ALLOW,
   jq: VERDICT.PROPOSE_ALLOW,
   wc: VERDICT.PROPOSE_ALLOW,
+  // `sed -i` and awk's `print > "file"` are the same in-place-write capability.
+  // Splitting them was an inconsistency with no stated reason. (PR #211 review.)
   sed: VERDICT.NEVER_PROPOSE,
-  awk: VERDICT.PROPOSE_ALLOW,
+  awk: VERDICT.NEVER_PROPOSE,
   tar: VERDICT.NEVER_PROPOSE,
   ssh: VERDICT.NEVER_PROPOSE,
   brew: VERDICT.NEVER_PROPOSE,
@@ -213,7 +249,10 @@ export const CLASSIFICATION = Object.freeze({
   // whole-population check passes, but the report's stack half — not this
   // table — decides whether they apply to the repo actually in front of us.
   pytest: VERDICT.PROPOSE_ALLOW,
-  python3: VERDICT.PROPOSE_ALLOW,
+  // ⚠ `python3 -m pip install …` and `python3 -c` reach straight past both the
+  // `pip` denial below and any shell denial, so a bare `python3` grant defeats
+  // them. Same shape as `node`. (PR #211 review.)
+  python3: VERDICT.NEVER_PROPOSE,
   'pip install': VERDICT.NEVER_PROPOSE,
   pip: VERDICT.NEVER_PROPOSE,
   cargo: VERDICT.PROPOSE_ALLOW,
@@ -231,6 +270,7 @@ export const CLASSIFICATION = Object.freeze({
   gradle: VERDICT.PROPOSE_ALLOW,
   mvn: VERDICT.PROPOSE_ALLOW,
   dotnet: VERDICT.PROPOSE_ALLOW,
+  composer: VERDICT.PROPOSE_ALLOW,
   rustc: VERDICT.PROPOSE_ALLOW,
   deno: VERDICT.PROPOSE_ALLOW,
   bun: VERDICT.PROPOSE_ALLOW,
@@ -327,19 +367,34 @@ export function scanPrescribedCommands(pluginRoot) {
       } catch {
         continue;
       }
+      const spans = [];
       for (const m of text.matchAll(INVOCATION_RE)) {
-        const rest = (m[2] ?? '').trim();
+        spans.push({ binary: m[1], rest: (m[2] ?? '').trim(), index: m.index });
+      }
+      // Fenced blocks: each non-blank line is a candidate invocation.
+      for (const f of text.matchAll(FENCE_RE)) {
+        const bodyStart = f.index + f[0].indexOf('\n') + 1;
+        let offset = 0;
+        for (const raw of f[1].split('\n')) {
+          const line = raw.trim();
+          const lm = /^([a-z][a-z0-9_.-]*)(\s+.{1,120})?$/.exec(line);
+          if (lm) spans.push({ binary: lm[1], rest: (lm[2] ?? '').trim(), index: bodyStart + offset });
+          offset += raw.length + 1;
+        }
+      }
+      for (const m of spans) {
+        const rest = m.rest;
         if (rest === '') continue; // bare token — see INVOCATION_RE's stated limits
         // A dotted first token is a code identifier (`result.wrote`,
         // `findings.length`), never a binary this flow shells out to.
-        if (m[1].includes('.')) continue;
-        if (!KNOWN_BINARIES.has(m[1]) && !FLAG_RE.test(rest)) continue;
+        if (m.binary.includes('.')) continue;
+        if (!KNOWN_BINARIES.has(m.binary) && !FLAG_RE.test(rest)) continue;
         const first = rest.split(/\s+/)[0];
         const subcommand = SUBCOMMAND_RE.test(first) ? first : null;
         entries.push({
-          binary: m[1],
+          binary: m.binary,
           subcommand,
-          key: subcommand ? `${m[1]} ${subcommand}` : m[1],
+          key: subcommand ? `${m.binary} ${subcommand}` : m.binary,
           layer: LAYER.PROMPT,
           source: relative(pluginRoot, file).split(sep).join('/'),
           line: lineOf(text, m.index),
@@ -357,11 +412,18 @@ export function scanPrescribedCommands(pluginRoot) {
       } catch {
         continue;
       }
-      for (const m of text.matchAll(SPAWN_RE)) {
+      const withSub = new Map();
+      for (const m of text.matchAll(SPAWN_RE)) withSub.set(m.index, m[2]);
+      for (const m of text.matchAll(SPAWN_BARE_RE)) {
+        // ⚠ The subcommand was captured and then thrown away, making the CODE
+        // layer strictly less precise than the PROSE layer for the same command
+        // — `git` rather than `git rev-parse`. Backwards, since the code layer is
+        // the stronger evidence. (PR #211 review.)
+        const sub = withSub.get(m.index) ?? null;
         entries.push({
           binary: m[1],
-          subcommand: null,
-          key: m[1],
+          subcommand: sub,
+          key: sub ? `${m[1]} ${sub}` : m[1],
           layer: LAYER.DETERMINISTIC,
           source: relative(pluginRoot, file).split(sep).join('/'),
           line: lineOf(text, m.index),

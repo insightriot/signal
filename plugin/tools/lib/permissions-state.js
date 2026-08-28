@@ -118,7 +118,11 @@ export function readPermissionScopes({ homeDir, baseDir }) {
     totals.allow += s.rules.allow.length;
     totals.deny += s.rules.deny.length;
     totals.ask += s.rules.ask.length;
-    if (s.defaultMode && !defaultMode) defaultMode = s.defaultMode;
+    // ⚠ LAST-WINS, not first-wins. `scopePaths` returns [user, project, local]
+    // in ASCENDING precedence, so the LAST scope that sets `defaultMode` is the
+    // one that actually applies. First-wins reported the user scope's value even
+    // when the local file overrode it. (PR #211 review.)
+    if (s.defaultMode) defaultMode = s.defaultMode;
   }
 
   return {
@@ -216,11 +220,22 @@ export function formatScopeReport(state) {
       `${state.totals.ask} ask · defaultMode: ${state.defaultMode ?? 'unset'}`
   );
 
-  if (state.totals.deny === 0 && state.totals.allow > 0) {
+  // ⚠ Only claim "zero deny" when EVERY scope was actually read. `totals`
+  // accumulates from OK scopes alone, so with an unreadable scope this note
+  // asserted a fact about a file nobody parsed — the exact B39 collapse this
+  // module is built to avoid, in the module that avoids it everywhere else.
+  // (PR #211 review.)
+  if (state.totals.deny === 0 && state.totals.allow > 0 && state.unreadable.length === 0) {
     lines.push(
       '',
       '  Note: zero deny rules. "Yes, and don\'t ask again" only ever adds to `allow`, ' +
         'so the protective half is empty by construction and cannot fill itself.'
+    );
+  } else if (state.totals.deny === 0 && state.unreadable.length > 0) {
+    lines.push(
+      '',
+      `  Note: no deny rules were found, but ${state.unreadable.length} scope(s) could not be read ` +
+        `(${state.unreadable.join(', ')}) — so this is NOT a claim that none exist.`
     );
   }
 

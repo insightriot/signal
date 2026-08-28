@@ -2459,13 +2459,15 @@ entries, or the command ever gains a write path, `/sig:escalate` **upward** is t
 classification decides `propose-allow` / `propose-deny` / `never-propose`. A whole-population test
 fails the suite when the scan returns a binary the classification does not know.
 
-**Why — this was measured, and the measurement changed the design.** Scanning
-`plugin/{commands,agents,skills,hooks,references}` on 2026-08-26 returns **49 distinct
+**Why — this was measured, and the measurement changed the design.** Scanning the **prose** layer —
+`plugin/{commands,agents,skills,references}`, four directories — on 2026-08-26 returns **49 distinct
 binary+subcommand pairs across 130 backticked occurrences**. `git` (49) and `npm` (29) dominate, as
 expected. **The same set also contains `rm` (5 occurrences)**, `git reset`, `git rebase`,
 `git revert`, `pip install`, and `pytest` / `cargo build` / `go test`. The destructive entries are
 there because `/sig:doctor --fix` *describes* `rm -rf` on cache directories; the language entries
-are there because command files describe other people's stacks.
+are there because command files describe other people's stacks. *(⚠ The first draft of this paragraph
+listed five directories including `hooks/`. `hooks/` is read by the **deterministic** layer, not the
+prose one, and contributes no backticked prescriptions — PR #211 review.)*
 
 **So a generator that emitted its own scan would propose `Bash(rm *)`.** Derivation alone is not a
 design.
@@ -2550,7 +2552,7 @@ cites it, is `M6.E2`'s class.
 
 ### Filed during this phase
 
-**`B111`** (captured, `BUGS.md`) — `AC_ID_RE` lacks the `[a-z]?` its two sibling patterns carry, so
+**`B100`** (pre-existing; rediscovered here and briefly mis-filed as `B111`, corrected on PR #211 review) — `AC_ID_RE` lacks the `[a-z]?` its two sibling patterns carry, so
 `AC1.1a`…`AC1.1d` all collapse to `AC1`, and `requirement-coverage.js` reads the collapsed ids on
 both sides of its diff. Found by running the coverage extractor over this Epic's own REQUIREMENTS to
 check it for the en-dash defect `M5.E10` and `M6.E2` both committed. Not fixed here — the fold may

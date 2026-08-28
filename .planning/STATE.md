@@ -38,12 +38,14 @@ Suite **3094** green, 180 files. **22 commands.** Retro:
 > numbers argued for and that `v0.1.31` began; `M6.E5` was the last queued item standing in front of
 > it. Do **not** open another Signal-auditing-Signal Epic ahead of this.
 
-**The one sentence to carry forward from `M6.E5`, because it is a limit and not a win:** `git commit`
-is classified `propose-allow` and was never proposed — it appears **zero times** as a runnable
-command string anywhere in the payload. The generator's reach is bounded by how the payload phrases
-things, and the payload phrases its most important actions as English sentences.
+**⚠ The one sentence to carry forward from `M6.E5` is a RETRACTION, not a finding.** The Epic
+published *"`git commit` appears zero times as a runnable command string anywhere in the payload"* as
+its headline limit, in five documents. **It was false** — two defects in the Epic's own scanner (the
+code layer threw away captured subcommands; the prose layer could not read inside fenced blocks).
+Caught by the PR #211 reviewer. Both fixed: the scan returns **200 entries** and `Bash(git commit:*)`
+is proposed. **A measurement taken with a broken instrument reads as a finding about the world.**
 
-**Filed and NOT fixed — `B111` is the one that affects other work.** `AC_ID_RE` lacks the `[a-z]?`
+**Filed and NOT fixed — `B100` is the one that affects other work.** ⚠ This Epic rediscovered it and filed a duplicate (`B111`, withdrawn); `B100` has had it since 2026-08-14. `AC_ID_RE` lacks the `[a-z]?`
 that `FR_ID_RE` and `NFR_ID_RE` both carry, so sub-lettered acceptance criteria collapse to their
 group on **both** sides of `requirement-coverage.js`'s diff. It reported **5** criteria where **34**
 exist, so `M6.E5`'s coverage denominator was derived by hand. **Any Epic using sub-lettered ACs has
@@ -53,6 +55,12 @@ the same problem.** `B112`: `detectProjectKind` calls every non-git directory `g
 `^(#{2,3})\s` and the promoted rows sit at `####`. `M6.E5`'s row was struck by hand with the reason
 recorded at the row, exactly as `M6.E4`'s three were. **Any Epic closing one of those rows will hit
 this.**
+
+**⚠ `completed_phases` dates DISCUSS to 2026-08-27 while every artifact dates it 2026-08-26.** Both
+are right about different things: the artifacts carry the date they were **written**, and
+`transitionPhase` stamped the date the phase was **left**, which fell on the other side of midnight.
+Neither is falsified to match the other. Flagged by the PR #211 reviewer as an inconsistency; it is
+one, and this is the explanation rather than a fix.
 
 **⚠ `/sig:resume` may show "STATE.md is 1 commit behind."** Expected and self-clearing — `main` is
 protected, so every state re-point goes through a PR and the baseline lags by construction.

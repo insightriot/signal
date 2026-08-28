@@ -255,3 +255,72 @@ describe('whole-population — the classification cannot silently fall behind (A
     rmSync(dir, { recursive: true, force: true });
   });
 });
+
+describe('findings from the PR #211 independent review', () => {
+  it('the shell-equivalent binaries are NEVER proposed', () => {
+    // `node -e "require('child_process').execSync(...)"` and `python3 -c` are
+    // unrestricted shell execution, so a bare grant is a blanket permission
+    // wearing a specific name. This file denies bash/sh/curl for exactly that
+    // reason, and proposing these beside those denials was incoherent.
+    for (const bin of ['node', 'python3']) {
+      expect(classify(bin), `${bin} must not be propose-allow`).toBe(VERDICT.NEVER_PROPOSE);
+    }
+  });
+
+  it('binaries that can delete or write are NEVER proposed', () => {
+    // `find . -delete` / `find . -exec rm -rf {} +` is the capability `rm` is
+    // refused for. `awk`'s `print > "file"` is `sed -i`'s capability, and those
+    // two were classified differently with no stated reason.
+    for (const bin of ['find', 'awk', 'sed']) {
+      expect(classify(bin), `${bin} must not be propose-allow`).toBe(VERDICT.NEVER_PROPOSE);
+    }
+  });
+
+  it('commands inside a fenced code block ARE scanned', () => {
+    // INVOCATION_RE is anchored on inline backticks and its character class
+    // excludes newlines, so a command written inside a ``` fence was invisible —
+    // and unclassifiedBinaries then reported CLEAN for a payload prescribing
+    // unclassified binaries. AC1.2c is the Epic's load-bearing guard and it was
+    // blind to the most natural way to write a runnable example.
+    const dir = fixturePayload({
+      'commands/fenced.md': 'Run this:\n\n```bash\nfrobnicate --hard\n```\n',
+    });
+    const scan = scanPrescribedCommands(dir);
+    expect(scan.binaries).toContain('frobnicate');
+    expect(unclassifiedBinaries(scan)).toContain('frobnicate');
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('prose inside a fence is not mistaken for a command', () => {
+    // The first fix over-corrected: a flag ANYWHERE in the line made prose look
+    // like an invocation — `calibrate.md:87` reads "feature fits it) or run
+    // /sig:calibrate --re-calibrate…" and yielded a binary called `feature`.
+    const dir = fixturePayload({
+      'commands/prose.md': 'Notes:\n\n```\nfeature fits it) or run /sig:calibrate --re-calibrate\n```\n',
+    });
+    expect(scanPrescribedCommands(dir).binaries).not.toContain('feature');
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('the code layer keeps its subcommand — it is the STRONGER evidence', () => {
+    // The spawn scan captured the subcommand and threw it away, making the code
+    // layer strictly less precise than prose for the same command: `git` rather
+    // than `git rev-parse`. Backwards.
+    const dir = fixturePayload({
+      'tools/t.js': "execFileSync('git', ['rev-parse', 'HEAD']);\n",
+    });
+    const e = scanPrescribedCommands(dir).entries.find((x) => x.layer === LAYER.DETERMINISTIC);
+    expect(e.key).toBe('git rev-parse');
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('CORRECTION — `git commit` IS prescribed, in the code layer', () => {
+    // This Epic published "git commit appears zero times as a runnable command
+    // string anywhere in the payload" as its headline limit. That was an
+    // artifact of the discarded-subcommand bug above: adherence-harness.js runs
+    // execFileSync('git', ['commit', …]). The claim was wrong and is corrected
+    // wherever it was published.
+    const live = scanPrescribedCommands(PAYLOAD);
+    expect(live.entries.some((e) => e.key === 'git commit')).toBe(true);
+  });
+});

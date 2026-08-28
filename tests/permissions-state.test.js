@@ -235,3 +235,30 @@ describe('formatScopeReport — the stated limit (FR2.2)', () => {
     rmSync(root, { recursive: true, force: true });
   });
 });
+
+describe('findings from the PR #211 independent review', () => {
+  it('defaultMode is LAST-wins — the local scope beats the user scope', () => {
+    // scopePaths returns [user, project, local] in ASCENDING precedence, so
+    // first-wins reported the user value even when the local file overrode it.
+    const { root, home, base } = env({
+      'home/.claude/settings.json': JSON.stringify({ permissions: { defaultMode: 'default' } }),
+      'repo/.claude/settings.local.json': JSON.stringify({ permissions: { defaultMode: 'dontAsk' } }),
+    });
+    expect(readPermissionScopes({ homeDir: home, baseDir: base }).defaultMode).toBe('dontAsk');
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('"zero deny rules" is NOT claimed when a scope could not be read', () => {
+    // `totals` accumulates from OK scopes only, so with an unreadable scope the
+    // note asserted a fact about a file nobody parsed — B39's collapse, in the
+    // module built to avoid it everywhere else.
+    const { root, home, base } = env({
+      'home/.claude/settings.json': rules(['Bash(git log:*)']),
+      'repo/.claude/settings.json': '{{{',
+    });
+    const out = formatScopeReport(readPermissionScopes({ homeDir: home, baseDir: base }));
+    expect(out).not.toMatch(/empty by construction/);
+    expect(out).toMatch(/NOT a claim that none exist/);
+    rmSync(root, { recursive: true, force: true });
+  });
+});
