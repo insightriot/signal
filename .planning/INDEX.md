@@ -164,6 +164,7 @@
 - [M6.E5-PROGRESS.md](M6.E5-PROGRESS.md) — `other` — _(note pending)_
 - [M6.E5-REQUIREMENTS.md](M6.E5-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E5-RESEARCH.md](M6.E5-RESEARCH.md) — `other` — _(note pending)_
+- [M6.E5-REVIEW.md](M6.E5-REVIEW.md) — `other` — _(note pending)_
 - [M6.E5-VALIDATION.md](M6.E5-VALIDATION.md) — `other` — _(note pending)_
 - [M6.E5-VERIFICATION.md](M6.E5-VERIFICATION.md) — `other` — _(note pending)_
 - [MILESTONE-4.5.md](MILESTONE-4.5.md) — `milestone` — Release-hardening / stranger-adoption milestone. **CLOSED 2026-07-15** — E1–E11 shipped (v0.1.1–v0.1.7); the ≥3-non-Signal-tester clause met (4 users onboarded). Superseded by M5.
