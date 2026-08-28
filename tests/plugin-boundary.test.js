@@ -224,6 +224,15 @@ const NON_PAYLOAD_CITATIONS = new Set([
   'tests/path/to/test.ts',
   'tests/routes/auth.test.ts',
 
+  // M6.E5: `commands/permissions.md` points at the scoping spike that produced
+  //     its whole design — the platform check that returned "you cannot build a
+  //     permission model". A user's install has no `analysis/`, so this is a
+  //     dead link for them and a live one for a maintainer. Kept as a citation
+  //     rather than inlined: the command file states the three findings it needs
+  //     directly, and the path is there for whoever wants the evidence behind
+  //     them.
+  'analysis/PERMISSIONS-SPIKE.md',
+
   // (B) Real citations in `references/**` — shipped docs pointing at tests and
   //     tools that will NOT ship. Dead links for a user; harmless to function.
   'tests/agent-reachability.test.js',
@@ -295,7 +304,7 @@ describe('M6.E1 — citations of paths that will not exist in an install', () =>
     // sibling assertion above caught it. The citation was dropped rather than
     // the number raised — a command file must not point a user at a path their
     // install does not contain.
-    expect(cited.size).toBe(31);
+    expect(cited.size).toBe(32);
   });
 });
 

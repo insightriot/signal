@@ -8,6 +8,54 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ## [Unreleased]
 
+### Added
+
+- **`/sig:permissions` — the 22nd command: propose what Signal may run here, and let the user
+  install it (`M6.E5`).** Reads what the flow actually prescribes from the plugin payload — both the
+  prose layer (backticked commands in `commands/`, `agents/`, `skills/`, `references/`) and the
+  deterministic layer (`execFileSync` call sites), labelled separately because a rule traceable to a
+  call site is stronger evidence than one traceable to prose. Reads what the project already grants
+  across three settings scopes, and proposes only the **delta**. Detects the host project's stack
+  from its manifests, proposing `npm run` rules for the scripts that **exist**. Emits a short `deny`
+  list, because 43 allow rules and **zero** deny is a protective half that is empty *by
+  construction* — *"Yes, and don't ask again"* only ever teaches the system to say yes.
+
+  ⚠ **Signal cannot build a permission model, and this does not pretend to.** Rules are enforced by
+  Claude Code and **not by the model**; plugins are locked out three ways (no `permissions` key in
+  the manifest, `permissionMode` unsupported for plugin-shipped agents *"for security reasons"*,
+  plugins are not a settings source). Verified against the live docs 2026-08-25 before anything was
+  designed — the backlog row's **own instruction**, which had sat unread since 2026-08-10 and, when
+  finally run, cut the row from `large` to `small` by finding most of it could not be built at all.
+
+  ⚠ **Derivation alone is not a design.** The scan returns `rm` five times, because `/sig:doctor
+  --fix` *describes* `rm -rf` on cache directories. A generator that emitted its own scan would
+  propose `Bash(rm *)`. So a committed classification decides every verdict, and a
+  **whole-population test fails the suite** when the scan returns a binary nobody classified.
+
+  ⚠ **Two defects were found by rendering the report, not by its 25 green tests.** It proposed
+  `Bash(git:*)` — which re-grants `git reset`, `git rebase` and `git push --force`, exactly what the
+  classification withholds; `classify('git reset')` was correct the whole time, and the defect lived
+  *between* a correct classification and the rule rendered from it. It also proposed `cargo build`
+  and `go test` for a Node repo, from agent files describing other people's stacks. Both fixed and
+  pinned.
+
+  ⚠ **The reach is published, not implied.** Measured against 43 hand-cleaned rules: **36 generated,
+  15 agree**. Most of the gap is the generator being *right* — ~12 misses are machine-specific tools
+  belonging to other projects, and reproducing them would have reproduced the accreted mess the
+  decision was written about. The surviving limits: `gh` is prescribed nowhere in the payload (its
+  guidance lives in the repo-root `CLAUDE.md`, which is not shipped), and the generator emits only
+  `Bash()` rules, so `Read()` / `WebFetch()` / `Skill()` / `mcp__` are out of reach by construction.
+
+  ⚠ **An earlier draft of this entry published a headline limit that was false** — *"`git commit`
+  appears zero times as a runnable command string anywhere in the payload"* — and it was an artifact
+  of two defects in this feature's own scanner: the code layer captured each `execFileSync`
+  subcommand and discarded it, and the prose layer could not match inside fenced code blocks. Both
+  found by the independent PR reviewer, both fixed and pinned. **A measurement taken with a broken
+  instrument reads as a finding about the world.**
+
+  ⚠ **It does NOT unblock** the readiness scorecard's executability dimension or the
+  environment-readiness baseline. Both need a person to grant permission in a user-owned file.
+
 ### Fixed
 
 - **The release notes' own test-count trailer is now reconciled from the gating run (`B109`).**

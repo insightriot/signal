@@ -4,7 +4,79 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-08-26) — NEXT WORK IS DECIDED
+## Where things stand (2026-08-28) — M6.E5 IS SHIPPED
+
+**`/sig:permissions` is built and merged-ready.** PR **#211**, branch `epic/m6-e5-permissions`,
+Epic lane (`--merge`). Suite **3006 → 3094**. Commands **21 → 22**. Retro:
+[`M6.E5-RETROSPECTIVE.md`](M6.E5-RETROSPECTIVE.md).
+
+**What it does, in one line:** proposes an allowlist (and a short deny list) for what the flow needs
+here, and **you** install it. It never writes a settings file — Signal cannot grant itself
+permission, and that is settled, not a limitation to be worked around.
+
+**⚠ A headline finding was published and then RETRACTED — read this before citing the Epic.** It
+claimed `git commit` appears zero times as a runnable command string in the payload. **False**, and
+caused by two defects in the Epic's own scanner (the code layer discarded captured subcommands; the
+prose layer could not see inside fenced blocks). Both fixed on PR #211 review; the scan now returns
+**200 entries** and `Bash(git commit:*)` **is** proposed. Measured against the 43 hand-cleaned rules
+after the fixes: **36 generated, 15 agree.** The surviving limits are real but smaller — `gh` is
+genuinely prescribed nowhere in the payload, and the generator only emits `Bash()` rules.
+
+**Three defects found by running code rather than reading it** — the pattern the plan was built
+around: `B112` (`detectProjectKind` calls every non-git directory `greenfield`), `Bash(git:*)` being
+proposed and re-granting what the classification withholds, and cross-ecosystem contamination in the
+flow half. The last two survived 25 green tests and were visible in the first render.
+
+**Filed and NOT fixed: `B112`.** ⚠ A second was filed as `B111` and **withdrawn as a duplicate of `B100`**, which had recorded it two weeks earlier — caught by the PR reviewer, not the filer. `B100` matters beyond this Epic — `AC_ID_RE` lacks the
+`[a-z]?` its two siblings carry, so sub-lettered acceptance criteria collapse on **both** sides of
+`requirement-coverage.js`'s diff. The tool built to catch completeness claims reported **5** criteria
+where **34** exist.
+
+**⚠ NEXT: an analysis scoped strictly to loop / goal functionality** — what Signal needs to hold up
+on autonomous runs. Brett's call, 2026-08-28. **Nothing else in it.** This is the direction the
+2026-08-20 numbers argued for and that `v0.1.31` started; `M6.E5` was the last queued item before it.
+
+---
+
+## Where things stood (2026-08-26) — M6.E5 opened
+
+**`/sig:permissions` is in flight as `M6.E5`.** Epic opened 2026-08-26; DISCUSS is written and the
+next phase is PLAN. Read `.planning/M6.E5-REQUIREMENTS.md` and `D-M6E5-1`…`D-M6E5-5` in
+[`DECISIONS.md`](DECISIONS.md) before planning it.
+
+**It runs at FEATURE, not the project's FULL** (`M6.E5-PROFILE.md`, `D-M6E5-1`) — the second use of
+the per-unit dial after `M6.E4`. The cost of that tier and the trigger for escalating back up are
+written at the profile.
+
+**Five things were decided at DISCUSS, and one went against the recommendation:**
+
+1. Derive the candidate command set from the payload, then **classify** it — neither half alone.
+   Measured: the corpus scan returns **49 binary+subcommand pairs across 130 occurrences**, and that
+   set contains **`rm`**, `git reset`, `git rebase` and `pip install`. **A generator that emitted its
+   own scan would propose `Bash(rm *)`.**
+2. Cover the **host project's stack** as well as Signal's flow — ⚠ **against the DISCUSS
+   recommendation** (`D-M6E5-3`), on the ground that a generator leaving a Python developer
+   prompting for their own test runner has not solved the problem it was built for. Cost accepted: a
+   new deterministic manifest reader, which is **not** a reuse of `/sig:init`'s scanners (they are
+   agent prose; no deterministic detector exists to call).
+3. Output is a report **plus** `.planning/PERMISSIONS.md`, a tracked artifact. **The recommended
+   install target is `.claude/settings.json` — the tracked project scope**, not the gitignored
+   `settings.local.json` the platform's *"don't ask again"* path writes to.
+4. A **small, conservative deny list** — 43 allow rules and zero deny is a protective half empty by
+   construction. Deny is absolute and cannot carry exceptions, and the report says so at the list.
+5. FEATURE tier, above.
+
+⚠ **Every count in those documents was re-derived on 2026-08-26.** The spike publishes 94 rules and
+`D-BR0826-1` publishes 91; **both describe a state that no longer exists.** The live figure is
+**43 allow, 0 deny, 0 ask, no `defaultMode`**.
+
+**Filed during the phase:** `B111` — later withdrawn as a duplicate of `B100`. `AC_ID_RE` drops the sub-letter, so `AC1.1a`…`AC1.1d` collapse
+to `AC1` and `requirement-coverage.js` reads the collapsed ids on both sides of its diff. Found by
+running the coverage checker over this Epic's own REQUIREMENTS. Not fixed; reach unmeasured.
+
+---
+
+### The scope call this Epic implements (2026-08-26)
 
 **Build `/sig:permissions` — the permission-rule generator.** Decided by Brett 2026-08-26
 (`D-BR0826-1`). Sized **small**, not the `large` it was filed as. This is the next unit of work and

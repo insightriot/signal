@@ -665,7 +665,11 @@ And the finding that four documents cited a *"48-entry inbox"* against a live 52
 this drain** — 52 total, 38 dispositioned, 2 standing, 12 live. A point-in-time measurement published as
 a live descriptor will always drift; **derive it or drop it.**
 
-#### `/sig:permissions` — what Signal is allowed to do here · **roadmap** · ~~large~~ **small** · ▶ **DECIDED 2026-08-26 — BUILD IT** (`D-BR0826-1`) · **NEXT**
+#### ~~`/sig:permissions` — what Signal is allowed to do here~~ · **DONE — shipped by `M6.E5`, 2026-08-28** (`D-BR0826-1` scope; `D-M6E5-1`…`D-M6E5-5` design)
+
+> ⚠ **Struck by hand, because `dischargeBacklogRows` could not see it.** `parseBacklogRows` matches `^(#{2,3})\s` and this row is a `####` nested under its section heading — correct nesting, invisible mechanism. `B94`'s own tool has now failed to discharge rows for a second Epic running (`M6.E4`'s three were struck by hand for the same reason). The call was made and returned `not-found`; that is recorded rather than skipped.
+>
+> ⚠ **What shipped is the small slice, not the row as filed.** The row's `large` scope — a Signal permission *model* — **cannot be built** and that is settled (`analysis/PERMISSIONS-SPIKE.md`). It also does **not** unblock the readiness-scorecard executability dimension or the environment-readiness baseline, whatever the original row implied.
 
 > **The row's own instruction was carried out and it changed the answer.** This row said the > relationship to Claude Code's own permission system *"needs a verify step against the current API > before anything is designed."* That check ran on 2026-08-25 — **`analysis/PERMISSIONS-SPIKE.md`**.
 >

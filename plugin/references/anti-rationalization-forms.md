@@ -5,7 +5,7 @@
 > and the corpus disagree. A hand-kept list of what a corpus contains is a completeness claim,
 > and this repository is done writing those.
 
-**116 entries: 100 discipline, 16 shaping.**
+**125 entries: 105 discipline, 20 shaping.**
 
 ## The rule (`B38`)
 
@@ -71,6 +71,13 @@ shaping failure does not merely underperform — **it backfires**.
 
 - **The report shows installed, available, AND the CHANGELOG entries between them.** The delta is the half `/plugin` cannot show, and the reason to run this at all.
 - **The restart line renders on every update.** Size does not predict whether a stale binding bites; `B52` was a one-line release.
+
+### `commands/permissions.md`
+
+- **The report renders in any repository**, including one with no `.planning/` and no Signal install. The tracked artifact is written only where `.planning/` already exists.
+- **A scope that could not be read is a line the reader sees**, with its reason — never a silent omission and never "0 rules".
+- **Flow-derived and stack-derived rules stay under separate headings**, so a reader can accept one and refuse the other.
+- **The approximation limit renders whenever the read renders**, including when every scope parsed cleanly. That is the case where a reader would otherwise conclude the picture is complete.
 
 ### `references/anti-rationalization.md`
 
@@ -176,6 +183,14 @@ output. Listed so the classification is complete rather than asserted.
 - "Tests pass, so the migration is faithful."
 - "The project looks non-standard; I'll assume the common old layout and move accordingly."
 - "Apply, then log any dangling links so the user can fix them."
+
+### `commands/permissions.md` (5)
+
+- "Just write the settings file — the user clearly wants these rules."
+- "`.planning/` is missing — create it so the artifact has somewhere to go."
+- "The deny list is short; add a few more useful blocks."
+- "Add a `permission_level` to PROFILE.md so this is configurable."
+- "The scan found a binary nobody classified — default it to allow so the run is clean."
 
 ### `commands/plan.md` (5)
 

@@ -2,55 +2,68 @@
 schema_version: 1
 docs_layout_version: 3
 phase: SHIP
-current_epic: M6.E4
+current_epic: M6.E5
 current_wave: null
 current_tasks: []
 completed_phases:
-  - DISCUSS (2026-08-23)
-  - PLAN (2026-08-23)
-  - EXECUTE (2026-08-23)
-  - VERIFY (2026-08-24)
-  - REVIEW (2026-08-24)
-  - SHIP (2026-08-24)
+  - DISCUSS (2026-08-27)
+  - PLAN (2026-08-27)
+  - EXECUTE (2026-08-28)
+  - VERIFY (2026-08-28)
+  - REVIEW (2026-08-28)
+  - EXECUTE (2026-08-28)
+  - REVIEW (2026-08-28)
+  - SHIP (2026-08-28)
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-08-13T14:47:23.449Z
-last_updated_commit: 2b95afc49a22a8431a3cfd2499b8fba5814b6b36
-last_updated: 2026-08-24T23:31:12.606Z
+last_updated_commit: 0b2ac56706a794b8e2cb7f9a532ca3ef98a9f3b4
+last_updated: 2026-08-28T01:24:48.516Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-08-24, after a context clear)
+### ▶ WHERE THE WORK IS — read this first (2026-08-28)
 
-**Nothing is in flight. `main` is clean at `b09cf59`, suite 2979 green (176 files), working tree
-clean, no branch open.** Plugin binding current — no `/sig:update` needed.
+**`M6.E5` IS SHIPPED and awaiting merge.** `/sig:permissions` — PR **#211**, branch
+`epic/m6-e5-permissions`, Epic lane (`--merge`, never squash: `ADHERENCE-LOG.md` pins commit SHAs).
+Suite **3094** green, 180 files. **22 commands.** Retro:
+[`M6.E5-RETROSPECTIVE.md`](M6.E5-RETROSPECTIVE.md).
 
-**`M6.E4` is MERGED** (PR #200, `--merge` per the Epic lane; branch deleted). *"What PLAN reads and
-writes"* — three backlog rows batched by **subject, not size** (`D-BR0823-1`), run at **FEATURE** via
-a per-Epic profile inside a FULL project. Retro: [`M6.E4-RETROSPECTIVE.md`](M6.E4-RETROSPECTIVE.md).
-2929 → **2979 tests**.
-
-> ### ⚠ `phase: SHIP` / `current_epic: M6.E4` is FINISHED work, not current work
+> ### ⚠ NEXT WORK IS DECIDED AND IT IS NOT A BACKLOG PICK
 >
-> `/sig:resume` will render **"Next phase: done"**, which is correct — SHIP is terminal and nothing
-> leaves it. `current_epic` is deliberately **not** cleared: `setCurrentEpic` archives the phase log
-> on a roll, and rolling to an Epic that has not been chosen yet would fabricate a transition.
-> **The next Epic's `/sig:discuss --epic <name>` does the roll.**
+> **An analysis scoped strictly to loop / goal functionality — what Signal needs to hold up on
+> autonomous runs.** Brett, 2026-08-28. **Nothing else in it.** This is the direction the 2026-08-20
+> numbers argued for and that `v0.1.31` began; `M6.E5` was the last queued item standing in front of
+> it. Do **not** open another Signal-auditing-Signal Epic ahead of this.
 
-**⚠ `/sig:resume` will show "STATE.md is 1 commit behind work history." That is EXPECTED here, and
-it is not drift.** `main` is protected, so every state re-point goes through a PR, and the fix lane
-**squashes** — which replaces the commit `markFresh` recorded with a new sha. The baseline is
-therefore one behind the moment it merges, **by construction**, and any commit that "fixes" it
-becomes the next one behind. The banner is correct and self-clearing: run `/sig:checkpoint`, or
-ignore it. Nothing is out of sync — `isStaleVsOrigin` reports **in sync**, schema drift **none**,
-binding banner **none**.
+**⚠ The one sentence to carry forward from `M6.E5` is a RETRACTION, not a finding.** The Epic
+published *"`git commit` appears zero times as a runnable command string anywhere in the payload"* as
+its headline limit, in five documents. **It was false** — two defects in the Epic's own scanner (the
+code layer threw away captured subcommands; the prose layer could not read inside fenced blocks).
+Caught by the PR #211 reviewer. Both fixed: the scan returns **200 entries** and `Bash(git commit:*)`
+is proposed. **A measurement taken with a broken instrument reads as a finding about the world.**
 
-**▶ NEXT WORK: nine of the twelve promoted rows remain** — `BACKLOG.md` §*"Twelve promoted from the
-inbox drain"*. Three are struck (`M6.E4` S1/S2/S3). **Not a priority order**, and explicitly **not**
-to be worked in size batches — that was considered and rejected on 2026-08-23 with a reason
-(`D-BR0823-1`): size measures diff cost, the six phases pay decision cost.
+**Filed and NOT fixed — `B100` is the one that affects other work.** ⚠ This Epic rediscovered it and filed a duplicate (`B111`, withdrawn); `B100` has had it since 2026-08-14. `AC_ID_RE` lacks the `[a-z]?`
+that `FR_ID_RE` and `NFR_ID_RE` both carry, so sub-lettered acceptance criteria collapse to their
+group on **both** sides of `requirement-coverage.js`'s diff. It reported **5** criteria where **34**
+exist, so `M6.E5`'s coverage denominator was derived by hand. **Any Epic using sub-lettered ACs has
+the same problem.** `B112`: `detectProjectKind` calls every non-git directory `greenfield`.
+
+**⚠ `dischargeBacklogRows` failed again — second Epic running.** `parseBacklogRows` matches
+`^(#{2,3})\s` and the promoted rows sit at `####`. `M6.E5`'s row was struck by hand with the reason
+recorded at the row, exactly as `M6.E4`'s three were. **Any Epic closing one of those rows will hit
+this.**
+
+**⚠ `completed_phases` dates DISCUSS to 2026-08-27 while every artifact dates it 2026-08-26.** Both
+are right about different things: the artifacts carry the date they were **written**, and
+`transitionPhase` stamped the date the phase was **left**, which fell on the other side of midnight.
+Neither is falsified to match the other. Flagged by the PR #211 reviewer as an inconsistency; it is
+one, and this is the explanation rather than a fix.
+
+**⚠ `/sig:resume` may show "STATE.md is 1 commit behind."** Expected and self-clearing — `main` is
+protected, so every state re-point goes through a PR and the baseline lags by construction.
 
 **Two expected `/sig:resume` findings — both correct, neither actionable:**
 
