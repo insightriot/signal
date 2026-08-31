@@ -26,10 +26,18 @@ last_updated: 2026-08-28T01:24:48.516Z
 
 ### ▶ WHERE THE WORK IS — read this first (2026-08-28)
 
-**`M6.E5` IS SHIPPED and awaiting merge.** `/sig:permissions` — PR **#211**, branch
-`epic/m6-e5-permissions`, Epic lane (`--merge`, never squash: `ADHERENCE-LOG.md` pins commit SHAs).
-Suite **3094** green, 180 files. **22 commands.** Retro:
-[`M6.E5-RETROSPECTIVE.md`](M6.E5-RETROSPECTIVE.md).
+**`M6.E5` IS MERGED.** `/sig:permissions` — PR **#211**, merged 2026-08-28, branch deleted. Suite
+**3107** green, 180 files. **22 commands.** Retro: [`M6.E5-RETROSPECTIVE.md`](M6.E5-RETROSPECTIVE.md).
+**Nothing is in flight.**
+
+> ### ⚠ The merge SQUASHED despite `--merge` — filed, root cause unknown
+>
+> All 24 commits are absent from `main`, and `ADHERENCE-LOG.md` was immediately left pinning
+> `0e88e03`, a commit unreachable from `main`. That is verbatim the failure the Epic lane's `--merge`
+> rule exists to prevent, and nothing detected it — the merge reported success. Repaired by
+> recomputing against `d0ac0c5`. **Nothing forced the squash**: the repo allows all three methods and
+> the ruleset permits all three. **The next Epic merge is the experiment** — pass `--merge`, then run
+> `git rev-list --parents -n1 HEAD` before anything else.
 
 > ### ⚠ NEXT WORK IS DECIDED AND IT IS NOT A BACKLOG PICK
 >
