@@ -203,6 +203,25 @@ Ready to continue with {next-command}? (Reply "yes" to proceed, or run any /sig:
 
 End with the literal one-line prompt. Do **not** auto-invoke the next phase command; the user explicitly confirms (this is the safety gate that distinguishes `/sig:resume` from "auto-continue"). The user's reply lands as a normal turn — they can type `yes` (and Claude can then offer to invoke the next command), or type any other `/sig:*` command directly, or say "let me think" without anything happening.
 
+### Decision queue depth (`B113`'s neighbour) — say what a run parked
+
+Call `readQueueAdvisory(baseDir)` from `tools/lib/status.js` and print the returned string (or
+nothing on `null`). Read-only, offline, **fail-open**.
+
+It renders only when `.planning/DECISION-QUEUE.md` has entries: unanswered count when any are
+open, a one-line all-answered note otherwise, and **silence when the queue has never been used**
+— which must not render as `0 of 0`, because that implies a run happened.
+
+**Advisory, never a gate.** An unanswered queue is a fact about a run that already finished, not
+an error. What it measures is the *attention setting*: a queue filling faster than it drains means
+the dial is wrong for this project, and that is the reading it exists to produce.
+
+⚠ **This is the read half only.** Nothing writes to the queue outside tests yet, so `all answered`
+is honest about the file and says nothing about whether deferral is happening.
+
+Render it in the **advisory tier**, alongside the tier advisory — never above the schema-drift or
+stale-binding banners, which cast doubt on the reading itself.
+
 ### Tier advisory (B90) — say that the dial turns down
 
 Call `readTierAdvisory(baseDir)` from `tools/lib/status.js` and print the returned string (or

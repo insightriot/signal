@@ -573,3 +573,55 @@ export async function readTierAdvisory(baseDir) {
     return null;
   }
 }
+
+/**
+ * Say, where a person actually looks, how many queued decisions are unanswered.
+ *
+ * `B113`'s neighbour, and the third instance of one shape in one area. The
+ * decision queue (`drive.js` — `queueDecision`, `readQueue`) has existed since
+ * `v0.1.31` and its only callers are `tests/drive.test.js`. `drive.md` reports
+ * the queue at the start of a run, which is the one moment a person is already
+ * looking at the loop; nothing reports it at the moments a person is *orienting*
+ * (`/sig:status`, `/sig:resume`), which is where an accumulating queue would
+ * actually be noticed.
+ *
+ * That matters because of what the queue measures. Its own header says it: a
+ * queue growing faster than it is drained means the attention setting is wrong
+ * for this project. That is a signal about the operator's configuration, not a
+ * backlog — and a signal nothing renders is not a signal.
+ *
+ * Deliberately ADVISORY, never a gate. An unanswered queue is not an error; it
+ * is a fact about a run that already completed. Blocking on it would punish the
+ * exact workflow the queue exists to enable.
+ *
+ * ⚠ This is the READ half only. Nothing yet WRITES to the queue outside tests —
+ * a phase command that defers a gray-area question is still instructed in prose
+ * and enforced by nothing. Rendering `0 unanswered` here is therefore honest
+ * about the queue and says nothing about whether deferral is happening.
+ *
+ * Read-only, offline, fail-open (any error → `null`).
+ *
+ * @param {string} baseDir
+ * @returns {Promise<string|null>}
+ */
+export async function readQueueAdvisory(baseDir) {
+  try {
+    const { readQueue } = await import('./drive.js');
+    const { entries, unanswered } = await readQueue(baseDir);
+    // No file and no entries: the queue has never been used here. Silence is
+    // correct — this must not read as "0 of 0 answered", which implies a run.
+    if (!entries.length) return null;
+    if (unanswered === 0) {
+      return `ℹ Decision queue: ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}, all answered.`;
+    }
+    return [
+      `⚠ Decision queue: ${unanswered} unanswered of ${entries.length}.`,
+      '   These are decisions a run reached, did not guess at, and parked for you.',
+      '   Nothing in them has been acted on. Answer them in .planning/DECISION-QUEUE.md.',
+      '   A queue growing faster than you drain it means the attention setting is',
+      '   wrong for this project — that is the measurement it exists to produce.',
+    ].join('\n');
+  } catch {
+    return null;
+  }
+}
