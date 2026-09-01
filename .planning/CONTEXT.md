@@ -65,8 +65,11 @@ them apart**. Measured on this project only; Signal's `.planning/` is the minori
 **Build, in order:** fix `B113` → wire or delete the decision queue → memory read-forward at cycle
 start (the one purely additive gap) → size the cost ceiling (the missing third brake).
 
-⚠ **Side finding, out of scope and unfixed:** `B112` is cited as *filed* in six places across five
-documents and **does not exist in `BUGS.md`**. `M6.E2`'s published-facts class.
+✅ **`B112` is now actually filed** (2026-09-01, P3) — it had been cited as *filed* in six places
+across five documents since 2026-08-28 while absent from `BUGS.md`, which is `M6.E2`'s own
+published-facts class. Verified in code before filing: `add.js:192` returns `greenfield` on a missing
+`.git` **before** the `hasSource` scan runs. Filed, not fixed — the caller that prompted it now
+avoids the function.
 
 ---
 
