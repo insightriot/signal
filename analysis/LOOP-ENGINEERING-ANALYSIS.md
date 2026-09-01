@@ -2,6 +2,13 @@
 
 **Date:** 2026-08-03
 **Status:** Analysis. Feeds a future Epic (not yet scheduled; captured in `.planning/ISSUES-INBOX.md`).
+**Companion (2026-09-01):** this document covers **attention** — how often a human must be present.
+The **goal** half — what the loop works on, and how it knows the run is done — is
+[`LOOP-GOAL-DIRECTION.md`](LOOP-GOAL-DIRECTION.md), which designs what §3.4's parts list and §5.5's
+handoff ladder only name (trigger, Epic-scope work-finding, memory read-forward, run-level stop).
+⚠ **This document's file:line citations predate the `M6.E1` payload move** — the live files are under
+`plugin/`, so re-resolve any path here before relying on it.
+
 **Method:** Line-cited audit of every human-in-the-loop touchpoint across `commands/*.md` (the seven phase commands plus `resume` and `escalate`), `references/profile-schema.md`, `references/tier-definitions.md`, `references/phase-gates.md`, `references/question-patterns.md`, `references/epic-native-flow.md`, and the code paths that consume them (`tools/lib/profile.js`, `tools/lib/execute.js`, `agents/executors/executor.md`). Code-level claims below were verified directly against the source, not inferred from prose.
 
 ---
