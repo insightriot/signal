@@ -17,6 +17,7 @@ was welded to the rigor dial**, so the only way to buy less of your time was to 
 
 Authoritative references:
 - `tools/lib/drive.js` — `canProceedUnattended`, `FLOORS`, `floorsFor`, `queueDecision`, `readQueue`
+- `tools/lib/loop-ceiling.js` — `loopStatusFor`, `formatLoopCeilingHalt`, `LOOP_BOUNDED_PHASES`
 - `tools/lib/profile.js` — `attentionFor`, `ATTENTION_LEVELS`, `readEffectiveProfile`
 - `tools/lib/status.js` — `describeNextAction`, `formatNextActionCopy`
 - `tools/lib/state.js` — `readState`
@@ -67,10 +68,22 @@ the attention setting is wrong for this project — say so in those words.
 Until a stop:
 
 1. `describeNextAction(state.phase, profile.phases_skipped)` → the next command (fail-open, `B70`).
-2. `canProceedUnattended(state.phase, profile)`.
-3. **`proceed: false`** → stop. Print `reason` (`floor` / `attended` / `phase-boundary`), and for a
-   floor print every `why`. Never paraphrase a floor's reason into something softer.
-4. **`proceed: true`** → run that phase command, then re-read state and continue.
+2. `loopStatusFor(state, state.phase)` → the loop count for a bounded phase, `null` elsewhere.
+3. `canProceedUnattended(state.phase, profile, { loopStatus })`.
+4. **`proceed: false`** → stop. Print `reason` (`floor` / `loop-ceiling` / `loop-unknown` /
+   `attended` / `phase-boundary`), and for a floor print every `why`. For `loop-ceiling` print
+   `formatLoopCeilingHalt(loopStatus)` — do not write the sentence yourself; one place turns a
+   ceiling into prose so this file and the driver cannot describe the same halt two ways. Never
+   paraphrase a floor's reason into something softer.
+5. **`proceed: true`** → run that phase command, then re-read state and continue.
+
+⚠ **Step 2 is not optional, and omitting it does not fail open — it fails closed on every pass.**
+`canProceedUnattended` refuses with `loop-unknown` when a `LOOP_BOUNDED_PHASES` phase arrives with no
+`loopStatus`, deliberately: an actor that cannot tell how many times it has looped should stop. So a
+call written without the third argument halts at **every** `VERIFY` and **every** `REVIEW`,
+regardless of `attention` — the check sits above the attention branches. This file documented the
+two-argument call from the day the ceiling shipped (`B113`), and a test in the Signal repository
+now fails if it comes back.
 
 **Deciding vs. queueing.** When a phase asks a gray-area question mid-run, only queue it when the
 work can honestly continue without the answer. If it cannot, **stop** — a queued decision that the
