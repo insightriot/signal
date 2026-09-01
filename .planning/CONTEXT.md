@@ -42,9 +42,31 @@ flow half. The last two survived 25 green tests and were visible in the first re
 `requirement-coverage.js`'s diff. The tool built to catch completeness claims reported **5** criteria
 where **34** exist.
 
-**⚠ NEXT: an analysis scoped strictly to loop / goal functionality** — what Signal needs to hold up
-on autonomous runs. Brett's call, 2026-08-28. **Nothing else in it.** This is the direction the
-2026-08-20 numbers argued for and that `v0.1.31` started; `M6.E5` was the last queued item before it.
+**✅ DONE — the loop/goal analysis is written** (2026-09-01):
+[`../analysis/LOOP-GOAL-DIRECTION.md`](../analysis/LOOP-GOAL-DIRECTION.md). Brett's 2026-08-28 call,
+scoped strictly to loop / goal functionality, nothing else in it. It is the **goal** half —
+what the loop works on and how it knows the run is done — companion to
+[`LOOP-ENGINEERING-ANALYSIS.md`](../analysis/LOOP-ENGINEERING-ANALYSIS.md)'s **attention** half.
+
+**Its headline is that the goal half barely needs building — it needs the parts already built to be
+reached.** One of six loop components is built-and-enforced. `attention` is enforced nowhere
+(`B75`, open on purpose); the decision queue is called by tests and nothing else; and the loop
+ceiling is **mis-wired** — filed as **`B113`**, reproduced against the live module: `drive.md`
+documents a two-argument `canProceedUnattended`, so `VERIFY` and `REVIEW` can only ever return
+`loop-unknown`. Three unreached mechanisms in one area, from three releases.
+
+⚠ **Two things it recommends NOT building, on evidence:** an automatic trigger, and automatic Epic
+selection. The second was **measured, not argued** — the best honest rule over `BACKLOG.md`'s real
+rows runs **77% precision / ~37% recall** (10 of 13 flagged rows live; ≥17 live rows invisible).
+Two of the three false positives are structural: a closed row's closure lives in a *struck sibling
+heading* while the original is preserved unstruck for provenance, so **no row-local rule can tell
+them apart**. Measured on this project only; Signal's `.planning/` is the minority shape.
+
+**Build, in order:** fix `B113` → wire or delete the decision queue → memory read-forward at cycle
+start (the one purely additive gap) → size the cost ceiling (the missing third brake).
+
+⚠ **Side finding, out of scope and unfixed:** `B112` is cited as *filed* in six places across five
+documents and **does not exist in `BUGS.md`**. `M6.E2`'s published-facts class.
 
 ---
 
