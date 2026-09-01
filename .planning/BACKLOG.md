@@ -148,6 +148,101 @@ closing wired into the phase gates) are Epic-shaped and its trigger is unmet.
 
 ## Filed since that agreement — **not yet sequenced**
 
+### Cross-references become links, so a walker can check them · **hygiene** · small · **filed 2026-09-01**
+
+*Plain: writing `B112` in a sentence proves nothing; writing a link means a script can catch it when it's wrong.*
+
+**`B112` was cited as *filed* in six places across five documents for three days while absent from
+`BUGS.md`** — `M6.E2`'s published-facts class, committed in the same span as the checks for it. Every
+one of those citations was a bare token, so nothing could verify it.
+
+*Source:* [`../analysis/DEEPSEEK-HARNESS-ASSESSMENT.md`](../analysis/DEEPSEEK-HARNESS-ASSESSMENT.md)
+§2.2 — their rule is that cross-references use relative markdown links *"never bare prose or numbers —
+so they are mechanically checkable."*
+
+**The cheapest item in that assessment, because the detector already exists:** `/sig:sweep` walks dead
+internal links today. A link-shaped `B`-citation would have been caught with no new code. ⚠ The work is
+the **convention plus a backfill**, not a detector — and the backfill is the large half.
+
+*Done-when:* B-ids and D-ids in `.planning/` prose resolve as links (or are deliberately exempt with the
+exemption stated), and `/sig:sweep` reports the unresolvable ones.
+
+### Doc↔code symbol contract, generalized past `drive.md` · **roadmap** · medium · **filed 2026-09-01**
+
+*Plain: command files name functions; check the functions exist.*
+
+**`B113` was this defect** — `drive.md` documented a call signature the code would refuse, and the file's
+own reference list omitted the symbol that makes the call work. Found by reading, three weeks after ship.
+`tests/drive-doc-contract.test.js` now resolves every symbol `drive.md`'s reference list names against
+real exports — **one file, and it already passes.** 21 command files carry the same kind of list and are
+unchecked.
+
+*Source:* [`../analysis/DEEPSEEK-HARNESS-ASSESSMENT.md`](../analysis/DEEPSEEK-HARNESS-ASSESSMENT.md)
+§2.4 — they typecheck code fences in docs against the workspace API, and **count the opt-out ratio**.
+
+⚠ **The opt-out ratio is the part worth copying, not the typechecking.** An escape hatch that is counted
+is a measurement; one that is merely available is an unbounded leak — the `B39` shape.
+
+⚠ **Known limit, carried from `B113`:** this catches a **wrong** entry, not a **missing** one. Nothing
+derives what a command file *ought* to list.
+
+### Per-file documentation budgets · **hygiene** · small · **filed 2026-09-01**
+
+*Plain: decide once how long a file may get, instead of re-arguing it every time it grows.*
+
+Signal has a CLAUDE.md-bloat check in `/sig:sweep` and a tier-aware `STATE.md` size banner. **Both are
+advisory**, and `CLAUDE.md`'s current-state section has grown to many screens regardless.
+
+*Source:* [`../analysis/DEEPSEEK-HARNESS-ASSESSMENT.md`](../analysis/DEEPSEEK-HARNESS-ASSESSMENT.md)
+§2.5 — an eight-entry `doc-budgets.manifest.json` of explicit line ceilings.
+
+⚠ **Not obviously right for Signal, and the assessment says so:** a budget that fires on a file which
+*should* have grown is a nag, and this repository has a standing rule against gates that get rationalized
+past. Consider advisory-with-a-number before hard-failing.
+
+### Structural status — make done-vs-live readable without inference · **roadmap** · large · **filed 2026-09-01**
+
+*Plain: a machine can't tell finished work from live work in the backlog, and no better pattern fixes it.*
+
+**Measured, not argued:** [`../analysis/LOOP-GOAL-DIRECTION.md`](../analysis/LOOP-GOAL-DIRECTION.md) §3
+ran the best honest candidate rule over `BACKLOG.md`'s real rows — **77% precision, ~37% recall** (10 of
+13 flagged rows live; ≥17 live rows invisible). **Two of three false positives are structural:** a closed
+item's closure lives in a *struck sibling heading* while the original row is preserved unstruck for
+provenance, so the distinguishing fact **is not in the row**. `AC3.2` measured the same class earlier at
+13 flags / 1 real.
+
+*Source:* [`../analysis/DEEPSEEK-HARNESS-ASSESSMENT.md`](../analysis/DEEPSEEK-HARNESS-ASSESSMENT.md)
+§1 — they encode status in the **path** (`proposed/`/`implemented/`/`rejected/`/`archived/`) and gate the
+in-file `Status:` header against the folder, so the two cannot drift.
+
+**This is the unblock for automatic work selection**, which both analyses currently recommend **against**
+on the evidence. It is also the largest item filed here and should not run before the three small ones.
+
+⚠ **Do not import their tree wholesale** — the borrowable idea is *status is structural, not inferred*.
+A machine-readable marker written at authoring time may serve Signal better than a directory move, and
+that choice is the Epic's central question, not a detail.
+
+⚠ **Second half, and it is not optional:** their `rejected/` tree carries a **retention policy** — keep a
+dead end only while it prevents a tempting mistake, otherwise delete it. Signal keeps everything forever,
+which is precisely why reading dead ends forward
+([`../analysis/LOOP-GOAL-DIRECTION.md`](../analysis/LOOP-GOAL-DIRECTION.md) §4) is a budget problem.
+
+### Record rationale on every non-trivial change, not only at Epic close · **product call** · **filed 2026-09-01**
+
+*Plain: the fix lane ships a lot and leaves no reasoning behind.*
+
+Signal's retrospective gate is unbypassable but fires at **Epic close**. The fix lane shipped **five of
+the last nine releases** and produces no durable rationale record — a commit message and a `BUGS.md` row.
+
+*Source:* [`../analysis/DEEPSEEK-HARNESS-ASSESSMENT.md`](../analysis/DEEPSEEK-HARNESS-ASSESSMENT.md)
+§2.6 — *"Every non-trivial change MUST add or update at least one Agent Note in the same PR"*, with
+"non-trivial" defined and a narrow stated exemption.
+
+⚠ **Filed as a product call, not a build item.** It raises fix-lane overhead on purpose, and the fix
+lane's cheapness is why one-line fixes actually get made here. Brett decides whether that trade is worth
+it before anyone designs it.
+
+
 ### Drive `/sig:drive` end-to-end through a real Epic · **verification** · small · **filed 2026-09-01**
 
 *Plain: the command that runs the whole workflow has never been watched doing a full run.*
