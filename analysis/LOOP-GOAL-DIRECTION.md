@@ -91,7 +91,8 @@ Two constraints are already on record and both bind hard:
 1. **No capability detection at the deterministic layer.** A plugin cannot declare a tool dependency,
    query the session's tool roster, or state a minimum version
    ([`PHASE-C-BUILD-VS-ADOPT.md`](PHASE-C-BUILD-VS-ADOPT.md)). Detection exists at the *prompt* layer
-   only — which `M5.E8` measured as 77.6% not trace-measurable. So a trigger cannot reliably ask
+   only — which `M5.E8` measured as 77.6% not trace-measurable, and which the regenerated ceiling now
+   puts at **78.2%** (423 of 541 directive lines). So a trigger cannot reliably ask
    "can I run here?"
 2. **The runtime's fan-out requires explicit user opt-in**, so a `/sig:` command cannot silently
    invoke it.
