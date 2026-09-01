@@ -148,6 +148,30 @@ closing wired into the phase gates) are Epic-shaped and its trigger is unmet.
 
 ## Filed since that agreement — **not yet sequenced**
 
+### Drive `/sig:drive` end-to-end through a real Epic · **verification** · small · **filed 2026-09-01**
+
+*Plain: the command that runs the whole workflow has never been watched doing a full run.*
+
+**`/sig:drive` shipped in `v0.1.31` and no record shows it driving an Epic from DISCUSS to PR-open.**
+That absence is what produced `B113`: the loop ceiling's argument was missing at the only call site,
+and the two-argument call could only ever return `loop-unknown` at `VERIFY` and `REVIEW`. It was found
+by *reading* the call site three weeks after ship, not by running it — *shipped-but-never-run*, the
+class this repository already names its best defect predictor (`analysis/UNREACHED-MECHANISM-ANALYSIS.md`).
+
+**`B113`'s fix is verified against the module and the documented call site, and NOT by a live run** —
+that limitation is written at the bug row rather than implied, and this row is the obligation it
+creates. Two further mechanisms in the same area are unexercised for the same reason: nothing outside
+tests writes to the decision queue, and the queue advisory shipped as a read half only (`#216`).
+
+*Done-when:* one Epic runs under `/sig:drive` end-to-end, and the run reports (a) which phases it
+advanced unattended, (b) every halt with its `reason`, and (c) whether a `loop-ceiling` halt was ever
+reached rather than a `loop-unknown` one. **A run that halts on `loop-unknown` means `B113` is not
+actually fixed**, whatever the tests say.
+
+⚠ **Not on a production project** — `examples/sandbox/` exists precisely because production repos are
+not test beds (`M5.E19`).
+
+
 ### The row that doesn't know what the platform already does · **roadmap** · small · **filed 2026-08-25**
 
 *Plain: three times in five weeks we planned to build something Claude Code already owns. Check first, size second.*
