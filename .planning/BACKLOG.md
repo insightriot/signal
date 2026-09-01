@@ -148,6 +148,86 @@ closing wired into the phase gates) are Epic-shaped and its trigger is unmet.
 
 ## Filed since that agreement — **not yet sequenced**
 
+### A stated ladder: convention → lint, with a grandfather list · **roadmap** · medium · **filed 2026-09-01**
+
+*Plain: write down when a house rule becomes a test — and let existing violations be listed instead of blocking the rule.*
+
+`analysis/UNREACHED-MECHANISM-ANALYSIS.md` named the habit: when a rule is not followed here, Signal
+writes the rule more carefully. `B75` measured that ceiling. Signal's answer has been a check per
+defect — **what has never been written down is the ladder**: a rule starts as convention, and there is
+a stated moment it becomes a test.
+
+*Source:* [`../analysis/OPENKB-ASSESSMENT.md`](../analysis/OPENKB-ASSESSMENT.md) §1 — *"When a rule
+proves valuable, promote it into a lint"*, plus a file-size limit whose **existing violations are
+grandfathered with reasons** in the test itself.
+
+**The grandfather half is what makes it adoptable and is the actual finding.** Signal cannot adopt a
+doc-size rule today — `BUGS.md` 320 KB, `DECISIONS.md` 235 KB, `BACKLOG.md` 139 KB — so a flat budget
+(the shape [`../analysis/DEEPSEEK-HARNESS-ASSESSMENT.md`](../analysis/DEEPSEEK-HARNESS-ASSESSMENT.md)
+§2.5 proposes) fails on day one and never lands. A limit **plus a named exception list** is adoptable
+immediately, and the list *is* the debt register.
+
+⚠ Same shape as the opt-out **ratio** in that other row: an escape hatch that is counted is a
+measurement; one merely available is an unbounded leak (`B39`).
+
+**Supersedes nothing, but it re-frames the doc-budgets row above** — take these together or take
+neither.
+
+### `/sig:sweep` has no inbound-link check — find orphaned documents · **hygiene** · small · **filed 2026-09-01**
+
+*Plain: `.planning/` has ~200 files; nothing says which ones nothing points at.*
+
+`/sig:sweep` checks **dead internal links** (outbound) and INDEX drift. It has no **inbound** check, so
+a document nothing references is invisible — either dead weight or a broken hand-off, and today nothing
+distinguishes those.
+
+*Source:* [`../analysis/OPENKB-ASSESSMENT.md`](../analysis/OPENKB-ASSESSMENT.md) §2.1 — `find_orphans`
+ships beside `find_broken_links` and `check_index_sync` in their lint.
+
+Cheap, mechanically decidable, composes with link-walking Signal already has. ⚠ Expect a **large first
+run** on a corpus never checked this way, so it needs the checked-and-clean vs could-not-check split
+(`M5.E16`) and probably a grandfather list — see the ladder row.
+
+### Retrieval over the heading tree, instead of reading whole files · **roadmap** · medium · **filed 2026-09-01**
+
+*Plain: read the ten lines that matter, not the 139 KB file.*
+
+[`../analysis/LOOP-GOAL-DIRECTION.md`](../analysis/LOOP-GOAL-DIRECTION.md) §4 found memory
+read-forward is the one purely additive gap and named **budget** as the constraint — dead ends are
+recorded richly and nothing reads them at cycle start because the files are too large. It recommended
+*"targeted extraction, not a file read"* and left the mechanism open.
+
+*Source:* [`../analysis/OPENKB-ASSESSMENT.md`](../analysis/OPENKB-ASSESSMENT.md) §2.2 — their retrieval
+is a **tree index the model navigates, vectorless**, no embedding store.
+
+**Signal is closer to this than it looks:** `INDEX.md` already regenerates at every phase transition,
+and `BACKLOG.md`'s 72 `###`/`####` headings already are a tree. The missing piece is **using the index
+to fetch spans rather than files**.
+
+⚠ **Not a proposal to import PageIndex.** The borrowable claim is narrow and load-bearing: a heading
+tree plus span extraction is enough here, and **a vector store is not required** — which matters
+because one inside a Claude Code plugin would be a non-starter.
+
+**This is the concrete mechanism for the memory read-forward item**, so it should be decided with it
+rather than separately.
+
+### `.planning/` layout as a runtime-read schema doc · **roadmap** · medium · **filed 2026-09-01**
+
+*Plain: the rules about what `.planning/` holds are scattered across 22 shipped command files.*
+
+*Source:* [`../analysis/OPENKB-ASSESSMENT.md`](../analysis/OPENKB-ASSESSMENT.md) §2.3 — one
+`wiki/AGENTS.md` defines corpus structure and conventions, is read from disk at runtime, and edits take
+effect immediately.
+
+`.planning/` layout is a property of **the project**, not of the plugin, and today changing a convention
+means editing prose in several shipped files.
+
+⚠ **Real counter-consideration, and it may sink this:** rules read from the project are rules a project
+can weaken. Anything load-bearing stays in the deterministic layer regardless — so the honest scope is
+*descriptive* conventions only, and it is worth checking whether that residue is large enough to be
+worth a mechanism.
+
+
 ### Cross-references become links, so a walker can check them · **hygiene** · small · **filed 2026-09-01**
 
 *Plain: writing `B112` in a sentence proves nothing; writing a link means a script can catch it when it's wrong.*
