@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.34] — 2026-09-02 — the brake that only ever slammed on
 
 ### Changed
 
@@ -209,7 +209,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   they are frozen records and rewriting them was outside this change — so a fifth fails the suite and
   fixing one also fails, which makes the list shrink instead of ossify.
 
-2979 → **3004 tests**.
+2979 → **3154 tests**.
 
 ## [0.1.33] — 2026-08-24 — what nobody was reading
 
