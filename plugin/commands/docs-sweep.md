@@ -40,6 +40,17 @@ Call `runSweep(process.cwd())` from `tools/lib/sweep.js`. It:
 2. gated on the plugin manifest, runs the **Signal-only** checks — roster-count drift, version consistency, and command-frontmatter freshness;
 3. returns `{ findings, stateDrift, signalOnly: { ran, checks } }` — `findings` already normalized to `structural`/`advisory` and sorted deterministically; `stateDrift` is `{results, summary}` from `runDriftChecks`, kept **separate from `findings`** so the heal category and the cannot-evaluate state are not flattened away.
 
+**Cited identifiers that resolve to nothing** (`dangling-reference`). A `B…` or `D-…` named in
+`.planning/` prose while `BUGS.md` / `DECISIONS.md` never defines it — a typo, a withdrawn record
+whose citations outlived it, or something referenced but never filed. This is the id-level counterpart
+to the two link walks, and it exists because **`B112` was cited as *filed* in six documents across
+five files for three days while absent from `BUGS.md`.**
+
+⚠ **D-ids resolve through `buildDecisionIdMap`, not by reading `DECISIONS.md`.** Closed-milestone
+decisions are **evicted to the archive**, so a direct read reports ~29 perfectly good ids as dangling
+(measured). A project whose decision map cannot be built skips D-ids entirely rather than flagging all
+of them.
+
 **The orphan check reports two different problems and never conflates them.** *Nothing links to or
 mentions this* is dead weight or a broken hand-off. *Referenced N times as a bare path in backticks
 and linked from nowhere* is a live document whose references **nothing can verify** and which break

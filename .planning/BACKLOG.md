@@ -248,6 +248,21 @@ can weaken. Anything load-bearing stays in the deterministic layer regardless �
 worth a mechanism.
 
 
+### ~~Cross-references become links, so a walker can check them~~ · **SUPERSEDED 2026-09-02 by `dangling-reference`** — the identifier half is solved better; the file-path half remains
+
+⚠ **The proposal was to rewrite `B112`-style references as markdown links so the existing dead-link
+walk would catch them. Resolving the id directly turned out strictly better and far cheaper:** no
+backfill across 100+ files, works on prose already written, and it verifies the **referent** rather
+than the syntax — a well-formed link can point at a heading that says nothing about the id. Shipped
+as `checkDanglingReferences`; found `B111` (withdrawn, still cited in 8 files) and a typo'd
+`D-M6E19-6`, both fixed.
+
+**What survives of this row:** the *file-path* half. `checkOrphanDocs` measured **5 documents
+referenced only as bare backticked paths** — `CLAUDE.md` names `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`
+**ten times** without linking it once. Those still break silently on a move and no walker verifies
+them. Converting them is a small, bounded edit now that the check names exactly which files. Original
+entry:
+
 ### Cross-references become links, so a walker can check them · **hygiene** · small · **filed 2026-09-01**
 
 *Plain: writing `B112` in a sentence proves nothing; writing a link means a script can catch it when it's wrong.*
