@@ -36,9 +36,21 @@ Authoritative reference:
 ### 2. Run the sweep
 
 Call `runSweep(process.cwd())` from `tools/lib/sweep.js`. It:
-1. runs the **portable** checks in any repo — dead internal `.md` links and unfilled `[FILL IN]` markers over the widened `.planning/`-inclusive scope (still exempting `archive/`), `INDEX.md` freshness (pure compose-and-diff — never the writing regenerator), a stale-inbox count, a `CLAUDE.md`-bloat size nudge, and a **backlog-discharge** check (`B94`) reporting rows that read as pending while the work they name is recorded closed;
+1. runs the **portable** checks in any repo — dead internal `.md` links **and their inbound counterpart** — a document nothing links to — plus unfilled `[FILL IN]` markers over the widened `.planning/`-inclusive scope (still exempting `archive/`), `INDEX.md` freshness (pure compose-and-diff — never the writing regenerator), a stale-inbox count, a `CLAUDE.md`-bloat size nudge, and a **backlog-discharge** check (`B94`) reporting rows that read as pending while the work they name is recorded closed;
 2. gated on the plugin manifest, runs the **Signal-only** checks — roster-count drift, version consistency, and command-frontmatter freshness;
 3. returns `{ findings, stateDrift, signalOnly: { ran, checks } }` — `findings` already normalized to `structural`/`advisory` and sorted deterministically; `stateDrift` is `{results, summary}` from `runDriftChecks`, kept **separate from `findings`** so the heal category and the cannot-evaluate state are not flattened away.
+
+**The orphan check reports two different problems and never conflates them.** *Nothing links to or
+mentions this* is dead weight or a broken hand-off. *Referenced N times as a bare path in backticks
+and linked from nowhere* is a live document whose references **nothing can verify** and which break
+silently when the file moves. Measured on Signal's own corpus at introduction: **0 of the former, 5 of
+the latter.**
+
+⚠ **Entry points are excluded by name** — a file a tool opens by name (`STATE.md`, an Epic's
+`-PLAN.md`) has no reason to be linked. That list is the check's honest weak point: widen it and the
+check goes quiet, narrow it and it cries wolf. ⚠ **A truncated or unreadable file emits its own
+`(scope)` finding**, because a clean orphan list computed from a partial read is exactly the shape of
+a false all-clear (`B39`).
 
 It is **read-only** (AC1.5): the index-freshness check composes the expected index and diffs it, never calling the atomic-writing Core; every other check only reads. It is offline and deterministic — two runs on unchanged input are byte-identical.
 
