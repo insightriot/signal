@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.34] — 2026-09-02 — the brake that only ever slammed on
 
 ### Changed
 
@@ -30,7 +30,76 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   retrospective written in July should keep saying what it said. Rewriting history to match a rename
   made in September is the drift this repository exists to catch.
 
+- **`CLAUDE.md` is half the size: 51.4 KB → 25.9 KB.** Over half of it was per-release narrative — a
+  paragraph each for `v0.1.15` through `v0.1.32` — duplicated from `CHANGELOG.md` and the per-Epic
+  retros, on the one surface read at the start of **every** session. Removed with pointers to both
+  homes. **The ratchet proved itself here:** the moment the file shrank the suite FAILED demanding the
+  ceiling come down, which is how a reduction gets locked in instead of quietly re-spent. Its stale
+  *"nothing in flight"* paragraph was rewritten to say what is actually on `main`. That headroom then
+  unblocked converting its 25 bare paths to links — deferred a day earlier precisely because a link
+  costs more bytes than a bare path and the file had zero headroom.
+
+- **81 bare path references converted to links** across `README.md` and every `analysis/` document.
+  ⚠ **Historical `.planning/` documents were deliberately not rewritten** — the same rule that left
+  102 files saying `/sig:sweep` after the rename above. A July retrospective keeps saying what it said.
+
 ### Added
+
+- **`/sig:drive` can now finish a lap — the loop ceiling's own argument is finally supplied
+  (`B113`).** `canProceedUnattended` **fails closed on not knowing**: for `VERIFY` and `REVIEW` a
+  caller that supplies no `loopStatus` gets `{proceed:false, reason:'loop-unknown'}`, deliberately,
+  because *"an actor that cannot tell should stop."* `commands/drive.md` documented the call as
+  `canProceedUnattended(state.phase, profile)` — **two arguments** — and mentioned `loopStatus`,
+  `loopStatusFor` and the ceiling **zero** times. ⚠ **Followed literally, the driver halted at every
+  VERIFY and every REVIEW, at any `attention` setting**, because the ceiling check sits *above* the
+  attention branches. So the bound shipped in `v0.1.32` as "the entry price for autonomy work" was
+  invoked by the only command that drives the loop in a form that could never pass. **Reproduced
+  against the live module, not inferred.** Pinned by `tests/drive-doc-contract.test.js`, shown RED on
+  the pre-fix file (3 of 6 failed) before green. ⚠ **The fix is verified against the module and the
+  documented call site, NOT by a live end-to-end run** — that run is filed as an obligation, and a
+  run that halts on `loop-unknown` means this is not actually fixed whatever the tests say.
+
+- **Decision-queue depth is now visible where people orient.** `readQueueAdvisory` renders in
+  `/sig:status` and `/sig:resume`. The queue shipped in `v0.1.31` and **its only callers were tests**
+  — the third instance of built-and-unreached in one area, after `B75`'s attention dial and `B113`'s
+  ceiling. `drive.md` reported it at the *start of a run*; nothing reported it while orienting, which
+  is where an accumulating queue would actually be noticed. Three states, never two: **silent** when
+  the queue has never been used, all-answered when drained, unanswered count otherwise — `0 of 0`
+  would imply a run happened and parked nothing, a different fact from the mechanism never being
+  reached. What it surfaces is the **attention setting**, not a backlog. ⚠ **Read half only:**
+  nothing outside tests writes to the queue yet, and the command files say so.
+
+- **Documents nothing links to — the inbound direction (`/sig:docs-sweep`).** `checkInternalLinks`
+  asked *does this target exist*; nothing asked *is anything pointing here* across ~200 files. **The
+  measurement is the feature:** on Signal's own corpus, **0 documents are genuinely unreferenced and
+  5 are referenced only as bare backticked paths** — `CLAUDE.md` named
+  `analysis/SIGNAL-INTEGRATION-RUNDOWN.md` **ten times** without linking it once. Those two problems
+  are reported separately and never conflated. ⚠ Truncated or unreadable files emit their own
+  `(scope)` finding, because a clean orphan list from a partial read is the shape of a false
+  all-clear (`B39`).
+
+- **Cited identifiers that resolve to nothing (`/sig:docs-sweep`).** `B112` was named as *filed* in
+  six places across five documents for three days while absent from `BUGS.md`. `checkDanglingReferences`
+  resolves every `B…` and `D-…` in `.planning/` prose. **It found two real defects on introduction:**
+  `B111`, withdrawn as a duplicate of `B100` on 2026-08-28 and still cited in **8** documents — now
+  tombstoned, because withdrawing the row did not withdraw the citations — and `D-M6E19-6`, a typo
+  for `D-M5E19-6` naming an Epic that never existed. ⚠ **D-ids resolve through `buildDecisionIdMap`,
+  not by reading `DECISIONS.md`:** closed-milestone decisions are evicted to the archive, and the
+  first implementation reported **31 dangling ids where 2 exist** — `B82`'s shape, a second
+  implementation of *where does this live* that cannot express the first's knowledge.
+
+- **Documentation budgets, enforced, with a grandfather ratchet** (`tools/doc-budgets.json` +
+  `tests/doc-budgets.test.js`). Orientation documents — the ones read at session start, whose size is
+  paid on every run — carry byte ceilings. **The grandfather list is what makes the rule adoptable:**
+  a flat limit fails on adoption day here, which is exactly how the 40 KB `CLAUDE.md` nudge became
+  decorative. A file already over budget is recorded at its current size, may shrink freely, may not
+  grow, and **shrinking re-tightens the ceiling**. ⚠ **A ceiling on an append-only ledger is wrong** —
+  `BUGS.md` growing on a new bug is correct behaviour, and a check that fires on correct behaviour
+  teaches people to ignore checks; ledgers are exempt by category with a reason, managed by archiving.
+
+- **The house-rule ladder, written down** (`CLAUDE.md` → *House rules, and how one becomes a check*):
+  convention → advisory → enforced, with an **observable** promotion trigger — *promote when the
+  advisory stops changing behaviour.*
 
 - **`/sig:permissions` — the 22nd command: propose what Signal may run here, and let the user
   install it (`M6.E5`).** Reads what the flow actually prescribes from the plugin payload — both the
@@ -140,7 +209,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   they are frozen records and rewriting them was outside this change — so a fifth fails the suite and
   fixing one also fails, which makes the list shrink instead of ossify.
 
-2979 → **3004 tests**.
+2979 → **3154 tests**.
 
 ## [0.1.33] — 2026-08-24 — what nobody was reading
 
