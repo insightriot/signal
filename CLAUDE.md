@@ -167,6 +167,35 @@ There is a second, softer reason: `commands/ship.md` §2 asks you to curate a co
 
 **Delivery** (`D-M5E17-4`): `marketplace.json` uses the relative `.` source — the plugin *is* this repo — so **users track `main`**, not a pinned tag. There is no `ref` or `sha` to keep in sync, and reintroducing them fails `install-contract.test.js`. Bumping `plugin.json` is what makes an update visible to users. Tags are bookmarks, not delivery.
 
+### House rules, and how one becomes a check
+
+A rule here has three states, and the point of naming them is that a rule is allowed to sit in the
+first one — not every convention needs a test on day one.
+
+1. **Convention** — written down, honoured by judgement. Most rules live here and should.
+2. **Advisory** — a check that reports and never fails. Useful for things where the right answer is
+   a judgement call the tool cannot make.
+3. **Enforced** — a test that fails the suite.
+
+**Promote a rule when the advisory stops changing behaviour.** That is the trigger, and it is
+observable rather than a matter of taste. Worked example: `checkClaudeMdBloat` has nudged at 40 KB
+for weeks while `CLAUDE.md` grew to 49 KB. The nudge was ignored, so the rule earned a ceiling —
+`tools/doc-budgets.json`, enforced by `tests/doc-budgets.test.js`.
+
+**Promotion requires a grandfather list, not a clean corpus.** A limit that fails on adoption day
+never gets adopted, which is how the 40 KB nudge ended up decorative. So a file already over budget
+is recorded at its **current** size, with a stated reason: it may shrink freely and may not grow, and
+shrinking re-tightens the ceiling. **The exception list is the debt register** — it is supposed to be
+non-empty, and it is supposed to shrink.
+
+⚠ **A ceiling on an append-only ledger is wrong.** `BUGS.md` growing when a bug is found is correct
+behaviour, and a check that fires on correct behaviour teaches people to ignore checks. Ledgers are
+exempt **by category with a reason**, and their size is managed by archiving instead. Exemptions are
+listed rather than merely absent, so a population check can tell a deliberate exemption from a file
+nobody considered.
+
+*(Borrowed and credited: `analysis/OPENKB-ASSESSMENT.md` §1.)*
+
 ### Naming & plain language
 - **Use real names.** Refer to features, functions, files, tables, and flows by the name that exists in the code, plan, or spec. If you don't know the real name, grep for it before using it. Never invent a label that sounds plausible.
 - **Mark dev-only terms.** If you reference an internal identifier (a function, a flag, a table), say it's the code-level name — don't present it as user-facing language.
