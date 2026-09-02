@@ -119,7 +119,7 @@ is a measurement; one that is merely available is an unbounded leak.
 Eight files with explicit line ceilings (`AGENTS.md: 1950`, `docs/architecture.md: 2400`, …).
 
 Signal has a CLAUDE.md-bloat check in `/sig:sweep` and a tier-aware `STATE.md` size banner, so the
-idea is not new — but both are **advisory**, and Signal's `CLAUDE.md` has grown to a size where the
+idea is not new — but both are **advisory**, and Signal's [`CLAUDE.md`](../CLAUDE.md) has grown to a size where the
 current-state section alone is many screens. A budget is a decision made once, in advance, that a
 reviewer does not have to re-argue.
 

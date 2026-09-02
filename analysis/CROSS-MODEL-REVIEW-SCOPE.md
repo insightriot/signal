@@ -40,7 +40,7 @@ that.
 
 ## Finding 2 — cross-vendor cannot be capability-detected, measured not assumed
 
-`analysis/PHASE-C-BUILD-VS-ADOPT.md` (2026-08-21) went looking for exactly this and found:
+[`analysis/PHASE-C-BUILD-VS-ADOPT.md`](PHASE-C-BUILD-VS-ADOPT.md) (2026-08-21) went looking for exactly this and found:
 
 - No environment variable enumerates the session's tool roster. **One feature flag is not a
   capability list**, and nothing answers *"is a second vendor's reviewer available here?"*
@@ -102,7 +102,7 @@ concentrating on exactly those six, produced a regression, a fresh bypass, and a
 false positive. **Attention on the problem is not the scarce resource; a second reader is.**
 
 **The four findings on `#190` and `#195` sat unread for days.** The reviewer was not failing. Nobody
-was looking. That is `analysis/UNREACHED-MECHANISM-ANALYSIS.md` one step further along: not a
+was looking. That is [`analysis/UNREACHED-MECHANISM-ANALYSIS.md`](UNREACHED-MECHANISM-ANALYSIS.md) one step further along: not a
 mechanism nothing reaches, but a mechanism that runs, produces correct output, and **has no reader**.
 
 `#197`'s three were read before merge — but only because this scoping pass happened to be about the
@@ -163,6 +163,6 @@ a clean diff look identical from here, which is this repository's oldest recurri
 
 ---
 
-*Companions: `analysis/LOOP-ENGINEERING-ANALYSIS.md` (`FM-1`, the risk this answers),
-`analysis/PHASE-C-BUILD-VS-ADOPT.md` (the capability-detection finding),
-`analysis/UNREACHED-MECHANISM-ANALYSIS.md` (the class Finding 3 extends).*
+*Companions: [`analysis/LOOP-ENGINEERING-ANALYSIS.md`](LOOP-ENGINEERING-ANALYSIS.md) (`FM-1`, the risk this answers),
+[`analysis/PHASE-C-BUILD-VS-ADOPT.md`](PHASE-C-BUILD-VS-ADOPT.md) (the capability-detection finding),
+[`analysis/UNREACHED-MECHANISM-ANALYSIS.md`](UNREACHED-MECHANISM-ANALYSIS.md) (the class Finding 3 extends).*

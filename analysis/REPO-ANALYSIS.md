@@ -13,8 +13,8 @@
 > This document was written **2026-04-21**. Three of its claims were re-verified against the live
 > source repos during M5.E7 Slice 2 and **do not hold today**. They are marked inline at the sites
 > below rather than rewritten, so the original reasoning stays readable and the drift stays visible.
-> Full evidence: `.planning/M5.E7-RESEARCH.md` §0 and the per-repo supply files
-> `.planning/M5.E7-SUPPLY-*.md`. Task record: `.planning/M5.E7-CORRECTIONS.md`.
+> Full evidence: [`.planning/M5.E7-RESEARCH.md`](../.planning/M5.E7-RESEARCH.md) §0 and the per-repo supply files
+> `.planning/M5.E7-SUPPLY-*.md`. Task record: [`.planning/M5.E7-CORRECTIONS.md`](../.planning/M5.E7-CORRECTIONS.md).
 >
 > - **C3 — `<HARD-GATE>` is a syntax, not a mechanism.** Verified 2026-07-25 against superpowers
 >   v6.2.0: **4 grep hits repo-wide, exactly 1 in a live skill** (`brainstorming`), **zero** in
@@ -511,7 +511,7 @@ The first three phases (IDEATE, VALIDATE, STRATEGIZE) can collapse into a single
 
 1. **Don't bring in all 21 Agent Skills.** Audit them against the Frankenstein — many are redundant with GSD (incremental-impl, context-engineering) or weaker than alternatives (security-and-hardening). Estimate ~12 survive.
 2. **Don't treat Superpowers as a philosophy overlay.** Architect its enforcement mechanisms (anti-rationalization tables, HARD-GATE) as first-class components. Otherwise they don't run.
-3. **Don't skip the upstream phases.** If it's hard to scope, ship them as a separate `/discover` command that outputs to `.planning/PROJECT.md` — but don't defer them to "future phase."
+3. **Don't skip the upstream phases.** If it's hard to scope, ship them as a separate `/discover` command that outputs to [`.planning/PROJECT.md`](../.planning/PROJECT.md) — but don't defer them to "future phase."
 
 ### Additions beyond your current plan
 
@@ -579,7 +579,7 @@ Your consulting target (mid-market orgs) probably wants prescriptive for new pro
 
 ### 3. What's the compounding substrate?
 
-**Per-project:** `.planning/STATE.md` stays inside the repo. Simple. No cross-project learning.
+**Per-project:** [`.planning/STATE.md`](../.planning/STATE.md) stays inside the repo. Simple. No cross-project learning.
 
 **Per-org:** Separate learnings store (JSONL, vector DB, or markdown corpus) that all projects write to and read from. This is the true compound-engineering vision. More infrastructure, massively more leverage.
 
@@ -636,7 +636,7 @@ A 2×2 that determines which mode to run in:
 
 ### The calibration mechanism — a Phase 0 before everything
 
-A `/sig:calibrate` command (or baked into `/sig:new-project`) asks five diagnostic questions and writes a rigor profile to `.planning/PROFILE.md`:
+A `/sig:calibrate` command (or baked into `/sig:new-project`) asks five diagnostic questions and writes a rigor profile to [`.planning/PROFILE.md`](../.planning/PROFILE.md):
 
 1. **Scope** — Net-new system or modifying an existing one?
 2. **Stakes** — Blast radius if it breaks? (no users → prototype → production → money/compliance)
@@ -751,8 +751,8 @@ All findings are sourced from direct inspection of the repos as of April 2026. K
 - pm-skills: 8 plugin manifests + ~12 representative skill files
 - planning-with-files: README, `reference.md` (Manus principles), benchmark methodology
 - oh-my-claudecode: README, `hooks/hooks.json`, representative skill files (autopilot, deep-interview, ralph)
-- compound-engineering-plugin: `README.md`, agent inventory, skill manifest
-- GSD: `README.md`, command inventory, 21 agent definitions, `.planning/` schema
+- compound-engineering-plugin: [`README.md`](../README.md), agent inventory, skill manifest
+- GSD: [`README.md`](../README.md), command inventory, 21 agent definitions, `.planning/` schema
 
 Licenses: MIT-compatible across the board for most (confirm gstack and compound-eng before merging code — they may have commercial restrictions).
 

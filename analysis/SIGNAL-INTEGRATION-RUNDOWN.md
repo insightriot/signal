@@ -12,8 +12,8 @@
 >
 > This document inherits `REPO-ANALYSIS.md`'s April 2026 characterizations. Three claims were
 > re-verified against the live sources during M5.E7 Slice 2 and **do not hold today**. Marked
-> inline rather than rewritten. Evidence: `.planning/M5.E7-RESEARCH.md` §0 and
-> `.planning/M5.E7-SUPPLY-*.md`. Task record: `.planning/M5.E7-CORRECTIONS.md`.
+> inline rather than rewritten. Evidence: [`.planning/M5.E7-RESEARCH.md`](../.planning/M5.E7-RESEARCH.md) §0 and
+> `.planning/M5.E7-SUPPLY-*.md`. Task record: [`.planning/M5.E7-CORRECTIONS.md`](../.planning/M5.E7-CORRECTIONS.md).
 >
 > - **C3 — `<HARD-GATE>` is a syntax with no mechanism behind it.** No parser, no validator, 1 live
 >   occurrence across superpowers v6.2.0, and its own author calls the mechanism unsettled. The
@@ -386,7 +386,7 @@ Format for each: **(a) What it is · (b) What it does · (c) What Signal integra
 
 **(b) What it does.**
 
-- **`/sig:calibrate`** — asks 5 diagnostic questions (Scope, Stakes, Novelty, Reversibility, Horizon) → computes tier (SKETCH / FEATURE / SPIKE / FULL) from a Stakes × Novelty 2×2 → writes `.planning/PROFILE.md`
+- **`/sig:calibrate`** — asks 5 diagnostic questions (Scope, Stakes, Novelty, Reversibility, Horizon) → computes tier (SKETCH / FEATURE / SPIKE / FULL) from a Stakes × Novelty 2×2 → writes [`.planning/PROFILE.md`](../.planning/PROFILE.md)
 - **`PROFILE.md` contract** — machine-readable tier + rigor overrides (`tdd_required`, `security_audit`, `nyquist_tests`, etc.)
 - **Every downstream command reads PROFILE.md first** — phases skip themselves when the tier says they don't apply; skills load lighter or heavier versions per rigor settings
 - **`/sig:escalate`** — promotes a running project's tier mid-flight (SKETCH → FEATURE → FULL) if scope grows. Prevents the "cheap mode becomes technical debt" failure.

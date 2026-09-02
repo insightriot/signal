@@ -257,7 +257,17 @@ than the syntax — a well-formed link can point at a heading that says nothing 
 as `checkDanglingReferences`; found `B111` (withdrawn, still cited in 8 files) and a typo'd
 `D-M6E19-6`, both fixed.
 
-**What survives of this row:** the *file-path* half. `checkOrphanDocs` measured **5 documents
+**File-path half: DONE 2026-09-02 for the live surface** — 81 bare paths converted to links across
+`README.md` and every `analysis/` document; zero dead links introduced; `analysis/CROSS-MODEL-REVIEW-SCOPE.md`
+stopped reading as an orphan. ⚠ **Four targets remain unconverted and both reasons are deliberate:**
+three are cited only in **historical `.planning/` documents**, which are not rewritten to match later
+conventions (the same rule that left 102 files saying `/sig:sweep` after the rename); and
+`analysis/SIGNAL-INTEGRATION-RUNDOWN.md` plus `docs/migration-state-schema-v0.1.x.md` are cited from
+**`CLAUDE.md`, which is at its budget ceiling with zero headroom** — a link costs more bytes than a
+bare path, so the conversion is **blocked by the de-bloat row above** and sequenced behind it rather
+than settled by raising the ceiling a second time.
+
+**Original scope of this half:** the *file-path* half. `checkOrphanDocs` measured **5 documents
 referenced only as bare backticked paths** — `CLAUDE.md` names `analysis/SIGNAL-INTEGRATION-RUNDOWN.md`
 **ten times** without linking it once. Those still break silently on a move and no walker verifies
 them. Converting them is a small, bounded edit now that the check names exactly which files. Original

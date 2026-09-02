@@ -31,7 +31,7 @@ summary/coverage/status statement from their mental model of what just happened,
 from the thing it describes. The false statement is always *plausible* — that is what makes it dangerous.
 
 This is **distinct from** the class M5.E8 named (*"a guard written, shipped, and never called"* —
-`.planning/M5.E8-RETROSPECTIVE.md` §"What to feed back into Signal": B39, B46, I2). The two compose badly:
+[`.planning/M5.E8-RETROSPECTIVE.md`](../.planning/M5.E8-RETROSPECTIVE.md) §"What to feed back into Signal": B39, B46, I2). The two compose badly:
 the first class writes the false claim; the second class ensures the check that would catch it is never
 invoked. Signal abstracted the second class into a named defect with a candidate mechanism. The first
 class has been **observed at least seven times and never abstracted** — until this document.
@@ -55,7 +55,7 @@ all dims) prevented none of them, because tier rigor dials up prose obligations,
 Prior-phase analogue, same mechanism at the coverage layer: `e2e/stage8.spec.ts` was unloadable since
 Phase 6; Playwright reports an unloadable file as "0 tests found", so AC-15.2's mapped E2E cell counted as
 covered across multiple VERIFY reports while never once executing (fixed Phase 10, `8d3a743`;
-`.planning/OPEN-QUESTIONS.md` in that repo records it — with its own nested correction).
+[`.planning/OPEN-QUESTIONS.md`](../.planning/OPEN-QUESTIONS.md) in that repo records it — with its own nested correction).
 
 **Mechanism, compressed:** #4 is the purest specimen. The claim gained confidence at each restatement
 (passing clause → bolded warning → STATE.md) while never gaining evidence. One grep of `PHASE10-REVIEW.md`
@@ -63,13 +63,13 @@ would have refuted it at any hop.
 
 ## §3 The same class in Signal's own corpus, previously un-abstracted
 
-1. M5.E7: **"Six counts were wrong until re-derived"** (`.planning/RETROSPECTIVES.md`, M5.E7 hook).
-2. M5.E7: false-greens were **the largest retro cluster at 9 items** (`.planning/ISSUES-INBOX.md`, the entry that seeded M5.E8).
+1. M5.E7: **"Six counts were wrong until re-derived"** ([`.planning/RETROSPECTIVES.md`](../.planning/RETROSPECTIVES.md), M5.E7 hook).
+2. M5.E7: false-greens were **the largest retro cluster at 9 items** ([`.planning/ISSUES-INBOX.md`](../.planning/ISSUES-INBOX.md), the entry that seeded M5.E8).
 3. M5.E8: R1's research claim — "these four commands name zero library calls" — falsified on re-derivation (they name 4/3/3/0); the inference built on it was wrong (`M5.E8-RETROSPECTIVE.md`).
 4. M5.E8: the `OBEYED` record shipped without caveats and needed an appended correction → fixed narrowly as `buildCaveats()`: **"generate scope, never remember it"** (`M5.E8-RETROSPECTIVE.md` §4). The one place the remedy exists as code, for one record type.
 5. C6: a locked decision rested on a ~4.5×-wrong date (M5.E7).
-6. `B40`: citation integrity in `analysis/` unenforceable by construction (`.planning/BUGS.md`).
-7. **Live on 2026-07-28:** `.planning/RETROSPECTIVES.md` presented as the complete retro index while missing M5.E8 entirely — the regen is Epic-close-gated, the gate skipped (`B36`'s third sighting), nothing checks retro-index freshness (`/sig:sweep` covers INDEX.md only). Fixed same day; the freshness check is fix #8 below.
+6. `B40`: citation integrity in `analysis/` unenforceable by construction ([`.planning/BUGS.md`](../.planning/BUGS.md)).
+7. **Live on 2026-07-28:** [`.planning/RETROSPECTIVES.md`](../.planning/RETROSPECTIVES.md) presented as the complete retro index while missing M5.E8 entirely — the regen is Epic-close-gated, the gate skipped (`B36`'s third sighting), nothing checks retro-index freshness (`/sig:sweep` covers INDEX.md only). Fixed same day; the freshness check is fix #8 below.
 
 ## §4 Why Signal permits this — five structural causes
 

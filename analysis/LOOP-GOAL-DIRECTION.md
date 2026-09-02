@@ -3,7 +3,7 @@
 **Date:** 2026-09-01
 **Status:** Analysis. Scoped strictly to loop / goal functionality per Brett's call of 2026-08-28.
 **Method:** Read against the live payload under `plugin/` (not the pre-`M6.E1` paths the older loop
-analysis cites), plus one measurement run over `.planning/BACKLOG.md`'s actual rows. Every count
+analysis cites), plus one measurement run over [`.planning/BACKLOG.md`](../.planning/BACKLOG.md)'s actual rows. Every count
 below is derived from the artifact, not recalled.
 
 ---
@@ -33,7 +33,7 @@ and any re-litigation of merge-is-delivery. Nothing about them is in here.
 
 The obvious way to open this is a shipped/not-shipped table. That would be wrong here, because this
 repository's own named defect is a mechanism that is **built, documented end to end, and reached by
-nothing** (`B75`, shipped open on purpose; `analysis/UNREACHED-MECHANISM-ANALYSIS.md`). So the
+nothing** (`B75`, shipped open on purpose; [`analysis/UNREACHED-MECHANISM-ANALYSIS.md`](UNREACHED-MECHANISM-ANALYSIS.md)). So the
 column is three-valued.
 
 | Loop part | State | Evidence |
@@ -114,7 +114,7 @@ the budget on §3 and §4, which are the parts that make an already-triggered ru
 
 `describeNextAction` selects the next *phase within* an Epic (`B70`). Nothing selects the Epic.
 `drive.js` contains no `current_epic` reference. `BACKLOG.md` is the queue by decision
-(`D-M5E18-1`: *"the queue is `.planning/BACKLOG.md`, not this file"*).
+(`D-M5E18-1`: *"the queue is [`.planning/BACKLOG.md`](../.planning/BACKLOG.md), not this file"*).
 
 So the question is concrete and measurable: **can a machine read `BACKLOG.md` and pick the next unit
 of work at usable precision?** This repository has measured exactly this shape before and been

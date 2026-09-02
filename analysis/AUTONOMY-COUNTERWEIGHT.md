@@ -3,7 +3,7 @@
 **Signal's `LOOP-ENGINEERING-ANALYSIS.md` compared against Dexter Horthy's implementation guide for agentic engineering workflows that don't collapse. Where they agree, where the guide corrects Signal, where Signal corrects the guide, and what to change.**
 
 **Date:** 2026-08-08
-**Status:** Analysis. Companion to [`LOOP-ENGINEERING-ANALYSIS.md`](LOOP-ENGINEERING-ANALYSIS.md); proposes two amendments to that doc and one new artifact. Not a committed plan; **not in the agreed next-work sequence** (`.planning/BACKLOG.md` — the `M5.E14` slice, `B87`, and the namespace decision come first).
+**Status:** Analysis. Companion to [`LOOP-ENGINEERING-ANALYSIS.md`](LOOP-ENGINEERING-ANALYSIS.md); proposes two amendments to that doc and one new artifact. Not a committed plan; **not in the agreed next-work sequence** ([`.planning/BACKLOG.md`](../.planning/BACKLOG.md) — the `M5.E14` slice, `B87`, and the namespace decision come first).
 
 **Source:** "How to Build and Maintain an Agentic Engineering Workflow That Doesn't Collapse" — 10 steps plus 4 failure modes, transcribed from a Dexter Horthy (HumanLayer) talk with David. **The transcript supplied is OCR-damaged** in several places ("Deays", "fulentations", "pre-dcks", a truncated Step 10 and a truncated final paragraph). No argument below rests on a garbled clause; where a step's text is incomplete, that is stated.
 
@@ -115,13 +115,13 @@ Horthy gates trust on **~70 hours of prior agent use** — the operator's calibr
 
 **O-1 — Signal's loop terminus became mechanical on 2026-08-08, mid-analysis.** The plan terminates unattended runs at **PR-open**. `B88` (P1) said Signal was branch-blind: nothing created a branch and nothing checked one existed, so `ship.md`'s PR step was unreachable once commits had landed on the default branch. Humans opened PRs anyway; the point is that an *unattended* loop had no mechanical way to guarantee its own stopping condition. **`B88` is now `fixed`** — `tools/lib/branch-guard.js` (`checkBranchPosture`, `readPullRequestEvidence`) landed as PR #118 (`57721f8`) while this document was being written, wired at `execute.md:46` and `ship.md:48`, with the PR line at `ship.md:214` converted from a checkbox to rendered evidence. **The loop plan should note the dependency explicitly:** Phase B's stopping condition rests on this module, and `checkBranchPosture`'s `--allow-default-branch` override is the thing an unattended run must never be permitted to pass.
 
-**O-2 — No command spawns `ui-researcher`, `ui-checker`, or `ui-auditor`.** Grepped repo-wide: the three appear in their own agent files, `docs/install-verification.md`, `docs/map/index.html`, and analysis docs — in no command, skill, or tool. That is the shape of the unreached-mechanism class, **but the ambiguity should be named before it is filed as a defect**: no command has a conditional frontend branch at all, and Signal itself has no UI, so these may be deliberately ad-hoc for consumer projects. The question to answer first is whether a frontend project running `/sig:plan` is *supposed* to get a UI-SPEC.
+**O-2 — No command spawns `ui-researcher`, `ui-checker`, or `ui-auditor`.** Grepped repo-wide: the three appear in their own agent files, [`docs/install-verification.md`](../docs/install-verification.md), `docs/map/index.html`, and analysis docs — in no command, skill, or tool. That is the shape of the unreached-mechanism class, **but the ambiguity should be named before it is filed as a defect**: no command has a conditional frontend branch at all, and Signal itself has no UI, so these may be deliberately ad-hoc for consumer projects. The question to answer first is whether a frontend project running `/sig:plan` is *supposed* to get a UI-SPEC.
 
 ---
 
 ## 7. Recommended integration — ranked, each with a home
 
-> **Dispositions, 2026-08-08 (Brett).** All six accepted. **1 and 2: DONE** — applied to `LOOP-ENGINEERING-ANALYSIS.md` the same day (§2, §5.2, FM-3, §8). **3: accepted as TBD, explicitly not urgent** — the principle is recorded as §5.2's sixth row; the enforcement mechanism is deferred. **4, 5, 6: accepted**, queued in `.planning/BACKLOG.md` behind the agreed sequence. **7 (the `B73`–`B76` prerequisites): accepted** as the entry price for any Phase A work.
+> **Dispositions, 2026-08-08 (Brett).** All six accepted. **1 and 2: DONE** — applied to `LOOP-ENGINEERING-ANALYSIS.md` the same day (§2, §5.2, FM-3, §8). **3: accepted as TBD, explicitly not urgent** — the principle is recorded as §5.2's sixth row; the enforcement mechanism is deferred. **4, 5, 6: accepted**, queued in [`.planning/BACKLOG.md`](../.planning/BACKLOG.md) behind the agreed sequence. **7 (the `B73`–`B76` prerequisites): accepted** as the entry price for any Phase A work.
 
 **1. Amend `LOOP-ENGINEERING-ANALYSIS.md` §5.2 — add the sixth row.** ✅ **DONE.** *(One table row. Highest leverage in this document.)*
 

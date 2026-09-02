@@ -11,7 +11,7 @@
 >   and three of its rows carry factual corrections (**C3**, **C5**, **C7**).
 > - **§2 (the five "flagged desirable, never queued" items) CARRIES FORWARD** — and it was right to
 >   demand a home or an explicit cut for each. **All five now have one** (`SIGNAL-V2-ROADMAP.md` §5
->   and `.planning/M5.E7-DISPOSITIONS.md` §4): four abandoned on fit or overlap, one split, with the
+>   and [`.planning/M5.E7-DISPOSITIONS.md`](../.planning/M5.E7-DISPOSITIONS.md) §4): four abandoned on fit or overlap, one split, with the
 >   worktree half promoted to a **`build`**. *The GTM item in particular was cut here for the first
 >   time — it had read as "planned" for three months while belonging to no queue at all, which is
 >   exactly the silent drop §2 was written to prevent.*
@@ -55,7 +55,7 @@ Fills are **directional estimates**, not measured — the pattern matters, not t
 > **absent**, so it structurally cannot see where Signal is **ahead** of a source. M5.E7 found such
 > a case on its first pass: Signal's `performance-optimization` is measurement-first and refuses to
 > optimize without evidence, while pm-skills' `/performance-audit-static` **never measures**
-> (`.planning/M5.E7-SUPPLY-PMSKILLS.md`). The audit therefore runs on *"what does Signal need
+> ([`.planning/M5.E7-SUPPLY-PMSKILLS.md`](../.planning/M5.E7-SUPPLY-PMSKILLS.md)). The audit therefore runs on *"what does Signal need
 > next?"* instead. §2's five items and §3's settled decision carry forward; **§1's frame does not.**
 >
 > Two rows below also carry inline claim corrections — **C3** (superpowers) and **C5**
@@ -88,7 +88,7 @@ Fills are **directional estimates**, not measured — the pattern matters, not t
 >
 > **The Epic IDs in every row are also superseded.** `M5.E1`–`M5.E5` here are pre-override port
 > labels; those IDs were reassigned to the doc-runtime and bug-squash Epics that actually shipped.
-> Read `MILESTONE-5.md` § Epic status, and after M5.E7 closes, `analysis/SIGNAL-V2-ROADMAP.md`.
+> Read `MILESTONE-5.md` § Epic status, and after M5.E7 closes, [`analysis/SIGNAL-V2-ROADMAP.md`](SIGNAL-V2-ROADMAP.md).
 
 **Big picture.** Signal built the **middle of the stack to production quality and left both ends open** — Layer 2 (engine) + Calibrate + the Agent Skills quality half are in; **Layer 1 (strategy/upstream)** and **Layer 5 (compound/memory)** remain the real frontier. Shipped v1 is **deliberately narrower than the analysis's own "Minimum Viable Frankenstein"** (which included pm-skills upstream, superpowers TDD, gstack `/cso`, and the Compound phase) — a sanctioned choice (RUNDOWN Reconciliation § "ship the narrow MVP first"), and it worked (v1 shipped + hardened through M4.5).
 
