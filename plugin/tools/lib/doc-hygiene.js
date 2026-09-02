@@ -18,6 +18,7 @@ import { join, dirname, resolve, relative, sep } from 'node:path';
 import { roster, ROOT } from './roster.js';
 import { isStubRetro } from './retro-index.js';
 import { resolveInboxPath } from './inbox-path.js';
+import { buildDecisionIdMap, resolveDecisionIdIn } from './planning-index.js';
 
 // Inline `](target)` links only (reference-style / HTML links are out of scope,
 // matching the migrate dangling-gate).
@@ -708,3 +709,129 @@ export const ORPHAN_ENTRY_POINTS = Object.freeze([
   /-(PLAN|PROGRESS|VERIFICATION|VALIDATION|REVIEW|RESEARCH|REQUIREMENTS|RETROSPECTIVE|PROFILE)(-\d+)?\.md$/,
   /^MILESTONE-.+\.md$/,
 ]);
+
+/**
+ * Cited identifiers that resolve to nothing.
+ *
+ * `B112` was named as *filed* in six places across five documents for three days
+ * while absent from `BUGS.md` — `M6.E2`'s published-facts class, committed in the
+ * same span as the checks for it. Every one of those citations was a bare token,
+ * so nothing could verify it.
+ *
+ * WHY THIS AND NOT A LINK CONVENTION. The filed proposal was to rewrite `B112`-style
+ * references as markdown links so the existing dead-link walk would catch them
+ * (`analysis/DEEPSEEK-HARNESS-ASSESSMENT.md` §2.2). Resolving the id directly is
+ * strictly better and much cheaper: it needs **no backfill** across a hundred-plus
+ * files, it works on prose already written, and it verifies the **referent** rather
+ * than the syntax — a link can be well-formed and point at a heading that says
+ * nothing about the id. The convention is still worth having for file paths; it is
+ * not the right mechanism for identifiers.
+ *
+ * ADVISORY. A dangling id is usually a typo or a withdrawn record, and occasionally
+ * a document deliberately naming an id that does not exist — see `exemptIds`.
+ *
+ * Portable: a project with no `BUGS.md` / `DECISIONS.md` yields no findings rather
+ * than flagging every id it cannot resolve.
+ *
+ * @param {string} [baseDir=ROOT]
+ * @param {object} [opts]
+ * @param {Record<string,string>} [opts.exemptIds] id -> reason it is deliberately dangling
+ * @returns {Array<{check: string, severity: string, file: string, message: string}>}
+ */
+export async function checkDanglingReferences(baseDir = ROOT, opts = {}) {
+  const { exemptIds = DANGLING_REF_EXEMPTIONS } = opts;
+  const findings = [];
+  const planning = join(baseDir, '.planning');
+  if (!existsSync(planning)) return findings;
+
+  const bugsPath = join(planning, 'BUGS.md');
+  const decisionsPath = join(planning, 'DECISIONS.md');
+  const hasBugs = existsSync(bugsPath);
+  const hasDecisions = existsSync(decisionsPath);
+  if (!hasBugs && !hasDecisions) return findings;
+
+  const read = (p) => {
+    try {
+      return readFileSync(p, 'utf-8');
+    } catch {
+      return null;
+    }
+  };
+
+  // DEFINED SETS. A definition is a table row or a bolded/heading definition line —
+  // the same two shapes the corpus actually uses. A mere mention never defines.
+  const definedBugs = new Set();
+  if (hasBugs) {
+    const c = read(bugsPath) ?? '';
+    for (const m of c.matchAll(/^\|\s*(B\d{1,4})\s*\|/gm)) definedBugs.add(m[1]);
+    for (const m of c.matchAll(/^#{2,6}\s+.*?\b(B\d{1,4})\b/gm)) definedBugs.add(m[1]);
+  }
+  // D-IDS RESOLVE THROUGH THE REAL RESOLVER, NOT A SECOND IMPLEMENTATION.
+  //
+  // The first version of this check scanned `.planning/DECISIONS.md` directly and
+  // reported 31 dangling ids where 2 exist. Closed-milestone decision sections are
+  // EVICTED to the archive by `/sig:docs-migrate`, so 29 perfectly good ids —
+  // `D-E3-*`, `D-E8-*`, `D-E9-*` — resolve to an archived home this module knew
+  // nothing about. That is `B82`'s shape exactly: a second implementation of
+  // "where does this live" cannot express the first's knowledge, and it fails in
+  // the direction that looks like a finding.
+  let decisionMap = null;
+  if (hasDecisions) {
+    try {
+      decisionMap = await buildDecisionIdMap(baseDir);
+    } catch {
+      decisionMap = null; // unresolvable map -> skip D-ids rather than flag them all
+    }
+  }
+
+  // A corpus with no definitions at all cannot distinguish "dangling" from "this
+  // project does not use ids", so it says nothing rather than flagging everything.
+  if (definedBugs.size === 0 && decisionMap === null) return findings;
+
+  const cited = new Map(); // id -> Set(rel file)
+  for (const name of readdirSync(planning)) {
+    if (!name.endsWith('.md')) continue;
+    const rel = `.planning/${name}`;
+    const text = read(join(planning, name));
+    if (text === null) continue;
+    const scan = (re) => {
+      for (const m of text.matchAll(re)) {
+        const id = m[0];
+        if (!cited.has(id)) cited.set(id, new Set());
+        cited.get(id).add(rel);
+      }
+    };
+    if (definedBugs.size > 0) scan(/\bB\d{1,4}\b/g);
+    if (decisionMap !== null) scan(/\bD-[A-Za-z0-9]+-\d+\b/g);
+  }
+
+  for (const [id, where] of [...cited].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const isBug = id.startsWith('B');
+    const defined = isBug
+      ? definedBugs.has(id)
+      : (await resolveDecisionIdIn(baseDir, decisionMap, id)) !== null;
+    if (defined) continue;
+    if (Object.hasOwn(exemptIds, id)) continue;
+    const home = isBug ? 'BUGS.md' : 'DECISIONS.md';
+    const files = [...where].sort();
+    findings.push(
+      mkFinding(
+        'dangling-reference',
+        'soft',
+        files[0],
+        `${id} is cited in ${files.length} file(s) but ${home} never defines it — ` +
+          `a typo, a withdrawn record that still needs a tombstone, or a reference to something ` +
+          `that was never filed (${files.slice(0, 4).join(', ')}${files.length > 4 ? ', …' : ''})`,
+      ),
+    );
+  }
+  return findings;
+}
+
+/**
+ * Ids deliberately cited while not existing. Each needs a reason, because an
+ * unexplained entry here is indistinguishable from a defect somebody muted.
+ */
+export const DANGLING_REF_EXEMPTIONS = Object.freeze({
+  'D-BR0826-2': 'Cited only inside the correction note that records it never existed (M6.E5-PROFILE.md). Naming it is the point of the sentence.',
+});

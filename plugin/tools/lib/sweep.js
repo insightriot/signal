@@ -35,6 +35,7 @@ import {
   checkInternalLinks,
   checkFillInStubs,
   checkOrphanDocs,
+  checkDanglingReferences,
   checkRosterCounts,
   checkVersionConsistency,
 } from './doc-hygiene.js';
@@ -519,6 +520,10 @@ export async function runSweep(baseDir = process.cwd()) {
   // widened scope, same stripCode posture — a doc reachable from nothing is the
   // question the link check cannot answer.
   raw.push(...checkOrphanDocs(baseDir, SWEEP_LINK_SCOPE));
+  // Identifiers that resolve to nothing — the id-level counterpart to the two
+  // link walks. B112 was cited as *filed* in six documents while absent from
+  // BUGS.md; nothing could see it because a bare token is not a link.
+  raw.push(...(await checkDanglingReferences(baseDir)));
   raw.push(...(await checkIndexFreshness(baseDir)));
   raw.push(...(await checkRetroIndexFreshness(baseDir)));
   raw.push(...(await checkStaleInbox(baseDir)));
