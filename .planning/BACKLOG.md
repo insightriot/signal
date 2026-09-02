@@ -148,7 +148,7 @@ closing wired into the phase gates) are Epic-shaped and its trigger is unmet.
 
 ## Filed since that agreement — **not yet sequenced**
 
-### De-bloat `CLAUDE.md` — it is 51 KB against a 40 KB target · **hygiene** · small · **filed 2026-09-02**
+### ~~De-bloat `CLAUDE.md` — it is 51 KB against a 40 KB target~~ · **DONE 2026-09-02 — 51.4 KB → 25.9 KB**, grandfather flag dropped, ceiling lowered to the 40 KB target by the ratchet
 
 *Plain: the file every session reads first is a quarter bigger than it should be.*
 
