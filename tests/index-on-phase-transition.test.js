@@ -10,7 +10,7 @@ import { transitionPhase } from '../plugin/tools/lib/state.js';
  * M5.E16 S5 (FR5) — `INDEX.md` regenerates at every phase transition.
  *
  * The problem: `regeneratePlanningIndex` was called by `/sig:ship` §8 and
- * `/sig:index`, and nowhere else. So the documentation map was correct at
+ * `/sig:docs-index`, and nowhere else. So the documentation map was correct at
  * exactly the moment an Epic FINISHED, and drifted through the whole span of
  * work — which is when someone is actually re-orienting from it. All four
  * projects surveyed on 2026-08-01 had a stale, missing, or foreign INDEX.md,

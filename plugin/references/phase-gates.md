@@ -69,7 +69,7 @@ than omission (`B39`):
 
 **An absent record is reported as *could not check*, never as clean.** No `.signal/asks.jsonl` means
 the hook has never run here — a fresh clone, a plugin not yet loaded, a session started before the
-install — which is not evidence that nobody was asked. Same distinction `/sig:sweep` draws between
+install — which is not evidence that nobody was asked. Same distinction `/sig:docs-sweep` draws between
 "checked and clean" and "could not check", and for the same reason.
 
 ## EXECUTE has no approval checkbox, and that is deliberate

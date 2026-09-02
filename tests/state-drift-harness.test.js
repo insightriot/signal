@@ -252,7 +252,7 @@ describe('M5.E16 S1.t3 — checked-clean and could-not-check must not render ali
     }
   });
 
-  it('writes nothing — /sig:sweep is detect-and-report (NFR2, D-M5E16-1)', async () => {
+  it('writes nothing — /sig:docs-sweep is detect-and-report (NFR2, D-M5E16-1)', async () => {
     const dir = await makeProject({ 'STATE.md': HEALTHY_STATE });
     try {
       const { readFile } = await import('node:fs/promises');
@@ -282,7 +282,7 @@ describe('M5.E16 S1.t5 — every declared heal category has an implementation', 
   it('the category-2 bucket is empty, and that is the recorded state (D-M5E16-1)', () => {
     // After resolving FR4 against NFR2, sweep never runs a heal itself. Every
     // shipped check is category 1 or 3. This assertion is deliberately written
-    // to FAIL the day a category-2 check is registered without `/sig:sweep
+    // to FAIL the day a category-2 check is registered without `/sig:docs-sweep
     // --heal` existing to run it.
     const commandHealable = STATE_DRIFT_CHECKS.filter((c) => c.healCategory === HEAL.COMMAND_HEALABLE);
     expect(commandHealable).toEqual([]);

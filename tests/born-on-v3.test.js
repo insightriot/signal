@@ -3,7 +3,7 @@
 // A brand-new Signal project must be born on the CURRENT doc-runtime layout — it
 // stamps `docs_layout_version` into STATE.md at init, so it self-reports v3 from
 // birth and never presents (to the resume/status/SessionStart layout banner) as an
-// un-migrated older-layout project needing `/sig:migrate-memory`. The on-demand
+// un-migrated older-layout project needing `/sig:docs-migrate`. The on-demand
 // file creation (S1.t5 lazy-create → ISSUES-INBOX.md; S4.t1 createBacklogIfMissing)
 // covers the rest of the v3 file set — nothing is scaffolded eagerly.
 //

@@ -1,6 +1,6 @@
-// tools/lib/sweep.js — the read-only /sig:sweep check library (M5.E6 FR1/FR2).
+// tools/lib/sweep.js — the read-only /sig:docs-sweep check library (M5.E6 FR1/FR2).
 //
-// A set of deterministic, OFFLINE, READ-ONLY checks that /sig:sweep runs over the
+// A set of deterministic, OFFLINE, READ-ONLY checks that /sig:docs-sweep runs over the
 // INVOKING project (`process.cwd()`, never hard-coded Signal paths) to surface doc
 // rot. Each check returns findings shaped `{check, severity, file, message}` with
 // severity ∈ 'structural' (the things the test-suite guard hard-fails on) |
@@ -79,9 +79,9 @@ export async function checkIndexFreshness(baseDir) {
   }
 
   // Absent or empty → advisory (nothing to diff; a fresh repo just hasn't run
-  // /sig:index yet). Empty is treated like absent per AD5's "absent → advisory".
+  // /sig:docs-index yet). Empty is treated like absent per AD5's "absent → advisory".
   if (existing === null || existing.trim() === '') {
-    return [mkFinding('index-freshness', 'advisory', rel, 'no INDEX.md present — run /sig:index to generate it')];
+    return [mkFinding('index-freshness', 'advisory', rel, 'no INDEX.md present — run /sig:docs-index to generate it')];
   }
 
   // Foreign / hand-written → advisory (regenerating would clobber curated content;
@@ -98,7 +98,7 @@ export async function checkIndexFreshness(baseDir) {
   const expected = renderPlanningIndex(docs, annotations);
 
   if (expected !== existing) {
-    return [mkFinding('index-freshness', 'structural', rel, 'INDEX.md is stale — regenerate with /sig:index')];
+    return [mkFinding('index-freshness', 'structural', rel, 'INDEX.md is stale — regenerate with /sig:docs-index')];
   }
   return [];
 }
@@ -115,7 +115,7 @@ export async function checkIndexFreshness(baseDir) {
  * **Composed read-only, never by calling the writer** (AC3.3, NFR2): this walks
  * the same pure `enumerateRetros → parseExistingHooks → renderIndex` path
  * `regenerateIndexCore` uses, and diffs. A check that repaired what it measured
- * could not be run from `/sig:sweep`, whose whole discipline is detect-and-report.
+ * could not be run from `/sig:docs-sweep`, whose whole discipline is detect-and-report.
  *
  * Severity follows NFR3 — advisory paths fail open:
  *   - no retros at all      → **no finding** (a greenfield project stays quiet)
@@ -164,7 +164,7 @@ const REASON_GREENFIELD =
 /**
  * Retro-index freshness as a THREE-outcome record (M5.E10 FR7 / AC7.2).
  *
- * The finding-shaped wrapper above predates this and stays the `/sig:sweep`
+ * The finding-shaped wrapper above predates this and stays the `/sig:docs-sweep`
  * surface; this is the half that distinguishes **"checked and clean"** from
  * **"could not check"**. Before it, four different situations all returned an
  * empty finding list — index matches, no retros exist, the project is
@@ -464,7 +464,7 @@ export async function checkPhaseLog(baseDir) {
         `completed_phases has ${malformed.length} malformed ${malformed.length === 1 ? 'entry' : 'entries'} ` +
           `(first: "${first}") — before v0.1.12 these became permanent phantom phases. ` +
           `They are now quarantined automatically on the next phase transition: relocated verbatim to ` +
-          `.planning/STATE-HISTORY.md, never deleted. To clear them now, run /sig:migrate-memory ` +
+          `.planning/STATE-HISTORY.md, never deleted. To clear them now, run /sig:docs-migrate ` +
           `(dry-run first) for prose-sized entries, or simply run the next phase command.`
       )
     );
@@ -479,7 +479,7 @@ export async function checkPhaseLog(baseDir) {
         'advisory',
         rel,
         `completed_phases holds ${valid.length} entries — more than one run (max ${PHASES.length}). ` +
-          `It should trim at ship (linear) or on an Epic roll. Recommended: run /sig:migrate-memory.`
+          `It should trim at ship (linear) or on an Epic roll. Recommended: run /sig:docs-migrate.`
       )
     );
   }
@@ -564,7 +564,7 @@ export function renderSweepReport(report) {
   const structural = findings.filter((f) => f.severity === 'structural');
   const advisory = findings.filter((f) => f.severity === 'advisory');
 
-  const lines = ['# /sig:sweep — doc-hygiene report', ''];
+  const lines = ['# /sig:docs-sweep — doc-hygiene report', ''];
   lines.push(...renderGroup('Structural', structural), '');
   lines.push(...renderGroup('Advisory', advisory));
   if (stateDrift) {

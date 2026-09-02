@@ -277,7 +277,7 @@ describe('S6 wave 6 — closed by a retro OR by a passing verdict, and a stub ve
 // `planArchiveMoves` used to rebuild candidates as `{unit}-{suffix}.md`, a
 // SECOND implementation of unit membership that cannot express `deriveUnits`'
 // conservative fold. Measured live before the fix, through `senseArchiveTree`
-// (the path `/sig:migrate-memory` calls): `SLICE-SSO` resolved to 5 files in
+// (the path `/sig:docs-migrate` calls): `SLICE-SSO` resolved to 5 files in
 // BOTH `eval-project-A` and `eval-project-D` while the mover planned 3 — an apply
 // moved three files and left two, splitting the unit across `.planning/` and
 // `.planning/archive/`.

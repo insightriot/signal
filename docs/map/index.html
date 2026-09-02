@@ -845,7 +845,7 @@ const COMMANDS = [
         ],
       },
       {
-        name: '/sig:sweep',
+        name: '/sig:docs-sweep',
         tags: ['read-only', 'not phase-gated'],
         summary: 'Doc-hygiene sweep over the invoking project: dead internal links, unfilled [FILL IN] stubs, INDEX/roster/version drift, a stale capture inbox, CLAUDE.md bloat, and STATE-vs-world drift — what .planning/ asserts measured against what is on disk and in git, each finding declaring whether it needs you or clears itself. Detect-and-report only — writes nothing.',
         flags: [],
@@ -857,7 +857,7 @@ const COMMANDS = [
         flags: [],
       },
       {
-        name: '/sig:index',
+        name: '/sig:docs-index',
         tags: ['idempotent', 'not phase-gated'],
         summary: 'Regenerate .planning/INDEX.md, the documentation map. Walks the corpus, renders the mechanical rows, and re-attaches your curated notes by key so hand-written context survives the rebuild. Writes only when the content actually changed; runs at every phase transition.',
         flags: [],
@@ -869,7 +869,7 @@ const COMMANDS = [
         flags: [],
       },
       {
-        name: '/sig:archive',
+        name: '/sig:docs-archive',
         tags: ['dry-run by default', 'not phase-gated'],
         summary: 'File finished work out of the live .planning/ root into .planning/archive/. Only units that are provably closed move — everything else is reported with the reason it was declined, so "checked and clean" never looks like "could not check".',
         flags: [
@@ -877,7 +877,7 @@ const COMMANDS = [
         ],
       },
       {
-        name: '/sig:migrate-memory',
+        name: '/sig:docs-migrate',
         tags: ['dry-run by default', 'git-reversible'],
         summary: 'Bring an older project\'s .planning/ up to the current layout: trim bloated frontmatter, relocate oversized bodies, evict closed-Epic narrative into the archive tree. Relocates, never deletes — and prints the whole plan before touching anything.',
         flags: [

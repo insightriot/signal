@@ -157,7 +157,7 @@ output, but the ongoing derived-index projection is E3.
 > **Decided at M5.E2 DISCUSS (2026-07-16) — derived-vs-hand-curated INDEX.** Curator's Rule 3 says
 > the index is *generated, never hand-edited*. Signal's `INDEX.md` was **hand-curated by locked
 > decision** (memory `curator-dormant-on-signal-planning`). **Resolution: fully auto-generated**
-> by a Signal-native `/sig:index`; hand-curation retired (reverses that memory's hand-curated
+> by a Signal-native `/sig:docs-index`; hand-curation retired (reverses that memory's hand-curated
 > stance — memory + a DECISIONS entry get updated **when E3 implements it**, not before). This is
 > an **E3 pre-decision** (`MILESTONE-5.md`); E3 owns FR4 (index-freshness-in-validator) after the
 > E2/E3 swap. Not built in E1 or E2.

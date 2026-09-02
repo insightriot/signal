@@ -46,7 +46,7 @@ export const DESCRIPTIVE_ALLOWLIST = new Map([
     'instruction to act — it removes an instruction to refrain, which is a different change.',
   ],
   [
-    'commands/index.md',
+    'commands/docs-index.md',
     'Names the function while describing what regenerates the documentation map. Descriptive ' +
     'reference to a capability, not an order to invoke it during the measured run.',
   ],

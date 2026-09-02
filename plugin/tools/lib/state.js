@@ -555,7 +555,7 @@ export async function transitionPhase(baseDir, nextPhase) {
  * Regenerate `.planning/INDEX.md` as part of a phase transition (M5.E16 FR5).
  *
  * **Why here and not in the command files.** `regeneratePlanningIndex` was
- * called from `/sig:ship` §8 and `/sig:index`, and nowhere else — so the docs
+ * called from `/sig:ship` §8 and `/sig:docs-index`, and nowhere else — so the docs
  * map was accurate at exactly the moment an Epic *finished*, and drifted through
  * the entire span of work, which is when someone is actually re-orienting from
  * it. All four projects surveyed on 2026-08-01 had a stale, missing or foreign
@@ -570,7 +570,7 @@ export async function transitionPhase(baseDir, nextPhase) {
  *
  * 1. Calls the **lock-free Core**. `regeneratePlanningIndex` self-locks on the
  *    same `.state.lock` this function already holds; calling it would deadlock.
- *    Same discipline `/sig:migrate-memory` follows with `evictEpicNarrative`.
+ *    Same discipline `/sig:docs-migrate` follows with `evictEpicNarrative`.
  * 2. **Dynamic import.** `planning-index.js` imports `withStateLock` from this
  *    module, so a static import back would be a cycle.
  * 3. **Never throws.** The phase record is load-bearing; the docs map is not. A

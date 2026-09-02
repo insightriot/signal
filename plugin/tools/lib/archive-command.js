@@ -1,6 +1,6 @@
-// tools/lib/archive-command.js — the data + rendering behind `/sig:archive` (M5.E19).
+// tools/lib/archive-command.js — the data + rendering behind `/sig:docs-archive` (M5.E19).
 //
-// WHY THIS EXISTS, given `/sig:migrate-memory` already archives (D-M5E19-6).
+// WHY THIS EXISTS, given `/sig:docs-migrate` already archives (D-M5E19-6).
 // Archiving was never unwired — it was only ever reachable through a command
 // about document LAYOUT, whose dry-run interleaves a reorganization plan with an
 // archive plan. This module answers the archiving question on its own.
@@ -32,7 +32,7 @@ import { resolveClosures, CLOSURE } from './closure.js';
 import { deriveUnits } from './work-units.js';
 
 /**
- * Everything `/sig:archive` needs to decide and to say, in one read.
+ * Everything `/sig:docs-archive` needs to decide and to say, in one read.
  *
  * Read-only. Never throws for a project-shaped reason — an unreadable STATE.md
  * or an unlistable `.planning/` is a REPORTED refusal, not an exception, because
@@ -277,7 +277,7 @@ export function renderArchiveReport(report, opts = {}) {
  * move + byte-identical read-back assert + referrer rewrite.
  *
  * NOTE (`AC-S5.3`): this is `applyArchiveTree`'s SECOND caller ever. Its first
- * and only caller until now was `/sig:migrate-memory`'s apply path, which holds
+ * and only caller until now was `/sig:docs-migrate`'s apply path, which holds
  * one coarse lock and passes `v3Rename` from its own sense. Here there is no
  * migration in flight, so `v3Rename` is false and no lock is held — the module
  * is documented lock-free, and this exercises that claim for the first time.

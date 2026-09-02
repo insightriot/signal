@@ -140,7 +140,7 @@ describe('M5.E16 S4.t3 — /sig:resume surfaces category 3 only, as one line (D-
     const hits = out.split('\n').filter((l) => /STATE-vs-world/i.test(l));
     expect(hits).toHaveLength(1);
     expect(hits[0]).toMatch(/2/);
-    expect(hits[0]).toMatch(/sig:sweep/);
+    expect(hits[0]).toMatch(/sig:docs-sweep/);
   });
 
   it('says nothing at all when there is nothing a person must act on', () => {

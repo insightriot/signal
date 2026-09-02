@@ -1,12 +1,12 @@
 ---
-name: sig:migrate-memory
+name: sig:docs-migrate
 description: "Auto-sensing doc-runtime migrate — reorganizes THIS project's .planning/ docs to the current layout (de-prose frontmatter, relocate bloated bodies, evict closed-Epic narrative, build the archive tree; and on a v2→v3 layout bump: rename FUTURE-IDEAS→ISSUES-INBOX, create BACKLOG, evict closed-milestone DECISIONS sections). Relocate-never-delete, dry-run by default, git-reversible."
 args: "[--apply] [--force]"
 ---
 
-# `/sig:migrate-memory` — Auto-sensing doc-runtime migrate
+# `/sig:docs-migrate` — Auto-sensing doc-runtime migrate
 
-You are running `/sig:migrate-memory`. Your goal: bring the **invoking** project's `.planning/` docs up to the current doc-runtime layout (`references/doc-runtime-model.md`) — safely, reversibly, and only after the user has eyeballed the plan.
+You are running `/sig:docs-migrate`. Your goal: bring the **invoking** project's `.planning/` docs up to the current doc-runtime layout (`references/doc-runtime-model.md`) — safely, reversibly, and only after the user has eyeballed the plan.
 
 This command is **meta** — same class as `/sig:status` and `/sig:resume`. It does **not** run a tier-gating preamble, does **not** load skills, and does **not** spawn agents. It operates on the **current working directory's** project (`process.cwd()`), never on Signal's own repo (except when Signal *is* the invoking project — the dogfood). There are **no hard-coded Signal paths**.
 
@@ -28,7 +28,7 @@ When the project's `docs_layout_version` stamp is **below** `CURRENT_LAYOUT_VERS
 
 - **Inbox/ledger rename**: `FUTURE-IDEAS.md` → `ISSUES-INBOX.md` (and `FUTURE-IDEAS-LEDGER.md` → `ISSUES-INBOX-LEDGER.md`), with every referrer link/prose rewritten. Existence-gated → idempotent (an already-renamed repo plans nothing).
 - **BACKLOG create-if-missing**: seeds `BACKLOG.md` (from a `BACKLOG-REVIEW` snapshot when present, else a skeleton). A born-v3 / already-migrated project already has it → no-op.
-- **Append-log evict (FR5)**: closed-milestone `DECISIONS.md` date-sections relocate **verbatim** to `archive/M{n}/DECISIONS.md` behind a dated pointer, with **every `D-…` anchor preserved** (resolvable via `/sig:index`). A section that can't be routed to a milestone (its date predates the open-date map) is **detect-only** — nothing evicted (fail-safe). The live `DECISIONS.md` keeps the current milestone's decisions; new decisions still append there (`/sig:checkpoint`).
+- **Append-log evict (FR5)**: closed-milestone `DECISIONS.md` date-sections relocate **verbatim** to `archive/M{n}/DECISIONS.md` behind a dated pointer, with **every `D-…` anchor preserved** (resolvable via `/sig:docs-index`). A section that can't be routed to a milestone (its date predates the open-date map) is **detect-only** — nothing evicted (fail-safe). The live `DECISIONS.md` keeps the current milestone's decisions; new decisions still append there (`/sig:checkpoint`).
 
 The `docs_layout_version` stamp is written **only** at the tail, gated on full v3-conformance (inbox renamed, BACKLOG present, evict done) — a partial run stays unstamped so the banner keeps nagging and a re-run continues safely.
 

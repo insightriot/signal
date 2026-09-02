@@ -1,4 +1,4 @@
-// tests/sweep.test.js — M5.E6 Slice 1 (FR1/FR2): the portable /sig:sweep checks.
+// tests/sweep.test.js — M5.E6 Slice 1 (FR1/FR2): the portable /sig:docs-sweep checks.
 //
 // Read-only doc-hygiene checks over an ARBITRARY invoking project (a fixture
 // baseDir, never Signal's own paths). Each check returns findings shaped
@@ -489,9 +489,9 @@ describe('M5.E13 S4.t2 checkRetroIndexFreshness (FR3.2)', () => {
 // ---------------------------------------------------------------------------
 // B57 — the migrate snapshot is a frozen backup, not live docs.
 //
-// Found 2026-08-01 running /sig:sweep against four real non-Signal projects.
+// Found 2026-08-01 running /sig:docs-sweep against four real non-Signal projects.
 // eval-project-A reported 12 structural findings; ELEVEN were dead links inside
-// `.planning/.migrate/snapshot/`, the pre-reorg backup /sig:migrate-memory
+// `.planning/.migrate/snapshot/`, the pre-reorg backup /sig:docs-migrate
 // takes before it relocates anything. Those links point at pre-migration
 // paths BY DESIGN — the snapshot is supposed to be frozen.
 //

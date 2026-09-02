@@ -1,5 +1,5 @@
 /**
- * tests/archive-command.test.js — `/sig:archive` (M5.E19).
+ * tests/archive-command.test.js — `/sig:docs-archive` (M5.E19).
  *
  * The apply path runs against a TEMP COPY of `examples/sandbox/`, never the
  * committed fixture — a test that mutates its own fixture passes once.
@@ -38,7 +38,7 @@ async function snapshot(dir) {
   return out;
 }
 
-describe('/sig:archive — the report (S2)', () => {
+describe('/sig:docs-archive — the report (S2)', () => {
   it('every unit lands in exactly one of plan or refusals (AC-S2.1)', async () => {
     const r = await buildArchiveReport(SANDBOX);
     const planned = r.plan.map((p) => p.unit);
@@ -92,7 +92,7 @@ describe('/sig:archive — the report (S2)', () => {
   });
 });
 
-describe('/sig:archive — the render (S3)', () => {
+describe('/sig:docs-archive — the render (S3)', () => {
   it('names every refusal with its reason (AC-S3.1)', async () => {
     const out = renderArchiveReport(await buildArchiveReport(SANDBOX)).join('\n');
     for (const u of ['GATE-B', 'M1.E2', 'M1.E3', 'SLICE-BILLING']) {
@@ -138,7 +138,7 @@ describe('/sig:archive — the render (S3)', () => {
   });
 });
 
-describe('/sig:archive — apply (S4 / S5)', () => {
+describe('/sig:docs-archive — apply (S4 / S5)', () => {
   let dir;
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), 'sig-archive-'));
@@ -207,7 +207,7 @@ describe('/sig:archive — apply (S4 / S5)', () => {
   });
 
   it('applyArchiveTree works as its SECOND caller ever — no migrate, no lock (AC-S5.3)', async () => {
-    // Until now its only caller was /sig:migrate-memory's apply path, which
+    // Until now its only caller was /sig:docs-migrate's apply path, which
     // holds one coarse lock and passes v3Rename from its own sense. This is the
     // first invocation with no migration in flight.
     const res = await applyArchive(dir);

@@ -73,11 +73,11 @@ const HAND_GROOMED = [
   '',
   'Re-homed rather than cut.',
   '',
-  '### `/sig:sweep --docs` — periodic hygiene sweep — **⚠ PARTIALLY SHIPPED (v0.1.11)**',
+  '### `/sig:docs-sweep --docs` — periodic hygiene sweep — **⚠ PARTIALLY SHIPPED (v0.1.11)**',
   '',
   'Half of it landed.',
   '',
-  '### `/sig:sweep --code` — the code half of the same sweep',
+  '### `/sig:docs-sweep --code` — the code half of the same sweep',
   '',
   'Not started.',
   '',
@@ -287,7 +287,7 @@ describe('the narrowing — an id MENTIONED is not an id CLAIMED (AC9.5)', () =>
   });
 });
 
-describe('the /sig:sweep surface (AC9.4)', () => {
+describe('the /sig:docs-sweep surface (AC9.4)', () => {
   it('a project with no BACKLOG.md stays SILENT — the mute-earning case', async () => {
     expect(await checkBacklogDischarge(dir)).toEqual([]);
   });
@@ -418,7 +418,7 @@ describe('REVIEW findings — the leading-id matcher (M5.E10 REVIEW)', () => {
   it('does not backtrack catastrophically on a heavily decorated heading', () => {
     // Found at REVIEW: the first LEADING_ID_RE used two adjacent unbounded
     // decoration runs, which backtrack quadratically on a NON-matching heading.
-    // Measured 3.9s on 50k backticks, inside a check /sig:sweep runs over every
+    // Measured 3.9s on 50k backticks, inside a check /sig:docs-sweep runs over every
     // heading in the file. Bounded runs make it linear.
     const start = Date.now();
     parseBacklogRows(['# Backlog', '', '### ' + '`'.repeat(200_000) + 'x', '', 'body', ''].join('\n'));

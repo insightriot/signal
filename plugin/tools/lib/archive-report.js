@@ -4,9 +4,9 @@
 // command over — **`0` must stop meaning both "could not look" and "checked and
 // clean."**
 //
-// `B63` is that defect in `/sig:migrate-memory`: its dry-run prints `0` for the
+// `B63` is that defect in `/sig:docs-migrate`: its dry-run prints `0` for the
 // two Epic-only vectors on a linear project, so *could not apply* reads exactly
-// like *already clean*. Filed the day after `C1` was fixed in `/sig:sweep` —
+// like *already clean*. Filed the day after `C1` was fixed in `/sig:docs-sweep` —
 // which is why STATE's own sequencing note says Signal has been "finding classes
 // and fixing instances", and why this Epic was told to fix by class.
 //
@@ -39,7 +39,7 @@ const CANNOT = 'cannotDetermine';
  * two implementations, already drifting (only the report said "needs a person").
  * REVIEW caught that; the report was deleted rather than kept in sync, because
  * nothing rendered it and an unused second copy is a drift source with no
- * upside. `/sig:migrate-memory`'s dry-run is the one consumer.
+ * upside. `/sig:docs-migrate`'s dry-run is the one consumer.
  *
  * @returns {string[]} lines, already indented, possibly empty
  */

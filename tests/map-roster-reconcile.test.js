@@ -15,13 +15,13 @@ const MAP_PATH = join(ROOT, 'docs/map/index.html');
  * `checkRosterCounts` pinned THAT NUMBER to `roster.js`. But the `COMMANDS`
  * array — the thing that actually renders the list — was never checked by
  * anything, and drifted to 17 entries while the heading said 19. The two
- * missing commands (`/sig:index`, `/sig:migrate-memory`) had been absent since
+ * missing commands (`/sig:docs-index`, `/sig:docs-migrate`) had been absent since
  * v0.1.8.
  *
  * The map's per-item prose (`group`, `blurb`, `summary`, `tags`, `flags`) is
  * deliberately editorial — friendlier than the source frontmatter `description`
  * — so nothing here generates it. This reconciles the SET OF NAMES only, the
- * way `/sig:index` reconciles mechanical rows against curated notes.
+ * way `/sig:docs-index` reconciles mechanical rows against curated notes.
  *
  * Checks BOTH directions. One-directional checking is how `B32` survived: the
  * heading count was verified against disk while the list underneath it was not.
@@ -64,7 +64,7 @@ function namesOf(groups) {
   return groups.flatMap((g) => (g.items ?? []).map((it) => it.name));
 }
 
-/** `commands/sweep.md` → `/sig:sweep` */
+/** `commands/docs-sweep.md` → `/sig:docs-sweep` */
 const commandName = (p) => `/sig:${basename(p, '.md')}`;
 /** `agents/verifiers/verifier.md` → `verifier` */
 const agentName = (p) => basename(p, '.md');

@@ -4,6 +4,41 @@ Append-only. When a decision is reversed, *add* a new entry noting the reversal 
 
 ---
 
+## 2026-09-02 — The document-upkeep group takes a `docs-` prefix, reversing `D-BR0809-3`
+
+**D-BR0902-1 — Group 4 takes the `docs-` prefix, clean break, no aliases. This REVERSES
+`D-BR0809-3` ("Group 4 keeps bare verbs. No prefixed namespace"), and discharges the
+`migrate-memory` rename that decision deferred to the next breaking window.**
+
+⚠ **This is a reversal, recorded as one rather than quietly re-decided.** `D-BR0809-3`'s argument was
+that *"writing the grouping down is what makes the prefix unnecessary — a prefix encodes in every
+future keystroke what one document explains once."* That argument is sound and was accepted for three
+weeks. What changed is not the logic but the evidence: the taxonomy document has existed since
+2026-08-07 and the group still read as unrelated at the point of use, because **nobody consults a
+taxonomy document while typing a command.** Brett re-raised it unprompted on 2026-09-02 and chose the
+prefix. The one-document-explains-it-once premise was tested and did not hold.
+
+*Source: Brett, 2026-09-02, closing the question `references/command-taxonomy.md` deliberately left
+open on 2026-08-07 and the rename `D-BR0809-3` deferred to "the next breaking window."*
+
+**Decision:** `/sig:index` → `/sig:docs-index`, `/sig:sweep` → `/sig:docs-sweep`, `/sig:archive` →
+`/sig:docs-archive`, `/sig:migrate-memory` → `/sig:docs-migrate`. **`docs-`, not `memory-`.**
+
+**Clean break — no aliases, no deprecation window.** Asked as a direct either/or; the answer was
+"clean break." The reasoning is that the maintainer is the primary user, so the muscle-memory cost is
+small and concentrated, while aliases mean two names to test and document indefinitely.
+
+**Scope: the typed command surface only.** `tools/lib/migrate-memory.js` keeps its filename — renaming
+code nobody types is churn with no reader. The 102 `.planning/` files citing old names were **not**
+rewritten: a July retrospective should keep saying what it said, and rewriting history to match a
+September rename is the drift class this repository exists to catch.
+
+**What it cost to verify:** 158 command references across 55 live files, plus 8 file-path literals the
+first pass correctly did not touch, plus 5 stale test assertions matching on a bare `migrate-memory`
+regex. Suite green at 3121.
+
+---
+
 ## 2026-07-15 — Compounding memory is per-repo; org-level learning is a user-run analysis on top (not a Signal primitive)
 
 **Context.** Resolves the last of `REPO-ANALYSIS.md` Part 6's four strategic-decision points, flagged still-open in `analysis/SIGNAL-INTEGRATION-RUNDOWN-v2-SEED.md` §3 ("Compounding substrate: per-project vs per-org — **decide before building the Compound phase, not during**"). `MILESTONE-5.md` E2 punted with "carry forward via `.planning/`," which never actually answered per-repo vs per-org. Decided by Brett 2026-07-15 during roadmap orientation (not during a build), which is exactly the "decide before building" the seed asked for.

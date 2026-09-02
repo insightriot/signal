@@ -82,7 +82,7 @@ from scratch.
    would not say what moves. `update` does not, because there is only one thing Signal updates.
 3. **Never introduce a third style into a group.** If a group's names are bare verbs, a new member
    is a bare verb — or the whole group is converted at once. **Half-migrating a namespace costs the
-   inconsistency without buying the grouping.** This is the rule that decided `/sig:archive` over
+   inconsistency without buying the grouping.** This is the rule that decided `/sig:docs-archive` over
    `/sig:memory-archive` (`D-M5E19-8`).
 4. **State the group in the command's own file**, in the same line that already says whether it is
    phase-gated. A group nobody can see from the file is a group that drifts.

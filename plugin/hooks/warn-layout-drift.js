@@ -4,7 +4,7 @@
 // additionalContext contract) + check-state-write.js (fail-open discipline).
 //
 // It nudges a project whose `.planning/` predates the current docs layout to run
-// `/sig:migrate-memory`. It reads ONLY a CAPPED PREFIX of STATE.md (the frontmatter
+// `/sig:docs-migrate`. It reads ONLY a CAPPED PREFIX of STATE.md (the frontmatter
 // region) to sniff the `docs_layout_version` stamp — never the whole file. On a
 // 529 KB STATE.md that returns well under any time budget (FM8), because the stamp
 // lives at the top of the frontmatter (migrate-memory inserts it right after
@@ -52,7 +52,7 @@ export { STAMP_SCAN_BYTES, readCappedPrefix, readLayoutStampFromPrefix };
 
 export const LAYOUT_DRIFT_BANNER =
   "Signal: this project's `.planning/` predates the current docs layout — run " +
-  '`/sig:migrate-memory` (dry-run first, then `--apply`) to reorganize it to the ' +
+  '`/sig:docs-migrate` (dry-run first, then `--apply`) to reorganize it to the ' +
   'current model. This is advisory; nothing is blocked.';
 
 /**

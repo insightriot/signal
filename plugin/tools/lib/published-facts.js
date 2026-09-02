@@ -428,7 +428,7 @@ export const PUBLISHED_FACT_CHECKS = Object.freeze([
  *
  * It lives HERE rather than in `state-drift.js` because the dependency runs one
  * way: this module already imports that one, and the reverse would be a cycle.
- * The call sites (`/sig:sweep`, `/sig:resume`) import this instead of either
+ * The call sites (`/sig:docs-sweep`, `/sig:resume`) import this instead of either
  * registry, so adding a published-fact check reaches both commands without
  * touching a call site again.
  */

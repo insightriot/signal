@@ -1,4 +1,4 @@
-// tools/lib/migrate-memory.js — the /sig:migrate-memory command engine (M5.E2, FR6/FR7).
+// tools/lib/migrate-memory.js — the /sig:docs-migrate command engine (M5.E2, FR6/FR7).
 //
 // Auto-sensing doc-runtime migrate: reorganizes the INVOKING project's
 // `.planning/` docs to the FR1 model (de-prose frontmatter, relocate bloated
@@ -1930,7 +1930,7 @@ export async function renderDryRun(baseDir, opts = {}) {
   const unhandledForms = await scanUnhandledLinkForms(baseDir);
 
   const L = [];
-  L.push('== /sig:migrate-memory — DRY RUN (nothing written) ==', '');
+  L.push('== /sig:docs-migrate — DRY RUN (nothing written) ==', '');
   // Tier 1 — counts.
   L.push('— Tier 1: counts —');
   L.push(`  vectors:              ${plan.vectors.length ? plan.vectors.join(', ') : '(none — conformant)'}`);
@@ -1944,7 +1944,7 @@ export async function renderDryRun(baseDir, opts = {}) {
   for (const line of renderMoveBreakdown(archive.moves, { renameFroms: archive.renameFroms })) L.push(line);
   // `B63` (M5.E18 S7 / FR4). This count is the defect: on a project this pass
   // cannot evaluate, a bare `0` is byte-identical to a project that is already
-  // clean. M5.E16 fixed the same shape for /sig:sweep the week `B63` was filed
+  // clean. M5.E16 fixed the same shape for /sig:docs-sweep the week `B63` was filed
   // against this command.
   //
   // The count line above is left byte-identical; the explanation is APPENDED.
@@ -2053,9 +2053,9 @@ export async function renderDryRun(baseDir, opts = {}) {
     }
     const { isForeignIndexFormat } = await import('./planning-index.js');
     if (isForeignIndexFormat(existingIndex)) {
-      L.push('  INDEX.md → LEFT INTACT (foreign/pre-v3 format) — reconcile manually via /sig:index');
+      L.push('  INDEX.md → LEFT INTACT (foreign/pre-v3 format) — reconcile manually via /sig:docs-index');
     } else {
-      L.push('  INDEX.md → regenerated (/sig:index) — mechanical rows refresh; curated notes survive by key');
+      L.push('  INDEX.md → regenerated (/sig:docs-index) — mechanical rows refresh; curated notes survive by key');
     }
   }
   for (const f of plan.flags) L.push(`  FLAG (not moved): ${f.kind} — ${f.chars} chars — "${f.detail}…"`);
@@ -2572,7 +2572,7 @@ export async function applyMigrate(baseDir, opts = {}) {
       // format carries a `**Tier legend:**` block too, so it never fired on the real
       // repro and clobbered the file.) Regenerating a foreign INDEX would CLOBBER
       // curated content — now the default path for every stamp-null external project —
-      // so leave it intact and flag it for manual reconciliation via /sig:index.
+      // so leave it intact and flag it for manual reconciliation via /sig:docs-index.
       if (needsV3) {
         // §9: this runs inside applyMigrate's coarse `.state.lock`, so it MUST call
         // the lock-free CORE — the self-locking `regeneratePlanningIndex` wrapper would
@@ -2587,7 +2587,7 @@ export async function applyMigrate(baseDir, opts = {}) {
         if (isForeignIndexFormat(existingIndex)) {
           indexRegenWarning =
             `${PLANNING_DIR}/INDEX.md is a foreign/pre-v3 format this migrate cannot parse — ` +
-            'LEFT INTACT (not regenerated). Reconcile it manually via /sig:index.';
+            'LEFT INTACT (not regenerated). Reconcile it manually via /sig:docs-index.';
         } else {
           await regeneratePlanningIndexCore(baseDir);
         }
@@ -2870,9 +2870,9 @@ function buildArchiveHeader(milestone) {
   return (
     `# Archived Decisions — ${milestone}\n\n` +
     'Closed-milestone decision sections relocated from ' +
-    '`.planning/DECISIONS.md` by `/sig:migrate-memory` (append-log eviction) — ' +
+    '`.planning/DECISIONS.md` by `/sig:docs-migrate` (append-log eviction) — ' +
     'verbatim except relative file-links re-rooted to resolve from here. Every ' +
-    'decision anchor still resolves here via `/sig:index`. ' +
+    'decision anchor still resolves here via `/sig:docs-index`. ' +
     'History, not state — append-only.\n\n---\n\n'
   );
 }
@@ -2891,7 +2891,7 @@ function buildPointerBlock(milestone, dateStr) {
     `## ${dateStr} — Closed-milestone decisions relocated (${milestone})\n\n` +
     `The ${milestone} closed-milestone decision sections were relocated verbatim to ` +
     `[archive/${milestone}/DECISIONS.md](archive/${milestone}/DECISIONS.md). Grep the ` +
-    `archive by decision ID; every anchor still resolves via \`/sig:index\`.\n`
+    `archive by decision ID; every anchor still resolves via \`/sig:docs-index\`.\n`
   );
 }
 

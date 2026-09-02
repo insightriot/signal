@@ -220,7 +220,7 @@ describe('the template', () => {
 
   it('leaves every section as a FILL IN stub rather than omitting it', () => {
     // An unanswered section must read as unanswered, not absent (B39), and
-    // /sig:sweep already reports unfilled [FILL IN] markers.
+    // /sig:docs-sweep already reports unfilled [FILL IN] markers.
     const t = renderEnvironmentTemplate();
     for (const heading of [
       'External services',

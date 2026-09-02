@@ -215,7 +215,7 @@ export const ROW_DISCHARGE = Object.freeze({
 });
 
 /**
- * The one un-evaluable reason `/sig:sweep` renders as silence rather than a
+ * The one un-evaluable reason `/sig:docs-sweep` renders as silence rather than a
  * finding. EXPORTED and compared by equality, never by prefix: a reworded string
  * would silently turn the sweep noisy on the 8 of 12 corpus projects that keep no
  * backlog, and nothing would fail. `REASON_GREENFIELD` in `sweep.js` solved the
@@ -223,7 +223,7 @@ export const ROW_DISCHARGE = Object.freeze({
  */
 export const REASON_NO_BACKLOG = 'no BACKLOG.md — this project keeps no queue here';
 
-/** The `/sig:sweep` check's three outcomes (NFR4). */
+/** The `/sig:docs-sweep` check's three outcomes (NFR4). */
 export const BACKLOG_DISCHARGE = Object.freeze({
   CLEAN: 'clean',
   STALE: 'stale',
@@ -262,7 +262,7 @@ const UNIT_ID_RE = /\bM\d+(?:\.\d+)?\.E\d+\b/;
 // Written first as `[…]*(?:\d+\.\s*)?[…]*`, two adjacent overlapping star-runs
 // backtrack quadratically on a non-matching heading: measured at REVIEW, a line
 // of 50,000 backticks took **3.9 seconds** inside `parseBacklogRows`, and
-// `/sig:sweep` runs this over every heading in the file. Real heading decoration
+// `/sig:docs-sweep` runs this over every heading in the file. Real heading decoration
 // is a handful of characters, so a bound costs nothing and removes the class.
 const LEADING_ID_RE =
   /^[\s`*_~✅▶⚠✂]{0,40}(?:\d+\.\s{0,4})?[\s`*_~]{0,10}((?:M\d+(?:\.\d+)?\.E\d+)|(?:B\d+))\b/;
@@ -296,7 +296,7 @@ function readRowDischarge(text) {
  * field names (`discharged` / `dischargedBy` / `dischargedAt`).
  *
  * ONE definition of "which heading is a row", shared by the writer below and by
- * the `/sig:sweep` check (AC S7.1). Three rules, each measured against the real
+ * the `/sig:docs-sweep` check (AC S7.1). Three rules, each measured against the real
  * file rather than assumed:
  *
  *   1. A heading whose next heading is DEEPER is a **container**, not a row.

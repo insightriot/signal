@@ -38,7 +38,7 @@ const isExternalTarget = (t) => SCHEME_OR_ANCHOR_RE.test(t);
 // that would double-count the roster / false-fail version-consistency; the rest
 // are vendored / generated / historical and out of the standing guard's scope.
 // `.migrate` joins `archive` for the same reason (B57): it holds the pre-reorg
-// snapshot /sig:migrate-memory takes before relocating anything, so its links
+// snapshot /sig:docs-migrate takes before relocating anything, so its links
 // point at pre-migration paths BY DESIGN. Walking it reports a frozen backup as
 // broken live docs — 11 of eval-project-A's 12 structural findings, 92% noise, which
 // is how a checker gets muted.
@@ -105,7 +105,7 @@ function stripCodeSpans(text) {
  * it, and its research/plan docs legitimately quote link syntax like `](path.md)`
  * that a standing HARD guard would false-fail. Sorted, deterministic.
  *
- * Scope is parameterized (M5.E6 FR1) so `/sig:sweep` can widen the walk to
+ * Scope is parameterized (M5.E6 FR1) so `/sig:docs-sweep` can widen the walk to
  * `.planning/` (still exempting `archive/` via `walkIgnore`) WITHOUT changing the
  * standing test-suite guard — every opt defaults to today's behavior.
  *
@@ -135,7 +135,7 @@ export function listDocFiles(baseDir = ROOT, opts = {}) {
  * (slug resolution is best-effort to avoid false HARD-fails). External /
  * scheme-prefixed targets are skipped.
  *
- * Scope + `stripCode` are parameterized (M5.E6 FR1/FR2): `/sig:sweep` passes a
+ * Scope + `stripCode` are parameterized (M5.E6 FR1/FR2): `/sig:docs-sweep` passes a
  * widened scope and `stripCode: true` so code-quoted `](path.md)` samples in
  * `.planning/` research/plan docs are not mis-flagged. Both default to today's
  * behavior, so the standing guard is unchanged.
@@ -415,7 +415,7 @@ const FILL_IN_NAME_EXCLUDE = /-RETROSPECTIVE\.md$|^MILESTONE-|-template\.md$/;
 
 /**
  * README.md + top-level <dir>/*.md (each dir non-recursively), minus templates /
- * retros / milestone docs. Scope is parameterized (M5.E6 FR1) so `/sig:sweep` can
+ * retros / milestone docs. Scope is parameterized (M5.E6 FR1) so `/sig:docs-sweep` can
  * widen it; both opts default to today's behavior.
  *
  * @param {string} baseDir

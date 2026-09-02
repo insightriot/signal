@@ -156,7 +156,7 @@ export function planArchiveMoves(closedUnitIds, planningRelFiles, opts = {}) {
   // `${unit}-${suffix}` string ever produces it.
   //
   // Measured on the real corpus before the fix, through `senseArchiveTree` (the
-  // path `/sig:migrate-memory` actually calls): `SLICE-SSO` resolved to 5 files
+  // path `/sig:docs-migrate` actually calls): `SLICE-SSO` resolved to 5 files
   // in BOTH `eval-project-A` and `eval-project-D` while this function planned 3 —
   // so an apply moved three files and left two, splitting the unit across
   // `.planning/` and `.planning/archive/`. That is the outcome

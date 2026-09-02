@@ -2,9 +2,9 @@
 // disk and in git.
 //
 // READ-ONLY, OFFLINE, DETERMINISTIC. Nothing here writes (NFR2 / D-M5E16-1):
-// `/sig:sweep` is detect-and-report, and FR4's "Signal runs it" was resolved in
+// `/sig:docs-sweep` is detect-and-report, and FR4's "Signal runs it" was resolved in
 // NFR2's favour — healing happens at the phase transition (FR5) and behind an
-// explicit `/sig:sweep --heal`, never as a side effect of looking.
+// explicit `/sig:docs-sweep --heal`, never as a side effect of looking.
 //
 // ── Why the harness exists before any check does ──────────────────────────────
 //
@@ -820,7 +820,7 @@ export const checkBodyOmitsCurrentEpic = defineCheck({
  * The category-2 bucket stays empty, and that emptiness is ASSERTED rather than
  * assumed (`tests/state-drift-harness.test.js`): after D-M5E16-1 resolved FR4
  * against NFR2, sweep never runs a heal itself, so the day a "Signal runs it"
- * check is registered without `/sig:sweep --heal` existing to run it, the suite
+ * check is registered without `/sig:docs-sweep --heal` existing to run it, the suite
  * fails instead of a user receiving a promise nothing keeps.
  */
 
