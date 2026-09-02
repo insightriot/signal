@@ -34,6 +34,7 @@ import {
 import {
   checkInternalLinks,
   checkFillInStubs,
+  checkOrphanDocs,
   checkRosterCounts,
   checkVersionConsistency,
 } from './doc-hygiene.js';
@@ -514,6 +515,10 @@ export async function runSweep(baseDir = process.cwd()) {
   // Portable checks — run in any repo.
   raw.push(...checkInternalLinks(baseDir, SWEEP_LINK_SCOPE));
   raw.push(...checkFillInStubs(baseDir, SWEEP_FILLIN_SCOPE));
+  // The INBOUND direction, paired with checkInternalLinks' outbound walk. Same
+  // widened scope, same stripCode posture — a doc reachable from nothing is the
+  // question the link check cannot answer.
+  raw.push(...checkOrphanDocs(baseDir, SWEEP_LINK_SCOPE));
   raw.push(...(await checkIndexFreshness(baseDir)));
   raw.push(...(await checkRetroIndexFreshness(baseDir)));
   raw.push(...(await checkStaleInbox(baseDir)));

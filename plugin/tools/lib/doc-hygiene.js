@@ -17,10 +17,13 @@ import { join, dirname, resolve, relative, sep } from 'node:path';
 
 import { roster, ROOT } from './roster.js';
 import { isStubRetro } from './retro-index.js';
+import { resolveInboxPath } from './inbox-path.js';
 
 // Inline `](target)` links only (reference-style / HTML links are out of scope,
 // matching the migrate dangling-gate).
 const INLINE_LINK_RE = /\]\(([^)]+)\)/g;
+/** A bare `path/to/doc.md` inside backticks — a reference nothing can verify. */
+const BARE_PATH_MENTION_RE = /`([A-Za-z0-9._/-]+\.md)`/g;
 
 // Per-file scan cap — mirrors migrate-memory.js's FILE_SCAN_CEILING so a
 // pathological huge file can never hang a check. Legit docs are a few KB.
@@ -548,3 +551,160 @@ function anchorResolves(absTarget, anchor) {
   // Also honor explicit `<a name>` / `id=` anchors so hand-authored targets pass.
   return text.includes(`name="${anchor}"`) || text.includes(`id="${anchor}"`);
 }
+
+/**
+ * Documents nothing links to.
+ *
+ * `checkInternalLinks` walks links OUTBOUND — does this target exist? This is the
+ * inbound direction: is anything pointing HERE? A document nothing references is
+ * either dead weight or a broken hand-off, and until now nothing said which.
+ *
+ * ADVISORY, and deliberately rung 2 of the ladder (`CLAUDE.md` > House rules).
+ * "Nothing links to this" is a strong hint and a weak proof: a corpus can
+ * legitimately hold a document reached by name, by convention, or by a person who
+ * simply knows it is there. Failing on that would be a check firing on correct
+ * behaviour, which is how checks get ignored.
+ *
+ * ENTRY POINTS ARE EXCLUDED BY NAME, NOT BY GUESS. A file a tool opens by name —
+ * `README.md`, `STATE.md`, an Epic's `-PLAN.md` — has no reason to be linked and is
+ * not an orphan. That list is the honest weak point of this check and is stated
+ * rather than hidden: widen it and the check goes quiet, narrow it and it cries wolf.
+ *
+ * ⚠ TRUNCATION IS REPORTED, NOT SWALLOWED (`B39`, `B15`'s precedent above). A file
+ * over the scan cap has its tail unread, so an inbound link living in that tail is
+ * invisible and its target would look orphaned. When any file is truncated this
+ * emits a `could-not-fully-check` finding, because a clean orphan list computed
+ * from a partial read is the exact shape of a false all-clear.
+ *
+ * @param {string} [baseDir=ROOT]
+ * @param {object} [opts] scope opts forwarded to listDocFiles, plus:
+ * @param {boolean} [opts.stripCode=false] strip fenced/inline code before scanning
+ * @param {string[]} [opts.entryPoints] basenames/relative paths never counted as orphans
+ * @returns {Array<{check: string, severity: string, file: string, message: string}>}
+ */
+export function checkOrphanDocs(baseDir = ROOT, opts = {}) {
+  const { stripCode = false, entryPoints = ORPHAN_ENTRY_POINTS } = opts;
+  const findings = [];
+  const files = listDocFiles(baseDir, opts);
+  if (files.length === 0) return findings;
+
+  const rels = files.map((f) => toPosix(relative(baseDir, f)));
+  const linked = new Set();
+  /** rel path -> count of bare `path/to/doc.md` mentions in backticks. */
+  const mentioned = new Map();
+  let truncated = 0;
+
+  for (const f of files) {
+    let text;
+    try {
+      text = readFileSync(f, 'utf-8');
+    } catch {
+      // Unreadable is a coverage gap, not an absence of links.
+      truncated++;
+      continue;
+    }
+    if (text.length > FILE_SCAN_CEILING) {
+      truncated++;
+      text = text.slice(0, FILE_SCAN_CEILING);
+    }
+    // Bare-path mentions live INSIDE backticks, and stripCode removes exactly
+    // those — so they are collected from the unstripped text, before the strip.
+    for (const m of text.matchAll(BARE_PATH_MENTION_RE)) {
+      const abs = toPosix(relative(baseDir, resolve(baseDir, toPosix(m[1]))));
+      mentioned.set(abs, (mentioned.get(abs) ?? 0) + 1);
+    }
+    if (stripCode) text = stripCodeSpans(text);
+    const fromDir = dirname(f);
+    for (const m of text.matchAll(INLINE_LINK_RE)) {
+      const raw = m[1].trim();
+      if (isExternalTarget(raw)) continue;
+      const [pathPart] = splitAnchor(raw.split(/\s+/)[0]);
+      if (!pathPart.endsWith('.md')) continue;
+      // Resolve relative to the LINKING file, which is what a markdown reader does.
+      linked.add(toPosix(relative(baseDir, resolve(fromDir, pathPart))));
+    }
+  }
+
+  // The capture inbox is an entry point, but its FILENAME varies by project (a v3
+  // repo and a legacy one disagree), so it is resolved rather than hardcoded — the
+  // same reason `docs-hygiene.test.js` asserts this module names neither spelling.
+  let inboxBase = null;
+  try {
+    inboxBase = resolveInboxPath(baseDir)?.split('/').pop() ?? null;
+  } catch {
+    inboxBase = null;
+  }
+  const isEntryPoint = (rel) => {
+    const base = rel.slice(rel.lastIndexOf('/') + 1);
+    if (inboxBase && base === inboxBase) return true;
+    return entryPoints.some((e) => e === rel || e === base || (e instanceof RegExp && e.test(base)));
+  };
+
+  for (const rel of rels) {
+    if (linked.has(rel) || isEntryPoint(rel)) continue;
+    const bare = mentioned.get(rel) ?? 0;
+    findings.push(
+      bare > 0
+        ? mkFinding(
+            'orphan-doc',
+            'soft',
+            rel,
+            `referenced ${bare} time(s) as a bare path in backticks and linked from nowhere — ` +
+              `nothing can verify those references, and they break silently when the file moves`,
+          )
+        : mkFinding(
+            'orphan-doc',
+            'soft',
+            rel,
+            'nothing links to or mentions this document — dead weight, or a broken hand-off',
+          ),
+    );
+  }
+
+  if (truncated > 0) {
+    findings.push(
+      mkFinding(
+        'orphan-doc',
+        'soft',
+        '(scope)',
+        `${truncated} file(s) were truncated or unreadable — inbound links in the unread tail are invisible, ` +
+          `so this orphan list is INCOMPLETE and a clean result here does not mean checked`,
+      ),
+    );
+  }
+  return findings;
+}
+
+/**
+ * Documents reached by name rather than by link. Not orphans.
+ *
+ * Regexes cover the per-unit artifact families a phase command opens by
+ * convention (`{Unit}-PLAN.md` and friends) — enumerating them would mean editing
+ * this list every Epic.
+ */
+export const ORPHAN_ENTRY_POINTS = Object.freeze([
+  'README.md',
+  'CLAUDE.md',
+  'AGENTS.md',
+  'CHANGELOG.md',
+  'SECURITY.md',
+  'CONTRIBUTING.md',
+  'LICENSE.md',
+  'STATE.md',
+  'STATE-HISTORY.md',
+  'PROFILE.md',
+  'PROJECT.md',
+  'CONTEXT.md',
+  'INDEX.md',
+  'BACKLOG.md',
+  'BUGS.md',
+  'DECISIONS.md',
+  'OPEN-QUESTIONS.md',
+  'RETROSPECTIVES.md',
+  'ADHERENCE-LOG.md',
+  'LANDSCAPE.md',
+  'ENVIRONMENT.md',
+  'REQUIREMENTS.md',
+  /-(PLAN|PROGRESS|VERIFICATION|VALIDATION|REVIEW|RESEARCH|REQUIREMENTS|RETROSPECTIVE|PROFILE)(-\d+)?\.md$/,
+  /^MILESTONE-.+\.md$/,
+]);
