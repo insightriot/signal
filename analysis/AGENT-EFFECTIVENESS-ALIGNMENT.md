@@ -12,7 +12,7 @@ Q3 2026. 18pp PDF, read in full (text extracted with `pymupdf`, not summarized s
 **Citation rule, inherited from M5.E7 (P2):** every claim about Signal below cites a path and line,
 or is labelled as judgment.
 
-**What this is not:** a roadmap. `analysis/SIGNAL-V2-ROADMAP.md` governs sequence. Nothing here
+**What this is not:** a roadmap. [`analysis/SIGNAL-V2-ROADMAP.md`](SIGNAL-V2-ROADMAP.md) governs sequence. Nothing here
 displaces M5.E8's position as unconditional-next; §6 records how the two Brett calls resolved.
 
 ---
@@ -59,7 +59,7 @@ types"*) than most teams will build: the template is a phase, and it has a gate.
 researcher** — *"existing patterns, reusable code, integration points."* That is REC 1.3 nearly
 verbatim. Output lands in `{phase}-RESEARCH.md`.
 
-`agents/executors/executor.md:17-21` declares its Inputs as **the PLAN task, `.planning/CONTEXT.md`,
+`agents/executors/executor.md:17-21` declares its Inputs as **the PLAN task, [`.planning/CONTEXT.md`](../.planning/CONTEXT.md),
 and `.planning/{phase}-VALIDATION.md`.** `{phase}-RESEARCH.md` is not among them, and nothing in
 `commands/execute.md:58-65`'s dispatch injects research findings into the task handoff.
 
@@ -140,7 +140,7 @@ roughly 5 → 17 across readiness scores of 2.5 → 4.5) and the tightest fit (*
 | **2.1** Make setup one command | Nothing. |
 | **2.2** Guarantee a fast, runnable test suite | Detects the runner. Never runs it. Never establishes it is green. **Flaky detection: nothing** — and the study is explicit that *"a flaky suite was worse than none, because the agent couldn't distinguish its errors from the environment's."* |
 | **2.3** Expose fast feedback loops beyond tests | Detects the lint / type / format config files. Never runs them. |
-| **2.4** Write agent-facing repo documentation | Nothing. Signal writes `.planning/*` **for itself**; it never authors or refreshes the project's own `CLAUDE.md` / `AGENTS.md`. The only repo-wide hit for `AGENTS.md` is `skills/build/context-engineering/SKILL.md:72`, listing it as an OpenAI Codex convention. The study calls this *"the cheapest environment-readiness investment we know of."* |
+| **2.4** Write agent-facing repo documentation | Nothing. Signal writes `.planning/*` **for itself**; it never authors or refreshes the project's own [`CLAUDE.md`](../CLAUDE.md) / `AGENTS.md`. The only repo-wide hit for `AGENTS.md` is `skills/build/context-engineering/SKILL.md:72`, listing it as an OpenAI Codex convention. The study calls this *"the cheapest environment-readiness investment we know of."* |
 | **2.5** Reduce hidden state and permissions friction | Nothing. |
 | **2.6** Keep the codebase legible | `skills/review/code-simplification` — per-change only, never repo-wide. |
 
@@ -169,7 +169,7 @@ thing. Tier therefore governs how much ceremony to apply, never whether the work
 any of it.
 
 **(d) Even the queued readiness scorecard misses this axis.**
-The `/sig:audit` spec (`.planning/ISSUES-INBOX.md` § *"`/sig:audit` — engineering-readiness audit"*,
+The `/sig:audit` spec ([`.planning/ISSUES-INBOX.md`](../.planning/ISSUES-INBOX.md) § *"`/sig:audit` — engineering-readiness audit"*,
 BACKLOG Sprint 5) scores six dimensions: modularity & boundary clarity · test coverage & test
 quality · documentation & explicitness · dependency health · tribal-knowledge risk · security-model
 explicitness. **Every one is a human-maintainability dimension. None is "can an agent set this up,

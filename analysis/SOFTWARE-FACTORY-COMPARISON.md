@@ -4,7 +4,7 @@
 
 > **Purpose.** Compare Signal's structure against a widely-shared "software factory" design (Pierson Marks, [@piersonmarks on X](https://x.com/piersonmarks/status/2075361336381555096), Jul 2026) and pin down exactly where the two align, where they diverge, and what building the missing pieces would take. Companion to `SIGNAL-INTEGRATION-RUNDOWN.md` (v2 vision) — this doc is a roadmap input, not a commitment. Written 2026-07-15.
 
-> **Source claims about Signal in this doc are grounded in a repo scan**, not memory: `commands/{add,discuss,init,plan,execute,verify,review,ship}.md`, `tools/lib/{add,drain,state}.js`, `.planning/{FUTURE-IDEAS,OPEN-QUESTIONS,BUGS,STATE}.md`, `hooks/hooks.json`, `README.md` § Privacy & telemetry, `agents/scanners/*.md`.
+> **Source claims about Signal in this doc are grounded in a repo scan**, not memory: `commands/{add,discuss,init,plan,execute,verify,review,ship}.md`, `tools/lib/{add,drain,state}.js`, `.planning/{FUTURE-IDEAS,OPEN-QUESTIONS,BUGS,STATE}.md`, `hooks/hooks.json`, [`README.md`](../README.md) § Privacy & telemetry, `agents/scanners/*.md`.
 
 ---
 

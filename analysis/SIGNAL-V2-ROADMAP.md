@@ -5,7 +5,7 @@
 **Produced by:** Milestone 5, Epic 7 (*the v2 direction audit*), 2026-07-25 → 2026-07-26.
 **Status:** proposed sequence, **ratified in part by Brett 2026-07-26** (see § Ratified / § Open).
 **Supersedes:** `SIGNAL-INTEGRATION-RUNDOWN-v2-SEED.md` §1 (in frame, not only in content) and the
-25 unchecked port checkboxes in `.planning/MILESTONE-5.md` § "Candidate v2 feature-port scope".
+25 unchecked port checkboxes in [`.planning/MILESTONE-5.md`](../.planning/MILESTONE-5.md) § "Candidate v2 feature-port scope".
 `SIGNAL-INTEGRATION-RUNDOWN.md` remains readable as the v1-era target vision; **where it and this
 document disagree, this one governs.**
 
@@ -13,9 +13,9 @@ document disagree, this one governs.**
 `## What to feed back into Signal` — **not the 16 that carry the heading**; 4 are `[FILL IN]` stubs
 and were **reported, not reconstructed**. **39 items, ~1,510 words.** Plus 40 catalogued bugs, 39
 inbox entries read at **8% of lines** under a stated cap, 38 tracked backlog subjects, and five live
-source-repo verifications dated 2026-07-25. Working files: `.planning/M5.E7-DEMAND-REGISTER.md`,
-`.planning/M5.E7-SUPPLY-*.md`, `.planning/M5.E7-COUNTERFACTUAL.md`,
-`.planning/M5.E7-DISPOSITIONS.md`.
+source-repo verifications dated 2026-07-25. Working files: [`.planning/M5.E7-DEMAND-REGISTER.md`](../.planning/M5.E7-DEMAND-REGISTER.md),
+`.planning/M5.E7-SUPPLY-*.md`, [`.planning/M5.E7-COUNTERFACTUAL.md`](../.planning/M5.E7-COUNTERFACTUAL.md),
+[`.planning/M5.E7-DISPOSITIONS.md`](../.planning/M5.E7-DISPOSITIONS.md).
 
 **Citation rule (P2):** every factual claim below cites a path or an ID, or is labelled
 `(recollection — no artifact)`.
@@ -33,7 +33,7 @@ Six things that were logged separately turn out to be one thing:
 | **No test anywhere asserts that a prompt instruction was obeyed.** All 1,623 tests exercise `tools/` — files and code. | verified by grep, `M5.E7-COUNTERFACTUAL.md` §3.2 |
 | Run-to-run variance on a **byte-identical** prompt corpus: **workflow adherence 7 of 12**, output tokens **21,872 → 155,682 (7.12×)** | `ce-retune` A/A noise floor, `M5.E7-SUPPLY-COMPOUND-NEW.md` §2.1 |
 | **False-greens are the largest demand cluster** — 9 retro items, plus 5 `BUGS.md` rows | `M5.E7-DEMAND-REGISTER.md` § cluster B |
-| **`B39`**: an enforcement mechanism ratified 2026-07-04 was **never implemented**, and nobody noticed for three weeks | `.planning/BUGS.md` B39 |
+| **`B39`**: an enforcement mechanism ratified 2026-07-04 was **never implemented**, and nobody noticed for three weeks | [`.planning/BUGS.md`](../.planning/BUGS.md) B39 |
 | Load-bearing external claims decayed unnoticed — one **4.5×-wrong** figure reached a *locked decision* | correction **C6**, `M5.E7-CORRECTIONS.md` |
 | This audit's own register **miscounted itself twice**; the disposition table twice more | `M5.E7-DEMAND-REGISTER.md` §4, `M5.E7-DISPOSITIONS.md` §6 |
 
@@ -159,14 +159,14 @@ settle it.
 - **Dispatch guidance + worktree isolation.** Demand cluster **F**, rank 1: four retro items across
   M5.E1/E4/E5/E6, **0 hits across all four ledgers**, and a **live incident during this Epic** (two
   agents silently absorbed a sibling's file via `git commit --amend` on a shared worktree; recovery
-  needed a `git reset` — `.planning/M5.E7-PROGRESS.md`). *Slice:* the executor rule
+  needed a `git reset` — [`.planning/M5.E7-PROGRESS.md`](../.planning/M5.E7-PROGRESS.md)). *Slice:* the executor rule
   (`git add <path> && git commit`, never `--amend`) plus `isolation: "worktree"` per concurrent
   agent. *Done-when:* a stranger reads `commands/execute.md` and can tell whether two given tasks
   are safe to dispatch simultaneously.
 - **SHIP-time ledger reconcile.** *Slice:* one hygiene test asserting `BUGS.md` carries no
   `confirmed` bug whose fix already shipped. *Done-when:* it runs in `npm test` and fails on a
   planted violation. **Evidence is four instances found during this Epic alone** — `BACKLOG.md`'s
-  four unmarked closures, `CLAUDE.md`'s stale `B27`/`B28`, `ISSUES-INBOX.md`'s pre-rename header,
+  four unmarked closures, [`CLAUDE.md`](../CLAUDE.md)'s stale `B27`/`B28`, `ISSUES-INBOX.md`'s pre-rename header,
   and this audit's own miscounts.
 - **The bug pile.** **Nine open bugs have no home on any plan** — `B32`–`B36` `needs-triage`,
   `B37`–`B40` `confirmed`; verified 2026-07-26 that **no bug-squash sprint exists in `BACKLOG.md`**.
@@ -258,7 +258,7 @@ built the thing, over a corpus they wrote. Three reasons were offered so they co
 measurement layer that does not exist yet — **this defers them, it does not dismiss them**, and if
 M5.E8 shows Signal's prompts fire reliably, several become `build`s on evidence. **Checkable, and
 checked:** harder TDD, the 2-Action Rule, and the five-round breaker each carry a literal
-*"Trigger: M5.E8 lands"* in `.planning/BACKLOG.md` § Sprint 7 / § Parked.
+*"Trigger: M5.E8 lands"* in [`.planning/BACKLOG.md`](../.planning/BACKLOG.md) § Sprint 7 / § Parked.
 
 **(a) answers a charge that was not made.** It said the largest cut group is the one the reframe's
 own thesis most wanted to keep. True of the *going-in* thesis (the memory loop), and real evidence
@@ -276,7 +276,7 @@ ports still never happen. If that occurs, the reframe was decorative.** ⚠ **A 
 here is enforced by nothing** — the exact failure D-M5E7-8(b) exists to close, and it cannot ride a
 trigger because *"the ports still never happen"* is a **null result, and no trigger fires on
 nothing.** It therefore needs a **date**, not a condition, and it has one: landed in
-`.planning/BACKLOG.md` under M5.E9 as a dated re-evaluation.
+[`.planning/BACKLOG.md`](../.planning/BACKLOG.md) under M5.E9 as a dated re-evaluation.
 
 **6.2 — The audit's method had a blind spot it did not discover on its own.** The counterfactual
 asked about shipped bugs and Epic duration and **never asked about building the wrong thing in the
@@ -351,5 +351,5 @@ surface — 49 of 54 gstack skills unopened, superpowers read at depth-1, **noth
 ## Last Updated
 
 2026-07-26 — written at M5.E7 S4.t9. Next: S4.t11 lands every `build` above into
-`.planning/BACKLOG.md` with its trigger and first slice, so this document is enforced by something
+[`.planning/BACKLOG.md`](../.planning/BACKLOG.md) with its trigger and first slice, so this document is enforced by something
 rather than read by nobody.

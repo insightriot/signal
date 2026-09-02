@@ -1,7 +1,7 @@
 # Loop Engineering in Signal — Findings & Recommended Build Path
 
 **Date:** 2026-08-03
-**Status:** Analysis. Feeds a future Epic (not yet scheduled; captured in `.planning/ISSUES-INBOX.md`).
+**Status:** Analysis. Feeds a future Epic (not yet scheduled; captured in [`.planning/ISSUES-INBOX.md`](../.planning/ISSUES-INBOX.md)).
 **Companion (2026-09-01):** this document covers **attention** — how often a human must be present.
 The **goal** half — what the loop works on, and how it knows the run is done — is
 [`LOOP-GOAL-DIRECTION.md`](LOOP-GOAL-DIRECTION.md), which designs what §3.4's parts list and §5.5's
@@ -25,13 +25,13 @@ Signal's rigor is built around a human making decisions at every phase: answer c
 2. **Async exception handler** during the run (a queue, not an interrupt).
 3. **Batch auditor** after the run (review the decision log + **diff** + retro in one sitting — the diff, meaning the code, not a diffstat; see FM-3).
 
-**And one role that is not a position but a floor** *(added 2026-08-08)*: the human keeps reading the code of shipped work at every attention level, because that is what keeps the system diagnosable when something eventually goes wrong that neither the human nor the agent can explain. This is the sixth row of §5.2's conversion table and the only row that does not convert. Attention is relocated by this design; **comprehension is not relocatable**, and the counter-evidence for what happens when it is treated as if it were is in `analysis/AUTONOMY-COUNTERWEIGHT.md` §1.
+**And one role that is not a position but a floor** *(added 2026-08-08)*: the human keeps reading the code of shipped work at every attention level, because that is what keeps the system diagnosable when something eventually goes wrong that neither the human nor the agent can explain. This is the sixth row of §5.2's conversion table and the only row that does not convert. Attention is relocated by this design; **comprehension is not relocatable**, and the counter-evidence for what happens when it is treated as if it were is in [`analysis/AUTONOMY-COUNTERWEIGHT.md`](AUTONOMY-COUNTERWEIGHT.md) §1.
 
 One gate stays hard under the current delivery contract: **PR merge**. Because `marketplace.json` uses the relative `.` source, users track `main` — merging *is* shipping (`D-M5E17-4`). An unattended loop that merges its own PRs is unattended deployment to real users. The loop terminates at PR-open and keeps working; the human merges on their own schedule.
 
 What makes this a confident yes rather than a hopeful one: **most of Signal's human gating is ceremony that exists only in prose, and an autonomy switch already exists in the schema.** The machinery is roughly 70% built. What's missing is one conceptual unbundling (attention ≠ rigor), one queue (async decisions), one driver (the loop itself), and — for cross-Epic parallelism — one real state redesign.
 
-The framing is also on-brand: `/sig:calibrate` right-sizes **rigor** per project; loop engineering is the same move applied to **attention**. Signal vs. noise, applied to interrupts. No repo in the analyzed landscape (`analysis/REPO-ANALYSIS.md`) has this either — it would be a second unique contribution alongside calibration.
+The framing is also on-brand: `/sig:calibrate` right-sizes **rigor** per project; loop engineering is the same move applied to **attention**. Signal vs. noise, applied to interrupts. No repo in the analyzed landscape ([`analysis/REPO-ANALYSIS.md`](REPO-ANALYSIS.md)) has this either — it would be a second unique contribution alongside calibration.
 
 ---
 
@@ -152,7 +152,7 @@ attention: attended | checkpointed | unattended
 
 ### 5.2 Move 2 — convert each gate by what the human is actually doing there
 
-The ~48 touchpoints sort into six roles. Five convert. **One does not** — and the sixth row was added after the fact (2026-08-08, see `analysis/AUTONOMY-COUNTERWEIGHT.md` §4.1); its absence from the original five is the defect that analysis found in this document.
+The ~48 touchpoints sort into six roles. Five convert. **One does not** — and the sixth row was added after the fact (2026-08-08, see [`analysis/AUTONOMY-COUNTERWEIGHT.md`](AUTONOMY-COUNTERWEIGHT.md) §4.1); its absence from the original five is the defect that analysis found in this document.
 
 | The human is… | Examples | Conversion |
 |---|---|---|
@@ -227,7 +227,7 @@ Promotion criterion: N consecutive Epics whose batch audits surfaced no decision
 
 ### 6.2 Failure modes and countermeasures
 
-**FM-1 — The claim-integrity problem is the central risk.** Every major recent catch in this project came from a human reading documents against each other: `B59` (the Epic that ran DISCUSS at the wrong tier), REVIEW check (c) reporting "clean" on a project it could not see, eval-project-C's five false coverage claims (`analysis/CLAIM-INTEGRITY-ANALYSIS.md`). In attended mode the human catches these incidentally; unattended, a false PASS compounds silently downstream. Countermeasures — all of which Signal has already invented and this work makes load-bearing:
+**FM-1 — The claim-integrity problem is the central risk.** Every major recent catch in this project came from a human reading documents against each other: `B59` (the Epic that ran DISCUSS at the wrong tier), REVIEW check (c) reporting "clean" on a project it could not see, eval-project-C's five false coverage claims ([`analysis/CLAIM-INTEGRITY-ANALYSIS.md`](CLAIM-INTEGRITY-ANALYSIS.md)). In attended mode the human catches these incidentally; unattended, a false PASS compounds silently downstream. Countermeasures — all of which Signal has already invented and this work makes load-bearing:
 - Claims **derived, checked, or labeled unverified — never asserted** (the existing doctrine, now enforced at gates).
 - Every gate report distinguishes **checked-and-clean** from **could-not-check**, and could-not-check **halts** (M5.E16's sweep protocol, generalized).
 - **Adversarial verification at gates:** verifier agents prompted with fresh context to *refute* the phase's claims, not confirm them. Signal's verifier/checker agents exist; the change is the adversarial stance.
@@ -237,7 +237,7 @@ Promotion criterion: N consecutive Epics whose batch audits surfaced no decision
 
 **FM-3 — The human bottleneck just moves.** 86 interrupts becoming one batch review is only a win if the batch is auditable in minutes: the decision queue with recommendations and provisional markers, the retro, **the diff** (not a diffstat — see the correction below), and a one-screen "what was auto-decided and why" summary. If the loop produces five Epics overnight and the audit takes five hours, autonomy delivered nothing.
 
-> **Correction, 2026-08-08.** This paragraph originally listed *"a diffstat"* while §2 listed *"the decision log + **diff** + retro"* — the same document asking for the code in one place and a line-count summary of it in the other, with the weaker version sitting in the section that defines the success criteria. That is the `M5.E17` defect class (instructions contradicting instructions) inside a document about running with less supervision, and it is the disagreement that would have decided the floor: **a diffstat cannot maintain a mental model.** Both now read *diff*. The originating comparison is `analysis/AUTONOMY-COUNTERWEIGHT.md` §4.1.
+> **Correction, 2026-08-08.** This paragraph originally listed *"a diffstat"* while §2 listed *"the decision log + **diff** + retro"* — the same document asking for the code in one place and a line-count summary of it in the other, with the weaker version sitting in the section that defines the success criteria. That is the `M5.E17` defect class (instructions contradicting instructions) inside a document about running with less supervision, and it is the disagreement that would have decided the floor: **a diffstat cannot maintain a mental model.** Both now read *diff*. The originating comparison is [`analysis/AUTONOMY-COUNTERWEIGHT.md`](AUTONOMY-COUNTERWEIGHT.md) §4.1.
 
 **The success metric is not touchpoints removed, and it is not total attention minimized.** *(Revised 2026-08-08.)* It is:
 
@@ -246,7 +246,7 @@ Promotion criterion: N consecutive Epics whose batch audits surfaced no decision
 - **Defects caught late** (batch audit or post-merge) vs. caught by gates — unchanged, and now the check on whether the split above is real rather than declared.
 - **Comprehension probe:** can the operator describe what a changed module does without asking the agent? A cheap, subjective, and *directional* signal — the one thing a lights-off factory loses first and notices last.
 
-**Why the revision.** The original read *"minutes-of-attention per shipped Epic"*, minimized — a target that scores its best result on the exact behaviour that produced the July-2025 incident in `analysis/AUTONOMY-COUNTERWEIGHT.md` §1: a team that stopped reading code, kept reviewing plans and tickets, and lost the ability to diagnose its own system. Attention is not a cost to minimize; **it is a cost to relocate**, and one of its destinations is after the work, not before it.
+**Why the revision.** The original read *"minutes-of-attention per shipped Epic"*, minimized — a target that scores its best result on the exact behaviour that produced the July-2025 incident in [`analysis/AUTONOMY-COUNTERWEIGHT.md`](AUTONOMY-COUNTERWEIGHT.md) §1: a team that stopped reading code, kept reviewing plans and tickets, and lost the ability to diagnose its own system. Attention is not a cost to minimize; **it is a cost to relocate**, and one of its destinations is after the work, not before it.
 
 **FM-4 — A wrong auto-decision compounds.** A bad provisional DISCUSS decision poisons PLAN and EXECUTE downstream. Countermeasure: the reversibility-weighted auto-adopt rule (5.2) — only cheaply-reversible decisions are ever taken without a human; and provisional decisions are first-class artifacts the audit walks, newest-first, before anything merges.
 
@@ -305,4 +305,4 @@ Sized in Signal's own units. Each phase is shippable alone and valuable alone.
 
 ---
 
-*Companion docs: `analysis/CLAIM-INTEGRITY-ANALYSIS.md` (the defect class FM-1 rests on), `analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md` (environment-readiness axis this would extend), `references/profile-schema.md` + `references/tier-definitions.md` (the machinery Move 1 modifies).*
+*Companion docs: [`analysis/CLAIM-INTEGRITY-ANALYSIS.md`](CLAIM-INTEGRITY-ANALYSIS.md) (the defect class FM-1 rests on), [`analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md`](AGENT-EFFECTIVENESS-ALIGNMENT.md) (environment-readiness axis this would extend), `references/profile-schema.md` + `references/tier-definitions.md` (the machinery Move 1 modifies).*

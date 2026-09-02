@@ -4,8 +4,8 @@
 NOT satisfied — see § The count, run.** Four instances filed in one day, three of them found by a
 user rather than by Signal. The class is old; naming it is new.
 
-Related: `.planning/BUGS.md` (`B87`–`B90`), `analysis/CLAIM-INTEGRITY-ANALYSIS.md` (the sibling
-class), `analysis/LOOP-ENGINEERING-ANALYSIS.md` (the attention axis this bears on).
+Related: [`.planning/BUGS.md`](../.planning/BUGS.md) (`B87`–`B90`), [`analysis/CLAIM-INTEGRITY-ANALYSIS.md`](CLAIM-INTEGRITY-ANALYSIS.md) (the sibling
+class), [`analysis/LOOP-ENGINEERING-ANALYSIS.md`](LOOP-ENGINEERING-ANALYSIS.md) (the attention axis this bears on).
 
 ---
 

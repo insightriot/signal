@@ -9,8 +9,8 @@ model, and is **deliberately closed to plugins**. What is left for Signal is rea
 than `large`, and it is a different shape than the row describes.
 
 This is the third time in five weeks that a scoping pass against the platform has returned *"the
-thing you were going to build is not yours to build"* — see `analysis/PHASE-C-BUILD-VS-ADOPT.md`
-(2026-08-21) and `analysis/CROSS-MODEL-REVIEW-SCOPE.md`. That pattern is itself a finding and is
+thing you were going to build is not yours to build"* — see [`analysis/PHASE-C-BUILD-VS-ADOPT.md`](PHASE-C-BUILD-VS-ADOPT.md)
+(2026-08-21) and [`analysis/CROSS-MODEL-REVIEW-SCOPE.md`](CROSS-MODEL-REVIEW-SCOPE.md). That pattern is itself a finding and is
 recorded at the end.
 
 ---
@@ -52,12 +52,12 @@ Six modes exist: `default` (alias `manual`), `acceptEdits`, `plan`, `auto`, `byp
 **The load-bearing sentence, quoted in full, because it settles the whole row:**
 
 > Permission rules are enforced by Claude Code, **not by the model**. Instructions in your prompt or
-> `CLAUDE.md` shape what Claude tries to do, but **they don't change what Claude Code allows**.
+> [`CLAUDE.md`](../CLAUDE.md) shape what Claude tries to do, but **they don't change what Claude Code allows**.
 
 This repository already knows what that means. `B75` shipped **open** four days ago for the identical
 reason: a dial that is documented end to end and enforced nowhere is not a control. Anything Signal
 writes about permission in a command file, a skill, or `PROFILE.md` is **prose**, and
-`analysis/PHASE-C-BUILD-VS-ADOPT.md` measured the prompt layer at **77.6% unmeasurable**. A Signal
+[`analysis/PHASE-C-BUILD-VS-ADOPT.md`](PHASE-C-BUILD-VS-ADOPT.md) measured the prompt layer at **77.6% unmeasurable**. A Signal
 "permission model" expressed in `.planning/` would be exactly the artifact this project is named
 after: a rule with nothing that fails when it is broken.
 

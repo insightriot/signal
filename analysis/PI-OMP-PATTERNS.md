@@ -12,8 +12,8 @@
 > mechanism is still to be workshopped. **The `block` half of the TTSR proposal therefore has no
 > upstream target to map onto.** If the rulebook idea is pursued, the blocking semantics have to be
 > built — or borrowed from `subagent-driven-development`'s five-round breaker with `BLOCKED`
-> propagation, which is the real machinery. Evidence: `.planning/M5.E7-RESEARCH.md` §0,
-> `.planning/M5.E7-SUPPLY-SUPERPOWERS.md`. Task record: `.planning/M5.E7-CORRECTIONS.md`.
+> propagation, which is the real machinery. Evidence: [`.planning/M5.E7-RESEARCH.md`](../.planning/M5.E7-RESEARCH.md) §0,
+> [`.planning/M5.E7-SUPPLY-SUPERPOWERS.md`](../.planning/M5.E7-SUPPLY-SUPERPOWERS.md). Task record: [`.planning/M5.E7-CORRECTIONS.md`](../.planning/M5.E7-CORRECTIONS.md).
 
 ---
 

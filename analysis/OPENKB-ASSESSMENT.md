@@ -3,7 +3,7 @@
 **Date:** 2026-09-01
 **Source:** [`VectifyAI/OpenKB`](https://github.com/VectifyAI/OpenKB) (Apache-2.0, Python, 4,372 stars,
 created 2026-04-04, last pushed 2026-07-22).
-**Method:** Primary source via the GitHub API — repo metadata, tree, `README.md`,
+**Method:** Primary source via the GitHub API — repo metadata, tree, [`README.md`](../README.md),
 `docs/golden-principles.md`, `openkb/lint.py` (function inventory). Not read from a summarising
 model's description of the page (`v0.1.25`).
 **Scope:** Brett's ask — memory / docs management only. Not the LLM plumbing, not the web UI.
@@ -49,7 +49,7 @@ And the file-size rule itself:
 
 **Two mechanisms, and the second is why the first is usable.**
 
-`analysis/UNREACHED-MECHANISM-ANALYSIS.md` named Signal's habit: when a rule is not followed, Signal
+[`analysis/UNREACHED-MECHANISM-ANALYSIS.md`](UNREACHED-MECHANISM-ANALYSIS.md) named Signal's habit: when a rule is not followed, Signal
 writes the rule more carefully. `B75` measured the ceiling on that — `light` and `strict` differ by
 one boolean in code and the rest is prose. Signal's answer has been to build a check per defect.
 **What Signal has never written down is the ladder itself**: a rule starts as convention, and there
@@ -103,7 +103,7 @@ required.* That matters because a vector DB inside a Claude Code plugin would be
 > take effect immediately.**"*
 
 Signal's equivalent rules — what `.planning/` contains, what each file is for, growth policy — live
-scattered across 22 command files, `references/`, and `CLAUDE.md`, and changing a convention means
+scattered across 22 command files, `references/`, and [`CLAUDE.md`](../CLAUDE.md), and changing a convention means
 editing prose in several shipped files. One runtime-read schema document per project is a genuinely
 different shape, and it is the shape a per-project convention *should* have: `.planning/` layout is a
 property of the project, not of the plugin.
@@ -129,7 +129,7 @@ the thing they chose not to publish.
 
 Their rule, verbatim: keep the top-level agent file short; deep docs live under `docs/`.
 
-Signal's `CLAUDE.md` is a manual. Its current-state section alone runs many screens of release
+Signal's [`CLAUDE.md`](../CLAUDE.md) is a manual. Its current-state section alone runs many screens of release
 narrative. This is the same finding as the DeepSeek doc-budget item arriving from a second unrelated
 project, which is worth weighting accordingly.
 

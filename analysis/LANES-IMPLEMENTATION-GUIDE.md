@@ -94,7 +94,7 @@ A **lane** is *not* a new phase and *not* a fork of the workflow. It is a contai
 | `.planning/lanes/<ID>/BRIEF.md` | hub, at dispatch, never after | main (branch inherits it) | The contract (§6). YAML frontmatter: `slice`, `branch`, `tier`, `manifest:` (globs), `phase` pointer, `dispatched_at` |
 | `.planning/lanes/<ID>/PROGRESS.md` | that lane only | lane branch → arrives on main at land | Lane-scoped equivalent of today's slice progress file |
 | `.planning/lanes/<ID>/NOTES.md` | that lane only | lane branch → drained at land | Lane-local capture inbox — ideas/bugs found mid-lane. **Lanes never write the shared `ISSUES-INBOX.md`** |
-| `.planning/SERIALIZED.md` | hub / human | main | Project-specific deny-list with reasons (for eval-project-A: `supabase/migrations/**`, `package.json`, `proxy.ts`, `vercel.json`, `app/(authed)/layout.tsx`, `CLAUDE.md`, …) |
+| `.planning/SERIALIZED.md` | hub / human | main | Project-specific deny-list with reasons (for eval-project-A: `supabase/migrations/**`, `package.json`, `proxy.ts`, `vercel.json`, `app/(authed)/layout.tsx`, [`CLAUDE.md`](../CLAUDE.md), …) |
 | `.planning/GUARDED-SURFACES.md` | hub / human | main | Paths whose presence in a manifest auto-escalates tier (webhook receiver, state machine, provisioning scripts, spend-adjacent code) |
 | `STATE.md` | hub only (unchanged) | main | **Additive, minimal:** one new frontmatter key `lanes_active: [ids]` — a pointer, not a payload. Lane detail stays in LANES.md to keep STATE.md lean and lock contention unchanged |
 
