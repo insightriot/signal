@@ -30,9 +30,9 @@
   "orientation": {
     "CLAUDE.md": {
       "target": 40960,
-      "ceiling": 51397,
-      "grandfathered": true,
-      "reason": "Its current-state section carries per-release narrative that belongs in CHANGELOG.md and the retros. Over the 40 KB advisory nudge, which fired for weeks and was ignored \u2014 the evidence that promoted this rule. CEILING RAISED ONCE, 2026-09-02, by the size of the House-rules section that documents this very mechanism: new load-bearing content, recorded rather than waived. Raising a ceiling is the move that turns it back into a decoration, so the de-bloat is filed as a backlog row rather than left as an intention."
+      "ceiling": 40960,
+      "grandfathered": false,
+      "reason": "De-bloated 2026-09-02: 51.4 KB -> 25.2 KB by removing per-release narrative duplicated from CHANGELOG.md and the retros. Now under target, so the grandfather flag is dropped and the ceiling is the target. The ratchet did its job \u2014 it failed the suite the moment the file shrank, which is how the improvement gets locked in rather than quietly re-spent."
     },
     ".planning/CONTEXT.md": {
       "target": 40960,
