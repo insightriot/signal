@@ -148,6 +148,26 @@ closing wired into the phase gates) are Epic-shaped and its trigger is unmet.
 
 ## Filed since that agreement — **not yet sequenced**
 
+### De-bloat `CLAUDE.md` — it is 51 KB against a 40 KB target · **hygiene** · small · **filed 2026-09-02**
+
+*Plain: the file every session reads first is a quarter bigger than it should be.*
+
+`CLAUDE.md` is **51 KB against a 40 KB target** and is now grandfathered in
+[`../tools/doc-budgets.json`](../tools/doc-budgets.json) — it may shrink, and may not grow.
+
+**Its bulk is per-release narrative** — the current-state section carries paragraph-length summaries
+of `v0.1.16` … `v0.1.33`, which is content [`../CHANGELOG.md`](../CHANGELOG.md) and the per-Epic retros
+already own. That is a **single-home violation**, not just length.
+
+⚠ **The ceiling was raised once on the day the rule shipped**, by the size of the House-rules section
+documenting the rule itself. Legitimate — new load-bearing content — and recorded at the manifest entry
+rather than waived. But **raising a ceiling is exactly the move that turns it back into a decoration**,
+which is why this row exists instead of an intention to tidy up later.
+
+*Done-when:* `CLAUDE.md` is at or under 40 KB and the `grandfathered` flag is dropped, with the release
+narrative reachable from `CHANGELOG.md` rather than duplicated.
+
+
 ### A stated ladder: convention → lint, with a grandfather list · **roadmap** · medium · **filed 2026-09-01**
 
 *Plain: write down when a house rule becomes a test — and let existing violations be listed instead of blocking the rule.*
