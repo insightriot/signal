@@ -1,6 +1,6 @@
 // tests/doc-hygiene-scope.test.js — M5.E6.T1 (FR1/FR2).
 //
-// The additive-parameterization surface of doc-hygiene.js that `/sig:sweep`
+// The additive-parameterization surface of doc-hygiene.js that `/sig:docs-sweep`
 // consumes: scan-scope opts on listDocFiles/checkInternalLinks/checkFillInStubs
 // plus a `stripCode` opt that removes code spans/fences before dead-link
 // scanning. New file — the standing guard's own suite (docs-hygiene.test.js)
@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os';
 import { checkInternalLinks, checkFillInStubs } from '../plugin/tools/lib/doc-hygiene.js';
 
 // WALK_IGNORE with `.planning` removed but `archive` retained — the exact set
-// `/sig:sweep` passes so its scan includes `.planning/` yet still exempts
+// `/sig:docs-sweep` passes so its scan includes `.planning/` yet still exempts
 // `.planning/archive/**` (mirrors migrate's R7 historical exemption).
 const SWEEP_WALK_IGNORE = new Set(['.claude', 'node_modules', 'examples', 'archive', '.git']);
 

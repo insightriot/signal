@@ -1,12 +1,12 @@
 ---
-name: sig:index
+name: sig:docs-index
 description: "Regenerate .planning/INDEX.md — the auto-generated documentation map. Walks the corpus, renders mechanical rows (path · growth-policy), re-attaches curated notes by key, and writes only when the content changed. Idempotent; not phase-gated."
 args: ""
 ---
 
-# `/sig:index` — Regenerate the Documentation Map
+# `/sig:docs-index` — Regenerate the Documentation Map
 
-You are running `/sig:index`, a not-phase-gated meta command. Same class as `/sig:status`, `/sig:checkpoint`, `/sig:add` — no tier-gating preamble, no skill loading, no agent spawning. Its one job: regenerate `.planning/INDEX.md` from disk so the documentation map never drifts from the corpus it indexes.
+You are running `/sig:docs-index`, a not-phase-gated meta command. Same class as `/sig:status`, `/sig:checkpoint`, `/sig:add` — no tier-gating preamble, no skill loading, no agent spawning. Its one job: regenerate `.planning/INDEX.md` from disk so the documentation map never drifts from the corpus it indexes.
 
 **You rarely need to run this by hand.** Since M5.E16 (FR5) the index regenerates on **every phase transition** — `transitionPhase` calls the regenerator, so any `/sig:` phase command refreshes the map as a side effect. Before that it ran only at `/sig:ship` and here, which meant the docs map was accurate at the moment an Epic *finished* and drifted through the whole span of work — the span when someone is actually re-orienting from it. All four projects surveyed on 2026-08-01 had a stale, missing or foreign `INDEX.md`. This command stays for the cases the transition does not cover: a dormant project you have returned to, or a corpus you edited without running a phase command.
 
@@ -56,9 +56,9 @@ If any doc now shows a `_(note pending)_` placeholder that deserves a one-line g
 
 | Temptation | Check |
 |---|---|
-| "Hand-edit the mechanical rows to fix a path or tier." | Don't. The rows regenerate from disk on the next `/sig:index` — a hand edit is overwritten. Fix the underlying file (move it, rename it); edit only the curated note after the ` — `. |
-| "Rewrite a curated gotcha to sound better while I'm here." | Out of scope. `/sig:index` preserves notes verbatim by key; it doesn't author them. Improving a note is a separate, deliberate edit. |
-| "Skip the render-then-compare and just always write." | No. The no-op path (`{written:false}`) is what keeps `/sig:index` safe to run on every SHIP and keeps git history clean — a churny always-write index is noise. |
+| "Hand-edit the mechanical rows to fix a path or tier." | Don't. The rows regenerate from disk on the next `/sig:docs-index` — a hand edit is overwritten. Fix the underlying file (move it, rename it); edit only the curated note after the ` — `. |
+| "Rewrite a curated gotcha to sound better while I'm here." | Out of scope. `/sig:docs-index` preserves notes verbatim by key; it doesn't author them. Improving a note is a separate, deliberate edit. |
+| "Skip the render-then-compare and just always write." | No. The no-op path (`{written:false}`) is what keeps `/sig:docs-index` safe to run on every SHIP and keeps git history clean — a churny always-write index is noise. |
 | "Regenerate even though `.planning/` is gitignored — it's just a local file." | No. A gitignored `.planning/` means the map isn't versioned or synced; halt and surface it (same rule as every `.planning/`-writing command). |
 
 ## Gate: Index Complete

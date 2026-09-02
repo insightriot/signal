@@ -5,7 +5,7 @@ description: "Report the installed Signal version against what's available, show
 
 # `/sig:update` — What would I be getting?
 
-You are running `/sig:update`, a not-phase-gated meta command. Same class as `/sig:status`, `/sig:index`, `/sig:doctor` — no tier-gating preamble, no skill loading, no agent spawning, no `.planning/` writes.
+You are running `/sig:update`, a not-phase-gated meta command. Same class as `/sig:status`, `/sig:docs-index`, `/sig:doctor` — no tier-gating preamble, no skill loading, no agent spawning, no `.planning/` writes.
 
 **Why this exists.** `/plugin` tells you a *number* changed. It cannot tell you **what you would be getting**, so deciding whether to update means leaving the tool and reading a changelog — and menu-diving for something that should be one command.
 

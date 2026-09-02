@@ -14,9 +14,9 @@ import { join } from 'node:path';
 import { listCommands, listAgents, listSkills, roster, ROOT } from '../plugin/tools/lib/roster.js';
 
 describe('roster — canonical filesystem-glob counts (Signal repo)', () => {
-  // 20 commands as of M5.E19 (`/sig:archive` landed — was 19 at M5.E16.S6 when
+  // 20 commands as of M5.E19 (`/sig:docs-archive` landed — was 19 at M5.E16.S6 when
   // `/sig:update` landed, 18 at M5.E6.T8,
-  // since M5.E3.S2.t6, when `/sig:index` landed). The count tracks disk: because
+  // since M5.E3.S2.t6, when `/sig:docs-index` landed). The count tracks disk: because
   // validate-plugin sources its command list from this same glob, a new command
   // needs no validator edit; only this assertion follows the roster up.
   it('returns 21 commands from commands/*.md', () => {
@@ -42,7 +42,7 @@ describe('roster — canonical filesystem-glob counts (Signal repo)', () => {
   it('lists are sorted, POSIX-relative, and shaped as expected', () => {
     const cmds = listCommands(ROOT);
     expect(cmds).toContain('commands/calibrate.md');
-    expect(cmds).toContain('commands/index.md'); // the new /sig:index command
+    expect(cmds).toContain('commands/docs-index.md'); // the new /sig:docs-index command
     expect(cmds).toContain('commands/permissions.md'); // M6.E5
     expect([...cmds].sort()).toEqual(cmds); // already sorted
     expect(listAgents(ROOT)).toContain('agents/scanners/stack-scanner.md');
@@ -54,7 +54,7 @@ describe('roster — relative baseDir (B18: path-relativize, not slice)', () => 
   // B18: `full.slice(baseDir.length + 1)` corrupts keys when baseDir is relative —
   // `join('.', 'agents')` normalizes the `./` away, so slicing `baseDir.length + 1`
   // (= 2) chops the first two real path chars ('ag'). A relative baseDir is reachable
-  // via /sig:index + /sig:ship. `relative(baseDir, full)` is the correct primitive.
+  // via /sig:docs-index + /sig:ship. `relative(baseDir, full)` is the correct primitive.
   let tmp;
   let origCwd;
   afterEach(async () => {

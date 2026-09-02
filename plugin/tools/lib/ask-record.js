@@ -148,7 +148,7 @@ export function phaseBeingLeft({ proposedContent, currentContent }) {
  *
  * Three outcomes, and the third is the point. A check that renders nothing when
  * it could not look reads as "clean" — the shape `B39` is filed for, and the
- * distinction `/sig:sweep` already draws between "checked and clean" and "could
+ * distinction `/sig:docs-sweep` already draws between "checked and clean" and "could
  * not check". An absent record file means this hook has never run in this
  * project (fresh clone, plugin not loaded, hook removed); it does NOT mean zero
  * questions were asked.

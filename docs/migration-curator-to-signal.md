@@ -58,13 +58,13 @@ call this out as a rule: one clean directory per root, never the repo root.
 
 **Covered:**
 
-- **`.planning/INDEX.md`, auto-generated** — `/sig:index`. Walks the corpus (including `archive/`),
+- **`.planning/INDEX.md`, auto-generated** — `/sig:docs-index`. Walks the corpus (including `archive/`),
   renders mechanical rows, re-attaches curated notes by key, and writes only when content changed.
 - **Archiving and eviction** — closed work is archived and old narrative evicted down to a summary
   card, with a coverage gate that proves no discrete item was silently dropped.
-- **Layout migration** — `/sig:migrate-memory` reorganizes a messy or old-layout `.planning/`.
+- **Layout migration** — `/sig:docs-migrate` reorganizes a messy or old-layout `.planning/`.
   Relocate-never-delete, dry-run by default, git-reversible.
-- **Hygiene reporting** — `/sig:sweep` finds dead internal links, unfilled `[FILL IN]` stubs, index
+- **Hygiene reporting** — `/sig:docs-sweep` finds dead internal links, unfilled `[FILL IN]` stubs, index
   and roster drift, a stale capture inbox, and `CLAUDE.md` bloat. Note its scan is **wider than the
   index**: it covers `README`, `CLAUDE.md`, `docs/` and `analysis/` as well as `.planning/`. It
   reports only — it never edits.
@@ -74,7 +74,7 @@ call this out as a rule: one clean directory per root, never the repo root.
 - Generating index files for folders outside `.planning/`
 - `llms.txt`
 - The reference graph between documents
-- Refreshing on every commit — Signal regenerates at Epic-close ship, or when you run `/sig:index`
+- Refreshing on every commit — Signal regenerates at Epic-close ship, or when you run `/sig:docs-index`
 
 ---
 
@@ -95,19 +95,19 @@ fires the Epic early is a live call, not a settled one.
 
 The recipe below is what `eval-project-C` did on 2026-07-28.
 
-1. **Get `.planning/` onto Signal's current layout** — run `/sig:migrate-memory` if it isn't already.
+1. **Get `.planning/` onto Signal's current layout** — run `/sig:docs-migrate` if it isn't already.
    Dry-run by default; nothing is deleted; every move is reversible with git.
-2. **Run `/sig:index`** so Signal writes its own `.planning/INDEX.md`.
+2. **Run `/sig:docs-index`** so Signal writes its own `.planning/INDEX.md`.
 3. **Delete `.curator.yml`.**
 4. **Remove the Curator `post-commit` hook** from `.git/hooks/`. It is not version-controlled, so
    this is per-clone — check every machine you work from.
-5. **Commit, then run `/sig:sweep`** to confirm the new index is clean.
+5. **Commit, then run `/sig:docs-sweep`** to confirm the new index is clean.
 
 **Also delete any leftover `llms.txt`.** Signal neither produces nor reads it, so it becomes a stale
 file nobody updates — exactly the drift this migration exists to remove.
 
 **Verify, don't assume.** After the cutover, `.planning/INDEX.md` should open with
-`# Signal — .planning/ Documentation Map` and a line crediting `/sig:index`. If it still carries
+`# Signal — .planning/ Documentation Map` and a line crediting `/sig:docs-index`. If it still carries
 Curator's header, something is still regenerating it.
 
 ---

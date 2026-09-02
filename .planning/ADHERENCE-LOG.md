@@ -53,7 +53,7 @@ rewrites only between the `adherence:ceiling` markers, so this survives every re
 <!-- adherence:ceiling:begin -->
 ## The coverage ceiling
 
-**Computed:** 2026-09-01 · **Commit:** `9433288` · **Corpus:** 22 `commands/*.md` files
+**Computed:** 2026-09-02 · **Commit:** `4a2ac38` · **Corpus:** 22 `commands/*.md` files
 
 This is the bound on everything the adherence harness can ever report. It is computed
 directly from the command corpus by `tools/lib/directive-classifier.js`, whose split
@@ -94,16 +94,16 @@ harness run as evidence about the whole corpus will not find it here.
 | `checkpoint.md` | 21 | 5 | 16 |
 | `new-project.md` | 9 | 5 | 4 |
 | `calibrate.md` | 28 | 4 | 24 |
+| `docs-migrate.md` | 15 | 4 | 11 |
 | `execute.md` | 22 | 4 | 18 |
-| `migrate-memory.md` | 15 | 4 | 11 |
 | `review.md` | 42 | 4 | 38 |
 | `verify.md` | 40 | 4 | 36 |
-| `sweep.md` | 12 | 3 | 9 |
+| `docs-sweep.md` | 12 | 3 | 9 |
 | `update.md` | 11 | 3 | 8 |
+| `docs-index.md` | 7 | 2 | 5 |
 | `drive.md` | 9 | 2 | 7 |
-| `index.md` | 7 | 2 | 5 |
 | `permissions.md` | 11 | 2 | 9 |
-| `archive.md` | 11 | 0 | 11 |
+| `docs-archive.md` | 11 | 0 | 11 |
 | `escalate.md` | 16 | 0 | 16 |
 <!-- adherence:ceiling:end -->
 

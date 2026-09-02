@@ -6,7 +6,7 @@ args: "[--apply]"
 
 # `/sig:permissions` — What Signal Should Be Allowed To Do Here
 
-You are running `/sig:permissions`, a not-phase-gated meta command. Same class as `/sig:status`, `/sig:doctor`, `/sig:index` — no tier-gating preamble, no skill loading, no agent spawning.
+You are running `/sig:permissions`, a not-phase-gated meta command. Same class as `/sig:status`, `/sig:doctor`, `/sig:docs-index` — no tier-gating preamble, no skill loading, no agent spawning.
 
 Its one job: **propose** a permission set, and hand it to you to install.
 

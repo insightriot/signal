@@ -1,14 +1,14 @@
 ---
-name: sig:archive
+name: sig:docs-archive
 description: "File finished work out of the live .planning/ root into .planning/archive/. Only units that are genuinely closed move; every other unit is reported with the reason it was declined. Dry-run by default; --apply writes. Not phase-gated."
 args: "[--apply]"
 ---
 
-# `/sig:archive` — file finished work away
+# `/sig:docs-archive` — file finished work away
 
-You are running `/sig:archive`, a **not phase-gated** command in the **document-upkeep** group
-(`references/command-taxonomy.md` § 4, alongside `/sig:index`, `/sig:sweep`,
-`/sig:migrate-memory`). No tier-gating preamble, no skill loading, no agent spawning.
+You are running `/sig:docs-archive`, a **not phase-gated** command in the **document-upkeep** group
+(`references/command-taxonomy.md` § 4, alongside `/sig:docs-index`, `/sig:docs-sweep`,
+`/sig:docs-migrate`). No tier-gating preamble, no skill loading, no agent spawning.
 
 Its one job: move the scaffold files of **closed units** out of `.planning/` and into
 `.planning/archive/<unit>/`, and **say what it decided about every unit it did not move.**
@@ -22,7 +22,7 @@ Authoritative references:
 
 ## Why this is its own command and not a flag
 
-`/sig:migrate-memory` reorganizes document **layout** and archives along the way. Those are
+`/sig:docs-migrate` reorganizes document **layout** and archives along the way. Those are
 different questions on different cadences — layout changes when the structure does, archiving
 happens at **every unit close** — so filing away finished work through a layout command means
 reading past half its output (`D-M5E19-2`, restated against the taxonomy in `D-M5E19-8`).

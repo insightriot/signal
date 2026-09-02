@@ -8,6 +8,28 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ## [Unreleased]
 
+### Changed
+
+- **[BREAKING] The four document-upkeep commands take a `docs-` prefix; the old names are gone
+  (`D-BR0902-1`).** `/sig:index` → **`/sig:docs-index`**, `/sig:sweep` → **`/sig:docs-sweep`**,
+  `/sig:archive` → **`/sig:docs-archive`**, and `/sig:migrate-memory` → **`/sig:docs-migrate`** —
+  which also discharges the rename `D-BR0809-3` deferred to "the next breaking window." **This is a
+  clean break: no aliases, no deprecation period.** Typing an old name now fails with an unknown-command
+  error rather than a redirect, and that was the deliberate choice — the maintainer is the primary
+  user, and carrying two names means testing two names forever.
+
+  **Why the group needed it** (`references/command-taxonomy.md`, written 2026-08-07 and settled today):
+  the four commands that act on *your documents* were the only group whose membership you could not
+  read off the names. Three were bare verbs, one was verb-plus-noun, and nothing linked them. The
+  taxonomy document derived the five groups descriptively and deliberately left this one decision open;
+  this closes it.
+
+  ⚠ **Scope is the user-facing command surface only.** The internal module keeps its name
+  (`tools/lib/migrate-memory.js`), because renaming code that nobody types is churn with no reader.
+  ⚠ **102 files in `.planning/` still say `/sig:sweep` and were deliberately not rewritten** — a
+  retrospective written in July should keep saying what it said. Rewriting history to match a rename
+  made in September is the drift this repository exists to catch.
+
 ### Added
 
 - **`/sig:permissions` — the 22nd command: propose what Signal may run here, and let the user

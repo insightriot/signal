@@ -66,7 +66,7 @@ describe('B19 — applyMigrate INDEX regen guard (no foreign clobber)', () => {
     expect(res.applied).toBe(true);
     // The curated foreign INDEX is UNTOUCHED — not overwritten with the new format.
     expect(await readFile(join(dir, '.planning', 'INDEX.md'), 'utf-8')).toBe(FOREIGN_INDEX);
-    // …and the skip is surfaced (a warning the user can act on via /sig:index).
+    // …and the skip is surfaced (a warning the user can act on via /sig:docs-index).
     expect(
       res.warnings.some((w) => /INDEX\.md/.test(w) && /foreign|left intact|not regenerated/i.test(w)),
     ).toBe(true);

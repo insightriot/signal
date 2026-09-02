@@ -27,7 +27,7 @@ import { REACH, describeReach } from '../plugin/tools/lib/published-facts.js';
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // AC1.1a's fixture: M4.5.E9 S1.t11, COPIED verbatim rather than read live from
-// .planning/archive/ — /sig:archive exists to move that file, and a test that
+// .planning/archive/ — /sig:docs-archive exists to move that file, and a test that
 // reads it breaks the moment it does.
 const M45E9_S1T11 = `# M4.5.E9 — Plan
 

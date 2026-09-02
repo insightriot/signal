@@ -1,4 +1,4 @@
-// M5.E2.S1.t1 — /sig:migrate-memory command shell: arg parse + dry-run default.
+// M5.E2.S1.t1 — /sig:docs-migrate command shell: arg parse + dry-run default.
 //
 // FR6.1: dry-run is the default; --apply is required to write. The load-bearing
 // AC (proof-of-fail): a no-arg (dry-run) run must touch NOTHING on disk — an

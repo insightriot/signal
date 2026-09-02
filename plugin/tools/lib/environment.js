@@ -245,7 +245,7 @@ export function checkEnvironmentBody(body, opts = {}) {
  * The starting template.
  *
  * Every section is a `[FILL IN]` stub rather than being omitted, so a section
- * nobody has filled reads as UNANSWERED rather than as ABSENT — `/sig:sweep`
+ * nobody has filled reads as UNANSWERED rather than as ABSENT — `/sig:docs-sweep`
  * already reports unfilled `[FILL IN]` markers, which is why this slice does
  * not add a calibration question to go looking for the same information.
  *

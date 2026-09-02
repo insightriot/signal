@@ -90,7 +90,7 @@ describe('the descriptive allowlist is pinned, not inferred (AC2.3, AC2.4)', () 
     expect([...DESCRIPTIVE_ALLOWLIST.keys()].sort()).toEqual([
       'commands/calibrate.md',
       'commands/discuss.md',
-      'commands/index.md',
+      'commands/docs-index.md',
       'references/state-schema.md',
       'tools/lib/adherence-verdict.js',
       'tools/lib/directive-classifier.js',

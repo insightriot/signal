@@ -3,9 +3,9 @@
 //
 // M5.E16's model ported one command over: **`0` must stop meaning both "could
 // not look" and "checked and clean."** `B63` is that defect in
-// `/sig:migrate-memory` — its dry-run prints `0` for its two Epic-only vectors
+// `/sig:docs-migrate` — its dry-run prints `0` for its two Epic-only vectors
 // on a linear project, so *could not apply* is byte-identical to *already
-// clean*. Same week M5.E16 fixed it for `/sig:sweep`.
+// clean*. Same week M5.E16 fixed it for `/sig:docs-sweep`.
 //
 // AC4.4 is not a hypothetical. It is the defect wave 3 found in S4's OWN code:
 // eval-project-B (STATE unreadable, 0 units) returns counts {0,0,0}, byte-
@@ -51,7 +51,7 @@ const base = {
 // AC4.1–AC4.4 were originally verified against a standalone `renderArchivePlan`.
 // REVIEW found that renderer carried a SECOND copy of the distinction and had no
 // production caller, so it was deleted. The golden ACs now compose the SAME
-// functions `/sig:migrate-memory` calls — which is what they should always have
+// functions `/sig:docs-migrate` calls — which is what they should always have
 // pinned: the code a user's output actually comes from.
 const render = (args = {}) => {
   const moves = args.moves ?? [];
@@ -323,7 +323,7 @@ describe('S7 AC4.5 — what the planner dropped is reported by count AND reason'
 });
 
 // ---------------------------------------------------------------------------
-// The command seam. FR4 names B63, which is /sig:migrate-memory's dry-run — so
+// The command seam. FR4 names B63, which is /sig:docs-migrate's dry-run — so
 // the distinction has to be reachable from the COMMAND, not only the library.
 // An AC set can be fully covered by unit tests while the feature is unreachable
 // from anything a user runs; that is B54's shape ("being uncalled is what

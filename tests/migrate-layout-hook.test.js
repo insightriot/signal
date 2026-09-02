@@ -166,7 +166,7 @@ describe('warn-layout-drift.js hook (spawn harness)', () => {
     expect(status).toBe(0);
     const payload = JSON.parse(stdout.trim());
     expect(payload.hookSpecificOutput.hookEventName).toBe('SessionStart');
-    expect(payload.hookSpecificOutput.additionalContext).toMatch(/migrate-memory/);
+    expect(payload.hookSpecificOutput.additionalContext).toMatch(/docs-migrate/);
     expect(payload.hookSpecificOutput.additionalContext).toMatch(/advisory/i);
   });
 
@@ -176,7 +176,7 @@ describe('warn-layout-drift.js hook (spawn harness)', () => {
     const { status, stdout } = runHook(dir);
     expect(status).toBe(0);
     const payload = JSON.parse(stdout.trim());
-    expect(payload.hookSpecificOutput.additionalContext).toMatch(/migrate-memory/);
+    expect(payload.hookSpecificOutput.additionalContext).toMatch(/docs-migrate/);
   });
 
   it('post-reorg (stamp == CURRENT) → silent, exit 0', async () => {
@@ -231,7 +231,7 @@ describe('warn-layout-drift.js hook (spawn harness)', () => {
     expect(stderr).not.toMatch(/^\s+at\s/m);
     // Fence present + no stamp → banner (the documented trade-off above).
     const payload = JSON.parse(stdout.trim());
-    expect(payload.hookSpecificOutput.additionalContext).toMatch(/migrate-memory/);
+    expect(payload.hookSpecificOutput.additionalContext).toMatch(/docs-migrate/);
   });
 
   it('CRLF post-reorg (stamp == CURRENT) → silent, exit 0', async () => {
@@ -248,7 +248,7 @@ describe('warn-layout-drift.js hook (spawn harness)', () => {
     const { status, stdout } = runHook(dir);
     expect(status).toBe(0);
     const payload = JSON.parse(stdout.trim());
-    expect(payload.hookSpecificOutput.additionalContext).toMatch(/migrate-memory/);
+    expect(payload.hookSpecificOutput.additionalContext).toMatch(/docs-migrate/);
   });
 
   it('FM8: large post-reorg STATE.md → silent, exit 0 (reads only the capped prefix)', async () => {
@@ -266,7 +266,7 @@ describe('warn-layout-drift.js hook (spawn harness)', () => {
     const { status, stdout } = runHook(dir);
     expect(status).toBe(0);
     const payload = JSON.parse(stdout.trim());
-    expect(payload.hookSpecificOutput.additionalContext).toMatch(/migrate-memory/);
+    expect(payload.hookSpecificOutput.additionalContext).toMatch(/docs-migrate/);
   });
 });
 
@@ -286,7 +286,7 @@ describe('warn-layout-drift.js pure core', () => {
   });
 
   it('LAYOUT_DRIFT_BANNER names the migrate command and marks itself advisory', () => {
-    expect(LAYOUT_DRIFT_BANNER).toMatch(/\/sig:migrate-memory/);
+    expect(LAYOUT_DRIFT_BANNER).toMatch(/\/sig:docs-migrate/);
     expect(LAYOUT_DRIFT_BANNER).toMatch(/advisory/i);
   });
 

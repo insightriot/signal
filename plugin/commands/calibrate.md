@@ -272,7 +272,7 @@ its scanners already found (`init.md` §3b); calibrate only guarantees the file 
 `/sig:calibrate` question for what a scanner cannot see." All five questions here feed tier
 derivation into `PROFILE.md`; a sixth whose answer goes to a different file changes this command's
 contract, and the item is marked **small**. The stub carries `[FILL IN]` markers instead, which
-`/sig:sweep` already reports — so the prompt to fill it arrives without a new interview. If the
+`/sig:docs-sweep` already reports — so the prompt to fill it arrives without a new interview. If the
 stubs sit unfilled in practice, add the question then, on evidence. (`D-BR0822-3`.)
 
 ### 6. Print next-step message

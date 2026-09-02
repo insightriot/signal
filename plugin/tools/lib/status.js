@@ -438,7 +438,7 @@ export async function readStateSizeBannerForTier(baseDir) {
 // command-path copy is the shorter FR7.2-quoted nudge.
 export const LAYOUT_DRIFT_BANNER_COMMAND =
   "Signal: this project's `.planning/` predates the current docs layout — run " +
-  '`/sig:migrate-memory` (dry-run first) to reorganize. This is advisory; nothing is blocked.';
+  '`/sig:docs-migrate` (dry-run first) to reorganize. This is advisory; nothing is blocked.';
 
 /**
  * PURE layout-drift decision. Stamp-first, then structural sniff:

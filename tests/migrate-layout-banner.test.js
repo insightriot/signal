@@ -251,7 +251,7 @@ describe('readLayoutBanner (disk-aware, fail-open)', () => {
     const dir = await plant(join(tempDir, 'pre'), PRE_REORG_DRIFT);
     const banner = await readLayoutBanner(dir);
     expect(banner).toBe(LAYOUT_DRIFT_BANNER_COMMAND);
-    expect(banner).toMatch(/\/sig:migrate-memory/);
+    expect(banner).toMatch(/\/sig:docs-migrate/);
   });
 
   it('unstamped-but-conformant → null (no false banner — the t2 thesis)', async () => {

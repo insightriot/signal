@@ -63,7 +63,7 @@ shaping failure does not merely underperform — **it backfires**.
 
 - **The report is one screen: the blocks specified below, and nothing else.** A status nobody finishes reading is a status nobody read.
 
-### `commands/sweep.md`
+### `commands/docs-sweep.md`
 
 - **The report always states which checks were skipped and why.** A check that could not run and a check that found nothing must never render the same.
 
@@ -158,7 +158,7 @@ output. Listed so the classification is complete rather than asserted.
 - "I'll commit everything together at the end"
 - "The plan says X but I think Y is better"
 
-### `commands/index.md` (4)
+### `commands/docs-index.md` (4)
 
 - "Hand-edit the mechanical rows to fix a path or tier."
 - "Rewrite a curated gotcha to sound better while I'm here."
@@ -176,7 +176,7 @@ output. Listed so the classification is complete rather than asserted.
 - "Skip Step 5's Defer option to force completeness."
 - "Auto-accept high-confidence `[INFERRED]` markers without asking."
 
-### `commands/migrate-memory.md` (5)
+### `commands/docs-migrate.md` (5)
 
 - "The dry-run diff is long; just apply and let the user `git revert` if it's wrong."
 - "The frontmatter prose has no IDs to preserve — dropping it is fine."
@@ -225,7 +225,7 @@ output. Listed so the classification is complete rather than asserted.
 - "Add a `--json` flag for hooks."
 - "Mutate state to record 'last checked' so we can show recency."
 
-### `commands/sweep.md` (4)
+### `commands/docs-sweep.md` (4)
 
 - "Add a `--fix` flag so it repairs drift in place."
 - "Add an arg parser / flags."

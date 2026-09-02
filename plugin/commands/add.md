@@ -8,7 +8,7 @@ args: "[idea text]"
 
 You are running `/sig:add`, a not-phase-gated capture command. Same class as `/sig:status`, `/sig:resume`, `/sig:escalate`, `/sig:calibrate` — no tier-gating preamble, no skill loading, no agent spawning. The **hot path** is `/sig:add "idea text"`, which writes the entry to the capture inbox after verbatim capture, atomic-write, lock, and sensitive-data scrub.
 
-**The inbox is `.planning/ISSUES-INBOX.md`** (renamed from `FUTURE-IDEAS.md`). The rename is **back-compatible**: the code resolves the path via `resolveInboxPath(baseDir)` — a repo still on the legacy `FUTURE-IDEAS.md` keeps working (the resolver picks it), a v3 repo uses `ISSUES-INBOX.md`, and a fresh repo lazy-creates `ISSUES-INBOX.md`. The physical rename of an existing file is the `/sig:migrate-memory` v2→v3 step, **not** `/sig:add`.
+**The inbox is `.planning/ISSUES-INBOX.md`** (renamed from `FUTURE-IDEAS.md`). The rename is **back-compatible**: the code resolves the path via `resolveInboxPath(baseDir)` — a repo still on the legacy `FUTURE-IDEAS.md` keeps working (the resolver picks it), a v3 repo uses `ISSUES-INBOX.md`, and a fresh repo lazy-creates `ISSUES-INBOX.md`. The physical rename of an existing file is the `/sig:docs-migrate` v2→v3 step, **not** `/sig:add`.
 
 Three force-route flags send the capture somewhere other than the default:
 - `--question "…"` → `.planning/OPEN-QUESTIONS.md` (the unresolved-design-question shape).

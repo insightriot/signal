@@ -435,7 +435,7 @@ because `CLAUDE.md` says so and the operator remembered. Same *depends-on-rememb
 
 </details>
 
-### Command namespace — decide whether group 4 gets a prefix · **hygiene** · small-to-medium
+### ~~Command namespace — decide whether group 4 gets a prefix~~ · **DONE — `docs-` prefix shipped 2026-09-02, `D-BR0902-1`** (clean break, no aliases)
 
 *Plain: decide now, deliberately, whether commands get grouped names — before there are 30 of them.*
 

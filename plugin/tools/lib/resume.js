@@ -292,7 +292,7 @@ export function renderResumeBriefing(params = {}) {
     if (needsAPerson > 0) {
       lines.push(
         `⚠ ${needsAPerson} STATE-vs-world finding${needsAPerson === 1 ? '' : 's'} ` +
-          `need${needsAPerson === 1 ? 's' : ''} you — run /sig:sweep for detail.`
+          `need${needsAPerson === 1 ? 's' : ''} you — run /sig:docs-sweep for detail.`
       );
     }
     if (cannotEvaluate > 0) {

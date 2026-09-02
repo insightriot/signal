@@ -166,7 +166,7 @@ describe('AC2.3 / AC2.4 — the check reaches a command, proven behaviourally', 
   // passes the day someone imports the symbol without calling it. Running the
   // real command entry point against a wrong tally can only pass if the caller
   // exists AND works.
-  it('/sig:sweep surfaces the tally finding — the caller exists and works', async () => {
+  it('/sig:docs-sweep surfaces the tally finding — the caller exists and works', async () => {
     await writeBugs(
       TABLE(['| B1 | `confirmed` | P2 | a |']) + '\n\n' + TALLY({ confirmed: 4, fixed: 0, total: 4 })
     );
@@ -177,7 +177,7 @@ describe('AC2.3 / AC2.4 — the check reaches a command, proven behaviourally', 
     expect(hit.status).toBe(STATUS.FINDINGS);
   });
 
-  it('/sig:sweep reports the check as could-not-check when BUGS.md publishes no tally', async () => {
+  it('/sig:docs-sweep reports the check as could-not-check when BUGS.md publishes no tally', async () => {
     await writeBugs(TABLE(['| B1 | `confirmed` | P2 | a |']));
     const { runSweep } = await import('../plugin/tools/lib/sweep.js');
     const report = await runSweep(dir);

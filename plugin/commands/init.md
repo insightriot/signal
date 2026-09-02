@@ -285,7 +285,7 @@ some of it, so a brownfield init should not hand the user a blank form.
 Build the body with `renderEnvironmentTemplate({projectName, today})` from
 `tools/lib/environment.js`, then replace a `[FILL IN]` stub **only where a scan actually supports
 it** — CI workflow files and deploy config name deploy targets; a `.env.example` or a config module
-names variables. Leave everything else as `[FILL IN]`; `/sig:sweep` reports unfilled markers, and an
+names variables. Leave everything else as `[FILL IN]`; `/sig:docs-sweep` reports unfilled markers, and an
 invented answer is worse than a visible gap. Label an inference the same way §3 does.
 
 > ⚠ **Read a `.env.example` for NAMES ONLY, and never read `.env` itself.** The whole failure mode
@@ -503,7 +503,7 @@ The user reads this and proceeds knowing exactly where the gaps are.
 
 Call `initState(baseDir, 'CALIBRATE')` from `tools/lib/state.js`. This writes a `schema_version: 1` STATE.md with `phase: CALIBRATE`, empty `completed_phases`/`blockers`, and the live-above-the-fold body skeleton (`## Resume pointer`, `## In-flight`, `## Blockers`, `## Pending ops`, `## Closed work`).
 
-**Born-on-v3 (FR6 / AC6.3):** `initState` stamps `docs_layout_version` at the current layout version, so the brownfielded project self-reports v3 from birth — the `/sig:resume` / `/sig:status` / SessionStart layout-drift banner stays silent and it never presents as needing `/sig:migrate-memory`. The rest of the v3 file set is on-demand: the first `/sig:add` lazy-creates `.planning/ISSUES-INBOX.md` (never `FUTURE-IDEAS.md`), and `BACKLOG.md` is created on first promote by the `/sig:plan` drain.
+**Born-on-v3 (FR6 / AC6.3):** `initState` stamps `docs_layout_version` at the current layout version, so the brownfielded project self-reports v3 from birth — the `/sig:resume` / `/sig:status` / SessionStart layout-drift banner stays silent and it never presents as needing `/sig:docs-migrate`. The rest of the v3 file set is on-demand: the first `/sig:add` lazy-creates `.planning/ISSUES-INBOX.md` (never `FUTURE-IDEAS.md`), and `BACKLOG.md` is created on first promote by the `/sig:plan` drain.
 
 Then print the handoff message. Compute `{age phrase}` from the activity scan's "Project age" field (e.g., "2 years 4 months"); if unavailable, use "(unknown duration)".
 
