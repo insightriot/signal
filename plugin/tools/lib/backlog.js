@@ -313,16 +313,23 @@ function readRowDischarge(text) {
  *   leadingId:string|null, discharged:boolean, dischargedBy:string|null,
  *   dischargedAt:string|null}>}
  */
-export function parseBacklogRows(content) {
+export function parseBacklogRows(content, { maxDepth = 3 } = {}) {
   const lines = String(content).split('\n');
   const heads = [];
   let detailsDepth = 0;
   let inFence = false;
+  // Depth 3 is the DEFAULT, not the truth, and the difference is a live bug.
+  // Signal's own promoted rows sit at `####` — correct nesting under their `###`
+  // section — so a depth-3 read reports zero of them (`B94`'s discharge half,
+  // filed twice). Existing callers keep the old ceiling because widening it
+  // changes which rows they strike; a READER that must not mistake "nested
+  // deeper" for "no work" passes `maxDepth: 4`.
+  const headingRe = new RegExp(`^(#{2,${Math.max(2, maxDepth)}})\\s+(.*)$`);
 
   lines.forEach((line, i) => {
     const t = line.trimStart();
     if (t.startsWith('```') || t.startsWith('~~~')) inFence = !inFence;
-    const m = inFence ? null : line.match(/^(#{2,3})\s+(.*)$/);
+    const m = inFence ? null : line.match(headingRe);
     if (m) heads.push({ line: i + 1, depth: m[1].length, text: m[2].trim(), inDetails: detailsDepth > 0 });
     detailsDepth += (line.match(/<details/g) ?? []).length - (line.match(/<\/details>/g) ?? []).length;
     if (detailsDepth < 0) detailsDepth = 0;
