@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.36] — 2026-09-03 — where the work starts
 
 ### Fixed
 
