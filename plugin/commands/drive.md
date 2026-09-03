@@ -16,8 +16,9 @@ was welded to the rigor dial**, so the only way to buy less of your time was to 
 `attention` splits them. `/sig:drive` is what spends it.
 
 Authoritative references:
-- `tools/lib/drive.js` — `proposeEpicCandidates`, `collectPreflight`, `formatPreflight`,
-  `PREFLIGHT_SOURCES`, `canProceedUnattended`, `FLOORS`, `floorsFor`, `queueDecision`, `readQueue`
+- `tools/lib/drive.js` — `proposeEpicCandidates`, `resolveStartPhase`, `CANONICAL_PHASES`,
+  `collectPreflight`, `formatPreflight`, `PREFLIGHT_SOURCES`, `canProceedUnattended`, `FLOORS`,
+  `floorsFor`, `queueDecision`, `readQueue`
 - `tools/lib/loop-ceiling.js` — `loopStatusFor`, `formatLoopCeilingHalt`, `LOOP_BOUNDED_PHASES`
 - `tools/lib/profile.js` — `attentionFor`, `ATTENTION_LEVELS`, `readEffectiveProfile`
 - `tools/lib/status.js` — `describeNextAction`, `formatNextActionCopy`
@@ -63,6 +64,33 @@ closes the recall gap by naming what the list missed, and the precision gap by d
 ⚠ **`cannotCheck` entries render as their own line.** No `BACKLOG.md` means "could not look",
 never "no work" — and an empty candidate list with an unread source must never be presented
 as "nothing to do".
+
+**Zero candidates with an EMPTY `cannotCheck` is the readable-and-genuinely-empty case, and it
+is a question, not a report.** The backlog was read and holds no live rows. **Ask what to work
+on** — the person always has an answer the file does not, and a groomed queue is a convenience
+rather than the source of truth about what matters. Observed on the second real run
+(2026-09-03): the command correctly distinguished empty-from-unreadable and then stopped with
+advice instead of asking, which leaves the user to restate what they already came to do.
+
+### 0a-ii. Say where the chosen work STARTS
+
+Call `resolveStartPhase(state, candidate)`.
+
+**Choosing the work and not saying where it starts leaves the dead end the front end exists to
+remove, one step later** — steps 1–3 read `state.phase`, so a run that has just picked something
+still keys on whatever the file holds. On the second real run that value was `EXPLORING`;
+`describeNextAction` returned `recognized: false`, and there was no command to run **at any
+attention level**.
+
+- Resuming an open Epic at a canonical phase → continue there, no write.
+- Newly chosen work → **DISCUSS**, whatever the file says. The recorded phase belongs to
+  whatever ran last, and inheriting it is how fresh work ends up resuming someone else's position.
+- `blocked: true` → **stop.** An open Epic whose recorded phase is unreadable cannot be placed:
+  restarting it at DISCUSS may discard completed phases. Print `why` and let a person set it.
+
+It proposes; it does not write. Confirm the phase, then record it through the ordinary
+phase-transition write — a stale phase gets corrected deliberately, never silently
+overwritten by a command the user ran to make progress.
 
 ### 0b. Confirm you are running it alone
 
