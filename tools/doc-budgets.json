@@ -42,9 +42,9 @@
     },
     ".planning/STATE.md": {
       "target": 40960,
-      "ceiling": 48659,
+      "ceiling": 45836,
       "grandfathered": true,
-      "reason": "Carries inlined narrative alongside the authoritative frontmatter. /sig:docs-migrate relocates bloated bodies; this has not been run recently."
+      "reason": "Carries inlined narrative alongside the authoritative frontmatter. Ratcheted 48659 -> 45836 on 2026-09-03 when M6.E5's closed-Epic narrative was evicted to RETROSPECTIVES.md at the M6.E6 open; shrinking re-tightens the ceiling, so the freed room is not silently re-granted."
     },
     "README.md": {
       "target": 30720,
