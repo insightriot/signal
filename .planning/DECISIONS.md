@@ -2606,3 +2606,102 @@ row in `BUGS.md` for something behaving as designed.
 only in `.planning/`, i.e. Signal-initialized repos. The report now runs anywhere and the
 tracked-artifact step reports itself skipped with a reason where there is no `.planning/`. The
 command does **not** create one.
+
+---
+
+### D-M6E6-1 — `M6.E6` runs at FEATURE, not the project's FULL
+
+**Decision.** Write `.planning/M6.E6-PROFILE.md` at FEATURE. Third use of the per-unit dial after
+`M6.E4` (`D-BR0823-2`) and `M6.E5` (`D-M6E5-1`).
+
+**Why.** The modules exist and are tested — `queueDecision`, `readQueue`, `formatQueuedDecision` and
+the `DECISION-QUEUE.md` header all shipped in `v0.1.31`. The work is wiring them to a caller and
+adopting a routing rule that `LOOP-ENGINEERING-ANALYSIS.md` already specified in full, down to the
+vocabulary. `novelty: familiar` is honest for that, and nothing here changes what reaches `main`.
+
+**`reversibility: moderate` rather than `trivial`, and the distinction is the Epic's own subject.**
+Routing changes what a run does without asking. Reversible by revert; not free.
+
+**Escalation trigger, stated in advance:** if per-decision reversibility tagging (`D-M6E6-3`) needs a
+*mechanism* rather than a convention, that is new design surface with no prior art here and earns
+FULL. Sized at DISCUSS as a convention; revisit at PLAN if research disagrees.
+
+---
+
+### D-M6E6-2 — `/sig:drive` is the queue's first writer, not `discuss.md`
+
+**Decision.** Wire `queueDecision` into `/sig:drive`. Leave `discuss.md`'s existing auto-adopt
+behaviour alone for now.
+
+**Why — and this reverses what the backlog row says, on a fact found while writing the
+requirements.** The row says "wire the decision queue to at least one phase command", and DISCUSS is
+where gray areas are named, so it reads as the obvious target. But `discuss.md` §4 at `unattended`
+**already** selects the recommended option for every gray area without asking and batch-approves at
+the end. Wiring the queue there would not *add* deferral; it would **narrow** what DISCUSS currently
+adopts silently, by carving irreversible decisions out into the queue.
+
+That is a defensible change and a **different** change from the one the row describes. Shipping it
+under the row's framing would be building the wrong thing correctly.
+
+`/sig:drive` is where deferral has a cost today: its own description promises *"Queues what it can
+defer"* and it cannot — a mid-phase gray area is a hard halt, which is the entire gap. `v0.1.35`'s
+`collectPreflight` moved the **foreseeable** questions to the front; the queue is the mechanism for
+the ones that could not be foreseen, and it is the difference between a run that pauses and a run
+that ends.
+
+**Not abandoned:** narrowing DISCUSS's silent auto-adoption of irreversible decisions is real and is
+filed as its own row rather than smuggled in here.
+
+---
+
+### D-M6E6-3 — Reversibility is tagged by the asking command, as a convention
+
+**Decision.** The command forming a gray-area question states that decision's reversibility as it
+builds the options, reusing calibration's existing vocabulary (`trivial` / `moderate` / `painful` /
+`irreversible`). No new schema, no new field on `PROFILE.md`, no new dial.
+
+**Why.** The command already has to reason about consequences to write the mandated "Pick this if:"
+trade-off lines, so the tag is a by-product of work it is already doing rather than a new analysis.
+NFR2 rules out a fourth unenforced knob beside `tier` / `gate_strictness` / `attention` — that is
+`B75`, this repository's named defect, and adding one to fix an unreached mechanism would be
+comic.
+
+⚠ **Being a convention, it can be omitted — see `D-M6E6-4`, which is the half that makes this safe.**
+
+---
+
+### D-M6E6-4 — An untagged decision QUEUES; it is never adopted by default
+
+**Decision.** A decision arriving at the router with no reversibility tag is routed as if it were
+irreversible: it queues.
+
+**Why.** This is `drive.js`'s stated posture applied to a new axis — *a detector that cannot look
+should say so and continue; an actor that cannot tell should stop*. The asymmetry decides it: a
+forgotten tag under this rule costs one queue entry to answer, and under the alternative
+(`default: moderate`) costs an **irreversible decision made silently** — precisely the failure the
+routing rule exists to prevent, arriving through an omission rather than a decision.
+
+**Refusing outright was considered and declined.** `formatQueuedDecision` throws on a missing
+recommendation, so a throw would be consistent — but that fails a live run mid-flight for a caller's
+omission, and a graceful, loud degradation is the better trade when the safe default is available.
+
+**Expected cost, stated in advance so it is not read later as a defect:** the queue will be chatty
+until commands start tagging. That is the fail-closed side of the trade, working.
+
+---
+
+### D-M6E6-5 — An answered entry is surfaced; a person acts on it
+
+**Decision.** FR3's "read forward" means the next run **reports** answered entries and what they
+unblock. It does not auto-apply an answer to a waiting task, and it does not re-run the phase that
+asked.
+
+**Why.** Auto-applying needs the entry to carry a durable link to the work, which is new surface, and
+its failure mode is applying an answer to something that has since moved on — a stale answer landing
+silently is worse than no answer. Re-running the asking phase has the cleanest semantics and
+collides with the loop ceiling: a re-run is a phase completion, so answering enough questions could
+walk `VERIFY` / `REVIEW` into `loop-ceiling` for reasons unrelated to the work.
+
+⚠ **This makes the queue a noticeboard rather than a loop, and that is the honest description.** The
+mechanism is worth having at that level — a run that parks a question and keeps working is the
+whole gap — and closing the loop is a later decision made with evidence from a queue that exists.

@@ -1,34 +1,53 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: SHIP
-current_epic: M6.E5
+phase: DISCUSS
+current_epic: M6.E6
 current_wave: null
 current_tasks: []
-completed_phases:
-  - DISCUSS (2026-08-27)
-  - PLAN (2026-08-27)
-  - EXECUTE (2026-08-28)
-  - VERIFY (2026-08-28)
-  - REVIEW (2026-08-28)
-  - EXECUTE (2026-08-28)
-  - REVIEW (2026-08-28)
-  - SHIP (2026-08-28)
+completed_phases: []
 blockers: []
 last_completed_task: null
-last_decision_at: 2026-08-13T14:47:23.449Z
-last_updated_commit: 0b2ac56706a794b8e2cb7f9a532ca3ef98a9f3b4
-last_updated: 2026-08-28T01:24:48.516Z
+last_decision_at: 2026-09-03T23:36:21.635658Z
+last_updated_commit: c18d8e17219e25149f1996358006fd5c8679a4c8
+last_updated: 2026-09-03T23:36:21.635658Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-08-28)
+### ▶ WHERE THE WORK IS — read this first (2026-09-03)
 
-**`M6.E5` IS MERGED.** `/sig:permissions` — PR **#211**, merged 2026-08-28, branch deleted. Suite
-**3107** green, 180 files. **22 commands.** Retro: [`M6.E5-RETROSPECTIVE.md`](M6.E5-RETROSPECTIVE.md).
-**Nothing is in flight.**
+**`M6.E6` IS OPEN — DISCUSS is written, PLAN is next.** *Wire the decision queue.* Read
+[`M6.E6-REQUIREMENTS.md`](M6.E6-REQUIREMENTS.md) and `D-M6E6-1`…`D-M6E6-5` in
+[`DECISIONS.md`](DECISIONS.md) before planning it. Runs at **FEATURE** inside this FULL project
+([`M6.E6-PROFILE.md`](M6.E6-PROFILE.md)) — the third use of the per-unit dial.
+
+**The gap in one sentence:** `/sig:drive`'s description promises *"Queues what it can defer"* and it
+cannot — `queueDecision` shipped in `v0.1.31` with **zero callers outside `tests/`**, so a mid-phase
+gray-area question is a hard halt.
+
+**⚠ DISCUSS reversed the backlog row's framing, and that is the finding to carry forward.** The row
+says wire the queue to a *phase command*, and DISCUSS is where gray areas are named — but
+`discuss.md` §4 at `unattended` **already** auto-adopts every gray area silently. Wiring there would
+*narrow* what it adopts, not add deferral: a defensible change, and a **different** one from what the
+row describes. Split out to its own backlog row rather than smuggled in (`D-M6E6-2`). `/sig:drive` is
+the first writer, because it is where a halt is the current behaviour.
+
+**Routing (`D-M6E6-3`/`-4`):** the asking command tags each decision's reversibility using
+calibration's existing vocabulary — a convention, no new dial (NFR2 — a fourth knob is `B75`). An
+**untagged** decision **queues**; it is never adopted by default. Expect a chatty queue at first:
+that is the fail-closed side of the trade working, not a defect.
+
+**Read-forward is a noticeboard, not a loop (`D-M6E6-5`)** — answered entries are surfaced and a
+person acts. Auto-applying needs a durable link to the work and can land a stale answer; re-running
+the asking phase collides with the loop ceiling. Said plainly rather than oversold.
+
+**Two `/sig:drive` runs happened first (2026-09-03, an external project) and both halted at the front
+door — correctly.** They produced `v0.1.35` (the front end: propose the work, confirm, ask everything
+blocking up front) and `v0.1.36` (`resolveStartPhase` — picking the work is not enough if nothing
+says where it *starts*; the run dead-ended on `describeNextAction('EXPLORING') → recognized: false`).
+**The end-to-end gate in [`BACKLOG.md`](BACKLOG.md) is still open** — neither run reached a phase.
 
 > ### ⚠ The merge SQUASHED despite `--merge` — filed, root cause unknown
 >
@@ -39,85 +58,24 @@ last_updated: 2026-08-28T01:24:48.516Z
 > the ruleset permits all three. **The next Epic merge is the experiment** — pass `--merge`, then run
 > `git rev-list --parents -n1 HEAD` before anything else.
 
-> ### ⚠ NEXT WORK IS DECIDED AND IT IS NOT A BACKLOG PICK
+> ### ⚠ THE DIRECTION, unchanged since 2026-08-28
 >
-> **An analysis scoped strictly to loop / goal functionality — what Signal needs to hold up on
-> autonomous runs.** Brett, 2026-08-28. **Nothing else in it.** This is the direction the 2026-08-20
-> numbers argued for and that `v0.1.31` began; `M6.E5` was the last queued item standing in front of
-> it. Do **not** open another Signal-auditing-Signal Epic ahead of this.
+> **Loop / goal functionality — what Signal needs to hold up on autonomous runs. Nothing else in
+> it.** Brett, 2026-08-28. Do **not** open another Signal-auditing-Signal Epic ahead of this. Order
+> and evidence: [`../analysis/LOOP-GOAL-DIRECTION.md`](../analysis/LOOP-GOAL-DIRECTION.md) §6.
 
-**⚠ The one sentence to carry forward from `M6.E5` is a RETRACTION, not a finding.** The Epic
-published *"`git commit` appears zero times as a runnable command string anywhere in the payload"* as
-its headline limit, in five documents. **It was false** — two defects in the Epic's own scanner (the
-code layer threw away captured subcommands; the prose layer could not read inside fenced blocks).
-Caught by the PR #211 reviewer. Both fixed: the scan returns **200 entries** and `Bash(git commit:*)`
-is proposed. **A measurement taken with a broken instrument reads as a finding about the world.**
+**`M6.E5`'s narrative is evicted to [`RETROSPECTIVES.md`](RETROSPECTIVES.md)** under the doc-budget
+rule — it is closed work, and this file is read on every run. The three things worth carrying
+forward, in one line each:
 
-**Filed and NOT fixed — `B100` is the one that affects other work.** ⚠ This Epic rediscovered it and filed a duplicate (`B111`, withdrawn); `B100` has had it since 2026-08-14. `AC_ID_RE` lacks the `[a-z]?`
-that `FR_ID_RE` and `NFR_ID_RE` both carry, so sub-lettered acceptance criteria collapse to their
-group on **both** sides of `requirement-coverage.js`'s diff. It reported **5** criteria where **34**
-exist, so `M6.E5`'s coverage denominator was derived by hand. **Any Epic using sub-lettered ACs has
-the same problem.** `B112`: `detectProjectKind` calls every non-git directory `greenfield`.
-
-**⚠ `dischargeBacklogRows` failed again — second Epic running.** `parseBacklogRows` matches
-`^(#{2,3})\s` and the promoted rows sit at `####`. `M6.E5`'s row was struck by hand with the reason
-recorded at the row, exactly as `M6.E4`'s three were. **Any Epic closing one of those rows will hit
-this.**
-
-**⚠ `completed_phases` dates DISCUSS to 2026-08-27 while every artifact dates it 2026-08-26.** Both
-are right about different things: the artifacts carry the date they were **written**, and
-`transitionPhase` stamped the date the phase was **left**, which fell on the other side of midnight.
-Neither is falsified to match the other. Flagged by the PR #211 reviewer as an inconsistency; it is
-one, and this is the explanation rather than a fix.
-
-**⚠ `/sig:resume` may show "STATE.md is 1 commit behind."** Expected and self-clearing — `main` is
-protected, so every state re-point goes through a PR and the baseline lags by construction.
-
-**Two expected `/sig:resume` findings — both correct, neither actionable:**
-
-1. **`epic-without-retro` flags `M6.E3`, every run, permanently.** True positive. The check skips
-   whatever is `current_epic` (`state-drift.js:525`), so `M6.E3` was invisible only while it sat in
-   the frontmatter; rolling to `M6.E4` un-blinded it. Nothing expresses *parked* as distinct from
-   *abandoned*. **Do not write `M6.E3-RETROSPECTIVE.md` to silence it** — a retro for work never
-   built is the stub-as-closure `B64` was filed about.
-2. **`bug-status-vs-changelog` flags `B75`.** Known 1-in-2 precision, shipped open on purpose
-   (`M6.E2`). `B75` is genuinely still open: the `attention` dial is checked and **reported**, never
-   enforced.
-
-**⚠ One new bug filed and NOT fixed: `dischargeBacklogRows` is blind to rows nested below `h3`.**
-`parseBacklogRows` matches `^(#{2,3})\s` (`backlog.js:325`) and the twelve promoted rows sit at
-`####` — correct nesting under their `###` section. So `B94`'s own mechanism could not discharge
-`M6.E4`'s rows; they were struck by hand. Filed in `BUGS.md`. **Any Epic closing one of those nine
-rows will hit this too.**
-
-**The habit this Epic paid for twice — read the CI reviewer on every PR, and read it AGAIN after
-pushing fixes.** On PR #200 it went **10 for 10 on real findings**, and three of those arrived on the
-*re-review*, after a green 2974-test suite (the count **then**; the fixes took it to 2979), a
-mutation-verified regression test, a PASS-WITH-FIXES
-review and a 26-of-26 VERIFY had all passed. One of them invalidated a published measurement.
-
-**Just finished — all three autonomy-counterweight items are now discharged** (accepted 2026-08-08):
-
-| Item | Outcome |
-|---|---|
-| `.planning/ENVIRONMENT.md` | Shipped `#195` + `#197`. Created by `/sig:calibrate`, pre-filled by `/sig:init`. Names-never-values guard **refuses** the write. |
-| The measurable-outcome question in DISCUSS | Shipped `#196`. FULL + FEATURE ask; *"no metric, and here is why"* is a first-class pass, an unexplained decline is not. |
-| Cross-model review at REVIEW | **Scoped, build neither** — `analysis/CROSS-MODEL-REVIEW-SCOPE.md`. |
-
-**The one result to carry forward, because it changes how to work here.** The scoping pass took a
-measurement nobody had taken: Signal has run an independent reviewer on every PR since `v0.1.31`
-(`.github/workflows/claude-code-review.yml`) and **nobody had ever read its output**. Reading it:
-**7 findings across 11 PRs, 7 of 7 real.** **Five were in code written in the previous two days** —
-two holes in the `ENVIRONMENT.md` guard that had a green 2886-test suite and four mutation tests
-behind it, then **three more in the fix for those two**, written immediately after reading the
-report. The other two were contradictions inside `analysis/LOOP-ENGINEERING-ANALYSIS.md` (`#190`),
-filed two days before anyone opened them.
-
-`/sig:ship` now lists unresolved PR review comments before merge (`plugin/tools/lib/pr-review-findings.js`,
-`#198`) — it **reports, never refuses**, `cannot-check` never renders as "none", and an *outdated*
-thread is counted separately because a push marks threads outdated whether or not anything was
-fixed. **Read the reviewer on every PR.** The measured hit rate here is roughly 1 in 4, and it
-catches things a full suite plus mutation testing plus the author does not.
+- **A headline claim was published in five documents and then RETRACTED** — false, caused by two
+  defects in the Epic's own scanner. A measurement taken with a broken instrument reads as a finding
+  about the world.
+- **Read the CI reviewer on EVERY PR, and again after pushing fixes.** Measured hit rate ~1 in 4;
+  it catches what a green suite, mutation tests and the author do not. It has now caught something on
+  three consecutive PRs (#211, #228, #230).
+- **`B100` still bites any Epic with sub-lettered acceptance criteria** — `AC_ID_RE` drops the
+  sub-letter, so coverage is miscounted on both sides of the diff. Derive that denominator by hand.
 
 ### ~~▶ NEXT WORK — B75's enforcement~~ · **UNBLOCKED, BUILT AND MERGED 2026-08-22 (`#193`)**
 

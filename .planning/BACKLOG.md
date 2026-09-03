@@ -148,6 +148,27 @@ closing wired into the phase gates) are Epic-shaped and its trigger is unmet.
 
 ## Filed since that agreement — **not yet sequenced**
 
+### DISCUSS silently auto-adopts irreversible decisions at `unattended` · **roadmap** · small · **filed 2026-09-03**
+
+*Plain: at `unattended`, DISCUSS decides everything for you — including the calls you can't take back.*
+
+**Split out of `M6.E6` at DISCUSS (`D-M6E6-2`), not deferred out of it.** `discuss.md` §4 at
+`unattended` selects the recommended option for **every** gray area without asking and batch-approves
+at the end. That is auto-adopt with no reversibility routing: a `painful` or `irreversible` decision
+is adopted on the same footing as a naming choice.
+
+`M6.E6` builds the router (`D-M6E6-3`, `D-M6E6-4`) but wires it to `/sig:drive`, where deferral has a
+cost today. Applying it here is a **behaviour change** for anyone running `--auto` or `unattended`
+DISCUSS — narrowing what gets adopted silently — and bundling it into a wiring Epic would have meant
+two things to review and two ways to be wrong.
+
+**Trigger:** `M6.E6` ships and its queue has entries a person actually answered. That is the evidence
+that the routing rule works before it is pointed at a command people already rely on.
+
+⚠ **Do not fix this by adding a dial.** The routing vocabulary already exists (calibration's
+reversibility terms); a fourth knob beside `tier` / `gate_strictness` / `attention` is `B75`.
+
+
 ### ~~De-bloat `CLAUDE.md` — it is 51 KB against a 40 KB target~~ · **DONE 2026-09-02 — 51.4 KB → 25.9 KB**, grandfather flag dropped, ceiling lowered to the 40 KB target by the ratchet
 
 *Plain: the file every session reads first is a quarter bigger than it should be.*
