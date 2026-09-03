@@ -6,6 +6,44 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.36] — 2026-09-03 — where the work starts
+
+### Fixed
+
+- **`/sig:drive` now says where the chosen work STARTS — picking it was not enough.** Second real
+  run, 2026-09-03. The front end worked: it read the backlog, correctly reported zero candidates
+  with an **empty** `cannotCheck` (readable and genuinely empty, not unreadable), and read an empty
+  queue without creating one. Then it stopped on
+  `describeNextAction('EXPLORING') → recognized: false`.
+
+  ⚠ **That is the gap the front end did not close.** Steps 1–3 still read `state.phase` to decide
+  what to run, so a run that had just chosen its work still keyed on whatever the file held — and
+  where that value is not one of the seven phases there is **no command to run at any attention
+  level**. Choosing the work and never placing it leaves the same dead end one step later.
+
+  `resolveStartPhase` proposes a starting phase and a reason: an open Epic at a canonical phase
+  resumes there; newly chosen work starts at **DISCUSS** whatever the file says (the recorded phase
+  belongs to whatever ran last, and inheriting it is how fresh work resumes someone else's
+  position); and an open Epic whose recorded phase is unreadable is **blocked** — the one case data
+  cannot settle, because a silent restart could discard completed phases. It proposes; the caller
+  confirms and the ordinary phase-transition write records it.
+
+- **Zero candidates with an empty `cannotCheck` is a QUESTION, not a report.** The run
+  distinguished empty-from-unreadable correctly and then stopped with advice instead of asking what
+  to work on, which leaves the user restating what they came to do.
+
+- ⚠ **Two review catches worth recording, both this change's own defect class.** `CANONICAL_PHASES`
+  first duplicated the seven-phase literal and its comment called `state.js`'s list *private* — it
+  is exported, and `describeNextAction` validates against it. Two independent arrays drift the
+  moment a phase is renamed, and the two disagreeing about which phases are valid reintroduces the
+  exact `recognized: false` dead end this change removes. Now an alias of the shared binding, with a
+  test pinning **identity**, not equality. Separately, two `transitionPhase` mentions were reworded
+  to describe rather than order: the leak checker flagged them correctly, as they would have widened
+  the `B41` phase-entry canary onto a site measuring a different instruction — over-deletion
+  invalidates a verdict as surely as under-deletion (`B55`).
+
+---
+
 ## [0.1.35] — 2026-09-03 — the command that could not choose
 
 ### Added
