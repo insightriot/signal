@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.35] — 2026-09-03 — the command that could not choose
 
 ### Added
 
