@@ -23,7 +23,7 @@ import { attentionFor } from './profile.js';
 import { LOOP_BOUNDED_PHASES } from './loop-ceiling.js';
 import { atomicWrite } from './atomic-write.js';
 import { parseBacklogRows } from './backlog.js';
-import { readState, partitionCompletedPhases } from './state.js';
+import { readState, partitionCompletedPhases, PHASES } from './state.js';
 
 export const QUEUE_REL = '.planning/DECISION-QUEUE.md';
 
@@ -470,10 +470,16 @@ export function formatPreflight({ blocking, cannotCheck, checked }) {
   return lines.join('\n');
 }
 
-/** The seven canonical phases, in flow order. Mirrors `state.js`'s private list. */
-export const CANONICAL_PHASES = Object.freeze([
-  'CALIBRATE', 'DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'SHIP',
-]);
+/**
+ * The seven canonical phases, in flow order — `state.js`'s exported list, aliased.
+ *
+ * NOT a copy, deliberately. A second array would drift the moment a phase is
+ * renamed or added, and `describeNextAction` validates against `PHASES`: the two
+ * disagreeing about which phases are valid reintroduces the `recognized: false`
+ * dead end this function exists to remove, one layer down. Caught in review after
+ * the first version duplicated the literal and called the original private.
+ */
+export const CANONICAL_PHASES = PHASES;
 
 /**
  * Where the chosen work STARTS.

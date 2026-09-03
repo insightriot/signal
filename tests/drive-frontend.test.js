@@ -246,3 +246,15 @@ describe('resolveStartPhase — where the chosen work starts', () => {
     }
   });
 });
+
+describe('CANONICAL_PHASES is the shared list, not a copy', () => {
+  // Caught in review on PR #230. The first version duplicated the literal and
+  // called state.js's list "private" — it is exported, and describeNextAction
+  // validates against it. Two independent arrays drift the moment a phase is
+  // renamed, and the two disagreeing about which phases are valid reintroduces
+  // the `recognized: false` dead end this whole change exists to remove.
+  it('is the same binding state.js exports, so the two cannot disagree', async () => {
+    const state = await import('../plugin/tools/lib/state.js');
+    expect(CANONICAL_PHASES).toBe(state.PHASES);
+  });
+});
