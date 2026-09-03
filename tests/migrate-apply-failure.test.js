@@ -19,7 +19,11 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { applyMigrate } from '../plugin/tools/lib/migrate-memory.js';
+import {
+  applyMigrate,
+  renderDryRun,
+  LEGACY_STATE_REFUSAL,
+} from '../plugin/tools/lib/migrate-memory.js';
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
 const readState = (dir) => readFile(join(dir, '.planning', 'STATE.md'), 'utf-8');
@@ -106,6 +110,31 @@ describe('M5.E2 REVIEW — fence-less STATE.md refuses cleanly (Fix 2)', () => {
     expect(r.tag ?? null).toBe(null);
     expect(String(git(dir, ['tag', '-l'])).trim()).toBe('');
     expect(await readState(dir)).toBe(before); // byte-identical
+  });
+
+  // B114. The refusal was correct and its WORDING was not: "nothing to migrate" is
+  // false — the file does need converting, `upgradeStateFile` does it, and
+  // `readStateForMutation` calls that on the next state write. A refusal naming no
+  // next step reads as a wall in front of an already-open door. These assert the
+  // message states the remedy, not merely that a message exists.
+  it('tells the reader the conversion is automatic instead of "nothing to migrate"', async () => {
+    const r = await applyMigrate(dir, { stamp: 'T2', dateStr: '2026-09-02' });
+
+    expect(r.refused).toBe(true);
+    // RED against the old wording, which said exactly this.
+    expect(r.reason).not.toMatch(/nothing to migrate/i);
+    // The remedy has to be nameable by a reader who has never opened the source.
+    expect(r.reason).toMatch(/automatic/i);
+    expect(r.reason).toMatch(/STATE-HISTORY\.md/);
+    expect(r.reason).toMatch(/\/sig:checkpoint/);
+  });
+
+  it('render and apply give byte-identical refusal text (no preview/apply drift)', async () => {
+    const rendered = await renderDryRun(dir);
+    const applied = await applyMigrate(dir, { stamp: 'T3', dateStr: '2026-09-02' });
+
+    expect(rendered).toBe(LEGACY_STATE_REFUSAL);
+    expect(applied.reason).toBe(LEGACY_STATE_REFUSAL);
   });
 });
 

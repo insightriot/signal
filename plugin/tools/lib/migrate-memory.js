@@ -1133,6 +1133,26 @@ export function probeGitState(baseDir, opts = {}) {
 // (LAYOUT_VERSION, tools/lib/layout-stamp.js) in lockstep (asserted by a test).
 export const CURRENT_LAYOUT_VERSION = 3;
 
+// What a fence-less (pre-frontmatter) STATE.md is told. ONE string, shared by the
+// render and apply paths, because the two must not describe the same refusal
+// differently — the same reason they share `splitFrontmatter` as their gate.
+//
+// The old wording was `"…not a schema_version:1 file; nothing to migrate."`, and
+// "nothing to migrate" is FALSE: the file does need converting, `upgradeStateFile`
+// (state.js) does it, and `readStateForMutation` calls that on the next state write
+// — so the work happens on its own. A refusal that names no next step reads as a
+// wall in front of a door that is already open, which is this repository's named
+// class (a mechanism that exists and works, behind a message nobody can act on).
+// Filed as `B114`.
+export const LEGACY_STATE_REFUSAL =
+  'STATE.md predates the schema_version:1 format — it has no YAML frontmatter, and ' +
+  'this command migrates only files that do.\n\n' +
+  'Nothing is stuck, and there is nothing to do by hand: the conversion is automatic. ' +
+  'The next Signal command that writes state (/sig:discuss, /sig:plan, /sig:execute, ' +
+  '/sig:checkpoint, …) upgrades STATE.md in place — the existing narrative is relocated ' +
+  'verbatim to a sibling .planning/STATE-HISTORY.md and STATE.md keeps a pointer to it. ' +
+  'Re-run /sig:docs-migrate afterwards for the layout migration this command does handle.';
+
 // A body over this size that isn't already a pointer is a vector-2 candidate (a
 // conformant skeleton body is ~1 KB; E1's inlined body was 64.5 KB).
 const INLINED_BODY_THRESHOLD = 8 * 1024;
@@ -1849,7 +1869,7 @@ export async function renderDryRun(baseDir, opts = {}) {
   // the dry-run must too — else the display drifts from the plan-data ("will set
   // docs_layout_version… on conformance" against a file that can never be stamped).
   if (!splitFrontmatter(raw)) {
-    return 'STATE.md has no YAML frontmatter — not a schema_version:1 file; nothing to migrate.';
+    return LEGACY_STATE_REFUSAL;
   }
   const plan = senseState(raw);
   const baseline = await scanDanglingLinks(baseDir);
@@ -2231,7 +2251,7 @@ export async function applyMigrate(baseDir, opts = {}) {
         applied: false,
         refused: true,
         changed: false,
-        reason: 'STATE.md has no YAML frontmatter — not a schema_version:1 file; nothing to migrate.',
+        reason: LEGACY_STATE_REFUSAL,
         inputHash,
         mode: probe.mode,
         warnings: probe.warnings,
