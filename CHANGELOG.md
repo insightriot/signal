@@ -6,6 +6,69 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.35] — 2026-09-03 — the command that could not choose
+
+### Added
+
+- **`/sig:drive` has a front end: it picks the work, confirms, and asks what it needs before
+  starting.** The command was run end to end for the first time on 2026-09-03, against a real
+  project. It read the attention dial, read the decision queue, computed a correct verdict — and
+  had **no way to choose what to work on**, no confirmation that it should run alone, and no pass
+  asking what it needed. It began at whatever phase `STATE.md` happened to name. That is a stepper
+  with an autopilot flag, not a driver.
+
+  `proposeEpicCandidates` ranks what this run could work on, an already-open Epic first (resume
+  beats starting new), then live `BACKLOG.md` rows. ⚠ **It proposes and never picks.**
+  `LOOP-GOAL-DIRECTION.md` measured the best honest selection rule at **77% precision / ~37%
+  recall** and recommended against automatic selection — a verdict about a *silent* pick becoming
+  work nobody asked for. A ranked proposal behind an explicit confirmation is a different
+  mechanism: the person closes the recall gap by naming what the list missed, and the precision
+  gap by declining.
+
+  `collectPreflight` asks everything blocking **up front, as one batch** — unanswered parked
+  decisions, `STATE.md` blockers, open questions naming the Epic, unfilled `[FILL IN]` /
+  `[INFERRED]` markers in its requirements. This is the piece that makes the dial worth having:
+  `attention` decides whether the loop *pauses* at the measured 48–86 touchpoints and says nothing
+  about what the run will need. ⚠ **A source that could not be read lands in `cannotCheck` and
+  never in an empty `blocking` list.**
+
+  The confirmation gate is deliberately **not** in `FLOORS` — that array is tier-independent gates
+  each backed by a specific decision, and adding to it would re-litigate that framing by omission.
+
+  ⚠ **Two defects found by running it against this repo rather than reading it.**
+  `parseBacklogRows` matched `^(#{2,3})\s` while Signal's own promoted rows sit at `####`, so the
+  selector saw **zero** of them (opt-in `maxDepth` added; existing callers keep the old ceiling
+  because widening it changes which rows they strike — `B94`, the discharge half of the same
+  blindness, stays open). And the first ranking put a *"what shipped (reconciliation)"* section
+  above real work — now **ranked, not filtered**, because no rule separates work rows from prose
+  headings across projects and filtering to fit this file is `B82`'s mistake. A wrong guess costs a
+  position, never a row.
+
+### Fixed
+
+- **`B114` — `/sig:docs-migrate` told a legacy project *"nothing to migrate"*, a dead-end refusal
+  in front of a door already open.** A pre-frontmatter `STATE.md` is scoped out at the
+  `splitFrontmatter` gate, and the refusal is **correct** — but *"nothing to migrate"* is **false**:
+  the file does need converting, `upgradeStateFile` does it, and `readStateForMutation` calls that
+  **automatically** on the next state-writing command. A stranger was told they were stuck by a tool
+  whose remedy fires on its own the next time they run `/sig:discuss`.
+
+  ⚠ **The message cost more than the confusion it caused.** Reading it at face value, a session
+  drafted a five-step manual conversion procedure and characterised Signal as unable to onboard an
+  existing project; **three of those five steps were unnecessary**. A message naming no next step
+  does not merely fail to help — it invites a wrong model of the system, and the wrong model gets
+  acted on. One shared `LEGACY_STATE_REFUSAL` constant now serves both the render and apply paths.
+  **Not fixed:** `/sig:docs-migrate` still does not perform the legacy upgrade itself; chaining it
+  turns a read-only dry-run into a write path, which is a design call rather than a message fix.
+
+### Changed
+
+- **[`CLAUDE.md`](CLAUDE.md) de-bloated, 51.4 KB → 25.9 KB**, and the bare-path references on the
+  live doc surface converted to links. The grandfather flag is dropped and the ceiling lowered to
+  the 40 KB target by the ratchet.
+
+---
+
 ## [0.1.34] — 2026-09-02 — the brake that only ever slammed on
 
 ### Changed
