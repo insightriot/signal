@@ -23,7 +23,7 @@ import { attentionFor } from './profile.js';
 import { LOOP_BOUNDED_PHASES } from './loop-ceiling.js';
 import { atomicWrite } from './atomic-write.js';
 import { parseBacklogRows } from './backlog.js';
-import { readState, partitionCompletedPhases } from './state.js';
+import { readState, partitionCompletedPhases, PHASES } from './state.js';
 
 export const QUEUE_REL = '.planning/DECISION-QUEUE.md';
 
@@ -468,4 +468,78 @@ export function formatPreflight({ blocking, cannotCheck, checked }) {
     for (const c of cannotCheck) lines.push(`  · ${c.source} — ${c.reason}`);
   }
   return lines.join('\n');
+}
+
+/**
+ * The seven canonical phases, in flow order — `state.js`'s exported list, aliased.
+ *
+ * NOT a copy, deliberately. A second array would drift the moment a phase is
+ * renamed or added, and `describeNextAction` validates against `PHASES`: the two
+ * disagreeing about which phases are valid reintroduces the `recognized: false`
+ * dead end this function exists to remove, one layer down. Caught in review after
+ * the first version duplicated the literal and called the original private.
+ */
+export const CANONICAL_PHASES = PHASES;
+
+/**
+ * Where the chosen work STARTS.
+ *
+ * THE GAP THIS CLOSES, found on the second real run (2026-09-03). The front end
+ * picks the work; steps 1–3 then read `state.phase` to decide what to run. Those
+ * two were never connected, so a run that had just chosen something still keyed on
+ * whatever phase STATE.md happened to hold — and where that value was not one of
+ * the seven (`EXPLORING`, in the wild), `describeNextAction` returned
+ * `recognized: false` and there was **no command to run at any attention level**.
+ * Choosing the work and never saying where it starts leaves the same dead end the
+ * front end was built to remove, one step later.
+ *
+ * It PROPOSES a phase and a reason. It does not write: the caller confirms and the
+ * ordinary phase-transition write records it, so a stale phase is corrected
+ * deliberately rather than silently overwritten by a command run to make progress.
+ *
+ * @param {object|null} state
+ * @param {{source?: string}|null} candidate — the chosen work, from proposeEpicCandidates
+ * @returns {{phase: string, why: string, changed: boolean, blocked: boolean}}
+ */
+export function resolveStartPhase(state, candidate) {
+  const recorded = typeof state?.phase === 'string' ? state.phase.trim() : null;
+  const recognized = recorded !== null && CANONICAL_PHASES.includes(recorded);
+  const resuming = Boolean(candidate?.source?.includes('STATE.md'));
+
+  if (resuming && recognized) {
+    return {
+      phase: recorded,
+      why: `resuming work already at ${recorded}`,
+      changed: false,
+      blocked: false,
+    };
+  }
+
+  if (resuming && !recognized) {
+    // The one case that cannot be resolved from data. The Epic is mid-flight and
+    // the record of where it got to is unreadable, so proposing a restart at
+    // DISCUSS could silently discard finished phases. Say what is wrong, name the
+    // value, and stop — this is `B70`'s shape and it needs a person.
+    return {
+      phase: 'DISCUSS',
+      why:
+        `STATE.md records phase "${recorded ?? '(none)'}", which is not one of ` +
+        `${CANONICAL_PHASES.join(', ')}. This Epic is open, so the loop cannot tell how far ` +
+        'it got — restarting at DISCUSS may discard completed phases. Set a real phase first.',
+      changed: true,
+      blocked: true,
+    };
+  }
+
+  // Newly chosen work starts at the beginning of the flow, whatever the file says.
+  // The recorded phase belongs to whatever ran last, and inheriting it is exactly
+  // how a fresh unit of work ends up "resuming" someone else's position.
+  return {
+    phase: 'DISCUSS',
+    why: recognized
+      ? `new work — starts at DISCUSS (the recorded ${recorded} belongs to the previous unit)`
+      : `new work — starts at DISCUSS (STATE.md's "${recorded ?? '(none)'}" is not a phase)`,
+    changed: recorded !== 'DISCUSS',
+    blocked: false,
+  };
 }

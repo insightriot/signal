@@ -17,6 +17,8 @@ import {
   proposeEpicCandidates,
   collectPreflight,
   formatPreflight,
+  resolveStartPhase,
+  CANONICAL_PHASES,
 } from '../plugin/tools/lib/drive.js';
 
 const FRONTMATTER = (over = {}) => {
@@ -188,5 +190,71 @@ describe('collectPreflight — what the run needs BEFORE it starts', () => {
     const r = await collectPreflight(dir, { epic: 'M9.E1' });
     expect(r.blocking).toEqual([]);
     expect(formatPreflight(r)).toMatch(/^Nothing blocking — checked \d+ source\(s\)\./m);
+  });
+});
+
+describe('resolveStartPhase — where the chosen work starts', () => {
+  // Found on the second real run (2026-09-03): the front end picked the work,
+  // then steps 1-3 read `state.phase` and found `EXPLORING`. describeNextAction
+  // returned recognized:false and there was no command to run AT ANY attention
+  // level. Choosing the work and not placing it leaves the same dead end.
+  const RESUME = { source: 'STATE.md (open Epic)' };
+  const NEW = { source: 'BACKLOG.md' };
+
+  it('resumes an open Epic at its recorded phase, writing nothing', () => {
+    const r = resolveStartPhase({ phase: 'EXECUTE' }, RESUME);
+    expect(r).toMatchObject({ phase: 'EXECUTE', changed: false, blocked: false });
+  });
+
+  it('starts NEW work at DISCUSS even when the recorded phase is valid', () => {
+    // The recorded phase belongs to whatever ran last. Inheriting it is how fresh
+    // work ends up resuming someone else's position.
+    const r = resolveStartPhase({ phase: 'REVIEW' }, NEW);
+    expect(r.phase).toBe('DISCUSS');
+    expect(r.changed).toBe(true);
+    expect(r.blocked).toBe(false);
+  });
+
+  it('places new work at DISCUSS when the recorded phase is not a phase at all', () => {
+    const r = resolveStartPhase({ phase: 'EXPLORING' }, NEW);
+    expect(r.phase).toBe('DISCUSS');
+    expect(r.blocked).toBe(false);
+    expect(r.why).toMatch(/EXPLORING/);
+  });
+
+  it('BLOCKS an open Epic whose recorded phase is unreadable, rather than restarting it', () => {
+    // The one case data cannot settle: the Epic is mid-flight and the record of how
+    // far it got is unreadable, so a silent restart at DISCUSS could discard
+    // completed phases. It names the value and stops.
+    const r = resolveStartPhase({ phase: 'EXPLORING' }, RESUME);
+    expect(r.blocked).toBe(true);
+    expect(r.why).toMatch(/EXPLORING/);
+    expect(r.why).toMatch(/may discard completed phases/);
+  });
+
+  it('handles a missing phase without throwing', () => {
+    expect(resolveStartPhase(null, NEW).phase).toBe('DISCUSS');
+    expect(resolveStartPhase({}, NEW).blocked).toBe(false);
+    expect(resolveStartPhase({ phase: null }, RESUME).blocked).toBe(true);
+  });
+
+  it('every phase it proposes is one the flow actually has', () => {
+    for (const candidate of [RESUME, NEW, null]) {
+      for (const phase of ['EXPLORING', 'EXECUTE', null, '']) {
+        expect(CANONICAL_PHASES).toContain(resolveStartPhase({ phase }, candidate).phase);
+      }
+    }
+  });
+});
+
+describe('CANONICAL_PHASES is the shared list, not a copy', () => {
+  // Caught in review on PR #230. The first version duplicated the literal and
+  // called state.js's list "private" — it is exported, and describeNextAction
+  // validates against it. Two independent arrays drift the moment a phase is
+  // renamed, and the two disagreeing about which phases are valid reintroduces
+  // the `recognized: false` dead end this whole change exists to remove.
+  it('is the same binding state.js exports, so the two cannot disagree', async () => {
+    const state = await import('../plugin/tools/lib/state.js');
+    expect(CANONICAL_PHASES).toBe(state.PHASES);
   });
 });
