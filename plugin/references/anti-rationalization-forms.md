@@ -5,7 +5,7 @@
 > and the corpus disagree. A hand-kept list of what a corpus contains is a completeness claim,
 > and this repository is done writing those.
 
-**125 entries: 105 discipline, 20 shaping.**
+**128 entries: 108 discipline, 20 shaping.**
 
 ## The rule (`B38`)
 
@@ -255,3 +255,6 @@ output. Listed so the classification is complete rather than asserted.
 - "This floor is obviously fine to skip in this case."
 - "The profile is malformed, but the intent is obviously `unattended`."
 - "The queue is long, but the run succeeded, so report success."
+- "STATE.md names a phase, so just start there — that IS the work."
+- "No backlog file, so there's nothing to work on — report done."
+- "Preflight found nothing blocking, so go" — when a source failed to read.

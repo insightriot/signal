@@ -16,7 +16,8 @@ was welded to the rigor dial**, so the only way to buy less of your time was to 
 `attention` splits them. `/sig:drive` is what spends it.
 
 Authoritative references:
-- `tools/lib/drive.js` — `canProceedUnattended`, `FLOORS`, `floorsFor`, `queueDecision`, `readQueue`
+- `tools/lib/drive.js` — `proposeEpicCandidates`, `collectPreflight`, `formatPreflight`,
+  `PREFLIGHT_SOURCES`, `canProceedUnattended`, `FLOORS`, `floorsFor`, `queueDecision`, `readQueue`
 - `tools/lib/loop-ceiling.js` — `loopStatusFor`, `formatLoopCeilingHalt`, `LOOP_BOUNDED_PHASES`
 - `tools/lib/profile.js` — `attentionFor`, `ATTENTION_LEVELS`, `readEffectiveProfile`
 - `tools/lib/status.js` — `describeNextAction`, `formatNextActionCopy`
@@ -39,6 +40,57 @@ the opposite of the `B39` fail-*open* posture used for reporting: a detector tha
 say so and continue; **an actor that cannot tell should stop.**
 
 ## Workflow
+
+**Steps 0a–0c are the front end, and they are not optional.** Before them this command
+began at whatever phase `STATE.md` happened to name, chose nothing, and asked for nothing —
+which is a stepper with an autopilot flag, not a driver. Found by running it end-to-end for
+the first time on 2026-09-03, against a real project.
+
+### 0a. Choose the work — propose, never auto-pick
+
+If the user named an Epic in the arguments, use it and skip to **0b**.
+
+Otherwise call `proposeEpicCandidates(baseDir)`. Present the candidates in the order returned
+— an already-open Epic comes first, because resuming beats starting something new — and ask
+which one, via `AskUserQuestion`, offering the top candidates plus an "something else" path.
+
+⚠ **It proposes; you never pick silently.** `LOOP-GOAL-DIRECTION.md` measured the best honest
+selection rule over real backlog rows at **77% precision / ~37% recall** and recommended not
+building automatic selection. That verdict is about a *silent* pick becoming work nobody asked
+for. A ranked proposal behind an explicit confirmation is a different mechanism: the person
+closes the recall gap by naming what the list missed, and the precision gap by declining.
+
+⚠ **`cannotCheck` entries render as their own line.** No `BACKLOG.md` means "could not look",
+never "no work" — and an empty candidate list with an unread source must never be presented
+as "nothing to do".
+
+### 0b. Confirm you are running it alone
+
+One `AskUserQuestion`, in plain words: *run {Epic} start to finish on my own?* Options: yes /
+pick a different one / stop.
+
+**This gate is NOT in `FLOORS` and must not be added to it.** That array is documented as
+tier-independent gates each backed by a specific decision; this is a new confirmation belonging
+to the command flow. It fires regardless of `attention` — `unattended` means the run does not
+stop to ask *along the way*, not that it starts without being told to.
+
+### 0c. Ask everything blocking, UP FRONT
+
+Call `collectPreflight(baseDir, { epic })` and render it with `formatPreflight`. It reads the
+sources named in `PREFLIGHT_SOURCES`: unanswered parked decisions, `STATE.md` blockers, open
+questions naming this Epic, and unfilled `[FILL IN]` / `[INFERRED]` markers in the Epic's
+requirements.
+
+**Ask every `blocking` item as ONE batch, before running anything.** This is the piece that
+makes the dial worth having: a FULL-tier Epic was measured at 48–86 synchronous touchpoints,
+and `attention` only decides whether the loop *pauses* at them. Asking up front, once, is what
+turns "stops constantly" into "asked me once, then ran" — which is the behaviour people mean
+by driving.
+
+⚠ **A source that could not be read is a STOP, not a clean pass.** `cannotCheck` is rendered
+separately and never folded into an empty `blocking` list. This module's posture is that an
+actor which cannot tell should stop; the alternative is a run that starts blind while reporting
+"nothing needed", at the moment that costs the most.
 
 ### 1. Read the dial
 
@@ -105,3 +157,6 @@ finished".
 | "This floor is obviously fine to skip in this case." | No. Every floor exists because someone decided it was tier-independent. Skipping one is overturning that decision without saying so. |
 | "The profile is malformed, but the intent is obviously `unattended`." | No — fail closed. Inferring autonomy from a broken config is how a run nobody authorised becomes a run nobody noticed. |
 | "The queue is long, but the run succeeded, so report success." | The queue length **is** the result. A run that parks 20 decisions did not succeed at anything except deferring. |
+| "STATE.md names a phase, so just start there — that IS the work." | No. A phase value is where the last run stopped, not a decision about what to do next. Starting from it without choosing and confirming is what made this command a stepper. Run 0a–0c. |
+| "No backlog file, so there's nothing to work on — report done." | "Could not look" is not "no work". It renders as `cannotCheck`, on its own line, and the run does not present an empty candidate list as an empty queue. |
+| "Preflight found nothing blocking, so go" — when a source failed to read. | Check `cannotCheck` first. A clean `blocking` list next to an unread source means the pass did not happen, and starting there is starting blind. |
