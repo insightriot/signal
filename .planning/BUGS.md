@@ -236,6 +236,14 @@ Archived phase logs are written to disk but never staged, so an Epic's ledger su
 
 ---
 
+## `ROUTE_REVERSIBILITY` is not frozen, and it aliases calibration's own enum
+
+**Status:** needs-triage
+
+`ROUTE_ALTITUDE` is `Object.freeze`d; `ROUTE_REVERSIBILITY` — defined one line away as `CALIBRATION_ENUMS.reversibility` — is not. Verified 2026-09-04 in M6.E6 REVIEW: `Object.isFrozen(ROUTE_ALTITUDE)` is `true`, `Object.isFrozen(ROUTE_REVERSIBILITY)` is `false`. The unfrozen one is the riskier of the two, because it is not a copy: it is a live reference into `profile.js`'s `CALIBRATION_ENUMS`, so anything mutating it corrupts calibration's validation vocabulary process-wide, not just the router's. Nothing mutates it today, which is why this is a Suggestion and not a defect with a live cost — it is asymmetric hardening on a shared structure, of the kind that is free to fix now and awkward once something does write to it. NOT fixed in M6.E6 REVIEW deliberately: freezing it means freezing a `profile.js` structure, and a ripple into another module is design impact, which is what separates PASS-WITH-FIXES from FAIL. Fix shape: freeze `CALIBRATION_ENUMS` and its arrays at their definition in `profile.js`, which hardens every calibration enum rather than only the one the router borrows.
+
+---
+
 ## dischargeBacklogRows is blind to rows nested below h3
 
 **Status:** needs-triage
