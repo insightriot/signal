@@ -9,7 +9,12 @@ const PROFILE_FILE = 'PROFILE.md';
 
 const TIERS = ['SKETCH', 'FEATURE', 'SPIKE', 'FULL'];
 
-const CALIBRATION_ENUMS = {
+// Exported since M6.E6: `drive.js`'s decision router reuses `reversibility`
+// VERBATIM rather than re-listing it. A second copy of a vocabulary drifts the
+// moment a term changes and then the two disagree about what is valid — caught
+// in review on #230, where a duplicated phase list would have reintroduced the
+// dead end that change existed to remove.
+export const CALIBRATION_ENUMS = {
   scope: ['throwaway', 'feature', 'subsystem', 'product'],
   stakes: ['none', 'minor', 'major', 'catastrophic'],
   novelty: ['familiar', 'rare', 'first-for-org', 'first-in-industry'],

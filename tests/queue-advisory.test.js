@@ -74,12 +74,22 @@ describe('the queue advisory is actually reached from the orientation commands',
     }
   });
 
-  it('both disclose that nothing writes to the queue yet', async () => {
-    // The honesty clause is load-bearing: without it "all answered" reads as
-    // evidence that deferral works, when nothing outside tests defers at all.
+  it('both disclose that the write half NOW HAS A CALLER (M6.E6)', async () => {
+    // INVERTED, not deleted. This test previously pinned the opposite clause —
+    // "nothing writes to the queue yet" — and was correct for as long as that
+    // was true: without it, `all answered` read as evidence that deferral works
+    // when nothing outside tests deferred at all.
+    //
+    // M6.E6 gave the write half a caller, which makes the old clause FALSE. A
+    // caveat that outlives its cause is `M5.E17`'s class, and a test pinning one
+    // is how it survives review — this repository has shipped that exact defect
+    // before (a guard's test pinned the hole as intended behaviour). So the
+    // assertion flips with the fact rather than being dropped: the honesty
+    // requirement is unchanged, only which sentence is honest.
     for (const cmd of ['status.md', 'resume.md']) {
       const md = await readFile(join(ROOT, 'plugin/commands', cmd), 'utf-8');
-      expect(md, `${cmd} omits the read-half disclosure`).toMatch(/read half only/i);
+      expect(md, `${cmd} still carries the stale read-half caveat`).not.toMatch(/read half only/i);
+      expect(md, `${cmd} does not say the write half has a caller`).toMatch(/write half has a caller/i);
     }
   });
 });

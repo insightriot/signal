@@ -19,7 +19,7 @@ import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 
-import { attentionFor } from './profile.js';
+import { attentionFor, CALIBRATION_ENUMS } from './profile.js';
 import { LOOP_BOUNDED_PHASES } from './loop-ceiling.js';
 import { atomicWrite } from './atomic-write.js';
 import { parseBacklogRows } from './backlog.js';
@@ -117,18 +117,40 @@ export function canProceedUnattended(phase, profile, { hasFloor = null, loopStat
   return { proceed: true, reason: 'unattended', attention, floors: [] };
 }
 
-/** One queued decision, rendered for a human to answer later. */
-export function formatQueuedDecision({ id, phase, question, recommendation, why, date }) {
+/**
+ * One queued decision, rendered for a human to answer later.
+ *
+ * `reversibility` / `altitude` / `route` are recorded (M6.E6) so the entry says
+ * WHY it is sitting here rather than leaving the reader to infer it. `routeWhy`
+ * is `routeDecision`'s own sentence — the router names the deciding axis, and a
+ * second hand-written explanation is how one rule comes to be described two ways.
+ */
+export function formatQueuedDecision({
+  id, phase, question, recommendation, why, date,
+  reversibility, altitude, routeWhy,
+}) {
   if (!id || !question) {
     throw new Error('formatQueuedDecision requires an id and a question.');
+  }
+  const tags = [
+    `**Phase:** ${phase ?? 'unknown'}`,
+    `**Queued:** ${date ?? 'unknown'}`,
+  ];
+  // An untagged axis renders as `untagged`, never omitted. A missing row would
+  // look like a decision nobody had to tag, and the whole fail-closed default
+  // exists because that is the case worth seeing.
+  if (reversibility !== undefined || altitude !== undefined) {
+    tags.push(`**Altitude:** ${altitude ?? 'untagged'}`);
+    tags.push(`**Reversibility:** ${reversibility ?? 'untagged'}`);
   }
   const lines = [
     `## ${id} — ${question}`,
     '',
-    `**Phase:** ${phase ?? 'unknown'} · **Queued:** ${date ?? 'unknown'}`,
+    tags.join(' · '),
     '',
     `**Recommendation:** ${recommendation ?? '(none offered)'}`,
   ];
+  if (routeWhy) lines.push('', `**Why it is here:** ${routeWhy}`);
   // Every gray-area question in Signal already carries a recommendation — hiding it
   // is "failing to use the model's signal" (`references/question-patterns.md`). So a
   // queued decision without one is a bug in the caller, and says so out loud rather
@@ -160,13 +182,54 @@ measurement this file exists to produce.
 ---
 `;
 
-export async function queueDecision(baseDir, decision) {
+/**
+ * Park a decision for a person, and let the run carry on.
+ *
+ * Routes first when the caller supplied tags, so the entry records the router's
+ * verdict rather than the caller's opinion of it — one rule, one place, one
+ * wording.
+ */
+export async function queueDecision(baseDir, decision, { attention } = {}) {
+  const routed = routeDecision(decision ?? {});
+
+  // AC2.6 — NEVER QUEUE AT `attended`, and this is a check rather than a
+  // sentence in drive.md deliberately. An Epic about reaching unreached
+  // mechanisms must not add a rule that lives only in prose: that is `B75`,
+  // this repository's named defect, and it would be a comic way to close this
+  // one. A person sitting at the gate should be ASKED — filing a question at
+  // someone waiting to answer it is a worse experience than the halt this
+  // replaces.
+  //
+  // Refuses rather than throws: a live run must not die because a caller passed
+  // its attention level honestly. Same shape as `applyMigrate`'s refusal.
+  if (attention === 'attended') {
+    return {
+      queued: false,
+      refused: true,
+      reason:
+        'Not queued: attention is `attended`, so ask this question instead. ' +
+        'Queueing is what `unattended` and `checkpointed` buy.',
+    };
+  }
+
+  // A decision the router would ADOPT must not be filed as a parked question.
+  // Without this, a caller that routes to `adopt` and calls this anyway writes an
+  // entry reading "Adopted: …" sitting unanswered in the queue forever — a
+  // decision nobody has to make, indistinguishable from one that is waiting.
+  if (routed.route === 'adopt' && decision?.routeWhy === undefined) {
+    return {
+      queued: false,
+      refused: true,
+      reason: `Not queued: ${routed.why} Adopt it and continue.`,
+    };
+  }
+
   const path = join(baseDir, QUEUE_REL);
-  const entry = formatQueuedDecision(decision);
+  const entry = formatQueuedDecision({ ...decision, routeWhy: decision?.routeWhy ?? routed.why });
   const current = existsSync(path) ? await readFile(path, 'utf-8') : QUEUE_HEADER;
   const next = `${current.replace(/\s*$/, '')}\n\n${entry}`;
   await atomicWrite(path, next);
-  return { path, id: decision.id };
+  return { path, id: decision.id, queued: true, refused: false };
 }
 
 export async function readQueue(baseDir) {
@@ -542,4 +605,122 @@ export function resolveStartPhase(state, candidate) {
     changed: recorded !== 'DISCUSS',
     blocked: false,
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE ROUTER: may this decision be taken without a person, or must it be parked?
+//
+// The rule is not invented here. `LOOP-ENGINEERING-ANALYSIS.md` states it as
+// already existing in two established pieces, and this makes both executable:
+//
+//   Altitude     — plumbing / tooling / test-mechanics auto-resolve with sensible
+//                  defaults; product / scope / positioning decisions queue. This is
+//                  the standing "gate at product altitude" norm, made machine-readable.
+//   Reversibility — calibration's own per-project vocabulary, applied per DECISION:
+//                  trivial / moderate may be adopted; painful / irreversible queue.
+//
+// OR-COMPOSED, and the composition is the design. A decision queues if it is
+// product-altitude OR irreversible; it is adopted only when it is BOTH plumbing
+// AND reversible. Reversibility alone misses the case that matters most in
+// practice — a product decision that is perfectly reversible, like picking a
+// default tier for a new command: trivial to revert, and exactly the call a
+// person wants to make.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Reversibility terms — calibration's list, imported. Never a second copy (`#230`). */
+export const ROUTE_REVERSIBILITY = CALIBRATION_ENUMS.reversibility;
+
+/**
+ * Altitude terms.
+ *
+ * Defined here because no existing vocabulary carries them: the norm has always
+ * been prose (`discuss.md` cites it by name; it is a standing session instruction)
+ * and this Epic is what makes it machine-readable. Two values, deliberately — a
+ * scale would invite a judgement call at every ask, and the norm is binary: is
+ * this mine to decide, or yours?
+ */
+export const ROUTE_ALTITUDE = Object.freeze(['plumbing', 'product']);
+
+const ADOPTABLE_REVERSIBILITY = Object.freeze(['trivial', 'moderate']);
+
+/**
+ * Route one decision: adopt it, or park it for a person.
+ *
+ * FAIL CLOSED ON NOT KNOWING (`D-M6E6-4`). An absent or unrecognised value routes
+ * to `queue`, never to `adopt`. The asymmetry decides it: a forgotten tag under
+ * this rule costs one queue entry to answer, and under the alternative costs an
+ * IRREVERSIBLE DECISION MADE SILENTLY — precisely the failure the rule exists to
+ * prevent, arriving through an omission rather than a decision. It is also this
+ * module's stated posture applied to a new axis: a detector that cannot look
+ * should say so and continue; an actor that cannot tell should stop.
+ *
+ * Total: never throws, whatever it is handed.
+ *
+ * @param {{reversibility?: unknown, altitude?: unknown}} [decision]
+ * @returns {{route: 'adopt'|'queue', why: string, missing: string[]}}
+ */
+export function routeDecision({ reversibility, altitude } = {}) {
+  const missing = [];
+  const knownReversibility = ROUTE_REVERSIBILITY.includes(reversibility);
+  const knownAltitude = ROUTE_ALTITUDE.includes(altitude);
+  if (!knownReversibility) missing.push('reversibility');
+  if (!knownAltitude) missing.push('altitude');
+
+  if (missing.length > 0) {
+    // Name what is missing rather than only that something is: a queue entry
+    // saying "untagged" tells the reader nothing about what to fix at the caller.
+    const which = missing.length === 2 ? 'neither axis was tagged' : `${missing[0]} was not tagged`;
+    return {
+      route: 'queue',
+      why: `Queued because ${which}, and an untagged decision is never adopted (\`D-M6E6-4\`).`,
+      missing,
+    };
+  }
+
+  const reversibleEnough = ADOPTABLE_REVERSIBILITY.includes(reversibility);
+  const isPlumbing = altitude === 'plumbing';
+
+  if (isPlumbing && reversibleEnough) {
+    return {
+      route: 'adopt',
+      why: `Adopted: a ${altitude} decision that is ${reversibility} to undo.`,
+      missing,
+    };
+  }
+
+  // Name the deciding axis — and both when both would have queued it, so the
+  // reader is not told a half-truth about why their question is sitting there.
+  const reasons = [];
+  if (!isPlumbing) reasons.push('it is a product-altitude call, which is yours to make');
+  if (!reversibleEnough) reasons.push(`undoing it is ${reversibility}`);
+  return {
+    route: 'queue',
+    why: `Queued because ${reasons.join(', and ')}.`,
+    missing,
+  };
+}
+
+/**
+ * What a person answered since the last run.
+ *
+ * READ-FORWARD IS A NOTICEBOARD, NOT A LOOP (`D-M6E6-5`), and the honest word for
+ * it is *surfaced*. Auto-applying an answer needs the entry to carry a durable
+ * link to the work, and its failure mode is landing a stale answer on something
+ * that has since moved on; re-running the phase that asked collides with the loop
+ * ceiling, since a re-run is a phase completion. Both are later decisions, made
+ * with evidence from a queue that by then exists.
+ *
+ * @param {{entries: Array<{id: string, question: string, answered: boolean}>}} queue
+ * @returns {string|null} — null when there is nothing a person has answered
+ */
+export function formatAnsweredForward(queue) {
+  const answered = (queue?.entries ?? []).filter((e) => e.answered);
+  if (answered.length === 0) return null;
+  const lines = [
+    `✅ ${answered.length} decision(s) you answered since the last run:`,
+    ...answered.map((e) => `  · ${e.id} — ${e.question}`),
+    '',
+    '   These are not applied automatically. Act on them, or say to carry them into this run.',
+  ];
+  return lines.join('\n');
 }
