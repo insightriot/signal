@@ -216,8 +216,8 @@ open, a one-line all-answered note otherwise, and **silence when the queue has n
 an error. What it measures is the *attention setting*: a queue filling faster than it drains means
 the dial is wrong for this project, and that is the reading it exists to produce.
 
-⚠ **This is the read half only.** Nothing writes to the queue outside tests yet, so `all answered`
-is honest about the file and says nothing about whether deferral is happening.
+**The write half has a caller as of `M6.E6`:** `/sig:drive` routes a mid-run gray-area decision
+and parks what it may not adopt, so `all answered` now means what it says.
 
 Render it in the **advisory tier**, alongside the tier advisory — never above the schema-drift or
 stale-binding banners, which cast doubt on the reading itself.

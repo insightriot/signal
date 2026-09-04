@@ -17,8 +17,9 @@ was welded to the rigor dial**, so the only way to buy less of your time was to 
 
 Authoritative references:
 - `tools/lib/drive.js` — `proposeEpicCandidates`, `resolveStartPhase`, `CANONICAL_PHASES`,
-  `collectPreflight`, `formatPreflight`, `PREFLIGHT_SOURCES`, `canProceedUnattended`, `FLOORS`,
-  `floorsFor`, `queueDecision`, `readQueue`
+  `collectPreflight`, `formatPreflight`, `PREFLIGHT_SOURCES`, `routeDecision`,
+  `ROUTE_REVERSIBILITY`, `ROUTE_ALTITUDE`, `formatAnsweredForward`, `canProceedUnattended`,
+  `FLOORS`, `floorsFor`, `queueDecision`, `readQueue`
 - `tools/lib/loop-ceiling.js` — `loopStatusFor`, `formatLoopCeilingHalt`, `LOOP_BOUNDED_PHASES`
 - `tools/lib/profile.js` — `attentionFor`, `ATTENTION_LEVELS`, `readEffectiveProfile`
 - `tools/lib/status.js` — `describeNextAction`, `formatNextActionCopy`
@@ -140,6 +141,11 @@ is *derived* from `gate_strictness` when absent (`off`→`unattended`, `light`�
 `readQueue(baseDir)`. If anything is unanswered, print it **first**. A run that adds to a queue
 nobody is draining is the failure mode this command could most easily create.
 
+**Then `formatAnsweredForward(queue)`** — what a person answered since the last run, printed above
+the unanswered count. ⚠ **Answers are surfaced, never auto-applied** (`D-M6E6-5`): applying one needs
+a durable link to the work and can land a stale answer on something that has moved on. Report them
+and let the user say whether to carry them into this run.
+
 **A long queue is a signal, not a backlog.** If entries accumulate faster than they are answered,
 the attention setting is wrong for this project — say so in those words.
 
@@ -165,11 +171,40 @@ regardless of `attention` — the check sits above the attention branches. This 
 two-argument call from the day the ceiling shipped (`B113`), and a test in the Signal repository
 now fails if it comes back.
 
-**Deciding vs. queueing.** When a phase asks a gray-area question mid-run, only queue it when the
-work can honestly continue without the answer. If it cannot, **stop** — a queued decision that the
-next step silently assumed an answer to is worse than a blocked run, because it looks like progress.
-Every queued entry carries the recommendation that would have been offered; Signal already mandates
-one on every gray-area ask, and hiding it is "failing to use the model's signal".
+### 3b. A gray-area question mid-run — route it, do not halt on it
+
+**This is the step that makes the dial worth having past the first surprise.** `collectPreflight`
+moved the *foreseeable* questions to the front; this is what happens to the ones that could not be
+foreseen. Before `M6.E6` the answer was: halt.
+
+Tag the decision on both axes, then call `routeDecision({ reversibility, altitude })`:
+
+| Axis | Values | Which way it routes |
+|---|---|---|
+| `altitude` | `plumbing` / `product` | plumbing is yours to decide; **product / scope / positioning is the user's** |
+| `reversibility` | calibration's four terms, per **decision** | `trivial` / `moderate` may be adopted; `painful` / `irreversible` queues |
+
+**OR-composed:** a decision is adopted only when it is **both** plumbing **and** reversible.
+Reversibility alone misses the case that matters most — a product call that is trivial to revert,
+like a default tier, is still a person's to make.
+
+- **`route: 'adopt'`** → take the recommendation and continue.
+- **`route: 'queue'`** → `queueDecision(baseDir, { …, reversibility, altitude })` and continue. It
+  routes again internally and records the router's own sentence, so the entry says which axis parked
+  it. Do not write that sentence yourself.
+
+⚠ **Tag honestly, and when unsure do not guess — leave it untagged.** An untagged decision queues
+(`D-M6E6-4`); that is the safe direction, and the entry names which axis you left blank. Expect a
+chatty queue while tagging is new. That is the fail-closed side working, not a defect.
+
+⚠ **Queue only when the work can honestly continue without the answer. If it cannot, STOP** — a
+queued decision the next step silently assumed an answer to is worse than a blocked run, because it
+looks like progress. Every entry carries the recommendation that would have been offered; hiding it
+is "failing to use the model's signal".
+
+⚠ **Never queue at `attention: attended`.** A person sitting at the gate should be *asked*. Queueing
+is what `unattended` and `checkpointed` buy; filing a question at someone waiting to answer it is a
+worse experience than the halt this step replaces.
 
 ### 4. Report
 
@@ -188,3 +223,6 @@ finished".
 | "STATE.md names a phase, so just start there — that IS the work." | No. A phase value is where the last run stopped, not a decision about what to do next. Starting from it without choosing and confirming is what made this command a stepper. Run 0a–0c. |
 | "No backlog file, so there's nothing to work on — report done." | "Could not look" is not "no work". It renders as `cannotCheck`, on its own line, and the run does not present an empty candidate list as an empty queue. |
 | "Preflight found nothing blocking, so go" — when a source failed to read. | Check `cannotCheck` first. A clean `blocking` list next to an unread source means the pass did not happen, and starting there is starting blind. |
+| "This one is obviously fine to decide — I know what they would say." | That is what `altitude` is for, and knowing the answer is not the same as it being yours. A product call queues even when reversible and even when the recommendation is obvious. |
+| "Tagging every decision is tedious; leave them untagged and it will route sensibly." | It will: untagged **queues**. That is correct and it is not free — an untagged entry tells the reader which axis you skipped. Tag it or accept the queue. |
+| "The queue is the safe default, so queue everything." | A queue nobody drains is the failure this command most easily creates, and depth is the measurement the file exists to produce. Adopt what is genuinely plumbing and genuinely reversible. |

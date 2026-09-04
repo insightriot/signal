@@ -594,10 +594,9 @@ export async function readTierAdvisory(baseDir) {
  * is a fact about a run that already completed. Blocking on it would punish the
  * exact workflow the queue exists to enable.
  *
- * ⚠ This is the READ half only. Nothing yet WRITES to the queue outside tests —
- * a phase command that defers a gray-area question is still instructed in prose
- * and enforced by nothing. Rendering `0 unanswered` here is therefore honest
- * about the queue and says nothing about whether deferral is happening.
+ * ⚠ Since `M6.E6` the write half has a caller: `/sig:drive` routes a mid-run
+ * gray-area decision and parks what it may not adopt. So `all answered` now
+ * means what it says.
  *
  * Read-only, offline, fail-open (any error → `null`).
  *

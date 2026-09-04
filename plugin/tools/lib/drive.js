@@ -117,18 +117,40 @@ export function canProceedUnattended(phase, profile, { hasFloor = null, loopStat
   return { proceed: true, reason: 'unattended', attention, floors: [] };
 }
 
-/** One queued decision, rendered for a human to answer later. */
-export function formatQueuedDecision({ id, phase, question, recommendation, why, date }) {
+/**
+ * One queued decision, rendered for a human to answer later.
+ *
+ * `reversibility` / `altitude` / `route` are recorded (M6.E6) so the entry says
+ * WHY it is sitting here rather than leaving the reader to infer it. `routeWhy`
+ * is `routeDecision`'s own sentence — the router names the deciding axis, and a
+ * second hand-written explanation is how one rule comes to be described two ways.
+ */
+export function formatQueuedDecision({
+  id, phase, question, recommendation, why, date,
+  reversibility, altitude, routeWhy,
+}) {
   if (!id || !question) {
     throw new Error('formatQueuedDecision requires an id and a question.');
+  }
+  const tags = [
+    `**Phase:** ${phase ?? 'unknown'}`,
+    `**Queued:** ${date ?? 'unknown'}`,
+  ];
+  // An untagged axis renders as `untagged`, never omitted. A missing row would
+  // look like a decision nobody had to tag, and the whole fail-closed default
+  // exists because that is the case worth seeing.
+  if (reversibility !== undefined || altitude !== undefined) {
+    tags.push(`**Altitude:** ${altitude ?? 'untagged'}`);
+    tags.push(`**Reversibility:** ${reversibility ?? 'untagged'}`);
   }
   const lines = [
     `## ${id} — ${question}`,
     '',
-    `**Phase:** ${phase ?? 'unknown'} · **Queued:** ${date ?? 'unknown'}`,
+    tags.join(' · '),
     '',
     `**Recommendation:** ${recommendation ?? '(none offered)'}`,
   ];
+  if (routeWhy) lines.push('', `**Why it is here:** ${routeWhy}`);
   // Every gray-area question in Signal already carries a recommendation — hiding it
   // is "failing to use the model's signal" (`references/question-patterns.md`). So a
   // queued decision without one is a bug in the caller, and says so out loud rather
@@ -160,9 +182,17 @@ measurement this file exists to produce.
 ---
 `;
 
+/**
+ * Park a decision for a person, and let the run carry on.
+ *
+ * Routes first when the caller supplied tags, so the entry records the router's
+ * verdict rather than the caller's opinion of it — one rule, one place, one
+ * wording.
+ */
 export async function queueDecision(baseDir, decision) {
   const path = join(baseDir, QUEUE_REL);
-  const entry = formatQueuedDecision(decision);
+  const routed = routeDecision(decision ?? {});
+  const entry = formatQueuedDecision({ ...decision, routeWhy: decision?.routeWhy ?? routed.why });
   const current = existsSync(path) ? await readFile(path, 'utf-8') : QUEUE_HEADER;
   const next = `${current.replace(/\s*$/, '')}\n\n${entry}`;
   await atomicWrite(path, next);
@@ -635,4 +665,29 @@ export function routeDecision({ reversibility, altitude } = {}) {
     why: `Queued because ${reasons.join(', and ')}.`,
     missing,
   };
+}
+
+/**
+ * What a person answered since the last run.
+ *
+ * READ-FORWARD IS A NOTICEBOARD, NOT A LOOP (`D-M6E6-5`), and the honest word for
+ * it is *surfaced*. Auto-applying an answer needs the entry to carry a durable
+ * link to the work, and its failure mode is landing a stale answer on something
+ * that has since moved on; re-running the phase that asked collides with the loop
+ * ceiling, since a re-run is a phase completion. Both are later decisions, made
+ * with evidence from a queue that by then exists.
+ *
+ * @param {{entries: Array<{id: string, question: string, answered: boolean}>}} queue
+ * @returns {string|null} — null when there is nothing a person has answered
+ */
+export function formatAnsweredForward(queue) {
+  const answered = (queue?.entries ?? []).filter((e) => e.answered);
+  if (answered.length === 0) return null;
+  const lines = [
+    `✅ ${answered.length} decision(s) you answered since the last run:`,
+    ...answered.map((e) => `  · ${e.id} — ${e.question}`),
+    '',
+    '   These are not applied automatically. Act on them, or say to carry them into this run.',
+  ];
+  return lines.join('\n');
 }
