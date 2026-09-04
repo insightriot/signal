@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.37] — 2026-09-04 — the queue gets a writer, and the run that found it was retired
 
 ### Added
 
