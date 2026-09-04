@@ -6,6 +6,76 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **The decision queue has a writer: `/sig:drive` parks a question and keeps working, instead of
+  halting** (`M6.E6`). `queueDecision` shipped in **`v0.1.31` with zero callers outside `tests/`**,
+  so the command's own description promised *"Queues what it can defer"* and it could not. `v0.1.35`'s
+  `collectPreflight` moved the **foreseeable** questions to the front; this is the mechanism for the
+  ones that could not be foreseen, and it is the difference between a run that pauses and a run that
+  ends.
+
+  `routeDecision({reversibility, altitude})` is the whole policy as one pure function — **two axes,
+  OR-composed**: a decision queues if it is product-altitude **or** irreversible, and is adopted only
+  when it is **both** plumbing **and** reversible.
+
+  ⚠ **PLAN raised that DISCUSS had settled only one axis** while the design specifies two, and the
+  second is the one that matters in practice: **a product decision that is perfectly reversible.**
+  Picking a default tier is trivial to revert and is exactly the call a person wants to make. The
+  altitude half is the standing *"gate at product altitude"* norm, made machine-readable for the
+  first time.
+
+  **Fail closed** (`D-M6E6-4`): an absent or unrecognised tag routes to `queue`, never `adopt`. The
+  asymmetry decides it — a forgotten tag costs one queue entry to answer; the alternative costs an
+  irreversible decision made silently. Expect a chatty queue while tagging is new; that is the
+  fail-closed side working, recorded in advance so it is not later read as a defect.
+
+  Answered entries are **surfaced, never auto-applied** (`D-M6E6-5`): applying one needs a durable
+  link to the work and can land a stale answer on something that has moved on. A noticeboard, not a
+  loop — said plainly rather than oversold.
+
+### Fixed
+
+- **`B115` — `/sig:drive` never checked whether it was running the installed Signal, and it is the
+  command where that matters most.** `readBindingBanner` (`B52`, `v0.1.20`) was wired into
+  `/sig:status` and `/sig:resume` and **no other command**. `/sig:drive` is the one that *acts*,
+  repeatedly, on instructions it read once — so a stale binding means an entire autonomous run
+  executes a retired release's rules, and the longer the run the more it does before anyone notices.
+
+  ⚠ **Found by RUNNING the command.** The first live `/sig:drive` invocation loaded **`v0.1.34`'s**
+  copy of `drive.md` while **`v0.1.36`** was installed — so the front end shipped in `v0.1.35` and
+  `v0.1.36` **was not in the file the run executed**, and the run reported no anomaly because it had
+  no way to see one. **The mechanism was never broken; nothing called it.** Now step 0, **before**
+  the front end, and it **halts** rather than reporting: a briefing's reader is present and deciding,
+  and this command is not.
+
+- **`FR5`'s stale caveat, in three places rather than the one it was filed against.** `status.js`,
+  `status.md` and `resume.md` all carried *"nothing writes to the queue outside tests yet"* — false
+  the moment the writer landed. ⚠ **A test pinned it as intended behaviour.** Inverted rather than
+  deleted: the honesty requirement is unchanged, only which sentence is honest, so it now fails if
+  the stale caveat returns *or* if the new fact goes unstated.
+
+### What this release records against itself
+
+⚠ **The outcome oracle is NOT met, and `M6.E6-VERIFICATION.md` says so rather than reframing it.**
+The oracle is a live `/sig:drive` run that meets an unforeseen gray-area question and continues. What
+was demonstrated is four decisions through the real modules on a scratch directory — the oracle's
+**shape**, not the oracle. The discriminator is whether *the command* parked a question or whether *a
+script called the function that parks questions*: the same substitution as `B113`'s *"verified
+against the module and the documented call site"*, which two live runs then had to settle.
+
+⚠ **Three things the independent PR reviewer caught that the suite could not**, on two PRs:
+`AC2.6` shipped as **prose** and nothing could fail on it (`B75`'s shape, inside an Epic about
+unreached mechanisms); a VERIFY heading claimed **"19 of 19"** over an 18-row table, written from the
+shape of the work rather than counted off the artifact; and **three of `B115`'s own tests were
+vacuous** — they matched the whole file, and `drive.md`'s bibliography names `readBindingBanner`, so
+they would have stayed green with step 0 deleted entirely. All three fixed; the tests rescoped and
+mutation-verified.
+
+---
+
 ## [0.1.36] — 2026-09-03 — where the work starts
 
 ### Fixed
