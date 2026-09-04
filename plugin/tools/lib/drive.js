@@ -19,7 +19,7 @@ import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 
-import { attentionFor } from './profile.js';
+import { attentionFor, CALIBRATION_ENUMS } from './profile.js';
 import { LOOP_BOUNDED_PHASES } from './loop-ceiling.js';
 import { atomicWrite } from './atomic-write.js';
 import { parseBacklogRows } from './backlog.js';
@@ -541,5 +541,98 @@ export function resolveStartPhase(state, candidate) {
       : `new work — starts at DISCUSS (STATE.md's "${recorded ?? '(none)'}" is not a phase)`,
     changed: recorded !== 'DISCUSS',
     blocked: false,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE ROUTER: may this decision be taken without a person, or must it be parked?
+//
+// The rule is not invented here. `LOOP-ENGINEERING-ANALYSIS.md` states it as
+// already existing in two established pieces, and this makes both executable:
+//
+//   Altitude     — plumbing / tooling / test-mechanics auto-resolve with sensible
+//                  defaults; product / scope / positioning decisions queue. This is
+//                  the standing "gate at product altitude" norm, made machine-readable.
+//   Reversibility — calibration's own per-project vocabulary, applied per DECISION:
+//                  trivial / moderate may be adopted; painful / irreversible queue.
+//
+// OR-COMPOSED, and the composition is the design. A decision queues if it is
+// product-altitude OR irreversible; it is adopted only when it is BOTH plumbing
+// AND reversible. Reversibility alone misses the case that matters most in
+// practice — a product decision that is perfectly reversible, like picking a
+// default tier for a new command: trivial to revert, and exactly the call a
+// person wants to make.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Reversibility terms — calibration's list, imported. Never a second copy (`#230`). */
+export const ROUTE_REVERSIBILITY = CALIBRATION_ENUMS.reversibility;
+
+/**
+ * Altitude terms.
+ *
+ * Defined here because no existing vocabulary carries them: the norm has always
+ * been prose (`discuss.md` cites it by name; it is a standing session instruction)
+ * and this Epic is what makes it machine-readable. Two values, deliberately — a
+ * scale would invite a judgement call at every ask, and the norm is binary: is
+ * this mine to decide, or yours?
+ */
+export const ROUTE_ALTITUDE = Object.freeze(['plumbing', 'product']);
+
+const ADOPTABLE_REVERSIBILITY = Object.freeze(['trivial', 'moderate']);
+
+/**
+ * Route one decision: adopt it, or park it for a person.
+ *
+ * FAIL CLOSED ON NOT KNOWING (`D-M6E6-4`). An absent or unrecognised value routes
+ * to `queue`, never to `adopt`. The asymmetry decides it: a forgotten tag under
+ * this rule costs one queue entry to answer, and under the alternative costs an
+ * IRREVERSIBLE DECISION MADE SILENTLY — precisely the failure the rule exists to
+ * prevent, arriving through an omission rather than a decision. It is also this
+ * module's stated posture applied to a new axis: a detector that cannot look
+ * should say so and continue; an actor that cannot tell should stop.
+ *
+ * Total: never throws, whatever it is handed.
+ *
+ * @param {{reversibility?: unknown, altitude?: unknown}} [decision]
+ * @returns {{route: 'adopt'|'queue', why: string, missing: string[]}}
+ */
+export function routeDecision({ reversibility, altitude } = {}) {
+  const missing = [];
+  const knownReversibility = ROUTE_REVERSIBILITY.includes(reversibility);
+  const knownAltitude = ROUTE_ALTITUDE.includes(altitude);
+  if (!knownReversibility) missing.push('reversibility');
+  if (!knownAltitude) missing.push('altitude');
+
+  if (missing.length > 0) {
+    // Name what is missing rather than only that something is: a queue entry
+    // saying "untagged" tells the reader nothing about what to fix at the caller.
+    const which = missing.length === 2 ? 'neither axis was tagged' : `${missing[0]} was not tagged`;
+    return {
+      route: 'queue',
+      why: `Queued because ${which}, and an untagged decision is never adopted (\`D-M6E6-4\`).`,
+      missing,
+    };
+  }
+
+  const reversibleEnough = ADOPTABLE_REVERSIBILITY.includes(reversibility);
+  const isPlumbing = altitude === 'plumbing';
+
+  if (isPlumbing && reversibleEnough) {
+    return {
+      route: 'adopt',
+      why: `Adopted: a ${altitude} decision that is ${reversibility} to undo.`,
+      missing,
+    };
+  }
+
+  // Name the deciding axis — and both when both would have queued it, so the
+  // reader is not told a half-truth about why their question is sitting there.
+  const reasons = [];
+  if (!isPlumbing) reasons.push('it is a product-altitude call, which is yours to make');
+  if (!reversibleEnough) reasons.push(`undoing it is ${reversibility}`);
+  return {
+    route: 'queue',
+    why: `Queued because ${reasons.join(', and ')}.`,
+    missing,
   };
 }
