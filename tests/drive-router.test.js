@@ -307,28 +307,45 @@ describe('B115 — /sig:drive halts on a stale plugin binding', () => {
   // executed — and the run had no way to know. B52's banner was built for exactly
   // this and fires correctly from the bound copy; it never ran, because this was
   // the one command that never called it.
-  const read = async (name) => {
+  //
+  // ⚠ THE FIRST VERSION OF THESE TESTS WAS VACUOUS, caught by the PR #234
+  // reviewer. They matched against the WHOLE file, and drive.md's "Authoritative
+  // references" bibliography at the top names `readBindingBanner` — so the
+  // call-site assertion passed on the bibliography line alone, and the ordering
+  // assertion compared two bibliography positions to each other. Both would have
+  // stayed green with step 0 deleted entirely. Every assertion below is scoped to
+  // the WORKFLOW BODY, which is the only place a call can actually happen.
+  let md;
+  let workflow;
+  beforeEach(async () => {
     const { readFile: rf } = await import('node:fs/promises');
-    return rf(join('plugin', 'commands', name), 'utf-8');
-  };
-
-  it('drive.md calls readBindingBanner, like status and resume already do', async () => {
-    expect(await read('drive.md')).toMatch(/readBindingBanner/);
+    md = await rf(join('plugin', 'commands', 'drive.md'), 'utf-8');
+    // Everything from `## Workflow` onward. The bibliography sits above it.
+    const at = md.indexOf('## Workflow');
+    expect(at, 'drive.md has no ## Workflow section').toBeGreaterThan(-1);
+    workflow = md.slice(at);
   });
 
-  it('drive STOPS on it, where the briefings only report it', async () => {
+  it('the WORKFLOW BODY calls readBindingBanner — not merely the reference list', () => {
+    expect(workflow).toMatch(/readBindingBanner/);
+  });
+
+  it('drive STOPS on it, where the briefings only report it', () => {
     // The distinction is the finding, not a preference. A briefing's reader is
     // present and deciding; this command acts repeatedly on instructions it read
     // once, so a stale binding means a whole autonomous run executes retired
     // rules — and the longer the run, the more it does first.
-    const md = await read('drive.md');
-    const section = md.slice(md.indexOf('### 0.'), md.indexOf('### 0a.'));
+    const section = workflow.slice(workflow.indexOf('### 0.'), workflow.indexOf('### 0a.'));
+    expect(section).toMatch(/readBindingBanner/);
     expect(section).toMatch(/STOP/);
     expect(section).toMatch(/an actor that cannot tell should stop/i);
   });
 
-  it('the check runs BEFORE the front end — an unchecked run is already wrong', async () => {
-    const md = await read('drive.md');
-    expect(md.indexOf('readBindingBanner')).toBeLessThan(md.indexOf('proposeEpicCandidates'));
+  it('the check runs BEFORE the front end, measured inside the workflow', () => {
+    const bindingAt = workflow.indexOf('readBindingBanner');
+    const frontEndAt = workflow.indexOf('proposeEpicCandidates');
+    expect(bindingAt).toBeGreaterThan(-1);
+    expect(frontEndAt).toBeGreaterThan(-1);
+    expect(bindingAt).toBeLessThan(frontEndAt);
   });
 });
