@@ -66,11 +66,40 @@ export function parseAnchors(content) {
       const m = text.match(re);
       if (m && !seen.has(m[1])) {
         seen.add(m[1]);
-        out.push({ sha: m[1], line: i + 1 });
+        out.push({ sha: m[1], line: i + 1, source: 'ADHERENCE-LOG.md' });
       }
     }
   });
   return out;
+}
+
+/**
+ * STATE.md's freshness anchor — `last_updated_commit`.
+ *
+ * ADDED AFTER THE FIRST VERSION OF THIS MODULE MISSED IT, on the very squash it
+ * was written for. `#236` was reported as "no damage, because M6.E6 added no
+ * adherence run record" — true about `ADHERENCE-LOG.md`, and WRONG about the
+ * repository, because `markFresh` had pinned `3a4a716` into `STATE.md` and the
+ * squash orphaned it too. `/sig:resume`'s staleness check compares against that
+ * sha, so a `main` whose anchor is unreachable cannot answer "is this stale?" at
+ * all — the same failure as a verdict naming a state nobody can return to, one
+ * file over.
+ *
+ * The lesson is the one this module already argues: check the property, not the
+ * mechanism, and then check it EVERYWHERE the property is claimed. A guard scoped
+ * to the file where the damage was first noticed is a guard scoped to a symptom.
+ *
+ * @param {string} content
+ * @returns {Array<{sha: string, line: number}>}
+ */
+export function parseStateAnchor(content) {
+  if (typeof content !== 'string') return [];
+  const lines = content.split('\n');
+  for (let i = 0; i < lines.length; i += 1) {
+    const m = lines[i].match(/^last_updated_commit:\s*([0-9a-f]{7,40})\s*$/i);
+    if (m) return [{ sha: m[1], line: i + 1, source: 'STATE.md' }];
+  }
+  return [];
 }
 
 /**
@@ -112,9 +141,15 @@ export function checkAnchorReachability(anchors, { resolve, isAncestor } = {}) {
  * @returns {string}
  */
 export function formatOrphanedAnchors({ orphaned }) {
-  const rows = orphaned.map((a) => `  · \`${a.sha}\` — ADHERENCE-LOG.md:${a.line}`).join('\n');
+  // Each anchor names its OWN source file. The first version hard-coded
+  // `ADHERENCE-LOG.md` here, and the moment STATE.md's anchor joined the check the
+  // message sent the reader to the wrong file — caught by mutation-testing the
+  // guard against the real orphan rather than by reading it.
+  const rows = orphaned
+    .map((a) => `  · \`${a.sha}\` — ${a.source ?? 'unknown source'}:${a.line}`)
+    .join('\n');
   return (
-    `${orphaned.length} adherence anchor(s) name a commit that is NOT reachable from HEAD:\n` +
+    `${orphaned.length} commit anchor(s) name a commit that is NOT reachable from HEAD:\n` +
     `${rows}\n\n` +
     `A published verdict now points at a state nobody can return to (AC4.3).\n` +
     `The usual cause is an Epic-lane merge that squashed or rebased instead of\n` +

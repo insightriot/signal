@@ -365,10 +365,21 @@ reason turned out to be a live defect on a different command's path.
 > the Epic's commits — `ee60510`, `3e264ab`, `25e38c3`, `3a4a716`, `9b99046`, `de1a313` — are absent
 > from `main`. The merge reported success. No layer raised an error, again.
 >
-> **No damage this time, and the reason is luck rather than protection:** `M6.E6` added no
-> adherence run record, so nothing pinned an orphaned SHA. All five live anchors (`c8bad52`,
-> `22aeb23`, `f3ca9b2`, `230e569`, `7669644`) were verified reachable from `main` after the merge.
-> Had this Epic measured adherence, the `M6.E5` damage would have repeated exactly.
+> **⚠ "No damage this time" was published here and is WRONG. Corrected within the hour, and the
+> correction is the more useful finding.** The first read checked `ADHERENCE-LOG.md`, found all five
+> anchors (`c8bad52`, `22aeb23`, `f3ca9b2`, `230e569`, `7669644`) reachable, and concluded the squash
+> cost nothing because `M6.E6` added no run record. True about that file. **Wrong about the
+> repository:** `markFresh` had pinned `3a4a716` into `STATE.md`'s `last_updated_commit`, and the
+> squash orphaned that too — so `main` shipped with a freshness anchor naming a commit nobody can
+> reach, which is what `/sig:resume`'s staleness check compares against. Repaired by re-pinning to
+> `23fd2dd`, the squash commit that actually carries the state, exactly as `M6.E5`'s record was
+> re-pinned to `d0ac0c5`.
+>
+> **The mistake has a shape worth keeping:** the damage was looked for in the file where it was
+> noticed last time, rather than everywhere the property is claimed. A verdict naming an unreachable
+> state and a freshness stamp naming an unreachable state are the same defect; only one of them had
+> a name. This is why the guard below covers **both** files, and why it was extended only after
+> mutation-testing found the gap.
 >
 > **What is now established:** the failure is **reproducible across consecutive Epic merges**, and
 > the two instances have **different stories and identical consequences** — `#211` was merged with
@@ -389,7 +400,8 @@ reason turned out to be a live defect on a different command's path.
 > ### ✅ FIX SHAPE 2 SHIPPED — the guard, because it holds however the SHA is orphaned
 >
 > `tools/adherence-anchors.js` + `tests/adherence-anchor-reachability.test.js`: **every commit
-> `ADHERENCE-LOG.md` pins must be reachable from `HEAD`.** This row already argued fix shape 2 was
+> pinned by `ADHERENCE-LOG.md` *or* by `STATE.md`'s `last_updated_commit` must be reachable from
+> `HEAD`.** This row already argued fix shape 2 was
 > *"strictly better than (1) because it checks the property that actually matters — reproducibility
 > — rather than the mechanism assumed to deliver it, and it would have caught this regardless of how
 > the squash happened."* The second instance proved that clause: two different stories, one property
@@ -406,9 +418,13 @@ reason turned out to be a live defect on a different command's path.
 >   names orphaned commits in prose *because* they are orphaned; reading those as live claims would
 >   make the file permanently red for describing its own history correctly.
 >
-> **Mutation-verified against a real orphan**, not a synthetic one: injecting `ee60510` — a commit
-> this very squash orphaned — makes the live test fail and name the SHA and line; removing it makes
-> it pass.
+> **Mutation-verified against real orphans**, not synthetic ones — and the mutation testing paid for
+> itself twice. Injecting `ee60510`, a commit this squash orphaned, fails the live test. Restoring
+> `STATE.md`'s actual orphaned anchor `3a4a716` fails it too — **that run is what revealed the
+> repository damage the first read had missed**, and it also exposed a defect in the guard itself:
+> the failure message hard-coded `ADHERENCE-LOG.md`, so a `STATE.md` orphan sent the reader to the
+> wrong file. Each anchor now names its own source. A guard that points somewhere wrong is worse
+> than one that says less.
 >
 > **Fix shape 1 (assert two parents post-merge) is NOT shipped and is now lower value:** it polices
 > the mechanism, and the mechanism differed between the two instances while the property did not.

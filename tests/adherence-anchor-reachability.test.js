@@ -19,12 +19,14 @@ import { fileURLToPath } from 'node:url';
 
 import {
   parseAnchors,
+  parseStateAnchor,
   checkAnchorReachability,
   formatOrphanedAnchors,
 } from '../tools/adherence-anchors.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LOG = join(ROOT, '.planning/ADHERENCE-LOG.md');
+const STATE = join(ROOT, '.planning/STATE.md');
 
 describe('parseAnchors — labelled pins only', () => {
   it('reads both published shapes: the inline ceiling pin and a run-record row', () => {
@@ -50,6 +52,19 @@ describe('parseAnchors — labelled pins only', () => {
   });
 });
 
+describe('parseStateAnchor — the anchor the first version of this guard missed', () => {
+  it('reads last_updated_commit out of the frontmatter', () => {
+    const out = parseStateAnchor('---\nphase: SHIP\nlast_updated_commit: 23fd2dd\n---\n');
+    expect(out).toEqual([{ sha: '23fd2dd', line: 3, source: 'STATE.md' }]);
+  });
+
+  it('returns nothing when the field is absent or empty, rather than guessing', () => {
+    expect(parseStateAnchor('---\nphase: SHIP\n---\n')).toEqual([]);
+    expect(parseStateAnchor('last_updated_commit:\n')).toEqual([]);
+    expect(parseStateAnchor(null)).toEqual([]);
+  });
+});
+
 describe('checkAnchorReachability — fails closed on the property, open on blindness', () => {
   const anchors = [{ sha: 'aaaaaaa', line: 1 }, { sha: 'bbbbbbb', line: 2 }];
 
@@ -72,10 +87,18 @@ describe('checkAnchorReachability — fails closed on the property, open on blin
     expect(r.orphaned).toEqual([]);
   });
 
-  it('formatOrphanedAnchors names every offender with its line', () => {
-    const msg = formatOrphanedAnchors({ orphaned: [{ sha: 'bbbbbbb', line: 2 }] });
-    expect(msg).toContain('bbbbbbb');
+  it('formatOrphanedAnchors names every offender with ITS OWN file and line', () => {
+    // The first version hard-coded ADHERENCE-LOG.md, so a STATE.md orphan was
+    // reported at the wrong file. A guard that sends the reader to the wrong
+    // place is worse than one that says less.
+    const msg = formatOrphanedAnchors({
+      orphaned: [
+        { sha: 'bbbbbbb', line: 2, source: 'ADHERENCE-LOG.md' },
+        { sha: 'ccccccc', line: 18, source: 'STATE.md' },
+      ],
+    });
     expect(msg).toContain('ADHERENCE-LOG.md:2');
+    expect(msg).toContain('STATE.md:18');
     expect(msg).toContain('AC4.3');
   });
 });
@@ -108,8 +131,15 @@ describe('the live log — every anchor is reachable from HEAD', () => {
       },
     };
 
-    const anchors = parseAnchors(readFileSync(LOG, 'utf-8'));
-    expect(anchors.length).toBeGreaterThan(0); // the log pins something, or this test is vacuous
+    // BOTH files, because scoping this to ADHERENCE-LOG.md is scoping it to the
+    // symptom that happened to be noticed first. `#236` orphaned STATE.md's
+    // freshness anchor as well, and the first version of this guard reported the
+    // squash as damage-free while that anchor sat unreachable on `main`.
+    const anchors = [
+      ...parseAnchors(readFileSync(LOG, 'utf-8')),
+      ...parseStateAnchor(readFileSync(STATE, 'utf-8')),
+    ];
+    expect(anchors.length).toBeGreaterThan(0); // something is pinned, or this test is vacuous
     const result = checkAnchorReachability(anchors, git);
 
     if (result.unresolvable.length > 0) {
