@@ -16,6 +16,7 @@ was welded to the rigor dial**, so the only way to buy less of your time was to 
 `attention` splits them. `/sig:drive` is what spends it.
 
 Authoritative references:
+- `tools/lib/plugin-binding.js` — `readBindingBanner` (step 0; a halt here, not a report)
 - `tools/lib/drive.js` — `proposeEpicCandidates`, `resolveStartPhase`, `CANONICAL_PHASES`,
   `collectPreflight`, `formatPreflight`, `PREFLIGHT_SOURCES`, `routeDecision`,
   `ROUTE_REVERSIBILITY`, `ROUTE_ALTITUDE`, `formatAnsweredForward`, `canProceedUnattended`,
@@ -42,6 +43,23 @@ the opposite of the `B39` fail-*open* posture used for reporting: a detector tha
 say so and continue; **an actor that cannot tell should stop.**
 
 ## Workflow
+
+### 0. Is this session running the installed Signal? — `B115`
+
+**First, before anything.** Call `readBindingBanner({ homeDir: os.homedir() })` from
+`tools/lib/plugin-binding.js`. If it returns a banner, **print it and STOP.**
+
+**This is a halt for `/sig:drive` specifically, where `/sig:status` and `/sig:resume` only report
+it.** Those are briefings: a reader sees the warning and decides. This command *acts*, repeatedly,
+on instructions it read once — so a stale binding means an entire autonomous run executes a retired
+release's rules, and the longer the run the more it does before anyone notices. That is the
+command's own stated posture: **an actor that cannot tell should stop.**
+
+⚠ **Found by running it (2026-09-04).** The first live `/sig:drive` invocation loaded `v0.1.34`'s
+copy of this file while `v0.1.36` was installed — so the front end (`0a`–`0c`, shipped in `v0.1.35`
+and `v0.1.36`) **was not in the file the run executed**, and the run had no way to know. `B52`'s
+banner was built for exactly this and fires correctly from the bound copy; it never ran, because
+this command was the one that never called it.
 
 **Steps 0a–0c are the front end, and they are not optional.** Before them this command
 began at whatever phase `STATE.md` happened to name, chose nothing, and asked for nothing —
@@ -232,6 +250,7 @@ finished".
 | "STATE.md names a phase, so just start there — that IS the work." | No. A phase value is where the last run stopped, not a decision about what to do next. Starting from it without choosing and confirming is what made this command a stepper. Run 0a–0c. |
 | "No backlog file, so there's nothing to work on — report done." | "Could not look" is not "no work". It renders as `cannotCheck`, on its own line, and the run does not present an empty candidate list as an empty queue. |
 | "Preflight found nothing blocking, so go" — when a source failed to read. | Check `cannotCheck` first. A clean `blocking` list next to an unread source means the pass did not happen, and starting there is starting blind. |
+| "The binding banner is advisory everywhere else, so report it and carry on." | Everywhere else the reader is present and deciding. Here the run continues on its own, executing a retired release's instructions for as long as it lasts. Step 0 halts. |
 | "This one is obviously fine to decide — I know what they would say." | That is what `altitude` is for, and knowing the answer is not the same as it being yours. A product call queues even when reversible and even when the recommendation is obvious. |
 | "Tagging every decision is tedious; leave them untagged and it will route sensibly." | It will: untagged **queues**. That is correct and it is not free — an untagged entry tells the reader which axis you skipped. Tag it or accept the queue. |
 | "The queue is the safe default, so queue everything." | A queue nobody drains is the failure this command most easily creates, and depth is the measurement the file exists to produce. Adopt what is genuinely plumbing and genuinely reversible. |

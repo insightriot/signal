@@ -299,3 +299,36 @@ describe('AC2.6 — queueing never fires at `attended`, and it is a CHECK', () =
     expect(existsSync(join(dir, '.planning', 'DECISION-QUEUE.md'))).toBe(false);
   });
 });
+
+describe('B115 — /sig:drive halts on a stale plugin binding', () => {
+  // Found by RUNNING the command (2026-09-04). The first live /sig:drive
+  // invocation loaded v0.1.34's copy of drive.md while v0.1.36 was installed, so
+  // the front end shipped in v0.1.35/v0.1.36 was not in the file the run
+  // executed — and the run had no way to know. B52's banner was built for exactly
+  // this and fires correctly from the bound copy; it never ran, because this was
+  // the one command that never called it.
+  const read = async (name) => {
+    const { readFile: rf } = await import('node:fs/promises');
+    return rf(join('plugin', 'commands', name), 'utf-8');
+  };
+
+  it('drive.md calls readBindingBanner, like status and resume already do', async () => {
+    expect(await read('drive.md')).toMatch(/readBindingBanner/);
+  });
+
+  it('drive STOPS on it, where the briefings only report it', async () => {
+    // The distinction is the finding, not a preference. A briefing's reader is
+    // present and deciding; this command acts repeatedly on instructions it read
+    // once, so a stale binding means a whole autonomous run executes retired
+    // rules — and the longer the run, the more it does first.
+    const md = await read('drive.md');
+    const section = md.slice(md.indexOf('### 0.'), md.indexOf('### 0a.'));
+    expect(section).toMatch(/STOP/);
+    expect(section).toMatch(/an actor that cannot tell should stop/i);
+  });
+
+  it('the check runs BEFORE the front end — an unchecked run is already wrong', async () => {
+    const md = await read('drive.md');
+    expect(md.indexOf('readBindingBanner')).toBeLessThan(md.indexOf('proposeEpicCandidates'));
+  });
+});
