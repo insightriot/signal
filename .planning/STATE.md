@@ -1,7 +1,7 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: VERIFY
+phase: SHIP
 current_epic: M6.E6
 current_wave: null
 current_tasks: []
@@ -9,26 +9,47 @@ completed_phases:
   - DISCUSS (2026-09-03)
   - PLAN (2026-09-04)
   - EXECUTE (2026-09-04)
+  - VERIFY (2026-09-04)
+  - REVIEW (2026-09-04)
+  - SHIP (2026-09-04)
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-09-03T23:36:21.635658Z
-last_updated_commit: c8bad523a05c134e13c5e58150331ce97d5b8c56
-last_updated: 2026-09-04T15:19:02.584235Z
+last_updated_commit: 3a4a7168507514a7dda82c270cf80b61cbe3b53e
+last_updated: 2026-09-04T18:47:54.033Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-09-03)
+### ▶ WHERE THE WORK IS — read this first (2026-09-04)
 
-**`M6.E6` IS OPEN — DISCUSS is written, PLAN is next.** *Wire the decision queue.* Read
-[`M6.E6-REQUIREMENTS.md`](M6.E6-REQUIREMENTS.md) and `D-M6E6-1`…`D-M6E6-5` in
-[`DECISIONS.md`](DECISIONS.md) before planning it. Runs at **FEATURE** inside this FULL project
-([`M6.E6-PROFILE.md`](M6.E6-PROFILE.md)) — the third use of the per-unit dial.
+**`M6.E6` IS OPEN AT SHIP — DISCUSS / PLAN / EXECUTE / VERIFY / REVIEW are done.** *Wire the
+decision queue.* Runs at **FEATURE** inside this FULL project
+([`M6.E6-PROFILE.md`](M6.E6-PROFILE.md)) — the third use of the per-unit dial. Artifacts:
+[`M6.E6-REQUIREMENTS.md`](M6.E6-REQUIREMENTS.md), [`M6.E6-PLAN.md`](M6.E6-PLAN.md),
+[`M6.E6-VERIFICATION.md`](M6.E6-VERIFICATION.md), [`M6.E6-REVIEW.md`](M6.E6-REVIEW.md).
 
-**The gap in one sentence:** `/sig:drive`'s description promises *"Queues what it can defer"* and it
-cannot — `queueDecision` shipped in `v0.1.31` with **zero callers outside `tests/`**, so a mid-phase
-gray-area question is a hard halt.
+**⚠ The code shipped BEFORE its REVIEW phase ran.** PR #233 and #234 merged it and `v0.1.37`
+released it; REVIEW ran afterwards, on 2026-09-04, and found two Important defects that are
+therefore live in a released version — both fixed forward on `review/m6.e6-router-guards`
+(PASS-WITH-FIXES, suite 3206). **What remains is SHIP: a pull request, and the Epic-close
+retrospective.** Both are floors — `/sig:drive` halted on them rather than proceeding.
+
+**One decision is parked and unanswered:** `Q-M6E6-1` in
+[`DECISION-QUEUE.md`](DECISION-QUEUE.md) — whether meeting the outcome oracle on `v0.1.37` re-opens
+VERIFY's `NOT MET` verdict. Product-altitude, painful to undo. Answer it before the retro reconciles
+the two accounts.
+
+**This narrative was four phases behind its own frontmatter until 2026-09-04** — it read *"DISCUSS
+is written, PLAN is next"* while the frontmatter said `VERIFY` and the artifacts said further still.
+`markFresh` advances the timestamp and the commit; nothing advances the prose, so a stale pointer
+reads as fresh. Filed as an observation for the retro.
+
+**The gap that opened the Epic, in one sentence** (closed 2026-09-04): `/sig:drive`'s description
+promised *"Queues what it can defer"* and it could not — `queueDecision` shipped in `v0.1.31` with
+**zero callers outside `tests/`**, so a mid-phase gray-area question was a hard halt. The first live
+run to reach step 3b parked `Q-M6E6-1` and carried on.
 
 **⚠ DISCUSS reversed the backlog row's framing, and that is the finding to carry forward.** The row
 says wire the queue to a *phase command*, and DISCUSS is where gray areas are named — but

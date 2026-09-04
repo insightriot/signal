@@ -6,6 +6,44 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **Two guards in `v0.1.37`'s decision router each stood down in the exact case they were written
+  for** (`M6.E6` REVIEW). Both were live in a released version for about half an hour — REVIEW ran
+  *after* the release, which is itself recorded in the Epic's retrospective as the ordering to avoid.
+
+  `formatQueuedDecision` omitted **both** tag rows for a decision tagged on **neither** axis. Its own
+  comment, three lines above the guard, says an untagged axis *"renders as `untagged`, never
+  omitted... the whole fail-closed default exists because that is the case worth seeing"* — and the
+  fully-untagged decision is that case. ⚠ **The test named for this covered the half-tagged path**:
+  it passed `altitude` and asserted the *reversibility* row, so it only ever exercised the case that
+  already worked. Not vacuous — aimed one case to the left of the defect.
+
+  `queueDecision`'s adopt-guard stood down whenever the caller supplied its own `routeWhy`. Verified
+  against the shipped module: a `plumbing` + `trivial` decision — one the router **adopts**, that
+  nobody has to answer — filed successfully as a parked question reading *"Why it is here: because I
+  said so."* That is verbatim the entry the guard's comment says it exists to prevent. The same
+  parameter also **replaced the router's own sentence**, which `routeWhy`'s docstring warns against
+  (*"a second hand-written explanation is how one rule comes to be described two ways"*) and which
+  `drive.md` instructs against in words (*"Do not write that sentence yourself"*). `routeWhy` is now
+  an output only; the entry always carries `routeDecision`'s wording.
+
+  Three tests added and **mutation-verified** — reverting `drive.js` while keeping them fails exactly
+  those three and no others. 19 insertions, 6 deletions of non-test source in one file.
+
+### Known
+
+- `ROUTE_ALTITUDE` is frozen; `ROUTE_REVERSIBILITY`, defined one line away, is not — and the unfrozen
+  one is a live reference into `profile.js`'s `CALIBRATION_ENUMS` rather than a copy. Filed, not
+  fixed: freezing it ripples into another module, and design impact is what separates
+  PASS-WITH-FIXES from FAIL.
+- `transitionPhase` regenerates `INDEX.md` at phase **entry**, before the phase writes its artifact,
+  so the corpus map is structurally one artifact behind for every phase of every Epic. Filed.
+
+---
+
 ## [0.1.37] — 2026-09-04 — the queue gets a writer, and the run that found it was retired
 
 ### Added

@@ -4,7 +4,34 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-08-28) — M6.E5 IS SHIPPED
+## Where things stand (2026-09-04) — M6.E6 IS SHIPPED
+
+**The decision queue has a writer.** `M6.E6` closed 2026-09-04: `routeDecision` decides whether a
+mid-run gray-area question may be adopted or must be parked, and `/sig:drive` is its first caller.
+Retro: [`M6.E6-RETROSPECTIVE.md`](M6.E6-RETROSPECTIVE.md). Suite **3203 → 3206**. `v0.1.37` released
+`ba5d1c3`; the REVIEW fixes are PR **#236**, open.
+
+**The oracle was met by the first run that could physically reach the code**, about an hour after
+the release that made it reachable. VERIFY had reported it NOT MET, correctly — no cached copy
+carried `routeDecision`, because M6.E6 merged to `main` unreleased. Three `/sig:drive` invocations
+across two days were needed: two halted at the front door, one ran retired code (`B115`).
+
+⚠ **REVIEW ran AFTER the code merged and shipped**, so it could only fix forward — and it found two
+guards that each stood down in the exact case they were written for. Both were live in `v0.1.37` for
+about half an hour. Where an Epic's oracle names a *released* artifact, the release is a
+prerequisite of VERIFY, not a consequence of it.
+
+⚠ **Three claim-integrity slips in one Epic is a rate, not a slip** — *"19 of 19"* against an 18-row
+table, a vacuous test set, and a comment claiming the queue's write half *"has a caller"* before any
+run had reached that step. All three caught by a person, never by the suite.
+
+**Open:** `Q-M6E6-1` in [`DECISION-QUEUE.md`](DECISION-QUEUE.md), unanswered by design — whether
+meeting the oracle on `v0.1.37` re-opens VERIFY's `NOT MET` verdict. Product-altitude, painful to
+undo, so the run that raised it did not decide it.
+
+---
+
+## Where things stood (2026-08-28) — M6.E5 shipped
 
 **`/sig:permissions` is MERGED.** PR **#211** merged 2026-08-28, branch deleted. Suite **3006 →
 3107**. Commands **21 → 22**. Retro: [`M6.E5-RETROSPECTIVE.md`](M6.E5-RETROSPECTIVE.md).
@@ -282,150 +309,11 @@ backstop: more Signal-inspecting-Signal, which is the class the 2026-08-20 call 
 
 *Prior state — the release history and the pre-2026-08-20 narrative — follows below.*
 
-## Where things stood (2026-08-19)
+## Where things stood (2026-08-19) — relocated
 
-> **One section, by design (2026-08-19).** This file used to answer *"what's current"* in two
-> places — a narrative section here and a numbers-and-table section 160 lines below. **Every**
-> refresh updated one and left the other, and on 2026-08-19 both were wrong at once: this section
-> sat five releases and one milestone stale while the other sat two. The split was introduced to
-> keep prose and figures from crowding each other; what it actually produced was two answers and no
-> rule that they move together. **They are merged here. Update this section, or the file is wrong.**
-> The refresh history is preserved verbatim in the stamp at the end of *"Active work"*.
-
-**v1 is feature-complete and shipped, at `v0.1.33` (2026-08-24).** **21 slash commands, 26 agents, 21 skills, 2979 tests, validator green** — these counts describe that release; the releases themselves are below, newest first.
-
-**`v0.1.30` shipped — `B104`, fix lane.** *Four agents with a shell, reading text nobody checked.*
-`/sig:init` spawns **four scanner agents in parallel**, all four declaring `tools: Read, Bash, Grep,
-Glob`, and **nothing in any scanner file or in `init.md` told them what they read was data** — a grep
-returned **zero**, not weak instructions. ⚠ **The first headline was overstated and was corrected the
-same day**, after Brett asked how scanners write to a codebase: they do not. `/sig:init` runs on
-**your own** codebase and every scanner is confined to `.planning/scan/{name}.md`. The real exposure
-is **command execution** (they hold `Bash` — *"run this setup command first"*) and **downstream
-propagation** (scanner output becomes `LANDSCAPE.md` → `PROJECT.md` → every later phase), not file
-writes. Still real, because your own repo carries text you did not write — vendored deps, contributor
-commits, forked files — and because people do point `/sig:init` at a clone they are evaluating.
-**Found by reading someone else's code:** `vercel-labs/eve-software-factory-template` (MIT) ships a
-prompt-injection eval Signal had no equivalent of. Pinned by a whole-population assertion that reads
-the scanner directory **from disk**, so a fifth scanner fails the suite until it carries the clause.
-⚠ **Scope is the scan surface only**, and **an instruction is not a sandbox** — explicit and testable,
-not impossible, and **no eval exercises it**. Suite **2761**; **20 commands**.
-
-**Prior — `v0.1.29`, `M6.E2`** — *the facts Signal publishes about itself.* A document states a fact
-about the project — a count, a status, a version — and **nothing derives it from the artifact it
-summarises**. Five checks for that class, reached from `/sig:sweep` and `/sig:resume`, plus the
-write-path fix that stops **`/sig:add --bug` falsifying the file it writes to**. **The mechanism
-already existed and nothing reached it:** `bugs-tally.js` has derived-then-compared correctly since
-`B77` and its **only caller was a test**. ⚠ **Three of the five checks evaluate one project: this
-one** — measured across 12 local projects *before* scope was locked; the tally and milestone checks
-reach **1 of 12**, **0 of 11** excluding Signal. Brett ruled *no trimming* (`D-M6E2-1`), so all five
-ship **with their reach printed next to the clean count** — narrow reach has never been the
-disqualifying property; claiming generality you do not have is. ⚠ **The semantic half stays unbuilt**
-(`D-M6E2-7`) — everything here compares tokens.
-
-**Prior — `v0.1.28`** (`B103`, fix lane) — `/sig:doctor --fix` offered `rm -rf` on cache directories
-a live session was running, because *orphan* meant "not current", not "nobody is using it". Both
-script builders now emit a guard that **re-checks at script-run time**. **Prior — `v0.1.27`**
-(`B102`, fix lane) — `v0.1.26`'s own migration advice **uninstalled Signal and said it didn't**.
-**Prior — `v0.1.26`, `M6.E1`** — the plugin payload: an install ships the plugin, not the repository
-(**985 files / 12.4 MB → 382 / 3.2 MB**; `.planning/` **270 files → 0**). ⚠ That stops `.planning/`
-being *copied to users*; it does **not** make it private.
-
-**Nothing is in flight. Milestone 6 is open** — `M6.E1` shipped as v0.1.26, `M6.E2` as v0.1.29, plus
-three fix-lane releases. **Next work is a decision, not a queue item, and it is Brett's.** Open and
-deliberately deferred: **`B99`'s remaining half** (the packaging half shipped in `M6.E1`); **whether
-`.planning/` should be public at all** (keeping it *in the repo* was chosen; *copying it into every
-user's plugin cache* never was); **the semantic claims-audit backstop** (`AC0.1`); and one finding
-that ships open by choice — `bug-status-vs-changelog` running at a measured 1-in-2 precision. *(The
-dated `[Unreleased]` heading was the second until **2026-08-18**, when Brett answered it: relabel,
-do not version. It was copied into this file on 2026-08-19 as still-open, from a `CLAUDE.md` line
-that had gone stale the day before.)* The queue itself is
-[`BACKLOG.md`](BACKLOG.md) (`D-M5E18-1`).
-
-**Prior — `v0.1.25`** — `M5.E10`, and it closed Milestone 5. *Claim integrity: the checks, and what
-they cannot see.* Seven deterministic checks for one defect class — **completeness claims written
-from the shape of the work rather than from the artifact**. **The honest headline is the reach, not
-the count:** one check evaluates 12 of 12 corpus projects, one 10 of 12, and **five apply to between
-1 and 5 of twelve**. The Epic's own VERIFICATION **failed its own coverage check** on the first draft
-(asserted *"56 of 56"*; the check returned **six missing**) and that refutation ships as a boxed note
-rather than being tidied away. Closed `B94`–`B98`, plus five defects from an independent
-`/code-review` pass.
-
-⚠ **The semantic half is deliberately NOT built** (`AC0.1`, `D-M5E10-1`). Everything shipped compares
-*tokens*. A report that names every requirement, carries a denominator, and is simply **wrong about
-what its evidence asserts** passes all seven checks. A live `BACKLOG.md` row and a test keep that
-absence visible — do not let the docs read as though claim integrity were solved.
-
-**Prior — `v0.1.24`** — *the unreached mechanism*: **one defect class, five instances.** Signal kept
-building a capability, writing down the rule that should invoke it, and shipping with **nothing that
-reaches for it** — so correctness rested on the operator already knowing.
-`analysis/UNREACHED-MECHANISM-ANALYSIS.md` names it, and `B75` had already measured the ceiling on
-Signal's habitual answer (write the rule more carefully): `light` and `strict` differ by **one
-boolean** in code. Every fix in the release is a **check that fires where the situation is**.
-
-- **`B88`** — Signal was branch-blind: **not one of 20 commands read the current branch and none
-  created one**, while `execute.md` said *"create an atomic git commit"* and contained the word
-  *branch* zero times. `/sig:execute` and `/sig:ship` now **refuse the default branch** at
-  FEATURE/FULL (`--allow-default-branch` overrides), and the PR exit criterion is filled from a real
-  URL — that box was ticked across **thirteen releases while one PR existed**.
-- **`B89`** — `plan.md` permitted and forbade skipping the inbox drain, **in the same file**. Now
-  required, with *"defer all remaining"* as the bounded escape.
-- **`B90`** — the tier dial turns **both ways**, and every surface said otherwise. 7 of 12 projects
-  run FULL; exactly one had ever written a per-unit PROFILE.
-- **`B87`** — `phase-log-gap` detects a phase that ran and never entered the ledger.
-- **`M5.E14`'s slice** — a discharged obligation is finally **recordable**. Its parser shipped a
-  phantom *"still owed"* caught pre-release: **3 phantoms → 0 across 12 projects**, and **0 both ways
-  in Signal's own tree** — `B82`'s blindness again.
-
-⚠ **`dischargeObligation` is called by nothing.** The marker is readable and writable by hand; wiring
-discharge into the phase gates stays with the tracker Epic. Said out loud so nothing reads the class
-as closed.
-
-**Prior — `v0.1.23`** — **`B85`**, fix lane. `/sig:update`'s one mutating step had never worked as
-written: it told users to run `claude plugin update sig`, which the CLI rejects — an installed plugin
-is identified as `{plugin}@{marketplace}`, so the working string is `sig@signal`. Live for four
-releases, because **nothing in the suite ever inspected a CLI string a command file prescribes**.
-`tests/prescribed-cli.test.js` now walks every `claude plugin <verb> <target>` across `commands/` and
-checks the target against an identity **derived from** `plugin.json` + `marketplace.json` — pinning
-the literal string would have recreated the bug inside the test.
-
-*(A warning here about 11 unreleased commits sitting past the `v0.1.23` tag is **resolved** —
-`v0.1.24` released them on 2026-08-09, and `B87`, `B88`, `B89` and `B90` all shipped in it.)*
-
-**`v0.1.22` shipped** — `M5.E19`, *file finished work away*. **`/sig:archive`**: Signal could already
-archive closed units but had **no command whose job that was** — it happened inside
-`/sig:migrate-memory`, a command about document *layout*. Closure is a **gate**, dry-run by default.
-**The release's content is the report:** the pre-existing helpers named what would move and what
-could not be evaluated, and said **nothing** about units considered and **refused** — three of six
-vanished, the stub-retro veto among them. Every refusal now carries its reason. **The Epic's premise
-was false** and running it proved so (`D-M5E19-6`): *"wired none of it"* quoted M5.E18's **mid-Epic**
-finding as an end state. Also shipped `references/command-taxonomy.md` and `examples/sandbox/`.
-Filed **`B87`**. Suite **2300**; **20 commands**.
-
-**`v0.1.21` shipped** — **`B82`**, fix lane. A closed unit archived **half of itself**: the mover
-rebuilt candidates from a `{unit}-{suffix}` template that cannot express `deriveUnits`' fold. Across
-12 local projects: **3 split units / 6 stranded files → 0 / 0.** Signal's own tree shows 0 before and
-after — every unit here is a strict Epic ID, so **dogfooding was structurally blind to it**.
-
-⚠ **Production repos are never test beds.** `eval-project-A`, `eval-project-D` and any live project are
-off-limits to Signal commands, `--apply` or not. Use `examples/sandbox/`, which exists for exactly
-this. Read-only diagnosis is fine.
-
-**Prior — `v0.1.19`** — M5.E15, *the control arm, made real* (`B55`). The adherence harness's control
-arm now deletes the measured instruction from all five sites that order it, and an independent leak
-walk verifies the tree without consulting what the canary declared. `B41-phase-entry` re-ran
-**`OBEYED`** (treatment 3/3, control 0/3, seam PASS) — the first verdict the harness has produced
-that means what it says. Closed `B55`, `B80`, `B83`.
-
-**Two lanes, two merge strategies** — `ADHERENCE-LOG.md` pins commit SHAs as its reproducibility
-anchor, so squashing an **Epic** would leave a published verdict naming a commit absent from `main`;
-v0.1.19 merged with `--merge` for that reason. The **fix lane** squashes (v0.1.20 did). The rule is
-stated in `CLAUDE.md` and `commands/ship.md` (`#89`).
-
-*(Brett's 2026-08-06 ordering — `B52`, then `/sig:archive`, then `M5.E14`'s slice — is **fully
-discharged**: v0.1.20, v0.1.22 and v0.1.24 respectively. `B88`, `B89` and `B90`, filed outside that
-sequence, also shipped in v0.1.24. The **command-namespace question closed** on 2026-08-09: bare
-verbs stay, `migrate-memory` → `migrate` at the next breaking window (`D-BR0809-3`). The sequence is
-kept in `BACKLOG.md` as history, not as a queue.)*
+Moved verbatim to [`archive/M6/E3/CONTEXT-2026-08-19.md`](archive/M6/E3/CONTEXT-2026-08-19.md)
+on 2026-09-04 to make room for `M6.E6` under this file's byte ceiling. Its release narrative is
+also in [`CHANGELOG.md`](../CHANGELOG.md).
 
 ## Project
 

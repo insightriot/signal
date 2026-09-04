@@ -183,6 +183,55 @@ describe('queueDecision + formatQueuedDecision carry the routing (S2)', () => {
     expect(content).toMatch(/reversibility was not tagged/);
   });
 
+  // ── Found in REVIEW (M6.E6), both mutation-verified against the pre-fix code ──
+
+  it('a decision tagged on NEITHER axis still renders BOTH rows as `untagged`', async () => {
+    // The test above passes `altitude` and asserts the reversibility row, so it
+    // only ever exercised the HALF-tagged path. The guard it was written for
+    // (`reversibility !== undefined || altitude !== undefined`) omitted both rows
+    // when both were absent — the fully-untagged decision, which is the exact case
+    // the fail-closed default exists to make visible.
+    await queueDecision(dir, {
+      id: 'Q4b', phase: 'PLAN', question: 'Tagged on nothing?', recommendation: 'x',
+      date: '2026-09-04',
+    });
+    const content = await readFile(join(dir, '.planning', 'DECISION-QUEUE.md'), 'utf-8');
+    expect(content).toMatch(/\*\*Altitude:\*\* untagged/);
+    expect(content).toMatch(/\*\*Reversibility:\*\* untagged/);
+    expect(content).toMatch(/neither axis was tagged/);
+  });
+
+  it('a caller-supplied `routeWhy` can NOT smuggle an adoptable decision into the queue', async () => {
+    // The adopt-guard used to stand down whenever the caller passed its own
+    // `routeWhy`, so a plumbing+trivial decision — one nobody has to answer —
+    // could be filed as a parked question under a hand-written reason. That is
+    // verbatim the entry the guard exists to prevent.
+    const res = await queueDecision(dir, {
+      id: 'Q4c', phase: 'PLAN', question: 'Adoptable, with a hand-written reason',
+      recommendation: 'x', altitude: 'plumbing', reversibility: 'trivial',
+      routeWhy: 'because I said so', date: '2026-09-04',
+    }, { attention: 'unattended' });
+
+    expect(res).toMatchObject({ queued: false, refused: true });
+    expect(res.reason).toMatch(/Adopt it and continue/);
+    expect(existsSync(join(dir, '.planning', 'DECISION-QUEUE.md'))).toBe(false);
+  });
+
+  it('a queued entry carries the ROUTER"s sentence even when the caller supplies one', async () => {
+    // One rule, one wording. `drive.md` instructs callers not to write this
+    // sentence; honouring a caller-supplied `routeWhy` is how it gets written twice.
+    await queueDecision(dir, {
+      id: 'Q4d', phase: 'PLAN', question: 'Queued, with a hand-written reason',
+      recommendation: 'x', altitude: 'product', reversibility: 'painful',
+      routeWhy: 'because I said so', date: '2026-09-04',
+    }, { attention: 'unattended' });
+    const content = await readFile(join(dir, '.planning', 'DECISION-QUEUE.md'), 'utf-8');
+    expect(content).not.toMatch(/because I said so/);
+    expect(content).toContain(
+      routeDecision({ altitude: 'product', reversibility: 'painful' }).why,
+    );
+  });
+
   it('AC2.4 — readQueue round-trips an entry written with the new fields', async () => {
     await queueDecision(dir, {
       id: 'Q5', phase: 'PLAN', question: 'Round trip?', recommendation: 'yes',

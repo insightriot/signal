@@ -139,10 +139,14 @@ export function formatQueuedDecision({
   // An untagged axis renders as `untagged`, never omitted. A missing row would
   // look like a decision nobody had to tag, and the whole fail-closed default
   // exists because that is the case worth seeing.
-  if (reversibility !== undefined || altitude !== undefined) {
-    tags.push(`**Altitude:** ${altitude ?? 'untagged'}`);
-    tags.push(`**Reversibility:** ${reversibility ?? 'untagged'}`);
-  }
+  //
+  // BOTH ROWS ALWAYS RENDER. A guard here (`reversibility !== undefined ||
+  // altitude !== undefined`) omitted BOTH rows for a decision tagged on NEITHER
+  // axis — the one case the comment above names, and the one case the test named
+  // for it did not cover: it passed `altitude` and asserted the reversibility row,
+  // so it exercised the half-tagged path that already worked. Found in REVIEW.
+  tags.push(`**Altitude:** ${altitude ?? 'untagged'}`);
+  tags.push(`**Reversibility:** ${reversibility ?? 'untagged'}`);
   const lines = [
     `## ${id} — ${question}`,
     '',
@@ -216,7 +220,12 @@ export async function queueDecision(baseDir, decision, { attention } = {}) {
   // Without this, a caller that routes to `adopt` and calls this anyway writes an
   // entry reading "Adopted: …" sitting unanswered in the queue forever — a
   // decision nobody has to make, indistinguishable from one that is waiting.
-  if (routed.route === 'adopt' && decision?.routeWhy === undefined) {
+  //
+  // NOT BYPASSABLE. This guard used to stand down whenever the caller supplied its
+  // own `routeWhy`, which let an adoptable decision be filed as a parked question
+  // under a hand-written reason — verbatim the entry the comment above says must
+  // never exist. Found in REVIEW.
+  if (routed.route === 'adopt') {
     return {
       queued: false,
       refused: true,
@@ -225,7 +234,11 @@ export async function queueDecision(baseDir, decision, { attention } = {}) {
   }
 
   const path = join(baseDir, QUEUE_REL);
-  const entry = formatQueuedDecision({ ...decision, routeWhy: decision?.routeWhy ?? routed.why });
+  // The ROUTER's sentence, never the caller's. `routeWhy` is an output of
+  // `routeDecision`, and honouring it as an input is how one rule comes to be
+  // described two ways — which is what this field's own docstring warns against
+  // and what `drive.md` instructs ("Do not write that sentence yourself").
+  const entry = formatQueuedDecision({ ...decision, routeWhy: routed.why });
   const current = existsSync(path) ? await readFile(path, 'utf-8') : QUEUE_HEADER;
   const next = `${current.replace(/\s*$/, '')}\n\n${entry}`;
   await atomicWrite(path, next);

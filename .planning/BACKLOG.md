@@ -412,6 +412,20 @@ actually fixed**, whatever the tests say.
 ⚠ **Not on a production project** — `examples/sandbox/` exists precisely because production repos are
 not test beds (`M5.E19`).
 
+**Partially answered 2026-09-04, and NOT discharged.** A `/sig:drive` run on the Signal repo drove
+`M6.E6` from **VERIFY through SHIP**. It reports all three: **(a)** it advanced VERIFY→REVIEW
+unattended (one phase; REVIEW→SHIP ran only after the user said proceed); **(b)** one halt, at SHIP,
+`reason: floor`, naming `ship-pr` and `ship-retro`; **(c)** **no `loop-unknown` halt occurred** —
+`loopStatusFor` was passed at both `VERIFY` and `REVIEW`, both returned `count: 0, ceiling: 3`, and
+`canProceedUnattended` returned `proceed: true`. **`B113` is now empirically fixed, not just fixed
+against the module.** The two other unexercised mechanisms named above are also settled: the decision
+queue took its **first write outside `tests/`** (`Q-M6E6-1`), and the advisory's read half now has a
+writer to read.
+
+**Why this stays open:** the row's body asks for a run *"from DISCUSS to PR-open"*, and this one
+started at `VERIFY` — DISCUSS, PLAN and EXECUTE were completed by earlier sessions. Four of seven
+phases is not end-to-end. *Remaining done-when:* one Epic driven from **DISCUSS**.
+
 
 ### The row that doesn't know what the platform already does · **roadmap** · small · **filed 2026-08-25**
 
