@@ -12,6 +12,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -248,4 +249,53 @@ describe('AC3.3 — the stale "read half only" caveat is gone everywhere', () =>
     await walk('plugin');
     expect(offenders).toEqual([]);
   }, 20000);
+});
+
+describe('AC2.6 — queueing never fires at `attended`, and it is a CHECK', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'signal-q26-'));
+    await mkdir(join(dir, '.planning'), { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  const parked = {
+    id: 'Q1', phase: 'PLAN', question: 'Default on or off?', recommendation: 'off',
+    altitude: 'product', reversibility: 'trivial', date: '2026-09-04',
+  };
+
+  it('refuses at attended and writes NO file', async () => {
+    // A rule that lives only in drive.md's prose is B75 — this repository's named
+    // defect — added by an Epic about reaching unreached mechanisms. So it fails
+    // where the situation is.
+    const r = await queueDecision(dir, parked, { attention: 'attended' });
+    expect(r).toMatchObject({ queued: false, refused: true });
+    expect(r.reason).toMatch(/ask this question instead/);
+    expect(existsSync(join(dir, '.planning', 'DECISION-QUEUE.md'))).toBe(false);
+  });
+
+  it('queues at unattended and checkpointed — what the dial buys', async () => {
+    for (const attention of ['unattended', 'checkpointed', undefined]) {
+      const d = await mkdtemp(join(tmpdir(), 'signal-q26b-'));
+      await mkdir(join(d, '.planning'), { recursive: true });
+      const r = await queueDecision(d, parked, { attention });
+      expect(r.queued, `attention=${attention}`).toBe(true);
+      expect(existsSync(join(d, '.planning', 'DECISION-QUEUE.md'))).toBe(true);
+      await rm(d, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses to file a decision the router would ADOPT', async () => {
+    // Without this, a caller that routes to adopt and queues anyway writes an
+    // entry reading "Adopted: …" sitting unanswered forever — a decision nobody
+    // has to make, indistinguishable from one that is waiting.
+    const r = await queueDecision(
+      dir, { ...parked, altitude: 'plumbing' }, { attention: 'unattended' },
+    );
+    expect(r).toMatchObject({ queued: false, refused: true });
+    expect(r.reason).toMatch(/Adopt it and continue/);
+    expect(existsSync(join(dir, '.planning', 'DECISION-QUEUE.md'))).toBe(false);
+  });
 });

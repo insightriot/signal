@@ -189,9 +189,18 @@ Reversibility alone misses the case that matters most — a product call that is
 like a default tier, is still a person's to make.
 
 - **`route: 'adopt'`** → take the recommendation and continue.
-- **`route: 'queue'`** → `queueDecision(baseDir, { …, reversibility, altitude })` and continue. It
-  routes again internally and records the router's own sentence, so the entry says which axis parked
-  it. Do not write that sentence yourself.
+- **`route: 'queue'`** → `queueDecision(baseDir, { …, reversibility, altitude }, { attention })`
+  and continue. It routes again internally and records the router's own sentence, so the entry says
+  which axis parked it. Do not write that sentence yourself.
+
+**Pass `attention`.** `queueDecision` **refuses** at `attended` and returns
+`{queued: false, refused: true, reason}` rather than throwing — a live run must not die because a
+caller was honest about its attention level. It also refuses to file a decision the router would
+adopt, which would otherwise leave an entry reading *"Adopted: …"* sitting unanswered forever.
+
+⚠ **An adopted decision is recorded nowhere, and that is deliberate.** By construction it is
+plumbing-altitude *and* reversible — the class the "gate at product altitude" norm says is yours to
+decide. Logging each one would rebuild the interruption stream this command exists to remove.
 
 ⚠ **Tag honestly, and when unsure do not guess — leave it untagged.** An untagged decision queues
 (`D-M6E6-4`); that is the safe direction, and the entry names which axis you left blank. Expect a

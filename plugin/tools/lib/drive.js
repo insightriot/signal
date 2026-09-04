@@ -189,14 +189,47 @@ measurement this file exists to produce.
  * verdict rather than the caller's opinion of it — one rule, one place, one
  * wording.
  */
-export async function queueDecision(baseDir, decision) {
-  const path = join(baseDir, QUEUE_REL);
+export async function queueDecision(baseDir, decision, { attention } = {}) {
   const routed = routeDecision(decision ?? {});
+
+  // AC2.6 — NEVER QUEUE AT `attended`, and this is a check rather than a
+  // sentence in drive.md deliberately. An Epic about reaching unreached
+  // mechanisms must not add a rule that lives only in prose: that is `B75`,
+  // this repository's named defect, and it would be a comic way to close this
+  // one. A person sitting at the gate should be ASKED — filing a question at
+  // someone waiting to answer it is a worse experience than the halt this
+  // replaces.
+  //
+  // Refuses rather than throws: a live run must not die because a caller passed
+  // its attention level honestly. Same shape as `applyMigrate`'s refusal.
+  if (attention === 'attended') {
+    return {
+      queued: false,
+      refused: true,
+      reason:
+        'Not queued: attention is `attended`, so ask this question instead. ' +
+        'Queueing is what `unattended` and `checkpointed` buy.',
+    };
+  }
+
+  // A decision the router would ADOPT must not be filed as a parked question.
+  // Without this, a caller that routes to `adopt` and calls this anyway writes an
+  // entry reading "Adopted: …" sitting unanswered in the queue forever — a
+  // decision nobody has to make, indistinguishable from one that is waiting.
+  if (routed.route === 'adopt' && decision?.routeWhy === undefined) {
+    return {
+      queued: false,
+      refused: true,
+      reason: `Not queued: ${routed.why} Adopt it and continue.`,
+    };
+  }
+
+  const path = join(baseDir, QUEUE_REL);
   const entry = formatQueuedDecision({ ...decision, routeWhy: decision?.routeWhy ?? routed.why });
   const current = existsSync(path) ? await readFile(path, 'utf-8') : QUEUE_HEADER;
   const next = `${current.replace(/\s*$/, '')}\n\n${entry}`;
   await atomicWrite(path, next);
-  return { path, id: decision.id };
+  return { path, id: decision.id, queued: true, refused: false };
 }
 
 export async function readQueue(baseDir) {
