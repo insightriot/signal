@@ -353,7 +353,7 @@ reason turned out to be a live defect on a different command's path.
 
 ## An Epic-lane `--merge` produced a SQUASH, and a published adherence verdict immediately pointed at a commit absent from `main`
 
-**Status:** confirmed — **second instance 2026-09-04; detection shipped, root cause still open**
+**Status:** fixed — **root cause closed 2026-09-04 (sticky web-UI merge button); detection shipped as a test**
 
 > ### ⚠ SECOND INSTANCE — `M6.E6` / PR #236, 2026-09-04. The experiment this row designed was run, and it reproduced.
 >
@@ -387,11 +387,33 @@ reason turned out to be a live defect on a different command's path.
 > brettvt-insightriot`) and this session did not perform it, so which mechanism was used is not
 > known from here. The repository still allows all three methods (`allow_merge_commit: true`).
 >
-> **What is still open — and it is one question to a person, not an investigation:** *how was #236
-> merged — the `gh` CLI, or the green button in the GitHub web UI?* If the UI: GitHub remembers the
-> last-used merge method per repository, so a button left on **"Squash and merge"** explains both
-> instances and the fix is one dropdown, not a mechanism. That hypothesis is **cheap to confirm and
-> has not been confirmed**, so it is written as a hypothesis.
+> ### ✅ ROOT CAUSE CLOSED 2026-09-04 — the fix lane arms the trap for the Epic lane
+>
+> **Confirmed by the maintainer: `#236` was merged with the green button on github.com.** The
+> button's merge method is **sticky per repository**, and the two lanes require **different**
+> methods — so the fix lane's *correct* `--squash` silently re-arms the button for the next Epic
+> merge. The parent counts across one uninterrupted sequence show it exactly:
+>
+> | PR | Lane | Parents |
+> |---|---|---|
+> | `#233` | Epic | **2** ✅ |
+> | `#234` | Epic | **2** ✅ |
+> | `#235` | release — squashed **correctly** | 1 |
+> | `#236` | Epic | **1** ❌ — inherited the button from `#235` |
+>
+> `#233` and `#234` prove the Epic lane works when the button happens to be right. `#235` is the
+> release cut doing the right thing for its lane. `#236` is the next Epic merge inheriting it.
+>
+> **This is not user error; it is a design property of the rule.** A two-lane merge policy on a host
+> whose UI remembers one method means the correct action in one lane is a trap in the other, and
+> nothing surfaces the switch at the moment of merging. The same reading explains `#211` in August
+> without needing a `gh` bug.
+>
+> **Fix, in two parts.** (1) Merge an Epic from the CLI — `gh pr merge <n> --merge` — or change the
+> dropdown first; written into `CLAUDE.md` beside the two-lane table, where the rule already lives.
+> (2) The guard below, which is the part that does not depend on anyone remembering. ⚠ **Do NOT
+> disable squash repo-wide** — the fix lane needs it, and removing it would break the lane that is
+> behaving correctly.
 >
 > ⚠ **Do not "fix" this by disabling squash at the repository level.** The fix lane merges with
 > `--squash` by design (`CLAUDE.md` → *How changes reach `main`*, the two-lane table). A repo-wide

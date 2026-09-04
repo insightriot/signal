@@ -141,6 +141,31 @@ Behavioral rules that apply to every conversation and every agent, in addition t
 
 A one-line fix does **not** need DISCUSS→SHIP. It **does** need a branch, a PR, and a green suite. `gh pr create --fill` then `gh pr merge --squash` is the whole overhead.
 
+> ### ⚠ The two lanes need DIFFERENT merge methods, and GitHub's web UI remembers only the last one
+>
+> **Merging in the browser is how the Epic lane keeps squashing.** The green button's method is
+> sticky per repository, so **the fix lane's correct `--squash` arms a trap for the very next Epic
+> merge** — which then squashes silently and reports success. This is not a hypothesis; it is the
+> measured pattern:
+>
+> | PR | Lane | Parents |
+> |---|---|---|
+> | `#233` | Epic | **2** ✅ |
+> | `#234` | Epic | **2** ✅ |
+> | `#235` | release — squashed *correctly* | 1 |
+> | `#236` | Epic | **1** ❌ — inherited the button from `#235` |
+>
+> `#236` orphaned all six of its commits **and** left `STATE.md`'s `last_updated_commit` pointing at
+> a commit nobody can reach. `#211` failed the same way in August.
+>
+> **So: merge an Epic from the CLI — `gh pr merge <n> --merge` — or change the dropdown before
+> clicking.** Do **not** "fix" this by disabling squash repo-wide; the fix lane needs it.
+>
+> **The backstop is a test, not this paragraph** (`tests/adherence-anchor-reachability.test.js`):
+> every commit pinned by `ADHERENCE-LOG.md` or `STATE.md` must be reachable from `HEAD`. It goes red
+> on `main` right after a squash orphans one, and it holds however the orphaning happened — which
+> matters, because the two instances had different causes and identical consequences.
+
 **Why the Epic lane merges instead of squashing** (`v0.1.19`, the first PR to set the precedent). Squash is right for the fix lane: one small change, one commit, nothing worth preserving underneath. It is **wrong** for an Epic, for a reason specific to this repo rather than a taste in git history.
 
 [`.planning/ADHERENCE-LOG.md`](.planning/ADHERENCE-LOG.md) **pins commit SHAs as its reproducibility anchor** — every run record names the commit that produced the verdict, and `adherence-run.js` states the failure mode in its own words: AC4.3 breaks when *"the record would name a state nobody can return to."* Squash-merging never lands those commits on `main`; rebase-merging rewrites them. Either leaves a published verdict pointing at a commit absent from `main`'s history.
