@@ -22,6 +22,17 @@ The two candidate themes are recorded in `BACKLOG.md` and remain live for `E2` o
 |---|---|---|
 | `M6.E1` | **shipped** — `v0.1.26`, 2026-08-17 | The plugin payload: what an install actually copies. |
 | `M6.E2` | **shipped** — `v0.1.29`, 2026-08-18 | The facts Signal publishes about itself, and what re-derives them. |
+| `M6.E3` | **planned, NOT executed** — opened 2026-08-19 | The claims-audit backstop: a reviewer that must show its work. REQUIREMENTS / RESEARCH / PLAN / VALIDATION exist; no EXECUTE, VERIFY or retrospective. Narrative already evicted to [`archive/M6/E3/`](archive/M6/E3/). |
+| `M6.E4` | **shipped** — `v0.1.33`, 2026-08-24 | What PLAN reads and writes; first Epic run at a per-unit tier. |
+| `M6.E5` | **shipped** — `v0.1.34`, merged 2026-08-28 (PR #211) | `/sig:permissions`, the 22nd command. |
+| `M6.E6` | **shipped** — 2026-09-04; core in `v0.1.37`, REVIEW fixes in PR #236 | The decision queue gets a writer: `routeDecision` + `/sig:drive` as its first caller. |
+
+> ⚠ **This table sat two rows long while six Epics existed** — `M6.E3`, `M6.E4`, `M6.E5` and
+> `M6.E6` were all missing when `M6.E6` closed on 2026-09-04. That is the row *this milestone's own
+> §M6.E2 names* as a published fact nothing derives (*"A milestone's Epic-status row ← STATE.md"*,
+> evidence: *"`M6.E1` read in flight for a day after shipping"*). The table documenting the defect
+> class had the defect, for three Epics. Filled by reading `CHANGELOG.md` and the retrospectives,
+> not from memory.
 
 ---
 
