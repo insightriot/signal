@@ -173,6 +173,7 @@
 - [M6.E6-REQUIREMENTS.md](M6.E6-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E6-REVIEW.md](M6.E6-REVIEW.md) — `other` — _(note pending)_
 - [M6.E6-VERIFICATION.md](M6.E6-VERIFICATION.md) — `other` — _(note pending)_
+- [M6.E7-REQUIREMENTS.md](M6.E7-REQUIREMENTS.md) — `other` — _(note pending)_
 - [MILESTONE-4.5.md](MILESTONE-4.5.md) — `milestone` — Release-hardening / stranger-adoption milestone. **CLOSED 2026-07-15** — E1–E11 shipped (v0.1.1–v0.1.7); the ≥3-non-Signal-tester clause met (4 users onboarded). Superseded by M5.
 - [MILESTONE-5.md](MILESTONE-5.md) — `milestone` — **Active milestone** — v2 integrations + doc-runtime. Usage-signal gate lifted 2026-07-15. Epic-status table up top (M5.E1/E2 shipped-unreleased, M5.E3 in flight); the speculative v2-port queue below is unsequenced pending the landscape re-audit.
 - [MILESTONE-6.md](MILESTONE-6.md) — `milestone` — _(note pending)_
@@ -323,6 +324,7 @@
 - [archive/M6/E3/CONTEXT-2026-08-19.md](archive/M6/E3/CONTEXT-2026-08-19.md) — `other` — _(note pending)_
 - [archive/M6/E3/STATE-NARRATIVE.md](archive/M6/E3/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E4/STATE-NARRATIVE.md](archive/M6/E4/STATE-NARRATIVE.md) — `other` — _(note pending)_
+- [archive/M6/E6/STATE-NARRATIVE.md](archive/M6/E6/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/milestones/DECISIONS.md](archive/milestones/DECISIONS.md) — `append-log` — Evicted M1–M4 decision history (2026-04-22 → 2026-05-12, date-keyed, pre-`D-…-n` convention). Relocated verbatim at docs-layout v3 behind a dated pointer in live `DECISIONS.md`.
 - [archive/milestones/MILESTONE-1.md](archive/milestones/MILESTONE-1.md) — `milestone` — _(note pending)_
 - [archive/milestones/MILESTONE-2.md](archive/milestones/MILESTONE-2.md) — `milestone` — _(note pending)_

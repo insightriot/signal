@@ -1323,7 +1323,14 @@ unverified — never asserted from memory* (the `buildCaveats()` lesson, general
   `RETROSPECTIVES.md` lacks a row for an existing retro fails `/sig:sweep` (the 2026-07-28
   missing-M5.E8-row incident, mechanized).
 
-### M5.E11 — Roadmap Advisor · **KEPT — first slice only, sequenced behind `M5.E10`** *(2026-08-09, `D-BR0809-1`)*
+### M5.E11 — Roadmap Advisor · **OPENED AS `M6.E7` 2026-09-05 — see [`M6.E7-REQUIREMENTS.md`](M6.E7-REQUIREMENTS.md)** *(2026-08-09, `D-BR0809-1`)*
+
+> **The ID stays wrong out loud rather than being silently renumbered.** `D-BR0809-2` closed
+> Milestone 5 on 2026-08-13 and moved `E11`/`E12` to M6, so this work opened as **`M6.E7`**;
+> a live Epic inside a closed milestone is how `B91` happened. **⚠ DISCUSS found the premise
+> in question** — the first slice as written substantially duplicates `/prose:backlog` and the
+> `auditor` agent, both installed. Disposition (cut / reshape small / build as specified) is
+> open at `Q1` in the requirements. Do not start building from this row.
 
 > **Two things changed on 2026-08-09, and they cut in opposite directions.** The
 > [backlog review](BACKLOG-REVIEW-2026-08-09.md) **did this Epic's job by hand** — so the
