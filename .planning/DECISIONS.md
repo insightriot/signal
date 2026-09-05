@@ -2705,3 +2705,77 @@ walk `VERIFY` / `REVIEW` into `loop-ceiling` for reasons unrelated to the work.
 ⚠ **This makes the queue a noticeboard rather than a loop, and that is the honest description.** The
 mechanism is worth having at that level — a run that parks a question and keeps working is the
 whole gap — and closing the loop is a later decision made with evidence from a queue that exists.
+
+---
+
+## 2026-09-05 — M6.E7 DISCUSS: the Roadmap Advisor (D-M6E7-1 … D-M6E7-4)
+
+*Epic: `M6.E7`, the Roadmap Advisor's first slice. Carried in [`BACKLOG.md`](BACKLOG.md) under its
+old label `M5.E11`. Requirements: [`M6.E7-REQUIREMENTS.md`](M6.E7-REQUIREMENTS.md).*
+
+### D-M6E7-1 — Opened as `M6.E7`, not `M5.E11`
+
+`D-BR0809-2` closed Milestone 5 on 2026-08-13 and moved `E11`, `E12` and the loop work to M6. A live
+Epic inside a closed milestone is `B91` — two Epics under one ID, and *"did `M5.E16` ship?"*
+answering **yes** for work that was not the item.
+
+The `BACKLOG.md` row **keeps its old ID and points here** rather than being renumbered in place.
+`PROJECT.md` § Vocabulary locks ID-is-identity, and the 2026-08-09 review's own remedy for the same
+situation was *"do not silently renumber — the whole point of the rule is that the old ID stays
+wrong out loud."*
+
+### D-M6E7-2 — Built as specified, Signal-native, owing nothing to `prose`
+
+**DISCUSS found the premise in question and the answer is to build it anyway. That is a decision, not
+an oversight, and the justification changed.**
+
+Two installed tools cover most of the specified first slice. `/prose:backlog`'s contract is (a) fill
+gaps, (b) strengthen via INVEST, (c) cluster into sprints, plus optional RICE *"offered, don't force
+it"* and `prose-method`'s required *"actually fine"* section — and
+[`BACKLOG-REVIEW-2026-08-09.md`](BACKLOG-REVIEW-2026-08-09.md), the known-good output, maps onto
+that essentially one-to-one. The `auditor` agent covers cross-corpus contradiction finding, which is
+where that review's best content (§1's bottom line, `F1`–`F4`) actually came from. And `D-BR0814-1`
+routes whole-corpus, on-demand, phase-free work to prose.
+
+Alternatives B (reshape to just the trigger + corpus semantics + write-back) and A (cut it) were
+offered with B recommended. **C was chosen.**
+
+**So the honest justification is recorded as what it is: not capability, but not wanting a
+cross-plugin dependency.** `/prose:` is a separate plugin that must run in any repo; Signal taking a
+hard dependency on it would couple a first-party flow to something a user need not have installed.
+That is a legitimate reason and a *different* one from the reason the backlog row gives.
+
+⚠ **This is the fourth instance of `BACKLOG.md`'s own row** — *"three times in five weeks we planned
+to build something Claude Code already owns. Check first, size second."* The check was run first and
+is recorded in the requirements; the row's rule was followed even though its conclusion was not. The
+cost this buys is duplication, knowingly.
+
+### D-M6E7-3 — FEATURE, and the claim-integrity risk is handled in acceptance criteria, not by tier
+
+Calibrated against `tier-definitions.md`'s **ordered** gates rather than assigned: `scope: feature`,
+`stakes: major`, `novelty: rare`, `reversibility: moderate`, `horizon: months`. No FULL escalator
+fires (stakes is not `catastrophic`, reversibility is not `irreversible`, horizon is not `years`);
+SPIKE fails on `stakes: major`; SKETCH fails on `scope`. **FEATURE is the default and the answer.**
+
+The row sequenced this Epic behind `M5.E10` because *"an advisor that emits unverified claims is the
+claim-integrity defect with a wider blast radius."* That risk is real and is handled where it is
+**testable** — an acceptance criterion that every emitted citation mechanically resolves — rather
+than by inflating a tier. A dial turned up out of unease is not a check; the citation test is.
+
+One override is carried: **`nyquist_enforcement: strict`** (FEATURE's default is `basic`), because
+citation-resolution is the property the Epic exists to guarantee and it must not be sampled.
+
+### D-M6E7-4 — It proposes and cites; it never selects, and it never writes the queue
+
+Two limits, each from evidence that already exists rather than from caution.
+
+**Never auto-selects.** `LOOP-GOAL-DIRECTION.md` measured the best honest selection rule over these
+exact rows at **77% precision / ~37% recall** and recommended not building automatic selection. This
+Epic does not revisit that; it produces reasons a person chooses from.
+
+**Never writes `BACKLOG.md`.** `D-M5E18-1` makes the backlog the queue, and the known-good review
+states its own posture: *"This document changes nothing on its own — it recommends."* The advisor
+emits an artifact; landing it stays a person's edit.
+
+⚠ **Both limits mean the "repeatability" the row asks for is bounded**: the *analysis* becomes
+repeatable, the *transcription into the queue* does not. Said here rather than discovered at VERIFY.
