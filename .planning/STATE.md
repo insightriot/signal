@@ -11,8 +11,8 @@ completed_phases:
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-09-03T23:36:21.635658Z
-last_updated_commit: 015b99300312594af93a868f1cd554d0202a1dee
-last_updated: 2026-09-05T22:19:32.827Z
+last_updated_commit: 6564aecab39fef03aec0c7ae14fe2de1d0c66800
+last_updated: 2026-09-05T22:39:54.903Z
 ---
 # Project State
 
@@ -20,47 +20,50 @@ last_updated: 2026-09-05T22:19:32.827Z
 
 ### ▶ WHERE THE WORK IS — read this first (2026-09-05)
 
-**`M6.E7` IS OPEN AT PLAN. Next action: `/sig:execute`.** *The Roadmap Advisor — a read-only
-`/sig:advise` that reads this project's own corpus and recommends what to work on next, where every
-claim carries a citation that mechanically resolves.*
+**`M6.E7` IS OPEN AT EXECUTE, AND EXECUTE IS COMPLETE. Next action: `/sig:verify`.** *The Roadmap
+Advisor — a read-only `/sig:advise` that reads this project's own corpus and recommends what to work
+on next, where every claim carries a citation that mechanically resolves.*
 
-**⚠ YOU ARE ON A BRANCH: `feat/m6.e7-roadmap-advisor`, 5 commits ahead of `main`.** Nothing here is
-on `main` yet; the Epic lands as one PR at SHIP. Artifacts:
+**⚠ YOU ARE ON A BRANCH: `feat/m6.e7-roadmap-advisor`.** Nothing is on `main`; the Epic lands as one
+PR at SHIP, and that PR **merges, never squashes** (Epic lane). Artifacts:
 [`M6.E7-REQUIREMENTS.md`](M6.E7-REQUIREMENTS.md), [`M6.E7-PLAN.md`](M6.E7-PLAN.md),
-[`M6.E7-PROFILE.md`](M6.E7-PROFILE.md). Decisions `D-M6E7-1`…`D-M6E7-4` in
-[`DECISIONS.md`](DECISIONS.md). **FEATURE** inside this FULL project — the fourth per-unit dial.
+[`M6.E7-PROGRESS.md`](M6.E7-PROGRESS.md), [`M6.E7-PROFILE.md`](M6.E7-PROFILE.md). Decisions
+`D-M6E7-1`…`D-M6E7-4` in [`DECISIONS.md`](DECISIONS.md). **FEATURE** inside this FULL project.
 
-**Read `M6.E7-PLAN.md` before executing.** Three slices, and **S1 goes first** because it is the
-property everything else claims: the citation verifier. Two things in it are counter-intuitive and
-were both found the hard way —
+**All three slices shipped, 2979 → 3274 tests.** Four files added under `plugin/tools/lib/`
+(`citations.js`, `advise-corpus.js`, `advise.js`) plus `plugin/commands/advise.md`, the 23rd command.
 
-1. **`parseBacklogRows` needs `maxDepth: 4`.** The default is 3 and Signal's own promoted rows sit at
-   `####`: measured, **43 live rows at depth 3 vs 50 at depth 4**. A default-depth read looks like a
-   working command and is blind to nine rows.
-2. **Citations are emitted into ONE structural position and the extractor reads only that.** A
-   textual scan cannot work — the artifact quotes corpus text, and live `BACKLOG.md` rows carry
-   **108 backticked path-like tokens, 51 of which do not resolve**. A textual gate fires on the first
-   quoted row and nothing is ever written.
+**⚠ READ `M6.E7-PROGRESS.md` BEFORE `/sig:verify` — it carries a product call, not just a status.**
+The command was **run end-to-end on this repository** (50 live rows, 5 recommended, 45 declined, 51
+citations resolved, exactly one file written). **Two of the five recommendations are not actionable
+work**, and the first cause written for that was wrong and is corrected in place: it is not corpus
+shape, it is that `TRIGGER_MET_RE` cannot tell a row's own trigger from one it merely mentions. A row
+whose heading says *"not sprint material"* was promoted into the top four using a trigger belonging
+to a different item. 6 of 50 rows match; 2 of the 6 are false positives. **Deliberately not fixed —
+narrowing it is a design change and `t3.1` specifies four inputs.** Three options are written up for
+VERIFY to decide between.
 
-**⚠ Disposition C was chosen against the recommendation, and the reason changed** (`D-M6E7-2`).
-DISCUSS found the first slice substantially duplicated by `/prose:backlog` and the `auditor` agent,
-both installed. Building anyway is deliberate; **the justification is no longer capability, it is
-avoiding a cross-plugin dependency.** Do not re-litigate it, and do not let a later document claim
-the capability was missing.
+**Also for VERIFY:** S3 was written **test-after**, not test-first, against `tdd_required: true`.
+Recorded rather than left to be inferred.
 
-**Plan validation returned FAIL and the plan was revised** — the gate as first designed would have
-refused to write on every run. If a future reader finds the plan surprisingly specific about N,
-tiebreaks and the evidence marker, that is why.
+**Settled in code, and each surprising enough to re-derive wrongly:** the backlog is read at
+`maxDepth: 4`; citations occupy one structural position and the extractor reads only that; the run
+gate asserts a **count**, not `ok`. Reasons are in the three `execute(m6.e7 …)` commit messages. The
+23rd command touched **six** count sites, not the plan's four — found by adding it and letting the
+suite name them.
+
+**Open at SHIP (human steps, not command behaviour):** the inbound `BACKLOG.md` link to
+[`BACKLOG-REVIEW-2026-09-05.md`](BACKLOG-REVIEW-2026-09-05.md) and the `INDEX.md` regeneration.
+`ORPHAN_ENTRY_POINTS` does not match the filename, so `/sig:docs-sweep` flags it until then.
 
 **Open elsewhere:**
 - **PR #238** — merge guidance rewritten for the green button. Fix lane, merge with **squash**.
-- `Q-M6E6-1` in [`DECISION-QUEUE.md`](DECISION-QUEUE.md), still unanswered — whether meeting
-  `M6.E6`'s outcome oracle on `v0.1.37` re-opens its VERIFY `NOT MET` verdict. Product-altitude.
-- Three bugs filed this session in [`BUGS.md`](BUGS.md): unfrozen `ROUTE_REVERSIBILITY`,
-  `transitionPhase` regenerating `INDEX.md` at phase *entry*, and **two mutually-blind milestone
-  Epic-row parsers** — the last one means `D-E9-5`'s "a maintained row wins" has been inert across
-  five Epic ships. `M6.E7` exports a unified reader but deliberately does **not** re-point the
-  existing call sites.
+- `Q-M6E6-1` in [`DECISION-QUEUE.md`](DECISION-QUEUE.md), still unanswered. Product-altitude.
+- Bugs filed in [`BUGS.md`](BUGS.md): unfrozen `ROUTE_REVERSIBILITY`, `transitionPhase` regenerating
+  `INDEX.md` at phase *entry* (**did not fire this run — returned `unchanged`**), and **two mutually
+  blind milestone Epic-row parsers**. `M6.E7` exports a unified reader (`parseEpicStatusRows`, 33
+  rows across all three live milestone files) and deliberately does **not** re-point the existing
+  call sites — a test pins that, because re-pointing changes when the SHIP retro gate fires.
 
 ---
 

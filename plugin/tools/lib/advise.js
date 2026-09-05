@@ -73,6 +73,26 @@ export const FORBIDDEN_VERBS = Object.freeze(['chosen', 'selected', 'decided']);
 const ISO_DATE_RE = /\b(\d{4}-\d{2}-\d{2})\b/;
 // A row that names its own gate. Read from the vocabulary the maintainer already
 // writes: BACKLOG.md carries "Trigger: …", "blocked on", "gated on", "NOT met".
+//
+// ⚠ REACH DECLARATION (`B81`) — measured on this repository's own BACKLOG.md,
+// not assumed. These two patterns are TOKEN MATCHES over a row's heading AND its
+// whole body, and the body is everything up to the next row. So:
+//
+//   - They cannot tell a row's OWN trigger from a trigger it merely mentions. A
+//     row that is *about* triggers matches. Measured 2026-09-05: 6 of 50 live
+//     rows match `TRIGGER_MET_RE`, and 2 of those 6 are false positives —
+//     *"Parked — the trigger watchlist (not sprint material)"* matches on a
+//     watchlist entry belonging to a different item (`Trigger:* first live
+//     external tester — **FIRED`), and a dated reconciliation note matches on
+//     prose describing a past state (`trigger has therefore read **satisfied`).
+//     Both landed in the top four of the first real run.
+//   - They read no state. "Fired" means the row SAYS so; nothing here checks
+//     whether the named condition actually holds today.
+//   - `\b…met\b` is case-insensitive, so ordinary English "met" counts.
+//
+// This is stated rather than tuned because narrowing the patterns changes what
+// the ranking recommends, and that is a product call for VERIFY — recorded in
+// `M6.E7-PROGRESS.md` with the three options rather than settled here.
 const BLOCKED_RE = /\b(?:blocked on|gated on|depends on|trigger[^.\n]{0,60}\b(?:is\s+)?NOT met|unmet trigger)\b/i;
 const TRIGGER_MET_RE = /\btrigger[^.\n]{0,60}\b(?:FIRED|met|satisfied)\b/i;
 
