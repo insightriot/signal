@@ -115,14 +115,22 @@ export function parseStatusCell(raw) {
  * implementation of "which lines are entries" that agrees with the first only
  * by construction.
  *
+ * `line` is 1-indexed and was added ADDITIVELY (`M6.E7` t2.2) so `/sig:advise`
+ * can cite a bug row by `path:line`. Additive because `deriveBugCounts` and
+ * `readClosureSources` read the same records and must not change; forking the
+ * walk to get one field is `B82`'s shape, which this docblock already warns
+ * about one paragraph up.
+ *
  * @param {string} content
- * @returns {Array<{kind:'row'|'capture', id:string|null, status:string|null, cell:string}>}
+ * @returns {Array<{kind:'row'|'capture', id:string|null, status:string|null, cell:string, line:number}>}
  */
 export function walkBugEntries(content) {
   const out = [];
   let inFence = false;
+  let lineNo = 0;
 
   for (const line of String(content).split('\n')) {
+    lineNo += 1;
     const t = line.trimStart();
     if (t.startsWith('```') || t.startsWith('~~~')) {
       inFence = !inFence;
@@ -137,12 +145,13 @@ export function walkBugEntries(content) {
         id: `B${row[1]}`,
         status: parseStatusCell(row[2]),
         cell: row[2].trim(),
+        line: lineNo,
       });
       continue;
     }
 
     const cap = line.match(CAPTURE_STATUS_RE);
-    if (cap) out.push({ kind: 'capture', id: null, status: cap[1], cell: cap[1] });
+    if (cap) out.push({ kind: 'capture', id: null, status: cap[1], cell: cap[1], line: lineNo });
   }
   return out;
 }
