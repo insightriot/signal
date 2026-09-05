@@ -158,8 +158,21 @@ A one-line fix does **not** need DISCUSS→SHIP. It **does** need a branch, a PR
 > `#236` orphaned all six of its commits **and** left `STATE.md`'s `last_updated_commit` pointing at
 > a commit nobody can reach. `#211` failed the same way in August.
 >
-> **So: merge an Epic from the CLI — `gh pr merge <n> --merge` — or change the dropdown before
-> clicking.** Do **not** "fix" this by disabling squash repo-wide; the fix lane needs it.
+> **The durable fix is a repo setting, not a habit.** Restrict `main`'s ruleset
+> (`main-requires-pr-and-green-ci`) to `allowed_merge_methods: ["merge"]` — then the button has one
+> option and is always correct, for every lane and every merger. **Not yet applied**; it needs
+> repository-admin rights this session did not have.
+>
+> Until then: **change the dropdown to "Create a merge commit" before merging an Epic.** `gh pr merge
+> <n> --merge` also works but is not the primary advice — merges here are made with the green button
+> by choice, and guidance that assumes a terminal is guidance aimed at a path nobody uses.
+>
+> ⚠ The cost of the setting is that a one-line fix also gets a merge commit, which contradicts the
+> fix-lane row above. That row calls squash a preference (*"nothing worth preserving underneath"*);
+> the Epic lane's `--merge` is a correctness requirement. Trading the preference for the guarantee is
+> the right trade when the merge is a sticky button. **Do not instead disable squash repo-wide** —
+> that is the blunt version of the same idea and it removes the option from every repo surface, not
+> just `main`.
 >
 > **The backstop is a test, not this paragraph** (`tests/adherence-anchor-reachability.test.js`):
 > every commit pinned by `ADHERENCE-LOG.md` or `STATE.md` must be reachable from `HEAD`. It goes red
