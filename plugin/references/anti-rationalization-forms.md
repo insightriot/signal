@@ -5,7 +5,7 @@
 > and the corpus disagree. A hand-kept list of what a corpus contains is a completeness claim,
 > and this repository is done writing those.
 
-**132 entries: 112 discipline, 20 shaping.**
+**136 entries: 116 discipline, 20 shaping.**
 
 ## The rule (`B38`)
 
@@ -105,6 +105,13 @@ output. Listed so the classification is complete rather than asserted.
 - "Show entry preview before write so user can confirm."
 - "`gate_strictness: strict` means I should confirm the destination before writing."
 - "Write to a different file if the inbox (`ISSUES-INBOX.md`) is too long."
+
+### `commands/advise.md` (4)
+
+- "Strike the rows it recommends, so the queue stays current."
+- "The citation check is slowing this down — write the artifact and note the failures inside it."
+- "Add the `BACKLOG.md` link and regenerate `INDEX.md` while we're here."
+- "Nothing resolved, but `ok` was true — good enough."
 
 ### `commands/calibrate.md` (3)
 
