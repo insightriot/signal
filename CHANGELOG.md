@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.38] — 2026-09-06 — citations that resolved, and pointed five lines wrong
 
 ### Added
 
@@ -37,7 +37,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   artifact says which sources the **ranking** actually consulted, which is one (`BACKLOG.md`), rather
   than letting "Read: …" imply all five.
 
-  3203 → **3300 tests**.
+  3203 → **3304 tests**.
 
 ### Fixed
 
