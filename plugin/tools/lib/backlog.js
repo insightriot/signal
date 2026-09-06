@@ -292,6 +292,56 @@ function readRowDischarge(text) {
 }
 
 /**
+ * Whether a heading declares, in its own words, that it is not actionable work.
+ *
+ * `M6.E7` t3.1 input 5. Two categories share one shape — a row that is PARKED
+ * (real work, deliberately not now) and a row that is a RECORD (a dated
+ * reconciliation note, never work) — and both announce themselves in the heading.
+ *
+ * ⚠ IT READS THE HEADING, NOT THE BODY, AND THAT IS THE POINT. The bug this
+ * exists to fix came from a heuristic that read a row's whole body and therefore
+ * matched a trigger belonging to a DIFFERENT item, inside a watchlist row that
+ * maintains other items' triggers. A self-declaration belongs where a reader sees
+ * it — the same rule `readRowDischarge` follows, and the same reason
+ * `HELD_OPEN_RE` tests the heading.
+ *
+ * **Vocabulary measured before it was chosen**, on the 50 live rows of this
+ * repository's own BACKLOG.md: `parked` ×2, `not sprint material` ×1,
+ * `reconciliation` ×2, `(STILL|KEPT|HELD) OPEN` ×0. All four matching rows were
+ * read individually — zero false positives. `shelved` is included by analogy
+ * with **zero** live instances, declared rather than implied.
+ *
+ * ⚠ `deferred` is deliberately EXCLUDED: it occurs in live-work prose ("deferred
+ * from E2"), so including it trades two known false positives for an unknown
+ * number of false negatives.
+ *
+ * ⚠ THIS DOES NOT WIDEN `HELD_OPEN_RE`. That regex is read by
+ * `backlogDischargeStatus` to mean "declared open on purpose, do not flag as
+ * stale"; widening it would change a shipped check's behaviour as a side effect.
+ * This subsumes its MEANING for a new caller without touching its use.
+ *
+ * @param {string} headingText — a row's heading, not its body
+ * @returns {{notLive: boolean, kind: string|null, declaration: string|null}}
+ */
+export function declaresNotLiveWork(headingText) {
+  const text = String(headingText ?? '');
+  for (const [kind, re] of NOT_LIVE_VOCABULARY) {
+    const m = text.match(re);
+    if (m) return { notLive: true, kind, declaration: m[0] };
+  }
+  return { notLive: false, kind: null, declaration: null };
+}
+
+// Ordered: the most specific declaration wins the `kind` label, so a row saying
+// both "parked" and "not sprint material" reports one reason rather than racing.
+const NOT_LIVE_VOCABULARY = [
+  ['parked', /\bparked\b|\bnot sprint material\b/i],
+  ['reconciliation', /\breconciliation\b/i],
+  ['shelved', /\bshelved\b/i],
+  ['held-open', HELD_OPEN_RE],
+];
+
+/**
  * Every backlog row, with its discharge state normalized to `obligations.js`'s
  * field names (`discharged` / `dischargedBy` / `dischargedAt`).
  *

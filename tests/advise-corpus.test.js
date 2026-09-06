@@ -25,7 +25,7 @@ import { describe, expect, it } from 'vitest';
 import { ADVISOR_SOURCES, readCorpus } from '../plugin/tools/lib/advise-corpus.js';
 import { walkBugEntries } from '../plugin/tools/lib/bugs-tally.js';
 import { parseEpicStatusRows } from '../plugin/tools/lib/milestones.js';
-import { parseBacklogRows } from '../plugin/tools/lib/backlog.js';
+import { declaresNotLiveWork, parseBacklogRows } from '../plugin/tools/lib/backlog.js';
 
 // A backlog shaped like the real one: a `###` row that gained `####` children
 // (invisible at depth 3, and a container at depth 4), a struck row, a `<details>`
@@ -311,5 +311,56 @@ describe('t2.6 — cannot-check is a value, never a silent pass', () => {
     const corpus = await readCorpus(base);
     expect(corpus.cannotCheck.map((c) => c.source)).toEqual([...ADVISOR_SOURCES]);
     expect(corpus.checked).toEqual([]);
+  });
+});
+
+describe('t3.1 input 5 — a row that declares itself not live work', () => {
+  it('reads the HEADING only, which is the fix for the class rather than the instance', () => {
+    // The bug this input exists to fix came from input 2 reading a row's whole
+    // BODY, so it matched a trigger belonging to a different item. A
+    // self-declaration belongs where a reader sees it — the same rule
+    // `readRowDischarge` follows and the same reason `HELD_OPEN_RE` tests the
+    // heading.
+    expect(declaresNotLiveWork('A perfectly live row').notLive).toBe(false);
+    const bodyOnly = declaresNotLiveWork('A perfectly live row');
+    expect(bodyOnly.declaration).toBeNull();
+  });
+
+  it('recognises the vocabulary measured on the real corpus, and names which word fired', () => {
+    const cases = [
+      ['Parked — the trigger watchlist *(not sprint material)*', 'parked'],
+      ['Context-discipline hooks — **parked, all three, with triggers**', 'parked'],
+      ['Since the re-audit — what M5.E7 changed (reconciliation, 2026-07-26)', 'reconciliation'],
+      ['Some row — **shelved 2026-05-24**', 'shelved'],
+      ['A row that is STILL OPEN on purpose', 'held-open'],
+    ];
+    for (const [text, kind] of cases) {
+      const r = declaresNotLiveWork(text);
+      expect(r.notLive, `expected "${text}" to read as not-live`).toBe(true);
+      expect(r.kind).toBe(kind);
+      expect(r.declaration).toBeTruthy();
+    }
+  });
+
+  it('does NOT fire on "deferred", which occurs in live-work prose', () => {
+    // Excluded deliberately: including it would trade two known false positives
+    // for an unknown number of false negatives.
+    expect(declaresNotLiveWork('Contribution scaffolding — deferred from E2').notLive).toBe(false);
+  });
+
+  it('fires on exactly 4 of the live rows in this repo, and every one is a real record or park', async () => {
+    // The measurement that chose the vocabulary, pinned as a floor rather than an
+    // equality: promoting a new parked row must not turn the suite red.
+    const corpus = await readCorpus(process.cwd());
+    const hits = corpus.sources.backlog.rows.filter((r) => declaresNotLiveWork(r.text).notLive);
+    expect(hits.length).toBeGreaterThanOrEqual(4);
+    for (const h of hits) expect(h.text).toMatch(/parked|reconciliation|shelved|(STILL|KEPT|HELD)\s+OPEN/i);
+  });
+
+  it('does not widen HELD_OPEN_RE, whose meaning backlogDischargeStatus depends on', () => {
+    // Widening that regex changes a shipped check's behaviour as a side effect —
+    // the same refusal t2.5 makes about the milestone parsers, for the same reason.
+    const src = readFileSync(join(process.cwd(), 'plugin/tools/lib/backlog.js'), 'utf8');
+    expect(src).toMatch(/const HELD_OPEN_RE = \/\\b\(\?:STILL\|KEPT\|HELD\)\\s\+OPEN\\b\/i;/);
   });
 });

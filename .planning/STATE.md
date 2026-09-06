@@ -33,15 +33,18 @@ PR at SHIP, and that PR **merges, never squashes** (Epic lane). Artifacts:
 **All three slices shipped, 2979 → 3274 tests.** Four files added under `plugin/tools/lib/`
 (`citations.js`, `advise-corpus.js`, `advise.js`) plus `plugin/commands/advise.md`, the 23rd command.
 
-**⚠ READ `M6.E7-PROGRESS.md` BEFORE `/sig:verify` — it carries a product call, not just a status.**
-The command was **run end-to-end on this repository** (50 live rows, 5 recommended, 45 declined, 51
-citations resolved, exactly one file written). **Two of the five recommendations are not actionable
-work**, and the first cause written for that was wrong and is corrected in place: it is not corpus
-shape, it is that `TRIGGER_MET_RE` cannot tell a row's own trigger from one it merely mentions. A row
-whose heading says *"not sprint material"* was promoted into the top four using a trigger belonging
-to a different item. 6 of 50 rows match; 2 of the 6 are false positives. **Deliberately not fixed —
-narrowing it is a design change and `t3.1` specifies four inputs.** Three options are written up for
-VERIFY to decide between.
+**The command was RUN END-TO-END on this repository** — the check `/sig:drive` still lacks. First
+run: 5 recommended, 45 declined, 51 citations resolved, one file written — and **2 of the 5
+recommendations were not actionable work.** Cause measured, not assumed: `TRIGGER_MET_RE` reads a
+row's whole body, so a watchlist row was promoted by a trigger belonging to a different item.
+**Resolved at the boundary, Brett's call, plan amended first:** `t3.1` now has a **fifth ranking
+input** — `declaresNotLiveWork`, exported from `backlog.js`, reading the **heading only**. 5 of 5
+recommendations now defensible. Full record, including the vocabulary measurement and the one weak
+row, in [`M6.E7-PROGRESS.md`](M6.E7-PROGRESS.md).
+
+⚠ **Three times in this Epic, measuring contradicted something already written down** — the
+citation grammar, the 2-of-5 cause, and the reach of the fix. All three corrections are recorded in
+place rather than edited away. That is the pattern VERIFY should weigh, not the three instances.
 
 **Also for VERIFY:** S3 was written **test-after**, not test-first, against `tdd_required: true`.
 Recorded rather than left to be inferred.

@@ -27,7 +27,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { backlogDischargeStatus } from './backlog.js';
+import { backlogDischargeStatus, declaresNotLiveWork } from './backlog.js';
 import { EVIDENCE_MARKER, verifyCitations } from './citations.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { readCorpus, ADVISOR_SOURCES } from './advise-corpus.js';
@@ -137,6 +137,13 @@ function daysBetween(fromIso, toIso) {
  *   2. **trigger-met** — a row whose written trigger has fired ranks above one with none.
  *   3. **discharge** — a row whose work already closed drops out entirely.
  *   4. **age** — older rows rank above newer ones.
+ *   5. **self-declared not-live** — a row that says in its own HEADING that it is
+ *      not actionable work drops out entirely.
+ *
+ * ⚠ Input 5 reads the heading and NOT the body, deliberately. Input 2 reads both,
+ * and that is why the first real run promoted a row whose heading says "not sprint
+ * material" using a trigger belonging to a different item inside it. Added during
+ * EXECUTE with the plan amended first; the measurement is in `M6.E7-PLAN.md`.
  *
  * **Stable tiebreak: source line number.** Equal-rank rows never reorder between
  * runs, which is NFR1 and what `writeArtifact`'s byte-compare depends on.
@@ -152,14 +159,16 @@ export function rankRows(rows, { today, stale = [] } = {}) {
   const scored = rows.map((row) => {
     const text = `${row.text}\n${row.body ?? ''}`;
     const dischargedElsewhere = staleIds.has(row.leadingId) || staleLines.has(row.line);
+    // Input 5. HEADING ONLY — see the note above.
+    const notLive = declaresNotLiveWork(row.text);
     const blocked = BLOCKED_RE.test(text);
     const triggerMet = TRIGGER_MET_RE.test(text);
     const filed = (row.text.match(ISO_DATE_RE) ?? (row.body ?? '').match(ISO_DATE_RE))?.[1] ?? null;
     const ageDays = filed && today ? daysBetween(filed, today) : 0;
-    return { row, dischargedElsewhere, blocked, triggerMet, filed, ageDays };
+    return { row, dischargedElsewhere, notLive, blocked, triggerMet, filed, ageDays };
   });
 
-  const live = scored.filter((s) => !s.dischargedElsewhere);
+  const live = scored.filter((s) => !s.dischargedElsewhere && !s.notLive.notLive);
   live.sort(
     (a, b) =>
       Number(a.blocked) - Number(b.blocked) ||
@@ -171,7 +180,7 @@ export function rankRows(rows, { today, stale = [] } = {}) {
   const recommended = live.slice(0, RECOMMENDATION_LIMIT);
   const rest = live.slice(RECOMMENDATION_LIMIT);
   const dropped = scored
-    .filter((s) => s.dischargedElsewhere)
+    .filter((s) => s.dischargedElsewhere || s.notLive.notLive)
     .sort((a, b) => a.row.line - b.row.line);
 
   return { recommended, declined: [...rest, ...dropped] };
@@ -189,6 +198,12 @@ function recommendReason(s) {
 
 /** Why a declined row is NOT recommended, naming the input that demoted it. */
 function declineReason(s, rank) {
+  if (s.notLive.notLive) {
+    return (
+      `Dropped by the **self-declared** input — the row's own heading says \`${s.notLive.declaration}\`, ` +
+      'so it is not actionable work.'
+    );
+  }
   if (s.dischargedElsewhere) {
     return 'Dropped by the **discharge** input — its work already reads as closed, so it is not live work.';
   }
