@@ -14,7 +14,7 @@
 
 - [ADHERENCE-LOG.md](ADHERENCE-LOG.md) — `append-log` — _(note pending)_
 - [BACKLOG-REVIEW-2026-08-09.md](BACKLOG-REVIEW-2026-08-09.md) — `other` — _(note pending)_
-- [BACKLOG-REVIEW-2026-09-05.md](BACKLOG-REVIEW-2026-09-05.md) — `other` — _(note pending)_
+- [BACKLOG-REVIEW-2026-09-06.md](BACKLOG-REVIEW-2026-09-06.md) — `other` — _(note pending)_
 - [BACKLOG.md](BACKLOG.md) — `other` — The sequenced roadmap, promoted from `ISSUES-INBOX.md`; every entry tagged `roadmap` or `hygiene`. Supersedes the point-in-time `BACKLOG-REVIEW-2026-07-04` snapshot (folded in + archived under `archive/`).
 - [BUGS.md](BUGS.md) — `other` — Bugs & verified-findings catalog — where findings get logged (catalog → triage → confirm / dismiss / fixed). GitHub Issues deferred until Signal has live users.
 - [CONTEXT.md](CONTEXT.md) — `other` — Locked + deferred decisions for the *current* work — what DISCUSS settled for the active Epic.

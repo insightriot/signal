@@ -1,7 +1,7 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: EXECUTE
+phase: VERIFY
 current_epic: M6.E7
 current_wave: null
 current_tasks: []
@@ -11,11 +11,12 @@ completed_phases:
   - EXECUTE (2026-09-06)
   - VERIFY (2026-09-06)
   - REVIEW (2026-09-06)
+  - EXECUTE (2026-09-06)
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-09-03T23:36:21.635658Z
 last_updated_commit: 0524bb1efd03f86850c8f2c36cc62df4cb9dc56e
-last_updated: 2026-09-06T12:28:13.932Z
+last_updated: 2026-09-06T12:28:26.155Z
 ---
 # Project State
 
@@ -59,7 +60,7 @@ gate asserts a **count**, not `ok`. Reasons are in the three `execute(m6.e7 …)
 suite name them.
 
 **Open at SHIP (human steps, not command behaviour):** the inbound `BACKLOG.md` link to
-[`BACKLOG-REVIEW-2026-09-05.md`](BACKLOG-REVIEW-2026-09-05.md) and the `INDEX.md` regeneration.
+[`BACKLOG-REVIEW-2026-09-06.md`](BACKLOG-REVIEW-2026-09-06.md) and the `INDEX.md` regeneration.
 `ORPHAN_ENTRY_POINTS` does not match the filename, so `/sig:docs-sweep` flags it until then.
 
 **Open elsewhere:**
