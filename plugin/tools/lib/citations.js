@@ -122,7 +122,7 @@ export function extractCitations(text) {
  * guard does NOT follow symlinks, and git tracks directory symlinks (mode
  * 120000). Returns the absolute path, or a string reason.
  */
-function confine(baseDir, citedPath) {
+function confine(baseDir, citedPath, realBase) {
   if (citedPath.startsWith('/') || /^[A-Za-z]:[\\/]/.test(citedPath)) {
     return { reason: 'citations must be repo-root-relative; this one is absolute' };
   }
@@ -141,7 +141,6 @@ function confine(baseDir, citedPath) {
   if (abs !== lexicalBase && !abs.startsWith(lexicalBase + sep)) {
     return { reason: 'resolves outside the repo' };
   }
-  const realBase = realpathNearestExisting(baseDir);
   const real = realpathNearestExisting(abs);
   if (real !== realBase && !real.startsWith(realBase + sep)) {
     return { reason: 'resolves outside the repo (through a symlink)' };
@@ -176,8 +175,16 @@ export async function verifyCitations(baseDir, text) {
   const resolved = [];
   const unresolved = [];
 
+  // Hoisted out of `confine`, which runs once per citation: the repo's realpath
+  // cannot change between citations, so resolving it per citation was a syscall
+  // per citation for one answer. ⚠ The first attempt at this nit only MOVED the
+  // call below the lexical guard and I recorded it as "computed once", which was
+  // false — the loop still called it every time. Caught by re-reading the code
+  // during REVIEW pass 2, against my own note.
+  const realBase = realpathNearestExisting(baseDir);
+
   for (const c of examined) {
-    const confined = confine(baseDir, c.path);
+    const confined = confine(baseDir, c.path, realBase);
     if (confined.reason) {
       unresolved.push({ ...c, reason: confined.reason });
       continue;
