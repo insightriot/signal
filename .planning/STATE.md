@@ -25,55 +25,49 @@ last_updated: 2026-09-06T13:16:59.747Z
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-09-05)
+### ▶ WHERE THE WORK IS — read this first (2026-09-06)
 
-**`M6.E7` IS OPEN AT EXECUTE, AND EXECUTE IS COMPLETE. Next action: `/sig:verify`.** *The Roadmap
-Advisor — a read-only `/sig:advise` that reads this project's own corpus and recommends what to work
-on next, where every claim carries a citation that mechanically resolves.*
+**NOTHING IS IN FLIGHT. `M6.E7` shipped and merged.** Pick the next item from
+[`BACKLOG.md`](BACKLOG.md) — or run **`/sig:advise`**, which is the command `M6.E7` just built to
+answer exactly that question.
 
-**⚠ YOU ARE ON A BRANCH: `feat/m6.e7-roadmap-advisor`.** Nothing is on `main`; the Epic lands as one
-PR at SHIP, and that PR **merges, never squashes** (Epic lane). Artifacts:
-[`M6.E7-REQUIREMENTS.md`](M6.E7-REQUIREMENTS.md), [`M6.E7-PLAN.md`](M6.E7-PLAN.md),
-[`M6.E7-PROGRESS.md`](M6.E7-PROGRESS.md), [`M6.E7-PROFILE.md`](M6.E7-PROFILE.md). Decisions
-`D-M6E7-1`…`D-M6E7-4` in [`DECISIONS.md`](DECISIONS.md). **FEATURE** inside this FULL project.
+**`M6.E7` — `/sig:advise`, the Roadmap Advisor.** Merged 2026-09-06 as
+[PR #239](https://github.com/insightriot/signal/pull/239). Signal's **23rd command**: read-only, it
+reads this project's own `.planning/` corpus and writes one dated advisory naming what to work on
+next *and every live row it looked at and passed over*. **Every claim carries a `path:line` citation
+resolved against disk before the file is written.** 2979 → **3304 tests**. Artifacts:
+[`M6.E7-RETROSPECTIVE.md`](M6.E7-RETROSPECTIVE.md) (read this one — the findings are in it),
+[`M6.E7-VERIFICATION.md`](M6.E7-VERIFICATION.md), [`M6.E7-REVIEW.md`](M6.E7-REVIEW.md).
 
-**All three slices shipped, 2979 → 3274 tests.** Four files added under `plugin/tools/lib/`
-(`citations.js`, `advise-corpus.js`, `advise.js`) plus `plugin/commands/advise.md`, the 23rd command.
+**⚠ PR #239 WAS SQUASHED — the third instance, and the first one whose cause is now known.** All 35
+Epic commits were collapsed into one, orphaning two published anchors and turning
+`tests/adherence-anchor-reachability.test.js` **red on `main`**. Repaired by
+[PR #240](https://github.com/insightriot/signal/pull/240), which re-pins both to `63c5d95`.
+**The cause is not carelessness: GitHub's merge button remembers the last method used
+REPO-WIDE.** The fix lane correctly squashes, which leaves the button on squash, and the next Epic
+inherits it silently and reports success. `#236`'s row said the root cause was *"still open pending
+one question about how #236 was merged"* — **that question is now answered.** Filed as `B117`.
 
-**The command was RUN END-TO-END on this repository** — the check `/sig:drive` still lacks. First
-run: 5 recommended, 45 declined, 51 citations resolved, one file written — and **2 of the 5
-recommendations were not actionable work.** Cause measured, not assumed: `TRIGGER_MET_RE` reads a
-row's whole body, so a watchlist row was promoted by a trigger belonging to a different item.
-**Resolved at the boundary, Brett's call, plan amended first:** `t3.1` now has a **fifth ranking
-input** — `declaresNotLiveWork`, exported from `backlog.js`, reading the **heading only**. 5 of 5
-recommendations now defensible. Full record, including the vocabulary measurement and the one weak
-row, in [`M6.E7-PROGRESS.md`](M6.E7-PROGRESS.md).
+⚠ **The per-commit history survives only on the branch** `feat/m6.e7-roadmap-advisor`, which is
+pushed to origin. GitHub deleted it at merge and it existed on one machine for a few minutes. If you
+want the reasoning behind a line — why the citation gate counts instead of trusting a flag, why the
+backlog is read at `maxDepth: 4` — it is in those 35 commit messages, not in `main`.
 
-⚠ **Three times in this Epic, measuring contradicted something already written down** — the
-citation grammar, the 2-of-5 cause, and the reach of the fix. All three corrections are recorded in
-place rather than edited away. That is the pattern VERIFY should weigh, not the three instances.
+**What `M6.E7` learned, in one line, because the retro says it at length:** six times in one Epic a
+claim was written from the shape of the work rather than derived from the artifact — **in the Epic
+that built a mechanism against exactly that.** Two of the six reached committed artifacts. The
+feedback items with triggers are in the retrospective's *What to feed back into Signal*.
 
-**Also for VERIFY:** S3 was written **test-after**, not test-first, against `tdd_required: true`.
-Recorded rather than left to be inferred.
-
-**Settled in code, and each surprising enough to re-derive wrongly:** the backlog is read at
-`maxDepth: 4`; citations occupy one structural position and the extractor reads only that; the run
-gate asserts a **count**, not `ok`. Reasons are in the three `execute(m6.e7 …)` commit messages. The
-23rd command touched **six** count sites, not the plan's four — found by adding it and letting the
-suite name them.
-
-**Open at SHIP (human steps, not command behaviour):** the inbound `BACKLOG.md` link to
-[`BACKLOG-REVIEW-2026-09-06.md`](BACKLOG-REVIEW-2026-09-06.md) and the `INDEX.md` regeneration.
-`ORPHAN_ENTRY_POINTS` does not match the filename, so `/sig:docs-sweep` flags it until then.
-
-**Open elsewhere:**
-- **PR #238** — merge guidance rewritten for the green button. Fix lane, merge with **squash**.
+**Open, and worth knowing before you pick anything up:**
+- **`B116`** (P2) — `diffRequirementCoverage` drops a real requirement from its denominator on **21
+  of 22** `*-REQUIREMENTS.md` artifacts here. A false clean in the check built to stop unfalsifiable
+  coverage claims. Found by *using* it during `M6.E7` VERIFY.
+- **`B117`** (P2) — the sticky merge button, above.
+- **PR #240** — open, fix lane, `--squash`. `main` is red until it merges.
+- **PR #238** — open, fix lane, merge guidance for button users. Also `--squash`.
 - `Q-M6E6-1` in [`DECISION-QUEUE.md`](DECISION-QUEUE.md), still unanswered. Product-altitude.
-- Bugs filed in [`BUGS.md`](BUGS.md): unfrozen `ROUTE_REVERSIBILITY`, `transitionPhase` regenerating
-  `INDEX.md` at phase *entry* (**did not fire this run — returned `unchanged`**), and **two mutually
-  blind milestone Epic-row parsers**. `M6.E7` exports a unified reader (`parseEpicStatusRows`, 33
-  rows across all three live milestone files) and deliberately does **not** re-point the existing
-  call sites — a test pins that, because re-pointing changes when the SHIP retro gate fires.
+- ⚠ **`/sig:drive` has still never been run end to end** — unchanged by this Epic, and still the
+  gate on further loop work.
 
 ---
 
