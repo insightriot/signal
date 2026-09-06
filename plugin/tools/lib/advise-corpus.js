@@ -86,100 +86,100 @@ export async function readCorpus(baseDir) {
   if (!existsSync(backlogPath)) {
     fail('BACKLOG.md', `${backlogRel} is not present — this project keeps no queue here`);
   } else {
-    try {
-      const content = await readFile(backlogPath, 'utf-8');
-      const all = parseBacklogRows(content, { maxDepth: 4 });
-      const live = all.filter((r) => !r.inDetails && !r.discharged).sort((a, b) => a.line - b.line);
-      const lines = content.split('\n');
-      // Bodies come from CONSECUTIVE `line` values — no second heading walk. A
-      // row's body runs to the next row's heading, or to the end of the file.
-      const rows = live.map((r, i) => {
-        const end = i + 1 < live.length ? live[i + 1].line - 1 : lines.length;
-        return { ...r, path: backlogRel, body: lines.slice(r.line, end).join('\n').trim() };
-      });
-      sources.backlog = { path: backlogRel, rows, totalRows: all.length };
-      checked.push('BACKLOG.md');
-    } catch (err) {
-      fail('BACKLOG.md', `${backlogRel} could not be read — ${err.message}`);
-    }
-  }
-
-  // ── 2. BUGS.md — open defects, with the line each row sits on.
-  const bugsRel = `${PLANNING_DIR}/BUGS.md`;
-  const bugsPath = join(planningDir, 'BUGS.md');
-  if (!existsSync(bugsPath)) {
-    fail('BUGS.md', `${bugsRel} is not present — this project files no bugs here`);
-  } else {
-    try {
-      const content = await readFile(bugsPath, 'utf-8');
-      const lines = content.split('\n');
-      const entries = walkBugEntries(content)
-        .filter((e) => e.kind === 'row')
-        .map((e) => ({
-          id: e.id,
-          status: e.status,
-          cell: e.cell,
-          line: e.line,
-          path: bugsRel,
-          headline: bugHeadline(lines[e.line - 1] ?? ''),
-        }));
-      sources.bugs = { path: bugsRel, entries };
-      checked.push('BUGS.md');
-    } catch (err) {
-      fail('BUGS.md', `${bugsRel} could not be read — ${err.message}`);
-    }
-  }
-
-  // ── 3. Retrospectives — evidence a unit finished. A STUB IS NOT THAT (`B64`).
-  //
-  // ⚠ THE GUARD BELOW IS NOT DEFENSIVE, IT IS THE MODULE'S OWN RULE APPLIED TO
-  // ITSELF. `enumerateRetros` returns `[]` when `.planning/` does not exist —
-  // correct for its own contract, and wrong as an answer to "did you read the
-  // retrospectives?", because it makes an absent corpus indistinguishable from an
-  // empty one. Without this, a project with no `.planning/` at all reported
-  // `checked: ['retrospectives']` while the other four sources honestly said they
-  // could not look. Found at REVIEW by walking the failure modes; the test that
-  // was supposed to cover it replaced `.planning/` with a FILE (ENOTDIR, which
-  // throws) and never tried it ABSENT (ENOENT, which does not).
-  //
-  // An existing-but-empty `.planning/` still reads as `checked` with zero
-  // records, which is the honest answer there: nothing to find is a result.
-  if (!existsSync(planningDir)) {
-    fail('retrospectives', `${PLANNING_DIR}/ is not present — there is no retrospective corpus to read`);
-  } else {
-  try {
-    const records = await enumerateRetros(baseDir);
-    const withSections = [];
-    for (const r of records) {
-      let headings = [];
       try {
-        headings = parseSections(await readFile(join(baseDir, r.path), 'utf-8')).headings;
-      } catch {
-        // A retro that becomes unreadable BETWEEN `enumerateRetros` reading it
-        // and this read. Rare, and the record still carries `isStub` and the
-        // path, which is what a citation needs.
-        //
-        // ⚠ THIS IS NOT THE MITIGATION IT LOOKS LIKE, and the comment used to
-        // claim it was. `enumerateRetros` SKIPS a file it cannot read, so an
-        // unreadable retro never reaches this line — it is absent from `records`
-        // and nothing here or in the artifact says it existed. Verified by a
-        // fresh-context reviewer: chmod 000 on one of two retros yields one
-        // record and `retrospectives` still reported as cleanly read.
-        //
-        // ⚠ Branch 5 below makes the OPPOSITE call on the identical condition —
-        // one unreadable milestone file blinds `milestone rows` entirely, with
-        // the reason surfaced. Two branches, two decisions, and this one is the
-        // quieter of the two. Not reconciled here: seeing the skipped file means
-        // changing `enumerateRetros`, which four other callers share, and a
-        // second walk to find it is `B82`'s shape. Filed rather than patched.
+        const content = await readFile(backlogPath, 'utf-8');
+        const all = parseBacklogRows(content, { maxDepth: 4 });
+        const live = all.filter((r) => !r.inDetails && !r.discharged).sort((a, b) => a.line - b.line);
+        const lines = content.split('\n');
+        // Bodies come from CONSECUTIVE `line` values — no second heading walk. A
+        // row's body runs to the next row's heading, or to the end of the file.
+        const rows = live.map((r, i) => {
+          const end = i + 1 < live.length ? live[i + 1].line - 1 : lines.length;
+          return { ...r, path: backlogRel, body: lines.slice(r.line, end).join('\n').trim() };
+        });
+        sources.backlog = { path: backlogRel, rows, totalRows: all.length };
+        checked.push('BACKLOG.md');
+      } catch (err) {
+        fail('BACKLOG.md', `${backlogRel} could not be read — ${err.message}`);
       }
-      withSections.push({ ...r, headings });
     }
-    sources.retros = { records: withSections };
-    checked.push('retrospectives');
-  } catch (err) {
-    fail('retrospectives', `retrospectives could not be enumerated — ${err.message}`);
-  }
+
+    // ── 2. BUGS.md — open defects, with the line each row sits on.
+    const bugsRel = `${PLANNING_DIR}/BUGS.md`;
+    const bugsPath = join(planningDir, 'BUGS.md');
+    if (!existsSync(bugsPath)) {
+      fail('BUGS.md', `${bugsRel} is not present — this project files no bugs here`);
+    } else {
+      try {
+        const content = await readFile(bugsPath, 'utf-8');
+        const lines = content.split('\n');
+        const entries = walkBugEntries(content)
+          .filter((e) => e.kind === 'row')
+          .map((e) => ({
+            id: e.id,
+            status: e.status,
+            cell: e.cell,
+            line: e.line,
+            path: bugsRel,
+            headline: bugHeadline(lines[e.line - 1] ?? ''),
+          }));
+        sources.bugs = { path: bugsRel, entries };
+        checked.push('BUGS.md');
+      } catch (err) {
+        fail('BUGS.md', `${bugsRel} could not be read — ${err.message}`);
+      }
+    }
+
+    // ── 3. Retrospectives — evidence a unit finished. A STUB IS NOT THAT (`B64`).
+    //
+    // ⚠ THE GUARD BELOW IS NOT DEFENSIVE, IT IS THE MODULE'S OWN RULE APPLIED TO
+    // ITSELF. `enumerateRetros` returns `[]` when `.planning/` does not exist —
+    // correct for its own contract, and wrong as an answer to "did you read the
+    // retrospectives?", because it makes an absent corpus indistinguishable from an
+    // empty one. Without this, a project with no `.planning/` at all reported
+    // `checked: ['retrospectives']` while the other four sources honestly said they
+    // could not look. Found at REVIEW by walking the failure modes; the test that
+    // was supposed to cover it replaced `.planning/` with a FILE (ENOTDIR, which
+    // throws) and never tried it ABSENT (ENOENT, which does not).
+    //
+    // An existing-but-empty `.planning/` still reads as `checked` with zero
+    // records, which is the honest answer there: nothing to find is a result.
+    if (!existsSync(planningDir)) {
+      fail('retrospectives', `${PLANNING_DIR}/ is not present — there is no retrospective corpus to read`);
+    } else {
+    try {
+      const records = await enumerateRetros(baseDir);
+      const withSections = [];
+      for (const r of records) {
+        let headings = [];
+        try {
+          headings = parseSections(await readFile(join(baseDir, r.path), 'utf-8')).headings;
+        } catch {
+          // A retro that becomes unreadable BETWEEN `enumerateRetros` reading it
+          // and this read. Rare, and the record still carries `isStub` and the
+          // path, which is what a citation needs.
+          //
+          // ⚠ THIS IS NOT THE MITIGATION IT LOOKS LIKE, and the comment used to
+          // claim it was. `enumerateRetros` SKIPS a file it cannot read, so an
+          // unreadable retro never reaches this line — it is absent from `records`
+          // and nothing here or in the artifact says it existed. Verified by a
+          // fresh-context reviewer: chmod 000 on one of two retros yields one
+          // record and `retrospectives` still reported as cleanly read.
+          //
+          // ⚠ Branch 5 below makes the OPPOSITE call on the identical condition —
+          // one unreadable milestone file blinds `milestone rows` entirely, with
+          // the reason surfaced. Two branches, two decisions, and this one is the
+          // quieter of the two. Not reconciled here: seeing the skipped file means
+          // changing `enumerateRetros`, which four other callers share, and a
+          // second walk to find it is `B82`'s shape. Filed rather than patched.
+        }
+        withSections.push({ ...r, headings });
+      }
+      sources.retros = { records: withSections };
+      checked.push('retrospectives');
+    } catch (err) {
+      fail('retrospectives', `retrospectives could not be enumerated — ${err.message}`);
+    }
   }
 
   // ── 4. STATE / closure — what is open, via `resolveClosures` and never raw

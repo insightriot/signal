@@ -291,6 +291,15 @@ function readRowDischarge(text) {
   return { discharged: true, dischargedBy: by ? by[0] : null, dischargedAt: at ? at[1] : null };
 }
 
+// Ordered: the most specific declaration wins the `kind` label, so a row saying
+// both "parked" and "not sprint material" reports one reason rather than racing.
+const NOT_LIVE_VOCABULARY = [
+  ['parked', /\bparked\b|\bnot sprint material\b/i],
+  ['reconciliation', /\breconciliation\b/i],
+  ['shelved', /\bshelved\b/i],
+  ['held-open', HELD_OPEN_RE],
+];
+
 /**
  * Whether a heading declares, in its own words, that it is not actionable work.
  *
@@ -331,15 +340,6 @@ export function declaresNotLiveWork(headingText) {
   }
   return { notLive: false, kind: null, declaration: null };
 }
-
-// Ordered: the most specific declaration wins the `kind` label, so a row saying
-// both "parked" and "not sprint material" reports one reason rather than racing.
-const NOT_LIVE_VOCABULARY = [
-  ['parked', /\bparked\b|\bnot sprint material\b/i],
-  ['reconciliation', /\breconciliation\b/i],
-  ['shelved', /\bshelved\b/i],
-  ['held-open', HELD_OPEN_RE],
-];
 
 /**
  * Every backlog row, with its discharge state normalized to `obligations.js`'s

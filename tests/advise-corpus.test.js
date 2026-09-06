@@ -255,6 +255,40 @@ describe('t2.6 — cannot-check is a value, never a silent pass', () => {
     ]);
   });
 
+  it('checked + cannotCheck ALWAYS equals the source list — the docblock claim, tested', async () => {
+    // ⚠ The module states this invariant and nothing asserted it; I verified it by
+    // hand at REVIEW, which is not a test. A reviewer's nit about self-comparing
+    // constants pointed at the real gap: pinning ADVISOR_SOURCES against a literal
+    // says what the list IS, and says nothing about `readCorpus` honouring it.
+    //
+    // ⚠ AND IT IS A WEAK INVARIANT ON PURPOSE, stated so nobody reads it as more:
+    // the COUNT stays right while a source's CONTENT silently shrinks. That is
+    // exactly how the unreadable-retro case hides — one record vanishes, five
+    // sources still report. This catches a source that goes missing from both
+    // lists, not a source that under-reports.
+    const mutate = {
+      'clean': () => {},
+      'no BACKLOG.md': (b) => rmSync(join(b, '.planning', 'BACKLOG.md')),
+      'BACKLOG.md is a directory': (b) => makeUnreadable(b, 'BACKLOG.md'),
+      'BUGS.md is a directory': (b) => makeUnreadable(b, 'BUGS.md'),
+      'MILESTONE-6.md is a directory': (b) => makeUnreadable(b, 'MILESTONE-6.md'),
+      'unknown schema_version': (b) =>
+        writeFileSync(join(b, '.planning', 'STATE.md'), '---\nschema_version: 99\n---\n'),
+      'no .planning/ at all': (b) => rmSync(join(b, '.planning'), { recursive: true, force: true }),
+    };
+    for (const [label, mut] of Object.entries(mutate)) {
+      const base = fixture();
+      mut(base);
+      const corpus = await readCorpus(base);
+      expect(
+        corpus.checked.length + corpus.cannotCheck.length,
+        `invariant broken for: ${label}`
+      ).toBe(ADVISOR_SOURCES.length);
+      // No source may appear in both lists, which the sum alone would not catch.
+      for (const c of corpus.cannotCheck) expect(corpus.checked).not.toContain(c.source);
+    }
+  });
+
   it('a clean corpus checks all five and reports nothing it could not read', async () => {
     const base = fixture();
     const corpus = await readCorpus(base);

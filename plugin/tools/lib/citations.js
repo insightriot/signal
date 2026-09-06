@@ -88,8 +88,12 @@ export function extractCitations(text) {
       while ((m = backticked.exec(region)) !== null) {
         const raw = m[1].trim();
         if (raw.length === 0) continue;
-        // +1 to step past the opening backtick, so `offset` points at the token.
-        const offset = lineStart + regionStart + m.index + 1;
+        // +1 steps past the opening backtick; the second term re-adds whatever
+        // `trim()` removed, so `offset` points at the first character of `raw`
+        // rather than at the whitespace before it. The invariant this field
+        // exists for is `text.slice(offset, offset + raw.length) === raw`, and
+        // without the adjustment a token written as `` ` path.md` `` breaks it.
+        const offset = lineStart + regionStart + m.index + 1 + (m[1].length - m[1].trimStart().length);
         const parts = TOKEN_WITH_LINES.exec(raw);
         if (parts) {
           found.push({
@@ -122,11 +126,22 @@ function confine(baseDir, citedPath) {
   if (citedPath.startsWith('/') || /^[A-Za-z]:[\\/]/.test(citedPath)) {
     return { reason: 'citations must be repo-root-relative; this one is absolute' };
   }
-  const realBase = realpathNearestExisting(baseDir);
+  // TWO CHECKS, and each does a job the other cannot.
+  //
+  // Lexical first, against `resolve(baseDir)` — the UN-resolved root, because
+  // `abs` is built from the un-resolved root too and comparing the two forms was
+  // the redundancy a reviewer flagged. It normalizes `..` and catches a traversal
+  // before anything touches the disk (`B22`).
+  //
+  // Then realpath, which the lexical check cannot do: git tracks directory
+  // symlinks (mode 120000), and a checked-in one inside the repo escapes a purely
+  // textual guard.
+  const lexicalBase = resolve(baseDir);
   const abs = resolve(baseDir, citedPath);
-  if (abs !== realBase && !abs.startsWith(realBase + sep) && !abs.startsWith(resolve(baseDir) + sep)) {
+  if (abs !== lexicalBase && !abs.startsWith(lexicalBase + sep)) {
     return { reason: 'resolves outside the repo' };
   }
+  const realBase = realpathNearestExisting(baseDir);
   const real = realpathNearestExisting(abs);
   if (real !== realBase && !real.startsWith(realBase + sep)) {
     return { reason: 'resolves outside the repo (through a symlink)' };
