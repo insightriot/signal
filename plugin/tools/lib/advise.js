@@ -413,6 +413,43 @@ export async function writeArtifact(baseDir, { name, content }) {
 }
 
 /**
+ * Rows whose cited line no longer carries them.
+ *
+ * The advisor cites `path:line`, and a line number is only true for the file as it
+ * was read. Any edit above a cited row shifts it silently, and the citation still
+ * "resolves" because the line exists. This re-reads each cited file once and
+ * checks the line still contains a distinctive slice of the row's own heading.
+ *
+ * ⚠ Deliberately NARROW. It compares the advisor's OWN claim against the line it
+ * named — it is not a general "does this line say what the claim says" checker,
+ * which stays unbuilt and stays documented as unbuilt.
+ */
+async function findStaleRowCitations(baseDir, ranked) {
+  const all = [...ranked.recommended, ...ranked.declined];
+  const byPath = new Map();
+  const stale = [];
+  for (const s of all) {
+    const { path: rel, line, text } = s.row;
+    if (!rel || !line || !text) continue;
+    if (!byPath.has(rel)) {
+      try {
+        byPath.set(rel, (await readFile(join(baseDir, rel), 'utf-8')).split('\n'));
+      } catch {
+        byPath.set(rel, null);
+      }
+    }
+    const lines = byPath.get(rel);
+    if (lines === null) continue; // unreadable is the citation gate's problem, not this one
+    const onDisk = lines[line - 1] ?? '';
+    // A distinctive slice rather than the whole heading: the renderer never
+    // rewrites a row, but a heading can carry trailing decoration.
+    const probe = text.replace(/^[\s`*_~]+/, '').slice(0, 24);
+    if (probe.length > 0 && !onDisk.includes(probe)) stale.push({ path: rel, line, expected: probe });
+  }
+  return stale;
+}
+
+/**
  * The whole run: read the corpus, rank it, render it, GATE it, write it.
  *
  * `render` is injectable so the run-boundary test can feed a rendered string
@@ -444,6 +481,36 @@ export async function runAdvise(baseDir, { today, render = renderArtifact, proje
 
   const ranked = rankRows(corpus.sources.backlog.rows, { today: stamp, stale });
   const artifact = render({ today: stamp, ranked, corpus, projectName });
+
+  // ── THE STALE-READ GUARD, and it exists because the very first artifact this
+  // command shipped had ~51 citations off by exactly 5 lines.
+  //
+  // A one-time human edit inserted a 5-line block at the top of `BACKLOG.md`
+  // AFTER the corpus was read and the citations computed. Every line number then
+  // pointed 5 rows short. `verifyCitations` could not catch it — it checks that a
+  // line is WITHIN the file, never that it points at the claimed content, which is
+  // the limit this Epic documented and then walked straight into.
+  //
+  // So: re-read the file and confirm each cited line still carries the row it is
+  // cited for. This is not the general semantic check (that remains unbuilt); it
+  // is the narrow one the advisor can actually make, because it knows what it
+  // claimed about each line. Found by the PR reviewer at SHIP.
+  const staleCitations = await findStaleRowCitations(baseDir, ranked);
+  if (staleCitations.length > 0) {
+    return {
+      status: 'skipped',
+      path: rel,
+      reason:
+        `${staleCitations.length} cited line(s) no longer carry the row they were read from — the ` +
+        `corpus changed between reading it and writing this artifact (first: ` +
+        `${staleCitations[0].path}:${staleCitations[0].line}). ` +
+        'Re-run to regenerate against the current file',
+      today: stamp,
+      corpus,
+      ranked,
+      verification: null,
+    };
+  }
 
   // ── THE RUN BOUNDARY. A count, not a flag. See the header note.
   const verification = await verifyCitations(baseDir, artifact);

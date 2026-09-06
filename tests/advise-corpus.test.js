@@ -177,6 +177,51 @@ describe('t2.1/t2.2 — rows and bugs, with the line numbers a citation needs', 
     expect(r1.body).not.toContain('R2a');
   });
 
+  it('a live row does NOT absorb a discharged row that sits between it and the next live row', async () => {
+    // ⚠ FOUND BY THE PR REVIEWER, AFTER REVIEW PASS 2 PASSED. The boundary walked
+    // the FILTERED list, so it skipped exactly the rows it needed to stop at:
+    // `R2b` ran through `R3`'s struck heading and body to reach `R4`. Measured on
+    // this repo's own BACKLOG.md before the fix: 22 of 51 live rows absorbed
+    // another row's text.
+    //
+    // Not cosmetic — `rankRows` scans `body` for blocked/trigger tokens and a
+    // filed date, so `R2b` inherited `R3`'s 2026-01-01 discharge date and could
+    // be ranked on it while citing its own line.
+    //
+    // Asserted against `readCorpus`'s OWN output, not a local re-derivation. The
+    // first version of this test re-implemented the boundary in the test body and
+    // failed on object identity — a test can reproduce the bug it is checking for.
+    const base = fixture();
+    const { sources } = await readCorpus(base);
+    const r2b = sources.backlog.rows.find((r) => r.text.startsWith('R2b'));
+    expect(r2b.body).not.toContain('R3');
+    expect(r2b.body).not.toContain('2026-01-01');
+    // Scoped to what the fix guarantees: no body swallows a DISCHARGED row.
+    // Container headings still leak — `parseBacklogRows` drops them from its
+    // return value so the boundary cannot stop at one — and that residual is
+    // pinned by the next test rather than asserted away here.
+    for (const r of sources.backlog.rows) expect(r.body).not.toMatch(/^#{2,4} ~~/m);
+  });
+
+  it('every live row in the REAL corpus stops at the next row, container headings aside', async () => {
+    // ⚠ RESIDUAL, STATED RATHER THAN HIDDEN. `parseBacklogRows` drops container
+    // headings from its return value, so the boundary cannot stop at one: 8 of 50
+    // live rows still run past a container heading into the prose beneath it. The
+    // fix would mean exposing containers from a shared module — a change to
+    // `parseBacklogRows` used by three other callers — so it is filed, not
+    // patched. This test pins the residual at its measured size so it cannot grow
+    // back into the discharged-row leak that was just fixed.
+    const corpus = await readCorpus(process.cwd());
+    const absorbing = corpus.sources.backlog.rows.filter((r) => /^#{2,4} /m.test(r.body));
+    for (const r of absorbing) {
+      // Every remaining absorption is a CONTAINER heading, never a live or
+      // discharged row — that distinction is the whole content of the fix.
+      const swallowed = r.body.match(/^#{2,4} .*/m)[0];
+      expect(swallowed).not.toMatch(/~~/); // no struck (discharged) row
+    }
+    expect(absorbing.length).toBeLessThanOrEqual(10);
+  });
+
   it('walkBugEntries gains `line` additively — deriveBugCounts still works', () => {
     const entries = walkBugEntries(BUGS);
     const lines = BUGS.split('\n');

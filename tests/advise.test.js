@@ -498,6 +498,39 @@ describe('formatAdviseSummary — the only thing the user actually sees (reviewe
   });
 });
 
+describe('the stale-read guard (PR reviewer, at SHIP)', () => {
+  // ⚠ THE FIRST ARTIFACT THIS COMMAND EVER SHIPPED HAD ~51 CITATIONS OFF BY FIVE
+  // LINES. A one-time human edit inserted a 5-line block at the top of BACKLOG.md
+  // after the corpus was read, and every cited line pointed five rows short.
+  // `verifyCitations` could not catch it: it checks a line is WITHIN the file,
+  // never that it carries the claimed content — the exact limit this Epic
+  // documented and then walked into on its own output.
+
+  it('REFUSES to write when the corpus shifted under it after reading', async () => {
+    const base = project();
+    // Read, then edit BACKLOG.md above every row, exactly as the SHIP-time
+    // backlink edit did — five lines inserted after line 1.
+    const backlogPath = join(base, '.planning', 'BACKLOG.md');
+    const before = readFileSync(backlogPath, 'utf8').split('\n');
+    const shifted = [before[0], '', '> inserted', '> at', '> ship time', ...before.slice(1)].join('\n');
+
+    const render = (args) => {
+      writeFileSync(backlogPath, shifted); // the edit lands between read and write
+      return renderArtifact(args);
+    };
+    const r = await runAdvise(base, { today: TODAY, render });
+    expect(r.status).toBe('skipped');
+    expect(r.reason).toMatch(/no longer carry the row they were read from/);
+    expect(artifactsIn(base)).toEqual([]);
+  });
+
+  it('writes normally when nothing moved', async () => {
+    const base = project();
+    const r = await runAdvise(base, { today: TODAY });
+    expect(r.status).toBe('written');
+  });
+});
+
 describe('t3.6 / NFR1 — determinism and idempotence', () => {
   it('renders byte-identical output twice over the same corpus', async () => {
     const base = project();
