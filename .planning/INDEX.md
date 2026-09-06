@@ -14,6 +14,7 @@
 
 - [ADHERENCE-LOG.md](ADHERENCE-LOG.md) — `append-log` — _(note pending)_
 - [BACKLOG-REVIEW-2026-08-09.md](BACKLOG-REVIEW-2026-08-09.md) — `other` — _(note pending)_
+- [BACKLOG-REVIEW-2026-09-05.md](BACKLOG-REVIEW-2026-09-05.md) — `other` — _(note pending)_
 - [BACKLOG.md](BACKLOG.md) — `other` — The sequenced roadmap, promoted from `ISSUES-INBOX.md`; every entry tagged `roadmap` or `hygiene`. Supersedes the point-in-time `BACKLOG-REVIEW-2026-07-04` snapshot (folded in + archived under `archive/`).
 - [BUGS.md](BUGS.md) — `other` — Bugs & verified-findings catalog — where findings get logged (catalog → triage → confirm / dismiss / fixed). GitHub Issues deferred until Signal has live users.
 - [CONTEXT.md](CONTEXT.md) — `other` — Locked + deferred decisions for the *current* work — what DISCUSS settled for the active Epic.
@@ -175,6 +176,7 @@
 - [M6.E6-VERIFICATION.md](M6.E6-VERIFICATION.md) — `other` — _(note pending)_
 - [M6.E7-PLAN.md](M6.E7-PLAN.md) — `other` — _(note pending)_
 - [M6.E7-PROFILE.md](M6.E7-PROFILE.md) — `other` — _(note pending)_
+- [M6.E7-PROGRESS.md](M6.E7-PROGRESS.md) — `other` — _(note pending)_
 - [M6.E7-REQUIREMENTS.md](M6.E7-REQUIREMENTS.md) — `other` — _(note pending)_
 - [MILESTONE-4.5.md](MILESTONE-4.5.md) — `milestone` — Release-hardening / stranger-adoption milestone. **CLOSED 2026-07-15** — E1–E11 shipped (v0.1.1–v0.1.7); the ≥3-non-Signal-tester clause met (4 users onboarded). Superseded by M5.
 - [MILESTONE-5.md](MILESTONE-5.md) — `milestone` — **Active milestone** — v2 integrations + doc-runtime. Usage-signal gate lifted 2026-07-15. Epic-status table up top (M5.E1/E2 shipped-unreleased, M5.E3 in flight); the speculative v2-port queue below is unsequenced pending the landscape re-audit.
