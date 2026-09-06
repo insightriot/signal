@@ -43,10 +43,9 @@ Removed 2026-09-02 under the doc-budget rule (see *House rules* below). Nothing 
 [`CHANGELOG.md`](CHANGELOG.md) for a version, or the retros for an Epic.
 
 **Active: nothing in flight.** Milestone 6 is open; `M6.E1` shipped as v0.1.26, `M6.E2` as v0.1.29,
-`M6.E4` as v0.1.33, `M6.E5` merged 2026-08-28, `M6.E6` 2026-09-04, **`M6.E7` 2026-09-06**. Since
-`v0.1.37`, un-versioned on `main`: the goal-direction and external-harness analyses, `B113`,
-decision-queue depth in `/sig:status` and `/sig:resume`, the `docs-` command prefix (**breaking**,
-`D-BR0902-1`), the docs-integrity set, and `/sig:advise`. **Pick the next item from
+`M6.E4` as v0.1.33, `M6.E5` merged 2026-08-28, and **`M6.E6` + `M6.E7` shipped together as v0.1.38**
+(2026-09-06) — the release that carries `/sig:advise`, the two decision-router guards, and the
+commit-anchor reachability test. **Pick the next item from
 [`.planning/BACKLOG.md`](.planning/BACKLOG.md) — or run `/sig:advise`, which exists to answer that.**
 
 ⚠ **`B117` — the Epic lane keeps getting squashed, and the cause is now confirmed.** PR #239 was

@@ -70,6 +70,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   plainly rather than implying otherwise; wiring bugs and closure state into the ranking is a further
   ranking input and is filed in `BACKLOG.md`.
 
+### Fixed
 
 - **Two guards in `v0.1.37`'s decision router each stood down in the exact case they were written
   for** (`M6.E6` REVIEW). Both were live in a released version for about half an hour — REVIEW ran
