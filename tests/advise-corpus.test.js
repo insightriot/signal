@@ -301,6 +301,31 @@ describe('t2.6 — cannot-check is a value, never a silent pass', () => {
     expect(corpus.checked).not.toContain('STATE/closure');
   });
 
+  it('an ABSENT .planning/ reports retrospectives as cannot-check, not as read-and-empty', async () => {
+    // ⚠ FOUND AT REVIEW, and the test below is why it survived EXECUTE: that one
+    // replaces `.planning/` with a FILE, which makes readdir throw ENOTDIR and
+    // land in the catch. An ABSENT `.planning/` raises ENOENT, which
+    // `enumerateRetros` deliberately swallows into `[]` — correct for its own
+    // contract, and a false "checked" for this one. Four sources said honestly
+    // that they could not look; the fifth claimed it had.
+    const base = mkdtempSync(join(tmpdir(), 'sig-advise-corpus-absent-'));
+    const corpus = await readCorpus(base);
+    expect(corpus.checked).toEqual([]);
+    expect(corpus.cannotCheck.map((c) => c.source).sort()).toEqual([...ADVISOR_SOURCES].sort());
+    expect(corpus.sources.retros).toBeNull();
+    expect(corpus.cannotCheck.find((c) => c.source === 'retrospectives').reason).toMatch(/not present/i);
+  });
+
+  it('an EMPTY but existing .planning/ still reads retros — nothing to find is a result', async () => {
+    // The other side of the same line. Absent means "could not look"; empty means
+    // "looked, found nothing". Collapsing them in either direction is the bug.
+    const base = mkdtempSync(join(tmpdir(), 'sig-advise-corpus-empty-'));
+    mkdirSync(join(base, '.planning'), { recursive: true });
+    const corpus = await readCorpus(base);
+    expect(corpus.checked).toContain('retrospectives');
+    expect(corpus.sources.retros.records).toEqual([]);
+  });
+
   it('an unreadable retro directory reports retrospectives as cannot-check', async () => {
     const base = fixture();
     // A retro file replaced by a directory makes the walk itself throw on read;

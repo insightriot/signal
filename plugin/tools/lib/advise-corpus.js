@@ -131,6 +131,22 @@ export async function readCorpus(baseDir) {
   }
 
   // ── 3. Retrospectives — evidence a unit finished. A STUB IS NOT THAT (`B64`).
+  //
+  // ⚠ THE GUARD BELOW IS NOT DEFENSIVE, IT IS THE MODULE'S OWN RULE APPLIED TO
+  // ITSELF. `enumerateRetros` returns `[]` when `.planning/` does not exist —
+  // correct for its own contract, and wrong as an answer to "did you read the
+  // retrospectives?", because it makes an absent corpus indistinguishable from an
+  // empty one. Without this, a project with no `.planning/` at all reported
+  // `checked: ['retrospectives']` while the other four sources honestly said they
+  // could not look. Found at REVIEW by walking the failure modes; the test that
+  // was supposed to cover it replaced `.planning/` with a FILE (ENOTDIR, which
+  // throws) and never tried it ABSENT (ENOENT, which does not).
+  //
+  // An existing-but-empty `.planning/` still reads as `checked` with zero
+  // records, which is the honest answer there: nothing to find is a result.
+  if (!existsSync(planningDir)) {
+    fail('retrospectives', `${PLANNING_DIR}/ is not present — there is no retrospective corpus to read`);
+  } else {
   try {
     const records = await enumerateRetros(baseDir);
     const withSections = [];
@@ -148,6 +164,7 @@ export async function readCorpus(baseDir) {
     checked.push('retrospectives');
   } catch (err) {
     fail('retrospectives', `retrospectives could not be enumerated — ${err.message}`);
+  }
   }
 
   // ── 4. STATE / closure — what is open, via `resolveClosures` and never raw
