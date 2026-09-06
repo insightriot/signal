@@ -37,7 +37,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   artifact says which sources the **ranking** actually consulted, which is one (`BACKLOG.md`), rather
   than letting "Read: …" imply all five.
 
-  2979 → **3300 tests**.
+  3203 → **3300 tests**.
 
 ### Fixed
 
