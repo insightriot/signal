@@ -4,6 +4,24 @@ Groomed, sequenced roadmap — promoted from the issues inbox (`ISSUES-INBOX.md`
 
 > **Source.** Restructured from the point-in-time backlog pass `BACKLOG-REVIEW-2026-07-04.md`, now archived at [`archive/BACKLOG-REVIEW-2026-07-04.md`](archive/BACKLOG-REVIEW-2026-07-04.md) (move-never-delete — the snapshot is frozen; this file is its living successor). The snapshot's added items (A1–A5), sharpened items, and sprint clusters are folded in below.
 
+
+### `/sig:advise` ranks on the backlog alone, while reading five sources · **hygiene** · small · *filed 2026-09-05 from `M6.E7` REVIEW*
+
+**Trigger: met — the command shipped.** `readCorpus` reads `BACKLOG.md`, `BUGS.md`, retrospectives,
+STATE/closure and milestone rows. **Every ranking input reads only the backlog.** REVIEW finding 1
+fixed the *claim* — the artifact now says `Consulted by the ranking: BACKLOG.md only` — because
+wiring the other four in is a sixth ranking input and therefore a plan change, which is design
+impact and disqualifies a fix-in-phase.
+
+What is worth building, in order of obvious value: a row naming an **open `confirmed` bug** should
+rank above one that does not; a row whose Epic reads **closed** in `resolveClosures` should drop out
+the way `backlogDischargeStatus`'s `stale` rows already do. Both are cheap given the corpus is
+already read.
+
+⚠ **Until then the retrospective read is pure cost** — 32 files parsed for headings that no input
+consults (`M6.E7-REVIEW.md` § Performance Findings). If this row is declined, delete that read
+rather than leaving it to look like it does something.
+
 ## Since the snapshot — what shipped (reconciliation, 2026-07-19)
 
 The snapshot was captured 2026-07-04; four of its clusters have since closed or opened as real Epics. Condensed here so the living list below carries only still-open work (the full snapshot is archived, nothing lost).
