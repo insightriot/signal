@@ -97,11 +97,11 @@ The REVIEW phase (between VERIFY and SHIP) is the key addition over GSD's origin
 ## Planned Plugin Structure
 
 ```
-commands/       # 22 slash commands, in 5 groups (references/command-taxonomy.md):
+commands/       # 23 slash commands, in 5 groups (references/command-taxonomy.md):
                 #   flow        /sig:new-project, /sig:init, /sig:calibrate,
                 #               /sig:discuss, /sig:plan, /sig:execute,
                 #               /sig:verify, /sig:review, /sig:ship, /sig:escalate
-                #   orientation /sig:status, /sig:resume
+                #   orientation /sig:status, /sig:resume, /sig:advise
                 #   capture     /sig:add, /sig:checkpoint
                 #   doc upkeep  /sig:docs-index, /sig:docs-sweep, /sig:docs-migrate, /sig:docs-archive
                 #   own health  /sig:doctor, /sig:update, /sig:permissions

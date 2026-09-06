@@ -120,3 +120,89 @@ export async function deriveNextEpicId(baseDir, { milestone } = {}) {
   }
   return `M${ms}.E${maxN + 1}`;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Epic-status rows — ONE reader for the two published formats (`M6.E7` t2.5).
+//
+// This repo has shipped TWO mutually-blind parsers of the same table, and the
+// consequence was measured rather than guessed:
+//
+//   - `findEpicStatusRow` (private, `retrospective.js`) matches the bare-E form
+//     `| **E1** | … |` and returns null on `` | `M6.E1` | … | ``.
+//   - `EPIC_ROW` (private, `published-facts.js`) matches the full-ID form and
+//     returns nothing on the bare-E form.
+//
+// `MILESTONE-4.5.md` and `MILESTONE-5.md` publish the first; `MILESTONE-6.md`
+// publishes the second. So `D-E9-5`'s "a maintained row wins" has been inert
+// across five Epic ships, because the reader behind it could not see Milestone 6's
+// rows at all. Filed as a bug; this is the shared reader that makes a fix
+// possible.
+//
+// ⚠ RE-POINTING THE TWO EXISTING CALL SITES IS DELIBERATELY NOT DONE HERE.
+// `findEpicStatusRow` feeds `isEpicCloseShip`, so re-pointing it makes `D-E9-5`'s
+// override live again across Milestone 6 and CHANGES WHEN THE SHIP RETRO GATE
+// FIRES. That is a real behaviour change and does not belong inside an advisory
+// Epic as a side effect. The export lands here; the re-point gets its own row and
+// its own test.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Cell one, past the decoration real rows carry (backticks, bold, whitespace):
+// either a full `M{n}.E{n}` id or a bare `E{n}`, then whatever title follows.
+// The decoration run is BOUNDED for the same reason `backlog.js`'s is — two
+// adjacent unbounded star-runs backtrack quadratically on a non-matching line,
+// and this runs over every line of every milestone file.
+const EPIC_STATUS_ROW_RE =
+  /^\|[\s`*_]{0,10}(?:(M\d+(?:\.\d+)*)\.)?E(\d+)\b([^|]*)\|([^|]*)\|/;
+
+/**
+ * Every Epic-status row in a milestone file body, in document order.
+ *
+ * Covers both published formats. `id` is the full Epic ID: taken from the row
+ * when the row spells it out, otherwise composed from `opts.milestone`. When the
+ * row is bare-E AND no milestone is supplied, `id` is **null** rather than
+ * guessed — a wrong Epic ID in an advisory citation is worse than an absent one.
+ *
+ * @param {string} content — a MILESTONE-{n}.md body
+ * @param {{milestone?: string}} [opts] — milestone id (`"5"`, `"4.5"`) for bare-E rows
+ * ⚠ REACH: it matches on SHAPE, not meaning. A first cell beginning `E{digits}`
+ * followed by a word boundary is taken as an Epic row, so `| E5 minute retro |`
+ * reads as `E5`. `| Epic 5 |` and `| E2E harness |` are correctly rejected (no
+ * digit directly after `E`, and `E2E` has no word boundary after the `2`).
+ * Narrowing it would cost the bare-`E{N}`-with-a-title form that `MILESTONE-4.5.md`
+ * actually publishes, so the false positive is accepted and declared instead.
+ *
+ * @returns {Array<{id: string|null, milestone: string|null, epicNumber: number,
+ *   title: string, status: string, line: number, raw: string}>}
+ */
+export function parseEpicStatusRows(content, { milestone } = {}) {
+  const out = [];
+  let inFence = false;
+
+  String(content)
+    .split('\n')
+    .forEach((line, i) => {
+      const t = line.trimStart();
+      if (t.startsWith('```') || t.startsWith('~~~')) {
+        inFence = !inFence;
+        return;
+      }
+      if (inFence) return;
+
+      const m = line.match(EPIC_STATUS_ROW_RE);
+      if (!m) return;
+
+      const [, rowMilestone, epicNum, cellOneTail, statusCell] = m;
+      const ms = rowMilestone ?? (milestone ? `M${milestone}` : null);
+      out.push({
+        id: ms ? `${ms}.E${epicNum}` : null,
+        milestone: ms,
+        epicNumber: Number(epicNum),
+        title: `E${epicNum}${cellOneTail}`.replace(/[\s`*_]+$/, '').trim(),
+        status: statusCell.trim(),
+        line: i + 1,
+        raw: line,
+      });
+    });
+
+  return out;
+}

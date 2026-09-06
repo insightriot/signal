@@ -34,11 +34,15 @@ Named for **the phase or the act**, because the six phases are a fixed vocabular
 
 ### 2. Orientation — read-only, tells you where you are
 
-`status` · `resume`
+`status` · `resume` · `advise`
 
-**Writes nothing.** `status` is a snapshot; `resume` is a briefing that opens the current phase's
-artifacts. The read-only guarantee is the contract — a mutation here would break the trust that
-makes them safe to run reflexively.
+**Writes nothing** — with one bounded exception, named rather than hidden. `status` is a snapshot;
+`resume` is a briefing that opens the current phase's artifacts; `advise` reads the whole
+`.planning/` corpus and writes exactly one dated advisory
+(`BACKLOG-REVIEW-YYYY-MM-DD.md`) and nothing else. It belongs here rather than in *doc upkeep*
+because it tells you where you are and recommends where to go; it advances nothing, decides nothing,
+and edits no existing file. **Never touching what is already there is the contract** — an orientation
+command that edited state would break the trust that makes these safe to run reflexively.
 
 ### 3. Capture — records something you said
 

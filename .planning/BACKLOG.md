@@ -4,6 +4,29 @@ Groomed, sequenced roadmap — promoted from the issues inbox (`ISSUES-INBOX.md`
 
 > **Source.** Restructured from the point-in-time backlog pass `BACKLOG-REVIEW-2026-07-04.md`, now archived at [`archive/BACKLOG-REVIEW-2026-07-04.md`](archive/BACKLOG-REVIEW-2026-07-04.md) (move-never-delete — the snapshot is frozen; this file is its living successor). The snapshot's added items (A1–A5), sharpened items, and sprint clusters are folded in below.
 
+
+> **Latest generated review:** [`BACKLOG-REVIEW-2026-09-06.md`](BACKLOG-REVIEW-2026-09-06.md) —
+> produced by `/sig:advise`, not by hand. It recommends and declines with citations that resolve;
+> it changes nothing in this file. The inbound link is a **one-time human step at SHIP**: the command
+> writes its artifact and nothing else, deliberately.
+
+### `/sig:advise` ranks on the backlog alone, while reading five sources · **hygiene** · small · *filed 2026-09-05 from `M6.E7` REVIEW*
+
+**Trigger: met — the command shipped.** `readCorpus` reads `BACKLOG.md`, `BUGS.md`, retrospectives,
+STATE/closure and milestone rows. **Every ranking input reads only the backlog.** REVIEW finding 1
+fixed the *claim* — the artifact now says `Consulted by the ranking: BACKLOG.md only` — because
+wiring the other four in is a sixth ranking input and therefore a plan change, which is design
+impact and disqualifies a fix-in-phase.
+
+What is worth building, in order of obvious value: a row naming an **open `confirmed` bug** should
+rank above one that does not; a row whose Epic reads **closed** in `resolveClosures` should drop out
+the way `backlogDischargeStatus`'s `stale` rows already do. Both are cheap given the corpus is
+already read.
+
+⚠ **Until then the retrospective read is pure cost** — 32 files parsed for headings that no input
+consults (`M6.E7-REVIEW.md` § Performance Findings). If this row is declined, delete that read
+rather than leaving it to look like it does something.
+
 ## Since the snapshot — what shipped (reconciliation, 2026-07-19)
 
 The snapshot was captured 2026-07-04; four of its clusters have since closed or opened as real Epics. Condensed here so the living list below carries only still-open work (the full snapshot is archived, nothing lost).
@@ -1323,7 +1346,14 @@ unverified — never asserted from memory* (the `buildCaveats()` lesson, general
   `RETROSPECTIVES.md` lacks a row for an existing retro fails `/sig:sweep` (the 2026-07-28
   missing-M5.E8-row incident, mechanized).
 
-### M5.E11 — Roadmap Advisor · **KEPT — first slice only, sequenced behind `M5.E10`** *(2026-08-09, `D-BR0809-1`)*
+### ~~M5.E11 — Roadmap Advisor · **OPENED AS `M6.E7` 2026-09-05 — see [`M6.E7-REQUIREMENTS.md`](M6.E7-REQUIREMENTS.md)** *(2026-08-09, `D-BR0809-1`)*~~ · **DONE — M6.E7, 2026-09-06**
+
+> **The ID stays wrong out loud rather than being silently renumbered.** `D-BR0809-2` closed
+> Milestone 5 on 2026-08-13 and moved `E11`/`E12` to M6, so this work opened as **`M6.E7`**;
+> a live Epic inside a closed milestone is how `B91` happened. **⚠ DISCUSS found the premise
+> in question** — the first slice as written substantially duplicates `/prose:backlog` and the
+> `auditor` agent, both installed. Disposition (cut / reshape small / build as specified) is
+> open at `Q1` in the requirements. Do not start building from this row.
 
 > **Two things changed on 2026-08-09, and they cut in opposite directions.** The
 > [backlog review](BACKLOG-REVIEW-2026-08-09.md) **did this Epic's job by hand** — so the
@@ -1990,4 +2020,4 @@ These stay trigger-gated; the standing **WATCHLIST** entry (A1) in `ISSUES-INBOX
 ---
 
 
-*Last updated: 2026-08-19*
+*Last updated: 2026-09-06*
