@@ -5,6 +5,11 @@ Groomed, sequenced roadmap — promoted from the issues inbox (`ISSUES-INBOX.md`
 > **Source.** Restructured from the point-in-time backlog pass `BACKLOG-REVIEW-2026-07-04.md`, now archived at [`archive/BACKLOG-REVIEW-2026-07-04.md`](archive/BACKLOG-REVIEW-2026-07-04.md) (move-never-delete — the snapshot is frozen; this file is its living successor). The snapshot's added items (A1–A5), sharpened items, and sprint clusters are folded in below.
 
 
+> **Latest generated review:** [`BACKLOG-REVIEW-2026-09-06.md`](BACKLOG-REVIEW-2026-09-06.md) —
+> produced by `/sig:advise`, not by hand. It recommends and declines with citations that resolve;
+> it changes nothing in this file. The inbound link is a **one-time human step at SHIP**: the command
+> writes its artifact and nothing else, deliberately.
+
 ### `/sig:advise` ranks on the backlog alone, while reading five sources · **hygiene** · small · *filed 2026-09-05 from `M6.E7` REVIEW*
 
 **Trigger: met — the command shipped.** `readCorpus` reads `BACKLOG.md`, `BUGS.md`, retrospectives,
@@ -1341,7 +1346,7 @@ unverified — never asserted from memory* (the `buildCaveats()` lesson, general
   `RETROSPECTIVES.md` lacks a row for an existing retro fails `/sig:sweep` (the 2026-07-28
   missing-M5.E8-row incident, mechanized).
 
-### M5.E11 — Roadmap Advisor · **OPENED AS `M6.E7` 2026-09-05 — see [`M6.E7-REQUIREMENTS.md`](M6.E7-REQUIREMENTS.md)** *(2026-08-09, `D-BR0809-1`)*
+### ~~M5.E11 — Roadmap Advisor · **OPENED AS `M6.E7` 2026-09-05 — see [`M6.E7-REQUIREMENTS.md`](M6.E7-REQUIREMENTS.md)** *(2026-08-09, `D-BR0809-1`)*~~ · **DONE — M6.E7, 2026-09-06**
 
 > **The ID stays wrong out loud rather than being silently renumbered.** `D-BR0809-2` closed
 > Milestone 5 on 2026-08-13 and moved `E11`/`E12` to M6, so this work opened as **`M6.E7`**;
@@ -2015,4 +2020,4 @@ These stay trigger-gated; the standing **WATCHLIST** entry (A1) in `ISSUES-INBOX
 ---
 
 
-*Last updated: 2026-08-19*
+*Last updated: 2026-09-06*

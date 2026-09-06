@@ -8,7 +8,68 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ## [Unreleased]
 
+### Added
+
+- **`/sig:advise` — the Roadmap Advisor, Signal's 23rd command** (`M6.E7`). Read-only: it reads this
+  project's own `.planning/` corpus and writes one dated advisory,
+  `.planning/BACKLOG-REVIEW-YYYY-MM-DD.md`, naming what to work on next **and every live row it
+  looked at and passed over, with the reason it was passed over**. It proposes and never selects —
+  nothing is struck, nothing is queued, no other file is touched.
+
+  **Every claim carries a `path:line` citation that is resolved against disk before the file is
+  written. A citation that does not resolve fails the run and no file appears.**
+
+  Three things in it are counter-intuitive and each was found the hard way:
+
+  - **A textual scan of the artifact cannot work.** The advisor quotes corpus text, and live
+    `BACKLOG.md` rows carry **108 backticked path-like tokens, 51 of which do not resolve** from repo
+    root. Such a scan fires on the first quoted row and the artifact is never written. So citations
+    occupy **one structural position** — a trailing `— evidence:` region — and the extractor reads
+    only that.
+  - **The gate asserts a COUNT, not a flag.** `verifyCitations` returns `ok: true` over an artifact
+    with zero citations — correct at the unit, vacuous at a gate. An extractor that missed the
+    renderer's grammar would pass a flag check over an artifact in which nothing was checked.
+  - **The backlog is read at `maxDepth: 4`.** The default is 3 and Signal's own promoted rows sit at
+    `####`, so a default-depth read looks like a working command and is blind to nine of them.
+    Widening also drops rows that gained children; both directions are asserted.
+
+  A source it could not read is **named in the artifact**, never silently treated as empty — and the
+  artifact says which sources the **ranking** actually consulted, which is one (`BACKLOG.md`), rather
+  than letting "Read: …" imply all five.
+
+  2979 → **3300 tests**.
+
 ### Fixed
+
+- **`walkBugEntries` now returns a 1-indexed `line` per entry** (`M6.E7`, additive). `deriveBugCounts`
+  and `readClosureSources` read the same records unchanged — forking the walk for one field is
+  `B82`'s shape, which that module's own docblock warns about.
+- **`parseEpicStatusRows` — one milestone Epic-row reader for both published formats** (`M6.E7`,
+  new export from `milestones.js`). This repo shipped **two mutually blind private parsers**:
+  `findEpicStatusRow` sees `| **E1** |` and `EPIC_ROW` sees `` | `M6.E1` | ``, and Milestones 4.5/5
+  publish the first while Milestone 6 publishes the second. The shared reader gets all 33 rows across
+  the three live milestone files; neither existing parser could. ⚠ **The two existing call sites are
+  deliberately NOT re-pointed** — `findEpicStatusRow` feeds `isEpicCloseShip`, so re-pointing changes
+  when the SHIP retro gate fires. That is a behaviour change and gets its own row.
+- **`declaresNotLiveWork` — a row that says in its own heading it is not live work** (`M6.E7`, new
+  export from `backlog.js`). Reads the **heading only**, never the body. `HELD_OPEN_RE` is not
+  widened, and a test pins that: `backlogDischargeStatus` reads it to mean *"declared open on
+  purpose"*, and widening it would change a shipped check as a side effect.
+
+### Known
+
+- **`diffRequirementCoverage` drops a real requirement from its denominator on 21 of 22
+  `*-REQUIREMENTS.md` artifacts in this repo** (`B116`, P2, filed during `M6.E7` VERIFY by *using*
+  the check). `groupOf` normalizes `AC{N}` into `FR{N}`'s group — correct for `M5.E10`'s convention,
+  where `AC-16.x` really are `FR-16`'s children, and wrong for the convention nearly every other Epic
+  uses. `M5.E16` loses all six of its FRs. Because `missing` is `denominator.filter(not verified)`, a
+  dropped requirement **cannot be reported missing**: a false clean in the check built to stop
+  unfalsifiable coverage claims. Not fixed in `M6.E7` — the fix must choose between the two
+  conventions or detect which one an artifact uses.
+- **`/sig:advise` ranks on `BACKLOG.md` alone while reading five sources.** The artifact says so
+  plainly rather than implying otherwise; wiring bugs and closure state into the ranking is a further
+  ranking input and is filed in `BACKLOG.md`.
+
 
 - **Two guards in `v0.1.37`'s decision router each stood down in the exact case they were written
   for** (`M6.E6` REVIEW). Both were live in a released version for about half an hour — REVIEW ran
