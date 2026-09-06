@@ -13,7 +13,8 @@
 //      set it did not finish reading is the silent pass this repo keeps filing
 //      bugs about.
 
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs';
+import { chmodSync, mkdtempSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -185,6 +186,41 @@ describe('confinement happens before any disk touch (B22)', () => {
     const r = await verifyCitations(base, ev('`escape/secret.txt`'));
     expect(r.ok).toBe(false);
     expect(r.unresolved[0].reason).toMatch(/outside the repo/i);
+  });
+});
+
+describe('a path that exists and still cannot be read (reviewer-found)', () => {
+  it('reports an unreadable file as unresolved instead of throwing out of the contract', async () => {
+    // `verifyCitations` documents `{ok, resolved, unresolved, truncated}`. An
+    // EACCES escaping it breaks that for every caller. `existsSync` passing is
+    // not the same as the file being readable.
+    const base = fixture();
+    const target = join(base, '.planning', 'BACKLOG.md');
+    chmodSync(target, 0o000);
+    try {
+      const r = await verifyCitations(base, ev('`.planning/BACKLOG.md:3`'));
+      expect(r.ok).toBe(false);
+      expect(r.unresolved[0].reason).toMatch(/could not be read/);
+    } finally {
+      chmodSync(target, 0o644);
+    }
+  });
+
+  it('refuses a FIFO BEFORE reading it — a try/catch could not have saved this', async () => {
+    // The reviewer's suggested fix was to wrap the read. A FIFO does not throw,
+    // it HANGS inside the await, so the wrap never runs. The guard had to move
+    // ahead of the read and widen from "is a directory" to "is a regular file".
+    // If this test ever times out rather than failing, the guard is gone.
+    const base = fixture();
+    const fifo = join(base, 'pipe.md');
+    try {
+      execFileSync('mkfifo', [fifo]);
+    } catch {
+      return; // no mkfifo on this platform — nothing to assert
+    }
+    const r = await verifyCitations(base, ev('`pipe.md:1`'));
+    expect(r.ok).toBe(false);
+    expect(r.unresolved[0].reason).toMatch(/not a regular file/);
   });
 });
 

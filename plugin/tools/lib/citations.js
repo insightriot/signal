@@ -172,8 +172,17 @@ export async function verifyCitations(baseDir, text) {
       unresolved.push({ ...c, reason: 'does not exist' });
       continue;
     }
-    if (statSync(abs).isDirectory()) {
-      unresolved.push({ ...c, reason: 'is a directory, which cannot carry a line' });
+    // ⚠ NOT `isDirectory()`. A directory is only the shape that occurred to me;
+    // the guard has to be "is this a regular file", because a FIFO passes an
+    // is-not-a-directory test and then HANGS the await below rather than
+    // throwing — which a try/catch around the read cannot save. Sockets and
+    // device nodes are the same class. Refusing before the read is the only
+    // version that works. (Reviewer-found; their suggested fix was the wrap,
+    // which covers the throw and not the hang.)
+    const st = statSync(abs);
+    if (!st.isFile()) {
+      const kind = st.isDirectory() ? 'is a directory, which cannot carry a line' : 'is not a regular file';
+      unresolved.push({ ...c, reason: kind });
       continue;
     }
     if (c.line === undefined) {
@@ -184,7 +193,19 @@ export async function verifyCitations(baseDir, text) {
       unresolved.push({ ...c, reason: 'range ends before its start' });
       continue;
     }
-    const total = countLines(await readFile(abs, 'utf8'));
+    // `existsSync` passed and it is a regular file, and it can STILL be
+    // unreadable — mode 000, a permissions change between the two calls. This
+    // function documents `{ok, resolved, unresolved, truncated}`; letting EACCES
+    // out of it breaks that contract for every caller, including the `render`
+    // seam and any future one.
+    let content;
+    try {
+      content = await readFile(abs, 'utf8');
+    } catch (err) {
+      unresolved.push({ ...c, reason: `could not be read — ${err.code ?? err.message}` });
+      continue;
+    }
+    const total = countLines(content);
     const highest = c.lineEnd ?? c.line;
     if (c.line < 1 || highest > total) {
       unresolved.push({ ...c, reason: `file has only ${total} lines` });

@@ -29,6 +29,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ARTIFACT_PREFIX,
+  formatAdviseSummary,
   FORBIDDEN_VERBS,
   RECOMMENDATION_LIMIT,
   RENDER_LABELS,
@@ -361,6 +362,26 @@ describe('REVIEW findings — the gate at zero, and throws that escaped the cont
     }
   });
 
+  it('still writes when every row is STRUCK — the case that must not be refused', async () => {
+    // Reviewer's ask. `readCorpus` filters discharged rows before rankRows sees
+    // them, so an all-struck backlog reads as zero live rows. That is a real
+    // corpus with real history and nothing outstanding — the advisory should say
+    // so, not refuse.
+    const struck = `# Backlog
+
+## Queue
+
+### ~~R1 — done~~ · **DONE — v0.1.1, 2026-01-01**
+
+### ~~R2 — also done~~ · **SHIPPED — v0.1.2, 2026-02-02**
+`;
+    const base = project({ backlog: struck });
+    const r = await runAdvise(base, { today: TODAY });
+    expect(r.corpus.sources.backlog.rows).toEqual([]);
+    expect(r.status).toBe('written');
+    expect(readFileSync(join(base, r.path), 'utf8')).toContain('No live row survived');
+  });
+
   it('still writes when there were genuinely no live rows to claim about', async () => {
     // The other side of that line. Zero claims is legitimate only when the corpus
     // had nothing to claim about; collapsing the two in either direction is wrong.
@@ -395,6 +416,50 @@ describe('REVIEW findings — the gate at zero, and throws that escaped the cont
     } finally {
       chmodSync(planning, 0o755);
     }
+  });
+});
+
+describe('formatAdviseSummary — the only thing the user actually sees (reviewer-found)', () => {
+  // ⚠ `commands/advise.md` says "Print formatAdviseSummary(result)". It had ZERO
+  // tests and no other caller — the untested user-facing renderer in an Epic whose
+  // thesis is that a computed-then-unread value is `B39`'s shape. Every branch is
+  // exercised here, and the `skipped` branch matters most: the two new reasons
+  // added at REVIEW flow straight into it.
+  it('names the recommendations, the declined count, and where it wrote', async () => {
+    const base = project();
+    const r = await runAdvise(base, { today: TODAY });
+    const out = formatAdviseSummary(r);
+    expect(out).toContain(`Backlog review — ${TODAY}`);
+    expect(out).toContain(`1. ${r.ranked.recommended[0].row.text}`);
+    expect(out).toContain(`${r.ranked.declined.length} row(s) looked at and declined`);
+    expect(out).toContain('Written to');
+    expect(out).toContain('It changes nothing on its own.');
+  });
+
+  it('says "Unchanged at" on an idempotent re-run rather than claiming a write', async () => {
+    const base = project();
+    await runAdvise(base, { today: TODAY });
+    const again = await runAdvise(base, { today: TODAY });
+    expect(again.status).toBe('unchanged');
+    expect(formatAdviseSummary(again)).toContain('Unchanged at');
+    expect(formatAdviseSummary(again)).not.toContain('Written to');
+  });
+
+  it('the skipped branch reports the reason and claims nothing else', async () => {
+    const base = project({ omit: ['BACKLOG.md'] });
+    const r = await runAdvise(base, { today: TODAY });
+    const out = formatAdviseSummary(r);
+    expect(out).toMatch(/wrote nothing —/);
+    expect(out).toContain(r.reason);
+    expect(out).not.toContain('Written to');
+    expect(out).not.toContain('row(s) looked at and declined');
+  });
+
+  it('warns in the terminal about sources it could not read', async () => {
+    const base = project({ omit: ['BUGS.md'] });
+    const r = await runAdvise(base, { today: TODAY });
+    const out = formatAdviseSummary(r);
+    expect(out).toMatch(/⚠ 1 source\(s\) could not be read: BUGS\.md\./);
   });
 });
 
