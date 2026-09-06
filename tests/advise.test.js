@@ -11,7 +11,17 @@
 //   gate asserts a COUNT. A renderer that emitted no citations at all would pass
 //   a flag check, and the artifact would claim to be checked while nothing was.
 
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -174,7 +184,11 @@ describe('t3.2 / t3.2b — it proposes, and never selects (FR6)', () => {
     const r = await runAdvise(base, { today: TODAY });
     const body = readFileSync(join(base, r.path), 'utf8');
     for (const s of r.ranked.declined) {
-      const line = body.split('\n').find((l) => l.includes(s.row.text));
+      // Anchored on the bullet, NOT `includes`: the contrast row's FIRST mention
+      // is the Recommended section's contrast sentence, which also matches the
+      // input-name regex — so `includes` passed against a declined bullet with its
+      // reason deleted. A test that could not fail, found at REVIEW.
+      const line = body.split('\n').find((l) => l.startsWith(`- **${s.row.text}`));
       expect(line).toBeTruthy();
       expect(line).toMatch(/\*\*(blocked-by|trigger-met|age|discharge|self-declared)\*\*/);
     }
@@ -317,6 +331,70 @@ describe('t3.5 — the run boundary: a count, not a flag', () => {
     expect(body).toContain('evidence(quoted):');
     const check = await verifyCitations(base, body);
     expect(check.unresolved).toEqual([]);
+  });
+});
+
+describe('REVIEW findings — the gate at zero, and throws that escaped the contract', () => {
+  // ⚠ ALL THREE FOUND BY A FRESH-CONTEXT REVIEWER, AFTER I MEASURED THE OPPOSITE
+  // AND WROTE IT INTO THE VERIFY ARTIFACT. My claim was that the symlink throw is
+  // unreachable because "every citation points into .planning/, so the citation
+  // gate refuses first". Sound — and it presumes at least one citation exists.
+  // An empty backlog produces none.
+
+  it('rankRows PARTITIONS, which is why the zero-claims vacuity is benign', () => {
+    // The reviewer flagged the gate as doing no work at zero claims. The guard I
+    // first wrote for it — refuse when rows exist and nothing is claimed — turned
+    // out to be UNREACHABLE, and this is the assertion that says so. Every scored
+    // row lands in recommended, rest or dropped, and declined is rest + dropped,
+    // so claims === 0 implies there were no live rows and nothing to cite.
+    // Pinned so a future change to rankRows that DROPS a row makes the vacuity
+    // reachable and turns this red, rather than silently reopening the hole.
+    const shapes = [
+      [{ text: 'Parked — a row', line: 1, path: 'p', body: '' }],
+      [{ text: 'R', line: 1, path: 'p', body: 'blocked on x' }, { text: 'S', line: 2, path: 'p', body: '' }],
+      [{ text: 'a reconciliation note', line: 1, path: 'p', body: '' }, { text: 'live', line: 2, path: 'p', body: '' }],
+      [],
+    ];
+    for (const rows of shapes) {
+      const r = rankRows(rows, { today: TODAY, stale: [{ id: null, line: 2 }] });
+      expect(r.recommended.length + r.declined.length).toBe(rows.length);
+    }
+  });
+
+  it('still writes when there were genuinely no live rows to claim about', async () => {
+    // The other side of that line. Zero claims is legitimate only when the corpus
+    // had nothing to claim about; collapsing the two in either direction is wrong.
+    const base = project({ backlog: '# Backlog\n\nNothing live here yet.\n' });
+    const r = await runAdvise(base, { today: TODAY });
+    expect(r.status).toBe('written');
+    expect(r.ranked.recommended).toEqual([]);
+    expect(r.ranked.declined).toEqual([]);
+  });
+
+  it('returns a reason instead of throwing when .planning/ is a symlink out of the repo', async () => {
+    const outside = mkdtempSync(join(tmpdir(), 'sig-advise-outside-'));
+    writeFileSync(join(outside, 'BACKLOG.md'), '# Backlog\n');
+    writeFileSync(join(outside, 'STATE.md'), STATE);
+    const base = mkdtempSync(join(tmpdir(), 'sig-advise-symlink-'));
+    symlinkSync(outside, join(base, '.planning'));
+    const r = await runAdvise(base, { today: TODAY });
+    expect(r.status).toBe('skipped');
+    expect(r.reason).toBeTruthy();
+  });
+
+  it('returns a reason instead of throwing when .planning/ is not writable', async () => {
+    // Needs no symlink and no unusual corpus — a read-only mount or a full disk
+    // reaches this on an ordinary run.
+    const base = project();
+    const planning = join(base, '.planning');
+    chmodSync(planning, 0o555);
+    try {
+      const r = await runAdvise(base, { today: TODAY });
+      expect(r.status).toBe('skipped');
+      expect(r.reason).toMatch(/could not be written/);
+    } finally {
+      chmodSync(planning, 0o755);
+    }
   });
 });
 

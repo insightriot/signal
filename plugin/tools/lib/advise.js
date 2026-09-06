@@ -448,6 +448,24 @@ export async function runAdvise(baseDir, { today, render = renderArtifact, proje
       verification,
     };
   }
+  // ⚠ AT ZERO CLAIMS THIS GATE DOES NO WORK, and that is benign for a reason
+  // worth writing down rather than left to be re-derived. A fresh-context reviewer
+  // flagged it as the module's own header failure one level up: `claims` 0 and
+  // `resolved` 0 makes `0 < 0` false, so an empty-backlog run is written having
+  // checked nothing.
+  //
+  // The first fix attempted here was `claims === 0 && rows.length > 0` — refuse
+  // when rows existed and nothing was claimed. **That branch is unreachable, and
+  // a test is what said so.** `rankRows` PARTITIONS: every scored row lands in
+  // `recommended`, `rest` or `dropped`, and `declined` is `rest + dropped`, so
+  // `recommended.length + declined.length === rows.length` always — verified
+  // across parked, blocked, discharged and empty inputs. `claims === 0` therefore
+  // implies `rows.length === 0`, and with no live rows there is genuinely nothing
+  // to cite. The vacuity is real and harmless; a guard against it would have been
+  // dead code shipped to look like rigour.
+  //
+  // What was NOT harmless is what happened next: control reached `writeArtifact`,
+  // which threw. That is fixed below, where the contract is.
   if (verification.resolved.length < claims) {
     return {
       status: 'skipped',
@@ -462,6 +480,26 @@ export async function runAdvise(baseDir, { today, render = renderArtifact, proje
     };
   }
 
-  const written = await writeArtifact(baseDir, { name, content: artifact });
+  // `writeArtifact` documents a `{status, path, reason}` return, and two real
+  // conditions made it THROW past this function instead: a symlinked `.planning/`
+  // (`assertRealInsidePlanning`) and a read-only or full `.planning/` (`EACCES`
+  // out of `atomicWrite`) — the second needs no unusual corpus at all. A command
+  // whose contract is "it reports what it could not do" must not exit by
+  // exception on a filesystem it does not control.
+  let written;
+  try {
+    written = await writeArtifact(baseDir, { name, content: artifact });
+  } catch (err) {
+    return {
+      status: 'skipped',
+      path: rel,
+      reason: `the artifact could not be written — ${err.message}`,
+      today: stamp,
+      corpus,
+      ranked,
+      verification,
+      artifact,
+    };
+  }
   return { ...written, today: stamp, corpus, ranked, verification, artifact };
 }
