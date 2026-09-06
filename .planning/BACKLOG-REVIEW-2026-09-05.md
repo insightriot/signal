@@ -10,6 +10,8 @@ What to work on next in Signal, read from its own `.planning/` corpus.
 
 **Read:** BACKLOG.md · BUGS.md · retrospectives · STATE/closure · milestone rows.
 
+**Consulted by the ranking:** `BACKLOG.md` only. The other sources are read so this section can say what was and was not legible, and so a future ranking input can use them; **no current ranking input reads them.** A row is not promoted or demoted here because of a bug, a retrospective, a closure record or a milestone row.
+
 **Could not read:** nothing — all 5 sources were readable.
 
 ## Citation rule
@@ -20,23 +22,23 @@ Every claim below ends with a citation naming a repo-root-relative path and line
 
 ### 1. Add a "first use" step to `/sig:plan`
 
-Ranked on its written trigger has fired; nothing it names as a gate is unmet; filed 2026-07-30, 37 days ago. Ranked above *Passive `OBSERVATIONS.md` capture*, which demoted by the **trigger-met** and **age** inputs — 1 rows scored above it. — evidence: `.planning/BACKLOG.md:1601`, `.planning/BACKLOG.md:1806`
+Ranked because its written trigger has fired; nothing it names as a gate is unmet; it was filed 2026-07-30, 37 days ago. Ranked above *Passive `OBSERVATIONS.md` capture*, which was demoted by the **trigger-met** and **age** inputs — 5 rows scored above it. — evidence: `.planning/BACKLOG.md:1601`, `.planning/BACKLOG.md:1806`
 
 ### 2. Trajectory scoring — score whole runs, not single instructions · **roadmap** · medium · **UNPARKED 2026-08-10**
 
-Ranked on its written trigger has fired; nothing it names as a gate is unmet; filed 2026-08-10, 26 days ago. — evidence: `.planning/BACKLOG.md:762`
+Ranked because its written trigger has fired; nothing it names as a gate is unmet; it was filed 2026-08-10, 26 days ago. — evidence: `.planning/BACKLOG.md:762`
 
 ### 3. Map drift-guard · **hygiene** · small
 
-Ranked on nothing it names as a gate is unmet; filed 2026-07-13, 54 days ago. — evidence: `.planning/BACKLOG.md:877`
+Ranked because nothing it names as a gate is unmet; it was filed 2026-07-13, 54 days ago. — evidence: `.planning/BACKLOG.md:877`
 
 ### 4. Cross-Epic pattern detection — **KEPT, absorbed into M5.E11**
 
-Ranked on nothing it names as a gate is unmet; filed 2026-07-18, 49 days ago. — evidence: `.planning/BACKLOG.md:1856`
+Ranked because nothing it names as a gate is unmet; it was filed 2026-07-18, 49 days ago. — evidence: `.planning/BACKLOG.md:1856`
 
 ### 5. `/sig:sweep --docs / --code` — periodic hygiene sweep — **⚠ PARTIALLY SHIPPED (v0.1.11, M5.E6, 2026-07-25)**
 
-Ranked on nothing it names as a gate is unmet; filed 2026-07-25, 42 days ago. — evidence: `.planning/BACKLOG.md:1789`
+Ranked because nothing it names as a gate is unmet; it was filed 2026-07-25, 42 days ago. — evidence: `.planning/BACKLOG.md:1789`
 
 ## Declined — 45
 

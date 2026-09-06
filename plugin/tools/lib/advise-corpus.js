@@ -155,8 +155,23 @@ export async function readCorpus(baseDir) {
       try {
         headings = parseSections(await readFile(join(baseDir, r.path), 'utf-8')).headings;
       } catch {
-        // One unreadable retro does not blind the source; the record still
-        // carries `isStub` and the path, which is what citations need.
+        // A retro that becomes unreadable BETWEEN `enumerateRetros` reading it
+        // and this read. Rare, and the record still carries `isStub` and the
+        // path, which is what a citation needs.
+        //
+        // ⚠ THIS IS NOT THE MITIGATION IT LOOKS LIKE, and the comment used to
+        // claim it was. `enumerateRetros` SKIPS a file it cannot read, so an
+        // unreadable retro never reaches this line — it is absent from `records`
+        // and nothing here or in the artifact says it existed. Verified by a
+        // fresh-context reviewer: chmod 000 on one of two retros yields one
+        // record and `retrospectives` still reported as cleanly read.
+        //
+        // ⚠ Branch 5 below makes the OPPOSITE call on the identical condition —
+        // one unreadable milestone file blinds `milestone rows` entirely, with
+        // the reason surfaced. Two branches, two decisions, and this one is the
+        // quieter of the two. Not reconciled here: seeing the skipped file means
+        // changing `enumerateRetros`, which four other callers share, and a
+        // second walk to find it is `B82`'s shape. Filed rather than patched.
       }
       withSections.push({ ...r, headings });
     }

@@ -197,8 +197,13 @@ function recommendReason(s) {
   if (s.triggerMet) parts.push('its written trigger has fired');
   if (!s.blocked) parts.push('nothing it names as a gate is unmet');
   else parts.push('it names a gate that has not fired, so it ranks below the ungated rows');
-  if (s.filed) parts.push(`filed ${s.filed}${s.ageDays > 0 ? `, ${s.ageDays} days ago` : ''}`);
-  return `Ranked on ${parts.join('; ')}.`;
+  if (s.filed) parts.push(`it was filed ${s.filed}${s.ageDays > 0 ? `, ${s.ageDays} days ago` : ''}`);
+  return `Ranked because ${parts.join('; ')}.`;
+}
+
+/** `1 row` / `2 rows`. A count in a document that sells checkability must read as one. */
+function rows(n) {
+  return `${n} row${n === 1 ? '' : 's'}`;
 }
 
 /** Why a declined row is NOT recommended, naming the input that demoted it. */
@@ -216,9 +221,9 @@ function declineReason(s, rank) {
     return 'Demoted by the **blocked-by** input — the row names a gate that has not fired.';
   }
   if (!s.triggerMet) {
-    return `Demoted by the **trigger-met** and **age** inputs — ${rank} rows scored above it.`;
+    return `Demoted by the **trigger-met** and **age** inputs — ${rows(rank)} scored above it.`;
   }
-  return `Demoted by the **age** input — ${rank} rows were filed earlier.`;
+  return `Demoted by the **age** input — ${rows(rank)} were filed earlier.`;
 }
 
 /**
@@ -248,6 +253,20 @@ export function renderArtifact({ today, ranked, corpus, projectName }) {
   out.push(`## ${L.corpus}`);
   out.push('');
   out.push(`**Read:** ${corpus.checked.length > 0 ? corpus.checked.join(' · ') : 'nothing'}.`);
+  out.push('');
+  // ⚠ SAYING WHICH SOURCE THE RANKING ACTUALLY USED, because "Read: …" does not
+  // say it and a reader infers it. `readCorpus` genuinely reads all five; the
+  // ranking consults ONE. A maintainer seeing "Read: … BUGS.md … STATE/closure"
+  // above a ranked list concludes open bugs and the current phase were weighed.
+  // They were not. That is a completeness claim written from the shape of the
+  // work rather than the artifact — this repository's second named defect class —
+  // inside the command built to not make them. Found by a fresh-context reviewer.
+  out.push(
+    '**Consulted by the ranking:** `BACKLOG.md` only. The other sources are read so this section ' +
+      'can say what was and was not legible, and so a future ranking input can use them; **no ' +
+      'current ranking input reads them.** A row is not promoted or demoted here because of a bug, ' +
+      'a retrospective, a closure record or a milestone row.'
+  );
   if (corpus.cannotCheck.length === 0) {
     out.push('');
     out.push(`**Could not read:** nothing — all ${ADVISOR_SOURCES.length} sources were readable.`);
@@ -287,8 +306,15 @@ export function renderArtifact({ today, ranked, corpus, projectName }) {
     // "and not that", not merely "why this". A ranked list whose reasons never
     // reference each other is a list of independent opinions.
     const contrast = i === 0 && declined.length > 0 ? declined[0] : null;
+    // ⚠ The contrast row's rank is computed THE SAME WAY the declined section
+    // computes it, and that is the fix rather than a tidy-up: this line used to
+    // pass `i + 1` — the RECOMMENDED index, always 1 — so the artifact stated two
+    // different counts for one row. Measured on this repo's own run: "1 rows
+    // scored above it" here against "5 rows scored above it" in the declined
+    // list, for `Passive OBSERVATIONS.md capture`. A self-contradicting count in
+    // a document whose whole claim is that its claims are checkable.
     const reason = contrast
-      ? `${recommendReason(s)} Ranked above *${quoteSafe(contrast.row.text)}*, which ${declineReason(contrast, i + 1).replace(/^(Demoted|Dropped)/, (m) => m.toLowerCase())}`
+      ? `${recommendReason(s)} Ranked above *${quoteSafe(contrast.row.text)}*, which was ${declineReason(contrast, recommended.length + declined.indexOf(contrast)).replace(/^(Demoted|Dropped)/, (m) => m.toLowerCase())}`
       : recommendReason(s);
     const evidence = contrast
       ? cite(`${s.row.path}:${s.row.line}`, `${contrast.row.path}:${contrast.row.line}`)

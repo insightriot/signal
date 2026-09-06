@@ -208,6 +208,51 @@ describe('t3.2 / t3.2b — it proposes, and never selects (FR6)', () => {
   });
 });
 
+describe('REVIEW findings — the artifact must not contradict itself', () => {
+  // ⚠ FOUND BY A FRESH-CONTEXT REVIEWER, and reproduced in the artifact this repo
+  // had already generated: the recommended section said "1 rows scored above it"
+  // about `Passive OBSERVATIONS.md capture` while the declined section said "5
+  // rows scored above it" about the same row. The contrast clause passed the
+  // RECOMMENDED index (always 1) where it needed the row's rank in the declined
+  // pool. A self-contradicting count, in a document whose entire claim is that
+  // its claims are checkable.
+  it('states ONE count for the contrast row — the recommended and declined sections must agree', async () => {
+    const base = project();
+    const r = await runAdvise(base, { today: TODAY });
+    const body = readFileSync(join(base, r.path), 'utf8');
+
+    const contrast = r.ranked.declined[0].row.text;
+    const inRecommended = body.split('\n').find((l) => l.includes('Ranked above'));
+    const inDeclined = body.split('\n').find((l) => l.startsWith(`- **${contrast}`));
+    expect(inRecommended).toBeTruthy();
+    expect(inDeclined).toBeTruthy();
+
+    const countIn = (line) => line.match(/(\d+) rows? (?:scored above|were filed)/)?.[1] ?? null;
+    expect(countIn(inRecommended)).toBe(countIn(inDeclined));
+    // And it is the rank in the DECLINED pool, not the recommended index.
+    expect(countIn(inDeclined)).toBe(String(r.ranked.recommended.length));
+  });
+
+  it('never writes "1 rows", and never "which demoted by"', async () => {
+    const base = project();
+    const r = await runAdvise(base, { today: TODAY });
+    const body = readFileSync(join(base, r.path), 'utf8');
+    expect(body).not.toMatch(/\b1 rows\b/);
+    expect(body).not.toMatch(/which (demoted|dropped) by/);
+    expect(body).not.toMatch(/Ranked on its\b/);
+  });
+
+  it('says which source the RANKING used, not just which were read', async () => {
+    // "Read: BACKLOG.md · BUGS.md · retrospectives · STATE/closure · milestone
+    // rows" above a ranked list reads as "all five were weighed". One was.
+    const base = project();
+    const r = await runAdvise(base, { today: TODAY });
+    const body = readFileSync(join(base, r.path), 'utf8');
+    expect(body).toContain('**Consulted by the ranking:**');
+    expect(body).toMatch(/no \*\*current ranking input reads them\.\*\*|no current ranking input reads them/i);
+  });
+});
+
 describe('t3.4 — the producer attribution the outcome oracle depends on', () => {
   it('names itself, because this Epic had to label its own provenance unverified', async () => {
     const base = project();
