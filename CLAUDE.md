@@ -31,7 +31,7 @@ The plugin targets solo developers and small teams who want production-grade eng
 
 Milestones 1–4 closed; v1 + brownfield onboarding (`/sig:init`) feature-complete and shipped. **M4.5 (release hardening / stranger-adoption readiness): CLOSED 2026-07-15** — all Epics E1–E11 shipped across v0.1.1–v0.1.7; the "≥3 non-Signal testers" criterion is **met** (4 non-Signal users onboarded). Highlights: install-path fix (v0.1.1), STATE schema_version 1 + `/sig:checkpoint` (v0.1.2), synthesizer/docs/retro-foundations/`/sig:doctor`/`/sig:add` (v0.1.3), worked example + comparison (v0.1.4), resume-trust + capture integrity (v0.1.5), doc-integrity write-guard (v0.1.6), **Epic-native flow — `--epic` first-class (v0.1.7, 2026-07-15)**.
 
-**Latest: v0.1.33 (2026-08-24) — "what nobody was reading." Four mechanisms that existed while nothing looked at them — and the Epic named for the same thing.** **`B75`'s observability half shipped and the row stays `confirmed` ON PURPOSE** — the enforcement half was **declined, not missed** (asked as a direct either/or 2026-08-22; answer: report, don't block). `attention: attended` sets `gates.confirm_in_phase`, which every phase command describes as confirming with you *as the phase runs* — and that boolean was written by `applyRigorOverrides` and **read by one test and nothing else**. A `PostToolUse` hook on `AskUserQuestion` (`hooks/record-ask.js`) now appends each question and its running phase to `.signal/asks.jsonl`, and `hooks/check-state-write.js` reports at phase close. ⚠ **Nothing fails when a command ignores the dial**, so the row's central sentence still describes reality: documented end to end, enforced nowhere. What would close it is the `adherence-run --canary` shape — something that FAILS on a skipped ask. Same call as `/sig:ship` below. **Whether `AskUserQuestion` is hookable was settled by running it, not by reading about it:** two readings of the same documentation page disagreed, and the *"not hookable"* one was a summarising model's inference rather than a quoted sentence — the exact provenance failure `v0.1.25` shipped a rule against. The test carried a **control arm**, because a silent log cannot distinguish *"the hook did not fire"* from *"the setup is broken"* (`M5.E15`/`B55`). **`/sig:ship` now reads the pull request's review findings before you merge** — every unresolved thread with file, line and headline; **`cannot-check`** (no `gh`, no auth, no network, no PR) renders as its own line and **never as "none"**; an unresolved thread marked **outdated** is counted separately, because a later push marks threads outdated whether or not the finding was fixed. **`.planning/ENVIRONMENT.md` — what an agent can't see from the code:** external services, configuration variable **names**, test accounts, deploy targets, escalation paths, and what automation must not touch — stubbed by `/sig:calibrate`, pre-filled by `/sig:init` from what its scanners actually found. ⚠ **Its names-never-values guard shipped with six holes, and a `.env` paste in a code fence was one of them** — the first version skipped fenced code reasoning *"an example belongs in a fence"*, which inverts the threat model, **and a test shipped pinning that as intended behaviour**. The fix then shipped three more defects, caught by the same reviewer on the next PR, including a false positive that refused ordinary content like `SLACK: #eng-help` — and since the guard refuses the **write**, that one made the file unusable for what it exists to hold. Eleven shapes caught, ten benign shapes checked, one residual documented. **DISCUSS now asks how we will know it worked**, at FULL and FEATURE — an *outcome* oracle, not the *completion* oracle acceptance criteria already are; ⚠ *"no outcome metric, and here is why"* is a **first-class PASS**, because a gate that cannot be satisfied honestly is a gate that gets rationalized past. **`M6.E4` — "what PLAN reads and writes":** three backlog rows batched by **subject, not size** (`D-BR0823-1`), and the **first Epic to run at a per-unit tier** — FEATURE inside a FULL project, the first time `B90`'s advisory changed a decision instead of being read past. Its own `S2` row **quoted a source that never existed** (*"do not close this entry"* is absent from the repo and from all git history) — `M6.E2`'s class, inside the row about not being able to tell checked from unchecked. 2841 → **2979 tests**.
+**Latest: `M6.E7` — `/sig:advise`, the Roadmap Advisor (merged 2026-09-06, PR #239). Signal's 23rd command.** Read-only: it reads this project's own `.planning/` corpus and writes one dated advisory naming what to work on next **and every live row it looked at and passed over, with the reason**. It proposes and never selects. **Every claim carries a `path:line` citation resolved against disk before the file is written; a citation that does not resolve fails the run and no file appears.** Three things in it are counter-intuitive and each was measured, not assumed: **a textual scan of the artifact cannot work** (live `BACKLOG.md` rows carry 108 backticked path-like tokens, 51 unresolvable, so a scan fires on the first quoted row and nothing is ever written — citations therefore occupy **one structural position** and the extractor reads only that); **the gate asserts a COUNT, not a flag** (`verifyCitations` returns `ok: true` over zero citations, correct at the unit and vacuous at a gate); and **the backlog is read at `maxDepth: 4`** (the default is 3 and Signal's own promoted rows sit at `####`, so a default read looks like a working command and is blind to nine of them). ⚠ **The Epic's real finding is about itself: six times, a claim was written from the shape of the work rather than derived from the artifact — inside the Epic that built a mechanism against exactly that**, and two of the six reached committed artifacts. **Two reviewers found 9 of the 11 Important issues**, and the PR reviewer — running *after* REVIEW returned PASS — found the two that mattered most: a live row absorbing the body of any discharged row beneath it (22 of 51 rows, and fixing it **changed the ranking**), and **every citation in the first shipped advisory being off by five lines**, because `t3.7`'s own *"one-time human edit at SHIP"* inserted five lines above every cited row after generation. `verifyCitations` passed all 51 as resolved, because it checks a line is *within* the file and never that it carries the claimed content — **the limit this Epic documented and then walked straight into on its own first artifact.** Fixed with a stale-read guard that refuses to write when a cited line no longer carries its row. 2979 → **3304 tests**. Retro: [`.planning/M6.E7-RETROSPECTIVE.md`](.planning/M6.E7-RETROSPECTIVE.md).
 
 **Release history lives in [`CHANGELOG.md`](CHANGELOG.md), not here.** Everything from `v0.1.15`
 through `v0.1.32` had a paragraph in this file summarising what shipped and what it taught. That is
@@ -42,13 +42,26 @@ the start of **every** session, so the duplication was paid for on every run.
 Removed 2026-09-02 under the doc-budget rule (see *House rules* below). Nothing was lost: search
 [`CHANGELOG.md`](CHANGELOG.md) for a version, or the retros for an Epic.
 
-**Active: the loop/goal work, and one test owed.** Milestone 6 is open. `M6.E1` shipped as v0.1.26,
-`M6.E2` as v0.1.29, `M6.E4` as v0.1.33, `M6.E5` (`/sig:permissions`, the 22nd command) merged
-2026-08-28. Since then, un-versioned on `main`: the goal-direction and external-harness analyses,
-`B113` (the loop ceiling's argument was never supplied, so `/sig:drive` could only ever refuse at
-VERIFY and REVIEW), decision-queue depth surfaced in `/sig:status` and `/sig:resume`, the `docs-`
-command prefix (**breaking**, `D-BR0902-1`), and the docs-integrity set — doc budgets with a
-grandfather ratchet, orphan detection, and dangling-reference resolution.
+**Active: nothing in flight.** Milestone 6 is open; `M6.E1` shipped as v0.1.26, `M6.E2` as v0.1.29,
+`M6.E4` as v0.1.33, `M6.E5` merged 2026-08-28, `M6.E6` 2026-09-04, **`M6.E7` 2026-09-06**. Since
+`v0.1.37`, un-versioned on `main`: the goal-direction and external-harness analyses, `B113`,
+decision-queue depth in `/sig:status` and `/sig:resume`, the `docs-` command prefix (**breaking**,
+`D-BR0902-1`), the docs-integrity set, and `/sig:advise`. **Pick the next item from
+[`.planning/BACKLOG.md`](.planning/BACKLOG.md) — or run `/sig:advise`, which exists to answer that.**
+
+⚠ **`B117` — the Epic lane keeps getting squashed, and the cause is now confirmed.** PR #239 was
+merged with the green button and collapsed 35 commits into one, orphaning two published anchors and
+turning `tests/adherence-anchor-reachability.test.js` red on `main` (repaired by PR #240). Third
+instance. **GitHub remembers the last merge method REPO-WIDE**, so the fix lane's correct `--squash`
+arms the very next Epic merge — the two lanes' correct behaviours are in direct conflict and the
+conflict is invisible at the moment of clicking. The trap has been documented since `v0.1.19` and
+has now fired three times, **which is the evidence that documentation is not the fix.** A second harm
+surfaced this time: GitHub deletes the branch at merge, so an Epic's commit messages — *"frequently
+the best surviving account of why a line exists"* — survive only if someone pushes the branch back.
+
+⚠ **`B116` — the requirement-coverage check under-counts its own denominator** on 21 of 22
+`*-REQUIREMENTS.md` artifacts here, so `missing: []` can read clean over a requirement it never
+counted. Found by *using* it during `M6.E7` VERIFY.
 
 ⚠ **`/sig:drive` has never been run end-to-end** and that is the gate on further loop work — `B113`'s
 fix is verified against the module and the documented call site, not by a live run. A run that halts
@@ -97,11 +110,11 @@ The REVIEW phase (between VERIFY and SHIP) is the key addition over GSD's origin
 ## Planned Plugin Structure
 
 ```
-commands/       # 22 slash commands, in 5 groups (references/command-taxonomy.md):
+commands/       # 23 slash commands, in 5 groups (references/command-taxonomy.md):
                 #   flow        /sig:new-project, /sig:init, /sig:calibrate,
                 #               /sig:discuss, /sig:plan, /sig:execute,
                 #               /sig:verify, /sig:review, /sig:ship, /sig:escalate
-                #   orientation /sig:status, /sig:resume
+                #   orientation /sig:status, /sig:resume, /sig:advise
                 #   capture     /sig:add, /sig:checkpoint
                 #   doc upkeep  /sig:docs-index, /sig:docs-sweep, /sig:docs-migrate, /sig:docs-archive
                 #   own health  /sig:doctor, /sig:update, /sig:permissions

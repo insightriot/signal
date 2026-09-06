@@ -801,6 +801,12 @@ const COMMANDS = [
         flags: [],
       },
       {
+        name: '/sig:advise',
+        tags: ['read-only'],
+        summary: "Roadmap advisor: reads the whole .planning/ corpus and writes a dated advisory naming what to work on next \u2014 and what it looked at and passed over. Every claim carries a citation that resolves, or the file is not written. It proposes; it never selects.",
+        flags: [],
+      },
+      {
         name: '/sig:checkpoint',
         summary: 'Manual state refresh: diffs git log against STATE.md and refreshes it. Quick mode by default.',
         flags: [

@@ -42,9 +42,9 @@
     },
     ".planning/STATE.md": {
       "target": 40960,
-      "ceiling": 47928,
-      "grandfathered": true,
-      "reason": "Carries inlined narrative alongside the authoritative frontmatter. Ratcheted 48659 -> 47928 on 2026-09-03 when M6.E5's closed-Epic narrative was evicted to RETROSPECTIVES.md at the M6.E6 open. The first ratchet set the ceiling to the EXACT byte size, and the very next frontmatter write -- recording two completed phases, about 40 bytes -- failed the suite. This manifest's own comment says ratcheting to exact size would fail on any ordinary edit; that applies to a grandfathered file too. Re-set with headroom inside the 4096-byte slack window, which is what that window is for. A later shrink still re-tightens it."
+      "ceiling": 40960,
+      "grandfathered": false,
+      "reason": "De-grandfathered 2026-09-05: 47136 -> 39783 bytes when M6.E6's closed narrative was relocated verbatim to archive/M6/E6/STATE-NARRATIVE.md at the M6.E7 open. Now UNDER the 40 KB target, so the flag drops and the ceiling IS the target \u2014 the same transition CLAUDE.md made on 2026-09-02. \u26a0 evictEpicNarrative returned `no-section` and could not do this: the narrative lives in the resume-pointer block, not an Epic-named section, so eviction-on-close cannot reach the very narrative that grows this file. That gap is why the ratchet had to be paid by hand twice."
     },
     "README.md": {
       "target": 30720,
