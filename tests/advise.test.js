@@ -70,6 +70,11 @@ Filed 2026-07-07.
 ### R8 — a row that quotes a path that does not resolve
 
 Filed 2026-08-08. It mentions \`../analysis/NOPE.md\` and \`wiki/AGENTS.md\`, neither of which exists.
+
+### R9 — Parked — the watchlist *(not sprint material)*
+
+Filed 2026-01-01, older than every other row, and its body mentions a Trigger: FIRED belonging to
+something else entirely. Both of those would put it FIRST without input 5.
 `;
 
 const STATE = `---
@@ -131,6 +136,38 @@ describe('t3.1 — ranking, and its stable tiebreak', () => {
   });
 });
 
+describe('t3.1 input 5 — the wiring, not just the predicate', () => {
+  // ⚠ THIS TEST EXISTS BECAUSE ITS ABSENCE WAS MEASURED. With the five predicate
+  // tests in place and `declaresNotLiveWork` fully covered, deleting
+  // `&& !s.notLive.notLive` from rankRows left the ENTIRE SUITE GREEN — 3279
+  // passing over an input that was computed and then dropped. That is `B39`'s
+  // shape, and the plan flagged the same gap one input over ("computed in S2 and
+  // dropped by the renderer"). A predicate test is not a wiring test.
+  //
+  // The fixture row is built to win without input 5: oldest filing date, and a
+  // body carrying someone else's fired trigger. If the input is unwired it ranks
+  // FIRST, so this fails loudly rather than subtly.
+  it('a self-declared parked row is dropped from recommended and appears in declined', async () => {
+    const base = project();
+    const r = await runAdvise(base, { today: TODAY });
+    const parked = 'R9 — Parked — the watchlist *(not sprint material)*';
+
+    expect(r.ranked.recommended.map((s) => s.row.text)).not.toContain(parked);
+    expect(r.ranked.declined.map((s) => s.row.text)).toContain(parked);
+
+    const body = readFileSync(join(base, r.path), 'utf8');
+    const line = body.split('\n').find((l) => l.includes(parked));
+    expect(line).toMatch(/\*\*self-declared\*\*/);
+    expect(line).toContain('Parked');
+
+    // And it is still COUNTED — dropped from the ranking is not dropped from the
+    // corpus, or the declined pool stops being complete.
+    expect(r.ranked.recommended.length + r.ranked.declined.length).toBe(
+      r.corpus.sources.backlog.rows.length
+    );
+  });
+});
+
 describe('t3.2 / t3.2b — it proposes, and never selects (FR6)', () => {
   it('every declined row carries a reason naming the input that demoted it', async () => {
     const base = project();
@@ -139,7 +176,7 @@ describe('t3.2 / t3.2b — it proposes, and never selects (FR6)', () => {
     for (const s of r.ranked.declined) {
       const line = body.split('\n').find((l) => l.includes(s.row.text));
       expect(line).toBeTruthy();
-      expect(line).toMatch(/\*\*(blocked-by|trigger-met|age|discharge)\*\*/);
+      expect(line).toMatch(/\*\*(blocked-by|trigger-met|age|discharge|self-declared)\*\*/);
     }
   });
 

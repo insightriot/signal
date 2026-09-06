@@ -90,9 +90,14 @@ const ISO_DATE_RE = /\b(\d{4}-\d{2}-\d{2})\b/;
 //     whether the named condition actually holds today.
 //   - `\b…met\b` is case-insensitive, so ordinary English "met" counts.
 //
-// This is stated rather than tuned because narrowing the patterns changes what
-// the ranking recommends, and that is a product call for VERIFY — recorded in
-// `M6.E7-PROGRESS.md` with the three options rather than settled here.
+// ⚠ THE PATTERN IS UNCHANGED AND ITS REACH LIMIT STANDS. The two measured false
+// positives are caught UPSTREAM by ranking input 5 (`declaresNotLiveWork`, which
+// reads the heading only), not by narrowing this. That was a deliberate call:
+// tightening a body-scanning heuristic makes it miss rows that state a trigger
+// informally, whereas a heading-level self-declaration is a different signal
+// entirely and cannot be confused with somebody else's trigger. So this can still
+// promote a row on a mention that is not its own — a row about triggers that does
+// NOT declare itself parked or a record would still slip through.
 const BLOCKED_RE = /\b(?:blocked on|gated on|depends on|trigger[^.\n]{0,60}\b(?:is\s+)?NOT met|unmet trigger)\b/i;
 const TRIGGER_MET_RE = /\btrigger[^.\n]{0,60}\b(?:FIRED|met|satisfied)\b/i;
 
