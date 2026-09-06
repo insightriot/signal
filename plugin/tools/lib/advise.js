@@ -159,7 +159,11 @@ function daysBetween(fromIso, toIso) {
  */
 export function rankRows(rows, { today, stale = [] } = {}) {
   const staleIds = new Set(stale.map((s) => s.id).filter(Boolean));
-  const staleLines = new Set(stale.map((s) => s.line));
+  // `.filter(Boolean)` matches its sibling above, and its absence was a live bug:
+  // a stale entry with no `line` puts `undefined` in the Set, and any row that also
+  // lacks one then reads as discharged and DISAPPEARS from the advisory. Silently
+  // losing a live row is the worst thing this module can do.
+  const staleLines = new Set(stale.map((s) => s.line).filter(Boolean));
 
   const scored = rows.map((row) => {
     const text = `${row.text}\n${row.body ?? ''}`;
@@ -168,7 +172,10 @@ export function rankRows(rows, { today, stale = [] } = {}) {
     const notLive = declaresNotLiveWork(row.text);
     const blocked = BLOCKED_RE.test(text);
     const triggerMet = TRIGGER_MET_RE.test(text);
-    const filed = (row.text.match(ISO_DATE_RE) ?? (row.body ?? '').match(ISO_DATE_RE))?.[1] ?? null;
+    // `String(...)` because the two lines around this one already coerce and this one
+    // did not — a row with no `text` threw a TypeError out of the ranking.
+    const filed =
+      (String(row.text ?? '').match(ISO_DATE_RE) ?? String(row.body ?? '').match(ISO_DATE_RE))?.[1] ?? null;
     const ageDays = filed && today ? daysBetween(filed, today) : 0;
     return { row, dischargedElsewhere, notLive, blocked, triggerMet, filed, ageDays };
   });
@@ -242,7 +249,14 @@ export function renderArtifact({ today, ranked, corpus, projectName }) {
   out.push(`# Backlog review — ${today}`);
   out.push('');
   out.push(
-    `What to work on next in ${projectName ?? 'this project'}, read from its own \`${PLANNING_DIR}/\` corpus.`
+    // ⚠ `quoteSafe` HERE IS NOT COSMETIC. `projectName` is caller-supplied and was
+    // the one interpolation that skipped it, so a caller could write the evidence
+    // marker into the header and inject a citation into the extractor's own
+    // position — verified: an injected name yielded `nope/missing.md:1` as an
+    // extracted citation. The run would have failed loudly, which is the right
+    // direction, but a hole in the citation grammar is not something this Epic
+    // gets to ship.
+    `What to work on next in ${quoteSafe(projectName ?? 'this project')}, read from its own \`${PLANNING_DIR}/\` corpus.`
   );
   out.push('');
   out.push(L.status);

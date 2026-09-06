@@ -164,6 +164,13 @@ const EPIC_STATUS_ROW_RE =
  *
  * @param {string} content — a MILESTONE-{n}.md body
  * @param {{milestone?: string}} [opts] — milestone id (`"5"`, `"4.5"`) for bare-E rows
+ * ⚠ REACH: it matches on SHAPE, not meaning. A first cell beginning `E{digits}`
+ * followed by a word boundary is taken as an Epic row, so `| E5 minute retro |`
+ * reads as `E5`. `| Epic 5 |` and `| E2E harness |` are correctly rejected (no
+ * digit directly after `E`, and `E2E` has no word boundary after the `2`).
+ * Narrowing it would cost the bare-`E{N}`-with-a-title form that `MILESTONE-4.5.md`
+ * actually publishes, so the false positive is accepted and declared instead.
+ *
  * @returns {Array<{id: string|null, milestone: string|null, epicNumber: number,
  *   title: string, status: string, line: number, raw: string}>}
  */

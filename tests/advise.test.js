@@ -40,7 +40,7 @@ import {
   runAdvise,
   writeArtifact,
 } from '../plugin/tools/lib/advise.js';
-import { EVIDENCE_MARKER, verifyCitations } from '../plugin/tools/lib/citations.js';
+import { EVIDENCE_MARKER, extractCitations, verifyCitations } from '../plugin/tools/lib/citations.js';
 
 const TODAY = '2026-09-05';
 
@@ -416,6 +416,41 @@ describe('REVIEW findings — the gate at zero, and throws that escaped the cont
     } finally {
       chmodSync(planning, 0o755);
     }
+  });
+});
+
+describe('three latent bugs the reviewer filed as suggestions (they were not)', () => {
+  it('a stale entry with no line does NOT silently discharge a live row', async () => {
+    // `staleLines` lacked the `.filter(Boolean)` its sibling has, so `undefined`
+    // entered the Set and any row also lacking a line read as discharged and
+    // VANISHED. Silently losing a live row is the worst thing this module can do.
+    const r = rankRows([{ text: 'a live row', path: 'p', body: '' }], {
+      today: TODAY,
+      stale: [{ id: null, line: undefined }],
+    });
+    expect(r.recommended.map((s) => s.row.text)).toEqual(['a live row']);
+    expect(r.declined).toEqual([]);
+  });
+
+  it('a row with no text is ranked, not thrown on', () => {
+    expect(() => rankRows([{ line: 1, path: 'p' }], { today: TODAY })).not.toThrow();
+  });
+
+  it('a caller cannot inject a citation through projectName', async () => {
+    // `projectName` is caller-supplied and was the one interpolation skipping
+    // `quoteSafe`, so a caller could write the evidence marker into the header
+    // and put a citation into the extractor's own position. Verified before the
+    // fix: an injected name yielded `nope/missing.md:1` as a real extracted
+    // citation.
+    const hostile = 'Acme ' + EVIDENCE_MARKER + ' `nope/missing.md:1`';
+    const art = renderArtifact({
+      today: TODAY,
+      ranked: { recommended: [], declined: [] },
+      corpus: { checked: [], cannotCheck: [] },
+      projectName: hostile,
+    });
+    expect(extractCitations(art)).toEqual([]);
+    expect(art).toContain('evidence(quoted):');
   });
 });
 
