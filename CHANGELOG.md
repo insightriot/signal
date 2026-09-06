@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.38] — 2026-09-06 — citations that resolved, and pointed five lines wrong
 
 ### Added
 
@@ -37,7 +37,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   artifact says which sources the **ranking** actually consulted, which is one (`BACKLOG.md`), rather
   than letting "Read: …" imply all five.
 
-  2979 → **3300 tests**.
+  3203 → **3304 tests**.
 
 ### Fixed
 
@@ -70,6 +70,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   plainly rather than implying otherwise; wiring bugs and closure state into the ranking is a further
   ranking input and is filed in `BACKLOG.md`.
 
+### Fixed
 
 - **Two guards in `v0.1.37`'s decision router each stood down in the exact case they were written
   for** (`M6.E6` REVIEW). Both were live in a released version for about half an hour — REVIEW ran
