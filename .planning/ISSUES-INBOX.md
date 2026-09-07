@@ -121,3 +121,25 @@ Open question this does not answer: which Signal document should carry a bound. 
 
 ---
 
+## `/sig:advise` ranks on age alone for 44 of 46 rows
+
+**Status:** Logged 2026-09-07 via `/sig:add`. M6.E8 DISCUSS — measured while scoping the corpus-sources row → Promoted 2026-09-07 (M6.E8 drain).
+
+**`/sig:advise`'s ranking is age-ordered for 44 of 46 rows, because two of its five inputs almost never fire.** · **hygiene** · medium
+
+Measured 2026-09-07 on this repo's own `BACKLOG.md` during `M6.E8` DISCUSS, over the 46 live rows `rankRows` sees:
+
+- `BLOCKED_RE` fires on **2** rows.
+- `TRIGGER_MET_RE` fires on **2** rows.
+- `declaresNotLiveWork` + discharge drop **4** rows.
+- Everything else sorts on **age, then source line**.
+
+So the top five are: the two trigger-met rows, then the three oldest rows on the file. Recommendation #3 in `BACKLOG-REVIEW-2026-09-06.md` ("Map drift-guard") is recommended for being 55 days old and for no other reason, and the artifact's stated reason says exactly that — honestly, but it reads as a ranking when it is a queue.
+
+**Why this is filed separately from `M6.E8`.** That Epic's row is "wire the other four corpus sources in, or delete the reads." This is a different problem: the inputs already wired in do not discriminate. Adding a sixth input that fires on ~0 rows does not fix it, and widening `M6.E8` to cover both was declined at DISCUSS as scope the maintainer had not asked for.
+
+**Not yet a proposal.** The obvious move — richer vocabulary for the two regexes — is the move that `M6.E7` warns about: body-scanning heuristics that match a *different* item's trigger. Any fix needs the same measure-first treatment the not-live vocabulary got (`backlog.js`, "vocabulary measured before it was chosen").
+
+---
+
+*Last updated: 2026-09-07*

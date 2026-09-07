@@ -36,9 +36,9 @@
     },
     ".planning/CONTEXT.md": {
       "target": 40960,
-      "ceiling": 56600,
+      "ceiling": 52900,
       "grandfathered": true,
-      "reason": "Accumulates a dated 'where things stood' section per Epic and evicts none of them. The oldest are reachable from the retros. Ratcheted 64303 -> 56600 on 2026-09-04 at the M6.E6 close: the file was AT its ceiling, so recording a new Epic was impossible without evicting an old section \u2014 which is the policy this reason already described and nothing had ever performed. The 2026-08-19 section moved verbatim to archive/M6/E3/CONTEXT-2026-08-19.md (relocate-never-delete). Set with ~2 KB of headroom inside the 4096-byte slack window rather than at the exact byte size, per the STATE.md precedent where an exact ratchet failed on the very next ordinary edit."
+      "reason": "Accumulates a dated 'where things stood' section per Epic and evicts none of them. The oldest are reachable from the retros. Ratcheted 64303 -> 56600 on 2026-09-04 at the M6.E6 close: the file was AT its ceiling, so recording a new Epic was impossible without evicting an old section \u2014 which is the policy this reason already described and nothing had ever performed. The 2026-08-19 section moved verbatim to archive/M6/E3/CONTEXT-2026-08-19.md (relocate-never-delete). Set with ~2 KB of headroom inside the 4096-byte slack window rather than at the exact byte size, per the STATE.md precedent where an exact ratchet failed on the very next ordinary edit. Ratcheted again 56600 -> 52900 on 2026-09-07 at the M6.E8 DISCUSS close, by the same mechanism: recording M6.E7/M6.E8 pushed the file 153 bytes over, so the 2026-08-20 section moved verbatim to archive/M6/E8/CONTEXT-2026-08-20.md and the ceiling followed the file down. Second consecutive Epic where the ceiling is what performed the eviction \u2014 the ratchet is working as the policy this reason describes, not as a nuisance."
     },
     ".planning/STATE.md": {
       "target": 40960,

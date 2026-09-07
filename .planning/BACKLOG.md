@@ -10,6 +10,29 @@ Groomed, sequenced roadmap — promoted from the issues inbox (`ISSUES-INBOX.md`
 > it changes nothing in this file. The inbound link is a **one-time human step at SHIP**: the command
 > writes its artifact and nothing else, deliberately.
 
+### `/sig:advise` ranks on age alone for 44 of 46 rows · **hygiene** · medium · *filed 2026-09-07 from `M6.E8` DISCUSS*
+
+**Trigger: met — measured, not predicted.** On this repository's own `BACKLOG.md`, over the 46 live
+rows `rankRows` sees: `BLOCKED_RE` fires on **2**, `TRIGGER_MET_RE` on **2**, discharge +
+`declaresNotLiveWork` drop **4**. Everything else sorts on **age, then source line** — so **44 of 46
+rows are ranked by nothing but how long they have sat there.**
+
+The top five are therefore the two trigger-met rows followed by the three oldest rows in the file.
+`BACKLOG-REVIEW-2026-09-06.md`'s recommendation #3 is recommended for being 55 days old and for no
+other reason, and the artifact's stated reason says exactly that — honestly, which is the only thing
+keeping it from being misleading.
+
+**Distinct from the row below it, deliberately.** That row is *"wire the other four corpus sources
+in, or delete the reads"* and is being answered by `M6.E8`. This is the other half: the inputs
+already wired in do not discriminate, and a sixth input firing on ~0 rows does not change that.
+Widening `M6.E8` to cover both was surfaced at its DISCUSS and declined as scope the maintainer had
+not asked for (`D-M6E8-6`).
+
+⚠ **The obvious fix is the one `M6.E7` warns against.** Richer regex vocabulary read over row
+*bodies* is precisely the heuristic that matched a different item's trigger inside a watchlist row.
+Any fix needs the measure-first treatment `NOT_LIVE_VOCABULARY` got — *"vocabulary measured before it
+was chosen"* — including the counts that justify each pattern.
+
 ### `/sig:advise` ranks on the backlog alone, while reading five sources · **hygiene** · small · *filed 2026-09-05 from `M6.E7` REVIEW*
 
 **Trigger: met — the command shipped.** `readCorpus` reads `BACKLOG.md`, `BUGS.md`, retrospectives,

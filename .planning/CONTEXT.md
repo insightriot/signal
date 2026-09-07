@@ -4,7 +4,39 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-09-04) — M6.E6 IS SHIPPED
+## Where things stand (2026-09-07) — M6.E7 SHIPPED, M6.E8 IN FLIGHT
+
+**`/sig:advise` is live — Signal's 23rd command.** `M6.E7` merged 2026-09-06 (PR #239, ⚠ squashed;
+anchors repaired by PR #240) and shipped in `v0.1.38` (PR #241). It reads this project's `.planning/`
+corpus and writes one dated advisory naming what to work on next **and every live row it passed over,
+with the reason** — every claim carrying a `path:line` citation resolved against disk before the file
+is written. Suite 3203 → **3304**. Retro: [`M6.E7-RETROSPECTIVE.md`](M6.E7-RETROSPECTIVE.md).
+
+⚠ **Its own first artifact walked into the limit it documented.** Every citation in
+`BACKLOG-REVIEW-2026-09-06.md` was off by exactly five lines — a one-time human SHIP edit inserted a
+five-line block above every cited row *after* generation. `verifyCitations` passed all 51, because it
+checks a line is *within* the file and never that it carries the claimed content. Fixed with a
+stale-read guard that refuses to write when a cited line no longer carries its row.
+
+**`M6.E8` opened 2026-09-07, phase DISCUSS** — the advisor's unused corpus. It reads five sources and
+ranks on one. Requirements: [`M6.E8-REQUIREMENTS.md`](M6.E8-REQUIREMENTS.md). Decisions:
+[`DECISIONS.md`](DECISIONS.md) § *2026-09-07* (`D-M6E8-1` … `D-M6E8-6`). Branch
+`feat/m6.e8-advisor-ranking-inputs`, tier FEATURE inherited.
+
+⚠ **DISCUSS measured both of the backlog row's proposed inputs into the ground**, and the Epic is
+shaped around what survived. *"Rank a row that names an open confirmed bug"* promotes rows **stuck
+behind** the bug — 4 of the 7 matches name `B75`, the entry price for Phase A autonomy — so it is
+built inverted. *"Drop a row whose Epic reads closed"* hits **0 of 46** rows on the safe predicate and
+**2, both false positives**, on the loose one.
+
+⚠ **The larger finding is filed, not fixed here.** `BLOCKED_RE` fires on **2 of 46** live rows and
+`TRIGGER_MET_RE` on **2 of 46**, so for **44 of 46 the ranking is age, then source line** — today's
+recommendations #3–#5 are recommended for being 55, 43 and 40 days old and for nothing else. In
+[`ISSUES-INBOX.md`](ISSUES-INBOX.md), 2026-09-07.
+
+---
+
+## Where things stood (2026-09-04) — M6.E6 shipped
 
 **The decision queue has a writer.** `M6.E6` closed 2026-09-04: `routeDecision` decides whether a
 mid-run gray-area question may be adopted or must be parked, and `/sig:drive` is its first caller.
@@ -222,92 +254,11 @@ and permanent: the check skips whatever is `current_epic` (`state-drift.js:525`)
 
 ---
 
-## Where things stand (2026-08-20)
+## Where things stood (2026-08-20) — relocated
 
-**Read this first: the direction changed on 2026-08-20, and it changed because the numbers said so.**
-
-Brett's call, in his words: months of releases with *"no additional functionality via inspiration
-repos, no loop functionality built."* **Checked against the record rather than argued with, and he
-was right on every count.** 23 releases since 2026-07-15 were almost entirely *Signal auditing
-Signal* — doc-runtime, drift checks, claim integrity, guards, packaging, and eight bug fixes mostly
-in the above. Command count moved 18 → 20 in five weeks and **both new commands managed Signal's own
-files**. Inspiration-repo ports shipped: **zero** (grep returns nothing). Loop functionality shipped:
-**zero** — an analysis document and nothing else.
-
-Every release had an articulate justification. That is precisely why it ran so long: each step was
-defensible and the direction was wrong.
-
-### What shipped 2026-08-20 — the loop, built instead of discussed
-
-**`attention` is now a real dial, split from rigor.** `attended` / `checkpointed` / `unattended`.
-`gate_strictness` keeps the one job it ever had **in code** — whether anti-rationalization runs —
-because `light` and `strict` were measured to expand to identical gate config except that single
-boolean. **FULL rigor, unattended, is now expressible**; it was not before, and that was the whole
-complaint the loop analysis made.
-
-⚠ **Back-compat is derived, not defaulted.** A profile with no `attention` derives it from
-`gate_strictness` (`off`→unattended, `light`→checkpointed, `strict`→attended), so every PROFILE.md
-written before the field produces byte-identical gate config. The suite passing unchanged is the
-proof. Adding the field also required teaching the validator to honour `optional` — without it,
-adding *any* new override field makes every PROFILE.md on disk throw (`B59`'s failure by addition).
-
-**`/sig:drive` — the 21st command.** Runs the flow and stops when it must. It **never merges**, and
-it never overrides a `FLOORS` entry (SHIP's PR, the retro gate, the drain's diff preview and
-destructive confirms, the orphan prompt) — each was made tier-independent by a specific decision, and
-overriding one silently would re-litigate that decision by omission. It **fails closed**: unreadable
-profile, unknown phase, missing attention all stop the loop. Deliberately the opposite of `B39`'s
-fail-open posture for *reporting* — a detector that cannot look should say so and continue; **an
-actor that cannot tell should stop.**
-
-⚠ **The setting is honest but only `/sig:drive` acts on it.** No phase command reads
-`confirm_in_phase` yet. That is the obvious next slice and it is **not** claimed as done.
-
-**CI review is live.** `claude-code-review.yml` + `claude.yml` (`@claude` mentions), authenticating
-with `CLAUDE_CODE_OAUTH_TOKEN`. Auto-merge and delete-branch-on-merge are enabled, so a PR lands
-itself the moment `test` goes green. **Review comments; it never blocks** — `test` stays the only
-required check, because a failing test names itself while a reviewer blocking on judgment trains an
-override reflex (`D-M6E3-1`'s receipt rule applied to CI).
-
-⚠ **A review workflow I wrote earlier the same day was wrong and was replaced.** It pointed CI at
-`/sig:review`, which is a **phase** command — tier-gated, halts without PROFILE.md, reviews an Epic's
-phase work rather than a PR diff. A Signal-native CI reviewer is still worth building (it would be
-the first thing ever to dispatch `agents/specialists/*`, all three of which carry a *"NOT DISPATCHED
-BY ANY COMMAND"* banner) but it needs a command **designed for a diff**. Not faked in the meantime.
-
-**RELEASED as `v0.1.32` (2026-08-21) — the entry price, paid.** `B76` (the unbounded REVIEW loop
-`/sig:drive` inherited on day one), `B73`, `B74`, `B107`, `B108`, plus the Phase C build-vs-adopt
-check. ⚠ **`B75` ships open on purpose** — the `attention` dial is documented end to end and enforced
-nowhere; nothing fails if a command ignores `confirm_in_phase`. ⚠ **Phase C's check answers *no*:**
-there is no capability detection, so Signal cannot gate on presence, and the lanes Epic's hard half
-**does not shrink**.
-
-**Prior — released as `v0.1.31` (2026-08-21).** Brett made the call on 2026-08-20 and the cut ran the same
-session. `plugin.json`, `package.json`, `CHANGELOG.md`, the map stamp and `references/facts.md` all
-read `0.1.31`, so `/sig:update` now shows the delta. Users track `main`, so the *code* had been live
-since 2026-08-20 — what the cut changed is that it is now **versioned and documented**, which is the
-half that was actually missing.
-
-⚠ **Writing the notes surfaced two defects, both catalogued and fixed in the same release.** `B105`:
-a guard asserted `CHANGELOG.md` carries **no** `[Unreleased]` heading at all, so writing the release
-notes turned the suite red — the guard blocked the workflow it exists to protect, and its own comment
-history had already recorded that identical transient-property error one revision earlier, inverted.
-`B106`: `cut-release.js` rewrote the published test count and left the sentence attributing it to the
-**previous** release — **the detector worked and the tool did not**, since `M6.E2`'s
-`facts-attribution` check fired on the cut while the tool that creates that condition at every
-release had never been taught to fix it.
-
-⚠ **Restart is still required to run the new code**, and the order matters: **`/sig:update` first,
-then restart the CLI process.** A restart before the update has nothing new to bind to (`B52`).
-
-### `M6.E3` is PLANNED AND PARKED — do not read it as awaiting execution
-
-DISCUSS and PLAN closed (`D-M6E3-1…6`; `M6.E3-REQUIREMENTS.md` 30 criteria; `M6.E3-PLAN.md` three
-slices; 8-dimension validation PASS). **Nothing is built, and the plan was never approved** — the
-exit criterion asks for explicit approval and it was not given. It is parked on purpose, costs
-nothing to leave, and **if it is never built that is a fine outcome.** It is the claims-audit
-backstop: more Signal-inspecting-Signal, which is the class the 2026-08-20 call was about.
-
-*Prior state — the release history and the pre-2026-08-20 narrative — follows below.*
+Moved verbatim to [`archive/M6/E8/CONTEXT-2026-08-20.md`](archive/M6/E8/CONTEXT-2026-08-20.md)
+on 2026-09-07 to make room for `M6.E7`/`M6.E8` under this file's byte ceiling. It records the
+2026-08-20 direction change; the decision itself is in [`DECISIONS.md`](DECISIONS.md).
 
 ## Where things stood (2026-08-19) — relocated
 
