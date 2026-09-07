@@ -2859,13 +2859,20 @@ of the result** — this repository's second named defect class — caught befor
 
 Five live rows announce, in their headings, that the work lives somewhere else:
 
-| Line | Heading says | Disposition |
+| Row (identified by heading, **not** by line — see below) | Heading says | Disposition |
 |---|---|---|
-| 808 | `FOLDED INTO M5.E10` | **drops** |
-| 1802 | `→ absorbed into M5.E12` | **drops** |
-| 1947 | `→ absorbed into M5.E12` | **drops** |
-| 1872 | `KEPT, re-homed` | stays ranked |
-| 1879 | `KEPT, absorbed into M5.E11` | stays ranked |
+| `` `STATE.md`'s narrative vs. its frontmatter `` | `FOLDED INTO M5.E10` | **drops** |
+| `Re-source the stale external claims` | `→ absorbed into M5.E12` | **drops** |
+| `` `/sig:docs-update` — GSD port `` | `→ absorbed into M5.E12` | **drops** |
+| `Retro *replay* into the next Epic's DISCUSS/PLAN` | `KEPT, re-homed` | stays ranked |
+| `Cross-Epic pattern detection` | `KEPT, absorbed into M5.E11` | stays ranked |
+
+⚠ **Rows are named by heading here, deliberately.** An earlier draft of this table cited line
+numbers — and the very same commit inserted a 23-line row above all five of them, making every
+citation wrong before it was pushed. That is `M6.E7`'s SHIP defect (*"citations that resolved, and
+pointed five lines wrong"*) reproduced inside the DISCUSS artifacts of the Epic that fixes the
+advisor. A hand-written artifact gets no stale-read guard; a heading survives insertion and a line
+does not.
 
 All five say the work moved. Two say **`KEPT`** first, and that is the maintainer saying *do not drop
 this* — the meaning `HELD_OPEN_RE` already carries for `(STILL|KEPT|HELD) OPEN`, arriving in wording
