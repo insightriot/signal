@@ -48,6 +48,32 @@ You are running the DISCUSS phase of the Signal workflow. Your goal: extract eve
 > also fine: it has no tier preamble (it *creates* the profile) and its § 1b roll already runs before
 > its phase set.
 
+### 0-pre. The two halts run BEFORE the Epic roll — no STATE write may precede a "do not proceed"
+
+⚠ **This split exists because the `B93` reorder created a wedge, caught by the PR reviewer.** Moving
+the whole of §0 after the roll put `setCurrentEpic` **and** `transitionPhase(baseDir, 'DISCUSS')` —
+both unconditional — ahead of §0's own two halts. The damage on a freshly-`/sig:init`'d project
+(valid `STATE.md`, no `PROFILE.md` yet, which is exactly what `init.md` hands to `/sig:calibrate`):
+`/sig:discuss --epic M1.E1` rolls the Epic, overwrites `phase: CALIBRATE` with `phase: DISCUSS`, and
+*then* prints *"Run `/sig:calibrate` first … Do not proceed."* **There is no `clearCurrentEpic`**
+(`state.js` says so in its own source), so `current_epic` is now set permanently and the subsequent
+`/sig:calibrate` writes an Epic-scoped `{EpicID}-PROFILE.md` instead of the project `PROFILE.md` —
+the halt then fires forever, on every linear-mode command. A halt that damages the project it
+refuses to run on is worse than the bug being fixed.
+
+**So run these two, against the PROJECT `PROFILE.md`, before § *Epic mode* touches STATE:**
+
+1. **Is there a `PROFILE.md` at all?** `existsSync(.planning/PROFILE.md)` — halt with *"No PROFILE.md
+   found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run
+   `/sig:discuss`."* Do not proceed, and **do not roll**.
+2. **Is `DISCUSS` in the project profile's `phases_skipped`?** Halt with the message in §0 below. An
+   Epic profile can only *narrow* a phase set it has not been written yet to narrow, so the project
+   answer is the only one available pre-roll and is the safe one: a false stop costs a re-run, a
+   false start costs an unrollable `current_epic`.
+
+Neither reads a tier and neither needs the Epic, which is what makes them safe here. Everything in
+§0 that *does* depend on which Epic is live stays in §0, after the roll.
+
 Read the **effective profile** before any other workflow step: `readEffectiveProfile(baseDir, { currentEpic })` (`tools/lib/profile.js`), where `currentEpic` is `current_epic` from STATE.md (via `readState`). In **Epic mode** (a strict `current_epic`) an Epic-scoped `.planning/{EpicID}-PROFILE.md` shadows the project PROFILE for this Epic's phases; in **linear mode** (null / absent / non-strict `current_epic`) it reads `.planning/PROFILE.md` unchanged — byte-identical to pre-E11. Fail-open on the STATE value: a hand-edited or garbage `current_epic` degrades to the project PROFILE, never throws. PROFILE.md drives every phase's behavior; bypassing it defeats the calibration layer.
 
 - **If neither PROFILE.md is present:** `readEffectiveProfile` throws the same not-found error — halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:discuss`."* Do not proceed.
@@ -104,8 +130,23 @@ much as the reorder:**
 - After the **Done-Epic guard**, or a halt that exists to stop a run gets evaluated *after* the gate
   it was meant to precede.
 
-So: § *Epic mode* runs to completion, **then** § 0, **then** Step 1. Found by the PR reviewer on the
-commit that fixed the ordering one level up.
+**The full order, naming every section it passes through — because a three-item sentence here
+silently skipped two of them** (PR reviewer, second pass):
+
+1. **§ 0-pre** — the two halts. No STATE write yet.
+2. **§ Epic mode** — this section, to completion: resolve, `setCurrentEpic`, `transitionPhase`,
+   per-Epic tier, Done-Epic guard.
+3. **§ 0** — the tier gate, now reading the profile of the Epic that is actually live.
+4. **§ Skill Loading** — `idea-refine` + `spec-driven-development`. Skipped by an agent that jumps
+   from § 0 straight to Step 1, and then the phase runs with neither skill loaded.
+5. **§ Mode Selection** — resolve `--auto` / `--assumptions`. Skipped the same way, and the failure is
+   silent: it defaults to interactive.
+6. **§ Workflow**, Step 1 onward.
+
+⚠ **§ Epic mode is entered ONCE and never re-entered.** Reading "return to § 0 and continue top-down"
+as *resume from the top of the file* walks back into this section, where `deriveNextEpicId` now
+derives off the `current_epic` just written and `setCurrentEpic` rolls again — `M6.E8` becomes
+`M6.E9`, a phantom Epic, and the real one is abandoned mid-phase. If step 2 has run, step 2 is done.
 
 
 ## Workflow

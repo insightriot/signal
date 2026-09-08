@@ -164,6 +164,23 @@ Behavioral rules that apply to every conversation and every agent, in addition t
 
 A one-line fix does **not** need DISCUSS→SHIP. It **does** need a branch, a PR, and a green suite. `gh pr create --fill` then `gh pr merge --squash` is the whole overhead.
 
+⚠ **EXCEPTION, and it is not rare: a fix-lane PR that regenerates
+[`.planning/ADHERENCE-LOG.md`](.planning/ADHERENCE-LOG.md) must merge with `--merge`.** The tool pins
+the current `HEAD` as the run's reproducibility anchor, so on a branch it pins a **branch** commit —
+and `--squash` never lands that commit on `main`, which is the orphaned-anchor failure this file
+already describes two paragraphs down. The fix lane's `--squash` is a *preference*; a reachable anchor
+is a *correctness requirement*, and regenerating that file moves the requirement into the fix lane.
+
+**No test can catch this before the merge.** `tests/adherence-anchor-reachability.test.js` checks
+reachability from `HEAD`, which is green on the branch and only goes red on `main` afterwards — so the
+guard fires *after* the damage, by construction. Found by the PR reviewer on `#243`, on a fix-lane PR
+that had regenerated the file because edits to `commands/*.md` moved the directive-line ceiling.
+Regenerating it is not optional in that situation; choosing `--squash` afterwards is.
+
+*(The durable version is `tools/adherence-ceiling.js` pinning the newest commit that is already on
+`origin/main` rather than `HEAD`. Not done — it changes what the anchor means, which is a design call,
+not a papercut.)*
+
 > ### ⚠ The two lanes need DIFFERENT merge methods, and GitHub's web UI remembers only the last one
 >
 > **Merging in the browser is how the Epic lane keeps squashing.** The green button's method is

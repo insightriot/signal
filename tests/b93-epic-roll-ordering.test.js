@@ -102,6 +102,59 @@ describe('B93 — the Epic roll precedes the tier read', () => {
     });
   });
 
+  // ⚠ EVERY ASSERTION BELOW EXISTS BECAUSE THE PR REVIEWER FOUND WHAT THIS FILE
+  // MISSED. The first draft asserted the reorder happened and stopped there. Two
+  // consequences of the reorder went unguarded, and both are worse than the bug:
+  // STATE mutations jumping ahead of §0's halts, and a sequence sentence that
+  // skipped two whole sections.
+  describe('the reorder did not create something worse than B93', () => {
+    const doc = read('discuss');
+
+    it('the halts run BEFORE the Epic roll — no STATE write precedes a "do not proceed"', () => {
+      // `setCurrentEpic` + `transitionPhase` are unconditional. With the whole of
+      // §0 moved after them, a fresh /sig:init project (no PROFILE.md) rolls the
+      // Epic and overwrites phase: CALIBRATE, THEN halts. There is no
+      // clearCurrentEpic, so /sig:calibrate then writes an Epic-scoped profile
+      // and the halt fires forever.
+      const pre = doc.indexOf('### 0-pre.');
+      const epicMode = doc.indexOf('## Epic mode (');
+      expect(pre, 'discuss.md has no § 0-pre halt gate').toBeGreaterThan(-1);
+      expect(epicMode, 'discuss.md has no Epic mode section').toBeGreaterThan(-1);
+      expect(
+        pre < epicMode,
+        '§ 0-pre must precede § Epic mode in the file, or the halts it carries are unreachable ' +
+          'before the roll writes STATE.',
+      ).toBe(true);
+      // Both halts named where they can fire without knowing the Epic.
+      const gate = doc.slice(pre, epicMode);
+      expect(gate).toMatch(/PROFILE\.md/);
+      expect(gate).toMatch(/phases_skipped/);
+      expect(gate, 'the pre-roll gate must forbid the roll, not merely the phase').toMatch(
+        /do not roll/i,
+      );
+    });
+
+    it('the ordering instruction names Skill Loading and Mode Selection', () => {
+      // Both sit between §0 and §Epic mode in document order. A three-item
+      // "Epic mode -> §0 -> Step 1" sentence skips them, and the failure is
+      // silent: no skills load, and --auto/--assumptions default to interactive.
+      const order = doc.slice(doc.indexOf('### 0-pre.'), doc.indexOf('## Workflow'));
+      expect(order, 'discuss.md has no Skill Loading in its ordering instruction').toMatch(
+        /Skill Loading/,
+      );
+      expect(order, 'discuss.md has no Mode Selection in its ordering instruction').toMatch(
+        /Mode Selection/,
+      );
+    });
+
+    it('states that Epic mode is entered once and never re-entered', () => {
+      // "Return to §0 and continue top-down" read as resume-from-top walks back
+      // into Epic mode, where deriveNextEpicId derives off the current_epic just
+      // written and rolls AGAIN: M6.E8 -> M6.E9, a phantom Epic.
+      expect(doc).toMatch(/never re-?entered|entered ONCE|entered once/i);
+    });
+  });
+
   describe('the sibling phase commands — checked, and the check is what is asserted', () => {
     // B93 asks for the siblings to be checked "before fixing just this one". The
     // reason none of them needs the carve-out is that none of them can roll an
@@ -139,8 +192,13 @@ describe('B93 — the Epic roll precedes the tier read', () => {
     });
 
     it('instructs a profile re-read inside the loop, not only at step 1', () => {
-      const loop = doc.slice(doc.indexOf('### 3. Loop'));
-      expect(loop, 'drive.md has no "### 3. Loop" section').toBeTruthy();
+      // ⚠ `doc.slice(doc.indexOf(...))` with a MISSING heading slices at -1 and
+      // returns the file's last CHARACTER — truthy — so the guard could never
+      // fail and its message could never print. Caught by the PR reviewer; the
+      // correct shape was already three describes up in this same file.
+      const idx = doc.indexOf('### 3. Loop');
+      expect(idx, 'drive.md has no "### 3. Loop" section').toBeGreaterThan(-1);
+      const loop = doc.slice(idx);
       expect(
         /re-?read/i.test(loop) && loop.includes('readEffectiveProfile'),
         'drive.md § 3 must re-read the effective profile each pass — current_epic changes when ' +
@@ -151,7 +209,9 @@ describe('B93 — the Epic roll precedes the tier read', () => {
     });
 
     it('requires a changed attention level to be announced, not applied silently', () => {
-      const loop = doc.slice(doc.indexOf('### 3. Loop'));
+      const idx = doc.indexOf('### 3. Loop');
+      expect(idx, 'drive.md has no "### 3. Loop" section').toBeGreaterThan(-1);
+      const loop = doc.slice(idx);
       expect(loop).toMatch(/changed/i);
       expect(loop).toMatch(/attention/i);
     });
