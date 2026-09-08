@@ -139,7 +139,7 @@ separately and never folded into an empty `blocking` list. This module's posture
 actor which cannot tell should stop; the alternative is a run that starts blind while reporting
 "nothing needed", at the moment that costs the most.
 
-### 1. Read the dial
+### 1. Read the dial — and re-read it every pass (`B93`)
 
 `readEffectiveProfile(baseDir, { currentEpic })`, then `attentionFor(profile)`:
 
@@ -169,8 +169,30 @@ the attention setting is wrong for this project — say so in those words.
 
 ### 3. Loop
 
+⚠ **RE-READ THE PROFILE AT THE TOP OF EVERY PASS. `current_epic` changes under you** (`B93`).
+
+This file never calls `setCurrentEpic` — deliberately, because opening an Epic is `/sig:discuss
+--epic`'s job. The consequence is that a single dial read at step 1 is read against **whatever Epic
+`STATE.md` happened to name when the run started**, which for newly-chosen work is the *previous*
+Epic. If that Epic left a `{PrevEpic}-PROFILE.md` behind, its tier and its `attention` govern the
+whole of this run, and the Epic actually being driven never gets a say.
+
+**Not hypothetical:** `M6.E4`, `M6.E5`, `M6.E6` and `M6.E7` each wrote a per-Epic `PROFILE.md`, so
+four consecutive Epics are on disk ready to shadow the next run's dial read. A run that reads
+`checkpointed` from a finished Epic while the live one derives `attended` advances phases the user
+expected to be asked about — the failure direction that matters, since the other way round only costs
+a question.
+
+Two further ways `currentEpic` moves mid-run, both ordinary rather than exotic: DISCUSS rolls the
+Epic on its first pass, and `/sig:calibrate` may write a per-Epic profile immediately after that roll.
+
 Until a stop:
 
+0. **`readEffectiveProfile(baseDir, { currentEpic: state.current_epic })` and `attentionFor` again**,
+   from the state just re-read. Cheap, and it is the only thing that keeps the dial attached to the
+   work. If the resolved attention **changed** since the previous pass, say so out loud with both
+   values and the Epic each came from — a loop that silently re-tiers itself is worse than one that
+   halts.
 1. `describeNextAction(state.phase, profile.phases_skipped)` → the next command (fail-open, `B70`).
 2. `loopStatusFor(state, state.phase)` → the loop count for a bounded phase, `null` elsewhere.
 3. `canProceedUnattended(state.phase, profile, { loopStatus })`.
