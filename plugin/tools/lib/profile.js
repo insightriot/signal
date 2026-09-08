@@ -25,7 +25,17 @@ export const CALIBRATION_ENUMS = {
 const SKIPPABLE_PHASES = ['DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'SHIP'];
 const NEVER_SKIPPED_PHASES = ['CALIBRATE'];
 
-const RIGOR_OVERRIDE_SCHEMA = {
+/**
+ * The canonical `rigor_overrides` contract: every key, its type, and whether it
+ * is optional.
+ *
+ * EXPORTED so `tests/profile-schema-doc.test.js` can compare
+ * `references/profile-schema.md` against a value rather than a recollection. A
+ * hand-copied key list in a test is the same defect the test exists to catch —
+ * `attention` was added here in `v0.1.31` and the reference document did not
+ * mention it for four releases, because nothing compared the two.
+ */
+export const RIGOR_OVERRIDE_SCHEMA = {
   tdd_required: { type: 'boolean' },
   security_audit: { type: 'enum', values: ['none', 'basic', 'full'] },
   performance_pass: { type: 'boolean' },

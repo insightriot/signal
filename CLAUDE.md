@@ -62,9 +62,20 @@ the best surviving account of why a line exists"* — survive only if someone pu
 `*-REQUIREMENTS.md` artifacts here, so `missing: []` can read clean over a requirement it never
 counted. Found by *using* it during `M6.E7` VERIFY.
 
-⚠ **`/sig:drive` has never been run end-to-end** and that is the gate on further loop work — `B113`'s
-fix is verified against the module and the documented call site, not by a live run. A run that halts
-on `loop-unknown` means it is not actually fixed. Filed in [`.planning/BACKLOG.md`](.planning/BACKLOG.md).
+⚠ **`/sig:drive` is half-proven, and the remaining half is the gate on further loop work.** It drove
+`M6.E6` from **VERIFY through SHIP** on 2026-09-04: one unattended advance, one halt at SHIP with
+`reason: floor`, and **no `loop-unknown` halt** — so `B113` is empirically fixed, not merely fixed
+against the module. What has never happened is a run starting at **DISCUSS**. Filed in
+[`.planning/BACKLOG.md`](.planning/BACKLOG.md). *(This paragraph read "has never been run end-to-end"
+for four days after that run; corrected 2026-09-08.)*
+
+⚠ **And the reason it did not feel like a loop was a dial nobody turned.** This project's
+`PROFILE.md` had no `attention`, so it derived `attended` from `gate_strictness: strict` and
+`/sig:drive` stopped at **every** gate. Four consecutive Epics (`M6.E4`–`M6.E7`) each wrote a
+per-Epic `PROFILE.md` at `light` to escape it rather than setting the dial — because `attention` was
+missing from `references/profile-schema.md`, the document every phase command points at for the
+profile contract. Set explicitly to `checkpointed` on 2026-09-08 (`D-BR0908-1`); FULL rigor is
+unchanged, which is the whole point of the axis being separate.
 
 **The queue is [`.planning/BACKLOG.md`](.planning/BACKLOG.md), not this file** (`D-M5E18-1`) — read the
 candidates there, including what was excluded on evidence.
