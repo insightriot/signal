@@ -6,6 +6,116 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.39] — 2026-09-08 — the dial nobody turned, and the reviewer nobody called
+
+### Added
+
+- **The fresh-context reviewer is dispatched, as a required REVIEW step** (`review.md` § 4.5,
+  `D-BR0908-2`). `agents/specialists/code-reviewer.md` had existed for four months carrying its own
+  banner reading *"NOT DISPATCHED BY ANY COMMAND"* — the answer to a measured problem, on disk, marked
+  un-invokable.
+
+  **The trigger was two measurements, not a preference.** `M6.E7`: two fresh-context reviews found
+  **9 of 11** Important issues, and `review.md` asked for neither. PR `#243`: a four-file fix where two
+  external review passes found **six** issues, two of them regressions introduced by the fix itself,
+  and the authoring session's own review found **none of the six**. Neither gap is knowledge — both are
+  assumptions an author cannot see because they are the author's.
+
+  **The omissions are the mechanism.** It gets the diff and the unit's `*-REQUIREMENTS.md`. It does
+  **not** get `CONTEXT.md`, `DECISIONS.md`, the plan's reasoning, or any statement of intent — each of
+  those is a chance to talk the reviewer into the blind spot it was sent to find. The agent is told not
+  to ask for more context, that a legibility gap is a **finding** rather than its own fault, and to
+  treat comments and commit messages as unverified until checked against the code.
+
+  **It adds no gate; it moves an existing one earlier.** These findings already arrived — at PR-open,
+  after REVIEW returned PASS, which is how `v0.1.38` shipped an advisory whose every citation was five
+  lines wrong. From REVIEW they are discovered in-phase, where PASS-WITH-FIXES can absorb them.
+  `cannot-dispatch` is a recorded failure, never a silent pass, and the dev-mode fallback is named
+  because awkward dispatch is how this stayed unwired.
+
+  Agents dispatched by a command: **4 → 5**. The other 21 are filed as their own backlog row.
+
+- **`tests/profile-schema-doc.test.js`** — fails the suite when a `rigor_overrides` key the loader
+  accepts is undocumented in `references/profile-schema.md`. `RIGOR_OVERRIDE_SCHEMA` is now exported so
+  the test compares against a value rather than a hand-copied list.
+
+- **`tests/b93-epic-roll-ordering.test.js`** and **`tests/fresh-reviewer-dispatch.test.js`** — both read
+  prose, because both defects are instructions rather than functions. Every assertion in each was
+  confirmed failing against the pre-fix files before it was committed.
+
+### Fixed
+
+- **`attention` is set on Signal's own project profile, and `/sig:drive` therefore loops** (`D-BR0908-1`).
+  `.planning/PROFILE.md` carried no `attention`, so `attentionFor` derived **`attended`** from
+  `gate_strictness: strict` and the driver stopped at every gate — indistinguishable from not having a
+  loop. Set explicitly to **`checkpointed`**.
+
+  **Not via `gate_strictness`**, which would also have switched off the anti-rationalization check — a
+  rigor change smuggled in as an attention change, the exact welding `LOOP-ENGINEERING-ANALYSIS.md`
+  §3.2 said to stop doing. Verified after the edit: `attention: checkpointed`,
+  `confirm_in_phase: false`, `anti_rationalization: true`. **FULL rigor, less of your time** — the first
+  actual use of the axis being separate. `unattended` declined for now on evidence: DISCUSS at
+  `unattended` auto-adopts every gray area including irreversible ones, with no reversibility routing.
+
+  ⚠ **Why four Epics worked around this instead of setting it.** `attention` shipped in `v0.1.31` and
+  `references/profile-schema.md` went four releases still saying *"All ten keys are required"* over a
+  list of ten that did not include it. `M6.E4`–`M6.E7` each wrote a per-Epic `PROFILE.md` at `light` to
+  escape the derived `attended` — four consecutive workarounds for a setting missing from the document
+  every phase command points at. Documented now, and `gate_strictness`'s own description corrected: it
+  had described pre-`v0.1.31` behaviour (*"explicit approval at every gate"*) for four releases after
+  the cadence moved to `attention`.
+
+- **`B93` — the Epic roll now precedes the tier read.** `discuss.md` §0 was headed *"run before anything
+  else"* while its Epic roll sat lower, so a `--epic` run gated the whole phase on the **closing**
+  Epic's profile. Measured twice: `M5.E10`'s open (2026-08-11) and `M6.E8`'s (2026-09-07), both
+  pre-roll FEATURE/`light`, both post-roll project FULL/strict.
+
+  **`drive.md` needed the larger half.** It never calls `setCurrentEpic`, so its single step-1 dial read
+  was keyed on whatever Epic `STATE.md` named at run start — the *previous* one for newly-chosen work,
+  and `M6.E4`–`M6.E7` each left a per-Epic profile on disk ready to shadow it. § 3 now re-reads the
+  profile every pass and must **announce** a changed attention level rather than applying it silently.
+
+  The five sibling phase commands were checked and need no change — none accepts `--epic`, none calls
+  `setCurrentEpic` — and the guard asserts that **property**, so a sibling that later grows `--epic`
+  fails the suite instead of inheriting the bug.
+
+  ⚠ **The first attempt at this fix created a wedge worse than the bug, caught by the PR reviewer.**
+  Moving all of §0 after the roll put two unconditional `STATE.md` writes ahead of §0's own halts: a
+  freshly-`/sig:init`'d project with no `PROFILE.md` would roll the Epic, overwrite
+  `phase: CALIBRATE`, and *then* refuse to proceed — with no `clearCurrentEpic` to undo it, so
+  `/sig:calibrate` would write an Epic-scoped profile and the halt would fire forever. Split into a
+  § 0-pre gate whose halts run pre-roll and which forbids the roll, not merely the phase.
+
+### Changed
+
+- **`main`'s ruleset now allows exactly one merge method** (`allowed_merge_methods: ["merge"]`),
+  which is the durable fix for `B117` that `CLAUDE.md` has described as pending since `v0.1.19`. The
+  green button has one option and is always correct, for every lane and every merger. The cost — a
+  one-line fix also gets a merge commit — is the trade `CLAUDE.md` already argued for, and it is
+  cosmetic against three orphaned-anchor incidents, two of which turned `main` red.
+
+- **`CLAUDE.md` gains a stated exception to the fix lane's `--squash`:** a fix-lane PR that regenerates
+  `.planning/ADHERENCE-LOG.md` must merge with `--merge`, because the tool pins `HEAD` and on a branch
+  that is a branch commit. **No test can catch it pre-merge** — reachability is checked from `HEAD`, so
+  it is green on the branch and red on `main` afterwards. Found by the PR reviewer on `#243`, on a
+  fix-lane PR that had regenerated the file.
+
+- **`CLAUDE.md`'s `/sig:drive` status corrected.** It read *"has never been run end-to-end"* for four
+  days after the command drove `M6.E6` from VERIFY through SHIP with no `loop-unknown` halt. It is
+  half-proven; the DISCUSS half is what remains open.
+
+### Documented
+
+- **22 of Signal's 26 agents are documentation nothing calls**, filed as a prioritized backlog row with
+  the requirement that each gets a verdict — wire it, cut it, or state why it is deliberately dormant —
+  and that a wired one names when, where and how.
+
+  ⚠ **The worst case is not an un-wired agent but an imperative to spawn agents that do not exist:**
+  `plan.md` § 2 instructs a run to *"spawn up to 4 research agents in parallel"* and names four, of
+  which **only `codebase-researcher` exists.** In the phase every Epic runs. Ranked first.
+
+---
+
 ## [0.1.38] — 2026-09-06 — citations that resolved, and pointed five lines wrong
 
 ### Added

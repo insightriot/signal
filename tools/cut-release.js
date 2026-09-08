@@ -470,7 +470,14 @@ async function main(argv) {
   console.log('\nNext:');
   console.log('  git checkout -b release/v' + version);
   console.log('  git add -A && git commit');
-  console.log('  gh pr create --fill && gh pr merge --squash');
+  // ⚠ `--merge`, not `--squash`, and this line was stale within the hour.
+  // `main`'s ruleset was restricted to `allowed_merge_methods: ["merge"]` on
+  // 2026-09-08 (the durable fix for `B117`, which had orphaned commit anchors
+  // three times), so `--squash` is now REFUSED by the server. A release also
+  // regenerates `.planning/ADHERENCE-LOG.md`'s sibling facts, and CLAUDE.md's
+  // two-lane section carries the matching exception: a change that pins a commit
+  // must not be squashed, or the anchor it pins never lands on `main`.
+  console.log('  gh pr create --fill && gh pr merge --merge');
   console.log('  git tag -a v' + version + ' && git push origin v' + version);
   console.log('  gh release create v' + version);
 }
