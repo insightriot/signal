@@ -22,11 +22,19 @@ You are running the DISCUSS phase of the Signal workflow. Your goal: extract eve
 > | When | Pre-roll read | Post-roll read |
 > |---|---|---|
 > | `M5.E10` open, 2026-08-11 | FEATURE / `light` (`M5.E19-PROFILE.md`) | project **FULL / strict** |
-> | `M6.E8` open, 2026-09-07 | FEATURE / `light` (`M6.E7-PROFILE.md`) | project **FULL / strict** |
+> | `M6.E8` open, 2026-09-07 † | FEATURE / `light` (`M6.E7-PROFILE.md`) | project **FULL / strict** |
 >
 > The 2026-09-07 run reported a `checkpointed` confirm cadence for an Epic that inherits `attended`,
 > and nothing caught it until the dial was audited the next day. These differ in behaviour the phase
 > actually branches on, so this is not a cosmetic ordering preference.
+>
+> ⚠ **† Where that second measurement can be checked, because it is NOT on `main`.** The `M6.E8` DISCUSS
+> run lives on the unmerged branch `feat/m6.e8-advisor-ranking-inputs` (`7e9c288`), whose `STATE.md`
+> carries `current_epic: M6.E8` and which holds the only `M6.E8-*` artifact on disk. **`main`'s
+> `STATE.md` still reads `current_epic: M6.E7` and `CLAUDE.md` still says nothing is in flight** — both
+> correct for `main`, and both reasons a reader of this file could reasonably conclude the incident was
+> invented. It was not; it was cited from a place the citation did not name. Flagged by the PR reviewer,
+> whose objection was right even though its conclusion was not.
 >
 > **So: if `--epic <name>` was passed, run § *Epic mode* below, THEN return here.** In every other
 > invocation this section really is first. `/sig:calibrate` for a per-Epic tier comes after the roll
@@ -80,11 +88,25 @@ Resolve the Epic ID from `<name>`:
 
 Then call `setCurrentEpic(baseDir, resolvedId)` (`tools/lib/state.js`) — it validates the shape, writes `current_epic`, and on a roll resets the coupled `current_wave`/`current_tasks` **and the per-Epic `phase`/`completed_phases`/`last_completed_task`** atomically (B9, M5.E2.S1.t0): a new Epic never inherits the previous one's phase progression, so it leaves `phase: null`. **Set the DISCUSS phase next** — `transitionPhase(baseDir, 'DISCUSS')` — which, because `phase` is null post-roll, records a clean per-Epic `completed_phases` (no stale prior-Epic phase leaks in). `blockers` are preserved (a blocker can span Epics). Record the human label alongside the resolved ID in `CONTEXT.md` so later phases can show it.
 
-⚠ **Now go back and run § 0.** The tier gate must read the profile of the Epic this phase is about to run, which only exists as `current_epic` after the `setCurrentEpic` call above (`B93`).
-
 **Per-Epic tier (optional, M4.5.E11 / FR3).** After opening the Epic, offer to calibrate it: if this Epic should run at a different tier than the project (e.g. a SKETCH spike inside a FULL project, or a FULL security Epic inside a FEATURE project), run `/sig:calibrate` for it — with an Epic active, calibrate writes `.planning/{EpicID}-PROFILE.md`, which `readEffectiveProfile` then honors **for this Epic's phases only**. Skip it and the Epic inherits the project PROFILE (the default). Either way, every phase's gate-read uses the effective profile — Epic PROFILE if present, else project — so the tier is never ambiguous.
 
 **Done-Epic guard.** Call `isEpicDone(baseDir, current_epic)` (`tools/lib/retrospective.js`). It returns **three** answers, not a boolean — `{status: 'done' | 'not-done' | 'cannot-evaluate'}` — and the rule is: **proceed only on a clean `not-done`.** On `done` (a **complete** retrospective is on disk) or on `cannot-evaluate` (the unit id is not a strict Epic ID, so this project names its units by another convention and closure cannot be read from here), **halt** unless `--epic <name>` was passed. `--epic` is the escape hatch and it always works: with it, DISCUSS opens the named unit normally, so a linear project is never locked out. **`cannot-evaluate` is not permission to proceed** — collapsing it into "not done" is `B72`, and it is why this guard never once fired on the 8-of-12 real projects that are not in Epic mode. Note `done` requires a *complete* retro: a **stub** still holding `[FILL IN]` placeholders reads as `not-done`, because the file existing is not the unit being finished. Never silently re-run DISCUSS into a completed Epic's artifacts (it would clobber `{EpicID}-REQUIREMENTS.md`); when you halt, print the returned `reason` so the user knows which of the two halts they hit.
+
+⚠ **NOW go back and run § 0 — after everything above, not after the roll** (`B93`).
+
+The tier gate must read the profile of the Epic this phase is about to run, which only exists as
+`current_epic` once `setCurrentEpic` has been called. **The placement inside this section matters as
+much as the reorder:**
+
+- After the **per-Epic tier** step, or a `{EpicID}-PROFILE.md` that `/sig:calibrate` just wrote is not
+  yet on disk when §0 reads it — `B93` one step downstream, which is what an earlier draft of this
+  file did.
+- After the **Done-Epic guard**, or a halt that exists to stop a run gets evaluated *after* the gate
+  it was meant to precede.
+
+So: § *Epic mode* runs to completion, **then** § 0, **then** Step 1. Found by the PR reviewer on the
+commit that fixed the ordering one level up.
+
 
 ## Workflow
 

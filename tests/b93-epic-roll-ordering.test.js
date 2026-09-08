@@ -20,6 +20,12 @@ const read = (name) => readFileSync(CMD(name), 'utf8');
  *   M5.E10 open, 2026-08-11 — pre-roll FEATURE/light, post-roll project FULL/strict
  *   M6.E8  open, 2026-09-07 — pre-roll FEATURE/light, post-roll project FULL/strict
  *
+ * ⚠ The M6.E8 instance is NOT reachable from `main`. It lives on the unmerged
+ * branch `feat/m6.e8-advisor-ranking-inputs` (`7e9c288`), whose STATE.md carries
+ * `current_epic: M6.E8`. `main`'s STATE.md still reads M6.E7. Named here because
+ * the PR reviewer read the same claim with no reachable evidence and concluded it
+ * was invented — a reasonable read, and the citation's fault rather than theirs.
+ *
  * The second run reported a `checkpointed` confirm cadence for an Epic that
  * inherits `attended`. `light` batch-confirms once; `strict` confirms every gray
  * area. The phase branches on the difference, so this is not cosmetic.
@@ -59,6 +65,40 @@ describe('B93 — the Epic roll precedes the tier read', () => {
       // Without this, obeying the reorder means silently skipping §0 entirely —
       // trading a wrong-profile read for no profile read.
       expect(doc).toMatch(/go back and run § ?0/i);
+    });
+
+    // ⚠ ADDED AFTER THE PR REVIEWER CAUGHT WHAT THIS FILE MISSED. The first draft
+    // asserted only that the back-pointer EXISTS, and the first draft of
+    // discuss.md put it immediately after `setCurrentEpic` — ahead of the
+    // per-Epic calibrate step and the Done-Epic guard. That is B93 one step
+    // downstream: §0 would read the tier BEFORE `/sig:calibrate` wrote the
+    // `{EpicID}-PROFILE.md` it is supposed to honour, and the halt guard would be
+    // evaluated after the gate it precedes. Existence was never the property that
+    // mattered; POSITION was.
+    it('the back-pointer sits at the END of Epic mode, after calibrate and the done-guard', () => {
+      const back = doc.search(/go back and run § ?0/i);
+      const calibrate = doc.indexOf('**Per-Epic tier');
+      const doneGuard = doc.indexOf('**Done-Epic guard.**');
+      const workflow = doc.indexOf('## Workflow');
+
+      expect(calibrate, 'discuss.md has no Per-Epic tier paragraph').toBeGreaterThan(-1);
+      expect(doneGuard, 'discuss.md has no Done-Epic guard paragraph').toBeGreaterThan(-1);
+      expect(back, 'discuss.md has no back-pointer to §0').toBeGreaterThan(-1);
+
+      expect(
+        back > calibrate,
+        'the "go back to §0" pointer precedes the per-Epic calibrate step, so a freshly written ' +
+          '{EpicID}-PROFILE.md is not on disk when the tier gate reads it — B93 one step downstream.',
+      ).toBe(true);
+      expect(
+        back > doneGuard,
+        'the "go back to §0" pointer precedes the Done-Epic guard, so a halt meant to stop the run ' +
+          'is evaluated after the gate it should precede.',
+      ).toBe(true);
+      expect(
+        back < workflow,
+        'the back-pointer must stay inside Epic mode, before § Workflow.',
+      ).toBe(true);
     });
   });
 
