@@ -8,7 +8,37 @@ args: "[--auto] [--assumptions] [--epic <name>]"
 
 You are running the DISCUSS phase of the Signal workflow. Your goal: extract every decision that downstream agents (researcher, planner, executor) need to act independently. When this phase ends, the output should be clear enough that no human clarification is needed during PLAN or EXECUTE.
 
-## 0. Tier-gating preamble (run before anything else)
+## 0. Tier-gating preamble (run before anything else — **except the Epic roll**, `B93`)
+
+> ### ⚠ With `--epic`, open the Epic FIRST. This section is second, not first.
+>
+> **`B93`, measured twice.** "Before anything else" is correct for every invocation *without*
+> `--epic`, and wrong for every invocation *with* it: `readEffectiveProfile` keyed on a
+> `current_epic` that still names the **closing** Epic reads that Epic's
+> `{PrevEpic}-PROFILE.md`, and the new Epic is then gated on a profile belonging to finished work.
+>
+> The two measurements, neither reasoned:
+>
+> | When | Pre-roll read | Post-roll read |
+> |---|---|---|
+> | `M5.E10` open, 2026-08-11 | FEATURE / `light` (`M5.E19-PROFILE.md`) | project **FULL / strict** |
+> | `M6.E8` open, 2026-09-07 | FEATURE / `light` (`M6.E7-PROFILE.md`) | project **FULL / strict** |
+>
+> The 2026-09-07 run reported a `checkpointed` confirm cadence for an Epic that inherits `attended`,
+> and nothing caught it until the dial was audited the next day. These differ in behaviour the phase
+> actually branches on, so this is not a cosmetic ordering preference.
+>
+> **So: if `--epic <name>` was passed, run § *Epic mode* below, THEN return here.** In every other
+> invocation this section really is first. `/sig:calibrate` for a per-Epic tier comes after the roll
+> too, which means a freshly-calibrated Epic profile is in force for the very phase that wrote it.
+>
+> ⚠ **The five sibling phase commands were checked and need no equivalent change** (`B93` asks for
+> the check explicitly, and a checked-and-declined trigger must be distinguishable from an unchecked
+> one — `B39`). `plan.md`, `execute.md`, `verify.md`, `review.md` and `ship.md` all carry this same
+> preamble, and **none of them accepts `--epic`** — their `args` is `<phase-number>`. They never roll
+> an Epic, so the ordering hazard cannot arise in them. `new-project.md` does take `--epic` and is
+> also fine: it has no tier preamble (it *creates* the profile) and its § 1b roll already runs before
+> its phase set.
 
 Read the **effective profile** before any other workflow step: `readEffectiveProfile(baseDir, { currentEpic })` (`tools/lib/profile.js`), where `currentEpic` is `current_epic` from STATE.md (via `readState`). In **Epic mode** (a strict `current_epic`) an Epic-scoped `.planning/{EpicID}-PROFILE.md` shadows the project PROFILE for this Epic's phases; in **linear mode** (null / absent / non-strict `current_epic`) it reads `.planning/PROFILE.md` unchanged — byte-identical to pre-E11. Fail-open on the STATE value: a hand-edited or garbage `current_epic` degrades to the project PROFILE, never throws. PROFILE.md drives every phase's behavior; bypassing it defeats the calibration layer.
 
@@ -40,7 +70,7 @@ Check args or ask the user:
 - **assumptions** (`--assumptions`): For existing codebases — analyze code first, then surface assumptions for validation
 - **auto** (`--auto`): Claude picks recommended defaults for all gray areas, user reviews at the end
 
-## Epic mode (`--epic <name>`) — run before Step 1
+## Epic mode (`--epic <name>`) — run before **§ 0** and before Step 1 (`B93`)
 
 Epic mode is **opt-in and additive** (M4.5.E11). Without `--epic`, this phase runs in whatever mode STATE already reflects — linear (`current_epic` null) is byte-identical to pre-E11. With `--epic <name>`, this DISCUSS opens (or rolls to) an Epic **before** loading context, so `current_epic` is written automatically (no hand-editing STATE) and every artifact this phase writes is Epic-scoped (`{EpicID}-*.md`, per the artifact-naming rule).
 
@@ -49,6 +79,8 @@ Resolve the Epic ID from `<name>`:
 - Otherwise treat `<name>` as a human label and derive the next ID under the current milestone with `deriveNextEpicId(baseDir)` (`tools/lib/milestones.js`). If it returns `null` (no milestone context — e.g. a project with no prior Epic), ask the user for the milestone and retry as `deriveNextEpicId(baseDir, { milestone })`, or accept a literal `--epic M{N}.E{K}` ID.
 
 Then call `setCurrentEpic(baseDir, resolvedId)` (`tools/lib/state.js`) — it validates the shape, writes `current_epic`, and on a roll resets the coupled `current_wave`/`current_tasks` **and the per-Epic `phase`/`completed_phases`/`last_completed_task`** atomically (B9, M5.E2.S1.t0): a new Epic never inherits the previous one's phase progression, so it leaves `phase: null`. **Set the DISCUSS phase next** — `transitionPhase(baseDir, 'DISCUSS')` — which, because `phase` is null post-roll, records a clean per-Epic `completed_phases` (no stale prior-Epic phase leaks in). `blockers` are preserved (a blocker can span Epics). Record the human label alongside the resolved ID in `CONTEXT.md` so later phases can show it.
+
+⚠ **Now go back and run § 0.** The tier gate must read the profile of the Epic this phase is about to run, which only exists as `current_epic` after the `setCurrentEpic` call above (`B93`).
 
 **Per-Epic tier (optional, M4.5.E11 / FR3).** After opening the Epic, offer to calibrate it: if this Epic should run at a different tier than the project (e.g. a SKETCH spike inside a FULL project, or a FULL security Epic inside a FEATURE project), run `/sig:calibrate` for it — with an Epic active, calibrate writes `.planning/{EpicID}-PROFILE.md`, which `readEffectiveProfile` then honors **for this Epic's phases only**. Skip it and the Epic inherits the project PROFILE (the default). Either way, every phase's gate-read uses the effective profile — Epic PROFILE if present, else project — so the tier is never ambiguous.
 
