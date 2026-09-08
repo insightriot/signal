@@ -87,7 +87,11 @@ describe('attention axis — the dial split out from gate_strictness', () => {
 
   // B59: an out-of-enum value made readEffectiveProfile throw and a whole DISCUSS
   // ran at the wrong tier. An optional field must not be able to do that by ABSENCE.
-  it('every shipped PROFILE.md still parses with no attention field', async () => {
+  // Renamed 2026-09-08: Signal's own PROFILE.md now SETS `attention: checkpointed`,
+  // so this no longer exercises absence — the `back-compat` block above does that
+  // with fixtures. What it still checks is that the shipped profile loads and
+  // resolves to a real level, which is the half that mattered for `B59`.
+  it('the shipped PROFILE.md parses and resolves to a real attention level', async () => {
     const { readProfile } = await import('../plugin/tools/lib/profile.js');
     const p = await readProfile(process.cwd());
     expect(p.tier).toBeTruthy();

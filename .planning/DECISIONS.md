@@ -2779,3 +2779,42 @@ emits an artifact; landing it stays a person's edit.
 
 ⚠ **Both limits mean the "repeatability" the row asks for is bounded**: the *analysis* becomes
 repeatable, the *transcription into the queue* does not. Said here rather than discovered at VERIFY.
+
+## 2026-09-08 — the attention dial, turned (D-BR0908-1)
+
+### D-BR0908-1 — Signal's own project runs at `attention: checkpointed`, with FULL rigor untouched
+
+**Brett's call, 2026-09-08**, after asking why weeks of work had not produced a release he could put
+through `/sig:drive`. The answer was a dial: `.planning/PROFILE.md` carried no `attention`, so
+`attentionFor` derived **`attended`** from `gate_strictness: strict` and the driver stopped at every
+gate. A loop that stops at every gate is indistinguishable from not having a loop.
+
+**Set explicitly to `checkpointed`, not `unattended`, and not by touching `gate_strictness`.**
+
+- **`checkpointed`** runs free inside a phase and stops at each phase boundary. `unattended` is the
+  stronger test and is **declined for now** on evidence, not caution: `discuss.md` §4 at `unattended`
+  auto-adopts the recommended option for *every* gray area including `painful` and `irreversible`
+  ones, with no reversibility routing. That is an open row in `BACKLOG.md`, filed 2026-09-03, and
+  walking into it on the first real run would produce a failure that teaches nothing about the loop.
+- **Not via `gate_strictness`.** Lowering it to `light` would also switch off the
+  anti-rationalization check — a **rigor** change smuggled in as an **attention** change, which is
+  precisely the welding `LOOP-ENGINEERING-ANALYSIS.md` §3.2 said to stop doing. Verified after the
+  edit: `attention: checkpointed`, `confirm_in_phase: false`, `anti_rationalization: true`. FULL
+  rigor, less of your time. That combination is the reason the axis exists and this is its first use.
+
+⚠ **The dial was undocumented, and that is why four Epics worked around it instead of setting it.**
+`attention` was added to `RIGOR_OVERRIDE_SCHEMA` in `v0.1.31`; `references/profile-schema.md` went
+**four releases** still saying *"All ten keys are required"* over a list of ten that did not include
+it. `M6.E4`, `M6.E5`, `M6.E6` and `M6.E7` each wrote a per-Epic `PROFILE.md` at `light` — four
+consecutive workarounds for a setting absent from the document they were reading. Fixed in the same
+change, and **promoted from convention to check**: `tests/profile-schema-doc.test.js` fails the suite
+when a key the loader accepts is undocumented, with `RIGOR_OVERRIDE_SCHEMA` newly exported so the test
+compares against a value rather than a hand-copied list.
+
+Per CLAUDE.md § *House rules*, the promotion trigger is *"the advisory stopped changing behaviour."*
+Here there was no advisory at all — only a convention — and it failed silently for four releases.
+That is the trigger, met, and it is recorded rather than assumed.
+
+**What this does NOT settle.** Whether the loop actually holds from DISCUSS. That needs a run, it is
+the one item still open on the `/sig:drive` row, and it is the next step.
+

@@ -136,7 +136,16 @@ Downstream phase commands read this array as their **first action**. If the curr
 
 ### `rigor_overrides`
 
-All ten keys are required. A tier sets their defaults; `/sig:calibrate` writes them literally (not by reference to the tier) so that escalations and manual edits remain explicit.
+All ten keys below are required. A tier sets their defaults; `/sig:calibrate` writes them
+literally (not by reference to the tier) so that escalations and manual edits remain explicit.
+
+⚠ **`attention` is an ELEVENTH key and it is OPTIONAL**, added in `v0.1.31` when the attention axis
+was split out of `gate_strictness`. It is documented in the second table below. It is optional on
+purpose: a profile written before the axis existed **derives** its attention from `gate_strictness`
+rather than defaulting to a constant, so every pre-`v0.1.31` profile keeps its exact behaviour.
+`readProfile` accepts it; `attentionFor` reads it; **this file did not mention it for four
+releases**, which is why `tests/profile-schema-doc.test.js` now fails the suite when a key the code
+reads is missing here.
 
 | Key | Type | Description |
 |---|---|---|
@@ -147,9 +156,31 @@ All ten keys are required. A tier sets their defaults; `/sig:calibrate` writes t
 | `nyquist_enforcement` | enum `off | basic | strict` | Nyquist test-coverage enforcement in PLAN + VERIFY. `off` = skip mapping. `basic` = map but don't enforce. `strict` = tests must actually run and must fail before fix (no test theater). |
 | `plan_validation_dims` | enum `none | core | all` | Plan-checker dimensions. `none` = skip plan check. `core` = 3 dimensions (goal alignment, completeness, testability). `all` = 8 dimensions. |
 | `research_parallelism` | integer | Number of parallel research agents PLAN spawns. `0` disables the research step. Typical: `0` / `2` / `4`. |
-| `gate_strictness` | enum `off | light | strict` | Human approval at phase gates. `off` = auto-advance. `light` = confirm once per phase. `strict` = explicit approval at every gate + anti-rationalization check. |
+| `gate_strictness` | enum `off | light | strict` | **Rigor only, since `v0.1.31`: whether the anti-rationalization check runs at a gate** (`strict` = yes; `off`/`light` = no). It no longer sets approval cadence — that moved to `attention`. ⚠ The pre-split description ("explicit approval at every gate") survived here for four releases after the behaviour changed. When `attention` is absent this key still *derives* it (`off`→`unattended`, `light`→`checkpointed`, `strict`→`attended`), which is the only remaining way it touches cadence. |
 | `context_rot_reread` | boolean | Whether EXECUTE re-reads `CONTEXT.md` every ~45 minutes to prevent drift. |
 | `review_depth` | enum `none | quality-only | full` | REVIEW phase depth. `none` = skip phase entirely (also implied if REVIEW is in `phases_skipped`). `quality-only` = code-review skill only. `full` = all four review skills (code-review, security, perf, simplification). |
+
+### `rigor_overrides.attention` (optional)
+
+| Key | Type | Description |
+|---|---|---|
+| `attention` | enum `attended \| checkpointed \| unattended` | **How much of your time the flow costs**, independent of how rigorous it is. `attended` = stop at every gate. `checkpointed` = run free *inside* a phase, stop at each phase boundary. `unattended` = run until a floor or an unanswerable decision. Read by `attentionFor` (`tools/lib/profile.js`) and spent by `/sig:drive`. |
+
+**Why it is separate from `gate_strictness`.** They were one dial, which meant the only way to buy
+less of your attention was to buy less rigor. `LOOP-ENGINEERING-ANALYSIS.md` measured that `light` and
+`strict` differed by exactly one boolean in code while prose described a ~10× range. Splitting them
+makes **FULL rigor, unattended** expressible.
+
+**Absent is not a default.** `attentionFor` derives from `gate_strictness` (`off`→`unattended`,
+`light`→`checkpointed`, `strict`→`attended`) so an old profile is byte-identical, and fails open to
+`attended` when the profile is unreadable — a missing setting must never be the reason something ran
+without asking.
+
+⚠ **`unattended` has a known open defect.** `discuss.md` §4 at `unattended` auto-adopts the
+recommended option for **every** gray area, including `painful` and `irreversible` ones, with no
+reversibility routing. Filed in Signal's own backlog as *"DISCUSS silently auto-adopts irreversible
+decisions at `unattended`"* (no link: `.planning/` belongs to the project being worked on, not to
+the installed plugin payload). Prefer `checkpointed` until that lands.
 
 ### `metadata`
 
