@@ -93,6 +93,55 @@ Using the code-simplification skill:
 - Verify naming clarity
 - Ensure project conventions are followed
 
+### 4.5 Fresh-context adversarial review — REQUIRED, and it runs before the verdict
+
+**Steps 1–4 are performed by the session that wrote the code. This step is not.** Dispatch
+`agents/specialists/code-reviewer.md` through the Task tool as a sub-agent, so it reads the change
+with none of this session's context:
+
+| Agent | `subagent_type` | Reads | Writes |
+|---|---|---|---|
+| Fresh-context reviewer | `code-reviewer` | the diff + the unit's `*-REQUIREMENTS.md` | its findings back to this session |
+
+> #### ⚠ Why this step exists, measured rather than argued
+>
+> `M6.E7`'s retrospective asked for it in these words: *"A fresh-context reviewer should be a phase
+> step, not a judgement call."* Two of them were the highest-yield actions in that Epic — **9 of 11
+> Important issues** — and nothing in this file asked for either. `review_depth` describes *what* to
+> review and says nothing about *who*.
+>
+> Then `#243` measured it again on a four-file fix: **two PR-reviewer passes found six issues, two of
+> them regressions introduced by the fix itself, and the in-session review found none of the six.**
+> One was a guard assertion that could not fail; one was a halt that damaged the project it refused
+> to run on. Neither is a knowledge gap — both are assumptions the author could not see because they
+> were the author's.
+
+**What it is given, and the omissions are the mechanism.** The diff and the requirements. **Not**
+`CONTEXT.md`, **not** `DECISIONS.md`, **not** the plan's reasoning, **not** a summary of intent, and
+**not** an explanation of why a choice was made. Every one of those is an opportunity to talk the
+reviewer into the blind spot it was dispatched to find. If it misreads something because it lacks
+context, that is a finding about the code's legibility, not a reason to brief it better.
+
+**Its findings enter the ordinary taxonomy — no new mechanism.** They are categorised Critical /
+Important / Suggestion / Nit exactly like Step 1's, they appear in the same report sections, and the
+verdict table below already says what each means. **A Critical it raises is a Critical.**
+
+**The ordering is the point.** These findings used to arrive at PR-open, *after* REVIEW returned PASS
+— which is how `M6.E7` shipped an advisory whose every citation was five lines wrong. Dispatched from
+here, the same findings are **discovered inside REVIEW**, where PASS-WITH-FIXES can absorb them and
+the loop-back path still exists. This step does not add a gate; it moves an existing one earlier.
+
+⚠ **Dev-mode fallback.** In a development checkout — which is what Signal-on-Signal is — plugin agents
+do not auto-register with the Task tool (`commands/init.md` § 2 records this and its workaround). If
+`subagent_type: code-reviewer` does not resolve, dispatch a general-purpose sub-agent and give it
+`agents/specialists/code-reviewer.md` to read as its instructions, with the same two inputs and the
+same omissions. **What must not happen is skipping the step because the dispatch was awkward** — that
+is how it stayed unwired for four months.
+
+⚠ **A `cannot-dispatch` outcome is a FAIL condition for this step, not a silent pass.** Record it in
+the report under its own line, naming what was attempted. An unreviewed change that reads as reviewed
+is the failure this whole step exists to stop.
+
 ### 5. Write Review Report
 
 Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic })` — `{phase}-REVIEW.md` linear / `{EpicID}-REVIEW.md` Epic):
@@ -204,5 +253,6 @@ If `markFresh` fails (lock contention, git unavailable):
 - [ ] Security checklist completed
 - [ ] Performance anti-patterns addressed
 - [ ] Simplification pass completed
+- [ ] **Fresh-context reviewer dispatched (§ 4.5) and its findings triaged into the taxonomy** — or a `cannot-dispatch` recorded in the report naming what was attempted. Not satisfiable by "the change looked fine to me": the point of the step is that the author is not the reader.
 - [ ] Review report written
 - [ ] User approves review results — **when `gates.confirm_review` is set** (`attention` ≠ `unattended`). Unattended: no ask; the transition is recorded, not approved (`B74`).
