@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.39] — 2026-09-08 — the dial nobody turned, and the reviewer nobody called
 
 ### Added
 
