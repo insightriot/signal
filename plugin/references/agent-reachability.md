@@ -3,7 +3,7 @@
 > **Generated from the tree, not maintained by hand.** `tests/agent-reachability.test.js`
 > re-derives this table and fails when it and the tree disagree.
 
-**26 agents. 4 are dispatched by a command. 22 are not.**
+**26 agents. 5 are dispatched by a command. 21 are not.**
 
 ## What "reachable" means here
 
@@ -12,8 +12,17 @@ instruction the Task tool can act on. Prose naming an agent is not dispatch, and
 distinction is the whole measurement: `commands/execute.md` says *"the executor agent handles
 2–5"*, which reads like a dispatch and is not one.
 
-**Exactly one command file dispatches agents by name: `commands/init.md`**, which spawns the
-four brownfield scanners. Every other agent in the roster is documentation.
+**Two command files dispatch agents by name** (2026-09-08): `commands/init.md`, which spawns the
+four brownfield scanners, and `commands/review.md` § 4.5, which dispatches the fresh-context
+`code-reviewer` as a required step before the REVIEW verdict. Every other agent in the roster is
+documentation.
+
+⚠ **`code-reviewer` was wired because one of the 22 turned out to be the fix for a measured
+problem.** `#243` was a four-file fix where two external review passes found six issues — two of them
+regressions introduced by the fix itself — and the authoring session's own review found none of the
+six. The remedy already existed in this roster, marked un-dispatched, and had for four months.
+**Deciding the remaining 21 is filed as its own work in `BACKLOG.md`**, with the requirement that each
+gets a verdict: wire it, cut it, or state why it is deliberately dormant.
 
 ## Why they are documented rather than wired
 
@@ -36,6 +45,7 @@ work rather than from the tree — this Epic’s own defect class, in its own re
 | `agents/scanners/quality-scanner.md` | `commands/init.md` |
 | `agents/scanners/stack-scanner.md` | `commands/init.md` |
 | `agents/scanners/structure-scanner.md` | `commands/init.md` |
+| `agents/specialists/code-reviewer.md` | `commands/review.md` § 4.5 |
 
 ## Not dispatched by any command
 

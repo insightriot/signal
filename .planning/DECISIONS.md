@@ -2818,3 +2818,44 @@ That is the trigger, met, and it is recorded rather than assumed.
 **What this does NOT settle.** Whether the loop actually holds from DISCUSS. That needs a run, it is
 the one item still open on the `/sig:drive` row, and it is the next step.
 
+## 2026-09-08 — the fresh-context reviewer, wired (D-BR0908-2)
+
+### D-BR0908-2 — REVIEW dispatches a reviewer that does not share the authoring session's context
+
+**Brett's call, 2026-09-08**, after asking whether the adversarial reviewer was already a defined
+agent. **It was.** `agents/specialists/code-reviewer.md` had existed for four months with its own
+opening banner reading *"NOT DISPATCHED BY ANY COMMAND"* — the answer to the problem, on disk, marked
+un-invokable. Signal ships 26 agents; **4 were wired**.
+
+**The trigger is two measurements, not a preference.** `M6.E7`: two fresh-context reviews found **9 of
+11** Important issues, and `review.md` asked for neither. `#243`: a four-file fix where two external
+review passes found **six** issues — two of them regressions introduced by the fix itself — and the
+authoring session's own review found **none of the six**. Neither gap is knowledge; both are
+assumptions the author could not see because they were the author's.
+
+**Four questions had to be answered, and all four came from existing artifacts rather than invention:**
+
+| Question | Answer | Derived from |
+|---|---|---|
+| **Where** | `review.md` § 4.5, before the verdict | The retro's finding is an *ordering* one — the PR reviewer's findings arrived **after** REVIEW returned PASS |
+| **How** | The diff + the unit's `*-REQUIREMENTS.md`. **Not** `CONTEXT.md`, `DECISIONS.md`, the plan's reasoning, or any statement of intent | What the working PR reviewer actually gets today, which is the diff and the repo |
+| **What its verdict does** | Nothing new. Findings enter the existing Critical / Important / Suggestion / Nit taxonomy; the verdict table already says what each means | `review.md` §5 already defines both |
+| **Whether it runs here** | Dev-mode fallback named in the step | `commands/init.md` §2 already records that dev-mode plugin agents do not auto-register with Task |
+
+**The omissions are the mechanism, and that is the whole design.** Every withheld document is an
+opportunity to talk the reviewer into the blind spot it was dispatched to find. The agent file itself
+tells it **not to ask for more context** and that a legibility gap is a **finding**, not its own
+fault — otherwise it requests exactly what defeats it.
+
+⚠ **This adds no gate; it moves an existing one earlier.** These findings already existed — they
+arrived at PR-open, after PASS, which is how `M6.E7` shipped an advisory whose every citation was five
+lines wrong. Dispatched from REVIEW, the same findings are *discovered in-phase*, where
+PASS-WITH-FIXES can absorb them and the loop-back path still exists.
+
+⚠ **`cannot-dispatch` is a recorded failure, never a silent pass.** Named because awkward dispatch is
+precisely how this agent stayed unwired for four months.
+
+**What this does NOT settle:** the other 21 agents. Filed as its own row in `BACKLOG.md` with Brett's
+framing — *"Either WTF are they there? or WTF aren't they wired up?"* — sequenced after the first
+end-to-end `/sig:drive` run.
+
