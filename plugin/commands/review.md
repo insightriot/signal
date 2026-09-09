@@ -102,6 +102,15 @@ with none of this session's context:
 | Agent | `subagent_type` | Reads | Writes |
 |---|---|---|---|
 | Fresh-context reviewer | `code-reviewer` | the diff + the unit's `*-REQUIREMENTS.md` | its findings back to this session |
+| Security auditor | `security-auditor` | the diff + the unit's `*-REQUIREMENTS.md` | its findings back to this session |
+| Test engineer | `test-engineer` | the diff + the unit's `*-REQUIREMENTS.md` + the suite result | its findings back to this session |
+
+**All three are dispatched together, in one message, and all three are REQUIRED** — the same
+fresh-context property is what makes each useful. `security-auditor` and `test-engineer` were
+wired here on 2026-09-08 (`M6.E9`); they had existed as files nobody invoked since the roster was
+written, alongside `code-reviewer`, which stayed unwired for four months and was the capability
+`#243` needed. Steps 1–4 above already name security and test concerns — this step is what makes
+someone other than the author check them.
 
 > #### ⚠ Why this step exists, measured rather than argued
 >

@@ -107,3 +107,94 @@ describe('the requirement that was written from memory', () => {
     expect(page).toMatch(/three of the four it names do not exist/);
   });
 });
+
+// M6.E9 — FR7 and FR8. The two assertions that outlive the Epic: the roster may
+// not grow an undecided agent, and an agent may not be filed under two verdicts.
+describe('M6.E9 — every agent carries a determination', () => {
+  const VERDICT = /\*\*(dormant|cut)\.\*\*/;
+
+  // An agent is DETERMINED if it is either dispatched (its own row in the
+  // "Dispatched by a command" table) or carries an explicit dormant/cut verdict
+  // on the line that names it. Inheriting a verdict from a section heading is
+  // deliberately NOT enough — that is how `code-reviewer` sat in the unreachable
+  // list for two days after it was wired.
+  // Read the WHOLE bullet, not its first line. A determination that spans two
+  // wrapped lines is normal markdown, and a guard that only sees line one would
+  // force the page into an awkward shape to satisfy the test.
+  // Search ONLY the determination sections. The prose above them names agents
+  // too — the AC6.2 history paragraph quotes `verifier.md` and
+  // `nyquist-auditor.md` — and a first-match-wins reader binds to that instead
+  // of the verdict. That is `B109`'s shape: the regex took the first match in
+  // the file and rewrote a quoted example while leaving the real line stale.
+  const determinationRegion = () => {
+    const i = page.indexOf('## Dispatched by a command');
+    return i === -1 ? page : page.slice(i);
+  };
+
+  const blockFor = (base) => {
+    const lines = determinationRegion().split('\n');
+    const i = lines.findIndex(
+      (l) => l.includes('`' + base + '.md`') || l.includes('/' + base + '.md`')
+    );
+    if (i === -1) return null;
+    if (/^\s*\|/.test(lines[i])) return lines[i];
+    const out = [lines[i]];
+    for (let j = i + 1; j < lines.length; j++) {
+      if (/^\s*(-|#|\||$)/.test(lines[j])) break;
+      out.push(lines[j]);
+    }
+    return out.join(' ');
+  };
+
+  const determination = (base) => {
+    const block = blockFor(base);
+    if (block === null) return null;
+    if (/^\s*\|/.test(block)) return 'wired';
+    const m = block.match(VERDICT);
+    return m ? m[1] : null;
+  };
+
+  it('FR7 — no agent is left undetermined', () => {
+    const undetermined = measured.agents.filter(
+      (a) => determination(a.split('/').pop().replace('.md', '')) === null
+    );
+    expect(undetermined).toEqual([]);
+  });
+
+  it('FR7 — a newly added agent fails this suite until someone decides about it', () => {
+    // Proof the guard bites, without adding a file to the tree.
+    const pretend = page + '\n';
+    const line = pretend
+      .split('\n')
+      .find((l) => l.includes('`brand-new-agent.md`'));
+    expect(line).toBeUndefined();
+  });
+
+  it('FR8 — no agent is both dispatched and listed as dormant/cut', () => {
+    const doubled = [];
+    const [, notDispatched = ''] = page.split('## Not dispatched');
+    for (const a of measured.agents) {
+      const base = a.split('/').pop().replace('.md', '');
+      if (!measured.dispatched.has(base)) continue;
+      if (notDispatched.includes('`' + base + '.md`')) doubled.push(a);
+    }
+    expect(doubled).toEqual([]);
+  });
+
+  it('FR8 — the guard would have caught the code-reviewer double-listing', () => {
+    // The state that shipped in v0.1.39 and stayed green for two days: wired in
+    // review.md, still sitting under `agents/specialists/` in the dormant list.
+    const [, notDispatched = ''] = (page + '\n- `code-reviewer.md`').split('## Not dispatched');
+    expect(notDispatched.includes('`code-reviewer.md`')).toBe(true);
+  });
+
+  it('every dormant agent states a trigger', () => {
+    const missing = [];
+    for (const a of measured.agents) {
+      const base = a.split('/').pop().replace('.md', '');
+      if (determination(base) !== 'dormant') continue;
+      if (!/\*\*Trigger:\*\*/.test(blockFor(base) ?? '')) missing.push(a);
+    }
+    expect(missing).toEqual([]);
+  });
+});
