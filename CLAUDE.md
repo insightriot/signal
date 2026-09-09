@@ -42,14 +42,34 @@ the start of **every** session, so the duplication was paid for on every run.
 Removed 2026-09-02 under the doc-budget rule (see *House rules* below). Nothing was lost: search
 [`CHANGELOG.md`](CHANGELOG.md) for a version, or the retros for an Epic.
 
-**Active: `M6.E8` is open at DISCUSS — on a branch, not on `main`.** Its artifacts live on
-`feat/m6.e8-advisor-ranking-inputs` (a complete `M6.E8-REQUIREMENTS.md`, `D-M6E8-*` decisions, and a
-measured finding that never landed: **44 of 46 backlog rows rank on age alone**). `phase: DISCUSS`
-with `completed_phases: []` — DISCUSS is **written, not closed**. ⚠ **Nothing on `main` can tell you
-this, and neither can `/sig:drive`** (`B118`): both read one branch's `STATE.md`, so an Epic in
-flight anywhere else is invisible and *"resuming beats starting new"* silently never fires. This
-line said *"nothing in flight"* for a day and a half while that was false of the repository and
-true only of `main`. Milestone 6 is open; `M6.E1` shipped as v0.1.26, `M6.E2` as v0.1.29,
+**Active: `M6.E9` shipped 2026-09-09 (PR #250) — every one of Signal's 26 agents now carries a
+determination.** 7 dispatched, 19 dormant each with a reason and a trigger, 0 cut; `security-auditor`
+and `test-engineer` wired into `review.md` § 4.5; `plan.md` § 2 stopped ordering runs to spawn four
+named research agents, **three of which existed nowhere in the tree**, in the phase every Epic runs.
+Five guards now fail the suite on an undetermined agent, a `wired` claim the tree denies, a
+double-listing, a missing trigger or a missing reason. 3347 → **3354 tests**. Retro:
+[`.planning/M6.E9-RETROSPECTIVE.md`](.planning/M6.E9-RETROSPECTIVE.md).
+
+**The headline is what the Epic proved about itself.** The two agents it wired found the defects in
+the change that wired them, an hour after first being dispatched — **4 Critical and 7 Important that
+four in-session passes missed**, and `claude-review` then returned clean at PR-open for the first
+time. Chief among them: the § 4.5 table gained two rows while its imperative still read *"Dispatch
+`code-reviewer.md`"* — singular — so both agents were recorded `wired` **on the strength of a table
+row**, the exact prose-vs-dispatch distinction `agent-reachability.md` opens by calling *"the whole
+point of this page"*. ⚠ **Six times in that Epic something disagreed with the roster page, and every
+time the CHECK was wrong and the page was right** — including two "proof" tests that could not fail,
+one *inverted* (green on the defect it named, red on the correct fix). **The cheap rule out of it: a
+proof-of-fail must assert that its mutation applied**, or "no failure" cannot distinguish a broken
+guard from a broken proof.
+
+⚠ **`M6.E8` is still parked at DISCUSS on `feat/m6.e8-advisor-ranking-inputs`** (`D-BR0908-3`) — a
+complete `M6.E8-REQUIREMENTS.md`, `D-M6E8-*`, and a measured finding that never landed: *44 of 46
+backlog rows rank on age alone*. **Resume the branch; never start that row fresh.** Nothing automatic
+will remind you: `/sig:drive` and `/sig:advise` both read one branch's corpus (`B118`, unfixed), so
+an Epic in flight anywhere else is invisible and *"resuming beats starting new"* silently never
+fires.
+
+Milestone 6 is open; `M6.E1` shipped as v0.1.26, `M6.E2` as v0.1.29,
 `M6.E4` as v0.1.33, `M6.E5` merged 2026-08-28, and **`M6.E6` + `M6.E7` shipped together as v0.1.38**
 (2026-09-06) — the release that carries `/sig:advise`, the two decision-router guards, and the
 commit-anchor reachability test. **`M6.E8` stays PARKED on its branch by decision (Brett,

@@ -10,7 +10,16 @@ Groomed, sequenced roadmap — promoted from the issues inbox (`ISSUES-INBOX.md`
 > it changes nothing in this file. The inbound link is a **one-time human step at SHIP**: the command
 > writes its artifact and nothing else, deliberately.
 
-### 22 of Signal's 26 agents are documentation nothing calls — decide each one · **roadmap** · large · **filed 2026-09-08, Brett's call**
+### ~~22 of Signal's 26 agents are documentation nothing calls — decide each one~~ · **roadmap** · large · **✅ SHIPPED 2026-09-09 as `M6.E9`, PR #250**
+
+> **Discharged.** All 26 carry a determination — 7 dispatched, 19 dormant with a reason and a
+> trigger, 0 cut — in [`../plugin/references/agent-reachability.md`](../plugin/references/agent-reachability.md),
+> and `tests/agent-reachability.test.js` fails on an agent with no determination, so the next one
+> cannot land undecided. **Scope was the *smallest honest version*:** the determinations, the
+> guards, `plan.md`'s fiction removed, and the two cheap wires — **not** the dispatch build, which
+> `D-M5E10-1` deferred and which 8 command files still need. The 9 agents proposed for wiring are
+> dormant **with the determination recorded**, which is the answer this row asked for. Retro:
+> [`M6.E9-RETROSPECTIVE.md`](M6.E9-RETROSPECTIVE.md).
 
 *Plain: Signal ships 26 specialist helpers. Four are wired up. Twenty-two are files nobody invokes.*
 
