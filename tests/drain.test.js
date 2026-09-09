@@ -504,13 +504,18 @@ describe('applyDispositions (batch — "defer all remaining")', () => {
 describe('commands/plan.md drain step (S5.t3 — FR7.1-7.4, R1 hard gate)', () => {
   it('inserts `### 1b.` between Step 1 and Step 2 without renumbering Steps 2-6', () => {
     expect(planMd).toMatch(/^### 1b\. /m);
-    // Untouched, numerically-referenced steps still present.
-    expect(planMd).toContain('### 2. Research (Parallel Agents)');
+    // Untouched, numerically-referenced steps still present. Matched on the
+    // NUMBER, not the title — this test is about renumbering, and pinning the
+    // full heading made it fail on `M6.E9`'s rename of Step 2's title (FR5:
+    // "Research (Parallel Agents)" -> "Research (parallel angles)", because the
+    // section no longer names agents). Over-specification, loosened to what the
+    // test is actually for.
+    expect(planMd).toMatch(/^### 2\. Research /m);
     expect(planMd).toContain('### 4. Plan Validation (8 Dimensions)');
     // 1b. sits between Step 1 and Step 2.
     const i1 = planMd.indexOf('### 1. Load Context');
     const i1b = planMd.search(/^### 1b\. /m);
-    const i2 = planMd.indexOf('### 2. Research (Parallel Agents)');
+    const i2 = planMd.search(/^### 2\. Research /m);
     expect(i1).toBeGreaterThan(-1);
     expect(i1b).toBeGreaterThan(i1);
     expect(i2).toBeGreaterThan(i1b);
