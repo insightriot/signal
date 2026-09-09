@@ -121,3 +121,30 @@ Open question this does not answer: which Signal document should carry a bound. 
 
 ---
 
+
+## The suite is flaky under local parallel load — a different test times out each run
+
+**Status:** Logged 2026-09-08 during the `B118` fix lane. Needs triage.
+
+**Three distinct tests hit vitest's 15 s `testTimeout` across four consecutive full runs on this
+machine, each passing comfortably when run alone.** Observed: `tests/cross-project-scan.test.js >
+returns structured buckets, not text` (9.56 s alone), and `D-ID → home map + resolveDecisionId (t5)
+— AC3.3 > every D-… resolves to a file that DEFINES it` (5.04 s alone). One of the four full runs was
+**fully green** at 3347/3347, so it is not a fixed set — it is whichever heavy test loses the race.
+
+Every one of them is a **timeout, not an assertion failure**, and the slow ones share a shape: they
+build real git fixtures or walk the whole `.planning/` corpus. Full-run wall clock is ~21 s against
+~290 s of summed test time, so the pool is heavily oversubscribed.
+
+**Why it is worth triaging rather than shrugging at.** CI passes this suite consistently in 47–59 s,
+so the defect is local-only *today* — but "the suite is green" is the gate every lane in `CLAUDE.md`
+depends on, and a suite that fails differently each run trains people to re-run until green instead
+of reading the failure. That is the same *"teaches people to ignore checks"* reasoning the doc-budget
+rule uses for ledgers.
+
+**Not diagnosed, and two readings fit:** raise `testTimeout` for the git-fixture files (cheap, hides
+a real slowness signal), or cap pool concurrency (slower wall clock, honest). Choosing needs a
+measurement of which tests actually contend — the machine here is a Mac Studio, so a smaller dev
+machine would presumably be worse, not better.
+
+---

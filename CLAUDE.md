@@ -169,7 +169,7 @@ Behavioral rules that apply to every conversation and every agent, in addition t
 | For | features, design work | bugs, papercuts, doc fixes |
 | Six phases | yes | **no** |
 | Branch + PR + green CI | **yes** | **yes** |
-| Merge strategy | **`--merge`** (merge commit) | `--squash` |
+| Merge strategy | **`--merge`** (merge commit) | **`--merge`** — the ruleset allows nothing else (see below) |
 
 A one-line fix does **not** need DISCUSS→SHIP. It **does** need a branch, a PR, and a green suite. `gh pr create --fill` then `gh pr merge --squash` is the whole overhead.
 
@@ -207,21 +207,24 @@ not a papercut.)*
 > `#236` orphaned all six of its commits **and** left `STATE.md`'s `last_updated_commit` pointing at
 > a commit nobody can reach. `#211` failed the same way in August.
 >
-> **The durable fix is a repo setting, not a habit.** Restrict `main`'s ruleset
-> (`main-requires-pr-and-green-ci`) to `allowed_merge_methods: ["merge"]` — then the button has one
-> option and is always correct, for every lane and every merger. **Not yet applied**; it needs
-> repository-admin rights this session did not have.
+> ### ✅ APPLIED 2026-09-08 — the trap above is CLOSED, and this section is kept as the reason why
 >
-> Until then: **change the dropdown to "Create a merge commit" before merging an Epic.** `gh pr merge
-> <n> --merge` also works but is not the primary advice — merges here are made with the green button
-> by choice, and guidance that assumes a terminal is guidance aimed at a path nobody uses.
+> **`main`'s ruleset (`main-requires-pr-and-green-ci`) now carries `allowed_merge_methods: ["merge"]`.**
+> The button has one option, so it is always correct for every lane and every merger, and the sticky
+> state described above can no longer arm anything. Verified against the API, not assumed —
+> `gh api repos/insightriot/signal/rulesets/20199646`. ⚠ **Repo-level settings still allow all three**
+> (`allow_squash_merge=true`), deliberately: the restriction is scoped to `main`, which is the *"do not
+> instead disable squash repo-wide"* advice this section used to give, honoured.
 >
-> ⚠ The cost of the setting is that a one-line fix also gets a merge commit, which contradicts the
-> fix-lane row above. That row calls squash a preference (*"nothing worth preserving underneath"*);
-> the Epic lane's `--merge` is a correctness requirement. Trading the preference for the guarantee is
-> the right trade when the merge is a sticky button. **Do not instead disable squash repo-wide** —
-> that is the blunt version of the same idea and it removes the option from every repo surface, not
-> just `main`.
+> **How it was found is the part worth keeping:** a fix-lane `gh pr merge --squash` on `#248` was
+> refused by the server — *"Squash merges are not allowed on this repository"* — while this file still
+> read **"Not yet applied"** and the table above still told the fix lane to squash. Someone applied the
+> setting and no document learned it. **A correct guard and a stale instruction fail the same way:**
+> whoever follows the file hits an error the file says is impossible.
+>
+> **The cost is the one this section always predicted:** a one-line fix now gets a merge commit too.
+> That was the stated trade — squash in the fix lane is a *preference* (*"nothing worth preserving
+> underneath"*), the Epic lane's `--merge` is a *correctness requirement*, and the preference loses.
 >
 > **The backstop is a test, not this paragraph** (`tests/adherence-anchor-reachability.test.js`):
 > every commit pinned by `ADHERENCE-LOG.md` or `STATE.md` must be reachable from `HEAD`. It goes red
