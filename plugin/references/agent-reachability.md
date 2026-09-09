@@ -52,17 +52,19 @@ Each carries the trigger that would make wiring it worth the build.
 
 ### `agents/executors/` (1)
 
-- `executor.md` — **dormant.** Natural home is EXECUTE, one per task in a wave with fresh context.
-  **Trigger:** `execute.md` grows a `subagent_type` dispatch step. Named in `discuss.md`,
+- `executor.md` — **dormant.** Executes plan tasks with TDD and atomic commits, one per task in a wave
+  with fresh context. **Trigger:** `execute.md` grows a `subagent_type` dispatch step. Named in `discuss.md`,
   `execute.md` and `plan.md` **prose** (*"the executor agent handles 2-5"*), which reads as a wiring
   claim and is not one.
 
 ### `agents/planners/` (2)
 
-- `planner.md` — **dormant.** Home is PLAN § 3. **Trigger:** `plan.md` grows a dispatch step. Named
+- `planner.md` — **dormant.** Creates the executable phase plan — task breakdown, dependency analysis,
+  vertical slicing — at PLAN § 3. **Trigger:** `plan.md` grows a `subagent_type` dispatch step. Named
   in `discuss.md` prose.
-- `roadmapper.md` — **dormant.** Home is `init.md` § 4 / `new-project.md`. **Trigger:** a decision to
-  let an agent write the baseline `PROJECT.md`. ⚠ **Considered for wiring in `M6.E9` and declined on
+- `roadmapper.md` — **dormant.** Builds project roadmaps — phase breakdown, requirement mapping,
+  milestone definition — at project init. **Trigger:** a decision to let an agent write the baseline
+  `PROJECT.md` rather than the command writing it inline. ⚠ **Considered for wiring in `M6.E9` and declined on
   inspection:** `init.md` § 4 already writes `PROJECT.md` inline, so dispatching this agent is a
   behaviour change to a shipped command rather than a dispatch add — a `wired` verdict the Epic could
   not have delivered.
@@ -72,18 +74,24 @@ Each carries the trigger that would make wiring it worth the build.
 All seven are **dormant**, for one shared reason: `plan.md` has no dispatch step. Each states it
 again on its own line, so the verdict is checkable per agent rather than inherited from this sentence.
 
-- `codebase-researcher.md` — **dormant.** **Trigger:** `plan.md` grows a dispatch step. The only one of the four
-  names `plan.md` § 2 used to give that corresponded to a real file.
-- `phase-researcher.md` — **dormant.** **Trigger:** same.
-- `project-researcher.md` — **dormant.** **Trigger:** same.
-- `ui-researcher.md` — **dormant.** **Trigger:** a frontend project runs Signal. Signal has no UI, so the wiring
-  could not be exercised.
-- `advisor-researcher.md` — **dormant.** **Trigger:** `DECISION-QUEUE.md` shows repeat gray areas needing option
-  tables. `M6.E6`'s `routeDecision` now covers the routing half of what this was for.
-- `assumptions-analyzer.md` — **dormant.** **Trigger:** a retrospective traces a failure to an assumption left
-  unstated at DISCUSS. Overlaps `discuss.md`'s own questioning.
-- `research-synthesizer.md` — **dormant.** **Trigger:** two or more researchers actually run in parallel. It has
-  nothing to synthesize until then, so it is wired *with* them or not at all.
+- `codebase-researcher.md` — **dormant.** Reads the existing tree for patterns, reusable code and
+  integration points; the only one of the four names `plan.md` § 2 used to give that corresponded to a
+  real file. **Trigger:** `plan.md` grows a `subagent_type` dispatch step.
+- `phase-researcher.md` — **dormant.** Researches how to implement the specific phase before planning,
+  surfacing options and tradeoffs. **Trigger:** `plan.md` grows a `subagent_type` dispatch step.
+- `project-researcher.md` — **dormant.** Researches the domain ecosystem, external docs and APIs around
+  a phase. **Trigger:** `plan.md` grows a `subagent_type` dispatch step.
+- `ui-researcher.md` — **dormant.** Produces UI design specs for frontend phases. **Trigger:** a
+  frontend project runs Signal — Signal has no UI, so the wiring could not be exercised if built.
+- `advisor-researcher.md` — **dormant.** Returns structured comparison tables for gray-area decisions;
+  `M6.E6`'s `routeDecision` now covers the routing half of what this was for. **Trigger:**
+  `DECISION-QUEUE.md` shows repeat gray areas that need option tables rather than routing.
+- `assumptions-analyzer.md` — **dormant.** Surfaces implicit assumptions about a phase approach;
+  overlaps `discuss.md`'s own questioning. **Trigger:** a retrospective traces a failure to an
+  assumption left unstated at DISCUSS.
+- `research-synthesizer.md` — **dormant.** Merges parallel researcher outputs into one summary with
+  conflicts resolved; it has nothing to synthesize until they run. **Trigger:** two or more researchers
+  actually run in parallel — it is wired *with* them or not at all.
 
 ### `agents/support/` (3)
 
@@ -94,22 +102,26 @@ again on its own line, so the verdict is checkable per agent rather than inherit
   dispatch site wants a map rather than a research digest. **`cut` remains the live alternative.**
 - `debugger.md` — **dormant.** No phase owns it; it is on-demand by nature. **Trigger:** the
   `systematic-debugging` skill lands (v2, from superpowers).
-- `phase-gate-enforcer.md` — **dormant.** **Trigger:** a gate is bypassed in practice and the
-  anti-rationalization tables already in command prose fail to stop it. An agent duplicating those
-  tables is unproven.
+- `phase-gate-enforcer.md` — **dormant.** Runs anti-rationalization checks at every phase gate — but
+  those tables already live in command prose, so an agent duplicating them is unproven. **Trigger:** a
+  gate is bypassed in practice and the prose tables demonstrably fail to stop it.
 
 ### `agents/verifiers/` (6)
 
-- `verifier.md` — **dormant.** Home is VERIFY. **Trigger:** `verify.md` grows a dispatch step.
-- `nyquist-auditor.md` — **dormant.** Home is VERIFY; `verify.md` already *describes* Nyquist
-  coverage without dispatching this. **Trigger:** same.
-- `plan-checker.md` — **dormant.** Home is the PLAN→EXECUTE gate, 8-dimension validation.
-  **Trigger:** same.
-- `integration-checker.md` — **dormant.** **Trigger:** an Epic ships a defect that only appeared
-  across phase boundaries. `verifier.md` covers goal achievement first; wire this only if that proves
-  insufficient.
-- `ui-checker.md` — **dormant.** **Trigger:** a frontend project runs Signal.
-- `ui-auditor.md` — **dormant.** **Trigger:** same.
+- `verifier.md` — **dormant.** Confirms goal achievement by goal-backward analysis — that what was
+  built satisfies the phase's purpose. **Trigger:** `verify.md` grows a `subagent_type` dispatch step.
+- `nyquist-auditor.md` — **dormant.** Generates tests for untested acceptance criteria; `verify.md`
+  already *describes* Nyquist coverage without dispatching it. **Trigger:** `verify.md` grows a
+  `subagent_type` dispatch step.
+- `plan-checker.md` — **dormant.** Validates a plan across 8 dimensions before execution begins, at the
+  PLAN→EXECUTE gate. **Trigger:** `plan.md` grows a `subagent_type` dispatch step.
+- `integration-checker.md` — **dormant.** Checks cross-phase integration and end-to-end flows, where
+  individually correct components fail combined; `verifier.md` covers goal achievement first.
+  **Trigger:** an Epic ships a defect that only appeared across phase boundaries.
+- `ui-checker.md` — **dormant.** Validates an implementation against the `UI-SPEC.md` design contract.
+  **Trigger:** a frontend project runs Signal, giving this a spec to check against.
+- `ui-auditor.md` — **dormant.** Retroactive visual audit where no design spec exists. **Trigger:** a
+  frontend project runs Signal.
 
 ## `cut` (0)
 

@@ -135,7 +135,7 @@ The inbox carries a **standing entry** — *"Trigger watchlist … (check condit
 
 **Physically evict terminal entries (FR3).** promote / ship / merge / delete are *terminal* dispositions — once stamped, the entry is done and should physically leave the inbox so the inbox converges instead of only growing (**DEFERRED is parked-but-live and stays**). After the disposition pass, call `evictTerminalToLedger(baseDir, { dryRun: true })` from `tools/lib/drain.js` to **preview** which terminal entries would move to the archive ledger (`ISSUES-INBOX-LEDGER.md`, back-compat `FUTURE-IDEAS-LEDGER.md`, resolved by `resolveLedgerPath`) — a dry run leaves the inbox byte-identical; then, on confirm (honoring `gate_strictness`), call `evictTerminalToLedger(baseDir)` for real. It appends to the ledger **first**, then removes the blocks from the inbox — crash-safe and keyed, so a re-run never dupes or loses. If it reports `danglingFence: true` it performed a **scoped no-op** (never cutting across an unclosed fence); report that and leave the file for the fence to be fixed.
 
-### 2. Research (Parallel Agents)
+### 2. Research (parallel angles)
 
 Cover up to 4 research angles, in parallel where the work allows:
 - **Domain** — external docs, libraries, APIs relevant to this phase
