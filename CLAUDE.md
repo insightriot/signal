@@ -42,7 +42,14 @@ the start of **every** session, so the duplication was paid for on every run.
 Removed 2026-09-02 under the doc-budget rule (see *House rules* below). Nothing was lost: search
 [`CHANGELOG.md`](CHANGELOG.md) for a version, or the retros for an Epic.
 
-**Active: nothing in flight.** Milestone 6 is open; `M6.E1` shipped as v0.1.26, `M6.E2` as v0.1.29,
+**Active: `M6.E8` is open at DISCUSS — on a branch, not on `main`.** Its artifacts live on
+`feat/m6.e8-advisor-ranking-inputs` (a complete `M6.E8-REQUIREMENTS.md`, `D-M6E8-*` decisions, and a
+measured finding that never landed: **44 of 46 backlog rows rank on age alone**). `phase: DISCUSS`
+with `completed_phases: []` — DISCUSS is **written, not closed**. ⚠ **Nothing on `main` can tell you
+this, and neither can `/sig:drive`** (`B118`): both read one branch's `STATE.md`, so an Epic in
+flight anywhere else is invisible and *"resuming beats starting new"* silently never fires. This
+line said *"nothing in flight"* for a day and a half while that was false of the repository and
+true only of `main`. Milestone 6 is open; `M6.E1` shipped as v0.1.26, `M6.E2` as v0.1.29,
 `M6.E4` as v0.1.33, `M6.E5` merged 2026-08-28, and **`M6.E6` + `M6.E7` shipped together as v0.1.38**
 (2026-09-06) — the release that carries `/sig:advise`, the two decision-router guards, and the
 commit-anchor reachability test. **Pick the next item from
