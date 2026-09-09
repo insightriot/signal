@@ -1,7 +1,7 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: REVIEW
+phase: SHIP
 current_epic: M6.E9
 current_wave: null
 current_tasks: []
@@ -9,6 +9,8 @@ completed_phases:
   - DISCUSS (2026-09-08)
   - EXECUTE (2026-09-08)
   - VERIFY (2026-09-08)
+  - REVIEW (2026-09-08)
+  - SHIP (2026-09-09)
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-09-03T23:36:21.635658Z
