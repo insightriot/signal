@@ -88,7 +88,9 @@ addition cannot land undecided.
 > ⚠ **IN FLIGHT as `M6.E8` — on a branch, not on `main`.** DISCUSS is **written, not closed**
 > (`phase: DISCUSS`, `completed_phases: []`) on `feat/m6.e8-advisor-ranking-inputs`, which carries a
 > complete `M6.E8-REQUIREMENTS.md`, `D-M6E8-*`, and a second measured row this file does not yet
-> hold — *44 of 46 rows rank on age alone*. **Do not start this row fresh; resume the branch.**
+> hold — *44 of 46 rows rank on age alone*. **PARKED by decision `D-BR0908-3` (Brett, 2026-09-08):
+> the agent-roster row is the next Epic; this one resumes from its branch when picked up, and must
+> never be started fresh** — starting fresh discards a written DISCUSS.
 > Nothing automatic will tell you: `/sig:drive` reads one branch's `STATE.md` and proposed this row
 > as unstarted work on 2026-09-08 (`B118`). Noted by hand, 2026-09-08.
 

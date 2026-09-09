@@ -53,20 +53,21 @@ true only of `main`. Milestone 6 is open; `M6.E1` shipped as v0.1.26, `M6.E2` as
 `M6.E4` as v0.1.33, `M6.E5` merged 2026-08-28, and **`M6.E6` + `M6.E7` shipped together as v0.1.38**
 (2026-09-06) — the release that carries `/sig:advise`, the two decision-router guards, and the
 commit-anchor reachability test. **`M6.E8` stays PARKED on its branch by decision (Brett,
-2026-09-08); the next Epic is the agent-roster row at [`.planning/BACKLOG.md`](.planning/BACKLOG.md).**
+2026-09-08, `D-BR0908-3`); the next Epic is the agent-roster row at [`.planning/BACKLOG.md`](.planning/BACKLOG.md).**
 ⚠ **Neither `/sig:drive` nor `/sig:advise` will mention `M6.E8` when you pick** — `readCorpus` reads
 only `join(baseDir, …)` paths, so it has `B118`'s blindness exactly. Parked is a decision; invisible
-is the bug. This paragraph is the only thing on `main` that carries the first one.
+is the bug.
 
-⚠ **`B117` — the Epic lane keeps getting squashed, and the cause is now confirmed.** PR #239 was
+✅ **`B117` — the Epic lane kept getting squashed. CLOSED 2026-09-08 by the ruleset** (see *How changes reach `main`* below: `main` now permits `merge` only, so the sticky button cannot arm anything). The history is kept because the *cause* is the lesson. PR #239 was
 merged with the green button and collapsed 35 commits into one, orphaning two published anchors and
 turning `tests/adherence-anchor-reachability.test.js` red on `main` (repaired by PR #240). Third
 instance. **GitHub remembers the last merge method REPO-WIDE**, so the fix lane's correct `--squash`
 arms the very next Epic merge — the two lanes' correct behaviours are in direct conflict and the
-conflict is invisible at the moment of clicking. The trap has been documented since `v0.1.19` and
-has now fired three times, **which is the evidence that documentation is not the fix.** A second harm
-surfaced this time: GitHub deletes the branch at merge, so an Epic's commit messages — *"frequently
-the best surviving account of why a line exists"* — survive only if someone pushes the branch back.
+conflict was invisible at the moment of clicking. The trap was documented from `v0.1.19` and
+fired three times anyway, **which is the evidence that documentation was not the fix** — a repo
+setting was. A second harm surfaced at the third instance: GitHub deletes the branch at merge, so an
+Epic's commit messages — *"frequently the best surviving account of why a line exists"* — survive
+only if someone pushes the branch back. **That half is NOT fixed by the ruleset** and still applies.
 
 ⚠ **`B116` — the requirement-coverage check under-counts its own denominator** on 21 of 22
 `*-REQUIREMENTS.md` artifacts here, so `missing: []` can read clean over a requirement it never
@@ -172,7 +173,7 @@ Behavioral rules that apply to every conversation and every agent, in addition t
 | Branch + PR + green CI | **yes** | **yes** |
 | Merge strategy | **`--merge`** (merge commit) | **`--merge`** — the ruleset allows nothing else (see below) |
 
-A one-line fix does **not** need DISCUSS→SHIP. It **does** need a branch, a PR, and a green suite. `gh pr create --fill` then `gh pr merge --squash` is the whole overhead.
+A one-line fix does **not** need DISCUSS→SHIP. It **does** need a branch, a PR, and a green suite. `gh pr create --fill` then `gh pr merge --merge` is the whole overhead. (**Not `--squash`** — since 2026-09-08 the server refuses it on `main`.)
 
 ⚠ **EXCEPTION, and it is not rare: a fix-lane PR that regenerates
 [`.planning/ADHERENCE-LOG.md`](.planning/ADHERENCE-LOG.md) must merge with `--merge`.** The tool pins

@@ -2818,6 +2818,41 @@ That is the trigger, met, and it is recorded rather than assumed.
 **What this does NOT settle.** Whether the loop actually holds from DISCUSS. That needs a run, it is
 the one item still open on the `/sig:drive` row, and it is the next step.
 
+## 2026-09-08 — M6.E8 parked; the agent roster is the next Epic (D-BR0908-3)
+
+### D-BR0908-3 — `M6.E8` stays parked on its branch; the 22-agent roster row is the next Epic
+
+**Brett's call, 2026-09-08**, made at `/sig:drive`'s 0b confirmation once the run surfaced that
+`M6.E8` was already open at DISCUSS on `feat/m6.e8-advisor-ranking-inputs` — 4 commits ahead of
+`main`, 16 behind, no open PR, a complete `M6.E8-REQUIREMENTS.md`. The choice was put as three
+options (start the roster Epic / finish `M6.E8` first / stop and look), and the roster row was
+chosen with `M6.E8`'s state stated plainly first.
+
+**So two Epics are open at once, deliberately.** That is a departure from *"resuming beats starting
+new"*, and it is a decision rather than an accident — which is the whole reason this entry exists.
+The roster row was filed the same day and marked *Brett's call*; its trigger is that one of the 22
+unwired agents (`agents/specialists/code-reviewer.md`) was the capability that would have caught the
+six issues the PR reviewer found in `#243`.
+
+**The branch is deliberately left untouched — not rebased, not merged into, no PR opened.** Its
+`STATE.md` pins `last_updated_commit: f170093`, so rewriting SHAs would turn
+`adherence-anchor-reachability` red on it; merging `main` in means resolving four planning-doc
+conflicts with no payoff until someone resumes it; and opening a PR would let GitHub delete the
+branch at merge. Parked means parked.
+
+**Why this entry exists at all — the PR reviewer on `#248` is the reason.** The parking decision was
+first written only into `CLAUDE.md`, while `BACKLOG.md`'s row said *"resume the branch"* and
+`DECISIONS.md` said nothing. The reviewer flagged that the sole account of *"parked by decision"* was
+one uncorroborated sentence contradicted by its sibling file. **A decision that lives in one prose
+sentence is not recorded, it is asserted** — the same reasoning that put `D-M5E18-1`'s queue in
+`BACKLOG.md` rather than `CLAUDE.md`. All three now agree and cite this id.
+
+⚠ **Nothing automatic will remind anyone `M6.E8` exists.** `/sig:drive` and `/sig:advise` both read
+one branch's corpus (`B118`), so neither will surface it when the roster Epic closes. This entry and
+the `BACKLOG.md` row are the only pointers.
+
+---
+
 ## 2026-09-08 — the fresh-context reviewer, wired (D-BR0908-2)
 
 ### D-BR0908-2 — REVIEW dispatches a reviewer that does not share the authoring session's context
