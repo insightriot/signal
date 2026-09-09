@@ -52,8 +52,10 @@ line said *"nothing in flight"* for a day and a half while that was false of the
 true only of `main`. Milestone 6 is open; `M6.E1` shipped as v0.1.26, `M6.E2` as v0.1.29,
 `M6.E4` as v0.1.33, `M6.E5` merged 2026-08-28, and **`M6.E6` + `M6.E7` shipped together as v0.1.38**
 (2026-09-06) — the release that carries `/sig:advise`, the two decision-router guards, and the
-commit-anchor reachability test. **Pick the next item from
-[`.planning/BACKLOG.md`](.planning/BACKLOG.md) — or run `/sig:advise`, which exists to answer that.**
+commit-anchor reachability test. **Resume `M6.E8` first; after that, pick from
+[`.planning/BACKLOG.md`](.planning/BACKLOG.md).** ⚠ **`/sig:advise` will not tell you about `M6.E8`
+either** — `readCorpus` reads only `join(baseDir, …)` paths, so it has `B118`'s blindness exactly,
+and following it here walks you into the failure this section just described.
 
 ⚠ **`B117` — the Epic lane keeps getting squashed, and the cause is now confirmed.** PR #239 was
 merged with the green button and collapsed 35 commits into one, orphaning two published anchors and
