@@ -367,7 +367,7 @@ Recent releases, newest first — full detail in `CHANGELOG.md`:
 | v0.1.12 | M5.E9 | Linear mode & the phase ledger |
 | v0.1.8–v0.1.11 | M5.E1–E6 | The doc-runtime: capture lifecycle, auto `/sig:index`, `/sig:migrate-memory`, `/sig:sweep` |
 
-Milestones 1–4 closed; **M4.5 closed 2026-07-15** (release hardening; 4 non-Signal testers onboarded). **Milestone 5 closed 2026-08-13** when `M5.E10` shipped (`D-BR0809-2`). **Milestone 6 is open**: `M6.E1` shipped as v0.1.26 and `M6.E2` as v0.1.29; three fix-lane releases (v0.1.27, v0.1.28, v0.1.30) followed. Nothing is in flight.
+Milestones 1–4 closed; **M4.5 closed 2026-07-15** (release hardening; 4 non-Signal testers onboarded). **Milestone 5 closed 2026-08-13** when `M5.E10` shipped (`D-BR0809-2`). **Milestone 6 is open**: `M6.E1` shipped as v0.1.26 and `M6.E2` as v0.1.29; `M6.E4` as v0.1.33, `M6.E5` merged 2026-08-28, and `M6.E6`+`M6.E7` as v0.1.38; v0.1.39 followed. **`M6.E8` is in flight at DISCUSS on `feat/m6.e8-advisor-ranking-inputs`, not on `main` — see `B118`.**
 
 - **Conventions locked**: question-patterns (strict enum / 3+other / open-ended); PROFILE.md schema + tier-to-defaults + escalation_history; ID-is-identity vocabulary; `.planning/` always tracked in git; STATE.md YAML frontmatter (`schema_version: 1`) with auto-migration.
 - **`.planning/INDEX.md` is the documentation map — read it first.** It now regenerates at every phase transition, so it should be current.
