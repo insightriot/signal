@@ -2818,6 +2818,40 @@ That is the trigger, met, and it is recorded rather than assumed.
 **What this does NOT settle.** Whether the loop actually holds from DISCUSS. That needs a run, it is
 the one item still open on the `/sig:drive` row, and it is the next step.
 
+## 2026-09-08 — M6.E6's outcome oracle re-opened and marked MET (D-BR0908-4)
+
+### D-BR0908-4 — `Q-M6E6-1` answered: the verdict changes, and the split is stated
+
+**Brett's call, 2026-09-08**, answering the only entry in `DECISION-QUEUE.md`. `M6.E6`'s VERIFY
+recorded its outcome oracle **NOT MET** on 2026-09-04 because no released copy carried
+`routeDecision`. `v0.1.37` shipped it and is installed, so the question was whether meeting the
+oracle later re-opens the verdict.
+
+**Decided: re-open and mark it MET.** The queue entry's own recommendation was the opposite — *amend,
+do not overturn* — and it is **left standing unedited** so the record shows what was advised as well
+as what was decided.
+
+**A second question was asked before applying it, and it changed the answer's shape.** Checking the
+evidence rather than assuming it showed the oracle splits in two:
+
+- *"the question is answerable afterwards from `DECISION-QUEUE.md` alone"* — **demonstrated
+  2026-09-08.** `Q-M6E6-1` was answered from that entry alone; it carried the question, the
+  recommendation, `Altitude: product` and `Reversibility: painful`.
+- *"a `/sig:drive` run that meets an unforeseen gray-area question CONTINUES"* — **not
+  demonstrated.** `git log --diff-filter=A` shows the queue's single entry was written by the
+  Epic-close commit `23fd2dd`, not produced by a run routing a live decision.
+
+**So `MET` is written with the split stated, not flat.** Offered as three options (flat MET / MET
+with the split / PARTIALLY MET) and this was chosen. A flat `MET` would have been a completeness
+claim made from the shape of the work — the defect class
+[`../analysis/CLAIM-INTEGRITY-ANALYSIS.md`](../analysis/CLAIM-INTEGRITY-ANALYSIS.md) names, and one
+this Epic already committed three times.
+
+**What changed is reachability, not behaviour.** `B115` and the release-gap lesson in
+`M6.E6-VERIFICATION.md` are findings about what happened; they were not rewritten and still stand.
+
+---
+
 ## 2026-09-08 — M6.E8 parked; the agent roster is the next Epic (D-BR0908-3)
 
 ### D-BR0908-3 — `M6.E8` stays parked on its branch; the 22-agent roster row is the next Epic
