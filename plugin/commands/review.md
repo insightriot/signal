@@ -96,12 +96,27 @@ Using the code-simplification skill:
 ### 4.5 Fresh-context adversarial review — REQUIRED, and it runs before the verdict
 
 **Steps 1–4 are performed by the session that wrote the code. This step is not.** Dispatch
-`agents/specialists/code-reviewer.md` through the Task tool as a sub-agent, so it reads the change
-with none of this session's context:
+**all three agents in the table below** through the Task tool as sub-agents, **in a single message
+so they run in parallel**, each reading the change with none of this session's context:
 
 | Agent | `subagent_type` | Reads | Writes |
 |---|---|---|---|
 | Fresh-context reviewer | `code-reviewer` | the diff + the unit's `*-REQUIREMENTS.md` | its findings back to this session |
+| Security auditor | `security-auditor` | the diff + the unit's `*-REQUIREMENTS.md` | its findings back to this session |
+| Test engineer | `test-engineer` | the diff + the unit's `*-REQUIREMENTS.md` + the suite result | its findings back to this session — **report-only at REVIEW; it must not write** |
+
+**All three are dispatched together, in one message, and all three are REQUIRED** — the same
+fresh-context property is what makes each useful. `security-auditor` and `test-engineer` were wired
+here on 2026-09-08 (`M6.E9`); they had existed as files nobody invoked, alongside `code-reviewer`,
+which stayed unwired for four months and was the capability PR `#243` needed and did not get. Steps
+1–4 above already name security and test concerns — this step is what makes someone other than the
+author check them.
+
+⚠ **`test-engineer` reports at REVIEW; it does not write.** Its frontmatter grants `Write, Edit` and
+its own body tells it to write failing tests — correct for its other uses, wrong here. A review step
+that edits the tree invalidates the diff the other two agents were handed and stales the suite result
+VERIFY already recorded, and those edits would reach SHIP unverified. **Put the constraint in its
+dispatch prompt**; the frontmatter will not do it on the fallback path.
 
 > #### ⚠ Why this step exists, measured rather than argued
 >
@@ -131,11 +146,20 @@ verdict table below already says what each means. **A Critical it raises is a Cr
 here, the same findings are **discovered inside REVIEW**, where PASS-WITH-FIXES can absorb them and
 the loop-back path still exists. This step does not add a gate; it moves an existing one earlier.
 
-⚠ **Dev-mode fallback.** In a development checkout — which is what Signal-on-Signal is — plugin agents
-do not auto-register with the Task tool (`commands/init.md` § 2 records this and its workaround). If
-`subagent_type: code-reviewer` does not resolve, dispatch a general-purpose sub-agent and give it
-`agents/specialists/code-reviewer.md` to read as its instructions, with the same two inputs and the
-same omissions. **What must not happen is skipping the step because the dispatch was awkward** — that
+⚠ **Dev-mode fallback, and it applies to all three.** In a development checkout — which is what
+Signal-on-Signal is — plugin agents do not auto-register with the Task tool (`commands/init.md` § 2
+records this and its workaround). If a `subagent_type` above does not resolve, dispatch a
+general-purpose sub-agent **per agent** and give it that agent's own file to read as its
+instructions, with **the inputs its row names** — three for `test-engineer`, two for the other two —
+and the same omissions.
+
+⚠ **On the fallback path the agent's `tools:` frontmatter is INERT, and that is not a detail.** A
+general-purpose sub-agent runs with the full tool set; the specialist file's `tools:` line is prose
+inside a prompt, not an enforced allowlist. So state the ceiling in the dispatch prompt itself —
+**"you are read-only: do not modify any file"** — the way `init.md` already does for its scanners
+(`init.md` § 2). **Say plainly that this is a prose ceiling on an unconstrained agent, not
+enforcement**, so nobody reads it as a control it is not. Found by `security-auditor` on its own
+first dispatch, which enumerated the write and network tools it could reach and did not use. **What must not happen is skipping the step because the dispatch was awkward** — that
 is how it stayed unwired for four months.
 
 ⚠ **A `cannot-dispatch` outcome is a FAIL condition for this step, not a silent pass.** Record it in
