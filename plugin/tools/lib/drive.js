@@ -39,11 +39,13 @@ export const QUEUE_REL = '.planning/DECISION-QUEUE.md';
 export const FLOORS = Object.freeze([
   {
     id: 'ship-pr',
+    always: true,
     at: 'SHIP',
     why: 'A pull request is how the change reaches main, and merge is delivery. `D-M5E17-5`; `ship.md` has no direct-to-main exemption.',
   },
   {
     id: 'ship-retro',
+    always: true,
     at: 'SHIP',
     why: 'The Epic-close retrospective gate is explicitly "no bypass" — no flag, no env var, no extra-args trick (`D-E9-3`).',
   },
@@ -59,6 +61,7 @@ export const FLOORS = Object.freeze([
   },
   {
     id: 'resume-orphans',
+    always: true,
     at: 'RESUME',
     why: 'Orphan detection is interactive by design (`D12`); the prompt IS the recovery mechanism.',
   },
@@ -67,6 +70,91 @@ export const FLOORS = Object.freeze([
 export function floorsFor(phase) {
   return FLOORS.filter((f) => f.at === phase);
 }
+
+/**
+ * Which floors at this phase are LIVE right now?
+ *
+ * `floorsFor` answers "what floors exist at this phase" — a static question about
+ * the phase's name. This answers "which of them actually apply", which is the
+ * question the loop needs and never asked.
+ *
+ * ⚠ THE DEFECT THIS FIXES. `canProceedUnattended` computed
+ * `floorsFor(phase).length > 0`, so PLAN halted because it is called PLAN — not
+ * because anything needed gating. The two PLAN floors protect the idea-inbox
+ * drain: preview the diff, confirm deletions. With an empty inbox there is no
+ * diff and nothing to delete, and the loop stopped dead anyway. Every
+ * `/sig:drive` run at every attention level was DISCUSS -> halt at PLAN.
+ *
+ * ⚠ SHIP IS UNCONDITIONAL, DELIBERATELY (FR2). Its two floors carry
+ * `always: true` and this function never evaluates a condition for them. The
+ * pull request and the Epic-close retrospective were each made tier-independent
+ * by a specific decision (`D-M5E17-5`, `D-E9-3`); making floors conditional must
+ * not become a route to re-litigating those by omission — which is precisely how
+ * `ship.md` came to carry a self-exemption that survived thirteen releases.
+ *
+ * ⚠ FAILS CLOSED. A condition that throws, or that cannot read what it needs,
+ * yields a LIVE floor — an actor that cannot tell whether a gate applies must
+ * assume it does. `cannotCheck` names which, so a halt says "could not tell"
+ * rather than implying a condition it never evaluated.
+ *
+ * @returns {Promise<{live: Array, dormant: Array, cannotCheck: Array}>}
+ */
+export async function resolveFloors(phase, baseDir) {
+  const live = [];
+  const dormant = [];
+  const cannotCheck = [];
+
+  for (const floor of floorsFor(phase)) {
+    if (floor.always) {
+      live.push(floor);
+      continue;
+    }
+    const condition = FLOOR_CONDITIONS[floor.id];
+    if (!condition) {
+      // A floor with no condition and no `always` flag is a floor nobody
+      // classified. Treat it as live and say so, rather than silently dropping
+      // a gate because someone forgot to wire its predicate.
+      live.push(floor);
+      cannotCheck.push({ id: floor.id, reason: 'no condition defined — treated as live' });
+      continue;
+    }
+    try {
+      const applies = await condition(baseDir);
+      (applies ? live : dormant).push(floor);
+    } catch (err) {
+      live.push(floor);
+      cannotCheck.push({ id: floor.id, reason: err.message });
+    }
+  }
+
+  return { live, dormant, cannotCheck };
+}
+
+/**
+ * Is there anything in the capture inbox for PLAN's drain step to act on?
+ *
+ * No inbox file, or an inbox with no drain candidates, means the drain has
+ * nothing to preview and nothing to delete — so neither PLAN floor applies.
+ */
+async function inboxHasDrainableEntries(baseDir) {
+  const { resolveInboxPath } = await import('./inbox-path.js');
+  // resolveInboxPath returns a REPO-RELATIVE path. Joining it to baseDir is not
+  // optional: `existsSync` on the bare relative path resolves against the
+  // process cwd, so a run would read whatever inbox happens to sit under the
+  // working directory instead of the project's. Caught by a proof that asserted
+  // the floor goes live on a drainable inbox and got "dormant" — because it had
+  // read Signal's own empty-of-candidates inbox rather than the fixture's.
+  const path = join(baseDir, resolveInboxPath(baseDir));
+  if (!existsSync(path)) return false;
+  const { listDrainCandidates } = await import('./drain.js');
+  const content = await readFile(path, 'utf-8');
+  return listDrainCandidates(content).length > 0;
+}
+
+const FLOOR_CONDITIONS = Object.freeze({
+  'plan-drain-preview': inboxHasDrainableEntries,
+  'plan-drain-destructive': inboxHasDrainableEntries,
+});
 
 /**
  * Can the loop take this step without a person?
@@ -110,9 +198,19 @@ export function canProceedUnattended(phase, profile, { hasFloor = null, loopStat
   if (attention === 'attended') {
     return { proceed: false, reason: 'attended', attention, floors: [] };
   }
+  // `checkpointed` ADVANCES. Until 2026-09-10 it returned `phase-boundary` here
+  // and this function is only ever asked a phase-boundary question — `drive.md`
+  // § 3 calls it once per pass, keyed on `state.phase` — so it answered "stop"
+  // to every question it was ever asked. The middle setting of a three-position
+  // dial was a dead stop, while `drive.md` described it as "runs free INSIDE a
+  // phase", a behaviour with no code path anywhere. This repository's own
+  // PROFILE.md is set to it, which is the whole of "/sig:drive doesn't work".
+  //
+  // What separates it from `unattended` is what happens to a DECISION, not to a
+  // phase: `checkpointed` asks, `unattended` queues (see `queueDecision`). Both
+  // stop at a live floor, and both stop at SHIP.
   if (attention === 'checkpointed') {
-    // Checkpointed confirms at phase boundaries and runs free inside a phase.
-    return { proceed: false, reason: 'phase-boundary', attention, floors: [] };
+    return { proceed: true, reason: 'checkpointed', attention, floors: [] };
   }
   return { proceed: true, reason: 'unattended', attention, floors: [] };
 }

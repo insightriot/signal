@@ -54,10 +54,24 @@ describe('drive — floors that hold regardless of attention', () => {
     expect(canProceedUnattended('EXECUTE', profile({ attention: 'attended' })).proceed).toBe(false);
   });
 
-  it('checkpointed stops at the phase boundary, naming it as such', () => {
+  // ⚠ CHANGED IN `M6.E10`, and the old assertion is worth naming: it read
+  // `expect(r.proceed).toBe(false)` / `reason === 'phase-boundary'` — it PINNED
+  // the defect. `canProceedUnattended` is only ever asked a phase-boundary
+  // question (`drive.md` § 3 calls it once per pass on `state.phase`), so
+  // `checkpointed` answered "stop" to every question it ever received, while
+  // `drive.md` described it as "runs free INSIDE a phase" — a behaviour with no
+  // code path. This repository's own PROFILE.md is set to `checkpointed`, so the
+  // loop could not take a single step, and this test held that shut.
+  it('checkpointed ADVANCES a phase — it is the mode that drives', () => {
     const r = canProceedUnattended('EXECUTE', profile({ attention: 'checkpointed' }));
+    expect(r.proceed).toBe(true);
+    expect(r.reason).toBe('checkpointed');
+  });
+
+  it('attended is the mode that stops at every phase boundary', () => {
+    const r = canProceedUnattended('EXECUTE', profile({ attention: 'attended' }));
     expect(r.proceed).toBe(false);
-    expect(r.reason).toBe('phase-boundary');
+    expect(r.reason).toBe('attended');
   });
 
   // Fail CLOSED. A detector that cannot look should say so; an actor that cannot

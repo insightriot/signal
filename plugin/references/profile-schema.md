@@ -164,7 +164,7 @@ reads is missing here.
 
 | Key | Type | Description |
 |---|---|---|
-| `attention` | enum `attended \| checkpointed \| unattended` | **How much of your time the flow costs**, independent of how rigorous it is. `attended` = stop at every gate. `checkpointed` = run free *inside* a phase, stop at each phase boundary. `unattended` = run until a floor or an unanswerable decision. Read by `attentionFor` (`tools/lib/profile.js`) and spent by `/sig:drive`. |
+| `attention` | enum `attended \| checkpointed \| unattended` | **How much of your time the flow costs**, independent of how rigorous it is. `attended` = stop at every phase boundary. `checkpointed` = **advance every phase**, stopping at a live floor and **asking** on a gray-area decision. `unattended` = advance every phase, stopping at a live floor, with a gray-area decision **queued** rather than asked. **The difference between the last two is what happens to a DECISION, not to a phase.** ⚠ Until `M6.E10` (2026-09-10) this row said `checkpointed` *"runs free inside a phase, stops at each phase boundary"* — a behaviour with no code path: `canProceedUnattended` is only ever asked a phase-boundary question, so it answered *stop* to all of them and the loop could not take a single step at that setting. Read by `attentionFor` (`tools/lib/profile.js`) and spent by `/sig:drive`. |
 
 **Why it is separate from `gate_strictness`.** They were one dial, which meant the only way to buy
 less of your attention was to buy less rigor. `LOOP-ENGINEERING-ANALYSIS.md` measured that `light` and
@@ -181,6 +181,11 @@ recommended option for **every** gray area, including `painful` and `irreversibl
 reversibility routing. Filed in Signal's own backlog as *"DISCUSS silently auto-adopts irreversible
 decisions at `unattended`"* (no link: `.planning/` belongs to the project being worked on, not to
 the installed plugin payload). Prefer `checkpointed` until that lands.
+
+⚠ **`/sig:drive` now ASKS which of the three to use at the start of a run**, offering this key's
+value as the default (`M6.E10`). The reason is recorded in `D-BR0908-1`: with `attention` absent
+and undocumented, four consecutive Epics wrote throwaway per-Epic profiles at `light` to escape a
+setting nobody had chosen and nobody could find. **This key is a default, not a hidden gate.**
 
 ### `metadata`
 
