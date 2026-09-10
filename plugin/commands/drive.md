@@ -18,7 +18,7 @@ was welded to the rigor dial**, so the only way to buy less of your time was to 
 Authoritative references:
 - `tools/lib/plugin-binding.js` — `readBindingBanner` (step 0; a halt here, not a report)
 - `tools/lib/drive.js` — `proposeEpicCandidates`, `resolveStartPhase`, `CANONICAL_PHASES`,
-  `collectPreflight`, `formatPreflight`, `PREFLIGHT_SOURCES`, `routeDecision`,
+  `collectPreflight`, `formatPreflight`, `PREFLIGHT_SOURCES`, `resolveFloors`, `FLOOR_CONDITIONS`, `routeDecision`,
   `ROUTE_REVERSIBILITY`, `ROUTE_ALTITUDE`, `formatAnsweredForward`, `canProceedUnattended`,
   `FLOORS`, `floorsFor`, `queueDecision`, `readQueue`
 - `tools/lib/loop-ceiling.js` — `loopStatusFor`, `formatLoopCeilingHalt`, `LOOP_BOUNDED_PHASES`
@@ -111,15 +111,42 @@ It proposes; it does not write. Confirm the phase, then record it through the or
 phase-transition write — a stale phase gets corrected deliberately, never silently
 overwritten by a command the user ran to make progress.
 
-### 0b. Confirm you are running it alone
+### 0b. Ask HOW to run it — in the SAME interaction that picks the work
 
-One `AskUserQuestion`, in plain words: *run {Epic} start to finish on my own?* Options: yes /
-pick a different one / stop.
+**One `AskUserQuestion` call carrying BOTH questions.** It accepts up to four, so choosing the
+work and choosing the cadence are one screen, not two round-trips.
 
-**This gate is NOT in `FLOORS` and must not be added to it.** That array is documented as
-tier-independent gates each backed by a specific decision; this is a new confirmation belonging
-to the command flow. It fires regardless of `attention` — `unattended` means the run does not
-stop to ask *along the way*, not that it starts without being told to.
+- **Q1 — what to work on:** the ranked candidates from `0a`.
+- **Q2 — how to run it:** the three modes below.
+
+| Option shown | `attention` | What the loop does |
+|---|---|---|
+| **Step me through it** | `attended` | Confirms at every phase boundary. |
+| **Drive it — ask when it matters** | `checkpointed` | Runs DISCUSS→REVIEW. Stops for a live floor and **asks** on a gray-area decision. |
+| **Drive it — queue everything** | `unattended` | Same, but a gray-area decision is **parked** in `DECISION-QUEUE.md` and the run continues. |
+
+**Pre-select the profile's value as the default** (FR5), so `attention` still means something and
+an existing profile behaves exactly as before unless the user chooses otherwise. **The profile is
+a default, not a hidden gate.**
+
+> #### ⚠ Why this is a question and not a config read
+>
+> `D-BR0908-1`: this project had no `attention`, silently derived `attended` from
+> `gate_strictness: strict`, and **four consecutive Epics wrote a throwaway per-Epic `PROFILE.md`
+> at `light` to escape it** rather than setting the dial — because `attention` was missing from
+> `references/profile-schema.md`, the document every phase command points at.
+>
+> **Nobody disagreed with the setting. Nobody could find it.** A dial nobody can find is worse
+> than a question everybody is asked. Asking once, up front, is also what turns *"stops
+> constantly"* into *"asked me once, then ran"* — the behaviour people mean by driving.
+
+**This gate is NOT in `FLOORS` and must not be added to it.** That array is tier-independent gates
+each backed by a specific decision; this is a confirmation belonging to the command flow. It fires
+regardless of the mode — a mode says the run does not stop to ask *along the way*, never that it
+starts without being told to.
+
+**Report the chosen mode in the run's output and record it** (FR6), so a run's cadence is legible
+afterwards rather than inferred from a file.
 
 ### 0c. Ask everything blocking, UP FRONT
 
@@ -143,13 +170,40 @@ actor which cannot tell should stop; the alternative is a run that starts blind 
 
 `readEffectiveProfile(baseDir, { currentEpic })`, then `attentionFor(profile)`:
 
+**Step `0b` has already chosen the mode.** This read supplies the *default* it was offered with,
+and is re-read every pass so an Epic roll cannot leave the loop on the previous unit's dial.
+
 | `attention` | What the loop does |
 |---|---|
-| `attended` | Stops at every gate. Identical to today's behaviour — this is what a profile with no `attention` derives when `gate_strictness: strict`. |
-| `checkpointed` | Runs free **inside** a phase; stops at each phase boundary. |
-| `unattended` | Runs until a floor or an unanswerable decision. |
+| `attended` | Stops at every phase boundary. *"Step me through it."* |
+| `checkpointed` | **Advances every phase.** Stops at a live floor, and **asks** on a gray-area decision. |
+| `unattended` | Advances every phase. Stops at a live floor; a gray-area decision is **queued**, not asked. |
 
-**A profile written before this axis existed keeps its exact current behaviour**, because attention
+⚠ **`checkpointed` used to say *"runs free inside a phase; stops at each phase boundary"*, and that
+was a behaviour with no code path.** `canProceedUnattended` is only ever asked a phase-boundary
+question — § 3 calls it once per pass on `state.phase` — so it answered *stop* to every question it
+ever received. This repository's own `PROFILE.md` is set to it, which was the entirety of
+*"`/sig:drive` doesn't work"*: the loop could not take a single step at its configured setting.
+Fixed in `M6.E10`. A test in the Signal repository now asserts that at least one mode reaches
+REVIEW without stopping — the assertion nothing made before, which is why a loop that could not
+advance shipped and stayed shipped.
+
+**What separates `checkpointed` from `unattended` is what happens to a DECISION, not to a phase.**
+Both advance phases; both stop at a live floor; both stop at SHIP. `queueDecision` **refuses at
+`checkpointed`** and returns `{queued: false, refused: true}` — so a gray-area decision is *asked*,
+not parked.
+
+⚠ **That refusal was added in `M6.E10` and the omission is worth recording.** The first cut of this
+Epic wrote the ask-vs-queue sentence into three documents while `queueDecision` gated on `attended`
+alone — `checkpointed` and `unattended` were byte-identical, so *"ask when it matters"* silently
+**queued** product-altitude decisions into a file the Epic's own scope says nothing drains. **That is
+FR3's defect committed inside the Epic that wrote FR3**: one description with no code path replaced
+by another. Found by the fresh-context reviewer, not by the suite.
+
+⚠ **`gate_strictness: light` with no `attention` CHANGES behaviour as of `M6.E10`.** It derives
+`checkpointed`, which used to stop at every phase and now advances DISCUSS→REVIEW. Surfaced rather
+than silent: § 0b asks, with this value as the default. **Every other pre-axis profile keeps its
+exact behaviour**, because attention
 is *derived* from `gate_strictness` when absent (`off`→`unattended`, `light`→`checkpointed`,
 `strict`→`attended`) rather than defaulted to a constant. That mapping is not a guess: `light` and
 `strict` were measured to differ by exactly one boolean in code, and `off` already meant auto-advance.
@@ -195,13 +249,30 @@ Until a stop:
    halts.
 1. `describeNextAction(state.phase, profile.phases_skipped)` → the next command (fail-open, `B70`).
 2. `loopStatusFor(state, state.phase)` → the loop count for a bounded phase, `null` elsewhere.
-3. `canProceedUnattended(state.phase, profile, { loopStatus })`.
-4. **`proceed: false`** → stop. Print `reason` (`floor` / `loop-ceiling` / `loop-unknown` /
-   `attended` / `phase-boundary`), and for a floor print every `why`. For `loop-ceiling` print
+3. **`await resolveFloors(state.phase, baseDir)`** → which floors at this phase are *live right now*.
+4. `canProceedUnattended(state.phase, profile, { hasFloor: live.length > 0, liveFloors: live, cannotCheck, loopStatus })`
+   — pass `liveFloors` and `cannotCheck` too, or the halt prints every floor at the phase (including
+   dormant ones) and stays silent about what it could not evaluate.
+5. **`proceed: false`** → stop. Print `reason` (`floor` / `loop-ceiling` / `loop-unknown` /
+   `attended` / `unknown-phase`), and for a floor print every `why`. For `loop-ceiling` print
    `formatLoopCeilingHalt(loopStatus)` — do not write the sentence yourself; one place turns a
    ceiling into prose so this file and the driver cannot describe the same halt two ways. Never
    paraphrase a floor's reason into something softer.
 5. **`proceed: true`** → run that phase command, then re-read state and continue.
+
+⚠ **Step 3 is not optional either, and it is the fix for the second half of *"it doesn't work"*.**
+`canProceedUnattended` falls back to `floorsFor(phase).length > 0` when `hasFloor` is absent — a
+**phase-NAME match**, not a condition. PLAN carries two floors that protect the idea-inbox drain
+(preview the diff, confirm deletions), so with an empty inbox there was nothing to preview and
+nothing to delete **and PLAN halted anyway**. Every run at every mode was DISCUSS → dead stop at
+PLAN. `hasFloor` existed the whole time and no caller passed it.
+
+⚠ **`resolveFloors` fails CLOSED**: a condition that throws, or a floor nobody classified, comes
+back **live**, and `cannotCheck` names it — so a halt says *"could not tell"* rather than implying
+a condition it never evaluated. **SHIP's two floors carry `always: true` and are never evaluated**
+(`D-M5E17-5`, `D-E9-3`); conditional floors must not become a route to re-litigating those by
+omission, which is exactly how `ship.md` came to carry a self-exemption that survived thirteen
+releases.
 
 ⚠ **Step 2 is not optional, and omitting it does not fail open — it fails closed on every pass.**
 `canProceedUnattended` refuses with `loop-unknown` when a `LOOP_BOUNDED_PHASES` phase arrives with no
