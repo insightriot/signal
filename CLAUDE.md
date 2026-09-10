@@ -42,41 +42,30 @@ the start of **every** session, so the duplication was paid for on every run.
 Removed 2026-09-02 under the doc-budget rule (see *House rules* below). Nothing was lost: search
 [`CHANGELOG.md`](CHANGELOG.md) for a version, or the retros for an Epic.
 
-**Active: `M6.E9` shipped 2026-09-09 (PR #250) — every one of Signal's 26 agents now carries a
-determination.** 7 dispatched, 19 dormant each with a reason and a trigger, 0 cut; `security-auditor`
-and `test-engineer` wired into `review.md` § 4.5; `plan.md` § 2 stopped ordering runs to spawn four
-named research agents, **three of which existed nowhere in the tree**, in the phase every Epic runs.
-Five guards now fail the suite on an undetermined agent, a `wired` claim the tree denies, a
-double-listing, a missing trigger or a missing reason. 3347 → **3354 tests**. Retro:
-[`.planning/M6.E9-RETROSPECTIVE.md`](.planning/M6.E9-RETROSPECTIVE.md).
+**Active: `v0.1.40` shipped 2026-09-10 — `/sig:drive` can take a step.** It could not, at any
+setting: traced over every phase, `canProceedUnattended` returned **stop everywhere**, and this
+project's own `checkpointed` profile was the worst case. Two defects — `checkpointed` was documented
+as *"runs free inside a phase"*, a behaviour with **no code path**; and floors fired on a phase's
+**name**, so PLAN halted with an empty inbox and nothing to gate. **Every run at every setting was
+DISCUSS → dead stop at PLAN.** The `hasFloor` hook to fix it had existed since the command shipped
+and no caller passed it. `/sig:drive` now **asks how you want it run** in the same question that
+picks the work (`M6.E10`). `M6.E9` shipped alongside: all 26 agents carry a determination, 7
+dispatched / 19 dormant, and `plan.md` § 2 stopped ordering runs to spawn three agents that existed
+nowhere. Retros: [`.planning/M6.E10-RETROSPECTIVE.md`](.planning/M6.E10-RETROSPECTIVE.md),
+[`.planning/M6.E9-RETROSPECTIVE.md`](.planning/M6.E9-RETROSPECTIVE.md). **3379 tests.**
 
-**The headline is what the Epic proved about itself.** The two agents it wired found the defects in
-the change that wired them, an hour after first being dispatched — **4 Critical and 7 Important that
-four in-session passes missed**, and `claude-review` then returned clean at PR-open for the first
-time. Chief among them: the § 4.5 table gained two rows while its imperative still read *"Dispatch
-`code-reviewer.md`"* — singular — so both agents were recorded `wired` **on the strength of a table
-row**, the exact prose-vs-dispatch distinction `agent-reachability.md` opens by calling *"the whole
-point of this page"*. ⚠ **Six times in that Epic something disagreed with the roster page, and every
-time the CHECK was wrong and the page was right** — including two "proof" tests that could not fail,
-one *inverted* (green on the defect it named, red on the correct fix). **The cheap rule out of it: a
-proof-of-fail must assert that its mutation applied**, or "no failure" cannot distinguish a broken
-guard from a broken proof.
+⚠ **Nothing ever asked whether `proceed` was true, and TWO TESTS WERE HOLDING THE DEFECTS SHUT** —
+*"checkpointed stops at the phase boundary"* and *"queues at unattended and checkpointed"*. Both
+described real behaviour; both made the bug the contract. **Coverage asserting the wrong thing is
+worse than no coverage**, because fixing the defect turns the suite red. ⚠ **The reported symptom
+was accurate for a week before it was reproduced** — *"every time I use it something doesn't work"*
+was answered with a diagnosis about missing external users, while 42+ repositories were using it.
+**A user saying it doesn't work is a claim about the software; reproduce it before reframing it.**
+The trace that settled it took four minutes.
 
-⚠ **`M6.E8` is still parked at DISCUSS on `feat/m6.e8-advisor-ranking-inputs`** (`D-BR0908-3`) — a
-complete `M6.E8-REQUIREMENTS.md`, `D-M6E8-*`, and a measured finding that never landed: *44 of 46
-backlog rows rank on age alone*. **Resume the branch; never start that row fresh.** Nothing automatic
-will remind you: `/sig:drive` and `/sig:advise` both read one branch's corpus (`B118`, unfixed), so
-an Epic in flight anywhere else is invisible and *"resuming beats starting new"* silently never
-fires.
-
-Milestone 6 is open; `M6.E1` shipped as v0.1.26, `M6.E2` as v0.1.29,
-`M6.E4` as v0.1.33, `M6.E5` merged 2026-08-28, and **`M6.E6` + `M6.E7` shipped together as v0.1.38**
-(2026-09-06) — the release that carries `/sig:advise`, the two decision-router guards, and the
-commit-anchor reachability test. **`M6.E8` stays PARKED on its branch by decision (Brett,
-2026-09-08, `D-BR0908-3`); the next Epic is the agent-roster row at [`.planning/BACKLOG.md`](.planning/BACKLOG.md).**
-⚠ **Neither `/sig:drive` nor `/sig:advise` will mention `M6.E8` when you pick** — `readCorpus` reads
-only `join(baseDir, …)` paths, so it has `B118`'s blindness exactly. Parked is a decision; invisible
-is the bug.
+⚠ **`M6.E8` is still parked at DISCUSS on `feat/m6.e8-advisor-ranking-inputs`** (`D-BR0908-3`).
+**Resume the branch; never start that row fresh.** Nothing automatic will remind you — `/sig:drive`
+and `/sig:advise` both read one branch's corpus (`B118`, unfixed).
 
 ✅ **`B117` — the Epic lane kept getting squashed. CLOSED 2026-09-08 by the ruleset** (see *How changes reach `main`* below: `main` now permits `merge` only, so the sticky button cannot arm anything). The history is kept because the *cause* is the lesson. PR #239 was
 merged with the green button and collapsed 35 commits into one, orphaning two published anchors and

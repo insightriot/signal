@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.40] — 2026-09-10 — the loop that could not take a step
 
 ### Fixed
 
