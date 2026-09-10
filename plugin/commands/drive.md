@@ -18,7 +18,7 @@ was welded to the rigor dial**, so the only way to buy less of your time was to 
 Authoritative references:
 - `tools/lib/plugin-binding.js` — `readBindingBanner` (step 0; a halt here, not a report)
 - `tools/lib/drive.js` — `proposeEpicCandidates`, `resolveStartPhase`, `CANONICAL_PHASES`,
-  `collectPreflight`, `formatPreflight`, `PREFLIGHT_SOURCES`, `routeDecision`,
+  `collectPreflight`, `formatPreflight`, `PREFLIGHT_SOURCES`, `resolveFloors`, `FLOOR_CONDITIONS`, `routeDecision`,
   `ROUTE_REVERSIBILITY`, `ROUTE_ALTITUDE`, `formatAnsweredForward`, `canProceedUnattended`,
   `FLOORS`, `floorsFor`, `queueDecision`, `readQueue`
 - `tools/lib/loop-ceiling.js` — `loopStatusFor`, `formatLoopCeilingHalt`, `LOOP_BOUNDED_PHASES`
@@ -189,9 +189,21 @@ REVIEW without stopping — the assertion nothing made before, which is why a lo
 advance shipped and stayed shipped.
 
 **What separates `checkpointed` from `unattended` is what happens to a DECISION, not to a phase.**
-Both advance phases; both stop at a live floor; both stop at SHIP.
+Both advance phases; both stop at a live floor; both stop at SHIP. `queueDecision` **refuses at
+`checkpointed`** and returns `{queued: false, refused: true}` — so a gray-area decision is *asked*,
+not parked.
 
-**A profile written before this axis existed keeps its exact current behaviour**, because attention
+⚠ **That refusal was added in `M6.E10` and the omission is worth recording.** The first cut of this
+Epic wrote the ask-vs-queue sentence into three documents while `queueDecision` gated on `attended`
+alone — `checkpointed` and `unattended` were byte-identical, so *"ask when it matters"* silently
+**queued** product-altitude decisions into a file the Epic's own scope says nothing drains. **That is
+FR3's defect committed inside the Epic that wrote FR3**: one description with no code path replaced
+by another. Found by the fresh-context reviewer, not by the suite.
+
+⚠ **`gate_strictness: light` with no `attention` CHANGES behaviour as of `M6.E10`.** It derives
+`checkpointed`, which used to stop at every phase and now advances DISCUSS→REVIEW. Surfaced rather
+than silent: § 0b asks, with this value as the default. **Every other pre-axis profile keeps its
+exact behaviour**, because attention
 is *derived* from `gate_strictness` when absent (`off`→`unattended`, `light`→`checkpointed`,
 `strict`→`attended`) rather than defaulted to a constant. That mapping is not a guess: `light` and
 `strict` were measured to differ by exactly one boolean in code, and `off` already meant auto-advance.
@@ -238,9 +250,11 @@ Until a stop:
 1. `describeNextAction(state.phase, profile.phases_skipped)` → the next command (fail-open, `B70`).
 2. `loopStatusFor(state, state.phase)` → the loop count for a bounded phase, `null` elsewhere.
 3. **`await resolveFloors(state.phase, baseDir)`** → which floors at this phase are *live right now*.
-4. `canProceedUnattended(state.phase, profile, { hasFloor: live.length > 0, loopStatus })`.
-4. **`proceed: false`** → stop. Print `reason` (`floor` / `loop-ceiling` / `loop-unknown` /
-   `attended` / `phase-boundary`), and for a floor print every `why`. For `loop-ceiling` print
+4. `canProceedUnattended(state.phase, profile, { hasFloor: live.length > 0, liveFloors: live, cannotCheck, loopStatus })`
+   — pass `liveFloors` and `cannotCheck` too, or the halt prints every floor at the phase (including
+   dormant ones) and stays silent about what it could not evaluate.
+5. **`proceed: false`** → stop. Print `reason` (`floor` / `loop-ceiling` / `loop-unknown` /
+   `attended` / `unknown-phase`), and for a floor print every `why`. For `loop-ceiling` print
    `formatLoopCeilingHalt(loopStatus)` — do not write the sentence yourself; one place turns a
    ceiling into prose so this file and the driver cannot describe the same halt two ways. Never
    paraphrase a floor's reason into something softer.
