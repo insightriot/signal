@@ -6,6 +6,91 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.40] — 2026-09-10 — the loop that could not take a step
+
+### Fixed
+
+- **`/sig:drive` could not take a single step, at any attention setting.** Traced through
+  `canProceedUnattended` against a real `PROFILE.md`: **every phase returned stop.** The command was a
+  stepper wearing an autopilot label, which is exactly how it had been reported.
+
+  **Two independent defects, both of which had to go.**
+
+  **1. `checkpointed` was a dead stop.** `drive.md` described it as *"runs free **inside** a phase;
+  stops at each phase boundary"* — a behaviour with **no code path anywhere**. The function is only
+  ever asked a phase-boundary question (§ 3 calls it once per pass on `state.phase`), so it answered
+  *stop* to every question it ever received. A test asserted precisely that, holding the defect shut.
+
+  **2. Floors fired on the phase's NAME, not their condition.** `floorsFor(phase).length > 0` is a
+  name match, so PLAN halted because it is *called* PLAN. Its two floors protect the idea-inbox drain;
+  with an empty inbox there is no diff to preview and nothing to delete — and it halted anyway. **Every
+  run at every setting was DISCUSS → dead stop at PLAN.** The `hasFloor` hook to fix this had existed
+  since the command shipped and no caller ever passed it.
+
+  `resolveFloors` now answers *which floors apply right now*, and **fails closed** — a condition that
+  throws, rejects, returns a non-boolean, or was never wired stays **live** and is named in
+  `cannotCheck`. **SHIP is never evaluated**: its two floors carry `always: true`, because
+  `D-M5E17-5` and `D-E9-3` made them tier-independent and conditional floors must not re-litigate that
+  by omission.
+
+- **`checkpointed` and `unattended` were byte-identical where they were documented to differ.** Three
+  documents said `checkpointed` **asks** on a gray-area decision while `unattended` **queues**;
+  `queueDecision` gated on `attended` alone. So *"drive it, ask when it matters"* would have **silently
+  parked product-altitude decisions** in a file nothing drains. `queueDecision` now refuses at
+  `checkpointed`.
+
+- **An `always` floor was falsifiable by its caller.** `always: true` was read only inside
+  `resolveFloors`, which `canProceedUnattended` never calls, and `hasFloor` is nullish-coalesced — so
+  `hasFloor: false` **proceeded past SHIP's pull-request and no-bypass-retrospective floors.** The
+  guarantee lived in the wrong function. Now unfalsifiable.
+
+- **The PLAN floor and `/sig:plan` used different drain parsers.** `listDrainCandidates` versus
+  `listDrainCandidatesWithRecovery` — on an inbox whose only live entry sits below an unclosed code
+  fence they return **0** and **1**, so the driver declared the floors dormant and advanced into a PLAN
+  with real drain work waiting.
+
+- **A dangling symlink at the inbox failed open**, and **an unknown phase proceeded** (previously
+  covered by accident, since `checkpointed` stopped on everything). Both fail closed now.
+
+- **The suite's most frequent flake blocked releases.** A test scanned the whole system temp directory
+  — unbounded, machine-dependent state — and hit the 15 s timeout under load. `cut-release.js` gates
+  on a green suite, so it refused to cut this release. Fixed at the cause; raising the timeout would
+  have hidden a real dependency on environmental state.
+
+### Changed
+
+- **`/sig:drive` asks how you want it to run, in the same question that picks the work.** One screen,
+  two answers: *step me through it* / *drive it, ask when it matters* / *drive it, queue everything*.
+
+  **The profile pre-selects the default — it is a default, not a hidden gate.** `D-BR0908-1` is the
+  evidence for the change: with `attention` absent and undocumented, **four consecutive Epics each
+  wrote a throwaway per-Epic `PROFILE.md` to escape a setting nobody had chosen and nobody could
+  find.** A dial nobody can find is worse than a question everybody is asked.
+
+- **Every one of Signal's 26 agents now carries a determination** — `wired`, `dormant`, or `cut` — in
+  `references/agent-reachability.md`. **7 dispatched, 19 dormant** each with a reason and a trigger, 0
+  cut. `security-auditor` and `test-engineer` join `code-reviewer` in `review.md` § 4.5. The suite
+  fails on an agent with no determination, so the next one cannot land undecided.
+
+- **`plan.md` § 2 stopped ordering runs to spawn four named research agents, three of which existed
+  nowhere in the tree** — in the phase every Epic runs. They are research *angles* now, explicitly not
+  agents.
+
+### What this release records against itself
+
+**Two tests were holding defects shut**, and both were rewritten with the old assertion quoted in
+place rather than deleted. **A test written to fix a reviewer's finding was itself vacuous** — its
+mutation produced zero red — which is the third instance in two Epics of one rule: *a proof must
+assert the specific outcome, not that the suite passes.*
+
+**REVIEW found more than EXECUTE did, twice running.** The three fresh-context specialists returned
+4 Critical + 7 Important on `M6.E9` and 7 Important + 1 Medium on `M6.E10` — including, both times, a
+false claim the Epic had made about itself. `claude-review` then returned **clean at PR-open** on
+both, because the findings were caught in-phase where they could still be fixed.
+
+**Not verified, and said plainly:** the mode question is prose in `drive.md`. Nothing executes it, so
+nothing tests it. The first real run is what settles it.
+
 ## [0.1.39] — 2026-09-08 — the dial nobody turned, and the reviewer nobody called
 
 ### Added
