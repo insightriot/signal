@@ -5,7 +5,7 @@ Groomed, sequenced roadmap — promoted from the issues inbox (`ISSUES-INBOX.md`
 > **Source.** Restructured from the point-in-time backlog pass `BACKLOG-REVIEW-2026-07-04.md`, now archived at [`archive/BACKLOG-REVIEW-2026-07-04.md`](archive/BACKLOG-REVIEW-2026-07-04.md) (move-never-delete — the snapshot is frozen; this file is its living successor). The snapshot's added items (A1–A5), sharpened items, and sprint clusters are folded in below.
 
 
-> **Latest generated review:** [`BACKLOG-REVIEW-2026-09-06.md`](BACKLOG-REVIEW-2026-09-06.md) —
+> **Latest generated review:** [`BACKLOG-REVIEW-2026-09-13.md`](BACKLOG-REVIEW-2026-09-13.md) —
 > produced by `/sig:advise`, not by hand. It recommends and declines with citations that resolve;
 > it changes nothing in this file. The inbound link is a **one-time human step at SHIP**: the command
 > writes its artifact and nothing else, deliberately.
