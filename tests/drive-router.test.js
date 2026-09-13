@@ -325,8 +325,15 @@ describe('AC2.6 — queueing never fires at `attended`, and it is a CHECK', () =
     expect(existsSync(join(dir, '.planning', 'DECISION-QUEUE.md'))).toBe(false);
   });
 
-  it('queues at unattended and checkpointed — what the dial buys', async () => {
-    for (const attention of ['unattended', 'checkpointed', undefined]) {
+  // ⚠ CHANGED IN `M6.E10`. This read `['unattended', 'checkpointed', undefined]`
+  // and asserted all three QUEUE. That made `checkpointed` and `unattended`
+  // byte-identical, while three documents said `checkpointed` ASKS and
+  // `unattended` QUEUES — a described behaviour with no code path, which is
+  // exactly what that Epic's FR3 forbids. So "Drive it, ask when it matters"
+  // silently parked product-altitude decisions in a file nothing drains.
+  // Found by the fresh-context reviewer; this test had held it shut.
+  it('queues at unattended only — checkpointed ASKS, which is what separates them', async () => {
+    for (const attention of ['unattended', undefined]) {
       const d = await mkdtemp(join(tmpdir(), 'signal-q26b-'));
       await mkdir(join(d, '.planning'), { recursive: true });
       const r = await queueDecision(d, parked, { attention });
@@ -334,6 +341,15 @@ describe('AC2.6 — queueing never fires at `attended`, and it is a CHECK', () =
       expect(existsSync(join(d, '.planning', 'DECISION-QUEUE.md'))).toBe(true);
       await rm(d, { recursive: true, force: true });
     }
+  });
+
+  it('REFUSES at checkpointed — a person driving with "ask me" must be asked', async () => {
+    const d = await mkdtemp(join(tmpdir(), 'signal-q26c-'));
+    await mkdir(join(d, '.planning'), { recursive: true });
+    const r = await queueDecision(d, parked, { attention: 'checkpointed' });
+    expect(r).toMatchObject({ queued: false, refused: true });
+    expect(existsSync(join(d, '.planning', 'DECISION-QUEUE.md'))).toBe(false);
+    await rm(d, { recursive: true, force: true });
   });
 
   it('refuses to file a decision the router would ADOPT', async () => {

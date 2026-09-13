@@ -42,29 +42,60 @@ the start of **every** session, so the duplication was paid for on every run.
 Removed 2026-09-02 under the doc-budget rule (see *House rules* below). Nothing was lost: search
 [`CHANGELOG.md`](CHANGELOG.md) for a version, or the retros for an Epic.
 
-**Active: nothing in flight.** Milestone 6 is open; `M6.E1` shipped as v0.1.26, `M6.E2` as v0.1.29,
-`M6.E4` as v0.1.33, `M6.E5` merged 2026-08-28, and **`M6.E6` + `M6.E7` shipped together as v0.1.38**
-(2026-09-06) — the release that carries `/sig:advise`, the two decision-router guards, and the
-commit-anchor reachability test. **Pick the next item from
-[`.planning/BACKLOG.md`](.planning/BACKLOG.md) — or run `/sig:advise`, which exists to answer that.**
+**Active: `v0.1.40` shipped 2026-09-10 — `/sig:drive` can take a step.** It could not, at any
+setting: traced over every phase, `canProceedUnattended` returned **stop everywhere**, and this
+project's own `checkpointed` profile was the worst case. Two defects — `checkpointed` was documented
+as *"runs free inside a phase"*, a behaviour with **no code path**; and floors fired on a phase's
+**name**, so PLAN halted with an empty inbox and nothing to gate. **Every run at every setting was
+DISCUSS → dead stop at PLAN.** The `hasFloor` hook to fix it had existed since the command shipped
+and no caller passed it. `/sig:drive` now **asks how you want it run** in the same question that
+picks the work (`M6.E10`). `M6.E9` shipped alongside: all 26 agents carry a determination, 7
+dispatched / 19 dormant, and `plan.md` § 2 stopped ordering runs to spawn three agents that existed
+nowhere. Retros: [`.planning/M6.E10-RETROSPECTIVE.md`](.planning/M6.E10-RETROSPECTIVE.md),
+[`.planning/M6.E9-RETROSPECTIVE.md`](.planning/M6.E9-RETROSPECTIVE.md). **3379 tests.**
 
-⚠ **`B117` — the Epic lane keeps getting squashed, and the cause is now confirmed.** PR #239 was
+⚠ **Nothing ever asked whether `proceed` was true, and TWO TESTS WERE HOLDING THE DEFECTS SHUT** —
+*"checkpointed stops at the phase boundary"* and *"queues at unattended and checkpointed"*. Both
+described real behaviour; both made the bug the contract. **Coverage asserting the wrong thing is
+worse than no coverage**, because fixing the defect turns the suite red. ⚠ **The reported symptom
+was accurate for a week before it was reproduced** — *"every time I use it something doesn't work"*
+was answered with a diagnosis about missing external users, while 42+ repositories were using it.
+**A user saying it doesn't work is a claim about the software; reproduce it before reframing it.**
+The trace that settled it took four minutes.
+
+⚠ **`M6.E8` is still parked at DISCUSS on `feat/m6.e8-advisor-ranking-inputs`** (`D-BR0908-3`).
+**Resume the branch; never start that row fresh.** Nothing automatic will remind you — `/sig:drive`
+and `/sig:advise` both read one branch's corpus (`B118`, unfixed).
+
+✅ **`B117` — the Epic lane kept getting squashed. CLOSED 2026-09-08 by the ruleset** (see *How changes reach `main`* below: `main` now permits `merge` only, so the sticky button cannot arm anything). The history is kept because the *cause* is the lesson. PR #239 was
 merged with the green button and collapsed 35 commits into one, orphaning two published anchors and
 turning `tests/adherence-anchor-reachability.test.js` red on `main` (repaired by PR #240). Third
 instance. **GitHub remembers the last merge method REPO-WIDE**, so the fix lane's correct `--squash`
 arms the very next Epic merge — the two lanes' correct behaviours are in direct conflict and the
-conflict is invisible at the moment of clicking. The trap has been documented since `v0.1.19` and
-has now fired three times, **which is the evidence that documentation is not the fix.** A second harm
-surfaced this time: GitHub deletes the branch at merge, so an Epic's commit messages — *"frequently
-the best surviving account of why a line exists"* — survive only if someone pushes the branch back.
+conflict was invisible at the moment of clicking. The trap was documented from `v0.1.19` and
+fired three times anyway, **which is the evidence that documentation was not the fix** — a repo
+setting was. A second harm surfaced at the third instance: GitHub deletes the branch at merge, so an
+Epic's commit messages — *"frequently the best surviving account of why a line exists"* — survive
+only if someone pushes the branch back. **That half is NOT fixed by the ruleset** and still applies.
 
 ⚠ **`B116` — the requirement-coverage check under-counts its own denominator** on 21 of 22
 `*-REQUIREMENTS.md` artifacts here, so `missing: []` can read clean over a requirement it never
 counted. Found by *using* it during `M6.E7` VERIFY.
 
-⚠ **`/sig:drive` has never been run end-to-end** and that is the gate on further loop work — `B113`'s
-fix is verified against the module and the documented call site, not by a live run. A run that halts
-on `loop-unknown` means it is not actually fixed. Filed in [`.planning/BACKLOG.md`](.planning/BACKLOG.md).
+⚠ **`/sig:drive` is half-proven, and the remaining half is the gate on further loop work.** It drove
+`M6.E6` from **VERIFY through SHIP** on 2026-09-04: one unattended advance, one halt at SHIP with
+`reason: floor`, and **no `loop-unknown` halt** — so `B113` is empirically fixed, not merely fixed
+against the module. What has never happened is a run starting at **DISCUSS**. Filed in
+[`.planning/BACKLOG.md`](.planning/BACKLOG.md). *(This paragraph read "has never been run end-to-end"
+for four days after that run; corrected 2026-09-08.)*
+
+⚠ **And the reason it did not feel like a loop was a dial nobody turned.** This project's
+`PROFILE.md` had no `attention`, so it derived `attended` from `gate_strictness: strict` and
+`/sig:drive` stopped at **every** gate. Four consecutive Epics (`M6.E4`–`M6.E7`) each wrote a
+per-Epic `PROFILE.md` at `light` to escape it rather than setting the dial — because `attention` was
+missing from `references/profile-schema.md`, the document every phase command points at for the
+profile contract. Set explicitly to `checkpointed` on 2026-09-08 (`D-BR0908-1`); FULL rigor is
+unchanged, which is the whole point of the axis being separate.
 
 **The queue is [`.planning/BACKLOG.md`](.planning/BACKLOG.md), not this file** (`D-M5E18-1`) — read the
 candidates there, including what was excluded on evidence.
@@ -149,9 +180,26 @@ Behavioral rules that apply to every conversation and every agent, in addition t
 | For | features, design work | bugs, papercuts, doc fixes |
 | Six phases | yes | **no** |
 | Branch + PR + green CI | **yes** | **yes** |
-| Merge strategy | **`--merge`** (merge commit) | `--squash` |
+| Merge strategy | **`--merge`** (merge commit) | **`--merge`** — the ruleset allows nothing else (see below) |
 
-A one-line fix does **not** need DISCUSS→SHIP. It **does** need a branch, a PR, and a green suite. `gh pr create --fill` then `gh pr merge --squash` is the whole overhead.
+A one-line fix does **not** need DISCUSS→SHIP. It **does** need a branch, a PR, and a green suite. `gh pr create --fill` then `gh pr merge --merge` is the whole overhead. (**Not `--squash`** — since 2026-09-08 the server refuses it on `main`.)
+
+⚠ **EXCEPTION, and it is not rare: a fix-lane PR that regenerates
+[`.planning/ADHERENCE-LOG.md`](.planning/ADHERENCE-LOG.md) must merge with `--merge`.** The tool pins
+the current `HEAD` as the run's reproducibility anchor, so on a branch it pins a **branch** commit —
+and `--squash` never lands that commit on `main`, which is the orphaned-anchor failure this file
+already describes two paragraphs down. The fix lane's `--squash` is a *preference*; a reachable anchor
+is a *correctness requirement*, and regenerating that file moves the requirement into the fix lane.
+
+**No test can catch this before the merge.** `tests/adherence-anchor-reachability.test.js` checks
+reachability from `HEAD`, which is green on the branch and only goes red on `main` afterwards — so the
+guard fires *after* the damage, by construction. Found by the PR reviewer on `#243`, on a fix-lane PR
+that had regenerated the file because edits to `commands/*.md` moved the directive-line ceiling.
+Regenerating it is not optional in that situation; choosing `--squash` afterwards is.
+
+*(The durable version is `tools/adherence-ceiling.js` pinning the newest commit that is already on
+`origin/main` rather than `HEAD`. Not done — it changes what the anchor means, which is a design call,
+not a papercut.)*
 
 > ### ⚠ The two lanes need DIFFERENT merge methods, and GitHub's web UI remembers only the last one
 >
@@ -170,21 +218,25 @@ A one-line fix does **not** need DISCUSS→SHIP. It **does** need a branch, a PR
 > `#236` orphaned all six of its commits **and** left `STATE.md`'s `last_updated_commit` pointing at
 > a commit nobody can reach. `#211` failed the same way in August.
 >
-> **The durable fix is a repo setting, not a habit.** Restrict `main`'s ruleset
-> (`main-requires-pr-and-green-ci`) to `allowed_merge_methods: ["merge"]` — then the button has one
-> option and is always correct, for every lane and every merger. **Not yet applied**; it needs
-> repository-admin rights this session did not have.
+> ### ✅ APPLIED 2026-09-08 — the trap above is CLOSED, and this section is kept as the reason why
 >
-> Until then: **change the dropdown to "Create a merge commit" before merging an Epic.** `gh pr merge
-> <n> --merge` also works but is not the primary advice — merges here are made with the green button
-> by choice, and guidance that assumes a terminal is guidance aimed at a path nobody uses.
+> **`main`'s ruleset (`main-requires-pr-and-green-ci`) now carries `allowed_merge_methods: ["merge"]`.**
+> The button has one option, so it is always correct for every lane and every merger, and the sticky
+> state described above can no longer arm anything. Verified against the API, not assumed —
+> `gh api repos/insightriot/signal/rulesets/20199646`, whose `updated_at` is `2026-09-08T17:45:24-04:00`
+> and is where this heading's date comes from. ⚠ **Repo-level settings still allow all three**
+> (`allow_squash_merge=true`), deliberately: the restriction is scoped to `main`, which is the *"do not
+> instead disable squash repo-wide"* advice this section used to give, honoured.
 >
-> ⚠ The cost of the setting is that a one-line fix also gets a merge commit, which contradicts the
-> fix-lane row above. That row calls squash a preference (*"nothing worth preserving underneath"*);
-> the Epic lane's `--merge` is a correctness requirement. Trading the preference for the guarantee is
-> the right trade when the merge is a sticky button. **Do not instead disable squash repo-wide** —
-> that is the blunt version of the same idea and it removes the option from every repo surface, not
-> just `main`.
+> **How it was found is the part worth keeping:** a fix-lane `gh pr merge --squash` on `#248` was
+> refused by the server — *"Squash merges are not allowed on this repository"* — while this file still
+> read **"Not yet applied"** and the table above still told the fix lane to squash. Someone applied the
+> setting and no document learned it. **A correct guard and a stale instruction fail the same way:**
+> whoever follows the file hits an error the file says is impossible.
+>
+> **The cost is the one this section always predicted:** a one-line fix now gets a merge commit too.
+> That was the stated trade — squash in the fix lane is a *preference* (*"nothing worth preserving
+> underneath"*), the Epic lane's `--merge` is a *correctness requirement*, and the preference loses.
 >
 > **The backstop is a test, not this paragraph** (`tests/adherence-anchor-reachability.test.js`):
 > every commit pinned by `ADHERENCE-LOG.md` or `STATE.md` must be reachable from `HEAD`. It goes red

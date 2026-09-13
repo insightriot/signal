@@ -2922,3 +2922,152 @@ is the maintainer's call; it was surfaced and left to him.
 is precisely the heuristic that matched another item's trigger. Any fix needs the measure-first
 treatment `NOT_LIVE_VOCABULARY` got — *"vocabulary measured before it was chosen"* — which is more
 than a sub-slice here.
+
+## 2026-09-08 — the attention dial, turned (D-BR0908-1)
+
+### D-BR0908-1 — Signal's own project runs at `attention: checkpointed`, with FULL rigor untouched
+
+**Brett's call, 2026-09-08**, after asking why weeks of work had not produced a release he could put
+through `/sig:drive`. The answer was a dial: `.planning/PROFILE.md` carried no `attention`, so
+`attentionFor` derived **`attended`** from `gate_strictness: strict` and the driver stopped at every
+gate. A loop that stops at every gate is indistinguishable from not having a loop.
+
+**Set explicitly to `checkpointed`, not `unattended`, and not by touching `gate_strictness`.**
+
+- **`checkpointed`** runs free inside a phase and stops at each phase boundary. `unattended` is the
+  stronger test and is **declined for now** on evidence, not caution: `discuss.md` §4 at `unattended`
+  auto-adopts the recommended option for *every* gray area including `painful` and `irreversible`
+  ones, with no reversibility routing. That is an open row in `BACKLOG.md`, filed 2026-09-03, and
+  walking into it on the first real run would produce a failure that teaches nothing about the loop.
+- **Not via `gate_strictness`.** Lowering it to `light` would also switch off the
+  anti-rationalization check — a **rigor** change smuggled in as an **attention** change, which is
+  precisely the welding `LOOP-ENGINEERING-ANALYSIS.md` §3.2 said to stop doing. Verified after the
+  edit: `attention: checkpointed`, `confirm_in_phase: false`, `anti_rationalization: true`. FULL
+  rigor, less of your time. That combination is the reason the axis exists and this is its first use.
+
+⚠ **The dial was undocumented, and that is why four Epics worked around it instead of setting it.**
+`attention` was added to `RIGOR_OVERRIDE_SCHEMA` in `v0.1.31`; `references/profile-schema.md` went
+**four releases** still saying *"All ten keys are required"* over a list of ten that did not include
+it. `M6.E4`, `M6.E5`, `M6.E6` and `M6.E7` each wrote a per-Epic `PROFILE.md` at `light` — four
+consecutive workarounds for a setting absent from the document they were reading. Fixed in the same
+change, and **promoted from convention to check**: `tests/profile-schema-doc.test.js` fails the suite
+when a key the loader accepts is undocumented, with `RIGOR_OVERRIDE_SCHEMA` newly exported so the test
+compares against a value rather than a hand-copied list.
+
+Per CLAUDE.md § *House rules*, the promotion trigger is *"the advisory stopped changing behaviour."*
+Here there was no advisory at all — only a convention — and it failed silently for four releases.
+That is the trigger, met, and it is recorded rather than assumed.
+
+**What this does NOT settle.** Whether the loop actually holds from DISCUSS. That needs a run, it is
+the one item still open on the `/sig:drive` row, and it is the next step.
+
+## 2026-09-08 — M6.E6's outcome oracle re-opened and marked MET (D-BR0908-4)
+
+### D-BR0908-4 — `Q-M6E6-1` answered: the verdict changes, and the split is stated
+
+**Brett's call, 2026-09-08**, answering the only entry in `DECISION-QUEUE.md`. `M6.E6`'s VERIFY
+recorded its outcome oracle **NOT MET** on 2026-09-04 because no released copy carried
+`routeDecision`. `v0.1.37` shipped it and is installed, so the question was whether meeting the
+oracle later re-opens the verdict.
+
+**Decided: re-open and mark it MET.** The queue entry's own recommendation was the opposite — *amend,
+do not overturn* — and it is **left standing unedited** so the record shows what was advised as well
+as what was decided.
+
+**A second question was asked before applying it, and it changed the answer's shape.** Checking the
+evidence rather than assuming it showed the oracle splits in two:
+
+- *"the question is answerable afterwards from `DECISION-QUEUE.md` alone"* — **demonstrated
+  2026-09-08.** `Q-M6E6-1` was answered from that entry alone; it carried the question, the
+  recommendation, `Altitude: product` and `Reversibility: painful`.
+- *"a `/sig:drive` run that meets an unforeseen gray-area question CONTINUES"* — **not
+  demonstrated.** `git log --diff-filter=A` shows the queue's single entry was written by the
+  Epic-close commit `23fd2dd`, not produced by a run routing a live decision.
+
+**So `MET` is written with the split stated, not flat.** Offered as three options (flat MET / MET
+with the split / PARTIALLY MET) and this was chosen. A flat `MET` would have been a completeness
+claim made from the shape of the work — the defect class
+[`../analysis/CLAIM-INTEGRITY-ANALYSIS.md`](../analysis/CLAIM-INTEGRITY-ANALYSIS.md) names, and one
+this Epic already committed three times.
+
+**What changed is reachability, not behaviour.** `B115` and the release-gap lesson in
+`M6.E6-VERIFICATION.md` are findings about what happened; they were not rewritten and still stand.
+
+---
+
+## 2026-09-08 — M6.E8 parked; the agent roster is the next Epic (D-BR0908-3)
+
+### D-BR0908-3 — `M6.E8` stays parked on its branch; the 22-agent roster row is the next Epic
+
+**Brett's call, 2026-09-08**, made at `/sig:drive`'s 0b confirmation once the run surfaced that
+`M6.E8` was already open at DISCUSS on `feat/m6.e8-advisor-ranking-inputs` — 4 commits ahead of
+`main`, 16 behind, no open PR, a complete `M6.E8-REQUIREMENTS.md`. The choice was put as three
+options (start the roster Epic / finish `M6.E8` first / stop and look), and the roster row was
+chosen with `M6.E8`'s state stated plainly first.
+
+**So two Epics are open at once, deliberately.** That is a departure from *"resuming beats starting
+new"*, and it is a decision rather than an accident — which is the whole reason this entry exists.
+The roster row was filed the same day and marked *Brett's call*; its trigger is that one of the 22
+unwired agents (`agents/specialists/code-reviewer.md`) was the capability that would have caught the
+six issues the PR reviewer found in `#243`.
+
+**The branch is deliberately left untouched — not rebased, not merged into, no PR opened.** Its
+`STATE.md` pins `last_updated_commit: f170093`, so rewriting SHAs would turn
+`adherence-anchor-reachability` red on it; merging `main` in means resolving four planning-doc
+conflicts with no payoff until someone resumes it; and opening a PR would let GitHub delete the
+branch at merge. Parked means parked.
+
+**Why this entry exists at all — the PR reviewer on `#248` is the reason.** The parking decision was
+first written only into `CLAUDE.md`, while `BACKLOG.md`'s row said *"resume the branch"* and
+`DECISIONS.md` said nothing. The reviewer flagged that the sole account of *"parked by decision"* was
+one uncorroborated sentence contradicted by its sibling file. **A decision that lives in one prose
+sentence is not recorded, it is asserted** — the same reasoning that put `D-M5E18-1`'s queue in
+`BACKLOG.md` rather than `CLAUDE.md`. All three now agree and cite this id.
+
+⚠ **Nothing automatic will remind anyone `M6.E8` exists.** `/sig:drive` and `/sig:advise` both read
+one branch's corpus (`B118`), so neither will surface it when the roster Epic closes. This entry and
+the `BACKLOG.md` row are the only pointers.
+
+---
+
+## 2026-09-08 — the fresh-context reviewer, wired (D-BR0908-2)
+
+### D-BR0908-2 — REVIEW dispatches a reviewer that does not share the authoring session's context
+
+**Brett's call, 2026-09-08**, after asking whether the adversarial reviewer was already a defined
+agent. **It was.** `agents/specialists/code-reviewer.md` had existed for four months with its own
+opening banner reading *"NOT DISPATCHED BY ANY COMMAND"* — the answer to the problem, on disk, marked
+un-invokable. Signal ships 26 agents; **4 were wired**.
+
+**The trigger is two measurements, not a preference.** `M6.E7`: two fresh-context reviews found **9 of
+11** Important issues, and `review.md` asked for neither. `#243`: a four-file fix where two external
+review passes found **six** issues — two of them regressions introduced by the fix itself — and the
+authoring session's own review found **none of the six**. Neither gap is knowledge; both are
+assumptions the author could not see because they were the author's.
+
+**Four questions had to be answered, and all four came from existing artifacts rather than invention:**
+
+| Question | Answer | Derived from |
+|---|---|---|
+| **Where** | `review.md` § 4.5, before the verdict | The retro's finding is an *ordering* one — the PR reviewer's findings arrived **after** REVIEW returned PASS |
+| **How** | The diff + the unit's `*-REQUIREMENTS.md`. **Not** `CONTEXT.md`, `DECISIONS.md`, the plan's reasoning, or any statement of intent | What the working PR reviewer actually gets today, which is the diff and the repo |
+| **What its verdict does** | Nothing new. Findings enter the existing Critical / Important / Suggestion / Nit taxonomy; the verdict table already says what each means | `review.md` §5 already defines both |
+| **Whether it runs here** | Dev-mode fallback named in the step | `commands/init.md` §2 already records that dev-mode plugin agents do not auto-register with Task |
+
+**The omissions are the mechanism, and that is the whole design.** Every withheld document is an
+opportunity to talk the reviewer into the blind spot it was dispatched to find. The agent file itself
+tells it **not to ask for more context** and that a legibility gap is a **finding**, not its own
+fault — otherwise it requests exactly what defeats it.
+
+⚠ **This adds no gate; it moves an existing one earlier.** These findings already existed — they
+arrived at PR-open, after PASS, which is how `M6.E7` shipped an advisory whose every citation was five
+lines wrong. Dispatched from REVIEW, the same findings are *discovered in-phase*, where
+PASS-WITH-FIXES can absorb them and the loop-back path still exists.
+
+⚠ **`cannot-dispatch` is a recorded failure, never a silent pass.** Named because awkward dispatch is
+precisely how this agent stayed unwired for four months.
+
+**What this does NOT settle:** the other 21 agents. Filed as its own row in `BACKLOG.md` with Brett's
+framing — *"Either WTF are they there? or WTF aren't they wired up?"* — sequenced after the first
+end-to-end `/sig:drive` run.
+

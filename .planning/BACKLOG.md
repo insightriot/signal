@@ -5,10 +5,92 @@ Groomed, sequenced roadmap — promoted from the issues inbox (`ISSUES-INBOX.md`
 > **Source.** Restructured from the point-in-time backlog pass `BACKLOG-REVIEW-2026-07-04.md`, now archived at [`archive/BACKLOG-REVIEW-2026-07-04.md`](archive/BACKLOG-REVIEW-2026-07-04.md) (move-never-delete — the snapshot is frozen; this file is its living successor). The snapshot's added items (A1–A5), sharpened items, and sprint clusters are folded in below.
 
 
-> **Latest generated review:** [`BACKLOG-REVIEW-2026-09-06.md`](BACKLOG-REVIEW-2026-09-06.md) —
+> **Latest generated review:** [`BACKLOG-REVIEW-2026-09-13.md`](BACKLOG-REVIEW-2026-09-13.md) —
 > produced by `/sig:advise`, not by hand. It recommends and declines with citations that resolve;
 > it changes nothing in this file. The inbound link is a **one-time human step at SHIP**: the command
 > writes its artifact and nothing else, deliberately.
+
+### ~~22 of Signal's 26 agents are documentation nothing calls — decide each one~~ · **roadmap** · large · **✅ SHIPPED 2026-09-09 as `M6.E9`, PR #250**
+
+> **Discharged.** All 26 carry a determination — 7 dispatched, 19 dormant with a reason and a
+> trigger, 0 cut — in [`../plugin/references/agent-reachability.md`](../plugin/references/agent-reachability.md),
+> and `tests/agent-reachability.test.js` fails on an agent with no determination, so the next one
+> cannot land undecided. **Scope was the *smallest honest version*:** the determinations, the
+> guards, `plan.md`'s fiction removed, and the two cheap wires — **not** the dispatch build, which
+> `D-M5E10-1` deferred and which 8 command files still need. The 9 agents proposed for wiring are
+> dormant **with the determination recorded**, which is the answer this row asked for. Retro:
+> [`M6.E9-RETROSPECTIVE.md`](M6.E9-RETROSPECTIVE.md).
+
+*Plain: Signal ships 26 specialist helpers. Four are wired up. Twenty-two are files nobody invokes.*
+
+**Trigger: met — and the trigger is that one of the 22 was the fix we needed.** The PR reviewer on
+GitHub found six issues in `#243` that this session's own review found none of, two of them
+regressions introduced by the fix itself. The remedy — a reviewer that starts with no session context
+— **already exists as `agents/specialists/code-reviewer.md`**, and that file's own opening banner says
+*"NOT DISPATCHED BY ANY COMMAND."* Written, recorded as unwired, and left. The capability we needed was
+on disk the whole time.
+
+**Brett's framing, 2026-09-08, and it is the requirement:** *"Either WTF are they there? or WTF aren't
+they wired up?"* **Every one of the 22 gets a determination — wire it, cut it, or state why it is
+deliberately dormant — and a wired one must name when, where, and how.** *When* it runs, *which*
+command dispatches it, and *how* it is invoked (in particular: with what context, since for the
+reviewer the answer is *deliberately none*). A verdict of "keep as documentation" is allowed and must
+carry a reason; what is not allowed is another pass that leaves the roster in this state.
+
+**The roster, measured from the tree (`references/agent-reachability.md`, **checked** — not
+generated — by `tests/agent-reachability.test.js`):**
+
+| Group | Count | Agents |
+|---|---|---|
+| `researchers/` | 7 | `advisor-researcher`, `assumptions-analyzer`, `codebase-researcher`, `phase-researcher`, `project-researcher`, `research-synthesizer`, `ui-researcher` |
+| `verifiers/` | 6 | `integration-checker`, `nyquist-auditor`, `plan-checker`, `ui-auditor`, `ui-checker`, `verifier` |
+| `specialists/` | 3 | `code-reviewer`, `security-auditor`, `test-engineer` |
+| `support/` | 3 | `codebase-mapper`, `debugger`, `phase-gate-enforcer` |
+| `planners/` | 2 | `planner`, `roadmapper` |
+| `executors/` | 1 | `executor` |
+
+Dispatched, for contrast: the four brownfield scanners, all from `commands/init.md`. **That is the
+only command file in the plugin that dispatches an agent by name.**
+
+⚠ **Some are named in command PROSE, which reads like dispatch and is not** — the exact distinction
+`agent-reachability.md` was written to hold. `executor` in `discuss.md`, `execute.md` and `plan.md`
+(*"the executor agent handles 2-5"*, which a reader takes as a wiring claim); `planner` in
+`discuss.md`; `security-auditor` in `init.md`.
+
+⚠ **And the worst case is not in that list — it is `plan.md` § 2, which `agent-reachability.md` gives
+its own section titled "The one that is worse than unreachable."** That section instructs a run to
+*"spawn up to 4 research agents in parallel"* and names **Domain researcher, Codebase researcher, Risk
+researcher, Prior art researcher.** Only one of the four corresponds to a real agent
+(`codebase-researcher.md`); the other three name nothing that exists anywhere in the tree. So the
+instruction is not merely an un-wired mention — it is an imperative to spawn agents that were never
+written, in the phase that every Epic runs.
+
+**Highest-priority determinations, in order:** (1) `plan.md` § 2's four-name instruction, because the
+source already ranks it worst and three of its four names are fiction; (2) the `executor` mentions,
+because `execute.md` is the other every-Epic phase; (3) `planner` and `security-auditor`. A prose
+mention is worse than silence — it advertises a capability the code does not have — and a mention of
+something that does not exist at all is worse again.
+
+*(An earlier draft of this row said "three of them" and omitted `plan.md` § 2 entirely — the case its
+own cited source ranks first. Caught by the PR reviewer on `#244`, which is the second time in two days
+a prioritisation written from the shape of the work has left out the worst item in it.)*
+
+**Why it is in this state, and it was a decision rather than an oversight.** `D-M5E10-1` scoped
+`M5.E10` to *"checkable parts + writing rules"* and put dispatch machinery out of scope, on the
+reasoning that wiring 22 agents is a build and not a note. That reasoning holds; what lapsed is that
+nothing ever came back for the build. `M5.E10` also found the roster claim in its own requirements was
+wrong - `AC6.2` named *"the two unreachable agents"* and the measured answer was **22**.
+
+**Sequencing (recorded because Brett asked for it prioritized, 2026-09-08).** The `code-reviewer`
+wiring is being done **now**, ahead of this row, because it is what makes every other verdict
+trustworthy. This row covers **the remaining 21** and is sequenced **after the first end-to-end
+`/sig:drive` run** - that run has been the goal for weeks and a 21-agent audit in front of it would
+displace it again.
+
+*Done-when:* `references/agent-reachability.md` carries a determination for all 26 agents, each either
+dispatched by a named command or marked cut / deliberately-dormant with a reason - and
+`tests/agent-reachability.test.js` fails on an agent with no determination at all, so the next
+addition cannot land undecided.
 
 ### `/sig:advise` ranks on age alone for 44 of 46 rows · **hygiene** · medium · *filed 2026-09-07 from `M6.E8` DISCUSS*
 
@@ -34,6 +116,15 @@ Any fix needs the measure-first treatment `NOT_LIVE_VOCABULARY` got — *"vocabu
 was chosen"* — including the counts that justify each pattern.
 
 ### `/sig:advise` ranks on the backlog alone, while reading five sources · **hygiene** · small · *filed 2026-09-05 from `M6.E7` REVIEW*
+
+> ⚠ **IN FLIGHT as `M6.E8` — on a branch, not on `main`.** DISCUSS is **written, not closed**
+> (`phase: DISCUSS`, `completed_phases: []`) on `feat/m6.e8-advisor-ranking-inputs`, which carries a
+> complete `M6.E8-REQUIREMENTS.md`, `D-M6E8-*`, and a second measured row this file does not yet
+> hold — *44 of 46 rows rank on age alone*. **PARKED by decision `D-BR0908-3` (Brett, 2026-09-08):
+> the agent-roster row is the next Epic; this one resumes from its branch when picked up, and must
+> never be started fresh** — starting fresh discards a written DISCUSS.
+> Nothing automatic will tell you: `/sig:drive` reads one branch's `STATE.md` and proposed this row
+> as unstarted work on 2026-09-08 (`B118`). Noted by hand, 2026-09-08.
 
 **Trigger: met — the command shipped.** `readCorpus` reads `BACKLOG.md`, `BUGS.md`, retrospectives,
 STATE/closure and milestone rows. **Every ranking input reads only the backlog.** REVIEW finding 1

@@ -242,6 +242,12 @@ const NON_PAYLOAD_CITATIONS = new Set([
   'tests/hook-state-write.test.js',
   'tests/hook-warn-dirty-execute.test.js',
   'tests/private-name-guard.test.js',
+  // Cited by `references/profile-schema.md` as the guard that now fails the
+  // suite when a `rigor_overrides` key the loader accepts is undocumented there.
+  // Named rather than described, because "a test enforces this" without the file
+  // name is the kind of claim a reader cannot check — which is the same class of
+  // defect the cited test exists to stop.
+  'tests/profile-schema-doc.test.js',
   'tests/tier-precedence-consistency.test.js',
   'tools/cut-release.js',
   'docs/migration-state-schema-v0.1.x.md',
@@ -304,7 +310,7 @@ describe('M6.E1 — citations of paths that will not exist in an install', () =>
     // sibling assertion above caught it. The citation was dropped rather than
     // the number raised — a command file must not point a user at a path their
     // install does not contain.
-    expect(cited.size).toBe(32);
+    expect(cited.size).toBe(33);
   });
 });
 

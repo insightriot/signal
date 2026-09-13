@@ -16,7 +16,7 @@
  */
 
 import { join } from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, lstatSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 
 import { attentionFor, CALIBRATION_ENUMS } from './profile.js';
@@ -39,11 +39,13 @@ export const QUEUE_REL = '.planning/DECISION-QUEUE.md';
 export const FLOORS = Object.freeze([
   {
     id: 'ship-pr',
+    always: true,
     at: 'SHIP',
     why: 'A pull request is how the change reaches main, and merge is delivery. `D-M5E17-5`; `ship.md` has no direct-to-main exemption.',
   },
   {
     id: 'ship-retro',
+    always: true,
     at: 'SHIP',
     why: 'The Epic-close retrospective gate is explicitly "no bypass" — no flag, no env var, no extra-args trick (`D-E9-3`).',
   },
@@ -59,6 +61,7 @@ export const FLOORS = Object.freeze([
   },
   {
     id: 'resume-orphans',
+    always: true,
     at: 'RESUME',
     why: 'Orphan detection is interactive by design (`D12`); the prompt IS the recovery mechanism.',
   },
@@ -69,6 +72,125 @@ export function floorsFor(phase) {
 }
 
 /**
+ * Which floors at this phase are LIVE right now?
+ *
+ * `floorsFor` answers "what floors exist at this phase" — a static question about
+ * the phase's name. This answers "which of them actually apply", which is the
+ * question the loop needs and never asked.
+ *
+ * ⚠ THE DEFECT THIS FIXES. `canProceedUnattended` computed
+ * `floorsFor(phase).length > 0`, so PLAN halted because it is called PLAN — not
+ * because anything needed gating. The two PLAN floors protect the idea-inbox
+ * drain: preview the diff, confirm deletions. With an empty inbox there is no
+ * diff and nothing to delete, and the loop stopped dead anyway. Every
+ * `/sig:drive` run at every attention level was DISCUSS -> halt at PLAN.
+ *
+ * ⚠ SHIP IS UNCONDITIONAL, DELIBERATELY (FR2). Its two floors carry
+ * `always: true` and this function never evaluates a condition for them. The
+ * pull request and the Epic-close retrospective were each made tier-independent
+ * by a specific decision (`D-M5E17-5`, `D-E9-3`); making floors conditional must
+ * not become a route to re-litigating those by omission — which is precisely how
+ * `ship.md` came to carry a self-exemption that survived thirteen releases.
+ *
+ * ⚠ FAILS CLOSED. A condition that throws, or that cannot read what it needs,
+ * yields a LIVE floor — an actor that cannot tell whether a gate applies must
+ * assume it does. `cannotCheck` names which, so a halt says "could not tell"
+ * rather than implying a condition it never evaluated.
+ *
+ * @returns {Promise<{live: Array, dormant: Array, cannotCheck: Array}>}
+ */
+export async function resolveFloors(phase, baseDir, { conditions = FLOOR_CONDITIONS } = {}) {
+  const live = [];
+  const dormant = [];
+  const cannotCheck = [];
+
+  for (const floor of floorsFor(phase)) {
+    if (floor.always) {
+      live.push(floor);
+      continue;
+    }
+    const condition = conditions[floor.id];
+    if (!condition) {
+      // A floor with no condition and no `always` flag is a floor nobody
+      // classified. Treat it as live and say so, rather than silently dropping
+      // a gate because someone forgot to wire its predicate.
+      live.push(floor);
+      cannotCheck.push({ id: floor.id, reason: 'no condition defined — treated as live' });
+      continue;
+    }
+    try {
+      const applies = await condition(baseDir);
+      // `=== true`, not truthiness. A condition with a missing `return`, or one
+      // yielding undefined/0/'' on a path it could not read, would otherwise
+      // land in `dormant` with nothing in `cannotCheck` — the floor disappears
+      // and the halt reports no problem. The docblock promises the opposite.
+      if (applies === true) live.push(floor);
+      else if (applies === false) dormant.push(floor);
+      else {
+        live.push(floor);
+        cannotCheck.push({ id: floor.id, reason: `condition returned ${typeof applies}, not a boolean` });
+      }
+    } catch (err) {
+      live.push(floor);
+      cannotCheck.push({ id: floor.id, reason: err.message });
+    }
+  }
+
+  return { live, dormant, cannotCheck };
+}
+
+/**
+ * Is there anything in the capture inbox for PLAN's drain step to act on?
+ *
+ * No inbox file, or an inbox with no drain candidates, means the drain has
+ * nothing to preview and nothing to delete — so neither PLAN floor applies.
+ */
+async function inboxHasDrainableEntries(baseDir) {
+  const { resolveInboxPath } = await import('./inbox-path.js');
+  // resolveInboxPath returns a REPO-RELATIVE path. Joining it to baseDir is not
+  // optional: `existsSync` on the bare relative path resolves against the
+  // process cwd, so a run would read whatever inbox happens to sit under the
+  // working directory instead of the project's. Caught by a proof that asserted
+  // the floor goes live on a drainable inbox and got "dormant" — because it had
+  // read Signal's own empty-of-candidates inbox rather than the fixture's.
+  const path = join(baseDir, resolveInboxPath(baseDir));
+  // `lstatSync`, not `existsSync`. `existsSync` follows symlinks and collapses
+  // EVERY failure to false, which this function reads as "no inbox, nothing to
+  // drain" — so a DANGLING SYMLINK at .planning/ISSUES-INBOX.md made both PLAN
+  // floors dormant on an inbox the tool could not read. That is fail-OPEN, and
+  // the docblock above promises the opposite. Only ENOENT means absent; every
+  // other error throws into the caller's catch, which routes to live +
+  // cannotCheck. `lstatSync` succeeds on a dangling link, so the read below is
+  // what fails, correctly.
+  try {
+    lstatSync(path);
+  } catch (err) {
+    if (err.code === 'ENOENT') return false;
+    throw err;
+  }
+  // ⚠ `listDrainCandidatesWithRecovery`, because that is what `/sig:plan` § 1b
+  // actually calls. The bare `listDrainCandidates` returns [] for an entry
+  // sitting below an unclosed code fence, which the recovery form finds — so the
+  // driver declared both drain floors dormant and advanced into a PLAN whose
+  // drain had a real entry to preview and confirm-delete. `drain.js` already
+  // carries a comment about this exact shape: "Two filters that must agree; only
+  // one had been updated."
+  const { listDrainCandidatesWithRecovery } = await import('./drain.js');
+  const content = await readFile(path, 'utf-8');
+  return listDrainCandidatesWithRecovery(content).candidates.length > 0;
+}
+
+/**
+ * Floor id -> predicate. EXPORTED so the shape guard can read the real table:
+ * a test carrying a hand-typed copy of these ids passes happily after someone
+ * deletes an entry here, which is a guard drifting from the thing it guards.
+ */
+export const FLOOR_CONDITIONS = Object.freeze({
+  'plan-drain-preview': inboxHasDrainableEntries,
+  'plan-drain-destructive': inboxHasDrainableEntries,
+});
+
+/**
  * Can the loop take this step without a person?
  *
  * Fail-closed on every axis. An unreadable profile, an unknown phase, or a missing
@@ -77,12 +199,40 @@ export function floorsFor(phase) {
  * used for *reporting*, and deliberately so: a detector that cannot look should
  * say so and continue; an actor that cannot tell should stop.
  */
-export function canProceedUnattended(phase, profile, { hasFloor = null, loopStatus } = {}) {
+export function canProceedUnattended(phase, profile, { hasFloor = null, loopStatus, liveFloors = null, cannotCheck = [] } = {}) {
   const attention = attentionFor(profile);
-  const floors = hasFloor ?? floorsFor(phase).length > 0;
+  // ⚠ AN `always` FLOOR IS NOT FALSIFIABLE BY A CALLER. `hasFloor` is nullish-
+  // coalesced, so an explicit `false` REPLACES the static fallback rather than
+  // being OR'd with it — and until this line, `always: true` was consulted in
+  // exactly one place (`resolveFloors`), which `canProceedUnattended` does not
+  // call. A caller passing `hasFloor: false` at SHIP therefore proceeded past
+  // the pull-request and no-bypass-retrospective floors: the two gates FR2
+  // exists to protect, defeated by the parameter FR1 introduced.
+  //
+  // Found by the fresh-context security auditor. The FR2 test derived
+  // `hasFloor` from `resolveFloors` first, so it asserted the happy-path
+  // COMPOSITION and never the function's invariant — correct at the unit and
+  // vacuous at the gate, the same shape as `verifyCitations` returning ok over
+  // zero citations.
+  // An unknown phase fails CLOSED. This used to be covered by accident:
+  // `checkpointed` stopped on everything, so a junk phase stopped too. Widening
+  // it to advance removed that cover, and `readState` does not validate the
+  // value it reads — `EXPLORING` has been seen in the wild.
+  if (!PHASES.includes(phase)) {
+    return { proceed: false, reason: 'unknown-phase', attention, floors: [] };
+  }
+
+  const alwaysFloor = floorsFor(phase).some((f) => f.always);
+  const floors = (hasFloor ?? floorsFor(phase).length > 0) || alwaysFloor;
 
   if (floors) {
-    return { proceed: false, reason: 'floor', attention, floors: floorsFor(phase) };
+    // Name the LIVE floors when the caller resolved them. Returning
+    // `floorsFor(phase)` here meant a mixed live/dormant phase would print a
+    // DORMANT floor's `why` as the reason it stopped — `drive.md` step 4 says
+    // "for a floor print every why", so the halt would state a reason that did
+    // not apply. Unreachable while both PLAN floors share one predicate, which
+    // is exactly the kind of "can't happen yet" that stops being true quietly.
+    return { proceed: false, reason: 'floor', attention, floors: liveFloors ?? floorsFor(phase), cannotCheck };
   }
 
   // THE LOOP CEILING, CHECKED BEFORE ATTENTION (`B76`).
@@ -110,9 +260,19 @@ export function canProceedUnattended(phase, profile, { hasFloor = null, loopStat
   if (attention === 'attended') {
     return { proceed: false, reason: 'attended', attention, floors: [] };
   }
+  // `checkpointed` ADVANCES. Until 2026-09-10 it returned `phase-boundary` here
+  // and this function is only ever asked a phase-boundary question — `drive.md`
+  // § 3 calls it once per pass, keyed on `state.phase` — so it answered "stop"
+  // to every question it was ever asked. The middle setting of a three-position
+  // dial was a dead stop, while `drive.md` described it as "runs free INSIDE a
+  // phase", a behaviour with no code path anywhere. This repository's own
+  // PROFILE.md is set to it, which is the whole of "/sig:drive doesn't work".
+  //
+  // What separates it from `unattended` is what happens to a DECISION, not to a
+  // phase: `checkpointed` asks, `unattended` queues (see `queueDecision`). Both
+  // stop at a live floor, and both stop at SHIP.
   if (attention === 'checkpointed') {
-    // Checkpointed confirms at phase boundaries and runs free inside a phase.
-    return { proceed: false, reason: 'phase-boundary', attention, floors: [] };
+    return { proceed: true, reason: 'checkpointed', attention, floors: [] };
   }
   return { proceed: true, reason: 'unattended', attention, floors: [] };
 }
@@ -206,7 +366,7 @@ export async function queueDecision(baseDir, decision, { attention } = {}) {
   //
   // Refuses rather than throws: a live run must not die because a caller passed
   // its attention level honestly. Same shape as `applyMigrate`'s refusal.
-  if (attention === 'attended') {
+  if (attention === 'attended' || attention === 'checkpointed') {
     return {
       queued: false,
       refused: true,

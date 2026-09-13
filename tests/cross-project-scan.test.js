@@ -138,7 +138,15 @@ describe('cross-project analysis — safety', () => {
 describe('scanCorpus — the data the release gate consumes', () => {
   it('returns structured buckets, not text', async () => {
     const { scanCorpus } = await import('../tools/cross-project-scan.js');
-    const r = await scanCorpus([tmpdir()]); // a dir with no Signal projects
+    // ⚠ A FRESH empty dir, not `tmpdir()` itself. This scanned the whole system
+    // temp directory — unbounded, machine-dependent state that grows with every
+    // test run — and became the suite's most frequent flake, hitting the 15 s
+    // testTimeout under parallel load while passing in ~9 s alone. It blocked a
+    // release: `cut-release.js` gates on a green suite and refused.
+    // The assertion only ever needed "a directory that is not a Signal project",
+    // which the sibling test below already builds correctly with mkdtemp.
+    const notAProject = await mkdtemp(join(tmpdir(), 'sig-notaproject-'));
+    const r = await scanCorpus([notAProject]);
     expect(r).toHaveProperty('scanned');
     expect(Array.isArray(r.defects)).toBe(true);
     expect(Array.isArray(r.advisories)).toBe(true);

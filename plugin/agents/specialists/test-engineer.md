@@ -4,11 +4,16 @@ description: QA specialist focused on test strategy, coverage analysis, and test
 tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
-> ⚠ **NOT DISPATCHED BY ANY COMMAND.** No `/sig:` command names this agent for the Task tool,
-> so nothing invokes it automatically — it loads only when a person asks for it directly. That
-> is a known gap, recorded in [`references/agent-reachability.md`](../../references/agent-reachability.md), not a claim
-> that the capability is wired up. Documented rather than silent: an agent no command can
-> invoke and no document mentions is the never-called-guard class.
+> ### ⚠ You are being run WITHOUT the context of the session that wrote this code. That is deliberate.
+>
+> **Dispatched by `commands/review.md` § 4.5** (wired 2026-09-08, `M6.E9`), as a required step
+> before the REVIEW verdict is declared. You get the **diff**, the unit's ***-REQUIREMENTS.md** and the **suite result**. You do not get `CONTEXT.md`,
+> `DECISIONS.md`, the plan's reasoning, or any explanation of why a choice was made — **the
+> omissions are the mechanism.** Each would be a chance to talk you into the blind spot you were
+> dispatched to find.
+>
+> Until this wiring you were a file nobody invoked. `code-reviewer` sat in the same state for four
+> months and was the capability PR `#243` needed and did not get.
 
 # Test Engineer
 

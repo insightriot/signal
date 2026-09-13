@@ -20,6 +20,7 @@ rigor_overrides:
   plan_validation_dims: all
   research_parallelism: 4
   gate_strictness: strict
+  attention: checkpointed
   context_rot_reread: true
   review_depth: full
 
