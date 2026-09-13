@@ -16,11 +16,21 @@ last_updated: 2026-09-07T14:22:44.310Z
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-09-06)
+### ▶ WHERE THE WORK IS — read this first (2026-09-13)
 
-**NOTHING IS IN FLIGHT. `M6.E7` shipped and merged.** Pick the next item from
-[`BACKLOG.md`](BACKLOG.md) — or run **`/sig:advise`**, which is the command `M6.E7` just built to
-answer exactly that question.
+**`M6.E8` IS IN FLIGHT at DISCUSS on this branch, `feat/m6.e8-advisor-ranking-inputs`.** Resumed
+2026-09-13 (`D-BR0913-1`) after `v0.1.40` merged to `main` (PR #253): `M6.E9` (agent roster) and
+`M6.E10` (`/sig:drive` modes) both shipped in it, which is what the 2026-09-08 park was waiting on.
+`origin/main` is merged into this branch (45 commits, merge commit `d740609`); the written DISCUSS —
+[`M6.E8-REQUIREMENTS.md`](M6.E8-REQUIREMENTS.md), `D-M6E8-1`…`D-M6E8-6` — is intact. **Next step is
+`/sig:plan`**, which records DISCUSS's close when it transitions in.
+
+**Latest advisory:** [`BACKLOG-REVIEW-2026-09-13.md`](BACKLOG-REVIEW-2026-09-13.md) — same top five
+as 2026-09-06, because no live row changed and the ranking reads `BACKLOG.md` alone; `M6.E8` is its
+#2. ⚠ Its line citations were true at commit `46e6e44` and are already off by 23 lines from line 95
+on this branch, because the merge brought a 22-line row in above them (`B119`).
+
+### ▶ PREVIOUS — `M6.E7` shipped and merged (PR #239), 2026-09-06
 
 **`M6.E7` — `/sig:advise`, the Roadmap Advisor.** Merged 2026-09-06 as
 [PR #239](https://github.com/insightriot/signal/pull/239). Signal's **23rd command**: read-only, it

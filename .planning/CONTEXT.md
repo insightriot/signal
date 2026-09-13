@@ -4,7 +4,23 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-09-07) — M6.E7 SHIPPED, M6.E8 IN FLIGHT
+## Where things stand (2026-09-13) — v0.1.40 SHIPPED, M6.E8 RESUMED
+
+**`v0.1.40` is on `main`** (PR #253, merged 2026-09-13 as a merge commit — the ruleset now allows
+nothing else). It carries `M6.E10` (`/sig:drive` can take a step: `checkpointed` had no code path
+and floors fired on a phase's *name*, so every run was DISCUSS → dead stop at PLAN; drive now asks
+how you want it run) and `M6.E9` (all 26 agents carry a determination, 7 dispatched / 19 dormant).
+Suite **3379**. Retros: [`M6.E10-RETROSPECTIVE.md`](M6.E10-RETROSPECTIVE.md),
+[`M6.E9-RETROSPECTIVE.md`](M6.E9-RETROSPECTIVE.md).
+
+**`M6.E8` resumed 2026-09-13 (`D-BR0913-1`) on `feat/m6.e8-advisor-ranking-inputs`, at DISCUSS.**
+Parked 2026-09-08 behind the roster row; that row shipped as `M6.E9`, so the park expired.
+`origin/main` merged in (45 commits, `d740609`), four one-hunk conflicts resolved, DISCUSS intact.
+Next: `/sig:plan`. The section below is the state of the branch at the park and still describes it.
+
+---
+
+## Where things stood (2026-09-07) — M6.E7 SHIPPED, M6.E8 IN FLIGHT
 
 **`/sig:advise` is live — Signal's 23rd command.** `M6.E7` merged 2026-09-06 (PR #239, ⚠ squashed;
 anchors repaired by PR #240) and shipped in `v0.1.38` (PR #241). It reads this project's `.planning/`

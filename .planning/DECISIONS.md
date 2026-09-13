@@ -3071,3 +3071,31 @@ precisely how this agent stayed unwired for four months.
 framing — *"Either WTF are they there? or WTF aren't they wired up?"* — sequenced after the first
 end-to-end `/sig:drive` run.
 
+
+## 2026-09-13 — M6.E8 resumed from its branch (D-BR0913-1)
+
+### D-BR0913-1 — `M6.E8` resumes from `feat/m6.e8-advisor-ranking-inputs`; the parking condition in `D-BR0908-3` is satisfied
+
+**Brett's call, 2026-09-13** — *"let's resume M6.E8 as recommended"* — made after `v0.1.40` merged
+to `main` (PR #253, a merge commit) and `/sig:advise` had run on the merged corpus.
+
+**Why now, and why this row.** `D-BR0908-3` parked `M6.E8` so the 22-agent roster row could go
+first. That row shipped as `M6.E9` in `v0.1.40` (PR #250), so the stated reason for the park no
+longer holds. `BACKLOG-REVIEW-2026-09-13.md` recommends the `M6.E8` row at #2 — **without seeing
+the PARKED callout**, because the not-live rule reads headings only and the callout sits in the
+body. Its stated reason (*trigger met, 8 days old*) is therefore not why it was picked; it was picked
+because the park expired and the advisor's own honesty depends on this Epic.
+
+**How it resumed.** `origin/main` was merged INTO the branch (45 commits, merge commit `d740609`) —
+never rebased, never started fresh — so the written DISCUSS (`M6.E8-REQUIREMENTS.md`,
+`D-M6E8-1`…`D-M6E8-6`) is intact. Four one-hunk conflicts: `STATE.md` keeps the in-flight
+frontmatter; `BACKLOG.md` and `DECISIONS.md` keep both sides in date order; `INDEX.md` was
+regenerated. Suite green after the merge commit (the one pre-commit failure was the
+anchor-reachability test naming a `main`-only commit that became an ancestor at the merge).
+
+**From 2026-09-08 two Epics were open at once, deliberately; now one is.** `M6.E9` and `M6.E10`
+both closed in `v0.1.40`, so the departure `D-BR0908-3` recorded from *"resuming beats starting
+new"* is over and `M6.E8` is again the only open Epic.
+
+**What this does NOT settle:** the DISCUSS→PLAN gate. `discuss.md` records DISCUSS's close when
+`/sig:plan` transitions in; nothing here marks a phase.
