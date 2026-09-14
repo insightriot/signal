@@ -341,6 +341,7 @@
 - [archive/M5/E2/M5.E2-VERIFICATION.md](archive/M5/E2/M5.E2-VERIFICATION.md) — `other` — _(note pending)_
 - [archive/M5/E8/STATE-NARRATIVE.md](archive/M5/E8/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/E9/STATE-NARRATIVE.md](archive/M5/E9/STATE-NARRATIVE.md) — `other` — _(note pending)_
+- [archive/M5/STATE-NEXT-WORK-2026-08-06.md](archive/M5/STATE-NEXT-WORK-2026-08-06.md) — `other` — _(note pending)_
 - [archive/M6/E1/STATE-NARRATIVE.md](archive/M6/E1/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E2/STATE-NARRATIVE.md](archive/M6/E2/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E3/CONTEXT-2026-08-19.md](archive/M6/E3/CONTEXT-2026-08-19.md) — `other` — _(note pending)_
