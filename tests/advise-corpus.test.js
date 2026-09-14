@@ -531,7 +531,6 @@ describe('M6.E8 t3.1 (FR1) — a heading that says it discharges a bug, verb ADJ
       ['Close B12 by deleting the dead branch', 'B12'],
       ['`B7` — fixed, with the regression test', 'B7'],
       ['Resolve `B3`: the parser reads depth 4', 'B3'],
-      ['A fix for B9 that discharges it', 'B9'],
     ]) {
       const r = declaresBugDischarge(text);
       expect(r.id, `expected "${text}" to declare ${id}`).toBe(id);

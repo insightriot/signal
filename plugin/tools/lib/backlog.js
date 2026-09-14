@@ -301,6 +301,17 @@ const NOT_LIVE_VOCABULARY = [
 ];
 
 /**
+ * What `NOT_LIVE_VOCABULARY` drops on THIS repository's own `BACKLOG.md` today,
+ * measured through `readCorpus` + `rankRows` and pinned by
+ * `tests/advise-live-measurement.test.js` (`M6.E8` NFR6). `rows` is the
+ * population the count was taken over (every row the ranking receives, since
+ * this input runs before the live filter); the test asserts **both** `rows` and
+ * `hits`. A red pin is a re-measurement step — read the new or vanished hit, decide whether
+ * the vocabulary is still precise, update this constant.
+ */
+export const NOT_LIVE_MEASURED = Object.freeze({ on: '2026-09-14', rows: 52, hits: 4 });
+
+/**
  * Whether a heading declares, in its own words, that it is not actionable work.
  *
  * `M6.E7` t3.1 input 5. Two categories share one shape — a row that is PARKED
@@ -337,17 +348,6 @@ const NOT_LIVE_VOCABULARY = [
  * @param {string} headingText — a row's heading, not its body
  * @returns {{notLive: boolean, kind: string|null, declaration: string|null}}
  */
-/**
- * What `NOT_LIVE_VOCABULARY` drops on THIS repository's own `BACKLOG.md` today,
- * measured through `readCorpus` + `rankRows` and pinned by
- * `tests/advise-live-measurement.test.js` (`M6.E8` NFR6). `rows` is the
- * population the count was taken over (every row the ranking receives, since
- * this input runs before the live filter); the test asserts `hits` only. A red
- * pin is a re-measurement step — read the new or vanished hit, decide whether
- * the vocabulary is still precise, update this constant.
- */
-export const NOT_LIVE_MEASURED = Object.freeze({ on: '2026-09-14', rows: 52, hits: 4 });
-
 export function declaresNotLiveWork(headingText) {
   const text = String(headingText ?? '');
   for (const [kind, re] of NOT_LIVE_VOCABULARY) {
@@ -463,8 +463,31 @@ export function declaresWorkMovedElsewhere(headingText) {
 // than reading it. The widened form adds **zero** matches on this repository's
 // live `BACKLOG.md` and none on the three real trap headings (`B87`–`B90`,
 // `B73`–`B76`, "open/closed work"), so the measured zero below is unchanged.
+//
+// ⚠ THE SEPARATOR GROUP CARRIES ITS OWN WHITESPACE, AND THAT IS A ReDoS FIX, NOT
+// A TIDY-UP. Written first as `\s*(?:—|–|-|:)?\s*`, an optional separator
+// between two unbounded whitespace runs is quadratic: every split point between
+// the two runs is retried on failure. Measured on a `B1` + N spaces + `x`
+// heading — 1.9 ms at 1k, 161 ms at 10k, 1.5 s at 30k, **5.9 s at 60k**, and the
+// same for tabs. Nesting the separator inside the optional group leaves ONE
+// unbounded run before the verb and is flat at 0.2 ms across all four sizes,
+// while accepting the identical language (`ws* sep? ws*` and `ws* (sep ws*)?`
+// both describe `ws*` ∪ `ws* sep ws*`; verified against all 22 fixtures).
+//
+// It was introduced by the REVIEW fix that widened the tense and caught by the
+// NEXT review round — the author's own ReDoS probe had missed it, having tried
+// backtick runs, digit runs and repeated verbs but never a long whitespace run
+// after an id. `LEADING_ID_RE` above bounds its decoration runs for this exact
+// class and records the 3.9 s measurement that justified it; this is the same
+// lesson, relearned one function down. The timing is pinned by a test.
+//
+// ⚠ NO `for` BRANCH. It was there — `(?:for\s+)?` — and it promoted a row
+// headed "The fix for `B75` broke `B76`" as though it discharged `B75`, which is
+// the opposite of what that row says. Its only justification was an invented
+// fixture ("A fix for B9 that discharges it"), never a real heading, so it is
+// removed rather than documented.
 const BUG_DISCHARGE_RE =
-  /\b(?:fix(?:es|ed)?|close[sd]?|resolve[sd]?|discharge[sd]?)\s+(?:for\s+)?`?(B\d+)`?\b|`?\b(B\d+)\b`?\s*(?:—|–|-|:)?\s*(?:fix(?:es|ed)?|close[sd]?|resolve[sd]?|discharge[sd]?)\b/i;
+  /\b(?:fix(?:es|ed)?|close[sd]?|resolve[sd]?|discharge[sd]?)\s+`?(B\d+)`?\b|`?\b(B\d+)\b`?\s*(?:(?:—|–|-|:)\s*)?(?:fix(?:es|ed)?|close[sd]?|resolve[sd]?|discharge[sd]?)\b/i;
 
 /**
  * What `BUG_DISCHARGE_RE` hits on THIS repository's own `BACKLOG.md`, measured

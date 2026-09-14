@@ -34,6 +34,7 @@ import { fileURLToPath } from 'node:url';
 
 import { BLOCKED_MEASURED, TRIGGER_MET_MEASURED, rankRows } from '../plugin/tools/lib/advise.js';
 import {
+  declaresBugDischarge,
   BUG_DISCHARGE_MEASURED,
   FOLD_MEASURED,
   KEPT_MEASURED,
@@ -62,8 +63,13 @@ export function remedy(name, measured, now, hits = []) {
   );
 }
 
+/** The `confirmed` ids, built the way `runAdvise` builds them. */
+function confirmedBugsFrom(corpus) {
+  return new Set((corpus.sources.bugs?.entries ?? []).filter((e) => e.status === 'confirmed').map((e) => e.id));
+}
+
 /**
- * One scoring of the live file, the way `runAdvise` does it. Exported for the S2/S3 pins.
+ * One scoring of the live file, the way `runAdvise` does it.
  *
  * ⚠ IT ASSERTS ITS OWN INPUTS FIRST, and that assertion is the point of the
  * helper rather than defensive tidying. Found in REVIEW by a fresh-context
@@ -91,9 +97,22 @@ export async function scoreRepo() {
     discharge.sources,
     'the discharge input could not open a closure source, so any zero it reports is vacuous'
   ).toEqual({ units: true, bugs: true });
-  const confirmedBugs = new Set(
-    (corpus.sources.bugs?.entries ?? []).filter((e) => e.status === 'confirmed').map((e) => e.id)
-  );
+  // ⚠ READABLE IS NOT THE SAME AS NON-EMPTY, and two zero-expecting pins below
+  // are vacuous on the difference. A catalog that is readable but holds no
+  // `confirmed` bug gives input 7 an empty Set to compare against; a discharge
+  // run with any BLIND candidate row returns `stale: []` with outcome
+  // `cannot-evaluate` while `sources` still reads all-true, so AC3.3 would count
+  // its zero over rows nothing looked up. Found by the SECOND security audit,
+  // after the first closed the readability half of the same hole.
+  expect(
+    confirmedBugsFrom(corpus).size,
+    'BUGS.md records no confirmed bug, so a zero from the bug-discharge pin compares against nothing'
+  ).toBeGreaterThan(0);
+  expect(
+    discharge.blind ?? [],
+    'the discharge input could not look up some candidate rows, so its zero is counted over rows nobody resolved'
+  ).toEqual([]);
+  const confirmedBugs = confirmedBugsFrom(corpus);
   const ranked = rankRows(corpus.sources.backlog.rows, {
     today: '2026-09-14',
     stale: discharge.stale ?? [],
@@ -213,5 +232,34 @@ describe('M6.E8 t3.3 — input 3 on this repository (AC3.3)', () => {
     const { all, discharge } = await scoreRepo();
     const dropped = all.filter((s) => s.dischargedElsewhere);
     expect(dropped.map((s) => s.row.text), `stale per backlogDischargeStatus: ${JSON.stringify(discharge.stale)}`).toEqual([]);
+  });
+});
+
+describe('M6.E8 — the bug-discharge pattern stays LINEAR (REVIEW pass 2, security audit)', () => {
+  // The widening that taught the predicate past tense also made its separator
+  // optional between two unbounded whitespace runs, which is quadratic: 1.9 ms at
+  // 1k spaces, 161 ms at 10k, 1.5 s at 30k, 5.9 s at 60k. `LEADING_ID_RE` in the
+  // same file bounds its runs for exactly this class and records the 3.9 s
+  // measurement behind it — the lesson was already written down one function up.
+  // This pin is what stops it coming back: the shape is invisible to reading, and
+  // the author's own earlier probe tried every shape but this one.
+  it('does not backtrack on a long whitespace run after a bug id', () => {
+    for (const filler of [' ', '\t']) {
+      const heading = `B1${filler.repeat(30000)}x`;
+      const started = performance.now();
+      declaresBugDischarge(heading);
+      const ms = performance.now() - started;
+      expect(
+        ms,
+        `declaresBugDischarge took ${ms.toFixed(0)}ms on 30k ${filler === ' ' ? 'spaces' : 'tabs'} — the separator group is unbounded again`
+      ).toBeLessThan(250);
+    }
+  });
+
+  it('a row headed "the fix for B75 broke B76" is NOT read as discharging B75', () => {
+    // The `for` branch that promoted it existed only to satisfy an invented
+    // fixture; a row saying a fix BROKE something is the opposite of a discharge.
+    expect(declaresBugDischarge('The fix for `B75` broke `B76`').id).toBeNull();
+    expect(declaresBugDischarge('The fix for B75 regressed').id).toBeNull();
   });
 });
