@@ -357,6 +357,73 @@ export function declaresNotLiveWork(headingText) {
   return { notLive: false, kind: null, declaration: null };
 }
 
+// ── `M6.E8` FR4 — a heading that says the work moved elsewhere, and `KEPT`.
+//
+// Two vocabularies with OPPOSITE effects sit in the same heading position on
+// the real file: five live rows announce that their work lives somewhere else
+// (`FOLDED INTO M5.E10`, `absorbed into M5.E12` ×2, `KEPT, re-homed`, `KEPT,
+// absorbed into M5.E11`), and two of the five say **KEPT** first. That is the
+// maintainer saying "do not drop this" — the meaning `HELD_OPEN_RE` already
+// carries for `(STILL|KEPT|HELD) OPEN`, arriving in wording that regex does not
+// match. So `KEPT` is an OVERRIDE evaluated before the fold vocabulary is
+// consulted, never one more phrase inside it: lumping them drops two rows the
+// maintainer explicitly kept, which `rankRows` names as the worst thing it can
+// do. Approved by Brett 2026-09-07 (`D-M6E8-4`) — it is a question about what
+// the author MEANT, not what the file says, so DISCUSS refused to decide it alone.
+//
+// ⚠ HEADING ONLY, the same rule as `declaresNotLiveWork` above and for the same
+// reason. One live row mentions a fold phrase in its BODY alone (the obligation
+// tracker row, which discusses folding); reading bodies would drop it.
+//
+// ⚠ Case-insensitive on BOTH sides, and the asymmetry is deliberate: a lowercase
+// `kept` false positive PRESERVES a row (the safe direction), a lowercase fold
+// phrase drops one (the unsafe direction). Measured: any-case and exact-case
+// counts are identical on this file (5 fold / 2 KEPT), so the choice costs
+// nothing today and buys the safe failure if it ever matters.
+//
+// ⚠ THIS DOES NOT WIDEN `HELD_OPEN_RE` (NFR3). `backlogDischargeStatus` reads
+// that regex to mean "declared open on purpose, do not flag as stale"; a `KEPT`
+// without `OPEN` is read here, by a new caller, and nowhere else.
+const KEPT_OVERRIDE_RE = /\bKEPT\b/i;
+const FOLD_VOCABULARY = [
+  ['folded-into', /\bFOLDED INTO\b/i],
+  ['absorbed-into', /\babsorbed into\b/i],
+  // Without `re-homed` the override preserves ONE row, not two — the second
+  // real KEPT heading says `KEPT, re-homed`. AC4.3's "exactly 2 preserved" is
+  // what put this phrase in the vocabulary; it is not an analogy.
+  ['re-homed', /\bre-homed\b/i],
+];
+
+/**
+ * What the fold vocabulary DROPS and what `KEPT` PRESERVES on THIS repository's
+ * own `BACKLOG.md`, measured through `readCorpus` + `rankRows` and pinned by
+ * `tests/advise-live-measurement.test.js` (`M6.E8` NFR6). Five live headings
+ * carry a fold phrase; `FOLD_MEASURED.hits` is the three that drop,
+ * `KEPT_MEASURED.hits` the two the override preserves. A red pin is a
+ * re-measurement step — read the new or vanished hit, decide whether the
+ * vocabulary is still precise, update the constant.
+ */
+export const FOLD_MEASURED = Object.freeze({ on: '2026-09-14', rows: 48, hits: 3 });
+export const KEPT_MEASURED = Object.freeze({ on: '2026-09-14', rows: 48, hits: 2 });
+
+/**
+ * Whether a heading declares, in its own words, that its work moved elsewhere —
+ * unless it also says `KEPT`, which wins.
+ *
+ * @param {string} headingText — a row's heading, not its body
+ * @returns {{moved: boolean, kind: string|null, declaration: string|null, kept: boolean}}
+ */
+export function declaresWorkMovedElsewhere(headingText) {
+  const text = String(headingText ?? '');
+  const kept = text.match(KEPT_OVERRIDE_RE);
+  if (kept) return { moved: false, kind: null, declaration: kept[0], kept: true };
+  for (const [kind, re] of FOLD_VOCABULARY) {
+    const m = text.match(re);
+    if (m) return { moved: true, kind, declaration: m[0], kept: false };
+  }
+  return { moved: false, kind: null, declaration: null, kept: false };
+}
+
 /**
  * Every backlog row, with its discharge state normalized to `obligations.js`'s
  * field names (`discharged` / `dischargedBy` / `dischargedAt`).

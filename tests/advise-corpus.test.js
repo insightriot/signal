@@ -25,7 +25,13 @@ import { describe, expect, it } from 'vitest';
 import { ADVISOR_SOURCES, readCorpus } from '../plugin/tools/lib/advise-corpus.js';
 import { walkBugEntries } from '../plugin/tools/lib/bugs-tally.js';
 import { parseEpicStatusRows } from '../plugin/tools/lib/milestones.js';
-import { declaresNotLiveWork, parseBacklogRows } from '../plugin/tools/lib/backlog.js';
+import {
+  FOLD_MEASURED,
+  KEPT_MEASURED,
+  declaresNotLiveWork,
+  declaresWorkMovedElsewhere,
+  parseBacklogRows,
+} from '../plugin/tools/lib/backlog.js';
 
 // A backlog shaped like the real one: a `###` row that gained `####` children
 // (invisible at depth 3, and a container at depth 4), a struck row, a `<details>`
@@ -446,6 +452,71 @@ describe('t3.1 input 5 — a row that declares itself not live work', () => {
   it('does not widen HELD_OPEN_RE, whose meaning backlogDischargeStatus depends on', () => {
     // Widening that regex changes a shipped check's behaviour as a side effect —
     // the same refusal t2.5 makes about the milestone parsers, for the same reason.
+    const src = readFileSync(join(process.cwd(), 'plugin/tools/lib/backlog.js'), 'utf8');
+    expect(src).toMatch(/const HELD_OPEN_RE = \/\\b\(\?:STILL\|KEPT\|HELD\)\\s\+OPEN\\b\/i;/);
+  });
+});
+
+describe('M6.E8 t2.1 (FR4) — a row whose heading says its work moved elsewhere, and `KEPT` overrides', () => {
+  // The five real headings, verbatim, from this repository's BACKLOG.md on
+  // 2026-09-14. Named by heading and never by line (`D-M6E8-4`): a line moves
+  // the moment a row is inserted above it, a heading survives.
+  const FOLDED = "`STATE.md`'s narrative vs. its frontmatter · **hygiene** · small · **FOLDED INTO `M5.E10`**";
+  const ABSORBED_1 = 'Re-source the stale external claims → **absorbed into M5.E12**';
+  const ABSORBED_2 = '`/sig:docs-update` — GSD port → **absorbed into M5.E12**';
+  const KEPT_REHOMED = "Retro *replay* into the next Epic's DISCUSS/PLAN — **KEPT, re-homed**";
+  const KEPT_ABSORBED = 'Cross-Epic pattern detection — **KEPT, absorbed into M5.E11**';
+
+  it('reads the HEADING only — a fold phrase in a body is not a declaration', () => {
+    // The one live row that mentions a fold phrase in its BODY alone (the
+    // obligation-tracker row) is the false positive heading-only avoids.
+    expect(declaresWorkMovedElsewhere('M5.E14 — Obligation tracker integration').moved).toBe(false);
+    expect(declaresWorkMovedElsewhere('A perfectly live row').declaration).toBeNull();
+  });
+
+  it('recognises the three measured phrases and names which fired (AC4.1)', () => {
+    for (const [text, kind] of [
+      [FOLDED, 'folded-into'],
+      [ABSORBED_1, 'absorbed-into'],
+      [ABSORBED_2, 'absorbed-into'],
+      ['Something — re-homed to the docs plugin', 're-homed'],
+    ]) {
+      const r = declaresWorkMovedElsewhere(text);
+      expect(r.moved, `expected "${text}" to read as moved`).toBe(true);
+      expect(r.kind).toBe(kind);
+      expect(r.kept).toBe(false);
+      expect(r.declaration).toBeTruthy();
+    }
+  });
+
+  it('`KEPT` is evaluated FIRST and overrides the fold vocabulary (AC4.2)', () => {
+    // Both real headings say their work moved AND say KEPT. That is the maintainer
+    // saying "do not drop this", and dropping it would be the worst thing the
+    // advisor can do. The override returns before the fold vocabulary runs.
+    for (const text of [KEPT_REHOMED, KEPT_ABSORBED]) {
+      const r = declaresWorkMovedElsewhere(text);
+      expect(r.moved, `expected "${text}" to be preserved`).toBe(false);
+      expect(r.kept).toBe(true);
+      expect(r.declaration).toMatch(/KEPT/);
+    }
+  });
+
+  it('lowercase "kept" in prose also preserves — preserving is the safe direction', () => {
+    const r = declaresWorkMovedElsewhere('A row we kept, re-homed under the docs plugin');
+    expect(r.moved).toBe(false);
+    expect(r.kept).toBe(true);
+  });
+
+  it('records its measurement beside the pattern, frozen, in the shape the live pin reads', () => {
+    for (const m of [FOLD_MEASURED, KEPT_MEASURED]) {
+      expect(Object.isFrozen(m)).toBe(true);
+      expect(m.on).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(Number.isInteger(m.rows)).toBe(true);
+      expect(Number.isInteger(m.hits)).toBe(true);
+    }
+  });
+
+  it('does not widen HELD_OPEN_RE — `KEPT` here is a separate override, not a new phrase in it (NFR3)', () => {
     const src = readFileSync(join(process.cwd(), 'plugin/tools/lib/backlog.js'), 'utf8');
     expect(src).toMatch(/const HELD_OPEN_RE = \/\\b\(\?:STILL\|KEPT\|HELD\)\\s\+OPEN\\b\/i;/);
   });
