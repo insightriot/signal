@@ -16,8 +16,8 @@ last_completed_task:
   commit: 3e377ce
   completedAt: 2026-09-14T12:41:57.391Z
 last_decision_at: 2026-09-14T12:41:57.391Z
-last_updated_commit: 3e377ce587ab43c4f1be798fe773548e7606af83
-last_updated: 2026-09-14T13:28:48.442Z
+last_updated_commit: f31fad39c84994388686819fc8c721ad21e64765
+last_updated: 2026-09-14T13:33:57.755Z
 ---
 # Project State
 
@@ -25,18 +25,22 @@ last_updated: 2026-09-14T13:28:48.442Z
 
 ### ▶ WHERE THE WORK IS — read this first (2026-09-14)
 
-**`M6.E8` IS IN FLIGHT — EXECUTE COMPLETE, at the VERIFY gate — on this branch,
-`feat/m6.e8-advisor-ranking-inputs`.** Ten tasks in two waves, ten atomic commits (`8d2b4c0` …
-`3e377ce`), suite **3424** green; [`M6.E8-PROGRESS.md`](M6.E8-PROGRESS.md) has the ledger. What
-shipped: two heading-only inputs (fold with `KEPT` first — **3 drop / 2 kept** here; bug-discharge —
-**0** here, declared), the discharge reason names its source, the *Consulted* line is derived, the
-retrospective read is gone, and every vocabulary records its live count as a `*_MEASURED` constant
-asserted by `tests/advise-live-measurement.test.js`. **Not done, by measurement:** `BLOCKED_RE` is
-unchanged (`D-M6E8-7`). ⚠ Three DISCUSS claims fell at PLAN (`D-M6E8-7`…`9`); the restated outcome
-was approved at the PLAN gate — **the recommended five will not change composition.** VERIFY's job
-is the Outcome diff against [`BACKLOG-REVIEW-2026-09-13.md`](BACKLOG-REVIEW-2026-09-13.md), reading
-the amended `AC2.1′` / `AC3.1′` from [`M6.E8-VALIDATION.md`](M6.E8-VALIDATION.md), not the numbering
-(`B116`). Next step: `/sig:verify`.
+**`M6.E8` IS IN FLIGHT — VERIFY returned PASS with documented limits, at the REVIEW gate — on
+`feat/m6.e8-advisor-ranking-inputs`.** Ten tasks, twelve commits, suite **3424** green, lint clean.
+Report: [`M6.E8-VERIFICATION.md`](M6.E8-VERIFICATION.md) — **read its Verdict before anything else.**
+
+⚠ **VERIFY's finding is about the Outcome's own instrument.** The requirements said to measure by
+diffing the new advisory against [`BACKLOG-REVIEW-2026-09-13.md`](BACKLOG-REVIEW-2026-09-13.md).
+Run literally, that diff shows the recommended five **changing** — and it is false: the baseline was
+generated on `main` (`46e6e44`), which lacks the row this branch promoted at DISCUSS (`7e9c288`), so
+the diff measures corpus drift **plus** ranking change and cannot separate them (`B118`). The
+controlled experiment — one corpus, old inputs vs. new — gives an **identical top five**, which is
+the restated outcome `D-M6E8-7` predicted. The effect is in the declined pool's reasons: **3 fold
+drops, 2 `KEPT` preserved, 0 bug-discharge promotions, 4 sources read / 3 consulted.**
+
+⚠ **`B116` confirmed live here:** `diffRequirementCoverage`'s denominator is **24** (18 `AC` + 6
+`NFR`) and omits all **7 `FR`s**, so its clean `missing: []` is silent about seven of thirty-one
+requirements. Coverage was read from the mapping column instead. Next step: `/sig:review`.
 
 **Latest advisory:** [`BACKLOG-REVIEW-2026-09-13.md`](BACKLOG-REVIEW-2026-09-13.md) — same top five
 as 2026-09-06, because no live row changed; `M6.E8` is its #2. (Its *"consulted `BACKLOG.md` only"* line
