@@ -503,6 +503,21 @@ describe('M6.E8 t2.1 (FR4) — a row whose heading says its work moved elsewhere
     }
   });
 
+  it('the fold vocabulary is EXACT-CASE, so lowercase prose does not drop a live row', () => {
+    // The two sides carry different case rules on purpose: a `kept` false
+    // positive preserves (safe), a fold false positive drops (unsafe). An earlier
+    // version matched fold case-insensitively while its own comment claimed the
+    // asymmetry existed; a fresh-context reviewer caught the comment asserting
+    // the safer behaviour and the code implementing the less safe one.
+    expect(declaresWorkMovedElsewhere('A row about work folded into other work').moved).toBe(false);
+    expect(declaresWorkMovedElsewhere('Notes absorbed Into the wider plan').moved).toBe(false);
+    // And the five real headings still match exactly — the exact-case count on
+    // the live file is 5, identical to the any-case count that was measured.
+    expect(declaresWorkMovedElsewhere('x · **FOLDED INTO `M5.E10`**').moved).toBe(true);
+    expect(declaresWorkMovedElsewhere('x → **absorbed into M5.E12**').moved).toBe(true);
+    expect(declaresWorkMovedElsewhere('x — **KEPT, re-homed**').kept).toBe(true);
+  });
+
   it('lowercase "kept" in prose also preserves — preserving is the safe direction', () => {
     const r = declaresWorkMovedElsewhere('A row we kept, re-homed under the docs plugin');
     expect(r.moved).toBe(false);

@@ -11,15 +11,24 @@
 // re-ran it. By 2026-09-14 the file had 48 live rows. A count in a comment is a
 // claim written from memory the moment the file moves.
 //
-// ⚠ ONE OF THESE PINS BREAKS AT THIS EPIC'S OWN SHIP, BY CONSTRUCTION.
-// `TRIGGER_MET_MEASURED` is 3, and one of the three is this Epic's own backlog
-// row. `readCorpus` filters struck rows, so discharging that row at SHIP — which
-// `NFR1` itself calls a one-time human SHIP edit — drops the count to 2 and turns
-// this file red unless the constant is bumped in the SAME commit. Found in REVIEW
-// by a fresh-context test reviewer, before it happened rather than after.
-// **Bumping it is the correct response, not a workaround**: the vocabulary's
-// reach genuinely changed by one row and a human genuinely looked at that row.
-// It is recorded here so the SHIP commit does not read as a mystery red.
+// ⚠ SEVEN OF THESE CONSTANTS BREAK AT THIS EPIC'S OWN SHIP, BY CONSTRUCTION —
+// and an earlier version of this note said ONE. That was a claim written from
+// the shape of the work ("trigger-met is 3, one hit is our row, so that pin
+// breaks") rather than from a simulation, in the warning written to guard against
+// exactly that. A fresh-context reviewer ran the strike; so did the author,
+// afterwards, and got the same answer.
+//
+// **The rule, which generalises past this Epic:** striking a live row drops
+// EVERY `.rows` constant by one, and additionally drops the `hits` of any
+// vocabulary that row matched. Measured for the row this Epic will strike:
+//
+//   BLOCKED.rows 45→44 · TRIGGER_MET.hits 3→2 · TRIGGER_MET.rows 45→44 ·
+//   NOT_LIVE.rows 52→51 · FOLD.rows 52→51 · KEPT.rows 52→51 · BUG_DISCHARGE.rows 45→44
+//
+// Five test cases go red. **Bumping all seven in the SHIP commit is the correct
+// response, not a workaround:** the population genuinely changed and a human
+// genuinely looked at the row. Recorded so the SHIP commit does not read as a
+// mystery red, and so nobody bumps one constant and wonders why it is still red.
 //
 // ⚠ THIS IS A REPO-FILE PIN, AND IT IS NOT `B120`'s SHAPE. `drain-standing`
 // AC2.2c fires whenever the inbox is USED as intended (a capture lands). These
@@ -54,6 +63,17 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
  * Found in REVIEW by a fresh-context test reviewer.
  */
 export function remedy(name, measured, now, hits = []) {
+  // ⚠ A `.rows` RED IS A DIFFERENT EVENT FROM A HIT RED, and printing the same
+  // sentence for both sends the reader looking for a vocabulary change that did
+  // not happen. A population moved: a row was added, struck, or folded. Most of
+  // the reds at this Epic's own SHIP will be this kind.
+  if (name.endsWith('.rows')) {
+    return (
+      `${name} was measured at ${measured.rows} on ${measured.on}; this repository's BACKLOG.md now ` +
+      `yields ${now}. No vocabulary changed — the POPULATION did (a row was added, struck, or folded). ` +
+      `Confirm that is deliberate, then update the constant beside the pattern.`
+    );
+  }
   const listed = hits.length > 0 ? `\n  Matching now:${hits.map((s) => `\n    · ${s.row.text}`).join('')}` : '';
   return (
     `${name} was measured at ${measured.hits} on ${measured.on} (over ${measured.rows} rows); ` +
@@ -153,6 +173,12 @@ describe('M6.E8 t1.1 — the three existing inputs, measured on this repository'
     const hits = live.filter((s) => s.triggerMet);
     expect(hits.length, remedy('TRIGGER_MET_MEASURED', TRIGGER_MET_MEASURED, hits.length, hits)).toBe(
       TRIGGER_MET_MEASURED.hits
+    );
+    // The one population that was still unasserted after the round that added
+    // the rest: set it to 999 and the suite stayed green. Found by a
+    // fresh-context reviewer reading the docblock against the tests.
+    expect(live.length, remedy('TRIGGER_MET_MEASURED.rows', TRIGGER_MET_MEASURED, live.length)).toBe(
+      TRIGGER_MET_MEASURED.rows
     );
   });
 

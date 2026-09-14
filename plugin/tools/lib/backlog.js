@@ -374,11 +374,20 @@ export function declaresNotLiveWork(headingText) {
 // reason. One live row mentions a fold phrase in its BODY alone (the obligation
 // tracker row, which discusses folding); reading bodies would drop it.
 //
-// ⚠ Case-insensitive on BOTH sides, and the asymmetry is deliberate: a lowercase
-// `kept` false positive PRESERVES a row (the safe direction), a lowercase fold
-// phrase drops one (the unsafe direction). Measured: any-case and exact-case
-// counts are identical on this file (5 fold / 2 KEPT), so the choice costs
-// nothing today and buys the safe failure if it ever matters.
+// ⚠ THE TWO SIDES HAVE DIFFERENT CASE RULES, and that asymmetry is the whole
+// point. A `kept` false positive PRESERVES a row — the safe direction — so the
+// override is case-INSENSITIVE. A fold false positive DROPS one — the unsafe
+// direction — so the fold vocabulary is case-SENSITIVE and matches only the
+// literal forms that were measured. Without that, `folded into M5.E10` written
+// as ordinary lowercase prose in a heading drops a live row.
+//
+// It costs nothing: all five real headings match exactly under the case-sensitive
+// forms (verified — `**FOLDED INTO`, `absorbed into` ×3, `re-homed`), so the
+// exact-case count is 5, identical to any-case. An earlier version of this
+// comment claimed both sides were case-insensitive AND that this bought "the safe
+// failure", which is incoherent for the fold half; a fresh-context reviewer
+// caught the comment asserting the safer behaviour while the code implemented
+// the less safe one.
 //
 // ⚠ THIS DOES NOT WIDEN `HELD_OPEN_RE` (NFR3). `backlogDischargeStatus` reads
 // that regex to mean "declared open on purpose, do not flag as stale"; a `KEPT`
@@ -396,12 +405,12 @@ export function declaresNotLiveWork(headingText) {
 // call, not this Epic's; recorded in `M6.E8-REVIEW.md`.
 const KEPT_OVERRIDE_RE = /\bKEPT\b/i;
 const FOLD_VOCABULARY = [
-  ['folded-into', /\bFOLDED INTO\b/i],
-  ['absorbed-into', /\babsorbed into\b/i],
+  ['folded-into', /\bFOLDED INTO\b/],
+  ['absorbed-into', /\babsorbed into\b/],
   // Without `re-homed` the override preserves ONE row, not two — the second
   // real KEPT heading says `KEPT, re-homed`. AC4.3's "exactly 2 preserved" is
   // what put this phrase in the vocabulary; it is not an analogy.
-  ['re-homed', /\bre-homed\b/i],
+  ['re-homed', /\bre-homed\b/],
 ];
 
 /**

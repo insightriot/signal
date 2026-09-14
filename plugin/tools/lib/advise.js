@@ -143,8 +143,8 @@ const TRIGGER_MET_RE = /\btrigger[^.\n]{0,60}\b(?:FIRED|met|satisfied)\b/i;
  * vocabulary is still precise. This is not `B120`'s shape (a test that fires
  * when a ledger is merely used); the test's failure message says which.
  *
- * `rows` is the population the count was taken over, and **the test asserts it
- * too**. It did not at first: five of the six constants recorded `48` while the
+ * `rows` is the population the count was taken over, and **the test asserts every
+ * one of them**. It did not at first: five of the six constants recorded `48` while the
  * populations were 45 and 52, and the docblock said the test checked `hits`
  * only — a number sitting beside the pattern that nothing verified, which is the
  * exact thing `NFR6` exists to forbid, inside the constants written to satisfy
@@ -337,8 +337,20 @@ function declineReason(s, rank) {
   if (s.blocked) {
     return 'Demoted by the **blocked-by** input — the row names a gate that has not fired.';
   }
-  if (!s.triggerMet && !s.dischargesBug) {
+  // ⚠ THE SORT HAS FOUR KEYS AND THIS USED TO HAVE THREE BRANCHES, so a row that
+  // lost on trigger-met or bug-discharge was told it lost on AGE. Reproduced by a
+  // fresh-context reviewer and again here: the OLDEST row in a file, carrying a
+  // confirmed-bug discharge, rendered "Demoted by the **age** input — 6 rows were
+  // filed earlier" when trigger-met is what beat it. The artifact's stated
+  // contract is that every declined row names the input that demoted it, so a
+  // wrong name is a false claim in a document whose whole pitch is checkability.
+  // Latent today — input 7 fires on zero rows — and reachable the moment someone
+  // writes "Fixes B75" in a heading.
+  if (!s.triggerMet) {
     return `Demoted by the **trigger-met**, **bug-discharge** and **age** inputs — ${rows(rank)} scored above it.`;
+  }
+  if (!s.dischargesBug) {
+    return `Demoted by the **bug-discharge** and **age** inputs — ${rows(rank)} scored above it.`;
   }
   return `Demoted by the **age** input — ${rows(rank)} were filed earlier.`;
 }
