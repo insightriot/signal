@@ -184,6 +184,7 @@
 - [M6.E7-REQUIREMENTS.md](M6.E7-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E7-REVIEW.md](M6.E7-REVIEW.md) — `other` — _(note pending)_
 - [M6.E7-VERIFICATION.md](M6.E7-VERIFICATION.md) — `other` — _(note pending)_
+- [M6.E8-PROFILE.md](M6.E8-PROFILE.md) — `other` — _(note pending)_
 - [M6.E8-REQUIREMENTS.md](M6.E8-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E9-DETERMINATIONS.md](M6.E9-DETERMINATIONS.md) — `other` — _(note pending)_
 - [M6.E9-REQUIREMENTS.md](M6.E9-REQUIREMENTS.md) — `other` — _(note pending)_

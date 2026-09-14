@@ -142,4 +142,17 @@ So the top five are: the two trigger-met rows, then the three oldest rows on the
 
 ---
 
-*Last updated: 2026-09-07*
+## The tier a decision states and the tier the phase commands read can diverge, and nothing compares them
+
+**Status:** Logged 2026-09-14 via `/sig:add`. Filed from `/sig:resume` at M6.E8 PLAN entry (`D-BR0914-1`).
+
+No check compares a decision's or a `*-REQUIREMENTS.md` frontmatter's stated tier against the effective profile. Found 2026-09-14 by `/sig:resume` one command before `/sig:plan`: `D-M6E8-1` and `M6.E8-REQUIREMENTS.md` both said **FEATURE**, `readEffectiveProfile` returned **FULL**, because the decision assumed the project profile was FEATURE (it is FULL) and declined to write `M6.E8-PROFILE.md`. `M6.E6`/`M6.E7` were FEATURE only because each had one. PLAN would have run four researchers and a full security audit against a decision that chose two and `basic`. Corrected by `D-BR0914-1`.
+
+**Two candidate fixes, not one.** (1) A published-fact drift check for `M6.E2`'s registry: the `tier:` field of the current Epic's `*-REQUIREMENTS.md` must equal `readEffectiveProfile(...).tier`, category 3 (needs a person). Today the requirements `tier:` field is reconciled against nothing. (2) A `discuss.md` change: when DISCUSS chooses a tier different from the project profile's, the per-Epic profile write is not optional — `D-M6E8-1`'s `B75` argument (a per-Epic profile identical to the project's is a setting read by nothing) is sound only when the two are identical, and DISCUSS never checked that they were.
+
+**Pattern:** `M6.E7`-retro finding — a claim written from the shape of the sibling Epics rather than derived from the artifact — one Epic later.
+
+---
+
+
+*Last updated: 2026-09-14*

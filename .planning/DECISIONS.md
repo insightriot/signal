@@ -2800,6 +2800,8 @@ No `M6.E8-PROFILE.md` is written. The Epic inherits, which is the documented def
 profile identical to the project's is `B75`'s shape — a setting documented end to end and read by
 nothing.
 
+⚠ **Corrected 2026-09-14 by `D-BR0914-1`.** The premise of the paragraph above is false: the project profile is **FULL**, so "inherits" meant FULL, and `M6.E6`/`M6.E7` were FEATURE only because each had a per-Epic `PROFILE.md`. `M6.E8-PROFILE.md` now exists at FEATURE. The tier chosen here stands; the mechanism did not.
+
 ### D-M6E8-2 — The bug input is built in the OPPOSITE direction to the one the row proposed
 
 **The row asked for:** *"a row naming an open `confirmed` bug should rank above one that does not."*
@@ -3099,3 +3101,36 @@ new"* is over and `M6.E8` is again the only open Epic.
 
 **What this does NOT settle:** the DISCUSS→PLAN gate. `discuss.md` records DISCUSS's close when
 `/sig:plan` transitions in; nothing here marks a phase.
+
+## 2026-09-14 — M6.E8 PLAN entry: the tier in D-M6E8-1 was stated, not in force (D-BR0914-1)
+
+### D-BR0914-1 — `M6.E8-PROFILE.md` is written at FEATURE; `D-M6E8-1`'s "inherits" premise was false
+
+**Found by `/sig:resume` on 2026-09-14**, one command before `/sig:plan`. `readEffectiveProfile`
+returned **FULL** for `M6.E8`, while `D-M6E8-1` and `M6.E8-REQUIREMENTS.md`'s frontmatter both say
+**FEATURE**. The decision's reasoning — *"No `M6.E8-PROFILE.md` is written. The Epic inherits, which
+is the documented default"* — assumed the project profile is FEATURE. It is FULL, and has been since
+2026-05-14. `M6.E6` and `M6.E7` ran at FEATURE because each wrote a per-Epic profile; `M6.E8` had
+none, so `/sig:plan` would have run four researchers, a full security audit and full review depth
+against a decision that had chosen two, `basic` and `quality-only`.
+
+**Brett's call, 2026-09-14** — *"yes"* to continuing into `/sig:plan` after the mismatch was put in
+front of him. The **tier stays FEATURE**: it is the tier DISCUSS chose, with reasons that still hold
+(no FULL escalator fires; pure-logic change to a read-only command). What changes is the mechanism —
+the file `D-M6E8-1` said was unnecessary now exists, mirroring `M6.E7-PROFILE.md` with
+`nyquist_enforcement: strict` carried over and `attention: checkpointed` set explicitly
+(`D-BR0908-1`). `D-M6E8-1` carries a correction pointer to this entry; its text is otherwise left as
+written, because the false sentence *is* the record.
+
+**Why this is a `M6.E7`-retro finding one Epic later, and where it goes.** *"A claim written from
+the shape of the work rather than derived from the artifact"* — the shape was *"same as `M6.E6` and
+`M6.E7`"*, the artifact was `PROFILE.md`, and nobody read it. The `B75` argument in `D-M6E8-1` (a
+per-Epic profile identical to the project's is a setting read by nothing) was sound and beside the
+point: the two profiles were not identical. No drift check compares a decision's or a
+`*-REQUIREMENTS.md` frontmatter's stated tier against the effective profile; the `tier:` field in the
+requirements artifact is reconciled against nothing. Filed to `ISSUES-INBOX.md` at this entry's
+commit, for `M6.E2`'s published-fact registry.
+
+**What this does NOT settle:** whether `D-M6E8-1`'s `B75` reasoning should stop `/sig:discuss` from
+ever skipping the per-Epic profile write. That is a `discuss.md` change, and it is the inbox row's
+question, not this decision's.
