@@ -3198,8 +3198,9 @@ and not the other. The line under-claimed. The `M6.E7` REVIEW fix for an over-cl
 under-claim in its place; both are the same defect.
 
 **Definition:** *consulted* = the `ADVISOR_SOURCES` entries any ranking input read on **this** run,
-derived from what `rankRows` was given — `BACKLOG.md` always; `BUGS.md` and `STATE/closure` when
-the discharge status was evaluable (input 3 read both) or when a confirmed-bug set was supplied
-(the new input); `milestone rows` never, and the artifact says so with `D-M6E8-5`'s reason. The
+derived from what `rankRows` was given — `BACKLOG.md` always; `STATE/closure` and `BUGS.md` when
+input 3 could read each — its additive `sources` field, **not** its outcome, which reads `clean`
+with `BUGS.md` unreadable and no bug-led row — and `BUGS.md` also when a confirmed-bug set was
+supplied (the new input); `milestone rows` never, and the artifact says so with `D-M6E8-5`'s reason. The
 renderer carries no literal source list; `AC7.1` compares the line to `ranked.consulted`. It may
 legitimately disagree with the *Could not read* list, and the plan says so.
