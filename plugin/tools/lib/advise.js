@@ -187,7 +187,26 @@ export function cite(...targets) {
  * `citations.js` states the other one.
  */
 export function quoteSafe(text) {
-  return String(text).split(EVIDENCE_MARKER).join('— evidence(quoted):');
+  // ⚠ NEWLINES ARE NEUTRALIZED TOO, and that half was missing until the final
+  // review round. Stripping only the marker stops a quoted row from forging a
+  // CITATION; it does nothing about forging document STRUCTURE. Every string
+  // that reaches the artifact is rendered as one line, so a value carrying a
+  // newline breaks out of its bullet and the rest is read as Markdown at the top
+  // level. Reproduced: a `schema_version` written as a YAML block scalar puts its
+  // own lines into the schema error, which `resolveClosures` wraps as a reason,
+  // which the Corpus section renders — and the artifact then carries a second
+  // `## Recommended — 1` heading and a `- **forged row**` bullet that no ranking
+  // produced and no citation covers. The count gate cannot see it, because claims
+  // are counted from `ranked` and never from the text.
+  //
+  // Fixed HERE rather than at that one source, because this is the choke point
+  // every interpolation already passes through: the same shape was reachable from
+  // a caller-supplied `projectName`, from a malformed-YAML parser error, and from
+  // a `.planning/` filename embedded in closure evidence.
+  return String(text)
+    .split(EVIDENCE_MARKER)
+    .join('— evidence(quoted):')
+    .replace(/[\r\n]+/g, ' ');
 }
 
 function daysBetween(fromIso, toIso) {
