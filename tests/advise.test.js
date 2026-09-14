@@ -180,6 +180,45 @@ describe('t3.1 input 5 — the wiring, not just the predicate', () => {
   });
 });
 
+describe('M6.E8 t2.2 (FR4) — input 7, fold: a row whose heading says its work moved elsewhere drops', () => {
+  const rows = [
+    { line: 3, path: 'p', text: 'R1 — a plain live row', body: 'Filed 2026-01-01.' },
+    { line: 6, path: 'p', text: 'R2 — Re-source the claims → **absorbed into M5.E12**', body: 'Filed 2026-01-02.' },
+    { line: 9, path: 'p', text: 'R3 — Cross-Epic pattern detection — **KEPT, absorbed into M5.E11**', body: 'Filed 2026-01-03.' },
+    { line: 12, path: 'p', text: 'R4 — a row that discusses folding', body: 'Filed 2026-01-04. Its body says absorbed into something, in prose.' },
+  ];
+
+  it('drops the moved row into the declined pool with the fold reason naming the declaration (AC4.1)', () => {
+    const r = rankRows(rows, { today: TODAY });
+    const moved = r.declined.find((s) => s.row.text.startsWith('R2'));
+    expect(moved).toBeDefined();
+    expect(moved.moved.moved).toBe(true);
+    expect(r.recommended.map((s) => s.row.text.slice(0, 2))).not.toContain('R2');
+  });
+
+  it('a KEPT row stays live and ranks like any other row (AC4.2)', () => {
+    const r = rankRows(rows, { today: TODAY });
+    const kept = r.recommended.find((s) => s.row.text.startsWith('R3'));
+    expect(kept).toBeDefined();
+    expect(kept.moved.moved).toBe(false);
+    expect(kept.moved.kept).toBe(true);
+  });
+
+  it('a fold phrase in the BODY alone does not drop the row — heading only', () => {
+    const r = rankRows(rows, { today: TODAY });
+    expect(r.recommended.map((s) => s.row.text.slice(0, 2))).toContain('R4');
+  });
+
+  it('the rendered decline reason names the fold input and quotes the declaration', () => {
+    const r = rankRows(rows, { today: TODAY });
+    const art = renderArtifact({ today: TODAY, ranked: r, corpus: { checked: ['BACKLOG.md'], cannotCheck: [] } });
+    const line = art.split('\n').find((l) => l.startsWith('- **R2'));
+    expect(line).toMatch(/Dropped by the \*\*fold\*\* input/);
+    expect(line).toContain('`absorbed into`');
+    expect(line).toMatch(/lives elsewhere/);
+  });
+});
+
 describe('t3.2 / t3.2b — it proposes, and never selects (FR6)', () => {
   it('every declined row carries a reason naming the input that demoted it', async () => {
     const base = project();

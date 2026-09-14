@@ -44,10 +44,13 @@ Call `runAdvise(baseDir, { today, projectName })` from `tools/lib/advise.js`. It
    a fifth until `M6.E8` — 32 files parsed per run for nothing that ranked). A
    source that could not be read lands in `cannotCheck` with a reason and its slot stays `null` —
    never an empty result standing in for one.
-2. **Rank** — five inputs in order: blocked-by, trigger-met, discharge, age, and **self-declared
+2. **Rank** — six inputs in order: blocked-by, trigger-met, discharge, age, **self-declared
    not-live** (a row whose own *heading* says it is parked, shelved, a reconciliation record, or
    held open on purpose drops out — `declaresNotLiveWork` in `tools/lib/backlog.js`, which reads the
-   heading and never the body). Stable tiebreak on source line number. Top `RECOMMENDATION_LIMIT` (5) are recommended; **every other live row is
+   heading and never the body), and **fold** (`M6.E8`: a row whose *heading* says its work moved
+   elsewhere — `FOLDED INTO`, `absorbed into`, `re-homed` — drops out, **unless** the heading also
+   says `KEPT`, which is evaluated first and preserves it — `declaresWorkMovedElsewhere`, same
+   file, same heading-only rule). Stable tiebreak on source line number. Top `RECOMMENDATION_LIMIT` (5) are recommended; **every other live row is
    declined, with the reason naming the input that demoted it.** The declined pool is complete
    rather than curated, which is what makes a passed-over row distinguishable from an unconsidered
    one (`B39`).

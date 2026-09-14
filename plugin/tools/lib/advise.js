@@ -27,7 +27,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { backlogDischargeStatus, declaresNotLiveWork } from './backlog.js';
+import { backlogDischargeStatus, declaresNotLiveWork, declaresWorkMovedElsewhere } from './backlog.js';
 import { EVIDENCE_MARKER, verifyCitations } from './citations.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { readCorpus, ADVISOR_SOURCES } from './advise-corpus.js';
@@ -165,6 +165,9 @@ function daysBetween(fromIso, toIso) {
  *   4. **age** — older rows rank above newer ones.
  *   5. **self-declared not-live** — a row that says in its own HEADING that it is
  *      not actionable work drops out entirely.
+ *   6. **fold** (`M6.E8` FR4) — a row whose own HEADING says its work moved
+ *      elsewhere (`FOLDED INTO`, `absorbed into`, `re-homed`) drops out entirely —
+ *      unless the heading also says `KEPT`, which is evaluated first and keeps it.
  *
  * **`consulted`** (`M6.E8` t1.4, `D-M6E8-9`): which `ADVISOR_SOURCES` any input
  * above actually read on THIS run, derived from what this function was GIVEN
@@ -205,6 +208,8 @@ export function rankRows(rows, { today, stale = [], discharge = null, confirmedB
     const dischargedElsewhere = staleIds.has(row.leadingId) || staleLines.has(row.line);
     // Input 5. HEADING ONLY — see the note above.
     const notLive = declaresNotLiveWork(row.text);
+    // Input 6. HEADING ONLY, same rule; `KEPT` wins inside the predicate.
+    const moved = declaresWorkMovedElsewhere(row.text);
     const blocked = BLOCKED_RE.test(text);
     const triggerMet = TRIGGER_MET_RE.test(text);
     // `String(...)` because the two lines around this one already coerce and this one
@@ -212,10 +217,11 @@ export function rankRows(rows, { today, stale = [], discharge = null, confirmedB
     const filed =
       (String(row.text ?? '').match(ISO_DATE_RE) ?? String(row.body ?? '').match(ISO_DATE_RE))?.[1] ?? null;
     const ageDays = filed && today ? daysBetween(filed, today) : 0;
-    return { row, dischargedElsewhere, notLive, blocked, triggerMet, filed, ageDays };
+    return { row, dischargedElsewhere, notLive, moved, blocked, triggerMet, filed, ageDays };
   });
 
-  const live = scored.filter((s) => !s.dischargedElsewhere && !s.notLive.notLive);
+  const isDropped = (s) => s.dischargedElsewhere || s.notLive.notLive || s.moved.moved;
+  const live = scored.filter((s) => !isDropped(s));
   live.sort(
     (a, b) =>
       Number(a.blocked) - Number(b.blocked) ||
@@ -226,9 +232,7 @@ export function rankRows(rows, { today, stale = [], discharge = null, confirmedB
 
   const recommended = live.slice(0, RECOMMENDATION_LIMIT);
   const rest = live.slice(RECOMMENDATION_LIMIT);
-  const dropped = scored
-    .filter((s) => s.dischargedElsewhere || s.notLive.notLive)
-    .sort((a, b) => a.row.line - b.row.line);
+  const dropped = scored.filter(isDropped).sort((a, b) => a.row.line - b.row.line);
 
   return { recommended, declined: [...rest, ...dropped], consulted };
 }
@@ -258,6 +262,12 @@ function declineReason(s, rank) {
   }
   if (s.dischargedElsewhere) {
     return 'Dropped by the **discharge** input — its work already reads as closed, so it is not live work.';
+  }
+  if (s.moved.moved) {
+    return (
+      `Dropped by the **fold** input — the row's own heading says \`${s.moved.declaration}\`, ` +
+      'so its work lives elsewhere.'
+    );
   }
   if (s.blocked) {
     return 'Demoted by the **blocked-by** input — the row names a gate that has not fired.';

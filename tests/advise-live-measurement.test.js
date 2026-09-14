@@ -22,7 +22,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { BLOCKED_MEASURED, TRIGGER_MET_MEASURED, rankRows } from '../plugin/tools/lib/advise.js';
-import { NOT_LIVE_MEASURED, backlogDischargeStatus } from '../plugin/tools/lib/backlog.js';
+import {
+  FOLD_MEASURED,
+  KEPT_MEASURED,
+  NOT_LIVE_MEASURED,
+  backlogDischargeStatus,
+} from '../plugin/tools/lib/backlog.js';
 import { readCorpus } from '../plugin/tools/lib/advise-corpus.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -46,7 +51,7 @@ export async function scoreRepo() {
   });
   // `rankRows` PARTITIONS — every scored row is in exactly one of these.
   const all = [...ranked.recommended, ...ranked.declined];
-  const live = all.filter((s) => !s.dischargedElsewhere && !s.notLive.notLive);
+  const live = all.filter((s) => !s.dischargedElsewhere && !s.notLive.notLive && !s.moved?.moved);
   return { corpus, discharge, ranked, all, live };
 }
 
@@ -82,5 +87,22 @@ describe('M6.E8 t1.1 — the three existing inputs, measured on this repository'
     const { all } = await scoreRepo();
     const now = all.filter((s) => s.notLive.notLive).length;
     expect(now, remedy('NOT_LIVE_MEASURED', NOT_LIVE_MEASURED, now)).toBe(NOT_LIVE_MEASURED.hits);
+  });
+});
+
+describe('M6.E8 t2.2 — the fold input and the KEPT override, measured on this repository (AC4.3)', () => {
+  const headings = (list) => list.map((s) => `\n    · ${s.row.text}`).join('');
+
+  it('FOLD_MEASURED — exactly the recorded number of live rows drop by fold', async () => {
+    const { all } = await scoreRepo();
+    const dropped = all.filter((s) => s.moved.moved);
+    expect(dropped.length, `${remedy('FOLD_MEASURED', FOLD_MEASURED, dropped.length)}\n  Dropped now:${headings(dropped)}`).toBe(FOLD_MEASURED.hits);
+  });
+
+  it('KEPT_MEASURED — exactly the recorded number of rows are preserved by the override, and stay live', async () => {
+    const { all, live } = await scoreRepo();
+    const kept = all.filter((s) => s.moved.kept);
+    expect(kept.length, `${remedy('KEPT_MEASURED', KEPT_MEASURED, kept.length)}\n  Kept now:${headings(kept)}`).toBe(KEPT_MEASURED.hits);
+    for (const k of kept) expect(live, `KEPT row is not live: ${k.row.text}`).toContain(k);
   });
 });
