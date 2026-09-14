@@ -424,6 +424,50 @@ export function declaresWorkMovedElsewhere(headingText) {
   return { moved: false, kind: null, declaration: null, kept: false };
 }
 
+// ── `M6.E8` FR1 — a heading that says it DISCHARGES a bug.
+//
+// The row that proposed this input asked for the opposite: "a row naming an
+// open confirmed bug should rank above one that does not." Measured, that is
+// backwards (`D-M6E8-2`): zero live headings name a confirmed bug, nine BODIES
+// do, and five of the nine cite `B75` as a MEASUREMENT ("B75 measured that
+// ceiling") — they are not discharging it and are not stuck behind it either.
+// Promoting them is the wrong direction, and reading bodies is the heuristic
+// that matched another item's trigger in `M6.E7`. So: heading only, and the
+// verb must sit NEXT TO the id — `fixes B75`, `B75 — fixed` — because a bare
+// done-word anywhere in a heading is ordinary English (the real heading
+// "single home for open/closed work" carries "closed"; the `DONE_WORD_RE`
+// lesson, a second time).
+//
+// Ships firing on ZERO rows, declared rather than implied — the basis on which
+// `shelved` ships in `NOT_LIVE_VOCABULARY`. Correct the moment a maintainer
+// writes "Fixes B75" in a heading, and built now rather than in a hurry against
+// one example when it first matters.
+const BUG_DISCHARGE_RE =
+  /\b(?:fix(?:es)?|close(?:s)?|resolve(?:s)?|discharge(?:s)?)\s+(?:for\s+)?`?(B\d+)`?\b|`?\b(B\d+)\b`?\s*(?:—|–|-|:)\s*(?:fix(?:ed)?|closed|resolved|discharged)\b/i;
+
+/**
+ * What `BUG_DISCHARGE_RE` hits on THIS repository's own `BACKLOG.md`, measured
+ * through `readCorpus` + `rankRows` against the `confirmed` set and pinned by
+ * `tests/advise-live-measurement.test.js` (`M6.E8` NFR6). Zero: two live
+ * headings name a bug id at all (`B87`, `B90`; `B73`, `B76`) and all four read
+ * `fixed`. A red pin means a heading now claims a discharge — read it.
+ */
+export const BUG_DISCHARGE_MEASURED = Object.freeze({ on: '2026-09-14', rows: 48, hits: 0 });
+
+/**
+ * Whether a heading declares, in its own words, that it discharges a bug —
+ * and which one. Whether that bug is still `confirmed` is the caller's
+ * question (`rankRows` answers it from `BUGS.md`); this only reads the heading.
+ *
+ * @param {string} headingText — a row's heading, not its body
+ * @returns {{id: string|null, declaration: string|null}}
+ */
+export function declaresBugDischarge(headingText) {
+  const m = String(headingText ?? '').match(BUG_DISCHARGE_RE);
+  if (!m) return { id: null, declaration: null };
+  return { id: (m[1] ?? m[2]).toUpperCase(), declaration: m[0] };
+}
+
 /**
  * Every backlog row, with its discharge state normalized to `obligations.js`'s
  * field names (`discharged` / `dischargedBy` / `dischargedAt`).

@@ -26,8 +26,10 @@ import { ADVISOR_SOURCES, readCorpus } from '../plugin/tools/lib/advise-corpus.j
 import { walkBugEntries } from '../plugin/tools/lib/bugs-tally.js';
 import { parseEpicStatusRows } from '../plugin/tools/lib/milestones.js';
 import {
+  BUG_DISCHARGE_MEASURED,
   FOLD_MEASURED,
   KEPT_MEASURED,
+  declaresBugDischarge,
   declaresNotLiveWork,
   declaresWorkMovedElsewhere,
   parseBacklogRows,
@@ -519,5 +521,43 @@ describe('M6.E8 t2.1 (FR4) — a row whose heading says its work moved elsewhere
   it('does not widen HELD_OPEN_RE — `KEPT` here is a separate override, not a new phrase in it (NFR3)', () => {
     const src = readFileSync(join(process.cwd(), 'plugin/tools/lib/backlog.js'), 'utf8');
     expect(src).toMatch(/const HELD_OPEN_RE = \/\\b\(\?:STILL\|KEPT\|HELD\)\\s\+OPEN\\b\/i;/);
+  });
+});
+
+describe('M6.E8 t3.1 (FR1) — a heading that says it discharges a bug, verb ADJACENT to the id', () => {
+  it('reads the HEADING only and needs the verb next to the id', () => {
+    for (const [text, id] of [
+      ['Fixes B75 — the two gate settings differ by one boolean', 'B75'],
+      ['Close B12 by deleting the dead branch', 'B12'],
+      ['`B7` — fixed, with the regression test', 'B7'],
+      ['Resolve `B3`: the parser reads depth 4', 'B3'],
+      ['A fix for B9 that discharges it', 'B9'],
+    ]) {
+      const r = declaresBugDischarge(text);
+      expect(r.id, `expected "${text}" to declare ${id}`).toBe(id);
+      expect(r.declaration).toBeTruthy();
+    }
+  });
+
+  it('a done-word elsewhere in the heading is ordinary English, not a declaration', () => {
+    // The real heading that carries "closed": "single home for open/closed work".
+    // The `DONE_WORD_RE` lesson again — a bare verb anywhere in a heading is prose.
+    expect(declaresBugDischarge('M5.E14 — Obligation tracker integration (single home for open/closed work)').id).toBeNull();
+    // A bug id NAMED is not a bug id DISCHARGED.
+    expect(declaresBugDischarge('Re-aim on "the unreached mechanism" — the class behind `B87`–`B90`').id).toBeNull();
+    expect(declaresBugDischarge('The entry price for *any* Phase A autonomy work: `B73`–`B76`').id).toBeNull();
+  });
+
+  it('a body that cites a confirmed bug is not read at all — the predicate takes a heading', () => {
+    // Verbatim body fragment from a real B75-citing row: it MEASURES B75, it does
+    // not discharge it. Nine live rows name a confirmed bug in their body today.
+    const body = 'when a rule is not followed here, Signal writes the rule more carefully. `B75` measured that ceiling.';
+    expect(declaresBugDischarge(body).id).toBeNull();
+  });
+
+  it('records its measurement beside the pattern, frozen — zero, declared rather than implied', () => {
+    expect(Object.isFrozen(BUG_DISCHARGE_MEASURED)).toBe(true);
+    expect(BUG_DISCHARGE_MEASURED.on).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(BUG_DISCHARGE_MEASURED.hits).toBe(0);
   });
 });

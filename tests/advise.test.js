@@ -219,6 +219,65 @@ describe('M6.E8 t2.2 (FR4) — input 7, fold: a row whose heading says its work 
   });
 });
 
+describe('M6.E8 t3.1 (FR1) — the bug-discharge input promotes a heading that discharges a CONFIRMED bug', () => {
+  const twin = (text) => ({ line: 3, path: 'p', text, body: 'Filed 2026-01-01.' });
+
+  it('AC1.1 — two rows identical except the heading verb: the discharging one ranks above', () => {
+    const rows = [
+      { ...twin('R1 — the dial that nothing reads'), line: 3 },
+      { ...twin('R2 — Fixes B1: the dial that nothing reads'), line: 6 },
+    ];
+    const r = rankRows(rows, { today: TODAY, confirmedBugs: new Set(['B1']) });
+    expect(r.recommended.map((s) => s.row.text.slice(0, 2))).toEqual(['R2', 'R1']);
+    expect(r.recommended[0].dischargesBug.id).toBe('B1');
+    // Without the Set the input cannot fire, and the earlier line wins the tiebreak.
+    const off = rankRows(rows, { today: TODAY });
+    expect(off.recommended.map((s) => s.row.text.slice(0, 2))).toEqual(['R1', 'R2']);
+  });
+
+  it('a heading that discharges a bug BUGS.md records as fixed is not promoted', () => {
+    const rows = [
+      { ...twin('R1 — a plain row'), line: 3 },
+      { ...twin('R2 — Fixes B2 (already shipped)'), line: 6 },
+    ];
+    const r = rankRows(rows, { today: TODAY, confirmedBugs: new Set(['B1']) });
+    expect(r.recommended.map((s) => s.row.text.slice(0, 2))).toEqual(['R1', 'R2']);
+    expect(r.recommended[1].dischargesBug).toBeNull();
+  });
+
+  it('AC1.2 — a row whose BODY cites a confirmed bug is not promoted', () => {
+    const rows = [
+      { ...twin('R1 — a plain row'), line: 3 },
+      {
+        ...twin('R2 — A stated ladder: convention → lint, with a grandfather list'),
+        line: 6,
+        body: 'when a rule is not followed here, Signal writes the rule more carefully. `B1` measured that ceiling.',
+      },
+    ];
+    const r = rankRows(rows, { today: TODAY, confirmedBugs: new Set(['B1']) });
+    expect(r.recommended.map((s) => s.row.text.slice(0, 2))).toEqual(['R1', 'R2']);
+  });
+
+  it('the recommend reason names the bug and says BUGS.md still records it confirmed', () => {
+    const rows = [{ ...twin('R1 — Fixes B1: the dial'), line: 3 }];
+    const r = rankRows(rows, { today: TODAY, confirmedBugs: new Set(['B1']) });
+    const art = renderArtifact({ today: TODAY, ranked: r, corpus: { checked: ['BACKLOG.md', 'BUGS.md'], cannotCheck: [] } });
+    expect(art).toMatch(/its heading says it discharges `B1`, which `BUGS\.md` still records as confirmed/);
+  });
+
+  it('runAdvise builds the confirmed set from the corpus, and consulted says BUGS.md', async () => {
+    const base = project({ backlog: `${BACKLOG}### R10 — Fixes B1, the open bug\nFiled 2026-09-01.\n` });
+    const r = await runAdvise(base, { today: TODAY });
+    // Trigger-met sorts BEFORE bug-discharge, so the fired-trigger row (R2) keeps
+    // first place; the discharging row ranks second, ahead of every plain row
+    // that was filed earlier and would otherwise beat it on age.
+    const order = r.ranked.recommended.map((s) => s.row.text.split(' ')[0]);
+    expect(order[0]).toBe('R2');
+    expect(order[1]).toBe('R10');
+    expect(r.ranked.consulted).toContain('BUGS.md');
+  });
+});
+
 describe('t3.2 / t3.2b — it proposes, and never selects (FR6)', () => {
   it('every declined row carries a reason naming the input that demoted it', async () => {
     const base = project();

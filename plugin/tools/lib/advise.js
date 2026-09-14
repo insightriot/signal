@@ -27,7 +27,12 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { backlogDischargeStatus, declaresNotLiveWork, declaresWorkMovedElsewhere } from './backlog.js';
+import {
+  backlogDischargeStatus,
+  declaresBugDischarge,
+  declaresNotLiveWork,
+  declaresWorkMovedElsewhere,
+} from './backlog.js';
 import { EVIDENCE_MARKER, verifyCitations } from './citations.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { readCorpus, ADVISOR_SOURCES } from './advise-corpus.js';
@@ -168,6 +173,11 @@ function daysBetween(fromIso, toIso) {
  *   6. **fold** (`M6.E8` FR4) — a row whose own HEADING says its work moved
  *      elsewhere (`FOLDED INTO`, `absorbed into`, `re-homed`) drops out entirely —
  *      unless the heading also says `KEPT`, which is evaluated first and keeps it.
+ *   7. **bug-discharge** (`M6.E8` FR1) — a row whose own HEADING says it fixes /
+ *      closes / resolves a bug that `BUGS.md` still records as `confirmed` ranks
+ *      above one that does not. Sorts between trigger-met and age. Fires only
+ *      when a `confirmedBugs` Set is supplied — no Set, no input, and `consulted`
+ *      does not name `BUGS.md` on its account.
  *
  * **`consulted`** (`M6.E8` t1.4, `D-M6E8-9`): which `ADVISOR_SOURCES` any input
  * above actually read on THIS run, derived from what this function was GIVEN
@@ -210,6 +220,13 @@ export function rankRows(rows, { today, stale = [], discharge = null, confirmedB
     const notLive = declaresNotLiveWork(row.text);
     // Input 6. HEADING ONLY, same rule; `KEPT` wins inside the predicate.
     const moved = declaresWorkMovedElsewhere(row.text);
+    // Input 7. HEADING ONLY, verb adjacent to the id, and the id must still be
+    // confirmed — a heading that "fixes B2" where B2 shipped is not a promotion.
+    let dischargesBug = null;
+    if (confirmedBugs instanceof Set) {
+      const d = declaresBugDischarge(row.text);
+      if (d.id && confirmedBugs.has(d.id)) dischargesBug = d;
+    }
     const blocked = BLOCKED_RE.test(text);
     const triggerMet = TRIGGER_MET_RE.test(text);
     // `String(...)` because the two lines around this one already coerce and this one
@@ -217,7 +234,7 @@ export function rankRows(rows, { today, stale = [], discharge = null, confirmedB
     const filed =
       (String(row.text ?? '').match(ISO_DATE_RE) ?? String(row.body ?? '').match(ISO_DATE_RE))?.[1] ?? null;
     const ageDays = filed && today ? daysBetween(filed, today) : 0;
-    return { row, dischargedElsewhere, notLive, moved, blocked, triggerMet, filed, ageDays };
+    return { row, dischargedElsewhere, notLive, moved, dischargesBug, blocked, triggerMet, filed, ageDays };
   });
 
   const isDropped = (s) => s.dischargedElsewhere || s.notLive.notLive || s.moved.moved;
@@ -226,6 +243,7 @@ export function rankRows(rows, { today, stale = [], discharge = null, confirmedB
     (a, b) =>
       Number(a.blocked) - Number(b.blocked) ||
       Number(b.triggerMet) - Number(a.triggerMet) ||
+      Number(Boolean(b.dischargesBug)) - Number(Boolean(a.dischargesBug)) ||
       b.ageDays - a.ageDays ||
       a.row.line - b.row.line
   );
@@ -241,6 +259,11 @@ export function rankRows(rows, { today, stale = [], discharge = null, confirmedB
 function recommendReason(s) {
   const parts = [];
   if (s.triggerMet) parts.push('its written trigger has fired');
+  if (s.dischargesBug) {
+    parts.push(
+      `its heading says it discharges \`${s.dischargesBug.id}\`, which \`BUGS.md\` still records as confirmed`
+    );
+  }
   if (!s.blocked) parts.push('nothing it names as a gate is unmet');
   else parts.push('it names a gate that has not fired, so it ranks below the ungated rows');
   if (s.filed) parts.push(`it was filed ${s.filed}${s.ageDays > 0 ? `, ${s.ageDays} days ago` : ''}`);
@@ -272,8 +295,8 @@ function declineReason(s, rank) {
   if (s.blocked) {
     return 'Demoted by the **blocked-by** input — the row names a gate that has not fired.';
   }
-  if (!s.triggerMet) {
-    return `Demoted by the **trigger-met** and **age** inputs — ${rows(rank)} scored above it.`;
+  if (!s.triggerMet && !s.dischargesBug) {
+    return `Demoted by the **trigger-met**, **bug-discharge** and **age** inputs — ${rows(rank)} scored above it.`;
   }
   return `Demoted by the **age** input — ${rows(rank)} were filed earlier.`;
 }
@@ -544,9 +567,16 @@ export async function runAdvise(baseDir, { today, render = renderArtifact, proje
   }
   const stale = discharge?.stale ?? [];
 
+  // Input 7's population: the ids `BUGS.md` still records as confirmed. `null`
+  // when the catalog could not be read, so the input cannot fire and `consulted`
+  // does not claim `BUGS.md` on its behalf.
+  const confirmedBugs = corpus.sources.bugs
+    ? new Set(corpus.sources.bugs.entries.filter((e) => e.status === 'confirmed').map((e) => e.id))
+    : null;
+
   // The WHOLE discharge result goes in, not just `stale`: its `sources` field
   // is how `consulted` knows which closure source input 3 could read.
-  const ranked = rankRows(corpus.sources.backlog.rows, { today: stamp, stale, discharge });
+  const ranked = rankRows(corpus.sources.backlog.rows, { today: stamp, stale, discharge, confirmedBugs });
   const artifact = render({ today: stamp, ranked, corpus, projectName });
 
   // ── THE STALE-READ GUARD, and it exists because the very first artifact this

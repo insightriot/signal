@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 
 import { BLOCKED_MEASURED, TRIGGER_MET_MEASURED, rankRows } from '../plugin/tools/lib/advise.js';
 import {
+  BUG_DISCHARGE_MEASURED,
   FOLD_MEASURED,
   KEPT_MEASURED,
   NOT_LIVE_MEASURED,
@@ -45,9 +46,14 @@ export function remedy(name, measured, now) {
 export async function scoreRepo() {
   const corpus = await readCorpus(repoRoot);
   const discharge = await backlogDischargeStatus(repoRoot);
+  const confirmedBugs = new Set(
+    (corpus.sources.bugs?.entries ?? []).filter((e) => e.status === 'confirmed').map((e) => e.id)
+  );
   const ranked = rankRows(corpus.sources.backlog.rows, {
     today: '2026-09-14',
     stale: discharge.stale ?? [],
+    discharge,
+    confirmedBugs,
   });
   // `rankRows` PARTITIONS — every scored row is in exactly one of these.
   const all = [...ranked.recommended, ...ranked.declined];
@@ -104,5 +110,16 @@ describe('M6.E8 t2.2 — the fold input and the KEPT override, measured on this 
     const kept = all.filter((s) => s.moved.kept);
     expect(kept.length, `${remedy('KEPT_MEASURED', KEPT_MEASURED, kept.length)}\n  Kept now:${headings(kept)}`).toBe(KEPT_MEASURED.hits);
     for (const k of kept) expect(live, `KEPT row is not live: ${k.row.text}`).toContain(k);
+  });
+});
+
+describe('M6.E8 t3.1 — the bug-discharge input, measured on this repository (AC1.3)', () => {
+  it('BUG_DISCHARGE_MEASURED — fires on exactly the recorded number of live rows, which is zero', async () => {
+    const { live } = await scoreRepo();
+    const hits = live.filter((s) => s.dischargesBug);
+    expect(
+      hits.length,
+      `${remedy('BUG_DISCHARGE_MEASURED', BUG_DISCHARGE_MEASURED, hits.length)}\n  Hits now:${hits.map((s) => `\n    · ${s.row.text}`).join('')}`
+    ).toBe(BUG_DISCHARGE_MEASURED.hits);
   });
 });
