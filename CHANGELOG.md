@@ -6,6 +6,57 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+- **`/sig:advise` ranks on three of the four sources it reads, and says which** (`M6.E8`). Two
+  ranking inputs added, both heading-only and both measured on this repository's own `BACKLOG.md`
+  before the vocabulary was chosen:
+
+  - **fold** — a row whose *heading* says its work moved elsewhere (`FOLDED INTO`, `absorbed
+    into`, `re-homed`) drops out with a reason naming the declaration, **unless** the heading also
+    says `KEPT`, which is evaluated first and preserves it. On this repository: **3 rows drop, 2
+    are preserved by the override**, all five already in the declined pool — so the recommended
+    five do not change composition. The declined reasons do.
+  - **bug-discharge** — a row whose *heading* says it fixes / closes / resolves a bug that
+    `BUGS.md` still records as `confirmed` ranks above one that does not; the verb must sit next
+    to the id, because a bare done-word anywhere in a heading is ordinary English. Fires on
+    **zero** rows here today, declared rather than implied — the direction `D-M6E8-2` chose over
+    the one the backlog row proposed (nine rows *cite* a confirmed bug in their bodies; five cite
+    `B75` as a measurement, and promoting them would have been wrong).
+
+  **The discharge reason now names its source and evidence** — *"`M5.E9` reads closed in **unit
+  closure** (…)"* / *"in **`BUGS.md`** (…)"* — instead of *"already reads as closed"*.
+
+  **The *Consulted by the ranking* line is derived, never a literal.** The shipped line said
+  *"`BACKLOG.md` only"* while the discharge input had read `BUGS.md` and STATE/closure on every run
+  since `v0.1.3x` — an under-claim replacing the over-claim `M6.E7` REVIEW fixed, and the same
+  defect (`D-M6E8-9`). `rankRows` returns `consulted`, derived from what it was given;
+  `backlogDischargeStatus` gains an **additive** `sources: {units, bugs}` field so the line keys off
+  readability rather than an outcome that reads `clean` with `BUGS.md` unreadable. Milestone rows
+  render as *read, not consulted*, with the reason the read is kept.
+
+  **Every vocabulary now records its live count in the source beside the pattern**, as a frozen
+  `*_MEASURED` constant asserted by `tests/advise-live-measurement.test.js` against the real file
+  (`NFR6`). A count in a comment is a claim written from memory the moment the file moves — the
+  not-live vocabulary's docblock said *"50 live rows"* for a week while the file was at 48.
+
+### Removed
+
+- **`/sig:advise` no longer reads retrospectives.** `ADVISOR_SOURCES` is four entries. The fifth was
+  32 files enumerated and parsed on every run for headings no ranking input consulted — a source read
+  and never used is the completeness claim the *Consulted* line exists to stop. Asserted by the
+  absence of the call (the readers are mocked to throw), not by output shape.
+
+### Not changed, deliberately
+
+- **`BLOCKED_RE` is not widened.** DISCUSS proposed *"entry price for"* so four rows *"gated on
+  `B75`"* would read blocked. Measured: the phrase occurs in one live row — the gate row itself — and
+  the four rows cite `B75` as a measurement; twelve sibling phrases yield zero correct hits. The
+  measurement sits beside the pattern (`D-M6E8-7`). **Three DISCUSS claims fell to measurement at
+  PLAN** (`D-M6E8-7`…`9`), in the Epic that exists because of that defect class.
+
 ## [0.1.40] — 2026-09-10 — the loop that could not take a step
 
 ### Fixed
