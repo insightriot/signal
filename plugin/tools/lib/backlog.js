@@ -314,11 +314,16 @@ const NOT_LIVE_VOCABULARY = [
  * it — the same rule `readRowDischarge` follows, and the same reason
  * `HELD_OPEN_RE` tests the heading.
  *
- * **Vocabulary measured before it was chosen**, on the 50 live rows of this
- * repository's own BACKLOG.md: `parked` ×2, `not sprint material` ×1,
- * `reconciliation` ×2, `(STILL|KEPT|HELD) OPEN` ×0. All four matching rows were
- * read individually — zero false positives. `shelved` is included by analogy
- * with **zero** live instances, declared rather than implied.
+ * **Vocabulary measured before it was chosen** (2026-09-06, on the 50 live rows
+ * this repository's own BACKLOG.md had then): `parked` ×2, `not sprint material`
+ * ×1, `reconciliation` ×2, `(STILL|KEPT|HELD) OPEN` ×0. All four matching rows
+ * were read individually — zero false positives. `shelved` is included by
+ * analogy with **zero** live instances, declared rather than implied.
+ *
+ * ⚠ The LIVE count is not repeated here. It is `NOT_LIVE_MEASURED` below,
+ * asserted on every run by `tests/advise-live-measurement.test.js` — a number
+ * in a docblock is a claim written from memory the moment the file moves, and
+ * this one was: the file reached 48 live rows while this text still said 50.
  *
  * ⚠ `deferred` is deliberately EXCLUDED: it occurs in live-work prose ("deferred
  * from E2"), so including it trades two known false positives for an unknown
@@ -332,6 +337,17 @@ const NOT_LIVE_VOCABULARY = [
  * @param {string} headingText — a row's heading, not its body
  * @returns {{notLive: boolean, kind: string|null, declaration: string|null}}
  */
+/**
+ * What `NOT_LIVE_VOCABULARY` drops on THIS repository's own `BACKLOG.md` today,
+ * measured through `readCorpus` + `rankRows` and pinned by
+ * `tests/advise-live-measurement.test.js` (`M6.E8` NFR6). `rows` is the
+ * population the count was taken over (every row the ranking receives, since
+ * this input runs before the live filter); the test asserts `hits` only. A red
+ * pin is a re-measurement step — read the new or vanished hit, decide whether
+ * the vocabulary is still precise, update this constant.
+ */
+export const NOT_LIVE_MEASURED = Object.freeze({ on: '2026-09-14', rows: 52, hits: 4 });
+
 export function declaresNotLiveWork(headingText) {
   const text = String(headingText ?? '');
   for (const [kind, re] of NOT_LIVE_VOCABULARY) {

@@ -102,6 +102,27 @@ const BLOCKED_RE = /\b(?:blocked on|gated on|depends on|trigger[^.\n]{0,60}\b(?:
 const TRIGGER_MET_RE = /\btrigger[^.\n]{0,60}\b(?:FIRED|met|satisfied)\b/i;
 
 /**
+ * What each pattern above hits on THIS repository's own `BACKLOG.md`, measured
+ * through the real readers and pinned by `tests/advise-live-measurement.test.js`.
+ *
+ * `M6.E8` NFR6: a vocabulary's count is recorded in the source beside the
+ * pattern — and a count in a comment is a claim written from memory the moment
+ * the file moves (`declaresNotLiveWork`'s docblock said "50 live rows" for a
+ * week while the file was at 48). These are frozen values a test compares, so
+ * the number is checked on every run rather than trusted.
+ *
+ * ⚠ A red pin is a RE-MEASUREMENT STEP, not a nuisance: a row started or stopped
+ * matching, and that is the moment to re-read the hit and decide whether the
+ * vocabulary is still precise. This is not `B120`'s shape (a test that fires
+ * when a ledger is merely used); the test's failure message says which.
+ *
+ * `rows` is the population the count was taken over (live rows after inputs 3
+ * and 5 dropped theirs), for the reader — the test asserts `hits` only.
+ */
+export const BLOCKED_MEASURED = Object.freeze({ on: '2026-09-14', rows: 48, hits: 2 });
+export const TRIGGER_MET_MEASURED = Object.freeze({ on: '2026-09-14', rows: 48, hits: 3 });
+
+/**
  * The one helper that emits a citation, so the marker has a single home.
  *
  * Callers never write the marker themselves — `citations.js` exports it and this
