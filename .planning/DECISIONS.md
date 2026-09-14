@@ -2831,6 +2831,8 @@ inside a watchlist row. Change 1 obeys that rule. Change 2 does not — `BLOCKED
 body and this Epic does not change its reach, only its vocabulary. **Stated because it is an
 inconsistency we are choosing, not one we missed.**
 
+⚠ **Corrected 2026-09-14 by `D-M6E8-7`.** Measured on the file: *"entry price for"* occurs in one live row — the gate row itself — and the four rows called *gated on `B75`* cite `B75` as a measurement, not as a gate. `BLOCKED_RE` is not widened; `AC2.1` is amended. The discharge vocabulary (change 1) stands.
+
 ### D-M6E8-3 — The closed-Epic input ships with zero live effect, on the safe predicate only
 
 **Predicate: the row's own `leadingId`, and nothing looser.** `parseBacklogRows` already returns it.
@@ -2856,6 +2858,8 @@ Re-measured with `M6.E8` current: **14 closed, 2 open, 6 cannot-determine**, and
 cannot-determine names a real reason (a `*-VERIFICATION.md` exists but states no readable verdict).
 Closure is trustworthy and refuses to guess. **The first reading was a claim written from the shape
 of the result** — this repository's second named defect class — caught before it reached an artifact.
+
+⚠ **Corrected 2026-09-14 by `D-M6E8-8`.** The predicate chosen here is already ranking input 3: `backlogDischargeStatus` resolves `leadingId` through `resolveClosures` and `rankRows` drops the result. Nothing new is built; the reason is labelled with its source instead. The loose predicate now has **3** false positives, not 2.
 
 ### D-M6E8-4 — A row whose heading says its work moved elsewhere drops out; `KEPT` overrides
 
@@ -3134,3 +3138,68 @@ commit, for `M6.E2`'s published-fact registry.
 **What this does NOT settle:** whether `D-M6E8-1`'s `B75` reasoning should stop `/sig:discuss` from
 ever skipping the per-Epic profile write. That is a `discuss.md` change, and it is the inbox row's
 question, not this decision's.
+
+## 2026-09-14 — M6.E8 PLAN: research corrections (D-M6E8-7 … D-M6E8-9)
+
+Three DISCUSS claims did not survive measurement on the file the advisor reads. Each is recorded
+with what was measured and what the plan does instead; none is a new feature. The research is
+[`M6.E8-RESEARCH.md`](M6.E8-RESEARCH.md); the pattern is the one `M6.E7`'s retro named, and this
+Epic exists because of it.
+
+### D-M6E8-7 — `BLOCKED_RE` is NOT widened; `AC2.1` is amended — the phrase hits only the gate row
+
+**Measured 2026-09-14 on 48 live rows.** *"Entry price for"* occurs in exactly one row: *"The entry
+price for any Phase A autonomy work: `B73`–`B76`"* — the row that **is** the gate. Widening the
+vocabulary demotes the row that says *do these first*. The four rows `D-M6E8-2` called *gated on
+`B75`* cite `B75` as a measurement (*"`B75` measured that ceiling"*, *"a fourth knob … is `B75`"*);
+none states a gate. Twelve sibling phrases (`precondition`, `prerequisite`, `blocked by`, `gated
+by`, `waiting on`, `needs … first`, `until|after … ships`, `stuck behind`, `sequenced behind`,
+`can't … until`): **zero correct hits**. The only mechanism that would flip those rows is *"body
+names a confirmed bug"*, which `D-M6E8-2` rejected and which would demote **9** rows including this
+Epic's own.
+
+**So:** `BLOCKED_RE` stays byte-identical; the measurement is recorded beside it (`NFR6`, a zero
+declared); `AC2.1` becomes *"`BLOCKED_MEASURED` pins 2 on this repo and the gate row is not
+blocked"*. **This removes the live effect DISCUSS attributed to the Epic** — the recommended five
+will not change composition — and that is put to Brett at the PLAN gate as a restated outcome
+rather than discovered at VERIFY. `D-M6E8-2`'s change 1 (the heading-only discharge vocabulary)
+stands; it was built the right way round.
+
+**The claim's shape:** *the backlog calls `B75` the entry price → these rows cite `B75` → therefore
+they are stuck behind it.* Derived from the argument, not from the rows. It reached a committed
+requirements artifact and an acceptance criterion.
+
+### D-M6E8-8 — `FR3` is already ranking input 3; the closed-Epic drop is not built twice
+
+`backlogDischargeStatus` (`backlog.js`) already takes every live row with a `leadingId`, resolves
+unit ids through `readClosureSources` → `resolveClosures`, and returns rows whose verdict is
+`closed` as `stale[]`; `runAdvise` passes that to `rankRows`, which drops them. That is `FR3`'s
+predicate, verbatim, live since `M6.E7`. Building it again is `NFR2`'s forbidden second definition
+of "closed" — the thing `M5.E19` spent a slice removing.
+
+**What remains is labelling:** the decline reason says *"its work already reads as closed"* with
+no source and no evidence, while the `stale[]` entry carries the evidence and the id family says
+the source. `AC3.1` becomes *"the discharge reason names its source (unit closure / `BUGS.md`) and
+evidence"*. `AC3.2` gains a third fixture: the loose *"heading mentions a closed unit"* predicate
+now hits **this Epic's own row** (it names `M6.E7`, closed 2026-09-06) alongside the two DISCUSS
+found. `AC3.3` (zero live hits) holds on both readings.
+
+**One real gap, not fixed here:** `backlogDischargeStatus` parses at the default `maxDepth: 3`
+while the advisor reads at 4, so a `####` row led by a closed unit is invisible to input 3 unless an
+`###` row shares its id. Already filed, untriaged, as *"dischargeBacklogRows is blind to rows nested
+below h3"*; fixing it there fixes the sweep and the advisor together. Live effect today: 0.
+
+### D-M6E8-9 — "Consulted by the ranking" was wrong in the OTHER direction, and gets a definition
+
+`FR7` assumed the shipped *"`BACKLOG.md` only"* line was true and merely needed extending.
+`D-M6E8-8` shows input 3 has read `BUGS.md` and STATE/closure on every run since 2026-09-06 —
+through `readClosureSources`, **independently of `readCorpus`**, so a source can be readable to one
+and not the other. The line under-claimed. The `M6.E7` REVIEW fix for an over-claim shipped an
+under-claim in its place; both are the same defect.
+
+**Definition:** *consulted* = the `ADVISOR_SOURCES` entries any ranking input read on **this** run,
+derived from what `rankRows` was given — `BACKLOG.md` always; `BUGS.md` and `STATE/closure` when
+the discharge status was evaluable (input 3 read both) or when a confirmed-bug set was supplied
+(the new input); `milestone rows` never, and the artifact says so with `D-M6E8-5`'s reason. The
+renderer carries no literal source list; `AC7.1` compares the line to `ranked.consulted`. It may
+legitimately disagree with the *Could not read* list, and the plan says so.

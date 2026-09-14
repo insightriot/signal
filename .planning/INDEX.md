@@ -184,8 +184,11 @@
 - [M6.E7-REQUIREMENTS.md](M6.E7-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E7-REVIEW.md](M6.E7-REVIEW.md) — `other` — _(note pending)_
 - [M6.E7-VERIFICATION.md](M6.E7-VERIFICATION.md) — `other` — _(note pending)_
+- [M6.E8-PLAN.md](M6.E8-PLAN.md) — `other` — _(note pending)_
 - [M6.E8-PROFILE.md](M6.E8-PROFILE.md) — `other` — _(note pending)_
 - [M6.E8-REQUIREMENTS.md](M6.E8-REQUIREMENTS.md) — `other` — _(note pending)_
+- [M6.E8-RESEARCH.md](M6.E8-RESEARCH.md) — `other` — _(note pending)_
+- [M6.E8-VALIDATION.md](M6.E8-VALIDATION.md) — `other` — _(note pending)_
 - [M6.E9-DETERMINATIONS.md](M6.E9-DETERMINATIONS.md) — `other` — _(note pending)_
 - [M6.E9-REQUIREMENTS.md](M6.E9-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E9-REVIEW.md](M6.E9-REVIEW.md) — `other` — _(note pending)_
