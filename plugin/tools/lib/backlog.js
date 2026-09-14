@@ -520,8 +520,16 @@ export function declaresWorkMovedElsewhere(headingText) {
 // the separator required the literal anchors the two runs — measured flat at
 // 1.1 ms on a 300,000-character heading. `LEADING_ID_RE` above bounds its runs
 // for the same class and records the 3.9 s measurement behind it. Pinned by a test.
+//
+// ⚠ `(?!-)` AFTER EACH VERB, because `\b` is satisfied by a hyphen. Without it
+// `B9: discharged-batch queue`, `B1 — fixed-width column`, `B7 - resolved-name
+// cache` and `B12: closed-loop controller` all read as discharges — a row about a
+// batch queue promoted as though it closed a bug. Found by the pass-3 security
+// audit after the two earlier narrowings, and it is the same lesson a third time:
+// the vocabulary is a claim that the work is DONE, and an adjectival compound is
+// not that claim.
 const BUG_DISCHARGE_RE =
-  /\b(?:fix(?:es|ed)|close[sd]|resolve[sd]|discharge[sd])\s+`?(B\d+)`?\b|`?\b(B\d+)\b`?\s*(?:—|–|-|:)\s*(?:fix(?:es|ed)|close[sd]|resolve[sd]|discharge[sd])\b/i;
+  /\b(?:fix(?:es|ed)|close[sd]|resolve[sd]|discharge[sd])(?!-)\s+`?(B\d+)`?\b|`?\b(B\d+)\b`?\s*(?:—|–|-|:)\s*(?:fix(?:es|ed)|close[sd]|resolve[sd]|discharge[sd])(?!-)\b/i;
 
 /**
  * What `BUG_DISCHARGE_RE` hits on THIS repository's own `BACKLOG.md`, measured

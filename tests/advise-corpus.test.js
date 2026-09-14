@@ -587,6 +587,23 @@ describe('M6.E8 t3.1 (FR1) — a heading that says it discharges a bug, verb ADJ
     }
   });
 
+  it('an adjectival compound after the verb is not a discharge (REVIEW pass 3 audit)', () => {
+    // `\b` is satisfied by a hyphen, so every one of these promoted before the
+    // lookahead: a row about a batch queue read as closing the bug it names.
+    for (const text of [
+      'B9: discharged-batch queue',
+      'B1 — fixed-width column',
+      'B7 - resolved-name cache',
+      'B12: closed-loop controller',
+      'Fixes-forward B1 in the next release',
+    ]) {
+      expect(declaresBugDischarge(text).id, `"${text}" is a compound adjective, not a claim`).toBeNull();
+    }
+    // The real forms are unaffected.
+    expect(declaresBugDischarge('`B7` — fixed').id).toBe('B7');
+    expect(declaresBugDischarge('Fixed B75').id).toBe('B75');
+  });
+
   it('the id-first form REQUIRES a separator, or a bug-as-subject heading reads as a discharge', () => {
     // Without one, "B75 fixes the ceiling" and "B75 fixed-width column" are
     // indistinguishable from a record of the fix. `B75 — fixed` is explicit;
