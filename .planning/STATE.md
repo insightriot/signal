@@ -42,10 +42,11 @@ drops, 2 `KEPT` preserved, 0 bug-discharge promotions, 4 sources read / 3 consul
 `NFR`) and omits all **7 `FR`s**, so its clean `missing: []` is silent about seven of thirty-one
 requirements. Coverage was read from the mapping column instead. Next step: `/sig:review`.
 
-**Latest advisory:** [`BACKLOG-REVIEW-2026-09-13.md`](BACKLOG-REVIEW-2026-09-13.md) — same top five
-as 2026-09-06, because no live row changed; `M6.E8` is its #2. (Its *"consulted `BACKLOG.md` only"* line
-under-claims — `D-M6E8-9`.) ⚠ Its line citations were true at commit `46e6e44` and are already off by 23 lines from line 95
-on this branch, because the merge brought a 22-line row in above them (`B119`).
+**Latest advisory:** [`BACKLOG-REVIEW-2026-09-14.md`](BACKLOG-REVIEW-2026-09-14.md), written during
+`M6.E8` VERIFY as the Outcome evidence — 53 citations, all resolved, **true at `60b9f1f` and nowhere
+else, because the file carries no commit anchor (`B119`)**. It supersedes the 2026-09-13 artifact as
+the current reading, **but that one is not its baseline**: it was generated on `main` and lacks this
+branch's rows, which is the instrument failure recorded in the Verdict above (`B118`).
 
 ### ▶ PREVIOUS — `M6.E7` shipped and merged (PR #239), 2026-09-06. Narrative relocated.
 
