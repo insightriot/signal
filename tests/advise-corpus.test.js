@@ -528,8 +528,8 @@ describe('M6.E8 t2.1 (FR4) — a row whose heading says its work moved elsewhere
     for (const m of [FOLD_MEASURED, KEPT_MEASURED]) {
       expect(Object.isFrozen(m)).toBe(true);
       expect(m.on).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-      expect(Number.isInteger(m.rows)).toBe(true);
       expect(Number.isInteger(m.hits)).toBe(true);
+      expect(m).not.toHaveProperty('rows');
     }
   });
 

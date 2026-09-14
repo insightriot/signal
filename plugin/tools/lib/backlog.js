@@ -309,7 +309,7 @@ const NOT_LIVE_VOCABULARY = [
  * `hits`. A red pin is a re-measurement step — read the new or vanished hit, decide whether
  * the vocabulary is still precise, update this constant.
  */
-export const NOT_LIVE_MEASURED = Object.freeze({ on: '2026-09-14', rows: 52, hits: 4 });
+export const NOT_LIVE_MEASURED = Object.freeze({ on: '2026-09-14', hits: 4 });
 
 /**
  * Whether a heading declares, in its own words, that it is not actionable work.
@@ -422,8 +422,8 @@ const FOLD_VOCABULARY = [
  * re-measurement step — read the new or vanished hit, decide whether the
  * vocabulary is still precise, update the constant.
  */
-export const FOLD_MEASURED = Object.freeze({ on: '2026-09-14', rows: 52, hits: 3 });
-export const KEPT_MEASURED = Object.freeze({ on: '2026-09-14', rows: 52, hits: 2 });
+export const FOLD_MEASURED = Object.freeze({ on: '2026-09-14', hits: 3 });
+export const KEPT_MEASURED = Object.freeze({ on: '2026-09-14', hits: 2 });
 
 /**
  * Whether a heading declares, in its own words, that its work moved elsewhere —
@@ -505,7 +505,7 @@ const BUG_DISCHARGE_RE =
  * headings name a bug id at all (`B87`, `B90`; `B73`, `B76`) and all four read
  * `fixed`. A red pin means a heading now claims a discharge — read it.
  */
-export const BUG_DISCHARGE_MEASURED = Object.freeze({ on: '2026-09-14', rows: 45, hits: 0 });
+export const BUG_DISCHARGE_MEASURED = Object.freeze({ on: '2026-09-14', hits: 0 });
 
 /**
  * Whether a heading declares, in its own words, that it discharges a bug —

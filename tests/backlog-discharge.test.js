@@ -285,6 +285,21 @@ describe('M6.E8 t1.4 — `sources`: which closure source the check could actuall
     expect(res.sources).toEqual({ units: true, bugs: false });
   });
 
+  it('the BLIND cannot-evaluate path still reports which source it opened', async () => {
+    // ⚠ Found by MUTATION, not by reading: deleting `sources` from the blind
+    // return left 96 tests green. That path is reachable — a readable STATE.md,
+    // no BUGS.md, and one open row leading with a bug id nothing can resolve —
+    // and without the field the advisor's artifact says "the discharge input did
+    // not open STATE/closure on this run", which is false: it did open it.
+    await write('.planning/STATE.md', STATE_MD);
+    await write('.planning/M5.E9-VERIFICATION.md', VERIFICATION_PASS);
+    await write(BACKLOG_REL, ['# Backlog', '', '### B77 — an open bug-led row', '', 'Body.', ''].join('\n'));
+    const res = await backlogDischargeStatus(dir);
+    expect(res.outcome).toBe(BACKLOG_DISCHARGE.CANNOT_EVALUATE);
+    expect(res.blind.length).toBeGreaterThan(0);
+    expect(res.sources).toEqual({ units: true, bugs: false });
+  });
+
   it('no BACKLOG.md means neither closure source was consulted', async () => {
     const res = await backlogDischargeStatus(dir);
     expect(res.outcome).toBe(BACKLOG_DISCHARGE.CANNOT_EVALUATE);

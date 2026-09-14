@@ -143,16 +143,26 @@ const TRIGGER_MET_RE = /\btrigger[^.\n]{0,60}\b(?:FIRED|met|satisfied)\b/i;
  * vocabulary is still precise. This is not `B120`'s shape (a test that fires
  * when a ledger is merely used); the test's failure message says which.
  *
- * `rows` is the population the count was taken over, and **the test asserts every
- * one of them**. It did not at first: five of the six constants recorded `48` while the
- * populations were 45 and 52, and the docblock said the test checked `hits`
- * only — a number sitting beside the pattern that nothing verified, which is the
- * exact thing `NFR6` exists to forbid, inside the constants written to satisfy
- * it. Found in REVIEW by a fresh-context reviewer who recomputed both
- * populations instead of reading the field.
+ * ⚠ THERE IS NO `rows` FIELD, AND ITS REMOVAL IS A FINDING. It recorded the
+ * POPULATION a count was taken over, and it went through both wrong states in one
+ * Epic. First it was recorded and unasserted — five of six said `48` while the
+ * real populations were 45 and 52, a number beside the pattern that nothing
+ * verified, which is what `NFR6` exists to forbid. Then it was asserted, and that
+ * was worse: a population assertion fires when a row is ADDED OR STRUCK, so a
+ * single ordinary `####` row carrying none of the vocabulary turned **5 of 15
+ * tests red** (measured, not argued). That is `B120`'s shape exactly — a check
+ * that fires when the ledger is merely used — and this Epic's own REQUIREMENTS
+ * said so in advance: *"an AC pinned to a total fails on an ordinary backlog
+ * edit. Prefer ACs pinned to named rows over ACs pinned to counts."* Found by a
+ * fresh-context test reviewer who mutated the file instead of reading it.
+ *
+ * `hits` stays. A hit count firing when a vocabulary's REACH changes is the
+ * documented trade: that is a row starting or stopping matching, which is exactly
+ * when a person should re-read it. A population is not a measurement of a
+ * vocabulary, and pinning one bought nothing this file needed.
  */
-export const BLOCKED_MEASURED = Object.freeze({ on: '2026-09-14', rows: 45, hits: 2 });
-export const TRIGGER_MET_MEASURED = Object.freeze({ on: '2026-09-14', rows: 45, hits: 3 });
+export const BLOCKED_MEASURED = Object.freeze({ on: '2026-09-14', hits: 2 });
+export const TRIGGER_MET_MEASURED = Object.freeze({ on: '2026-09-14', hits: 3 });
 
 /**
  * The one helper that emits a citation, so the marker has a single home.

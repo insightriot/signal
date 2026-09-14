@@ -11,24 +11,17 @@
 // re-ran it. By 2026-09-14 the file had 48 live rows. A count in a comment is a
 // claim written from memory the moment the file moves.
 //
-// ⚠ SEVEN OF THESE CONSTANTS BREAK AT THIS EPIC'S OWN SHIP, BY CONSTRUCTION —
-// and an earlier version of this note said ONE. That was a claim written from
-// the shape of the work ("trigger-met is 3, one hit is our row, so that pin
-// breaks") rather than from a simulation, in the warning written to guard against
-// exactly that. A fresh-context reviewer ran the strike; so did the author,
-// afterwards, and got the same answer.
+// ⚠ EXACTLY ONE CONSTANT BREAKS AT THIS EPIC'S OWN SHIP, and the history of this
+// sentence is the lesson. It first said ONE, reasoned from the shape of the work
+// rather than a simulation. A reviewer simulated the strike and made it SEVEN —
+// correct at the time, because population (`rows`) assertions had just been
+// added. Removing those assertions (see the `*_MEASURED` docblock) puts it back
+// at one, this time measured: striking this Epic's row drops `TRIGGER_MET` from
+// 3 hits to 2, and no other constant moves.
 //
-// **The rule, which generalises past this Epic:** striking a live row drops
-// EVERY `.rows` constant by one, and additionally drops the `hits` of any
-// vocabulary that row matched. Measured for the row this Epic will strike:
-//
-//   BLOCKED.rows 45→44 · TRIGGER_MET.hits 3→2 · TRIGGER_MET.rows 45→44 ·
-//   NOT_LIVE.rows 52→51 · FOLD.rows 52→51 · KEPT.rows 52→51 · BUG_DISCHARGE.rows 45→44
-//
-// Five test cases go red. **Bumping all seven in the SHIP commit is the correct
-// response, not a workaround:** the population genuinely changed and a human
-// genuinely looked at the row. Recorded so the SHIP commit does not read as a
-// mystery red, and so nobody bumps one constant and wonders why it is still red.
+// **Bumping that one in the SHIP commit is the correct response, not a
+// workaround:** a vocabulary's reach genuinely changed by one row, and a human
+// genuinely looked at that row. That is what these pins are for.
 //
 // ⚠ THIS IS A REPO-FILE PIN, AND IT IS NOT `B120`'s SHAPE. `drain-standing`
 // AC2.2c fires whenever the inbox is USED as intended (a capture lands). These
@@ -63,20 +56,9 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
  * Found in REVIEW by a fresh-context test reviewer.
  */
 export function remedy(name, measured, now, hits = []) {
-  // ⚠ A `.rows` RED IS A DIFFERENT EVENT FROM A HIT RED, and printing the same
-  // sentence for both sends the reader looking for a vocabulary change that did
-  // not happen. A population moved: a row was added, struck, or folded. Most of
-  // the reds at this Epic's own SHIP will be this kind.
-  if (name.endsWith('.rows')) {
-    return (
-      `${name} was measured at ${measured.rows} on ${measured.on}; this repository's BACKLOG.md now ` +
-      `yields ${now}. No vocabulary changed — the POPULATION did (a row was added, struck, or folded). ` +
-      `Confirm that is deliberate, then update the constant beside the pattern.`
-    );
-  }
   const listed = hits.length > 0 ? `\n  Matching now:${hits.map((s) => `\n    · ${s.row.text}`).join('')}` : '';
   return (
-    `${name} was measured at ${measured.hits} on ${measured.on} (over ${measured.rows} rows); ` +
+    `${name} was measured at ${measured.hits} on ${measured.on}; ` +
     `this repository's BACKLOG.md now yields ${now}. Re-measure: read every new or vanished hit ` +
     `by hand, decide whether the vocabulary is still precise, then update the constant beside the pattern.` +
     listed
@@ -151,11 +133,14 @@ describe('M6.E8 t1.1 — every *_MEASURED constant has the shape the pins read',
     ['TRIGGER_MET_MEASURED', TRIGGER_MET_MEASURED],
     ['NOT_LIVE_MEASURED', NOT_LIVE_MEASURED],
   ]) {
-    it(`${name} is frozen and carries on / rows / hits`, () => {
+    it(`${name} is frozen, carries on / hits, and carries NO population field`, () => {
       expect(Object.isFrozen(m)).toBe(true);
       expect(m.on).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-      expect(Number.isInteger(m.rows)).toBe(true);
       expect(Number.isInteger(m.hits)).toBe(true);
+      // ⚠ Asserted ABSENT, not merely unused. A population pinned here fires on
+      // any ordinary backlog edit — `B120`'s shape, and the thing this Epic's own
+      // requirements warn against. If someone reintroduces it, this says so.
+      expect(m, 'a population field is B120\'s shape — pin named rows, not counts').not.toHaveProperty('rows');
     });
   }
 });
@@ -165,7 +150,6 @@ describe('M6.E8 t1.1 — the three existing inputs, measured on this repository'
     const { live } = await scoreRepo();
     const hits = live.filter((s) => s.blocked);
     expect(hits.length, remedy('BLOCKED_MEASURED', BLOCKED_MEASURED, hits.length, hits)).toBe(BLOCKED_MEASURED.hits);
-    expect(live.length, remedy('BLOCKED_MEASURED.rows', BLOCKED_MEASURED, live.length)).toBe(BLOCKED_MEASURED.rows);
   });
 
   it('TRIGGER_MET_MEASURED — input 2 fires on exactly the recorded number of live rows', async () => {
@@ -177,16 +161,12 @@ describe('M6.E8 t1.1 — the three existing inputs, measured on this repository'
     // The one population that was still unasserted after the round that added
     // the rest: set it to 999 and the suite stayed green. Found by a
     // fresh-context reviewer reading the docblock against the tests.
-    expect(live.length, remedy('TRIGGER_MET_MEASURED.rows', TRIGGER_MET_MEASURED, live.length)).toBe(
-      TRIGGER_MET_MEASURED.rows
-    );
   });
 
   it('NOT_LIVE_MEASURED — input 5 drops exactly the recorded number of rows', async () => {
     const { all } = await scoreRepo();
     const hits = all.filter((s) => s.notLive.notLive);
     expect(hits.length, remedy('NOT_LIVE_MEASURED', NOT_LIVE_MEASURED, hits.length, hits)).toBe(NOT_LIVE_MEASURED.hits);
-    expect(all.length, remedy('NOT_LIVE_MEASURED.rows', NOT_LIVE_MEASURED, all.length)).toBe(NOT_LIVE_MEASURED.rows);
   });
 });
 
@@ -197,12 +177,6 @@ describe('M6.E8 t2.2 — the fold input and the KEPT override, measured on this 
     const { all } = await scoreRepo();
     const dropped = all.filter((s) => s.moved.moved);
     expect(dropped.length, `${remedy('FOLD_MEASURED', FOLD_MEASURED, dropped.length)}\n  Dropped now:${headings(dropped)}`).toBe(FOLD_MEASURED.hits);
-  });
-
-  it('FOLD_MEASURED.rows / KEPT_MEASURED.rows — the population both were counted over', async () => {
-    const { all } = await scoreRepo();
-    expect(all.length, remedy('FOLD_MEASURED.rows', FOLD_MEASURED, all.length)).toBe(FOLD_MEASURED.rows);
-    expect(all.length, remedy('KEPT_MEASURED.rows', KEPT_MEASURED, all.length)).toBe(KEPT_MEASURED.rows);
   });
 
   it('KEPT_MEASURED — exactly the recorded number of rows are preserved by the override, and stay live', async () => {
@@ -219,9 +193,6 @@ describe('M6.E8 t3.1 — the bug-discharge input, measured on this repository (A
     const hits = live.filter((s) => s.dischargesBug);
     expect(hits.length, remedy('BUG_DISCHARGE_MEASURED', BUG_DISCHARGE_MEASURED, hits.length, hits)).toBe(
       BUG_DISCHARGE_MEASURED.hits
-    );
-    expect(live.length, remedy('BUG_DISCHARGE_MEASURED.rows', BUG_DISCHARGE_MEASURED, live.length)).toBe(
-      BUG_DISCHARGE_MEASURED.rows
     );
   });
 });

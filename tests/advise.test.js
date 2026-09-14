@@ -204,6 +204,24 @@ describe('M6.E8 t2.2 (FR4) — input 7, fold: a row whose heading says its work 
     expect(kept.moved.kept).toBe(true);
   });
 
+  it('`KEPT OPEN` is DROPPED by input 5, even though the fold override preserves it', () => {
+    // ⚠ The source documents this precedence and no test held it, so changing
+    // `isDropped` to let the override suppress input 5 left 108 tests green.
+    // The two inputs genuinely disagree about what a maintainer's `KEPT OPEN`
+    // means — `HELD_OPEN_RE` sits in NOT_LIVE_VOCABULARY and drops — and that
+    // disagreement is recorded as an open design question rather than resolved
+    // here. This pins the behaviour that actually ships, so a future change to
+    // it is deliberate rather than silent.
+    const rows = [{ line: 3, path: 'p', text: 'R1 — **KEPT OPEN**, absorbed into M5.E11', body: 'Filed 2026-01-01.' }];
+    const r = rankRows(rows, { today: TODAY });
+    expect(r.recommended).toEqual([]);
+    expect(r.declined).toHaveLength(1);
+    expect(r.declined[0].notLive.notLive).toBe(true);
+    expect(r.declined[0].moved.kept).toBe(true);
+    const art = renderArtifact({ today: TODAY, ranked: r, corpus: { checked: ['BACKLOG.md'], cannotCheck: [] } });
+    expect(art).toMatch(/Dropped by the \*\*self-declared\*\* input/);
+  });
+
   it('a fold phrase in the BODY alone does not drop the row — heading only', () => {
     const r = rankRows(rows, { today: TODAY });
     expect(r.recommended.map((s) => s.row.text.slice(0, 2))).toContain('R4');
@@ -243,6 +261,21 @@ describe('M6.E8 t3.1 (FR1) — the bug-discharge input promotes a heading that d
     const r = rankRows(rows, { today: TODAY, confirmedBugs: new Set(['B1']) });
     expect(r.recommended.map((s) => s.row.text.slice(0, 2))).toEqual(['R1', 'R2']);
     expect(r.recommended[1].dischargesBug).toBeNull();
+  });
+
+  it('bug-discharge sorts BELOW blocked-by — a blocked row that fixes a bug still loses', () => {
+    // ⚠ Found by MUTATION: moving the dischargesBug comparator above the blocked
+    // comparator left all 69 advise tests green. The docblock says input 7 "sorts
+    // between trigger-met and age", so a blocked row must still lose to an
+    // unblocked one however good its heading is. The existing end-to-end test
+    // pins bug-discharge against trigger-met, never against blocked.
+    const rows = [
+      { line: 3, path: 'p', text: 'R1 — a plain row', body: 'Filed 2026-01-01.' },
+      { line: 6, path: 'p', text: 'R2 — Fixes B1, and is blocked', body: 'Filed 2026-01-01. This one is blocked on the parser landing first.' },
+    ];
+    const r = rankRows(rows, { today: TODAY, confirmedBugs: new Set(['B1']) });
+    expect(r.recommended[1].blocked).toBe(true);
+    expect(r.recommended.map((s) => s.row.text.slice(0, 2))).toEqual(['R1', 'R2']);
   });
 
   it('AC1.2 — a row whose BODY cites a confirmed bug is not promoted', () => {
