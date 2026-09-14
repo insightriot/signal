@@ -304,6 +304,23 @@ describe('M6.E8 t3.1 (FR1) — the bug-discharge input promotes a heading that d
     expect(art).toMatch(/its heading says it discharges `B1`, which `BUGS\.md` still records as confirmed/);
   });
 
+  it('runAdvise counts ONLY confirmed bugs — a heading that fixes an already-fixed bug is not promoted', async () => {
+    // ⚠ Found by MUTATION: building the Set from every BUGS.md entry regardless
+    // of status left 155 tests green, because every fixture catalog had exactly
+    // one entry and it was confirmed. The regression is not cosmetic — the
+    // artifact would print "which `BUGS.md` still records as confirmed" about a
+    // bug the catalog records as fixed.
+    const base = project({ backlog: `${BACKLOG}### R10 — Fixes B2, which already shipped\nFiled 2026-09-01.\n` });
+    writeFileSync(
+      join(base, '.planning', 'BUGS.md'),
+      '# Bugs\n\n| ID | Status | Pri | What |\n|---|---|---|---|\n| B1 | `confirmed` | P2 | **Open.** |\n| B2 | `fixed` | P3 | **Shipped.** |\n'
+    );
+    const r = await runAdvise(base, { today: TODAY });
+    const scored = [...r.ranked.recommended, ...r.ranked.declined].find((s) => s.row.text.startsWith('R10'));
+    expect(scored.dischargesBug, 'B2 is fixed — it cannot be discharged').toBeNull();
+    expect(r.artifact).not.toMatch(/discharges `B2`/);
+  });
+
   it('runAdvise builds the confirmed set from the corpus, and consulted says BUGS.md', async () => {
     const base = project({ backlog: `${BACKLOG}### R10 — Fixes B1, the open bug\nFiled 2026-09-01.\n` });
     const r = await runAdvise(base, { today: TODAY });
@@ -394,6 +411,58 @@ describe('M6.E8 t3.3 (FR3 amended — D-M6E8-8) — the discharge reason names i
     const src = readFileSync(join(process.cwd(), 'plugin/tools/lib/advise.js'), 'utf8');
     expect(src).not.toMatch(/from '\.\/closure\.js'/);
     expect(src).not.toMatch(/resolveClosures/);
+  });
+});
+
+describe('M6.E8 REVIEW pass 3 — the decline reason names ONLY what actually beat the row', () => {
+  // ⚠ Found by MUTATION: reverting declineReason to its old single branch left
+  // 155 tests green. Three rounds of review each corrected this reason and none
+  // of them pinned it, so every correction could have been undone in silence.
+  const render = (r) =>
+    renderArtifact({ today: TODAY, ranked: r, corpus: { checked: ['BACKLOG.md'], cannotCheck: [] } });
+  const lineFor = (art, prefix) => art.split('\n').find((l) => l.startsWith(`- **${prefix}`));
+
+  it('a row that WON bug-discharge and age, and lost only on trigger-met, is told exactly that', () => {
+    const rows = [{ line: 3, path: 'p', text: 'R1 — Fixes B1: the oldest row in the file', body: 'Filed 2025-01-01.' }];
+    for (let i = 1; i <= 6; i++) {
+      rows.push({ line: 10 + i * 3, path: 'p', text: `T${i} — a trigger row`, body: `Filed 2026-0${i}-01. Trigger: met 2026-0${i}-01.` });
+    }
+    const r = rankRows(rows, { today: TODAY, confirmedBugs: new Set(['B1']) });
+    const line = lineFor(render(r), 'R1');
+    expect(line).toMatch(/Demoted by the \*\*trigger-met\*\* input/);
+    expect(line, 'it WON bug-discharge — naming it is a false claim').not.toMatch(/bug-discharge/);
+    expect(line, 'it was the oldest row in the file — naming age is a false claim').not.toMatch(/\*\*age\*\*/);
+  });
+
+  it('a row that lost on trigger-met AND bug-discharge AND age is told all three', () => {
+    // More than RECOMMENDATION_LIMIT rows, so R9 lands in the declined pool with
+    // a trigger-met row, a bug-discharge row and older rows all above it.
+    const rows = [
+      { line: 3, path: 'p', text: 'T1 — a trigger row', body: 'Filed 2026-01-01. Trigger: met 2026-01-01.' },
+      { line: 6, path: 'p', text: 'R2 — Fixes B1, and old', body: 'Filed 2025-06-01.' },
+    ];
+    for (let i = 3; i <= 8; i++) {
+      rows.push({ line: i * 3, path: 'p', text: `R${i} — plain`, body: `Filed 2026-0${i - 2}-01.` });
+    }
+    rows.push({ line: 99, path: 'p', text: 'R9 — plain and newest', body: 'Filed 2026-08-01.' });
+    const line = lineFor(render(rankRows(rows, { today: TODAY, confirmedBugs: new Set(['B1']) })), 'R9');
+    expect(line).toMatch(/Demoted by the \*\*trigger-met\*\*, \*\*bug-discharge\*\* and \*\*age\*\* inputs/);
+  });
+
+  it('bug-discharge is NOT named on a run where it could not fire', () => {
+    // The sharpest shape: with no confirmedBugs Set the input is inert, and the
+    // artifact's own Consulted line says `BUGS.md` was not consulted. Naming it
+    // as a demoter contradicts the same page.
+    const rows = [{ line: 3, path: 'p', text: 'T1 — a trigger row', body: 'Filed 2026-01-01. Trigger: met 2026-01-01.' }];
+    for (let i = 2; i <= 7; i++) {
+      rows.push({ line: i * 3, path: 'p', text: `R${i} — plain`, body: `Filed 2026-0${i - 1}-01.` });
+    }
+    rows.push({ line: 99, path: 'p', text: 'R9 — plain and newest', body: 'Filed 2026-08-01.' });
+    const r = rankRows(rows, { today: TODAY, discharge: { sources: { units: true, bugs: false } } });
+    expect(r.consulted).not.toContain('BUGS.md');
+    const line = lineFor(render(r), 'R9');
+    expect(line, 'input 7 was inert this run; naming it contradicts the Consulted line').not.toMatch(/bug-discharge/);
+    expect(line).toMatch(/Demoted by the \*\*trigger-met\*\* and \*\*age\*\* inputs/);
   });
 });
 

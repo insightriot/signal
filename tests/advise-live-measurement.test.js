@@ -110,9 +110,14 @@ export async function scoreRepo() {
     confirmedBugsFrom(corpus).size,
     'BUGS.md records no confirmed bug, so a zero from the bug-discharge pin compares against nothing'
   ).toBeGreaterThan(0);
+  // ⚠ The message names the ROWS, because this precondition is shared: one
+  // bug-led row missing from the catalog turns eight tests red at once, and
+  // without the headings the cause is legible only in a diff of object shapes.
+  const blind = discharge.blind ?? [];
   expect(
-    discharge.blind ?? [],
-    'the discharge input could not look up some candidate rows, so its zero is counted over rows nobody resolved'
+    blind.map((b) => b.heading),
+    'the discharge input could not look up these rows, so any zero it reports is counted over rows nobody resolved. ' +
+      'Each names an id absent from BUGS.md — file the catalog row, or fix the id in the heading'
   ).toEqual([]);
   const confirmedBugs = confirmedBugsFrom(corpus);
   const ranked = rankRows(corpus.sources.backlog.rows, {
@@ -158,9 +163,6 @@ describe('M6.E8 t1.1 — the three existing inputs, measured on this repository'
     expect(hits.length, remedy('TRIGGER_MET_MEASURED', TRIGGER_MET_MEASURED, hits.length, hits)).toBe(
       TRIGGER_MET_MEASURED.hits
     );
-    // The one population that was still unasserted after the round that added
-    // the rest: set it to 999 and the suite stayed green. Found by a
-    // fresh-context reviewer reading the docblock against the tests.
   });
 
   it('NOT_LIVE_MEASURED — input 5 drops exactly the recorded number of rows', async () => {

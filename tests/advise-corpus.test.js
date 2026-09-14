@@ -29,6 +29,7 @@ import {
   BUG_DISCHARGE_MEASURED,
   FOLD_MEASURED,
   KEPT_MEASURED,
+  NOT_LIVE_MEASURED,
   declaresBugDischarge,
   declaresNotLiveWork,
   declaresWorkMovedElsewhere,
@@ -447,7 +448,10 @@ describe('t3.1 input 5 — a row that declares itself not live work', () => {
     // equality: promoting a new parked row must not turn the suite red.
     const corpus = await readCorpus(process.cwd());
     const hits = corpus.sources.backlog.rows.filter((r) => declaresNotLiveWork(r.text).notLive);
-    expect(hits.length).toBeGreaterThanOrEqual(4);
+    // Reads the constant rather than repeating its number: this assertion and
+    // `NOT_LIVE_MEASURED` pinned the same 4 in two places, so a re-measurement
+    // had to remember both and only one carried a remedy message.
+    expect(hits.length).toBeGreaterThanOrEqual(NOT_LIVE_MEASURED.hits);
     for (const h of hits) expect(h.text).toMatch(/parked|reconciliation|shelved|(STILL|KEPT|HELD)\s+OPEN/i);
   });
 
