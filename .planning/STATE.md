@@ -10,25 +10,30 @@ completed_phases:
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-09-03T23:36:21.635658Z
-last_updated_commit: ddef14d968a5b62ffc5ea5443b898a9847dd4bc4
-last_updated: 2026-09-14T07:58:22.602Z
+last_updated_commit: 499c0f238d40c248f0fb41027e0ce6e7d2f00864
+last_updated: 2026-09-14T08:13:56.494Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-09-13)
+### ▶ WHERE THE WORK IS — read this first (2026-09-14)
 
-**`M6.E8` IS IN FLIGHT at DISCUSS on this branch, `feat/m6.e8-advisor-ranking-inputs`.** Resumed
-2026-09-13 (`D-BR0913-1`) after `v0.1.40` merged to `main` (PR #253): `M6.E9` (agent roster) and
-`M6.E10` (`/sig:drive` modes) both shipped in it, which is what the 2026-09-08 park was waiting on.
-`origin/main` is merged into this branch (45 commits, merge commit `d740609`); the written DISCUSS —
-[`M6.E8-REQUIREMENTS.md`](M6.E8-REQUIREMENTS.md), `D-M6E8-1`…`D-M6E8-6` — is intact. **Next step is
-`/sig:plan`**, which records DISCUSS's close when it transitions in.
+**`M6.E8` IS IN FLIGHT at PLAN on this branch, `feat/m6.e8-advisor-ranking-inputs` — the plan is
+written and awaits approval at the PLAN gate.** Resumed 2026-09-13 (`D-BR0913-1`) after `v0.1.40`;
+PLAN entered 2026-09-14 (`D-BR0914-1` wrote [`M6.E8-PROFILE.md`](M6.E8-PROFILE.md) at FEATURE —
+`D-M6E8-1`'s *"inherits"* meant FULL). Artifacts: [`M6.E8-PLAN.md`](M6.E8-PLAN.md) (three slices;
+read its *Open question*), [`M6.E8-RESEARCH.md`](M6.E8-RESEARCH.md),
+[`M6.E8-VALIDATION.md`](M6.E8-VALIDATION.md). ⚠ **Three DISCUSS claims fell to measurement**
+(`D-M6E8-7`…`D-M6E8-9`): `FR2`'s phrase hits only the gate row, so `BLOCKED_RE` is not widened
+and the Epic's stated live effect is gone; `FR3` was already ranking input 3; the *"Consulted"*
+line under-claimed rather than over-claimed. **The gate question is whether to proceed with the
+restated outcome or pull the age-ordering row into scope.** Next step after approval:
+`/sig:execute`, S1 first.
 
 **Latest advisory:** [`BACKLOG-REVIEW-2026-09-13.md`](BACKLOG-REVIEW-2026-09-13.md) — same top five
-as 2026-09-06, because no live row changed and the ranking reads `BACKLOG.md` alone; `M6.E8` is its
-#2. ⚠ Its line citations were true at commit `46e6e44` and are already off by 23 lines from line 95
+as 2026-09-06, because no live row changed; `M6.E8` is its #2. (Its *"consulted `BACKLOG.md` only"* line
+under-claims — `D-M6E8-9`.) ⚠ Its line citations were true at commit `46e6e44` and are already off by 23 lines from line 95
 on this branch, because the merge brought a 22-line row in above them (`B119`).
 
 ### ▶ PREVIOUS — `M6.E7` shipped and merged (PR #239), 2026-09-06
