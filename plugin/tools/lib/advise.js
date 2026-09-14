@@ -300,7 +300,7 @@ export function renderArtifact({ today, ranked, corpus, projectName }) {
     '**Consulted by the ranking:** `BACKLOG.md` only. The other sources are read so this section ' +
       'can say what was and was not legible, and so a future ranking input can use them; **no ' +
       'current ranking input reads them.** A row is not promoted or demoted here because of a bug, ' +
-      'a retrospective, a closure record or a milestone row.'
+      'a closure record or a milestone row.'
   );
   if (corpus.cannotCheck.length === 0) {
     out.push('');

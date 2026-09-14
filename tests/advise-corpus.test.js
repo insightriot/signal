@@ -109,8 +109,6 @@ function fixture({ omit = [] } = {}) {
   write('STATE.md', STATE);
   write('MILESTONE-6.md', MILESTONE_6);
   write('MILESTONE-5.md', MILESTONE_5);
-  write('M6.E1-RETROSPECTIVE.md', '## What happened\n\nIt shipped.\n\n## What we would do differently\n\nLess of it.\n');
-  write('M6.E2-RETROSPECTIVE.md', '## What happened\n\n[FILL IN]\n');
   return base;
 }
 
@@ -241,17 +239,6 @@ describe('t2.1/t2.2 — rows and bugs, with the line numbers a citation needs', 
   });
 });
 
-describe('t2.3 — a stub retro is not evidence a unit finished', () => {
-  it('marks the stub, so nothing can cite it as a closed unit', async () => {
-    const base = fixture();
-    const { sources } = await readCorpus(base);
-    const byId = Object.fromEntries(sources.retros.records.map((r) => [r.epicId, r]));
-    expect(byId['M6.E1'].isStub).toBe(false);
-    expect(byId['M6.E2'].isStub).toBe(true);
-    expect(byId['M6.E1'].headings).toContain('## What happened');
-  });
-});
-
 describe('t2.5 — one Epic-row reader, covering both published formats', () => {
   it('reads the full-ID form', () => {
     const rows = parseEpicStatusRows(MILESTONE_6, { milestone: '6' });
@@ -290,14 +277,10 @@ describe('t2.5 — one Epic-row reader, covering both published formats', () => 
 });
 
 describe('t2.6 — cannot-check is a value, never a silent pass', () => {
-  it('enumerates exactly the five sources it claims to read', () => {
-    expect(ADVISOR_SOURCES).toEqual([
-      'BACKLOG.md',
-      'BUGS.md',
-      'retrospectives',
-      'STATE/closure',
-      'milestone rows',
-    ]);
+  it('enumerates exactly the four sources it claims to read (M6.E8 FR5 — retrospectives left)', () => {
+    // ⚠ AC5.1 — no test may assert five. The retrospective read was 32 files
+    // parsed on every run for headings no ranking input ever consulted.
+    expect(ADVISOR_SOURCES).toEqual(['BACKLOG.md', 'BUGS.md', 'STATE/closure', 'milestone rows']);
   });
 
   it('checked + cannotCheck ALWAYS equals the source list — the docblock claim, tested', async () => {
@@ -308,9 +291,9 @@ describe('t2.6 — cannot-check is a value, never a silent pass', () => {
     //
     // ⚠ AND IT IS A WEAK INVARIANT ON PURPOSE, stated so nobody reads it as more:
     // the COUNT stays right while a source's CONTENT silently shrinks. That is
-    // exactly how the unreadable-retro case hides — one record vanishes, five
-    // sources still report. This catches a source that goes missing from both
-    // lists, not a source that under-reports.
+    // exactly how an unreadable milestone file would hide if branch 5 skipped
+    // it — one file vanishes, four sources still report. This catches a source
+    // that goes missing from both lists, not a source that under-reports.
     const mutate = {
       'clean': () => {},
       'no BACKLOG.md': (b) => rmSync(join(b, '.planning', 'BACKLOG.md')),
@@ -334,7 +317,7 @@ describe('t2.6 — cannot-check is a value, never a silent pass', () => {
     }
   });
 
-  it('a clean corpus checks all five and reports nothing it could not read', async () => {
+  it('a clean corpus checks all four and reports nothing it could not read', async () => {
     const base = fixture();
     const corpus = await readCorpus(base);
     expect(corpus.checked).toEqual([...ADVISOR_SOURCES]);
@@ -380,36 +363,35 @@ describe('t2.6 — cannot-check is a value, never a silent pass', () => {
     expect(corpus.checked).not.toContain('STATE/closure');
   });
 
-  it('an ABSENT .planning/ reports retrospectives as cannot-check, not as read-and-empty', async () => {
-    // ⚠ FOUND AT REVIEW, and the test below is why it survived EXECUTE: that one
-    // replaces `.planning/` with a FILE, which makes readdir throw ENOTDIR and
-    // land in the catch. An ABSENT `.planning/` raises ENOENT, which
-    // `enumerateRetros` deliberately swallows into `[]` — correct for its own
-    // contract, and a false "checked" for this one. Four sources said honestly
-    // that they could not look; the fifth claimed it had.
+  it('an ABSENT .planning/ reports milestone rows as cannot-check, not as read-and-empty', async () => {
+    // ⚠ The distinction this used to guard on the retrospective read (M6.E7
+    // REVIEW): an ABSENT `.planning/` is "could not look", an EMPTY one is
+    // "looked, found nothing". The retrospective read is gone (M6.E8 FR5); the
+    // milestone read has the same shape and inherits the guard — `readdir` on an
+    // absent directory throws ENOENT and must land in cannot-check, never in an
+    // empty `files: []` standing in for a read.
     const base = mkdtempSync(join(tmpdir(), 'sig-advise-corpus-absent-'));
     const corpus = await readCorpus(base);
     expect(corpus.checked).toEqual([]);
     expect(corpus.cannotCheck.map((c) => c.source).sort()).toEqual([...ADVISOR_SOURCES].sort());
-    expect(corpus.sources.retros).toBeNull();
-    expect(corpus.cannotCheck.find((c) => c.source === 'retrospectives').reason).toMatch(/not present/i);
+    expect(corpus.sources.milestones).toBeNull();
+    expect(corpus.cannotCheck.find((c) => c.source === 'milestone rows').reason).toMatch(/could not be listed/i);
   });
 
-  it('an EMPTY but existing .planning/ still reads retros — nothing to find is a result', async () => {
+  it('an EMPTY but existing .planning/ still reads milestone rows — nothing to find is a result', async () => {
     // The other side of the same line. Absent means "could not look"; empty means
     // "looked, found nothing". Collapsing them in either direction is the bug.
     const base = mkdtempSync(join(tmpdir(), 'sig-advise-corpus-empty-'));
     mkdirSync(join(base, '.planning'), { recursive: true });
     const corpus = await readCorpus(base);
-    expect(corpus.checked).toContain('retrospectives');
-    expect(corpus.sources.retros.records).toEqual([]);
+    expect(corpus.checked).toContain('milestone rows');
+    expect(corpus.sources.milestones.files).toEqual([]);
   });
 
-  it('an unreadable retro directory reports retrospectives as cannot-check', async () => {
+  it('a .planning/ that is a FILE reports every source as cannot-check', async () => {
     const base = fixture();
-    // A retro file replaced by a directory makes the walk itself throw on read;
-    // enumerateRetros skips unreadable files, so the honest way to break the
-    // source is to remove the planning dir out from under it.
+    // `.planning` replaced by a file makes every read and readdir throw ENOTDIR;
+    // each branch must land that in cannot-check rather than in an empty result.
     rmSync(join(base, '.planning'), { recursive: true, force: true });
     writeFileSync(join(base, '.planning'), 'not a directory\n');
     const corpus = await readCorpus(base);

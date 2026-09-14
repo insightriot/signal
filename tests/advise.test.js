@@ -257,6 +257,15 @@ describe('REVIEW findings — the artifact must not contradict itself', () => {
     expect(body).not.toMatch(/Ranked on its\b/);
   });
 
+  it('AC5.3 — the Corpus read section names four sources and never retrospectives', async () => {
+    const base = project();
+    const r = await runAdvise(base, { today: TODAY });
+    const body = readFileSync(join(base, r.path), 'utf8');
+    const corpusSection = body.slice(body.indexOf('## Corpus read'), body.indexOf('## Citation rule'));
+    expect(corpusSection).not.toMatch(/retrospective/i);
+    expect(corpusSection).toContain('all 4 sources were readable');
+  });
+
   it('says which source the RANKING used, not just which were read', async () => {
     // "Read: BACKLOG.md · BUGS.md · retrospectives · STATE/closure · milestone
     // rows" above a ranked list reads as "all five were weighed". One was.
