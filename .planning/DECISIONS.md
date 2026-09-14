@@ -3165,6 +3165,9 @@ will not change composition — and that is put to Brett at the PLAN gate as a r
 rather than discovered at VERIFY. `D-M6E8-2`'s change 1 (the heading-only discharge vocabulary)
 stands; it was built the right way round.
 
+**Brett's call, 2026-09-14 — *"go"*, at the PLAN gate.** Proceed with the restated outcome; the
+age-ordering row stays out of scope (`D-M6E8-6` unchanged).
+
 **The claim's shape:** *the backlog calls `B75` the entry price → these rows cite `B75` → therefore
 they are stuck behind it.* Derived from the argument, not from the rows. It reached a committed
 requirements artifact and an acceptance criterion.
