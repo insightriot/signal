@@ -21,8 +21,8 @@ last_completed_task:
   commit: 3e377ce
   completedAt: 2026-09-14T12:41:57.391Z
 last_decision_at: 2026-09-14T12:41:57.391Z
-last_updated_commit: 07b6e90bd3d6dfd887aaf3ccbb8bb81cdd8bc35b
-last_updated: 2026-09-14T20:05:42.248Z
+last_updated_commit: 2594d03a95b803f76284770d4f04ef064e684c34
+last_updated: 2026-09-14T22:03:45.221Z
 ---
 # Project State
 
@@ -30,22 +30,24 @@ last_updated: 2026-09-14T20:05:42.248Z
 
 ### ▶ WHERE THE WORK IS — read this first (2026-09-14)
 
-**`M6.E8` IS IN FLIGHT — VERIFY returned PASS with documented limits, at the REVIEW gate — on
-`feat/m6.e8-advisor-ranking-inputs`.** Ten tasks, twelve commits, suite **3424** green, lint clean.
-Report: [`M6.E8-VERIFICATION.md`](M6.E8-VERIFICATION.md) — **read its Verdict before anything else.**
+**`M6.E8` IS IN FLIGHT — REVIEW closed PASS-WITH-FIXES at the loop ceiling, at the SHIP gate — on
+`feat/m6.e8-advisor-ranking-inputs`.** Suite **3440**, lint clean. Report:
+[`M6.E8-REVIEW.md`](M6.E8-REVIEW.md) — **read its Verdict and its *Open limits* before SHIP.**
 
-⚠ **VERIFY's finding is about the Outcome's own instrument.** The requirements said to measure by
-diffing the new advisory against [`BACKLOG-REVIEW-2026-09-13.md`](BACKLOG-REVIEW-2026-09-13.md).
-Run literally, that diff shows the recommended five **changing** — and it is false: the baseline was
-generated on `main` (`46e6e44`), which lacks the row this branch promoted at DISCUSS (`7e9c288`), so
-the diff measures corpus drift **plus** ranking change and cannot separate them (`B118`). The
-controlled experiment — one corpus, old inputs vs. new — gives an **identical top five**, which is
-the restated outcome `D-M6E8-7` predicted. The effect is in the declined pool's reasons: **3 fold
-drops, 2 `KEPT` preserved, 0 bug-discharge promotions, 4 sources read / 3 consulted.**
+**Three REVIEW passes, nine fresh-context reviewers, 16 Important + 1 Critical, every one
+reproduced.** Zero Critical in shipped behaviour; the Critical was in the Epic's own test design
+(population pins fired on any ordinary backlog edit — `B120`'s shape, which this Epic's own
+requirements warned against). ⚠ **The main finding is the pattern: three rounds running, the
+previous pass's fix carried the next pass's defect** — a quadratic regex, a decline reason still
+naming inputs the row had won, and two fixes with no test at all.
 
-⚠ **`B116` confirmed live here:** `diffRequirementCoverage`'s denominator is **24** (18 `AC` + 6
-`NFR`) and omits all **7 `FR`s**, so its clean `missing: []` is silent about seven of thirty-one
-requirements. Coverage was read from the mapping column instead. Next step: `/sig:review`.
+⚠ **SHIP MUST BUMP ONE CONSTANT IN ITS OWN COMMIT.** Striking this Epic's backlog row takes
+`TRIGGER_MET_MEASURED` from 3 hits to 2 and turns `tests/advise-live-measurement.test.js` red.
+Measured; recorded in that file's header. Bumping it is correct, not a workaround.
+
+⚠ Passes 1 and 2 were FAIL on the 50-LOC in-phase budget (200 cumulative, **49 functional**) and
+looped back to EXECUTE; Brett accepted at the ceiling. **`B121` and `B122` were filed, not fixed** —
+two pre-existing `parseBacklogRows` reader defects found by the pass-3 audit. Next step: `/sig:ship`.
 
 **Latest advisory:** [`BACKLOG-REVIEW-2026-09-14.md`](BACKLOG-REVIEW-2026-09-14.md), written during
 `M6.E8` VERIFY as the Outcome evidence — 53 citations, all resolved, **true at `60b9f1f` and nowhere
