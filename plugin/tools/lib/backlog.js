@@ -532,8 +532,16 @@ export async function dischargeBacklogRows(baseDir, { rows = [], by, at, today }
  * spent S1 removing.
  *
  * @param {string} baseDir — project root
+ * `sources` (`M6.E8` t1.4, `D-M6E8-9`) says, per closure source, whether this
+ * run could READ it — additive, and carried on every return path. The OUTCOME
+ * cannot say that: `clean` is reachable with BUGS.md unreadable, provided no
+ * open row leads with a bug id, so a caller keying "was BUGS.md consulted" off
+ * the outcome over-claims. `/sig:advise` derives its *Consulted by the ranking*
+ * line from this field for exactly that reason.
+ *
  * @returns {Promise<{outcome:string, reason:string|null, rows:number,
- *   liveRows:number, resolvable:number, stale:Array<{heading:string, line:number, id:string, evidence:string}>}>}
+ *   liveRows:number, resolvable:number, stale:Array<{heading:string, line:number, id:string, evidence:string}>,
+ *   sources:{units:boolean, bugs:boolean}}>}
  */
 export async function backlogDischargeStatus(baseDir) {
   const path = join(baseDir, BACKLOG_REL);
@@ -544,6 +552,7 @@ export async function backlogDischargeStatus(baseDir) {
     liveRows: 0,
     resolvable: 0,
     stale: [],
+    sources: { units: false, bugs: false },
     ...extra,
   });
 
@@ -586,6 +595,8 @@ export async function backlogDischargeStatus(baseDir) {
   // verbatim — a report taking its answer from the half that cannot see an
   // unreadable STATE.md — reproduced inside the release whose NFR4 forbids it.
   const { units, bugs, blind: blindSources } = await readClosureSources(baseDir);
+  // Which of the two this run could open — `null` is the reader's own "could not".
+  const sources = { units: units !== null, bugs: bugs !== null };
 
   const stale = [];
   const blind = [];
@@ -615,7 +626,7 @@ export async function backlogDischargeStatus(baseDir) {
     const why = [...new Set(blind.map((b) => b.source))].join(' and ');
     return cannot(
       `${blind.length} row(s) name work whose closure could not be read (${why}${blindSources.length ? ` — ${blindSources.join('; ')}` : ''})`,
-      { ...counts, blind }
+      { ...counts, blind, sources }
     );
   }
 
@@ -625,6 +636,7 @@ export async function backlogDischargeStatus(baseDir) {
     ...counts,
     stale,
     blind,
+    sources,
   };
 }
 

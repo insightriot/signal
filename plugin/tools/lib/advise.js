@@ -158,13 +158,21 @@ function daysBetween(fromIso, toIso) {
 /**
  * Rank the live backlog rows, and say why each one landed where it did.
  *
- * Four inputs, in this order, each independently citable:
+ * Inputs, in this order, each independently citable:
  *   1. **blocked-by** — a row whose stated gate is unmet ranks below one whose is met.
  *   2. **trigger-met** — a row whose written trigger has fired ranks above one with none.
  *   3. **discharge** — a row whose work already closed drops out entirely.
  *   4. **age** — older rows rank above newer ones.
  *   5. **self-declared not-live** — a row that says in its own HEADING that it is
  *      not actionable work drops out entirely.
+ *
+ * **`consulted`** (`M6.E8` t1.4, `D-M6E8-9`): which `ADVISOR_SOURCES` any input
+ * above actually read on THIS run, derived from what this function was GIVEN
+ * and nothing else. `BACKLOG.md` always; `STATE/closure` and `BUGS.md` when
+ * input 3's `discharge.sources` says it could open each; `BUGS.md` also when a
+ * `confirmedBugs` Set was supplied; `milestone rows` never. The renderer prints
+ * this list — it carries no source list of its own, because the one it carried
+ * ("`BACKLOG.md` only") was wrong the moment input 3 shipped.
  *
  * ⚠ Input 5 reads the heading and NOT the body, deliberately. Input 2 reads both,
  * and that is why the first real run promoted a row whose heading says "not sprint
@@ -178,7 +186,13 @@ function daysBetween(fromIso, toIso) {
  * That is what makes `B39`'s checked-vs-unchecked distinction real: a curated
  * list would leave the rest unchecked and indistinguishable from unconsidered.
  */
-export function rankRows(rows, { today, stale = [] } = {}) {
+export function rankRows(rows, { today, stale = [], discharge = null, confirmedBugs = null } = {}) {
+  const consultedSet = new Set(['BACKLOG.md']);
+  if (discharge?.sources?.units) consultedSet.add('STATE/closure');
+  if (discharge?.sources?.bugs) consultedSet.add('BUGS.md');
+  if (confirmedBugs instanceof Set) consultedSet.add('BUGS.md');
+  const consulted = ADVISOR_SOURCES.filter((s) => consultedSet.has(s));
+
   const staleIds = new Set(stale.map((s) => s.id).filter(Boolean));
   // `.filter(Boolean)` matches its sibling above, and its absence was a live bug:
   // a stale entry with no `line` puts `undefined` in the Set, and any row that also
@@ -216,7 +230,7 @@ export function rankRows(rows, { today, stale = [] } = {}) {
     .filter((s) => s.dischargedElsewhere || s.notLive.notLive)
     .sort((a, b) => a.row.line - b.row.line);
 
-  return { recommended, declined: [...rest, ...dropped] };
+  return { recommended, declined: [...rest, ...dropped], consulted };
 }
 
 /** Why a recommended row is where it is, naming the input that put it there. */
@@ -289,19 +303,39 @@ export function renderArtifact({ today, ranked, corpus, projectName }) {
   out.push('');
   out.push(`**Read:** ${corpus.checked.length > 0 ? corpus.checked.join(' · ') : 'nothing'}.`);
   out.push('');
-  // ⚠ SAYING WHICH SOURCE THE RANKING ACTUALLY USED, because "Read: …" does not
-  // say it and a reader infers it. `readCorpus` genuinely reads all five; the
-  // ranking consults ONE. A maintainer seeing "Read: … BUGS.md … STATE/closure"
-  // above a ranked list concludes open bugs and the current phase were weighed.
-  // They were not. That is a completeness claim written from the shape of the
-  // work rather than the artifact — this repository's second named defect class —
-  // inside the command built to not make them. Found by a fresh-context reviewer.
-  out.push(
-    '**Consulted by the ranking:** `BACKLOG.md` only. The other sources are read so this section ' +
-      'can say what was and was not legible, and so a future ranking input can use them; **no ' +
-      'current ranking input reads them.** A row is not promoted or demoted here because of a bug, ' +
-      'a closure record or a milestone row.'
-  );
+  // ⚠ SAYING WHICH SOURCES THE RANKING ACTUALLY USED, because "Read: …" does not
+  // say it and a reader infers it. This used to be a LITERAL — "`BACKLOG.md`
+  // only" — written by `M6.E7` REVIEW to stop an over-claim, and it was wrong
+  // in the other direction from the day it shipped: input 3 reads BUGS.md and
+  // STATE/closure through its own path. An under-claim and an over-claim are
+  // the same defect (`D-M6E8-9`). So the renderer carries no source list; it
+  // prints what `rankRows` was given, and a source it could not name is stated
+  // as not recorded rather than guessed.
+  if (Array.isArray(ranked.consulted)) {
+    out.push(`**Consulted by the ranking:** ${ranked.consulted.map((s) => `\`${s}\``).join(' · ')}.`);
+    // Read by the corpus, consulted by nothing. `milestone rows` is always here
+    // when readable, with the reason it is kept (FR6). Any other source lands
+    // here when the corpus could open it and input 3 did not — either it could
+    // not, or it had no id-led row to look up and never tried; the wording is
+    // neutral because `sources` cannot tell those apart and guessing is worse.
+    const readNotConsulted = ADVISOR_SOURCES.filter(
+      (s) => !ranked.consulted.includes(s) && corpus.checked.includes(s)
+    );
+    if (readNotConsulted.length > 0) {
+      const why = (s) =>
+        s === 'milestone rows'
+          ? 'kept because it is cheap and is the natural home for a future "already sequenced into an ' +
+            'open Epic" input; no ranking input reads it'
+          : 'the discharge input did not open it on this run';
+      out.push('');
+      out.push(`**Read, not consulted:** ${readNotConsulted.map((s) => `\`${s}\` — ${why(s)}`).join('; ')}.`);
+    }
+  } else {
+    out.push(
+      '**Consulted by the ranking:** not recorded — the ranking result carried no `consulted` list, ' +
+        'so this section cannot say which sources were weighed.'
+    );
+  }
   if (corpus.cannotCheck.length === 0) {
     out.push('');
     out.push(`**Could not read:** nothing — all ${ADVISOR_SOURCES.length} sources were readable.`);
@@ -492,15 +526,17 @@ export async function runAdvise(baseDir, { today, render = renderArtifact, proje
 
   // Ranking input 3. Fail-open: an un-evaluable discharge check narrows what the
   // ranking can see, and says so — it does not stop the advisory.
-  let stale = [];
+  let discharge = null;
   try {
-    const discharge = await backlogDischargeStatus(baseDir);
-    stale = discharge.stale ?? [];
+    discharge = await backlogDischargeStatus(baseDir);
   } catch {
-    stale = [];
+    discharge = null;
   }
+  const stale = discharge?.stale ?? [];
 
-  const ranked = rankRows(corpus.sources.backlog.rows, { today: stamp, stale });
+  // The WHOLE discharge result goes in, not just `stale`: its `sources` field
+  // is how `consulted` knows which closure source input 3 could read.
+  const ranked = rankRows(corpus.sources.backlog.rows, { today: stamp, stale, discharge });
   const artifact = render({ today: stamp, ranked, corpus, projectName });
 
   // ── THE STALE-READ GUARD, and it exists because the very first artifact this

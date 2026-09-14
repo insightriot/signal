@@ -41,6 +41,7 @@ import {
   writeArtifact,
 } from '../plugin/tools/lib/advise.js';
 import { EVIDENCE_MARKER, extractCitations, verifyCitations } from '../plugin/tools/lib/citations.js';
+import { backlogDischargeStatus } from '../plugin/tools/lib/backlog.js';
 
 const TODAY = '2026-09-05';
 
@@ -266,14 +267,64 @@ describe('REVIEW findings — the artifact must not contradict itself', () => {
     expect(corpusSection).toContain('all 4 sources were readable');
   });
 
-  it('says which source the RANKING used, not just which were read', async () => {
-    // "Read: BACKLOG.md · BUGS.md · retrospectives · STATE/closure · milestone
-    // rows" above a ranked list reads as "all five were weighed". One was.
+  it('AC7.1 — the Consulted line is DERIVED from ranked.consulted, never a literal (three corpora)', async () => {
+    // `D-M6E8-9`. The shipped line said "`BACKLOG.md` only" while input 3 had
+    // read BUGS.md and STATE/closure on every run — an under-claim replacing the
+    // over-claim M6.E7 REVIEW fixed. So the renderer carries no source list of
+    // its own: it prints what the ranking was actually given.
+    const lineFor = (consulted) =>
+      `**Consulted by the ranking:** ${consulted.map((s) => `\`${s}\``).join(' · ')}.`;
+    const consultedLine = (body) => body.split('\n').find((l) => l.startsWith('**Consulted by the ranking:**'));
+
+    // Every corpus below carries one row that LEADS with a unit id: input 3 opens
+    // its closure sources only when there is something to look up, and a corpus
+    // with nothing resolvable is honestly "BACKLOG.md only". `M6.E1` is the
+    // fixture's current Epic, so the lookup happens and the row stays live.
+    const withUnit = `${BACKLOG}### M6.E1 — the current Epic's own row\nFiled 2026-09-01.\n`;
+
+    // (a) clean corpus — input 3 read both closure sources.
+    const clean = project({ backlog: withUnit });
+    const a = await runAdvise(clean, { today: TODAY });
+    expect(a.ranked.consulted).toEqual(['BACKLOG.md', 'BUGS.md', 'STATE/closure']);
+    expect(consultedLine(a.artifact)).toBe(lineFor(a.ranked.consulted));
+
+    // (b) BUGS.md unreadable, and no open row leads with a bug id — the
+    // discharge OUTCOME reads clean, so keying off it would over-claim.
+    const noBugs = project({ backlog: withUnit, omit: ['BUGS.md'] });
+    mkdirSync(join(noBugs, '.planning', 'BUGS.md'));
+    expect((await backlogDischargeStatus(noBugs)).outcome).toBe('clean');
+    const b = await runAdvise(noBugs, { today: TODAY });
+    expect(b.ranked.consulted).toEqual(['BACKLOG.md', 'STATE/closure']);
+    expect(consultedLine(b.artifact)).toBe(lineFor(b.ranked.consulted));
+
+    // (c) STATE.md unreadable — unit closure is unknowable, the bug catalog is not.
+    const noState = project({ backlog: withUnit });
+    writeFileSync(join(noState, '.planning', 'STATE.md'), '---\nschema_version: 99\n---\n');
+    const c = await runAdvise(noState, { today: TODAY });
+    expect(c.ranked.consulted).toEqual(['BACKLOG.md', 'BUGS.md']);
+    expect(consultedLine(c.artifact)).toBe(lineFor(c.ranked.consulted));
+  });
+
+  it('AC7.1 — milestone rows are named as read-not-consulted, with FR6\'s reason, on every run', async () => {
     const base = project();
     const r = await runAdvise(base, { today: TODAY });
-    const body = readFileSync(join(base, r.path), 'utf8');
-    expect(body).toContain('**Consulted by the ranking:**');
-    expect(body).toMatch(/no \*\*current ranking input reads them\.\*\*|no current ranking input reads them/i);
+    const line = r.artifact.split('\n').find((l) => l.startsWith('**Read, not consulted:**'));
+    expect(line).toContain('`milestone rows`');
+    expect(line).toMatch(/already sequenced/);
+    expect(line).toMatch(/no ranking input reads it/);
+    expect(r.ranked.consulted).not.toContain('milestone rows');
+  });
+
+  it('rankRows reports consulted from what it was GIVEN — the unit contract', () => {
+    const rows = [{ line: 1, path: 'p', text: 'R1 — a row', body: 'Filed 2026-01-01.' }];
+    expect(rankRows(rows, { today: TODAY }).consulted).toEqual(['BACKLOG.md']);
+    expect(rankRows(rows, { today: TODAY, discharge: { sources: { units: true, bugs: false } } }).consulted).toEqual(['BACKLOG.md', 'STATE/closure']);
+    expect(rankRows(rows, { today: TODAY, discharge: { sources: { units: false, bugs: true } } }).consulted).toEqual(['BACKLOG.md', 'BUGS.md']);
+    // A confirmed-bug set means BUGS.md was consulted even if input 3 could not read it.
+    expect(rankRows(rows, { today: TODAY, discharge: { sources: { units: false, bugs: false } }, confirmedBugs: new Set() }).consulted).toEqual(['BACKLOG.md', 'BUGS.md']);
+    // Never milestone rows, and always in ADVISOR_SOURCES order, deduplicated.
+    const all = rankRows(rows, { today: TODAY, discharge: { sources: { units: true, bugs: true } }, confirmedBugs: new Set(['B1']) }).consulted;
+    expect(all).toEqual(['BACKLOG.md', 'BUGS.md', 'STATE/closure']);
   });
 });
 
