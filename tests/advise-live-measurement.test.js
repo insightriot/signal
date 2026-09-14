@@ -18,6 +18,7 @@
 // still precise. The failure message says so and names the remedy; it is a
 // re-measurement step, not a mystery red.
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -121,5 +122,25 @@ describe('M6.E8 t3.1 — the bug-discharge input, measured on this repository (A
       hits.length,
       `${remedy('BUG_DISCHARGE_MEASURED', BUG_DISCHARGE_MEASURED, hits.length)}\n  Hits now:${hits.map((s) => `\n    · ${s.row.text}`).join('')}`
     ).toBe(BUG_DISCHARGE_MEASURED.hits);
+  });
+});
+
+describe('M6.E8 t3.2 (FR2 amended — D-M6E8-7) — BLOCKED_RE is not widened, and the gate row is not what blocks', () => {
+  it('AC2.1′ — no blocked row is blocked BY "entry price for"; the gate row, if live, is not blocked', async () => {
+    const { live } = await scoreRepo();
+    const phrase = /\bentry price for\b/i;
+    const blockedByPhrase = live.filter((s) => s.blocked && phrase.test(`${s.row.text}\n${s.row.body ?? ''}`));
+    expect(blockedByPhrase.map((s) => s.row.text)).toEqual([]);
+    // The gate row — "The entry price for any Phase A autonomy work: B73–B76" —
+    // is live until its four bugs are fixed and it is struck. While it is live
+    // it must rank as UNBLOCKED: it is the row that says "do these first".
+    const gate = live.find((s) => /^The entry price for/.test(s.row.text));
+    if (gate) expect(gate.blocked, `the gate row reads blocked: ${gate.row.text}`).toBe(false);
+  });
+
+  it('AC2.2 — the pattern is byte-identical to what M6.E7 shipped, so nothing blocked before is unblocked after', () => {
+    const src = readFileSync(join(repoRoot, 'plugin/tools/lib/advise.js'), 'utf8');
+    const line = src.match(/^const BLOCKED_RE = (.+);$/m)?.[1];
+    expect(line).toBe(String.raw`/\b(?:blocked on|gated on|depends on|trigger[^.\n]{0,60}\b(?:is\s+)?NOT met|unmet trigger)\b/i`);
   });
 });

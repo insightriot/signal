@@ -103,6 +103,28 @@ const ISO_DATE_RE = /\b(\d{4}-\d{2}-\d{2})\b/;
 // entirely and cannot be confused with somebody else's trigger. So this can still
 // promote a row on a mention that is not its own — a row about triggers that does
 // NOT declare itself parked or a record would still slip through.
+//
+// ⚠ NOT WIDENED BY `M6.E8`, AND THE REASON IS A MEASUREMENT (FR2 / `D-M6E8-7`).
+// DISCUSS proposed adding "entry price for" so that four rows "gated on `B75`"
+// would read blocked. Measured 2026-09-14 on the 48 live rows of this
+// repository's own BACKLOG.md:
+//   - "entry price for" occurs in ONE live row — *"The entry price for any
+//     Phase A autonomy work: B73–B76"* — which is the gate itself. Adding the
+//     phrase demotes the row that says *do these first*.
+//   - the four rows cite `B75` as a MEASUREMENT ("B75 measured that ceiling",
+//     "a fourth knob … is B75"); none states a gate. One was already blocked
+//     for an unrelated phrase.
+//   - twelve sibling phrases (precondition, prerequisite, blocked by, gated by,
+//     waiting on, needs … first, until|after … ships, stuck behind, sequenced
+//     behind, can't … until): ZERO correct hits. `precondition` hits the gate
+//     row again and one prose use; `needs … first` hits "needs the
+//     measure-first treatment" and a row already blocked.
+// The only mechanism that flips those rows is "body names a confirmed bug",
+// which `D-M6E8-2` rejected and which would demote nine rows including the
+// row for this Epic. So the pattern is byte-identical to what `M6.E7` shipped,
+// `BLOCKED_MEASURED` below pins its two hits, and `tests/advise-live-measurement.test.js`
+// asserts that no blocked row is blocked BY that phrase. A DISCUSS claim written
+// from the shape of the argument rather than from the rows, caught at PLAN.
 const BLOCKED_RE = /\b(?:blocked on|gated on|depends on|trigger[^.\n]{0,60}\b(?:is\s+)?NOT met|unmet trigger)\b/i;
 const TRIGGER_MET_RE = /\btrigger[^.\n]{0,60}\b(?:FIRED|met|satisfied)\b/i;
 
