@@ -278,6 +278,61 @@ describe('M6.E8 t3.1 (FR1) — the bug-discharge input promotes a heading that d
   });
 });
 
+describe('M6.E8 t3.3 (FR3 amended — D-M6E8-8) — the discharge reason names its source; mentions never drop', () => {
+  // FR3 asked for a closed-Epic drop on `leadingId`. That IS ranking input 3:
+  // `backlogDischargeStatus` resolves the id through `resolveClosures` and
+  // `rankRows` drops what it returns. Nothing is built twice (NFR2). What was
+  // missing is the reason — it said "already reads as closed" with no source
+  // and no evidence while `stale[]` carried both.
+  const row = (line, text, body = 'Filed 2026-01-01.') => ({ line, path: 'p', text, body, leadingId: text.match(/^(?:M\d+(?:\.\d+)?\.E\d+|B\d+)/)?.[0] ?? null });
+
+  it('AC3.1′ — a row discharged by unit closure says so, with the evidence', () => {
+    const rows = [row(3, 'R1 — a plain row'), row(6, 'M5.E9 — the shipped Epic')];
+    const stale = [{ heading: 'M5.E9 — the shipped Epic', line: 6, id: 'M5.E9', evidence: 'M5.E9-VERIFICATION.md states PASS' }];
+    const r = rankRows(rows, { today: TODAY, stale });
+    const art = renderArtifact({ today: TODAY, ranked: r, corpus: { checked: ['BACKLOG.md'], cannotCheck: [] } });
+    const line = art.split('\n').find((l) => l.startsWith('- **M5.E9'));
+    expect(line).toMatch(/Dropped by the \*\*discharge\*\* input — `M5\.E9` reads closed in \*\*unit closure\*\* \(M5\.E9-VERIFICATION\.md states PASS\)/);
+  });
+
+  it('AC3.1′ — a row discharged by the bug catalog names BUGS.md as the source', () => {
+    const rows = [row(3, 'R1 — a plain row'), row(6, 'B52 — the stale plugin cache')];
+    const stale = [{ heading: 'B52 — the stale plugin cache', line: 6, id: 'B52', evidence: 'BUGS.md records B52 fixed' }];
+    const r = rankRows(rows, { today: TODAY, stale });
+    const art = renderArtifact({ today: TODAY, ranked: r, corpus: { checked: ['BACKLOG.md'], cannotCheck: [] } });
+    const line = art.split('\n').find((l) => l.startsWith('- **B52'));
+    expect(line).toMatch(/reads closed in \*\*`BUGS\.md`\*\* \(BUGS\.md records B52 fixed\)/);
+  });
+
+  it('AC3.2 — three real headings that merely MENTION a closed unit are not dropped', () => {
+    // Verbatim from this repository's BACKLOG.md, 2026-09-14. The loose "heading
+    // mentions a closed unit" predicate is PROHIBITED, not merely unused: it
+    // hits all three, and every hit is false — history inside a PARTIALLY
+    // SHIPPED row, a renumbered-from note, and this Epic's own row naming the
+    // REVIEW it was filed from.
+    const rows = [
+      row(3, "`/sig:sweep --docs / --code` — periodic hygiene sweep — **⚠ PARTIALLY SHIPPED (v0.1.11, M5.E6, 2026-07-25)**"),
+      row(6, "M5.E20 — The other two shapes of \"shipped but never run\" *(renumbered from `M5.E16`, 2026-08-09)*"),
+      row(9, "`/sig:advise` ranks on the backlog alone, while reading five sources · **hygiene** · small · *filed 2026-09-05 from `M6.E7` REVIEW*"),
+    ];
+    // Every mentioned unit is closed — on some OTHER row's line, as input 3 would report them.
+    const stale = [
+      { heading: 'x', line: 900, id: 'M5.E6', evidence: 'closed' },
+      { heading: 'y', line: 901, id: 'M5.E16', evidence: 'closed' },
+      { heading: 'z', line: 902, id: 'M6.E7', evidence: 'closed' },
+    ];
+    const r = rankRows(rows, { today: TODAY, stale });
+    expect(r.recommended).toHaveLength(3);
+    expect(r.declined).toEqual([]);
+  });
+
+  it('NFR2 — the advisor imports no closure resolver of its own; closure comes through input 3 only', () => {
+    const src = readFileSync(join(process.cwd(), 'plugin/tools/lib/advise.js'), 'utf8');
+    expect(src).not.toMatch(/from '\.\/closure\.js'/);
+    expect(src).not.toMatch(/resolveClosures/);
+  });
+});
+
 describe('t3.2 / t3.2b — it proposes, and never selects (FR6)', () => {
   it('every declined row carries a reason naming the input that demoted it', async () => {
     const base = project();

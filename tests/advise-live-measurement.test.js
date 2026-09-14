@@ -144,3 +144,11 @@ describe('M6.E8 t3.2 (FR2 amended — D-M6E8-7) — BLOCKED_RE is not widened, a
     expect(line).toBe(String.raw`/\b(?:blocked on|gated on|depends on|trigger[^.\n]{0,60}\b(?:is\s+)?NOT met|unmet trigger)\b/i`);
   });
 });
+
+describe('M6.E8 t3.3 — input 3 on this repository (AC3.3)', () => {
+  it('discharges zero live rows today — a non-zero here is a row /sig:docs-sweep should already be flagging as stale', async () => {
+    const { all, discharge } = await scoreRepo();
+    const dropped = all.filter((s) => s.dischargedElsewhere);
+    expect(dropped.map((s) => s.row.text), `stale per backlogDischargeStatus: ${JSON.stringify(discharge.stale)}`).toEqual([]);
+  });
+});

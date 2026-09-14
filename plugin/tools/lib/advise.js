@@ -228,16 +228,20 @@ export function rankRows(rows, { today, stale = [], discharge = null, confirmedB
   if (confirmedBugs instanceof Set) consultedSet.add('BUGS.md');
   const consulted = ADVISOR_SOURCES.filter((s) => consultedSet.has(s));
 
-  const staleIds = new Set(stale.map((s) => s.id).filter(Boolean));
-  // `.filter(Boolean)` matches its sibling above, and its absence was a live bug:
-  // a stale entry with no `line` puts `undefined` in the Set, and any row that also
-  // lacks one then reads as discharged and DISAPPEARS from the advisory. Silently
+  // The ENTRY is kept, not just its id: the decline reason names the source that
+  // closed the row and quotes its evidence (`M6.E8` t3.3, `D-M6E8-8`), and both
+  // travel on the entry `backlogDischargeStatus` returned.
+  const staleById = new Map(stale.filter((s) => s.id).map((s) => [s.id, s]));
+  // `.filter(...)` matches its sibling above, and its absence was a live bug:
+  // a stale entry with no `line` keyed `undefined`, and any row that also lacked
+  // one then read as discharged and DISAPPEARED from the advisory. Silently
   // losing a live row is the worst thing this module can do.
-  const staleLines = new Set(stale.map((s) => s.line).filter(Boolean));
+  const staleByLine = new Map(stale.filter((s) => s.line).map((s) => [s.line, s]));
 
   const scored = rows.map((row) => {
     const text = `${row.text}\n${row.body ?? ''}`;
-    const dischargedElsewhere = staleIds.has(row.leadingId) || staleLines.has(row.line);
+    const staleEntry = staleById.get(row.leadingId) ?? staleByLine.get(row.line) ?? null;
+    const dischargedElsewhere = staleEntry !== null;
     // Input 5. HEADING ONLY — see the note above.
     const notLive = declaresNotLiveWork(row.text);
     // Input 6. HEADING ONLY, same rule; `KEPT` wins inside the predicate.
@@ -256,7 +260,7 @@ export function rankRows(rows, { today, stale = [], discharge = null, confirmedB
     const filed =
       (String(row.text ?? '').match(ISO_DATE_RE) ?? String(row.body ?? '').match(ISO_DATE_RE))?.[1] ?? null;
     const ageDays = filed && today ? daysBetween(filed, today) : 0;
-    return { row, dischargedElsewhere, notLive, moved, dischargesBug, blocked, triggerMet, filed, ageDays };
+    return { row, dischargedElsewhere, staleEntry, notLive, moved, dischargesBug, blocked, triggerMet, filed, ageDays };
   });
 
   const isDropped = (s) => s.dischargedElsewhere || s.notLive.notLive || s.moved.moved;
@@ -306,6 +310,17 @@ function declineReason(s, rank) {
     );
   }
   if (s.dischargedElsewhere) {
+    // Name the SOURCE the way input 3 decides it — the id family — and quote its
+    // evidence. "Already reads as closed" said neither, while the stale entry
+    // carried both (`D-M6E8-8`).
+    const e = s.staleEntry;
+    if (e?.id && e?.evidence) {
+      const source = /^B\d+$/.test(e.id) ? '**`BUGS.md`**' : '**unit closure**';
+      return (
+        `Dropped by the **discharge** input — \`${e.id}\` reads closed in ${source} ` +
+        `(${quoteSafe(e.evidence)}), so it is not live work.`
+      );
+    }
     return 'Dropped by the **discharge** input — its work already reads as closed, so it is not live work.';
   }
   if (s.moved.moved) {
