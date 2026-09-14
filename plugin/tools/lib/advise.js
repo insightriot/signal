@@ -143,11 +143,16 @@ const TRIGGER_MET_RE = /\btrigger[^.\n]{0,60}\b(?:FIRED|met|satisfied)\b/i;
  * vocabulary is still precise. This is not `B120`'s shape (a test that fires
  * when a ledger is merely used); the test's failure message says which.
  *
- * `rows` is the population the count was taken over (live rows after inputs 3
- * and 5 dropped theirs), for the reader — the test asserts `hits` only.
+ * `rows` is the population the count was taken over, and **the test asserts it
+ * too**. It did not at first: five of the six constants recorded `48` while the
+ * populations were 45 and 52, and the docblock said the test checked `hits`
+ * only — a number sitting beside the pattern that nothing verified, which is the
+ * exact thing `NFR6` exists to forbid, inside the constants written to satisfy
+ * it. Found in REVIEW by a fresh-context reviewer who recomputed both
+ * populations instead of reading the field.
  */
-export const BLOCKED_MEASURED = Object.freeze({ on: '2026-09-14', rows: 48, hits: 2 });
-export const TRIGGER_MET_MEASURED = Object.freeze({ on: '2026-09-14', rows: 48, hits: 3 });
+export const BLOCKED_MEASURED = Object.freeze({ on: '2026-09-14', rows: 45, hits: 2 });
+export const TRIGGER_MET_MEASURED = Object.freeze({ on: '2026-09-14', rows: 45, hits: 3 });
 
 /**
  * The one helper that emits a citation, so the marker has a single home.

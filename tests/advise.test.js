@@ -41,7 +41,7 @@ import {
   writeArtifact,
 } from '../plugin/tools/lib/advise.js';
 import { EVIDENCE_MARKER, extractCitations, verifyCitations } from '../plugin/tools/lib/citations.js';
-import { backlogDischargeStatus } from '../plugin/tools/lib/backlog.js';
+import { backlogDischargeStatus, parseBacklogRows } from '../plugin/tools/lib/backlog.js';
 
 const TODAY = '2026-09-05';
 
@@ -251,7 +251,13 @@ describe('M6.E8 t3.1 (FR1) — the bug-discharge input promotes a heading that d
       {
         ...twin('R2 — A stated ladder: convention → lint, with a grandfather list'),
         line: 6,
-        body: 'when a rule is not followed here, Signal writes the rule more carefully. `B1` measured that ceiling.',
+        // ⚠ THIS BODY MUST MATCH THE PREDICATE WHEN READ, or the test cannot
+        // fail. The first version quoted a real row — "`B1` measured that
+        // ceiling" — which carries no discharge verb beside the id, so a
+        // body-reading implementation would ALSO return null and this test would
+        // stay green through the exact regression it names. Found in REVIEW by a
+        // fresh-context test reviewer. Verified: this body yields `B1` when read.
+        body: 'Filed 2026-01-02. This fixes B1 in passing, while measuring the ceiling.',
       },
     ];
     const r = rankRows(rows, { today: TODAY, confirmedBugs: new Set(['B1']) });
@@ -304,7 +310,32 @@ describe('M6.E8 t3.3 (FR3 amended — D-M6E8-8) — the discharge reason names i
     expect(line).toMatch(/reads closed in \*\*`BUGS\.md`\*\* \(BUGS\.md records B52 fixed\)/);
   });
 
-  it('AC3.2 — three real headings that merely MENTION a closed unit are not dropped', () => {
+  it('AC3.2 — the three real headings, through the REAL parser, lead with no closed id', () => {
+    // ⚠ THE LAYER IS THE POINT, and the test below this one does not reach it.
+    // The prohibited predicate ("heading mentions a closed unit") would live in
+    // the parser's leading-id extraction, not in `rankRows`, which drops only on
+    // an id or line the discharge input already resolved. So the version below —
+    // hand-built rows, hand-built stale list — passes on pre-change code and
+    // proves nothing about the prohibition. Found in REVIEW by a fresh-context
+    // test reviewer. This one runs the real headings through `parseBacklogRows`
+    // and asserts what each actually leads with: two lead with nothing, and the
+    // third leads with `M5.E20`, which is not any of the units they mention.
+    const backlog = readFileSync(join(process.cwd(), '.planning/BACKLOG.md'), 'utf8');
+    const rows = parseBacklogRows(backlog, { maxDepth: 4 });
+    const find = (re) => rows.find((r) => re.test(r.text));
+    const mentions = [
+      [/PARTIALLY SHIPPED \(v0\.1\.11, M5\.E6/, null],
+      [/renumbered from `M5\.E16/, 'M5.E20'],
+      [/ranks on the backlog alone, while reading five sources/, null],
+    ];
+    for (const [re, expected] of mentions) {
+      const row = find(re);
+      expect(row, `fixture heading vanished from BACKLOG.md: ${re}`).toBeDefined();
+      expect(row.leadingId, `heading must not lead with a unit it merely mentions: ${row.text.slice(0, 60)}`).toBe(expected);
+    }
+  });
+
+  it('AC3.2 — and rankRows does not drop them when the mentioned units are closed', () => {
     // Verbatim from this repository's BACKLOG.md, 2026-09-14. The loose "heading
     // mentions a closed unit" predicate is PROHIBITED, not merely unused: it
     // hits all three, and every hit is false — history inside a PARTIALLY

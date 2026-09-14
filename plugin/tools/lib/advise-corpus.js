@@ -1,10 +1,11 @@
 // What `/sig:advise` reads, and what it could not read — `M6.E7` S2.
 //
-// Five sources, and the second half of that sentence is the load-bearing one.
-// This returns `{sources, cannotCheck, checked}` — the shape `collectPreflight`
-// already uses — because the failure this Epic exists to avoid is an advisory
-// that reads four sources, silently misses the fifth, and presents the result as
-// a complete picture. An empty result is a claim ("nothing here"); a null plus a
+// FOUR sources since `M6.E8` (it was five; retrospectives left), and the second
+// half of that sentence is the load-bearing one. This returns
+// `{sources, cannotCheck, checked}` — the shape `collectPreflight` already uses —
+// because the failure this module exists to avoid is an advisory that reads three
+// sources, silently misses the fourth, and presents the result as a complete
+// picture. An empty result is a claim ("nothing here"); a null plus a
 // reason is the truth ("I could not look"). `closure.js` puts it best in its own
 // source: *"an empty map says 'nothing is closed', which is a result; a null says
 // 'I could not look', which is not."*

@@ -363,9 +363,8 @@ export function declaresNotLiveWork(headingText) {
 // the real file: five live rows announce that their work lives somewhere else
 // (`FOLDED INTO M5.E10`, `absorbed into M5.E12` ×2, `KEPT, re-homed`, `KEPT,
 // absorbed into M5.E11`), and two of the five say **KEPT** first. That is the
-// maintainer saying "do not drop this" — the meaning `HELD_OPEN_RE` already
-// carries for `(STILL|KEPT|HELD) OPEN`, arriving in wording that regex does not
-// match. So `KEPT` is an OVERRIDE evaluated before the fold vocabulary is
+// maintainer saying "do not drop this", arriving in wording `HELD_OPEN_RE` does
+// not match. So `KEPT` is an OVERRIDE evaluated before the fold vocabulary is
 // consulted, never one more phrase inside it: lumping them drops two rows the
 // maintainer explicitly kept, which `rankRows` names as the worst thing it can
 // do. Approved by Brett 2026-09-07 (`D-M6E8-4`) — it is a question about what
@@ -384,6 +383,17 @@ export function declaresNotLiveWork(headingText) {
 // ⚠ THIS DOES NOT WIDEN `HELD_OPEN_RE` (NFR3). `backlogDischargeStatus` reads
 // that regex to mean "declared open on purpose, do not flag as stale"; a `KEPT`
 // without `OPEN` is read here, by a new caller, and nowhere else.
+//
+// ⚠ AND THE TWO DO NOT AGREE, WHICH IS STATED RATHER THAN IMPLIED. An earlier
+// draft of this comment claimed the override "carries the meaning `HELD_OPEN_RE`
+// already carries". It does not, and a fresh-context audit caught the claim:
+// inside the ADVISOR that regex sits in `NOT_LIVE_VOCABULARY`, so `KEPT OPEN` is
+// a DROP signal (input 5, "declared open on purpose, therefore not actionable
+// now") while a bare `KEPT` here is a PRESERVE signal. Verified: a heading
+// reading `**KEPT OPEN**, absorbed into M5.E11` returns `notLive: true` AND
+// `kept: true`, and input 5 wins. Zero live rows hit it. Reconciling them means
+// deciding what a maintainer's `KEPT OPEN` should mean to a ranking — a design
+// call, not this Epic's; recorded in `M6.E8-REVIEW.md`.
 const KEPT_OVERRIDE_RE = /\bKEPT\b/i;
 const FOLD_VOCABULARY = [
   ['folded-into', /\bFOLDED INTO\b/i],
@@ -403,8 +413,8 @@ const FOLD_VOCABULARY = [
  * re-measurement step — read the new or vanished hit, decide whether the
  * vocabulary is still precise, update the constant.
  */
-export const FOLD_MEASURED = Object.freeze({ on: '2026-09-14', rows: 48, hits: 3 });
-export const KEPT_MEASURED = Object.freeze({ on: '2026-09-14', rows: 48, hits: 2 });
+export const FOLD_MEASURED = Object.freeze({ on: '2026-09-14', rows: 52, hits: 3 });
+export const KEPT_MEASURED = Object.freeze({ on: '2026-09-14', rows: 52, hits: 2 });
 
 /**
  * Whether a heading declares, in its own words, that its work moved elsewhere —
@@ -442,8 +452,19 @@ export function declaresWorkMovedElsewhere(headingText) {
 // `shelved` ships in `NOT_LIVE_VOCABULARY`. Correct the moment a maintainer
 // writes "Fixes B75" in a heading, and built now rather than in a hurry against
 // one example when it first matters.
+//
+// ⚠ BOTH TENSES, AND THE PAST TENSE WAS MISSING UNTIL REVIEW. The verb group was
+// `fix(?:es)?|close(?:s)?|…` — present tense only — so `Fixes B75` matched and
+// `Fixed B75` did not, and the id-first branch demanded a separator so
+// `B75 fixed` missed too. The predicate claimed to recognise "a heading that says
+// it discharges a bug" and recognised about half the forms a maintainer actually
+// writes, while `BUG_DISCHARGE_MEASURED` would have gone on reporting **0** with
+// such a row sitting on the file. Found in REVIEW by probing the predicate rather
+// than reading it. The widened form adds **zero** matches on this repository's
+// live `BACKLOG.md` and none on the three real trap headings (`B87`–`B90`,
+// `B73`–`B76`, "open/closed work"), so the measured zero below is unchanged.
 const BUG_DISCHARGE_RE =
-  /\b(?:fix(?:es)?|close(?:s)?|resolve(?:s)?|discharge(?:s)?)\s+(?:for\s+)?`?(B\d+)`?\b|`?\b(B\d+)\b`?\s*(?:—|–|-|:)\s*(?:fix(?:ed)?|closed|resolved|discharged)\b/i;
+  /\b(?:fix(?:es|ed)?|close[sd]?|resolve[sd]?|discharge[sd]?)\s+(?:for\s+)?`?(B\d+)`?\b|`?\b(B\d+)\b`?\s*(?:—|–|-|:)?\s*(?:fix(?:es|ed)?|close[sd]?|resolve[sd]?|discharge[sd]?)\b/i;
 
 /**
  * What `BUG_DISCHARGE_RE` hits on THIS repository's own `BACKLOG.md`, measured
@@ -452,7 +473,7 @@ const BUG_DISCHARGE_RE =
  * headings name a bug id at all (`B87`, `B90`; `B73`, `B76`) and all four read
  * `fixed`. A red pin means a heading now claims a discharge — read it.
  */
-export const BUG_DISCHARGE_MEASURED = Object.freeze({ on: '2026-09-14', rows: 48, hits: 0 });
+export const BUG_DISCHARGE_MEASURED = Object.freeze({ on: '2026-09-14', rows: 45, hits: 0 });
 
 /**
  * Whether a heading declares, in its own words, that it discharges a bug —

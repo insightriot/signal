@@ -539,6 +539,26 @@ describe('M6.E8 t3.1 (FR1) — a heading that says it discharges a bug, verb ADJ
     }
   });
 
+  it('recognises the PAST tense, which is how the heading actually gets written (REVIEW finding)', () => {
+    // Found in REVIEW by probing the predicate instead of reading it: the verb
+    // group was present-tense only, so `fixes B75` matched and `Fixed B75` did
+    // not. The id-first branch covered past tense but demanded a separator, so
+    // `B75 fixed` missed too. The input claimed to recognise "a heading that says
+    // it discharges a bug" and recognised about half the forms — and
+    // BUG_DISCHARGE_MEASURED would have stayed at 0 while such a row existed,
+    // which is the blind-check shape this repository keeps filing.
+    for (const [text, id] of [
+      ['Fixed B75 — the dial', 'B75'],
+      ['Closed B12', 'B12'],
+      ['Resolved B3', 'B3'],
+      ['Discharged B9', 'B9'],
+      ['B75 fixed', 'B75'],
+      ['`B7` resolved', 'B7'],
+    ]) {
+      expect(declaresBugDischarge(text).id, `expected "${text}" to declare ${id}`).toBe(id);
+    }
+  });
+
   it('a done-word elsewhere in the heading is ordinary English, not a declaration', () => {
     // The real heading that carries "closed": "single home for open/closed work".
     // The `DONE_WORD_RE` lesson again — a bare verb anywhere in a heading is prose.
@@ -546,6 +566,11 @@ describe('M6.E8 t3.1 (FR1) — a heading that says it discharges a bug, verb ADJ
     // A bug id NAMED is not a bug id DISCHARGED.
     expect(declaresBugDischarge('Re-aim on "the unreached mechanism" — the class behind `B87`–`B90`').id).toBeNull();
     expect(declaresBugDischarge('The entry price for *any* Phase A autonomy work: `B73`–`B76`').id).toBeNull();
+    // The widening above made the separator optional on the id-first branch, so
+    // these three real headings are the regression fixtures for it: an id
+    // followed by a non-verb must not match.
+    expect(declaresBugDischarge('`B75` measured that ceiling').id).toBeNull();
+    expect(declaresBugDischarge('B118 — the driver reads one branch').id).toBeNull();
   });
 
   it('a body that cites a confirmed bug is not read at all — the predicate takes a heading', () => {

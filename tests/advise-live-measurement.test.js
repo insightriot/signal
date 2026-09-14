@@ -11,6 +11,16 @@
 // re-ran it. By 2026-09-14 the file had 48 live rows. A count in a comment is a
 // claim written from memory the moment the file moves.
 //
+// ⚠ ONE OF THESE PINS BREAKS AT THIS EPIC'S OWN SHIP, BY CONSTRUCTION.
+// `TRIGGER_MET_MEASURED` is 3, and one of the three is this Epic's own backlog
+// row. `readCorpus` filters struck rows, so discharging that row at SHIP — which
+// `NFR1` itself calls a one-time human SHIP edit — drops the count to 2 and turns
+// this file red unless the constant is bumped in the SAME commit. Found in REVIEW
+// by a fresh-context test reviewer, before it happened rather than after.
+// **Bumping it is the correct response, not a workaround**: the vocabulary's
+// reach genuinely changed by one row and a human genuinely looked at that row.
+// It is recorded here so the SHIP commit does not read as a mystery red.
+//
 // ⚠ THIS IS A REPO-FILE PIN, AND IT IS NOT `B120`'s SHAPE. `drain-standing`
 // AC2.2c fires whenever the inbox is USED as intended (a capture lands). These
 // fire when a row starts or stops matching a predicate — which is exactly the
@@ -34,19 +44,53 @@ import { readCorpus } from '../plugin/tools/lib/advise-corpus.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** The message a red pin prints. It is the whole point of the pin, so it is not terse. */
-export function remedy(name, measured, now) {
+/**
+ * The message a red pin prints. It is the whole point of the pin, so it is not terse.
+ *
+ * ⚠ IT NAMES THE HEADINGS. Three of the six pins printed counts only, so a red
+ * told the reader a number had moved and not which row moved it — forcing a
+ * manual re-run to find out, which is how a remedy message stops being followed.
+ * Found in REVIEW by a fresh-context test reviewer.
+ */
+export function remedy(name, measured, now, hits = []) {
+  const listed = hits.length > 0 ? `\n  Matching now:${hits.map((s) => `\n    · ${s.row.text}`).join('')}` : '';
   return (
     `${name} was measured at ${measured.hits} on ${measured.on} (over ${measured.rows} rows); ` +
     `this repository's BACKLOG.md now yields ${now}. Re-measure: read every new or vanished hit ` +
-    `by hand, decide whether the vocabulary is still precise, then update the constant beside the pattern.`
+    `by hand, decide whether the vocabulary is still precise, then update the constant beside the pattern.` +
+    listed
   );
 }
 
-/** One scoring of the live file, the way `runAdvise` does it. Exported for the S2/S3 pins. */
+/**
+ * One scoring of the live file, the way `runAdvise` does it. Exported for the S2/S3 pins.
+ *
+ * ⚠ IT ASSERTS ITS OWN INPUTS FIRST, and that assertion is the point of the
+ * helper rather than defensive tidying. Found in REVIEW by a fresh-context
+ * security audit: two pins below expect **zero** hits, and an unreadable source
+ * also yields zero. `BUGS.md` replaced by a directory makes `corpus.sources.bugs`
+ * null, so the confirmed-bug set is empty, so `BUG_DISCHARGE_MEASURED` passes
+ * having checked nothing; an unreadable `STATE.md` empties `stale` and AC3.3
+ * passes the same way. Reproduced, not reasoned about: with `BUGS.md` a
+ * directory, `discharge` still reports `outcome: 'clean'` while
+ * `sources: {units: true, bugs: false}`.
+ *
+ * That is the exact trap `sources` was added to close for the ARTIFACT — an
+ * outcome that reads clean over a source nobody opened — reproduced one level
+ * down in the tests that measure it. So the guard is the same shape: check that
+ * every source was readable before believing any count taken from it.
+ */
 export async function scoreRepo() {
   const corpus = await readCorpus(repoRoot);
   const discharge = await backlogDischargeStatus(repoRoot);
+  expect(
+    corpus.cannotCheck.map((c) => c.source),
+    'a pin taken over an unreadable source proves nothing — fix the corpus, then re-measure'
+  ).toEqual([]);
+  expect(
+    discharge.sources,
+    'the discharge input could not open a closure source, so any zero it reports is vacuous'
+  ).toEqual({ units: true, bugs: true });
   const confirmedBugs = new Set(
     (corpus.sources.bugs?.entries ?? []).filter((e) => e.status === 'confirmed').map((e) => e.id)
   );
@@ -80,20 +124,24 @@ describe('M6.E8 t1.1 — every *_MEASURED constant has the shape the pins read',
 describe('M6.E8 t1.1 — the three existing inputs, measured on this repository', () => {
   it('BLOCKED_MEASURED — input 1 fires on exactly the recorded number of live rows', async () => {
     const { live } = await scoreRepo();
-    const now = live.filter((s) => s.blocked).length;
-    expect(now, remedy('BLOCKED_MEASURED', BLOCKED_MEASURED, now)).toBe(BLOCKED_MEASURED.hits);
+    const hits = live.filter((s) => s.blocked);
+    expect(hits.length, remedy('BLOCKED_MEASURED', BLOCKED_MEASURED, hits.length, hits)).toBe(BLOCKED_MEASURED.hits);
+    expect(live.length, remedy('BLOCKED_MEASURED.rows', BLOCKED_MEASURED, live.length)).toBe(BLOCKED_MEASURED.rows);
   });
 
   it('TRIGGER_MET_MEASURED — input 2 fires on exactly the recorded number of live rows', async () => {
     const { live } = await scoreRepo();
-    const now = live.filter((s) => s.triggerMet).length;
-    expect(now, remedy('TRIGGER_MET_MEASURED', TRIGGER_MET_MEASURED, now)).toBe(TRIGGER_MET_MEASURED.hits);
+    const hits = live.filter((s) => s.triggerMet);
+    expect(hits.length, remedy('TRIGGER_MET_MEASURED', TRIGGER_MET_MEASURED, hits.length, hits)).toBe(
+      TRIGGER_MET_MEASURED.hits
+    );
   });
 
   it('NOT_LIVE_MEASURED — input 5 drops exactly the recorded number of rows', async () => {
     const { all } = await scoreRepo();
-    const now = all.filter((s) => s.notLive.notLive).length;
-    expect(now, remedy('NOT_LIVE_MEASURED', NOT_LIVE_MEASURED, now)).toBe(NOT_LIVE_MEASURED.hits);
+    const hits = all.filter((s) => s.notLive.notLive);
+    expect(hits.length, remedy('NOT_LIVE_MEASURED', NOT_LIVE_MEASURED, hits.length, hits)).toBe(NOT_LIVE_MEASURED.hits);
+    expect(all.length, remedy('NOT_LIVE_MEASURED.rows', NOT_LIVE_MEASURED, all.length)).toBe(NOT_LIVE_MEASURED.rows);
   });
 });
 
@@ -104,6 +152,12 @@ describe('M6.E8 t2.2 — the fold input and the KEPT override, measured on this 
     const { all } = await scoreRepo();
     const dropped = all.filter((s) => s.moved.moved);
     expect(dropped.length, `${remedy('FOLD_MEASURED', FOLD_MEASURED, dropped.length)}\n  Dropped now:${headings(dropped)}`).toBe(FOLD_MEASURED.hits);
+  });
+
+  it('FOLD_MEASURED.rows / KEPT_MEASURED.rows — the population both were counted over', async () => {
+    const { all } = await scoreRepo();
+    expect(all.length, remedy('FOLD_MEASURED.rows', FOLD_MEASURED, all.length)).toBe(FOLD_MEASURED.rows);
+    expect(all.length, remedy('KEPT_MEASURED.rows', KEPT_MEASURED, all.length)).toBe(KEPT_MEASURED.rows);
   });
 
   it('KEPT_MEASURED — exactly the recorded number of rows are preserved by the override, and stay live', async () => {
@@ -118,10 +172,12 @@ describe('M6.E8 t3.1 — the bug-discharge input, measured on this repository (A
   it('BUG_DISCHARGE_MEASURED — fires on exactly the recorded number of live rows, which is zero', async () => {
     const { live } = await scoreRepo();
     const hits = live.filter((s) => s.dischargesBug);
-    expect(
-      hits.length,
-      `${remedy('BUG_DISCHARGE_MEASURED', BUG_DISCHARGE_MEASURED, hits.length)}\n  Hits now:${hits.map((s) => `\n    · ${s.row.text}`).join('')}`
-    ).toBe(BUG_DISCHARGE_MEASURED.hits);
+    expect(hits.length, remedy('BUG_DISCHARGE_MEASURED', BUG_DISCHARGE_MEASURED, hits.length, hits)).toBe(
+      BUG_DISCHARGE_MEASURED.hits
+    );
+    expect(live.length, remedy('BUG_DISCHARGE_MEASURED.rows', BUG_DISCHARGE_MEASURED, live.length)).toBe(
+      BUG_DISCHARGE_MEASURED.rows
+    );
   });
 });
 
@@ -134,8 +190,15 @@ describe('M6.E8 t3.2 (FR2 amended — D-M6E8-7) — BLOCKED_RE is not widened, a
     // The gate row — "The entry price for any Phase A autonomy work: B73–B76" —
     // is live until its four bugs are fixed and it is struck. While it is live
     // it must rank as UNBLOCKED: it is the row that says "do these first".
+    //
+    // ⚠ NOT GUARDED BY `if (gate)`. It was, and a fresh-context test reviewer
+    // pointed out that the assertion then vanishes in silence the moment the row
+    // is struck or retitled — the whole assertion quietly becoming a no-op is the
+    // failure mode this file exists to prevent. If the row is gone, that is a
+    // deliberate change and the fixture should be updated, loudly.
     const gate = live.find((s) => /^The entry price for/.test(s.row.text));
-    if (gate) expect(gate.blocked, `the gate row reads blocked: ${gate.row.text}`).toBe(false);
+    expect(gate, 'the gate-row fixture is no longer on BACKLOG.md — update or remove this assertion deliberately').toBeDefined();
+    expect(gate.blocked, `the gate row reads blocked: ${gate.row.text}`).toBe(false);
   });
 
   it('AC2.2 — the pattern is byte-identical to what M6.E7 shipped, so nothing blocked before is unblocked after', () => {
