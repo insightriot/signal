@@ -4,24 +4,19 @@ docs_layout_version: 3
 phase: EXECUTE
 current_epic: M6.E8
 current_wave: null
-current_tasks:
-  - id: t1.2
-    epic: M6.E8
-    wave: 1
-    status: in_progress
-    startedAt: 2026-09-14T12:20:18.079Z
+current_tasks: []
 completed_phases:
   - DISCUSS (2026-09-14)
   - PLAN (2026-09-14)
 blockers: []
 last_completed_task:
-  id: t1.1
+  id: t3.4
   status: done
-  commit: 8d2b4c0
-  completedAt: 2026-09-14T12:20:18.004Z
-last_decision_at: 2026-09-14T12:20:18.004Z
-last_updated_commit: 8d2b4c0
-last_updated: 2026-09-14T12:20:18.079Z
+  commit: 3e377ce
+  completedAt: 2026-09-14T12:41:57.391Z
+last_decision_at: 2026-09-14T12:41:57.391Z
+last_updated_commit: 3e377ce587ab43c4f1be798fe773548e7606af83
+last_updated: 2026-09-14T12:42:31.897Z
 ---
 # Project State
 
@@ -29,17 +24,18 @@ last_updated: 2026-09-14T12:20:18.079Z
 
 ### ▶ WHERE THE WORK IS — read this first (2026-09-14)
 
-**`M6.E8` IS IN FLIGHT at PLAN on this branch, `feat/m6.e8-advisor-ranking-inputs` — the plan is
-written and awaits approval at the PLAN gate.** Resumed 2026-09-13 (`D-BR0913-1`) after `v0.1.40`;
-PLAN entered 2026-09-14 (`D-BR0914-1` wrote [`M6.E8-PROFILE.md`](M6.E8-PROFILE.md) at FEATURE —
-`D-M6E8-1`'s *"inherits"* meant FULL). Artifacts: [`M6.E8-PLAN.md`](M6.E8-PLAN.md) (three slices;
-read its *Open question*), [`M6.E8-RESEARCH.md`](M6.E8-RESEARCH.md),
-[`M6.E8-VALIDATION.md`](M6.E8-VALIDATION.md). ⚠ **Three DISCUSS claims fell to measurement**
-(`D-M6E8-7`…`D-M6E8-9`): `FR2`'s phrase hits only the gate row, so `BLOCKED_RE` is not widened
-and the Epic's stated live effect is gone; `FR3` was already ranking input 3; the *"Consulted"*
-line under-claimed rather than over-claimed. **The gate question is whether to proceed with the
-restated outcome or pull the age-ordering row into scope.** Next step after approval:
-`/sig:execute`, S1 first.
+**`M6.E8` IS IN FLIGHT — EXECUTE COMPLETE, at the VERIFY gate — on this branch,
+`feat/m6.e8-advisor-ranking-inputs`.** Ten tasks in two waves, ten atomic commits (`8d2b4c0` …
+`3e377ce`), suite **3424** green; [`M6.E8-PROGRESS.md`](M6.E8-PROGRESS.md) has the ledger. What
+shipped: two heading-only inputs (fold with `KEPT` first — **3 drop / 2 kept** here; bug-discharge —
+**0** here, declared), the discharge reason names its source, the *Consulted* line is derived, the
+retrospective read is gone, and every vocabulary records its live count as a `*_MEASURED` constant
+asserted by `tests/advise-live-measurement.test.js`. **Not done, by measurement:** `BLOCKED_RE` is
+unchanged (`D-M6E8-7`). ⚠ Three DISCUSS claims fell at PLAN (`D-M6E8-7`…`9`); the restated outcome
+was approved at the PLAN gate — **the recommended five will not change composition.** VERIFY's job
+is the Outcome diff against [`BACKLOG-REVIEW-2026-09-13.md`](BACKLOG-REVIEW-2026-09-13.md), reading
+the amended `AC2.1′` / `AC3.1′` from [`M6.E8-VALIDATION.md`](M6.E8-VALIDATION.md), not the numbering
+(`B116`). Next step: `/sig:verify`.
 
 **Latest advisory:** [`BACKLOG-REVIEW-2026-09-13.md`](BACKLOG-REVIEW-2026-09-13.md) — same top five
 as 2026-09-06, because no live row changed; `M6.E8` is its #2. (Its *"consulted `BACKLOG.md` only"* line

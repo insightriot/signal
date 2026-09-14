@@ -64,8 +64,8 @@ was answered with a diagnosis about missing external users, while 42+ repositori
 The trace that settled it took four minutes.
 
 ⚠ **`M6.E8` is IN FLIGHT at PLAN on `feat/m6.e8-advisor-ranking-inputs`** — parked 2026-09-08
-(`D-BR0908-3`), **resumed 2026-09-13 (`D-BR0913-1`)**, **plan written 2026-09-14 and awaiting the
-gate** (three DISCUSS claims corrected by measurement, `D-M6E8-7`…`9`; read the plan's *Open question*). **Work on that branch;
+(`D-BR0908-3`), **resumed 2026-09-13 (`D-BR0913-1`)**, **EXECUTE complete 2026-09-14, at the VERIFY
+gate** (three DISCUSS claims corrected by measurement at PLAN, `D-M6E8-7`…`9`; ten commits, suite green). **Work on that branch;
 never start the row fresh.** Nothing automatic will remind you — `/sig:drive` and `/sig:advise` both
 read one branch's corpus (`B118`, unfixed).
 
