@@ -56,3 +56,22 @@ describe('M6.E8 AC5.2 — readCorpus never enumerates retrospectives', () => {
     expect(src).not.toMatch(/retrospective\.js/);
   });
 });
+
+// M6.E8 S1 t1.3 — AC6.1, the OTHER half of D-M6E8-5: the milestone read stays,
+// and its source says why. "Kept with a written reason" is a different state
+// from "kept by inertia", and the difference has to be legible in the file
+// itself — so this reads the file. The `M6.E4` "mechanism is REACHED" tests are
+// the precedent for a source-text assertion.
+describe('M6.E8 AC6.1 — the milestone read is kept WITH its reason written beside it', () => {
+  it('branch 5 of readCorpus states the reason next to the read', () => {
+    const src = readFileSync(join(repoRoot, 'plugin/tools/lib/advise-corpus.js'), 'utf8');
+    const at = src.indexOf('── 5. Milestone');
+    expect(at).toBeGreaterThan(-1);
+    const window = src.slice(at, at + 1800);
+    // The three parts of the reason: it is cheap; it is the home for a named
+    // future input; and, today, nothing ranks on it.
+    expect(window).toMatch(/cheap/i);
+    expect(window).toMatch(/already sequenced/i);
+    expect(window).toMatch(/no ranking input reads/i);
+  });
+});

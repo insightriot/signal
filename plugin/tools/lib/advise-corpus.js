@@ -168,6 +168,19 @@ try {
 }
 
 // ── 5. Milestone Epic-status rows, through the one shared reader (t2.5).
+//
+// ⚠ KEPT WITH A REASON, NOT BY INERTIA (`M6.E8` FR6 / `D-M6E8-5`). After FR5
+// deleted the retrospective read, this is the one source `readCorpus` reads
+// that no ranking input reads — and "read, unused" is the completeness claim
+// the artifact's *Consulted* line exists to stop. It stays because:
+//   - it is cheap: one `readdir` and a parse of two small files, against the
+//     32-file walk the retrospective read cost; and
+//   - it is the natural home for a future "this row is already sequenced into
+//     an open Epic" input — an Epic-status row is the only place that fact
+//     lives, and dropping the read would mean re-learning this branch's
+//     failure modes (an unreadable file blinds the SOURCE) when it is built.
+// Today **no ranking input reads it**, and the rendered artifact says so in
+// the same words rather than letting "Read: … milestone rows" imply otherwise.
 try {
   const files = (await readdir(planningDir)).filter((f) => MILESTONE_FILE_RE.test(f)).sort();
   const read = [];
