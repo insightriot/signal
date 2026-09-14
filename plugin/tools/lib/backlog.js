@@ -303,10 +303,9 @@ const NOT_LIVE_VOCABULARY = [
 /**
  * What `NOT_LIVE_VOCABULARY` drops on THIS repository's own `BACKLOG.md` today,
  * measured through `readCorpus` + `rankRows` and pinned by
- * `tests/advise-live-measurement.test.js` (`M6.E8` NFR6). `rows` is the
- * population the count was taken over (every row the ranking receives, since
- * this input runs before the live filter); the test asserts **both** `rows` and
- * `hits`. A red pin is a re-measurement step — read the new or vanished hit, decide whether
+ * `tests/advise-live-measurement.test.js` (`M6.E8` NFR6). There is no `rows`
+ * field — see `BLOCKED_MEASURED`'s docblock for why a population pin was removed.
+ * A red pin is a re-measurement step — read the new or vanished hit, decide whether
  * the vocabulary is still precise, update this constant.
  */
 export const NOT_LIVE_MEASURED = Object.freeze({ on: '2026-09-14', hits: 4 });
@@ -334,7 +333,10 @@ export const NOT_LIVE_MEASURED = Object.freeze({ on: '2026-09-14', hits: 4 });
  * ⚠ The LIVE count is not repeated here. It is `NOT_LIVE_MEASURED` below,
  * asserted on every run by `tests/advise-live-measurement.test.js` — a number
  * in a docblock is a claim written from memory the moment the file moves, and
- * this one was: the file reached 48 live rows while this text still said 50.
+ * this one was: the file moved while this text still said 50. (The populations
+ * the shipped code computes today are **52** rows received and **45** live after
+ * every drop; an intermediate "48" in older comments was the live count before
+ * the fold input existed.)
  *
  * ⚠ `deferred` is deliberately EXCLUDED: it occurs in live-work prose ("deferred
  * from E2"), so including it trades two known false positives for an unknown
@@ -495,8 +497,31 @@ export function declaresWorkMovedElsewhere(headingText) {
 // the opposite of what that row says. Its only justification was an invented
 // fixture ("A fix for B9 that discharges it"), never a real heading, so it is
 // removed rather than documented.
+//
+// ⚠ INFLECTED FORMS ONLY, AND A REQUIRED SEPARATOR ON THE ID-FIRST BRANCH. Both
+// narrowings are fixes for false positives a fresh-context review found by
+// probing, and both say the same thing: this predicate reads a CLAIM THAT THE
+// WORK IS DONE, not a row that is merely about a bug.
+//
+//   - **No bare verb.** `fix` / `close` / `resolve` / `discharge` are also nouns
+//     and imperatives. `The B75 fix broke B76` and `the discharge B75 handler`
+//     matched through the noun; `Fix B75` and `Close B12` matched through the
+//     imperative, which states an INTENTION to do the work — the opposite of
+//     discharging it. Only `fixes|fixed|closes|closed|resolves|resolved|
+//     discharges|discharged` survive.
+//   - **Separator required after the id.** Making it optional (the previous
+//     round's widening) let `B75 fixes the ceiling` and `B75 fixed-width column`
+//     read as discharges, because a bug-as-subject heading is indistinguishable
+//     from a record without one. `B75 — fixed` is explicit; `B75 fixed` is not,
+//     and losing it is the price of not promoting the other two.
+//
+// It is also what makes the pattern linear again: an optional separator BETWEEN
+// two unbounded whitespace runs is quadratic (1.9 ms at 1k, 5.9 s at 60k). With
+// the separator required the literal anchors the two runs — measured flat at
+// 1.1 ms on a 300,000-character heading. `LEADING_ID_RE` above bounds its runs
+// for the same class and records the 3.9 s measurement behind it. Pinned by a test.
 const BUG_DISCHARGE_RE =
-  /\b(?:fix(?:es|ed)?|close[sd]?|resolve[sd]?|discharge[sd]?)\s+`?(B\d+)`?\b|`?\b(B\d+)\b`?\s*(?:(?:—|–|-|:)\s*)?(?:fix(?:es|ed)?|close[sd]?|resolve[sd]?|discharge[sd]?)\b/i;
+  /\b(?:fix(?:es|ed)|close[sd]|resolve[sd]|discharge[sd])\s+`?(B\d+)`?\b|`?\b(B\d+)\b`?\s*(?:—|–|-|:)\s*(?:fix(?:es|ed)|close[sd]|resolve[sd]|discharge[sd])\b/i;
 
 /**
  * What `BUG_DISCHARGE_RE` hits on THIS repository's own `BACKLOG.md`, measured

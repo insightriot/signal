@@ -106,12 +106,12 @@ const ISO_DATE_RE = /\b(\d{4}-\d{2}-\d{2})\b/;
 //
 // ⚠ NOT WIDENED BY `M6.E8`, AND THE REASON IS A MEASUREMENT (FR2 / `D-M6E8-7`).
 // DISCUSS proposed adding "entry price for" so that four rows "gated on `B75`"
-// would read blocked. Measured 2026-09-14 on the 48 live rows of this
+// would read blocked. Measured 2026-09-14 on the then-48 live rows of this
 // repository's own BACKLOG.md:
 //   - "entry price for" occurs in ONE live row — *"The entry price for any
 //     Phase A autonomy work: B73–B76"* — which is the gate itself. Adding the
 //     phrase demotes the row that says *do these first*.
-//   - the four rows cite `B75` as a MEASUREMENT ("B75 measured that ceiling",
+//   - the rows cite `B75` as a MEASUREMENT ("B75 measured that ceiling",
 //     "a fourth knob … is B75"); none states a gate. One was already blocked
 //     for an unrelated phrase.
 //   - twelve sibling phrases (precondition, prerequisite, blocked by, gated by,
@@ -317,7 +317,7 @@ function rows(n) {
 }
 
 /** Why a declined row is NOT recommended, naming the input that demoted it. */
-function declineReason(s, rank) {
+function declineReason(s, rank, above = []) {
   if (s.notLive.notLive) {
     return (
       `Dropped by the **self-declared** input — the row's own heading says \`${s.notLive.declaration}\`, ` +
@@ -344,25 +344,36 @@ function declineReason(s, rank) {
       'so its work lives elsewhere.'
     );
   }
-  if (s.blocked) {
+  if (s.blocked && above.every((a) => a.blocked)) {
     return 'Demoted by the **blocked-by** input — the row names a gate that has not fired.';
   }
-  // ⚠ THE SORT HAS FOUR KEYS AND THIS USED TO HAVE THREE BRANCHES, so a row that
-  // lost on trigger-met or bug-discharge was told it lost on AGE. Reproduced by a
-  // fresh-context reviewer and again here: the OLDEST row in a file, carrying a
-  // confirmed-bug discharge, rendered "Demoted by the **age** input — 6 rows were
-  // filed earlier" when trigger-met is what beat it. The artifact's stated
-  // contract is that every declined row names the input that demoted it, so a
-  // wrong name is a false claim in a document whose whole pitch is checkability.
-  // Latent today — input 7 fires on zero rows — and reachable the moment someone
-  // writes "Fixes B75" in a heading.
-  if (!s.triggerMet) {
-    return `Demoted by the **trigger-met**, **bug-discharge** and **age** inputs — ${rows(rank)} scored above it.`;
+  // ⚠ IT NAMES ONLY THE INPUTS A ROW ABOVE ACTUALLY WON, computed from those
+  // rows — not every comparator that remains after the ones this row passed.
+  //
+  // Two rounds of review got this wrong in two different ways, and both produced
+  // a FALSE CLAIM in a document whose whole pitch is checkability. Three branches
+  // told the OLDEST row in a file that it lost on **age**. Four branches told the
+  // same row it lost on **trigger-met, bug-discharge and age** when it had WON
+  // bug-discharge and age and lost only on trigger-met. Worse, on a run where
+  // `BUGS.md` could not be read — so input 7 cannot fire at all — the same line
+  // named **bug-discharge** as a demoter on the same page whose Consulted line
+  // says `BUGS.md` was not consulted.
+  //
+  // A position alone cannot answer "what beat me". The rows above can, and the
+  // renderer has them.
+  const beatenBy = [];
+  if (s.blocked && above.some((a) => !a.blocked)) beatenBy.push('blocked-by');
+  if (!s.triggerMet && above.some((a) => a.triggerMet)) beatenBy.push('trigger-met');
+  if (!s.dischargesBug && above.some((a) => a.dischargesBug)) beatenBy.push('bug-discharge');
+  if (above.some((a) => a.ageDays > s.ageDays)) beatenBy.push('age');
+  if (beatenBy.length === 0) {
+    // Everything above tied on every key; source line is the stable tiebreak.
+    return `Ranked below ${rows(rank)} that tied on every input, on source order.`;
   }
-  if (!s.dischargesBug) {
-    return `Demoted by the **bug-discharge** and **age** inputs — ${rows(rank)} scored above it.`;
-  }
-  return `Demoted by the **age** input — ${rows(rank)} were filed earlier.`;
+  const named = beatenBy.map((n) => `**${n}**`);
+  const list = named.length === 1 ? named[0] : `${named.slice(0, -1).join(', ')} and ${named.at(-1)}`;
+  const noun = beatenBy.length === 1 ? 'input' : 'inputs';
+  return `Demoted by the ${list} ${noun} — ${rows(rank)} scored above it.`;
 }
 
 /**
@@ -375,6 +386,11 @@ function declineReason(s, rank) {
  */
 export function renderArtifact({ today, ranked, corpus, projectName }) {
   const { recommended, declined } = ranked;
+  // The rows RANKED above declined[i] — recommended, plus the declined rows that
+  // are still live and sit before it. Rows that were DROPPED (discharge, not-live,
+  // fold) were never ranked, so they cannot have beaten anything.
+  const isLive = (a) => !a.dischargedElsewhere && !a.notLive.notLive && !a.moved.moved;
+  const rankedAbove = (i) => [...recommended, ...declined.slice(0, i).filter(isLive)];
   const L = RENDER_LABELS;
   const out = [];
 
@@ -480,7 +496,7 @@ export function renderArtifact({ today, ranked, corpus, projectName }) {
     // list, for `Passive OBSERVATIONS.md capture`. A self-contradicting count in
     // a document whose whole claim is that its claims are checkable.
     const reason = contrast
-      ? `${recommendReason(s)} Ranked above *${quoteSafe(contrast.row.text)}*, which was ${declineReason(contrast, recommended.length + declined.indexOf(contrast)).replace(/^(Demoted|Dropped)/, (m) => m.toLowerCase())}`
+      ? `${recommendReason(s)} Ranked above *${quoteSafe(contrast.row.text)}*, which was ${declineReason(contrast, recommended.length + declined.indexOf(contrast), rankedAbove(declined.indexOf(contrast))).replace(/^(Demoted|Dropped|Ranked)/, (m) => m.toLowerCase())}`
       : recommendReason(s);
     const evidence = contrast
       ? cite(`${s.row.path}:${s.row.line}`, `${contrast.row.path}:${contrast.row.line}`)
@@ -499,7 +515,7 @@ export function renderArtifact({ today, ranked, corpus, projectName }) {
   out.push('');
   declined.forEach((s, i) => {
     out.push(
-      `- **${quoteSafe(s.row.text)}** — ${declineReason(s, recommended.length + i)} ${cite(`${s.row.path}:${s.row.line}`)}`
+      `- **${quoteSafe(s.row.text)}** — ${declineReason(s, recommended.length + i, rankedAbove(i))} ${cite(`${s.row.path}:${s.row.line}`)}`
     );
   });
   out.push('');

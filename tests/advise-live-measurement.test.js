@@ -253,10 +253,18 @@ describe('M6.E8 — the bug-discharge pattern stays LINEAR (REVIEW pass 2, secur
     }
   });
 
-  it('a row headed "the fix for B75 broke B76" is NOT read as discharging B75', () => {
-    // The `for` branch that promoted it existed only to satisfy an invented
-    // fixture; a row saying a fix BROKE something is the opposite of a discharge.
-    expect(declaresBugDischarge('The fix for `B75` broke `B76`').id).toBeNull();
-    expect(declaresBugDischarge('The fix for B75 regressed').id).toBeNull();
+  it('a row saying a fix BROKE something is NOT read as discharging that bug', () => {
+    // Three shapes, removed across two review rounds, all saying the same thing:
+    // a row about a bug is not a claim that the bug is closed. The prepositional
+    // form went with the `for` branch; the noun forms went when the bare verbs
+    // did; the bug-as-subject forms went when the separator became required.
+    for (const text of [
+      'The fix for `B75` broke `B76`',
+      'The fix for B75 regressed',
+      'The B75 fix broke B76',
+      'B75 fixes the ceiling',
+    ]) {
+      expect(declaresBugDischarge(text).id, `"${text}" is not a discharge claim`).toBeNull();
+    }
   });
 });

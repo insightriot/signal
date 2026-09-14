@@ -540,12 +540,12 @@ describe('M6.E8 t2.1 (FR4) — a row whose heading says its work moved elsewhere
 });
 
 describe('M6.E8 t3.1 (FR1) — a heading that says it discharges a bug, verb ADJACENT to the id', () => {
-  it('reads the HEADING only and needs the verb next to the id', () => {
+  it('reads the HEADING only and needs an INFLECTED verb next to the id', () => {
     for (const [text, id] of [
       ['Fixes B75 — the two gate settings differ by one boolean', 'B75'],
-      ['Close B12 by deleting the dead branch', 'B12'],
+      ['Closes B12 by deleting the dead branch', 'B12'],
       ['`B7` — fixed, with the regression test', 'B7'],
-      ['Resolve `B3`: the parser reads depth 4', 'B3'],
+      ['Resolves `B3`: the parser reads depth 4', 'B3'],
     ]) {
       const r = declaresBugDischarge(text);
       expect(r.id, `expected "${text}" to declare ${id}`).toBe(id);
@@ -557,8 +557,8 @@ describe('M6.E8 t3.1 (FR1) — a heading that says it discharges a bug, verb ADJ
     // Found in REVIEW by probing the predicate instead of reading it: the verb
     // group was present-tense only, so `fixes B75` matched and `Fixed B75` did
     // not. The id-first branch covered past tense but demanded a separator, so
-    // `B75 fixed` missed too. The input claimed to recognise "a heading that says
-    // it discharges a bug" and recognised about half the forms — and
+    // the id-first branch covered it. The input claimed to recognise "a heading
+    // that says it discharges a bug" and recognised about half the forms — and
     // BUG_DISCHARGE_MEASURED would have stayed at 0 while such a row existed,
     // which is the blind-check shape this repository keeps filing.
     for (const [text, id] of [
@@ -566,10 +566,32 @@ describe('M6.E8 t3.1 (FR1) — a heading that says it discharges a bug, verb ADJ
       ['Closed B12', 'B12'],
       ['Resolved B3', 'B3'],
       ['Discharged B9', 'B9'],
-      ['B75 fixed', 'B75'],
-      ['`B7` resolved', 'B7'],
+      ['`B7` — fixed', 'B7'],
+      ['B7: resolved', 'B7'],
     ]) {
       expect(declaresBugDischarge(text).id, `expected "${text}" to declare ${id}`).toBe(id);
+    }
+  });
+
+  it('a BARE verb is an intention or a noun, not a discharge (REVIEW pass 3)', () => {
+    // `fix` / `close` / `resolve` / `discharge` are nouns and imperatives too.
+    // "Fix B75" states an INTENTION to do the work, the opposite of having done
+    // it; "The B75 fix broke B76" is a noun and says the fix FAILED. Both matched
+    // until pass 3 dropped the bare forms.
+    for (const text of ['Fix B75', 'Close B12', 'Resolve B1 vs B2 ambiguity', 'The B75 fix broke B76', '`B75` fix regressed the parser', 'the discharge B75 handler']) {
+      expect(declaresBugDischarge(text).id, `"${text}" is not a claim that the work is done`).toBeNull();
+    }
+  });
+
+  it('the id-first form REQUIRES a separator, or a bug-as-subject heading reads as a discharge', () => {
+    // Without one, "B75 fixes the ceiling" and "B75 fixed-width column" are
+    // indistinguishable from a record of the fix. `B75 — fixed` is explicit;
+    // `B75 fixed` is not, and losing it is the price of not promoting the others.
+    expect(declaresBugDischarge('`B7` — fixed').id).toBe('B7');
+    expect(declaresBugDischarge('B7 - resolved').id).toBe('B7');
+    expect(declaresBugDischarge('B7: closed').id).toBe('B7');
+    for (const text of ['B75 fixes the ceiling', 'B75 closes at v0.2', 'B75 fixed-width column', 'B75 fixed']) {
+      expect(declaresBugDischarge(text).id, `"${text}" needs a separator to read as a claim`).toBeNull();
     }
   });
 
