@@ -250,6 +250,7 @@
 - [M6.E5-RETROSPECTIVE.md](M6.E5-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E6-RETROSPECTIVE.md](M6.E6-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E7-RETROSPECTIVE.md](M6.E7-RETROSPECTIVE.md) — `other` — _(note pending)_
+- [M6.E8-RETROSPECTIVE.md](M6.E8-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E9-RETROSPECTIVE.md](M6.E9-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [archive/BACKLOG-REVIEW-2026-07-04.md](archive/BACKLOG-REVIEW-2026-07-04.md) — `other` — Frozen 2026-07-04 backlog pass (gap-fills A1–A5, 8 sharpened items, 8 sprint clusters + watchlist). Point-in-time snapshot — its live content was folded into `BACKLOG.md` and it was archived here (move-never-delete, M5.E3.S6b).
 - [archive/ISSUES-INBOX-LEDGER.md](archive/ISSUES-INBOX-LEDGER.md) — `other` — Evicted shipped/drained capture entries (the closed tail of the inbox), relocated at M5.E1; renamed from `FUTURE-IDEAS-LEDGER.md` at docs-layout v3. Reference-only.
@@ -396,5 +397,6 @@
 - [M6.E5](M6.E5-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E6](M6.E6-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E7](M6.E7-RETROSPECTIVE.md) — _(note pending)_
+- [M6.E8](M6.E8-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E9](M6.E9-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E10](M6.E10-RETROSPECTIVE.md) — _(note pending)_

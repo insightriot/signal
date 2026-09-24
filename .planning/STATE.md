@@ -1,7 +1,7 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: REVIEW
+phase: SHIP
 current_epic: M6.E8
 current_wave: null
 current_tasks: []
@@ -14,6 +14,8 @@ completed_phases:
   - EXECUTE (2026-09-14)
   - REVIEW (2026-09-14)
   - EXECUTE (2026-09-14)
+  - REVIEW (2026-09-24)
+  - SHIP (2026-09-24)
 blockers: []
 last_completed_task:
   id: t3.4
@@ -22,32 +24,26 @@ last_completed_task:
   completedAt: 2026-09-14T12:41:57.391Z
 last_decision_at: 2026-09-14T12:41:57.391Z
 last_updated_commit: e99a3dfb051709dac77e5a9d3ae8e3aa88347e16
-last_updated: 2026-09-14T22:06:32.014Z
+last_updated: 2026-09-24T20:08:09.850Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-09-14)
+### ▶ WHERE THE WORK IS — read this first (2026-09-24)
 
-**`M6.E8` IS IN FLIGHT — REVIEW closed PASS-WITH-FIXES at the loop ceiling, at the SHIP gate — on
-`feat/m6.e8-advisor-ranking-inputs`.** Suite **3440**, lint clean. Report:
-[`M6.E8-REVIEW.md`](M6.E8-REVIEW.md) — **read its Verdict and its *Open limits* before SHIP.**
+**`M6.E8` IS AT SHIP — PR [#254](https://github.com/insightriot/signal/pull/254) is open on
+`feat/m6.e8-advisor-ranking-inputs`, awaiting CI and Brett's merge (`--merge`, never squash).**
+Suite **3441**, lint clean. Retro: [`M6.E8-RETROSPECTIVE.md`](M6.E8-RETROSPECTIVE.md). REVIEW:
+[`M6.E8-REVIEW.md`](M6.E8-REVIEW.md) — PASS-WITH-FIXES at the loop ceiling, 1 Critical (test design)
++ 16 Important across three passes, every one reproduced; **the previous pass's fix carried the next
+pass's defect three rounds running.**
 
-**Three REVIEW passes, nine fresh-context reviewers, 16 Important + 1 Critical, every one
-reproduced.** Zero Critical in shipped behaviour; the Critical was in the Epic's own test design
-(population pins fired on any ordinary backlog edit — `B120`'s shape, which this Epic's own
-requirements warned against). ⚠ **The main finding is the pattern: three rounds running, the
-previous pass's fix carried the next pass's defect** — a quadratic regex, a decline reason still
-naming inputs the row had won, and two fixes with no test at all.
-
-⚠ **SHIP MUST BUMP ONE CONSTANT IN ITS OWN COMMIT.** Striking this Epic's backlog row takes
-`TRIGGER_MET_MEASURED` from 3 hits to 2 and turns `tests/advise-live-measurement.test.js` red.
-Measured; recorded in that file's header. Bumping it is correct, not a workaround.
-
-⚠ Passes 1 and 2 were FAIL on the 50-LOC in-phase budget (200 cumulative, **49 functional**) and
-looped back to EXECUTE; Brett accepted at the ceiling. **`B121` and `B122` were filed, not fixed** —
-two pre-existing `parseBacklogRows` reader defects found by the pass-3 audit. Next step: `/sig:ship`.
+At SHIP (2026-09-24) the Epic's backlog row was struck, and exactly the one predicted constant broke:
+`TRIGGER_MET_MEASURED` 3 → 2, bumped in `207de48` in the same commit as the strike. **`B121`,
+`B122` and `B123` are filed, not fixed.** After merge: push the branch back if GitHub deletes it
+(commit messages are the record), then cut the release — `CHANGELOG.md` carries this under
+`[Unreleased]` and `plugin.json` is still `0.1.40`.
 
 **Latest advisory:** [`BACKLOG-REVIEW-2026-09-14.md`](BACKLOG-REVIEW-2026-09-14.md), written during
 `M6.E8` VERIFY as the Outcome evidence — 53 citations, all resolved, **true at `60b9f1f` and nowhere
