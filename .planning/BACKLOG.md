@@ -115,7 +115,7 @@ not asked for (`D-M6E8-6`).
 Any fix needs the measure-first treatment `NOT_LIVE_VOCABULARY` got — *"vocabulary measured before it
 was chosen"* — including the counts that justify each pattern.
 
-### `/sig:advise` ranks on the backlog alone, while reading five sources · **hygiene** · small · *filed 2026-09-05 from `M6.E7` REVIEW*
+### ~~`/sig:advise` ranks on the backlog alone, while reading five sources · **hygiene** · small · *filed 2026-09-05 from `M6.E7` REVIEW*~~ · **DONE — M6.E8, 2026-09-24**
 
 > ⚠ **IN FLIGHT as `M6.E8` — on a branch, not on `main`. RESUMED 2026-09-13 (`D-BR0913-1`).** DISCUSS
 > is **written, not closed** (`phase: DISCUSS`, `completed_phases: []`) on
@@ -2155,4 +2155,4 @@ No check compares a decision's or a `*-REQUIREMENTS.md` frontmatter's stated tie
 
 
 
-*Last updated: 2026-09-14*
+*Last updated: 2026-09-24*
