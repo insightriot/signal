@@ -13,7 +13,7 @@ Where `/sig:status` is a snapshot, `/sig:resume` is a **briefing**: it actively 
 Authoritative references:
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `readEffectiveProfile`, `ProfileSchemaError`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `isStateStale`, `isStaleVsOrigin`, `readSchemaDrift`
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/resume.js` — `renderResumeBriefing`, `handleOrphansAtResume`, `resolveArtifactPath`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/resume.js` — `renderResumeBriefing`, `handleOrphansAtResume`, `resolveArtifactPath`, `readLastArchivedRun`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `describeNextAction`, `formatNextActionCopy`, `formatEscalationSummary`, `readOpenQuestions`, `readLandscapeMeta`, `readStateSizeForTier`, `readLayoutBanner`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/plugin-binding.js` — `readBindingBanner`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/landscape.js` — `extractSection` (used to pull "What this project is" from LANDSCAPE.md when PROJECT.md Vision is still `[INFERRED]` or `[FILL IN]`)
@@ -91,6 +91,8 @@ It compares the plugin copy **this process actually resolved** (derived from the
 
 It renders **above every other banner**, including schema drift. That ordering is the finding, not a preference: a schema banner says one field below may be misparsed; a stale binding says the code that read *every* field — the schema check included — is a release the maintainer already retired. **This is also the surface that catches the case the SessionStart hook structurally cannot.** Claude Code resolves the plugin path once, at session start, and holds it for the life of the process, so an auto-update landing mid-session is invisible to a hook that already ran. `/sig:resume` re-reads both files at the moment of use, which is the only moment that can observe it.
 
+1g. **The run that just shipped** (B47) — call `readLastArchivedRun(baseDir)` from `tools/lib/resume.js` and pass the result (or `null`) to `renderResumeBriefing` as `archivedRun`. Read-only, fail-open. A linear ship moves the finished run out of `completed_phases`, so without this the briefing reads `SHIP (0/7 phases done)` right after a ship; with it, `SHIP (last run: 7/7 phases done, archived)`. Used only in that one case — linear mode, `phase: SHIP`, empty live list.
+
 #### 3c. Retro completeness (M4.5.E9.S2.t7)
 
 Call `enumerateRetros(baseDir)` from `tools/lib/retro-index.js`. Build a summary `{total, complete, stub}` where `complete = total - stub` (and `stub = records.filter(r => r.isStub).length`). Pass as `retroSummary` to `renderResumeBriefing`. The renderer adds one line:
@@ -133,6 +135,7 @@ renderResumeBriefing({
   stateDriftResult,              // STATE-vs-world — from Step 3b(1e); advisory, category 3 only
   layoutBanner,                  // pre-reorg layout nudge string|null — from Step 3b(1d); advisory, fail-open
   bindingBanner,                 // stale plugin binding string|null — from Step 3b(1f); renders ABOVE all others
+  archivedRun,                   // last linear run string[]|null — from Step 3b(1g); only read after a linear ship
   nextAction: formatNextActionCopy(describeNextAction(state.phase, profile.phases_skipped)), // fail-open (B70)
   retroSummary,                   // {total, complete, stub} — see Step 3c
 });

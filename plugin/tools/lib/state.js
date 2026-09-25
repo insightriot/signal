@@ -597,12 +597,13 @@ async function refreshPlanningIndexAfterTransition(baseDir) {
 // failure wearing the other mask. So the live list holds ONE RUN, and finished
 // runs relocate (never delete) to an append-log.
 //
-// This is not optional hygiene. `resume.js:272` renders `{completed}/{total}
-// phases done` off the raw array length, and `isEpicCloseByState` tests the
-// array with `.some()`. BOTH silently assume the list is one run's worth — the
-// invariant the old dedupe was accidentally enforcing and no writer ever
-// stated. Remove the dedupe without this and a real project reads "53/7 phases
-// done" and its Epic-close detector fires off a PRIOR run's entries.
+// This is not optional hygiene. `isEpicCloseByState` tests the array with
+// `.some()`, silently assuming the list is one run's worth — the invariant the
+// old dedupe was accidentally enforcing and no writer ever stated. Remove the
+// dedupe without this and its Epic-close detector fires off a PRIOR run's
+// entries. (`resume.js` used to render `{completed}/{total} phases done` off
+// the raw length too; it counts distinct phases since `B124`, because one run
+// with a REVIEW→EXECUTE fix loop re-records phases and read "10/7".)
 
 const PHASE_LOG_MARKER = 'phase-log:archived';
 
@@ -749,7 +750,7 @@ export async function completePhase(baseDir, phase) {
   });
 }
 
-export { PHASES, PLANNING_DIR, SCHEMA_VERSION, EPIC_ID_STRICT_RE, withStateLock };
+export { PHASES, PLANNING_DIR, SCHEMA_VERSION, EPIC_ID_STRICT_RE, PHASE_LOG_MARKER, withStateLock };
 
 // --- current_tasks helpers (M4.5.E6.S1.t6, D10) ---
 //

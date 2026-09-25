@@ -9,8 +9,18 @@ import { fileURLToPath } from 'node:url';
 import {
   renderResumeBriefing,
   handleOrphansAtResume,
+  countCompletedPhases,
+  readLastArchivedRun,
 } from '../plugin/tools/lib/resume.js';
-import { readState, setCurrentTask, stringifyFrontmatter } from '../plugin/tools/lib/state.js';
+import {
+  readState,
+  setCurrentTask,
+  stringifyFrontmatter,
+  initState,
+  transitionPhase,
+  completePhase,
+} from '../plugin/tools/lib/state.js';
+import { seedPhaseArtifacts } from './helpers/phase-artifacts.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIX_ROOT = join(__dirname, 'fixtures', 'resume');
@@ -484,5 +494,99 @@ describe('renderResumeBriefing — FR2 size banner (v0.1.6)', () => {
       stateSizeResult: null,
     });
     expect(out).not.toMatch(/STATE\.md is large/);
+  });
+});
+
+describe('the phase count counts phases, not log lines (B124, B47)', () => {
+  it('a REVIEW→EXECUTE fix loop does not push the count past the total (B124)', () => {
+    // M6.E8's real log: two fix loops, ten entries, six distinct phases.
+    const out = renderResumeBriefing({
+      cwd: '/p',
+      profile: FULL_PROFILE,
+      state: {
+        phase: 'SHIP',
+        completed_phases: [
+          'DISCUSS (2026-09-14)', 'PLAN (2026-09-14)', 'EXECUTE (2026-09-14)',
+          'VERIFY (2026-09-14)', 'REVIEW (2026-09-14)', 'EXECUTE (2026-09-14)',
+          'REVIEW (2026-09-14)', 'EXECUTE (2026-09-14)', 'REVIEW (2026-09-24)',
+          'SHIP (2026-09-24)',
+        ],
+        current_tasks: [],
+      },
+    });
+    expect(out).toContain('(6/7 phases done)');
+    expect(out).not.toContain('10/7');
+  });
+
+  it('ignores malformed entries and skipped phases', () => {
+    expect(countCompletedPhases(['**▶ Active: Slice SEC1', 'PLAN (2026-01-01)'])).toBe(1);
+    expect(countCompletedPhases(['PLAN (2026-01-01)', 'REVIEW (2026-01-02)'], ['REVIEW'])).toBe(1);
+    expect(countCompletedPhases(undefined)).toBe(0);
+  });
+
+  describe('after a linear ship (B47)', () => {
+    let base;
+    beforeEach(async () => {
+      base = await mkdtemp(join(tmpdir(), 'sig-b47-'));
+    });
+    afterEach(async () => {
+      await rm(base, { recursive: true, force: true });
+    });
+
+    it('shows the archived run instead of 0/7, reading what the real writer wrote', async () => {
+      await initState(base, 'DISCUSS');
+      await seedPhaseArtifacts(base);
+      for (const phase of ['PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'SHIP']) {
+        await transitionPhase(base, phase);
+      }
+      await completePhase(base, 'SHIP');
+
+      const state = await readState(base);
+      expect(state.completed_phases).toEqual([]); // the trim this bug is about
+      const archivedRun = await readLastArchivedRun(base);
+      expect(archivedRun.map((e) => e.split(' ')[0])).toEqual([
+        'DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'SHIP',
+      ]);
+
+      const out = renderResumeBriefing({ cwd: base, profile: FULL_PROFILE, state, archivedRun });
+      expect(out).toContain('Phase:   SHIP  (last run: 6/7 phases done, archived)');
+      expect(out).not.toContain('(0/7 phases done)');
+    });
+
+    it('never reports a quarantine dump as the last run', async () => {
+      await mkdir(join(base, '.planning'), { recursive: true });
+      await writeFile(
+        join(base, '.planning', 'STATE-HISTORY.md'),
+        [
+          '# Phase log archive',
+          '',
+          '## Phase log — linear run ending 2026-01-01 (archived 2026-01-01) <!-- phase-log:archived -->',
+          '',
+          '- PLAN (2026-01-01)',
+          '- SHIP (2026-01-01)',
+          '',
+          '## Phase log — quarantined entries (2026-01-02) (archived 2026-01-02) <!-- phase-log:archived -->',
+          '',
+          '- **▶ Active: Slice SEC1',
+          '',
+        ].join('\n')
+      );
+      expect(await readLastArchivedRun(base)).toEqual(['PLAN (2026-01-01)', 'SHIP (2026-01-01)']);
+    });
+
+    it('returns null when there is no history file', async () => {
+      expect(await readLastArchivedRun(base)).toBeNull();
+    });
+
+    it('Epic mode keeps the live count — its log is not trimmed at SHIP', () => {
+      const out = renderResumeBriefing({
+        cwd: '/p',
+        profile: FULL_PROFILE,
+        state: { phase: 'SHIP', current_epic: 'M9.E1', completed_phases: [], current_tasks: [] },
+        archivedRun: ['PLAN (2026-01-01)', 'SHIP (2026-01-01)'],
+      });
+      expect(out).toContain('(0/7 phases done)');
+      expect(out).not.toContain('last run');
+    });
   });
 });

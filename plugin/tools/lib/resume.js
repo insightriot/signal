@@ -10,14 +10,17 @@
 // tests/fixtures/resume/{in-flight, stale, orphan}/.planning/).
 
 import { existsSync, realpathSync } from 'node:fs';
-import { resolve, sep } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { join, resolve, sep } from 'node:path';
 
 import {
   detectOrphans,
   clearCurrentTask,
   formatSchemaDriftBanner,
   formatStateSizeBanner,
+  detectMode,
   EPIC_ID_STRICT_RE,
+  PHASE_LOG_MARKER,
 } from './state.js';
 import { formatTierLine } from './status.js';
 
@@ -198,9 +201,76 @@ function formatAge(iso) {
  *   - readSchemaDrift() output; renders a schema-drift banner above the rest
  * @param {string|null} [params.bindingBanner]
  *   - readBindingBanner() output (B52); renders ABOVE every other banner
+ * @param {string[]|null} [params.archivedRun]
+ *   - readLastArchivedRun() output (B47); shown only after a linear ship
  * @param {string} [params.nextAction]  - "Work remaining" copy
  * @returns {string}
  */
+/**
+ * How many DISTINCT phases a phase log records (B124).
+ *
+ * The raw length is not a phase count. `completed_phases` is append-only
+ * (`B44`), so a single run whose REVIEW sends work back to EXECUTE records
+ * those phases again — `M6.E8` went round twice and its briefing read
+ * `10/7 phases done`. An entry counts only if its first word IS one of the
+ * seven phase names — keying on whatever the first token happens to be is
+ * `B45`'s phantom-phase shape. The date suffix is not required: this is a
+ * display count, and older logs carry other suffixes. Skipped phases are not
+ * counted, so the numerator can never exceed the denominator it is shown beside.
+ *
+ * @param {unknown} entries
+ * @param {string[]} [skipped]
+ * @returns {number}
+ */
+export function countCompletedPhases(entries, skipped = []) {
+  const skip = new Set(skipped ?? []);
+  const seen = new Set();
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    if (typeof entry !== 'string') continue;
+    const name = entry.trim().split(/\s/)[0];
+    if (PHASES.includes(name) && !skip.has(name)) seen.add(name);
+  }
+  return seen.size;
+}
+
+/**
+ * The most recent finished LINEAR run from `.planning/STATE-HISTORY.md` (B47).
+ *
+ * A linear ship relocates the run out of `completed_phases`, so the briefing
+ * read `SHIP (0/7 phases done)` at exactly the moment a user wants to see that
+ * something finished. This hands the renderer the run that just left.
+ *
+ * Only `linear run ending …` sections count. The same marker also heads
+ * quarantine dumps (`quarantined entries (…)`), which are malformed lines, not
+ * a run — reporting one as "the last run" would be a fabricated result.
+ *
+ * Read-only and fail-open: any failure returns `null`.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<string[]|null>}
+ */
+export async function readLastArchivedRun(baseDir) {
+  let content;
+  try {
+    content = await readFile(join(baseDir, '.planning', 'STATE-HISTORY.md'), 'utf-8');
+  } catch {
+    return null;
+  }
+  let last = null;
+  let current = null;
+  for (const line of content.split('\n')) {
+    if (line.startsWith('## ')) {
+      current = line.includes(PHASE_LOG_MARKER) && line.startsWith('## Phase log — linear run ending')
+        ? []
+        : null;
+      if (current) last = current;
+      continue;
+    }
+    if (current && line.startsWith('- ')) current.push(line.slice(2).trim());
+  }
+  return last && last.length > 0 ? last : null;
+}
+
 export function renderResumeBriefing(params = {}) {
   const {
     cwd = '<unknown>',
@@ -217,6 +287,7 @@ export function renderResumeBriefing(params = {}) {
     stateDriftResult = null,
     layoutBanner = null,
     bindingBanner = null,
+    archivedRun = null,
     nextAction = '',
     retroSummary = null,
     projectTier = null,
@@ -337,10 +408,21 @@ export function renderResumeBriefing(params = {}) {
   });
   lines.push(`Tier:    ${tierLine}`);
   if (state) {
-    const completed = (state.completed_phases ?? state.completedPhases ?? []).length;
-    const skipped = (profile?.phases_skipped ?? []).length;
-    const total = PHASES.length - skipped;
-    lines.push(`Phase:   ${state.phase}  (${completed}/${total} phases done)`);
+    const skippedPhases = profile?.phases_skipped ?? [];
+    const completed = countCompletedPhases(
+      state.completed_phases ?? state.completedPhases ?? [],
+      skippedPhases
+    );
+    const total = PHASES.length - skippedPhases.length;
+    // B47: a linear ship empties the live list, so show the run that just left.
+    const justShipped =
+      completed === 0 && state.phase === 'SHIP' && detectMode(state) === 'linear' &&
+      Array.isArray(archivedRun) && archivedRun.length > 0;
+    lines.push(
+      justShipped
+        ? `Phase:   ${state.phase}  (last run: ${countCompletedPhases(archivedRun, skippedPhases)}/${total} phases done, archived)`
+        : `Phase:   ${state.phase}  (${completed}/${total} phases done)`
+    );
   } else {
     lines.push(`Phase:   <not started>`);
   }
