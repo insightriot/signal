@@ -85,12 +85,17 @@ const ISO_DATE_RE = /\b(\d{4}-\d{2}-\d{2})\b/;
 //
 //   - They cannot tell a row's OWN trigger from a trigger it merely mentions. A
 //     row that is *about* triggers matches. Measured 2026-09-05: 6 of 50 live
-//     rows match `TRIGGER_MET_RE`, and 2 of those 6 are false positives —
-//     *"Parked — the trigger watchlist (not sprint material)"* matches on a
-//     watchlist entry belonging to a different item (`Trigger:* first live
-//     external tester — **FIRED`), and a dated reconciliation note matches on
-//     prose describing a past state (`trigger has therefore read **satisfied`).
-//     Both landed in the top four of the first real run.
+//     rows match `TRIGGER_MET_RE`, and **5 of those 6 are false positives**
+//     (re-read 2026-09-25 against each row's own `Trigger:` line; this comment
+//     said 2 until then). *"Parked — the trigger watchlist (not sprint
+//     material)"* matches on a watchlist entry belonging to a different item
+//     (`Trigger:* first live external tester — **FIRED`); two dated
+//     reconciliation notes match on prose describing a past state (`trigger has
+//     therefore read **satisfied`); and two rows whose own line reads
+//     `Trigger: NONE` matched on text absorbed from the entry below them — the
+//     row-body defect `M6.E7`'s PR review later fixed. Only "Trajectory scoring"
+//     states its own trigger fired. Labels and evidence:
+//     `analysis/TYPESAFE-JEV-ASSESSMENT.md` §6, set 2.
 //   - They read no state. "Fired" means the row SAYS so; nothing here checks
 //     whether the named condition actually holds today.
 //   - `\b…met\b` is case-insensitive, so ordinary English "met" counts.
