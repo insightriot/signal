@@ -42,6 +42,16 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   (`NFR6`). A count in a comment is a claim written from memory the moment the file moves — the
   not-live vocabulary's docblock said *"50 live rows"* for a week while the file was at 48.
 
+### Fixed
+
+- **`/sig:resume`'s phase count counts phases, not log lines** (`B124`, `B47`; PR #255). The log is
+  append-only, so a run whose REVIEW sends work back to EXECUTE recorded those phases again and the
+  briefing read **`10/7 phases done`** (`M6.E8`, 2026-09-24). It now counts each phase once and
+  ignores skipped ones. Right after a **linear** ship, when the finished run has moved to
+  `STATE-HISTORY.md`, it read **`0/7`**; it now shows the run that just shipped —
+  `SHIP (last run: 6/7 phases done, archived)`. ⚠ An Epic never records CALIBRATE, so a finished
+  Epic reads `6/7`, not `7/7`.
+
 ### Removed
 
 - **`/sig:advise` no longer reads retrospectives.** `ADVISOR_SOURCES` is four entries. The fifth was
