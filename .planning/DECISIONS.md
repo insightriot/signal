@@ -3208,7 +3208,7 @@ supplied (the new input); `milestone rows` never, and the artifact says so with 
 renderer carries no literal source list; `AC7.1` compares the line to `ranked.consulted`. It may
 legitimately disagree with the *Could not read* list, and the plan says so.
 
-## 2026-09-25 — Jev in Signal: bring your own key, no paid service (D-BR0925-1 … D-BR0925-3)
+## 2026-09-25 — Jev in Signal: bring your own key, no paid service; M6.E3 un-parked (D-BR0925-1 … D-BR0925-5)
 
 *Context: [`../analysis/TYPESAFE-JEV-ASSESSMENT.md`](../analysis/TYPESAFE-JEV-ASSESSMENT.md) —
 assessment of TypeSafe's Jev model and its measurement on this repository's own records (§6).*
@@ -3243,3 +3243,21 @@ integration honours that rule as written, or the rule is changed deliberately. B
 every question, label, label source, and both runs' answers, with the source commit each set's text
 comes from. The script that called the API stays out of the repository, so nothing sits outside
 `tools/audit-network-calls.js`'s reach while calling the network.
+
+### D-BR0925-4 — the README's network-call rule is honoured as written
+
+**Brett, 2026-09-25**, answering the open question in `D-BR0925-1`: *"a — and literally 3 people
+using this, so not a huge deal."* The first Jev-backed check ships with the major-version bump
+`README.md` → *Privacy & telemetry* requires, plus the opt-in (the user's own key), that section's
+update, and the audit script's. **Not yet settled:** whether pre-1.0 "major" means `0.2.0` or
+`1.0.0` — asked at the release that carries it, not before.
+
+### D-BR0925-5 — `M6.E3` is un-parked, rebuilt around Jev
+
+**Brett, 2026-09-25**, option (b) of the choice put to him that day. The 2026-08-20 parking
+(`STATE.md` then: *"Do not resume it by default"*) was a direction call — features and the loop
+over Signal-inspecting-Signal. What changed is evidence, not direction: on this repository's own
+`STATE.md`, Jev found **4 of 4** stale claims where the shipped check found **0**
+(`../analysis/TYPESAFE-JEV-ASSESSMENT.md` §6, set 3). `M6.E3`'s existing decisions (`D-M6E3-1` …
+`6`) stand — a Jev answer is never a receipt; code assembles the claim and the source, and only that
+pair may block. DISCUSS decides how the plan changes; this entry decides only that it runs next.
