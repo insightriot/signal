@@ -2780,6 +2780,155 @@ emits an artifact; landing it stays a person's edit.
 ⚠ **Both limits mean the "repeatability" the row asks for is bounded**: the *analysis* becomes
 repeatable, the *transcription into the queue* does not. Said here rather than discovered at VERIFY.
 
+## 2026-09-07 — M6.E8 DISCUSS: the advisor's unused corpus (D-M6E8-1 … D-M6E8-6)
+
+*Epic: `M6.E8`. Carried in [`BACKLOG.md`](BACKLOG.md) as* "`/sig:advise` ranks on the backlog alone,
+while reading five sources" *(filed 2026-09-05 from `M6.E7` REVIEW). Requirements:
+[`M6.E8-REQUIREMENTS.md`](M6.E8-REQUIREMENTS.md).*
+
+**Every number below was measured on this repository's own `BACKLOG.md` on 2026-09-07, over the 46
+live rows `rankRows` sees.** Not one is inherited from the backlog row's prose.
+
+### D-M6E8-1 — FEATURE, inherited from the project profile
+
+Same tier as `M6.E6` and `M6.E7`, and for the same reason: no FULL escalator fires. This is a
+pure-logic change to a **read-only** command — `runAdvise` writes one artifact and `writeArtifact`
+refuses to write anything else — so `security_audit: basic` is not a concession. `phases_skipped` is
+empty; all six phases run. `nyquist_enforcement: strict` carries over from the project profile.
+
+No `M6.E8-PROFILE.md` is written. The Epic inherits, which is the documented default, and a per-Epic
+profile identical to the project's is `B75`'s shape — a setting documented end to end and read by
+nothing.
+
+⚠ **Corrected 2026-09-14 by `D-BR0914-1`.** The premise of the paragraph above is false: the project profile is **FULL**, so "inherits" meant FULL, and `M6.E6`/`M6.E7` were FEATURE only because each had a per-Epic `PROFILE.md`. `M6.E8-PROFILE.md` now exists at FEATURE. The tier chosen here stands; the mechanism did not.
+
+### D-M6E8-2 — The bug input is built in the OPPOSITE direction to the one the row proposed
+
+**The row asked for:** *"a row naming an open `confirmed` bug should rank above one that does not."*
+**Measured, that input is backwards.**
+
+Zero live rows name a confirmed bug in their **heading**. Seven name one in their **body** — and
+**four of the seven name `B75`**, which the backlog itself calls *"the entry price for any Phase A
+autonomy work."* Those four rows do not discharge `B75`; they are **stuck behind** it. Promoting them
+is the wrong direction, and it is the direction the row's own words produce.
+
+⚠ **`BLOCKED_RE` does not catch them either** — 6 of the 7 read `blocked: false`, because the regex
+knows "blocked on" / "gated on" / "NOT met" and does not know *"entry price for."* So the rows are
+neither correctly demoted nor safely ignored; they are invisible to the one input that should see
+them.
+
+**So two changes, and they point the same way:**
+
+1. A **discharge** vocabulary, read from the **heading only** — a row that says it *fixes* / *closes*
+   a bug that is still `confirmed` ranks up. This fires on **zero** rows today and is declared as
+   firing on zero, the same basis on which `shelved` already ships in `NOT_LIVE_VOCABULARY`.
+2. The **blocked** vocabulary widens to catch *"entry price for"*, which demotes four rows
+   immediately and is where the whole of this Epic's live effect comes from.
+
+⚠ **Heading-only is not a style preference, it is `declaresNotLiveWork`'s rule and it was bought with
+a bug.** The heuristic that read a whole body matched a trigger belonging to a *different* item
+inside a watchlist row. Change 1 obeys that rule. Change 2 does not — `BLOCKED_RE` already scans the
+body and this Epic does not change its reach, only its vocabulary. **Stated because it is an
+inconsistency we are choosing, not one we missed.**
+
+⚠ **Corrected 2026-09-14 by `D-M6E8-7`.** Measured on the file: *"entry price for"* occurs in one live row — the gate row itself — and the four rows called *gated on `B75`* cite `B75` as a measurement, not as a gate. `BLOCKED_RE` is not widened; `AC2.1` is amended. The discharge vocabulary (change 1) stands.
+
+### D-M6E8-3 — The closed-Epic input ships with zero live effect, on the safe predicate only
+
+**Predicate: the row's own `leadingId`, and nothing looser.** `parseBacklogRows` already returns it.
+
+| Predicate | Live hits | True positives |
+|---|---|---|
+| `row.leadingId` ∈ closed units | **0** of 46 | — |
+| heading *mentions* a closed unit | 2 of 46 | **0** |
+
+The loose predicate's two hits are both false: one cites `M5.E6` as **history** inside a row whose
+own heading says **PARTIALLY SHIPPED** (the remainder is live work), the other names `M5.E16` only in
+a *"renumbered from"* note. Shipping it would silently delete live work, which `rankRows` already
+names as *"the worst thing this module can do."*
+
+**Building an input with zero live instances is deliberate.** It is correct the moment a row carries
+a closed Epic's ID, and the alternative — waiting until it matters — is how a check gets written in a
+hurry against one example.
+
+⚠ **A correction that changed this decision.** DISCUSS first measured `resolveClosures` as unreliable
+— `M6.E7` reading **open** the day after it shipped. That was an artifact of the measurement:
+`M6.E7` was still `current_epic`, and closure reads the current unit as open **by definition**.
+Re-measured with `M6.E8` current: **14 closed, 2 open, 6 cannot-determine**, and every
+cannot-determine names a real reason (a `*-VERIFICATION.md` exists but states no readable verdict).
+Closure is trustworthy and refuses to guess. **The first reading was a claim written from the shape
+of the result** — this repository's second named defect class — caught before it reached an artifact.
+
+⚠ **Corrected 2026-09-14 by `D-M6E8-8`.** The predicate chosen here is already ranking input 3: `backlogDischargeStatus` resolves `leadingId` through `resolveClosures` and `rankRows` drops the result. Nothing new is built; the reason is labelled with its source instead. The loose predicate now has **3** false positives, not 2.
+
+### D-M6E8-4 — A row whose heading says its work moved elsewhere drops out; `KEPT` overrides
+
+Five live rows announce, in their headings, that the work lives somewhere else:
+
+| Row (identified by heading, **not** by line — see below) | Heading says | Disposition |
+|---|---|---|
+| `` `STATE.md`'s narrative vs. its frontmatter `` | `FOLDED INTO M5.E10` | **drops** |
+| `Re-source the stale external claims` | `→ absorbed into M5.E12` | **drops** |
+| `` `/sig:docs-update` — GSD port `` | `→ absorbed into M5.E12` | **drops** |
+| `Retro *replay* into the next Epic's DISCUSS/PLAN` | `KEPT, re-homed` | stays ranked |
+| `Cross-Epic pattern detection` | `KEPT, absorbed into M5.E11` | stays ranked |
+
+⚠ **Rows are named by heading here, deliberately.** An earlier draft of this table cited line
+numbers — and the very same commit inserted a 23-line row above all five of them, making every
+citation wrong before it was pushed. That is `M6.E7`'s SHIP defect (*"citations that resolved, and
+pointed five lines wrong"*) reproduced inside the DISCUSS artifacts of the Epic that fixes the
+advisor. A hand-written artifact gets no stale-read guard; a heading survives insertion and a line
+does not.
+
+All five say the work moved. Two say **`KEPT`** first, and that is the maintainer saying *do not drop
+this* — the meaning `HELD_OPEN_RE` already carries for `(STILL|KEPT|HELD) OPEN`, arriving in wording
+that regex does not match. So `KEPT` is read as an **override**, evaluated before the fold vocabulary,
+not as one more phrase in it.
+
+⚠ **Two vocabularies with opposite effects, in the same heading position.** Lumping them would drop
+two rows the maintainer explicitly kept. This was the one call DISCUSS refused to make on its own —
+it is a question about what the author *meant*, not about what the file *says* — and it was put to
+Brett and approved on 2026-09-07.
+
+⚠ **This does not widen `HELD_OPEN_RE`**, for `declaresNotLiveWork`'s own stated reason:
+`backlogDischargeStatus` reads that regex to mean *"declared open on purpose, do not flag as stale"*,
+and widening it changes a shipped check's behaviour as a side effect.
+
+### D-M6E8-5 — The retrospective read is deleted; the milestone read is kept, with the reason written down
+
+After D-M6E8-2 and D-M6E8-3, `BUGS.md` and STATE/closure are consulted by the ranking. **Two sources
+still would not be**, and they get opposite verdicts rather than a shared silence:
+
+- **Retrospectives — deleted.** 32 files parsed on every run for headings no input reads. The backlog
+  row already called it *"pure cost"* and said to delete it if the item were declined; the item was
+  not declined, and the read is pure cost either way. `ADVISOR_SOURCES` drops to four, and the
+  artifact's **Corpus read** section shrinks with it — the section's whole job is to say what was
+  legible, and a source nothing reads has nothing to say.
+- **Milestone rows — kept, and the reason is recorded here rather than implied.** Cheap (one
+  `readdir` plus a parse of two files), and it is the natural home for a future *"this row is already
+  sequenced into an open Epic"* input. Kept **with** a stated reason is a different thing from kept
+  by inertia.
+
+⚠ **A source read and never used is a completeness claim written from the shape of the work** —
+exactly what `M6.E7` REVIEW caught in the artifact's own prose and fixed with the *"Consulted by the
+ranking"* line. Leaving either source's status implicit would re-open it one level down.
+
+### D-M6E8-6 — The age-ordering finding is filed, not absorbed
+
+DISCUSS measured something larger than the row: **`BLOCKED_RE` fires on 2 of 46 rows and
+`TRIGGER_MET_RE` on 2 of 46**, so for **44 of 46 rows the ranking is age, then source line.** Today's
+recommendations #3, #4 and #5 are recommended for being 55, 43 and 40 days old and for nothing else.
+
+**Filed to [`ISSUES-INBOX.md`](ISSUES-INBOX.md) 2026-09-07, not folded into this Epic.** The row this
+Epic answers is *"wire the other sources in, or delete the reads."* Inputs-that-do-not-discriminate is
+an adjacent problem, and a sixth input firing on ~0 rows does not solve it. Widening scope mid-DISCUSS
+is the maintainer's call; it was surfaced and left to him.
+
+⚠ **The obvious fix is the one `M6.E7` warns against.** Richer regex vocabulary read over row bodies
+is precisely the heuristic that matched another item's trigger. Any fix needs the measure-first
+treatment `NOT_LIVE_VOCABULARY` got — *"vocabulary measured before it was chosen"* — which is more
+than a sub-slice here.
+
 ## 2026-09-08 — the attention dial, turned (D-BR0908-1)
 
 ### D-BR0908-1 — Signal's own project runs at `attention: checkpointed`, with FULL rigor untouched
@@ -2928,3 +3077,133 @@ precisely how this agent stayed unwired for four months.
 framing — *"Either WTF are they there? or WTF aren't they wired up?"* — sequenced after the first
 end-to-end `/sig:drive` run.
 
+
+## 2026-09-13 — M6.E8 resumed from its branch (D-BR0913-1)
+
+### D-BR0913-1 — `M6.E8` resumes from `feat/m6.e8-advisor-ranking-inputs`; the parking condition in `D-BR0908-3` is satisfied
+
+**Brett's call, 2026-09-13** — *"let's resume M6.E8 as recommended"* — made after `v0.1.40` merged
+to `main` (PR #253, a merge commit) and `/sig:advise` had run on the merged corpus.
+
+**Why now, and why this row.** `D-BR0908-3` parked `M6.E8` so the 22-agent roster row could go
+first. That row shipped as `M6.E9` in `v0.1.40` (PR #250), so the stated reason for the park no
+longer holds. `BACKLOG-REVIEW-2026-09-13.md` recommends the `M6.E8` row at #2 — **without seeing
+the PARKED callout**, because the not-live rule reads headings only and the callout sits in the
+body. Its stated reason (*trigger met, 8 days old*) is therefore not why it was picked; it was picked
+because the park expired and the advisor's own honesty depends on this Epic.
+
+**How it resumed.** `origin/main` was merged INTO the branch (45 commits, merge commit `d740609`) —
+never rebased, never started fresh — so the written DISCUSS (`M6.E8-REQUIREMENTS.md`,
+`D-M6E8-1`…`D-M6E8-6`) is intact. Four one-hunk conflicts: `STATE.md` keeps the in-flight
+frontmatter; `BACKLOG.md` and `DECISIONS.md` keep both sides in date order; `INDEX.md` was
+regenerated. Suite green after the merge commit (the one pre-commit failure was the
+anchor-reachability test naming a `main`-only commit that became an ancestor at the merge).
+
+**From 2026-09-08 two Epics were open at once, deliberately; now one is.** `M6.E9` and `M6.E10`
+both closed in `v0.1.40`, so the departure `D-BR0908-3` recorded from *"resuming beats starting
+new"* is over and `M6.E8` is again the only open Epic.
+
+**What this does NOT settle:** the DISCUSS→PLAN gate. `discuss.md` records DISCUSS's close when
+`/sig:plan` transitions in; nothing here marks a phase.
+
+## 2026-09-14 — M6.E8 PLAN entry: the tier in D-M6E8-1 was stated, not in force (D-BR0914-1)
+
+### D-BR0914-1 — `M6.E8-PROFILE.md` is written at FEATURE; `D-M6E8-1`'s "inherits" premise was false
+
+**Found by `/sig:resume` on 2026-09-14**, one command before `/sig:plan`. `readEffectiveProfile`
+returned **FULL** for `M6.E8`, while `D-M6E8-1` and `M6.E8-REQUIREMENTS.md`'s frontmatter both say
+**FEATURE**. The decision's reasoning — *"No `M6.E8-PROFILE.md` is written. The Epic inherits, which
+is the documented default"* — assumed the project profile is FEATURE. It is FULL, and has been since
+2026-05-14. `M6.E6` and `M6.E7` ran at FEATURE because each wrote a per-Epic profile; `M6.E8` had
+none, so `/sig:plan` would have run four researchers, a full security audit and full review depth
+against a decision that had chosen two, `basic` and `quality-only`.
+
+**Brett's call, 2026-09-14** — *"yes"* to continuing into `/sig:plan` after the mismatch was put in
+front of him. The **tier stays FEATURE**: it is the tier DISCUSS chose, with reasons that still hold
+(no FULL escalator fires; pure-logic change to a read-only command). What changes is the mechanism —
+the file `D-M6E8-1` said was unnecessary now exists, mirroring `M6.E7-PROFILE.md` with
+`nyquist_enforcement: strict` carried over and `attention: checkpointed` set explicitly
+(`D-BR0908-1`). `D-M6E8-1` carries a correction pointer to this entry; its text is otherwise left as
+written, because the false sentence *is* the record.
+
+**Why this is a `M6.E7`-retro finding one Epic later, and where it goes.** *"A claim written from
+the shape of the work rather than derived from the artifact"* — the shape was *"same as `M6.E6` and
+`M6.E7`"*, the artifact was `PROFILE.md`, and nobody read it. The `B75` argument in `D-M6E8-1` (a
+per-Epic profile identical to the project's is a setting read by nothing) was sound and beside the
+point: the two profiles were not identical. No drift check compares a decision's or a
+`*-REQUIREMENTS.md` frontmatter's stated tier against the effective profile; the `tier:` field in the
+requirements artifact is reconciled against nothing. Filed to `ISSUES-INBOX.md` at this entry's
+commit, for `M6.E2`'s published-fact registry.
+
+**What this does NOT settle:** whether `D-M6E8-1`'s `B75` reasoning should stop `/sig:discuss` from
+ever skipping the per-Epic profile write. That is a `discuss.md` change, and it is the inbox row's
+question, not this decision's.
+
+## 2026-09-14 — M6.E8 PLAN: research corrections (D-M6E8-7 … D-M6E8-9)
+
+Three DISCUSS claims did not survive measurement on the file the advisor reads. Each is recorded
+with what was measured and what the plan does instead; none is a new feature. The research is
+[`M6.E8-RESEARCH.md`](M6.E8-RESEARCH.md); the pattern is the one `M6.E7`'s retro named, and this
+Epic exists because of it.
+
+### D-M6E8-7 — `BLOCKED_RE` is NOT widened; `AC2.1` is amended — the phrase hits only the gate row
+
+**Measured 2026-09-14 on 48 live rows.** *"Entry price for"* occurs in exactly one row: *"The entry
+price for any Phase A autonomy work: `B73`–`B76`"* — the row that **is** the gate. Widening the
+vocabulary demotes the row that says *do these first*. The four rows `D-M6E8-2` called *gated on
+`B75`* cite `B75` as a measurement (*"`B75` measured that ceiling"*, *"a fourth knob … is `B75`"*);
+none states a gate. Twelve sibling phrases (`precondition`, `prerequisite`, `blocked by`, `gated
+by`, `waiting on`, `needs … first`, `until|after … ships`, `stuck behind`, `sequenced behind`,
+`can't … until`): **zero correct hits**. The only mechanism that would flip those rows is *"body
+names a confirmed bug"*, which `D-M6E8-2` rejected and which would demote **9** rows including this
+Epic's own.
+
+**So:** `BLOCKED_RE` stays byte-identical; the measurement is recorded beside it (`NFR6`, a zero
+declared); `AC2.1` becomes *"`BLOCKED_MEASURED` pins 2 on this repo and the gate row is not
+blocked"*. **This removes the live effect DISCUSS attributed to the Epic** — the recommended five
+will not change composition — and that is put to Brett at the PLAN gate as a restated outcome
+rather than discovered at VERIFY. `D-M6E8-2`'s change 1 (the heading-only discharge vocabulary)
+stands; it was built the right way round.
+
+**Brett's call, 2026-09-14 — *"go"*, at the PLAN gate.** Proceed with the restated outcome; the
+age-ordering row stays out of scope (`D-M6E8-6` unchanged).
+
+**The claim's shape:** *the backlog calls `B75` the entry price → these rows cite `B75` → therefore
+they are stuck behind it.* Derived from the argument, not from the rows. It reached a committed
+requirements artifact and an acceptance criterion.
+
+### D-M6E8-8 — `FR3` is already ranking input 3; the closed-Epic drop is not built twice
+
+`backlogDischargeStatus` (`backlog.js`) already takes every live row with a `leadingId`, resolves
+unit ids through `readClosureSources` → `resolveClosures`, and returns rows whose verdict is
+`closed` as `stale[]`; `runAdvise` passes that to `rankRows`, which drops them. That is `FR3`'s
+predicate, verbatim, live since `M6.E7`. Building it again is `NFR2`'s forbidden second definition
+of "closed" — the thing `M5.E19` spent a slice removing.
+
+**What remains is labelling:** the decline reason says *"its work already reads as closed"* with
+no source and no evidence, while the `stale[]` entry carries the evidence and the id family says
+the source. `AC3.1` becomes *"the discharge reason names its source (unit closure / `BUGS.md`) and
+evidence"*. `AC3.2` gains a third fixture: the loose *"heading mentions a closed unit"* predicate
+now hits **this Epic's own row** (it names `M6.E7`, closed 2026-09-06) alongside the two DISCUSS
+found. `AC3.3` (zero live hits) holds on both readings.
+
+**One real gap, not fixed here:** `backlogDischargeStatus` parses at the default `maxDepth: 3`
+while the advisor reads at 4, so a `####` row led by a closed unit is invisible to input 3 unless an
+`###` row shares its id. Already filed, untriaged, as *"dischargeBacklogRows is blind to rows nested
+below h3"*; fixing it there fixes the sweep and the advisor together. Live effect today: 0.
+
+### D-M6E8-9 — "Consulted by the ranking" was wrong in the OTHER direction, and gets a definition
+
+`FR7` assumed the shipped *"`BACKLOG.md` only"* line was true and merely needed extending.
+`D-M6E8-8` shows input 3 has read `BUGS.md` and STATE/closure on every run since 2026-09-06 —
+through `readClosureSources`, **independently of `readCorpus`**, so a source can be readable to one
+and not the other. The line under-claimed. The `M6.E7` REVIEW fix for an over-claim shipped an
+under-claim in its place; both are the same defect.
+
+**Definition:** *consulted* = the `ADVISOR_SOURCES` entries any ranking input read on **this** run,
+derived from what `rankRows` was given — `BACKLOG.md` always; `STATE/closure` and `BUGS.md` when
+input 3 could read each — its additive `sources` field, **not** its outcome, which reads `clean`
+with `BUGS.md` unreadable and no bug-led row — and `BUGS.md` also when a confirmed-bug set was
+supplied (the new input); `milestone rows` never, and the artifact says so with `D-M6E8-5`'s reason. The
+renderer carries no literal source list; `AC7.1` compares the line to `ranked.consulted`. It may
+legitimately disagree with the *Could not read* list, and the plan says so.

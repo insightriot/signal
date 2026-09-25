@@ -301,6 +301,16 @@ const NOT_LIVE_VOCABULARY = [
 ];
 
 /**
+ * What `NOT_LIVE_VOCABULARY` drops on THIS repository's own `BACKLOG.md` today,
+ * measured through `readCorpus` + `rankRows` and pinned by
+ * `tests/advise-live-measurement.test.js` (`M6.E8` NFR6). There is no `rows`
+ * field — see `BLOCKED_MEASURED`'s docblock for why a population pin was removed.
+ * A red pin is a re-measurement step — read the new or vanished hit, decide whether
+ * the vocabulary is still precise, update this constant.
+ */
+export const NOT_LIVE_MEASURED = Object.freeze({ on: '2026-09-14', hits: 4 });
+
+/**
  * Whether a heading declares, in its own words, that it is not actionable work.
  *
  * `M6.E7` t3.1 input 5. Two categories share one shape — a row that is PARKED
@@ -314,11 +324,19 @@ const NOT_LIVE_VOCABULARY = [
  * it — the same rule `readRowDischarge` follows, and the same reason
  * `HELD_OPEN_RE` tests the heading.
  *
- * **Vocabulary measured before it was chosen**, on the 50 live rows of this
- * repository's own BACKLOG.md: `parked` ×2, `not sprint material` ×1,
- * `reconciliation` ×2, `(STILL|KEPT|HELD) OPEN` ×0. All four matching rows were
- * read individually — zero false positives. `shelved` is included by analogy
- * with **zero** live instances, declared rather than implied.
+ * **Vocabulary measured before it was chosen** (2026-09-06, on the 50 live rows
+ * this repository's own BACKLOG.md had then): `parked` ×2, `not sprint material`
+ * ×1, `reconciliation` ×2, `(STILL|KEPT|HELD) OPEN` ×0. All four matching rows
+ * were read individually — zero false positives. `shelved` is included by
+ * analogy with **zero** live instances, declared rather than implied.
+ *
+ * ⚠ The LIVE count is not repeated here. It is `NOT_LIVE_MEASURED` below,
+ * asserted on every run by `tests/advise-live-measurement.test.js` — a number
+ * in a docblock is a claim written from memory the moment the file moves, and
+ * this one was: the file moved while this text still said 50. (The populations
+ * the shipped code computes today are **52** rows received and **45** live after
+ * every drop; an intermediate "48" in older comments was the live count before
+ * the fold input existed.)
  *
  * ⚠ `deferred` is deliberately EXCLUDED: it occurs in live-work prose ("deferred
  * from E2"), so including it trades two known false positives for an unknown
@@ -339,6 +357,201 @@ export function declaresNotLiveWork(headingText) {
     if (m) return { notLive: true, kind, declaration: m[0] };
   }
   return { notLive: false, kind: null, declaration: null };
+}
+
+// ── `M6.E8` FR4 — a heading that says the work moved elsewhere, and `KEPT`.
+//
+// Two vocabularies with OPPOSITE effects sit in the same heading position on
+// the real file: five live rows announce that their work lives somewhere else
+// (`FOLDED INTO M5.E10`, `absorbed into M5.E12` ×2, `KEPT, re-homed`, `KEPT,
+// absorbed into M5.E11`), and two of the five say **KEPT** first. That is the
+// maintainer saying "do not drop this", arriving in wording `HELD_OPEN_RE` does
+// not match. So `KEPT` is an OVERRIDE evaluated before the fold vocabulary is
+// consulted, never one more phrase inside it: lumping them drops two rows the
+// maintainer explicitly kept, which `rankRows` names as the worst thing it can
+// do. Approved by Brett 2026-09-07 (`D-M6E8-4`) — it is a question about what
+// the author MEANT, not what the file says, so DISCUSS refused to decide it alone.
+//
+// ⚠ HEADING ONLY, the same rule as `declaresNotLiveWork` above and for the same
+// reason. One live row mentions a fold phrase in its BODY alone (the obligation
+// tracker row, which discusses folding); reading bodies would drop it.
+//
+// ⚠ THE TWO SIDES HAVE DIFFERENT CASE RULES, and that asymmetry is the whole
+// point. A `kept` false positive PRESERVES a row — the safe direction — so the
+// override is case-INSENSITIVE. A fold false positive DROPS one — the unsafe
+// direction — so the fold vocabulary is case-SENSITIVE and matches only the
+// literal forms that were measured. Without that, `folded into M5.E10` written
+// as ordinary lowercase prose in a heading drops a live row.
+//
+// It costs nothing: all five real headings match exactly under the case-sensitive
+// forms (verified — `**FOLDED INTO`, `absorbed into` ×3, `re-homed`), so the
+// exact-case count is 5, identical to any-case. An earlier version of this
+// comment claimed both sides were case-insensitive AND that this bought "the safe
+// failure", which is incoherent for the fold half; a fresh-context reviewer
+// caught the comment asserting the safer behaviour while the code implemented
+// the less safe one.
+//
+// ⚠ THIS DOES NOT WIDEN `HELD_OPEN_RE` (NFR3). `backlogDischargeStatus` reads
+// that regex to mean "declared open on purpose, do not flag as stale"; a `KEPT`
+// without `OPEN` is read here, by a new caller, and nowhere else.
+//
+// ⚠ AND THE TWO DO NOT AGREE, WHICH IS STATED RATHER THAN IMPLIED. An earlier
+// draft of this comment claimed the override "carries the meaning `HELD_OPEN_RE`
+// already carries". It does not, and a fresh-context audit caught the claim:
+// inside the ADVISOR that regex sits in `NOT_LIVE_VOCABULARY`, so `KEPT OPEN` is
+// a DROP signal (input 5, "declared open on purpose, therefore not actionable
+// now") while a bare `KEPT` here is a PRESERVE signal. Verified: a heading
+// reading `**KEPT OPEN**, absorbed into M5.E11` returns `notLive: true` AND
+// `kept: true`, and input 5 wins. Zero live rows hit it. Reconciling them means
+// deciding what a maintainer's `KEPT OPEN` should mean to a ranking — a design
+// call, not this Epic's; recorded in `M6.E8-REVIEW.md`.
+const KEPT_OVERRIDE_RE = /\bKEPT\b/i;
+const FOLD_VOCABULARY = [
+  ['folded-into', /\bFOLDED INTO\b/],
+  ['absorbed-into', /\babsorbed into\b/],
+  // Without `re-homed` the override preserves ONE row, not two — the second
+  // real KEPT heading says `KEPT, re-homed`. AC4.3's "exactly 2 preserved" is
+  // what put this phrase in the vocabulary; it is not an analogy.
+  ['re-homed', /\bre-homed\b/],
+];
+
+/**
+ * What the fold vocabulary DROPS and what `KEPT` PRESERVES on THIS repository's
+ * own `BACKLOG.md`, measured through `readCorpus` + `rankRows` and pinned by
+ * `tests/advise-live-measurement.test.js` (`M6.E8` NFR6). Five live headings
+ * carry a fold phrase; `FOLD_MEASURED.hits` is the three that drop,
+ * `KEPT_MEASURED.hits` the two the override preserves. A red pin is a
+ * re-measurement step — read the new or vanished hit, decide whether the
+ * vocabulary is still precise, update the constant.
+ */
+export const FOLD_MEASURED = Object.freeze({ on: '2026-09-14', hits: 3 });
+export const KEPT_MEASURED = Object.freeze({ on: '2026-09-14', hits: 2 });
+
+/**
+ * Whether a heading declares, in its own words, that its work moved elsewhere —
+ * unless it also says `KEPT`, which wins.
+ *
+ * @param {string} headingText — a row's heading, not its body
+ * @returns {{moved: boolean, kind: string|null, declaration: string|null, kept: boolean}}
+ */
+export function declaresWorkMovedElsewhere(headingText) {
+  const text = String(headingText ?? '');
+  const kept = text.match(KEPT_OVERRIDE_RE);
+  if (kept) return { moved: false, kind: null, declaration: kept[0], kept: true };
+  for (const [kind, re] of FOLD_VOCABULARY) {
+    const m = text.match(re);
+    if (m) return { moved: true, kind, declaration: m[0], kept: false };
+  }
+  return { moved: false, kind: null, declaration: null, kept: false };
+}
+
+// ── `M6.E8` FR1 — a heading that says it DISCHARGES a bug.
+//
+// The row that proposed this input asked for the opposite: "a row naming an
+// open confirmed bug should rank above one that does not." Measured, that is
+// backwards (`D-M6E8-2`): zero live headings name a confirmed bug, nine BODIES
+// do, and five of the nine cite `B75` as a MEASUREMENT ("B75 measured that
+// ceiling") — they are not discharging it and are not stuck behind it either.
+// Promoting them is the wrong direction, and reading bodies is the heuristic
+// that matched another item's trigger in `M6.E7`. So: heading only, and the
+// verb must sit NEXT TO the id — `fixes B75`, `B75 — fixed` — because a bare
+// done-word anywhere in a heading is ordinary English (the real heading
+// "single home for open/closed work" carries "closed"; the `DONE_WORD_RE`
+// lesson, a second time).
+//
+// Ships firing on ZERO rows, declared rather than implied — the basis on which
+// `shelved` ships in `NOT_LIVE_VOCABULARY`. Correct the moment a maintainer
+// writes "Fixes B75" in a heading, and built now rather than in a hurry against
+// one example when it first matters.
+//
+// ⚠ BOTH TENSES, AND THE PAST TENSE WAS MISSING UNTIL REVIEW. The verb group was
+// `fix(?:es)?|close(?:s)?|…` — present tense only — so `Fixes B75` matched and
+// `Fixed B75` did not, and the id-first branch demanded a separator so
+// `B75 fixed` missed too. The predicate claimed to recognise "a heading that says
+// it discharges a bug" and recognised about half the forms a maintainer actually
+// writes, while `BUG_DISCHARGE_MEASURED` would have gone on reporting **0** with
+// such a row sitting on the file. Found in REVIEW by probing the predicate rather
+// than reading it. The widened form adds **zero** matches on this repository's
+// live `BACKLOG.md` and none on the three real trap headings (`B87`–`B90`,
+// `B73`–`B76`, "open/closed work"), so the measured zero below is unchanged.
+//
+// ⚠ THE SEPARATOR GROUP CARRIES ITS OWN WHITESPACE, AND THAT IS A ReDoS FIX, NOT
+// A TIDY-UP. Written first as `\s*(?:—|–|-|:)?\s*`, an optional separator
+// between two unbounded whitespace runs is quadratic: every split point between
+// the two runs is retried on failure. Measured on a `B1` + N spaces + `x`
+// heading — 1.9 ms at 1k, 161 ms at 10k, 1.5 s at 30k, **5.9 s at 60k**, and the
+// same for tabs. Nesting the separator inside the optional group leaves ONE
+// unbounded run before the verb and is flat at 0.2 ms across all four sizes,
+// while accepting the identical language (`ws* sep? ws*` and `ws* (sep ws*)?`
+// both describe `ws*` ∪ `ws* sep ws*`; verified against all 22 fixtures).
+//
+// It was introduced by the REVIEW fix that widened the tense and caught by the
+// NEXT review round — the author's own ReDoS probe had missed it, having tried
+// backtick runs, digit runs and repeated verbs but never a long whitespace run
+// after an id. `LEADING_ID_RE` above bounds its decoration runs for this exact
+// class and records the 3.9 s measurement that justified it; this is the same
+// lesson, relearned one function down. The timing is pinned by a test.
+//
+// ⚠ NO `for` BRANCH. It was there — `(?:for\s+)?` — and it promoted a row
+// headed "The fix for `B75` broke `B76`" as though it discharged `B75`, which is
+// the opposite of what that row says. Its only justification was an invented
+// fixture ("A fix for B9 that discharges it"), never a real heading, so it is
+// removed rather than documented.
+//
+// ⚠ INFLECTED FORMS ONLY, AND A REQUIRED SEPARATOR ON THE ID-FIRST BRANCH. Both
+// narrowings are fixes for false positives a fresh-context review found by
+// probing, and both say the same thing: this predicate reads a CLAIM THAT THE
+// WORK IS DONE, not a row that is merely about a bug.
+//
+//   - **No bare verb.** `fix` / `close` / `resolve` / `discharge` are also nouns
+//     and imperatives. `The B75 fix broke B76` and `the discharge B75 handler`
+//     matched through the noun; `Fix B75` and `Close B12` matched through the
+//     imperative, which states an INTENTION to do the work — the opposite of
+//     discharging it. Only `fixes|fixed|closes|closed|resolves|resolved|
+//     discharges|discharged` survive.
+//   - **Separator required after the id.** Making it optional (the previous
+//     round's widening) let `B75 fixes the ceiling` and `B75 fixed-width column`
+//     read as discharges, because a bug-as-subject heading is indistinguishable
+//     from a record without one. `B75 — fixed` is explicit; `B75 fixed` is not,
+//     and losing it is the price of not promoting the other two.
+//
+// It is also what makes the pattern linear again: an optional separator BETWEEN
+// two unbounded whitespace runs is quadratic (1.9 ms at 1k, 5.9 s at 60k). With
+// the separator required the literal anchors the two runs — measured flat at
+// 1.1 ms on a 300,000-character heading. `LEADING_ID_RE` above bounds its runs
+// for the same class and records the 3.9 s measurement behind it. Pinned by a test.
+//
+// ⚠ `(?!-)` AFTER EACH VERB, because `\b` is satisfied by a hyphen. Without it
+// `B9: discharged-batch queue`, `B1 — fixed-width column`, `B7 - resolved-name
+// cache` and `B12: closed-loop controller` all read as discharges — a row about a
+// batch queue promoted as though it closed a bug. Found by the pass-3 security
+// audit after the two earlier narrowings, and it is the same lesson a third time:
+// the vocabulary is a claim that the work is DONE, and an adjectival compound is
+// not that claim.
+const BUG_DISCHARGE_RE =
+  /\b(?:fix(?:es|ed)|close[sd]|resolve[sd]|discharge[sd])(?!-)\s+`?(B\d+)`?\b|`?\b(B\d+)\b`?\s*(?:—|–|-|:)\s*(?:fix(?:es|ed)|close[sd]|resolve[sd]|discharge[sd])(?!-)\b/i;
+
+/**
+ * What `BUG_DISCHARGE_RE` hits on THIS repository's own `BACKLOG.md`, measured
+ * through `readCorpus` + `rankRows` against the `confirmed` set and pinned by
+ * `tests/advise-live-measurement.test.js` (`M6.E8` NFR6). Zero: two live
+ * headings name a bug id at all (`B87`, `B90`; `B73`, `B76`) and all four read
+ * `fixed`. A red pin means a heading now claims a discharge — read it.
+ */
+export const BUG_DISCHARGE_MEASURED = Object.freeze({ on: '2026-09-14', hits: 0 });
+
+/**
+ * Whether a heading declares, in its own words, that it discharges a bug —
+ * and which one. Whether that bug is still `confirmed` is the caller's
+ * question (`rankRows` answers it from `BUGS.md`); this only reads the heading.
+ *
+ * @param {string} headingText — a row's heading, not its body
+ * @returns {{id: string|null, declaration: string|null}}
+ */
+export function declaresBugDischarge(headingText) {
+  const m = String(headingText ?? '').match(BUG_DISCHARGE_RE);
+  if (!m) return { id: null, declaration: null };
+  return { id: (m[1] ?? m[2]).toUpperCase(), declaration: m[0] };
 }
 
 /**
@@ -516,8 +729,16 @@ export async function dischargeBacklogRows(baseDir, { rows = [], by, at, today }
  * spent S1 removing.
  *
  * @param {string} baseDir — project root
+ * `sources` (`M6.E8` t1.4, `D-M6E8-9`) says, per closure source, whether this
+ * run could READ it — additive, and carried on every return path. The OUTCOME
+ * cannot say that: `clean` is reachable with BUGS.md unreadable, provided no
+ * open row leads with a bug id, so a caller keying "was BUGS.md consulted" off
+ * the outcome over-claims. `/sig:advise` derives its *Consulted by the ranking*
+ * line from this field for exactly that reason.
+ *
  * @returns {Promise<{outcome:string, reason:string|null, rows:number,
- *   liveRows:number, resolvable:number, stale:Array<{heading:string, line:number, id:string, evidence:string}>}>}
+ *   liveRows:number, resolvable:number, stale:Array<{heading:string, line:number, id:string, evidence:string}>,
+ *   sources:{units:boolean, bugs:boolean}}>}
  */
 export async function backlogDischargeStatus(baseDir) {
   const path = join(baseDir, BACKLOG_REL);
@@ -528,6 +749,7 @@ export async function backlogDischargeStatus(baseDir) {
     liveRows: 0,
     resolvable: 0,
     stale: [],
+    sources: { units: false, bugs: false },
     ...extra,
   });
 
@@ -570,6 +792,8 @@ export async function backlogDischargeStatus(baseDir) {
   // verbatim — a report taking its answer from the half that cannot see an
   // unreadable STATE.md — reproduced inside the release whose NFR4 forbids it.
   const { units, bugs, blind: blindSources } = await readClosureSources(baseDir);
+  // Which of the two this run could open — `null` is the reader's own "could not".
+  const sources = { units: units !== null, bugs: bugs !== null };
 
   const stale = [];
   const blind = [];
@@ -599,7 +823,7 @@ export async function backlogDischargeStatus(baseDir) {
     const why = [...new Set(blind.map((b) => b.source))].join(' and ');
     return cannot(
       `${blind.length} row(s) name work whose closure could not be read (${why}${blindSources.length ? ` — ${blindSources.join('; ')}` : ''})`,
-      { ...counts, blind }
+      { ...counts, blind, sources }
     );
   }
 
@@ -609,6 +833,7 @@ export async function backlogDischargeStatus(baseDir) {
     ...counts,
     stale,
     blind,
+    sources,
   };
 }
 

@@ -1,10 +1,11 @@
 // What `/sig:advise` reads, and what it could not read — `M6.E7` S2.
 //
-// Five sources, and the second half of that sentence is the load-bearing one.
-// This returns `{sources, cannotCheck, checked}` — the shape `collectPreflight`
-// already uses — because the failure this Epic exists to avoid is an advisory
-// that reads four sources, silently misses the fifth, and presents the result as
-// a complete picture. An empty result is a claim ("nothing here"); a null plus a
+// FOUR sources since `M6.E8` (it was five; retrospectives left), and the second
+// half of that sentence is the load-bearing one. This returns
+// `{sources, cannotCheck, checked}` — the shape `collectPreflight` already uses —
+// because the failure this module exists to avoid is an advisory that reads three
+// sources, silently misses the fourth, and presents the result as a complete
+// picture. An empty result is a claim ("nothing here"); a null plus a
 // reason is the truth ("I could not look"). `closure.js` puts it best in its own
 // source: *"an empty map says 'nothing is closed', which is a result; a null says
 // 'I could not look', which is not."*
@@ -32,8 +33,6 @@ import { parseBacklogRows } from './backlog.js';
 import { walkBugEntries } from './bugs-tally.js';
 import { resolveClosures } from './closure.js';
 import { parseEpicStatusRows } from './milestones.js';
-import { enumerateRetros } from './retro-index.js';
-import { parseSections } from './retrospective.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -47,10 +46,16 @@ const PLANNING_DIR = '.planning';
 export const ADVISOR_SOURCES = Object.freeze([
   'BACKLOG.md',
   'BUGS.md',
-  'retrospectives',
   'STATE/closure',
   'milestone rows',
 ]);
+// ⚠ FOUR, NOT FIVE (`M6.E8` FR5). `retrospectives` was the fifth: 32 files
+// enumerated and parsed for section headings on every run, consulted by no
+// ranking input and cited by nothing. A source read and never used is a
+// completeness claim written from the shape of the work — the artifact's
+// "Read: …" line implied retrospectives were weighed, and they were not. Deleted
+// rather than kept "for a future input": the `M6.E7` REVIEW fix for that
+// over-claim was a sentence; the fix for its cause is not reading the files.
 
 const MILESTONE_FILE_RE = /^MILESTONE-(\d+(?:\.\d+)?)\.md$/;
 
@@ -74,7 +79,7 @@ function bugHeadline(rowLine) {
  */
 export async function readCorpus(baseDir) {
   const planningDir = join(baseDir, PLANNING_DIR);
-  const sources = { backlog: null, bugs: null, retros: null, closure: null, milestones: null };
+  const sources = { backlog: null, bugs: null, closure: null, milestones: null };
   const cannotCheck = [];
   const checked = [];
 
@@ -146,57 +151,7 @@ export async function readCorpus(baseDir) {
     }
   }
 
-  // ── 3. Retrospectives — evidence a unit finished. A STUB IS NOT THAT (`B64`).
-  //
-  // ⚠ THE GUARD BELOW IS NOT DEFENSIVE, IT IS THE MODULE'S OWN RULE APPLIED TO
-  // ITSELF. `enumerateRetros` returns `[]` when `.planning/` does not exist —
-  // correct for its own contract, and wrong as an answer to "did you read the
-  // retrospectives?", because it makes an absent corpus indistinguishable from an
-  // empty one. Without this, a project with no `.planning/` at all reported
-  // `checked: ['retrospectives']` while the other four sources honestly said they
-  // could not look. Found at REVIEW by walking the failure modes; the test that
-  // was supposed to cover it replaced `.planning/` with a FILE (ENOTDIR, which
-  // throws) and never tried it ABSENT (ENOENT, which does not).
-  //
-  // An existing-but-empty `.planning/` still reads as `checked` with zero
-  // records, which is the honest answer there: nothing to find is a result.
-  if (!existsSync(planningDir)) {
-    fail('retrospectives', `${PLANNING_DIR}/ is not present — there is no retrospective corpus to read`);
-  } else {
-  try {
-    const records = await enumerateRetros(baseDir);
-    const withSections = [];
-    for (const r of records) {
-      let headings = [];
-      try {
-        headings = parseSections(await readFile(join(baseDir, r.path), 'utf-8')).headings;
-      } catch {
-        // A retro that becomes unreadable BETWEEN `enumerateRetros` reading it
-        // and this read. Rare, and the record still carries `isStub` and the
-        // path, which is what a citation needs.
-        //
-        // ⚠ THIS IS NOT THE MITIGATION IT LOOKS LIKE, and the comment used to
-        // claim it was. `enumerateRetros` SKIPS a file it cannot read, so an
-        // unreadable retro never reaches this line — it is absent from `records`
-        // and nothing here or in the artifact says it existed. Verified by a
-        // fresh-context reviewer: chmod 000 on one of two retros yields one
-        // record and `retrospectives` still reported as cleanly read.
-        //
-        // ⚠ Branch 5 below makes the OPPOSITE call on the identical condition —
-        // one unreadable milestone file blinds `milestone rows` entirely, with
-        // the reason surfaced. Two branches, two decisions, and this one is the
-        // quieter of the two. Not reconciled here: seeing the skipped file means
-        // changing `enumerateRetros`, which four other callers share, and a
-        // second walk to find it is `B82`'s shape. Filed rather than patched.
-      }
-      withSections.push({ ...r, headings });
-    }
-    sources.retros = { records: withSections };
-    checked.push('retrospectives');
-  } catch (err) {
-    fail('retrospectives', `retrospectives could not be enumerated — ${err.message}`);
-  }
-}
+  // ── 3. (Retrospectives lived here until `M6.E8` FR5. See `ADVISOR_SOURCES`.)
 
 // ── 4. STATE / closure — what is open, via `resolveClosures` and never raw
 //      `readState`, which THROWS on a missing or unknown `schema_version`.
@@ -214,6 +169,19 @@ try {
 }
 
 // ── 5. Milestone Epic-status rows, through the one shared reader (t2.5).
+//
+// ⚠ KEPT WITH A REASON, NOT BY INERTIA (`M6.E8` FR6 / `D-M6E8-5`). After FR5
+// deleted the retrospective read, this is the one source `readCorpus` reads
+// that no ranking input reads — and "read, unused" is the completeness claim
+// the artifact's *Consulted* line exists to stop. It stays because:
+//   - it is cheap: one `readdir` and a parse of two small files, against the
+//     32-file walk the retrospective read cost; and
+//   - it is the natural home for a future "this row is already sequenced into
+//     an open Epic" input — an Epic-status row is the only place that fact
+//     lives, and dropping the read would mean re-learning this branch's
+//     failure modes (an unreadable file blinds the SOURCE) when it is built.
+// Today **no ranking input reads it**, and the rendered artifact says so in
+// the same words rather than letting "Read: … milestone rows" imply otherwise.
 try {
   const files = (await readdir(planningDir)).filter((f) => MILESTONE_FILE_RE.test(f)).sort();
   const read = [];

@@ -257,6 +257,56 @@ describe('backlogDischargeStatus — three outcomes (AC9.4, NFR4)', () => {
   });
 });
 
+describe('M6.E8 t1.4 — `sources`: which closure source the check could actually read (additive)', () => {
+  // `D-M6E8-9`. The advisor derives its "Consulted by the ranking" line from
+  // what input 3 read. The OUTCOME cannot carry that: a `clean` verdict is
+  // reachable with BUGS.md unreadable, provided no open row leads with a bug id
+  // — nothing was blind, so nothing was cannot-evaluate, and the line would
+  // claim BUGS.md was consulted when it could not be opened. So the result
+  // says, per source, whether it was read. Additive: outcome and `stale` are
+  // byte-identical to before.
+  const withEvidence = async () => {
+    await write('.planning/STATE.md', STATE_MD);
+    await write('.planning/M5.E9-VERIFICATION.md', VERIFICATION_PASS);
+    await write(BACKLOG_REL, HAND_GROOMED);
+  };
+
+  it('reports both sources read when both are readable', async () => {
+    await withEvidence();
+    await write('.planning/BUGS.md', '# Bugs\n\n| ID | Status | Pri | What |\n|---|---|---|---|\n| B1 | `confirmed` | P2 | **Open.** |\n');
+    const res = await backlogDischargeStatus(dir);
+    expect(res.sources).toEqual({ units: true, bugs: true });
+  });
+
+  it('a readable OUTCOME does not mean both sources were read — the trap, named', async () => {
+    await withEvidence(); // no BUGS.md, and no OPEN row leads with a bug id
+    const res = await backlogDischargeStatus(dir);
+    expect(res.outcome).not.toBe(BACKLOG_DISCHARGE.CANNOT_EVALUATE);
+    expect(res.sources).toEqual({ units: true, bugs: false });
+  });
+
+  it('the BLIND cannot-evaluate path still reports which source it opened', async () => {
+    // ⚠ Found by MUTATION, not by reading: deleting `sources` from the blind
+    // return left 96 tests green. That path is reachable — a readable STATE.md,
+    // no BUGS.md, and one open row leading with a bug id nothing can resolve —
+    // and without the field the advisor's artifact says "the discharge input did
+    // not open STATE/closure on this run", which is false: it did open it.
+    await write('.planning/STATE.md', STATE_MD);
+    await write('.planning/M5.E9-VERIFICATION.md', VERIFICATION_PASS);
+    await write(BACKLOG_REL, ['# Backlog', '', '### B77 — an open bug-led row', '', 'Body.', ''].join('\n'));
+    const res = await backlogDischargeStatus(dir);
+    expect(res.outcome).toBe(BACKLOG_DISCHARGE.CANNOT_EVALUATE);
+    expect(res.blind.length).toBeGreaterThan(0);
+    expect(res.sources).toEqual({ units: true, bugs: false });
+  });
+
+  it('no BACKLOG.md means neither closure source was consulted', async () => {
+    const res = await backlogDischargeStatus(dir);
+    expect(res.outcome).toBe(BACKLOG_DISCHARGE.CANNOT_EVALUATE);
+    expect(res.sources).toEqual({ units: false, bugs: false });
+  });
+});
+
 describe('the narrowing — an id MENTIONED is not an id CLAIMED (AC9.5)', () => {
   it('"absorbed into M5.E11" does not flag when M5.E11 closes', async () => {
     await write('.planning/STATE.md', STATE_MD);

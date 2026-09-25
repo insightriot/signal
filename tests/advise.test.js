@@ -41,6 +41,7 @@ import {
   writeArtifact,
 } from '../plugin/tools/lib/advise.js';
 import { EVIDENCE_MARKER, extractCitations, verifyCitations } from '../plugin/tools/lib/citations.js';
+import { backlogDischargeStatus, parseBacklogRows } from '../plugin/tools/lib/backlog.js';
 
 const TODAY = '2026-09-05';
 
@@ -179,6 +180,305 @@ describe('t3.1 input 5 — the wiring, not just the predicate', () => {
   });
 });
 
+describe('M6.E8 t2.2 (FR4) — input 7, fold: a row whose heading says its work moved elsewhere drops', () => {
+  const rows = [
+    { line: 3, path: 'p', text: 'R1 — a plain live row', body: 'Filed 2026-01-01.' },
+    { line: 6, path: 'p', text: 'R2 — Re-source the claims → **absorbed into M5.E12**', body: 'Filed 2026-01-02.' },
+    { line: 9, path: 'p', text: 'R3 — Cross-Epic pattern detection — **KEPT, absorbed into M5.E11**', body: 'Filed 2026-01-03.' },
+    { line: 12, path: 'p', text: 'R4 — a row that discusses folding', body: 'Filed 2026-01-04. Its body says absorbed into something, in prose.' },
+  ];
+
+  it('drops the moved row into the declined pool with the fold reason naming the declaration (AC4.1)', () => {
+    const r = rankRows(rows, { today: TODAY });
+    const moved = r.declined.find((s) => s.row.text.startsWith('R2'));
+    expect(moved).toBeDefined();
+    expect(moved.moved.moved).toBe(true);
+    expect(r.recommended.map((s) => s.row.text.slice(0, 2))).not.toContain('R2');
+  });
+
+  it('a KEPT row stays live and ranks like any other row (AC4.2)', () => {
+    const r = rankRows(rows, { today: TODAY });
+    const kept = r.recommended.find((s) => s.row.text.startsWith('R3'));
+    expect(kept).toBeDefined();
+    expect(kept.moved.moved).toBe(false);
+    expect(kept.moved.kept).toBe(true);
+  });
+
+  it('`KEPT OPEN` is DROPPED by input 5, even though the fold override preserves it', () => {
+    // ⚠ The source documents this precedence and no test held it, so changing
+    // `isDropped` to let the override suppress input 5 left 108 tests green.
+    // The two inputs genuinely disagree about what a maintainer's `KEPT OPEN`
+    // means — `HELD_OPEN_RE` sits in NOT_LIVE_VOCABULARY and drops — and that
+    // disagreement is recorded as an open design question rather than resolved
+    // here. This pins the behaviour that actually ships, so a future change to
+    // it is deliberate rather than silent.
+    const rows = [{ line: 3, path: 'p', text: 'R1 — **KEPT OPEN**, absorbed into M5.E11', body: 'Filed 2026-01-01.' }];
+    const r = rankRows(rows, { today: TODAY });
+    expect(r.recommended).toEqual([]);
+    expect(r.declined).toHaveLength(1);
+    expect(r.declined[0].notLive.notLive).toBe(true);
+    expect(r.declined[0].moved.kept).toBe(true);
+    const art = renderArtifact({ today: TODAY, ranked: r, corpus: { checked: ['BACKLOG.md'], cannotCheck: [] } });
+    expect(art).toMatch(/Dropped by the \*\*self-declared\*\* input/);
+  });
+
+  it('a fold phrase in the BODY alone does not drop the row — heading only', () => {
+    const r = rankRows(rows, { today: TODAY });
+    expect(r.recommended.map((s) => s.row.text.slice(0, 2))).toContain('R4');
+  });
+
+  it('the rendered decline reason names the fold input and quotes the declaration', () => {
+    const r = rankRows(rows, { today: TODAY });
+    const art = renderArtifact({ today: TODAY, ranked: r, corpus: { checked: ['BACKLOG.md'], cannotCheck: [] } });
+    const line = art.split('\n').find((l) => l.startsWith('- **R2'));
+    expect(line).toMatch(/Dropped by the \*\*fold\*\* input/);
+    expect(line).toContain('`absorbed into`');
+    expect(line).toMatch(/lives elsewhere/);
+  });
+});
+
+describe('M6.E8 t3.1 (FR1) — the bug-discharge input promotes a heading that discharges a CONFIRMED bug', () => {
+  const twin = (text) => ({ line: 3, path: 'p', text, body: 'Filed 2026-01-01.' });
+
+  it('AC1.1 — two rows identical except the heading verb: the discharging one ranks above', () => {
+    const rows = [
+      { ...twin('R1 — the dial that nothing reads'), line: 3 },
+      { ...twin('R2 — Fixes B1: the dial that nothing reads'), line: 6 },
+    ];
+    const r = rankRows(rows, { today: TODAY, confirmedBugs: new Set(['B1']) });
+    expect(r.recommended.map((s) => s.row.text.slice(0, 2))).toEqual(['R2', 'R1']);
+    expect(r.recommended[0].dischargesBug.id).toBe('B1');
+    // Without the Set the input cannot fire, and the earlier line wins the tiebreak.
+    const off = rankRows(rows, { today: TODAY });
+    expect(off.recommended.map((s) => s.row.text.slice(0, 2))).toEqual(['R1', 'R2']);
+  });
+
+  it('a heading that discharges a bug BUGS.md records as fixed is not promoted', () => {
+    const rows = [
+      { ...twin('R1 — a plain row'), line: 3 },
+      { ...twin('R2 — Fixes B2 (already shipped)'), line: 6 },
+    ];
+    const r = rankRows(rows, { today: TODAY, confirmedBugs: new Set(['B1']) });
+    expect(r.recommended.map((s) => s.row.text.slice(0, 2))).toEqual(['R1', 'R2']);
+    expect(r.recommended[1].dischargesBug).toBeNull();
+  });
+
+  it('bug-discharge sorts BELOW blocked-by — a blocked row that fixes a bug still loses', () => {
+    // ⚠ Found by MUTATION: moving the dischargesBug comparator above the blocked
+    // comparator left all 69 advise tests green. The docblock says input 7 "sorts
+    // between trigger-met and age", so a blocked row must still lose to an
+    // unblocked one however good its heading is. The existing end-to-end test
+    // pins bug-discharge against trigger-met, never against blocked.
+    const rows = [
+      { line: 3, path: 'p', text: 'R1 — a plain row', body: 'Filed 2026-01-01.' },
+      { line: 6, path: 'p', text: 'R2 — Fixes B1, and is blocked', body: 'Filed 2026-01-01. This one is blocked on the parser landing first.' },
+    ];
+    const r = rankRows(rows, { today: TODAY, confirmedBugs: new Set(['B1']) });
+    expect(r.recommended[1].blocked).toBe(true);
+    expect(r.recommended.map((s) => s.row.text.slice(0, 2))).toEqual(['R1', 'R2']);
+  });
+
+  it('AC1.2 — a row whose BODY cites a confirmed bug is not promoted', () => {
+    const rows = [
+      { ...twin('R1 — a plain row'), line: 3 },
+      {
+        ...twin('R2 — A stated ladder: convention → lint, with a grandfather list'),
+        line: 6,
+        // ⚠ THIS BODY MUST MATCH THE PREDICATE WHEN READ, or the test cannot
+        // fail. The first version quoted a real row — "`B1` measured that
+        // ceiling" — which carries no discharge verb beside the id, so a
+        // body-reading implementation would ALSO return null and this test would
+        // stay green through the exact regression it names. Found in REVIEW by a
+        // fresh-context test reviewer. Verified: this body yields `B1` when read.
+        body: 'Filed 2026-01-02. This fixes B1 in passing, while measuring the ceiling.',
+      },
+    ];
+    const r = rankRows(rows, { today: TODAY, confirmedBugs: new Set(['B1']) });
+    expect(r.recommended.map((s) => s.row.text.slice(0, 2))).toEqual(['R1', 'R2']);
+  });
+
+  it('the recommend reason names the bug and says BUGS.md still records it confirmed', () => {
+    const rows = [{ ...twin('R1 — Fixes B1: the dial'), line: 3 }];
+    const r = rankRows(rows, { today: TODAY, confirmedBugs: new Set(['B1']) });
+    const art = renderArtifact({ today: TODAY, ranked: r, corpus: { checked: ['BACKLOG.md', 'BUGS.md'], cannotCheck: [] } });
+    expect(art).toMatch(/its heading says it discharges `B1`, which `BUGS\.md` still records as confirmed/);
+  });
+
+  it('runAdvise counts ONLY confirmed bugs — a heading that fixes an already-fixed bug is not promoted', async () => {
+    // ⚠ Found by MUTATION: building the Set from every BUGS.md entry regardless
+    // of status left 155 tests green, because every fixture catalog had exactly
+    // one entry and it was confirmed. The regression is not cosmetic — the
+    // artifact would print "which `BUGS.md` still records as confirmed" about a
+    // bug the catalog records as fixed.
+    const base = project({ backlog: `${BACKLOG}### R10 — Fixes B2, which already shipped\nFiled 2026-09-01.\n` });
+    writeFileSync(
+      join(base, '.planning', 'BUGS.md'),
+      '# Bugs\n\n| ID | Status | Pri | What |\n|---|---|---|---|\n| B1 | `confirmed` | P2 | **Open.** |\n| B2 | `fixed` | P3 | **Shipped.** |\n'
+    );
+    const r = await runAdvise(base, { today: TODAY });
+    const scored = [...r.ranked.recommended, ...r.ranked.declined].find((s) => s.row.text.startsWith('R10'));
+    expect(scored.dischargesBug, 'B2 is fixed — it cannot be discharged').toBeNull();
+    expect(r.artifact).not.toMatch(/discharges `B2`/);
+  });
+
+  it('runAdvise builds the confirmed set from the corpus, and consulted says BUGS.md', async () => {
+    const base = project({ backlog: `${BACKLOG}### R10 — Fixes B1, the open bug\nFiled 2026-09-01.\n` });
+    const r = await runAdvise(base, { today: TODAY });
+    // Trigger-met sorts BEFORE bug-discharge, so the fired-trigger row (R2) keeps
+    // first place; the discharging row ranks second, ahead of every plain row
+    // that was filed earlier and would otherwise beat it on age.
+    const order = r.ranked.recommended.map((s) => s.row.text.split(' ')[0]);
+    expect(order[0]).toBe('R2');
+    expect(order[1]).toBe('R10');
+    expect(r.ranked.consulted).toContain('BUGS.md');
+  });
+});
+
+describe('M6.E8 t3.3 (FR3 amended — D-M6E8-8) — the discharge reason names its source; mentions never drop', () => {
+  // FR3 asked for a closed-Epic drop on `leadingId`. That IS ranking input 3:
+  // `backlogDischargeStatus` resolves the id through `resolveClosures` and
+  // `rankRows` drops what it returns. Nothing is built twice (NFR2). What was
+  // missing is the reason — it said "already reads as closed" with no source
+  // and no evidence while `stale[]` carried both.
+  const row = (line, text, body = 'Filed 2026-01-01.') => ({ line, path: 'p', text, body, leadingId: text.match(/^(?:M\d+(?:\.\d+)?\.E\d+|B\d+)/)?.[0] ?? null });
+
+  it('AC3.1′ — a row discharged by unit closure says so, with the evidence', () => {
+    const rows = [row(3, 'R1 — a plain row'), row(6, 'M5.E9 — the shipped Epic')];
+    const stale = [{ heading: 'M5.E9 — the shipped Epic', line: 6, id: 'M5.E9', evidence: 'M5.E9-VERIFICATION.md states PASS' }];
+    const r = rankRows(rows, { today: TODAY, stale });
+    const art = renderArtifact({ today: TODAY, ranked: r, corpus: { checked: ['BACKLOG.md'], cannotCheck: [] } });
+    const line = art.split('\n').find((l) => l.startsWith('- **M5.E9'));
+    expect(line).toMatch(/Dropped by the \*\*discharge\*\* input — `M5\.E9` reads closed in \*\*unit closure\*\* \(M5\.E9-VERIFICATION\.md states PASS\)/);
+  });
+
+  it('AC3.1′ — a row discharged by the bug catalog names BUGS.md as the source', () => {
+    const rows = [row(3, 'R1 — a plain row'), row(6, 'B52 — the stale plugin cache')];
+    const stale = [{ heading: 'B52 — the stale plugin cache', line: 6, id: 'B52', evidence: 'BUGS.md records B52 fixed' }];
+    const r = rankRows(rows, { today: TODAY, stale });
+    const art = renderArtifact({ today: TODAY, ranked: r, corpus: { checked: ['BACKLOG.md'], cannotCheck: [] } });
+    const line = art.split('\n').find((l) => l.startsWith('- **B52'));
+    expect(line).toMatch(/reads closed in \*\*`BUGS\.md`\*\* \(BUGS\.md records B52 fixed\)/);
+  });
+
+  it('AC3.2 — the three real headings, through the REAL parser, lead with no closed id', () => {
+    // ⚠ THE LAYER IS THE POINT, and the test below this one does not reach it.
+    // The prohibited predicate ("heading mentions a closed unit") would live in
+    // the parser's leading-id extraction, not in `rankRows`, which drops only on
+    // an id or line the discharge input already resolved. So the version below —
+    // hand-built rows, hand-built stale list — passes on pre-change code and
+    // proves nothing about the prohibition. Found in REVIEW by a fresh-context
+    // test reviewer. This one runs the real headings through `parseBacklogRows`
+    // and asserts what each actually leads with: two lead with nothing, and the
+    // third leads with `M5.E20`, which is not any of the units they mention.
+    const backlog = readFileSync(join(process.cwd(), '.planning/BACKLOG.md'), 'utf8');
+    const rows = parseBacklogRows(backlog, { maxDepth: 4 });
+    const find = (re) => rows.find((r) => re.test(r.text));
+    const mentions = [
+      [/PARTIALLY SHIPPED \(v0\.1\.11, M5\.E6/, null],
+      [/renumbered from `M5\.E16/, 'M5.E20'],
+      [/ranks on the backlog alone, while reading five sources/, null],
+    ];
+    for (const [re, expected] of mentions) {
+      const row = find(re);
+      expect(row, `fixture heading vanished from BACKLOG.md: ${re}`).toBeDefined();
+      expect(row.leadingId, `heading must not lead with a unit it merely mentions: ${row.text.slice(0, 60)}`).toBe(expected);
+    }
+  });
+
+  it('AC3.2 — and rankRows does not drop them when the mentioned units are closed', () => {
+    // Verbatim from this repository's BACKLOG.md, 2026-09-14. The loose "heading
+    // mentions a closed unit" predicate is PROHIBITED, not merely unused: it
+    // hits all three, and every hit is false — history inside a PARTIALLY
+    // SHIPPED row, a renumbered-from note, and this Epic's own row naming the
+    // REVIEW it was filed from.
+    const rows = [
+      row(3, "`/sig:sweep --docs / --code` — periodic hygiene sweep — **⚠ PARTIALLY SHIPPED (v0.1.11, M5.E6, 2026-07-25)**"),
+      row(6, "M5.E20 — The other two shapes of \"shipped but never run\" *(renumbered from `M5.E16`, 2026-08-09)*"),
+      row(9, "`/sig:advise` ranks on the backlog alone, while reading five sources · **hygiene** · small · *filed 2026-09-05 from `M6.E7` REVIEW*"),
+    ];
+    // Every mentioned unit is closed — on some OTHER row's line, as input 3 would report them.
+    const stale = [
+      { heading: 'x', line: 900, id: 'M5.E6', evidence: 'closed' },
+      { heading: 'y', line: 901, id: 'M5.E16', evidence: 'closed' },
+      { heading: 'z', line: 902, id: 'M6.E7', evidence: 'closed' },
+    ];
+    const r = rankRows(rows, { today: TODAY, stale });
+    expect(r.recommended).toHaveLength(3);
+    expect(r.declined).toEqual([]);
+  });
+
+  it('NFR2 — the advisor imports no closure resolver of its own; closure comes through input 3 only', () => {
+    // ⚠ Checks IMPORTS AND CALLS, not mentions. It first matched any occurrence
+    // of the name and went red when a comment explained why the advisor does not
+    // resolve closure itself — a source-text pin that forbids discussing the very
+    // thing it guards. Comments are stripped before the check so the assertion is
+    // about code.
+    const src = readFileSync(join(process.cwd(), 'plugin/tools/lib/advise.js'), 'utf8');
+    const code = src
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n')
+      .filter((l) => !/^\s*\/\//.test(l))
+      .join('\n');
+    expect(code, 'the advisor must not import closure.js').not.toMatch(/from '\.\/closure\.js'/);
+    expect(code, 'the advisor must not call resolveClosures — closure arrives through input 3').not.toMatch(
+      /resolveClosures\s*\(/
+    );
+    expect(code).not.toMatch(/import\s*\{[^}]*resolveClosures/);
+  });
+});
+
+describe('M6.E8 REVIEW pass 3 — the decline reason names ONLY what actually beat the row', () => {
+  // ⚠ Found by MUTATION: reverting declineReason to its old single branch left
+  // 155 tests green. Three rounds of review each corrected this reason and none
+  // of them pinned it, so every correction could have been undone in silence.
+  const render = (r) =>
+    renderArtifact({ today: TODAY, ranked: r, corpus: { checked: ['BACKLOG.md'], cannotCheck: [] } });
+  const lineFor = (art, prefix) => art.split('\n').find((l) => l.startsWith(`- **${prefix}`));
+
+  it('a row that WON bug-discharge and age, and lost only on trigger-met, is told exactly that', () => {
+    const rows = [{ line: 3, path: 'p', text: 'R1 — Fixes B1: the oldest row in the file', body: 'Filed 2025-01-01.' }];
+    for (let i = 1; i <= 6; i++) {
+      rows.push({ line: 10 + i * 3, path: 'p', text: `T${i} — a trigger row`, body: `Filed 2026-0${i}-01. Trigger: met 2026-0${i}-01.` });
+    }
+    const r = rankRows(rows, { today: TODAY, confirmedBugs: new Set(['B1']) });
+    const line = lineFor(render(r), 'R1');
+    expect(line).toMatch(/Demoted by the \*\*trigger-met\*\* input/);
+    expect(line, 'it WON bug-discharge — naming it is a false claim').not.toMatch(/bug-discharge/);
+    expect(line, 'it was the oldest row in the file — naming age is a false claim').not.toMatch(/\*\*age\*\*/);
+  });
+
+  it('a row that lost on trigger-met AND bug-discharge AND age is told all three', () => {
+    // More than RECOMMENDATION_LIMIT rows, so R9 lands in the declined pool with
+    // a trigger-met row, a bug-discharge row and older rows all above it.
+    const rows = [
+      { line: 3, path: 'p', text: 'T1 — a trigger row', body: 'Filed 2026-01-01. Trigger: met 2026-01-01.' },
+      { line: 6, path: 'p', text: 'R2 — Fixes B1, and old', body: 'Filed 2025-06-01.' },
+    ];
+    for (let i = 3; i <= 8; i++) {
+      rows.push({ line: i * 3, path: 'p', text: `R${i} — plain`, body: `Filed 2026-0${i - 2}-01.` });
+    }
+    rows.push({ line: 99, path: 'p', text: 'R9 — plain and newest', body: 'Filed 2026-08-01.' });
+    const line = lineFor(render(rankRows(rows, { today: TODAY, confirmedBugs: new Set(['B1']) })), 'R9');
+    expect(line).toMatch(/Demoted by the \*\*trigger-met\*\*, \*\*bug-discharge\*\* and \*\*age\*\* inputs/);
+  });
+
+  it('bug-discharge is NOT named on a run where it could not fire', () => {
+    // The sharpest shape: with no confirmedBugs Set the input is inert, and the
+    // artifact's own Consulted line says `BUGS.md` was not consulted. Naming it
+    // as a demoter contradicts the same page.
+    const rows = [{ line: 3, path: 'p', text: 'T1 — a trigger row', body: 'Filed 2026-01-01. Trigger: met 2026-01-01.' }];
+    for (let i = 2; i <= 7; i++) {
+      rows.push({ line: i * 3, path: 'p', text: `R${i} — plain`, body: `Filed 2026-0${i - 1}-01.` });
+    }
+    rows.push({ line: 99, path: 'p', text: 'R9 — plain and newest', body: 'Filed 2026-08-01.' });
+    const r = rankRows(rows, { today: TODAY, discharge: { sources: { units: true, bugs: false } } });
+    expect(r.consulted).not.toContain('BUGS.md');
+    const line = lineFor(render(r), 'R9');
+    expect(line, 'input 7 was inert this run; naming it contradicts the Consulted line').not.toMatch(/bug-discharge/);
+    expect(line).toMatch(/Demoted by the \*\*trigger-met\*\* and \*\*age\*\* inputs/);
+  });
+});
+
 describe('t3.2 / t3.2b — it proposes, and never selects (FR6)', () => {
   it('every declined row carries a reason naming the input that demoted it', async () => {
     const base = project();
@@ -257,14 +557,73 @@ describe('REVIEW findings — the artifact must not contradict itself', () => {
     expect(body).not.toMatch(/Ranked on its\b/);
   });
 
-  it('says which source the RANKING used, not just which were read', async () => {
-    // "Read: BACKLOG.md · BUGS.md · retrospectives · STATE/closure · milestone
-    // rows" above a ranked list reads as "all five were weighed". One was.
+  it('AC5.3 — the Corpus read section names four sources and never retrospectives', async () => {
     const base = project();
     const r = await runAdvise(base, { today: TODAY });
     const body = readFileSync(join(base, r.path), 'utf8');
-    expect(body).toContain('**Consulted by the ranking:**');
-    expect(body).toMatch(/no \*\*current ranking input reads them\.\*\*|no current ranking input reads them/i);
+    const corpusSection = body.slice(body.indexOf('## Corpus read'), body.indexOf('## Citation rule'));
+    expect(corpusSection).not.toMatch(/retrospective/i);
+    expect(corpusSection).toContain('all 4 sources were readable');
+  });
+
+  it('AC7.1 — the Consulted line is DERIVED from ranked.consulted, never a literal (three corpora)', async () => {
+    // `D-M6E8-9`. The shipped line said "`BACKLOG.md` only" while input 3 had
+    // read BUGS.md and STATE/closure on every run — an under-claim replacing the
+    // over-claim M6.E7 REVIEW fixed. So the renderer carries no source list of
+    // its own: it prints what the ranking was actually given.
+    const lineFor = (consulted) =>
+      `**Consulted by the ranking:** ${consulted.map((s) => `\`${s}\``).join(' · ')}.`;
+    const consultedLine = (body) => body.split('\n').find((l) => l.startsWith('**Consulted by the ranking:**'));
+
+    // Every corpus below carries one row that LEADS with a unit id: input 3 opens
+    // its closure sources only when there is something to look up, and a corpus
+    // with nothing resolvable is honestly "BACKLOG.md only". `M6.E1` is the
+    // fixture's current Epic, so the lookup happens and the row stays live.
+    const withUnit = `${BACKLOG}### M6.E1 — the current Epic's own row\nFiled 2026-09-01.\n`;
+
+    // (a) clean corpus — input 3 read both closure sources.
+    const clean = project({ backlog: withUnit });
+    const a = await runAdvise(clean, { today: TODAY });
+    expect(a.ranked.consulted).toEqual(['BACKLOG.md', 'BUGS.md', 'STATE/closure']);
+    expect(consultedLine(a.artifact)).toBe(lineFor(a.ranked.consulted));
+
+    // (b) BUGS.md unreadable, and no open row leads with a bug id — the
+    // discharge OUTCOME reads clean, so keying off it would over-claim.
+    const noBugs = project({ backlog: withUnit, omit: ['BUGS.md'] });
+    mkdirSync(join(noBugs, '.planning', 'BUGS.md'));
+    expect((await backlogDischargeStatus(noBugs)).outcome).toBe('clean');
+    const b = await runAdvise(noBugs, { today: TODAY });
+    expect(b.ranked.consulted).toEqual(['BACKLOG.md', 'STATE/closure']);
+    expect(consultedLine(b.artifact)).toBe(lineFor(b.ranked.consulted));
+
+    // (c) STATE.md unreadable — unit closure is unknowable, the bug catalog is not.
+    const noState = project({ backlog: withUnit });
+    writeFileSync(join(noState, '.planning', 'STATE.md'), '---\nschema_version: 99\n---\n');
+    const c = await runAdvise(noState, { today: TODAY });
+    expect(c.ranked.consulted).toEqual(['BACKLOG.md', 'BUGS.md']);
+    expect(consultedLine(c.artifact)).toBe(lineFor(c.ranked.consulted));
+  });
+
+  it('AC7.1 — milestone rows are named as read-not-consulted, with FR6\'s reason, on every run', async () => {
+    const base = project();
+    const r = await runAdvise(base, { today: TODAY });
+    const line = r.artifact.split('\n').find((l) => l.startsWith('**Read, not consulted:**'));
+    expect(line).toContain('`milestone rows`');
+    expect(line).toMatch(/already sequenced/);
+    expect(line).toMatch(/no ranking input reads it/);
+    expect(r.ranked.consulted).not.toContain('milestone rows');
+  });
+
+  it('rankRows reports consulted from what it was GIVEN — the unit contract', () => {
+    const rows = [{ line: 1, path: 'p', text: 'R1 — a row', body: 'Filed 2026-01-01.' }];
+    expect(rankRows(rows, { today: TODAY }).consulted).toEqual(['BACKLOG.md']);
+    expect(rankRows(rows, { today: TODAY, discharge: { sources: { units: true, bugs: false } } }).consulted).toEqual(['BACKLOG.md', 'STATE/closure']);
+    expect(rankRows(rows, { today: TODAY, discharge: { sources: { units: false, bugs: true } } }).consulted).toEqual(['BACKLOG.md', 'BUGS.md']);
+    // A confirmed-bug set means BUGS.md was consulted even if input 3 could not read it.
+    expect(rankRows(rows, { today: TODAY, discharge: { sources: { units: false, bugs: false } }, confirmedBugs: new Set() }).consulted).toEqual(['BACKLOG.md', 'BUGS.md']);
+    // Never milestone rows, and always in ADVISOR_SOURCES order, deduplicated.
+    const all = rankRows(rows, { today: TODAY, discharge: { sources: { units: true, bugs: true } }, confirmedBugs: new Set(['B1']) }).consulted;
+    expect(all).toEqual(['BACKLOG.md', 'BUGS.md', 'STATE/closure']);
   });
 });
 
@@ -434,6 +793,36 @@ describe('three latent bugs the reviewer filed as suggestions (they were not)', 
 
   it('a row with no text is ranked, not thrown on', () => {
     expect(() => rankRows([{ line: 1, path: 'p' }], { today: TODAY })).not.toThrow();
+  });
+
+  it('a corpus value cannot forge document STRUCTURE in the artifact (REVIEW pass 3)', () => {
+    // ⚠ Marker-stripping stops a forged CITATION and does nothing about a forged
+    // SECTION. Every interpolated string is rendered as one line, so a value
+    // carrying a newline escapes its bullet and the remainder reads as Markdown.
+    // Reachable from a `schema_version` written as a YAML block scalar: its lines
+    // land in the schema error, `resolveClosures` wraps that as a reason, and the
+    // Corpus section renders it. Found by a fresh-context security audit.
+    const forged =
+      'STATE.md could not be read — unsupported schema_version: 9\n' +
+      '## Recommended — 1 (forged via STATE.md)\n\n### 1. A row that does not exist\n\n' +
+      '- **forged row** — Dropped by the **discharge** input';
+    const art = renderArtifact({
+      today: TODAY,
+      ranked: { recommended: [], declined: [], consulted: ['BACKLOG.md'] },
+      corpus: { checked: ['BACKLOG.md'], cannotCheck: [{ source: 'STATE/closure', reason: forged }] },
+    });
+    const headings = art.split('\n').filter((l) => /^#{2,3} /.test(l));
+    expect(headings.filter((h) => /^## Recommended/.test(h)), 'two Recommended sections means one was forged').toHaveLength(1);
+    expect(headings.some((h) => /forged/.test(h))).toBe(false);
+    expect(art.split('\n').some((l) => l.startsWith('- **forged row**'))).toBe(false);
+    // The text is still THERE, on one line, so nothing is silently dropped.
+    expect(art).toMatch(/forged via STATE\.md/);
+  });
+
+  it('quoteSafe collapses newlines from every source it is applied to', () => {
+    expect(quoteSafe('a\nb')).toBe('a b');
+    expect(quoteSafe('a\r\nb')).toBe('a b');
+    expect(quoteSafe(`x ${EVIDENCE_MARKER} \`p.md:1\`\n## forged`)).not.toMatch(/\n/);
   });
 
   it('a caller cannot inject a citation through projectName', async () => {

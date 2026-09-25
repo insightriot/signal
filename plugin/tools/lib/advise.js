@@ -27,7 +27,12 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { backlogDischargeStatus, declaresNotLiveWork } from './backlog.js';
+import {
+  backlogDischargeStatus,
+  declaresBugDischarge,
+  declaresNotLiveWork,
+  declaresWorkMovedElsewhere,
+} from './backlog.js';
 import { EVIDENCE_MARKER, verifyCitations } from './citations.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { readCorpus, ADVISOR_SOURCES } from './advise-corpus.js';
@@ -98,8 +103,66 @@ const ISO_DATE_RE = /\b(\d{4}-\d{2}-\d{2})\b/;
 // entirely and cannot be confused with somebody else's trigger. So this can still
 // promote a row on a mention that is not its own — a row about triggers that does
 // NOT declare itself parked or a record would still slip through.
+//
+// ⚠ NOT WIDENED BY `M6.E8`, AND THE REASON IS A MEASUREMENT (FR2 / `D-M6E8-7`).
+// DISCUSS proposed adding "entry price for" so that four rows "gated on `B75`"
+// would read blocked. Measured 2026-09-14 on the then-48 live rows of this
+// repository's own BACKLOG.md:
+//   - "entry price for" occurs in ONE live row — *"The entry price for any
+//     Phase A autonomy work: B73–B76"* — which is the gate itself. Adding the
+//     phrase demotes the row that says *do these first*.
+//   - the rows cite `B75` as a MEASUREMENT ("B75 measured that ceiling",
+//     "a fourth knob … is B75"); none states a gate. One was already blocked
+//     for an unrelated phrase.
+//   - twelve sibling phrases (precondition, prerequisite, blocked by, gated by,
+//     waiting on, needs … first, until|after … ships, stuck behind, sequenced
+//     behind, can't … until): ZERO correct hits. `precondition` hits the gate
+//     row again and one prose use; `needs … first` hits "needs the
+//     measure-first treatment" and a row already blocked.
+// The only mechanism that flips those rows is "body names a confirmed bug",
+// which `D-M6E8-2` rejected and which would demote nine rows including the
+// row for this Epic. So the pattern is byte-identical to what `M6.E7` shipped,
+// `BLOCKED_MEASURED` below pins its two hits, and `tests/advise-live-measurement.test.js`
+// asserts that no blocked row is blocked BY that phrase. A DISCUSS claim written
+// from the shape of the argument rather than from the rows, caught at PLAN.
 const BLOCKED_RE = /\b(?:blocked on|gated on|depends on|trigger[^.\n]{0,60}\b(?:is\s+)?NOT met|unmet trigger)\b/i;
 const TRIGGER_MET_RE = /\btrigger[^.\n]{0,60}\b(?:FIRED|met|satisfied)\b/i;
+
+/**
+ * What each pattern above hits on THIS repository's own `BACKLOG.md`, measured
+ * through the real readers and pinned by `tests/advise-live-measurement.test.js`.
+ *
+ * `M6.E8` NFR6: a vocabulary's count is recorded in the source beside the
+ * pattern — and a count in a comment is a claim written from memory the moment
+ * the file moves (`declaresNotLiveWork`'s docblock said "50 live rows" for a
+ * week while the file was at 48). These are frozen values a test compares, so
+ * the number is checked on every run rather than trusted.
+ *
+ * ⚠ A red pin is a RE-MEASUREMENT STEP, not a nuisance: a row started or stopped
+ * matching, and that is the moment to re-read the hit and decide whether the
+ * vocabulary is still precise. This is not `B120`'s shape (a test that fires
+ * when a ledger is merely used); the test's failure message says which.
+ *
+ * ⚠ THERE IS NO `rows` FIELD, AND ITS REMOVAL IS A FINDING. It recorded the
+ * POPULATION a count was taken over, and it went through both wrong states in one
+ * Epic. First it was recorded and unasserted — five of six said `48` while the
+ * real populations were 45 and 52, a number beside the pattern that nothing
+ * verified, which is what `NFR6` exists to forbid. Then it was asserted, and that
+ * was worse: a population assertion fires when a row is ADDED OR STRUCK, so a
+ * single ordinary `####` row carrying none of the vocabulary turned **5 of 15
+ * tests red** (measured, not argued). That is `B120`'s shape exactly — a check
+ * that fires when the ledger is merely used — and this Epic's own REQUIREMENTS
+ * said so in advance: *"an AC pinned to a total fails on an ordinary backlog
+ * edit. Prefer ACs pinned to named rows over ACs pinned to counts."* Found by a
+ * fresh-context test reviewer who mutated the file instead of reading it.
+ *
+ * `hits` stays. A hit count firing when a vocabulary's REACH changes is the
+ * documented trade: that is a row starting or stopping matching, which is exactly
+ * when a person should re-read it. A population is not a measurement of a
+ * vocabulary, and pinning one bought nothing this file needed.
+ */
+export const BLOCKED_MEASURED = Object.freeze({ on: '2026-09-14', hits: 2 });
+export const TRIGGER_MET_MEASURED = Object.freeze({ on: '2026-09-24', hits: 2 }); // 3 → 2 at M6.E8 SHIP: its own row was struck
 
 /**
  * The one helper that emits a citation, so the marker has a single home.
@@ -124,7 +187,26 @@ export function cite(...targets) {
  * `citations.js` states the other one.
  */
 export function quoteSafe(text) {
-  return String(text).split(EVIDENCE_MARKER).join('— evidence(quoted):');
+  // ⚠ NEWLINES ARE NEUTRALIZED TOO, and that half was missing until the final
+  // review round. Stripping only the marker stops a quoted row from forging a
+  // CITATION; it does nothing about forging document STRUCTURE. Every string
+  // that reaches the artifact is rendered as one line, so a value carrying a
+  // newline breaks out of its bullet and the rest is read as Markdown at the top
+  // level. Reproduced: a `schema_version` written as a YAML block scalar puts its
+  // own lines into the schema error, which `resolveClosures` wraps as a reason,
+  // which the Corpus section renders — and the artifact then carries a second
+  // `## Recommended — 1` heading and a `- **forged row**` bullet that no ranking
+  // produced and no citation covers. The count gate cannot see it, because claims
+  // are counted from `ranked` and never from the text.
+  //
+  // Fixed HERE rather than at that one source, because this is the choke point
+  // every interpolation already passes through: the same shape was reachable from
+  // a caller-supplied `projectName`, from a malformed-YAML parser error, and from
+  // a `.planning/` filename embedded in closure evidence.
+  return String(text)
+    .split(EVIDENCE_MARKER)
+    .join('— evidence(quoted):')
+    .replace(/[\r\n]+/g, ' ');
 }
 
 function daysBetween(fromIso, toIso) {
@@ -137,13 +219,29 @@ function daysBetween(fromIso, toIso) {
 /**
  * Rank the live backlog rows, and say why each one landed where it did.
  *
- * Four inputs, in this order, each independently citable:
+ * Inputs, in this order, each independently citable:
  *   1. **blocked-by** — a row whose stated gate is unmet ranks below one whose is met.
  *   2. **trigger-met** — a row whose written trigger has fired ranks above one with none.
  *   3. **discharge** — a row whose work already closed drops out entirely.
  *   4. **age** — older rows rank above newer ones.
  *   5. **self-declared not-live** — a row that says in its own HEADING that it is
  *      not actionable work drops out entirely.
+ *   6. **fold** (`M6.E8` FR4) — a row whose own HEADING says its work moved
+ *      elsewhere (`FOLDED INTO`, `absorbed into`, `re-homed`) drops out entirely —
+ *      unless the heading also says `KEPT`, which is evaluated first and keeps it.
+ *   7. **bug-discharge** (`M6.E8` FR1) — a row whose own HEADING says it fixes /
+ *      closes / resolves a bug that `BUGS.md` still records as `confirmed` ranks
+ *      above one that does not. Sorts between trigger-met and age. Fires only
+ *      when a `confirmedBugs` Set is supplied — no Set, no input, and `consulted`
+ *      does not name `BUGS.md` on its account.
+ *
+ * **`consulted`** (`M6.E8` t1.4, `D-M6E8-9`): which `ADVISOR_SOURCES` any input
+ * above actually read on THIS run, derived from what this function was GIVEN
+ * and nothing else. `BACKLOG.md` always; `STATE/closure` and `BUGS.md` when
+ * input 3's `discharge.sources` says it could open each; `BUGS.md` also when a
+ * `confirmedBugs` Set was supplied; `milestone rows` never. The renderer prints
+ * this list — it carries no source list of its own, because the one it carried
+ * ("`BACKLOG.md` only") was wrong the moment input 3 shipped.
  *
  * ⚠ Input 5 reads the heading and NOT the body, deliberately. Input 2 reads both,
  * and that is why the first real run promoted a row whose heading says "not sprint
@@ -157,19 +255,38 @@ function daysBetween(fromIso, toIso) {
  * That is what makes `B39`'s checked-vs-unchecked distinction real: a curated
  * list would leave the rest unchecked and indistinguishable from unconsidered.
  */
-export function rankRows(rows, { today, stale = [] } = {}) {
-  const staleIds = new Set(stale.map((s) => s.id).filter(Boolean));
-  // `.filter(Boolean)` matches its sibling above, and its absence was a live bug:
-  // a stale entry with no `line` puts `undefined` in the Set, and any row that also
-  // lacks one then reads as discharged and DISAPPEARS from the advisory. Silently
+export function rankRows(rows, { today, stale = [], discharge = null, confirmedBugs = null } = {}) {
+  const consultedSet = new Set(['BACKLOG.md']);
+  if (discharge?.sources?.units) consultedSet.add('STATE/closure');
+  if (discharge?.sources?.bugs) consultedSet.add('BUGS.md');
+  if (confirmedBugs instanceof Set) consultedSet.add('BUGS.md');
+  const consulted = ADVISOR_SOURCES.filter((s) => consultedSet.has(s));
+
+  // The ENTRY is kept, not just its id: the decline reason names the source that
+  // closed the row and quotes its evidence (`M6.E8` t3.3, `D-M6E8-8`), and both
+  // travel on the entry `backlogDischargeStatus` returned.
+  const staleById = new Map(stale.filter((s) => s.id).map((s) => [s.id, s]));
+  // `.filter(...)` matches its sibling above, and its absence was a live bug:
+  // a stale entry with no `line` keyed `undefined`, and any row that also lacked
+  // one then read as discharged and DISAPPEARED from the advisory. Silently
   // losing a live row is the worst thing this module can do.
-  const staleLines = new Set(stale.map((s) => s.line).filter(Boolean));
+  const staleByLine = new Map(stale.filter((s) => s.line).map((s) => [s.line, s]));
 
   const scored = rows.map((row) => {
     const text = `${row.text}\n${row.body ?? ''}`;
-    const dischargedElsewhere = staleIds.has(row.leadingId) || staleLines.has(row.line);
+    const staleEntry = staleById.get(row.leadingId) ?? staleByLine.get(row.line) ?? null;
+    const dischargedElsewhere = staleEntry !== null;
     // Input 5. HEADING ONLY — see the note above.
     const notLive = declaresNotLiveWork(row.text);
+    // Input 6. HEADING ONLY, same rule; `KEPT` wins inside the predicate.
+    const moved = declaresWorkMovedElsewhere(row.text);
+    // Input 7. HEADING ONLY, verb adjacent to the id, and the id must still be
+    // confirmed — a heading that "fixes B2" where B2 shipped is not a promotion.
+    let dischargesBug = null;
+    if (confirmedBugs instanceof Set) {
+      const d = declaresBugDischarge(row.text);
+      if (d.id && confirmedBugs.has(d.id)) dischargesBug = d;
+    }
     const blocked = BLOCKED_RE.test(text);
     const triggerMet = TRIGGER_MET_RE.test(text);
     // `String(...)` because the two lines around this one already coerce and this one
@@ -177,31 +294,36 @@ export function rankRows(rows, { today, stale = [] } = {}) {
     const filed =
       (String(row.text ?? '').match(ISO_DATE_RE) ?? String(row.body ?? '').match(ISO_DATE_RE))?.[1] ?? null;
     const ageDays = filed && today ? daysBetween(filed, today) : 0;
-    return { row, dischargedElsewhere, notLive, blocked, triggerMet, filed, ageDays };
+    return { row, dischargedElsewhere, staleEntry, notLive, moved, dischargesBug, blocked, triggerMet, filed, ageDays };
   });
 
-  const live = scored.filter((s) => !s.dischargedElsewhere && !s.notLive.notLive);
+  const isDropped = (s) => s.dischargedElsewhere || s.notLive.notLive || s.moved.moved;
+  const live = scored.filter((s) => !isDropped(s));
   live.sort(
     (a, b) =>
       Number(a.blocked) - Number(b.blocked) ||
       Number(b.triggerMet) - Number(a.triggerMet) ||
+      Number(Boolean(b.dischargesBug)) - Number(Boolean(a.dischargesBug)) ||
       b.ageDays - a.ageDays ||
       a.row.line - b.row.line
   );
 
   const recommended = live.slice(0, RECOMMENDATION_LIMIT);
   const rest = live.slice(RECOMMENDATION_LIMIT);
-  const dropped = scored
-    .filter((s) => s.dischargedElsewhere || s.notLive.notLive)
-    .sort((a, b) => a.row.line - b.row.line);
+  const dropped = scored.filter(isDropped).sort((a, b) => a.row.line - b.row.line);
 
-  return { recommended, declined: [...rest, ...dropped] };
+  return { recommended, declined: [...rest, ...dropped], consulted };
 }
 
 /** Why a recommended row is where it is, naming the input that put it there. */
 function recommendReason(s) {
   const parts = [];
   if (s.triggerMet) parts.push('its written trigger has fired');
+  if (s.dischargesBug) {
+    parts.push(
+      `its heading says it discharges \`${s.dischargesBug.id}\`, which \`BUGS.md\` still records as confirmed`
+    );
+  }
   if (!s.blocked) parts.push('nothing it names as a gate is unmet');
   else parts.push('it names a gate that has not fired, so it ranks below the ungated rows');
   if (s.filed) parts.push(`it was filed ${s.filed}${s.ageDays > 0 ? `, ${s.ageDays} days ago` : ''}`);
@@ -214,7 +336,7 @@ function rows(n) {
 }
 
 /** Why a declined row is NOT recommended, naming the input that demoted it. */
-function declineReason(s, rank) {
+function declineReason(s, rank, above = []) {
   if (s.notLive.notLive) {
     return (
       `Dropped by the **self-declared** input — the row's own heading says \`${s.notLive.declaration}\`, ` +
@@ -222,15 +344,55 @@ function declineReason(s, rank) {
     );
   }
   if (s.dischargedElsewhere) {
+    // Name the SOURCE the way input 3 decides it — the id family — and quote its
+    // evidence. "Already reads as closed" said neither, while the stale entry
+    // carried both (`D-M6E8-8`).
+    const e = s.staleEntry;
+    if (e?.id && e?.evidence) {
+      const source = /^B\d+$/.test(e.id) ? '**`BUGS.md`**' : '**unit closure**';
+      return (
+        `Dropped by the **discharge** input — \`${e.id}\` reads closed in ${source} ` +
+        `(${quoteSafe(e.evidence)}), so it is not live work.`
+      );
+    }
     return 'Dropped by the **discharge** input — its work already reads as closed, so it is not live work.';
   }
-  if (s.blocked) {
+  if (s.moved.moved) {
+    return (
+      `Dropped by the **fold** input — the row's own heading says \`${s.moved.declaration}\`, ` +
+      'so its work lives elsewhere.'
+    );
+  }
+  if (s.blocked && above.every((a) => a.blocked)) {
     return 'Demoted by the **blocked-by** input — the row names a gate that has not fired.';
   }
-  if (!s.triggerMet) {
-    return `Demoted by the **trigger-met** and **age** inputs — ${rows(rank)} scored above it.`;
+  // ⚠ IT NAMES ONLY THE INPUTS A ROW ABOVE ACTUALLY WON, computed from those
+  // rows — not every comparator that remains after the ones this row passed.
+  //
+  // Two rounds of review got this wrong in two different ways, and both produced
+  // a FALSE CLAIM in a document whose whole pitch is checkability. Three branches
+  // told the OLDEST row in a file that it lost on **age**. Four branches told the
+  // same row it lost on **trigger-met, bug-discharge and age** when it had WON
+  // bug-discharge and age and lost only on trigger-met. Worse, on a run where
+  // `BUGS.md` could not be read — so input 7 cannot fire at all — the same line
+  // named **bug-discharge** as a demoter on the same page whose Consulted line
+  // says `BUGS.md` was not consulted.
+  //
+  // A position alone cannot answer "what beat me". The rows above can, and the
+  // renderer has them.
+  const beatenBy = [];
+  if (s.blocked && above.some((a) => !a.blocked)) beatenBy.push('blocked-by');
+  if (!s.triggerMet && above.some((a) => a.triggerMet)) beatenBy.push('trigger-met');
+  if (!s.dischargesBug && above.some((a) => a.dischargesBug)) beatenBy.push('bug-discharge');
+  if (above.some((a) => a.ageDays > s.ageDays)) beatenBy.push('age');
+  if (beatenBy.length === 0) {
+    // Everything above tied on every key; source line is the stable tiebreak.
+    return `Ranked below ${rows(rank)} that tied on every input, on source order.`;
   }
-  return `Demoted by the **age** input — ${rows(rank)} were filed earlier.`;
+  const named = beatenBy.map((n) => `**${n}**`);
+  const list = named.length === 1 ? named[0] : `${named.slice(0, -1).join(', ')} and ${named.at(-1)}`;
+  const noun = beatenBy.length === 1 ? 'input' : 'inputs';
+  return `Demoted by the ${list} ${noun} — ${rows(rank)} scored above it.`;
 }
 
 /**
@@ -243,6 +405,11 @@ function declineReason(s, rank) {
  */
 export function renderArtifact({ today, ranked, corpus, projectName }) {
   const { recommended, declined } = ranked;
+  // The rows RANKED above declined[i] — recommended, plus the declined rows that
+  // are still live and sit before it. Rows that were DROPPED (discharge, not-live,
+  // fold) were never ranked, so they cannot have beaten anything.
+  const isLive = (a) => !a.dischargedElsewhere && !a.notLive.notLive && !a.moved.moved;
+  const rankedAbove = (i) => [...recommended, ...declined.slice(0, i).filter(isLive)];
   const L = RENDER_LABELS;
   const out = [];
 
@@ -268,19 +435,39 @@ export function renderArtifact({ today, ranked, corpus, projectName }) {
   out.push('');
   out.push(`**Read:** ${corpus.checked.length > 0 ? corpus.checked.join(' · ') : 'nothing'}.`);
   out.push('');
-  // ⚠ SAYING WHICH SOURCE THE RANKING ACTUALLY USED, because "Read: …" does not
-  // say it and a reader infers it. `readCorpus` genuinely reads all five; the
-  // ranking consults ONE. A maintainer seeing "Read: … BUGS.md … STATE/closure"
-  // above a ranked list concludes open bugs and the current phase were weighed.
-  // They were not. That is a completeness claim written from the shape of the
-  // work rather than the artifact — this repository's second named defect class —
-  // inside the command built to not make them. Found by a fresh-context reviewer.
-  out.push(
-    '**Consulted by the ranking:** `BACKLOG.md` only. The other sources are read so this section ' +
-      'can say what was and was not legible, and so a future ranking input can use them; **no ' +
-      'current ranking input reads them.** A row is not promoted or demoted here because of a bug, ' +
-      'a retrospective, a closure record or a milestone row.'
-  );
+  // ⚠ SAYING WHICH SOURCES THE RANKING ACTUALLY USED, because "Read: …" does not
+  // say it and a reader infers it. This used to be a LITERAL — "`BACKLOG.md`
+  // only" — written by `M6.E7` REVIEW to stop an over-claim, and it was wrong
+  // in the other direction from the day it shipped: input 3 reads BUGS.md and
+  // STATE/closure through its own path. An under-claim and an over-claim are
+  // the same defect (`D-M6E8-9`). So the renderer carries no source list; it
+  // prints what `rankRows` was given, and a source it could not name is stated
+  // as not recorded rather than guessed.
+  if (Array.isArray(ranked.consulted)) {
+    out.push(`**Consulted by the ranking:** ${ranked.consulted.map((s) => `\`${s}\``).join(' · ')}.`);
+    // Read by the corpus, consulted by nothing. `milestone rows` is always here
+    // when readable, with the reason it is kept (FR6). Any other source lands
+    // here when the corpus could open it and input 3 did not — either it could
+    // not, or it had no id-led row to look up and never tried; the wording is
+    // neutral because `sources` cannot tell those apart and guessing is worse.
+    const readNotConsulted = ADVISOR_SOURCES.filter(
+      (s) => !ranked.consulted.includes(s) && corpus.checked.includes(s)
+    );
+    if (readNotConsulted.length > 0) {
+      const why = (s) =>
+        s === 'milestone rows'
+          ? 'kept because it is cheap and is the natural home for a future "already sequenced into an ' +
+            'open Epic" input; no ranking input reads it'
+          : 'the discharge input did not open it on this run';
+      out.push('');
+      out.push(`**Read, not consulted:** ${readNotConsulted.map((s) => `\`${s}\` — ${why(s)}`).join('; ')}.`);
+    }
+  } else {
+    out.push(
+      '**Consulted by the ranking:** not recorded — the ranking result carried no `consulted` list, ' +
+        'so this section cannot say which sources were weighed.'
+    );
+  }
   if (corpus.cannotCheck.length === 0) {
     out.push('');
     out.push(`**Could not read:** nothing — all ${ADVISOR_SOURCES.length} sources were readable.`);
@@ -328,7 +515,7 @@ export function renderArtifact({ today, ranked, corpus, projectName }) {
     // list, for `Passive OBSERVATIONS.md capture`. A self-contradicting count in
     // a document whose whole claim is that its claims are checkable.
     const reason = contrast
-      ? `${recommendReason(s)} Ranked above *${quoteSafe(contrast.row.text)}*, which was ${declineReason(contrast, recommended.length + declined.indexOf(contrast)).replace(/^(Demoted|Dropped)/, (m) => m.toLowerCase())}`
+      ? `${recommendReason(s)} Ranked above *${quoteSafe(contrast.row.text)}*, which was ${declineReason(contrast, recommended.length + declined.indexOf(contrast), rankedAbove(declined.indexOf(contrast))).replace(/^(Demoted|Dropped|Ranked)/, (m) => m.toLowerCase())}`
       : recommendReason(s);
     const evidence = contrast
       ? cite(`${s.row.path}:${s.row.line}`, `${contrast.row.path}:${contrast.row.line}`)
@@ -347,7 +534,7 @@ export function renderArtifact({ today, ranked, corpus, projectName }) {
   out.push('');
   declined.forEach((s, i) => {
     out.push(
-      `- **${quoteSafe(s.row.text)}** — ${declineReason(s, recommended.length + i)} ${cite(`${s.row.path}:${s.row.line}`)}`
+      `- **${quoteSafe(s.row.text)}** — ${declineReason(s, recommended.length + i, rankedAbove(i))} ${cite(`${s.row.path}:${s.row.line}`)}`
     );
   });
   out.push('');
@@ -471,15 +658,24 @@ export async function runAdvise(baseDir, { today, render = renderArtifact, proje
 
   // Ranking input 3. Fail-open: an un-evaluable discharge check narrows what the
   // ranking can see, and says so — it does not stop the advisory.
-  let stale = [];
+  let discharge = null;
   try {
-    const discharge = await backlogDischargeStatus(baseDir);
-    stale = discharge.stale ?? [];
+    discharge = await backlogDischargeStatus(baseDir);
   } catch {
-    stale = [];
+    discharge = null;
   }
+  const stale = discharge?.stale ?? [];
 
-  const ranked = rankRows(corpus.sources.backlog.rows, { today: stamp, stale });
+  // Input 7's population: the ids `BUGS.md` still records as confirmed. `null`
+  // when the catalog could not be read, so the input cannot fire and `consulted`
+  // does not claim `BUGS.md` on its behalf.
+  const confirmedBugs = corpus.sources.bugs
+    ? new Set(corpus.sources.bugs.entries.filter((e) => e.status === 'confirmed').map((e) => e.id))
+    : null;
+
+  // The WHOLE discharge result goes in, not just `stale`: its `sources` field
+  // is how `consulted` knows which closure source input 3 could read.
+  const ranked = rankRows(corpus.sources.backlog.rows, { today: stamp, stale, discharge, confirmedBugs });
   const artifact = render({ today: stamp, ranked, corpus, projectName });
 
   // ── THE STALE-READ GUARD, and it exists because the very first artifact this

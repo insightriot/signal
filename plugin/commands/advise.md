@@ -39,14 +39,24 @@ own or fail the budget check once the advisory grows past 32 KB.
 
 Call `runAdvise(baseDir, { today, projectName })` from `tools/lib/advise.js`. It does the whole run:
 
-1. **Read the corpus** — `readCorpus` (`tools/lib/advise-corpus.js`) over the five sources in
-   `ADVISOR_SOURCES`: `BACKLOG.md`, `BUGS.md`, retrospectives, STATE/closure, milestone rows. A
+1. **Read the corpus** — `readCorpus` (`tools/lib/advise-corpus.js`) over the four sources in
+   `ADVISOR_SOURCES`: `BACKLOG.md`, `BUGS.md`, STATE/closure, milestone rows (retrospectives were
+   a fifth until `M6.E8` — 32 files parsed per run for nothing that ranked). A
    source that could not be read lands in `cannotCheck` with a reason and its slot stays `null` —
    never an empty result standing in for one.
-2. **Rank** — five inputs in order: blocked-by, trigger-met, discharge, age, and **self-declared
-   not-live** (a row whose own *heading* says it is parked, shelved, a reconciliation record, or
+2. **Rank** — seven inputs: blocked-by, trigger-met, **discharge** (`backlogDischargeStatus` —
+   a row whose leading unit or bug id reads closed drops out, and the reason names the source,
+   *unit closure* or `BUGS.md`, with its evidence; ⚠ that check parses at depth 3 while the advisor
+   reads at 4, filed in `BUGS.md` as *"dischargeBacklogRows is blind to rows nested below h3"*),
+   age, **self-declared not-live** (a row whose own *heading* says it is parked, shelved, a reconciliation record, or
    held open on purpose drops out — `declaresNotLiveWork` in `tools/lib/backlog.js`, which reads the
-   heading and never the body). Stable tiebreak on source line number. Top `RECOMMENDATION_LIMIT` (5) are recommended; **every other live row is
+   heading and never the body), and **fold** (`M6.E8`: a row whose *heading* says its work moved
+   elsewhere — `FOLDED INTO`, `absorbed into`, `re-homed` — drops out, **unless** the heading also
+   says `KEPT`, which is evaluated first and preserves it — `declaresWorkMovedElsewhere`, same
+   file, same heading-only rule), and **bug-discharge** (`M6.E8`: a row whose *heading* says it
+   fixes / closes / resolves a bug that `BUGS.md` still records as `confirmed` ranks above one that
+   does not — `declaresBugDischarge`, verb adjacent to the id; sorts between trigger-met and age;
+   fires on zero rows here today, declared). Stable tiebreak on source line number. Top `RECOMMENDATION_LIMIT` (5) are recommended; **every other live row is
    declined, with the reason naming the input that demoted it.** The declined pool is complete
    rather than curated, which is what makes a passed-over row distinguishable from an unconsidered
    one (`B39`).

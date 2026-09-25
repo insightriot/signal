@@ -16,6 +16,7 @@
 - [BACKLOG-REVIEW-2026-08-09.md](BACKLOG-REVIEW-2026-08-09.md) — `other` — _(note pending)_
 - [BACKLOG-REVIEW-2026-09-06.md](BACKLOG-REVIEW-2026-09-06.md) — `other` — _(note pending)_
 - [BACKLOG-REVIEW-2026-09-13.md](BACKLOG-REVIEW-2026-09-13.md) — `other` — _(note pending)_
+- [BACKLOG-REVIEW-2026-09-14.md](BACKLOG-REVIEW-2026-09-14.md) — `other` — _(note pending)_
 - [BACKLOG.md](BACKLOG.md) — `other` — The sequenced roadmap, promoted from `ISSUES-INBOX.md`; every entry tagged `roadmap` or `hygiene`. Supersedes the point-in-time `BACKLOG-REVIEW-2026-07-04` snapshot (folded in + archived under `archive/`).
 - [BUGS.md](BUGS.md) — `other` — Bugs & verified-findings catalog — where findings get logged (catalog → triage → confirm / dismiss / fixed). GitHub Issues deferred until Signal has live users.
 - [CONTEXT.md](CONTEXT.md) — `other` — Locked + deferred decisions for the *current* work — what DISCUSS settled for the active Epic.
@@ -184,6 +185,14 @@
 - [M6.E7-REQUIREMENTS.md](M6.E7-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E7-REVIEW.md](M6.E7-REVIEW.md) — `other` — _(note pending)_
 - [M6.E7-VERIFICATION.md](M6.E7-VERIFICATION.md) — `other` — _(note pending)_
+- [M6.E8-PLAN.md](M6.E8-PLAN.md) — `other` — _(note pending)_
+- [M6.E8-PROFILE.md](M6.E8-PROFILE.md) — `other` — _(note pending)_
+- [M6.E8-PROGRESS.md](M6.E8-PROGRESS.md) — `other` — _(note pending)_
+- [M6.E8-REQUIREMENTS.md](M6.E8-REQUIREMENTS.md) — `other` — _(note pending)_
+- [M6.E8-RESEARCH.md](M6.E8-RESEARCH.md) — `other` — _(note pending)_
+- [M6.E8-REVIEW.md](M6.E8-REVIEW.md) — `other` — _(note pending)_
+- [M6.E8-VALIDATION.md](M6.E8-VALIDATION.md) — `other` — _(note pending)_
+- [M6.E8-VERIFICATION.md](M6.E8-VERIFICATION.md) — `other` — _(note pending)_
 - [M6.E9-DETERMINATIONS.md](M6.E9-DETERMINATIONS.md) — `other` — _(note pending)_
 - [M6.E9-REQUIREMENTS.md](M6.E9-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E9-REVIEW.md](M6.E9-REVIEW.md) — `other` — _(note pending)_
@@ -241,6 +250,7 @@
 - [M6.E5-RETROSPECTIVE.md](M6.E5-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E6-RETROSPECTIVE.md](M6.E6-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E7-RETROSPECTIVE.md](M6.E7-RETROSPECTIVE.md) — `other` — _(note pending)_
+- [M6.E8-RETROSPECTIVE.md](M6.E8-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E9-RETROSPECTIVE.md](M6.E9-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [archive/BACKLOG-REVIEW-2026-07-04.md](archive/BACKLOG-REVIEW-2026-07-04.md) — `other` — Frozen 2026-07-04 backlog pass (gap-fills A1–A5, 8 sharpened items, 8 sprint clusters + watchlist). Point-in-time snapshot — its live content was folded into `BACKLOG.md` and it was archived here (move-never-delete, M5.E3.S6b).
 - [archive/ISSUES-INBOX-LEDGER.md](archive/ISSUES-INBOX-LEDGER.md) — `other` — Evicted shipped/drained capture entries (the closed tail of the inbox), relocated at M5.E1; renamed from `FUTURE-IDEAS-LEDGER.md` at docs-layout v3. Reference-only.
@@ -336,12 +346,15 @@
 - [archive/M5/E2/M5.E2-VERIFICATION.md](archive/M5/E2/M5.E2-VERIFICATION.md) — `other` — _(note pending)_
 - [archive/M5/E8/STATE-NARRATIVE.md](archive/M5/E8/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/E9/STATE-NARRATIVE.md](archive/M5/E9/STATE-NARRATIVE.md) — `other` — _(note pending)_
+- [archive/M5/STATE-NEXT-WORK-2026-08-06.md](archive/M5/STATE-NEXT-WORK-2026-08-06.md) — `other` — _(note pending)_
 - [archive/M6/E1/STATE-NARRATIVE.md](archive/M6/E1/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E2/STATE-NARRATIVE.md](archive/M6/E2/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E3/CONTEXT-2026-08-19.md](archive/M6/E3/CONTEXT-2026-08-19.md) — `other` — _(note pending)_
 - [archive/M6/E3/STATE-NARRATIVE.md](archive/M6/E3/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E4/STATE-NARRATIVE.md](archive/M6/E4/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E6/STATE-NARRATIVE.md](archive/M6/E6/STATE-NARRATIVE.md) — `other` — _(note pending)_
+- [archive/M6/E7/STATE-NARRATIVE.md](archive/M6/E7/STATE-NARRATIVE.md) — `other` — _(note pending)_
+- [archive/M6/E8/CONTEXT-2026-08-20.md](archive/M6/E8/CONTEXT-2026-08-20.md) — `other` — _(note pending)_
 - [archive/milestones/DECISIONS.md](archive/milestones/DECISIONS.md) — `append-log` — Evicted M1–M4 decision history (2026-04-22 → 2026-05-12, date-keyed, pre-`D-…-n` convention). Relocated verbatim at docs-layout v3 behind a dated pointer in live `DECISIONS.md`.
 - [archive/milestones/MILESTONE-1.md](archive/milestones/MILESTONE-1.md) — `milestone` — _(note pending)_
 - [archive/milestones/MILESTONE-2.md](archive/milestones/MILESTONE-2.md) — `milestone` — _(note pending)_
@@ -384,5 +397,6 @@
 - [M6.E5](M6.E5-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E6](M6.E6-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E7](M6.E7-RETROSPECTIVE.md) — _(note pending)_
+- [M6.E8](M6.E8-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E9](M6.E9-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E10](M6.E10-RETROSPECTIVE.md) — _(note pending)_

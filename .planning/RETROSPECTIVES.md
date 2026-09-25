@@ -4,6 +4,7 @@
 
 - [M6.E10](M6.E10-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M6.E9](M6.E9-RETROSPECTIVE.md) — *complete* — _(hook pending)_
+- [M6.E8](M6.E8-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M6.E7](M6.E7-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M6.E6](M6.E6-RETROSPECTIVE.md) — *complete* — _(hook pending)_
 - [M6.E5](M6.E5-RETROSPECTIVE.md) — *complete* — _(hook pending)_

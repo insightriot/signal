@@ -25,7 +25,16 @@ import { describe, expect, it } from 'vitest';
 import { ADVISOR_SOURCES, readCorpus } from '../plugin/tools/lib/advise-corpus.js';
 import { walkBugEntries } from '../plugin/tools/lib/bugs-tally.js';
 import { parseEpicStatusRows } from '../plugin/tools/lib/milestones.js';
-import { declaresNotLiveWork, parseBacklogRows } from '../plugin/tools/lib/backlog.js';
+import {
+  BUG_DISCHARGE_MEASURED,
+  FOLD_MEASURED,
+  KEPT_MEASURED,
+  NOT_LIVE_MEASURED,
+  declaresBugDischarge,
+  declaresNotLiveWork,
+  declaresWorkMovedElsewhere,
+  parseBacklogRows,
+} from '../plugin/tools/lib/backlog.js';
 
 // A backlog shaped like the real one: a `###` row that gained `####` children
 // (invisible at depth 3, and a container at depth 4), a struck row, a `<details>`
@@ -109,8 +118,6 @@ function fixture({ omit = [] } = {}) {
   write('STATE.md', STATE);
   write('MILESTONE-6.md', MILESTONE_6);
   write('MILESTONE-5.md', MILESTONE_5);
-  write('M6.E1-RETROSPECTIVE.md', '## What happened\n\nIt shipped.\n\n## What we would do differently\n\nLess of it.\n');
-  write('M6.E2-RETROSPECTIVE.md', '## What happened\n\n[FILL IN]\n');
   return base;
 }
 
@@ -241,17 +248,6 @@ describe('t2.1/t2.2 — rows and bugs, with the line numbers a citation needs', 
   });
 });
 
-describe('t2.3 — a stub retro is not evidence a unit finished', () => {
-  it('marks the stub, so nothing can cite it as a closed unit', async () => {
-    const base = fixture();
-    const { sources } = await readCorpus(base);
-    const byId = Object.fromEntries(sources.retros.records.map((r) => [r.epicId, r]));
-    expect(byId['M6.E1'].isStub).toBe(false);
-    expect(byId['M6.E2'].isStub).toBe(true);
-    expect(byId['M6.E1'].headings).toContain('## What happened');
-  });
-});
-
 describe('t2.5 — one Epic-row reader, covering both published formats', () => {
   it('reads the full-ID form', () => {
     const rows = parseEpicStatusRows(MILESTONE_6, { milestone: '6' });
@@ -290,14 +286,10 @@ describe('t2.5 — one Epic-row reader, covering both published formats', () => 
 });
 
 describe('t2.6 — cannot-check is a value, never a silent pass', () => {
-  it('enumerates exactly the five sources it claims to read', () => {
-    expect(ADVISOR_SOURCES).toEqual([
-      'BACKLOG.md',
-      'BUGS.md',
-      'retrospectives',
-      'STATE/closure',
-      'milestone rows',
-    ]);
+  it('enumerates exactly the four sources it claims to read (M6.E8 FR5 — retrospectives left)', () => {
+    // ⚠ AC5.1 — no test may assert five. The retrospective read was 32 files
+    // parsed on every run for headings no ranking input ever consulted.
+    expect(ADVISOR_SOURCES).toEqual(['BACKLOG.md', 'BUGS.md', 'STATE/closure', 'milestone rows']);
   });
 
   it('checked + cannotCheck ALWAYS equals the source list — the docblock claim, tested', async () => {
@@ -308,9 +300,9 @@ describe('t2.6 — cannot-check is a value, never a silent pass', () => {
     //
     // ⚠ AND IT IS A WEAK INVARIANT ON PURPOSE, stated so nobody reads it as more:
     // the COUNT stays right while a source's CONTENT silently shrinks. That is
-    // exactly how the unreadable-retro case hides — one record vanishes, five
-    // sources still report. This catches a source that goes missing from both
-    // lists, not a source that under-reports.
+    // exactly how an unreadable milestone file would hide if branch 5 skipped
+    // it — one file vanishes, four sources still report. This catches a source
+    // that goes missing from both lists, not a source that under-reports.
     const mutate = {
       'clean': () => {},
       'no BACKLOG.md': (b) => rmSync(join(b, '.planning', 'BACKLOG.md')),
@@ -334,7 +326,7 @@ describe('t2.6 — cannot-check is a value, never a silent pass', () => {
     }
   });
 
-  it('a clean corpus checks all five and reports nothing it could not read', async () => {
+  it('a clean corpus checks all four and reports nothing it could not read', async () => {
     const base = fixture();
     const corpus = await readCorpus(base);
     expect(corpus.checked).toEqual([...ADVISOR_SOURCES]);
@@ -380,36 +372,35 @@ describe('t2.6 — cannot-check is a value, never a silent pass', () => {
     expect(corpus.checked).not.toContain('STATE/closure');
   });
 
-  it('an ABSENT .planning/ reports retrospectives as cannot-check, not as read-and-empty', async () => {
-    // ⚠ FOUND AT REVIEW, and the test below is why it survived EXECUTE: that one
-    // replaces `.planning/` with a FILE, which makes readdir throw ENOTDIR and
-    // land in the catch. An ABSENT `.planning/` raises ENOENT, which
-    // `enumerateRetros` deliberately swallows into `[]` — correct for its own
-    // contract, and a false "checked" for this one. Four sources said honestly
-    // that they could not look; the fifth claimed it had.
+  it('an ABSENT .planning/ reports milestone rows as cannot-check, not as read-and-empty', async () => {
+    // ⚠ The distinction this used to guard on the retrospective read (M6.E7
+    // REVIEW): an ABSENT `.planning/` is "could not look", an EMPTY one is
+    // "looked, found nothing". The retrospective read is gone (M6.E8 FR5); the
+    // milestone read has the same shape and inherits the guard — `readdir` on an
+    // absent directory throws ENOENT and must land in cannot-check, never in an
+    // empty `files: []` standing in for a read.
     const base = mkdtempSync(join(tmpdir(), 'sig-advise-corpus-absent-'));
     const corpus = await readCorpus(base);
     expect(corpus.checked).toEqual([]);
     expect(corpus.cannotCheck.map((c) => c.source).sort()).toEqual([...ADVISOR_SOURCES].sort());
-    expect(corpus.sources.retros).toBeNull();
-    expect(corpus.cannotCheck.find((c) => c.source === 'retrospectives').reason).toMatch(/not present/i);
+    expect(corpus.sources.milestones).toBeNull();
+    expect(corpus.cannotCheck.find((c) => c.source === 'milestone rows').reason).toMatch(/could not be listed/i);
   });
 
-  it('an EMPTY but existing .planning/ still reads retros — nothing to find is a result', async () => {
+  it('an EMPTY but existing .planning/ still reads milestone rows — nothing to find is a result', async () => {
     // The other side of the same line. Absent means "could not look"; empty means
     // "looked, found nothing". Collapsing them in either direction is the bug.
     const base = mkdtempSync(join(tmpdir(), 'sig-advise-corpus-empty-'));
     mkdirSync(join(base, '.planning'), { recursive: true });
     const corpus = await readCorpus(base);
-    expect(corpus.checked).toContain('retrospectives');
-    expect(corpus.sources.retros.records).toEqual([]);
+    expect(corpus.checked).toContain('milestone rows');
+    expect(corpus.sources.milestones.files).toEqual([]);
   });
 
-  it('an unreadable retro directory reports retrospectives as cannot-check', async () => {
+  it('a .planning/ that is a FILE reports every source as cannot-check', async () => {
     const base = fixture();
-    // A retro file replaced by a directory makes the walk itself throw on read;
-    // enumerateRetros skips unreadable files, so the honest way to break the
-    // source is to remove the planning dir out from under it.
+    // `.planning` replaced by a file makes every read and readdir throw ENOTDIR;
+    // each branch must land that in cannot-check rather than in an empty result.
     rmSync(join(base, '.planning'), { recursive: true, force: true });
     writeFileSync(join(base, '.planning'), 'not a directory\n');
     const corpus = await readCorpus(base);
@@ -457,7 +448,10 @@ describe('t3.1 input 5 — a row that declares itself not live work', () => {
     // equality: promoting a new parked row must not turn the suite red.
     const corpus = await readCorpus(process.cwd());
     const hits = corpus.sources.backlog.rows.filter((r) => declaresNotLiveWork(r.text).notLive);
-    expect(hits.length).toBeGreaterThanOrEqual(4);
+    // Reads the constant rather than repeating its number: this assertion and
+    // `NOT_LIVE_MEASURED` pinned the same 4 in two places, so a re-measurement
+    // had to remember both and only one carried a remedy message.
+    expect(hits.length).toBeGreaterThanOrEqual(NOT_LIVE_MEASURED.hits);
     for (const h of hits) expect(h.text).toMatch(/parked|reconciliation|shelved|(STILL|KEPT|HELD)\s+OPEN/i);
   });
 
@@ -466,5 +460,186 @@ describe('t3.1 input 5 — a row that declares itself not live work', () => {
     // the same refusal t2.5 makes about the milestone parsers, for the same reason.
     const src = readFileSync(join(process.cwd(), 'plugin/tools/lib/backlog.js'), 'utf8');
     expect(src).toMatch(/const HELD_OPEN_RE = \/\\b\(\?:STILL\|KEPT\|HELD\)\\s\+OPEN\\b\/i;/);
+  });
+});
+
+describe('M6.E8 t2.1 (FR4) — a row whose heading says its work moved elsewhere, and `KEPT` overrides', () => {
+  // The five real headings, verbatim, from this repository's BACKLOG.md on
+  // 2026-09-14. Named by heading and never by line (`D-M6E8-4`): a line moves
+  // the moment a row is inserted above it, a heading survives.
+  const FOLDED = "`STATE.md`'s narrative vs. its frontmatter · **hygiene** · small · **FOLDED INTO `M5.E10`**";
+  const ABSORBED_1 = 'Re-source the stale external claims → **absorbed into M5.E12**';
+  const ABSORBED_2 = '`/sig:docs-update` — GSD port → **absorbed into M5.E12**';
+  const KEPT_REHOMED = "Retro *replay* into the next Epic's DISCUSS/PLAN — **KEPT, re-homed**";
+  const KEPT_ABSORBED = 'Cross-Epic pattern detection — **KEPT, absorbed into M5.E11**';
+
+  it('reads the HEADING only — a fold phrase in a body is not a declaration', () => {
+    // The one live row that mentions a fold phrase in its BODY alone (the
+    // obligation-tracker row) is the false positive heading-only avoids.
+    expect(declaresWorkMovedElsewhere('M5.E14 — Obligation tracker integration').moved).toBe(false);
+    expect(declaresWorkMovedElsewhere('A perfectly live row').declaration).toBeNull();
+  });
+
+  it('recognises the three measured phrases and names which fired (AC4.1)', () => {
+    for (const [text, kind] of [
+      [FOLDED, 'folded-into'],
+      [ABSORBED_1, 'absorbed-into'],
+      [ABSORBED_2, 'absorbed-into'],
+      ['Something — re-homed to the docs plugin', 're-homed'],
+    ]) {
+      const r = declaresWorkMovedElsewhere(text);
+      expect(r.moved, `expected "${text}" to read as moved`).toBe(true);
+      expect(r.kind).toBe(kind);
+      expect(r.kept).toBe(false);
+      expect(r.declaration).toBeTruthy();
+    }
+  });
+
+  it('`KEPT` is evaluated FIRST and overrides the fold vocabulary (AC4.2)', () => {
+    // Both real headings say their work moved AND say KEPT. That is the maintainer
+    // saying "do not drop this", and dropping it would be the worst thing the
+    // advisor can do. The override returns before the fold vocabulary runs.
+    for (const text of [KEPT_REHOMED, KEPT_ABSORBED]) {
+      const r = declaresWorkMovedElsewhere(text);
+      expect(r.moved, `expected "${text}" to be preserved`).toBe(false);
+      expect(r.kept).toBe(true);
+      expect(r.declaration).toMatch(/KEPT/);
+    }
+  });
+
+  it('the fold vocabulary is EXACT-CASE, so lowercase prose does not drop a live row', () => {
+    // The two sides carry different case rules on purpose: a `kept` false
+    // positive preserves (safe), a fold false positive drops (unsafe). An earlier
+    // version matched fold case-insensitively while its own comment claimed the
+    // asymmetry existed; a fresh-context reviewer caught the comment asserting
+    // the safer behaviour and the code implementing the less safe one.
+    expect(declaresWorkMovedElsewhere('A row about work folded into other work').moved).toBe(false);
+    expect(declaresWorkMovedElsewhere('Notes absorbed Into the wider plan').moved).toBe(false);
+    // And the five real headings still match exactly — the exact-case count on
+    // the live file is 5, identical to the any-case count that was measured.
+    expect(declaresWorkMovedElsewhere('x · **FOLDED INTO `M5.E10`**').moved).toBe(true);
+    expect(declaresWorkMovedElsewhere('x → **absorbed into M5.E12**').moved).toBe(true);
+    expect(declaresWorkMovedElsewhere('x — **KEPT, re-homed**').kept).toBe(true);
+  });
+
+  it('lowercase "kept" in prose also preserves — preserving is the safe direction', () => {
+    const r = declaresWorkMovedElsewhere('A row we kept, re-homed under the docs plugin');
+    expect(r.moved).toBe(false);
+    expect(r.kept).toBe(true);
+  });
+
+  it('records its measurement beside the pattern, frozen, in the shape the live pin reads', () => {
+    for (const m of [FOLD_MEASURED, KEPT_MEASURED]) {
+      expect(Object.isFrozen(m)).toBe(true);
+      expect(m.on).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(Number.isInteger(m.hits)).toBe(true);
+      expect(m).not.toHaveProperty('rows');
+    }
+  });
+
+  it('does not widen HELD_OPEN_RE — `KEPT` here is a separate override, not a new phrase in it (NFR3)', () => {
+    const src = readFileSync(join(process.cwd(), 'plugin/tools/lib/backlog.js'), 'utf8');
+    expect(src).toMatch(/const HELD_OPEN_RE = \/\\b\(\?:STILL\|KEPT\|HELD\)\\s\+OPEN\\b\/i;/);
+  });
+});
+
+describe('M6.E8 t3.1 (FR1) — a heading that says it discharges a bug, verb ADJACENT to the id', () => {
+  it('reads the HEADING only and needs an INFLECTED verb next to the id', () => {
+    for (const [text, id] of [
+      ['Fixes B75 — the two gate settings differ by one boolean', 'B75'],
+      ['Closes B12 by deleting the dead branch', 'B12'],
+      ['`B7` — fixed, with the regression test', 'B7'],
+      ['Resolves `B3`: the parser reads depth 4', 'B3'],
+    ]) {
+      const r = declaresBugDischarge(text);
+      expect(r.id, `expected "${text}" to declare ${id}`).toBe(id);
+      expect(r.declaration).toBeTruthy();
+    }
+  });
+
+  it('recognises the PAST tense, which is how the heading actually gets written (REVIEW finding)', () => {
+    // Found in REVIEW by probing the predicate instead of reading it: the verb
+    // group was present-tense only, so `fixes B75` matched and `Fixed B75` did
+    // not. The id-first branch covered past tense but demanded a separator, so
+    // the id-first branch covered it. The input claimed to recognise "a heading
+    // that says it discharges a bug" and recognised about half the forms — and
+    // BUG_DISCHARGE_MEASURED would have stayed at 0 while such a row existed,
+    // which is the blind-check shape this repository keeps filing.
+    for (const [text, id] of [
+      ['Fixed B75 — the dial', 'B75'],
+      ['Closed B12', 'B12'],
+      ['Resolved B3', 'B3'],
+      ['Discharged B9', 'B9'],
+      ['`B7` — fixed', 'B7'],
+      ['B7: resolved', 'B7'],
+    ]) {
+      expect(declaresBugDischarge(text).id, `expected "${text}" to declare ${id}`).toBe(id);
+    }
+  });
+
+  it('a BARE verb is an intention or a noun, not a discharge (REVIEW pass 3)', () => {
+    // `fix` / `close` / `resolve` / `discharge` are nouns and imperatives too.
+    // "Fix B75" states an INTENTION to do the work, the opposite of having done
+    // it; "The B75 fix broke B76" is a noun and says the fix FAILED. Both matched
+    // until pass 3 dropped the bare forms.
+    for (const text of ['Fix B75', 'Close B12', 'Resolve B1 vs B2 ambiguity', 'The B75 fix broke B76', '`B75` fix regressed the parser', 'the discharge B75 handler']) {
+      expect(declaresBugDischarge(text).id, `"${text}" is not a claim that the work is done`).toBeNull();
+    }
+  });
+
+  it('an adjectival compound after the verb is not a discharge (REVIEW pass 3 audit)', () => {
+    // `\b` is satisfied by a hyphen, so every one of these promoted before the
+    // lookahead: a row about a batch queue read as closing the bug it names.
+    for (const text of [
+      'B9: discharged-batch queue',
+      'B1 — fixed-width column',
+      'B7 - resolved-name cache',
+      'B12: closed-loop controller',
+      'Fixes-forward B1 in the next release',
+    ]) {
+      expect(declaresBugDischarge(text).id, `"${text}" is a compound adjective, not a claim`).toBeNull();
+    }
+    // The real forms are unaffected.
+    expect(declaresBugDischarge('`B7` — fixed').id).toBe('B7');
+    expect(declaresBugDischarge('Fixed B75').id).toBe('B75');
+  });
+
+  it('the id-first form REQUIRES a separator, or a bug-as-subject heading reads as a discharge', () => {
+    // Without one, "B75 fixes the ceiling" and "B75 fixed-width column" are
+    // indistinguishable from a record of the fix. `B75 — fixed` is explicit;
+    // `B75 fixed` is not, and losing it is the price of not promoting the others.
+    expect(declaresBugDischarge('`B7` — fixed').id).toBe('B7');
+    expect(declaresBugDischarge('B7 - resolved').id).toBe('B7');
+    expect(declaresBugDischarge('B7: closed').id).toBe('B7');
+    for (const text of ['B75 fixes the ceiling', 'B75 closes at v0.2', 'B75 fixed-width column', 'B75 fixed']) {
+      expect(declaresBugDischarge(text).id, `"${text}" needs a separator to read as a claim`).toBeNull();
+    }
+  });
+
+  it('a done-word elsewhere in the heading is ordinary English, not a declaration', () => {
+    // The real heading that carries "closed": "single home for open/closed work".
+    // The `DONE_WORD_RE` lesson again — a bare verb anywhere in a heading is prose.
+    expect(declaresBugDischarge('M5.E14 — Obligation tracker integration (single home for open/closed work)').id).toBeNull();
+    // A bug id NAMED is not a bug id DISCHARGED.
+    expect(declaresBugDischarge('Re-aim on "the unreached mechanism" — the class behind `B87`–`B90`').id).toBeNull();
+    expect(declaresBugDischarge('The entry price for *any* Phase A autonomy work: `B73`–`B76`').id).toBeNull();
+    // The widening above made the separator optional on the id-first branch, so
+    // these three real headings are the regression fixtures for it: an id
+    // followed by a non-verb must not match.
+    expect(declaresBugDischarge('`B75` measured that ceiling').id).toBeNull();
+    expect(declaresBugDischarge('B118 — the driver reads one branch').id).toBeNull();
+  });
+
+  it('a body that cites a confirmed bug is not read at all — the predicate takes a heading', () => {
+    // Verbatim body fragment from a real B75-citing row: it MEASURES B75, it does
+    // not discharge it. Nine live rows name a confirmed bug in their body today.
+    const body = 'when a rule is not followed here, Signal writes the rule more carefully. `B75` measured that ceiling.';
+    expect(declaresBugDischarge(body).id).toBeNull();
+  });
+
+  it('records its measurement beside the pattern, frozen — zero, declared rather than implied', () => {
+    expect(Object.isFrozen(BUG_DISCHARGE_MEASURED)).toBe(true);
+    expect(BUG_DISCHARGE_MEASURED.on).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(BUG_DISCHARGE_MEASURED.hits).toBe(0);
   });
 });

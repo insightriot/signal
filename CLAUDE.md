@@ -63,9 +63,12 @@ was answered with a diagnosis about missing external users, while 42+ repositori
 **A user saying it doesn't work is a claim about the software; reproduce it before reframing it.**
 The trace that settled it took four minutes.
 
-⚠ **`M6.E8` is still parked at DISCUSS on `feat/m6.e8-advisor-ranking-inputs`** (`D-BR0908-3`).
-**Resume the branch; never start that row fresh.** Nothing automatic will remind you — `/sig:drive`
-and `/sig:advise` both read one branch's corpus (`B118`, unfixed).
+⚠ **`M6.E8` is at SHIP — PR #254 open on `feat/m6.e8-advisor-ranking-inputs`, awaiting merge**
+(2026-09-24). REVIEW closed PASS-WITH-FIXES at the loop ceiling; retro in
+[`.planning/M6.E8-RETROSPECTIVE.md`](.planning/M6.E8-RETROSPECTIVE.md). **Not yet a release** —
+`CHANGELOG.md` holds it under `[Unreleased]`. Nothing automatic surfaced this Epic while it waited
+at the SHIP gate for ten days — `/sig:drive` and `/sig:advise` both read one branch's corpus
+(`B118`, unfixed).
 
 ✅ **`B117` — the Epic lane kept getting squashed. CLOSED 2026-09-08 by the ruleset** (see *How changes reach `main`* below: `main` now permits `merge` only, so the sticky button cannot arm anything). The history is kept because the *cause* is the lesson. PR #239 was
 merged with the green button and collapsed 35 commits into one, orphaning two published anchors and
