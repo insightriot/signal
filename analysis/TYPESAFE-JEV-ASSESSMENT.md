@@ -198,7 +198,7 @@ own evidence.
 Needs a TypeSafe API key. *Recommended: yes* — it is the cheapest way to turn this document's
 guesses into numbers.
 
-**B. Is a paid outside API acceptable inside Signal, even optional?** Today Signal needs nothing
+**B. — decided 2026-09-25 (`D-BR0925-1`): no paid service; optional, with the user's own key.** *Original question:* **Is a paid outside API acceptable inside Signal, even optional?** Today Signal needs nothing
 beyond Claude Code and Node. An optional integration adds an account, a key, network calls, and a
 vendor who could change terms. This is a product-positioning call — *"installable in under five
 minutes"* is a stated constraint — and it can wait for item 1's numbers.
@@ -322,10 +322,10 @@ it were reproducible the way a commit-pinned verdict is (`ADHERENCE-LOG.md`).
 
 ### Decisions this adds
 
-- **E. The `TRIGGER_MET_RE` comment publishes 2 of 6 false; the rows say 5 of 6.** A fix-lane
+- **E. — decided, fixed in PR #257 (`D-BR0925-2`).** The `TRIGGER_MET_RE` comment published 2 of 6 false; the rows say 5 of 6. A fix-lane
   correction once Brett confirms the labels — rows 1362 and 1601 (own trigger `NONE`) are the
   quickest to check.
-- **F. Commit the spike?** The script and dataset live in the session scratchpad. Committing them
+- **F. — decided: option 1 (`D-BR0925-3`)**, `analysis/jev-spike/labels-and-results.json`. *Original question:* **Commit the spike?** The script and dataset live in the session scratchpad. Committing them
   means a network-calling file in the repo; outside `tools/` it escapes the privacy audit's scope,
   which is the thing this section declined to do. Options: commit only the dataset and the labels
   (no network code), or commit nothing and keep this section as the record.

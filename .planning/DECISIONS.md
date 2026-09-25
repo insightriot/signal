@@ -3207,3 +3207,39 @@ with `BUGS.md` unreadable and no bug-led row — and `BUGS.md` also when a confi
 supplied (the new input); `milestone rows` never, and the artifact says so with `D-M6E8-5`'s reason. The
 renderer carries no literal source list; `AC7.1` compares the line to `ranked.consulted`. It may
 legitimately disagree with the *Could not read* list, and the plan says so.
+
+## 2026-09-25 — Jev in Signal: bring your own key, no paid service (D-BR0925-1 … D-BR0925-3)
+
+*Context: [`../analysis/TYPESAFE-JEV-ASSESSMENT.md`](../analysis/TYPESAFE-JEV-ASSESSMENT.md) —
+assessment of TypeSafe's Jev model and its measurement on this repository's own records (§6).*
+
+### D-BR0925-1 — Signal ships no paid service; Jev is optional and uses the user's own API key
+
+**Brett's call, 2026-09-25**, answering the assessment's decision B. Signal does not buy, bundle, or
+proxy a model service. A Jev-backed check runs only when the user has put their own TypeSafe key in
+place; the documentation tells them how and where to get one. With no key, every command behaves
+exactly as it does today and **says the Jev check did not run** (assessment §3, conditions 1–2).
+
+**Where the instructions go — when the first Jev-backed check ships, not before.** Three places, each
+answering a different question: an **optional** row in `README.md` → *Requirements & compatibility*
+(what you need); a setup subsection under *Install* (how to add the key, where to get it); and a third
+entry in *Privacy & telemetry* (what is sent, and to whom). Setup text for a feature that does not
+exist yet would be a claim written ahead of the artifact — this repository's named defect.
+
+⚠ **Open, not decided here: the README's own rule for new network calls.** *Privacy & telemetry*
+says *"Any new network call or future telemetry would require a **major-version bump**, an explicit
+opt-in flag, and an update to this section + the audit script."* A user-supplied key is the opt-in
+flag. The major-version bump conflicts with the `0.1.x` cadence, and the section also promises the
+optional calls carry *"none of your data"* — a Jev call carries the text being checked. Either the
+integration honours that rule as written, or the rule is changed deliberately. Brett's call.
+
+### D-BR0925-2 — the published `TRIGGER_MET_RE` false-positive count is corrected (2 → 5 of 6)
+
+**Brett, 2026-09-25: "we want to be accurate."** Fix lane, PR #257. Evidence: assessment §6, set 2.
+
+### D-BR0925-3 — the spike's questions, labels and answers are committed; its network code is not
+
+**Brett, 2026-09-25**, option 1 of decision F. `analysis/jev-spike/labels-and-results.json` holds
+every question, label, label source, and both runs' answers, with the source commit each set's text
+comes from. The script that called the API stays out of the repository, so nothing sits outside
+`tools/audit-network-calls.js`'s reach while calling the network.

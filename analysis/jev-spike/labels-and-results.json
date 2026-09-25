@@ -1,0 +1,2612 @@
+{
+ "model": "jev-1.13.0",
+ "run": "2026-09-25",
+ "note": "Questions, labels and answers only. The text each question was asked about is not stored; rebuild it from the source named per set. No network code is committed (tools/audit-network-calls.js).",
+ "sources": {
+  "bug-fixed": "BUGS.md + CHANGELOG.md at fc4b8b1; released-section paragraphs naming the id",
+  "trigger-met": "live rows from plugin/tools/lib/advise-corpus.js readCorpus() at bbe5721, run over that commit's .planning/BACKLOG.md",
+  "narrative": ".planning/STATE.md body paragraphs at 3518c11 (main after PR #254), split on blank lines"
+ },
+ "cases": [
+  {
+   "set": "bug-fixed",
+   "id": "B33",
+   "label": false,
+   "labelSource": "published-facts.js docblock (13 flags / 1 real)",
+   "question": {
+    "type": "noul",
+    "instructions": "Bug B33 is recorded as still open. Does any of this released changelog text say that B33 itself was fixed, closed, or resolved?",
+    "criteria": {
+     "true": "The text states that B33 was fixed, closed, resolved, or shipped as a fix.",
+     "false": "The text only cites B33, relates to it, filed it, uses it as evidence or a measurement, or says it remains open."
+    }
+   },
+   "run1": {
+    "noul": 0.04
+   },
+   "run2": {
+    "noul": 0.04
+   }
+  },
+  {
+   "set": "bug-fixed",
+   "id": "B34",
+   "label": false,
+   "labelSource": "published-facts.js docblock (13 flags / 1 real)",
+   "question": {
+    "type": "noul",
+    "instructions": "Bug B34 is recorded as still open. Does any of this released changelog text say that B34 itself was fixed, closed, or resolved?",
+    "criteria": {
+     "true": "The text states that B34 was fixed, closed, resolved, or shipped as a fix.",
+     "false": "The text only cites B34, relates to it, filed it, uses it as evidence or a measurement, or says it remains open."
+    }
+   },
+   "run1": {
+    "noul": 0.04
+   },
+   "run2": {
+    "noul": 0.04
+   }
+  },
+  {
+   "set": "bug-fixed",
+   "id": "B35",
+   "label": false,
+   "labelSource": "published-facts.js docblock (13 flags / 1 real)",
+   "question": {
+    "type": "noul",
+    "instructions": "Bug B35 is recorded as still open. Does any of this released changelog text say that B35 itself was fixed, closed, or resolved?",
+    "criteria": {
+     "true": "The text states that B35 was fixed, closed, resolved, or shipped as a fix.",
+     "false": "The text only cites B35, relates to it, filed it, uses it as evidence or a measurement, or says it remains open."
+    }
+   },
+   "run1": {
+    "noul": 0.04
+   },
+   "run2": {
+    "noul": 0.04
+   }
+  },
+  {
+   "set": "bug-fixed",
+   "id": "B47",
+   "label": false,
+   "labelSource": "published-facts.js docblock (13 flags / 1 real)",
+   "question": {
+    "type": "noul",
+    "instructions": "Bug B47 is recorded as still open. Does any of this released changelog text say that B47 itself was fixed, closed, or resolved?",
+    "criteria": {
+     "true": "The text states that B47 was fixed, closed, resolved, or shipped as a fix.",
+     "false": "The text only cites B47, relates to it, filed it, uses it as evidence or a measurement, or says it remains open."
+    }
+   },
+   "run1": {
+    "noul": 0.06
+   },
+   "run2": {
+    "noul": 0.06
+   }
+  },
+  {
+   "set": "bug-fixed",
+   "id": "B56",
+   "label": false,
+   "labelSource": "published-facts.js docblock (13 flags / 1 real)",
+   "question": {
+    "type": "noul",
+    "instructions": "Bug B56 is recorded as still open. Does any of this released changelog text say that B56 itself was fixed, closed, or resolved?",
+    "criteria": {
+     "true": "The text states that B56 was fixed, closed, resolved, or shipped as a fix.",
+     "false": "The text only cites B56, relates to it, filed it, uses it as evidence or a measurement, or says it remains open."
+    }
+   },
+   "run1": {
+    "noul": 0.06
+   },
+   "run2": {
+    "noul": 0.05
+   }
+  },
+  {
+   "set": "bug-fixed",
+   "id": "B60",
+   "label": false,
+   "labelSource": "published-facts.js docblock (13 flags / 1 real)",
+   "question": {
+    "type": "noul",
+    "instructions": "Bug B60 is recorded as still open. Does any of this released changelog text say that B60 itself was fixed, closed, or resolved?",
+    "criteria": {
+     "true": "The text states that B60 was fixed, closed, resolved, or shipped as a fix.",
+     "false": "The text only cites B60, relates to it, filed it, uses it as evidence or a measurement, or says it remains open."
+    }
+   },
+   "run1": {
+    "noul": 0.05
+   },
+   "run2": {
+    "noul": 0.05
+   }
+  },
+  {
+   "set": "bug-fixed",
+   "id": "B61",
+   "label": false,
+   "labelSource": "published-facts.js docblock (13 flags / 1 real)",
+   "question": {
+    "type": "noul",
+    "instructions": "Bug B61 is recorded as still open. Does any of this released changelog text say that B61 itself was fixed, closed, or resolved?",
+    "criteria": {
+     "true": "The text states that B61 was fixed, closed, resolved, or shipped as a fix.",
+     "false": "The text only cites B61, relates to it, filed it, uses it as evidence or a measurement, or says it remains open."
+    }
+   },
+   "run1": {
+    "noul": 0.05
+   },
+   "run2": {
+    "noul": 0.05
+   }
+  },
+  {
+   "set": "bug-fixed",
+   "id": "B81",
+   "label": false,
+   "labelSource": "published-facts.js docblock (13 flags / 1 real)",
+   "question": {
+    "type": "noul",
+    "instructions": "Bug B81 is recorded as still open. Does any of this released changelog text say that B81 itself was fixed, closed, or resolved?",
+    "criteria": {
+     "true": "The text states that B81 was fixed, closed, resolved, or shipped as a fix.",
+     "false": "The text only cites B81, relates to it, filed it, uses it as evidence or a measurement, or says it remains open."
+    }
+   },
+   "run1": {
+    "noul": 0.04
+   },
+   "run2": {
+    "noul": 0.04
+   }
+  },
+  {
+   "set": "bug-fixed",
+   "id": "B75",
+   "label": false,
+   "labelSource": "published-facts.js docblock (13 flags / 1 real)",
+   "question": {
+    "type": "noul",
+    "instructions": "Bug B75 is recorded as still open. Does any of this released changelog text say that B75 itself was fixed, closed, or resolved?",
+    "criteria": {
+     "true": "The text states that B75 was fixed, closed, resolved, or shipped as a fix.",
+     "false": "The text only cites B75, relates to it, filed it, uses it as evidence or a measurement, or says it remains open."
+    }
+   },
+   "run1": {
+    "noul": 0.05
+   },
+   "run2": {
+    "noul": 0.05
+   }
+  },
+  {
+   "set": "bug-fixed",
+   "id": "B71",
+   "label": false,
+   "labelSource": "published-facts.js docblock (13 flags / 1 real)",
+   "question": {
+    "type": "noul",
+    "instructions": "Bug B71 is recorded as still open. Does any of this released changelog text say that B71 itself was fixed, closed, or resolved?",
+    "criteria": {
+     "true": "The text states that B71 was fixed, closed, resolved, or shipped as a fix.",
+     "false": "The text only cites B71, relates to it, filed it, uses it as evidence or a measurement, or says it remains open."
+    }
+   },
+   "run1": {
+    "noul": 0.07
+   },
+   "run2": {
+    "noul": 0.07
+   }
+  },
+  {
+   "set": "bug-fixed",
+   "id": "B102",
+   "label": true,
+   "labelSource": "published-facts.js docblock (13 flags / 1 real)",
+   "question": {
+    "type": "noul",
+    "instructions": "Bug B102 is recorded as still open. Does any of this released changelog text say that B102 itself was fixed, closed, or resolved?",
+    "criteria": {
+     "true": "The text states that B102 was fixed, closed, resolved, or shipped as a fix.",
+     "false": "The text only cites B102, relates to it, filed it, uses it as evidence or a measurement, or says it remains open."
+    }
+   },
+   "run1": {
+    "noul": 0.53
+   },
+   "run2": {
+    "noul": 0.51
+   }
+  },
+  {
+   "set": "bug-fixed",
+   "id": "B101",
+   "label": false,
+   "labelSource": "published-facts.js docblock (13 flags / 1 real)",
+   "question": {
+    "type": "noul",
+    "instructions": "Bug B101 is recorded as still open. Does any of this released changelog text say that B101 itself was fixed, closed, or resolved?",
+    "criteria": {
+     "true": "The text states that B101 was fixed, closed, resolved, or shipped as a fix.",
+     "false": "The text only cites B101, relates to it, filed it, uses it as evidence or a measurement, or says it remains open."
+    }
+   },
+   "run1": {
+    "noul": 0.06
+   },
+   "run2": {
+    "noul": 0.05
+   }
+  },
+  {
+   "set": "bug-fixed",
+   "id": "B100",
+   "label": false,
+   "labelSource": "published-facts.js docblock (13 flags / 1 real)",
+   "question": {
+    "type": "noul",
+    "instructions": "Bug B100 is recorded as still open. Does any of this released changelog text say that B100 itself was fixed, closed, or resolved?",
+    "criteria": {
+     "true": "The text states that B100 was fixed, closed, resolved, or shipped as a fix.",
+     "false": "The text only cites B100, relates to it, filed it, uses it as evidence or a measurement, or says it remains open."
+    }
+   },
+   "run1": {
+    "noul": 0.07
+   },
+   "run2": {
+    "noul": 0.06
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 7",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "reconciliation section; match is inside an absorbed B52 entry",
+   "regexHit": true,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.28
+   },
+   "run2": {
+    "noul": 0.28
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 151",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.12
+   },
+   "run2": {
+    "noul": 0.12
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 192",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.21
+   },
+   "run2": {
+    "noul": 0.19
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 217",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.25
+   },
+   "run2": {
+    "noul": 0.25
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 232",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.1
+   },
+   "run2": {
+    "noul": 0.12
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 255",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.13
+   },
+   "run2": {
+    "noul": 0.13
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 297",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.42
+   },
+   "run2": {
+    "noul": 0.32
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 316",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.53
+   },
+   "run2": {
+    "noul": 0.53
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 335",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.21
+   },
+   "run2": {
+    "noul": 0.22
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 349",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.09
+   },
+   "run2": {
+    "noul": 0.1
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 376",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.22
+   },
+   "run2": {
+    "noul": 0.21
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 392",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.15
+   },
+   "run2": {
+    "noul": 0.15
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 430",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.65
+   },
+   "run2": {
+    "noul": 0.64
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 582",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.3
+   },
+   "run2": {
+    "noul": 0.32
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 609",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.21
+   },
+   "run2": {
+    "noul": 0.21
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 728",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.56
+   },
+   "run2": {
+    "noul": 0.57
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 762",
+   "label": true,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "own text: \"Its trigger fired\"",
+   "regexHit": true,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.91
+   },
+   "run2": {
+    "noul": 0.94
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 785",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.53
+   },
+   "run2": {
+    "noul": 0.44
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 850",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.17
+   },
+   "run2": {
+    "noul": 0.18
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 865",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.14
+   },
+   "run2": {
+    "noul": 0.14
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 877",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.1
+   },
+   "run2": {
+    "noul": 0.1
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 895",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.13
+   },
+   "run2": {
+    "noul": 0.12
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 931",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.28
+   },
+   "run2": {
+    "noul": 0.28
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 993",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.24
+   },
+   "run2": {
+    "noul": 0.24
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1117",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "reconciliation section (published FP)",
+   "regexHit": true,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.34
+   },
+   "run2": {
+    "noul": 0.34
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1326",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.12
+   },
+   "run2": {
+    "noul": 0.11
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1362",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "own line: \"Trigger: NONE — promoted on evidence\"; match is an absorbed struck sibling",
+   "regexHit": true,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.17
+   },
+   "run2": {
+    "noul": 0.19
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1601",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "own line: \"Trigger: NONE — filed 2026-07-30\"; match is absorbed M5.E15",
+   "regexHit": true,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.09
+   },
+   "run2": {
+    "noul": 0.1
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1669",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.15
+   },
+   "run2": {
+    "noul": 0.14
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1695",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.17
+   },
+   "run2": {
+    "noul": 0.21
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1771",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.08
+   },
+   "run2": {
+    "noul": 0.08
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1779",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.43
+   },
+   "run2": {
+    "noul": 0.45
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1789",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.19
+   },
+   "run2": {
+    "noul": 0.19
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1806",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.26
+   },
+   "run2": {
+    "noul": 0.24
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1849",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.14
+   },
+   "run2": {
+    "noul": 0.16
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1856",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.29
+   },
+   "run2": {
+    "noul": 0.26
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1870",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.45
+   },
+   "run2": {
+    "noul": 0.46
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1874",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.05
+   },
+   "run2": {
+    "noul": 0.05
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1878",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.07
+   },
+   "run2": {
+    "noul": 0.07
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1882",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.07
+   },
+   "run2": {
+    "noul": 0.06
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1886",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.05
+   },
+   "run2": {
+    "noul": 0.05
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1890",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.06
+   },
+   "run2": {
+    "noul": 0.06
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1900",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.08
+   },
+   "run2": {
+    "noul": 0.09
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1904",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.05
+   },
+   "run2": {
+    "noul": 0.05
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1908",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.08
+   },
+   "run2": {
+    "noul": 0.08
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1912",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.15
+   },
+   "run2": {
+    "noul": 0.15
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1924",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.1
+   },
+   "run2": {
+    "noul": 0.09
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1942",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.2
+   },
+   "run2": {
+    "noul": 0.22
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1952",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "watchlist; match belongs to a listed item (published FP)",
+   "regexHit": true,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.24
+   },
+   "run2": {
+    "noul": 0.23
+   }
+  },
+  {
+   "set": "trigger-met",
+   "id": "line 1969",
+   "label": false,
+   "labelSource": "Claude's reading of the row's own Trigger line",
+   "why": "mechanical: own text has no trigger, or names a condition not stated as met",
+   "regexHit": false,
+   "question": {
+    "type": "noul",
+    "instructions": "This is one entry from a project backlog. Its own item is the one named in ENTRY HEADING. Does the entry say that ITS OWN trigger has been met or has fired? Triggers belonging to other items that appear further down (their own headings, struck-through items, watchlists, quoted history) do not count.",
+    "criteria": {
+     "true": "The heading item's own trigger is stated as met, fired, or satisfied.",
+     "false": "The heading item's own trigger is unmet, NONE, absent, or only other items' triggers fired."
+    }
+   },
+   "run1": {
+    "noul": 0.61
+   },
+   "run2": {
+    "noul": 0.64
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 4",
+   "label": "supports",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "supports",
+    "confidence": 0.99,
+    "probabilities": {
+     "says_nothing": 0,
+     "contradicts": 0.01,
+     "supports": 0.99
+    }
+   },
+   "run2": {
+    "choice": "supports",
+    "confidence": 0.99,
+    "probabilities": {
+     "says_nothing": 0,
+     "supports": 0.99,
+     "contradicts": 0.01
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 5",
+   "label": "supports",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "supports",
+    "confidence": 0.82,
+    "probabilities": {
+     "says_nothing": 0.06,
+     "contradicts": 0.05,
+     "supports": 0.89
+    }
+   },
+   "run2": {
+    "choice": "supports",
+    "confidence": 0.78,
+    "probabilities": {
+     "contradicts": 0.07,
+     "says_nothing": 0.08,
+     "supports": 0.85
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 6",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.59,
+    "probabilities": {
+     "says_nothing": 0.73,
+     "supports": 0.1,
+     "contradicts": 0.17
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.45,
+    "probabilities": {
+     "says_nothing": 0.64,
+     "contradicts": 0.25,
+     "supports": 0.11
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 8",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 1,
+    "probabilities": {
+     "says_nothing": 1,
+     "supports": 0,
+     "contradicts": 0
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 1,
+    "probabilities": {
+     "says_nothing": 1,
+     "supports": 0,
+     "contradicts": 0
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 10",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 1,
+    "probabilities": {
+     "says_nothing": 1,
+     "supports": 0,
+     "contradicts": 0
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 1,
+    "probabilities": {
+     "says_nothing": 1,
+     "supports": 0,
+     "contradicts": 0
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 12",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.96,
+    "probabilities": {
+     "contradicts": 0.03,
+     "says_nothing": 0.97,
+     "supports": 0
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.95,
+    "probabilities": {
+     "contradicts": 0.03,
+     "says_nothing": 0.97,
+     "supports": 0
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 14",
+   "label": "contradicts",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "contradicts",
+    "confidence": 0.99,
+    "probabilities": {
+     "supports": 0,
+     "contradicts": 1,
+     "says_nothing": 0
+    }
+   },
+   "run2": {
+    "choice": "contradicts",
+    "confidence": 0.99,
+    "probabilities": {
+     "says_nothing": 0,
+     "contradicts": 1,
+     "supports": 0
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 15",
+   "label": "contradicts",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "contradicts",
+    "confidence": 0.23,
+    "probabilities": {
+     "contradicts": 0.49,
+     "says_nothing": 0.46,
+     "supports": 0.05
+    }
+   },
+   "run2": {
+    "choice": "contradicts",
+    "confidence": 0.37,
+    "probabilities": {
+     "contradicts": 0.57,
+     "says_nothing": 0.39,
+     "supports": 0.04
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 16",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.69,
+    "probabilities": {
+     "supports": 0.16,
+     "contradicts": 0.05,
+     "says_nothing": 0.79
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.58,
+    "probabilities": {
+     "says_nothing": 0.72,
+     "supports": 0.24,
+     "contradicts": 0.04
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 17",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.44,
+    "probabilities": {
+     "says_nothing": 0.62,
+     "supports": 0.24,
+     "contradicts": 0.14
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.36,
+    "probabilities": {
+     "contradicts": 0.11,
+     "says_nothing": 0.57,
+     "supports": 0.32
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 18",
+   "label": "contradicts",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "contradicts",
+    "confidence": 0.91,
+    "probabilities": {
+     "says_nothing": 0.05,
+     "contradicts": 0.94,
+     "supports": 0.01
+    }
+   },
+   "run2": {
+    "choice": "contradicts",
+    "confidence": 0.92,
+    "probabilities": {
+     "says_nothing": 0.05,
+     "contradicts": 0.94,
+     "supports": 0.01
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 19",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.9,
+    "probabilities": {
+     "says_nothing": 0.93,
+     "contradicts": 0.06,
+     "supports": 0.01
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.83,
+    "probabilities": {
+     "says_nothing": 0.88,
+     "supports": 0.01,
+     "contradicts": 0.11
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 20",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.89,
+    "probabilities": {
+     "says_nothing": 0.92,
+     "contradicts": 0.05,
+     "supports": 0.03
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.88,
+    "probabilities": {
+     "contradicts": 0.05,
+     "supports": 0.03,
+     "says_nothing": 0.92
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 21",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.76,
+    "probabilities": {
+     "says_nothing": 0.84,
+     "contradicts": 0.01,
+     "supports": 0.15
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.78,
+    "probabilities": {
+     "says_nothing": 0.85,
+     "contradicts": 0.01,
+     "supports": 0.14
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 22",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.73,
+    "probabilities": {
+     "says_nothing": 0.82,
+     "contradicts": 0.07,
+     "supports": 0.11
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.8,
+    "probabilities": {
+     "contradicts": 0.05,
+     "says_nothing": 0.87,
+     "supports": 0.08
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 23",
+   "label": "contradicts",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "contradicts",
+    "confidence": 1,
+    "probabilities": {
+     "says_nothing": 0,
+     "supports": 0,
+     "contradicts": 1
+    }
+   },
+   "run2": {
+    "choice": "contradicts",
+    "confidence": 1,
+    "probabilities": {
+     "contradicts": 1,
+     "says_nothing": 0,
+     "supports": 0
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 24",
+   "label": "ambiguous",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "contradicts",
+    "confidence": 0.25,
+    "probabilities": {
+     "contradicts": 0.5,
+     "says_nothing": 0.38,
+     "supports": 0.12
+    }
+   },
+   "run2": {
+    "choice": "contradicts",
+    "confidence": 0.33,
+    "probabilities": {
+     "contradicts": 0.55,
+     "says_nothing": 0.29,
+     "supports": 0.16
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 25",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.98,
+    "probabilities": {
+     "contradicts": 0.01,
+     "says_nothing": 0.99,
+     "supports": 0
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.98,
+    "probabilities": {
+     "supports": 0,
+     "contradicts": 0.01,
+     "says_nothing": 0.99
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 26",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.98,
+    "probabilities": {
+     "contradicts": 0.01,
+     "says_nothing": 0.99,
+     "supports": 0
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.99,
+    "probabilities": {
+     "contradicts": 0,
+     "says_nothing": 1,
+     "supports": 0
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 27",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.92,
+    "probabilities": {
+     "supports": 0.01,
+     "contradicts": 0.05,
+     "says_nothing": 0.94
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.94,
+    "probabilities": {
+     "says_nothing": 0.97,
+     "contradicts": 0.03,
+     "supports": 0
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 28",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.89,
+    "probabilities": {
+     "says_nothing": 0.92,
+     "supports": 0.01,
+     "contradicts": 0.07
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.86,
+    "probabilities": {
+     "contradicts": 0.09,
+     "supports": 0.01,
+     "says_nothing": 0.9
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 29",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.98,
+    "probabilities": {
+     "says_nothing": 0.99,
+     "supports": 0,
+     "contradicts": 0.01
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.98,
+    "probabilities": {
+     "contradicts": 0.01,
+     "says_nothing": 0.99,
+     "supports": 0
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 30",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.8,
+    "probabilities": {
+     "says_nothing": 0.87,
+     "contradicts": 0.13,
+     "supports": 0
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.79,
+    "probabilities": {
+     "contradicts": 0.13,
+     "says_nothing": 0.87,
+     "supports": 0
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 31",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.8,
+    "probabilities": {
+     "says_nothing": 0.87,
+     "supports": 0,
+     "contradicts": 0.13
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.79,
+    "probabilities": {
+     "contradicts": 0.13,
+     "says_nothing": 0.87,
+     "supports": 0
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 32",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.81,
+    "probabilities": {
+     "says_nothing": 0.87,
+     "contradicts": 0.05,
+     "supports": 0.08
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.86,
+    "probabilities": {
+     "says_nothing": 0.91,
+     "supports": 0.06,
+     "contradicts": 0.03
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 33",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 1,
+    "probabilities": {
+     "supports": 0,
+     "says_nothing": 1,
+     "contradicts": 0
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 1,
+    "probabilities": {
+     "says_nothing": 1,
+     "supports": 0,
+     "contradicts": 0
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 34",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.84,
+    "probabilities": {
+     "supports": 0.02,
+     "contradicts": 0.09,
+     "says_nothing": 0.89
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.84,
+    "probabilities": {
+     "contradicts": 0.1,
+     "supports": 0.01,
+     "says_nothing": 0.89
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 35",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.97,
+    "probabilities": {
+     "says_nothing": 0.97,
+     "contradicts": 0.02,
+     "supports": 0.01
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.98,
+    "probabilities": {
+     "says_nothing": 0.98,
+     "contradicts": 0.01,
+     "supports": 0.01
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 37",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.82,
+    "probabilities": {
+     "contradicts": 0.01,
+     "says_nothing": 0.88,
+     "supports": 0.11
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.81,
+    "probabilities": {
+     "says_nothing": 0.87,
+     "contradicts": 0.01,
+     "supports": 0.12
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 39",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "contradicts",
+    "confidence": 0.11,
+    "probabilities": {
+     "supports": 0.3,
+     "contradicts": 0.41,
+     "says_nothing": 0.29
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.09,
+    "probabilities": {
+     "says_nothing": 0.4,
+     "supports": 0.32,
+     "contradicts": 0.28
+    }
+   }
+  },
+  {
+   "set": "narrative",
+   "id": "para 41",
+   "label": "says_nothing",
+   "labelSource": "Claude's reading",
+   "facts": {
+    "STATE.md frontmatter phase": "SHIP",
+    "STATE.md frontmatter current_epic": "M6.E8",
+    "plugin.json version": "0.1.40",
+    "work in flight": "M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)",
+    "M6.E3 status": "planned 2026-08-19, parked 2026-08-20, not in flight"
+   },
+   "question": {
+    "type": "choice",
+    "instructions": "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+    "criteria": {
+     "supports": "The paragraph asserts the current state and agrees with the facts.",
+     "contradicts": "The paragraph asserts the current state and disagrees with the facts.",
+     "says_nothing": "The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers)."
+    }
+   },
+   "run1": {
+    "choice": "says_nothing",
+    "confidence": 0.97,
+    "probabilities": {
+     "contradicts": 0.01,
+     "supports": 0.01,
+     "says_nothing": 0.98
+    }
+   },
+   "run2": {
+    "choice": "says_nothing",
+    "confidence": 0.96,
+    "probabilities": {
+     "supports": 0.01,
+     "contradicts": 0.02,
+     "says_nothing": 0.97
+    }
+   }
+  }
+ ]
+}
