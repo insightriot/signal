@@ -12,9 +12,9 @@ sentence is true, not just whether the right words are present.** It does **not*
 could be built — from an open-ended agent re-reading prose, which the project rejected, to small
 yes/no and pick-one questions that code sets up and code acts on.
 
-**Nothing below has been run.** Every claim about Jev comes from its public docs (read 2026-09-25,
-model `jev-1.13.0`). Every claim about Signal cites the file. The first recommended step is a
-measurement, because that is the only kind of proposal this repository adopts.
+**Sections 1–5 were written before anything was run**, from Jev's public docs (read 2026-09-25,
+model `jev-1.13.0`). **Section 6 is the measurement**, run the same day on this repository's own
+records — read it before acting on the list in section 3.
 
 ---
 
@@ -223,3 +223,109 @@ cases apart, the un-built half has a design, and a reshaped `M6.E3` would be ite
 - **Brett's calls on A–D go to `.planning/DECISIONS.md`** as `D-BR0925-N`, citing this file.
 - **Not `CLAUDE.md`** until something ships. It is over its size budget and may not grow
   (`tools/doc-budgets.json`).
+
+---
+
+## 6. The measurement (2026-09-25) — decision A, run
+
+**Result in one line: Jev found every contradiction and the one real "fixed", and was never
+confidently wrong — but at the plain 0.5 cut it is no more precise than the regex it would replace
+on backlog triggers, and its one real "fixed" sat at a coin flip.** Small sets; read the caveats.
+
+**What was sent.** 94 questions, one per case, all from this repository: `CHANGELOG.md`,
+`BUGS.md`, `BACKLOG.md` and `STATE.md` text. Nothing from the eval corpus or any other project.
+**~94,000 input tokens per run, about $0.004.** Run twice to test repeatability. The script ran
+from a scratch directory, not from `tools/`, because `tools/audit-network-calls.js` backs the
+README's *"no network calls beyond Claude's API"* promise — a network-calling script in `tools/`
+would break it, and putting it somewhere the audit skips would be dodging it.
+
+### Set 1 — "does this changelog text say bug X was fixed?" (replaces `bug-status-vs-changelog`)
+
+The 13 rows the *any-mention* rule flagged at `fc4b8b1` (reproduced exactly from history: 28
+`confirmed` rows, 13 flagged). Labels **re-read against the question asked**, not just the bug's
+status: 12 passages cite, file, measure with, or say the bug *stays open* (`B56`: *"addresses the
+recurring half… it does not close the bug"*); one, `B102`, is the release written around fixing it.
+
+| | Flags | Real | Missed |
+|---|---|---|---|
+| any-mention rule | 13 | 1 | 0 |
+| headline rule (**shipped**) | 2 | 1 | 0 |
+| **Jev, ≥ 0.5** | **1** | **1** | **0** |
+
+**The catch: `B102` scored 0.53 and 0.51.** All twelve negatives stayed at or below 0.07 in both
+runs, so the separation is real, but the one positive barely cleared the line. `B102`'s entry never
+says *"fixed"* — it says *"`B102`, fix lane. A P1…"* — and Jev's documented weakness #1 is literal
+reading. **One positive is not a measurement of recall.**
+
+### Set 2 — "does this backlog row say ITS OWN trigger was met?" (replaces `TRIGGER_MET_RE`)
+
+All 50 live rows from 2026-09-05, reproduced by running `advise.js` as it stood at `bbe5721` over
+that day's `BACKLOG.md` (50 live, 6 regex hits — matching the recorded count).
+
+**⚠ Finding on the way in — the published false-positive count is wrong.** `advise.js` says
+*"2 of those 6 are false positives."* Read against each row's own `Trigger:` line, **5 of 6 are**:
+rows 1362 and 1601 state their own trigger as **`NONE`**, and three of the six carry 11–18 thousand
+characters of *other* entries' text, absorbed by the row-parsing defect `M6.E7`'s PR reviewer found
+later. Only row 762 says its own trigger fired. **These are Claude's labels**, with the evidence line
+recorded per row; the 44 unflagged rows were labeled mechanically (own text has no trigger, or names
+a condition without saying it was met). Not yet corrected in `advise.js` — see decisions below.
+
+| | Flagged | Real | Wrong |
+|---|---|---|---|
+| `TRIGGER_MET_RE` (**shipped**) | 6 | 1 | 5 |
+| **Jev, ≥ 0.5** | 6 | 1 | 5 |
+| Jev, ≥ 0.7 *(threshold picked after seeing the data)* | 1 | 1 | 0 |
+
+**Same count, different mistakes.** Jev rejected **all five** of the regex's false positives
+(0.09–0.34), including both published ones (1117: 0.34, 1952: 0.23–0.24), and gave the real one
+0.91–0.94. Its own five mistakes are rows describing **evidence rather than a trigger** — *"three
+instances in five weeks"*, *"the entry price… agreed"*, *"went stale three times"* — all scored
+0.53–0.65. **Every Jev error sits in the band its own docs say to send to a person.** The 0.7 row
+is shown because it is the honest reading of that, **not** as a validated threshold: it was chosen
+after looking, which is the tuning-on-the-test-set mistake `D-M6E3-6` refuses.
+
+### Set 3 — "does this `STATE.md` paragraph contradict the facts?" (the `M6.E3` class)
+
+The 31 body paragraphs of `STATE.md` on `main`, against the frontmatter plus two stated facts
+(what is in flight; `M6.E3` parked). **Claude's labels**: 4 contradictions, 2 agreements, 24
+history, 1 left unscored as ambiguous.
+
+| | Contradictions found (of 4) | False alarms (of 26) |
+|---|---|---|
+| `narrative-phase-contradicts-frontmatter` (**shipped**) | **0** | 0 |
+| **Jev** | **4** (3 at confidence 0.91–1.00; 1 at 0.23–0.37) | 1, at confidence 0.11 |
+
+It found *"Nothing is in flight"* (twice), *"`phase: PLAN` above is accurate"*, and *"`plugin.json`
+reads `0.1.30`"* — and correctly left alone paragraphs 29 and 31, which **quote** the old *"Nothing
+in flight"* as history. The one false alarm is *"Pending ops: None currently open"*, a label that is
+itself arguable. **This is the strongest result, and the smallest set with the weakest labels.**
+
+### Repeatability
+
+No seed is documented; the two runs differed by **up to 0.13** on one answer, and **2 of 94
+decisions flipped** — both already within 0.1 of the line (row 785: 0.53 → 0.44; paragraph 39:
+contradicts → says nothing). **Nothing confident moved.** A Jev number must never be recorded as if
+it were reproducible the way a commit-pinned verdict is (`ADHERENCE-LOG.md`).
+
+### What this does and does not establish
+
+- **Does:** on Signal's own text, Jev's confident answers were right every time (every answer at
+  ≥ 0.8 confidence or noul ≥ 0.9 / ≤ 0.1 matched its label — 50 such answers in run 1 and 47 in
+  run 2, none wrong). Its errors cluster
+  where its docs say uncertainty lives. On the `M6.E3` class it found what the shipped check cannot.
+- **Does not:** establish recall (sets 1 and 2 have **one** positive each), validate any threshold,
+  or generalise past this repository. Two of three label sets are Claude's reading, not an
+  independent record.
+- **Revises section 3:** item 5 (`M6.E3`'s semantic half) moves up — it is where the gap between
+  the shipped check (0 of 4) and Jev (4 of 4) is widest. Items 2 and 3 hold, but only with
+  confidence routing (auto-act high, person in the middle), never a bare 0.5 cut.
+
+### Decisions this adds
+
+- **E. The `TRIGGER_MET_RE` comment publishes 2 of 6 false; the rows say 5 of 6.** A fix-lane
+  correction once Brett confirms the labels — rows 1362 and 1601 (own trigger `NONE`) are the
+  quickest to check.
+- **F. Commit the spike?** The script and dataset live in the session scratchpad. Committing them
+  means a network-calling file in the repo; outside `tools/` it escapes the privacy audit's scope,
+  which is the thing this section declined to do. Options: commit only the dataset and the labels
+  (no network code), or commit nothing and keep this section as the record.
