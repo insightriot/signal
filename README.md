@@ -196,7 +196,7 @@ Signal has **no analytics, no telemetry, no usage pings, and no remote logging**
 1. **Version check** — `/sig:status` (and `/sig:doctor`) query the public GitHub API for Signal's latest release tag, so they can tell you when an update is available. The result is cached ~24h and fails silently when offline. Nothing but the request itself is sent.
 2. **Origin-drift check** — `/sig:resume`, `/sig:status`, and `/sig:checkpoint` run a bounded, read-only `git fetch` against **your own** git remote, to warn when someone (or another machine) pushed work your `STATE.md` doesn't reflect yet. It's the same fetch you'd run by hand; no data goes to Signal or any third party, and it's non-interactive + fails open (offline / auth-prompt / timeout → skipped).
 
-A feature that adds a call adds a line here. `node tools/audit-network-calls.js` lists the network code in Signal's source (direct `fetch`, `axios`, `node-fetch`, `got`, `http.request`, and `child_process curl|wget` shapes), so this list stays accurate — exit 0 means every call it finds is one listed here.
+A feature that adds a call adds a line here. `node tools/audit-network-calls.js` scans Signal's source under `plugin/` and `tools/` for network code — `fetch` called or passed in, `axios`, `node-fetch`, `got`, `http.request`, `curl`/`wget`, and git subcommands that reach a remote — and prints each call it finds. Exit 0 means every one of them is a call listed here.
 
 ## Command reference
 
