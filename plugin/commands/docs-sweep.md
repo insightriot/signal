@@ -63,6 +63,8 @@ check goes quiet, narrow it and it cries wolf. ⚠ **A truncated or unreadable f
 `(scope)` finding**, because a clean orphan list computed from a partial read is exactly the shape of
 a false all-clear (`B39`).
 
+It never runs the **Jev `STATE.md` check** (`M6.E3`): that check calls TypeSafe's model, and this command is offline. The report says so in a *Model-judged checks* section; the check runs at `/sig:resume` and at SHIP when `TYPESAFE_API_KEY` is set.
+
 It is **read-only** (AC1.5): the index-freshness check composes the expected index and diffs it, never calling the atomic-writing Core; every other check only reads. It is offline and deterministic — two runs on unchanged input are byte-identical.
 
 ### 3. Render + report
