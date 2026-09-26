@@ -304,7 +304,8 @@ export async function runDriftChecks(baseDir, checks = STATE_DRIFT_CHECKS) {
       continue;
     }
 
-    // M6.E3 FR1: a receipt and a model judgment ride through when present, and
+    // M6.E3 FR1: a receipt, a model judgment and a clearing edit (`fix`, AC5.2)
+    // ride through when present, and
     // are absent (not null) when a check never set them — so every existing
     // check's output is byte-identical. A receipt `makeReceipt` did not build is
     // refused here, whole-check, rather than carried as something a gate might
@@ -329,6 +330,7 @@ export async function runDriftChecks(baseDir, checks = STATE_DRIFT_CHECKS) {
         message: f.message,
         ...(f.receipt != null ? { receipt: f.receipt } : {}),
         ...(f.judgedBy != null ? { judgedBy: f.judgedBy } : {}),
+        ...(typeof f.fix === 'string' && f.fix.trim() ? { fix: f.fix } : {}),
       }))
       .sort(findingCmp);
 

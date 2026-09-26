@@ -209,6 +209,31 @@ both ends of the pipeline and the backlog only the intake end. So the one docume
 shipped slices reading as pending). That is not a convenience gap; it is a document actively
 asserting false completeness, which is the `CLAIM-INTEGRITY-ANALYSIS.md` class.
 
+### 6.7 The content gate — refuse on a record the evidence contradicts (`M6.E3` FR5) — every SHIP
+
+Call `runShipContentGate(baseDir, { acceptStale })` from `tools/lib/ship-gate.js` and print `formatShipContentGate(result)` verbatim. `acceptStale` is the list of check ids passed as `--accept-stale <check-id>` (repeatable); empty otherwise.
+
+1. **`refuse` → HALT.** Do not create the SHIP commit. Each refusal prints the claim, the evidence
+   that contradicts it, and the edit that clears it. Make the edit and re-run, or re-run with
+   `--accept-stale <check-id>` to ship past that one check on purpose.
+2. **`overridden` → continue, and write `result.record` into the SHIP artifact** under a heading
+   *"Shipped past the content gate"*. An override that leaves no trace is a silent bypass.
+3. **`pass` → continue.** Advice (findings with no receipt, and anything judged by a model) is
+   printed and never blocks.
+4. **`unverified` → continue, and say so in the SHIP artifact.** The gate could not run; that is not
+   a pass, and it is not a reason to refuse a release either.
+
+**Why every SHIP and not only Epic close.** The records this gate catches — a bug that reads open
+after its fix shipped — are produced mostly in the **fix lane**, which never runs this command. So
+this step runs on every `/sig:ship` so a per-slice ship cannot skip it, and in Signal's own repository
+the test suite runs the same gate on every PR. A project whose fix lane skips `/sig:ship` can do the
+same from its CI by calling `runShipContentGate`.
+
+**Only a receipt can refuse.** A finding refuses only if it carries a receipt `makeReceipt` built —
+the claim and the thing contradicting it, side by side — and no model judgment (`D-M6E3-1`,
+`D-M6E3-8`). This is the first SHIP halt about what a document *says*; every earlier halt is a
+missing precondition.
+
 ### 7. Manual milestone meta-retro (`--milestone-meta` flag, optional)
 
 If the user invokes `/sig:ship --milestone-meta` (or otherwise explicitly requests a milestone-level meta-retrospective), call `generateMilestoneMetaRetro(baseDir, milestoneId, opts)` from `tools/lib/retro-index.js` where `milestoneId` is derived from `state.current_epic` (drop the trailing `.E{N}` segment, e.g., `M4.5.E9` → `M4.5`).
