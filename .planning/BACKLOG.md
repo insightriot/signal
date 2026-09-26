@@ -285,6 +285,16 @@ closing wired into the phase gates) are Epic-shaped and its trigger is unmet.
 
 ## Filed since that agreement — **not yet sequenced**
 
+### `M6.E3` — the claims-audit backstop, rebuilt around Jev · **roadmap** · large · **IN FLIGHT — DISCUSS done 2026-09-26**
+
+*Plain: check whether Signal's own records tell the truth, and only ever stop you when it can show why.*
+
+**Trigger: met** — un-parked by `D-BR0925-5` on measured evidence (Jev found 4 stale `STATE.md`
+paragraphs where the shipped check found 0, `analysis/TYPESAFE-JEV-ASSESSMENT.md` §6). Filed here
+because the assessment (§2, §5) found the Epic had **no row at all**, so `/sig:advise` could not see
+it. Decisions `D-M6E3-7` … `D-M6E3-11`; requirements `M6.E3-REQUIREMENTS.md`. Strike this row at
+the Epic's SHIP.
+
 ### DISCUSS silently auto-adopts irreversible decisions at `unattended` · **roadmap** · small · **filed 2026-09-03**
 
 *Plain: at `unattended`, DISCUSS decides everything for you — including the calls you can't take back.*

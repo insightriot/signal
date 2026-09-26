@@ -3261,3 +3261,72 @@ over Signal-inspecting-Signal. What changed is evidence, not direction: on this 
 (`../analysis/TYPESAFE-JEV-ASSESSMENT.md` §6, set 3). `M6.E3`'s existing decisions (`D-M6E3-1` …
 `6`) stand — a Jev answer is never a receipt; code assembles the claim and the source, and only that
 pair may block. DISCUSS decides how the plan changes; this entry decides only that it runs next.
+
+## 2026-09-26 — M6.E3 DISCUSS, reopened around Jev (D-M6E3-7 … D-M6E3-11)
+
+*Epic: `M6.E3`, un-parked by `D-BR0925-5`. Branch `feat/m6.e3-jev-claims-audit`. Tier FULL /
+`checkpointed` (project profile; no Epic profile). Evidence:
+[`../analysis/TYPESAFE-JEV-ASSESSMENT.md`](../analysis/TYPESAFE-JEV-ASSESSMENT.md) §6. `D-M6E3-1`,
+`-2`, `-5` and `-6` stand unchanged. `D-M6E3-3`'s build order is replaced by `D-M6E3-7`; its
+reasoning — the false "still open" before the false "done" — still orders the slices that follow.
+`D-M6E3-4`'s two record types stay in scope, as later slices.*
+
+### D-M6E3-7 — the Jev `STATE.md` check ships first; the August checks follow in the same Epic
+
+**Brett, 2026-09-26**, chosen over "August plan, Jev last" and over "Jev only". The first slice is
+the receipt contract and the SHIP-gate wiring, with the Jev check for `STATE.md` paragraphs that
+contradict the facts riding inside it as the first consumer. The August `BUGS.md` and
+`OPEN-QUESTIONS.md` checks (code only, no model) follow as later slices of this Epic, not a later
+Epic. Reason: the widest measured gap is here — the shipped check found **0** of the 4 stale
+`STATE.md` paragraphs in assessment §6 set 3 — and "rebuilt around Jev" (`D-BR0925-5`) asked for
+exactly this. Nothing from the August plan is dropped.
+
+### D-M6E3-8 — a Jev finding is report-only in this Epic
+
+**Brett, 2026-09-26**, chosen over "block when very confident" and "never block". A Jev-flagged
+contradiction renders with its quoted pair (the paragraph, and the fact it contradicts) and **never
+refuses anything** in this Epic. Refusal is a later promotion, and needs a threshold measured on
+labels a person has confirmed — the *House rules* ladder (convention → advisory → enforced) applied
+to a check with no validated threshold, no documented seed, and one real positive per measured set.
+
+**Not changed:** code-only findings that carry a receipt still refuse at SHIP (`D-M6E3-5`, `FR5`).
+The report-only rule is about Jev's judgment, not about receipts.
+
+### D-M6E3-9 — the Jev call runs from `/sig:resume` and SHIP; `/sig:docs-sweep` stays offline
+
+**Brett, 2026-09-26**, the recommended option, after asking for it in plain words. When Jev is
+turned on, `/sig:resume` shows findings as an advisory line and SHIP reports them at Epic close.
+`/sig:docs-sweep` keeps its documented no-network promise and **says the Jev check did not run**.
+Reason: those are the two moments people actually read (sitting down to work, and closing), and
+neither breaks an existing promise — `/sig:resume` already makes one bounded network fetch.
+
+### D-M6E3-10 — defaults taken at DISCUSS (Claude's calls, stated so they are not mistaken for Brett's)
+
+1. **Opt-in needs BOTH a `PROFILE.md` setting AND the key.** `D-BR0925-4` calls the key the opt-in;
+   on its own, a `TYPESAFE_API_KEY` set for some other project would silently send this project's
+   `.planning/` text to a third party. The key lives in the environment, never in the repository.
+   The setting's name and schema entry are PLAN's call.
+2. **What is sent: only the invoking project's `STATE.md` body paragraphs and the fact list.**
+   Never the eval corpus, never any other file. The README's *Privacy & telemetry* section says so
+   in the release that ships it.
+3. **The fact list is closed and assembled by code.** In assessment §6 set 3, Jev judged paragraphs
+   against the frontmatter **plus two facts a person wrote by hand**, and one of the four catches
+   (*"`plugin.json` reads `0.1.30`"*) contradicts a third file. A shipped check has only what code
+   puts in the list. So **4 of 4 is not an acceptance criterion**: recall is re-measured against the
+   shipped list, on labels a person has confirmed, and published with whatever it comes out as.
+4. **Nothing numeric is asked of Jev** (its documented weaknesses #2 and #3). Counts, versions and
+   dates are compared in code. Where a paragraph's contradiction is a number, code finds it or it is
+   not found.
+5. **Tests never call the network.** Recorded responses are fixtures; the live measurement is a
+   separate opt-in script, kept outside the repository per `D-BR0925-3`.
+6. **The network code passes the audit honestly:** an injected `fetch`, the same pattern as the two
+   calls already documented, with `tools/audit-network-calls.js` and the README section updated, and
+   the major-version bump per `D-BR0925-4`.
+
+### D-M6E3-11 — the August artifacts are marked superseded, not deleted
+
+`M6.E3-REQUIREMENTS.md` is rewritten in place. **Every surviving criterion keeps its id**, and new
+work takes new ids (`FR8`–`FR10`), so that anything citing `AC2.3` still means the same thing.
+`M6.E3-PLAN.md`, `-RESEARCH.md` and `-VALIDATION.md` get a superseded banner at the top and are
+replaced at PLAN. Leaving them unmarked would put a *"Slices 1–3 contain no model judgment"* claim
+next to requirements that contradict it — the class this Epic exists to catch.

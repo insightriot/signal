@@ -1,48 +1,36 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: SHIP
-current_epic: M6.E8
+phase: DISCUSS
+current_epic: M6.E3
 current_wave: null
 current_tasks: []
-completed_phases:
-  - DISCUSS (2026-09-14)
-  - PLAN (2026-09-14)
-  - EXECUTE (2026-09-14)
-  - VERIFY (2026-09-14)
-  - REVIEW (2026-09-14)
-  - EXECUTE (2026-09-14)
-  - REVIEW (2026-09-14)
-  - EXECUTE (2026-09-14)
-  - REVIEW (2026-09-24)
-  - SHIP (2026-09-24)
+completed_phases: []
 blockers: []
-last_completed_task:
-  id: t3.4
-  status: done
-  commit: 3e377ce
-  completedAt: 2026-09-14T12:41:57.391Z
+last_completed_task: null
 last_decision_at: 2026-09-14T12:41:57.391Z
 last_updated_commit: ff74986
-last_updated: 2026-09-24T20:12:29.670Z
+last_updated: 2026-09-26T17:19:03.964Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-09-25)
+### ▶ WHERE THE WORK IS — read this first (2026-09-26)
 
-**`M6.E8` SHIPPED as `v0.1.41` (2026-09-25)** — PR #254 merged with `--merge`; the release also carries
-the `/sig:resume` phase-count fix (`B124` + `B47`, PR #255). Retro:
-[`M6.E8-RETROSPECTIVE.md`](M6.E8-RETROSPECTIVE.md). Its resume pointer and this file's stale
-`In-flight` section were relocated verbatim to
+**`M6.E3` is OPEN — DISCUSS done, PLAN next** — on `feat/m6.e3-jev-claims-audit`, reopened around TypeSafe's Jev
+(`D-BR0925-5`). Tier FULL / `checkpointed`. Decisions: [`DECISIONS.md`](DECISIONS.md) § *2026-09-26*
+(`D-M6E3-7` … `D-M6E3-11`): the Jev `STATE.md` check ships **first**, **report-only**, called from
+`/sig:resume` and SHIP; `/sig:docs-sweep` stays offline. Requirements:
+[`M6.E3-REQUIREMENTS.md`](M6.E3-REQUIREMENTS.md) (August `FR1`–`FR7` kept by id; `FR8`–`FR10` new).
+The August `M6.E3-PLAN.md` / `-RESEARCH.md` / `-VALIDATION.md` carry a superseded banner until PLAN
+replaces them. **Next: `/sig:plan`.**
+
+### ▶ PREVIOUS — `M6.E8` SHIPPED as `v0.1.41` (2026-09-25)
+
+PR #254 merged with `--merge`; the release also carries the `/sig:resume` phase-count fix (`B124` +
+`B47`, PR #255). Retro: [`M6.E8-RETROSPECTIVE.md`](M6.E8-RETROSPECTIVE.md). Narrative relocated to
 [`archive/M6/E8/STATE-NARRATIVE.md`](archive/M6/E8/STATE-NARRATIVE.md).
-
-**Next: `M6.E3` is UN-PARKED (`D-BR0925-5`), rebuilt around TypeSafe's Jev** as an optional,
-bring-your-own-key judge (`D-BR0925-1`). Start at `/sig:discuss`. Evidence:
-[`../analysis/TYPESAFE-JEV-ASSESSMENT.md`](../analysis/TYPESAFE-JEV-ASSESSMENT.md) §6 — on this
-repository's own `STATE.md`, Jev found 4 of 4 stale claims where the shipped check found 0. The
-frontmatter still reads `M6.E8` / `SHIP` until `/sig:discuss` opens the next Epic.
 
 ### ▶ PREVIOUS — `M6.E7` shipped and merged (PR #239), 2026-09-06. Narrative relocated.
 
@@ -61,7 +49,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-**`M6.E8` is shipped; nothing is being built.** `M6.E3` opens next at DISCUSS (see the resume pointer).
+**`M6.E3` — DISCUSS complete, PLAN next** (see the resume pointer). Nothing is being built yet.
 
 ## Blockers
 
