@@ -291,8 +291,17 @@ export async function runDriftChecks(baseDir, checks = STATE_DRIFT_CHECKS) {
     }
 
     let raw;
+    let coverage = null;
     try {
       raw = (await check.run(built.ctx)) ?? [];
+      // M6.E3: a check that samples (the Jev check stops at a cap and a time
+      // budget) may return `{findings, coverage}` so "checked 12 of 20" reaches
+      // the reader — a partial run must never read as a clean one (`B39`).
+      // Every other check returns an array and is unchanged.
+      if (!Array.isArray(raw) && Array.isArray(raw?.findings)) {
+        coverage = raw.coverage ?? null;
+        raw = raw.findings;
+      }
     } catch (err) {
       results.push({
         id: check.id,
@@ -340,6 +349,7 @@ export async function runDriftChecks(baseDir, checks = STATE_DRIFT_CHECKS) {
       status: findings.length ? STATUS.FINDINGS : STATUS.CLEAN,
       reason: null,
       findings,
+      ...(coverage ? { coverage } : {}),
     });
   }
 
