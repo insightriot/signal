@@ -212,3 +212,20 @@ describe('it can never refuse, and never reaches docs-sweep (AC9.4, AC10.3)', ()
     expect(MODEL_JUDGED_CHECKS.map((c) => c.id)).toEqual(['state-narrative-jev']);
   });
 });
+
+describe('a contradiction with no fact to pair it with does not vanish (B39)', () => {
+  it('is counted unchecked as no-evidence, not as checked, and is not a finding', async () => {
+    // No phase, no epic, no manifest: the fact list has nothing to cite.
+    const dir = await mkdtemp(join(tmpdir(), 'sig-jevcheck-'));
+    try {
+      await mkdir(join(dir, '.planning'));
+      await writeFile(join(dir, '.planning/STATE.md'), '---\nschema_version: 1\n---\nWe are at PLAN.\n');
+      const ask = vi.fn().mockResolvedValue({ ok: true, choice: 'contradicts', confidence: 0.9, probabilities: {}, model: 'm' });
+      const report = await runDriftChecks(dir, [makeStateNarrativeJevCheck({ ask, key: 'k' })]);
+      const row = report.results[0];
+      expect(row.findings).toEqual([]);
+      expect(row.coverage.checked).toBe(0);
+      expect(row.coverage.unchecked).toEqual([{ line: 4, reason: 'no-evidence' }]);
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  });
+});

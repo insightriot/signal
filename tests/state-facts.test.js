@@ -118,7 +118,20 @@ describe('buildFactList (AC9.1, AC9.5)', () => {
     try {
       const { facts, unavailable } = await buildFactList(dir, state);
       expect(facts.version).toBeUndefined();
-      expect(unavailable).toContain('version (no .claude-plugin/plugin.json or package.json)');
+      expect(unavailable).toContain('version (no plugin.json or package.json)');
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  });
+
+  it('finds a plugin manifest one level down (Signal\'s own layout) before package.json', async () => {
+    const dir = await project({
+      '.planning/STATE.md': RAW,
+      'plugin/.claude-plugin/plugin.json': '{"version":"0.1.30"}',
+      'package.json': '{"version":"9.9.9"}',
+    });
+    try {
+      const { facts, sources } = await buildFactList(dir, state);
+      expect(facts.version).toBe('0.1.30');
+      expect(sources.version.source).toBe('plugin/.claude-plugin/plugin.json');
     } finally { await rm(dir, { recursive: true, force: true }); }
   });
 

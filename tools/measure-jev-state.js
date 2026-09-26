@@ -13,7 +13,7 @@
  * only call is the audited `plugin/tools/lib/jev.js#askChoice` (`D-M6E3-13`).
  * Needs TYPESAFE_API_KEY. Costs well under a cent per run.
  *
- *   TYPESAFE_API_KEY=… node tools/measure-jev-state.js [--json]
+ *   TYPESAFE_API_KEY=… node tools/measure-jev-state.js
  *
  * Results are NOT reproducible run to run (no seed; the spike saw 2 of 94
  * decisions flip) — publish them with the date and the model, never pinned to
@@ -35,23 +35,22 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SPIKE_COMMIT = '3518c11';
 
 async function main() {
-  const asJson = process.argv.includes('--json');
   if (!process.env.TYPESAFE_API_KEY) {
     console.error('measure-jev-state: TYPESAFE_API_KEY is not set — nothing measured.');
     process.exit(2);
   }
 
   const stateRaw = await readFile(join(ROOT, 'tests/fixtures/jev/STATE-3518c11.md'), 'utf8');
-  const pluginJson = execFileSync('git', ['show', `${SPIKE_COMMIT}:.claude-plugin/plugin.json`], { cwd: ROOT, encoding: 'utf8' });
+  const pluginJson = execFileSync('git', ['show', `${SPIKE_COMMIT}:plugin/.claude-plugin/plugin.json`], { cwd: ROOT, encoding: 'utf8' });
   const spike = JSON.parse(await readFile(join(ROOT, 'analysis/jev-spike/labels-and-results.json'), 'utf8'));
   const labelled = spike.cases.filter((c) => c.set === 'narrative');
 
   const dir = await mkdtemp(join(tmpdir(), 'sig-measure-jev-'));
   try {
     await mkdir(join(dir, '.planning'));
-    await mkdir(join(dir, '.claude-plugin'));
+    await mkdir(join(dir, 'plugin/.claude-plugin'), { recursive: true });
     await writeFile(join(dir, '.planning/STATE.md'), stateRaw);
-    await writeFile(join(dir, '.claude-plugin/plugin.json'), pluginJson);
+    await writeFile(join(dir, 'plugin/.claude-plugin/plugin.json'), pluginJson);
 
     const paras = splitParagraphs(stateRaw);
     const { facts, unavailable } = await buildFactList(dir, await readState(dir));
@@ -93,20 +92,22 @@ async function main() {
       ambiguous: cases.filter((c) => c.label === 'ambiguous').map((c) => ({ id: c.id, choice: c.choice, confidence: c.confidence })),
     };
 
-    if (asJson) {
-      console.log(JSON.stringify({ summary, cases }, null, 2));
+    console.log(`Jev STATE.md check — measured ${summary.date}, model ${summary.model}`);
+    console.log(`facts: ${JSON.stringify(facts)}`);
+    if (unavailable.length) console.log(`facts unavailable: ${unavailable.join('; ')}`);
+    console.log(`status: ${summary.status}${summary.reason ? ` (${summary.reason})` : ''}; coverage: ${JSON.stringify(summary.coverage)}`);
+    const answered = cases.filter((c) => c.choice !== null).length;
+    if (answered < cases.length) console.log(`⚠ only ${answered} of ${cases.length} labelled paragraphs were answered — the figures below cover those alone.`);
+    if (answered === 0) {
+      console.log('NOT MEASURED — no paragraph was answered.');
     } else {
-      console.log(`Jev STATE.md check — measured ${summary.date}, model ${summary.model}`);
-      console.log(`facts: ${JSON.stringify(facts)}`);
-      if (unavailable.length) console.log(`facts unavailable: ${unavailable.join('; ')}`);
-      console.log(`status: ${summary.status}${summary.reason ? ` (${summary.reason})` : ''}; coverage: ${JSON.stringify(summary.coverage)}`);
       console.log(`recall on labelled contradictions: ${summary.recall}`);
       console.log(`false alarms on labelled non-contradictions: ${summary.falseAlarms}`);
-      console.log('');
-      for (const c of cases) {
-        const mark = c.label === 'contradicts' ? (c.choice === 'contradicts' ? 'HIT ' : 'MISS') : c.choice === 'contradicts' && c.label !== 'ambiguous' ? 'FA  ' : '    ';
-        console.log(`${mark} ${c.id.padEnd(8)} L${String(c.line).padEnd(4)} label=${c.label.padEnd(13)} jev=${String(c.choice).padEnd(13)} conf=${c.confidence ?? '-'}${c.error ? `  (${c.error})` : ''}`);
-      }
+    }
+    console.log('');
+    for (const c of cases) {
+      const mark = c.label === 'contradicts' ? (c.choice === 'contradicts' ? 'HIT ' : 'MISS') : c.choice === 'contradicts' && c.label !== 'ambiguous' ? 'FA  ' : '    ';
+      console.log(`${mark} ${c.id.padEnd(8)} L${String(c.line).padEnd(4)} label=${c.label.padEnd(13)} jev=${String(c.choice).padEnd(13)} conf=${c.confidence ?? '-'}${c.error ? `  (${c.error})` : ''}`);
     }
   } finally {
     await rm(dir, { recursive: true, force: true });

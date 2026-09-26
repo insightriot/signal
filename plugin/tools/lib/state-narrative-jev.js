@@ -130,9 +130,9 @@ export function makeStateNarrativeJevCheck(opts = {}) {
       }
       await Promise.all(Array.from({ length: Math.max(1, Math.min(cfg.concurrency, asked.length)) }, worker));
 
-      const checked = answers.filter(Boolean).length;
+      const answered = answers.filter(Boolean).length;
       const failures = unchecked.filter((u) => u.reason !== 'over-cap' && u.reason !== 'budget');
-      if (asked.length > 0 && checked === 0 && failures.length > 0) {
+      if (asked.length > 0 && answered === 0 && failures.length > 0) {
         throw new Error(`the Jev check did not run — ${failures[0].reason}`);
       }
 
@@ -141,7 +141,13 @@ export function makeStateNarrativeJevCheck(opts = {}) {
       answers.forEach((a, i) => {
         if (!a || a.choice !== 'contradicts') return;
         const evidence = evidenceFor(asked[i].text, facts, sources);
-        if (!evidence) return;
+        if (!evidence) {
+          // No fact to pair it with (a STATE.md with no phase at all): a
+          // contradiction nobody can check is not a finding — but it must not
+          // vanish either, or "checked" over-counts what was actually judged.
+          unchecked.push({ line: asked[i].line, reason: 'no-evidence' });
+          return;
+        }
         findings.push({
           file: '.planning/STATE.md',
           message:
@@ -156,6 +162,7 @@ export function makeStateNarrativeJevCheck(opts = {}) {
       });
 
       unchecked.sort((a, b) => a.line - b.line);
+      const checked = answered - unchecked.filter((u) => u.reason === 'no-evidence').length;
       return {
         findings,
         coverage: { checked, total: candidates.length, unchecked, model, factsUnavailable: unavailable },

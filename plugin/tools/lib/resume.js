@@ -194,6 +194,9 @@ function formatAge(iso) {
  * @param {string|null} [params.landscapeCapturedOn]
  * @param {string[]} [params.lockedDecisions] - first-5 used; remainder summarized
  * @param {string[]} [params.openQuestions] - first-3 used
+ * @param {object|null} [params.jevResult]
+ *   - runDriftChecks output over MODEL_JUDGED_CHECKS (M6.E3); rendered as one
+ *     advisory line by formatJevResumeLine, nothing when no key is set
  * @param {{stale: boolean, commitCount: number}} [params.isStaleResult]
  * @param {{stale: boolean, aheadCount: number, touchedPlanning: boolean}} [params.originDriftResult]
  *   - isStaleVsOrigin() output; renders a distinct banner from isStaleResult

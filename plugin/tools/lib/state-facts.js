@@ -60,7 +60,9 @@ function lineOf(lines, re, from = 0, to = lines.length) {
 const phaseName = (entry) => String(entry).replace(/\s*\(.*\)\s*$/, '').trim();
 
 async function readVersion(baseDir) {
-  for (const rel of ['.claude-plugin/plugin.json', 'package.json']) {
+  // A Claude Code plugin's manifest decides the version its users see; Signal's
+  // own lives one level down (`plugin/`). package.json is the general fallback.
+  for (const rel of ['.claude-plugin/plugin.json', 'plugin/.claude-plugin/plugin.json', 'package.json']) {
     let raw;
     try {
       raw = await readFile(join(baseDir, rel), 'utf8');
@@ -140,7 +142,7 @@ export async function buildFactList(baseDir, state) {
     facts.version = v.version;
     sources.version = { source: v.source, line: v.line };
   } else {
-    unavailable.push('version (no .claude-plugin/plugin.json or package.json)');
+    unavailable.push('version (no plugin.json or package.json)');
   }
 
   return { facts, sources, unavailable };
