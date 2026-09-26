@@ -271,6 +271,55 @@ export async function readLastArchivedRun(baseDir) {
   return last && last.length > 0 ? last : null;
 }
 
+const JEV_EXCERPT_MAX = 70;
+
+/**
+ * M6.E3 t1.6 — the /sig:resume line for the Jev STATE.md check, or null.
+ *
+ * ONE line (the briefing is capped at 50). No key → null: the reader opted out,
+ * and SHIP reports that it did not run. Key set but the call failed → say so,
+ * because a check that silently did not run reads the same as a clean one.
+ * Partial coverage is stated, never rounded up to clean (`B39`).
+ *
+ * @param {object|null} report runDriftChecks output over MODEL_JUDGED_CHECKS
+ * @returns {string|null}
+ */
+export function formatJevResumeLine(report) {
+  const row = Array.isArray(report?.results) ? report.results.find((r) => r.id === 'state-narrative-jev') : null;
+  if (!row) return null;
+
+  if (row.status === 'cannot-evaluate') {
+    if (/TYPESAFE_API_KEY is not set/.test(row.reason ?? '')) return null;
+    const why = String(row.reason ?? 'unknown').replace(/^the check threw — /, '').replace(/^the Jev check did not run — /, '');
+    return `Jev check did not run: ${why}`;
+  }
+
+  const cov = row.coverage;
+  const covText = cov ? `checked ${cov.checked} of ${cov.total}` : 'coverage unknown';
+  const skipped = cov?.unchecked?.length ?? 0;
+  const skippedText = skipped
+    ? `; ${skipped} not checked (${[...new Set(cov.unchecked.map((u) => u.reason))].join(', ')})`
+    : '';
+
+  if (row.status === 'findings' && row.findings?.length) {
+    const n = row.findings.length;
+    const top = [...row.findings].sort((a, b) => (b.judgedBy?.confidence ?? 0) - (a.judgedBy?.confidence ?? 0))[0];
+    let excerpt = String(top.receipt?.claim?.excerpt ?? '').split('\n')[0].trim();
+    if (excerpt.length > JEV_EXCERPT_MAX) excerpt = `${excerpt.slice(0, JEV_EXCERPT_MAX - 1)}…`;
+    return (
+      `⚠ Jev: ${n} STATE.md paragraph${n === 1 ? '' : 's'} may contradict the facts (${covText}${skippedText}) — ` +
+      `highest: STATE.md:${top.receipt?.claim?.line} "${excerpt}" (${top.judgedBy?.confidence}). A judgment; results can vary.`
+    );
+  }
+
+  if (row.status === 'clean') {
+    return skipped
+      ? `Jev: no contradiction found (${covText}${skippedText}) — not the same as clean.`
+      : `✓ Jev: no STATE.md paragraph contradicts the facts (${covText}).`;
+  }
+  return null;
+}
+
 export function renderResumeBriefing(params = {}) {
   const {
     cwd = '<unknown>',
@@ -291,6 +340,7 @@ export function renderResumeBriefing(params = {}) {
     nextAction = '',
     retroSummary = null,
     projectTier = null,
+    jevResult = null,
   } = params;
 
   const lines = [];
@@ -373,6 +423,14 @@ export function renderResumeBriefing(params = {}) {
       );
     }
     if (needsAPerson > 0 || cannotEvaluate > 0) lines.push('');
+  }
+
+  // M6.E3 — the Jev STATE.md check, one advisory line (AC10.1). Below the trust
+  // banners: it judges the narrative, not whether the briefing parsed.
+  const jevLine = formatJevResumeLine(jevResult);
+  if (jevLine) {
+    lines.push(jevLine);
+    lines.push('');
   }
 
   // Size is the lowest-priority (advisory) banner — it doesn't cast doubt on

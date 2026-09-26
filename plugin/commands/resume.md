@@ -93,6 +93,10 @@ It renders **above every other banner**, including schema drift. That ordering i
 
 1g. **The run that just shipped** (B47) — call `readLastArchivedRun(baseDir)` from `tools/lib/resume.js` and pass the result (or `null`) to `renderResumeBriefing` as `archivedRun`. Read-only, fail-open. A linear ship moves the finished run out of `completed_phases`, so without this the briefing reads `SHIP (0/7 phases done)` right after a ship; with it, `SHIP (last run: 7/7 phases done, archived)`. Used only in that one case — linear mode, `phase: SHIP`, empty live list.
 
+1h. **The Jev `STATE.md` check** (`M6.E3`) — call `runDriftChecks(baseDir, modelJudgedChecks({ budgetMs: 8000 }))`, taking `modelJudgedChecks` from `tools/lib/state-narrative-jev.js`, and pass the result to `renderResumeBriefing` as `jevResult`. Wrap it: on any throw, pass `null`.
+
+It runs only when `TYPESAFE_API_KEY` is set; with no key it makes no call and renders nothing. With a key, it asks TypeSafe's Jev whether each `STATE.md` paragraph contradicts the facts code derives (phase, current Epic, in-flight work, version), within an **8-second budget**, and renders **one advisory line**: how many paragraphs may contradict the facts, how many were checked, and the most confident one. If the call fails it says so. It is a model's judgment: it **never blocks** anything, and its results can vary between runs. Placed in the advisory tier, below every trust banner.
+
 #### 3c. Retro completeness (M4.5.E9.S2.t7)
 
 Call `enumerateRetros(baseDir)` from `tools/lib/retro-index.js`. Build a summary `{total, complete, stub}` where `complete = total - stub` (and `stub = records.filter(r => r.isStub).length`). Pass as `retroSummary` to `renderResumeBriefing`. The renderer adds one line:
@@ -136,6 +140,7 @@ renderResumeBriefing({
   layoutBanner,                  // pre-reorg layout nudge string|null — from Step 3b(1d); advisory, fail-open
   bindingBanner,                 // stale plugin binding string|null — from Step 3b(1f); renders ABOVE all others
   archivedRun,                   // last linear run string[]|null — from Step 3b(1g); only read after a linear ship
+  jevResult,                     // Jev STATE.md check report|null — from Step 3b(1h); advisory, one line
   nextAction: formatNextActionCopy(describeNextAction(state.phase, profile.phases_skipped)), // fail-open (B70)
   retroSummary,                   // {total, complete, stub} — see Step 3c
 });
