@@ -38,6 +38,7 @@ import { readState, PHASES, EPIC_ID_STRICT_RE } from './state.js';
 import { readProfileIssues } from './profile.js';
 import { deriveUnits, WORKED_SUFFIXES } from './work-units.js';
 import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
+import { isReceipt } from './receipt.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -303,6 +304,22 @@ export async function runDriftChecks(baseDir, checks = STATE_DRIFT_CHECKS) {
       continue;
     }
 
+    // M6.E3 FR1: a receipt and a model judgment ride through when present, and
+    // are absent (not null) when a check never set them — so every existing
+    // check's output is byte-identical. A receipt `makeReceipt` did not build is
+    // refused here, whole-check, rather than carried as something a gate might
+    // later mistake for evidence (AC1.5).
+    if (raw.some((f) => f.receipt != null && !isReceipt(f.receipt))) {
+      results.push({
+        id: check.id,
+        healCategory: check.healCategory,
+        status: STATUS.CANNOT_EVALUATE,
+        reason: 'the check returned a malformed receipt (not built by makeReceipt)',
+        findings: [],
+      });
+      continue;
+    }
+
     const findings = raw
       .map((f) => ({
         check: check.id,
@@ -310,6 +327,8 @@ export async function runDriftChecks(baseDir, checks = STATE_DRIFT_CHECKS) {
         healMechanism: check.healMechanism,
         file: f.file ?? null,
         message: f.message,
+        ...(f.receipt != null ? { receipt: f.receipt } : {}),
+        ...(f.judgedBy != null ? { judgedBy: f.judgedBy } : {}),
       }))
       .sort(findingCmp);
 
