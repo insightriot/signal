@@ -13,10 +13,13 @@ reads, and says which — plus the `/sig:resume` phase-count fix (`B124` + `B47`
 Un-parked by `D-BR0925-5` after TypeSafe's Jev found 4 stale `STATE.md` paragraphs the shipped check
 missed ([`../analysis/TYPESAFE-JEV-ASSESSMENT.md`](../analysis/TYPESAFE-JEV-ASSESSMENT.md) §6).
 Brett's calls: the Jev `STATE.md` check ships **first**, is **report-only**, and runs from
-`/sig:resume` and SHIP; `/sig:docs-sweep` stays offline (`D-M6E3-7` … `D-M6E3-9`). Jev is opt-in with
-the user's own key and needs a `PROFILE.md` setting too (`D-M6E3-10`). Requirements:
-[`M6.E3-REQUIREMENTS.md`](M6.E3-REQUIREMENTS.md). The release that carries it is a major-version bump
-(`D-BR0925-4`).
+`/sig:resume` and SHIP; `/sig:docs-sweep` stays offline (`D-M6E3-7` … `D-M6E3-9`). Jev turns on when the
+user's own key is present (`D-M6E3-12`). Requirements: [`M6.E3-REQUIREMENTS.md`](M6.E3-REQUIREMENTS.md).
+
+**`D-BR0926-1` — Signal dropped its privacy positioning.** It is Brett's scaffolding for his own
+projects (three users). A feature that sends text to a model needs one README line, not a debate or a
+version bump. No-telemetry and keys-out-of-the-repo stand; so do the eval corpus's anonymous labels,
+which are about a public repo, not about models.
 
 ---
 

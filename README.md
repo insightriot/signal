@@ -191,14 +191,12 @@ Both `/sig:new-project` and `/sig:calibrate` check this on entry and refuse to p
 
 ## Privacy & telemetry
 
-Signal sends **no analytics, no telemetry, no usage pings, and no remote logging** — all state lives in `.planning/` in your repo. Beyond Claude Code's own calls to Anthropic's API, it makes exactly **two optional network calls, neither carrying any of your data**:
+Signal has **no analytics, no telemetry, no usage pings, and no remote logging** — all state lives in `.planning/` in your repo. It is a tool for driving AI models, so your code and docs go to the models its features use; that is what it is for. Beyond Claude Code's own calls to Anthropic's API, the network calls it makes are:
 
 1. **Version check** — `/sig:status` (and `/sig:doctor`) query the public GitHub API for Signal's latest release tag, so they can tell you when an update is available. The result is cached ~24h and fails silently when offline. Nothing but the request itself is sent.
 2. **Origin-drift check** — `/sig:resume`, `/sig:status`, and `/sig:checkpoint` run a bounded, read-only `git fetch` against **your own** git remote, to warn when someone (or another machine) pushed work your `STATE.md` doesn't reflect yet. It's the same fetch you'd run by hand; no data goes to Signal or any third party, and it's non-interactive + fails open (offline / auth-prompt / timeout → skipped).
 
-Verify Signal's source yourself: `node tools/audit-network-calls.js` greps `tools/`, `skills/`, `agents/`, and `commands/` for direct `fetch`, `axios`, `node-fetch`, `got`, `http.request`, and `child_process curl|wget` shapes — exit 0 means no *unvetted* network code. The two calls above go through a git subprocess and an injected fetch, so they're intentional and documented here rather than ad-hoc. The audit covers Signal's own source, not transitive npm dependencies — that responsibility stays upstream.
-
-Any new network call or future telemetry would require a major-version bump, an explicit opt-in flag, and an update to this section + the audit script.
+A feature that adds a call adds a line here. `node tools/audit-network-calls.js` lists the network code in Signal's source (direct `fetch`, `axios`, `node-fetch`, `got`, `http.request`, and `child_process curl|wget` shapes), so this list stays accurate — exit 0 means every call it finds is one listed here.
 
 ## Command reference
 

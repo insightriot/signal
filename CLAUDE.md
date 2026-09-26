@@ -68,8 +68,8 @@ it reads, and says which** (PR #254), plus the `/sig:resume` phase-count fix (`B
 **Next: `M6.E3` is un-parked** (`D-BR0925-5`) and rebuilt around TypeSafe's Jev as an optional,
 bring-your-own-key judge (`D-BR0925-1`): measured on this repository's own records it found **4 of 4**
 stale `STATE.md` claims where the shipped check found **0**
-([`analysis/TYPESAFE-JEV-ASSESSMENT.md`](analysis/TYPESAFE-JEV-ASSESSMENT.md) §6). The first
-Jev-backed check ships with a major version bump, per the README's network-call rule (`D-BR0925-4`).
+([`analysis/TYPESAFE-JEV-ASSESSMENT.md`](analysis/TYPESAFE-JEV-ASSESSMENT.md) §6). Privacy
+positioning dropped (`D-BR0926-1`): a new model call needs a README line, not a version bump.
 `B118` — `/sig:drive` and `/sig:advise` read one branch's corpus — is still unfixed.
 
 ✅ **`B117` — the Epic lane kept getting squashed. CLOSED 2026-09-08 by the ruleset** (see *How changes reach `main`* below: `main` now permits `merge` only, so the sticky button cannot arm anything). The history is kept because the *cause* is the lesson. PR #239 was

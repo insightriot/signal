@@ -3330,3 +3330,44 @@ work takes new ids (`FR8`–`FR10`), so that anything citing `AC2.3` still means
 `M6.E3-PLAN.md`, `-RESEARCH.md` and `-VALIDATION.md` get a superseded banner at the top and are
 replaced at PLAN. Leaving them unmarked would put a *"Slices 1–3 contain no model judgment"* claim
 next to requirements that contradict it — the class this Epic exists to catch.
+
+## 2026-09-26 — Signal drops its privacy positioning (D-BR0926-1, D-M6E3-12)
+
+### D-BR0926-1 — Signal is personal scaffolding; sending text to a model is what it does
+
+**Brett, 2026-09-26**, replying to the `M6.E3` DISCUSS confirmation: *"I'm not here to save the world
+one small privacy claim at a time… This is literally MY coding scaffolding, for MY projects."* Its
+users are Brett and two colleagues. It is open source; anyone else who uses it takes it as it is.
+
+**What changes:**
+
+- A feature that sends project text to a model or an outside service needs **no privacy
+  justification, no special opt-in, and no version-number ceremony.** It needs one line in the
+  README's network-call list saying what it calls, and a test that does not hit the network.
+- **The README rule *"any new network call … would require a major-version bump, an explicit opt-in
+  flag, and an update to this section + the audit script"* is removed.** That rule is what turned
+  each new feature into a debate. `D-BR0925-4` (honour the rule, with a major bump for Jev) is
+  therefore **superseded**: the Jev release follows the normal `0.1.x` cadence.
+- Decisions and requirements written to that posture are reversed where they only served it —
+  `D-M6E3-10` items 1–2, below.
+
+**What does NOT change, because it was never about privacy:**
+
+- **No telemetry, no analytics.** Signal still collects nothing about its users; that is a fact
+  about what it does, not a promise being defended.
+- **API keys stay out of the repository** — ordinary secret handling.
+- **`references/eval-corpus.md`'s anonymous labels and `tests/private-name-guard.test.js`.** Those
+  keep the names of Brett's private projects out of a **public repository**; they have nothing to do
+  with what a model sees. Left in place; Brett can drop them with one word.
+- **`/sig:docs-sweep` stays offline** (`D-M6E3-9`) — a property of that command, chosen for
+  where findings get read, not a privacy stance.
+- **`tools/audit-network-calls.js`** stays as an inventory of network code, so the README's list
+  stays true. It is no longer a gate on adding a call.
+
+### D-M6E3-12 — Jev turns on with the key alone, and sends what the check needs
+
+Supersedes `D-M6E3-10` items 1 and 2, per `D-BR0926-1`. **A TypeSafe key in the environment turns
+the Jev check on**; no `PROFILE.md` setting is required (`D-BR0925-1`'s original call stands as
+written). The request carries whatever the check needs; no restriction on which project text may be
+sent, and the eval-corpus exclusion (`NFR5`) is dropped. `D-M6E3-10` items 3–6 stand: the fact list
+is closed and re-measured, nothing numeric goes to Jev, tests stay offline, the audit lists the call.

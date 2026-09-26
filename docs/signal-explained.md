@@ -108,9 +108,9 @@ Written records are only valuable if they stay accurate and findable. Signal ten
 
 ---
 
-## Private by design
+## No telemetry
 
-Signal sends no analytics, no telemetry, no usage data — nothing. All records live in your project, on your machine, under your control. Its only network activity is checking for its own updates and checking your own code backup for new work — and there's a built-in audit tool that proves it, so you don't have to take that on faith.
+Signal sends no analytics, no telemetry, no usage data. All records live in your project. Apart from the AI models it drives, its network activity is checking for its own updates and checking your own code backup for new work; the README lists every call.
 
 ---
 
