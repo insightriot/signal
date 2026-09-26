@@ -31,6 +31,7 @@ describe('tools/audit-network-calls.js — contract', () => {
     // plugin/. Now it must name what it found, so a pass is evidence of a scan.
     expect(result.stdout).toMatch(/plugin\/tools\/lib\/doctor\.js.*fetchLatestTag/);
     expect(result.stdout).toMatch(/plugin\/tools\/lib\/state\.js.*git fetch/);
+    expect(result.stdout).toMatch(/plugin\/tools\/lib\/jev\.js.*askChoice/);
   });
 
   it('scans shipped code under plugin/ (B125 — it never did)', () => {

@@ -76,6 +76,7 @@ const KNOWN_CALLS = [
   { file: 'plugin/tools/lib/doctor.js', line: 'function fetchLatestTag(', call: 'fetchLatestTag — GitHub tags API, the version check' },
   { file: 'plugin/tools/lib/doctor.js', line: 'function fetchLatestVersionCached(', call: 'fetchLatestVersionCached — the same version check, cached 24h' },
   { file: 'plugin/tools/lib/state.js', line: "'fetch', '--no-tags'", call: 'isStaleVsOrigin — git fetch of your own remote (origin drift)' },
+  { file: 'plugin/tools/lib/jev.js', line: 'fetchFn = fetch,', call: 'askChoice — TypeSafe Jev, when TYPESAFE_API_KEY is set (M6.E3)' },
 ];
 
 function knownCallFor(hit) {
