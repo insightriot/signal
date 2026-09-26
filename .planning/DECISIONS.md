@@ -3371,3 +3371,17 @@ the Jev check on**; no `PROFILE.md` setting is required (`D-BR0925-1`'s original
 written). The request carries whatever the check needs; no restriction on which project text may be
 sent, and the eval-corpus exclusion (`NFR5`) is dropped. `D-M6E3-10` items 3–6 stand: the fact list
 is closed and re-measured, nothing numeric goes to Jev, tests stay offline, the audit lists the call.
+
+### D-M6E3-13 — plumbing taken at PLAN (Claude's calls)
+
+Recorded in full in [`M6.E3-PLAN.md`](M6.E3-PLAN.md) § *Decisions taken at PLAN*. The key is read
+from `TYPESAFE_API_KEY`. The default model is `jev-1.13.0`, the measured one, overridable. The check
+sends one request per paragraph, using the spike's question verbatim. Bounds: 60 paragraphs,
+concurrency 8, 5 s per request, 8 s total at `/sig:resume` and 30 s at SHIP. Facts are passed as
+text for sameness only, never dates or counts. The check has its own registry, kept out of
+`/sig:docs-sweep`. **`D-BR0925-3` is superseded in letter:** the measurement script
+`tools/measure-jev-state.js` lands in the repository. It has no network code of its own and calls
+the audited `lib/jev.js`. `D-BR0925-3` kept the spike's calling script out so it could not escape the
+network audit, and with `B125` fixed that reason no longer applies. `NFR6` was corrected from "one
+request per run" to per-paragraph with bounds: Jev's `state` is shared by every question in a
+request, and the spike measured one paragraph per request.

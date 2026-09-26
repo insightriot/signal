@@ -1,16 +1,17 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: DISCUSS
+phase: PLAN
 current_epic: M6.E3
 current_wave: null
 current_tasks: []
-completed_phases: []
+completed_phases:
+  - DISCUSS (2026-09-26)
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-09-14T12:41:57.391Z
 last_updated_commit: 31c256d
-last_updated: 2026-09-26T19:15:52.278Z
+last_updated: 2026-09-26T20:02:18.101Z
 ---
 # Project State
 
@@ -18,13 +19,13 @@ last_updated: 2026-09-26T19:15:52.278Z
 
 ### ▶ WHERE THE WORK IS — read this first (2026-09-26)
 
-**`M6.E3` is OPEN — DISCUSS done, PLAN next** — on `feat/m6.e3-jev-claims-audit`, reopened around TypeSafe's Jev
+**`M6.E3` is OPEN — PLAN written, awaiting approval, then `/sig:execute`** — on `feat/m6.e3-jev-claims-audit`, reopened around TypeSafe's Jev
 (`D-BR0925-5`). Tier FULL / `checkpointed`. Decisions: [`DECISIONS.md`](DECISIONS.md) § *2026-09-26*
 (`D-M6E3-7` … `D-M6E3-11`): the Jev `STATE.md` check ships **first**, **report-only**, called from
 `/sig:resume` and SHIP; `/sig:docs-sweep` stays offline. Requirements:
 [`M6.E3-REQUIREMENTS.md`](M6.E3-REQUIREMENTS.md) (August `FR1`–`FR7` kept by id; `FR8`–`FR10` new).
-The August `M6.E3-PLAN.md` / `-RESEARCH.md` / `-VALIDATION.md` carry a superseded banner until PLAN
-replaces them. **Next: `/sig:plan`.**
+The August plan files were relocated verbatim to
+[`archive/M6/E3/`](archive/M6/E3/) at PLAN (`AUGUST-*.md`). Plan: [`M6.E3-PLAN.md`](M6.E3-PLAN.md) — wave 1 is the receipt contract, the SHIP refusal on fixtures, the network-audit fix (`B125`), the Jev client with one live call, and the fact list.
 
 ### ▶ PREVIOUS — `M6.E8` SHIPPED as `v0.1.41` (2026-09-25)
 
@@ -49,7 +50,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-**`M6.E3` — DISCUSS complete, PLAN next** (see the resume pointer). Nothing is being built yet.
+**`M6.E3` — PLAN written, EXECUTE next** (see the resume pointer). Nothing is being built yet.
 
 ## Blockers
 
