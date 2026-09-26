@@ -20,6 +20,12 @@
 import { runDriftChecks, STATUS } from './state-drift.js';
 import { ALL_DRIFT_CHECKS } from './published-facts.js';
 import { refusableFindings, renderReceipt } from './receipt.js';
+import { modelJudgedChecks } from './state-narrative-jev.js';
+
+// SHIP is where the expensive path runs (NFR3): 30 s for the Jev check, against
+// /sig:resume's 8 s. Its findings are advice here too — `judgedBy` keeps every
+// one of them out of `refusableFindings`.
+export const SHIP_JEV_BUDGET_MS = 30000;
 
 export const GATE = Object.freeze({
   PASS: 'pass',
@@ -32,12 +38,13 @@ export const GATE = Object.freeze({
  * @param {string} baseDir
  * @param {{
  *   checks?: ReadonlyArray<object>,
+ *   modelChecks?: ReadonlyArray<object>,
  *   acceptStale?: string[],
  *   runner?: (baseDir: string, checks: ReadonlyArray<object>) => Promise<object>,
  * }} [opts]
  */
 export async function runShipContentGate(baseDir, opts = {}) {
-  const checks = opts.checks ?? ALL_DRIFT_CHECKS;
+  const checks = [...(opts.checks ?? ALL_DRIFT_CHECKS), ...(opts.modelChecks ?? modelJudgedChecks({ budgetMs: SHIP_JEV_BUDGET_MS }))];
   const accepted = new Set(opts.acceptStale ?? []);
   const runner = opts.runner ?? runDriftChecks;
 
@@ -45,7 +52,7 @@ export async function runShipContentGate(baseDir, opts = {}) {
   try {
     report = await runner(baseDir, checks);
   } catch (err) {
-    return { status: GATE.UNVERIFIED, reason: err.message, refusals: [], overridden: [], advice: [], blind: [], checked: 0, record: null };
+    return { status: GATE.UNVERIFIED, reason: err.message, refusals: [], overridden: [], advice: [], blind: [], coverage: [], checked: 0, record: null };
   }
 
   const refusable = new Set(refusableFindings(report));
@@ -63,6 +70,10 @@ export async function runShipContentGate(baseDir, opts = {}) {
     .filter((r) => r.status === STATUS.CANNOT_EVALUATE)
     .map((r) => ({ id: r.id, reason: r.reason }));
 
+  const coverage = (report.results ?? [])
+    .filter((r) => r.coverage)
+    .map((r) => ({ id: r.id, ...r.coverage }));
+
   const status = refusals.length ? GATE.REFUSE : overridden.length ? GATE.OVERRIDDEN : GATE.PASS;
   const record = overridden.length
     ? overridden
@@ -70,7 +81,7 @@ export async function runShipContentGate(baseDir, opts = {}) {
         .join('\n')
     : null;
 
-  return { status, reason: null, refusals, overridden, advice, blind, checked: (report.results ?? []).length, record };
+  return { status, reason: null, refusals, overridden, advice, blind, coverage, checked: (report.results ?? []).length, record };
 }
 
 function clearingEdit(f) {
@@ -103,6 +114,10 @@ export function formatShipContentGate(result) {
       lines.push(`  - [${f.check}] ${f.message}${who}`);
       if (f.receipt) lines.push(renderReceipt(f.receipt));
     }
+  }
+  for (const c of result.coverage ?? []) {
+    const skipped = c.unchecked?.length ? `; ${c.unchecked.length} not checked (${[...new Set(c.unchecked.map((u) => u.reason))].join(', ')})` : '';
+    lines.push('', `${c.id}: checked ${c.checked} of ${c.total}${skipped}${c.model ? ` — ${c.model}; results can vary between runs` : ''}.`);
   }
   if (result.blind.length) {
     lines.push('', `Could not evaluate (${result.blind.length}) — not counted as clean:`);

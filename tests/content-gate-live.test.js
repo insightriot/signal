@@ -23,7 +23,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 describe('content gate — live, on this repository (both lanes)', () => {
   it('no receipt-backed stale record stands', async () => {
-    const r = await runShipContentGate(ROOT, { acceptStale: ACCEPT_STALE });
+    // modelChecks: [] — no test calls the network (AC8.7), even on a machine
+    // with TYPESAFE_API_KEY set. The Jev check is advice and never refuses anyway.
+    const r = await runShipContentGate(ROOT, { acceptStale: ACCEPT_STALE, modelChecks: [] });
     expect(r.status, formatShipContentGate(r)).not.toBe(GATE.REFUSE);
     expect(r.status, formatShipContentGate(r)).not.toBe(GATE.UNVERIFIED);
   });
