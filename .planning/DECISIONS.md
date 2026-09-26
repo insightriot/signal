@@ -3390,3 +3390,8 @@ request, and the spike measured one paragraph per request.
 not `TYPESAFE_API_KEY`; the model override is `JEV_MODEL`. On this machine the key is set through
 `launchctl`, so a CLI process does not inherit it — the live steps read it from there. The plan was
 approved the same day.
+
+*Second amendment, same day (Brett):* Brett is renaming his key to **`TYPESAFE_API_KEY`**, so the
+variable stays `TYPESAFE_API_KEY` (model override `TYPESAFE_MODEL`) as `D-M6E3-13` first said. The
+first amendment's `JEV_API_KEY` is withdrawn. The key is set through `launchctl` on this machine,
+so the live steps read it with `launchctl getenv TYPESAFE_API_KEY`.
