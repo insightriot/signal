@@ -3385,3 +3385,8 @@ the audited `lib/jev.js`. `D-BR0925-3` kept the spike's calling script out so it
 network audit, and with `B125` fixed that reason no longer applies. `NFR6` was corrected from "one
 request per run" to per-paragraph with bounds: Jev's `state` is shared by every question in a
 request, and the spike measured one paragraph per request.
+
+*Amendment to `D-M6E3-13`, 2026-09-26 (Brett, at plan approval):* the key variable is **`JEV_API_KEY`**,
+not `TYPESAFE_API_KEY`; the model override is `JEV_MODEL`. On this machine the key is set through
+`launchctl`, so a CLI process does not inherit it — the live steps read it from there. The plan was
+approved the same day.
