@@ -11,9 +11,10 @@
  *
  * Maintainer tooling, not a command. It has NO network code of its own: the
  * only call is the audited `plugin/tools/lib/jev.js#askChoice` (`D-M6E3-13`).
- * Needs TYPESAFE_API_KEY. Costs well under a cent per run.
+ * Needs TYPESAFE_API_KEY (environment, or this repository's .env). Costs well
+ * under a cent per run.
  *
- *   TYPESAFE_API_KEY=… node tools/measure-jev-state.js
+ *   node tools/measure-jev-state.js
  *
  * Results are NOT reproducible run to run (no seed; the spike saw 2 of 94
  * decisions flip) — publish them with the date and the model, never pinned to
@@ -30,13 +31,15 @@ import { makeStateNarrativeJevCheck } from '../plugin/tools/lib/state-narrative-
 import { splitParagraphs, buildFactList } from '../plugin/tools/lib/state-facts.js';
 import { runDriftChecks } from '../plugin/tools/lib/state-drift.js';
 import { readState } from '../plugin/tools/lib/state.js';
+import { resolveJevKey } from '../plugin/tools/lib/jev.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SPIKE_COMMIT = '3518c11';
 
 async function main() {
-  if (!process.env.TYPESAFE_API_KEY) {
-    console.error('measure-jev-state: TYPESAFE_API_KEY is not set — nothing measured.');
+  const key = resolveJevKey(ROOT);
+  if (!key) {
+    console.error('measure-jev-state: TYPESAFE_API_KEY is not set (environment or .env) — nothing measured.');
     process.exit(2);
   }
 
@@ -64,7 +67,7 @@ async function main() {
       return r;
     };
     // A generous budget: this is a measurement, not a briefing.
-    const report = await runDriftChecks(dir, [makeStateNarrativeJevCheck({ ask, budgetMs: 120000, concurrency: 4 })]);
+    const report = await runDriftChecks(dir, [makeStateNarrativeJevCheck({ ask, key, budgetMs: 120000, concurrency: 4 })]);
     const row = report.results[0];
 
     const cases = labelled.map((c) => {

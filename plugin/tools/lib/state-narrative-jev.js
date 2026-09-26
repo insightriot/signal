@@ -34,7 +34,7 @@ import { join } from 'node:path';
 import { defineCheck, HEAL, APPLICABILITY } from './state-drift.js';
 import { makeReceipt } from './receipt.js';
 import { splitParagraphs, buildFactList } from './state-facts.js';
-import { askChoice, JEV_DEFAULT_TIMEOUT_MS } from './jev.js';
+import { askChoice, resolveJevKey, JEV_DEFAULT_TIMEOUT_MS } from './jev.js';
 
 export const CHECK_ID = 'state-narrative-jev';
 
@@ -87,17 +87,17 @@ export function makeStateNarrativeJevCheck(opts = {}) {
   const cfg = { ...JEV_CHECK_DEFAULTS, ...opts };
   const ask = opts.ask ?? askChoice;
   const now = opts.now ?? Date.now;
-  const keyNow = () => opts.key ?? process.env.TYPESAFE_API_KEY ?? '';
+  const keyNow = (ctx) => opts.key ?? resolveJevKey(ctx.baseDir);
 
   return defineCheck({
     id: CHECK_ID,
     healCategory: HEAL.NEEDS_A_PERSON,
     describe:
-      'Asks TypeSafe\'s Jev whether each STATE.md paragraph contradicts the facts code derives (phase, current Epic, in-flight work, version). Advisory — never refuses. Results can vary between runs.',
-    applicability: () =>
-      keyNow().trim()
+      'Asks TypeSafe\'s Jev whether each STATE.md paragraph contradicts the facts code derives (phase, current Epic, in-flight work, version). Advisory — never refuses. Results can vary between runs. Measured 2026-09-26 (jev-1.13.0) on the file it was built from: 4 of 4 known contradictions found, 1 false alarm in 26 (at confidence 0.14) — four positives in one file, not a general rate.',
+    applicability: (ctx) =>
+      keyNow(ctx).trim()
         ? APPLICABILITY.EVAL
-        : { status: APPLICABILITY.BLIND, reason: 'the Jev check did not run — TYPESAFE_API_KEY is not set' },
+        : { status: APPLICABILITY.BLIND, reason: 'the Jev check did not run — TYPESAFE_API_KEY is not set (environment or .env)' },
 
     async run(ctx) {
       const raw = await readFile(join(ctx.planningDir, 'STATE.md'), 'utf8');
@@ -121,7 +121,7 @@ export function makeStateNarrativeJevCheck(opts = {}) {
           const r = await ask({
             state: { paragraph: asked[i].text, facts },
             question: NARRATIVE_QUESTION,
-            key: keyNow(),
+            key: keyNow(ctx),
             timeoutMs: Math.min(cfg.requestTimeoutMs, remaining),
           });
           if (r.ok) answers[i] = r;

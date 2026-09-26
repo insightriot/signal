@@ -3395,3 +3395,12 @@ approved the same day.
 variable stays `TYPESAFE_API_KEY` (model override `TYPESAFE_MODEL`) as `D-M6E3-13` first said. The
 first amendment's `JEV_API_KEY` is withdrawn. The key is set through `launchctl` on this machine,
 so the live steps read it with `launchctl getenv TYPESAFE_API_KEY`.
+
+### D-M6E3-14 — the key is read from the project's `.env` too
+
+**Brett, 2026-09-26** (via `/kiss`, after the key "was missing" and turned out to be in `.env` — I had
+looked in the shell and `launchctl`, misread the search result that named `.env`, and never opened
+it). `resolveJevKey` reads `TYPESAFE_API_KEY` from the environment first, then from the project's
+`.env`; only that one variable is read, nothing is loaded into the process. Without this the check
+would look broken rather than off on the machine it was built for. The test suite sets
+`SIGNAL_JEV_IGNORE_DOTENV` so no test can pick up this repository's real key.

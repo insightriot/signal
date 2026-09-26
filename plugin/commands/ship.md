@@ -220,7 +220,7 @@ Call `runShipContentGate(baseDir, { acceptStale })` from `tools/lib/ship-gate.js
    *"Shipped past the content gate"*. An override that leaves no trace is a silent bypass.
 3. **`pass` → continue.** Advice (findings with no receipt, and anything judged by a model) is
    printed and never blocks. That includes the **Jev `STATE.md` check**: when `TYPESAFE_API_KEY` is
-   set, the gate asks TypeSafe's Jev whether each `STATE.md` paragraph contradicts the facts, with a
+   set (environment or the project's `.env`), the gate asks TypeSafe's Jev whether each `STATE.md` paragraph contradicts the facts, with a
    30-second budget, and lists each contradiction with the paragraph, the fact, the confidence, how
    many paragraphs were checked, and that results can vary between runs. With no key the report says
    the Jev check did not run. Copy the Jev lines into the SHIP artifact.

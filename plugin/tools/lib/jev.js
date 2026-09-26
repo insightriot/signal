@@ -10,12 +10,16 @@
 // run, and why" (AC8.2), because a check that silently did not run reads the
 // same as a check that found nothing.
 //
-// On when `TYPESAFE_API_KEY` is set (`D-M6E3-12`). The key goes into one
+// On when `TYPESAFE_API_KEY` is set, in the environment or the project's `.env`
+// (`D-M6E3-12`, `D-M6E3-14`; see `resolveJevKey`). The key goes into one
 // header and nowhere else: never into a returned object, a reason or an error
 // message (AC8.4).
 //
 // Listed in tools/audit-network-calls.js KNOWN_CALLS and in README.md →
 // *Privacy & telemetry*.
+
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 export const JEV_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
 
@@ -37,6 +41,39 @@ export const JEV_REASON = Object.freeze({
 });
 
 const QUESTION_ID = 'q';
+
+const DOTENV_KEY_RE = /^\s*(?:export\s+)?TYPESAFE_API_KEY\s*=\s*(.*?)\s*$/;
+
+/**
+ * The key: `TYPESAFE_API_KEY` from the environment, else from the project's
+ * `.env` (`D-M6E3-14` — that is where Brett keeps it, and a key the CLI never
+ * sees makes the check look broken rather than off). Returns '' when neither has
+ * one. Reads the file and nothing else: no other variable is loaded into the
+ * process.
+ *
+ * `SIGNAL_JEV_IGNORE_DOTENV` skips the file; the test suite sets it, so no test
+ * can pick up a real key from this repository's own `.env` (AC8.7).
+ */
+export function resolveJevKey(baseDir, { env = process.env } = {}) {
+  const fromEnv = env.TYPESAFE_API_KEY;
+  if (typeof fromEnv === 'string' && fromEnv.trim()) return fromEnv.trim();
+  if (env.SIGNAL_JEV_IGNORE_DOTENV) return '';
+  let raw;
+  try {
+    raw = readFileSync(join(baseDir, '.env'), 'utf8');
+  } catch {
+    return '';
+  }
+  for (const line of raw.split(/\r?\n/)) {
+    const m = line.match(DOTENV_KEY_RE);
+    if (!m) continue;
+    let value = m[1];
+    const quoted = value.match(/^(['"])(.*)\1$/);
+    value = quoted ? quoted[2] : value.replace(/\s+#.*$/, '');
+    return value.trim();
+  }
+  return '';
+}
 
 function reasonForStatus(status) {
   if (status === 401 || status === 403) return JEV_REASON.UNAUTHORIZED;

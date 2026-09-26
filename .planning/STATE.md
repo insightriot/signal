@@ -24,7 +24,7 @@ last_updated: 2026-09-26T21:53:22.399Z
 
 ### ▶ WHERE THE WORK IS — read this first (2026-09-26)
 
-**`M6.E3` is OPEN — PLAN written, awaiting approval, then `/sig:execute`** — on `feat/m6.e3-jev-claims-audit`, reopened around TypeSafe's Jev
+**`M6.E3` is IN EXECUTE — waves 1–3 built, held at the plan's checkpoint before wave 4** — on `feat/m6.e3-jev-claims-audit`, reopened around TypeSafe's Jev
 (`D-BR0925-5`). Tier FULL / `checkpointed`. Decisions: [`DECISIONS.md`](DECISIONS.md) § *2026-09-26*
 (`D-M6E3-7` … `D-M6E3-11`): the Jev `STATE.md` check ships **first**, **report-only**, called from
 `/sig:resume` and SHIP; `/sig:docs-sweep` stays offline. Requirements:
@@ -55,7 +55,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-**`M6.E3` — PLAN written, EXECUTE next** (see the resume pointer). Nothing is being built yet.
+**`M6.E3` — EXECUTE, waves 1–3 built** (see [`M6.E3-PROGRESS.md`](M6.E3-PROGRESS.md)). Wave 4 (the `BUGS.md` and `OPEN-QUESTIONS.md` checks) waits on Brett confirming six labels.
 
 ## Blockers
 

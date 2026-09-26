@@ -95,7 +95,7 @@ It renders **above every other banner**, including schema drift. That ordering i
 
 1h. **The Jev `STATE.md` check** (`M6.E3`) — call `runDriftChecks(baseDir, modelJudgedChecks({ budgetMs: 8000 }))`, taking `modelJudgedChecks` from `tools/lib/state-narrative-jev.js`, and pass the result to `renderResumeBriefing` as `jevResult`. Wrap it: on any throw, pass `null`.
 
-It runs only when `TYPESAFE_API_KEY` is set; with no key it makes no call and renders nothing. With a key, it asks TypeSafe's Jev whether each `STATE.md` paragraph contradicts the facts code derives (phase, current Epic, in-flight work, version), within an **8-second budget**, and renders **one advisory line**: how many paragraphs may contradict the facts, how many were checked, and the most confident one. If the call fails it says so. It is a model's judgment: it **never blocks** anything, and its results can vary between runs. Placed in the advisory tier, below every trust banner.
+It runs only when `TYPESAFE_API_KEY` is set, in the environment or the project's `.env`; with no key it makes no call and renders nothing. With a key, it asks TypeSafe's Jev whether each `STATE.md` paragraph contradicts the facts code derives (phase, current Epic, in-flight work, version), within an **8-second budget**, and renders **one advisory line**: how many paragraphs may contradict the facts, how many were checked, and the most confident one. If the call fails it says so. It is a model's judgment: it **never blocks** anything, and its results can vary between runs. Placed in the advisory tier, below every trust banner.
 
 #### 3c. Retro completeness (M4.5.E9.S2.t7)
 

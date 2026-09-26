@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { askChoice, JEV_DEFAULT_MODEL, JEV_REASON, parseChoiceAnswer } from '../plugin/tools/lib/jev.js';
+import { askChoice, JEV_DEFAULT_MODEL, JEV_REASON, parseChoiceAnswer, resolveJevKey } from '../plugin/tools/lib/jev.js';
 
 /**
  * M6.E3 t1.3 — the Jev client. Every test injects `fetchFn`; none touches the
@@ -141,4 +141,48 @@ describe('the key never leaks (AC8.4)', () => {
       if (prev === undefined) delete process.env.TYPESAFE_API_KEY; else process.env.TYPESAFE_API_KEY = prev;
     }
   });
+});
+
+describe('resolveJevKey — the environment, then the project .env (D-M6E3-14)', () => {
+  async function withEnvFile(content, fn) {
+    const { mkdtemp, writeFile, rm } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const dir = await mkdtemp(join(tmpdir(), 'sig-jevkey-'));
+    try {
+      if (content !== null) await writeFile(join(dir, '.env'), content);
+      return await fn(dir);
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  }
+
+  it('the environment wins over .env', () =>
+    withEnvFile('TYPESAFE_API_KEY=from-file\n', (dir) => {
+      expect(resolveJevKey(dir, { env: { TYPESAFE_API_KEY: 'from-env' } })).toBe('from-env');
+    }));
+
+  it.each([
+    ['plain', 'TYPESAFE_API_KEY=apikey_abc\n', 'apikey_abc'],
+    ['double-quoted', 'TYPESAFE_API_KEY="apikey_abc"\n', 'apikey_abc'],
+    ['single-quoted', "TYPESAFE_API_KEY='apikey_abc'\n", 'apikey_abc'],
+    ['export prefix', 'export TYPESAFE_API_KEY=apikey_abc\n', 'apikey_abc'],
+    ['trailing comment', 'TYPESAFE_API_KEY=apikey_abc # mine\n', 'apikey_abc'],
+    ['among other keys, CRLF', 'OTHER=1\r\nTYPESAFE_API_KEY=apikey_abc\r\n', 'apikey_abc'],
+  ])('reads a %s line from .env', (_l, content, want) =>
+    withEnvFile(content, (dir) => {
+      expect(resolveJevKey(dir, { env: {} })).toBe(want);
+    }));
+
+  it.each([
+    ['no .env', null],
+    ['a commented-out line', '# TYPESAFE_API_KEY=apikey_abc\n'],
+    ['an empty value', 'TYPESAFE_API_KEY=\n'],
+    ['a different key', 'TYPESAFE_API_KEYS=apikey_abc\n'],
+  ])('returns "" for %s', (_l, content) =>
+    withEnvFile(content, (dir) => {
+      expect(resolveJevKey(dir, { env: {} })).toBe('');
+    }));
+
+  it('SIGNAL_JEV_IGNORE_DOTENV skips the file (how the test suite stays off the network)', () =>
+    withEnvFile('TYPESAFE_API_KEY=apikey_abc\n', (dir) => {
+      expect(resolveJevKey(dir, { env: { SIGNAL_JEV_IGNORE_DOTENV: '1' } })).toBe('');
+    }));
 });
