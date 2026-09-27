@@ -155,6 +155,9 @@ describe('Jev findings in the SHIP report (t2.2 — AC10.2, AC9.4)', () => {
         const r = await runShipContentGate(dir, { checks: [] });
         expect(r.status).toBe(GATE.PASS);
         expect(formatShipContentGate(r)).toMatch(/state-narrative-jev: the Jev check did not run — TYPESAFE_API_KEY is not set/);
+        // Neither check RAN, so neither is counted as checked (REVIEW: it said "checked 2").
+        expect(r.checked).toBe(0);
+        expect(formatShipContentGate(r)).toContain('✓ Content gate: checked 0, nothing refusable.');
       } finally {
         if (prev !== undefined) process.env.TYPESAFE_API_KEY = prev;
       }

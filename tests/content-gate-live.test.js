@@ -11,8 +11,14 @@ import { runShipContentGate, formatShipContentGate, GATE } from '../plugin/tools
  * The fix lane never runs /sig:ship: it is a branch, a PR and a green suite. And
  * the fix lane is exactly where stale "still open" rows are produced (`B85`,
  * `B102`, `B103`, `B104` all shipped there — `D-M6E3-5`). So the suite itself runs
- * the gate against this repository: every PR, in either lane, is refused by CI on
- * a receipt-backed stale record.
+ * the gate against this repository, in either lane.
+ *
+ * ⚠ TODAY THIS CANNOT GO RED ON A REFUSAL. No shipped check emits a refusable
+ * receipt — the only two that build receipts are model-judged, and those never
+ * refuse (`t3.2` found no code rule precise enough; ship.md §6.7 says the same).
+ * This test holds the place for the day a code check does; until then it proves
+ * only that the gate runs and is not UNVERIFIED. Said here so nobody reads the
+ * green as a guard. (REVIEW finding: the header used to claim CI refuses.)
  *
  * The override is this list. Adding a check id here IS `--accept-stale` for the
  * CI path — and because it is a line in a diff, it is recorded by construction.

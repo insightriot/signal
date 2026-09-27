@@ -16,7 +16,7 @@
 //
 // Not in ALL_DRIFT_CHECKS (docs-sweep makes no network call). SHIP runs it.
 
-import { readFile } from 'node:fs/promises';
+import { readFileConfined } from './path-confine.js';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -46,83 +46,34 @@ export function bugFixedQuestion(id) {
 }
 
 /**
- * Paragraphs inside RELEASED sections of CHANGELOG.md that name `id` as a whole
- * token. `line` is the paragraph's first line in the file (1-based).
+ * The RELEASED sections of CHANGELOG.md that name `id` as a whole token — the
+ * unit Jev is asked about, and the unit the receipt cites. One walker for both,
+ * so what the message says was read is exactly what was sent.
+ *
+ * Measured 2026-09-27 on fc4b8b1: shown only B102's one-line headline ("`B102`,
+ * fix lane. A P1 against…"), which never says "fixed", Jev put the real fix at
+ * 0.29 and MISSED it; shown the release section, 0.76, with every non-fix
+ * ≤ 0.06. The unit of text sent decides whether this works.
+ *
+ * Bounded (REVIEW): at most `maxSections` sections (the newest, in file order),
+ * and a section over `maxChars` is cut to its heading plus a WINDOW around the
+ * id's first mention — never to its first `maxChars` characters, which can drop
+ * the id the section was chosen for. Each section says which file lines were
+ * sent (`from`–`to`, plus the heading line when windowed).
+ *
+ * @returns {{sections: Array<{heading: string, start: number, from: number, to: number, windowed: boolean, text: string}>, omitted: number}}
  */
-export function releasedParagraphsNaming(changelog, id) {
+export function releasedSectionsFor(changelog, id, { maxChars = 6000, maxSections = 3 } = {}) {
   const re = new RegExp(`(^|[^A-Za-z0-9])${id}(?![0-9])`);
   const lines = String(changelog).split(/\r?\n/);
-  const out = [];
-  let released = false;
-  let buf = [];
-  let start = 0;
-  const flush = () => {
-    if (buf.length && released) {
-      const text = buf.join('\n');
-      if (re.test(text)) out.push({ line: start + 1, text });
-    }
-    buf = [];
-  };
-  for (let i = 0; i < lines.length; i++) {
-    const l = lines[i];
-    if (ANY_H2.test(l)) {
-      flush();
-      released = RELEASED_HEADING.test(l);
-      continue;
-    }
-    if (l.trim() === '') {
-      flush();
-      continue;
-    }
-    if (!buf.length) start = i;
-    buf.push(l);
-  }
-  flush();
-  return out;
-}
-
-/**
- * Whole RELEASED sections (heading + body) that name `id`, each capped at
- * `maxChars`. This — not the single paragraph naming the id — is what Jev is
- * asked about. Measured 2026-09-27 on fc4b8b1: shown only its one-line headline
- * ("`B102`, fix lane. A P1 against…"), which never says "fixed", Jev put the real
- * fix at 0.29 and MISSED it; shown the release section, 0.76, with every
- * non-fix ≤ 0.06. The unit of text sent decides whether this works.
- */
-export function releasedSectionsNaming(changelog, id, maxChars = 6000) {
-  const re = new RegExp(`(^|[^A-Za-z0-9])${id}(?![0-9])`);
-  const out = [];
-  let cur = null;
-  for (const l of String(changelog).split(/\r?\n/)) {
-    if (ANY_H2.test(l)) {
-      if (cur) out.push(cur);
-      cur = RELEASED_HEADING.test(l) ? [l] : null;
-    } else if (cur) {
-      cur.push(l);
-    }
-  }
-  if (cur) out.push(cur);
-  return out
-    .map((ls) => ls.join('\n').trim())
-    .filter((t) => re.test(t))
-    .map((t) => t.slice(0, maxChars));
-}
-
-/**
- * Where each released section naming `id` sits in the file: its heading line
- * (1-based, verbatim) and last non-blank line. The receipt cites THIS — the
- * unit Jev judged — never a paragraph inside it (see `run`).
- */
-export function releasedSectionSpans(changelog, id) {
-  const re = new RegExp(`(^|[^A-Za-z0-9])${id}(?![0-9])`);
-  const lines = String(changelog).split(/\r?\n/);
-  const spans = [];
+  const found = [];
   let cur = null;
   const close = () => {
     if (!cur) return;
     let end = cur.end;
     while (end > cur.start && lines[end - 1].trim() === '') end--;
-    if (re.test(lines.slice(cur.start - 1, end).join('\n'))) spans.push({ start: cur.start, end, heading: lines[cur.start - 1] });
+    const body = lines.slice(cur.start - 1, end);
+    if (re.test(body.join('\n'))) found.push({ start: cur.start, end, body });
     cur = null;
   };
   lines.forEach((l, i) => {
@@ -134,7 +85,29 @@ export function releasedSectionSpans(changelog, id) {
     }
   });
   close();
-  return spans;
+
+  const sections = found.slice(0, maxSections).map(({ start, end, body }) => {
+    const full = body.join('\n');
+    if (full.length <= maxChars) return { heading: body[0], start, from: start, to: end, windowed: false, text: full };
+    const k = body.findIndex((l, i) => i > 0 && re.test(l));
+    let lo = k;
+    let hi = k;
+    let size = body[k].length;
+    const budget = Math.max(0, maxChars - body[0].length - 3);
+    for (let grew = true; grew; ) {
+      grew = false;
+      if (hi + 1 < body.length && size + body[hi + 1].length + 1 <= budget) { hi++; size += body[hi].length + 1; grew = true; }
+      if (lo - 1 > 0 && size + body[lo - 1].length + 1 <= budget) { lo--; size += body[lo].length + 1; grew = true; }
+    }
+    const text = `${body[0]}\n…\n${body.slice(lo, hi + 1).join('\n')}`.slice(0, maxChars);
+    return { heading: body[0], start, from: start + lo, to: start + hi, windowed: true, text };
+  });
+  return { sections, omitted: Math.max(0, found.length - maxSections) };
+}
+
+/** True when CHANGELOG.md has at least one release heading this check can read. */
+export function hasReleasedHeading(changelog) {
+  return String(changelog).split(/\r?\n/).some((l) => RELEASED_HEADING.test(l));
 }
 
 export const BUG_JEV_DEFAULTS = Object.freeze({
@@ -144,6 +117,7 @@ export const BUG_JEV_DEFAULTS = Object.freeze({
   budgetMs: 30000,
   threshold: 0.5,
   maxSectionChars: 6000,
+  maxSections: 3,
 });
 
 export function makeBugFixedJevCheck(opts = {}) {
@@ -156,11 +130,13 @@ export function makeBugFixedJevCheck(opts = {}) {
   return defineCheck({
     id: CHECK_ID,
     healCategory: HEAL.NEEDS_A_PERSON,
+    judged: 'model',
     describe:
       'Asks TypeSafe\'s Jev, for each `confirmed` BUGS.md row a released CHANGELOG section mentions, whether that text says the bug was fixed. ' +
       'Advisory — never refuses; results can vary between runs. No token rule could make this call (M6.E3 t3.2). ' +
       'Measured 2026-09-27 (jev-1.13.0) at fc4b8b1 on the 13 `confirmed` rows a released section names (of the 28-row corpus behind the published bug-status figures): 1 flag, 1 real (B102; recorded p 0.76 and 0.69), every non-fix ≤ 0.06 — one positive, not a general rate. No run output is stored. ' +
-      'The receipt cites the release section Jev read (heading + line range), not a sentence: the judgment is per section.',
+      'The receipt cites the release section Jev read (heading + line range), not a sentence: the judgment is per section. ' +
+      'Since REVIEW at most 3 sections per bug are sent, each cut to a window around the id; the measurement sent every section whole (B75: 7), so for multi-section bugs the number describes a slightly different input.',
     applicability: (ctx) => {
       if (!existsSync(bugsFile(ctx))) return { status: APPLICABILITY.NA, reason: 'this project has no .planning/BUGS.md' };
       if (!existsSync(join(ctx.baseDir, 'CHANGELOG.md'))) {
@@ -173,17 +149,22 @@ export function makeBugFixedJevCheck(opts = {}) {
     },
 
     async run(ctx) {
-      const bugs = await readFile(bugsFile(ctx), 'utf8');
-      const changelog = await readFile(join(ctx.baseDir, 'CHANGELOG.md'), 'utf8');
+      const bugs = readFileConfined(ctx.baseDir, '.planning/BUGS.md');
+      const changelog = readFileConfined(ctx.baseDir, 'CHANGELOG.md');
+      // A CHANGELOG whose releases are not `## [x.y.z]` (e.g. `## v0.3.0`) would
+      // yield zero candidates and read as "checked 0 of 0" — clean. It is not
+      // clean; this check cannot read that file (NFR4, `B39`). Found at REVIEW.
+      if (!hasReleasedHeading(changelog)) {
+        throw new Error('CHANGELOG.md has no `## [version]` release headings this check can read');
+      }
+      const key = keyNow(ctx); // once per run, not once per bug
       const candidates = walkBugEntries(bugs)
         .filter((e) => e.kind === 'row' && e.status === 'confirmed')
         .map((e) => ({
           ...e,
-          paragraphs: releasedParagraphsNaming(changelog, e.id),
-          sections: releasedSectionsNaming(changelog, e.id, cfg.maxSectionChars),
-          spans: releasedSectionSpans(changelog, e.id),
+          ...releasedSectionsFor(changelog, e.id, { maxChars: cfg.maxSectionChars, maxSections: cfg.maxSections }),
         }))
-        .filter((e) => e.paragraphs.length);
+        .filter((e) => e.sections.length);
       const bugLines = bugs.split(/\r?\n/);
 
       const asked = candidates.slice(0, cfg.maxBugs);
@@ -201,9 +182,9 @@ export function makeBugFixedJevCheck(opts = {}) {
             continue;
           }
           const r = await ask({
-            state: asked[i].sections.join('\n\n'),
+            state: asked[i].sections.map((sec) => sec.text).join('\n\n'),
             question: bugFixedQuestion(asked[i].id),
-            key: keyNow(ctx),
+            key,
             timeoutMs: Math.min(cfg.requestTimeoutMs, remaining),
           });
           if (r.ok) answers[i] = r;
@@ -230,8 +211,11 @@ export function makeBugFixedJevCheck(opts = {}) {
         // reader deciding from that receipt would dismiss the one true
         // positive. Found at VERIFY; M6.E7's shape — the line is in the file
         // and does not carry the claim.
-        const [first] = bug.spans;
-        const ranges = bug.spans.map((sp) => `CHANGELOG.md:${sp.start}–${sp.end}`).join(', ');
+        const [first] = bug.sections;
+        const ranges =
+          bug.sections
+            .map((sec) => (sec.windowed ? `CHANGELOG.md:${sec.start} + ${sec.from}–${sec.to}` : `CHANGELOG.md:${sec.from}–${sec.to}`))
+            .join(', ') + (bug.omitted ? `; ${bug.omitted} older section(s) not read` : '');
         findings.push({
           file: '.planning/BUGS.md',
           message:

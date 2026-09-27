@@ -45,6 +45,18 @@ describe('tools/audit-network-calls.js — contract', () => {
     expect(result.stdout).toMatch(/with-injected-fetch\.js/);
   });
 
+  // REVIEW (security-auditor, code-reviewer): each of these exited 0 before —
+  // and .mjs / .cjs / .sh files were not scanned at all.
+  it('catches the shapes it used to miss, in .mjs / .cjs / .sh, and skips a comment mentioning curl', () => {
+    const result = spawnSync('node', [SCRIPT, join(__dirname, 'fixtures/audit-network-calls-shapes')], { encoding: 'utf-8' });
+    expect(result.status).toBe(1);
+    for (const line of [2, 3, 4, 5, 6, 7]) expect(result.stdout).toContain(`shapes.mjs:${line}\n`);
+    expect(result.stdout).not.toContain('shapes.mjs:1\n');
+    expect(result.stdout).toContain('hook.sh:3\n');
+    expect(result.stdout).not.toContain('hook.sh:2\n');
+    expect(result.stdout).toContain('push.cjs:1\n');
+  });
+
   it('exits 1 + reports the violation path when given a directory containing fetch()', () => {
     const result = spawnSync('node', [SCRIPT, SEEDED_FIXTURE], { encoding: 'utf-8' });
     expect(result.status).toBe(1);

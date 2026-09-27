@@ -28,8 +28,7 @@
 // docs-sweep makes no network call (`D-M6E3-9`). Callers that may reach the
 // network pass MODEL_JUDGED_CHECKS explicitly.
 
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readFileConfined } from './path-confine.js';
 
 import { defineCheck, HEAL, APPLICABILITY } from './state-drift.js';
 import { makeReceipt } from './receipt.js';
@@ -70,8 +69,17 @@ const FACT_CUES = [
   ['current_epic', /\bM\d+(?:\.\d+)?\.E\d+\b/],
 ];
 
+// A fact whose value the paragraph already states is one it AGREES with — the
+// contradiction is elsewhere. Pairing with it would hand the reader a receipt
+// whose two sides match, and they would dismiss a true positive (REVIEW: "v0.2.0
+// is in flight at VERIFY" paired with `"version": "0.2.0"`).
+const agrees = (text, value) => value !== undefined && String(text).includes(String(value));
+
 function evidenceFor(text, facts, sources) {
+  const usable = (k) => facts[k] !== undefined && !agrees(text, k === 'in_flight' ? facts.current_epic ?? facts.phase : facts[k]);
   const key =
+    FACT_CUES.find(([k, re]) => usable(k) && re.test(text))?.[0] ??
+    ['in_flight', 'phase', 'current_epic'].find(usable) ??
     FACT_CUES.find(([k, re]) => facts[k] !== undefined && re.test(text))?.[0] ??
     ['in_flight', 'phase', 'current_epic'].find((k) => facts[k] !== undefined);
   if (!key) return null;
@@ -98,6 +106,7 @@ export function makeStateNarrativeJevCheck(opts = {}) {
   return defineCheck({
     id: CHECK_ID,
     healCategory: HEAL.NEEDS_A_PERSON,
+    judged: 'model',
     describe:
       'Asks TypeSafe\'s Jev whether each STATE.md paragraph contradicts the facts code derives (phase, current Epic, in-flight work, version). Advisory — never refuses. Results can vary between runs. Measured 2026-09-26 (jev-1.13.0) on the file it was built from: 4 of 4 known contradictions found, 1 false alarm in 26 (at confidence 0.14) — four positives in one file, not a general rate.',
     applicability: (ctx) =>
@@ -106,7 +115,8 @@ export function makeStateNarrativeJevCheck(opts = {}) {
         : { status: APPLICABILITY.BLIND, reason: 'the Jev check did not run — TYPESAFE_API_KEY is not set (environment or .env)' },
 
     async run(ctx) {
-      const raw = await readFile(join(ctx.planningDir, 'STATE.md'), 'utf8');
+      const raw = readFileConfined(ctx.baseDir, '.planning/STATE.md');
+      const key = keyNow(ctx); // once per run, not once per paragraph
       const { facts, sources, unavailable } = await buildFactList(ctx.baseDir, ctx.state);
       const candidates = splitParagraphs(raw).filter((p) => !HEADING_ONLY.test(p.text));
       const asked = candidates.slice(0, cfg.maxParagraphs);
@@ -127,7 +137,7 @@ export function makeStateNarrativeJevCheck(opts = {}) {
           const r = await ask({
             state: { paragraph: asked[i].text, facts },
             question: NARRATIVE_QUESTION,
-            key: keyNow(ctx),
+            key,
             timeoutMs: Math.min(cfg.requestTimeoutMs, remaining),
           });
           if (r.ok) answers[i] = r;

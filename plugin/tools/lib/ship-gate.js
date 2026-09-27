@@ -89,7 +89,11 @@ export async function runShipContentGate(baseDir, opts = {}) {
         .join('\n')
     : null;
 
-  return { status, reason: null, refusals, overridden, advice, blind, coverage, checked: (report.results ?? []).length, record };
+  // "checked" counts checks that RAN (clean or findings) — not ones that could
+  // not evaluate or did not apply, which are listed separately (REVIEW: with no
+  // key the report used to say "checked 2" when neither Jev check had run).
+  const ran = (report.results ?? []).filter((r) => r.status === STATUS.CLEAN || r.status === STATUS.FINDINGS).length;
+  return { status, reason: null, refusals, overridden, advice, blind, coverage, checked: ran, record };
 }
 
 function clearingEdit(f) {

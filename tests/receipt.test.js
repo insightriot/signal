@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   ReceiptError,
@@ -139,5 +141,61 @@ describe('runDriftChecks carries receipts through, and refuses to carry a malfor
       expect('receipt' in f).toBe(false);
       expect('judgedBy' in f).toBe(false);
     } finally { await rm(dir, { recursive: true, force: true }); }
+  });
+});
+
+// REVIEW (code-reviewer, Important): "model findings never refuse" used to hold
+// only if each check remembered `judgedBy` on every finding. Now a check declares
+// `judged: 'model'` once and the result is marked — AC9.4 by construction.
+describe('model-judged checks cannot refuse — by declaration, not per-finding discipline (AC9.4)', () => {
+  async function tree() {
+    const dir = await mkdtemp(join(tmpdir(), 'sig-judged-'));
+    await mkdir(join(dir, '.planning'));
+    await writeFile(join(dir, '.planning/STATE.md'), '---\nschema_version: 1\nphase: PLAN\n---\n# State\n');
+    return dir;
+  }
+  const modelCheck = (findings) => defineCheck({
+    id: 'fixture-model', healCategory: HEAL.NEEDS_A_PERSON, judged: 'model',
+    applicability: () => APPLICABILITY.EVAL, run: () => findings,
+  });
+
+  it('a model-judged finding that forgot judgedBy → the whole check is cannot-evaluate', async () => {
+    const dir = await tree();
+    try {
+      const receipt = makeReceipt({ claim: CLAIM, evidence: EVIDENCE });
+      const report = await runDriftChecks(dir, [modelCheck([{ message: 'm', receipt }])]);
+      expect(report.results[0].status).toBe(STATUS.CANNOT_EVALUATE);
+      expect(report.results[0].reason).toMatch(/without judgedBy/);
+      expect(refusableFindings(report)).toEqual([]);
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  });
+
+  it('refusableFindings skips a judged result even if a finding in it lacks judgedBy', () => {
+    const receipt = makeReceipt({ claim: CLAIM, evidence: EVIDENCE });
+    expect(refusableFindings({ results: [{ judged: 'model', findings: [{ receipt }] }] })).toEqual([]);
+    expect(refusableFindings({ results: [{ findings: [{ receipt }] }] })).toHaveLength(1);
+  });
+
+  it('defineCheck accepts only judged: "model"', () => {
+    expect(() => defineCheck({ id: 'x', healCategory: HEAL.NEEDS_A_PERSON, judged: 'maybe', applicability: () => APPLICABILITY.EVAL, run: () => [] })).toThrow(/judged/);
+  });
+
+  it('every shipped module that calls Jev AND defines a check declares judged: "model"', () => {
+    const lib = join(dirname(fileURLToPath(import.meta.url)), '../plugin/tools/lib');
+    const offenders = readdirSync(lib)
+      .filter((f) => f.endsWith('.js') && f !== 'jev.js')
+      .filter((f) => {
+        const src = readFileSync(join(lib, f), 'utf8');
+        return /from '\.\/jev\.js'/.test(src) && /defineCheck\(\{/.test(src) && !/judged:\s*'model'/.test(src);
+      });
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe('renderReceipt drops terminal control characters from excerpts (security, REVIEW)', () => {
+  it('an escape sequence in a file line is not printed', () => {
+    const r = makeReceipt({ claim: { ...CLAIM, excerpt: 'safe \u001b[31mred\u001b[0m text' }, evidence: EVIDENCE });
+    expect(renderReceipt(r)).not.toMatch(/\u001b/);
+    expect(renderReceipt(r)).toContain('safe [31mred[0m text');
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { mkdtemp, mkdir, writeFile, rm, readFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm, readFile, symlink } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -246,5 +246,59 @@ describe('a contradiction with no fact to pair it with does not vanish (B39)', (
       expect(row.coverage.checked).toBe(0);
       expect(row.coverage.unchecked).toEqual([{ line: 4, reason: 'no-evidence' }]);
     } finally { await rm(dir, { recursive: true, force: true }); }
+  });
+});
+
+const contradicts = () => vi.fn(async () => ({ ok: true, choice: 'contradicts', confidence: 0.9, probabilities: { contradicts: 0.9 }, model: 'jev-1.13.0' }));
+
+describe('REVIEW fixes', () => {
+  // The paragraph states the version CORRECTLY; the phase is what is wrong. The
+  // receipt used to pair it with the version line — two sides that agree.
+  it('never pairs a contradiction with a fact the paragraph already agrees with', async () => {
+    const dir = await project('---\nschema_version: 1\nphase: EXECUTE\n---\nv0.1.40 is in flight at VERIFY.\n');
+    try {
+      const [row] = (await runDriftChecks(dir, [makeStateNarrativeJevCheck({ ask: contradicts(), key: 'k' })])).results;
+      expect(row.findings).toHaveLength(1);
+      const { evidence } = row.findings[0].receipt;
+      expect(evidence.excerpt).not.toContain('0.1.40');
+      expect(evidence).toMatchObject({ source: '.planning/STATE.md frontmatter', line: 3, excerpt: 'phase: EXECUTE' });
+    } finally { await cleanup(dir); }
+  });
+
+  it('a STATE.md symlinked outside the project is not read and not sent', async () => {
+    const dir = await project();
+    const outside = await mkdtemp(join(tmpdir(), 'sig-outside-'));
+    try {
+      // A valid STATE shape, so the drift context builds and THIS check is what
+      // refuses — without schema_version the whole run fails earlier and the
+      // test passes for the wrong reason (it did, on the pre-fix code).
+      await writeFile(join(outside, 'credentials'), '---\nschema_version: 1\nphase: EXECUTE\n---\naws_secret = hunter2\n');
+      await rm(join(dir, '.planning/STATE.md'));
+      await symlink(join(outside, 'credentials'), join(dir, '.planning/STATE.md'));
+      const ask = contradicts();
+      const [row] = (await runDriftChecks(dir, [makeStateNarrativeJevCheck({ ask, key: 'k' })])).results;
+      expect(row.status).toBe(STATUS.CANNOT_EVALUATE);
+      expect(row.reason).toMatch(/outside the project/);
+      expect(ask).not.toHaveBeenCalled();
+    } finally { await cleanup(dir); await cleanup(outside); }
+  });
+
+  it('each request gets min(per-request timeout, time left) — never more than the budget allows', async () => {
+    const dir = await project('---\nschema_version: 1\nphase: EXECUTE\n---\nOne.\n\nTwo.\n');
+    try {
+      let t = 0;
+      const seen = [];
+      const ask = vi.fn(async ({ timeoutMs }) => { seen.push(timeoutMs); t += 6000; return { ok: true, choice: 'says_nothing', confidence: 1, probabilities: { says_nothing: 1 }, model: 'm' }; });
+      await runDriftChecks(dir, [makeStateNarrativeJevCheck({ ask, key: 'k', now: () => t, budgetMs: 8000, requestTimeoutMs: 5000, concurrency: 1 })]);
+      expect(seen).toEqual([5000, 2000]);
+    } finally { await cleanup(dir); }
+  });
+
+  it('is declared model-judged: its result carries judged:"model"', async () => {
+    const dir = await project();
+    try {
+      const [row] = (await runDriftChecks(dir, [makeStateNarrativeJevCheck({ ask: recordedAsk(), key: 'k' })])).results;
+      expect(row.judged).toBe('model');
+    } finally { await cleanup(dir); }
   });
 });

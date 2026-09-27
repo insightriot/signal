@@ -78,11 +78,17 @@ export function isReceipt(value) {
  * The findings a refusal may act on: a built receipt, and no model judgment.
  * Fail-open in the one safe direction — a null or malformed report yields [],
  * because a missing report must never manufacture a refusal.
+ *
+ * "No model judgment" is checked twice: per finding (`judgedBy`) AND per result
+ * (`judged: 'model'`, stamped by `runDriftChecks` from the check's own
+ * declaration). The second is what makes AC9.4 hold by construction — a
+ * model-judged check that forgets `judgedBy` on one finding still cannot refuse.
  */
 export function refusableFindings(report) {
   const results = Array.isArray(report?.results) ? report.results : [];
   const out = [];
   for (const r of results) {
+    if (r?.judged) continue;
     for (const f of Array.isArray(r?.findings) ? r.findings : []) {
       if (isReceipt(f.receipt) && !f.judgedBy) out.push(f);
     }
@@ -92,9 +98,14 @@ export function refusableFindings(report) {
 
 const EXCERPT_MAX = 110;
 
+// Excerpts come from files a cloned repository controls; C0/C1 control
+// characters (terminal escapes) are dropped before they are printed.
+// eslint-disable-next-line no-control-regex
+const CONTROL_RE = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F]/g;
+
 function oneLine(text) {
   const first = String(text).split('\n').find((l) => l.trim() !== '') ?? '';
-  const flat = first.trim();
+  const flat = first.replace(CONTROL_RE, '').trim();
   return flat.length > EXCERPT_MAX ? `${flat.slice(0, EXCERPT_MAX - 1)}…` : flat;
 }
 

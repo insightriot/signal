@@ -105,6 +105,7 @@ export class DriftCheckError extends Error {
  *   run: (ctx: object) => Array<{message: string, file?: string}>,
  *   healMechanism?: string,
  *   describe?: string,
+ *   judged?: 'model',
  * }} def
  * @returns {Readonly<object>}
  */
@@ -112,7 +113,7 @@ export function defineCheck(def) {
   if (!def || typeof def !== 'object') {
     throw new DriftCheckError('defineCheck requires a definition object.');
   }
-  const { id, healCategory, applicability, run, healMechanism, describe } = def;
+  const { id, healCategory, applicability, run, healMechanism, describe, judged } = def;
 
   if (typeof id !== 'string' || id.length === 0) {
     throw new DriftCheckError('A drift check requires a non-empty string id.');
@@ -133,6 +134,12 @@ export function defineCheck(def) {
   if (typeof run !== 'function') {
     throw new DriftCheckError(`Check "${id}" must declare a run function.`);
   }
+  // M6.E3 (AC9.4): a check whose findings are a model's judgment says so HERE,
+  // once, and `runDriftChecks` marks its whole result — so no finding from it can
+  // reach `refusableFindings`, whether or not each finding remembered `judgedBy`.
+  if (judged !== undefined && judged !== 'model') {
+    throw new DriftCheckError(`Check "${id}" declares judged: ${JSON.stringify(judged)}; the only value is 'model'.`);
+  }
   if (healCategory !== HEAL.NEEDS_A_PERSON && !healMechanism) {
     throw new DriftCheckError(
       `Check "${id}" declares heal category ${healCategory}, which promises the ` +
@@ -149,6 +156,7 @@ export function defineCheck(def) {
     run,
     healMechanism: healMechanism ?? null,
     describe: describe ?? null,
+    ...(judged ? { judged } : {}),
   });
 }
 
@@ -319,6 +327,19 @@ export async function runDriftChecks(baseDir, checks = STATE_DRIFT_CHECKS) {
     // check's output is byte-identical. A receipt `makeReceipt` did not build is
     // refused here, whole-check, rather than carried as something a gate might
     // later mistake for evidence (AC1.5).
+    // A model-judged check must say who judged each finding; one that does not
+    // is a check that has forgotten what it is — refused whole, not trusted.
+    if (check.judged === 'model' && raw.some((f) => f.judgedBy == null)) {
+      results.push({
+        id: check.id,
+        healCategory: check.healCategory,
+        status: STATUS.CANNOT_EVALUATE,
+        reason: 'a model-judged check returned a finding without judgedBy',
+        findings: [],
+      });
+      continue;
+    }
+
     if (raw.some((f) => f.receipt != null && !isReceipt(f.receipt))) {
       results.push({
         id: check.id,
@@ -350,6 +371,7 @@ export async function runDriftChecks(baseDir, checks = STATE_DRIFT_CHECKS) {
       reason: null,
       findings,
       ...(coverage ? { coverage } : {}),
+      ...(check.judged ? { judged: check.judged } : {}),
     });
   }
 

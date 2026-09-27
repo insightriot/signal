@@ -1,13 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
   makeBugFixedJevCheck,
-  releasedParagraphsNaming,
-  releasedSectionsNaming,
-  releasedSectionSpans,
+  releasedSectionsFor,
   bugFixedQuestion,
 } from '../plugin/tools/lib/bug-fixed-jev.js';
 import { runDriftChecks, STATUS } from '../plugin/tools/lib/state-drift.js';
@@ -66,16 +64,42 @@ const fakeAsk = (byId) => vi.fn(async ({ question }) => {
   return { ok: true, noul: byId[id] ?? 0.05, model: 'jev-1.13.0' };
 });
 
-describe('releasedParagraphsNaming', () => {
-  it('returns released-section paragraphs naming the id, with file lines; never [Unreleased]', () => {
-    expect(releasedParagraphsNaming(CHANGELOG, 'B102')).toEqual([
-      { line: 9, text: '**`B102`, fix lane. A P1 against the advice.**\nCorrected the migration text.' },
-    ]);
-    expect(releasedParagraphsNaming(CHANGELOG, 'B200')).toEqual([]);
+describe('releasedSectionsFor — the unit Jev reads, and the unit the receipt cites', () => {
+  it('returns each released section naming the id, heading verbatim, file lines, never [Unreleased]', () => {
+    expect(releasedSectionsFor(CHANGELOG, 'B102')).toEqual({
+      sections: [{ heading: '## [0.1.27] — 2026-08-18', start: 7, from: 7, to: 10, windowed: false,
+        text: '## [0.1.27] — 2026-08-18\n\n**`B102`, fix lane. A P1 against the advice.**\nCorrected the migration text.' }],
+      omitted: 0,
+    });
+    expect(releasedSectionsFor(CHANGELOG, 'B200').sections).toEqual([]);
+    expect(releasedSectionsFor(CHANGELOG, 'B75').sections).toMatchObject([{ start: 12, from: 12, to: 16 }]);
   });
 
   it('matches the id as a whole token (B10 does not match B102)', () => {
-    expect(releasedParagraphsNaming(CHANGELOG, 'B10')).toEqual([]);
+    expect(releasedSectionsFor(CHANGELOG, 'B10').sections).toEqual([]);
+  });
+
+  // REVIEW: a section chosen BECAUSE it names the id was cut at its first
+  // maxChars characters, and could go out without the id (B56 did).
+  it('a long section is cut to a window AROUND the id, and says which lines were sent', () => {
+    const filler = (n) => Array.from({ length: n }, (_, i) => `filler line ${i} with some words in it`);
+    const log = ['## [0.2.0] — x', ...filler(60), 'Fixed B9 at last.', ...filler(60)].join('\n');
+    const { sections } = releasedSectionsFor(log, 'B9', { maxChars: 400 });
+    expect(sections).toHaveLength(1);
+    const [sec] = sections;
+    expect(sec.windowed).toBe(true);
+    expect(sec.text).toContain('Fixed B9 at last.');
+    expect(sec.text.startsWith('## [0.2.0] — x\n…\n')).toBe(true);
+    expect(sec.text.length).toBeLessThanOrEqual(400);
+    expect(sec.from).toBeLessThan(62);
+    expect(sec.to).toBeGreaterThan(62); // line 62 is the id's line
+  });
+
+  it('sends at most maxSections sections — the newest, in file order — and counts the rest', () => {
+    const log = [1, 2, 3, 4, 5].map((v) => `## [0.${6 - v}.0]\n\nB5 mentioned.`).join('\n\n');
+    const { sections, omitted } = releasedSectionsFor(log, 'B5', { maxSections: 3 });
+    expect(sections.map((x) => x.heading)).toEqual(['## [0.5.0]', '## [0.4.0]', '## [0.3.0]']);
+    expect(omitted).toBe(2);
   });
 });
 
@@ -100,7 +124,10 @@ describe('makeBugFixedJevCheck', () => {
       expect(row.findings).toHaveLength(1);
       const [f] = row.findings;
       expect(isReceipt(f.receipt)).toBe(true);
-      expect(f.receipt.claim).toMatchObject({ file: '.planning/BUGS.md', line: 6 });
+      // The claim quotes the row VERBATIM from its line — an off-by-one would
+      // cite the neighbouring row (REVIEW: the excerpt was never checked).
+      expect(f.receipt.claim).toEqual({ file: '.planning/BUGS.md', line: 6, excerpt: BUGS.split('\n')[5] });
+      expect(f.receipt.claim.excerpt).toMatch(/^\| B102 \|/);
       // The receipt cites what Jev JUDGED — the release section — verbatim at
       // its heading, and the message names the range read (VERIFY finding:
       // it used to cite the headline, which never says "fixed").
@@ -126,14 +153,71 @@ describe('makeBugFixedJevCheck', () => {
     } finally { await cleanup(dir); }
   });
 
-  it('releasedSectionSpans gives each released section naming the id, heading verbatim, trailing blanks trimmed', () => {
-    expect(releasedSectionSpans(CHANGELOG, 'B102')).toEqual([{ start: 7, end: 10, heading: '## [0.1.27] — 2026-08-18' }]);
-    expect(releasedSectionSpans(CHANGELOG, 'B200')).toEqual([]);
-    expect(releasedSectionSpans(CHANGELOG, 'B75')).toEqual([{ start: 12, end: 16, heading: '## [0.1.24] — 2026-08-09' }]);
+  it('is declared model-judged, and the result says so — AC9.4 by construction', async () => {
+    const dir = await project();
+    try {
+      const [row] = (await runDriftChecks(dir, [makeBugFixedJevCheck({ ask: fakeAsk({ B102: 0.99 }), key: 'k' })])).results;
+      expect(row.judged).toBe('model');
+    } finally { await cleanup(dir); }
   });
 
-  it('releasedSectionsNaming caps each section', () => {
-    expect(releasedSectionsNaming(CHANGELOG, 'B102', 20)).toEqual(['## [0.1.27] — 2026-0']);
+  it('flags at exactly the threshold (0.5), not below it', async () => {
+    const dir = await project();
+    try {
+      const [at] = (await runDriftChecks(dir, [makeBugFixedJevCheck({ ask: fakeAsk({ B102: 0.5 }), key: 'k' })])).results;
+      expect(at.findings).toHaveLength(1);
+      const [below] = (await runDriftChecks(dir, [makeBugFixedJevCheck({ ask: fakeAsk({ B102: 0.49 }), key: 'k' })])).results;
+      expect(below.findings).toHaveLength(0);
+    } finally { await cleanup(dir); }
+  });
+
+  // REVIEW: `## v0.3.0` headings yielded zero questions and "checked 0 of 0" —
+  // clean. A file this check cannot read is not clean.
+  it('a CHANGELOG with no `## [version]` headings → cannot-evaluate, not clean', async () => {
+    const dir = await project(BUGS, '# Changelog\n\n## v0.3.0 — 2026-09-01\n\n- B102 fixed.\n');
+    try {
+      const ask = vi.fn();
+      const [row] = (await runDriftChecks(dir, [makeBugFixedJevCheck({ ask, key: 'k' })])).results;
+      expect(row.status).toBe(STATUS.CANNOT_EVALUATE);
+      expect(row.reason).toMatch(/no `## \[version\]` release headings/);
+      expect(ask).not.toHaveBeenCalled();
+    } finally { await cleanup(dir); }
+  });
+
+  it('a BUGS.md symlinked outside the project is not read (security, REVIEW)', async () => {
+    const dir = await project();
+    const outside = await mkdtemp(join(tmpdir(), 'sig-outside-'));
+    try {
+      await writeFile(join(outside, 'secret'), '| B1 | `confirmed` | P1 | secret |\n');
+      await rm(join(dir, '.planning/BUGS.md'));
+      await symlink(join(outside, 'secret'), join(dir, '.planning/BUGS.md'));
+      const ask = vi.fn();
+      const [row] = (await runDriftChecks(dir, [makeBugFixedJevCheck({ ask, key: 'k' })])).results;
+      expect(row.status).toBe(STATUS.CANNOT_EVALUATE);
+      expect(row.reason).toMatch(/outside the project/);
+      expect(ask).not.toHaveBeenCalled();
+    } finally { await cleanup(dir); await cleanup(outside); }
+  });
+
+  it('bounded: over the cap → unchecked over-cap; past the budget → unchecked budget; each request gets min(timeout, remaining)', async () => {
+    const dir = await project();
+    try {
+      const capped = fakeAsk({});
+      const [c] = (await runDriftChecks(dir, [makeBugFixedJevCheck({ ask: capped, key: 'k', maxBugs: 1 })])).results;
+      expect(capped).toHaveBeenCalledTimes(1);
+      expect(c.coverage).toMatchObject({ checked: 1, total: 2, unchecked: [expect.objectContaining({ reason: 'over-cap' })] });
+
+      let t = 0;
+      const seen = [];
+      const slow = vi.fn(async ({ timeoutMs }) => { seen.push(timeoutMs); t += 25000; return { ok: true, noul: 0.05, model: 'm' }; });
+      const [b] = (await runDriftChecks(dir, [makeBugFixedJevCheck({ ask: slow, key: 'k', now: () => t, budgetMs: 30000, requestTimeoutMs: 20000, concurrency: 1 })])).results;
+      expect(seen).toEqual([20000, 5000]); // 2nd request: 30 000 − 25 000 left, under the 20 000 per-request cap
+      expect(b.coverage.checked).toBe(2);
+
+      t = 0;
+      const [bb] = (await runDriftChecks(dir, [makeBugFixedJevCheck({ ask: slow, key: 'k', now: () => t, budgetMs: 20000, concurrency: 1 })])).results;
+      expect(bb.coverage.unchecked).toEqual([expect.objectContaining({ reason: 'budget' })]);
+    } finally { await cleanup(dir); }
   });
 
   it('never refuses, and is not in ALL_DRIFT_CHECKS (docs-sweep stays offline)', async () => {

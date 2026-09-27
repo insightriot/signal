@@ -20,6 +20,7 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 export const JEV_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
 
@@ -66,11 +67,18 @@ const DOTENV_KEY_RE = /^\s*(?:export\s+)?TYPESAFE_API_KEY\s*=\s*(.*?)\s*$/;
  *
  * `SIGNAL_JEV_IGNORE_DOTENV` skips the file; the test suite sets it, so no test
  * can pick up a real key from this repository's own `.env` (AC8.7).
+ *
+ * ⚠ A `.env` that git TRACKS is refused (REVIEW, security HIGH): it is not the
+ * user's key but the repository author's. A cloned repo could ship one and send
+ * the cloner's project text to TypeSafe on the author's account, with the
+ * cloner never having turned anything on. A user's own key lives in an
+ * untracked `.env` (or the environment), which is where Signal's docs put it.
  */
-export function resolveJevKey(baseDir, { env = process.env } = {}) {
+export function resolveJevKey(baseDir, { env = process.env, isTracked = isTrackedByGit } = {}) {
   const fromEnv = env.TYPESAFE_API_KEY;
   if (typeof fromEnv === 'string' && fromEnv.trim()) return fromEnv.trim();
   if (env.SIGNAL_JEV_IGNORE_DOTENV) return '';
+  if (isTracked(baseDir, '.env')) return '';
   let raw;
   try {
     raw = readFileSync(join(baseDir, '.env'), 'utf8');
@@ -87,6 +95,20 @@ export function resolveJevKey(baseDir, { env = process.env } = {}) {
   }
   return '';
 }
+
+/** True when git tracks `rel` in `baseDir`'s repository. Not a repo, or no git → false. */
+export function isTrackedByGit(baseDir, rel) {
+  try {
+    execFileSync('git', ['ls-files', '--error-unmatch', '--', rel], { cwd: baseDir, stdio: 'ignore', timeout: 2000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// The server's `model` string is printed and copied into the SHIP artifact; it
+// is the one response field that reached text unvalidated (REVIEW, security).
+const MODEL_RE = /^[\w.-]{1,64}$/;
 
 function reasonForStatus(status) {
   if (status === 401 || status === 403) return JEV_REASON.UNAUTHORIZED;
@@ -130,6 +152,7 @@ async function ask({ state, question, key, model, timeoutMs, fetchFn }) {
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ state, model, questions: { [QUESTION_ID]: question } }),
       signal: AbortSignal.timeout(timeoutMs),
+      redirect: 'error',
     });
   } catch (err) {
     // The error object is dropped, never echoed: some stacks print the request.
@@ -144,7 +167,7 @@ async function ask({ state, question, key, model, timeoutMs, fetchFn }) {
   } catch {
     return { ok: false, reason: JEV_REASON.BAD_RESPONSE };
   }
-  return { ok: true, answer: body?.answers?.[QUESTION_ID], model: typeof body?.model === 'string' ? body.model : model };
+  return { ok: true, answer: body?.answers?.[QUESTION_ID], model: typeof body?.model === 'string' && MODEL_RE.test(body.model) ? body.model : model };
 }
 
 /**

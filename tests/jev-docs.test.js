@@ -40,6 +40,11 @@ describe('/sig:docs-sweep says the Jev check does not run there (AC10.3)', () =>
     expect(out).toMatch(/Jev BUGS\.md check/);
   });
 
+  it('says so in a project with NO .planning/ too — no drift report, same line (AC10.3, REVIEW)', () => {
+    const out = renderSweepReport({ findings: [], stateDrift: null, signalOnly: null });
+    expect(out).toMatch(/## Model-judged checks\nnot run here — this sweep is offline/);
+  });
+
   it('docs-sweep.md says so too, for both checks, and that the sweep\'s BUGS.md rule has no receipt (AC4.1, AC4.2 as revised)', () => {
     const doc = readFileSync(join(ROOT, 'plugin/commands/docs-sweep.md'), 'utf8');
     expect(doc).toMatch(/never runs either \*\*Jev check\*\*/);

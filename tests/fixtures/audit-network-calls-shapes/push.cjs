@@ -1,0 +1,1 @@
+execFileSync('git', ['push']);

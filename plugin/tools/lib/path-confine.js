@@ -10,7 +10,7 @@
 // (`migrate-memory.js`, `archive-tree.js`) are left untouched.
 
 import { resolve, sep, dirname } from 'node:path';
-import { realpathSync } from 'node:fs';
+import { realpathSync, readFileSync } from 'node:fs';
 
 import { PLANNING_DIR } from './state.js';
 
@@ -57,4 +57,20 @@ export function assertRealInsidePlanning(baseDir, destAbs, label) {
       `${label}: dest ${destAbs} escapes ${PLANNING_DIR}/ via a directory symlink (real dir ${realDir}).`
     );
   }
+}
+
+/**
+ * Read `rel` under `baseDir` only if its REAL path stays inside the project
+ * (M6.E3 REVIEW). A cloned repository can ship `.planning/STATE.md` as a
+ * symlink to `~/.aws/credentials`; a check that sends file text to a model must
+ * not follow it out. Throws with a plain reason; callers report it as
+ * could-not-evaluate. Missing files throw as `readFileSync` does.
+ */
+export function readFileConfined(baseDir, rel) {
+  const root = realpathSync(resolve(baseDir));
+  const real = realpathSync(resolve(baseDir, rel));
+  if (real !== root && !real.startsWith(root + sep)) {
+    throw new Error(`${rel} resolves outside the project (a symlink?) — not read`);
+  }
+  return readFileSync(real, 'utf8');
 }
