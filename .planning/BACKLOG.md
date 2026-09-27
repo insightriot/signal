@@ -285,6 +285,17 @@ closing wired into the phase gates) are Epic-shaped and its trigger is unmet.
 
 ## Filed since that agreement — **not yet sequenced**
 
+### Jev key and receipt hardening — the pass-3 REVIEW residue · **fix lane** · small · *filed 2026-09-27 from `M6.E3` REVIEW*
+
+*Plain: the small leftovers three rounds of fresh review found in the Jev checks, none Important, all recorded in `M6.E3-REVIEW.md` § pass 3.*
+
+- **Medium limit:** a template `.env.example` with a real key, copied by the user, supplies the author's key. Warn when a tracked `.env*` sibling holds `TYPESAFE_API_KEY`, and add a README line.
+- **`dotenvRefusal`:** use `LC_ALL=C` or `rev-parse` exit status instead of stderr text; drop the `GIT_*` env vars from the spawn.
+- **`releasedSectionsFor`:** heading-only sections over the cap; a heading over the cap; partial-line citation.
+- **`CONTROL_RE`:** needs the `u` flag and tag characters; handle `\n` in messages.
+- **Audit gaps; test gaps:** a Linux-proof `.ENV` case, global-gitignore isolation, exit-128 variants, and the exact-count stale check.
+- **Shared bounded worker pool** for both Jev checks.
+
 ### More places Jev can decide — where code cannot, and only after measuring · **roadmap** · medium · *filed 2026-09-26 from `M6.E3` EXECUTE*
 
 *Plain: Jev is an evaluation and decision tool; use it wherever Signal has to make a judgement call it cannot make from the words alone — never force it.*
@@ -305,7 +316,7 @@ Candidates, from `analysis/TYPESAFE-JEV-ASSESSMENT.md` §3, in its order:
 
 **Not candidates:** anything numeric (counts, dates) — Jev's documented weak spots.
 
-### `M6.E3` — the claims-audit backstop, rebuilt around Jev · **roadmap** · large · **IN FLIGHT — VERIFY loop 1 (2026-09-27) found gaps; re-verify next**
+### `M6.E3` — the claims-audit backstop, rebuilt around Jev · **roadmap** · large · **IN FLIGHT — REVIEW PASS on pass 3 (2026-09-27); SHIP next**
 
 *Plain: check whether Signal's own records tell the truth, and only ever stop you when it can show why.*
 
