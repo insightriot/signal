@@ -22,15 +22,27 @@ last_updated: 2026-09-26T21:53:22.399Z
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-09-26)
+### ▶ WHERE THE WORK IS — read this first (2026-09-27)
 
-**`M6.E3` is IN EXECUTE — waves 1–3 built, held at the plan's checkpoint before wave 4** — on `feat/m6.e3-jev-claims-audit`, reopened around TypeSafe's Jev
-(`D-BR0925-5`). Tier FULL / `checkpointed`. Decisions: [`DECISIONS.md`](DECISIONS.md) § *2026-09-26*
-(`D-M6E3-7` … `D-M6E3-11`): the Jev `STATE.md` check ships **first**, **report-only**, called from
-`/sig:resume` and SHIP; `/sig:docs-sweep` stays offline. Requirements:
-[`M6.E3-REQUIREMENTS.md`](M6.E3-REQUIREMENTS.md) (August `FR1`–`FR7` kept by id; `FR8`–`FR10` new).
-The August plan files were relocated verbatim to
-[`archive/M6/E3/`](archive/M6/E3/) at PLAN (`AUGUST-*.md`). Plan: [`M6.E3-PLAN.md`](M6.E3-PLAN.md) — wave 1 is the receipt contract, the SHIP refusal on fixtures, the network-audit fix (`B125`), the Jev client with one live call, and the fact list.
+**`M6.E3` — EXECUTE COMPLETE. Next: `/sig:verify`.** Branch `feat/m6.e3-jev-claims-audit`, all
+pushed; tier FULL / `checkpointed`. What was built, task by task with commits:
+[`M6.E3-PROGRESS.md`](M6.E3-PROGRESS.md). Measurements: [`M6.E3-RESEARCH.md`](M6.E3-RESEARCH.md)
+addenda. Requirements, with EXECUTE-time revisions marked: [`M6.E3-REQUIREMENTS.md`](M6.E3-REQUIREMENTS.md).
+
+- **Shipped in the branch:** the receipt contract; a SHIP gate that can refuse (wired, tested, **not
+  yet fed** — no code rule is precise enough); the network audit fixed (`B125`); the Jev client (key
+  read from the environment or `.env`); the Jev `STATE.md` check at `/sig:resume` and SHIP; the Jev
+  bug-fixed check at SHIP. All Jev findings are advice, never blocking.
+- **Measured live:** `STATE.md` check 4 of 4 on the spike file, false alarms 1/26 then 0/26, and it
+  caught a real stale line in this file on first use. Bug check: the one real fix found in three runs,
+  every non-fix ≤ 0.06.
+- **Dropped:** the answered-questions slice (`D-M6E3-16`).
+- **Next Epic, by Brett's direction:** redesign how Signal records status — "done" recorded when it
+  happens, not inferred later (`D-M6E3-16`). Its first question is Brett's: a marker in the files, or
+  GitHub Issues.
+- **VERIFY notes:** `FR3` and `AC7.1`–`AC7.3` are dropped, not uncovered; `AC8.3`, `AC8.6`, `NFR5`
+  are retired. The branch regenerated `ADHERENCE-LOG.md`, so it **must merge with `--merge`** (the
+  ruleset allows nothing else anyway).
 
 ### ▶ PREVIOUS — `M6.E8` SHIPPED as `v0.1.41` (2026-09-25)
 
@@ -55,7 +67,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-**`M6.E3` — EXECUTE, waves 1–3 built** (see [`M6.E3-PROGRESS.md`](M6.E3-PROGRESS.md)). Wave 4 (the `BUGS.md` and `OPEN-QUESTIONS.md` checks) waits on Brett confirming six labels.
+**`M6.E3` — EXECUTE complete; `/sig:verify` next** (see the resume pointer).
 
 ## Blockers
 

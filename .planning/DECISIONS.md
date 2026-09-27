@@ -3424,3 +3424,19 @@ when it changes — a `Fixes: Bnnn` marker a tool acts on, or a real tracker) is
 `BACKLOG.md` row *"Structural status"* plus `CLAIM-INTEGRITY-ANALYSIS.md` §7's tracker decision.
 Recommended: finish `M6.E3` small, drop the answered-questions slice (`S4`) into that redesign, and
 make the redesign the next Epic. **Awaiting Brett's call on the `S4` drop.**
+
+### D-M6E3-16 — the answered-questions slice (`S4`) is dropped; the status architecture is redesigned next
+
+**Brett, 2026-09-27:** *"drop open questions — feels like we need to revisit this whole architecture
+vs. keep applying band-aids."* `S4` (`FR3`, and `FR7`'s `AC7.1`–`AC7.3`) leaves `M6.E3` unbuilt. It
+would have been the same after-the-fact inference `t3.2` measured failing for bugs.
+
+**Next Epic, by Brett's direction:** redesign how Signal records status. Today "done" is a word typed
+into several files and nothing records the moment it happens, so every check infers after the fact.
+The industry pattern the redesign starts from (discussed 2026-09-27): **a tracker holds status**, where
+closing is an event with who and when; **the fix links to the item** (a `Fixes: B102` marker that
+closes it); **every bug fix carries its own test**, so "fixed" is something the code proves. Its first
+question, for Brett: **a marker Signal acts on inside the markdown files, or GitHub Issues.** It
+absorbs `BACKLOG.md`'s *"Structural status"* row, `CLAIM-INTEGRITY-ANALYSIS.md` §7's tracker decision,
+and `S4`. `M6.E3`'s refusal path, receipts and Jev carry over: the gate gets precise inputs, and Jev
+keeps the hand-written prose no marker can cover.

@@ -305,7 +305,7 @@ Candidates, from `analysis/TYPESAFE-JEV-ASSESSMENT.md` §3, in its order:
 
 **Not candidates:** anything numeric (counts, dates) — Jev's documented weak spots.
 
-### `M6.E3` — the claims-audit backstop, rebuilt around Jev · **roadmap** · large · **IN FLIGHT — DISCUSS done 2026-09-26**
+### `M6.E3` — the claims-audit backstop, rebuilt around Jev · **roadmap** · large · **IN FLIGHT — EXECUTE done 2026-09-27, VERIFY next**
 
 *Plain: check whether Signal's own records tell the truth, and only ever stop you when it can show why.*
 
@@ -513,7 +513,13 @@ advisory**, and `CLAUDE.md`'s current-state section has grown to many screens re
 *should* have grown is a nag, and this repository has a standing rule against gates that get rationalized
 past. Consider advisory-with-a-number before hard-failing.
 
-### Structural status — make done-vs-live readable without inference · **roadmap** · large · **filed 2026-09-01**
+### Structural status — make done-vs-live readable without inference · **roadmap** · large · **filed 2026-09-01** · **NEXT EPIC after `M6.E3` (Brett, 2026-09-27, `D-M6E3-16`)**
+
+**Promoted 2026-09-27.** Brett: *"revisit this whole architecture vs. keep applying band-aids."* It now
+also absorbs `M6.E3`'s dropped answered-questions slice, and `M6.E3`'s measurement is fresh evidence:
+no token rule could tell a fixed bug from an open one. Starting point — the real-world pattern: a
+tracker holds status, the fix links to the item (`Fixes: B102`), every bug fix carries its own test.
+**First question, Brett's:** a marker Signal acts on in the markdown files, or GitHub Issues.
 
 *Plain: a machine can't tell finished work from live work in the backlog, and no better pattern fixes it.*
 

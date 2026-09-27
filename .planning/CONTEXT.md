@@ -4,17 +4,18 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-09-26) — v0.1.41 SHIPPED, M6.E3 REOPENED AROUND JEV
+## Where things stand (2026-09-27) — M6.E3 EXECUTE COMPLETE, VERIFY NEXT
 
-**`v0.1.41` is on `main`** (PR #258): `M6.E8` — `/sig:advise` ranks on three of the four sources it
-reads, and says which — plus the `/sig:resume` phase-count fix (`B124` + `B47`).
+**`v0.1.41` is on `main`** (PR #258). **`M6.E3` is on `feat/m6.e3-jev-claims-audit`, EXECUTE complete,
+`/sig:verify` next** — `STATE.md`'s resume pointer has the detail. Built: a SHIP gate that refuses only
+on quoted evidence (wired, not yet fed), the network audit fixed (`B125`), and TypeSafe's Jev as an
+advisory judge — `STATE.md` paragraphs at `/sig:resume` and SHIP, stale bug rows at SHIP. Key:
+`TYPESAFE_API_KEY` in `signal/.env`.
 
-**`M6.E3` reopened 2026-09-26 on `feat/m6.e3-jev-claims-audit`; DISCUSS done, `/sig:plan` next.**
-Un-parked by `D-BR0925-5` after TypeSafe's Jev found 4 stale `STATE.md` paragraphs the shipped check
-missed ([`../analysis/TYPESAFE-JEV-ASSESSMENT.md`](../analysis/TYPESAFE-JEV-ASSESSMENT.md) §6).
-Brett's calls: the Jev `STATE.md` check ships **first**, is **report-only**, and runs from
-`/sig:resume` and SHIP; `/sig:docs-sweep` stays offline (`D-M6E3-7` … `D-M6E3-9`). Jev turns on when the
-user's own key is present (`D-M6E3-12`). Requirements: [`M6.E3-REQUIREMENTS.md`](M6.E3-REQUIREMENTS.md).
+**The finding that sets the next Epic:** no code rule can tell whether a hand-typed status is still
+true (`M6.E3-RESEARCH.md`), because nothing records "done" when it happens. Brett, 2026-09-27: *"revisit
+this whole architecture vs. keep applying band-aids"* (`D-M6E3-16`). Next Epic = record status at the
+source; first question is his: a marker in the files, or GitHub Issues.
 
 **`D-BR0926-1` — Signal dropped its privacy positioning.** It is Brett's scaffolding for his own
 projects (three users). A feature that sends text to a model needs one README line, not a debate or a
