@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { askChoice, JEV_DEFAULT_MODEL, JEV_REASON, parseChoiceAnswer, resolveJevKey, confidenceWords } from '../plugin/tools/lib/jev.js';
+import { askChoice, JEV_DEFAULT_MODEL, JEV_REASON, parseChoiceAnswer, resolveJevKey, confidenceWords, askNoul } from '../plugin/tools/lib/jev.js';
 
 /**
  * M6.E3 t1.3 — the Jev client. Every test injects `fetchFn`; none touches the
@@ -193,5 +193,40 @@ describe('confidenceWords — "unclear" is said, not left in a number (display o
     [0.49, 'unclear — worth a look'], [0.14, 'unclear — worth a look'], [undefined, 'unclear'],
   ])('%s → %s', (c, want) => {
     expect(confidenceWords(c)).toBe(want);
+  });
+});
+
+describe('askNoul — the yes/no form (D-M6E3-15)', () => {
+  const NOUL_Q = { type: 'noul', instructions: 'Is it fixed?', criteria: { true: 'yes', false: 'no' } };
+  const noulBody = (noul) => ({ model: 'jev-1.13.0', answers: { q: { type: 'noul', noul } } });
+
+  it('returns the probability of yes', async () => {
+    const r = await askNoul({ state: 'x', question: NOUL_Q, key: KEY, fetchFn: ok(noulBody(0.53)) });
+    expect(r).toEqual({ ok: true, noul: 0.53, model: 'jev-1.13.0' });
+  });
+
+  it.each([
+    ['a choice answer', { type: 'choice', choice: 'a', confidence: 1, probabilities: {} }],
+    ['a noul outside 0..1', { type: 'noul', noul: 1.5 }],
+  ])('rejects %s as bad-response', async (_l, answer) => {
+    const r = await askNoul({ state: 'x', question: NOUL_Q, key: KEY, fetchFn: ok({ model: 'm', answers: { q: answer } }) });
+    expect(r).toEqual({ ok: false, reason: JEV_REASON.BAD_RESPONSE });
+  });
+
+  it('shares the failure handling: no key → no call; 429 → rate-limited; key never leaks', async () => {
+    const fetchFn = vi.fn();
+    expect(await askNoul({ state: 'x', question: NOUL_Q, key: '', fetchFn })).toEqual({ ok: false, reason: JEV_REASON.NO_KEY });
+    expect(fetchFn).not.toHaveBeenCalled();
+    const r = await askNoul({ state: 'x', question: NOUL_Q, key: KEY, fetchFn: status(429) });
+    expect(r).toEqual({ ok: false, reason: JEV_REASON.RATE_LIMITED });
+    expect(JSON.stringify(r)).not.toContain(KEY);
+  });
+
+  it('parses every stored yes/no answer in the spike dataset', () => {
+    const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+    const data = JSON.parse(readFileSync(join(root, 'analysis/jev-spike/labels-and-results.json'), 'utf8'));
+    const noulCases = data.cases.filter((c) => c.question?.type === 'noul');
+    expect(noulCases.length).toBeGreaterThan(0);
+    for (const c of noulCases) for (const run of [c.run1, c.run2]) expect(run.noul).toBeGreaterThanOrEqual(0);
   });
 });

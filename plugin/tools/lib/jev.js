@@ -116,28 +116,11 @@ export function parseChoiceAnswer(answer, options) {
 }
 
 /**
- * Ask Jev one choice question about `state`. One request, one attempt — a 429
- * is reported, not retried.
- *
- * @param {{
- *   state: unknown,
- *   question: {type: 'choice', instructions: unknown, criteria: Record<string, unknown>},
- *   key?: string,
- *   model?: string,
- *   timeoutMs?: number,
- *   fetchFn?: typeof fetch,
- * }} args
- * @returns {Promise<{ok: true, choice: string, confidence: number, probabilities: object, model: string}
- *   | {ok: false, reason: string}>}
+ * One request, one question, one attempt — a 429 is reported, not retried. The
+ * only place in Signal that calls TypeSafe (audited: KNOWN_CALLS).
+ * @returns {Promise<{ok: true, answer: object, model: string} | {ok: false, reason: string}>}
  */
-export async function askChoice({
-  state,
-  question,
-  key = process.env.TYPESAFE_API_KEY,
-  model = process.env.TYPESAFE_MODEL || JEV_DEFAULT_MODEL,
-  timeoutMs = JEV_DEFAULT_TIMEOUT_MS,
-  fetchFn = fetch,
-} = {}) {
+async function ask({ state, question, key, model, timeoutMs, fetchFn }) {
   if (typeof key !== 'string' || key.trim() === '') return { ok: false, reason: JEV_REASON.NO_KEY };
 
   let res;
@@ -161,8 +144,54 @@ export async function askChoice({
   } catch {
     return { ok: false, reason: JEV_REASON.BAD_RESPONSE };
   }
+  return { ok: true, answer: body?.answers?.[QUESTION_ID], model: typeof body?.model === 'string' ? body.model : model };
+}
 
-  const parsed = parseChoiceAnswer(body?.answers?.[QUESTION_ID], Object.keys(question?.criteria ?? {}));
+/**
+ * Ask Jev one choice question about `state`.
+ *
+ * @param {{
+ *   state: unknown,
+ *   question: {type: 'choice', instructions: unknown, criteria: Record<string, unknown>},
+ *   key?: string,
+ *   model?: string,
+ *   timeoutMs?: number,
+ *   fetchFn?: typeof fetch,
+ * }} args
+ * @returns {Promise<{ok: true, choice: string, confidence: number, probabilities: object, model: string}
+ *   | {ok: false, reason: string}>}
+ */
+export async function askChoice({
+  state,
+  question,
+  key = process.env.TYPESAFE_API_KEY,
+  model = process.env.TYPESAFE_MODEL || JEV_DEFAULT_MODEL,
+  timeoutMs = JEV_DEFAULT_TIMEOUT_MS,
+  fetchFn = fetch,
+} = {}) {
+  const r = await ask({ state, question, key, model, timeoutMs, fetchFn });
+  if (!r.ok) return r;
+  const parsed = parseChoiceAnswer(r.answer, Object.keys(question?.criteria ?? {}));
   if (!parsed) return { ok: false, reason: JEV_REASON.BAD_RESPONSE };
-  return { ok: true, ...parsed, model: typeof body.model === 'string' ? body.model : model };
+  return { ok: true, ...parsed, model: r.model };
+}
+
+/**
+ * Ask Jev one yes/no ("noul") question about `state`. `noul` is the
+ * probability the answer is yes, 0..1.
+ * @returns {Promise<{ok: true, noul: number, model: string} | {ok: false, reason: string}>}
+ */
+export async function askNoul({
+  state,
+  question,
+  key = process.env.TYPESAFE_API_KEY,
+  model = process.env.TYPESAFE_MODEL || JEV_DEFAULT_MODEL,
+  timeoutMs = JEV_DEFAULT_TIMEOUT_MS,
+  fetchFn = fetch,
+} = {}) {
+  const r = await ask({ state, question, key, model, timeoutMs, fetchFn });
+  if (!r.ok) return r;
+  const a = r.answer;
+  if (!a || a.type !== 'noul' || !isUnit(a.noul)) return { ok: false, reason: JEV_REASON.BAD_RESPONSE };
+  return { ok: true, noul: a.noul, model: r.model };
 }

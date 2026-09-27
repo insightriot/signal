@@ -22,6 +22,7 @@ import { ALL_DRIFT_CHECKS } from './published-facts.js';
 import { refusableFindings, renderReceipt } from './receipt.js';
 import { modelJudgedChecks } from './state-narrative-jev.js';
 import { confidenceWords } from './jev.js';
+import { makeBugFixedJevCheck } from './bug-fixed-jev.js';
 
 // SHIP is where the expensive path runs (NFR3): 30 s for the Jev check, against
 // /sig:resume's 8 s. Its findings are advice here too — `judgedBy` keeps every
@@ -45,7 +46,11 @@ export const GATE = Object.freeze({
  * }} [opts]
  */
 export async function runShipContentGate(baseDir, opts = {}) {
-  const checks = [...(opts.checks ?? ALL_DRIFT_CHECKS), ...(opts.modelChecks ?? modelJudgedChecks({ budgetMs: SHIP_JEV_BUDGET_MS }))];
+  const modelChecks = opts.modelChecks ?? [
+    ...modelJudgedChecks({ budgetMs: SHIP_JEV_BUDGET_MS }),
+    makeBugFixedJevCheck({ budgetMs: SHIP_JEV_BUDGET_MS }),
+  ];
+  const checks = [...(opts.checks ?? ALL_DRIFT_CHECKS), ...modelChecks];
   const accepted = new Set(opts.acceptStale ?? []);
   const runner = opts.runner ?? runDriftChecks;
 

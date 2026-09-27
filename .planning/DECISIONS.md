@@ -3404,3 +3404,23 @@ it). `resolveJevKey` reads `TYPESAFE_API_KEY` from the environment first, then f
 `.env`; only that one variable is read, nothing is loaded into the process. Without this the check
 would look broken rather than off on the machine it was built for. The test suite sets
 `SIGNAL_JEV_IGNORE_DOTENV` so no test can pick up this repository's real key.
+
+### D-M6E3-15 — stale `BUGS.md` rows: Jev as second opinion, advisory; the refusal path stays wired but unfed
+
+**Brett, 2026-09-27**, option 1 of three, after `t3.2` measured that no token rule yields a
+refusal-grade receipt (`M6.E3-RESEARCH.md`, wave-4 addendum: subject position 7 / 1, fix commits 0
+real). A new model-judged check asks Jev, for each `confirmed` row a released changelog section
+mentions, the spike's yes/no question — *"does this text say the bug itself was fixed?"* — and turns
+a yes into a finding with a receipt (the row, and the changelog paragraph). **Advisory, like every
+Jev finding** (`D-M6E3-8`). The shipped code rule stays as it is. **The SHIP refusal path built in
+`t2.1` stays wired and tested, and has nothing precise enough to refuse on yet** — said in the docs,
+not left for a reader to discover.
+
+**Brett's follow-up question, recorded because it may reshape what comes next:** *"do we need to
+redesign that whole system instead? are we trying to patch a broken from the start architecture?"*
+Answer given: partly yes — status lives as hand-typed words in several files and nothing records the
+moment something closes, so every check here infers after the fact. The redesign (status recorded
+when it changes — a `Fixes: Bnnn` marker a tool acts on, or a real tracker) is the existing
+`BACKLOG.md` row *"Structural status"* plus `CLAIM-INTEGRITY-ANALYSIS.md` §7's tracker decision.
+Recommended: finish `M6.E3` small, drop the answered-questions slice (`S4`) into that redesign, and
+make the redesign the next Epic. **Awaiting Brett's call on the `S4` drop.**

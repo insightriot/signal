@@ -222,8 +222,14 @@ Call `runShipContentGate(baseDir, { acceptStale })` from `tools/lib/ship-gate.js
    printed and never blocks. That includes the **Jev `STATE.md` check**: when `TYPESAFE_API_KEY` is
    set (environment or the project's `.env`), the gate asks TypeSafe's Jev whether each `STATE.md` paragraph contradicts the facts, with a
    30-second budget, and lists each contradiction with the paragraph, the fact, the confidence, how
-   many paragraphs were checked, and that results can vary between runs. With no key the report says
-   the Jev check did not run. Copy the Jev lines into the SHIP artifact.
+   many paragraphs were checked, and that results can vary between runs. It also asks, for each
+   `confirmed` bug a released changelog section mentions, whether that section says the bug was
+   fixed, and lists each yes with the bug row and the changelog paragraph. With no key the report
+   says the Jev checks did not run. Copy the Jev lines into the SHIP artifact.
+
+   ⚠ **Nothing can refuse through this step yet.** The refusal path is wired and tested, but no code
+   rule is precise enough to feed it: every rule measured for "this open bug already shipped" flagged
+   open bugs (`M6.E3` t3.2). It stays in place for the structured-status work that would feed it.
 4. **`unverified` → continue, and say so in the SHIP artifact.** The gate could not run; that is not
    a pass, and it is not a reason to refuse a release either.
 

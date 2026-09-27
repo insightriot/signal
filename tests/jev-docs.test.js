@@ -25,7 +25,7 @@ describe('README → network list names the Jev call (AC8.5) and its limits (AC7
   it('says it is advisory, STATE.md only, judged against supplied facts, and varies run to run', () => {
     expect(jevItem).toMatch(/advice only/);
     expect(jevItem).toMatch(/never blocks/);
-    expect(jevItem).toMatch(/`STATE\.md` only/);
+    expect(jevItem).toMatch(/`STATE\.md`, and `BUGS\.md` against `CHANGELOG\.md`, only/);
     expect(jevItem).toMatch(/only against the facts Signal derives/);
     expect(jevItem).toMatch(/results can vary between runs/);
   });
