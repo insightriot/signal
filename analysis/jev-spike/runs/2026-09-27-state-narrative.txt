@@ -1,0 +1,38 @@
+Jev STATE.md check — measured 2026-09-27, model jev-1.13.0
+facts: {"phase":"SHIP","current_epic":"M6.E8","in_flight":"M6.E8, at its SHIP phase (an Epic at SHIP is in flight until it closes)","current_tasks":"none","completed_phases":"DISCUSS, PLAN, EXECUTE, VERIFY, REVIEW, SHIP","version":"0.1.40"}
+facts unavailable: blockers (left out on purpose: they carry dates, which Jev reads as text)
+status: findings; coverage: {"checked":32,"total":32,"unchecked":0}
+recall on labelled contradictions: 4 of 4
+false alarms on labelled non-contradictions: 0 of 26
+
+     para 4   L35   label=supports      jev=supports      conf=0.8
+     para 5   L42   label=supports      jev=supports      conf=0.21
+     para 6   L48   label=says_nothing  jev=says_nothing  conf=0.59
+     para 8   L56   label=says_nothing  jev=says_nothing  conf=0.98
+     para 10  L61   label=says_nothing  jev=says_nothing  conf=0.96
+     para 12  L66   label=says_nothing  jev=says_nothing  conf=0.91
+HIT  para 14  L71   label=contradicts   jev=contradicts   conf=0.98
+HIT  para 15  L73   label=contradicts   jev=contradicts   conf=0.76
+     para 16  L77   label=says_nothing  jev=says_nothing  conf=0.92
+     para 17  L83   label=says_nothing  jev=says_nothing  conf=0.13
+HIT  para 18  L87   label=contradicts   jev=contradicts   conf=0.87
+     para 19  L92   label=says_nothing  jev=says_nothing  conf=0.62
+     para 20  L96   label=says_nothing  jev=says_nothing  conf=0.93
+     para 21  L101  label=says_nothing  jev=says_nothing  conf=0.33
+     para 22  L107  label=says_nothing  jev=says_nothing  conf=0.33
+HIT  para 23  L111  label=contradicts   jev=contradicts   conf=0.93
+     para 24  L113  label=ambiguous     jev=says_nothing  conf=0.5
+     para 25  L119  label=says_nothing  jev=says_nothing  conf=0.96
+     para 26  L124  label=says_nothing  jev=says_nothing  conf=0.97
+     para 27  L128  label=says_nothing  jev=says_nothing  conf=0.81
+     para 28  L136  label=says_nothing  jev=says_nothing  conf=0.98
+     para 29  L142  label=says_nothing  jev=says_nothing  conf=0.96
+     para 30  L150  label=says_nothing  jev=says_nothing  conf=0.64
+     para 31  L157  label=says_nothing  jev=says_nothing  conf=0.53
+     para 32  L161  label=says_nothing  jev=says_nothing  conf=0.95
+     para 33  L169  label=says_nothing  jev=says_nothing  conf=0.96
+     para 34  L173  label=says_nothing  jev=says_nothing  conf=0.66
+     para 35  L183  label=says_nothing  jev=says_nothing  conf=0.95
+     para 37  L194  label=says_nothing  jev=says_nothing  conf=1
+     para 39  L198  label=says_nothing  jev=supports      conf=0.18
+     para 41  L203  label=says_nothing  jev=says_nothing  conf=0.85
