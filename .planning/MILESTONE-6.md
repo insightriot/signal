@@ -22,7 +22,7 @@ The two candidate themes are recorded in `BACKLOG.md` and remain live for `E2` o
 |---|---|---|
 | `M6.E1` | **shipped** — `v0.1.26`, 2026-08-17 | The plugin payload: what an install actually copies. |
 | `M6.E2` | **shipped** — `v0.1.29`, 2026-08-18 | The facts Signal publishes about itself, and what re-derives them. |
-| `M6.E3` | **planned, NOT executed** — opened 2026-08-19 | The claims-audit backstop: a reviewer that must show its work. REQUIREMENTS / RESEARCH / PLAN / VALIDATION exist; no EXECUTE, VERIFY or retrospective. Narrative already evicted to [`archive/M6/E3/`](archive/M6/E3/). |
+| `M6.E3` | **shipped** — `v0.1.42`, 2026-09-27 (parked 2026-08-20, reopened around Jev 2026-09-26) | The claims-audit backstop, rebuilt around TypeSafe's Jev: advice with receipts, never a refusal. 3447 → 3602 tests. August material in [`archive/M6/E3/`](archive/M6/E3/). |
 | `M6.E4` | **shipped** — `v0.1.33`, 2026-08-24 | What PLAN reads and writes; first Epic run at a per-unit tier. |
 | `M6.E5` | **shipped** — `v0.1.34`, merged 2026-08-28 (PR #211) | `/sig:permissions`, the 22nd command. |
 | `M6.E6` | **shipped** — 2026-09-04; core in `v0.1.37`, REVIEW fixes in PR #236 | The decision queue gets a writer: `routeDecision` + `/sig:drive` as its first caller. |

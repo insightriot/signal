@@ -1,7 +1,7 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: REVIEW
+phase: SHIP
 current_epic: M6.E3
 current_wave: null
 current_tasks: []
@@ -14,6 +14,8 @@ completed_phases:
   - EXECUTE (2026-09-27)
   - REVIEW (2026-09-27)
   - EXECUTE (2026-09-27)
+  - REVIEW (2026-09-27)
+  - SHIP (2026-09-27)
 blockers: []
 last_completed_task:
   id: t1.8
@@ -22,7 +24,7 @@ last_completed_task:
   completedAt: 2026-09-26T21:53:22.398Z
 last_decision_at: 2026-09-26T21:53:22.398Z
 last_updated_commit: 08d6e7616ca18658580ef8353a7648e0881b43be
-last_updated: 2026-09-27T22:00:31.919Z
+last_updated: 2026-09-27T22:47:16.018Z
 ---
 # Project State
 
@@ -30,25 +32,23 @@ last_updated: 2026-09-27T22:00:31.919Z
 
 ### ▶ WHERE THE WORK IS — read this first (2026-09-27)
 
-**`M6.E3` — EXECUTE COMPLETE. Next: `/sig:verify`.** Branch `feat/m6.e3-jev-claims-audit`, all
-pushed; tier FULL / `checkpointed`. What was built, task by task with commits:
-[`M6.E3-PROGRESS.md`](M6.E3-PROGRESS.md). Measurements: [`M6.E3-RESEARCH.md`](M6.E3-RESEARCH.md)
-addenda. Requirements, with EXECUTE-time revisions marked: [`M6.E3-REQUIREMENTS.md`](M6.E3-REQUIREMENTS.md).
+**`M6.E3` — SHIPPED as `v0.1.42` (2026-09-27); PR open on `feat/m6.e3-jev-claims-audit`, merge with
+`--merge`.** The Jev checks run as advice with receipts: the `STATE.md` check at `/sig:resume` and
+SHIP, and the bug-fixed check at SHIP. A model finding cannot refuse, by declaration. Retro:
+[`M6.E3-RETROSPECTIVE.md`](M6.E3-RETROSPECTIVE.md).
 
-- **Shipped in the branch:** the receipt contract; a SHIP gate that can refuse (wired, tested, **not
-  yet fed** — no code rule is precise enough); the network audit fixed (`B125`); the Jev client (key
-  read from the environment or `.env`); the Jev `STATE.md` check at `/sig:resume` and SHIP; the Jev
-  bug-fixed check at SHIP. All Jev findings are advice, never blocking.
-- **Measured live:** `STATE.md` check 4 of 4 on the spike file, false alarms 1/26 then 0/26, and it
-  caught a real stale line in this file on first use. Bug check: the one real fix found in three runs,
-  every non-fix ≤ 0.06.
-- **Dropped:** the answered-questions slice (`D-M6E3-16`).
-- **Next Epic, by Brett's direction:** redesign how Signal records status — "done" recorded when it
-  happens, not inferred later (`D-M6E3-16`). Its first question is Brett's: a marker in the files, or
-  GitHub Issues.
-- **VERIFY notes:** `FR3` and `AC7.1`–`AC7.3` are dropped, not uncovered; `AC8.3`, `AC8.6`, `NFR5`
-  are retired. The branch regenerated `ADHERENCE-LOG.md`, so it **must merge with `--merge`** (the
-  ruleset allows nothing else anyway).
+- **VERIFY:** 2 loops. Loop 1 failed (`AC4.2` plus two receipts quoting unjudged text). `AC4.1`/`AC4.2`
+  were revised (`D-M6E3-17`). 44 of 44 live criteria met, 6 of them with a stated limit.
+- **REVIEW:** 3 passes, each by three fresh-context reviewers. Pass 1 found 13 Important; pass 2
+  found defects in pass 1's fixes, one High (the `.env` check bypassed by filename case); pass 3
+  found 0 Important. The leftovers are one BACKLOG row, *"Jev key and receipt hardening"*.
+- **Re-measured live after REVIEW:** the `STATE.md` check found 4 of 4 with 0/26 false alarms; the bug
+  check flagged B102 only (p 0.63). Output: `analysis/jev-spike/runs/`.
+- **Filed:** `B126` (the coverage tool counts mentions as verified), `B127` (a BACKLOG heading saying
+  "done" hid the in-flight Epic from `/sig:advise`).
+- **Next Epic, by Brett's direction:** redesign how Signal records status, so that "done" is recorded
+  when it happens (`D-M6E3-16`). Its first question is Brett's: a marker in the files, or GitHub
+  Issues.
 
 ### ▶ PREVIOUS — `M6.E8` SHIPPED as `v0.1.41` (2026-09-25)
 
@@ -73,7 +73,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-**`M6.E3` — EXECUTE complete; `/sig:verify` next** (see the resume pointer).
+**`M6.E3` — at SHIP: `v0.1.42` cut, PR open, awaiting Brett's merge** (see the resume pointer).
 
 ## Blockers
 
