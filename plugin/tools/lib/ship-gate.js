@@ -92,7 +92,9 @@ export async function runShipContentGate(baseDir, opts = {}) {
   // "checked" counts checks that RAN (clean or findings) — not ones that could
   // not evaluate or did not apply, which are listed separately (REVIEW: with no
   // key the report used to say "checked 2" when neither Jev check had run).
-  const ran = (report.results ?? []).filter((r) => r.status === STATUS.CLEAN || r.status === STATUS.FINDINGS).length;
+  // …and a sampling check that asked nothing (every request past the budget) did not run either.
+  const ran = (report.results ?? []).filter((r) =>
+    (r.status === STATUS.CLEAN || r.status === STATUS.FINDINGS) && !(r.coverage && r.coverage.checked === 0 && r.coverage.total > 0)).length;
   return { status, reason: null, refusals, overridden, advice, blind, coverage, checked: ran, record };
 }
 
@@ -132,6 +134,7 @@ export function formatShipContentGate(result) {
     lines.push('', `${c.id}: checked ${c.checked} of ${c.total}${skipped}${c.model ? ` — ${c.model}; results can vary between runs` : ''}.`);
     // AC9.1 / NFR4: a fact the check could not use is named, never silently absent.
     if (c.factsUnavailable?.length) lines.push(`  facts not used: ${c.factsUnavailable.join('; ')}`);
+    if (c.sectionsNotRead?.length) lines.push(`  older changelog sections not read: ${c.sectionsNotRead.join(', ')}`);
   }
   if (result.blind.length) {
     lines.push('', `Could not evaluate (${result.blind.length}) — not counted as clean:`);

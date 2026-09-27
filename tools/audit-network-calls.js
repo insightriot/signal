@@ -90,6 +90,10 @@ const KNOWN_CALLS = [
   { file: 'plugin/tools/lib/jev.js', line: 'fetchFn = fetch,', count: 2, call: 'askChoice / askNoul — TypeSafe Jev, when TYPESAFE_API_KEY is set (M6.E3)' },
 ];
 
+// Shell scripts only: git as a shell writes it, unquoted (comment lines
+// skipped). In .js this would match instruction strings ("run git pull").
+const SHELL_PATTERNS = [/^(?!\s*#).*\bgit\s+(?:fetch|pull|push|clone|ls-remote)\b/];
+
 function knownCallFor(hit) {
   const rel = relative(ROOT, hit.file);
   return KNOWN_CALLS.find((k) => k.file === rel && hit.text.includes(k.line)) ?? null;
@@ -138,8 +142,9 @@ function scan(file, hits) {
     return;
   }
   const lines = content.split(/\r?\n/);
+  const patterns = extname(file) === '.sh' ? [...PATTERNS, ...SHELL_PATTERNS] : PATTERNS;
   for (let i = 0; i < lines.length; i++) {
-    for (const pattern of PATTERNS) {
+    for (const pattern of patterns) {
       if (pattern.test(lines[i])) {
         hits.push({ file, line: i + 1, match: pattern.source, text: lines[i] });
         break;
@@ -175,8 +180,9 @@ function main() {
 
   // A stale entry is checked only on the default scan: an explicit directory
   // (a test fixture) legitimately contains none of the known calls.
+  // An entry must match EXACTLY its `count` — fewer means the code changed under it.
   const stale = args.length === 0
-    ? KNOWN_CALLS.filter((k) => !known.some((h) => knownCallFor(h) === k))
+    ? KNOWN_CALLS.filter((k) => known.filter((h) => knownCallFor(h) === k).length !== (k.count ?? 1))
     : [];
 
   for (const hit of known) {

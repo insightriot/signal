@@ -255,13 +255,17 @@ describe('REVIEW fixes', () => {
   // The paragraph states the version CORRECTLY; the phase is what is wrong. The
   // receipt used to pair it with the version line — two sides that agree.
   it('never pairs a contradiction with a fact the paragraph already agrees with', async () => {
-    const dir = await project('---\nschema_version: 1\nphase: EXECUTE\n---\nv0.1.40 is in flight at VERIFY.\n');
+    // current_epic is set so `in_flight` (cited at the current_epic line) and
+    // `phase` (the phase line) are distinguishable — the fixture used to let
+    // either pass (REVIEW pass 2).
+    const dir = await project('---\nschema_version: 1\nphase: EXECUTE\ncurrent_epic: M6.E3\n---\nv0.1.40 is in flight at VERIFY.\n');
     try {
       const [row] = (await runDriftChecks(dir, [makeStateNarrativeJevCheck({ ask: contradicts(), key: 'k' })])).results;
       expect(row.findings).toHaveLength(1);
       const { evidence } = row.findings[0].receipt;
       expect(evidence.excerpt).not.toContain('0.1.40');
-      expect(evidence).toMatchObject({ source: '.planning/STATE.md frontmatter', line: 3, excerpt: 'phase: EXECUTE' });
+      expect(evidence).toMatchObject({ source: '.planning/STATE.md frontmatter', line: 4, excerpt: 'current_epic: M6.E3' });
+      expect(row.findings[0].message).toContain('in flight: M6.E3, at its EXECUTE phase');
     } finally { await cleanup(dir); }
   });
 
@@ -299,6 +303,33 @@ describe('REVIEW fixes', () => {
     try {
       const [row] = (await runDriftChecks(dir, [makeStateNarrativeJevCheck({ ask: recordedAsk(), key: 'k' })])).results;
       expect(row.judged).toBe('model');
+    } finally { await cleanup(dir); }
+  });
+});
+
+describe('fact pairing — whole tokens, and in-flight needs more than the Epic name (REVIEW pass 2)', () => {
+  it('"M6.E3 is parked; nothing is in flight." pairs with in-flight, not with the phase', async () => {
+    const dir = await project('---\nschema_version: 1\nphase: REVIEW\ncurrent_epic: M6.E3\n---\nM6.E3 is parked; nothing is in flight.\n');
+    try {
+      const [row] = (await runDriftChecks(dir, [makeStateNarrativeJevCheck({ ask: contradicts(), key: 'k' })])).results;
+      expect(row.findings[0].receipt.evidence.excerpt).toBe('current_epic: M6.E3');
+    } finally { await cleanup(dir); }
+  });
+
+  it('version 0.1.4 does not "agree" with a paragraph saying v0.1.40', async () => {
+    const dir = await project('---\nschema_version: 1\nphase: REVIEW\n---\nv0.1.40 is the current version.\n');
+    try {
+      await writeFile(join(dir, '.claude-plugin/plugin.json'), '{\n  "version": "0.1.4"\n}\n');
+      const [row] = (await runDriftChecks(dir, [makeStateNarrativeJevCheck({ ask: contradicts(), key: 'k' })])).results;
+      expect(row.findings[0].receipt.evidence).toMatchObject({ source: '.claude-plugin/plugin.json', excerpt: '  "version": "0.1.4"' });
+    } finally { await cleanup(dir); }
+  });
+
+  it('terminal escapes in a frontmatter value never reach the printed message', async () => {
+    const dir = await project('---\nschema_version: 1\nphase: REVIEW\ncurrent_epic: "M6.E3\\u001b]0;x\\u0007"\n---\nNothing is in flight.\n');
+    try {
+      const [row] = (await runDriftChecks(dir, [makeStateNarrativeJevCheck({ ask: contradicts(), key: 'k' })])).results;
+      expect(row.findings[0].message).not.toMatch(/[\u0000-\u001f]/);
     } finally { await cleanup(dir); }
   });
 });

@@ -23,7 +23,7 @@ import { join } from 'node:path';
 import { defineCheck, HEAL, APPLICABILITY } from './state-drift.js';
 import { makeReceipt } from './receipt.js';
 import { walkBugEntries } from './bugs-tally.js';
-import { askNoul, resolveJevKey, confidenceWords, JEV_DEFAULT_TIMEOUT_MS } from './jev.js';
+import { askNoul, resolveJevKey, noJevKeyReason, confidenceWords, JEV_DEFAULT_TIMEOUT_MS } from './jev.js';
 
 export const CHECK_ID = 'bug-fixed-jev';
 
@@ -55,7 +55,9 @@ export function bugFixedQuestion(id) {
  * 0.29 and MISSED it; shown the release section, 0.76, with every non-fix
  * ≤ 0.06. The unit of text sent decides whether this works.
  *
- * Bounded (REVIEW): at most `maxSections` sections (the newest, in file order),
+ * Bounded (REVIEW): at most `maxSections` sections (the first in the file — the
+ * newest under Keep a Changelog's newest-first order; an oldest-first file gets
+ * its oldest),
  * and a section over `maxChars` is cut to its heading plus a WINDOW around the
  * id's first mention — never to its first `maxChars` characters, which can drop
  * the id the section was chosen for. Each section says which file lines were
@@ -89,17 +91,26 @@ export function releasedSectionsFor(changelog, id, { maxChars = 6000, maxSection
   const sections = found.slice(0, maxSections).map(({ start, end, body }) => {
     const full = body.join('\n');
     if (full.length <= maxChars) return { heading: body[0], start, from: start, to: end, windowed: false, text: full };
-    const k = body.findIndex((l, i) => i > 0 && re.test(l));
+    // The id may be only in the heading (`## [0.2.0] — B9 hotfix`): window from
+    // the first body line then (it used to be index −1 and throw, REVIEW).
+    const k = Math.max(1, body.findIndex((l, i) => i > 0 && re.test(l)));
+    const budget = Math.max(0, maxChars - body[0].length - 3);
+    // A line longer than the whole budget is cut AROUND the id, so the id is
+    // always in what is sent (the final slice used to drop it, REVIEW).
+    const m = re.exec(body[k]);
+    if (body[k].length > budget) {
+      const at = m ? Math.max(0, m.index - Math.floor(budget / 2)) : 0;
+      body[k] = body[k].slice(at, at + budget);
+    }
     let lo = k;
     let hi = k;
     let size = body[k].length;
-    const budget = Math.max(0, maxChars - body[0].length - 3);
     for (let grew = true; grew; ) {
       grew = false;
       if (hi + 1 < body.length && size + body[hi + 1].length + 1 <= budget) { hi++; size += body[hi].length + 1; grew = true; }
       if (lo - 1 > 0 && size + body[lo - 1].length + 1 <= budget) { lo--; size += body[lo].length + 1; grew = true; }
     }
-    const text = `${body[0]}\n…\n${body.slice(lo, hi + 1).join('\n')}`.slice(0, maxChars);
+    const text = `${body[0]}\n…\n${body.slice(lo, hi + 1).join('\n')}`;
     return { heading: body[0], start, from: start + lo, to: start + hi, windowed: true, text };
   });
   return { sections, omitted: Math.max(0, found.length - maxSections) };
@@ -143,7 +154,7 @@ export function makeBugFixedJevCheck(opts = {}) {
         return { status: APPLICABILITY.BLIND, reason: 'there is no CHANGELOG.md to read' };
       }
       if (!keyNow(ctx).trim()) {
-        return { status: APPLICABILITY.BLIND, reason: 'the Jev check did not run — TYPESAFE_API_KEY is not set (environment or .env)' };
+        return { status: APPLICABILITY.BLIND, reason: noJevKeyReason(ctx.baseDir) };
       }
       return APPLICABILITY.EVAL;
     },
@@ -233,7 +244,12 @@ export function makeBugFixedJevCheck(opts = {}) {
 
       return {
         findings,
-        coverage: { checked: answered, total: candidates.length, unchecked, model: answers.find(Boolean)?.model ?? null },
+        coverage: {
+          checked: answered, total: candidates.length, unchecked, model: answers.find(Boolean)?.model ?? null,
+          // Older sections not sent, per bug — reported whether or not Jev said
+          // "fixed", or a partial read reads as a full one (`B39`, REVIEW).
+          sectionsNotRead: asked.filter((b) => b.omitted).map((b) => `${b.id} (${b.omitted})`),
+        },
       };
     },
   });

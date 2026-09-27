@@ -180,6 +180,18 @@ describe('Jev findings in the SHIP report (t2.2 — AC10.2, AC9.4)', () => {
       }
     }));
 
+  it('a sampling check that asked nothing (all past the budget) is not counted as checked; unread sections are listed', () =>
+    withTree(async (dir) => {
+      const jev = defineCheck({
+        id: 'bug-fixed-jev', healCategory: HEAL.NEEDS_A_PERSON, judged: 'model',
+        applicability: () => APPLICABILITY.EVAL,
+        run: () => ({ findings: [], coverage: { checked: 0, total: 4, unchecked: [], model: null, sectionsNotRead: ['B75 (4)'] } }),
+      });
+      const r = await runShipContentGate(dir, { checks: [], modelChecks: [jev] });
+      expect(r.checked).toBe(0);
+      expect(formatShipContentGate(r)).toContain('older changelog sections not read: B75 (4)');
+    }));
+
   it('names the facts the STATE.md check could not use (AC9.1, NFR4)', () =>
     withTree(async (dir) => {
       const jev = defineCheck({

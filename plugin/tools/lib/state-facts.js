@@ -20,6 +20,7 @@
 // in `unavailable`, never silently dropped.
 
 import { readFile } from 'node:fs/promises';
+import { readFileConfined } from './path-confine.js';
 import { join } from 'node:path';
 
 /** Index of the closing `---` of a leading frontmatter block, or -1. */
@@ -65,7 +66,7 @@ async function readVersion(baseDir) {
   for (const rel of ['.claude-plugin/plugin.json', 'plugin/.claude-plugin/plugin.json', 'package.json']) {
     let raw;
     try {
-      raw = await readFile(join(baseDir, rel), 'utf8');
+      raw = readFileConfined(baseDir, rel); // its version is sent to Jev: never follow a symlink out
     } catch {
       continue;
     }

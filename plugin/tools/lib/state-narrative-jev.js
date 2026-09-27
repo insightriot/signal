@@ -33,7 +33,7 @@ import { readFileConfined } from './path-confine.js';
 import { defineCheck, HEAL, APPLICABILITY } from './state-drift.js';
 import { makeReceipt } from './receipt.js';
 import { splitParagraphs, buildFactList } from './state-facts.js';
-import { askChoice, resolveJevKey, JEV_DEFAULT_TIMEOUT_MS } from './jev.js';
+import { askChoice, resolveJevKey, noJevKeyReason, JEV_DEFAULT_TIMEOUT_MS } from './jev.js';
 
 export const CHECK_ID = 'state-narrative-jev';
 
@@ -73,10 +73,16 @@ const FACT_CUES = [
 // contradiction is elsewhere. Pairing with it would hand the reader a receipt
 // whose two sides match, and they would dismiss a true positive (REVIEW: "v0.2.0
 // is in flight at VERIFY" paired with `"version": "0.2.0"`).
-const agrees = (text, value) => value !== undefined && String(text).includes(String(value));
+// Whole-token match: `0.1.4` must not agree with `0.1.40`, nor `M6.E3` with `M6.E30`.
+const esc = (v) => String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// (A version may be written with its `v`: "v0.1.40".)
+const agrees = (text, value) => value !== undefined && new RegExp(`(^|[^\\w.]|\\bv)${esc(value)}(?![\\w]|\\.\\d)`).test(String(text));
 
 function evidenceFor(text, facts, sources) {
-  const usable = (k) => facts[k] !== undefined && !agrees(text, k === 'in_flight' ? facts.current_epic ?? facts.phase : facts[k]);
+  // `in_flight` agrees only if the paragraph states BOTH its Epic and its phase:
+  // naming the Epic alone ("M6.E3 is parked") is exactly what it can contradict.
+  const inFlightAgrees = () => agrees(text, facts.phase) && (facts.current_epic === undefined || agrees(text, facts.current_epic));
+  const usable = (k) => facts[k] !== undefined && !(k === 'in_flight' ? inFlightAgrees() : agrees(text, facts[k]));
   const key =
     FACT_CUES.find(([k, re]) => usable(k) && re.test(text))?.[0] ??
     ['in_flight', 'phase', 'current_epic'].find(usable) ??
@@ -112,7 +118,7 @@ export function makeStateNarrativeJevCheck(opts = {}) {
     applicability: (ctx) =>
       keyNow(ctx).trim()
         ? APPLICABILITY.EVAL
-        : { status: APPLICABILITY.BLIND, reason: 'the Jev check did not run — TYPESAFE_API_KEY is not set (environment or .env)' },
+        : { status: APPLICABILITY.BLIND, reason: noJevKeyReason(ctx.baseDir) },
 
     async run(ctx) {
       const raw = readFileConfined(ctx.baseDir, '.planning/STATE.md');

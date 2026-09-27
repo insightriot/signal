@@ -11,9 +11,11 @@ delete process.env.TYPESAFE_MODEL;
 // …and never read this repository's own .env, which holds a real key.
 process.env.SIGNAL_JEV_IGNORE_DOTENV = '1';
 
-// …and no test can reach the network even with a key: the global `fetch` throws.
+// …and no test can reach TypeSafe even with a key: the global `fetch` throws.
 // The Jev client defaults to it, so a test that sets `key` but forgets to inject
-// `ask`/`fetchFn` fails loudly here instead of calling the internet (REVIEW).
+// `ask`/`fetchFn` cannot call the internet. It is NOT loud: the client turns the
+// throw into a `network` failure result, so such a test sees "did not run".
+// Covers `fetch` only — not git subprocesses or `https` (REVIEW pass 2).
 globalThis.fetch = async () => {
   throw new Error('network is disabled in tests — inject fetchFn/ask (tests/helpers/no-network-keys.js)');
 };

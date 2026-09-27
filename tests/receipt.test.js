@@ -182,13 +182,19 @@ describe('model-judged checks cannot refuse — by declaration, not per-finding 
 
   it('every shipped module that calls Jev AND defines a check declares judged: "model"', () => {
     const lib = join(dirname(fileURLToPath(import.meta.url)), '../plugin/tools/lib');
-    const offenders = readdirSync(lib)
+    const jevChecks = readdirSync(lib)
       .filter((f) => f.endsWith('.js') && f !== 'jev.js')
       .filter((f) => {
         const src = readFileSync(join(lib, f), 'utf8');
-        return /from '\.\/jev\.js'/.test(src) && /defineCheck\(\{/.test(src) && !/judged:\s*'model'/.test(src);
+        return /from '\.\/jev\.js'/.test(src) && /defineCheck\(\{/.test(src);
       });
-    expect(offenders).toEqual([]);
+    // It must FIND them — an empty set would pass the check below vacuously.
+    expect(jevChecks).toEqual(expect.arrayContaining(['bug-fixed-jev.js', 'state-narrative-jev.js']));
+    for (const f of jevChecks) {
+      const src = readFileSync(join(lib, f), 'utf8');
+      // One declaration per defineCheck call, not one per file.
+      expect((src.match(/judged:\s*'model'/g) ?? []).length, f).toBe((src.match(/defineCheck\(\{/g) ?? []).length);
+    }
   });
 });
 

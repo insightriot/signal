@@ -93,6 +93,8 @@ describe('releasedSectionsFor — the unit Jev reads, and the unit the receipt c
     expect(sec.text.length).toBeLessThanOrEqual(400);
     expect(sec.from).toBeLessThan(62);
     expect(sec.to).toBeGreaterThan(62); // line 62 is the id's line
+    // …and the cited lines ARE the lines sent — exactly, not just around the id.
+    expect(log.split('\n').slice(sec.from - 1, sec.to).join('\n')).toBe(sec.text.split('\n').slice(2).join('\n'));
   });
 
   it('sends at most maxSections sections — the newest, in file order — and counts the rest', () => {
@@ -261,6 +263,36 @@ describe('makeBugFixedJevCheck', () => {
       const [r2] = (await runDriftChecks(dir, [makeBugFixedJevCheck({ ask: some, key: 'k', concurrency: 1 })])).results;
       expect(r2.coverage.checked).toBe(1);
       expect(r2.coverage.unchecked).toEqual([expect.objectContaining({ reason: JEV_REASON.RATE_LIMITED })]);
+    } finally { await cleanup(dir); }
+  });
+});
+
+describe('releasedSectionsFor — window edge cases (REVIEW pass 2)', () => {
+  const filler = (n) => Array.from({ length: n }, (_, i) => `filler line ${i} with some words in it`);
+
+  it('an id only in the heading does not throw, and the heading (with the id) is sent', () => {
+    const log = ['## [0.2.0] — B9 hotfix', ...filler(200)].join('\n');
+    const { sections } = releasedSectionsFor(log, 'B9', { maxChars: 400 });
+    expect(sections).toHaveLength(1);
+    expect(sections[0].text).toContain('B9');
+  });
+
+  it('a single line longer than the budget is cut around the id, so the id is always sent', () => {
+    const log = ['## [0.2.0]', 'x'.repeat(5000) + ' Fixed B9.', ...filler(3)].join('\n');
+    const { sections } = releasedSectionsFor(log, 'B9', { maxChars: 4000 });
+    expect(sections[0].text).toContain('Fixed B9.');
+    expect(sections[0].text.length).toBeLessThanOrEqual(4000);
+  });
+});
+
+describe('older sections not read are reported in coverage, flagged or not (B39, REVIEW pass 2)', () => {
+  it('a bug named in 5 sections, Jev says "not fixed": coverage still lists it', async () => {
+    const log = '# Changelog\n\n' + [1, 2, 3, 4, 5].map((v) => `## [0.${6 - v}.0]\n\nB102 mentioned.`).join('\n\n') + '\n';
+    const dir = await project(BUGS, log);
+    try {
+      const [row] = (await runDriftChecks(dir, [makeBugFixedJevCheck({ ask: fakeAsk({ B102: 0.05 }), key: 'k' })])).results;
+      expect(row.findings).toHaveLength(0);
+      expect(row.coverage.sectionsNotRead).toEqual(['B102 (2)']);
     } finally { await cleanup(dir); }
   });
 });

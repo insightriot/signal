@@ -38,7 +38,7 @@ import { readState, PHASES, EPIC_ID_STRICT_RE } from './state.js';
 import { readProfileIssues } from './profile.js';
 import { deriveUnits, WORKED_SUFFIXES } from './work-units.js';
 import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
-import { isReceipt } from './receipt.js';
+import { isReceipt, stripControl } from './receipt.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -357,7 +357,9 @@ export async function runDriftChecks(baseDir, checks = STATE_DRIFT_CHECKS) {
         healCategory: check.healCategory,
         healMechanism: check.healMechanism,
         file: f.file ?? null,
-        message: f.message,
+        // Messages quote project files (a fact from frontmatter, a paragraph);
+        // terminal escapes in them never reach a screen or the SHIP artifact.
+        message: typeof f.message === 'string' ? stripControl(f.message) : f.message,
         ...(f.receipt != null ? { receipt: f.receipt } : {}),
         ...(f.judgedBy != null ? { judgedBy: f.judgedBy } : {}),
         ...(typeof f.fix === 'string' && f.fix.trim() ? { fix: f.fix } : {}),

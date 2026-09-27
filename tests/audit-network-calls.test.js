@@ -54,6 +54,9 @@ describe('tools/audit-network-calls.js — contract', () => {
     expect(result.stdout).not.toContain('shapes.mjs:1\n');
     expect(result.stdout).toContain('hook.sh:3\n');
     expect(result.stdout).not.toContain('hook.sh:2\n');
+    // Unquoted git in a shell script (REVIEW pass 2) — and not in its comment.
+    expect(result.stdout).toContain('hook.sh:5\n');
+    expect(result.stdout).not.toContain('hook.sh:4\n');
     expect(result.stdout).toContain('push.cjs:1\n');
   });
 

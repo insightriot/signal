@@ -99,13 +99,17 @@ export function refusableFindings(report) {
 const EXCERPT_MAX = 110;
 
 // Excerpts come from files a cloned repository controls; C0/C1 control
-// characters (terminal escapes) are dropped before they are printed.
+// characters (terminal escapes), line/paragraph separators, bidi overrides and
+// zero-width characters are dropped before they are printed.
 // eslint-disable-next-line no-control-regex
-const CONTROL_RE = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F]/g;
+const CONTROL_RE = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202E\u2066-\u2069\uFEFF]/g;
+
+/** `text` with the characters above removed — for anything printed from a file. */
+export const stripControl = (text) => String(text).replace(CONTROL_RE, '');
 
 function oneLine(text) {
   const first = String(text).split('\n').find((l) => l.trim() !== '') ?? '';
-  const flat = first.replace(CONTROL_RE, '').trim();
+  const flat = stripControl(first).trim();
   return flat.length > EXCERPT_MAX ? `${flat.slice(0, EXCERPT_MAX - 1)}…` : flat;
 }
 

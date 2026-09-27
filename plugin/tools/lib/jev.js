@@ -18,9 +18,9 @@
 // Listed in tools/audit-network-calls.js KNOWN_CALLS and in README.md →
 // *Privacy & telemetry*.
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 
 export const JEV_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
 
@@ -68,20 +68,23 @@ const DOTENV_KEY_RE = /^\s*(?:export\s+)?TYPESAFE_API_KEY\s*=\s*(.*?)\s*$/;
  * `SIGNAL_JEV_IGNORE_DOTENV` skips the file; the test suite sets it, so no test
  * can pick up a real key from this repository's own `.env` (AC8.7).
  *
- * ⚠ A `.env` that git TRACKS is refused (REVIEW, security HIGH): it is not the
- * user's key but the repository author's. A cloned repo could ship one and send
- * the cloner's project text to TypeSafe on the author's account, with the
- * cloner never having turned anything on. A user's own key lives in an
- * untracked `.env` (or the environment), which is where Signal's docs put it.
+ * ⚠ The `.env` is used only when git CONFIRMS it is ignored, or the folder is
+ * not a git repository (REVIEW, security HIGH). A tracked `.env` is the
+ * repository author's key, not the user's: a cloned repo could ship one and send
+ * the cloner's project text to TypeSafe on the author's account. The check is
+ * positive and fail-closed — asked by the file's REAL on-disk name (a tracked
+ * `.ENV` on a case-insensitive disk slipped past a check for `.env`), and any
+ * other git answer or failure refuses the file. `dotenvRefusal` says why.
  */
-export function resolveJevKey(baseDir, { env = process.env, isTracked = isTrackedByGit } = {}) {
+export function resolveJevKey(baseDir, { env = process.env, dotenvCheck = dotenvRefusal } = {}) {
   const fromEnv = env.TYPESAFE_API_KEY;
   if (typeof fromEnv === 'string' && fromEnv.trim()) return fromEnv.trim();
   if (env.SIGNAL_JEV_IGNORE_DOTENV) return '';
-  if (isTracked(baseDir, '.env')) return '';
+  const name = dotenvName(baseDir);
+  if (!name || dotenvCheck(baseDir, name)) return '';
   let raw;
   try {
-    raw = readFileSync(join(baseDir, '.env'), 'utf8');
+    raw = readFileSync(join(baseDir, name), 'utf8');
   } catch {
     return '';
   }
@@ -96,14 +99,34 @@ export function resolveJevKey(baseDir, { env = process.env, isTracked = isTracke
   return '';
 }
 
-/** True when git tracks `rel` in `baseDir`'s repository. Not a repo, or no git → false. */
-export function isTrackedByGit(baseDir, rel) {
+/** The `.env` file's real on-disk name (any case), or null. */
+function dotenvName(baseDir) {
   try {
-    execFileSync('git', ['ls-files', '--error-unmatch', '--', rel], { cwd: baseDir, stdio: 'ignore', timeout: 2000 });
-    return true;
+    return readdirSync(baseDir).find((n) => n.toLowerCase() === '.env') ?? null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+/**
+ * Why the project `.env` may NOT supply the key, or null when it may: git says
+ * `name` is ignored (exit 0 — tracked files never are), or this is no git repo.
+ */
+export function dotenvRefusal(baseDir, name) {
+  const r = spawnSync('git', ['check-ignore', '-q', '--', name], { cwd: baseDir, stdio: ['ignore', 'ignore', 'pipe'], timeout: 2000, encoding: 'utf8' });
+  if (r.status === 0) return null;
+  if (r.status === 128 && /not a git repository/i.test(r.stderr ?? '')) return null;
+  if (r.status === 1) return `${name} is not git-ignored (a committed key is the repository author's, not yours)`;
+  return `git could not confirm ${name} is ignored`;
+}
+
+/** Why no key was found — for the "did not run" line (a skipped .env is not "not set"). */
+export function noJevKeyReason(baseDir) {
+  const name = dotenvName(baseDir);
+  const why = name ? dotenvRefusal(baseDir, name) : null;
+  return why
+    ? `the Jev check did not run — TYPESAFE_API_KEY is not in the environment, and ${why}`
+    : 'the Jev check did not run — TYPESAFE_API_KEY is not set (environment or .env)';
 }
 
 // The server's `model` string is printed and copied into the SHIP artifact; it

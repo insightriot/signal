@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { askChoice, JEV_DEFAULT_MODEL, JEV_REASON, parseChoiceAnswer, resolveJevKey, confidenceWords, askNoul, isTrackedByGit } from '../plugin/tools/lib/jev.js';
+import { askChoice, JEV_DEFAULT_MODEL, JEV_REASON, parseChoiceAnswer, resolveJevKey, confidenceWords, askNoul, dotenvRefusal, noJevKeyReason } from '../plugin/tools/lib/jev.js';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
@@ -261,17 +261,39 @@ describe('REVIEW hardening (security)', () => {
     const dir = await mkdtemp(join(tmpdir(), 'sig-dotenv-'));
     try {
       await writeFile(join(dir, '.env'), 'TYPESAFE_API_KEY=authors_key\n');
-      expect(resolveJevKey(dir, { env: {}, isTracked: () => false })).toBe('authors_key');
-      expect(resolveJevKey(dir, { env: {}, isTracked: () => true })).toBe('');
-      // The real git check, on a real repo with the file committed.
+      expect(resolveJevKey(dir, { env: {}, dotenvCheck: () => null })).toBe('authors_key');
+      expect(resolveJevKey(dir, { env: {}, dotenvCheck: () => 'refused' })).toBe('');
+      // Not a git repo at all → the file is used (a ZIP download is NOT protected; README says so).
+      expect(dotenvRefusal(dir, '.env')).toBe(null);
       const git = (...a) => execFileSync('git', a, { cwd: dir, stdio: 'ignore' });
       git('init', '-q');
-      expect(isTrackedByGit(dir, '.env')).toBe(false);
-      git('add', '.env');
-      expect(isTrackedByGit(dir, '.env')).toBe(true);
+      // In a repo but NOT ignored → refused, and the reason says so.
+      expect(dotenvRefusal(dir, '.env')).toMatch(/not git-ignored/);
+      expect(resolveJevKey(dir, { env: {} })).toBe('');
+      expect(noJevKeyReason(dir)).toMatch(/not in the environment, and \.env is not git-ignored/);
+      // Ignored → the user's own key, used.
+      await writeFile(join(dir, '.gitignore'), '.env\n');
+      expect(resolveJevKey(dir, { env: {} })).toBe('authors_key');
+      // Committed (tracked) even though ignored → refused: tracked files are never "ignored".
+      git('add', '-f', '.env');
       expect(resolveJevKey(dir, { env: {} })).toBe('');
       // The environment still wins — a user's own key is never blocked by this.
       expect(resolveJevKey(dir, { env: { TYPESAFE_API_KEY: 'mine' } })).toBe('mine');
     } finally { await rm(dir, { recursive: true, force: true }); }
   });
+});
+
+describe('the .env check asks git about the REAL file name (security, REVIEW pass 2)', () => {
+  it('a tracked `.ENV` on a case-insensitive disk is refused — the check used to ask about `.env`', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'sig-dotenv-case-'));
+    try {
+      const git = (...a) => execFileSync('git', a, { cwd: dir, stdio: 'ignore' });
+      git('init', '-q');
+      await writeFile(join(dir, '.ENV'), 'TYPESAFE_API_KEY=attacker\n');
+      await writeFile(join(dir, '.gitignore'), '.env\n');
+      git('add', '-f', '.ENV');
+      expect(resolveJevKey(dir, { env: {} })).toBe('');
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  });
+
 });
