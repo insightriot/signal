@@ -76,7 +76,13 @@ function evidenceFor(text, facts, sources) {
     ['in_flight', 'phase', 'current_epic'].find((k) => facts[k] !== undefined);
   if (!key) return null;
   const label = key === 'in_flight' ? 'in flight' : key;
-  return { source: sources[key].source, line: sources[key].line, excerpt: `${label}: ${facts[key]}` };
+  // The receipt quotes the source line VERBATIM (AC1.2); the fact as Jev saw it
+  // goes in the message. A composed excerpt cited at a real line reads as a
+  // quotation of that line and is not one — found at VERIFY.
+  return {
+    fact: `${label}: ${facts[key]}`,
+    evidence: { source: sources[key].source, line: sources[key].line, excerpt: sources[key].text },
+  };
 }
 
 /**
@@ -140,8 +146,8 @@ export function makeStateNarrativeJevCheck(opts = {}) {
       const findings = [];
       answers.forEach((a, i) => {
         if (!a || a.choice !== 'contradicts') return;
-        const evidence = evidenceFor(asked[i].text, facts, sources);
-        if (!evidence) {
+        const paired = evidenceFor(asked[i].text, facts, sources);
+        if (!paired) {
           // No fact to pair it with (a STATE.md with no phase at all): a
           // contradiction nobody can check is not a finding — but it must not
           // vanish either, or "checked" over-counts what was actually judged.
@@ -151,11 +157,11 @@ export function makeStateNarrativeJevCheck(opts = {}) {
         findings.push({
           file: '.planning/STATE.md',
           message:
-            `Jev (${a.model}, confidence ${a.confidence}) reads STATE.md:${asked[i].line} as contradicting the current facts — ` +
-            'a judgment, not a proof; results can vary between runs.',
+            `Jev (${a.model}, confidence ${a.confidence}) reads STATE.md:${asked[i].line} as contradicting the current facts ` +
+            `(most plausibly "${paired.fact}") — a judgment, not a proof; results can vary between runs.`,
           receipt: makeReceipt({
             claim: { file: '.planning/STATE.md', line: asked[i].line, excerpt: asked[i].text },
-            evidence,
+            evidence: paired.evidence,
           }),
           judgedBy: { model: a.model, confidence: a.confidence },
         });

@@ -96,9 +96,13 @@ describe('buildFactList (AC9.1, AC9.5)', () => {
         completed_phases: 'DISCUSS, PLAN, EXECUTE',
         version: '0.1.40',
       });
-      expect(sources.phase).toEqual({ source: '.planning/STATE.md frontmatter', line: 3 });
-      expect(sources.version).toEqual({ source: '.claude-plugin/plugin.json', line: 3 });
-      expect(unavailable).toEqual([]);
+      expect(sources.phase).toMatchObject({ source: '.planning/STATE.md frontmatter', line: 3 });
+      expect(sources.version).toMatchObject({ source: '.claude-plugin/plugin.json', line: 3 });
+      // Every source carries its line verbatim — what a receipt quotes (AC1.2).
+      expect(sources.phase.text).toMatch(/^phase: /);
+      expect(sources.version.text).toMatch(/"version"\s*:/);
+      // Nothing absent here — but blockers are left out on purpose, and say so (AC9.1).
+      expect(unavailable).toEqual([expect.stringMatching(/^blockers \(left out on purpose/)]);
     } finally { await rm(dir, { recursive: true, force: true }); }
   });
 

@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { runShipContentGate, formatShipContentGate, GATE } from '../plugin/tools/lib/ship-gate.js';
+import { runShipContentGate, formatShipContentGate, GATE, SHIP_JEV_BUDGET_MS } from '../plugin/tools/lib/ship-gate.js';
+import { JEV_CHECK_DEFAULTS } from '../plugin/tools/lib/state-narrative-jev.js';
 import { makeReceipt } from '../plugin/tools/lib/receipt.js';
 import { defineCheck, HEAL, APPLICABILITY } from '../plugin/tools/lib/state-drift.js';
 
@@ -158,4 +159,51 @@ describe('Jev findings in the SHIP report (t2.2 — AC10.2, AC9.4)', () => {
         if (prev !== undefined) process.env.TYPESAFE_API_KEY = prev;
       }
     }));
+
+  // AC8.2 for the SECOND Jev check: the no-key line was asserted for the
+  // STATE.md check only (VERIFY finding).
+  it('no key → bug-fixed-jev also says it did not run, when there is a BUGS.md and a CHANGELOG to read', () =>
+    withTree(async (dir) => {
+      await writeFile(join(dir, '.planning/BUGS.md'), '| B1 | `confirmed` | P2 | x |\n');
+      await writeFile(join(dir, 'CHANGELOG.md'), '# Changelog\n\n## [0.1.0]\n\n- B1 fixed.\n');
+      const prev = process.env.TYPESAFE_API_KEY;
+      delete process.env.TYPESAFE_API_KEY;
+      try {
+        const r = await runShipContentGate(dir, { checks: [] });
+        expect(r.status).toBe(GATE.PASS);
+        expect(formatShipContentGate(r)).toMatch(/bug-fixed-jev: the Jev check did not run — TYPESAFE_API_KEY is not set/);
+      } finally {
+        if (prev !== undefined) process.env.TYPESAFE_API_KEY = prev;
+      }
+    }));
+
+  it('names the facts the STATE.md check could not use (AC9.1, NFR4)', () =>
+    withTree(async (dir) => {
+      const jev = defineCheck({
+        id: 'state-narrative-jev', healCategory: HEAL.NEEDS_A_PERSON,
+        applicability: () => APPLICABILITY.EVAL,
+        run: () => ({ findings: [], coverage: { checked: 3, total: 3, unchecked: [], model: 'jev-1.13.0', factsUnavailable: ['current_epic (linear mode)', 'blockers (left out on purpose: they carry dates, which Jev reads as text)'] } }),
+      });
+      const text = formatShipContentGate(await runShipContentGate(dir, { checks: [], modelChecks: [jev] }));
+      expect(text).toContain('facts not used: current_epic (linear mode); blockers (left out on purpose');
+    }));
+});
+
+describe('the budgets (NFR3) — SHIP is the expensive path, /sig:resume the cheap one', () => {
+  it('SHIP gives the Jev STATE.md check 30 s: a paragraph at +20 s is asked, one at +40 s is not', () =>
+    withTree(async (dir) => {
+      await writeFile(join(dir, '.planning/STATE.md'), '---\nschema_version: 1\nphase: SHIP\n---\nOne.\n\nTwo.\n\nThree.\n');
+      let t = 0;
+      const ask = async () => { t += 20000; return { ok: true, choice: 'says_nothing', confidence: 0.9, model: 'jev-1.13.0' }; };
+      const r = await runShipContentGate(dir, { checks: [], jev: { ask, now: () => t, key: 'k', concurrency: 1 } });
+      const c = r.coverage.find((x) => x.id === 'state-narrative-jev');
+      expect(SHIP_JEV_BUDGET_MS).toBe(30000);
+      expect(c).toMatchObject({ checked: 2, total: 3, unchecked: [{ line: 9, reason: 'budget' }] });
+    }));
+
+  it('/sig:resume runs it with 8 s — the default, and what resume.md passes', async () => {
+    expect(JEV_CHECK_DEFAULTS.budgetMs).toBe(8000);
+    const resumeMd = await readFile(join(import.meta.dirname, '../plugin/commands/resume.md'), 'utf8');
+    expect(resumeMd).toContain('modelJudgedChecks({ budgetMs: 8000 })');
+  });
 });

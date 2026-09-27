@@ -3440,3 +3440,15 @@ question, for Brett: **a marker Signal acts on inside the markdown files, or Git
 absorbs `BACKLOG.md`'s *"Structural status"* row, `CLAIM-INTEGRITY-ANALYSIS.md` §7's tracker decision,
 and `S4`. `M6.E3`'s refusal path, receipts and Jev carry over: the gate gets precise inputs, and Jev
 keeps the hand-written prose no marker can cover.
+
+### D-M6E3-17 — `AC4.1`/`AC4.2` revised to match `D-M6E3-15`, not built
+
+**Brett, 2026-09-27, at VERIFY** (picked the recommended option): VERIFY failed `AC4.2` — no
+`/sig:docs-sweep` finding carries or renders a receipt. That follows from `D-M6E3-15`: `t3.2` measured
+that no token rule yields a precise enough receipt, so the Jev `BUGS.md` check replaced it and runs at
+SHIP only (docs-sweep makes no network call, `D-M6E3-9`). The criteria were never revised to match.
+**Revised, not built:** docs-sweep keeps the receiptless word-matching rule `bug-status-vs-changelog`
+and says in its docs that it has no receipt; receipts render at SHIP. Building receipt rendering for
+the sweep was rejected, because no sweep check emits a receipt, so it would be plumbing with nothing
+to show. The same write-back fixes REQUIREMENTS § Scope and `AC7.4`/`AC10.3`, which still read
+"`STATE.md` only" / "the Jev check" after `D-M6E3-15` added a second Jev check.

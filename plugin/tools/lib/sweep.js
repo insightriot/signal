@@ -580,10 +580,10 @@ export function renderSweepReport(report) {
   if (stateDrift) {
     lines.push('', renderDriftReport(stateDrift, { reach: REACH }).trimEnd());
   }
-  // M6.E3 (`D-M6E3-9`): the Jev STATE.md check never runs here — this sweep is
-  // offline by contract. Said out loud, so its absence is not read as a pass.
+  // M6.E3 (`D-M6E3-9`): neither Jev check runs here — this sweep is offline by
+  // contract. Said out loud, so their absence is not read as a pass.
   if (stateDrift) {
-    lines.push('', '## Model-judged checks', 'not run here — this sweep is offline. The Jev STATE.md check runs at /sig:resume and at SHIP when TYPESAFE_API_KEY is set.');
+    lines.push('', '## Model-judged checks', 'not run here — this sweep is offline. The Jev STATE.md check runs at /sig:resume and at SHIP, and the Jev BUGS.md check (a `confirmed` row a release may have fixed) at SHIP only, when TYPESAFE_API_KEY is set.');
   }
   if (signalOnly) {
     lines.push('', '## Signal-only checks');

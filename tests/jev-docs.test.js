@@ -35,10 +35,15 @@ describe('/sig:docs-sweep says the Jev check does not run there (AC10.3)', () =>
   it('the report has a Model-judged checks section saying so', () => {
     const out = renderSweepReport({ findings: [], stateDrift: { results: [], summary: {} }, signalOnly: null });
     expect(out).toMatch(/## Model-judged checks\nnot run here — this sweep is offline/);
+    // Both Jev checks are named — the Epic ships two (VERIFY finding).
+    expect(out).toMatch(/Jev STATE\.md check/);
+    expect(out).toMatch(/Jev BUGS\.md check/);
   });
 
-  it('docs-sweep.md says so too', () => {
+  it('docs-sweep.md says so too, for both checks, and that the sweep\'s BUGS.md rule has no receipt (AC4.1, AC4.2 as revised)', () => {
     const doc = readFileSync(join(ROOT, 'plugin/commands/docs-sweep.md'), 'utf8');
-    expect(doc).toMatch(/never runs the \*\*Jev `STATE\.md` check\*\*/);
+    expect(doc).toMatch(/never runs either \*\*Jev check\*\*/);
+    expect(doc).toMatch(/`STATE\.md` check or the `BUGS\.md` check/);
+    expect(doc).toMatch(/`bug-status-vs-changelog` — is a word-matching rule with \*\*no receipt\*\*/);
   });
 });

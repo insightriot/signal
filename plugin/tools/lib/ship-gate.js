@@ -24,9 +24,10 @@ import { modelJudgedChecks } from './state-narrative-jev.js';
 import { confidenceWords } from './jev.js';
 import { makeBugFixedJevCheck } from './bug-fixed-jev.js';
 
-// SHIP is where the expensive path runs (NFR3): 30 s for the Jev check, against
-// /sig:resume's 8 s. Its findings are advice here too — `judgedBy` keeps every
-// one of them out of `refusableFindings`.
+// SHIP is where the expensive path runs (NFR3): 30 s for EACH Jev check, against
+// /sig:resume's 8 s. `runDriftChecks` runs checks one after another, so with two
+// Jev checks SHIP can wait up to ~60 s — ship.md says so. Its findings are
+// advice here too — `judgedBy` keeps every one of them out of `refusableFindings`.
 export const SHIP_JEV_BUDGET_MS = 30000;
 
 export const GATE = Object.freeze({
@@ -42,13 +43,14 @@ export const GATE = Object.freeze({
  *   checks?: ReadonlyArray<object>,
  *   modelChecks?: ReadonlyArray<object>,
  *   acceptStale?: string[],
+ *   jev?: object,   // extra options for the default Jev checks (tests inject `ask`, `now`, `key`)
  *   runner?: (baseDir: string, checks: ReadonlyArray<object>) => Promise<object>,
  * }} [opts]
  */
 export async function runShipContentGate(baseDir, opts = {}) {
   const modelChecks = opts.modelChecks ?? [
-    ...modelJudgedChecks({ budgetMs: SHIP_JEV_BUDGET_MS }),
-    makeBugFixedJevCheck({ budgetMs: SHIP_JEV_BUDGET_MS }),
+    ...modelJudgedChecks({ ...opts.jev, budgetMs: SHIP_JEV_BUDGET_MS }),
+    makeBugFixedJevCheck({ ...opts.jev, budgetMs: SHIP_JEV_BUDGET_MS }),
   ];
   const checks = [...(opts.checks ?? ALL_DRIFT_CHECKS), ...modelChecks];
   const accepted = new Set(opts.acceptStale ?? []);
@@ -124,6 +126,8 @@ export function formatShipContentGate(result) {
   for (const c of result.coverage ?? []) {
     const skipped = c.unchecked?.length ? `; ${c.unchecked.length} not checked (${[...new Set(c.unchecked.map((u) => u.reason))].join(', ')})` : '';
     lines.push('', `${c.id}: checked ${c.checked} of ${c.total}${skipped}${c.model ? ` — ${c.model}; results can vary between runs` : ''}.`);
+    // AC9.1 / NFR4: a fact the check could not use is named, never silently absent.
+    if (c.factsUnavailable?.length) lines.push(`  facts not used: ${c.factsUnavailable.join('; ')}`);
   }
   if (result.blind.length) {
     lines.push('', `Could not evaluate (${result.blind.length}) — not counted as clean:`);

@@ -305,7 +305,7 @@ Candidates, from `analysis/TYPESAFE-JEV-ASSESSMENT.md` §3, in its order:
 
 **Not candidates:** anything numeric (counts, dates) — Jev's documented weak spots.
 
-### `M6.E3` — the claims-audit backstop, rebuilt around Jev · **roadmap** · large · **IN FLIGHT — EXECUTE done 2026-09-27, VERIFY next**
+### `M6.E3` — the claims-audit backstop, rebuilt around Jev · **roadmap** · large · **IN FLIGHT — VERIFY loop 1 (2026-09-27) found gaps; re-verify next**
 
 *Plain: check whether Signal's own records tell the truth, and only ever stop you when it can show why.*
 

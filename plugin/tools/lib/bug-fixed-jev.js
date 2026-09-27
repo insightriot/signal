@@ -108,6 +108,35 @@ export function releasedSectionsNaming(changelog, id, maxChars = 6000) {
     .map((t) => t.slice(0, maxChars));
 }
 
+/**
+ * Where each released section naming `id` sits in the file: its heading line
+ * (1-based, verbatim) and last non-blank line. The receipt cites THIS — the
+ * unit Jev judged — never a paragraph inside it (see `run`).
+ */
+export function releasedSectionSpans(changelog, id) {
+  const re = new RegExp(`(^|[^A-Za-z0-9])${id}(?![0-9])`);
+  const lines = String(changelog).split(/\r?\n/);
+  const spans = [];
+  let cur = null;
+  const close = () => {
+    if (!cur) return;
+    let end = cur.end;
+    while (end > cur.start && lines[end - 1].trim() === '') end--;
+    if (re.test(lines.slice(cur.start - 1, end).join('\n'))) spans.push({ start: cur.start, end, heading: lines[cur.start - 1] });
+    cur = null;
+  };
+  lines.forEach((l, i) => {
+    if (ANY_H2.test(l)) {
+      close();
+      if (RELEASED_HEADING.test(l)) cur = { start: i + 1, end: i + 1 };
+    } else if (cur) {
+      cur.end = i + 1;
+    }
+  });
+  close();
+  return spans;
+}
+
 export const BUG_JEV_DEFAULTS = Object.freeze({
   maxBugs: 40,
   concurrency: 8,
@@ -130,7 +159,8 @@ export function makeBugFixedJevCheck(opts = {}) {
     describe:
       'Asks TypeSafe\'s Jev, for each `confirmed` BUGS.md row a released CHANGELOG section mentions, whether that text says the bug was fixed. ' +
       'Advisory — never refuses; results can vary between runs. No token rule could make this call (M6.E3 t3.2). ' +
-      'Measured 2026-09-27 (jev-1.13.0) on the 13 rows the published bug-status figures came from: 1 flag, 1 real (B102, p 0.69–0.76) in three runs, every non-fix ≤ 0.06 — one positive, not a general rate.',
+      'Measured 2026-09-27 (jev-1.13.0) at fc4b8b1 on the 13 `confirmed` rows a released section names (of the 28-row corpus behind the published bug-status figures): 1 flag, 1 real (B102; recorded p 0.76 and 0.69), every non-fix ≤ 0.06 — one positive, not a general rate. No run output is stored. ' +
+      'The receipt cites the release section Jev read (heading + line range), not a sentence: the judgment is per section.',
     applicability: (ctx) => {
       if (!existsSync(bugsFile(ctx))) return { status: APPLICABILITY.NA, reason: 'this project has no .planning/BUGS.md' };
       if (!existsSync(join(ctx.baseDir, 'CHANGELOG.md'))) {
@@ -151,6 +181,7 @@ export function makeBugFixedJevCheck(opts = {}) {
           ...e,
           paragraphs: releasedParagraphsNaming(changelog, e.id),
           sections: releasedSectionsNaming(changelog, e.id, cfg.maxSectionChars),
+          spans: releasedSectionSpans(changelog, e.id),
         }))
         .filter((e) => e.paragraphs.length);
       const bugLines = bugs.split(/\r?\n/);
@@ -191,19 +222,26 @@ export function makeBugFixedJevCheck(opts = {}) {
       answers.forEach((a, i) => {
         if (!a || a.noul < cfg.threshold) return;
         const bug = asked[i];
-        // Cite the paragraph whose FIRST line names the id if there is one —
-        // where an entry says what it is about — else the first that names it.
-        const lead = new RegExp(`(^|[^A-Za-z0-9])${bug.id}(?![0-9])`);
-        const p = bug.paragraphs.find((x) => lead.test(x.text.split('\n')[0])) ?? bug.paragraphs[0];
+        // Cite what was JUDGED: Jev read whole release sections, so the receipt
+        // quotes the first section's heading verbatim and the message names
+        // every range read. It used to cite the paragraph naming the id — for
+        // B102 its headline, which never says "fixed" (the section does, in a
+        // line no word list finds: "All three surfaces now prescribe…"). A
+        // reader deciding from that receipt would dismiss the one true
+        // positive. Found at VERIFY; M6.E7's shape — the line is in the file
+        // and does not carry the claim.
+        const [first] = bug.spans;
+        const ranges = bug.spans.map((sp) => `CHANGELOG.md:${sp.start}–${sp.end}`).join(', ');
         findings.push({
           file: '.planning/BUGS.md',
           message:
             `${bug.id} reads \`confirmed\`, and Jev (${a.model}, ${confidenceWords(a.noul)}, p=${a.noul}) reads ` +
-            `CHANGELOG.md:${p.line} as saying it was fixed — a judgment, not a proof; results can vary between runs.`,
+            `the released section(s) naming it (${ranges}) as saying it was fixed — a whole-section judgment, so no single line is cited; ` +
+            'a judgment, not a proof; results can vary between runs.',
           fix: `If it shipped, set ${bug.id}'s status to \`fixed\` and name the release.`,
           receipt: makeReceipt({
             claim: { file: '.planning/BUGS.md', line: bug.line, excerpt: bugLines[bug.line - 1] ?? `| ${bug.id} | \`confirmed\` |` },
-            evidence: { source: 'CHANGELOG.md', line: p.line, excerpt: p.text },
+            evidence: { source: 'CHANGELOG.md', line: first.start, excerpt: first.heading },
           }),
           judgedBy: { model: a.model, confidence: a.noul },
         });

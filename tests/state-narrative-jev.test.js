@@ -102,7 +102,26 @@ describe('checkStateNarrativeJev over the spike STATE.md (recorded answers)', ()
     try {
       const report = await runDriftChecks(dir, [makeStateNarrativeJevCheck({ ask: recordedAsk(), key: 'k' })]);
       const f = report.results[0].findings.find((x) => x.receipt.claim.line === PARAS[17].line);
-      expect(f.receipt.evidence).toMatchObject({ source: '.claude-plugin/plugin.json', line: 2, excerpt: 'version: 0.1.40' });
+      expect(f.receipt.evidence).toMatchObject({ source: '.claude-plugin/plugin.json', line: 2, excerpt: '  "version": "0.1.40"' });
+      expect(f.message).toContain('"version: 0.1.40"');
+    } finally { await cleanup(dir); }
+  });
+
+  // AC1.2 — BOTH sides verbatim. The evidence excerpt used to be composed
+  // (`version: 0.1.40`, `in flight: …`) and cited at a real line that does not
+  // carry that text; a test pinned the composed string. Found at VERIFY.
+  it('every evidence excerpt is the verbatim text of the line it cites', async () => {
+    const dir = await project();
+    try {
+      const report = await runDriftChecks(dir, [makeStateNarrativeJevCheck({ ask: recordedAsk(), key: 'k' })]);
+      const findings = report.results[0].findings;
+      expect(findings.length).toBeGreaterThan(0);
+      for (const f of findings) {
+        const { source, line, excerpt } = f.receipt.evidence;
+        const file = source.replace(/ frontmatter$/, '');
+        const fileLines = (await readFile(join(dir, file), 'utf8')).split('\n');
+        expect(fileLines[line - 1]).toBe(excerpt);
+      }
     } finally { await cleanup(dir); }
   });
 

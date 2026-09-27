@@ -7,6 +7,7 @@ import {
   makeBugFixedJevCheck,
   releasedParagraphsNaming,
   releasedSectionsNaming,
+  releasedSectionSpans,
   bugFixedQuestion,
 } from '../plugin/tools/lib/bug-fixed-jev.js';
 import { runDriftChecks, STATUS } from '../plugin/tools/lib/state-drift.js';
@@ -100,7 +101,11 @@ describe('makeBugFixedJevCheck', () => {
       const [f] = row.findings;
       expect(isReceipt(f.receipt)).toBe(true);
       expect(f.receipt.claim).toMatchObject({ file: '.planning/BUGS.md', line: 6 });
-      expect(f.receipt.evidence).toMatchObject({ source: 'CHANGELOG.md', line: 9 });
+      // The receipt cites what Jev JUDGED — the release section — verbatim at
+      // its heading, and the message names the range read (VERIFY finding:
+      // it used to cite the headline, which never says "fixed").
+      expect(f.receipt.evidence).toEqual({ source: 'CHANGELOG.md', line: 7, excerpt: '## [0.1.27] — 2026-08-18' });
+      expect(f.message).toContain('CHANGELOG.md:7–10');
       expect(f.judgedBy).toEqual({ model: 'jev-1.13.0', confidence: 0.53 });
       expect(f.message).toMatch(/B102/);
       expect(f.message).toMatch(/can vary/);
@@ -119,6 +124,12 @@ describe('makeBugFixedJevCheck', () => {
       expect(b75.state).toContain('## [0.1.24]');
       expect(b75.state).toContain('`B75` stays open.');
     } finally { await cleanup(dir); }
+  });
+
+  it('releasedSectionSpans gives each released section naming the id, heading verbatim, trailing blanks trimmed', () => {
+    expect(releasedSectionSpans(CHANGELOG, 'B102')).toEqual([{ start: 7, end: 10, heading: '## [0.1.27] — 2026-08-18' }]);
+    expect(releasedSectionSpans(CHANGELOG, 'B200')).toEqual([]);
+    expect(releasedSectionSpans(CHANGELOG, 'B75')).toEqual([{ start: 12, end: 16, heading: '## [0.1.24] — 2026-08-09' }]);
   });
 
   it('releasedSectionsNaming caps each section', () => {

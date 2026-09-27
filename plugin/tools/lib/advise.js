@@ -167,7 +167,7 @@ const TRIGGER_MET_RE = /\btrigger[^.\n]{0,60}\b(?:FIRED|met|satisfied)\b/i;
  * vocabulary, and pinning one bought nothing this file needed.
  */
 export const BLOCKED_MEASURED = Object.freeze({ on: '2026-09-14', hits: 2 });
-export const TRIGGER_MET_MEASURED = Object.freeze({ on: '2026-09-24', hits: 2 }); // 3 → 2 at M6.E8 SHIP: its own row was struck
+export const TRIGGER_MET_MEASURED = Object.freeze({ on: '2026-09-27', hits: 3 }); // 3 → 2 at M6.E8 SHIP: its own row was struck. 2 → 3 at M6.E3 VERIFY: the in-flight M6.E3 row (own line `Trigger: met`, genuine) had been hidden as DISCHARGED because its heading read "EXECUTE done" (B127)
 
 /**
  * The one helper that emits a citation, so the marker has a single home.

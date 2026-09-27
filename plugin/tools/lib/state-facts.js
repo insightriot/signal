@@ -76,8 +76,9 @@ async function readVersion(baseDir) {
       continue;
     }
     if (typeof version !== 'string' || !version.trim()) continue;
-    const line = lineOf(raw.split(/\r?\n/), /"version"\s*:/) ?? 1;
-    return { version, source: rel, line };
+    const rawLines = raw.split(/\r?\n/);
+    const line = lineOf(rawLines, /"version"\s*:/) ?? 1;
+    return { version, source: rel, line, text: rawLines[line - 1] ?? '' };
   }
   return null;
 }
@@ -87,7 +88,7 @@ async function readVersion(baseDir) {
  * @param {object} state `readState` output
  * @returns {Promise<{
  *   facts: Record<string, string>,
- *   sources: Record<string, {source: string, line: number}>,
+ *   sources: Record<string, {source: string, line: number, text: string}>,
  *   unavailable: string[],
  * }>}
  */
@@ -103,7 +104,12 @@ export async function buildFactList(baseDir, state) {
     // Facts still come from `state`; sources fall back to line 1.
   }
   const fmEnd = Math.max(frontmatterEnd(lines), 0);
-  const fm = (key) => ({ source: '.planning/STATE.md frontmatter', line: lineOf(lines, new RegExp(`^${key}:`), 0, fmEnd) ?? 1 });
+  // `text` is the source line VERBATIM — what a receipt quotes (AC1.2). The fact
+  // itself may be rendered differently for Jev; the receipt never is.
+  const fm = (key) => {
+    const line = lineOf(lines, new RegExp(`^${key}:`), 0, fmEnd) ?? 1;
+    return { source: '.planning/STATE.md frontmatter', line, text: lines[line - 1] ?? `${key}:` };
+  };
 
   const phase = typeof state?.phase === 'string' && state.phase ? state.phase : null;
   const epic = typeof state?.current_epic === 'string' && state.current_epic ? state.current_epic : null;
@@ -140,10 +146,15 @@ export async function buildFactList(baseDir, state) {
   const v = await readVersion(baseDir);
   if (v) {
     facts.version = v.version;
-    sources.version = { source: v.source, line: v.line };
+    sources.version = { source: v.source, line: v.line, text: v.text };
   } else {
     unavailable.push('version (no plugin.json or package.json)');
   }
+
+  // AC9.1 names `blockers`; they are left out for the reason in the header (they
+  // carry dates), and the published measurement (t1.7) was made without them.
+  // Said out loud, because a dropped fact nobody names reads as a checked one.
+  unavailable.push('blockers (left out on purpose: they carry dates, which Jev reads as text)');
 
   return { facts, sources, unavailable };
 }
