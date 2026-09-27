@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { askChoice, JEV_DEFAULT_MODEL, JEV_REASON, parseChoiceAnswer, resolveJevKey } from '../plugin/tools/lib/jev.js';
+import { askChoice, JEV_DEFAULT_MODEL, JEV_REASON, parseChoiceAnswer, resolveJevKey, confidenceWords } from '../plugin/tools/lib/jev.js';
 
 /**
  * M6.E3 t1.3 — the Jev client. Every test injects `fetchFn`; none touches the
@@ -185,4 +185,13 @@ describe('resolveJevKey — the environment, then the project .env (D-M6E3-14)',
     withEnvFile('TYPESAFE_API_KEY=apikey_abc\n', (dir) => {
       expect(resolveJevKey(dir, { env: { SIGNAL_JEV_IGNORE_DOTENV: '1' } })).toBe('');
     }));
+});
+
+describe('confidenceWords — "unclear" is said, not left in a number (display only)', () => {
+  it.each([
+    [0.99, 'likely'], [0.8, 'likely'], [0.79, 'possibly'], [0.5, 'possibly'],
+    [0.49, 'unclear — worth a look'], [0.14, 'unclear — worth a look'], [undefined, 'unclear'],
+  ])('%s → %s', (c, want) => {
+    expect(confidenceWords(c)).toBe(want);
+  });
 });

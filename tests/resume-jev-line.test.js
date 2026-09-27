@@ -31,7 +31,7 @@ describe('formatJevResumeLine', () => {
     expect(line.split('\n')).toHaveLength(1);
     expect(line).toMatch(/^⚠ Jev: 2 STATE\.md paragraphs may contradict the facts \(checked 18 of 20; 2 not checked \(budget\)\)/);
     expect(line).toContain('STATE.md:71');
-    expect(line).toContain('0.99');
+    expect(line).toContain('(likely, 0.99)');
     expect(line).toMatch(/can vary/);
   });
 

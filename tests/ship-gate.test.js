@@ -141,7 +141,7 @@ describe('Jev findings in the SHIP report (t2.2 — AC10.2, AC9.4)', () => {
       expect(r.status).toBe(GATE.PASS);
       const text = formatShipContentGate(r);
       expect(text).toMatch(/Advice — does not block \(1\)/);
-      expect(text).toContain('judged by jev-1.13.0, confidence 0.99');
+      expect(text).toContain('judged by jev-1.13.0: likely, confidence 0.99');
       expect(text).toContain('.planning/BUGS.md:40');
       expect(text).toMatch(/state-narrative-jev: checked 18 of 20; 2 not checked \(budget\) — jev-1.13.0; results can vary/);
     }));

@@ -42,6 +42,19 @@ export const JEV_REASON = Object.freeze({
 
 const QUESTION_ID = 'q';
 
+/**
+ * Jev's confidence in words, so "unclear" is said rather than left in a number
+ * (Brett, 2026-09-26). DISPLAY ONLY — nothing is hidden or blocked by these
+ * bands; they follow TypeSafe's own advice (act on high, hand low to a person).
+ * The question itself is unchanged, so the published measurement still applies.
+ */
+export function confidenceWords(confidence) {
+  if (typeof confidence !== 'number' || !Number.isFinite(confidence)) return 'unclear';
+  if (confidence >= 0.8) return 'likely';
+  if (confidence >= 0.5) return 'possibly';
+  return 'unclear — worth a look';
+}
+
 const DOTENV_KEY_RE = /^\s*(?:export\s+)?TYPESAFE_API_KEY\s*=\s*(.*?)\s*$/;
 
 /**

@@ -21,6 +21,7 @@ import { runDriftChecks, STATUS } from './state-drift.js';
 import { ALL_DRIFT_CHECKS } from './published-facts.js';
 import { refusableFindings, renderReceipt } from './receipt.js';
 import { modelJudgedChecks } from './state-narrative-jev.js';
+import { confidenceWords } from './jev.js';
 
 // SHIP is where the expensive path runs (NFR3): 30 s for the Jev check, against
 // /sig:resume's 8 s. Its findings are advice here too — `judgedBy` keeps every
@@ -110,7 +111,7 @@ export function formatShipContentGate(result) {
   if (result.advice.length) {
     lines.push('', `Advice — does not block (${result.advice.length}):`);
     for (const f of result.advice) {
-      const who = f.judgedBy ? ` (judged by ${f.judgedBy.model}, confidence ${f.judgedBy.confidence})` : '';
+      const who = f.judgedBy ? ` (judged by ${f.judgedBy.model}: ${confidenceWords(f.judgedBy.confidence)}, confidence ${f.judgedBy.confidence})` : '';
       lines.push(`  - [${f.check}] ${f.message}${who}`);
       if (f.receipt) lines.push(renderReceipt(f.receipt));
     }

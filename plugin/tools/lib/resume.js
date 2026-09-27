@@ -23,6 +23,7 @@ import {
   PHASE_LOG_MARKER,
 } from './state.js';
 import { formatTierLine } from './status.js';
+import { confidenceWords } from './jev.js';
 
 const PHASES = ['CALIBRATE', 'DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'SHIP'];
 
@@ -311,7 +312,7 @@ export function formatJevResumeLine(report) {
     if (excerpt.length > JEV_EXCERPT_MAX) excerpt = `${excerpt.slice(0, JEV_EXCERPT_MAX - 1)}…`;
     return (
       `⚠ Jev: ${n} STATE.md paragraph${n === 1 ? '' : 's'} may contradict the facts (${covText}${skippedText}) — ` +
-      `highest: STATE.md:${top.receipt?.claim?.line} "${excerpt}" (${top.judgedBy?.confidence}). A judgment; results can vary.`
+      `highest: STATE.md:${top.receipt?.claim?.line} "${excerpt}" (${confidenceWords(top.judgedBy?.confidence)}, ${top.judgedBy?.confidence}). A judgment; results can vary.`
     );
   }
 
