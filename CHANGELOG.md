@@ -6,6 +6,43 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Jev checks two of Signal's own records, as advice with receipts** (`M6.E3`). This is optional and off unless `TYPESAFE_API_KEY` is set. It is Signal's first call to a third-party model from shipped code; it is listed in README → *Privacy & telemetry* and in `tools/audit-network-calls.js`.
+  - **`STATE.md` narrative vs. facts.** For each paragraph, Jev is asked whether it contradicts the facts code derives: phase, current Epic, in-flight work, version. Dates and counts are never sent (Jev reads them as text).
+    - `/sig:resume` shows **one advisory line**, within an 8 s budget.
+    - SHIP lists each finding with its receipt: the paragraph, and the source line it contradicts, **quoted verbatim**.
+    - **Measured on labels a person confirmed:** 4 of 4 contradictions found, 0 of 26 false alarms (`jev-1.13.0`, 2026-09-27). Four positives in one file, not a general rate. The output is stored in `analysis/jev-spike/runs/`.
+  - **A `confirmed` `BUGS.md` row that a release says it fixed.** This runs at SHIP only. `t3.2` measured every token rule for the job and none was precise enough (subject position: 7 flags, 1 real; fix commits: 0 real). So the judgment is Jev's, and **the receipt cites the release section Jev read** (its heading and line range) rather than a sentence.
+    - Measured: 1 flag, 1 real (`B102`), `B75` not flagged. One positive, not a rate.
+  - **Nothing a model judges can refuse anything.** A check declares `judged: 'model'` on `defineCheck`, and `runDriftChecks` marks its whole result. `refusableFindings` skips it even when a finding forgets `judgedBy`, and a structural test holds every module that calls Jev to the declaration.
+  - **The key.** It comes from the environment, or from the project's `.env` **only when git confirms that file is ignored**. A committed `.env` is the repository author's key, not yours. The check asks by the file's real on-disk name (a committed `.ENV` on macOS got past a check for `.env`) and fails closed on any other git answer. A copy with no git at all, such as a ZIP download, is not protected; the README says so.
+- **The SHIP content gate** (`ship.md` §6.7). SHIP can now refuse on what a document **says**. It refuses only on a finding with a receipt that code built and no model judged, and `--accept-stale <check-id>` is recorded in the SHIP artifact. ⚠ **Nothing can feed it yet:** no code rule is precise enough, and `tests/content-gate-live.test.js` says so instead of claiming CI refuses.
+
+### Changed
+
+- **`/sig:docs-sweep` says in every project that neither Jev check runs there**, including one with no `.planning/`. It also says that its own `BUGS.md` rule (`bug-status-vs-changelog`) is word-matching with **no receipt**.
+- **`tools/audit-network-calls.js` finds more, and says what exit 0 does not prove** (`B125`).
+  - It now scans shipped code under `plugin/`, and `.mjs` / `.cjs` / `.sh` files.
+  - It catches the injected-`fetch` idiom, `https.get`, `node:http` / `net` / `tls`, `WebSocket`, `undici`, shell `curl`, and git remote calls.
+  - Each known call carries an exact count, so a new one cannot hide behind an old entry.
+  - It is still a text search, and the README says so.
+
+### Security
+
+- **Files sent to Jev are read only inside the project.** A `STATE.md`, `BUGS.md`, `CHANGELOG.md` or version manifest that is a **symlink leaving the project** is not read (`readFileConfined`). Before REVIEW, a symlinked `STATE.md` made the check send the target file's paragraphs.
+- The server's `model` string is validated. Redirects are refused. Terminal-control, bidi and zero-width characters are stripped from every printed finding.
+- **Known limit, filed:** a repository whose README tells you to `cp .env.example .env`, where that template holds a real key, supplies the author's key once you copy it.
+
+### Filed while building it
+
+- `B126`: the requirement-coverage tool counts an id as verified when the report merely mentions it, so a criterion marked FAIL read as covered.
+- `B127`: a `BACKLOG.md` heading saying a phase is *done* hid a live row from `/sig:advise`, and the in-flight `M6.E3` was invisible to it.
+
+---
+
 ## [0.1.41] — 2026-09-25 — the advisor says what it actually consulted
 
 ### Changed
