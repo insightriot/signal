@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.42] — 2026-09-27 — Jev checks the records — advice with receipts, never a refusal
 
 ### Added
 
