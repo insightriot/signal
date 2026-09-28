@@ -32,6 +32,17 @@ last_updated: 2026-09-27T22:48:51.608Z
 
 ### ▶ WHERE THE WORK IS — read this first (2026-09-28)
 
+**Next: the status redesign — direction agreed with Brett, not yet DISCUSSed.** Read
+[`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](../analysis/WORK-ITEM-SYSTEM-DESIGN.md) first (and open
+[`analysis/work-items/work-items-architecture.html`](../analysis/work-items/work-items-architecture.html)),
+then `D-BR0928-1` … `D-BR0928-7` in `DECISIONS.md`. In one line: every work item gets an immutable ID
+at intake (`KEY-412-BUG-P`: stable front, live suffix), moves through inbox → backlog → Epic/sprint →
+done → archive as one file per item, and "done" is one recorded close event; a tracker (GitHub Issues)
+is an opt-in replacement, never a second copy. **Next step: run `/sig:discuss` for the redesign Epic**
+(Epic ID to be assigned there), starting from the design doc's §7 open questions.
+
+### ▶ PREVIOUS — `M6.E3` SHIPPED
+
 **`M6.E3` — SHIPPED as `v0.1.42`: PR #260 merged 2026-09-28 with `--merge` (merge commit `6cc50a0`),
 tagged and released.** The Jev checks run as advice with receipts: the `STATE.md` check at
 `/sig:resume` and SHIP, and the bug-fixed check at SHIP. A model finding cannot refuse, by declaration. Retro:
@@ -73,7 +84,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-None — `M6.E3` merged and released as `v0.1.42` (PR #260). Next Epic: the status redesign (`D-M6E3-16`), awaiting Brett's first call.
+None in flight. Next: `/sig:discuss` for the status redesign — direction agreed 2026-09-28 (`analysis/WORK-ITEM-SYSTEM-DESIGN.md`).
 
 ## Blockers
 

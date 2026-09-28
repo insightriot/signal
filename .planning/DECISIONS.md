@@ -3452,3 +3452,40 @@ and says in its docs that it has no receipt; receipts render at SHIP. Building r
 the sweep was rejected, because no sweep check emits a receipt, so it would be plumbing with nothing
 to show. The same write-back fixes REQUIREMENTS § Scope and `AC7.4`/`AC10.3`, which still read
 "`STATE.md` only" / "the Jev check" after `D-M6E3-15` added a second Jev check.
+
+## 2026-09-28 — Work items: one system of record, direction agreed (D-BR0928-1 … D-BR0928-7)
+
+Conversation with Brett after `M6.E3` shipped, opening the status redesign (`D-M6E3-16`). Full write-up
+with evidence and the architecture diagram: [`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](../analysis/WORK-ITEM-SYSTEM-DESIGN.md).
+**Direction, not yet DISCUSSed** — the next step is `/sig:discuss` for the redesign Epic.
+
+### D-BR0928-1 — Jev and an issue tracker are optional add-ons, a category of their own
+Brett: *"I wonder aloud if we start framing these as optional enhancements that can be enabled by the
+user."* Signal's core must be best-practice without them; add-ons are turned on per project.
+
+### D-BR0928-2 — Things MOVE through the system; they do not stay put collecting metadata
+Brett felt strongly: otherwise *"hundreds of thousands of 'things' all over creation"*, and Epics
+pointing at twelve documents. Items move from intake → triage → Epic/sprint → execution → closed →
+archived. One file per item; a move is a `git mv`; one command moves it so folder and metadata agree.
+
+### D-BR0928-3 — A sprint is a SCOPE box, not a time box
+A themed swath of focused work (like work with like), done when its items are done. A bug squash is
+a sprint themed "bugs".
+
+### D-BR0928-4 — Epic membership is optional; an ID and a close event are not
+A one-line fix-lane change may close on its own, but still has an ID and a recorded close.
+
+### D-BR0928-5 — Label `KEY-412-BUG-P`: stable front, live suffix
+Brett's shape. The front is identity (file name, links, commits) and never changes; the suffix (type
++ status) is a live label. Tools look up by the front. Status is not part of identity, so it cannot
+break links. Type: `BUG`/`FEAT`/`CHORE`/`Q` (`NEW` before triage); status: `N`/`T`/`Q`/`P`/`C`;
+close reasons `fixed`/`stale`/`wontdo`/`dup`/`rejected`, always with who + when.
+
+### D-BR0928-6 — `KEY` is the project's own key, not Signal's
+Chosen once at setup (Signal = `SIG`), like a Jira project key. A source's own IDs (audit numbers)
+are recorded as `source_ref`, never used as the item ID — the corpus survey found audit IDs colliding.
+
+### D-BR0928-7 — One system of record per project: the repo store by default, a tracker as an opt-in replacement
+Never both. A tracker (GitHub Issues first) replaces the repo store for that project; it is never a
+mirror, because two places holding status is the measured failure. Signal owns the rules (lifecycle,
+close, Epics, sprints) either way; the tracker changes only where items are stored.

@@ -1,0 +1,326 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Signal work items \u2014 one system of record",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "lifecycle",
+        "label": "An item's life",
+        "focus": [
+          "channels",
+          "intake",
+          "triage",
+          "groups",
+          "execute",
+          "close",
+          "done"
+        ],
+        "note": "Every thing enters once, gets an ID, and moves stage by stage to a recorded close."
+      },
+      {
+        "id": "record",
+        "label": "One record, many views",
+        "focus": [
+          "intake",
+          "store",
+          "views",
+          "close"
+        ],
+        "note": "Items are written once; backlog, inbox and milestone lists are generated, never hand-kept."
+      },
+      {
+        "id": "addons",
+        "label": "Optional add-ons",
+        "focus": [
+          "jev",
+          "triage",
+          "tracker",
+          "store"
+        ],
+        "note": "Off by default. A tracker replaces the repo store for a project; it is never a second copy."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "channels",
+      "type": "external",
+      "label": "Ways in",
+      "sublabel": "many channels",
+      "pos": [
+        40,
+        220
+      ],
+      "size": [
+        130,
+        72
+      ]
+    },
+    {
+      "id": "intake",
+      "type": "backend",
+      "label": "Intake",
+      "sublabel": "gives ID + source",
+      "pos": [
+        200,
+        220
+      ],
+      "size": [
+        130,
+        72
+      ],
+      "tag": "ID never changes"
+    },
+    {
+      "id": "triage",
+      "type": "backend",
+      "label": "Triage",
+      "sublabel": "type \u00b7 dedupe \u00b7 rank",
+      "pos": [
+        360,
+        220
+      ],
+      "size": [
+        130,
+        72
+      ]
+    },
+    {
+      "id": "groups",
+      "type": "backend",
+      "label": "Epics & sprints",
+      "sublabel": "themed work",
+      "pos": [
+        520,
+        220
+      ],
+      "size": [
+        130,
+        72
+      ]
+    },
+    {
+      "id": "execute",
+      "type": "backend",
+      "label": "Execution",
+      "sublabel": "drive \u00b7 loop \u00b7 phases",
+      "pos": [
+        680,
+        220
+      ],
+      "size": [
+        130,
+        72
+      ]
+    },
+    {
+      "id": "close",
+      "type": "security",
+      "label": "Close event",
+      "sublabel": "reason + proof",
+      "pos": [
+        840,
+        220
+      ],
+      "size": [
+        130,
+        72
+      ],
+      "tag": "Fixes: SIG-412"
+    },
+    {
+      "id": "done",
+      "type": "database",
+      "label": "Done \u2192 archive",
+      "sublabel": "by month",
+      "pos": [
+        1000,
+        220
+      ],
+      "size": [
+        130,
+        72
+      ]
+    },
+    {
+      "id": "jev",
+      "type": "external",
+      "label": "Jev judge",
+      "sublabel": "optional add-on",
+      "pos": [
+        360,
+        60
+      ],
+      "size": [
+        130,
+        64
+      ],
+      "tag": "key = on"
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "Item store (default)",
+      "sublabel": "file per item \u00b7 folder = stage",
+      "pos": [
+        440,
+        390
+      ],
+      "size": [
+        210,
+        72
+      ],
+      "tag": "repo, offline"
+    },
+    {
+      "id": "tracker",
+      "type": "cloud",
+      "label": "GitHub Issues",
+      "sublabel": "optional add-on",
+      "pos": [
+        20,
+        390
+      ],
+      "size": [
+        150,
+        72
+      ],
+      "tag": "replaces store"
+    },
+    {
+      "id": "views",
+      "type": "frontend",
+      "label": "Generated views",
+      "sublabel": "backlog \u00b7 inbox \u00b7 advise",
+      "pos": [
+        790,
+        390
+      ],
+      "size": [
+        190,
+        72
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Signal core \u2014 always on",
+      "wraps": [
+        "intake",
+        "triage",
+        "groups",
+        "execute",
+        "close",
+        "done",
+        "store",
+        "views"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "enter",
+      "from": "channels",
+      "to": "intake",
+      "variant": "emphasis"
+    },
+    {
+      "id": "to-triage",
+      "from": "intake",
+      "to": "triage",
+      "label": "N",
+      "variant": "emphasis"
+    },
+    {
+      "id": "to-groups",
+      "from": "triage",
+      "to": "groups",
+      "label": "T",
+      "variant": "emphasis"
+    },
+    {
+      "id": "to-execute",
+      "from": "groups",
+      "to": "execute",
+      "label": "Q",
+      "variant": "emphasis"
+    },
+    {
+      "id": "to-close",
+      "from": "execute",
+      "to": "close",
+      "label": "P",
+      "variant": "emphasis"
+    },
+    {
+      "id": "to-done",
+      "from": "close",
+      "to": "done",
+      "label": "C",
+      "variant": "emphasis"
+    },
+    {
+      "id": "judge",
+      "from": "jev",
+      "to": "triage",
+      "label": "advises",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "write",
+      "from": "intake",
+      "to": "store",
+      "label": "one write per move",
+      "fromSide": "bottom",
+      "toSide": "left"
+    },
+    {
+      "id": "render",
+      "from": "store",
+      "to": "views",
+      "label": "generated"
+    },
+    {
+      "id": "or-tracker",
+      "from": "tracker",
+      "to": "store",
+      "label": "or",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Label: SIG-412-BUG-P",
+      "items": [
+        "SIG = the project's own key; 412 never reused",
+        "Type: BUG \u00b7 FEAT \u00b7 CHORE \u00b7 Q (NEW until triage)",
+        "The suffix changes; the front never does"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Status and close",
+      "items": [
+        "N new \u2192 T triaged \u2192 Q queued \u2192 P in progress \u2192 C closed",
+        "Closed = fixed (with proof) \u00b7 stale \u00b7 wontdo \u00b7 dup \u00b7 rejected, plus who + when",
+        "Epic and sprint are groupings, not statuses"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Add-ons (off by default)",
+      "items": [
+        "Jev judges where code cannot",
+        "A tracker becomes the record \u2014 never a second copy"
+      ]
+    }
+  ]
+}
