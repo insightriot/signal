@@ -154,3 +154,16 @@ prose-vs-precedence comparison — **M5.E10's semantic territory**, not M5.E16's
 **Still unhomed, and now more so:** `M5.E10` shipped (v0.1.25) with the semantic half deliberately
 left out (`AC0.1`), so this item pointed at a destination that no longer exists. It travels with the
 semantic claims-audit backstop, wherever that lands.
+
+## Phase log — Epic M6.E8 (archived 2026-09-26) <!-- phase-log:archived -->
+
+- DISCUSS (2026-09-14)
+- PLAN (2026-09-14)
+- EXECUTE (2026-09-14)
+- VERIFY (2026-09-14)
+- REVIEW (2026-09-14)
+- EXECUTE (2026-09-14)
+- REVIEW (2026-09-14)
+- EXECUTE (2026-09-14)
+- REVIEW (2026-09-24)
+- SHIP (2026-09-24)

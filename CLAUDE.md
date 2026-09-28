@@ -63,13 +63,15 @@ was answered with a diagnosis about missing external users, while 42+ repositori
 **A user saying it doesn't work is a claim about the software; reproduce it before reframing it.**
 The trace that settled it took four minutes.
 
-**Active: `v0.1.41` (2026-09-25) — `M6.E8` shipped: `/sig:advise` ranks on three of the four sources
-it reads, and says which** (PR #254), plus the `/sig:resume` phase-count fix (`B124` + `B47`, PR #255).
-**Next: `M6.E3` is un-parked** (`D-BR0925-5`) and rebuilt around TypeSafe's Jev as an optional,
-bring-your-own-key judge (`D-BR0925-1`): measured on this repository's own records it found **4 of 4**
-stale `STATE.md` claims where the shipped check found **0**
-([`analysis/TYPESAFE-JEV-ASSESSMENT.md`](analysis/TYPESAFE-JEV-ASSESSMENT.md) §6). The first
-Jev-backed check ships with a major version bump, per the README's network-call rule (`D-BR0925-4`).
+**Active: `v0.1.42` (2026-09-27) — `M6.E3` shipped: Jev checks Signal's own records, as advice with
+receipts.** It checks `STATE.md` paragraphs against derived facts (at `/sig:resume` and SHIP) and
+`confirmed` bugs a release may have fixed (at SHIP). It is on only with `TYPESAFE_API_KEY`, and a
+model finding **cannot refuse, by declaration** (`judged: 'model'`). Measured live: 4 of 4, 0/26
+false alarms. ⚠ **Three fresh-context REVIEW passes; pass 2 found a High in pass 1's own fixes**
+(a committed `.ENV` passing a `.env` check on macOS). Fix-on-fix needs its own fresh read. Retro:
+[`.planning/M6.E3-RETROSPECTIVE.md`](.planning/M6.E3-RETROSPECTIVE.md). **Next: the status
+redesign** (`D-M6E3-16`): record "done" when it happens instead of inferring it. First question: a
+marker in the files, or GitHub Issues.
 `B118` — `/sig:drive` and `/sig:advise` read one branch's corpus — is still unfixed.
 
 ✅ **`B117` — the Epic lane kept getting squashed. CLOSED 2026-09-08 by the ruleset** (see *How changes reach `main`* below: `main` now permits `merge` only, so the sticky button cannot arm anything). The history is kept because the *cause* is the lesson. PR #239 was

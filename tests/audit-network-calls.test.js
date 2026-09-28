@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, accessSync, constants } from 'node:fs';
+import { existsSync, accessSync, constants, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,9 +24,40 @@ describe('tools/audit-network-calls.js — contract', () => {
     expect(() => accessSync(SCRIPT, constants.X_OK)).not.toThrow();
   });
 
-  it('exits 0 against the current repo (no network calls in source dirs)', () => {
+  it('exits 0 against the current repo BECAUSE every call it finds is a known one (B125)', () => {
     const result = spawnSync('node', [SCRIPT], { encoding: 'utf-8' });
-    expect(result.status).toBe(0);
+    expect(result.status, result.stdout + result.stderr).toBe(0);
+    // Exit 0 used to mean "found nothing", which it did — by never looking under
+    // plugin/. Now it must name what it found, so a pass is evidence of a scan.
+    expect(result.stdout).toMatch(/plugin\/tools\/lib\/doctor\.js.*fetchLatestTag/);
+    expect(result.stdout).toMatch(/plugin\/tools\/lib\/state\.js.*git fetch/);
+    expect(result.stdout).toMatch(/plugin\/tools\/lib\/jev\.js.*askChoice/);
+  });
+
+  it('scans shipped code under plugin/ (B125 — it never did)', () => {
+    const src = readFileSync(SCRIPT, 'utf-8');
+    expect(src).toMatch(/DEFAULT_INCLUDE\s*=\s*\[[^\]]*'plugin'/);
+  });
+
+  it('flags the injected-fetch idiom when it is not a known call (B125)', () => {
+    const result = spawnSync('node', [SCRIPT, SEEDED_FIXTURE], { encoding: 'utf-8' });
+    expect(result.status).toBe(1);
+    expect(result.stdout).toMatch(/with-injected-fetch\.js/);
+  });
+
+  // REVIEW (security-auditor, code-reviewer): each of these exited 0 before —
+  // and .mjs / .cjs / .sh files were not scanned at all.
+  it('catches the shapes it used to miss, in .mjs / .cjs / .sh, and skips a comment mentioning curl', () => {
+    const result = spawnSync('node', [SCRIPT, join(__dirname, 'fixtures/audit-network-calls-shapes')], { encoding: 'utf-8' });
+    expect(result.status).toBe(1);
+    for (const line of [2, 3, 4, 5, 6, 7]) expect(result.stdout).toContain(`shapes.mjs:${line}\n`);
+    expect(result.stdout).not.toContain('shapes.mjs:1\n');
+    expect(result.stdout).toContain('hook.sh:3\n');
+    expect(result.stdout).not.toContain('hook.sh:2\n');
+    // Unquoted git in a shell script (REVIEW pass 2) — and not in its comment.
+    expect(result.stdout).toContain('hook.sh:5\n');
+    expect(result.stdout).not.toContain('hook.sh:4\n');
+    expect(result.stdout).toContain('push.cjs:1\n');
   });
 
   it('exits 1 + reports the violation path when given a directory containing fetch()', () => {

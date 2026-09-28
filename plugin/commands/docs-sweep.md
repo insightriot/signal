@@ -63,6 +63,8 @@ check goes quiet, narrow it and it cries wolf. ⚠ **A truncated or unreadable f
 `(scope)` finding**, because a clean orphan list computed from a partial read is exactly the shape of
 a false all-clear (`B39`).
 
+It never runs either **Jev check** (`M6.E3`) — the `STATE.md` check or the `BUGS.md` check (a `confirmed` row a release may have fixed): both call TypeSafe's model, and this command is offline. The report says so in a *Model-judged checks* section; the `STATE.md` check runs at `/sig:resume` and at SHIP, the `BUGS.md` check at SHIP only, when `TYPESAFE_API_KEY` is set. So the `BUGS.md` finding this command does show — `bug-status-vs-changelog` — is a word-matching rule with **no receipt**: it cannot say which line proves the bug was fixed, only that a release headline names it.
+
 It is **read-only** (AC1.5): the index-freshness check composes the expected index and diffs it, never calling the atomic-writing Core; every other check only reads. It is offline and deterministic — two runs on unchanged input are byte-identical.
 
 ### 3. Render + report

@@ -1,0 +1,204 @@
+// tools/lib/state-narrative-jev.js — M6.E3 t1.5: does a STATE.md paragraph
+// contradict the project's facts? Judged by TypeSafe's Jev.
+//
+// The class this Epic was chartered for: STATE.md's narrative went stale for
+// days while its frontmatter was right, and the shipped token check
+// (`narrative-phase-contradicts-frontmatter`) returned clean — on the spike's
+// measured file it found 0 of the 4 contradictions; Jev found all 4
+// (analysis/TYPESAFE-JEV-ASSESSMENT.md §6, set 3).
+//
+// How it works, and what each part is for:
+//
+//   - Code splits the body into paragraphs (with FILE lines) and builds a
+//     closed list of text facts (state-facts.js). Jev never searches.
+//   - One pick-one question per paragraph — supports / contradicts /
+//     says_nothing — asked with the spike's wording VERBATIM, so the shipped
+//     check is comparable with what was measured. One paragraph per request:
+//     Jev's `state` is shared by every question in a request, and the spike
+//     measured one paragraph per request (RESEARCH Finding 1).
+//   - A "contradicts" becomes a finding with a RECEIPT — the paragraph, and the
+//     fact it most plausibly contradicts — plus `judgedBy`. The receipt is what
+//     makes the advice checkable in seconds; `judgedBy` is what keeps it from
+//     ever refusing anything (`D-M6E3-8`, `refusableFindings`).
+//   - Bounded (NFR6): a paragraph cap, bounded concurrency, a per-request
+//     timeout and a total budget. Whatever was not asked is reported as
+//     unchecked with its reason — "checked 12 of 20" must never read as clean.
+//
+// NOT in ALL_DRIFT_CHECKS: that registry is what /sig:docs-sweep runs, and
+// docs-sweep makes no network call (`D-M6E3-9`). Callers that may reach the
+// network pass MODEL_JUDGED_CHECKS explicitly.
+
+import { readFileConfined } from './path-confine.js';
+
+import { defineCheck, HEAL, APPLICABILITY } from './state-drift.js';
+import { makeReceipt } from './receipt.js';
+import { splitParagraphs, buildFactList } from './state-facts.js';
+import { askChoice, resolveJevKey, noJevKeyReason, JEV_DEFAULT_TIMEOUT_MS } from './jev.js';
+
+export const CHECK_ID = 'state-narrative-jev';
+
+// Verbatim from analysis/jev-spike/labels-and-results.json (set: narrative).
+// A test pins it; change it and the published measurement no longer applies.
+export const NARRATIVE_QUESTION = Object.freeze({
+  type: 'choice',
+  instructions:
+    "How does this paragraph's claim about the project's CURRENT state (what is in flight, what phase, what version) relate to the facts? Paragraphs that describe past events or quote old wording as history make no claim about the current state.",
+  criteria: {
+    supports: 'The paragraph asserts the current state and agrees with the facts.',
+    contradicts: 'The paragraph asserts the current state and disagrees with the facts.',
+    says_nothing: 'The paragraph makes no claim about the current state (history, reasoning, quotes of old wording, pointers).',
+  },
+});
+
+export const JEV_CHECK_DEFAULTS = Object.freeze({
+  maxParagraphs: 60,
+  concurrency: 8,
+  requestTimeoutMs: JEV_DEFAULT_TIMEOUT_MS,
+  budgetMs: 8000,
+});
+
+const HEADING_ONLY = /^#{1,6}\s[^\n]*$/;
+
+// Which fact a contradicting paragraph is most plausibly about. Jev answers
+// "contradicts" without saying which fact; the receipt needs one side of
+// evidence, so pick by the paragraph's own words, most specific first.
+const FACT_CUES = [
+  ['version', /\bv?\d+\.\d+\.\d+\b|\bversion\b|plugin\.json/i],
+  ['phase', /\bphase\b/i],
+  ['in_flight', /in[- ]flight|\bparked\b|being built|nothing is/i],
+  ['current_epic', /\bM\d+(?:\.\d+)?\.E\d+\b/],
+];
+
+// A fact whose value the paragraph already states is one it AGREES with — the
+// contradiction is elsewhere. Pairing with it would hand the reader a receipt
+// whose two sides match, and they would dismiss a true positive (REVIEW: "v0.2.0
+// is in flight at VERIFY" paired with `"version": "0.2.0"`).
+// Whole-token match: `0.1.4` must not agree with `0.1.40`, nor `M6.E3` with `M6.E30`.
+const esc = (v) => String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// (A version may be written with its `v`: "v0.1.40".)
+const agrees = (text, value) => value !== undefined && new RegExp(`(^|[^\\w.]|\\bv)${esc(value)}(?![\\w]|\\.\\d)`).test(String(text));
+
+function evidenceFor(text, facts, sources) {
+  // `in_flight` agrees only if the paragraph states BOTH its Epic and its phase:
+  // naming the Epic alone ("M6.E3 is parked") is exactly what it can contradict.
+  const inFlightAgrees = () => agrees(text, facts.phase) && (facts.current_epic === undefined || agrees(text, facts.current_epic));
+  const usable = (k) => facts[k] !== undefined && !(k === 'in_flight' ? inFlightAgrees() : agrees(text, facts[k]));
+  const key =
+    FACT_CUES.find(([k, re]) => usable(k) && re.test(text))?.[0] ??
+    ['in_flight', 'phase', 'current_epic'].find(usable) ??
+    FACT_CUES.find(([k, re]) => facts[k] !== undefined && re.test(text))?.[0] ??
+    ['in_flight', 'phase', 'current_epic'].find((k) => facts[k] !== undefined);
+  if (!key) return null;
+  const label = key === 'in_flight' ? 'in flight' : key;
+  // The receipt quotes the source line VERBATIM (AC1.2); the fact as Jev saw it
+  // goes in the message. A composed excerpt cited at a real line reads as a
+  // quotation of that line and is not one — found at VERIFY.
+  return {
+    fact: `${label}: ${facts[key]}`,
+    evidence: { source: sources[key].source, line: sources[key].line, excerpt: sources[key].text },
+  };
+}
+
+/**
+ * Build the check. Every dependency is injectable so tests use recorded answers
+ * and a fake clock; the defaults are the real client and the real clock.
+ */
+export function makeStateNarrativeJevCheck(opts = {}) {
+  const cfg = { ...JEV_CHECK_DEFAULTS, ...opts };
+  const ask = opts.ask ?? askChoice;
+  const now = opts.now ?? Date.now;
+  const keyNow = (ctx) => opts.key ?? resolveJevKey(ctx.baseDir);
+
+  return defineCheck({
+    id: CHECK_ID,
+    healCategory: HEAL.NEEDS_A_PERSON,
+    judged: 'model',
+    describe:
+      'Asks TypeSafe\'s Jev whether each STATE.md paragraph contradicts the facts code derives (phase, current Epic, in-flight work, version). Advisory — never refuses. Results can vary between runs. Measured 2026-09-26 (jev-1.13.0) on the file it was built from: 4 of 4 known contradictions found, 1 false alarm in 26 (at confidence 0.14) — four positives in one file, not a general rate.',
+    applicability: (ctx) =>
+      keyNow(ctx).trim()
+        ? APPLICABILITY.EVAL
+        : { status: APPLICABILITY.BLIND, reason: noJevKeyReason(ctx.baseDir) },
+
+    async run(ctx) {
+      const raw = readFileConfined(ctx.baseDir, '.planning/STATE.md');
+      const key = keyNow(ctx); // once per run, not once per paragraph
+      const { facts, sources, unavailable } = await buildFactList(ctx.baseDir, ctx.state);
+      const candidates = splitParagraphs(raw).filter((p) => !HEADING_ONLY.test(p.text));
+      const asked = candidates.slice(0, cfg.maxParagraphs);
+      const unchecked = candidates.slice(cfg.maxParagraphs).map((p) => ({ line: p.line, reason: 'over-cap' }));
+
+      const deadline = now() + cfg.budgetMs;
+      const answers = new Array(asked.length).fill(null);
+      let next = 0;
+      async function worker() {
+        for (;;) {
+          const i = next++;
+          if (i >= asked.length) return;
+          const remaining = deadline - now();
+          if (remaining <= 0) {
+            unchecked.push({ line: asked[i].line, reason: 'budget' });
+            continue;
+          }
+          const r = await ask({
+            state: { paragraph: asked[i].text, facts },
+            question: NARRATIVE_QUESTION,
+            key,
+            timeoutMs: Math.min(cfg.requestTimeoutMs, remaining),
+          });
+          if (r.ok) answers[i] = r;
+          else unchecked.push({ line: asked[i].line, reason: r.reason });
+        }
+      }
+      await Promise.all(Array.from({ length: Math.max(1, Math.min(cfg.concurrency, asked.length)) }, worker));
+
+      const answered = answers.filter(Boolean).length;
+      const failures = unchecked.filter((u) => u.reason !== 'over-cap' && u.reason !== 'budget');
+      if (asked.length > 0 && answered === 0 && failures.length > 0) {
+        throw new Error(`the Jev check did not run — ${failures[0].reason}`);
+      }
+
+      const model = answers.find(Boolean)?.model ?? null;
+      const findings = [];
+      answers.forEach((a, i) => {
+        if (!a || a.choice !== 'contradicts') return;
+        const paired = evidenceFor(asked[i].text, facts, sources);
+        if (!paired) {
+          // No fact to pair it with (a STATE.md with no phase at all): a
+          // contradiction nobody can check is not a finding — but it must not
+          // vanish either, or "checked" over-counts what was actually judged.
+          unchecked.push({ line: asked[i].line, reason: 'no-evidence' });
+          return;
+        }
+        findings.push({
+          file: '.planning/STATE.md',
+          message:
+            `Jev (${a.model}, confidence ${a.confidence}) reads STATE.md:${asked[i].line} as contradicting the current facts ` +
+            `(most plausibly "${paired.fact}") — a judgment, not a proof; results can vary between runs.`,
+          receipt: makeReceipt({
+            claim: { file: '.planning/STATE.md', line: asked[i].line, excerpt: asked[i].text },
+            evidence: paired.evidence,
+          }),
+          judgedBy: { model: a.model, confidence: a.confidence },
+        });
+      });
+
+      unchecked.sort((a, b) => a.line - b.line);
+      const checked = answered - unchecked.filter((u) => u.reason === 'no-evidence').length;
+      return {
+        findings,
+        coverage: { checked, total: candidates.length, unchecked, model, factsUnavailable: unavailable },
+      };
+    },
+  });
+}
+
+export const checkStateNarrativeJev = makeStateNarrativeJevCheck();
+
+/** Checks that call a model. Passed explicitly by /sig:resume and SHIP only. */
+export const MODEL_JUDGED_CHECKS = Object.freeze([checkStateNarrativeJev]);
+
+/** The same registry with per-surface bounds (resume 8 s, SHIP 30 s). */
+export function modelJudgedChecks(opts = {}) {
+  return Object.freeze([makeStateNarrativeJevCheck(opts)]);
+}

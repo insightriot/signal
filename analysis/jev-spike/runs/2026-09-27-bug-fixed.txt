@@ -1,0 +1,17 @@
+Jev bug-fixed check — measured 2026-09-27 on fc4b8b1, model jev-1.13.0
+status: findings; asked 13 of 13
+flags: 1, of which real: 1; real fixes missed: none
+
+     B100   p=0.06
+     B101   p=0.06
+HIT  B102   p=0.63
+     B33    p=0.05
+     B34    p=0.04
+     B35    p=0.04
+     B47    p=0.05
+     B56    p=0.05
+     B60    p=0.05
+     B61    p=0.05
+     B71    p=0.05
+     B75    p=0.07
+     B81    p=0.04

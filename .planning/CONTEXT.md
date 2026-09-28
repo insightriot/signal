@@ -4,7 +4,27 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-09-13) — v0.1.40 SHIPPED, M6.E8 RESUMED
+## Where things stand (2026-09-27) — M6.E3 EXECUTE COMPLETE, VERIFY NEXT
+
+**`v0.1.41` is on `main`** (PR #258). **`M6.E3` is on `feat/m6.e3-jev-claims-audit`, EXECUTE complete,
+`/sig:verify` next** — `STATE.md`'s resume pointer has the detail. Built: a SHIP gate that refuses only
+on quoted evidence (wired, not yet fed), the network audit fixed (`B125`), and TypeSafe's Jev as an
+advisory judge — `STATE.md` paragraphs at `/sig:resume` and SHIP, stale bug rows at SHIP. Key:
+`TYPESAFE_API_KEY` in `signal/.env`.
+
+**The finding that sets the next Epic:** no code rule can tell whether a hand-typed status is still
+true (`M6.E3-RESEARCH.md`), because nothing records "done" when it happens. Brett, 2026-09-27: *"revisit
+this whole architecture vs. keep applying band-aids"* (`D-M6E3-16`). Next Epic = record status at the
+source; first question is his: a marker in the files, or GitHub Issues.
+
+**`D-BR0926-1` — Signal dropped its privacy positioning.** It is Brett's scaffolding for his own
+projects (three users). A feature that sends text to a model needs one README line, not a debate or a
+version bump. No-telemetry and keys-out-of-the-repo stand; so do the eval corpus's anonymous labels,
+which are about a public repo, not about models.
+
+---
+
+## Where things stood (2026-09-13) — v0.1.40 SHIPPED, M6.E8 RESUMED
 
 **`v0.1.40` is on `main`** (PR #253, merged 2026-09-13 as a merge commit — the ruleset now allows
 nothing else). It carries `M6.E10` (`/sig:drive` can take a step: `checkpointed` had no code path
@@ -234,41 +254,11 @@ in a user-owned file. Claiming otherwise is `M6.E2`'s class.
 
 ---
 
-## Where things stand (2026-08-24)
+## Where things stood (2026-08-24) — relocated
 
-**`M6.E4` IS MERGED AND RELEASED** — PR **#200**, `--merge` per the Epic lane, branch deleted. Suite 2929 →
-**2979**. Cut as **v0.1.33** (2026-08-24, *"what nobody was reading"*) — the release also carries `B75`'s
-observer, `.planning/ENVIRONMENT.md`, DISCUSS's outcome oracle and `/sig:ship` reading PR review findings,
-none of which were M6.E4. It is the first Epic to run at a **per-unit tier**: FEATURE via `M6.E4-PROFILE.md`, not the project's FULL
-(`D-BR0823-2`). `B90`'s advisory fired at `/sig:resume` and this is the first time it changed a
-decision rather than being read past — measured 2026-08-08, 7 of 12 projects ran FULL and exactly
-**1** had ever written a per-unit profile.
-
-**The Epic is "what PLAN reads and writes"** — three backlog rows batched by **subject, not size**,
-each a slice: spec-internal consistency (S1), standing inbox entries (S2), task-handoff
-completeness (S3). Batching the twelve promoted rows by size was proposed and **rejected**
-(`D-BR0823-1`): size measures diff cost, and the six phases exist to pay decision cost. Two rows
-both marked `small` belong in opposite lanes.
-
-**DISCUSS found two things that changed the work:**
-
-1. **S2's premise was half wrong.** The row quotes a second standing entry as saying *"do not close
-   this entry."* **That phrase is absent from the repo and from all git history.** Measured: 6
-   inbox entries, **1 live candidate — which is itself the permanent trigger-watchlist entry**, so
-   the live count can never reach zero. One standing entry, not two, and the real problem is
-   sharper than the row states (`D-M6E4-1`).
-2. **S1 and S3's done-whens named a dimension that does not run at their own tier.** At FEATURE,
-   `plan_validation_dims: core` runs three dimensions and **scope discipline is not one of them**.
-   Both fold into `testability` / `completeness` instead; the count stays 8 (`D-M6E4-3`).
-
-Decisions: `D-M6E4-1 … D-M6E4-7`. Requirements: [`M6.E4-REQUIREMENTS.md`](M6.E4-REQUIREMENTS.md).
-
-⚠ **`/sig:resume` now reports `M6.E3` as an Epic with no retrospective, every run.** True positive
-and permanent: the check skips whatever is `current_epic` (`state-drift.js:525`), so rolling to
-`M6.E4` un-blinded it. Nothing expresses *parked* as distinct from *abandoned*. **Do not write
-`M6.E3-RETROSPECTIVE.md` to silence it** — that is the stub-as-closure `B64` was filed about.
-
----
+Moved verbatim to [`archive/M6/E3/CONTEXT-2026-08-24.md`](archive/M6/E3/CONTEXT-2026-08-24.md)
+on 2026-09-26 to make room for `M6.E3`'s reopening under this file's byte ceiling. It records the
+`M6.E4` close (`v0.1.33`); retro: [`M6.E4-RETROSPECTIVE.md`](M6.E4-RETROSPECTIVE.md).
 
 ## Where things stood (2026-08-20) — relocated
 

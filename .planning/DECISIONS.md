@@ -3261,3 +3261,194 @@ over Signal-inspecting-Signal. What changed is evidence, not direction: on this 
 (`../analysis/TYPESAFE-JEV-ASSESSMENT.md` §6, set 3). `M6.E3`'s existing decisions (`D-M6E3-1` …
 `6`) stand — a Jev answer is never a receipt; code assembles the claim and the source, and only that
 pair may block. DISCUSS decides how the plan changes; this entry decides only that it runs next.
+
+## 2026-09-26 — M6.E3 DISCUSS, reopened around Jev (D-M6E3-7 … D-M6E3-11)
+
+*Epic: `M6.E3`, un-parked by `D-BR0925-5`. Branch `feat/m6.e3-jev-claims-audit`. Tier FULL /
+`checkpointed` (project profile; no Epic profile). Evidence:
+[`../analysis/TYPESAFE-JEV-ASSESSMENT.md`](../analysis/TYPESAFE-JEV-ASSESSMENT.md) §6. `D-M6E3-1`,
+`-2`, `-5` and `-6` stand unchanged. `D-M6E3-3`'s build order is replaced by `D-M6E3-7`; its
+reasoning — the false "still open" before the false "done" — still orders the slices that follow.
+`D-M6E3-4`'s two record types stay in scope, as later slices.*
+
+### D-M6E3-7 — the Jev `STATE.md` check ships first; the August checks follow in the same Epic
+
+**Brett, 2026-09-26**, chosen over "August plan, Jev last" and over "Jev only". The first slice is
+the receipt contract and the SHIP-gate wiring, with the Jev check for `STATE.md` paragraphs that
+contradict the facts riding inside it as the first consumer. The August `BUGS.md` and
+`OPEN-QUESTIONS.md` checks (code only, no model) follow as later slices of this Epic, not a later
+Epic. Reason: the widest measured gap is here — the shipped check found **0** of the 4 stale
+`STATE.md` paragraphs in assessment §6 set 3 — and "rebuilt around Jev" (`D-BR0925-5`) asked for
+exactly this. Nothing from the August plan is dropped.
+
+### D-M6E3-8 — a Jev finding is report-only in this Epic
+
+**Brett, 2026-09-26**, chosen over "block when very confident" and "never block". A Jev-flagged
+contradiction renders with its quoted pair (the paragraph, and the fact it contradicts) and **never
+refuses anything** in this Epic. Refusal is a later promotion, and needs a threshold measured on
+labels a person has confirmed — the *House rules* ladder (convention → advisory → enforced) applied
+to a check with no validated threshold, no documented seed, and one real positive per measured set.
+
+**Not changed:** code-only findings that carry a receipt still refuse at SHIP (`D-M6E3-5`, `FR5`).
+The report-only rule is about Jev's judgment, not about receipts.
+
+### D-M6E3-9 — the Jev call runs from `/sig:resume` and SHIP; `/sig:docs-sweep` stays offline
+
+**Brett, 2026-09-26**, the recommended option, after asking for it in plain words. When Jev is
+turned on, `/sig:resume` shows findings as an advisory line and SHIP reports them at Epic close.
+`/sig:docs-sweep` keeps its documented no-network promise and **says the Jev check did not run**.
+Reason: those are the two moments people actually read (sitting down to work, and closing), and
+neither breaks an existing promise — `/sig:resume` already makes one bounded network fetch.
+
+### D-M6E3-10 — defaults taken at DISCUSS (Claude's calls, stated so they are not mistaken for Brett's)
+
+1. **Opt-in needs BOTH a `PROFILE.md` setting AND the key.** `D-BR0925-4` calls the key the opt-in;
+   on its own, a `TYPESAFE_API_KEY` set for some other project would silently send this project's
+   `.planning/` text to a third party. The key lives in the environment, never in the repository.
+   The setting's name and schema entry are PLAN's call.
+2. **What is sent: only the invoking project's `STATE.md` body paragraphs and the fact list.**
+   Never the eval corpus, never any other file. The README's *Privacy & telemetry* section says so
+   in the release that ships it.
+3. **The fact list is closed and assembled by code.** In assessment §6 set 3, Jev judged paragraphs
+   against the frontmatter **plus two facts a person wrote by hand**, and one of the four catches
+   (*"`plugin.json` reads `0.1.30`"*) contradicts a third file. A shipped check has only what code
+   puts in the list. So **4 of 4 is not an acceptance criterion**: recall is re-measured against the
+   shipped list, on labels a person has confirmed, and published with whatever it comes out as.
+4. **Nothing numeric is asked of Jev** (its documented weaknesses #2 and #3). Counts, versions and
+   dates are compared in code. Where a paragraph's contradiction is a number, code finds it or it is
+   not found.
+5. **Tests never call the network.** Recorded responses are fixtures; the live measurement is a
+   separate opt-in script, kept outside the repository per `D-BR0925-3`.
+6. **The network code passes the audit honestly:** an injected `fetch`, the same pattern as the two
+   calls already documented, with `tools/audit-network-calls.js` and the README section updated, and
+   the major-version bump per `D-BR0925-4`.
+
+### D-M6E3-11 — the August artifacts are marked superseded, not deleted
+
+`M6.E3-REQUIREMENTS.md` is rewritten in place. **Every surviving criterion keeps its id**, and new
+work takes new ids (`FR8`–`FR10`), so that anything citing `AC2.3` still means the same thing.
+`M6.E3-PLAN.md`, `-RESEARCH.md` and `-VALIDATION.md` get a superseded banner at the top and are
+replaced at PLAN. Leaving them unmarked would put a *"Slices 1–3 contain no model judgment"* claim
+next to requirements that contradict it — the class this Epic exists to catch.
+
+## 2026-09-26 — Signal drops its privacy positioning (D-BR0926-1, D-M6E3-12)
+
+### D-BR0926-1 — Signal is personal scaffolding; sending text to a model is what it does
+
+**Brett, 2026-09-26**, replying to the `M6.E3` DISCUSS confirmation: *"I'm not here to save the world
+one small privacy claim at a time… This is literally MY coding scaffolding, for MY projects."* Its
+users are Brett and two colleagues. It is open source; anyone else who uses it takes it as it is.
+
+**What changes:**
+
+- A feature that sends project text to a model or an outside service needs **no privacy
+  justification, no special opt-in, and no version-number ceremony.** It needs one line in the
+  README's network-call list saying what it calls, and a test that does not hit the network.
+- **The README rule *"any new network call … would require a major-version bump, an explicit opt-in
+  flag, and an update to this section + the audit script"* is removed.** That rule is what turned
+  each new feature into a debate. `D-BR0925-4` (honour the rule, with a major bump for Jev) is
+  therefore **superseded**: the Jev release follows the normal `0.1.x` cadence.
+- Decisions and requirements written to that posture are reversed where they only served it —
+  `D-M6E3-10` items 1–2, below.
+
+**What does NOT change, because it was never about privacy:**
+
+- **No telemetry, no analytics.** Signal still collects nothing about its users; that is a fact
+  about what it does, not a promise being defended.
+- **API keys stay out of the repository** — ordinary secret handling.
+- **`references/eval-corpus.md`'s anonymous labels and `tests/private-name-guard.test.js`.** Those
+  keep the names of Brett's private projects out of a **public repository**; they have nothing to do
+  with what a model sees. Left in place; Brett can drop them with one word.
+- **`/sig:docs-sweep` stays offline** (`D-M6E3-9`) — a property of that command, chosen for
+  where findings get read, not a privacy stance.
+- **`tools/audit-network-calls.js`** stays as an inventory of network code, so the README's list
+  stays true. It is no longer a gate on adding a call.
+
+### D-M6E3-12 — Jev turns on with the key alone, and sends what the check needs
+
+Supersedes `D-M6E3-10` items 1 and 2, per `D-BR0926-1`. **A TypeSafe key in the environment turns
+the Jev check on**; no `PROFILE.md` setting is required (`D-BR0925-1`'s original call stands as
+written). The request carries whatever the check needs; no restriction on which project text may be
+sent, and the eval-corpus exclusion (`NFR5`) is dropped. `D-M6E3-10` items 3–6 stand: the fact list
+is closed and re-measured, nothing numeric goes to Jev, tests stay offline, the audit lists the call.
+
+### D-M6E3-13 — plumbing taken at PLAN (Claude's calls)
+
+Recorded in full in [`M6.E3-PLAN.md`](M6.E3-PLAN.md) § *Decisions taken at PLAN*. The key is read
+from `TYPESAFE_API_KEY`. The default model is `jev-1.13.0`, the measured one, overridable. The check
+sends one request per paragraph, using the spike's question verbatim. Bounds: 60 paragraphs,
+concurrency 8, 5 s per request, 8 s total at `/sig:resume` and 30 s at SHIP. Facts are passed as
+text for sameness only, never dates or counts. The check has its own registry, kept out of
+`/sig:docs-sweep`. **`D-BR0925-3` is superseded in letter:** the measurement script
+`tools/measure-jev-state.js` lands in the repository. It has no network code of its own and calls
+the audited `lib/jev.js`. `D-BR0925-3` kept the spike's calling script out so it could not escape the
+network audit, and with `B125` fixed that reason no longer applies. `NFR6` was corrected from "one
+request per run" to per-paragraph with bounds: Jev's `state` is shared by every question in a
+request, and the spike measured one paragraph per request.
+
+*Amendment to `D-M6E3-13`, 2026-09-26 (Brett, at plan approval):* the key variable is **`JEV_API_KEY`**,
+not `TYPESAFE_API_KEY`; the model override is `JEV_MODEL`. On this machine the key is set through
+`launchctl`, so a CLI process does not inherit it — the live steps read it from there. The plan was
+approved the same day.
+
+*Second amendment, same day (Brett):* Brett is renaming his key to **`TYPESAFE_API_KEY`**, so the
+variable stays `TYPESAFE_API_KEY` (model override `TYPESAFE_MODEL`) as `D-M6E3-13` first said. The
+first amendment's `JEV_API_KEY` is withdrawn. The key is set through `launchctl` on this machine,
+so the live steps read it with `launchctl getenv TYPESAFE_API_KEY`.
+
+### D-M6E3-14 — the key is read from the project's `.env` too
+
+**Brett, 2026-09-26** (via `/kiss`, after the key "was missing" and turned out to be in `.env` — I had
+looked in the shell and `launchctl`, misread the search result that named `.env`, and never opened
+it). `resolveJevKey` reads `TYPESAFE_API_KEY` from the environment first, then from the project's
+`.env`; only that one variable is read, nothing is loaded into the process. Without this the check
+would look broken rather than off on the machine it was built for. The test suite sets
+`SIGNAL_JEV_IGNORE_DOTENV` so no test can pick up this repository's real key.
+
+### D-M6E3-15 — stale `BUGS.md` rows: Jev as second opinion, advisory; the refusal path stays wired but unfed
+
+**Brett, 2026-09-27**, option 1 of three, after `t3.2` measured that no token rule yields a
+refusal-grade receipt (`M6.E3-RESEARCH.md`, wave-4 addendum: subject position 7 / 1, fix commits 0
+real). A new model-judged check asks Jev, for each `confirmed` row a released changelog section
+mentions, the spike's yes/no question — *"does this text say the bug itself was fixed?"* — and turns
+a yes into a finding with a receipt (the row, and the changelog paragraph). **Advisory, like every
+Jev finding** (`D-M6E3-8`). The shipped code rule stays as it is. **The SHIP refusal path built in
+`t2.1` stays wired and tested, and has nothing precise enough to refuse on yet** — said in the docs,
+not left for a reader to discover.
+
+**Brett's follow-up question, recorded because it may reshape what comes next:** *"do we need to
+redesign that whole system instead? are we trying to patch a broken from the start architecture?"*
+Answer given: partly yes — status lives as hand-typed words in several files and nothing records the
+moment something closes, so every check here infers after the fact. The redesign (status recorded
+when it changes — a `Fixes: Bnnn` marker a tool acts on, or a real tracker) is the existing
+`BACKLOG.md` row *"Structural status"* plus `CLAIM-INTEGRITY-ANALYSIS.md` §7's tracker decision.
+Recommended: finish `M6.E3` small, drop the answered-questions slice (`S4`) into that redesign, and
+make the redesign the next Epic. **Awaiting Brett's call on the `S4` drop.**
+
+### D-M6E3-16 — the answered-questions slice (`S4`) is dropped; the status architecture is redesigned next
+
+**Brett, 2026-09-27:** *"drop open questions — feels like we need to revisit this whole architecture
+vs. keep applying band-aids."* `S4` (`FR3`, and `FR7`'s `AC7.1`–`AC7.3`) leaves `M6.E3` unbuilt. It
+would have been the same after-the-fact inference `t3.2` measured failing for bugs.
+
+**Next Epic, by Brett's direction:** redesign how Signal records status. Today "done" is a word typed
+into several files and nothing records the moment it happens, so every check infers after the fact.
+The industry pattern the redesign starts from (discussed 2026-09-27): **a tracker holds status**, where
+closing is an event with who and when; **the fix links to the item** (a `Fixes: B102` marker that
+closes it); **every bug fix carries its own test**, so "fixed" is something the code proves. Its first
+question, for Brett: **a marker Signal acts on inside the markdown files, or GitHub Issues.** It
+absorbs `BACKLOG.md`'s *"Structural status"* row, `CLAIM-INTEGRITY-ANALYSIS.md` §7's tracker decision,
+and `S4`. `M6.E3`'s refusal path, receipts and Jev carry over: the gate gets precise inputs, and Jev
+keeps the hand-written prose no marker can cover.
+
+### D-M6E3-17 — `AC4.1`/`AC4.2` revised to match `D-M6E3-15`, not built
+
+**Brett, 2026-09-27, at VERIFY** (picked the recommended option): VERIFY failed `AC4.2` — no
+`/sig:docs-sweep` finding carries or renders a receipt. That follows from `D-M6E3-15`: `t3.2` measured
+that no token rule yields a precise enough receipt, so the Jev `BUGS.md` check replaced it and runs at
+SHIP only (docs-sweep makes no network call, `D-M6E3-9`). The criteria were never revised to match.
+**Revised, not built:** docs-sweep keeps the receiptless word-matching rule `bug-status-vs-changelog`
+and says in its docs that it has no receipt; receipts render at SHIP. Building receipt rendering for
+the sweep was rejected, because no sweep check emits a receipt, so it would be plumbing with nothing
+to show. The same write-back fixes REQUIREMENTS § Scope and `AC7.4`/`AC10.3`, which still read
+"`STATE.md` only" / "the Jev check" after `D-M6E3-15` added a second Jev check.

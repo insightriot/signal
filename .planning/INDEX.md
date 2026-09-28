@@ -155,9 +155,12 @@
 - [M6.E2-VALIDATION.md](M6.E2-VALIDATION.md) — `other` — _(note pending)_
 - [M6.E2-VERIFICATION.md](M6.E2-VERIFICATION.md) — `other` — _(note pending)_
 - [M6.E3-PLAN.md](M6.E3-PLAN.md) — `other` — _(note pending)_
+- [M6.E3-PROGRESS.md](M6.E3-PROGRESS.md) — `other` — _(note pending)_
 - [M6.E3-REQUIREMENTS.md](M6.E3-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E3-RESEARCH.md](M6.E3-RESEARCH.md) — `other` — _(note pending)_
+- [M6.E3-REVIEW.md](M6.E3-REVIEW.md) — `other` — _(note pending)_
 - [M6.E3-VALIDATION.md](M6.E3-VALIDATION.md) — `other` — _(note pending)_
+- [M6.E3-VERIFICATION.md](M6.E3-VERIFICATION.md) — `other` — _(note pending)_
 - [M6.E4-PLAN.md](M6.E4-PLAN.md) — `other` — _(note pending)_
 - [M6.E4-PROFILE.md](M6.E4-PROFILE.md) — `other` — _(note pending)_
 - [M6.E4-PROGRESS.md](M6.E4-PROGRESS.md) — `other` — _(note pending)_
@@ -246,6 +249,7 @@
 - [M6.E1-RETROSPECTIVE.md](M6.E1-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E10-RETROSPECTIVE.md](M6.E10-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E2-RETROSPECTIVE.md](M6.E2-RETROSPECTIVE.md) — `other` — _(note pending)_
+- [M6.E3-RETROSPECTIVE.md](M6.E3-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E4-RETROSPECTIVE.md](M6.E4-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E5-RETROSPECTIVE.md](M6.E5-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E6-RETROSPECTIVE.md](M6.E6-RETROSPECTIVE.md) — `other` — _(note pending)_
@@ -349,7 +353,11 @@
 - [archive/M5/STATE-NEXT-WORK-2026-08-06.md](archive/M5/STATE-NEXT-WORK-2026-08-06.md) — `other` — _(note pending)_
 - [archive/M6/E1/STATE-NARRATIVE.md](archive/M6/E1/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E2/STATE-NARRATIVE.md](archive/M6/E2/STATE-NARRATIVE.md) — `other` — _(note pending)_
+- [archive/M6/E3/AUGUST-PLAN.md](archive/M6/E3/AUGUST-PLAN.md) — `other` — _(note pending)_
+- [archive/M6/E3/AUGUST-RESEARCH.md](archive/M6/E3/AUGUST-RESEARCH.md) — `other` — _(note pending)_
+- [archive/M6/E3/AUGUST-VALIDATION.md](archive/M6/E3/AUGUST-VALIDATION.md) — `other` — _(note pending)_
 - [archive/M6/E3/CONTEXT-2026-08-19.md](archive/M6/E3/CONTEXT-2026-08-19.md) — `other` — _(note pending)_
+- [archive/M6/E3/CONTEXT-2026-08-24.md](archive/M6/E3/CONTEXT-2026-08-24.md) — `other` — _(note pending)_
 - [archive/M6/E3/STATE-NARRATIVE.md](archive/M6/E3/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E4/STATE-NARRATIVE.md](archive/M6/E4/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E6/STATE-NARRATIVE.md](archive/M6/E6/STATE-NARRATIVE.md) — `other` — _(note pending)_
@@ -394,6 +402,7 @@
 - [M5.E19](M5.E19-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E1](M6.E1-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E2](M6.E2-RETROSPECTIVE.md) — _(note pending)_
+- [M6.E3](M6.E3-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E4](M6.E4-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E5](M6.E5-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E6](M6.E6-RETROSPECTIVE.md) — _(note pending)_

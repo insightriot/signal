@@ -285,6 +285,47 @@ closing wired into the phase gates) are Epic-shaped and its trigger is unmet.
 
 ## Filed since that agreement — **not yet sequenced**
 
+### Jev key and receipt hardening — the pass-3 REVIEW residue · **fix lane** · small · *filed 2026-09-27 from `M6.E3` REVIEW*
+
+*Plain: the small leftovers three rounds of fresh review found in the Jev checks, none Important, all recorded in `M6.E3-REVIEW.md` § pass 3.*
+
+- **Medium limit:** a template `.env.example` with a real key, copied by the user, supplies the author's key. Warn when a tracked `.env*` sibling holds `TYPESAFE_API_KEY`, and add a README line.
+- **`dotenvRefusal`:** use `LC_ALL=C` or `rev-parse` exit status instead of stderr text; drop the `GIT_*` env vars from the spawn.
+- **`releasedSectionsFor`:** heading-only sections over the cap; a heading over the cap; partial-line citation.
+- **`CONTROL_RE`:** needs the `u` flag and tag characters; handle `\n` in messages.
+- **Audit gaps; test gaps:** a Linux-proof `.ENV` case, global-gitignore isolation, exit-128 variants, and the exact-count stale check.
+- **Shared bounded worker pool** for both Jev checks.
+
+### More places Jev can decide — where code cannot, and only after measuring · **roadmap** · medium · *filed 2026-09-26 from `M6.E3` EXECUTE*
+
+*Plain: Jev is an evaluation and decision tool; use it wherever Signal has to make a judgement call it cannot make from the words alone — never force it.*
+
+**Brett, 2026-09-26:** *"let's never try to force Jev — but it is an evaluation and decisioning
+machine, so I think there is lots of use for it within signal."* The rule that keeps "don't force
+it" concrete: a candidate qualifies when (1) code genuinely cannot decide from tokens, and (2) there
+are real labelled examples to measure it on first — `M6.E3`'s pattern (`tools/measure-jev-state.js`).
+Candidates, from `analysis/TYPESAFE-JEV-ASSESSMENT.md` §3, in its order:
+
+1. **`bug-status-vs-changelog` precision** — "does this changelog entry say bug X was fixed?"
+   Labelled data exists (the 28-row corpus); the spike already ran it (§6 set 1).
+2. **`/sig:advise` ranking inputs** — typed questions per backlog row instead of word patterns
+   (the trigger-word pattern is wrong 5 of 6 times, §6 set 2).
+3. **Condition checks** — each backlog row's promote-back condition evaluated on every advise run, with Jev proposing when it holds.
+4. **Paraphrased citations** — does the cited section support the claim.
+5. Later, once there is data: `/sig:drive` adopt/queue/halt routing, `/sig:calibrate` tier pick.
+
+**Not candidates:** anything numeric (counts, dates) — Jev's documented weak spots.
+
+### ~~`M6.E3` — the claims-audit backstop, rebuilt around Jev · **roadmap** · large · **IN FLIGHT — REVIEW PASS on pass 3 (2026-09-27); SHIP next**~~ · **DONE — M6.E3, 2026-09-27**
+
+*Plain: check whether Signal's own records tell the truth, and only ever stop you when it can show why.*
+
+**Trigger: met** — un-parked by `D-BR0925-5` on measured evidence (Jev found 4 stale `STATE.md`
+paragraphs where the shipped check found 0, `analysis/TYPESAFE-JEV-ASSESSMENT.md` §6). Filed here
+because the assessment (§2, §5) found the Epic had **no row at all**, so `/sig:advise` could not see
+it. Decisions `D-M6E3-7` … `D-M6E3-11`; requirements `M6.E3-REQUIREMENTS.md`. Strike this row at
+the Epic's SHIP.
+
 ### DISCUSS silently auto-adopts irreversible decisions at `unattended` · **roadmap** · small · **filed 2026-09-03**
 
 *Plain: at `unattended`, DISCUSS decides everything for you — including the calls you can't take back.*
@@ -483,7 +524,13 @@ advisory**, and `CLAUDE.md`'s current-state section has grown to many screens re
 *should* have grown is a nag, and this repository has a standing rule against gates that get rationalized
 past. Consider advisory-with-a-number before hard-failing.
 
-### Structural status — make done-vs-live readable without inference · **roadmap** · large · **filed 2026-09-01**
+### Structural status — make done-vs-live readable without inference · **roadmap** · large · **filed 2026-09-01** · **NEXT EPIC after `M6.E3` (Brett, 2026-09-27, `D-M6E3-16`)**
+
+**Promoted 2026-09-27.** Brett: *"revisit this whole architecture vs. keep applying band-aids."* It now
+also absorbs `M6.E3`'s dropped answered-questions slice, and `M6.E3`'s measurement is fresh evidence:
+no token rule could tell a fixed bug from an open one. Starting point — the real-world pattern: a
+tracker holds status, the fix links to the item (`Fixes: B102`), every bug fix carries its own test.
+**First question, Brett's:** a marker Signal acts on in the markdown files, or GitHub Issues.
 
 *Plain: a machine can't tell finished work from live work in the backlog, and no better pattern fixes it.*
 
@@ -2155,4 +2202,4 @@ No check compares a decision's or a `*-REQUIREMENTS.md` frontmatter's stated tie
 
 
 
-*Last updated: 2026-09-24*
+*Last updated: 2026-09-27*

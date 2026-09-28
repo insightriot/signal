@@ -580,6 +580,13 @@ export function renderSweepReport(report) {
   if (stateDrift) {
     lines.push('', renderDriftReport(stateDrift, { reach: REACH }).trimEnd());
   }
+  // M6.E3 (`D-M6E3-9`): neither Jev check runs here — this sweep is offline by
+  // contract. Said out loud, so their absence is not read as a pass — in EVERY
+  // project, including one with no .planning/ (AC10.3; REVIEW found it gated on
+  // the drift report, so a project without one heard nothing).
+  if (!Array.isArray(report)) {
+    lines.push('', '## Model-judged checks', 'not run here — this sweep is offline. The Jev STATE.md check runs at /sig:resume and at SHIP, and the Jev BUGS.md check (a `confirmed` row a release may have fixed) at SHIP only, when TYPESAFE_API_KEY is set.');
+  }
   if (signalOnly) {
     lines.push('', '## Signal-only checks');
     lines.push(

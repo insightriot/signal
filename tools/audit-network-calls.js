@@ -1,12 +1,18 @@
 #!/usr/bin/env node
 
 /**
- * Privacy-posture audit — greps Signal's source for any code that
- * could initiate a network call. The mechanism behind README's
- * "no network calls beyond Claude's API" claim.
+ * Network-call inventory — greps Signal's source for any code that could
+ * initiate a network call, and checks every hit against KNOWN_CALLS. Keeps the
+ * README's network-call list true: a call that is not listed there fails this.
+ *
+ * B125 (fixed M6.E3 t1.2): until then this scanned tools/ skills/ agents/
+ * commands/ at the repo ROOT — but everything that ships lives under plugin/,
+ * so it never read shipped code, and exit 0 meant "did not look". It also
+ * missed the injected-fetch idiom (`{ fetchFn = fetch }`), which is how
+ * Signal's own calls are written.
  *
  * SCOPE (default, when invoked with no arguments)
- *   Include:  tools/  skills/  agents/  commands/   (recursive)
+ *   Include:  plugin/  tools/   (recursive)
  *   Files:    *.js, *.json
  *   Exclude:  node_modules/  tests/  .planning/  analysis/  *.md
  *             audit-network-calls.js itself
@@ -24,8 +30,8 @@
  *   scope is documented in README's Privacy & telemetry section.
  *
  * EXIT
- *   0 — no patterns matched
- *   1 — at least one pattern matched (per-hit lines printed to stdout)
+ *   0 — every hit is a KNOWN_CALLS entry (each printed with ✓)
+ *   1 — an unknown hit, or a KNOWN_CALLS entry that matches nothing
  *   2 — usage error (explicit argument is not a directory or doesn't exist;
  *       per-error message printed to stderr)
  */
@@ -38,9 +44,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const SELF = fileURLToPath(import.meta.url);
 
-const DEFAULT_INCLUDE = ['tools', 'skills', 'agents', 'commands'];
+const DEFAULT_INCLUDE = ['plugin', 'tools'];
 const DEFAULT_EXCLUDE_DIRS = new Set(['node_modules', 'tests', '.planning', 'analysis']);
-const INCLUDE_EXTS = new Set(['.js', '.json']);
+const INCLUDE_EXTS = new Set(['.js', '.mjs', '.cjs', '.json', '.sh']);
 
 // "got" is intentionally absent from the bare-word pattern: it's a
 // hyper-common English word ("got X", "we got Y") that produces
@@ -49,12 +55,64 @@ const INCLUDE_EXTS = new Set(['.js', '.json']);
 // the actual entry point for any network call using it.
 const PATTERNS = [
   /\bfetch\s*\(/,
+  // The injected idiom: `fetch` passed or defaulted as a value, never called by
+  // name — `{ fetchFn = fetch }`, `{ fetchFn: fetch }`, `f(fetch)`. B125.
+  /[:=(,]\s*fetch\b\s*(?:[,;)}]|$)/,
+  /\?\?\s*fetch\b/,
+  /\bglobalThis\.fetch\b/,
+  // A git subprocess that talks to a remote. Matched as the argv token.
+  /['"](?:fetch|pull|clone|ls-remote)['"]/,
+  /\bgit\b[^\n]*['"]push['"]|['"]git['"]\s*,\s*\[\s*['"]push['"]/,
   /\b(axios|node-fetch)\b/,
-  /\bhttps?\.request\b/,
+  /\bhttps?\.(?:request|get)\b/,
+  // Node's socket-level modules and the WHATWG/undici clients (REVIEW: none of
+  // these were caught — `https.get`, a `node:http` import, `net.connect`).
+  /['"`]node:(?:https?|http2|net|tls|dgram)['"`]/,
+  /\bnet\.(?:connect|createConnection)\b|\bnew\s+WebSocket\b|\bundici\b/,
+  // A shell script calling out (hooks are .sh).
+  // Comment lines (`//`, `*`, `#`) are skipped: prose mentioning curl is not a call.
+  /^(?!\s*(?:\/\/|\*|#)).*(?:^|[\s;|&(`$'"])(?:curl|wget)\s/,
   /require\s*\(['"`](https?|node-fetch|axios|got)/,
   /import\s+.+\s+from\s+['"](https?|node-fetch|axios|got)/,
   /child_process[^)]*?(curl|wget)/,
 ];
+
+// Every network call Signal's own source makes, by file and a substring of the
+// line the audit flags. Each one is listed in README.md → *Privacy & telemetry*.
+// A hit not listed here fails the audit; an entry that matches nothing fails it
+// too, so this list cannot outlive the code it describes. `count` is how many
+// lines the entry may match — so a THIRD `fetchFn = fetch,` added to jev.js
+// (posting anywhere) is not waved through as "known" (REVIEW).
+const KNOWN_CALLS = [
+  { file: 'plugin/tools/lib/doctor.js', line: 'function fetchLatestTag(', call: 'fetchLatestTag — GitHub tags API, the version check' },
+  { file: 'plugin/tools/lib/doctor.js', line: 'function fetchLatestVersionCached(', call: 'fetchLatestVersionCached — the same version check, cached 24h' },
+  { file: 'plugin/tools/lib/state.js', line: "'fetch', '--no-tags'", call: 'isStaleVsOrigin — git fetch of your own remote (origin drift)' },
+  { file: 'plugin/tools/lib/jev.js', line: 'fetchFn = fetch,', count: 2, call: 'askChoice / askNoul — TypeSafe Jev, when TYPESAFE_API_KEY is set (M6.E3)' },
+];
+
+// Shell scripts only: git as a shell writes it, unquoted (comment lines
+// skipped). In .js this would match instruction strings ("run git pull").
+const SHELL_PATTERNS = [/^(?!\s*#).*\bgit\s+(?:fetch|pull|push|clone|ls-remote)\b/];
+
+function knownCallFor(hit) {
+  const rel = relative(ROOT, hit.file);
+  return KNOWN_CALLS.find((k) => k.file === rel && hit.text.includes(k.line)) ?? null;
+}
+
+// Hits past an entry's `count` are unknown, in file order.
+function classify(hits) {
+  const used = new Map();
+  const known = [];
+  const unknown = [];
+  for (const hit of hits) {
+    const k = knownCallFor(hit);
+    const n = k ? (used.get(k) ?? 0) + 1 : 0;
+    if (k) used.set(k, n);
+    if (k && n <= (k.count ?? 1)) known.push(hit);
+    else unknown.push(hit);
+  }
+  return { known, unknown };
+}
 
 function walk(dir, applyDefaultExcludes, hits) {
   let entries;
@@ -84,10 +142,11 @@ function scan(file, hits) {
     return;
   }
   const lines = content.split(/\r?\n/);
+  const patterns = extname(file) === '.sh' ? [...PATTERNS, ...SHELL_PATTERNS] : PATTERNS;
   for (let i = 0; i < lines.length; i++) {
-    for (const pattern of PATTERNS) {
+    for (const pattern of patterns) {
       if (pattern.test(lines[i])) {
-        hits.push({ file, line: i + 1, match: pattern.source });
+        hits.push({ file, line: i + 1, match: pattern.source, text: lines[i] });
         break;
       }
     }
@@ -117,15 +176,26 @@ function main() {
     walk(target, false, hits);
   }
 
-  if (hits.length === 0) {
-    process.exit(0);
-  }
+  const { known, unknown } = classify(hits);
 
-  for (const hit of hits) {
-    const rel = relative(ROOT, hit.file);
-    console.log('✗ found network call: ' + rel + ':' + hit.line);
+  // A stale entry is checked only on the default scan: an explicit directory
+  // (a test fixture) legitimately contains none of the known calls.
+  // An entry must match EXACTLY its `count` — fewer means the code changed under it.
+  const stale = args.length === 0
+    ? KNOWN_CALLS.filter((k) => known.filter((h) => knownCallFor(h) === k).length !== (k.count ?? 1))
+    : [];
+
+  for (const hit of known) {
+    const k = knownCallFor(hit);
+    console.log('✓ known network call: ' + relative(ROOT, hit.file) + ':' + hit.line + ' — ' + k.call);
   }
-  process.exit(1);
+  for (const hit of unknown) {
+    console.log('✗ found network call: ' + relative(ROOT, hit.file) + ':' + hit.line);
+  }
+  for (const k of stale) {
+    console.log('✗ KNOWN_CALLS entry matches nothing (remove it, or fix the code): ' + k.file + ' — ' + k.call);
+  }
+  process.exit(unknown.length || stale.length ? 1 : 0);
 }
 
 main();

@@ -406,14 +406,15 @@ describe('M5.E6.T7 sweep offline + network-audit coverage (NFR1)', () => {
     expect(readFileSync(SEEDED_FIXTURE, 'utf-8')).toMatch(/fetch|http|curl/i);
   });
 
-  it('NFR1 — sweep.js is covered by tools/audit-network-calls.js (recursive tools/ scan) and the audit passes', () => {
-    // audit-network-calls.js has NO per-file registration list — it walks its
-    // DEFAULT_INCLUDE dirs recursively, so tools/lib/sweep.js is in scope by
-    // directory (there is nothing to append to). Assert 'tools' is in that
-    // include set, then run the audit over the live repo — a run that actually
-    // scans sweep.js — and confirm it exits 0 (clean).
+  it('NFR1 — sweep.js is covered by tools/audit-network-calls.js (recursive plugin/ scan) and the audit passes', () => {
+    // The audit walks its DEFAULT_INCLUDE dirs recursively, so
+    // plugin/tools/lib/sweep.js is in scope by directory. ⚠ Until B125 (M6.E3
+    // t1.2) this asserted 'tools' was in the set and called that coverage — but
+    // the scan resolved against the repo ROOT, whose tools/ holds maintainer
+    // scripts, so sweep.js was never read. Asserting 'plugin' is what makes the
+    // run below actually scan it.
     const auditSrc = readFileSync(AUDIT_SCRIPT, 'utf-8');
-    expect(auditSrc).toMatch(/DEFAULT_INCLUDE\s*=\s*\[[^\]]*'tools'/);
+    expect(auditSrc).toMatch(/DEFAULT_INCLUDE\s*=\s*\[[^\]]*'plugin'/);
     const res = spawnSync('node', [AUDIT_SCRIPT], { encoding: 'utf-8' });
     expect(res.status).toBe(0);
   });

@@ -1,0 +1,243 @@
+// tools/lib/jev.js — M6.E3 t1.3: the client for TypeSafe's Jev.
+//
+// Jev answers narrow typed questions — here, one pick-one question — and says
+// how sure it is. Signal uses it only where code cannot decide from tokens
+// (M6.E3 FR9: does this STATE.md paragraph contradict the facts?).
+//
+// Shape copied from `doctor.js#fetchLatestTag`: `fetch` is injected, so tests
+// never touch the network (AC8.7), and every failure returns a named reason
+// instead of throwing — a caller must be able to say "the Jev check did not
+// run, and why" (AC8.2), because a check that silently did not run reads the
+// same as a check that found nothing.
+//
+// On when `TYPESAFE_API_KEY` is set, in the environment or the project's `.env`
+// (`D-M6E3-12`, `D-M6E3-14`; see `resolveJevKey`). The key goes into one
+// header and nowhere else: never into a returned object, a reason or an error
+// message (AC8.4).
+//
+// Listed in tools/audit-network-calls.js KNOWN_CALLS and in README.md →
+// *Privacy & telemetry*.
+
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+
+export const JEV_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
+
+// The model the M6.E3 measurement ran on (`D-M6E3-13`). Overridable with
+// TYPESAFE_MODEL; the response's own `model` is what callers display.
+export const JEV_DEFAULT_MODEL = 'jev-1.13.0';
+
+export const JEV_DEFAULT_TIMEOUT_MS = 5000;
+
+export const JEV_REASON = Object.freeze({
+  NO_KEY: 'no-key',
+  UNAUTHORIZED: 'unauthorized',
+  INVALID_REQUEST: 'invalid-request',
+  RATE_LIMITED: 'rate-limited',
+  OVERLOADED: 'overloaded',
+  TIMEOUT: 'timeout',
+  NETWORK: 'network',
+  BAD_RESPONSE: 'bad-response',
+});
+
+const QUESTION_ID = 'q';
+
+/**
+ * Jev's confidence in words, so "unclear" is said rather than left in a number
+ * (Brett, 2026-09-26). DISPLAY ONLY — nothing is hidden or blocked by these
+ * bands; they follow TypeSafe's own advice (act on high, hand low to a person).
+ * The question itself is unchanged, so the published measurement still applies.
+ */
+export function confidenceWords(confidence) {
+  if (typeof confidence !== 'number' || !Number.isFinite(confidence)) return 'unclear';
+  if (confidence >= 0.8) return 'likely';
+  if (confidence >= 0.5) return 'possibly';
+  return 'unclear — worth a look';
+}
+
+const DOTENV_KEY_RE = /^\s*(?:export\s+)?TYPESAFE_API_KEY\s*=\s*(.*?)\s*$/;
+
+/**
+ * The key: `TYPESAFE_API_KEY` from the environment, else from the project's
+ * `.env` (`D-M6E3-14` — that is where Brett keeps it, and a key the CLI never
+ * sees makes the check look broken rather than off). Returns '' when neither has
+ * one. Reads the file and nothing else: no other variable is loaded into the
+ * process.
+ *
+ * `SIGNAL_JEV_IGNORE_DOTENV` skips the file; the test suite sets it, so no test
+ * can pick up a real key from this repository's own `.env` (AC8.7).
+ *
+ * ⚠ The `.env` is used only when git CONFIRMS it is ignored, or the folder is
+ * not a git repository (REVIEW, security HIGH). A tracked `.env` is the
+ * repository author's key, not the user's: a cloned repo could ship one and send
+ * the cloner's project text to TypeSafe on the author's account. The check is
+ * positive and fail-closed — asked by the file's REAL on-disk name (a tracked
+ * `.ENV` on a case-insensitive disk slipped past a check for `.env`), and any
+ * other git answer or failure refuses the file. `dotenvRefusal` says why.
+ */
+export function resolveJevKey(baseDir, { env = process.env, dotenvCheck = dotenvRefusal } = {}) {
+  const fromEnv = env.TYPESAFE_API_KEY;
+  if (typeof fromEnv === 'string' && fromEnv.trim()) return fromEnv.trim();
+  if (env.SIGNAL_JEV_IGNORE_DOTENV) return '';
+  const name = dotenvName(baseDir);
+  if (!name || dotenvCheck(baseDir, name)) return '';
+  let raw;
+  try {
+    raw = readFileSync(join(baseDir, name), 'utf8');
+  } catch {
+    return '';
+  }
+  for (const line of raw.split(/\r?\n/)) {
+    const m = line.match(DOTENV_KEY_RE);
+    if (!m) continue;
+    let value = m[1];
+    const quoted = value.match(/^(['"])(.*)\1$/);
+    value = quoted ? quoted[2] : value.replace(/\s+#.*$/, '');
+    return value.trim();
+  }
+  return '';
+}
+
+/** The `.env` file's real on-disk name (any case), or null. */
+function dotenvName(baseDir) {
+  try {
+    return readdirSync(baseDir).find((n) => n.toLowerCase() === '.env') ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Why the project `.env` may NOT supply the key, or null when it may: git says
+ * `name` is ignored (exit 0 — tracked files never are), or this is no git repo.
+ */
+export function dotenvRefusal(baseDir, name) {
+  const r = spawnSync('git', ['check-ignore', '-q', '--', name], { cwd: baseDir, stdio: ['ignore', 'ignore', 'pipe'], timeout: 2000, encoding: 'utf8' });
+  if (r.status === 0) return null;
+  if (r.status === 128 && /not a git repository/i.test(r.stderr ?? '')) return null;
+  if (r.status === 1) return `${name} is not git-ignored (a committed key is the repository author's, not yours)`;
+  return `git could not confirm ${name} is ignored`;
+}
+
+/** Why no key was found — for the "did not run" line (a skipped .env is not "not set"). */
+export function noJevKeyReason(baseDir) {
+  const name = dotenvName(baseDir);
+  const why = name ? dotenvRefusal(baseDir, name) : null;
+  return why
+    ? `the Jev check did not run — TYPESAFE_API_KEY is not in the environment, and ${why}`
+    : 'the Jev check did not run — TYPESAFE_API_KEY is not set (environment or .env)';
+}
+
+// The server's `model` string is printed and copied into the SHIP artifact; it
+// is the one response field that reached text unvalidated (REVIEW, security).
+const MODEL_RE = /^[\w.-]{1,64}$/;
+
+function reasonForStatus(status) {
+  if (status === 401 || status === 403) return JEV_REASON.UNAUTHORIZED;
+  if (status === 422 || status === 400) return JEV_REASON.INVALID_REQUEST;
+  if (status === 429) return JEV_REASON.RATE_LIMITED;
+  if (status === 529 || status === 503) return JEV_REASON.OVERLOADED;
+  return JEV_REASON.NETWORK;
+}
+
+const isUnit = (n) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1;
+
+/**
+ * Validate one choice answer against the options that were asked. Returns
+ * `{choice, confidence, probabilities}` or null. Exported so the stored spike
+ * answers can be checked against the same parser the live path uses.
+ */
+export function parseChoiceAnswer(answer, options) {
+  if (!answer || answer.type !== 'choice') return null;
+  if (typeof answer.choice !== 'string' || !options.includes(answer.choice)) return null;
+  if (!isUnit(answer.confidence)) return null;
+  const probabilities = answer.probabilities;
+  if (!probabilities || typeof probabilities !== 'object') return null;
+  for (const [k, v] of Object.entries(probabilities)) {
+    if (!options.includes(k) || !isUnit(v)) return null;
+  }
+  return { choice: answer.choice, confidence: answer.confidence, probabilities: { ...probabilities } };
+}
+
+/**
+ * One request, one question, one attempt — a 429 is reported, not retried. The
+ * only place in Signal that calls TypeSafe (audited: KNOWN_CALLS).
+ * @returns {Promise<{ok: true, answer: object, model: string} | {ok: false, reason: string}>}
+ */
+async function ask({ state, question, key, model, timeoutMs, fetchFn }) {
+  if (typeof key !== 'string' || key.trim() === '') return { ok: false, reason: JEV_REASON.NO_KEY };
+
+  let res;
+  try {
+    res = await fetchFn(JEV_ENDPOINT, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state, model, questions: { [QUESTION_ID]: question } }),
+      signal: AbortSignal.timeout(timeoutMs),
+      redirect: 'error',
+    });
+  } catch (err) {
+    // The error object is dropped, never echoed: some stacks print the request.
+    return { ok: false, reason: err?.name === 'TimeoutError' || err?.name === 'AbortError' ? JEV_REASON.TIMEOUT : JEV_REASON.NETWORK };
+  }
+
+  if (!res || !res.ok) return { ok: false, reason: reasonForStatus(res?.status) };
+
+  let body;
+  try {
+    body = await res.json();
+  } catch {
+    return { ok: false, reason: JEV_REASON.BAD_RESPONSE };
+  }
+  return { ok: true, answer: body?.answers?.[QUESTION_ID], model: typeof body?.model === 'string' && MODEL_RE.test(body.model) ? body.model : model };
+}
+
+/**
+ * Ask Jev one choice question about `state`.
+ *
+ * @param {{
+ *   state: unknown,
+ *   question: {type: 'choice', instructions: unknown, criteria: Record<string, unknown>},
+ *   key?: string,
+ *   model?: string,
+ *   timeoutMs?: number,
+ *   fetchFn?: typeof fetch,
+ * }} args
+ * @returns {Promise<{ok: true, choice: string, confidence: number, probabilities: object, model: string}
+ *   | {ok: false, reason: string}>}
+ */
+export async function askChoice({
+  state,
+  question,
+  key = process.env.TYPESAFE_API_KEY,
+  model = process.env.TYPESAFE_MODEL || JEV_DEFAULT_MODEL,
+  timeoutMs = JEV_DEFAULT_TIMEOUT_MS,
+  fetchFn = fetch,
+} = {}) {
+  const r = await ask({ state, question, key, model, timeoutMs, fetchFn });
+  if (!r.ok) return r;
+  const parsed = parseChoiceAnswer(r.answer, Object.keys(question?.criteria ?? {}));
+  if (!parsed) return { ok: false, reason: JEV_REASON.BAD_RESPONSE };
+  return { ok: true, ...parsed, model: r.model };
+}
+
+/**
+ * Ask Jev one yes/no ("noul") question about `state`. `noul` is the
+ * probability the answer is yes, 0..1.
+ * @returns {Promise<{ok: true, noul: number, model: string} | {ok: false, reason: string}>}
+ */
+export async function askNoul({
+  state,
+  question,
+  key = process.env.TYPESAFE_API_KEY,
+  model = process.env.TYPESAFE_MODEL || JEV_DEFAULT_MODEL,
+  timeoutMs = JEV_DEFAULT_TIMEOUT_MS,
+  fetchFn = fetch,
+} = {}) {
+  const r = await ask({ state, question, key, model, timeoutMs, fetchFn });
+  if (!r.ok) return r;
+  const a = r.answer;
+  if (!a || a.type !== 'noul' || !isUnit(a.noul)) return { ok: false, reason: JEV_REASON.BAD_RESPONSE };
+  return { ok: true, noul: a.noul, model: r.model };
+}

@@ -38,6 +38,7 @@ import { readState, PHASES, EPIC_ID_STRICT_RE } from './state.js';
 import { readProfileIssues } from './profile.js';
 import { deriveUnits, WORKED_SUFFIXES } from './work-units.js';
 import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
+import { isReceipt, stripControl } from './receipt.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -104,6 +105,7 @@ export class DriftCheckError extends Error {
  *   run: (ctx: object) => Array<{message: string, file?: string}>,
  *   healMechanism?: string,
  *   describe?: string,
+ *   judged?: 'model',
  * }} def
  * @returns {Readonly<object>}
  */
@@ -111,7 +113,7 @@ export function defineCheck(def) {
   if (!def || typeof def !== 'object') {
     throw new DriftCheckError('defineCheck requires a definition object.');
   }
-  const { id, healCategory, applicability, run, healMechanism, describe } = def;
+  const { id, healCategory, applicability, run, healMechanism, describe, judged } = def;
 
   if (typeof id !== 'string' || id.length === 0) {
     throw new DriftCheckError('A drift check requires a non-empty string id.');
@@ -132,6 +134,12 @@ export function defineCheck(def) {
   if (typeof run !== 'function') {
     throw new DriftCheckError(`Check "${id}" must declare a run function.`);
   }
+  // M6.E3 (AC9.4): a check whose findings are a model's judgment says so HERE,
+  // once, and `runDriftChecks` marks its whole result — so no finding from it can
+  // reach `refusableFindings`, whether or not each finding remembered `judgedBy`.
+  if (judged !== undefined && judged !== 'model') {
+    throw new DriftCheckError(`Check "${id}" declares judged: ${JSON.stringify(judged)}; the only value is 'model'.`);
+  }
   if (healCategory !== HEAL.NEEDS_A_PERSON && !healMechanism) {
     throw new DriftCheckError(
       `Check "${id}" declares heal category ${healCategory}, which promises the ` +
@@ -148,6 +156,7 @@ export function defineCheck(def) {
     run,
     healMechanism: healMechanism ?? null,
     describe: describe ?? null,
+    ...(judged ? { judged } : {}),
   });
 }
 
@@ -290,8 +299,17 @@ export async function runDriftChecks(baseDir, checks = STATE_DRIFT_CHECKS) {
     }
 
     let raw;
+    let coverage = null;
     try {
       raw = (await check.run(built.ctx)) ?? [];
+      // M6.E3: a check that samples (the Jev check stops at a cap and a time
+      // budget) may return `{findings, coverage}` so "checked 12 of 20" reaches
+      // the reader — a partial run must never read as a clean one (`B39`).
+      // Every other check returns an array and is unchanged.
+      if (!Array.isArray(raw) && Array.isArray(raw?.findings)) {
+        coverage = raw.coverage ?? null;
+        raw = raw.findings;
+      }
     } catch (err) {
       results.push({
         id: check.id,
@@ -303,13 +321,48 @@ export async function runDriftChecks(baseDir, checks = STATE_DRIFT_CHECKS) {
       continue;
     }
 
+    // M6.E3 FR1: a receipt, a model judgment and a clearing edit (`fix`, AC5.2)
+    // ride through when present, and
+    // are absent (not null) when a check never set them — so every existing
+    // check's output is byte-identical. A receipt `makeReceipt` did not build is
+    // refused here, whole-check, rather than carried as something a gate might
+    // later mistake for evidence (AC1.5).
+    // A model-judged check must say who judged each finding; one that does not
+    // is a check that has forgotten what it is — refused whole, not trusted.
+    if (check.judged === 'model' && raw.some((f) => f.judgedBy == null)) {
+      results.push({
+        id: check.id,
+        healCategory: check.healCategory,
+        status: STATUS.CANNOT_EVALUATE,
+        reason: 'a model-judged check returned a finding without judgedBy',
+        findings: [],
+      });
+      continue;
+    }
+
+    if (raw.some((f) => f.receipt != null && !isReceipt(f.receipt))) {
+      results.push({
+        id: check.id,
+        healCategory: check.healCategory,
+        status: STATUS.CANNOT_EVALUATE,
+        reason: 'the check returned a malformed receipt (not built by makeReceipt)',
+        findings: [],
+      });
+      continue;
+    }
+
     const findings = raw
       .map((f) => ({
         check: check.id,
         healCategory: check.healCategory,
         healMechanism: check.healMechanism,
         file: f.file ?? null,
-        message: f.message,
+        // Messages quote project files (a fact from frontmatter, a paragraph);
+        // terminal escapes in them never reach a screen or the SHIP artifact.
+        message: typeof f.message === 'string' ? stripControl(f.message) : f.message,
+        ...(f.receipt != null ? { receipt: f.receipt } : {}),
+        ...(f.judgedBy != null ? { judgedBy: f.judgedBy } : {}),
+        ...(typeof f.fix === 'string' && f.fix.trim() ? { fix: f.fix } : {}),
       }))
       .sort(findingCmp);
 
@@ -319,6 +372,8 @@ export async function runDriftChecks(baseDir, checks = STATE_DRIFT_CHECKS) {
       status: findings.length ? STATUS.FINDINGS : STATUS.CLEAN,
       reason: null,
       findings,
+      ...(coverage ? { coverage } : {}),
+      ...(check.judged ? { judged: check.judged } : {}),
     });
   }
 

@@ -2,47 +2,59 @@
 schema_version: 1
 docs_layout_version: 3
 phase: SHIP
-current_epic: M6.E8
+current_epic: M6.E3
 current_wave: null
 current_tasks: []
 completed_phases:
-  - DISCUSS (2026-09-14)
-  - PLAN (2026-09-14)
-  - EXECUTE (2026-09-14)
-  - VERIFY (2026-09-14)
-  - REVIEW (2026-09-14)
-  - EXECUTE (2026-09-14)
-  - REVIEW (2026-09-14)
-  - EXECUTE (2026-09-14)
-  - REVIEW (2026-09-24)
-  - SHIP (2026-09-24)
+  - DISCUSS (2026-09-26)
+  - PLAN (2026-09-26)
+  - EXECUTE (2026-09-27)
+  - VERIFY (2026-09-27)
+  - REVIEW (2026-09-27)
+  - EXECUTE (2026-09-27)
+  - REVIEW (2026-09-27)
+  - EXECUTE (2026-09-27)
+  - REVIEW (2026-09-27)
+  - SHIP (2026-09-27)
 blockers: []
 last_completed_task:
-  id: t3.4
+  id: t1.8
   status: done
-  commit: 3e377ce
-  completedAt: 2026-09-14T12:41:57.391Z
-last_decision_at: 2026-09-14T12:41:57.391Z
-last_updated_commit: ff74986
-last_updated: 2026-09-24T20:12:29.670Z
+  commit: 04c50c9
+  completedAt: 2026-09-26T21:53:22.398Z
+last_decision_at: 2026-09-26T21:53:22.398Z
+last_updated_commit: d954b5b
+last_updated: 2026-09-27T22:48:51.608Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-09-25)
+### ▶ WHERE THE WORK IS — read this first (2026-09-27)
 
-**`M6.E8` SHIPPED as `v0.1.41` (2026-09-25)** — PR #254 merged with `--merge`; the release also carries
-the `/sig:resume` phase-count fix (`B124` + `B47`, PR #255). Retro:
-[`M6.E8-RETROSPECTIVE.md`](M6.E8-RETROSPECTIVE.md). Its resume pointer and this file's stale
-`In-flight` section were relocated verbatim to
+**`M6.E3` — SHIPPED as `v0.1.42` (2026-09-27); PR open on `feat/m6.e3-jev-claims-audit`, merge with
+`--merge`.** The Jev checks run as advice with receipts: the `STATE.md` check at `/sig:resume` and
+SHIP, and the bug-fixed check at SHIP. A model finding cannot refuse, by declaration. Retro:
+[`M6.E3-RETROSPECTIVE.md`](M6.E3-RETROSPECTIVE.md).
+
+- **VERIFY:** 2 loops. Loop 1 failed (`AC4.2` plus two receipts quoting unjudged text). `AC4.1`/`AC4.2`
+  were revised (`D-M6E3-17`). 44 of 44 live criteria met, 6 of them with a stated limit.
+- **REVIEW:** 3 passes, each by three fresh-context reviewers. Pass 1 found 13 Important; pass 2
+  found defects in pass 1's fixes, one High (the `.env` check bypassed by filename case); pass 3
+  found 0 Important. The leftovers are one BACKLOG row, *"Jev key and receipt hardening"*.
+- **Re-measured live after REVIEW:** the `STATE.md` check found 4 of 4 with 0/26 false alarms; the bug
+  check flagged B102 only (p 0.63). Output: `analysis/jev-spike/runs/`.
+- **Filed:** `B126` (the coverage tool counts mentions as verified), `B127` (a BACKLOG heading saying
+  "done" hid the in-flight Epic from `/sig:advise`).
+- **Next Epic, by Brett's direction:** redesign how Signal records status, so that "done" is recorded
+  when it happens (`D-M6E3-16`). Its first question is Brett's: a marker in the files, or GitHub
+  Issues.
+
+### ▶ PREVIOUS — `M6.E8` SHIPPED as `v0.1.41` (2026-09-25)
+
+PR #254 merged with `--merge`; the release also carries the `/sig:resume` phase-count fix (`B124` +
+`B47`, PR #255). Retro: [`M6.E8-RETROSPECTIVE.md`](M6.E8-RETROSPECTIVE.md). Narrative relocated to
 [`archive/M6/E8/STATE-NARRATIVE.md`](archive/M6/E8/STATE-NARRATIVE.md).
-
-**Next: `M6.E3` is UN-PARKED (`D-BR0925-5`), rebuilt around TypeSafe's Jev** as an optional,
-bring-your-own-key judge (`D-BR0925-1`). Start at `/sig:discuss`. Evidence:
-[`../analysis/TYPESAFE-JEV-ASSESSMENT.md`](../analysis/TYPESAFE-JEV-ASSESSMENT.md) §6 — on this
-repository's own `STATE.md`, Jev found 4 of 4 stale claims where the shipped check found 0. The
-frontmatter still reads `M6.E8` / `SHIP` until `/sig:discuss` opens the next Epic.
 
 ### ▶ PREVIOUS — `M6.E7` shipped and merged (PR #239), 2026-09-06. Narrative relocated.
 
@@ -61,7 +73,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-**`M6.E8` is shipped; nothing is being built.** `M6.E3` opens next at DISCUSS (see the resume pointer).
+**`M6.E3` — at SHIP: `v0.1.42` cut, PR open, awaiting Brett's merge** (see the resume pointer).
 
 ## Blockers
 
