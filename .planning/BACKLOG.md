@@ -526,6 +526,8 @@ past. Consider advisory-with-a-number before hard-failing.
 
 ### Structural status — make done-vs-live readable without inference · **roadmap** · large · **filed 2026-09-01** · **NEXT EPIC after `M6.E3` (Brett, 2026-09-27, `D-M6E3-16`)**
 
+> **2026-09-28 — direction agreed, next step `/sig:discuss`:** one system of record for work items — IDs at intake, items that *move* through the stages, scope-box sprints, a tracker as an opt-in replacement. [`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](../analysis/WORK-ITEM-SYSTEM-DESIGN.md); `D-BR0928-1` … `D-BR0928-7`.
+
 **Promoted 2026-09-27.** Brett: *"revisit this whole architecture vs. keep applying band-aids."* It now
 also absorbs `M6.E3`'s dropped answered-questions slice, and `M6.E3`'s measurement is fresh evidence:
 no token rule could tell a fixed bug from an open one. Starting point — the real-world pattern: a
