@@ -30,11 +30,11 @@ last_updated: 2026-09-27T22:48:51.608Z
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-09-27)
+### ▶ WHERE THE WORK IS — read this first (2026-09-28)
 
-**`M6.E3` — SHIPPED as `v0.1.42` (2026-09-27); PR open on `feat/m6.e3-jev-claims-audit`, merge with
-`--merge`.** The Jev checks run as advice with receipts: the `STATE.md` check at `/sig:resume` and
-SHIP, and the bug-fixed check at SHIP. A model finding cannot refuse, by declaration. Retro:
+**`M6.E3` — SHIPPED as `v0.1.42`: PR #260 merged 2026-09-28 with `--merge` (merge commit `6cc50a0`),
+tagged and released.** The Jev checks run as advice with receipts: the `STATE.md` check at
+`/sig:resume` and SHIP, and the bug-fixed check at SHIP. A model finding cannot refuse, by declaration. Retro:
 [`M6.E3-RETROSPECTIVE.md`](M6.E3-RETROSPECTIVE.md).
 
 - **VERIFY:** 2 loops. Loop 1 failed (`AC4.2` plus two receipts quoting unjudged text). `AC4.1`/`AC4.2`
@@ -73,7 +73,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-**`M6.E3` — at SHIP: `v0.1.42` cut, PR open, awaiting Brett's merge** (see the resume pointer).
+None — `M6.E3` merged and released as `v0.1.42` (PR #260). Next Epic: the status redesign (`D-M6E3-16`), awaiting Brett's first call.
 
 ## Blockers
 
