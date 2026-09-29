@@ -109,7 +109,7 @@ function runGit(baseDir, args, execFn) {
 // Split an item file name into its key and number, or null when the name is
 // not `{ID}.md`. Derived from ITEM_ID_RE rather than a second regex, so the
 // ID shape has exactly one definition.
-function parseItemFileName(name) {
+export function parseItemFileName(name) {
   if (!name.endsWith('.md')) return null;
   const id = name.slice(0, -'.md'.length);
   if (!ITEM_ID_RE.test(id)) return null;
@@ -129,7 +129,7 @@ function maxFromNames(names, key) {
 // Recursive walk that does not follow symlinks: a Dirent for a symlink is
 // neither a file nor a directory here, so a link pointing outside the store
 // cannot pull foreign files into the count (or into checkStore).
-function walkFiles(dir, out = []) {
+export function walkFiles(dir, out = []) {
   let entries;
   try {
     entries = readdirSync(dir, { withFileTypes: true });
