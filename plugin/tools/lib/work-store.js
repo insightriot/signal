@@ -22,10 +22,10 @@
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { basename, join, relative, sep } from 'node:path';
 
-import { parseFrontmatter, StateSchemaError } from './state.js';
-import { WorkStoreError } from './work-item.js';
+import { parseFrontmatter, StateSchemaError, EPIC_ID_STRICT_RE } from './state.js';
+import { parseItem, WorkStoreError } from './work-item.js';
 
 export const WORK_DIR = 'work';
 export const WORK_FILE = 'WORK.md';
@@ -209,4 +209,149 @@ export function nextId(baseDir, opts = {}) {
   } catch (err) {
     throw new Error(`nextId: could not read git history in ${baseDir}: ${err.message}`);
   }
+}
+
+// ── Consistency check (FR-3, D-M6E11-8) ─────────────────────────────────────
+//
+// Status lives in the frontmatter AND in the folder, which is two places — the
+// shape this Epic exists to remove — so this check is what keeps them one fact.
+// It is the DeepSeek header-vs-folder gate (RESEARCH §4): the path is the fast
+// read, the header is the truth, and any disagreement is a finding rather than
+// something a reader silently resolves.
+//
+// Scope: `.planning/work/` and `.planning/archive/epics/`. The archive is read
+// because a duplicate ID between a live item and an archived one is still a
+// duplicate — `nextId` reads the archive for the same reason.
+
+// Any key, so an item file carrying another project's key is reported instead
+// of being invisible. The project's own key is checked per file.
+const ITEM_FILE_RE = /^([A-Z][A-Z0-9]{1,9})-([1-9]\d*)\.md$/;
+const DONE_MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+const ALLOWED = {
+  inbox: ['N'],
+  backlog: ['T'],
+  epics: ['Q', 'P'],
+  done: ['C'],
+  archive: ['C'],
+};
+
+// Where an item file sits, as far as the folder rules are concerned.
+// Returns {folder, allowed} or {problem} when no folder rule can apply.
+function placement(parts) {
+  // parts: path segments below .planning/, ending in the file name.
+  if (parts[0] === 'archive') {
+    // archive/epics/<EpicID>/<file>
+    if (parts.length !== 4 || !EPIC_ID_STRICT_RE.test(parts[2])) {
+      return { problem: 'is not in an archived Epic folder (archive/epics/<EpicID>/)' };
+    }
+    return { folder: `archive/epics/${parts[2]}`, allowed: ALLOWED.archive };
+  }
+  const [, top, ...rest] = parts; // parts[0] === WORK_DIR
+  if (rest.length === 0) return { problem: 'is not in a status folder (inbox/, backlog/, epics/<EpicID>/, done/YYYY-MM/)' };
+  if (top === FOLDERS.inbox || top === FOLDERS.backlog) {
+    if (rest.length !== 1) return { problem: `is nested below ${top}/; items sit directly in their folder` };
+    return { folder: top, allowed: ALLOWED[top] };
+  }
+  if (top === FOLDERS.epics) {
+    if (rest.length !== 2) return { problem: 'must sit directly in an Epic folder (epics/<EpicID>/)' };
+    if (!EPIC_ID_STRICT_RE.test(rest[0])) return { problem: `is in epics/${rest[0]}/, which is not an Epic ID folder` };
+    return { folder: `epics/${rest[0]}`, allowed: ALLOWED.epics };
+  }
+  if (top === FOLDERS.done) {
+    if (rest.length !== 2 || !DONE_MONTH_RE.test(rest[0])) {
+      return { problem: 'must sit in a done/YYYY-MM/ folder' };
+    }
+    return { folder: `done/${rest[0]}`, allowed: ALLOWED.done };
+  }
+  return { problem: `is in ${top}/, which is not a status folder (inbox/, backlog/, epics/<EpicID>/, done/YYYY-MM/)` };
+}
+
+/**
+ * Report every way the store disagrees with itself. Reads only.
+ *
+ * Finding codes:
+ *   status-folder  the item's status is not allowed in its folder, or the file
+ *                  sits where no folder rule applies
+ *   duplicate-id   two or more files carry the same ID (`paths` names all)
+ *   schema         a frontmatter violation, one finding per violation
+ *   filename-id    the file name and the frontmatter `id` disagree
+ *
+ * @param {string} baseDir
+ * @returns {Array<{code: string, id: string, path?: string, paths?: string[], message: string}>}
+ *   `[]` when the store is off
+ * @throws {WorkStoreError} CONFIG when WORK.md exists but is broken
+ */
+export function checkStore(baseDir) {
+  const store = isStoreOn(baseDir);
+  if (!store.on) return [];
+
+  const planning = join(baseDir, '.planning');
+  const files = [
+    ...walkFiles(join(planning, WORK_DIR)),
+    ...walkFiles(join(planning, 'archive', 'epics')),
+  ].sort();
+
+  const findings = [];
+  const byId = new Map();
+
+  for (const abs of files) {
+    const name = basename(abs);
+    const m = ITEM_FILE_RE.exec(name);
+    if (!m) continue; // WORK.md, WATCHLIST.md, an Epic's own artifacts
+    const id = name.slice(0, -'.md'.length);
+    const path = relative(baseDir, abs).split(sep).join('/');
+
+    if (!byId.has(id)) byId.set(id, []);
+    byId.get(id).push(path);
+
+    if (m[1] !== store.key) {
+      findings.push({
+        code: 'schema',
+        id,
+        path,
+        message: `${path}: key ${m[1]} is not this store's key (${store.key})`,
+      });
+      continue;
+    }
+
+    const { item, errors } = parseItem(readFileSync(abs, 'utf-8'), { path });
+    for (const message of errors) findings.push({ code: 'schema', id, path, message });
+    if (item === null) continue;
+
+    if (typeof item.id === 'string' && item.id !== id) {
+      findings.push({
+        code: 'filename-id',
+        id,
+        path,
+        message: `${path}: file name says ${id} but the frontmatter id is ${item.id}`,
+      });
+    }
+
+    const where = placement(relative(planning, abs).split(sep));
+    if (where.problem) {
+      findings.push({ code: 'status-folder', id, path, message: `${path} ${where.problem}` });
+    } else if (!where.allowed.includes(item.status)) {
+      findings.push({
+        code: 'status-folder',
+        id,
+        path,
+        message: `${path}: status ${JSON.stringify(item.status)} does not belong in ${where.folder}/ `
+          + `(allowed: ${where.allowed.join(', ')})`,
+      });
+    }
+  }
+
+  for (const [id, paths] of byId) {
+    if (paths.length > 1) {
+      findings.push({
+        code: 'duplicate-id',
+        id,
+        paths,
+        message: `${id} is used by ${paths.length} files: ${paths.join(', ')}`,
+      });
+    }
+  }
+
+  return findings;
 }
