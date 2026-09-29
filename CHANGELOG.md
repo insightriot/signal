@@ -20,7 +20,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 ### Changed
 
 - **With the store on, the writers write items.** `/sig:add` creates an item in `inbox/` (its success message names the item file); `/sig:checkpoint --context` records each question as a Q item; backlog promotion and SHIP's discharge step move and close items instead of editing the lists.
-- **Signal's own four lists are migrated into the store**: the originals are kept byte-for-byte under `.planning/archive/pre-work-store/`, so a `path:line` citation into them from before the migration can still be checked. <!-- counts filled at apply -->
+- **Signal's own four lists are migrated into the store**: the originals are kept byte-for-byte under `.planning/archive/pre-work-store/`, so a `path:line` citation into them from before the migration can still be checked. 248 items (140 bugs, 92 backlog rows, 5 inbox captures, 11 open questions): 15 untriaged, 91 triaged, 142 closed, each close marked `proof: legacy — not re-verified`. BACKLOG rows whose status `/sig:advise` had to guess from the wording: 92 → 0.
 
 ### For other projects
 
