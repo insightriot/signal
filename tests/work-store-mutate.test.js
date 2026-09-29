@@ -216,7 +216,7 @@ describe('moveItem — AC-5.2', () => {
     const r = await moveItem(repo, 'SIG-1', { status: 'T' }, { execFn });
     expect(r.from).toBe('.planning/work/inbox/SIG-1.md');
     expect(r.to).toBe('.planning/work/backlog/SIG-1.md');
-    expect(calls.some((a) => a[0] === 'mv')).toBe(true);
+    expect(calls.some((a) => a.includes('mv'))).toBe(true);
     expect(calls.flat()).not.toContain('-k');
 
     expect(existsSync(join(repo, '.planning/work/inbox/SIG-1.md'))).toBe(false);
@@ -228,6 +228,25 @@ describe('moveItem — AC-5.2', () => {
     const log = git(repo, ['log', '--follow', '--format=%s', '--', '.planning/work/backlog/SIG-1.md']);
     expect(log).toContain('seed');
     expect(checkStore(repo)).toEqual([]);
+  });
+
+  // A path read from disk must reach git as a literal path, never a pattern:
+  // `--literal-pathspecs` goes before the subcommand, on every call that
+  // names an item file.
+  it('git ls-files and git mv get the item path as a literal pathspec', async () => {
+    initRepo(repo);
+    await storeOn(repo);
+    await plantItem(repo, 'inbox', { id: 'SIG-1', type: 'FEAT', status: 'N', created: CREATED });
+    commitAll(repo, 'seed');
+    const calls = [];
+    const execFn = (cmd, args, o) => {
+      calls.push(args);
+      return execFileSync(cmd, args, o);
+    };
+    await moveItem(repo, 'SIG-1', { status: 'T' }, { execFn });
+    const pathCalls = calls.filter((a) => a.includes('ls-files') || a.includes('mv'));
+    expect(pathCalls.map((a) => a.find((x) => !x.startsWith('-')))).toEqual(['ls-files', 'mv']);
+    for (const a of pathCalls) expect(a[0], a.join(' ')).toBe('--literal-pathspecs');
   });
 
   it('untracked file in a repo: plain rename', async () => {
@@ -480,7 +499,7 @@ describe('every failure is a WorkStoreError with a code', () => {
     await plantItem(repo, 'inbox', { id: 'SIG-1', type: 'FEAT', status: 'N', created: CREATED });
     commitAll(repo, 'seed');
     const execFn = (cmd, args, o) => {
-      if (args[0] === 'mv') throw new Error('fatal: not under version control');
+      if (args.includes('mv')) throw new Error('fatal: not under version control');
       return execFileSync(cmd, args, o);
     };
     await expectCode(moveItem(repo, 'SIG-1', { status: 'T' }, { execFn }), 'IO', /not under version control/);
@@ -581,7 +600,7 @@ describe('AC-3.4 — no operation ever lowers the count of item files', () => {
     commitAll(repo, 'before the Epic close');
     let mvs = 0;
     const failSecondMv = (cmd, args, o) => {
-      if (args[0] === 'mv' && ++mvs === 2) throw new Error('fatal: boom');
+      if (args.includes('mv') && ++mvs === 2) throw new Error('fatal: boom');
       return execFileSync(cmd, args, o);
     };
     await attempt('IO', 'closeEpic, second move fails', () => closeEpic(repo, 'M6.E11', { by: 'b', at: AT }, { execFn: failSecondMv }));

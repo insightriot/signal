@@ -285,9 +285,13 @@ function assertEpicId(epic) {
 
 // ── The move ─────────────────────────────────────────────────────────────────
 
+// Every git call here names a path read from disk, so each carries
+// `--literal-pathspecs` (a global option, before the subcommand): the path is
+// matched as written, never as a glob pattern.
+
 function isTracked(baseDir, rel, execFn) {
   try {
-    execFn('git', ['ls-files', '--error-unmatch', '--', rel], { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] });
+    execFn('git', ['--literal-pathspecs', 'ls-files', '--error-unmatch', '--', rel], { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] });
     return true;
   } catch {
     return false;
@@ -299,7 +303,7 @@ function isTracked(baseDir, rel, execFn) {
 // turns a failed move into a silent no-op.
 function moveFile(baseDir, fromRel, toRel, git, execFn) {
   if (git) {
-    execFn('git', ['mv', '--', fromRel, toRel], { cwd: baseDir, stdio: ['ignore', 'pipe', 'pipe'] });
+    execFn('git', ['--literal-pathspecs', 'mv', '--', fromRel, toRel], { cwd: baseDir, stdio: ['ignore', 'pipe', 'pipe'] });
   } else {
     renameSync(join(baseDir, fromRel), join(baseDir, toRel));
   }
