@@ -3636,7 +3636,7 @@ relative link targets to the file's depth (`archive-tree.js:631` is the preceden
 link targets normalised** — AC-9.4 reworded accordingly.
 
 ### D-M6E11-23 — Epic artifacts resolve from the Epic folder; M6.E11's own move is the last task
-With the store on, `resolveArtifactPath` / `artifactName` try `work/epics/<id>/<ARTIFACT>.md` first and
+With the store on, `resolveArtifactPath` / `artifactName` try `work/epics/<id>/<ARTIFACT>.md` (~~name~~ corrected by `D-M6E11-30`) first and
 fall back to today's locations, unchanged. Moving `M6.E11`'s own REQUIREMENTS/PLAN/… mid-Epic could
 wedge `transitionPhase` (it refuses a phase whose artifact it cannot resolve), so that move is the
 **final** task of EXECUTE. When the store is on and the Epic's folder exists, `artifactName` also
@@ -3669,3 +3669,20 @@ Found by the plan check.
 `atomicWrite` has 42 callers and no idea who is calling. A marked file is writable only with
 `{generated: true}`; the guard reads ≤200 bytes and fires only when the **first line equals the
 marker exactly**, because Signal's own docs quote the marker. Found by the plan check.
+
+## 2026-09-29 — M6.E11 EXECUTE: Epic items close in place; artifact names in the folder (D-M6E11-29, D-M6E11-30)
+
+### D-M6E11-29 — An item that belongs to an Epic closes IN its Epic folder
+S5 built `closeItem` to move every closed item to `done/YYYY-MM/`, which made an archived Epic a
+folder of documents with no items — contradicting `D-M6E11-13`, AC-8.4 and Brett's own description
+(*"Epic folders … marked as completed, and then moved to /archive/epic"*, with the items). Corrected:
+an Epic item closes with status C **in** `work/epics/<id>/`; `checkStore` allows Q/P/C there;
+`closeEpic` carries the closed items to `archive/epics/<id>/` with the folder. Items with no Epic
+still close into `done/YYYY-MM/`. Found by the S5 executor as a design tension, not by a test.
+
+### D-M6E11-30 — Inside an Epic folder, artifacts keep their `{EpicID}-` prefix
+~~`D-M6E11-23`: `work/epics/<id>/<ARTIFACT>.md`~~ → **`work/epics/<id>/<id>-<ARTIFACT>.md`** is canonical;
+the bare form still resolves one step lower. `retro-index.js:136` and `planning-index.js:26` find
+retrospectives across folders by the `{EpicID}-` prefix, and t7.5's `git mv` keeps names. Also: a
+broken `WORK.md` now makes every phase command's artifact resolution throw `CONFIG` — deliberate
+(the store never silently falls back to off), and visible.
