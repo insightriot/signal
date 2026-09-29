@@ -90,9 +90,14 @@ function findSnapshot(baseDir) {
  * @param {string} baseDir — project root (where `.planning/` lives)
  * @param {{today?: string}} [opts] — `today` seeds the initial footer date.
  * @returns {Promise<{created: boolean, path: string, seededFrom?: string|null}>}
+ *   Always `created: false` with the work store on.
  */
 export async function createBacklogIfMissing(baseDir, opts = {}) {
   const path = join(baseDir, BACKLOG_REL);
+  // M6.E11 (t4.5): with the work store on, BACKLOG.md is the generator's file;
+  // a hand skeleton written here would be refused (or erased) at the next
+  // regeneration. Nothing to create.
+  if (isStoreOn(baseDir).on) return { created: false, path };
   if (existsSync(path)) {
     return { created: false, path };
   }

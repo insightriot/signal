@@ -46,6 +46,9 @@ import { deriveEpicArchiveDir } from './evict.js';
 import { enumerateRetros } from './retro-index.js';
 import { resolveClosures } from './closure.js';
 import { INBOX_NEW, INBOX_LEGACY, LEDGER_NEW, LEDGER_LEGACY } from './inbox-path.js';
+import { acquireLock, releaseLock } from './file-lock.js';
+import { isGeneratedText } from './work-marker.js';
+import { isStoreOn, WORK_DIR } from './work-store.js';
 
 // The scaffold doc-types that archive with a closed Epic. A project-AGNOSTIC
 // domain constant (the doc-runtime scaffold set) — NOT a project literal like a
@@ -616,6 +619,7 @@ export async function applyArchiveTree(baseDir, opts = {}) {
   // this guard keeps the link/prose REWRITE from touching it either.)
   const indexRel = `${PLANNING_DIR}/INDEX.md`;
   let rewrittenFiles = 0;
+  let staleGenerated = false;
   for (const f of files) {
     const curRel = moveMap.get(f) ?? f;
     if (curRel === indexRel) continue; // §10 — leave INDEX.md untouched
@@ -627,9 +631,30 @@ export async function applyArchiveTree(baseDir, opts = {}) {
       continue;
     }
     const next = applyKeyedReplacements(text, editsByFile.get(f) ?? []);
-    if (next !== text) {
-      await atomicWrite(curAbs, next);
-      rewrittenFiles += 1;
+    if (next === text) continue;
+    // M6.E11 (t4.5, D-M6E11-25): a generated list is not rewritten in place —
+    // the write guard would refuse it, and an edit there would be lost at the
+    // next regeneration anyway. Its links come from the item files, which ARE
+    // rewritten above like any other file, so the lists are regenerated below.
+    if (isGeneratedText(text)) {
+      staleGenerated = true;
+      continue;
+    }
+    await atomicWrite(curAbs, next);
+    rewrittenFiles += 1;
+  }
+
+  // Regenerate so the lists carry the item files' new links. Under the
+  // store's own `work` lock (D-M6E11-27) — never `.state.lock`, which the
+  // migrate caller already holds. Only when something changed.
+  if ((staleGenerated || rewrittenFiles > 0) && isStoreOn(baseDir).on) {
+    const { generateAll } = await import('./work-generate.js');
+    const lockPath = join(baseDir, PLANNING_DIR, WORK_DIR, '.lock');
+    await acquireLock(lockPath, { label: 'work store' });
+    try {
+      await generateAll(baseDir);
+    } finally {
+      await releaseLock(lockPath);
     }
   }
 

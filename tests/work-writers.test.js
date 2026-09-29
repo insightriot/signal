@@ -30,6 +30,9 @@ import {
   evictTerminalToLedger,
   promoteDrainEntry,
 } from '../plugin/tools/lib/drain.js';
+import { applyArchiveTree } from '../plugin/tools/lib/archive-tree.js';
+import { createSnapshotter } from '../plugin/tools/lib/migrate-memory.js';
+import { createBacklogIfMissing } from '../plugin/tools/lib/backlog.js';
 import { generateAll, GENERATED_FILES } from '../plugin/tools/lib/work-generate.js';
 import { GENERATED_MARKER } from '../plugin/tools/lib/work-marker.js';
 import { getItem, listItems, newItem } from '../plugin/tools/lib/work-ops.js';
@@ -249,5 +252,69 @@ describe('drain.js — refuses outright when the store is on (AC-6.3, D-M6E11-25
     await put('.planning/ISSUES-INBOX.md', '# Issues Inbox\n\n## A\n\nx\n\n---\n\n*Last updated: 2026-01-01*\n');
     await put('.planning/work/WORK.md', '---\nkey: 1bad\n---\n');
     await expect(evictTerminalToLedger(root)).rejects.toMatchObject({ code: 'CONFIG' });
+  });
+});
+
+describe('archive-tree.js — the link rewrite leaves generated lists to the generator', () => {
+  it('a scaffold move rewrites the item body and regenerates the lists; no write into a generated file', async () => {
+    await newItem(root, { title: 'Follow up the plan', body: 'See [the plan](M6.E1-PLAN.md).', by: 't' });
+    await put('.planning/M6.E1-RETROSPECTIVE.md', '# M6.E1 retro\n');
+    await put('.planning/M6.E1-PLAN.md', '# M6.E1 plan\n');
+    expect(await readFile(planning('ISSUES-INBOX.md'), 'utf-8')).toContain('](M6.E1-PLAN.md)');
+
+    const res = await applyArchiveTree(root, { apply: true });
+    expect(res.applied).toBe(true);
+    expect(existsSync(planning('archive', 'M6', 'E1', 'M6.E1-PLAN.md'))).toBe(true);
+    // The item file was rewritten for the move (it sits two levels down).
+    expect(getItem(root, 'SIG-1').body).toBe('See [the plan](../../archive/M6/E1/M6.E1-PLAN.md).');
+    // The generated inbox follows the item, through the generator.
+    const inbox = await readFile(planning('ISSUES-INBOX.md'), 'utf-8');
+    expect(inbox).toContain('](archive/M6/E1/M6.E1-PLAN.md)');
+    expect(inbox).not.toContain('](M6.E1-PLAN.md)');
+    expect(existsSync(planning('work', '.lock'))).toBe(false);
+    await expectOnlyGeneratorWrote();
+  });
+
+  it('dry run writes nothing, lists included', async () => {
+    await newItem(root, { title: 'x', body: 'See [the plan](M6.E1-PLAN.md).', by: 't' });
+    await put('.planning/M6.E1-RETROSPECTIVE.md', '# M6.E1 retro\n');
+    await put('.planning/M6.E1-PLAN.md', '# M6.E1 plan\n');
+    const before = await lists();
+    await applyArchiveTree(root);
+    expect(await lists()).toEqual(before);
+  });
+});
+
+describe('backlog.js createBacklogIfMissing — a no-op with the store on', () => {
+  it('writes no hand skeleton: BACKLOG.md is the generator\'s', async () => {
+    const res = await createBacklogIfMissing(root, { today: TODAY });
+    expect(res.created).toBe(false);
+    expect(existsSync(planning('BACKLOG.md'))).toBe(false);
+  });
+});
+
+describe('migrate-memory.js — the snapshot rollback can restore a generated file', () => {
+  it('snap a generated BACKLOG.md, regenerate it, roll back: bytes restored, no GENERATED throw', async () => {
+    await newItem(root, { type: 'FEAT', title: 'first', by: 't' });
+    await generateAll(root);
+    const { snap, rollback } = createSnapshotter(planning());
+    await snap('BACKLOG.md');
+    await snap('BUGS.md');
+    const before = await lists();
+    await newItem(root, { type: 'BUG', title: 'changes BUGS.md', by: 't' });
+    expect((await lists())['BUGS.md']).not.toBe(before['BUGS.md']);
+    await rollback();
+    expect((await lists())['BUGS.md']).toBe(before['BUGS.md']);
+    expect((await lists())['BACKLOG.md']).toBe(before['BACKLOG.md']);
+  });
+
+  it('the rollback still refuses to put hand-written bytes over a generated file', async () => {
+    await generateAll(root);
+    await newItem(root, { title: 'x', by: 't' });
+    // A snapshot taken when BUGS.md was NOT generated (hand bytes) cannot be
+    // restored over the generated file — that would be a hand write into it.
+    const { snapshot, rollback } = createSnapshotter(planning());
+    snapshot.set('BUGS.md', { abs: planning('BUGS.md'), existed: true, bytes: '# Bugs, by hand\n' });
+    await expect(rollback()).rejects.toMatchObject({ code: 'GENERATED' });
   });
 });
