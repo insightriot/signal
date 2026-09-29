@@ -41,6 +41,7 @@ import { atomicWrite } from './atomic-write.js';
 import { acquireLock } from './file-lock.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { EPIC_ID_STRICT_RE, parseFrontmatter, StateSchemaError, stringifyFrontmatter } from './state.js';
+import { asWorkStoreError, lockFailure } from './work-errors.js';
 import { assertNoHandKeptLists, EPIC_README, generateAll } from './work-generate.js';
 import {
   ITEM_ID_RE,
@@ -85,7 +86,12 @@ function requireStore(baseDir) {
 // mutation before the item is written, not after.
 async function withWorkLock(baseDir, fn) {
   requireStore(baseDir);
-  const lock = await acquireLock(join(baseDir, WORK_LOCK_REL), { label: 'work store', ttlMs: WORK_LOCK_TTL_MS });
+  let lock;
+  try {
+    lock = await acquireLock(join(baseDir, WORK_LOCK_REL), { label: 'work store', ttlMs: WORK_LOCK_TTL_MS });
+  } catch (err) {
+    throw lockFailure(err);
+  }
   try {
     assertNoHandKeptLists(baseDir);
     return await fn();
@@ -95,6 +101,17 @@ async function withWorkLock(baseDir, fn) {
 }
 
 const toPosix = (p) => p.split(sep).join('/');
+
+// `assertRealInsidePlanning`, as a WorkStoreError: a folder on the way that is
+// a symlink out of `.planning/` is a state of the disk to fix by hand
+// (CONFLICT); a filesystem failure while checking is IO.
+function confine(baseDir, abs, label) {
+  try {
+    assertRealInsidePlanning(baseDir, abs, label);
+  } catch (err) {
+    throw asWorkStoreError(err, typeof err?.code === 'string' ? 'IO' : 'CONFLICT');
+  }
+}
 const num = (id) => Number(id.slice(id.lastIndexOf('-') + 1));
 
 // An ID, or a label whose front is an ID. Only the front identifies an item
@@ -323,7 +340,7 @@ function exists(abs) {
     return true;
   } catch (err) {
     if (err.code === 'ENOENT') return false;
-    throw err;
+    throw asWorkStoreError(err, 'IO');
   }
 }
 
@@ -334,10 +351,11 @@ async function regenerate(baseDir, done) {
     // The item change stands — it is correct and `checkStore` names whatever
     // broke generation; undoing a good change to protect a stale view would
     // be the wrong way round.
-    if (err instanceof WorkStoreError) {
-      throw new WorkStoreError(err.code, `${done}, but the lists were not regenerated: ${err.message}`);
-    }
-    throw err;
+    // A raw error here is git or the filesystem: IO, with the same sentence.
+    const code = err instanceof WorkStoreError ? err.code : 'IO';
+    const wrapped = new WorkStoreError(code, `${done}, but the lists were not regenerated: ${err?.message ?? err}`);
+    wrapped.cause = err;
+    throw wrapped;
   }
 }
 
@@ -349,7 +367,7 @@ async function relocate(baseDir, found, next, body, destDirRel, opts) {
   const planning = join(baseDir, '.planning');
   const destRel = `.planning/${destDirRel}/${next.id}.md`;
   const destAbs = join(baseDir, destRel);
-  assertRealInsidePlanning(baseDir, destAbs, '/sig:item');
+  confine(baseDir, destAbs, '/sig:item');
 
   const fromDirRel = toPosix(relative(planning, dirname(join(baseDir, found.path))));
   const text = stringifyItem(next, rewriteRelativeLinks(body, fromDirRel, destDirRel));
@@ -369,7 +387,7 @@ async function relocate(baseDir, found, next, body, destDirRel, opts) {
     moveFile(baseDir, found.path, destRel, git, execFn);
   } catch (err) {
     if (firstCreated) removeCreatedDirs(dirname(destAbs), firstCreated);
-    throw err;
+    throw asWorkStoreError(err, 'IO');
   }
   try {
     await atomicWrite(destAbs, text, { renameFn: opts.renameFn });
@@ -378,7 +396,7 @@ async function relocate(baseDir, found, next, body, destDirRel, opts) {
     // (atomicWrite never half-writes), so moving it back restores the item.
     moveFile(baseDir, destRel, found.path, git, execFn);
     if (firstCreated) removeCreatedDirs(dirname(destAbs), firstCreated);
-    throw err;
+    throw asWorkStoreError(err, 'IO');
   }
   return { from: found.path, to: destRel };
 }
@@ -475,7 +493,7 @@ export async function newItems(baseDir, specs, opts = {}) {
         assertValid(item, `new item ${id}`);
         const rel = `.planning/${dirRel}/${id}.md`;
         const abs = join(baseDir, rel);
-        assertRealInsidePlanning(baseDir, abs, '/sig:item new');
+        confine(baseDir, abs, '/sig:item new');
         if (exists(abs)) throw new WorkStoreError('CONFLICT', `${rel} already exists — nothing was written.`);
         return { item, rel, abs, text: stringifyItem(item, rewriteRelativeLinks(body, linksFrom, dirRel)) };
       });
@@ -493,7 +511,7 @@ export async function newItems(baseDir, specs, opts = {}) {
         for (const rel of [...written].reverse()) unlinkSync(join(baseDir, rel));
         written.length = 0;
         if (firstCreated) removeCreatedDirs(inboxAbs, firstCreated);
-        throw err;
+        throw asWorkStoreError(err, 'IO');
       }
       const where = planned.length === 1
         ? `${planned[0].item.id} was written to ${planned[0].rel}`
@@ -676,7 +694,7 @@ const archivedEpicDirRel = (epic) => `archive/epics/${epic}`;
 async function ensureEpicReadme(baseDir, epic, id, opts) {
   const abs = join(baseDir, '.planning', epicDirRel(epic), EPIC_README);
   if (exists(abs)) return { abs, created: false };
-  assertRealInsidePlanning(baseDir, abs, '/sig:item');
+  confine(baseDir, abs, '/sig:item');
   const firstCreated = mkdirSync(dirname(abs), { recursive: true });
   try {
     await atomicWrite(abs, stringifyFrontmatter({ epic }, `# ${epic}\n`), { renameFn: opts.renameFn });
@@ -777,7 +795,7 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
     try {
       st = lstatSync(fromAbs);
     } catch (err) {
-      if (err.code !== 'ENOENT') throw err;
+      if (err.code !== 'ENOENT') throw asWorkStoreError(err, 'IO');
     }
     if (st === null) {
       return exists(toAbs) ? { status: 'already-archived', path: toRel } : { status: 'no-folder' };
@@ -785,8 +803,8 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
     if (!st.isDirectory()) {
       throw new WorkStoreError('CONFLICT', `${fromRel} is not a folder (a symlink or a file) — nothing was moved.`);
     }
-    assertRealInsidePlanning(baseDir, fromAbs, '/sig:item');
-    assertRealInsidePlanning(baseDir, toAbs, '/sig:item');
+    confine(baseDir, fromAbs, '/sig:item');
+    confine(baseDir, toAbs, '/sig:item');
 
     // The gate. Every item file in the folder, open ones named.
     const tree = listTree(fromAbs);
@@ -907,7 +925,7 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
       for (const m of moved.reverse()) moveFile(baseDir, m.to, m.from, m.git, execFn);
       removeEmptyTree(toAbs);
       if (firstCreated) removeCreatedDirs(dirname(toAbs), firstCreated);
-      throw err;
+      throw asWorkStoreError(err, 'IO');
     }
 
     removeEmptyTree(fromAbs);

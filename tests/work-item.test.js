@@ -58,7 +58,13 @@ describe('WorkStoreError', () => {
     expect(err.name).toBe('WorkStoreError');
     expect(err.code).toBe('SCHEMA');
     expect(err.message).toBe('bad');
-    expect(WORK_STORE_ERROR_CODES).toEqual(['CONFIG', 'SCHEMA', 'NOT_FOUND', 'CONFLICT', 'GENERATED', 'OPEN_ITEMS']);
+    expect(WORK_STORE_ERROR_CODES).toEqual(['CONFIG', 'SCHEMA', 'NOT_FOUND', 'CONFLICT', 'GENERATED', 'OPEN_ITEMS', 'LOCKED', 'IO']);
+  });
+  it('/sig:item\'s Errors section names every code (callers are told to dispatch on it)', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const md = await readFile(new URL('../plugin/commands/item.md', import.meta.url), 'utf-8');
+    const errors = md.slice(md.indexOf('## Errors'), md.indexOf('\n## ', md.indexOf('## Errors') + 1));
+    for (const code of WORK_STORE_ERROR_CODES) expect(errors, code).toContain(`\`${code}\``);
   });
   it('refuses a code outside the set', () => {
     expect(() => new WorkStoreError('NOPE', 'x')).toThrow(/code/);

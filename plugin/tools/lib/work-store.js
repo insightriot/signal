@@ -228,7 +228,7 @@ export function nextId(baseDir, opts = {}) {
     }
     return { id: `${store.key}-${max + 1}`, basis: 'ls-tree' };
   } catch (err) {
-    throw new Error(`nextId: could not read git history in ${baseDir}: ${err.message}`);
+    throw new WorkStoreError('IO', `nextId: could not read git history in ${baseDir}: ${err.message}`);
   }
 }
 

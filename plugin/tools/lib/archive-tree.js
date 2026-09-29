@@ -48,6 +48,7 @@ import { resolveClosures } from './closure.js';
 import { INBOX_NEW, INBOX_LEGACY, LEDGER_NEW, LEDGER_LEGACY } from './inbox-path.js';
 import { acquireLock } from './file-lock.js';
 import { isGeneratedText } from './work-marker.js';
+import { lockFailure, WorkStoreError } from './work-errors.js';
 import { isStoreOn, WORK_DIR, WORK_LOCK_TTL_MS } from './work-store.js';
 
 // The scaffold doc-types that archive with a closed Epic. A project-AGNOSTIC
@@ -659,9 +660,20 @@ export async function applyArchiveTree(baseDir, opts = {}) {
   if ((staleGenerated || rewrittenFiles > 0) && storeOn) {
     const { generateAll } = await import('./work-generate.js');
     const lockPath = join(baseDir, PLANNING_DIR, WORK_DIR, '.lock');
-    const lock = await acquireLock(lockPath, { label: 'work store', ttlMs: WORK_LOCK_TTL_MS });
+    let lock;
+    try {
+      lock = await acquireLock(lockPath, { label: 'work store', ttlMs: WORK_LOCK_TTL_MS });
+    } catch (err) {
+      throw lockFailure(err);
+    }
     try {
       await generateAll(baseDir);
+    } catch (err) {
+      // The moves and rewrites above stand; say so, whatever failed.
+      const wrapped = new WorkStoreError(err instanceof WorkStoreError ? err.code : 'IO',
+        `the archive moves stood, but the lists were not regenerated: ${err?.message ?? err}`);
+      wrapped.cause = err;
+      throw wrapped;
     } finally {
       await lock.released();
     }

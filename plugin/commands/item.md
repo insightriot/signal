@@ -15,7 +15,7 @@ With the work store on, every bug, backlog row, inbox capture and open question 
 Authoritative references:
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-ops.js` — `newItem`, `triageNext`, `proposeTriage`, `applyTriage`, `listNeedsReview`, `moveItem`, `closeItem`, `reopenItem`, `getItem`, `listItems`, `listThemes`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-store.js` — `isStoreOn`, `checkStore`
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-item.js` — `renderLabel`, `WorkStoreError` (dispatch on its `code`: `CONFIG`, `SCHEMA`, `NOT_FOUND`, `CONFLICT`)
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-item.js` — `renderLabel`, `WorkStoreError` (dispatch on its `code` — every code is listed under *Errors* below)
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readEffectiveProfile` (for `attention`, triage only)
 
 ## Pre-flight: is the store on?
@@ -89,7 +89,18 @@ The item moves to `done/YYYY-MM/` — unless it is in an Epic folder, where it s
 
 ## Errors
 
-Show the message; it names the file and the fix. `SCHEMA` means the change was refused before anything was written. `CONFLICT` means two files claim one ID, or the destination is taken — resolve by hand, then run `checkStore(baseDir)`. `NOT_FOUND` — check the ID with `list`. A message that says an item moved *but the lists were not regenerated* means the move stood; fix the file it names and re-run any `/sig:item` action.
+Show the message; it names the file and the fix. Every failure is a `WorkStoreError`; act on its `code`, never on the message text:
+
+- `CONFIG` — the store is off, `WORK.md` is broken, or a list is hand-kept. See *Pre-flight* above.
+- `SCHEMA` — the change was refused before anything was written (a bad ID, status, reason or item file).
+- `NOT_FOUND` — no item has that ID; check it with `list`.
+- `CONFLICT` — two files claim one ID, the destination is taken, or a folder on the way is a symlink out of `.planning/`. Resolve by hand, then run `checkStore(baseDir)`.
+- `GENERATED` — something tried to write a generated list by hand. Change the item files instead.
+- `OPEN_ITEMS` — an Epic cannot close while items in its folder are open; the message names each.
+- `LOCKED` — another item change is running. Wait for it and re-run.
+- `IO` — git or the filesystem failed; the message carries the underlying error. Unless it says otherwise, nothing moved.
+
+A message that says an item changed *but the lists were not regenerated* means the change stood, whatever its code; fix what it names and re-run any `/sig:item` action.
 
 ## Gate: Item Command Complete
 

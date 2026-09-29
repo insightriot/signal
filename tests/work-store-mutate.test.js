@@ -438,6 +438,74 @@ describe('path safety (NFR)', () => {
   });
 });
 
+// Callers dispatch on `code`, never on message text — so nothing a store
+// operation throws may be a bare Error (REVIEW pass 1, Suggestions). The
+// message text is kept; only the class and code are added.
+describe('every failure is a WorkStoreError with a code', () => {
+  it('lock contention → LOCKED, and nothing is written', async () => {
+    await storeOn(repo);
+    const { acquireLock: take } = await import('../plugin/tools/lib/file-lock.js');
+    const lock = await take(join(repo, WORK_LOCK_REL), { ttlMs: 120_000 });
+    try {
+      await expectCode(newItem(repo, { title: 'x', by: 'b', at: AT }), 'LOCKED', /running/);
+      expect(existsSync(join(repo, '.planning/work/inbox'))).toBe(false);
+    } finally {
+      await lock.released();
+    }
+  });
+
+  it('a git failure reading history for the next ID → IO', async () => {
+    initRepo(repo);
+    await storeOn(repo);
+    commitAll(repo, 'seed');
+    const execFn = (cmd, args, o) => {
+      if (args[0] === 'log' || args[0] === 'ls-tree') throw new Error('fatal: bad object');
+      return execFileSync(cmd, args, o);
+    };
+    await expectCode(newItem(repo, { title: 'x', by: 'b', at: AT }, { execFn }), 'IO', /could not read git history/);
+  });
+
+  it('a failed git mv → IO, and the item is where it was', async () => {
+    initRepo(repo);
+    await storeOn(repo);
+    await plantItem(repo, 'inbox', { id: 'SIG-1', type: 'FEAT', status: 'N', created: CREATED });
+    commitAll(repo, 'seed');
+    const execFn = (cmd, args, o) => {
+      if (args[0] === 'mv') throw new Error('fatal: not under version control');
+      return execFileSync(cmd, args, o);
+    };
+    await expectCode(moveItem(repo, 'SIG-1', { status: 'T' }, { execFn }), 'IO', /not under version control/);
+    expect(existsSync(join(repo, '.planning/work/inbox/SIG-1.md'))).toBe(true);
+  });
+
+  it('a failed write → IO, with the underlying message', async () => {
+    await storeOn(repo);
+    await plantItem(repo, 'inbox', { id: 'SIG-1', type: 'FEAT', status: 'N', created: CREATED });
+    const renameFn = async () => {
+      throw Object.assign(new Error('disk full'), { code: 'ENOSPC' });
+    };
+    await expectCode(moveItem(repo, 'SIG-1', { status: 'T' }, { renameFn }), 'IO', /disk full/);
+    await expectCode(newItem(repo, { title: 'x', by: 'b', at: AT }, { renameFn }), 'IO', /disk full/);
+  });
+
+  it('a symlinked folder escaping .planning/ → CONFLICT, message kept', async () => {
+    await storeOn(repo);
+    await plantItem(repo, 'inbox', { id: 'SIG-1', type: 'FEAT', status: 'N', created: CREATED });
+    const outside = join(root, 'outside');
+    await mkdir(outside);
+    await symlink(outside, join(repo, '.planning/work/backlog'));
+    await expectCode(moveItem(repo, 'SIG-1', { status: 'T' }), 'CONFLICT', /escapes/);
+  });
+
+  it('regeneration failing on I/O after a good mutation → IO, saying the change stood', async () => {
+    await storeOn(repo);
+    await mkdir(join(repo, '.planning/work/WATCHLIST.md'), { recursive: true }); // a folder: reading it fails
+    const err = await expectCode(newItem(repo, { title: 'x', by: 'b', at: AT }), 'IO', /SIG-1 was written[\s\S]*lists were not regenerated/);
+    expect(err.written).toEqual(['.planning/work/inbox/SIG-1.md']);
+    expect(existsSync(join(repo, '.planning/work/inbox/SIG-1.md'))).toBe(true);
+  });
+});
+
 describe('AC-3.4 — no operation ever lowers the count of item files', () => {
   it('holds across every operation, failures included', async () => {
     initRepo(repo);

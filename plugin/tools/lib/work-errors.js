@@ -10,7 +10,37 @@ export const WORK_STORE_ERROR_CODES = Object.freeze([
   'CONFLICT',
   'GENERATED',
   'OPEN_ITEMS',
+  'LOCKED', // another store mutation holds the `work` lock — retry
+  'IO', // git or the filesystem failed; the message says which, and what stood
 ]);
+
+/**
+ * `err` as a WorkStoreError: returned as is when it already is one, otherwise
+ * wrapped with `code`, the same message (plus `prefix`), and `cause`.
+ * @param {unknown} err
+ * @param {string} code
+ * @param {string} [prefix]
+ * @returns {WorkStoreError}
+ */
+export function asWorkStoreError(err, code, prefix = '') {
+  if (err instanceof WorkStoreError) return err;
+  const wrapped = new WorkStoreError(code, `${prefix}${err?.message ?? String(err)}`);
+  wrapped.cause = err;
+  return wrapped;
+}
+
+/**
+ * A failure to take the `work` lock as a WorkStoreError: `IO` when the
+ * filesystem failed (a Node errno code such as EACCES), `LOCKED` otherwise —
+ * `acquireLock` throws a plain Error, with no errno code, when another holder
+ * has the lock.
+ * @param {unknown} err
+ * @returns {WorkStoreError}
+ */
+export function lockFailure(err) {
+  const io = typeof err?.code === 'string' && /^E[A-Z]+$/.test(err.code);
+  return asWorkStoreError(err, io ? 'IO' : 'LOCKED');
+}
 
 /**
  * The one error class every store module throws. Callers dispatch on `code`,
