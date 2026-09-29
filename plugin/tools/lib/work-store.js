@@ -25,7 +25,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, join, relative, sep } from 'node:path';
 
 import { parseFrontmatter, StateSchemaError, EPIC_ID_STRICT_RE } from './state.js';
-import { parseItem, WorkStoreError } from './work-item.js';
+import { ITEM_ID_RE, parseItem, WorkStoreError } from './work-item.js';
 
 export const WORK_DIR = 'work';
 export const WORK_FILE = 'WORK.md';
@@ -106,16 +106,22 @@ function runGit(baseDir, args, execFn) {
   );
 }
 
-// The key charset is [A-Z0-9] (STORE_KEY_RE), so it needs no regex escaping.
-function itemFileRe(key) {
-  return new RegExp(`^${key}-([1-9]\\d*)\\.md$`);
+// Split an item file name into its key and number, or null when the name is
+// not `{ID}.md`. Derived from ITEM_ID_RE rather than a second regex, so the
+// ID shape has exactly one definition.
+function parseItemFileName(name) {
+  if (!name.endsWith('.md')) return null;
+  const id = name.slice(0, -'.md'.length);
+  if (!ITEM_ID_RE.test(id)) return null;
+  const dash = id.indexOf('-');
+  return { id, key: id.slice(0, dash), n: Number(id.slice(dash + 1)) };
 }
 
-function maxFromNames(names, re) {
+function maxFromNames(names, key) {
   let max = 0;
   for (const name of names) {
-    const m = re.exec(basename(name.trim()));
-    if (m) max = Math.max(max, Number(m[1]));
+    const parsed = parseItemFileName(basename(name.trim()));
+    if (parsed && parsed.key === key) max = Math.max(max, parsed.n);
   }
   return max;
 }
@@ -165,10 +171,8 @@ export function nextId(baseDir, opts = {}) {
   if (!store.on) {
     throw new WorkStoreError('CONFIG', `The work store is off: ${WORK_FILE_REL} does not exist. ${KEY_FIX}`);
   }
-  const re = itemFileRe(store.key);
-
   let max = 0;
-  for (const rel of ID_TREE_DIRS) max = Math.max(max, maxFromNames(walkFiles(join(baseDir, rel)), re));
+  for (const rel of ID_TREE_DIRS) max = Math.max(max, maxFromNames(walkFiles(join(baseDir, rel)), store.key));
 
   // Only "this is not a git repo" may produce the worktree-only answer. A git
   // failure inside a repo throws: a silent fallback would hand out an ID that
@@ -193,7 +197,7 @@ export function nextId(baseDir, opts = {}) {
         ['log', '--all', ...(hasHead ? ['HEAD'] : []), '--format=', '--name-only', '--', ...ID_GIT_PATHS],
         execFn
       );
-      max = Math.max(max, maxFromNames(out.split('\n').filter(Boolean), re));
+      max = Math.max(max, maxFromNames(out.split('\n').filter(Boolean), store.key));
       return { id: `${store.key}-${max + 1}`, basis: 'git-log' };
     }
 
@@ -203,7 +207,7 @@ export function nextId(baseDir, opts = {}) {
     if (hasHead) refs.push('HEAD');
     for (const ref of refs) {
       const out = runGit(baseDir, ['ls-tree', '-r', '--name-only', ref, '--', ...ID_GIT_PATHS], execFn);
-      max = Math.max(max, maxFromNames(out.split('\n').filter(Boolean), re));
+      max = Math.max(max, maxFromNames(out.split('\n').filter(Boolean), store.key));
     }
     return { id: `${store.key}-${max + 1}`, basis: 'ls-tree' };
   } catch (err) {
@@ -223,9 +227,6 @@ export function nextId(baseDir, opts = {}) {
 // because a duplicate ID between a live item and an archived one is still a
 // duplicate — `nextId` reads the archive for the same reason.
 
-// Any key, so an item file carrying another project's key is reported instead
-// of being invisible. The project's own key is checked per file.
-const ITEM_FILE_RE = /^([A-Z][A-Z0-9]{1,9})-([1-9]\d*)\.md$/;
 const DONE_MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 const ALLOWED = {
@@ -296,21 +297,22 @@ export function checkStore(baseDir) {
   const byId = new Map();
 
   for (const abs of files) {
-    const name = basename(abs);
-    const m = ITEM_FILE_RE.exec(name);
-    if (!m) continue; // WORK.md, WATCHLIST.md, an Epic's own artifacts
-    const id = name.slice(0, -'.md'.length);
+    // Any key is an item file here, so one carrying another project's key is
+    // reported instead of being invisible; the project's key is checked below.
+    const parsedName = parseItemFileName(basename(abs));
+    if (!parsedName) continue; // WORK.md, WATCHLIST.md, an Epic's own artifacts
+    const { id } = parsedName;
     const path = relative(baseDir, abs).split(sep).join('/');
 
     if (!byId.has(id)) byId.set(id, []);
     byId.get(id).push(path);
 
-    if (m[1] !== store.key) {
+    if (parsedName.key !== store.key) {
       findings.push({
         code: 'schema',
         id,
         path,
-        message: `${path}: key ${m[1]} is not this store's key (${store.key})`,
+        message: `${path}: key ${parsedName.key} is not this store's key (${store.key})`,
       });
       continue;
     }
