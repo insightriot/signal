@@ -100,7 +100,7 @@ Show the message; it names the file and the fix. Every failure is a `WorkStoreEr
 - `LOCKED` — another item change is running. Wait for it and re-run.
 - `IO` — git or the filesystem failed; the message carries the underlying error. Unless it says otherwise, nothing moved.
 
-A message that says an item changed *but the lists were not regenerated* means the change stood, whatever its code; fix what it names and re-run any `/sig:item` action.
+A message that says an item changed *but the lists were not regenerated* means the change stood, whatever its code; fix what it names, then run an action that changes an item — `new`, `move`, `close`, `reopen`, or a `triage` decision other than skip — and the lists are regenerated. `show` and `list` only read, so they do not.
 
 ## Gate: Item Command Complete
 
