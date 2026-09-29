@@ -40,7 +40,7 @@ import { EPICS_INDEX_REL, GENERATED_FILES, generateAll, WATCHLIST_FILE } from '.
 import { stringifyItem, validateItem, WorkStoreError } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
 import { isGeneratedFile } from './work-marker.js';
-import { checkStore, isGitRepo, parseItemFileName, walkFiles, WORK_DIR, WORK_FILE, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
+import { checkStore, folderFor, isGitRepo, parseItemFileName, walkFiles, WORK_DIR, WORK_FILE, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
 
 // ── Shared line machinery ────────────────────────────────────────────────────
 
@@ -438,15 +438,6 @@ export const MIGRATION_BY = 'migration';
 export const SOURCES = Object.freeze(['BUGS.md', 'BACKLOG.md', 'ISSUES-INBOX.md', 'OPEN-QUESTIONS.md']);
 
 const TITLE_MAX = 120;
-
-// Folder for a status, relative to `.planning/`. `C` lands in the month of its
-// close date (`D-M6E11-12`).
-export function folderFor(item) {
-  if (item.status === 'N') return 'work/inbox';
-  if (item.status === 'T') return 'work/backlog';
-  if (item.status === 'C') return `work/done/${String(item.close.at).slice(0, 7)}`;
-  throw new WorkStoreError('SCHEMA', `${item.id}: status ${item.status} has no migration folder (Q and P live in an Epic folder)`);
-}
 
 // ── Titles ───────────────────────────────────────────────────────────────────
 

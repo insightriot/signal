@@ -56,6 +56,7 @@ import {
 import { rewriteRelativeLinks } from './work-links.js';
 import { isGeneratedText } from './work-marker.js';
 import {
+  folderFor,
   FOLDERS,
   isGitRepo,
   isStoreOn,
@@ -258,30 +259,6 @@ export function listThemes(baseDir, filter = {}) {
   return [...counts]
     .map(([theme, count]) => ({ theme, count }))
     .sort((a, b) => b.count - a.count || a.theme.localeCompare(b.theme));
-}
-
-// ── Where an item belongs ────────────────────────────────────────────────────
-
-// The folder (relative to `.planning/`) an item with this status belongs in.
-// The status→folder rule is D-M6E11-8, mirrored from `checkStore`'s ALLOWED.
-function folderFor(item, epic) {
-  switch (item.status) {
-    case 'N':
-      return `${WORK_DIR}/${FOLDERS.inbox}`;
-    case 'T':
-      return `${WORK_DIR}/${FOLDERS.backlog}`;
-    case 'Q':
-    case 'P':
-      return `${WORK_DIR}/${FOLDERS.epics}/${epic}`;
-    case 'C':
-      // An Epic's item closes in its Epic folder and is archived with it
-      // (D-M6E11-29); an item with no Epic goes to done/YYYY-MM/.
-      return epic === undefined
-        ? `${WORK_DIR}/${FOLDERS.done}/${item.close.at.slice(0, 7)}`
-        : `${WORK_DIR}/${FOLDERS.epics}/${epic}`;
-    default:
-      throw new WorkStoreError('SCHEMA', `no folder for status ${JSON.stringify(item.status)}`);
-  }
 }
 
 function assertValid(item, where) {

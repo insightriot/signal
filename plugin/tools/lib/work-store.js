@@ -258,6 +258,42 @@ const ALLOWED = {
   archive: ['C'],
 };
 
+/**
+ * The folder, relative to `.planning/`, an item with this status belongs in —
+ * the status→folder rule (D-M6E11-8), written once. `ALLOWED` above is the
+ * same rule read the other way (folder → statuses); they sit together so a
+ * change to one is made beside the other.
+ *
+ * Q and P need the Epic. C goes in the Epic's folder when it has one
+ * (D-M6E11-29), otherwise in `done/` under the month of its close date
+ * (D-M6E11-12).
+ *
+ * @param {{id?: string, status: string, close?: {at: string}}} item
+ * @param {string} [epic]
+ * @returns {string}
+ * @throws {WorkStoreError} SCHEMA for an unknown status, or Q/P with no Epic
+ */
+export function folderFor(item, epic) {
+  switch (item.status) {
+    case 'N':
+      return `${WORK_DIR}/${FOLDERS.inbox}`;
+    case 'T':
+      return `${WORK_DIR}/${FOLDERS.backlog}`;
+    case 'Q':
+    case 'P':
+      if (epic === undefined) {
+        throw new WorkStoreError('SCHEMA', `${item.id}: status ${item.status} lives in an Epic folder — name the Epic.`);
+      }
+      return `${WORK_DIR}/${FOLDERS.epics}/${epic}`;
+    case 'C':
+      return epic === undefined
+        ? `${WORK_DIR}/${FOLDERS.done}/${String(item.close.at).slice(0, 7)}`
+        : `${WORK_DIR}/${FOLDERS.epics}/${epic}`;
+    default:
+      throw new WorkStoreError('SCHEMA', `no folder for status ${JSON.stringify(item.status)}`);
+  }
+}
+
 // Where an item file sits, as far as the folder rules are concerned.
 // Returns {folder, allowed} or {problem} when no folder rule can apply.
 function placement(parts) {
