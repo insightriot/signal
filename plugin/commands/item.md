@@ -8,7 +8,7 @@ args: "<new|triage|move|close|show|list> [args]"
 
 You are running `/sig:item`, a not-phase-gated **capture**-group command (`references/command-taxonomy.md`). Same class as `/sig:add` — no tier-gating preamble, no skill loading, no agent spawning.
 
-With the work store on, every bug, backlog row, inbox capture and open question is one file, `.planning/work/<folder>/SIG-n.md`, and its **folder is its status**: `inbox/` = N (new), `backlog/` = T (triaged), `epics/<EpicID>/` = Q or P (queued or in progress), `done/YYYY-MM/` = C (closed). **Every move goes through here.** Never `mv`, `git mv`, delete or hand-edit the status of an item file — that is how a folder and a status come to disagree, and `checkStore` will report it. Nothing is ever deleted: closing is a move to `done/`.
+With the work store on, every bug, backlog row, inbox capture and open question is one file, `.planning/work/<folder>/SIG-n.md`, and its **folder is its status**: `inbox/` = N (new), `backlog/` = T (triaged), `epics/<EpicID>/` = Q or P (queued or in progress) — or C, closed in its Epic's folder and archived with it — `done/YYYY-MM/` = C (closed, no Epic). **Every move goes through here.** Never `mv`, `git mv`, delete or hand-edit the status of an item file — that is how a folder and a status come to disagree, and `checkStore` will report it. Nothing is ever deleted: closing is a move to `done/` (or, for an Epic's item, a status change in place).
 
 `BUGS.md`, `BACKLOG.md`, `ISSUES-INBOX.md` and `OPEN-QUESTIONS.md` are **generated** from the item files after every change. Do not edit them.
 
@@ -70,7 +70,7 @@ In a git repository a tracked file is moved with `git mv`, so its history follow
 | `dup` | another item covers it | `dup_of`: that item's ID, which must exist |
 | `rejected` | checked, and not true | say what was checked, as `proof` |
 
-The item moves to `done/YYYY-MM/`. Print its new label and path.
+The item moves to `done/YYYY-MM/` — unless it is in an Epic folder, where it stays, closed, and is archived with the Epic. Print its new label and path.
 
 ### `show <ID>` — one item
 
