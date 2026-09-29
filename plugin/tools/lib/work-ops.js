@@ -32,6 +32,7 @@ import { execFileSync } from 'node:child_process';
 import { lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, unlinkSync } from 'node:fs';
 import { basename, dirname, join, relative, sep } from 'node:path';
 
+import { applyKeyedReplacements, computeLinkEdits } from './archive-tree.js';
 import { atomicWrite } from './atomic-write.js';
 import { acquireLock, releaseLock } from './file-lock.js';
 import { assertRealInsidePlanning } from './path-confine.js';
@@ -48,6 +49,7 @@ import {
   WorkStoreError,
 } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
+import { isGeneratedText } from './work-marker.js';
 import { FOLDERS, isGitRepo, isStoreOn, nextId, parseItemFileName, walkFiles, WORK_DIR, WORK_FILE } from './work-store.js';
 
 export const WORK_LOCK_REL = `.planning/${WORK_DIR}/.lock`;
@@ -240,7 +242,11 @@ function folderFor(item, epic) {
     case 'P':
       return `${WORK_DIR}/${FOLDERS.epics}/${epic}`;
     case 'C':
-      return `${WORK_DIR}/${FOLDERS.done}/${item.close.at.slice(0, 7)}`;
+      // An Epic's item closes in its Epic folder and is archived with it
+      // (D-M6E11-29); an item with no Epic goes to done/YYYY-MM/.
+      return epic === undefined
+        ? `${WORK_DIR}/${FOLDERS.done}/${item.close.at.slice(0, 7)}`
+        : `${WORK_DIR}/${FOLDERS.epics}/${epic}`;
     default:
       throw new WorkStoreError('SCHEMA', `no folder for status ${JSON.stringify(item.status)}`);
   }
@@ -439,8 +445,19 @@ export async function moveItem(baseDir, idOrLabel, to = {}, opts = {}) {
     }
     const next = { ...found.item, status };
     assertValid(next, id);
-    const r = await relocate(baseDir, found, next, found.body, folderFor(next, targetEpic), opts);
-    if (targetEpic !== undefined) await ensureEpicReadme(baseDir, targetEpic, opts);
+    // The Epic's README goes in first, so a failed README write has moved
+    // nothing; a failed move then removes the README and folders it created.
+    const readme = targetEpic === undefined ? null : await ensureEpicReadme(baseDir, targetEpic, id, opts);
+    let r;
+    try {
+      r = await relocate(baseDir, found, next, found.body, folderFor(next, targetEpic), opts);
+    } catch (err) {
+      if (readme?.created) {
+        unlinkSync(readme.abs);
+        if (readme.firstCreated) removeCreatedDirs(dirname(readme.abs), readme.firstCreated);
+      }
+      throw err;
+    }
     await regenerate(baseDir, `${id} moved ${r.from} → ${r.to}`);
     return { item: next, label: renderLabel(next), ...r };
   });
@@ -448,7 +465,8 @@ export async function moveItem(baseDir, idOrLabel, to = {}, opts = {}) {
 
 /**
  * Close an item: record why, who, when (and proof), and move it to
- * `done/YYYY-MM/`. Nothing is deleted (D-M6E11-12).
+ * `done/YYYY-MM/` — or, for an item in an Epic folder, keep it there
+ * (D-M6E11-29: it is archived with its Epic). Nothing is deleted (D-M6E11-12).
  *
  * @param {string} baseDir
  * @param {string} idOrLabel
@@ -488,7 +506,7 @@ export async function closeItem(baseDir, idOrLabel, close = {}, opts = {}) {
     for (const k of Object.keys(record)) if (record[k] === undefined) delete record[k];
     const next = { ...found.item, status: 'C', close: record };
     assertValid(next, id);
-    const r = await relocate(baseDir, found, next, found.body, folderFor(next), opts);
+    const r = await relocate(baseDir, found, next, found.body, folderFor(next, found.epic), opts);
     await regenerate(baseDir, `${id} closed (${reason}) and moved ${r.from} → ${r.to}`);
     return { item: next, label: renderLabel(next), ...r };
   });
@@ -505,12 +523,22 @@ export async function closeItem(baseDir, idOrLabel, close = {}, opts = {}) {
 const epicDirRel = (epic) => `${WORK_DIR}/${FOLDERS.epics}/${epic}`;
 const archivedEpicDirRel = (epic) => `archive/epics/${epic}`;
 
-// Create the Epic's README if it has none. Never overwrites.
-async function ensureEpicReadme(baseDir, epic, opts) {
+// Create the Epic's README if it has none. Never overwrites. A failed write
+// removes the folders it created and throws a WorkStoreError.
+async function ensureEpicReadme(baseDir, epic, id, opts) {
   const abs = join(baseDir, '.planning', epicDirRel(epic), EPIC_README);
-  if (exists(abs)) return;
+  if (exists(abs)) return { abs, created: false };
   assertRealInsidePlanning(baseDir, abs, '/sig:item');
-  await atomicWrite(abs, stringifyFrontmatter({ epic }, `# ${epic}\n`), { renameFn: opts.renameFn });
+  const firstCreated = mkdirSync(dirname(abs), { recursive: true });
+  try {
+    await atomicWrite(abs, stringifyFrontmatter({ epic }, `# ${epic}\n`), { renameFn: opts.renameFn });
+  } catch (err) {
+    if (firstCreated) removeCreatedDirs(dirname(abs), firstCreated);
+    const rel = toPosix(relative(baseDir, abs));
+    throw new WorkStoreError('CONFLICT', `${id}: could not write ${rel} (${err.message}) — nothing was moved. `
+      + 'Fix what stopped the write, then re-run.');
+  }
+  return { abs, created: true, firstCreated };
 }
 
 // Every entry under `dir`, files and folders, without following symlinks.
@@ -687,6 +715,21 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
         const dirFrom = toPosix(relative(planning, dirname(join(baseDir, m.from))));
         const dirTo = toPosix(relative(planning, dirname(abs)));
         const next = rewriteRelativeLinks(text, dirFrom, dirTo, together);
+        if (next === text) continue;
+        written.push({ abs, text });
+        await atomicWrite(abs, next, { renameFn: opts.renameFn });
+      }
+      // Inbound links: every live `.planning/**/*.md` that links into the
+      // folder is retargeted at the archive — archive-tree's link machinery,
+      // keyed to this move. `archive/` is history and is left as written;
+      // generated files are rebuilt from the items by the regeneration below.
+      const moveMap = new Map(moved.map((m) => [m.from, m.to]));
+      const archiveRoot = join(planning, 'archive') + sep;
+      for (const abs of walkFiles(planning).sort()) {
+        if (!abs.endsWith('.md') || abs.startsWith(archiveRoot)) continue;
+        const text = readFileSync(abs, 'utf-8');
+        if (!text.includes(fromDirRel) || isGeneratedText(text)) continue;
+        const next = applyKeyedReplacements(text, computeLinkEdits(toPosix(relative(baseDir, abs)), text, moveMap));
         if (next === text) continue;
         written.push({ abs, text });
         await atomicWrite(abs, next, { renameFn: opts.renameFn });

@@ -71,6 +71,8 @@ describe('checkStore — store off / clean', () => {
     await plant('backlog/SIG-2.md', 'T');
     await plant('epics/M6.E11/SIG-3.md', 'Q');
     await plant('epics/M6.E11/SIG-4.md', 'P');
+    // An Epic's items close in its folder and travel with it (D-M6E11-29).
+    await plant('epics/M6.E11/SIG-13.md', 'C');
     await put('.planning/work/epics/M6.E11/M6.E11-PLAN.md', '# plan\n'); // Epic artifact
     await plant('done/2026-09/SIG-5.md', 'C');
     await put('.planning/archive/epics/M6.E9/SIG-6.md', itemText('SIG-6', 'C'));
@@ -83,7 +85,6 @@ describe('checkStore — AC-3.1: every status/folder disagreement', () => {
     ['T in inbox/', 'inbox/SIG-10.md', 'T'],
     ['N in backlog/', 'backlog/SIG-11.md', 'N'],
     ['T in an Epic folder', 'epics/M6.E11/SIG-12.md', 'T'],
-    ['C in an Epic folder', 'epics/M6.E11/SIG-13.md', 'C'],
     ['P in done/', 'done/2026-09/SIG-14.md', 'P'],
     ['C in inbox/', 'inbox/SIG-15.md', 'C'],
   ];

@@ -4,7 +4,7 @@
 //     WORK.md                  frontmatter `key:` — the opt-in switch (D-M6E11-3)
 //     inbox/     SIG-n.md      status N
 //     backlog/   SIG-n.md      status T
-//     epics/<EpicID>/SIG-n.md  status Q | P, beside the Epic's own artifacts
+//     epics/<EpicID>/SIG-n.md  status Q | P | C, beside the Epic's own artifacts
 //     done/YYYY-MM/SIG-n.md    status C
 //
 // ── Opt-in by presence, and no silent fallback ──────────────────────────────
@@ -233,7 +233,7 @@ const DONE_MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 const ALLOWED = {
   inbox: ['N'],
   backlog: ['T'],
-  epics: ['Q', 'P'],
+  epics: ['Q', 'P', 'C'], // an Epic's items close in its folder (D-M6E11-29)
   done: ['C'],
   archive: ['C'],
 };
