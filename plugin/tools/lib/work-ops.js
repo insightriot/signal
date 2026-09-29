@@ -37,7 +37,7 @@ import { atomicWrite } from './atomic-write.js';
 import { acquireLock } from './file-lock.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { EPIC_ID_STRICT_RE, parseFrontmatter, StateSchemaError, stringifyFrontmatter } from './state.js';
-import { EPIC_README, generateAll } from './work-generate.js';
+import { assertNoHandKeptLists, EPIC_README, generateAll } from './work-generate.js';
 import {
   ITEM_ID_RE,
   ITEM_STATUSES,
@@ -56,33 +56,34 @@ import {
   isStoreOn,
   nextId,
   parseItemFileName,
+  STORE_OFF_MESSAGE,
   walkFiles,
   WORK_DIR,
-  WORK_FILE,
   WORK_LOCK_TTL_MS,
 } from './work-store.js';
 
 export const WORK_LOCK_REL = `.planning/${WORK_DIR}/.lock`;
-
-const WORK_FILE_REL = `.planning/${WORK_DIR}/${WORK_FILE}`;
 
 // ── Shared plumbing ──────────────────────────────────────────────────────────
 
 function requireStore(baseDir) {
   const store = isStoreOn(baseDir);
   if (!store.on) {
-    throw new WorkStoreError('CONFIG', `The work store is off: ${WORK_FILE_REL} does not exist. `
-      + 'Create it with `key: SIG` in its frontmatter to turn the store on.');
+    throw new WorkStoreError('CONFIG', STORE_OFF_MESSAGE);
   }
   return store;
 }
 
 // The store check comes BEFORE the lock: `acquireLock` creates the lock's
 // parent folder, and a store-off project must not grow `.planning/work/`.
+// The hand-kept check comes right AFTER it (REVIEW I1): every mutation ends
+// by regenerating the lists, so a list that is still hand-kept must stop the
+// mutation before the item is written, not after.
 async function withWorkLock(baseDir, fn) {
   requireStore(baseDir);
   const lock = await acquireLock(join(baseDir, WORK_LOCK_REL), { label: 'work store', ttlMs: WORK_LOCK_TTL_MS });
   try {
+    assertNoHandKeptLists(baseDir);
     return await fn();
   } finally {
     await lock.released(); // only while this call still holds it (REVIEW I4)

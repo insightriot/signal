@@ -45,6 +45,16 @@ const WORK_FILE_REL = `.planning/${WORK_DIR}/${WORK_FILE}`;
 const KEY_FIX = 'Put `key: SIG` (2–10 characters: an uppercase letter, then uppercase letters or digits) '
   + `in the frontmatter of ${WORK_FILE_REL}, or delete ${WORK_FILE_REL} to turn the store off.`;
 
+// What to say when the store is off (REVIEW I1). Not "create WORK.md": on a
+// project whose lists are hand-kept, a hand-made WORK.md switches on
+// regeneration over them. The migration moves the lists into item files and
+// writes WORK.md itself.
+export const STORE_OFF_MESSAGE = `The work store is off: ${WORK_FILE_REL} does not exist. `
+  + 'Turning it on for a project that already has hand-kept lists (BUGS.md, BACKLOG.md, ISSUES-INBOX.md, '
+  + 'OPEN-QUESTIONS.md) is done by the migration, which moves every entry into an item file and writes '
+  + `${WORK_FILE} itself: \`node tools/work-migrate.mjs\` in Signal (\`/sig:docs-migrate\` for other projects, `
+  + 'in a later release).';
+
 function configError(problem) {
   return new WorkStoreError('CONFIG', `${WORK_FILE_REL}: ${problem}. ${KEY_FIX}`);
 }
@@ -176,8 +186,7 @@ export function nextId(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
   const store = isStoreOn(baseDir);
   if (!store.on) {
-    throw new WorkStoreError('CONFIG', `The work store is off: ${WORK_FILE_REL} does not exist. `
-      + `Create it with \`key: SIG\` in its frontmatter to turn the store on.`);
+    throw new WorkStoreError('CONFIG', STORE_OFF_MESSAGE);
   }
   let max = 0;
   for (const rel of ID_TREE_DIRS) max = Math.max(max, maxFromNames(walkFiles(join(baseDir, rel)), store.key));

@@ -39,7 +39,7 @@ import { deriveBugCounts, formatTallySegment } from './bugs-tally.js';
 import { EPIC_ID_STRICT_RE, parseFrontmatter, StateSchemaError } from './state.js';
 import { parseItem, WorkStoreError } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
-import { GENERATED_MARKER } from './work-marker.js';
+import { GENERATED_MARKER, isGeneratedFile } from './work-marker.js';
 import { FOLDERS, isStoreOn, parseItemFileName, walkFiles, WORK_DIR } from './work-store.js';
 
 // The marker lives in the leaf `work-marker.js` so `atomic-write.js` can check
@@ -277,19 +277,62 @@ export function generateFiles({ items, watchlist = null }) {
   };
 }
 
+// ── Never over a hand-kept list (REVIEW I1) ─────────────────────────────────
+//
+// A target the generator would write that exists WITHOUT the marker is a
+// hand-kept list: the store was switched on (WORK.md) without the migration
+// having moved the list's entries into item files. Regenerating would replace
+// it with a view of an item store that does not hold those entries. So it is
+// refused — checked for EVERY target before ANY is written, so a refusal
+// leaves every list as it was. The migration alone may name lists to replace
+// (the ones it has just archived and turned into items).
+
+const TARGETS = [...GENERATED_FILES, EPICS_INDEX_REL];
+
+/**
+ * Throw unless every file the generator would write is missing or already
+ * generated. Reads only.
+ *
+ * @param {string} baseDir
+ * @param {{replace?: string[]}} [opts] — `.planning/`-relative names the
+ *   caller may replace although hand-kept; only `applyMigration` passes any
+ * @throws {WorkStoreError} CONFIG naming each hand-kept list
+ */
+export function assertNoHandKeptLists(baseDir, opts = {}) {
+  const replace = new Set(opts.replace ?? []);
+  const planning = join(baseDir, '.planning');
+  const handKept = TARGETS.filter((rel) => {
+    const abs = join(planning, ...rel.split('/'));
+    return !replace.has(rel) && existsSync(abs) && !isGeneratedFile(abs);
+  });
+  if (handKept.length === 0) return;
+  throw new WorkStoreError('CONFIG', `The work store is on (.planning/${WORK_DIR}/WORK.md exists), but `
+    + `${handKept.map((r) => `.planning/${r}`).join(', ')} ${handKept.length === 1 ? 'is' : 'are'} hand-kept, not `
+    + 'generated. Regenerating would overwrite '
+    + `${handKept.length === 1 ? 'it' : 'them'} with entries the store does not hold, so nothing was written. `
+    + 'Turning the store on for a project with existing lists is done by the migration, which moves every entry '
+    + 'into an item file first: `node tools/work-migrate.mjs` in Signal (`/sig:docs-migrate` for other projects, '
+    + `in a later release). If .planning/${WORK_DIR}/WORK.md was created by hand, delete it to turn the store back off.`);
+}
+
 /**
  * Read the store — `work/` and archived Epics — and (re)write the four files
  * plus the Epic index `work/EPICS.md`. With the store off, writes
  * nothing — a project without `.planning/work/WORK.md` sees no change.
  * A store holding any broken item file writes nothing and throws: a view
  * generated from part of the store would silently drop the broken items.
+ * A target that exists and is hand-kept writes nothing and throws (REVIEW I1).
  *
  * @param {string} baseDir — project root
+ * @param {{replace?: string[]}} [opts] — see `assertNoHandKeptLists`; only
+ *   `applyMigration` passes it
  * @returns {Promise<{written: string[]}>}
- * @throws {WorkStoreError} CONFIG (broken WORK.md) or SCHEMA (broken item)
+ * @throws {WorkStoreError} CONFIG (broken WORK.md, or a hand-kept list) or SCHEMA (broken item)
  */
-export async function generateAll(baseDir) {
+export async function generateAll(baseDir, opts = {}) {
   if (!isStoreOn(baseDir).on) return { written: [] };
+  assertNoHandKeptLists(baseDir, opts);
+  const replace = new Set(opts.replace ?? []);
   const planning = join(baseDir, '.planning');
   const workDir = join(planning, WORK_DIR);
 
@@ -318,14 +361,19 @@ export async function generateAll(baseDir) {
 
   const lists = generateFiles({ items, watchlist });
   const epicsIndex = generateEpicsIndex(readEpicFolders(planning), items);
-  for (const name of GENERATED_FILES) await writeGenerated(join(planning, name), lists[name]);
-  await writeGenerated(join(planning, EPICS_INDEX_REL), epicsIndex);
+  for (const name of GENERATED_FILES) await writeGenerated(join(planning, name), lists[name], replace.has(name));
+  await writeGenerated(join(planning, EPICS_INDEX_REL), epicsIndex, replace.has(EPICS_INDEX_REL));
   return { written: [...GENERATED_FILES, EPICS_INDEX_REL] };
 }
 
 // The one place a generated file is written, and the only caller passing
 // `{generated: true}` for new content (D-M6E11-28): `atomicWrite` refuses a
-// marked file to everyone else.
-function writeGenerated(path, text) {
+// marked file to everyone else. It re-checks the hand-kept rule per file, so
+// a list hand-written after the preflight is still not overwritten.
+function writeGenerated(path, text, mayReplaceHandKept) {
+  if (!mayReplaceHandKept && existsSync(path) && !isGeneratedFile(path)) {
+    throw new WorkStoreError('CONFIG', `${path} is hand-kept, not generated — it was not overwritten. `
+      + 'Bring hand-kept lists into the store with the migration (`node tools/work-migrate.mjs`).');
+  }
   return atomicWrite(path, text, { generated: true });
 }

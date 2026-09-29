@@ -1091,7 +1091,9 @@ export async function applyMigration(baseDir, opts = {}) {
       wrote(workFile);
 
       // 5. The four lists become views of the items.
-      const { written } = await generateAll(baseDir);
+      // The originals are archived above and still sit in place; they are the
+      // only hand-kept lists the generator may replace (REVIEW I1).
+      const { written } = await generateAll(baseDir, { replace: Object.keys(originals) });
       for (const rel of written) {
         const abs = join(planning, ...rel.split('/'));
         if (!originals[rel]) createdFiles.push(abs);

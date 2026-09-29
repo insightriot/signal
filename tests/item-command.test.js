@@ -75,7 +75,9 @@ describe('/sig:item command file', () => {
 
   it('says every move goes through it, and tells a store-off user how to turn the store on', () => {
     expect(text).toMatch(/Every move goes through here/);
-    expect(text).toMatch(/\.planning\/work\/WORK\.md[^\n]*key: SIG/);
+    // The migration, never a hand-made WORK.md — that regenerates over hand-kept lists (REVIEW I1).
+    expect(text).toMatch(/node tools\/work-migrate\.mjs[^\n]*\.planning\/work\/WORK\.md|\.planning\/work\/WORK\.md[^\n]*node tools\/work-migrate\.mjs/);
+    expect(text).not.toMatch(/create `\.planning\/work\/WORK\.md` with `key: SIG`/);
   });
 
   it('attention, not gate_strictness, governs triage confirmation', () => {

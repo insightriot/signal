@@ -22,7 +22,8 @@ Authoritative references:
 
 Call `isStoreOn(baseDir)`.
 
-- `{on: false}` → stop and say, in plain words: *"This project does not use the work store, so there are no items to move. To turn it on, create `.planning/work/WORK.md` with `key: SIG` (your project's key) in its frontmatter. Until then, `/sig:add` captures into the usual files."* Write nothing.
+- `{on: false}` → stop and say, in plain words: *"This project does not use the work store, so there are no items to move. Turning it on for a project with existing lists is done by the migration, which moves every entry into an item file and writes `.planning/work/WORK.md` itself: `node tools/work-migrate.mjs` in Signal (`/sig:docs-migrate` for other projects, in a later release). Don't create `WORK.md` by hand: with hand-kept lists present, every item change then refuses rather than overwrite them. Until then, `/sig:add` captures into the usual files."* Write nothing.
+- A `CONFIG` error naming a **hand-kept** list → the store was switched on without the migration. Show the message verbatim and stop; nothing was written.
 - A `CONFIG` error → show its message verbatim (it names `WORK.md` and the fix) and stop. Never fall back to the legacy files.
 
 Items are named by their **ID**, `SIG-412`. The label `SIG-412-BUG-T` (ID, type, status) is for reading; you may pass either, and only the ID part is used.

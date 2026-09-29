@@ -78,11 +78,12 @@ afterEach(async () => {
 });
 
 describe('store off', () => {
+  // The fix it names is the migration, not a hand-made WORK.md (REVIEW I1).
   it('every mutation refuses with CONFIG, says how to turn the store on, and creates nothing', async () => {
     await mkdir(join(repo, '.planning'), { recursive: true });
-    await expectCode(newItem(repo, { title: 'x', by: 'b' }), 'CONFIG', /WORK\.md[\s\S]*key:/);
-    await expectCode(moveItem(repo, 'SIG-1', { status: 'T' }), 'CONFIG', /key:/);
-    await expectCode(closeItem(repo, 'SIG-1', { reason: 'stale', by: 'b' }), 'CONFIG', /key:/);
+    await expectCode(newItem(repo, { title: 'x', by: 'b' }), 'CONFIG', /WORK\.md[\s\S]*work-migrate\.mjs/);
+    await expectCode(moveItem(repo, 'SIG-1', { status: 'T' }), 'CONFIG', /work-migrate\.mjs/);
+    await expectCode(closeItem(repo, 'SIG-1', { reason: 'stale', by: 'b' }), 'CONFIG', /work-migrate\.mjs/);
     expect(() => getItem(repo, 'SIG-1')).toThrow(WorkStoreError);
     expect(existsSync(join(repo, '.planning', 'work'))).toBe(false);
   });
