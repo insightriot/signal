@@ -122,6 +122,12 @@ function confine(baseDir, abs, label) {
 // definition.
 const FRONT_RE = new RegExp(`^(${ITEM_ID_RE.source.replace(/^\^|\$$/g, '')})(?:-[A-Z]+-[A-Z])?$`);
 
+// A close or reopen time: a string starting YYYY-MM. A prefix check, not an
+// anchored one — full ISO timestamps pass. The month is what the done/YYYY-MM/
+// folder is named from.
+const ISO_MONTH_PREFIX_RE = /^\d{4}-(0[1-9]|1[0-2])/;
+const isIsoDate = (at) => typeof at === 'string' && ISO_MONTH_PREFIX_RE.test(at);
+
 function frontOf(idOrLabel) {
   const m = typeof idOrLabel === 'string' ? idOrLabel.match(FRONT_RE) : null;
   if (!m) {
@@ -645,7 +651,7 @@ function planClose(baseDir, id, close) {
     throw new WorkStoreError('SCHEMA', `${id}: close reason must be one of ${CLOSE_REASONS.join(', ')} `
       + `(got ${JSON.stringify(reason)})`);
   }
-  if (typeof at !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])/.test(at)) {
+  if (!isIsoDate(at)) {
     throw new WorkStoreError('SCHEMA', `${id}: close time must be an ISO date (got ${JSON.stringify(at)})`);
   }
   const found = getItem(baseDir, id);
@@ -692,6 +698,9 @@ export async function reopenItem(baseDir, idOrLabel, reopen = {}, opts = {}) {
     if (typeof reason !== 'string' || reason.trim() === '') {
       throw new WorkStoreError('SCHEMA', `${id}: a reopen needs a reason — what came back, and how you know. `
         + 'Nothing was reopened.');
+    }
+    if (!isIsoDate(at)) {
+      throw new WorkStoreError('SCHEMA', `${id}: reopen time must be an ISO date (got ${JSON.stringify(at)})`);
     }
     const found = getItem(baseDir, id);
     if (found.item.status !== 'C') {
@@ -813,7 +822,7 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
   if (typeof by !== 'string' || by.trim() === '') {
     throw new WorkStoreError('SCHEMA', `${epicId}: closing an Epic records who closed it — pass \`by\`.`);
   }
-  if (typeof at !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])/.test(at)) {
+  if (!isIsoDate(at)) {
     throw new WorkStoreError('SCHEMA', `${epicId}: close time must be an ISO date (got ${JSON.stringify(at)})`);
   }
   const execFn = opts.execFn ?? execFileSync;

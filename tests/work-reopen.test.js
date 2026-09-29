@@ -190,6 +190,21 @@ describe('reopenItem', () => {
     expect(getItem(repo, 'SIG-5').path).toBe('.planning/work/done/2026-09/SIG-5.md');
   });
 
+  it('refuses a reopen time that is not an ISO date (SCHEMA), the same check closeItem makes; nothing moves', async () => {
+    initRepo(repo);
+    await storeOn(repo);
+    const rel = '.planning/work/done/2026-09/SIG-9.md';
+    await plant(repo, rel, closed('SIG-9'));
+    commitAll(repo, 'seed');
+    const before = await readFile(join(repo, rel), 'utf-8');
+
+    for (const at of ['yesterday', '29/09/2026', 20260929, '']) {
+      await expectCode(reopenItem(repo, 'SIG-9', { by: 'b', reason: 'r', at }), 'SCHEMA', /reopen time must be an ISO date/);
+    }
+    expect(await readFile(join(repo, rel), 'utf-8')).toBe(before);
+    expect(existsSync(join(repo, '.planning/work/backlog/SIG-9.md'))).toBe(false);
+  });
+
   it('close → reopen → close → reopen keeps both closes, oldest first', async () => {
     initRepo(repo);
     await storeOn(repo);
