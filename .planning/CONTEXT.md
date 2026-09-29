@@ -11,7 +11,7 @@ Load this at the start of every work session. Short on purpose.
 (`SIG-412.md`), created at capture and *moved* through `inbox/` → `backlog/` → `epics/<id>/` →
 `done/`; one command (`/sig:item`) does every move; the old list files become generated. Opt-in by
 `.planning/work/WORK.md`, so projects that haven't switched see no change. Nothing is ever deleted.
-Read [`M6.E11-REQUIREMENTS.md`](M6.E11-REQUIREMENTS.md) and `D-M6E11-1` … `D-M6E11-14`.
+Read [`M6.E11-REQUIREMENTS.md`](./work/epics/M6.E11/M6.E11-REQUIREMENTS.md) and `D-M6E11-1` … `D-M6E11-14`.
 Other projects migrate later via `/sig:docs-migrate` (step 5) — remind Brett after this ships.
 
 ---
