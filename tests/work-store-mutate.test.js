@@ -388,6 +388,15 @@ describe('closeItem — AC-5.4', () => {
     await expectCode(closeItem(repo, 'SIG-1', { reason: 'stale', by: 'b', at: AT }), 'CONFLICT', /closed/);
   });
 
+  it('closeItems refuses the same item twice before writing anything', async () => {
+    const { closeItems } = await import('../plugin/tools/lib/work-ops.js');
+    const before = await readFile(join(repo, '.planning/work/backlog/SIG-1.md'), 'utf-8');
+    await expectCode(closeItems(repo, [{ id: 'SIG-1', reason: 'stale', by: 'b', at: AT }, { id: 'SIG-1-BUG-T', reason: 'stale', by: 'b', at: AT }]),
+      'SCHEMA', /more than once/);
+    expect(getItem(repo, 'SIG-1').item.status).not.toBe('C');
+    expect(await readFile(join(repo, '.planning/work/backlog/SIG-1.md'), 'utf-8')).toBe(before);
+  });
+
   it('the generated BUGS.md shows the closed bug', async () => {
     await closeItem(repo, 'SIG-1', { reason: 'fixed', by: 'b', at: AT, proof: 'PR #1' });
     const bugs = await readFile(join(repo, '.planning/BUGS.md'), 'utf-8');

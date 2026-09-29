@@ -362,7 +362,10 @@ async function regenerate(baseDir, done) {
 // Put `next` (with `body`) at `destDirRel/{id}.md`, moving it from `found`.
 // Validated and confined by the caller's checks plus the ones here; rewinds on
 // a failed write. Runs inside the `work` lock.
-async function relocate(baseDir, found, next, body, destDirRel, opts) {
+//
+// `undoLog`, when given, receives a function that puts the item back exactly
+// as it was — path and bytes — for a batch that must be all or nothing.
+async function relocate(baseDir, found, next, body, destDirRel, opts, undoLog) {
   const execFn = opts.execFn ?? execFileSync;
   const planning = join(baseDir, '.planning');
   const destRel = `.planning/${destDirRel}/${next.id}.md`;
@@ -372,8 +375,10 @@ async function relocate(baseDir, found, next, body, destDirRel, opts) {
   const fromDirRel = toPosix(relative(planning, dirname(join(baseDir, found.path))));
   const text = stringifyItem(next, rewriteRelativeLinks(body, fromDirRel, destDirRel));
 
+  const original = undoLog ? readFileSync(join(baseDir, found.path), 'utf-8') : null;
   if (destRel === found.path) {
     await atomicWrite(destAbs, text, { renameFn: opts.renameFn });
+    undoLog?.push(() => atomicWrite(destAbs, original));
     return { from: found.path, to: destRel };
   }
   if (exists(destAbs)) {
@@ -398,6 +403,11 @@ async function relocate(baseDir, found, next, body, destDirRel, opts) {
     if (firstCreated) removeCreatedDirs(dirname(destAbs), firstCreated);
     throw asWorkStoreError(err, 'IO');
   }
+  undoLog?.push(async () => {
+    moveFile(baseDir, destRel, found.path, git, execFn);
+    await atomicWrite(join(baseDir, found.path), original);
+    if (firstCreated) removeCreatedDirs(dirname(destAbs), firstCreated);
+  });
   return { from: found.path, to: destRel };
 }
 
@@ -596,40 +606,85 @@ export async function moveItem(baseDir, idOrLabel, to = {}, opts = {}) {
  * @returns {Promise<{item: object, label: string, from: string, to: string}>}
  */
 export async function closeItem(baseDir, idOrLabel, close = {}, opts = {}) {
-  const id = frontOf(idOrLabel);
+  const [r] = await closeItems(baseDir, [{ ...close, id: idOrLabel }], opts);
+  return r;
+}
+
+/**
+ * Close several items at once: ONE `work` lock, every close validated before
+ * any is written, and ONE regeneration. All or nothing for the item files: if
+ * closing item k fails, the items closed before it are put back — path and
+ * bytes — and nothing else is touched. The same item twice is refused
+ * (SCHEMA), before anything is written. `backlog.js`'s store-on discharge
+ * uses it, so a SHIP cannot record half its discharges.
+ *
+ * @param {string} baseDir
+ * @param {Array<{id: string, reason: string, by: string, proof?: string, dup_of?: string, at?: string}>} closes
+ *   each as `closeItem`'s `close`, plus the item's `id` (or label)
+ * @param {{execFn?: Function, renameFn?: Function}} [opts]
+ * @returns {Promise<Array<{item: object, label: string, from: string, to: string}>>} in `closes` order
+ */
+export async function closeItems(baseDir, closes, opts = {}) {
+  if (!Array.isArray(closes) || closes.length === 0) {
+    throw new WorkStoreError('SCHEMA', 'closeItems: pass at least one close — nothing was closed.');
+  }
+  const ids = closes.map((c) => frontOf(c?.id));
+  const twice = ids.filter((id, i) => ids.indexOf(id) !== i);
+  if (twice.length) {
+    throw new WorkStoreError('SCHEMA', `closeItems: ${[...new Set(twice)].join(', ')} named more than once — nothing was closed.`);
+  }
+  return withWorkLock(baseDir, async () => {
+    const planned = closes.map((c, i) => planClose(baseDir, ids[i], c));
+    const undo = [];
+    const results = [];
+    try {
+      for (const p of planned) {
+        const r = await relocate(baseDir, p.found, p.next, p.found.body, folderFor(p.next, p.found.epic), opts, undo);
+        results.push({ item: p.next, label: renderLabel(p.next), ...r });
+      }
+    } catch (err) {
+      for (const u of undo.reverse()) await u();
+      throw asWorkStoreError(err, 'IO');
+    }
+    const done = results.length === 1
+      ? `${planned[0].id} closed (${planned[0].next.close.reason}) and moved ${results[0].from} → ${results[0].to}`
+      : `${results.map((r) => r.item.id).join(', ')} were closed`;
+    await regenerate(baseDir, done);
+    return results;
+  });
+}
+
+// One close, validated and built, nothing written. Runs inside the lock.
+function planClose(baseDir, id, close) {
   const { reason, by, dup_of: dupOf, at = new Date().toISOString() } = close;
   let { proof } = close;
-  return withWorkLock(baseDir, async () => {
-    if (reason === undefined || reason === null || reason === '') {
-      throw new WorkStoreError('SCHEMA', `${id}: a close needs a reason (${CLOSE_REASONS.join(', ')}) — nothing was closed.`);
-    }
-    if (!CLOSE_REASONS.includes(reason)) {
-      throw new WorkStoreError('SCHEMA', `${id}: close reason must be one of ${CLOSE_REASONS.join(', ')} `
-        + `(got ${JSON.stringify(reason)})`);
-    }
-    if (typeof at !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])/.test(at)) {
-      throw new WorkStoreError('SCHEMA', `${id}: close time must be an ISO date (got ${JSON.stringify(at)})`);
-    }
-    const found = getItem(baseDir, id);
-    if (found.item.status === 'C') {
-      throw new WorkStoreError('CONFLICT', `${id} is already closed (${found.item.close?.reason}) at ${found.path}.`);
-    }
-    if (reason === 'dup') {
-      if (dupOf === undefined) throw new WorkStoreError('SCHEMA', `${id}: a dup close needs dup_of — the item it duplicates.`);
-      if (frontOf(dupOf) === id) throw new WorkStoreError('SCHEMA', `${id} cannot be a duplicate of itself.`);
-      getItem(baseDir, dupOf); // NOT_FOUND unless it exists
-    }
-    if (reason === 'fixed' && (proof === undefined || proof === null || String(proof).trim() === '')) {
-      proof = 'none given';
-    }
-    const record = { reason, by, at, proof, dup_of: reason === 'dup' ? frontOf(dupOf) : dupOf };
-    for (const k of Object.keys(record)) if (record[k] === undefined) delete record[k];
-    const next = { ...found.item, status: 'C', close: record };
-    assertValid(next, id);
-    const r = await relocate(baseDir, found, next, found.body, folderFor(next, found.epic), opts);
-    await regenerate(baseDir, `${id} closed (${reason}) and moved ${r.from} → ${r.to}`);
-    return { item: next, label: renderLabel(next), ...r };
-  });
+  if (reason === undefined || reason === null || reason === '') {
+    throw new WorkStoreError('SCHEMA', `${id}: a close needs a reason (${CLOSE_REASONS.join(', ')}) — nothing was closed.`);
+  }
+  if (!CLOSE_REASONS.includes(reason)) {
+    throw new WorkStoreError('SCHEMA', `${id}: close reason must be one of ${CLOSE_REASONS.join(', ')} `
+      + `(got ${JSON.stringify(reason)})`);
+  }
+  if (typeof at !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])/.test(at)) {
+    throw new WorkStoreError('SCHEMA', `${id}: close time must be an ISO date (got ${JSON.stringify(at)})`);
+  }
+  const found = getItem(baseDir, id);
+  if (found.item.status === 'C') {
+    throw new WorkStoreError('CONFLICT', `${id} is already closed (${found.item.close?.reason}) at ${found.path}.`);
+  }
+  if (reason === 'dup') {
+    if (dupOf === undefined) throw new WorkStoreError('SCHEMA', `${id}: a dup close needs dup_of — the item it duplicates.`);
+    if (frontOf(dupOf) === id) throw new WorkStoreError('SCHEMA', `${id} cannot be a duplicate of itself.`);
+    getItem(baseDir, dupOf); // NOT_FOUND unless it exists
+  }
+  if (reason === 'fixed' && (proof === undefined || proof === null || String(proof).trim() === '')) {
+    proof = 'none given';
+  }
+  const record = { reason, by, at, proof, dup_of: reason === 'dup' ? frontOf(dupOf) : dupOf };
+  for (const k of Object.keys(record)) if (record[k] === undefined) delete record[k];
+  const next = { ...found.item, status: 'C', close: record };
+  assertValid(next, id);
+  return { id, found, next };
 }
 
 /**

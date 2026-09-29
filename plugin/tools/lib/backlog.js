@@ -163,7 +163,7 @@ export function blockKey(block) {
 // triage is not promoted again, and a raw block's sha1 key is recorded as the
 // new item's `source_ref`, so a re-run finds it instead of making a twin.
 //
-// `newItem`/`applyTriage`/`closeItem` are imported lazily: work-ops.js →
+// `newItem`/`applyTriage`/`closeItems` are imported lazily: work-ops.js →
 // work-generate.js imports this module, so a static import would be a cycle.
 
 const STORE_SOURCE = '/sig:plan drain';
@@ -739,11 +739,16 @@ function renderDischargedHeading(depth, text, by, at) {
  *   With the store on, a named row is an item and is CLOSED (`fixed`, the
  *   discharge stamp as proof) — see `dischargeInStore`. `line` is null there.
  */
-export async function dischargeBacklogRows(baseDir, { rows = [], by, at, today } = {}) {
+export async function dischargeBacklogRows(baseDir, opts = {}) {
+  const { rows = [], by, at, today } = opts;
   const path = join(baseDir, BACKLOG_REL);
   const base = { written: false, path, reason: null, results: [] };
 
-  if (isStoreOn(baseDir).on) return dischargeInStore(baseDir, { rows, by, at, today, base });
+  if (isStoreOn(baseDir).on) {
+    // Test seam, like checkpoint.js's `_renameFn`: own-property + typeof guard.
+    const renameFn = Object.hasOwn(opts, '_renameFn') && typeof opts._renameFn === 'function' ? opts._renameFn : undefined;
+    return dischargeInStore(baseDir, { rows, by, at, today, base, renameFn });
+  }
 
   if (!existsSync(path)) {
     return { ...base, reason: `${BACKLOG_REL} not present — nothing to discharge` };
@@ -803,8 +808,12 @@ export async function dischargeBacklogRows(baseDir, { rows = [], by, at, today }
 // than one open match, writes nothing for that query — and an item already
 // closed reads as already discharged. Each hit is closed `fixed`, with the
 // stamp the list heading would have carried as its proof.
-async function dischargeInStore(baseDir, { rows, by, at, today, base }) {
-  const { closeItem, listItems } = await import('./work-ops.js');
+//
+// All the closes are ONE `closeItems` batch: one lock, one regeneration, and
+// all or nothing — a failure on one row leaves every row open. Two queries
+// naming the same item close it once.
+async function dischargeInStore(baseDir, { rows, by, at, today, base, renameFn }) {
+  const { closeItems, listItems } = await import('./work-ops.js');
   const who = by ?? 'unspecified';
   const when = at ?? today ?? isoToday();
   const proof = `DONE — ${at ? `${who}, ${at}` : String(who)}`;
@@ -826,7 +835,7 @@ async function dischargeInStore(baseDir, { rows, by, at, today, base }) {
       });
     } else if (open.length === 1) {
       const [hit] = open;
-      toClose.push(hit.item.id);
+      if (!toClose.includes(hit.item.id)) toClose.push(hit.item.id);
       results.push({ row: query, status: ROW_DISCHARGE.DISCHARGED, reason: null, heading: hit.item.title ?? hit.item.id, line: null, id: hit.item.id });
     } else if (hits.length > 0) {
       const [hit] = hits;
@@ -837,7 +846,9 @@ async function dischargeInStore(baseDir, { rows, by, at, today, base }) {
     }
   }
 
-  for (const id of toClose) await closeItem(baseDir, id, { reason: 'fixed', by: String(who), at: when, proof });
+  if (toClose.length > 0) {
+    await closeItems(baseDir, toClose.map((id) => ({ id, reason: 'fixed', by: String(who), at: when, proof })), { renameFn });
+  }
   return { ...base, written: toClose.length > 0, results };
 }
 

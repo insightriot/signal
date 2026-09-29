@@ -194,6 +194,43 @@ describe('backlog.js — promote and discharge move items', () => {
     expect(again.results[0]).toMatchObject({ status: ROW_DISCHARGE.ALREADY_DISCHARGED, id: 'SIG-1' });
   });
 
+  // REVIEW pass 1: the store-on discharge closed rows one closeItem at a
+  // time — a lock and a regeneration each, and a failure on row 2 left row 1
+  // closed. It is one batch now: all the closes or none.
+  it('dischargeBacklogRows: two queries naming ONE item close it once, not a CONFLICT half-way', async () => {
+    await promoteToBacklog(root, { block: '## Search archived Epics\n\nx\n\n---\n', tag: 'roadmap', today: TODAY });
+    await promoteToBacklog(root, { block: '## Tidy the index\n\ny\n\n---\n', tag: 'hygiene', today: TODAY });
+    const res = await dischargeBacklogRows(root, { rows: ['search archived', 'archived epics', 'tidy'], by: 'M6.E11', at: TODAY });
+    expect(res.written).toBe(true);
+    expect(res.results.map((r) => [r.status, r.id])).toEqual([
+      [ROW_DISCHARGE.DISCHARGED, 'SIG-1'], [ROW_DISCHARGE.DISCHARGED, 'SIG-1'], [ROW_DISCHARGE.DISCHARGED, 'SIG-2'],
+    ]);
+    expect(listItems(root, { status: 'C' }).map((r) => r.item.id)).toEqual(['SIG-1', 'SIG-2']);
+    await expectOnlyGeneratorWrote();
+  });
+
+  it('dischargeBacklogRows is all or nothing: a failure closing row 2 leaves row 1 open, bytes unchanged', async () => {
+    await promoteToBacklog(root, { block: '## Search archived Epics\n\nx\n\n---\n', tag: 'roadmap', today: TODAY });
+    await promoteToBacklog(root, { block: '## Tidy the index\n\ny\n\n---\n', tag: 'hygiene', today: TODAY });
+    const before = {
+      one: await readFile(planning('work', 'backlog', 'SIG-1.md'), 'utf-8'),
+      two: await readFile(planning('work', 'backlog', 'SIG-2.md'), 'utf-8'),
+      lists: await lists(),
+    };
+    const { rename } = await import('node:fs/promises');
+    const _renameFn = async (from, to) => {
+      if (to.endsWith('SIG-2.md')) throw new Error('disk full');
+      return rename(from, to);
+    };
+    await expect(dischargeBacklogRows(root, { rows: ['search', 'tidy'], by: 'M6.E11', at: TODAY, _renameFn }))
+      .rejects.toMatchObject({ code: 'IO', message: expect.stringMatching(/disk full/) });
+    expect(await readFile(planning('work', 'backlog', 'SIG-1.md'), 'utf-8')).toBe(before.one);
+    expect(await readFile(planning('work', 'backlog', 'SIG-2.md'), 'utf-8')).toBe(before.two);
+    expect(existsSync(planning('work', 'done'))).toBe(false);
+    expect(listItems(root, { status: 'C' })).toEqual([]);
+    expect(await lists()).toEqual(before.lists);
+  });
+
   it('dischargeBacklogRows never matches bugs, questions or untriaged captures (they are not backlog rows)', async () => {
     await newItem(root, { type: 'BUG', title: 'Index crash', by: 't' });
     await newItem(root, { type: 'Q', title: 'Index question?', by: 't' });
