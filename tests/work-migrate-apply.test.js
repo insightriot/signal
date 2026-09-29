@@ -403,6 +403,40 @@ describe('tools/work-migrate.mjs', () => {
     expect(statSync(join(dir, '.planning', 'archive', 'pre-work-store', 'README.md')).isFile()).toBe(true);
   }, 120_000);
 
+  // Runs the CLI and returns {status, stdout, stderr} whatever the exit code.
+  const spawn = (cwd, args) => {
+    try {
+      return { status: 0, stdout: execFileSync(process.execPath, [CLI, ...args], { cwd, encoding: 'utf-8', stdio: 'pipe' }), stderr: '' };
+    } catch (err) {
+      return { status: err.status, stdout: String(err.stdout ?? ''), stderr: String(err.stderr ?? '') };
+    }
+  };
+
+  it('refuses an unknown flag in ANY position — the first one included — and writes nothing', () => {
+    const dir = makeProject();
+    const before = tree(dir);
+    for (const args of [['--aply'], ['--aply', '--date', DATE], ['--date', DATE, '--aply'], ['--apply', '--dryrun'], ['apply']]) {
+      const r = spawn(dir, args);
+      expect(r.status, args.join(' ')).toBe(2);
+      expect(r.stderr, args.join(' ')).toMatch(/usage: node tools\/work-migrate\.mjs/);
+      expect(r.stderr, args.join(' ')).toMatch(/unknown/i);
+      expect(r.stdout, args.join(' ')).not.toMatch(/Items:/);
+    }
+    expect(tree(dir)).toEqual(before);
+  }, 60_000);
+
+  it('--help (and -h) prints usage and exits 0 without migrating or dry-running, even beside --apply', () => {
+    const dir = makeProject();
+    const before = tree(dir);
+    for (const args of [['--help'], ['-h'], ['--apply', '--help']]) {
+      const r = spawn(dir, args);
+      expect(r.status, args.join(' ')).toBe(0);
+      expect(r.stdout, args.join(' ')).toMatch(/usage: node tools\/work-migrate\.mjs/);
+      expect(r.stdout, args.join(' ')).not.toMatch(/Items:/);
+    }
+    expect(tree(dir)).toEqual(before);
+  }, 60_000);
+
   it('refuses a malformed --date', () => {
     const dir = makeProject();
     expect(() => execFileSync(process.execPath, [CLI, '--date', '29-09-2026'], { cwd: dir, stdio: 'pipe' })).toThrow();
