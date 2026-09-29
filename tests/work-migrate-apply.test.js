@@ -49,7 +49,7 @@ function makeProject({ git = false, edit } = {}) {
     const g = (...a) => execFileSync('git', a, { cwd: dir, stdio: 'ignore' });
     g('init', '-q');
     g('-c', 'user.email=t@t', '-c', 'user.name=t', 'add', '-A');
-    g('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'base');
+    g('-c', 'user.email=t@t', '-c', 'user.name=t', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'base');
   }
   return dir;
 }

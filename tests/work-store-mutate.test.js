@@ -516,45 +516,83 @@ describe('every failure is a WorkStoreError with a code', () => {
 });
 
 describe('AC-3.4 — no operation ever lowers the count of item files', () => {
+  // Every store mutation, successes and failures, each with the outcome it is
+  // EXPECTED to have: 'ok', or the WorkStoreError code it must throw. An
+  // attempt that fails for another reason fails the test — it does not count
+  // as a "failure that is part of the run" (REVIEW pass 1).
   it('holds across every operation, failures included', async () => {
+    const { newItems, applyTriage, reopenItem, closeEpic } = await import('../plugin/tools/lib/work-ops.js');
     initRepo(repo);
     await storeOn(repo);
     await plantItem(repo, 'backlog', { id: 'SIG-1', type: 'FEAT', status: 'T', created: CREATED });
     commitAll(repo, 'seed');
 
     let last = countItemFiles(repo);
-    const check = () => {
-      const now = countItemFiles(repo);
-      expect(now).toBeGreaterThanOrEqual(last);
-      last = now;
-    };
-    const attempt = async (fn) => {
+    const outcomes = [];
+    const attempt = async (expected, label, fn) => {
+      let got = 'ok';
       try {
         await fn();
-      } catch {
-        // failures are part of the run
+      } catch (err) {
+        got = err instanceof WorkStoreError ? err.code : `raw ${err?.message}`;
       }
-      check();
+      outcomes.push([label, got]);
+      expect(got, label).toBe(expected);
+      const now = countItemFiles(repo);
+      expect(now, label).toBeGreaterThanOrEqual(last);
+      last = now;
     };
     const failRename = async () => {
       throw new Error('boom');
     };
+    const { rename } = await import('node:fs/promises');
+    const failOn = (name) => async (from, to) => {
+      if (to.endsWith(name)) throw new Error('boom');
+      return rename(from, to);
+    };
 
-    await attempt(() => newItem(repo, { title: 'a', by: 'b', at: AT }));
-    await attempt(() => newItem(repo, { title: 'no by', at: AT }));
-    await attempt(() => getItem(repo, 'SIG-2'));
-    await attempt(() => getItem(repo, 'SIG-404'));
-    await attempt(() => moveItem(repo, 'SIG-2', { status: 'T' }, { renameFn: failRename }));
-    await attempt(() => moveItem(repo, 'SIG-2', { status: 'T' }));
-    await attempt(() => moveItem(repo, 'SIG-2', { status: 'Q', epic: '../x' }));
-    await attempt(() => moveItem(repo, 'SIG-2', { status: 'Q', epic: 'M6.E11' }));
-    await attempt(() => moveItem(repo, 'SIG-2', { status: 'P' }));
-    await attempt(() => closeItem(repo, 'SIG-1', { by: 'b' }));
-    await attempt(() => closeItem(repo, 'SIG-1', { reason: 'fixed', by: 'b', at: AT }, { renameFn: failRename }));
-    await attempt(() => closeItem(repo, 'SIG-1', { reason: 'dup', by: 'b', at: AT, dup_of: 'SIG-2' }));
-    await attempt(() => closeItem(repo, 'SIG-2', { reason: 'fixed', by: 'b', at: AT }));
-    await attempt(() => closeItem(repo, 'SIG-2', { reason: 'fixed', by: 'b', at: AT }));
-    expect(last).toBe(2);
+    await attempt('ok', 'newItem', () => newItem(repo, { title: 'a', by: 'b', at: AT })); // SIG-2
+    await attempt('SCHEMA', 'newItem without by', () => newItem(repo, { title: 'no by', at: AT }));
+    await attempt('ok', 'getItem', () => getItem(repo, 'SIG-2'));
+    await attempt('NOT_FOUND', 'getItem missing', () => getItem(repo, 'SIG-404'));
+    await attempt('IO', 'moveItem, write fails', () => moveItem(repo, 'SIG-2', { status: 'T' }, { renameFn: failRename }));
+    await attempt('ok', 'moveItem → T', () => moveItem(repo, 'SIG-2', { status: 'T' }));
+    await attempt('SCHEMA', 'moveItem bad epic', () => moveItem(repo, 'SIG-2', { status: 'Q', epic: '../x' }));
+    await attempt('ok', 'moveItem → Q M6.E11', () => moveItem(repo, 'SIG-2', { status: 'Q', epic: 'M6.E11' }));
+    await attempt('ok', 'moveItem → P', () => moveItem(repo, 'SIG-2', { status: 'P' }));
+    await attempt('SCHEMA', 'closeItem no reason', () => closeItem(repo, 'SIG-1', { by: 'b' }));
+    await attempt('IO', 'closeItem, write fails', () => closeItem(repo, 'SIG-1', { reason: 'fixed', by: 'b', at: AT }, { renameFn: failRename }));
+    await attempt('ok', 'closeItem dup', () => closeItem(repo, 'SIG-1', { reason: 'dup', by: 'b', at: AT, dup_of: 'SIG-2' }));
+    await attempt('ok', 'closeItem in Epic', () => closeItem(repo, 'SIG-2', { reason: 'fixed', by: 'b', at: AT }));
+    await attempt('CONFLICT', 'closeItem twice', () => closeItem(repo, 'SIG-2', { reason: 'fixed', by: 'b', at: AT }));
+
+    await attempt('ok', 'newItems', () => newItems(repo, [{ title: 'c', by: 'b', at: AT }, { title: 'd', by: 'b', at: AT }])); // SIG-3, SIG-4
+    await attempt('IO', 'newItems, second write fails', () => newItems(repo, [{ title: 'e', by: 'b', at: AT }, { title: 'f', by: 'b', at: AT }],
+      { renameFn: failOn('SIG-6.md') }));
+    await attempt('ok', 'applyTriage accept', () => applyTriage(repo, 'SIG-3', { accept: { type: 'FEAT' } }));
+    await attempt('CONFLICT', 'applyTriage again', () => applyTriage(repo, 'SIG-3', { accept: { type: 'FEAT' } }));
+    await attempt('ok', 'applyTriage reject', () => applyTriage(repo, 'SIG-4', { reject: 'checked: not true' }, { by: 'b', at: AT }));
+    await attempt('NOT_FOUND', 'applyTriage missing', () => applyTriage(repo, 'SIG-404', { skip: true }));
+    await attempt('SCHEMA', 'reopenItem no reason', () => reopenItem(repo, 'SIG-4', { by: 'b' }));
+    await attempt('ok', 'reopenItem', () => reopenItem(repo, 'SIG-4', { by: 'b', reason: 'came back', at: AT }));
+    await attempt('CONFLICT', 'reopenItem open item', () => reopenItem(repo, 'SIG-4', { by: 'b', reason: 'again', at: AT }));
+
+    // closeEpic: tracked files (git mv), the second move forced to fail.
+    commitAll(repo, 'before the Epic close');
+    let mvs = 0;
+    const failSecondMv = (cmd, args, o) => {
+      if (args[0] === 'mv' && ++mvs === 2) throw new Error('fatal: boom');
+      return execFileSync(cmd, args, o);
+    };
+    await attempt('IO', 'closeEpic, second move fails', () => closeEpic(repo, 'M6.E11', { by: 'b', at: AT }, { execFn: failSecondMv }));
+    expect(mvs).toBeGreaterThanOrEqual(2);
+    expect(existsSync(join(repo, '.planning/work/epics/M6.E11/SIG-2.md'))).toBe(true);
+    await attempt('ok', 'closeEpic', () => closeEpic(repo, 'M6.E11', { by: 'b', at: AT }));
+    await attempt('ok', 'closeEpic again (already archived)', () => closeEpic(repo, 'M6.E11', { by: 'b', at: AT }));
+    await attempt('CONFLICT', 'reopenItem archived', () => reopenItem(repo, 'SIG-2', { by: 'b', reason: 'x', at: AT }));
+
+    expect(outcomes).toHaveLength(27);
+    expect(last).toBe(4);
     expect(checkStore(repo)).toEqual([]);
   });
 });
