@@ -31,7 +31,7 @@ import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync, u
 import { basename, dirname, join, relative, sep } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { parseBacklogRows } from './backlog.js';
+import { DONE_WORD_RE, parseBacklogRows } from './backlog.js';
 import { walkBugEntries } from './bugs-tally.js';
 import { parseEntries, parseTriggerWatchlist } from './drain.js';
 import { acquireLock } from './file-lock.js';
@@ -500,9 +500,6 @@ const ENTRY_STATUS = {
 // ── Backlog close reasons and types ─────────────────────────────────────────
 
 const QUALIFIED_RE = /\b(?:PARTIALLY|PARTLY|MOSTLY|LARGELY)\s+(?:DONE|SHIPPED|ABANDONED|CLOSED|CUT|RESOLVED)\b/gi;
-// Same shape as backlog.js's DONE_WORD_RE, used only to read WHICH word closed
-// the row (the verdict itself comes from parseBacklogRows).
-const BOLD_DONE_WORD_RE = /\*\*[^*]{0,80}?\b(DONE|SHIPPED|ABANDONED|CLOSED|CUT|RESOLVED)\b/i;
 const SUPERSEDED_RE = /\bSUPERSEDED\b/;
 const FOLD_RE = /\b(?:FOLDED INTO|absorbed into)\b/;
 const KEPT_RE = /\bKEPT\b/i;
@@ -731,7 +728,8 @@ export function planMigrationFromTexts(texts, opts = {}) {
           notes.push(`SUPERSEDED by ${token ? `\`${token}\`` : 'something unnamed'}, which is not an item — closed as fixed.`);
         }
       } else {
-        const word = (unqualified.match(BOLD_DONE_WORD_RE) ?? [])[1]?.toUpperCase();
+        // Only WHICH word closed the row; the verdict itself came from parseBacklogRows.
+        const word = (unqualified.match(DONE_WORD_RE) ?? [])[1]?.toUpperCase();
         close = closeRecord(word === 'ABANDONED' || word === 'CUT' ? 'wontdo' : 'fixed', today);
       }
     }

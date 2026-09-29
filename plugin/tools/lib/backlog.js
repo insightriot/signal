@@ -322,7 +322,7 @@ const STRUCK_RE = /~~[^~]+~~/;
 // skipping in silence, which is a false negative rather than a false alarm and so
 // the harder one to notice. Zero of the 26 genuinely-closed rows lose their
 // marker under this rule: every one is struck, bolded, or both.
-const DONE_WORD_RE = /\*\*[^*]{0,80}?\b(DONE|SHIPPED|ABANDONED|CLOSED|CUT|RESOLVED)\b/i;
+export const DONE_WORD_RE = /\*\*[^*]{0,80}?\b(DONE|SHIPPED|ABANDONED|CLOSED|CUT|RESOLVED)\b/i;
 // "PARTIALLY SHIPPED" / "largely DONE" assert OPEN work. The qualifier is
 // stripped before the done-word test rather than special-cased after it, so a
 // row carrying both a qualified and an unqualified marker still reads closed.
