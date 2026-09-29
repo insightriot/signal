@@ -258,7 +258,7 @@ Call `closeEpic(baseDir, state.current_epic, {by, pr, release})` from `tools/lib
 
 1. **`OPEN_ITEMS` → HALT.** The error names each open item in the Epic's folder. Close each (`/sig:item close`) or move it back to the backlog (`/sig:item move <id> T`), then re-run. Do not create the SHIP commit with the Epic's work still open.
 2. **`{status: 'no-folder'}`** — the Epic has no folder (every Epic from before the store). Say so and continue; nothing changed.
-3. **`{status: 'closed'}`** — the folder is now `.planning/archive/epics/<EpicID>/` with the close in its `README.md`. Stage the moved files and `.planning/work/EPICS.md` into the SHIP commit.
+3. **`{status: 'closed'}`** — the folder is now `.planning/archive/epics/<EpicID>/` with the close in its `README.md`. Stage into the SHIP commit the moved files (`moved`), every live file whose links into the folder were retargeted (`rewritten`), and the regenerated lists (`.planning/work/EPICS.md` and any of the four lists that changed).
 
 ### 7. Manual milestone meta-retro (`--milestone-meta` flag, optional)
 

@@ -747,7 +747,9 @@ function removeEmptyTree(dir) {
  * @param {{by: string, pr?: string|number, release?: string, at?: string}} close — `at` defaults to now
  * @param {{execFn?: Function, renameFn?: Function}} [opts]
  * @returns {Promise<{status: 'no-folder'} | {status: 'already-archived', path: string}
- *   | {status: 'closed', from: string, to: string, moved: string[], close: object}>}
+ *   | {status: 'closed', from: string, to: string, moved: string[], rewritten: string[], close: object}>}
+ *   `rewritten` — live files outside the folder whose links into it were
+ *   retargeted at the archive, relative to `baseDir`
  * @throws {WorkStoreError} SCHEMA (bad ID, no `by`, broken item or README),
  *   OPEN_ITEMS (each open item named), CONFLICT (archive folder exists, or
  *   the folder holds something that is not a file or folder)
@@ -845,6 +847,7 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
     const git = isGitRepo(baseDir, execFn);
     const moved = [];
     const written = []; // {abs, text} — text null when this call created the file
+    const rewritten = []; // live files outside the folder whose links were retargeted
     const firstCreated = mkdirSync(toAbs, { recursive: true });
     try {
       for (const abs of tree.files) {
@@ -871,16 +874,21 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
       // folder is retargeted at the archive — archive-tree's link machinery,
       // keyed to this move. `archive/` is history and is left as written;
       // generated files are rebuilt from the items by the regeneration below.
+      // No text pre-filter: a link is relative to its own file, so an item in
+      // `backlog/` reaches the folder as `../epics/<id>/…`, which never
+      // contains `work/epics/<id>` (REVIEW I5). `computeLinkEdits` decides.
       const moveMap = new Map(moved.map((m) => [m.from, m.to]));
       const archiveRoot = join(planning, 'archive') + sep;
       for (const abs of walkFiles(planning).sort()) {
         if (!abs.endsWith('.md') || abs.startsWith(archiveRoot)) continue;
         const text = readFileSync(abs, 'utf-8');
-        if (!text.includes(fromDirRel) || isGeneratedText(text)) continue;
-        const next = applyKeyedReplacements(text, computeLinkEdits(toPosix(relative(baseDir, abs)), text, moveMap));
+        if (isGeneratedText(text)) continue;
+        const rel = toPosix(relative(baseDir, abs));
+        const next = applyKeyedReplacements(text, computeLinkEdits(rel, text, moveMap));
         if (next === text) continue;
         written.push({ abs, text });
         await atomicWrite(abs, next, { renameFn: opts.renameFn });
+        rewritten.push(rel);
       }
       const readmeDest = join(toAbs, EPIC_README);
       written.push({ abs: readmeDest, text: readmeExisted ? readFileSync(readmeDest, 'utf-8') : null });
@@ -905,7 +913,7 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
     removeEmptyTree(fromAbs);
 
     await regenerate(baseDir, `${epicId} closed and moved ${fromRel}/ → ${toRel}/`);
-    return { status: 'closed', from: fromRel, to: toRel, moved: moved.map((m) => m.to), close: record };
+    return { status: 'closed', from: fromRel, to: toRel, moved: moved.map((m) => m.to), rewritten, close: record };
   });
 }
 

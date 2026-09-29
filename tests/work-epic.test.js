@@ -266,6 +266,25 @@ describe('t5.3 — closeEpic (AC-8.3, AC-8.4)', () => {
     expect(findings.filter((f) => f.severity === 'hard')).toEqual([]);
   });
 
+  // REVIEW I5: an item file's link into the folder is relative to the ITEM's
+  // folder — `../epics/<id>/…` from backlog/ — so it never contains the text
+  // `work/epics/<id>`, and a pre-filter on that text skipped it.
+  it('rewrites an ITEM file\'s link into the folder (../epics/<id>/…), and the regenerated BACKLOG.md has no dead link', async () => {
+    await plant('work/backlog', item('SIG-3', 'FEAT', 'T'), 'See [the plan](../epics/M6.E99/M6.E99-PLAN.md#goal).\n');
+    await closeItem(base, 'SIG-1', { reason: 'fixed', by: 'b' });
+    await moveItem(base, 'SIG-2', { status: 'T' });
+    const r = await closeEpic(base, 'M6.E99', CLOSE_BY);
+    expect(r.rewritten).toEqual(['.planning/work/backlog/SIG-3.md']);
+    const sig3 = await read('.planning/work/backlog/SIG-3.md');
+    expect(sig3).toContain('[the plan](../../archive/epics/M6.E99/M6.E99-PLAN.md#goal)');
+    expect(existsSync(join(base, '.planning/work/backlog/../../archive/epics/M6.E99/M6.E99-PLAN.md'))).toBe(true);
+    const backlog = await read('.planning/BACKLOG.md');
+    expect(backlog.split('\n')[0]).toBe(GENERATED_MARKER);
+    expect(backlog).toContain('archive/epics/M6.E99/M6.E99-PLAN.md#goal');
+    const findings = checkInternalLinks(base, { topFiles: ['.planning/BACKLOG.md'], dirs: ['.planning/work/backlog'] });
+    expect(findings.filter((f) => f.severity === 'hard')).toEqual([]);
+  });
+
   it('a failed inbound rewrite rewinds the inbound file too', async () => {
     const stateText = '# State\n\n[plan](work/epics/M6.E99/M6.E99-PLAN.md)\n';
     await put('.planning/STATE.md', stateText);
