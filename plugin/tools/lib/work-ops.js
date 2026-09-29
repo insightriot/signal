@@ -94,12 +94,16 @@ function frontOf(idOrLabel) {
   return m[1];
 }
 
-// Every item file the store holds: the live tree and archived Epics.
-// `walkFiles` does not follow symlinks, so nothing outside is ever read.
-function itemFiles(baseDir) {
+// Every item file the store holds: the live tree and archived Epics — or,
+// with `epic`, only that Epic's folder, live and archived (AC-8.1: "what is in
+// this Epic?" reads the folder and nothing else). `walkFiles` does not follow
+// symlinks, so nothing outside is ever read.
+function itemFiles(baseDir, epic) {
   const planning = join(baseDir, '.planning');
-  return [...walkFiles(join(planning, WORK_DIR)), ...walkFiles(join(planning, 'archive', 'epics'))]
-    .filter((abs) => parseItemFileName(basename(abs)));
+  const roots = epic === undefined
+    ? [join(planning, WORK_DIR), join(planning, 'archive', 'epics')]
+    : [join(planning, WORK_DIR, FOLDERS.epics, epic), join(planning, 'archive', 'epics', epic)];
+  return roots.flatMap((root) => walkFiles(root)).filter((abs) => parseItemFileName(basename(abs)));
 }
 
 function readItemFile(baseDir, abs) {
@@ -170,10 +174,11 @@ export function listItems(baseDir, filter = {}) {
         + `(filters: ${FILTER_KEYS.join(', ')})`);
     }
   }
+  if (filter.epic !== undefined) assertEpicId(filter.epic);
   requireStore(baseDir);
   const rows = [];
   const errors = [];
-  for (const abs of itemFiles(baseDir)) {
+  for (const abs of itemFiles(baseDir, filter.epic)) {
     const r = readItemFile(baseDir, abs);
     if (r.errors.length) {
       errors.push(...r.errors);

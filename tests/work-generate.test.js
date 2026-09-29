@@ -9,7 +9,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { GENERATED_MARKER, generateFiles, generateAll, GENERATED_FILES } from '../plugin/tools/lib/work-generate.js';
+import { GENERATED_MARKER, generateFiles, generateAll, GENERATED_FILES, EPICS_INDEX_REL } from '../plugin/tools/lib/work-generate.js';
 import { stringifyItem } from '../plugin/tools/lib/work-item.js';
 import { walkBugEntries, compareBugTally, deriveBugCounts } from '../plugin/tools/lib/bugs-tally.js';
 import { parseBacklogRows } from '../plugin/tools/lib/backlog.js';
@@ -198,7 +198,8 @@ describe('generateAll — reads the store, writes the four files', () => {
     const dir = tempStore();
     try {
       const res = await generateAll(dir);
-      expect(res.written.sort()).toEqual([...GENERATED_FILES].sort());
+      // Plus the Epic index (M6.E11 t5.2), which lives under work/.
+      expect(res.written.sort()).toEqual([...GENERATED_FILES, EPICS_INDEX_REL].sort());
       const expected = generateFiles(sample());
       for (const f of GENERATED_FILES) expect(readFileSync(join(dir, '.planning', f), 'utf-8')).toBe(expected[f]);
       const first = GENERATED_FILES.map((f) => readFileSync(join(dir, '.planning', f), 'utf-8'));

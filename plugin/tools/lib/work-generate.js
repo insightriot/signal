@@ -30,22 +30,30 @@
 // Deterministic: items are ordered by number, and nothing reads the clock, so
 // the same store gives byte-identical files (AC-7.1).
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, sep } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
 import { parseBacklogRows } from './backlog.js';
 import { deriveBugCounts, formatTallySegment } from './bugs-tally.js';
+import { EPIC_ID_STRICT_RE, parseFrontmatter, StateSchemaError } from './state.js';
 import { parseItem, WorkStoreError } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
 import { GENERATED_MARKER } from './work-marker.js';
-import { isStoreOn, parseItemFileName, walkFiles, WORK_DIR } from './work-store.js';
+import { FOLDERS, isStoreOn, parseItemFileName, walkFiles, WORK_DIR } from './work-store.js';
 
 // The marker lives in the leaf `work-marker.js` so `atomic-write.js` can check
 // it without importing the store; re-exported here for existing importers.
 export { GENERATED_MARKER };
 export const GENERATED_FILES = Object.freeze(['BUGS.md', 'BACKLOG.md', 'ISSUES-INBOX.md', 'OPEN-QUESTIONS.md']);
 export const WATCHLIST_FILE = 'WATCHLIST.md';
+// The Epic index (AC-8.2). Under `work/`, not `.planning/`, and so not in
+// GENERATED_FILES: it is a view of the store for the store's readers, not one
+// of the four lists the shipped readers parse.
+export const EPICS_INDEX_REL = `${WORK_DIR}/EPICS.md`;
+// An Epic's intent file inside its folder; holds the close record once
+// archived (FR-8.4). Not an item file — its name is not an ID.
+export const EPIC_README = 'README.md';
 
 const OPEN_ACTIVE = new Set(['T', 'Q', 'P']);
 
@@ -171,6 +179,87 @@ function generateQuestions(items) {
   return parts.join('\n');
 }
 
+// ── work/EPICS.md ───────────────────────────────────────────────────────────
+
+// Natural order of Epic IDs: M6.E2 before M6.E11.
+function compareEpicIds(a, b) {
+  const pa = a.split(/[.E]+/).filter(Boolean).map(Number);
+  const pb = b.split(/[.E]+/).filter(Boolean).map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? -1) - (pb[i] ?? -1);
+    if (d !== 0) return d;
+  }
+  return a.localeCompare(b);
+}
+
+function closeLine(close) {
+  if (!close || typeof close !== 'object') return 'closed (no close record in its README.md)';
+  const parts = [`closed ${String(close.at ?? 'at an unrecorded time').slice(0, 10)}`];
+  if (close.pr !== undefined && close.pr !== null) parts.push(`PR ${close.pr}`);
+  if (close.release !== undefined && close.release !== null) parts.push(String(close.release));
+  if (close.by !== undefined && close.by !== null) parts.push(`by ${close.by}`);
+  return parts.join(' · ');
+}
+
+/**
+ * Render the Epic index. Pure. Open Epics first, then archived ones, each in
+ * natural ID order; an Epic's items in number order.
+ *
+ * @param {Array<{id: string, archived: boolean, close?: object|null}>} epics
+ * @param {Array<{item: object, dir: string}>} items
+ * @returns {string}
+ */
+export function generateEpicsIndex(epics, items) {
+  const parts = [GENERATED_MARKER, '# Epics', ''];
+  const sorted = [...epics].sort((a, b) => Number(a.archived) - Number(b.archived) || compareEpicIds(a.id, b.id));
+  if (sorted.length === 0) parts.push('_no Epic folders_', '');
+  for (const epic of sorted) {
+    const dir = `${epic.archived ? 'archive/epics' : `${WORK_DIR}/${FOLDERS.epics}`}/${epic.id}`;
+    const mine = items
+      .filter((e) => e.dir === dir)
+      .sort((a, b) => num(a.item.id) - num(b.item.id) || a.item.id.localeCompare(b.item.id));
+    parts.push(`## ${epic.id} — ${epic.archived ? closeLine(epic.close) : 'open'}`, '');
+    if (mine.length === 0) parts.push('_no items_');
+    for (const e of mine) {
+      const title = e.item.title === undefined ? '' : ` — ${String(e.item.title).replace(/\s+/g, ' ')}`;
+      parts.push(`- ${e.item.id}-${e.item.type}-${e.item.status}${title}`);
+    }
+    parts.push('');
+  }
+  return parts.join('\n');
+}
+
+// Every Epic folder, live and archived. Directories only (a symlink is
+// neither), strict Epic IDs only — the same folder rule `checkStore` applies.
+function readEpicFolders(planning) {
+  const out = [];
+  for (const [rel, archived] of [[join(WORK_DIR, FOLDERS.epics), false], [join('archive', 'epics'), true]]) {
+    let entries;
+    try {
+      entries = readdirSync(join(planning, rel), { withFileTypes: true });
+    } catch (err) {
+      if (err.code === 'ENOENT' || err.code === 'ENOTDIR') continue;
+      throw err;
+    }
+    for (const e of entries) {
+      if (!e.isDirectory() || !EPIC_ID_STRICT_RE.test(e.name)) continue;
+      const epic = { id: e.name, archived };
+      const readme = join(planning, rel, e.name, EPIC_README);
+      if (archived && existsSync(readme)) {
+        try {
+          epic.close = parseFrontmatter(readFileSync(readme, 'utf-8')).data?.close ?? null;
+        } catch (err) {
+          if (!(err instanceof StateSchemaError)) throw err;
+          throw new WorkStoreError('SCHEMA', `.planning/${rel.split(sep).join('/')}/${e.name}/${EPIC_README}: `
+            + `its frontmatter is not valid YAML — fix it, then re-run. (${err.message})`);
+        }
+      }
+      out.push(epic);
+    }
+  }
+  return out;
+}
+
 /**
  * Render the four files from items. Pure.
  *
@@ -189,7 +278,8 @@ export function generateFiles({ items, watchlist = null }) {
 }
 
 /**
- * Read the store and (re)write the four files. With the store off, writes
+ * Read the store — `work/` and archived Epics — and (re)write the four files
+ * plus the Epic index `work/EPICS.md`. With the store off, writes
  * nothing — a project without `.planning/work/WORK.md` sees no change.
  * A store holding any broken item file writes nothing and throws: a view
  * generated from part of the store would silently drop the broken items.
@@ -205,7 +295,10 @@ export async function generateAll(baseDir) {
 
   const items = [];
   const errors = [];
-  for (const abs of walkFiles(workDir).sort()) {
+  // Archived Epics too: a closed bug archived with its Epic is still a bug,
+  // and BUGS.md is where a bug's history is read.
+  const files = [...walkFiles(workDir), ...walkFiles(join(planning, 'archive', 'epics'))].sort();
+  for (const abs of files) {
     const name = abs.slice(abs.lastIndexOf(sep) + 1);
     if (!parseItemFileName(name)) continue; // WORK.md, WATCHLIST.md, an Epic's own artifacts
     const rel = relative(planning, abs).split(sep).join('/');
@@ -223,9 +316,11 @@ export async function generateAll(baseDir) {
   const wlPath = join(workDir, WATCHLIST_FILE);
   const watchlist = existsSync(wlPath) ? { text: readFileSync(wlPath, 'utf-8'), dir: WORK_DIR } : null;
 
-  const files = generateFiles({ items, watchlist });
-  for (const name of GENERATED_FILES) await writeGenerated(join(planning, name), files[name]);
-  return { written: [...GENERATED_FILES] };
+  const lists = generateFiles({ items, watchlist });
+  const epicsIndex = generateEpicsIndex(readEpicFolders(planning), items);
+  for (const name of GENERATED_FILES) await writeGenerated(join(planning, name), lists[name]);
+  await writeGenerated(join(planning, EPICS_INDEX_REL), epicsIndex);
+  return { written: [...GENERATED_FILES, EPICS_INDEX_REL] };
 }
 
 // The one place a generated file is written, and the only caller passing
