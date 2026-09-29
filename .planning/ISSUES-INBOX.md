@@ -123,3 +123,11 @@ The borrowable part is not the number — 40k is theirs, for one document, on a 
 Open question this does not answer: which Signal document should carry a bound. `CONTEXT.md` is the obvious candidate; `.planning/` as a whole is the wrong unit, because archive growth is correct behaviour.
 
 ---
+
+## tools/adherence-ceiling.js ignores unknown flags and regenerates the log
+
+**Status:** untriaged (N) · SIG-249
+
+Running `node tools/adherence-ceiling.js --help` silently regenerates .planning/ADHERENCE-LOG.md (unknown flags are ignored), pinning whatever HEAD is. Found during M6.E11 REVIEW-fix batch 1: it pinned the wrong commit and had to be redone. Fix: reject unknown flags; print usage on --help.
+
+---

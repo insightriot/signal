@@ -18,7 +18,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
 import { checkBugStatusVsChangelog } from '../plugin/tools/lib/published-facts.js';
@@ -39,12 +39,13 @@ const snapshot = () => execFileSync('git', ['status', '--porcelain', '.planning/
 
 // Every item file in the store, parsed. `work/` also holds WORK.md, EPICS.md and
 // WATCHLIST.md; only `{ID}.md` names are items.
-function readItems() {
-  return walkFiles(join(PLANNING, 'work'))
+function readItems(root = join(PLANNING, 'work')) {
+  if (!existsSync(root)) return [];
+  return walkFiles(root)
     .filter((p) => parseItemFileName(basename(p)))
     .map((p) => {
       const parsed = parseItem(readFileSync(p, 'utf-8'), { path: p });
-      return { path: p, folder: p.slice(join(PLANNING, 'work').length + 1).split('/')[0], ...parsed };
+      return { path: p, folder: p.slice(root.length + 1).split('/')[0], ...parsed };
     });
 }
 
@@ -88,8 +89,15 @@ describe('Outcome — the store itself', () => {
     expect(report, 'the migration dry-run report').toBeTruthy();
     const total = Number(readFileSync(report, 'utf-8').match(/^Items: \*\*(\d+)\*\*/m)?.[1]);
     expect(total).toBeGreaterThan(0);
-    expect(items).toHaveLength(total);
-    for (const i of items) expect(i.errors, i.path).toEqual([]);
+    // ≥, not ==: every later capture adds an item (SIG-249 was the first), and
+    // SHIP's closeEpic moves this Epic's items to archive/epics/ — so count both
+    // roots, and require every migrated ID (SIG-1 … SIG-{total}) to still exist.
+    // REVIEW pass 1, C1: the exact count broke on the first ordinary capture.
+    const everywhere = [...items, ...readItems(join(PLANNING, 'archive', 'epics'))];
+    expect(everywhere.length).toBeGreaterThanOrEqual(total);
+    const ids = new Set(everywhere.map((i) => i.item?.id));
+    for (let n = 1; n <= total; n += 1) expect(ids.has(`SIG-${n}`), `SIG-${n}`).toBe(true);
+    for (const i of everywhere) expect(i.errors, i.path).toEqual([]);
   });
 });
 

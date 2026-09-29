@@ -8,7 +8,7 @@
 // resolution, fails the suite instead of being noticed by a reader.
 
 import { describe, it, expect } from 'vitest';
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,9 +18,17 @@ import { listItems } from '../plugin/tools/lib/work-ops.js';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PLANNING = join(ROOT, '.planning');
 const EPIC = 'M6.E11';
-const FOLDER = join(PLANNING, 'work', 'epics', EPIC);
+const LIVE = join(PLANNING, 'work', 'epics', EPIC);
+const ARCHIVED = join(PLANNING, 'archive', 'epics', EPIC);
+// REVIEW pass 1, C2: SHIP's closeEpic moves this folder to archive/epics/, so
+// "the folder" is whichever of the two exists — and exactly one must.
+const FOLDER = existsSync(LIVE) ? LIVE : ARCHIVED;
 
 describe(`${EPIC} lives in its Epic folder (AC-8.5, on this repo)`, () => {
+  it('the Epic folder exists in exactly one place — live or archived', () => {
+    expect(existsSync(LIVE) !== existsSync(ARCHIVED)).toBe(true);
+  });
+
   it(`no .planning/${EPIC}-*.md is left at the top level`, () => {
     expect(readdirSync(PLANNING).filter((n) => n.startsWith(`${EPIC}-`))).toEqual([]);
   });
@@ -33,7 +41,8 @@ describe(`${EPIC} lives in its Epic folder (AC-8.5, on this repo)`, () => {
     },
   );
 
-  it('artifactName writes VERIFICATION into the folder', () => {
+  // Only while the Epic is live: an archived Epic is never written to.
+  it.runIf(existsSync(LIVE))('artifactName writes VERIFICATION into the live folder', () => {
     expect(artifactName('VERIFICATION', { currentEpic: EPIC, planningDir: PLANNING }))
       .toBe(`work/epics/${EPIC}/${EPIC}-VERIFICATION.md`);
   });
