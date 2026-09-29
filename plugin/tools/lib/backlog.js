@@ -29,6 +29,7 @@ import { createHash } from 'node:crypto';
 
 import { atomicWrite } from './atomic-write.js';
 import { insertAboveFooter, rewriteFooter, buildBugsEntry, insertAtEnd } from './add.js';
+import { isStoreOn } from './work-store.js';
 
 const BACKLOG_REL = '.planning/BACKLOG.md';
 const BUGS_REL = '.planning/BUGS.md';
@@ -137,6 +138,69 @@ export function blockKey(block) {
   return createHash('sha1').update(block).digest('hex');
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// With the work store on (M6.E11 t4.3, AC-6.2)
+//
+// BACKLOG.md and BUGS.md are generated from item files, so a promote is an
+// item MOVE and a discharge is an item CLOSE — never an edit to the list.
+//
+// A promote is triage's `accept` (`applyTriage`): it sets the type the
+// classification implies and moves the item to `backlog/`. The type mapping
+// is this module's call — `roadmap` → FEAT, `hygiene` → CHORE, a bug → BUG —
+// because the store has no tag and these are the nearest types it has.
+//
+// Which item: a block cut from the GENERATED inbox carries
+// `**Status:** untriaged (N) · SIG-n`, so that item is promoted — it is not
+// captured a second time. A block with no such line (a raw block handed in
+// directly) becomes a new item first. Dedupe survives: an item already past
+// triage is not promoted again, and a raw block's sha1 key is recorded as the
+// new item's `source_ref`, so a re-run finds it instead of making a twin.
+//
+// `newItem`/`applyTriage`/`closeItem` are imported lazily: work-ops.js →
+// work-generate.js imports this module, so a static import would be a cycle.
+
+const STORE_SOURCE = '/sig:plan drain';
+
+function inboxItemId(block, key) {
+  const re = new RegExp(`^\\*\\*Status:\\*\\* untriaged \\(N\\) · (${key}-[1-9]\\d*)\\s*$`, 'm');
+  return block.match(re)?.[1] ?? null;
+}
+
+async function promoteInStore(baseDir, { block, type, title, keyName, by }) {
+  const { applyTriage, getItem, listItems, newItem } = await import('./work-ops.js');
+  const { key } = isStoreOn(baseDir);
+  const itemPath = (id) => join(baseDir, '.planning', 'work', 'backlog', `${id}.md`);
+  const dedupeKey = `${keyName}: ${blockKey(block)}`;
+
+  let id = inboxItemId(block, key);
+  if (id === null) {
+    const twin = listItems(baseDir).find((r) => r.item.source_ref === dedupeKey);
+    if (twin) id = twin.item.id;
+  }
+  if (id !== null) {
+    const found = getItem(baseDir, id);
+    if (found.item.status !== 'N') {
+      return { written: false, deduped: true, path: join(baseDir, found.path), key: blockKey(block), id };
+    }
+  } else {
+    const heading = resolveTitle(title, block);
+    const created = await newItem(baseDir, {
+      type,
+      title: heading,
+      body: groomBlockBody(block),
+      source: STORE_SOURCE,
+      source_ref: dedupeKey,
+      by: by ?? STORE_SOURCE,
+    });
+    id = created.id;
+  }
+  const accept = { type };
+  const retitle = (title ?? '').trim();
+  if (retitle) accept.title = retitle;
+  const r = await applyTriage(baseDir, id, { accept });
+  return { written: true, path: itemPath(id), key: blockKey(block), id, label: r.label };
+}
+
 /**
  * Promote a classified WORK entry into `.planning/BACKLOG.md`: append a
  * `## {title}` entry carrying `**Tag:** {tag}` (roadmap|hygiene) + the groomed
@@ -152,13 +216,19 @@ export function blockKey(block) {
  * @param {'roadmap'|'hygiene'} opts.tag
  * @param {string} [opts.title] — retitle; falls back to the block's heading
  * @param {string} [opts.today] — ISO date for the footer bump
- * @returns {Promise<{written: boolean, deduped?: boolean, path: string, key: string}>}
+ * @param {string} [opts.by] — store on: `created.by` for a raw block's new item
+ * @returns {Promise<{written: boolean, deduped?: boolean, path: string, key: string, id?: string, label?: string}>}
+ *   With the store on, the item is moved instead (see "With the work store
+ *   on" above) and `path`/`id` name the item file.
  */
-export async function promoteToBacklog(baseDir, { block, tag, title, today } = {}) {
+export async function promoteToBacklog(baseDir, { block, tag, title, today, by } = {}) {
   if (!VALID_TAGS.has(tag)) {
     throw new Error(
       `promoteToBacklog: tag must be "roadmap" or "hygiene", got ${JSON.stringify(tag)}.`
     );
+  }
+  if (isStoreOn(baseDir).on) {
+    return promoteInStore(baseDir, { block, type: tag === 'roadmap' ? 'FEAT' : 'CHORE', title, keyName: 'backlog-key', by });
   }
   const date = today ?? isoToday();
   await createBacklogIfMissing(baseDir, { today: date });
@@ -652,11 +722,15 @@ function renderDischargedHeading(depth, text, by, at) {
  * @param {string} [opts.at] — ISO date
  * @param {string} [opts.today] — ISO date for the footer bump
  * @returns {Promise<{written:boolean, path:string, reason:string|null,
- *   results:Array<{row:string, status:string, reason:string|null, heading:string|null, line:number|null}>}>}
+ *   results:Array<{row:string, status:string, reason:string|null, heading:string|null, line:number|null, id?:string}>}>}
+ *   With the store on, a named row is an item and is CLOSED (`fixed`, the
+ *   discharge stamp as proof) — see `dischargeInStore`. `line` is null there.
  */
 export async function dischargeBacklogRows(baseDir, { rows = [], by, at, today } = {}) {
   const path = join(baseDir, BACKLOG_REL);
   const base = { written: false, path, reason: null, results: [] };
+
+  if (isStoreOn(baseDir).on) return dischargeInStore(baseDir, { rows, by, at, today, base });
 
   if (!existsSync(path)) {
     return { ...base, reason: `${BACKLOG_REL} not present — nothing to discharge` };
@@ -708,6 +782,50 @@ export async function dischargeBacklogRows(baseDir, { rows = [], by, at, today }
   const bumped = rewriteFooter(lines.join('\n'), today ?? at ?? isoToday());
   await atomicWrite(path, bumped);
   return { written: true, path, reason: null, results };
+}
+
+// The store-on discharge (M6.E11 t4.3). The rows a discharge can name are the
+// rows the generated BACKLOG.md shows: items that are neither BUG nor Q and
+// are past the inbox. Same refusals as the list version — no match, or more
+// than one open match, writes nothing for that query — and an item already
+// closed reads as already discharged. Each hit is closed `fixed`, with the
+// stamp the list heading would have carried as its proof.
+async function dischargeInStore(baseDir, { rows, by, at, today, base }) {
+  const { closeItem, listItems } = await import('./work-ops.js');
+  const who = by ?? 'unspecified';
+  const when = at ?? today ?? isoToday();
+  const proof = `DONE — ${at ? `${who}, ${at}` : String(who)}`;
+  const rowsOf = listItems(baseDir).filter((r) => r.item.type !== 'BUG' && r.item.type !== 'Q' && r.item.status !== 'N');
+  const results = [];
+  const toClose = [];
+
+  for (const query of rows) {
+    const needle = String(query).toLowerCase();
+    const hits = rowsOf.filter((r) => String(r.item.title ?? r.item.id).toLowerCase().includes(needle));
+    const open = hits.filter((r) => r.item.status !== 'C');
+    if (open.length > 1) {
+      results.push({
+        row: query,
+        status: ROW_DISCHARGE.AMBIGUOUS,
+        reason: `${JSON.stringify(query)} matches ${open.length} items (${open.map((h) => h.item.id).join(', ')}) — name one of them exactly`,
+        heading: null,
+        line: null,
+      });
+    } else if (open.length === 1) {
+      const [hit] = open;
+      toClose.push(hit.item.id);
+      results.push({ row: query, status: ROW_DISCHARGE.DISCHARGED, reason: null, heading: hit.item.title ?? hit.item.id, line: null, id: hit.item.id });
+    } else if (hits.length > 0) {
+      const [hit] = hits;
+      results.push({ row: query, status: ROW_DISCHARGE.ALREADY_DISCHARGED, reason: `already closed (${hit.item.close?.reason}) at ${hit.path}`,
+        heading: hit.item.title ?? hit.item.id, line: null, id: hit.item.id });
+    } else {
+      results.push({ row: query, status: ROW_DISCHARGE.NOT_FOUND, reason: `no live backlog row matches ${JSON.stringify(query)}`, heading: null, line: null });
+    }
+  }
+
+  for (const id of toClose) await closeItem(baseDir, id, { reason: 'fixed', by: String(who), at: when, proof });
+  return { ...base, written: toClose.length > 0, results };
 }
 
 /**
@@ -914,9 +1032,14 @@ function bugsSkeleton() {
  * @param {object} opts
  * @param {string} opts.block — the raw source inbox block (dedupe key = sha1(block))
  * @param {string} [opts.title] — retitle; falls back to the block's heading
- * @returns {Promise<{written: boolean, deduped?: boolean, path: string, key: string}>}
+ * @param {string} [opts.by] — store on: `created.by` for a raw block's new item
+ * @returns {Promise<{written: boolean, deduped?: boolean, path: string, key: string, id?: string, label?: string}>}
+ *   With the store on, the item becomes a BUG in `backlog/` instead.
  */
-export async function promoteToBugs(baseDir, { block, title } = {}) {
+export async function promoteToBugs(baseDir, { block, title, by } = {}) {
+  if (isStoreOn(baseDir).on) {
+    return promoteInStore(baseDir, { block, type: 'BUG', title, keyName: 'bugs-key', by });
+  }
   const path = join(baseDir, BUGS_REL);
   const key = blockKey(block);
   const marker = `<!-- bugs-key: ${key} -->`;
