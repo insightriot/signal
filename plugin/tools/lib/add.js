@@ -39,7 +39,8 @@ import { withStateLock } from './state.js';
 // is a read with no cycle; `newItem` is imported lazily inside
 // `captureToStore`, because work-ops.js → work-generate.js → backlog.js →
 // add.js would otherwise be a static cycle.
-import { isStoreOn } from './work-store.js';
+import { renderLabel } from './work-item.js';
+import { folderFor, isStoreOn } from './work-store.js';
 
 // Re-export atomicWrite so existing consumers (tests/add.test.js, future
 // callers) keep working while atomic-write.js is the canonical implementation
@@ -1220,11 +1221,11 @@ async function captureToStore(baseDir, opts) {
   }, { acknowledgeSensitive: true });
   return {
     written: true,
-    path: join(baseDir, '.planning', 'work', 'inbox', `${item.id}.md`),
+    path: join(baseDir, '.planning', folderFor(item), `${item.id}.md`),
     line: 1,
     repaired: false,
     id: item.id,
-    label: `${item.id}-${item.type}-${item.status}`,
+    label: renderLabel(item),
   };
 }
 

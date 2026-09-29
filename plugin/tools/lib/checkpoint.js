@@ -18,7 +18,7 @@ import {
   withStateLock,
 } from './state.js';
 import { scrubSensitive } from './add.js';
-import { isStoreOn } from './work-store.js';
+import { folderFor, isStoreOn } from './work-store.js';
 
 // Vocabulary task-ID regex (per Signal's ID-is-identity convention): matches
 // `M4`, `M4.5`, `M4.5.E6`, `M4.5.E6.S1`, `M4.5.E6.S1.t6`, with an optional
@@ -382,7 +382,7 @@ async function captureCheckpointContextCore(baseDir, opts = {}) {
   }
 
   if (questionItems) {
-    for (const item of questionItems) wrote.push(join(planningDir, 'work', 'inbox', `${item.id}.md`));
+    for (const item of questionItems) wrote.push(join(planningDir, folderFor(item), `${item.id}.md`));
   } else if (questions.length > 0) {
     const oqPath = join(baseDir, OPEN_QUESTIONS_PATH_REL);
     const oqExisting = existsSync(oqPath)

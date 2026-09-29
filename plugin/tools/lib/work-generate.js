@@ -37,7 +37,7 @@ import { atomicWrite } from './atomic-write.js';
 import { parseBacklogRows } from './backlog.js';
 import { deriveBugCounts, formatTallySegment } from './bugs-tally.js';
 import { compareEpicIds, EPIC_ID_STRICT_RE, parseFrontmatter, StateSchemaError } from './state.js';
-import { itemNumber, parseItem, WorkStoreError } from './work-item.js';
+import { itemNumber, parseItem, renderLabel, WorkStoreError } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
 import { formatInboxStatusLine, GENERATED_MARKER, isGeneratedFile } from './work-marker.js';
 import { FOLDERS, isStoreOn, parseItemFileName, walkFiles, WORK_DIR } from './work-store.js';
@@ -209,7 +209,7 @@ export function generateEpicsIndex(epics, items) {
     if (mine.length === 0) parts.push('_no items_');
     for (const e of mine) {
       const title = e.item.title === undefined ? '' : ` — ${String(e.item.title).replace(/\s+/g, ' ')}`;
-      parts.push(`- ${e.item.id}-${e.item.type}-${e.item.status}${title}`);
+      parts.push(`- ${renderLabel(e.item)}${title}`);
     }
     parts.push('');
   }
