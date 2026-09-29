@@ -216,7 +216,7 @@ no token rule could tell a fixed bug from an open one. Starting point — the re
 tracker holds status, the fix links to the item (`Fixes: B102`), every bug fix carries its own test.
 ~~**First question, Brett's:** a marker Signal acts on in the markdown files, or GitHub Issues.~~ **Answered by `D-BR0928-7`** (repo store by default, a tracker as an opt-in replacement, never both) — `D-M6E11-2`.
 
-> **2026-09-29 — IN FLIGHT as `M6.E11`** (step 1 of the design doc, plus Epic folders), branch `feat/m6.e11-work-item-store`. [`M6.E11-REQUIREMENTS.md`](M6.E11-REQUIREMENTS.md), `D-M6E11-1` … `D-M6E11-14`. ⚠ `D-M6E11-12` **reverses** the retention half below: nothing is deleted; closed work moves to the archive (Brett's call).
+> **2026-09-29 — IN FLIGHT as `M6.E11`** (step 1 of the design doc, plus Epic folders), branch `feat/m6.e11-work-item-store`. [`M6.E11-REQUIREMENTS.md`](work/epics/M6.E11/M6.E11-REQUIREMENTS.md), `D-M6E11-1` … `D-M6E11-14`. ⚠ `D-M6E11-12` **reverses** the retention half below: nothing is deleted; closed work moves to the archive (Brett's call).
 
 *Plain: a machine can't tell finished work from live work in the backlog, and no better pattern fixes it.*
 
