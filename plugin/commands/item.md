@@ -34,6 +34,8 @@ Items are named by their **ID**, `SIG-412`. The label `SIG-412-BUG-T` (ID, type,
 
 `newItem(baseDir, {title, body, source: '/sig:item', by})`. The words go into `body` verbatim; write a one-line `title` (as `/sig:add` does). It lands in `inbox/` as `NEW`, status N. Print the new label and path.
 
+`newItem` scrubs the title and body for secrets (AWS keys, GitHub tokens, bearer tokens, 40-character hex) before writing. If it returns `{aborted: 'sensitive-data-pending', sensitiveHits}`, nothing was written: show the user each hit and ask **keep** or **abort**. On keep, call again with `{acknowledgeSensitive: true}` as the third argument; on abort, stop. Never redact on the user's behalf.
+
 ### `triage` — sort the inbox, one item at a time
 
 1. `triageNext(baseDir, {exclude})` returns the next item — ones the migration flagged (`migration_note`) first, then the oldest — with a **proposal**: type, title, theme, priority and possible duplicates. The proposal is keyword and word-overlap arithmetic, not judgement; **read the item and refine it** before presenting it. `listThemes(baseDir)` shows themes already in use — prefer joining one to inventing a near-copy.

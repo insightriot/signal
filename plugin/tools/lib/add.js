@@ -1193,9 +1193,11 @@ export async function captureToDestination(baseDir, opts) {
 async function captureToStore(baseDir, opts) {
   const { body, today, triggerContext, title, sensitivePrompt, bodyLengthPrompt, storeItem, by } = opts;
 
-  const scrub = scrubSensitive(body);
-  if (scrub.hits.length > 0) {
-    const decision = await sensitivePrompt(scrub.hits);
+  // Title AND body: both land in the item, and `newItem` scrubs both
+  // (REVIEW I3). This is the one prompt; `newItem` is told it happened.
+  const hits = [...scrubSensitive(body).hits, ...(title ? scrubSensitive(title).hits : [])];
+  if (hits.length > 0) {
+    const decision = await sensitivePrompt(hits);
     if (decision !== 'keep') return { written: false, aborted: 'sensitive-data' };
   }
   const lengthCheck = checkBodyLength(body);
@@ -1215,7 +1217,7 @@ async function captureToStore(baseDir, opts) {
     source_ref: trigger || undefined,
     by: by ?? storeItem.source,
     at: today,
-  });
+  }, { acknowledgeSensitive: true });
   return {
     written: true,
     path: join(baseDir, '.planning', 'work', 'inbox', `${item.id}.md`),

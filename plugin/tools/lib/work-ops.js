@@ -32,6 +32,10 @@ import { execFileSync } from 'node:child_process';
 import { lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, unlinkSync } from 'node:fs';
 import { basename, dirname, join, relative, sep } from 'node:path';
 
+// `scrubSensitive` is the one detector `/sig:add` and `/sig:checkpoint` use.
+// No new cycle: add.js reaches this module only through a lazy import, and
+// this module already reaches add.js statically (work-generate → backlog).
+import { scrubSensitive } from './add.js';
 import { applyKeyedReplacements, computeLinkEdits } from './archive-tree.js';
 import { atomicWrite } from './atomic-write.js';
 import { acquireLock } from './file-lock.js';
@@ -381,9 +385,30 @@ async function relocate(baseDir, found, next, body, destDirRel, opts) {
 
 // ── Mutations ────────────────────────────────────────────────────────────────
 
+// Every sensitive-data hit in the specs' titles and bodies. Each field is
+// scanned on its own, so a hit's `index` is an offset into that field.
+function scrubFields(specs) {
+  const hits = [];
+  for (const { title, body } of specs) {
+    for (const text of [title, body]) {
+      if (typeof text === 'string' && text !== '') hits.push(...scrubSensitive(text).hits);
+    }
+  }
+  return hits;
+}
+
 /**
  * Capture a new item into `inbox/` with status N (D-M6E11-6: the file is
  * created at capture and is the same file for life).
+ *
+ * Sensitive data (REVIEW I3): `newItem` is the gate. Title and body run
+ * through `add.js#scrubSensitive` before anything is written; with a hit and
+ * no `opts.acknowledgeSensitive`, it writes nothing and returns
+ * `{aborted: 'sensitive-data-pending', sensitiveHits}` so the caller can ask
+ * the user and call again. A caller that has ALREADY asked about the same
+ * text passes `acknowledgeSensitive: true` — `/sig:add`'s store path and
+ * `/sig:checkpoint` do, so nobody is asked twice. Detection only; never
+ * redacts.
  *
  * @param {string} baseDir
  * @param {{type?: string, title?: string, body?: string, source?: string, source_ref?: string,
@@ -391,11 +416,17 @@ async function relocate(baseDir, found, next, body, destDirRel, opts) {
  *   `body` is written verbatim apart from relative link targets, which are
  *   rewritten from `linksFrom` (default `''`, i.e. written from `.planning/`)
  *   to the inbox's depth (D-M6E11-22). `at` defaults to now.
- * @param {{execFn?: Function, renameFn?: Function}} [opts]
- * @returns {Promise<object>} the item's frontmatter
+ * @param {{execFn?: Function, renameFn?: Function, acknowledgeSensitive?: boolean}} [opts]
+ * @returns {Promise<object>} the item's frontmatter, or
+ *   `{aborted: 'sensitive-data-pending', sensitiveHits}` when nothing was written
  */
 export async function newItem(baseDir, fields = {}, opts = {}) {
   const { type = 'NEW', title, body = '', source, source_ref, theme, priority, by, at, linksFrom = '' } = fields;
+  requireStore(baseDir);
+  const sensitiveHits = scrubFields([{ title, body }]);
+  if (sensitiveHits.length > 0 && !opts.acknowledgeSensitive) {
+    return { aborted: 'sensitive-data-pending', sensitiveHits };
+  }
   return withWorkLock(baseDir, async () => {
     const { id } = nextId(baseDir, { execFn: opts.execFn });
     const item = { id, type, status: 'N', title, theme, priority, source, source_ref,

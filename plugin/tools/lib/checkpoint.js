@@ -346,7 +346,8 @@ async function captureCheckpointContextCore(baseDir, opts = {}) {
         body: q,
         source: '/sig:checkpoint',
         by: '/sig:checkpoint',
-      });
+        // Scrubbed above, with the user's answer — `newItem` must not ask again (REVIEW I3).
+      }, { acknowledgeSensitive: true });
       wrote.push(join(planningDir, 'work', 'inbox', `${item.id}.md`));
     }
   } else if (questions.length > 0) {

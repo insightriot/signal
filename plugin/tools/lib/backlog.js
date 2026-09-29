@@ -196,7 +196,10 @@ async function promoteInStore(baseDir, { block, type, title, keyName, by }) {
       source: STORE_SOURCE,
       source_ref: dedupeKey,
       by: by ?? STORE_SOURCE,
-    });
+      // Re-filing text already in a committed `.planning/` list (the drain's
+      // input), not new text entering it — the capture that put it there is
+      // where the scrub belongs (REVIEW I3).
+    }, { acknowledgeSensitive: true });
     id = created.id;
   }
   const accept = { type };
