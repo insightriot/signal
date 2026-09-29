@@ -487,3 +487,207 @@ export async function closeItem(baseDir, idOrLabel, close = {}, opts = {}) {
     return { item: next, label: renderLabel(next), ...r };
   });
 }
+
+// ── Triage (t3.2, AC-5.3) ────────────────────────────────────────────────────
+//
+// One item at a time: `triageNext` hands over the next inbox item with a
+// proposal, the command asks (or not — attention decides), `applyTriage`
+// carries out the answer. The proposal is deterministic lib code — keyword
+// rules and title overlap, no model — so it is testable and the same store
+// always proposes the same thing. The command tells the agent to refine it;
+// the lib never pretends to have judged.
+
+const STOPWORDS = new Set([
+  'the', 'and', 'for', 'with', 'that', 'this', 'from', 'into', 'are', 'was', 'not', 'but', 'its',
+  'has', 'have', 'when', 'what', 'why', 'how', 'should', 'does', 'can', 'all', 'any', 'one', 'our',
+]);
+const BUG_RE = /\b(bug|broken|breaks?|fails?|failing|failure|errors?|crash(?:es|ed)?|regression|wrong|incorrect|doesn['’]?t work)\b/i;
+const QUESTION_START_RE = /^(should|how|what|why|which|when|where|do|does|can|is|are)\b/i;
+const CHORE_RE = /\b(refactor|clean ?up|rename|typo|docs?|documentation|hygiene|chore|bump|upgrade|lint)\b/i;
+const DUP_MIN = 0.5;
+const THEME_MIN = 0.3;
+const TITLE_MAX = 80;
+
+function tokens(text) {
+  return new Set(
+    String(text ?? '')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((w) => w.length >= 3 && !STOPWORDS.has(w))
+  );
+}
+
+function jaccard(a, b) {
+  if (a.size === 0 || b.size === 0) return 0;
+  let both = 0;
+  for (const w of a) if (b.has(w)) both++;
+  return both / (a.size + b.size - both);
+}
+
+function titleFromBody(body) {
+  const line = String(body ?? '')
+    .split('\n')
+    .map((l) => l.replace(/^#+\s*/, '').replace(/^[-*]\s+/, '').replace(/\*\*/g, '').trim())
+    .find((l) => l !== '');
+  if (!line) return undefined;
+  if (line.length <= TITLE_MAX) return line;
+  const cut = line.slice(0, TITLE_MAX - 1);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > 20 ? cut.slice(0, space) : cut).trimEnd()}…`;
+}
+
+function guessType(item, title, body) {
+  if (item.type && item.type !== 'NEW') return { type: item.type, why: `already ${item.type}` };
+  const source = String(item.source ?? '');
+  if (/bug/i.test(source)) return { type: 'BUG', why: `source ${source}` };
+  if (/question/i.test(source)) return { type: 'Q', why: `source ${source}` };
+  const text = `${title ?? ''}\n${String(body ?? '').slice(0, 500)}`;
+  const bug = text.match(BUG_RE);
+  if (bug) return { type: 'BUG', why: `the word "${bug[1]}"` };
+  const t = String(title ?? '').trim();
+  if (t.endsWith('?') || QUESTION_START_RE.test(t)) return { type: 'Q', why: 'the title is a question' };
+  const chore = text.match(CHORE_RE);
+  if (chore) return { type: 'CHORE', why: `the word "${chore[1]}"` };
+  return { type: 'FEAT', why: 'no bug, question or chore wording — the default' };
+}
+
+/**
+ * The lib's proposal for one item. Pure and deterministic: a starting point
+ * for the agent to refine, never a decision.
+ *
+ * @param {object} item
+ * @param {string} body
+ * @param {Array<{item: object}>} others — the store's items (closed ones and the item itself are ignored)
+ * @returns {{type: string, title?: string, theme?: string, priority?: string|number,
+ *   duplicates: Array<{id: string, title?: string, score: number}>, why: {type: string, theme?: string}}}
+ */
+export function proposeTriage(item, body, others = []) {
+  const title = item.title ?? titleFromBody(body);
+  const { type, why } = guessType(item, title, body);
+  const mine = tokens(title);
+  const scored = others
+    .filter((o) => o.item.id !== item.id && o.item.status !== 'C')
+    .map((o) => ({ id: o.item.id, title: o.item.title, theme: o.item.theme, score: jaccard(mine, tokens(o.item.title)) }))
+    .filter((o) => o.score >= THEME_MIN)
+    .sort((a, b) => b.score - a.score || num(a.id) - num(b.id));
+  const duplicates = scored
+    .filter((o) => o.score >= DUP_MIN)
+    .slice(0, 5)
+    .map(({ id, title: t, score }) => ({ id, title: t, score: Math.round(score * 100) / 100 }));
+  const proposal = { type, duplicates, why: { type: why } };
+  if (title !== undefined) proposal.title = title;
+  if (item.theme !== undefined) {
+    proposal.theme = item.theme;
+  } else {
+    const near = scored.find((o) => typeof o.theme === 'string');
+    if (near) {
+      proposal.theme = near.theme;
+      proposal.why.theme = `the theme of ${near.id}, the closest open title`;
+    }
+  }
+  if (item.priority !== undefined) proposal.priority = item.priority;
+  return proposal;
+}
+
+const createdAt = (item) => (typeof item.created?.at === 'string' ? item.created.at : '');
+
+/**
+ * The next inbox item to triage, with a proposal — or null when there is none.
+ * Items carrying a `migration_note` come first (the migration flagged them),
+ * then the oldest capture, then the lowest number.
+ *
+ * @param {string} baseDir
+ * @param {{exclude?: string[]}} [opts] — IDs already skipped in this run
+ * @returns {null | {item: object, body: string, path: string, label: string, proposal: object}}
+ */
+export function triageNext(baseDir, opts = {}) {
+  const exclude = new Set(opts.exclude ?? []);
+  const all = listItems(baseDir);
+  const queue = all
+    .filter((r) => r.item.status === 'N' && !exclude.has(r.item.id))
+    .sort((a, b) =>
+      Number(!a.item.migration_note) - Number(!b.item.migration_note)
+      || createdAt(a.item).localeCompare(createdAt(b.item))
+      || num(a.item.id) - num(b.item.id));
+  if (queue.length === 0) return null;
+  const found = getItem(baseDir, queue[0].item.id);
+  return { item: found.item, body: found.body, path: found.path, label: found.label,
+    proposal: proposeTriage(found.item, found.body, all) };
+}
+
+/**
+ * Items already in `backlog/` that the migration flagged for a human look
+ * (`migration_note`, D-M6E11-17). Triage surfaces them after the inbox;
+ * accepting one clears the note.
+ *
+ * @param {string} baseDir
+ * @returns {Array<{item: object, label: string, path: string}>}
+ */
+export function listNeedsReview(baseDir) {
+  return listItems(baseDir, { status: 'T' }).filter((r) => r.item.migration_note);
+}
+
+const DECISIONS = ['accept', 'dup', 'reject', 'skip'];
+
+function awaitingTriage(item) {
+  return item.status === 'N' || (item.status === 'T' && Boolean(item.migration_note));
+}
+
+/**
+ * Carry out one triage answer.
+ *
+ * @param {string} baseDir
+ * @param {string} idOrLabel
+ * @param {{accept: {type: string, priority?, theme?, title?}} | {dup: string} | {reject: string} | {skip: true}} decision
+ *   `accept` → status T in `backlog/` (a flagged T item is updated in place
+ *   and its note cleared); `dup` → closed `dup` of that item; `reject` →
+ *   closed `rejected`, the text recorded as proof; `skip` → nothing.
+ * @param {{by?: string, at?: string, execFn?: Function, renameFn?: Function}} [opts]
+ *   `by` is required for `dup` and `reject` (a close records who).
+ * @returns {Promise<{action: string, item: object, label?: string, from?: string, to?: string}>}
+ */
+export async function applyTriage(baseDir, idOrLabel, decision = {}, opts = {}) {
+  const id = frontOf(idOrLabel);
+  const actions = DECISIONS.filter((k) => decision[k] !== undefined);
+  if (actions.length !== 1) {
+    throw new WorkStoreError('SCHEMA', `${id}: a triage decision is exactly one of ${DECISIONS.join(', ')} `
+      + `(got ${actions.length ? actions.join(' + ') : 'none'})`);
+  }
+  const [action] = actions;
+  const found = getItem(baseDir, id);
+  if (!awaitingTriage(found.item)) {
+    throw new WorkStoreError('CONFLICT', `${id} is not awaiting triage (status ${found.item.status} at ${found.path}) — `
+      + 'use `/sig:item move` or `close`.');
+  }
+
+  if (action === 'skip') return { action, item: found.item, label: found.label };
+  if (action === 'dup') {
+    const r = await closeItem(baseDir, id, { reason: 'dup', dup_of: decision.dup, by: opts.by, at: opts.at }, opts);
+    return { action, ...r };
+  }
+  if (action === 'reject') {
+    if (typeof decision.reject !== 'string' || decision.reject.trim() === '') {
+      throw new WorkStoreError('SCHEMA', `${id}: a reject needs its reason — what was checked and found false.`);
+    }
+    const r = await closeItem(baseDir, id, { reason: 'rejected', proof: decision.reject, by: opts.by, at: opts.at }, opts);
+    return { action, ...r };
+  }
+
+  const fields = decision.accept ?? {};
+  return withWorkLock(baseDir, async () => {
+    const current = getItem(baseDir, id);
+    if (!awaitingTriage(current.item)) {
+      throw new WorkStoreError('CONFLICT', `${id} is no longer awaiting triage (status ${current.item.status}).`);
+    }
+    const next = { ...current.item, status: 'T' };
+    for (const k of ['type', 'priority', 'theme', 'title']) if (fields[k] !== undefined) next[k] = fields[k];
+    delete next.migration_note;
+    if (next.type === 'NEW') {
+      throw new WorkStoreError('SCHEMA', `${id}: accept needs a type (BUG, FEAT, CHORE or Q) — triage is where it is decided.`);
+    }
+    assertValid(next, id);
+    const r = await relocate(baseDir, current, next, current.body, `${WORK_DIR}/${FOLDERS.backlog}`, opts);
+    await regenerate(baseDir, `${id} triaged and moved ${r.from} → ${r.to}`);
+    return { action, item: next, label: renderLabel(next), ...r };
+  });
+}
