@@ -117,12 +117,14 @@ function confine(baseDir, abs, label) {
 }
 
 // An ID, or a label whose front is an ID. Only the front identifies an item
-// (AC-2.3): `SIG-412-FEAT-C` finds SIG-412 whatever SIG-412 now is.
-const FRONT_RE = /^([A-Z][A-Z0-9]{1,9}-[1-9]\d*)(?:-[A-Z]+-[A-Z])?$/;
+// (AC-2.3): `SIG-412-FEAT-C` finds SIG-412 whatever SIG-412 now is. The ID
+// half is ITEM_ID_RE itself (its anchors dropped), so the ID shape has one
+// definition.
+const FRONT_RE = new RegExp(`^(${ITEM_ID_RE.source.replace(/^\^|\$$/g, '')})(?:-[A-Z]+-[A-Z])?$`);
 
 function frontOf(idOrLabel) {
   const m = typeof idOrLabel === 'string' ? idOrLabel.match(FRONT_RE) : null;
-  if (!m || !ITEM_ID_RE.test(m[1])) {
+  if (!m) {
     throw new WorkStoreError('SCHEMA', `${JSON.stringify(idOrLabel)} is not an item ID or label `
       + '(expected SIG-412 or SIG-412-BUG-T)');
   }
