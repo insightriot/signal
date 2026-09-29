@@ -146,6 +146,7 @@
 - [M6.E10-REQUIREMENTS.md](M6.E10-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E10-REVIEW.md](M6.E10-REVIEW.md) — `other` — _(note pending)_
 - [M6.E10-VERIFICATION.md](M6.E10-VERIFICATION.md) — `other` — _(note pending)_
+- [M6.E11-REQUIREMENTS.md](M6.E11-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E2-CORPUS-MEASUREMENT.md](M6.E2-CORPUS-MEASUREMENT.md) — `other` — _(note pending)_
 - [M6.E2-PLAN.md](M6.E2-PLAN.md) — `other` — _(note pending)_
 - [M6.E2-PROGRESS.md](M6.E2-PROGRESS.md) — `other` — _(note pending)_

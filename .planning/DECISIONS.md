@@ -3577,3 +3577,95 @@ posture). Legacy statuses map mechanically (`needs-triage`→N, `confirmed`→T,
 `confirmed` bugs (incl. `B75`, flagged by the drift check) are **not** re-triaged inside the migration.
 **Other projects** migrate through **`/sig:docs-migrate`** (step 5) — Brett asked to be reminded of it
 after this ships, because it will be a big lift for some projects.
+
+## 2026-09-29 — M6.E11 PLAN: research corrections (D-M6E11-15 … D-M6E11-26)
+
+Three read-only surveys ([`M6.E11-RESEARCH.md`](M6.E11-RESEARCH.md)) found numbers in
+`M6.E11-REQUIREMENTS.md` that were written from the shape of the work rather than measured, and
+statuses the DISCUSS mapping had no rule for. Decided at PLAN (plumbing, not product calls —
+`D-M6E11-14`'s "carried, not re-judged" is the rule each of these applies). REQUIREMENTS patched in
+place with a dated note; the old numbers kept visible.
+
+### D-M6E11-15 — 140 bugs, not 127
+`BUGS.md` holds 127 table rows **and 13 `##` bug entries with no B-id**; `deriveBugCounts` already
+counts 140. The 13 migrate as bugs and take the numbers after the highest B-id present **at apply
+time** (`SIG-128` … `SIG-140` today — ~~pinned to those numbers~~ revised after the plan check: a
+fix-lane B128 landing on `main` before the rebase would otherwise collide). Then backlog rows, inbox
+captures, open questions, in that order. **248 items today; the total is derived by the apply run.**
+
+### D-M6E11-16 — Status mapping, completed
+Beyond `D-M6E11-14`: `resolved-not-a-defect` → C `rejected`; `withdrawn (duplicate of B100)` → C
+`dup` of `SIG-100`; inbox `→ Deferred` → **N** (deferred means not yet triaged); backlog `SUPERSEDED`
+→ C `dup` (naming the sibling); `ABANDONED` / `CUT` → C `wontdo` (not `rejected`, which means *checked
+and false*); `FOLDED INTO` / `absorbed into` → C `dup` naming the destination; struck or other bold
+done-word → C `fixed`. **`fixed` means "done" for every type** — no new close reason. Every migrated
+close carries `proof: legacy — not re-verified`.
+
+### D-M6E11-17 — Ambiguous rows: adopt today's parser verdict, and record that a call is owed
+~22 backlog rows need a human call. Migration never asks. It adopts exactly the verdict
+`parseBacklogRows` returns today (struck / bold done-word → C, else → T), and stamps each row the
+research listed with `migration_note:` naming the ambiguity, so `/sig:item triage` surfaces them
+afterward. Freezing today's inference once, visibly, is honest; re-judging inside a migration is not.
+
+### D-M6E11-18 — The standing trigger watchlist is not an item
+It is a standing table of parked conditions, not a unit of work. It lives at `.planning/work/WATCHLIST.md`,
+and the generated `ISSUES-INBOX.md` re-emits it verbatim with its `<!-- standing -->` marker, so
+`parseTriggerWatchlist` and the two tests that pin it keep working. BACKLOG's duplicate row (line 2140)
+migrates like any row, with a `migration_note` saying it duplicates the watchlist.
+
+### D-M6E11-19 — `bug-status-vs-changelog` flags 1 row today, not 2
+Measured 2026-09-29: 31 `confirmed` rows judged, 1 flagged (`B75`). The "2 rows, 1 real" in
+REQUIREMENTS repeated the check's own describe text instead of running it.
+
+### D-M6E11-20 — Generated files keep the IDs today's readers can see
+Five readers match only `| B\d+ |`, and `leadingId` only `M…E…` / `B\d+`. Generated `BUGS.md` prints
+every bug-typed item as `B{n}` where `n` is its SIG number (so `SIG-75` ↔ `B75`, and a new `SIG-300`
+bug appears as `B300`). Generated `BACKLOG.md` headings keep the item's original title first and
+append ` · SIG-n`. Readers convert in later steps.
+
+### D-M6E11-21 — `CURRENT_LAYOUT_VERSION` stays 3; step 5 must recognise an existing store
+Signal's tree becomes store-shaped under stamp 3. When step 5 bumps to 4, `isV4Conformant` must treat
+an existing `.planning/work/WORK.md` as already migrated, or it re-migrates Signal. Named now so the
+later Epic cannot miss it.
+
+### D-M6E11-22 — Relative links are rewritten on every move
+Item bodies carry `../analysis/…`-style links written from `.planning/`. In `work/backlog/` they are
+one level deeper, in `work/epics/<id>/` and `work/done/YYYY-MM/` two. Every write and move rewrites
+relative link targets to the file's depth (`archive-tree.js:631` is the precedent), so
+`docs-hygiene.test.js` stays green. **Losslessness is measured against the archived original with
+link targets normalised** — AC-9.4 reworded accordingly.
+
+### D-M6E11-23 — Epic artifacts resolve from the Epic folder; M6.E11's own move is the last task
+With the store on, `resolveArtifactPath` / `artifactName` try `work/epics/<id>/<ARTIFACT>.md` first and
+fall back to today's locations, unchanged. Moving `M6.E11`'s own REQUIREMENTS/PLAN/… mid-Epic could
+wedge `transitionPhase` (it refuses a phase whose artifact it cannot resolve), so that move is the
+**final** task of EXECUTE. When the store is on and the Epic's folder exists, `artifactName` also
+**writes** there, so VERIFY/REVIEW/SHIP artifacts land in the folder, not in `.planning/`. An Epic
+with no folder (every legacy Epic) resolves and closes exactly as today.
+
+### D-M6E11-24 — `--apply` on Signal is the last commit, after a rebase on `origin/main`
+Fix-lane PRs edit `BUGS.md` weekly. The migration is developed and proven by dry-run throughout, and
+applied once, on a freshly rebased branch, so no `main` edit is lost. ~~the last commit~~ — revised
+after the plan check: apply is the **last data change**. It lands in **one commit together with
+repointing every test that reads the four live files** (otherwise the suite goes red between the
+two). Only measurement, the adherence regeneration and the Epic's own relocation follow it.
+
+### D-M6E11-25 — Writes into a generated file throw
+A generated file carries a header marker. The shared write path refuses to write a file carrying it
+unless the caller is the generator. `drain.js` write functions refuse outright on a generated inbox;
+`plan.md` §1b branches to `/sig:item triage` when the store is on. `archive-tree`'s link rewrite and
+`createBacklogIfMissing` skip generated files. This is AC-6.2's mechanism.
+
+### D-M6E11-26 — ID allocation reads `git log --all` + `HEAD` + the working tree
+0.04 s here, and it also sees IDs of deleted or renamed files, which serves "never reused". A shallow
+clone falls back to per-ref `git ls-tree` (0.66 s over 61 refs), and says so.
+
+### D-M6E11-27 — Store mutations take their own `work` lock, callable inside `withStateLock`
+`withStateLock` is not reentrant and `checkpoint`/`drain` already hold it, so a store mutation that
+took it would deadlock the checkpoint path. The store uses `.planning/work/.lock` via `acquireLock`.
+Found by the plan check.
+
+### D-M6E11-28 — The write guard is an explicit flag plus an exact first-line match
+`atomicWrite` has 42 callers and no idea who is calling. A marked file is writable only with
+`{generated: true}`; the guard reads ≤200 bytes and fires only when the **first line equals the
+marker exactly**, because Signal's own docs quote the marker. Found by the plan check.
