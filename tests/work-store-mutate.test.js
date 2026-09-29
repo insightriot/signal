@@ -416,6 +416,44 @@ describe('closeItem — AC-5.4', () => {
     expect(await readFile(join(repo, '.planning/work/backlog/SIG-1.md'), 'utf-8')).toBe(before);
   });
 
+  // The byte-exact undo was only tested on untracked files (plain renames).
+  // With TRACKED files the moves are `git mv`, so undo must also put the
+  // index back: no rename may be left staged.
+  it('closeItems on TRACKED files: the second git mv fails → every file back where it was, byte-identical, no rename staged', async () => {
+    const { closeItems } = await import('../plugin/tools/lib/work-ops.js');
+    const tracked = join(root, 'tracked');
+    await mkdir(tracked);
+    initRepo(tracked);
+    await storeOn(tracked);
+    await plantItem(tracked, 'backlog', { id: 'SIG-1', type: 'BUG', status: 'T', created: CREATED }, 'One. See [x](../../A.md).\n');
+    await plantItem(tracked, 'backlog', { id: 'SIG-2', type: 'FEAT', status: 'T', created: CREATED }, 'Two.\n');
+    commitAll(tracked, 'seed');
+    const rels = ['.planning/work/backlog/SIG-1.md', '.planning/work/backlog/SIG-2.md'];
+    const before = await Promise.all(rels.map((r) => readFile(join(tracked, r))));
+    expect(git(tracked, ['status', '--porcelain'])).toBe('');
+
+    let mvs = 0;
+    const execFn = (cmd, args, o) => {
+      if (args.includes('mv') && ++mvs === 2) throw new Error('fatal: second move refused');
+      return execFileSync(cmd, args, o);
+    };
+    await expectCode(closeItems(tracked, [
+      { id: 'SIG-1', reason: 'fixed', by: 'b', at: AT, proof: 'abc1234' },
+      { id: 'SIG-2', reason: 'stale', by: 'b', at: AT },
+    ], { execFn }), 'IO', /second move refused/);
+
+    for (let i = 0; i < rels.length; i++) {
+      expect(await readFile(join(tracked, rels[i])), rels[i]).toEqual(before[i]);
+    }
+    expect(existsSync(join(tracked, '.planning/work/done'))).toBe(false);
+    expect(git(tracked, ['status', '--porcelain'])).toBe('');
+    expect(git(tracked, ['diff', '--cached', '--name-status'])).toBe('');
+    expect(checkStore(tracked)).toEqual([]);
+    // And the first close really ran before the second failed: forward SIG-1,
+    // forward SIG-2 (refused), SIG-1 put back with git mv.
+    expect(mvs).toBe(3);
+  });
+
   it('the generated BUGS.md shows the closed bug', async () => {
     await closeItem(repo, 'SIG-1', { reason: 'fixed', by: 'b', at: AT, proof: 'PR #1' });
     const bugs = await readFile(join(repo, '.planning/BUGS.md'), 'utf-8');
