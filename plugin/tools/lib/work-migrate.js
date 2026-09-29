@@ -37,7 +37,7 @@ import { parseEntries, parseTriggerWatchlist } from './drain.js';
 import { acquireLock } from './file-lock.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { EPICS_INDEX_REL, GENERATED_FILES, generateAll, WATCHLIST_FILE } from './work-generate.js';
-import { stringifyItem, validateItem, WorkStoreError } from './work-item.js';
+import { itemNumber, stringifyItem, validateItem, WorkStoreError } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
 import { isGeneratedFile } from './work-marker.js';
 import { checkStore, folderFor, isGitRepo, parseItemFileName, walkFiles, WORK_DIR, WORK_FILE, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
@@ -852,8 +852,6 @@ const ARCHIVE_README = 'README.md';
 const DATE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 
 const toPosix = (p) => p.split(sep).join('/');
-const numOf = (id) => Number(id.slice(id.lastIndexOf('-') + 1));
-
 function pathExists(abs) {
   try {
     lstatSync(abs);
@@ -908,7 +906,7 @@ function buildReport(plan, { key, date, dryRun, collisions, collisionBasis }) {
     idRange[s] = ids.length ? { first: ids[0], last: ids[ids.length - 1] } : null;
   }
   const bugs = plan.items.filter((i) => i.sourceRef.file === 'BUGS.md');
-  const numbered = bugs.filter((i) => /^B\d+$/.test(i.item.legacy_id)).map((i) => numOf(i.item.id));
+  const numbered = bugs.filter((i) => /^B\d+$/.test(i.item.legacy_id)).map((i) => itemNumber(i.item.id));
   const unnumbered = bugs.filter((i) => !/^B\d+$/.test(i.item.legacy_id)).map((i) => i.item.id);
   const wlRows = plan.watchlist ? (parseTriggerWatchlist(plan.watchlist.text)?.rows.length ?? 0) : 0;
   return {

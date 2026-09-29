@@ -37,7 +37,7 @@ import { atomicWrite } from './atomic-write.js';
 import { parseBacklogRows } from './backlog.js';
 import { deriveBugCounts, formatTallySegment } from './bugs-tally.js';
 import { EPIC_ID_STRICT_RE, parseFrontmatter, StateSchemaError } from './state.js';
-import { parseItem, WorkStoreError } from './work-item.js';
+import { itemNumber, parseItem, WorkStoreError } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
 import { formatInboxStatusLine, GENERATED_MARKER, isGeneratedFile } from './work-marker.js';
 import { FOLDERS, isStoreOn, parseItemFileName, walkFiles, WORK_DIR } from './work-store.js';
@@ -62,8 +62,6 @@ const isFence = (line) => {
   return t.startsWith('```') || t.startsWith('~~~');
 };
 const HEADING_RE = /^(#{1,6})\s+(.*)$/;
-
-const num = (id) => Number(id.slice(id.lastIndexOf('-') + 1));
 
 // A body's first line is its old heading when it came from a list; the
 // generated file prints its own heading, so that line is dropped.
@@ -122,7 +120,7 @@ function bugSummary(entry) {
 function generateBugs(items) {
   const rows = items
     .filter((e) => e.item.type === 'BUG')
-    .map((e) => `| B${num(e.item.id)} | \`${bugStatusWord(e.item)}\` | ${e.item.priority ?? '—'} | ${bugSummary(e)} |`);
+    .map((e) => `| B${itemNumber(e.item.id)} | \`${bugStatusWord(e.item)}\` | ${e.item.priority ?? '—'} | ${bugSummary(e)} |`);
   const table = ['| ID | Status | Pri | Summary |', '|---|---|---|---|', ...rows].join('\n');
   const tally = `*${formatTallySegment(deriveBugCounts(table))}*`;
   return [GENERATED_MARKER, '# Bugs', '', table, '', tally, ''].join('\n');
@@ -217,7 +215,7 @@ export function generateEpicsIndex(epics, items) {
     const dir = `${epic.archived ? 'archive/epics' : `${WORK_DIR}/${FOLDERS.epics}`}/${epic.id}`;
     const mine = items
       .filter((e) => e.dir === dir)
-      .sort((a, b) => num(a.item.id) - num(b.item.id) || a.item.id.localeCompare(b.item.id));
+      .sort((a, b) => itemNumber(a.item.id) - itemNumber(b.item.id) || a.item.id.localeCompare(b.item.id));
     parts.push(`## ${epic.id} — ${epic.archived ? closeLine(epic.close) : 'open'}`, '');
     if (mine.length === 0) parts.push('_no items_');
     for (const e of mine) {
@@ -268,7 +266,7 @@ function readEpicFolders(planning) {
  * @returns {Record<'BUGS.md'|'BACKLOG.md'|'ISSUES-INBOX.md'|'OPEN-QUESTIONS.md', string>}
  */
 export function generateFiles({ items, watchlist = null }) {
-  const sorted = [...items].sort((a, b) => num(a.item.id) - num(b.item.id) || a.item.id.localeCompare(b.item.id));
+  const sorted = [...items].sort((a, b) => itemNumber(a.item.id) - itemNumber(b.item.id) || a.item.id.localeCompare(b.item.id));
   return {
     'BUGS.md': generateBugs(sorted),
     'BACKLOG.md': generateBacklog(sorted),

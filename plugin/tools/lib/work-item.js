@@ -249,6 +249,17 @@ export function stringifyItem(item, body) {
 }
 
 /**
+ * The number part of an item ID: `SIG-412` → 412. For sorting and for the
+ * `B{n}` column of the generated BUGS.md.
+ *
+ * @param {string} id
+ * @returns {number}
+ */
+export function itemNumber(id) {
+  return Number(id.slice(id.lastIndexOf('-') + 1));
+}
+
+/**
  * The label shown to people: `SIG-412-BUG-T`. Rendered, never stored and never
  * used for lookup — only the front (`SIG-412`) identifies an item (AC-2.3).
  *

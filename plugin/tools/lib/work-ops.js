@@ -47,6 +47,7 @@ import {
   ITEM_ID_RE,
   ITEM_STATUSES,
   CLOSE_REASONS,
+  itemNumber,
   parseItem,
   renderLabel,
   stringifyItem,
@@ -114,7 +115,6 @@ function confine(baseDir, abs, label) {
     throw asWorkStoreError(err, typeof err?.code === 'string' ? 'IO' : 'CONFLICT');
   }
 }
-const num = (id) => Number(id.slice(id.lastIndexOf('-') + 1));
 
 // An ID, or a label whose front is an ID. Only the front identifies an item
 // (AC-2.3): `SIG-412-FEAT-C` finds SIG-412 whatever SIG-412 now is.
@@ -234,7 +234,7 @@ export function listItems(baseDir, filter = {}) {
   };
   return rows
     .filter(matches)
-    .sort((a, b) => num(a.item.id) - num(b.item.id) || a.item.id.localeCompare(b.item.id))
+    .sort((a, b) => itemNumber(a.item.id) - itemNumber(b.item.id) || a.item.id.localeCompare(b.item.id))
     .map((row) => {
       if (row.epic === undefined) delete row.epic;
       return row;
@@ -468,7 +468,7 @@ export async function newItems(baseDir, specs, opts = {}) {
     return await withWorkLock(baseDir, async () => {
       const { id: first } = nextId(baseDir, { execFn: opts.execFn });
       const key = first.slice(0, first.lastIndexOf('-'));
-      const start = num(first);
+      const start = itemNumber(first);
       const dirRel = `${WORK_DIR}/${FOLDERS.inbox}`;
 
       // Every item as it will be, validated and confined, before any write.
@@ -859,7 +859,7 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
     }
     if (open.length) {
       const lines = open
-        .sort((a, b) => num(a.id) - num(b.id))
+        .sort((a, b) => itemNumber(a.id) - itemNumber(b.id))
         .map((it) => `  ${renderLabel(it)} (status ${it.status})${it.title ? ` — ${it.title}` : ''}`);
       throw new WorkStoreError('OPEN_ITEMS', `${epicId} has ${open.length} open item${open.length === 1 ? '' : 's'} `
         + `in ${fromRel}/ — close each (\`/sig:item close\`) or move it back to backlog `
@@ -1049,7 +1049,7 @@ export function proposeTriage(item, body, others = []) {
     .filter((o) => o.item.id !== item.id && o.item.status !== 'C')
     .map((o) => ({ id: o.item.id, title: o.item.title, theme: o.item.theme, score: jaccard(mine, tokens(o.item.title)) }))
     .filter((o) => o.score >= THEME_MIN)
-    .sort((a, b) => b.score - a.score || num(a.id) - num(b.id));
+    .sort((a, b) => b.score - a.score || itemNumber(a.id) - itemNumber(b.id));
   const duplicates = scored
     .filter((o) => o.score >= DUP_MIN)
     .slice(0, 5)
@@ -1088,7 +1088,7 @@ export function triageNext(baseDir, opts = {}) {
     .sort((a, b) =>
       Number(!a.item.migration_note) - Number(!b.item.migration_note)
       || createdAt(a.item).localeCompare(createdAt(b.item))
-      || num(a.item.id) - num(b.item.id));
+      || itemNumber(a.item.id) - itemNumber(b.item.id));
   if (queue.length === 0) return null;
   const found = getItem(baseDir, queue[0].item.id);
   return { item: found.item, body: found.body, path: found.path, label: found.label,
