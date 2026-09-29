@@ -275,6 +275,23 @@ describe('archive-tree.js — the link rewrite leaves generated lists to the gen
     await expectOnlyGeneratorWrote();
   });
 
+  // Batch 1 (REVIEW I1) made the regeneration refuse a hand-kept list — but
+  // that refusal came AFTER the archive moves, so the moves stood and the
+  // lists were left stale. The check belongs before anything moves.
+  it('a hand-kept list refuses the apply BEFORE any file moves', async () => {
+    await newItem(root, { title: 'x', body: 'See [the plan](M6.E1-PLAN.md).', by: 't' });
+    await put('.planning/M6.E1-RETROSPECTIVE.md', '# M6.E1 retro\n');
+    await put('.planning/M6.E1-PLAN.md', '# M6.E1 plan\n');
+    await put('.planning/BUGS.md', '# Bugs\n\nkept by hand\n');
+    const itemBefore = getItem(root, 'SIG-1').body;
+    await expect(applyArchiveTree(root, { apply: true })).rejects.toMatchObject({ code: 'CONFIG', message: expect.stringMatching(/BUGS\.md/) });
+    expect(existsSync(planning('M6.E1-PLAN.md'))).toBe(true);
+    expect(existsSync(planning('M6.E1-RETROSPECTIVE.md'))).toBe(true);
+    expect(existsSync(planning('archive'))).toBe(false);
+    expect(getItem(root, 'SIG-1').body).toBe(itemBefore);
+    expect(await readFile(planning('BUGS.md'), 'utf-8')).toBe('# Bugs\n\nkept by hand\n');
+  });
+
   it('dry run writes nothing, lists included', async () => {
     await newItem(root, { title: 'x', body: 'See [the plan](M6.E1-PLAN.md).', by: 't' });
     await put('.planning/M6.E1-RETROSPECTIVE.md', '# M6.E1 retro\n');

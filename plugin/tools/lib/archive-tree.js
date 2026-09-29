@@ -597,6 +597,15 @@ export async function applyArchiveTree(baseDir, opts = {}) {
     return { applied: false, moves, moveMap, plannedEdits: editCount };
   }
 
+  // With the store on, the lists are regenerated at the end (below). A list
+  // that is still hand-kept would refuse that regeneration — so refuse HERE,
+  // before any file moves, or the moves stand with the lists left stale.
+  const storeOn = isStoreOn(baseDir).on;
+  if (storeOn) {
+    const { assertNoHandKeptLists } = await import('./work-generate.js');
+    assertNoHandKeptLists(baseDir);
+  }
+
   // 1. MOVE first — byte-identical relocate + read-back assert, then drop source.
   for (const { from, to } of moves) {
     const srcAbs = join(baseDir, from);
@@ -647,7 +656,7 @@ export async function applyArchiveTree(baseDir, opts = {}) {
   // Regenerate so the lists carry the item files' new links. Under the
   // store's own `work` lock (D-M6E11-27) — never `.state.lock`, which the
   // migrate caller already holds. Only when something changed.
-  if ((staleGenerated || rewrittenFiles > 0) && isStoreOn(baseDir).on) {
+  if ((staleGenerated || rewrittenFiles > 0) && storeOn) {
     const { generateAll } = await import('./work-generate.js');
     const lockPath = join(baseDir, PLANNING_DIR, WORK_DIR, '.lock');
     const lock = await acquireLock(lockPath, { label: 'work store', ttlMs: WORK_LOCK_TTL_MS });
