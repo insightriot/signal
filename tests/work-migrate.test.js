@@ -264,3 +264,364 @@ describe('segmenters over the live files (read-only)', () => {
     assertPartition(text, seg);
   });
 });
+
+// ── t2.2 mapping (AC-9.2, AC-9.1 numbering, AC-9.5 counts) ───────────────────
+
+import { validateItem } from '../plugin/tools/lib/work-item.js';
+import { planMigration, planMigrationFromTexts, MIGRATION_PROOF } from '../plugin/tools/lib/work-migrate.js';
+import { rewriteRelativeLinks } from '../plugin/tools/lib/work-links.js';
+
+const TODAY = '2026-09-29';
+
+const BUGS_SAMPLE = [
+  '# Bugs',
+  '',
+  '| ID | Status | Pri | Summary |',
+  '|---|---|---|---|',
+  '| B1 | `needs-triage` | P3 | **Short title.** Body with a [link](../analysis/X.md). |',
+  '| B3 | `confirmed` | **P2** | No bold lead here. Second sentence. |',
+  '| B2 | `fixed` (v0.1.13) | — | **⟨STATUS CORRECTED 2026-08-14⟩** **Real title** rest. |',
+  '| B4 | `dismissed` | P3 | **FIXED 2026-08-21.** The opening line now says the rule. |',
+  '| B6 | `fixed` | P3 | **FIXED — flipped**, verified in source. More. |',
+  '| B5 | `fixed` | P2 | **The `a|b` cell** carries a pipe. |',
+  '',
+  '## Heading capture one',
+  '',
+  '**Status:** needs-triage',
+  '',
+  'Body.',
+  '',
+  '---',
+  '',
+  '## Not a defect after all',
+  '',
+  '**Status:** resolved-not-a-defect',
+  '',
+  '---',
+  '',
+  '## ⚠ WITHDRAWN as a duplicate of `B3` — same thing',
+  '',
+  '**Status:** withdrawn (duplicate)',
+  '',
+  '---',
+  '',
+  '## Closed by hand',
+  '',
+  '**Status:** fixed — **root cause closed**',
+  '',
+  '---',
+  '',
+  '## Triaged heading',
+  '',
+  '**Status:** confirmed',
+  '',
+].join('\n');
+
+const BACKLOG_SAMPLE = [
+  '# Backlog',
+  '',
+  '## Section',
+  '',
+  '### ~~Struck row~~ · **roadmap** · **DONE 2026-08-01**',
+  '',
+  '### Open hygiene row · **hygiene** · small',
+  '',
+  '### Product question row · **product call**',
+  '',
+  '### Fix row · **fix lane** · small',
+  '',
+  '### Verify row · **verification** · small',
+  '',
+  '### Untagged row',
+  '',
+  '### Body-tagged row',
+  '',
+  '**Tag:** hygiene',
+  '',
+  '### ~~Old thing~~ — **✂ ABANDONED (M5.E7)**',
+  '',
+  '### Cut thing — **✂ CUT by M5.E7**',
+  '',
+  '### ~~Superseded thing~~ · **SUPERSEDED 2026-09-02 by `dangling-reference`**',
+  '',
+  '### M5.E10 — Review hardening',
+  '',
+  '### State narrative · **hygiene** · **FOLDED INTO `M5.E10`**',
+  '',
+  '### Stale claims → **absorbed into M5.E99**',
+  '',
+  '### Retro replay — **KEPT, absorbed into M5.E10**',
+  '',
+  '### ~~Vocabulary sweep~~ — **✅ largely DONE (M5.E7)**',
+  '',
+].join('\n');
+
+const INBOX_SAMPLE = [
+  '# Issues Inbox',
+  '',
+  '## Trigger watchlist — standing entry',
+  '<!-- standing -->',
+  '',
+  '**Status:** standing.',
+  '',
+  '| Parked item | Trigger condition | Fired? |',
+  '|---|---|---|',
+  '| X | Y | no |',
+  '',
+  '---',
+  '',
+  '## A capture',
+  '',
+  '**Status:** Logged 2026-08-18 via `/sig:add`. → Deferred 2026-08-19 (M6.E3 drain).',
+  '',
+  'Body of the capture.',
+  '',
+  '---',
+].join('\n');
+
+const QUESTIONS_SAMPLE = [
+  '# Open Questions',
+  '',
+  '## ~~Answered one?~~ — **ANSWERED YES, 2026-08-22**',
+  '',
+  'Answer.',
+  '',
+  '---',
+  '',
+  '## Still open?',
+  '',
+  'Why it matters.',
+  '',
+].join('\n');
+
+function plan() {
+  return planMigrationFromTexts(
+    { 'BUGS.md': BUGS_SAMPLE, 'BACKLOG.md': BACKLOG_SAMPLE, 'ISSUES-INBOX.md': INBOX_SAMPLE, 'OPEN-QUESTIONS.md': QUESTIONS_SAMPLE },
+    { key: 'SIG', today: TODAY }
+  );
+}
+
+describe('planMigrationFromTexts — the mapping table (AC-9.2)', () => {
+  const p = plan();
+  const byLegacy = (legacy) => p.items.find((i) => i.item.legacy_id === legacy);
+  const byTitle = (re) => p.items.find((i) => re.test(i.item.title ?? ''));
+  const closeOf = (it) => [it.item.status, it.item.close?.reason, it.item.close?.dup_of].filter(Boolean).join(' ');
+
+  it('every item passes validateItem', () => {
+    for (const { item } of p.items) expect(validateItem(item), item.id).toEqual([]);
+  });
+
+  it('numbered bugs keep their number; un-numbered take max+1… in file order; then backlog, inbox, questions', () => {
+    expect(p.items.filter((i) => i.item.source === 'migration:BUGS.md').map((i) => i.item.id)).toEqual([
+      'SIG-1', 'SIG-2', 'SIG-3', 'SIG-4', 'SIG-5', 'SIG-6', 'SIG-7', 'SIG-8', 'SIG-9', 'SIG-10', 'SIG-11',
+    ]);
+    expect(byLegacy('B3').item.id).toBe('SIG-3');
+    expect(p.items.find((i) => i.item.title === 'Heading capture one').item.id).toBe('SIG-7');
+    const order = p.items.map((i) => i.item.source);
+    expect(order.indexOf('migration:BACKLOG.md')).toBe(11);
+    expect(order.lastIndexOf('migration:BACKLOG.md') < order.indexOf('migration:ISSUES-INBOX.md')).toBe(true);
+    expect(order.lastIndexOf('migration:ISSUES-INBOX.md') < order.indexOf('migration:OPEN-QUESTIONS.md')).toBe(true);
+    expect(p.items.map((i) => Number(i.item.id.slice(4)))).toEqual(p.items.map((_, k) => k + 1));
+  });
+
+  it('bug statuses map per D-M6E11-14 and -16', () => {
+    expect(closeOf(byLegacy('B1'))).toBe('N');
+    expect(closeOf(byLegacy('B3'))).toBe('T');
+    expect(closeOf(byLegacy('B2'))).toBe('C fixed');
+    expect(closeOf(byLegacy('B4'))).toBe('C rejected');
+    expect(closeOf(byTitle(/^Heading capture one$/))).toBe('N');
+    expect(closeOf(byTitle(/^Not a defect/))).toBe('C rejected');
+    expect(closeOf(byTitle(/WITHDRAWN/))).toBe('C dup SIG-3');
+    expect(closeOf(byTitle(/^Closed by hand$/))).toBe('C fixed');
+    expect(closeOf(byTitle(/^Triaged heading$/))).toBe('T');
+  });
+
+  it('an unknown status refuses rather than guessing', () => {
+    const bad = BUGS_SAMPLE.replace('**Status:** confirmed', '**Status:** pondering');
+    expect(() => planMigrationFromTexts({ 'BUGS.md': bad }, { key: 'SIG', today: TODAY })).toThrow(/pondering/);
+  });
+
+  it('every migrated close: by migration, at the run date, legacy proof', () => {
+    const closed = p.items.filter((i) => i.item.status === 'C');
+    expect(closed.length).toBeGreaterThan(5);
+    for (const { item } of closed) {
+      expect(item.close.by).toBe('migration');
+      expect(item.close.at).toBe(TODAY);
+      expect(item.close.proof).toBe(MIGRATION_PROOF);
+    }
+    expect(MIGRATION_PROOF).toBe('legacy — not re-verified');
+  });
+
+  it('backlog statuses: parser verdict, reason from the heading, dup only to a real item', () => {
+    expect(closeOf(byTitle(/Struck row/))).toBe('C fixed');
+    expect(closeOf(byTitle(/Open hygiene row/))).toBe('T');
+    expect(closeOf(byTitle(/Old thing/))).toBe('C wontdo');
+    expect(closeOf(byTitle(/Cut thing/))).toBe('C wontdo');
+    const m510 = byTitle(/^M5\.E10 — Review hardening$/).item.id;
+    expect(closeOf(byTitle(/State narrative/))).toBe(`C dup ${m510}`);
+    // Unresolvable target: closed `fixed`, the destination named in the note, never an invented id.
+    const sup = byTitle(/Superseded thing/);
+    expect(closeOf(sup)).toBe('C fixed');
+    expect(sup.item.migration_note).toMatch(/SUPERSEDED.*dangling-reference/);
+    const abs = byTitle(/Stale claims/);
+    expect(closeOf(abs)).toBe('C fixed');
+    expect(abs.item.migration_note).toMatch(/M5\.E99/);
+    // KEPT wins over the fold vocabulary.
+    const kept = byTitle(/Retro replay/);
+    expect(closeOf(kept)).toBe('T');
+    expect(kept.item.migration_note).toMatch(/KEPT/);
+    // Qualified done-word: today's parser says closed (struck) — adopted, and flagged.
+    const partial = byTitle(/Vocabulary sweep/);
+    expect(closeOf(partial)).toBe('C fixed');
+    expect(partial.item.migration_note).toMatch(/partial/i);
+  });
+
+  it('types: bugs BUG; backlog tag → FEAT/CHORE/Q/BUG, untagged FEAT; inbox NEW; questions Q', () => {
+    expect(byLegacy('B1').item.type).toBe('BUG');
+    expect(byTitle(/Heading capture one/).item.type).toBe('BUG');
+    expect(byTitle(/Open hygiene row/).item.type).toBe('CHORE');
+    expect(byTitle(/Verify row/).item.type).toBe('CHORE');
+    expect(byTitle(/Product question row/).item.type).toBe('Q');
+    expect(byTitle(/^Fix row/).item.type).toBe('BUG');
+    expect(byTitle(/Untagged row/).item.type).toBe('FEAT');
+    expect(byTitle(/Body-tagged row/).item.type).toBe('CHORE');
+    expect(byTitle(/Struck row/).item.type).toBe('FEAT');
+    expect(byTitle(/^A capture$/).item.type).toBe('NEW');
+    expect(byTitle(/Still open/).item.type).toBe('Q');
+  });
+
+  it('inbox Deferred → N; open question → T; answered → C fixed', () => {
+    expect(closeOf(byTitle(/^A capture$/))).toBe('N');
+    expect(closeOf(byTitle(/Still open/))).toBe('T');
+    expect(closeOf(byTitle(/Answered one/))).toBe('C fixed');
+  });
+
+  it('bug titles: the bold lead, annotations skipped, else the first sentence; ≤120 chars', () => {
+    expect(byLegacy('B1').item.title).toBe('Short title.');
+    expect(byLegacy('B3').item.title).toBe('No bold lead here.');
+    expect(byLegacy('B2').item.title).toBe('Real title');
+    expect(byLegacy('B4').item.title).toBe('The opening line now says the rule.');
+    expect(byLegacy('B5').item.title).toBe('The `a|b` cell');
+    expect(byLegacy('B6').item.title).toBe('verified in source.');
+    const long = planMigrationFromTexts(
+      { 'BUGS.md': `| B1 | \`fixed\` | P3 | **${'word '.repeat(40)}** |\n` },
+      { key: 'SIG', today: TODAY }
+    ).items[0].item.title;
+    expect(long.length).toBeLessThanOrEqual(120);
+    expect(long.endsWith('…')).toBe(true);
+  });
+
+  it('priority from the Pri cell with bold stripped; `—` stores nothing', () => {
+    expect(byLegacy('B3').item.priority).toBe('P2');
+    expect(byLegacy('B2').item.priority).toBeUndefined();
+  });
+
+  it('legacy_id, source and source_ref record where each item came from', () => {
+    expect(byLegacy('B1').item).toMatchObject({ source: 'migration:BUGS.md', source_ref: 'BUGS.md:5' });
+    const cap = byTitle(/^A capture$/);
+    expect(cap.item.legacy_id).toBe('ISSUES-INBOX.md:14');
+    expect(cap.item.source).toBe('migration:ISSUES-INBOX.md');
+    expect(byTitle(/Open hygiene row/).item.legacy_id).toBe('BACKLOG.md:7');
+  });
+
+  it('destination folder by status, and the body carries links rewritten for it', () => {
+    expect(byLegacy('B1').dir).toBe('work/inbox');
+    expect(byLegacy('B3').dir).toBe('work/backlog');
+    expect(byLegacy('B2').dir).toBe('work/done/2026-09');
+    const b1 = byLegacy('B1');
+    expect(b1.body).toContain('](../../../analysis/X.md)');
+    expect(rewriteRelativeLinks(b1.body, b1.dir, '')).toBe(b1.sourceRef.text);
+  });
+
+  it('the watchlist is returned apart, never as an item (D-M6E11-18)', () => {
+    expect(p.watchlist.text).toMatch(/^## Trigger watchlist/);
+    expect(p.watchlist.dir).toBe('work');
+    expect(p.items.some((i) => /watchlist/i.test(i.item.title ?? ''))).toBe(false);
+  });
+
+  it('counts per source and per status add up to the item total (AC-9.5)', () => {
+    const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+    expect(sum(p.counts.bySource)).toBe(p.items.length);
+    expect(sum(p.counts.byStatus)).toBe(p.items.length);
+    expect(p.counts.bySource['BUGS.md']).toBe(11);
+    expect(p.counts.total).toBe(p.items.length);
+  });
+});
+
+describe('planMigration over the live files (read-only)', () => {
+  let before;
+  let p;
+  beforeAll(() => {
+    before = planningSnapshot();
+    p = planMigration(ROOT, { key: 'SIG', today: TODAY });
+  });
+  afterAll(() => {
+    expect(planningSnapshot()).toEqual(before);
+  });
+
+  it('per-source counts equal the segmenters, and the total is their sum', () => {
+    const live = (f) => readFileSync(join(ROOT, '.planning', f), 'utf-8');
+    const expected = {
+      'BUGS.md': segmentBugs(live('BUGS.md')).rows.length,
+      'BACKLOG.md': segmentBacklog(live('BACKLOG.md')).rows.length,
+      'ISSUES-INBOX.md': segmentInbox(live('ISSUES-INBOX.md')).rows.length,
+      'OPEN-QUESTIONS.md': segmentQuestions(live('OPEN-QUESTIONS.md')).rows.length,
+    };
+    expect(p.counts.bySource).toEqual(expected);
+    expect(p.counts.total).toBe(Object.values(expected).reduce((a, b) => a + b, 0));
+  });
+
+  it('un-numbered bugs are numbered from the highest B-id present', () => {
+    const maxB = Math.max(...p.items.filter((i) => /^B\d+$/.test(i.item.legacy_id ?? '')).map((i) => Number(i.item.legacy_id.slice(1))));
+    const firstEntry = p.items.find((i) => i.item.source === 'migration:BUGS.md' && !/^B\d+$/.test(i.item.legacy_id));
+    expect(firstEntry.item.id).toBe(`SIG-${maxB + 1}`);
+    expect(p.items.find((i) => i.item.legacy_id === 'B75').item.id).toBe('SIG-75');
+  });
+
+  it('every item validates; every dup_of names an item in the run', () => {
+    const ids = new Set(p.items.map((i) => i.item.id));
+    for (const { item } of p.items) {
+      expect(validateItem(item), item.id).toEqual([]);
+      if (item.close?.dup_of) expect(ids.has(item.close.dup_of), item.id).toBe(true);
+    }
+  });
+
+  it('the withdrawn entry is a dup of SIG-100', () => {
+    const w = p.items.find((i) => /WITHDRAWN as a duplicate of `B100`/.test(i.item.title));
+    expect(w.item.close).toMatchObject({ reason: 'dup', dup_of: 'SIG-100' });
+  });
+
+  it('the ambiguous rows the research listed carry a migration_note (D-M6E11-17)', () => {
+    const noted = (re) => p.items.filter((i) => i.item.source === 'migration:BACKLOG.md' && re.test(i.item.title));
+    const mustNote = [
+      /^Since the snapshot — what shipped \(reconciliation/,
+      /^Since the re-audit — what M5\.E7 changed \(reconciliation/,
+      /^Parked — the trigger watchlist/,
+      /Vocabulary attribution sweep/,
+      /Harder TDD \+ `<HARD-GATE>`/,
+      /^Multi-runtime adapters/,
+      /periodic hygiene sweep — \*\*⚠ PARTIALLY SHIPPED/,
+      /Cross-model review at REVIEW/,
+      /The entry price for \*any\* Phase A autonomy work/,
+      /claims-audit backstop, rebuilt around Jev/,
+      /^Retro \*replay\*/,
+      /^Cross-Epic pattern detection/,
+      /Cross-references become links/,
+      /closure-gated archive/i,
+      /`M5\.E14`|M5\.E14 —/,
+      /`B52`/,
+    ];
+    for (const re of mustNote) {
+      const hits = noted(re);
+      expect(hits.length, String(re)).toBeGreaterThan(0);
+      for (const h of hits) expect(h.item.migration_note, `${h.item.id} ${h.item.title}`).toBeTruthy();
+    }
+    const dupBugs = p.items.filter((i) => i.item.source === 'migration:BUGS.md' && i.item.migration_note);
+    expect(dupBugs.map((i) => i.item.legacy_id)).toEqual([expect.stringMatching(/^BUGS\.md:/), expect.stringMatching(/^BUGS\.md:/)]);
+    expect(dupBugs.map((i) => i.item.migration_note).join('\n')).toMatch(/B112[\s\S]*B117/);
+  });
+
+  it('every explicit note key matches the live file (so heading drift is loud)', () => {
+    expect(p.unmatchedExplicitNotes).toEqual([]);
+  });
+});
