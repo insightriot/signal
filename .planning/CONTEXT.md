@@ -27,7 +27,7 @@ advisory judge — `STATE.md` paragraphs at `/sig:resume` and SHIP, stale bug ro
 **The finding that sets the next Epic:** no code rule can tell whether a hand-typed status is still
 true (`M6.E3-RESEARCH.md`), because nothing records "done" when it happens. Brett, 2026-09-27: *"revisit
 this whole architecture vs. keep applying band-aids"* (`D-M6E3-16`). Next Epic = record status at the
-source; first question is his: a marker in the files, or GitHub Issues.
+source; ~~first question is his: a marker in the files, or GitHub Issues~~ — answered by `D-BR0928-7`.
 
 **`D-BR0926-1` — Signal dropped its privacy positioning.** It is Brett's scaffolding for his own
 projects (three users). A feature that sends text to a model needs one README line, not a debate or a

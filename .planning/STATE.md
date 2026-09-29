@@ -1,17 +1,27 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: PLAN
+phase: EXECUTE
 current_epic: M6.E11
 current_wave: null
-current_tasks: []
+current_tasks:
+  - id: M6.E11.S7
+    epic: M6.E11
+    wave: 4
+    status: in_progress
+    startedAt: 2026-09-29T13:36:42.308Z
 completed_phases:
   - DISCUSS (2026-09-29)
+  - PLAN (2026-09-29)
 blockers: []
-last_completed_task: null
-last_decision_at: 2026-09-26T21:53:22.398Z
-last_updated_commit: 800cd0db0d977a2fac26f158431a0158f2f8a2f2
-last_updated: 2026-09-29T11:24:51.750Z
+last_completed_task:
+  id: M6.E11.S6
+  status: done
+  commit: 57a2276
+  completedAt: 2026-09-29T13:36:42.301Z
+last_decision_at: 2026-09-29T13:36:42.301Z
+last_updated_commit: 57a2276
+last_updated: 2026-09-29T13:36:42.308Z
 ---
 # Project State
 
@@ -45,8 +55,8 @@ tagged and released.** The Jev checks run as advice with receipts: the `STATE.md
 - **Filed:** `B126` (the coverage tool counts mentions as verified), `B127` (a BACKLOG heading saying
   "done" hid the in-flight Epic from `/sig:advise`).
 - **Next Epic, by Brett's direction:** redesign how Signal records status, so that "done" is recorded
-  when it happens (`D-M6E3-16`). Its first question is Brett's: a marker in the files, or GitHub
-  Issues.
+  when it happens (`D-M6E3-16`). ~~Its first question is Brett's: a marker in the files, or GitHub
+  Issues.~~ Answered by `D-BR0928-7`; **in flight as `M6.E11`** (the work-item store, step 1).
 
 ### ▶ PREVIOUS — `M6.E8` SHIPPED as `v0.1.41` (2026-09-25)
 
