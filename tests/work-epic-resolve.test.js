@@ -172,3 +172,90 @@ describe('no folder for the Epic, or store off — today\'s answers', () => {
     expect(() => artifactName('PLAN', { currentEpic: 'M6.E99', planningDir: P })).toThrow(WorkStoreError);
   });
 });
+
+// REVIEW I6: the writer must write where the reader reads. An Epic that had
+// root-level artifacts gets a folder the first time an item moves in; from
+// then on artifactName named the folder while resolveArtifactPath still read
+// the root copy, so the next phase read a file the last phase never updated.
+describe('the writer writes where the reader reads (REVIEW I6)', () => {
+  const agree = (artifact, currentEpic = 'M1.E1') => {
+    const name = artifactName(artifact, { currentEpic, planningDir: P });
+    const read = resolveArtifactPath(P, artifact, { currentEpic });
+    return { name, read };
+  };
+
+  it('root REQUIREMENTS exists, then moveItem creates the Epic folder: both name the root file', async () => {
+    await storeOn();
+    await put('.planning/M1.E1-REQUIREMENTS.md', '# req\n');
+    const { newItem, moveItem } = await import('../plugin/tools/lib/work-ops.js');
+    const a = await newItem(base, { type: 'FEAT', title: 'one', by: 't' });
+    await moveItem(base, a.id, { status: 'Q', epic: 'M1.E1' });
+    const { name, read } = agree('REQUIREMENTS');
+    expect(name).toBe('M1.E1-REQUIREMENTS.md');
+    expect(read).toBe(join(P, name));
+  });
+
+  it('a new artifact with the folder present goes in the folder, and reads back from there', async () => {
+    await storeOn();
+    await put('.planning/M1.E1-REQUIREMENTS.md', '# req\n');
+    await epicFolder('M1.E1');
+    const { name } = agree('PLAN');
+    expect(name).toBe('work/epics/M1.E1/M1.E1-PLAN.md');
+    await put(`.planning/${name}`);
+    expect(resolveArtifactPath(P, 'PLAN', { currentEpic: 'M1.E1' })).toBe(join(P, name));
+  });
+
+  it('the folder copy wins when both exist, for writer and reader alike', async () => {
+    await storeOn();
+    await put('.planning/M1.E1-PLAN.md', '# old\n');
+    await put('.planning/work/epics/M1.E1/M1.E1-PLAN.md', '# new\n');
+    const { name, read } = agree('PLAN');
+    expect(name).toBe('work/epics/M1.E1/M1.E1-PLAN.md');
+    expect(read).toBe(join(P, name));
+  });
+
+  it('the bare <ARTIFACT>.md in the folder, when that is what is read, is what is written', async () => {
+    await storeOn();
+    await put('.planning/work/epics/M1.E1/PLAN.md');
+    const { name, read } = agree('PLAN');
+    expect(name).toBe('work/epics/M1.E1/PLAN.md');
+    expect(read).toBe(join(P, name));
+  });
+
+  it('an archived Epic: artifactName never points into archive/, whatever exists there', async () => {
+    await storeOn();
+    await put('.planning/archive/epics/M1.E1/M1.E1-PLAN.md');
+    await put('.planning/archive/epics/M1.E1/PLAN.md');
+    const { name, read } = agree('PLAN');
+    expect(name).toBe('M1.E1-PLAN.md');
+    expect(read).toBe(join(P, 'archive/epics/M1.E1/M1.E1-PLAN.md'));
+    await put(`.planning/${name}`);
+    expect(resolveArtifactPath(P, 'PLAN', { currentEpic: 'M1.E1' })).toBe(join(P, name));
+  });
+
+  it('closeEpic after the root/folder split: writer and reader still agree', async () => {
+    await storeOn();
+    await put('.planning/M1.E1-REQUIREMENTS.md', '# req\n');
+    const { newItem, moveItem, closeItem, closeEpic } = await import('../plugin/tools/lib/work-ops.js');
+    const a = await newItem(base, { type: 'FEAT', title: 'one', by: 't' });
+    await moveItem(base, a.id, { status: 'Q', epic: 'M1.E1' });
+    await put('.planning/work/epics/M1.E1/M1.E1-PLAN.md');
+    await closeItem(base, a.id, { reason: 'fixed', by: 't', proof: 'x' });
+    await closeEpic(base, 'M1.E1', { by: 't' });
+    for (const artifact of ['REQUIREMENTS', 'PLAN', 'REVIEW']) {
+      const { name } = agree(artifact);
+      expect(name.startsWith('archive/')).toBe(false);
+      await put(`.planning/${name}`, `# ${artifact} written\n`);
+      expect(resolveArtifactPath(P, artifact, { currentEpic: 'M1.E1' })).toBe(join(P, name));
+    }
+  });
+
+  it('a legacy file that is not the Epic\'s own (1-PLAN.md, PLAN.md) is never written over', async () => {
+    await storeOn();
+    await put('.planning/1-PLAN.md', '# another unit\n');
+    await put('.planning/PLAN.md', '# another unit\n');
+    expect(artifactName('PLAN', { currentEpic: 'M1.E1', planningDir: P })).toBe('M1.E1-PLAN.md');
+    await epicFolder('M1.E1');
+    expect(artifactName('PLAN', { currentEpic: 'M1.E1', planningDir: P })).toBe('work/epics/M1.E1/M1.E1-PLAN.md');
+  });
+});
