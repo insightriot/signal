@@ -591,7 +591,10 @@ function isoToday() {
  * @param {Partial<Record<'BUGS.md'|'BACKLOG.md'|'ISSUES-INBOX.md'|'OPEN-QUESTIONS.md', string>>} texts
  * @param {{key?: string, today?: string}} [opts]
  * @returns {{items: Array<{item: object, body: string, dir: string, sourceRef: {file: string, line: number, endLine: number, text: string}}>,
- *   orphans: Array<object>, watchlist: object|null, counts: object, notes: Array<object>, unmatchedExplicitNotes: Array<object>}}
+ *   orphans: Array<object>, gaps: Array<object>, watchlist: object|null, counts: object, notes: Array<object>,
+ *   unmatchedExplicitNotes: Array<object>}}
+ *   `orphans` and `gaps` carry `source`, so rows + orphans + gaps (+ the
+ *   watchlist) tile every source file — the lossless check (AC-9.4).
  */
 export function planMigrationFromTexts(texts, opts = {}) {
   const key = opts.key ?? 'SIG';
@@ -604,6 +607,7 @@ export function planMigrationFromTexts(texts, opts = {}) {
   };
   // An empty source is a one-line empty file; it has no orphans worth naming.
   const orphans = SOURCES.flatMap((s) => (texts[s] ? segs[s].orphans.map((o) => ({ source: s, ...o })) : []));
+  const gaps = SOURCES.flatMap((s) => (texts[s] ? segs[s].gaps.map((g) => ({ source: s, ...g })) : []));
   const explicitUsed = new Set();
   const explicitFor = (source, title) => {
     const hits = EXPLICIT_NOTES.filter((e) => e.source === source && title.includes(e.match));
@@ -801,7 +805,7 @@ export function planMigrationFromTexts(texts, opts = {}) {
     match: e.match,
   }));
 
-  return { items, orphans, watchlist, counts, notes, unmatchedExplicitNotes };
+  return { items, orphans, gaps, watchlist, counts, notes, unmatchedExplicitNotes };
 }
 
 /**
