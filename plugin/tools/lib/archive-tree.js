@@ -46,9 +46,9 @@ import { deriveEpicArchiveDir } from './evict.js';
 import { enumerateRetros } from './retro-index.js';
 import { resolveClosures } from './closure.js';
 import { INBOX_NEW, INBOX_LEGACY, LEDGER_NEW, LEDGER_LEGACY } from './inbox-path.js';
-import { acquireLock, releaseLock } from './file-lock.js';
+import { acquireLock } from './file-lock.js';
 import { isGeneratedText } from './work-marker.js';
-import { isStoreOn, WORK_DIR } from './work-store.js';
+import { isStoreOn, WORK_DIR, WORK_LOCK_TTL_MS } from './work-store.js';
 
 // The scaffold doc-types that archive with a closed Epic. A project-AGNOSTIC
 // domain constant (the doc-runtime scaffold set) — NOT a project literal like a
@@ -650,11 +650,11 @@ export async function applyArchiveTree(baseDir, opts = {}) {
   if ((staleGenerated || rewrittenFiles > 0) && isStoreOn(baseDir).on) {
     const { generateAll } = await import('./work-generate.js');
     const lockPath = join(baseDir, PLANNING_DIR, WORK_DIR, '.lock');
-    await acquireLock(lockPath, { label: 'work store' });
+    const lock = await acquireLock(lockPath, { label: 'work store', ttlMs: WORK_LOCK_TTL_MS });
     try {
       await generateAll(baseDir);
     } finally {
-      await releaseLock(lockPath);
+      await lock.released();
     }
   }
 

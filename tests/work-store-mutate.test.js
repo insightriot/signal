@@ -141,6 +141,30 @@ describe('newItem', () => {
     await expect(newItem(repo, { title: 'x', by: 'b', at: AT })).rejects.toThrow(/work store/);
     expect(countItemFiles(repo)).toBe(0);
   });
+
+  // REVIEW I4: a mutation runs for longer than the old 5 s default (git log
+  // --all plus a full regeneration), so a lock 10 s old is still live.
+  it('treats a 10-second-old work lock as held, not stale (TTL WORK_LOCK_TTL_MS)', async () => {
+    initRepo(repo);
+    await storeOn(repo);
+    await put(repo, WORK_LOCK_REL, `999\n${Date.now() - 10_000}\n`);
+    await expect(newItem(repo, { title: 'x', by: 'b', at: AT })).rejects.toThrow(/work store/);
+    expect(countItemFiles(repo)).toBe(0);
+  });
+
+  it('does not delete a lock another holder took while it ran (REVIEW I4)', async () => {
+    initRepo(repo);
+    await storeOn(repo);
+    const thief = `4242\n${Date.now()}\nsomeone-else\n`;
+    // The seam runs inside the lock: simulate expiry + a second holder taking it.
+    const { rename } = await import('node:fs/promises');
+    const renameFn = async (from, to) => {
+      await writeFile(join(repo, WORK_LOCK_REL), thief, 'utf-8');
+      return rename(from, to);
+    };
+    await newItem(repo, { title: 'x', by: 'b', at: AT }, { renameFn });
+    expect(await readFile(join(repo, WORK_LOCK_REL), 'utf-8')).toBe(thief);
+  });
 });
 
 describe('getItem — lookup by the front only (AC-2.3)', () => {

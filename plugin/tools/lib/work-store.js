@@ -31,6 +31,13 @@ export const WORK_DIR = 'work';
 export const WORK_FILE = 'WORK.md';
 export const FOLDERS = Object.freeze({ inbox: 'inbox', backlog: 'backlog', epics: 'epics', done: 'done' });
 
+// How long the store's `work` lock (`.planning/work/.lock`) stays live
+// (M6.E11 REVIEW I4). A mutation reads all of git history and regenerates
+// every list under it, which can outlast file-lock's 5 s default. Staleness is
+// judged by whoever tries to TAKE the lock, so every taker of that path uses
+// this one value — a taker with a shorter one would steal a live lock.
+export const WORK_LOCK_TTL_MS = 120_000;
+
 // Same shape as the key half of ITEM_ID_RE — they must not drift apart.
 export const STORE_KEY_RE = /^[A-Z][A-Z0-9]{1,9}$/;
 

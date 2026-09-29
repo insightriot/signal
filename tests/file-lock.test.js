@@ -3,7 +3,7 @@
 // path/ttl/label; these are the canonical unit tests for the generic primitive.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, mkdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -92,5 +92,38 @@ describe('releaseLock', () => {
   it('is a no-op when the lock file does not exist', async () => {
     expect(existsSync(lockPath)).toBe(false);
     await expect(releaseLock(lockPath)).resolves.toBeUndefined();
+  });
+
+  // M6.E11 REVIEW I4: a lock that expired and was taken by someone else must
+  // not be deleted by its original holder's release.
+  it('acquireLock writes a holder token on line 3 and returns it', async () => {
+    const lock = await acquireLock(lockPath);
+    expect(typeof lock.token).toBe('string');
+    expect(lock.token.length).toBeGreaterThan(8);
+    expect((await readFile(lockPath, 'utf-8')).split('\n')[2]).toBe(lock.token);
+    await lock.released();
+  });
+
+  it('with a token: removes the lock only while it still carries that token', async () => {
+    const lock = await acquireLock(lockPath);
+    await releaseLock(lockPath, lock.token);
+    expect(existsSync(lockPath)).toBe(false);
+  });
+
+  it('with a token: leaves a lock that another holder took after expiry', async () => {
+    const lock = await acquireLock(lockPath);
+    const thief = `4242\n${Date.now()}\nsomeone-else\n`;
+    await writeFile(lockPath, thief, 'utf-8'); // expired, stolen, re-created
+    await releaseLock(lockPath, lock.token);
+    expect(await readFile(lockPath, 'utf-8')).toBe(thief);
+    await lock.released(); // the thunk passes the token too
+    expect(await readFile(lockPath, 'utf-8')).toBe(thief);
+  });
+
+  it('without a token: removes the lock whoever holds it (the old behaviour)', async () => {
+    await acquireLock(lockPath);
+    await writeFile(lockPath, `4242\n${Date.now()}\nsomeone-else\n`, 'utf-8');
+    await releaseLock(lockPath);
+    expect(existsSync(lockPath)).toBe(false);
   });
 });

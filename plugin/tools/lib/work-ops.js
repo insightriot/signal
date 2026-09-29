@@ -34,7 +34,7 @@ import { basename, dirname, join, relative, sep } from 'node:path';
 
 import { applyKeyedReplacements, computeLinkEdits } from './archive-tree.js';
 import { atomicWrite } from './atomic-write.js';
-import { acquireLock, releaseLock } from './file-lock.js';
+import { acquireLock } from './file-lock.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { EPIC_ID_STRICT_RE, parseFrontmatter, StateSchemaError, stringifyFrontmatter } from './state.js';
 import { EPIC_README, generateAll } from './work-generate.js';
@@ -50,7 +50,17 @@ import {
 } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
 import { isGeneratedText } from './work-marker.js';
-import { FOLDERS, isGitRepo, isStoreOn, nextId, parseItemFileName, walkFiles, WORK_DIR, WORK_FILE } from './work-store.js';
+import {
+  FOLDERS,
+  isGitRepo,
+  isStoreOn,
+  nextId,
+  parseItemFileName,
+  walkFiles,
+  WORK_DIR,
+  WORK_FILE,
+  WORK_LOCK_TTL_MS,
+} from './work-store.js';
 
 export const WORK_LOCK_REL = `.planning/${WORK_DIR}/.lock`;
 
@@ -71,12 +81,11 @@ function requireStore(baseDir) {
 // parent folder, and a store-off project must not grow `.planning/work/`.
 async function withWorkLock(baseDir, fn) {
   requireStore(baseDir);
-  const lockPath = join(baseDir, WORK_LOCK_REL);
-  await acquireLock(lockPath, { label: 'work store' });
+  const lock = await acquireLock(join(baseDir, WORK_LOCK_REL), { label: 'work store', ttlMs: WORK_LOCK_TTL_MS });
   try {
     return await fn();
   } finally {
-    await releaseLock(lockPath);
+    await lock.released(); // only while this call still holds it (REVIEW I4)
   }
 }
 

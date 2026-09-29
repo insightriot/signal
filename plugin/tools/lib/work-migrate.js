@@ -34,13 +34,13 @@ import { atomicWrite } from './atomic-write.js';
 import { parseBacklogRows } from './backlog.js';
 import { walkBugEntries } from './bugs-tally.js';
 import { parseEntries, parseTriggerWatchlist } from './drain.js';
-import { acquireLock, releaseLock } from './file-lock.js';
+import { acquireLock } from './file-lock.js';
 import { generateAll, WATCHLIST_FILE } from './work-generate.js';
 import { stringifyItem, validateItem, WorkStoreError } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
 import { isGeneratedFile } from './work-marker.js';
 import { WORK_LOCK_REL } from './work-ops.js';
-import { checkStore, isGitRepo, parseItemFileName, walkFiles, WORK_DIR, WORK_FILE } from './work-store.js';
+import { checkStore, isGitRepo, parseItemFileName, walkFiles, WORK_DIR, WORK_FILE, WORK_LOCK_TTL_MS } from './work-store.js';
 
 // ── Shared line machinery ────────────────────────────────────────────────────
 
@@ -1057,7 +1057,7 @@ export async function applyMigration(baseDir, opts = {}) {
   const lockPath = join(baseDir, WORK_LOCK_REL);
   try {
     mkdirp(workAbs); // before the lock, so the lock's folder is on the undo list
-    await acquireLock(lockPath, { label: 'work store migration', ttlMs: 120_000 });
+    const lock = await acquireLock(lockPath, { label: 'work store migration', ttlMs: WORK_LOCK_TTL_MS });
     try {
       // 3. The originals, verbatim.
       mkdirp(archiveAbs);
@@ -1108,7 +1108,7 @@ export async function applyMigration(baseDir, opts = {}) {
         throw new WorkStoreError('SCHEMA', `the migration planned ${report.total} items but the store holds ${count}`);
       }
     } finally {
-      await releaseLock(lockPath);
+      await lock.released();
     }
   } catch (err) {
     rollback({ planning, originals, createdFiles, createdDirs });
