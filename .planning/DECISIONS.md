@@ -3489,3 +3489,91 @@ are recorded as `source_ref`, never used as the item ID — the corpus survey fo
 Never both. A tracker (GitHub Issues first) replaces the repo store for that project; it is never a
 mirror, because two places holding status is the measured failure. Signal owns the rules (lifecycle,
 close, Epics, sprints) either way; the tracker changes only where items are stored.
+
+## 2026-09-29 — M6.E11 DISCUSS: the work-item store, step 1 (D-M6E11-1 … D-M6E11-14)
+
+`/sig:discuss` for the status redesign, with Brett. Builds on `D-BR0928-1` … `D-BR0928-7` and
+[`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](../analysis/WORK-ITEM-SYSTEM-DESIGN.md). Requirements:
+[`M6.E11-REQUIREMENTS.md`](M6.E11-REQUIREMENTS.md). Attention `checkpointed`: one batch approval,
+given after one round of questions that added Epic folders and the theme/priority fields.
+
+### D-M6E11-1 — Scope: one Epic, `M6.E11`, for build step 1 — plus Epic folders
+Brett chose one Epic scoped to step 1 over a new milestone M7. Steps 2–5 of the design doc become
+later Epics. **Epic folders move into step 1** (Brett: *"bring epic folders into step 1"*), because
+without them the answer to *"how does an agent know what is in an Epic?"* would be a metadata field —
+the stay-put-and-annotate pattern `D-BR0928-2` rejects.
+
+### D-M6E11-2 — "Marker in the files, or GitHub Issues" was already answered by `D-BR0928-7`
+The question `D-M6E3-16` left open and `BACKLOG.md` still carried as *"First question"*: the repo
+store is the default, a tracker is an opt-in replacement. Not re-opened; the stale lines are corrected
+in this Epic.
+
+### D-M6E11-3 — Opt-in by presence: `.planning/work/WORK.md` switches the store on and holds the key
+Absent that file, every command is byte-identical to today (the `M4.5.E11` linear-mode pattern).
+Step 1's code reaches every project tracking `main`; migrating them is step 5. The key lives in this
+file's frontmatter (`key: SIG`), **not in `PROFILE.md`** — an Epic-scoped `{EpicID}-PROFILE.md`
+shadows the project profile, and `--re-calibrate` rewrites it; neither should be able to drop the key.
+
+### D-M6E11-4 — Writers switch in step 1; readers keep working through generated lists
+With the store on, `BUGS.md`, `BACKLOG.md`, `ISSUES-INBOX.md` and `OPEN-QUESTIONS.md` are **generated**
+from items. A command still appending to one would lose the capture at the next regeneration, so every
+write path moves to the store now. `add.js` is a confirmed writer; `drain`, `ask-record`, `backlog`,
+`checkpoint`, `drive`, `advise`, `archive-tree`, `migrate-memory` are classified writer-or-reader at
+PLAN. Readers are converted in later steps; a test pins the generated lists to the shape they parse.
+
+### D-M6E11-5 — One command moves everything: `/sig:item`
+Actions `new · triage · move · close · show · list`. Every status change goes through it, so the
+folder and the file's own status cannot disagree. Separate from `/sig:add`: capturing and moving are
+different jobs (`/sig:add` writes through the same library when the store is on).
+
+### D-M6E11-6 — The file is created at capture and is the same file for life
+`/sig:add` (or any intake) writes `inbox/SIG-n.md` immediately with the words verbatim. Triage adds
+detail to that file and moves it; it never writes a new copy. The file name is the front only
+(`SIG-412.md`); the `-BUG-T` suffix is a label rendered from the frontmatter.
+
+### D-M6E11-7 — Item frontmatter
+`id`, `type` (`NEW`/`BUG`/`FEAT`/`CHORE`/`Q`), `status` (`N`/`T`/`Q`/`P`/`C`), `title`, **`theme`**,
+**`priority`**, `source`, `source_ref`, `created` (when + who), `epic`/`sprint` (derived from the
+folder, never hand-set), `close` (`reason`, `by`, `at`, `proof`), `legacy_id`, `keep_because`. Theme and
+priority were added when Brett asked how the roadmap gets made: grouping like with like needs a
+theme, ordering needs a priority, and the first list left both out.
+
+### D-M6E11-8 — Status lives in the frontmatter; the folder must agree
+`inbox/`=N, `backlog/`=T, `epics/<id>/`=Q or P, `done/YYYY-MM/`=C. A test enforces agreement on this
+repo; `/sig:docs-sweep` reports disagreement elsewhere (the DeepSeek header-vs-folder gate).
+
+### D-M6E11-9 — Bug numbers keep their number: `B75` → `SIG-75`
+Inbox, backlog and question items continue from `SIG-128`. Thousands of lines of history cite B-ids;
+this keeps each one readable without a lookup. `legacy_id` records the original.
+
+### D-M6E11-10 — ID allocation: highest known ID across all local refs, plus a duplicate-ID test
+Next number = one past the highest ID in the working tree **and** every branch this machine has
+(`git ls-tree`, no network). CI fails on a duplicate ID. If one still slips through, the newer,
+**unmerged** item is renumbered before merge — a deliberate, narrow exception to "IDs never change",
+safe because nothing on `main` can cite an item that was never on `main`. Real risk here: `M6.E8`
+sat on an unmerged branch for days (`B118`).
+
+### D-M6E11-11 — `OPEN-QUESTIONS.md` entries become `Q` items now
+11 entries. Absorbs the answered-questions slice `M6.E3` dropped (`D-M6E3-16`). `DECISIONS.md` and
+`DECISION-QUEUE.md` stay as they are: a decision is the **proof** that closes a `Q` item, not an item.
+
+### D-M6E11-12 — Nothing is ever deleted; closed work moves to the archive
+Brett: *"nothing is ever destroyed, it 'moves' through a process."* **Reverses** the retention rule
+`BACKLOG.md`'s structural-status row called "not optional" (delete a dead end once it no longer
+prevents a mistake) — that was another project's pattern, and the owner's call overrides it.
+`done/YYYY-MM/` rolls into `archive/`; the live tree holds only open work.
+
+### D-M6E11-13 — Epic lifecycle: folder while open, generated index, archived at ship
+`work/epics/<id>/` holds the Epic's items and its own artifacts. The Epic list is generated from the
+folders, never hand-written. `/sig:ship` records the close and moves the folder to
+`archive/epics/<id>/` — **and refuses while any item in it is still open**, unless each is closed or
+deliberately moved back to `backlog/`. Otherwise unfinished work would be filed away looking finished.
+Moving *existing* Epics' artifacts into folders is migration (step 5), not this Epic.
+
+### D-M6E11-14 — Migration of Signal's own store: relocate, never delete; statuses carried, not re-judged
+Dry-run by default, git-reversible, originals kept verbatim under `archive/` (the `docs-migrate`
+posture). Legacy statuses map mechanically (`needs-triage`→N, `confirmed`→T, `fixed`→C `fixed`,
+`dismissed`→C `rejected`) and every migrated close carries `proof: legacy — not re-verified`. The 31
+`confirmed` bugs (incl. `B75`, flagged by the drift check) are **not** re-triaged inside the migration.
+**Other projects** migrate through **`/sig:docs-migrate`** (step 5) — Brett asked to be reminded of it
+after this ships, because it will be a big lift for some projects.

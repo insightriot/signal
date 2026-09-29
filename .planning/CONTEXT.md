@@ -4,7 +4,19 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-09-27) — M6.E3 EXECUTE COMPLETE, VERIFY NEXT
+## Where things stand (2026-09-29) — M6.E11 DISCUSS DONE, PLAN NEXT
+
+**`v0.1.42` is on `main`** (`M6.E3` shipped). **`M6.E11` — the work-item store, step 1 — is on
+`feat/m6.e11-work-item-store`, DISCUSS complete, `/sig:plan` next.** One file per thing
+(`SIG-412.md`), created at capture and *moved* through `inbox/` → `backlog/` → `epics/<id>/` →
+`done/`; one command (`/sig:item`) does every move; the old list files become generated. Opt-in by
+`.planning/work/WORK.md`, so projects that haven't switched see no change. Nothing is ever deleted.
+Read [`M6.E11-REQUIREMENTS.md`](M6.E11-REQUIREMENTS.md) and `D-M6E11-1` … `D-M6E11-14`.
+Other projects migrate later via `/sig:docs-migrate` (step 5) — remind Brett after this ships.
+
+---
+
+## Where things stood (2026-09-27) — M6.E3 EXECUTE COMPLETE, VERIFY NEXT
 
 **`v0.1.41` is on `main`** (PR #258). **`M6.E3` is on `feat/m6.e3-jev-claims-audit`, EXECUTE complete,
 `/sig:verify` next** — `STATE.md`'s resume pointer has the detail. Built: a SHIP gate that refuses only

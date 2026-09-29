@@ -1,30 +1,16 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: SHIP
-current_epic: M6.E3
+phase: DISCUSS
+current_epic: M6.E11
 current_wave: null
 current_tasks: []
-completed_phases:
-  - DISCUSS (2026-09-26)
-  - PLAN (2026-09-26)
-  - EXECUTE (2026-09-27)
-  - VERIFY (2026-09-27)
-  - REVIEW (2026-09-27)
-  - EXECUTE (2026-09-27)
-  - REVIEW (2026-09-27)
-  - EXECUTE (2026-09-27)
-  - REVIEW (2026-09-27)
-  - SHIP (2026-09-27)
+completed_phases: []
 blockers: []
-last_completed_task:
-  id: t1.8
-  status: done
-  commit: 04c50c9
-  completedAt: 2026-09-26T21:53:22.398Z
+last_completed_task: null
 last_decision_at: 2026-09-26T21:53:22.398Z
 last_updated_commit: 771a356
-last_updated: 2026-09-28T20:45:16.676Z
+last_updated: 2026-09-29T10:41:50.846Z
 ---
 # Project State
 

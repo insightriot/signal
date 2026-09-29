@@ -70,8 +70,8 @@ model finding **cannot refuse, by declaration** (`judged: 'model'`). Measured li
 false alarms. ⚠ **Three fresh-context REVIEW passes; pass 2 found a High in pass 1's own fixes**
 (a committed `.ENV` passing a `.env` check on macOS). Fix-on-fix needs its own fresh read. Retro:
 [`.planning/M6.E3-RETROSPECTIVE.md`](.planning/M6.E3-RETROSPECTIVE.md). **Next: the status
-redesign** (`D-M6E3-16`): record "done" when it happens instead of inferring it. First question: a
-marker in the files, or GitHub Issues.
+redesign** (`D-M6E3-16`), **in flight as `M6.E11`** (DISCUSS 2026-09-29): one file per work item,
+moving through folders, Epic folders included. The files-or-GitHub question is settled (`D-BR0928-7`).
 `B118` — `/sig:drive` and `/sig:advise` read one branch's corpus — is still unfixed.
 
 ✅ **`B117` — the Epic lane kept getting squashed. CLOSED 2026-09-08 by the ruleset** (see *How changes reach `main`* below: `main` now permits `merge` only, so the sticky button cannot arm anything). The history is kept because the *cause* is the lesson. PR #239 was
