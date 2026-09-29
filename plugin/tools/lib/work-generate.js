@@ -222,6 +222,13 @@ export async function generateAll(baseDir) {
   const watchlist = existsSync(wlPath) ? { text: readFileSync(wlPath, 'utf-8'), dir: WORK_DIR } : null;
 
   const files = generateFiles({ items, watchlist });
-  for (const name of GENERATED_FILES) await atomicWrite(join(planning, name), files[name]);
+  for (const name of GENERATED_FILES) await writeGenerated(join(planning, name), files[name]);
   return { written: [...GENERATED_FILES] };
+}
+
+// The one place a generated file is written. S4 (t4.1, D-M6E11-28) adds the
+// write guard to `atomicWrite` and passes `{generated: true}` here — and only
+// here, so no other caller can write a marked file.
+function writeGenerated(path, text) {
+  return atomicWrite(path, text);
 }

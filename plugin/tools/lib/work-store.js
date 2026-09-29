@@ -145,7 +145,7 @@ export function walkFiles(dir, out = []) {
   return out;
 }
 
-function isGitRepo(baseDir, execFn) {
+export function isGitRepo(baseDir, execFn = execFileSync) {
   try {
     return runGit(baseDir, ['rev-parse', '--is-inside-work-tree'], execFn).trim() === 'true';
   } catch {
