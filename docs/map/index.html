@@ -834,6 +834,12 @@ const COMMANDS = [
         ],
       },
       {
+        name: '/sig:item',
+        tags: ['not phase-gated', 'work store only'],
+        summary: 'Move work items through the work store: new, triage, move, close, show, list. Every status change goes through it, so an item\'s folder and its status cannot disagree. Only for projects with .planning/work/WORK.md.',
+        flags: [],
+      },
+      {
         name: '/sig:doctor',
         tags: ['read-only by default', 'macOS first'],
         summary: 'Install-state diagnostician: detects 5 documented failure modes and reports healthy or actionable findings.',
