@@ -35,6 +35,11 @@ import { resolveInboxPath } from './inbox-path.js';
 // drain uses, so add-vs-drain writes on a shared file are mutually excluded. state.js
 // does not import add.js, so this introduces no import cycle.
 import { withStateLock } from './state.js';
+// M6.E11 (t4.2): with the work store on, a capture becomes an item. `isStoreOn`
+// is a read with no cycle; `newItem` is imported lazily inside
+// `captureToStore`, because work-ops.js → work-generate.js → backlog.js →
+// add.js would otherwise be a static cycle.
+import { isStoreOn } from './work-store.js';
 
 // Re-export atomicWrite so existing consumers (tests/add.test.js, future
 // callers) keep working while atomic-write.js is the canonical implementation
@@ -1068,8 +1073,16 @@ async function addDocWriteCore(targetPath, { entry, insert, today, lazyCreateCon
  * @param {string} [opts.lazyCreateContent] — the skeleton written when
  *   lazy-creating (must carry whatever structure the `insert` closure expects,
  *   e.g. a `*Last updated:*` footer for the inbox).
+ * @param {{type: string, source: string}} [opts.storeItem] — M6.E11: set by the
+ *   default, `--bug` and `--question` routes. When the work store is on, the
+ *   capture becomes a new item of this type (see `captureToStore`) and
+ *   `relPath` is not written. `--milestone` and `--file` do not set it: they
+ *   write files the store does not generate.
+ * @param {string} [opts.by] — who captured it, recorded as the item's
+ *   `created.by` (store on only; defaults to `storeItem.source`).
  *
- * @returns {Promise<{written: boolean, path?: string, line?: number, aborted?: string}>}
+ * @returns {Promise<{written: boolean, path?: string, line?: number, aborted?: string,
+ *   id?: string, label?: string}>} — `id`/`label` only when an item was written.
  */
 export async function captureToDestination(baseDir, opts) {
   const {
@@ -1085,7 +1098,15 @@ export async function captureToDestination(baseDir, opts) {
     missingFileError,
     lazyCreate = false,
     lazyCreateContent,
+    storeItem,
   } = opts;
+
+  // M6.E11 (t4.2): a route that names a `storeItem` becomes an item when the
+  // work store is on. Checked BEFORE the destination pre-flight: with the
+  // store on the list is generated and may not exist yet, and it is not where
+  // the capture goes. A broken WORK.md throws here — never a fallback.
+  if (storeItem && isStoreOn(baseDir).on) return captureToStore(baseDir, opts);
+
   const targetPath = join(baseDir, relPath);
 
   // Pre-flight — fail loud if the destination doesn't exist. The caller may
@@ -1154,6 +1175,58 @@ export async function captureToDestination(baseDir, opts) {
 }
 
 /**
+ * The store-on half of `captureToDestination` (M6.E11 t4.2, AC-6.1,
+ * D-M6E11-6): the same scrub and body-length prompts, in the same order, then
+ * `newItem` writes `inbox/{KEY}-{n}.md` (status N) and regenerates the lists.
+ * No `.add.lock`: `newItem` holds the store's own `work` lock across the ID
+ * allocation and the write, which is what serialises two captures.
+ *
+ * The item records what the list entry recorded: the words verbatim as the
+ * body, the heading as `title` (the caller's, else `deriveHeading`), the
+ * capture date as `created.at`, the route as `source`, and the mid-flow
+ * `triggerContext` as `source_ref`. `by` is the caller's `opts.by` when given,
+ * else the route's own name — `/sig:add` has no other record of who.
+ *
+ * @returns {Promise<{written: boolean, path?: string, line?: number, repaired?: boolean,
+ *   id?: string, label?: string, aborted?: string}>}
+ */
+async function captureToStore(baseDir, opts) {
+  const { body, today, triggerContext, title, sensitivePrompt, bodyLengthPrompt, storeItem, by } = opts;
+
+  const scrub = scrubSensitive(body);
+  if (scrub.hits.length > 0) {
+    const decision = await sensitivePrompt(scrub.hits);
+    if (decision !== 'keep') return { written: false, aborted: 'sensitive-data' };
+  }
+  const lengthCheck = checkBodyLength(body);
+  if (lengthCheck.tooLong && bodyLengthPrompt) {
+    const decision = await bodyLengthPrompt(lengthCheck.length);
+    if (decision !== 'keep') return { written: false, aborted: 'body-length' };
+  }
+
+  const { newItem } = await import('./work-ops.js');
+  const heading = title?.trim() || deriveHeading(body);
+  const trigger = triggerContext?.trim();
+  const item = await newItem(baseDir, {
+    type: storeItem.type,
+    title: heading || undefined,
+    body,
+    source: storeItem.source,
+    source_ref: trigger || undefined,
+    by: by ?? storeItem.source,
+    at: today,
+  });
+  return {
+    written: true,
+    path: join(baseDir, '.planning', 'work', 'inbox', `${item.id}.md`),
+    line: 1,
+    repaired: false,
+    id: item.id,
+    label: `${item.id}-${item.type}-${item.status}`,
+  };
+}
+
+/**
  * The lazy-create skeleton for a born-on-v3 inbox (S1.t5 / AC6.3): a title, a
  * one-line purpose, and a `*Last updated:*` footer — the minimum structure
  * `insertFutureIdeasEntry` needs to land the first entry above the footer. Only
@@ -1198,7 +1271,7 @@ function inboxSkeleton(date) {
  *   `repaired: true` when a drifted mid-file footer was normalized (S3.t2).
  */
 export async function captureToFutureIdeas(baseDir, opts) {
-  const { body, today, triggerContext, title, sensitivePrompt, bodyLengthPrompt } = opts;
+  const { body, today, triggerContext, title, sensitivePrompt, bodyLengthPrompt, by } = opts;
 
   // Route through the resolver: a legacy repo picks `.planning/FUTURE-IDEAS.md`,
   // a v3 repo picks `.planning/ISSUES-INBOX.md`, a fresh repo picks the new name
@@ -1223,6 +1296,8 @@ export async function captureToFutureIdeas(baseDir, opts) {
     missingFileError:
       `Cannot capture: ${relPath} not found at ${join(baseDir, relPath)}. ` +
       `Run \`/sig:init\` first if this is an existing codebase, or \`/sig:new-project\` for a fresh project.`,
+    storeItem: { type: 'NEW', source: '/sig:add' },
+    by,
     body,
     today,
     triggerContext,
@@ -1257,7 +1332,7 @@ export async function captureToFutureIdeas(baseDir, opts) {
  * @returns {Promise<{written: boolean, path?: string, line?: number, aborted?: string}>}
  */
 export async function captureToOpenQuestions(baseDir, opts) {
-  const { body, today, triggerContext, title, sensitivePrompt, bodyLengthPrompt } = opts;
+  const { body, today, triggerContext, title, sensitivePrompt, bodyLengthPrompt, by } = opts;
 
   return captureToDestination(baseDir, {
     relPath: OPEN_QUESTIONS,
@@ -1268,6 +1343,8 @@ export async function captureToOpenQuestions(baseDir, opts) {
     missingFileError:
       `Cannot capture: .planning/OPEN-QUESTIONS.md not found at ${join(baseDir, OPEN_QUESTIONS)}. ` +
       `Run \`/sig:init\` first if this is an existing codebase, or \`/sig:new-project\` for a fresh project.`,
+    storeItem: { type: 'Q', source: '/sig:add --question' },
+    by,
     body,
     today,
     triggerContext,
@@ -1380,7 +1457,7 @@ export function insertBugsEntry(content, entry) {
 }
 
 export async function captureToBugs(baseDir, opts) {
-  const { body, today, triggerContext, title, sensitivePrompt, bodyLengthPrompt } = opts;
+  const { body, today, triggerContext, title, sensitivePrompt, bodyLengthPrompt, by } = opts;
 
   return captureToDestination(baseDir, {
     relPath: BUGS,
@@ -1393,6 +1470,8 @@ export async function captureToBugs(baseDir, opts) {
     missingFileError:
       `Cannot capture: .planning/BUGS.md not found at ${join(baseDir, BUGS)}. ` +
       `Run \`/sig:init\` first if this is an existing codebase, or \`/sig:new-project\` for a fresh project.`,
+    storeItem: { type: 'BUG', source: '/sig:add --bug' },
+    by,
     body,
     today,
     triggerContext,

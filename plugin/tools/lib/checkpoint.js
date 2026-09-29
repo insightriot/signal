@@ -18,6 +18,7 @@ import {
   withStateLock,
 } from './state.js';
 import { scrubSensitive } from './add.js';
+import { isStoreOn } from './work-store.js';
 
 // Vocabulary task-ID regex (per Signal's ID-is-identity convention): matches
 // `M4`, `M4.5`, `M4.5.E6`, `M4.5.E6.S1`, `M4.5.E6.S1.t6`, with an optional
@@ -298,6 +299,11 @@ async function captureCheckpointContextCore(baseDir, opts = {}) {
     };
   }
 
+  // M6.E11 (t4.2): with the work store on, questions become Q items rather
+  // than an append to OPEN-QUESTIONS.md (which is generated). Asked BEFORE any
+  // write, so a broken WORK.md throws with nothing half-written.
+  const store = questions.length > 0 ? isStoreOn(baseDir) : { on: false };
+
   const today = new Date().toISOString().split('T')[0];
   const planningDir = join(baseDir, '.planning');
   await mkdir(planningDir, { recursive: true });
@@ -327,7 +333,23 @@ async function captureCheckpointContextCore(baseDir, opts = {}) {
     wrote.push(decPath);
   }
 
-  if (questions.length > 0) {
+  if (questions.length > 0 && store.on) {
+    // `newItem` takes the store's own `work` lock, not `.state.lock` — this
+    // runs inside `withStateLock`, which is not reentrant (D-M6E11-27).
+    // Imported lazily: work-ops.js → … → backlog.js → add.js, which this
+    // module imports, would otherwise be a static cycle.
+    const { newItem } = await import('./work-ops.js');
+    for (const q of questions) {
+      const item = await newItem(baseDir, {
+        type: 'Q',
+        title: q.split('\n')[0].trim(),
+        body: q,
+        source: '/sig:checkpoint',
+        by: '/sig:checkpoint',
+      });
+      wrote.push(join(planningDir, 'work', 'inbox', `${item.id}.md`));
+    }
+  } else if (questions.length > 0) {
     const oqPath = join(baseDir, OPEN_QUESTIONS_PATH_REL);
     const oqExisting = existsSync(oqPath)
       ? await readFile(oqPath, 'utf-8')

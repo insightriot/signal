@@ -413,3 +413,65 @@ describe('handleCheckpointOrphans (S2.t7)', () => {
     expect(result.orphans.map((o) => o.id)).toEqual(['T-OLD']);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// M6.E11 t4.2 (AC-6.2 part, D-M6E11-27) — with the work store on, a checkpoint's
+// open questions become Q items. captureCheckpointContext already holds
+// withStateLock, which is not reentrant; newItem takes the store's own `work`
+// lock, so this must complete rather than deadlock or throw "already running".
+// ─────────────────────────────────────────────────────────────────────────────
+describe('M6.E11 t4.2 — captureCheckpointContext with the work store on', async () => {
+  const { mkdtemp: mkd, rm: rmr, mkdir: mk, writeFile: wf, readFile: rf, readdir: rd } = await import('node:fs/promises');
+  const { existsSync: ex } = await import('node:fs');
+  const { join: j } = await import('node:path');
+  const { tmpdir: tmp } = await import('node:os');
+  const { captureCheckpointContext: capture } = await import('../plugin/tools/lib/checkpoint.js');
+  const { parseItem } = await import('../plugin/tools/lib/work-item.js');
+  const { GENERATED_MARKER } = await import('../plugin/tools/lib/work-marker.js');
+
+  let root;
+  beforeEach(async () => {
+    root = await mkd(j(tmp(), 'signal-checkpoint-store-'));
+    await mk(j(root, '.planning', 'work'), { recursive: true });
+    await wf(j(root, '.planning', 'work', 'WORK.md'), '---\nkey: SIG\n---\n', 'utf-8');
+  });
+  afterEach(async () => {
+    await rmr(root, { recursive: true, force: true });
+  });
+
+  it('questions become Q items in inbox/ from inside withStateLock — no deadlock', async () => {
+    const res = await capture(root, { questions: ['Who owns the key?', 'Is the lock gitignored?'] });
+    const inbox = j(root, '.planning', 'work', 'inbox');
+    expect((await rd(inbox)).sort()).toEqual(['SIG-1.md', 'SIG-2.md']);
+    const { item, body } = parseItem(await rf(j(inbox, 'SIG-1.md'), 'utf-8'));
+    expect(item).toMatchObject({ type: 'Q', status: 'N', title: 'Who owns the key?', source: '/sig:checkpoint',
+      created: { by: '/sig:checkpoint' } });
+    expect(body).toBe('Who owns the key?');
+    expect(res.wrote).toEqual([j(inbox, 'SIG-1.md'), j(inbox, 'SIG-2.md')]);
+    const oq = await rf(j(root, '.planning', 'OPEN-QUESTIONS.md'), 'utf-8');
+    expect(oq.split('\n')[0]).toBe(GENERATED_MARKER);
+    expect(oq).toContain('## Who owns the key?');
+    expect(ex(j(root, '.planning', '.state.lock'))).toBe(false);
+    expect(ex(j(root, '.planning', 'work', '.lock'))).toBe(false);
+  }, 5000);
+
+  it('decisions still go to CONTEXT.md and DECISIONS.md, unchanged', async () => {
+    const res = await capture(root, { decisions: ['Keep the store opt-in'], questions: ['Q?'] });
+    expect(await rf(j(root, '.planning', 'CONTEXT.md'), 'utf-8')).toContain('- Keep the store opt-in (');
+    expect(await rf(j(root, '.planning', 'DECISIONS.md'), 'utf-8')).toContain('Checkpoint-captured: Keep the store opt-in');
+    expect(res.wrote).toHaveLength(3);
+  });
+
+  it('a pending sensitive-data prompt writes no item', async () => {
+    const res = await capture(root, { questions: ['token AKIAABCDEFGHIJKLMNOP?'] });
+    expect(res.aborted).toBe('sensitive-data-pending');
+    expect(ex(j(root, '.planning', 'work', 'inbox'))).toBe(false);
+  });
+
+  it('a broken WORK.md fails before ANY write — decisions are not half-written', async () => {
+    await wf(j(root, '.planning', 'work', 'WORK.md'), '---\nnokey: 1\n---\n', 'utf-8');
+    await expect(capture(root, { decisions: ['D'], questions: ['Q?'] })).rejects.toMatchObject({ code: 'CONFIG' });
+    expect(ex(j(root, '.planning', 'CONTEXT.md'))).toBe(false);
+    expect(ex(j(root, '.planning', 'DECISIONS.md'))).toBe(false);
+  });
+});
