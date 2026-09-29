@@ -56,3 +56,38 @@ export function isGeneratedFile(path) {
     closeSync(fd);
   }
 }
+
+// ── The inbox status line (REVIEW I8) ───────────────────────────────────────
+//
+// The generated ISSUES-INBOX.md gives each untriaged item this line, and
+// `backlog.js`'s promote reads it back to find WHICH item a drained block is.
+// If the two sides ever disagree the promote finds nothing and captures the
+// block a second time — a twin item, silently. So the format and its parser
+// live here together, in the leaf module both sides already import.
+
+const INBOX_STATUS_PREFIX = '**Status:** untriaged (N) · ';
+const INBOX_STATUS_RE = /^\*\*Status:\*\* untriaged \(N\) · ([A-Z][A-Z0-9]{1,9}-[1-9]\d*)$/;
+
+/**
+ * The status line the generated inbox writes under an untriaged item.
+ * @param {{id: string}} item
+ * @returns {string}
+ */
+export function formatInboxStatusLine(item) {
+  return `${INBOX_STATUS_PREFIX}${item.id}`;
+}
+
+/**
+ * The item ID on an inbox status line, or null when the line is not one.
+ * Trailing whitespace (a `\r` included) is ignored.
+ * @param {string} line
+ * @param {string} [key] — the store's key; an ID under another key is null
+ * @returns {string|null}
+ */
+export function parseInboxStatusLine(line, key) {
+  if (typeof line !== 'string') return null;
+  const m = line.replace(/\s+$/, '').match(INBOX_STATUS_RE);
+  if (!m) return null;
+  if (key !== undefined && m[1].slice(0, m[1].lastIndexOf('-')) !== key) return null;
+  return m[1];
+}

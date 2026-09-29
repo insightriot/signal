@@ -232,3 +232,38 @@ describe('generateAll — reads the store, writes the four files', () => {
     }
   });
 });
+
+// REVIEW I8: the generator writes the inbox status line and backlog.js's
+// promote reads it back to find the item. Two hand-kept copies of one format
+// let a one-sided edit make promote silently capture a twin; one formatter
+// and one parser, in the leaf module both already import, cannot drift.
+describe('the inbox status line — one formatter, one parser (REVIEW I8)', () => {
+  it('round-trips every ID shape, with and without the key', async () => {
+    const { formatInboxStatusLine, parseInboxStatusLine } = await import('../plugin/tools/lib/work-marker.js');
+    for (const id of ['SIG-1', 'SIG-412', 'AB-9', 'A1-10', 'ABCDEFGHIJ-123456']) {
+      const line = formatInboxStatusLine({ id, status: 'N' });
+      const key = id.slice(0, id.lastIndexOf('-'));
+      expect(parseInboxStatusLine(line)).toBe(id);
+      expect(parseInboxStatusLine(line, key)).toBe(id);
+      expect(parseInboxStatusLine(`${line}\r`, key)).toBe(id);
+      expect(parseInboxStatusLine(`${line}  `, key)).toBe(id);
+      expect(parseInboxStatusLine(line, key === 'SIG' ? 'XY' : 'SIG')).toBeNull();
+    }
+  });
+
+  it('reads nothing that is not the line', async () => {
+    const { parseInboxStatusLine } = await import('../plugin/tools/lib/work-marker.js');
+    for (const line of ['', '**Status:** untriaged (N) · SIG-0', '**Status:** untriaged (N) · sig-1',
+      '**Status:** open · SIG-1', 'x **Status:** untriaged (N) · SIG-1', '**Status:** untriaged (N) · SIG-1 extra']) {
+      expect(parseInboxStatusLine(line, 'SIG')).toBeNull();
+    }
+  });
+
+  it('the generated inbox carries exactly the formatter\'s line for each N item', async () => {
+    const { formatInboxStatusLine } = await import('../plugin/tools/lib/work-marker.js');
+    const inbox = generateFiles(sample())['ISSUES-INBOX.md'];
+    const n = sample().items.filter((e) => e.item.status === 'N' && e.item.type !== 'BUG' && e.item.type !== 'Q');
+    expect(n.length).toBeGreaterThan(0);
+    for (const e of n) expect(inbox.split('\n')).toContain(formatInboxStatusLine(e.item));
+  });
+});

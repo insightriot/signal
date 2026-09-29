@@ -39,7 +39,7 @@ import { deriveBugCounts, formatTallySegment } from './bugs-tally.js';
 import { EPIC_ID_STRICT_RE, parseFrontmatter, StateSchemaError } from './state.js';
 import { parseItem, WorkStoreError } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
-import { GENERATED_MARKER, isGeneratedFile } from './work-marker.js';
+import { formatInboxStatusLine, GENERATED_MARKER, isGeneratedFile } from './work-marker.js';
 import { FOLDERS, isStoreOn, parseItemFileName, walkFiles, WORK_DIR } from './work-store.js';
 
 // The marker lives in the leaf `work-marker.js` so `atomic-write.js` can check
@@ -157,7 +157,7 @@ function generateInbox(items, watchlist) {
   if (watchlist) parts.push(rewriteRelativeLinks(watchlist.text, watchlist.dir, '').trimEnd(), '', '---', '');
   for (const e of items.filter((x) => x.item.status === 'N' && x.item.type !== 'BUG' && x.item.type !== 'Q')) {
     const body = demoteHeadings(withoutLeadingHeading(atPlanning(e)));
-    parts.push(`## ${e.item.title ?? e.item.id}`, '', `**Status:** untriaged (N) · ${e.item.id}`, '');
+    parts.push(`## ${e.item.title ?? e.item.id}`, '', formatInboxStatusLine(e.item), '');
     if (body) parts.push(body, '');
     parts.push('---', '');
   }

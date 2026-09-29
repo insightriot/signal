@@ -29,6 +29,7 @@ import { createHash } from 'node:crypto';
 
 import { atomicWrite } from './atomic-write.js';
 import { insertAboveFooter, rewriteFooter, buildBugsEntry, insertAtEnd } from './add.js';
+import { parseInboxStatusLine } from './work-marker.js';
 import { isStoreOn } from './work-store.js';
 
 const BACKLOG_REL = '.planning/BACKLOG.md';
@@ -155,7 +156,8 @@ export function blockKey(block) {
 // because the store has no tag and these are the nearest types it has.
 //
 // Which item: a block cut from the GENERATED inbox carries
-// `**Status:** untriaged (N) · SIG-n`, so that item is promoted — it is not
+// `**Status:** untriaged (N) · SIG-n` (read by `work-marker.js`'s
+// `parseInboxStatusLine`, the generator's own format), so that item is promoted — it is not
 // captured a second time. A block with no such line (a raw block handed in
 // directly) becomes a new item first. Dedupe survives: an item already past
 // triage is not promoted again, and a raw block's sha1 key is recorded as the
@@ -167,8 +169,11 @@ export function blockKey(block) {
 const STORE_SOURCE = '/sig:plan drain';
 
 function inboxItemId(block, key) {
-  const re = new RegExp(`^\\*\\*Status:\\*\\* untriaged \\(N\\) · (${key}-[1-9]\\d*)\\s*$`, 'm');
-  return block.match(re)?.[1] ?? null;
+  for (const line of block.split('\n')) {
+    const id = parseInboxStatusLine(line, key);
+    if (id !== null) return id;
+  }
+  return null;
 }
 
 async function promoteInStore(baseDir, { block, type, title, keyName, by }) {
