@@ -43,6 +43,7 @@ import { enumerateRetros, parseExistingHooks, renderIndex } from './retro-index.
 import { runDriftChecks, renderDriftReport } from './state-drift.js';
 import { ALL_DRIFT_CHECKS, REACH } from './published-facts.js';
 import { backlogDischargeStatus, BACKLOG_DISCHARGE, REASON_NO_BACKLOG } from './backlog.js';
+import { isStoreOn, checkStore } from './work-store.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -309,6 +310,32 @@ export async function checkStaleInbox(baseDir) {
   return [];
 }
 
+/**
+ * The work store's own consistency (portable, advisory — M6.E11 t6.2, AC-3.3).
+ *
+ * With `.planning/work/WORK.md` present, each `checkStore` finding (an item in
+ * the wrong status folder, a duplicate ID, a schema violation, a file name that
+ * disagrees with its `id`) becomes one advisory finding carrying its path and
+ * message. Advisory in every case: the fix is `/sig:item`, not this sweep.
+ *
+ * Store off → no findings, so a project without the store sees no change.
+ * A broken WORK.md makes `isStoreOn` throw; that is reported as ONE advisory
+ * rather than read as "off" or allowed to crash the sweep.
+ *
+ * @param {string} baseDir — project root (where `.planning/` lives)
+ * @returns {Array<{check: string, severity: string, file: string, message: string}>}
+ */
+export function checkWorkStore(baseDir) {
+  const rel = PLANNING_DIR + '/work/WORK.md';
+  try {
+    if (!isStoreOn(baseDir).on) return [];
+    return checkStore(baseDir).map((f) =>
+      mkFinding('work-store', 'advisory', f.path ?? f.paths?.[0] ?? rel, f.message));
+  } catch (err) {
+    return [mkFinding('work-store', 'advisory', rel, `the work store could not be checked — ${err.message}`)];
+  }
+}
+
 // CLAUDE.md bloat threshold (AD6). A COARSE advisory nudge — NOT the STATE size
 // threshold (STATE accretes history; CLAUDE.md loads every turn, so it must stay
 // lean). PLAN-set default; revisitable in VERIFY if dogfooding shows noise.
@@ -411,7 +438,8 @@ const normalizeSeverity = (f) => (SEVERITY_MAP[f.severity] ? { ...f, severity: S
 /**
  * The full read-only sweep (FR1). Composes the portable check set (dead-links +
  * `[FILL IN]` over the widened `.planning/`-inclusive scope, index-freshness,
- * stale-inbox, CLAUDE.md-bloat — meaningful in any repo) and, gated on the
+ * stale-inbox, work-store (only when the store is on), CLAUDE.md-bloat —
+ * meaningful in any repo) and, gated on the
  * plugin manifest at its canonical `.claude-plugin/plugin.json` path, the
  * Signal-only set (roster, version, command-frontmatter). When the manifest is
  * absent the Signal-only checks are skipped and the fact is recorded on the
@@ -528,6 +556,7 @@ export async function runSweep(baseDir = process.cwd()) {
   raw.push(...(await checkRetroIndexFreshness(baseDir)));
   raw.push(...(await checkStaleInbox(baseDir)));
   raw.push(...(await checkBacklogDischarge(baseDir)));
+  raw.push(...checkWorkStore(baseDir));
   raw.push(...checkClaudeMdBloat(baseDir));
   raw.push(...(await checkPhaseLog(baseDir)));
 
