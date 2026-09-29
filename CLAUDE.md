@@ -258,7 +258,7 @@ There is a second, softer reason: `commands/ship.md` §2 asks you to curate a co
 
 **Why this is enforced rather than written down.** `ship.md` used to carry a parenthetical exempting "the Signal-on-Signal flow" from its own Exit Criteria — which require a PR and an approval. It was written 2026-05-26; **thirteen releases shipped under it and exactly one pull request existed in that span.** The file defining the rule was the file granting the exception, so nothing caught it. Removed in v0.1.15, and the gate now lives in a GitHub ruleset because this repo has twice been bitten by rules that existed only as prose (`B7`→`B58`, `B39`).
 
-**Delivery** (`D-M5E17-4`): `marketplace.json` uses the relative `.` source — the plugin *is* this repo — so **users track `main`**, not a pinned tag. There is no `ref` or `sha` to keep in sync, and reintroducing them fails `install-contract.test.js`. Bumping `plugin.json` is what makes an update visible to users. Tags are bookmarks, not delivery.
+**Delivery** (`D-M5E17-4`): `marketplace.json` uses the relative `./plugin` source — the plugin is this repo's `plugin/` folder (since `M6.E1`) — so **users track `main`**, not a pinned tag. There is no `ref` or `sha` to keep in sync, and reintroducing them fails `install-contract.test.js`. Bumping `plugin.json` is what makes an update visible to users. Tags are bookmarks, not delivery.
 
 ### House rules, and how one becomes a check
 

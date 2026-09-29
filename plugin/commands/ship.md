@@ -184,7 +184,7 @@ On an **Epic-close** SHIP (when `shipFR1Check` returned `{isEpicClose: true}` in
 
 Call `dischargeBacklogRows(baseDir, {rows, by: state.current_epic, at: <today>})` from `tools/lib/backlog.js`, where `rows` are heading substrings **you name** from the Epic's own scope.
 
-**Work store on:** the same call closes each matched item (`closeItem`, reason `fixed`, the discharge stamp as proof) instead of editing `BACKLOG.md`, which is generated. Stage the moved item files.
+**Work store on:** the same call closes each matched item (`closeItem`, reason `fixed`, the discharge stamp as proof) instead of editing `BACKLOG.md`, which is generated. Stage the changed item files: an item in the Epic's folder closes in place and does not move (`D-M6E11-29`); one with no Epic moves to `done/YYYY-MM/`.
 
 *(That call sits on one line deliberately. `directive-classifier.js` reads at line granularity, so a
 call name wrapped across a break is invisible to it and the instruction ships **unmeasurable** —

@@ -151,7 +151,7 @@ All destinations share the same spine: scrub + body-length check run before the 
 
 ### 7. Success message
 
-Print exactly, substituting the destination's actual relative path (`result.path` relative to the project root) — the resolved inbox (`.planning/ISSUES-INBOX.md` or legacy `.planning/FUTURE-IDEAS.md`) for the default, `.planning/OPEN-QUESTIONS.md` for `--question`, `.planning/BUGS.md` for `--bug`, the resolved `.planning/MILESTONE-{N}.md` for `--milestone [N]`:
+Print exactly, substituting the destination's actual relative path (`result.path` relative to the project root) — the resolved inbox (`.planning/ISSUES-INBOX.md` or legacy `.planning/FUTURE-IDEAS.md`) for the default, `.planning/OPEN-QUESTIONS.md` for `--question`, `.planning/BUGS.md` for `--bug`, the resolved `.planning/MILESTONE-{N}.md` for `--milestone [N]`. Those paths are for the work store **off**. With it **on**, `result.path` is the new item file (`.planning/work/inbox/{result.id}.md`) — use it as-is, and name the item by `result.label`:
 
 ```
 Added to {path} (line {result.line}).
