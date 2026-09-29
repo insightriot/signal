@@ -371,6 +371,38 @@ describe('t5.3 — an Epic\'s README.md', () => {
     expect(existsSync(join(base, EPIC))).toBe(false);
   });
 
+  // REVIEW I9: the README goes in first, so a failure moving the ITEM must take
+  // the README (and the folder it created) back out — or EPICS.md lists an
+  // Epic with no items that nobody created.
+  it('a failed item move into a new Epic leaves no README, no folder, and no phantom in EPICS.md', async () => {
+    const it1 = await newItem(base, { type: 'FEAT', title: 'x', by: 'b' });
+    await moveItem(base, it1.id, { status: 'T' });
+    const before = await read(`.planning/work/backlog/${it1.id}.md`);
+    const renameFn = async (from, to) => {
+      if (to.endsWith(`${it1.id}.md`)) throw new Error('disk full');
+      const { rename } = await import('node:fs/promises');
+      return rename(from, to);
+    };
+    await expect(moveItem(base, it1.id, { status: 'Q', epic: 'M6.E99' }, { renameFn })).rejects.toThrow(/disk full/);
+    expect(await read(`.planning/work/backlog/${it1.id}.md`)).toBe(before);
+    expect(existsSync(join(base, EPIC))).toBe(false);
+    await generateAll(base);
+    expect(await read('.planning/work/EPICS.md')).not.toContain('M6.E99');
+  });
+
+  it('a failed item move into an existing Epic folder keeps the README that was already there', async () => {
+    await put(`${EPIC}/README.md`, '---\nepic: M6.E99\n---\n# Mine\n');
+    const it1 = await newItem(base, { type: 'FEAT', title: 'x', by: 'b' });
+    await moveItem(base, it1.id, { status: 'T' });
+    const renameFn = async (from, to) => {
+      if (to.endsWith(`${it1.id}.md`)) throw new Error('disk full');
+      const { rename } = await import('node:fs/promises');
+      return rename(from, to);
+    };
+    await expect(moveItem(base, it1.id, { status: 'Q', epic: 'M6.E99' }, { renameFn })).rejects.toThrow(/disk full/);
+    expect(await read(`${EPIC}/README.md`)).toBe('---\nepic: M6.E99\n---\n# Mine\n');
+  });
+
   it('moveItem into an Epic never overwrites its README', async () => {
     await put(`${EPIC}/README.md`, '---\nepic: M6.E99\n---\n# Mine\n');
     const it1 = await newItem(base, { type: 'FEAT', title: 'x', by: 'b' });
