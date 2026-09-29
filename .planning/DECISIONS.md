@@ -3686,3 +3686,19 @@ the bare form still resolves one step lower. `retro-index.js:136` and `planning-
 retrospectives across folders by the `{EpicID}-` prefix, and t7.5's `git mv` keeps names. Also: a
 broken `WORK.md` now makes every phase command's artifact resolution throw `CONFIG` — deliberate
 (the store never silently falls back to off), and visible.
+
+## 2026-09-29 — M6.E11 VERIFY loop 1 (D-M6E11-31, D-M6E11-32)
+
+### D-M6E11-31 — A closed item is reopened, not re-captured
+Brett, 2026-09-29, asked at VERIFY: when something closed comes back, **reopen the same item**
+(`/sig:item reopen SIG-n`) — it returns to `backlog/` as T, and its previous close (who, when, why,
+proof) is kept in the file's `history`, never erased. One thing's story stays in one file. Chosen
+over "new item linked to the old" and "decide later".
+
+### D-M6E11-32 — AC-7.3 compares `/sig:advise` to the items the generated BACKLOG carries
+As written, AC-7.3 said "the items in `backlog/` (plus open Epic items)". `backlog/` holds every T
+item — bugs and questions too (90) — while the generated BACKLOG.md carries only open non-BUG,
+non-Q items (48, by `D-M6E11-20`'s placement rule). The comparison that means something is to the
+generated file's items. "With no discharge inference involved" was also too strong: `/sig:advise`
+still drops 4 of the 48 by wording (`declaresNotLiveWork`) — those are the 4 rows owed a triage.
+Found at EXECUTE (S2), confirmed by the VERIFY pass; recorded here rather than only in PROGRESS.
