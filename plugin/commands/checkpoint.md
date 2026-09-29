@@ -98,7 +98,7 @@ For each non-empty response, split into trimmed lines, then call (default `ackno
 const result = await captureCheckpointContext(baseDir, { decisions, questions });
 ```
 
-`captureCheckpointContext` (S6.t1 contract — matches `tools/lib/add.js`) scrubs **before** any write. **Work store on** (`.planning/work/WORK.md` exists): each question becomes its own Q item in `.planning/work/inbox/` instead of a line appended to `OPEN-QUESTIONS.md`, which is generated; `result.wrote` names the item files. Decisions are written as before. There are three outcomes:
+`captureCheckpointContext` (S6.t1 contract — matches `tools/lib/add.js`) scrubs **before** any write. **Work store on** (`.planning/work/WORK.md` exists): each question becomes its own Q item in `.planning/work/inbox/` instead of a line appended to `OPEN-QUESTIONS.md`, which is generated; `result.wrote` names the item files. Decisions are written as before, after the questions. There are four outcomes:
 
 1. **No hits, writes proceed.** `result.wrote.length > 0`, `result.sensitiveHits === []`. Continue to step 8.
 2. **Hits found, default refuse-to-write.** `result.wrote === []`, `result.aborted === 'sensitive-data-pending'`, `result.sensitiveHits` lists the matches. **No files mutated.** Surface the hits via `AskUserQuestion(strict-enum, [keep, abort])`:
@@ -108,6 +108,7 @@ const result = await captureCheckpointContext(baseDir, { decisions, questions })
    - On `keep`: re-call `captureCheckpointContext(baseDir, { decisions, questions, acknowledgeSensitive: true })`. Writes happen now; `result.sensitiveHits` is still surfaced for audit. Continue to step 8.
    - On `abort`: do nothing — no writes happened, nothing to roll back. Continue to step 8 with the discard-summary line.
 3. **Acknowledged path.** When the caller already passed `acknowledgeSensitive: true` (the re-call above), writes proceed and `result.aborted` is `undefined`.
+4. **Work store on, and the questions could not be written.** `result.aborted === 'work-store-failed'`, `result.error.message` says why (most often another work-store change holding its lock). The questions are written first, all together, so on this outcome **the decisions were not written either** and no question item remains — unless `result.wrote` is non-empty, which means the items landed and only regenerating the lists failed. Show `result.error.message` verbatim. If `result.wrote` is empty, offer to re-run the same capture; otherwise the questions are already items, so re-run with the decisions only. Never report this outcome as saved.
 
 ### 8. Success message
 

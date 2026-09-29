@@ -421,29 +421,88 @@ function scrubFields(specs) {
  *   `{aborted: 'sensitive-data-pending', sensitiveHits}` when nothing was written
  */
 export async function newItem(baseDir, fields = {}, opts = {}) {
-  const { type = 'NEW', title, body = '', source, source_ref, theme, priority, by, at, linksFrom = '' } = fields;
+  const r = await newItems(baseDir, [fields], opts);
+  return Array.isArray(r) ? r[0] : r;
+}
+
+/**
+ * Capture several new items at once (REVIEW I7): ONE `work` lock, sequential
+ * IDs from one `nextId`, every item validated before any is written, and ONE
+ * regeneration at the end. `/sig:checkpoint` uses it for its questions, so a
+ * busy lock or a failed write cannot leave some of them written and some not.
+ *
+ * All or nothing for the item files: if writing item k fails, the items this
+ * call wrote before it are removed (and any folder it created, while empty),
+ * so the store is as it was. Nothing it did not create is touched.
+ *
+ * Regeneration is NOT part of that undo, as for every other mutation here
+ * (`regenerate`): once the items are written they are correct, and a failed
+ * regeneration leaves them standing with an error that says so. Whatever is
+ * thrown after the items landed carries `err.written` — their paths,
+ * relative to `baseDir` — and one thrown before carries `err.written = []`.
+ *
+ * @param {string} baseDir
+ * @param {Array<object>} specs — each as `newItem`'s `fields`
+ * @param {{execFn?: Function, renameFn?: Function, acknowledgeSensitive?: boolean}} [opts]
+ *   the sensitive-data rule is `newItem`'s, over every spec's title and body
+ * @returns {Promise<object[]|{aborted: 'sensitive-data-pending', sensitiveHits: object[]}>}
+ *   the items' frontmatter in spec order
+ */
+export async function newItems(baseDir, specs, opts = {}) {
+  if (!Array.isArray(specs) || specs.length === 0) {
+    throw new WorkStoreError('SCHEMA', 'newItems: pass at least one item — nothing was written.');
+  }
   requireStore(baseDir);
-  const sensitiveHits = scrubFields([{ title, body }]);
+  const sensitiveHits = scrubFields(specs.map(({ title, body }) => ({ title, body })));
   if (sensitiveHits.length > 0 && !opts.acknowledgeSensitive) {
     return { aborted: 'sensitive-data-pending', sensitiveHits };
   }
-  return withWorkLock(baseDir, async () => {
-    const { id } = nextId(baseDir, { execFn: opts.execFn });
-    const item = { id, type, status: 'N', title, theme, priority, source, source_ref,
-      created: { at: at ?? new Date().toISOString(), by } };
-    for (const k of Object.keys(item)) if (item[k] === undefined) delete item[k];
-    assertValid(item, `new item ${id}`);
+  const written = [];
+  try {
+    return await withWorkLock(baseDir, async () => {
+      const { id: first } = nextId(baseDir, { execFn: opts.execFn });
+      const key = first.slice(0, first.lastIndexOf('-'));
+      const start = num(first);
+      const dirRel = `${WORK_DIR}/${FOLDERS.inbox}`;
 
-    const dirRel = `${WORK_DIR}/${FOLDERS.inbox}`;
-    const rel = `.planning/${dirRel}/${id}.md`;
-    const abs = join(baseDir, rel);
-    assertRealInsidePlanning(baseDir, abs, '/sig:item new');
-    if (exists(abs)) throw new WorkStoreError('CONFLICT', `${rel} already exists — nothing was written.`);
-    mkdirSync(dirname(abs), { recursive: true });
-    await atomicWrite(abs, stringifyItem(item, rewriteRelativeLinks(body, linksFrom, dirRel)), { renameFn: opts.renameFn });
-    await regenerate(baseDir, `${id} was written to ${rel}`);
-    return item;
-  });
+      // Every item as it will be, validated and confined, before any write.
+      const planned = specs.map((fields, i) => {
+        const { type = 'NEW', title, body = '', source, source_ref, theme, priority, by, at, linksFrom = '' } = fields;
+        const id = `${key}-${start + i}`;
+        const item = { id, type, status: 'N', title, theme, priority, source, source_ref,
+          created: { at: at ?? new Date().toISOString(), by } };
+        for (const k of Object.keys(item)) if (item[k] === undefined) delete item[k];
+        assertValid(item, `new item ${id}`);
+        const rel = `.planning/${dirRel}/${id}.md`;
+        const abs = join(baseDir, rel);
+        assertRealInsidePlanning(baseDir, abs, '/sig:item new');
+        if (exists(abs)) throw new WorkStoreError('CONFLICT', `${rel} already exists — nothing was written.`);
+        return { item, rel, abs, text: stringifyItem(item, rewriteRelativeLinks(body, linksFrom, dirRel)) };
+      });
+
+      const inboxAbs = join(baseDir, '.planning', dirRel);
+      const firstCreated = mkdirSync(inboxAbs, { recursive: true });
+      try {
+        for (const p of planned) {
+          await atomicWrite(p.abs, p.text, { renameFn: opts.renameFn });
+          written.push(p.rel);
+        }
+      } catch (err) {
+        // Undo only this batch's own files: each was created here (the
+        // CONFLICT check above), so removing it cannot touch anything else.
+        for (const rel of [...written].reverse()) unlinkSync(join(baseDir, rel));
+        written.length = 0;
+        if (firstCreated) removeCreatedDirs(inboxAbs, firstCreated);
+        throw err;
+      }
+      const ids = planned.map((p) => p.item.id);
+      await regenerate(baseDir, `${ids.join(', ')} ${ids.length === 1 ? 'was' : 'were'} written to .planning/${dirRel}/`);
+      return planned.map((p) => p.item);
+    });
+  } catch (err) {
+    if (err && typeof err === 'object') err.written = [...written];
+    throw err;
+  }
 }
 
 /**
