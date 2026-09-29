@@ -4,10 +4,11 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-09-29) — M6.E11 DISCUSS DONE, PLAN NEXT
+## Where things stand (2026-09-29) — M6.E11 EXECUTE DONE, VERIFY NEXT
 
 **`v0.1.42` is on `main`** (`M6.E3` shipped). **`M6.E11` — the work-item store, step 1 — is on
-`feat/m6.e11-work-item-store`, DISCUSS complete, `/sig:plan` next.** One file per thing
+`feat/m6.e11-work-item-store`, EXECUTE complete, `/sig:verify` next.** Signal's own records are migrated
+(248 items); its artifacts now live in `work/epics/M6.E11/`. One file per thing
 (`SIG-412.md`), created at capture and *moved* through `inbox/` → `backlog/` → `epics/<id>/` →
 `done/`; one command (`/sig:item`) does every move; the old list files become generated. Opt-in by
 `.planning/work/WORK.md`, so projects that haven't switched see no change. Nothing is ever deleted.
