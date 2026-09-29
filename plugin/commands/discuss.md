@@ -151,7 +151,7 @@ derives off the `current_epic` just written and `setCurrentEpic` rolls again —
 
 ## Workflow
 
-**Artifact naming (M4.5.E11).** In **Epic mode** (a strict `current_epic`) write REQUIREMENTS via `artifactName('REQUIREMENTS', { currentEpic })` (`tools/lib/resume.js`) → `{EpicID}-REQUIREMENTS.md`; in **linear mode** it stays `REQUIREMENTS.md`, byte-identical to pre-E11. `CONTEXT.md` is a project-level running doc — **never** Epic-prefixed, in either mode.
+**Artifact naming (M4.5.E11).** In **Epic mode** (a strict `current_epic`) write REQUIREMENTS via `artifactName('REQUIREMENTS', { currentEpic, planningDir })` (`tools/lib/resume.js`) → `{EpicID}-REQUIREMENTS.md`; in **linear mode** it stays `REQUIREMENTS.md`, byte-identical to pre-E11. `CONTEXT.md` is a project-level running doc — **never** Epic-prefixed, in either mode.
 
 ### 1. Load Prior Context
 
@@ -216,7 +216,7 @@ Write all locked decisions to `.planning/CONTEXT.md`:
 
 ### 6. Generate Requirements
 
-If the discussion surface enough detail, generate the REQUIREMENTS artifact (`artifactName('REQUIREMENTS', { currentEpic })` — `REQUIREMENTS.md` linear / `{EpicID}-REQUIREMENTS.md` Epic) with:
+If the discussion surface enough detail, generate the REQUIREMENTS artifact (`artifactName('REQUIREMENTS', { currentEpic, planningDir })` — `REQUIREMENTS.md` linear / `{EpicID}-REQUIREMENTS.md` Epic) with:
 - Functional requirements (what it must do)
 - Non-functional requirements (performance, security, accessibility)
 - Acceptance criteria for each requirement

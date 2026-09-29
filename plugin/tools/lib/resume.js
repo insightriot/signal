@@ -11,7 +11,7 @@
 
 import { existsSync, realpathSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { join, resolve, sep } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 
 import {
   detectOrphans,
@@ -24,6 +24,7 @@ import {
 } from './state.js';
 import { formatTierLine } from './status.js';
 import { confidenceWords } from './jev.js';
+import { isStoreOn } from './work-store.js';
 
 const PHASES = ['CALIBRATE', 'DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'SHIP'];
 
@@ -33,6 +34,26 @@ const PHASES = ['CALIBRATE', 'DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', '
 // else falls through to the legacy patterns.
 const EPIC_ID_RE = /^[A-Za-z0-9._-]+$/;
 
+// The Epic's folder in the work store, relative to `.planning/` — or null
+// when the store is off, the Epic ID is not strict (the store's own folder
+// rule, `EPIC_ID_STRICT_RE`), or the folder does not exist.
+//
+// Canonical file name inside the folder: `{EpicID}-{ARTIFACT}.md`, the same
+// basename the artifact has in `.planning/` (M6.E11 t5.1). Chosen over the bare
+// `{ARTIFACT}.md` because recursive readers key on the prefix —
+// `retro-index.js` and `planning-index.js` find retrospectives by
+// `{EpicID}-RETROSPECTIVE.md` — and because moving an Epic's existing
+// artifacts into its folder (`git mv`, names kept) then needs no rename. The
+// bare form is still resolved, one step below.
+//
+// A broken WORK.md throws (`isStoreOn`): the store never reads as off.
+function epicFolderRel(planningRoot, currentEpic, existsFn = existsSync) {
+  if (typeof currentEpic !== 'string' || !EPIC_ID_STRICT_RE.test(currentEpic)) return null;
+  if (!isStoreOn(dirname(planningRoot)).on) return null;
+  const rel = `work/epics/${currentEpic}`;
+  return existsFn(join(planningRoot, rel)) ? rel : null;
+}
+
 /**
  * Resolve a phase artifact's path within `.planning/`, trying, in precedence:
  *   0. `${currentEpic}-${artifact}.md`  — Epic-prefixed; only when currentEpic
@@ -40,6 +61,11 @@ const EPIC_ID_RE = /^[A-Za-z0-9._-]+$/;
  *   1. `${N}-${artifact}.md` for N in 1..9  — numeric/GSD prefix (ascending N).
  *   2. `${artifact}.md`  — no-prefix simplified form.
  *   3. `${phase}-${artifact}.md`  — literal-substitution form (e.g. PLAN-PLAN).
+ *
+ * With the work store on and `.planning/work/epics/{currentEpic}/` present
+ * (M6.E11 t5.1), two candidates come first: `work/epics/{id}/{id}-{artifact}.md`
+ * (the canonical name, which is what `artifactName` writes) and
+ * `work/epics/{id}/{artifact}.md`. Otherwise the list is exactly the above.
  *
  * Returns the first existing candidate as an absolute path, or `null`.
  *
@@ -81,7 +107,14 @@ export function resolveArtifactPath(planningDir, artifact, opts = {}) {
   // the other's regex. Pattern 0 stays BELOW as a fallback rather than being
   // tightened away: live non-strict projects (eval-project-C) have only
   // Epic-prefixed files on disk, and their reads must keep working.
-  rawCandidates.push(artifactName(artifact, { currentEpic }));
+  // Pattern F (M6.E11 t5.1, D-M6E11-23) — the Epic's folder in the work
+  // store, tried before everything else. Pattern W below already IS the
+  // canonical folder name when the folder exists (artifactName is given
+  // planningDir), so F adds only the bare `<ARTIFACT>.md` form, one step below
+  // it. Nothing is added unless the store is on and the folder exists.
+  const folder = epicFolderRel(planningRoot, currentEpic, existsFn);
+  rawCandidates.push(artifactName(artifact, { currentEpic, planningDir: planningRoot }));
+  if (folder) rawCandidates.push(`${folder}/${artifact}.md`);
   if (typeof currentEpic === 'string' && currentEpic && EPIC_ID_RE.test(currentEpic)) {
     rawCandidates.push(`${currentEpic}-${artifact}.md`); // pattern 0
   }
@@ -105,8 +138,9 @@ export function resolveArtifactPath(planningDir, artifact, opts = {}) {
     if (!full.startsWith(planningRoot + sep)) continue;
     if (!existsFn(full)) continue;
     // Symlink-aware read-side confinement (B14 / FR2): the lexical guard above is
-    // blind to a checked-in symlink. Candidates are flat (dirname === planningRoot
-    // always), and this path is RETURNED for a caller to READ, so a LEAF symlink
+    // blind to a checked-in symlink. Candidates are flat except the Epic-folder
+    // ones (M6.E11), whose symlinked folder realpath also resolves through, and
+    // this path is RETURNED for a caller to READ, so a LEAF symlink
     // WOULD be followed — hence realpath the leaf `full` (the write sites rename
     // OVER the leaf and instead anchor on dirname). realpath both sides; refuse a
     // candidate that resolves out of the tree. A realpath throw means the path
@@ -153,14 +187,22 @@ const LINEAR_UNPREFIXED = new Set(['REQUIREMENTS']);
  * linear mode the retro is milestone-scoped and written by ship via
  * `deriveRetroPath`, not through a phase command's `artifactName` call.
  *
+ *   - Epic folder (M6.E11 t5.1, D-M6E11-23): with `planningDir` given, the
+ *     work store on, and `.planning/work/epics/{EpicID}/` present, the name is
+ *     `work/epics/{EpicID}/{EpicID}-{artifact}.md` — a path relative to
+ *     `.planning/`, joined the same way as every other result. Without
+ *     `planningDir` nothing on disk is read and the result is as above.
+ *
  * @param {string} artifact — artifact base name, e.g. 'PLAN', 'REQUIREMENTS'
- * @param {{currentEpic?: string|null, phase?: string|null}} [opts]
- * @returns {string} the file name (no directory) to write under `.planning/`
+ * @param {{currentEpic?: string|null, phase?: string|null, planningDir?: string|null}} [opts]
+ * @returns {string} the path, relative to `.planning/`, to write
+ * @throws {WorkStoreError} CONFIG when `planningDir` is given and its WORK.md is broken
  */
 export function artifactName(artifact, opts = {}) {
-  const { currentEpic = null } = opts;
+  const { currentEpic = null, planningDir = null } = opts;
   if (typeof currentEpic === 'string' && EPIC_ID_STRICT_RE.test(currentEpic)) {
-    return `${currentEpic}-${artifact}.md`;
+    const folder = planningDir ? epicFolderRel(resolve(planningDir), currentEpic) : null;
+    return folder ? `${folder}/${currentEpic}-${artifact}.md` : `${currentEpic}-${artifact}.md`;
   }
   if (LINEAR_UNPREFIXED.has(artifact)) return `${artifact}.md`;
   return `1-${artifact}.md`;

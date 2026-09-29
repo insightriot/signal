@@ -59,7 +59,7 @@ Full load (~12,700 tokens) is the heaviest in the workflow but token-budget anal
 
 ## Workflow
 
-**Artifact naming (M4.5.E11).** Name each artifact this phase writes with `artifactName(ARTIFACT, { currentEpic })` (`tools/lib/resume.js`), and resolve ones it reads with `resolveArtifactPath(planningDir, ARTIFACT, { currentEpic, phase })` — `currentEpic` is `current_epic` from STATE. **Epic mode** → `{EpicID}-{ARTIFACT}.md` (e.g. `M4.5.E11-REVIEW.md`); **linear mode** → the `{phase}-{ARTIFACT}.md` forms below, byte-identical to pre-E11. Substitute the `artifactName` result wherever this file writes a literal `.planning/{phase}-*.md` path.
+**Artifact naming (M4.5.E11).** Name each artifact this phase writes with `artifactName(ARTIFACT, { currentEpic, planningDir })` (`tools/lib/resume.js`), and resolve ones it reads with `resolveArtifactPath(planningDir, ARTIFACT, { currentEpic, phase })` — `currentEpic` is `current_epic` from STATE. **Epic mode** → `{EpicID}-{ARTIFACT}.md` (e.g. `M4.5.E11-REVIEW.md`); **linear mode** → the `{phase}-{ARTIFACT}.md` forms below, byte-identical to pre-E11. Substitute the `artifactName` result wherever this file writes a literal `.planning/{phase}-*.md` path.
 
 ### 1. Code Quality Review
 
@@ -168,7 +168,7 @@ is the failure this whole step exists to stop.
 
 ### 5. Write Review Report
 
-Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic })` — `{phase}-REVIEW.md` linear / `{EpicID}-REVIEW.md` Epic):
+Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir })` — `{phase}-REVIEW.md` linear / `{EpicID}-REVIEW.md` Epic):
 ```markdown
 # Review Report — Phase {n}
 
