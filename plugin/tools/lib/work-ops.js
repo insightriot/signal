@@ -64,10 +64,11 @@ import {
   STORE_OFF_MESSAGE,
   walkFiles,
   WORK_DIR,
+  WORK_LOCK_REL,
   WORK_LOCK_TTL_MS,
 } from './work-store.js';
 
-export const WORK_LOCK_REL = `.planning/${WORK_DIR}/.lock`;
+export { WORK_LOCK_REL };
 
 // ── Shared plumbing ──────────────────────────────────────────────────────────
 

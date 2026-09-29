@@ -38,6 +38,10 @@ export const FOLDERS = Object.freeze({ inbox: 'inbox', backlog: 'backlog', epics
 // this one value — a taker with a shorter one would steal a live lock.
 export const WORK_LOCK_TTL_MS = 120_000;
 
+// The store's `work` lock, relative to the project root. Every taker builds the
+// path from this one constant.
+export const WORK_LOCK_REL = `.planning/${WORK_DIR}/.lock`;
+
 // Same shape as the key half of ITEM_ID_RE — they must not drift apart.
 export const STORE_KEY_RE = /^[A-Z][A-Z0-9]{1,9}$/;
 

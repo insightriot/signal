@@ -49,7 +49,7 @@ import { INBOX_NEW, INBOX_LEGACY, LEDGER_NEW, LEDGER_LEGACY } from './inbox-path
 import { acquireLock } from './file-lock.js';
 import { isGeneratedText } from './work-marker.js';
 import { lockFailure, WorkStoreError } from './work-errors.js';
-import { isStoreOn, WORK_DIR, WORK_LOCK_TTL_MS } from './work-store.js';
+import { isStoreOn, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
 
 // The scaffold doc-types that archive with a closed Epic. A project-AGNOSTIC
 // domain constant (the doc-runtime scaffold set) — NOT a project literal like a
@@ -659,7 +659,7 @@ export async function applyArchiveTree(baseDir, opts = {}) {
   // migrate caller already holds. Only when something changed.
   if ((staleGenerated || rewrittenFiles > 0) && storeOn) {
     const { generateAll } = await import('./work-generate.js');
-    const lockPath = join(baseDir, PLANNING_DIR, WORK_DIR, '.lock');
+    const lockPath = join(baseDir, WORK_LOCK_REL);
     let lock;
     try {
       lock = await acquireLock(lockPath, { label: 'work store', ttlMs: WORK_LOCK_TTL_MS });

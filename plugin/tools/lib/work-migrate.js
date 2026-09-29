@@ -40,8 +40,7 @@ import { EPICS_INDEX_REL, GENERATED_FILES, generateAll, WATCHLIST_FILE } from '.
 import { stringifyItem, validateItem, WorkStoreError } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
 import { isGeneratedFile } from './work-marker.js';
-import { WORK_LOCK_REL } from './work-ops.js';
-import { checkStore, isGitRepo, parseItemFileName, walkFiles, WORK_DIR, WORK_FILE, WORK_LOCK_TTL_MS } from './work-store.js';
+import { checkStore, isGitRepo, parseItemFileName, walkFiles, WORK_DIR, WORK_FILE, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
 
 // ── Shared line machinery ────────────────────────────────────────────────────
 
