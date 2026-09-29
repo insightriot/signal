@@ -169,7 +169,8 @@ export function nextId(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
   const store = isStoreOn(baseDir);
   if (!store.on) {
-    throw new WorkStoreError('CONFIG', `The work store is off: ${WORK_FILE_REL} does not exist. ${KEY_FIX}`);
+    throw new WorkStoreError('CONFIG', `The work store is off: ${WORK_FILE_REL} does not exist. `
+      + `Create it with \`key: SIG\` in its frontmatter to turn the store on.`);
   }
   let max = 0;
   for (const rel of ID_TREE_DIRS) max = Math.max(max, maxFromNames(walkFiles(join(baseDir, rel)), store.key));
