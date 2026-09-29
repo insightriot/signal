@@ -481,7 +481,7 @@ export async function newItems(baseDir, specs, opts = {}) {
       const { id: first } = nextId(baseDir, { execFn: opts.execFn });
       const key = first.slice(0, first.lastIndexOf('-'));
       const start = itemNumber(first);
-      const dirRel = `${WORK_DIR}/${FOLDERS.inbox}`;
+      const dirRel = folderFor({ status: 'N' });
 
       // Every item as it will be, validated and confined, before any write.
       const planned = specs.map((fields, i) => {
@@ -1181,7 +1181,7 @@ export async function applyTriage(baseDir, idOrLabel, decision = {}, opts = {}) 
       throw new WorkStoreError('SCHEMA', `${id}: accept needs a type (BUG, FEAT, CHORE or Q) — triage is where it is decided.`);
     }
     assertValid(next, id);
-    const r = await relocate(baseDir, current, next, current.body, `${WORK_DIR}/${FOLDERS.backlog}`, opts);
+    const r = await relocate(baseDir, current, next, current.body, folderFor(next), opts);
     await regenerate(baseDir, `${id} triaged and moved ${r.from} → ${r.to}`);
     return { action, item: next, label: renderLabel(next), ...r };
   });
