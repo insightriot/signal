@@ -512,6 +512,52 @@ export async function closeItem(baseDir, idOrLabel, close = {}, opts = {}) {
   });
 }
 
+/**
+ * Reopen a closed item (D-M6E11-31): it goes back to `backlog/` as T, and its
+ * close record — reason, who, when, proof — moves onto `history` with who
+ * reopened it, when and why. Nothing is erased and nothing is deleted.
+ *
+ * Works for an item in `done/YYYY-MM/` and for a closed item still inside a
+ * live Epic folder. Refused for an item archived with its Epic: that Epic is
+ * finished, and pulling an item out of it would change what the archive says
+ * the Epic contained — capture a new item and link it instead.
+ *
+ * @param {string} baseDir
+ * @param {string} idOrLabel
+ * @param {{by: string, reason: string, at?: string}} reopen — `reason` is
+ *   required: a reopen with no why is a close record nobody can interpret
+ *   later. `at` defaults to now.
+ * @param {{execFn?: Function, renameFn?: Function}} [opts]
+ * @returns {Promise<{item: object, label: string, from: string, to: string}>}
+ */
+export async function reopenItem(baseDir, idOrLabel, reopen = {}, opts = {}) {
+  const id = frontOf(idOrLabel);
+  const { by, reason, at = new Date().toISOString() } = reopen;
+  return withWorkLock(baseDir, async () => {
+    if (typeof reason !== 'string' || reason.trim() === '') {
+      throw new WorkStoreError('SCHEMA', `${id}: a reopen needs a reason — what came back, and how you know. `
+        + 'Nothing was reopened.');
+    }
+    const found = getItem(baseDir, id);
+    if (found.item.status !== 'C') {
+      throw new WorkStoreError('CONFLICT', `${id} is not closed (status ${found.item.status}, ${found.path}) — `
+        + 'only a closed item can be reopened.');
+    }
+    if (found.path.startsWith('.planning/archive/')) {
+      throw new WorkStoreError('CONFLICT', `${id} is archived with Epic ${found.epic} (${found.path}), and that `
+        + 'Epic is closed — nothing was reopened. Capture a new item (`/sig:item new`) and link it to '
+        + `${id} instead.`);
+    }
+    const entry = { ...found.item.close, reopened_at: at, reopened_by: by, reopen_reason: reason };
+    const next = { ...found.item, status: 'T', history: [...(found.item.history ?? []), entry] };
+    delete next.close;
+    assertValid(next, id);
+    const r = await relocate(baseDir, found, next, found.body, folderFor(next), opts);
+    await regenerate(baseDir, `${id} reopened and moved ${r.from} → ${r.to}`);
+    return { item: next, label: renderLabel(next), ...r };
+  });
+}
+
 // ── Epics (t5.3, FR-8, D-M6E11-13) ──────────────────────────────────────────
 //
 // `work/epics/<id>/README.md` is the Epic's intent file. It is not an item —

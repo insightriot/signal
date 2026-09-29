@@ -1,7 +1,7 @@
 ---
 name: sig:item
-description: "Move work items through the work store — new, triage, move, close, show, list. Every status change to a file under .planning/work/ goes through this command, so an item's folder and its own status cannot disagree. Only for projects with the store on (.planning/work/WORK.md). Not phase-gated."
-args: "<new|triage|move|close|show|list> [args]"
+description: "Move work items through the work store — new, triage, move, close, reopen, show, list. Every status change to a file under .planning/work/ goes through this command, so an item's folder and its own status cannot disagree. Only for projects with the store on (.planning/work/WORK.md). Not phase-gated."
+args: "<new|triage|move|close|reopen|show|list> [args]"
 ---
 
 # `/sig:item` — Move Work Items
@@ -13,7 +13,7 @@ With the work store on, every bug, backlog row, inbox capture and open question 
 `BUGS.md`, `BACKLOG.md`, `ISSUES-INBOX.md` and `OPEN-QUESTIONS.md` are **generated** from the item files after every change. Do not edit them.
 
 Authoritative references:
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-ops.js` — `newItem`, `triageNext`, `proposeTriage`, `applyTriage`, `listNeedsReview`, `moveItem`, `closeItem`, `getItem`, `listItems`, `listThemes`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-ops.js` — `newItem`, `triageNext`, `proposeTriage`, `applyTriage`, `listNeedsReview`, `moveItem`, `closeItem`, `reopenItem`, `getItem`, `listItems`, `listThemes`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-store.js` — `isStoreOn`, `checkStore`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-item.js` — `renderLabel`, `WorkStoreError` (dispatch on its `code`: `CONFIG`, `SCHEMA`, `NOT_FOUND`, `CONFLICT`)
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readEffectiveProfile` (for `attention`, triage only)
@@ -27,7 +27,7 @@ Call `isStoreOn(baseDir)`.
 
 Items are named by their **ID**, `SIG-412`. The label `SIG-412-BUG-T` (ID, type, status) is for reading; you may pass either, and only the ID part is used.
 
-## The six actions
+## The seven actions
 
 ### `new "<words>"` — capture an item
 
@@ -71,6 +71,10 @@ In a git repository a tracked file is moved with `git mv`, so its history follow
 | `rejected` | checked, and not true | say what was checked, as `proof` |
 
 The item moves to `done/YYYY-MM/` — unless it is in an Epic folder, where it stays, closed, and is archived with the Epic. Print its new label and path.
+
+### `reopen <ID> "<reason>"` — a closed item came back
+
+`reopenItem(baseDir, id, {by, reason})`. Reopen the same item rather than capturing a new one (`D-M6E11-31`): it returns to `backlog/` as T, and its previous close — reason, who, when, proof — is kept in the file's `history` with who reopened it, when and why. The reason is required: say what came back. Refused for an item that is not closed, and for one archived with its Epic — that Epic is finished, so capture a new item and link it to the old one. Print *from → to*.
 
 ### `show <ID>` — one item
 

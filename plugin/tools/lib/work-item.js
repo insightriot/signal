@@ -53,9 +53,15 @@ const FIELD_ORDER = [
   'legacy_id',
   'keep_because',
   'migration_note',
+  'history',
 ];
 const CREATED_ORDER = ['at', 'by'];
 const CLOSE_ORDER = ['reason', 'by', 'at', 'proof', 'dup_of'];
+// A prior close, kept when the item is reopened (D-M6E11-31): the close record
+// as it was, plus who reopened it, when and why. Nothing about a close is ever
+// erased — one thing's story stays in one file.
+const REOPEN_FIELDS = ['reopened_at', 'reopened_by', 'reopen_reason'];
+const HISTORY_ORDER = [...CLOSE_ORDER, ...REOPEN_FIELDS];
 
 const DERIVED_FIELDS = new Set(['epic', 'sprint']);
 const OPTIONAL_STRING_FIELDS = ['theme', 'source', 'source_ref', 'legacy_id', 'keep_because', 'migration_note'];
@@ -144,24 +150,44 @@ export function validateItem(item) {
       errors.push(`close is only allowed on status C (status is ${item.status})`);
     }
     if (checkMapping(errors, 'close', item.close, CLOSE_ORDER, ['by', 'at'])) {
-      const { reason, proof, dup_of: dupOf } = item.close;
-      if (!CLOSE_REASONS.includes(reason)) {
-        errors.push(`close.reason must be one of ${CLOSE_REASONS.join('/')} (got ${JSON.stringify(reason)})`);
-      }
-      if (proof !== undefined && typeof proof !== 'string') errors.push('close.proof must be a string');
-      if (reason === 'dup') {
-        if (dupOf === undefined) {
-          errors.push('close.dup_of is required when close.reason is dup');
-        } else if (typeof dupOf !== 'string' || !ITEM_ID_RE.test(dupOf)) {
-          errors.push(`close.dup_of must be an item ID like SIG-100 (got ${JSON.stringify(dupOf)})`);
+      checkCloseRecord(errors, 'close', item.close);
+    }
+  }
+
+  // Any status may carry history: an item reopened and closed again keeps
+  // both closes. Only reopenItem writes it, so an empty list is a mistake.
+  if (item.history !== undefined) {
+    if (!Array.isArray(item.history) || item.history.length === 0) {
+      errors.push('history must be a non-empty list of prior close records');
+    } else {
+      item.history.forEach((entry, i) => {
+        const name = `history[${i}]`;
+        if (checkMapping(errors, name, entry, HISTORY_ORDER, ['by', 'at', ...REOPEN_FIELDS])) {
+          checkCloseRecord(errors, name, entry);
         }
-      } else if (dupOf !== undefined) {
-        errors.push('close.dup_of is only allowed when close.reason is dup');
-      }
+      });
     }
   }
 
   return errors;
+}
+
+// The reason / proof / dup_of rules, shared by `close` and each `history` entry.
+function checkCloseRecord(errors, name, record) {
+  const { reason, proof, dup_of: dupOf } = record;
+  if (!CLOSE_REASONS.includes(reason)) {
+    errors.push(`${name}.reason must be one of ${CLOSE_REASONS.join('/')} (got ${JSON.stringify(reason)})`);
+  }
+  if (proof !== undefined && typeof proof !== 'string') errors.push(`${name}.proof must be a string`);
+  if (reason === 'dup') {
+    if (dupOf === undefined) {
+      errors.push(`${name}.dup_of is required when ${name}.reason is dup`);
+    } else if (typeof dupOf !== 'string' || !ITEM_ID_RE.test(dupOf)) {
+      errors.push(`${name}.dup_of must be an item ID like SIG-100 (got ${JSON.stringify(dupOf)})`);
+    }
+  } else if (dupOf !== undefined) {
+    errors.push(`${name}.dup_of is only allowed when ${name}.reason is dup`);
+  }
 }
 
 /**
@@ -216,6 +242,9 @@ export function stringifyItem(item, body) {
   const data = ordered(item, FIELD_ORDER);
   if (isMapping(data.created)) data.created = ordered(data.created, CREATED_ORDER);
   if (isMapping(data.close)) data.close = ordered(data.close, CLOSE_ORDER);
+  if (Array.isArray(data.history)) {
+    data.history = data.history.map((e) => (isMapping(e) ? ordered(e, HISTORY_ORDER) : e));
+  }
   return stringifyFrontmatter(data, body);
 }
 

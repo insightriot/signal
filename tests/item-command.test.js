@@ -1,7 +1,7 @@
 // Tests for the /sig:item command file (M6.E11.S3.t3.3, AC-5.1).
 // See .planning/M6.E11-VALIDATION.md row AC-5.1.
 //
-// A presence check: the command documents all six actions and every lib
+// A presence check: the command documents all seven actions and every lib
 // function it names is a real export. It does not — cannot — prove an agent
 // reading the file calls them (the phase-recording.test.js caveat).
 
@@ -28,6 +28,7 @@ const ACTIONS = {
   triage: ['triageNext', 'applyTriage', 'listNeedsReview'],
   move: ['moveItem'],
   close: ['closeItem'],
+  reopen: ['reopenItem'],
   show: ['getItem'],
   list: ['listItems', 'listThemes'],
 };
