@@ -1,0 +1,502 @@
+{
+  "frozenAt": "2026-01-15T12:00:00.000Z",
+  "resolver": [
+    {
+      "artifact": "PLAN",
+      "currentEpic": "M6.E2",
+      "name": "M6.E2-PLAN.md",
+      "resolved": "M6.E2-PLAN.md"
+    },
+    {
+      "artifact": "REQUIREMENTS",
+      "currentEpic": "M6.E2",
+      "name": "M6.E2-REQUIREMENTS.md",
+      "resolved": "M6.E2-REQUIREMENTS.md"
+    },
+    {
+      "artifact": "VERIFICATION",
+      "currentEpic": "M6.E2",
+      "name": "M6.E2-VERIFICATION.md",
+      "resolved": "1-VERIFICATION.md"
+    },
+    {
+      "artifact": "VERIFICATION",
+      "currentEpic": null,
+      "name": "1-VERIFICATION.md",
+      "resolved": "1-VERIFICATION.md"
+    },
+    {
+      "artifact": "PLAN",
+      "currentEpic": null,
+      "name": "1-PLAN.md",
+      "resolved": null
+    },
+    {
+      "artifact": "REQUIREMENTS",
+      "currentEpic": null,
+      "name": "REQUIREMENTS.md",
+      "resolved": null
+    },
+    {
+      "artifact": "PLAN",
+      "currentEpic": "v0.1.6",
+      "name": "1-PLAN.md",
+      "resolved": null
+    },
+    {
+      "artifact": "PLAN",
+      "currentEpic": "M6.E1",
+      "name": "M6.E1-PLAN.md",
+      "resolved": "M6.E1-PLAN.md"
+    },
+    {
+      "artifact": "RETROSPECTIVE",
+      "currentEpic": "M6.E1",
+      "name": "M6.E1-RETROSPECTIVE.md",
+      "resolved": "M6.E1-RETROSPECTIVE.md"
+    }
+  ],
+  "fixture": {
+    "steps": [
+      {
+        "name": "add: default inbox",
+        "result": {
+          "ok": {
+            "written": true,
+            "path": "<ROOT>/.planning/ISSUES-INBOX.md",
+            "line": 37,
+            "repaired": false
+          }
+        },
+        "changed": {
+          ".planning/ISSUES-INBOX.md": "# Issues Inbox\n\nRaw capture inbox for `/sig:add` — untyped work lands here first, unsorted.\n\n## Faster status output\n\n**Status:** Logged 2026-01-02 via `/sig:add`.\n\nStatus takes two seconds on a large tree; cache the unit walk.\n\n---\n\n## Export the report as CSV\n\n**Status:** Logged 2026-01-03 via `/sig:add`.\n\nA CSV export would let the numbers go into a spreadsheet.\n\n---\n\n## Old idea nobody wants\n\n**Status:** Logged 2026-01-04 via `/sig:add`.\n\nRewrite everything in a different language.\n\n---\n\n## Crash when the inbox is empty\n\n**Status:** Logged 2026-01-05 via `/sig:add`.\n\nThe drain throws on an empty inbox instead of saying there is nothing to do.\n\n---\n\n## Tier in status header\n\n**Status:** Logged 2026-01-15 via `/sig:add`. (during M6.E2 PLAN)\n\nShow the tier in the status header.\n\n---\n\n\n*Last updated: 2026-01-15*\n"
+        }
+      },
+      {
+        "name": "add: --bug",
+        "result": {
+          "ok": {
+            "written": true,
+            "path": "<ROOT>/.planning/BUGS.md",
+            "line": 10,
+            "repaired": false
+          }
+        },
+        "changed": {
+          ".planning/BUGS.md": "# Bugs\n\n| ID | Status | Pri | Summary |\n|---|---|---|---|\n| B1 | `fixed` | P2 | **Resume ignores the Epic profile** — fixed in M6.E1. |\n| B2 | `confirmed` | P1 | **Doctor misreads a missing key** as a pass. |\n\n*2 total: 1 fixed, 1 confirmed (**2 total**). Last updated: 2026-01-06 — seeded for the store-off golden test.*\n\n## Resume shows the wrong phase\n\n**Status:** needs-triage\n\nResume prints the wrong phase after a checkpoint.\n\n---\n"
+        }
+      },
+      {
+        "name": "add: --question",
+        "result": {
+          "ok": {
+            "written": true,
+            "path": "<ROOT>/.planning/OPEN-QUESTIONS.md",
+            "line": 13,
+            "repaired": false
+          }
+        },
+        "changed": {
+          ".planning/OPEN-QUESTIONS.md": "# Open Questions\n\n## Should drive stop at every phase?\n\n**Status:** Open — logged 2026-01-07 via `/sig:add`.\n\nThe attention dial says checkpointed; is that the right default?\n\n**Resolve by:** (unset — triage at next planning pass)\n\n---\n\n## Should advise read archived Epics?\n\n**Status:** Open — logged 2026-01-15 via `/sig:add`. (during M6.E2 PLAN)\n\nShould advise read archived Epics?\n\n**Resolve by:** (unset — triage at next planning pass)\n\n---\n"
+        }
+      },
+      {
+        "name": "add: --milestone 6",
+        "result": {
+          "ok": {
+            "written": true,
+            "path": "<ROOT>/.planning/MILESTONE-6.md",
+            "line": 10,
+            "repaired": false
+          }
+        },
+        "changed": {
+          ".planning/MILESTONE-6.md": "# Milestone 6\n\n## Epics\n\n- M6.E1 — done\n- M6.E2 — in progress\n\n## Captured via /sig:add\n\n### Split the milestone file when it passes 40 KB\n\n**Captured:** 2026-01-15 via `/sig:add`.\n\nSplit the milestone file when it passes 40 KB.\n"
+        }
+      },
+      {
+        "name": "add: --file NOTES.md",
+        "result": {
+          "ok": {
+            "written": true,
+            "path": "<ROOT>/.planning/NOTES.md",
+            "line": 5,
+            "repaired": false
+          }
+        },
+        "changed": {
+          ".planning/NOTES.md": "# Notes\n\nA free-form notes file for the `--file` route.\n\nA raw note, verbatim.\n\n\n---\n"
+        }
+      },
+      {
+        "name": "checkpoint: decisions + questions",
+        "result": {
+          "ok": {
+            "wrote": [
+              "<ROOT>/.planning/CONTEXT.md",
+              "<ROOT>/.planning/DECISIONS.md",
+              "<ROOT>/.planning/OPEN-QUESTIONS.md"
+            ],
+            "sensitiveHits": []
+          }
+        },
+        "changed": {
+          ".planning/CONTEXT.md": "# Project Context\n\nA small fixture project for the store-off golden test.\n\n## Locked Decisions\n\n- Keep the fixture small (2026-01-01)\n\n- Keep the store opt-in (2026-01-15)\n",
+          ".planning/DECISIONS.md": "# Decisions\n\n## 2026-01-01 — Fixture exists\n\n## 2026-01-15 — Checkpoint-captured: Keep the store opt-in\n",
+          ".planning/OPEN-QUESTIONS.md": "# Open Questions\n\n## Should drive stop at every phase?\n\n**Status:** Open — logged 2026-01-07 via `/sig:add`.\n\nThe attention dial says checkpointed; is that the right default?\n\n**Resolve by:** (unset — triage at next planning pass)\n\n---\n\n## Should advise read archived Epics?\n\n**Status:** Open — logged 2026-01-15 via `/sig:add`. (during M6.E2 PLAN)\n\nShould advise read archived Epics?\n\n**Resolve by:** (unset — triage at next planning pass)\n\n---\n\n## Who owns the key?\n\n*Logged 2026-01-15 via /sig:checkpoint*\n"
+        }
+      },
+      {
+        "name": "drain: defer one entry",
+        "result": {
+          "ok": {
+            "written": true,
+            "verb": "defer",
+            "heading": "Faster status output",
+            "path": "<ROOT>/.planning/ISSUES-INBOX.md"
+          }
+        },
+        "changed": {
+          ".planning/ISSUES-INBOX.md": "# Issues Inbox\n\nRaw capture inbox for `/sig:add` — untyped work lands here first, unsorted.\n\n## Faster status output\n\n**Status:** Logged 2026-01-02 via `/sig:add`. → Deferred 2026-01-15 (M6.E2 drain).\n\nStatus takes two seconds on a large tree; cache the unit walk.\n\n---\n\n## Export the report as CSV\n\n**Status:** Logged 2026-01-03 via `/sig:add`.\n\nA CSV export would let the numbers go into a spreadsheet.\n\n---\n\n## Old idea nobody wants\n\n**Status:** Logged 2026-01-04 via `/sig:add`.\n\nRewrite everything in a different language.\n\n---\n\n## Crash when the inbox is empty\n\n**Status:** Logged 2026-01-05 via `/sig:add`.\n\nThe drain throws on an empty inbox instead of saying there is nothing to do.\n\n---\n\n## Tier in status header\n\n**Status:** Logged 2026-01-15 via `/sig:add`. (during M6.E2 PLAN)\n\nShow the tier in the status header.\n\n---\n\n\n*Last updated: 2026-01-15*\n"
+        }
+      },
+      {
+        "name": "drain: delete one entry (confirmed)",
+        "result": {
+          "ok": {
+            "written": true,
+            "verb": "delete",
+            "heading": "Old idea nobody wants",
+            "path": "<ROOT>/.planning/ISSUES-INBOX.md"
+          }
+        },
+        "changed": {
+          ".planning/ISSUES-INBOX.md": "# Issues Inbox\n\nRaw capture inbox for `/sig:add` — untyped work lands here first, unsorted.\n\n## Faster status output\n\n**Status:** Logged 2026-01-02 via `/sig:add`. → Deferred 2026-01-15 (M6.E2 drain).\n\nStatus takes two seconds on a large tree; cache the unit walk.\n\n---\n\n## Export the report as CSV\n\n**Status:** Logged 2026-01-03 via `/sig:add`.\n\nA CSV export would let the numbers go into a spreadsheet.\n\n---\n\n## Crash when the inbox is empty\n\n**Status:** Logged 2026-01-05 via `/sig:add`.\n\nThe drain throws on an empty inbox instead of saying there is nothing to do.\n\n---\n\n## Tier in status header\n\n**Status:** Logged 2026-01-15 via `/sig:add`. (during M6.E2 PLAN)\n\nShow the tier in the status header.\n\n---\n\n\n*Last updated: 2026-01-15*\n"
+        }
+      },
+      {
+        "name": "drain: promote work → backlog",
+        "result": {
+          "ok": {
+            "destination": "backlog",
+            "deduped": false,
+            "heading": "Export the report as CSV"
+          }
+        },
+        "changed": {
+          ".planning/BACKLOG.md": "# Backlog\n\nGroomed, sequenced roadmap — promoted from the issues inbox.\n\n### Search across archived Epics\n\n**Tag:** roadmap\n\nLet status find items in archived Epics. Background is in [the plan](M6.E1-PLAN.md).\n\n---\n\n### Tidy the command index\n\n**Tag:** hygiene\n\nThe index lists two commands twice.\n\n---\n\n## Export the report as CSV\n\n**Tag:** roadmap\n<!-- backlog-key: 62edd257b9ed42057b611b132e66033068ef45c1 -->\n\n**Status:** Logged 2026-01-03 via `/sig:add`.\n\nA CSV export would let the numbers go into a spreadsheet.\n\n---\n\n\n*Last updated: 2026-01-15*\n",
+          ".planning/ISSUES-INBOX.md": "# Issues Inbox\n\nRaw capture inbox for `/sig:add` — untyped work lands here first, unsorted.\n\n## Faster status output\n\n**Status:** Logged 2026-01-02 via `/sig:add`. → Deferred 2026-01-15 (M6.E2 drain).\n\nStatus takes two seconds on a large tree; cache the unit walk.\n\n---\n\n## Export the report as CSV\n\n**Status:** Logged 2026-01-03 via `/sig:add`. → Promoted 2026-01-15 (M6.E2 drain).\n\nA CSV export would let the numbers go into a spreadsheet.\n\n---\n\n## Crash when the inbox is empty\n\n**Status:** Logged 2026-01-05 via `/sig:add`.\n\nThe drain throws on an empty inbox instead of saying there is nothing to do.\n\n---\n\n## Tier in status header\n\n**Status:** Logged 2026-01-15 via `/sig:add`. (during M6.E2 PLAN)\n\nShow the tier in the status header.\n\n---\n\n\n*Last updated: 2026-01-15*\n"
+        }
+      },
+      {
+        "name": "drain: promote bug → bugs",
+        "result": {
+          "ok": {
+            "destination": "bugs",
+            "deduped": false,
+            "heading": "Crash when the inbox is empty"
+          }
+        },
+        "changed": {
+          ".planning/BUGS.md": "# Bugs\n\n| ID | Status | Pri | Summary |\n|---|---|---|---|\n| B1 | `fixed` | P2 | **Resume ignores the Epic profile** — fixed in M6.E1. |\n| B2 | `confirmed` | P1 | **Doctor misreads a missing key** as a pass. |\n\n*2 total: 1 fixed, 1 confirmed (**2 total**). Last updated: 2026-01-06 — seeded for the store-off golden test.*\n\n## Resume shows the wrong phase\n\n**Status:** needs-triage\n\nResume prints the wrong phase after a checkpoint.\n\n---\n\n## Crash when the inbox is empty\n\n**Status:** needs-triage\n<!-- bugs-key: dbee4094e9d506d811a2674e6b9526e59ee48e66 -->\n\n**Status:** Logged 2026-01-05 via `/sig:add`.\n\nThe drain throws on an empty inbox instead of saying there is nothing to do.\n\n---\n",
+          ".planning/ISSUES-INBOX.md": "# Issues Inbox\n\nRaw capture inbox for `/sig:add` — untyped work lands here first, unsorted.\n\n## Faster status output\n\n**Status:** Logged 2026-01-02 via `/sig:add`. → Deferred 2026-01-15 (M6.E2 drain).\n\nStatus takes two seconds on a large tree; cache the unit walk.\n\n---\n\n## Export the report as CSV\n\n**Status:** Logged 2026-01-03 via `/sig:add`. → Promoted 2026-01-15 (M6.E2 drain).\n\nA CSV export would let the numbers go into a spreadsheet.\n\n---\n\n## Crash when the inbox is empty\n\n**Status:** Logged 2026-01-05 via `/sig:add`. → Promoted 2026-01-15 (M6.E2 drain).\n\nThe drain throws on an empty inbox instead of saying there is nothing to do.\n\n---\n\n## Tier in status header\n\n**Status:** Logged 2026-01-15 via `/sig:add`. (during M6.E2 PLAN)\n\nShow the tier in the status header.\n\n---\n\n\n*Last updated: 2026-01-15*\n"
+        }
+      },
+      {
+        "name": "drain: evict dry run",
+        "result": {
+          "ok": {
+            "evicted": [],
+            "planned": [
+              {
+                "heading": "Export the report as CSV",
+                "key": "e623d45c3e73d55a7a553b3a65048dbdd2795ef7"
+              },
+              {
+                "heading": "Crash when the inbox is empty",
+                "key": "e173ed58284e427db3cc39aec12fbbb13b06aae1"
+              }
+            ],
+            "danglingFence": false
+          }
+        },
+        "changed": {}
+      },
+      {
+        "name": "drain: evict",
+        "result": {
+          "ok": {
+            "evicted": [
+              {
+                "heading": "Export the report as CSV",
+                "key": "e623d45c3e73d55a7a553b3a65048dbdd2795ef7"
+              },
+              {
+                "heading": "Crash when the inbox is empty",
+                "key": "e173ed58284e427db3cc39aec12fbbb13b06aae1"
+              }
+            ],
+            "planned": [
+              {
+                "heading": "Export the report as CSV",
+                "key": "e623d45c3e73d55a7a553b3a65048dbdd2795ef7"
+              },
+              {
+                "heading": "Crash when the inbox is empty",
+                "key": "e173ed58284e427db3cc39aec12fbbb13b06aae1"
+              }
+            ],
+            "danglingFence": false
+          }
+        },
+        "changed": {
+          ".planning/ISSUES-INBOX.md": "# Issues Inbox\n\nRaw capture inbox for `/sig:add` — untyped work lands here first, unsorted.\n\n## Faster status output\n\n**Status:** Logged 2026-01-02 via `/sig:add`. → Deferred 2026-01-15 (M6.E2 drain).\n\nStatus takes two seconds on a large tree; cache the unit walk.\n\n---\n\n## Tier in status header\n\n**Status:** Logged 2026-01-15 via `/sig:add`. (during M6.E2 PLAN)\n\nShow the tier in the status header.\n\n---\n\n\n*Last updated: 2026-01-15*\n",
+          ".planning/archive/ISSUES-INBOX-LEDGER.md": "# ISSUES-INBOX — archive ledger\n\nTerminally-disposed entries (SHIPPED / PROMOTED / MERGED / DELETED) evicted from\n`.planning/ISSUES-INBOX.md`. Append-only; DEFERRED entries stay in the inbox.\n\n<!-- evicted-key: e623d45c3e73d55a7a553b3a65048dbdd2795ef7 -->\n## Export the report as CSV\n\n**Status:** Logged 2026-01-03 via `/sig:add`. → Promoted 2026-01-15 (M6.E2 drain).\n\nA CSV export would let the numbers go into a spreadsheet.\n\n---\n\n\n<!-- evicted-key: e173ed58284e427db3cc39aec12fbbb13b06aae1 -->\n## Crash when the inbox is empty\n\n**Status:** Logged 2026-01-05 via `/sig:add`. → Promoted 2026-01-15 (M6.E2 drain).\n\nThe drain throws on an empty inbox instead of saying there is nothing to do.\n\n---\n\n"
+        }
+      },
+      {
+        "name": "backlog: createBacklogIfMissing (exists)",
+        "result": {
+          "ok": {
+            "created": false,
+            "path": "<ROOT>/.planning/BACKLOG.md"
+          }
+        },
+        "changed": {}
+      },
+      {
+        "name": "backlog: promoteToBacklog (raw block)",
+        "result": {
+          "ok": {
+            "written": true,
+            "path": "<ROOT>/.planning/BACKLOG.md",
+            "key": "f0c1802dcc0d70808835deee537fdb1b7461933a"
+          }
+        },
+        "changed": {
+          ".planning/BACKLOG.md": "# Backlog\n\nGroomed, sequenced roadmap — promoted from the issues inbox.\n\n### Search across archived Epics\n\n**Tag:** roadmap\n\nLet status find items in archived Epics. Background is in [the plan](M6.E1-PLAN.md).\n\n---\n\n### Tidy the command index\n\n**Tag:** hygiene\n\nThe index lists two commands twice.\n\n---\n\n## Export the report as CSV\n\n**Tag:** roadmap\n<!-- backlog-key: 62edd257b9ed42057b611b132e66033068ef45c1 -->\n\n**Status:** Logged 2026-01-03 via `/sig:add`.\n\nA CSV export would let the numbers go into a spreadsheet.\n\n---\n\n## Batch the index writes\n\n**Tag:** hygiene\n<!-- backlog-key: f0c1802dcc0d70808835deee537fdb1b7461933a -->\n\nOne write per run, not per file.\n\n---\n\n\n\n*Last updated: 2026-01-15*\n"
+        }
+      },
+      {
+        "name": "backlog: promoteToBacklog again (dedupe)",
+        "result": {
+          "ok": {
+            "written": false,
+            "deduped": true,
+            "path": "<ROOT>/.planning/BACKLOG.md",
+            "key": "f0c1802dcc0d70808835deee537fdb1b7461933a"
+          }
+        },
+        "changed": {}
+      },
+      {
+        "name": "backlog: promoteToBugs (raw block)",
+        "result": {
+          "ok": {
+            "written": true,
+            "path": "<ROOT>/.planning/BUGS.md",
+            "key": "344a295305af85d05a50ededc3e324c91bd21ca7"
+          }
+        },
+        "changed": {
+          ".planning/BUGS.md": "# Bugs\n\n| ID | Status | Pri | Summary |\n|---|---|---|---|\n| B1 | `fixed` | P2 | **Resume ignores the Epic profile** — fixed in M6.E1. |\n| B2 | `confirmed` | P1 | **Doctor misreads a missing key** as a pass. |\n\n*2 total: 1 fixed, 1 confirmed (**2 total**). Last updated: 2026-01-06 — seeded for the store-off golden test.*\n\n## Resume shows the wrong phase\n\n**Status:** needs-triage\n\nResume prints the wrong phase after a checkpoint.\n\n---\n\n## Crash when the inbox is empty\n\n**Status:** needs-triage\n<!-- bugs-key: dbee4094e9d506d811a2674e6b9526e59ee48e66 -->\n\n**Status:** Logged 2026-01-05 via `/sig:add`.\n\nThe drain throws on an empty inbox instead of saying there is nothing to do.\n\n---\n\n## Lock left behind after a crash\n\n**Status:** needs-triage\n<!-- bugs-key: 344a295305af85d05a50ededc3e324c91bd21ca7 -->\n\nA killed run leaves .state.lock.\n\n---\n"
+        }
+      },
+      {
+        "name": "backlog: dischargeBacklogRows",
+        "result": {
+          "ok": {
+            "written": true,
+            "path": "<ROOT>/.planning/BACKLOG.md",
+            "reason": null,
+            "results": [
+              {
+                "row": "Tidy the command index",
+                "status": "discharged",
+                "reason": null,
+                "heading": "Tidy the command index",
+                "line": 13
+              },
+              {
+                "row": "no such row",
+                "status": "not-found",
+                "reason": "no live backlog row matches \"no such row\"",
+                "heading": null,
+                "line": null
+              }
+            ]
+          }
+        },
+        "changed": {
+          ".planning/BACKLOG.md": "# Backlog\n\nGroomed, sequenced roadmap — promoted from the issues inbox.\n\n### Search across archived Epics\n\n**Tag:** roadmap\n\nLet status find items in archived Epics. Background is in [the plan](M6.E1-PLAN.md).\n\n---\n\n### ~~Tidy the command index~~ · **DONE — M6.E2, 2026-01-15**\n\n**Tag:** hygiene\n\nThe index lists two commands twice.\n\n---\n\n## Export the report as CSV\n\n**Tag:** roadmap\n<!-- backlog-key: 62edd257b9ed42057b611b132e66033068ef45c1 -->\n\n**Status:** Logged 2026-01-03 via `/sig:add`.\n\nA CSV export would let the numbers go into a spreadsheet.\n\n---\n\n## Batch the index writes\n\n**Tag:** hygiene\n<!-- backlog-key: f0c1802dcc0d70808835deee537fdb1b7461933a -->\n\nOne write per run, not per file.\n\n---\n\n\n\n*Last updated: 2026-01-15*\n"
+        }
+      },
+      {
+        "name": "migrate: snapshot → overwrite → rollback",
+        "result": {
+          "ok": "rolled back"
+        },
+        "changed": {}
+      },
+      {
+        "name": "atomicWrite: ordinary existing file",
+        "result": {
+          "ok": null
+        },
+        "changed": {
+          ".planning/NOTES.md": "# Notes\n\nReplaced.\n"
+        }
+      },
+      {
+        "name": "atomicWrite: new file",
+        "result": {
+          "ok": null
+        },
+        "changed": {
+          ".planning/SCRATCH.md": "new\n"
+        }
+      },
+      {
+        "name": "archive-tree: dry run",
+        "result": {
+          "ok": {
+            "applied": false,
+            "moves": [
+              {
+                "from": ".planning/M6.E1-PLAN.md",
+                "to": ".planning/archive/M6/E1/M6.E1-PLAN.md"
+              }
+            ],
+            "moveMap": [
+              [
+                ".planning/M6.E1-PLAN.md",
+                ".planning/archive/M6/E1/M6.E1-PLAN.md"
+              ]
+            ],
+            "plannedEdits": 19
+          }
+        },
+        "changed": {}
+      },
+      {
+        "name": "archive-tree: apply",
+        "result": {
+          "ok": {
+            "applied": true,
+            "moves": [
+              {
+                "from": ".planning/M6.E1-PLAN.md",
+                "to": ".planning/archive/M6/E1/M6.E1-PLAN.md"
+              }
+            ],
+            "rewrittenFiles": 2
+          }
+        },
+        "changed": {
+          ".planning/BACKLOG.md": "# Backlog\n\nGroomed, sequenced roadmap — promoted from the issues inbox.\n\n### Search across archived Epics\n\n**Tag:** roadmap\n\nLet status find items in archived Epics. Background is in [the plan](./archive/M6/E1/M6.E1-PLAN.md).\n\n---\n\n### ~~Tidy the command index~~ · **DONE — M6.E2, 2026-01-15**\n\n**Tag:** hygiene\n\nThe index lists two commands twice.\n\n---\n\n## Export the report as CSV\n\n**Tag:** roadmap\n<!-- backlog-key: 62edd257b9ed42057b611b132e66033068ef45c1 -->\n\n**Status:** Logged 2026-01-03 via `/sig:add`.\n\nA CSV export would let the numbers go into a spreadsheet.\n\n---\n\n## Batch the index writes\n\n**Tag:** hygiene\n<!-- backlog-key: f0c1802dcc0d70808835deee537fdb1b7461933a -->\n\nOne write per run, not per file.\n\n---\n\n\n\n*Last updated: 2026-01-15*\n",
+          ".planning/M6.E1-PLAN.md": null,
+          ".planning/STATE.md": "---\nschema_version: 1\ncurrent_epic: M6.E2\ncurrent_phase: PLAN\nlast_updated: 2026-01-10\n---\n\n# State\n\nWorking on M6.E2. The finished Epic's plan is [the plan](./archive/M6/E1/M6.E1-PLAN.md).\n",
+          ".planning/archive/M6/E1/M6.E1-PLAN.md": "# M6.E1 plan\n\nContent that must survive the archive move verbatim.\n"
+        }
+      }
+    ],
+    "final": {
+      ".planning/1-VERIFICATION.md": "# Linear verification\n",
+      ".planning/BACKLOG.md": "# Backlog\n\nGroomed, sequenced roadmap — promoted from the issues inbox.\n\n### Search across archived Epics\n\n**Tag:** roadmap\n\nLet status find items in archived Epics. Background is in [the plan](./archive/M6/E1/M6.E1-PLAN.md).\n\n---\n\n### ~~Tidy the command index~~ · **DONE — M6.E2, 2026-01-15**\n\n**Tag:** hygiene\n\nThe index lists two commands twice.\n\n---\n\n## Export the report as CSV\n\n**Tag:** roadmap\n<!-- backlog-key: 62edd257b9ed42057b611b132e66033068ef45c1 -->\n\n**Status:** Logged 2026-01-03 via `/sig:add`.\n\nA CSV export would let the numbers go into a spreadsheet.\n\n---\n\n## Batch the index writes\n\n**Tag:** hygiene\n<!-- backlog-key: f0c1802dcc0d70808835deee537fdb1b7461933a -->\n\nOne write per run, not per file.\n\n---\n\n\n\n*Last updated: 2026-01-15*\n",
+      ".planning/BUGS.md": "# Bugs\n\n| ID | Status | Pri | Summary |\n|---|---|---|---|\n| B1 | `fixed` | P2 | **Resume ignores the Epic profile** — fixed in M6.E1. |\n| B2 | `confirmed` | P1 | **Doctor misreads a missing key** as a pass. |\n\n*2 total: 1 fixed, 1 confirmed (**2 total**). Last updated: 2026-01-06 — seeded for the store-off golden test.*\n\n## Resume shows the wrong phase\n\n**Status:** needs-triage\n\nResume prints the wrong phase after a checkpoint.\n\n---\n\n## Crash when the inbox is empty\n\n**Status:** needs-triage\n<!-- bugs-key: dbee4094e9d506d811a2674e6b9526e59ee48e66 -->\n\n**Status:** Logged 2026-01-05 via `/sig:add`.\n\nThe drain throws on an empty inbox instead of saying there is nothing to do.\n\n---\n\n## Lock left behind after a crash\n\n**Status:** needs-triage\n<!-- bugs-key: 344a295305af85d05a50ededc3e324c91bd21ca7 -->\n\nA killed run leaves .state.lock.\n\n---\n",
+      ".planning/CONTEXT.md": "# Project Context\n\nA small fixture project for the store-off golden test.\n\n## Locked Decisions\n\n- Keep the fixture small (2026-01-01)\n\n- Keep the store opt-in (2026-01-15)\n",
+      ".planning/DECISIONS.md": "# Decisions\n\n## 2026-01-01 — Fixture exists\n\n## 2026-01-15 — Checkpoint-captured: Keep the store opt-in\n",
+      ".planning/ISSUES-INBOX.md": "# Issues Inbox\n\nRaw capture inbox for `/sig:add` — untyped work lands here first, unsorted.\n\n## Faster status output\n\n**Status:** Logged 2026-01-02 via `/sig:add`. → Deferred 2026-01-15 (M6.E2 drain).\n\nStatus takes two seconds on a large tree; cache the unit walk.\n\n---\n\n## Tier in status header\n\n**Status:** Logged 2026-01-15 via `/sig:add`. (during M6.E2 PLAN)\n\nShow the tier in the status header.\n\n---\n\n\n*Last updated: 2026-01-15*\n",
+      ".planning/M6.E1-RETROSPECTIVE.md": "# M6.E1 retrospective\n\nClosed.\n",
+      ".planning/M6.E2-PLAN.md": "# M6.E2 plan\n",
+      ".planning/M6.E2-REQUIREMENTS.md": "# M6.E2 requirements\n",
+      ".planning/MILESTONE-6.md": "# Milestone 6\n\n## Epics\n\n- M6.E1 — done\n- M6.E2 — in progress\n\n## Captured via /sig:add\n\n### Split the milestone file when it passes 40 KB\n\n**Captured:** 2026-01-15 via `/sig:add`.\n\nSplit the milestone file when it passes 40 KB.\n",
+      ".planning/NOTES.md": "# Notes\n\nReplaced.\n",
+      ".planning/OPEN-QUESTIONS.md": "# Open Questions\n\n## Should drive stop at every phase?\n\n**Status:** Open — logged 2026-01-07 via `/sig:add`.\n\nThe attention dial says checkpointed; is that the right default?\n\n**Resolve by:** (unset — triage at next planning pass)\n\n---\n\n## Should advise read archived Epics?\n\n**Status:** Open — logged 2026-01-15 via `/sig:add`. (during M6.E2 PLAN)\n\nShould advise read archived Epics?\n\n**Resolve by:** (unset — triage at next planning pass)\n\n---\n\n## Who owns the key?\n\n*Logged 2026-01-15 via /sig:checkpoint*\n",
+      ".planning/PROFILE.md": "---\ntier: FEATURE\ngate_strictness: light\nattention: checkpointed\n---\n\n# Profile\n",
+      ".planning/SCRATCH.md": "new\n",
+      ".planning/STATE.md": "---\nschema_version: 1\ncurrent_epic: M6.E2\ncurrent_phase: PLAN\nlast_updated: 2026-01-10\n---\n\n# State\n\nWorking on M6.E2. The finished Epic's plan is [the plan](./archive/M6/E1/M6.E1-PLAN.md).\n",
+      ".planning/archive/ISSUES-INBOX-LEDGER.md": "# ISSUES-INBOX — archive ledger\n\nTerminally-disposed entries (SHIPPED / PROMOTED / MERGED / DELETED) evicted from\n`.planning/ISSUES-INBOX.md`. Append-only; DEFERRED entries stay in the inbox.\n\n<!-- evicted-key: e623d45c3e73d55a7a553b3a65048dbdd2795ef7 -->\n## Export the report as CSV\n\n**Status:** Logged 2026-01-03 via `/sig:add`. → Promoted 2026-01-15 (M6.E2 drain).\n\nA CSV export would let the numbers go into a spreadsheet.\n\n---\n\n\n<!-- evicted-key: e173ed58284e427db3cc39aec12fbbb13b06aae1 -->\n## Crash when the inbox is empty\n\n**Status:** Logged 2026-01-05 via `/sig:add`. → Promoted 2026-01-15 (M6.E2 drain).\n\nThe drain throws on an empty inbox instead of saying there is nothing to do.\n\n---\n\n",
+      ".planning/archive/M6/E1/M6.E1-PLAN.md": "# M6.E1 plan\n\nContent that must survive the archive move verbatim.\n"
+    }
+  },
+  "fresh": {
+    "steps": [
+      {
+        "name": "fresh: add default inbox (lazy-create)",
+        "result": {
+          "ok": {
+            "written": true,
+            "path": "<ROOT>/.planning/ISSUES-INBOX.md",
+            "line": 5,
+            "repaired": false
+          }
+        },
+        "changed": {
+          ".planning/ISSUES-INBOX.md": "# Issues Inbox\n\nRaw capture inbox for `/sig:add` — untyped work lands here first, unsorted. The planning drain classifies and promotes from here.\n\n## First capture in a new project\n\n**Status:** Logged 2026-01-15 via `/sig:add`.\n\nFirst capture in a new project.\n\n---\n\n\n*Last updated: 2026-01-15*\n"
+        }
+      },
+      {
+        "name": "fresh: createBacklogIfMissing (creates)",
+        "result": {
+          "ok": {
+            "created": true,
+            "path": "<ROOT>/.planning/BACKLOG.md",
+            "seededFrom": null
+          }
+        },
+        "changed": {
+          ".planning/BACKLOG.md": "# Backlog\n\nGroomed, sequenced roadmap — promoted from the issues inbox. Roadmap-vs-hygiene is a **Tag** on each entry, not a separate file.\n\n*Last updated: 2026-01-15*\n"
+        }
+      },
+      {
+        "name": "fresh: promoteToBugs (creates BUGS.md)",
+        "result": {
+          "ok": {
+            "written": true,
+            "path": "<ROOT>/.planning/BUGS.md",
+            "key": "37deb6423e14611757a7752ae5f1e96d19f36e4a"
+          }
+        },
+        "changed": {
+          ".planning/BUGS.md": "# Bugs\n\nConfirmed defects and verified findings.\n\n## Fresh bug\n\n**Status:** needs-triage\n<!-- bugs-key: 37deb6423e14611757a7752ae5f1e96d19f36e4a -->\n\nSomething broke.\n\n---\n"
+        }
+      },
+      {
+        "name": "fresh: add --bug (BUGS.md created by the promote above)",
+        "result": {
+          "ok": {
+            "written": true,
+            "path": "<ROOT>/.planning/BUGS.md",
+            "line": 14,
+            "repaired": false
+          }
+        },
+        "changed": {
+          ".planning/BUGS.md": "# Bugs\n\nConfirmed defects and verified findings.\n\n## Fresh bug\n\n**Status:** needs-triage\n<!-- bugs-key: 37deb6423e14611757a7752ae5f1e96d19f36e4a -->\n\nSomething broke.\n\n---\n\n## Second bug.\n\n**Status:** needs-triage\n\nSecond bug.\n\n---\n"
+        }
+      },
+      {
+        "name": "fresh: checkpoint question with no OPEN-QUESTIONS.md",
+        "result": {
+          "ok": {
+            "wrote": [
+              "<ROOT>/.planning/OPEN-QUESTIONS.md"
+            ],
+            "sensitiveHits": []
+          }
+        },
+        "changed": {
+          ".planning/OPEN-QUESTIONS.md": "# Open Questions\n\n## Where do questions go in a new project?\n\n*Logged 2026-01-15 via /sig:checkpoint*\n"
+        }
+      }
+    ],
+    "final": {
+      ".planning/BACKLOG.md": "# Backlog\n\nGroomed, sequenced roadmap — promoted from the issues inbox. Roadmap-vs-hygiene is a **Tag** on each entry, not a separate file.\n\n*Last updated: 2026-01-15*\n",
+      ".planning/BUGS.md": "# Bugs\n\nConfirmed defects and verified findings.\n\n## Fresh bug\n\n**Status:** needs-triage\n<!-- bugs-key: 37deb6423e14611757a7752ae5f1e96d19f36e4a -->\n\nSomething broke.\n\n---\n\n## Second bug.\n\n**Status:** needs-triage\n\nSecond bug.\n\n---\n",
+      ".planning/ISSUES-INBOX.md": "# Issues Inbox\n\nRaw capture inbox for `/sig:add` — untyped work lands here first, unsorted. The planning drain classifies and promotes from here.\n\n## First capture in a new project\n\n**Status:** Logged 2026-01-15 via `/sig:add`.\n\nFirst capture in a new project.\n\n---\n\n\n*Last updated: 2026-01-15*\n",
+      ".planning/OPEN-QUESTIONS.md": "# Open Questions\n\n## Where do questions go in a new project?\n\n*Logged 2026-01-15 via /sig:checkpoint*\n",
+      ".planning/STATE.md": "---\nschema_version: 1\ncurrent_epic: M6.E2\ncurrent_phase: PLAN\nlast_updated: 2026-01-10\n---\n\n# State\n\nWorking on M6.E2. The finished Epic's plan is [the plan](M6.E1-PLAN.md).\n"
+    }
+  }
+}
