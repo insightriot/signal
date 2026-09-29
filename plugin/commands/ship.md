@@ -170,6 +170,8 @@ Stage the modified `.planning/RETROSPECTIVES.md` (when `result.written === true`
 
 On an **Epic-close** SHIP (when `shipFR1Check` returned `{isEpicClose: true}` in §0.5), run a light sweep of the capture inbox so terminally-dispositioned entries (promoted / merged / shipped / deleted) that the `/sig:plan` drain stamped but did not yet evict physically leave the inbox — the same convergence step the drain performs, applied once more at Epic close so nothing lingers.
 
+**Work store on** (`isStoreOn(baseDir)` from `tools/lib/work-store.js`): skip this step and say so — the inbox is generated from item files and the store keeps no ledger, so there is nothing to evict (`evictTerminalToLedger` refuses).
+
 1. `evictTerminalToLedger(baseDir, { dryRun: true })` from `tools/lib/drain.js` — **preview** which terminal entries would move to the archive ledger (`ISSUES-INBOX-LEDGER.md`, back-compat `FUTURE-IDEAS-LEDGER.md`, resolved by `resolveLedgerPath`). A dry run leaves the inbox byte-identical.
 2. Confirm (honoring `gate_strictness` — `strict` confirms explicitly, `off` auto-advances), then call `evictTerminalToLedger(baseDir)` for real. It appends to the ledger **first**, then removes the blocks from the inbox — crash-safe and keyed, so a re-run never dupes or loses. If it reports `danglingFence: true` it performed a scoped no-op (never cutting across an unclosed fence); report that and leave the fence to be fixed.
 
@@ -181,6 +183,8 @@ On an **Epic-close** SHIP (when `shipFR1Check` returned `{isEpicClose: true}` in
 `.planning/BACKLOG.md` that the rows this Epic finished are done.
 
 Call `dischargeBacklogRows(baseDir, {rows, by: state.current_epic, at: <today>})` from `tools/lib/backlog.js`, where `rows` are heading substrings **you name** from the Epic's own scope.
+
+**Work store on:** the same call closes each matched item (`closeItem`, reason `fixed`, the discharge stamp as proof) instead of editing `BACKLOG.md`, which is generated. Stage the moved item files.
 
 *(That call sits on one line deliberately. `directive-classifier.js` reads at line granularity, so a
 call name wrapped across a break is invisible to it and the instruction ships **unmeasurable** —

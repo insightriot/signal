@@ -24,6 +24,12 @@ import {
   dischargeBacklogRows,
   ROW_DISCHARGE,
 } from '../plugin/tools/lib/backlog.js';
+import {
+  applyDispositionToFile,
+  applyDispositionToFileCore,
+  evictTerminalToLedger,
+  promoteDrainEntry,
+} from '../plugin/tools/lib/drain.js';
 import { generateAll, GENERATED_FILES } from '../plugin/tools/lib/work-generate.js';
 import { GENERATED_MARKER } from '../plugin/tools/lib/work-marker.js';
 import { getItem, listItems, newItem } from '../plugin/tools/lib/work-ops.js';
@@ -192,5 +198,56 @@ describe('backlog.js — promote and discharge move items', () => {
     const res = await dischargeBacklogRows(root, { rows: ['Index'], by: 'M6.E11', at: TODAY });
     expect(res.results[0].status).toBe(ROW_DISCHARGE.NOT_FOUND);
     expect(listItems(root, { status: 'C' })).toEqual([]);
+  });
+});
+
+describe('drain.js — refuses outright when the store is on (AC-6.3, D-M6E11-25)', () => {
+  async function seeded() {
+    await captureToFutureIdeas(root, { body: 'An idea.', today: TODAY, sensitivePrompt: keep });
+    return lists();
+  }
+  async function expectRefused(run) {
+    const before = await seeded();
+    let err;
+    try {
+      await run();
+    } catch (e) {
+      err = e;
+    }
+    expect(err?.code).toBe('GENERATED');
+    expect(err.message).toContain('/sig:item triage');
+    expect(err.message).toContain('ISSUES-INBOX.md');
+    expect(await lists()).toEqual(before);
+    expect(existsSync(planning('.state.lock'))).toBe(false);
+    expect(existsSync(planning('archive'))).toBe(false); // no ledger started
+    await expectOnlyGeneratorWrote();
+  }
+
+  it('applyDispositionToFile', () =>
+    expectRefused(() => applyDispositionToFile(root, '.planning/ISSUES-INBOX.md',
+      { entryIndex: 0, verb: 'defer', reason: 'drain', date: TODAY })));
+
+  it('applyDispositionToFileCore (the lock-free export) as well', () =>
+    expectRefused(() => applyDispositionToFileCore(root, '.planning/ISSUES-INBOX.md',
+      { entryIndex: 0, verb: 'defer', reason: 'drain', date: TODAY })));
+
+  it('evictTerminalToLedger', () => expectRefused(() => evictTerminalToLedger(root)));
+
+  it('evictTerminalToLedger dry run too — one rule, not two', () =>
+    expectRefused(() => evictTerminalToLedger(root, { dryRun: true })));
+
+  it('promoteDrainEntry — refused before the destination write, so no item moves', async () => {
+    await expectRefused(async () => {
+      const block = await inboxBlockFor('SIG-1');
+      return promoteDrainEntry(root, { classification: 'work', block, tag: 'roadmap', entryIndex: 0,
+        reason: 'drain', date: TODAY });
+    });
+    expect(getItem(root, 'SIG-1').item.status).toBe('N');
+  });
+
+  it('a broken WORK.md surfaces as CONFIG, not a hang or a drain write', async () => {
+    await put('.planning/ISSUES-INBOX.md', '# Issues Inbox\n\n## A\n\nx\n\n---\n\n*Last updated: 2026-01-01*\n');
+    await put('.planning/work/WORK.md', '---\nkey: 1bad\n---\n');
+    await expect(evictTerminalToLedger(root)).rejects.toMatchObject({ code: 'CONFIG' });
   });
 });
