@@ -103,6 +103,17 @@ describe('t5.2 — the generated Epic index, .planning/work/EPICS.md (AC-8.2)', 
     expect(await read('.planning/work/EPICS.md')).toBe(text);
   });
 
+  it('orders Epics by number, not by text or by folder creation order (M6.E1 < M6.E2 < M6.E11)', async () => {
+    for (const id of ['M6.E2', 'M6.E12', 'M6.E3']) await mkdir(join(base, `.planning/work/epics/${id}`), { recursive: true });
+    await generateAll(base);
+    const text = await read('.planning/work/EPICS.md');
+    const at = (id) => text.indexOf(`## ${id} `);
+    expect(at('M6.E2')).toBeLessThan(at('M6.E3'));
+    expect(at('M6.E3')).toBeLessThan(at('M6.E11'));
+    expect(at('M6.E11')).toBeLessThan(at('M6.E12'));
+    expect(at('M6.E12')).toBeLessThan(at('M6.E1')); // open Epics first, then archived
+  });
+
   it('an Epic folder with no items is listed with "no items"', async () => {
     await mkdir(join(base, '.planning/work/epics/M6.E12'), { recursive: true });
     await generateAll(base);
