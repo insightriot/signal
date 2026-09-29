@@ -47,10 +47,13 @@ const EPIC_ID_RE = /^[A-Za-z0-9._-]+$/;
 // bare form is still resolved, one step below.
 //
 // A broken WORK.md throws (`isStoreOn`): the store never reads as off.
-function epicFolderRel(planningRoot, currentEpic, existsFn = existsSync) {
+const LIVE_EPICS_REL = 'work/epics';
+const ARCHIVED_EPICS_REL = 'archive/epics';
+
+function epicFolderRel(planningRoot, currentEpic, existsFn = existsSync, parent = LIVE_EPICS_REL) {
   if (typeof currentEpic !== 'string' || !EPIC_ID_STRICT_RE.test(currentEpic)) return null;
   if (!isStoreOn(dirname(planningRoot)).on) return null;
-  const rel = `work/epics/${currentEpic}`;
+  const rel = `${parent}/${currentEpic}`;
   return existsFn(join(planningRoot, rel)) ? rel : null;
 }
 
@@ -65,7 +68,9 @@ function epicFolderRel(planningRoot, currentEpic, existsFn = existsSync) {
  * With the work store on and `.planning/work/epics/{currentEpic}/` present
  * (M6.E11 t5.1), two candidates come first: `work/epics/{id}/{id}-{artifact}.md`
  * (the canonical name, which is what `artifactName` writes) and
- * `work/epics/{id}/{artifact}.md`. Otherwise the list is exactly the above.
+ * `work/epics/{id}/{artifact}.md`. Then, when `.planning/archive/epics/{id}/`
+ * exists (a closed Epic, t5.4), the same two names there — after `artifactName`'s
+ * own candidate, before patterns 0–3. Otherwise the list is exactly the above.
  *
  * Returns the first existing candidate as an absolute path, or `null`.
  *
@@ -115,6 +120,11 @@ export function resolveArtifactPath(planningDir, artifact, opts = {}) {
   const folder = epicFolderRel(planningRoot, currentEpic, existsFn);
   rawCandidates.push(artifactName(artifact, { currentEpic, planningDir: planningRoot }));
   if (folder) rawCandidates.push(`${folder}/${artifact}.md`);
+  // Pattern A (M6.E11 t5.4) — the Epic's ARCHIVED folder, after the live
+  // folder and before the legacy list, so `/sig:resume` on a just-shipped
+  // Epic still finds its artifacts. Read-only: artifactName never names it.
+  const archived = epicFolderRel(planningRoot, currentEpic, existsFn, ARCHIVED_EPICS_REL);
+  if (archived) rawCandidates.push(`${archived}/${currentEpic}-${artifact}.md`, `${archived}/${artifact}.md`);
   if (typeof currentEpic === 'string' && currentEpic && EPIC_ID_RE.test(currentEpic)) {
     rawCandidates.push(`${currentEpic}-${artifact}.md`); // pattern 0
   }

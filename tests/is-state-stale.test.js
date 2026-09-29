@@ -298,6 +298,39 @@ describe('isStateStale', () => {
     expect(result.commitCount).toBe(1);
   }, 30000); // real-git fixture: generous timeout for parallel-suite load
 
+  // M6.E11 t5.4: with the work store on, an Epic's artifacts live in
+  // `.planning/work/epics/<id>/` — a committed PLAN there is the same unrolled
+  // work as one at the top level, in either name form.
+  it.each([
+    ['.planning/work/epics/M5.E1/M5.E1-PLAN.md'],
+    ['.planning/work/epics/M5.E1/PROGRESS.md'],
+  ])('M6.E11: a commit touching only %s (an Epic-folder artifact) IS stale', async (rel) => {
+    initRepo(tempDir);
+    await writeFile(join(tempDir, 'app.js'), 'v0\n', 'utf-8');
+    commitAll(tempDir, 'base: initial work');
+    const base = headSha(tempDir);
+    await plantState(tempDir, { last_updated_commit: base });
+    await mkdir(dirname(join(tempDir, rel)), { recursive: true });
+    await writeFile(join(tempDir, rel), '# plan\n', 'utf-8');
+    commitPath(tempDir, rel, 'plan in the Epic folder');
+    const result = await isStateStale(tempDir);
+    expect(result.stale).toBe(true);
+    expect(result.commitCount).toBe(1);
+  }, 30000);
+
+  it('M6.E11: an item file in the store is NOT a phase artifact — a capture does not make STATE stale', async () => {
+    initRepo(tempDir);
+    await writeFile(join(tempDir, 'app.js'), 'v0\n', 'utf-8');
+    commitAll(tempDir, 'base: initial work');
+    const base = headSha(tempDir);
+    await plantState(tempDir, { last_updated_commit: base });
+    const rel = '.planning/work/epics/M5.E1/SIG-4.md';
+    await mkdir(dirname(join(tempDir, rel)), { recursive: true });
+    await writeFile(join(tempDir, rel), '---\nid: SIG-4\n---\n', 'utf-8');
+    commitPath(tempDir, rel, 'item');
+    expect((await isStateStale(tempDir)).stale).toBe(false);
+  }, 30000);
+
   // AC4.3: two *-PROGRESS.md-only commits -> stale, count-independent (more than
   // one artifact commit must not read as a false-negative). Also RED against
   // current code (Walk 2 excludes *-PROGRESS.md).

@@ -37,6 +37,7 @@ async function put(rel, content = '# x\n') {
   await writeFile(p, content, 'utf-8');
 }
 const storeOn = () => put('.planning/work/WORK.md', '---\nkey: SIG\n---\n# Work store\n');
+const EPIC_LIVE = '.planning/work/epics/M6.E99';
 const epicFolder = (id = 'M6.E99') => mkdir(join(P, 'work', 'epics', id), { recursive: true });
 
 describe('store on, Epic folder present', () => {
@@ -103,6 +104,41 @@ describe('store on, Epic folder present', () => {
     const state = await readState(base);
     expect(state.phase).toBe('PLAN');
     expect(state.completed_phases.map((e) => e.split(' ')[0])).toContain('DISCUSS');
+  });
+});
+
+describe('an archived Epic (M6.E11 t5.4) — reads find it, writes never go there', () => {
+  const ARCH = '.planning/archive/epics/M6.E99';
+  beforeEach(storeOn);
+
+  it('resolves the canonical and the bare name from archive/epics/<id>/ when the live folder is gone', async () => {
+    await put(`${ARCH}/PLAN.md`);
+    expect(resolveArtifactPath(P, 'PLAN', { currentEpic: 'M6.E99' })).toBe(join(P, 'archive/epics/M6.E99/PLAN.md'));
+    await put(`${ARCH}/M6.E99-PLAN.md`);
+    expect(resolveArtifactPath(P, 'PLAN', { currentEpic: 'M6.E99' }))
+      .toBe(join(P, 'archive/epics/M6.E99/M6.E99-PLAN.md'));
+  });
+
+  it('the live folder wins over the archive, and the archive over the numeric / bare legacy names', async () => {
+    await put(`${ARCH}/M6.E99-PLAN.md`);
+    await put('.planning/1-PLAN.md');
+    await put('.planning/PLAN.md');
+    expect(resolveArtifactPath(P, 'PLAN', { currentEpic: 'M6.E99' }))
+      .toBe(join(P, 'archive/epics/M6.E99/M6.E99-PLAN.md'));
+    await put(`${EPIC_LIVE}/M6.E99-PLAN.md`);
+    expect(resolveArtifactPath(P, 'PLAN', { currentEpic: 'M6.E99' }))
+      .toBe(join(P, 'work/epics/M6.E99/M6.E99-PLAN.md'));
+  });
+
+  it('artifactName never names a path in the archive', async () => {
+    await put(`${ARCH}/M6.E99-PLAN.md`);
+    expect(artifactName('VERIFICATION', { currentEpic: 'M6.E99', planningDir: P })).toBe('M6.E99-VERIFICATION.md');
+  });
+
+  it('store off: the archive is not read', async () => {
+    await rm(join(P, 'work/WORK.md'));
+    await put(`${ARCH}/M6.E99-PLAN.md`);
+    expect(resolveArtifactPath(P, 'PLAN', { currentEpic: 'M6.E99' })).toBeNull();
   });
 });
 

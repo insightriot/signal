@@ -1111,6 +1111,18 @@ const STATE_AFFECTING_PATHS = [
   ':(glob).planning/*-PLAN.md',
   ':(glob).planning/*-VERIFICATION.md',
   ':(glob).planning/*-REVIEW.md',
+  // M6.E11 t5.4: with the work store on, an Epic's artifacts sit in its folder,
+  // canonical (`{EpicID}-PLAN.md`) or bare (`PLAN.md`). Artifacts only — an
+  // item file there (`SIG-4.md`) is a capture, not ground state moving. With
+  // the store off nothing matches these, so the git log output is unchanged.
+  ':(glob).planning/work/epics/*/*-PROGRESS.md',
+  ':(glob).planning/work/epics/*/*-PLAN.md',
+  ':(glob).planning/work/epics/*/*-VERIFICATION.md',
+  ':(glob).planning/work/epics/*/*-REVIEW.md',
+  ':(glob).planning/work/epics/*/PROGRESS.md',
+  ':(glob).planning/work/epics/*/PLAN.md',
+  ':(glob).planning/work/epics/*/VERIFICATION.md',
+  ':(glob).planning/work/epics/*/REVIEW.md',
 ];
 
 // B6/FR4 (M5.E5.T4) — the true "bookkeeping" subset of STATE_AFFECTING_PATHS:
