@@ -35,7 +35,8 @@ import { parseBacklogRows } from './backlog.js';
 import { walkBugEntries } from './bugs-tally.js';
 import { parseEntries, parseTriggerWatchlist } from './drain.js';
 import { acquireLock } from './file-lock.js';
-import { generateAll, WATCHLIST_FILE } from './work-generate.js';
+import { assertRealInsidePlanning } from './path-confine.js';
+import { EPICS_INDEX_REL, GENERATED_FILES, generateAll, WATCHLIST_FILE } from './work-generate.js';
 import { stringifyItem, validateItem, WorkStoreError } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
 import { isGeneratedFile } from './work-marker.js';
@@ -995,8 +996,10 @@ function workFileText(key) {
  *   with its project-relative path; a throw from it is a failed apply.
  * @returns {Promise<object>} the report (`formatMigrationReport` renders it)
  * @throws {WorkStoreError} CONFLICT (already migrated, archive exists, an ID is
- *   taken), GENERATED (a source is already generated), SCHEMA (bad `date`, or
- *   the store fails its own check after the write)
+ *   taken, `work/WATCHLIST.md` or `work/EPICS.md` exists), GENERATED (a source
+ *   is already generated), SCHEMA (bad `date`, or the store fails its own
+ *   check after the write)
+ * @throws {Error} a folder it would write into resolves outside `.planning/`
  */
 export async function applyMigration(baseDir, opts = {}) {
   const { key = 'SIG', by = MIGRATION_BY, date = isoToday(), dryRun = true } = opts;
@@ -1009,6 +1012,16 @@ export async function applyMigration(baseDir, opts = {}) {
   if (pathExists(join(baseDir, workRel))) {
     throw new WorkStoreError('CONFLICT', `${workRel} already exists — this project has been migrated. `
       + 'A migration runs once; change items with /sig:item.');
+  }
+  // Files this run creates besides items (REVIEW I2). One that already exists
+  // would be overwritten — and, on a failed run, deleted by the rollback,
+  // which removes what the run wrote. So it is refused before anything.
+  for (const rel of [`${WORK_DIR}/${WATCHLIST_FILE}`, EPICS_INDEX_REL]) {
+    if (pathExists(join(planning, ...rel.split('/')))) {
+      throw new WorkStoreError('CONFLICT', `.planning/${rel} already exists — nothing was written. The migration creates `
+        + 'that file and will not overwrite one it did not write. Move it aside (and fold anything worth keeping back '
+        + 'in after the migration), then re-run.');
+    }
   }
   for (const s of SOURCES) {
     if (isGeneratedFile(join(planning, s))) {
@@ -1036,6 +1049,18 @@ export async function applyMigration(baseDir, opts = {}) {
       + 'It holds an earlier migration\'s originals; find out why before migrating again.');
   }
 
+  // Confinement (REVIEW): every folder this run writes into resolves inside
+  // the real `.planning/` — a directory symlink out of it is refused here,
+  // before anything is written. Checked on a file path, because the check
+  // anchors on the destination's folder.
+  const workAbs = join(planning, WORK_DIR);
+  const label = 'work-migrate';
+  assertRealInsidePlanning(baseDir, join(workAbs, WORK_FILE), label);
+  assertRealInsidePlanning(baseDir, join(archiveAbs, ARCHIVE_README), label);
+  for (const { item, dir } of plan.items) {
+    assertRealInsidePlanning(baseDir, join(planning, ...dir.split('/'), `${item.id}.md`), label);
+  }
+
   const originals = {};
   for (const s of SOURCES) {
     const p = join(planning, s);
@@ -1053,7 +1078,6 @@ export async function applyMigration(baseDir, opts = {}) {
     afterWrite(toPosix(relative(baseDir, abs)));
   };
 
-  const workAbs = join(planning, WORK_DIR);
   const lockPath = join(baseDir, WORK_LOCK_REL);
   try {
     mkdirp(workAbs); // before the lock, so the lock's folder is on the undo list
@@ -1093,12 +1117,16 @@ export async function applyMigration(baseDir, opts = {}) {
       // 5. The four lists become views of the items.
       // The originals are archived above and still sit in place; they are the
       // only hand-kept lists the generator may replace (REVIEW I1).
-      const { written } = await generateAll(baseDir, { replace: Object.keys(originals) });
-      for (const rel of written) {
+      // A list with no original is the run's own, so it goes on the undo list
+      // BEFORE generation — a failure part-way through must not leave a
+      // generated file behind (REVIEW). The rollback's unlink tolerates one
+      // that was never written.
+      for (const rel of [...GENERATED_FILES, EPICS_INDEX_REL]) {
         const abs = join(planning, ...rel.split('/'));
-        if (!originals[rel]) createdFiles.push(abs);
-        afterWrite(toPosix(relative(baseDir, abs)));
+        if (!originals[rel] && !pathExists(abs)) createdFiles.push(abs);
       }
+      const { written } = await generateAll(baseDir, { replace: Object.keys(originals) });
+      for (const rel of written) afterWrite(toPosix(relative(baseDir, join(planning, ...rel.split('/')))));
 
       // 6. The store checks out, and holds exactly what the plan said.
       const findings = checkStore(baseDir);
