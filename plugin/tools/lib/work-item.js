@@ -124,6 +124,10 @@ export function validateItem(item) {
 
   if (item.title !== undefined && !isNonEmptyString(item.title)) {
     errors.push('title must be a non-empty string');
+  } else if (typeof item.title === 'string' && /[\r\n]/.test(item.title)) {
+    // The title heads a row in every generated list; a line break would end
+    // the heading (or the table row) part-way through.
+    errors.push('title must be one line (it contains a line break)');
   }
   for (const key of OPTIONAL_STRING_FIELDS) {
     if (item[key] !== undefined && typeof item[key] !== 'string') {

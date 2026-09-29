@@ -99,6 +99,16 @@ describe('add.js — every capture route is an item', () => {
     ]);
     await expectOnlyGeneratorWrote();
   });
+
+  it('a multi-line body or title still captures: the item title is one line (validateItem refuses a line break)', async () => {
+    const derived = await captureToFutureIdeas(root, { body: 'First clause here\nsecond half. Rest of it.', today: TODAY, sensitivePrompt: keep });
+    const given = await captureToBugs(root, { body: 'Body.', title: 'Given title\r\ncontinued', today: TODAY, sensitivePrompt: keep });
+    expect(derived.written).toBe(true);
+    expect(given.written).toBe(true);
+    expect(getItem(root, derived.id).item.title).toBe('First clause here second half');
+    expect(getItem(root, given.id).item.title).toBe('Given title continued');
+    await expectOnlyGeneratorWrote();
+  });
 });
 
 describe('checkpoint.js — questions are items', () => {

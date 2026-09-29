@@ -94,6 +94,20 @@ function sample() {
   return { items, watchlist };
 }
 
+describe('generateFiles — a table cell cannot break its row', () => {
+  it('BUGS.md: a priority holding `|` or a line break stays one cell of one row', () => {
+    const items = [{
+      item: { id: 'SIG-40', type: 'BUG', status: 'T', title: 'Odd priority', priority: 'P1 | hot\nnow' },
+      body: '## Odd priority\n\nBody.',
+      dir: 'work/backlog',
+    }];
+    const bugs = generateFiles({ items })['BUGS.md'];
+    expect(bugs).toContain('| B40 | `confirmed` | P1 \\| hot now | **Odd priority** |');
+    expect(walkBugEntries(bugs).map((e) => [e.id, e.status])).toEqual([['B40', 'confirmed']]);
+    expect(compareBugTally(bugs).ok).toBe(true);
+  });
+});
+
 describe('generateFiles — shape per file', () => {
   const out = generateFiles(sample());
 

@@ -107,6 +107,10 @@ function bugStatusWord(item) {
   return 'confirmed';
 }
 
+// A value as one table cell: a line break would end the row and a `|` would
+// start a new cell, so the one becomes a space and the other is escaped.
+const cell = (v) => String(v).replace(/\s*[\r\n]+\s*/g, ' ').replace(/\|/g, '\\|');
+
 // A body that IS a table row (a migrated one) keeps its verbatim summary,
 // continuation lines included. Anything else is summarised by its title —
 // never by its body, whose `**Status:**` line would count as a second entry.
@@ -114,13 +118,13 @@ function bugSummary(entry) {
   const body = atPlanning(entry);
   const m = body.match(BUG_ROW_RE);
   if (m && body.trimEnd().endsWith('|')) return body.slice(m[0].length, body.lastIndexOf('|')).trim();
-  return `**${String(entry.item.title ?? entry.item.id).replace(/\|/g, '\\|')}**`;
+  return `**${cell(entry.item.title ?? entry.item.id)}**`;
 }
 
 function generateBugs(items) {
   const rows = items
     .filter((e) => e.item.type === 'BUG')
-    .map((e) => `| B${itemNumber(e.item.id)} | \`${bugStatusWord(e.item)}\` | ${e.item.priority ?? '—'} | ${bugSummary(e)} |`);
+    .map((e) => `| B${itemNumber(e.item.id)} | \`${bugStatusWord(e.item)}\` | ${cell(e.item.priority ?? '—')} | ${bugSummary(e)} |`);
   const table = ['| ID | Status | Pri | Summary |', '|---|---|---|---|', ...rows].join('\n');
   const tally = `*${formatTallySegment(deriveBugCounts(table))}*`;
   return [GENERATED_MARKER, '# Bugs', '', table, '', tally, ''].join('\n');

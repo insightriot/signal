@@ -111,6 +111,8 @@ describe('validateItem — AC-2.2', () => {
     ['status unknown', { status: 'X' }, /status/],
     ['title not a string', { title: 5 }, /title/],
     ['title empty', { title: '  ' }, /title/],
+    ['title with a newline (it heads a generated list row)', { title: 'Line one\nline two' }, /title must be one line/],
+    ['title with a carriage return', { title: 'Line one\r' }, /title must be one line/],
     ['theme not a string', { theme: ['a'] }, /theme/],
     ['created not a mapping', { created: '2026-09-29' }, /created/],
     ['created without by', { created: { at: '2026-09-29' } }, /created\.by/],

@@ -1208,7 +1208,11 @@ async function captureToStore(baseDir, opts) {
   }
 
   const { newItem } = await import('./work-ops.js');
-  const heading = title?.trim() || deriveHeading(body);
+  // An item title is one line (validateItem). The given title and the derived
+  // clause can both span lines here, so they are joined — the capture is
+  // never refused for its own heading. Store on only: the store-off heading is
+  // unchanged.
+  const heading = (title?.trim() || deriveHeading(body)).replace(/\s*[\r\n]+\s*/g, ' ');
   const trigger = triggerContext?.trim();
   const item = await newItem(baseDir, {
     type: storeItem.type,
