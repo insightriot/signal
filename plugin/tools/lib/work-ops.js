@@ -495,8 +495,10 @@ export async function newItems(baseDir, specs, opts = {}) {
         if (firstCreated) removeCreatedDirs(inboxAbs, firstCreated);
         throw err;
       }
-      const ids = planned.map((p) => p.item.id);
-      await regenerate(baseDir, `${ids.join(', ')} ${ids.length === 1 ? 'was' : 'were'} written to .planning/${dirRel}/`);
+      const where = planned.length === 1
+        ? `${planned[0].item.id} was written to ${planned[0].rel}`
+        : `${planned.map((p) => p.item.id).join(', ')} were written to .planning/${dirRel}/`;
+      await regenerate(baseDir, where);
       return planned.map((p) => p.item);
     });
   } catch (err) {

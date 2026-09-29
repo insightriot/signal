@@ -51,6 +51,9 @@ describe('a hand-kept list with the store switched on by hand', () => {
     expect(err.code).toBe('CONFIG');
     expect(err.message).toContain('.planning/BUGS.md');
     expect(err.message).toContain('node tools/work-migrate.mjs');
+    // An already-migrated project cannot re-run the migration (WORK.md
+    // exists); its way back is git (advisor note on I1).
+    expect(err.message).toMatch(/already migrated[^.]*restore[^.]*git/);
     expect(await read('.planning/BUGS.md')).toBe(HAND_BUGS);
     expect(existsSync(join(dir, '.planning/work/inbox'))).toBe(false); // no item
     expect(existsSync(join(dir, '.planning/ISSUES-INBOX.md'))).toBe(false); // no list either
@@ -81,6 +84,17 @@ describe('a hand-kept list with the store switched on by hand', () => {
     expect((await read('.planning/BUGS.md')).split('\n')[0]).toBe(GENERATED_MARKER);
     expect(await read('.planning/BUGS.md')).not.toContain('stale');
     expect(await read('.planning/ISSUES-INBOX.md')).toContain('SIG-1');
+  });
+});
+
+describe('a regeneration failure after a single newItem names the file', () => {
+  it('the message carries the item path, not only the folder', async () => {
+    await put('.planning/work/WORK.md', '---\nkey: SIG\n---\n');
+    // A broken item elsewhere fails generation before it writes anything.
+    await put('.planning/work/backlog/SIG-9.md', '---\nid: SIG-9\n---\n');
+    const err = await caught(newItem(dir, { title: 'x', by: 'b', at: '2026-09-29T00:00:00.000Z' }));
+    expect(err?.code).toBe('SCHEMA');
+    expect(err.message).toContain('SIG-10 was written to .planning/work/inbox/SIG-10.md, but the lists were not regenerated');
   });
 });
 

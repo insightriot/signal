@@ -312,7 +312,9 @@ export function assertNoHandKeptLists(baseDir, opts = {}) {
     + `${handKept.length === 1 ? 'it' : 'them'} with entries the store does not hold, so nothing was written. `
     + 'Turning the store on for a project with existing lists is done by the migration, which moves every entry '
     + 'into an item file first: `node tools/work-migrate.mjs` in Signal (`/sig:docs-migrate` for other projects, '
-    + `in a later release). If .planning/${WORK_DIR}/WORK.md was created by hand, delete it to turn the store back off.`);
+    + `in a later release). If .planning/${WORK_DIR}/WORK.md was created by hand, delete it to turn the store back off. `
+    + 'If this project was already migrated, the list was edited by hand: restore it from git '
+    + '(`git checkout -- <file>`) — a generated list\'s first line is the marker.');
 }
 
 /**
