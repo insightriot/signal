@@ -498,5 +498,274 @@
       ".planning/OPEN-QUESTIONS.md": "# Open Questions\n\n## Where do questions go in a new project?\n\n*Logged 2026-01-15 via /sig:checkpoint*\n",
       ".planning/STATE.md": "---\nschema_version: 1\ncurrent_epic: M6.E2\ncurrent_phase: PLAN\nlast_updated: 2026-01-10\n---\n\n# State\n\nWorking on M6.E2. The finished Epic's plan is [the plan](M6.E1-PLAN.md).\n"
     }
+  },
+  "readers": {
+    "resolver": [
+      {
+        "artifact": "PLAN",
+        "currentEpic": "M6.E2",
+        "name": "M6.E2-PLAN.md",
+        "nameWithPlanningDir": "M6.E2-PLAN.md",
+        "resolved": "M6.E2-PLAN.md"
+      },
+      {
+        "artifact": "REQUIREMENTS",
+        "currentEpic": "M6.E2",
+        "name": "M6.E2-REQUIREMENTS.md",
+        "nameWithPlanningDir": "M6.E2-REQUIREMENTS.md",
+        "resolved": "M6.E2-REQUIREMENTS.md"
+      },
+      {
+        "artifact": "RESEARCH",
+        "currentEpic": "M6.E2",
+        "name": "M6.E2-RESEARCH.md",
+        "nameWithPlanningDir": "M6.E2-RESEARCH.md",
+        "resolved": null
+      },
+      {
+        "artifact": "VERIFICATION",
+        "currentEpic": "M6.E2",
+        "name": "M6.E2-VERIFICATION.md",
+        "nameWithPlanningDir": "M6.E2-VERIFICATION.md",
+        "resolved": "1-VERIFICATION.md"
+      },
+      {
+        "artifact": "PROGRESS",
+        "currentEpic": "M6.E2",
+        "name": "M6.E2-PROGRESS.md",
+        "nameWithPlanningDir": "M6.E2-PROGRESS.md",
+        "resolved": null
+      },
+      {
+        "artifact": "PLAN",
+        "currentEpic": "M6.E1",
+        "name": "M6.E1-PLAN.md",
+        "nameWithPlanningDir": "M6.E1-PLAN.md",
+        "resolved": "M6.E1-PLAN.md"
+      },
+      {
+        "artifact": "REQUIREMENTS",
+        "currentEpic": "M6.E1",
+        "name": "M6.E1-REQUIREMENTS.md",
+        "nameWithPlanningDir": "M6.E1-REQUIREMENTS.md",
+        "resolved": null
+      },
+      {
+        "artifact": "RESEARCH",
+        "currentEpic": "M6.E1",
+        "name": "M6.E1-RESEARCH.md",
+        "nameWithPlanningDir": "M6.E1-RESEARCH.md",
+        "resolved": null
+      },
+      {
+        "artifact": "VERIFICATION",
+        "currentEpic": "M6.E1",
+        "name": "M6.E1-VERIFICATION.md",
+        "nameWithPlanningDir": "M6.E1-VERIFICATION.md",
+        "resolved": "1-VERIFICATION.md"
+      },
+      {
+        "artifact": "PROGRESS",
+        "currentEpic": "M6.E1",
+        "name": "M6.E1-PROGRESS.md",
+        "nameWithPlanningDir": "M6.E1-PROGRESS.md",
+        "resolved": null
+      },
+      {
+        "artifact": "PLAN",
+        "currentEpic": "M6.E0",
+        "name": "M6.E0-PLAN.md",
+        "nameWithPlanningDir": "M6.E0-PLAN.md",
+        "resolved": null
+      },
+      {
+        "artifact": "REQUIREMENTS",
+        "currentEpic": "M6.E0",
+        "name": "M6.E0-REQUIREMENTS.md",
+        "nameWithPlanningDir": "M6.E0-REQUIREMENTS.md",
+        "resolved": null
+      },
+      {
+        "artifact": "RESEARCH",
+        "currentEpic": "M6.E0",
+        "name": "M6.E0-RESEARCH.md",
+        "nameWithPlanningDir": "M6.E0-RESEARCH.md",
+        "resolved": null
+      },
+      {
+        "artifact": "VERIFICATION",
+        "currentEpic": "M6.E0",
+        "name": "M6.E0-VERIFICATION.md",
+        "nameWithPlanningDir": "M6.E0-VERIFICATION.md",
+        "resolved": "1-VERIFICATION.md"
+      },
+      {
+        "artifact": "PROGRESS",
+        "currentEpic": "M6.E0",
+        "name": "M6.E0-PROGRESS.md",
+        "nameWithPlanningDir": "M6.E0-PROGRESS.md",
+        "resolved": null
+      },
+      {
+        "artifact": "PLAN",
+        "currentEpic": "M6.E3",
+        "name": "M6.E3-PLAN.md",
+        "nameWithPlanningDir": "M6.E3-PLAN.md",
+        "resolved": null
+      },
+      {
+        "artifact": "REQUIREMENTS",
+        "currentEpic": "M6.E3",
+        "name": "M6.E3-REQUIREMENTS.md",
+        "nameWithPlanningDir": "M6.E3-REQUIREMENTS.md",
+        "resolved": null
+      },
+      {
+        "artifact": "RESEARCH",
+        "currentEpic": "M6.E3",
+        "name": "M6.E3-RESEARCH.md",
+        "nameWithPlanningDir": "M6.E3-RESEARCH.md",
+        "resolved": null
+      },
+      {
+        "artifact": "VERIFICATION",
+        "currentEpic": "M6.E3",
+        "name": "M6.E3-VERIFICATION.md",
+        "nameWithPlanningDir": "M6.E3-VERIFICATION.md",
+        "resolved": "1-VERIFICATION.md"
+      },
+      {
+        "artifact": "PROGRESS",
+        "currentEpic": "M6.E3",
+        "name": "M6.E3-PROGRESS.md",
+        "nameWithPlanningDir": "M6.E3-PROGRESS.md",
+        "resolved": null
+      },
+      {
+        "artifact": "PLAN",
+        "currentEpic": null,
+        "name": "1-PLAN.md",
+        "nameWithPlanningDir": "1-PLAN.md",
+        "resolved": null
+      },
+      {
+        "artifact": "REQUIREMENTS",
+        "currentEpic": null,
+        "name": "REQUIREMENTS.md",
+        "nameWithPlanningDir": "REQUIREMENTS.md",
+        "resolved": null
+      },
+      {
+        "artifact": "RESEARCH",
+        "currentEpic": null,
+        "name": "1-RESEARCH.md",
+        "nameWithPlanningDir": "1-RESEARCH.md",
+        "resolved": null
+      },
+      {
+        "artifact": "VERIFICATION",
+        "currentEpic": null,
+        "name": "1-VERIFICATION.md",
+        "nameWithPlanningDir": "1-VERIFICATION.md",
+        "resolved": "1-VERIFICATION.md"
+      },
+      {
+        "artifact": "PROGRESS",
+        "currentEpic": null,
+        "name": "1-PROGRESS.md",
+        "nameWithPlanningDir": "1-PROGRESS.md",
+        "resolved": null
+      }
+    ],
+    "preflight": {
+      "M6.E2": {
+        "blocking": [],
+        "cannotCheck": [],
+        "checked": [
+          "DECISION-QUEUE.md",
+          "STATE.md blockers",
+          "OPEN-QUESTIONS.md",
+          "M6.E2-REQUIREMENTS.md"
+        ]
+      },
+      "M6.E1": {
+        "blocking": [],
+        "cannotCheck": [
+          {
+            "source": "REQUIREMENTS unfilled markers",
+            "reason": "no M6.E1-REQUIREMENTS.md on disk — the spec cannot be checked for gaps"
+          }
+        ],
+        "checked": [
+          "DECISION-QUEUE.md",
+          "STATE.md blockers",
+          "OPEN-QUESTIONS.md"
+        ]
+      },
+      "M6.E0": {
+        "blocking": [],
+        "cannotCheck": [
+          {
+            "source": "REQUIREMENTS unfilled markers",
+            "reason": "no M6.E0-REQUIREMENTS.md on disk — the spec cannot be checked for gaps"
+          }
+        ],
+        "checked": [
+          "DECISION-QUEUE.md",
+          "STATE.md blockers",
+          "OPEN-QUESTIONS.md"
+        ]
+      },
+      "M6.E3": {
+        "blocking": [],
+        "cannotCheck": [
+          {
+            "source": "REQUIREMENTS unfilled markers",
+            "reason": "no M6.E3-REQUIREMENTS.md on disk — the spec cannot be checked for gaps"
+          }
+        ],
+        "checked": [
+          "DECISION-QUEUE.md",
+          "STATE.md blockers",
+          "OPEN-QUESTIONS.md"
+        ]
+      },
+      "null": {
+        "blocking": [],
+        "cannotCheck": [
+          {
+            "source": "REQUIREMENTS unfilled markers",
+            "reason": "no Epic selected — nothing to check the spec of"
+          }
+        ],
+        "checked": [
+          "DECISION-QUEUE.md",
+          "STATE.md blockers",
+          "OPEN-QUESTIONS.md"
+        ]
+      }
+    },
+    "isStateStale": {
+      "result": {
+        "stale": false,
+        "commitCount": 0,
+        "commits": []
+      },
+      "calls": [
+        [
+          "git",
+          "log",
+          "--pretty=format:%H %s",
+          "abc1234..HEAD",
+          "--",
+          ":(glob).planning/STATE.md",
+          ":(glob).planning/CONTEXT.md",
+          ":(glob).planning/*-PROGRESS.md",
+          ":(glob).planning/*-PLAN.md",
+          ":(glob).planning/*-VERIFICATION.md",
+          ":(glob).planning/*-REVIEW.md"
+        ]
+      ]
+    }
   }
 }

@@ -1111,10 +1111,15 @@ const STATE_AFFECTING_PATHS = [
   ':(glob).planning/*-PLAN.md',
   ':(glob).planning/*-VERIFICATION.md',
   ':(glob).planning/*-REVIEW.md',
-  // M6.E11 t5.4: with the work store on, an Epic's artifacts sit in its folder,
-  // canonical (`{EpicID}-PLAN.md`) or bare (`PLAN.md`). Artifacts only — an
-  // item file there (`SIG-4.md`) is a capture, not ground state moving. With
-  // the store off nothing matches these, so the git log output is unchanged.
+];
+
+// M6.E11 t5.4: with the work store on, an Epic's artifacts sit in its folder,
+// canonical (`{EpicID}-PLAN.md`) or bare (`PLAN.md`). Artifacts only — an
+// item file there (`SIG-4.md`) is a capture, not ground state moving.
+// Added to the pathspec ONLY when the store is on (t6.1): a project can have a
+// `.planning/work/epics/` directory with no WORK.md, and before this Epic a
+// commit there never made STATE stale — the store-off golden holds that.
+const STORE_EPIC_ARTIFACT_PATHS = [
   ':(glob).planning/work/epics/*/*-PROGRESS.md',
   ':(glob).planning/work/epics/*/*-PLAN.md',
   ':(glob).planning/work/epics/*/*-VERIFICATION.md',
@@ -1202,6 +1207,17 @@ export async function isStateStale(baseDir, opts = {}) {
     if (head && head === lastCommit) return empty;
   }
 
+  // Imported here, not at the top: work-store.js imports this module.
+  // A broken WORK.md throws — the store never reads as off, so its paths stay in.
+  const { isStoreOn } = await import('./work-store.js');
+  let storeOn;
+  try {
+    storeOn = isStoreOn(baseDir).on;
+  } catch {
+    storeOn = true;
+  }
+  const affecting = storeOn ? [...STATE_AFFECTING_PATHS, ...STORE_EPIC_ARTIFACT_PATHS] : STATE_AFFECTING_PATHS;
+
   try {
     const out = execFn(
       'git',
@@ -1210,7 +1226,7 @@ export async function isStateStale(baseDir, opts = {}) {
         '--pretty=format:%H %s',
         `${lastCommit}..HEAD`,
         '--',
-        ...STATE_AFFECTING_PATHS,
+        ...affecting,
       ],
       { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
     );

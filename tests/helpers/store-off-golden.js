@@ -23,7 +23,7 @@
 // would produce phantom diffs. Absolute temp paths in return values are
 // replaced with `<ROOT>`.
 
-import { mkdtemp, rm, cp, readFile, writeFile, readdir } from 'node:fs/promises';
+import { mkdtemp, rm, cp, readFile, writeFile, readdir, mkdir } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -53,6 +53,8 @@ import { applyArchiveTree } from '../../plugin/tools/lib/archive-tree.js';
 import { createSnapshotter } from '../../plugin/tools/lib/migrate-memory.js';
 import { atomicWrite } from '../../plugin/tools/lib/atomic-write.js';
 import { resolveArtifactPath, artifactName } from '../../plugin/tools/lib/resume.js';
+import { collectPreflight } from '../../plugin/tools/lib/drive.js';
+import { isStateStale } from '../../plugin/tools/lib/state.js';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 export const FIXTURE_DIR = join(HERE, '..', 'fixtures', 'work-store-off');
@@ -263,24 +265,109 @@ function resolverResults(planningDir) {
   });
 }
 
+// ── Readers (t6.1 audit, after S5) ───────────────────────────────────────────
+//
+// S5 taught four READ paths about Epic folders: the resolver and artifactName
+// (now given `planningDir`, as every phase command passes it), drive's
+// REQUIREMENTS preflight, and isStateStale's pathspec. A project can have a
+// `.planning/work/` or `.planning/archive/epics/` directory and still have the
+// store OFF (no WORK.md) — these files are planted to make that case
+// non-vacuous: with the store off, none of them may be seen. Some exist ONLY in
+// a folder (M6.E2-RESEARCH, the folder's REQUIREMENTS `[FILL IN]`), so a leak
+// shows up as a folder path or an extra blocking entry.
+//
+// The pre-Epic code has no `planningDir` option: old artifactName destructures
+// only `currentEpic`, so passing it there is ignored. Both call shapes are
+// recorded; in the baseline they are equal by construction, and today's code
+// must match both.
+export const READER_PLANTS = {
+  '.planning/work/epics/M6.E2/M6.E2-PLAN.md': '# M6.E2 plan (folder copy)\n',
+  '.planning/work/epics/M6.E2/PLAN.md': '# M6.E2 plan (bare, folder)\n',
+  '.planning/work/epics/M6.E2/M6.E2-RESEARCH.md': '# research that exists only in the folder\n',
+  '.planning/work/epics/M6.E2/M6.E2-REQUIREMENTS.md': '# M6.E2 requirements (folder)\n\n- [FILL IN: only the folder copy says this]\n',
+  '.planning/work/epics/M6.E3/M6.E3-REQUIREMENTS.md': '# M6.E3 requirements\n\n- [FILL IN: folder-only Epic]\n',
+  '.planning/work/backlog/SIG-1.md': '---\nid: SIG-1\n---\n\nAn item file with no WORK.md.\n',
+  '.planning/archive/epics/M6.E1/M6.E1-PLAN.md': '# M6.E1 plan (archived copy)\n',
+  '.planning/archive/epics/M6.E1/M6.E1-VERIFICATION.md': '# M6.E1 verification (archive only)\n',
+  '.planning/archive/epics/M6.E0/M6.E0-REQUIREMENTS.md': '# M6.E0 requirements (archive only)\n\n- [FILL IN: archive]\n',
+};
+const FAKE_BASELINE = 'abc1234';
+
+function readerResolver(planningDir) {
+  const pairs = [];
+  for (const currentEpic of ['M6.E2', 'M6.E1', 'M6.E0', 'M6.E3', null]) {
+    for (const artifact of ['PLAN', 'REQUIREMENTS', 'RESEARCH', 'VERIFICATION', 'PROGRESS']) {
+      pairs.push([artifact, currentEpic]);
+    }
+  }
+  return pairs.map(([artifact, currentEpic]) => {
+    const hit = resolveArtifactPath(planningDir, artifact, { currentEpic, phase: 'PLAN' });
+    return {
+      artifact,
+      currentEpic,
+      name: artifactName(artifact, { currentEpic }),
+      nameWithPlanningDir: artifactName(artifact, { currentEpic, planningDir }),
+      resolved: hit === null ? null : relative(planningDir, hit).split(sep).join('/'),
+    };
+  });
+}
+
+async function readerResults(root) {
+  const roots = [realpathSync(root), root];
+  const planningDir = join(root, '.planning');
+  const preflight = {};
+  for (const epic of ['M6.E2', 'M6.E1', 'M6.E0', 'M6.E3', null]) {
+    preflight[String(epic)] = normalize(await collectPreflight(root, { epic }), roots);
+  }
+  // isStateStale's git calls, recorded through the execFn seam: the pathspec
+  // is the behaviour, and no repository is needed to see it.
+  const calls = [];
+  const execFn = (cmd, args) => {
+    calls.push([cmd, ...args]);
+    return '';
+  };
+  const stale = await isStateStale(root, { execFn, bypassGrace: true });
+  return {
+    resolver: readerResolver(planningDir),
+    preflight,
+    isStateStale: { result: stale, calls },
+  };
+}
+
+async function readersProject() {
+  const root = await freshProject();
+  for (const [rel, text] of Object.entries(READER_PLANTS)) {
+    await mkdir(join(root, rel, '..'), { recursive: true });
+    await writeFile(join(root, rel), text, 'utf-8');
+  }
+  const statePath = join(root, '.planning', 'STATE.md');
+  const state = await readFile(statePath, 'utf-8');
+  await writeFile(statePath, state.replace('last_updated: 2026-01-10\n',
+    `last_updated: 2026-01-10\nlast_updated_commit: ${FAKE_BASELINE}\n`), 'utf-8');
+  return root;
+}
+
 /**
  * Run every store-off write path and the resolver; return what they left.
- * @returns {Promise<{frozenAt: string, fixture: object, fresh: object, resolver: object[]}>}
+ * @returns {Promise<{frozenAt: string, fixture: object, fresh: object, resolver: object[], readers: object}>}
  */
 export async function captureStoreOff() {
   const a = await freshProject();
   const b = await freshProject(['.planning/STATE.md']);
+  const c = await readersProject();
   try {
     return await withFrozenClock(FROZEN_AT, async () => {
       // The resolver is read before the archive step moves M6.E1's plan away.
       const resolver = resolverResults(join(a, '.planning'));
       const fixture = await runSteps(a, FIXTURE_STEPS);
       const fresh = await runSteps(b, FRESH_STEPS);
-      return { frozenAt: FROZEN_AT, resolver, fixture, fresh };
+      const readers = await readerResults(c);
+      return { frozenAt: FROZEN_AT, resolver, fixture, fresh, readers };
     });
   } finally {
     await rm(a, { recursive: true, force: true });
     await rm(b, { recursive: true, force: true });
+    await rm(c, { recursive: true, force: true });
   }
 }
 

@@ -301,21 +301,41 @@ describe('isStateStale', () => {
   // M6.E11 t5.4: with the work store on, an Epic's artifacts live in
   // `.planning/work/epics/<id>/` — a committed PLAN there is the same unrolled
   // work as one at the top level, in either name form.
+  const plantWorkStore = async (dir) => {
+    await mkdir(join(dir, '.planning', 'work'), { recursive: true });
+    await writeFile(join(dir, '.planning', 'work', 'WORK.md'), '---\nkey: SIG\n---\n# Work store\n', 'utf-8');
+  };
   it.each([
     ['.planning/work/epics/M5.E1/M5.E1-PLAN.md'],
     ['.planning/work/epics/M5.E1/PROGRESS.md'],
-  ])('M6.E11: a commit touching only %s (an Epic-folder artifact) IS stale', async (rel) => {
+  ])('M6.E11: store on — a commit touching only %s (an Epic-folder artifact) IS stale', async (rel) => {
     initRepo(tempDir);
     await writeFile(join(tempDir, 'app.js'), 'v0\n', 'utf-8');
     commitAll(tempDir, 'base: initial work');
     const base = headSha(tempDir);
     await plantState(tempDir, { last_updated_commit: base });
+    await plantWorkStore(tempDir); // uncommitted: isStoreOn reads the working tree
     await mkdir(dirname(join(tempDir, rel)), { recursive: true });
     await writeFile(join(tempDir, rel), '# plan\n', 'utf-8');
     commitPath(tempDir, rel, 'plan in the Epic folder');
     const result = await isStateStale(tempDir);
     expect(result.stale).toBe(true);
     expect(result.commitCount).toBe(1);
+  }, 30000);
+
+  // M6.E11 t6.1 (AC-1.2): the same folder with NO WORK.md is a store-off
+  // project, and before this Epic a commit there never made STATE stale.
+  it('M6.E11: store off — a commit touching only an Epic-folder PLAN is NOT stale (no WORK.md)', async () => {
+    initRepo(tempDir);
+    await writeFile(join(tempDir, 'app.js'), 'v0\n', 'utf-8');
+    commitAll(tempDir, 'base: initial work');
+    const base = headSha(tempDir);
+    await plantState(tempDir, { last_updated_commit: base });
+    const rel = '.planning/work/epics/M5.E1/M5.E1-PLAN.md';
+    await mkdir(dirname(join(tempDir, rel)), { recursive: true });
+    await writeFile(join(tempDir, rel), '# plan\n', 'utf-8');
+    commitPath(tempDir, rel, 'plan in a folder, store off');
+    expect(await isStateStale(tempDir)).toEqual({ stale: false, commitCount: 0, commits: [] });
   }, 30000);
 
   it('M6.E11: an item file in the store is NOT a phase artifact — a capture does not make STATE stale', async () => {
