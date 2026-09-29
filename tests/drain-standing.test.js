@@ -20,6 +20,7 @@ import {
   listStandingEntries,
   parseTriggerWatchlist,
 } from '../plugin/tools/lib/drain.js';
+import { archived } from './helpers/pre-store.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -128,7 +129,9 @@ describe('M6.E4 S2 — standing entries leave the live count (FR2.2)', () => {
   it('AC2.2c — THIS repo: the inbox reports 0 live candidates and 1 standing', () => {
     // The measurable outcome from M6.E4-REQUIREMENTS.md. Before this slice the
     // live count was 1 and could never reach 0.
-    const inbox = readFileSync(join(repoRoot, '.planning/ISSUES-INBOX.md'), 'utf8');
+    // M6.E11 t7.2: measured on the hand-written inbox, archived verbatim at the
+    // migration — the live file is generated from the item files now.
+    const inbox = archived('ISSUES-INBOX.md');
     expect(listDrainCandidates(inbox)).toHaveLength(0);
     expect(listStandingEntries(inbox)).toHaveLength(1);
   });

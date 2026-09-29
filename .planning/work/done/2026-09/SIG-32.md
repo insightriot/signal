@@ -1,0 +1,16 @@
+---
+id: SIG-32
+type: BUG
+status: C
+title: docs/map `COMMANDS` JS array incomplete.
+priority: P3
+source: migration:BUGS.md
+source_ref: BUGS.md:60
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B32
+---
+| B32 | `fixed` | P3 | **docs/map `COMMANDS` JS array incomplete.** The `docs/map/index.html` `COMMANDS` array (~line 710) is missing `/sig:index` + `/sig:migrate-memory` — 16 enumerated vs the 18-command header after M5.E6.T8. The array is NOT roster-guard-checked (only the header count + CLAUDE.md `#` count are), which is why the gap slipped through since v0.1.8 (was 15-vs-17). Predates M5.E6; surfaced during T8's roster reconcile. Fix: add the missing commands to the array, or bring the array under the roster guard so it can't drift again. Low-risk (visual map only). **→ Status reconciled 2026-08-02** (fix lane, BUGS.md status-vs-code sweep): **triaged — still live, and the gap has widened.** The `COMMANDS` array in `docs/map/index.html` now enumerates **17** commands against a **19**-command header and 19 files in `commands/`. The two missing are still exactly `/sig:index` and `/sig:migrate-memory` — the count moved 16-vs-18 → 17-vs-19 only because `/sig:update` was added to both. The array is still not roster-guard-checked, which is the actual defect. **→ FIXED 2026-08-03** (fix lane, no Epic). `/sig:index` + `/sig:migrate-memory` added to the array, and — the part that closes the defect rather than the symptom — **`tests/map-roster-reconcile.test.js` now reconciles all three arrays (`COMMANDS`/`AGENTS`/`SKILLS`) against `roster.js` in BOTH directions**, naming the offending entries. RED-first: it failed on the real 17-vs-19 gap, naming both missing commands, before either was added. Marker comments (`// map-roster:begin/end X`) anchor extraction, and a test asserts the markers are present so deleting one fails loudly instead of silently passing on zero blocks (`B39`/`B54`'s shape). The three headings now **render their count from the arrays** (`renderRosterCount`), so the number is no longer an independent claim that can drift — and the three `docs/map` entries were consequently **removed from `ROSTER_SITES`**, mandatory because their regexes stop matching once the HTML holds no digits and `checkRosterCounts` *skips a site whose pattern is absent*, which would have left three guards that look alive and check nothing. Net: one number-check traded for a full both-directions name-set check. Also folded in: the header stamp (`v0.1.9`, and the word *"generated"* — nothing generates that file) is now pinned to `plugin.json` via `VERSION_SOURCES`, with a companion test asserting the stamp **exists**, since a null reader would disable the check rather than fail it. |

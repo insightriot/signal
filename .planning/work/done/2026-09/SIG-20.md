@@ -1,0 +1,16 @@
+---
+id: SIG-20
+type: BUG
+status: C
+title: "`npm run lint` is non-functional under ESLint 9 — no flat `eslint.config.js`."
+priority: P3
+source: migration:BUGS.md
+source_ref: BUGS.md:46
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B20
+---
+| B20 | `fixed` | P3 | **`npm run lint` is non-functional under ESLint 9 — no flat `eslint.config.js`.** `eslint tools/` exits **2** with "ESLint couldn't find an eslint.config.(js\|mjs\|cjs) file" (ESLint 9.39.4 dropped `.eslintrc.*` support; the repo has neither a flat config nor a legacy one). So the VERIFY "linter passes" criterion cannot be satisfied — code quality is instead covered by the clean `npm run build`, the 1481-test suite, and the FR4 doc-hygiene guard. **Pre-existing, not M5.E3:** `CONTEXT.md` references this as "`BUGS.md` B5 (lint tooling)" but no B5 entry actually exists in this file (lost in an earlier edit) — re-cataloged here. Confirmed 2026-07-19 (M5.E3 VERIFY). **Fix:** add a flat `eslint.config.js` (ESLint 9 format) importing the intended rule set; a separate ticket (introducing lint config isn't in M5.E3's surgical scope). **→ Status reconciled 2026-08-02** (fix lane, BUGS.md status-vs-code sweep): **this row was mis-statused as `dismissed`.** It is not a non-bug — it is a duplicate of **`B5`** (the entry it says is missing does exist, at the top of this table), and the bug it describes is **fixed**: `eslint.config.js` is present at the repo root and `npm run lint` exits clean on `tools/` (verified 2026-08-02). Kept rather than deleted so the ID does not dangle; treat `B5` as the canonical entry. |

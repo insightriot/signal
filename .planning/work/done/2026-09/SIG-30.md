@@ -1,0 +1,17 @@
+---
+id: SIG-30
+type: BUG
+status: C
+title: The FR1 retro pre-check (`/sig:ship` Step 0.5) runs BEFORE the SHIP
+  transition (Step 5), so on a fresh REVIEW→SHIP…
+priority: P2
+source: migration:BUGS.md
+source_ref: BUGS.md:57
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B30
+---
+| B30 | `fixed` | P2 | **The FR1 retro pre-check (`/sig:ship` Step 0.5) runs BEFORE the SHIP transition (Step 5), so on a fresh REVIEW→SHIP flow it sees `phase=REVIEW` and skips — B26's STATE-based Epic-close fallback (which requires `phase===SHIP` + REVIEW in `completed_phases`) only fires once phase is already SHIP.** Surfaced 2026-07-21 **dogfooding the B26 fix on M5.E5's own SHIP:** `shipFR1Check` returned `{skipped:true}` at `phase=REVIEW` (Step-0.5 pre-check), then `{halt:true, NO_RETRO_FILE}` after `transitionPhase('SHIP')` set `phase=SHIP` + appended REVIEW to `completed_phases`. So B26's fix is *correct* but its real-world firing depends on phase already being SHIP at the gate. A forgetful maintainer on a fresh flow gets no enforcement at the pre-check, and the programmatic `transitionPhase` at Step 5 bypasses the Layer-2 `PreToolUse` hook. **Fix candidates:** (a) `/sig:ship` transitions to SHIP *before* its own FR1 pre-check; (b) `isEpicCloseByState` also treats "current phase = the last non-skipped pre-SHIP phase + all earlier phases complete" as about-to-close; (c) re-run the pre-check post-transition. Residual of B26 — the fix works once phase=SHIP. **→ Fixed in M5.E6 (T15, `0b1ef86`):** `shipFR1Check` fires the retro gate on a fresh REVIEW→SHIP flow via an in-memory synthesized post-SHIP state (approach (c), persist-nothing) — an Epic can no longer ship with no retrospective. Tight 3-conjunct `aboutToClose` AND; no false-fire on SPIKE / maintained-pending / SKETCH-short / mid-flow-EXECUTE (each mutation-witnessed). (c)-recovery: nothing is persisted on halt, so `/sig:resume` re-orients cleanly. |

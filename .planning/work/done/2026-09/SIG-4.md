@@ -1,0 +1,16 @@
+---
+id: SIG-4
+type: BUG
+status: C
+title: Drain disposition-detector missed blockquote promotions.
+priority: P2
+source: migration:BUGS.md
+source_ref: BUGS.md:22
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B4
+---
+| B4 | `fixed` | P2 | **Drain disposition-detector missed blockquote promotions.** The 2026-07-04 backlog review stamped promotions as `> **Promoted … → …**` blockquotes, which neither `HEADING_DISPOSED_RE` nor `STATUS_DISPOSED_RE` recognized — so promoted entries resurfaced on every `/sig:plan` drain (~42 candidates, incl. 6 already promoted). **Fixed in v0.1.6 (FR3, `df4fdb4`):** `parseEntries` scans the entry's header region for a `^`-anchored, fence-aware leading blockquote stamp. Live drain candidates 43→37 (FR3 alone; 35 after FR5 removed 3 entries). |

@@ -1,0 +1,12 @@
+---
+id: SIG-81
+type: BUG
+status: T
+title: '`guard-callers.test.js` governs 1 of ~25 CLI flags in `tools/`, and its
+  "population is not empty" assertion cannot…'
+priority: P2
+source: migration:BUGS.md
+source_ref: BUGS.md:114
+legacy_id: B81
+---
+| B81 | `confirmed` | P2 | **`guard-callers.test.js` governs 1 of ~25 CLI flags in `tools/`, and its "population is not empty" assertion cannot tell that apart from governing all of them.** `findCliGuards` detects flags with a single regex, `argv.includes('--flag')` (`tests/guard-callers.test.js:76`). `tools/` contains **three** argv idioms: that one (`adherence-ceiling.js`, 1 flag), a `for`-loop `a === '--flag'` comparison (`adherence-run.js`, **12 flags**), and `args.includes` over a sliced argv (`cut-release.js:41`). Measured by re-running the test's own `findCliGuards` + `hasCaller` logic with all three patterns: population **1 → 25 flags across 8 files**, surfacing **10 flags with no caller**, every one in `adherence-run.js`. **The first assertion — *"finds at least one CLI guard to govern (the population is not empty)"* — passes on a population of one.** It was written to prove the check is not vacuous and it cannot distinguish *found everything* from *found one thing*: `C1`'s class inside the file built to fix that class. **The fix is NOT to widen the regex.** The 10 orphans are mostly *options* (`--runs`, `--keep`, `--transcripts`, `--arm`), not *guards*; the test's stated scope is "CLI **guards**" and it has no definition separating a flag that gates behavior from one that carries a value. So the stated population and the detected population are **both** wrong, in opposite directions, and reconciling them needs that definition written down first. **Found 2026-08-04 at M5.E15 PLAN**, by checking whether `D-M5E15-5` (register the new leak check here) actually lands — it does not: `adherence-run.js`, the file M5.E15 modifies, contributes **zero** flags to the governed population despite having twelve. M5.E15 therefore uses a bespoke named assertion (`B54`'s shape) and does not absorb this; widening would drag 10 flags and a missing definition into an unrelated Epic. |

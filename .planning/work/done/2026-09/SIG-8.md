@@ -1,0 +1,17 @@
+---
+id: SIG-8
+type: BUG
+status: C
+title: v0.1.6 write-guard wedges pre-existing prose files, and its reason
+  message hides the only escape.
+priority: P2
+source: migration:BUGS.md
+source_ref: BUGS.md:28
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B8
+---
+| B8 | `fixed` | P2 | **v0.1.6 write-guard wedges pre-existing prose files, and its reason message hides the only escape.** The FR1 guard evaluates *whole proposed content*, not the delta (`v0.1.6-PLAN.md:9` R1.2 option (a)) — justified at PLAN by "**FR1 is self-unblocking** — a cleanup edit to clean frontmatter always passes (AC1.7)" (`v0.1.6-PLAN.md:11`). **That claim is true but load-bearing on knowledge the user never gets.** Because the block is whole-file, a file with N prose entries only unblocks via **one atomic write that de-proses ALL N at once**; fixing them one at a time — the natural instinct, and what an Edit-driven agent does by default — fails on *every* intermediate attempt, so the file presents as permanently bricked. The reason string ("move the narrative into the STATE.md body below the frontmatter, then re-write") never says the block is whole-file or that incremental cleanup cannot work. **Confirmed live 2026-07-16** on `eval-project-A/.planning/STATE.md` (529 KB; 12 `completed_phases` entries, **10 prose**, one 55 lines; `completed_phases` = 93 of 107 frontmatter lines): Brett reports STATE writes blocked in that repo — every Signal command that writes STATE is stopped. Escape hatch verified against the real file: one edit replacing the whole entry list with 12 single-line ≤150-char scalars flips the guard `block:true → block:false`, frontmatter 107→27 lines, **body byte-identical**. Note remediation is **two Epics out** — vector-1 de-prose is routed to E3/FR6 (`references/doc-runtime-model.md` §3), so v0.1.6 shipped a hard block whose only interim path is undocumented manual surgery. **Fix (cheap, no design change):** extend the reason string to state the block is whole-file and that all offending entries must be fixed in a single write; consider naming the count/first offending entry. Guard semantics stay as-is — the self-unblocking design is sound, only its discoverability fails. **→ Mitigation landed 2026-07-16 (this commit):** all four guard reason strings now append a whole-file note ("this check reads the whole file, so if more than one entry is affected they must all be fixed in a single save — correcting them one at a time will fail on every attempt") via a shared `WHOLE_FILE_NOTE` const in `retrospective.js`, with a B8 regression test (`hook-state-write.test.js`). The *discoverability* half is closed; the *auto-remediation* half (a one-shot de-prose of a wedged file) remains the migrate command's job — **pulled forward to M5.E2** (was E3/FR6) per the 2026-07-16 sequencing pivot. B8 stays `confirmed` until the migrate command lands. |

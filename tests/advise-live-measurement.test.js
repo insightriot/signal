@@ -29,7 +29,7 @@
 // moment a human should re-read the hit and decide whether the vocabulary is
 // still precise. The failure message says so and names the remedy; it is a
 // re-measurement step, not a mystery red.
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,8 +44,19 @@ import {
   backlogDischargeStatus,
 } from '../plugin/tools/lib/backlog.js';
 import { readCorpus } from '../plugin/tools/lib/advise-corpus.js';
+import { preStoreBase, removePreStoreBase } from './helpers/pre-store.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+// M6.E11 t7.2 (`D-M6E11-24`): the pins were measured on the HAND-WRITTEN
+// BACKLOG.md and BUGS.md, which are generated files since the work-item store
+// was switched on. The pins stay exactly as they are; only their source moves —
+// to a temp copy of `.planning/` whose four lists are the archived originals.
+let preStore;
+beforeAll(() => {
+  preStore = preStoreBase({ full: true });
+}, 60_000);
+afterAll(() => removePreStoreBase(preStore));
 
 /**
  * The message a red pin prints. It is the whole point of the pin, so it is not terse.
@@ -89,8 +100,8 @@ function confirmedBugsFrom(corpus) {
  * every source was readable before believing any count taken from it.
  */
 export async function scoreRepo() {
-  const corpus = await readCorpus(repoRoot);
-  const discharge = await backlogDischargeStatus(repoRoot);
+  const corpus = await readCorpus(preStore);
+  const discharge = await backlogDischargeStatus(preStore);
   expect(
     corpus.cannotCheck.map((c) => c.source),
     'a pin taken over an unreadable source proves nothing — fix the corpus, then re-measure'

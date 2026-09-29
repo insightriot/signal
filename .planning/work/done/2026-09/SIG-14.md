@@ -1,0 +1,17 @@
+---
+id: SIG-14
+type: BUG
+status: C
+title: Lexical (symlink-blind) path confinement in `evict.js` / `add.js` /
+  `resume.js` — the codebase-wide sibling of the…
+priority: P3
+source: migration:BUGS.md
+source_ref: BUGS.md:37
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B14
+---
+| B14 | `fixed` | P3 | **Lexical (symlink-blind) path confinement in `evict.js` / `add.js` / `resume.js` — the codebase-wide sibling of the M5.E2 symlink escape.** The `resolve(dest).startsWith(planningRoot + sep)` lexical guard (no `realpathSync`) lets a checked-in **directory symlink** inside `.planning/` escape the tree on write/move. **M5.E2 REVIEW fixed this in `migrate-memory.js` + `archive-tree.js`** (commit `ab2242d`: `realpathNearestExisting` + `assertRealInsidePlanning`), but the same pattern remains at `tools/lib/evict.js:350-351` (`evictEpicNarrative` archive path — closest sibling, same mkdir/write/move shape), `tools/lib/add.js:830` (capture path), and `tools/lib/resume.js:74` (read-side filter, lower severity). Confirmed 2026-07-18 by the M5.E2 security audit. **Fix:** apply the same `realpath` re-assertion to those write/move gateways (read-side is lower priority). Separate ticket — deferred to avoid scope-creeping the E2 REVIEW. **Why safe to defer for E2:** `/sig:migrate-memory` never routes a write through `evict.js`'s vulnerable path — §9 forbids calling self-locking `evictEpicNarrative` (the engine uses the lock-free `relocateFaithful` spine, which E2 REVIEW hardened), so this codebase-wide gap is genuinely NOT in this command's attack surface. |

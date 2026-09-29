@@ -1,0 +1,11 @@
+---
+id: SIG-33
+type: BUG
+status: T
+title: Stale `LOCK_TTL_MS` comment in `add.js`.
+priority: P3
+source: migration:BUGS.md
+source_ref: BUGS.md:61
+legacy_id: B33
+---
+| B33 | `confirmed` | P3 | **Stale `LOCK_TTL_MS` comment in `add.js`.** The comment (~lines 42-45) says `.add.lock` "holds the lock across a sensitive-data prompt" — inaccurate even before M5.E6 (the scrub prompt runs BEFORE `.add.lock` acquisition), and now doubly so: B31 (T23) additionally put the doc-write under `.state.lock`. Pre-existing; surfaced during Slice 8. Fix: one-line comment refresh describing the current arrangement (scrub → `.add.lock` interactive TTL → `.state.lock` write). Comment-only, no behavior change. **→ Status reconciled 2026-08-02** (fix lane, BUGS.md status-vs-code sweep): **triaged — still live.** The comment above `LOCK_TTL_MS` in `tools/lib/add.js` still reads *"`/sig:add` holds the lock across a sensitive-data prompt"*, unchanged. Comment-only, no behaviour change needed. |

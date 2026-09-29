@@ -35,6 +35,7 @@ import {
   declaresWorkMovedElsewhere,
   parseBacklogRows,
 } from '../plugin/tools/lib/backlog.js';
+import { archived, preStoreBase, removePreStoreBase } from './helpers/pre-store.js';
 
 // A backlog shaped like the real one: a `###` row that gained `####` children
 // (invisible at depth 3, and a container at depth 4), a struck row, a `<details>`
@@ -162,12 +163,19 @@ describe('t2.7 — the depth widening, both directions', () => {
   it('the live corpus is read at depth 4, and depth 3 would see strictly fewer rows', async () => {
     // Against the REAL file, and deliberately not pinned to a count: a promoted
     // row must not turn this suite red. The invariant is what matters.
-    const content = readFileSync(join(process.cwd(), '.planning', 'BACKLOG.md'), 'utf8');
+    // M6.E11 t7.2: the hand-written BACKLOG.md, archived verbatim at the
+    // migration — the live file is generated at one depth and cannot show this.
+    const content = archived('BACKLOG.md');
     const live = (d) => parseBacklogRows(content, { maxDepth: d }).filter((r) => !r.inDetails && !r.discharged);
     expect(live(4).length).toBeGreaterThan(live(3).length);
 
-    const corpus = await readCorpus(process.cwd());
-    expect(corpus.sources.backlog.rows.length).toBe(live(4).length);
+    const base = preStoreBase();
+    try {
+      const corpus = await readCorpus(base);
+      expect(corpus.sources.backlog.rows.length).toBe(live(4).length);
+    } finally {
+      removePreStoreBase(base);
+    }
   });
 });
 
@@ -218,7 +226,15 @@ describe('t2.1/t2.2 — rows and bugs, with the line numbers a citation needs', 
     // `parseBacklogRows` used by three other callers — so it is filed, not
     // patched. This test pins the residual at its measured size so it cannot grow
     // back into the discharged-row leak that was just fixed.
-    const corpus = await readCorpus(process.cwd());
+    // M6.E11 t7.2: the residual was measured on the hand-written BACKLOG.md
+    // (archived verbatim); the generated file has no container headings.
+    const base = preStoreBase();
+    let corpus;
+    try {
+      corpus = await readCorpus(base);
+    } finally {
+      removePreStoreBase(base);
+    }
     const absorbing = corpus.sources.backlog.rows.filter((r) => /^#{2,4} /m.test(r.body));
     for (const r of absorbing) {
       // Every remaining absorption is a CONTAINER heading, never a live or
@@ -446,7 +462,14 @@ describe('t3.1 input 5 — a row that declares itself not live work', () => {
   it('fires on exactly 4 of the live rows in this repo, and every one is a real record or park', async () => {
     // The measurement that chose the vocabulary, pinned as a floor rather than an
     // equality: promoting a new parked row must not turn the suite red.
-    const corpus = await readCorpus(process.cwd());
+    // M6.E11 t7.2: measured on the hand-written BACKLOG.md, archived verbatim.
+    const base = preStoreBase();
+    let corpus;
+    try {
+      corpus = await readCorpus(base);
+    } finally {
+      removePreStoreBase(base);
+    }
     const hits = corpus.sources.backlog.rows.filter((r) => declaresNotLiveWork(r.text).notLive);
     // Reads the constant rather than repeating its number: this assertion and
     // `NOT_LIVE_MEASURED` pinned the same 4 in two places, so a re-measurement

@@ -1,0 +1,12 @@
+---
+id: SIG-66
+type: BUG
+status: T
+title: "`checkStaleInbox` fires at `n > 0` with no magnitude, so a 110-entry
+  inbox produces the same one-line advisory as a…"
+priority: P3
+source: migration:BUGS.md
+source_ref: BUGS.md:105
+legacy_id: B66
+---
+| B66 | `confirmed` | P3 | **`checkStaleInbox` fires at `n > 0` with no magnitude, so a 110-entry inbox produces the same one-line advisory as a 1-entry inbox.** `sweep.js:188-192` emits `inbox has ${n} undrained entries — consider draining` for any non-zero count, with no threshold, no tiering, and no escalation. **The concrete cost, observed 2026-08-02:** eval-project-A removed a contradictory second index and deliberately filed a **tripwire** into `ISSUES-INBOX.md` — recording what was removed and the symptoms that would point back — specifically so it would surface at the next `/sig:plan` drain. It became **entry #110** in a pile that Signal describes with the sentence it used at entry 1. **Their mechanism was sound; Signal is what muted it.** Not a eval-project-A problem: Signal's own inbox sits at 48 candidates with `B46`'s drain non-convergence still open and its premise falsified, so the pile grows on both sides. **Fix shape:** tier the advisory by count, or state the count against a stated threshold, so "draining is overdue" is distinguishable from "one thing came in." |

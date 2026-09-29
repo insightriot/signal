@@ -19,6 +19,7 @@ import {
   segmentInbox,
   segmentQuestions,
 } from '../plugin/tools/lib/work-migrate.js';
+import { archived, preStoreBase, removePreStoreBase } from './helpers/pre-store.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -208,7 +209,7 @@ function planningSnapshot() {
   return { status, mtimes };
 }
 
-describe('segmenters over the live files (read-only)', () => {
+describe('segmenters over the archived originals (read-only)', () => {
   let before;
   beforeAll(() => {
     before = planningSnapshot();
@@ -217,7 +218,9 @@ describe('segmenters over the live files (read-only)', () => {
     expect(planningSnapshot()).toEqual(before);
   });
 
-  const live = (f) => readFileSync(join(ROOT, '.planning', f), 'utf-8');
+  // M6.E11 t7.2: the four live files are generated now; these counts are of the
+  // hand-written originals, which the migration archived verbatim.
+  const live = (f) => archived(f);
 
   it('BUGS.md: 127 table rows + 13 un-numbered entries = 140, and the named orphans', () => {
     const text = live('BUGS.md');
@@ -548,19 +551,23 @@ describe('planMigrationFromTexts — the mapping table (AC-9.2)', () => {
   });
 });
 
-describe('planMigration over the live files (read-only)', () => {
+describe('planMigration over the archived originals (read-only)', () => {
   let before;
+  let base;
   let p;
   beforeAll(() => {
     before = planningSnapshot();
-    p = planMigration(ROOT, { key: 'SIG', today: TODAY });
+    // M6.E11 t7.2: planned over the archived originals, not the generated files.
+    base = preStoreBase();
+    p = planMigration(base, { key: 'SIG', today: TODAY });
   });
   afterAll(() => {
+    removePreStoreBase(base);
     expect(planningSnapshot()).toEqual(before);
   });
 
   it('per-source counts equal the segmenters, and the total is their sum', () => {
-    const live = (f) => readFileSync(join(ROOT, '.planning', f), 'utf-8');
+    const live = (f) => archived(f);
     const expected = {
       'BUGS.md': segmentBugs(live('BUGS.md')).rows.length,
       'BACKLOG.md': segmentBacklog(live('BACKLOG.md')).rows.length,

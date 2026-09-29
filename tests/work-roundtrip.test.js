@@ -26,12 +26,15 @@ import { walkBugEntries, compareBugTally } from '../plugin/tools/lib/bugs-tally.
 import { parseBacklogRows } from '../plugin/tools/lib/backlog.js';
 import { listDrainCandidates, listStandingEntries, parseTriggerWatchlist } from '../plugin/tools/lib/drain.js';
 import { countOpenQuestions, extractTopOpenQuestions } from '../plugin/tools/lib/status.js';
+import { archived, preStoreBase, removePreStoreBase } from './helpers/pre-store.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const TODAY = '2026-09-29';
 
-const live = (f) => readFileSync(join(ROOT, '.planning', f), 'utf-8');
+// M6.E11 t7.2: the four live files are generated now. The round trip starts from
+// the hand-written originals, which the migration archived verbatim.
+const live = (f) => archived(f);
 
 function planningSnapshot() {
   const status = execFileSync('git', ['status', '--porcelain', '.planning/'], { cwd: ROOT, encoding: 'utf-8' });
@@ -40,13 +43,15 @@ function planningSnapshot() {
 }
 
 let before;
+let base;
 let plan;
 let tmp;
 let gen;
 
 beforeAll(async () => {
   before = planningSnapshot();
-  plan = planMigration(ROOT, { key: 'SIG', today: TODAY });
+  base = preStoreBase();
+  plan = planMigration(base, { key: 'SIG', today: TODAY });
 
   tmp = mkdtempSync(join(tmpdir(), 'work-roundtrip-'));
   const planning = join(tmp, '.planning');
@@ -63,6 +68,7 @@ beforeAll(async () => {
 
 afterAll(() => {
   if (tmp) rmSync(tmp, { recursive: true, force: true });
+  removePreStoreBase(base);
   expect(planningSnapshot()).toEqual(before);
 });
 

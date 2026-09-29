@@ -26,6 +26,7 @@ import {
   ROW_DISCHARGE,
 } from '../plugin/tools/lib/backlog.js';
 import { checkBacklogDischarge } from '../plugin/tools/lib/sweep.js';
+import { archived } from './helpers/pre-store.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -327,7 +328,8 @@ describe('the narrowing — an id MENTIONED is not an id CLAIMED (AC9.5)', () =>
     // here is the property that made the narrowing worth doing: the literal
     // reading is strictly wider. FR8 made this move first, where a literal
     // reading reported 62 episodes and the narrowed one reports 5.
-    const content = readFileSync(join(ROOT, '.planning', 'BACKLOG.md'), 'utf-8');
+    // M6.E11 t7.2: the hand-written BACKLOG.md, archived verbatim at the migration.
+    const content = archived('BACKLOG.md');
     const rows = parseBacklogRows(content).filter((r) => !r.inDetails && !r.discharged);
     const ANY_ID = /\b(?:M\d+(?:\.\d+)?\.E\d+|B\d+)\b/;
     const mentions = rows.filter((r) => ANY_ID.test(r.text));

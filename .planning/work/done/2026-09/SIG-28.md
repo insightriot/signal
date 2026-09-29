@@ -1,0 +1,17 @@
+---
+id: SIG-28
+type: BUG
+status: C
+title: An absolute-path `](/abs/foo.md)` `.md` link that is a pre-existing
+  dangle inside an evicted closed block false-aborts…
+priority: P3
+source: migration:BUGS.md
+source_ref: BUGS.md:55
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B28
+---
+| B28 | `fixed` | P3 | **An absolute-path `](/abs/foo.md)` `.md` link that is a pre-existing dangle inside an evicted closed block false-aborts `applyMigrate` — the B27-sibling for absolute links.** `scanDanglingLinks` resolves the target with `resolve()` (absolute *wins* → `/abs/foo.md`, abs key `../abs/foo.md`) while `computeLinkEdits` reroots via `posix.join()` (absolute *concatenates* → the link is rewritten `/abs/foo.md` → `../../abs/foo.md`, abs key `.planning/abs/foo.md`). The before/after abs keys diverge → the pre-existing dangle is mis-attributed as migrate-introduced → abort + rollback. **Confirmed empirically 2026-07-21** (M5.E5 REVIEW code-quality panel H1 + a path-math probe). **Fail-SAFE** (blocks the migrate, never a silent escape) and **not a regression** (it false-aborted pre-B24 too; B24 fixed the *relative*-link case). Near-zero occurrence — Signal never authors absolute-path `.md` links; needs a hand-authored one as a pre-existing dangle in a closed DECISIONS block in a stranger repo. Deeper cause: `computeLinkEdits` mangles absolute links (rewriting `/abs/foo.md` to point at `.planning/abs/foo.md`) — a pre-existing reroot quirk, not B24. **Fix (deferred — arch ripple into the reroot machinery, out of M5.E5's surgical scope):** make `scanDanglingLinks`/`computeLinkEdits` agree on absolute targets (leave absolute links unrewritten — they resolve identically regardless of file location), OR exempt absolute-path links from the gate. Same disposition as B27. **→ Fixed in M5.E6 (T10, `cf352f9`):** `computeLinkEdits` now skips absolute-path (`/…`) targets (fix-divergence) — a pre-existing absolute-path dangle inside an evicted closed block migrates byte-identical instead of aborting. Distinct fix from B27 (both R7-consistent). |

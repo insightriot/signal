@@ -1,0 +1,12 @@
+---
+id: SIG-65
+type: BUG
+status: T
+title: The migrate's fs-backup snapshot is never expired, aged, or reported —
+  and `B57`'s ignore is what made it invisible.
+priority: P3
+source: migration:BUGS.md
+source_ref: BUGS.md:104
+legacy_id: B65
+---
+| B65 | `confirmed` | P3 | **The migrate's fs-backup snapshot is never expired, aged, or reported — and `B57`'s ignore is what made it invisible.** `applyMigrate` writes `.planning/.migrate/snapshot/` plus a `*` gitignore beside it in `fs-backup` mode or `dirty && force` (`migrate-memory.js:2406-2412`). **`B57` (fixed 2026-08-01) then added `.migrate` to `WALK_IGNORE`** (`doc-hygiene.js:40-50`) — correct for noise, and measured: eval-project-A went 12 structural findings → 2, both real. **The consequence is that nothing looks at the snapshot at all.** Nothing checks its age, its size, or whether it can still roll back; the `*` gitignore means git cannot surface it either. eval-project-A carried **34 pre-migration doc copies** from the 2026-07-20 v2→v3 migration with roughly a dozen shipped slices on top of them — a recovery pointer that could no longer recover, invisible **by construction** one day after the ignore shipped. **This is the precision/coverage trade M5.E16's FR2 exists to manage, resolved in one direction without the other half being built.** **Fix shape:** an **advisory** sweep finding naming `.migrate/snapshot/`, its file count and its age. Deliberately advisory — a fresh snapshot is correct and must not read as a defect. |

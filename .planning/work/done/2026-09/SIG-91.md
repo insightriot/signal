@@ -1,0 +1,17 @@
+---
+id: SIG-91
+type: BUG
+status: C
+title: "The old ID was not reused and not silently swapped: the `BACKLOG.md`
+  entry carries a visible note recording that it…"
+priority: P2
+source: migration:BUGS.md
+source_ref: BUGS.md:156
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B91
+---
+| B91 | `fixed` | **P2** | **FIXED 2026-08-09 (`D-BR0809-1`, Wave 1 of the backlog review) — the unbuilt work is renumbered `M5.E20`; `M5.E16` now means only the shipped drift-detection Epic.** The old ID was **not reused and not silently swapped**: the `BACKLOG.md` entry carries a visible note recording that it held a dead ID for nine days, because the value of ID-is-identity is that a collision stays legible. **The second half — the missing allocator reconciliation — is deliberately NOT closed here** and is the candidate fix below: nothing compares the two places an Epic ID gets assigned, so this can recur tomorrow. Filed as the durable follow-up rather than claimed as done. **Original entry:** **`M5.E16` names two different Epics — one shipped, one still open — so a live roadmap item is unreachable by its own ID.** `BACKLOG.md:550` carries `### M5.E16 — The other two shapes of "shipped but never run"`, **promoted on evidence 2026-07-30 (Brett), no closure marker, still open.** The Epic that shipped as `M5.E16` (v0.1.16, 2026-08-02) is different work: `M5.E16-REQUIREMENTS.md:1` reads *"M5.E16 — STATE-vs-world drift detection"*, **opened 2026-08-01** — one day after the backlog entry was promoted. Verified by reading both: the requirements file mentions *"document-shaped"* / *"data-shaped"* **once**, the retrospective **zero** times; the shipped Epic's stated reason is *"20 of the 56 entries in `BUGS.md` are STATE.md-related"*, which is not the promoted entry's subject. **This breaks ID-is-identity**, locked in `PROJECT.md` § Vocabulary, and it breaks it in the most expensive direction: anyone asking *"did `M5.E16` ship?"* gets **yes**, for work that is not the item, so the open entry is invisible to every future check that keys on the ID — including the trigger walk, which reads `BACKLOG.md`. **How it happened is the useful part, and it is not carelessness:** the ID was assigned by promotion in one file (`BACKLOG.md`) and by Epic-open in another (`.planning/{EpicID}-*.md`), one day apart, and **nothing reconciles the two allocators.** `B73`'s class (two documents disagreeing with no test pinning them) applied to identity rather than to a rule. **Found 2026-08-09** by a backlog-review pass reading `BACKLOG.md` against the on-disk artifact set — the same method that found `B59` and `B63`, and the third time document-against-document reading has caught something no test could. **The fix is a product call, not a rename:** (a) give the unbuilt work a **fresh ID** and strike the `M5.E16` entry with a pointer — never silently renumber, since the whole value of the rule is that the wrong ID stays wrong out loud; and (b) decide whether ID allocation gets a mechanism — the cheap version is a hygiene test asserting every `M5.E{n}` heading in `BACKLOG.md` either has no `{EpicID}-REQUIREMENTS.md` on disk or matches its title, which would have gone red on 2026-08-01. Related: `M5.E8`'s heading at `BACKLOG.md:418` carries **no closure marker** and reads `Trigger: NONE — unconditional next`, while `:1108` of the same file says *"M5.E8 landed as v0.1.13"* — same file, two answers, and it should be struck in the same pass. |

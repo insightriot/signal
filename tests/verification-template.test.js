@@ -11,6 +11,7 @@ import {
   validateVerificationContent,
   getRequiredVerificationSections,
 } from '../plugin/tools/lib/verification-template.js';
+import { archived } from './helpers/pre-store.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 
@@ -197,7 +198,8 @@ describe('AC0.1 — the deferred half is impossible to miss', () => {
   });
 
   it('BACKLOG.md carries a live row that does not read as complete', async () => {
-    const backlog = await readFile(join(ROOT, '.planning', 'BACKLOG.md'), 'utf8');
+    // M6.E11 t7.2: the hand-written BACKLOG.md, archived verbatim at the migration.
+    const backlog = archived('BACKLOG.md');
     const idx = backlog.indexOf('REVIEW claims-audit');
     expect(idx, 'the row must exist').toBeGreaterThan(-1);
     const row = backlog.slice(idx, idx + 900);

@@ -1,0 +1,17 @@
+---
+id: SIG-58
+type: BUG
+status: C
+title: "`marketplace.json`'s pinned `sha` sat two releases behind its `ref`, so
+  every `/plugin` install since v0.1.14 silently…"
+priority: P1
+source: migration:BUGS.md
+source_ref: BUGS.md:97
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B58
+---
+| B58 | `fixed` | **P1** | **`marketplace.json`'s pinned `sha` sat two releases behind its `ref`, so every `/plugin` install since v0.1.14 silently delivered v0.1.13.** The entry read `ref: "v0.1.15"` with `sha: "8d20193…"` — and `8d20193` is **v0.1.13's release commit**. Claude Code resolves the **sha**, so the `ref` was decorative. **Found 2026-08-01 by the user**, who ran `/plugin` → update and was told *"sig is already at the latest version (0.1.13)"* — two days after v0.1.14 shipped and twenty minutes after v0.1.15 did. **The report was truthful; the manifest was lying to it.** **Impact: every fix in v0.1.14 (M5.E13, guards that don't guard) and v0.1.15 (M5.E17) was unreachable.** The user was running v0.1.13 machinery against live projects while reporting that Signal 'constantly' needed teeny manual fixes — an unknown share of that experience is bugs already fixed in releases that could not reach him. **Why the guard missed it, and it is this session's own theme:** `install-contract.test.js` asserted the sha's **shape** (`/^[a-f0-9]{40}$/` — a stale sha passes) and separately asserted `ref === v{plugin.version}` (correct, and **not the field being resolved**). **Neither compared the two fields to each other**, so `ref` advanced every release while `sha` sat still and the suite stayed green — the same class as `B56` (a guard checking the property adjacent to the one that matters). **`B7` recorded this exact drift at v0.1.7** (*"marketplace.json pins sha 8e05e56… but v0.1.7 resolves to 0eb8ca8… — needs a look, not the test cause"*) and it was never closed. **The note was the guard**, which is `B39`'s shape. **Fixed 2026-08-01:** sha → `8acd1d2` (v0.1.15), plus a test that resolves `source.ref` via `git rev-list -n1` and asserts the sha equals it. **Proof-of-fail recorded:** the new test fails against the exact manifest that shipped for two releases. It **throws rather than skips** when tags are unresolvable — a guard protecting release delivery must never pass by being unable to run. **→ Superseded same day by DELETION (the better fix).** The `source` block is now the relative `.` form — the plugin **is** this repo — so `url`/`ref`/`sha` are gone and **there is no second place to record which commit ships**. Signal was the only marketplace on the machine using a pinned remote source; `prose`, `cloudflare`, `openai-codex` and `anthropics/claude-code` all use a relative path. The v0.1.1 fix that introduced `url` was choosing against the **`github` shorthand** (which resolved to SSH and broke stranger installs) — the relative form was never on the table. The resolve-the-tag test was removed with it: it guarded a shape that no longer exists. What replaced it guards the **shape, not the value** — `source` must be the string `.`, and no 40-char sha or `ref` key may reappear anywhere in the file, so the fragile form cannot come back. **Trade accepted knowingly:** users now track `main` rather than a pinned tag, which is safe because CI gates every push and Epic work moves to branches (`D-M5E17-4`). |

@@ -1,0 +1,12 @@
+---
+id: SIG-61
+type: BUG
+status: T
+title: A hand-edited `last_updated_commit` whose short sha looks numeric is
+  silently type-coerced by the YAML reader.
+priority: P3
+source: migration:BUGS.md
+source_ref: BUGS.md:100
+legacy_id: B61
+---
+| B61 | `confirmed` | P3 | **A hand-edited `last_updated_commit` whose short sha looks numeric is silently type-coerced by the YAML reader.** `0012345` parses to the integer `12345` (leading zeros stripped), `1e23456` to `Infinity`, `0e12345` to `0` — so the stored baseline becomes a *different value* than the one written, and every consumer comparing it to git history (`isStateStale`, `checkBaselineCommitOffHistory`) is comparing against a sha that was never a commit. Roughly **2–3% of short shas** match a YAML number form (all-digits is ~3.7% on its own, plus the `<digits>e<digits>` float form, since `e` is a valid hex character). **Signal's own writers are SAFE** — the `yaml` package quotes numeric-looking strings on `stringify`, verified: `stringify({last_updated_commit: '0012345'})` emits `"0012345"`. **The exposure is a hand-edited or externally-generated STATE.md**, which is not hypothetical: Signal's own `.planning/STATE.md` has been hand-maintained for months, and `/sig:migrate-memory` exists precisely because real projects arrive with hand-written state. **Found 2026-08-02** in the M5.E16 REVIEW loop, as a ~1-in-10 flake in `state-drift-checks-general.test.js` — the test fixture hand-wrote the sha unquoted, reproducing the exposure exactly. **The fixture was fixed** (quote the value); the product gap is filed here rather than fixed, because the honest fix is a *reader-side* coercion guard (`readState` should reject or re-stringify a non-string `last_updated_commit`) and that touches the core state reader every command depends on. **Current behaviour is fail-safe, not silent-wrong:** a coerced value fails `checkBaselineCommitOffHistory`'s `/^[0-9a-f]{7,40}$/` applicability test and reports **not-applicable with a reason** rather than a false clean — which is the M5.E16 contract working. `isStateStale`'s behaviour on a coerced value is **not yet characterised** and is the reason this is `confirmed` rather than `dismissed`. |

@@ -1,0 +1,17 @@
+---
+id: SIG-17
+type: BUG
+status: C
+title: 4 git-heavy migrate tests flake on vitest's 5 s default timeout under
+  full-suite parallel load.
+priority: P3
+source: migration:BUGS.md
+source_ref: BUGS.md:41
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B17
+---
+| B17 | `fixed` | P3 | **4 git-heavy migrate tests flake on vitest's 5 s default timeout under full-suite parallel load.** `migrate-symlink-confinement.test.js` + `migrate-apply*.test.js` (and 1–2 siblings) do real `git init` / `execFileSync` per test; when all 81 files run in parallel (`npm test`) a few intermittently hit `Test timed out in 5000ms`. They pass clean in isolation and on a second full run — **not** a product defect, the tests are correct. **Confirmed 2026-07-18** during the M5.E2 SHIP pre-ship checklist: run 1 = 4 failed / 1296 passed (all 4 were 5000 ms timeouts in migrate suites); run 2 = 1300 passed. There is no `vitest.config.*` (default 5 s applies). Dev-experience / CI-flake only. **Fix:** give the git/fs-heavy migrate suites an explicit `testTimeout` (~15 s) — a `vitest.config.js` with `test.testTimeout`, or the per-`it` third arg on the offending tests. Deferred out of the SHIP commit (introducing test-infra config isn't in a migrate-command SHIP's surgical scope). |

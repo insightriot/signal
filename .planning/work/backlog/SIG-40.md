@@ -1,0 +1,12 @@
+---
+id: SIG-40
+type: BUG
+status: T
+title: Citation integrity in `analysis/` is unenforceable by construction — the
+  authoring convention routes around the one…
+priority: P3
+source: migration:BUGS.md
+source_ref: BUGS.md:69
+legacy_id: B40
+---
+| B40 | `confirmed` | P3 | **Citation integrity in `analysis/` is unenforceable by construction — the authoring convention routes around the one guard that could check it.** The standing hygiene guard walks `analysis/` and runs `checkInternalLinks`, but Signal's docs deliberately write cross-directory references as **inline code** (`` `.planning/M5.E7-RESEARCH.md` ``) rather than markdown links, precisely so they cannot trip it — a convention S1.t2 states outright (`M5.E7-DEMAND-LEDGERS.md` §0) and S4.t10 repeated. **Live instance, caught by review and not by the suite (2026-07-26):** M5.E7's C8 correction markers in `analysis/` cited *"Evidence: `.planning/M5.E7-RESEARCH.md` §0"* while **C8 had never been written into that section**; `BUGS.md:66` (B38) carried the same false citation. Fixed at the content level (C8 is now a §0b row) — **the mechanism gap is what this entry tracks.** Note the guard could not have caught it either way: `checkInternalLinks` tests **file existence**, and this failure was *file exists, cited section does not contain the claim* — a **claim-level** integrity problem, not a link-level one. **Therefore do not "fix" this by converting refs to markdown links** — that buys a file-existence check against a section-content failure and re-exposes every ref to false-fails from quoted link syntax (the documented reason for the `.planning/` exclusion at `tools/lib/doc-hygiene.js:91-93`). Fold instead into the `analysis/` staleness recommendation (`M5.E7-CORRECTIONS.md` §2): the `verified-against` stamp check should also assert that a cited `{file} §{section}` actually contains the ID it claims. **Interim discipline, in force now:** grep the cited section for the ID before writing any marker that cites it. |
