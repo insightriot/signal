@@ -118,4 +118,17 @@ describe('the marker check itself', () => {
     expect(isGeneratedFile(long)).toBe(false);
     expect(isGeneratedFile(join(dir, 'absent.md'))).toBe(false);
   });
+
+  // REVIEW Suggestion: an editor that saves a UTF-8 BOM must not turn the
+  // guard off — a marked file with a BOM is still generated.
+  it('a leading UTF-8 BOM does not hide the marker', async () => {
+    expect(isGeneratedText(`\uFEFF${GENERATED_MARKER}\nx`)).toBe(true);
+    const p = join(dir, 'BOM.md');
+    await writeFile(p, Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(`${GENERATED_MARKER}\n# Bugs\n`)]));
+    expect(isGeneratedFile(p)).toBe(true);
+    await expect(atomicWrite(p, 'hand edit\n')).rejects.toMatchObject({ code: 'GENERATED' });
+    // Only one BOM, and only at the very start.
+    expect(isGeneratedText(`\uFEFF\uFEFF${GENERATED_MARKER}`)).toBe(false);
+    expect(isGeneratedText(`x\n\uFEFF${GENERATED_MARKER}`)).toBe(false);
+  });
 });

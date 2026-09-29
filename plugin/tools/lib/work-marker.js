@@ -5,9 +5,10 @@
 // because `atomic-write.js` checks it on every write and must stay free of
 // the store's import graph.
 //
-// The check is the FIRST LINE, EXACTLY (a trailing `\r` aside), never a
-// substring: Signal's own docs quote the marker, and a substring check would
-// refuse to write them.
+// The check is the FIRST LINE, EXACTLY (a trailing `\r` and one leading
+// UTF-8 BOM aside), never a substring: Signal's own docs quote the marker, and
+// a substring check would refuse to write them. The BOM is allowed because an
+// editor that saves one would otherwise turn the guard off (REVIEW, pass 1).
 
 import { closeSync, openSync, readSync } from 'node:fs';
 
@@ -26,7 +27,7 @@ export function isGeneratedText(text) {
   if (typeof text !== 'string') return false;
   const nl = text.indexOf('\n');
   const first = nl === -1 ? text : text.slice(0, nl);
-  return first.replace(/\r$/, '') === GENERATED_MARKER;
+  return first.replace(/^\uFEFF/, '').replace(/\r$/, '') === GENERATED_MARKER;
 }
 
 /**
