@@ -48,3 +48,26 @@ describe('rewriteRelativeLinks', () => {
     expect(rewriteRelativeLinks('![p](img/a.png)', '', 'work/inbox')).toBe('![p](../../img/a.png)');
   });
 });
+
+describe('rewriteRelativeLinks — a whole folder moving together (M6.E11 t5.3)', () => {
+  const MOVE = { from: 'work/epics/M6.E99', to: 'archive/epics/M6.E99' };
+
+  it('leaves a link to a file in the same moving folder unchanged, and rewrites one leaving it', () => {
+    const src = 'See [plan](M6.E99-PLAN.md), [item](SIG-5.md#x), [out](../../backlog/SIG-3.md) and [up](../../../CONTEXT.md).';
+    expect(rewriteRelativeLinks(src, MOVE.from, MOVE.to, { movedTogether: MOVE })).toBe(
+      'See [plan](M6.E99-PLAN.md), [item](SIG-5.md#x), [out](../../../work/backlog/SIG-3.md) and [up](../../../CONTEXT.md).'
+    );
+  });
+
+  it('handles a file in a subfolder of the moving folder', () => {
+    const src = '[sib](../M6.E99-PLAN.md) [out](../../../backlog/SIG-3.md)';
+    expect(rewriteRelativeLinks(src, `${MOVE.from}/notes`, `${MOVE.to}/notes`, { movedTogether: MOVE })).toBe(
+      '[sib](../M6.E99-PLAN.md) [out](../../../../work/backlog/SIG-3.md)'
+    );
+  });
+
+  it('without the option, a sibling link points back at the old location (why the option exists)', () => {
+    expect(rewriteRelativeLinks('[p](M6.E99-PLAN.md)', MOVE.from, MOVE.to))
+      .toBe('[p](../../../work/epics/M6.E99/M6.E99-PLAN.md)');
+  });
+});

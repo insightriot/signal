@@ -29,14 +29,14 @@
 // (`getItem`, `listItems`, `listThemes`) take no lock and stay synchronous.
 
 import { execFileSync } from 'node:child_process';
-import { lstatSync, mkdirSync, readFileSync, renameSync, rmdirSync } from 'node:fs';
+import { lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, unlinkSync } from 'node:fs';
 import { basename, dirname, join, relative, sep } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
 import { acquireLock, releaseLock } from './file-lock.js';
 import { assertRealInsidePlanning } from './path-confine.js';
-import { EPIC_ID_STRICT_RE } from './state.js';
-import { generateAll } from './work-generate.js';
+import { EPIC_ID_STRICT_RE, parseFrontmatter, StateSchemaError, stringifyFrontmatter } from './state.js';
+import { EPIC_README, generateAll } from './work-generate.js';
 import {
   ITEM_ID_RE,
   ITEM_STATUSES,
@@ -440,6 +440,7 @@ export async function moveItem(baseDir, idOrLabel, to = {}, opts = {}) {
     const next = { ...found.item, status };
     assertValid(next, id);
     const r = await relocate(baseDir, found, next, found.body, folderFor(next, targetEpic), opts);
+    if (targetEpic !== undefined) await ensureEpicReadme(baseDir, targetEpic, opts);
     await regenerate(baseDir, `${id} moved ${r.from} → ${r.to}`);
     return { item: next, label: renderLabel(next), ...r };
   });
@@ -490,6 +491,230 @@ export async function closeItem(baseDir, idOrLabel, close = {}, opts = {}) {
     const r = await relocate(baseDir, found, next, found.body, folderFor(next), opts);
     await regenerate(baseDir, `${id} closed (${reason}) and moved ${r.from} → ${r.to}`);
     return { item: next, label: renderLabel(next), ...r };
+  });
+}
+
+// ── Epics (t5.3, FR-8, D-M6E11-13) ──────────────────────────────────────────
+//
+// `work/epics/<id>/README.md` is the Epic's intent file. It is not an item —
+// its name is not an ID, so every walker that keys on `parseItemFileName`
+// (checkStore, listItems, generateAll, nextId) passes over it. It is created
+// with the folder when the first item moves in, and carries the close record
+// once the Epic is archived.
+
+const epicDirRel = (epic) => `${WORK_DIR}/${FOLDERS.epics}/${epic}`;
+const archivedEpicDirRel = (epic) => `archive/epics/${epic}`;
+
+// Create the Epic's README if it has none. Never overwrites.
+async function ensureEpicReadme(baseDir, epic, opts) {
+  const abs = join(baseDir, '.planning', epicDirRel(epic), EPIC_README);
+  if (exists(abs)) return;
+  assertRealInsidePlanning(baseDir, abs, '/sig:item');
+  await atomicWrite(abs, stringifyFrontmatter({ epic }, `# ${epic}\n`), { renameFn: opts.renameFn });
+}
+
+// Every entry under `dir`, files and folders, without following symlinks.
+// Anything that is neither (a symlink, a socket) is returned as `other` —
+// moving the folder would leave it behind, so the caller refuses.
+function listTree(dir) {
+  const files = [];
+  const dirs = [];
+  const other = [];
+  const walk = (d) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      const p = join(d, e.name);
+      if (e.isDirectory()) {
+        dirs.push(p);
+        walk(p);
+      } else if (e.isFile()) files.push(p);
+      else other.push(p);
+    }
+  };
+  walk(dir);
+  return { files: files.sort(), dirs, other };
+}
+
+// Remove `dir` and every folder under it, deepest first, only while empty.
+// `rmdirSync` refuses a non-empty folder, so this can never remove a file.
+function removeEmptyTree(dir) {
+  let dirs;
+  try {
+    dirs = listTree(dir).dirs;
+  } catch {
+    return;
+  }
+  for (const d of [...dirs.sort((a, b) => b.length - a.length), dir]) {
+    try {
+      rmdirSync(d);
+    } catch {
+      /* not empty, or gone — leave it */
+    }
+  }
+}
+
+/**
+ * Close an Epic: refuse while any item in its folder is open; otherwise record
+ * the close in its README.md and move the whole folder to
+ * `.planning/archive/epics/<id>/` (AC-8.3, AC-8.4).
+ *
+ * An Epic with no folder — every Epic from before the store — is not an error:
+ * `{status: 'no-folder'}`, nothing read or written, so `/sig:ship` behaves as
+ * it always has. Moving existing Epics into folders is migration (step 5).
+ *
+ * Each file moves with `git mv` when git tracks it, a rename otherwise; links
+ * in the moved files are rewritten for the new location, except links between
+ * files of the folder, which move together. A failure before the regeneration
+ * puts every file back where it was, byte-for-byte.
+ *
+ * @param {string} baseDir
+ * @param {string} epicId
+ * @param {{by: string, pr?: string|number, release?: string, at?: string}} close — `at` defaults to now
+ * @param {{execFn?: Function, renameFn?: Function}} [opts]
+ * @returns {Promise<{status: 'no-folder'} | {status: 'already-archived', path: string}
+ *   | {status: 'closed', from: string, to: string, moved: string[], close: object}>}
+ * @throws {WorkStoreError} SCHEMA (bad ID, no `by`, broken item or README),
+ *   OPEN_ITEMS (each open item named), CONFLICT (archive folder exists, or
+ *   the folder holds something that is not a file or folder)
+ */
+export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
+  assertEpicId(epicId);
+  const { by, pr, release, at = new Date().toISOString() } = close;
+  if (typeof by !== 'string' || by.trim() === '') {
+    throw new WorkStoreError('SCHEMA', `${epicId}: closing an Epic records who closed it — pass \`by\`.`);
+  }
+  if (typeof at !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])/.test(at)) {
+    throw new WorkStoreError('SCHEMA', `${epicId}: close time must be an ISO date (got ${JSON.stringify(at)})`);
+  }
+  const execFn = opts.execFn ?? execFileSync;
+  return withWorkLock(baseDir, async () => {
+    const planning = join(baseDir, '.planning');
+    const fromDirRel = epicDirRel(epicId);
+    const toDirRel = archivedEpicDirRel(epicId);
+    const fromRel = `.planning/${fromDirRel}`;
+    const toRel = `.planning/${toDirRel}`;
+    const fromAbs = join(planning, fromDirRel);
+    const toAbs = join(planning, toDirRel);
+
+    let st = null;
+    try {
+      st = lstatSync(fromAbs);
+    } catch (err) {
+      if (err.code !== 'ENOENT') throw err;
+    }
+    if (st === null) {
+      return exists(toAbs) ? { status: 'already-archived', path: toRel } : { status: 'no-folder' };
+    }
+    if (!st.isDirectory()) {
+      throw new WorkStoreError('CONFLICT', `${fromRel} is not a folder (a symlink or a file) — nothing was moved.`);
+    }
+    assertRealInsidePlanning(baseDir, fromAbs, '/sig:item');
+    assertRealInsidePlanning(baseDir, toAbs, '/sig:item');
+
+    // The gate. Every item file in the folder, open ones named.
+    const tree = listTree(fromAbs);
+    if (tree.other.length) {
+      const names = tree.other.map((p) => toPosix(relative(baseDir, p))).join(', ');
+      throw new WorkStoreError('CONFLICT', `${fromRel} holds entries that are not files or folders (${names}); `
+        + 'moving the folder would leave them behind. Remove or replace them, then re-run.');
+    }
+    const open = [];
+    const broken = [];
+    for (const abs of tree.files) {
+      if (!parseItemFileName(basename(abs))) continue;
+      const r = readItemFile(baseDir, abs);
+      if (r.errors.length) broken.push(...r.errors);
+      else if (r.item.status !== 'C') open.push(r.item);
+    }
+    if (broken.length) {
+      throw new WorkStoreError('SCHEMA', `${epicId} cannot be closed — fix these item files first:\n${broken.join('\n')}`);
+    }
+    if (open.length) {
+      const lines = open
+        .sort((a, b) => num(a.id) - num(b.id))
+        .map((it) => `  ${renderLabel(it)} (status ${it.status})${it.title ? ` — ${it.title}` : ''}`);
+      throw new WorkStoreError('OPEN_ITEMS', `${epicId} has ${open.length} open item${open.length === 1 ? '' : 's'} `
+        + `in ${fromRel}/ — close each (\`/sig:item close\`) or move it back to backlog `
+        + `(\`/sig:item move <id> T\`), then re-run. Nothing was moved:\n${lines.join('\n')}`);
+    }
+    if (exists(toAbs)) {
+      throw new WorkStoreError('CONFLICT', `${toRel} already exists — nothing was moved. `
+        + 'Find out what it is before archiving onto it.');
+    }
+
+    // The README with the close recorded, built before anything moves so a
+    // broken one refuses cleanly.
+    const readmeAbs = join(fromAbs, EPIC_README);
+    let data = { epic: epicId };
+    let body = `# ${epicId}\n`;
+    const readmeExisted = exists(readmeAbs);
+    if (readmeExisted) {
+      try {
+        const parsed = parseFrontmatter(readFileSync(readmeAbs, 'utf-8'));
+        data = parsed.data ?? { epic: epicId };
+        ({ body } = parsed);
+      } catch (err) {
+        if (!(err instanceof StateSchemaError)) throw err;
+        throw new WorkStoreError('SCHEMA', `${fromRel}/${EPIC_README}: its frontmatter is not valid YAML — `
+          + `fix it, then re-run. Nothing was moved. (${err.message})`);
+      }
+    }
+    const record = { at, by, pr, release };
+    for (const k of Object.keys(record)) if (record[k] === undefined) delete record[k];
+    data = { ...data, close: record };
+
+    // Move each file (git mv when tracked), then rewrite links and write the
+    // README at the new location. Any failure in here is undone in reverse:
+    // rewritten files get their old text back, a README this call created is
+    // removed, every file moves back, and the folders this created go.
+    const git = isGitRepo(baseDir, execFn);
+    const moved = [];
+    const written = []; // {abs, text} — text null when this call created the file
+    const firstCreated = mkdirSync(toAbs, { recursive: true });
+    try {
+      for (const abs of tree.files) {
+        const rel = toPosix(relative(baseDir, abs));
+        const dest = `${toRel}${rel.slice(fromRel.length)}`;
+        mkdirSync(dirname(join(baseDir, dest)), { recursive: true });
+        const tracked = git && isTracked(baseDir, rel, execFn);
+        moveFile(baseDir, rel, dest, tracked, execFn);
+        moved.push({ from: rel, to: dest, git: tracked });
+      }
+      const together = { movedTogether: { from: fromDirRel, to: toDirRel } };
+      for (const m of moved) {
+        if (!m.to.endsWith('.md') || m.to === `${toRel}/${EPIC_README}`) continue;
+        const abs = join(baseDir, m.to);
+        const text = readFileSync(abs, 'utf-8');
+        const dirFrom = toPosix(relative(planning, dirname(join(baseDir, m.from))));
+        const dirTo = toPosix(relative(planning, dirname(abs)));
+        const next = rewriteRelativeLinks(text, dirFrom, dirTo, together);
+        if (next === text) continue;
+        written.push({ abs, text });
+        await atomicWrite(abs, next, { renameFn: opts.renameFn });
+      }
+      const readmeDest = join(toAbs, EPIC_README);
+      written.push({ abs: readmeDest, text: readmeExisted ? readFileSync(readmeDest, 'utf-8') : null });
+      const readmeBody = readmeExisted ? rewriteRelativeLinks(body, fromDirRel, toDirRel, together) : body;
+      await atomicWrite(readmeDest, stringifyFrontmatter(data, readmeBody), { renameFn: opts.renameFn });
+    } catch (err) {
+      for (const w of written.reverse()) {
+        if (w.text === null) {
+          if (exists(w.abs)) unlinkSync(w.abs);
+        } else {
+          // atomicWrite never half-writes, so the file holds either the old
+          // text or the new; writing the old back is correct in both cases.
+          await atomicWrite(w.abs, w.text);
+        }
+      }
+      for (const m of moved.reverse()) moveFile(baseDir, m.to, m.from, m.git, execFn);
+      removeEmptyTree(toAbs);
+      if (firstCreated) removeCreatedDirs(dirname(toAbs), firstCreated);
+      throw err;
+    }
+
+    removeEmptyTree(fromAbs);
+
+    await regenerate(baseDir, `${epicId} closed and moved ${fromRel}/ → ${toRel}/`);
+    return { status: 'closed', from: fromRel, to: toRel, moved: moved.map((m) => m.to), close: record };
   });
 }
 

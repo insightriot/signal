@@ -250,6 +250,16 @@ the claim and the thing contradicting it, side by side — and no model judgment
 `D-M6E3-8`). This is the first SHIP halt about what a document *says*; every earlier halt is a
 missing precondition.
 
+### 6.8 Archive the Epic's folder (work store on) — Epic-close SHIP only
+
+**Work store off, or not an Epic-close SHIP:** skip this step. **Work store on** (`isStoreOn(baseDir)`), after §6.6 and §6.7:
+
+Call `closeEpic(baseDir, state.current_epic, {by, pr, release})` from `tools/lib/work-ops.js` — `pr` is §3's PR number, `release` the version this ship publishes, if any.
+
+1. **`OPEN_ITEMS` → HALT.** The error names each open item in the Epic's folder. Close each (`/sig:item close`) or move it back to the backlog (`/sig:item move <id> T`), then re-run. Do not create the SHIP commit with the Epic's work still open.
+2. **`{status: 'no-folder'}`** — the Epic has no folder (every Epic from before the store). Say so and continue; nothing changed.
+3. **`{status: 'closed'}`** — the folder is now `.planning/archive/epics/<EpicID>/` with the close in its `README.md`. Stage the moved files and `.planning/work/EPICS.md` into the SHIP commit.
+
 ### 7. Manual milestone meta-retro (`--milestone-meta` flag, optional)
 
 If the user invokes `/sig:ship --milestone-meta` (or otherwise explicitly requests a milestone-level meta-retrospective), call `generateMilestoneMetaRetro(baseDir, milestoneId, opts)` from `tools/lib/retro-index.js` where `milestoneId` is derived from `state.current_epic` (drop the trailing `.E{N}` segment, e.g., `M4.5.E9` → `M4.5`).
@@ -275,7 +285,7 @@ When it reports `{written: true}`, stage the modified `.planning/INDEX.md` into 
 
 ### 9. Create the SHIP commit, then mark STATE.md fresh (M5.E17 FR3)
 
-Five steps above — §5.5 (evicted narrative), §6 (retro index), §6.5 (inbox + ledger), §6.6 (discharged backlog rows), §8 (INDEX.md) — each instruct staging into **"the SHIP commit."** This is the step that makes it. Commit everything those steps staged, as one atomic commit.
+Six steps above — §5.5 (evicted narrative), §6 (retro index), §6.5 (inbox + ledger), §6.6 (discharged backlog rows), §6.8 (archived Epic folder), §8 (INDEX.md) — each instruct staging into **"the SHIP commit."** This is the step that makes it. Commit everything those steps staged, as one atomic commit.
 
 **Then, and only then:** `await markFresh(baseDir, {commit: <git HEAD short>})` from `tools/lib/state.js` — advances `last_updated` + `last_updated_commit` to the SHIP commit so `/sig:resume`'s staleness banner reads fresh. Run it **after** the commit — passing a pre-commit HEAD records a stale sha and silently defeats the freshness check (AC3.4).
 

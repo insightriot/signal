@@ -28,7 +28,7 @@ const isFence = (line) => {
   return t.startsWith('```') || t.startsWith('~~~');
 };
 
-function rewriteTarget(raw, fromDir, toDir) {
+function rewriteTarget(raw, fromDir, toDir, together) {
   const m = raw.match(/^(\s*)(\S+)([\s\S]*)$/);
   if (!m) return raw;
   const [, lead, target, rest] = m;
@@ -38,6 +38,8 @@ function rewriteTarget(raw, fromDir, toDir) {
   const suffix = cut === -1 ? '' : target.slice(cut);
   if (pathPart === '') return raw;
   const abs = posix.normalize(posix.join(fromDir || '.', pathPart));
+  // The target moves with the file, so the link between them is unchanged.
+  if (together && (abs === together || abs.startsWith(`${together}/`))) return raw;
   let rel = posix.relative(toDir || '.', abs) || '.';
   if (pathPart.endsWith('/') && !rel.endsWith('/')) rel += '/';
   return `${lead}${rel}${suffix}${rest}`;
@@ -92,14 +94,21 @@ function codeSegments(line) {
  * `.planning/`, so `''` is `.planning/` itself and `work/backlog` is
  * `.planning/work/backlog/`).
  *
+ * With `movedTogether: {from, to}` the file is part of a whole folder moving
+ * from `from` to `to` (an Epic folder being archived, M6.E11 t5.3): a target
+ * inside `from` moves too, so its link is left as it is. Without it, a link
+ * to a sibling would be pointed back at the folder's old location.
+ *
  * @param {string} text
  * @param {string} fromDir
  * @param {string} toDir
+ * @param {{movedTogether?: {from: string, to: string}}} [opts]
  * @returns {string}
  */
-export function rewriteRelativeLinks(text, fromDir, toDir) {
+export function rewriteRelativeLinks(text, fromDir, toDir, opts = {}) {
   const from = posix.normalize(fromDir || '.');
   const to = posix.normalize(toDir || '.');
+  const together = opts.movedTogether ? posix.normalize(opts.movedTogether.from) : null;
   if (from === to) return String(text);
   let fence = false;
   return String(text)
@@ -111,7 +120,7 @@ export function rewriteRelativeLinks(text, fromDir, toDir) {
       }
       if (fence || !line.includes('](')) return line;
       return codeSegments(line)
-        .map(([seg, code]) => (code ? seg : seg.replace(LINK_RE, (all, raw) => `](${rewriteTarget(raw, from, to)})`)))
+        .map(([seg, code]) => (code ? seg : seg.replace(LINK_RE, (all, raw) => `](${rewriteTarget(raw, from, to, together)})`)))
         .join('');
     })
     .join('\n');
