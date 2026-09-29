@@ -31,30 +31,9 @@ export const ITEM_STATUSES = Object.freeze(['N', 'T', 'Q', 'P', 'C']);
 // means checked and false, `wontdo` means true but not worth doing.
 export const CLOSE_REASONS = Object.freeze(['fixed', 'stale', 'wontdo', 'dup', 'rejected']);
 
-export const WORK_STORE_ERROR_CODES = Object.freeze([
-  'CONFIG',
-  'SCHEMA',
-  'NOT_FOUND',
-  'CONFLICT',
-  'GENERATED',
-  'OPEN_ITEMS',
-]);
-
-/**
- * The one error class every store module throws. Callers dispatch on `code`,
- * never on message text. Lives here rather than in `work-store.js` so the
- * schema, store, generator and migration modules share it without a cycle.
- */
-export class WorkStoreError extends Error {
-  constructor(code, message) {
-    if (!WORK_STORE_ERROR_CODES.includes(code)) {
-      throw new Error(`WorkStoreError: unknown code ${JSON.stringify(code)}`);
-    }
-    super(message);
-    this.name = 'WorkStoreError';
-    this.code = code;
-  }
-}
+// The error class lives in a leaf module so `atomic-write.js` can throw it
+// without an import cycle; re-exported here so every existing import holds.
+export { WORK_STORE_ERROR_CODES, WorkStoreError } from './work-errors.js';
 
 // Canonical key order for the written file. `yaml` emits keys in insertion
 // order, so without this the bytes on disk would depend on whichever code path
