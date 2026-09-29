@@ -36,7 +36,7 @@ import { dirname, join, relative, sep } from 'node:path';
 import { atomicWrite } from './atomic-write.js';
 import { parseBacklogRows } from './backlog.js';
 import { deriveBugCounts, formatTallySegment } from './bugs-tally.js';
-import { EPIC_ID_STRICT_RE, parseFrontmatter, StateSchemaError } from './state.js';
+import { compareEpicIds, EPIC_ID_STRICT_RE, parseFrontmatter, StateSchemaError } from './state.js';
 import { itemNumber, parseItem, WorkStoreError } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
 import { formatInboxStatusLine, GENERATED_MARKER, isGeneratedFile } from './work-marker.js';
@@ -178,17 +178,6 @@ function generateQuestions(items) {
 }
 
 // ── work/EPICS.md ───────────────────────────────────────────────────────────
-
-// Natural order of Epic IDs: M6.E2 before M6.E11.
-function compareEpicIds(a, b) {
-  const pa = (a.match(/\d+/g) ?? []).map(Number);
-  const pb = (b.match(/\d+/g) ?? []).map(Number);
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const d = (pa[i] ?? -1) - (pb[i] ?? -1);
-    if (d !== 0) return d;
-  }
-  return a.localeCompare(b);
-}
 
 function closeLine(close) {
   if (!close || typeof close !== 'object') return 'closed (no close record in its README.md)';

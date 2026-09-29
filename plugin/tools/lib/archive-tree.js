@@ -40,7 +40,7 @@ import { join, dirname, resolve, relative, sep, posix } from 'node:path';
 
 import { deriveUnits, suffixOf } from './work-units.js';
 
-import { PLANNING_DIR, EPIC_ID_STRICT_RE } from './state.js';
+import { PLANNING_DIR, EPIC_ID_STRICT_RE, compareEpicIds } from './state.js';
 import { atomicWrite } from './atomic-write.js';
 import { deriveEpicArchiveDir } from './evict.js';
 import { enumerateRetros } from './retro-index.js';
@@ -73,17 +73,6 @@ const isExternal = (t) => /^(https?:|mailto:|#)/.test(t);
 /** Normalize a path to POSIX separators (`\` → `/`) — the cross-platform guard. */
 export function toPosix(p) {
   return String(p).replace(/\\/g, '/');
-}
-
-// Numeric-segment Epic-ID sort (M5.E2 < M5.E10) — deterministic move order.
-function compareEpicIds(a, b) {
-  const na = a.match(/\d+/g)?.map(Number) ?? [];
-  const nb = b.match(/\d+/g)?.map(Number) ?? [];
-  for (let i = 0; i < Math.max(na.length, nb.length); i++) {
-    const d = (na[i] ?? 0) - (nb[i] ?? 0);
-    if (d !== 0) return d;
-  }
-  return 0;
 }
 
 /**

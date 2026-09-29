@@ -108,6 +108,19 @@ const SCHEMA_VERSION = 1;
 // ever emits depth-2, which currentMilestone can parse.
 const EPIC_ID_STRICT_RE = /^M\d+(\.\d+)*\.E\d+$/;
 
+// Natural order of Epic IDs: M6.E2 before M6.E11, M5.E10 before M6.E1. Numeric
+// segments compare as numbers; a missing segment sorts first; IDs whose
+// numbers all tie fall back to string order, so the order is total.
+function compareEpicIds(a, b) {
+  const pa = (a.match(/\d+/g) ?? []).map(Number);
+  const pb = (b.match(/\d+/g) ?? []).map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? -1) - (pb[i] ?? -1);
+    if (d !== 0) return d;
+  }
+  return a.localeCompare(b);
+}
+
 // Best-effort fetch of the current git HEAD sha. Returns null when git is
 // unavailable, the cwd isn't a repo, or HEAD is otherwise unreadable —
 // matches the D6 graceful-degradation posture for git-dependent helpers.
@@ -750,7 +763,7 @@ export async function completePhase(baseDir, phase) {
   });
 }
 
-export { PHASES, PLANNING_DIR, SCHEMA_VERSION, EPIC_ID_STRICT_RE, PHASE_LOG_MARKER, withStateLock };
+export { PHASES, PLANNING_DIR, SCHEMA_VERSION, EPIC_ID_STRICT_RE, compareEpicIds, PHASE_LOG_MARKER, withStateLock };
 
 // --- current_tasks helpers (M4.5.E6.S1.t6, D10) ---
 //
