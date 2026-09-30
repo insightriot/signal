@@ -477,6 +477,10 @@
 - [work/inbox/SIG-236.md](work/inbox/SIG-236.md) — `other` — _(note pending)_
 - [work/inbox/SIG-237.md](work/inbox/SIG-237.md) — `other` — _(note pending)_
 - [work/inbox/SIG-249.md](work/inbox/SIG-249.md) — `other` — _(note pending)_
+- [work/inbox/SIG-250.md](work/inbox/SIG-250.md) — `other` — _(note pending)_
+- [work/inbox/SIG-251.md](work/inbox/SIG-251.md) — `other` — _(note pending)_
+- [work/inbox/SIG-252.md](work/inbox/SIG-252.md) — `other` — _(note pending)_
+- [work/inbox/SIG-253.md](work/inbox/SIG-253.md) — `other` — _(note pending)_
 
 ## Cold — archived + retrospectives
 
@@ -509,6 +513,7 @@
 - [M5.E9-RETROSPECTIVE.md](M5.E9-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E1-RETROSPECTIVE.md](M6.E1-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E10-RETROSPECTIVE.md](M6.E10-RETROSPECTIVE.md) — `other` — _(note pending)_
+- [M6.E11-RETROSPECTIVE.md](M6.E11-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E2-RETROSPECTIVE.md](M6.E2-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E3-RETROSPECTIVE.md](M6.E3-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E4-RETROSPECTIVE.md](M6.E4-RETROSPECTIVE.md) — `other` — _(note pending)_
@@ -676,3 +681,4 @@
 - [M6.E8](M6.E8-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E9](M6.E9-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E10](M6.E10-RETROSPECTIVE.md) — _(note pending)_
+- [M6.E11](M6.E11-RETROSPECTIVE.md) — _(note pending)_

@@ -206,43 +206,6 @@ advisory**, and `CLAUDE.md`'s current-state section has grown to many screens re
 *should* have grown is a nag, and this repository has a standing rule against gates that get rationalized
 past. Consider advisory-with-a-number before hard-failing.
 
-### Structural status — make done-vs-live readable without inference · **roadmap** · large · **filed 2026-09-01** · **NEXT EPIC after `M6.E3` (Brett, 2026-09-27, `D-M6E3-16`)** · SIG-161
-
-> **2026-09-28 — direction agreed, next step `/sig:discuss`:** one system of record for work items — IDs at intake, items that *move* through the stages, scope-box sprints, a tracker as an opt-in replacement. [`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](../analysis/WORK-ITEM-SYSTEM-DESIGN.md); `D-BR0928-1` … `D-BR0928-7`.
-
-**Promoted 2026-09-27.** Brett: *"revisit this whole architecture vs. keep applying band-aids."* It now
-also absorbs `M6.E3`'s dropped answered-questions slice, and `M6.E3`'s measurement is fresh evidence:
-no token rule could tell a fixed bug from an open one. Starting point — the real-world pattern: a
-tracker holds status, the fix links to the item (`Fixes: B102`), every bug fix carries its own test.
-~~**First question, Brett's:** a marker Signal acts on in the markdown files, or GitHub Issues.~~ **Answered by `D-BR0928-7`** (repo store by default, a tracker as an opt-in replacement, never both) — `D-M6E11-2`.
-
-> **2026-09-29 — IN FLIGHT as `M6.E11`** (step 1 of the design doc, plus Epic folders), branch `feat/m6.e11-work-item-store`. [`M6.E11-REQUIREMENTS.md`](work/epics/M6.E11/M6.E11-REQUIREMENTS.md), `D-M6E11-1` … `D-M6E11-14`. ⚠ `D-M6E11-12` **reverses** the retention half below: nothing is deleted; closed work moves to the archive (Brett's call).
-
-*Plain: a machine can't tell finished work from live work in the backlog, and no better pattern fixes it.*
-
-**Measured, not argued:** [`../analysis/LOOP-GOAL-DIRECTION.md`](../analysis/LOOP-GOAL-DIRECTION.md) §3
-ran the best honest candidate rule over `BACKLOG.md`'s real rows — **77% precision, ~37% recall** (10 of
-13 flagged rows live; ≥17 live rows invisible). **Two of three false positives are structural:** a closed
-item's closure lives in a *struck sibling heading* while the original row is preserved unstruck for
-provenance, so the distinguishing fact **is not in the row**. `AC3.2` measured the same class earlier at
-13 flags / 1 real.
-
-*Source:* [`../analysis/DEEPSEEK-HARNESS-ASSESSMENT.md`](../analysis/DEEPSEEK-HARNESS-ASSESSMENT.md)
-§1 — they encode status in the **path** (`proposed/`/`implemented/`/`rejected/`/`archived/`) and gate the
-in-file `Status:` header against the folder, so the two cannot drift.
-
-**This is the unblock for automatic work selection**, which both analyses currently recommend **against**
-on the evidence. It is also the largest item filed here and should not run before the three small ones.
-
-⚠ **Do not import their tree wholesale** — the borrowable idea is *status is structural, not inferred*.
-A machine-readable marker written at authoring time may serve Signal better than a directory move, and
-that choice is the Epic's central question, not a detail.
-
-⚠ **Second half, and it is not optional:** their `rejected/` tree carries a **retention policy** — keep a
-dead end only while it prevents a tempting mistake, otherwise delete it. Signal keeps everything forever,
-which is precisely why reading dead ends forward
-([`../analysis/LOOP-GOAL-DIRECTION.md`](../analysis/LOOP-GOAL-DIRECTION.md) §4) is a budget problem.
-
 ### Drive `/sig:drive` end-to-end through a real Epic · **verification** · small · **filed 2026-09-01** · SIG-163
 
 *Plain: the command that runs the whole workflow has never been watched doing a full run.*
