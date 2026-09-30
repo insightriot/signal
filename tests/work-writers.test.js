@@ -12,7 +12,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -129,6 +129,18 @@ describe('backlog.js — promote and discharge move items', () => {
     expect(listItems(root)).toHaveLength(1); // moved, not copied
     await expectOnlyGeneratorWrote();
     expect(await readFile(planning('BACKLOG.md'), 'utf-8')).toContain('### CSV export · SIG-1');
+  });
+
+  // REVIEW pass 2 (untested seam): the inbox status line's item ID counts
+  // only when it carries THIS store's key. A block quoting another store's
+  // item (`ABC-1`) is a raw block — a new item — not a lookup of ABC-1.
+  it('a block whose status line names another key\'s item is filed as a new item, not looked up', async () => {
+    await captureToFutureIdeas(root, { body: 'Export as CSV.', title: 'CSV export', today: TODAY, sensitivePrompt: keep });
+    const block = (await inboxBlockFor('SIG-1')).replaceAll('SIG-1', 'ABC-1');
+    expect(block).toContain('ABC-1');
+    const res = await promoteToBacklog(root, { block, tag: 'roadmap', today: TODAY });
+    expect(res).toMatchObject({ written: true, id: 'SIG-2' });
+    expect(getItem(root, 'SIG-1').item.status).toBe('N'); // the SIG-1 capture is untouched
   });
 
   it('hygiene → CHORE, and a retitle is applied', async () => {
@@ -364,6 +376,22 @@ describe('archive-tree.js — the link rewrite leaves generated lists to the gen
     const before = await lists();
     await applyArchiveTree(root);
     expect(await lists()).toEqual(before);
+  });
+});
+
+// REVIEW pass 2 (untested seam): writeGenerated re-checks the hand-kept rule
+// for each file as it writes it, so a list hand-written AFTER generateAll's
+// preflight is still not overwritten. generateAll runs synchronously up to
+// its first write, so a file written right after the call lands in exactly
+// that window.
+describe('work-generate.js — writeGenerated re-checks each file', () => {
+  it('a list hand-written after the preflight → CONFIG, and it is not overwritten', async () => {
+    await newItem(root, { title: 'x', by: 't' });
+    const last = GENERATED_FILES[GENERATED_FILES.length - 1];
+    const pending = generateAll(root);
+    writeFileSync(planning(last), '# kept by hand\n', 'utf-8'); // sync: lands before generateAll resumes
+    await expect(pending).rejects.toMatchObject({ code: 'CONFIG', message: expect.stringContaining(last) });
+    expect(await readFile(planning(last), 'utf-8')).toBe('# kept by hand\n');
   });
 });
 
