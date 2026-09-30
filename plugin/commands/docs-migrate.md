@@ -22,6 +22,23 @@ This command is **meta** — same class as `/sig:status` and `/sig:resume`. It d
 - **Vector 2 — inlined legacy body**: relocate an already-migrated inlined body → `STATE-HISTORY.md` + a one-line pointer.
 - **Vector 3 — closed-Epic narrative accretion**: apply evict-on-close retroactively to a project's backlog of already-closed Epics (card + pointer + archive tree).
 
+## The work-item store — NOT done by this command yet (`v0.1.43`)
+
+`v0.1.43` added an opt-in **work-item store** (`/sig:item`): one file per bug, backlog row, inbox
+capture and open question under `.planning/work/`, with `BUGS.md`, `BACKLOG.md`, `ISSUES-INBOX.md`
+and `OPEN-QUESTIONS.md` becoming generated views. **Moving an existing project into it is step 5 of the work-item design (kept in the Signal
+repository) and is not built into this command yet.** Until it is:
+
+- **Say so plainly** if the user asks this command to move them to the work store: this release does
+  not do it. Their project keeps its hand-kept lists and behaves exactly as before.
+- **Do not create `.planning/work/WORK.md` by hand** to turn the store on over existing lists. The
+  store refuses to regenerate over a hand-kept list (`CONFIG`), so every capture would then fail; the
+  lists have to be migrated into items first, which is the missing step.
+- **What exists today:** Signal's own records were moved by `tools/work-migrate.mjs` — a maintainer
+  tool in the Signal repository, **not shipped in the plugin**, dry-run by default, originals kept
+  byte-for-byte under `.planning/archive/pre-work-store/`. Step 5 wires the same engine in here
+  (`D-M6E11-21`: it must also recognise a project that is already store-shaped).
+
 ## The v2→v3 layout transition (FR6)
 
 When the project's `docs_layout_version` stamp is **below** `CURRENT_LAYOUT_VERSION` (3), the same one-apply, one-lock, one-rollback chain also performs the v2→v3 file transition — each step **relocate-never-delete**, previewed in the dry-run, and gated on the dangling-link + anchor-resolvability checks:

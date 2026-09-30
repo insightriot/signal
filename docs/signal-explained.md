@@ -77,7 +77,7 @@ This may be Signal's most valuable trait day-to-day. Every project keeps a livin
 
 ## Capturing ideas without derailing the work
 
-**What it does:** Mid-build, you'll think of things — a new feature, a question, a possible bug. One quick command captures the thought, word-for-word, into the right inbox (ideas, open questions, or bugs) and you keep working. The next time you plan, Signal walks you through the inbox: promote this idea into the plan, save it for later, merge it, or drop it — your call, every time.
+**What it does:** Mid-build, you'll think of things — a new feature, a question, a possible bug. One quick command captures the thought, word-for-word, into the right inbox (ideas, open questions, or bugs) and you keep working. The next time you plan, Signal walks you through the inbox: promote this idea into the plan, save it for later, merge it, or drop it — your call, every time. **New in v0.1.43, opt-in:** projects that switch on the *work-item store* keep every captured thing as its own file with a permanent ID (`SIG-412`), which *moves* — inbox → backlog → an Epic's folder → done → archive — instead of being copied between lists. One command, `/sig:item`, triages, moves, closes and reopens items, so "is this done?" is read from one place, never guessed. Projects that haven't switched see no change; moving an existing project over comes in a later release.
 
 **Why it matters:** The two ways good ideas die are being forgotten and being chased immediately (wrecking the current task). This gives every stray thought a safe landing spot in under ten seconds, and guarantees it resurfaces at exactly the right moment — planning time. Nothing falls through the cracks, and nothing derails you.
 
