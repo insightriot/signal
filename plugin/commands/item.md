@@ -57,7 +57,7 @@ Items are named by their **ID**, `SIG-412`. The label `SIG-412-BUG-T` (ID, type,
 
 ### `move <ID> <status> [<EpicID>]` — change status
 
-`moveItem(baseDir, id, {status, epic})`. N → `inbox/`, T → `backlog/`, Q or P → `epics/<EpicID>/` (the Epic is required when the item is not already in one). Closing is not a move — use `close`. Print *from → to*.
+`moveItem(baseDir, id, {status, epic})`. N → `inbox/`, T → `backlog/`, Q or P → `epics/<EpicID>/` (the Epic is required when the item is not already in one). Closing is not a move — use `close`. Print *from → to*. The first item into an Epic creates its folder and moves the Epic's `{EpicID}-*.md` artifacts from `.planning/` into it (not the retrospective or profile); when the result has `artifacts`, print each moved path — the rewritten files in `artifacts.rewritten` are changes to commit with it.
 
 In a git repository a tracked file is moved with `git mv`, so its history follows it. If the move cannot finish, the item is put back exactly as it was; say so and show the error.
 

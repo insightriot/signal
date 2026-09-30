@@ -13,6 +13,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -184,15 +185,31 @@ describe('the writer writes where the reader reads (REVIEW I6)', () => {
     return { name, read };
   };
 
-  it('root REQUIREMENTS exists, then moveItem creates the Epic folder: both name the root file', async () => {
+  // Changed deliberately at REVIEW pass 2 (D-M6E11-33). This test pinned the
+  // batch-2 rule "the root copy stays, and the writer follows it there"; the
+  // decision now is that the first moveItem into an Epic MOVES its root
+  // artifacts into the new folder, so both seams name the folder copy.
+  it('root REQUIREMENTS exists, then moveItem creates the Epic folder: it moves in, and both name the folder file', async () => {
     await storeOn();
     await put('.planning/M1.E1-REQUIREMENTS.md', '# req\n');
     const { newItem, moveItem } = await import('../plugin/tools/lib/work-ops.js');
     const a = await newItem(base, { type: 'FEAT', title: 'one', by: 't' });
     await moveItem(base, a.id, { status: 'Q', epic: 'M1.E1' });
     const { name, read } = agree('REQUIREMENTS');
-    expect(name).toBe('M1.E1-REQUIREMENTS.md');
+    expect(name).toBe('work/epics/M1.E1/M1.E1-REQUIREMENTS.md');
     expect(read).toBe(join(P, name));
+    expect(existsSync(join(P, 'M1.E1-REQUIREMENTS.md'))).toBe(false);
+  });
+
+  it('folder present and a root copy a store-off command wrote: the reader falls back to it, the writer targets the folder', async () => {
+    await storeOn();
+    await epicFolder('M1.E1');
+    await put('.planning/M1.E1-VERIFICATION.md', '# written with the store off\n');
+    const { name, read } = agree('VERIFICATION');
+    expect(read).toBe(join(P, 'M1.E1-VERIFICATION.md'));
+    expect(name).toBe('work/epics/M1.E1/M1.E1-VERIFICATION.md');
+    await put(`.planning/${name}`, '# written with the store on\n');
+    expect(resolveArtifactPath(P, 'VERIFICATION', { currentEpic: 'M1.E1' })).toBe(join(P, name));
   });
 
   it('a new artifact with the folder present goes in the folder, and reads back from there', async () => {

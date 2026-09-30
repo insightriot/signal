@@ -209,13 +209,15 @@ const LINEAR_UNPREFIXED = new Set(['REQUIREMENTS']);
  *     `.planning/`, joined the same way as every other result. Without
  *     `planningDir` nothing on disk is read and the result is as above.
  *
- *   - The Epic's own file wins (REVIEW I6): with `planningDir` given and a
- *     strict Epic, if `resolveArtifactPath` would read one of the Epic's OWN
- *     live files — `work/epics/{id}/{id}-{artifact}.md`,
- *     `work/epics/{id}/{artifact}.md`, or `{id}-{artifact}.md` at the root —
- *     that file is the answer. Without this, an Epic with root-level
- *     artifacts forked the moment its folder appeared (the first `moveItem`
- *     into it): writes went to the folder, reads still found the root copy.
+ *   - With the folder present, the folder is the answer (REVIEW I6, then
+ *     pass 2 / D-M6E11-33): the file `resolveArtifactPath` reads when it is in
+ *     the folder (`work/epics/{id}/{id}-{artifact}.md` or the bare
+ *     `work/epics/{id}/{artifact}.md`), else the canonical folder name. The
+ *     root `{id}-{artifact}.md` is never written once the folder exists: the
+ *     first `moveItem` into an Epic moves its root artifacts into the new
+ *     folder, so a root copy can only be one a store-off command wrote since.
+ *     The reader still finds that copy, below the folder candidates, until
+ *     the folder's own is written; `closeEpic` refuses while it is there.
  *     Never a path under `archive/` (a closed Epic's folder is history), and
  *     never a legacy name that is not the Epic's own (`1-PLAN.md`,
  *     `PLAN.md`, `{phase}-PLAN.md`) — those may belong to another unit.
@@ -234,10 +236,12 @@ export function artifactName(artifact, opts = {}) {
   const read = resolveArtifactPath(planningRoot, artifact, { currentEpic, existsFn });
   if (read === null) return fallback;
   const rel = relative(planningRoot, read).split(sep).join('/');
+  // `fallback` is already the canonical folder name when the folder exists,
+  // and the root name when it does not — so only the folder's bare form can
+  // differ from it here.
   const own = [
     `${LIVE_EPICS_REL}/${currentEpic}/${currentEpic}-${artifact}.md`,
     `${LIVE_EPICS_REL}/${currentEpic}/${artifact}.md`,
-    `${currentEpic}-${artifact}.md`,
   ];
   return own.includes(rel) ? rel : fallback;
 }

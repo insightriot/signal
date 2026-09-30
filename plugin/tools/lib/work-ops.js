@@ -30,7 +30,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, unlinkSync } from 'node:fs';
-import { basename, dirname, join, relative, sep } from 'node:path';
+import { basename, dirname, join, posix, relative, sep } from 'node:path';
 
 // `scrubSensitive` is the one detector `/sig:add` and `/sig:checkpoint` use.
 // No new cycle: add.js reaches this module only through a lazy import, and
@@ -581,13 +581,20 @@ export async function newItems(baseDir, specs, opts = {}) {
  * Move an item to a new status (and, for Q/P, an Epic). The folder follows
  * from the status (D-M6E11-8); closing is `closeItem`'s job.
  *
+ * The first item into an Epic creates its folder (with `README.md`), and the
+ * Epic's artifacts at the `.planning/` root — `{EpicID}-*.md`, except the
+ * retrospective and the profile — move into it, links rewritten
+ * (D-M6E11-33). If anything after that fails, all of it is put back.
+ *
  * @param {string} baseDir
  * @param {string} idOrLabel
  * @param {{status: string, epic?: string, sprint?: string}} to
  *   `epic` is required for Q/P when the item is not already in an Epic folder,
  *   and refused otherwise. `sprint` is refused: sprints are step 3.
  * @param {{execFn?: Function, renameFn?: Function}} [opts]
- * @returns {Promise<{item: object, label: string, from: string, to: string}>}
+ * @returns {Promise<{item: object, label: string, from: string, to: string,
+ *   artifacts?: {moved: string[], rewritten: string[]}}>} `artifacts` only when
+ *   root artifacts moved in: their new paths, and every file whose links changed
  */
 export async function moveItem(baseDir, idOrLabel, to = {}, opts = {}) {
   const id = frontOf(idOrLabel);
@@ -618,20 +625,30 @@ export async function moveItem(baseDir, idOrLabel, to = {}, opts = {}) {
     const next = { ...found.item, status };
     assertValid(next, id);
     // The Epic's README goes in first, so a failed README write has moved
-    // nothing; a failed move then removes the README and folders it created.
+    // nothing. A README this call created means the folder is new, and the
+    // Epic's artifacts at the root move in with it (D-M6E11-33). A failed
+    // move then puts the artifacts back and removes the README and folders.
     const readme = targetEpic === undefined ? null : await ensureEpicReadme(baseDir, targetEpic, id, opts);
+    let artifacts = null;
     let r;
     try {
-      r = await relocate(baseDir, found, next, found.body, folderFor(next, targetEpic), opts);
+      if (readme?.created) artifacts = await moveEpicArtifactsIn(baseDir, targetEpic, opts);
+      // Re-read: moving the artifacts may have rewritten this item's links.
+      const current = artifacts?.moved.length ? getItem(baseDir, id) : found;
+      r = await relocate(baseDir, current, next, current.body, folderFor(next, targetEpic), opts);
     } catch (err) {
+      const leftChanged = artifacts ? await artifacts.undo() : [];
       if (readme?.created) {
         unlinkSync(readme.abs);
         if (readme.firstCreated) removeCreatedDirs(dirname(readme.abs), readme.firstCreated);
       }
-      throw err;
+      if (leftChanged.length) throw undoFailedError(`moving ${id} into ${targetEpic}`, err, leftChanged);
+      throw asWorkStoreError(err, 'IO');
     }
     await regenerate(baseDir, `${id} moved ${r.from} → ${r.to}`);
-    return { item: next, label: renderLabel(next), ...r };
+    const out = { item: next, label: renderLabel(next), ...r };
+    if (artifacts?.moved.length) out.artifacts = { moved: artifacts.moved, rewritten: artifacts.rewritten };
+    return out;
   });
 }
 
@@ -812,6 +829,109 @@ async function ensureEpicReadme(baseDir, epic, id, opts) {
   return { abs, created: true, firstCreated };
 }
 
+// The Epic's artifacts that stay at the `.planning/` root even when it has a
+// folder: each is read there by a reader that never looks in the folder —
+// the retrospective by SHIP's gate (`deriveRetroPath`, run before
+// `closeEpic`), the profile by `readEffectiveProfile`.
+const ROOT_ONLY_ARTIFACTS = ['RETROSPECTIVE', 'PROFILE'];
+
+const escapeRe = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// The Epic's own artifacts at the `.planning/` root that belong in its folder:
+// regular files named `{EpicID}-*.md`, minus ROOT_ONLY_ARTIFACTS. Names, not
+// paths. `M1.E1-` never matches `M1.E10-…`: the ID is followed by `-`.
+function rootEpicArtifacts(baseDir, epic) {
+  const re = new RegExp(`^${escapeRe(epic)}-(.+)\\.md$`);
+  let entries;
+  try {
+    entries = readdirSync(join(baseDir, '.planning'), { withFileTypes: true });
+  } catch (err) {
+    throw asWorkStoreError(err, 'IO');
+  }
+  return entries
+    .filter((e) => e.isFile())
+    .map((e) => e.name)
+    .filter((name) => {
+      const m = name.match(re);
+      return m && !ROOT_ONLY_ARTIFACTS.includes(m[1]);
+    })
+    .sort();
+}
+
+// A link edit from `computeLinkEdits` whose old and new targets resolve to
+// the same file from `dirRel` — two files that moved together. Dropped, so a
+// link that still works is left byte-for-byte.
+function sameTarget(dirRel, edit) {
+  const target = (link) => link.slice(2, -1).trim().split(/\s+/)[0].split('#')[0];
+  return posix.normalize(posix.join(dirRel, target(edit.from))) === posix.normalize(posix.join(dirRel, target(edit.to)));
+}
+
+// Move the Epic's root artifacts into its (new) folder (D-M6E11-33): `git mv`
+// when tracked, a rename otherwise; then every link into or out of them in a
+// live `.planning/**/*.md` is retargeted — archive-tree's link machinery,
+// keyed to this move. `archive/` is history and generated lists are rebuilt
+// by the regeneration, so neither is rewritten. Runs inside the `work` lock.
+//
+// A failure part-way puts everything back and throws. On success it returns
+// `{moved, rewritten, undo}`: `undo()` puts everything back for a caller whose
+// next step failed, and returns the steps that could not be undone.
+async function moveEpicArtifactsIn(baseDir, epic, opts) {
+  const execFn = opts.execFn ?? execFileSync;
+  const planning = join(baseDir, '.planning');
+  const names = rootEpicArtifacts(baseDir, epic);
+  const steps = [];
+  const undo = () => runUndo(steps);
+  if (names.length === 0) return { moved: [], rewritten: [], undo };
+
+  const folderRel = `.planning/${epicDirRel(epic)}`;
+  const moveMap = new Map();
+  for (const name of names) {
+    const to = `${folderRel}/${name}`;
+    const toAbs = join(baseDir, to);
+    confine(baseDir, toAbs, '/sig:item');
+    if (exists(toAbs)) {
+      throw new WorkStoreError('CONFLICT', `${to} already exists, and .planning/${name} would move onto it — `
+        + 'nothing was moved. Find out which copy is current before moving anything.');
+    }
+    moveMap.set(`.planning/${name}`, to);
+  }
+
+  // Every rewrite, planned before anything moves: keyed by the file's path
+  // BEFORE the move, written at its path after.
+  const archiveRoot = join(planning, 'archive') + sep;
+  const rewrites = [];
+  for (const abs of walkFiles(planning).sort()) {
+    if (!abs.endsWith('.md') || abs.startsWith(archiveRoot)) continue;
+    const text = readFileSync(abs, 'utf-8');
+    if (isGeneratedText(text)) continue;
+    const rel = toPosix(relative(baseDir, abs));
+    const at = moveMap.get(rel) ?? rel;
+    const edits = computeLinkEdits(rel, text, moveMap).filter((e) => !sameTarget(posix.dirname(at), e));
+    const next = applyKeyedReplacements(text, edits);
+    if (next !== text) rewrites.push({ at, text, next });
+  }
+
+  const git = isGitRepo(baseDir, execFn);
+  try {
+    for (const [from, to] of moveMap) {
+      const tracked = git && isTracked(baseDir, from, execFn);
+      moveFile(baseDir, from, to, tracked, execFn);
+      steps.push({ id: from, leftAt: to, run: () => moveFile(baseDir, to, from, tracked, execFn) });
+    }
+    for (const w of rewrites) {
+      const abs = join(baseDir, w.at);
+      await atomicWrite(abs, w.next, { renameFn: opts.renameFn });
+      // atomicWrite never half-writes: the old text back is right either way.
+      steps.push({ id: w.at, leftAt: w.at, run: () => atomicWrite(abs, w.text) });
+    }
+  } catch (err) {
+    const failed = await undo();
+    if (failed.length) throw undoFailedError(`moving ${epic}'s artifacts into ${folderRel}/`, err, failed);
+    throw asWorkStoreError(err, 'IO');
+  }
+  return { moved: [...moveMap.values()], rewritten: rewrites.map((w) => w.at), undo };
+}
+
 // Every entry under `dir`, files and folders, without following symlinks.
 // Anything that is neither (a symlink, a socket) is returned as `other` —
 // moving the folder would leave it behind, so the caller refuses.
@@ -874,8 +994,10 @@ function removeEmptyTree(dir) {
  *   `rewritten` — live files outside the folder whose links into it were
  *   retargeted at the archive, relative to `baseDir`
  * @throws {WorkStoreError} SCHEMA (bad ID, no `by`, broken item or README),
- *   OPEN_ITEMS (each open item named), CONFLICT (archive folder exists, or
- *   the folder holds something that is not a file or folder)
+ *   OPEN_ITEMS (each open item named), CONFLICT (archive folder exists, the
+ *   folder holds something that is not a file or folder, or the Epic has
+ *   `{EpicID}-*.md` artifacts at the `.planning/` root — each named; the
+ *   retrospective and profile are expected there and do not count)
  */
 export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
   assertEpicId(epicId);
@@ -940,6 +1062,15 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
     if (exists(toAbs)) {
       throw new WorkStoreError('CONFLICT', `${toRel} already exists — nothing was moved. `
         + 'Find out what it is before archiving onto it.');
+    }
+    // D-M6E11-33: the folder holds the whole Epic. An artifact at the root —
+    // written there by a command that ran with the store off — would be left
+    // behind by the archive, so it is refused, not silently split.
+    const stray = rootEpicArtifacts(baseDir, epicId).map((name) => `.planning/${name}`);
+    if (stray.length) {
+      throw new WorkStoreError('CONFLICT', `${epicId} has artifacts at the .planning/ root, outside ${fromRel}/ — `
+        + `archiving the folder would leave them behind. Nothing was moved. Move each into the folder `
+        + `(\`git mv\`), then re-run:\n${stray.map((p) => `  ${p}`).join('\n')}`);
     }
 
     // The README with the close recorded, built before anything moves so a
