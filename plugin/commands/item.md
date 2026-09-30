@@ -77,7 +77,7 @@ The item moves to `done/YYYY-MM/` — unless it is in an Epic folder, where it s
 
 ### `reopen <ID> "<reason>"` — a closed item came back
 
-`reopenItem(baseDir, id, {by, reason})`. Reopen the same item rather than capturing a new one (`D-M6E11-31`): it returns to `backlog/` as T, and its previous close — reason, who, when, proof — is kept in the file's `history` with who reopened it, when and why. The reason is required: say what came back. Refused for an item that is not closed, and for one archived with its Epic — that Epic is finished, so capture a new item and link it to the old one. Print *from → to*.
+`reopenItem(baseDir, id, {by, reason})`. Reopen the same item rather than capturing a new one (`D-M6E11-31`): it returns to `backlog/` as T, and its previous close — reason, who, when, proof — is kept in the file's `history` with who reopened it, when and why. The reason is required: say what came back. Refused for an item that is not closed, and for one archived with its Epic — that Epic is finished, so capture a new item and link it to the old one. Print *from → to*. The reason is scrubbed for secrets as in `new`: on `{aborted: 'sensitive-data-pending'}` nothing was reopened — ask **keep** or **abort**, and on keep call again with `{acknowledgeSensitive: true}`.
 
 ### `show <ID>` — one item
 
