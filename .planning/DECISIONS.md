@@ -3709,3 +3709,9 @@ Epic already has `{EpicID}-*.md` artifacts at the `.planning/` root, they **move
 with it (links rewritten), so one folder always holds the whole Epic and `closeEpic` archives all of
 it. Chosen over "leave them where they are", which would make "what is in this Epic" two places for
 any Epic that started before its folder. Supersedes the writer-stays-at-root half of batch 2's I6 rule.
+*Amended at EXECUTE (review pass 2 fixes, `0cc52f9`):* `{EpicID}-RETROSPECTIVE.md` and
+`{EpicID}-PROFILE.md` are **exempt** — they stay at the `.planning/` root and do not trigger
+`closeEpic`'s stray-artifact refusal. Their readers (`deriveRetroPath` — SHIP §0.5's gate, which runs
+before §6.8's `closeEpic` — `published-facts.js`, `state-drift.js`, `evict.js`, `readEffectiveProfile`)
+look only at the root; moving them would make every store-on Epic-close SHIP refuse, or silently drop
+a per-Epic profile to the project tier. Making those readers folder-aware is later work.
