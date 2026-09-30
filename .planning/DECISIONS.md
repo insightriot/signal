@@ -3702,3 +3702,10 @@ non-Q items (48, by `D-M6E11-20`'s placement rule). The comparison that means so
 generated file's items. "With no discharge inference involved" was also too strong: `/sig:advise`
 still drops 4 of the 48 by wording (`declaresNotLiveWork`) — those are the 4 rows owed a triage.
 Found at EXECUTE (S2), confirmed by the VERIFY pass; recorded here rather than only in PROGRESS.
+
+### D-M6E11-33 — An Epic's existing artifacts move into its folder when the folder is created
+Brett, 2026-09-30, at REVIEW pass 2: when an Epic folder is created (first item moved in) and that
+Epic already has `{EpicID}-*.md` artifacts at the `.planning/` root, they **move into the folder**
+with it (links rewritten), so one folder always holds the whole Epic and `closeEpic` archives all of
+it. Chosen over "leave them where they are", which would make "what is in this Epic" two places for
+any Epic that started before its folder. Supersedes the writer-stays-at-root half of batch 2's I6 rule.

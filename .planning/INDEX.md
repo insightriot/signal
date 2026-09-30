@@ -476,6 +476,7 @@
 - [work/inbox/SIG-235.md](work/inbox/SIG-235.md) — `other` — _(note pending)_
 - [work/inbox/SIG-236.md](work/inbox/SIG-236.md) — `other` — _(note pending)_
 - [work/inbox/SIG-237.md](work/inbox/SIG-237.md) — `other` — _(note pending)_
+- [work/inbox/SIG-249.md](work/inbox/SIG-249.md) — `other` — _(note pending)_
 
 ## Cold — archived + retrospectives
 
