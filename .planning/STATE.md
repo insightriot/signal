@@ -61,7 +61,7 @@ tagged and released.** The Jev checks run as advice with receipts: the `STATE.md
   "done" hid the in-flight Epic from `/sig:advise`).
 - **Next Epic, by Brett's direction:** redesign how Signal records status, so that "done" is recorded
   when it happens (`D-M6E3-16`). ~~Its first question is Brett's: a marker in the files, or GitHub
-  Issues.~~ Answered by `D-BR0928-7`; **in flight as `M6.E11`** (the work-item store, step 1).
+  Issues.~~ Answered by `D-BR0928-7`; **shipped as `M6.E11` in `v0.1.43`** (the work-item store, step 1; PR #263).
 
 ### ▶ PREVIOUS — `M6.E8` SHIPPED as `v0.1.41` (2026-09-25)
 

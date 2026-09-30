@@ -3494,7 +3494,7 @@ close, Epics, sprints) either way; the tracker changes only where items are stor
 
 `/sig:discuss` for the status redesign, with Brett. Builds on `D-BR0928-1` … `D-BR0928-7` and
 [`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](../analysis/WORK-ITEM-SYSTEM-DESIGN.md). Requirements:
-[`M6.E11-REQUIREMENTS.md`](./work/epics/M6.E11/M6.E11-REQUIREMENTS.md). Attention `checkpointed`: one batch approval,
+[`M6.E11-REQUIREMENTS.md`](./archive/epics/M6.E11/M6.E11-REQUIREMENTS.md). Attention `checkpointed`: one batch approval,
 given after one round of questions that added Epic folders and the theme/priority fields.
 
 ### D-M6E11-1 — Scope: one Epic, `M6.E11`, for build step 1 — plus Epic folders
@@ -3580,7 +3580,7 @@ after this ships, because it will be a big lift for some projects.
 
 ## 2026-09-29 — M6.E11 PLAN: research corrections (D-M6E11-15 … D-M6E11-26)
 
-Three read-only surveys ([`M6.E11-RESEARCH.md`](./work/epics/M6.E11/M6.E11-RESEARCH.md)) found numbers in
+Three read-only surveys ([`M6.E11-RESEARCH.md`](./archive/epics/M6.E11/M6.E11-RESEARCH.md)) found numbers in
 `M6.E11-REQUIREMENTS.md` that were written from the shape of the work rather than measured, and
 statuses the DISCUSS mapping had no rule for. Decided at PLAN (plumbing, not product calls —
 `D-M6E11-14`'s "carried, not re-judged" is the rule each of these applies). REQUIREMENTS patched in

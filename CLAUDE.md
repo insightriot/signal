@@ -63,15 +63,22 @@ was answered with a diagnosis about missing external users, while 42+ repositori
 **A user saying it doesn't work is a claim about the software; reproduce it before reframing it.**
 The trace that settled it took four minutes.
 
-**Active: `v0.1.42` (2026-09-27) — `M6.E3` shipped: Jev checks Signal's own records, as advice with
+**Previous: `v0.1.42` (2026-09-27) — `M6.E3` shipped: Jev checks Signal's own records, as advice with
 receipts.** It checks `STATE.md` paragraphs against derived facts (at `/sig:resume` and SHIP) and
 `confirmed` bugs a release may have fixed (at SHIP). It is on only with `TYPESAFE_API_KEY`, and a
 model finding **cannot refuse, by declaration** (`judged: 'model'`). Measured live: 4 of 4, 0/26
 false alarms. ⚠ **Three fresh-context REVIEW passes; pass 2 found a High in pass 1's own fixes**
 (a committed `.ENV` passing a `.env` check on macOS). Fix-on-fix needs its own fresh read. Retro:
-[`.planning/M6.E3-RETROSPECTIVE.md`](.planning/M6.E3-RETROSPECTIVE.md). **Next: the status
-redesign** (`D-M6E3-16`), **in flight as `M6.E11`** (DISCUSS 2026-09-29): one file per work item,
-moving through folders, Epic folders included. The files-or-GitHub question is settled (`D-BR0928-7`).
+[`.planning/M6.E3-RETROSPECTIVE.md`](.planning/M6.E3-RETROSPECTIVE.md). 
+
+**Active: `v0.1.43` (2026-09-30) — `M6.E11`
+shipped: the work-item store, step 1** (PR #263). One file per thing (`.planning/work/SIG-n.md`),
+moved through `inbox/` → `backlog/` → `epics/<id>/` → `done/` by `/sig:item` (the 24th command);
+`BUGS.md`/`BACKLOG.md`/`ISSUES-INBOX.md`/`OPEN-QUESTIONS.md` are now **generated — edit items, not
+lists**. Opt-in by `.planning/work/WORK.md`; projects without it see no change. ⚠ **The shared file
+lock was the hardest part**: three REVIEW passes, each finding a defect in the previous pass's fix.
+Retro: [`.planning/M6.E11-RETROSPECTIVE.md`](.planning/M6.E11-RETROSPECTIVE.md). Next: steps 2–5 of
+`analysis/WORK-ITEM-SYSTEM-DESIGN.md`; other projects move over via `/sig:docs-migrate` (step 5).
 `B118` — `/sig:drive` and `/sig:advise` read one branch's corpus — is still unfixed.
 
 ✅ **`B117` — the Epic lane kept getting squashed. CLOSED 2026-09-08 by the ruleset** (see *How changes reach `main`* below: `main` now permits `merge` only, so the sticky button cannot arm anything). The history is kept because the *cause* is the lesson. PR #239 was

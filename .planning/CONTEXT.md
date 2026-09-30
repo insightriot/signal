@@ -4,17 +4,16 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-09-29) — M6.E11 EXECUTE DONE, VERIFY NEXT
+## Where things stand (2026-09-30) — M6.E11 SHIPPED (PR #263, v0.1.43), awaiting merge
 
-**`v0.1.42` is on `main`** (`M6.E3` shipped). **`M6.E11` — the work-item store, step 1 — is on
-`feat/m6.e11-work-item-store`, EXECUTE complete, `/sig:verify` next.** Signal's own records are migrated
-(248 items); its artifacts now live in `work/epics/M6.E11/`. One file per thing
-(`SIG-412.md`), created at capture and *moved* through `inbox/` → `backlog/` → `epics/<id>/` →
-`done/`; one command (`/sig:item`) does every move; the old list files become generated. Opt-in by
-`.planning/work/WORK.md`, so projects that haven't switched see no change. Nothing is ever deleted.
-Read [`M6.E11-REQUIREMENTS.md`](./work/epics/M6.E11/M6.E11-REQUIREMENTS.md) and `D-M6E11-1` … `D-M6E11-14`.
-Other projects migrate later via `/sig:docs-migrate` (step 5) — remind Brett after this ships.
-
+**`M6.E11` — the work-item store, step 1 — is shipped on `feat/m6.e11-work-item-store`, PR #263
+(merge with `--merge`), releasing `v0.1.43`.** Signal's bugs, backlog, inbox and questions are 248+
+item files in `.planning/work/` (`SIG-n.md`), moved by `/sig:item`; the old lists are generated.
+Opt-in by `.planning/work/WORK.md`. The Epic's folder is archived at
+[`archive/epics/M6.E11/`](./archive/epics/M6.E11/M6.E11-REQUIREMENTS.md); retro
+[`M6.E11-RETROSPECTIVE.md`](M6.E11-RETROSPECTIVE.md). **Not met:** the bug half of the outcome (33
+confirmed bugs still judged by inference until `Fixes: SIG-n`, step 3). Next steps of the design:
+intake/triage (2), sprints + `Fixes:` (3), GitHub add-on (4), `/sig:docs-migrate` for other projects (5).
 ---
 
 ## Where things stood (2026-09-27) — M6.E3 EXECUTE COMPLETE, VERIFY NEXT

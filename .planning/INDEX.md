@@ -451,16 +451,6 @@
 - [work/done/2026-09/SIG-97.md](work/done/2026-09/SIG-97.md) — `other` — _(note pending)_
 - [work/done/2026-09/SIG-98.md](work/done/2026-09/SIG-98.md) — `other` — _(note pending)_
 - [work/done/2026-09/SIG-99.md](work/done/2026-09/SIG-99.md) — `other` — _(note pending)_
-- [work/epics/M6.E11/M6.E11-MIGRATION-DRYRUN.md](work/epics/M6.E11/M6.E11-MIGRATION-DRYRUN.md) — `other` — _(note pending)_
-- [work/epics/M6.E11/M6.E11-PLAN.md](work/epics/M6.E11/M6.E11-PLAN.md) — `other` — _(note pending)_
-- [work/epics/M6.E11/M6.E11-PROGRESS.md](work/epics/M6.E11/M6.E11-PROGRESS.md) — `other` — _(note pending)_
-- [work/epics/M6.E11/M6.E11-REQUIREMENTS.md](work/epics/M6.E11/M6.E11-REQUIREMENTS.md) — `other` — _(note pending)_
-- [work/epics/M6.E11/M6.E11-RESEARCH.md](work/epics/M6.E11/M6.E11-RESEARCH.md) — `other` — _(note pending)_
-- [work/epics/M6.E11/M6.E11-REVIEW.md](work/epics/M6.E11/M6.E11-REVIEW.md) — `other` — _(note pending)_
-- [work/epics/M6.E11/M6.E11-VALIDATION.md](work/epics/M6.E11/M6.E11-VALIDATION.md) — `other` — _(note pending)_
-- [work/epics/M6.E11/M6.E11-VERIFICATION.md](work/epics/M6.E11/M6.E11-VERIFICATION.md) — `other` — _(note pending)_
-- [work/epics/M6.E11/README.md](work/epics/M6.E11/README.md) — `other` — _(note pending)_
-- [work/epics/M6.E11/SIG-161.md](work/epics/M6.E11/SIG-161.md) — `other` — _(note pending)_
 - [work/inbox/SIG-123.md](work/inbox/SIG-123.md) — `other` — _(note pending)_
 - [work/inbox/SIG-129.md](work/inbox/SIG-129.md) — `other` — _(note pending)_
 - [work/inbox/SIG-130.md](work/inbox/SIG-130.md) — `other` — _(note pending)_
@@ -630,6 +620,16 @@
 - [archive/M6/E7/STATE-NARRATIVE.md](archive/M6/E7/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E8/CONTEXT-2026-08-20.md](archive/M6/E8/CONTEXT-2026-08-20.md) — `other` — _(note pending)_
 - [archive/M6/E8/STATE-NARRATIVE.md](archive/M6/E8/STATE-NARRATIVE.md) — `other` — _(note pending)_
+- [archive/epics/M6.E11/M6.E11-MIGRATION-DRYRUN.md](archive/epics/M6.E11/M6.E11-MIGRATION-DRYRUN.md) — `other` — _(note pending)_
+- [archive/epics/M6.E11/M6.E11-PLAN.md](archive/epics/M6.E11/M6.E11-PLAN.md) — `other` — _(note pending)_
+- [archive/epics/M6.E11/M6.E11-PROGRESS.md](archive/epics/M6.E11/M6.E11-PROGRESS.md) — `other` — _(note pending)_
+- [archive/epics/M6.E11/M6.E11-REQUIREMENTS.md](archive/epics/M6.E11/M6.E11-REQUIREMENTS.md) — `other` — _(note pending)_
+- [archive/epics/M6.E11/M6.E11-RESEARCH.md](archive/epics/M6.E11/M6.E11-RESEARCH.md) — `other` — _(note pending)_
+- [archive/epics/M6.E11/M6.E11-REVIEW.md](archive/epics/M6.E11/M6.E11-REVIEW.md) — `other` — _(note pending)_
+- [archive/epics/M6.E11/M6.E11-VALIDATION.md](archive/epics/M6.E11/M6.E11-VALIDATION.md) — `other` — _(note pending)_
+- [archive/epics/M6.E11/M6.E11-VERIFICATION.md](archive/epics/M6.E11/M6.E11-VERIFICATION.md) — `other` — _(note pending)_
+- [archive/epics/M6.E11/README.md](archive/epics/M6.E11/README.md) — `other` — _(note pending)_
+- [archive/epics/M6.E11/SIG-161.md](archive/epics/M6.E11/SIG-161.md) — `other` — _(note pending)_
 - [archive/milestones/DECISIONS.md](archive/milestones/DECISIONS.md) — `append-log` — Evicted M1–M4 decision history (2026-04-22 → 2026-05-12, date-keyed, pre-`D-…-n` convention). Relocated verbatim at docs-layout v3 behind a dated pointer in live `DECISIONS.md`.
 - [archive/milestones/MILESTONE-1.md](archive/milestones/MILESTONE-1.md) — `milestone` — _(note pending)_
 - [archive/milestones/MILESTONE-2.md](archive/milestones/MILESTONE-2.md) — `milestone` — _(note pending)_
