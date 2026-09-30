@@ -349,12 +349,44 @@ async function regenerate(baseDir, done) {
   }
 }
 
+// Run every undo step, newest first, and keep going past a failure: one step
+// that fails must not stop the others from putting their items back. Returns
+// the steps that failed, each as `{id, path, error}` — `path` is where the
+// item was left, relative to `baseDir` (REVIEW pass 2, P2-I3).
+async function runUndo(steps) {
+  const failed = [];
+  for (const step of [...steps].reverse()) {
+    try {
+      await step.run();
+    } catch (error) {
+      failed.push({ id: step.id, path: step.leftAt, error });
+    }
+  }
+  return failed;
+}
+
+// The error for a batch whose undo did not fully succeed: IO, naming what
+// went wrong first and every item left changed, with the first error as
+// `cause` and the list on `leftChanged`.
+function undoFailedError(what, err, leftChanged) {
+  const lines = leftChanged.map((c) => `  ${c.id} (${c.path}): ${c.error?.message ?? c.error}`);
+  const wrapped = new WorkStoreError('IO', `${what} failed (${err?.message ?? err}), and putting everything back `
+    + `failed too — ${leftChanged.length === 1 ? 'this item is' : 'these items are'} left changed. `
+    + `Check each by hand (\`/sig:item show\`, \`git status\`):\n${lines.join('\n')}`);
+  wrapped.cause = err;
+  wrapped.leftChanged = leftChanged.map(({ id, path, error }) => ({ id, path, error }));
+  return wrapped;
+}
+
 // Put `next` (with `body`) at `destDirRel/{id}.md`, moving it from `found`.
 // Validated and confined by the caller's checks plus the ones here; rewinds on
 // a failed write. Runs inside the `work` lock.
 //
-// `undoLog`, when given, receives a function that puts the item back exactly
-// as it was — path and bytes — for a batch that must be all or nothing.
+// `undoLog`, when given, receives an undo step `{id, leftAt, run}`: `run`
+// puts the item back exactly as it was — path and bytes — for a batch that
+// must be all or nothing; `leftAt` is where the item sits if `run` fails.
+// If the write fails AND moving the item back fails, the error carries
+// `leftChanged` naming the item (REVIEW pass 2, P2-I3).
 async function relocate(baseDir, found, next, body, destDirRel, opts, undoLog) {
   const execFn = opts.execFn ?? execFileSync;
   const planning = join(baseDir, '.planning');
@@ -368,7 +400,7 @@ async function relocate(baseDir, found, next, body, destDirRel, opts, undoLog) {
   const original = undoLog ? readFileSync(join(baseDir, found.path), 'utf-8') : null;
   if (destRel === found.path) {
     await atomicWrite(destAbs, text, { renameFn: opts.renameFn });
-    undoLog?.push(() => atomicWrite(destAbs, original));
+    undoLog?.push({ id: next.id, leftAt: destRel, run: () => atomicWrite(destAbs, original) });
     return { from: found.path, to: destRel };
   }
   if (exists(destAbs)) {
@@ -389,14 +421,22 @@ async function relocate(baseDir, found, next, body, destDirRel, opts, undoLog) {
   } catch (err) {
     // Undo the move. The file at destAbs is still the original bytes
     // (atomicWrite never half-writes), so moving it back restores the item.
-    moveFile(baseDir, destRel, found.path, git, execFn);
+    try {
+      moveFile(baseDir, destRel, found.path, git, execFn);
+    } catch (undoErr) {
+      throw undoFailedError(`writing ${destRel}`, err, [{ id: next.id, path: destRel, error: undoErr }]);
+    }
     if (firstCreated) removeCreatedDirs(dirname(destAbs), firstCreated);
     throw asWorkStoreError(err, 'IO');
   }
-  undoLog?.push(async () => {
-    moveFile(baseDir, destRel, found.path, git, execFn);
-    await atomicWrite(join(baseDir, found.path), original);
-    if (firstCreated) removeCreatedDirs(dirname(destAbs), firstCreated);
+  undoLog?.push({
+    id: next.id,
+    leftAt: destRel,
+    run: async () => {
+      moveFile(baseDir, destRel, found.path, git, execFn);
+      await atomicWrite(join(baseDir, found.path), original);
+      if (firstCreated) removeCreatedDirs(dirname(destAbs), firstCreated);
+    },
   });
   return { from: found.path, to: destRel };
 }
@@ -452,6 +492,8 @@ export async function newItem(baseDir, fields = {}, opts = {}) {
  * All or nothing for the item files: if writing item k fails, the items this
  * call wrote before it are removed (and any folder it created, while empty),
  * so the store is as it was. Nothing it did not create is touched.
+ * If a removal itself fails, the rest are still tried, and the error is IO
+ * naming the first failure and every item file left on disk (REVIEW pass 2).
  *
  * Regeneration is NOT part of that undo, as for every other mutation here
  * (`regenerate`): once the items are written they are correct, and a failed
@@ -508,9 +550,19 @@ export async function newItems(baseDir, specs, opts = {}) {
       } catch (err) {
         // Undo only this batch's own files: each was created here (the
         // CONFLICT check above), so removing it cannot touch anything else.
-        for (const rel of [...written].reverse()) unlinkSync(join(baseDir, rel));
+        // Every removal is tried; `written` ends as the files still on disk.
+        const byRel = new Map(planned.map((p) => [p.rel, p.item.id]));
+        const failed = await runUndo(written.map((rel) => ({
+          id: byRel.get(rel),
+          leftAt: rel,
+          run: () => unlinkSync(join(baseDir, rel)),
+        })));
+        const still = new Set(failed.map((f) => f.path));
+        const remaining = written.filter((rel) => still.has(rel));
         written.length = 0;
+        written.push(...remaining);
         if (firstCreated) removeCreatedDirs(inboxAbs, firstCreated);
+        if (failed.length) throw undoFailedError(`capturing ${planned.map((p) => p.item.id).join(', ')}`, err, failed);
         throw asWorkStoreError(err, 'IO');
       }
       const where = planned.length === 1
@@ -604,7 +656,9 @@ export async function closeItem(baseDir, idOrLabel, close = {}, opts = {}) {
  * Close several items at once: ONE `work` lock, every close validated before
  * any is written, and ONE regeneration. All or nothing for the item files: if
  * closing item k fails, the items closed before it are put back — path and
- * bytes — and nothing else is touched. The same item twice is refused
+ * bytes — and nothing else is touched. If putting one back fails, the rest
+ * are still put back, and the error is IO naming the first failure and every
+ * item left changed (`err.leftChanged`, REVIEW pass 2). The same item twice is refused
  * (SCHEMA), before anything is written. `backlog.js`'s store-on discharge
  * uses it, so a SHIP cannot record half its discharges.
  *
@@ -633,7 +687,10 @@ export async function closeItems(baseDir, closes, opts = {}) {
         results.push({ item: p.next, label: renderLabel(p.next), ...r });
       }
     } catch (err) {
-      for (const u of undo.reverse()) await u();
+      // Every step runs even when one fails. An item whose own write failed
+      // and could not be moved back is already named on `err.leftChanged`.
+      const leftChanged = [...(err?.leftChanged ?? []), ...(await runUndo(undo))];
+      if (leftChanged.length) throw undoFailedError(`closing ${ids.join(', ')}`, err?.leftChanged ? err.cause : err, leftChanged);
       throw asWorkStoreError(err, 'IO');
     }
     const done = results.length === 1

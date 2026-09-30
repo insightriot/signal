@@ -13,7 +13,11 @@ import { existsSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { newItems, listItems, WORK_LOCK_REL } from '../plugin/tools/lib/work-ops.js';
+import { execFileSync } from 'node:child_process';
+import { chmod } from 'node:fs/promises';
+
+import { closeItems, newItems, listItems, WORK_LOCK_REL } from '../plugin/tools/lib/work-ops.js';
+import { WorkStoreError } from '../plugin/tools/lib/work-item.js';
 import { captureCheckpointContext } from '../plugin/tools/lib/checkpoint.js';
 import { parseItemFileName, walkFiles } from '../plugin/tools/lib/work-store.js';
 
@@ -80,6 +84,103 @@ describe('newItems', () => {
     const r = await newItems(root, [spec('fine?'), spec('AKIAABCDEFGHIJKLMNOP?')]);
     expect(r).toMatchObject({ aborted: 'sensitive-data-pending' });
     expect(itemCount()).toBe(0);
+  });
+});
+
+// REVIEW pass 2, P2-I3: when an undo step itself fails, the batch is not all
+// or nothing any more — and the caller must be told exactly which items are
+// left changed, with the original error, as a WorkStoreError it can dispatch on.
+const asRoot = process.getuid?.() === 0;
+
+describe('newItems — the undo can fail too (REVIEW pass 2)', () => {
+  it('a failed write removes the inbox/ folder it created', async () => {
+    const err = await newItems(root, [spec('a?'), spec('b?')], { renameFn: failOnRename(1) }).catch((e) => e);
+    expect(err.code).toBe('IO');
+    expect(existsSync(join(root, '.planning/work/inbox'))).toBe(false);
+    expect(existsSync(join(root, '.planning/work/WORK.md'))).toBe(true);
+  });
+
+  it.skipIf(asRoot)('item 1 cannot be removed after item 2 fails: IO naming both, and written lists what is still on disk', async () => {
+    const inbox = join(root, '.planning/work/inbox');
+    let i = 0;
+    const renameFn = async (from, to) => {
+      i += 1;
+      if (i === 2) {
+        await chmod(inbox, 0o500); // item 1 can no longer be unlinked
+        throw new Error('disk full');
+      }
+      return rename(from, to);
+    };
+    let err;
+    try {
+      err = await newItems(root, [spec('a?'), spec('b?')], { renameFn }).catch((e) => e);
+    } finally {
+      await chmod(inbox, 0o700);
+    }
+    expect(err).toBeInstanceOf(WorkStoreError);
+    expect(err.code).toBe('IO');
+    expect(err.message).toMatch(/disk full/);
+    expect(err.message).toMatch(/SIG-1/);
+    expect(err.message).toMatch(/\.planning\/work\/inbox\/SIG-1\.md/);
+    expect(err.cause?.message).toBe('disk full');
+    expect(err.written).toEqual(['.planning/work/inbox/SIG-1.md']);
+    expect(existsSync(join(inbox, 'SIG-1.md'))).toBe(true);
+  });
+});
+
+function gitRepo() {
+  const g = (...a) => execFileSync('git', a, { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] });
+  g('init', '-q', '-b', 'main');
+  g('add', '-A');
+  g('-c', 'user.name=t', '-c', 'user.email=t@t.co', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'seed');
+}
+const itemText = (id, status, extra = '') =>
+  `---\nid: ${id}\ntype: FEAT\nstatus: ${status}\ntitle: t ${id}\n${extra}created:\n  at: 2026-09-01T00:00:00.000Z\n  by: b\n---\nbody\n`;
+
+describe('closeItems — all or nothing, including a failed undo (REVIEW pass 2)', () => {
+  // The reviewer's two-fault repro: the write of SIG-2 fails, and putting
+  // SIG-1 back (git mv done/… → backlog/SIG-1.md) fails too.
+  it('write fails on item 2 AND the undo git mv of item 1 fails: IO naming the first error and SIG-1, cause kept', async () => {
+    await put('.planning/work/backlog/SIG-1.md', itemText('SIG-1', 'T'));
+    await put('.planning/work/backlog/SIG-2.md', itemText('SIG-2', 'T'));
+    gitRepo();
+    const execFn = (cmd, args, o) => {
+      if (args.includes('mv') && String(args.at(-1)).endsWith('backlog/SIG-1.md')) throw new Error('undo git mv failed');
+      return execFileSync(cmd, args, o);
+    };
+    const renameFn = async (f, t) => {
+      if (t.endsWith('SIG-2.md')) throw new Error('disk full');
+      return rename(f, t);
+    };
+    const closes = ['SIG-1', 'SIG-2'].map((id) => ({ id, reason: 'fixed', by: 'x', proof: 'p', at: AT }));
+    const err = await closeItems(root, closes, { execFn, renameFn }).catch((e) => e);
+    expect(err).toBeInstanceOf(WorkStoreError);
+    expect(err.code).toBe('IO');
+    expect(err.message).toMatch(/disk full/);
+    expect(err.message).toMatch(/SIG-1/);
+    expect(err.message).toMatch(/undo git mv failed/);
+    expect(err.message).not.toMatch(/SIG-2 \(/); // SIG-2 was put back
+    expect(err.cause?.message).toBe('disk full');
+    expect(err.leftChanged.map((c) => c.id)).toEqual(['SIG-1']);
+    // SIG-2 is back where it was, as it was.
+    expect(await readFile(join(root, '.planning/work/backlog/SIG-2.md'), 'utf-8')).toBe(itemText('SIG-2', 'T'));
+  });
+
+  // P2-I5: an item already in an Epic folder closes IN PLACE (D-M6E11-29), so
+  // its undo is a rewrite of the original bytes, not a move. Untested before:
+  // deleting that undo survived the whole suite.
+  it('a P item in its Epic folder (closes in place) + a T item: write 2 fails → the P item is byte-identical, status P', async () => {
+    const pText = itemText('SIG-1', 'P');
+    await put('.planning/work/epics/M6.E98/README.md', '---\nepic: M6.E98\n---\n# M6.E98\n');
+    await put('.planning/work/epics/M6.E98/SIG-1.md', pText);
+    await put('.planning/work/backlog/SIG-2.md', itemText('SIG-2', 'T'));
+    gitRepo();
+    const closes = ['SIG-1', 'SIG-2'].map((id) => ({ id, reason: 'fixed', by: 'x', proof: 'p', at: AT }));
+    const err = await closeItems(root, closes, { renameFn: failOnRename(2) }).catch((e) => e);
+    expect(err.code).toBe('IO');
+    expect(await readFile(join(root, '.planning/work/epics/M6.E98/SIG-1.md'), 'utf-8')).toBe(pText);
+    expect(listItems(root).find((r) => r.item.id === 'SIG-1').item.status).toBe('P');
+    expect(await readFile(join(root, '.planning/work/backlog/SIG-2.md'), 'utf-8')).toBe(itemText('SIG-2', 'T'));
   });
 });
 
