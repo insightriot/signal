@@ -520,6 +520,33 @@ describe('every failure is a WorkStoreError with a code', () => {
     }
   });
 
+  // REVIEW pass 2, P2-I6: a lock that cannot be CREATED is a filesystem
+  // failure, not contention. A caller that retries on LOCKED would retry an
+  // EACCES forever.
+  it.skipIf(process.getuid?.() === 0)('a lock the filesystem refuses to create (EACCES) → IO, not LOCKED', async () => {
+    await storeOn(repo);
+    const { chmod } = await import('node:fs/promises');
+    const work = join(repo, '.planning/work');
+    await chmod(work, 0o500);
+    try {
+      await expectCode(newItem(repo, { title: 'x', by: 'b', at: AT }), 'IO', /EACCES|permission denied/i);
+    } finally {
+      await chmod(work, 0o700);
+    }
+    expect(existsSync(join(repo, '.planning/work/inbox'))).toBe(false);
+  });
+
+  it('lockFailure: errno codes and Node ERR_* codes are IO; a plain Error (contention) is LOCKED', async () => {
+    const { lockFailure } = await import('../plugin/tools/lib/work-errors.js');
+    const withCode = (code) => Object.assign(new Error(code), { code });
+    expect(lockFailure(withCode('EACCES')).code).toBe('IO');
+    expect(lockFailure(withCode('ENOSPC')).code).toBe('IO');
+    expect(lockFailure(withCode('ERR_INVALID_ARG_TYPE')).code).toBe('IO');
+    expect(lockFailure(new Error('Another `work store` is running')).code).toBe('LOCKED');
+    const cause = withCode('EACCES');
+    expect(lockFailure(cause).cause).toBe(cause);
+  });
+
   it('a git failure reading history for the next ID → IO', async () => {
     initRepo(repo);
     await storeOn(repo);

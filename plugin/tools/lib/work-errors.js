@@ -31,14 +31,15 @@ export function asWorkStoreError(err, code, prefix = '') {
 
 /**
  * A failure to take the `work` lock as a WorkStoreError: `IO` when the
- * filesystem failed (a Node errno code such as EACCES), `LOCKED` otherwise —
- * `acquireLock` throws a plain Error, with no errno code, when another holder
- * has the lock.
+ * filesystem or Node failed (an errno code such as EACCES, or a Node
+ * `ERR_*` code), `LOCKED` otherwise — `acquireLock` throws a plain Error,
+ * with no code, when another holder has the lock. The split matters: a caller
+ * that retries on LOCKED would retry an EACCES forever (REVIEW P2-I6).
  * @param {unknown} err
  * @returns {WorkStoreError}
  */
 export function lockFailure(err) {
-  const io = typeof err?.code === 'string' && /^E[A-Z]+$/.test(err.code);
+  const io = typeof err?.code === 'string' && /^E[A-Z_]+$/.test(err.code);
   return asWorkStoreError(err, io ? 'IO' : 'LOCKED');
 }
 
