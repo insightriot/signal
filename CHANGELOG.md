@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.43] — 2026-09-30 — The work-item store — one file per thing, moved, never copied
 
 ### Added
 
