@@ -23,7 +23,9 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { join, dirname, resolve, relative, sep } from 'node:path';
 
-import { PLANNING_DIR, withStateLock, EPIC_ID_STRICT_RE } from './state.js';
+// compareEpicIds: the one natural Epic-ID order (M5.E2 < M5.E10), shared with
+// archive-tree.js and work-generate.js — deterministic plan/moves order.
+import { PLANNING_DIR, withStateLock, EPIC_ID_STRICT_RE, compareEpicIds } from './state.js';
 import { atomicWrite } from './atomic-write.js';
 import {
   extractEpicSection,
@@ -821,17 +823,6 @@ function discoverEpicSectionIds(body) {
     if (m && EPIC_ID_STRICT_RE.test(m[0])) ids.add(m[0]);
   }
   return [...ids];
-}
-
-// Numeric-segment Epic-ID sort (M5.E2 < M5.E10) — deterministic plan/moves order.
-function compareEpicIds(a, b) {
-  const na = a.match(/\d+/g)?.map(Number) ?? [];
-  const nb = b.match(/\d+/g)?.map(Number) ?? [];
-  for (let i = 0; i < Math.max(na.length, nb.length); i++) {
-    const d = (na[i] ?? 0) - (nb[i] ?? 0);
-    if (d !== 0) return d;
-  }
-  return 0;
 }
 
 /**
