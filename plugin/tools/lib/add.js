@@ -1194,9 +1194,14 @@ export async function captureToDestination(baseDir, opts) {
 async function captureToStore(baseDir, opts) {
   const { body, today, triggerContext, title, sensitivePrompt, bodyLengthPrompt, storeItem, by } = opts;
 
-  // Title AND body: both land in the item, and `newItem` scrubs both
-  // (REVIEW I3). This is the one prompt; `newItem` is told it happened.
-  const hits = [...scrubSensitive(body).hits, ...(title ? scrubSensitive(title).hits : [])];
+  // Body, title and trigger context all land in the item (the context as
+  // `source_ref`), and `newItem` scrubs all three (REVIEW I3, pass 2), so all
+  // three are asked about here and `newItem` is told the asking happened.
+  // `sensitivePrompt` is the caller's: `/sig:add` asks in its own steps and
+  // passes a prompt that returns 'keep' — so those steps must cover every one
+  // of these fields, or a secret in the title alone is kept unasked.
+  const trigger = triggerContext?.trim();
+  const hits = [body, title, trigger].flatMap((t) => (typeof t === 'string' && t !== '' ? scrubSensitive(t).hits : []));
   if (hits.length > 0) {
     const decision = await sensitivePrompt(hits);
     if (decision !== 'keep') return { written: false, aborted: 'sensitive-data' };
@@ -1213,7 +1218,6 @@ async function captureToStore(baseDir, opts) {
   // never refused for its own heading. Store on only: the store-off heading is
   // unchanged.
   const heading = (title?.trim() || deriveHeading(body)).replace(/\s*[\r\n]+\s*/g, ' ');
-  const trigger = triggerContext?.trim();
   const item = await newItem(baseDir, {
     type: storeItem.type,
     title: heading || undefined,

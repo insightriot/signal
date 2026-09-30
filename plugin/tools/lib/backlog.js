@@ -28,7 +28,7 @@ import { join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 
 import { atomicWrite } from './atomic-write.js';
-import { insertAboveFooter, rewriteFooter, buildBugsEntry, insertAtEnd } from './add.js';
+import { insertAboveFooter, rewriteFooter, buildBugsEntry, insertAtEnd, scrubSensitive } from './add.js';
 import { parseInboxStatusLine } from './work-marker.js';
 import { isStoreOn } from './work-store.js';
 
@@ -176,7 +176,7 @@ function inboxItemId(block, key) {
   return null;
 }
 
-async function promoteInStore(baseDir, { block, type, title, keyName, by }) {
+async function promoteInStore(baseDir, { block, type, title, keyName, by, acknowledgeSensitive }) {
   const { applyTriage, getItem, listItems, newItem } = await import('./work-ops.js');
   const { key } = isStoreOn(baseDir);
   const itemPath = (id) => join(baseDir, '.planning', 'work', 'backlog', `${id}.md`);
@@ -194,23 +194,32 @@ async function promoteInStore(baseDir, { block, type, title, keyName, by }) {
     }
   } else {
     const heading = resolveTitle(title, block);
+    const body = groomBlockBody(block);
+    // A raw block handed in directly is new text entering an item, so its
+    // title and body run the scrub like any capture (REVIEW pass 2) — a block
+    // that came through an inbox item was scrubbed when that item was
+    // captured. Scrubbed HERE rather than by `newItem`: the item's
+    // `source_ref` is the dedupe key, a sha1 — 40 hex characters, which the
+    // detector flags by design — so `newItem` is told the check was made.
+    const sensitiveHits = [heading, body].flatMap((t) => (t ? scrubSensitive(t).hits : []));
+    if (sensitiveHits.length > 0 && !acknowledgeSensitive) {
+      return { written: false, key: blockKey(block), aborted: 'sensitive-data-pending', sensitiveHits };
+    }
     const created = await newItem(baseDir, {
       type,
       title: heading,
-      body: groomBlockBody(block),
+      body,
       source: STORE_SOURCE,
       source_ref: dedupeKey,
       by: by ?? STORE_SOURCE,
-      // Re-filing text already in a committed `.planning/` list (the drain's
-      // input), not new text entering it — the capture that put it there is
-      // where the scrub belongs (REVIEW I3).
     }, { acknowledgeSensitive: true });
     id = created.id;
   }
   const accept = { type };
   const retitle = (title ?? '').trim();
   if (retitle) accept.title = retitle;
-  const r = await applyTriage(baseDir, id, { accept });
+  const r = await applyTriage(baseDir, id, { accept }, { acknowledgeSensitive });
+  if (r.aborted) return { written: false, key: blockKey(block), id, aborted: r.aborted, sensitiveHits: r.sensitiveHits };
   return { written: true, path: itemPath(id), key: blockKey(block), id, label: r.label };
 }
 
@@ -230,18 +239,23 @@ async function promoteInStore(baseDir, { block, type, title, keyName, by }) {
  * @param {string} [opts.title] — retitle; falls back to the block's heading
  * @param {string} [opts.today] — ISO date for the footer bump
  * @param {string} [opts.by] — store on: `created.by` for a raw block's new item
- * @returns {Promise<{written: boolean, deduped?: boolean, path: string, key: string, id?: string, label?: string}>}
+ * @param {boolean} [opts.acknowledgeSensitive] — store on: the user has
+ *   already been asked about sensitive data in `block` and `title`
+ * @returns {Promise<{written: boolean, deduped?: boolean, path: string, key: string, id?: string, label?: string,
+ *   aborted?: 'sensitive-data-pending', sensitiveHits?: object[]}>}
  *   With the store on, the item is moved instead (see "With the work store
- *   on" above) and `path`/`id` name the item file.
+ *   on" above) and `path`/`id` name the item file. A raw block (no inbox
+ *   item) or a retitle with sensitive data, unacknowledged, writes nothing and
+ *   returns `{written: false, aborted: 'sensitive-data-pending', sensitiveHits}`.
  */
-export async function promoteToBacklog(baseDir, { block, tag, title, today, by } = {}) {
+export async function promoteToBacklog(baseDir, { block, tag, title, today, by, acknowledgeSensitive } = {}) {
   if (!VALID_TAGS.has(tag)) {
     throw new Error(
       `promoteToBacklog: tag must be "roadmap" or "hygiene", got ${JSON.stringify(tag)}.`
     );
   }
   if (isStoreOn(baseDir).on) {
-    return promoteInStore(baseDir, { block, type: tag === 'roadmap' ? 'FEAT' : 'CHORE', title, keyName: 'backlog-key', by });
+    return promoteInStore(baseDir, { block, type: tag === 'roadmap' ? 'FEAT' : 'CHORE', title, keyName: 'backlog-key', by, acknowledgeSensitive });
   }
   const date = today ?? isoToday();
   await createBacklogIfMissing(baseDir, { today: date });
@@ -847,7 +861,10 @@ async function dischargeInStore(baseDir, { rows, by, at, today, base, renameFn }
   }
 
   if (toClose.length > 0) {
-    await closeItems(baseDir, toClose.map((id) => ({ id, reason: 'fixed', by: String(who), at: when, proof })), { renameFn });
+    // The proof is the stamp built above from `by` and `at`, not free text,
+    // so there is nothing new for the scrub to ask about.
+    await closeItems(baseDir, toClose.map((id) => ({ id, reason: 'fixed', by: String(who), at: when, proof })),
+      { renameFn, acknowledgeSensitive: true });
   }
   return { ...base, written: toClose.length > 0, results };
 }
@@ -1057,12 +1074,15 @@ function bugsSkeleton() {
  * @param {string} opts.block — the raw source inbox block (dedupe key = sha1(block))
  * @param {string} [opts.title] — retitle; falls back to the block's heading
  * @param {string} [opts.by] — store on: `created.by` for a raw block's new item
- * @returns {Promise<{written: boolean, deduped?: boolean, path: string, key: string, id?: string, label?: string}>}
- *   With the store on, the item becomes a BUG in `backlog/` instead.
+ * @param {boolean} [opts.acknowledgeSensitive] — store on: as `promoteToBacklog`
+ * @returns {Promise<{written: boolean, deduped?: boolean, path: string, key: string, id?: string, label?: string,
+ *   aborted?: 'sensitive-data-pending', sensitiveHits?: object[]}>}
+ *   With the store on, the item becomes a BUG in `backlog/` instead, with
+ *   `promoteToBacklog`'s sensitive-data rule.
  */
-export async function promoteToBugs(baseDir, { block, title, by } = {}) {
+export async function promoteToBugs(baseDir, { block, title, by, acknowledgeSensitive } = {}) {
   if (isStoreOn(baseDir).on) {
-    return promoteInStore(baseDir, { block, type: 'BUG', title, keyName: 'bugs-key', by });
+    return promoteInStore(baseDir, { block, type: 'BUG', title, keyName: 'bugs-key', by, acknowledgeSensitive });
   }
   const path = join(baseDir, BUGS_REL);
   const key = blockKey(block);

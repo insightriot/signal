@@ -101,10 +101,19 @@ describe('callers that already asked do not ask twice', () => {
     expect(listItems(root).map((x) => x.item.type)).toEqual(['Q']);
   });
 
-  it('the drain\'s promote re-files text already in .planning/ without refusing', async () => {
+  // Changed deliberately at REVIEW pass 2 (Suggestions). This pinned "a
+  // promote re-files text already in .planning/ without refusing"; but a raw
+  // block (no inbox item behind it) is new text entering an item, and with
+  // the store on the drain refuses outright, so nothing had asked about it.
+  // It now runs the scrub; a caller that already asked passes
+  // acknowledgeSensitive.
+  it('a promote of a raw block runs the scrub; acknowledged, it is filed', async () => {
     const block = `## Rotate the key\n\nThe old one was ${AWS}.\n`;
     const r = await promoteToBacklog(root, { block, tag: 'hygiene', today: TODAY });
-    expect(r).toMatchObject({ written: true });
+    expect(r).toMatchObject({ written: false, aborted: 'sensitive-data-pending' });
+    expect(listItems(root)).toEqual([]);
+    const ok = await promoteToBacklog(root, { block, tag: 'hygiene', today: TODAY, acknowledgeSensitive: true });
+    expect(ok).toMatchObject({ written: true });
     expect(listItems(root).map((x) => [x.item.type, x.item.status])).toEqual([['CHORE', 'T']]);
   });
 });

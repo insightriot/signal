@@ -44,7 +44,7 @@ Items are named by their **ID**, `SIG-412`. The label `SIG-412-BUG-T` (ID, type,
    - **dup** — `{dup: 'SIG-n'}` → closed `dup` of that item.
    - **reject** — `{reject: '<what was checked and found false>'}` → closed `rejected`, the text kept as proof.
    - **skip** — `{skip: true}` → left in the inbox; add its ID to `exclude` for the rest of this run.
-3. `applyTriage(baseDir, id, decision, {by})`, then repeat until `triageNext` returns null.
+3. `applyTriage(baseDir, id, decision, {by})`, then repeat until `triageNext` returns null. A new title or a reject's reason is scrubbed for secrets as in `new`: on `{aborted: 'sensitive-data-pending'}` nothing changed — ask **keep** or **abort**, and on keep call again with `acknowledgeSensitive: true` in the options.
 4. Then `listNeedsReview(baseDir)` — migrated rows already in `backlog/` that carry a `migration_note`. Offer them the same way; accepting one clears its note.
 
 **The attention setting governs confirmation, as in every phase** (`attention` from `readEffectiveProfile`, via `gates.confirm_in_phase` — not `gate_strictness`):
@@ -73,7 +73,7 @@ In a git repository a tracked file is moved with `git mv`, so its history follow
 | `dup` | another item covers it | `dup_of`: that item's ID, which must exist |
 | `rejected` | checked, and not true | say what was checked, as `proof` |
 
-The item moves to `done/YYYY-MM/` — unless it is in an Epic folder, where it stays, closed, and is archived with the Epic. Print its new label and path.
+The item moves to `done/YYYY-MM/` — unless it is in an Epic folder, where it stays, closed, and is archived with the Epic. Print its new label and path. The proof is scrubbed for secrets as in `new`: on `{aborted: 'sensitive-data-pending'}` nothing was closed — ask **keep** or **abort**, and on keep call again with `{acknowledgeSensitive: true}` as the fourth argument.
 
 ### `reopen <ID> "<reason>"` — a closed item came back
 

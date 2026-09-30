@@ -443,24 +443,35 @@ async function relocate(baseDir, found, next, body, destDirRel, opts, undoLog) {
 
 // ── Mutations ────────────────────────────────────────────────────────────────
 
-// Every sensitive-data hit in the specs' titles and bodies. Each field is
-// scanned on its own, so a hit's `index` is an offset into that field.
-function scrubFields(specs) {
+// Every sensitive-data hit in `texts` — each free-text field that will land
+// in an item file. Each is scanned on its own, so a hit's `index` is an
+// offset into that field. Non-strings and empty strings are skipped.
+function scrubTexts(texts) {
   const hits = [];
-  for (const { title, body } of specs) {
-    for (const text of [title, body]) {
-      if (typeof text === 'string' && text !== '') hits.push(...scrubSensitive(text).hits);
-    }
+  for (const text of texts) {
+    if (typeof text === 'string' && text !== '') hits.push(...scrubSensitive(text).hits);
   }
   return hits;
+}
+
+// The sensitive-data gate every writer of free text shares (REVIEW I3, pass
+// 2): with a hit and no `acknowledgeSensitive`, the answer that nothing was
+// written and the caller must ask. Null when the write may go ahead.
+function sensitivePending(texts, opts) {
+  const sensitiveHits = scrubTexts(texts);
+  if (sensitiveHits.length > 0 && !opts.acknowledgeSensitive) {
+    return { aborted: 'sensitive-data-pending', sensitiveHits };
+  }
+  return null;
 }
 
 /**
  * Capture a new item into `inbox/` with status N (D-M6E11-6: the file is
  * created at capture and is the same file for life).
  *
- * Sensitive data (REVIEW I3): `newItem` is the gate. Title and body run
- * through `add.js#scrubSensitive` before anything is written; with a hit and
+ * Sensitive data (REVIEW I3): `newItem` is the gate. Title, body and
+ * `source_ref` run through `add.js#scrubSensitive` before anything is
+ * written; with a hit and
  * no `opts.acknowledgeSensitive`, it writes nothing and returns
  * `{aborted: 'sensitive-data-pending', sensitiveHits}` so the caller can ask
  * the user and call again. A caller that has ALREADY asked about the same
@@ -504,7 +515,7 @@ export async function newItem(baseDir, fields = {}, opts = {}) {
  * @param {string} baseDir
  * @param {Array<object>} specs — each as `newItem`'s `fields`
  * @param {{execFn?: Function, renameFn?: Function, acknowledgeSensitive?: boolean}} [opts]
- *   the sensitive-data rule is `newItem`'s, over every spec's title and body
+ *   the sensitive-data rule is `newItem`'s, over every spec's title, body and source_ref
  * @returns {Promise<object[]|{aborted: 'sensitive-data-pending', sensitiveHits: object[]}>}
  *   the items' frontmatter in spec order
  */
@@ -513,10 +524,8 @@ export async function newItems(baseDir, specs, opts = {}) {
     throw new WorkStoreError('SCHEMA', 'newItems: pass at least one item — nothing was written.');
   }
   requireStore(baseDir);
-  const sensitiveHits = scrubFields(specs.map(({ title, body }) => ({ title, body })));
-  if (sensitiveHits.length > 0 && !opts.acknowledgeSensitive) {
-    return { aborted: 'sensitive-data-pending', sensitiveHits };
-  }
+  const pending = sensitivePending(specs.flatMap((s) => [s?.title, s?.body, s?.source_ref]), opts);
+  if (pending) return pending;
   const written = [];
   try {
     return await withWorkLock(baseDir, async () => {
@@ -661,12 +670,14 @@ export async function moveItem(baseDir, idOrLabel, to = {}, opts = {}) {
  * @param {string} idOrLabel
  * @param {{reason: string, by: string, proof?: string, dup_of?: string, at?: string}} close
  *   `fixed` without proof records `proof: 'none given'` (AC-5.4).
- * @param {{execFn?: Function, renameFn?: Function}} [opts]
- * @returns {Promise<{item: object, label: string, from: string, to: string}>}
+ * @param {{execFn?: Function, renameFn?: Function, acknowledgeSensitive?: boolean}} [opts]
+ *   the sensitive-data rule is `newItem`'s, over `proof`
+ * @returns {Promise<{item: object, label: string, from: string, to: string}
+ *   | {aborted: 'sensitive-data-pending', sensitiveHits: object[]}>}
  */
 export async function closeItem(baseDir, idOrLabel, close = {}, opts = {}) {
-  const [r] = await closeItems(baseDir, [{ ...close, id: idOrLabel }], opts);
-  return r;
+  const r = await closeItems(baseDir, [{ ...close, id: idOrLabel }], opts);
+  return Array.isArray(r) ? r[0] : r;
 }
 
 /**
@@ -682,8 +693,11 @@ export async function closeItem(baseDir, idOrLabel, close = {}, opts = {}) {
  * @param {string} baseDir
  * @param {Array<{id: string, reason: string, by: string, proof?: string, dup_of?: string, at?: string}>} closes
  *   each as `closeItem`'s `close`, plus the item's `id` (or label)
- * @param {{execFn?: Function, renameFn?: Function}} [opts]
- * @returns {Promise<Array<{item: object, label: string, from: string, to: string}>>} in `closes` order
+ * @param {{execFn?: Function, renameFn?: Function, acknowledgeSensitive?: boolean}} [opts]
+ *   the sensitive-data rule is `newItem`'s, over every close's `proof`: with a
+ *   hit and no `acknowledgeSensitive`, nothing is closed
+ * @returns {Promise<Array<{item: object, label: string, from: string, to: string}>
+ *   | {aborted: 'sensitive-data-pending', sensitiveHits: object[]}>} in `closes` order
  */
 export async function closeItems(baseDir, closes, opts = {}) {
   if (!Array.isArray(closes) || closes.length === 0) {
@@ -694,6 +708,8 @@ export async function closeItems(baseDir, closes, opts = {}) {
   if (twice.length) {
     throw new WorkStoreError('SCHEMA', `closeItems: ${[...new Set(twice)].join(', ')} named more than once — nothing was closed.`);
   }
+  const pending = sensitivePending(closes.map((c) => c.proof), opts);
+  if (pending) return pending;
   return withWorkLock(baseDir, async () => {
     const planned = closes.map((c, i) => planClose(baseDir, ids[i], c));
     const undo = [];
@@ -1325,9 +1341,12 @@ function awaitingTriage(item) {
  *   `accept` → status T in `backlog/` (a flagged T item is updated in place
  *   and its note cleared); `dup` → closed `dup` of that item; `reject` →
  *   closed `rejected`, the text recorded as proof; `skip` → nothing.
- * @param {{by?: string, at?: string, execFn?: Function, renameFn?: Function}} [opts]
- *   `by` is required for `dup` and `reject` (a close records who).
- * @returns {Promise<{action: string, item: object, label?: string, from?: string, to?: string}>}
+ * @param {{by?: string, at?: string, execFn?: Function, renameFn?: Function, acknowledgeSensitive?: boolean}} [opts]
+ *   `by` is required for `dup` and `reject` (a close records who). The
+ *   sensitive-data rule is `newItem`'s, over an accept's new `title` and a
+ *   reject's reason: with a hit and no `acknowledgeSensitive`, nothing changes.
+ * @returns {Promise<{action: string, item: object, label?: string, from?: string, to?: string}
+ *   | {action: string, aborted: 'sensitive-data-pending', sensitiveHits: object[]}>}
  */
 export async function applyTriage(baseDir, idOrLabel, decision = {}, opts = {}) {
   const id = frontOf(idOrLabel);
@@ -1357,6 +1376,8 @@ export async function applyTriage(baseDir, idOrLabel, decision = {}, opts = {}) 
   }
 
   const fields = decision.accept ?? {};
+  const pending = sensitivePending([fields.title], opts);
+  if (pending) return { action, ...pending };
   return withWorkLock(baseDir, async () => {
     const current = getItem(baseDir, id);
     if (!awaitingTriage(current.item)) {
