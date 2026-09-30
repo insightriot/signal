@@ -219,3 +219,53 @@ describe('/sig:checkpoint with the store on — all or nothing', () => {
     ]);
   });
 });
+
+// REVIEW pass 3, test gaps in the undo.
+describe('closeItems — undo keeps going, and relocate names what it left (REVIEW pass 3)', () => {
+  // Three items; item 3's write fails; putting item 2 back fails. runUndo runs
+  // newest first, so item 2's failure comes BEFORE item 1's step — an undo
+  // that stopped at its first failure would leave item 1 closed too.
+  it('three items, one undo step fails: the others are still restored', async () => {
+    for (const id of ['SIG-1', 'SIG-2', 'SIG-3']) await put(`.planning/work/backlog/${id}.md`, itemText(id, 'T'));
+    gitRepo();
+    const execFn = (cmd, args, o) => {
+      if (args.includes('mv') && String(args.at(-1)).endsWith('backlog/SIG-2.md')) throw new Error('undo of SIG-2 failed');
+      return execFileSync(cmd, args, o);
+    };
+    const renameFn = async (f, t) => {
+      if (t.endsWith('SIG-3.md')) throw new Error('disk full');
+      return rename(f, t);
+    };
+    const closes = ['SIG-1', 'SIG-2', 'SIG-3'].map((id) => ({ id, reason: 'fixed', by: 'x', proof: 'p', at: AT }));
+    const err = await closeItems(root, closes, { execFn, renameFn }).catch((e) => e);
+    expect(err.code).toBe('IO');
+    expect(err.leftChanged.map((c) => c.id)).toEqual(['SIG-2']);
+    expect(await readFile(join(root, '.planning/work/backlog/SIG-1.md'), 'utf-8')).toBe(itemText('SIG-1', 'T'));
+    expect(await readFile(join(root, '.planning/work/backlog/SIG-3.md'), 'utf-8')).toBe(itemText('SIG-3', 'T'));
+  });
+
+  // One item: its own write fails AND relocate's move back fails. The item is
+  // named through undoFailedError, with where it was left.
+  it('relocate\'s own move-back failure: IO via undoFailedError, the item on leftChanged at its new path', async () => {
+    await put('.planning/work/backlog/SIG-1.md', itemText('SIG-1', 'T'));
+    gitRepo();
+    const execFn = (cmd, args, o) => {
+      if (args.includes('mv') && String(args.at(-1)).endsWith('backlog/SIG-1.md')) throw new Error('move back failed');
+      return execFileSync(cmd, args, o);
+    };
+    const renameFn = async (f, t) => {
+      if (t.endsWith('SIG-1.md')) throw new Error('disk full');
+      return rename(f, t);
+    };
+    const err = await closeItems(root, [{ id: 'SIG-1', reason: 'fixed', by: 'x', proof: 'p', at: AT }], { execFn, renameFn })
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(WorkStoreError);
+    expect(err.code).toBe('IO');
+    expect(err.message).toMatch(/putting everything back failed too/);
+    expect(err.cause?.message).toBe('disk full');
+    expect(err.leftChanged).toHaveLength(1);
+    expect(err.leftChanged[0].id).toBe('SIG-1');
+    expect(err.leftChanged[0].path).toMatch(/^\.planning\/work\/done\/\d{4}-\d{2}\/SIG-1\.md$/);
+    expect(err.leftChanged[0].error.message).toBe('move back failed');
+  });
+});

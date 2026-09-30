@@ -16,7 +16,8 @@ import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { applyTriage, closeItem, closeItems, getItem, listItems, newItem } from '../plugin/tools/lib/work-ops.js';
+import { applyTriage, closeEpic, closeItem, closeItems, getItem, listItems, moveItem, newItem, newItems, reopenItem } from '../plugin/tools/lib/work-ops.js';
+import { existsSync } from 'node:fs';
 import { promoteToBacklog, promoteToBugs } from '../plugin/tools/lib/backlog.js';
 import { captureToFutureIdeas } from '../plugin/tools/lib/add.js';
 
@@ -123,5 +124,56 @@ describe('/sig:add with the store on asks about the trigger context too', () => 
     expect(seen.length).toBeGreaterThan(0);
     expect(r.written).toBe(false);
     expect(listItems(root)).toEqual([]);
+  });
+});
+
+// REVIEW pass 3 — the free text pass 2 still wrote unasked: a reopen's
+// reason, a theme (at capture and at triage), and an Epic close's pr/release.
+describe('the remaining free-text fields are scrubbed (REVIEW pass 3)', () => {
+  it('reopenItem: a secret in the reason → pending, still closed; acknowledged → reopened', async () => {
+    const a = await newItem(root, { title: 'x', by: 't' });
+    await closeItem(root, a.id, { reason: 'fixed', by: 't', proof: 'p' });
+    const r = await reopenItem(root, a.id, { by: 't', reason: `came back ${SECRET}` });
+    expect(r).toMatchObject(PENDING);
+    expect(getItem(root, a.id).item.status).toBe('C');
+    const ok = await reopenItem(root, a.id, { by: 't', reason: `came back ${SECRET}` }, { acknowledgeSensitive: true });
+    expect(ok.item.status).toBe('T');
+  });
+
+  it('newItems: a secret only in theme → pending, nothing written', async () => {
+    const r = await newItems(root, [{ title: 'clean', theme: `t ${SECRET}`, by: 't' }]);
+    expect(r).toMatchObject(PENDING);
+    expect(listItems(root)).toEqual([]);
+  });
+
+  it('applyTriage accept: a secret only in theme → pending, still N', async () => {
+    const a = await newItem(root, { title: 'x', by: 't' });
+    const r = await applyTriage(root, a.id, { accept: { type: 'FEAT', theme: `t ${SECRET}` } });
+    expect(r).toMatchObject(PENDING);
+    expect(getItem(root, a.id).item.status).toBe('N');
+  });
+
+  it.each([['pr', { pr: `#1 ${SECRET}` }], ['release', { release: `v1 ${SECRET}` }]])(
+    'closeEpic: a secret in %s → pending, the folder not archived',
+    async (_name, extra) => {
+      const a = await newItem(root, { title: 'x', by: 't' });
+      await moveItem(root, a.id, { status: 'Q', epic: 'M6.E98' });
+      await closeItem(root, a.id, { reason: 'fixed', by: 't', proof: 'p' });
+      const r = await closeEpic(root, 'M6.E98', { by: 't', ...extra });
+      expect(r).toMatchObject(PENDING);
+      expect(existsSync(join(root, '.planning/work/epics/M6.E98'))).toBe(true);
+      const ok = await closeEpic(root, 'M6.E98', { by: 't', ...extra }, { acknowledgeSensitive: true });
+      expect(ok.status).toBe('closed');
+    },
+  );
+});
+
+// N1: with the store off, closeItems says so — it does not first answer
+// "sensitive data pending" for a store that cannot be written at all.
+describe('closeItems checks the store before the scrub (REVIEW pass 3, N1)', () => {
+  it('store off + a secret in proof → CONFIG, not pending', async () => {
+    await rm(join(root, '.planning/work'), { recursive: true, force: true });
+    await expect(closeItems(root, [{ id: 'SIG-1', reason: 'fixed', by: 't', proof: SECRET }]))
+      .rejects.toMatchObject({ code: 'CONFIG' });
   });
 });

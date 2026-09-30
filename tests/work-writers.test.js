@@ -390,7 +390,12 @@ describe('work-generate.js — writeGenerated re-checks each file', () => {
     const last = GENERATED_FILES[GENERATED_FILES.length - 1];
     const pending = generateAll(root);
     writeFileSync(planning(last), '# kept by hand\n', 'utf-8'); // sync: lands before generateAll resumes
-    await expect(pending).rejects.toMatchObject({ code: 'CONFIG', message: expect.stringContaining(last) });
+    // The per-file re-check's own wording — the preflight's reads "The work
+    // store is on …", so this fails if only the preflight ever fires.
+    await expect(pending).rejects.toMatchObject({
+      code: 'CONFIG',
+      message: expect.stringMatching(new RegExp(`${last.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} is hand-kept, not generated — it was not overwritten`)),
+    });
     expect(await readFile(planning(last), 'utf-8')).toBe('# kept by hand\n');
   });
 });

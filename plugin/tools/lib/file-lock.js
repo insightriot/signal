@@ -19,7 +19,7 @@
 // a TTL of seconds.
 
 import { readFile, unlink, mkdir } from 'node:fs/promises';
-import { closeSync, linkSync, openSync, readFileSync, renameSync, unlinkSync, writeSync } from 'node:fs';
+import { closeSync, linkSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { dirname } from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -52,12 +52,15 @@ function pidAlive(pid) {
 }
 
 // Why the lock in `text` may be taken over, or null while it is held.
-function staleReason(text, ttlMs, now) {
+// An unreadable lock (empty: created, not yet written) is held until its
+// mtime passes the TTL; a live pid on this host holds it up to 10× the TTL.
+function staleReason(text, ttlMs, now, mtimeMs) {
   const { pid, ts, host } = parseLock(text);
-  if (!Number.isFinite(ts)) return 'unreadable';
+  if (!Number.isFinite(ts)) return now - mtimeMs >= ttlMs ? 'unreadable' : null;
   if (ts - now > FUTURE_SKEW_MS) return 'stamped in the future';
-  if (now - ts >= ttlMs) return 'expired';
-  if (host === hostname() && Number.isInteger(pid) && pid > 0 && !pidAlive(pid)) return 'its process is gone';
+  const ours = host === hostname() && Number.isInteger(pid) && pid > 0;
+  if (ours && !pidAlive(pid)) return 'its process is gone';
+  if (now - ts >= (ours ? 10 * ttlMs : ttlMs)) return 'expired';
   return null;
 }
 
@@ -82,7 +85,7 @@ function readOrNull(path) {
  * Take the lock at `lockPath`: create it with O_EXCL, or take over a stale one.
  *
  * Stale (REVIEW P2-I1): older than `ttlMs`, stamped more than
- * `FUTURE_SKEW_MS` in the future, unreadable, or — when it names this host —
+ * `FUTURE_SKEW_MS` in the future, unreadable past `ttlMs` of mtime, or — on this host —
  * held by a pid that no longer exists.
  *
  * Takeover (REVIEW P2-I2) never deletes the lock path and re-creates it: two
@@ -117,7 +120,8 @@ export async function acquireLock(lockPath, opts = {}) {
 
     const existing = readOrNull(lockPath);
     if (existing === null) continue; // released between the create and the read
-    if (staleReason(existing, ttlMs, Date.now()) === null) {
+    const mtimeMs = statSync(lockPath, { throwIfNoEntry: false })?.mtimeMs ?? 0;
+    if (staleReason(existing, ttlMs, Date.now(), mtimeMs) === null) {
       throw heldError(label, lockPath, existing, ttlSec);
     }
     if (beforeTakeover) await beforeTakeover();

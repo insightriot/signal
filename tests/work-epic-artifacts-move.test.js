@@ -22,6 +22,7 @@ import { execFileSync } from 'node:child_process';
 
 import { closeEpic, closeItem, moveItem, newItem } from '../plugin/tools/lib/work-ops.js';
 import { artifactName, resolveArtifactPath } from '../plugin/tools/lib/resume.js';
+import { resolveClosures, CLOSURE } from '../plugin/tools/lib/closure.js';
 import { WorkStoreError } from '../plugin/tools/lib/work-item.js';
 
 let base;
@@ -66,7 +67,9 @@ async function seed() {
   await put('.planning/work/WORK.md', '---\nkey: SIG\n---\n# Work store\n');
   await put(`.planning/${EPIC}-PLAN.md`, PLAN_ROOT);
   await put(`.planning/${EPIC}-REQUIREMENTS.md`, REQ_ROOT);
-  await put(`.planning/${EPIC}-RETROSPECTIVE.md`, '# retro\n');
+  // A stub: the Epic is live. A complete retrospective means closed, and a
+  // closed Epic's artifacts stay at the root (REVIEW pass 3).
+  await put(`.planning/${EPIC}-RETROSPECTIVE.md`, '# retro\n\n[FILL IN]\n');
   await put(`.planning/${EPIC}-PROFILE.md`, '---\ntier: FEATURE\n---\n');
   await put('.planning/M1.E10-PLAN.md', '# another Epic\n');
   await put('.planning/CONTEXT.md', CONTEXT);
@@ -89,8 +92,8 @@ describe('moveItem into a new Epic folder moves the Epic\'s root artifacts in (D
     for (const name of [`${EPIC}-RETROSPECTIVE.md`, `${EPIC}-PROFILE.md`, 'M1.E10-PLAN.md']) {
       expect(existsSync(join(P, name)), name).toBe(true);
     }
-    // History follows the file: git sees renames, not a delete and an add.
-    git('add', '-A');
+    // History follows the file: git mv stages the rename itself. Read BEFORE
+    // any `git add`, which would turn a plain rename into `R` too.
     const status = git('status', '--porcelain');
     expect(status).toMatch(new RegExp(`R  \\.planning/${EPIC}-REQUIREMENTS\\.md -> \\.planning/work/epics/${EPIC}/${EPIC}-REQUIREMENTS\\.md`));
   });
@@ -192,5 +195,71 @@ describe('moveItem reports the artifacts it moved', () => {
     expect(r.artifacts.rewritten).toContain('.planning/CONTEXT.md');
     const b = await newItem(base, { type: 'FEAT', title: 'two', by: 't' });
     expect((await moveItem(base, b.id, { status: 'Q', epic: EPIC })).artifacts).toBeUndefined();
+  });
+});
+
+// REVIEW pass 3 — only a LIVE Epic's artifacts move in. A closed Epic (a
+// complete retrospective) keeps its artifacts at the root: moving old Epics
+// is migration, step 5 — and closure reads its verdict there.
+describe('moveItem into a CLOSED Epic moves no artifacts (REVIEW pass 3)', () => {
+  it('complete retro + PASS verification at the root: nothing moves, and closure still says closed', async () => {
+    await seed();
+    await put(`.planning/${EPIC}-RETROSPECTIVE.md`, '# retro\n\nWhat went well: it shipped.\n');
+    await put(`.planning/${EPIC}-VERIFICATION.md`, '# Verification\n\n**Verdict:** ✅ **PASS**\n');
+    await put('.planning/STATE.md', '---\nschema_version: 1\nphase: EXECUTE\ncurrent_epic: M9.E9\n'
+      + 'current_wave: null\ncurrent_tasks: []\ncompleted_phases: []\nblockers: []\n'
+      + 'last_completed_task: null\n---\n# Project State\n');
+    const r = await moveItem(base, 'SIG-1', { status: 'Q', epic: EPIC });
+    expect(r.artifacts).toBeUndefined();
+    for (const name of ['PLAN', 'REQUIREMENTS', 'VERIFICATION']) {
+      expect(existsSync(join(P, `${EPIC}-${name}.md`)), name).toBe(true);
+      expect(existsSync(join(base, FOLDER, `${EPIC}-${name}.md`)), name).toBe(false);
+    }
+    expect(await read('.planning/CONTEXT.md')).toBe(CONTEXT);
+    const { units } = await resolveClosures(base);
+    expect(units.find((u) => u.unit === EPIC)?.status).toBe(CLOSURE.CLOSED);
+  });
+});
+
+describe('moveEpicArtifactsIn never overwrites (REVIEW pass 3, test gap)', () => {
+  it('the folder already holds the artifact (no README): CONFLICT, both copies and the item untouched', async () => {
+    await seed();
+    await put(`${FOLDER}/${EPIC}-PLAN.md`, '# the folder copy\n');
+    const err = await moveItem(base, 'SIG-1', { status: 'Q', epic: EPIC }).catch((e) => e);
+    expect(err).toBeInstanceOf(WorkStoreError);
+    expect(err.message).toContain(`${FOLDER}/${EPIC}-PLAN.md already exists`);
+    expect(await read(`${FOLDER}/${EPIC}-PLAN.md`)).toBe('# the folder copy\n');
+    expect(await read(`.planning/${EPIC}-PLAN.md`)).toBe(PLAN_ROOT);
+    expect(existsSync(join(base, FOLDER, 'README.md'))).toBe(false);
+    expect(existsSync(join(P, 'work/backlog/SIG-1.md'))).toBe(true);
+  });
+});
+
+// REVIEW pass 3 — the item's write into the folder fails AND moving it back
+// fails, so it is left in the folder. Undoing the artifact move must then not
+// write the item's pre-move text back to backlog/: that is a second SIG-1.
+describe('moveItem: item write and its move-back both fail (REVIEW pass 3)', () => {
+  it('one SIG-1 on disk, named on err.leftChanged; the artifacts are put back', async () => {
+    await seed();
+    commitAll();
+    const renameFn = async (from, to) => {
+      if (to.endsWith(`${EPIC}/SIG-1.md`)) throw new Error('disk full');
+      const { rename } = await import('node:fs/promises');
+      return rename(from, to);
+    };
+    const execFn = (cmd, args, o) => {
+      if (args.includes('mv') && String(args.at(-1)).endsWith('backlog/SIG-1.md')) throw new Error('move back failed');
+      return execFileSync(cmd, args, o);
+    };
+    const err = await moveItem(base, 'SIG-1', { status: 'Q', epic: EPIC }, { execFn, renameFn }).catch((e) => e);
+    expect(err).toBeInstanceOf(WorkStoreError);
+    expect(err.code).toBe('IO');
+    expect(err.message).toMatch(/disk full/);
+    expect(err.leftChanged.map((c) => c.id)).toEqual(['SIG-1']);
+    const copies = git('ls-files', '--cached', '--others', '--', '.planning').split('\n').filter((p) => p.endsWith('/SIG-1.md'));
+    expect(copies).toEqual([`${FOLDER}/SIG-1.md`]);
+    expect(existsSync(join(P, 'work/backlog/SIG-1.md'))).toBe(false);
+    expect(await read(`.planning/${EPIC}-PLAN.md`)).toBe(PLAN_ROOT);
+    expect(await read('.planning/CONTEXT.md')).toBe(CONTEXT);
   });
 });

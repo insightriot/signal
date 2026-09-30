@@ -13,7 +13,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { artifactName, resolveArtifactPath } from '../plugin/tools/lib/resume.js';
-import { listItems } from '../plugin/tools/lib/work-ops.js';
+import { listItems, ROOT_ONLY_ARTIFACTS } from '../plugin/tools/lib/work-ops.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PLANNING = join(ROOT, '.planning');
@@ -29,8 +29,11 @@ describe(`${EPIC} lives in its Epic folder (AC-8.5, on this repo)`, () => {
     expect(existsSync(LIVE) !== existsSync(ARCHIVED)).toBe(true);
   });
 
-  it(`no .planning/${EPIC}-*.md is left at the top level`, () => {
-    expect(readdirSync(PLANNING).filter((n) => n.startsWith(`${EPIC}-`))).toEqual([]);
+  // The retrospective and profile stay at the root (D-M6E11-33 amended):
+  // their readers look only there.
+  it(`no .planning/${EPIC}-*.md is left at the top level, except the root-only ones`, () => {
+    const rootOnly = ROOT_ONLY_ARTIFACTS.map((a) => `${EPIC}-${a}.md`);
+    expect(readdirSync(PLANNING).filter((n) => n.startsWith(`${EPIC}-`) && !rootOnly.includes(n))).toEqual([]);
   });
 
   it.each(['REQUIREMENTS', 'PLAN', 'VALIDATION', 'PROGRESS', 'RESEARCH'])(

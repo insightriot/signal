@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, writeFile, mkdir, readFile, readdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { closeSync, existsSync, openSync, readFileSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import { hostname, tmpdir } from 'node:os';
 
@@ -227,5 +227,60 @@ describe('acquireLock — stale locks (REVIEW P2-I1, P2-I2)', () => {
     });
     expect((await readFile(lockPath, 'utf-8')).split('\n')[2]).toBe(lock.token);
     await lock.released();
+  });
+});
+
+// REVIEW pass 3 — a lock that is being written, and a live holder past its TTL.
+describe('acquireLock — empty locks and live holders (REVIEW pass 3)', () => {
+  let tempDir;
+  let lockPath;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'signal-file-lock-test-'));
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+    lockPath = join(tempDir, '.planning', '.test.lock');
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  // A has created the lock with O_EXCL and not yet written its lines. Before
+  // the fix B read the empty file as "unreadable", took it over, and both held.
+  it('an empty lock just created by another holder is HELD', async () => {
+    const fd = openSync(lockPath, 'wx');
+    try {
+      await expect(acquireLock(lockPath)).rejects.toThrow(/lock at/);
+      expect(readFileSync(lockPath, 'utf-8')).toBe('');
+    } finally {
+      closeSync(fd);
+    }
+  });
+
+  it('an unparseable lock is held while fresh, stale once its mtime is past the TTL', async () => {
+    await writeFile(lockPath, 'garbage', 'utf-8');
+    await expect(acquireLock(lockPath)).rejects.toThrow(/lock at/);
+    const old = (Date.now() - 60_000) / 1000;
+    utimesSync(lockPath, old, old);
+    const lock = await acquireLock(lockPath);
+    expect((await readFile(lockPath, 'utf-8')).split('\n')[2]).toBe(lock.token);
+    await lock.released();
+  });
+
+  it('a live holder on this host past its TTL is still held', async () => {
+    await writeFile(lockPath, `${process.pid}\n${Date.now() - 10_000}\nme\n${hostname()}\n`, 'utf-8');
+    await expect(acquireLock(lockPath, { ttlMs: 5_000 })).rejects.toThrow(/lock at/);
+  });
+
+  it('…up to 10× the TTL: past that it is stale, so a reused pid cannot wedge the lock', async () => {
+    await writeFile(lockPath, `${process.pid}\n${Date.now() - 51_000}\nme\n${hostname()}\n`, 'utf-8');
+    const lock = await acquireLock(lockPath, { ttlMs: 5_000 });
+    expect((await readFile(lockPath, 'utf-8')).split('\n')[2]).toBe(lock.token);
+    await lock.released();
+  });
+
+  // pid 1 exists and belongs to root: process.kill(1, 0) throws EPERM, which
+  // means alive. Past the TTL but inside 10×, so only a live-pid answer holds it.
+  it.skipIf(process.getuid?.() === 0)('pid 1 on this host (EPERM) counts as alive → held past its TTL', async () => {
+    await writeFile(lockPath, `1\n${Date.now() - 10_000}\ninit\n${hostname()}\n`, 'utf-8');
+    await expect(acquireLock(lockPath, { ttlMs: 5_000 })).rejects.toThrow(/lock at/);
   });
 });

@@ -863,8 +863,9 @@ async function dischargeInStore(baseDir, { rows, by, at, today, base, renameFn }
   if (toClose.length > 0) {
     // The proof is the stamp built above from `by` and `at`, not free text,
     // so there is nothing new for the scrub to ask about.
-    await closeItems(baseDir, toClose.map((id) => ({ id, reason: 'fixed', by: String(who), at: when, proof })),
+    const closed = await closeItems(baseDir, toClose.map((id) => ({ id, reason: 'fixed', by: String(who), at: when, proof })),
       { renameFn, acknowledgeSensitive: true });
+    if (closed?.aborted) return { ...base, ...closed, results };
   }
   return { ...base, written: toClose.length > 0, results };
 }

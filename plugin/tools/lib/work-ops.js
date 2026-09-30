@@ -40,6 +40,7 @@ import { applyKeyedReplacements, computeLinkEdits } from './archive-tree.js';
 import { atomicWrite } from './atomic-write.js';
 import { acquireLock } from './file-lock.js';
 import { assertRealInsidePlanning } from './path-confine.js';
+import { isEpicDone } from './retrospective.js';
 import { EPIC_ID_STRICT_RE, parseFrontmatter, StateSchemaError, stringifyFrontmatter } from './state.js';
 import { asWorkStoreError, lockFailure } from './work-errors.js';
 import { assertNoHandKeptLists, EPIC_README, generateAll } from './work-generate.js';
@@ -524,7 +525,7 @@ export async function newItems(baseDir, specs, opts = {}) {
     throw new WorkStoreError('SCHEMA', 'newItems: pass at least one item — nothing was written.');
   }
   requireStore(baseDir);
-  const pending = sensitivePending(specs.flatMap((s) => [s?.title, s?.body, s?.source_ref]), opts);
+  const pending = sensitivePending(specs.flatMap((s) => [s?.title, s?.body, s?.source_ref, s?.theme]), opts);
   if (pending) return pending;
   const written = [];
   try {
@@ -594,6 +595,7 @@ export async function newItems(baseDir, specs, opts = {}) {
  * Epic's artifacts at the `.planning/` root — `{EpicID}-*.md`, except the
  * retrospective and the profile — move into it, links rewritten
  * (D-M6E11-33). If anything after that fails, all of it is put back.
+ * Only a live Epic's: a closed one (complete retrospective) keeps them at the root.
  *
  * @param {string} baseDir
  * @param {string} idOrLabel
@@ -641,17 +643,18 @@ export async function moveItem(baseDir, idOrLabel, to = {}, opts = {}) {
     let artifacts = null;
     let r;
     try {
-      if (readme?.created) artifacts = await moveEpicArtifactsIn(baseDir, targetEpic, opts);
+      if (readme?.created && isEpicDone(baseDir, targetEpic).status !== 'done') artifacts = await moveEpicArtifactsIn(baseDir, targetEpic, opts);
       // Re-read: moving the artifacts may have rewritten this item's links.
       const current = artifacts?.moved.length ? getItem(baseDir, id) : found;
       r = await relocate(baseDir, current, next, current.body, folderFor(next, targetEpic), opts);
     } catch (err) {
-      const leftChanged = artifacts ? await artifacts.undo() : [];
+      // An item left in the folder keeps its text there: no copy back at its old path.
+      const leftChanged = [...(err?.leftChanged ?? []), ...(artifacts ? await artifacts.undo(err?.leftChanged ? [found.path] : []) : [])];
       if (readme?.created) {
         unlinkSync(readme.abs);
         if (readme.firstCreated) removeCreatedDirs(dirname(readme.abs), readme.firstCreated);
       }
-      if (leftChanged.length) throw undoFailedError(`moving ${id} into ${targetEpic}`, err, leftChanged);
+      if (leftChanged.length) throw undoFailedError(`moving ${id} into ${targetEpic}`, err?.leftChanged ? err.cause : err, leftChanged);
       throw asWorkStoreError(err, 'IO');
     }
     await regenerate(baseDir, `${id} moved ${r.from} → ${r.to}`);
@@ -708,6 +711,7 @@ export async function closeItems(baseDir, closes, opts = {}) {
   if (twice.length) {
     throw new WorkStoreError('SCHEMA', `closeItems: ${[...new Set(twice)].join(', ')} named more than once — nothing was closed.`);
   }
+  requireStore(baseDir);
   const pending = sensitivePending(closes.map((c) => c.proof), opts);
   if (pending) return pending;
   return withWorkLock(baseDir, async () => {
@@ -784,10 +788,14 @@ function planClose(baseDir, id, close) {
  *   later. `at` defaults to now.
  * @param {{execFn?: Function, renameFn?: Function}} [opts]
  * @returns {Promise<{item: object, label: string, from: string, to: string}>}
+ *   — or `{aborted, sensitiveHits}` under `newItem`'s sensitive-data rule, over `reason`
  */
 export async function reopenItem(baseDir, idOrLabel, reopen = {}, opts = {}) {
   const id = frontOf(idOrLabel);
   const { by, reason, at = new Date().toISOString() } = reopen;
+  requireStore(baseDir);
+  const pending = sensitivePending([reason], opts);
+  if (pending) return pending;
   return withWorkLock(baseDir, async () => {
     if (typeof reason !== 'string' || reason.trim() === '') {
       throw new WorkStoreError('SCHEMA', `${id}: a reopen needs a reason — what came back, and how you know. `
@@ -849,7 +857,7 @@ async function ensureEpicReadme(baseDir, epic, id, opts) {
 // folder: each is read there by a reader that never looks in the folder —
 // the retrospective by SHIP's gate (`deriveRetroPath`, run before
 // `closeEpic`), the profile by `readEffectiveProfile`.
-const ROOT_ONLY_ARTIFACTS = ['RETROSPECTIVE', 'PROFILE'];
+export const ROOT_ONLY_ARTIFACTS = ['RETROSPECTIVE', 'PROFILE'];
 
 const escapeRe = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -896,7 +904,7 @@ async function moveEpicArtifactsIn(baseDir, epic, opts) {
   const planning = join(baseDir, '.planning');
   const names = rootEpicArtifacts(baseDir, epic);
   const steps = [];
-  const undo = () => runUndo(steps);
+  const undo = (skip = []) => runUndo(steps.filter((st) => !skip.includes(st.id)));
   if (names.length === 0) return { moved: [], rewritten: [], undo };
 
   const folderRel = `.planning/${epicDirRel(epic)}`;
@@ -1008,7 +1016,7 @@ function removeEmptyTree(dir) {
  * @returns {Promise<{status: 'no-folder'} | {status: 'already-archived', path: string}
  *   | {status: 'closed', from: string, to: string, moved: string[], rewritten: string[], close: object}>}
  *   `rewritten` — live files outside the folder whose links into it were
- *   retargeted at the archive, relative to `baseDir`
+ *   retargeted at the archive, relative to `baseDir` — or `{aborted, sensitiveHits}` (`newItem`'s rule, over pr/release)
  * @throws {WorkStoreError} SCHEMA (bad ID, no `by`, broken item or README),
  *   OPEN_ITEMS (each open item named), CONFLICT (archive folder exists, the
  *   folder holds something that is not a file or folder, or the Epic has
@@ -1025,6 +1033,9 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
     throw new WorkStoreError('SCHEMA', `${epicId}: close time must be an ISO date (got ${JSON.stringify(at)})`);
   }
   const execFn = opts.execFn ?? execFileSync;
+  requireStore(baseDir);
+  const pending = sensitivePending([pr, release], opts);
+  if (pending) return pending;
   return withWorkLock(baseDir, async () => {
     const planning = join(baseDir, '.planning');
     const fromDirRel = epicDirRel(epicId);
@@ -1376,7 +1387,7 @@ export async function applyTriage(baseDir, idOrLabel, decision = {}, opts = {}) 
   }
 
   const fields = decision.accept ?? {};
-  const pending = sensitivePending([fields.title], opts);
+  const pending = sensitivePending([fields.title, fields.theme], opts);
   if (pending) return { action, ...pending };
   return withWorkLock(baseDir, async () => {
     const current = getItem(baseDir, id);
