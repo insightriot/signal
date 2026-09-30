@@ -227,6 +227,7 @@ describe('moveEpicArtifactsIn never overwrites (REVIEW pass 3, test gap)', () =>
     await put(`${FOLDER}/${EPIC}-PLAN.md`, '# the folder copy\n');
     const err = await moveItem(base, 'SIG-1', { status: 'Q', epic: EPIC }).catch((e) => e);
     expect(err).toBeInstanceOf(WorkStoreError);
+    expect(err.code).toBe('CONFLICT');
     expect(err.message).toContain(`${FOLDER}/${EPIC}-PLAN.md already exists`);
     expect(await read(`${FOLDER}/${EPIC}-PLAN.md`)).toBe('# the folder copy\n');
     expect(await read(`.planning/${EPIC}-PLAN.md`)).toBe(PLAN_ROOT);
