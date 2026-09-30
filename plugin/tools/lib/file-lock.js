@@ -148,10 +148,13 @@ export async function acquireLock(lockPath, opts = {}) {
       // and this create. It holds the lock; this call gives way.
       throw heldError(label, lockPath, readOrNull(lockPath) ?? '', ttlSec);
     } finally {
+      // Removing the set-aside stale file is cleanup only. A failure here must
+      // not replace the outcome above (a held lock, or a refusal) — a stray
+      // `.stale-*` file is inert, since nothing reads it as a lock.
       try {
         unlinkSync(aside);
-      } catch (err) {
-        if (err.code !== 'ENOENT') throw err;
+      } catch {
+        /* inert leftover; see above */
       }
     }
   }
