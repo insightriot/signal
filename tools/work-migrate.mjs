@@ -18,10 +18,19 @@
 //
 // Any other argument is refused with the usage line and exit 2 — a mistyped
 // flag never falls through to a run.
+//
+// Both the dry run and --apply refuse (CONFLICT, exit 1) when
+// `.planning/work/WATCHLIST.md` or `.planning/work/EPICS.md` already exists:
+// the migration creates those files and will not overwrite one it did not
+// write, so a dry run never reports a migration that --apply would refuse.
+// --apply also takes the store's work lock (`.planning/work/.lock`) before
+// any check, and refuses (LOCKED) while another store command holds it.
 
 import { applyMigration, formatMigrationReport } from '../plugin/tools/lib/work-migrate.js';
 
-const USAGE = 'usage: node tools/work-migrate.mjs [--apply] [--date YYYY-MM-DD] [--help]';
+const USAGE = 'usage: node tools/work-migrate.mjs [--apply] [--date YYYY-MM-DD] [--help]\n'
+  + '  dry run by default (writes nothing); --apply migrates. Both refuse if .planning/work/WATCHLIST.md\n'
+  + '  or .planning/work/EPICS.md already exists — move it aside first.';
 
 let apply = false;
 let help = false;

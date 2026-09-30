@@ -337,6 +337,68 @@ describe('a failed apply leaves the tree as it was', () => {
   }, 120_000);
 });
 
+// REVIEW pass 2, P2-I7 and Suggestions: the migration takes the `work` lock
+// with the shared 120 s WORK_LOCK_TTL_MS, BEFORE its precondition checks,
+// releases it with its own token, and rolls back only files it wrote.
+describe('the work lock', () => {
+  const plant = (planning, text) => {
+    mkdirSync(join(planning, 'work'), { recursive: true });
+    writeFileSync(join(planning, 'work', '.lock'), text);
+  };
+
+  it('a 10-second-old lock → LOCKED, nothing written, the planted lock untouched', async () => {
+    const planted = `4242\n${Date.now() - 10_000}\nsomeone\n`;
+    const dir = makeProject({ edit: (planning) => plant(planning, planted) });
+    const before = tree(dir);
+    const err = await applyMigration(dir, { date: DATE, dryRun: false }).catch((e) => e);
+    expect(err).toMatchObject({ code: 'LOCKED' });
+    expect(tree(dir)).toEqual(before);
+  });
+
+  it('the lock comes before the precondition checks: a held lock wins over an existing WATCHLIST', async () => {
+    const planted = `4242\n${Date.now()}\nsomeone\n`;
+    const dir = makeProject({
+      edit: (planning) => {
+        plant(planning, planted);
+        writeFileSync(join(planning, 'work', WATCHLIST_FILE), 'mine\n');
+      },
+    });
+    const before = tree(dir);
+    await expect(applyMigration(dir, { date: DATE, dryRun: false })).rejects.toMatchObject({ code: 'LOCKED' });
+    expect(tree(dir)).toEqual(before);
+  });
+
+  it('releases only its own lock: a lock another holder took mid-run is left alone', async () => {
+    const dir = makeProject();
+    const lockPath = join(dir, '.planning', 'work', '.lock');
+    const thief = `4242\n${Date.now()}\nsomeone-else\n`;
+    let stolen = false;
+    const _afterWrite = () => {
+      if (!stolen) {
+        writeFileSync(lockPath, thief); // expired, stolen, re-created
+        stolen = true;
+      }
+    };
+    await applyMigration(dir, { date: DATE, dryRun: false, _afterWrite });
+    expect(readFileSync(lockPath, 'utf-8')).toBe(thief);
+  }, 120_000);
+
+  it('a failed apply restores only lists IT wrote: a list edited by hand during the run is left as edited', async () => {
+    const dir = makeProject();
+    const bugs = join(dir, '.planning', 'BUGS.md');
+    const boom = new Error('injected failure');
+    const _afterWrite = (rel) => {
+      if (rel.endsWith('work/WORK.md')) {
+        writeFileSync(bugs, '# edited by hand mid-run\n');
+        throw boom;
+      }
+    };
+    await expect(applyMigration(dir, { date: DATE, dryRun: false, _afterWrite })).rejects.toBe(boom);
+    expect(readFileSync(bugs, 'utf-8')).toBe('# edited by hand mid-run\n');
+    expect(existsSync(join(dir, '.planning', 'work'))).toBe(false);
+  }, 120_000);
+});
+
 // REVIEW I2: a file the migration would create that already exists is
 // refused up front — never overwritten, and so never deleted by a rollback.
 describe('refusals — files the migration would create', () => {

@@ -339,6 +339,24 @@ describe('archive-tree.js — the link rewrite leaves generated lists to the gen
     expect(await readFile(planning('BUGS.md'), 'utf-8')).toBe('# Bugs\n\nkept by hand\n');
   });
 
+  // REVIEW pass 2, P2-I7: the apply rewrites item files, so it takes the
+  // store's `work` lock — with the shared 120 s WORK_LOCK_TTL_MS, or a lock a
+  // live mutation has held for 10 s reads as stale and is stolen — and takes
+  // it BEFORE anything moves, so a busy store refuses with nothing moved.
+  it('a 10-second-old work lock → LOCKED before anything moves; the planted lock is untouched', async () => {
+    await newItem(root, { title: 'x', body: 'See [the plan](M6.E1-PLAN.md).', by: 't' });
+    await put('.planning/M6.E1-RETROSPECTIVE.md', '# M6.E1 retro\n');
+    await put('.planning/M6.E1-PLAN.md', '# M6.E1 plan\n');
+    const planted = `4242\n${Date.now() - 10_000}\nsomeone\n`;
+    await put('.planning/work/.lock', planted);
+    const itemBefore = getItem(root, 'SIG-1').body;
+    await expect(applyArchiveTree(root, { apply: true })).rejects.toMatchObject({ code: 'LOCKED' });
+    expect(await readFile(planning('work', '.lock'), 'utf-8')).toBe(planted);
+    expect(existsSync(planning('M6.E1-PLAN.md'))).toBe(true);
+    expect(existsSync(planning('archive'))).toBe(false);
+    expect(getItem(root, 'SIG-1').body).toBe(itemBefore);
+  });
+
   it('dry run writes nothing, lists included', async () => {
     await newItem(root, { title: 'x', body: 'See [the plan](M6.E1-PLAN.md).', by: 't' });
     await put('.planning/M6.E1-RETROSPECTIVE.md', '# M6.E1 retro\n');

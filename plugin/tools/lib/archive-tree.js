@@ -566,7 +566,9 @@ export async function senseArchiveTree(baseDir, opts = {}) {
 
 /**
  * Execute (or dry-run) the archive-tree move + keyed link/prose rewrite. LOCK-FREE
- * (§9): the caller owns the coarse lock; this never self-locks. Ordering (§2 / B8):
+ * for the coarse `.state.lock` (§9): the caller owns it; this never takes it. With
+ * the work store on, an apply takes the store's own `work` lock around all of its
+ * writes (REVIEW pass 2) — the moves rewrite item files. Ordering (§2 / B8):
  * MOVE each file first with a byte-identical read-back assert (content preserved
  * before anything is rewritten), remove the source, THEN rewrite links/prose at the
  * files' NEW locations. Dry-run by default (writes nothing).
@@ -587,15 +589,35 @@ export async function applyArchiveTree(baseDir, opts = {}) {
     return { applied: false, moves, moveMap, plannedEdits: editCount };
   }
 
-  // With the store on, the lists are regenerated at the end (below). A list
-  // that is still hand-kept would refuse that regeneration — so refuse HERE,
-  // before any file moves, or the moves stand with the lists left stale.
+  // With the store on, the moves rewrite item files and the lists are
+  // regenerated at the end, so the whole apply runs under the store's own
+  // `work` lock (D-M6E11-27) — never `.state.lock`, which the migrate caller
+  // already holds. Taken HERE, before any file moves (REVIEW pass 2): a busy
+  // store refuses with nothing moved, instead of after the moves stood. A
+  // list that is still hand-kept would refuse the regeneration, so it is
+  // refused here too, for the same reason.
   const storeOn = isStoreOn(baseDir).on;
+  let lock = null;
   if (storeOn) {
-    const { assertNoHandKeptLists } = await import('./work-generate.js');
-    assertNoHandKeptLists(baseDir);
+    try {
+      lock = await acquireLock(join(baseDir, WORK_LOCK_REL), { label: 'work store', ttlMs: WORK_LOCK_TTL_MS });
+    } catch (err) {
+      throw lockFailure(err);
+    }
   }
+  try {
+    if (storeOn) {
+      const { assertNoHandKeptLists } = await import('./work-generate.js');
+      assertNoHandKeptLists(baseDir);
+    }
+    return await moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, storeOn });
+  } finally {
+    await lock?.released(); // only while this call still holds it (REVIEW I4)
+  }
+}
 
+// applyArchiveTree's writes, run under the `work` lock when the store is on.
+async function moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, storeOn }) {
   // 1. MOVE first — byte-identical relocate + read-back assert, then drop source.
   for (const { from, to } of moves) {
     const srcAbs = join(baseDir, from);
@@ -643,18 +665,10 @@ export async function applyArchiveTree(baseDir, opts = {}) {
     rewrittenFiles += 1;
   }
 
-  // Regenerate so the lists carry the item files' new links. Under the
-  // store's own `work` lock (D-M6E11-27) — never `.state.lock`, which the
-  // migrate caller already holds. Only when something changed.
+  // Regenerate so the lists carry the item files' new links — still under
+  // the caller's `work` lock. Only when something changed.
   if ((staleGenerated || rewrittenFiles > 0) && storeOn) {
     const { generateAll } = await import('./work-generate.js');
-    const lockPath = join(baseDir, WORK_LOCK_REL);
-    let lock;
-    try {
-      lock = await acquireLock(lockPath, { label: 'work store', ttlMs: WORK_LOCK_TTL_MS });
-    } catch (err) {
-      throw lockFailure(err);
-    }
     try {
       await generateAll(baseDir);
     } catch (err) {
@@ -663,8 +677,6 @@ export async function applyArchiveTree(baseDir, opts = {}) {
         `the archive moves stood, but the lists were not regenerated: ${err?.message ?? err}`);
       wrapped.cause = err;
       throw wrapped;
-    } finally {
-      await lock.released();
     }
   }
 
