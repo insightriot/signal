@@ -131,3 +131,35 @@ Open question this does not answer: which Signal document should carry a bound. 
 Running `node tools/adherence-ceiling.js --help` silently regenerates .planning/ADHERENCE-LOG.md (unknown flags are ignored), pinning whatever HEAD is. Found during M6.E11 REVIEW-fix batch 1: it pinned the wrong commit and had to be redone. Fix: reject unknown flags; print usage on --help.
 
 ---
+
+## ship.md §6.8 omits closeEpic's sensitive-data abort outcome
+
+**Status:** untriaged (N) · SIG-250
+
+closeEpic can return {aborted: 'sensitive-data-pending'} when pr/release text trips the scrub (added M6.E11 review 3). ship.md §6.8 lists four outcomes, not this one. Probed: PR numbers/URLs and version strings do not trip it, so unlikely. Fix: one line, nothing changed; ask keep/abort.
+
+---
+
+## file-lock held-error understates the wait for a live holder (10x ttl)
+
+**Status:** untriaged (N) · SIG-251
+
+Since M6.E11 review 3, a live pid on this host holds a lock up to 10x its ttl (state 50 s, add 5 min, work 20 min worst case; pid reuse by an unrelated process can wedge it that long). The held message still says retry in <ttl s. Fix: show 10*ttl when the holder is a live local pid.
+
+---
+
+## file-lock: a failed stat treats a fresh empty lock as stale
+
+**Status:** untriaged (N) · SIG-252
+
+file-lock.js: statSync(...)?.mtimeMs ?? 0 treats a vanished file as mtime 0, so an empty lock is judged stale at once. Needs two back-to-back microsecond windows (release between read and stat, then a new creator). Fix: continue on a missing stat, as a missing read already does.
+
+---
+
+## aborted store discharge still labels rows discharged
+
+**Status:** untriaged (N) · SIG-253
+
+backlog.js dischargeInStore returns results whose rows say status: discharged alongside written:false and aborted. Unreachable today (acknowledgeSensitive:true is passed). Fix: mark rows not written on abort, or drop the guard as dead code.
+
+---
