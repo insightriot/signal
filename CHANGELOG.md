@@ -16,7 +16,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   - **Projects in a subdirectory of their repository** (a monorepo package, `examples/sandbox/`) read their own `STATE.md` on each branch.
   - **`/sig:drive`** proposes it right after the local open Epic and ahead of every backlog row, and **refuses to resume it here**: it names the step above and stops, because running its next phase would write this branch's files. It never switches branches or pulls.
   - **`/sig:advise`** gains a fifth source, `other branches`, and lists open Epics in an *Open on other branches* section above the ranking. They are not ranked and not cited, because their evidence is not a file on this branch.
-  - **Known limits:** a squash merge whose `STATE.md` was edited during the merge can still read as open, and a branch with code commits that never touched `STATE.md` is not seen.
+  - **Known limits:** a squash merge whose `STATE.md` was edited during the merge can still read as open, and a branch with code commits that never touched `STATE.md`, or whose exact `STATE.md` reached this branch by cherry-pick (or by a squash later reverted), is not seen.
   - Branches that cannot be compared are **named, never dropped**: one whose `STATE.md` names no Epic, and one whose `STATE.md` will not parse. An unparseable file on one branch does not discard what the others say. Outside a git repository there are no other branches, which is reported as a complete answer, not a blind spot.
 
 ### Still to come

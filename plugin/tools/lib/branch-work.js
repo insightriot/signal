@@ -26,8 +26,10 @@
 //      branch's final STATE.md here. Either way it is not work in progress. This
 //      is the only finished-here check for Epic ids that are not M-shaped, which
 //      never get a retrospective file (`deriveRetroPath` refuses them).
-//      Known limit: a squash merge whose STATE.md was edited during the merge, and
-//      a branch with code commits that never touched STATE.md, are both missed.
+//      Known limits: a squash merge whose STATE.md was edited during the merge can
+//      still read as open; a branch with code commits that never touched STATE.md,
+//      and an open branch whose exact STATE.md reached HEAD by cherry-pick (or by a
+//      squash later reverted), are not seen.
 // A branch whose STATE.md names no Epic cannot be compared by identity, so it is
 // COUNTED and reported rather than dropped — silence about blindness is the defect.
 //
@@ -180,7 +182,7 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
   // branch has not already seen — a stale fork, or a squash merge (which lands
   // the branch's final STATE.md here). Fail-soft: without it, rule 5 is skipped.
   const seenHere = new Set();
-  const history = soft(git, baseDir, ['log', '--raw', '--no-abbrev', '--format=', 'HEAD', '--', `./${STATE_REL}`]);
+  const history = soft(git, baseDir, ['log', '--full-history', '--raw', '--no-abbrev', '--format=', 'HEAD', '--', `./${STATE_REL}`]);
   for (const line of (history ?? '').split('\n')) {
     const m = line.match(/^:\d+ \d+ ([0-9a-f]+) ([0-9a-f]+) /);
     if (m) {
