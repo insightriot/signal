@@ -16,6 +16,10 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
   - **`/sig:advise`** gains a fifth source, `other branches`, and lists open Epics in an *Open on other branches* section above the ranking. They are not ranked and not cited, because their evidence is not a file on this branch.
   - A branch whose `STATE.md` names no Epic cannot be compared, so it is **counted and named** rather than dropped. Outside a git repository there are no other branches, which is reported as a complete answer, not a blind spot.
 
+### Still to come
+
+- **Other projects still cannot move into the work-item store.** That is `/sig:docs-migrate`'s job (step 5 of [`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](analysis/WORK-ITEM-SYSTEM-DESIGN.md)), and it is not built yet. Projects without `.planning/work/WORK.md` see no change; don't create that file by hand over hand-kept lists.
+
 ## [0.1.43] — 2026-09-30 — The work-item store — one file per thing, moved, never copied
 
 ### Added
