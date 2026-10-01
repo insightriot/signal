@@ -6,6 +6,23 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.44] — 2026-10-01 — `/sig:drive` and `/sig:advise` see work open on other branches
+
+### Fixed
+
+- **An Epic open on another branch is no longer invisible** (`B118`). `/sig:drive` and `/sig:advise` read `.planning/` from the checked-out branch only, so an Epic open on an unmerged branch was missing from both — a run on `main` reported nothing open and offered new work ahead of it, and nothing said the answer covered one branch. Both now read `STATE.md` from every branch not already merged into the current one through a new shared module, `tools/lib/branch-work.js`. The cost is a fixed handful of git processes whatever the branch count (under 15 for 200 open branches; about 0.1 s on this repository's 31).
+  - **What counts as open elsewhere:** the branch's `STATE.md` is not a version this branch's history already holds (that filters stale forks, and squash merges, which land the branch's final `STATE.md` here), it names an Epic with no SHIP recorded, the Epic has no `-RETROSPECTIVE.md` or `-SHIP.md` anywhere under `.planning/` here (this is what filters out squash-merged branches, which git still reports as unmerged), and it is not the local Epic. On this repository, 30 of 31 unmerged branches are filtered out and the 31st, which names no Epic, is listed as not comparable.
+  - **It says how to reach the work:** `git checkout <branch>`; **`git pull`** when the work is on this branch's tracked remote copy, pushed from another machine (or `git pull <remote> <branch>` for a same-named branch on another remote); or the path of the other worktree where the branch is already checked out. Remote names come from `git remote`, not a hard-coded `origin`.
+  - **Projects in a subdirectory of their repository** (a monorepo package, `examples/sandbox/`) read their own `STATE.md` on each branch.
+  - **`/sig:drive`** proposes it right after the local open Epic and ahead of every backlog row, and **refuses to resume it here**: it names the step above and stops, because running its next phase would write this branch's files. It never switches branches or pulls.
+  - **`/sig:advise`** gains a fifth source, `other branches`, and lists open Epics in an *Open on other branches* section above the ranking. They are not ranked and not cited, because their evidence is not a file on this branch.
+  - **Known limits:** a squash merge whose `STATE.md` was edited during the merge can still read as open, and a branch with code commits that never touched `STATE.md`, or whose exact `STATE.md` reached this branch by cherry-pick (or by a squash later reverted), is not seen.
+  - Branches that cannot be compared are **named, never dropped**: one whose `STATE.md` names no Epic, and one whose `STATE.md` will not parse. An unparseable file on one branch does not discard what the others say. Outside a git repository there are no other branches, which is reported as a complete answer, not a blind spot.
+
+### Still to come
+
+- **Other projects still cannot move into the work-item store.** That is `/sig:docs-migrate`'s job (step 5 of [`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](analysis/WORK-ITEM-SYSTEM-DESIGN.md)), and it is not built yet. Projects without `.planning/work/WORK.md` see no change; don't create that file by hand over hand-kept lists.
+
 ## [0.1.43] — 2026-09-30 — The work-item store — one file per thing, moved, never copied
 
 ### Added

@@ -1,6 +1,7 @@
 // What `/sig:advise` reads, and what it could not read — `M6.E7` S2.
 //
-// FOUR sources since `M6.E8` (it was five; retrospectives left), and the second
+// FIVE sources since `B118` (four after `M6.E8` dropped retrospectives; `other
+// branches` joined). The second
 // half of that sentence is the load-bearing one. This returns
 // `{sources, cannotCheck, checked}` — the shape `collectPreflight` already uses —
 // because the failure this module exists to avoid is an advisory that reads three
@@ -33,6 +34,8 @@ import { parseBacklogRows } from './backlog.js';
 import { walkBugEntries } from './bugs-tally.js';
 import { resolveClosures } from './closure.js';
 import { parseEpicStatusRows } from './milestones.js';
+import { findWorkOnOtherBranches } from './branch-work.js';
+import { readState } from './state.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -48,7 +51,12 @@ export const ADVISOR_SOURCES = Object.freeze([
   'BUGS.md',
   'STATE/closure',
   'milestone rows',
+  'other branches',
 ]);
+// ⚠ `other branches` is the fifth (`B118`). Every other source is read from the
+// checked-out branch, so an Epic open on an unmerged branch was invisible and an
+// advisory recommended new work ahead of it. It is not ranked — it is listed above
+// the ranking, because an open Epic is a different kind of answer from a row.
 // ⚠ FOUR, NOT FIVE (`M6.E8` FR5). `retrospectives` was the fifth: 32 files
 // enumerated and parsed for section headings on every run, consulted by no
 // ranking input and cited by nothing. A source read and never used is a
@@ -79,7 +87,7 @@ function bugHeadline(rowLine) {
  */
 export async function readCorpus(baseDir) {
   const planningDir = join(baseDir, PLANNING_DIR);
-  const sources = { backlog: null, bugs: null, closure: null, milestones: null };
+  const sources = { backlog: null, bugs: null, closure: null, milestones: null, otherBranches: null };
   const cannotCheck = [];
   const checked = [];
 
@@ -210,6 +218,30 @@ try {
 } catch (err) {
   fail('milestone rows', `${PLANNING_DIR}/ could not be listed — ${err.message}`);
 }
+
+  // ── 6. Epics open on other branches (`B118`). `localEpic` is read here rather
+  //      than taken from `closure`, which does not expose it; a throwing read only
+  //      loses the "same as the local Epic" filter, never the scan.
+  try {
+    let localEpic = null;
+    try {
+      localEpic = (await readState(baseDir))?.current_epic ?? null;
+    } catch {
+      localEpic = null;
+    }
+    const found = await findWorkOnOtherBranches(baseDir, { localEpic });
+    // Only a scan that read NOTHING is cannot-check. One unparseable branch is
+    // named inside the source (`unreadable`) and every other branch's answer
+    // stands — discarding them for it would hide open Epics over an unrelated file.
+    if (found.failed) {
+      fail('other branches', found.cannotCheck.map((c) => c.reason).join('; '));
+    } else {
+      sources.otherBranches = { open: found.open, unclassified: found.unclassified, unreadable: found.unreadable };
+      checked.push('other branches');
+    }
+  } catch (err) {
+    fail('other branches', `branches could not be scanned — ${err.message}`);
+  }
 
   return { sources, cannotCheck, checked };
 }

@@ -39,8 +39,8 @@ last_updated: 2026-09-30T22:24:43.091Z
 [`M6.E11-RETROSPECTIVE.md`](M6.E11-RETROSPECTIVE.md).
 
 **Next, in this order (agreed with Brett 2026-10-01):**
-1. **`B118`** (`SIG-118`) — `/sig:drive` and `/sig:advise` read one branch's `.planning/`, so work open
-   on another branch is invisible to both. Fix in the shared layer, not in `drive.js` alone.
+1. ~~**`B118`** (`SIG-118`) — `/sig:drive` and `/sig:advise` read one branch's `.planning/`.~~
+   **Fixed in `v0.1.44`** (`tools/lib/branch-work.js`, shared by both).
 2. **`/sig:advise` stops ranking by age** — it reviews the docs for the big picture, proposes 3–5
    big-picture priorities, and asks the user to choose.
 3. **Steps 2–5 of the work-item store** — step 5 is what moves other projects over via
@@ -89,7 +89,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-None in flight. Next: `B118` — see *Where the work is* above.
+None in flight. Next: the `/sig:advise` priorities redesign — see *Where the work is* above.
 
 ## Blockers
 

@@ -21,6 +21,8 @@ Authoritative references:
   `collectPreflight`, `formatPreflight`, `PREFLIGHT_SOURCES`, `resolveFloors`, `FLOOR_CONDITIONS`, `routeDecision`,
   `ROUTE_REVERSIBILITY`, `ROUTE_ALTITUDE`, `formatAnsweredForward`, `canProceedUnattended`,
   `FLOORS`, `floorsFor`, `queueDecision`, `readQueue`
+- `tools/lib/branch-work.js` — `findWorkOnOtherBranches`, `formatOtherBranchWork` (called inside
+  `proposeEpicCandidates`; `B118`)
 - `tools/lib/loop-ceiling.js` — `loopStatusFor`, `formatLoopCeilingHalt`, `LOOP_BOUNDED_PHASES`
 - `tools/lib/profile.js` — `attentionFor`, `ATTENTION_LEVELS`, `readEffectiveProfile`
 - `tools/lib/status.js` — `describeNextAction`, `formatNextActionCopy`
@@ -74,6 +76,14 @@ Otherwise call `proposeEpicCandidates(baseDir)`. Present the candidates in the o
 — an already-open Epic comes first, because resuming beats starting something new — and ask
 which one, via `AskUserQuestion`, offering the top candidates plus an "something else" path.
 
+**"Already open" means open on ANY branch, not just this one** (`B118`). STATE.md is one
+branch's answer, so `proposeEpicCandidates` also reads `STATE.md` from every branch not already
+merged into this one, and an Epic open there (that STATE.md is not a version this branch's history already
+holds, records no SHIP, and has no retrospective or SHIP artifact here) is proposed right after the local
+open Epic, carrying `branch` and `nextStep`. Branches whose
+STATE.md names no Epic come back in `unclassifiedBranches` — name them on one line, so an empty
+list cannot read as "checked every branch". Remote branches are as fresh as the last `git fetch`.
+
 ⚠ **It proposes; you never pick silently.** `LOOP-GOAL-DIRECTION.md` measured the best honest
 selection rule over real backlog rows at **77% precision / ~37% recall** and recommended not
 building automatic selection. That verdict is about a *silent* pick becoming work nobody asked
@@ -94,6 +104,13 @@ advice instead of asking, which leaves the user to restate what they already cam
 ### 0a-ii. Say where the chosen work STARTS
 
 Call `resolveStartPhase(state, candidate)`.
+
+⚠ **A candidate with `branch` comes back `blocked: true`, and the run stops there.** Its next
+phase would run against this branch's files and write this branch's STATE.md. Print the `why`:
+it names the one step that reaches the work — `git checkout <branch>`, **`git pull`** when the
+work is on this branch's own remote copy (pushed from another machine), or the other worktree's
+path. The person takes that step and starts `/sig:drive` again. This run never switches branches
+or pulls.
 
 **Choosing the work and not saying where it starts leaves the dead end the front end exists to
 remove, one step later** — steps 1–3 read `state.phase`, so a run that has just picked something

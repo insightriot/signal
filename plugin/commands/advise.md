@@ -39,9 +39,12 @@ own or fail the budget check once the advisory grows past 32 KB.
 
 Call `runAdvise(baseDir, { today, projectName })` from `tools/lib/advise.js`. It does the whole run:
 
-1. **Read the corpus** — `readCorpus` (`tools/lib/advise-corpus.js`) over the four sources in
-   `ADVISOR_SOURCES`: `BACKLOG.md`, `BUGS.md`, STATE/closure, milestone rows (retrospectives were
-   a fifth until `M6.E8` — 32 files parsed per run for nothing that ranked). A
+1. **Read the corpus** — `readCorpus` (`tools/lib/advise-corpus.js`) over the five sources in
+   `ADVISOR_SOURCES`: `BACKLOG.md`, `BUGS.md`, STATE/closure, milestone rows, and **other
+   branches** (`B118` — Epics open on a branch not merged into this one, via
+   `findWorkOnOtherBranches`; listed in their own section above the ranking, never ranked, and
+   not cited, because their evidence is not a file on this branch). Retrospectives were read
+   until `M6.E8` — 32 files parsed per run for nothing that ranked. A
    source that could not be read lands in `cannotCheck` with a reason and its slot stays `null` —
    never an empty result standing in for one.
 2. **Rank** — seven inputs: blocked-by, trigger-met, **discharge** (`backlogDischargeStatus` —

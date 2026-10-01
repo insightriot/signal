@@ -24,6 +24,7 @@ import { LOOP_BOUNDED_PHASES } from './loop-ceiling.js';
 import { atomicWrite } from './atomic-write.js';
 import { parseBacklogRows } from './backlog.js';
 import { readState, partitionCompletedPhases, PHASES } from './state.js';
+import { findWorkOnOtherBranches, nextStepFor } from './branch-work.js';
 import { resolveArtifactPath } from './resume.js';
 
 export const QUEUE_REL = '.planning/DECISION-QUEUE.md';
@@ -456,7 +457,8 @@ export async function readQueue(baseDir) {
  *
  * @param {string} baseDir
  * @returns {Promise<{candidates: Array<{id: string|null, title: string, source: string,
- *   line: number|null, why: string}>, cannotCheck: Array<{source: string, reason: string}>}>}
+ *   line: number|null, why: string, branch?: string}>, cannotCheck: Array<{source: string, reason: string}>,
+ *   unclassifiedBranches: string[]}>}
  */
 /**
  * How much a backlog heading looks like a unit of WORK rather than a section of prose.
@@ -510,6 +512,25 @@ export async function proposeEpicCandidates(baseDir) {
     }
   }
 
+  // Open on ANOTHER branch (`B118`). "Resume beats start" is a claim about the
+  // repository, and STATE.md above is one branch's answer. These rank after the
+  // local open Epic and ahead of every backlog row, and each carries `branch` so
+  // `resolveStartPhase` refuses to resume it here — this run never switches branches.
+  const otherBranches = await findWorkOnOtherBranches(baseDir, { localEpic: state?.current_epic ?? null });
+  for (const o of otherBranches.open) {
+    candidates.push({
+      id: o.epic,
+      title: o.epic,
+      source: `${o.branches.join(', ')} (open Epic)`,
+      branch: o.checkout,
+      phase: o.phase,
+      nextStep: nextStepFor(o),
+      line: null,
+      why: `already open at ${o.phase ?? 'an unrecorded phase'} on ${o.branches.join(', ')} — finish it before starting new work`,
+    });
+  }
+  cannotCheck.push(...otherBranches.cannotCheck);
+
   const backlogPath = join(baseDir, '.planning', 'BACKLOG.md');
   if (!existsSync(backlogPath)) {
     cannotCheck.push({ source: 'BACKLOG.md', reason: 'no file — nothing to pick from' });
@@ -546,7 +567,7 @@ export async function proposeEpicCandidates(baseDir) {
     }
   }
 
-  return { candidates, cannotCheck };
+  return { candidates, cannotCheck, unclassifiedBranches: otherBranches.unclassified };
 }
 
 /** Sources the pre-flight pass consults. Named so a report can say what it looked at. */
@@ -760,6 +781,21 @@ export function resolveStartPhase(state, candidate) {
   const recorded = typeof state?.phase === 'string' ? state.phase.trim() : null;
   const recognized = recorded !== null && CANONICAL_PHASES.includes(recorded);
   const resuming = Boolean(candidate?.source?.includes('STATE.md'));
+
+  // Open on another branch (`B118`). Resuming it HERE would run its next phase
+  // against this branch's files and write this branch's STATE.md — the wrong
+  // branch. Switching branches is the person's call, so the run stops and says how.
+  if (candidate?.branch) {
+    const step = candidate.nextStep ?? `run \`git checkout ${candidate.branch}\` to continue it`;
+    return {
+      phase: candidate.phase ?? 'DISCUSS',
+      why:
+        `${candidate.id ?? 'This Epic'} is open where this checkout cannot see it: ${step}, then start ` +
+        '/sig:drive again — this run does not switch branches or pull.',
+      changed: false,
+      blocked: true,
+    };
+  }
 
   if (resuming && recognized) {
     return {

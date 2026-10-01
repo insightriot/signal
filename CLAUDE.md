@@ -79,7 +79,7 @@ lists**. Opt-in by `.planning/work/WORK.md`; projects without it see no change. 
 lock was the hardest part**: three REVIEW passes, each finding a defect in the previous pass's fix.
 Retro: [`.planning/M6.E11-RETROSPECTIVE.md`](.planning/M6.E11-RETROSPECTIVE.md). Next: steps 2–5 of
 `analysis/WORK-ITEM-SYSTEM-DESIGN.md`; other projects move over via `/sig:docs-migrate` (step 5).
-`B118` — `/sig:drive` and `/sig:advise` read one branch's corpus — is still unfixed.
+`B118` (`/sig:drive` and `/sig:advise` read one branch's corpus) fixed in `v0.1.44`.
 
 ✅ **`B117` — the Epic lane kept getting squashed. CLOSED 2026-09-08 by the ruleset** (see *How changes reach `main`* below: `main` now permits `merge` only, so the sticky button cannot arm anything). The history is kept because the *cause* is the lesson. PR #239 was
 merged with the green button and collapsed 35 commits into one, orphaning two published anchors and
