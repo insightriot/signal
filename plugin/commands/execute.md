@@ -70,7 +70,7 @@ Call `checkBranchPosture(baseDir, { tier: profile.tier, override })` from `tools
 
 ## Workflow
 
-**Artifact naming (M4.5.E11).** Name each artifact this phase writes with `artifactName(ARTIFACT, { currentEpic })` (`tools/lib/resume.js`), and resolve ones it reads with `resolveArtifactPath(planningDir, ARTIFACT, { currentEpic, phase })` — `currentEpic` is `current_epic` from STATE. **Epic mode** → `{EpicID}-{ARTIFACT}.md` (e.g. `M4.5.E11-PROGRESS.md`); **linear mode** → the `{phase}-{ARTIFACT}.md` forms below, byte-identical to pre-E11. Substitute the `artifactName` result wherever this file writes a literal `.planning/{phase}-*.md` path.
+**Artifact naming (M4.5.E11).** Name each artifact this phase writes with `artifactName(ARTIFACT, { currentEpic, planningDir })` (`tools/lib/resume.js`), and resolve ones it reads with `resolveArtifactPath(planningDir, ARTIFACT, { currentEpic, phase })` — `currentEpic` is `current_epic` from STATE. **Epic mode** → `{EpicID}-{ARTIFACT}.md` (e.g. `M4.5.E11-PROGRESS.md`); **linear mode** → the `{phase}-{ARTIFACT}.md` forms below, byte-identical to pre-E11. Substitute the `artifactName` result wherever this file writes a literal `.planning/{phase}-*.md` path.
 
 ### 1. Load Plan
 
@@ -102,7 +102,7 @@ Every ~45 minutes of execution:
 
 ### 4. Progress Tracking
 
-After each task, update the PROGRESS artifact (`artifactName('PROGRESS', { currentEpic })` — `{phase}-PROGRESS.md` linear / `{EpicID}-PROGRESS.md` Epic):
+After each task, update the PROGRESS artifact (`artifactName('PROGRESS', { currentEpic, planningDir })` — `{phase}-PROGRESS.md` linear / `{EpicID}-PROGRESS.md` Epic):
 ```markdown
 ## Wave {n}
 - [x] Task 1 — commit {hash}

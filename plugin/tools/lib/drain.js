@@ -30,6 +30,23 @@ import { atomicWrite } from './atomic-write.js';
 import { withStateLock } from './state.js';
 import { resolveInboxPath, resolveLedgerPath } from './inbox-path.js';
 import { promoteToBacklog, promoteToBugs } from './backlog.js';
+import { WorkStoreError } from './work-item.js';
+import { isStoreOn } from './work-store.js';
+
+// M6.E11 (t4.4, AC-6.3, D-M6E11-25): with the work store on, the inbox is
+// GENERATED from item files — a stamp, a promote or an eviction written into
+// it would vanish at the next regeneration, and the promote would duplicate
+// work `/sig:item triage` owns. So every drain write refuses outright, before
+// it takes `.state.lock` or reads the inbox. A dry run too: one rule is
+// easier to trust than two. (The write guard in `atomicWrite` would refuse
+// anyway, but half-way through a two-file write and with a less useful
+// message.) A broken WORK.md throws CONFIG here — never a fallback.
+function refuseWhenStoreOn(baseDir, what) {
+  if (!isStoreOn(baseDir).on) return;
+  throw new WorkStoreError('GENERATED', `${what}: the work store is on, so the inbox (.planning/ISSUES-INBOX.md) `
+    + 'is generated from the item files under .planning/work/inbox/ and the drain does not write it. '
+    + 'Sort the inbox with `/sig:item triage` instead.');
+}
 
 // Top-level entry boundary: a line that begins with exactly `## ` (two hashes +
 // space). `### …` has a non-space at index 2, so it never matches — nested
@@ -589,6 +606,7 @@ export function applyDispositions(content, dispositions) {
  * @returns {Promise<{written: boolean, kept?: boolean, verb: string, heading: string, path?: string}>}
  */
 export async function applyDispositionToFileCore(baseDir, relPath, opts) {
+  refuseWhenStoreOn(baseDir, 'applyDispositionToFile');
   const { entryIndex, verb, reason, date, confirmPrompt, renameFn } = opts;
   const targetPath = join(baseDir, relPath);
   const content = await readFile(targetPath, 'utf-8');
@@ -629,6 +647,7 @@ export async function applyDispositionToFileCore(baseDir, relPath, opts) {
  * @param {object} opts — see `applyDispositionToFileCore`
  */
 export async function applyDispositionToFile(baseDir, relPath, opts) {
+  refuseWhenStoreOn(baseDir, 'applyDispositionToFile');
   return withStateLock(baseDir, () => applyDispositionToFileCore(baseDir, relPath, opts));
 }
 
@@ -811,6 +830,7 @@ async function evictTerminalToLedgerCore(baseDir, opts = {}) {
  * @returns {Promise<{evicted: Array<{heading: string, key: string}>, planned: Array<{heading: string, key: string}>, danglingFence: boolean}>}
  */
 export async function evictTerminalToLedger(baseDir, opts = {}) {
+  refuseWhenStoreOn(baseDir, 'evictTerminalToLedger');
   return withStateLock(baseDir, () => evictTerminalToLedgerCore(baseDir, opts));
 }
 
@@ -904,6 +924,7 @@ async function promoteDrainEntryCore(baseDir, opts = {}) {
  * @returns {Promise<{destination: 'backlog'|'bugs', deduped: boolean, heading: string}>}
  */
 export async function promoteDrainEntry(baseDir, opts = {}) {
+  refuseWhenStoreOn(baseDir, 'promoteDrainEntry');
   return withStateLock(baseDir, () => promoteDrainEntryCore(baseDir, opts));
 }
 

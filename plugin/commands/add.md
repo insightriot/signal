@@ -135,7 +135,7 @@ Dispatch on the destination resolved in Step 2. Every capture function shares th
 - `today`: ISO `YYYY-MM-DD` from `new Date()`.
 - `triggerContext`: from Step 5 (optional).
 - `title`: from Step 5b (the agent-authored one-line heading; omit for the deterministic `deriveHeading` fallback).
-- `sensitivePrompt`: already-resolved decision wrapped in an async function (Step 3 ran the prompt; pass an `async () => 'keep'` since you've already decided).
+- `sensitivePrompt`: already-resolved decision wrapped in an async function. Step 3 asked about the body; the title (Step 5b) and trigger context (Step 5) are written after it, so first run `scrubSensitive` on each of them and, on a hit, ask Step 3's keep/abort question for it. Once every field has been asked about, pass `async () => 'keep'`.
 - `bodyLengthPrompt`: same pattern from Step 4.
 
 - `future-ideas` → `captureToFutureIdeas(baseDir, opts)` — routes through `resolveInboxPath` to the inbox (`ISSUES-INBOX.md` or legacy `FUTURE-IDEAS.md`), inserts above the `*Last updated:*` footer, and rewrites the footer date. If `.planning/` exists but the inbox file does not (a fresh v3 project), it **lazy-creates** the `ISSUES-INBOX.md` skeleton on first capture (AC6.3) — no separate init step needed.
@@ -151,7 +151,7 @@ All destinations share the same spine: scrub + body-length check run before the 
 
 ### 7. Success message
 
-Print exactly, substituting the destination's actual relative path (`result.path` relative to the project root) — the resolved inbox (`.planning/ISSUES-INBOX.md` or legacy `.planning/FUTURE-IDEAS.md`) for the default, `.planning/OPEN-QUESTIONS.md` for `--question`, `.planning/BUGS.md` for `--bug`, the resolved `.planning/MILESTONE-{N}.md` for `--milestone [N]`:
+Print exactly, substituting the destination's actual relative path (`result.path` relative to the project root) — the resolved inbox (`.planning/ISSUES-INBOX.md` or legacy `.planning/FUTURE-IDEAS.md`) for the default, `.planning/OPEN-QUESTIONS.md` for `--question`, `.planning/BUGS.md` for `--bug`, the resolved `.planning/MILESTONE-{N}.md` for `--milestone [N]`. Those paths are for the work store **off**. With it **on**, `result.path` is the new item file (`.planning/work/inbox/{result.id}.md`) — use it as-is, and name the item by `result.label`:
 
 ```
 Added to {path} (line {result.line}).

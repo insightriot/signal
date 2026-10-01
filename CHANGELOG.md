@@ -6,6 +6,29 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.43] — 2026-09-30 — The work-item store — one file per thing, moved, never copied
+
+### Added
+
+- **The work-item store — status is written once, where the work is** (`M6.E11`, step 1 of [`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](analysis/WORK-ITEM-SYSTEM-DESIGN.md)). Every bug, backlog row, inbox capture and open question becomes one file under `.planning/work/`, and its status is that file's frontmatter, checked against its folder: `inbox/` (N), `backlog/` (T), `epics/<EpicID>/` (an Epic's items), `done/YYYY-MM/` (closed). Nothing is deleted; closing is a move, or a status change in place for an Epic's item.
+  - **Opt-in by one file.** The store is on only when `.planning/work/WORK.md` exists (it holds the ID prefix, `key: SIG`). **A project without it sees no change** — held by a test that replays every path this Epic touched against a golden recorded before any writer or reader was changed.
+  - **`/sig:item` — the 24th command.** `new`, `triage`, `move`, `close`, `reopen`, `show`, `list`. A closed item that comes back is **reopened**, its previous close kept in the file's `history`. Every status change goes through it, so a folder and a status cannot disagree; `checkStore` reports any that do, and `/sig:docs-sweep` shows its findings.
+  - **`BUGS.md`, `BACKLOG.md`, `ISSUES-INBOX.md` and `OPEN-QUESTIONS.md` become generated views** of the item files, rebuilt after every change and headed by a do-not-edit marker. The readers that parse them are unchanged. A write into a generated file is refused, because it would vanish at the next regeneration.
+  - **Epic folders.** An Epic's items and artifacts can live in `work/epics/<EpicID>/`; closing the Epic refuses while any item is open, then moves the folder, items included, to `archive/epics/<EpicID>/`. Phase commands find an Epic's artifacts there.
+  - **IDs are never reused.** The next ID is one past the highest this machine has seen for the key, in the working tree and across git history.
+
+### Changed
+
+- **With the store on, the writers write items.** `/sig:add` creates an item in `inbox/` (its success message names the item file); `/sig:checkpoint --context` records each question as a Q item; backlog promotion and SHIP's discharge step move and close items instead of editing the lists.
+- **Signal's own four lists are migrated into the store**: the originals are kept byte-for-byte under `.planning/archive/pre-work-store/`, so a `path:line` citation into them from before the migration can still be checked. 248 items (140 bugs, 92 backlog rows, 5 inbox captures, 11 open questions): 15 untriaged, 91 triaged, 142 closed, each close marked `proof: legacy — not re-verified`. BACKLOG rows whose status `/sig:advise` had to guess from the wording: 92 → 0. ⚠ **The bug half is not met:** `bug-status-vs-changelog` still judges 33 confirmed bugs, because *"did a release fix it?"* stays a guess until a fix records the item it closes (`Fixes: SIG-n`, step 3).
+- **The shared file lock is hardened** (every Signal command uses it): a stale lock is taken over by rename-aside rather than delete-then-create; a lock with a future timestamp or a dead local pid is stale; a live local holder keeps it up to 10× its time limit; an empty, half-written lock is held, not stolen.
+
+### For other projects
+
+- **Nothing moves by itself.** Other projects move over through **`/sig:docs-migrate`**, which is step 5 of the design and **is not built yet**. Until then a project keeps its hand-kept lists and behaves exactly as before.
+
+---
+
 ## [0.1.42] — 2026-09-27 — Jev checks the records — advice with receipts, never a refusal
 
 ### Added

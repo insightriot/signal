@@ -40,12 +40,16 @@ import { join, dirname, resolve, relative, sep, posix } from 'node:path';
 
 import { deriveUnits, suffixOf } from './work-units.js';
 
-import { PLANNING_DIR, EPIC_ID_STRICT_RE } from './state.js';
+import { PLANNING_DIR, EPIC_ID_STRICT_RE, compareEpicIds } from './state.js';
 import { atomicWrite } from './atomic-write.js';
 import { deriveEpicArchiveDir } from './evict.js';
 import { enumerateRetros } from './retro-index.js';
 import { resolveClosures } from './closure.js';
 import { INBOX_NEW, INBOX_LEGACY, LEDGER_NEW, LEDGER_LEGACY } from './inbox-path.js';
+import { acquireLock } from './file-lock.js';
+import { isGeneratedText } from './work-marker.js';
+import { lockFailure, WorkStoreError } from './work-errors.js';
+import { isStoreOn, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
 
 // The scaffold doc-types that archive with a closed Epic. A project-AGNOSTIC
 // domain constant (the doc-runtime scaffold set) — NOT a project literal like a
@@ -69,17 +73,6 @@ const isExternal = (t) => /^(https?:|mailto:|#)/.test(t);
 /** Normalize a path to POSIX separators (`\` → `/`) — the cross-platform guard. */
 export function toPosix(p) {
   return String(p).replace(/\\/g, '/');
-}
-
-// Numeric-segment Epic-ID sort (M5.E2 < M5.E10) — deterministic move order.
-function compareEpicIds(a, b) {
-  const na = a.match(/\d+/g)?.map(Number) ?? [];
-  const nb = b.match(/\d+/g)?.map(Number) ?? [];
-  for (let i = 0; i < Math.max(na.length, nb.length); i++) {
-    const d = (na[i] ?? 0) - (nb[i] ?? 0);
-    if (d !== 0) return d;
-  }
-  return 0;
 }
 
 /**
@@ -573,7 +566,9 @@ export async function senseArchiveTree(baseDir, opts = {}) {
 
 /**
  * Execute (or dry-run) the archive-tree move + keyed link/prose rewrite. LOCK-FREE
- * (§9): the caller owns the coarse lock; this never self-locks. Ordering (§2 / B8):
+ * for the coarse `.state.lock` (§9): the caller owns it; this never takes it. With
+ * the work store on, an apply takes the store's own `work` lock around all of its
+ * writes (REVIEW pass 2) — the moves rewrite item files. Ordering (§2 / B8):
  * MOVE each file first with a byte-identical read-back assert (content preserved
  * before anything is rewritten), remove the source, THEN rewrite links/prose at the
  * files' NEW locations. Dry-run by default (writes nothing).
@@ -594,6 +589,35 @@ export async function applyArchiveTree(baseDir, opts = {}) {
     return { applied: false, moves, moveMap, plannedEdits: editCount };
   }
 
+  // With the store on, the moves rewrite item files and the lists are
+  // regenerated at the end, so the whole apply runs under the store's own
+  // `work` lock (D-M6E11-27) — never `.state.lock`, which the migrate caller
+  // already holds. Taken HERE, before any file moves (REVIEW pass 2): a busy
+  // store refuses with nothing moved, instead of after the moves stood. A
+  // list that is still hand-kept would refuse the regeneration, so it is
+  // refused here too, for the same reason.
+  const storeOn = isStoreOn(baseDir).on;
+  let lock = null;
+  if (storeOn) {
+    try {
+      lock = await acquireLock(join(baseDir, WORK_LOCK_REL), { label: 'work store', ttlMs: WORK_LOCK_TTL_MS });
+    } catch (err) {
+      throw lockFailure(err);
+    }
+  }
+  try {
+    if (storeOn) {
+      const { assertNoHandKeptLists } = await import('./work-generate.js');
+      assertNoHandKeptLists(baseDir);
+    }
+    return await moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, storeOn });
+  } finally {
+    await lock?.released(); // only while this call still holds it (REVIEW I4)
+  }
+}
+
+// applyArchiveTree's writes, run under the `work` lock when the store is on.
+async function moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, storeOn }) {
   // 1. MOVE first — byte-identical relocate + read-back assert, then drop source.
   for (const { from, to } of moves) {
     const srcAbs = join(baseDir, from);
@@ -616,6 +640,7 @@ export async function applyArchiveTree(baseDir, opts = {}) {
   // this guard keeps the link/prose REWRITE from touching it either.)
   const indexRel = `${PLANNING_DIR}/INDEX.md`;
   let rewrittenFiles = 0;
+  let staleGenerated = false;
   for (const f of files) {
     const curRel = moveMap.get(f) ?? f;
     if (curRel === indexRel) continue; // §10 — leave INDEX.md untouched
@@ -627,9 +652,31 @@ export async function applyArchiveTree(baseDir, opts = {}) {
       continue;
     }
     const next = applyKeyedReplacements(text, editsByFile.get(f) ?? []);
-    if (next !== text) {
-      await atomicWrite(curAbs, next);
-      rewrittenFiles += 1;
+    if (next === text) continue;
+    // M6.E11 (t4.5, D-M6E11-25): a generated list is not rewritten in place —
+    // the write guard would refuse it, and an edit there would be lost at the
+    // next regeneration anyway. Its links come from the item files, which ARE
+    // rewritten above like any other file, so the lists are regenerated below.
+    if (isGeneratedText(text)) {
+      staleGenerated = true;
+      continue;
+    }
+    await atomicWrite(curAbs, next);
+    rewrittenFiles += 1;
+  }
+
+  // Regenerate so the lists carry the item files' new links — still under
+  // the caller's `work` lock. Only when something changed.
+  if ((staleGenerated || rewrittenFiles > 0) && storeOn) {
+    const { generateAll } = await import('./work-generate.js');
+    try {
+      await generateAll(baseDir);
+    } catch (err) {
+      // The moves and rewrites above stand; say so, whatever failed.
+      const wrapped = new WorkStoreError(err instanceof WorkStoreError ? err.code : 'IO',
+        `the archive moves stood, but the lists were not regenerated: ${err?.message ?? err}`);
+      wrapped.cause = err;
+      throw wrapped;
     }
   }
 

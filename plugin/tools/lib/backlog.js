@@ -28,7 +28,9 @@ import { join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 
 import { atomicWrite } from './atomic-write.js';
-import { insertAboveFooter, rewriteFooter, buildBugsEntry, insertAtEnd } from './add.js';
+import { insertAboveFooter, rewriteFooter, buildBugsEntry, insertAtEnd, scrubSensitive } from './add.js';
+import { parseInboxStatusLine } from './work-marker.js';
+import { isStoreOn } from './work-store.js';
 
 const BACKLOG_REL = '.planning/BACKLOG.md';
 const BUGS_REL = '.planning/BUGS.md';
@@ -89,9 +91,14 @@ function findSnapshot(baseDir) {
  * @param {string} baseDir — project root (where `.planning/` lives)
  * @param {{today?: string}} [opts] — `today` seeds the initial footer date.
  * @returns {Promise<{created: boolean, path: string, seededFrom?: string|null}>}
+ *   Always `created: false` with the work store on.
  */
 export async function createBacklogIfMissing(baseDir, opts = {}) {
   const path = join(baseDir, BACKLOG_REL);
+  // M6.E11 (t4.5): with the work store on, BACKLOG.md is the generator's file;
+  // a hand skeleton written here would be refused (or erased) at the next
+  // regeneration. Nothing to create.
+  if (isStoreOn(baseDir).on) return { created: false, path };
   if (existsSync(path)) {
     return { created: false, path };
   }
@@ -137,6 +144,85 @@ export function blockKey(block) {
   return createHash('sha1').update(block).digest('hex');
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// With the work store on (M6.E11 t4.3, AC-6.2)
+//
+// BACKLOG.md and BUGS.md are generated from item files, so a promote is an
+// item MOVE and a discharge is an item CLOSE — never an edit to the list.
+//
+// A promote is triage's `accept` (`applyTriage`): it sets the type the
+// classification implies and moves the item to `backlog/`. The type mapping
+// is this module's call — `roadmap` → FEAT, `hygiene` → CHORE, a bug → BUG —
+// because the store has no tag and these are the nearest types it has.
+//
+// Which item: a block cut from the GENERATED inbox carries
+// `**Status:** untriaged (N) · SIG-n` (read by `work-marker.js`'s
+// `parseInboxStatusLine`, the generator's own format), so that item is promoted — it is not
+// captured a second time. A block with no such line (a raw block handed in
+// directly) becomes a new item first. Dedupe survives: an item already past
+// triage is not promoted again, and a raw block's sha1 key is recorded as the
+// new item's `source_ref`, so a re-run finds it instead of making a twin.
+//
+// `newItem`/`applyTriage`/`closeItems` are imported lazily: work-ops.js →
+// work-generate.js imports this module, so a static import would be a cycle.
+
+const STORE_SOURCE = '/sig:plan drain';
+
+function inboxItemId(block, key) {
+  for (const line of block.split('\n')) {
+    const id = parseInboxStatusLine(line, key);
+    if (id !== null) return id;
+  }
+  return null;
+}
+
+async function promoteInStore(baseDir, { block, type, title, keyName, by, acknowledgeSensitive }) {
+  const { applyTriage, getItem, listItems, newItem } = await import('./work-ops.js');
+  const { key } = isStoreOn(baseDir);
+  const itemPath = (id) => join(baseDir, '.planning', 'work', 'backlog', `${id}.md`);
+  const dedupeKey = `${keyName}: ${blockKey(block)}`;
+
+  let id = inboxItemId(block, key);
+  if (id === null) {
+    const twin = listItems(baseDir).find((r) => r.item.source_ref === dedupeKey);
+    if (twin) id = twin.item.id;
+  }
+  if (id !== null) {
+    const found = getItem(baseDir, id);
+    if (found.item.status !== 'N') {
+      return { written: false, deduped: true, path: join(baseDir, found.path), key: blockKey(block), id };
+    }
+  } else {
+    const heading = resolveTitle(title, block);
+    const body = groomBlockBody(block);
+    // A raw block handed in directly is new text entering an item, so its
+    // title and body run the scrub like any capture (REVIEW pass 2) — a block
+    // that came through an inbox item was scrubbed when that item was
+    // captured. Scrubbed HERE rather than by `newItem`: the item's
+    // `source_ref` is the dedupe key, a sha1 — 40 hex characters, which the
+    // detector flags by design — so `newItem` is told the check was made.
+    const sensitiveHits = [heading, body].flatMap((t) => (t ? scrubSensitive(t).hits : []));
+    if (sensitiveHits.length > 0 && !acknowledgeSensitive) {
+      return { written: false, key: blockKey(block), aborted: 'sensitive-data-pending', sensitiveHits };
+    }
+    const created = await newItem(baseDir, {
+      type,
+      title: heading,
+      body,
+      source: STORE_SOURCE,
+      source_ref: dedupeKey,
+      by: by ?? STORE_SOURCE,
+    }, { acknowledgeSensitive: true });
+    id = created.id;
+  }
+  const accept = { type };
+  const retitle = (title ?? '').trim();
+  if (retitle) accept.title = retitle;
+  const r = await applyTriage(baseDir, id, { accept }, { acknowledgeSensitive });
+  if (r.aborted) return { written: false, key: blockKey(block), id, aborted: r.aborted, sensitiveHits: r.sensitiveHits };
+  return { written: true, path: itemPath(id), key: blockKey(block), id, label: r.label };
+}
+
 /**
  * Promote a classified WORK entry into `.planning/BACKLOG.md`: append a
  * `## {title}` entry carrying `**Tag:** {tag}` (roadmap|hygiene) + the groomed
@@ -152,13 +238,24 @@ export function blockKey(block) {
  * @param {'roadmap'|'hygiene'} opts.tag
  * @param {string} [opts.title] — retitle; falls back to the block's heading
  * @param {string} [opts.today] — ISO date for the footer bump
- * @returns {Promise<{written: boolean, deduped?: boolean, path: string, key: string}>}
+ * @param {string} [opts.by] — store on: `created.by` for a raw block's new item
+ * @param {boolean} [opts.acknowledgeSensitive] — store on: the user has
+ *   already been asked about sensitive data in `block` and `title`
+ * @returns {Promise<{written: boolean, deduped?: boolean, path: string, key: string, id?: string, label?: string,
+ *   aborted?: 'sensitive-data-pending', sensitiveHits?: object[]}>}
+ *   With the store on, the item is moved instead (see "With the work store
+ *   on" above) and `path`/`id` name the item file. A raw block (no inbox
+ *   item) or a retitle with sensitive data, unacknowledged, writes nothing and
+ *   returns `{written: false, aborted: 'sensitive-data-pending', sensitiveHits}`.
  */
-export async function promoteToBacklog(baseDir, { block, tag, title, today } = {}) {
+export async function promoteToBacklog(baseDir, { block, tag, title, today, by, acknowledgeSensitive } = {}) {
   if (!VALID_TAGS.has(tag)) {
     throw new Error(
       `promoteToBacklog: tag must be "roadmap" or "hygiene", got ${JSON.stringify(tag)}.`
     );
+  }
+  if (isStoreOn(baseDir).on) {
+    return promoteInStore(baseDir, { block, type: tag === 'roadmap' ? 'FEAT' : 'CHORE', title, keyName: 'backlog-key', by, acknowledgeSensitive });
   }
   const date = today ?? isoToday();
   await createBacklogIfMissing(baseDir, { today: date });
@@ -239,7 +336,7 @@ const STRUCK_RE = /~~[^~]+~~/;
 // skipping in silence, which is a false negative rather than a false alarm and so
 // the harder one to notice. Zero of the 26 genuinely-closed rows lose their
 // marker under this rule: every one is struck, bolded, or both.
-const DONE_WORD_RE = /\*\*[^*]{0,80}?\b(DONE|SHIPPED|ABANDONED|CLOSED|CUT|RESOLVED)\b/i;
+export const DONE_WORD_RE = /\*\*[^*]{0,80}?\b(DONE|SHIPPED|ABANDONED|CLOSED|CUT|RESOLVED)\b/i;
 // "PARTIALLY SHIPPED" / "largely DONE" assert OPEN work. The qualifier is
 // stripped before the done-word test rather than special-cased after it, so a
 // row carrying both a qualified and an unqualified marker still reads closed.
@@ -652,11 +749,20 @@ function renderDischargedHeading(depth, text, by, at) {
  * @param {string} [opts.at] — ISO date
  * @param {string} [opts.today] — ISO date for the footer bump
  * @returns {Promise<{written:boolean, path:string, reason:string|null,
- *   results:Array<{row:string, status:string, reason:string|null, heading:string|null, line:number|null}>}>}
+ *   results:Array<{row:string, status:string, reason:string|null, heading:string|null, line:number|null, id?:string}>}>}
+ *   With the store on, a named row is an item and is CLOSED (`fixed`, the
+ *   discharge stamp as proof) — see `dischargeInStore`. `line` is null there.
  */
-export async function dischargeBacklogRows(baseDir, { rows = [], by, at, today } = {}) {
+export async function dischargeBacklogRows(baseDir, opts = {}) {
+  const { rows = [], by, at, today } = opts;
   const path = join(baseDir, BACKLOG_REL);
   const base = { written: false, path, reason: null, results: [] };
+
+  if (isStoreOn(baseDir).on) {
+    // Test seam, like checkpoint.js's `_renameFn`: own-property + typeof guard.
+    const renameFn = Object.hasOwn(opts, '_renameFn') && typeof opts._renameFn === 'function' ? opts._renameFn : undefined;
+    return dischargeInStore(baseDir, { rows, by, at, today, base, renameFn });
+  }
 
   if (!existsSync(path)) {
     return { ...base, reason: `${BACKLOG_REL} not present — nothing to discharge` };
@@ -708,6 +814,60 @@ export async function dischargeBacklogRows(baseDir, { rows = [], by, at, today }
   const bumped = rewriteFooter(lines.join('\n'), today ?? at ?? isoToday());
   await atomicWrite(path, bumped);
   return { written: true, path, reason: null, results };
+}
+
+// The store-on discharge (M6.E11 t4.3). The rows a discharge can name are the
+// rows the generated BACKLOG.md shows: items that are neither BUG nor Q and
+// are past the inbox. Same refusals as the list version — no match, or more
+// than one open match, writes nothing for that query — and an item already
+// closed reads as already discharged. Each hit is closed `fixed`, with the
+// stamp the list heading would have carried as its proof.
+//
+// All the closes are ONE `closeItems` batch: one lock, one regeneration, and
+// all or nothing — a failure on one row leaves every row open. Two queries
+// naming the same item close it once.
+async function dischargeInStore(baseDir, { rows, by, at, today, base, renameFn }) {
+  const { closeItems, listItems } = await import('./work-ops.js');
+  const who = by ?? 'unspecified';
+  const when = at ?? today ?? isoToday();
+  const proof = `DONE — ${at ? `${who}, ${at}` : String(who)}`;
+  const rowsOf = listItems(baseDir).filter((r) => r.item.type !== 'BUG' && r.item.type !== 'Q' && r.item.status !== 'N');
+  const results = [];
+  const toClose = [];
+
+  for (const query of rows) {
+    const needle = String(query).toLowerCase();
+    const hits = rowsOf.filter((r) => String(r.item.title ?? r.item.id).toLowerCase().includes(needle));
+    const open = hits.filter((r) => r.item.status !== 'C');
+    if (open.length > 1) {
+      results.push({
+        row: query,
+        status: ROW_DISCHARGE.AMBIGUOUS,
+        reason: `${JSON.stringify(query)} matches ${open.length} items (${open.map((h) => h.item.id).join(', ')}) — name one of them exactly`,
+        heading: null,
+        line: null,
+      });
+    } else if (open.length === 1) {
+      const [hit] = open;
+      if (!toClose.includes(hit.item.id)) toClose.push(hit.item.id);
+      results.push({ row: query, status: ROW_DISCHARGE.DISCHARGED, reason: null, heading: hit.item.title ?? hit.item.id, line: null, id: hit.item.id });
+    } else if (hits.length > 0) {
+      const [hit] = hits;
+      results.push({ row: query, status: ROW_DISCHARGE.ALREADY_DISCHARGED, reason: `already closed (${hit.item.close?.reason}) at ${hit.path}`,
+        heading: hit.item.title ?? hit.item.id, line: null, id: hit.item.id });
+    } else {
+      results.push({ row: query, status: ROW_DISCHARGE.NOT_FOUND, reason: `no live backlog row matches ${JSON.stringify(query)}`, heading: null, line: null });
+    }
+  }
+
+  if (toClose.length > 0) {
+    // The proof is the stamp built above from `by` and `at`, not free text,
+    // so there is nothing new for the scrub to ask about.
+    const closed = await closeItems(baseDir, toClose.map((id) => ({ id, reason: 'fixed', by: String(who), at: when, proof })),
+      { renameFn, acknowledgeSensitive: true });
+    if (closed?.aborted) return { ...base, ...closed, results };
+  }
+  return { ...base, written: toClose.length > 0, results };
 }
 
 /**
@@ -914,9 +1074,17 @@ function bugsSkeleton() {
  * @param {object} opts
  * @param {string} opts.block — the raw source inbox block (dedupe key = sha1(block))
  * @param {string} [opts.title] — retitle; falls back to the block's heading
- * @returns {Promise<{written: boolean, deduped?: boolean, path: string, key: string}>}
+ * @param {string} [opts.by] — store on: `created.by` for a raw block's new item
+ * @param {boolean} [opts.acknowledgeSensitive] — store on: as `promoteToBacklog`
+ * @returns {Promise<{written: boolean, deduped?: boolean, path: string, key: string, id?: string, label?: string,
+ *   aborted?: 'sensitive-data-pending', sensitiveHits?: object[]}>}
+ *   With the store on, the item becomes a BUG in `backlog/` instead, with
+ *   `promoteToBacklog`'s sensitive-data rule.
  */
-export async function promoteToBugs(baseDir, { block, title } = {}) {
+export async function promoteToBugs(baseDir, { block, title, by, acknowledgeSensitive } = {}) {
+  if (isStoreOn(baseDir).on) {
+    return promoteInStore(baseDir, { block, type: 'BUG', title, keyName: 'bugs-key', by, acknowledgeSensitive });
+  }
   const path = join(baseDir, BUGS_REL);
   const key = blockKey(block);
   const marker = `<!-- bugs-key: ${key} -->`;

@@ -46,10 +46,15 @@ command that edited state would break the trust that makes these safe to run ref
 
 ### 3. Capture — records something you said
 
-`add` · `checkpoint`
+`add` · `checkpoint` · `item`
 
 Takes input from the user (or from git history) and files it. `add` routes an idea to its home;
-`checkpoint` reconciles `STATE.md` against reality.
+`checkpoint` reconciles `STATE.md` against reality; `item` moves a work item between the store's
+folders (new, triage, move, close, show, list — `M6.E11`).
+
+⚠ **`item` is a noun in a group of bare verbs** — the naming rule below would have asked for a verb.
+The name was fixed by `D-M6E11-5` because the command takes six verbs as its first argument, so no
+single verb names it. Recorded here, as `permissions` is below, so it is not re-litigated.
 
 ### 4. Document upkeep — acts on `.planning/` as a corpus
 

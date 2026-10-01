@@ -1,0 +1,17 @@
+---
+id: SIG-10
+type: BUG
+status: C
+title: "`/sig:migrate-memory` doesn't archive `SHIP` (or `LAUNCH-KIT`) scaffolds
+  — closing docs orphaned in root while their…"
+priority: P2
+source: migration:BUGS.md
+source_ref: BUGS.md:32
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B10
+---
+| B10 | `fixed` | P2 | **`/sig:migrate-memory` doesn't archive `SHIP` (or `LAUNCH-KIT`) scaffolds — closing docs orphaned in root while their Epic's siblings move to `archive/`.** `SCAFFOLD_SUFFIXES` (`tools/lib/archive-tree.js:50`) = `[REQUIREMENTS, RESEARCH, PLAN, PROGRESS, VERIFICATION, VALIDATION, REVIEW]` — no `SHIP`. Inherited verbatim from the `archive-migrate.mjs` prototype's `SCAFFOLD` literal (written before Signal had `-SHIP.md` docs). **Confirmed 2026-07-17** via the S4.t1 dogfood dry-run on Signal's own `.planning/`: 28 moves proposed for M4.5.E5 / M4.5.E10 / M4.5.E11 / M5.E1, but `M4.5.E5-SHIP.md`, `M4.5.E11-SHIP.md`, `M5.E1-SHIP.md`, and `M4.5.E5-LAUNCH-KIT.md` are left in root — an incomplete/inconsistent archive (NOT data-loss; relocate-never-delete holds, nothing deleted). **Fix:** add `SHIP` to `SCAFFOLD_SUFFIXES` (+ a non-M4.5 fixture test); decide `LAUNCH-KIT` (one-off — archive-with-Epic or keep-in-root is a judgment call). Should fix BEFORE the S4.t1 apply so the dogfood produces a complete archive. **→ Fixed 2026-07-17 (`9064340`, S2.t6):** added `'SHIP'` to `SCAFFOLD_SUFFIXES` (RED-first on a non-M4.5 `M6.E1` fixture); re-dry-run on Signal's `.planning/` now = 31 moves (the 3 `-SHIP.md` docs archive with their Epics); `RETROSPECTIVE` + `LAUNCH-KIT` stay in root. 1258→1260 tests. |

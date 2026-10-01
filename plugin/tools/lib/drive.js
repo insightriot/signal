@@ -15,7 +15,7 @@
  *   - `attentionFor` — how much of your time this is allowed to cost.
  */
 
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { existsSync, lstatSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 
@@ -24,6 +24,7 @@ import { LOOP_BOUNDED_PHASES } from './loop-ceiling.js';
 import { atomicWrite } from './atomic-write.js';
 import { parseBacklogRows } from './backlog.js';
 import { readState, partitionCompletedPhases, PHASES } from './state.js';
+import { resolveArtifactPath } from './resume.js';
 
 export const QUEUE_REL = '.planning/DECISION-QUEUE.md';
 
@@ -649,8 +650,26 @@ export async function collectPreflight(baseDir, { epic = null } = {}) {
   //    spec that still says [FILL IN], and discovering that mid-EXECUTE is the
   //    interruption this pass exists to move to the front.
   if (epic) {
-    const reqPath = join(baseDir, '.planning', `${epic}-REQUIREMENTS.md`);
-    if (!existsSync(reqPath)) {
+    // Through the resolver so an Epic whose artifacts live in its work-store
+    // folder is read there (M6.E11 t5.4). Only an answer IN an Epic folder is
+    // taken: anywhere else the resolver can fall through to linear names
+    // (`REQUIREMENTS.md`, `1-…`) this check has never read, so the path stays
+    // exactly `{epic}-REQUIREMENTS.md` — byte-identical with the store off.
+    const planningDir = join(baseDir, '.planning');
+    let resolved = null;
+    let storeError = null;
+    try {
+      resolved = resolveArtifactPath(planningDir, 'REQUIREMENTS', { currentEpic: epic });
+    } catch (err) {
+      storeError = err; // a broken WORK.md — reported below, never read as "off"
+    }
+    const inFolder = resolved !== null
+      && [join(planningDir, 'work', 'epics', epic), join(planningDir, 'archive', 'epics', epic)]
+        .some((dir) => resolved.startsWith(dir + sep));
+    const reqPath = inFolder ? resolved : join(planningDir, `${epic}-REQUIREMENTS.md`);
+    if (storeError) {
+      cannotCheck.push({ source: 'REQUIREMENTS unfilled markers', reason: storeError.message });
+    } else if (!existsSync(reqPath)) {
       cannotCheck.push({
         source: 'REQUIREMENTS unfilled markers',
         reason: `no ${epic}-REQUIREMENTS.md on disk — the spec cannot be checked for gaps`,

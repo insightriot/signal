@@ -11,7 +11,7 @@
 
 import { existsSync, realpathSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { join, resolve, sep } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 
 import {
   detectOrphans,
@@ -24,6 +24,7 @@ import {
 } from './state.js';
 import { formatTierLine } from './status.js';
 import { confidenceWords } from './jev.js';
+import { isStoreOn } from './work-store.js';
 
 const PHASES = ['CALIBRATE', 'DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'SHIP'];
 
@@ -33,6 +34,29 @@ const PHASES = ['CALIBRATE', 'DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', '
 // else falls through to the legacy patterns.
 const EPIC_ID_RE = /^[A-Za-z0-9._-]+$/;
 
+// The Epic's folder in the work store, relative to `.planning/` — or null
+// when the store is off, the Epic ID is not strict (the store's own folder
+// rule, `EPIC_ID_STRICT_RE`), or the folder does not exist.
+//
+// Canonical file name inside the folder: `{EpicID}-{ARTIFACT}.md`, the same
+// basename the artifact has in `.planning/` (M6.E11 t5.1). Chosen over the bare
+// `{ARTIFACT}.md` because recursive readers key on the prefix —
+// `retro-index.js` and `planning-index.js` find retrospectives by
+// `{EpicID}-RETROSPECTIVE.md` — and because moving an Epic's existing
+// artifacts into its folder (`git mv`, names kept) then needs no rename. The
+// bare form is still resolved, one step below.
+//
+// A broken WORK.md throws (`isStoreOn`): the store never reads as off.
+const LIVE_EPICS_REL = 'work/epics';
+const ARCHIVED_EPICS_REL = 'archive/epics';
+
+function epicFolderRel(planningRoot, currentEpic, existsFn = existsSync, parent = LIVE_EPICS_REL) {
+  if (typeof currentEpic !== 'string' || !EPIC_ID_STRICT_RE.test(currentEpic)) return null;
+  if (!isStoreOn(dirname(planningRoot)).on) return null;
+  const rel = `${parent}/${currentEpic}`;
+  return existsFn(join(planningRoot, rel)) ? rel : null;
+}
+
 /**
  * Resolve a phase artifact's path within `.planning/`, trying, in precedence:
  *   0. `${currentEpic}-${artifact}.md`  — Epic-prefixed; only when currentEpic
@@ -40,6 +64,13 @@ const EPIC_ID_RE = /^[A-Za-z0-9._-]+$/;
  *   1. `${N}-${artifact}.md` for N in 1..9  — numeric/GSD prefix (ascending N).
  *   2. `${artifact}.md`  — no-prefix simplified form.
  *   3. `${phase}-${artifact}.md`  — literal-substitution form (e.g. PLAN-PLAN).
+ *
+ * With the work store on and `.planning/work/epics/{currentEpic}/` present
+ * (M6.E11 t5.1), two candidates come first: `work/epics/{id}/{id}-{artifact}.md`
+ * (the canonical name, which is what `artifactName` writes) and
+ * `work/epics/{id}/{artifact}.md`. Then, when `.planning/archive/epics/{id}/`
+ * exists (a closed Epic, t5.4), the same two names there — after `artifactName`'s
+ * own candidate, before patterns 0–3. Otherwise the list is exactly the above.
  *
  * Returns the first existing candidate as an absolute path, or `null`.
  *
@@ -76,12 +107,30 @@ export function resolveArtifactPath(planningDir, artifact, opts = {}) {
   // opposite as a guarantee ("whatever `artifactName` emits,
   // `resolveArtifactPath` with the same opts resolves back").
   //
-  // Asking `artifactName` directly makes that sentence true by construction,
+  // Asking the write seam directly makes that sentence true by construction,
   // for EVERY value of `current_epic`, without either seam having to guess at
   // the other's regex. Pattern 0 stays BELOW as a fallback rather than being
   // tightened away: live non-strict projects (eval-project-C) have only
   // Epic-prefixed files on disk, and their reads must keep working.
-  rawCandidates.push(artifactName(artifact, { currentEpic }));
+  // Pattern F (M6.E11 t5.1, D-M6E11-23) — the Epic's folder in the work
+  // store, tried before everything else. Pattern W below already IS the
+  // canonical folder name when the folder exists (artifactName is given
+  // planningDir), so F adds only the bare `<ARTIFACT>.md` form, one step below
+  // it. Nothing is added unless the store is on and the folder exists.
+  //
+  // Pattern W is the write seam's DEFAULT name (`defaultArtifactName`), not
+  // `artifactName` itself: `artifactName` asks this function which file is
+  // read (REVIEW I6), so calling it here would recurse. The guarantee holds
+  // either way: `artifactName` returns the file read here when it is the
+  // Epic's own live file, and otherwise this very pattern-W name.
+  const folder = epicFolderRel(planningRoot, currentEpic, existsFn);
+  rawCandidates.push(defaultArtifactName(artifact, { currentEpic, planningDir: planningRoot, existsFn }));
+  if (folder) rawCandidates.push(`${folder}/${artifact}.md`);
+  // Pattern A (M6.E11 t5.4) — the Epic's ARCHIVED folder, after the live
+  // folder and before the legacy list, so `/sig:resume` on a just-shipped
+  // Epic still finds its artifacts. Read-only: artifactName never names it.
+  const archived = epicFolderRel(planningRoot, currentEpic, existsFn, ARCHIVED_EPICS_REL);
+  if (archived) rawCandidates.push(`${archived}/${currentEpic}-${artifact}.md`, `${archived}/${artifact}.md`);
   if (typeof currentEpic === 'string' && currentEpic && EPIC_ID_RE.test(currentEpic)) {
     rawCandidates.push(`${currentEpic}-${artifact}.md`); // pattern 0
   }
@@ -105,8 +154,9 @@ export function resolveArtifactPath(planningDir, artifact, opts = {}) {
     if (!full.startsWith(planningRoot + sep)) continue;
     if (!existsFn(full)) continue;
     // Symlink-aware read-side confinement (B14 / FR2): the lexical guard above is
-    // blind to a checked-in symlink. Candidates are flat (dirname === planningRoot
-    // always), and this path is RETURNED for a caller to READ, so a LEAF symlink
+    // blind to a checked-in symlink. Candidates are flat except the Epic-folder
+    // ones (M6.E11), whose symlinked folder realpath also resolves through, and
+    // this path is RETURNED for a caller to READ, so a LEAF symlink
     // WOULD be followed — hence realpath the leaf `full` (the write sites rename
     // OVER the leaf and instead anchor on dirname). realpath both sides; refuse a
     // candidate that resolves out of the tree. A realpath throw means the path
@@ -153,14 +203,55 @@ const LINEAR_UNPREFIXED = new Set(['REQUIREMENTS']);
  * linear mode the retro is milestone-scoped and written by ship via
  * `deriveRetroPath`, not through a phase command's `artifactName` call.
  *
+ *   - Epic folder (M6.E11 t5.1, D-M6E11-23): with `planningDir` given, the
+ *     work store on, and `.planning/work/epics/{EpicID}/` present, the name is
+ *     `work/epics/{EpicID}/{EpicID}-{artifact}.md` — a path relative to
+ *     `.planning/`, joined the same way as every other result. Without
+ *     `planningDir` nothing on disk is read and the result is as above.
+ *
+ *   - With the folder present, the folder is the answer (REVIEW I6, then
+ *     pass 2 / D-M6E11-33): the file `resolveArtifactPath` reads when it is in
+ *     the folder (`work/epics/{id}/{id}-{artifact}.md` or the bare
+ *     `work/epics/{id}/{artifact}.md`), else the canonical folder name. The
+ *     root `{id}-{artifact}.md` is never written once the folder exists: the
+ *     first `moveItem` into an Epic moves its root artifacts into the new
+ *     folder, so a root copy can only be one a store-off command wrote since.
+ *     The reader still finds that copy, below the folder candidates, until
+ *     the folder's own is written; `closeEpic` refuses while it is there.
+ *     Never a path under `archive/` (a closed Epic's folder is history), and
+ *     never a legacy name that is not the Epic's own (`1-PLAN.md`,
+ *     `PLAN.md`, `{phase}-PLAN.md`) — those may belong to another unit.
+ *
  * @param {string} artifact — artifact base name, e.g. 'PLAN', 'REQUIREMENTS'
- * @param {{currentEpic?: string|null, phase?: string|null}} [opts]
- * @returns {string} the file name (no directory) to write under `.planning/`
+ * @param {{currentEpic?: string|null, phase?: string|null, planningDir?: string|null,
+ *   existsFn?: (p: string) => boolean}} [opts]
+ * @returns {string} the path, relative to `.planning/`, to write
+ * @throws {WorkStoreError} CONFIG when `planningDir` is given and its WORK.md is broken
  */
 export function artifactName(artifact, opts = {}) {
-  const { currentEpic = null } = opts;
+  const { currentEpic = null, planningDir = null, existsFn = existsSync } = opts;
+  const fallback = defaultArtifactName(artifact, { currentEpic, planningDir, existsFn });
+  if (!planningDir || typeof currentEpic !== 'string' || !EPIC_ID_STRICT_RE.test(currentEpic)) return fallback;
+  const planningRoot = resolve(planningDir);
+  const read = resolveArtifactPath(planningRoot, artifact, { currentEpic, existsFn });
+  if (read === null) return fallback;
+  const rel = relative(planningRoot, read).split(sep).join('/');
+  // `fallback` is already the canonical folder name when the folder exists,
+  // and the root name when it does not — so only the folder's bare form can
+  // differ from it here.
+  const own = [
+    `${LIVE_EPICS_REL}/${currentEpic}/${currentEpic}-${artifact}.md`,
+    `${LIVE_EPICS_REL}/${currentEpic}/${artifact}.md`,
+  ];
+  return own.includes(rel) ? rel : fallback;
+}
+
+// The name to write when the Epic has no file of its own yet — the rule
+// before REVIEW I6, and pattern W of `resolveArtifactPath`.
+function defaultArtifactName(artifact, { currentEpic = null, planningDir = null, existsFn = existsSync } = {}) {
   if (typeof currentEpic === 'string' && EPIC_ID_STRICT_RE.test(currentEpic)) {
-    return `${currentEpic}-${artifact}.md`;
+    const folder = planningDir ? epicFolderRel(resolve(planningDir), currentEpic, existsFn) : null;
+    return folder ? `${folder}/${currentEpic}-${artifact}.md` : `${currentEpic}-${artifact}.md`;
   }
   if (LINEAR_UNPREFIXED.has(artifact)) return `${artifact}.md`;
   return `1-${artifact}.md`;

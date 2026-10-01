@@ -108,6 +108,19 @@ const SCHEMA_VERSION = 1;
 // ever emits depth-2, which currentMilestone can parse.
 const EPIC_ID_STRICT_RE = /^M\d+(\.\d+)*\.E\d+$/;
 
+// Natural order of Epic IDs: M6.E2 before M6.E11, M5.E10 before M6.E1. Numeric
+// segments compare as numbers; a missing segment sorts first; IDs whose
+// numbers all tie fall back to string order, so the order is total.
+function compareEpicIds(a, b) {
+  const pa = (a.match(/\d+/g) ?? []).map(Number);
+  const pb = (b.match(/\d+/g) ?? []).map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? -1) - (pb[i] ?? -1);
+    if (d !== 0) return d;
+  }
+  return a.localeCompare(b);
+}
+
 // Best-effort fetch of the current git HEAD sha. Returns null when git is
 // unavailable, the cwd isn't a repo, or HEAD is otherwise unreadable —
 // matches the D6 graceful-degradation posture for git-dependent helpers.
@@ -750,7 +763,7 @@ export async function completePhase(baseDir, phase) {
   });
 }
 
-export { PHASES, PLANNING_DIR, SCHEMA_VERSION, EPIC_ID_STRICT_RE, PHASE_LOG_MARKER, withStateLock };
+export { PHASES, PLANNING_DIR, SCHEMA_VERSION, EPIC_ID_STRICT_RE, compareEpicIds, PHASE_LOG_MARKER, withStateLock };
 
 // --- current_tasks helpers (M4.5.E6.S1.t6, D10) ---
 //
@@ -1113,6 +1126,23 @@ const STATE_AFFECTING_PATHS = [
   ':(glob).planning/*-REVIEW.md',
 ];
 
+// M6.E11 t5.4: with the work store on, an Epic's artifacts sit in its folder,
+// canonical (`{EpicID}-PLAN.md`) or bare (`PLAN.md`). Artifacts only — an
+// item file there (`SIG-4.md`) is a capture, not ground state moving.
+// Added to the pathspec ONLY when the store is on (t6.1): a project can have a
+// `.planning/work/epics/` directory with no WORK.md, and before this Epic a
+// commit there never made STATE stale — the store-off golden holds that.
+const STORE_EPIC_ARTIFACT_PATHS = [
+  ':(glob).planning/work/epics/*/*-PROGRESS.md',
+  ':(glob).planning/work/epics/*/*-PLAN.md',
+  ':(glob).planning/work/epics/*/*-VERIFICATION.md',
+  ':(glob).planning/work/epics/*/*-REVIEW.md',
+  ':(glob).planning/work/epics/*/PROGRESS.md',
+  ':(glob).planning/work/epics/*/PLAN.md',
+  ':(glob).planning/work/epics/*/VERIFICATION.md',
+  ':(glob).planning/work/epics/*/REVIEW.md',
+];
+
 // B6/FR4 (M5.E5.T4) — the true "bookkeeping" subset of STATE_AFFECTING_PATHS:
 // curated orientation files that do NOT represent ground-state movement.
 // STATE.md is markFresh's own "+1" (it records last_updated_commit = HEAD, then
@@ -1190,6 +1220,17 @@ export async function isStateStale(baseDir, opts = {}) {
     if (head && head === lastCommit) return empty;
   }
 
+  // Imported here, not at the top: work-store.js imports this module.
+  // A broken WORK.md throws — the store never reads as off, so its paths stay in.
+  const { isStoreOn } = await import('./work-store.js');
+  let storeOn;
+  try {
+    storeOn = isStoreOn(baseDir).on;
+  } catch {
+    storeOn = true;
+  }
+  const affecting = storeOn ? [...STATE_AFFECTING_PATHS, ...STORE_EPIC_ARTIFACT_PATHS] : STATE_AFFECTING_PATHS;
+
   try {
     const out = execFn(
       'git',
@@ -1198,7 +1239,7 @@ export async function isStateStale(baseDir, opts = {}) {
         '--pretty=format:%H %s',
         `${lastCommit}..HEAD`,
         '--',
-        ...STATE_AFFECTING_PATHS,
+        ...affecting,
       ],
       { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
     );

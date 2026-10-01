@@ -1,6 +1,6 @@
 # Work items: one system of record — design direction
 
-**Status:** direction agreed in conversation with Brett, 2026-09-28. **Not yet DISCUSSed.** This is the
+**Status:** direction agreed in conversation with Brett, 2026-09-28. ~~**Not yet DISCUSSed.**~~ Step 1 built as `M6.E11` (2026-09-29). This is the
 input to `/sig:discuss` for the status-redesign Epic (`D-M6E3-16`; `BACKLOG.md` → *Structural
 status*). Decisions below are `D-BR0928-1` … `D-BR0928-7` in `.planning/DECISIONS.md`.
 **Diagram:** [`work-items/work-items-architecture.html`](work-items/work-items-architecture.html)

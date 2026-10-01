@@ -1,0 +1,17 @@
+---
+id: SIG-48
+type: BUG
+status: C
+title: "`execute.md`'s phase-entry instruction is unconditional, and an agent
+  refused it on correctness grounds — writing a…"
+priority: P2
+source: migration:BUGS.md
+source_ref: BUGS.md:84
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B48
+---
+| B48 | `fixed` | P2 | **`execute.md`'s phase-entry instruction is unconditional, and an agent refused it on correctness grounds — writing a false record is the alternative.** M5.E9's FR6 tells the agent to call `transitionPhase(baseDir, 'EXECUTE')` **"before any Workflow step"**, with no precondition clause. Observed live during M5.E8's first adherence run (2026-07-28): against a fixture with no PLAN artifact, `/sig:execute` halted at its preconditions and the agent **explicitly declined** the phase-entry write, reasoning that calling it *"would have written `phase: EXECUTE` for a project with nothing to execute, and appended `PLAN` to `completed_phases` when PLAN produced no artifact — a false record in the exact log that `resume.js` and `isEpicCloseByState` read as ground truth."* **The agent is right, and the instruction as written is wrong.** `recordPhase` (`state.js:429`) appends unconditionally with no evidence check, so obeying the instruction literally on a halted phase corrupts the ledger M5.E9 had just finished making honest — while disobeying it reproduces `B41`, the very defect FR6 was written to fix. **The instruction and the phase-log integrity rules are in direct conflict, and nothing in the corpus resolves it.** **Not found by the harness's verdict** — that run scored `ABSENT`, which is a fact about the fixture. It was found by reading the transcript, which is why transcript retention is now unconditional. **Fix shape:** state the precondition explicitly — transition at entry *once the phase's preconditions hold*, and if the command halts before doing any work, do not record the phase as left. Applies to all four commands M5.E9 changed (`plan`, `execute`, `verify`, `review`), not just `execute.md`. **→ Status reconciled 2026-08-02** (fix lane, BUGS.md status-vs-code sweep): fixed in **M5.E13 (FR1.2)** and never flipped — in the text *and* the code beneath it. The phase-entry instruction is now conditional in all four commands (see the `**Why the condition (M5.E13, `B48`).**` paragraph at `commands/execute.md:48` and its three siblings), and `transitionPhase` refuses to record an artifact-less phase. The originating EXECUTE case is asserted by name at `tests/phase-recording.test.js:201`. |

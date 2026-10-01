@@ -4,7 +4,19 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-09-27) — M6.E3 EXECUTE COMPLETE, VERIFY NEXT
+## Where things stand (2026-09-30) — M6.E11 SHIPPED (PR #263, v0.1.43), awaiting merge
+
+**`M6.E11` — the work-item store, step 1 — is shipped on `feat/m6.e11-work-item-store`, PR #263
+(merge with `--merge`), releasing `v0.1.43`.** Signal's bugs, backlog, inbox and questions are 248+
+item files in `.planning/work/` (`SIG-n.md`), moved by `/sig:item`; the old lists are generated.
+Opt-in by `.planning/work/WORK.md`. The Epic's folder is archived at
+[`archive/epics/M6.E11/`](./archive/epics/M6.E11/M6.E11-REQUIREMENTS.md); retro
+[`M6.E11-RETROSPECTIVE.md`](M6.E11-RETROSPECTIVE.md). **Not met:** the bug half of the outcome (33
+confirmed bugs still judged by inference until `Fixes: SIG-n`, step 3). Next steps of the design:
+intake/triage (2), sprints + `Fixes:` (3), GitHub add-on (4), `/sig:docs-migrate` for other projects (5).
+---
+
+## Where things stood (2026-09-27) — M6.E3 EXECUTE COMPLETE, VERIFY NEXT
 
 **`v0.1.41` is on `main`** (PR #258). **`M6.E3` is on `feat/m6.e3-jev-claims-audit`, EXECUTE complete,
 `/sig:verify` next** — `STATE.md`'s resume pointer has the detail. Built: a SHIP gate that refuses only
@@ -15,7 +27,7 @@ advisory judge — `STATE.md` paragraphs at `/sig:resume` and SHIP, stale bug ro
 **The finding that sets the next Epic:** no code rule can tell whether a hand-typed status is still
 true (`M6.E3-RESEARCH.md`), because nothing records "done" when it happens. Brett, 2026-09-27: *"revisit
 this whole architecture vs. keep applying band-aids"* (`D-M6E3-16`). Next Epic = record status at the
-source; first question is his: a marker in the files, or GitHub Issues.
+source; ~~first question is his: a marker in the files, or GitHub Issues~~ — answered by `D-BR0928-7`.
 
 **`D-BR0926-1` — Signal dropped its privacy positioning.** It is Brett's scaffolding for his own
 projects (three users). A feature that sends text to a model needs one README line, not a debate or a

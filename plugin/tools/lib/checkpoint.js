@@ -18,6 +18,7 @@ import {
   withStateLock,
 } from './state.js';
 import { scrubSensitive } from './add.js';
+import { folderFor, isStoreOn } from './work-store.js';
 
 // Vocabulary task-ID regex (per Signal's ID-is-identity convention): matches
 // `M4`, `M4.5`, `M4.5.E6`, `M4.5.E6.S1`, `M4.5.E6.S1.t6`, with an optional
@@ -271,10 +272,17 @@ function appendOpenQuestions(content, questions, date) {
  * }} [opts] — `_afterRead` is the FR5 read-enclosure test seam (B25/M5.E5.T3):
  *   awaited once after the first version-establishing read, before any write.
  *   Defaults to undefined (no-op); mirrors atomic-write.js#renameFn.
+ * Work store on, a failed question batch (REVIEW I7): nothing else is
+ * written and the result is `{wrote, sensitiveHits, aborted:
+ * 'work-store-failed', error: {code, message}}` — `wrote` is empty unless
+ * the items landed and only the regeneration failed. `_renameFn` is a test
+ * seam passed to the batch's writes.
+ *
  * @returns {Promise<{
  *   wrote: string[],
  *   sensitiveHits: object[],
- *   aborted?: 'sensitive-data-pending',
+ *   aborted?: 'sensitive-data-pending' | 'work-store-failed',
+ *   error?: {code?: string, message: string},
  * }>}
  */
 async function captureCheckpointContextCore(baseDir, opts = {}) {
@@ -298,8 +306,54 @@ async function captureCheckpointContextCore(baseDir, opts = {}) {
     };
   }
 
+  // M6.E11 (t4.2): with the work store on, questions become Q items rather
+  // than an append to OPEN-QUESTIONS.md (which is generated). Asked BEFORE any
+  // write, so a broken WORK.md throws with nothing half-written.
+  const store = questions.length > 0 ? isStoreOn(baseDir) : { on: false };
+
   const today = new Date().toISOString().split('T')[0];
   const planningDir = join(baseDir, '.planning');
+
+  // Store on: the questions become Q items FIRST, all at once (REVIEW I7) —
+  // one `work` lock, one regeneration, and the batch's own items removed if
+  // a later one fails. Running it before the decisions is what makes a
+  // failure (a busy lock, a failed write) leave nothing written at all: the
+  // result says `aborted: 'work-store-failed'` and DECISIONS.md / CONTEXT.md
+  // are untouched, so the whole capture can simply be re-run. `wrote` names
+  // any item that did land (only when regeneration, not the writes, failed).
+  //
+  // `newItems` takes the store's own `work` lock, not `.state.lock` — this
+  // runs inside `withStateLock`, which is not reentrant (D-M6E11-27).
+  // Imported lazily: work-ops.js → … → backlog.js → add.js, which this
+  // module imports, would otherwise be a static cycle.
+  let questionItems = null;
+  if (questions.length > 0 && store.on) {
+    const { newItems } = await import('./work-ops.js');
+    // Test seam, like `_afterRead`: own-property + typeof guard.
+    const renameFn = Object.hasOwn(opts, '_renameFn') && typeof opts._renameFn === 'function' ? opts._renameFn : undefined;
+    try {
+      questionItems = await newItems(
+        baseDir,
+        questions.map((q) => ({
+          type: 'Q',
+          title: q.split('\n')[0].trim(),
+          body: q,
+          source: '/sig:checkpoint',
+          by: '/sig:checkpoint',
+        })),
+        // Scrubbed above, with the user's answer — `newItems` must not ask again (REVIEW I3).
+        { acknowledgeSensitive: true, renameFn }
+      );
+    } catch (err) {
+      return {
+        wrote: (err?.written ?? []).map((rel) => join(baseDir, rel)),
+        sensitiveHits: scrub.hits,
+        aborted: 'work-store-failed',
+        error: { code: err?.code, message: String(err?.message ?? err) },
+      };
+    }
+  }
+
   await mkdir(planningDir, { recursive: true });
 
   const wrote = [];
@@ -327,7 +381,9 @@ async function captureCheckpointContextCore(baseDir, opts = {}) {
     wrote.push(decPath);
   }
 
-  if (questions.length > 0) {
+  if (questionItems) {
+    for (const item of questionItems) wrote.push(join(planningDir, folderFor(item), `${item.id}.md`));
+  } else if (questions.length > 0) {
     const oqPath = join(baseDir, OPEN_QUESTIONS_PATH_REL);
     const oqExisting = existsSync(oqPath)
       ? await readFile(oqPath, 'utf-8')
@@ -348,7 +404,8 @@ async function captureCheckpointContextCore(baseDir, opts = {}) {
  *
  * @param {string} baseDir
  * @param {{decisions?: string[], questions?: string[], acknowledgeSensitive?: boolean}} [opts]
- * @returns {Promise<{wrote: string[], sensitiveHits: object[], aborted?: 'sensitive-data-pending'}>}
+ * @returns {Promise<{wrote: string[], sensitiveHits: object[],
+ *   aborted?: 'sensitive-data-pending' | 'work-store-failed', error?: {code?: string, message: string}}>}
  */
 export async function captureCheckpointContext(baseDir, opts = {}) {
   return withStateLock(baseDir, () => captureCheckpointContextCore(baseDir, opts));

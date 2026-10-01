@@ -1,0 +1,17 @@
+---
+id: SIG-84
+type: BUG
+status: C
+title: "`cut-release.js`'s \"you forgot to write the release notes\" guard
+  cannot fire in this repo, and what it does instead is…"
+priority: P2
+source: migration:BUGS.md
+source_ref: BUGS.md:117
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B84
+---
+| B84 | `fixed` | P2 | **`cut-release.js`'s "you forgot to write the release notes" guard cannot fire in this repo, and what it does instead is rewrite history.** `foldChangelog` refuses when `/^## \[Unreleased\]/m` finds nothing — a guard whose stated purpose is that *"a release with no notes is the failure this is meant to prevent, not a case to paper over."* But `CHANGELOG.md:239` carries a **permanent, historical** `## [Unreleased]` section: M5.E7's v2 direction audit, which deliberately shipped no code and so was never versioned. That section satisfies the guard **unconditionally and forever**, so the refusal branch is unreachable. Worse than merely dead: the replace is `/m` without `/g`, so it takes the **first** match — and when no new `[Unreleased]` exists at the top, the first match is the historical one. **Observed, not reasoned:** cutting v0.1.20 without pre-written notes rewrote `## [Unreleased] — 2026-07-26 — The v2 direction audit (M5.E7)` into `## [0.1.20] — 2026-08-06 — …`, relabelling a closed record as this release and destroying the only heading that marks M5.E7 as no-code-shipped. Caught by reading the diff; nothing in the tool or the suite objected. **This is the guards-that-don't-guard class (v0.1.14 / M5.E13's entire theme) inside the release tool itself,** and it compounds a known interaction: the same historical heading is why `changelogBetween` skips M5.E7's section in every `/sig:update` delta (already filed as a heading-capture). **Fix shape:** anchor the fold to an `[Unreleased]` heading that appears **above the newest released `## [x.y.z]` heading**, so a historical one lower in the file can neither satisfy the guard nor be the replace target; and give M5.E7's section a non-`[Unreleased]` heading so one file has one meaning for the token. Filed 2026-08-06 from the v0.1.20 cut; the release was completed by writing the notes first, which is the documented-but-unenforced order. **→ FIXED same day.** The anchor is now **positional**: the pending section is the one *above* the newest released `## [x.y.z]` heading, so anything below it is history and can neither satisfy the guard nor be the replace target. **Verified against the real tool, not a fixture** — `node tools/cut-release.js 0.1.21` now refuses by name and leaves M5.E7's heading byte-identical, where the same invocation before the fix relabelled it. **The old refusal test passed the entire time**, because its fixture omitted the `[Unreleased]` heading the real file always has — a guard proven on a corpus that could not exhibit the bug, which is why the new tests assert against the shipped `CHANGELOG.md` itself. **And the fix exposed a second, quieter instance of the same dependency:** three version-site tests were green *because* of the bug — they read the real CHANGELOG and relied on the historical heading to make `releaseEdits` succeed. They now seed their pending section explicitly. M5.E7's heading was deliberately **left as-is**: renaming it would silently change the status of the separately-filed `changelogBetween` heading-capture, and that is a different bug's call to make. 2269 → **2273 tests**. |

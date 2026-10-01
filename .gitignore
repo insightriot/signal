@@ -21,3 +21,6 @@ coverage/
 .dogfood/
 .upstream/
 .signal/
+
+# M6.E11 work-store lock (transient; like .planning/.state.lock)
+.planning/work/.lock

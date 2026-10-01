@@ -1,0 +1,16 @@
+---
+id: SIG-23
+type: BUG
+status: C
+title: M5.E3 REVIEW test-hardening follow-up (bundle).
+priority: P3
+source: migration:BUGS.md
+source_ref: BUGS.md:50
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B23
+---
+| B23 | `fixed` | P3 | **M5.E3 REVIEW test-hardening follow-up (bundle).** Non-blocking coverage gaps the panel flagged: (a) the **organic re-root-to-missing-target** path — CHECK-ITEM 2 re-roots to a planted *existing* sibling; the dangling/rollback tests INJECT synthetic dangles, so "re-root produces a real dangling link → non-injected `enforceNoDangling` catches → abort+rollback" is never exercised (inert on Signal — 0 inline `](*.md)` in DECISIONS — but live for external repos). (b) the **>1 MB `FILE_SCAN_CEILING` truncation** branch (`doc-hygiene.js:102`, `migrate-memory.js:1482`) has no fixture crossing the 1 MB cap (largest is 200 KB) — also the B15 class. (c) **no rollback test asserts `git diff --cached` is empty** after a mid-phase abort — correctness holds structurally (staging is post-gate) but the "do NOT reorder" ordering (`migrate-memory.js:2263`) is comment-protected, not test-protected. (d) **`promoteDrainEntry` batch re-run:** verify the `/sig:plan` drain does NOT re-select already-`→ Promoted` terminal entries (once stamped, the block's sha1 no longer matches its dedupe marker, so a re-promote would duplicate; the selection lives in `commands/plan.md`, outside the E3 code diff). Plus 2 cosmetic nits: `backlogKey` → `blockKey` (used for both backlog + bugs markers); `promoteToBugs` dedupe-marker string-replace on rendered output is fragile if `buildBugsEntry`'s template changes. Confirmed 2026-07-19 (M5.E3 REVIEW panel). |

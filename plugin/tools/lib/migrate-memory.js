@@ -23,7 +23,9 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { join, dirname, resolve, relative, sep } from 'node:path';
 
-import { PLANNING_DIR, withStateLock, EPIC_ID_STRICT_RE } from './state.js';
+// compareEpicIds: the one natural Epic-ID order (M5.E2 < M5.E10), shared with
+// archive-tree.js and work-generate.js — deterministic plan/moves order.
+import { PLANNING_DIR, withStateLock, EPIC_ID_STRICT_RE, compareEpicIds } from './state.js';
 import { atomicWrite } from './atomic-write.js';
 import {
   extractEpicSection,
@@ -46,6 +48,7 @@ import {
 } from './archive-tree.js';
 import { currentMilestone } from './milestones.js';
 import { createBacklogIfMissing } from './backlog.js';
+import { isGeneratedText } from './work-marker.js';
 
 // verifyFaithful IS verifyCardCoverage under the migrate command's name — a
 // re-export, NOT a rename (evict.js keeps verifyCardCoverage; check-state-write
@@ -820,17 +823,6 @@ function discoverEpicSectionIds(body) {
     if (m && EPIC_ID_STRICT_RE.test(m[0])) ids.add(m[0]);
   }
   return [...ids];
-}
-
-// Numeric-segment Epic-ID sort (M5.E2 < M5.E10) — deterministic plan/moves order.
-function compareEpicIds(a, b) {
-  const na = a.match(/\d+/g)?.map(Number) ?? [];
-  const nb = b.match(/\d+/g)?.map(Number) ?? [];
-  for (let i = 0; i < Math.max(na.length, nb.length); i++) {
-    const d = (na[i] ?? 0) - (nb[i] ?? 0);
-    if (d !== 0) return d;
-  }
-  return 0;
 }
 
 /**
@@ -2190,9 +2182,14 @@ export function createSnapshotter(planningDir) {
     const existed = existsSync(abs);
     snapshot.set(rel, { abs, existed, bytes: existed ? await readFile(abs, 'utf-8') : null });
   };
+  // M6.E11 (t4.5): a snapshot of a GENERATED list (work store on) is restored
+  // with `{generated: true}` — it puts back the generator's own bytes, which
+  // is the one write into a marked file that cannot lose anything. Skipping
+  // it instead would leave the rollback half-done. Hand bytes over a
+  // generated file are still refused by the write guard.
   const rollback = async () => {
     for (const s of snapshot.values()) {
-      if (s.existed) await atomicWrite(s.abs, s.bytes);
+      if (s.existed) await atomicWrite(s.abs, s.bytes, { generated: isGeneratedText(s.bytes) });
       else if (existsSync(s.abs)) await rm(s.abs);
     }
   };
@@ -2485,7 +2482,9 @@ export async function applyMigrate(baseDir, opts = {}) {
       await mkdir(snapshotDir, { recursive: true });
       await writeFile(join(planningDir, '.migrate', '.gitignore'), '*\n', 'utf-8');
       for (const [rel, s] of snapshot) {
-        if (s.existed) await atomicWrite(join(snapshotDir, rel.replace(/\//g, '__')), s.bytes);
+        // A persisted copy of a generated list carries the marker, so the next
+        // run's persist onto the same name needs the flag too (M6.E11 t4.5).
+        if (s.existed) await atomicWrite(join(snapshotDir, rel.replace(/\//g, '__')), s.bytes, { generated: isGeneratedText(s.bytes) });
       }
     }
 

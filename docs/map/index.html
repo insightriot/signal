@@ -501,7 +501,7 @@
      ██ ██ ██    ██ ██  ████ ██   ██ ██
 ███████ ██  ██████  ██   ███ ██   ██ ███████</pre>
 <p class="tagline">Right-sized rigor for AI-assisted engineering.</p>
-<p class="meta">Map &middot; v0.1.42 &middot; <a href="../commands/">commands/</a> &middot; <a href="../.planning/PROJECT.md">PROJECT.md § Vocabulary</a> &middot; <a href="../references/tier-definitions.md">tier-definitions.md</a></p>
+<p class="meta">Map &middot; v0.1.43 &middot; <a href="../commands/">commands/</a> &middot; <a href="../.planning/PROJECT.md">PROJECT.md § Vocabulary</a> &middot; <a href="../references/tier-definitions.md">tier-definitions.md</a></p>
 </header>
 
 <nav class="view-tabs" aria-label="Views">
@@ -656,7 +656,7 @@
 <p><strong class="k2">Why it matters:</strong> The most expensive thing in software isn't writing code — it's <em>re-establishing context</em>: re-explaining, re-deciding, re-discovering why things are the way they are. Signal makes context a permanent asset instead of something that evaporates when a session ends. That's what makes development <em>sustainably</em> fast, not just fast in bursts.</p>
 
 <h2><span class="glyph">＋</span>Capturing ideas without derailing the work</h2>
-<p><strong class="k">What it does:</strong> Mid-build, you'll think of things — a new feature, a question, a possible bug. One quick command captures the thought, word-for-word, into the right inbox (ideas, open questions, or bugs) and you keep working. The next time you plan, Signal walks you through the inbox: promote this idea into the plan, save it for later, merge it, or drop it — your call, every time.</p>
+<p><strong class="k">What it does:</strong> Mid-build, you'll think of things — a new feature, a question, a possible bug. One quick command captures the thought, word-for-word, into the right inbox (ideas, open questions, or bugs) and you keep working. The next time you plan, Signal walks you through the inbox: promote this idea into the plan, save it for later, merge it, or drop it — your call, every time. <strong>New in v0.1.43, opt-in:</strong> projects that switch on the <em>work-item store</em> keep every captured thing as its own file with a permanent ID (<code>SIG-412</code>), which <em>moves</em> — inbox → backlog → an Epic's folder → done → archive — instead of being copied between lists. One command, <code>/sig:item</code>, triages, moves, closes and reopens items, so "is this done?" is read from one place, never guessed. Projects that haven't switched see no change; moving an existing project over comes in a later release.</p>
 <p><strong class="k2">Why it matters:</strong> The two ways good ideas die are being forgotten and being chased immediately (wrecking the current task). This gives every stray thought a safe landing spot in under ten seconds, and guarantees it resurfaces at exactly the right moment — planning time. Nothing falls through the cracks, and nothing derails you.</p>
 
 <h2><span class="glyph">♻</span>A memory that maintains itself</h2>
@@ -827,11 +827,17 @@ const COMMANDS = [
       {
         name: '/sig:add',
         tags: ['not phase-gated'],
-        summary: 'Capture-and-route new work. Default appends a stamped entry to FUTURE-IDEAS.md after a sensitive-data scrub + atomic write.',
+        summary: 'Capture-and-route new work. Default appends a stamped entry to ISSUES-INBOX.md after a sensitive-data scrub + atomic write — or, with the work-item store on, creates an item file in .planning/work/inbox/.',
         flags: [
           { f: '--question', d: 'Route the entry to OPEN-QUESTIONS.md instead.' },
           { f: '--milestone [N]', d: 'Route the entry to a milestone holding section.' },
         ],
+      },
+      {
+        name: '/sig:item',
+        tags: ['not phase-gated', 'work store only'],
+        summary: 'Move work items through the work store: new, triage, move, close, reopen, show, list. Every status change goes through it, so an item\'s folder and its status cannot disagree. Only for projects with .planning/work/WORK.md.',
+        flags: [],
       },
       {
         name: '/sig:doctor',

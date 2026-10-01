@@ -63,15 +63,22 @@ was answered with a diagnosis about missing external users, while 42+ repositori
 **A user saying it doesn't work is a claim about the software; reproduce it before reframing it.**
 The trace that settled it took four minutes.
 
-**Active: `v0.1.42` (2026-09-27) — `M6.E3` shipped: Jev checks Signal's own records, as advice with
+**Previous: `v0.1.42` (2026-09-27) — `M6.E3` shipped: Jev checks Signal's own records, as advice with
 receipts.** It checks `STATE.md` paragraphs against derived facts (at `/sig:resume` and SHIP) and
 `confirmed` bugs a release may have fixed (at SHIP). It is on only with `TYPESAFE_API_KEY`, and a
 model finding **cannot refuse, by declaration** (`judged: 'model'`). Measured live: 4 of 4, 0/26
 false alarms. ⚠ **Three fresh-context REVIEW passes; pass 2 found a High in pass 1's own fixes**
 (a committed `.ENV` passing a `.env` check on macOS). Fix-on-fix needs its own fresh read. Retro:
-[`.planning/M6.E3-RETROSPECTIVE.md`](.planning/M6.E3-RETROSPECTIVE.md). **Next: the status
-redesign** (`D-M6E3-16`): record "done" when it happens instead of inferring it. First question: a
-marker in the files, or GitHub Issues.
+[`.planning/M6.E3-RETROSPECTIVE.md`](.planning/M6.E3-RETROSPECTIVE.md). 
+
+**Active: `v0.1.43` (2026-09-30) — `M6.E11`
+shipped: the work-item store, step 1** (PR #263). One file per thing (`.planning/work/SIG-n.md`),
+moved through `inbox/` → `backlog/` → `epics/<id>/` → `done/` by `/sig:item` (the 24th command);
+`BUGS.md`/`BACKLOG.md`/`ISSUES-INBOX.md`/`OPEN-QUESTIONS.md` are now **generated — edit items, not
+lists**. Opt-in by `.planning/work/WORK.md`; projects without it see no change. ⚠ **The shared file
+lock was the hardest part**: three REVIEW passes, each finding a defect in the previous pass's fix.
+Retro: [`.planning/M6.E11-RETROSPECTIVE.md`](.planning/M6.E11-RETROSPECTIVE.md). Next: steps 2–5 of
+`analysis/WORK-ITEM-SYSTEM-DESIGN.md`; other projects move over via `/sig:docs-migrate` (step 5).
 `B118` — `/sig:drive` and `/sig:advise` read one branch's corpus — is still unfixed.
 
 ✅ **`B117` — the Epic lane kept getting squashed. CLOSED 2026-09-08 by the ruleset** (see *How changes reach `main`* below: `main` now permits `merge` only, so the sticky button cannot arm anything). The history is kept because the *cause* is the lesson. PR #239 was
@@ -147,12 +154,12 @@ The REVIEW phase (between VERIFY and SHIP) is the key addition over GSD's origin
 ## Planned Plugin Structure
 
 ```
-commands/       # 23 slash commands, in 5 groups (references/command-taxonomy.md):
+commands/       # 24 slash commands, in 5 groups (references/command-taxonomy.md):
                 #   flow        /sig:new-project, /sig:init, /sig:calibrate,
                 #               /sig:discuss, /sig:plan, /sig:execute,
                 #               /sig:verify, /sig:review, /sig:ship, /sig:escalate
                 #   orientation /sig:status, /sig:resume, /sig:advise
-                #   capture     /sig:add, /sig:checkpoint
+                #   capture     /sig:add, /sig:checkpoint, /sig:item
                 #   doc upkeep  /sig:docs-index, /sig:docs-sweep, /sig:docs-migrate, /sig:docs-archive
                 #   own health  /sig:doctor, /sig:update, /sig:permissions
 agents/         # 26 agents (19 GSD + 3 Agent Skills specialists + 4 brownfield scanners)
@@ -258,7 +265,7 @@ There is a second, softer reason: `commands/ship.md` §2 asks you to curate a co
 
 **Why this is enforced rather than written down.** `ship.md` used to carry a parenthetical exempting "the Signal-on-Signal flow" from its own Exit Criteria — which require a PR and an approval. It was written 2026-05-26; **thirteen releases shipped under it and exactly one pull request existed in that span.** The file defining the rule was the file granting the exception, so nothing caught it. Removed in v0.1.15, and the gate now lives in a GitHub ruleset because this repo has twice been bitten by rules that existed only as prose (`B7`→`B58`, `B39`).
 
-**Delivery** (`D-M5E17-4`): `marketplace.json` uses the relative `.` source — the plugin *is* this repo — so **users track `main`**, not a pinned tag. There is no `ref` or `sha` to keep in sync, and reintroducing them fails `install-contract.test.js`. Bumping `plugin.json` is what makes an update visible to users. Tags are bookmarks, not delivery.
+**Delivery** (`D-M5E17-4`): `marketplace.json` uses the relative `./plugin` source — the plugin is this repo's `plugin/` folder (since `M6.E1`) — so **users track `main`**, not a pinned tag. There is no `ref` or `sha` to keep in sync, and reintroducing them fails `install-contract.test.js`. Bumping `plugin.json` is what makes an update visible to users. Tags are bookmarks, not delivery.
 
 ### House rules, and how one becomes a check
 

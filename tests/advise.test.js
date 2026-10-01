@@ -42,6 +42,7 @@ import {
 } from '../plugin/tools/lib/advise.js';
 import { EVIDENCE_MARKER, extractCitations, verifyCitations } from '../plugin/tools/lib/citations.js';
 import { backlogDischargeStatus, parseBacklogRows } from '../plugin/tools/lib/backlog.js';
+import { archived } from './helpers/pre-store.js';
 
 const TODAY = '2026-09-05';
 
@@ -370,7 +371,8 @@ describe('M6.E8 t3.3 (FR3 amended — D-M6E8-8) — the discharge reason names i
     // test reviewer. This one runs the real headings through `parseBacklogRows`
     // and asserts what each actually leads with: two lead with nothing, and the
     // third leads with `M5.E20`, which is not any of the units they mention.
-    const backlog = readFileSync(join(process.cwd(), '.planning/BACKLOG.md'), 'utf8');
+    // M6.E11 t7.2: the hand-written BACKLOG.md, archived verbatim at the migration.
+    const backlog = archived('BACKLOG.md');
     const rows = parseBacklogRows(backlog, { maxDepth: 4 });
     const find = (re) => rows.find((r) => re.test(r.text));
     const mentions = [

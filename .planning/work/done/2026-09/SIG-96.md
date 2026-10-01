@@ -1,0 +1,17 @@
+---
+id: SIG-96
+type: BUG
+status: C
+title: '`extractEpicSection` cannot see a heading inside a blockquote, so
+  `evictEpicNarrative` reports `no-section` — *"a safe…'
+priority: P2
+source: migration:BUGS.md
+source_ref: BUGS.md:202
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B96
+---
+| B96 | `fixed` | **P2** | **`extractEpicSection` cannot see a heading inside a blockquote, so `evictEpicNarrative` reports `no-section` — *"a safe no-op"* — for a narrative that exists and is 5 KB.** Found 2026-08-13 while validating `M5.E10`'s SHIP preconditions, by dry-running the §5.5 coverage gate rather than waiting for ship to run it. `evict.js:189` builds `` `(?:^|\n)(#{1,6})[ \t]+…` ``, which requires the heading to start the line; Signal's live STATE.md carries its in-flight block as `> ## ▶ IN FLIGHT — M5.E10, opened 2026-08-11`, inside a blockquote. `extractEpicSection` returns `{found: false}`, `evictEpicNarrative` returns `{evicted: false, reason: 'no-section'}`, and `commands/ship.md` §5.5 documents that outcome as *"a safe no-op"*. **It is safe; it is not a no-op.** The consequence is that the closing Epic's narrative is never relocated to `archive/`, so live `STATE.md` accretes every Epic's block forever — precisely what `M5.E1` FR2b built eviction to prevent, and the `STATE.md`-size advisory then fires on growth nothing will drain. **This is `B39`'s shape:** *could not find it* renders identically to *there is nothing to find*. `M5.E19` evicted correctly (`archive/M5/E19/STATE-NARRATIVE.md` exists), so this is a regression in the **document**, not the code — which is exactly why the code should distinguish the two cases. *Fix (design call, not taken here):* either report a fourth outcome when the Epic id appears in the body but no heading matches, or teach the heading regex to skip a `> ` prefix. **Deliberately not fixed inside `M5.E10`** — it is an `M5.E1` module, found at REVIEW-close, and the safe half (the gate refuses rather than corrupting) already holds. *Repro:* `extractEpicSection(parseFrontmatter(STATE.md).body, 'M5.E10')` → `{found:false}` while the body contains the block. **FIXED 2026-08-13 (`M5.E10`).** The heading and boundary patterns accept an optional `> ` prefix. **Fixed in the code rather than by un-blockquoting the document, deliberately: the code should read the shape the maintainer writes, not require the maintainer to write the shape the code reads.** Confirmed end-to-end — the section now resolves at 4562 bytes, and `verifyCardCoverage` then **refused** it, naming six decision ids and one date the retrospective did not carry. That is the R1 safety working: the retro was extended to cover them and the gate now passes, so eviction will actually run at ship. |

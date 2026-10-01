@@ -1,0 +1,110 @@
+---
+name: sig:item
+description: "Move work items through the work store — new, triage, move, close, reopen, show, list. Every status change to a file under .planning/work/ goes through this command, so an item's folder and its own status cannot disagree. Only for projects with the store on (.planning/work/WORK.md). Not phase-gated."
+args: "<new|triage|move|close|reopen|show|list> [args]"
+---
+
+# `/sig:item` — Move Work Items
+
+You are running `/sig:item`, a not-phase-gated **capture**-group command (`references/command-taxonomy.md`). Same class as `/sig:add` — no tier-gating preamble, no skill loading, no agent spawning.
+
+With the work store on, every bug, backlog row, inbox capture and open question is one file, `.planning/work/<folder>/SIG-n.md`, and its **folder is its status**: `inbox/` = N (new), `backlog/` = T (triaged), `epics/<EpicID>/` = Q or P (queued or in progress) — or C, closed in its Epic's folder and archived with it — `done/YYYY-MM/` = C (closed, no Epic). **Every move goes through here.** Never `mv`, `git mv`, delete or hand-edit the status of an item file — that is how a folder and a status come to disagree, and `checkStore` will report it. Nothing is ever deleted: closing is a move to `done/` (or, for an Epic's item, a status change in place).
+
+`BUGS.md`, `BACKLOG.md`, `ISSUES-INBOX.md` and `OPEN-QUESTIONS.md` are **generated** from the item files after every change. Do not edit them.
+
+Authoritative references:
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-ops.js` — `newItem`, `triageNext`, `proposeTriage`, `applyTriage`, `listNeedsReview`, `moveItem`, `closeItem`, `reopenItem`, `getItem`, `listItems`, `listThemes`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-store.js` — `isStoreOn`, `checkStore`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-item.js` — `renderLabel`, `WorkStoreError` (dispatch on its `code` — every code is listed under *Errors* below)
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readEffectiveProfile` (for `attention`, triage only)
+
+## Pre-flight: is the store on?
+
+Call `isStoreOn(baseDir)`.
+
+- `{on: false}` → stop and say, in plain words: *"This project does not use the work store, so there are no items to move. Turning it on for a project with existing lists is done by the migration, which moves every entry into an item file and writes `.planning/work/WORK.md` itself: `node tools/work-migrate.mjs` in Signal (`/sig:docs-migrate` for other projects, in a later release). Don't create `WORK.md` by hand: with hand-kept lists present, every item change then refuses rather than overwrite them. Until then, `/sig:add` captures into the usual files."* Write nothing.
+- A `CONFIG` error naming a **hand-kept** list → the store was switched on without the migration. Show the message verbatim and stop; nothing was written.
+- A `CONFIG` error → show its message verbatim (it names `WORK.md` and the fix) and stop. Never fall back to the legacy files.
+
+Items are named by their **ID**, `SIG-412`. The label `SIG-412-BUG-T` (ID, type, status) is for reading; you may pass either, and only the ID part is used.
+
+## The seven actions
+
+### `new "<words>"` — capture an item
+
+`newItem(baseDir, {title, body, source: '/sig:item', by})`. The words go into `body` verbatim; write a one-line `title` (as `/sig:add` does). It lands in `inbox/` as `NEW`, status N. Print the new label and path.
+
+`newItem` scrubs the title and body for secrets (AWS keys, GitHub tokens, bearer tokens, 40-character hex) before writing. If it returns `{aborted: 'sensitive-data-pending', sensitiveHits}`, nothing was written: show the user each hit and ask **keep** or **abort**. On keep, call again with `{acknowledgeSensitive: true}` as the third argument; on abort, stop. Never redact on the user's behalf.
+
+### `triage` — sort the inbox, one item at a time
+
+1. `triageNext(baseDir, {exclude})` returns the next item — ones the migration flagged (`migration_note`) first, then the oldest — with a **proposal**: type, title, theme, priority and possible duplicates. The proposal is keyword and word-overlap arithmetic, not judgement; **read the item and refine it** before presenting it. `listThemes(baseDir)` shows themes already in use — prefer joining one to inventing a near-copy.
+2. Get a decision, one of:
+   - **accept** — `{accept: {type, priority, theme, title}}` → status T, moved to `backlog/`. The type must be `BUG`, `FEAT`, `CHORE` or `Q`.
+   - **dup** — `{dup: 'SIG-n'}` → closed `dup` of that item.
+   - **reject** — `{reject: '<what was checked and found false>'}` → closed `rejected`, the text kept as proof.
+   - **skip** — `{skip: true}` → left in the inbox; add its ID to `exclude` for the rest of this run.
+3. `applyTriage(baseDir, id, decision, {by})`, then repeat until `triageNext` returns null. A new title or a reject's reason is scrubbed for secrets as in `new`: on `{aborted: 'sensitive-data-pending'}` nothing changed — ask **keep** or **abort**, and on keep call again with `acknowledgeSensitive: true` in the options.
+4. Then `listNeedsReview(baseDir)` — migrated rows already in `backlog/` that carry a `migration_note`. Offer them the same way; accepting one clears its note.
+
+**The attention setting governs confirmation, as in every phase** (`attention` from `readEffectiveProfile`, via `gates.confirm_in_phase` — not `gate_strictness`):
+
+| `attention` | What triage does |
+|---|---|
+| `attended` | Ask for each item's decision individually, showing the refined proposal. |
+| `checkpointed` | Refine every proposal, show them together, confirm once, then apply. |
+| `unattended` | Apply the refined proposals as `accept` without asking. **Never** `dup` or `reject` unattended — closing someone's capture needs a person; skip those and list them at the end. |
+
+### `move <ID> <status> [<EpicID>]` — change status
+
+`moveItem(baseDir, id, {status, epic})`. N → `inbox/`, T → `backlog/`, Q or P → `epics/<EpicID>/` (the Epic is required when the item is not already in one). Closing is not a move — use `close`. Print *from → to*. The first item into an Epic creates its folder and moves the Epic's `{EpicID}-*.md` artifacts from `.planning/` into it (not the retrospective or profile); when the result has `artifacts`, print each moved path — the rewritten files in `artifacts.rewritten` are changes to commit with it.
+
+In a git repository a tracked file is moved with `git mv`, so its history follows it. If the move cannot finish, the item is put back exactly as it was; say so and show the error.
+
+### `close <ID> <reason> [proof]` — close an item
+
+`closeItem(baseDir, id, {reason, by, proof, dup_of})`. The reason is required, one of:
+
+| Reason | Means | Needs |
+|---|---|---|
+| `fixed` | it was fixed | **ask for proof** — a commit, PR or test. If the user has none, the item records `proof: none given`, never an empty field |
+| `stale` | no longer relevant | — |
+| `wontdo` | true, but not worth doing | — |
+| `dup` | another item covers it | `dup_of`: that item's ID, which must exist |
+| `rejected` | checked, and not true | say what was checked, as `proof` |
+
+The item moves to `done/YYYY-MM/` — unless it is in an Epic folder, where it stays, closed, and is archived with the Epic. Print its new label and path. The proof is scrubbed for secrets as in `new`: on `{aborted: 'sensitive-data-pending'}` nothing was closed — ask **keep** or **abort**, and on keep call again with `{acknowledgeSensitive: true}` as the fourth argument.
+
+### `reopen <ID> "<reason>"` — a closed item came back
+
+`reopenItem(baseDir, id, {by, reason})`. Reopen the same item rather than capturing a new one (`D-M6E11-31`): it returns to `backlog/` as T, and its previous close — reason, who, when, proof — is kept in the file's `history` with who reopened it, when and why. The reason is required: say what came back. Refused for an item that is not closed, and for one archived with its Epic — that Epic is finished, so capture a new item and link it to the old one. Print *from → to*. The reason is scrubbed for secrets as in `new`: on `{aborted: 'sensitive-data-pending'}` nothing was reopened — ask **keep** or **abort**, and on keep call again with `{acknowledgeSensitive: true}`.
+
+### `show <ID>` — one item
+
+`getItem(baseDir, id)` → the label, path, Epic (if any), frontmatter and body. Finds archived items too.
+
+### `list [filters]` — many items
+
+`listItems(baseDir, {status, type, theme, priority, epic})`, each filter optional. Print one line per item: label, title, path. With `--themes`, it calls `listThemes(baseDir)` instead: each theme with its count.
+
+## Errors
+
+Show the message; it names the file and the fix. Every failure is a `WorkStoreError`; act on its `code`, never on the message text:
+
+- `CONFIG` — the store is off, `WORK.md` is broken, or a list is hand-kept. See *Pre-flight* above.
+- `SCHEMA` — the change was refused before anything was written (a bad ID, status, reason or item file).
+- `NOT_FOUND` — no item has that ID; check it with `list`.
+- `CONFLICT` — two files claim one ID, the destination is taken, or a folder on the way is a symlink out of `.planning/`. Resolve by hand, then run `checkStore(baseDir)`.
+- `GENERATED` — something tried to write a generated list by hand. Change the item files instead.
+- `OPEN_ITEMS` — an Epic cannot close while items in its folder are open; the message names each.
+- `LOCKED` — another item change is running. Wait for it and re-run.
+- `IO` — git or the filesystem failed; the message carries the underlying error. Unless it says otherwise, nothing moved.
+
+A message that says an item changed *but the lists were not regenerated* means the change stood, whatever its code; fix what it names, then run an action that changes an item — `new`, `move`, `close`, `reopen`, or a `triage` decision other than skip — and the lists are regenerated. `show` and `list` only read, so they do not.
+
+## Gate: Item Command Complete
+
+- [ ] Store checked first; store off → the turn-it-on message, nothing written.
+- [ ] Every change went through a `work-ops.js` function — no item file moved, deleted or re-statused by hand.
+- [ ] Triage confirmation followed `attention`; nothing was closed `dup`/`rejected` without a person.
+- [ ] A `fixed` close asked for proof.

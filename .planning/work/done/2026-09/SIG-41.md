@@ -1,0 +1,17 @@
+---
+id: SIG-41
+type: BUG
+status: C
+title: Four of the seven phase commands never advance `phase`, so
+  `completed_phases` is a ledger of phases that were never…
+priority: P2
+source: migration:BUGS.md
+source_ref: BUGS.md:70
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B41
+---
+| B41 | `fixed` | **P2** | **Four of the seven phase commands never advance `phase`, so `completed_phases` is a ledger of phases that were never recorded — and `markFresh` stamps it fresh, suppressing the one banner that would show it.** `transitionPhase` is called by **exactly three** commands — `calibrate.md`, `discuss.md`, `ship.md` (grep over `commands/*.md`, 2026-07-26). `plan.md`, `execute.md`, `verify.md`, `review.md` **never call it, and instruct no other `phase` write.** *(Precision, because the scope matters when this is fixed: `execute.md` is not state-blind — its auto-state-protocol wraps every dispatch in `dispatchTaskWithState` → `setCurrentTask` / `clearCurrentTask`, so `current_tasks` and `last_completed_task` do move. **It is `phase` and `completed_phases` specifically that no middle command touches**, and `execute.md` calls neither `markFresh` nor `transitionPhase`.)* Consequence for a **command-driven** project: `/sig:discuss` sets `phase: DISCUSS`; nothing changes it again until `/sig:ship` calls `transitionPhase('SHIP')`, which appends **whatever `state.phase` still says** — so the run ends with `completed_phases: [DISCUSS]`, `phase: SHIP`, and **PLAN / EXECUTE / VERIFY / REVIEW never recorded at all**, while `/sig:status` and `/sig:resume` report `DISCUSS` for the entire build. **The symptom is already written into the code as an unsatisfiable precondition:** `plan.md:50` says *"`STATE.md` — verify current phase is PLAN"*, and **no command can ever make that true.** **The aggravator is the real sting:** `plan.md:149`, `verify.md:72`, `review.md` Step 5b all call `markFresh`, whose stated purpose is *"so the staleness banner in `/sig:resume` reads as fresh after {PHASE} closes"* — so each one **stamps a fresh timestamp over a stale position**, converting *stale-and-flagged* into *stale-and-silent*. **Live instance (2026-07-26):** after M5.E7's REVIEW `markFresh`, STATE read `phase: VERIFY` with a fresh stamp and no banner would have fired; caught by hand at REVIEW exit, not by anything. **Masked on Signal-on-Signal** because this repo's `phase`/`completed_phases` are maintained by hand — which is why it survived 11 releases. *Note what class this is: a **deterministic, file-shaped** instance of the Epic's own headline finding — a state ledger nothing checks. It needs no measurement layer to fix, so it is M5.E9 work, not M5.E8.* **Fix shape:** a `transitionPhase(baseDir, '{PHASE}')` at each phase command's entry (not exit — entry is what makes `plan.md:50`'s precondition meaningful), or one shared preamble step. Pairs with **B36** (the other structurally-inert enforcement at ship-start). **→ Status reconciled 2026-08-02** (fix lane, BUGS.md status-vs-code sweep): fixed in **M5.E9 (FR6)** and never flipped. All four middle phase commands now carry a `## Phase entry — record the phase` section (`commands/plan.md:42`, `execute.md:42`, `verify.md:36`, `review.md:47`), and `tests/phase-recording.test.js` asserts each one. M5.E13 (`B48`) later made the instruction conditional on the phase having an artifact; that refines the fix, it does not undo it. |

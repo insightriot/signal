@@ -10,7 +10,7 @@ You are running `/sig:docs-sweep`, a not-phase-gated, read-only meta command. Sa
 
 The report groups findings into two severities:
 - **structural** — the drift the standing test-suite guard hard-fails on (dead internal links, unfilled `[FILL IN]` stubs, a stale auto-generated `INDEX.md`, roster/version count drift, a broken command frontmatter).
-- **advisory** — nudges that never block (a stale capture inbox, an oversized `CLAUDE.md`, an absent/foreign `INDEX.md`).
+- **advisory** — nudges that never block (a stale capture inbox, an oversized `CLAUDE.md`, an absent/foreign `INDEX.md`, and — only when the work store is on — each thing `checkStore` finds wrong in it).
 - **Document drift — STATE and published facts** (M5.E16; extended by `M6.E2`) — what `.planning/` and its sibling documents **assert**, measured against what is on disk and in git. Its own group by design (FR1.2): a STATE contradiction is a different kind of wrong from a dead link — it carries a **heal category**, and it can be *unevaluable* rather than merely absent.
 
   Each finding lands in exactly one heal bucket, and a check that cannot state its bucket does not ship (FR4.2):
@@ -36,7 +36,7 @@ Authoritative reference:
 ### 2. Run the sweep
 
 Call `runSweep(process.cwd())` from `tools/lib/sweep.js`. It:
-1. runs the **portable** checks in any repo — dead internal `.md` links **and their inbound counterpart** — a document nothing links to — plus unfilled `[FILL IN]` markers over the widened `.planning/`-inclusive scope (still exempting `archive/`), `INDEX.md` freshness (pure compose-and-diff — never the writing regenerator), a stale-inbox count, a `CLAUDE.md`-bloat size nudge, and a **backlog-discharge** check (`B94`) reporting rows that read as pending while the work they name is recorded closed;
+1. runs the **portable** checks in any repo — dead internal `.md` links **and their inbound counterpart** — a document nothing links to — plus unfilled `[FILL IN]` markers over the widened `.planning/`-inclusive scope (still exempting `archive/`), `INDEX.md` freshness (pure compose-and-diff — never the writing regenerator), a stale-inbox count, a `CLAUDE.md`-bloat size nudge, a **backlog-discharge** check (`B94`) reporting rows that read as pending while the work they name is recorded closed, and a **work-store** check (`M6.E11`): when `.planning/work/WORK.md` exists, each `checkStore` finding (wrong status folder, duplicate ID, schema, file name vs `id`) is one advisory with its path and message; with no `WORK.md` it adds nothing, and a broken `WORK.md` is one advisory rather than a crash;
 2. gated on the plugin manifest, runs the **Signal-only** checks — roster-count drift, version consistency, and command-frontmatter freshness;
 3. returns `{ findings, stateDrift, signalOnly: { ran, checks } }` — `findings` already normalized to `structural`/`advisory` and sorted deterministically; `stateDrift` is `{results, summary}` from `runDriftChecks`, kept **separate from `findings`** so the heal category and the cannot-evaluate state are not flattened away.
 

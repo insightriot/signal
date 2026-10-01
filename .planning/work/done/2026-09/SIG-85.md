@@ -1,0 +1,16 @@
+---
+id: SIG-85
+type: BUG
+status: C
+title: "`/sig:update`'s only mutating step prescribes a command the CLI rejects."
+priority: P2
+source: migration:BUGS.md
+source_ref: BUGS.md:118
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B85
+---
+| B85 | `fixed` (v0.1.23) | P2 | **`/sig:update`'s only mutating step prescribes a command the CLI rejects.** `commands/update.md:49` reads *"Run `claude plugin update sig`"*. Measured 2026-08-06 during a live `/sig:update` run at v0.1.19: that command prints `✘ Failed to update plugin "sig": Plugin "sig" not found` and exits **1**. The marketplace-qualified form works — `claude plugin update sig@signal` → `✔ Plugin "sig" updated from 0.1.19 to 0.1.20`, and `installed_plugins.json` then correctly reads `0.1.20` at `.../cache/signal/sig/0.1.20`. **Likely cause, stated as inference:** `installed_plugins.json` keys every plugin as `name@marketplace` (`sig@signal`, `prose@prose`, `supabase@claude-plugins-official`), and `claude plugin update --help` takes a single `<plugin>` argument that appears to resolve against those keys, so a bare name matches nothing. Not confirmed against the CLI's source — only against its behavior on this machine. **Impact:** steps 1–4 (read installed, read available, render the CHANGELOG delta) work correctly; step 5, the one action that changes anything, cannot succeed as written. **It fails loudly** — non-zero exit plus a `✘` line — so it does not produce a false *"updated, go restart"*; the harm is a dead final step and a runner forced to improvise the fix mid-flight, which is how this was found. **Nothing in the suite executes the CLI string in `update.md`,** so a prescription that has never worked shipped in v0.1.16 and survived four releases. Same shape as the prescriptions-vs-code drift M5.E17 fixed for `ship.md` — a command file asserting a behavior no test compares against reality. **Fix shape (fix lane):** change `commands/update.md:49` to `claude plugin update sig@signal`, and add a test pinning that the file prescribes the marketplace-qualified form — the test can pin the string in the file; it cannot verify the CLI offline, and should not pretend to. |

@@ -1,0 +1,12 @@
+---
+id: SIG-37
+type: BUG
+status: T
+title: "`/sig:checkpoint --context` (and `resume.md`, `discuss.md`) instruct a
+  single-home violation — D16's dual-write was…"
+priority: P2
+source: migration:BUGS.md
+source_ref: BUGS.md:65
+legacy_id: B37
+---
+| B37 | `confirmed` | P2 | **`/sig:checkpoint --context` (and `resume.md`, `discuss.md`) instruct a single-home violation — D16's dual-write was never reconciled to the doc-runtime.** `commands/checkpoint.md:12` says *"dual-write decisions to `CONTEXT.md` § Locked Decisions AND `DECISIONS.md` (per D16)"*, and `:139` makes it a gate item ("D16 dual-write hit both"). `commands/resume.md` and `commands/discuss.md` carry the same `CONTEXT.md` § Locked Decisions instruction. **This directly contradicts the canonical doc model that M5.E1 established:** `references/doc-runtime-model.md:56` — *"Eviction destination — one rule: unit-homed single-home"* — and `:59`, *"no piece is copied into two places to keep in sync (a single-home violation)."* D16 predates the doc-runtime (M5.E1 FR1) and was never reconciled to it, so three commands instruct an agent to commit precisely the violation the doc-runtime exists to prevent. **Also collides with the Signal-on-Signal convention** that `CONTEXT.md` is the orientation doc and decisions live in `DECISIONS.md` — Signal's own `CONTEXT.md` has no § Locked Decisions section, so the instruction is not merely wrong-in-principle but unexecutable here without inventing one. **Confirmed 2026-07-25** during an M5.E7 `/sig:checkpoint --context`, which is why the checkpoint wrote decisions to `DECISIONS.md` only. **Second field sighting 2026-08-14, in `discuss.md` rather than `checkpoint.md`:** `M6.E1`'s DISCUSS wrote its decisions to `DECISIONS.md` per the repo convention and left `CONTEXT.md` alone — while that command's own Exit Criteria still reads *"CONTEXT.md captures all locked decisions."* The phase passed its gate by **disobeying** the checklist item, which is the clearest statement of this bug available: the instruction is not merely wrong in principle, it is wrong every time the phase runs correctly. **Fix:** amend all three commands to a single home (`DECISIONS.md`; `CONTEXT.md` gets a pointer at most), drop the `:139` gate line, and record a superseding decision against D16. Standalone commit — unrelated to M5.E7's audit scope. |

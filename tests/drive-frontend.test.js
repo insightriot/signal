@@ -170,6 +170,31 @@ describe('collectPreflight — what the run needs BEFORE it starts', () => {
     expect(r.blocking.some((b) => /unfilled marker/.test(b.question))).toBe(true);
   });
 
+  it('reads the requirements from the Epic\'s folder when the work store is on (M6.E11 t5.4)', async () => {
+    await writeState(FRONTMATTER());
+    await mkdir(join(dir, '.planning', 'work', 'epics', 'M9.E1'), { recursive: true });
+    await writePlanning('work/WORK.md', '---\nkey: SIG\n---\n');
+    await writePlanning('work/epics/M9.E1/M9.E1-REQUIREMENTS.md', '# Req\n\nFR1: [FILL IN — the retry policy]\n');
+    const r = await collectPreflight(dir, { epic: 'M9.E1' });
+    expect(r.blocking.some((b) => /unfilled marker/.test(b.question))).toBe(true);
+  });
+
+  it('a broken WORK.md lands in cannotCheck instead of crashing the preflight', async () => {
+    await writeState(FRONTMATTER());
+    await mkdir(join(dir, '.planning', 'work'), { recursive: true });
+    await writePlanning('work/WORK.md', '---\nkey: nope\n---\n');
+    const r = await collectPreflight(dir, { epic: 'M9.E1' });
+    expect(r.cannotCheck.some((c) => c.source === 'REQUIREMENTS unfilled markers' && /WORK\.md/.test(c.reason))).toBe(true);
+  });
+
+  it('store off: a linear REQUIREMENTS.md is NOT read as the Epic\'s spec (path unchanged)', async () => {
+    await writeState(FRONTMATTER());
+    await writePlanning('REQUIREMENTS.md', '# Req\n\nFR1: [FILL IN]\n');
+    const r = await collectPreflight(dir, { epic: 'M9.E1' });
+    expect(r.blocking.some((b) => /unfilled marker/.test(b.question))).toBe(false);
+    expect(r.cannotCheck.some((c) => /no M9\.E1-REQUIREMENTS\.md on disk/.test(c.reason))).toBe(true);
+  });
+
   it('a source it could not read lands in cannotCheck and NOT in an empty blocking list', async () => {
     await writeState(FRONTMATTER());
     // No REQUIREMENTS file for the named Epic: the spec cannot be checked for gaps.

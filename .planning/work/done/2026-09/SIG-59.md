@@ -1,0 +1,17 @@
+---
+id: SIG-59
+type: BUG
+status: C
+title: "`M5.E16-PROFILE.md` carried two values outside their enums, so the Epic
+  that declared FEATURE ran DISCUSS at the…"
+priority: P2
+source: migration:BUGS.md
+source_ref: BUGS.md:98
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B59
+---
+| B59 | `fixed` | P2 | **`M5.E16-PROFILE.md` carried two values outside their enums, so the Epic that declared FEATURE ran DISCUSS at the project's FULL — and nothing anywhere validated it.** `calibration.stakes: moderate` (valid only for `reversibility`) and `calibration.reversibility: easy` (valid nowhere) both fail `readProfileFromPath`. `readEffectiveProfile(baseDir, {currentEpic: 'M5.E16'})` therefore **throws**, and `resume.md` §4 fail-opens to the project PROFILE — so `/sig:resume` reported tier **FULL** for an Epic whose file says FEATURE, and the Epic's whole point of overriding `research_parallelism: 0` / `plan_validation_dims: core` / `gate_strictness: light` was inert. **Found 2026-08-01 at the `/sig:plan` tier-gating preamble**, the first time any code read the file. Written by hand in `18741a8` — the *same commit* as M5.E16's DISCUSS — and unread for the entire phase. **Both values are plain-English words a person writes without opening the schema**, which is why prose review would not have caught it and a parse does instantly. **Validation short-circuits on the first bad field**, so fixing what the error message named would have fixed one of two and left the file still unloadable. **Why nothing caught it:** Epic-scoped profiles are `created_by: hand`, no test walked `.planning/*PROFILE.md`, and no sweep or doc-hygiene check reads PROFILE at all (`grep PROFILE tools/lib/sweep.js tools/lib/doc-hygiene.js` → 0 hits). **Fixed 2026-08-01 (fix lane):** `stakes: minor`, `reversibility: trivial` — matching the file's own prose (*"no security boundary… a `git revert` away from undone"*) and its closest sibling `M5.E17-PROFILE.md` (`stakes: minor`). **Pinned by `tests/own-profiles-parse.test.js`:** every `.planning/*PROFILE.md` must load, *and* each Epic profile must be demonstrably **reached** rather than silently falling back to the project profile — because a profile that parses but is never selected is the same invisible failure one step over. **Proof-of-fail recorded:** the test goes red against the exact file that shipped through DISCUSS. |

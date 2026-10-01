@@ -1,0 +1,17 @@
+---
+id: SIG-15
+type: BUG
+status: C
+title: "`FILE_SCAN_CEILING` (1 MB) truncation can silently defeat the blocking
+  dangling-link gate on a >1 MB single doc."
+priority: P3
+source: migration:BUGS.md
+source_ref: BUGS.md:39
+close:
+  reason: fixed
+  by: migration
+  at: 2026-09-29
+  proof: legacy — not re-verified
+legacy_id: B15
+---
+| B15 | `fixed` | P3 | **`FILE_SCAN_CEILING` (1 MB) truncation can silently defeat the blocking dangling-link gate on a >1 MB single doc.** `scanDanglingLinks`/`scanResidualFlatPaths`/`scanAtRiskAnchors`/`scanUnhandledLinkForms` (`migrate-memory.js` ~:1350-1495) `slice(0, 1MB)` before matching. A migrate-introduced dangle sitting **past the 1 MB mark** in a single `.planning` doc is never seen → the apply commits a dangling link the gate was supposed to catch. **Bounded/extreme:** the real corpora are well under 1 MB (eval-project-A 546 KB), so no shipping repo hits it today; needs a >1 MB single file. Confirmed 2026-07-18 (M5.E2 REVIEW test-adequacy audit — the truncation branch is also untested). **Fix:** for dangling detection specifically, scan the whole file (or a much higher ceiling), or flag when truncation occurs so a silent pass is impossible. Separate ticket. |
