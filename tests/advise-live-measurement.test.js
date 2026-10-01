@@ -4,7 +4,7 @@
 // repository's own BACKLOG.md, beside the pattern, as a frozen `*_MEASURED`
 // constant. This file is what turns those numbers from comments into claims: it
 // runs the real file through the real readers — `readCorpus` at depth 4, the
-// real discharge status, the real `rankRows` — and asserts each count.
+// real discharge status, the real `classifyRows` — and asserts each count.
 //
 // Why it exists: `declaresNotLiveWork`'s docblock recorded "50 live rows: parked
 // ×2, not sprint material ×1, reconciliation ×2" on 2026-09-06 and nothing ever
@@ -34,7 +34,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { BLOCKED_MEASURED, TRIGGER_MET_MEASURED, rankRows } from '../plugin/tools/lib/advise.js';
+import { BLOCKED_MEASURED, TRIGGER_MET_MEASURED, classifyRows } from '../plugin/tools/lib/advise.js';
 import {
   declaresBugDischarge,
   BUG_DISCHARGE_MEASURED,
@@ -131,14 +131,13 @@ export async function scoreRepo() {
       'Each names an id absent from BUGS.md — file the catalog row, or fix the id in the heading'
   ).toEqual([]);
   const confirmedBugs = confirmedBugsFrom(corpus);
-  const ranked = rankRows(corpus.sources.backlog.rows, {
-    today: '2026-09-14',
+  const ranked = classifyRows(corpus.sources.backlog.rows, {
     stale: discharge.stale ?? [],
     discharge,
     confirmedBugs,
   });
-  // `rankRows` PARTITIONS — every scored row is in exactly one of these.
-  const all = [...ranked.recommended, ...ranked.declined];
+  // `classifyRows` PARTITIONS — every row is in exactly one of these.
+  const all = [...ranked.live, ...ranked.dropped];
   const live = all.filter((s) => !s.dischargedElsewhere && !s.notLive.notLive && !s.moved?.moved);
   return { corpus, discharge, ranked, all, live };
 }

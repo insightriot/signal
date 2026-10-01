@@ -79,8 +79,8 @@
       "reason": "Milestone specification \u2014 read when working that milestone, not at every session start."
     },
     {
-      "pattern": "^BACKLOG-REVIEW-\\d{4}-\\d{2}-\\d{2}\\.md$",
-      "reason": "Dated review snapshot; frozen once written."
+      "pattern": "^BACKLOG-REVIEW-\\d{4}-\\d{2}-\\d{2}(-\\d+)?\\.md$",
+      "reason": "Dated review snapshot; frozen once written. A same-day re-run after a pick is recorded writes a -N suffix rather than replacing it (M6.E12, AC4.3)."
     }
   ]
 }

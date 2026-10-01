@@ -199,7 +199,7 @@ describe('t2.1/t2.2 — rows and bugs, with the line numbers a citation needs', 
     // this repo's own BACKLOG.md before the fix: 22 of 51 live rows absorbed
     // another row's text.
     //
-    // Not cosmetic — `rankRows` scans `body` for blocked/trigger tokens and a
+    // Not cosmetic — `classifyRows` scans `body` for blocked/trigger tokens and a
     // filed date, so `R2b` inherited `R3`'s 2026-01-01 discharge date and could
     // be ranked on it while citing its own line.
     //

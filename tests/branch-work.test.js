@@ -262,7 +262,7 @@ describe('/sig:drive — an Epic open elsewhere is proposed, and never resumed h
   });
 });
 
-describe('/sig:advise — the advisory says what is open elsewhere, above the ranking', () => {
+describe('/sig:advise — the advisory says what is open elsewhere, above the priorities', () => {
   it('readCorpus carries the other-branch Epics as a checked fifth source', async () => {
     const base = repo();
     branchWith(base, 'feat/m1.e2', STATE({ epic: 'M1.E2' }));
@@ -275,12 +275,12 @@ describe('/sig:advise — the advisory says what is open elsewhere, above the ra
     const base = repo();
     branchWith(base, 'feat/m1.e2', STATE({ epic: 'M1.E2', phase: 'PLAN' }));
     const corpus = await readCorpus(base);
-    const ranked = { recommended: [], declined: [], consulted: ['BACKLOG.md'] };
-    const body = renderArtifact({ today: '2026-10-01', ranked, corpus, projectName: 'x' });
+    const classified = { live: [], dropped: [], consulted: ['BACKLOG.md'] };
+    const body = renderArtifact({ today: '2026-10-01', classified, priorities: [], corpus, projectName: 'x' });
     const section = body.slice(body.indexOf('## Open on other branches'), body.indexOf('## Citation rule'));
     expect(section).toContain('**M1.E2** — at PLAN on `feat/m1.e2`; run `git checkout feat/m1.e2` to continue it');
     expect(body.indexOf('## Open on other branches')).toBeLessThan(body.indexOf('## Citation rule'));
-    const summary = formatAdviseSummary({ status: 'written', today: '2026-10-01', ranked, corpus, path: 'p' });
+    const summary = formatAdviseSummary({ status: 'written', today: '2026-10-01', classified, priorities: [], corpus, path: 'p' });
     expect(summary).toMatch(/M1\.E2 is open on feat\/m1\.e2 — finish it first: run `git checkout feat\/m1\.e2`/);
   });
 
@@ -289,7 +289,8 @@ describe('/sig:advise — the advisory says what is open elsewhere, above the ra
     const corpus = await readCorpus(base);
     const body = renderArtifact({
       today: '2026-10-01',
-      ranked: { recommended: [], declined: [], consulted: [] },
+      classified: { live: [], dropped: [], consulted: [] },
+      priorities: [],
       corpus,
       projectName: 'x',
     });
@@ -396,7 +397,8 @@ describe('PR #265 review findings — each reproduced, then fixed', () => {
     expect(corpus.sources.otherBranches.unreadable).toEqual(['f5']);
     const body = renderArtifact({
       today: '2026-10-01',
-      ranked: { recommended: [], declined: [], consulted: [] },
+      classified: { live: [], dropped: [], consulted: [] },
+      priorities: [],
       corpus,
       projectName: 'x',
     });

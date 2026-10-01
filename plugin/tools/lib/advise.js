@@ -1,9 +1,17 @@
 // `/sig:advise` — the Roadmap Advisor. `M6.E7` S3.
 //
 // Reads this project's own `.planning/` corpus and writes a dated advisory
-// recommending what to work on next, where every claim carries a citation that
+// proposing what to work on next, where every claim carries a citation that
 // mechanically resolves. It PROPOSES. It never selects, and it writes nothing
 // except its own artifact.
+//
+// ⚠ SINCE `M6.E12` THE PROPOSAL IS 3–5 BIG-PICTURE PRIORITIES, NOT A RANKED FIVE.
+// The ranking ordered 44 of 46 live rows by age alone (`SIG-142`). Now the agent
+// running the command reads a cited digest of the project's documents
+// (`advise-digest.js`) and proposes priorities; `validatePriorities`
+// (`advise-priorities.js`) checks them; this module renders, gates and writes.
+// The row list survives as an UNRANKED appendix — rows under the priority that
+// covers them, the rest in file order — and age is not an input anywhere.
 //
 // ⚠ THE GATE ASSERTS A COUNT, NOT A FLAG, and that is the difference between a
 // real check and a decorative one. `verifyCitations` returns `ok: true` over an
@@ -22,7 +30,7 @@
 // definition of "closed" living here — is the thing `M5.E19` spent a slice
 // removing. It resolves when the check itself widens, not here.
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -37,23 +45,28 @@ import { EVIDENCE_MARKER, verifyCitations } from './citations.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { readCorpus, ADVISOR_SOURCES } from './advise-corpus.js';
 import { nextStepFor } from './branch-work.js';
+import { gatherBigPicture, formatDigest } from './advise-digest.js';
+import { validatePriorities } from './advise-priorities.js';
 
 const PLANNING_DIR = '.planning';
 
-/**
- * How many rows the advisory recommends.
- *
- * Five, with the reason beside it rather than in a commit message. The frozen
- * `BACKLOG-REVIEW-2026-08-09.md` offers "Top three moves"; five leaves room to be
- * wrong twice without becoming a list nobody reads.
- *
- * ⚠ NOT a `PROFILE.md` field (NFR3). A fourth dial is `B75`'s shape — a setting
- * documented end to end and read by nothing.
- */
-export const RECOMMENDATION_LIMIT = 5;
-
 /** Artifact basename prefix. Constrained: `tools/doc-budgets.json` exempts exactly this pattern. */
 export const ARTIFACT_PREFIX = 'BACKLOG-REVIEW-';
+
+/**
+ * The heading `recordChoice` appends. Not in `RENDER_LABELS`: the renderer never
+ * writes it — only a person's pick does, after it is made. Not "Chosen" either:
+ * that is one of `FORBIDDEN_VERBS`, and the heading says whose decision it was.
+ */
+export const PICK_HEADING = 'Picked by you';
+
+/** `YYYY-MM-DD`, and a real date — `today` becomes part of a filename (`SIG-123`). */
+const STAMP_RE = /^\d{4}-\d{2}-\d{2}$/;
+export function isValidStamp(stamp) {
+  if (typeof stamp !== 'string' || !STAMP_RE.test(stamp)) return false;
+  const d = new Date(`${stamp}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === stamp;
+}
 
 /**
  * The vocabulary the renderer writes in its own voice.
@@ -63,20 +76,23 @@ export const ARTIFACT_PREFIX = 'BACKLOG-REVIEW-';
  * testable is that none of these labels claims a decision was made.
  */
 export const RENDER_LABELS = Object.freeze({
-  recommended: 'Recommended',
-  declined: 'Declined',
+  priorities: 'Priorities',
+  appendix: 'Appendix — every live row',
   corpus: 'Corpus read',
   citationRule: 'Citation rule',
   status:
-    '**This changes nothing on its own.** It recommends; you decide. Nothing in `.planning/` was ' +
+    '**This changes nothing on its own.** It proposes; you pick. Nothing in `.planning/` was ' +
     'modified, no row was struck, and nothing was added to the decision queue.',
+  judgment:
+    'The priorities are a **judgment**, made by the agent that ran this command from a digest of ' +
+    'this project\'s documents. Another run over the same files can propose different ones. What is ' +
+    'checked is that each one cites lines that exist and covers rows and bugs that are live.',
   producer: '*Produced `via /sig:advise`.*',
 });
 
 /** Verbs that would turn a proposal into a decision. Asserted absent by `t3.2b`. */
 export const FORBIDDEN_VERBS = Object.freeze(['chosen', 'selected', 'decided']);
 
-const ISO_DATE_RE = /\b(\d{4}-\d{2}-\d{2})\b/;
 // A row that names its own gate. Read from the vocabulary the maintainer already
 // writes: BACKLOG.md carries "Trigger: …", "blocked on", "gated on", "NOT met".
 //
@@ -215,79 +231,53 @@ export function quoteSafe(text) {
     .replace(/[\r\n]+/g, ' ');
 }
 
-function daysBetween(fromIso, toIso) {
-  const a = Date.parse(`${fromIso}T00:00:00Z`);
-  const b = Date.parse(`${toIso}T00:00:00Z`);
-  if (Number.isNaN(a) || Number.isNaN(b)) return 0;
-  return Math.round((b - a) / 86400000);
-}
-
 /**
- * Rank the live backlog rows, and say why each one landed where it did.
+ * Sort the backlog rows into LIVE and DROPPED, and annotate each. No ranking.
  *
- * Inputs, in this order, each independently citable:
- *   1. **blocked-by** — a row whose stated gate is unmet ranks below one whose is met.
- *   2. **trigger-met** — a row whose written trigger has fired ranks above one with none.
- *   3. **discharge** — a row whose work already closed drops out entirely.
- *   4. **age** — older rows rank above newer ones.
- *   5. **self-declared not-live** — a row that says in its own HEADING that it is
- *      not actionable work drops out entirely.
- *   6. **fold** (`M6.E8` FR4) — a row whose own HEADING says its work moved
- *      elsewhere (`FOLDED INTO`, `absorbed into`, `re-homed`) drops out entirely —
- *      unless the heading also says `KEPT`, which is evaluated first and keeps it.
- *   7. **bug-discharge** (`M6.E8` FR1) — a row whose own HEADING says it fixes /
- *      closes / resolves a bug that `BUGS.md` still records as `confirmed` ranks
- *      above one that does not. Sorts between trigger-met and age. Fires only
- *      when a `confirmedBugs` Set is supplied — no Set, no input, and `consulted`
- *      does not name `BUGS.md` on its account.
+ * Until `M6.E12` this was `rankRows`, and its sort ended in **age**: measured on
+ * this repository, 44 of 46 live rows were ordered by nothing but how long they
+ * had sat there (`SIG-142`). The priorities now carry the judgment; this only
+ * says which rows are live, why the others are not, and what each row says about
+ * itself. Live rows stay in FILE ORDER.
  *
- * **`consulted`** (`M6.E8` t1.4, `D-M6E8-9`): which `ADVISOR_SOURCES` any input
- * above actually read on THIS run, derived from what this function was GIVEN
- * and nothing else. `BACKLOG.md` always; `STATE/closure` and `BUGS.md` when
- * input 3's `discharge.sources` says it could open each; `BUGS.md` also when a
- * `confirmedBugs` Set was supplied; `milestone rows` never. The renderer prints
- * this list — it carries no source list of its own, because the one it carried
- * ("`BACKLOG.md` only") was wrong the moment input 3 shipped.
+ * Inputs, each independently citable:
+ *   - **discharge** — a row whose work already closed is dropped.
+ *   - **self-declared not-live** — a row whose own HEADING says it is not
+ *     actionable work is dropped.
+ *   - **fold** (`M6.E8` FR4) — a row whose own HEADING says its work moved
+ *     elsewhere is dropped, unless the heading also says `KEPT`.
+ *   - **blocked-by**, **trigger-met**, **bug-discharge** — annotations on a live
+ *     row, not ranks. Bug-discharge fires only when a `confirmedBugs` Set is given.
  *
- * ⚠ Input 5 reads the heading and NOT the body, deliberately. Input 2 reads both,
- * and that is why the first real run promoted a row whose heading says "not sprint
- * material" using a trigger belonging to a different item inside it. Added during
- * EXECUTE with the plan amended first; the measurement is in `M6.E7-PLAN.md`.
+ * **`consulted`**: which `ADVISOR_SOURCES` any input above actually read on THIS
+ * run, derived from what this function was GIVEN (`D-M6E8-9`). `BACKLOG.md`
+ * always; `STATE/closure` and `BUGS.md` when discharge's `sources` says it could
+ * open each; `BUGS.md` also when `confirmedBugs` was supplied.
  *
- * **Stable tiebreak: source line number.** Equal-rank rows never reorder between
- * runs, which is NFR1 and what `writeArtifact`'s byte-compare depends on.
- *
- * The declined pool is EVERY live row not in the top N — not a curated subset.
- * That is what makes `B39`'s checked-vs-unchecked distinction real: a curated
- * list would leave the rest unchecked and indistinguishable from unconsidered.
+ * ⚠ Not-live, fold and bug-discharge read the HEADING, never the body: body-scanning
+ * is how the first real run promoted a row using a trigger belonging to a
+ * different item inside it (`M6.E7-PLAN.md`).
  */
-export function rankRows(rows, { today, stale = [], discharge = null, confirmedBugs = null } = {}) {
+export function classifyRows(rows, { stale = [], discharge = null, confirmedBugs = null } = {}) {
   const consultedSet = new Set(['BACKLOG.md']);
   if (discharge?.sources?.units) consultedSet.add('STATE/closure');
   if (discharge?.sources?.bugs) consultedSet.add('BUGS.md');
   if (confirmedBugs instanceof Set) consultedSet.add('BUGS.md');
   const consulted = ADVISOR_SOURCES.filter((s) => consultedSet.has(s));
 
-  // The ENTRY is kept, not just its id: the decline reason names the source that
-  // closed the row and quotes its evidence (`M6.E8` t3.3, `D-M6E8-8`), and both
-  // travel on the entry `backlogDischargeStatus` returned.
+  // The ENTRY is kept, not just its id: the drop reason names the source that
+  // closed the row and quotes its evidence (`D-M6E8-8`).
   const staleById = new Map(stale.filter((s) => s.id).map((s) => [s.id, s]));
-  // `.filter(...)` matches its sibling above, and its absence was a live bug:
-  // a stale entry with no `line` keyed `undefined`, and any row that also lacked
-  // one then read as discharged and DISAPPEARED from the advisory. Silently
-  // losing a live row is the worst thing this module can do.
+  // `.filter(...)` is load-bearing: a stale entry with no `line` keyed
+  // `undefined`, and any row also lacking one read as discharged and vanished.
   const staleByLine = new Map(stale.filter((s) => s.line).map((s) => [s.line, s]));
 
-  const scored = rows.map((row) => {
+  const classified = rows.map((row) => {
     const text = `${row.text}\n${row.body ?? ''}`;
     const staleEntry = staleById.get(row.leadingId) ?? staleByLine.get(row.line) ?? null;
     const dischargedElsewhere = staleEntry !== null;
-    // Input 5. HEADING ONLY — see the note above.
     const notLive = declaresNotLiveWork(row.text);
-    // Input 6. HEADING ONLY, same rule; `KEPT` wins inside the predicate.
     const moved = declaresWorkMovedElsewhere(row.text);
-    // Input 7. HEADING ONLY, verb adjacent to the id, and the id must still be
-    // confirmed — a heading that "fixes B2" where B2 shipped is not a promotion.
     let dischargesBug = null;
     if (confirmedBugs instanceof Set) {
       const d = declaresBugDischarge(row.text);
@@ -295,54 +285,31 @@ export function rankRows(rows, { today, stale = [], discharge = null, confirmedB
     }
     const blocked = BLOCKED_RE.test(text);
     const triggerMet = TRIGGER_MET_RE.test(text);
-    // `String(...)` because the two lines around this one already coerce and this one
-    // did not — a row with no `text` threw a TypeError out of the ranking.
-    const filed =
-      (String(row.text ?? '').match(ISO_DATE_RE) ?? String(row.body ?? '').match(ISO_DATE_RE))?.[1] ?? null;
-    const ageDays = filed && today ? daysBetween(filed, today) : 0;
-    return { row, dischargedElsewhere, staleEntry, notLive, moved, dischargesBug, blocked, triggerMet, filed, ageDays };
+    return { row, dischargedElsewhere, staleEntry, notLive, moved, dischargesBug, blocked, triggerMet };
   });
 
   const isDropped = (s) => s.dischargedElsewhere || s.notLive.notLive || s.moved.moved;
-  const live = scored.filter((s) => !isDropped(s));
-  live.sort(
-    (a, b) =>
-      Number(a.blocked) - Number(b.blocked) ||
-      Number(b.triggerMet) - Number(a.triggerMet) ||
-      Number(Boolean(b.dischargesBug)) - Number(Boolean(a.dischargesBug)) ||
-      b.ageDays - a.ageDays ||
-      a.row.line - b.row.line
-  );
-
-  const recommended = live.slice(0, RECOMMENDATION_LIMIT);
-  const rest = live.slice(RECOMMENDATION_LIMIT);
-  const dropped = scored.filter(isDropped).sort((a, b) => a.row.line - b.row.line);
-
-  return { recommended, declined: [...rest, ...dropped], consulted };
+  const byLine = (a, b) => a.row.line - b.row.line;
+  return {
+    live: classified.filter((s) => !isDropped(s)).sort(byLine),
+    dropped: classified.filter(isDropped).sort(byLine),
+    consulted,
+  };
 }
 
-/** Why a recommended row is where it is, naming the input that put it there. */
-function recommendReason(s) {
+/** What a live row says about itself. An empty string when it says nothing the inputs read. */
+function annotate(s) {
   const parts = [];
   if (s.triggerMet) parts.push('its written trigger has fired');
   if (s.dischargesBug) {
-    parts.push(
-      `its heading says it discharges \`${s.dischargesBug.id}\`, which \`BUGS.md\` still records as confirmed`
-    );
+    parts.push(`its heading says it discharges \`${s.dischargesBug.id}\`, which \`BUGS.md\` still records as confirmed`);
   }
-  if (!s.blocked) parts.push('nothing it names as a gate is unmet');
-  else parts.push('it names a gate that has not fired, so it ranks below the ungated rows');
-  if (s.filed) parts.push(`it was filed ${s.filed}${s.ageDays > 0 ? `, ${s.ageDays} days ago` : ''}`);
-  return `Ranked because ${parts.join('; ')}.`;
+  if (s.blocked) parts.push('it names a gate that has not fired');
+  return parts.length > 0 ? `${parts.join('; ')}.` : '';
 }
 
-/** `1 row` / `2 rows`. A count in a document that sells checkability must read as one. */
-function rows(n) {
-  return `${n} row${n === 1 ? '' : 's'}`;
-}
-
-/** Why a declined row is NOT recommended, naming the input that demoted it. */
-function declineReason(s, rank, above = []) {
+/** Why a row was dropped, naming the input that dropped it. */
+function dropReason(s) {
   if (s.notLive.notLive) {
     return (
       `Dropped by the **self-declared** input — the row's own heading says \`${s.notLive.declaration}\`, ` +
@@ -350,9 +317,6 @@ function declineReason(s, rank, above = []) {
     );
   }
   if (s.dischargedElsewhere) {
-    // Name the SOURCE the way input 3 decides it — the id family — and quote its
-    // evidence. "Already reads as closed" said neither, while the stale entry
-    // carried both (`D-M6E8-8`).
     const e = s.staleEntry;
     if (e?.id && e?.evidence) {
       const source = /^B\d+$/.test(e.id) ? '**`BUGS.md`**' : '**unit closure**';
@@ -363,80 +327,49 @@ function declineReason(s, rank, above = []) {
     }
     return 'Dropped by the **discharge** input — its work already reads as closed, so it is not live work.';
   }
-  if (s.moved.moved) {
-    return (
-      `Dropped by the **fold** input — the row's own heading says \`${s.moved.declaration}\`, ` +
-      'so its work lives elsewhere.'
-    );
-  }
-  if (s.blocked && above.every((a) => a.blocked)) {
-    return 'Demoted by the **blocked-by** input — the row names a gate that has not fired.';
-  }
-  // ⚠ IT NAMES ONLY THE INPUTS A ROW ABOVE ACTUALLY WON, computed from those
-  // rows — not every comparator that remains after the ones this row passed.
-  //
-  // Two rounds of review got this wrong in two different ways, and both produced
-  // a FALSE CLAIM in a document whose whole pitch is checkability. Three branches
-  // told the OLDEST row in a file that it lost on **age**. Four branches told the
-  // same row it lost on **trigger-met, bug-discharge and age** when it had WON
-  // bug-discharge and age and lost only on trigger-met. Worse, on a run where
-  // `BUGS.md` could not be read — so input 7 cannot fire at all — the same line
-  // named **bug-discharge** as a demoter on the same page whose Consulted line
-  // says `BUGS.md` was not consulted.
-  //
-  // A position alone cannot answer "what beat me". The rows above can, and the
-  // renderer has them.
-  const beatenBy = [];
-  if (s.blocked && above.some((a) => !a.blocked)) beatenBy.push('blocked-by');
-  if (!s.triggerMet && above.some((a) => a.triggerMet)) beatenBy.push('trigger-met');
-  if (!s.dischargesBug && above.some((a) => a.dischargesBug)) beatenBy.push('bug-discharge');
-  if (above.some((a) => a.ageDays > s.ageDays)) beatenBy.push('age');
-  if (beatenBy.length === 0) {
-    // Everything above tied on every key; source line is the stable tiebreak.
-    return `Ranked below ${rows(rank)} that tied on every input, on source order.`;
-  }
-  const named = beatenBy.map((n) => `**${n}**`);
-  const list = named.length === 1 ? named[0] : `${named.slice(0, -1).join(', ')} and ${named.at(-1)}`;
-  const noun = beatenBy.length === 1 ? 'input' : 'inputs';
-  return `Demoted by the ${list} ${noun} — ${rows(rank)} scored above it.`;
+  return (
+    `Dropped by the **fold** input — the row's own heading says \`${s.moved.declaration}\`, ` +
+    'so its work lives elsewhere.'
+  );
 }
 
 /**
- * Render the advisory. Pure, file-facing, and separate from the terminal
- * formatter (the split `permissions-report.js` already uses).
+ * Render the advisory. Pure, file-facing, and separate from the terminal formatter.
  *
- * Header carries the frozen review's five elements: title + date, a one-line
- * subtitle, the "changes nothing on its own" status line, **Corpus read** — the
- * natural home for `checked` / `cannotCheck` — and the **Citation rule**.
+ * Order (AC3.1): header + status + judgment line; corpus read (the ranking's
+ * sources and the digest's); open on other branches; citation rule;
+ * **Priorities**; **Appendix — every live row**.
+ *
+ * ⚠ EVERY MODEL-WRITTEN STRING GOES THROUGH `quoteSafe`. `validatePriorities`
+ * already refuses a title or `why` carrying the evidence marker or a newline;
+ * this is the second, independent guard, because the renderer must not trust
+ * that its caller validated.
+ *
+ * @param {{today: string, classified: {live: Array, dropped: Array, consulted: string[]},
+ *   priorities: Array, corpus: object, digest?: object, projectName?: string}} args
  */
-export function renderArtifact({ today, ranked, corpus, projectName }) {
-  const { recommended, declined } = ranked;
-  // The rows RANKED above declined[i] — recommended, plus the declined rows that
-  // are still live and sit before it. Rows that were DROPPED (discharge, not-live,
-  // fold) were never ranked, so they cannot have beaten anything.
-  const isLive = (a) => !a.dischargedElsewhere && !a.notLive.notLive && !a.moved.moved;
-  const rankedAbove = (i) => [...recommended, ...declined.slice(0, i).filter(isLive)];
+export function renderArtifact({ today, classified, priorities, corpus, digest = null, projectName }) {
   const L = RENDER_LABELS;
   const out = [];
 
   out.push(`# Backlog review — ${today}`);
   out.push('');
   out.push(
-    // ⚠ `quoteSafe` HERE IS NOT COSMETIC. `projectName` is caller-supplied and was
-    // the one interpolation that skipped it, so a caller could write the evidence
-    // marker into the header and inject a citation into the extractor's own
-    // position — verified: an injected name yielded `nope/missing.md:1` as an
-    // extracted citation. The run would have failed loudly, which is the right
-    // direction, but a hole in the citation grammar is not something this Epic
-    // gets to ship.
+    // ⚠ `quoteSafe` HERE IS NOT COSMETIC: `projectName` is caller-supplied, and an
+    // unescaped one could write the evidence marker into the header and inject a
+    // citation into the extractor's own position (verified in `M6.E7`).
     `What to work on next in ${quoteSafe(projectName ?? 'this project')}, read from its own \`${PLANNING_DIR}/\` corpus.`
   );
   out.push('');
   out.push(L.status);
   out.push('');
+  out.push(L.judgment);
+  out.push('');
   out.push(L.producer);
   out.push('');
 
+  // The section below reads `ranked.consulted`; keep that name for the shared code.
+  const ranked = classified;
   out.push(`## ${L.corpus}`);
   out.push('');
   out.push(`**Read:** ${corpus.checked.length > 0 ? corpus.checked.join(' · ') : 'nothing'}.`);
@@ -447,10 +380,10 @@ export function renderArtifact({ today, ranked, corpus, projectName }) {
   // in the other direction from the day it shipped: input 3 reads BUGS.md and
   // STATE/closure through its own path. An under-claim and an over-claim are
   // the same defect (`D-M6E8-9`). So the renderer carries no source list; it
-  // prints what `rankRows` was given, and a source it could not name is stated
+  // prints what `classifyRows` was given, and a source it could not name is stated
   // as not recorded rather than guessed.
   if (Array.isArray(ranked.consulted)) {
-    out.push(`**Consulted by the ranking:** ${ranked.consulted.map((s) => `\`${s}\``).join(' · ')}.`);
+    out.push(`**Consulted by the row inputs:** ${ranked.consulted.map((s) => `\`${s}\``).join(' · ')}.`);
     // Read by the corpus, consulted by nothing. `milestone rows` is always here
     // when readable, with the reason it is kept (FR6). Any other source lands
     // here when the corpus could open it and input 3 did not — either it could
@@ -473,7 +406,7 @@ export function renderArtifact({ today, ranked, corpus, projectName }) {
     }
   } else {
     out.push(
-      '**Consulted by the ranking:** not recorded — the ranking result carried no `consulted` list, ' +
+      '**Consulted by the row inputs:** not recorded — the ranking result carried no `consulted` list, ' +
         'so this section cannot say which sources were weighed.'
     );
   }
@@ -493,6 +426,21 @@ export function renderArtifact({ today, ranked, corpus, projectName }) {
   }
   out.push('');
 
+  if (digest) {
+    out.push(`**Digest read:** ${digest.checked.length > 0 ? digest.checked.join(' · ') : 'nothing'}.`);
+    out.push('');
+    if (digest.cannotCheck.length > 0) {
+      out.push('**Digest could not read:**');
+      out.push('');
+      for (const c of digest.cannotCheck) out.push(`- **${quoteSafe(c.source)}** — ${quoteSafe(c.reason)}`);
+      out.push('');
+    }
+    if (digest.cut.length > 0) {
+      out.push(`**Digest cut to fit:** ${digest.cut.map((c) => quoteSafe(c)).join('; ')}.`);
+      out.push('');
+    }
+  }
+
   // `B118`. Rendered before the ranking and outside the citation position on
   // purpose: the evidence is a STATE.md on another branch, which is not a file on
   // disk here, so it cannot carry a disk-resolved citation — and must not pretend to.
@@ -503,7 +451,7 @@ export function renderArtifact({ today, ranked, corpus, projectName }) {
     out.push('');
     if (elsewhere.open.length > 0) {
       out.push(
-        'Finish these before starting anything ranked below. Each was read from that branch\'s ' +
+        'Finish these before starting any priority below. Each was read from that branch\'s ' +
           '`STATE.md`, so it cannot be cited against a file on this branch.'
       );
       out.push('');
@@ -542,50 +490,72 @@ export function renderArtifact({ today, ranked, corpus, projectName }) {
   );
   out.push('');
 
-  out.push(`## ${L.recommended} — ${recommended.length}`);
+  // ── Priorities.
+  out.push(`## ${L.priorities} — ${priorities.length}`);
   out.push('');
-  if (recommended.length === 0) {
-    out.push('Nothing. No live row survived the ranking inputs.');
+  priorities.forEach((p, i) => {
+    out.push(`### ${i + 1}. ${quoteSafe(p.title)}`);
     out.push('');
-  }
-  recommended.forEach((s, i) => {
-    out.push(`### ${i + 1}. ${quoteSafe(s.row.text)}`);
+    out.push(`${quoteSafe(p.why)} ${cite(...p.evidence)}`);
     out.push('');
-    // AC1.1 — the top row says what it ranked ABOVE, so the advisory answers
-    // "and not that", not merely "why this". A ranked list whose reasons never
-    // reference each other is a list of independent opinions.
-    const contrast = i === 0 && declined.length > 0 ? declined[0] : null;
-    // ⚠ The contrast row's rank is computed THE SAME WAY the declined section
-    // computes it, and that is the fix rather than a tidy-up: this line used to
-    // pass `i + 1` — the RECOMMENDED index, always 1 — so the artifact stated two
-    // different counts for one row. Measured on this repo's own run: "1 rows
-    // scored above it" here against "5 rows scored above it" in the declined
-    // list, for `Passive OBSERVATIONS.md capture`. A self-contradicting count in
-    // a document whose whole claim is that its claims are checkable.
-    const reason = contrast
-      ? `${recommendReason(s)} Ranked above *${quoteSafe(contrast.row.text)}*, which was ${declineReason(contrast, recommended.length + declined.indexOf(contrast), rankedAbove(declined.indexOf(contrast))).replace(/^(Demoted|Dropped|Ranked)/, (m) => m.toLowerCase())}`
-      : recommendReason(s);
-    const evidence = contrast
-      ? cite(`${s.row.path}:${s.row.line}`, `${contrast.row.path}:${contrast.row.line}`)
-      : cite(`${s.row.path}:${s.row.line}`);
-    out.push(`${reason} ${evidence}`);
+    out.push('Covers:');
+    out.push('');
+    // Covered labels are clipped and unbolded: a bug's headline can run to
+    // several hundred characters, and a row heading can carry its own `**`, which
+    // nests inside the bold below and renders as `****` (seen on the first run).
+    const label = (c) => {
+      const flat = String(c.label ?? '').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim();
+      return quoteSafe(flat.length > 160 ? `${flat.slice(0, 159)}…` : flat);
+    };
+    for (const c of p.covers) {
+      if (c.kind === 'new') {
+        out.push(`- **${label(c)}** — unfiled: not in the corpus yet, so there is no line to cite.`);
+      } else if (c.kind === 'bug') {
+        out.push(`- **\`${c.id}\`** ${label(c)} — open bug. ${cite(`${c.path}:${c.line}`)}`);
+      } else {
+        out.push(`- **${label(c)}** — backlog row. ${cite(`${c.path}:${c.line}`)}`);
+      }
+    }
     out.push('');
   });
 
-  out.push(`## ${L.declined} — ${declined.length}`);
+  // ── Appendix: every live row exactly once, then every dropped row (AC3.4).
+  const coveredAt = new Map();
+  priorities.forEach((p, i) => {
+    for (const c of p.covers) if (c.kind === 'row') coveredAt.set(`${c.path}:${c.line}`, i);
+  });
+  const rowLine = (s, extra = '') => {
+    const note = extra || annotate(s);
+    return `- **${quoteSafe(s.row.text)}**${note ? ` — ${note}` : ''} ${cite(`${s.row.path}:${s.row.line}`)}`;
+  };
+  out.push(`## ${L.appendix} — ${classified.live.length}`);
   out.push('');
   out.push(
-    'Every live row not recommended, each with the reason it was not. A row here was **looked at ' +
-      'and passed over** — which is a different thing from a row nobody considered, and the ' +
-      'distinction only exists because this list is complete rather than curated.'
+    '**Not ranked.** Every live row appears exactly once: under the priority that covers it, or in ' +
+      'the list after, in file order. Age is not an input. A row here was looked at, which is a ' +
+      'different thing from a row nobody considered — the list is complete, not curated.'
   );
   out.push('');
-  declined.forEach((s, i) => {
-    out.push(
-      `- **${quoteSafe(s.row.text)}** — ${declineReason(s, recommended.length + i, rankedAbove(i))} ${cite(`${s.row.path}:${s.row.line}`)}`
-    );
+  priorities.forEach((p, i) => {
+    const under = classified.live.filter((s) => coveredAt.get(`${s.row.path}:${s.row.line}`) === i);
+    if (under.length === 0) return;
+    out.push(`### Under priority ${i + 1} — ${quoteSafe(p.title)}`);
+    out.push('');
+    for (const s of under) out.push(rowLine(s));
+    out.push('');
   });
+  const rest = classified.live.filter((s) => !coveredAt.has(`${s.row.path}:${s.row.line}`));
+  out.push(`### Not covered by a priority — ${rest.length}, in file order`);
   out.push('');
+  if (rest.length === 0) out.push('None.');
+  for (const s of rest) out.push(rowLine(s));
+  out.push('');
+  if (classified.dropped.length > 0) {
+    out.push(`### Dropped — ${classified.dropped.length}`);
+    out.push('');
+    for (const s of classified.dropped) out.push(rowLine(s, dropReason(s)));
+    out.push('');
+  }
 
   return out.join('\n');
 }
@@ -595,17 +565,19 @@ export function formatAdviseSummary(result) {
   const lines = [];
   if (result.status === 'skipped') {
     lines.push(`/sig:advise wrote nothing — ${result.reason}`);
+    for (const r of result.reasons ?? []) lines.push(`  - ${r}`);
     return lines.join('\n');
   }
-  const { recommended, declined } = result.ranked;
   lines.push(`Backlog review — ${result.today}`);
   lines.push('');
   for (const o of result.corpus.sources?.otherBranches?.open ?? []) {
     lines.push(`  ⚠ ${o.epic} is open on ${o.branches.join(', ')} — finish it first: ${nextStepFor(o)}.`);
   }
-  recommended.forEach((s, i) => lines.push(`  ${i + 1}. ${s.row.text}`));
+  result.priorities.forEach((p, i) => lines.push(`  ${i + 1}. ${p.title}`));
   lines.push('');
-  lines.push(`  ${declined.length} row(s) looked at and declined, each with a reason in the artifact.`);
+  lines.push(
+    `  ${result.classified.live.length} live row(s) in the appendix, unranked; ${result.classified.dropped.length} dropped, each with its reason.`
+  );
   if (result.corpus.cannotCheck.length > 0) {
     lines.push(
       `  ⚠ ${result.corpus.cannotCheck.length} source(s) could not be read: ${result.corpus.cannotCheck
@@ -651,24 +623,24 @@ export async function writeArtifact(baseDir, { name, content }) {
 }
 
 /**
- * Rows whose cited line no longer carries them.
+ * Cited lines that no longer carry what they were cited for.
  *
  * The advisor cites `path:line`, and a line number is only true for the file as it
  * was read. Any edit above a cited row shifts it silently, and the citation still
  * "resolves" because the line exists. This re-reads each cited file once and
- * checks the line still contains a distinctive slice of the row's own heading.
+ * checks each line still contains a distinctive slice of what it was cited for:
+ * a row's heading, or a bug's id.
  *
  * ⚠ Deliberately NARROW. It compares the advisor's OWN claim against the line it
  * named — it is not a general "does this line say what the claim says" checker,
- * which stays unbuilt and stays documented as unbuilt.
+ * which stays unbuilt and stays documented as unbuilt. Priority `evidence` lines
+ * outside these are checked for existence only, by the gate.
  */
-async function findStaleRowCitations(baseDir, ranked) {
-  const all = [...ranked.recommended, ...ranked.declined];
+async function findStaleCitations(baseDir, probes) {
   const byPath = new Map();
   const stale = [];
-  for (const s of all) {
-    const { path: rel, line, text } = s.row;
-    if (!rel || !line || !text) continue;
+  for (const { path: rel, line, probe } of probes) {
+    if (!rel || !line || !probe) continue;
     if (!byPath.has(rel)) {
       try {
         byPath.set(rel, (await readFile(join(baseDir, rel), 'utf-8')).split('\n'));
@@ -678,156 +650,175 @@ async function findStaleRowCitations(baseDir, ranked) {
     }
     const lines = byPath.get(rel);
     if (lines === null) continue; // unreadable is the citation gate's problem, not this one
-    const onDisk = lines[line - 1] ?? '';
-    // A distinctive slice rather than the whole heading: the renderer never
-    // rewrites a row, but a heading can carry trailing decoration.
-    const probe = text.replace(/^[\s`*_~]+/, '').slice(0, 24);
-    if (probe.length > 0 && !onDisk.includes(probe)) stale.push({ path: rel, line, expected: probe });
+    if (!(lines[line - 1] ?? '').includes(probe)) stale.push({ path: rel, line, expected: probe });
   }
   return stale;
 }
 
+/** A row's distinctive slice: the renderer never rewrites a row, but a heading can carry decoration. */
+function rowProbe(text) {
+  return String(text ?? '').replace(/^[\s`*_~]+/, '').slice(0, 24);
+}
+
 /**
- * The whole run: read the corpus, rank it, render it, GATE it, write it.
+ * The artifact name for `stamp`, never replacing a file that holds a pick (AC4.3).
+ *
+ * `BACKLOG-REVIEW-<stamp>.md` when it is free or holds no pick (a same-day re-run
+ * before anyone picked replaces it, byte-compared); otherwise the first free
+ * `-N`. `tools/doc-budgets.json`'s exemption allows the suffix.
+ */
+export function nextArtifactName(baseDir, stamp, { readText = (p) => readFileSync(p, 'utf-8') } = {}) {
+  const planningDir = join(baseDir, PLANNING_DIR);
+  for (let n = 1; n < 1000; n++) {
+    const name = `${ARTIFACT_PREFIX}${stamp}${n === 1 ? '' : `-${n}`}.md`;
+    const path = join(planningDir, name);
+    if (!existsSync(path)) return name;
+    let text = '';
+    try {
+      text = readText(path);
+    } catch {
+      continue; // unreadable: do not overwrite what we cannot inspect
+    }
+    if (!text.includes(`## ${PICK_HEADING}`)) return name;
+  }
+  throw new Error(`more than 999 advisories for ${stamp} — refusing to pick a name`);
+}
+
+/**
+ * Step one of the run: read the corpus and build the digest the agent proposes
+ * from. Writes nothing.
+ *
+ * @returns {Promise<{corpus: object, digest: object, digestText: string}>}
+ */
+export async function prepareAdvise(baseDir) {
+  const corpus = await readCorpus(baseDir);
+  const digest = await gatherBigPicture(baseDir, { corpus });
+  return { corpus, digest, digestText: formatDigest(digest) };
+}
+
+/**
+ * Step two: validate the agent's priorities, classify the rows, render, GATE, write.
+ *
+ * The corpus is read AGAIN here rather than reused from `prepareAdvise`, on
+ * purpose: the proposal is checked against the files as they are at write time,
+ * so a row that moved between proposing and writing is refused by name instead
+ * of cited at the wrong line.
  *
  * `render` is injectable so the run-boundary test can feed a rendered string
- * carrying one bad citation. Without that seam the gate is untestable at the
- * boundary — the renderer is supposed to emit only good citations, so no natural
- * input reaches the failure. A unit test proving the finding is *computed* is not
- * a test that the run *refuses*, and that gap is `B39`/`B75`.
+ * carrying one bad citation — without that seam no natural input reaches the
+ * failure (`B39`/`B75`).
  */
-export async function runAdvise(baseDir, { today, render = renderArtifact, projectName } = {}) {
+export async function runAdvise(baseDir, { today, priorities, render = renderArtifact, projectName } = {}) {
   const stamp = today ?? new Date().toISOString().slice(0, 10);
+  const base = { today: stamp, corpus: null, classified: null, priorities: [], verification: null };
+  if (!isValidStamp(stamp)) {
+    return { ...base, status: 'skipped', path: null, reason: `today must be a real YYYY-MM-DD date, got ${JSON.stringify(stamp)}` };
+  }
   const corpus = await readCorpus(baseDir);
-  const name = `${ARTIFACT_PREFIX}${stamp}.md`;
+  base.corpus = corpus;
+  let name;
+  try {
+    name = nextArtifactName(baseDir, stamp);
+  } catch (err) {
+    return { ...base, status: 'skipped', path: null, reason: err.message };
+  }
   const rel = `${PLANNING_DIR}/${name}`;
 
   if (corpus.sources.backlog === null) {
     const why = corpus.cannotCheck.find((c) => c.source === 'BACKLOG.md')?.reason ?? 'BACKLOG.md unreadable';
-    return { status: 'skipped', path: rel, reason: why, today: stamp, corpus, ranked: null, verification: null };
+    return { ...base, status: 'skipped', path: rel, reason: why };
   }
 
-  // Ranking input 3. Fail-open: an un-evaluable discharge check narrows what the
-  // ranking can see, and says so — it does not stop the advisory.
+  const checked = await validatePriorities(baseDir, priorities, corpus);
+  if (!checked.ok) {
+    return {
+      ...base,
+      status: 'skipped',
+      path: rel,
+      reason: `the proposed priorities were refused, so nothing was written (${checked.reasons.length} reason(s))`,
+      reasons: checked.reasons,
+    };
+  }
+  base.priorities = checked.priorities;
+
+  // Discharge: fail-open. An un-evaluable check narrows what can be dropped, and says so.
   let discharge = null;
   try {
     discharge = await backlogDischargeStatus(baseDir);
   } catch {
     discharge = null;
   }
-  const stale = discharge?.stale ?? [];
-
-  // Input 7's population: the ids `BUGS.md` still records as confirmed. `null`
-  // when the catalog could not be read, so the input cannot fire and `consulted`
-  // does not claim `BUGS.md` on its behalf.
   const confirmedBugs = corpus.sources.bugs
     ? new Set(corpus.sources.bugs.entries.filter((e) => e.status === 'confirmed').map((e) => e.id))
     : null;
+  const classified = classifyRows(corpus.sources.backlog.rows, { stale: discharge?.stale ?? [], discharge, confirmedBugs });
+  base.classified = classified;
 
-  // The WHOLE discharge result goes in, not just `stale`: its `sources` field
-  // is how `consulted` knows which closure source input 3 could read.
-  const ranked = rankRows(corpus.sources.backlog.rows, { today: stamp, stale, discharge, confirmedBugs });
-  const artifact = render({ today: stamp, ranked, corpus, projectName });
+  let digest = null;
+  try {
+    digest = await gatherBigPicture(baseDir, { corpus });
+  } catch {
+    digest = null; // the digest section is informational here; the gate does not depend on it
+  }
+  const artifact = render({ today: stamp, classified, priorities: checked.priorities, corpus, digest, projectName });
 
-  // ── THE STALE-READ GUARD, and it exists because the very first artifact this
-  // command shipped had ~51 citations off by exactly 5 lines.
-  //
-  // A one-time human edit inserted a 5-line block at the top of `BACKLOG.md`
-  // AFTER the corpus was read and the citations computed. Every line number then
-  // pointed 5 rows short. `verifyCitations` could not catch it — it checks that a
-  // line is WITHIN the file, never that it points at the claimed content, which is
-  // the limit this Epic documented and then walked straight into.
-  //
-  // So: re-read the file and confirm each cited line still carries the row it is
-  // cited for. This is not the general semantic check (that remains unbuilt); it
-  // is the narrow one the advisor can actually make, because it knows what it
-  // claimed about each line. Found by the PR reviewer at SHIP.
-  const staleCitations = await findStaleRowCitations(baseDir, ranked);
+  // ── THE STALE-READ GUARD. The first artifact this command ever shipped had ~51
+  // citations off by exactly 5 lines: a human edit above every cited row, after
+  // the read. `verifyCitations` checks a line is WITHIN the file, never what it
+  // says, so this re-reads and checks each cited row and bug line still carries it.
+  const probes = [
+    ...[...classified.live, ...classified.dropped].map((s) => ({ path: s.row.path, line: s.row.line, probe: rowProbe(s.row.text) })),
+    ...checked.priorities.flatMap((p) =>
+      p.covers.filter((c) => c.kind !== 'new').map((c) => ({ path: c.path, line: c.line, probe: c.kind === 'bug' ? c.id : rowProbe(c.label) }))
+    ),
+  ];
+  const staleCitations = await findStaleCitations(baseDir, probes);
   if (staleCitations.length > 0) {
     return {
+      ...base,
       status: 'skipped',
       path: rel,
       reason:
-        `${staleCitations.length} cited line(s) no longer carry the row they were read from — the ` +
-        `corpus changed between reading it and writing this artifact (first: ` +
-        `${staleCitations[0].path}:${staleCitations[0].line}). ` +
-        'Re-run to regenerate against the current file',
-      today: stamp,
-      corpus,
-      ranked,
-      verification: null,
+        `${staleCitations.length} cited line(s) no longer carry what they were read for — the corpus changed ` +
+        `between reading it and writing this artifact (first: ${staleCitations[0].path}:${staleCitations[0].line}). ` +
+        'Re-run to regenerate against the current files',
     };
   }
 
-  // ── THE RUN BOUNDARY. A count, not a flag. See the header note.
+  // ── THE RUN BOUNDARY. A count, not a flag (see the header note).
+  //   claims = one per priority (its why line) + one per cited covered row/bug
+  //            + one per appendix row (live and dropped).
   const verification = await verifyCitations(baseDir, artifact);
-  const claims = ranked.recommended.length + ranked.declined.length;
+  base.verification = verification;
+  const coveredCited = checked.priorities.reduce((n, p) => n + p.covers.filter((c) => c.kind !== 'new').length, 0);
+  const claims = checked.priorities.length + coveredCited + classified.live.length + classified.dropped.length;
   if (!verification.ok) {
     const detail = verification.truncated
       ? `the citation scan truncated at ${verification.truncated.limit} of ${verification.truncated.total}`
       : verification.unresolved.map((u) => `\`${u.raw}\` (${u.reason})`).join('; ');
-    return {
-      status: 'skipped',
-      path: rel,
-      reason: `citation check failed, so nothing was written — ${detail}`,
-      today: stamp,
-      corpus,
-      ranked,
-      verification,
-    };
+    return { ...base, status: 'skipped', path: rel, reason: `citation check failed, so nothing was written — ${detail}` };
   }
-  // ⚠ AT ZERO CLAIMS THIS GATE DOES NO WORK, and that is benign for a reason
-  // worth writing down rather than left to be re-derived. A fresh-context reviewer
-  // flagged it as the module's own header failure one level up: `claims` 0 and
-  // `resolved` 0 makes `0 < 0` false, so an empty-backlog run is written having
-  // checked nothing.
-  //
-  // The first fix attempted here was `claims === 0 && rows.length > 0` — refuse
-  // when rows existed and nothing was claimed. **That branch is unreachable, and
-  // a test is what said so.** `rankRows` PARTITIONS: every scored row lands in
-  // `recommended`, `rest` or `dropped`, and `declined` is `rest + dropped`, so
-  // `recommended.length + declined.length === rows.length` always — verified
-  // across parked, blocked, discharged and empty inputs. `claims === 0` therefore
-  // implies `rows.length === 0`, and with no live rows there is genuinely nothing
-  // to cite. The vacuity is real and harmless; a guard against it would have been
-  // dead code shipped to look like rigour.
-  //
-  // What was NOT harmless is what happened next: control reached `writeArtifact`,
-  // which threw. That is fixed below, where the contract is.
+  // Priorities are 3–5 and each carries at least one citation, so `claims` is
+  // never zero here: the vacuous zero-claims pass the old ranking had to argue
+  // was harmless cannot occur.
   if (verification.resolved.length < claims) {
     return {
+      ...base,
       status: 'skipped',
       path: rel,
       reason:
         `citation check resolved ${verification.resolved.length} citations for ${claims} claim(s), so nothing ` +
         'was written — every claim must carry one, and a passing check over too few is the vacuous case',
-      today: stamp,
-      corpus,
-      ranked,
-      verification,
     };
   }
 
-  // `writeArtifact` documents a `{status, path, reason}` return, and two real
-  // conditions made it THROW past this function instead: a symlinked `.planning/`
-  // (`assertRealInsidePlanning`) and a read-only or full `.planning/` (`EACCES`
-  // out of `atomicWrite`) — the second needs no unusual corpus at all. A command
-  // whose contract is "it reports what it could not do" must not exit by
-  // exception on a filesystem it does not control.
+  // `writeArtifact` can throw on a symlinked or read-only `.planning/`; this
+  // command's contract is that it reports what it could not do.
   let written;
   try {
     written = await writeArtifact(baseDir, { name, content: artifact });
   } catch (err) {
-    return {
-      status: 'skipped',
-      path: rel,
-      reason: `the artifact could not be written — ${err.message}`,
-      today: stamp,
-      corpus,
-      ranked,
-      verification,
-      artifact,
-    };
+    return { ...base, status: 'skipped', path: rel, reason: `the artifact could not be written — ${err.message}`, artifact };
   }
-  return { ...written, today: stamp, corpus, ranked, verification, artifact };
+  return { ...written, ...base, path: written.path, artifact };
 }
