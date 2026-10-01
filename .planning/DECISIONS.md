@@ -3757,7 +3757,9 @@ priority carries at least one citation, every covered row is cited, and the gate
 reply outside the list ("Other") is recorded verbatim, so a miss is visible in the artifact.
 
 ### D-M6E12-8 — A recorded choice is never overwritten
-The choice is appended to the dated advisory as a *Chosen* section. A same-day re-run writes
+The choice is appended to the dated advisory as a *Picked by you* section (*amended at PLAN*: the
+first wording, *Chosen*, is one of `FORBIDDEN_VERBS`, which `M6.E7` asserts the advisor never uses —
+the pick is the user's decision, recorded after it is made, and the heading says whose). A same-day re-run writes
 `BACKLOG-REVIEW-YYYY-MM-DD-2.md` rather than replacing a file that holds a choice. The name still
 matches the doc-budget exemption pattern.
 
