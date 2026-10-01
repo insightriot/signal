@@ -48,12 +48,21 @@ export const DIGEST_SOURCES = Object.freeze([
 /** Character caps. `total` bounds the formatted digest; the rest bound one entry each. */
 export const DIGEST_CAPS = Object.freeze({
   excerpt: 600,
-  row: 200,
-  retroSection: 1200,
+  row: 160,
+  retroSection: 700,
   retroFiles: 3,
   questions: 10,
-  total: 20000,
+  total: 24000,
 });
+
+/**
+ * What gives way when the digest is over `total`, in order. MEASURED, not
+ * guessed: the first real run (this repository, 2026-10-01) trimmed the backlog
+ * first and showed 11 of 55 rows — while the backlog is most of what a priority
+ * covers. So the backlog goes LAST. Older retrospective sections go first (the
+ * newest carry the current lessons), then low-priority bugs, then questions.
+ */
+export const TRIM_ORDER = Object.freeze(['retrospectives', 'low-priority bugs', 'open questions', 'backlog']);
 
 const RETRO_SECTION_RE = /^##\s+(What to feed back into Signal|What we'd do differently)\s*$/i;
 const RETRO_FILE_RE = /^(.+)-RETROSPECTIVE\.md$/;
@@ -203,7 +212,7 @@ export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
       const order = (p) => (p ? Number(p.slice(1)) : 9);
       open.sort((a, b) => order(a.p) - order(b.p) || a.e.line - b.e.line);
       for (const { e, p } of open) {
-        entries.bugs.push({ path: e.path, line: e.line, text: clip(`${e.id} ${p ?? 'unprioritised'} ${e.status} — ${e.headline.replace(/\*\*/g, '')}`, DIGEST_CAPS.row) });
+        entries.bugs.push({ path: e.path, line: e.line, priority: p, text: clip(`${e.id} ${p ?? 'unprioritised'} ${e.status} — ${e.headline.replace(/\*\*/g, '')}`, DIGEST_CAPS.row) });
       }
       ok('bugs');
     } catch (err) {
@@ -326,14 +335,33 @@ function ref(e) {
 /**
  * The digest as the agent reads it. What could not be read comes FIRST, so a
  * gap is the first thing seen rather than the last. Bounded by `DIGEST_CAPS.total`:
- * backlog rows are dropped from the end until it fits, and the cut is stated.
+ * entries give way in `TRIM_ORDER`, one at a time from the end of each list, and
+ * every cut is stated.
  *
  * @param {{entries: object, checked: string[], cannotCheck: Array, cut: string[]}} digest
  * @returns {string}
  */
 export function formatDigest(digest) {
   const cut = [...digest.cut];
-  const build = (backlogShown) => {
+  const isLow = (e) => !e.priority || Number(e.priority.slice(1)) >= 3;
+  // How many of each trimmable group are shown; everything else is always shown.
+  const full = {
+    retrospectives: digest.entries.retrospectives.length,
+    'low-priority bugs': digest.entries.bugs.filter(isLow).length,
+    'open questions': digest.entries['open questions'].length,
+    backlog: digest.entries.backlog.length,
+  };
+  const shown = { ...full };
+  const listFor = (source) => {
+    const all = digest.entries[source];
+    if (source === 'bugs') {
+      const high = all.filter((e) => !isLow(e));
+      return [...high, ...all.filter(isLow).slice(0, shown['low-priority bugs'])];
+    }
+    if (source in shown) return all.slice(0, shown[source]);
+    return all;
+  };
+  const build = () => {
     const out = ['# Big-picture digest', ''];
     if (digest.cannotCheck.length > 0) {
       out.push('## Could not read — the picture below is missing these', '');
@@ -342,8 +370,7 @@ export function formatDigest(digest) {
     }
     for (const source of DIGEST_SOURCES) {
       if (!digest.checked.includes(source)) continue;
-      let list = digest.entries[source];
-      if (source === 'backlog') list = list.slice(0, backlogShown);
+      const list = listFor(source);
       out.push(`## ${source} (${digest.entries[source].length})`, '');
       if (list.length === 0) out.push('- (none)');
       for (const e of list) out.push(`- ${e.text} (${ref(e)})`);
@@ -351,14 +378,17 @@ export function formatDigest(digest) {
     }
     return out;
   };
-  let shown = digest.entries.backlog.length;
-  let out = build(shown);
-  while (out.join('\n').length > DIGEST_CAPS.total && shown > 0) {
-    shown -= 1;
-    out = build(shown);
+  let out = build();
+  for (const group of TRIM_ORDER) {
+    while (out.join('\n').length > DIGEST_CAPS.total && shown[group] > 0) {
+      shown[group] -= 1;
+      out = build();
+    }
   }
-  if (shown < digest.entries.backlog.length) {
-    cut.push(`backlog: ${shown} of ${digest.entries.backlog.length} rows shown (digest cap ${DIGEST_CAPS.total} chars) — the rest are in BACKLOG.md`);
+  for (const group of TRIM_ORDER) {
+    if (shown[group] < full[group]) {
+      cut.push(`${group}: ${shown[group]} of ${full[group]} shown (digest cap ${DIGEST_CAPS.total} chars)`);
+    }
   }
   if (cut.length > 0) {
     out.push('## Cut to fit — not shown above', '');

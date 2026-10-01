@@ -24,6 +24,7 @@ export const TITLE_MAX = 120;
 
 const BUG_ID_RE = /^B\d+$/;
 const ROW_REF_RE = /^(.+):(\d+)$/;
+const NEW_RE = /^new:\s*/i;
 
 /** Sentences in `text`: terminal punctuation followed by space or end. */
 export function countSentences(text) {
@@ -36,15 +37,16 @@ export function countSentences(text) {
 /**
  * Validate a proposal against the corpus it was made from.
  *
- * `covers` entries are either a live backlog row, written as its citation
- * (`.planning/BACKLOG.md:42`), or an open bug's id (`B254`). Both resolve to a
- * line in this corpus, which is what lets every covered thing be cited.
+ * `covers` entries are a live backlog row, written as its citation
+ * (`.planning/BACKLOG.md:42`), an open bug's id (`B254`) — both resolve to a line
+ * in this corpus and are cited — or unfiled work, `new: <description>`, which has
+ * no line and is labelled as such.
  *
  * @param {string} baseDir
  * @param {unknown} priorities — parsed JSON from the agent
  * @param {object} corpus — the `readCorpus` result the digest was built from
  * @returns {Promise<{ok: boolean, reasons: string[], priorities: Array<{title: string, why: string,
- *   covers: Array<{kind: 'row'|'bug', id: string|null, label: string, path: string, line: number}>,
+ *   covers: Array<{kind: 'row'|'bug'|'new', id: string|null, label: string, path: string|null, line: number|null}>,
  *   evidence: string[]}>}>}
  */
 export async function validatePriorities(baseDir, priorities, corpus) {
@@ -87,11 +89,20 @@ export async function validatePriorities(baseDir, priorities, corpus) {
 
     const covers = [];
     if (!Array.isArray(p.covers) || p.covers.length === 0) {
-      reasons.push(`${n}: covers must list at least one backlog row (".planning/BACKLOG.md:LINE") or open bug id ("B12")`);
+      reasons.push(`${n}: covers must list at least one backlog row (".planning/BACKLOG.md:LINE"), open bug id ("B12"), or unfiled work ("new: …")`);
     } else {
       for (const raw of p.covers) {
         const c = typeof raw === 'string' ? raw.trim() : '';
-        if (BUG_ID_RE.test(c)) {
+        if (NEW_RE.test(c)) {
+          // Work the corpus does not hold yet. A big-picture priority often names
+          // something nobody has filed — measured on the first real run: the most
+          // obvious priority (moving other projects onto the work store) was not a
+          // row anywhere. It is allowed, labelled unfiled, and carries no citation.
+          const label = c.replace(NEW_RE, '').trim();
+          if (!label) reasons.push(`${n}: a "new:" covers entry needs a description`);
+          else if (label.includes(EVIDENCE_MARKER) || /[\r\n]/.test(label)) reasons.push(`${n}: "new:" entry must be one line without the evidence marker`);
+          else covers.push({ kind: 'new', id: null, label, path: null, line: null });
+        } else if (BUG_ID_RE.test(c)) {
           const bug = openBugs.get(c);
           if (!bug) reasons.push(`${n}: covers ${c}, which is not an open bug in ${corpus?.sources?.bugs?.path ?? 'BUGS.md'}`);
           else covers.push({ kind: 'bug', id: c, label: bug.headline.replace(/\*\*/g, ''), path: bug.path, line: bug.line });
@@ -104,6 +115,7 @@ export async function validatePriorities(baseDir, priorities, corpus) {
         }
       }
       for (const c of covers) {
+        if (c.kind === 'new') continue;
         const key = `${c.path}:${c.line}`;
         if (coveredBy.has(key) && coveredBy.get(key) !== i) {
           reasons.push(`${n}: ${c.id ?? key} is already covered by priority ${coveredBy.get(key) + 1} — each row sits under one priority`);

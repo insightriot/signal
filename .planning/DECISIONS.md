@@ -3751,6 +3751,9 @@ untriaged count. Absent and unreadable both land in cannot-check with different 
 item ids or backlog rows it would take on, `evidence` one or more `path:line` citations. Every
 priority carries at least one citation, every covered row is cited, and the gate keeps asserting a
 **count** of resolved citations, not a flag. An invalid set writes no file and names the fix.
+*Amended at EXECUTE (t1.4):* `covers` may also hold **unfiled work** as `new: <description>` —
+accepted, labelled unfiled in the artifact, and carrying no citation. The first real run's most
+obvious priority (moving other projects onto the work store) was not a row or a bug anywhere.
 
 ### D-M6E12-7 — Asking: the picker for up to four, a numbered prompt for five
 `AskUserQuestion` takes at most four options. Five priorities are asked as a plain numbered list. A

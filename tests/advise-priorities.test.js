@@ -95,6 +95,24 @@ describe('validatePriorities — every refusal names its fault (AC2.1–AC2.3)',
   });
 });
 
+describe('unfiled work — "new:" covers', () => {
+  it('is accepted, labelled, and carries no line', async () => {
+    const { base, corpus } = await fixture();
+    const p = good();
+    p[0].covers = ['new: move other projects onto the work store', 'B1'];
+    const r = await validatePriorities(base, p, corpus);
+    expect(r.ok).toBe(true);
+    expect(r.priorities[0].covers[0]).toEqual({ kind: 'new', id: null, label: 'move other projects onto the work store', path: null, line: null });
+  });
+  it('an empty description is refused', async () => {
+    const { base, corpus } = await fixture();
+    const p = good();
+    p[0].covers = ['new:'];
+    const r = await validatePriorities(base, p, corpus);
+    expect(r.reasons.join('\n')).toMatch(/needs a description/);
+  });
+});
+
 describe('countSentences', () => {
   it('counts terminal punctuation, and an unpunctuated line as one', () => {
     expect(countSentences('One. Two! Three?')).toBe(3);

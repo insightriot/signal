@@ -9,7 +9,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { gatherBigPicture, formatDigest, DIGEST_SOURCES, DIGEST_CAPS } from '../plugin/tools/lib/advise-digest.js';
+import { gatherBigPicture, formatDigest, DIGEST_SOURCES, DIGEST_CAPS, TRIM_ORDER } from '../plugin/tools/lib/advise-digest.js';
 
 const dirs = [];
 afterEach(() => {
@@ -136,7 +136,24 @@ describe('formatDigest — AC1.4 and the citation boundary', () => {
     const text = formatDigest(g);
     const beforeCut = text.split('## Cut to fit')[0];
     expect(beforeCut.length).toBeLessThanOrEqual(DIGEST_CAPS.total);
-    expect(text).toMatch(/backlog: \d+ of 400 rows shown/);
+    expect(text).toMatch(/backlog: \d+ of 400 shown/);
+  });
+
+  it('trims retrospectives, then low-priority bugs, BEFORE the backlog — the first real run showed 11 of 55 rows', async () => {
+    const retro = (n) => `# R\n\n## What to feed back into Signal\n\n${'r'.repeat(900)}\n\n## What we'd do differently\n\n${'d'.repeat(900)}\n`;
+    const bugs = Array.from({ length: 150 }, (_, i) => `| B${i + 10} | \`confirmed\` | P3 | **${'b'.repeat(140)}** |`).join('\n');
+    const rows = Array.from({ length: 60 }, (_, i) => `### Row ${i} · **roadmap** · ${'x'.repeat(120)}\nBody.\n`).join('\n');
+    const g = await gatherBigPicture(project({
+      '.planning/M2.E1-RETROSPECTIVE.md': retro(1),
+      '.planning/M2.E2-RETROSPECTIVE.md': retro(2),
+      '.planning/M2.E3-RETROSPECTIVE.md': retro(3),
+      '.planning/BUGS.md': `# Bugs\n\n| ID | Status | Pri | What |\n|---|---|---|---|\n| B1 | \`confirmed\` | P1 | **top** |\n${bugs}\n`,
+      '.planning/BACKLOG.md': `# Backlog\n\n${rows}`,
+    }));
+    const text = formatDigest(g);
+    expect(text).not.toMatch(/backlog: \d+ of/); // every row shown
+    expect(text).toMatch(/low-priority bugs: \d+ of 150 shown/);
+    expect(text).toContain('B1 P1'); // high-priority bugs are never trimmed
   });
 
   it('clips each row to its cap', async () => {
@@ -153,6 +170,12 @@ describe('formatDigest — AC1.4 and the citation boundary', () => {
   it('lists what could not be read BEFORE anything that was', async () => {
     const text = formatDigest(await gatherBigPicture(project({ '.planning/PROJECT.md': null })));
     expect(text.indexOf('## Could not read')).toBeLessThan(text.indexOf('## milestone'));
+  });
+});
+
+describe('TRIM_ORDER', () => {
+  it('gives the backlog way last', () => {
+    expect(TRIM_ORDER[TRIM_ORDER.length - 1]).toBe('backlog');
   });
 });
 
