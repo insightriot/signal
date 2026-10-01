@@ -3715,3 +3715,67 @@ any Epic that started before its folder. Supersedes the writer-stays-at-root hal
 before §6.8's `closeEpic` — `published-facts.js`, `state-drift.js`, `evict.js`, `readEffectiveProfile`)
 look only at the root; moving them would make every store-on Epic-close SHIP refuse, or silently drop
 a per-Epic profile to the project tier. Making those readers folder-aware is later work.
+
+## 2026-10-01 — M6.E12 DISCUSS: `/sig:advise` proposes big-picture priorities and asks (D-M6E12-1 … D-M6E12-12)
+
+**Label:** *"priorities, not age"*. Answers backlog row `SIG-142` (*"`/sig:advise` ranks on age alone
+for 44 of 46 rows"*). Brett, 2026-10-01: *"priority shouldn't be based on age — it should a) review
+docs to get big picture b) propose 3-5 big picture priorities c) ask user to choose."*
+
+### D-M6E12-1 — The row-by-row list stays, as an appendix, with age removed (Brett)
+Chosen over dropping it. The appendix keeps what makes a passed-over row distinguishable from an
+unconsidered one (`B39`); age stops being an input anywhere.
+
+### D-M6E12-2 — The pick is recorded in the advisory, then Signal offers to start it (Brett)
+Chosen over "record only" and "start straight away". Nothing starts without a yes.
+
+### D-M6E12-3 — `/sig:drive` uses the same priorities flow; an open Epic still comes first (Brett)
+An Epic already open — locally or on another branch (`B118`, `v0.1.44`) — is proposed ahead of the
+priorities, because resuming beats starting new.
+
+### D-M6E12-4 — The agent running the command synthesizes the priorities; code builds the digest
+The big picture is a judgment, and the metadata cannot carry it: **of 111 open items, 33 carry a
+priority and 2 carry a theme** (measured 2026-10-01). `SIG-142` itself warns that the obvious fix —
+more regex vocabulary over row bodies — is what `M6.E7` already watched match the wrong item. So code
+gathers a cited digest; the model reads it (and the cited files) and proposes; code validates.
+
+### D-M6E12-5 — The digest's sources, each fail-open with a named cannot-check
+`PROJECT.md` vision; the current milestone file (theme + Epic status); open Epics, local and on other
+branches; open bugs by priority; live backlog rows with their tags; the newest three retrospectives'
+*What to feed back into Signal* and *What we'd do differently* sections; open questions; the inbox's
+untriaged count. Absent and unreadable both land in cannot-check with different reasons
+(`advise-corpus.js`'s rule), so the advisory never presents a partial read as the whole picture.
+
+### D-M6E12-6 — The priorities contract, validated by code before anything is written
+3 to 5 priorities, each `{title, why, covers, evidence}`: `why` at most three sentences, `covers` the
+item ids or backlog rows it would take on, `evidence` one or more `path:line` citations. Every
+priority carries at least one citation, every covered row is cited, and the gate keeps asserting a
+**count** of resolved citations, not a flag. An invalid set writes no file and names the fix.
+
+### D-M6E12-7 — Asking: the picker for up to four, a numbered prompt for five
+`AskUserQuestion` takes at most four options. Five priorities are asked as a plain numbered list. A
+reply outside the list ("Other") is recorded verbatim, so a miss is visible in the artifact.
+
+### D-M6E12-8 — A recorded choice is never overwritten
+The choice is appended to the dated advisory as a *Chosen* section. A same-day re-run writes
+`BACKLOG-REVIEW-YYYY-MM-DD-2.md` rather than replacing a file that holds a choice. The name still
+matches the doc-budget exemption pattern.
+
+### D-M6E12-9 — Priorities are judgment, and the artifact says so
+Two runs over the same corpus can propose different priorities. Tests cover the contract, the
+digest, the gate, rendering and recording — not the quality of the judgment. That is the outcome
+oracle's job (`D-M6E12-12`).
+
+### D-M6E12-10 — The appendix: rows under the priority that covers them, the rest in file order
+Rows a priority covers are listed under it; every other live row follows **in file order, labelled
+as not ranked**. Rows dropped as discharged, self-declared not live, or folded elsewhere are listed
+with the reason. Blocked and trigger-met become annotations, not ranks. `RECOMMENDATION_LIMIT` goes.
+
+### D-M6E12-11 — `/sig:drive`'s backlog list survives only as "something else"
+`proposeEpicCandidates` keeps its open-Epic candidates. When none is chosen, the run takes the
+priorities flow and the picked priority becomes the run's work. The backlog rows remain reachable
+behind "something else", in file order.
+
+### D-M6E12-12 — Outcome: the proposed priorities are what gets picked
+In the first three real runs, the user picks one of the proposed priorities rather than *Other*. Two
+*Other*s in three runs means the synthesis is missing what matters, and the digest is revisited first.

@@ -223,7 +223,6 @@
 - [work/backlog/SIG-101.md](work/backlog/SIG-101.md) — `other` — _(note pending)_
 - [work/backlog/SIG-112.md](work/backlog/SIG-112.md) — `other` — _(note pending)_
 - [work/backlog/SIG-116.md](work/backlog/SIG-116.md) — `other` — _(note pending)_
-- [work/backlog/SIG-118.md](work/backlog/SIG-118.md) — `other` — _(note pending)_
 - [work/backlog/SIG-119.md](work/backlog/SIG-119.md) — `other` — _(note pending)_
 - [work/backlog/SIG-120.md](work/backlog/SIG-120.md) — `other` — _(note pending)_
 - [work/backlog/SIG-121.md](work/backlog/SIG-121.md) — `other` — _(note pending)_
@@ -289,6 +288,8 @@
 - [work/backlog/SIG-246.md](work/backlog/SIG-246.md) — `other` — _(note pending)_
 - [work/backlog/SIG-247.md](work/backlog/SIG-247.md) — `other` — _(note pending)_
 - [work/backlog/SIG-248.md](work/backlog/SIG-248.md) — `other` — _(note pending)_
+- [work/backlog/SIG-254.md](work/backlog/SIG-254.md) — `other` — _(note pending)_
+- [work/backlog/SIG-255.md](work/backlog/SIG-255.md) — `other` — _(note pending)_
 - [work/backlog/SIG-33.md](work/backlog/SIG-33.md) — `other` — _(note pending)_
 - [work/backlog/SIG-34.md](work/backlog/SIG-34.md) — `other` — _(note pending)_
 - [work/backlog/SIG-35.md](work/backlog/SIG-35.md) — `other` — _(note pending)_
@@ -451,6 +452,7 @@
 - [work/done/2026-09/SIG-97.md](work/done/2026-09/SIG-97.md) — `other` — _(note pending)_
 - [work/done/2026-09/SIG-98.md](work/done/2026-09/SIG-98.md) — `other` — _(note pending)_
 - [work/done/2026-09/SIG-99.md](work/done/2026-09/SIG-99.md) — `other` — _(note pending)_
+- [work/done/2026-10/SIG-118.md](work/done/2026-10/SIG-118.md) — `other` — _(note pending)_
 - [work/inbox/SIG-123.md](work/inbox/SIG-123.md) — `other` — _(note pending)_
 - [work/inbox/SIG-129.md](work/inbox/SIG-129.md) — `other` — _(note pending)_
 - [work/inbox/SIG-130.md](work/inbox/SIG-130.md) — `other` — _(note pending)_
@@ -608,6 +610,7 @@
 - [archive/M5/E9/STATE-NARRATIVE.md](archive/M5/E9/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M5/STATE-NEXT-WORK-2026-08-06.md](archive/M5/STATE-NEXT-WORK-2026-08-06.md) — `other` — _(note pending)_
 - [archive/M6/E1/STATE-NARRATIVE.md](archive/M6/E1/STATE-NARRATIVE.md) — `other` — _(note pending)_
+- [archive/M6/E11/STATE-NARRATIVE.md](archive/M6/E11/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E2/STATE-NARRATIVE.md](archive/M6/E2/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E3/AUGUST-PLAN.md](archive/M6/E3/AUGUST-PLAN.md) — `other` — _(note pending)_
 - [archive/M6/E3/AUGUST-RESEARCH.md](archive/M6/E3/AUGUST-RESEARCH.md) — `other` — _(note pending)_
