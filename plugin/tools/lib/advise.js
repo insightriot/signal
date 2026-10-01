@@ -36,6 +36,7 @@ import {
 import { EVIDENCE_MARKER, verifyCitations } from './citations.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { readCorpus, ADVISOR_SOURCES } from './advise-corpus.js';
+import { nextStepFor } from './branch-work.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -496,7 +497,8 @@ export function renderArtifact({ today, ranked, corpus, projectName }) {
   // purpose: the evidence is a STATE.md on another branch, which is not a file on
   // disk here, so it cannot carry a disk-resolved citation — and must not pretend to.
   const elsewhere = corpus.sources?.otherBranches;
-  if (elsewhere && (elsewhere.open.length > 0 || elsewhere.unclassified.length > 0)) {
+  const unreadableBranches = elsewhere?.unreadable ?? [];
+  if (elsewhere && (elsewhere.open.length > 0 || elsewhere.unclassified.length > 0 || unreadableBranches.length > 0)) {
     out.push('## Open on other branches');
     out.push('');
     if (elsewhere.open.length > 0) {
@@ -506,14 +508,25 @@ export function renderArtifact({ today, ranked, corpus, projectName }) {
       );
       out.push('');
       for (const o of elsewhere.open) {
-        out.push(`- **${quoteSafe(o.epic)}** — at ${quoteSafe(o.phase ?? 'an unrecorded phase')} on ${o.branches.map((b) => `\`${quoteSafe(b)}\``).join(', ')}`);
+        out.push(
+          `- **${quoteSafe(o.epic)}** — at ${quoteSafe(o.phase ?? 'an unrecorded phase')} on ` +
+            `${o.branches.map((b) => `\`${quoteSafe(b)}\``).join(', ')}; ${quoteSafe(nextStepFor(o))}`
+        );
       }
       out.push('');
     }
+    const names = (xs) => xs.map((b) => `\`${quoteSafe(b)}\``).join(', ');
     if (elsewhere.unclassified.length > 0) {
       out.push(
         `${elsewhere.unclassified.length} unmerged branch(es) carry a \`STATE.md\` with no Epic id, so they ` +
-          `could not be compared: ${elsewhere.unclassified.map((b) => `\`${quoteSafe(b)}\``).join(', ')}.`
+          `could not be compared: ${names(elsewhere.unclassified)}.`
+      );
+      out.push('');
+    }
+    if (unreadableBranches.length > 0) {
+      out.push(
+        `${unreadableBranches.length} branch(es) carry a \`STATE.md\` that could not be parsed, so anything ` +
+          `open there is not listed: ${names(unreadableBranches)}.`
       );
       out.push('');
     }
@@ -588,7 +601,7 @@ export function formatAdviseSummary(result) {
   lines.push(`Backlog review — ${result.today}`);
   lines.push('');
   for (const o of result.corpus.sources?.otherBranches?.open ?? []) {
-    lines.push(`  ⚠ ${o.epic} is open on another branch (${o.branches.join(', ')}) — finish it first.`);
+    lines.push(`  ⚠ ${o.epic} is open on ${o.branches.join(', ')} — finish it first: ${nextStepFor(o)}.`);
   }
   recommended.forEach((s, i) => lines.push(`  ${i + 1}. ${s.row.text}`));
   lines.push('');

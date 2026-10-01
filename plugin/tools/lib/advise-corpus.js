@@ -230,10 +230,13 @@ try {
       localEpic = null;
     }
     const found = await findWorkOnOtherBranches(baseDir, { localEpic });
-    if (found.cannotCheck.length > 0) {
+    // Only a scan that read NOTHING is cannot-check. One unparseable branch is
+    // named inside the source (`unreadable`) and every other branch's answer
+    // stands — discarding them for it would hide open Epics over an unrelated file.
+    if (found.failed) {
       fail('other branches', found.cannotCheck.map((c) => c.reason).join('; '));
     } else {
-      sources.otherBranches = { open: found.open, unclassified: found.unclassified };
+      sources.otherBranches = { open: found.open, unclassified: found.unclassified, unreadable: found.unreadable };
       checked.push('other branches');
     }
   } catch (err) {

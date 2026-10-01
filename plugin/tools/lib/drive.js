@@ -24,7 +24,7 @@ import { LOOP_BOUNDED_PHASES } from './loop-ceiling.js';
 import { atomicWrite } from './atomic-write.js';
 import { parseBacklogRows } from './backlog.js';
 import { readState, partitionCompletedPhases, PHASES } from './state.js';
-import { findWorkOnOtherBranches, checkoutName } from './branch-work.js';
+import { findWorkOnOtherBranches, nextStepFor } from './branch-work.js';
 import { resolveArtifactPath } from './resume.js';
 
 export const QUEUE_REL = '.planning/DECISION-QUEUE.md';
@@ -518,15 +518,15 @@ export async function proposeEpicCandidates(baseDir) {
   // `resolveStartPhase` refuses to resume it here — this run never switches branches.
   const otherBranches = await findWorkOnOtherBranches(baseDir, { localEpic: state?.current_epic ?? null });
   for (const o of otherBranches.open) {
-    const branch = checkoutName(o.branches);
     candidates.push({
       id: o.epic,
       title: o.epic,
-      source: `branch ${branch} (open Epic)`,
-      branch,
+      source: `${o.branches.join(', ')} (open Epic)`,
+      branch: o.checkout,
       phase: o.phase,
+      nextStep: nextStepFor(o),
       line: null,
-      why: `already open at ${o.phase ?? 'an unrecorded phase'} on branch ${branch}, not the one checked out — finish it before starting new work`,
+      why: `already open at ${o.phase ?? 'an unrecorded phase'} on ${o.branches.join(', ')} — finish it before starting new work`,
     });
   }
   cannotCheck.push(...otherBranches.cannotCheck);
@@ -786,11 +786,12 @@ export function resolveStartPhase(state, candidate) {
   // against this branch's files and write this branch's STATE.md — the wrong
   // branch. Switching branches is the person's call, so the run stops and says how.
   if (candidate?.branch) {
+    const step = candidate.nextStep ?? `run \`git checkout ${candidate.branch}\` to continue it`;
     return {
       phase: candidate.phase ?? 'DISCUSS',
       why:
-        `${candidate.id ?? 'This Epic'} is open on branch ${candidate.branch}, not the one checked out. ` +
-        `Run \`git checkout ${candidate.branch}\` and start /sig:drive again — this run does not switch branches.`,
+        `${candidate.id ?? 'This Epic'} is open where this checkout cannot see it: ${step}, then start ` +
+        '/sig:drive again — this run does not switch branches or pull.',
       changed: false,
       blocked: true,
     };

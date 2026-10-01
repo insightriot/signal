@@ -78,8 +78,9 @@ which one, via `AskUserQuestion`, offering the top candidates plus an "something
 
 **"Already open" means open on ANY branch, not just this one** (`B118`). STATE.md is one
 branch's answer, so `proposeEpicCandidates` also reads `STATE.md` from every branch not already
-merged into this one, and an Epic open there (no SHIP on that branch, no retrospective or SHIP
-artifact here) is proposed right after the local open Epic, carrying `branch`. Branches whose
+merged into this one, and an Epic open there (the branch changed its STATE.md since splitting off,
+records no SHIP, and has no retrospective or SHIP artifact here) is proposed right after the local
+open Epic, carrying `branch` and `nextStep`. Branches whose
 STATE.md names no Epic come back in `unclassifiedBranches` — name them on one line, so an empty
 list cannot read as "checked every branch". Remote branches are as fresh as the last `git fetch`.
 
@@ -105,9 +106,11 @@ advice instead of asking, which leaves the user to restate what they already cam
 Call `resolveStartPhase(state, candidate)`.
 
 ⚠ **A candidate with `branch` comes back `blocked: true`, and the run stops there.** Its next
-phase would run against this branch's files and write this branch's STATE.md. Print the `why`
-(it names the `git checkout`), and let the person switch branches and start `/sig:drive` again.
-This run never switches branches.
+phase would run against this branch's files and write this branch's STATE.md. Print the `why`:
+it names the one step that reaches the work — `git checkout <branch>`, **`git pull`** when the
+work is on this branch's own remote copy (pushed from another machine), or the other worktree's
+path. The person takes that step and starts `/sig:drive` again. This run never switches branches
+or pulls.
 
 **Choosing the work and not saying where it starts leaves the dead end the front end exists to
 remove, one step later** — steps 1–3 read `state.phase`, so a run that has just picked something
