@@ -302,10 +302,12 @@ describe('t2.5 — one Epic-row reader, covering both published formats', () => 
 });
 
 describe('t2.6 — cannot-check is a value, never a silent pass', () => {
-  it('enumerates exactly the four sources it claims to read (M6.E8 FR5 — retrospectives left)', () => {
-    // ⚠ AC5.1 — no test may assert five. The retrospective read was 32 files
-    // parsed on every run for headings no ranking input ever consulted.
-    expect(ADVISOR_SOURCES).toEqual(['BACKLOG.md', 'BUGS.md', 'STATE/closure', 'milestone rows']);
+  it('enumerates exactly the five sources it claims to read (M6.E8 FR5 — retrospectives left; B118 — other branches joined)', () => {
+    // ⚠ AC5.1 — retrospectives must never return. They were 32 files parsed on
+    // every run for headings no ranking input ever consulted. The fifth source
+    // is `other branches` (`B118`), not retrospectives.
+    expect(ADVISOR_SOURCES).toEqual(['BACKLOG.md', 'BUGS.md', 'STATE/closure', 'milestone rows', 'other branches']);
+    expect(ADVISOR_SOURCES.join(' ')).not.toMatch(/retro/i);
   });
 
   it('checked + cannotCheck ALWAYS equals the source list — the docblock claim, tested', async () => {
@@ -397,8 +399,12 @@ describe('t2.6 — cannot-check is a value, never a silent pass', () => {
     // empty `files: []` standing in for a read.
     const base = mkdtempSync(join(tmpdir(), 'sig-advise-corpus-absent-'));
     const corpus = await readCorpus(base);
-    expect(corpus.checked).toEqual([]);
-    expect(corpus.cannotCheck.map((c) => c.source).sort()).toEqual([...ADVISOR_SOURCES].sort());
+    // `other branches` reads git, not `.planning/`: outside a repository there are
+    // no other branches, which is a complete answer, so it alone is `checked`.
+    expect(corpus.checked).toEqual(['other branches']);
+    expect(corpus.cannotCheck.map((c) => c.source).sort()).toEqual(
+      ADVISOR_SOURCES.filter((s) => s !== 'other branches').sort()
+    );
     expect(corpus.sources.milestones).toBeNull();
     expect(corpus.cannotCheck.find((c) => c.source === 'milestone rows').reason).toMatch(/could not be listed/i);
   });
@@ -420,8 +426,8 @@ describe('t2.6 — cannot-check is a value, never a silent pass', () => {
     rmSync(join(base, '.planning'), { recursive: true, force: true });
     writeFileSync(join(base, '.planning'), 'not a directory\n');
     const corpus = await readCorpus(base);
-    expect(corpus.cannotCheck.map((c) => c.source)).toEqual([...ADVISOR_SOURCES]);
-    expect(corpus.checked).toEqual([]);
+    expect(corpus.cannotCheck.map((c) => c.source)).toEqual(ADVISOR_SOURCES.filter((s) => s !== 'other branches'));
+    expect(corpus.checked).toEqual(['other branches']); // git, not .planning/ — see the ABSENT case
   });
 });
 

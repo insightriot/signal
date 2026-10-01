@@ -6,6 +6,16 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.44] — 2026-10-01 — `/sig:drive` and `/sig:advise` see work open on other branches
+
+### Fixed
+
+- **An Epic open on another branch is no longer invisible** (`B118`). `/sig:drive` and `/sig:advise` read `.planning/` from the checked-out branch only, so an Epic open on an unmerged branch was missing from both — a run on `main` reported nothing open and offered new work ahead of it, and nothing said the answer covered one branch. Both now read `STATE.md` from every branch not already merged into the current one (one `git cat-file --batch`, about 0.1 s over 31 branches) through a new shared module, `tools/lib/branch-work.js`.
+  - **What counts as open elsewhere:** the branch's `STATE.md` names an Epic with no SHIP recorded, the Epic has no `-RETROSPECTIVE.md` or `-SHIP.md` anywhere under `.planning/` here (this is what filters out squash-merged branches, which git still reports as unmerged), and it is not the local Epic. On this repository all 31 unmerged branches are filtered correctly.
+  - **`/sig:drive`** proposes it right after the local open Epic and ahead of every backlog row, and **refuses to resume it here**: it names the `git checkout` and stops, because running its next phase would write this branch's files. It never switches branches itself.
+  - **`/sig:advise`** gains a fifth source, `other branches`, and lists open Epics in an *Open on other branches* section above the ranking. They are not ranked and not cited, because their evidence is not a file on this branch.
+  - A branch whose `STATE.md` names no Epic cannot be compared, so it is **counted and named** rather than dropped. Outside a git repository there are no other branches, which is reported as a complete answer, not a blind spot.
+
 ## [0.1.43] — 2026-09-30 — The work-item store — one file per thing, moved, never copied
 
 ### Added
