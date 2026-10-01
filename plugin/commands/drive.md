@@ -78,8 +78,8 @@ which one, via `AskUserQuestion`, offering the top candidates plus an "something
 
 **"Already open" means open on ANY branch, not just this one** (`B118`). STATE.md is one
 branch's answer, so `proposeEpicCandidates` also reads `STATE.md` from every branch not already
-merged into this one, and an Epic open there (the branch changed its STATE.md since splitting off,
-records no SHIP, and has no retrospective or SHIP artifact here) is proposed right after the local
+merged into this one, and an Epic open there (that STATE.md is not a version this branch's history already
+holds, records no SHIP, and has no retrospective or SHIP artifact here) is proposed right after the local
 open Epic, carrying `branch` and `nextStep`. Branches whose
 STATE.md names no Epic come back in `unclassifiedBranches` — name them on one line, so an empty
 list cannot read as "checked every branch". Remote branches are as fresh as the last `git fetch`.

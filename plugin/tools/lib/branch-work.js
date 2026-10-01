@@ -21,8 +21,13 @@
 //      or `{epic}-SHIP.md` anywhere under `.planning/` on HEAD. This is the check
 //      that catches squash merges, which rule 1 cannot see.
 //   4. An Epic equal to the local `current_epic` is the local work, not other work.
-//   5. The branch must have changed this STATE.md since it split from HEAD; an
-//      untouched copy is this project's own past, not work in progress there.
+//   5. The branch's STATE.md must not be a version HEAD's history already holds.
+//      An untouched fork carries this project's past; a squash merge lands the
+//      branch's final STATE.md here. Either way it is not work in progress. This
+//      is the only finished-here check for Epic ids that are not M-shaped, which
+//      never get a retrospective file (`deriveRetroPath` refuses them).
+//      Known limit: a squash merge whose STATE.md was edited during the merge, and
+//      a branch with code commits that never touched STATE.md, are both missed.
 // A branch whose STATE.md names no Epic cannot be compared by identity, so it is
 // COUNTED and reported rather than dropped — silence about blindness is the defect.
 //
@@ -51,7 +56,7 @@ function defaultGit(baseDir, args, input) {
 }
 
 /**
- * Parse `git cat-file --batch` output into one blob (or null) per requested object,
+ * Parse `git cat-file --batch` output into one `{id, content}` (or null) per requested object,
  * in request order. A missing object prints `<name> missing`. Works on bytes: the
  * header's size is a byte count, so slicing a decoded string would drift on the
  * first multi-byte character.
@@ -65,13 +70,13 @@ function parseBatch(out, count) {
     if (nl === -1) break;
     const header = buf.subarray(pos, nl).toString('utf-8');
     pos = nl + 1;
-    const m = header.match(/^[0-9a-f]+ \S+ (\d+)$/);
+    const m = header.match(/^([0-9a-f]+) \S+ (\d+)$/);
     if (!m) {
       blobs.push(null);
       continue;
     }
-    const size = Number(m[1]);
-    blobs.push(buf.subarray(pos, pos + size).toString('utf-8'));
+    const size = Number(m[2]);
+    blobs.push({ id: m[1], content: buf.subarray(pos, pos + size).toString('utf-8') });
     pos += size + 1; // content, then the trailing newline
   }
   while (blobs.length < count) blobs.push(null);
@@ -108,7 +113,7 @@ function soft(git, baseDir, args) {
  * @param {{localEpic?: string|null, git?: Function}} [opts]
  *   `git(baseDir, args, input?)` returns stdout; injectable for tests.
  * @returns {Promise<{open: Array<{epic: string, phase: string|null, branches: string[], checkout: string,
- *   sameBranch: boolean, worktree: string|null}>, unclassified: string[], unreadable: string[],
+ *   sameBranch: boolean, pull: string|null, worktree: string|null}>, unclassified: string[], unreadable: string[],
  *   failed: boolean, cannotCheck: Array<{source: string, reason: string}>}>}
  */
 export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git = defaultGit } = {}) {
@@ -170,6 +175,20 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
     return fail(`could not read STATE.md from ${refs.length} branch(es) — ${gitWhy(err)}`);
   }
 
+  // Rule 5's evidence: every version STATE.md has ever had on HEAD's history, in
+  // one process. A branch whose STATE.md is one of them holds nothing this
+  // branch has not already seen — a stale fork, or a squash merge (which lands
+  // the branch's final STATE.md here). Fail-soft: without it, rule 5 is skipped.
+  const seenHere = new Set();
+  const history = soft(git, baseDir, ['log', '--raw', '--no-abbrev', '--format=', 'HEAD', '--', `./${STATE_REL}`]);
+  for (const line of (history ?? '').split('\n')) {
+    const m = line.match(/^:\d+ \d+ ([0-9a-f]+) ([0-9a-f]+) /);
+    if (m) {
+      seenHere.add(m[1]);
+      seenHere.add(m[2]);
+    }
+  }
+
   // How to reach a ref. Remote names come from `git remote`, never a hard-coded
   // `origin`, so `upstream/feat/x` is recognised as remote and not offered as a
   // local name (which would check out a detached HEAD).
@@ -197,12 +216,13 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
 
   const byEpic = new Map();
   refs.forEach((ref, i) => {
-    const raw = blobs[i];
+    const blob = blobs[i];
     const d = describe(ref);
-    if (raw === null) return; // no STATE.md on that branch — no Signal work recorded there
+    if (blob === null) return; // no STATE.md on that branch — no Signal work recorded there
+    if (seenHere.has(blob.id)) return; // rule 5 — see above
     let data;
     try {
-      ({ data } = parseFrontmatter(raw));
+      ({ data } = parseFrontmatter(blob.content));
     } catch {
       unreadable.push(d.display);
       return;
@@ -218,16 +238,6 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
     if (valid.some((e) => e.startsWith('SHIP '))) return;
     if (finishedHere.has(`${epic}-RETROSPECTIVE.md`) || finishedHere.has(`${epic}-SHIP.md`)) return;
     if (localEpic && epic === localEpic) return;
-    // Rule 5: the branch must have CHANGED this STATE.md since it split from HEAD.
-    // An untouched copy is just this project's own past, carried by a branch that
-    // forked before the local Epic moved on — not work in progress there. Asked
-    // only of survivors, so it costs a process per candidate, not per branch.
-    const base = soft(git, baseDir, ['merge-base', 'HEAD', ref]);
-    if (base) {
-      const ids = soft(git, baseDir, ['rev-parse', `${ref}:./${STATE_REL}`, `${base}:./${STATE_REL}`]);
-      const [atRef, atBase] = (ids ?? '').split('\n');
-      if (atRef && atRef === atBase) return;
-    }
     const entry = byEpic.get(epic) ?? { epic, phase: null, refs: [] };
     entry.refs.push(d);
     if (!entry.phase && typeof data.phase === 'string') entry.phase = data.phase;
@@ -238,13 +248,26 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
     const local = found.find((r) => !r.remote);
     const checkout = (local ?? found[0]).branch;
     // This branch's own remote copy, ahead of it: the work was pushed from elsewhere.
-    const sameBranch = found.every((r) => r.remote && (r.display === upstream || (current && r.branch === current)));
+    // Only the TRACKED upstream gets a bare `git pull`; a same-named branch on any
+    // other remote names that remote, because a bare pull would fetch the wrong
+    // one (or fail with no upstream configured).
+    const sameBranch = Boolean(current) && found.every((r) => r.remote && r.branch === current);
+    let pull = null;
+    if (sameBranch) {
+      const viaUpstream = found.find((r) => r.display === upstream);
+      if (viaUpstream) pull = 'git pull';
+      else {
+        const r = found[0];
+        pull = `git pull ${r.display.slice(0, r.display.length - r.branch.length - 1)} ${r.branch}`;
+      }
+    }
     open.push({
       epic,
       phase,
       branches: found.map((r) => r.display),
       checkout,
       sameBranch,
+      pull,
       worktree: sameBranch ? null : (worktreeOf.get(checkout) ?? null),
     });
   }
@@ -261,7 +284,7 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
 /** What a person does to continue an Epic found elsewhere — one sentence, shared by every caller. */
 export function nextStepFor(o) {
   if (o.sameBranch) {
-    return `it is on ${o.branches.join(', ')}, the remote copy of the branch you are on — run \`git pull\` to continue it`;
+    return `it is on ${o.branches.join(', ')}, a remote copy of the branch you are on — run \`${o.pull ?? 'git pull'}\` to continue it`;
   }
   if (o.worktree) return `${o.checkout} is checked out in another worktree (${o.worktree}) — continue it there`;
   return `run \`git checkout ${o.checkout}\` to continue it`;

@@ -81,7 +81,7 @@ describe('findWorkOnOtherBranches — what counts as open elsewhere', () => {
     const r = await findWorkOnOtherBranches(base, { localEpic: 'M1.E1' });
     expect(r.cannotCheck).toEqual([]);
     expect(r.open).toEqual([
-      { epic: 'M1.E2', phase: 'DISCUSS', branches: ['feat/m1.e2'], checkout: 'feat/m1.e2', sameBranch: false, worktree: null },
+      { epic: 'M1.E2', phase: 'DISCUSS', branches: ['feat/m1.e2'], checkout: 'feat/m1.e2', sameBranch: false, pull: null, worktree: null },
     ]);
     expect(r.failed).toBe(false);
   });
@@ -312,6 +312,53 @@ describe('rule 5 — a branch that never touched STATE.md holds no work', () => 
     const r = await findWorkOnOtherBranches(base, { localEpic: 'M1.E3' });
     expect(r.open).toEqual([]);
   });
+});
+
+describe('PR #265 second review — each reproduced, then fixed', () => {
+  it('a squash-merged branch is not open even with a non-M Epic id and no retrospective (finding 2)', async () => {
+    const base = repo({ localEpic: 'search', localShipped: false });
+    branchWith(base, 'feat/billing', STATE({ epic: 'billing', phase: 'EXECUTE' }), { files: { 'src/b.js': 'x\n' } });
+    g(base, 'merge', '-q', '--squash', 'feat/billing');
+    g(base, 'commit', '-q', '-m', 'squash billing');
+    write(base, '.planning/STATE.md', STATE({ epic: 'search', phase: 'DISCUSS' }));
+    g(base, 'commit', '-q', '-am', 'main moves on');
+    const r = await findWorkOnOtherBranches(base, { localEpic: 'search' });
+    expect(r.open).toEqual([]);
+  });
+
+  it('a same-named branch on an untracked remote names that remote in the pull (finding 3)', async () => {
+    const base = repo();
+    const remote = mkdtempSync(join(tmpdir(), 'sig-branch-work-up-'));
+    dirs.push(remote);
+    g(remote, 'init', '-q', '--bare');
+    g(base, 'remote', 'add', 'upstream', remote);
+    write(base, '.planning/STATE.md', STATE({ epic: 'M1.E2' }));
+    g(base, 'commit', '-q', '-am', 'elsewhere');
+    g(base, 'push', '-q', 'upstream', 'main');
+    g(base, 'reset', '-q', '--hard', 'HEAD~1');
+    const r = await findWorkOnOtherBranches(base, { localEpic: 'M1.E1' });
+    expect(r.open[0]).toMatchObject({ sameBranch: true, pull: 'git pull upstream main' });
+    expect(nextStepFor(r.open[0])).toContain('git pull upstream main');
+  });
+
+  it('stays one git process per branch set, not per branch — 200 open branches in well under the old cost (finding 1)', async () => {
+    const base = repo();
+    for (let i = 0; i < 200; i++) {
+      g(base, 'checkout', '-q', '-b', `f${i}`, 'main');
+      write(base, '.planning/STATE.md', STATE({ epic: `M2.E${i}` }));
+      g(base, 'commit', '-q', '-am', `f${i}`);
+    }
+    g(base, 'checkout', '-q', 'main');
+    const calls = [];
+    const counting = (b, args, input) => {
+      calls.push(args[0]);
+      return execFileSync('git', args, { cwd: b, stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 1 << 26,
+        ...(args[0] === 'cat-file' ? {} : { encoding: 'utf-8' }), ...(input !== undefined ? { input } : {}) });
+    };
+    const r = await findWorkOnOtherBranches(base, { localEpic: 'M1.E1', git: counting });
+    expect(r.open).toHaveLength(200);
+    expect(calls.length).toBeLessThan(15);
+  }, 60000);
 });
 
 describe('PR #265 review findings — each reproduced, then fixed', () => {
