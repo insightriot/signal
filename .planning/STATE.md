@@ -32,16 +32,19 @@ last_updated: 2026-09-30T22:24:43.091Z
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-09-28)
+### ▶ WHERE THE WORK IS — read this first (2026-10-01)
 
-**Next: the status redesign — direction agreed with Brett, not yet DISCUSSed.** Read
-[`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](../analysis/WORK-ITEM-SYSTEM-DESIGN.md) first (and open
-[`analysis/work-items/work-items-architecture.html`](../analysis/work-items/work-items-architecture.html)),
-then `D-BR0928-1` … `D-BR0928-7` in `DECISIONS.md`. In one line: every work item gets an immutable ID
-at intake (`KEY-412-BUG-P`: stable front, live suffix), moves through inbox → backlog → Epic/sprint →
-done → archive as one file per item, and "done" is one recorded close event; a tracker (GitHub Issues)
-is an opt-in replacement, never a second copy. **Next step: run `/sig:discuss` for the redesign Epic**
-(Epic ID to be assigned there), starting from the design doc's §7 open questions.
+**`M6.E11` SHIPPED as `v0.1.43`** (PR #263, merged 2026-09-30): the work-item store, step 1 of
+[`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](../analysis/WORK-ITEM-SYSTEM-DESIGN.md). Retro:
+[`M6.E11-RETROSPECTIVE.md`](M6.E11-RETROSPECTIVE.md).
+
+**Next, in this order (agreed with Brett 2026-10-01):**
+1. **`B118`** (`SIG-118`) — `/sig:drive` and `/sig:advise` read one branch's `.planning/`, so work open
+   on another branch is invisible to both. Fix in the shared layer, not in `drive.js` alone.
+2. **`/sig:advise` stops ranking by age** — it reviews the docs for the big picture, proposes 3–5
+   big-picture priorities, and asks the user to choose.
+3. **Steps 2–5 of the work-item store** — step 5 is what moves other projects over via
+   `/sig:docs-migrate`.
 
 ### ▶ PREVIOUS — `M6.E3` SHIPPED
 
@@ -86,7 +89,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-None in flight. Next: `/sig:discuss` for the status redesign — direction agreed 2026-09-28 (`analysis/WORK-ITEM-SYSTEM-DESIGN.md`).
+None in flight. Next: `B118` — see *Where the work is* above.
 
 ## Blockers
 
