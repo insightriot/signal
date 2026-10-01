@@ -160,5 +160,7 @@
 | B139 | `needs-triage` | — | **The suite is flaky under local parallel load — a different test times out each run** |
 | B140 | `needs-triage` | — | **`claude-review` CI fails before reviewing: claude binary missing on the runner** |
 | B148 | `confirmed` | — | **Jev key and receipt hardening — the pass-3 REVIEW residue · **fix lane** · small · *filed 2026-09-27 from `M6.E3` REVIEW*** |
+| B254 | `confirmed` | P1 | **A plan named PLAN-<unit>.md is left out of its unit, so the archive moves 5 of 6 files and splits the slice** |
+| B255 | `confirmed` | P2 | **Archiving ignores a project's explicit keep-live list, so work held open on purpose is proposed for archive** |
 
-*10 needs-triage · **0 captured-untriaged** · 32 confirmed · 6 dismissed · 93 fixed (**141 total**)*
+*10 needs-triage · **0 captured-untriaged** · 34 confirmed · 6 dismissed · 93 fixed (**143 total**)*
