@@ -235,7 +235,6 @@
 - [work/backlog/SIG-120.md](work/backlog/SIG-120.md) — `other` — _(note pending)_
 - [work/backlog/SIG-121.md](work/backlog/SIG-121.md) — `other` — _(note pending)_
 - [work/backlog/SIG-122.md](work/backlog/SIG-122.md) — `other` — _(note pending)_
-- [work/backlog/SIG-123.md](work/backlog/SIG-123.md) — `other` — _(note pending)_
 - [work/backlog/SIG-126.md](work/backlog/SIG-126.md) — `other` — _(note pending)_
 - [work/backlog/SIG-127.md](work/backlog/SIG-127.md) — `other` — _(note pending)_
 - [work/backlog/SIG-129.md](work/backlog/SIG-129.md) — `other` — _(note pending)_
@@ -245,7 +244,6 @@
 - [work/backlog/SIG-134.md](work/backlog/SIG-134.md) — `other` — _(note pending)_
 - [work/backlog/SIG-135.md](work/backlog/SIG-135.md) — `other` — _(note pending)_
 - [work/backlog/SIG-139.md](work/backlog/SIG-139.md) — `other` — _(note pending)_
-- [work/backlog/SIG-142.md](work/backlog/SIG-142.md) — `other` — _(note pending)_
 - [work/backlog/SIG-144.md](work/backlog/SIG-144.md) — `other` — _(note pending)_
 - [work/backlog/SIG-148.md](work/backlog/SIG-148.md) — `other` — _(note pending)_
 - [work/backlog/SIG-149.md](work/backlog/SIG-149.md) — `other` — _(note pending)_
@@ -315,6 +313,7 @@
 - [work/backlog/SIG-253.md](work/backlog/SIG-253.md) — `other` — _(note pending)_
 - [work/backlog/SIG-254.md](work/backlog/SIG-254.md) — `other` — _(note pending)_
 - [work/backlog/SIG-255.md](work/backlog/SIG-255.md) — `other` — _(note pending)_
+- [work/backlog/SIG-257.md](work/backlog/SIG-257.md) — `other` — _(note pending)_
 - [work/backlog/SIG-33.md](work/backlog/SIG-33.md) — `other` — _(note pending)_
 - [work/backlog/SIG-34.md](work/backlog/SIG-34.md) — `other` — _(note pending)_
 - [work/backlog/SIG-35.md](work/backlog/SIG-35.md) — `other` — _(note pending)_
@@ -478,9 +477,11 @@
 - [work/done/2026-09/SIG-98.md](work/done/2026-09/SIG-98.md) — `other` — _(note pending)_
 - [work/done/2026-09/SIG-99.md](work/done/2026-09/SIG-99.md) — `other` — _(note pending)_
 - [work/done/2026-10/SIG-118.md](work/done/2026-10/SIG-118.md) — `other` — _(note pending)_
+- [work/done/2026-10/SIG-123.md](work/done/2026-10/SIG-123.md) — `other` — _(note pending)_
 - [work/done/2026-10/SIG-131.md](work/done/2026-10/SIG-131.md) — `other` — _(note pending)_
 - [work/done/2026-10/SIG-137.md](work/done/2026-10/SIG-137.md) — `other` — _(note pending)_
 - [work/done/2026-10/SIG-140.md](work/done/2026-10/SIG-140.md) — `other` — _(note pending)_
+- [work/done/2026-10/SIG-142.md](work/done/2026-10/SIG-142.md) — `other` — _(note pending)_
 - [work/inbox/SIG-256.md](work/inbox/SIG-256.md) — `other` — _(note pending)_
 
 ## Cold — archived + retrospectives
@@ -515,6 +516,7 @@
 - [M6.E1-RETROSPECTIVE.md](M6.E1-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E10-RETROSPECTIVE.md](M6.E10-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E11-RETROSPECTIVE.md](M6.E11-RETROSPECTIVE.md) — `other` — _(note pending)_
+- [M6.E12-RETROSPECTIVE.md](M6.E12-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E2-RETROSPECTIVE.md](M6.E2-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E3-RETROSPECTIVE.md](M6.E3-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E4-RETROSPECTIVE.md](M6.E4-RETROSPECTIVE.md) — `other` — _(note pending)_
@@ -694,3 +696,4 @@
 - [M6.E9](M6.E9-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E10](M6.E10-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E11](M6.E11-RETROSPECTIVE.md) — _(note pending)_
+- [M6.E12](M6.E12-RETROSPECTIVE.md) — _(note pending)_

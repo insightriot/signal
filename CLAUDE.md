@@ -71,15 +71,15 @@ false alarms. ⚠ **Three fresh-context REVIEW passes; pass 2 found a High in pa
 (a committed `.ENV` passing a `.env` check on macOS). Fix-on-fix needs its own fresh read. Retro:
 [`.planning/M6.E3-RETROSPECTIVE.md`](.planning/M6.E3-RETROSPECTIVE.md). 
 
-**Active: `v0.1.43` (2026-09-30) — `M6.E11`
-shipped: the work-item store, step 1** (PR #263). One file per thing (`.planning/work/SIG-n.md`),
-moved through `inbox/` → `backlog/` → `epics/<id>/` → `done/` by `/sig:item` (the 24th command);
-`BUGS.md`/`BACKLOG.md`/`ISSUES-INBOX.md`/`OPEN-QUESTIONS.md` are now **generated — edit items, not
-lists**. Opt-in by `.planning/work/WORK.md`; projects without it see no change. ⚠ **The shared file
-lock was the hardest part**: three REVIEW passes, each finding a defect in the previous pass's fix.
-Retro: [`.planning/M6.E11-RETROSPECTIVE.md`](.planning/M6.E11-RETROSPECTIVE.md). Next: steps 2–5 of
-`analysis/WORK-ITEM-SYSTEM-DESIGN.md`; other projects move over via `/sig:docs-migrate` (step 5).
-`B118` (`/sig:drive` and `/sig:advise` read one branch's corpus) fixed in `v0.1.44`.
+**Active: `v0.1.45` (2026-10-02) — `M6.E12` shipped: `/sig:advise` proposes big-picture priorities
+and asks.** It reads a cited digest of the docs, the agent proposes 3–5 priorities with evidence, code
+checks them, you pick, the pick is recorded, and it offers to start; age is no longer an input.
+`/sig:drive`'s pick step uses the same flow. ⚠ **Three fresh-context review passes, each finding new
+routes for hostile repositories and branches**; stopped at the loop ceiling with a bounded fix, residue
+in `SIG-257`. Retro: [`.planning/M6.E12-RETROSPECTIVE.md`](.planning/M6.E12-RETROSPECTIVE.md).
+**Next, picked in the first real run:** other projects onto the work-item store — reader fixes first,
+then `B254`/`B255`, then step 5 (`/sig:docs-migrate`). `v0.1.44` fixed `B118`. `v0.1.43` (`M6.E11`)
+shipped the store itself.
 
 ✅ **`B117` — the Epic lane kept getting squashed. CLOSED 2026-09-08 by the ruleset** (see *How changes reach `main`* below: `main` now permits `merge` only, so the sticky button cannot arm anything). The history is kept because the *cause* is the lesson. PR #239 was
 merged with the green button and collapsed 35 commits into one, orphaning two published anchors and

@@ -6,6 +6,31 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.45] — 2026-10-02 — `/sig:advise` proposes big-picture priorities and asks; age is gone
+
+### Changed
+
+- **`/sig:advise` reviews the docs for the big picture, proposes 3–5 priorities, and asks you to pick** (`M6.E12`, answers `SIG-142`). It used to rank backlog rows, and for 44 of 46 rows here the order was decided by age alone. Now:
+  - **Gather:** `prepareAdvise` builds a cited digest of the project's own documents — vision, the current milestone, open Epics (on any branch), open bugs by priority, every *live* backlog row, the newest retrospectives' forward-looking sections, open questions, the inbox count. What it could not read is listed first; it is capped at 24,000 characters and says what it cut.
+  - **Propose:** the agent reads the digest (and the files it cites) and writes 3–5 priorities, each with a `why`, the rows and bugs it `covers` (or unfiled work as `new: …`), the `evidence` lines it rests on, and optionally what it `dependsOn`. It must check the priorities against each other before asking.
+  - **Check:** `validatePriorities` refuses a proposal that is the wrong size, cites a line that does not exist, or covers a row the appendix would drop — and says why. The citation gate counts every evidence token, covered row and appendix row, exactly.
+  - **Ask and record:** you pick from the proposals (a picker for 3–4, a numbered list for 5); `recordChoice` appends **Picked by you** to the dated advisory, which is never overwritten — a same-day re-run writes `-2`. Then it offers `/sig:drive`, `/sig:discuss --epic`, or not now. Nothing starts without a yes.
+  - **The row list stays, unranked:** every live row appears once in an appendix — under the priority that covers it, or in file order after — and dropped rows are listed with the reason.
+- **`/sig:drive`'s pick step uses the same flow.** An Epic already open (on any branch) still comes first; otherwise you pick a priority, and it becomes a new Epic at DISCUSS. The pick is a stop for you at every attention setting, `unattended` included.
+
+### Fixed
+
+- **`/sig:advise` reads planning files only as regular, non-linked files inside the project.** Found across three review passes: a cloned repository's symlinks (out of the project, or to `.env` inside it) and crafted branch fields could put outside text into the agent's digest. Every read now refuses links, non-files and linked directories; another branch's `phase` and `current_epic` are clipped and stripped of control characters at the source.
+- **`today` is validated before it becomes a filename** (`SIG-123`).
+
+### Known limits
+
+- **Hostile-repository hardening is not complete.** Three review passes each found new routes for crafted repositories and branches; the remaining items (a race between check and read, hard links, control and bidi characters in model text) are tracked as `SIG-257`, with the threat model written down.
+
+### Still to come
+
+- **Other projects still cannot move into the work-item store.** That is `/sig:docs-migrate`'s job (step 5 of [`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](analysis/WORK-ITEM-SYSTEM-DESIGN.md)), not built yet — and it is the next Epic, picked in this release's first real `/sig:advise` run.
+
 ## [0.1.44] — 2026-10-01 — `/sig:drive` and `/sig:advise` see work open on other branches
 
 ### Fixed
