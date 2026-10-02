@@ -30,7 +30,9 @@ export function readPriorityTitles(content) {
     if (/^## /.test(line)) inPriorities = /^## Priorities\b/.test(line);
     else if (inPriorities) {
       const m = line.match(PRIORITY_HEADING_RE);
-      if (m) out.push({ n: Number(m[1]), title: m[2] });
+      // Numbered 1, 2, 3 … in order, or not at all: a duplicate or out-of-order
+      // number is a forgery or a hand edit, and is not offered as pickable.
+      if (m && Number(m[1]) === out.length + 1) out.push({ n: Number(m[1]), title: m[2] });
     }
   }
   return out;
@@ -88,7 +90,7 @@ export async function recordChoice(baseDir, artifactRel, { pick, words, by = 'th
       return refuse(`priority ${p.n} in ${artifactRel} is ${JSON.stringify(p.title)}, not ${JSON.stringify(expectedTitle)} — the advisory changed after the question was asked`);
     }
     title = p.title;
-    line = `**Priority ${p.n} — ${p.title}**, picked on ${date} by ${who}.`;
+    line = `**Priority ${p.n} — ${quoteSafe(p.title)}**, picked on ${date} by ${who}.`;
   }
 
   const appended = `${content.replace(/\n*$/, '\n')}\n## ${PICK_HEADING}\n\n${line}\n`;

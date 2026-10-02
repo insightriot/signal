@@ -42,6 +42,18 @@ import { basename } from 'node:path';
 import { parseFrontmatter, partitionCompletedPhases } from './state.js';
 
 const GIT_TIMEOUT_MS = 5000;
+const FIELD_MAX = 160;
+
+/**
+ * Another branch's STATE.md is input from anyone who can push. Its fields are
+ * clipped and stripped of control characters HERE, once, so every consumer —
+ * digest, artifact, terminal — gets a bounded, printable value (`M6.E12` REVIEW
+ * pass 3: a 2 MB `phase` with ESC sequences reached the artifact and the terminal).
+ */
+function tidy(value) {
+  const flat = String(value).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]+/g, ' ').trim();
+  return flat.length > FIELD_MAX ? `${flat.slice(0, FIELD_MAX - 1)}…` : flat;
+}
 const STATE_REL = '.planning/STATE.md'; // read as `./${STATE_REL}` — see the cat-file note
 
 function defaultGit(baseDir, args, input) {
@@ -231,7 +243,7 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
     }
     // Any non-empty id, matching the local open-Epic check in drive.js — a stricter
     // rule here would propose a local Epic and hide the same kind on another branch.
-    const epic = typeof data?.current_epic === 'string' ? data.current_epic.trim() : '';
+    const epic = typeof data?.current_epic === 'string' ? tidy(data.current_epic) : '';
     if (!epic || epic === 'null') {
       unclassified.push(d.display);
       return;
@@ -242,7 +254,7 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
     if (localEpic && epic === localEpic) return;
     const entry = byEpic.get(epic) ?? { epic, phase: null, refs: [] };
     entry.refs.push(d);
-    if (!entry.phase && typeof data.phase === 'string') entry.phase = data.phase;
+    if (!entry.phase && typeof data.phase === 'string') entry.phase = tidy(data.phase);
     byEpic.set(epic, entry);
   });
 

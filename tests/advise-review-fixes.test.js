@@ -258,7 +258,7 @@ describe('Important 9 — the digest says the right thing, not just a line in ra
   it('reads the NEWEST three retrospectives, newest first', async () => {
     const g = await gatherBigPicture(full());
     expect(g.entries.retrospectives.map((e) => e.text.match(/(OLDEST|MIDDLE|NEWER|NEWEST)/)[1])).toEqual(['NEWEST', 'NEWER', 'MIDDLE']);
-    expect(g.cut.join(' ')).toMatch(/newest 3 read, 1 older not read/);
+    expect(g.cut.join(' ')).toMatch(/newest 3 read, 1 older not opened/);
   });
 
   it('carries an Epic open on another branch', async () => {

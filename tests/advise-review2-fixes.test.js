@@ -63,7 +63,7 @@ describe('Important 1 — the digest offers only what the gate accepts, and a re
     const { digest, digestText } = await prepareAdvise(project());
     expect(digest.entries.backlog.map((e) => e.line)).toEqual([3, 9]);
     expect(digestText).not.toContain('Parked');
-    expect(digestText).toMatch(/1 backlog row\(s\) dropped .* not shown — they cannot be covered/);
+    expect(digestText).toMatch(/1 backlog row\(s\) dropped .* not offered here — they cannot be covered/);
   });
 
   it('a cover on a dropped row is refused NAMING the input that dropped it', async () => {
@@ -81,14 +81,12 @@ describe('Important 2 — "still over the cap" only when it is', () => {
     expect(text).not.toMatch(/still over the cap/);
   });
 
-  it('says so when every trimmable group is empty and it still does not fit', async () => {
-    const corpus = await readCorpus(project());
-    corpus.sources.otherBranches = {
-      open: Array.from({ length: 400 }, (_, i) => ({ epic: `M9.E${i}`, phase: 'DISCUSS', branches: [`feat/${'b'.repeat(150)}${i}`] })),
-      unclassified: [],
-      unreadable: [],
-    };
-    const text = formatDigest(await gatherBigPicture(project(), { corpus }));
+  it('says so when every trimmable group is empty and it still does not fit', () => {
+    // Since pass 3 every untrimmable source is capped at gather time, so no real
+    // corpus reaches this; a synthetic digest past the cap proves the line is honest.
+    const empty = Object.fromEntries(['vision', 'milestone', 'open Epics', 'bugs', 'backlog', 'retrospectives', 'open questions', 'inbox'].map((s) => [s, []]));
+    empty['open Epics'] = Array.from({ length: 400 }, (_, i) => ({ branch: `b${i}`, text: `M9.E${i} — ${'o'.repeat(140)}` }));
+    const text = formatDigest({ entries: empty, checked: ['open Epics'], cannotCheck: [], cut: [], notes: [] });
     expect(text).toMatch(/still over the cap after every trim/);
   });
 });
@@ -196,7 +194,11 @@ describe('Important 7 — a non-regular file at an advisory name is never read',
   it('nextArtifactName skips a symlinked advisory name instead of reading it', () => {
     const base = project();
     symlinkSync('/dev/zero', join(base, '.planning', 'BACKLOG-REVIEW-2026-10-02.md'));
-    expect(nextArtifactName(base, '2026-10-02')).toBe('BACKLOG-REVIEW-2026-10-02-2.md');
+    // A spy, not a real read: a regression here would HANG on /dev/zero rather than
+    // fail, which shows up in CI as a stuck job (test engineer, REVIEW pass 3).
+    let reads = 0;
+    expect(nextArtifactName(base, '2026-10-02', { readText: () => { reads += 1; return ''; } })).toBe('BACKLOG-REVIEW-2026-10-02-2.md');
+    expect(reads).toBe(0);
   });
 
   it('writeArtifact refuses to replace a symlink', async () => {

@@ -90,7 +90,20 @@ export function readFileConfined(baseDir, rel) {
  * @param {string} rel — repo-root-relative
  * @returns {string} the file's content; throws with a reason on refusal
  */
+function parentEscapes(baseDir, rel) {
+  // `lstat` sees only the last component; a symlinked `.planning/` DIRECTORY passed
+  // it (REVIEW pass 3). The parent's real path must stay inside the project.
+  try {
+    const root = realpathSync(resolve(baseDir));
+    const parent = realpathSync(dirname(resolve(baseDir, rel)));
+    return parent !== root && !parent.startsWith(root + sep);
+  } catch {
+    return false; // a missing parent means a missing file; the caller reports that
+  }
+}
+
 export function readRegularFile(baseDir, rel) {
+  if (parentEscapes(baseDir, rel)) throw new Error(`${rel} resolves outside the project (a linked directory) — not read`);
   const st = lstatSync(resolve(baseDir, rel));
   if (st.isSymbolicLink()) {
     throw new Error(`${rel} is a symbolic link — refused; planning files are read only as regular files`);
@@ -101,6 +114,7 @@ export function readRegularFile(baseDir, rel) {
 
 /** The refusal `readRegularFile` would give for `rel`, or null when it would read it. */
 export function regularFileRefusal(baseDir, rel) {
+  if (parentEscapes(baseDir, rel)) return `${rel} resolves outside the project (a linked directory) — not read`;
   try {
     const st = lstatSync(resolve(baseDir, rel));
     if (st.isSymbolicLink()) return `${rel} is a symbolic link — refused; planning files are read only as regular files`;

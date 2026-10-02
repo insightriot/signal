@@ -42,7 +42,7 @@ import {
   declaresWorkMovedElsewhere,
 } from './backlog.js';
 import { EVIDENCE_MARKER, verifyCitations } from './citations.js';
-import { assertRealInsidePlanning, regularFileRefusal } from './path-confine.js';
+import { assertRealInsidePlanning, regularFileRefusal, readRegularFile } from './path-confine.js';
 import { readCorpus, ADVISOR_SOURCES } from './advise-corpus.js';
 import { nextStepFor } from './branch-work.js';
 import { gatherBigPicture, formatDigest } from './advise-digest.js';
@@ -245,10 +245,14 @@ export function quoteSafe(text) {
   // every interpolation already passes through: the same shape was reachable from
   // a caller-supplied `projectName`, from a malformed-YAML parser error, and from
   // a `.planning/` filename embedded in closure evidence.
+  // ⚠ ORDER MATTERS: collapse line breaks FIRST, then strip the marker. The marker
+  // contains a space, so `—<U+2028>evidence:` survived a strip-first pass and the
+  // collapse then rebuilt a real marker (REVIEW pass 3 — a pushed branch's `phase`
+  // stopped every write).
   return String(text)
+    .replace(/[\r\n\u0085\u2028\u2029]+/g, ' ')
     .split(EVIDENCE_MARKER)
-    .join('— evidence(quoted):')
-    .replace(/[\r\n\u0085\u2028\u2029]+/g, ' ');
+    .join('— evidence(quoted):');
 }
 
 /**
@@ -459,6 +463,10 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
       out.push(`**Digest cut to fit:** ${digest.cut.map((c) => quoteSafe(c)).join('; ')}.`);
       out.push('');
     }
+    for (const n of digest.notes ?? []) {
+      out.push(`**Digest note:** ${quoteSafe(n)}.`);
+      out.push('');
+    }
   }
 
   // `B118`. Rendered before the ranking and outside the citation position on
@@ -516,7 +524,9 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
   priorities.forEach((p, i) => {
     out.push(`### ${i + 1}. ${quoteSafe(p.title)}`);
     out.push('');
-    out.push(`${quoteSafe(p.why)} ${cite(...p.evidence)}`);
+    // `**Why:**` first, so model text never starts a line: a `why` of `### 2. …`
+    // forged a priority heading that a pick then recorded (REVIEW pass 3).
+    out.push(`**Why:** ${quoteSafe(p.why)} ${cite(...p.evidence)}`);
     out.push('');
     if (p.dependsOn?.length > 0) {
       const names = p.dependsOn.map((d) => `priority ${d} (${quoteSafe(priorities[d - 1]?.title ?? '?')})`);
@@ -731,11 +741,18 @@ function shortDropReason(s) {
  */
 async function classifyCorpus(baseDir, corpus) {
   if (!corpus.sources.backlog) return null;
+  // The discharge input reads through the same rule as the corpus — otherwise the
+  // artifact said a source "could not be read" and consulted it anyway (REVIEW pass 3).
+  // Only a REFUSED STATE.md skips it: `resolveClosures` reads STATE through
+  // `readState`, which has no link rule. BACKLOG, BUGS and unit files go through
+  // `readText` below, which refuses on its own; an absent BUGS.md stays benign.
   let discharge = null;
-  try {
-    discharge = await backlogDischargeStatus(baseDir);
-  } catch {
-    discharge = null; // fail-open: an un-evaluable check narrows what can be dropped
+  if (!regularFileRefusal(baseDir, `${PLANNING_DIR}/STATE.md`)) {
+    try {
+      discharge = await backlogDischargeStatus(baseDir, { readText: async (rel) => readRegularFile(baseDir, rel) });
+    } catch {
+      discharge = null; // fail-open: an un-evaluable check narrows what can be dropped
+    }
   }
   const confirmedBugs = corpus.sources.bugs
     ? new Set(corpus.sources.bugs.entries.filter((e) => e.status === 'confirmed').map((e) => e.id))

@@ -51,7 +51,7 @@ Authoritative references: `tools/lib/advise.js` — `prepareAdvise`, `runAdvise`
 
 ### 1. Gather — `prepareAdvise(baseDir)`
 
-Returns `{corpus, digest, digestText}` and writes nothing. `digestText` is the big-picture digest:
+Returns `{corpus, classified, digest, digestText}` and writes nothing. `digestText` is the big-picture digest:
 the project's vision, its current milestone, open Epics (here and on other branches), open bugs by
 priority, every live backlog row, the newest retrospectives' *What to feed back* and *What we'd do
 differently* sections, open questions, and the inbox count — each line ending in its `path:line`.

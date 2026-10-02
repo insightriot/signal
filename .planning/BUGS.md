@@ -164,5 +164,6 @@
 | B252 | `confirmed` | P3 | **file-lock: a failed stat treats a fresh empty lock as stale** |
 | B254 | `confirmed` | P1 | **A plan named PLAN-<unit>.md is left out of its unit, so the archive moves 5 of 6 files and splits the slice** |
 | B255 | `confirmed` | P2 | **Archiving ignores a project's explicit keep-live list, so work held open on purpose is proposed for archive** |
+| B257 | `confirmed` | P3 | **/sig:advise hostile-repository hardening — the residue after M6.E12 review pass 3** |
 
-*0 needs-triage · **0 captured-untriaged** · 43 confirmed · 9 dismissed · 93 fixed (**145 total**)*
+*0 needs-triage · **0 captured-untriaged** · 44 confirmed · 9 dismissed · 93 fixed (**146 total**)*

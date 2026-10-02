@@ -57,6 +57,8 @@ export const DIGEST_CAPS = Object.freeze({
   row: 160,
   retroSection: 700,
   retroFiles: 3,
+  retroAttempts: 12,
+  openEpics: 20,
   questions: 10,
   total: 24000,
 });
@@ -127,6 +129,7 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
   const checked = [];
   const cannotCheck = [];
   const cut = [];
+  const notes = [];
   const fail = (source, reason) => cannotCheck.push({ source, reason });
   const ok = (source) => checked.push(source);
 
@@ -214,7 +217,12 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
     const other = c.sources?.otherBranches;
     if (other) {
       looked = true;
-      for (const o of other.open) {
+      // Capped: the list grows with the branch count (801 branches gave 134,346
+      // chars — REVIEW pass 3). The local Epic, pushed first above, always stays.
+      if (other.open.length > DIGEST_CAPS.openEpics) {
+        cut.push(`open Epics on other branches: ${DIGEST_CAPS.openEpics} of ${other.open.length} shown`);
+      }
+      for (const o of other.open.slice(0, DIGEST_CAPS.openEpics)) {
         // Clipped: another branch's STATE.md is anyone-who-can-push input (REVIEW pass 2:
         // a 100 KB `phase` produced a 100,942-char digest).
         entries['open Epics'].push({ branch: clip(o.branches.join(', '), DIGEST_CAPS.row), text: clip(`${o.epic} — open at ${o.phase ?? 'an unrecorded phase'} on ${o.branches.join(', ')}`, DIGEST_CAPS.row) });
@@ -254,8 +262,8 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
       entries.backlog.push({ path: r.path, line: r.line, text: clip(r.text, DIGEST_CAPS.row) });
     }
     if (classified && classified.dropped.length > 0) {
-      cut.push(
-        `${classified.dropped.length} backlog row(s) dropped (discharged, self-declared not live, or folded) are not shown — they cannot be covered`
+      notes.push(
+        `${classified.dropped.length} backlog row(s) dropped (discharged, self-declared not live, or folded) are not offered here — they cannot be covered, and the advisory lists them under Dropped`
       );
     }
     ok('backlog');
@@ -281,8 +289,14 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
         return b.localeCompare(a, undefined, { numeric: true });
       });
       let used = 0;
+      let attempts = 0;
+      const skipped = [];
       for (const f of newestFirst) {
         if (used >= DIGEST_CAPS.retroFiles) break;
+        // Attempts are bounded, not only successes: 400 unreadable retros were each
+        // walked and each added a cut line (REVIEW pass 3).
+        if (attempts >= DIGEST_CAPS.retroAttempts) break;
+        attempts += 1;
         const rel = `${PLANNING_DIR}/${f}`;
         let content;
         try {
@@ -290,7 +304,7 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
         } catch (err) {
           // One unreadable or linked retro is named and skipped; the rest still count
           // (REVIEW pass 2: one bad file used to blank the whole source).
-          cut.push(`retrospectives: ${f} not read — ${clip(err.message, DIGEST_CAPS.row)}`);
+          skipped.push({ f, why: clip(err.message, DIGEST_CAPS.row) });
           continue;
         }
         if (content.includes('[FILL IN')) continue; // a stub looks back on nothing
@@ -304,10 +318,14 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
         });
         if (found) used += 1;
       }
+      if (skipped.length > 0) {
+        cut.push(`retrospectives: ${skipped.length} not read — ${skipped.slice(0, 3).map((x) => `${x.f} not read — ${x.why}`).join('; ')}${skipped.length > 3 ? '; …' : ''}`);
+      }
       if (used === 0) {
         fail('retrospectives', `${files.length} retrospective(s), none with a "What to feed back" or "What we'd do differently" section`);
       } else {
-        if (newestFirst.length > used) cut.push(`retrospectives: the newest ${used} read, ${newestFirst.length - used} older not read`);
+        const unread = newestFirst.length - attempts;
+        if (unread > 0) cut.push(`retrospectives: the newest ${used} read, ${unread} older not opened`);
         ok('retrospectives');
       }
     }
@@ -364,7 +382,7 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
     }
   }
 
-  return { entries, checked, cannotCheck, cut, corpus: c };
+  return { entries, checked, cannotCheck, cut, notes, corpus: c };
 }
 
 /** `path:line`, or the branch for an entry that has no file here. */
@@ -419,6 +437,7 @@ export function formatDigest(digest) {
       for (const c of digest.cannotCheck) out.push(`- **${c.source}** — ${clip(c.reason, DIGEST_CAPS.row * 2)}`);
       out.push('');
     }
+    for (const n of digest.notes ?? []) out.push(`> ${clip(n, DIGEST_CAPS.row * 2)}`, '');
     for (const source of DIGEST_SOURCES) {
       if (!digest.checked.includes(source)) continue;
       const list = listFor(source);
@@ -431,7 +450,7 @@ export function formatDigest(digest) {
     for (const g of TRIM_ORDER) {
       if (shown[g] < groups[g].length) cut.push(`${g}: ${shown[g]} of ${groups[g].length} shown (digest cap ${DIGEST_CAPS.total} chars)`);
     }
-    if (stillOver) cut.push('still over the cap after every trim — what remains (vision, the milestone heading, open Epics) cannot be cut');
+    if (stillOver) cut.push('still over the cap after every trim — the parts that cannot be cut (vision, the milestone heading, open Epics, the notes above) are what remain');
     if (cut.length > 0) {
       out.push('## Cut to fit — not shown above', '');
       for (const c of cut) out.push(`- ${c}`);
