@@ -3784,3 +3784,15 @@ behind "something else", in file order.
 ### D-M6E12-12 — Outcome: the proposed priorities are what gets picked
 In the first three real runs, the user picks one of the proposed priorities rather than *Other*. Two
 *Other*s in three runs means the synthesis is missing what matters, and the digest is revisited first.
+
+### D-M6E12-13 — Priorities declare what they come after (`dependsOn`), and the proposal checks for it (VERIFY)
+Found on the first real ask (2026-10-01). Asked to pick, Brett asked: *"are there any natural
+dependencies here? it seems like 'not seeing rows' affects everything else?"* Measured: the reader
+was hiding nothing today (55 of 55 rows on Signal; no CRLF or `<details` in any of six local
+projects' backlogs) — but there was one real dependency: step 5 moves a project's backlog with that
+same reader (`work-migrate.js`), so a reader bug there drops rows silently. The proposal had not
+looked, and the contract had nowhere to say it. Now: an optional `dependsOn` (validated: numbers in
+range, not self, no cycle; rendered as *Comes after*), and `advise.md` step 2 requires checking the
+priorities against each other before asking. The reader fixes were folded into priority 1.
+**Outcome data point 1 (`D-M6E12-12`):** the user picked a proposed priority (1), after one
+clarifying question that exposed the missing dependency check.

@@ -144,6 +144,17 @@ describe('AC4.3 — a same-day re-run after a pick writes -2 and leaves the pick
   });
 });
 
+describe('dependsOn renders as "Comes after"', () => {
+  it('in the artifact and the summary', async () => {
+    const base = project();
+    const p = priorities.map((x) => ({ ...x }));
+    p[2].dependsOn = [1];
+    const r = await runAdvise(base, { today: '2026-10-01', priorities: p, projectName: 'x' });
+    expect(r.status, r.reason ?? '').toBe('written');
+    expect(r.artifact).toContain('**Comes after:** priority 1 (First).');
+  });
+});
+
 describe('readPriorityTitles', () => {
   it('reads only the numbered headings under ## Priorities', () => {
     const md = '## Priorities — 2\n\n### 1. A\n\n### 2. B\n\n## Appendix\n\n### 3. Not a priority\n';

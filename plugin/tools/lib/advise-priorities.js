@@ -47,7 +47,7 @@ export function countSentences(text) {
  * @param {object} corpus — the `readCorpus` result the digest was built from
  * @returns {Promise<{ok: boolean, reasons: string[], priorities: Array<{title: string, why: string,
  *   covers: Array<{kind: 'row'|'bug'|'new', id: string|null, label: string, path: string|null, line: number|null}>,
- *   evidence: string[]}>}>}
+ *   evidence: string[], dependsOn: number[]}>}>}
  */
 export async function validatePriorities(baseDir, priorities, corpus) {
   const reasons = [];
@@ -138,8 +138,42 @@ export async function validatePriorities(baseDir, priorities, corpus) {
         allEvidence.push({ n, e });
       }
     }
-    out.push({ title, why, covers, evidence });
+    // `dependsOn` (optional): the priorities this one should come after, by number.
+    // Added at VERIFY, from the first real ask: the user asked whether any priority
+    // was a precondition of another, and one was (step 5 moves backlogs with the
+    // reader that two of the bugs break) — but the contract had nowhere to say so,
+    // so the dependency was left to whoever happened to notice.
+    const dependsOn = [];
+    if (p.dependsOn !== undefined) {
+      if (!Array.isArray(p.dependsOn)) {
+        reasons.push(`${n}: dependsOn must be a list of priority numbers`);
+      } else {
+        for (const d of p.dependsOn) {
+          if (!Number.isInteger(d) || d < 1 || d > priorities.length) reasons.push(`${n}: dependsOn ${JSON.stringify(d)} is not a priority number (1–${priorities.length})`);
+          else if (d === i + 1) reasons.push(`${n}: cannot depend on itself`);
+          else if (!dependsOn.includes(d)) dependsOn.push(d);
+        }
+      }
+    }
+    out.push({ title, why, covers, evidence, dependsOn });
   });
+
+  // A cycle in dependsOn has no order to work in. Refused, naming the cycle.
+  const visit = (i, path) => {
+    for (const d of out[i]?.dependsOn ?? []) {
+      if (path.includes(d - 1)) return [...path, d - 1];
+      const found = visit(d - 1, [...path, d - 1]);
+      if (found) return found;
+    }
+    return null;
+  };
+  for (let i = 0; i < out.length; i++) {
+    const cycle = visit(i, [i]);
+    if (cycle) {
+      reasons.push(`dependsOn forms a cycle: ${cycle.map((x) => `priority ${x + 1}`).join(' → ')}`);
+      break;
+    }
+  }
 
   // Resolve every evidence token through the gate's own resolver, one call per
   // token so an unresolved result names exactly which priority it came from.

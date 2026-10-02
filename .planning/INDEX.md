@@ -147,6 +147,7 @@
 - [M6.E10-REVIEW.md](M6.E10-REVIEW.md) — `other` — _(note pending)_
 - [M6.E10-VERIFICATION.md](M6.E10-VERIFICATION.md) — `other` — _(note pending)_
 - [M6.E12-PLAN.md](M6.E12-PLAN.md) — `other` — _(note pending)_
+- [M6.E12-PROGRESS.md](M6.E12-PROGRESS.md) — `other` — _(note pending)_
 - [M6.E12-REQUIREMENTS.md](M6.E12-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E12-RESEARCH.md](M6.E12-RESEARCH.md) — `other` — _(note pending)_
 - [M6.E12-VALIDATION.md](M6.E12-VALIDATION.md) — `other` — _(note pending)_
@@ -477,6 +478,7 @@
 - [work/done/2026-10/SIG-131.md](work/done/2026-10/SIG-131.md) — `other` — _(note pending)_
 - [work/done/2026-10/SIG-137.md](work/done/2026-10/SIG-137.md) — `other` — _(note pending)_
 - [work/done/2026-10/SIG-140.md](work/done/2026-10/SIG-140.md) — `other` — _(note pending)_
+- [work/inbox/SIG-256.md](work/inbox/SIG-256.md) — `other` — _(note pending)_
 
 ## Cold — archived + retrospectives
 

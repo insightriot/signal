@@ -71,7 +71,8 @@ Write **3 to 5** priorities as a JSON array to a scratchpad file. Each is:
   "title": "Under 120 characters",
   "why": "At most three sentences: what it is and why now.",
   "covers": [".planning/BACKLOG.md:42", "B254", "new: work nobody has filed yet"],
-  "evidence": [".planning/M6.E11-RETROSPECTIVE.md:82", ".planning/BUGS.md:165"]
+  "evidence": [".planning/M6.E11-RETROSPECTIVE.md:82", ".planning/BUGS.md:165"],
+  "dependsOn": [2]
 }
 ```
 
@@ -80,6 +81,14 @@ Write **3 to 5** priorities as a JSON array to a scratchpad file. Each is:
   sits under one priority only.
 - `evidence` is one or more `path:line` (or `path`) citations, repo-root-relative, that support the
   `why` — lines you actually read.
+- `dependsOn` (optional) lists the priorities this one should come after, by number.
+
+**Before asking, check the priorities against each other.** Does one make another unsafe or
+pointless to do first — a fix another priority's tool relies on, a measurement another one needs?
+If so, either fold the precondition into the priority that needs it, or say it with `dependsOn`.
+Found on the first real run: the user asked *"are there any natural dependencies?"* and there was
+one (step 5 moves backlogs with the reader that two of the proposed bugs break) — the proposal had
+not looked.
 
 ### 3. Validate, render, gate, write — `runAdvise(baseDir, { today, priorities, projectName })`
 
@@ -103,8 +112,8 @@ Ask which priority to work on:
 - **5 priorities:** a plain numbered list and the question *"Which one — 1 to 5, or something else?"*
   — five do not fit the picker.
 
-Present them as proposals. Do not mark one recommended unless the digest gives a concrete reason
-one is a precondition of another, and then name the reason.
+Present them as proposals, with each `dependsOn` stated in the option. Do not mark one recommended
+unless one is a precondition of another, and then name the reason.
 
 ### 5. Record — `recordChoice(baseDir, result.path, { pick, words, by })`
 

@@ -113,6 +113,31 @@ describe('unfiled work — "new:" covers', () => {
   });
 });
 
+describe('dependsOn — added at VERIFY from the first real ask', () => {
+  it('is optional, and normalises to a list of priority numbers', async () => {
+    const { base, corpus } = await fixture();
+    const p = good();
+    p[2].dependsOn = [1, 1];
+    const r = await validatePriorities(base, p, corpus);
+    expect(r.ok).toBe(true);
+    expect(r.priorities.map((x) => x.dependsOn)).toEqual([[], [], [1]]);
+  });
+  const bad = [
+    ['not a list', (p) => (p[0].dependsOn = 2, p), /priority 1: dependsOn must be a list/],
+    ['out of range', (p) => (p[0].dependsOn = [4], p), /priority 1: dependsOn 4 is not a priority number \(1–3\)/],
+    ['itself', (p) => (p[1].dependsOn = [2], p), /priority 2: cannot depend on itself/],
+    ['a cycle', (p) => (p[0].dependsOn = [2], p[1].dependsOn = [3], p[2].dependsOn = [1], p), /dependsOn forms a cycle: priority 1 → priority 2 → priority 3 → priority 1/],
+  ];
+  for (const [name, mutate, expected] of bad) {
+    it(`refuses ${name}`, async () => {
+      const { base, corpus } = await fixture();
+      const r = await validatePriorities(base, mutate(good()), corpus);
+      expect(r.ok).toBe(false);
+      expect(r.reasons.join('\n')).toMatch(expected);
+    });
+  }
+});
+
 describe('countSentences', () => {
   it('counts terminal punctuation, and an unpunctuated line as one', () => {
     expect(countSentences('One. Two! Three?')).toBe(3);

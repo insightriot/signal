@@ -500,6 +500,11 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
     out.push('');
     out.push(`${quoteSafe(p.why)} ${cite(...p.evidence)}`);
     out.push('');
+    if (p.dependsOn?.length > 0) {
+      const names = p.dependsOn.map((d) => `priority ${d} (${quoteSafe(priorities[d - 1]?.title ?? '?')})`);
+      out.push(`**Comes after:** ${names.join(', ')}.`);
+      out.push('');
+    }
     out.push('Covers:');
     out.push('');
     // Covered labels are clipped and unbolded: a bug's headline can run to
@@ -575,7 +580,9 @@ export function formatAdviseSummary(result) {
   for (const o of result.corpus.sources?.otherBranches?.open ?? []) {
     lines.push(`  ⚠ ${o.epic} is open on ${o.branches.join(', ')} — finish it first: ${nextStepFor(o)}.`);
   }
-  result.priorities.forEach((p, i) => lines.push(`  ${i + 1}. ${p.title}`));
+  result.priorities.forEach((p, i) =>
+    lines.push(`  ${i + 1}. ${p.title}${p.dependsOn?.length ? ` (after ${p.dependsOn.join(', ')})` : ''}`)
+  );
   lines.push('');
   lines.push(
     `  ${result.classified.live.length} live row(s) in the appendix, unranked; ${result.classified.dropped.length} dropped, each with its reason.`
