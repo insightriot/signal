@@ -612,17 +612,21 @@ describe('M6.E12 FR3 — the advisory artifact', () => {
 describe('M6.E12 FR2 — the priorities reach the artifact only through validation', () => {
   it('AC2.5 — an invalid proposal writes nothing and returns every reason', async () => {
     const base = project();
+    // Three priorities: a wrong COUNT is refused on its own and returns at once
+    // (REVIEW pass 1, exponential work on oversized proposals), so the
+    // every-reason property is shown on a proposal of the right size.
     const bad = [
       { title: '', why: 'One.', covers: ['.planning/BACKLOG.md:999'], evidence: ['.planning/NOPE.md:1'] },
       { title: 'Two', why: 'Two.', covers: [], evidence: [] },
+      { title: 'Three', why: 'Three.', covers: ['B999'], evidence: ['.planning/BACKLOG.md:1'] },
     ];
     const r = await run(base, { priorities: bad });
     expect(r.status).toBe('skipped');
     expect(r.reason).toMatch(/proposed priorities were refused/);
     expect(artifactsIn(base)).toEqual([]);
-    // Count, title, unknown row, unresolved evidence, empty covers, empty evidence.
+    // Title, unknown row, unresolved evidence, empty covers, empty evidence, unknown bug.
     expect(r.reasons.length).toBeGreaterThanOrEqual(6);
-    expect(r.reasons.join('\n')).toMatch(/2 priorities proposed/);
+    expect(r.reasons.join('\n')).toMatch(/B999, which is not an open bug/);
     expect(r.reasons.join('\n')).toMatch(/title is missing/);
     expect(r.reasons.join('\n')).toMatch(/not the line of a live backlog row/);
     expect(r.reasons.join('\n')).toMatch(/does not resolve/);
@@ -654,7 +658,7 @@ describe('REVIEW findings — the artifact must not contradict itself', () => {
     const base = project();
     const r = await run(base);
     const body = readFileSync(join(base, r.path), 'utf8');
-    const corpusSection = body.slice(body.indexOf('## Corpus read'), body.indexOf('**Digest read:**'));
+    const corpusSection = body.slice(body.indexOf('## Corpus read'), body.indexOf('**Digest read**'));
     expect(corpusSection).not.toMatch(/retrospective/i);
     expect(corpusSection).toContain('all 5 sources were readable');
   });

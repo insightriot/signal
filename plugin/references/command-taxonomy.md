@@ -42,7 +42,7 @@ Named for **the phase or the act**, because the six phases are a fixed vocabular
 (`BACKLOG-REVIEW-YYYY-MM-DD[-N].md`) and nothing else — then, once the user picks a priority,
 appends that pick to the same advisory. It belongs here rather than in *doc upkeep*
 because it tells you where you are and proposes where to go; it advances nothing, decides nothing
-on the user's behalf, and edits no file it did not just write. **Never touching what is already there is the contract** — an orientation
+on the user's behalf, and edits no file except a same-day advisory of its own that holds no pick. **Never touching what is already there is the contract** — an orientation
 command that edited state would break the trust that makes these safe to run reflexively.
 
 ### 3. Capture — records something you said

@@ -95,7 +95,9 @@ not looked.
 Parse the scratch file and pass the array. `runAdvise` re-reads the corpus, runs
 `validatePriorities` (count, fields, every citation resolves, every covered row and bug is live),
 renders the advisory, re-checks that every cited row and bug line still carries what it was cited
-for, and asserts the citation **count** before writing.
+for, and asserts the citation **count** — every evidence token, every cited covered row and bug,
+every appendix row, exactly — before writing. A covered row must be one the appendix lists as live:
+a row its own heading parks, folds or closes is refused.
 
 On `status: 'skipped'`, print `formatAdviseSummary(result)` — it lists **every** reason. If the
 reasons are about the proposal, fix the proposal and call again; do not write the artifact by
@@ -115,11 +117,15 @@ Ask which priority to work on:
 Present them as proposals, with each `dependsOn` stated in the option. Do not mark one recommended
 unless one is a precondition of another, and then name the reason.
 
-### 5. Record — `recordChoice(baseDir, result.path, { pick, words, by })`
+### 5. Record — `recordChoice(baseDir, result.path, { pick, words, by, title })`
 
-`pick` is the priority number, or `'other'` with the user's own `words`, verbatim. It appends a
-**Picked by you** section to the advisory and writes nothing else. A file that already records a
-pick is refused — the record is evidence, and it is never replaced.
+`pick` is the priority number, or `'other'` with the user's own `words`, verbatim. Pass `title` — the
+title of the priority the user saw — so the pick is refused if the advisory changed after the question
+was asked. It appends a **Picked by you** section to the advisory and writes nothing else. A file that
+already records a pick is refused — the record is evidence, and it is never replaced.
+
+**Pass the user's words through a scratchpad JSON file, like the proposal.** They are free text the
+user typed; put inline into a shell command, a quote breaks it and `$(...)` runs.
 
 ### 6. Offer to start
 

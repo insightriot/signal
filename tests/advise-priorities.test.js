@@ -70,7 +70,7 @@ describe('validatePriorities — every refusal names its fault (AC2.1–AC2.3)',
     ['evidence that does not exist (AC2.3)', (p) => (p[0].evidence = ['nope/missing.md:1'], p), /priority 1: evidence nope\/missing\.md:1 does not resolve — does not exist/],
     ['evidence past the end of the file (AC2.3)', (p) => (p[0].evidence = ['.planning/PROJECT.md:999'], p), /priority 1: evidence \.planning\/PROJECT\.md:999 does not resolve/],
     ['evidence outside the repository', (p) => (p[0].evidence = ['../../etc/passwd:1'], p), /priority 1: evidence \.\.\/\.\.\/etc\/passwd:1 does not resolve/],
-    ['evidence with spaces', (p) => (p[0].evidence = ['a b:1'], p), /not a single "path:line" token/],
+    ['evidence with spaces', (p) => (p[0].evidence = ['a b:1'], p), /not a single "path" or "path:line" token/],
   ];
   for (const [name, mutate, expected] of cases) {
     it(name, async () => {

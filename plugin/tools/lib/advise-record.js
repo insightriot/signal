@@ -16,7 +16,7 @@ import { join } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
 import { assertRealInsidePlanning } from './path-confine.js';
-import { ARTIFACT_PREFIX, PICK_HEADING, quoteSafe } from './advise.js';
+import { ARTIFACT_PREFIX, PICK_HEADING, PICK_RE, isValidStamp, quoteSafe } from './advise.js';
 
 const PLANNING_DIR = '.planning';
 const ADVISORY_RE = new RegExp(`^${PLANNING_DIR}/${ARTIFACT_PREFIX}\\d{4}-\\d{2}-\\d{2}(?:-\\d+)?\\.md$`);
@@ -41,11 +41,13 @@ export function readPriorityTitles(content) {
  *
  * @param {string} baseDir
  * @param {string} artifactRel — `.planning/BACKLOG-REVIEW-YYYY-MM-DD[-N].md`
- * @param {{pick: number|'other', words?: string, by?: string, at?: string}} choice
- *   `pick` is a priority number, or `'other'` with the user's own `words`.
+ * @param {{pick: number|'other', words?: string, by?: string, at?: string, title?: string}} choice
+ *   `pick` is a priority number, or `'other'` with the user's own `words`. `title`,
+ *   when given, must match that priority's title in the file — so a re-run while
+ *   the user was being asked cannot attach their answer to a different list.
  * @returns {Promise<{status: 'recorded'|'refused', path: string, reason: string|null, title?: string}>}
  */
-export async function recordChoice(baseDir, artifactRel, { pick, words, by = 'the user', at } = {}) {
+export async function recordChoice(baseDir, artifactRel, { pick, words, by = 'the user', at, title: expectedTitle } = {}) {
   const refuse = (reason) => ({ status: 'refused', path: artifactRel, reason });
   if (typeof artifactRel !== 'string' || !ADVISORY_RE.test(artifactRel)) {
     return refuse(`${JSON.stringify(artifactRel)} is not a /sig:advise advisory (${PLANNING_DIR}/${ARTIFACT_PREFIX}YYYY-MM-DD[-N].md)`);
@@ -58,8 +60,12 @@ export async function recordChoice(baseDir, artifactRel, { pick, words, by = 'th
   if (lstatSync(abs).isSymbolicLink()) return refuse(`${artifactRel} is a symbolic link — the advisory is written as a regular file, so this is not one`);
   assertRealInsidePlanning(baseDir, abs, 'recordChoice');
 
+  // Every field written is validated here, not trusted: this append happens after
+  // the run's citation gate, and nothing checks the file again (REVIEW pass 1: a
+  // newline in `at` forged a Priorities heading).
+  if (at !== undefined && !isValidStamp(at)) return refuse(`at must be a real YYYY-MM-DD date, got ${JSON.stringify(at)}`);
   const content = await readFile(abs, 'utf-8');
-  if (content.includes(`## ${PICK_HEADING}`)) {
+  if (PICK_RE.test(content)) {
     return refuse(`${artifactRel} already records a pick — run /sig:advise again to pick from a fresh advisory`);
   }
   const titles = readPriorityTitles(content);
@@ -77,6 +83,9 @@ export async function recordChoice(baseDir, artifactRel, { pick, words, by = 'th
     const p = titles.find((t) => t.n === pick);
     if (!Number.isInteger(pick) || !p) {
       return refuse(`pick ${JSON.stringify(pick)} is not one of the ${titles.length} priorities in ${artifactRel}`);
+    }
+    if (expectedTitle !== undefined && expectedTitle !== p.title) {
+      return refuse(`priority ${p.n} in ${artifactRel} is ${JSON.stringify(p.title)}, not ${JSON.stringify(expectedTitle)} — the advisory changed after the question was asked`);
     }
     title = p.title;
     line = `**Priority ${p.n} — ${p.title}**, picked on ${date} by ${who}.`;

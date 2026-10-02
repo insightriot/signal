@@ -24,14 +24,20 @@
 // out loud in `cut`, so a shortened digest cannot read as a complete one.
 
 import { existsSync, readdirSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { readCorpus } from './advise-corpus.js';
 import { readState, partitionCompletedPhases, compareEpicIds, EPIC_ID_STRICT_RE } from './state.js';
 import { parseEpicStatusRows } from './milestones.js';
+import { readFileConfined } from './path-confine.js';
 
 const PLANNING_DIR = '.planning';
+
+// ⚠ EVERY READ IS CONFINED. A cloned repository can ship any of these files as a
+// symlink, and digest text goes straight into the agent's context. Reproduced at
+// REVIEW pass 1: a symlinked MILESTONE file put an outside secret into the digest.
+// `readFileConfined` (the M6.E3 fix for the same class) refuses a path whose real
+// location is outside the project, and the refusal lands in cannot-check.
 
 /** The sources the digest claims to read, enumerated so a test compares against a value. */
 export const DIGEST_SOURCES = Object.freeze([
@@ -62,7 +68,16 @@ export const DIGEST_CAPS = Object.freeze({
  * covers. So the backlog goes LAST. Older retrospective sections go first (the
  * newest carry the current lessons), then low-priority bugs, then questions.
  */
-export const TRIM_ORDER = Object.freeze(['retrospectives', 'low-priority bugs', 'open questions', 'backlog']);
+export const TRIM_ORDER = Object.freeze([
+  'retrospectives',
+  'low-priority bugs',
+  'open questions',
+  'backlog',
+  // REVIEW pass 1: these were never trimmed, so 3,000 P1 bugs made a 563,616-char
+  // "capped" digest. They give way last, and the cap is now a bound.
+  'high-priority bugs',
+  'milestone rows',
+]);
 
 const RETRO_SECTION_RE = /^##\s+(What to feed back into Signal|What we'd do differently)\s*$/i;
 const RETRO_FILE_RE = /^(.+)-RETROSPECTIVE\.md$/;
@@ -130,7 +145,7 @@ export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
       fail('vision', 'no PROJECT.md in .planning/ or at the root — this project states no vision here');
     } else {
       try {
-        const lines = (await readFile(join(baseDir, rel), 'utf-8')).split('\n');
+        const lines = readFileConfined(baseDir, rel).split('\n');
         const i = lines.findIndex((l) => /^##\s+(Vision|Problem Statement|Problem)\b/i.test(l));
         if (i === -1) {
           fail('vision', `${rel} has no "## Vision" or "## Problem" heading`);
@@ -156,7 +171,7 @@ export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
       const byNumber = [...files].sort((a, b) => Number(b.match(MILESTONE_FILE_RE)[1]) - Number(a.match(MILESTONE_FILE_RE)[1]));
       const file = (fromEpic && files.find((f) => f === `MILESTONE-${fromEpic[1]}.md`)) || byNumber[0];
       const rel = `${PLANNING_DIR}/${file}`;
-      const content = await readFile(join(planningDir, file), 'utf-8');
+      const content = readFileConfined(baseDir, rel);
       const lines = content.split('\n');
       const h1 = lines.findIndex((l) => /^#\s/.test(l));
       const at = h1 === -1 ? 0 : h1;
@@ -180,7 +195,7 @@ export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
         const rel = `${PLANNING_DIR}/STATE.md`;
         let line = 1;
         try {
-          const lines = (await readFile(join(baseDir, rel), 'utf-8')).split('\n');
+          const lines = readFileConfined(baseDir, rel).split('\n');
           const i = lines.findIndex((l) => /^current_epic:/.test(l));
           if (i !== -1) line = i + 1;
         } catch {
@@ -205,7 +220,7 @@ export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
     fail('bugs', c.cannotCheck.find((x) => x.source === 'BUGS.md')?.reason ?? 'BUGS.md was not read');
   } else {
     try {
-      const lines = (await readFile(join(baseDir, c.sources.bugs.path), 'utf-8')).split('\n');
+      const lines = readFileConfined(baseDir, c.sources.bugs.path).split('\n');
       const open = c.sources.bugs.entries
         .filter((e) => e.status === 'confirmed' || e.status === 'needs-triage')
         .map((e) => ({ e, p: bugPriority(lines[e.line - 1]) }));
@@ -252,7 +267,7 @@ export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
       for (const f of newestFirst) {
         if (used >= DIGEST_CAPS.retroFiles) break;
         const rel = `${PLANNING_DIR}/${f}`;
-        const content = await readFile(join(planningDir, f), 'utf-8');
+        const content = readFileConfined(baseDir, rel);
         if (content.includes('[FILL IN')) continue; // a stub looks back on nothing
         const lines = content.split('\n');
         let found = false;
@@ -282,7 +297,7 @@ export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
       fail('open questions', `${rel} is not present — this project files no questions here`);
     } else {
       try {
-        const lines = (await readFile(join(baseDir, rel), 'utf-8')).split('\n');
+        const lines = readFileConfined(baseDir, rel).split('\n');
         const open = [];
         lines.forEach((l, i) => {
           // Same rule as `countOpenQuestions` (status.js): every `## ` heading is
@@ -313,7 +328,7 @@ export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
         if (!rel) {
           fail('inbox', 'no ISSUES-INBOX.md — this project keeps no capture inbox here');
         } else {
-          const content = await readFile(join(baseDir, rel), 'utf-8');
+          const content = readFileConfined(baseDir, rel);
           const n = content.split('\n').filter((l) => /^##\s/.test(l)).length;
           entries.inbox.push({ path: rel, line: 1, text: `${n} entr(y/ies) in the inbox` });
           ok('inbox');
@@ -333,62 +348,84 @@ function ref(e) {
 }
 
 /**
- * The digest as the agent reads it. What could not be read comes FIRST, so a
- * gap is the first thing seen rather than the last. Bounded by `DIGEST_CAPS.total`:
- * entries give way in `TRIM_ORDER`, one at a time from the end of each list, and
- * every cut is stated.
+ * The digest as the agent reads it. What could not be read comes FIRST, so a gap
+ * is the first thing seen rather than the last.
+ *
+ * Bounded by `DIGEST_CAPS.total`: entries give way in `TRIM_ORDER`, from the end of
+ * each list, and every cut is stated. Lengths are computed per line and the text is
+ * built ONCE — the first version rebuilt the whole digest per trimmed entry, which
+ * was quadratic (1.3 s at 4,000 rows; REVIEW pass 1). If even the untrimmable part
+ * (vision, the milestone's own heading, open Epics) is over the cap, the output
+ * says so rather than claiming to fit.
  *
  * @param {{entries: object, checked: string[], cannotCheck: Array, cut: string[]}} digest
  * @returns {string}
  */
 export function formatDigest(digest) {
-  const cut = [...digest.cut];
   const isLow = (e) => !e.priority || Number(e.priority.slice(1)) >= 3;
-  // How many of each trimmable group are shown; everything else is always shown.
-  const full = {
-    retrospectives: digest.entries.retrospectives.length,
-    'low-priority bugs': digest.entries.bugs.filter(isLow).length,
-    'open questions': digest.entries['open questions'].length,
-    backlog: digest.entries.backlog.length,
+  const line = (e) => `- ${e.text} (${ref(e)})`;
+
+  // Each trimmable group, as the entries it would show in order.
+  const groups = {
+    retrospectives: digest.entries.retrospectives,
+    'low-priority bugs': digest.entries.bugs.filter(isLow),
+    'open questions': digest.entries['open questions'],
+    backlog: digest.entries.backlog,
+    'high-priority bugs': digest.entries.bugs.filter((e) => !isLow(e)),
+    'milestone rows': digest.entries.milestone.slice(1), // [0] is the milestone's own heading
   };
-  const shown = { ...full };
-  const listFor = (source) => {
-    const all = digest.entries[source];
-    if (source === 'bugs') {
-      const high = all.filter((e) => !isLow(e));
-      return [...high, ...all.filter(isLow).slice(0, shown['low-priority bugs'])];
-    }
-    if (source in shown) return all.slice(0, shown[source]);
-    return all;
-  };
-  const build = () => {
-    const out = ['# Big-picture digest', ''];
-    if (digest.cannotCheck.length > 0) {
-      out.push('## Could not read — the picture below is missing these', '');
-      for (const c of digest.cannotCheck) out.push(`- **${c.source}** — ${c.reason}`);
-      out.push('');
-    }
-    for (const source of DIGEST_SOURCES) {
-      if (!digest.checked.includes(source)) continue;
-      const list = listFor(source);
-      out.push(`## ${source} (${digest.entries[source].length})`, '');
-      if (list.length === 0) out.push('- (none)');
-      for (const e of list) out.push(`- ${e.text} (${ref(e)})`);
-      out.push('');
-    }
-    return out;
-  };
-  let out = build();
-  for (const group of TRIM_ORDER) {
-    while (out.join('\n').length > DIGEST_CAPS.total && shown[group] > 0) {
-      shown[group] -= 1;
-      out = build();
+  const shown = Object.fromEntries(Object.entries(groups).map(([g, list]) => [g, list.length]));
+
+  // Fixed text: the headings, the cannot-check block, and every untrimmable entry.
+  const head = ['# Big-picture digest', ''];
+  if (digest.cannotCheck.length > 0) {
+    head.push('## Could not read — the picture below is missing these', '');
+    for (const c of digest.cannotCheck) head.push(`- **${c.source}** — ${c.reason}`);
+    head.push('');
+  }
+  const len = (lines) => lines.reduce((n, l) => n + l.length + 1, 0);
+  let total = len(head);
+  for (const source of DIGEST_SOURCES) {
+    if (!digest.checked.includes(source)) continue;
+    total += `## ${source} (${digest.entries[source].length})`.length + 1 + 1 + 1 + 1; // heading, blank, trailing blank, slack
+    if (source === 'milestone' && digest.entries.milestone[0]) total += line(digest.entries.milestone[0]).length + 1;
+    if (source === 'open Epics' || source === 'vision' || source === 'inbox') total += len(digest.entries[source].map(line));
+  }
+  for (const list of Object.values(groups)) total += len(list.map(line));
+
+  // Room for the cut section itself, so the cap holds for the whole output.
+  const reserve = 120 * (digest.cut.length + TRIM_ORDER.length + 2);
+  for (const g of TRIM_ORDER) {
+    while (total > DIGEST_CAPS.total - reserve && shown[g] > 0) {
+      shown[g] -= 1;
+      total -= line(groups[g][shown[g]]).length + 1;
     }
   }
-  for (const group of TRIM_ORDER) {
-    if (shown[group] < full[group]) {
-      cut.push(`${group}: ${shown[group]} of ${full[group]} shown (digest cap ${DIGEST_CAPS.total} chars)`);
+
+  const listFor = (source) => {
+    if (source === 'bugs') {
+      return [...groups['high-priority bugs'].slice(0, shown['high-priority bugs']), ...groups['low-priority bugs'].slice(0, shown['low-priority bugs'])];
     }
+    if (source === 'milestone') return [...digest.entries.milestone.slice(0, 1), ...groups['milestone rows'].slice(0, shown['milestone rows'])];
+    if (source in groups) return groups[source].slice(0, shown[source]);
+    return digest.entries[source];
+  };
+  const out = [...head];
+  for (const source of DIGEST_SOURCES) {
+    if (!digest.checked.includes(source)) continue;
+    const list = listFor(source);
+    out.push(`## ${source} (${digest.entries[source].length})`, '');
+    if (list.length === 0) out.push('- (none)');
+    for (const e of list) out.push(line(e));
+    out.push('');
+  }
+
+  const cut = [...digest.cut];
+  for (const g of TRIM_ORDER) {
+    if (shown[g] < groups[g].length) cut.push(`${g}: ${shown[g]} of ${groups[g].length} shown (digest cap ${DIGEST_CAPS.total} chars)`);
+  }
+  if (len(out) > DIGEST_CAPS.total - reserve) {
+    cut.push(`still over the cap after every trim — the untrimmable part (vision, milestone heading, open Epics) is ${len(out)} chars`);
   }
   if (cut.length > 0) {
     out.push('## Cut to fit — not shown above', '');

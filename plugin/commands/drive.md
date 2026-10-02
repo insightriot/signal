@@ -87,8 +87,10 @@ how-to-run question in the same `AskUserQuestion` call; with five, ask the numbe
 then **0b**.
 
 **The backlog rows stay reachable behind "something else"** — `proposeEpicCandidates`' backlog
-candidates, in their existing order (rows that read as prose sections sink; the rest in file
-order). Age has never been an input here and is not one now.
+candidates in their existing order: `rankBacklogRow` lifts rows that lead with a unit id or carry a
+groomed tag, sinks rows that read as dated records, and breaks ties on line number. There is no age
+input, but in an append-mostly file line order leans oldest-first, so this list is a fallback — the
+priorities are where the judgment is.
 
 ⚠ **The pick is a human stop at EVERY attention setting, `unattended` included.** `unattended`
 removes the stops between phases; it does not choose the work. No setting picks a priority on the

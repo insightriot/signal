@@ -60,6 +60,14 @@ export const ARTIFACT_PREFIX = 'BACKLOG-REVIEW-';
  */
 export const PICK_HEADING = 'Picked by you';
 
+/**
+ * A recorded pick is the heading ON ITS OWN LINE. Not a substring: a backlog row or
+ * a model title quoting the words rendered as part of another line, and an
+ * `includes` check read every such advisory as already picked — no pick could ever
+ * be recorded, and each run climbed to the next `-N` (REVIEW pass 1).
+ */
+export const PICK_RE = new RegExp(`^## ${PICK_HEADING}$`, 'm');
+
 /** `YYYY-MM-DD`, and a real date — `today` becomes part of a filename (`SIG-123`). */
 const STAMP_RE = /^\d{4}-\d{2}-\d{2}$/;
 export function isValidStamp(stamp) {
@@ -368,8 +376,6 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
   out.push(L.producer);
   out.push('');
 
-  // The section below reads `ranked.consulted`; keep that name for the shared code.
-  const ranked = classified;
   out.push(`## ${L.corpus}`);
   out.push('');
   out.push(`**Read:** ${corpus.checked.length > 0 ? corpus.checked.join(' · ') : 'nothing'}.`);
@@ -382,15 +388,15 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
   // the same defect (`D-M6E8-9`). So the renderer carries no source list; it
   // prints what `classifyRows` was given, and a source it could not name is stated
   // as not recorded rather than guessed.
-  if (Array.isArray(ranked.consulted)) {
-    out.push(`**Consulted by the row inputs:** ${ranked.consulted.map((s) => `\`${s}\``).join(' · ')}.`);
+  if (Array.isArray(classified.consulted)) {
+    out.push(`**Consulted by the row inputs:** ${classified.consulted.map((s) => `\`${s}\``).join(' · ')}.`);
     // Read by the corpus, consulted by nothing. `milestone rows` is always here
     // when readable, with the reason it is kept (FR6). Any other source lands
     // here when the corpus could open it and input 3 did not — either it could
     // not, or it had no id-led row to look up and never tried; the wording is
     // neutral because `sources` cannot tell those apart and guessing is worse.
     const readNotConsulted = ADVISOR_SOURCES.filter(
-      (s) => !ranked.consulted.includes(s) && corpus.checked.includes(s)
+      (s) => !classified.consulted.includes(s) && corpus.checked.includes(s)
     );
     if (readNotConsulted.length > 0) {
       const why = (s) =>
@@ -399,8 +405,8 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
             'open Epic" input; no ranking input reads it'
           : s === 'other branches'
             ? (corpus.sources?.otherBranches?.open?.length ?? 0) > 0
-              ? 'not ranked — an Epic open on another branch is listed above, because finishing it comes ' +
-                'before any priority'
+              ? 'not ranked — an Epic open on another branch is listed in *Open on other branches*, because ' +
+                'finishing it comes before any priority'
               : 'not ranked — no Epic is open on another branch'
             : 'the discharge input did not open it on this run';
       out.push('');
@@ -429,7 +435,7 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
   out.push('');
 
   if (digest) {
-    out.push(`**Digest read:** ${digest.checked.length > 0 ? digest.checked.join(' · ') : 'nothing'}.`);
+    out.push(`**Digest read** (re-read when this file was written): ${digest.checked.length > 0 ? digest.checked.join(' · ') : 'nothing'}.`);
     out.push('');
     if (digest.cannotCheck.length > 0) {
       out.push('**Digest could not read:**');
@@ -648,8 +654,8 @@ export async function writeArtifact(baseDir, { name, content }) {
 async function findStaleCitations(baseDir, probes) {
   const byPath = new Map();
   const stale = [];
-  for (const { path: rel, line, probe } of probes) {
-    if (!rel || !line || !probe) continue;
+  for (const { path: rel, line, probe, probeRe } of probes) {
+    if (!rel || !line || (!probe && !probeRe)) continue;
     if (!byPath.has(rel)) {
       try {
         byPath.set(rel, (await readFile(join(baseDir, rel), 'utf-8')).split('\n'));
@@ -659,7 +665,9 @@ async function findStaleCitations(baseDir, probes) {
     }
     const lines = byPath.get(rel);
     if (lines === null) continue; // unreadable is the citation gate's problem, not this one
-    if (!(lines[line - 1] ?? '').includes(probe)) stale.push({ path: rel, line, expected: probe });
+    const onDisk = lines[line - 1] ?? '';
+    const holds = probeRe ? probeRe.test(onDisk) : onDisk.includes(probe);
+    if (!holds) stale.push({ path: rel, line, expected: probe ?? String(probeRe) });
   }
   return stale;
 }
@@ -688,7 +696,7 @@ export function nextArtifactName(baseDir, stamp, { readText = (p) => readFileSyn
     } catch {
       continue; // unreadable: do not overwrite what we cannot inspect
     }
-    if (!text.includes(`## ${PICK_HEADING}`)) return name;
+    if (!PICK_RE.test(text)) return name;
   }
   throw new Error(`more than 999 advisories for ${stamp} — refusing to pick a name`);
 }
@@ -738,18 +746,6 @@ export async function runAdvise(baseDir, { today, priorities, render = renderArt
     return { ...base, status: 'skipped', path: rel, reason: why };
   }
 
-  const checked = await validatePriorities(baseDir, priorities, corpus);
-  if (!checked.ok) {
-    return {
-      ...base,
-      status: 'skipped',
-      path: rel,
-      reason: `the proposed priorities were refused, so nothing was written (${checked.reasons.length} reason(s))`,
-      reasons: checked.reasons,
-    };
-  }
-  base.priorities = checked.priorities;
-
   // Discharge: fail-open. An un-evaluable check narrows what can be dropped, and says so.
   let discharge = null;
   try {
@@ -760,8 +756,22 @@ export async function runAdvise(baseDir, { today, priorities, render = renderArt
   const confirmedBugs = corpus.sources.bugs
     ? new Set(corpus.sources.bugs.entries.filter((e) => e.status === 'confirmed').map((e) => e.id))
     : null;
+  // Classified BEFORE validation, so a priority can only cover a row the appendix
+  // will show as live (REVIEW pass 1: a covered Parked row rendered twice).
   const classified = classifyRows(corpus.sources.backlog.rows, { stale: discharge?.stale ?? [], discharge, confirmedBugs });
   base.classified = classified;
+
+  const checked = await validatePriorities(baseDir, priorities, corpus, { liveRows: classified.live.map((s) => s.row) });
+  if (!checked.ok) {
+    return {
+      ...base,
+      status: 'skipped',
+      path: rel,
+      reason: `the proposed priorities were refused, so nothing was written (${checked.reasons.length} reason(s))`,
+      reasons: checked.reasons,
+    };
+  }
+  base.priorities = checked.priorities;
 
   let digest = null;
   try {
@@ -778,7 +788,12 @@ export async function runAdvise(baseDir, { today, priorities, render = renderArt
   const probes = [
     ...[...classified.live, ...classified.dropped].map((s) => ({ path: s.row.path, line: s.row.line, probe: rowProbe(s.row.text) })),
     ...checked.priorities.flatMap((p) =>
-      p.covers.filter((c) => c.kind !== 'new').map((c) => ({ path: c.path, line: c.line, probe: c.kind === 'bug' ? c.id : rowProbe(c.label) }))
+      p.covers.filter((c) => c.kind !== 'new').map((c) =>
+        // A bug id word-bounded: `B1` must not be found inside `B12` (REVIEW pass 1).
+        c.kind === 'bug'
+          ? { path: c.path, line: c.line, probeRe: new RegExp(`(^|[^A-Za-z0-9])${c.id}([^0-9]|$)`) }
+          : { path: c.path, line: c.line, probe: rowProbe(c.label) }
+      )
     ),
   ];
   const staleCitations = await findStaleCitations(baseDir, probes);
@@ -795,22 +810,26 @@ export async function runAdvise(baseDir, { today, priorities, render = renderArt
   }
 
   // ── THE RUN BOUNDARY. A count, not a flag (see the header note).
-  //   claims = one per priority (its why line) + one per cited covered row/bug
+  //   claims = every evidence token + one per cited covered row/bug
   //            + one per appendix row (live and dropped).
   const verification = await verifyCitations(baseDir, artifact);
   base.verification = verification;
+  // Counted in TOKENS on both sides, and compared for equality. The first version
+  // counted one per priority against `resolved`'s one per token with `>=`, so a
+  // priority's extra evidence tokens were slack that hid missing appendix
+  // citations (REVIEW pass 1, reproduced with a render seam).
   const coveredCited = checked.priorities.reduce((n, p) => n + p.covers.filter((c) => c.kind !== 'new').length, 0);
-  const claims = checked.priorities.length + coveredCited + classified.live.length + classified.dropped.length;
+  const evidenceTokens = checked.priorities.reduce((n, p) => n + p.evidence.length, 0);
+  const claims = evidenceTokens + coveredCited + classified.live.length + classified.dropped.length;
   if (!verification.ok) {
     const detail = verification.truncated
       ? `the citation scan truncated at ${verification.truncated.limit} of ${verification.truncated.total}`
       : verification.unresolved.map((u) => `\`${u.raw}\` (${u.reason})`).join('; ');
     return { ...base, status: 'skipped', path: rel, reason: `citation check failed, so nothing was written — ${detail}` };
   }
-  // Priorities are 3–5 and each carries at least one citation, so `claims` is
-  // never zero here: the vacuous zero-claims pass the old ranking had to argue
-  // was harmless cannot occur.
-  if (verification.resolved.length < claims) {
+  // Priorities are 3–5 and each carries at least one evidence token, so `claims`
+  // is never zero here: the vacuous zero-claims pass cannot occur.
+  if (verification.resolved.length !== claims) {
     return {
       ...base,
       status: 'skipped',

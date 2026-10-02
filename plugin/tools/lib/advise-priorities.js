@@ -21,6 +21,8 @@ import { verifyCitations, EVIDENCE_MARKER } from './citations.js';
 export const PRIORITY_COUNT = Object.freeze({ min: 3, max: 5 });
 export const WHY_MAX_SENTENCES = 3;
 export const TITLE_MAX = 120;
+/** Per-priority ceiling on `covers` and `evidence`: model output is untrusted, and each evidence token is a file read. */
+export const PER_PRIORITY_MAX = 20;
 
 const BUG_ID_RE = /^B\d+$/;
 const ROW_REF_RE = /^(.+):(\d+)$/;
@@ -49,7 +51,7 @@ export function countSentences(text) {
  *   covers: Array<{kind: 'row'|'bug'|'new', id: string|null, label: string, path: string|null, line: number|null}>,
  *   evidence: string[], dependsOn: number[]}>}>}
  */
-export async function validatePriorities(baseDir, priorities, corpus) {
+export async function validatePriorities(baseDir, priorities, corpus, { liveRows = null } = {}) {
   const reasons = [];
   const out = [];
 
@@ -57,10 +59,21 @@ export async function validatePriorities(baseDir, priorities, corpus) {
     return { ok: false, reasons: ['the proposal must be a JSON array of priorities'], priorities: [] };
   }
   if (priorities.length < PRIORITY_COUNT.min || priorities.length > PRIORITY_COUNT.max) {
-    reasons.push(`${priorities.length} priorities proposed — propose between ${PRIORITY_COUNT.min} and ${PRIORITY_COUNT.max}`);
+    // Returned at once: everything below scales with the proposal's size, and a
+    // proposal of the wrong size is refused whatever else is in it (REVIEW pass 1:
+    // 40 priorities with dense `dependsOn` hung the cycle walk).
+    return {
+      ok: false,
+      reasons: [`${priorities.length} priorities proposed — propose between ${PRIORITY_COUNT.min} and ${PRIORITY_COUNT.max}`],
+      priorities: [],
+    };
   }
 
-  const rows = corpus?.sources?.backlog?.rows ?? [];
+  // Covers are checked against the rows that will appear as LIVE in the appendix.
+  // `runAdvise` passes `classifyRows(...).live`; without it, a covered row the
+  // appendix drops as Parked or folded rendered under a priority AND under
+  // Dropped (REVIEW pass 1).
+  const rows = liveRows ?? corpus?.sources?.backlog?.rows ?? [];
   const rowByRef = new Map(rows.map((r) => [`${r.path}:${r.line}`, r]));
   const openBugs = new Map(
     (corpus?.sources?.bugs?.entries ?? [])
@@ -74,6 +87,7 @@ export async function validatePriorities(baseDir, priorities, corpus) {
     const n = `priority ${i + 1}`;
     if (p === null || typeof p !== 'object' || Array.isArray(p)) {
       reasons.push(`${n}: must be an object with title, why, covers and evidence`);
+      out.push({ title: '', why: '', covers: [], evidence: [], dependsOn: [] }); // keeps indices aligned
       return;
     }
     const title = typeof p.title === 'string' ? p.title.trim() : '';
@@ -90,6 +104,8 @@ export async function validatePriorities(baseDir, priorities, corpus) {
     const covers = [];
     if (!Array.isArray(p.covers) || p.covers.length === 0) {
       reasons.push(`${n}: covers must list at least one backlog row (".planning/BACKLOG.md:LINE"), open bug id ("B12"), or unfiled work ("new: …")`);
+    } else if (p.covers.length > PER_PRIORITY_MAX) {
+      reasons.push(`${n}: ${p.covers.length} covers entries — at most ${PER_PRIORITY_MAX}`);
     } else {
       for (const raw of p.covers) {
         const c = typeof raw === 'string' ? raw.trim() : '';
@@ -114,12 +130,16 @@ export async function validatePriorities(baseDir, priorities, corpus) {
           reasons.push(`${n}: covers entry ${JSON.stringify(raw)} is neither a backlog row citation nor a bug id`);
         }
       }
+      const seenHere = new Set();
       for (const c of covers) {
         if (c.kind === 'new') continue;
         const key = `${c.path}:${c.line}`;
-        if (coveredBy.has(key) && coveredBy.get(key) !== i) {
+        if (seenHere.has(key)) {
+          reasons.push(`${n}: covers ${c.kind === 'bug' ? c.id : key} twice`);
+        } else if (coveredBy.has(key) && coveredBy.get(key) !== i) {
           reasons.push(`${n}: ${c.id ?? key} is already covered by priority ${coveredBy.get(key) + 1} — each row sits under one priority`);
         }
+        seenHere.add(key);
         coveredBy.set(key, i);
       }
     }
@@ -127,11 +147,13 @@ export async function validatePriorities(baseDir, priorities, corpus) {
     const evidence = [];
     if (!Array.isArray(p.evidence) || p.evidence.length === 0) {
       reasons.push(`${n}: evidence must list at least one "path:line" citation`);
+    } else if (p.evidence.length > PER_PRIORITY_MAX) {
+      reasons.push(`${n}: ${p.evidence.length} evidence entries — at most ${PER_PRIORITY_MAX}`);
     } else {
       for (const raw of p.evidence) {
         const e = typeof raw === 'string' ? raw.trim() : '';
         if (!e || /[`\s,]/.test(e) || e.includes(EVIDENCE_MARKER)) {
-          reasons.push(`${n}: evidence entry ${JSON.stringify(raw)} is not a single "path:line" token`);
+          reasons.push(`${n}: evidence entry ${JSON.stringify(raw)} is not a single "path" or "path:line" token`);
           continue;
         }
         evidence.push(e);
@@ -159,16 +181,28 @@ export async function validatePriorities(baseDir, priorities, corpus) {
   });
 
   // A cycle in dependsOn has no order to work in. Refused, naming the cycle.
-  const visit = (i, path) => {
-    for (const d of out[i]?.dependsOn ?? []) {
-      if (path.includes(d - 1)) return [...path, d - 1];
-      const found = visit(d - 1, [...path, d - 1]);
-      if (found) return found;
+  // Three-colour DFS: each priority is finished once, so the walk is linear in the
+  // edges (the first version re-walked every path and doubled per priority).
+  const state = new Array(out.length).fill(0); // 0 unseen, 1 on the stack, 2 done
+  const stack = [];
+  const dfs = (i) => {
+    state[i] = 1;
+    stack.push(i);
+    for (const d of out[i].dependsOn) {
+      const j = d - 1;
+      if (state[j] === 1) return [...stack.slice(stack.indexOf(j)), j];
+      if (state[j] === 0) {
+        const found = dfs(j);
+        if (found) return found;
+      }
     }
+    stack.pop();
+    state[i] = 2;
     return null;
   };
   for (let i = 0; i < out.length; i++) {
-    const cycle = visit(i, [i]);
+    if (state[i] !== 0) continue;
+    const cycle = dfs(i);
     if (cycle) {
       reasons.push(`dependsOn forms a cycle: ${cycle.map((x) => `priority ${x + 1}`).join(' → ')}`);
       break;

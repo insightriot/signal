@@ -27,13 +27,14 @@
 // can disappear at depth 4.
 
 import { existsSync } from 'node:fs';
-import { readFile, readdir } from 'node:fs/promises';
+import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { parseBacklogRows } from './backlog.js';
 import { walkBugEntries } from './bugs-tally.js';
 import { resolveClosures } from './closure.js';
 import { parseEpicStatusRows } from './milestones.js';
+import { readFileConfined } from './path-confine.js';
 import { findWorkOnOtherBranches } from './branch-work.js';
 import { readState } from './state.js';
 
@@ -100,7 +101,8 @@ export async function readCorpus(baseDir) {
     fail('BACKLOG.md', `${backlogRel} is not present — this project keeps no queue here`);
   } else {
     try {
-      const content = await readFile(backlogPath, 'utf-8');
+      // Confined (REVIEW pass 1): a symlinked BACKLOG.md must not pull outside text in.
+      const content = readFileConfined(baseDir, backlogRel);
       const all = parseBacklogRows(content, { maxDepth: 4 });
       const ordered = [...all].sort((a, b) => a.line - b.line);
       const live = ordered.filter((r) => !r.inDetails && !r.discharged);
@@ -140,7 +142,7 @@ export async function readCorpus(baseDir) {
     fail('BUGS.md', `${bugsRel} is not present — this project files no bugs here`);
   } else {
     try {
-      const content = await readFile(bugsPath, 'utf-8');
+      const content = readFileConfined(baseDir, bugsRel);
       const lines = content.split('\n');
       const entries = walkBugEntries(content)
         .filter((e) => e.kind === 'row')
@@ -196,7 +198,7 @@ try {
   const unreadable = [];
   for (const file of files) {
     try {
-      const content = await readFile(join(planningDir, file), 'utf-8');
+      const content = readFileConfined(baseDir, `${PLANNING_DIR}/${file}`);
       const milestone = file.match(MILESTONE_FILE_RE)[1];
       read.push({
         file,

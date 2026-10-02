@@ -27,7 +27,7 @@ describe('advise.md — AC4.1 and AC4.4', () => {
   });
 
   it('records the pick with recordChoice, and offers the three ways to start — nothing starts without a yes', () => {
-    expect(adviseMd).toContain('recordChoice(baseDir, result.path, { pick, words, by })');
+    expect(adviseMd).toContain('recordChoice(baseDir, result.path, { pick, words, by, title })');
     expect(adviseMd).toMatch(/Start it with `\/sig:drive`/);
     expect(adviseMd).toMatch(/Open an Epic with `\/sig:discuss --epic`/);
     expect(adviseMd).toMatch(/\*\*Not now\.\*\*/);

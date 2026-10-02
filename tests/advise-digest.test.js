@@ -174,8 +174,14 @@ describe('formatDigest — AC1.4 and the citation boundary', () => {
 });
 
 describe('TRIM_ORDER', () => {
-  it('gives the backlog way last', () => {
-    expect(TRIM_ORDER[TRIM_ORDER.length - 1]).toBe('backlog');
+  it('gives the backlog way after retrospectives, low-priority bugs and questions', () => {
+    const at = (g) => TRIM_ORDER.indexOf(g);
+    for (const g of ['retrospectives', 'low-priority bugs', 'open questions']) expect(at(g)).toBeLessThan(at('backlog'));
+  });
+  it('every group the digest can grow without limit is trimmable (REVIEW pass 1)', () => {
+    for (const g of ['backlog', 'high-priority bugs', 'low-priority bugs', 'milestone rows', 'retrospectives', 'open questions']) {
+      expect(TRIM_ORDER).toContain(g);
+    }
   });
 });
 
