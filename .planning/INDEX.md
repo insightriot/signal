@@ -17,6 +17,7 @@
 - [BACKLOG-REVIEW-2026-09-06.md](BACKLOG-REVIEW-2026-09-06.md) — `other` — _(note pending)_
 - [BACKLOG-REVIEW-2026-09-13.md](BACKLOG-REVIEW-2026-09-13.md) — `other` — _(note pending)_
 - [BACKLOG-REVIEW-2026-09-14.md](BACKLOG-REVIEW-2026-09-14.md) — `other` — _(note pending)_
+- [BACKLOG-REVIEW-2026-10-01.md](BACKLOG-REVIEW-2026-10-01.md) — `other` — _(note pending)_
 - [BACKLOG.md](BACKLOG.md) — `other` — The sequenced roadmap, promoted from `ISSUES-INBOX.md`; every entry tagged `roadmap` or `hygiene`. Supersedes the point-in-time `BACKLOG-REVIEW-2026-07-04` snapshot (folded in + archived under `archive/`).
 - [BUGS.md](BUGS.md) — `other` — Bugs & verified-findings catalog — where findings get logged (catalog → triage → confirm / dismiss / fixed). GitHub Issues deferred until Signal has live users.
 - [CONTEXT.md](CONTEXT.md) — `other` — Locked + deferred decisions for the *current* work — what DISCUSS settled for the active Epic.
@@ -151,6 +152,7 @@
 - [M6.E12-REQUIREMENTS.md](M6.E12-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E12-RESEARCH.md](M6.E12-RESEARCH.md) — `other` — _(note pending)_
 - [M6.E12-VALIDATION.md](M6.E12-VALIDATION.md) — `other` — _(note pending)_
+- [M6.E12-VERIFICATION.md](M6.E12-VERIFICATION.md) — `other` — _(note pending)_
 - [M6.E2-CORPUS-MEASUREMENT.md](M6.E2-CORPUS-MEASUREMENT.md) — `other` — _(note pending)_
 - [M6.E2-PLAN.md](M6.E2-PLAN.md) — `other` — _(note pending)_
 - [M6.E2-PROGRESS.md](M6.E2-PROGRESS.md) — `other` — _(note pending)_
