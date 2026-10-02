@@ -39,9 +39,10 @@ Named for **the phase or the act**, because the six phases are a fixed vocabular
 **Writes nothing** — with one bounded exception, named rather than hidden. `status` is a snapshot;
 `resume` is a briefing that opens the current phase's artifacts; `advise` reads the whole
 `.planning/` corpus and writes exactly one dated advisory
-(`BACKLOG-REVIEW-YYYY-MM-DD.md`) and nothing else. It belongs here rather than in *doc upkeep*
-because it tells you where you are and recommends where to go; it advances nothing, decides nothing,
-and edits no existing file. **Never touching what is already there is the contract** — an orientation
+(`BACKLOG-REVIEW-YYYY-MM-DD[-N].md`) and nothing else — then, once the user picks a priority,
+appends that pick to the same advisory. It belongs here rather than in *doc upkeep*
+because it tells you where you are and proposes where to go; it advances nothing, decides nothing
+on the user's behalf, and edits no file it did not just write. **Never touching what is already there is the contract** — an orientation
 command that edited state would break the trust that makes these safe to run reflexively.
 
 ### 3. Capture — records something you said
