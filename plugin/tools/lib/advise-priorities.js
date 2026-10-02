@@ -21,8 +21,13 @@ import { verifyCitations, EVIDENCE_MARKER } from './citations.js';
 export const PRIORITY_COUNT = Object.freeze({ min: 3, max: 5 });
 export const WHY_MAX_SENTENCES = 3;
 export const TITLE_MAX = 120;
-/** Per-priority ceiling on `covers` and `evidence`: model output is untrusted, and each evidence token is a file read. */
+/** Per-priority ceiling on `evidence`: model output is untrusted, and each token is a file read. */
 export const PER_PRIORITY_MAX = 20;
+/** Per-priority ceiling on `covers` — lookups, not reads, so wider (REVIEW pass 2: 20 refused a real grouping). */
+export const COVERS_MAX = 50;
+export const WHY_MAX = 600;
+/** Characters that break a line for a reader or a multiline regex: CR, LF, NEL, LS, PS. */
+const LINE_BREAK_RE = /[\r\n\u0085\u2028\u2029]/;
 
 const BUG_ID_RE = /^B\d+$/;
 const ROW_REF_RE = /^(.+):(\d+)$/;
@@ -51,7 +56,7 @@ export function countSentences(text) {
  *   covers: Array<{kind: 'row'|'bug'|'new', id: string|null, label: string, path: string|null, line: number|null}>,
  *   evidence: string[], dependsOn: number[]}>}>}
  */
-export async function validatePriorities(baseDir, priorities, corpus, { liveRows = null } = {}) {
+export async function validatePriorities(baseDir, priorities, corpus, { liveRows = null, droppedRows = [] } = {}) {
   const reasons = [];
   const out = [];
 
@@ -74,6 +79,9 @@ export async function validatePriorities(baseDir, priorities, corpus, { liveRows
   // appendix drops as Parked or folded rendered under a priority AND under
   // Dropped (REVIEW pass 1).
   const rows = liveRows ?? corpus?.sources?.backlog?.rows ?? [];
+  // Why each dropped row was dropped, so a refusal can say it (REVIEW pass 2: the
+  // agent was told "not live" for a row the digest had offered, with no reason).
+  const dropReason = new Map(droppedRows.map((d) => [`${d.path}:${d.line}`, d.why]));
   const rowByRef = new Map(rows.map((r) => [`${r.path}:${r.line}`, r]));
   const openBugs = new Map(
     (corpus?.sources?.bugs?.entries ?? [])
@@ -95,17 +103,20 @@ export async function validatePriorities(baseDir, priorities, corpus, { liveRows
     if (!title) reasons.push(`${n}: title is missing or empty`);
     else if (title.length > TITLE_MAX) reasons.push(`${n}: title is ${title.length} characters — keep it under ${TITLE_MAX}`);
     if (!why) reasons.push(`${n}: why is missing or empty`);
+    else if (why.length > WHY_MAX) reasons.push(`${n}: why is ${why.length} characters — keep it under ${WHY_MAX}`);
     else if (countSentences(why) > WHY_MAX_SENTENCES) reasons.push(`${n}: why runs ${countSentences(why)} sentences — at most ${WHY_MAX_SENTENCES}`);
     for (const [field, text] of [['title', title], ['why', why]]) {
       if (text.includes(EVIDENCE_MARKER)) reasons.push(`${n}: ${field} contains the evidence marker "${EVIDENCE_MARKER}" — put citations in evidence`);
-      if (/[\r\n]/.test(text)) reasons.push(`${n}: ${field} must be one line`);
+      // Every line-breaking character, not only CR/LF: U+2028 broke a multiline
+      // regex's `^`/`$` and forged the pick heading (REVIEW pass 2).
+      if (LINE_BREAK_RE.test(text)) reasons.push(`${n}: ${field} must be one line`);
     }
 
     const covers = [];
     if (!Array.isArray(p.covers) || p.covers.length === 0) {
       reasons.push(`${n}: covers must list at least one backlog row (".planning/BACKLOG.md:LINE"), open bug id ("B12"), or unfiled work ("new: …")`);
-    } else if (p.covers.length > PER_PRIORITY_MAX) {
-      reasons.push(`${n}: ${p.covers.length} covers entries — at most ${PER_PRIORITY_MAX}`);
+    } else if (p.covers.length > COVERS_MAX) {
+      reasons.push(`${n}: ${p.covers.length} covers entries — at most ${COVERS_MAX}`);
     } else {
       for (const raw of p.covers) {
         const c = typeof raw === 'string' ? raw.trim() : '';
@@ -116,7 +127,7 @@ export async function validatePriorities(baseDir, priorities, corpus, { liveRows
           // row anywhere. It is allowed, labelled unfiled, and carries no citation.
           const label = c.replace(NEW_RE, '').trim();
           if (!label) reasons.push(`${n}: a "new:" covers entry needs a description`);
-          else if (label.includes(EVIDENCE_MARKER) || /[\r\n]/.test(label)) reasons.push(`${n}: "new:" entry must be one line without the evidence marker`);
+          else if (label.includes(EVIDENCE_MARKER) || LINE_BREAK_RE.test(label)) reasons.push(`${n}: "new:" entry must be one line without the evidence marker`);
           else covers.push({ kind: 'new', id: null, label, path: null, line: null });
         } else if (BUG_ID_RE.test(c)) {
           const bug = openBugs.get(c);
@@ -124,7 +135,8 @@ export async function validatePriorities(baseDir, priorities, corpus, { liveRows
           else covers.push({ kind: 'bug', id: c, label: bug.headline.replace(/\*\*/g, ''), path: bug.path, line: bug.line });
         } else if (ROW_REF_RE.test(c)) {
           const row = rowByRef.get(c);
-          if (!row) reasons.push(`${n}: covers ${c}, which is not the line of a live backlog row`);
+          if (!row && dropReason.has(c)) reasons.push(`${n}: covers ${c}, but ${c.split('/').pop()} is dropped from the appendix — ${dropReason.get(c)}`);
+          else if (!row) reasons.push(`${n}: covers ${c}, which is not the line of a live backlog row`);
           else covers.push({ kind: 'row', id: row.leadingId ?? null, label: row.text, path: row.path, line: row.line });
         } else {
           reasons.push(`${n}: covers entry ${JSON.stringify(raw)} is neither a backlog row citation nor a bug id`);
@@ -169,6 +181,9 @@ export async function validatePriorities(baseDir, priorities, corpus, { liveRows
     if (p.dependsOn !== undefined) {
       if (!Array.isArray(p.dependsOn)) {
         reasons.push(`${n}: dependsOn must be a list of priority numbers`);
+      } else if (p.dependsOn.length > PRIORITY_COUNT.max - 1) {
+        // One reason, not one per entry: 2,000,000 entries produced 2,000,003 reasons (REVIEW pass 2).
+        reasons.push(`${n}: dependsOn lists ${p.dependsOn.length} entries — at most ${PRIORITY_COUNT.max - 1}`);
       } else {
         for (const d of p.dependsOn) {
           if (!Number.isInteger(d) || d < 1 || d > priorities.length) reasons.push(`${n}: dependsOn ${JSON.stringify(d)} is not a priority number (1–${priorities.length})`);

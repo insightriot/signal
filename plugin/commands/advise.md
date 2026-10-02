@@ -119,9 +119,9 @@ unless one is a precondition of another, and then name the reason.
 
 ### 5. Record — `recordChoice(baseDir, result.path, { pick, words, by, title })`
 
-`pick` is the priority number, or `'other'` with the user's own `words`, verbatim. Pass `title` — the
-title of the priority the user saw — so the pick is refused if the advisory changed after the question
-was asked. It appends a **Picked by you** section to the advisory and writes nothing else. A file that
+`pick` is the priority number, or `'other'` with the user's own `words`, verbatim. Pass `title` as
+`result.priorities[pick - 1].title` — the exact title, not a label you shortened for the picker — so the
+pick is refused if the advisory changed after the question was asked. It appends a **Picked by you** section to the advisory and writes nothing else. A file that
 already records a pick is refused — the record is evidence, and it is never replaced.
 
 **Pass the user's words through a scratchpad JSON file, like the proposal.** They are free text the
@@ -142,8 +142,8 @@ Nothing starts without a yes.
 `verifyCitations` returns `ok: true` over an artifact with **zero** citations. That is correct at
 the unit — nothing was wrong because nothing was claimed — and **vacuous here**. An extractor that
 missed the renderer's grammar would hand back `ok: true` over an artifact in which nothing was
-checked at all. So the gate counts: one citation per priority's `why`, per cited covered row or bug,
-and per appendix row.
+checked at all. So the gate counts, in tokens on both sides and for **equality**: every evidence
+token, every cited covered row or bug, and every appendix row. One too few or one too many refuses.
 
 ## What the citation check does not do
 

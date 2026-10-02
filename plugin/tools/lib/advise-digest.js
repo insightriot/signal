@@ -29,15 +29,15 @@ import { join } from 'node:path';
 import { readCorpus } from './advise-corpus.js';
 import { readState, partitionCompletedPhases, compareEpicIds, EPIC_ID_STRICT_RE } from './state.js';
 import { parseEpicStatusRows } from './milestones.js';
-import { readFileConfined } from './path-confine.js';
+import { readRegularFile, regularFileRefusal } from './path-confine.js';
 
 const PLANNING_DIR = '.planning';
 
-// ⚠ EVERY READ IS CONFINED. A cloned repository can ship any of these files as a
-// symlink, and digest text goes straight into the agent's context. Reproduced at
-// REVIEW pass 1: a symlinked MILESTONE file put an outside secret into the digest.
-// `readFileConfined` (the M6.E3 fix for the same class) refuses a path whose real
-// location is outside the project, and the refusal lands in cannot-check.
+// ⚠ EVERY READ IS A REGULAR FILE, NOT A LINK. A cloned repository can ship any of
+// these files as a symlink, and digest text goes straight into the agent's context.
+// Pass 1 confined reads to the project root; pass 2 showed the root holds `.env` and
+// `.git/config`, which a link inside the project still reached. `readRegularFile`
+// refuses any link and any non-file, and the refusal lands in cannot-check.
 
 /** The sources the digest claims to read, enumerated so a test compares against a value. */
 export const DIGEST_SOURCES = Object.freeze([
@@ -114,12 +114,14 @@ function bugPriority(rowLine) {
  * Every source lands in exactly one of `checked` / `cannotCheck`.
  *
  * @param {string} baseDir
- * @param {{corpus?: object}} [opts] — a `readCorpus` result to reuse, so the
- *   advisory and its digest read the same files at the same moment
+ * @param {{corpus?: object, classified?: object}} [opts] — a `readCorpus` result to
+ *   reuse, so the advisory and its digest read the same files at the same moment;
+ *   and the `classifyRows` result, so the digest offers exactly the rows the gate
+ *   will accept (REVIEW pass 2: it offered 55 while the gate accepted 51)
  * @returns {Promise<{entries: object, checked: string[], cannotCheck: Array<{source:string, reason:string}>,
  *   cut: string[], corpus: object}>}
  */
-export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
+export async function gatherBigPicture(baseDir, { corpus = null, classified = null } = {}) {
   const planningDir = join(baseDir, PLANNING_DIR);
   const entries = Object.fromEntries(DIGEST_SOURCES.map((s) => [s, []]));
   const checked = [];
@@ -130,11 +132,16 @@ export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
 
   const c = corpus ?? (await readCorpus(baseDir));
 
+  // STATE.md is read only as a regular file (REVIEW pass 2: `readState` followed a
+  // link and put an outside `phase` into the digest).
+  const stateRefusal = regularFileRefusal(baseDir, `${PLANNING_DIR}/STATE.md`);
   let state = null;
-  try {
-    state = await readState(baseDir);
-  } catch {
-    state = null;
+  if (!stateRefusal) {
+    try {
+      state = await readState(baseDir);
+    } catch {
+      state = null;
+    }
   }
 
   // ── vision — PROJECT.md in .planning/, or at the root for self-managed repos.
@@ -145,7 +152,7 @@ export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
       fail('vision', 'no PROJECT.md in .planning/ or at the root — this project states no vision here');
     } else {
       try {
-        const lines = readFileConfined(baseDir, rel).split('\n');
+        const lines = readRegularFile(baseDir, rel).split('\n');
         const i = lines.findIndex((l) => /^##\s+(Vision|Problem Statement|Problem)\b/i.test(l));
         if (i === -1) {
           fail('vision', `${rel} has no "## Vision" or "## Problem" heading`);
@@ -171,7 +178,7 @@ export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
       const byNumber = [...files].sort((a, b) => Number(b.match(MILESTONE_FILE_RE)[1]) - Number(a.match(MILESTONE_FILE_RE)[1]));
       const file = (fromEpic && files.find((f) => f === `MILESTONE-${fromEpic[1]}.md`)) || byNumber[0];
       const rel = `${PLANNING_DIR}/${file}`;
-      const content = readFileConfined(baseDir, rel);
+      const content = readRegularFile(baseDir, rel);
       const lines = content.split('\n');
       const h1 = lines.findIndex((l) => /^#\s/.test(l));
       const at = h1 === -1 ? 0 : h1;
@@ -195,23 +202,26 @@ export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
         const rel = `${PLANNING_DIR}/STATE.md`;
         let line = 1;
         try {
-          const lines = readFileConfined(baseDir, rel).split('\n');
+          const lines = readRegularFile(baseDir, rel).split('\n');
           const i = lines.findIndex((l) => /^current_epic:/.test(l));
           if (i !== -1) line = i + 1;
         } catch {
           // the epic is still known from readState; the line falls back to 1
         }
-        entries['open Epics'].push({ path: rel, line, text: `${state.current_epic} — open here at ${state.phase ?? 'an unrecorded phase'}` });
+        entries['open Epics'].push({ path: rel, line, text: clip(`${state.current_epic} — open here at ${state.phase ?? 'an unrecorded phase'}`, DIGEST_CAPS.row) });
       }
     }
     const other = c.sources?.otherBranches;
     if (other) {
       looked = true;
       for (const o of other.open) {
-        entries['open Epics'].push({ branch: o.branches.join(', '), text: `${o.epic} — open at ${o.phase ?? 'an unrecorded phase'} on ${o.branches.join(', ')}` });
+        // Clipped: another branch's STATE.md is anyone-who-can-push input (REVIEW pass 2:
+        // a 100 KB `phase` produced a 100,942-char digest).
+        entries['open Epics'].push({ branch: clip(o.branches.join(', '), DIGEST_CAPS.row), text: clip(`${o.epic} — open at ${o.phase ?? 'an unrecorded phase'} on ${o.branches.join(', ')}`, DIGEST_CAPS.row) });
       }
     }
-    if (looked) ok('open Epics');
+    if (stateRefusal) fail('open Epics', stateRefusal);
+    else if (looked) ok('open Epics');
     else fail('open Epics', 'neither STATE.md nor the branch scan could be read');
   }
 
@@ -220,7 +230,7 @@ export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
     fail('bugs', c.cannotCheck.find((x) => x.source === 'BUGS.md')?.reason ?? 'BUGS.md was not read');
   } else {
     try {
-      const lines = readFileConfined(baseDir, c.sources.bugs.path).split('\n');
+      const lines = readRegularFile(baseDir, c.sources.bugs.path).split('\n');
       const open = c.sources.bugs.entries
         .filter((e) => e.status === 'confirmed' || e.status === 'needs-triage')
         .map((e) => ({ e, p: bugPriority(lines[e.line - 1]) }));
@@ -239,8 +249,14 @@ export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
   if (!c.sources?.backlog) {
     fail('backlog', c.cannotCheck.find((x) => x.source === 'BACKLOG.md')?.reason ?? 'BACKLOG.md was not read');
   } else {
-    for (const r of c.sources.backlog.rows) {
+    const live = classified ? classified.live.map((x) => x.row) : c.sources.backlog.rows;
+    for (const r of live) {
       entries.backlog.push({ path: r.path, line: r.line, text: clip(r.text, DIGEST_CAPS.row) });
+    }
+    if (classified && classified.dropped.length > 0) {
+      cut.push(
+        `${classified.dropped.length} backlog row(s) dropped (discharged, self-declared not live, or folded) are not shown — they cannot be covered`
+      );
     }
     ok('backlog');
   }
@@ -261,13 +277,22 @@ export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
         const eb = EPIC_ID_STRICT_RE.test(unit(b));
         if (ea && eb) return compareEpicIds(unit(b), unit(a));
         if (ea !== eb) return ea ? -1 : 1;
-        return b.localeCompare(a);
+        // Numeric: `phase-11` is newer than `phase-9` (REVIEW pass 2 — text order picked 9, 8, 11).
+        return b.localeCompare(a, undefined, { numeric: true });
       });
       let used = 0;
       for (const f of newestFirst) {
         if (used >= DIGEST_CAPS.retroFiles) break;
         const rel = `${PLANNING_DIR}/${f}`;
-        const content = readFileConfined(baseDir, rel);
+        let content;
+        try {
+          content = readRegularFile(baseDir, rel);
+        } catch (err) {
+          // One unreadable or linked retro is named and skipped; the rest still count
+          // (REVIEW pass 2: one bad file used to blank the whole source).
+          cut.push(`retrospectives: ${f} not read — ${clip(err.message, DIGEST_CAPS.row)}`);
+          continue;
+        }
         if (content.includes('[FILL IN')) continue; // a stub looks back on nothing
         const lines = content.split('\n');
         let found = false;
@@ -297,7 +322,7 @@ export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
       fail('open questions', `${rel} is not present — this project files no questions here`);
     } else {
       try {
-        const lines = readFileConfined(baseDir, rel).split('\n');
+        const lines = readRegularFile(baseDir, rel).split('\n');
         const open = [];
         lines.forEach((l, i) => {
           // Same rule as `countOpenQuestions` (status.js): every `## ` heading is
@@ -328,7 +353,7 @@ export async function gatherBigPicture(baseDir, { corpus = null } = {}) {
         if (!rel) {
           fail('inbox', 'no ISSUES-INBOX.md — this project keeps no capture inbox here');
         } else {
-          const content = readFileConfined(baseDir, rel);
+          const content = readRegularFile(baseDir, rel);
           const n = content.split('\n').filter((l) => /^##\s/.test(l)).length;
           entries.inbox.push({ path: rel, line: 1, text: `${n} entr(y/ies) in the inbox` });
           ok('inbox');
@@ -376,32 +401,6 @@ export function formatDigest(digest) {
   };
   const shown = Object.fromEntries(Object.entries(groups).map(([g, list]) => [g, list.length]));
 
-  // Fixed text: the headings, the cannot-check block, and every untrimmable entry.
-  const head = ['# Big-picture digest', ''];
-  if (digest.cannotCheck.length > 0) {
-    head.push('## Could not read — the picture below is missing these', '');
-    for (const c of digest.cannotCheck) head.push(`- **${c.source}** — ${c.reason}`);
-    head.push('');
-  }
-  const len = (lines) => lines.reduce((n, l) => n + l.length + 1, 0);
-  let total = len(head);
-  for (const source of DIGEST_SOURCES) {
-    if (!digest.checked.includes(source)) continue;
-    total += `## ${source} (${digest.entries[source].length})`.length + 1 + 1 + 1 + 1; // heading, blank, trailing blank, slack
-    if (source === 'milestone' && digest.entries.milestone[0]) total += line(digest.entries.milestone[0]).length + 1;
-    if (source === 'open Epics' || source === 'vision' || source === 'inbox') total += len(digest.entries[source].map(line));
-  }
-  for (const list of Object.values(groups)) total += len(list.map(line));
-
-  // Room for the cut section itself, so the cap holds for the whole output.
-  const reserve = 120 * (digest.cut.length + TRIM_ORDER.length + 2);
-  for (const g of TRIM_ORDER) {
-    while (total > DIGEST_CAPS.total - reserve && shown[g] > 0) {
-      shown[g] -= 1;
-      total -= line(groups[g][shown[g]]).length + 1;
-    }
-  }
-
   const listFor = (source) => {
     if (source === 'bugs') {
       return [...groups['high-priority bugs'].slice(0, shown['high-priority bugs']), ...groups['low-priority bugs'].slice(0, shown['low-priority bugs'])];
@@ -410,27 +409,57 @@ export function formatDigest(digest) {
     if (source in groups) return groups[source].slice(0, shown[source]);
     return digest.entries[source];
   };
-  const out = [...head];
-  for (const source of DIGEST_SOURCES) {
-    if (!digest.checked.includes(source)) continue;
-    const list = listFor(source);
-    out.push(`## ${source} (${digest.entries[source].length})`, '');
-    if (list.length === 0) out.push('- (none)');
-    for (const e of list) out.push(line(e));
-    out.push('');
-  }
 
-  const cut = [...digest.cut];
+  // Reasons are clipped: a cannot-check reason can carry a parser error or a
+  // path, and an unclipped one blew the cap on its own (REVIEW pass 2).
+  const render = (stillOver = false) => {
+    const out = ['# Big-picture digest', ''];
+    if (digest.cannotCheck.length > 0) {
+      out.push('## Could not read — the picture below is missing these', '');
+      for (const c of digest.cannotCheck) out.push(`- **${c.source}** — ${clip(c.reason, DIGEST_CAPS.row * 2)}`);
+      out.push('');
+    }
+    for (const source of DIGEST_SOURCES) {
+      if (!digest.checked.includes(source)) continue;
+      const list = listFor(source);
+      out.push(`## ${source} (${digest.entries[source].length})`, '');
+      if (list.length === 0) out.push('- (none)');
+      for (const e of list) out.push(line(e));
+      out.push('');
+    }
+    const cut = [...digest.cut.map((c) => clip(c, DIGEST_CAPS.row * 2))];
+    for (const g of TRIM_ORDER) {
+      if (shown[g] < groups[g].length) cut.push(`${g}: ${shown[g]} of ${groups[g].length} shown (digest cap ${DIGEST_CAPS.total} chars)`);
+    }
+    if (stillOver) cut.push('still over the cap after every trim — what remains (vision, the milestone heading, open Epics) cannot be cut');
+    if (cut.length > 0) {
+      out.push('## Cut to fit — not shown above', '');
+      for (const c of cut) out.push(`- ${c}`);
+      out.push('');
+    }
+    return out.join('\n');
+  };
+
+  // First pass by arithmetic, so a large digest is not rebuilt per entry (the first
+  // version was quadratic: 1.3 s at 4,000 rows). Then correct against the REAL
+  // length — the estimate cannot see every `(none)` line, and the first bound
+  // reported "still over" for a digest that fit (REVIEW pass 2).
+  const size = (list) => list.reduce((n, e) => n + line(e).length + 1, 0);
+  let estimate = render().length;
   for (const g of TRIM_ORDER) {
-    if (shown[g] < groups[g].length) cut.push(`${g}: ${shown[g]} of ${groups[g].length} shown (digest cap ${DIGEST_CAPS.total} chars)`);
+    while (estimate > DIGEST_CAPS.total && shown[g] > 0) {
+      shown[g] -= 1;
+      estimate -= size([groups[g][shown[g]]]);
+    }
   }
-  if (len(out) > DIGEST_CAPS.total - reserve) {
-    cut.push(`still over the cap after every trim — the untrimmable part (vision, milestone heading, open Epics) is ${len(out)} chars`);
+  let text = render();
+  const nextTrimmable = () => TRIM_ORDER.find((g) => shown[g] > 0);
+  while (text.length > DIGEST_CAPS.total && nextTrimmable()) {
+    shown[nextTrimmable()] -= 1;
+    text = render();
   }
-  if (cut.length > 0) {
-    out.push('## Cut to fit — not shown above', '');
-    for (const c of cut) out.push(`- ${c}`);
-    out.push('');
-  }
-  return out.join('\n');
+  // "Still over" is said only when it is TRUE: every trimmable group is empty and
+  // the text still exceeds the cap.
+  if (text.length > DIGEST_CAPS.total) text = render(true);
+  return text;
 }

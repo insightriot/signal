@@ -34,7 +34,8 @@ import { parseBacklogRows } from './backlog.js';
 import { walkBugEntries } from './bugs-tally.js';
 import { resolveClosures } from './closure.js';
 import { parseEpicStatusRows } from './milestones.js';
-import { readFileConfined } from './path-confine.js';
+import { readRegularFile, regularFileRefusal } from './path-confine.js';
+import { relative } from 'node:path';
 import { findWorkOnOtherBranches } from './branch-work.js';
 import { readState } from './state.js';
 
@@ -101,8 +102,9 @@ export async function readCorpus(baseDir) {
     fail('BACKLOG.md', `${backlogRel} is not present — this project keeps no queue here`);
   } else {
     try {
-      // Confined (REVIEW pass 1): a symlinked BACKLOG.md must not pull outside text in.
-      const content = readFileConfined(baseDir, backlogRel);
+      // A regular file, not a link (REVIEW passes 1 and 2): a linked BACKLOG.md must not
+      // pull outside text in — nor `.env`, which is inside the project root.
+      const content = readRegularFile(baseDir, backlogRel);
       const all = parseBacklogRows(content, { maxDepth: 4 });
       const ordered = [...all].sort((a, b) => a.line - b.line);
       const live = ordered.filter((r) => !r.inDetails && !r.discharged);
@@ -142,7 +144,7 @@ export async function readCorpus(baseDir) {
     fail('BUGS.md', `${bugsRel} is not present — this project files no bugs here`);
   } else {
     try {
-      const content = readFileConfined(baseDir, bugsRel);
+      const content = readRegularFile(baseDir, bugsRel);
       const lines = content.split('\n');
       const entries = walkBugEntries(content)
         .filter((e) => e.kind === 'row')
@@ -166,8 +168,15 @@ export async function readCorpus(baseDir) {
 // ── 4. STATE / closure — what is open, via `resolveClosures` and never raw
 //      `readState`, which THROWS on a missing or unknown `schema_version`.
 //      Uncaught, that is a crash where FR7 promises a `cannot-check` line.
-try {
-  const closure = await resolveClosures(baseDir);
+// STATE.md and every unit file are read only as regular files (REVIEW pass 2:
+// a linked STATE.md put outside text into the committed advisory, on `main` too).
+const stateRefusal = regularFileRefusal(baseDir, `${PLANNING_DIR}/STATE.md`);
+if (stateRefusal) {
+  fail('STATE/closure', stateRefusal);
+} else try {
+  const closure = await resolveClosures(baseDir, {
+    readFileFn: async (abs) => readRegularFile(baseDir, relative(baseDir, abs)),
+  });
   if (!closure.stateReadable) {
     fail('STATE/closure', closure.reason ?? 'STATE.md could not be read');
   } else {
@@ -198,7 +207,7 @@ try {
   const unreadable = [];
   for (const file of files) {
     try {
-      const content = readFileConfined(baseDir, `${PLANNING_DIR}/${file}`);
+      const content = readRegularFile(baseDir, `${PLANNING_DIR}/${file}`);
       const milestone = file.match(MILESTONE_FILE_RE)[1];
       read.push({
         file,

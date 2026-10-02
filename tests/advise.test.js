@@ -575,9 +575,12 @@ describe('M6.E12 FR3 — the advisory artifact', () => {
       title: `Real priority ${i + 1}`,
       why: 'Built from a real row for the test.',
       covers: [`${s.row.path}:${s.row.line}`],
-      evidence: [`${s.row.path}:${s.row.line}`],
+      // Two evidence tokens per priority, on purpose: with one, the pre-fix formula
+      // (one claim per priority) and the shipped one (one per token) agree, and
+      // this test pinned the wrong contract without failing (REVIEW pass 2).
+      evidence: [`${s.row.path}:${s.row.line}`, '.planning/BACKLOG.md'],
     }));
-    const checked = await validatePriorities(cwd, proposal, corpus);
+    const checked = await validatePriorities(cwd, proposal, corpus, { liveRows: classified.live.map((s) => s.row) });
     expect(checked.reasons).toEqual([]);
 
     const art = renderArtifact({ today: TODAY, classified, priorities: checked.priorities, corpus });
@@ -595,7 +598,10 @@ describe('M6.E12 FR3 — the advisory artifact', () => {
 
     const v = await verifyCitations(cwd, art);
     expect(v.unresolved).toEqual([]);
-    const claims = checked.priorities.length + 3 + classified.live.length + classified.dropped.length;
+    // The run's own formula: every evidence token + every cited cover + every appendix row.
+    const evidenceTokens = checked.priorities.reduce((n, p) => n + p.evidence.length, 0);
+    const coveredCited = checked.priorities.reduce((n, p) => n + p.covers.filter((c) => c.kind !== 'new').length, 0);
+    const claims = evidenceTokens + coveredCited + classified.live.length + classified.dropped.length;
     expect(v.resolved.length).toBe(claims);
   });
 

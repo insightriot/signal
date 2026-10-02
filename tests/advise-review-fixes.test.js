@@ -56,7 +56,7 @@ describe('Important 1 — a priority cannot cover a row the appendix drops', () 
     const base = project();
     const r = await runAdvise(base, { today: '2026-10-01', priorities: P([{ covers: ['.planning/BACKLOG.md:6'] }]) });
     expect(r.status).toBe('skipped');
-    expect(r.reasons.join('\n')).toMatch(/\.planning\/BACKLOG\.md:6, which is not the line of a live backlog row/);
+    expect(r.reasons.join('\n')).toMatch(/\.planning\/BACKLOG\.md:6, but BACKLOG\.md:6 is dropped from the appendix — self-declared/);
   });
 
   it('validatePriorities checks against the live rows it is given', async () => {
@@ -146,8 +146,8 @@ describe('Important 5 — digest reads stay inside the project', () => {
     const { digestText, digest } = await prepareAdvise(base);
     expect(digestText).not.toContain('AKIASECRET123');
     expect(digestText).not.toContain('SECRET_VISION_TEXT');
-    expect(digest.cannotCheck.find((c) => c.source === 'milestone').reason).toMatch(/outside the project/);
-    expect(digest.cannotCheck.find((c) => c.source === 'vision').reason).toMatch(/outside the project/);
+    expect(digest.cannotCheck.find((c) => c.source === 'milestone').reason).toMatch(/symbolic link|outside the project/);
+    expect(digest.cannotCheck.find((c) => c.source === 'vision').reason).toMatch(/symbolic link|outside the project/);
   });
 
   it('a symlinked BACKLOG.md pointing outside is cannot-check in the corpus', async () => {
@@ -158,7 +158,7 @@ describe('Important 5 — digest reads stay inside the project', () => {
     symlinkSync(join(outside, 'b.md'), join(base, '.planning', 'BACKLOG.md'));
     const corpus = await readCorpus(base);
     expect(corpus.sources.backlog).toBeNull();
-    expect(corpus.cannotCheck.find((c) => c.source === 'BACKLOG.md').reason).toMatch(/outside the project/);
+    expect(corpus.cannotCheck.find((c) => c.source === 'BACKLOG.md').reason).toMatch(/symbolic link|outside the project/);
   });
 });
 

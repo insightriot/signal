@@ -16,7 +16,7 @@ import { join } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
 import { assertRealInsidePlanning } from './path-confine.js';
-import { ARTIFACT_PREFIX, PICK_HEADING, PICK_RE, isValidStamp, quoteSafe } from './advise.js';
+import { ARTIFACT_PREFIX, PICK_HEADING, hasPick, isValidStamp, quoteSafe } from './advise.js';
 
 const PLANNING_DIR = '.planning';
 const ADVISORY_RE = new RegExp(`^${PLANNING_DIR}/${ARTIFACT_PREFIX}\\d{4}-\\d{2}-\\d{2}(?:-\\d+)?\\.md$`);
@@ -65,7 +65,7 @@ export async function recordChoice(baseDir, artifactRel, { pick, words, by = 'th
   // newline in `at` forged a Priorities heading).
   if (at !== undefined && !isValidStamp(at)) return refuse(`at must be a real YYYY-MM-DD date, got ${JSON.stringify(at)}`);
   const content = await readFile(abs, 'utf-8');
-  if (PICK_RE.test(content)) {
+  if (hasPick(content)) {
     return refuse(`${artifactRel} already records a pick — run /sig:advise again to pick from a fresh advisory`);
   }
   const titles = readPriorityTitles(content);

@@ -30,7 +30,7 @@
 // definition of "closed" living here — is the thing `M5.E19` spent a slice
 // removing. It resolves when the check itself widens, not here.
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, lstatSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -42,7 +42,7 @@ import {
   declaresWorkMovedElsewhere,
 } from './backlog.js';
 import { EVIDENCE_MARKER, verifyCitations } from './citations.js';
-import { assertRealInsidePlanning } from './path-confine.js';
+import { assertRealInsidePlanning, regularFileRefusal } from './path-confine.js';
 import { readCorpus, ADVISOR_SOURCES } from './advise-corpus.js';
 import { nextStepFor } from './branch-work.js';
 import { gatherBigPicture, formatDigest } from './advise-digest.js';
@@ -61,12 +61,24 @@ export const ARTIFACT_PREFIX = 'BACKLOG-REVIEW-';
 export const PICK_HEADING = 'Picked by you';
 
 /**
- * A recorded pick is the heading ON ITS OWN LINE. Not a substring: a backlog row or
- * a model title quoting the words rendered as part of another line, and an
- * `includes` check read every such advisory as already picked — no pick could ever
- * be recorded, and each run climbed to the next `-N` (REVIEW pass 1).
+ * Whether `content` records a pick: the heading as a whole line of its own.
+ *
+ * Not a substring — a backlog row or a model title quoting the words read as
+ * picked (REVIEW pass 1). And not a multiline regex — JavaScript's `^`/`$` also
+ * break on U+2028/U+2029, which forged the heading from inside a title (pass 2).
+ * Lines are split on `\n` only; a trailing `\r` or spaces are tolerated.
  */
-export const PICK_RE = new RegExp(`^## ${PICK_HEADING}$`, 'm');
+export function hasPick(content) {
+  return String(content).split('\n').some((l) => l.replace(/\s+$/, '') === `## ${PICK_HEADING}`);
+}
+
+function isLink(p) {
+  try {
+    return lstatSync(p).isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
 
 /** `YYYY-MM-DD`, and a real date — `today` becomes part of a filename (`SIG-123`). */
 const STAMP_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -236,7 +248,7 @@ export function quoteSafe(text) {
   return String(text)
     .split(EVIDENCE_MARKER)
     .join('— evidence(quoted):')
-    .replace(/[\r\n]+/g, ' ');
+    .replace(/[\r\n\u0085\u2028\u2029]+/g, ' ');
 }
 
 /**
@@ -623,6 +635,8 @@ export async function writeArtifact(baseDir, { name, content }) {
     return { status: 'skipped', path: rel, reason: `${PLANNING_DIR}/ is not present — nothing to write into` };
   }
   assertRealInsidePlanning(baseDir, path, 'writeArtifact');
+  const refusal = regularFileRefusal(baseDir, rel);
+  if (refusal) return { status: 'skipped', path: rel, reason: refusal };
 
   if (existsSync(path)) {
     try {
@@ -689,28 +703,58 @@ export function nextArtifactName(baseDir, stamp, { readText = (p) => readFileSyn
   for (let n = 1; n < 1000; n++) {
     const name = `${ARTIFACT_PREFIX}${stamp}${n === 1 ? '' : `-${n}`}.md`;
     const path = join(planningDir, name);
-    if (!existsSync(path)) return name;
+    if (!existsSync(path) && !isLink(path)) return name;
+    // Never read a link or a non-file at an advisory name: a link to /dev/zero ate
+    // 13.9 GB before any validation ran (REVIEW pass 2). Treat it as taken.
+    if (regularFileRefusal(baseDir, `${PLANNING_DIR}/${name}`)) continue;
     let text = '';
     try {
       text = readText(path);
     } catch {
       continue; // unreadable: do not overwrite what we cannot inspect
     }
-    if (!PICK_RE.test(text)) return name;
+    if (!hasPick(text)) return name;
   }
   throw new Error(`more than 999 advisories for ${stamp} — refusing to pick a name`);
 }
 
+/** One short reason a row was dropped, for a refusal message. */
+function shortDropReason(s) {
+  if (s.notLive.notLive) return `self-declared: \`${s.notLive.declaration}\``;
+  if (s.dischargedElsewhere) return `discharged${s.staleEntry?.id ? ` (\`${s.staleEntry.id}\` reads closed)` : ''}`;
+  return `folded: \`${s.moved.declaration}\``;
+}
+
+/**
+ * Classify the corpus's rows with the discharge input. Shared by both steps, so
+ * the digest offers exactly the rows the gate accepts (REVIEW pass 2).
+ */
+async function classifyCorpus(baseDir, corpus) {
+  if (!corpus.sources.backlog) return null;
+  let discharge = null;
+  try {
+    discharge = await backlogDischargeStatus(baseDir);
+  } catch {
+    discharge = null; // fail-open: an un-evaluable check narrows what can be dropped
+  }
+  const confirmedBugs = corpus.sources.bugs
+    ? new Set(corpus.sources.bugs.entries.filter((e) => e.status === 'confirmed').map((e) => e.id))
+    : null;
+  return classifyRows(corpus.sources.backlog.rows, { stale: discharge?.stale ?? [], discharge, confirmedBugs });
+}
+
 /**
  * Step one of the run: read the corpus and build the digest the agent proposes
- * from. Writes nothing.
+ * from. Writes nothing. The digest's backlog is the LIVE rows — the ones a
+ * priority may cover.
  *
- * @returns {Promise<{corpus: object, digest: object, digestText: string}>}
+ * @returns {Promise<{corpus: object, classified: object|null, digest: object, digestText: string}>}
  */
 export async function prepareAdvise(baseDir) {
   const corpus = await readCorpus(baseDir);
-  const digest = await gatherBigPicture(baseDir, { corpus });
-  return { corpus, digest, digestText: formatDigest(digest) };
+  const classified = await classifyCorpus(baseDir, corpus);
+  const digest = await gatherBigPicture(baseDir, { corpus, classified });
+  return { corpus, classified, digest, digestText: formatDigest(digest) };
 }
 
 /**
@@ -746,22 +790,15 @@ export async function runAdvise(baseDir, { today, priorities, render = renderArt
     return { ...base, status: 'skipped', path: rel, reason: why };
   }
 
-  // Discharge: fail-open. An un-evaluable check narrows what can be dropped, and says so.
-  let discharge = null;
-  try {
-    discharge = await backlogDischargeStatus(baseDir);
-  } catch {
-    discharge = null;
-  }
-  const confirmedBugs = corpus.sources.bugs
-    ? new Set(corpus.sources.bugs.entries.filter((e) => e.status === 'confirmed').map((e) => e.id))
-    : null;
   // Classified BEFORE validation, so a priority can only cover a row the appendix
   // will show as live (REVIEW pass 1: a covered Parked row rendered twice).
-  const classified = classifyRows(corpus.sources.backlog.rows, { stale: discharge?.stale ?? [], discharge, confirmedBugs });
+  const classified = await classifyCorpus(baseDir, corpus);
   base.classified = classified;
 
-  const checked = await validatePriorities(baseDir, priorities, corpus, { liveRows: classified.live.map((s) => s.row) });
+  const checked = await validatePriorities(baseDir, priorities, corpus, {
+    liveRows: classified.live.map((s) => s.row),
+    droppedRows: classified.dropped.map((s) => ({ path: s.row.path, line: s.row.line, why: shortDropReason(s) })),
+  });
   if (!checked.ok) {
     return {
       ...base,
@@ -775,7 +812,7 @@ export async function runAdvise(baseDir, { today, priorities, render = renderArt
 
   let digest = null;
   try {
-    digest = await gatherBigPicture(baseDir, { corpus });
+    digest = await gatherBigPicture(baseDir, { corpus, classified });
   } catch {
     digest = null; // the digest section is informational here; the gate does not depend on it
   }
