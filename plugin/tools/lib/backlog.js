@@ -900,7 +900,7 @@ async function dischargeInStore(baseDir, { rows, by, at, today, base, renameFn }
  *   liveRows:number, resolvable:number, stale:Array<{heading:string, line:number, id:string, evidence:string}>,
  *   sources:{units:boolean, bugs:boolean}}>}
  */
-export async function backlogDischargeStatus(baseDir) {
+export async function backlogDischargeStatus(baseDir, { readText = null } = {}) {
   const path = join(baseDir, BACKLOG_REL);
   const cannot = (reason, extra = {}) => ({
     outcome: BACKLOG_DISCHARGE.CANNOT_EVALUATE,
@@ -915,9 +915,11 @@ export async function backlogDischargeStatus(baseDir) {
 
   if (!existsSync(path)) return cannot(REASON_NO_BACKLOG);
 
+  // `readText(rel)` lets a caller impose its own read rule — `/sig:advise` reads
+  // planning files only as regular, non-linked files (`M6.E12` REVIEW pass 3).
   let content;
   try {
-    content = await readFile(path, 'utf-8');
+    content = readText ? await readText(BACKLOG_REL) : await readFile(path, 'utf-8');
   } catch (err) {
     return cannot(`BACKLOG.md could not be read — ${err.message}`);
   }
@@ -951,7 +953,7 @@ export async function backlogDischargeStatus(baseDir) {
   // the check reported **clean** on Epic-named rows. That is `M5.E19`'s defect
   // verbatim — a report taking its answer from the half that cannot see an
   // unreadable STATE.md — reproduced inside the release whose NFR4 forbids it.
-  const { units, bugs, blind: blindSources } = await readClosureSources(baseDir);
+  const { units, bugs, blind: blindSources } = await readClosureSources(baseDir, readText);
   // Which of the two this run could open — `null` is the reader's own "could not".
   const sources = { units: units !== null, bugs: bugs !== null };
 
@@ -1013,14 +1015,18 @@ export async function backlogDischargeStatus(baseDir) {
  *
  * @returns {Promise<{units: Map|null, bugs: Map|null, blind: string[]}>}
  */
-async function readClosureSources(baseDir) {
+async function readClosureSources(baseDir, readText = null) {
   const blind = [];
   let units = null;
   let bugs = null;
 
   try {
     const { resolveClosures, CLOSURE } = await import('./closure.js');
-    const res = await resolveClosures(baseDir);
+    const { relative } = await import('node:path');
+    const res = await resolveClosures(
+      baseDir,
+      readText ? { readFileFn: async (abs) => readText(relative(baseDir, abs)) } : {}
+    );
     if (!res.stateReadable) {
       // Every unit came back `cannotDetermine` for one project-wide reason.
       blind.push(res.reason ?? 'unit closure is unknowable');
@@ -1037,7 +1043,7 @@ async function readClosureSources(baseDir) {
 
   try {
     const { walkBugEntries } = await import('./bugs-tally.js');
-    const content = await readFile(join(baseDir, BUGS_REL), 'utf-8');
+    const content = readText ? await readText(BUGS_REL) : await readFile(join(baseDir, BUGS_REL), 'utf-8');
     bugs = new Map();
     for (const e of walkBugEntries(content)) {
       if (e.kind !== 'row' || !e.id) continue;

@@ -4,7 +4,19 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-09-30) — M6.E11 SHIPPED (PR #263, v0.1.43), awaiting merge
+## Where things stand (2026-10-02) — M6.E12 SHIPPED (v0.1.45)
+
+**`M6.E12` — *"priorities, not age"*** — `/sig:advise` and `/sig:drive`'s pick step stop ranking by
+age: gather a cited digest of the docs, propose 3–5 big-picture priorities, ask the user to choose,
+record the pick, offer to start it. **Shipped as `v0.1.45`**; residue `SIG-257`. Next (picked by Brett):
+other projects onto the work store — reader fixes, then `B254`/`B255`, then step 5. Requirements:
+[`M6.E12-REQUIREMENTS.md`](M6.E12-REQUIREMENTS.md); decisions `D-M6E12-1` … `D-M6E12-12`.
+Shipped earlier the same day: `v0.1.44` (`B118`, PR #265) and two archive bugs filed (`SIG-254`,
+`SIG-255`, PR #266). Next in the queue after this Epic: step 5 of the work-item store.
+
+---
+
+## Where things stood (2026-09-30) — M6.E11 SHIPPED (PR #263, v0.1.43)
 
 **`M6.E11` — the work-item store, step 1 — is shipped on `feat/m6.e11-work-item-store`, PR #263
 (merge with `--merge`), releasing `v0.1.43`.** Signal's bugs, backlog, inbox and questions are 248+

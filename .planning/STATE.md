@@ -2,49 +2,44 @@
 schema_version: 1
 docs_layout_version: 3
 phase: SHIP
-current_epic: M6.E11
+current_epic: M6.E12
 current_wave: null
 current_tasks: []
 completed_phases:
-  - DISCUSS (2026-09-29)
-  - PLAN (2026-09-29)
-  - EXECUTE (2026-09-29)
-  - VERIFY (2026-09-29)
-  - EXECUTE (2026-09-29)
-  - VERIFY (2026-09-29)
-  - REVIEW (2026-09-29)
-  - EXECUTE (2026-09-29)
-  - REVIEW (2026-09-30)
-  - EXECUTE (2026-09-30)
-  - REVIEW (2026-09-30)
-  - SHIP (2026-09-30)
+  - DISCUSS (2026-10-01)
+  - PLAN (2026-10-01)
+  - EXECUTE (2026-10-02)
+  - VERIFY (2026-10-02)
+  - REVIEW (2026-10-02)
+  - EXECUTE (2026-10-02)
+  - VERIFY (2026-10-02)
+  - REVIEW (2026-10-02)
+  - EXECUTE (2026-10-02)
+  - VERIFY (2026-10-02)
+  - REVIEW (2026-10-02)
+  - SHIP (2026-10-02)
 blockers: []
-last_completed_task:
-  id: M6.E11.S7
-  status: done
-  commit: b6060b73846cdd06b07760409612c92dd5ee1320
-  completedAt: 2026-09-29T14:06:07.617Z
+last_completed_task: null
 last_decision_at: 2026-09-29T14:06:07.617Z
-last_updated_commit: 4c1ccfd
-last_updated: 2026-09-30T22:24:43.091Z
+last_updated_commit: c5047cd
+last_updated: 2026-10-02T15:44:06.513Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-10-01)
+### ▶ WHERE THE WORK IS — read this first (2026-10-02)
 
-**`M6.E11` SHIPPED as `v0.1.43`** (PR #263, merged 2026-09-30): the work-item store, step 1 of
-[`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](../analysis/WORK-ITEM-SYSTEM-DESIGN.md). Retro:
-[`M6.E11-RETROSPECTIVE.md`](M6.E11-RETROSPECTIVE.md).
+**`M6.E12` SHIPPED as `v0.1.45`** (2026-10-02): `/sig:advise` and `/sig:drive`'s pick step propose 3–5
+big-picture priorities from a cited digest of the docs, ask, record the pick, and offer to start it;
+age is gone. Retro: [`M6.E12-RETROSPECTIVE.md`](M6.E12-RETROSPECTIVE.md). Hostile-repository residue:
+`SIG-257`. Earlier the same week: `v0.1.44` (`B118`, other-branch Epics).
 
-**Next, in this order (agreed with Brett 2026-10-01):**
-1. ~~**`B118`** (`SIG-118`) — `/sig:drive` and `/sig:advise` read one branch's `.planning/`.~~
-   **Fixed in `v0.1.44`** (`tools/lib/branch-work.js`, shared by both).
-2. **`/sig:advise` stops ranking by age** — it reviews the docs for the big picture, proposes 3–5
-   big-picture priorities, and asks the user to choose.
-3. **Steps 2–5 of the work-item store** — step 5 is what moves other projects over via
-   `/sig:docs-migrate`.
+**Next — picked by Brett in the first real `/sig:advise` run** ([`BACKLOG-REVIEW-2026-10-01.md`](BACKLOG-REVIEW-2026-10-01.md)):
+**get other projects onto the current system safely.** In order: the backlog-reader fixes (`B121`,
+`B122`, `B127`, `B135`) first, because step 5's `work-migrate.js` reads backlogs with that reader; then
+the archive bugs (`B254`, `B255`); then step 5 of
+[`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](../analysis/WORK-ITEM-SYSTEM-DESIGN.md) (`/sig:docs-migrate`).
 
 ### ▶ PREVIOUS — `M6.E3` SHIPPED
 
@@ -89,7 +84,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-None in flight. Next: the `/sig:advise` priorities redesign — see *Where the work is* above.
+None in flight. Next: other projects onto the current system — see *Where the work is* above.
 
 ## Blockers
 

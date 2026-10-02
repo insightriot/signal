@@ -19,9 +19,9 @@ Source-of-truth for facts cross-cited in `README.md` and `SECURITY.md`. Other do
 
 ## Test surface
 
-- **Test count:** 4237
+- **Test count:** 4428
 
-Set at each release by `tools/cut-release.js`, from the same `vitest` run that gates the release — most recently **v0.1.43 (2026-09-30)**. Deriving it any other way undercounts: several suites generate cases in a loop. The cross-file consistency test (`tests/cross-file-consistency.test.js`) asserts that any test-count mention in README or SECURITY.md matches this value.
+Set at each release by `tools/cut-release.js`, from the same `vitest` run that gates the release — most recently **v0.1.45 (2026-10-02)**. Deriving it any other way undercounts: several suites generate cases in a loop. The cross-file consistency test (`tests/cross-file-consistency.test.js`) asserts that any test-count mention in README or SECURITY.md matches this value.
 
 ## License + repo
 

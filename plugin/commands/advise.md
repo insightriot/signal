@@ -1,16 +1,22 @@
 ---
 name: sig:advise
-description: "Read this project's own .planning/ corpus and recommend what to work on next — every claim carrying a citation that resolves. Read-only except for its dated advisory artifact. Not phase-gated."
+description: "Review this project's own .planning/ docs for the big picture, propose 3–5 priorities — every claim carrying a citation that resolves — and ask which to work on. Records the pick in its dated advisory and offers to start it. Read-only except for that advisory. Not phase-gated."
 args: ""
 ---
 
 # `/sig:advise` — the Roadmap Advisor
 
-You are running `/sig:advise`. It reads this project's `.planning/` corpus and writes a dated
-advisory naming what to work on next — **and what it looked at and passed over.**
+You are running `/sig:advise`. It reviews this project's `.planning/` documents for the big
+picture, **proposes 3–5 priorities, and asks the user which one to work on.** It writes a dated
+advisory holding the priorities, the evidence for each, and — as an unranked appendix — every live
+backlog row, so a row that was passed over is distinguishable from one nobody looked at.
 
-**It proposes. It never selects.** Nothing it writes marks an item decided, nothing lands in
-`DECISION-QUEUE.md`, and no backlog row is struck. The advisory changes nothing on its own.
+**It proposes. The user picks.** Nothing it writes marks an item decided, nothing lands in
+`DECISION-QUEUE.md`, and no backlog row is struck. The pick is recorded only after the user makes
+it, and nothing starts without a yes.
+
+**Age is not an input** (`M6.E12`). The previous version ranked 44 of 46 rows by how long they had
+sat there (`SIG-142`). The big picture is a judgment; this command makes it with receipts.
 
 ## It is not a phase command, and does not read `PROFILE.md`
 
@@ -18,80 +24,141 @@ Taxonomy group **orientation** (`references/command-taxonomy.md`) — it reports
 the flow. So there is **no tier-gating preamble**, the same posture `/sig:status` and `/sig:doctor`
 take. Said out loud because silence here reads as an omission rather than a decision.
 
-No arguments in this first slice.
+No arguments.
 
 ## What it writes, and the one thing it does not
 
-`.planning/BACKLOG-REVIEW-YYYY-MM-DD.md`, and **nothing else**. Not `BACKLOG.md`, not `INDEX.md`,
-not `STATE.md`.
+`.planning/BACKLOG-REVIEW-YYYY-MM-DD.md` (or `-2`, `-3`, … when a same-day advisory already holds a
+pick — a recorded pick is never overwritten), and **nothing else** in `.planning/`. Not
+`BACKLOG.md`, not `INDEX.md`, not `STATE.md`. The pick is appended to that same file.
+
+**One write outside `.planning/`, and it is scratch:** your proposal, as JSON, goes to a file in the
+session's scratchpad directory so it can be passed by path (inline JSON breaks on the first quote
+or backtick in a `why`). It is not project state and is not committed.
 
 ⚠ **The inbound link from `BACKLOG.md` and the `INDEX.md` regeneration are ONE-TIME HUMAN EDITS AT
 SHIP, not command behaviour.** `ORPHAN_ENTRY_POINTS` does not match this filename, so
-`/sig:docs-sweep` flags the artifact as an orphan until `INDEX.md` is regenerated. Writing those
-files from here would breach the read-only contract twice over, in a command whose own
-`writeArtifact` correctly refuses to write anything else.
+`/sig:docs-sweep` flags the artifact as an orphan until `INDEX.md` is regenerated.
 
-The name is **constrained, not chosen**: in Signal's own repository the doc-budget manifest already
-exempts exactly the `BACKLOG-REVIEW-*` pattern, so any other name would need a manifest entry of its
-own or fail the budget check once the advisory grows past 32 KB.
+The name is **constrained, not chosen**: the doc-budget manifest exempts exactly
+`BACKLOG-REVIEW-YYYY-MM-DD[-N].md`.
 
 ## Workflow
 
-Call `runAdvise(baseDir, { today, projectName })` from `tools/lib/advise.js`. It does the whole run:
+Authoritative references: `tools/lib/advise.js` — `prepareAdvise`, `runAdvise`,
+`formatAdviseSummary`; `tools/lib/advise-priorities.js` — `validatePriorities`, `PRIORITY_COUNT`;
+`tools/lib/advise-record.js` — `recordChoice`; `tools/lib/advise-digest.js` — `DIGEST_SOURCES`.
 
-1. **Read the corpus** — `readCorpus` (`tools/lib/advise-corpus.js`) over the five sources in
-   `ADVISOR_SOURCES`: `BACKLOG.md`, `BUGS.md`, STATE/closure, milestone rows, and **other
-   branches** (`B118` — Epics open on a branch not merged into this one, via
-   `findWorkOnOtherBranches`; listed in their own section above the ranking, never ranked, and
-   not cited, because their evidence is not a file on this branch). Retrospectives were read
-   until `M6.E8` — 32 files parsed per run for nothing that ranked. A
-   source that could not be read lands in `cannotCheck` with a reason and its slot stays `null` —
-   never an empty result standing in for one.
-2. **Rank** — seven inputs: blocked-by, trigger-met, **discharge** (`backlogDischargeStatus` —
-   a row whose leading unit or bug id reads closed drops out, and the reason names the source,
-   *unit closure* or `BUGS.md`, with its evidence; ⚠ that check parses at depth 3 while the advisor
-   reads at 4, filed in `BUGS.md` as *"dischargeBacklogRows is blind to rows nested below h3"*),
-   age, **self-declared not-live** (a row whose own *heading* says it is parked, shelved, a reconciliation record, or
-   held open on purpose drops out — `declaresNotLiveWork` in `tools/lib/backlog.js`, which reads the
-   heading and never the body), and **fold** (`M6.E8`: a row whose *heading* says its work moved
-   elsewhere — `FOLDED INTO`, `absorbed into`, `re-homed` — drops out, **unless** the heading also
-   says `KEPT`, which is evaluated first and preserves it — `declaresWorkMovedElsewhere`, same
-   file, same heading-only rule), and **bug-discharge** (`M6.E8`: a row whose *heading* says it
-   fixes / closes / resolves a bug that `BUGS.md` still records as `confirmed` ranks above one that
-   does not — `declaresBugDischarge`, verb adjacent to the id; sorts between trigger-met and age;
-   fires on zero rows here today, declared). Stable tiebreak on source line number. Top `RECOMMENDATION_LIMIT` (5) are recommended; **every other live row is
-   declined, with the reason naming the input that demoted it.** The declined pool is complete
-   rather than curated, which is what makes a passed-over row distinguishable from an unconsidered
-   one (`B39`).
-3. **Render** — `renderArtifact`, pure and file-facing.
-4. **GATE** — `verifyCitations` over the rendered artifact, asserting `unresolved.length === 0`
-   **and** `resolved.length >= recommendations + declined`. Any failure and the artifact is **not
-   written**.
-5. **Write** — `writeArtifact`, idempotent by byte-compare.
+### 1. Gather — `prepareAdvise(baseDir)`
 
-Print `formatAdviseSummary(result)`. On `status: 'skipped'`, print the reason and stop — do not
-write the artifact by another route, and do not describe the run as successful.
+Returns `{corpus, classified, digest, digestText}` and writes nothing. `digestText` is the big-picture digest:
+the project's vision, its current milestone, open Epics (here and on other branches), open bugs by
+priority, every live backlog row, the newest retrospectives' *What to feed back* and *What we'd do
+differently* sections, open questions, and the inbox count — each line ending in its `path:line`.
+**What it could not read is listed first.** Say so to the user if it is not empty: a priority drawn
+from a partial picture is a different claim from one drawn from the whole.
+
+### 2. Propose — you, reading the digest
+
+**Read the whole digest, then open the cited files you need** — a row's body, a retrospective
+section — before proposing. A priority is a direction for the project, not a restated row: group
+the rows and bugs that serve one outcome, and say why that outcome matters **now**.
+
+Write **3 to 5** priorities as a JSON array to a scratchpad file. Each is:
+
+```json
+{
+  "title": "Under 120 characters",
+  "why": "At most three sentences: what it is and why now.",
+  "covers": [".planning/BACKLOG.md:42", "B254", "new: work nobody has filed yet"],
+  "evidence": [".planning/M6.E11-RETROSPECTIVE.md:82", ".planning/BUGS.md:165"],
+  "dependsOn": [2]
+}
+```
+
+- `covers` names what the priority would take on: a **live backlog row by its citation** (the
+  `path:line` the digest gives it), an **open bug by id**, or **unfiled work** as `new: …`. A row
+  sits under one priority only.
+- `evidence` is one or more `path:line` (or `path`) citations, repo-root-relative, that support the
+  `why` — lines you actually read.
+- `dependsOn` (optional) lists the priorities this one should come after, by number.
+
+**Before asking, check the priorities against each other.** Does one make another unsafe or
+pointless to do first — a fix another priority's tool relies on, a measurement another one needs?
+If so, either fold the precondition into the priority that needs it, or say it with `dependsOn`.
+Found on the first real run: the user asked *"are there any natural dependencies?"* and there was
+one (step 5 moves backlogs with the reader that two of the proposed bugs break) — the proposal had
+not looked.
+
+### 3. Validate, render, gate, write — `runAdvise(baseDir, { today, priorities, projectName })`
+
+Parse the scratch file and pass the array. `runAdvise` re-reads the corpus, runs
+`validatePriorities` (count, fields, every citation resolves, every covered row and bug is live),
+renders the advisory, re-checks that every cited row and bug line still carries what it was cited
+for, and asserts the citation **count** — every evidence token, every cited covered row and bug,
+every appendix row, exactly — before writing. A covered row must be one the appendix lists as live:
+a row its own heading parks, folds or closes is refused.
+
+On `status: 'skipped'`, print `formatAdviseSummary(result)` — it lists **every** reason. If the
+reasons are about the proposal, fix the proposal and call again; do not write the artifact by
+another route, and do not describe the run as successful.
+
+On success, print `formatAdviseSummary(result)`.
+
+### 4. Ask — the user picks
+
+Ask which priority to work on:
+
+- **3 or 4 priorities:** one `AskUserQuestion`, one option per priority (label = title, description
+  = the `why`). `AskUserQuestion` takes at most four options, and adds "Other" itself.
+- **5 priorities:** a plain numbered list and the question *"Which one — 1 to 5, or something else?"*
+  — five do not fit the picker.
+
+Present them as proposals, with each `dependsOn` stated in the option. Do not mark one recommended
+unless one is a precondition of another, and then name the reason.
+
+### 5. Record — `recordChoice(baseDir, result.path, { pick, words, by, title })`
+
+`pick` is the priority number, or `'other'` with the user's own `words`, verbatim. Pass `title` as
+`result.priorities[pick - 1].title` — the exact title, not a label you shortened for the picker — so the
+pick is refused if the advisory changed after the question was asked. It appends a **Picked by you** section to the advisory and writes nothing else. A file that
+already records a pick is refused — the record is evidence, and it is never replaced.
+
+**Pass the user's words through a scratchpad JSON file, like the proposal.** They are free text the
+user typed; put inline into a shell command, a quote breaks it and `$(...)` runs.
+
+### 6. Offer to start
+
+Offer, and wait for the answer:
+
+- **Start it with `/sig:drive`** — the picked priority becomes the run's work.
+- **Open an Epic with `/sig:discuss --epic`** — scope it first.
+- **Not now.**
+
+Nothing starts without a yes.
 
 ## Why the gate asserts a count and not a flag
 
 `verifyCitations` returns `ok: true` over an artifact with **zero** citations. That is correct at
 the unit — nothing was wrong because nothing was claimed — and **vacuous here**. An extractor that
 missed the renderer's grammar would hand back `ok: true` over an artifact in which nothing was
-checked at all. "Every citation resolves, whole output, not sampled" is only ever as whole as
-`extractCitations`: extraction **recall** is the hole, not sampling, and a count is what measures it.
+checked at all. So the gate counts, in tokens on both sides and for **equality**: every evidence
+token, every cited covered row or bug, and every appendix row. One too few or one too many refuses.
 
 ## What the citation check does not do
 
 It resolves a path and a line. **It does not check that the cited line says what the claim says it
-says.** Same limit `M5.E10`'s seven checks and `B75`'s ask-record both publish — the semantic half
-is not built. The artifact states this in its own Citation rule section rather than leaving a reader
-to assume otherwise.
+says** — beyond one narrow case: every cited backlog row and bug line is re-read to confirm it still
+carries that row or bug. A priority's `evidence` lines are checked for existence only. The artifact
+states this in its own Citation rule section.
 
 ## Anti-Rationalization Check
 
 | Temptation | Check |
 |---|---|
-| "Strike the rows it recommends, so the queue stays current." | No. It proposes; you decide. A command that edits the queue it just reviewed is no longer read-only, and its next run would be reading its own output. |
-| "The citation check is slowing this down — write the artifact and note the failures inside it." | An advisory that ships with known-bad citations is exactly the artifact this command exists to not produce. A failed check means no file. |
-| "Add the `BACKLOG.md` link and regenerate `INDEX.md` while we're here." | Two writes outside the contract. They are human SHIP steps, named as such above. |
-| "Nothing resolved, but `ok` was true — good enough." | That is the vacuous case, and it is why the gate counts. |
+| "Propose from the row titles; the digest is long." | The digest is the big picture; a priority built from titles is the age ranking with a new label. Read it, and open the files your `why` depends on. |
+| "Mark one priority recommended to save the user a decision." | It proposes; the user picks. Recommend only with a concrete dependency, named. |
+| "The user said yes to the advisory, so start the work." | Picking is not starting. Offer `/sig:drive` / `/sig:discuss --epic` / not now, and wait. |
+| "Strike the rows the pick covers, so the queue stays current." | No. A command that edits the queue it just reviewed is no longer read-only, and its next run would be reading its own output. |
+| "The citation check failed — write the artifact and note the failures inside it." | A failed check means no file. Fix the proposal and run again. |
+| "Re-run and overwrite today's advisory; the pick was a mistake." | A recorded pick is never replaced. Re-run: it writes `-2`, and both records stand. |

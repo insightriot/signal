@@ -27,7 +27,11 @@ The two candidate themes are recorded in `BACKLOG.md` and remain live for `E2` o
 | `M6.E5` | **shipped** — `v0.1.34`, merged 2026-08-28 (PR #211) | `/sig:permissions`, the 22nd command. |
 | `M6.E6` | **shipped** — 2026-09-04; core in `v0.1.37`, REVIEW fixes in PR #236 | The decision queue gets a writer: `routeDecision` + `/sig:drive` as its first caller. |
 | `M6.E7` | **shipped** — merged 2026-09-06 (PR #239, ⚠ squashed; anchors repaired by PR #240) | `/sig:advise`, the 23rd command: the Roadmap Advisor, with citations that mechanically resolve. 2979 → 3304 tests. |
+| `M6.E8` | **shipped** — `v0.1.41`, 2026-09-25 | `/sig:advise` ranks on the sources it reads and says which it consulted; retrospectives dropped as a source. |
+| `M6.E9` | **shipped** — `v0.1.40`, 2026-09-10 | Every agent carries a determination: 7 dispatched, 19 dormant; `plan.md` stopped naming agents that did not exist. |
+| `M6.E10` | **shipped** — `v0.1.40`, 2026-09-10 | `/sig:drive` can take a step: it asks how to run, and floors fire on conditions, not phase names. |
 | `M6.E11` | **shipped** — `v0.1.43`, 2026-09-30 (PR #263) | The work-item store, step 1: one file per thing, moved through folders by `/sig:item` (24th command); Epic folders; Signal's own 248 records migrated. 3602 → 4237 tests. |
+| `M6.E12` | **shipped** — `v0.1.45`, 2026-10-02 | `/sig:advise` and `/sig:drive`'s pick step propose 3–5 big-picture priorities from a cited digest and ask; age removed. |
 
 > ⚠ **This table sat two rows long while six Epics existed** — `M6.E3`, `M6.E4`, `M6.E5` and
 > `M6.E6` were all missing when `M6.E6` closed on 2026-09-04. That is the row *this milestone's own
