@@ -5,7 +5,7 @@
 > and the corpus disagree. A hand-kept list of what a corpus contains is a completeness claim,
 > and this repository is done writing those.
 
-**136 entries: 116 discipline, 20 shaping.**
+**138 entries: 118 discipline, 20 shaping.**
 
 ## The rule (`B38`)
 
@@ -106,12 +106,96 @@ output. Listed so the classification is complete rather than asserted.
 - "`gate_strictness: strict` means I should confirm the destination before writing."
 - "Write to a different file if the inbox (`ISSUES-INBOX.md`) is too long."
 
-### `commands/advise.md` (4)
+### `commands/advise.md` (6)
 
-- "Strike the rows it recommends, so the queue stays current."
-- "The citation check is slowing this down — write the artifact and note the failures inside it."
-- "Add the `BACKLOG.md` link and regenerate `INDEX.md` while we're here."
-- "Nothing resolved, but `ok` was true — good enough."
+- "Propose from the row titles; the digest is long."
+- "Mark one priority recommended to save the user a decision."
+- "The user said yes to the advisory, so start the work."
+- "Strike the rows the pick covers, so the queue stays current."
+- "The citation check failed — write the artifact and note the failures inside it."
+- "Re-run and overwrite today's advisory; the pick was a mistake."
+
+### `commands/calibrate.md`
+
+- **`PROFILE.md` carries all ten `rigor_overrides` keys with explicit values, every run.** A downstream command reads a key; an absent key is a different answer from a stated default.
+
+### `commands/checkpoint.md`
+
+- **The diff renders through `renderStateDiff`, unchanged.** One renderer means a reader who has seen one checkpoint can read every checkpoint.
+
+### `commands/escalate.md`
+
+- **Every run ends by stating the resulting tier**, whether or not it moved. "No change" is a result, and a command that says nothing is indistinguishable from one that failed.
+
+### `commands/init.md`
+
+- **Each Step 5 question is one sentence, plus at most one clarifying line.** The user is answering, not reading.
+
+### `commands/resume.md`
+
+- **Load the current phase's artifact, plus `PROJECT.md` and `CONTEXT.md`.** That set is what re-anchors a reader; anything more spends context they need for the work.
+- **The Vision renders in three sentences or fewer, and decisions as their first five bullets.** The briefing is for re-anchoring, not re-reading.
+- **Trust banners render above the body, in the order given** — binding, schema, staleness, origin, then advisory. A reader decides whether to trust the briefing before spending attention on it.
+
+### `commands/ship.md`
+
+- **The PR body states what changed, why, and how it was verified.** Those three, in that order; the diff shows the rest.
+
+### `commands/status.md`
+
+- **The report is one screen: the blocks specified below, and nothing else.** A status nobody finishes reading is a status nobody read.
+
+### `commands/docs-sweep.md`
+
+- **The report always states which checks were skipped and why.** A check that could not run and a check that found nothing must never render the same.
+
+### `commands/update.md`
+
+- **The report shows installed, available, AND the CHANGELOG entries between them.** The delta is the half `/plugin` cannot show, and the reason to run this at all.
+- **The restart line renders on every update.** Size does not predict whether a stale binding bites; `B52` was a one-line release.
+
+### `commands/permissions.md`
+
+- **The report renders in any repository**, including one with no `.planning/` and no Signal install. The tracked artifact is written only where `.planning/` already exists.
+- **A scope that could not be read is a line the reader sees**, with its reason — never a silent omission and never "0 rules".
+- **Flow-derived and stack-derived rules stay under separate headings**, so a reader can accept one and refuse the other.
+- **The approximation limit renders whenever the read renders**, including when every scope parsed cleanly. That is the case where a reader would otherwise conclude the picture is complete.
+
+### `references/anti-rationalization.md`
+
+- **Provenance: an upstream claim about a third artifact is repeated only after opening that
+
+## Discipline — prohibition form retained
+
+Each stays a prohibition because the failure it names is **skipping a rule**, not mis-shaping an
+output. Listed so the classification is complete rather than asserted.
+
+### `agents/support/phase-gate-enforcer.md` (6)
+
+- "Tests aren't needed for this"
+- "We'll fix it in the next phase"
+- "It works on my machine"
+- "This is just a prototype"
+- "The deadline is too tight"
+- "It's a minor issue"
+
+### `commands/add.md` (6)
+
+- "Just use `appendFile` — `atomicWrite` is overkill."
+- "Skip the lock — solo dev never races."
+- "Auto-redact secrets without asking."
+- "Show entry preview before write so user can confirm."
+- "`gate_strictness: strict` means I should confirm the destination before writing."
+- "Write to a different file if the inbox (`ISSUES-INBOX.md`) is too long."
+
+### `commands/advise.md` (6)
+
+- "Propose from the row titles; the digest is long."
+- "Mark one priority recommended to save the user a decision."
+- "The user said yes to the advisory, so start the work."
+- "Strike the rows the pick covers, so the queue stays current."
+- "The citation check failed — write the artifact and note the failures inside it."
+- "Re-run and overwrite today's advisory; the pick was a mistake."
 
 ### `commands/calibrate.md` (3)
 

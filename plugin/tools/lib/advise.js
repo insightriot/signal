@@ -398,8 +398,10 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
           ? 'kept because it is cheap and is the natural home for a future "already sequenced into an ' +
             'open Epic" input; no ranking input reads it'
           : s === 'other branches'
-            ? 'not ranked — an Epic open on another branch is listed above, because finishing it comes ' +
-              'before any row'
+            ? (corpus.sources?.otherBranches?.open?.length ?? 0) > 0
+              ? 'not ranked — an Epic open on another branch is listed above, because finishing it comes ' +
+                'before any priority'
+              : 'not ranked — no Epic is open on another branch'
             : 'the discharge input did not open it on this run';
       out.push('');
       out.push(`**Read, not consulted:** ${readNotConsulted.map((s) => `\`${s}\` — ${why(s)}`).join('; ')}.`);

@@ -23,6 +23,8 @@ Authoritative references:
   `FLOORS`, `floorsFor`, `queueDecision`, `readQueue`
 - `tools/lib/branch-work.js` — `findWorkOnOtherBranches`, `formatOtherBranchWork` (called inside
   `proposeEpicCandidates`; `B118`)
+- `tools/lib/advise.js` — `prepareAdvise`, `runAdvise` (step 0a's priorities flow, `M6.E12`)
+- `tools/lib/advise-record.js` — `recordChoice`
 - `tools/lib/loop-ceiling.js` — `loopStatusFor`, `formatLoopCeilingHalt`, `LOOP_BOUNDED_PHASES`
 - `tools/lib/profile.js` — `attentionFor`, `ATTENTION_LEVELS`, `readEffectiveProfile`
 - `tools/lib/status.js` — `describeNextAction`, `formatNextActionCopy`
@@ -72,9 +74,25 @@ the first time on 2026-09-03, against a real project.
 
 If the user named an Epic in the arguments, use it and skip to **0b**.
 
-Otherwise call `proposeEpicCandidates(baseDir)`. Present the candidates in the order returned
-— an already-open Epic comes first, because resuming beats starting something new — and ask
-which one, via `AskUserQuestion`, offering the top candidates plus an "something else" path.
+Otherwise call `proposeEpicCandidates(baseDir)`. **An already-open Epic comes first** — resuming
+beats starting something new — so if any candidate is an open Epic (from `STATE.md`, or carrying
+`branch`), offer those first.
+
+**With no open Epic chosen, the work comes from `/sig:advise`'s priorities flow** (`M6.E12`,
+`D-M6E12-3`). Run its steps 1–5 as written in `commands/advise.md`: `prepareAdvise`, propose 3–5
+priorities from the digest, `runAdvise`, ask, `recordChoice`. **The picked priority becomes this
+run's work:** a new Epic, starting at DISCUSS, labelled with the priority's title and scoped to its
+`covers`. When the priorities fit the picker (four or fewer), ask the pick and **0b**'s
+how-to-run question in the same `AskUserQuestion` call; with five, ask the numbered pick first,
+then **0b**.
+
+**The backlog rows stay reachable behind "something else"** — `proposeEpicCandidates`' backlog
+candidates, in their existing order (rows that read as prose sections sink; the rest in file
+order). Age has never been an input here and is not one now.
+
+⚠ **The pick is a human stop at EVERY attention setting, `unattended` included.** `unattended`
+removes the stops between phases; it does not choose the work. No setting picks a priority on the
+user's behalf — that is the silent selection `LOOP-GOAL-DIRECTION.md` measured and forbade.
 
 **"Already open" means open on ANY branch, not just this one** (`B118`). STATE.md is one
 branch's answer, so `proposeEpicCandidates` also reads `STATE.md` from every branch not already
