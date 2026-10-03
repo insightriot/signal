@@ -203,7 +203,19 @@ export function deriveUnits(filenames, opts = {}) {
     if (!units.has(target)) units.set(target, []);
     units.get(target).push(...files);
   }
+  // Pass 4 — the bare plan (`B254`). `PLAN-SLICE-SSO.md` ends in no suffix, so
+  // pass 1 leaves it ungrouped while its five siblings archive without it. A
+  // `{PHASE}-{rest}.md` file joins a unit only when `rest` IS one, or folds onto
+  // one by pass 3's rule — the same conservatism: never onto an unevidenced name.
+  const remaining = [];
+  for (const name of ungrouped) {
+    const m = name.match(/^([A-Z]+)-(.+)\.md$/);
+    const rest = m && PHASE_NAMES.has(m[1]) ? m[2] : null;
+    const target = rest === null ? null : units.has(rest) ? rest : foldTarget(rest, derived);
+    if (target !== null && units.has(target)) units.get(target).push(name);
+    else remaining.push(name);
+  }
   for (const files of units.values()) files.sort();
 
-  return { units, ungrouped: ungrouped.sort() };
+  return { units, ungrouped: remaining.sort() };
 }
