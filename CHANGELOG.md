@@ -6,6 +6,21 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+These four come first because moving other projects into the work-item store (`/sig:docs-migrate`, next) reads their `BACKLOG.md` with this reader.
+
+- **A `BACKLOG.md` with Windows (CRLF) line endings parsed as zero rows** (`B121`), and `/sig:advise` then wrote *"Nothing. No live row survived the ranking inputs."* It now reads CRLF files the same as LF ones, writes a discharged row back in CRLF, and when a file has headings but no rows it recognises, `/sig:advise` says it could not read the backlog instead of reporting an empty queue.
+- **Mentioning `<details>` in a code block or inline code hid every backlog row after it** (`B122`). Only a real `<details>` block now marks the rows inside it as preserved history.
+- **A live row whose marker said a phase was "done" read as finished** (`B127`) — `**IN FLIGHT — EXECUTE done …, VERIFY next**` made `/sig:advise` stop seeing the Epic in flight. Done-words (`DONE`, `SHIPPED`, `CLOSED`, …) now count only in upper case. Measured before the change: no finished row in six projects' backlogs, or in Signal's own history, relies on a lower-case one.
+- **Backlog rows nested at `####` could not be marked done** (`B135`). The discharge step at SHIP and the `/sig:docs-sweep` check now read rows down to `####`, as `/sig:advise` already did; a `###` section heading above them is treated as a section, not a row.
+
+### Still to come
+
+- **Other projects still cannot move into the work-item store.** `/sig:docs-migrate` (step 5 of [`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](analysis/WORK-ITEM-SYSTEM-DESIGN.md)) is not built yet; the archive bugs `B254` and `B255` come before it.
+
 ## [0.1.45] — 2026-10-02 — `/sig:advise` proposes big-picture priorities and asks; age is gone
 
 ### Changed

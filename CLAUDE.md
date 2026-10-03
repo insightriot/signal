@@ -77,8 +77,8 @@ checks them, you pick, the pick is recorded, and it offers to start; age is no l
 `/sig:drive`'s pick step uses the same flow. ⚠ **Three fresh-context review passes, each finding new
 routes for hostile repositories and branches**; stopped at the loop ceiling with a bounded fix, residue
 in `SIG-257`. Retro: [`.planning/M6.E12-RETROSPECTIVE.md`](.planning/M6.E12-RETROSPECTIVE.md).
-**Next, picked in the first real run:** other projects onto the work-item store — reader fixes first,
-then `B254`/`B255`, then step 5 (`/sig:docs-migrate`). `v0.1.44` fixed `B118`. `v0.1.43` (`M6.E11`)
+**Next, picked in the first real run:** other projects onto the work-item store — reader fixes done
+(`v0.1.46`), then `B254`/`B255`, then step 5 (`/sig:docs-migrate`). `v0.1.44` fixed `B118`. `v0.1.43` (`M6.E11`)
 shipped the store itself.
 
 ✅ **`B117` — the Epic lane kept getting squashed. CLOSED 2026-09-08 by the ruleset** (see *How changes reach `main`* below: `main` now permits `merge` only, so the sticky button cannot arm anything). The history is kept because the *cause* is the lesson. PR #239 was
