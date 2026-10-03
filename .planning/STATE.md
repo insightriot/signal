@@ -35,6 +35,15 @@ big-picture priorities from a cited digest of the docs, ask, record the pick, an
 age is gone. Retro: [`M6.E12-RETROSPECTIVE.md`](M6.E12-RETROSPECTIVE.md). Hostile-repository residue:
 `SIG-257`. Earlier the same week: `v0.1.44` (`B118`, other-branch Epics).
 
+**In flight outside this repo (2026-10-03): the first `/sig:advise` test on another project** — a private
+one; its name and path are in the maintainer's memory, never in this repo (`tests/private-name-guard.test.js`).
+Run 1 (baseline) is done — that project's `.planning/BACKLOG-REVIEW-2026-10-03.md`. The priorities held up, but only because the agent
+read files the digest never gave it; five gaps filed as `SIG-258` … `SIG-262`. Brett chose to move
+that project's backlog from GitHub Issues back into files (its own session does it, by PR). **When he pastes
+run 2:** compare it with run 1 — does the real backlog change the priorities, do the two fake heading
+rows disappear, what does "could not read" still list. Note his pick in each run as outcome data
+(`D-M6E12-12`; run on Signal was data point 1).
+
 **Next — picked by Brett in the first real `/sig:advise` run** ([`BACKLOG-REVIEW-2026-10-01.md`](BACKLOG-REVIEW-2026-10-01.md)):
 **get other projects onto the current system safely.** In order: the backlog-reader fixes (`B121`,
 `B122`, `B127`, `B135`) first, because step 5's `work-migrate.js` reads backlogs with that reader; then
