@@ -93,7 +93,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-None in flight. Next: other projects onto the current system — see *Where the work is* above.
+Nothing in flight in this repo. Outside it: the `/sig:advise` test on another project (run 2 pending) — see *Where the work is* above, which also names the next work.
 
 ## Blockers
 
