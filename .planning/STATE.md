@@ -47,7 +47,7 @@ rows disappear, what does "could not read" still list. Note his pick in each run
 **Next — picked by Brett in the first real `/sig:advise` run** ([`BACKLOG-REVIEW-2026-10-01.md`](BACKLOG-REVIEW-2026-10-01.md)):
 **get other projects onto the current system safely.** In order: the backlog-reader fixes (`B121`,
 `B122`, `B127`, `B135`) — **done, `v0.1.46` (2026-10-03)**; then
-the archive bugs (`B254`, `B255`); then step 5 of
+the archive bugs (`B254` done, `v0.1.47`; `B255` needs a design choice); then step 5 of
 [`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](../analysis/WORK-ITEM-SYSTEM-DESIGN.md) (`/sig:docs-migrate`).
 
 ### ▶ PREVIOUS — `M6.E3` SHIPPED

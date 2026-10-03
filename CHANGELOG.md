@@ -6,6 +6,16 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **Archiving a finished slice left its main plan behind** (`B254`). A plan named `PLAN-<unit>.md` (no `-RESEARCH`/`-VALIDATION` ending) was not recognised as part of its unit, so the archive moved the other files and left the plan live, splitting one slice between `.planning/` and `.planning/archive/`. It now joins its unit — only when that unit exists, so an unrelated `PLAN-<name>.md` is left alone.
+
+### Still to come
+
+- **Other projects still cannot move into the work-item store.** `/sig:docs-migrate` (step 5 of [`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](analysis/WORK-ITEM-SYSTEM-DESIGN.md)) is not built yet. `B255` (archiving ignores a project's keep-live list) waits on a design choice.
+
 ## [0.1.46] — 2026-10-03 — the backlog reader reads what other projects' backlogs actually look like
 
 ### Fixed
