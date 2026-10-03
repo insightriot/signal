@@ -108,7 +108,7 @@ export async function readCorpus(baseDir) {
       const all = parseBacklogRows(content, { maxDepth: 4 });
       const ordered = [...all].sort((a, b) => a.line - b.line);
       const live = ordered.filter((r) => !r.inDetails && !r.discharged);
-      const lines = content.split('\n');
+      const lines = content.split(/\r?\n/);
       // Bodies come from CONSECUTIVE `line` values — no second heading walk.
       //
       // ⚠ THE BOUNDARY WALKS `ordered` — EVERY row — NOT `live`, and the
@@ -130,8 +130,15 @@ export async function readCorpus(baseDir) {
         const end = next ? next.line - 1 : lines.length;
         return { ...r, path: backlogRel, body: lines.slice(r.line, end).join('\n').trim() };
       });
-      sources.backlog = { path: backlogRel, rows, totalRows: all.length };
-      checked.push('BACKLOG.md');
+      // `B121`: section headings with zero rows parsed from them is a file this
+      // reader could not read, not an empty queue — otherwise the advisory says
+      // "nothing to do". A title and prose alone is a queue that is empty.
+      if (all.length === 0 && /^#{2,6}[ \t]/m.test(content)) {
+        fail('BACKLOG.md', `${backlogRel} has headings but no rows this reader recognises (rows sit at ## to ####)`);
+      } else {
+        sources.backlog = { path: backlogRel, rows, totalRows: all.length };
+        checked.push('BACKLOG.md');
+      }
     } catch (err) {
       fail('BACKLOG.md', `${backlogRel} could not be read — ${err.message}`);
     }

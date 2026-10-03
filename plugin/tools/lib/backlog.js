@@ -336,7 +336,13 @@ const STRUCK_RE = /~~[^~]+~~/;
 // skipping in silence, which is a false negative rather than a false alarm and so
 // the harder one to notice. Zero of the 26 genuinely-closed rows lose their
 // marker under this rule: every one is struck, bolded, or both.
-export const DONE_WORD_RE = /\*\*[^*]{0,80}?\b(DONE|SHIPPED|ABANDONED|CLOSED|CUT|RESOLVED)\b/i;
+//
+// UPPER CASE ONLY (`B127`). Case-insensitive, the in-flight marker
+// `**IN FLIGHT — EXECUTE done 2026-09-27, VERIFY next**` read as discharged and
+// `/sig:advise` stopped seeing the Epic in flight. Measured 2026-10-03 before
+// dropping `/i`: zero discharged rows rely on a lower-case done-word, across six
+// projects' live BACKLOG.md and five snapshots of Signal's own pre-store file.
+export const DONE_WORD_RE = /\*\*[^*]{0,80}?\b(DONE|SHIPPED|ABANDONED|CLOSED|CUT|RESOLVED)\b/;
 // "PARTIALLY SHIPPED" / "largely DONE" assert OPEN work. The qualifier is
 // stripped before the done-word test rather than special-cased after it, so a
 // row carrying both a qualified and an unqualified marker still reads closed.
@@ -681,17 +687,27 @@ export function parseBacklogRows(content, { maxDepth = 3 } = {}) {
   // Depth 3 is the DEFAULT, not the truth, and the difference is a live bug.
   // Signal's own promoted rows sit at `####` — correct nesting under their `###`
   // section — so a depth-3 read reports zero of them (`B94`'s discharge half,
-  // filed twice). Existing callers keep the old ceiling because widening it
-  // changes which rows they strike; a READER that must not mistake "nested
-  // deeper" for "no work" passes `maxDepth: 4`.
+  // filed twice). Every caller that reads a real BACKLOG.md passes `maxDepth: 4`
+  // — the discharge writer and the sweep check too since `B135`, measured: at 4
+  // the `###` section headers above `####` rows become containers and nothing
+  // else moves, on Signal's history and on every corpus backlog.
   const headingRe = new RegExp(`^(#{2,${Math.max(2, maxDepth)}})\\s+(.*)$`);
 
-  lines.forEach((line, i) => {
+  lines.forEach((raw, i) => {
+    // `B121`: a CRLF file leaves `\r` on every line, `$` cannot match before it,
+    // and the whole file parsed as ZERO rows. Stripped per line so `i` stays
+    // aligned with the `split('\n')` the writers use.
+    const line = raw.endsWith('\r') ? raw.slice(0, -1) : raw;
     const t = line.trimStart();
-    if (t.startsWith('```') || t.startsWith('~~~')) inFence = !inFence;
+    const isFenceLine = t.startsWith('```') || t.startsWith('~~~');
+    if (isFenceLine) inFence = !inFence;
     const m = inFence ? null : line.match(headingRe);
     if (m) heads.push({ line: i + 1, depth: m[1].length, text: m[2].trim(), inDetails: detailsDepth > 0 });
-    detailsDepth += (line.match(/<details/g) ?? []).length - (line.match(/<\/details>/g) ?? []).length;
+    // `B122`: a MENTION of `<details>` — in a fence or a code span — is not a
+    // block, and counting it marked every row after it as preserved history.
+    if (inFence || isFenceLine) return;
+    const bare = line.replace(/`[^`]*`/g, '');
+    detailsDepth += (bare.match(/<details/g) ?? []).length - (bare.match(/<\/details>/g) ?? []).length;
     if (detailsDepth < 0) detailsDepth = 0;
   });
 
@@ -774,8 +790,12 @@ export async function dischargeBacklogRows(baseDir, opts = {}) {
     return { ...base, reason: `could not read ${BACKLOG_REL}: ${err.message}` };
   }
 
+  // `B121`: a CRLF file is edited as LF and written back as CRLF, so the
+  // struck heading and the footer bump do not leave LF lines in a CRLF file.
+  const crlf = content.includes('\r\n') && !/(^|[^\r])\n/.test(content);
+  if (crlf) content = content.replace(/\r\n/g, '\n');
   const lines = content.split('\n');
-  const live = parseBacklogRows(content).filter((r) => !r.inDetails);
+  const live = parseBacklogRows(content, { maxDepth: 4 }).filter((r) => !r.inDetails);
   const results = [];
   const edits = [];
 
@@ -812,7 +832,7 @@ export async function dischargeBacklogRows(baseDir, opts = {}) {
     lines[row.line - 1] = renderDischargedHeading(row.depth, row.text, by ?? 'unspecified', at);
   }
   const bumped = rewriteFooter(lines.join('\n'), today ?? at ?? isoToday());
-  await atomicWrite(path, bumped);
+  await atomicWrite(path, crlf ? bumped.replace(/\n/g, '\r\n') : bumped);
   return { written: true, path, reason: null, results };
 }
 
@@ -924,7 +944,7 @@ export async function backlogDischargeStatus(baseDir, { readText = null } = {}) 
     return cannot(`BACKLOG.md could not be read — ${err.message}`);
   }
 
-  const all = parseBacklogRows(content);
+  const all = parseBacklogRows(content, { maxDepth: 4 });
   const live = all.filter((r) => !r.inDetails);
   const open = live.filter((r) => !r.discharged);
   // The resolvable population is every live row that leads with an id, DISCHARGED
