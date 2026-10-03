@@ -162,7 +162,7 @@
 | B249 | `confirmed` | P3 | **tools/adherence-ceiling.js ignores unknown flags and regenerates the log** |
 | B251 | `confirmed` | P3 | **file-lock held-error understates the wait for a live holder (10x ttl)** |
 | B252 | `confirmed` | P3 | **file-lock: a failed stat treats a fresh empty lock as stale** |
-| B254 | `confirmed` | P1 | **A plan named PLAN-<unit>.md is left out of its unit, so the archive moves 5 of 6 files and splits the slice** |
+| B254 | `fixed` | P1 | **A plan named PLAN-<unit>.md is left out of its unit, so the archive moves 5 of 6 files and splits the slice** |
 | B255 | `confirmed` | P2 | **Archiving ignores a project's explicit keep-live list, so work held open on purpose is proposed for archive** |
 | B257 | `confirmed` | P3 | **/sig:advise hostile-repository hardening — the residue after M6.E12 review pass 3** |
 | B258 | `confirmed` | P2 | **advise digest: milestone files named MILESTONE-M2.9.md are not recognised, so it reports "no milestone file" when there are two** |
@@ -171,4 +171,4 @@
 | B261 | `confirmed` | P2 | **advise digest reads only .planning/, but a project's big picture often lives in docs/ and a roadmap file** |
 | B262 | `confirmed` | P3 | **advise cannot see a backlog kept in GitHub Issues** |
 
-*0 needs-triage · **0 captured-untriaged** · 44 confirmed · 9 dismissed · 98 fixed (**151 total**)*
+*0 needs-triage · **0 captured-untriaged** · 43 confirmed · 9 dismissed · 99 fixed (**151 total**)*

@@ -360,3 +360,44 @@ describe('B82 — a closed unit archives whole, never half', () => {
     ]);
   });
 });
+
+// B254 — the BARE plan. `PLAN-SLICE-SSO.md` ends in no scaffold suffix, so the
+// derivation left it ungrouped and the mover archived the other five, splitting
+// the slice — B82's failure by a different cause. The six names are the ones
+// measured by the 2026-10-01 `/sig:docs-migrate` dry run on `eval-project-A`.
+describe('B254 — a slice with a bare PLAN-<unit>.md archives whole', () => {
+  const SIX = [
+    'PLAN-SLICE-SSO.md',
+    'PLAN-SLICE-SSO-RESEARCH.md',
+    'PLAN-SLICE-SSO-VALIDATION.md',
+    'SLICE-SSO-PROGRESS.md',
+    'SLICE-SSO-REVIEW.md',
+    'SLICE-SSO-VERIFICATION.md',
+  ];
+
+  it('derives one unit of six files, nothing ungrouped', () => {
+    const { units, ungrouped } = deriveUnits(SIX);
+    expect([...units.keys()]).toEqual(['SLICE-SSO']);
+    expect(units.get('SLICE-SSO')).toEqual([...SIX].sort());
+    expect(ungrouped).toEqual([]);
+  });
+
+  it('the mover plans all six into one directory, the plan first', () => {
+    const { moves } = planArchiveMoves(['SLICE-SSO'], SIX.map((f) => `${P}/${f}`));
+    expect(moves.map((m) => m.from.replace(`${P}/`, '')).sort()).toEqual([...SIX].sort());
+    for (const m of moves) expect(m.to.startsWith(`${P}/archive/SLICE-SSO/`)).toBe(true);
+    expect(moves[0].from).toBe(`${P}/PLAN-SLICE-SSO.md`);
+  });
+
+  it('a bare plan folds like its siblings: PLAN-SLICE-VOICE1.md joins VOICE1', () => {
+    const { units, ungrouped } = deriveUnits(['PLAN-SLICE-VOICE1.md', 'VOICE1-PROGRESS.md']);
+    expect(units.get('VOICE1')).toEqual(['PLAN-SLICE-VOICE1.md', 'VOICE1-PROGRESS.md']);
+    expect(ungrouped).toEqual([]);
+  });
+
+  it('stays conservative: a bare plan with no evidenced unit stays ungrouped', () => {
+    const { units, ungrouped } = deriveUnits(['PLAN-ORPHAN.md', 'PLAN-PLAN.md', 'VERIFY-VERIFICATION.md']);
+    expect(units.size).toBe(0);
+    expect(ungrouped).toEqual(['PLAN-ORPHAN.md', 'PLAN-PLAN.md', 'VERIFY-VERIFICATION.md']);
+  });
+});
