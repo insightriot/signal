@@ -165,5 +165,10 @@
 | B254 | `confirmed` | P1 | **A plan named PLAN-<unit>.md is left out of its unit, so the archive moves 5 of 6 files and splits the slice** |
 | B255 | `confirmed` | P2 | **Archiving ignores a project's explicit keep-live list, so work held open on purpose is proposed for archive** |
 | B257 | `confirmed` | P3 | **/sig:advise hostile-repository hardening — the residue after M6.E12 review pass 3** |
+| B258 | `confirmed` | P2 | **advise digest: milestone files named MILESTONE-M2.9.md are not recognised, so it reports "no milestone file" when there are two** |
+| B259 | `confirmed` | P2 | **advise digest: the vision is found only under ## Vision / ## Problem; GSD-style projects use What This Is / Core Value** |
+| B260 | `confirmed` | P2 | **advise digest: a BACKLOG.md that holds only section headings offers them as live work rows** |
+| B261 | `confirmed` | P2 | **advise digest reads only .planning/, but a project's big picture often lives in docs/ and a roadmap file** |
+| B262 | `confirmed` | P3 | **advise cannot see a backlog kept in GitHub Issues** |
 
-*0 needs-triage · **0 captured-untriaged** · 43 confirmed · 9 dismissed · 94 fixed (**146 total**)*
+*0 needs-triage · **0 captured-untriaged** · 48 confirmed · 9 dismissed · 94 fixed (**151 total**)*
