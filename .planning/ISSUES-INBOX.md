@@ -29,3 +29,27 @@
 Seen 2026-10-01 during M6.E12 EXECUTE. plugin/references/anti-rationalization-forms.md carries "## Discipline — prohibition form retained" twice (lines 86 and 168) and "### commands/add.md" three times. tests/anti-rationalization-forms.test.js checks that every corpus entry appears and that the page names nothing the corpus lacks, so it cannot see duplication — every copy is a valid entry. Editing a command's anti-rationalization table means editing every copy by hand (M6.E12 had to update commands/advise.md in two places). Fix: drop the duplicate section; add a no-duplicate-heading assertion to the test.
 
 ---
+
+## advise records one pick, but people choose an order
+
+**Status:** untriaged (N) · SIG-263
+
+Found 2026-10-03 on the second outside-Signal /sig:advise run (eval-project, run 1). The maintainer picked priority 1 AND a four-step order (1, then a polish batch, then versioning work, then a DISCUSS). recordChoice can record one pick only, so the agent recorded it as "Something else" with its own summary of the order — the advisory now reads as a miss although priority 1 was picked. For the outcome oracle (D-M6E12-12) count that run as priority 1. Fix: an optional `order` recorded alongside the pick.
+
+---
+
+## advise "Other" answer must stay verbatim; summaries go in a separate field
+
+**Status:** untriaged (N) · SIG-264
+
+Same run as the pick-order item (2026-10-03). The agent recorded the maintainer's "Other" answer as near-verbatim words plus its own bracketed summary, in one field. The recorded choice is outcome data: the user's words must be stored exactly, and any agent paraphrase in a separate, labelled field.
+
+---
+
+## isStateStale counts STATE.md-only commits as unreflected work
+
+**Status:** untriaged (N) · SIG-265
+
+isStateStale (tools/lib/state.js) counts commits that touch only .planning/STATE.md — "docs(state): …", "chore(state): mark STATE.md fresh" — as work STATE.md does not reflect. Marking STATE fresh goes through a PR, so the merge always leaves STATE "N commits behind". Measured 2026-10-03 after PR #270: /sig:resume reported 3 behind, all three STATE-only. Fix: ignore commits whose only change is STATE.md (and their merge commits).
+
+---
