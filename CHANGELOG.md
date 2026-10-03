@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.46] — 2026-10-03 — the backlog reader reads what other projects' backlogs actually look like
 
 ### Fixed
 
