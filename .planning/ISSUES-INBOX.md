@@ -53,3 +53,11 @@ Same run as the pick-order item (2026-10-03). The agent recorded the maintainer'
 isStateStale (tools/lib/state.js) counts commits that touch only .planning/STATE.md — "docs(state): …", "chore(state): mark STATE.md fresh" — as work STATE.md does not reflect. Marking STATE fresh goes through a PR, so the merge always leaves STATE "N commits behind". Measured 2026-10-03 after PR #270: /sig:resume reported 3 behind, all three STATE-only. Fix: ignore commits whose only change is STATE.md (and their merge commits).
 
 ---
+
+## private-name guard can time out under a full parallel run
+
+**Status:** untriaged (N) · SIG-266
+
+2026-10-03, local full run before the v0.1.47 PR: tests/private-name-guard.test.js "no file outside the recorded inventory names a private project" failed at 15048 ms against testTimeout 15000 (vitest.config). Alone it ran in 3.6 s and the next full run was green; CI was green. A flaky guard is worse than a slow one: a red that goes away on re-run teaches people to re-run past it, and this is the test that keeps private project names out of the repo. Fix: give this test its own timeout, or make the scan cheaper.
+
+---
