@@ -6,7 +6,7 @@
 // `checkRecords` without writing. Mutations regenerate through it by default.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, readFile, symlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -347,6 +347,31 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   await rm(base, { recursive: true, force: true });
+});
+
+// REVIEW pass 1 (part A noticed): the watchlist was read with existsSync /
+// readFileSync, which follow a link — a committed `WATCHLIST.md -> ~/secret`
+// would be copied into the generated inbox. It is read only as a regular file.
+describe('the watchlist is read only as a regular, unlinked file', () => {
+  it('a linked WATCHLIST.md refuses the regeneration (CONFLICT); nothing is written, nothing leaks', async () => {
+    const outside = await mkdtemp(join(tmpdir(), 'sig-views-outside-'));
+    try {
+      await writeFile(join(outside, 'secret.md'), 'OUTSIDE-SECRET\n');
+      await rm(join(base, '.planning/work/WATCHLIST.md'));
+      await symlink(join(outside, 'secret.md'), join(base, '.planning/work/WATCHLIST.md'));
+      expect(() => regenerateToMemory(base)).toThrow(expect.objectContaining({ code: 'CONFLICT', message: expect.stringMatching(/WATCHLIST\.md/) }));
+      await expect(regenerateViews(base)).rejects.toMatchObject({ code: 'CONFLICT' });
+      expect(existsSync(join(base, P.inbox))).toBe(false);
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
+  });
+
+  it('no WATCHLIST.md: the inbox renders without one', async () => {
+    await rm(join(base, '.planning/work/WATCHLIST.md'));
+    await regenerateViews(base);
+    expect(await read(P.inbox)).not.toMatch(/Trigger watchlist/);
+  });
 });
 
 describe('regenerateViews / regenerateToMemory', () => {

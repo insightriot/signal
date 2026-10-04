@@ -32,7 +32,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { assertRealInsidePlanning, linkedComponent } from './path-confine.js';
+import { assertRealInsidePlanning, linkedComponent, readRegularFile, regularFileRefusal } from './path-confine.js';
 import { compareEpicIds, EPIC_ID_STRICT_RE, parseFrontmatter, StateSchemaError } from './state.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
 import { bodyDirFor } from './work-convert.js';
@@ -362,9 +362,21 @@ function renderStore(baseDir) {
     throw new WorkStoreError('SCHEMA', 'cannot generate the views — a view of part of the store would silently '
       + `drop the broken records. Fix these first:\n${broken.map((b) => `  ${b.error}`).join('\n')}`);
   }
-  const wl = join(baseDir, WATCHLIST_REL);
-  const watchlistText = existsSync(wl) ? readFileSync(wl, 'utf-8') : null;
-  return renderViews(records, { watchlistText, epics: readEpicFolders(baseDir) });
+  return renderViews(records, { watchlistText: readWatchlist(baseDir), epics: readEpicFolders(baseDir) });
+}
+
+// `work/WATCHLIST.md`, read only as a regular, unlinked file inside the
+// project (REVIEW pass 1): a link would copy whatever it points at into the
+// generated inbox. Absent → null; a link or a non-file → CONFLICT, naming it.
+function readWatchlist(baseDir) {
+  const refusal = regularFileRefusal(baseDir, WATCHLIST_REL);
+  if (refusal !== null) throw new WorkStoreError('CONFLICT', `${refusal}. The views were not generated.`);
+  try {
+    return readRegularFile(baseDir, WATCHLIST_REL);
+  } catch (err) {
+    if (err?.code === 'ENOENT') return null;
+    throw asWorkStoreError(err, 'IO');
+  }
 }
 
 /**
