@@ -196,10 +196,12 @@ the same wrap limit `S5.t1` pinned for `checkCorrectionProtocol`, hit here while
    list the backlog rows its work closed. If it closed none, say so — *"no backlog rows discharged;
    this Epic closed no queued item"* — and continue. A step that skips silently when it has nothing
    to do is indistinguishable from a step that did not run.
-2. Report every result. Four outcomes come back and they mean different things: `discharged`,
+2. Report every result. Five outcomes come back and they mean different things: `discharged`,
    `already-discharged` (someone struck it by hand — fine, and not an error), `not-found` (your
-   heading substring matched no live row — check the wording), and **`ambiguous`**, which **wrote
-   nothing** because the substring matched more than one row. Name the row exactly and re-run.
+   heading substring matched no live row — check the wording), `unreadable` (v2 store: nothing
+   readable matched and some records could not be read — the row may be one of them; fix the named
+   records, then re-run), and **`ambiguous`**, which **wrote nothing** because the substring matched
+   more than one row. Name the row exactly and re-run.
 3. When `{written: true}`, stage the modified `.planning/BACKLOG.md` into the SHIP commit alongside
    §5/§6/§6.5.
 

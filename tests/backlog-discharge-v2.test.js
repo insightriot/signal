@@ -119,6 +119,25 @@ describe('dischargeBacklogRows on a v2 store — a close request with the Epic c
     expect(snapshotTree(root)).toEqual(before);
   });
 
+  // REVIEW pass 1 suggestion: a row whose record cannot be read is not "not
+  // found" — the row may be that record. Said distinctly, naming the record.
+  it('a row that matches nothing while a record is unreadable reads `unreadable`, naming it; nothing written', async () => {
+    await v2Store();
+    await put(records.recordPath('SIG-9'), '{ not json\n');
+    const before = snapshotTree(root);
+    const res = await dischargeBacklogRows(root, { rows: ['no such row'], by: 'M6.E13', at: TODAY, commit: SHA });
+    expect(res.written).toBe(false);
+    expect(res.results).toEqual([{
+      row: 'no such row',
+      status: ROW_DISCHARGE.UNREADABLE,
+      reason: expect.stringContaining(records.recordPath('SIG-9')),
+      heading: null,
+      line: null,
+    }]);
+    expect(ROW_DISCHARGE.UNREADABLE).not.toBe(ROW_DISCHARGE.NOT_FOUND);
+    expect(snapshotTree(root)).toEqual(before);
+  });
+
   it('an ambiguous row refuses and writes nothing for it', async () => {
     await v2Store();
     const before = snapshotTree(root);

@@ -287,6 +287,9 @@ export const ROW_DISCHARGE = Object.freeze({
   ALREADY_DISCHARGED: 'already-discharged',
   NOT_FOUND: 'not-found',
   AMBIGUOUS: 'ambiguous',
+  // v2 store only: nothing readable matched, and some records could not be
+  // read — the row may be one of them, so "not found" would be a guess.
+  UNREADABLE: 'unreadable',
 });
 
 /**
@@ -605,7 +608,9 @@ export async function dischargeBacklogRows(baseDir, opts = {}) {
 async function dischargeInRecords(baseDir, { rows, by, at, today, base, renameFn, commit }) {
   const who = String(by ?? 'unspecified');
   const when = at ?? today ?? isoToday();
-  const rowsOf = listRecords(baseDir).records.filter((r) => r.record.type !== 'BUG' && r.record.type !== 'Q' && r.status !== 'N');
+  const listed = listRecords(baseDir);
+  const rowsOf = listed.records.filter((r) => r.record.type !== 'BUG' && r.record.type !== 'Q' && r.status !== 'N');
+  const unreadable = listed.broken.map((b) => b.path);
   const isOpen = (r) => r.status !== 'C' && r.status !== 'closing';
   const titleOf = (r) => r.record.title ?? r.id;
   const results = [];
@@ -632,6 +637,15 @@ async function dischargeInRecords(baseDir, { rows, by, at, today, base, renameFn
       const last = hit.record.events.findLast((e) => e.type === 'closed' || e.type === 'close_requested');
       const how = hit.status === 'closing' ? `already closing (fixed by ${last?.proof})` : `already closed (${last?.reason})`;
       results.push({ row: query, status: ROW_DISCHARGE.ALREADY_DISCHARGED, reason: `${how} at ${hit.path}`, heading: titleOf(hit), line: null, id: hit.id });
+    } else if (unreadable.length > 0) {
+      results.push({
+        row: query,
+        status: ROW_DISCHARGE.UNREADABLE,
+        reason: `no readable row matches ${JSON.stringify(query)}, and ${unreadable.length} record${unreadable.length === 1 ? '' : 's'} `
+          + `could not be read (${unreadable.join(', ')}) — the row may be one of them. Fix them, then re-run.`,
+        heading: null,
+        line: null,
+      });
     } else {
       results.push({ row: query, status: ROW_DISCHARGE.NOT_FOUND, reason: `no live backlog row matches ${JSON.stringify(query)}`, heading: null, line: null });
     }
