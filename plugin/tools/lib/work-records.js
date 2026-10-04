@@ -875,9 +875,11 @@ export async function newItems(baseDir, specs, opts = {}) {
  * table), with `type`, `priority`, `theme` and `title` set when given. The
  * Epic is cleared. The resulting type may not be NEW.
  *
- * ⚠ A field changed here that has an `edited` history is refused by
- * `checkEvents` (the record would disagree with its last edit; Decisions 2
- * and 3): `triaged` carries no field changes. Edit it with `editItem` instead.
+ * The fields this triage changes are recorded on the event as
+ * `changes: {field: {from, to}}` (`from` is the previous value, or null), the
+ * `edited` shape, so a re-triage after an edit keeps the record and its
+ * history agreeing (`checkEvents`). A field given its current value is not a
+ * change; with none, the event carries no `changes`.
  *
  * Sensitive data: `title` and `theme` (v1 `applyTriage`'s gate).
  *
@@ -898,7 +900,14 @@ export async function triageItem(baseDir, id, triage = {}, opts = {}) {
     if ((fields.type ?? current.record.type) === 'NEW') {
       throw new WorkStoreError('SCHEMA', `${id}: triage needs a type (BUG, FEAT, CHORE or Q) — nothing was written.`);
     }
-    const next = withEvent(current, { type: 'triaged', at: triage.at ?? nowIso(), by: triage.by }, fields);
+    const changes = {};
+    for (const [field, to] of Object.entries(fields)) {
+      const from = Object.hasOwn(current.record, field) ? current.record[field] : null;
+      if (from !== to) changes[field] = { from, to };
+    }
+    const event = { type: 'triaged', at: triage.at ?? nowIso(), by: triage.by };
+    if (Object.keys(changes).length > 0) event.changes = changes;
+    const next = withEvent(current, event, fields);
     const out = await writeRecord(handle, next, opts);
     await regenerateAfter(handle, `${id} was triaged`, opts);
     return out;

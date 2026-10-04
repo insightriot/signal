@@ -35,6 +35,21 @@
         "to": { "$ref": "#/$defs/value" }
       }
     },
+    "changes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "$ref": "#/$defs/change" },
+        "title": { "$ref": "#/$defs/change" },
+        "theme": { "$ref": "#/$defs/change" },
+        "priority": { "$ref": "#/$defs/change" },
+        "source": { "$ref": "#/$defs/change" },
+        "source_ref": { "$ref": "#/$defs/change" },
+        "legacy_id": { "$ref": "#/$defs/change" },
+        "keep_because": { "$ref": "#/$defs/change" },
+        "migration_note": { "$ref": "#/$defs/change" }
+      }
+    },
     "created": {
       "type": "object",
       "additionalProperties": false,
@@ -52,7 +67,8 @@
       "properties": {
         "type": { "const": "triaged" },
         "at": { "$ref": "#/$defs/at" },
-        "by": { "$ref": "#/$defs/text" }
+        "by": { "$ref": "#/$defs/text" },
+        "changes": { "$ref": "#/$defs/changes" }
       }
     },
     "queued": {
@@ -122,21 +138,7 @@
         "type": { "const": "edited" },
         "at": { "$ref": "#/$defs/at" },
         "by": { "$ref": "#/$defs/text" },
-        "changes": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "type": { "$ref": "#/$defs/change" },
-            "title": { "$ref": "#/$defs/change" },
-            "theme": { "$ref": "#/$defs/change" },
-            "priority": { "$ref": "#/$defs/change" },
-            "source": { "$ref": "#/$defs/change" },
-            "source_ref": { "$ref": "#/$defs/change" },
-            "legacy_id": { "$ref": "#/$defs/change" },
-            "keep_because": { "$ref": "#/$defs/change" },
-            "migration_note": { "$ref": "#/$defs/change" }
-          }
-        }
+        "changes": { "$ref": "#/$defs/changes" }
       }
     }
   }

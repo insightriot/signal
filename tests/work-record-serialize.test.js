@@ -80,6 +80,23 @@ describe('serializeRecord — fixed key order (Decision 8)', () => {
     expect(Object.keys(back.events[7].changes.title)).toEqual(['from', 'to']);
   });
 
+  it('a triaged event carrying changes: changes last, in the record order (t1.3 fix)', () => {
+    const r = {
+      id: 'SIG-9',
+      type: 'BUG',
+      title: 'x',
+      priority: 2,
+      events: [
+        { type: 'created', at: AT, by: 'c' },
+        { changes: { priority: { to: 2, from: null }, type: { to: 'BUG', from: 'NEW' } }, by: 'c', at: AT, type: 'triaged' },
+      ],
+    };
+    const ev = JSON.parse(serializeRecord(r)).events[1];
+    expect(Object.keys(ev)).toEqual(['type', 'at', 'by', 'changes']);
+    expect(Object.keys(ev.changes)).toEqual(['type', 'priority']);
+    expect(Object.keys(ev.changes.type)).toEqual(['from', 'to']);
+  });
+
   it('2-space indent and exactly one trailing newline', () => {
     expect(text.split('\n')[1]).toBe('  "id": "SIG-42",');
     expect(text.endsWith('}\n')).toBe(true);

@@ -222,6 +222,36 @@ describe('edited consistency (Decision 2, D-M6E13-19)', () => {
   });
 });
 
+describe('triaged changes join the edited consistency rule (t1.3 fix)', () => {
+  const edit = (changes) => ({ type: 'edited', at: AT, by, changes });
+  const triage = (changes) => ({ ...E.triaged, changes });
+
+  it('a re-triage after an edit: the field must equal the triage\'s `to`', () => {
+    const events = [E.created, edit({ title: { from: 'A', to: 'B' } }), triage({ title: { from: 'B', to: 'C' } })];
+    expect(checkEvents(rec(events, { title: 'C' }))).toEqual([]);
+    const bad = checkEvents(rec(events, { title: 'B' }));
+    expect(bad).toEqual([{ index: 2, message: expect.stringMatching(/title was last triaged to "C"/) }]);
+  });
+
+  it('a later edit wins over an earlier triage', () => {
+    const events = [E.created, triage({ theme: { from: null, to: 'x' } }), edit({ theme: { from: 'x', to: 'y' } })];
+    expect(checkEvents(rec(events, { theme: 'y' }))).toEqual([]);
+    expect(checkEvents(rec(events, { theme: 'x' })).map((e) => e.index)).toEqual([2]);
+  });
+
+  it('a triaged with no changes says nothing about fields', () => {
+    expect(checkEvents(rec([E.created, edit({ title: { from: 'A', to: 'B' } }), E.triaged], { title: 'B' }))).toEqual([]);
+  });
+
+  it('an illegal triaged is a sequence error, and its changes still count for the fields', () => {
+    const events = [E.created, E.triaged, triage({ theme: { from: 'x', to: 'y' } })]; // T -> T
+    const errs = checkEvents(rec(events)); // theme is still 'x'
+    expect(errs).toHaveLength(2);
+    expect(errs.every((e) => e.index === 2)).toBe(true);
+    expect(checkEvents(rec(events, { theme: 'y' }))).toHaveLength(1);
+  });
+});
+
 describe('a history that does not start with created', () => {
   it('is one error at index 0, not one per event', () => {
     expect(checkEvents(rec([E.triaged, E.created, E.queued]))).toEqual([{ index: 0, message: expect.any(String) }]);

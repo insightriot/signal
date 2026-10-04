@@ -214,6 +214,16 @@ describe('validateRecord — rejections (AC1.6: unknown keys are errors)', () =>
     expect(validateRecord(record([{ ...EVENT_SAMPLES.edited, changes: { theme: { from: null, to: 'x' } } }], { theme: 'x' }))).toEqual([]);
   });
 
+  it('triaged may carry changes, in the edited shape (t1.3 fix)', () => {
+    const triagedWith = (changes) => ({ ...EVENT_SAMPLES.triaged, changes });
+    expect(validateRecord(record([triagedWith({ type: { from: 'NEW', to: 'BUG' } })]))).toEqual([]);
+    expect(validateRecord(record([triagedWith({})]))).toEqual(['events[1].changes must name at least one field']);
+    expect(validateRecord(record([triagedWith({ status: { from: 'N', to: 'T' } })]))).toEqual([
+      'events[1].changes.status is not a known field',
+    ]);
+    expect(validateRecord(record([triagedWith({ theme: { to: 'x' } })]))).toEqual(['events[1].changes.theme.from is required']);
+  });
+
   it('returns every error, not just the first', () => {
     const errs = validateRecord({
       id: 'x',

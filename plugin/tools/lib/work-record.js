@@ -27,7 +27,8 @@ import { WorkStoreError } from './work-errors.js';
  *
  * Rules the subset cannot express are written in code below and listed where
  * they live: event dispatch by `type` (there is no `oneOf`); `closed` proof
- * unless legacy or dup; `dup_of` if and only if `dup`; `edited` names at least one field.
+ * unless legacy or dup; `dup_of` if and only if `dup`; `changes` (on `edited`,
+ * and on `triaged` when present) names at least one field.
  */
 export const RECORD_SCHEMA = deepFreeze(
   JSON.parse(readFileSync(new URL('../../references/work-item.schema.json', import.meta.url), 'utf8')),
@@ -144,7 +145,7 @@ function checkEvent(event, path, errors) {
       errors.push(`${path}.dup_of is only allowed when reason is dup`);
     }
   }
-  if (event.type === 'edited' && isMapping(event.changes) && Object.keys(event.changes).length === 0) {
+  if (isMapping(event.changes) && Object.keys(event.changes).length === 0) {
     errors.push(`${path}.changes must name at least one field`);
   }
 }
@@ -190,7 +191,7 @@ const RECORD_ORDER = [
 const EVENT_HEAD = ['type', 'at', 'by'];
 const EVENT_FIELDS = {
   created: [],
-  triaged: [],
+  triaged: ['changes'],
   queued: ['epic'],
   started: ['epic'],
   close_requested: ['reason', 'proof'],
@@ -273,8 +274,9 @@ const LEGAL_FROM = {
 // One pass over the events. Returns the derived status and Epic, plus
 // `sequenceErrors` (an event not legal where it stands; that event is skipped
 // and folding continues from the last legal state, so every bad event is
-// reported) and `editErrors` (a field whose current value is not its last
-// edited `to`).
+// reported) and `editErrors` (a field whose current value is not the `to` of
+// the last event that changed it: an `edited`, or a `triaged` carrying
+// `changes`).
 function fold(record) {
   const sequenceErrors = [];
   const events = record?.events;
@@ -286,7 +288,16 @@ function fold(record) {
   let status = null;
   let epic = null;
   let pendingProof = null; // the outstanding close request's commit
-  const lastEdit = new Map(); // field -> {index, to}
+  const lastEdit = new Map(); // field -> {index, to, type: the event's type}
+  // Field changes are about the record's fields, not its status, so they count
+  // even from an event that is illegal where it stands (that is already a
+  // sequence error).
+  const noteChanges = (event, index) => {
+    if (!isMapping(event.changes)) return;
+    for (const [field, change] of Object.entries(event.changes)) {
+      lastEdit.set(field, { index, to: isMapping(change) ? change.to : undefined, type: event.type });
+    }
+  };
 
   const refuse = (index, message) => sequenceErrors.push({ index, message });
 
@@ -304,6 +315,7 @@ function fold(record) {
       return;
     }
     const illegal = () => refuse(index, `events[${index}]: ${type} is not legal from ${status}`);
+    if (type === 'triaged' || type === 'edited') noteChanges(event, index);
 
     switch (type) {
       case 'triaged':
@@ -339,12 +351,7 @@ function fold(record) {
         return;
       }
       case 'edited':
-        if (isMapping(event.changes)) {
-          for (const [field, change] of Object.entries(event.changes)) {
-            lastEdit.set(field, { index, to: isMapping(change) ? change.to : undefined });
-          }
-        }
-        return;
+        return; // fields noted above; status and Epic unchanged
       default:
         // `created` again, or a type validateRecord would reject.
         return illegal();
@@ -352,13 +359,13 @@ function fold(record) {
   });
 
   const editErrors = [];
-  for (const [field, { index, to }] of lastEdit) {
+  for (const [field, { index, to, type }] of lastEdit) {
     const current = Object.hasOwn(record, field) ? record[field] : null;
     if (current !== to) {
       editErrors.push({
         index,
         message:
-          `events[${index}]: ${field} was last edited to ${JSON.stringify(to)} ` +
+          `events[${index}]: ${field} was last ${type} to ${JSON.stringify(to)} ` +
           `but the record holds ${JSON.stringify(current)}`,
       });
     }
@@ -409,8 +416,10 @@ export function epicOf(record) {
 /**
  * Every problem with the record's history, each as `{index, message}`: an
  * event not legal from the state before it (the transition table, PLAN
- * Decision 3), and every edited field whose current value is not its last
- * `to` (Decision 2). `[]` when the history is sound.
+ * Decision 3), and every field whose current value is not the `to` of the
+ * last event that changed it — an `edited` (Decision 2), or a `triaged`
+ * carrying `changes` (a re-triage after an edit). `[]` when the history is
+ * sound.
  *
  * Store-level rules are not here: whether `dup_of` exists, and refusing a
  * reopen when the item's Epic is archived.

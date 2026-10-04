@@ -151,7 +151,11 @@ describe('triageItem', () => {
     const r = await records.triageItem(base, 'SIG-1', { type: 'CHORE', priority: 3, theme: 'docs', by, at: AT }, opts());
     expect(r.status).toBe('T');
     expect(await read('SIG-1')).toEqual({
-      id: 'SIG-1', type: 'CHORE', title: 't SIG-1', theme: 'docs', priority: 3, events: [E.created, E.triaged],
+      id: 'SIG-1', type: 'CHORE', title: 't SIG-1', theme: 'docs', priority: 3,
+      events: [E.created, {
+        ...E.triaged,
+        changes: { type: { from: 'NEW', to: 'CHORE' }, theme: { from: null, to: 'docs' }, priority: { from: null, to: 3 } },
+      }],
     });
   });
 
@@ -174,16 +178,32 @@ describe('triageItem', () => {
     await expect(records.triageItem(base, 'SIG-77', { type: 'BUG', by }, opts())).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
-  it('a field whose last edit disagrees with the triage value is refused by checkEvents (Decisions 2 + 3)', async () => {
-    // `triaged` carries no field changes, so a triage retitle after an edit
-    // would leave the record and its history disagreeing. Refused, not hidden.
+  it('a re-triage after an edit succeeds: triaged carries the fields it changed (t1.3 fix)', async () => {
     await put(records.recordPath('SIG-8'), serializeRecord(rec('SIG-8', [
       E.created,
       { type: 'edited', at: AT, by, changes: { title: { from: 't SIG-8', to: 'b' } } },
+      E.closing,
+      { type: 'reopened', at: AT, by, reason: 'back' },
+      E.queued,
     ], { title: 'b' })));
-    const before = snapshotTree(base);
-    await expect(records.triageItem(base, 'SIG-8', { type: 'BUG', title: 'c', by }, opts())).rejects.toMatchObject({ code: 'CONFLICT' });
-    expect(snapshotTree(base)).toEqual(before);
+    const r = await records.triageItem(base, 'SIG-8', { type: 'BUG', title: 'c', priority: 2, by, at: AT }, opts());
+    expect(r).toMatchObject({ status: 'T', epic: null });
+    const saved = await read('SIG-8');
+    expect(saved.title).toBe('c');
+    // `type` already BUG: not a change, so not recorded.
+    expect(saved.events.at(-1)).toEqual({
+      type: 'triaged', at: AT, by, changes: { title: { from: 'b', to: 'c' }, priority: { from: null, to: 2 } },
+    });
+  });
+
+  it('a triage that sets nothing new carries no changes', async () => {
+    await records.triageItem(base, 'SIG-3', { type: 'BUG', by, at: AT }, opts());
+    expect((await read('SIG-3')).events.at(-1)).toEqual(E.triaged);
+  });
+
+  it('N → T records the type change from NEW', async () => {
+    await records.triageItem(base, 'SIG-1', { type: 'FEAT', by, at: AT }, opts());
+    expect((await read('SIG-1')).events.at(-1).changes).toEqual({ type: { from: 'NEW', to: 'FEAT' } });
   });
 });
 
