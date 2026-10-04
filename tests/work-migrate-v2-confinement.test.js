@@ -181,6 +181,10 @@ describe('migrateWorkStoreV2 — an apply that fails part-way names the recovery
     expect(err.message).toContain('git checkout -- .planning && git clean -fd .planning');
     // The project was changed part-way (SIG-1's record, the relocation) ...
     expect(g(work, 'status', '--porcelain')).not.toBe('');
+    // A narrower clean (only work/items) is not enough: the relocated v1
+    // copies stay behind, untracked.
+    execFileSync('sh', ['-c', 'git checkout -- .planning && git clean -fd .planning/work/items'], { cwd: work, stdio: 'ignore' });
+    expect(g(work, 'status', '--porcelain')).toMatch(/\?\? \.planning\/archive\//);
     // ... and the printed commands put it back.
     execFileSync('sh', ['-c', 'git checkout -- .planning && git clean -fd .planning'], { cwd: work, stdio: 'ignore' });
     expect(g(work, 'status', '--porcelain')).toBe('');
