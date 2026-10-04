@@ -3797,7 +3797,7 @@ priorities against each other before asking. The reader fixes were folded into p
 **Outcome data point 1 (`D-M6E12-12`):** the user picked a proposed priority (1), after one
 clarifying question that exposed the missing dependency check.
 
-## 2026-10-03 — M6.E13 DISCUSS: work items as records — Epic 1 of the storage re-architecture (D-M6E13-1 … D-M6E13-18)
+## 2026-10-03 — M6.E13 DISCUSS: work items as records — Epic 1 of the storage re-architecture (D-M6E13-1 … D-M6E13-19)
 
 **Label:** *"work items as records"*. Source: [`analysis/STORAGE-ARCHITECTURE-PROPOSAL.md`](../analysis/STORAGE-ARCHITECTURE-PROPOSAL.md),
 the synthesis of three deep-research runs (`analysis/item-architecture-research/`), all of which converged
@@ -3902,3 +3902,15 @@ Put to Brett as an explicit choice (files stay / move once at close / keep movin
 **files stay**. The clutter concern is answered by views that show only open and recent items
 (`D-M6E13-11`, FR6) and by ID buckets, not by folders; the research's reason is that path changes are
 themselves a defect source (link rewriting on every move, `work-links.js`; the unit-grouping chain).
+
+### D-M6E13-19 — An `edited` event; Epic is derived, never stored (PLAN, 2026-10-04)
+AC2.1 counts "edit fields" as a mutation that appends an event; AC1.4's list had none. Added `edited`
+(`changes: {field: {from, to}}`, never changes status); a field's current value must equal its last
+`to`, checked by `checkEvents`. Same reasoning applied to `D-M6E13-5`: Epic membership is folded from
+`queued`/`started`/`triaged`/`reopened` events by `epicOf`, with no top-level `epic` key — two copies of
+one fact is what `D-M6E13-4` refused for status. Raised by the fresh-context plan check (B4, S2).
+Adopted at plumbing altitude under `/sig:drive` (reversible). The window change IS user-visible:
+it decides which closes the committed views show. Amends AC1.4
+and AC1.5's wording; also amends AC6.2: "the last 30 days" counts back from the newest event in the
+store, so committed views do not churn daily and AC5.2 stays deterministic. See `M6.E13-PLAN.md`
+§ Decisions.
