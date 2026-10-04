@@ -16,7 +16,8 @@
 //
 // Read side: t2.1. ID allocation and the duplicate-ID check: t2.3. Writes:
 // t2.2a (new, triage, queue, start) and t2.2b. The Epic close query: t2.5.
-// Confirming fixed closes against the default branch: t2.6. The store check: t2.7.
+// Confirming fixed closes against the default branch: t2.6, and its read-only
+// list of closing items, `listClosing`: t4.4. The store check: t2.7.
 // The views it regenerates after every write: `work-views.js` (t3.1).
 
 import { execFileSync } from 'node:child_process';
@@ -1377,6 +1378,47 @@ export async function confirmCloses(baseDir, opts = {}) {
     return Number.isFinite(t) && now.getTime() - t > STALE_CLOSING_MS;
   });
   return { confirmed, stillClosing: ids.map((id) => ({ id, reason: still.get(id).reason })), stale };
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Every item deriving *closing*, with when its fix was requested and whether
+ * that is more than 14 days before `now` — `confirmCloses`' `stale` test, in
+ * read-only form (t4.4, the sweep's closing-too-long advisory). It writes
+ * nothing, takes no lock and asks git nothing, so it works on any store,
+ * v1 included (read through the converter).
+ *
+ * `requestedAt` is the latest `close_requested` event's `at`; an item whose
+ * request carries no readable date is listed with `days: null` and is never
+ * `stale` (nothing is guessed). Broken records are `listRecords`' `broken`.
+ *
+ * @param {string} baseDir
+ * @param {{now?: Date|string, execFn?: Function}} [opts]
+ * @returns {{version: 1|2, closing: Array<{id: string, path: string, proof: string|null,
+ *   requestedAt: string|null, days: number|null, stale: boolean}>, broken: Array}}
+ * @throws {WorkStoreError} CONFIG (store off, or a broken WORK.md), SCHEMA (`now` is not a date)
+ */
+export function listClosing(baseDir, opts = {}) {
+  const now = opts.now === undefined ? new Date() : new Date(opts.now);
+  if (Number.isNaN(now.getTime())) throw new WorkStoreError('SCHEMA', `listClosing: now ${JSON.stringify(opts.now)} is not a date`);
+  const { version, records, broken } = listRecords(baseDir, opts.execFn ? { execFn: opts.execFn } : {});
+  const closing = records
+    .filter((r) => r.status === 'closing')
+    .map((r) => {
+      const req = latestRequest(r.record);
+      const t = Date.parse(req?.at);
+      const known = Number.isFinite(t);
+      return {
+        id: r.id,
+        path: r.path,
+        proof: typeof req?.proof === 'string' ? req.proof : null,
+        requestedAt: known ? req.at : null,
+        days: known ? Math.floor((now.getTime() - t) / DAY_MS) : null,
+        stale: known && now.getTime() - t > STALE_CLOSING_MS,
+      };
+    });
+  return { version, closing, broken };
 }
 
 // ── The v2 store check (t2.7, AC1.3, AC5.2, NFR integrity) ─────────────────

@@ -20,6 +20,8 @@ import { isStubRetro } from './retro-index.js';
 import { resolveInboxPath } from './inbox-path.js';
 import { buildDecisionIdMap, resolveDecisionIdIn } from './planning-index.js';
 import { citedBugIds, definedBugIds } from './legacy-lists.js';
+import { isStoreOn } from './work-store.js';
+import { listRecords } from './work-records.js';
 
 // Inline `](target)` links only (reference-style / HTML links are out of scope,
 // matching the migrate dangling-gate).
@@ -745,6 +747,14 @@ export async function checkDanglingReferences(baseDir = ROOT, opts = {}) {
   const planning = join(baseDir, '.planning');
   if (!existsSync(planning)) return findings;
 
+  // STORE ON (M6.E13 t4.4): item and bug ids are defined by the work records, not
+  // by BUGS.md — a view that can lag them, and is never parsed on this path
+  // (Decision 12). Every record's own id is defined, and so are a bug's `B{n}`
+  // and a `legacy_id` of the form `B{n}`, so a document written before the
+  // store, or against its v1 views, still resolves.
+  const store = readStoreIds(baseDir);
+  if (store !== null) return checkDanglingWithStore(baseDir, planning, store, exemptIds);
+
   const bugsPath = join(planning, 'BUGS.md');
   const decisionsPath = join(planning, 'DECISIONS.md');
   const hasBugs = existsSync(bugsPath);
@@ -808,6 +818,110 @@ export async function checkDanglingReferences(baseDir = ROOT, opts = {}) {
     if (defined) continue;
     if (Object.hasOwn(exemptIds, id)) continue;
     const home = isBug ? 'BUGS.md' : 'DECISIONS.md';
+    const files = [...where].sort();
+    findings.push(
+      mkFinding(
+        'dangling-reference',
+        'soft',
+        files[0],
+        `${id} is cited in ${files.length} file(s) but ${home} never defines it — ` +
+          `a typo, a withdrawn record that still needs a tombstone, or a reference to something ` +
+          `that was never filed (${files.slice(0, 4).join(', ')}${files.length > 4 ? ', …' : ''})`,
+      ),
+    );
+  }
+  return findings;
+}
+
+// The work store's defined ids, or null when the store is off. `{error}` when
+// it cannot be read; `{key, defined, broken}` otherwise. Defined: every record's
+// id, a bug's `B{n}`, and a `legacy_id` of the form `B{n}`. A broken record's own
+// id is defined (it exists), but its type and `legacy_id` are unknown.
+function readStoreIds(baseDir) {
+  let key;
+  try {
+    const on = isStoreOn(baseDir);
+    if (!on.on) return null;
+    key = on.key;
+    const { records, broken } = listRecords(baseDir);
+    const defined = new Set();
+    for (const r of records) {
+      defined.add(r.id);
+      // `D-M6E11-20`: the v1 BUGS.md view showed a bug `SIG-n` as `B{n}`, so
+      // documents written against it cite that number. v2 views show `SIG-n`
+      // only (`D-M6E13-11`); the old citations must still resolve.
+      if (r.record.type === 'BUG') defined.add(`B${r.id.slice(r.id.lastIndexOf('-') + 1)}`);
+      const legacy = r.record.legacy_id;
+      if (typeof legacy === 'string' && /^B\d{1,4}$/.test(legacy)) defined.add(legacy);
+    }
+    for (const b of broken) if (b.id) defined.add(b.id);
+    return { key, defined, broken };
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// `checkDanglingReferences` with the store on. Decision ids resolve as before.
+// Cited: the store's own `KEY-n` ids and bare `B{n}` ids. When a record does
+// not read, its `legacy_id` is unknown, so bug ids are said to be unchecked
+// rather than called dangling on a guess; item ids are still checked.
+async function checkDanglingWithStore(baseDir, planning, store, exemptIds) {
+  const findings = [];
+  const workRel = '.planning/work/WORK.md';
+  let checkItems = true;
+  let checkBugs = true;
+  if (store.error) {
+    checkItems = false;
+    checkBugs = false;
+    findings.push(mkFinding('dangling-reference', 'soft', workRel,
+      `item and bug ids were not checked — the work store could not be read (${store.error})`));
+  } else if (store.broken.length > 0) {
+    checkBugs = false;
+    findings.push(mkFinding('dangling-reference', 'soft', workRel,
+      `${store.broken.length} work item(s) could not be read (${store.broken.map((b) => b.id ?? b.path).join(', ')}) — ` +
+        'bug ids (B…) were not checked, since a broken record\'s legacy id is unknown'));
+  }
+
+  let decisionMap = null;
+  if (existsSync(join(planning, 'DECISIONS.md'))) {
+    try {
+      decisionMap = await buildDecisionIdMap(baseDir);
+    } catch {
+      decisionMap = null;
+    }
+  }
+
+  const itemRe = checkItems ? new RegExp(`\\b${escapeRe(store.key)}-\\d+\\b`, 'g') : null;
+  const cited = new Map(); // id -> {kind, files}
+  for (const name of readdirSync(planning)) {
+    if (!name.endsWith('.md')) continue;
+    const rel = `.planning/${name}`;
+    let text;
+    try {
+      text = readFileSync(join(planning, name), 'utf-8');
+    } catch {
+      continue;
+    }
+    const add = (ids, kind) => {
+      for (const id of ids) {
+        if (!cited.has(id)) cited.set(id, { kind, files: new Set() });
+        cited.get(id).files.add(rel);
+      }
+    };
+    if (itemRe) add([...text.matchAll(itemRe)].map((m) => m[0]), 'item');
+    if (checkBugs) add([...text.matchAll(/\bB\d{1,4}\b/g)].map((m) => m[0]), 'item');
+    if (decisionMap !== null) add([...text.matchAll(/\bD-[A-Za-z0-9]+-\d+\b/g)].map((m) => m[0]), 'decision');
+  }
+
+  for (const [id, { kind, files: where }] of [...cited].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const defined = kind === 'item'
+      ? store.defined.has(id)
+      : (await resolveDecisionIdIn(baseDir, decisionMap, id)) !== null;
+    if (defined) continue;
+    if (Object.hasOwn(exemptIds, id)) continue;
+    const home = kind === 'item' ? 'the work store' : 'DECISIONS.md';
     const files = [...where].sort();
     findings.push(
       mkFinding(

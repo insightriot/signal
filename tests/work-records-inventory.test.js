@@ -92,6 +92,7 @@ const READERS = {
   findDuplicateIds: (base) => records.findDuplicateIds(base),
   isEpicArchived: (base) => records.isEpicArchived(base, 'M6.E13'),
   checkRecords: (base) => records.checkRecords(base),
+  listClosing: (base) => records.listClosing(base, { now: AT }),
   closeEpicCheck: (base) => {
     try {
       records.closeEpicCheck(base, 'M6.E13'); // refuses: SIG-3 and SIG-4 are open in it
@@ -364,8 +365,8 @@ export async function promote(b, id) { await triage(b, id); return queue(b, id);
     expect(injected).not.toBe(SOURCE);
     const { lockTaking, violations } = lockNesting(injected);
     const real = lockNesting(SOURCE).lockTaking; // the writers t2.2 added
-    // closeEpicCheck reads through listRecords, so the injected take reaches it too.
-    expect(lockTaking.filter((n) => !real.includes(n))).toEqual(['listRecords', 'getRecord', 'closeEpicCheck']);
+    // closeEpicCheck and listClosing read through listRecords, so the injected take reaches them too.
+    expect(lockTaking.filter((n) => !real.includes(n))).toEqual(['listRecords', 'getRecord', 'closeEpicCheck', 'listClosing']);
     // confirmCloses takes the lock AND reads through listRecords, so a take
     // injected into listRecords makes it a second entry point: caught too.
     expect(violations).toEqual([
