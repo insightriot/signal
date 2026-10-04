@@ -18,7 +18,8 @@ import {
   withStateLock,
 } from './state.js';
 import { scrubSensitive } from './add.js';
-import { folderFor, isStoreOn } from './work-store.js';
+import { isStoreOn } from './work-store.js';
+import { newItems } from './work-records.js';
 
 // Vocabulary task-ID regex (per Signal's ID-is-identity convention): matches
 // `M4`, `M4.5`, `M4.5.E6`, `M4.5.E6.S1`, `M4.5.E6.S1.t6`, with an optional
@@ -324,11 +325,12 @@ async function captureCheckpointContextCore(baseDir, opts = {}) {
   //
   // `newItems` takes the store's own `work` lock, not `.state.lock` — this
   // runs inside `withStateLock`, which is not reentrant (D-M6E11-27).
-  // Imported lazily: work-ops.js → … → backlog.js → add.js, which this
-  // module imports, would otherwise be a static cycle.
+  // M6.E13 t4.5b: v2 records, through `work-records.js` (statically imported:
+  // it imports nothing that imports this module). On a v1 store `newItems`
+  // refuses (CONFIG, naming `node tools/work-migrate-v2.mjs`) before writing,
+  // which lands below as `aborted: 'work-store-failed'` with nothing written.
   let questionItems = null;
   if (questions.length > 0 && store.on) {
-    const { newItems } = await import('./work-ops.js');
     // Test seam, like `_afterRead`: own-property + typeof guard.
     const renameFn = Object.hasOwn(opts, '_renameFn') && typeof opts._renameFn === 'function' ? opts._renameFn : undefined;
     try {
@@ -382,7 +384,7 @@ async function captureCheckpointContextCore(baseDir, opts = {}) {
   }
 
   if (questionItems) {
-    for (const item of questionItems) wrote.push(join(planningDir, folderFor(item), `${item.id}.md`));
+    for (const entry of questionItems) wrote.push(join(baseDir, entry.path));
   } else if (questions.length > 0) {
     const oqPath = join(baseDir, OPEN_QUESTIONS_PATH_REL);
     const oqExisting = existsSync(oqPath)

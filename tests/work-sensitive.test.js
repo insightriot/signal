@@ -12,10 +12,11 @@ import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { newItem, listItems, WORK_LOCK_REL } from '../plugin/tools/lib/work-ops.js';
+import { newItem, WORK_LOCK_REL } from '../plugin/tools/lib/work-ops.js';
 import { captureToFutureIdeas } from '../plugin/tools/lib/add.js';
 import { captureCheckpointContext } from '../plugin/tools/lib/checkpoint.js';
 import { promoteToBacklog } from '../plugin/tools/lib/backlog.js';
+import { listRecords } from '../plugin/tools/lib/work-records.js';
 
 const AWS = 'AKIAABCDEFGHIJKLMNOP';
 const AT = '2026-09-29T00:00:00.000Z';
@@ -69,7 +70,17 @@ describe('newItem scrubs before writing', () => {
   });
 });
 
-describe('callers that already asked do not ask twice', () => {
+// M6.E13 t4.5b: /sig:add, /sig:checkpoint and the promote write v2 records,
+// so this describe runs on a v2 store.
+describe('callers that already asked do not ask twice (v2)', () => {
+  beforeEach(() => put('.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n'));
+  const noRecord = () => {
+    expect(existsSync(join(root, '.planning/work/items'))).toBe(false);
+    expect(existsSync(join(root, '.planning/ISSUES-INBOX.md'))).toBe(false);
+    expect(existsSync(join(root, WORK_LOCK_REL))).toBe(false);
+  };
+  const records = () => listRecords(root).records.map((x) => [x.record.type, x.status]);
+
   it('/sig:add (store on): a key only in the TITLE is prompted once; abort writes nothing', async () => {
     const calls = [];
     const abort = async (hits) => {
@@ -79,7 +90,7 @@ describe('callers that already asked do not ask twice', () => {
     const r = await captureToFutureIdeas(root, { body: 'plain words', title: `rotate ${AWS}`, today: TODAY, sensitivePrompt: abort });
     expect(r).toMatchObject({ written: false, aborted: 'sensitive-data' });
     expect(calls).toHaveLength(1);
-    nothingWritten();
+    noRecord();
   });
 
   it('/sig:add (store on): keep → prompted exactly once, and the item is written', async () => {
@@ -98,7 +109,7 @@ describe('callers that already asked do not ask twice', () => {
     expect(first.aborted).toBe('sensitive-data-pending');
     const r = await captureCheckpointContext(root, { questions: [`is ${AWS} live?`], acknowledgeSensitive: true });
     expect(r.aborted).toBeUndefined();
-    expect(listItems(root).map((x) => x.item.type)).toEqual(['Q']);
+    expect(records()).toEqual([['Q', 'N']]);
   });
 
   // Changed deliberately at REVIEW pass 2 (Suggestions). This pinned "a
@@ -111,9 +122,9 @@ describe('callers that already asked do not ask twice', () => {
     const block = `## Rotate the key\n\nThe old one was ${AWS}.\n`;
     const r = await promoteToBacklog(root, { block, tag: 'hygiene', today: TODAY });
     expect(r).toMatchObject({ written: false, aborted: 'sensitive-data-pending' });
-    expect(listItems(root)).toEqual([]);
+    expect(records()).toEqual([]);
     const ok = await promoteToBacklog(root, { block, tag: 'hygiene', today: TODAY, acknowledgeSensitive: true });
     expect(ok).toMatchObject({ written: true });
-    expect(listItems(root).map((x) => [x.item.type, x.item.status])).toEqual([['CHORE', 'T']]);
+    expect(records()).toEqual([['CHORE', 'T']]);
   });
 });

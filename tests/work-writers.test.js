@@ -9,6 +9,13 @@
 //      the items now on disk changes nothing. Any append, stamp or edit by a
 //      writer would make the lists differ from what the items generate.
 // Store OFF is covered by tests/work-store-off.test.js (the golden baseline).
+//
+// M6.E13 t4.5b: capture (add.js, checkpoint.js) and promotion (backlog.js)
+// write v2 records through `work-records.js`, so their describes run on a v2
+// store and check the views against `regenerateToMemory`; on a v1 store they
+// refuse, naming the migration tool. Discharge (`dischargeInStore`), drain,
+// archive-tree and the v1 generator are still v1 until the cutover (PLAN t7.3),
+// so their describes keep the v1 store and seed it with the v1 `work-ops.js`.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
@@ -35,7 +42,9 @@ import { createSnapshotter } from '../plugin/tools/lib/migrate-memory.js';
 import { createBacklogIfMissing } from '../plugin/tools/lib/backlog.js';
 import { generateAll, GENERATED_FILES } from '../plugin/tools/lib/work-generate.js';
 import { GENERATED_MARKER } from '../plugin/tools/lib/work-marker.js';
-import { getItem, listItems, newItem } from '../plugin/tools/lib/work-ops.js';
+import { applyTriage, getItem, listItems, newItem } from '../plugin/tools/lib/work-ops.js';
+import { getRecord, listRecords, recordPath } from '../plugin/tools/lib/work-records.js';
+import { regenerateToMemory } from '../plugin/tools/lib/work-views.js';
 
 const TODAY = '2026-09-29';
 const keep = async () => 'keep';
@@ -82,115 +91,161 @@ beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'signal-writers-'));
   await put('.planning/work/WORK.md', '---\nkey: SIG\n---\n# Work store\n');
 });
+
+// A v2 store (M6.E13): capture and promotion write records.
+const v2 = () => put('.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n# Work store\n');
+
+// The views on disk are exactly what the v2 views make of the records on disk.
+async function expectViewsFresh() {
+  const views = regenerateToMemory(root);
+  for (const [rel, text] of Object.entries(views)) {
+    expect(await readFile(join(root, rel), 'utf-8'), rel).toBe(text);
+  }
+}
+
+// A v1 backlog item, as a promote made one before M6.E13: captured, then triaged.
+async function seedBacklog(title, type) {
+  const it = await newItem(root, { title, body: 'x', by: 't' });
+  await applyTriage(root, it.id, { accept: { type } });
+  return it.id;
+}
 afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-describe('add.js — every capture route is an item', () => {
-  it('default, --bug, --question → inbox items; lists only generated', async () => {
+describe('add.js — every capture route is a record (v2)', () => {
+  beforeEach(v2);
+
+  it('default, --bug, --question → status-N records; views only generated', async () => {
     await captureToFutureIdeas(root, { body: 'An idea.', today: TODAY, sensitivePrompt: keep });
     await captureToBugs(root, { body: 'A bug.', today: TODAY, sensitivePrompt: keep });
     await captureToOpenQuestions(root, { body: 'A question?', today: TODAY, sensitivePrompt: keep });
-    const rows = listItems(root).map((r) => [r.item.id, r.item.type, r.item.status, r.path]);
+    const rows = listRecords(root).records.map((r) => [r.id, r.record.type, r.status, r.path]);
     expect(rows).toEqual([
-      ['SIG-1', 'NEW', 'N', '.planning/work/inbox/SIG-1.md'],
-      ['SIG-2', 'BUG', 'N', '.planning/work/inbox/SIG-2.md'],
-      ['SIG-3', 'Q', 'N', '.planning/work/inbox/SIG-3.md'],
+      ['SIG-1', 'NEW', 'N', recordPath('SIG-1')],
+      ['SIG-2', 'BUG', 'N', recordPath('SIG-2')],
+      ['SIG-3', 'Q', 'N', recordPath('SIG-3')],
     ]);
-    await expectOnlyGeneratorWrote();
+    await expectViewsFresh();
   });
 
-  it('a multi-line body or title still captures: the item title is one line (validateItem refuses a line break)', async () => {
+  it('a multi-line body or title still captures: the record title is one line (the schema refuses a line break)', async () => {
     const derived = await captureToFutureIdeas(root, { body: 'First clause here\nsecond half. Rest of it.', today: TODAY, sensitivePrompt: keep });
     const given = await captureToBugs(root, { body: 'Body.', title: 'Given title\r\ncontinued', today: TODAY, sensitivePrompt: keep });
     expect(derived.written).toBe(true);
     expect(given.written).toBe(true);
-    expect(getItem(root, derived.id).item.title).toBe('First clause here second half');
-    expect(getItem(root, given.id).item.title).toBe('Given title continued');
-    await expectOnlyGeneratorWrote();
+    expect(getRecord(root, derived.id).record.title).toBe('First clause here second half');
+    expect(getRecord(root, given.id).record.title).toBe('Given title continued');
+    await expectViewsFresh();
   });
 });
 
-describe('checkpoint.js — questions are items', () => {
-  it('questions → Q items; decisions unchanged; lists only generated', async () => {
+describe('checkpoint.js — questions are records (v2)', () => {
+  beforeEach(v2);
+
+  it('questions → Q records; decisions unchanged; views only generated', async () => {
     await captureCheckpointContext(root, { decisions: ['D'], questions: ['Q one?'] });
-    expect(listItems(root).map((r) => [r.item.type, r.item.status])).toEqual([['Q', 'N']]);
-    await expectOnlyGeneratorWrote();
+    expect(listRecords(root).records.map((r) => [r.record.type, r.status])).toEqual([['Q', 'N']]);
+    await expectViewsFresh();
   });
 });
 
-describe('backlog.js — promote and discharge move items', () => {
-  it('promoteToBacklog from a generated inbox block moves THAT item to backlog/ (roadmap → FEAT)', async () => {
-    await captureToFutureIdeas(root, { body: 'Export as CSV.', title: 'CSV export', today: TODAY, sensitivePrompt: keep });
-    const block = await inboxBlockFor('SIG-1');
-    const res = await promoteToBacklog(root, { block, tag: 'roadmap', today: TODAY });
-    expect(res).toMatchObject({ written: true, id: 'SIG-1', path: planning('work', 'backlog', 'SIG-1.md') });
-    expect(getItem(root, 'SIG-1').item).toMatchObject({ type: 'FEAT', status: 'T', title: 'CSV export' });
-    expect(listItems(root)).toHaveLength(1); // moved, not copied
-    await expectOnlyGeneratorWrote();
-    expect(await readFile(planning('BACKLOG.md'), 'utf-8')).toContain('### CSV export · SIG-1');
+describe('capture and promotion refuse on a v1 store, naming the migration tool (M6.E13 t4.5b, AC4.2)', () => {
+  const refused = (err) => {
+    expect(err).toMatchObject({ code: 'CONFIG', version: 1 });
+    expect(err.message).toContain('node tools/work-migrate-v2.mjs');
+  };
+  const nothingWritten = async () => {
+    expect(existsSync(planning('work', 'items'))).toBe(false);
+    expect(existsSync(planning('work', 'inbox'))).toBe(false);
+    expect(existsSync(planning('work', 'backlog'))).toBe(false);
+    for (const v of Object.values(await lists())) expect(v).toBeNull();
+  };
+
+  it('/sig:add', async () => {
+    refused(await captureToBugs(root, { body: 'A bug.', today: TODAY, sensitivePrompt: keep }).catch((e) => e));
+    await nothingWritten();
   });
 
-  // REVIEW pass 2 (untested seam): the inbox status line's item ID counts
-  // only when it carries THIS store's key. A block quoting another store's
-  // item (`ABC-1`) is a raw block — a new item — not a lookup of ABC-1.
-  it('a block whose status line names another key\'s item is filed as a new item, not looked up', async () => {
-    await captureToFutureIdeas(root, { body: 'Export as CSV.', title: 'CSV export', today: TODAY, sensitivePrompt: keep });
-    const block = (await inboxBlockFor('SIG-1')).replaceAll('SIG-1', 'ABC-1');
-    expect(block).toContain('ABC-1');
+  it('/sig:checkpoint — aborted, nothing written', async () => {
+    const r = await captureCheckpointContext(root, { decisions: ['D'], questions: ['Q one?'] });
+    expect(r).toMatchObject({ aborted: 'work-store-failed', wrote: [], error: { code: 'CONFIG' } });
+    expect(r.error.message).toContain('node tools/work-migrate-v2.mjs');
+    await nothingWritten();
+  });
+
+  it.each([
+    ['promoteToBacklog', () => promoteToBacklog(root, { block: '## A row\n\nx\n', tag: 'roadmap', today: TODAY })],
+    ['promoteToBugs', () => promoteToBugs(root, { block: '## A bug\n\nx\n' })],
+  ])('%s', async (_name, run) => {
+    refused(await run().catch((e) => e));
+    await nothingWritten();
+  });
+});
+
+describe('backlog.js — promote files ONE record, created and triaged in one write (v2)', () => {
+  beforeEach(v2);
+
+  it('a raw block → a new record, triaged (roadmap → FEAT, status T), in one write; re-promoting it dedupes', async () => {
+    const block = '## Batch the index writes\n\nOne write per run.\n\n---\n';
     const res = await promoteToBacklog(root, { block, tag: 'roadmap', today: TODAY });
-    expect(res).toMatchObject({ written: true, id: 'SIG-2' });
-    expect(getItem(root, 'SIG-1').item.status).toBe('N'); // the SIG-1 capture is untouched
+    expect(res).toMatchObject({ written: true, id: 'SIG-1', path: join(root, recordPath('SIG-1')) });
+    const got = getRecord(root, 'SIG-1');
+    expect(got).toMatchObject({ status: 'T', body: 'One write per run.' });
+    expect(got.record).toMatchObject({ type: 'FEAT', title: 'Batch the index writes', source: '/sig:plan drain' });
+    expect(got.record.source_ref).toMatch(/^backlog-key: [0-9a-f]{40}$/);
+    expect(got.record.events.map((e) => e.type)).toEqual(['created', 'triaged']);
+    const again = await promoteToBacklog(root, { block, tag: 'roadmap', today: TODAY });
+    expect(again).toMatchObject({ written: false, deduped: true, id: 'SIG-1' });
+    expect(listRecords(root).records).toHaveLength(1);
+    await expectViewsFresh();
+    expect(await readFile(planning('BACKLOG.md'), 'utf-8')).toContain('Batch the index writes');
   });
 
   it('hygiene → CHORE, and a retitle is applied', async () => {
-    await captureToFutureIdeas(root, { body: 'Tidy.', today: TODAY, sensitivePrompt: keep });
-    const block = await inboxBlockFor('SIG-1');
-    await promoteToBacklog(root, { block, tag: 'hygiene', title: 'Tidy the index', today: TODAY });
-    expect(getItem(root, 'SIG-1').item).toMatchObject({ type: 'CHORE', status: 'T', title: 'Tidy the index' });
+    const res = await promoteToBacklog(root, { block: '## Tidy\n\nx\n', tag: 'hygiene', title: 'Tidy the index', today: TODAY });
+    expect(getRecord(root, res.id).record).toMatchObject({ type: 'CHORE', title: 'Tidy the index' });
   });
 
-  it('promoting the same item again is a no-op (dedupe)', async () => {
-    await captureToFutureIdeas(root, { body: 'Once.', today: TODAY, sensitivePrompt: keep });
-    const block = await inboxBlockFor('SIG-1');
-    await promoteToBacklog(root, { block, tag: 'roadmap', today: TODAY });
-    const again = await promoteToBacklog(root, { block, tag: 'roadmap', today: TODAY });
-    expect(again).toMatchObject({ written: false, deduped: true, id: 'SIG-1' });
-    expect(listItems(root)).toHaveLength(1);
+  // The v1 promote read an item ID back out of a GENERATED inbox block
+  // (`inboxItemId`) and moved that item. Gone (PLAN t4.5b): promotion never
+  // parses a view. Only the drain handed it such blocks, and the drain
+  // refuses outright with the store on (below), so no caller loses anything.
+  it('a block quoting a generated inbox status line is filed as a new record; the item it names is untouched', async () => {
+    await captureToFutureIdeas(root, { body: 'Export as CSV.', title: 'CSV export', today: TODAY, sensitivePrompt: keep });
+    const inbox = await readFile(planning('ISSUES-INBOX.md'), 'utf-8');
+    const block = inbox.slice(inbox.indexOf('## CSV export'));
+    expect(block).toContain('SIG-1');
+    const res = await promoteToBacklog(root, { block, tag: 'roadmap', today: TODAY });
+    expect(res).toMatchObject({ written: true, id: 'SIG-2' });
+    expect(getRecord(root, 'SIG-1').status).toBe('N');
   });
 
-  it('a raw block with no item id → a new item, triaged to backlog/; re-promoting it dedupes', async () => {
-    const block = '## Batch the index writes\n\nOne write per run.\n\n---\n';
-    const res = await promoteToBacklog(root, { block, tag: 'hygiene', today: TODAY });
-    expect(res).toMatchObject({ written: true, id: 'SIG-1' });
-    expect(getItem(root, 'SIG-1')).toMatchObject({
-      item: { type: 'CHORE', status: 'T', title: 'Batch the index writes' },
-      body: 'One write per run.',
-      path: '.planning/work/backlog/SIG-1.md',
-    });
-    const again = await promoteToBacklog(root, { block, tag: 'hygiene', today: TODAY });
-    expect(again).toMatchObject({ written: false, deduped: true, id: 'SIG-1' });
-    expect(listItems(root)).toHaveLength(1);
-    await expectOnlyGeneratorWrote();
+  it('promoteToBugs: a raw block becomes a BUG record, status T; re-promoting dedupes', async () => {
+    const block = '## Lock left behind\n\nA killed run leaves the lock.\n\n---\n';
+    const b = await promoteToBugs(root, { block });
+    expect(b).toMatchObject({ written: true, id: 'SIG-1' });
+    expect(getRecord(root, 'SIG-1')).toMatchObject({ status: 'T', record: { type: 'BUG', title: 'Lock left behind' } });
+    expect(getRecord(root, 'SIG-1').record.source_ref).toMatch(/^bugs-key: /);
+    expect(await promoteToBugs(root, { block })).toMatchObject({ written: false, deduped: true, id: 'SIG-1' });
+    await expectViewsFresh();
+    expect(await readFile(planning('BUGS.md'), 'utf-8')).toMatch(/^\| SIG-1 \| `confirmed` \|/m);
   });
 
-  it('promoteToBugs: an inbox item becomes a BUG in backlog/; a raw block becomes a new BUG', async () => {
-    await captureToFutureIdeas(root, { body: 'It crashes on empty input.', today: TODAY, sensitivePrompt: keep });
-    const block = await inboxBlockFor('SIG-1');
-    const a = await promoteToBugs(root, { block });
-    expect(a).toMatchObject({ written: true, id: 'SIG-1' });
-    expect(getItem(root, 'SIG-1').item).toMatchObject({ type: 'BUG', status: 'T' });
-    const b = await promoteToBugs(root, { block: '## Lock left behind\n\nA killed run leaves the lock.\n\n---\n' });
-    expect(b).toMatchObject({ written: true, id: 'SIG-2' });
-    expect(getItem(root, 'SIG-2').item).toMatchObject({ type: 'BUG', status: 'T', title: 'Lock left behind' });
-    expect(await promoteToBugs(root, { block })).toMatchObject({ written: false, deduped: true });
-    await expectOnlyGeneratorWrote();
-    expect(await readFile(planning('BUGS.md'), 'utf-8')).toMatch(/^\| B2 \| `confirmed` \|/m);
+  it('a busy work lock: LOCKED, nothing written (one lock, taken once)', async () => {
+    const planted = `4242\n${Date.now()}\nsomeone\n`;
+    await put('.planning/work/.lock', planted);
+    await expect(promoteToBacklog(root, { block: '## A row\n\nx\n', tag: 'roadmap', today: TODAY }))
+      .rejects.toMatchObject({ code: 'LOCKED' });
+    expect(existsSync(planning('work', 'items'))).toBe(false);
+    expect(await readFile(planning('work', '.lock'), 'utf-8')).toBe(planted);
   });
+});
 
+describe('backlog.js — discharge closes items (v1 until the cutover, PLAN t7.3)', () => {
   it('dischargeBacklogRows closes the named item as fixed, with the discharge as proof', async () => {
-    await promoteToBacklog(root, { block: '## Search archived Epics\n\nx\n\n---\n', tag: 'roadmap', today: TODAY });
-    await promoteToBacklog(root, { block: '## Tidy the command index\n\ny\n\n---\n', tag: 'hygiene', today: TODAY });
+    await seedBacklog('Search archived Epics', 'FEAT');
+    await seedBacklog('Tidy the command index', 'CHORE');
     const res = await dischargeBacklogRows(root, { rows: ['tidy the command', 'no such row'], by: 'M6.E11', at: TODAY });
     expect(res.written).toBe(true);
     expect(res.results).toEqual([
@@ -205,8 +260,8 @@ describe('backlog.js — promote and discharge move items', () => {
   });
 
   it('dischargeBacklogRows: an ambiguous row refuses, an already-closed row says so, nothing written', async () => {
-    await promoteToBacklog(root, { block: '## Index speed\n\nx\n\n---\n', tag: 'roadmap', today: TODAY });
-    await promoteToBacklog(root, { block: '## Index size\n\ny\n\n---\n', tag: 'roadmap', today: TODAY });
+    await seedBacklog('Index speed', 'FEAT');
+    await seedBacklog('Index size', 'FEAT');
     const amb = await dischargeBacklogRows(root, { rows: ['index'], by: 'M6.E11', at: TODAY });
     expect(amb.written).toBe(false);
     expect(amb.results[0].status).toBe(ROW_DISCHARGE.AMBIGUOUS);
@@ -220,8 +275,8 @@ describe('backlog.js — promote and discharge move items', () => {
   // time — a lock and a regeneration each, and a failure on row 2 left row 1
   // closed. It is one batch now: all the closes or none.
   it('dischargeBacklogRows: two queries naming ONE item close it once, not a CONFLICT half-way', async () => {
-    await promoteToBacklog(root, { block: '## Search archived Epics\n\nx\n\n---\n', tag: 'roadmap', today: TODAY });
-    await promoteToBacklog(root, { block: '## Tidy the index\n\ny\n\n---\n', tag: 'hygiene', today: TODAY });
+    await seedBacklog('Search archived Epics', 'FEAT');
+    await seedBacklog('Tidy the index', 'CHORE');
     const res = await dischargeBacklogRows(root, { rows: ['search archived', 'archived epics', 'tidy'], by: 'M6.E11', at: TODAY });
     expect(res.written).toBe(true);
     expect(res.results.map((r) => [r.status, r.id])).toEqual([
@@ -232,8 +287,8 @@ describe('backlog.js — promote and discharge move items', () => {
   });
 
   it('dischargeBacklogRows is all or nothing: a failure closing row 2 leaves row 1 open, bytes unchanged', async () => {
-    await promoteToBacklog(root, { block: '## Search archived Epics\n\nx\n\n---\n', tag: 'roadmap', today: TODAY });
-    await promoteToBacklog(root, { block: '## Tidy the index\n\ny\n\n---\n', tag: 'hygiene', today: TODAY });
+    await seedBacklog('Search archived Epics', 'FEAT');
+    await seedBacklog('Tidy the index', 'CHORE');
     const before = {
       one: await readFile(planning('work', 'backlog', 'SIG-1.md'), 'utf-8'),
       two: await readFile(planning('work', 'backlog', 'SIG-2.md'), 'utf-8'),
@@ -265,7 +320,7 @@ describe('backlog.js — promote and discharge move items', () => {
 
 describe('drain.js — refuses outright when the store is on (AC-6.3, D-M6E11-25)', () => {
   async function seeded() {
-    await captureToFutureIdeas(root, { body: 'An idea.', today: TODAY, sensitivePrompt: keep });
+    await newItem(root, { title: 'An idea', body: 'An idea.', by: 't' });
     return lists();
   }
   async function expectRefused(run) {
@@ -311,6 +366,16 @@ describe('drain.js — refuses outright when the store is on (AC-6.3, D-M6E11-25
     await put('.planning/ISSUES-INBOX.md', '# Issues Inbox\n\n## A\n\nx\n\n---\n\n*Last updated: 2026-01-01*\n');
     await put('.planning/work/WORK.md', '---\nkey: 1bad\n---\n');
     await expect(evictTerminalToLedger(root)).rejects.toMatchObject({ code: 'CONFIG' });
+  });
+
+  // M6.E13 t4.5b (`drain.js:32`'s promote path): a v2 store refuses too, before
+  // the promote, so no record is written.
+  it('promoteDrainEntry on a v2 store — refused, no record written', async () => {
+    await v2();
+    const block = '## An idea\n\nx\n\n---\n';
+    await expect(promoteDrainEntry(root, { classification: 'work', block, tag: 'roadmap', entryIndex: 0, reason: 'drain', date: TODAY }))
+      .rejects.toMatchObject({ code: 'GENERATED' });
+    expect(listRecords(root).records).toEqual([]);
   });
 });
 

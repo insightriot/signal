@@ -2152,65 +2152,70 @@ describe('buildFutureIdeasEntry — FR4 clause-boundary heading (v0.1.6)', () =>
 
 // ─────────────────────────────────────────────────────────────────────────────
 // M6.E11 t4.2 (AC-6.1, AC-6.2 part) — with the work store on, every /sig:add
-// capture route writes a new item in `.planning/work/inbox/` instead of
-// appending to a list. The four lists are generated from the items, so an
-// append would be erased at the next regeneration (D-M6E11-4).
-// See .planning/M6.E11-VALIDATION.md row AC-6.1.
+// capture route writes a new item instead of appending to a list. The four
+// lists are generated from the items, so an append would be erased at the next
+// regeneration (D-M6E11-4).
+// M6.E13 t4.5b: the item is a v2 record (`work-records.js` `newItem`, one lock,
+// one `created` event) at its fixed path; a v1 store refuses, naming the
+// migration tool, before any prompt.
+// See .planning/M6.E11-VALIDATION.md row AC-6.1, M6.E13-VALIDATION.md AC3.1.
 // ─────────────────────────────────────────────────────────────────────────────
-describe('M6.E11 t4.2 — /sig:add with the work store on', async () => {
-  const { parseItem } = await import('../plugin/tools/lib/work-item.js');
+describe('M6.E11 t4.2 / M6.E13 t4.5b — /sig:add with the work store on', async () => {
+  const { getRecord, recordPath, listRecords } = await import('../plugin/tools/lib/work-records.js');
   const { GENERATED_MARKER } = await import('../plugin/tools/lib/work-marker.js');
 
   let root;
   const keep = async () => 'keep';
   const today = '2026-09-29';
-  const inbox = (id) => join(root, '.planning', 'work', 'inbox', `${id}.md`);
-  const readItem = async (id) => parseItem(await readFile(inbox(id), 'utf-8'));
+  const items = () => join(root, '.planning', 'work', 'items');
+  const writeWorkMd = (text) => writeFile(join(root, '.planning', 'work', 'WORK.md'), text, 'utf-8');
 
   beforeEach(async () => {
     root = await mkdtemp(join(tmpdir(), 'signal-add-store-'));
     await mkdir(join(root, '.planning', 'work'), { recursive: true });
-    await writeFile(join(root, '.planning', 'work', 'WORK.md'), '---\nkey: SIG\n---\n# Work store\n', 'utf-8');
+    await writeWorkMd('---\nkey: SIG\nschema_version: 2\n---\n# Work store\n');
   });
   afterEach(async () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  it('default route → inbox/SIG-1.md, type NEW, status N, the words verbatim, source and created recorded', async () => {
+  it('default route → items/00/SIG-1.json, type NEW, status N, the words verbatim, source and created recorded', async () => {
     const body = 'Show the tier in the status header — it is the first thing asked.\n\nSecond paragraph, kept.';
     const res = await captureToFutureIdeas(root, {
       body, today, triggerContext: '(during M6.E11 EXECUTE)', title: 'Tier in status header', sensitivePrompt: keep,
     });
-    expect(res).toMatchObject({ written: true, id: 'SIG-1', label: 'SIG-1-NEW-N', path: inbox('SIG-1') });
-    const { item, body: got, errors } = await readItem('SIG-1');
-    expect(errors).toEqual([]);
-    expect(item).toMatchObject({
-      id: 'SIG-1', type: 'NEW', status: 'N', title: 'Tier in status header', source: '/sig:add',
-      source_ref: '(during M6.E11 EXECUTE)', created: { at: today, by: '/sig:add' },
+    expect(res).toMatchObject({ written: true, id: 'SIG-1', label: 'SIG-1-NEW-N', path: join(root, recordPath('SIG-1')) });
+    const got = getRecord(root, 'SIG-1');
+    expect(got.status).toBe('N');
+    expect(got.record).toMatchObject({
+      id: 'SIG-1', type: 'NEW', title: 'Tier in status header', source: '/sig:add',
+      source_ref: '(during M6.E11 EXECUTE)', events: [{ type: 'created', at: today, by: '/sig:add' }],
     });
-    expect(got).toBe(body);
+    expect(got.body).toBe(body);
     // The inbox list is now the generator's output, and carries the capture.
     const list = await readFile(join(root, '.planning', 'ISSUES-INBOX.md'), 'utf-8');
     expect(list.split('\n')[0]).toBe(GENERATED_MARKER);
     expect(list).toContain('## Tier in status header');
   });
 
-  it('--bug → type BUG in inbox/, and BUGS.md is generated — no BUGS.md needed beforehand', async () => {
+  it('--bug → type BUG, and BUGS.md is generated — no BUGS.md needed beforehand', async () => {
     const res = await captureToBugs(root, { body: 'Resume prints the wrong phase.', today, sensitivePrompt: keep });
     expect(res).toMatchObject({ written: true, id: 'SIG-1', label: 'SIG-1-BUG-N' });
-    const { item, body } = await readItem('SIG-1');
-    expect(item).toMatchObject({ type: 'BUG', status: 'N', source: '/sig:add --bug', title: 'Resume prints the wrong phase' });
-    expect(body).toBe('Resume prints the wrong phase.');
+    const got = getRecord(root, 'SIG-1');
+    expect(got.record).toMatchObject({ type: 'BUG', source: '/sig:add --bug', title: 'Resume prints the wrong phase' });
+    expect(got.status).toBe('N');
+    expect(got.body).toBe('Resume prints the wrong phase.');
     const bugs = await readFile(join(root, '.planning', 'BUGS.md'), 'utf-8');
     expect(bugs.split('\n')[0]).toBe(GENERATED_MARKER);
-    expect(bugs).toMatch(/^\| B1 \| `needs-triage` \|/m);
+    expect(bugs).toMatch(/^\| SIG-1 \| `needs-triage` \|/m);
   });
 
-  it('--question → type Q in inbox/, and OPEN-QUESTIONS.md is generated', async () => {
+  it('--question → type Q, and OPEN-QUESTIONS.md is generated', async () => {
     const res = await captureToOpenQuestions(root, { body: 'Should advise read archived Epics?', today, sensitivePrompt: keep });
     expect(res).toMatchObject({ written: true, id: 'SIG-1', label: 'SIG-1-Q-N' });
-    const { item } = await readItem('SIG-1');
-    expect(item).toMatchObject({ type: 'Q', status: 'N', source: '/sig:add --question' });
+    const got = getRecord(root, 'SIG-1');
+    expect(got.record).toMatchObject({ type: 'Q', source: '/sig:add --question' });
+    expect(got.status).toBe('N');
     const oq = await readFile(join(root, '.planning', 'OPEN-QUESTIONS.md'), 'utf-8');
     expect(oq.split('\n')[0]).toBe(GENERATED_MARKER);
     expect(oq).toContain('**Item:** SIG-1');
@@ -2234,7 +2239,7 @@ describe('M6.E11 t4.2 — /sig:add with the work store on', async () => {
     });
     expect(res).toEqual({ written: false, aborted: 'sensitive-data' });
     expect(prompts.length).toBe(1);
-    expect(existsSync(join(root, '.planning', 'work', 'inbox'))).toBe(false);
+    expect(existsSync(items())).toBe(false);
     expect(existsSync(join(root, '.planning', 'ISSUES-INBOX.md'))).toBe(false);
   });
 
@@ -2243,7 +2248,7 @@ describe('M6.E11 t4.2 — /sig:add with the work store on', async () => {
       body: 'x'.repeat(BODY_LENGTH_SOFT_CAP + 1), today, sensitivePrompt: keep, bodyLengthPrompt: async () => 'abort',
     });
     expect(res).toEqual({ written: false, aborted: 'body-length' });
-    expect(existsSync(join(root, '.planning', 'work', 'inbox'))).toBe(false);
+    expect(existsSync(items())).toBe(false);
   });
 
   it('never appends to a list: a generated BUGS.md is rewritten only by the generator', async () => {
@@ -2251,11 +2256,11 @@ describe('M6.E11 t4.2 — /sig:add with the work store on', async () => {
     await captureToBugs(root, { body: 'second', today, sensitivePrompt: keep });
     const bugs = await readFile(join(root, '.planning', 'BUGS.md'), 'utf-8');
     expect(bugs).not.toContain('**Status:** needs-triage'); // the legacy append shape
-    expect(bugs.match(/^\| B\d+ \|/gm)).toHaveLength(2);
+    expect(bugs.match(/^\| SIG-\d+ \|/gm)).toHaveLength(2);
   });
 
   it('a broken WORK.md fails loudly and writes nothing — no fallback to the lists', async () => {
-    await writeFile(join(root, '.planning', 'work', 'WORK.md'), '---\nkey: lower\n---\n', 'utf-8');
+    await writeWorkMd('---\nkey: lower\n---\n');
     await writeFile(join(root, '.planning', 'ISSUES-INBOX.md'), '# Issues Inbox\n\n*Last updated: 2026-01-01*\n', 'utf-8');
     await expect(captureToFutureIdeas(root, { body: 'x', today, sensitivePrompt: keep }))
       .rejects.toMatchObject({ code: 'CONFIG' });
@@ -2263,12 +2268,26 @@ describe('M6.E11 t4.2 — /sig:add with the work store on', async () => {
       .toBe('# Issues Inbox\n\n*Last updated: 2026-01-01*\n');
   });
 
+  it('a v1 store refuses before any prompt, naming the migration tool, and writes nothing (AC4.2)', async () => {
+    await writeWorkMd('---\nkey: SIG\n---\n# Work store\n');
+    const asked = [];
+    const err = await captureToFutureIdeas(root, {
+      body: 'key is AKIAABCDEFGHIJKLMNOP', today, sensitivePrompt: async (h) => { asked.push(h); return 'keep'; },
+    }).catch((e) => e);
+    expect(err).toMatchObject({ code: 'CONFIG', version: 1 });
+    expect(err.message).toContain('node tools/work-migrate-v2.mjs');
+    expect(asked).toEqual([]);
+    expect(existsSync(items())).toBe(false);
+    expect(existsSync(join(root, '.planning', 'work', 'inbox'))).toBe(false);
+    expect(existsSync(join(root, '.planning', 'ISSUES-INBOX.md'))).toBe(false);
+  });
+
   it('--milestone is unchanged: it writes the milestone file, not an item', async () => {
     await writeFile(join(root, '.planning', 'MILESTONE-6.md'), '# Milestone 6\n', 'utf-8');
     const res = await captureToMilestone(root, { milestoneArg: '6', body: 'Split it.', today, sensitivePrompt: keep });
     expect(res.written).toBe(true);
     expect(await readFile(join(root, '.planning', 'MILESTONE-6.md'), 'utf-8')).toContain('Split it.');
-    expect(existsSync(join(root, '.planning', 'work', 'inbox'))).toBe(false);
+    expect(listRecords(root).records).toEqual([]);
   });
 
   it('--file into a generated list is refused by the write guard', async () => {

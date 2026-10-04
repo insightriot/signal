@@ -29,9 +29,9 @@ import { createHash } from 'node:crypto';
 
 import { atomicWrite } from './atomic-write.js';
 import { insertAboveFooter, rewriteFooter, buildBugsEntry, insertAtEnd, scrubSensitive } from './add.js';
-import { DONE_WORD_RE, declaresBugDischarge, isBugId, parseBacklogRows, parseInboxStatusLine } from './legacy-lists.js';
+import { DONE_WORD_RE, declaresBugDischarge, isBugId, parseBacklogRows } from './legacy-lists.js';
 import { isStoreOn } from './work-store.js';
-import { isEpicArchived, listRecords } from './work-records.js';
+import { assertWritable, isEpicArchived, listRecords, newItem } from './work-records.js';
 
 const BACKLOG_REL = '.planning/BACKLOG.md';
 const BUGS_REL = '.planning/BUGS.md';
@@ -146,82 +146,57 @@ export function blockKey(block) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// With the work store on (M6.E11 t4.3, AC-6.2)
+// With the work store on (M6.E11 t4.3, AC-6.2; M6.E13 t4.5b)
 //
-// BACKLOG.md and BUGS.md are generated from item files, so a promote is an
-// item MOVE and a discharge is an item CLOSE — never an edit to the list.
+// BACKLOG.md and BUGS.md are generated from the work records, so a promote is
+// a new record and a discharge is an item CLOSE — never an edit to the list.
 //
-// A promote is triage's `accept` (`applyTriage`): it sets the type the
-// classification implies and moves the item to `backlog/`. The type mapping
-// is this module's call — `roadmap` → FEAT, `hygiene` → CHORE, a bug → BUG —
-// because the store has no tag and these are the nearest types it has.
+// A promote files ONE record, created and triaged in the same locked write
+// (`work-records.js` `newItem` with `triage` — the single lock the v1
+// `promoteInStore` lacked, B6, which captured and then triaged under two). The
+// type is this module's call — `roadmap` → FEAT, `hygiene` → CHORE, a bug →
+// BUG — because the store has no tag and these are the nearest types it has.
 //
-// Which item: a block cut from the GENERATED inbox carries
-// `**Status:** untriaged (N) · SIG-n` (read by `work-marker.js`'s
-// `parseInboxStatusLine`, the generator's own format), so that item is promoted — it is not
-// captured a second time. A block with no such line (a raw block handed in
-// directly) becomes a new item first. Dedupe survives: an item already past
-// triage is not promoted again, and a raw block's sha1 key is recorded as the
-// new item's `source_ref`, so a re-run finds it instead of making a twin.
+// It never reads a view. The v1 version read an item ID back out of a block
+// cut from the GENERATED inbox (`inboxItemId`) and moved that item instead;
+// that is gone (PLAN t4.5b). Only the drain hands this a block, and the drain
+// refuses outright with the store on (`drain.js` `refuseWhenStoreOn`), so no
+// caller depended on it — a block, whatever it quotes, becomes a new record.
+// Dedupe survives: the block's sha1 key is the record's `source_ref`, so a
+// re-run finds it instead of making a twin.
 //
-// `newItem`/`applyTriage`/`closeItems` are imported lazily: work-ops.js →
-// work-generate.js imports this module, so a static import would be a cycle.
+// A v1 store refuses (`assertWritable`: CONFIG, naming
+// `node tools/work-migrate-v2.mjs`) before anything is read or written.
 
 const STORE_SOURCE = '/sig:plan drain';
 
-function inboxItemId(block, key) {
-  for (const line of block.split('\n')) {
-    const id = parseInboxStatusLine(line, key);
-    if (id !== null) return id;
-  }
-  return null;
-}
-
 async function promoteInStore(baseDir, { block, type, title, keyName, by, acknowledgeSensitive }) {
-  const { applyTriage, getItem, listItems, newItem } = await import('./work-ops.js');
-  const { key } = isStoreOn(baseDir);
-  const itemPath = (id) => join(baseDir, '.planning', 'work', 'backlog', `${id}.md`);
-  const dedupeKey = `${keyName}: ${blockKey(block)}`;
+  assertWritable(baseDir);
+  const key = blockKey(block);
+  const dedupeKey = `${keyName}: ${key}`;
+  const twin = listRecords(baseDir).records.find((r) => r.record.source_ref === dedupeKey);
+  if (twin) return { written: false, deduped: true, path: join(baseDir, twin.path), key, id: twin.id };
 
-  let id = inboxItemId(block, key);
-  if (id === null) {
-    const twin = listItems(baseDir).find((r) => r.item.source_ref === dedupeKey);
-    if (twin) id = twin.item.id;
+  const heading = resolveTitle(title, block);
+  const body = groomBlockBody(block);
+  // The block and the retitle are new text entering a record, so they run the
+  // scrub like any capture (REVIEW pass 2). Scrubbed HERE rather than by
+  // `newItem`: the record's `source_ref` is the dedupe key, a sha1 — 40 hex
+  // characters, which the detector flags by design — so `newItem` is told the
+  // check was made.
+  const sensitiveHits = [heading, body].flatMap((t) => (t ? scrubSensitive(t).hits : []));
+  if (sensitiveHits.length > 0 && !acknowledgeSensitive) {
+    return { written: false, key, aborted: 'sensitive-data-pending', sensitiveHits };
   }
-  if (id !== null) {
-    const found = getItem(baseDir, id);
-    if (found.item.status !== 'N') {
-      return { written: false, deduped: true, path: join(baseDir, found.path), key: blockKey(block), id };
-    }
-  } else {
-    const heading = resolveTitle(title, block);
-    const body = groomBlockBody(block);
-    // A raw block handed in directly is new text entering an item, so its
-    // title and body run the scrub like any capture (REVIEW pass 2) — a block
-    // that came through an inbox item was scrubbed when that item was
-    // captured. Scrubbed HERE rather than by `newItem`: the item's
-    // `source_ref` is the dedupe key, a sha1 — 40 hex characters, which the
-    // detector flags by design — so `newItem` is told the check was made.
-    const sensitiveHits = [heading, body].flatMap((t) => (t ? scrubSensitive(t).hits : []));
-    if (sensitiveHits.length > 0 && !acknowledgeSensitive) {
-      return { written: false, key: blockKey(block), aborted: 'sensitive-data-pending', sensitiveHits };
-    }
-    const created = await newItem(baseDir, {
-      type,
-      title: heading,
-      body,
-      source: STORE_SOURCE,
-      source_ref: dedupeKey,
-      by: by ?? STORE_SOURCE,
-    }, { acknowledgeSensitive: true });
-    id = created.id;
-  }
-  const accept = { type };
-  const retitle = (title ?? '').trim();
-  if (retitle) accept.title = retitle;
-  const r = await applyTriage(baseDir, id, { accept }, { acknowledgeSensitive });
-  if (r.aborted) return { written: false, key: blockKey(block), id, aborted: r.aborted, sensitiveHits: r.sensitiveHits };
-  return { written: true, path: itemPath(id), key: blockKey(block), id, label: r.label };
+  const entry = await newItem(baseDir, {
+    title: heading,
+    body,
+    source: STORE_SOURCE,
+    source_ref: dedupeKey,
+    by: by ?? STORE_SOURCE,
+    triage: { type },
+  }, { acknowledgeSensitive: true });
+  return { written: true, path: join(baseDir, entry.path), key, id: entry.id, label: `${entry.id}-${entry.record.type}-${entry.status}` };
 }
 
 /**
@@ -239,15 +214,15 @@ async function promoteInStore(baseDir, { block, type, title, keyName, by, acknow
  * @param {'roadmap'|'hygiene'} opts.tag
  * @param {string} [opts.title] — retitle; falls back to the block's heading
  * @param {string} [opts.today] — ISO date for the footer bump
- * @param {string} [opts.by] — store on: `created.by` for a raw block's new item
+ * @param {string} [opts.by] — store on: the `created` event's `by`
  * @param {boolean} [opts.acknowledgeSensitive] — store on: the user has
  *   already been asked about sensitive data in `block` and `title`
  * @returns {Promise<{written: boolean, deduped?: boolean, path: string, key: string, id?: string, label?: string,
  *   aborted?: 'sensitive-data-pending', sensitiveHits?: object[]}>}
- *   With the store on, the item is moved instead (see "With the work store
- *   on" above) and `path`/`id` name the item file. A raw block (no inbox
- *   item) or a retitle with sensitive data, unacknowledged, writes nothing and
- *   returns `{written: false, aborted: 'sensitive-data-pending', sensitiveHits}`.
+ *   With the store on, a new triaged record is written instead (see "With the
+ *   work store on" above) and `path`/`id` name the record file; a v1 store
+ *   refuses (CONFIG). A block or retitle with sensitive data, unacknowledged,
+ *   writes nothing and returns `{written: false, aborted: 'sensitive-data-pending', sensitiveHits}`.
  */
 export async function promoteToBacklog(baseDir, { block, tag, title, today, by, acknowledgeSensitive } = {}) {
   if (!VALID_TAGS.has(tag)) {
@@ -973,12 +948,12 @@ function bugsSkeleton() {
  * @param {object} opts
  * @param {string} opts.block — the raw source inbox block (dedupe key = sha1(block))
  * @param {string} [opts.title] — retitle; falls back to the block's heading
- * @param {string} [opts.by] — store on: `created.by` for a raw block's new item
+ * @param {string} [opts.by] — store on: the `created` event's `by`
  * @param {boolean} [opts.acknowledgeSensitive] — store on: as `promoteToBacklog`
  * @returns {Promise<{written: boolean, deduped?: boolean, path: string, key: string, id?: string, label?: string,
  *   aborted?: 'sensitive-data-pending', sensitiveHits?: object[]}>}
- *   With the store on, the item becomes a BUG in `backlog/` instead, with
- *   `promoteToBacklog`'s sensitive-data rule.
+ *   With the store on, a new BUG record, triaged (status T), instead, with
+ *   `promoteToBacklog`'s sensitive-data and v1 rules.
  */
 export async function promoteToBugs(baseDir, { block, title, by, acknowledgeSensitive } = {}) {
   if (isStoreOn(baseDir).on) {

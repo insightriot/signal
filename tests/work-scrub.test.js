@@ -20,6 +20,7 @@ import { applyTriage, closeEpic, closeItem, closeItems, getItem, listItems, move
 import { existsSync } from 'node:fs';
 import { promoteToBacklog, promoteToBugs } from '../plugin/tools/lib/backlog.js';
 import { captureToFutureIdeas } from '../plugin/tools/lib/add.js';
+import { getRecord, listRecords } from '../plugin/tools/lib/work-records.js';
 
 const SECRET = 'AKIAABCDEFGHIJKLMNOP';
 const PENDING = { aborted: 'sensitive-data-pending' };
@@ -39,6 +40,10 @@ beforeEach(async () => {
 afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
+
+// M6.E13 t4.5b: capture and promotion write v2 records, so their describes
+// run on a v2 store; the v1 work-ops writers above keep the v1 store.
+const v2 = () => put('.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n# Work store\n');
 
 describe('newItem scrubs source_ref too', () => {
   it('a secret only in source_ref → pending, nothing written; acknowledged → written', async () => {
@@ -83,33 +88,35 @@ describe('applyTriage scrubs a retitle and a reject reason', () => {
   });
 });
 
-describe('backlog promote runs the scrub when it has to create the item', () => {
+describe('backlog promote runs the scrub (v2)', () => {
+  beforeEach(v2);
   const block = `## A raw block\n\nkey ${SECRET}\n`;
 
   it.each([
     ['promoteToBacklog', (opts) => promoteToBacklog(root, { block, tag: 'roadmap', ...opts })],
     ['promoteToBugs', (opts) => promoteToBugs(root, { block, ...opts })],
-  ])('%s: a raw block with a secret → pending, no item; acknowledged → promoted', async (_name, promote) => {
+  ])('%s: a raw block with a secret → pending, no record; acknowledged → promoted', async (_name, promote) => {
     const r = await promote({});
     expect(r).toMatchObject({ written: false, ...PENDING });
-    expect(listItems(root)).toEqual([]);
+    expect(listRecords(root).records).toEqual([]);
     const ok = await promote({ acknowledgeSensitive: true });
     expect(ok.written).toBe(true);
-    expect(getItem(root, ok.id).item.status).toBe('T');
+    expect(getRecord(root, ok.id).status).toBe('T');
   });
 
-  it('a retitle with a secret on an existing inbox item → pending, still N', async () => {
-    const a = await newItem(root, { title: 'x', body: 'clean', by: 't' });
-    const inbox = await readFile(join(root, '.planning/ISSUES-INBOX.md'), 'utf-8');
-    const start = inbox.indexOf('## ');
-    const blockFor = inbox.slice(start, inbox.indexOf('\n---', start));
-    const r = await promoteToBacklog(root, { block: blockFor, tag: 'roadmap', title: `t ${SECRET}` });
+  // Was "a retitle with a secret on an existing inbox item". The promote no
+  // longer looks an item up from an inbox block (M6.E13 t4.5b): the retitle is
+  // the new record's title, and is scrubbed as such.
+  it('a clean block with a secret only in the retitle → pending, nothing written', async () => {
+    const r = await promoteToBacklog(root, { block: '## clean\n\nclean\n', tag: 'roadmap', title: `t ${SECRET}` });
     expect(r).toMatchObject({ written: false, ...PENDING });
-    expect(getItem(root, a.id).item.status).toBe('N');
+    expect(listRecords(root).records).toEqual([]);
   });
 });
 
-describe('/sig:add with the store on asks about the trigger context too', () => {
+describe('/sig:add with the store on asks about the trigger context too (v2)', () => {
+  beforeEach(v2);
+
   it('a secret only in triggerContext reaches the sensitive prompt; abort writes nothing', async () => {
     const seen = [];
     const r = await captureToFutureIdeas(root, {
@@ -123,7 +130,7 @@ describe('/sig:add with the store on asks about the trigger context too', () => 
     });
     expect(seen.length).toBeGreaterThan(0);
     expect(r.written).toBe(false);
-    expect(listItems(root)).toEqual([]);
+    expect(listRecords(root).records).toEqual([]);
   });
 });
 

@@ -184,17 +184,22 @@ describe('closeItems — all or nothing, including a failed undo (REVIEW pass 2)
   });
 });
 
-describe('/sig:checkpoint with the store on — all or nothing', () => {
-  it('a failure on question 2 of 3: no question items, and DECISIONS.md / CONTEXT.md NOT written; the result says so', async () => {
+// M6.E13 t4.5b: /sig:checkpoint writes v2 records (`work-records.js`
+// `newItems`: per question its body, then its record), so this runs on a v2 store.
+describe('/sig:checkpoint with the store on — all or nothing (v2)', () => {
+  beforeEach(() => put('.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n'));
+  const noItems = () => expect(existsSync(join(root, '.planning/work/items'))).toBe(false);
+
+  it('a failure on question 2 of 3: no question records, and DECISIONS.md / CONTEXT.md NOT written; the result says so', async () => {
     const r = await captureCheckpointContext(root, {
       decisions: ['Use the batch.'],
       questions: ['First?', 'Second?', 'Third?'],
-      _renameFn: failOnRename(2),
+      _renameFn: failOnRename(4), // question 1's body and record, question 2's body, then its record
     });
     expect(r.aborted).toBe('work-store-failed');
     expect(r.wrote).toEqual([]);
-    expect(r.error.message).toMatch(/injected failure on write 2/);
-    expect(itemCount()).toBe(0);
+    expect(r.error.message).toMatch(/injected failure on write 4/);
+    noItems();
     expect(existsSync(join(root, '.planning/DECISIONS.md'))).toBe(false);
     expect(existsSync(join(root, '.planning/CONTEXT.md'))).toBe(false);
   });
@@ -208,14 +213,14 @@ describe('/sig:checkpoint with the store on — all or nothing', () => {
     expect(existsSync(join(root, '.planning/DECISIONS.md'))).toBe(false);
   });
 
-  it('success: decisions, then every question as a Q item, one regeneration', async () => {
+  it('success: decisions, then every question as a Q record, one regeneration', async () => {
     const r = await captureCheckpointContext(root, { decisions: ['D.'], questions: ['A?', 'B?'] });
     expect(r.aborted).toBeUndefined();
     expect(r.wrote.map((p) => p.slice(root.length + 1))).toEqual([
       '.planning/CONTEXT.md',
       '.planning/DECISIONS.md',
-      '.planning/work/inbox/SIG-1.md',
-      '.planning/work/inbox/SIG-2.md',
+      '.planning/work/items/00/SIG-1.json',
+      '.planning/work/items/00/SIG-2.json',
     ]);
   });
 });
