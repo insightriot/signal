@@ -210,4 +210,22 @@ describe('isEpicArchived', () => {
     await expect(records.reopenItem(base, 'SIG-1', { reason: 'r', by }, { execFn: () => { throw new Error('no'); } }))
       .rejects.toMatchObject({ code: 'CONFLICT' });
   });
+
+  // REVIEW pass 1 suggestion: an archived Epic is finished, so nothing is
+  // queued or started in it — as reopenItem already refused.
+  it.each([['queueItem'], ['startItem']])('%s refuses an archived Epic (CONFLICT, nothing written)', async (fn) => {
+    await store([rec('SIG-1', [E.created, E.triaged])]);
+    await put('.planning/archive/epics/M6.E12/README.md', 'x\n');
+    const before = snapshotTree(base);
+    await expect(records[fn](base, 'SIG-1', { epic: 'M6.E12', by }, { regenerate: async () => {} }))
+      .rejects.toMatchObject({ code: 'CONFLICT', message: expect.stringMatching(/M6\.E12.*archived/) });
+    expect(snapshotTree(base)).toEqual(before);
+  });
+
+  it.each([['queueItem'], ['startItem']])('%s into a live Epic still works', async (fn) => {
+    await store([rec('SIG-1', [E.created, E.triaged])]);
+    await put('.planning/archive/epics/M6.E12/README.md', 'x\n');
+    await records[fn](base, 'SIG-1', { epic: 'M6.E13', by }, { regenerate: async () => {} });
+    expect(records.getRecord(base, 'SIG-1').epic).toBe('M6.E13');
+  });
 });

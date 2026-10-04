@@ -8,7 +8,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, execFileSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -190,6 +191,29 @@ describe('confirmCloses — the proof never reaches git as an option', () => {
     const out = await records.confirmCloses(work, { now: NOW, execFn });
     expect(out).toEqual({ confirmed: [], stillClosing: [], stale: [] });
     expect(calls.flat().some((a) => String(a).includes('--all'))).toBe(false);
+  });
+});
+
+// REVIEW pass 1 suggestion: a record that breaks between the classification
+// (outside the lock) and the write (under it) is skipped and reported, not a
+// reason to abort every other confirmation.
+describe('confirmCloses — a record broken under the lock', () => {
+  it('is skipped and listed in stillClosing as unreadable; the others are confirmed', async () => {
+    const { work, shas } = await plantClone();
+    await v2Store(work, [rec('SIG-1', [created, request(shas[0])]), rec('SIG-2', [created, request(shas[1])])]);
+    // The last git call before the lock is SIG-2's ancestry check: break its
+    // record right after it, as a concurrent hand edit would.
+    const execFn = (cmd, args, o) => {
+      const out = execFileSync(cmd, args, o);
+      if (args[0] === 'merge-base' && args.includes(shas[1])) writeFileSync(join(work, records.recordPath('SIG-2')), '{ broken\n');
+      return out;
+    };
+    // The views refuse to regenerate while a record is broken (checkRecords
+    // reports it); that is not what this test is about, so regeneration is a no-op.
+    const out = await records.confirmCloses(work, { now: NOW, execFn, regenerate: async () => {} });
+    expect(out.confirmed).toEqual(['SIG-1']);
+    expect(out.stillClosing).toEqual([{ id: 'SIG-2', reason: 'unreadable' }]);
+    expect((await read(work, 'SIG-1')).events.at(-1).type).toBe('closed');
   });
 });
 

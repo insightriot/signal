@@ -945,8 +945,20 @@ function epicEvent(type, move) {
   return pruneUndefined({ type, at: move.at ?? nowIso(), by: move.by, epic: move.epic });
 }
 
+// An archived Epic is finished: nothing is queued or started in it, as
+// `reopenItem` refuses to pull an item out of one (REVIEW pass 1). A malformed
+// Epic is left to the schema check, which names it.
+function refuseArchivedEpic(baseDir, id, epic, verb) {
+  if (typeof epic !== 'string' || !EPIC_ID_RE.test(epic)) return;
+  if (isEpicArchived(baseDir, epic)) {
+    throw new WorkStoreError('CONFLICT', `${id}: Epic ${epic} is archived (${ARCHIVED_EPICS_REL}/${epic}/) — `
+      + `nothing was ${verb}. An archived Epic is finished; pick a live one.`);
+  }
+}
+
 /**
- * Queue an item for an Epic: a `queued` event (legal from T, Q, P).
+ * Queue an item for an Epic: a `queued` event (legal from T, Q, P). Refused
+ * (CONFLICT) when the Epic is archived (`isEpicArchived`).
  *
  * @param {string} baseDir
  * @param {string} id
@@ -957,6 +969,7 @@ function epicEvent(type, move) {
 export async function queueItem(baseDir, id, move = {}, opts = {}) {
   return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
     const current = readForWrite(handle, id).entry;
+    refuseArchivedEpic(baseDir, id, move.epic, 'queued');
     const out = await writeRecord(handle, withEvent(current, epicEvent('queued', move)), opts);
     await regenerateAfter(handle, `${id} was queued for ${move.epic}`, opts);
     return out;
@@ -964,7 +977,8 @@ export async function queueItem(baseDir, id, move = {}, opts = {}) {
 }
 
 /**
- * Start an item in an Epic: a `started` event (legal from T, Q).
+ * Start an item in an Epic: a `started` event (legal from T, Q). Refused
+ * (CONFLICT) when the Epic is archived (`isEpicArchived`).
  *
  * @param {string} baseDir
  * @param {string} id
@@ -975,6 +989,7 @@ export async function queueItem(baseDir, id, move = {}, opts = {}) {
 export async function startItem(baseDir, id, move = {}, opts = {}) {
   return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
     const current = readForWrite(handle, id).entry;
+    refuseArchivedEpic(baseDir, id, move.epic, 'started');
     const out = await writeRecord(handle, withEvent(current, epicEvent('started', move)), opts);
     await regenerateAfter(handle, `${id} was started in ${move.epic}`, opts);
     return out;
@@ -1231,8 +1246,8 @@ function assertEpicId(epicId) {
 
 /**
  * Whether an Epic is archived: `.planning/archive/epics/<Epic>/` exists (not
- * followed if it is a link). `reopenItem` refuses on it; `closeEpicCheck`
- * reports it. The ID is checked against the schema's Epic pattern before it
+ * followed if it is a link). `reopenItem`, `queueItem` and `startItem` refuse
+ * on it; `closeEpicCheck` reports it. The ID is checked against the schema's Epic pattern before it
  * becomes part of a path.
  *
  * @param {string} baseDir
@@ -1410,8 +1425,9 @@ function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
  * the same proof; then ONE `regenerate`. Anything else leaves the item
  * closing, with a reason: `invalid-proof`, `not-a-repo`, `no-remote`,
  * `no-default-branch`, `not-on-default-branch`, `unknown-commit` (also an
- * ambiguous short id), `proof-names-a-ref`, `shallow`, `git-failed`, or
- * `changed` (it moved while git was asked).
+ * ambiguous short id), `proof-names-a-ref`, `shallow`, `git-failed`,
+ * `changed` (it moved while git was asked), or `unreadable` (it broke or
+ * vanished between that check and the lock; the others are still confirmed).
  *
  * Git is not asked anything unless some proof is valid, and nothing is locked
  * unless some commit is confirmed. A broken record is skipped (`listRecords`
@@ -1439,7 +1455,17 @@ export async function confirmCloses(baseDir, opts = {}) {
       const at = now.toISOString();
       const planned = [];
       for (const c of ok) {
-        const { entry, text } = readForWrite(handle, c.id);
+        let read;
+        try {
+          read = readForWrite(handle, c.id);
+        } catch (err) {
+          // Broken or gone since it was classified (REVIEW pass 1): skip it,
+          // say so, and confirm the others.
+          if (!(err instanceof WorkStoreError) || (err.code !== 'SCHEMA' && err.code !== 'NOT_FOUND')) throw err;
+          still.set(c.id, { reason: 'unreadable', req: c.req });
+          continue;
+        }
+        const { entry, text } = read;
         if (entry.status !== 'closing') continue; // closed or reopened meanwhile: nothing to confirm
         const req = latestRequest(entry.record);
         if (req.proof !== c.req.proof) {
