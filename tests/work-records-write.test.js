@@ -305,6 +305,7 @@ describe('secret scrubbing (AC2.4): new and triage', () => {
     'new title': (o) => records.newItem(base, { title: `t ${SECRET}`, by }, o),
     'new body': (o) => records.newItem(base, { title: 't', body: SECRET, by }, o),
     'new source_ref': (o) => records.newItem(base, { title: 't', source_ref: SECRET, by }, o),
+    'new source': (o) => records.newItem(base, { title: 't', source: SECRET, by }, o), // REVIEW loop 1
     'new theme': (o) => records.newItem(base, { title: 't', theme: SECRET, by }, o),
     'new triage title': (o) => records.newItem(base, { title: 't', by, triage: { type: 'BUG', title: SECRET } }, o),
     'newItems, second spec': (o) => records.newItems(base, [{ title: 't', by }, { title: SECRET, by }], o),

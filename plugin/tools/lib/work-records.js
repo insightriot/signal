@@ -858,10 +858,11 @@ export async function newItem(baseDir, fields = {}, opts = {}) {
  * lacked, B6). `triage` fields replace the capture's; the resulting type may
  * not be NEW.
  *
- * Sensitive data (v1 `newItems`' gate, unchanged): title, body, source_ref and
- * theme — and a triage's title and theme — run through `scrubSensitive`; with
- * a hit and no `opts.acknowledgeSensitive`, nothing is written and the result
- * is `{aborted: 'sensitive-data-pending', sensitiveHits}`. Detection only.
+ * Sensitive data (v1 `newItems`' gate, plus `source` — REVIEW loop 1): title,
+ * body, source, source_ref and theme — and a triage's title and theme — run
+ * through `scrubSensitive`; with a hit and no `opts.acknowledgeSensitive`,
+ * nothing is written and the result is
+ * `{aborted: 'sensitive-data-pending', sensitiveHits}`. Detection only.
  *
  * @param {string} baseDir
  * @param {Array<{type?: string, title: string, body?: string, source?: string, source_ref?: string,
@@ -880,7 +881,7 @@ export async function newItems(baseDir, specs, opts = {}) {
   }
   assertWritable(baseDir);
   const pending = sensitivePending(
-    specs.flatMap((s) => [s?.title, s?.body, s?.source_ref, s?.theme, s?.triage?.title, s?.triage?.theme]),
+    specs.flatMap((s) => [s?.title, s?.body, s?.source, s?.source_ref, s?.theme, s?.triage?.title, s?.triage?.theme]),
     opts,
   );
   if (pending) return pending;
