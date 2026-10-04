@@ -524,3 +524,478 @@ function _isBugId(id) {
 export const declaresBugDischarge = guard('declaresBugDischarge', _declaresBugDischarge);
 export const parseBacklogRows = guard('parseBacklogRows', _parseBacklogRows);
 export const isBugId = guard('isBugId', _isBugId);
+
+// ── The issues inbox / FUTURE-IDEAS (from drain.js) ─────────────────────────
+
+// Top-level entry boundary: a line that begins with exactly `## ` (two hashes +
+// space). `### …` has a non-space at index 2, so it never matches — nested
+// headings stay inside their parent entry.
+const HEADING_RE = /^## /;
+
+// A heading whose title leads with a disposition marker is already disposed
+// (Q2). Anchored at `^##\s*` per RESEARCH § Q2; matched against the raw heading
+// line. The optional `✓ ` covers the `## ✓ SHIPPED — …` shape used in the live
+// file.
+const HEADING_DISPOSED_RE = /^##\s*(✓\s*)?(SHIPPED|PROMOTED|DEFERRED|MERGED|DELETED)\b/i;
+
+// A Status line carrying the drain's OWN stamp is already disposed. The stamp
+// written by applyDisposition (S5.t2) has a fixed shape — a verb, an ISO date,
+// then a parenthetical containing "drain" — in both forms it emits:
+//   append (entry already had a Status):  `… → Deferred 2026-05-30 (M4.5.E2 drain).`
+//   insert (entry had no Status line):    `**Status:** Deferred 2026-05-30 (M4.5.E2 drain).`
+// Matching that exact signature (verb + date + `(… drain)`) is what stops a
+// dispositioned entry from resurfacing on the next drain.
+//
+// Q2 refinement (2026-05-31, user-approved in M4.5.E2 REVIEW): the original
+// locked rule matched a *bare* verb anywhere in the Status (`/\b(Promoted|…)\b/`),
+// which over-matched prose — e.g. `**Status:** Deferred from M4.5.E7 …` wrongly
+// hid a genuine live entry (1 of 29 in the real file). Scoping to the stamp
+// signature fixes that false-negative: only an actual drain disposition counts,
+// not the word appearing in a sentence. (Heading markers like `## ✓ SHIPPED`
+// are still caught by HEADING_DISPOSED_RE.)
+// `Shipped` added 2026-08-09 alongside the `shipped` verb (see VERB_PAST). It
+// MUST be here, not just in VERB_PAST: a stamp this regex cannot see is a stamp
+// that does not stop the entry resurfacing at the next drain, which is the
+// whole job of this pattern. Adding the verb without adding it here would have
+// produced a marker that looks disposed to a human and reads live to the code.
+const STATUS_DISPOSED_RE =
+  /\b(Promoted|Deferred|Merged|Shipped|Deleted)\s+\d{4}-\d{2}-\d{2}\s+\([^)\n]*\bdrain\b\)/;
+
+// FR3 (v0.1.6): the 2026-07-04 backlog review stamped promotions as a LEADING
+// blockquote (`> **Promoted 2026-07-04 → M4.5.E10** …`), which neither of the
+// two REs above recognized — so those entries resurfaced on every drain. This
+// matches such a stamp, ^-anchored at line start so a stamp merely QUOTED
+// mid-prose (or a `> **Update …**` annotation on a still-open entry) is never
+// mistaken for a real disposition. Verb set matches HEADING_DISPOSED_RE.
+const BLOCKQUOTE_DISPOSED_RE =
+  /^\s*>\s*\*\*(Promoted|Deferred|Merged|Shipped|Deleted)\b/i;
+
+// FR3 (M5.E1): TERMINAL disposition markers — a strict subset of the three
+// disposed REs above, with DEFERRED removed. SHIPPED/PROMOTED/MERGED/DELETED are
+// disposed-for-good, so the entry is eligible to physically LEAVE the inbox for
+// the archive ledger; DEFERRED is parked-but-live, so it stays. Each mirrors its
+// disposed counterpart exactly (verb list minus DEFERRED) so classification can
+// never drift from detection.
+//
+// **`Shipped` added to the status variant 2026-08-09.** The parenthetical here
+// used to read *"no `Shipped`; the drain never stamps 'Shipped' onto a Status
+// line"* — true, and a description of the gap rather than of a design. The
+// heading and blockquote variants have always recognised `SHIPPED`, because the
+// live file carries a hand-written `## ✓ SHIPPED` from the plugin rename; only
+// the *writer* lacked the verb. So Signal could read a marker it could not
+// produce, and a completed capture had no honest disposition available: `defer`
+// postpones something already finished, and `delete` destroys the record of why
+// it exists. Both were offered; neither was true. Now `shipped` stamps, and
+// every reader that already understood the word understands the stamp.
+const HEADING_TERMINAL_RE = /^##\s*(✓\s*)?(SHIPPED|PROMOTED|MERGED|DELETED)\b/i;
+const STATUS_TERMINAL_RE =
+  /\b(Promoted|Merged|Shipped|Deleted)\s+\d{4}-\d{2}-\d{2}\s+\([^)\n]*\bdrain\b\)/;
+const BLOCKQUOTE_TERMINAL_RE =
+  /^\s*>\s*\*\*(Promoted|Merged|Shipped|Deleted)\b/i;
+
+// First `**Status:**` line of an entry (leading whitespace tolerated).
+const STATUS_LINE_RE = /^\s*\*\*Status:\*\*/;
+
+// An ISO date anywhere in a line: YYYY-MM-DD.
+const DATE_RE = /\b(\d{4}-\d{2}-\d{2})\b/;
+
+// True when the (trimmed) line opens or closes a fenced code block.
+function _isFenceMarker(line) {
+  const t = line.trimStart();
+  return t.startsWith('```') || t.startsWith('~~~');
+}
+
+// Byte offset where each line begins. offsets[i] is the start of line i; the
+// last entry's range ends at content.length. `\n` is restored as the +1 the
+// split removed.
+function lineOffsets(lines) {
+  const offsets = [];
+  let off = 0;
+  for (const line of lines) {
+    offsets.push(off);
+    off += line.length + 1;
+  }
+  return offsets;
+}
+
+// M6.E4 FR2.1. HTML-comment marker, matching the shape already used in this
+// corpus for `backlog-key`, `bugs-key`, `evicted-key` and `phase-log:archived`
+// — deliberately not a new mechanism (D-M6E4-4).
+const STANDING_MARKER_RE = /^\s*<!--\s*standing\s*-->\s*$/;
+
+/**
+ * Parse a FUTURE-IDEAS-shaped markdown string into its top-level `## ` entries.
+ * Fence-aware and tolerant of an orphaned mid-file footer. Content before the
+ * first `## ` heading (title, intro, the first `---`) is preamble and is not an
+ * entry.
+ *
+ * Each returned entry:
+ *   - `heading`      — the title text after `## ` (trimmed); for display.
+ *   - `statusLine`   — the first non-fenced `**Status:**` line in the block
+ *                      (raw, trimmed), or `null` if the entry has none.
+ *   - `dateISO`      — first ISO date found in the Status line, else in the
+ *                      heading, else `null` (informational; Q2 uses no window).
+ *   - `dispositioned`— true iff the heading marker OR the Status verb says so.
+ *   - `dispositionKind` — the finer FR3 (M5.E1) signal: `'terminal'` for a
+ *                      SHIPPED/PROMOTED/MERGED/DELETED disposition (eligible to
+ *                      leave the inbox), `'deferred'` for a DEFERRED disposition
+ *                      (parked-but-live, stays), `null` for un-dispositioned.
+ *                      Invariant: `dispositioned === (dispositionKind !== null)`.
+ *   - `range`        — `{ start, end }` byte offsets `[start, end)` of the whole
+ *                      block (heading line through the byte before the next
+ *                      top-level heading, or EOF). Ranges tile gap-free, so
+ *                      editing one block leaves every other byte identical (R1).
+ *
+ * @param {string} content
+ * @returns {Array<{heading: string, statusLine: string|null, dateISO: string|null, dispositioned: boolean, dispositionKind: 'terminal'|'deferred'|null, standing: boolean, range: {start: number, end: number}}>}
+ */
+function _parseEntries(content) {
+  if (typeof content !== 'string' || content === '') return [];
+
+  const lines = content.split('\n');
+  const offsets = lineOffsets(lines);
+
+  // First pass — find top-level heading line indices, fence-aware.
+  const headingIdxs = [];
+  let inFence = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (_isFenceMarker(lines[i])) {
+      inFence = !inFence;
+      continue;
+    }
+    if (!inFence && HEADING_RE.test(lines[i])) headingIdxs.push(i);
+  }
+
+  // Second pass — build one entry per heading, scanning its own line span for
+  // the Status line (fence-aware again, since the span can contain a fence).
+  return headingIdxs.map((startLine, k) => {
+    const endLine = k + 1 < headingIdxs.length ? headingIdxs[k + 1] : lines.length;
+    const headingLineRaw = lines[startLine];
+    const heading = headingLineRaw.replace(HEADING_RE, '').trim();
+
+    let statusLine = null;
+    let statusLineIdx = -1;
+    let innerFence = false;
+    for (let i = startLine + 1; i < endLine; i++) {
+      if (_isFenceMarker(lines[i])) {
+        innerFence = !innerFence;
+        continue;
+      }
+      if (!innerFence && STATUS_LINE_RE.test(lines[i])) {
+        statusLine = lines[i].trim();
+        statusLineIdx = i;
+        break;
+      }
+    }
+
+    const dateFrom = (s) => {
+      const m = (s ?? '').match(DATE_RE);
+      return m ? m[1] : null;
+    };
+    const dateISO = dateFrom(statusLine) ?? dateFrom(headingLineRaw);
+
+    // FR3: a leading blockquote disposition stamp in the entry's header region
+    // (first non-blank content line after the heading, fence-aware) marks the
+    // entry dispositioned. Scanning only the first non-blank line keeps a stamp
+    // quoted deeper in the body from being mistaken for a real disposition.
+    let blockquoteDisposed = false;
+    let blockquoteTerminal = false;
+    {
+      let hdrFence = false;
+      for (let i = startLine + 1; i < endLine; i++) {
+        if (_isFenceMarker(lines[i])) {
+          hdrFence = !hdrFence;
+          continue;
+        }
+        if (hdrFence) continue;
+        if (lines[i].trim() === '') continue;
+        blockquoteDisposed = BLOCKQUOTE_DISPOSED_RE.test(lines[i]);
+        blockquoteTerminal = BLOCKQUOTE_TERMINAL_RE.test(lines[i]);
+        break; // first non-blank, non-fenced line decides
+      }
+    }
+
+    const dispositioned =
+      HEADING_DISPOSED_RE.test(headingLineRaw) ||
+      STATUS_DISPOSED_RE.test(statusLine ?? '') ||
+      blockquoteDisposed;
+
+    // FR3 (M5.E1): refine to terminal-vs-deferred, gated on `dispositioned` so
+    // the `dispositioned === (dispositionKind !== null)` invariant holds by
+    // construction. A disposed entry is either terminal or (by elimination, since
+    // the disposed verbs are exactly SHIPPED/PROMOTED/DEFERRED/MERGED/DELETED and
+    // terminal covers all but DEFERRED) deferred.
+    const terminalSignal =
+      HEADING_TERMINAL_RE.test(headingLineRaw) ||
+      STATUS_TERMINAL_RE.test(statusLine ?? '') ||
+      blockquoteTerminal;
+    const dispositionKind = dispositioned
+      ? terminalSignal
+        ? 'terminal'
+        : 'deferred'
+      : null;
+
+    // M6.E4 FR2.1 — a STANDING entry is one deliberately meant to stay open
+    // forever (the trigger watchlist: "never promote, merge, or delete"). Without
+    // this it is indistinguishable from an unanswered entry and is counted a live
+    // candidate at every drain — the same can't-tell-checked-from-unchecked shape
+    // as B39 and B90. On this repo it was the ONLY live candidate, so the live
+    // count was pinned at >= 1 and plan.md Step 1b's "no candidates" branch could
+    // never run.
+    //
+    // HEADER REGION = heading → Status line, INCLUSIVE, fence-aware. Bounding it
+    // at the Status line rather than "first N non-blank lines" is what keeps a
+    // marker quoted deeper in a body from marking the entry: an entry discussing
+    // the marker in its prose (this very file's own backlog row does) must not
+    // become standing by talking about it. With no Status line the window closes
+    // at the first non-blank line — conservative by construction.
+    let standing = false;
+    {
+      const limit = statusLineIdx >= 0 ? statusLineIdx : endLine;
+      let mkFence = false;
+      for (let i = startLine + 1; i <= limit && i < endLine; i++) {
+        const line = lines[i];
+        const fence = _isFenceMarker(line);
+
+        if (!fence && !mkFence && STANDING_MARKER_RE.test(line)) {
+          standing = true;
+          break;
+        }
+        // No Status line: the window closes at the first non-blank line — and a
+        // FENCE MARKER IS A NON-BLANK LINE. The first draft `continue`d on fences
+        // before reaching this check, so an entry with no Status line whose body
+        // opened with a fence was scanned straight through it and past it, and a
+        // marker beyond still set `standing` — silently dropping the entry from
+        // the live count, the exact opposite of the "conservative by
+        // construction" this comment claims. (PR #200 review.)
+        if (statusLineIdx < 0 && line.trim() !== '') break;
+
+        if (fence) mkFence = !mkFence;
+      }
+    }
+
+    const start = offsets[startLine];
+    const end = endLine < lines.length ? offsets[endLine] : content.length;
+
+    return {
+      heading,
+      statusLine,
+      dateISO,
+      dispositioned,
+      dispositionKind,
+      standing,
+      range: { start, end },
+    };
+  });
+}
+
+/**
+ * The drain candidate set (Q2): every top-level entry that is NOT already
+ * dispositioned, in document order. No date window — disposition-state is the
+ * only gate, so the first post-S5 drain surfaces the whole standing backlog
+ * (the intended one-time triage; the command layer mitigates the wall with
+ * compact rendering + a "defer all remaining" batch, not by hiding entries).
+ *
+ * @param {string} content
+ * @returns {ReturnType<typeof parseEntries>}
+ */
+function _listDrainCandidates(content) {
+  return _parseEntries(content).filter((e) => !e.dispositioned && !e.standing);
+}
+
+/**
+ * The STANDING entries — deliberately-permanent notes, reported as their own
+ * category rather than silently dropped (M6.E4 FR2.2).
+ *
+ * A value on the record, not a rendering choice: the drain must be able to say
+ * "0 live, 1 standing" instead of "1 live", which is the difference between an
+ * inbox that can report itself clear and one that structurally cannot.
+ *
+ * @param {string} content
+ * @returns {ReturnType<typeof parseEntries>}
+ */
+function _listStandingEntries(content) {
+  return _parseEntries(content).filter((e) => e.standing);
+}
+
+/**
+ * `listDrainCandidates` + dangling-fence recovery (FR4a, AD5). An UNCLOSED
+ * fence (odd fence-marker count) leaves `parseEntries`' fence tracker stuck
+ * "inside a fence" for the rest of the file, so every `## ` entry below the
+ * dangling marker silently vanishes from the candidate set — an idea captured
+ * after a malformed fenced sample would never surface for triage. This detects
+ * that case and resurfaces the swallowed entries, plus a `danglingFence` signal
+ * the command layer announces.
+ *
+ * `parseEntries` / `listDrainCandidates` keep their bare-return contracts (the
+ * snapshot tests pin them); this is the sibling detect+recover per AD5. The
+ * recovery is targeted, NOT a fence-oblivious re-parse: because the tail after
+ * the *last* fence marker contains no fence markers by construction, re-parsing
+ * only that tail resurfaces exactly the swallowed headings without ever
+ * surfacing a heading that sits inside a legitimately-balanced fence.
+ *
+ * Out of scope (unchanged from parseEntries): fence-type (``` vs ~~~) matching.
+ *
+ * @param {string} content
+ * @returns {{ candidates: ReturnType<typeof parseEntries>, danglingFence: boolean, recoveredCount: number }}
+ */
+function _listDrainCandidatesWithRecovery(content) {
+  const candidates = _listDrainCandidates(content);
+  if (typeof content !== 'string' || content === '') {
+    return { candidates, danglingFence: false, recoveredCount: 0 };
+  }
+
+  const lines = content.split('\n');
+  let fenceCount = 0;
+  let lastFenceLine = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (_isFenceMarker(lines[i])) {
+      fenceCount++;
+      lastFenceLine = i;
+    }
+  }
+  // Balanced fences → nothing swallowed → identical candidates, no warning.
+  if (fenceCount % 2 === 0) {
+    return { candidates, danglingFence: false, recoveredCount: 0 };
+  }
+
+  // Odd count: a dangling fence swallowed every heading after the last marker.
+  // The tail past that marker has zero fence markers, so a plain re-parse of it
+  // recovers exactly those headings; offset their ranges back into `content`.
+  const offsets = lineOffsets(lines);
+  const tailStart =
+    lastFenceLine + 1 < lines.length ? offsets[lastFenceLine + 1] : content.length;
+  const tail = content.slice(tailStart);
+  const seenStarts = new Set(candidates.map((e) => e.range.start));
+  const recovered = _parseEntries(tail)
+    .map((e) => ({
+      ...e,
+      // `recovered` entries are visible for triage-awareness but are NOT in
+      // parseEntries(fullContent) — the dangling fence swallowed them — so they
+      // have a valid `range` but no stable `entryIndex` for applyDisposition.
+      // The tag lets /sig:plan render them yet exclude them from disposition /
+      // "defer all remaining" until the fence is fixed (M4.5.E10 REVIEW F2).
+      recovered: true,
+      range: { start: e.range.start + tailStart, end: e.range.end + tailStart },
+    }))
+    .filter(
+      (e) =>
+        // `!e.standing` mirrors listDrainCandidates deliberately. Found at REVIEW:
+        // this filter was left as `!dispositioned` while its sibling gained the
+        // standing exclusion, so a standing entry sitting BELOW a dangling fence
+        // would be recovered straight back into the live candidate set — the bug
+        // S2 removed, reintroduced by the one path that exists for malformed
+        // inboxes. Two filters that must agree; only one had been updated.
+        !e.dispositioned && !e.standing && !seenStarts.has(e.range.start)
+    );
+
+  return {
+    candidates: [...candidates, ...recovered],
+    danglingFence: true,
+    recoveredCount: recovered.length,
+  };
+}
+
+// Index of the first non-fenced `**Status:**` line within a block's line array,
+// or -1. Mirrors parseEntries' inner scan so surface and write agree on which
+// line is "the Status line".
+function _statusLineIdxInBlock(lines) {
+  let inFence = false;
+  for (let i = 1; i < lines.length; i++) {
+    if (_isFenceMarker(lines[i])) {
+      inFence = !inFence;
+      continue;
+    }
+    if (!inFence && STATUS_LINE_RE.test(lines[i])) return i;
+  }
+  return -1;
+}
+
+// --- M5.E13 S3.t1 (FR2.1, `B39`): the trigger-watchlist walk -----------------
+//
+// `ISSUES-INBOX.md` carries a standing entry — "Trigger watchlist … (check
+// conditions at every drain)", marked *never promote, merge, or delete* —
+// instructing `/sig:plan`'s drain to walk its conditions and act on any that
+// have fired. **Nothing implemented that walk.** Measured at M5.E13 PLAN: 11
+// rows, `Fired?` reading `—` on every one, with at least two demonstrably
+// fired and one DATED trigger still pending.
+//
+// The entry's own stated rationale was *"one dated trigger that would otherwise
+// expire unobserved"* — which is precisely what happened, to the whole table.
+
+const WATCHLIST_HEADING_RE = /^##\s+.*trigger watchlist.*$/im;
+
+// A row is DECIDED when its verdict cell says something other than a dash /
+// blank — a tick, a date, a word. `—` (em dash), `-`, and empty all mean
+// "nobody looked", which is the state B39 is about.
+const UNDECIDED_CELL_RE = /^[\s—–-]*$/;
+
+/**
+ * Parse the standing trigger watchlist out of an inbox document.
+ *
+ * Returns `null` when the project has no such entry — portable, so a stranger
+ * repo never sees a false alarm.
+ *
+ * @param {string} content — the inbox file's text
+ * @returns {{rows: Array<{item:string, condition:string, verdict:string, evaluated:boolean}>,
+ *            unevaluated: Array<object>, decided: Array<object>,
+ *            dated: Array<{item:string, date:string}>} | null}
+ */
+function _parseTriggerWatchlist(content) {
+  const src = String(content ?? '');
+  const m = src.match(WATCHLIST_HEADING_RE);
+  if (!m) return null;
+
+  // Scope to this entry: from its heading to the next top-level `## `.
+  const start = src.indexOf(m[0]);
+  const rest = src.slice(start + m[0].length);
+  const nextIdx = rest.search(/^##\s+/m);
+  const block = nextIdx === -1 ? rest : rest.slice(0, nextIdx);
+
+  const rows = [];
+  for (const line of block.split('\n')) {
+    if (!line.trim().startsWith('|')) continue;
+    const cells = line.split('|').slice(1, -1).map((c) => c.trim());
+    if (cells.length < 3) continue;
+    // Skip the header and its separator.
+    if (/^-{2,}$|^:?-+:?$/.test(cells[0])) continue;
+    if (/^parked item/i.test(cells[0])) continue;
+    const [item, condition, verdict] = cells;
+    rows.push({
+      item,
+      condition,
+      verdict,
+      evaluated: !UNDECIDED_CELL_RE.test(verdict),
+    });
+  }
+  if (rows.length === 0) return null;
+
+  // A DATED condition is the one shape that expires whether or not anyone
+  // looks, so it is surfaced separately rather than left to be spotted.
+  const dated = [];
+  for (const r of rows) {
+    // Strip inline code spans BEFORE looking for a date. Caught dogfooding this
+    // very function at M5.E13: the GitHub-Issues row's condition cites
+    // `BACKLOG-REVIEW-2026-07-04.md`, and a naive match reported that FILENAME
+    // as an expiry — a dated-trigger report that cries wolf is worse than none,
+    // since the whole point is that these are the rows you can trust to matter.
+    const prose = r.condition.replace(/`[^`]*`/g, ' ');
+    const d = prose.match(/(\d{4}-\d{2}-\d{2})/);
+    if (d) dated.push({ item: r.item, date: d[1], condition: r.condition, evaluated: r.evaluated });
+  }
+
+  return {
+    rows,
+    unevaluated: rows.filter((r) => !r.evaluated),
+    decided: rows.filter((r) => r.evaluated),
+    dated,
+  };
+}
+
+export const isFenceMarker = guard('isFenceMarker', _isFenceMarker);
+export const parseEntries = guard('parseEntries', _parseEntries);
+export const listDrainCandidates = guard('listDrainCandidates', _listDrainCandidates);
+export const listStandingEntries = guard('listStandingEntries', _listStandingEntries);
+export const listDrainCandidatesWithRecovery = guard('listDrainCandidatesWithRecovery', _listDrainCandidatesWithRecovery);
+export const statusLineIdxInBlock = guard('statusLineIdxInBlock', _statusLineIdxInBlock);
+export const parseTriggerWatchlist = guard('parseTriggerWatchlist', _parseTriggerWatchlist);
