@@ -12,11 +12,11 @@ import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { newItem, WORK_LOCK_REL } from '../plugin/tools/lib/work-ops.js';
+import { WORK_LOCK_REL } from '../plugin/tools/lib/work-store.js';
 import { captureToFutureIdeas } from '../plugin/tools/lib/add.js';
 import { captureCheckpointContext } from '../plugin/tools/lib/checkpoint.js';
 import { promoteToBacklog } from '../plugin/tools/lib/backlog.js';
-import { listRecords } from '../plugin/tools/lib/work-records.js';
+import { bodyPath, listRecords, newItem } from '../plugin/tools/lib/work-records.js';
 
 const AWS = 'AKIAABCDEFGHIJKLMNOP';
 const AT = '2026-09-29T00:00:00.000Z';
@@ -30,18 +30,20 @@ async function put(rel, text) {
 }
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'sig-sensitive-'));
-  await put('.planning/work/WORK.md', '---\nkey: SIG\n---\n');
+  await put('.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n');
 });
 afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
 const nothingWritten = () => {
-  expect(existsSync(join(root, '.planning/work/inbox'))).toBe(false);
+  expect(existsSync(join(root, '.planning/work/items'))).toBe(false);
   expect(existsSync(join(root, '.planning/ISSUES-INBOX.md'))).toBe(false);
   expect(existsSync(join(root, WORK_LOCK_REL))).toBe(false);
 };
 
+// M6.E13 t7.4: the v1 `newItem` was retired; this runs the same cases on the
+// v2 library's `newItem`, which keeps the gate.
 describe('newItem scrubs before writing', () => {
   it('a key in the body → aborted with the hits, nothing written', async () => {
     const r = await newItem(root, { title: 'a note', body: `key is ${AWS}`, by: 'b', at: AT });
@@ -60,7 +62,7 @@ describe('newItem scrubs before writing', () => {
   it('acknowledgeSensitive: true writes it', async () => {
     const r = await newItem(root, { title: 'a note', body: `key is ${AWS}`, by: 'b', at: AT }, { acknowledgeSensitive: true });
     expect(r.id).toBe('SIG-1');
-    expect(await readFile(join(root, '.planning/work/inbox/SIG-1.md'), 'utf-8')).toContain(AWS);
+    expect(await readFile(join(root, bodyPath('SIG-1')), 'utf-8')).toContain(AWS);
   });
 
   it('clean input is written as before, with no aborted field', async () => {
@@ -70,10 +72,8 @@ describe('newItem scrubs before writing', () => {
   });
 });
 
-// M6.E13 t4.5b: /sig:add, /sig:checkpoint and the promote write v2 records,
-// so this describe runs on a v2 store.
+// M6.E13 t4.5b: /sig:add, /sig:checkpoint and the promote write v2 records.
 describe('callers that already asked do not ask twice (v2)', () => {
-  beforeEach(() => put('.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n'));
   const noRecord = () => {
     expect(existsSync(join(root, '.planning/work/items'))).toBe(false);
     expect(existsSync(join(root, '.planning/ISSUES-INBOX.md'))).toBe(false);

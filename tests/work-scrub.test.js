@@ -12,15 +12,16 @@
 // contract. Detection only; never redacts.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { applyTriage, closeEpic, closeItem, closeItems, getItem, listItems, moveItem, newItem, newItems, reopenItem } from '../plugin/tools/lib/work-ops.js';
+import { closeEpic } from '../plugin/tools/lib/work-ops.js';
 import { existsSync } from 'node:fs';
 import { promoteToBacklog, promoteToBugs } from '../plugin/tools/lib/backlog.js';
 import { captureToFutureIdeas } from '../plugin/tools/lib/add.js';
-import { getRecord, listRecords } from '../plugin/tools/lib/work-records.js';
+import { getRecord, listRecords, recordPath } from '../plugin/tools/lib/work-records.js';
+import { serializeRecord } from '../plugin/tools/lib/work-record.js';
 
 const SECRET = 'AKIAABCDEFGHIJKLMNOP';
 const PENDING = { aborted: 'sensitive-data-pending' };
@@ -31,7 +32,6 @@ async function put(rel, text) {
   await mkdir(dirname(abs), { recursive: true });
   await writeFile(abs, text, 'utf-8');
 }
-const item = (id) => join(root, '.planning/work/inbox', `${id}.md`);
 
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'sig-scrub-'));
@@ -42,51 +42,8 @@ afterEach(async () => {
 });
 
 // M6.E13 t4.5b: capture and promotion write v2 records, so their describes
-// run on a v2 store; the v1 work-ops writers above keep the v1 store.
+// run on a v2 store. t7.4 retired the v1 work-ops writers and their cases.
 const v2 = () => put('.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n# Work store\n');
-
-describe('newItem scrubs source_ref too', () => {
-  it('a secret only in source_ref → pending, nothing written; acknowledged → written', async () => {
-    const r = await newItem(root, { title: 'clean', body: 'clean', source_ref: `ref ${SECRET}`, by: 't' });
-    expect(r).toMatchObject(PENDING);
-    expect(r.sensitiveHits.length).toBeGreaterThan(0);
-    expect(listItems(root)).toEqual([]);
-    const ok = await newItem(root, { title: 'clean', body: 'clean', source_ref: `ref ${SECRET}`, by: 't' }, { acknowledgeSensitive: true });
-    expect(ok.id).toBe('SIG-1');
-  });
-});
-
-describe('closeItem / closeItems scrub the proof', () => {
-  it('a secret in proof → pending, the item unchanged; acknowledged → closed', async () => {
-    const a = await newItem(root, { title: 'x', by: 't' });
-    const before = await readFile(item(a.id), 'utf-8');
-    const r = await closeItem(root, a.id, { reason: 'fixed', by: 't', proof: `token ${SECRET}` });
-    expect(r).toMatchObject(PENDING);
-    expect(await readFile(item(a.id), 'utf-8')).toBe(before);
-    const batch = await closeItems(root, [{ id: a.id, reason: 'fixed', by: 't', proof: SECRET }]);
-    expect(batch).toMatchObject(PENDING);
-    const ok = await closeItem(root, a.id, { reason: 'fixed', by: 't', proof: `token ${SECRET}` }, { acknowledgeSensitive: true });
-    expect(ok.item.status).toBe('C');
-  });
-});
-
-describe('applyTriage scrubs a retitle and a reject reason', () => {
-  it('accept with a secret in the new title → pending, still N in the inbox', async () => {
-    const a = await newItem(root, { title: 'x', by: 't' });
-    const r = await applyTriage(root, a.id, { accept: { type: 'FEAT', title: `use ${SECRET}` } });
-    expect(r).toMatchObject(PENDING);
-    expect(getItem(root, a.id).item.status).toBe('N');
-    const ok = await applyTriage(root, a.id, { accept: { type: 'FEAT', title: `use ${SECRET}` } }, { acknowledgeSensitive: true });
-    expect(ok.item.status).toBe('T');
-  });
-
-  it('reject with a secret in the reason → pending, still N', async () => {
-    const a = await newItem(root, { title: 'x', by: 't' });
-    const r = await applyTriage(root, a.id, { reject: `checked ${SECRET}` }, { by: 't' });
-    expect(r).toMatchObject(PENDING);
-    expect(getItem(root, a.id).item.status).toBe('N');
-  });
-});
 
 describe('backlog promote runs the scrub (v2)', () => {
   beforeEach(v2);
@@ -134,53 +91,28 @@ describe('/sig:add with the store on asks about the trigger context too (v2)', (
   });
 });
 
-// REVIEW pass 3 — the free text pass 2 still wrote unasked: a reopen's
-// reason, a theme (at capture and at triage), and an Epic close's pr/release.
-describe('the remaining free-text fields are scrubbed (REVIEW pass 3)', () => {
-  it('reopenItem: a secret in the reason → pending, still closed; acknowledged → reopened', async () => {
-    const a = await newItem(root, { title: 'x', by: 't' });
-    await closeItem(root, a.id, { reason: 'fixed', by: 't', proof: 'p' });
-    const r = await reopenItem(root, a.id, { by: 't', reason: `came back ${SECRET}` });
-    expect(r).toMatchObject(PENDING);
-    expect(getItem(root, a.id).item.status).toBe('C');
-    const ok = await reopenItem(root, a.id, { by: 't', reason: `came back ${SECRET}` }, { acknowledgeSensitive: true });
-    expect(ok.item.status).toBe('T');
-  });
-
-  it('newItems: a secret only in theme → pending, nothing written', async () => {
-    const r = await newItems(root, [{ title: 'clean', theme: `t ${SECRET}`, by: 't' }]);
-    expect(r).toMatchObject(PENDING);
-    expect(listItems(root)).toEqual([]);
-  });
-
-  it('applyTriage accept: a secret only in theme → pending, still N', async () => {
-    const a = await newItem(root, { title: 'x', by: 't' });
-    const r = await applyTriage(root, a.id, { accept: { type: 'FEAT', theme: `t ${SECRET}` } });
-    expect(r).toMatchObject(PENDING);
-    expect(getItem(root, a.id).item.status).toBe('N');
-  });
+// REVIEW pass 3 — an Epic close's pr/release land in the archived README.
+// (The other pass-3 fields — a reopen's reason, a theme at capture and at
+// triage — belonged to the v1 writers retired at M6.E13 t7.4; the v2 library
+// scrubs the same fields, pinned in work-records-write/-close.)
+describe('closeEpic scrubs pr and release (REVIEW pass 3)', () => {
+  beforeEach(v2);
+  const AT = '2026-09-01T00:00:00.000Z';
+  const noGit = { execFn: () => { throw new Error('no git'); } };
 
   it.each([['pr', { pr: `#1 ${SECRET}` }], ['release', { release: `v1 ${SECRET}` }]])(
     'closeEpic: a secret in %s → pending, the folder not archived',
     async (_name, extra) => {
-      const a = await newItem(root, { title: 'x', by: 't' });
-      await moveItem(root, a.id, { status: 'Q', epic: 'M6.E98' });
-      await closeItem(root, a.id, { reason: 'fixed', by: 't', proof: 'p' });
-      const r = await closeEpic(root, 'M6.E98', { by: 't', ...extra });
+      await put(recordPath('SIG-1'), serializeRecord({ id: 'SIG-1', type: 'FEAT', title: 'x', events: [
+        { type: 'created', at: AT, by: 't' }, { type: 'triaged', at: AT, by: 't' },
+        { type: 'started', at: AT, by: 't', epic: 'M6.E98' }, { type: 'closed', at: AT, by: 't', reason: 'wontdo', proof: 'p' },
+      ] }));
+      await put('.planning/work/epics/M6.E98/M6.E98-PLAN.md', '# plan\n');
+      const r = await closeEpic(root, 'M6.E98', { by: 't', ...extra }, noGit);
       expect(r).toMatchObject(PENDING);
       expect(existsSync(join(root, '.planning/work/epics/M6.E98'))).toBe(true);
-      const ok = await closeEpic(root, 'M6.E98', { by: 't', ...extra }, { acknowledgeSensitive: true });
+      const ok = await closeEpic(root, 'M6.E98', { by: 't', ...extra }, { ...noGit, acknowledgeSensitive: true });
       expect(ok.status).toBe('closed');
     },
   );
-});
-
-// N1: with the store off, closeItems says so — it does not first answer
-// "sensitive data pending" for a store that cannot be written at all.
-describe('closeItems checks the store before the scrub (REVIEW pass 3, N1)', () => {
-  it('store off + a secret in proof → CONFIG, not pending', async () => {
-    await rm(join(root, '.planning/work'), { recursive: true, force: true });
-    await expect(closeItems(root, [{ id: 'SIG-1', reason: 'fixed', by: 't', proof: SECRET }]))
-      .rejects.toMatchObject({ code: 'CONFIG' });
-  });
 });

@@ -13,7 +13,6 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -175,8 +174,8 @@ describe('no folder for the Epic, or store off — today\'s answers', () => {
 });
 
 // REVIEW I6: the writer must write where the reader reads. An Epic that had
-// root-level artifacts gets a folder the first time an item moves in; from
-// then on artifactName named the folder while resolveArtifactPath still read
+// root-level artifacts gets a folder (on v1, the first time an item moved in;
+// that move was retired with the v1 store at M6.E13 t7.4); from then on artifactName named the folder while resolveArtifactPath still read
 // the root copy, so the next phase read a file the last phase never updated.
 describe('the writer writes where the reader reads (REVIEW I6)', () => {
   const agree = (artifact, currentEpic = 'M1.E1') => {
@@ -184,22 +183,6 @@ describe('the writer writes where the reader reads (REVIEW I6)', () => {
     const read = resolveArtifactPath(P, artifact, { currentEpic });
     return { name, read };
   };
-
-  // Changed deliberately at REVIEW pass 2 (D-M6E11-33). This test pinned the
-  // batch-2 rule "the root copy stays, and the writer follows it there"; the
-  // decision now is that the first moveItem into an Epic MOVES its root
-  // artifacts into the new folder, so both seams name the folder copy.
-  it('root REQUIREMENTS exists, then moveItem creates the Epic folder: it moves in, and both name the folder file', async () => {
-    await storeOn();
-    await put('.planning/M1.E1-REQUIREMENTS.md', '# req\n');
-    const { newItem, moveItem } = await import('../plugin/tools/lib/work-ops.js');
-    const a = await newItem(base, { type: 'FEAT', title: 'one', by: 't' });
-    await moveItem(base, a.id, { status: 'Q', epic: 'M1.E1' });
-    const { name, read } = agree('REQUIREMENTS');
-    expect(name).toBe('work/epics/M1.E1/M1.E1-REQUIREMENTS.md');
-    expect(read).toBe(join(P, name));
-    expect(existsSync(join(P, 'M1.E1-REQUIREMENTS.md'))).toBe(false);
-  });
 
   it('folder present and a root copy a store-off command wrote: the reader falls back to it, the writer targets the folder', async () => {
     await storeOn();
@@ -250,15 +233,21 @@ describe('the writer writes where the reader reads (REVIEW I6)', () => {
     expect(resolveArtifactPath(P, 'PLAN', { currentEpic: 'M1.E1' })).toBe(join(P, name));
   });
 
+  // M6.E13 t7.4: on a v2 store. The record's Epic comes from its events and
+  // the folder holds documents only; the v1 version moved the item in first.
   it('closeEpic after the root/folder split: writer and reader still agree', async () => {
-    await storeOn();
-    await put('.planning/M1.E1-REQUIREMENTS.md', '# req\n');
-    const { newItem, moveItem, closeItem, closeEpic } = await import('../plugin/tools/lib/work-ops.js');
-    const a = await newItem(base, { type: 'FEAT', title: 'one', by: 't' });
-    await moveItem(base, a.id, { status: 'Q', epic: 'M1.E1' });
+    await put('.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n# Work store\n');
+    const records = await import('../plugin/tools/lib/work-records.js');
+    const { serializeRecord } = await import('../plugin/tools/lib/work-record.js');
+    const { closeEpic } = await import('../plugin/tools/lib/work-ops.js');
+    const at = '2026-09-01T00:00:00.000Z';
+    await put(records.recordPath('SIG-1'), serializeRecord({ id: 'SIG-1', type: 'FEAT', title: 'one', events: [
+      { type: 'created', at, by: 't' }, { type: 'triaged', at, by: 't' }, { type: 'started', at, by: 't', epic: 'M1.E1' },
+      { type: 'closed', at, by: 't', reason: 'wontdo', proof: 'x' },
+    ] }));
+    await put('.planning/work/epics/M1.E1/M1.E1-REQUIREMENTS.md', '# req\n');
     await put('.planning/work/epics/M1.E1/M1.E1-PLAN.md');
-    await closeItem(base, a.id, { reason: 'fixed', by: 't', proof: 'x' });
-    await closeEpic(base, 'M1.E1', { by: 't' });
+    await closeEpic(base, 'M1.E1', { by: 't' }, { execFn: () => { throw new Error('no git'); } });
     for (const artifact of ['REQUIREMENTS', 'PLAN', 'REVIEW']) {
       const { name } = agree(artifact);
       expect(name.startsWith('archive/')).toBe(false);

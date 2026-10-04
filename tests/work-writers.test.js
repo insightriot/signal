@@ -30,7 +30,6 @@ import {
   promoteToBacklog,
   promoteToBugs,
   dischargeBacklogRows,
-  ROW_DISCHARGE,
 } from '../plugin/tools/lib/backlog.js';
 import {
   applyDispositionToFile,
