@@ -206,7 +206,8 @@ describe('edited consistency (Decision 2, D-M6E13-19)', () => {
   it('`to: null` means the field is unset', () => {
     const r = rec([E.created, edit({ theme: { from: 'x', to: null } })]);
     expect(checkEvents(r)).toHaveLength(1);
-    const { theme: _t, ...noTheme } = r;
+    const noTheme = { ...r };
+    delete noTheme.theme;
     expect(checkEvents(noTheme)).toEqual([]);
   });
 

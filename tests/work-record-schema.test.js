@@ -155,7 +155,8 @@ describe('validateRecord — rejections (AC1.6: unknown keys are errors)', () =>
   });
 
   it('closed: proof required unless legacy (AC1.4)', () => {
-    const { proof: _p, ...noProof } = EVENT_SAMPLES.closed;
+    const noProof = { ...EVENT_SAMPLES.closed };
+    delete noProof.proof;
     expect(validateRecord(record([noProof]))).toEqual(['events[1].proof is required unless legacy is true']);
     expect(validateRecord(record([{ ...noProof, legacy: true }]))).toEqual([]);
   });
@@ -169,7 +170,8 @@ describe('validateRecord — rejections (AC1.6: unknown keys are errors)', () =>
   });
 
   it('closed: dup requires dup_of, and dup_of requires dup (AC1.4)', () => {
-    const { dup_of: _d, ...dupNoTarget } = EVENT_SAMPLES.closed_dup;
+    const dupNoTarget = { ...EVENT_SAMPLES.closed_dup };
+    delete dupNoTarget.dup_of;
     expect(validateRecord(record([dupNoTarget]))).toEqual(['events[1].dup_of is required when reason is dup']);
     expect(validateRecord(record([{ ...EVENT_SAMPLES.closed, dup_of: 'SIG-7' }]))).toEqual([
       'events[1].dup_of is only allowed when reason is dup',
