@@ -263,7 +263,10 @@ Call `closeEpic(baseDir, state.current_epic, {by, pr, release})` from `tools/lib
 
 ### 6.9 Confirm fixed closes (work store v2) — every SHIP
 
-**Work store off or v1:** nothing happens. Call `runConfirmCloses(baseDir)` from `tools/lib/close-confirm.js` before the SHIP commit and print its `line` (`null` → say no item is closing); stage the changed item records and views into the SHIP commit.
+**Work store off or v1:** nothing happens.
+
+1. Call `runConfirmCloses(baseDir)` from `tools/lib/close-confirm.js` before the SHIP commit and print its `line` (`null` → say no item is closing). It compares against the local `origin/<default>` ref; SHIP does not fetch.
+2. Stage the changed item records and views into the SHIP commit.
 
 ### 7. Manual milestone meta-retro (`--milestone-meta` flag, optional)
 
