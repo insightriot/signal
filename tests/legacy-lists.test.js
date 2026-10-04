@@ -21,6 +21,7 @@ import { pathToFileURL } from 'node:url';
 
 import * as legacy from '../plugin/tools/lib/legacy-lists.js';
 import * as bugsTally from '../plugin/tools/lib/bugs-tally.js';
+import * as backlog from '../plugin/tools/lib/backlog.js';
 
 const LIB = join(process.cwd(), 'plugin', 'tools', 'lib');
 const FLAG = 'SIGNAL_FORBID_LIST_PARSERS';
@@ -33,10 +34,11 @@ const RELOCATED = [
     bugsTally,
     ['BUG_STATUSES', 'parseStatusCell', 'walkBugEntries', 'deriveBugCounts', 'readPublishedTally', 'compareBugTally'],
   ],
+  ['backlog.js', backlog, ['DONE_WORD_RE', 'declaresBugDischarge', 'parseBacklogRows']],
 ];
 
 // Every module that re-exports legacy-lists.js or calls into it.
-const IMPORTERS = ['legacy-lists.js', 'bugs-tally.js'];
+const IMPORTERS = ['legacy-lists.js', 'bugs-tally.js', 'backlog.js', 'advise.js', 'advise-priorities.js'];
 
 const functions = Object.entries(legacy).filter(([, v]) => typeof v === 'function');
 

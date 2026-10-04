@@ -41,6 +41,7 @@ import {
   declaresNotLiveWork,
   declaresWorkMovedElsewhere,
 } from './backlog.js';
+import { isBugId } from './legacy-lists.js';
 import { EVIDENCE_MARKER, verifyCitations } from './citations.js';
 import { assertRealInsidePlanning, regularFileRefusal, readRegularFile } from './path-confine.js';
 import { readCorpus, ADVISOR_SOURCES } from './advise-corpus.js';
@@ -343,7 +344,7 @@ function dropReason(s) {
   if (s.dischargedElsewhere) {
     const e = s.staleEntry;
     if (e?.id && e?.evidence) {
-      const source = /^B\d+$/.test(e.id) ? '**`BUGS.md`**' : '**unit closure**';
+      const source = isBugId(e.id) ? '**`BUGS.md`**' : '**unit closure**';
       return (
         `Dropped by the **discharge** input — \`${e.id}\` reads closed in ${source} ` +
         `(${quoteSafe(e.evidence)}), so it is not live work.`

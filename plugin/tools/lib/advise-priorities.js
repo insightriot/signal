@@ -17,6 +17,7 @@
 
 import { cite } from './advise.js';
 import { verifyCitations, EVIDENCE_MARKER } from './citations.js';
+import { isBugId } from './legacy-lists.js';
 
 export const PRIORITY_COUNT = Object.freeze({ min: 3, max: 5 });
 export const WHY_MAX_SENTENCES = 3;
@@ -29,7 +30,6 @@ export const WHY_MAX = 600;
 /** Characters that break a line for a reader or a multiline regex: CR, LF, NEL, LS, PS. */
 const LINE_BREAK_RE = /[\r\n\u0085\u2028\u2029]/;
 
-const BUG_ID_RE = /^B\d+$/;
 const ROW_REF_RE = /^(.+):(\d+)$/;
 const NEW_RE = /^new:\s*/i;
 
@@ -129,7 +129,7 @@ export async function validatePriorities(baseDir, priorities, corpus, { liveRows
           if (!label) reasons.push(`${n}: a "new:" covers entry needs a description`);
           else if (label.includes(EVIDENCE_MARKER) || LINE_BREAK_RE.test(label)) reasons.push(`${n}: "new:" entry must be one line without the evidence marker`);
           else covers.push({ kind: 'new', id: null, label, path: null, line: null });
-        } else if (BUG_ID_RE.test(c)) {
+        } else if (isBugId(c)) {
           const bug = openBugs.get(c);
           if (!bug) reasons.push(`${n}: covers ${c}, which is not an open bug in ${corpus?.sources?.bugs?.path ?? 'BUGS.md'}`);
           else covers.push({ kind: 'bug', id: c, label: bug.headline.replace(/\*\*/g, ''), path: bug.path, line: bug.line });
