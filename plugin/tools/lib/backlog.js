@@ -21,6 +21,7 @@
 //
 // No new runtime deps — pure string work over the shared add.js substrate.
 
+import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { existsSync, readdirSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
@@ -31,7 +32,8 @@ import { atomicWrite } from './atomic-write.js';
 import { insertAboveFooter, rewriteFooter, buildBugsEntry, insertAtEnd, scrubSensitive } from './add.js';
 import { DONE_WORD_RE, declaresBugDischarge, isBugId, parseBacklogRows } from './legacy-lists.js';
 import { isStoreOn } from './work-store.js';
-import { assertWritable, isEpicArchived, listRecords, newItem } from './work-records.js';
+import { assertWritable, isEpicArchived, listRecords, newItem, requestCloses, storeVersion } from './work-records.js';
+import { WorkStoreError } from './work-errors.js';
 
 const BACKLOG_REL = '.planning/BACKLOG.md';
 const BUGS_REL = '.planning/BUGS.md';
@@ -509,10 +511,15 @@ function renderDischargedHeading(depth, text, by, at) {
  * @param {string} opts.by — what discharged them (an Epic id, a version)
  * @param {string} [opts.at] — ISO date
  * @param {string} [opts.today] — ISO date for the footer bump
- * @returns {Promise<{written:boolean, path:string, reason:string|null,
+ * @param {string} [opts.commit] — v2 work store only: the Epic's commit, the
+ *   proof each close request carries (default: the branch HEAD)
+ * @returns {Promise<{written:boolean, path:string, reason:string|null, commit?:string,
  *   results:Array<{row:string, status:string, reason:string|null, heading:string|null, line:number|null, id?:string}>}>}
- *   With the store on, a named row is an item and is CLOSED (`fixed`, the
- *   discharge stamp as proof) — see `dischargeInStore`. `line` is null there.
+ *   With the store on, a named row is an item. On a v1 store it is CLOSED
+ *   (`fixed`, the discharge stamp as proof) — see `dischargeInStore`. On a v2
+ *   store it is asked to close (`requestCloses`) with `commit` as proof, and
+ *   reads *closing* until `confirmCloses` finds that commit on the default
+ *   branch — see `dischargeInRecords`. `line` is null there.
  */
 export async function dischargeBacklogRows(baseDir, opts = {}) {
   const { rows = [], by, at, today } = opts;
@@ -522,6 +529,9 @@ export async function dischargeBacklogRows(baseDir, opts = {}) {
   if (isStoreOn(baseDir).on) {
     // Test seam, like checkpoint.js's `_renameFn`: own-property + typeof guard.
     const renameFn = Object.hasOwn(opts, '_renameFn') && typeof opts._renameFn === 'function' ? opts._renameFn : undefined;
+    if (storeVersion(baseDir) === 2) {
+      return dischargeInRecords(baseDir, { rows, by, at, today, base, renameFn, commit: opts.commit });
+    }
     return dischargeInStore(baseDir, { rows, by, at, today, base, renameFn });
   }
 
@@ -633,6 +643,73 @@ async function dischargeInStore(baseDir, { rows, by, at, today, base, renameFn }
     if (closed?.aborted) return { ...base, ...closed, results };
   }
   return { ...base, written: toClose.length > 0, results };
+}
+
+// The v2 discharge (M6.E13 t7.3 prep, `D-M6E13-15`). The same rows and the
+// same refusals as `dischargeInStore` — the rows `BACKLOG.md` shows are the
+// records that are neither BUG nor Q and are past the inbox — but a v2 store
+// refuses a direct `fixed` close: a fixed close is a REQUEST carrying a
+// commit, confirmed by `confirmCloses` once that commit is on the default
+// branch (the sweep or the next SHIP). So each hit is asked to close with the
+// Epic's commit — `commit`, or the branch HEAD at ship — and a row already
+// *closing* or closed reads as already discharged.
+//
+// All the requests are ONE `requestCloses` batch: one lock, one regeneration,
+// all or nothing. Two queries naming the same item request it once.
+async function dischargeInRecords(baseDir, { rows, by, at, today, base, renameFn, commit }) {
+  const who = String(by ?? 'unspecified');
+  const when = at ?? today ?? isoToday();
+  const rowsOf = listRecords(baseDir).records.filter((r) => r.record.type !== 'BUG' && r.record.type !== 'Q' && r.status !== 'N');
+  const isOpen = (r) => r.status !== 'C' && r.status !== 'closing';
+  const titleOf = (r) => r.record.title ?? r.id;
+  const results = [];
+  const toRequest = [];
+
+  for (const query of rows) {
+    const needle = String(query).toLowerCase();
+    const hits = rowsOf.filter((r) => String(titleOf(r)).toLowerCase().includes(needle));
+    const open = hits.filter(isOpen);
+    if (open.length > 1) {
+      results.push({
+        row: query,
+        status: ROW_DISCHARGE.AMBIGUOUS,
+        reason: `${JSON.stringify(query)} matches ${open.length} items (${open.map((h) => h.id).join(', ')}) — name one of them exactly`,
+        heading: null,
+        line: null,
+      });
+    } else if (open.length === 1) {
+      const [hit] = open;
+      if (!toRequest.includes(hit.id)) toRequest.push(hit.id);
+      results.push({ row: query, status: ROW_DISCHARGE.DISCHARGED, reason: null, heading: titleOf(hit), line: null, id: hit.id });
+    } else if (hits.length > 0) {
+      const [hit] = hits;
+      const last = hit.record.events.findLast((e) => e.type === 'closed' || e.type === 'close_requested');
+      const how = hit.status === 'closing' ? `already closing (fixed by ${last?.proof})` : `already closed (${last?.reason})`;
+      results.push({ row: query, status: ROW_DISCHARGE.ALREADY_DISCHARGED, reason: `${how} at ${hit.path}`, heading: titleOf(hit), line: null, id: hit.id });
+    } else {
+      results.push({ row: query, status: ROW_DISCHARGE.NOT_FOUND, reason: `no live backlog row matches ${JSON.stringify(query)}`, heading: null, line: null });
+    }
+  }
+
+  if (toRequest.length === 0) return { ...base, results };
+  const proof = commit ?? headCommit(baseDir);
+  if (proof === null) {
+    throw new WorkStoreError('CONFIG', 'the discharge on a v2 work store records the Epic\'s commit as each row\'s proof, '
+      + 'and there is none: this is not a git repository with a commit. Pass `commit`. Nothing was written.');
+  }
+  await requestCloses(baseDir, toRequest.map((id) => ({ id, proof, by: who, at: when })), { renameFn });
+  return { ...base, written: true, commit: proof, results };
+}
+
+// The branch HEAD's full hash, or null (not a repository, or no commit yet).
+function headCommit(baseDir) {
+  try {
+    return String(execFileSync('git', ['rev-parse', '--verify', '--quiet', 'HEAD'], {
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+    })).trim() || null;
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -184,7 +184,9 @@ On an **Epic-close** SHIP (when `shipFR1Check` returned `{isEpicClose: true}` in
 
 Call `dischargeBacklogRows(baseDir, {rows, by: state.current_epic, at: <today>})` from `tools/lib/backlog.js`, where `rows` are heading substrings **you name** from the Epic's own scope.
 
-**Work store on:** the same call closes the matched items (`closeItems`, reason `fixed`, the discharge stamp as proof) instead of editing `BACKLOG.md`, which is generated — as one batch: if any close fails, none is recorded. Stage the changed item files: an item in the Epic's folder closes in place and does not move (`D-M6E11-29`); one with no Epic moves to `done/YYYY-MM/`.
+**Work store on, v1:** the same call closes the matched items (`closeItems`, reason `fixed`, the discharge stamp as proof) instead of editing `BACKLOG.md`, which is generated — as one batch: if any close fails, none is recorded. Stage the changed item files: an item in the Epic's folder closes in place and does not move (`D-M6E11-29`); one with no Epic moves to `done/YYYY-MM/`.
+
+**Work store on, v2** (`schema_version: 2`): the same call asks each matched item to close (`requestCloses`, one batch, all or nothing) with the Epic's commit as proof — the branch HEAD at ship by default, or pass `commit`; the result's `commit` says which. Each row then reads *closing*, not closed: §6.9 below, the sweep, or a later SHIP confirms it once that commit is on the default branch (`D-M6E13-15`, `D-M6E13-21`). A row already *closing* or closed reads `already-discharged`. Stage the changed item records and the regenerated views.
 
 *(That call sits on one line deliberately. `directive-classifier.js` reads at line granularity, so a
 call name wrapped across a break is invisible to it and the instruction ships **unmeasurable** —

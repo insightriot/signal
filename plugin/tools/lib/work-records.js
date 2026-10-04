@@ -1000,16 +1000,60 @@ const ARCHIVED_EPICS_REL = '.planning/archive/epics';
  * @returns {Promise<object>} the entry
  */
 export async function requestClose(baseDir, id, request = {}, opts = {}) {
-  const { proof, by, at = nowIso() } = request;
+  assertProof(id, request.proof);
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+    const { next } = planRequest(handle, id, request);
+    const out = await writeRecord(handle, next, opts);
+    await regenerateAfter(handle, `${id} is closing (fixed by ${request.proof})`, opts);
+    return out;
+  });
+}
+
+function assertProof(id, proof) {
   if (typeof proof !== 'string' || !COMMIT_RE.test(proof)) {
     throw new WorkStoreError('SCHEMA', `${id}: a close request's proof is a commit hash — lowercase hex, `
       + `7 to 64 characters, nothing else (got ${JSON.stringify(proof)}). Nothing was written.`);
   }
+}
+
+// One close request, built and checked under the lock, nothing written.
+function planRequest(handle, id, { proof, by, at = nowIso() }) {
+  const { entry, text } = readForWrite(handle, id);
+  const next = withEvent(entry, { type: 'close_requested', at, by, reason: 'fixed', proof });
+  return { next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path) };
+}
+
+/**
+ * Ask to close several items as fixed: `requestClose` for each, under ONE
+ * `work` lock, every request built and checked before any is written, all or
+ * nothing (a failure part-way puts back every record already changed), then
+ * ONE `regenerate`. SHIP's backlog discharge on a v2 store uses it
+ * (`backlog.js` `dischargeBacklogRows`, `D-M6E13-15`): the rows an Epic
+ * finished become *closing* with the Epic's commit, and `confirmCloses`
+ * closes them once that commit is on the default branch.
+ *
+ * Each `proof` is a bare commit hash, as `requestClose`'s. The same item twice
+ * is refused.
+ *
+ * @param {string} baseDir
+ * @param {Array<{id: string, proof: string, by: string, at?: string}>} requests
+ * @param {object} [opts] — as `newItems`'s
+ * @returns {Promise<object[]>} the entries, in order
+ */
+export async function requestCloses(baseDir, requests, opts = {}) {
+  if (!Array.isArray(requests) || requests.length === 0) {
+    throw new WorkStoreError('SCHEMA', 'requestCloses: pass at least one request — nothing was written.');
+  }
+  const ids = requests.map((r) => r?.id);
+  const twice = ids.filter((id, i) => ids.indexOf(id) !== i);
+  if (twice.length) {
+    throw new WorkStoreError('SCHEMA', `requestCloses: ${[...new Set(twice)].join(', ')} named more than once — nothing was written.`);
+  }
+  for (const r of requests) assertProof(r?.id, r?.proof);
   return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
-    const current = readForWrite(handle, id).entry;
-    const next = withEvent(current, { type: 'close_requested', at, by, reason: 'fixed', proof });
-    const out = await writeRecord(handle, next, opts);
-    await regenerateAfter(handle, `${id} is closing (fixed by ${proof})`, opts);
+    const planned = requests.map((r) => planRequest(handle, r.id, r));
+    const out = await writeRecords(handle, planned, opts);
+    await regenerateAfter(handle, `${ids.join(', ')} ${ids.length === 1 ? 'is' : 'are'} closing`, opts);
     return out;
   });
 }

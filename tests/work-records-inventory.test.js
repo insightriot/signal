@@ -120,6 +120,12 @@ const WRITERS = {
   queueItem: { run: (base) => records.queueItem(base, 'SIG-2', { epic: 'M6.E13', by }) },
   startItem: { run: (base) => records.startItem(base, 'SIG-2', { epic: 'M6.E13', by }) },
   requestClose: { run: (base) => records.requestClose(base, 'SIG-2', { proof: '0123abc', by }) },
+  requestCloses: {
+    run: (base) => records.requestCloses(base, [
+      { id: 'SIG-2', proof: '0123abc', by },
+      { id: 'SIG-3', proof: '0123abc', by },
+    ]),
+  },
   closeItem: { run: (base) => records.closeItem(base, 'SIG-2', { reason: 'wontdo', proof: 'no', by }) },
   closeItems: {
     run: (base) => records.closeItems(base, [
