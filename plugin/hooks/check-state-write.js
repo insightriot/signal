@@ -80,7 +80,7 @@ if (typeof input.file_path === 'string') {
     const abs = resolve(cwd, input.file_path);
     if (abs.toLowerCase().includes('.planning') || realpathLoose(abs).toLowerCase().includes('.planning')) {
       const { checkWorkWrite } = await import('../tools/lib/work-write-guard.js');
-      const guard = await checkWorkWrite({ filePath: input.file_path, cwd });
+      const guard = await checkWorkWrite({ filePath: input.file_path, cwd, tool, input });
       if (guard.block) {
         process.stderr.write(`[signal:check-state-write] ${guard.reason}\n`);
         process.exit(2);

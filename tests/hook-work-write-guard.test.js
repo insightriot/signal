@@ -165,15 +165,45 @@ describe('work write guard — v2 store', () => {
     expect(protectedTarget(join(dir, 'plan-alias', 'BUGS.md'))).toMatchObject({ blocked: true });
   });
 
-  it('blocks Edit, Write and MultiEdit of work/WORK.md, naming /sig:item and the migration tool', () => {
-    for (const ev of [edit, write, multi]) {
-      const { status, stderr } = runHook(ev(join(dir, WORK_MD)));
-      expect(status, ev.name).toBe(2);
+  // REVIEW I7, narrowed in loop 1 part B: only an edit that would change or
+  // remove `schema_version: 2` is blocked — that is the edit that switches the
+  // guard off. Any other WORK.md text edit is allowed.
+  describe('work/WORK.md: only a change to schema_version: 2 is blocked', () => {
+    const BODY = '---\nkey: SIG\nschema_version: 2\n---\n\nSome prose.\n';
+    const at = () => join(dir, WORK_MD);
+    const ed = (old_string, new_string, extra = {}) => ({ tool_name: 'Edit', tool_input: { file_path: at(), old_string, new_string, ...extra } });
+    const wr = (content) => ({ tool_name: 'Write', tool_input: { file_path: at(), content } });
+    const me = (edits) => ({ tool_name: 'MultiEdit', tool_input: { file_path: at(), edits } });
+    beforeEach(() => writeFileSync(at(), BODY));
+
+    const expectBlocked = (event) => {
+      const { status, stderr } = runHook(event);
+      expect(status).toBe(2);
       expect(stderr).toMatch(/^\[signal:check-state-write\] /);
       expect(stderr).toContain('schema_version');
       expect(stderr).toContain('/sig:item');
       expect(stderr).toContain('work-migrate-v2');
-    }
+    };
+    const expectAllowed = (event) => {
+      const { status, stderr } = runHook(event);
+      expect(status, stderr).toBe(0);
+    };
+
+    it('Edit changing schema_version to 1 is blocked', () => expectBlocked(ed('schema_version: 2', 'schema_version: 1')));
+    it('Edit removing the schema_version line is blocked', () => expectBlocked(ed('schema_version: 2\n', '')));
+    it('Edit breaking the frontmatter (so no version can be read) is blocked', () => expectBlocked(ed('---\nkey', 'key')));
+    it('Edit with replace_all that rewrites the version is blocked', () => expectBlocked(ed('2', '3', { replace_all: true })));
+    it('Write without schema_version: 2 is blocked', () => expectBlocked(wr('---\nkey: SIG\n---\n')));
+    it('MultiEdit whose second edit changes the version is blocked', () =>
+      expectBlocked(me([{ old_string: 'Some prose.', new_string: 'Other prose.' }, { old_string: 'schema_version: 2', new_string: 'schema_version: 1' }])));
+
+    it('Edit of the prose is allowed', () => expectAllowed(ed('Some prose.', 'Other prose.')));
+    it('Write keeping schema_version: 2 is allowed', () => expectAllowed(wr(`${BODY}More prose.\n`)));
+    it('MultiEdit of prose only is allowed', () =>
+      expectAllowed(me([{ old_string: 'Some prose.', new_string: 'Other.' }, { old_string: 'Other.', new_string: 'Third.' }])));
+    // `$&` would re-insert the match under String.replace's expansion and the
+    // version would survive; Claude Code writes it literally, which removes it.
+    it('a `$&` in new_string is judged literally, as Claude Code writes it', () => expectBlocked(ed('schema_version: 2', '$&')));
   });
 
   it('blocks an upper-case path on a case-insensitive filesystem', (ctx) => {
@@ -184,6 +214,15 @@ describe('work write guard — v2 store', () => {
     expect(runHook(edit(join(dir, '.Planning/Work/Items/00/SIG-1.JSON'))).status).toBe(2);
     expect(runHook(edit(join(dir, '.PLANNING/bugs.md'))).status).toBe(2);
     expect(runHook(edit(join(dir, '.Planning/Work/Items/00/SIG-1.MD'))).status).toBe(0);
+  });
+
+  // Runs on every filesystem: the classification is by path shape, so it is
+  // tested directly (the spawned case above skips on a case-sensitive one).
+  it('classifies an upper-case path as protected by shape alone (any filesystem)', () => {
+    expect(protectedTarget(join(dir, '.Planning/Work/Items/00/SIG-1.JSON'))).toMatchObject({ blocked: true });
+    expect(protectedTarget(join(dir, '.PLANNING/bugs.md'))).toMatchObject({ blocked: true });
+    expect(protectedTarget(join(dir, '.PLANNING/Work/WORK.MD'))).toMatchObject({ blocked: true });
+    expect(protectedTarget(join(dir, '.Planning/Work/Items/00/SIG-1.MD'))).toMatchObject({ blocked: false });
   });
 
   it('a WORK.md that cannot be read fails open', () => {
@@ -218,6 +257,18 @@ describe('work write guard — v2 store', () => {
     } finally {
       rmSync(off, { recursive: true, force: true });
     }
+  });
+});
+
+describe('hooks-api.md states what the guard cannot see (REVIEW I7)', () => {
+  const doc = readFileSync(join(__dirname, '..', 'plugin', 'references', 'hooks-api.md'), 'utf-8');
+  it('names the Bash route, the checkRecords backstop, and its limit', () => {
+    const at = doc.indexOf('### What the work-store guard cannot see');
+    expect(at).toBeGreaterThanOrEqual(0);
+    const section = doc.slice(at);
+    expect(section).toMatch(/through Bash/);
+    expect(section).toContain('checkRecords');
+    expect(section).toMatch(/valid\*?\s+record/);
   });
 });
 

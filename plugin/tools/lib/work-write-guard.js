@@ -6,8 +6,17 @@
 // code (`/sig:item` → work-records.js → work-views.js). A hand edit to one of
 // them is either overwritten at the next regeneration or, for a record, an
 // edit the event log never saw. Bodies (`items/**/*.md`) stay editable.
-// `work/WORK.md` is blocked too, with its own message (REVIEW I7): setting its
-// `schema_version` by hand would switch this guard off.
+// `work/WORK.md` is guarded too, with its own message (REVIEW I7), but only
+// against the one edit that matters: one that would change or remove
+// `schema_version: 2`, which would switch this guard off. The proposed content
+// is computed (Write: `content`; Edit: `old_string` → `new_string`, literally;
+// MultiEdit: each of `edits` in order) and blocked unless it still reads
+// `schema_version: 2` — a proposal whose frontmatter no longer parses counts
+// as removing it. Any other WORK.md text edit is allowed (loop 1 part B).
+//
+// What no PreToolUse hook can see: an edit made through Bash (`sed -i`, `>`,
+// a script). See references/hooks-api.md § "What the work-store guard cannot
+// see" for the backstop and its limit.
 //
 // This hook runs on every Edit/Write in every repository of every user, and in
 // every project except Signal the views are typed by hand (RESEARCH, Risk 1).
@@ -23,7 +32,7 @@
 // prefilter tests both too, so such an alias reaches this module (REVIEW loop
 // 1); before that, the realpath here was never consulted for one.
 
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
 const VIEWS = new Set(['bugs.md', 'backlog.md', 'issues-inbox.md', 'open-questions.md']);
@@ -36,10 +45,10 @@ export const BLOCK_MESSAGE = (rel) =>
   + 'For prose, edit the item\'s body file (.planning/work/items/NN/KEY-n.md), which is not blocked.';
 
 export const WORK_MD_MESSAGE = (rel) =>
-  `${rel} switches this project's v2 work store on (\`schema_version: 2\`), so it is not edited by hand: `
-  + 'changing schema_version would switch off this guard and the generated views, and changing key would '
-  + 'orphan every record\'s ID. Items are changed with /sig:item; the store\'s version is changed only by the '
-  + 'migration tool, `node tools/work-migrate-v2.mjs`.';
+  `${rel} switches this project's v2 work store on (\`schema_version: 2\`), and this edit would change or `
+  + 'remove that line: it would switch off this guard and the generated views. Other text in the file may be '
+  + 'edited. Items are changed with /sig:item; the store\'s version is changed only by the migration tool, '
+  + '`node tools/work-migrate-v2.mjs`.';
 
 const isWorkMd = (rel) => rel.toLowerCase() === '.planning/work/work.md';
 
@@ -104,13 +113,48 @@ export function protectedTarget(abs) {
   return { blocked: candidates.length > 0, candidates };
 }
 
+// The content a tool call would leave in `abs`, or null when it cannot be
+// computed (an unreadable file, a malformed input) — the edit then fails in
+// Claude Code anyway, and the guard allows. A `$` in a replacement is inserted
+// literally, as Claude Code does (a function replacer; split/join for all).
+function proposedContent(abs, tool, input) {
+  if (tool === 'Write') return typeof input?.content === 'string' ? input.content : null;
+  const edits = tool === 'Edit' ? [input] : tool === 'MultiEdit' ? input?.edits : null;
+  if (!Array.isArray(edits)) return null;
+  let text;
+  try {
+    text = readFileSync(abs, 'utf-8');
+  } catch {
+    return null;
+  }
+  for (const e of edits) {
+    if (typeof e?.old_string !== 'string' || e.old_string === '' || typeof e.new_string !== 'string') return null;
+    text = e.replace_all ? text.split(e.old_string).join(e.new_string) : text.replace(e.old_string, () => e.new_string);
+  }
+  return text;
+}
+
+// Would this WORK.md write change or remove `schema_version: 2`? Unknown → false.
+async function changesVersion(abs, tool, input) {
+  const next = proposedContent(abs, tool, input);
+  if (next === null) return false;
+  const { parseFrontmatter } = await import('./state.js');
+  try {
+    return parseFrontmatter(next).data?.schema_version !== 2;
+  } catch {
+    return true; // a frontmatter that no longer parses has lost its version
+  }
+}
+
 /**
  * Should the hook block this write? Fail-open: any throw → allow.
  *
- * @param {{filePath: unknown, cwd: unknown}} args
+ * @param {{filePath: unknown, cwd: unknown, tool?: string, input?: object}} args — `tool` and
+ *   `input` (the event's `tool_name` and `tool_input`) decide a WORK.md edit; without them a
+ *   WORK.md edit is allowed
  * @returns {Promise<{block: boolean, reason?: string}>}
  */
-export async function checkWorkWrite({ filePath, cwd }) {
+export async function checkWorkWrite({ filePath, cwd, tool, input }) {
   try {
     if (typeof filePath !== 'string' || filePath === '') return { block: false };
     const base = typeof cwd === 'string' && isAbsolute(cwd) ? cwd : process.cwd();
@@ -122,7 +166,9 @@ export async function checkWorkWrite({ filePath, cwd }) {
       if (!existsSync(join(baseDir, '.planning', 'work', 'WORK.md'))) continue;
       try {
         const { storeVersion } = await import('./work-records.js');
-        if (storeVersion(baseDir) === 2) return { block: true, reason: isWorkMd(rel) ? WORK_MD_MESSAGE(rel) : BLOCK_MESSAGE(rel) };
+        if (storeVersion(baseDir) !== 2) continue;
+        if (!isWorkMd(rel)) return { block: true, reason: BLOCK_MESSAGE(rel) };
+        if (await changesVersion(abs, tool, input)) return { block: true, reason: WORK_MD_MESSAGE(rel) };
       } catch {
         // A broken or unknown WORK.md — allow.
       }
