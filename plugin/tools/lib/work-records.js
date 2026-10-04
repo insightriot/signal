@@ -17,6 +17,7 @@
 // Read side: t2.1. ID allocation and the duplicate-ID check: t2.3. Writes:
 // t2.2a (new, triage, queue, start) and t2.2b. The Epic close query: t2.5.
 // Confirming fixed closes against the default branch: t2.6. The store check: t2.7.
+// The views it regenerates after every write: `work-views.js` (t3.1).
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, realpathSync, existsSync, lstatSync, mkdirSync, rmdirSync, unlinkSync } from 'node:fs';
@@ -31,6 +32,9 @@ import { RECORD_SCHEMA, parseRecord, serializeRecord, checkEvents, deriveStatus,
 import { bodyDirFor, convertV1Item } from './work-convert.js';
 import { ITEM_ID_RE } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
+// A cycle, by design: work-views.js reads through listRecords. Neither module
+// uses the other's bindings while it is being evaluated.
+import { regenerateToMemory, regenerateViews } from './work-views.js';
 import {
   isStoreOn,
   isGitRepo,
@@ -618,14 +622,11 @@ export function findDuplicateIds(baseDir) {
 // record, exactly one event appended per changed record; then `regenerate`.
 //
 // `regenerate` is injected (`opts.regenerate`, called with `baseDir`). Its
-// default is a no-op until the v2 views exist (S3). As in v1, a failed
-// regeneration does not undo the change: the change is correct, and the error
-// says the views were not rebuilt.
+// default is `work-views.js`'s `regenerateViews` (S3), which never takes the
+// lock. As in v1, a failed regeneration does not undo the change: the change
+// is correct, and the error says the views were not rebuilt.
 
 const WORK_LOCK_LABEL = 'work store';
-
-// The default view regeneration: nothing yet. S3 replaces this body.
-async function regenerateViews() {}
 
 async function withWorkLockV2(baseDir, label, fn) {
   const { key } = assertWritable(baseDir);
@@ -1385,18 +1386,6 @@ export async function confirmCloses(baseDir, opts = {}) {
 // the sweep switches between them by store version (t4.4).
 
 /**
- * The views this library would write, regenerated in memory and not written:
- * none, until the v2 views exist (S3, `work-views.js`), which supply the
- * generator. It is sync because `checkRecords` is (the sweep calls it
- * synchronously); S3's generator must offer a sync in-memory form.
- *
- * @returns {null|Map<string, string>|Object<string, string>} repo-root-relative path → text
- */
-function viewsInMemory() {
-  return null;
-}
-
-/**
  * Check a v2 work store and report every problem by ID. Read-only. One
  * broken record never stops the others (NFR integrity).
  *
@@ -1417,7 +1406,9 @@ function viewsInMemory() {
  *   regeneration, or the regeneration failed.
  *
  * `opts.regenerateToMemory(baseDir)` is the view generator, injected; by
- * default there is none yet (S3) and views are not compared.
+ * default `work-views.js`'s `regenerateToMemory` (synchronous, as this check
+ * is: the sweep calls it synchronously). When a record is broken the views
+ * refuse to regenerate, and that is one more `view-stale` finding.
  *
  * A store that is off has no findings (as v1 `checkStore`). A v1 store is one
  * `v1-store` finding and nothing else: this check is for v2 records, and v1
@@ -1466,7 +1457,7 @@ export function checkRecords(baseDir, opts = {}) {
     });
   }
 
-  findings.push(...staleViews(baseDir, opts.regenerateToMemory ?? viewsInMemory));
+  findings.push(...staleViews(baseDir, opts.regenerateToMemory ?? regenerateToMemory));
 
   return findings.sort((a, b) => {
     if ((a.id === null) !== (b.id === null)) return a.id === null ? 1 : -1;

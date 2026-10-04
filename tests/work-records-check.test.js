@@ -33,6 +33,11 @@ async function put(rel, content) {
 const putRecord = (r, rel = records.recordPath(r.id)) => put(rel, serializeRecord(r));
 const raw = (r) => `${JSON.stringify(r, null, 2)}\n`;
 const codes = (findings) => findings.map((f) => [f.code, f.id]);
+// The record checks, without the view comparison: these tests are about
+// records, and since t3.1 the default compares the real views (tested in
+// tests/work-views.test.js and tests/work-views-fresh.test.js).
+const NO_VIEWS = { regenerateToMemory: () => null };
+const check = (dir) => records.checkRecords(dir, NO_VIEWS);
 
 beforeEach(async () => {
   base = await mkdtemp(join(tmpdir(), 'sig-records-check-'));
@@ -46,18 +51,18 @@ afterEach(async () => {
 
 describe('checkRecords — a sound store', () => {
   it('has no findings', () => {
-    expect(records.checkRecords(base)).toEqual([]);
+    expect(check(base)).toEqual([]);
   });
 
   it('a store that is off has no findings (as v1 checkStore)', async () => {
     await rm(join(base, '.planning/work/WORK.md'));
-    expect(records.checkRecords(base)).toEqual([]);
+    expect(check(base)).toEqual([]);
   });
 
   it('a v1 store is ONE finding saying so, and nothing else is checked', async () => {
     await put('.planning/work/WORK.md', '---\nkey: SIG\n---\n');
     await put('.planning/work/backlog/SIG-9.md', 'not even frontmatter\n');
-    expect(records.checkRecords(base)).toEqual([{
+    expect(check(base)).toEqual([{
       code: 'v1-store',
       id: null,
       path: '.planning/work/WORK.md',
@@ -70,7 +75,7 @@ describe('checkRecords — every record validates and folds (AC1.3)', () => {
   it('invalid JSON, and a schema violation, are `invalid`, by ID', async () => {
     await put(records.recordPath('SIG-3'), '{ nope\n');
     await put(records.recordPath('SIG-4'), raw({ ...rec('SIG-4', [E.created]), status: 'C' }));
-    const f = records.checkRecords(base);
+    const f = check(base);
     expect(codes(f)).toEqual([['invalid', 'SIG-3'], ['invalid', 'SIG-4']]);
     expect(f[1]).toMatchObject({ path: '.planning/work/items/00/SIG-4.json', message: expect.stringMatching(/status is not a known field/) });
   });
@@ -80,7 +85,7 @@ describe('checkRecords — every record validates and folds (AC1.3)', () => {
     await put(records.recordPath('SIG-4'), raw(rec('SIG-4', [
       E.created, { type: 'edited', at: AT, by, changes: { title: { from: 't SIG-4', to: 'b' } } },
     ])));
-    const f = records.checkRecords(base);
+    const f = check(base);
     expect(codes(f)).toEqual([['events', 'SIG-3'], ['events', 'SIG-4']]);
     expect(f[0].message).toMatch(/triaged is not legal from T/);
     expect(f[1].message).toMatch(/title was last edited to "b"/);
@@ -93,7 +98,7 @@ describe('checkRecords — files and paths (AC1.1)', () => {
     await putRecord(rec('SIG-9', [E.created]), records.recordPath('SIG-8'));
     await putRecord(rec('ABC-5', [E.created]), '.planning/work/items/00/ABC-5.json');
     await putRecord(rec('SIG-11', [E.created]), '.planning/work/items/SIG-11.json');
-    const f = records.checkRecords(base);
+    const f = check(base);
     expect(f.filter((x) => x.code === 'path').map((x) => x.path).sort()).toEqual([
       '.planning/work/items/00/ABC-5.json',
       '.planning/work/items/00/SIG-8.json',
@@ -111,7 +116,7 @@ describe('checkRecords — files and paths (AC1.1)', () => {
     await mkdir(join(base, '.planning/work/items/00/SIG-4.json'));
     await mkdir(join(base, 'elsewhere/bucket'), { recursive: true });
     await symlink(join(base, 'elsewhere/bucket'), join(base, '.planning/work/items/05'));
-    const f = records.checkRecords(base);
+    const f = check(base);
     expect(f.map((x) => [x.code, x.path]).sort()).toEqual([
       ['link', '.planning/work/items/00/SIG-2.md'],
       ['link', '.planning/work/items/00/SIG-3.json'],
@@ -128,7 +133,7 @@ describe('checkRecords — files and paths (AC1.1)', () => {
       await symlink(outside, join(base, '.planning/work/items'));
       await put('.planning/work/backlog/SIG-1.md', 'x\n');
       await put('.planning/work/inbox/SIG-1.md', 'x\n');
-      const f = records.checkRecords(base);
+      const f = check(base);
       expect(codes(f)).toEqual([['duplicate-id', 'SIG-1'], ['link', null]]);
     } finally {
       await rm(outside, { recursive: true, force: true });
@@ -142,7 +147,7 @@ describe('checkRecords — dup_of (store-level, Decision 3)', () => {
     await putRecord(rec('SIG-4', [E.created, E.dup('SIG-4')]));
     await putRecord(rec('SIG-5', [E.created, E.dup('SIG-1')]));
     await putRecord(rec('SIG-6', [E.created, E.dup('SIG-5')]));
-    const f = records.checkRecords(base);
+    const f = check(base);
     expect(codes(f)).toEqual([['dup-of-missing', 'SIG-3'], ['dup-of-self', 'SIG-4'], ['dup-of-dup', 'SIG-6']]);
     expect(f[2].message).toMatch(/SIG-5 is itself a duplicate/);
   });
@@ -150,13 +155,13 @@ describe('checkRecords — dup_of (store-level, Decision 3)', () => {
   it('a reopened dup is not a dup; its old dup_of is not checked, and it is a valid target', async () => {
     await putRecord(rec('SIG-3', [E.created, E.dup('SIG-99'), E.reopened]));
     await putRecord(rec('SIG-4', [E.created, E.dup('SIG-3')]));
-    expect(records.checkRecords(base)).toEqual([]);
+    expect(check(base)).toEqual([]);
   });
 
   it('a dup_of pointing at a broken record is not called missing (the broken one is reported)', async () => {
     await put(records.recordPath('SIG-3'), '{ nope\n');
     await putRecord(rec('SIG-4', [E.created, E.dup('SIG-3')]));
-    expect(codes(records.checkRecords(base))).toEqual([['invalid', 'SIG-3']]);
+    expect(codes(check(base))).toEqual([['invalid', 'SIG-3']]);
   });
 });
 
@@ -164,7 +169,7 @@ describe('checkRecords — duplicate IDs (AC2.3)', () => {
   it('a record and a v1 item file with one ID; the relocated v1 folder is skipped', async () => {
     await put('.planning/work/backlog/SIG-1.md', 'x\n');
     await put('.planning/archive/pre-work-store-v2/backlog/SIG-2.md', 'x\n');
-    const f = records.checkRecords(base);
+    const f = check(base);
     expect(f).toEqual([{
       code: 'duplicate-id',
       id: 'SIG-1',
@@ -181,16 +186,22 @@ describe('checkRecords — one broken record never stops the others (NFR integri
     await putRecord(rec('SIG-4', [E.created, E.triaged, E.triaged]));
     await putRecord(rec('SIG-12', [E.created, E.dup('SIG-12')]));
     await putRecord(rec('SIG-5', [E.created, E.wontdo]));
-    expect(codes(records.checkRecords(base))).toEqual([['events', 'SIG-4'], ['dup-of-self', 'SIG-12'], ['invalid', 'SIG-30']]);
+    expect(codes(check(base))).toEqual([['events', 'SIG-4'], ['dup-of-self', 'SIG-12'], ['invalid', 'SIG-30']]);
   });
 });
 
 describe('checkRecords — views equal a regeneration (AC5.2), through the injected seam', () => {
   const VIEW = '.planning/work/BUGS.md';
 
-  it('with no regenerateToMemory, views are not compared', async () => {
+  it('a regenerateToMemory returning null compares no views', async () => {
     await put(VIEW, 'anything\n');
-    expect(records.checkRecords(base)).toEqual([]);
+    expect(check(base)).toEqual([]);
+  });
+
+  it('by default the real views are compared (t3.1): with none written, each is missing', () => {
+    const f = records.checkRecords(base);
+    expect(f.length).toBeGreaterThan(0);
+    expect(f.every((x) => x.code === 'view-stale' && /missing/.test(x.message))).toBe(true);
   });
 
   it('a view equal to its regeneration passes; one that differs, or is missing, is `view-stale`', async () => {
