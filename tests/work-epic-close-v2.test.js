@@ -130,4 +130,15 @@ describe('closeEpic on a v2 store', () => {
     expect(await closeEpic(root, EPIC, { by, at: AT }, { execFn: noGit })).toEqual({ status: 'no-folder' });
     expect(snapshotTree(root)).toEqual(before);
   });
+
+  // REVIEW I3: nothing creates Epic folders on a v2 store, so a gate that ran
+  // only after finding the folder never ran at all.
+  it('no Epic folder and a record of the Epic still in progress: OPEN_ITEMS, nothing written', async () => {
+    await store([{ id: 'SIG-3', type: 'FEAT', title: 'still being built', events: [ev.created, ev.triaged, ev.started] }]);
+    await rm(join(root, `.planning/work/epics/${EPIC}`), { recursive: true });
+    const before = snapshotTree(root);
+    await expect(closeEpic(root, EPIC, { by, at: AT }, { execFn: noGit }))
+      .rejects.toMatchObject({ code: 'OPEN_ITEMS', message: expect.stringMatching(/SIG-3 \(status P\) — still being built/) });
+    expect(snapshotTree(root)).toEqual(before);
+  });
 });

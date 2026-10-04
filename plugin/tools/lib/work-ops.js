@@ -261,8 +261,10 @@ function removeEmptyTree(dir) {
  * refuses (CONFIG, naming `node tools/work-migrate-v2.mjs`): its item-file
  * gate was retired with it (M6.E13 t7.4).
  *
- * An Epic with no folder — every Epic from before the store — is not an error:
- * `{status: 'no-folder'}`, nothing read or written, so `/sig:ship` behaves as
+ * The gate runs before the folder is looked for (REVIEW I3): an Epic with an
+ * open record refuses with OPEN_ITEMS whether or not it has a folder. An Epic
+ * with no folder and nothing open — every Epic from before the store — is not
+ * an error: `{status: 'no-folder'}`, nothing written, so `/sig:ship` behaves as
  * it always has. Moving existing Epics into folders is migration (step 5).
  *
  * Each file moves with `git mv` when git tracks it, a rename otherwise; links
@@ -307,6 +309,12 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
     const fromAbs = join(planning, fromDirRel);
     const toAbs = join(planning, toDirRel);
 
+    // The gate runs first, before the folder is looked for: nothing creates
+    // Epic folders on a v2 store, so a gate behind the folder lookup never ran
+    // (REVIEW I3). Every record whose Epic is this one (`closeEpicCheck` throws
+    // OPEN_ITEMS or SCHEMA itself).
+    closeEpicCheck(baseDir, epicId, { execFn });
+
     let st = null;
     try {
       st = lstatSync(fromAbs);
@@ -322,15 +330,12 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
     confine(baseDir, fromAbs, '/sig:item');
     confine(baseDir, toAbs, '/sig:item');
 
-    // The gate: every record whose Epic is this one (`closeEpicCheck` throws
-    // OPEN_ITEMS or SCHEMA itself).
     const tree = listTree(fromAbs);
     if (tree.other.length) {
       const names = tree.other.map((p) => toPosix(relative(baseDir, p))).join(', ');
       throw new WorkStoreError('CONFLICT', `${fromRel} holds entries that are not files or folders (${names}); `
         + 'moving the folder would leave them behind. Remove or replace them, then re-run.');
     }
-    closeEpicCheck(baseDir, epicId, { execFn });
     if (exists(toAbs)) {
       throw new WorkStoreError('CONFLICT', `${toRel} already exists — nothing was moved. `
         + 'Find out what it is before archiving onto it.');
