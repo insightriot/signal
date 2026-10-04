@@ -12,6 +12,8 @@
 
 import { readFileSync } from 'node:fs';
 
+import { WorkStoreError } from './work-errors.js';
+
 /**
  * The shipped JSON Schema (`plugin/references/work-item.schema.json`). It is
  * the source of truth for the record's shape; `validateRecord` interprets it.
@@ -166,4 +168,90 @@ export function validateRecord(record) {
     });
   }
   return errors;
+}
+
+// Key order on disk (Decision 8). `JSON.stringify` writes keys in insertion
+// order, so without these lists the bytes would depend on whichever code path
+// built the object, and parse → serialise would not be byte-identical (AC1.2).
+const RECORD_ORDER = [
+  'id',
+  'type',
+  'title',
+  'theme',
+  'priority',
+  'source',
+  'source_ref',
+  'legacy_id',
+  'keep_because',
+  'migration_note',
+  'events',
+];
+const EVENT_HEAD = ['type', 'at', 'by'];
+const EVENT_FIELDS = {
+  created: [],
+  triaged: [],
+  queued: ['epic'],
+  started: ['epic'],
+  close_requested: ['reason', 'proof'],
+  closed: ['reason', 'proof', 'dup_of', 'legacy'],
+  reopened: ['reason'],
+  edited: ['changes'],
+};
+const CHANGE_ORDER = ['from', 'to'];
+
+// Only called on a validated record, so every key is in `order`.
+function ordered(obj, order) {
+  const out = {};
+  for (const key of order) if (Object.hasOwn(obj, key)) out[key] = obj[key];
+  return out;
+}
+
+function orderedEvent(event) {
+  const out = ordered(event, [...EVENT_HEAD, ...EVENT_FIELDS[event.type]]);
+  if (out.changes !== undefined) {
+    const changes = ordered(out.changes, RECORD_ORDER);
+    for (const field of Object.keys(changes)) changes[field] = ordered(changes[field], CHANGE_ORDER);
+    out.changes = changes;
+  }
+  return out;
+}
+
+/**
+ * Render a record as its file's bytes: fixed key order, 2-space indent, one
+ * trailing newline, non-ASCII written as is. Validates first and throws a
+ * `WorkStoreError('SCHEMA')` listing every violation, so an invalid record,
+ * or one with an unknown key, never reaches disk.
+ *
+ * @param {object} record
+ * @returns {string}
+ */
+export function serializeRecord(record) {
+  const errors = validateRecord(record);
+  if (errors.length > 0) {
+    throw new WorkStoreError('SCHEMA', `invalid work record: ${errors.join('; ')}`);
+  }
+  const out = ordered(record, RECORD_ORDER);
+  out.events = record.events.map(orderedEvent);
+  return `${JSON.stringify(out, null, 2)}\n`;
+}
+
+/**
+ * Parse a record file. Never throws on bad content: malformed JSON yields
+ * `{record: null, errors}`, and a record that parses but fails validation is
+ * returned with its errors, so a store check can report every broken file
+ * instead of stopping at the first.
+ *
+ * @param {string} text
+ * @param {{path?: string}} [opts] — the file's path, used only in messages
+ * @returns {{record: object|null, errors: string[]}}
+ */
+export function parseRecord(text, opts = {}) {
+  const where = opts.path ?? 'work record';
+  let record;
+  try {
+    record = JSON.parse(text);
+  } catch (err) {
+    return { record: null, errors: [`${where}: not valid JSON (${err.message})`] };
+  }
+  return { record, errors: validateRecord(record).map((e) => `${where}: ${e}`) };
 }
