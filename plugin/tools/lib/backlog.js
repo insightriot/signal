@@ -32,7 +32,7 @@ import { atomicWrite } from './atomic-write.js';
 import { insertAboveFooter, rewriteFooter, buildBugsEntry, insertAtEnd, scrubSensitive } from './add.js';
 import { DONE_WORD_RE, declaresBugDischarge, isBugId, parseBacklogRows } from './legacy-lists.js';
 import { isStoreOn } from './work-store.js';
-import { assertWritable, isEpicArchived, listRecords, newItem, requestCloses, storeVersion } from './work-records.js';
+import { assertWritable, isEpicArchived, listRecords, newItem, requestCloses } from './work-records.js';
 import { WorkStoreError } from './work-errors.js';
 
 const BACKLOG_REL = '.planning/BACKLOG.md';
@@ -515,11 +515,11 @@ function renderDischargedHeading(depth, text, by, at) {
  *   proof each close request carries (default: the branch HEAD)
  * @returns {Promise<{written:boolean, path:string, reason:string|null, commit?:string,
  *   results:Array<{row:string, status:string, reason:string|null, heading:string|null, line:number|null, id?:string}>}>}
- *   With the store on, a named row is an item. On a v1 store it is CLOSED
- *   (`fixed`, the discharge stamp as proof) — see `dischargeInStore`. On a v2
- *   store it is asked to close (`requestCloses`) with `commit` as proof, and
- *   reads *closing* until `confirmCloses` finds that commit on the default
- *   branch — see `dischargeInRecords`. `line` is null there.
+ *   With the store on, a named row is an item record: it is asked to close
+ *   (`requestCloses`) with `commit` as proof, and reads *closing* until
+ *   `confirmCloses` finds that commit on the default branch — see
+ *   `dischargeInRecords`. `line` is null there. A v1 store refuses (CONFIG,
+ *   naming `node tools/work-migrate-v2.mjs`), writing nothing.
  */
 export async function dischargeBacklogRows(baseDir, opts = {}) {
   const { rows = [], by, at, today } = opts;
@@ -529,10 +529,10 @@ export async function dischargeBacklogRows(baseDir, opts = {}) {
   if (isStoreOn(baseDir).on) {
     // Test seam, like checkpoint.js's `_renameFn`: own-property + typeof guard.
     const renameFn = Object.hasOwn(opts, '_renameFn') && typeof opts._renameFn === 'function' ? opts._renameFn : undefined;
-    if (storeVersion(baseDir) === 2) {
-      return dischargeInRecords(baseDir, { rows, by, at, today, base, renameFn, commit: opts.commit });
-    }
-    return dischargeInStore(baseDir, { rows, by, at, today, base, renameFn });
+    // A v1 store refuses (CONFIG, naming the migration): the v1 discharge,
+    // which closed item files, was retired with the v1 store (M6.E13 t7.4).
+    assertWritable(baseDir);
+    return dischargeInRecords(baseDir, { rows, by, at, today, base, renameFn, commit: opts.commit });
   }
 
   if (!existsSync(path)) {
@@ -591,62 +591,8 @@ export async function dischargeBacklogRows(baseDir, opts = {}) {
   return { written: true, path, reason: null, results };
 }
 
-// The store-on discharge (M6.E11 t4.3). The rows a discharge can name are the
-// rows the generated BACKLOG.md shows: items that are neither BUG nor Q and
-// are past the inbox. Same refusals as the list version — no match, or more
-// than one open match, writes nothing for that query — and an item already
-// closed reads as already discharged. Each hit is closed `fixed`, with the
-// stamp the list heading would have carried as its proof.
-//
-// All the closes are ONE `closeItems` batch: one lock, one regeneration, and
-// all or nothing — a failure on one row leaves every row open. Two queries
-// naming the same item close it once.
-async function dischargeInStore(baseDir, { rows, by, at, today, base, renameFn }) {
-  const { closeItems, listItems } = await import('./work-ops.js');
-  const who = by ?? 'unspecified';
-  const when = at ?? today ?? isoToday();
-  const proof = `DONE — ${at ? `${who}, ${at}` : String(who)}`;
-  const rowsOf = listItems(baseDir).filter((r) => r.item.type !== 'BUG' && r.item.type !== 'Q' && r.item.status !== 'N');
-  const results = [];
-  const toClose = [];
-
-  for (const query of rows) {
-    const needle = String(query).toLowerCase();
-    const hits = rowsOf.filter((r) => String(r.item.title ?? r.item.id).toLowerCase().includes(needle));
-    const open = hits.filter((r) => r.item.status !== 'C');
-    if (open.length > 1) {
-      results.push({
-        row: query,
-        status: ROW_DISCHARGE.AMBIGUOUS,
-        reason: `${JSON.stringify(query)} matches ${open.length} items (${open.map((h) => h.item.id).join(', ')}) — name one of them exactly`,
-        heading: null,
-        line: null,
-      });
-    } else if (open.length === 1) {
-      const [hit] = open;
-      if (!toClose.includes(hit.item.id)) toClose.push(hit.item.id);
-      results.push({ row: query, status: ROW_DISCHARGE.DISCHARGED, reason: null, heading: hit.item.title ?? hit.item.id, line: null, id: hit.item.id });
-    } else if (hits.length > 0) {
-      const [hit] = hits;
-      results.push({ row: query, status: ROW_DISCHARGE.ALREADY_DISCHARGED, reason: `already closed (${hit.item.close?.reason}) at ${hit.path}`,
-        heading: hit.item.title ?? hit.item.id, line: null, id: hit.item.id });
-    } else {
-      results.push({ row: query, status: ROW_DISCHARGE.NOT_FOUND, reason: `no live backlog row matches ${JSON.stringify(query)}`, heading: null, line: null });
-    }
-  }
-
-  if (toClose.length > 0) {
-    // The proof is the stamp built above from `by` and `at`, not free text,
-    // so there is nothing new for the scrub to ask about.
-    const closed = await closeItems(baseDir, toClose.map((id) => ({ id, reason: 'fixed', by: String(who), at: when, proof })),
-      { renameFn, acknowledgeSensitive: true });
-    if (closed?.aborted) return { ...base, ...closed, results };
-  }
-  return { ...base, written: toClose.length > 0, results };
-}
-
 // The v2 discharge (M6.E13 t7.3 prep, `D-M6E13-15`). The same rows and the
-// same refusals as `dischargeInStore` — the rows `BACKLOG.md` shows are the
+// same refusals as the retired v1 discharge — the rows `BACKLOG.md` shows are the
 // records that are neither BUG nor Q and are past the inbox — but a v2 store
 // refuses a direct `fixed` close: a fixed close is a REQUEST carrying a
 // commit, confirmed by `confirmCloses` once that commit is on the default

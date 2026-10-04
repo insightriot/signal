@@ -45,7 +45,7 @@ import { enumerateRetros, parseExistingHooks, renderIndex } from './retro-index.
 import { runDriftChecks, renderDriftReport } from './state-drift.js';
 import { ALL_DRIFT_CHECKS, REACH } from './published-facts.js';
 import { backlogDischargeStatus, storeDischargeStatus, BACKLOG_DISCHARGE, REASON_NO_BACKLOG } from './backlog.js';
-import { isStoreOn, checkStore } from './work-store.js';
+import { isStoreOn } from './work-store.js';
 import { checkRecords, listClosing, listRecords, recordPath, storeVersion } from './work-records.js';
 import { runConfirmCloses } from './close-confirm.js';
 
@@ -395,10 +395,11 @@ export async function checkStaleInbox(baseDir) {
 /**
  * The work store's own consistency (portable, advisory — M6.E11 t6.2, AC-3.3).
  *
- * With `.planning/work/WORK.md` present, each `checkStore` finding (an item in
- * the wrong status folder, a duplicate ID, a schema violation, a file name that
- * disagrees with its `id`) becomes one advisory finding carrying its path and
- * message. Advisory in every case: the fix is `/sig:item`, not this sweep.
+ * With `.planning/work/WORK.md` present, each `checkRecords` finding (an
+ * invalid record, a duplicate ID, a broken duplicate link, a stale view — or,
+ * on a v1 store, that it must be migrated) becomes one advisory finding
+ * carrying its path and message. Advisory in every case: the fix is
+ * `/sig:item`, not this sweep.
  *
  * Store off → no findings, so a project without the store sees no change.
  * A broken WORK.md makes `isStoreOn` throw; that is reported as ONE advisory
@@ -410,12 +411,13 @@ export async function checkStaleInbox(baseDir) {
 export function checkWorkStore(baseDir) {
   const rel = PLANNING_DIR + '/work/WORK.md';
   try {
-    // By store version (M6.E13 t4.4): a v2 store is checked by `checkRecords`
-    // (records, folds, duplicates, stale views); a v1 store by `checkStore`,
-    // unchanged. `storeVersion` throws on a broken WORK.md, as `isStoreOn` does.
+    // `checkRecords` (M6.E13 t4.4): records, folds, duplicates, stale views on
+    // a v2 store; on a v1 store ONE `v1-store` finding naming the migration —
+    // the v1 status-folder check was retired with the v1 store (t7.4).
+    // `storeVersion` throws on a broken WORK.md, as `isStoreOn` does.
     const version = storeVersion(baseDir);
     if (version === null) return [];
-    return (version === 2 ? checkRecords(baseDir) : checkStore(baseDir)).map((f) =>
+    return checkRecords(baseDir).map((f) =>
       mkFinding('work-store', 'advisory', f.path ?? f.paths?.[0] ?? rel, f.message));
   } catch (err) {
     return [mkFinding('work-store', 'advisory', rel, `the work store could not be checked — ${err.message}`)];

@@ -13,9 +13,10 @@
 // M6.E13 t4.5b: capture (add.js, checkpoint.js) and promotion (backlog.js)
 // write v2 records through `work-records.js`, so their describes run on a v2
 // store and check the views against `regenerateToMemory`; on a v1 store they
-// refuse, naming the migration tool. Discharge (`dischargeInStore`), drain,
-// archive-tree and the v1 generator are still v1 until the cutover (PLAN t7.3),
-// so their describes keep the v1 store and seed it with the v1 `work-ops.js`.
+// refuse, naming the migration tool. t7.4 retired the v1 writers: discharge,
+// drain, archive-tree and the snapshot rollback run on a v2 store too (the v2
+// discharge's own cases are in backlog-discharge-v2.test.js), and the
+// discharge and archive-tree refuse a v1 store like capture does.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
@@ -40,11 +41,10 @@ import {
 import { applyArchiveTree } from '../plugin/tools/lib/archive-tree.js';
 import { createSnapshotter } from '../plugin/tools/lib/migrate-memory.js';
 import { createBacklogIfMissing } from '../plugin/tools/lib/backlog.js';
-import { generateAll, GENERATED_FILES } from '../plugin/tools/lib/work-generate.js';
+import { GENERATED_FILES } from '../plugin/tools/lib/work-generate.js';
 import { GENERATED_MARKER } from '../plugin/tools/lib/work-marker.js';
-import { applyTriage, getItem, listItems, newItem } from '../plugin/tools/lib/work-ops.js';
-import { getRecord, listRecords, recordPath } from '../plugin/tools/lib/work-records.js';
-import { regenerateToMemory } from '../plugin/tools/lib/work-views.js';
+import { bodyPath, getRecord, listRecords, newItem, recordPath } from '../plugin/tools/lib/work-records.js';
+import { regenerateToMemory, regenerateViews } from '../plugin/tools/lib/work-views.js';
 
 const TODAY = '2026-09-29';
 const keep = async () => 'keep';
@@ -66,15 +66,15 @@ async function lists() {
   return out;
 }
 
-// The lists on disk are exactly what the generator makes of the items on disk.
+// The lists on disk are generated, and exactly what the views make of the
+// records on disk.
 async function expectOnlyGeneratorWrote() {
   const before = await lists();
   for (const name of GENERATED_FILES) {
     expect(before[name], `${name} exists`).not.toBeNull();
     expect(before[name].split('\n')[0], `${name} is generated`).toBe(GENERATED_MARKER);
   }
-  await generateAll(root);
-  expect(await lists()).toEqual(before);
+  await expectViewsFresh();
 }
 
 // The block a drain would hand over: one entry of the GENERATED inbox.
@@ -103,12 +103,7 @@ async function expectViewsFresh() {
   }
 }
 
-// A v1 backlog item, as a promote made one before M6.E13: captured, then triaged.
-async function seedBacklog(title, type) {
-  const it = await newItem(root, { title, body: 'x', by: 't' });
-  await applyTriage(root, it.id, { accept: { type } });
-  return it.id;
-}
+const bodyOf = (id) => readFile(join(root, bodyPath(id)), 'utf-8');
 afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
@@ -162,6 +157,15 @@ describe('capture and promotion refuse on a v1 store, naming the migration tool 
     for (const v of Object.values(await lists())) expect(v).toBeNull();
   };
 
+  it('applyArchiveTree — refused before anything is locked or moved', async () => {
+    await put('.planning/M6.E1-RETROSPECTIVE.md', '# M6.E1 retro\n');
+    await put('.planning/M6.E1-PLAN.md', '# M6.E1 plan\n');
+    refused(await applyArchiveTree(root, { apply: true }).catch((e) => e));
+    expect(existsSync(planning('M6.E1-PLAN.md'))).toBe(true);
+    expect(existsSync(planning('archive'))).toBe(false);
+    expect(existsSync(planning('work', '.lock'))).toBe(false);
+  });
+
   it('/sig:add', async () => {
     refused(await captureToBugs(root, { body: 'A bug.', today: TODAY, sensitivePrompt: keep }).catch((e) => e));
     await nothingWritten();
@@ -177,6 +181,7 @@ describe('capture and promotion refuse on a v1 store, naming the migration tool 
   it.each([
     ['promoteToBacklog', () => promoteToBacklog(root, { block: '## A row\n\nx\n', tag: 'roadmap', today: TODAY })],
     ['promoteToBugs', () => promoteToBugs(root, { block: '## A bug\n\nx\n' })],
+    ['dischargeBacklogRows', () => dischargeBacklogRows(root, { rows: ['a row'], by: 'M6.E11', at: TODAY })],
   ])('%s', async (_name, run) => {
     refused(await run().catch((e) => e));
     await nothingWritten();
@@ -242,83 +247,8 @@ describe('backlog.js — promote files ONE record, created and triaged in one wr
   });
 });
 
-describe('backlog.js — discharge closes items (v1 until the cutover, PLAN t7.3)', () => {
-  it('dischargeBacklogRows closes the named item as fixed, with the discharge as proof', async () => {
-    await seedBacklog('Search archived Epics', 'FEAT');
-    await seedBacklog('Tidy the command index', 'CHORE');
-    const res = await dischargeBacklogRows(root, { rows: ['tidy the command', 'no such row'], by: 'M6.E11', at: TODAY });
-    expect(res.written).toBe(true);
-    expect(res.results).toEqual([
-      { row: 'tidy the command', status: ROW_DISCHARGE.DISCHARGED, reason: null, heading: 'Tidy the command index', line: null, id: 'SIG-2' },
-      { row: 'no such row', status: ROW_DISCHARGE.NOT_FOUND, reason: 'no live backlog row matches "no such row"', heading: null, line: null },
-    ]);
-    const closed = getItem(root, 'SIG-2');
-    expect(closed.path).toBe('.planning/work/done/2026-09/SIG-2.md');
-    expect(closed.item.close).toMatchObject({ reason: 'fixed', by: 'M6.E11', at: TODAY, proof: 'DONE — M6.E11, 2026-09-29' });
-    await expectOnlyGeneratorWrote();
-    expect(await readFile(planning('BACKLOG.md'), 'utf-8')).not.toContain('Tidy the command index');
-  });
-
-  it('dischargeBacklogRows: an ambiguous row refuses, an already-closed row says so, nothing written', async () => {
-    await seedBacklog('Index speed', 'FEAT');
-    await seedBacklog('Index size', 'FEAT');
-    const amb = await dischargeBacklogRows(root, { rows: ['index'], by: 'M6.E11', at: TODAY });
-    expect(amb.written).toBe(false);
-    expect(amb.results[0].status).toBe(ROW_DISCHARGE.AMBIGUOUS);
-    await dischargeBacklogRows(root, { rows: ['Index speed'], by: 'M6.E11', at: TODAY });
-    const again = await dischargeBacklogRows(root, { rows: ['Index speed'], by: 'M6.E11', at: TODAY });
-    expect(again.written).toBe(false);
-    expect(again.results[0]).toMatchObject({ status: ROW_DISCHARGE.ALREADY_DISCHARGED, id: 'SIG-1' });
-  });
-
-  // REVIEW pass 1: the store-on discharge closed rows one closeItem at a
-  // time — a lock and a regeneration each, and a failure on row 2 left row 1
-  // closed. It is one batch now: all the closes or none.
-  it('dischargeBacklogRows: two queries naming ONE item close it once, not a CONFLICT half-way', async () => {
-    await seedBacklog('Search archived Epics', 'FEAT');
-    await seedBacklog('Tidy the index', 'CHORE');
-    const res = await dischargeBacklogRows(root, { rows: ['search archived', 'archived epics', 'tidy'], by: 'M6.E11', at: TODAY });
-    expect(res.written).toBe(true);
-    expect(res.results.map((r) => [r.status, r.id])).toEqual([
-      [ROW_DISCHARGE.DISCHARGED, 'SIG-1'], [ROW_DISCHARGE.DISCHARGED, 'SIG-1'], [ROW_DISCHARGE.DISCHARGED, 'SIG-2'],
-    ]);
-    expect(listItems(root, { status: 'C' }).map((r) => r.item.id)).toEqual(['SIG-1', 'SIG-2']);
-    await expectOnlyGeneratorWrote();
-  });
-
-  it('dischargeBacklogRows is all or nothing: a failure closing row 2 leaves row 1 open, bytes unchanged', async () => {
-    await seedBacklog('Search archived Epics', 'FEAT');
-    await seedBacklog('Tidy the index', 'CHORE');
-    const before = {
-      one: await readFile(planning('work', 'backlog', 'SIG-1.md'), 'utf-8'),
-      two: await readFile(planning('work', 'backlog', 'SIG-2.md'), 'utf-8'),
-      lists: await lists(),
-    };
-    const { rename } = await import('node:fs/promises');
-    const _renameFn = async (from, to) => {
-      if (to.endsWith('SIG-2.md')) throw new Error('disk full');
-      return rename(from, to);
-    };
-    await expect(dischargeBacklogRows(root, { rows: ['search', 'tidy'], by: 'M6.E11', at: TODAY, _renameFn }))
-      .rejects.toMatchObject({ code: 'IO', message: expect.stringMatching(/disk full/) });
-    expect(await readFile(planning('work', 'backlog', 'SIG-1.md'), 'utf-8')).toBe(before.one);
-    expect(await readFile(planning('work', 'backlog', 'SIG-2.md'), 'utf-8')).toBe(before.two);
-    expect(existsSync(planning('work', 'done'))).toBe(false);
-    expect(listItems(root, { status: 'C' })).toEqual([]);
-    expect(await lists()).toEqual(before.lists);
-  });
-
-  it('dischargeBacklogRows never matches bugs, questions or untriaged captures (they are not backlog rows)', async () => {
-    await newItem(root, { type: 'BUG', title: 'Index crash', by: 't' });
-    await newItem(root, { type: 'Q', title: 'Index question?', by: 't' });
-    await newItem(root, { title: 'Index idea', by: 't' });
-    const res = await dischargeBacklogRows(root, { rows: ['Index'], by: 'M6.E11', at: TODAY });
-    expect(res.results[0].status).toBe(ROW_DISCHARGE.NOT_FOUND);
-    expect(listItems(root, { status: 'C' })).toEqual([]);
-  });
-});
-
 describe('drain.js — refuses outright when the store is on (AC-6.3, D-M6E11-25)', () => {
+  beforeEach(v2);
   async function seeded() {
     await newItem(root, { title: 'An idea', body: 'An idea.', by: 't' });
     return lists();
@@ -359,7 +289,7 @@ describe('drain.js — refuses outright when the store is on (AC-6.3, D-M6E11-25
       return promoteDrainEntry(root, { classification: 'work', block, tag: 'roadmap', entryIndex: 0,
         reason: 'drain', date: TODAY });
     });
-    expect(getItem(root, 'SIG-1').item.status).toBe('N');
+    expect(getRecord(root, 'SIG-1').status).toBe('N');
   });
 
   it('a broken WORK.md surfaces as CONFIG, not a hang or a drain write', async () => {
@@ -380,6 +310,7 @@ describe('drain.js — refuses outright when the store is on (AC-6.3, D-M6E11-25
 });
 
 describe('archive-tree.js — the link rewrite leaves generated lists to the generator', () => {
+  beforeEach(v2);
   it('a scaffold move rewrites the item body and regenerates the lists; no write into a generated file', async () => {
     await newItem(root, { title: 'Follow up the plan', body: 'See [the plan](M6.E1-PLAN.md).', by: 't' });
     await put('.planning/M6.E1-RETROSPECTIVE.md', '# M6.E1 retro\n');
@@ -389,8 +320,8 @@ describe('archive-tree.js — the link rewrite leaves generated lists to the gen
     const res = await applyArchiveTree(root, { apply: true });
     expect(res.applied).toBe(true);
     expect(existsSync(planning('archive', 'M6', 'E1', 'M6.E1-PLAN.md'))).toBe(true);
-    // The item file was rewritten for the move (it sits two levels down).
-    expect(getItem(root, 'SIG-1').body).toBe('See [the plan](../../archive/M6/E1/M6.E1-PLAN.md).');
+    // The item body was rewritten for the move (it sits three levels down).
+    expect(await bodyOf('SIG-1')).toBe('See [the plan](../../../archive/M6/E1/M6.E1-PLAN.md).');
     // The generated inbox follows the item, through the generator.
     const inbox = await readFile(planning('ISSUES-INBOX.md'), 'utf-8');
     expect(inbox).toContain('](archive/M6/E1/M6.E1-PLAN.md)');
@@ -407,12 +338,12 @@ describe('archive-tree.js — the link rewrite leaves generated lists to the gen
     await put('.planning/M6.E1-RETROSPECTIVE.md', '# M6.E1 retro\n');
     await put('.planning/M6.E1-PLAN.md', '# M6.E1 plan\n');
     await put('.planning/BUGS.md', '# Bugs\n\nkept by hand\n');
-    const itemBefore = getItem(root, 'SIG-1').body;
+    const itemBefore = await bodyOf('SIG-1');
     await expect(applyArchiveTree(root, { apply: true })).rejects.toMatchObject({ code: 'CONFIG', message: expect.stringMatching(/BUGS\.md/) });
     expect(existsSync(planning('M6.E1-PLAN.md'))).toBe(true);
     expect(existsSync(planning('M6.E1-RETROSPECTIVE.md'))).toBe(true);
     expect(existsSync(planning('archive'))).toBe(false);
-    expect(getItem(root, 'SIG-1').body).toBe(itemBefore);
+    expect(await bodyOf('SIG-1')).toBe(itemBefore);
     expect(await readFile(planning('BUGS.md'), 'utf-8')).toBe('# Bugs\n\nkept by hand\n');
   });
 
@@ -426,12 +357,12 @@ describe('archive-tree.js — the link rewrite leaves generated lists to the gen
     await put('.planning/M6.E1-PLAN.md', '# M6.E1 plan\n');
     const planted = `4242\n${Date.now() - 10_000}\nsomeone\n`;
     await put('.planning/work/.lock', planted);
-    const itemBefore = getItem(root, 'SIG-1').body;
+    const itemBefore = await bodyOf('SIG-1');
     await expect(applyArchiveTree(root, { apply: true })).rejects.toMatchObject({ code: 'LOCKED' });
     expect(await readFile(planning('work', '.lock'), 'utf-8')).toBe(planted);
     expect(existsSync(planning('M6.E1-PLAN.md'))).toBe(true);
     expect(existsSync(planning('archive'))).toBe(false);
-    expect(getItem(root, 'SIG-1').body).toBe(itemBefore);
+    expect(await bodyOf('SIG-1')).toBe(itemBefore);
   });
 
   it('dry run writes nothing, lists included', async () => {
@@ -444,28 +375,32 @@ describe('archive-tree.js — the link rewrite leaves generated lists to the gen
   });
 });
 
-// REVIEW pass 2 (untested seam): writeGenerated re-checks the hand-kept rule
-// for each file as it writes it, so a list hand-written AFTER generateAll's
-// preflight is still not overwritten. generateAll runs synchronously up to
-// its first write, so a file written right after the call lands in exactly
-// that window.
-describe('work-generate.js — writeGenerated re-checks each file', () => {
+// REVIEW pass 2 (untested seam), carried to the v2 views at t7.4: the views
+// re-check the hand-kept rule for each file as they write it, so a list
+// hand-written AFTER the preflight is still not overwritten. regenerateViews
+// runs synchronously up to its first write, so a file written right after the
+// call lands in exactly that window.
+describe('work-views.js — regenerateViews re-checks each file', () => {
+  beforeEach(v2);
   it('a list hand-written after the preflight → CONFIG, and it is not overwritten', async () => {
     await newItem(root, { title: 'x', by: 't' });
-    const last = GENERATED_FILES[GENERATED_FILES.length - 1];
-    const pending = generateAll(root);
-    writeFileSync(planning(last), '# kept by hand\n', 'utf-8'); // sync: lands before generateAll resumes
-    // The per-file re-check's own wording — the preflight's reads "The work
-    // store is on …", so this fails if only the preflight ever fires.
+    const rels = Object.keys(regenerateToMemory(root));
+    const last = rels[rels.length - 1];
+    const pending = regenerateViews(root);
+    writeFileSync(join(root, last), '# kept by hand\n', 'utf-8'); // sync: lands before regenerateViews resumes
+    // The per-file re-check's own wording — the preflight's reads "… are
+    // hand-kept, not generated (the first line …", so this fails if only the
+    // preflight ever fires.
     await expect(pending).rejects.toMatchObject({
       code: 'CONFIG',
       message: expect.stringMatching(new RegExp(`${last.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} is hand-kept, not generated — it was not overwritten`)),
     });
-    expect(await readFile(planning(last), 'utf-8')).toBe('# kept by hand\n');
+    expect(await readFile(join(root, last), 'utf-8')).toBe('# kept by hand\n');
   });
 });
 
 describe('backlog.js createBacklogIfMissing — a no-op with the store on', () => {
+  beforeEach(v2);
   it('writes no hand skeleton: BACKLOG.md is the generator\'s', async () => {
     const res = await createBacklogIfMissing(root, { today: TODAY });
     expect(res.created).toBe(false);
@@ -474,9 +409,10 @@ describe('backlog.js createBacklogIfMissing — a no-op with the store on', () =
 });
 
 describe('migrate-memory.js — the snapshot rollback can restore a generated file', () => {
+  beforeEach(v2);
   it('snap a generated BACKLOG.md, regenerate it, roll back: bytes restored, no GENERATED throw', async () => {
     await newItem(root, { type: 'FEAT', title: 'first', by: 't' });
-    await generateAll(root);
+    await regenerateViews(root);
     const { snap, rollback } = createSnapshotter(planning());
     await snap('BACKLOG.md');
     await snap('BUGS.md');
@@ -489,7 +425,7 @@ describe('migrate-memory.js — the snapshot rollback can restore a generated fi
   });
 
   it('the rollback still refuses to put hand-written bytes over a generated file', async () => {
-    await generateAll(root);
+    await regenerateViews(root);
     await newItem(root, { title: 'x', by: 't' });
     // A snapshot taken when BUGS.md was NOT generated (hand bytes) cannot be
     // restored over the generated file — that would be a hand write into it.

@@ -3,8 +3,8 @@
 // With the work store on, the sweep's backlog-discharge, stale-inbox and
 // dangling-reference checks read the records through `listRecords` — a v2 store
 // directly, a v1 store through the converter — and never a Markdown list
-// parser; the store check runs `checkRecords` on v2 and the existing v1
-// `checkStore` on v1; and a new advisory names items left *closing* more than
+// parser; the store check runs `checkRecords`, which on v1 is one finding
+// naming the migration (the v1 `checkStore` was retired at t7.4); and a new advisory names items left *closing* more than
 // 14 days. Every twin runs once per store version over the SAME items, with
 // `SIGNAL_FORBID_LIST_PARSERS=1` (Decision 12).
 //
@@ -24,8 +24,7 @@ import {
   checkClosingTooLong,
 } from '../plugin/tools/lib/sweep.js';
 import { checkDanglingReferences } from '../plugin/tools/lib/doc-hygiene.js';
-import { listClosing, recordPath } from '../plugin/tools/lib/work-records.js';
-import { checkStore } from '../plugin/tools/lib/work-store.js';
+import { listClosing, recordPath, V1_STORE_MESSAGE } from '../plugin/tools/lib/work-records.js';
 import {
   ITEMS,
   NOW,
@@ -110,7 +109,7 @@ describe('t4.4 — checkBacklogDischarge with a broken WORK.md', () => {
 });
 
 describe.each(VERSIONS)('t4.4 — checkWorkStore on a v%i store', (version) => {
-  it(version === 2 ? 'runs checkRecords: the decoy views differ from a regeneration' : 'runs the v1 checkStore, unchanged', async () => {
+  it(version === 2 ? 'runs checkRecords: the decoy views differ from a regeneration' : 'one advisory: the v1 store must be migrated (t7.4 retired the v1 check)', async () => {
     const base = storeProject(version);
     const f = checkWorkStore(base);
     expect(f.every((x) => x.check === 'work-store' && x.severity === 'advisory')).toBe(true);
@@ -118,17 +117,7 @@ describe.each(VERSIONS)('t4.4 — checkWorkStore on a v%i store', (version) => {
       expect(f.map((x) => x.message).join('\n')).toMatch(/differs from a regeneration of the records/);
       expect(f.map((x) => x.file)).toContain('.planning/BUGS.md');
     } else {
-      // The v1 branch is exactly the old call.
-      const prev = process.env.SIGNAL_FORBID_LIST_PARSERS;
-      delete process.env.SIGNAL_FORBID_LIST_PARSERS;
-      try {
-        expect(checkWorkStore(base)).toEqual(checkStore(base).map((x) => ({
-          check: 'work-store', severity: 'advisory', file: x.path ?? x.paths?.[0] ?? WORK_MD, message: x.message,
-        })));
-      } finally {
-        process.env.SIGNAL_FORBID_LIST_PARSERS = prev;
-      }
-      expect(f.map((x) => x.message).join('\n')).not.toMatch(/differs from a regeneration of the records/);
+      expect(f).toEqual([{ check: 'work-store', severity: 'advisory', file: WORK_MD, message: V1_STORE_MESSAGE }]);
     }
   });
 });
