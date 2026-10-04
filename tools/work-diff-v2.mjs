@@ -380,19 +380,14 @@ export const RULES = [
     when: (d) => d.key === '(sources consulted)',
     class: C.CORRECTION, reason: 'store-on, discharge reads the records, not BUGS.md or STATE/closure (t4.2a): the list names what was read' },
   // ── drive ──
-  { name: 'rank-constant-id-bonus', reader: 'drive candidates', comparison: 'off',
-    when: (d) => d.kind === 'changed',
-    class: C.CONTRADICTION, reason: 'rankBacklogRow\'s +5 "explicit unit id" bonus now applies to EVERY record (t4.3: leadingId is the record ID), and the view\'s " · SIG-n" suffix no longer adds +2; rows titled by an Epic (M5.E20/E12/E14) fall from #2-4 — see recommendation R5' },
+  { name: 'rank-view-suffix', reader: 'drive candidates', comparison: 'off',
+    when: (d) => d.kind === 'changed' && /^rank -?\d+$/.test(d.left) && /^rank -?\d+$/.test(d.right)
+      && Number(d.left.slice(5)) === Number(d.right.slice(5)) + 2,
+    class: C.CORRECTION, reason: 'the v1 view heading\'s " · SIG-n" suffix gave EVERY row rankBacklogRow\'s "·" +2; a record\'s title earns it only from its own "·" tail. The order of the first 8 is unchanged (R5 fixed: the +5 unit-id bonus comes from the title, not the record ID)' },
   { name: 'preflight-label', reader: 'drive preflight', comparison: 'off',
     when: (d) => d.kind === 'changed' && d.left === 'OPEN-QUESTIONS.md' && d.right === 'open questions (work store)',
     class: C.CORRECTION, reason: 'store-on, the label names what was read: the records, not OPEN-QUESTIONS.md (t4.3)' },
   // ── sweep ──
-  { name: 'dangling-item-ids', reader: 'sweep findings', comparison: 'off',
-    when: (d) => d.kind === 'only-right' && /^dangling-reference · SIG-(300|412|1000)$/.test(d.key),
-    class: C.CONTRADICTION, reason: 'illustrative IDs in DECISIONS.md (quoted again in M6.E13-PROGRESS.md), visible because store-on item IDs are checked (t4.4) — carry item 3' },
-  { name: 'dangling-in-view-body', reader: 'sweep findings',
-    when: (d, ctx) => d.kind === 'only-right' && ctx.viewOnlyCites.has(d.key.replace(/^dangling-reference · /, '')),
-    class: C.CONTRADICTION, reason: 'a dangling citation inside a closed item\'s body: the v2 BACKLOG.md prints recent closes (AC6.2) and the v1 view did not, so the sweep now reads it; the citation predates the migration' },
   { name: 'discharge-no-unit-id-advisory', reader: 'sweep findings', comparison: 'off',
     when: (d) => d.kind === 'only-left' && /^backlog-discharge · no backlog row leads with a unit or bug id/.test(d.key),
     class: C.CORRECTION, reason: 'store-off, a row links to a closure only through an ID in its title; store-on every item\'s Epic comes from its events, so no row is unlinkable' },
@@ -428,12 +423,6 @@ export const RULES = [
   { name: 'view-pipe-escaped', reader: 'views',
     when: (d) => / · summary$/.test(d.key) && unescapePipes(d.left) === unescapePipes(d.right),
     class: C.CORRECTION, reason: 'v2 escapes "|" inside a table cell; the v1 view printed it raw, which splits the row when rendered' },
-  { name: 'view-summary-title-only', reader: 'views',
-    when: (d) => / · summary$/.test(d.key) && d.kind === 'changed' && /…\*\*$/.test(d.right) && d.left.length > d.right.length,
-    class: C.CONTRADICTION, reason: 'carry item 1: the body has more than one paragraph, so v2 shows the (truncated) bold title where the v1 view showed the whole migrated row — see R1' },
-  { name: 'view-summary-body-paragraph', reader: 'views',
-    when: (d) => / · summary$/.test(d.key) && d.kind === 'changed' && /^\*\*[^*]+\*\*$/.test(d.left) && !d.right.startsWith('**'),
-    class: C.CONTRADICTION, reason: 'carry item 1, the other direction: a one-paragraph body is the v2 summary, where the v1 view showed the bold title — see R1' },
 ];
 
 const unescapePipes = (s) => String(s).replace(/\\\|/g, '|');
@@ -530,8 +519,6 @@ export async function differentialRead(repoRoot = REPO_ROOT, { workDir, rules } 
   for (const p of ['off', 'v1', 'v2']) outputs[p] = await runReaders(projects[p]);
   const v2Records = outputs.v2.records?.records ?? [];
   const norm = idNormalizer(v2Records);
-  const v1Cites = new Set([...(outputs.v1.views['BACKLOG.md'] ?? '').matchAll(/\b[A-Z][\w.-]*-\d+\b/g)].map((m) => m[0]));
-  const v2Cites = new Set([...(outputs.v2.views['BACKLOG.md'] ?? '').matchAll(/\b[A-Z][\w.-]*-\d+\b/g)].map((m) => m[0]));
   const changelog = existsSync(path.join(repoRoot, 'CHANGELOG.md')) ? readFileSync(path.join(repoRoot, 'CHANGELOG.md'), 'utf-8') : '';
   // Bugs a CHANGELOG names as SIG-n and never as their B{n} alias.
   const changelogSigOnly = new Set(v2Records
@@ -543,7 +530,6 @@ export async function differentialRead(repoRoot = REPO_ROOT, { workDir, rules } 
     changelogSigOnly,
     manifest: projects.manifest,
     v2ById: new Map(v2Records.map((r) => [r.id, r])),
-    viewOnlyCites: new Set([...v2Cites].filter((c) => !v1Cites.has(c))),
     rules,
   };
   const classified = compare(outputs, ctx);

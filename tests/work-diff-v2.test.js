@@ -63,7 +63,7 @@ describe('diffEntries', () => {
 });
 
 describe('classify — a difference no rule explains is a migration error', () => {
-  const ctx = { manifest: { closes: { requested: [] } }, v2ById: new Map(), viewOnlyCites: new Set() };
+  const ctx = { manifest: { closes: { requested: [] } }, v2ById: new Map() };
 
   it('an unexplained difference is a migration error, with no rule', () => {
     const [d] = classify([{ comparison: 'v1', reader: 'records', key: 'SIG-1 · fields', kind: 'changed', left: 'a', right: 'b' }], RULES, ctx);
@@ -107,6 +107,15 @@ describe('classify — a difference no rule explains is a migration error', () =
     const a = rec('SIG-1', {}, [{ type: 'closed', at: 'x', by: 'b', reason: 'dup', legacy: true, dup_of: 'SIG-2' }]);
     const b = rec('SIG-1', {}, [{ type: 'closed', at: 'x', by: 'b', reason: 'dup', dup_of: 'SIG-2', legacy: true }]);
     expect(diffEntries(recordEntries({ records: { records: [a], broken: [] } }), recordEntries({ records: { records: [b], broken: [] } }))).toEqual([]);
+  });
+
+  it('a drive rank 2 lower is the view suffix artifact (R5); any other rank change is a migration error', () => {
+    const d = (left, right) => ({ comparison: 'off', reader: 'drive candidates', key: 'SIG-1', kind: 'changed', left, right });
+    const out = classify([d('rank 2', 'rank 0'), d('rank 7', 'rank 5'), d('rank 2', 'rank 5'), d('rank 4', 'rank 4 ')], RULES, ctx);
+    expect(out.map((x) => x.class)).toEqual([CLASSES.CORRECTION, CLASSES.CORRECTION, CLASSES.ERROR, CLASSES.ERROR]);
+    expect(out[0].rule).toBe('rank-view-suffix');
+    const [order] = classify([{ comparison: 'off', reader: 'drive candidates', key: '(order, first 8)', kind: 'changed', left: 'a, b', right: 'b, a' }], RULES, ctx);
+    expect(order.class).toBe(CLASSES.ERROR);
   });
 
   it('a summary that differs only by escaped pipes is an expected correction', () => {
