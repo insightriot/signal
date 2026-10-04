@@ -156,13 +156,14 @@ describe('confirmCloses — the commit is checked against the default branch', (
 });
 
 describe('confirmCloses — the proof never reaches git as an option', () => {
-  it('only a bare hex hash is passed, as <sha>^{commit}', async () => {
+  it('only a bare hex hash is passed, as <sha>^{commit} to rev-parse, then the resolved SHA to merge-base', async () => {
     const calls = [];
     const execFn = (cmd, args, o) => {
       calls.push(args);
       if (args[0] === 'rev-parse' && args.includes('--is-inside-work-tree')) return 'true\n';
       if (args[0] === 'remote') return 'origin\n';
       if (args[0] === 'rev-parse' && args.includes('origin/HEAD')) return 'origin/main\n';
+      if (args[0] === 'rev-parse' && args.at(-1).endsWith('^{commit}')) return `${args.at(-1).slice(0, -9)}\n`;
       if (args[0] === 'rev-parse') return 'abc\n';
       if (args[0] === 'merge-base') return '';
       throw new Error(`unexpected git ${args.join(' ')} ${o?.cwd}`);
@@ -170,8 +171,10 @@ describe('confirmCloses — the proof never reaches git as an option', () => {
     const { work, shas } = await plantClone();
     await v2Store(work, [rec('SIG-1', [created, request(shas[0])])]);
     await records.confirmCloses(work, { now: NOW, execFn });
+    const resolve = calls.filter((a) => a.at(-1) === `${shas[0]}^{commit}`);
+    expect(resolve).toEqual([['rev-parse', '--verify', '--quiet', '--end-of-options', `${shas[0]}^{commit}`]]);
     const mb = calls.filter((a) => a[0] === 'merge-base');
-    expect(mb).toEqual([['merge-base', '--is-ancestor', `${shas[0]}^{commit}`, 'refs/remotes/origin/main']]);
+    expect(mb).toEqual([['merge-base', '--is-ancestor', shas[0], 'refs/remotes/origin/main']]);
   });
 
   it('a hand-written record with proof `--all` is broken (schema) and is never a candidate', async () => {

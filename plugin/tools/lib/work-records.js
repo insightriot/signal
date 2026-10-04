@@ -1358,11 +1358,27 @@ function defaultBranchRef(baseDir, execFn) {
 }
 
 // null when `sha` is an ancestor of `ref`; otherwise why not. `sha` has
-// already matched COMMIT_RE, so it is bare lowercase hex and never an option;
-// `^{commit}` makes git refuse anything that is not a commit.
+// already matched COMMIT_RE, so it is bare lowercase hex and never an option
+// (`--end-of-options` says so to git as well).
+//
+// The proof is resolved to a full SHA FIRST, and only that SHA is checked:
+// git resolves `<name>^{commit}` as a branch or tag before it tries an
+// abbreviated object id, so a ref named `deadbee` would otherwise stand in for
+// a commit (the M6.E13 VERIFY AC7.2 finding). A resolved SHA that does not
+// start with the proof means the proof named a ref → `proof-names-a-ref`. An
+// ambiguous short id makes `rev-parse` fail → `unknown-commit`.
 function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
+  let full;
   try {
-    execFn('git', ['merge-base', '--is-ancestor', `${sha}^{commit}`, ref], {
+    full = runGit(baseDir, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${sha}^{commit}`], execFn)
+      .trim().toLowerCase();
+  } catch {
+    // In a shallow clone a cut-off commit is simply absent, so it cannot be known.
+    return isShallow() ? 'shallow' : 'unknown-commit';
+  }
+  if (!full.startsWith(sha.toLowerCase())) return 'proof-names-a-ref';
+  try {
+    execFn('git', ['merge-base', '--is-ancestor', full, ref], {
       cwd: baseDir,
       stdio: ['ignore', 'ignore', 'ignore'],
     });
@@ -1380,8 +1396,10 @@ function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
 /**
  * Confirm fixed closes: for each record deriving *closing*, its latest
  * `close_requested` proof is checked as a bare commit hash (lowercase hex, 7
- * to 64 characters — re-checked here, not trusted to the schema), then with
- * `git merge-base --is-ancestor <sha>^{commit} refs/remotes/origin/<default>`.
+ * to 64 characters — re-checked here, not trusted to the schema), resolved
+ * with `git rev-parse --verify <sha>^{commit}` to a full SHA that must start
+ * with the proof (a ref named like a hash is not a commit), then checked with
+ * `git merge-base --is-ancestor <full sha> refs/remotes/origin/<default>`.
  * The default branch is `resolveDefaultBranch`'s (origin/HEAD, else the one of
  * main/master that exists); local refs only, never a fetch.
  *
@@ -1390,8 +1408,9 @@ function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
  * record re-read under the lock and confirmed only if it is still closing on
  * the same proof; then ONE `regenerate`. Anything else leaves the item
  * closing, with a reason: `invalid-proof`, `not-a-repo`, `no-remote`,
- * `no-default-branch`, `not-on-default-branch`, `unknown-commit`, `shallow`,
- * `git-failed`, or `changed` (it moved while git was asked).
+ * `no-default-branch`, `not-on-default-branch`, `unknown-commit` (also an
+ * ambiguous short id), `proof-names-a-ref`, `shallow`, `git-failed`, or
+ * `changed` (it moved while git was asked).
  *
  * Git is not asked anything unless some proof is valid, and nothing is locked
  * unless some commit is confirmed. A broken record is skipped (`listRecords`

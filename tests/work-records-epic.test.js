@@ -188,7 +188,8 @@ describe('closeEpicCheck — closing records whose fix is on the shipping branch
       throw Object.assign(new Error('git broke'), { status: 2 });
     };
     expect(() => records.closeEpicCheck(base, 'M6.E13', { execFn: broken })).toThrow(expect.objectContaining({ code: 'OPEN_ITEMS' }));
-    expect(calls.some((a) => a.includes('merge-base'))).toBe(true);
+    // The proof reached git (it is resolved before any merge-base; VERIFY loop 1, AC7.2).
+    expect(calls.some((a) => a.some((x) => String(x).startsWith(sha)))).toBe(true);
   });
 });
 

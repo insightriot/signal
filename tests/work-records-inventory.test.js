@@ -148,6 +148,8 @@ const WRITERS = {
         if (args.includes('--is-inside-work-tree')) return 'true\n';
         if (args[0] === 'remote') return 'origin\n';
         if (args.includes('origin/HEAD')) return 'origin/main\n';
+        // The proof resolves to a full SHA that starts with it (VERIFY loop 1, AC7.2).
+        if (args.includes('0123abc^{commit}')) return `0123abc${'0'.repeat(33)}\n`;
         return '';
       },
     }),
