@@ -31,19 +31,16 @@ import {
   parseStatusCell,
   formatTallySegment,
 } from '../plugin/tools/lib/bugs-tally.js';
-import { listRecords, storeVersion } from '../plugin/tools/lib/work-records.js';
+import { listRecords } from '../plugin/tools/lib/work-records.js';
 import { renderBugTally } from '../plugin/tools/lib/work-views.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BUGS_PATH = join(__dirname, '..', '.planning', 'BUGS.md');
 
-// M6.E13 t7.3 prep: the live guards below hold on either store version, so the
-// cutover commit needs no edit here. On v1 BUGS.md is a table of `B{n}` rows
-// with a hand-shaped tally; on v2 it is a view of the bug records (`SIG-n`
-// rows, `work-views.js`), and its tally is `renderBugTally` over every bug
-// record — closes outside the window included, which is why it is checked
-// against the records and not against the rows.
-const LIVE_V2 = storeVersion(join(__dirname, '..')) === 2;
+// The live guards below read this repository's v2 store: BUGS.md is a view of
+// the bug records (`SIG-n` rows, `work-views.js`), and its tally is
+// `renderBugTally` over every bug record — closes outside the window included,
+// which is why it is checked against the records and not against the rows.
 
 describe('parseStatusCell — normalise before counting', () => {
   it('reads a plain backticked status', () => {
@@ -222,32 +219,13 @@ describe('formatTallySegment', () => {
 // that does the work.
 // ---------------------------------------------------------------------------
 describe('the live .planning/BUGS.md tally', () => {
-  it.runIf(LIVE_V2)('v2: publishes the tally its bug records derive', () => {
+  // The v1 half (the tally re-derived from the B-rows of the hand-shaped file)
+  // was removed at M6.E13 t7.4: BUGS.md is a view of the bug records now.
+  it('publishes the tally its bug records derive', () => {
     const bugs = listRecords(join(__dirname, '..')).records.filter((r) => r.record.type === 'BUG');
     expect(bugs.length).toBeGreaterThan(50); // the population is real, not empty
     const published = readFileSync(BUGS_PATH, 'utf-8').split('\n').filter((l) => /^\*\d+ needs-triage · /.test(l));
     expect(published).toEqual([renderBugTally(bugs)]);
-  });
-
-  it.skipIf(LIVE_V2)('publishes what the file actually contains', () => {
-    // Fail-open on absence: a consumer project running Signal's suite has no
-    // .planning/BUGS.md, and a missing file is not a wrong tally.
-    if (!existsSync(BUGS_PATH)) return;
-
-    const result = compareBugTally(readFileSync(BUGS_PATH, 'utf-8'));
-
-    const detail = result.mismatches
-      .map((m) => `  ${m.cell}: published ${m.published}, file holds ${m.derived}`)
-      .join('\n');
-
-    expect(
-      result.ok,
-      result.reason === 'no-tally'
-        ? 'BUGS.md has no tally line — add one; a missing count is not a clean count.'
-        : `BUGS.md's tally disagrees with its own contents:\n${detail}\n` +
-            `  Re-derive it — do not increment. Correct segment:\n` +
-            `  ${formatTallySegment(result.derived)}`
-    ).toBe(true);
   });
 });
 
@@ -267,20 +245,19 @@ describe('BUGS.md table shape', () => {
    * stays correct — nothing noticed when the `B109` row shipped a stray pipe
    * and a restated paragraph went invisible.
    *
-   * PINNED AS AN EXACT SET, not a threshold. Four rows were already overflowing
-   * when this guard was written — all four from unescaped pipes inside code
-   * spans (`'done'|'not-done'`, `(?:^|\n)`), which GFM treats as delimiters
-   * even inside backticks. They are frozen records of fixed bugs and rewriting
-   * them was out of scope for the change that added this guard, so they are
-   * NAMED rather than silently tolerated. A fifth fails the suite; fixing one
-   * also fails, which is how the list shrinks instead of ossifying.
+   * Four rows were overflowing when this guard was written — all four from
+   * unescaped pipes inside code spans (`'done'|'not-done'`, `(?:^|\n)`), which
+   * GFM treats as delimiters even inside backticks. They were pinned as an
+   * exact set until the M6.E13 views escaped the pipe (`work-views.js`
+   * `cell`); since then no row may overflow, and the four are checked present.
+   * The v1 exact-set halves were removed at t7.4.
    */
   const KNOWN_OVERFLOW = ['B63', 'B72', 'B88', 'B96'];
 
   const cellCount = (line) => line.replace(/\\\|/g, '\u0000').split('|').length;
 
-  // v2: the view escapes a pipe inside a cell (`work-views.js` `cell`), so no
-  // row overflows — the four known ones included, now `SIG-` rows.
+  // The view escapes a pipe inside a cell (`work-views.js` `cell`), so no row
+  // overflows — the four known ones included, now `SIG-` rows.
   const v2Rows = () => {
     const dir = join(ROOT, '.planning/work/history');
     const files = [join(ROOT, '.planning/BUGS.md'),
@@ -288,7 +265,7 @@ describe('BUGS.md table shape', () => {
     return files.flatMap((f) => readFileSync(f, 'utf8').split('\n'));
   };
 
-  it.runIf(LIVE_V2)('v2: no row overflows its header, and the four once-known ones are fixed', () => {
+  it('no row overflows its header, and the four once-known ones are fixed', () => {
     const lines = v2Rows();
     const header = lines.find((l) => /^\| ID \| Status \| Pri \| Summary \|/.test(l));
     expect(header).toBeTruthy();
@@ -298,35 +275,6 @@ describe('BUGS.md table shape', () => {
     for (const id of KNOWN_OVERFLOW.map((b) => `SIG-${b.slice(1)}`)) {
       // In BUGS.md, or in work/history/ once its close leaves the window.
       expect(lines.some((l) => l.startsWith(`| ${id} |`)), `${id} row present`).toBe(true);
-    }
-  });
-
-  it.skipIf(LIVE_V2)('has no overflowing row beyond the four already known', () => {
-    const src = readFileSync(join(ROOT, '.planning/BUGS.md'), 'utf8');
-    const lines = src.split('\n');
-    const header = lines.find((l) => /^\| ID \| Status \| Pri \| Summary \|/.test(l));
-    expect(header).toBeTruthy();
-    const want = cellCount(header);
-
-    const rows = lines.filter((l) => /^\| B\d+ \|/.test(l));
-    expect(rows.length).toBeGreaterThan(50); // the population is real, not empty
-
-    const overflowing = rows
-      .filter((r) => cellCount(r) > want)
-      .map((r) => r.match(/^\| (B\d+)/)[1])
-      .sort();
-
-    expect(overflowing).toEqual([...KNOWN_OVERFLOW].sort());
-  });
-
-  it.skipIf(LIVE_V2)('the four known ones are code-span pipes, not stray delimiters', () => {
-    // Recorded so the next reader knows what fixing them means: escape the
-    // pipes inside the backticks, do not restructure the row.
-    const src = readFileSync(join(ROOT, '.planning/BUGS.md'), 'utf8');
-    for (const id of KNOWN_OVERFLOW) {
-      const row = src.split('\n').find((l) => l.startsWith(`| ${id} |`));
-      expect(row, `${id} row present`).toBeTruthy();
-      expect(row).toMatch(/`/); // the overflow lives inside a code span
     }
   });
 });
