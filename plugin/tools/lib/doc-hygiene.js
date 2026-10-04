@@ -943,4 +943,12 @@ async function checkDanglingWithStore(baseDir, planning, store, exemptIds) {
  */
 export const DANGLING_REF_EXEMPTIONS = Object.freeze({
   'D-BR0826-2': 'Cited only inside the correction note that records it never existed (M6.E5-PROFILE.md). Naming it is the point of the sentence.',
+  // M6.E13 t7.1b R3: illustrative ids in an append-only ledger (DECISIONS.md, quoted again in
+  // M6.E13-PROGRESS.md and M6.E13-MIGRATION-DIFF.md). Exempted rather than reworded. Once the
+  // store really holds SIG-300 / SIG-412 / SIG-1000, the id resolves first and the entry is inert.
+  B300: 'An example in DECISIONS.md (the B{n} display rule: "a new SIG-300 bug appears as B300"). No such bug was filed.',
+  'SIG-300': 'An example in DECISIONS.md (the B{n} display rule: "a new SIG-300 bug appears as B300"). No such item was filed.',
+  'SIG-412': 'An example file name in DECISIONS.md (`SIG-412.md`, the record naming rule). No such item was filed.',
+  'SIG-1000': 'An example in DECISIONS.md (the thousands-bucket rule: `01/` = SIG-1000…1999). No such item was filed.',
+  'D-M6E19-6': 'A typo that was found and fixed, named in the history of the closed item SIG-157 (and the pre-work-store BACKLOG.md archive). Recording the typo is the point of the sentence.',
 });

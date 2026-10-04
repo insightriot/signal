@@ -94,3 +94,25 @@ describe('D-ids resolve through the real resolver, including archived homes', ()
     expect(f.map((x) => x.message).join(' ')).toMatch(/D-NOPE-7/);
   });
 });
+
+// M6.E13 t7.1b R3: the illustrative ids the store-on sweep surfaced. They are
+// examples in an append-only ledger (DECISIONS.md) or a closed item's history
+// (SIG-157), so they are exempted with reasons rather than reworded.
+describe('the reviewed exemptions for illustrative ids (M6.E13 R3)', () => {
+  const ILLUSTRATIVE = ['B300', 'SIG-300', 'SIG-412', 'SIG-1000', 'D-M6E19-6'];
+
+  it('exempts each of the five, with a reason', () => {
+    for (const id of ILLUSTRATIVE) {
+      expect(Object.hasOwn(DANGLING_REF_EXEMPTIONS, id), id).toBe(true);
+      expect(DANGLING_REF_EXEMPTIONS[id].length, id).toBeGreaterThan(20);
+    }
+  });
+
+  it('the default exemptions silence them, and a real dangling id beside them still fires', async () => {
+    await write('.planning/BUGS.md', `${BUGS_HEAD}| B1 | \`fixed\` | P2 | x |\n`);
+    await write('.planning/NOTES.md', 'a new bug appears as B300; a typo was D-M6E19-6; but B99 is real');
+    const msgs = (await checkDanglingReferences(dir)).map((f) => f.message).join('\n');
+    expect(msgs).not.toMatch(/B300|D-M6E19-6/);
+    expect(msgs).toMatch(/B99 is cited/);
+  });
+});
