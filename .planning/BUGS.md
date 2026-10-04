@@ -170,5 +170,10 @@
 | B260 | `confirmed` | P2 | **advise digest: a BACKLOG.md that holds only section headings offers them as live work rows** |
 | B261 | `confirmed` | P2 | **advise digest reads only .planning/, but a project's big picture often lives in docs/ and a roadmap file** |
 | B262 | `confirmed` | P3 | **advise cannot see a backlog kept in GitHub Issues** |
+| B264 | `confirmed` | P2 | **advise "Other" answer must stay verbatim; summaries go in a separate field** |
+| B265 | `confirmed` | P2 | **isStateStale counts STATE.md-only commits as unreflected work** |
+| B266 | `confirmed` | P2 | **private-name guard can time out under a full parallel run** |
+| B267 | `confirmed` | P2 | **advise digest never reads a roadmap file inside .planning/ — planned milestones vanish from the priorities** |
+| B268 | `confirmed` | P3 | **advisory says "Could not read: nothing" while the digest lists two gaps** |
 
-*0 needs-triage · **0 captured-untriaged** · 43 confirmed · 9 dismissed · 99 fixed (**151 total**)*
+*0 needs-triage · **0 captured-untriaged** · 48 confirmed · 9 dismissed · 99 fixed (**156 total**)*

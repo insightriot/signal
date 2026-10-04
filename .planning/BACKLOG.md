@@ -986,3 +986,11 @@ closeEpic can return {aborted: 'sensitive-data-pending'} when pr/release text tr
 ### aborted store discharge still labels rows discharged · SIG-253
 
 backlog.js dischargeInStore returns results whose rows say status: discharged alongside written:false and aborted. Unreachable today (acknowledgeSensitive:true is passed). Fix: mark rows not written on abort, or drop the guard as dead code.
+
+### anti-rationalization-forms.md repeats its Discipline section; commands/add.md is listed three times · SIG-256
+
+Seen 2026-10-01 during M6.E12 EXECUTE. plugin/references/anti-rationalization-forms.md carries "## Discipline — prohibition form retained" twice (lines 86 and 168) and "### commands/add.md" three times. tests/anti-rationalization-forms.test.js checks that every corpus entry appears and that the page names nothing the corpus lacks, so it cannot see duplication — every copy is a valid entry. Editing a command's anti-rationalization table means editing every copy by hand (M6.E12 had to update commands/advise.md in two places). Fix: drop the duplicate section; add a no-duplicate-heading assertion to the test.
+
+### advise records one pick, but people choose an order · SIG-263
+
+Found 2026-10-03 on the second outside-Signal /sig:advise run (eval-project, run 1). The maintainer picked priority 1 AND a four-step order (1, then a polish batch, then versioning work, then a DISCUSS). recordChoice can record one pick only, so the agent recorded it as "Something else" with its own summary of the order — the advisory now reads as a miss although priority 1 was picked. For the outcome oracle (D-M6E12-12) count that run as priority 1. Fix: an optional `order` recorded alongside the pick.
