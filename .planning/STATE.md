@@ -1,54 +1,39 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: SHIP
-current_epic: M6.E12
+phase: DISCUSS
+current_epic: M6.E13
 current_wave: null
 current_tasks: []
-completed_phases:
-  - DISCUSS (2026-10-01)
-  - PLAN (2026-10-01)
-  - EXECUTE (2026-10-02)
-  - VERIFY (2026-10-02)
-  - REVIEW (2026-10-02)
-  - EXECUTE (2026-10-02)
-  - VERIFY (2026-10-02)
-  - REVIEW (2026-10-02)
-  - EXECUTE (2026-10-02)
-  - VERIFY (2026-10-02)
-  - REVIEW (2026-10-02)
-  - SHIP (2026-10-02)
+completed_phases: []
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-09-29T14:06:07.617Z
 last_updated_commit: 66acbd3
-last_updated: 2026-10-03T15:07:25.568Z
+last_updated: 2026-10-04T02:14:43.889Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-10-02)
+### ▶ WHERE THE WORK IS — read this first (2026-10-03)
 
-**`M6.E12` SHIPPED as `v0.1.45`** (2026-10-02): `/sig:advise` and `/sig:drive`'s pick step propose 3–5
-big-picture priorities from a cited digest of the docs, ask, record the pick, and offer to start it;
-age is gone. Retro: [`M6.E12-RETROSPECTIVE.md`](M6.E12-RETROSPECTIVE.md). Hostile-repository residue:
-`SIG-257`. Earlier the same week: `v0.1.44` (`B118`, other-branch Epics).
+**`M6.E13` — *"work items as records"* — DISCUSS done; PLAN next.** Epic 1 of the storage
+re-architecture: work items become JSON records at `.planning/work/items/NN/SIG-n.json`, status derived
+from recorded events, prose in a sibling `.md`, one write library, a hook blocking direct edits, every
+store-on reader on the library, Signal's 268 items migrated. Branch `feat/m6.e13-work-item-records`.
+Requirements: [`M6.E13-REQUIREMENTS.md`](M6.E13-REQUIREMENTS.md) (FR1–FR8); decisions `D-M6E13-1` …
+`D-M6E13-17`; design: [`analysis/STORAGE-ARCHITECTURE-PROPOSAL.md`](../analysis/STORAGE-ARCHITECTURE-PROPOSAL.md).
 
-**In flight outside this repo (2026-10-03): the first `/sig:advise` test on another project** — a private
-one; its name and path are in the maintainer's memory, never in this repo (`tests/private-name-guard.test.js`).
-Run 1 (baseline) is done — that project's `.planning/BACKLOG-REVIEW-2026-10-03.md`. The priorities held up, but only because the agent
-read files the digest never gave it; five gaps filed as `SIG-258` … `SIG-262`. Brett chose to move
-that project's backlog from GitHub Issues back into files (its own session does it, by PR). **When he pastes
-run 2:** compare it with run 1 — does the real backlog change the priorities, do the two fake heading
-rows disappear, what does "could not read" still list. Note his pick in each run as outcome data
-(`D-M6E12-12`; run on Signal was data point 1).
+**How to run it (`D-M6E13-17`, Brett):** update the plugin and restart first, then `/sig:resume` →
+`/sig:drive`. Push through phase boundaries, reporting each; **halt only for** a scope call, a review
+finding not resolved within the loop ceiling, **the cutover of Signal's own store** (`D-M6E13-12`), and
+SHIP. The project's `checkpointed` setting is overridden for this Epic by that decision.
 
-**Next — picked by Brett in the first real `/sig:advise` run** ([`BACKLOG-REVIEW-2026-10-01.md`](BACKLOG-REVIEW-2026-10-01.md)):
-**get other projects onto the current system safely.** In order: the backlog-reader fixes (`B121`,
-`B122`, `B127`, `B135`) — **done, `v0.1.46` (2026-10-03)**; then
-the archive bugs (`B254` done, `v0.1.47`; `B255` needs a design choice); then step 5 of
-[`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](../analysis/WORK-ITEM-SYSTEM-DESIGN.md) (`/sig:docs-migrate`).
+**Why this replaced the queued work:** the next pick was moving other projects onto the store; doing that
+first would copy the current design into every repo. Reader fixes shipped as `v0.1.46`, `B254` as
+`v0.1.47` (both 2026-10-03); `B255` waits for units-as-records. The `/sig:advise` outside test is done
+(three runs; findings `SIG-258`…`SIG-262`, `SIG-267`, `SIG-268`).
 
 ### ▶ PREVIOUS — `M6.E3` SHIPPED
 
@@ -93,7 +78,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-Nothing in flight in this repo. Outside it: the `/sig:advise` test on another project (run 2 pending) — see *Where the work is* above, which also names the next work.
+`M6.E13` at DISCUSS (done) — see *Where the work is* above.
 
 ## Blockers
 
