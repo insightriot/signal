@@ -3797,7 +3797,7 @@ priorities against each other before asking. The reader fixes were folded into p
 **Outcome data point 1 (`D-M6E12-12`):** the user picked a proposed priority (1), after one
 clarifying question that exposed the missing dependency check.
 
-## 2026-10-03 — M6.E13 DISCUSS: work items as records — Epic 1 of the storage re-architecture (D-M6E13-1 … D-M6E13-19)
+## 2026-10-03 — M6.E13 DISCUSS: work items as records — Epic 1 of the storage re-architecture (D-M6E13-1 … D-M6E13-20)
 
 **Label:** *"work items as records"*. Source: [`analysis/STORAGE-ARCHITECTURE-PROPOSAL.md`](../analysis/STORAGE-ARCHITECTURE-PROPOSAL.md),
 the synthesis of three deep-research runs (`analysis/item-architecture-research/`), all of which converged
@@ -3910,7 +3910,13 @@ AC2.1 counts "edit fields" as a mutation that appends an event; AC1.4's list had
 `queued`/`started`/`triaged`/`reopened` events by `epicOf`, with no top-level `epic` key — two copies of
 one fact is what `D-M6E13-4` refused for status. Raised by the fresh-context plan check (B4, S2).
 Adopted at plumbing altitude under `/sig:drive` (reversible). The window change IS user-visible:
-it decides which closes the committed views show. Amends AC1.4
+it decides which closes the committed views show.
+
+### D-M6E13-20 — Three `fixed` closes with no commit become legacy closes; 142 → 145 (Brett, 2026-10-04)
+SIG-123, SIG-142 and SIG-161 were closed `fixed` with proof text naming no commit ("DONE — M6.E12…").
+The new model confirms a `fixed` close only through a commit, so they migrate as legacy closes: reason
+and proof text kept, never admissible as proof. Extends `D-M6E13-14` from 142 to 145. Asked at M6.E13
+PLAN approval (raised by plan-checker pass 2); options were legacy / look up their commits / reopen. Amends AC1.4
 and AC1.5's wording; also amends AC6.2: "the last 30 days" counts back from the newest event in the
 store, so committed views do not churn daily and AC5.2 stays deterministic. See `M6.E13-PLAN.md`
 § Decisions.
