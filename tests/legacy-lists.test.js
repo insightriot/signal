@@ -158,14 +158,25 @@ describe('legacy-lists — flag set: importing does not throw', () => {
   });
 });
 
-describe('legacy-lists — the write path and the v2 modules do not import it', () => {
-  // t4.7 owns the full import-graph ban over the v2 modules. This pins the one
-  // edge t4.1 itself could have introduced: the inbox status line's parser
-  // moving out of work-marker.js, which atomic-write.js and work-views.js import.
+describe('legacy-lists — the write path and the v2 modules do not import it (AC3.2, static)', () => {
+  // t4.1 pinned the one edge it could have introduced (the inbox status line's
+  // parser leaving work-marker.js). t4.7 widens it to the whole v2 module set,
+  // and follows lazy `import('./x.js')` edges too, so a parser cannot slip in
+  // behind a dynamic import.
+  const source = (file) => readFileSync(join(LIB, file), 'utf-8');
   const staticImports = (file) =>
-    [...readFileSync(join(LIB, file), 'utf-8').matchAll(/^\s*(?:import|export)\s[^;]*?from\s+'\.\/([\w.-]+\.js)'/gm)].map((m) => m[1]);
+    [...source(file).matchAll(/^\s*(?:import|export)\s[^;]*?from\s+'\.\/([\w.-]+\.js)'/gm)].map((m) => m[1]);
+  const dynamicImports = (file) => [...source(file).matchAll(/import\(\s*'\.\/([\w.-]+\.js)'\s*\)/g)].map((m) => m[1]);
 
-  const reaches = (start) => {
+  // Reviewed lazy edges the walk does not follow. Each sits inside a function
+  // no v2 module calls: the v2 modules take only `parseFrontmatter`,
+  // `compareEpicIds`, `EPIC_ID_STRICT_RE` and `StateSchemaError` from state.js.
+  const DYNAMIC_EXEMPT = {
+    'state.js -> resume.js': '`assertLeavingArtifactExists`, a STATE phase-transition check (resume.js → status.js re-exports the parsers)',
+    'state.js -> planning-index.js': '`refreshPlanningIndexAfterTransition`, a STATE phase-transition write (→ migrate-memory.js reaches the parsers)',
+  };
+
+  const reaches = (start, { dynamic = true } = {}) => {
     const seen = new Set();
     const stack = [start];
     while (stack.length) {
@@ -173,18 +184,49 @@ describe('legacy-lists — the write path and the v2 modules do not import it', 
       if (seen.has(f)) continue;
       seen.add(f);
       stack.push(...staticImports(f));
+      if (dynamic) stack.push(...dynamicImports(f).filter((d) => !(`${f} -> ${d}` in DYNAMIC_EXEMPT)));
     }
     return seen;
   };
 
-  for (const mod of ['work-marker.js', 'atomic-write.js', 'work-record.js', 'work-records.js', 'work-views.js']) {
-    it(`${mod} does not reach legacy-lists.js through its static imports`, () => {
+  // Every v2 module, the shared leaves they write through, and t4.6's entry.
+  // `work-convert.js` is the v2 read of a v1 store (Decision 1): it imports the
+  // v1 `work-item.js` frontmatter reader, which reaches no parser.
+  const V2_MODULES = [
+    'work-marker.js', 'atomic-write.js', 'work-record.js', 'work-records.js', 'work-views.js',
+    'work-convert.js', 'work-write-guard.js', 'scrub.js', 'work-errors.js', 'close-confirm.js',
+  ];
+
+  for (const mod of V2_MODULES) {
+    it(`${mod} does not reach legacy-lists.js through its imports, static or lazy`, () => {
       expect([...reaches(mod)]).not.toContain('legacy-lists.js');
     });
   }
 
+  it('each lazy-edge exemption is a real edge, and is needed (removing both reaches the parsers)', () => {
+    for (const edge of Object.keys(DYNAMIC_EXEMPT)) {
+      const [from, to] = edge.split(' -> ');
+      expect(dynamicImports(from), edge).toContain(to);
+    }
+    const unexempted = (start) => {
+      const seen = new Set();
+      const stack = [start];
+      while (stack.length) {
+        const f = stack.pop();
+        if (seen.has(f)) continue;
+        seen.add(f);
+        stack.push(...staticImports(f), ...dynamicImports(f));
+      }
+      return seen;
+    };
+    expect(unexempted('work-records.js').has('legacy-lists.js')).toBe(true);
+  });
+
   it('the walk follows imports (guards a walker that finds nothing)', () => {
     expect(reaches('backlog.js').has('legacy-lists.js')).toBe(true);
     expect(reaches('work-views.js').has('work-marker.js')).toBe(true);
+    // a lazy edge is followed: work-write-guard.js imports work-records.js only lazily
+    expect(staticImports('work-write-guard.js')).not.toContain('work-records.js');
+    expect(reaches('work-write-guard.js').has('work-records.js')).toBe(true);
   });
 });
