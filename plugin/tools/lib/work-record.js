@@ -27,7 +27,7 @@ import { WorkStoreError } from './work-errors.js';
  *
  * Rules the subset cannot express are written in code below and listed where
  * they live: event dispatch by `type` (there is no `oneOf`); `closed` proof
- * unless legacy; `dup_of` if and only if `dup`; `edited` names at least one field.
+ * unless legacy or dup; `dup_of` if and only if `dup`; `edited` names at least one field.
  */
 export const RECORD_SCHEMA = deepFreeze(
   JSON.parse(readFileSync(new URL('../../references/work-item.schema.json', import.meta.url), 'utf8')),
@@ -134,8 +134,9 @@ function checkEvent(event, path, errors) {
   check(RECORD_SCHEMA.$defs[event.type], event, path, errors);
 
   if (event.type === 'closed') {
-    if (event.proof === undefined && event.legacy !== true) {
-      errors.push(`${path}.proof is required unless legacy is true`);
+    // PLAN Decision 3: a dup close's evidence is `dup_of`; proof is optional.
+    if (event.proof === undefined && event.legacy !== true && event.reason !== 'dup') {
+      errors.push(`${path}.proof is required unless legacy is true or reason is dup`);
     }
     if (event.reason === 'dup' && event.dup_of === undefined) {
       errors.push(`${path}.dup_of is required when reason is dup`);

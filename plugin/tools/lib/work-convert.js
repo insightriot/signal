@@ -151,10 +151,12 @@ function closeEvents(id, close, where) {
     };
   }
   if (reason === 'dup') {
-    // AC1.4: proof on every close that is not legacy, dup included. Writing a
-    // proof the v1 close did not have would be inventing one.
-    if (!proof) return { error: `${where}: unmapped — a dup close (of ${close.dup_of}) with no proof text` };
-    return { events: [{ type: 'closed', ...head, reason, proof, dup_of: close.dup_of }], form: 'dup' };
+    // PLAN Decision 3: a dup close needs `dup_of`; proof is optional and is
+    // carried only when the v1 close had one — never invented.
+    const event = { type: 'closed', ...head, reason };
+    if (proof) event.proof = proof;
+    event.dup_of = close.dup_of;
+    return { events: [event], form: 'dup' };
   }
   // rejected / wontdo / stale: a direct close needs its proof text.
   if (!proof) return { error: `${where}: a ${reason} close needs proof text, and this one has none` };

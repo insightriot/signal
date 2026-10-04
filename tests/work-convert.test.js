@@ -427,12 +427,20 @@ describe('convertV1Item — closes (Decision 11, D-M6E13-14, D-M6E13-20)', () =>
     expect(manifest.closeForm).toBe('dup');
   });
 
-  // The real SIG-137 has no proof text. AC1.4 requires proof on every non-legacy close,
-  // dup included, so this is reported — no proof is written for it.
-  it('a dup with no proof text is refused (AC1.4: proof unless legacy)', () => {
+  // The real SIG-137 has no proof text. PLAN Decision 3: a dup close needs
+  // dup_of, and proof is optional — none is invented for it.
+  it('a dup with no proof text converts, with no proof written (PLAN Decision 3)', () => {
     const { record, manifest } = convertV1Item({ relPath: 'work/done/2026-10/SIG-137.md', text: DUP });
-    expect(record).toBeNull();
-    expect(manifest.errors.join(' ')).toMatch(/unmapped.*dup.*proof/);
+    sound(record);
+    expect(manifest.errors).toEqual([]);
+    expect(record.events.at(-1)).toEqual({
+      type: 'closed',
+      at: '2026-10-01T23:42:56.961Z',
+      by: 'brett (M6.E12 PLAN drain)',
+      reason: 'dup',
+      dup_of: 'SIG-112',
+    });
+    expect(manifest.closeForm).toBe('dup');
   });
 
   it('an open item has closeForm null', () => {

@@ -154,11 +154,23 @@ describe('validateRecord — rejections (AC1.6: unknown keys are errors)', () =>
     expect(validateRecord(record([{ ...EVENT_SAMPLES.closed, reason: 'done' }]))).toHaveLength(1);
   });
 
-  it('closed: proof required unless legacy (AC1.4)', () => {
+  it('closed: proof required unless legacy or dup (AC1.4, PLAN Decision 3)', () => {
     const noProof = { ...EVENT_SAMPLES.closed };
     delete noProof.proof;
-    expect(validateRecord(record([noProof]))).toEqual(['events[1].proof is required unless legacy is true']);
+    const msg = 'events[1].proof is required unless legacy is true or reason is dup';
+    for (const reason of ['wontdo', 'stale', 'rejected']) {
+      expect(validateRecord(record([{ ...noProof, reason }]))).toEqual([msg]);
+    }
     expect(validateRecord(record([{ ...noProof, legacy: true }]))).toEqual([]);
+  });
+
+  // PLAN Decision 3's table: a direct close is stale/wontdo/rejected with proof
+  // text, OR dup with dup_of. dup_of is the evidence; proof is optional.
+  it('closed: a dup needs dup_of, not proof', () => {
+    const dupNoProof = { ...EVENT_SAMPLES.closed_dup };
+    delete dupNoProof.proof;
+    expect(validateRecord(record([dupNoProof]))).toEqual([]);
+    expect(validateRecord(record([EVENT_SAMPLES.closed_dup]))).toEqual([]);
   });
 
   it('closed: an empty proof is rejected', () => {
