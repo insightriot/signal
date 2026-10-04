@@ -14,17 +14,32 @@
 // the migration's pure converter, `convertV1Item`, and writes refuse with a
 // message naming `node tools/work-migrate-v2.mjs` (PLAN Decision 1, AC4.2).
 //
-// Read side: t2.1. ID allocation and the duplicate-ID check: t2.3.
+// Read side: t2.1. ID allocation and the duplicate-ID check: t2.3. Writes:
+// t2.2a (new, triage, queue, start) and t2.2b.
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync, realpathSync, existsSync } from 'node:fs';
-import { basename, join, relative, resolve, sep } from 'node:path';
+import { readFileSync, readdirSync, realpathSync, existsSync, lstatSync, mkdirSync, rmdirSync, unlinkSync } from 'node:fs';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 
-import { WorkStoreError } from './work-errors.js';
-import { parseRecord, checkEvents, deriveStatus, epicOf } from './work-record.js';
+import { atomicWrite } from './atomic-write.js';
+import { acquireLock } from './file-lock.js';
+import { assertRealInsidePlanning } from './path-confine.js';
+import { scrubSensitive } from './scrub.js';
+import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
+import { parseRecord, serializeRecord, checkEvents, deriveStatus, epicOf } from './work-record.js';
 import { bodyDirFor, convertV1Item } from './work-convert.js';
 import { ITEM_ID_RE } from './work-item.js';
-import { isStoreOn, isGitRepo, walkFiles, STORE_OFF_MESSAGE, WORK_DIR, WORK_FILE } from './work-store.js';
+import { rewriteRelativeLinks } from './work-links.js';
+import {
+  isStoreOn,
+  isGitRepo,
+  walkFiles,
+  STORE_OFF_MESSAGE,
+  WORK_DIR,
+  WORK_FILE,
+  WORK_LOCK_REL,
+  WORK_LOCK_TTL_MS,
+} from './work-store.js';
 import { parseFrontmatter } from './state.js';
 
 const ITEMS_DIR = 'items';
@@ -566,4 +581,367 @@ export function findDuplicateIds(baseDir) {
     .filter(([, paths]) => paths.length > 1)
     .map(([id, paths]) => ({ id, paths: paths.sort() }))
     .sort((a, b) => numberOf(a.id) - numberOf(b.id));
+}
+
+// ── Writing a v2 store (t2.2, AC2.1, AC2.4) ─────────────────────────────────
+//
+// Every mutation is a public entry point that takes the `work` lock itself,
+// through `withWorkLockV2`, and hands the lock's handle to internal functions;
+// no internal function takes the lock and no lock-taking export calls another
+// (Decision 9, `tests/work-records-inventory.test.js`). The lock file is v1's
+// (`.planning/work/.lock`), so a v1 writer and a v2 writer exclude each other.
+//
+// Order inside each mutation, as in v1 `work-ops.js`: the store check (so a
+// store-off or v1 project never grows a lock file), the sensitive-data gate,
+// the lock; then build the changed record, validate it (`serializeRecord`) and
+// check its history (`checkEvents`) BEFORE any write; one atomic write per
+// record, exactly one event appended per changed record; then `regenerate`.
+//
+// `regenerate` is injected (`opts.regenerate`, called with `baseDir`). Its
+// default is a no-op until the v2 views exist (S3). As in v1, a failed
+// regeneration does not undo the change: the change is correct, and the error
+// says the views were not rebuilt.
+
+const WORK_LOCK_LABEL = 'work store';
+
+// The default view regeneration: nothing yet. S3 replaces this body.
+async function regenerateViews() {}
+
+async function withWorkLockV2(baseDir, label, fn) {
+  const { key } = assertWritable(baseDir);
+  let lock;
+  try {
+    lock = await acquireLock(join(baseDir, WORK_LOCK_REL), { label, ttlMs: WORK_LOCK_TTL_MS });
+  } catch (err) {
+    throw lockFailure(err);
+  }
+  try {
+    return await fn({ baseDir, key });
+  } finally {
+    await lock.released();
+  }
+}
+
+async function regenerateAfter(handle, done, opts) {
+  const run = opts.regenerate ?? regenerateViews;
+  try {
+    await run(handle.baseDir);
+  } catch (err) {
+    const code = err instanceof WorkStoreError ? err.code : 'IO';
+    const wrapped = new WorkStoreError(code, `${done}, but the views were not regenerated: ${err?.message ?? err}`);
+    wrapped.cause = err;
+    throw wrapped;
+  }
+}
+
+// Every sensitive-data hit in `texts`, each field scanned on its own (v1
+// `work-ops.js` `scrubTexts`). Non-strings and empty strings are skipped.
+function scrubTexts(texts) {
+  const hits = [];
+  for (const text of texts) {
+    if (typeof text === 'string' && text !== '') hits.push(...scrubSensitive(text).hits);
+  }
+  return hits;
+}
+
+// The sensitive-data gate (v1 `sensitivePending`, unchanged): with a hit and no
+// `acknowledgeSensitive`, nothing is written and the caller must ask.
+function sensitivePending(texts, opts) {
+  const sensitiveHits = scrubTexts(texts);
+  if (sensitiveHits.length > 0 && !opts.acknowledgeSensitive) {
+    return { aborted: 'sensitive-data-pending', sensitiveHits };
+  }
+  return null;
+}
+
+const nowIso = () => new Date().toISOString();
+
+function pruneUndefined(obj) {
+  for (const k of Object.keys(obj)) if (obj[k] === undefined) delete obj[k];
+  return obj;
+}
+
+// A record's bytes, validated and with a legal history — or a throw, before
+// anything is written. Shape errors are SCHEMA; an event not legal where it
+// stands (the transition table) is CONFLICT.
+function recordText(record) {
+  const text = serializeRecord(record);
+  const errors = checkEvents(record);
+  if (errors.length > 0) {
+    throw new WorkStoreError('CONFLICT', `${record.id}: ${errors.map((e) => e.message).join('; ')} — nothing was written.`);
+  }
+  return text;
+}
+
+function entryOf(record) {
+  return { id: record.id, path: recordPath(record.id), record, status: deriveStatus(record), epic: epicOf(record) };
+}
+
+// A record as it is on disk now, under the lock: {entry, text}.
+function readForWrite(handle, id) {
+  assertItemId(id);
+  const found = readV2One(handle.baseDir, handle.key, id);
+  if (found === null) throw new WorkStoreError('NOT_FOUND', `${id}: no such item`);
+  if (found.broken.length > 0) throw new WorkStoreError('SCHEMA', found.broken.map((b) => b.error).join('; '));
+  const entry = found.records[0];
+  return { entry, text: readFileSync(join(handle.baseDir, entry.path), 'utf-8') };
+}
+
+// `assertRealInsidePlanning`, as a WorkStoreError (v1 `confine`).
+function confine(baseDir, abs) {
+  try {
+    assertRealInsidePlanning(baseDir, abs, 'work store write');
+  } catch (err) {
+    throw asWorkStoreError(err, typeof err?.code === 'string' ? 'IO' : 'CONFLICT');
+  }
+}
+
+function existsNoFollow(abs) {
+  try {
+    lstatSync(abs);
+    return true;
+  } catch (err) {
+    if (err.code === 'ENOENT') return false;
+    throw asWorkStoreError(err, 'IO');
+  }
+}
+
+// One existing record, changed: its new bytes written atomically over the old.
+async function writeRecord(handle, next, opts) {
+  const text = recordText(next);
+  const abs = join(handle.baseDir, recordPath(next.id));
+  confine(handle.baseDir, abs);
+  try {
+    await atomicWrite(abs, text, { renameFn: opts.renameFn });
+  } catch (err) {
+    throw asWorkStoreError(err, 'IO');
+  }
+  return entryOf(next);
+}
+
+// Append one event (and apply `fields`) to the record `id` holds now.
+function withEvent(current, event, fields = {}) {
+  const next = { ...current.record, ...fields, events: [...current.record.events, event] };
+  for (const k of Object.keys(fields)) if (fields[k] === undefined || fields[k] === null) delete next[k];
+  return next;
+}
+
+// One new item, built and checked, nothing written.
+function planNew(handle, id, spec) {
+  if (spec === null || typeof spec !== 'object' || Array.isArray(spec)) {
+    throw new WorkStoreError('SCHEMA', `new item ${id}: pass an object of fields — nothing was written.`);
+  }
+  const { type = 'NEW', title, body, source, source_ref, theme, priority, by, at = nowIso(), linksFrom = '', triage } = spec;
+  const events = [{ type: 'created', at, by }];
+  const record = { id, type, title, theme, priority, source, source_ref };
+  if (triage !== undefined) {
+    if (triage === null || typeof triage !== 'object') {
+      throw new WorkStoreError('SCHEMA', `new item ${id}: triage must be an object of fields — nothing was written.`);
+    }
+    for (const k of ['type', 'priority', 'theme', 'title']) if (triage[k] !== undefined) record[k] = triage[k];
+    if (record.type === 'NEW') {
+      throw new WorkStoreError('SCHEMA', `new item ${id}: triage needs a type (BUG, FEAT, CHORE or Q) — nothing was written.`);
+    }
+    events.push({ type: 'triaged', at, by });
+  }
+  record.events = events;
+  pruneUndefined(record);
+  const text = recordText(record);
+  const rel = recordPath(id);
+  const abs = join(handle.baseDir, rel);
+  confine(handle.baseDir, abs);
+  if (existsNoFollow(abs)) throw new WorkStoreError('CONFLICT', `${rel} already exists — nothing was written.`);
+  const out = { record, rel, abs, text };
+  if (typeof body === 'string' && body !== '') {
+    out.bodyAbs = join(handle.baseDir, bodyPath(id));
+    if (existsNoFollow(out.bodyAbs)) throw new WorkStoreError('CONFLICT', `${bodyPath(id)} already exists — nothing was written.`);
+    out.bodyText = rewriteRelativeLinks(body, linksFrom, bodyDirFor(id));
+  }
+  return out;
+}
+
+// Write planned new items, all or nothing: on a failure every file this call
+// wrote is removed, and every folder it created, while empty.
+async function writeNew(handle, planned, opts) {
+  const written = [];
+  const createdDirs = [];
+  try {
+    for (const p of planned) {
+      const made = mkdirSync(dirname(p.abs), { recursive: true });
+      if (made) createdDirs.push(made);
+      if (p.bodyText !== undefined) {
+        await atomicWrite(p.bodyAbs, p.bodyText, { renameFn: opts.renameFn });
+        written.push(p.bodyAbs);
+      }
+      await atomicWrite(p.abs, p.text, { renameFn: opts.renameFn });
+      written.push(p.abs);
+    }
+  } catch (err) {
+    const left = [];
+    for (const abs of [...written].reverse()) {
+      try {
+        unlinkSync(abs);
+      } catch {
+        left.push(toPosix(relative(handle.baseDir, abs)));
+      }
+    }
+    for (const dir of createdDirs.reverse()) removeCreatedTree(dir);
+    const wrapped = asWorkStoreError(err, 'IO', left.length
+      ? `capture failed and these files could not be removed (${left.join(', ')}): `
+      : '');
+    wrapped.written = left;
+    throw wrapped;
+  }
+}
+
+// Remove a folder `mkdirSync` created in this call, and the folders inside it
+// (all created in this call too: the lock is held), while empty.
+function removeCreatedTree(top) {
+  for (const e of entriesOf(top)) {
+    if (e.isDirectory()) removeCreatedTree(join(top, e.name));
+  }
+  try {
+    rmdirSync(top);
+  } catch {
+    // not empty, or already gone: leave it
+  }
+}
+
+/**
+ * Capture one new item (status N), optionally triaged in the same locked
+ * write. `newItems` with one spec; see there.
+ *
+ * @param {string} baseDir
+ * @param {object} fields — as one of `newItems`'s specs
+ * @param {object} [opts] — as `newItems`'s
+ * @returns {Promise<object>} the entry `{id, path, record, status, epic}`, or
+ *   `{aborted: 'sensitive-data-pending', sensitiveHits}` when nothing was written
+ */
+export async function newItem(baseDir, fields = {}, opts = {}) {
+  const r = await newItems(baseDir, [fields], opts);
+  return Array.isArray(r) ? r[0] : r;
+}
+
+/**
+ * Capture new items: ONE `work` lock, sequential IDs from one `nextIdV2`, every
+ * record built, validated and checked before any is written, all or nothing
+ * (a failure part-way removes what this call wrote; `err.written` lists any
+ * file that could not be removed), then ONE `regenerate`.
+ *
+ * Each record is written with one `created` event — or, with `triage`, with
+ * `created` and `triaged` in the same write (the single lock `promoteInStore`
+ * lacked, B6). `triage` fields replace the capture's; the resulting type may
+ * not be NEW.
+ *
+ * Sensitive data (v1 `newItems`' gate, unchanged): title, body, source_ref and
+ * theme — and a triage's title and theme — run through `scrubSensitive`; with
+ * a hit and no `opts.acknowledgeSensitive`, nothing is written and the result
+ * is `{aborted: 'sensitive-data-pending', sensitiveHits}`. Detection only.
+ *
+ * @param {string} baseDir
+ * @param {Array<{type?: string, title: string, body?: string, source?: string, source_ref?: string,
+ *   theme?: string, priority?: string|number, by: string, at?: string, linksFrom?: string,
+ *   triage?: {type: string, priority?: string|number, theme?: string, title?: string}}>} specs
+ *   `body` is written beside the record, its relative links rewritten from
+ *   `linksFrom` (relative to `.planning/`, default `''`) to the record's folder.
+ * @param {{execFn?: Function, renameFn?: Function, acknowledgeSensitive?: boolean,
+ *   regenerate?: (baseDir: string) => Promise<void>}} [opts]
+ * @returns {Promise<object[]|{aborted: 'sensitive-data-pending', sensitiveHits: object[]}>} entries in spec order
+ * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA, CONFLICT, LOCKED, IO
+ */
+export async function newItems(baseDir, specs, opts = {}) {
+  if (!Array.isArray(specs) || specs.length === 0) {
+    throw new WorkStoreError('SCHEMA', 'newItems: pass at least one item — nothing was written.');
+  }
+  assertWritable(baseDir);
+  const pending = sensitivePending(
+    specs.flatMap((s) => [s?.title, s?.body, s?.source_ref, s?.theme, s?.triage?.title, s?.triage?.theme]),
+    opts,
+  );
+  if (pending) return pending;
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+    const { id: first } = nextIdV2(baseDir, { execFn: opts.execFn });
+    const start = numberOf(first);
+    const planned = specs.map((spec, i) => planNew(handle, `${handle.key}-${start + i}`, spec));
+    await writeNew(handle, planned, opts);
+    const ids = planned.map((p) => p.record.id);
+    await regenerateAfter(handle, `${ids.join(', ')} ${ids.length === 1 ? 'was' : 'were'} written`, opts);
+    return planned.map((p) => entryOf(p.record));
+  });
+}
+
+/**
+ * Triage an item: a `triaged` event (legal from N, Q, P — the transition
+ * table), with `type`, `priority`, `theme` and `title` set when given. The
+ * Epic is cleared. The resulting type may not be NEW.
+ *
+ * ⚠ A field changed here that has an `edited` history is refused by
+ * `checkEvents` (the record would disagree with its last edit; Decisions 2
+ * and 3): `triaged` carries no field changes. Edit it with `editItem` instead.
+ *
+ * Sensitive data: `title` and `theme` (v1 `applyTriage`'s gate).
+ *
+ * @param {string} baseDir
+ * @param {string} id
+ * @param {{type?: string, priority?: string|number, theme?: string, title?: string, by: string, at?: string}} triage
+ * @param {object} [opts] — as `newItems`'s
+ * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
+ */
+export async function triageItem(baseDir, id, triage = {}, opts = {}) {
+  assertWritable(baseDir);
+  const pending = sensitivePending([triage.title, triage.theme], opts);
+  if (pending) return pending;
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+    const current = readForWrite(handle, id).entry;
+    const fields = {};
+    for (const k of ['type', 'priority', 'theme', 'title']) if (triage[k] !== undefined) fields[k] = triage[k];
+    if ((fields.type ?? current.record.type) === 'NEW') {
+      throw new WorkStoreError('SCHEMA', `${id}: triage needs a type (BUG, FEAT, CHORE or Q) — nothing was written.`);
+    }
+    const next = withEvent(current, { type: 'triaged', at: triage.at ?? nowIso(), by: triage.by }, fields);
+    const out = await writeRecord(handle, next, opts);
+    await regenerateAfter(handle, `${id} was triaged`, opts);
+    return out;
+  });
+}
+
+// queued / started share their shape: an event carrying the Epic.
+function epicEvent(type, move) {
+  return pruneUndefined({ type, at: move.at ?? nowIso(), by: move.by, epic: move.epic });
+}
+
+/**
+ * Queue an item for an Epic: a `queued` event (legal from T, Q, P).
+ *
+ * @param {string} baseDir
+ * @param {string} id
+ * @param {{epic: string, by: string, at?: string}} move — `epic` is an Epic ID (`M6.E13`)
+ * @param {object} [opts] — as `newItems`'s
+ * @returns {Promise<object>} the entry
+ */
+export async function queueItem(baseDir, id, move = {}, opts = {}) {
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+    const current = readForWrite(handle, id).entry;
+    const out = await writeRecord(handle, withEvent(current, epicEvent('queued', move)), opts);
+    await regenerateAfter(handle, `${id} was queued for ${move.epic}`, opts);
+    return out;
+  });
+}
+
+/**
+ * Start an item in an Epic: a `started` event (legal from T, Q).
+ *
+ * @param {string} baseDir
+ * @param {string} id
+ * @param {{epic: string, by: string, at?: string}} move
+ * @param {object} [opts] — as `newItems`'s
+ * @returns {Promise<object>} the entry
+ */
+export async function startItem(baseDir, id, move = {}, opts = {}) {
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+    const current = readForWrite(handle, id).entry;
+    const out = await writeRecord(handle, withEvent(current, epicEvent('started', move)), opts);
+    await regenerateAfter(handle, `${id} was started in ${move.epic}`, opts);
+    return out;
+  });
 }

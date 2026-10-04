@@ -92,9 +92,22 @@ const READERS = {
   findDuplicateIds: (base) => records.findDuplicateIds(base),
 };
 
+// Body edits are NOT a library writer (t2.2, answering t2.4's open question):
+// a body is a plain file beside its record, which the guard hook allows, so a
+// body-only change records no event and has no function here. `checkWriter`
+// judges records only, and every writer below changes one.
 const WRITERS = {
-  // t2.2a / t2.2b add one entry per mutation here, e.g.
-  //   triage: { run: (base) => records.triage(base, 'SIG-1', { by: 'claude' }) },
+  // newItem is run WITH triage: a triaged capture is written with two events,
+  // created + triaged, in one locked write (the double lock `promoteInStore`
+  // took, B6). Reviewed: it is one new record, not an append to an old one.
+  newItem: {
+    run: (base) => records.newItem(base, { title: 'n', by, triage: { type: 'BUG' } }),
+    newEvents: 2,
+  },
+  newItems: { run: (base) => records.newItems(base, [{ title: 'a', by }, { title: 'b', by }]) },
+  triageItem: { run: (base) => records.triageItem(base, 'SIG-1', { by }) },
+  queueItem: { run: (base) => records.queueItem(base, 'SIG-2', { epic: 'M6.E13', by }) },
+  startItem: { run: (base) => records.startItem(base, 'SIG-2', { epic: 'M6.E13', by }) },
 };
 
 const EXEMPT = {
@@ -318,7 +331,8 @@ export async function promote(b, id) { await triage(b, id); return queue(b, id);
       .replace('export function getRecord(baseDir, id, opts = {}) {', "export function getRecord(baseDir, id, opts = {}) {\n  acquireLock('b');\n  listRecords(baseDir);");
     expect(injected).not.toBe(SOURCE);
     const { lockTaking, violations } = lockNesting(injected);
-    expect(lockTaking).toEqual(['listRecords', 'getRecord']);
+    const real = lockNesting(SOURCE).lockTaking; // the writers t2.2 added
+    expect(lockTaking.filter((n) => !real.includes(n))).toEqual(['listRecords', 'getRecord']);
     expect(violations).toEqual([expect.stringMatching(/^getRecord .*listRecords/)]);
   });
 
