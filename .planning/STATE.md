@@ -23,7 +23,7 @@ re-architecture: work items become JSON records at `.planning/work/items/NN/SIG-
 from recorded events, prose in a sibling `.md`, one write library, a hook blocking direct edits, every
 store-on reader on the library, Signal's 268 items migrated. Branch `feat/m6.e13-work-item-records`.
 Requirements: [`M6.E13-REQUIREMENTS.md`](M6.E13-REQUIREMENTS.md) (FR1–FR8); decisions `D-M6E13-1` …
-`D-M6E13-17`; design: [`analysis/STORAGE-ARCHITECTURE-PROPOSAL.md`](../analysis/STORAGE-ARCHITECTURE-PROPOSAL.md).
+`D-M6E13-18`; design: [`analysis/STORAGE-ARCHITECTURE-PROPOSAL.md`](../analysis/STORAGE-ARCHITECTURE-PROPOSAL.md).
 
 **How to run it (`D-M6E13-17`, Brett):** update the plugin and restart first, then `/sig:resume` →
 `/sig:drive`. Push through phase boundaries, reporting each; **halt only for** a scope call, a review
