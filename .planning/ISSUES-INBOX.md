@@ -45,3 +45,11 @@ Found 2026-10-04 by M6.E13 t1.6 store-off golden capture (tests/fixtures/work-st
 Found 2026-10-04 by M6.E13 t1.6 capture: on the same store-off fixture the advise digest reports 6 inbox entries (all ## headings, incl. standing and dispositioned) while checkStaleInbox reports 3 drainable. Two counts of one inbox with different meanings. Pinned as-is; fix updates the golden deliberately.
 
 ---
+
+## npm run lint fails: no-control-regex at plugin/tools/lib/branch-work.js:54
+
+**Status:** untriaged (N) · SIG-272
+
+Seen 2026-10-04 during M6.E13 EXECUTE. Present in v0.1.47 (the control-character strip regex in branch-work.js:54). npm run lint exits non-zero, so lint is not a usable gate. Fix: an eslint-disable-next-line no-control-regex with the reason (the regex strips control and bidi characters on purpose), or build the class with RegExp from code points.
+
+---
