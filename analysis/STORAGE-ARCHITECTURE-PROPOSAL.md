@@ -108,18 +108,41 @@ by one, and nothing gets guessed.
 
 **My pick: adopt it.**
 
-**Decision 4: what the first Epic covers.**
-- *My pick:* the core plus the things that break most often:
-  - the record format and write path;
-  - work items;
-  - Epics and units as real records, which replaces guessing a unit from filenames;
-  - typed verdicts on VERIFICATION and REVIEW;
-  - `STATE.md` split into data plus a notes file;
-  - migrating Signal's own repo.
-- *Second Epic:* decisions, requirements and retrospectives as records; then the other projects, one at
-  a time.
-- *Why split:* the first Epic is already large, and the second needs the first proven on Signal before
-  it touches anyone else's repo.
+**Decision 4: what the first Epic covers.** *Decided 2026-10-03: start smaller, in stages.*
+- **Epic 1: work items only.**
+  - JSON records with status worked out from recorded events.
+  - Fixed paths in ID subfolders (see below).
+  - One write path, and the guard that blocks direct edits.
+  - **Every reader switched to the library.** No code parses `BUGS.md` or `BACKLOG.md` again.
+  - Signal's own items migrated.
+  - Roughly the size of `M6.E11`.
+  - It removes most of the recurring classes on its own, and it is exactly what the other-projects
+    migration depends on.
+- **After Epic 1 has proven itself on Signal**, in order:
+  1. Epics and units as records.
+  2. Typed verdicts on VERIFICATION and REVIEW.
+  3. The `STATE.md` split.
+  4. Decisions, requirements and retrospectives.
+  5. The migration for other projects, one at a time.
+- **Why staged:** each stage is a natural stopping point if the approach turns out wrong. Brett rated
+  the overhaul 7/10 overall, 9/10 if other projects are onboarded soon, because onboarding onto the
+  current store would copy its design into every repo.
+
+**Scale: ID subfolders from day one.** *Decided 2026-10-03.*
+- **Records live in a subfolder fixed by ID number at creation**, and never in a status folder: for
+  example, `items/01/` holds SIG-1000 to SIG-1999. "Never moves" was always about status.
+- **Why:** GitHub's web view stops listing a folder after 1,000 entries, and adding subfolders later
+  would mean a migration.
+- **Measured 2026-10-03 on 10,000 generated records** (each JSON record plus a body, 20,000 files):
+  - reading every record and working out every status: ~0.2 s;
+  - `git status`: 0.06 s;
+  - git repository size: 2.6 MB.
+- **Signal's growth:** 267 items in about six months, so 10,000 is about 18 years away at today's rate.
+- **Views** show open items plus recent closes, with per-year history.
+- **If a project ever gets truly large:**
+  - the disposable cache (`node:sqlite`) takes over;
+  - closed years can be bundled as an explicit, recorded, lossless step in which every ID still
+    resolves.
 
 ## 5. What Signal adds that none of the three reports did
 
