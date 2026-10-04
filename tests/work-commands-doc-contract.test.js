@@ -65,6 +65,21 @@ describe('AC3.4 — commands direct store-on work to /sig:item and the library',
     },
   );
 
+  // REVIEW I4: ship.md § 6.6 still told a v1 store to move closed items into
+  // `done/YYYY-MM/` after the code had started refusing v1 with CONFIG. The v1
+  // folder moves are gone everywhere, so no command describes one.
+  it('no command describes a v1 folder move (`done/YYYY-MM/`, `work/(inbox|backlog|done)/`)', () => {
+    const all = readdirSync(COMMANDS).filter((n) => n.endsWith('.md'));
+    expect(all.length).toBeGreaterThanOrEqual(AC34.length);
+    const hits = [];
+    for (const f of all) {
+      readFileSync(join(COMMANDS, f), 'utf-8').split('\n').forEach((l, i) => {
+        if (/done\/YYYY-MM\/|work\/(inbox|backlog|done)\//.test(l)) hits.push(`${f}:${i + 1}`);
+      });
+    }
+    expect(hits).toEqual([]);
+  });
+
   it('the v1 refusal is named where a store-on write can meet a v1 store', () => {
     for (const name of ['item', 'add', 'checkpoint', 'plan']) {
       expect(read(name), `${name}.md`).toContain('node tools/work-migrate-v2.mjs');

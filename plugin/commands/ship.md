@@ -42,7 +42,7 @@ Run **before any other Workflow step**, regardless of `gate_strictness`. This is
 
 **No bypass.** Per D-E9-3 there is no `--no-retro` flag, no environment variable escape hatch, and no extra-args trick. `shipFR1Check` ignores any extra properties passed to it. **This is unchanged for Epics.** What D-E9-3 never decided is what a project with *no* Epics owes; until M5.E9 the code silently answered *"it is broken"* and refused to run. **The gate is Epic-only (D-M5E9-1) — that is a scope, not a bypass:** a linear project cannot opt out of a rule that never applied to it, and no flag was added.
 
-**Layered enforcement context:** even if a user manually edits STATE.md to skip `/sig:ship`, the `PreToolUse(Edit|Write|MultiEdit)` hook in `hooks/hooks.json` (added in M4.5.E9.S1.t7) blocks that write. Even if the user clears context mid-EXECUTE without invoking SHIP, the `SessionStart(resume)` hook surfaces the missing retro on the next session resume.
+**Layered enforcement context:** if a user manually edits STATE.md to skip `/sig:ship`, the `PreToolUse(Edit|Write|MultiEdit)` hook in `hooks/hooks.json` (added in M4.5.E9.S1.t7) checks an `Edit` or `Write` of it: malformed frontmatter is blocked, and an Epic close with no retro on disk is a non-blocking warning. A `MultiEdit` of STATE.md is not checked (the hook judges only `Edit` and `Write` there), and neither is an edit made through Bash — the hard retro contract is §0.5's `shipFR1Check`. Even if the user clears context mid-EXECUTE without invoking SHIP, the `SessionStart(resume)` hook surfaces the missing retro on the next session resume.
 
 ## 0.6 Branch precondition (`B88`) — run before any Workflow step
 
@@ -184,7 +184,7 @@ On an **Epic-close** SHIP (when `shipFR1Check` returned `{isEpicClose: true}` in
 
 Call `dischargeBacklogRows(baseDir, {rows, by: state.current_epic, at: <today>})` from `tools/lib/backlog.js`, where `rows` are heading substrings **you name** from the Epic's own scope.
 
-**Work store on, v1:** the same call closes the matched items (`closeItems`, reason `fixed`, the discharge stamp as proof) instead of editing `BACKLOG.md`, which is generated — as one batch: if any close fails, none is recorded. Stage the changed item files: an item in the Epic's folder closes in place and does not move (`D-M6E11-29`); one with no Epic moves to `done/YYYY-MM/`.
+**Work store on, v1:** the same call refuses (`CONFIG`), naming `node tools/work-migrate-v2.mjs`, and writes nothing — the v1 discharge, which closed item files, was retired with the v1 store (`M6.E13`). **HALT** and show the message verbatim; migrate, then re-run (as §6.8 item 5).
 
 **Work store on, v2** (`schema_version: 2`): the same call asks each matched item to close (`requestCloses`, one batch, all or nothing) with the Epic's commit as proof — the branch HEAD at ship by default, or pass `commit`; the result's `commit` says which. Each row then reads *closing*, not closed: §6.9 below, the sweep, or a later SHIP confirms it once that commit is on the default branch (`D-M6E13-15`, `D-M6E13-21`). A row already *closing* or closed reads `already-discharged`. Stage the changed item records and the regenerated views.
 
