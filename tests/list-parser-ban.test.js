@@ -20,7 +20,7 @@
 //      (Searching the result for the flag's message, which this also does, only
 //      catches a catch that copies the message into the result.)
 //   2. SOURCE TEXT — no list-parsing regex literal (`B\d`, `B(\d+)`, `B[0-9]`,
-//      `^##`, `^#+`, `^ {0,3}#`, `^\|`, `^\s*\|`, a `|`-cell split by string or
+//      `^##`, `^#+`, `^ {0,3}#`, `^(#{1,6})`, `^\|`, `^\s*\|`, a `|`-cell split by string or
 //      regex, a first-character `=== '|'` test) in the reader modules outside
 //      `legacy-lists.js`, except the reviewed exemptions below, each with its
 //      reason. The scanner is a pure function, and a planted line per shape
@@ -261,6 +261,7 @@ const SHAPES = [
   ['^ {0,3}#', /\^ \{0,3\}#/], // a CommonMark ATX heading
   ['split(/…\\|…/)', /\.split\(\s*\/(?!\\\|\/)[^/]*\\\|/], // a |-cell split by a wider regex
   ["[0] === '|'", /\[0\]\s*===?\s*(['"`])\|\1/], // first character is a pipe
+  ['^(#', /\^\((\?:)?#/], // a heading whose hashes are a group (`^(#{1,6})`)
 ];
 
 /**
@@ -329,6 +330,8 @@ const EXEMPTIONS = [
     reason: '`titleFromBody`: strips heading and bullet markers from ONE item body to derive its title — not a list parse' },
   { file: 'resume.js', shape: "startsWith('|' or '##')", has: "if (line.startsWith('## ')) {",
     reason: '`readLastArchivedRun`: section walk of STATE-HISTORY.md for the last archived phase log — not a work list' },
+  { file: 'work-views.js', shape: '^(#', has: 'const HEADING_RE = /^(#{1,6})',
+    reason: 'renders ONE item body into a view: drops its leading heading and demotes the rest to bold — writes a view, never parses a list' },
   { file: 'resume.js', shape: "startsWith('|' or '##')", has: "line.startsWith('## Phase log — linear run ending')",
     reason: '`readLastArchivedRun`: the phase-log section heading in STATE-HISTORY.md — not a work list' },
 ];
@@ -373,6 +376,7 @@ describe('the source-text scanner bites (self-test)', () => {
     "const ATX = /^ {0,3}#{2,6}\\s/;",
     "const cells = row.split(/\\s*\\|\\s*/);",
     "if (line.trimStart()[0] === '|') rows.push(line);",
+    "const H6 = /^(#{1,6})\\s+(.*)$/;",
   ].join('\n');
 
   it('every planted line is found (no planted form slips through)', () => {
