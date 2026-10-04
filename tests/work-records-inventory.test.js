@@ -108,6 +108,16 @@ const WRITERS = {
   triageItem: { run: (base) => records.triageItem(base, 'SIG-1', { by }) },
   queueItem: { run: (base) => records.queueItem(base, 'SIG-2', { epic: 'M6.E13', by }) },
   startItem: { run: (base) => records.startItem(base, 'SIG-2', { epic: 'M6.E13', by }) },
+  requestClose: { run: (base) => records.requestClose(base, 'SIG-2', { proof: '0123abc', by }) },
+  closeItem: { run: (base) => records.closeItem(base, 'SIG-2', { reason: 'wontdo', proof: 'no', by }) },
+  closeItems: {
+    run: (base) => records.closeItems(base, [
+      { id: 'SIG-1', reason: 'stale', proof: 'old', by },
+      { id: 'SIG-2', reason: 'dup', dup_of: 'SIG-3', by },
+    ]),
+  },
+  reopenItem: { run: (base) => records.reopenItem(base, 'SIG-1006', { reason: 'back', by }) },
+  editItem: { run: (base) => records.editItem(base, 'SIG-2', { changes: { title: 'edited' }, by }) },
 };
 
 const EXEMPT = {

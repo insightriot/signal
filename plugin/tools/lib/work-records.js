@@ -945,3 +945,242 @@ export async function startItem(baseDir, id, move = {}, opts = {}) {
     return out;
   });
 }
+
+// ── Closing, reopening, editing (t2.2b, AC1.4, AC7.1) ───────────────────────
+
+const COMMIT_RE = /^[0-9a-f]{7,64}$/;
+const DIRECT_CLOSE_REASONS = ['stale', 'wontdo', 'rejected', 'dup'];
+const ARCHIVED_EPICS_REL = '.planning/archive/epics';
+
+/**
+ * Ask to close an item as fixed: a `close_requested` event (legal from N, T,
+ * Q, P), deriving `closing`. It becomes C only when `confirmCloses` finds the
+ * commit on the default branch (t2.6). The Epic is kept.
+ *
+ * `proof` is a bare commit hash, lowercase hex, 7 to 64 characters — nothing
+ * else. It is not run through the sensitive-data gate: it can only be hex, and
+ * `hex-blob-40` would flag every full SHA.
+ *
+ * @param {string} baseDir
+ * @param {string} id
+ * @param {{proof: string, by: string, at?: string}} request
+ * @param {object} [opts] — as `newItems`'s
+ * @returns {Promise<object>} the entry
+ */
+export async function requestClose(baseDir, id, request = {}, opts = {}) {
+  const { proof, by, at = nowIso() } = request;
+  if (typeof proof !== 'string' || !COMMIT_RE.test(proof)) {
+    throw new WorkStoreError('SCHEMA', `${id}: a close request's proof is a commit hash — lowercase hex, `
+      + `7 to 64 characters, nothing else (got ${JSON.stringify(proof)}). Nothing was written.`);
+  }
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+    const current = readForWrite(handle, id).entry;
+    const next = withEvent(current, { type: 'close_requested', at, by, reason: 'fixed', proof });
+    const out = await writeRecord(handle, next, opts);
+    await regenerateAfter(handle, `${id} is closing (fixed by ${proof})`, opts);
+    return out;
+  });
+}
+
+/**
+ * Close one item directly. `closeItems` with one close; see there.
+ *
+ * @param {string} baseDir
+ * @param {string} id
+ * @param {{reason: string, by: string, proof?: string, dup_of?: string, at?: string}} close
+ * @param {object} [opts] — as `newItems`'s
+ * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
+ */
+export async function closeItem(baseDir, id, close = {}, opts = {}) {
+  const r = await closeItems(baseDir, [{ ...close, id }], opts);
+  return Array.isArray(r) ? r[0] : r;
+}
+
+// Closed as a duplicate, and not reopened since.
+function isDup(record) {
+  if (deriveStatus(record) !== 'C') return false;
+  return record.events.findLast((e) => e.type === 'closed')?.reason === 'dup';
+}
+
+// One direct close, built and checked against the store, nothing written.
+function planClose(handle, close, batch) {
+  const { id, reason, by, proof, dup_of: dupOf, at = nowIso() } = close;
+  assertItemId(id);
+  if (reason === 'fixed') {
+    throw new WorkStoreError('SCHEMA', `${id}: a fixed close goes through requestClose (with the commit) and is `
+      + 'confirmed by confirmCloses — it cannot be closed fixed directly. Nothing was closed.');
+  }
+  if (!DIRECT_CLOSE_REASONS.includes(reason)) {
+    throw new WorkStoreError('SCHEMA', `${id}: close reason must be one of ${DIRECT_CLOSE_REASONS.join(', ')} `
+      + `(got ${JSON.stringify(reason)}) — nothing was closed.`);
+  }
+  if (reason !== 'dup' && (typeof proof !== 'string' || proof.trim() === '')) {
+    throw new WorkStoreError('SCHEMA', `${id}: a ${reason} close needs proof — what was checked, in words. `
+      + 'Nothing was closed.');
+  }
+  if (reason === 'dup') {
+    if (typeof dupOf !== 'string' || !ITEM_ID_RE.test(dupOf)) {
+      throw new WorkStoreError('SCHEMA', `${id}: a dup close needs dup_of, the ID of the item it duplicates `
+        + `(got ${JSON.stringify(dupOf)}) — nothing was closed.`);
+    }
+    if (dupOf === id) throw new WorkStoreError('SCHEMA', `${id} cannot be a duplicate of itself — nothing was closed.`);
+    const target = readForWrite(handle, dupOf).entry; // NOT_FOUND unless it exists
+    if (isDup(target.record) || batch.some((c) => c.id === dupOf && c.reason === 'dup')) {
+      throw new WorkStoreError('CONFLICT', `${id}: ${dupOf} is itself a duplicate — point dup_of at the item it `
+        + 'duplicates. Nothing was closed.');
+    }
+  }
+  const { entry, text } = readForWrite(handle, id);
+  const next = withEvent(entry, pruneUndefined({ type: 'closed', at, by, reason, proof, dup_of: dupOf }));
+  return { next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path) };
+}
+
+// Write several changed records, all or nothing: on a failure each record
+// already written is put back to its old bytes. A put-back that fails is named.
+async function writeRecords(handle, planned, opts) {
+  const done = [];
+  try {
+    for (const p of planned) {
+      confine(handle.baseDir, p.abs);
+      await atomicWrite(p.abs, p.text, { renameFn: opts.renameFn });
+      done.push(p);
+    }
+  } catch (err) {
+    const left = [];
+    for (const p of done.reverse()) {
+      try {
+        await atomicWrite(p.abs, p.oldText);
+      } catch {
+        left.push(p.next.id);
+      }
+    }
+    const wrapped = asWorkStoreError(err, 'IO', left.length
+      ? `the write failed and ${left.join(', ')} could not be put back: `
+      : '');
+    wrapped.leftChanged = left;
+    throw wrapped;
+  }
+  return planned.map((p) => entryOf(p.next));
+}
+
+/**
+ * Close items directly: ONE `work` lock, every close built and checked before
+ * any is written, all or nothing (a failure part-way puts back every record
+ * already closed), then ONE `regenerate`. `backlog.js`'s discharge uses it.
+ *
+ * Direct closes only (the transition table): `stale`, `wontdo` and `rejected`
+ * need `proof` text; `dup` needs `dup_of`, which must exist, not be the item,
+ * and not itself be a duplicate (also not one being dup-closed in this
+ * batch). `fixed` is refused: it goes through `requestClose`. Legal from N, T,
+ * Q, P and closing; the Epic is kept. The same item twice is refused.
+ *
+ * Sensitive data: every close's `proof` (v1 `closeItems`' gate).
+ *
+ * @param {string} baseDir
+ * @param {Array<{id: string, reason: string, by: string, proof?: string, dup_of?: string, at?: string}>} closes
+ * @param {object} [opts] — as `newItems`'s
+ * @returns {Promise<object[]|{aborted: 'sensitive-data-pending', sensitiveHits: object[]}>} entries in order
+ */
+export async function closeItems(baseDir, closes, opts = {}) {
+  if (!Array.isArray(closes) || closes.length === 0) {
+    throw new WorkStoreError('SCHEMA', 'closeItems: pass at least one close — nothing was closed.');
+  }
+  const ids = closes.map((c) => c?.id);
+  const twice = ids.filter((id, i) => ids.indexOf(id) !== i);
+  if (twice.length) {
+    throw new WorkStoreError('SCHEMA', `closeItems: ${[...new Set(twice)].join(', ')} named more than once — nothing was closed.`);
+  }
+  assertWritable(baseDir);
+  const pending = sensitivePending(closes.map((c) => c?.proof), opts);
+  if (pending) return pending;
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+    const planned = closes.map((c) => planClose(handle, c ?? {}, closes));
+    const out = await writeRecords(handle, planned, opts);
+    await regenerateAfter(handle, `${ids.join(', ')} ${ids.length === 1 ? 'was' : 'were'} closed`, opts);
+    return out;
+  });
+}
+
+/**
+ * Reopen a closed or closing item: a `reopened` event, back to T, the Epic
+ * cleared. Refused when the item's Epic is archived
+ * (`.planning/archive/epics/<Epic>/` exists): that Epic is finished, and
+ * pulling an item out would change what the archive says it contained.
+ *
+ * Sensitive data: `reason` (v1 `reopenItem`'s gate).
+ *
+ * @param {string} baseDir
+ * @param {string} id
+ * @param {{reason: string, by: string, at?: string}} reopen — `reason` is required
+ * @param {object} [opts] — as `newItems`'s
+ * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
+ */
+export async function reopenItem(baseDir, id, reopen = {}, opts = {}) {
+  const { reason, by, at = nowIso() } = reopen;
+  if (typeof reason !== 'string' || reason.trim() === '') {
+    throw new WorkStoreError('SCHEMA', `${id}: a reopen needs a reason — what came back, and how you know. `
+      + 'Nothing was reopened.');
+  }
+  assertWritable(baseDir);
+  const pending = sensitivePending([reason], opts);
+  if (pending) return pending;
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+    const current = readForWrite(handle, id).entry;
+    if (current.epic !== null && existsNoFollow(join(baseDir, ARCHIVED_EPICS_REL, current.epic))) {
+      throw new WorkStoreError('CONFLICT', `${id} belongs to Epic ${current.epic}, which is archived `
+        + `(${ARCHIVED_EPICS_REL}/${current.epic}/) — nothing was reopened. Capture a new item and link it to ${id} instead.`);
+    }
+    const out = await writeRecord(handle, withEvent(current, { type: 'reopened', at, by, reason }), opts);
+    await regenerateAfter(handle, `${id} was reopened`, opts);
+    return out;
+  });
+}
+
+// The record fields an `edited` event may change (the schema's `changes`).
+const EDITABLE = ['type', 'title', 'theme', 'priority', 'source', 'source_ref', 'legacy_id', 'keep_because', 'migration_note'];
+
+/**
+ * Edit record fields: one `edited` event carrying `{field: {from, to}}`;
+ * status and Epic unchanged. `to: null` removes the field. A field already
+ * holding the new value is left out; if none changes, nothing is written.
+ *
+ * Record fields only. A body is a plain file beside its record, and editing it
+ * is not a library write: no event, no function here (t2.2).
+ *
+ * Sensitive data: every string value being written.
+ *
+ * @param {string} baseDir
+ * @param {string} id
+ * @param {{changes: Object<string, string|number|null>, by: string, at?: string}} edit
+ * @param {object} [opts] — as `newItems`'s
+ * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
+ */
+export async function editItem(baseDir, id, edit = {}, opts = {}) {
+  const { changes, by, at = nowIso() } = edit;
+  if (changes === null || typeof changes !== 'object' || Array.isArray(changes) || Object.keys(changes).length === 0) {
+    throw new WorkStoreError('SCHEMA', `${id}: an edit needs changes — {field: new value}. Nothing was written.`);
+  }
+  const unknown = Object.keys(changes).filter((k) => !EDITABLE.includes(k));
+  if (unknown.length) {
+    throw new WorkStoreError('SCHEMA', `${id}: ${unknown.join(', ')} cannot be edited — editable fields are `
+      + `${EDITABLE.join(', ')}. Nothing was written.`);
+  }
+  assertWritable(baseDir);
+  const pending = sensitivePending(Object.values(changes), opts);
+  if (pending) return pending;
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+    const current = readForWrite(handle, id).entry;
+    const diff = {};
+    for (const [field, to] of Object.entries(changes)) {
+      const from = Object.hasOwn(current.record, field) ? current.record[field] : null;
+      if (from !== to) diff[field] = { from, to };
+    }
+    if (Object.keys(diff).length === 0) {
+      throw new WorkStoreError('SCHEMA', `${id}: every field already holds its new value — nothing was written.`);
+    }
+    const fields = Object.fromEntries(Object.entries(diff).map(([f, c]) => [f, c.to]));
+    const out = await writeRecord(handle, withEvent(current, { type: 'edited', at, by, changes: diff }, fields), opts);
+    await regenerateAfter(handle, `${id} was edited (${Object.keys(diff).join(', ')})`, opts);
+    return out;
+  });
+}
