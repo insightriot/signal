@@ -1,7 +1,7 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: REVIEW
+phase: SHIP
 current_epic: M6.E13
 current_wave: null
 current_tasks: []
@@ -10,29 +10,41 @@ completed_phases:
   - PLAN (2026-10-04)
   - EXECUTE (2026-10-04)
   - VERIFY (2026-10-04)
+  - REVIEW (2026-10-04)
+  - SHIP (2026-10-04)
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-09-29T14:06:07.617Z
 last_updated_commit: 9f182c09504c6bac7d1969cc9a73c9298d53d4c7
-last_updated: 2026-10-04T22:24:55.025Z
+last_updated: 2026-10-04T22:26:39.020Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-10-03)
+### ▶ WHERE THE WORK IS — read this first (2026-10-04)
 
-**`M6.E13` — *"work items as records"* — DISCUSS done; PLAN next.** Epic 1 of the storage
-re-architecture: work items become JSON records at `.planning/work/items/NN/SIG-n.json`, status derived
-from recorded events, prose in a sibling `.md`, one write library, a hook blocking direct edits, every
-store-on reader on the library, Signal's 268 items migrated. Branch `feat/m6.e13-work-item-records`.
-Requirements: [`M6.E13-REQUIREMENTS.md`](M6.E13-REQUIREMENTS.md) (FR1–FR8); decisions `D-M6E13-1` …
-`D-M6E13-18`; design: [`analysis/STORAGE-ARCHITECTURE-PROPOSAL.md`](../analysis/STORAGE-ARCHITECTURE-PROPOSAL.md).
+**`M6.E13` — *"work items as records"* — SHIP: PR open, waiting for Brett's merge (`--merge`).**
+Epic 1 of the storage re-architecture is done.
 
-**How to run it (`D-M6E13-17`, Brett):** update the plugin and restart first, then `/sig:resume` →
-`/sig:drive`. Push through phase boundaries, reporting each; **halt only for** a scope call, a review
-finding not resolved within the loop ceiling, **the cutover of Signal's own store** (`D-M6E13-12`), and
-SHIP. The project's `checkpointed` setting is overridden for this Epic by that decision.
+**What changed:**
+- Work items are JSON records at `.planning/work/items/NN/SIG-n.json`. They never move, and their
+  status is folded from recorded events.
+- One write library (`plugin/tools/lib/work-records.js`); a hook blocks hand edits to records and
+  views.
+- Every store-on reader goes through the library, and `/sig:advise` covers cite `SIG-n`.
+
+**Signal's own store was cut over** in `a01d464`:
+- 275 records, 145 of them legacy closes;
+- 6 closes confirmed against `main`;
+- the v1 files are kept in `archive/pre-work-store-v2/`.
+
+Tests: 4444 → 5346. Branch `feat/m6.e13-work-item-records`. Retro:
+[`M6.E13-RETROSPECTIVE.md`](M6.E13-RETROSPECTIVE.md). Decisions `D-M6E13-1` … `D-M6E13-22`.
+
+**⚠ This session's installed plugin (`v0.1.47`) does not understand the v2 store.** After merging,
+cut the release and update the plugin before using `/sig:item`, `/sig:add` or `/sig:advise` here.
+Also open: PR #279 (SIG-275), so that `checkpointed` stops asking at every phase end.
 
 **Why this replaced the queued work:** the next pick was moving other projects onto the store; doing that
 first would copy the current design into every repo. Reader fixes shipped as `v0.1.46`, `B254` as
@@ -82,7 +94,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-`M6.E13` at DISCUSS (done) — see *Where the work is* above.
+`M6.E13` at SHIP — PR open, waiting for merge. See *Where the work is* above.
 
 ## Blockers
 
