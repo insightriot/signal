@@ -91,6 +91,7 @@ const READERS = {
   nextIdV2: (base) => records.nextIdV2(base),
   findDuplicateIds: (base) => records.findDuplicateIds(base),
   isEpicArchived: (base) => records.isEpicArchived(base, 'M6.E13'),
+  checkRecords: (base) => records.checkRecords(base),
   closeEpicCheck: (base) => {
     try {
       records.closeEpicCheck(base, 'M6.E13'); // refuses: SIG-3 and SIG-4 are open in it

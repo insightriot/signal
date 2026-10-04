@@ -16,7 +16,7 @@
 //
 // Read side: t2.1. ID allocation and the duplicate-ID check: t2.3. Writes:
 // t2.2a (new, triage, queue, start) and t2.2b. The Epic close query: t2.5.
-// Confirming fixed closes against the default branch: t2.6.
+// Confirming fixed closes against the default branch: t2.6. The store check: t2.7.
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, realpathSync, existsSync, lstatSync, mkdirSync, rmdirSync, unlinkSync } from 'node:fs';
@@ -182,8 +182,13 @@ function entriesOf(abs) {
   }
 }
 
-// Every file under items/: {records: [{id, rel, abs}], bodies: Map id -> {rel, abs}, broken[]}
-function walkItems(baseDir) {
+// Every file under items/: {records: [{id, rel, abs}], bodies: Map id -> {rel, abs}, broken[]}.
+// Each broken entry carries a `code` (`link`, `path`, `not-regular`) for
+// `checkRecords`. `strict` (checkRecords only) also reports what the read
+// side passes over: a record- or body-named entry that is neither a regular
+// file nor a link (a folder, a FIFO), and a record file sitting in `items/`
+// itself rather than in a bucket.
+function walkItems(baseDir, opts = {}) {
   const out = { records: [], bodies: new Map(), broken: [] };
   const itemsAbs = confinedItemsDir(baseDir);
   if (itemsAbs === null) return out;
@@ -197,22 +202,33 @@ function walkItems(baseDir) {
   for (const b of entriesOf(itemsAbs)) {
     const bucketRel = `${ITEMS_REL}/${b.name}`;
     if (b.isSymbolicLink()) {
-      out.broken.push({ id: null, path: bucketRel, error: `${bucketRel} ${LINK_REFUSED}` });
+      out.broken.push({ id: null, path: bucketRel, code: 'link', error: `${bucketRel} ${LINK_REFUSED}` });
       continue;
     }
-    if (!b.isDirectory()) continue;
+    if (!b.isDirectory()) {
+      const id = idFromName(b.name, '.json');
+      if (opts.strict && id !== null) {
+        out.broken.push({ id, path: bucketRel, code: 'path', error: `${bucketRel}: ${id} belongs in ${recordPath(id).slice(0, recordPath(id).lastIndexOf('/'))}, not in ${ITEMS_REL} itself` });
+      }
+      continue;
+    }
     for (const f of entriesOf(join(itemsAbs, b.name))) {
       const rel = `${bucketRel}/${f.name}`;
       const isJson = f.name.endsWith('.json');
       const id = idFromName(f.name, '.json') ?? idFromName(f.name, '.md');
       if (f.isSymbolicLink()) {
-        if (isJson || id !== null) out.broken.push({ id, path: rel, error: `${rel} ${LINK_REFUSED}` });
+        if (isJson || id !== null) out.broken.push({ id, path: rel, code: 'link', error: `${rel} ${LINK_REFUSED}` });
         continue;
       }
-      if (!f.isFile()) continue;
+      if (!f.isFile()) {
+        if (opts.strict && (isJson || id !== null)) {
+          out.broken.push({ id, path: rel, code: 'not-regular', error: `${rel} is not a regular file — a record or body is a plain file` });
+        }
+        continue;
+      }
       if (isJson) {
         if (id === null) {
-          out.broken.push({ id: null, path: rel, error: `${rel}: file name is not a record name (KEY-n.json)` });
+          out.broken.push({ id: null, path: rel, code: 'path', error: `${rel}: file name is not a record name (KEY-n.json)` });
         } else {
           out.records.push({ id, rel, abs: join(itemsAbs, b.name, f.name) });
         }
@@ -227,24 +243,26 @@ function walkItems(baseDir) {
 const numberOf = (id) => Number(id.slice(id.lastIndexOf('-') + 1));
 const keyOf = (id) => id.slice(0, id.lastIndexOf('-'));
 
-// One record file → an entry, or {broken}. Never throws for content.
+// One record file → an entry, or {broken}. Never throws for content. A
+// broken entry's `code` says what kind (`path`, `unreadable`, `invalid`,
+// `events`), for `checkRecords`.
 function readOne(file, key, body) {
-  const fail = (error) => ({ broken: { id: file.id, path: file.rel, error } });
-  if (keyOf(file.id) !== key) return fail(`${file.rel}: key ${keyOf(file.id)} is not this store's key (${key})`);
+  const fail = (error, code) => ({ broken: { id: file.id, path: file.rel, code, error } });
+  if (keyOf(file.id) !== key) return fail(`${file.rel}: key ${keyOf(file.id)} is not this store's key (${key})`, 'path');
   const expected = recordPath(file.id);
-  if (file.rel !== expected) return fail(`${file.rel}: ${file.id} belongs in ${expected.slice(0, expected.lastIndexOf('/'))}`);
+  if (file.rel !== expected) return fail(`${file.rel}: ${file.id} belongs in ${expected.slice(0, expected.lastIndexOf('/'))}`, 'path');
 
   let text;
   try {
     text = readFileSync(file.abs, 'utf-8');
   } catch (err) {
-    return fail(`${file.rel}: could not be read (${err.code ?? err.message})`);
+    return fail(`${file.rel}: could not be read (${err.code ?? err.message})`, 'unreadable');
   }
   const { record, errors } = parseRecord(text, { path: file.rel });
-  if (errors.length > 0) return fail(errors.join('; '));
-  if (record.id !== file.id) return fail(`${file.rel}: file name says ${file.id} but the record id is ${record.id}`);
+  if (errors.length > 0) return fail(errors.join('; '), 'invalid');
+  if (record.id !== file.id) return fail(`${file.rel}: file name says ${file.id} but the record id is ${record.id}`, 'path');
   const eventErrors = checkEvents(record);
-  if (eventErrors.length > 0) return fail(`${file.rel}: ${eventErrors.map((e) => e.message).join('; ')}`);
+  if (eventErrors.length > 0) return fail(`${file.rel}: ${eventErrors.map((e) => e.message).join('; ')}`, 'events');
 
   const entry = { id: file.id, path: file.rel, record, status: deriveStatus(record), epic: epicOf(record) };
   if (body === undefined) return { entry };
@@ -253,12 +271,12 @@ function readOne(file, key, body) {
   try {
     return { entry: { ...entry, body: readFileSync(body.abs, 'utf-8') } };
   } catch (err) {
-    return fail(`${body.rel}: could not be read (${err.code ?? err.message})`);
+    return fail(`${body.rel}: could not be read (${err.code ?? err.message})`, 'unreadable');
   }
 }
 
 function listV2(baseDir, key, opts) {
-  const walked = walkItems(baseDir);
+  const walked = walkItems(baseDir, { strict: opts.strict });
   const broken = [...walked.broken];
   const brokenBody = new Map(broken.filter((b) => b.id && b.path.endsWith('.md')).map((b) => [b.id, b]));
   const records = [];
@@ -1358,6 +1376,127 @@ export async function confirmCloses(baseDir, opts = {}) {
     return Number.isFinite(t) && now.getTime() - t > STALE_CLOSING_MS;
   });
   return { confirmed, stillClosing: ids.map((id) => ({ id, reason: still.get(id).reason })), stale };
+}
+
+// ── The v2 store check (t2.7, AC1.3, AC5.2, NFR integrity) ─────────────────
+//
+// `checkRecords` is v1 `checkStore`'s counterpart for a v2 store, with the
+// same finding shape (`{code, id, path, message}`) and the same sync call, so
+// the sweep switches between them by store version (t4.4).
+
+/**
+ * The views this library would write, regenerated in memory and not written:
+ * none, until the v2 views exist (S3, `work-views.js`), which supply the
+ * generator. It is sync because `checkRecords` is (the sweep calls it
+ * synchronously); S3's generator must offer a sync in-memory form.
+ *
+ * @returns {null|Map<string, string>|Object<string, string>} repo-root-relative path → text
+ */
+function viewsInMemory() {
+  return null;
+}
+
+/**
+ * Check a v2 work store and report every problem by ID. Read-only. One
+ * broken record never stops the others (NFR integrity).
+ *
+ * Codes:
+ * - `invalid` — not JSON, or fails the schema (`validateRecord`);
+ * - `events` — the history does not fold, or a field disagrees with the last
+ *   event that changed it (`checkEvents`);
+ * - `path` — outside its bucket (`recordPath`), file name and ID disagree,
+ *   another store's key, or not a record name;
+ * - `link` — a symlinked record, body, bucket, or `items/` resolving outside
+ *   the project; `not-regular` — a folder or other non-file named like a
+ *   record or body; `unreadable` — could not be read;
+ * - `dup-of-missing`, `dup-of-self`, `dup-of-dup` — a duplicate close's
+ *   `dup_of` names no record, itself, or another duplicate (a target that
+ *   exists but is broken is reported as broken, not missing);
+ * - `duplicate-id` — `findDuplicateIds` (the relocated v1 folder is skipped);
+ * - `view-stale` — a view differs from, or is missing against, its in-memory
+ *   regeneration, or the regeneration failed.
+ *
+ * `opts.regenerateToMemory(baseDir)` is the view generator, injected; by
+ * default there is none yet (S3) and views are not compared.
+ *
+ * A store that is off has no findings (as v1 `checkStore`). A v1 store is one
+ * `v1-store` finding and nothing else: this check is for v2 records, and v1
+ * `checkStore` is not run.
+ *
+ * @param {string} baseDir
+ * @param {{regenerateToMemory?: (baseDir: string) => (null|Map<string, string>|Object<string, string>)}} [opts]
+ * @returns {Array<{code: string, id: string|null, path: string, message: string, paths?: string[]}>}
+ *   by ID number, then path; findings with no ID last
+ * @throws {WorkStoreError} CONFIG when WORK.md is broken
+ */
+export function checkRecords(baseDir, opts = {}) {
+  const store = readStore(baseDir);
+  if (store.version === null) return [];
+  if (store.version !== 2) return [{ code: 'v1-store', id: null, path: WORK_FILE_REL, message: V1_STORE_MESSAGE }];
+
+  const findings = [];
+  let listed = { records: [], broken: [] };
+  try {
+    listed = listV2(baseDir, store.key, { strict: true });
+  } catch (err) {
+    if (!(err instanceof WorkStoreError)) throw err;
+    findings.push({ code: err.code === 'CONFLICT' ? 'link' : 'unreadable', id: null, path: ITEMS_REL, message: err.message });
+  }
+  for (const b of listed.broken) findings.push({ code: b.code ?? 'invalid', id: b.id, path: b.path, message: b.error });
+
+  const byId = new Map(listed.records.map((r) => [r.id, r]));
+  const brokenIds = new Set(listed.broken.map((b) => b.id).filter(Boolean));
+  for (const r of listed.records) {
+    if (!isDup(r.record)) continue;
+    const to = r.record.events.findLast((e) => e.type === 'closed').dup_of;
+    const at = (code, message) => findings.push({ code, id: r.id, path: r.path, message: `${r.path}: ${message}` });
+    if (to === r.id) at('dup-of-self', `${r.id} is closed as a duplicate of itself`);
+    else if (byId.has(to)) {
+      if (isDup(byId.get(to).record)) at('dup-of-dup', `${r.id} is a duplicate of ${to}, but ${to} is itself a duplicate`);
+    } else if (!brokenIds.has(to)) at('dup-of-missing', `${r.id} is a duplicate of ${to}, which has no record`);
+  }
+
+  for (const d of findDuplicateIds(baseDir)) {
+    findings.push({
+      code: 'duplicate-id',
+      id: d.id,
+      path: d.paths[0],
+      paths: d.paths,
+      message: `${d.id} is used by ${d.paths.length} files: ${d.paths.join(', ')}`,
+    });
+  }
+
+  findings.push(...staleViews(baseDir, opts.regenerateToMemory ?? viewsInMemory));
+
+  return findings.sort((a, b) => {
+    if ((a.id === null) !== (b.id === null)) return a.id === null ? 1 : -1;
+    const byNum = a.id === null ? 0 : numberOf(a.id) - numberOf(b.id);
+    return byNum || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+  });
+}
+
+// Every view that differs from its in-memory regeneration, as findings.
+function staleViews(baseDir, regenerate) {
+  const stale = (path, message) => ({ code: 'view-stale', id: null, path, message: `${path}: ${message}` });
+  let views;
+  try {
+    views = regenerate(baseDir);
+  } catch (err) {
+    return [stale(`.planning/${WORK_DIR}`, `the views could not be regenerated to compare: ${err?.message ?? err}`)];
+  }
+  if (views === null || views === undefined) return [];
+  const out = [];
+  for (const [rel, text] of views instanceof Map ? views : Object.entries(views)) {
+    let disk;
+    try {
+      disk = readFileSync(join(baseDir, rel), 'utf-8');
+    } catch (err) {
+      out.push(stale(rel, err.code === 'ENOENT' ? 'missing — regenerate the views' : `could not be read (${err.code ?? err.message})`));
+      continue;
+    }
+    if (disk !== text) out.push(stale(rel, 'differs from a regeneration of the records — edited by hand, or not regenerated'));
+  }
+  return out;
 }
 
 // The record fields an `edited` event may change (the schema's `changes`).
