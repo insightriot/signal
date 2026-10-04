@@ -7,8 +7,10 @@
 //   1. RUNTIME — one list of EVERY AC3.1 reader entry point, each run over a v2
 //      store and a v1 store (read through the converter) with
 //      `SIGNAL_FORBID_LIST_PARSERS=1`, under which every `legacy-lists.js`
-//      function throws when called. A count assertion pins the list, so a new
-//      reader is added here on purpose or the count goes red.
+//      function throws when called. A count assertion pins the list.
+//      ⚠ The count catches a REMOVAL, not an OMISSION: a reader written
+//      later and never added here leaves the count unchanged and is not run.
+//      Only someone adding it on purpose closes that gap (REVIEW pass 1).
 //      ⚠ This is the BROAD check, not the strong one. The per-reader twins
 //      (`advise-store-on`, `drive-store-on`, `sweep-store-on`, `facts-store-on`,
 //      `work-writers`) assert WHAT was read; this asserts that NOTHING reached a
@@ -17,10 +19,13 @@
 //      call inside a `try { … } catch {}` that discards the throw still fails.
 //      (Searching the result for the flag's message, which this also does, only
 //      catches a catch that copies the message into the result.)
-//   2. SOURCE TEXT — no list-parsing regex literal (`B\d`, `^##`, `^\|`, a
-//      `|`-cell split) in the reader modules outside `legacy-lists.js`, except
-//      the reviewed exemptions below, each with its reason. The scanner is a
-//      pure function, and a planted violation proves it bites.
+//   2. SOURCE TEXT — no list-parsing regex literal (`B\d`, `B(\d+)`, `B[0-9]`,
+//      `^##`, `^#+`, `^ {0,3}#`, `^\|`, `^\s*\|`, a `|`-cell split by string or
+//      regex, a first-character `=== '|'` test) in the reader modules outside
+//      `legacy-lists.js`, except the reviewed exemptions below, each with its
+//      reason. The scanner is a pure function, and a planted line per shape
+//      proves it bites. The same count caveat holds for `READER_MODULES`: a new
+//      module that hosts a reader is scanned only once it is added by hand.
 //
 // The residue, stated in REQUIREMENTS AC3.2: a parser nobody relocated, on a
 // path no reader below exercises, written without any of the scanned shapes.
@@ -238,7 +243,7 @@ const READER_MODULES = [
   'drive.js', 'status.js', 'sweep.js', 'doc-hygiene.js', 'published-facts.js', 'bug-fixed-jev.js',
   'backlog.js', 'bugs-tally.js', 'add.js', 'checkpoint.js', 'drain.js',
   'work-record.js', 'work-records.js', 'work-views.js', 'work-convert.js', 'work-write-guard.js', 'scrub.js',
-  'close-confirm.js', 'leading-id.js',
+  'close-confirm.js', 'leading-id.js', 'work-triage.js', 'resume.js',
 ];
 
 // The list-parsing shapes, as they appear in source text.
@@ -248,6 +253,14 @@ const SHAPES = [
   ['^\\|', /\^\\\|/], // a table-row-anchored regex
   ["split('|')", /\.split\(\s*(['"`])\|\1\s*\)|\.split\(\s*\/\\\|\//], // a |-cell split
   ["startsWith('|' or '##')", /startsWith\(\s*(['"`])(\||##)/],
+  // REVIEW I6 — the forms the first scan missed:
+  ['^\\s*\\|', /\^\\s[*+]\\\|/], // a table row with leading space
+  ['B(\\d+)', /B\(\\{1,2}d/], // a captured B-id
+  ['B[0-9]', /B\[0-9\]/], // a B-id by character class
+  ['^#+', /\^#\+/], // any-depth heading
+  ['^ {0,3}#', /\^ \{0,3\}#/], // a CommonMark ATX heading
+  ['split(/…\\|…/)', /\.split\(\s*\/(?!\\\|\/)[^/]*\\\|/], // a |-cell split by a wider regex
+  ["[0] === '|'", /\[0\]\s*===?\s*(['"`])\|\1/], // first character is a pipe
 ];
 
 /**
@@ -311,13 +324,20 @@ const EXEMPTIONS = [
     reason: 'the same row as above (the shape matches twice)' },
   { file: 'leading-id.js', shape: 'B\\d', has: '|(?:B\\d+))\\b/',
     reason: '`LEADING_ID_RE`: whether ONE heading or title leads with a unit or bug id — an ID check, not a list parse (M6.E13 R5)' },
+  // Found when REVIEW I6 widened the shapes and added work-triage.js and resume.js:
+  { file: 'work-triage.js', shape: '^#+', has: "l.replace(/^#+\\s*/, '')",
+    reason: '`titleFromBody`: strips heading and bullet markers from ONE item body to derive its title — not a list parse' },
+  { file: 'resume.js', shape: "startsWith('|' or '##')", has: "if (line.startsWith('## ')) {",
+    reason: '`readLastArchivedRun`: section walk of STATE-HISTORY.md for the last archived phase log — not a work list' },
+  { file: 'resume.js', shape: "startsWith('|' or '##')", has: "line.startsWith('## Phase log — linear run ending')",
+    reason: '`readLastArchivedRun`: the phase-log section heading in STATE-HISTORY.md — not a work list' },
 ];
 
 const isExempt = (hit) => EXEMPTIONS.some((e) => e.file === hit.file && e.shape === hit.shape && hit.text.includes(e.has));
 
 describe('the ban in source text: no list-parsing literal in the reader modules (AC3.2)', () => {
-  it('scans the reviewed module set: 23 files, all present, legacy-lists.js not among them', () => {
-    expect(READER_MODULES).toHaveLength(23);
+  it('scans the reviewed module set: 25 files, all present, legacy-lists.js not among them', () => {
+    expect(READER_MODULES).toHaveLength(25);
     for (const f of READER_MODULES) expect(existsSync(join(LIB, f)), f).toBe(true);
     expect(READER_MODULES).not.toContain('legacy-lists.js');
   });
@@ -345,7 +365,21 @@ describe('the source-text scanner bites (self-test)', () => {
     "const H = /^##\\s+(.+)$/;",
     "if (line.startsWith('|')) rows.push(line);",
     "const id = new RegExp('B\\\\d+');",
+    // REVIEW I6: the forms the first scan missed.
+    "const ROW = /^\\s*\\|(.+)\\|\\s*$/;",
+    "const m = line.match(/\\bB(\\d+)\\b/);",
+    "const legacy = /B[0-9]+/;",
+    "const HEAD = /^#+\\s+(.+)$/;",
+    "const ATX = /^ {0,3}#{2,6}\\s/;",
+    "const cells = row.split(/\\s*\\|\\s*/);",
+    "if (line.trimStart()[0] === '|') rows.push(line);",
   ].join('\n');
+
+  it('every planted line is found (no planted form slips through)', () => {
+    const lines = planted.split('\n').filter((l) => !/^\s*\/\//.test(l));
+    const missed = lines.filter((l) => scanListParsing('drive.js', l).length === 0);
+    expect(missed).toEqual([]);
+  });
 
   it('a planted parser in a reader module is found, on every shape', () => {
     const found = scanListParsing('drive.js', planted);
