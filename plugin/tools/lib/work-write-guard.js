@@ -25,9 +25,10 @@ import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 const VIEWS = new Set(['bugs.md', 'backlog.md', 'issues-inbox.md', 'open-questions.md']);
 
 export const BLOCK_MESSAGE = (rel) =>
-  `${rel} is generated from the work records in this project's v2 work store `
+  `${rel} is part of this project's v2 work store `
   + '(.planning/work/WORK.md has `schema_version: 2`), so a hand edit would be lost or bypass the record. '
-  + 'Change items with /sig:item; the views regenerate from the records after every change. '
+  + 'Records (.planning/work/items/**/*.json) are written only through /sig:item; the views and history '
+  + 'files are generated from the records and regenerate after every change. '
   + 'For prose, edit the item\'s body file (.planning/work/items/NN/KEY-n.md), which is not blocked.';
 
 // Is `segs` (lower-cased, after `.planning/`) a protected target?

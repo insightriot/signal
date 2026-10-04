@@ -112,6 +112,9 @@ describe('work write guard — v2 store', () => {
       expect(stderr).toContain('/sig:item');
       expect(stderr).toMatch(/regenerat/);
       expect(stderr).toMatch(/body/);
+      // A record is not generated: it is written through /sig:item (VERIFY loop 1).
+      expect(stderr).toContain('written only through /sig:item');
+      expect(stderr).not.toContain(`${rel} is generated`);
     }
   });
 
