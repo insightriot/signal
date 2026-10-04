@@ -8,8 +8,6 @@ args: ""
 
 You are running `/sig:resume`, a meta command that loads enough context for the user to pick up where they left off. Same class as `/sig:status`, `/sig:calibrate`, `/sig:escalate`, `/sig:new-project` — no tier-gating preamble, no skill loading, no agent spawning, no state mutation.
 
-⚠ **One exception, and it is a pending decision, not a settled one.** On a project whose work store is v2 (`schema_version: 2` in `.planning/work/WORK.md`), Step 3b(1a′) **writes**: each item whose fix commit is now on the default branch gets a `closed` event, and the views under `.planning/` regenerate. `D-M6E13-15` asked for confirmation at resume; it conflicts with this command's read-only promise, and the conflict is queued for Brett (M6.E13, the t7.2 halt, question (b)). Until he answers, it runs as built and the briefing says what changed and to commit it. With the store off or v1, nothing is written.
-
 Where `/sig:status` is a snapshot, `/sig:resume` is a **briefing**: it actively reads the current phase's artifact(s) so you can re-anchor on the locked decisions, work done, and work remaining without manually opening 5 files.
 
 Authoritative references:
@@ -73,7 +71,7 @@ Two pre-render checks routed through `tools/lib/state.js` + `tools/lib/resume.js
 
 1a. **Staleness (origin)** — call `isStaleVsOrigin(baseDir)` from `tools/lib/state.js` and pass the result to `renderResumeBriefing` as `originDriftResult`. This reaches the network via a **bounded, hardened `git fetch`** (2s timeout + SIGKILL, `GIT_TERMINAL_PROMPT=0`, neutralized askpass, SSH BatchMode) and is **fail-open**: any failure (offline, no remote, auth-hang, timeout, diverged history) returns `{stale:false}` and renders no banner — it never blocks the briefing. The fetch writes `.git/` (FETCH_HEAD, remote refs), **not** `.planning/`, so the read-only-`.planning/` posture holds. The origin banner is **distinct** from the local one (D-E10-8): local = "your working tree moved past STATE.md"; origin = "someone pushed work you don't have" (the multi-machine case).
 
-1a′. **Confirm fixed closes (work store v2 only)** — after 1a's fetch, call `runConfirmCloses(baseDir)` from `tools/lib/close-confirm.js` and pass its `line` to `renderResumeBriefing` as `closesLine`. Fail-open (never throws; store off or v1 does nothing). ⚠ On v2 it **writes**: confirmed items gain a `closed` event and the views regenerate under `.planning/work/` — the one exception to this command's read-only `.planning/`, by `D-M6E13-15` — and the line says to commit them.
+1a′. **Closes ready to confirm (work store v2 only)** — after 1a's fetch, call `reportCloses(baseDir)` from `tools/lib/close-confirm.js` and pass its `line` to `renderResumeBriefing` as `closesLine`. It **writes nothing**: it asks `probeCloses` which *closing* items have their fix commit on the default branch and says `Closes: N ready to close (…) — run /sig:docs-sweep or /sig:ship to confirm`; the sweep and SHIP are where a close is confirmed (`D-M6E13-21`). Fail-open (never throws; store off or v1 does nothing, and git is not asked).
 
 1b. **Schema drift** — call `readSchemaDrift(baseDir)` from `tools/lib/state.js` and pass the result to `renderResumeBriefing` as `schemaDriftResult`. It's read-only + platform-agnostic (AD2 — deliberately NOT in `/sig:doctor`, which is macOS-gated), routes through `parseFrontmatter` (not `readState`, which throws on an ahead schema), and returns `null` when there's no drift. The briefing renders this banner **above** all others: a STATE.md schema mismatch means every field the briefing reads below could be misparsed.
 
@@ -266,7 +264,7 @@ schema-drift or stale-binding banners, which cast doubt on the reading itself.
 | Temptation | Check |
 |---|---|
 | "Auto-invoke the next phase to save the user a step." | No. `/sig:resume` is a briefing, not a launcher. Auto-invocation collapses the value of explicit phase entry — users sometimes want to re-read PROFILE before continuing, or escalate first. The safety gate is the entire point. |
-| "Refresh STATE.md with a 'last resumed' timestamp." | `/sig:resume` is read-only by design (matches `/sig:status`). Mutation muddies the trust contract. The one write it does make — confirming fixed closes on a v2 work store (Step 3b(1a′)) — is named at the top as a pending decision, and adds nothing else. |
+| "Refresh STATE.md with a 'last resumed' timestamp." | `/sig:resume` is read-only by design (matches `/sig:status`). Mutation muddies the trust contract. |
 | "Skip the orphan prompt under `gate_strictness: off` — too chatty." | Per D12, orphan detection is always-on regardless of strictness. Without it, a crashed mid-task wedges `current_tasks[]` forever and `/sig:resume` can't recover. The prompt itself **is** the recovery mechanism. |
 
 ### Output contract (shaping failures — stated as recipes, `B38`)

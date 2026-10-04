@@ -78,7 +78,7 @@ The reason is required, one of:
 
 | Reason | Means | Call, and what it needs |
 |---|---|---|
-| `fixed` | it was fixed | `requestClose(baseDir, id, {proof, by})`. **Ask for the commit** — `proof` is a bare commit hash (lowercase hex, 7 to 64 characters) and nothing else. The item reads ***closing*** until `confirmCloses` finds that commit on the default branch (`/sig:resume` and SHIP run it), and only then C. With no commit yet, it cannot be closed `fixed`: leave it open until the fix is committed. |
+| `fixed` | it was fixed | `requestClose(baseDir, id, {proof, by})`. **Ask for the commit** — `proof` is a bare commit hash (lowercase hex, 7 to 64 characters) and nothing else. The item reads ***closing*** until `confirmCloses` finds that commit on the default branch (`/sig:docs-sweep` and SHIP run it; `/sig:resume` only reports it as ready), and only then C. With no commit yet, it cannot be closed `fixed`: leave it open until the fix is committed. |
 | `stale` | no longer relevant | `closeItem(baseDir, id, {reason, proof, by})` — `proof` says what was checked, in words |
 | `wontdo` | true, but not worth doing | `closeItem`, with `proof` as for `stale` |
 | `dup` | another item covers it | `closeItem(baseDir, id, {reason: 'dup', dup_of, by})` — `dup_of` must exist, not be this item, and not itself be a duplicate |

@@ -37,7 +37,7 @@ import {
   checkStaleInbox,
   checkWorkStore,
   checkClosingTooLong,
-  checkClosesConfirmable,
+  confirmClosesInSweep,
   runSweep,
 } from '../plugin/tools/lib/sweep.js';
 import { checkDanglingReferences } from '../plugin/tools/lib/doc-hygiene.js';
@@ -47,7 +47,7 @@ import { runDriftChecks } from '../plugin/tools/lib/state-drift.js';
 import { backlogDischargeStatus, promoteToBacklog, promoteToBugs } from '../plugin/tools/lib/backlog.js';
 import { captureToFutureIdeas, captureToBugs, captureToOpenQuestions } from '../plugin/tools/lib/add.js';
 import { captureCheckpointContext } from '../plugin/tools/lib/checkpoint.js';
-import { runConfirmCloses } from '../plugin/tools/lib/close-confirm.js';
+import { reportCloses, runConfirmCloses } from '../plugin/tools/lib/close-confirm.js';
 import { parseBacklogRows } from '../plugin/tools/lib/backlog.js';
 import {
   storeProject,
@@ -96,7 +96,7 @@ const READERS = [
   ['sweep', 'doc-hygiene.js checkDanglingReferences', (b) => checkDanglingReferences(b)],
   ['sweep', 'sweep.js checkWorkStore', (b) => checkWorkStore(b)],
   ['sweep', 'sweep.js checkClosingTooLong', (b) => checkClosingTooLong(b, { now: NOW })],
-  ['sweep', 'sweep.js checkClosesConfirmable', (b) => checkClosesConfirmable(b, { now: NOW })],
+  ['sweep', 'sweep.js confirmClosesInSweep', (b) => confirmClosesInSweep(b, { now: NOW })],
   ['sweep', 'sweep.js runSweep (the whole sweep)', (b) => runSweep(b)],
   ['published-facts', 'published-facts.js published-bug-tally', (b) => runDriftChecks(b, [checkPublishedBugTally])],
   ['published-facts', 'published-facts.js bug-status-vs-changelog', (b) => runDriftChecks(b, [checkBugStatusVsChangelog])],
@@ -108,7 +108,8 @@ const READERS = [
   ['capture', 'checkpoint.js captureCheckpointContext', (b) => captureCheckpointContext(b, { decisions: ['D'], questions: ['Q one?'] })],
   ['capture', 'backlog.js promoteToBacklog', (b) => promoteToBacklog(b, { block: '## A row\n\nx\n', tag: 'roadmap', today: TODAY })],
   ['capture', 'backlog.js promoteToBugs', (b) => promoteToBugs(b, { block: '## A bug\n\nx\n' })],
-  ['confirm', 'close-confirm.js runConfirmCloses (resume, SHIP)', (b) => runConfirmCloses(b, { now: NOW })],
+  ['confirm', 'close-confirm.js runConfirmCloses (SHIP, sweep)', (b) => runConfirmCloses(b, { now: NOW })],
+  ['confirm', 'close-confirm.js reportCloses (resume)', (b) => reportCloses(b, { now: NOW })],
 ];
 
 // The message every guarded parser throws names the flag; it is searched for in
@@ -153,11 +154,12 @@ describe('the ban at runtime: every AC3.1 reader, flag set (AC3.2)', () => {
   withParserBan({ beforeAll, afterAll });
   afterEach(cleanupStoreProjects);
 
-  it('the reader list is the one reviewed: 27 entry points over the 8 AC3.1 groups and t4.6', () => {
+  it('the reader list is the one reviewed: 28 entry points over the 8 AC3.1 groups, t4.6 and D-M6E13-21', () => {
     // 26 from AC3.1 (5 advise, 3 drive, 1 status, 7 sweep, 2 published-facts,
-    // 1 Jev, 1 backlog, 6 capture) + 1 t4.6 (runConfirmCloses). Adding a reader
-    // means adding it above and raising this number — on purpose.
-    expect(READERS).toHaveLength(27);
+    // 1 Jev, 1 backlog, 6 capture) + 1 t4.6 (runConfirmCloses) + 1 D-M6E13-21
+    // (reportCloses, resume's read-only report). Adding a reader means adding
+    // it above and raising this number — on purpose.
+    expect(READERS).toHaveLength(28);
     expect(new Set(READERS.map(([, name]) => name)).size).toBe(READERS.length);
     expect(new Set(READERS.map(([group]) => group))).toEqual(
       new Set(['advise', 'drive', 'status', 'sweep', 'published-facts', 'jev', 'backlog', 'capture', 'confirm']),

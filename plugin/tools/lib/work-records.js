@@ -1398,9 +1398,9 @@ function stillAndStale(still, now) {
  * What `confirmCloses` would do now, without doing it (M6.E13 t4.6): the same
  * classification — the same proof check and the same `git merge-base
  * --is-ancestor` against `refs/remotes/origin/<default>` — with no lock, no
- * event and no regeneration. For the sweep, which must stay read-only
- * (`/sig:docs-sweep` AC1.5): it reports what the next `/sig:resume` or SHIP
- * will confirm. Local refs only, never a fetch.
+ * event and no regeneration. For `/sig:resume`, which stays read-only
+ * (`D-M6E13-21`, through `close-confirm.js` `reportCloses`): it reports what
+ * the next sweep or SHIP will confirm. Local refs only, never a fetch.
  *
  * v2 only, as `confirmCloses`: on a v1 store every fixed close reads as
  * *closing* through the converter, and none of them can be confirmed there.

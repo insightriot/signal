@@ -4,7 +4,9 @@
 // INVOKING project (`process.cwd()`, never hard-coded Signal paths) to surface doc
 // rot. Each check returns findings shaped `{check, severity, file, message}` with
 // severity ∈ 'structural' (the things the test-suite guard hard-fails on) |
-// 'advisory' (nudges — bloat, stale inbox). Nothing here writes.
+// 'advisory' (nudges — bloat, stale inbox). Nothing here writes, with ONE
+// exception (`D-M6E13-21`): `confirmClosesInSweep` confirms fixed closes on a
+// v2 work store — `closed` events and the regenerated views.
 //
 // The portable checks live here (meaningful in any Signal-managed repo). The
 // stale-inbox check deliberately lives in THIS module, not doc-hygiene.js, so the
@@ -44,7 +46,8 @@ import { runDriftChecks, renderDriftReport } from './state-drift.js';
 import { ALL_DRIFT_CHECKS, REACH } from './published-facts.js';
 import { backlogDischargeStatus, storeDischargeStatus, BACKLOG_DISCHARGE, REASON_NO_BACKLOG } from './backlog.js';
 import { isStoreOn, checkStore } from './work-store.js';
-import { checkRecords, listClosing, listRecords, probeCloses, recordPath, storeVersion } from './work-records.js';
+import { checkRecords, listClosing, listRecords, recordPath, storeVersion } from './work-records.js';
+import { runConfirmCloses } from './close-confirm.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -458,38 +461,43 @@ export function checkClosingTooLong(baseDir, opts = {}) {
 }
 
 /**
- * Closes ready to confirm (portable, advisory — M6.E13 t4.6, AC7.2).
+ * Confirm closes (portable, advisory — M6.E13 t4.6 as amended by `D-M6E13-21`,
+ * AC7.2). **The one sweep step that writes.**
  *
- * `D-M6E13-15` runs the close confirmation "in the sweep", but the sweep is
- * read-only (AC1.5; `D-M5E16-1` settled the same conflict in NFR2's favour), so
- * it does not confirm: it asks `probeCloses` — the same question `confirmCloses`
- * asks, with nothing written — and names each *closing* item whose fix commit
- * is already on the default branch. The next `/sig:resume` or SHIP confirms it.
- * Git is asked through local refs only (nothing is downloaded), so the sweep stays offline.
+ * `D-M6E13-21` settled where a *closing* item becomes closed: SHIP and the
+ * sweep confirm, `/sig:resume` only reports. So this runs `close-confirm.js`
+ * `runConfirmCloses` — `confirmCloses` under it — which writes a `closed` event
+ * for each *closing* item whose fix commit is already on the default branch
+ * and regenerates the views. Each confirmed item is one advisory naming its
+ * record, so the person running the sweep knows which files changed and to
+ * commit them. This supersedes `D-M5E16-1` for this step only; every other
+ * check here stays read-only. Git is asked through local refs only (nothing
+ * is downloaded), so the sweep stays offline.
  *
- * v2 only, as `checkClosingTooLong`: store off or v1 → nothing, and git is not
- * asked. Why the rest are still closing is not repeated here; a long wait is
- * `checkClosingTooLong`'s finding.
+ * v2 only: store off or v1 → nothing, nothing written, and git is not asked.
+ * Fail-open, like `runConfirmCloses`: a broken `WORK.md` or a failed
+ * confirmation (LOCKED, IO) is one advisory, never a throw. Why the rest are
+ * still closing is not repeated here; a long wait is `checkClosingTooLong`'s
+ * finding.
  *
  * @param {string} baseDir — project root
- * @param {{now?: Date|string, execFn?: Function}} [opts]
- * @returns {Array<{check: string, severity: string, file: string, message: string}>}
+ * @param {{now?: Date|string, execFn?: Function, confirm?: Function}} [opts]
+ *   `confirm`: the confirmation, injected in tests (as `runConfirmCloses`)
+ * @returns {Promise<Array<{check: string, severity: string, file: string, message: string}>>}
  */
-export function checkClosesConfirmable(baseDir, opts = {}) {
-  let probe;
-  try {
-    if (storeVersion(baseDir) !== 2) return [];
-    probe = probeCloses(baseDir, { now: opts.now, ...(opts.execFn ? { execFn: opts.execFn } : {}) });
-  } catch (err) {
-    return [mkFinding('closes-confirmable', 'advisory', WORK_MD_REL, `closes could not be checked — ${err.message}`)];
+export async function confirmClosesInSweep(baseDir, opts = {}) {
+  const out = await runConfirmCloses(baseDir, opts);
+  if (out.error) {
+    const what = out.ran ? 'closes not confirmed' : 'closes not checked';
+    return [mkFinding('closes-confirmed', 'advisory', WORK_MD_REL, `${what} — ${out.error}`)];
   }
-  return probe.confirmable.map((id) =>
+  return out.confirmed.map((id) =>
     mkFinding(
-      'closes-confirmable',
+      'closes-confirmed',
       'advisory',
       recordPath(id),
-      `${id} is closing and its fix commit is on the default branch — the next /sig:resume or /sig:ship ` +
-        'confirms it closed. The sweep writes nothing.'
+      `${id} confirmed closed — its fix commit is on the default branch. The sweep wrote its closed event ` +
+        'and regenerated the views; commit them.'
     ));
 }
 
@@ -715,7 +723,8 @@ export async function runSweep(baseDir = process.cwd()) {
   raw.push(...(await checkBacklogDischarge(baseDir)));
   raw.push(...checkWorkStore(baseDir));
   raw.push(...checkClosingTooLong(baseDir));
-  raw.push(...checkClosesConfirmable(baseDir));
+  // The one step that writes (D-M6E13-21): confirmed closes, on a v2 store only.
+  raw.push(...(await confirmClosesInSweep(baseDir)));
   raw.push(...checkClaudeMdBloat(baseDir));
   raw.push(...(await checkPhaseLog(baseDir)));
 

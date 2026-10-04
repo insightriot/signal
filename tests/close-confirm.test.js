@@ -1,15 +1,16 @@
-// M6.E13 t4.6 — `confirmCloses` wired into `/sig:resume`, SHIP and the sweep
-// (AC7.2 wiring). See .planning/M6.E13-VALIDATION.md row AC7.2.
+// M6.E13 t4.6, as amended by D-M6E13-21 — where a *closing* item becomes
+// closed (AC7.2 wiring). See .planning/M6.E13-VALIDATION.md row AC7.2.
 //
-// Three sites, one library call each, all v2 only:
-//   - `/sig:resume` and SHIP call `close-confirm.js` `runConfirmCloses`, which
-//     confirms (writes `closed` events and the views) and returns one line for
-//     the briefing / the SHIP report. Fail-open: it never throws and never
-//     blocks.
-//   - The sweep stays read-only (`/sig:docs-sweep` AC1.5, `D-M5E16-1`), so it
-//     does NOT confirm: `sweep.js` `checkClosesConfirmable` asks the same
-//     question through `work-records.js` `probeCloses` and reports what the
-//     next resume or SHIP will confirm. Nothing is written.
+// Three sites, all v2 only:
+//   - SHIP calls `close-confirm.js` `runConfirmCloses`, which confirms (writes
+//     `closed` events and the views) and returns one line for the SHIP report.
+//     Fail-open: it never throws and never blocks.
+//   - The sweep CONFIRMS too (`sweep.js` `confirmClosesInSweep`, through
+//     `runConfirmCloses`): the one sweep step that writes. Every other sweep
+//     check stays read-only.
+//   - `/sig:resume` only REPORTS (`close-confirm.js` `reportCloses`, through
+//     `work-records.js` `probeCloses`): "N ready to close — run the sweep or
+//     ship". It writes nothing, so its read-only contract holds.
 //
 // AC7.3 (advise and drive never propose a closing item) is pinned where those
 // readers are tested: `tests/advise-store-on.test.js` ("closing and closed
@@ -25,8 +26,8 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import * as records from '../plugin/tools/lib/work-records.js';
-import { runConfirmCloses, formatConfirmClosesLine } from '../plugin/tools/lib/close-confirm.js';
-import { checkClosesConfirmable, runSweep } from '../plugin/tools/lib/sweep.js';
+import { runConfirmCloses, formatConfirmClosesLine, reportCloses, formatCloseReportLine } from '../plugin/tools/lib/close-confirm.js';
+import { confirmClosesInSweep, runSweep } from '../plugin/tools/lib/sweep.js';
 import { renderResumeBriefing } from '../plugin/tools/lib/resume.js';
 import { serializeRecord } from '../plugin/tools/lib/work-record.js';
 import { stringifyItem } from '../plugin/tools/lib/work-item.js';
@@ -144,7 +145,7 @@ describe('probeCloses — what confirmCloses would do, without doing it', () => 
   });
 });
 
-describe('runConfirmCloses — the resume and SHIP entry (fail-open)', () => {
+describe('runConfirmCloses — the SHIP and sweep entry (fail-open)', () => {
   it('v2: confirms the merged fix, leaves the rest, and returns one line saying the files changed', async () => {
     const { work } = await mixedClone();
     const out = await runConfirmCloses(work, { now: NOW });
@@ -248,13 +249,69 @@ describe('formatConfirmClosesLine', () => {
   });
 });
 
+describe('reportCloses — /sig:resume reports, and writes nothing (D-M6E13-21)', () => {
+  it('v2: names what is ready to close and says how to close it; the store is unchanged', async () => {
+    const { work } = await mixedClone();
+    const before = snapshotTree(work);
+    const out = reportCloses(work, { now: NOW });
+    expect(out).toMatchObject({
+      ran: true,
+      ready: ['SIG-1'],
+      stillClosing: [{ id: 'SIG-2', reason: 'not-on-default-branch' }],
+      stale: [],
+      error: null,
+    });
+    expect(out.line).toBe('Closes: 1 ready to close (SIG-1) — run /sig:docs-sweep or /sig:ship to confirm');
+    expect(snapshotTree(work)).toEqual(before);
+    expect(await lastEvent(work, 'SIG-1')).toBe('close_requested');
+  });
+
+  it('v2, nothing ready: no line', async () => {
+    const { work } = await plantClone();
+    await v2Store(work, [rec('SIG-1', [created])]);
+    expect(reportCloses(work, { now: NOW })).toEqual({ ran: true, ready: [], stillClosing: [], stale: [], error: null, line: null });
+  });
+
+  it('v1 store and store off: nothing, and git is not asked', async () => {
+    const { work, shas } = await plantClone();
+    await v1Store(work, shas[0]);
+    const execFn = () => {
+      throw new Error('git must not run');
+    };
+    const none = { ran: false, ready: [], stillClosing: [], stale: [], error: null, line: null };
+    expect(reportCloses(work, { now: NOW, execFn })).toEqual(none);
+    const off = join(root, 'off');
+    await mkdir(off);
+    expect(reportCloses(off, { now: NOW, execFn })).toEqual(none);
+  });
+
+  it('a broken WORK.md: never throws; says the closes were not checked', async () => {
+    const dir = join(root, 'broken');
+    await put(dir, '.planning/work/WORK.md', '---\nkey: [\n---\n');
+    const out = reportCloses(dir, { now: NOW });
+    expect(out.ran).toBe(false);
+    expect(out.line).toMatch(/^Closes not checked — /);
+  });
+
+  it('formatCloseReportLine: a stale wait is named, a long list is capped, nothing → null', () => {
+    expect(formatCloseReportLine({ ready: [], stillClosing: [{ id: 'SIG-4', reason: 'not-on-default-branch' }], stale: ['SIG-4'] }))
+      .toBe('Closes: 1 closing over 14 days (SIG-4) — see /sig:docs-sweep');
+    const ids = ['SIG-1', 'SIG-2', 'SIG-3', 'SIG-4', 'SIG-5', 'SIG-6'];
+    expect(formatCloseReportLine({ ready: ids, stillClosing: [], stale: [] }))
+      .toBe('Closes: 6 ready to close (SIG-1, SIG-2, SIG-3, SIG-4, SIG-5 and 1 more) — run /sig:docs-sweep or /sig:ship to confirm');
+    expect(formatCloseReportLine({ ready: [], stillClosing: [], stale: [] })).toBeNull();
+    expect(formatCloseReportLine(null)).toBeNull();
+  });
+});
+
 describe('/sig:resume renders the line (renderResumeBriefing `closesLine`)', () => {
   const base = { state: { phase: 'EXECUTE', current_epic: null, completed_phases: [] }, profile: { tier: 'FULL' } };
 
   it('a line is rendered above the briefing body', () => {
-    const out = renderResumeBriefing({ ...base, closesLine: 'Closes: confirmed 1 (SIG-1) — its record and the views changed; commit them' });
+    const line = 'Closes: 1 ready to close (SIG-1) — run /sig:docs-sweep or /sig:ship to confirm';
+    const out = renderResumeBriefing({ ...base, closesLine: line });
     const lines = out.split('\n');
-    const at = lines.indexOf('Closes: confirmed 1 (SIG-1) — its record and the views changed; commit them');
+    const at = lines.indexOf(line);
     expect(at).toBeGreaterThanOrEqual(0);
     expect(at).toBeLessThan(lines.indexOf('== Project Briefing =='));
   });
@@ -264,49 +321,78 @@ describe('/sig:resume renders the line (renderResumeBriefing `closesLine`)', () 
   });
 });
 
-describe('the sweep reports confirmable closes and writes nothing (checkClosesConfirmable)', () => {
-  it('v2: one advisory per confirmable item, naming the record; the store is unchanged', async () => {
+describe('the sweep confirms closes — its one writing step (confirmClosesInSweep, D-M6E13-21)', () => {
+  it('v2: confirms the merged fix, one advisory per confirmed item naming the record; the rest are left closing', async () => {
     const { work } = await mixedClone();
-    const before = snapshotTree(work);
-    const findings = checkClosesConfirmable(work, { now: NOW });
+    const findings = await confirmClosesInSweep(work, { now: NOW });
     expect(findings).toEqual([
       {
-        check: 'closes-confirmable',
+        check: 'closes-confirmed',
         severity: 'advisory',
         file: records.recordPath('SIG-1'),
-        message: 'SIG-1 is closing and its fix commit is on the default branch — the next /sig:resume or /sig:ship '
-          + 'confirms it closed. The sweep writes nothing.',
+        message: 'SIG-1 confirmed closed — its fix commit is on the default branch. The sweep wrote its closed event '
+          + 'and regenerated the views; commit them.',
       },
     ]);
-    expect(snapshotTree(work)).toEqual(before);
+    expect(await lastEvent(work, 'SIG-1')).toBe('closed');
+    expect(await lastEvent(work, 'SIG-2')).toBe('close_requested');
+    expect(await lastEvent(work, 'SIG-3')).toBe('created');
   });
 
-  it('runSweep carries it', async () => {
+  it('runSweep carries it, and a second run has nothing left to confirm', async () => {
     const { work } = await mixedClone();
+    const first = await runSweep(work);
+    expect(first.findings.filter((f) => f.check === 'closes-confirmed').map((f) => f.file)).toEqual([records.recordPath('SIG-1')]);
+    expect(await lastEvent(work, 'SIG-1')).toBe('closed');
     const before = snapshotTree(work);
-    const { findings } = await runSweep(work);
-    expect(findings.filter((f) => f.check === 'closes-confirmable').map((f) => f.file)).toEqual([records.recordPath('SIG-1')]);
+    const second = await runSweep(work);
+    expect(second.findings.filter((f) => f.check === 'closes-confirmed')).toEqual([]);
     expect(snapshotTree(work)).toEqual(before);
   });
 
-  it('v1 store and store off: nothing, and git is not asked', async () => {
+  it('v2, nothing confirmable: no finding and nothing written', async () => {
+    const { work } = await plantClone();
+    await v2Store(work, [rec('SIG-1', [created])]);
+    const before = snapshotTree(work);
+    expect(await confirmClosesInSweep(work, { now: NOW })).toEqual([]);
+    expect(snapshotTree(work)).toEqual(before);
+  });
+
+  it('v1 store and store off: nothing, nothing written, and git is not asked', async () => {
     const { work, shas } = await plantClone();
     await v1Store(work, shas[0]);
     const execFn = () => {
       throw new Error('git must not run');
     };
-    expect(checkClosesConfirmable(work, { now: NOW, execFn })).toEqual([]);
+    const before = snapshotTree(work);
+    expect(await confirmClosesInSweep(work, { now: NOW, execFn })).toEqual([]);
+    expect(snapshotTree(work)).toEqual(before);
     const off = join(root, 'off');
     await mkdir(off);
-    expect(checkClosesConfirmable(off, { now: NOW, execFn })).toEqual([]);
+    expect(await confirmClosesInSweep(off, { now: NOW, execFn })).toEqual([]);
   });
 
-  it('a broken WORK.md: one advisory saying the closes could not be checked', async () => {
+  it('a broken WORK.md: one advisory saying the closes were not checked', async () => {
     const dir = join(root, 'broken');
     await put(dir, '.planning/work/WORK.md', '---\nkey: [\n---\n');
-    const findings = checkClosesConfirmable(dir, { now: NOW });
+    const findings = await confirmClosesInSweep(dir, { now: NOW });
     expect(findings).toHaveLength(1);
-    expect(findings[0]).toMatchObject({ check: 'closes-confirmable', severity: 'advisory', file: '.planning/work/WORK.md' });
-    expect(findings[0].message).toMatch(/^closes could not be checked — /);
+    expect(findings[0]).toMatchObject({ check: 'closes-confirmed', severity: 'advisory', file: '.planning/work/WORK.md' });
+    expect(findings[0].message).toMatch(/^closes not checked — /);
+  });
+
+  it('confirmCloses failing (e.g. LOCKED): one advisory saying the closes were not confirmed; nothing closed', async () => {
+    const { work } = await mixedClone();
+    const confirm = async () => {
+      const err = new Error('the work store is locked by another writer');
+      err.code = 'LOCKED';
+      throw err;
+    };
+    const findings = await confirmClosesInSweep(work, { now: NOW, confirm });
+    expect(findings).toEqual([{
+      check: 'closes-confirmed', severity: 'advisory', file: '.planning/work/WORK.md',
+      message: 'closes not confirmed — the work store is locked by another writer',
+    }]);
+    expect(await lastEvent(work, 'SIG-1')).toBe('close_requested');
   });
 });

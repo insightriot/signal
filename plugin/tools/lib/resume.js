@@ -529,9 +529,10 @@ export function renderResumeBriefing(params = {}) {
     lines.push('');
   }
 
-  // M6.E13 t4.6 — fixed closes confirmed after the origin check (AC7.2): one
-  // pre-resolved line from `close-confirm.js` `runConfirmCloses`, or null. In
-  // the advisory tier: it reports bookkeeping, not doubt about the briefing.
+  // M6.E13 t4.6 / D-M6E13-21 — fixed closes ready to confirm, read after the
+  // origin check (AC7.2): one pre-resolved line from `close-confirm.js`
+  // `reportCloses`, or null. Resume only reports; the sweep and SHIP confirm.
+  // In the advisory tier: it reports bookkeeping, not doubt about the briefing.
   if (closesLine) {
     lines.push(String(closesLine));
     lines.push('');
