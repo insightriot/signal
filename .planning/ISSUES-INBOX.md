@@ -61,3 +61,11 @@ Seen 2026-10-04 during M6.E13 EXECUTE. Present in v0.1.47 (the control-character
 Found 2026-10-04 during M6.E13 t4.6 (wiring confirmCloses after the resume fetch). When STATE.md carries no last_updated_commit, isStaleVsOrigin (state.js) returns before fetching; anything after it that reads refs/remotes/origin/* (now confirmCloses at /sig:resume) compares against whatever was last fetched. Fix: fetch independently of the baseline check, or have confirmCloses note its refs may be stale.
 
 ---
+
+## Turning the work store on for a new project still makes a v1 store, which v2 code refuses to write
+
+**Status:** untriaged (N) · SIG-274
+
+Found 2026-10-04 at M6.E13 t6.2. The only path that turns a store on is node tools/work-migrate.mjs (v1, maintainer script). After M6.E13 the v2 library refuses writes on a v1 store, so a project that enables the store gets one it cannot use until it runs tools/work-migrate-v2.mjs too. Belongs with the other-projects Epic (/sig:docs-migrate), but the gap is real from this release.
+
+---
