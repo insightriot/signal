@@ -220,6 +220,21 @@ export function cite(...targets) {
 }
 
 /**
+ * What a backlog row, bug or cover is cited by: `path:line` — or, for a work-store
+ * item (M6.E13 t4.2a), which has an ID where a list row has a line, the record's
+ * own file as a whole-file citation. `verifyCitations` resolves both, so the
+ * count gate is unchanged.
+ */
+export function citeTarget(x) {
+  return x.line === null ? x.path : `${x.path}:${x.line}`;
+}
+
+/** What a row, bug or cover is matched by: `path:line`, or a work-store item's ID. */
+export function rowKey(x) {
+  return x.line === null ? x.id : `${x.path}:${x.line}`;
+}
+
+/**
  * Strip the evidence marker out of text quoted from the corpus.
  *
  * The extractor reads the FIRST marker on a line and takes the rest of the line
@@ -511,12 +526,23 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
 
   out.push(`## ${L.citationRule}`);
   out.push('');
-  out.push(
-    'Every claim below ends with a citation naming a repo-root-relative path and line. Each one was ' +
-      'resolved against disk before this file was written: the path had to exist and the line had to ' +
-      'be inside it. A citation that did not resolve fails the run, and this file would not exist. ' +
-      'What that does NOT check is whether the cited line says what the claim says it says.'
-  );
+  if (corpus.sources?.backlog?.store) {
+    // Store on: an item has no line to cite, so the rule above would be false here.
+    out.push(
+      'Every claim below ends with a citation. A work item is cited by its own record file, which had ' +
+        'to exist; any other citation names a repo-root-relative path and line, and the line had to be ' +
+        'inside the file. Each one was resolved against disk before this file was written. A citation ' +
+        'that did not resolve fails the run, and this file would not exist. What that does NOT check is ' +
+        'whether the cited file or line says what the claim says it says.'
+    );
+  } else {
+    out.push(
+      'Every claim below ends with a citation naming a repo-root-relative path and line. Each one was ' +
+        'resolved against disk before this file was written: the path had to exist and the line had to ' +
+        'be inside it. A citation that did not resolve fails the run, and this file would not exist. ' +
+        'What that does NOT check is whether the cited line says what the claim says it says.'
+    );
+  }
   out.push('');
 
   // ── Priorities.
@@ -547,9 +573,9 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
       if (c.kind === 'new') {
         out.push(`- **${label(c)}** — unfiled: not in the corpus yet, so there is no line to cite.`);
       } else if (c.kind === 'bug') {
-        out.push(`- **\`${c.id}\`** ${label(c)} — open bug. ${cite(`${c.path}:${c.line}`)}`);
+        out.push(`- **\`${c.id}\`** ${label(c)} — open bug. ${cite(citeTarget(c))}`);
       } else {
-        out.push(`- **${label(c)}** — backlog row. ${cite(`${c.path}:${c.line}`)}`);
+        out.push(`- **${label(c)}** — backlog row. ${cite(citeTarget(c))}`);
       }
     }
     out.push('');
@@ -558,30 +584,32 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
   // ── Appendix: every live row exactly once, then every dropped row (AC3.4).
   const coveredAt = new Map();
   priorities.forEach((p, i) => {
-    for (const c of p.covers) if (c.kind === 'row') coveredAt.set(`${c.path}:${c.line}`, i);
+    for (const c of p.covers) if (c.kind === 'row') coveredAt.set(rowKey(c), i);
   });
   const rowLine = (s, extra = '') => {
     const note = extra || annotate(s);
-    return `- **${quoteSafe(s.row.text)}**${note ? ` — ${note}` : ''} ${cite(`${s.row.path}:${s.row.line}`)}`;
+    return `- **${quoteSafe(s.row.text)}**${note ? ` — ${note}` : ''} ${cite(citeTarget(s.row))}`;
   };
+  // A work-store corpus has no file order: its rows come in item-ID order.
+  const order = corpus.sources?.backlog?.store ? 'in item-ID order' : 'in file order';
   out.push(`## ${L.appendix} — ${classified.live.length}`);
   out.push('');
   out.push(
     '**Not ranked.** Every live row appears exactly once: under the priority that covers it, or in ' +
-      'the list after, in file order. Age is not an input. A row here was looked at, which is a ' +
+      `the list after, ${order}. Age is not an input. A row here was looked at, which is a ` +
       'different thing from a row nobody considered — the list is complete, not curated.'
   );
   out.push('');
   priorities.forEach((p, i) => {
-    const under = classified.live.filter((s) => coveredAt.get(`${s.row.path}:${s.row.line}`) === i);
+    const under = classified.live.filter((s) => coveredAt.get(rowKey(s.row)) === i);
     if (under.length === 0) return;
     out.push(`### Under priority ${i + 1} — ${quoteSafe(p.title)}`);
     out.push('');
     for (const s of under) out.push(rowLine(s));
     out.push('');
   });
-  const rest = classified.live.filter((s) => !coveredAt.has(`${s.row.path}:${s.row.line}`));
-  out.push(`### Not covered by a priority — ${rest.length}, in file order`);
+  const rest = classified.live.filter((s) => !coveredAt.has(rowKey(s.row)));
+  out.push(`### Not covered by a priority — ${rest.length}, ${order}`);
   out.push('');
   if (rest.length === 0) out.push('None.');
   for (const s of rest) out.push(rowLine(s));
@@ -742,6 +770,14 @@ function shortDropReason(s) {
  */
 async function classifyCorpus(baseDir, corpus) {
   if (!corpus.sources.backlog) return null;
+  // Store on (M6.E13 t4.2b): the rows are the live records, so nothing closed is
+  // among them and there is nothing for the discharge input to drop — it reads
+  // BACKLOG.md, a view, and is not run. Bug-discharge reads a `B`-id from a
+  // heading, which a record title does not carry, so it is not run either. The
+  // heading inputs (not-live, fold) read the record titles.
+  if (corpus.sources.backlog.store) {
+    return classifyRows(corpus.sources.backlog.rows, { stale: [], discharge: null, confirmedBugs: null });
+  }
   // The discharge input reads through the same rule as the corpus — otherwise the
   // artifact said a source "could not be read" and consulted it anyway (REVIEW pass 3).
   // Only a REFUSED STATE.md skips it: `resolveClosures` reads STATE through
@@ -815,7 +851,7 @@ export async function runAdvise(baseDir, { today, priorities, render = renderArt
 
   const checked = await validatePriorities(baseDir, priorities, corpus, {
     liveRows: classified.live.map((s) => s.row),
-    droppedRows: classified.dropped.map((s) => ({ path: s.row.path, line: s.row.line, why: shortDropReason(s) })),
+    droppedRows: classified.dropped.map((s) => ({ id: s.row.id, path: s.row.path, line: s.row.line, why: shortDropReason(s) })),
   });
   if (!checked.ok) {
     return {

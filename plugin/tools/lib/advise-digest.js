@@ -128,6 +128,14 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
   const ok = (source) => checked.push(source);
 
   const c = corpus ?? (await readCorpus(baseDir));
+  // A record that did not read is not in any list below; say so rather than
+  // let a shorter list read as a complete one.
+  const unread = c.work?.broken ?? [];
+  if (unread.length > 0) {
+    notes.push(
+      `${unread.length} work item(s) could not be read and are in no list here: ${unread.slice(0, 5).map((b) => b.id ?? b.path).join(', ')}${unread.length > 5 ? ', …' : ''}`
+    );
+  }
 
   // STATE.md is read only as a regular file (REVIEW pass 2: `readState` followed a
   // link and put an outside `phase` into the digest).
@@ -230,6 +238,15 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
   // ── bugs — open ones, highest priority first; the line each sits on.
   if (!c.sources?.bugs) {
     fail('bugs', c.cannotCheck.find((x) => x.source === 'BUGS.md')?.reason ?? 'BUGS.md was not read');
+  } else if (c.sources.bugs.store) {
+    // Store on (M6.E13 t4.2a): the corpus read the records, priority included —
+    // no list file is re-read, so no list parser runs.
+    const order = (p) => (p ? Number(p.slice(1)) : 9);
+    const open = [...c.sources.bugs.entries].sort((a, b) => order(a.priority) - order(b.priority));
+    for (const e of open) {
+      entries.bugs.push({ id: e.id, path: e.path, line: null, priority: e.priority, text: clip(`${e.id} ${e.priority ?? 'unprioritised'} ${e.status} — ${e.headline}`, DIGEST_CAPS.row) });
+    }
+    ok('bugs');
   } else {
     try {
       const lines = readRegularFile(baseDir, c.sources.bugs.path).split('\n');
@@ -253,7 +270,9 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
   } else {
     const live = classified ? classified.live.map((x) => x.row) : c.sources.backlog.rows;
     for (const r of live) {
-      entries.backlog.push({ path: r.path, line: r.line, text: clip(r.text, DIGEST_CAPS.row) });
+      // A store-on row has an ID where a list row has a line (t4.2a).
+      const at = r.line === null ? { id: r.id, path: r.path, line: null } : { path: r.path, line: r.line };
+      entries.backlog.push({ ...at, text: clip(r.text, DIGEST_CAPS.row) });
     }
     if (classified && classified.dropped.length > 0) {
       notes.push(
@@ -327,8 +346,16 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
     fail('retrospectives', `retrospectives could not be read — ${err.message}`);
   }
 
-  // ── open questions — headings, not struck through.
-  {
+  // ── open questions — headings, not struck through. Store on: the open Q records.
+  if (c.work) {
+    if (c.work.error) {
+      fail('open questions', c.work.error);
+    } else {
+      entries['open questions'].push(...c.work.questions.slice(0, DIGEST_CAPS.questions).map((q) => ({ ...q, text: clip(q.text, DIGEST_CAPS.row) })));
+      if (c.work.questions.length > DIGEST_CAPS.questions) cut.push(`open questions: ${DIGEST_CAPS.questions} of ${c.work.questions.length} shown`);
+      ok('open questions');
+    }
+  } else {
     const rel = `${PLANNING_DIR}/OPEN-QUESTIONS.md`;
     if (!existsSync(join(baseDir, rel))) {
       fail('open questions', `${rel} is not present — this project files no questions here`);
@@ -347,24 +374,25 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
   }
 
   // ── inbox — how much is waiting to be sorted. A count, not the entries.
-  {
-    const storeInbox = join(planningDir, 'work', 'inbox');
-    const storeOn = existsSync(join(planningDir, 'work', 'WORK.md'));
+  // Store on (t4.2a): every record whose status is N, from the corpus's read of
+  // the records — not a count of files in a folder.
+  if (c.work) {
+    if (c.work.error) {
+      fail('inbox', c.work.error);
+    } else {
+      entries.inbox.push({ path: `${PLANNING_DIR}/work/WORK.md`, line: 1, text: `${c.work.inbox} item(s) in the inbox, not yet triaged` });
+      ok('inbox');
+    }
+  } else {
     try {
-      if (storeOn) {
-        const n = existsSync(storeInbox) ? readdirSync(storeInbox).filter((f) => f.endsWith('.md')).length : 0;
-        entries.inbox.push({ path: `${PLANNING_DIR}/work/WORK.md`, line: 1, text: `${n} item(s) in the inbox, not yet triaged` });
-        ok('inbox');
+      const rel = ['ISSUES-INBOX.md', 'FUTURE-IDEAS.md'].map((f) => `${PLANNING_DIR}/${f}`).find((p) => existsSync(join(baseDir, p)));
+      if (!rel) {
+        fail('inbox', 'no ISSUES-INBOX.md — this project keeps no capture inbox here');
       } else {
-        const rel = ['ISSUES-INBOX.md', 'FUTURE-IDEAS.md'].map((f) => `${PLANNING_DIR}/${f}`).find((p) => existsSync(join(baseDir, p)));
-        if (!rel) {
-          fail('inbox', 'no ISSUES-INBOX.md — this project keeps no capture inbox here');
-        } else {
-          const content = readRegularFile(baseDir, rel);
-          const n = countInboxHeadings(content);
-          entries.inbox.push({ path: rel, line: 1, text: `${n} entr(y/ies) in the inbox` });
-          ok('inbox');
-        }
+        const content = readRegularFile(baseDir, rel);
+        const n = countInboxHeadings(content);
+        entries.inbox.push({ path: rel, line: 1, text: `${n} entr(y/ies) in the inbox` });
+        ok('inbox');
       }
     } catch (err) {
       fail('inbox', `the inbox could not be read — ${err.message}`);
@@ -374,8 +402,13 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
   return { entries, checked, cannotCheck, cut, notes, corpus: c };
 }
 
-/** `path:line`, or the branch for an entry that has no file here. */
+/**
+ * `path:line`; the item ID for a work-store entry (it has no line — and the ID
+ * is the form a priority covers it by); or the branch for an entry that has no
+ * file here.
+ */
 function ref(e) {
+  if (e.id && e.line === null) return e.id;
   return e.path ? `${e.path}:${e.line}` : `branch ${e.branch}`;
 }
 

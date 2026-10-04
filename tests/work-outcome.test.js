@@ -171,12 +171,17 @@ describe('Outcome — BACKLOG.md liveness is no longer inferred', () => {
 });
 
 describe('AC-7.3 (as corrected in M6.E11-PROGRESS.md) — /sig:advise reads the items the generated BACKLOG.md carries', () => {
-  it("readCorpus's live row set equals the titles of those items", async () => {
+  // M6.E13 t4.2a: with the store on, `readCorpus` reads the records (this v1
+  // store through the converter), not the generated BACKLOG.md — so a row carries
+  // the item's ID and its own title, not the view's `title · ID` heading.
+  it("readCorpus's live row set is exactly those items, by ID and title", async () => {
     const corpus = await readCorpus(ROOT);
-    expect(corpus.sources.backlog, 'BACKLOG.md was readable').not.toBeNull();
+    expect(corpus.sources.backlog, 'the backlog was readable').not.toBeNull();
 
     const carried = carriedBy(items);
-    expect(new Set(corpus.sources.backlog.rows.map((r) => bare(r.text)))).toEqual(new Set(carried.map((i) => heading(i.item))));
+    expect(corpus.sources.backlog.rows.map((r) => r.id).sort()).toEqual(carried.map((i) => i.item.id).sort());
+    const titleOf = new Map(carried.map((i) => [i.item.id, String(i.item.title ?? i.item.id)]));
+    for (const r of corpus.sources.backlog.rows) expect(r.text, r.id).toBe(titleOf.get(r.id));
     expect(corpus.sources.backlog.rows).toHaveLength(carried.length);
   });
 });
