@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 import { artifactName, resolveArtifactPath } from '../plugin/tools/lib/resume.js';
 import { listItems, ROOT_ONLY_ARTIFACTS } from '../plugin/tools/lib/work-ops.js';
+import { listRecords, storeVersion } from '../plugin/tools/lib/work-records.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PLANNING = join(ROOT, '.planning');
@@ -50,7 +51,13 @@ describe(`${EPIC} lives in its Epic folder (AC-8.5, on this repo)`, () => {
       .toBe(`work/epics/${EPIC}/${EPIC}-VERIFICATION.md`);
   });
 
-  it(`listItems({epic: '${EPIC}'}) returns SIG-161`, () => {
+  // v1: the item file is in the Epic's folder. v2 (after the M6.E13 cutover):
+  // a record never moves, and its Epic is derived from its events.
+  const LIVE_V2 = storeVersion(ROOT) === 2;
+  it.skipIf(LIVE_V2)(`listItems({epic: '${EPIC}'}) returns SIG-161`, () => {
     expect(listItems(ROOT, { epic: EPIC }).map((r) => r.item.id)).toContain('SIG-161');
+  });
+  it.runIf(LIVE_V2)(`v2: the records whose Epic is ${EPIC} include SIG-161`, () => {
+    expect(listRecords(ROOT).records.filter((r) => r.epic === EPIC).map((r) => r.id)).toContain('SIG-161');
   });
 });
