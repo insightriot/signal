@@ -20,8 +20,8 @@
 // us anything testable — the core logic is in tools/lib/retrospective.js
 // where unit tests can exercise it directly.
 
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync, realpathSync } from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 
 import {
   checkProposedStateWrite,
@@ -51,14 +51,34 @@ const input = event?.tool_input ?? {};
 
 if (tool !== 'Edit' && tool !== 'Write' && tool !== 'MultiEdit') process.exit(0);
 
-// M6.E13/t5.1 — a v2 work store's records, views and history are written by
-// /sig:item, not by hand. The guard is loaded only when the resolved path
-// mentions `.planning`, so an edit anywhere else pays one string test; it
-// blocks only at `schema_version: 2` and allows on any failure.
+// The real path of `abs`, or of its nearest existing ancestor with the rest
+// appended (the file may not exist yet). `abs` itself when nothing resolves.
+function realpathLoose(abs) {
+  const rest = [];
+  let cur = abs;
+  for (;;) {
+    try {
+      return join(realpathSync.native(cur), ...rest);
+    } catch {
+      const parent = dirname(cur);
+      if (parent === cur) return abs;
+      rest.unshift(basename(cur));
+      cur = parent;
+    }
+  }
+}
+
+// M6.E13/t5.1 — a v2 work store's records, views, history and WORK.md are
+// written by code, not by hand. The guard is loaded only when the resolved
+// path — or its real path, so an alias such as `notes -> .planning/work/items`
+// is seen (REVIEW loop 1) — mentions `.planning`. An edit anywhere else pays
+// one string test and one realpath; the guard blocks only at
+// `schema_version: 2` and allows on any failure.
 if (typeof input.file_path === 'string') {
   try {
     const cwd = typeof event.cwd === 'string' ? event.cwd : process.cwd();
-    if (resolve(cwd, input.file_path).toLowerCase().includes('.planning')) {
+    const abs = resolve(cwd, input.file_path);
+    if (abs.toLowerCase().includes('.planning') || realpathLoose(abs).toLowerCase().includes('.planning')) {
       const { checkWorkWrite } = await import('../tools/lib/work-write-guard.js');
       const guard = await checkWorkWrite({ filePath: input.file_path, cwd });
       if (guard.block) {

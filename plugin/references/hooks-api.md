@@ -73,12 +73,13 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   current file) and runs `checkProposedStateWrite`. If the write marks an
   Epic-close SHIP without a retro on disk, it **blocks**.
 - **Work-store guard (M6.E13/t5.1):** before the STATE.md check, when the path
-  (resolved against the event's `cwd` if relative) mentions `.planning`, it
-  lazy-loads `tools/lib/work-write-guard.js`. That **blocks** a hand edit of
-  `.planning/work/items/**/*.json`, `BUGS.md`, `BACKLOG.md`, `ISSUES-INBOX.md`,
-  `OPEN-QUESTIONS.md`, `work/EPICS.md` or `work/history/*.md` — **only** when
-  `.planning/work/WORK.md` reads `schema_version: 2` — naming `/sig:item`. Item
-  bodies (`items/**/*.md`) are allowed. `MultiEdit` reaches only this guard.
+  (resolved against the event's `cwd` if relative) or its real path mentions
+  `.planning`, it lazy-loads `tools/lib/work-write-guard.js`. That **blocks** a
+  hand edit of `.planning/work/items/**/*.json`, `BUGS.md`, `BACKLOG.md`,
+  `ISSUES-INBOX.md`, `OPEN-QUESTIONS.md`, `work/EPICS.md`, `work/history/*.md`
+  or `work/WORK.md` itself — **only** when `.planning/work/WORK.md` reads
+  `schema_version: 2` — naming `/sig:item` (and, for `WORK.md`, the migration
+  tool). Item bodies (`items/**/*.md`) are allowed. `MultiEdit` reaches only this guard.
 - **exit:** `2` + a `[signal:check-state-write]` stderr line to **block** the
   write (surfaces to the user); `0` to allow. `baseDir` is derived from the
   file path (`resolve(file_path, '..', '..')`), NOT from cwd.

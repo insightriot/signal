@@ -6,6 +6,8 @@
 // code (`/sig:item` → work-records.js → work-views.js). A hand edit to one of
 // them is either overwritten at the next regeneration or, for a record, an
 // edit the event log never saw. Bodies (`items/**/*.md`) stay editable.
+// `work/WORK.md` is blocked too, with its own message (REVIEW I7): setting its
+// `schema_version` by hand would switch this guard off.
 //
 // This hook runs on every Edit/Write in every repository of every user, and in
 // every project except Signal the views are typed by hand (RESEARCH, Risk 1).
@@ -17,7 +19,9 @@
 // `.Planning/BUGS.MD` IS `.planning/BUGS.md`), and both the lexical path and
 // its realpath are classified: the lexical one catches a symlinked `.planning`
 // directory (its realpath has no `.planning` segment), the realpath catches an
-// alias pointing at `.planning`.
+// alias pointing into `.planning` (`notes -> .planning/work/items`). The hook's
+// prefilter tests both too, so such an alias reaches this module (REVIEW loop
+// 1); before that, the realpath here was never consulted for one.
 
 import { existsSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
@@ -31,11 +35,19 @@ export const BLOCK_MESSAGE = (rel) =>
   + 'files are generated from the records and regenerate after every change. '
   + 'For prose, edit the item\'s body file (.planning/work/items/NN/KEY-n.md), which is not blocked.';
 
+export const WORK_MD_MESSAGE = (rel) =>
+  `${rel} switches this project's v2 work store on (\`schema_version: 2\`), so it is not edited by hand: `
+  + 'changing schema_version would switch off this guard and the generated views, and changing key would '
+  + 'orphan every record\'s ID. Items are changed with /sig:item; the store\'s version is changed only by the '
+  + 'migration tool, `node tools/work-migrate-v2.mjs`.';
+
+const isWorkMd = (rel) => rel.toLowerCase() === '.planning/work/work.md';
+
 // Is `segs` (lower-cased, after `.planning/`) a protected target?
 function isTarget(segs) {
   if (segs.length === 1) return VIEWS.has(segs[0]);
   if (segs[0] !== 'work') return false;
-  if (segs.length === 2) return segs[1] === 'epics.md';
+  if (segs.length === 2) return segs[1] === 'epics.md' || segs[1] === 'work.md';
   if (segs[1] === 'history') return segs.length === 3 && segs[2].endsWith('.md');
   if (segs[1] === 'items') return segs[segs.length - 1].endsWith('.json');
   return false;
@@ -110,7 +122,7 @@ export async function checkWorkWrite({ filePath, cwd }) {
       if (!existsSync(join(baseDir, '.planning', 'work', 'WORK.md'))) continue;
       try {
         const { storeVersion } = await import('./work-records.js');
-        if (storeVersion(baseDir) === 2) return { block: true, reason: BLOCK_MESSAGE(rel) };
+        if (storeVersion(baseDir) === 2) return { block: true, reason: isWorkMd(rel) ? WORK_MD_MESSAGE(rel) : BLOCK_MESSAGE(rel) };
       } catch {
         // A broken or unknown WORK.md — allow.
       }

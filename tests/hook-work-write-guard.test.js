@@ -51,13 +51,15 @@ const PROTECTED = [
 const ALLOWED = [
   '.planning/work/items/00/SIG-1.md',
   '.planning/WATCHLIST.md',
-  '.planning/work/WORK.md',
   '.planning/DECISIONS.md',
   '.planning/archive/pre-work-store-v2/BUGS.md',
   '.planning/work/history/sub/x.md',
   'src/BUGS.md',
   'README.md',
 ];
+// The switch itself: blocked on a v2 store with its own message (REVIEW I7 —
+// setting schema_version by hand would turn the guard off), allowed elsewhere.
+const WORK_MD = '.planning/work/WORK.md';
 
 function makeProject(store) {
   const dir = mkdtempSync(join(tmpdir(), 'sig-guard-'));
@@ -89,7 +91,7 @@ describe.each([['store off', null], ['v1 store (no schema_version)', 'v1'], ['v1
     beforeEach(() => { dir = makeProject(store); });
     afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-    it.each([...PROTECTED, ...ALLOWED])('allows Edit, Write and MultiEdit of %s', (rel) => {
+    it.each([...PROTECTED, ...ALLOWED, WORK_MD])('allows Edit, Write and MultiEdit of %s', (rel) => {
       for (const ev of [edit, write, multi]) {
         const { status, stderr } = runHook(ev(join(dir, rel)));
         expect(status, `${ev.name} ${rel}: ${stderr}`).toBe(0);
@@ -152,13 +154,26 @@ describe('work write guard — v2 store', () => {
     }
   });
 
-  it('an alias without .planning in its name is not caught by the hook (prefilter); protectedTarget still classifies it', () => {
+  it('an alias without .planning in its name is caught: the prefilter tests the realpath too (REVIEW suggestion)', () => {
     symlinkSync(join(dir, '.planning'), join(dir, 'plan-alias'));
-    // The cheap prefilter looks for ".planning" in the resolved path, so an
-    // alias without it is only caught when the path names .planning somewhere.
-    // Here the realpath candidate is what matches.
-    expect(runHook(edit(join(dir, '.planning', '..', 'plan-alias', 'BUGS.md'))).status).toBe(0);
+    symlinkSync(join(dir, '.planning', 'work', 'items'), join(dir, 'notes'));
+    expect(runHook(edit(join(dir, 'plan-alias', 'BUGS.md'))).status).toBe(2);
+    expect(runHook(edit(join(dir, 'notes', '00', 'SIG-1.json'))).status).toBe(2);
+    expect(runHook(write(join(dir, 'notes', '05', 'SIG-5001.json'))).status).toBe(2); // not there yet
+    expect(runHook(edit('notes/00/SIG-1.json', dir)).status).toBe(2); // relative to the event cwd
+    expect(runHook(edit(join(dir, 'notes', '00', 'SIG-1.md'))).status).toBe(0); // a body stays editable
     expect(protectedTarget(join(dir, 'plan-alias', 'BUGS.md'))).toMatchObject({ blocked: true });
+  });
+
+  it('blocks Edit, Write and MultiEdit of work/WORK.md, naming /sig:item and the migration tool', () => {
+    for (const ev of [edit, write, multi]) {
+      const { status, stderr } = runHook(ev(join(dir, WORK_MD)));
+      expect(status, ev.name).toBe(2);
+      expect(stderr).toMatch(/^\[signal:check-state-write\] /);
+      expect(stderr).toContain('schema_version');
+      expect(stderr).toContain('/sig:item');
+      expect(stderr).toContain('work-migrate-v2');
+    }
   });
 
   it('blocks an upper-case path on a case-insensitive filesystem', (ctx) => {
