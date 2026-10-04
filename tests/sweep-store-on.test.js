@@ -222,14 +222,9 @@ describe('t4.4 — checkClosingTooLong', () => {
 describe('t4.4 — runSweep carries the closing-too-long advisory', () => {
   it('a v2 store with a stale closing item shows it in the sweep report', async () => {
     const { runSweep } = await import('../plugin/tools/lib/sweep.js');
-    // The ban is lifted here: published-facts, which the sweep also runs, is t4.5a's.
-    const prev = process.env.SIGNAL_FORBID_LIST_PARSERS;
-    delete process.env.SIGNAL_FORBID_LIST_PARSERS;
-    try {
-      const { findings } = await runSweep(storeProject(2));
-      expect(findings.filter((f) => f.check === 'closing-too-long').map((f) => f.file)).toEqual([recordPath('SIG-6')]);
-    } finally {
-      process.env.SIGNAL_FORBID_LIST_PARSERS = prev;
-    }
+    // No ban lift: published-facts, which the sweep also runs, reads the store
+    // since t4.5a, so the whole sweep runs under the file's ban.
+    const { findings } = await runSweep(storeProject(2));
+    expect(findings.filter((f) => f.check === 'closing-too-long').map((f) => f.file)).toEqual([recordPath('SIG-6')]);
   });
 });

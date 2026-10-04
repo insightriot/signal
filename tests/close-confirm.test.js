@@ -350,6 +350,18 @@ describe('the sweep confirms closes — its one writing step (confirmClosesInSwe
     expect(snapshotTree(work)).toEqual(before);
   });
 
+  // REVIEW pass 1 suggestion: the confirm step runs before the closing-too-long
+  // check, so one report never both warns that an item is stuck closing and
+  // says it confirmed it.
+  it('runSweep does not contradict itself: a stale closing item it confirms is not also reported closing too long', async () => {
+    const { work, shas } = await plantClone();
+    const OLD = '2026-01-02T10:00:00.000Z';
+    await v2Store(work, [rec('SIG-1', [{ ...created, at: OLD }, request(shas[0], OLD)])]);
+    const { findings } = await runSweep(work);
+    expect(findings.filter((f) => f.check === 'closes-confirmed').map((f) => f.file)).toEqual([records.recordPath('SIG-1')]);
+    expect(findings.filter((f) => f.check === 'closing-too-long')).toEqual([]);
+  });
+
   it('v2, nothing confirmable: no finding and nothing written', async () => {
     const { work } = await plantClone();
     await v2Store(work, [rec('SIG-1', [created])]);

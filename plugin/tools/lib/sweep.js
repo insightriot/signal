@@ -724,9 +724,11 @@ export async function runSweep(baseDir = process.cwd()) {
   raw.push(...(await checkStaleInbox(baseDir)));
   raw.push(...(await checkBacklogDischarge(baseDir)));
   raw.push(...checkWorkStore(baseDir));
-  raw.push(...checkClosingTooLong(baseDir));
   // The one step that writes (D-M6E13-21): confirmed closes, on a v2 store only.
+  // It runs before the closing-too-long check, so an item it confirms is not
+  // also reported as stuck closing in the same report (REVIEW pass 1).
   raw.push(...(await confirmClosesInSweep(baseDir)));
+  raw.push(...checkClosingTooLong(baseDir));
   raw.push(...checkClaudeMdBloat(baseDir));
   raw.push(...(await checkPhaseLog(baseDir)));
 
