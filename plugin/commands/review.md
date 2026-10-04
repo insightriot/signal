@@ -27,7 +27,7 @@ Read the **effective profile** before any other workflow step: `readEffectivePro
 | `performance_pass: false` | Skip Step 3 (Performance Analysis). |
 | `simplification_pass: false` | Skip Step 4 (Simplification Pass). |
 | `attention: unattended` | Auto-advance through review; no per-step confirmation. |
-| `attention: checkpointed` | Confirm at end of phase. |
+| `attention: checkpointed` | No end-of-phase confirm: announce what the phase produced and continue. Gray-area decisions are still asked (`drive.md` § 3b). |
 | `attention: attended` | Confirm at every step inside the phase (`gates.confirm_in_phase`). |
 | `gate_strictness: strict` | Runs the anti-rationalization check at the gate. **That is all `gate_strictness` does to gates** (`v0.1.31`) — it no longer sets confirm cadence. |
 
@@ -279,4 +279,4 @@ If `markFresh` fails (lock contention, git unavailable):
 - [ ] Simplification pass completed
 - [ ] **Fresh-context reviewer dispatched (§ 4.5) and its findings triaged into the taxonomy** — or a `cannot-dispatch` recorded in the report naming what was attempted. Not satisfiable by "the change looked fine to me": the point of the step is that the author is not the reader.
 - [ ] Review report written
-- [ ] User approves review results — **when `gates.confirm_review` is set** (`attention` ≠ `unattended`). Unattended: no ask; the transition is recorded, not approved (`B74`).
+- [ ] User approves review results — **when `gates.confirm_review` is set** (`attention: attended`). Checkpointed and unattended: no ask; the transition is recorded, not approved (`B74`).

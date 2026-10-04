@@ -6,7 +6,7 @@ Every phase transition passes a gate. **Whether that gate asks a person is set b
 | `attention` | What the gate does at a phase boundary |
 |---|---|
 | `attended` | Asks. The user explicitly says "proceed". |
-| `checkpointed` | Asks at phase boundaries; runs free **inside** a phase. |
+| `checkpointed` | Advances without asking (SIG-275) — asks only on a gray-area decision, and stops at a floor or a loop ceiling. |
 | `unattended` | Advances without asking — **except at a floor or a loop ceiling** (below). |
 
 > **Why the old line was wrong, kept because the correction is the point.** This file opened with

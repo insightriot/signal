@@ -83,7 +83,7 @@ Read the **effective profile** before any other workflow step: `readEffectivePro
 | Override | Effect on this phase |
 |---|---|
 | `attention: unattended` | Auto-advance — present recommendations as a batch, accept all without confirmation. |
-| `attention: checkpointed` | Confirm once at the end of Step 4 (batch approval). No per-decision ask. |
+| `attention: checkpointed` | Ask once at the end of Step 4 for batch approval of the gray-area decisions — that is a decision ask (`drive.md` § 3b), so checkpointed still asks it. No per-decision ask, and no separate end-of-phase "continue to PLAN?" confirm after it. |
 | `attention: attended` | Confirm each gray-area decision individually (`gates.confirm_in_phase`) — one `AskUserQuestion` per gray area. |
 | `gate_strictness: strict` | Runs the anti-rationalization check at the gate. **That is all `gate_strictness` does to gates** (`v0.1.31`) — it no longer sets confirm cadence. |
 
@@ -193,7 +193,7 @@ For each call:
 
 In `--auto` mode: select the recommended option for every gray area without invoking `AskUserQuestion`. Log each auto-pick to STDOUT and write to `CONTEXT.md`. Then ask once at the end for batch approval (plain prompt, not `AskUserQuestion`).
 
-**`attention` from the effective profile modulates this**, not `gate_strictness` (`B108`): `unattended` → batch-approve at end (`--auto` shape); `checkpointed` → confirm once at the end; `attended` → confirm each decision individually as it is made, one `AskUserQuestion` per gray area. Read it from the expanded config as **`gates.confirm_in_phase`** (true only at `attended`) rather than re-deriving it here — `applyRigorOverrides` already computed it, and a second derivation is how two dials drift apart.
+**`attention` from the effective profile modulates this**, not `gate_strictness` (`B108`): `unattended` → batch-approve at end (`--auto` shape); `checkpointed` → ask once at the end for batch approval of the decisions (a decision ask, still asked — `drive.md` § 3b), with no separate end-of-phase confirm after it; `attended` → confirm each decision individually as it is made, one `AskUserQuestion` per gray area. Read it from the expanded config as **`gates.confirm_in_phase`** (true only at `attended`) rather than re-deriving it here — `applyRigorOverrides` already computed it, and a second derivation is how two dials drift apart.
 
 ### 5. Capture Decisions
 
@@ -260,7 +260,7 @@ Before transitioning to PLAN, verify:
 - [ ] REQUIREMENTS.md exists with acceptance criteria
 - [ ] **At FULL and FEATURE:** `checkOutcomeOracle(requirementsContent, tier)` returns `ok` — a stated measure, or a decline with a substantive reason. Skipped at SPIKE and SKETCH, where it returns `not-required`.
 - [ ] No unresolved gray areas that would block PLAN
-- [ ] User explicitly approves transition to PLAN — **when `gates.confirm_discuss` is set** (`attention` ≠ `unattended`). Unattended: no ask; the transition is recorded, not approved (`B74`).
+- [ ] User explicitly approves transition to PLAN — **when `gates.confirm_discuss` is set** (`attention: attended`). Checkpointed and unattended: no ask; the transition is recorded, not approved (`B74`).
 
 **Do NOT set `phase: PLAN` here** (M5.E13, `B51`). `/sig:plan` performs its own at-entry `transitionPhase` — since M5.E9 the **incoming** command advances the phase, not the outgoing one. This file used to instruct the DISCUSS close to set it too, and both instructions survived the change. Obeying both makes `/sig:plan`'s at-entry call resolve the phase being *left* as **PLAN** and append `PLAN (date)` **before PLAN has run**; `completed_phases` is deliberately append-only with no dedupe (D-M5E9-5), so that false entry is permanent.
 

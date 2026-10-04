@@ -454,19 +454,25 @@ export function applyRigorOverrides(config, profile) {
   const attention = attentionFor(profile);
   merged.workflow.attention = attention;
 
-  const confirmsPhases = attention !== 'unattended';
+  // Phase-end confirms ("Accept ... and continue?") are `attended` only (SIG-275).
+  // `checkpointed` advances every phase (drive.md); it asks only on a gray-area
+  // decision and stops at a live floor. This used to be `attention !==
+  // 'unattended'`, so a checkpointed run under /sig:drive asked at every phase end.
+  const confirmsPhases = attention === 'attended';
   merged.workflow.auto_advance = attention === 'unattended';
   merged.gates.confirm_discuss = confirmsPhases;
   merged.gates.confirm_plan = confirmsPhases;
   merged.gates.confirm_execute = confirmsPhases;
   merged.gates.confirm_verify = confirmsPhases;
   merged.gates.confirm_review = confirmsPhases;
-  merged.gates.confirm_ship = confirmsPhases;
+  // SHIP keeps its value from before SIG-275. Nothing reads it to decide the
+  // merge: ship.md's PR approval is unconditional, held by the SHIP floors in
+  // FLOORS (drive.js), which no attention level turns off.
+  merged.gates.confirm_ship = attention !== 'unattended';
 
-  // The new gate, and the reason `checkpointed` is not just a rename of `light`:
-  // it confirms at PHASE BOUNDARIES and not at every step inside a phase. That
-  // in-phase ceremony is where the ~48-86 touchpoints per FULL Epic actually live,
-  // and until now it existed only in command prose, enforced by nothing.
+  // Confirms at every step INSIDE a phase. That in-phase ceremony is where the
+  // ~48-86 touchpoints per FULL Epic actually live, and until now it existed
+  // only in command prose, enforced by nothing.
   merged.gates.confirm_in_phase = attention === 'attended';
 
   return merged;
