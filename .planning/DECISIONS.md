@@ -3797,7 +3797,7 @@ priorities against each other before asking. The reader fixes were folded into p
 **Outcome data point 1 (`D-M6E12-12`):** the user picked a proposed priority (1), after one
 clarifying question that exposed the missing dependency check.
 
-## 2026-10-03 — M6.E13 DISCUSS: work items as records — Epic 1 of the storage re-architecture (D-M6E13-1 … D-M6E13-17)
+## 2026-10-03 — M6.E13 DISCUSS: work items as records — Epic 1 of the storage re-architecture (D-M6E13-1 … D-M6E13-18)
 
 **Label:** *"work items as records"*. Source: [`analysis/STORAGE-ARCHITECTURE-PROPOSAL.md`](../analysis/STORAGE-ARCHITECTURE-PROPOSAL.md),
 the synthesis of three deep-research runs (`analysis/item-architecture-research/`), all of which converged
@@ -3890,5 +3890,15 @@ loop ceiling; the cutover (`D-M6E13-12`); SHIP. Precondition: the session runs t
 `D-M6E11-4` (readers parse generated lists) → `D-M6E13-8`; `D-M6E11-8` (folder must agree with status)
 → `D-M6E13-1/4`; `D-M6E11-13`'s item-in-Epic-folder half → `D-M6E13-5`; `D-M6E11-14` (statuses carried
 unjudged) → `D-M6E13-14`; `D-M6E11-20` (generated files keep `B{n}`) → `D-M6E13-11`.
-**Kept:** `D-BR0928-1…7`, `D-M6E11-6` (one file for life — now literally), `D-M6E11-9/10`, `D-M6E11-12`,
-`D-M5E17-4/5`.
+**Kept:** `D-BR0928-1`, `-3` … `-7`, `D-M6E11-6` (one file for life — now literally), `D-M6E11-9/10`,
+`D-M6E11-12`, `D-M5E17-4/5`.
+
+### D-M6E13-18 — Files stay; status moves. Supersedes `D-BR0928-2` (Brett, 2026-10-03)
+`D-BR0928-2` said things physically move (`git mv` inbox → backlog → done → archive) so the repo does not
+fill with "things all over creation". This Epic keeps every file at one path and records movement as
+events — the stay-put pattern that decision rejected. **Missed at DISCUSS and caught before close:** the
+proposal and `D-M6E13` "Kept" line first listed `D-BR0928-1…7` as kept, which was wrong for `-2`.
+Put to Brett as an explicit choice (files stay / move once at close / keep moving folders); he chose
+**files stay**. The clutter concern is answered by views that show only open and recent items
+(`D-M6E13-11`, FR6) and by ID buckets, not by folders; the research's reason is that path changes are
+themselves a defect source (link rewriting on every move, `work-links.js`; the unit-grouping chain).

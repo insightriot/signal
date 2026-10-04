@@ -11,7 +11,7 @@ Load this at the start of every work session. Short on purpose.
 become JSON records at fixed ID-subfolder paths, status derived from recorded events, prose in a sibling
 `.md`, one write library, a hook blocking direct edits, every store-on reader on the library; Signal's
 268 items migrated. Branch `feat/m6.e13-work-item-records`. Requirements:
-[`M6.E13-REQUIREMENTS.md`](M6.E13-REQUIREMENTS.md); decisions `D-M6E13-1` … `D-M6E13-17`.
+[`M6.E13-REQUIREMENTS.md`](M6.E13-REQUIREMENTS.md); decisions `D-M6E13-1` … `D-M6E13-18`.
 **How to run it:** `/sig:resume` → `/sig:drive`, pushing through phase boundaries and halting only
 for a scope call, an unresolved review finding, the cutover of Signal's own store, and SHIP
 (`D-M6E13-17`). Later Epics, in order: Epics/units as records, typed verdicts, `STATE.md` split,
