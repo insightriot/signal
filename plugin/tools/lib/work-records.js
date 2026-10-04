@@ -14,17 +14,17 @@
 // the migration's pure converter, `convertV1Item`, and writes refuse with a
 // message naming `node tools/work-migrate-v2.mjs` (PLAN Decision 1, AC4.2).
 //
-// Read side: t2.1. ID allocation: t2.3.
+// Read side: t2.1. ID allocation and the duplicate-ID check: t2.3.
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, realpathSync, existsSync } from 'node:fs';
-import { join, relative, resolve, sep } from 'node:path';
+import { basename, join, relative, resolve, sep } from 'node:path';
 
 import { WorkStoreError } from './work-errors.js';
 import { parseRecord, checkEvents, deriveStatus, epicOf } from './work-record.js';
 import { bodyDirFor, convertV1Item } from './work-convert.js';
 import { ITEM_ID_RE } from './work-item.js';
-import { isStoreOn, isGitRepo, STORE_OFF_MESSAGE, WORK_DIR, WORK_FILE } from './work-store.js';
+import { isStoreOn, isGitRepo, walkFiles, STORE_OFF_MESSAGE, WORK_DIR, WORK_FILE } from './work-store.js';
 import { parseFrontmatter } from './state.js';
 
 const ITEMS_DIR = 'items';
@@ -433,4 +433,137 @@ function readV2One(baseDir, key, id) {
   else if (b?.isFile()) body = { rel: bodyRel, abs: join(baseDir, bodyRel) };
   const r = readOne({ id, rel, abs: join(baseDir, rel) }, key, body);
   return r.entry ? { records: [r.entry], broken: [] } : { records: [], broken: [r.broken] };
+}
+
+// ── ID allocation (t2.3, AC2.3) ─────────────────────────────────────────────
+//
+// v1 `nextId` (`work-store.js`) is the exemplar and its rules hold unchanged:
+// one past the highest number this machine has ever seen for the key, in the
+// working tree (uncommitted files count) and in git history across every ref;
+// a shallow clone falls back to each ref's tree (`basis: 'ls-tree'`); outside
+// a repo only the working tree is read (`basis: 'worktree-only'`); a git
+// failure inside a repo throws rather than hand out a number another branch
+// holds. No network.
+//
+// What changes for v2: a name may be `KEY-n.json` (a record) as well as
+// `KEY-n.md` (a v1 item, or a body), and the working-tree read covers the
+// whole of `.planning/archive/` — which includes `archive/pre-work-store-v2/`,
+// where the cutover relocates the v1 item files.
+
+const ID_GIT_PATHS = ['.planning/work/', '.planning/archive/'];
+const ID_TREE_DIRS = [join('.planning', WORK_DIR), join('.planning', 'archive')];
+const GIT_MAX_BUFFER = 256 * 1024 * 1024;
+
+// Where the cutover relocates the v1 item files (PLAN t7.3), repo-root-relative.
+export const RELOCATED_V1_REL = '.planning/archive/pre-work-store-v2';
+
+/**
+ * Split a file name carrying an item ID into its key and number:
+ * `KEY-n.json` or `KEY-n.md`, otherwise null.
+ * @param {string} name
+ * @returns {{id: string, key: string, n: number, ext: '.json'|'.md'}|null}
+ */
+export function parseIdFileName(name) {
+  const ext = name.endsWith('.json') ? '.json' : name.endsWith('.md') ? '.md' : null;
+  if (ext === null) return null;
+  const id = name.slice(0, -ext.length);
+  if (!ITEM_ID_RE.test(id)) return null;
+  return { id, key: keyOf(id), n: numberOf(id), ext };
+}
+
+function maxFromNames(names, key) {
+  let max = 0;
+  for (const name of names) {
+    const parsed = parseIdFileName(basename(name.trim()));
+    if (parsed && parsed.key === key) max = Math.max(max, parsed.n);
+  }
+  return max;
+}
+
+function runGit(baseDir, args, execFn) {
+  return String(execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: GIT_MAX_BUFFER }));
+}
+
+/**
+ * Allocate the next item ID on a v1 or v2 store. Reads only; writing the
+ * record is the caller's job, under the `work` lock.
+ *
+ * @param {string} baseDir
+ * @param {{execFn?: Function}} [opts]
+ * @returns {{id: string, basis: 'git-log'|'ls-tree'|'worktree-only'}}
+ * @throws {WorkStoreError} CONFIG when the store is off or misconfigured; IO when git fails inside a repo
+ */
+export function nextIdV2(baseDir, opts = {}) {
+  const execFn = opts.execFn ?? execFileSync;
+  const { key } = requireOn(baseDir);
+  let max = 0;
+  for (const rel of ID_TREE_DIRS) max = Math.max(max, maxFromNames(walkFiles(join(baseDir, rel)), key));
+
+  if (!isGitRepo(baseDir, execFn)) return { id: `${key}-${max + 1}`, basis: 'worktree-only' };
+
+  try {
+    let hasHead = true;
+    try {
+      runGit(baseDir, ['rev-parse', '--verify', '--quiet', 'HEAD'], execFn);
+    } catch {
+      hasHead = false;
+    }
+    const shallow = runGit(baseDir, ['rev-parse', '--is-shallow-repository'], execFn).trim() === 'true';
+
+    if (!shallow) {
+      const out = runGit(
+        baseDir,
+        ['log', '--all', ...(hasHead ? ['HEAD'] : []), '--format=', '--name-only', '--', ...ID_GIT_PATHS],
+        execFn,
+      );
+      max = Math.max(max, maxFromNames(out.split('\n').filter(Boolean), key));
+      return { id: `${key}-${max + 1}`, basis: 'git-log' };
+    }
+
+    const refs = runGit(baseDir, ['for-each-ref', '--format=%(refname)', 'refs/heads', 'refs/remotes'], execFn)
+      .split('\n')
+      .filter(Boolean);
+    if (hasHead) refs.push('HEAD');
+    for (const ref of refs) {
+      const out = runGit(baseDir, ['ls-tree', '-r', '--name-only', ref, '--', ...ID_GIT_PATHS], execFn);
+      max = Math.max(max, maxFromNames(out.split('\n').filter(Boolean), key));
+    }
+    return { id: `${key}-${max + 1}`, basis: 'ls-tree' };
+  } catch (err) {
+    throw new WorkStoreError('IO', `nextIdV2: could not read git history in ${baseDir}: ${err.message}`);
+  }
+}
+
+/**
+ * Every ID carried by more than one item file in the working tree (AC2.3).
+ *
+ * An item is carried by its record (`items/NN/KEY-n.json`) or, outside
+ * `items/`, by a v1 item file (`KEY-n.md` under `.planning/work/` or
+ * `.planning/archive/`). A body (`items/NN/KEY-n.md`) is part of its record,
+ * not a second carrier. `archive/pre-work-store-v2/` is skipped: after the
+ * cutover every migrated item is there AND in `items/`, by design.
+ *
+ * @param {string} baseDir
+ * @returns {Array<{id: string, paths: string[]}>} sorted by number; paths sorted
+ * @throws {WorkStoreError} CONFIG when the store is off or misconfigured
+ */
+export function findDuplicateIds(baseDir) {
+  const { key } = requireOn(baseDir);
+  const byId = new Map();
+  for (const rel of ID_TREE_DIRS) {
+    for (const abs of walkFiles(join(baseDir, rel))) {
+      const path = toPosix(relative(baseDir, abs));
+      if (path.startsWith(`${RELOCATED_V1_REL}/`)) continue;
+      const parsed = parseIdFileName(basename(abs));
+      if (!parsed || parsed.key !== key) continue;
+      const inItems = path.startsWith(`${ITEMS_REL}/`);
+      if (inItems !== (parsed.ext === '.json')) continue; // a body, or a stray .json outside items/
+      if (!byId.has(parsed.id)) byId.set(parsed.id, []);
+      byId.get(parsed.id).push(path);
+    }
+  }
+  return [...byId]
+    .filter(([, paths]) => paths.length > 1)
+    .map(([id, paths]) => ({ id, paths: paths.sort() }))
+    .sort((a, b) => numberOf(a.id) - numberOf(b.id));
 }
