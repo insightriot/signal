@@ -12,8 +12,11 @@
 //      ⚠ This is the BROAD check, not the strong one. The per-reader twins
 //      (`advise-store-on`, `drive-store-on`, `sweep-store-on`, `facts-store-on`,
 //      `work-writers`) assert WHAT was read; this asserts that NOTHING reached a
-//      parser — including through a try/catch, which would turn the throw into
-//      a cannot-check string: every result is searched for the flag's message.
+//      parser. Under the flag every guarded call is also COUNTED
+//      (`forbiddenCallCount`), and the count must be 0 after each reader — so a
+//      call inside a `try { … } catch {}` that discards the throw still fails.
+//      (Searching the result for the flag's message, which this also does, only
+//      catches a catch that copies the message into the result.)
 //   2. SOURCE TEXT — no list-parsing regex literal (`B\d`, `^##`, `^\|`, a
 //      `|`-cell split) in the reader modules outside `legacy-lists.js`, except
 //      the reviewed exemptions below, each with its reason. The scanner is a
@@ -49,6 +52,7 @@ import { captureToFutureIdeas, captureToBugs, captureToOpenQuestions } from '../
 import { captureCheckpointContext } from '../plugin/tools/lib/checkpoint.js';
 import { reportCloses, runConfirmCloses } from '../plugin/tools/lib/close-confirm.js';
 import { parseBacklogRows } from '../plugin/tools/lib/backlog.js';
+import { forbiddenCallCount, resetForbiddenCalls } from '../plugin/tools/lib/legacy-lists.js';
 import {
   storeProject,
   cleanupStoreProjects,
@@ -134,10 +138,12 @@ function project(version, { writes = false } = {}) {
  */
 async function banViolation(run, base, version) {
   let result;
+  resetForbiddenCalls();
   try {
     result = await run(base);
   } catch (err) {
     if (String(err?.message).includes(BAN_MARK)) return `threw from legacy-lists: ${err.message}`;
+    if (forbiddenCallCount() > 0) return `a parser was called ${forbiddenCallCount()} time(s) and the throw was swallowed`;
     if (version === 1 && err?.code === 'CONFIG') return null;
     return `threw (not the ban, but the reader did not run): ${err?.code ?? ''} ${err?.message}`;
   }
@@ -147,7 +153,8 @@ async function banViolation(run, base, version) {
   } catch {
     text = String(result);
   }
-  return text.includes(BAN_MARK) ? `a parser was reached and the throw was caught: ${text.slice(0, 300)}` : null;
+  if (text.includes(BAN_MARK)) return `a parser was reached and the throw was caught: ${text.slice(0, 300)}`;
+  return forbiddenCallCount() > 0 ? `a parser was called ${forbiddenCallCount()} time(s) and the throw was swallowed` : null;
 }
 
 describe('the ban at runtime: every AC3.1 reader, flag set (AC3.2)', () => {
@@ -198,6 +205,18 @@ describe('the runtime harness bites (self-test)', () => {
       }
     };
     expect(await banViolation(planted, project(2), 2)).toMatch(/^a parser was reached and the throw was caught/);
+  });
+
+  it('a reader that swallows the throw in an empty catch is reported (the call is counted)', async () => {
+    const planted = async () => {
+      try {
+        parseBacklogRows('## a');
+      } catch {
+        // swallowed: nothing of the ban's message survives into the result
+      }
+      return { rows: [] };
+    };
+    expect(await banViolation(planted, project(2), 2)).toMatch(/^a parser was called 1 time\(s\) and the throw was swallowed/);
   });
 
   it('a reader that dies for another reason is reported, not passed', async () => {

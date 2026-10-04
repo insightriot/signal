@@ -28,9 +28,20 @@ import { LEADING_ID_RE } from './leading-id.js';
 
 const FORBID_FLAG = 'SIGNAL_FORBID_LIST_PARSERS';
 
+// Test hooks for the ban. Under the flag every guarded call is counted before
+// it throws, so a call inside a `try { … } catch {}` that discards the throw
+// is still seen (M6.E13 VERIFY loop 1, AC3.2). Without the flag nothing is
+// counted and the count stays 0.
+let forbiddenCalls = 0;
+export const forbiddenCallCount = () => forbiddenCalls;
+export function resetForbiddenCalls() {
+  forbiddenCalls = 0;
+}
+
 function guard(name, fn) {
   const wrapped = function (...args) {
     if (process.env[FORBID_FLAG] === '1') {
+      forbiddenCalls += 1;
       throw new Error(
         `legacy-lists: ${name}() was called while ${FORBID_FLAG}=1 — a Markdown list parser was reached ` +
           'on a path that must read the work records instead (M6.E13 Decision 12)'

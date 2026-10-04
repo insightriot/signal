@@ -50,7 +50,9 @@ const RELOCATED = [
 const IMPORTERS = ['legacy-lists.js', 'bugs-tally.js', 'backlog.js', 'advise.js', 'advise-priorities.js', 'drain.js', 'status.js',
   'work-marker.js', 'atomic-write.js', 'drive.js', 'advise-digest.js', 'advise-corpus.js', 'doc-hygiene.js'];
 
-const functions = Object.entries(legacy).filter(([, v]) => typeof v === 'function');
+// The ban's own test hooks (VERIFY loop 1, AC3.2) are not parsers and are not guarded.
+const TEST_HOOKS = ['forbiddenCallCount', 'resetForbiddenCalls'];
+const functions = Object.entries(legacy).filter(([k, v]) => typeof v === 'function' && !TEST_HOOKS.includes(k));
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -137,6 +139,27 @@ describe('legacy-lists — flag set: every exported function throws when called'
       expect(() => fn('')).toThrow(new RegExp(`legacy-lists: ${name}\\(\\) was called while ${FLAG}=1`));
     });
   }
+
+  it('every guarded call is counted before it throws, even when the throw is swallowed', () => {
+    vi.stubEnv(FLAG, '1');
+    legacy.resetForbiddenCalls();
+    expect(legacy.forbiddenCallCount()).toBe(0);
+    try {
+      legacy.isBugId('B1');
+    } catch {
+      // swallowed
+    }
+    expect(() => legacy.parseBacklogRows('')).toThrow();
+    expect(legacy.forbiddenCallCount()).toBe(2);
+    legacy.resetForbiddenCalls();
+    expect(legacy.forbiddenCallCount()).toBe(0);
+  });
+
+  it('with the flag unset nothing is counted', () => {
+    legacy.resetForbiddenCalls();
+    legacy.isBugId('B1');
+    expect(legacy.forbiddenCallCount()).toBe(0);
+  });
 
   it('the old modules hand out the guarded function, so a call through them throws too', () => {
     vi.stubEnv(FLAG, '1');
