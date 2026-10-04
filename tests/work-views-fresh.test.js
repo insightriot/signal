@@ -6,13 +6,12 @@
 //    regeneration through `checkRecords`; a hand edit, a missed regeneration
 //    and a record that does not fold are each reported, and the views refuse
 //    to regenerate over the broken record (as v1 refuses over a broken item);
-//  - this repository, gated on `schema_version: 2`: `checkRecords` has zero
-//    findings. Before the cutover (t7.3) the live store is v1 and it skips,
-//    saying so.
+//  - this repository: the store is v2 and `checkRecords` has zero
+//    findings. (Before the cutover, t7.3, it skipped on the v1 store; the gate
+//    was removed at t7.4.)
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -128,20 +127,16 @@ describe('regenerate-and-diff on a v2 fixture (AC5.2)', () => {
 // ── This repository (AC5.2 from the cutover) ────────────────────────────────
 
 const REPO = fileURLToPath(new URL('..', import.meta.url));
-const workMd = readFileSync(join(REPO, '.planning/work/WORK.md'), 'utf-8');
-const frontmatter = workMd.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? '';
-const LIVE_IS_V2 = /^schema_version:\s*2\s*$/m.test(frontmatter);
 
+// The cutover gate (a skip while the live store was v1) was removed at M6.E13
+// t7.4: the store is v2, and a guard that can skip itself could read clean
+// over nothing. If the store were ever not v2, the first test fails instead.
 describe('this repository (AC5.2, live)', () => {
-  if (LIVE_IS_V2) {
-    it('every record valid, every record folds, every view equals a regeneration: checkRecords has zero findings', () => {
-      expect(records.checkRecords(REPO)).toEqual([]);
-    });
-  } else {
-    it.skip('live store is v1 until the M6.E13 cutover (t7.3)', () => {});
-  }
+  it('the live store is v2', () => {
+    expect(records.storeVersion(REPO)).toBe(2);
+  });
 
-  it('the gate reads the live WORK.md (so the skip above is a reading, not an assumption)', () => {
-    expect(records.storeVersion(REPO)).toBe(LIVE_IS_V2 ? 2 : 1);
+  it('every record valid, every record folds, every view equals a regeneration: checkRecords has zero findings', () => {
+    expect(records.checkRecords(REPO)).toEqual([]);
   });
 });
