@@ -6,6 +6,28 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+- **[BREAKING] Work items are records that never move; status comes from what happened to them** (`M6.E13`, Epic 1 of [`analysis/STORAGE-ARCHITECTURE-PROPOSAL.md`](analysis/STORAGE-ARCHITECTURE-PROPOSAL.md)). In the `v0.1.43` store an item's status was its folder (`inbox/`, `backlog/`, `epics/<id>/`, `done/`) and closing it moved the file. Now every item is one record, `.planning/work/items/NN/SIG-n.json`, written once and never moved, with its prose beside it in `SIG-n.md`. The record holds a list of events — created, triaged, queued, started, close requested, closed, reopened, edited — and the status is worked out from that list each time it is read. Nothing stores a status, so nothing can disagree with it. `WORK.md` moves to `schema_version: 2`.
+  - **Closing as `fixed` waits for `main`.** It needs the fix's commit hash and reads ***closing*** until that commit is on the default branch; `/sig:docs-sweep` and SHIP then record the close. `/sig:resume` only reports what is ready, and stays read-only. That makes the sweep's confirm step the one place it writes. An Epic can still be closed at SHIP while its own fixes are on the branch: a *closing* item counts as done for that check only if its commit is in the branch being shipped.
+  - **`/sig:item` gains `edit`**, and `move` changes the status without touching a file. Eight actions: `new`, `triage`, `move`, `close`, `reopen`, `edit`, `show`, `list`.
+  - **The views show `SIG-n` only.** `BUGS.md`, `BACKLOG.md`, `ISSUES-INBOX.md`, `OPEN-QUESTIONS.md`, `.planning/work/EPICS.md` and `.planning/work/history/*.md` are generated from the records. Old `B{n}` numbers survive as a record field, so a reference to `B75` still resolves.
+  - **Hand edits are blocked.** The hook refuses a direct edit to a record or a view and names `/sig:item`. An item's `SIG-n.md` body is yours to edit.
+  - **Every reader goes through the records.** `/sig:advise` cites items by ID instead of `BACKLOG.md` line numbers, and `/sig:drive`, the sweep, the bug checks and SHIP's backlog step read records, never the generated lists.
+- **Projects without the store see no change.** A golden test of 25 readers on a project without the store was recorded before any reader was changed, and it still passes.
+- **Signal's own store is migrated**: 275 items became 275 records, with 0 errors. The old item files are kept unchanged under `.planning/archive/pre-work-store-v2/`, with the manifest. 145 closes were never re-checked and are marked as legacy. That count includes three closed `fixed` with no commit, which the new rules cannot confirm. The 6 closes waiting on a commit were confirmed against `origin/main` at the cutover.
+
+### Found along the way
+
+- **The migration nearly changed what `/sig:drive` proposes first.** Before the switch, the old and new readers were run over the same data and every difference was classified. A row earns a ranking bonus when it starts with a unit ID, such as an Epic ID. On records that bonus went to every item's own `SIG-n`, so it no longer picked anything out: the three Epic rows ranked #2–4 fell to #24, #26 and #27. It now comes from an ID at the start of the title, as it did before, and the top 8 match again.
+- **A duplicate close needs to name the item it duplicates, not a proof.** The first schema asked a `dup` close for proof text like every other close. What shows that an item is a duplicate is the other item's ID, so `dup_of` is required and proof is optional.
+
+### Still to come
+
+- **Other projects still cannot move into the work-item store.** `/sig:docs-migrate` (step 5 of [`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](analysis/WORK-ITEM-SYSTEM-DESIGN.md)) is not built yet. **No command turns the store on for a new project**: the script that did was removed with the old store (`SIG-274`). A project already on the `v0.1.43` store still reads, but every write refuses until it is converted. The converter, `tools/work-migrate-v2.mjs`, is a maintainer script in Signal's repository and does not ship in the plugin.
+
 ## [0.1.47] — 2026-10-03 — a finished slice archives with its main plan
 
 ### Fixed
