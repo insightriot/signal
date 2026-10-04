@@ -23,7 +23,7 @@ import { tmpdir } from 'node:os';
 
 import { readCorpus } from '../plugin/tools/lib/advise-corpus.js';
 import { gatherBigPicture, formatDigest } from '../plugin/tools/lib/advise-digest.js';
-import { prepareAdvise, renderArtifact } from '../plugin/tools/lib/advise.js';
+import { prepareAdvise, renderArtifact, runAdvise } from '../plugin/tools/lib/advise.js';
 import { validatePriorities } from '../plugin/tools/lib/advise-priorities.js';
 import { verifyCitations } from '../plugin/tools/lib/citations.js';
 import { recordPath } from '../plugin/tools/lib/work-records.js';
@@ -307,6 +307,8 @@ describe.each(VERSIONS)('t4.2a (moved from t4.2b) — the artifact on a v%i stor
     const rowPath = classified.live[0].row.path;
     expect(art).toContain(`\`${rowPath}\``);
     expect(art).toMatch(/A work item is cited by its own record file/);
+    expect(art).not.toMatch(/the discharge input did not open it/);
+    expect(art).toMatch(/`BUGS\.md` — read from the work records for the covers/);
     const v = await verifyCitations(base, art);
     expect(v.unresolved).toEqual([]);
     const evidenceTokens = checked.priorities.reduce((n, p) => n + p.evidence.length, 0);
@@ -315,5 +317,58 @@ describe.each(VERSIONS)('t4.2a (moved from t4.2b) — the artifact on a v%i stor
     // SIG-2 sits under priority 1, SIG-3 is not covered: each appears once in the appendix.
     const appendix = art.slice(art.indexOf('## Appendix'));
     expect(appendix.split(`\`${rowPath}\``).length - 1).toBe(1);
+  });
+});
+
+// ── t4.2b — the stale-read guard by ID, and the whole run, on the records.
+
+/** Close `id` in place — the store changing between reading it and writing the advisory. */
+function closeInStore(base, version, id) {
+  const it = ITEMS.find((x) => x.id === id);
+  const closed = { ...it, status: 'C' };
+  if (version === 2) {
+    put(base, recordPath(id), serializeRecord({ id, type: it.type, title: it.title, events: v2Events(closed) }));
+  } else {
+    rmSync(join(base, '.planning', it.v1, `${id}.md`));
+    put(base, `.planning/work/done/2026-09/${id}.md`, stringifyItem(v1Fields(closed), it.body ?? 'body\n'));
+  }
+}
+
+describe.each(VERSIONS)('t4.2b — runAdvise on a v%i store', (version) => {
+  it('writes an advisory whose every citation resolves, reading no list parser', async () => {
+    const base = storeProject(version);
+    const r = await runAdvise(base, { today: '2026-10-04', priorities: proposal(['SIG-2', 'SIG-4']), projectName: 'fixture' });
+    expect(r.reasons ?? []).toEqual([]);
+    expect(r.status).toBe('written');
+    expect(r.verification.unresolved).toEqual([]);
+    expect(r.artifact).toContain(`\`${r.priorities[0].covers[1].path}\``);
+    expect(r.artifact).not.toMatch(/:(null|undefined)`/);
+  });
+
+  it.each([
+    ['a covered row', 'SIG-2'],
+    ['a covered bug', 'SIG-4'],
+    ['an uncovered appendix row', 'SIG-3'],
+  ])('refuses to write when %s closes between the read and the write, naming it by ID', async (_what, id) => {
+    const base = storeProject(version);
+    const render = (args) => {
+      closeInStore(base, version, id);
+      return renderArtifact(args);
+    };
+    const r = await runAdvise(base, { today: '2026-10-04', priorities: proposal(['SIG-2', 'SIG-4']), render, projectName: 'fixture' });
+    expect(r.status).toBe('skipped');
+    expect(r.reason).toMatch(new RegExp(`no longer live.*${id}\\b`));
+    expect(r.reason).toMatch(/Re-run/);
+  });
+
+  it('refuses to write when a cited record is gone', async () => {
+    const base = storeProject(version);
+    const render = (args) => {
+      rmSync(join(base, version === 2 ? recordPath('SIG-2') : '.planning/work/backlog/SIG-2.md'));
+      return renderArtifact(args);
+    };
+    const r = await runAdvise(base, { today: '2026-10-04', priorities: proposal(['SIG-2']), render, projectName: 'fixture' });
+    expect(r.status).toBe('skipped');
+    expect(r.reason).toMatch(/SIG-2/);
   });
 });

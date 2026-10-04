@@ -48,6 +48,7 @@ import { readCorpus, ADVISOR_SOURCES } from './advise-corpus.js';
 import { nextStepFor } from './branch-work.js';
 import { gatherBigPicture, formatDigest } from './advise-digest.js';
 import { validatePriorities } from './advise-priorities.js';
+import { listRecords } from './work-records.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -440,7 +441,11 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
               ? 'not ranked — an Epic open on another branch is listed in *Open on other branches*, because ' +
                 'finishing it comes before any priority'
               : 'not ranked — no Epic is open on another branch'
-            : 'the discharge input did not open it on this run';
+            : corpus.sources?.backlog?.store
+              ? // Store on: no discharge input runs (the rows are the live records), so
+                // "did not open it" would be a false reason.
+                'read from the work records for the covers; the row inputs run no discharge check on a work store'
+              : 'the discharge input did not open it on this run';
       out.push('');
       out.push(`**Read, not consulted:** ${readNotConsulted.map((s) => `\`${s}\` — ${why(s)}`).join('; ')}.`);
     }
@@ -725,6 +730,31 @@ async function findStaleCitations(baseDir, probes) {
   return stale;
 }
 
+/**
+ * The stale-read guard on the work store (M6.E13 t4.2b): an item has no line to
+ * re-read, so each cited ID is checked against a fresh read of the records — it
+ * must still exist and still be live (not closed, not *closing*, AC7.3). One
+ * `listRecords` call for the whole check. A store that cannot be read now fails
+ * every ID, rather than passing them unchecked.
+ *
+ * @returns {Array<{id: string, why: string}>}
+ */
+function findStaleItems(baseDir, ids) {
+  let byId;
+  try {
+    byId = new Map(listRecords(baseDir).records.map((r) => [r.id, r.status]));
+  } catch (err) {
+    return [...ids].map((id) => ({ id, why: `the work store could not be re-read — ${err.message}` }));
+  }
+  const stale = [];
+  for (const id of ids) {
+    const status = byId.get(id);
+    if (status === undefined) stale.push({ id, why: 'no longer in the work store' });
+    else if (status === 'C' || status === 'closing') stale.push({ id, why: status === 'C' ? 'closed' : 'closing' });
+  }
+  return stale;
+}
+
 /** A row's distinctive slice: the renderer never rewrites a row, but a heading can carry decoration. */
 function rowProbe(text) {
   return String(text ?? '').replace(/^[\s`*_~]+/, '').slice(0, 24);
@@ -876,6 +906,27 @@ export async function runAdvise(baseDir, { today, priorities, render = renderArt
   // citations off by exactly 5 lines: a human edit above every cited row, after
   // the read. `verifyCitations` checks a line is WITHIN the file, never what it
   // says, so this re-reads and checks each cited row and bug line still carries it.
+  //
+  // Store on (t4.2b): rows and bugs are cited by their record file, which has no
+  // line, so the check is by ID instead — each one must still exist and be live.
+  if (corpus.sources.backlog.store) {
+    const ids = new Set([
+      ...[...classified.live, ...classified.dropped].map((s) => s.row.id),
+      ...checked.priorities.flatMap((p) => p.covers.filter((c) => c.kind !== 'new').map((c) => c.id)),
+    ]);
+    const staleItems = findStaleItems(baseDir, ids);
+    if (staleItems.length > 0) {
+      return {
+        ...base,
+        status: 'skipped',
+        path: rel,
+        reason:
+          `${staleItems.length} cited work item(s) are no longer live — the store changed between reading it ` +
+          `and writing this artifact (${staleItems.map((x) => `${x.id}: ${x.why}`).join('; ')}). ` +
+          'Re-run to regenerate against the current records',
+      };
+    }
+  }
   const probes = [
     ...[...classified.live, ...classified.dropped].map((s) => ({ path: s.row.path, line: s.row.line, probe: rowProbe(s.row.text) })),
     ...checked.priorities.flatMap((p) =>
