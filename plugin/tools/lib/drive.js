@@ -24,6 +24,7 @@ import { LOOP_BOUNDED_PHASES } from './loop-ceiling.js';
 import { atomicWrite } from './atomic-write.js';
 import { parseBacklogRows } from './backlog.js';
 import { openQuestionsNaming } from './legacy-lists.js';
+import { leadingUnitId } from './leading-id.js';
 import { readState, partitionCompletedPhases, PHASES } from './state.js';
 import { findWorkOnOtherBranches, nextStepFor } from './branch-work.js';
 import { resolveArtifactPath } from './resume.js';
@@ -582,12 +583,15 @@ export async function proposeEpicCandidates(baseDir) {
     // read from the records. A closing item is done here (AC7.3).
     //
     // RANKED BY THE SAME `rankBacklogRow`, adapted rather than rewritten: each
-    // record becomes a row with its title as the text and its ID as the leading
-    // id. Every record has an ID, so the +5 is the same for all and orders
-    // nothing; a record has no heading depth, so the `##` penalty never applies;
-    // the title-text signals (a `·` tail, a groomed tag, a dated or "what
-    // shipped" record) rank exactly as they rank a heading. Ties keep ID order
-    // where a file kept line order — both are the order the work was filed in.
+    // record becomes a row with its title as the text, and the leading id is
+    // the unit id the TITLE leads with (`leadingUnitId`, the rule the store-off
+    // path applies to a heading) — never the record's own ID. Every record has
+    // an ID, so passing it gave all of them the +5 and the Epic-titled rows
+    // (M5.E20, M5.E12, M5.E14) fell from #2–4 to #24–27 (M6.E13 t7.1b R5). A
+    // record has no heading depth, so the `##` penalty never applies; the
+    // title-text signals (a `·` tail, a groomed tag, a dated or "what shipped"
+    // record) rank exactly as they rank a heading. Ties keep ID order where a
+    // file kept line order — both are the order the work was filed in.
     const fromStore = [];
     for (const row of storeBacklogRows(store.records)) {
       if (candidates.some((c) => c.id && c.id === row.id)) continue;
@@ -598,7 +602,7 @@ export async function proposeEpicCandidates(baseDir) {
         path: row.path,
         line: null,
         why: 'open item in the groomed queue',
-        rank: rankBacklogRow({ text: row.text, leadingId: row.id }),
+        rank: rankBacklogRow({ text: row.text, leadingId: leadingUnitId(row.text) }),
       });
     }
     // Stable sort: equal ranks keep `listRecords`' ID order.

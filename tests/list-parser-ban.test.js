@@ -217,7 +217,7 @@ const READER_MODULES = [
   'drive.js', 'status.js', 'sweep.js', 'doc-hygiene.js', 'published-facts.js', 'bug-fixed-jev.js',
   'backlog.js', 'bugs-tally.js', 'add.js', 'checkpoint.js', 'drain.js',
   'work-record.js', 'work-records.js', 'work-views.js', 'work-convert.js', 'work-write-guard.js', 'scrub.js',
-  'close-confirm.js',
+  'close-confirm.js', 'leading-id.js',
 ];
 
 // The list-parsing shapes, as they appear in source text.
@@ -288,13 +288,15 @@ const EXEMPTIONS = [
     reason: 'the v1→v2 converter strips the pasted table row from ONE item\'s body (AC8.3); retired with v1 at S7' },
   { file: 'work-convert.js', shape: '^\\|', has: 'const ROW_RE',
     reason: 'the same row as above (the shape matches twice)' },
+  { file: 'leading-id.js', shape: 'B\\d', has: '|(?:B\\d+))\\b/',
+    reason: '`LEADING_ID_RE`: whether ONE heading or title leads with a unit or bug id — an ID check, not a list parse (M6.E13 R5)' },
 ];
 
 const isExempt = (hit) => EXEMPTIONS.some((e) => e.file === hit.file && e.shape === hit.shape && hit.text.includes(e.has));
 
 describe('the ban in source text: no list-parsing literal in the reader modules (AC3.2)', () => {
-  it('scans the reviewed module set: 22 files, all present, legacy-lists.js not among them', () => {
-    expect(READER_MODULES).toHaveLength(22);
+  it('scans the reviewed module set: 23 files, all present, legacy-lists.js not among them', () => {
+    expect(READER_MODULES).toHaveLength(23);
     for (const f of READER_MODULES) expect(existsSync(join(LIB, f)), f).toBe(true);
     expect(READER_MODULES).not.toContain('legacy-lists.js');
   });

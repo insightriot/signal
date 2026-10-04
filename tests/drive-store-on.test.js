@@ -67,6 +67,40 @@ describe.each(VERSIONS)('t4.3 — proposeEpicCandidates on a v%i store reads the
   });
 });
 
+// M6.E13 t7.1b R5: the +5 "leads with a unit id" bonus is earned by the TITLE,
+// as the view heading earned it store-off, never by the record's own ID (which
+// every record has). Without this, Epic-titled rows (M5.E20, M5.E12, M5.E14 on
+// this repository) fell from #2–4 to #24–27 at the cutover.
+const RANKED = [
+  { id: 'SIG-1', type: 'FEAT', title: 'Export the report', status: 'T', v1: 'work/backlog' },
+  { id: 'SIG-2', type: 'FEAT', title: 'Tagged row · **roadmap** · medium', status: 'T', v1: 'work/backlog' },
+  { id: 'SIG-3', type: 'FEAT', title: 'M5.E20 — an Epic-titled row', status: 'T', v1: 'work/backlog' },
+];
+
+describe.each(VERSIONS)('R5 — on a v%i store, only a title that leads with a unit id earns the unit-id rank', (version) => {
+  it('an Epic-titled record outranks a tagged one and a plain one', async () => {
+    const { candidates } = await proposeEpicCandidates(storeProject(version, { items: RANKED }));
+    expect(candidates.map((c) => c.id)).toEqual(['SIG-3', 'SIG-2', 'SIG-1']);
+  });
+
+  it('matches the store-off ranking of the same rows', async () => {
+    const off = storeProject(version, { items: [] });
+    rmSync(join(off, '.planning', 'work', 'WORK.md'));
+    put(off, '.planning/BACKLOG.md', `# Backlog\n\n${RANKED.map((it) => `### ${it.title}\n\nBody.\n`).join('\n')}`);
+    const saved = process.env.SIGNAL_FORBID_LIST_PARSERS;
+    process.env.SIGNAL_FORBID_LIST_PARSERS = '0'; // store-off parses the view, by design
+    let offTitles;
+    try {
+      offTitles = (await proposeEpicCandidates(off)).candidates.map((c) => c.title);
+    } finally {
+      process.env.SIGNAL_FORBID_LIST_PARSERS = saved;
+    }
+    const onTitles = (await proposeEpicCandidates(storeProject(version, { items: RANKED }))).candidates.map((c) => c.title);
+    expect(offTitles).toEqual(RANKED.map((it) => it.title).reverse());
+    expect(onTitles).toEqual(offTitles);
+  });
+});
+
 describe('t4.3 — proposeEpicCandidates with a broken WORK.md', () => {
   it('says it could not look, and does not fall back to BACKLOG.md', async () => {
     const base = storeProject(2);

@@ -10,9 +10,10 @@
 // `status.js`, `work-marker.js`) re-export them statically under the same names,
 // so every existing import and every store-off path is unchanged.
 //
-// ⚠ NEARLY A LEAF MODULE. Its one import from `lib/` is `work-marker.js`, itself
-// a leaf, for the inbox status line's format. The modules that re-export it
-// must never be imported from here, or the re-export is a cycle.
+// ⚠ NEARLY A LEAF MODULE. Its two imports from `lib/` are leaves: `work-marker.js`,
+// for the inbox status line's format, and `leading-id.js`, for `LEADING_ID_RE`.
+// The modules that re-export it must never be imported from here, or the
+// re-export is a cycle.
 //
 // THE TEST-ONLY FLAG. With `SIGNAL_FORBID_LIST_PARSERS=1` in the environment,
 // every exported function throws when CALLED, naming itself — never on import,
@@ -23,6 +24,7 @@
 // functions, so one call reports the parser the caller reached, not a helper.
 
 import { INBOX_STATUS_RE } from './work-marker.js';
+import { LEADING_ID_RE } from './leading-id.js';
 
 const FORBID_FLAG = 'SIGNAL_FORBID_LIST_PARSERS';
 
@@ -293,17 +295,8 @@ const QUALIFIED_DONE_RE =
 const ISO_DATE_RE = /\b(\d{4}-\d{2}-\d{2})\b/;
 const VERSION_RE = /\bv\d+\.\d+(?:\.\d+)?\b/;
 const UNIT_ID_RE = /\bM\d+(?:\.\d+)?\.E\d+\b/;
-// The id a row LEADS with, past the decoration real headings carry: an ordinal
-// (`1. `), a status glyph, backticks, bold, strikethrough.
-//
-// **Both decoration runs are BOUNDED, and that is a fix rather than a style.**
-// Written first as `[…]*(?:\d+\.\s*)?[…]*`, two adjacent overlapping star-runs
-// backtrack quadratically on a non-matching heading: measured at REVIEW, a line
-// of 50,000 backticks took **3.9 seconds** inside `parseBacklogRows`, and
-// `/sig:docs-sweep` runs this over every heading in the file. Real heading decoration
-// is a handful of characters, so a bound costs nothing and removes the class.
-const LEADING_ID_RE =
-  /^[\s`*_~✅▶⚠✂]{0,40}(?:\d+\.\s{0,4})?[\s`*_~]{0,10}((?:M\d+(?:\.\d+)?\.E\d+)|(?:B\d+))\b/;
+// `LEADING_ID_RE` — the id a row LEADS with — lives in `leading-id.js`, a leaf,
+// so the store-on ranking can use it without reaching a parser (M6.E13 R5).
 
 /**
  * Whether a heading records its own closure, and what it records.
@@ -372,7 +365,7 @@ function readRowDischarge(text) {
 // It was introduced by the REVIEW fix that widened the tense and caught by the
 // NEXT review round — the author's own ReDoS probe had missed it, having tried
 // backtick runs, digit runs and repeated verbs but never a long whitespace run
-// after an id. `LEADING_ID_RE` above bounds its decoration runs for this exact
+// after an id. `LEADING_ID_RE` (leading-id.js) bounds its decoration runs for this exact
 // class and records the 3.9 s measurement that justified it; this is the same
 // lesson, relearned one function down. The timing is pinned by a test.
 //
@@ -402,7 +395,7 @@ function readRowDischarge(text) {
 // It is also what makes the pattern linear again: an optional separator BETWEEN
 // two unbounded whitespace runs is quadratic (1.9 ms at 1k, 5.9 s at 60k). With
 // the separator required the literal anchors the two runs — measured flat at
-// 1.1 ms on a 300,000-character heading. `LEADING_ID_RE` above bounds its runs
+// 1.1 ms on a 300,000-character heading. `LEADING_ID_RE` (leading-id.js) bounds its runs
 // for the same class and records the 3.9 s measurement behind it. Pinned by a test.
 //
 // ⚠ `(?!-)` AFTER EACH VERB, because `\b` is satisfied by a hyphen. Without it
