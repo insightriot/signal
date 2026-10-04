@@ -159,5 +159,6 @@
 | SIG-266 | `confirmed` | P2 | **private-name guard can time out under a full parallel run** |
 | SIG-267 | `confirmed` | P2 | **advise digest never reads a roadmap file inside .planning/ — planned milestones vanish from the priorities** |
 | SIG-268 | `confirmed` | P3 | **advisory says "Could not read: nothing" while the digest lists two gaps** |
+| SIG-277 | `needs-triage` | — | **Concurrent promotes of one inbox block can write twin records (dedupe runs outside the work lock)** |
 
-*0 needs-triage · 48 confirmed · 0 closing · 108 closed (156 total) · closes more than 30 days before the newest event are in `work/history/`*
+*1 needs-triage · 48 confirmed · 0 closing · 108 closed (157 total) · closes more than 30 days before the newest event are in `work/history/`*
