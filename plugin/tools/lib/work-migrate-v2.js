@@ -21,9 +21,11 @@
 //      `os.tmpdir()`, never inside the project): a copy of `.planning/` with the
 //      store swapped in — records and bodies under `work/items/NN/`, the v1
 //      item files relocated to `archive/pre-work-store-v2/` (relative paths
-//      kept; item files only, never an Epic folder or its documents), `WORK.md`
-//      at `schema_version: 2`, the views regenerated. Then `listRecords` and
-//      `checkRecords` must be clean over it.
+//      kept; item files only, never an Epic folder or its documents), the v1
+//      status folders it emptied removed (`rmdir` only — never a file),
+//      `WORK.md` at `schema_version: 2` with its body rewritten to describe
+//      records, the views regenerated. Then `listRecords` and `checkRecords`
+//      must be clean over it.
 //   5. Probes, read-only, which close requests `confirmCloses` would confirm
 //      against the SOURCE repo's `refs/remotes/origin/<default>` (local refs,
 //      no fetch), and records the ref and its sha.
@@ -31,13 +33,14 @@
 //
 // `apply: true` does all of that first, then the same build (step 4) on the
 // project itself under the work lock, then `confirmCloses` (which writes the
-// `closed` events), then `checkRecords`. It refuses outside a git repository
+// `closed` events), then `checkRecords`; the final manifest is also kept in the
+// project as `.planning/archive/pre-work-store-v2/MANIFEST.json`. It refuses outside a git repository
 // and on a dirty working tree, so the cutover is one reviewable diff.
 //
 // Nothing here imports a Markdown list parser (`legacy-lists.js`).
 
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, posix, relative, resolve, sep, isAbsolute } from 'node:path';
 
@@ -62,6 +65,9 @@ import { isGitRepo, isStoreOn, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-st
 import { regenerateViews } from './work-views.js';
 
 const toPosix = (p) => p.split(sep).join('/');
+
+// The copy of the apply manifest kept in the project (t7.3 prep).
+export const RELOCATED_V1_MANIFEST_REL = `${RELOCATED_V1_REL}/MANIFEST.json`;
 const numberOf = (id) => Number(id.slice(id.lastIndexOf('-') + 1));
 
 // Where v1 items live, relative to `.planning/` (`work-store.js` placement).
@@ -295,17 +301,65 @@ function summarize(results) {
 
 // ── Building the v2 store into a project (the aside copy, or the project) ───
 
-function setSchemaVersion2(text) {
+// WORK.md's body on a v2 store (t7.3 prep). The v1 body describes status
+// folders, which a v2 store no longer has, so it is replaced, not patched.
+function v2WorkBody(key) {
+  return `
+# Work store
+
+This file switches the work-item store on for this project. Every bug, backlog row, inbox capture and open question is one **record**, \`.planning/work/items/NN/${key}-n.json\` (NN is the item number divided by 1000, two digits), with its body beside it as \`${key}-n.md\`. **A record never moves.** Its status is not stored: it is derived from the record's own events — \`created\` → N, \`triaged\` → T, \`queued\` → Q, \`started\` → P, \`close_requested\` → *closing*, \`closed\` → C, \`reopened\` → T.
+
+- \`items/\` — every record and its body, by number
+- \`epics/<EpicID>/\` — an Epic's documents; its items are the records whose events name the Epic
+- \`history/YYYY.md\` — closes from more than 30 days before the newest event (a view)
+
+\`key\` is the prefix of every item ID (\`${key}-412\`). The standing trigger watchlist lives next to this file in \`WATCHLIST.md\`.
+
+\`BUGS.md\`, \`BACKLOG.md\`, \`ISSUES-INBOX.md\`, \`OPEN-QUESTIONS.md\`, \`work/EPICS.md\` and \`work/history/\` are views generated from the records — do not edit them. Change an item with \`/sig:item\` (\`new\`, \`triage\`, \`move\`, \`close\`, \`reopen\`, \`edit\`, \`show\`, \`list\`); a hook blocks hand edits to records.
+
+This store was migrated from v1 item files (\`node tools/work-migrate-v2.mjs --apply\`). Those files are kept, never deleted, in \`.planning/archive/pre-work-store-v2/\`, with the migration's \`MANIFEST.json\`.
+`;
+}
+
+function toV2WorkMd(text) {
   const m = /^---\n([\s\S]*?)\n---\n/.exec(text);
   if (!m) throw new WorkStoreError('CONFIG', '.planning/work/WORK.md has no frontmatter block to set schema_version in.');
   const lines = m[1].split('\n').filter((l) => !/^schema_version\s*:/.test(l));
   const keyAt = lines.findIndex((l) => /^key\s*:/.test(l));
   lines.splice(keyAt + 1, 0, 'schema_version: 2');
-  return `---\n${lines.join('\n')}\n---\n${text.slice(m[0].length)}`;
+  const key = String(lines[keyAt].replace(/^key\s*:\s*/, '')).replace(/^['"]|['"]$/g, '').trim();
+  return `---\n${lines.join('\n')}\n---\n${v2WorkBody(key)}`;
 }
 
-// Relocate each v1 item file (never a folder), write each record and body, and
-// set WORK.md to v2. Views are the caller's: they need the store to read v2.
+// The v1 status folders, relative to `.planning/`. After relocation each is
+// removed if — and only if — it is empty: `rmdirSync` refuses a folder that
+// holds anything, so no file is ever removed. Epic folders are never touched.
+const V1_STATUS_DIRS = ['work/inbox', 'work/backlog', 'work/done'];
+
+function removeEmptiedStatusDirs(planning) {
+  const tryRemove = (abs) => {
+    try {
+      rmdirSync(abs);
+    } catch {
+      /* not empty, or not there — leave it */
+    }
+  };
+  for (const rel of V1_STATUS_DIRS) {
+    const abs = join(planning, rel);
+    let entries;
+    try {
+      entries = readdirSync(abs, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const e of entries) if (e.isDirectory()) tryRemove(join(abs, e.name)); // done/YYYY-MM/
+    tryRemove(abs);
+  }
+}
+
+// Relocate each v1 item file (never a folder), remove the status folders that
+// are now empty, write each record and body, and set WORK.md to v2 (frontmatter
+// and body). Views are the caller's: they need the store to read v2.
 async function buildInto(target, results) {
   const planning = join(target, '.planning');
   for (const r of results) {
@@ -313,6 +367,7 @@ async function buildInto(target, results) {
     mkdirSync(dirname(dest), { recursive: true });
     renameSync(join(planning, r.relPath), dest);
   }
+  removeEmptiedStatusDirs(planning);
   for (const r of results) {
     const rec = join(target, recordPath(r.record.id));
     mkdirSync(dirname(rec), { recursive: true });
@@ -320,7 +375,7 @@ async function buildInto(target, results) {
     await atomicWrite(join(target, bodyPath(r.record.id)), r.body);
   }
   const workMd = join(planning, 'work', 'WORK.md');
-  await atomicWrite(workMd, setSchemaVersion2(readFileSync(workMd, 'utf-8')));
+  await atomicWrite(workMd, toV2WorkMd(readFileSync(workMd, 'utf-8')));
 }
 
 // A run of git against the SOURCE repo, whatever cwd the caller passed — so
@@ -461,7 +516,16 @@ export async function migrateWorkStoreV2(baseDir, opts = {}) {
     })),
   };
 
-  const writeManifest = () => writeFileSync(join(outDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  // At apply the manifest is ALSO kept in the project, beside the relocated
+  // v1 files, so the cutover commit carries the record of what `confirmCloses`
+  // confirmed (t7.3 prep). Written last, after confirming, so it is final.
+  const writeManifest = () => {
+    const text = `${JSON.stringify(manifest, null, 2)}\n`;
+    writeFileSync(join(outDir, 'manifest.json'), text);
+    if (manifest.mode === 'apply' && existsSync(join(baseDir, RELOCATED_V1_REL))) {
+      writeFileSync(join(baseDir, RELOCATED_V1_MANIFEST_REL), text);
+    }
+  };
   if (verification.errors.length > 0) {
     writeManifest();
     throw new WorkStoreError('SCHEMA', `the built store did not verify (${outDir}); the project was not changed:\n  ${verification.errors.join('\n  ')}`);

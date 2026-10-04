@@ -12,9 +12,11 @@
 // ASIDE as a v2 project in OUT (default: a new directory under $TMPDIR; never
 // inside the repository), with `OUT/manifest.json`. Nothing in the repository
 // changes. `--apply` does the same, then migrates the repository itself:
-// records into `.planning/work/items/`, `WORK.md` to `schema_version: 2`, the v1
-// item files relocated to `.planning/archive/pre-work-store-v2/`, close requests
-// confirmed, views regenerated. It refuses a dirty working tree.
+// records into `.planning/work/items/`, `WORK.md` to `schema_version: 2` (its body
+// rewritten for records), the v1 item files relocated to
+// `.planning/archive/pre-work-store-v2/` and the emptied status folders removed,
+// close requests confirmed, views regenerated, and the manifest kept as
+// `.planning/archive/pre-work-store-v2/MANIFEST.json`. It refuses a dirty working tree.
 //
 //   node tools/work-migrate-v2.mjs                 # dry run
 //   node tools/work-migrate-v2.mjs --out /tmp/v2   # dry run, built in /tmp/v2

@@ -202,6 +202,32 @@ describe('migrateWorkStoreV2 — dry run builds aside, verified (AC8.1)', () => 
     expect(findDuplicateIds(out)).toEqual([]);
   });
 
+  it('removes the v1 status folders it emptied, never a file: a folder still holding one stays', async () => {
+    const base = v1Project(join(root, 'p'));
+    put(base, '.planning/work/backlog/notes.txt', 'not an item\n');
+    const out = join(root, 'out');
+    await migrateWorkStoreV2(base, { outDir: out, now: NOW });
+    expect(existsSync(join(out, '.planning/work/inbox'))).toBe(false);
+    expect(existsSync(join(out, '.planning/work/done'))).toBe(false);
+    expect(readFileSync(join(out, '.planning/work/backlog/notes.txt'), 'utf-8')).toBe('not an item\n');
+    // the Epic folder that held an item keeps its documents
+    expect(existsSync(join(out, '.planning/archive/epics/M5.E1/README.md'))).toBe(true);
+    // and the dry run leaves the source project alone
+    expect(existsSync(join(base, '.planning/work/inbox/SIG-1.md'))).toBe(true);
+  });
+
+  it('rewrites WORK.md\'s body to describe records, keeping the frontmatter', async () => {
+    const base = v1Project(join(root, 'p'));
+    const out = join(root, 'out');
+    await migrateWorkStoreV2(base, { outDir: out, now: NOW });
+    const text = readFileSync(join(out, '.planning/work/WORK.md'), 'utf-8');
+    expect(text).toMatch(/^---\nkey: SIG\nschema_version: 2\n---\n\n# Work store\n/);
+    expect(text).toContain('.planning/work/items/NN/SIG-n.json');
+    expect(text).toContain('`/sig:item`');
+    expect(text).toContain('.planning/archive/pre-work-store-v2/');
+    expect(text).not.toContain('v1 body text');
+  });
+
   it('the manifest accounts for every v1 file, close form and body change, with zero errors', async () => {
     const base = v1Project(join(root, 'p'));
     const { manifest } = await migrateWorkStoreV2(base, { outDir: join(root, 'out'), now: NOW });
@@ -315,8 +341,12 @@ describe('migrateWorkStoreV2 — apply (temp git repos only)', () => {
     const res = await migrateWorkStoreV2(work, { apply: true, outDir: join(root, 'out'), now: NOW });
     expect(res.mode).toBe('apply');
     expect(storeVersion(work)).toBe(2);
-    expect(readFileSync(join(work, '.planning/work/WORK.md'), 'utf-8')).toMatch(/schema_version: 2\n/);
-    expect(readFileSync(join(work, '.planning/work/WORK.md'), 'utf-8')).toMatch(/v1 body text/);
+    // t7.3 prep: the body is rewritten to describe records, not status folders.
+    const workMd = readFileSync(join(work, '.planning/work/WORK.md'), 'utf-8');
+    expect(workMd).toMatch(/^---\nkey: SIG\nschema_version: 2\n---\n/);
+    expect(workMd).not.toMatch(/v1 body text/);
+    expect(workMd).toContain('.planning/work/items/NN/SIG-n.json');
+    expect(workMd).not.toMatch(/`inbox\/`|`backlog\/`|`done\/YYYY-MM\/`/);
     // relocated, never deleted; the Epic folder and its documents stay
     expect(existsSync(join(work, '.planning/archive/pre-work-store-v2/work/done/2026-09/SIG-4.md'))).toBe(true);
     expect(existsSync(join(work, '.planning/archive/pre-work-store-v2/archive/epics/M5.E1/SIG-7.md'))).toBe(true);
@@ -330,9 +360,17 @@ describe('migrateWorkStoreV2 — apply (temp git repos only)', () => {
     expect(sig4.record.events.at(-1)).toMatchObject({ type: 'closed', by: 'confirmCloses', reason: 'fixed' });
     expect(checkRecords(work)).toEqual([]);
     expect(findDuplicateIds(work)).toEqual([]);
-    // the manifest is written aside, not into the project
+    // the manifest is written aside, and a copy goes into the project beside
+    // the relocated v1 files (t7.3 prep) — committed with the cutover, the
+    // record of what confirmCloses confirmed. Final: written after confirming.
     expect(existsSync(join(root, 'out', 'manifest.json'))).toBe(true);
     expect(existsSync(join(work, 'manifest.json'))).toBe(false);
+    const kept = readFileSync(join(work, '.planning/archive/pre-work-store-v2/MANIFEST.json'), 'utf-8');
+    expect(kept).toBe(readFileSync(join(root, 'out', 'manifest.json'), 'utf-8'));
+    expect(JSON.parse(kept).closes.confirmed).toEqual(['SIG-4']);
+    // the emptied v1 status folders are removed (rmdir only); Epic folders stay
+    for (const gone of ['work/inbox', 'work/backlog', 'work/done']) expect(existsSync(join(work, '.planning', gone)), gone).toBe(false);
+    expect(existsSync(join(work, '.planning/archive/epics/M5.E1'))).toBe(true);
   });
 
   it('apply then a second run refuses (already v2)', async () => {
