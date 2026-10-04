@@ -31,6 +31,7 @@ import { atomicWrite } from './atomic-write.js';
 import { insertAboveFooter, rewriteFooter, buildBugsEntry, insertAtEnd, scrubSensitive } from './add.js';
 import { DONE_WORD_RE, declaresBugDischarge, isBugId, parseBacklogRows, parseInboxStatusLine } from './legacy-lists.js';
 import { isStoreOn } from './work-store.js';
+import { isEpicArchived, listRecords } from './work-records.js';
 
 const BACKLOG_REL = '.planning/BACKLOG.md';
 const BUGS_REL = '.planning/BUGS.md';
@@ -690,6 +691,17 @@ async function dischargeInStore(baseDir, { rows, by, at, today, base, renameFn }
  *   sources:{units:boolean, bugs:boolean}}>}
  */
 export async function backlogDischargeStatus(baseDir, { readText = null } = {}) {
+  // Store on (M6.E13 t4.5a): the records, never BACKLOG.md — a view. See
+  // `storeDischargeStatus`. A WORK.md that cannot be read is cannot-evaluate,
+  // never a fall-back to the view.
+  let storeOn;
+  try {
+    storeOn = isStoreOn(baseDir).on;
+  } catch (err) {
+    return storeCannot(`the work store could not be read — ${err.message}`);
+  }
+  if (storeOn) return storeDischargeStatus(baseDir);
+
   const path = join(baseDir, BACKLOG_REL);
   const cannot = (reason, extra = {}) => ({
     outcome: BACKLOG_DISCHARGE.CANNOT_EVALUATE,
@@ -788,6 +800,91 @@ export async function backlogDischargeStatus(baseDir, { readText = null } = {}) 
   };
 }
 
+const storeCannot = (reason) => ({
+  outcome: BACKLOG_DISCHARGE.CANNOT_EVALUATE,
+  reason,
+  rows: 0,
+  liveRows: 0,
+  resolvable: 0,
+  stale: [],
+  blind: [],
+  broken: [],
+  sources: { units: false, bugs: false, records: false },
+});
+
+/**
+ * `backlogDischargeStatus` with the work store on (M6.E13 t4.5a) — and the ONE
+ * definition `/sig:docs-sweep`'s `checkBacklogDischarge` renders (t4.4 wrote it
+ * there first; it lives here so the two cannot disagree).
+ *
+ * A record cannot say "pending" about itself while closed — its status is
+ * folded from its events — so the old question (a row naming finished work)
+ * becomes the one a record CAN still get wrong: an item still open (T, Q or P)
+ * in an Epic that is recorded closed. The Epic is the record's own (`epicOf`),
+ * never an id read out of a title. Closed means archived (`isEpicArchived`), or
+ * closed by `resolveClosures` — the unit half of `readClosureSources`, the same
+ * definition the file check uses. The bug half is not needed: a bug is a record
+ * whose own status says whether it is closed. A *closing* item is done (AC7.3)
+ * and never reported.
+ *
+ * Shape: the store-off result's, with `line: null`, plus `epic` and `status`
+ * on each stale and blind entry and `broken` (records that do not read, by ID).
+ * `rows` and `liveRows` count the live items (T, Q, P); `resolvable` those in an
+ * Epic. With none in an Epic the outcome is `clean`: every record's Epic is
+ * known, so "in no Epic" is an answer, unlike a row with no leading id.
+ * `sources.units` is whether unit closure was READ (false when no item needed
+ * it, or it could not be); `sources.bugs` is false (not consulted);
+ * `sources.records` is true. `readText` does not apply: nothing is read as text.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<object>}
+ */
+export async function storeDischargeStatus(baseDir) {
+  let store;
+  try {
+    store = listRecords(baseDir);
+  } catch (err) {
+    return storeCannot(`the work store could not be read — ${err.message}`);
+  }
+  const live = store.records.filter((r) => ['T', 'Q', 'P'].includes(r.status));
+  const inEpic = live.filter((r) => r.epic);
+  const archived = new Map(inEpic.map((r) => [r.epic, isEpicArchived(baseDir, r.epic)]));
+
+  let units = null;
+  let unitsBlind = null;
+  if (inEpic.some((r) => !archived.get(r.epic))) {
+    const closure = await readUnitClosure(baseDir);
+    units = closure.units;
+    unitsBlind = closure.blind[0] ?? null;
+  }
+
+  const stale = [];
+  const blind = [];
+  for (const r of inEpic) {
+    const at = { heading: String(r.record.title ?? r.id), line: null, id: r.id, epic: r.epic, status: r.status };
+    if (archived.get(r.epic)) stale.push({ ...at, evidence: `${r.epic} is archived` });
+    else if (units === null) blind.push({ heading: at.heading, line: null, id: r.id, epic: r.epic, source: 'unit closure' });
+    else if (units.get(r.epic)?.closed) stale.push({ ...at, evidence: units.get(r.epic).reason });
+  }
+
+  const blindAll = blind.length > 0 || store.broken.length > 0;
+  return {
+    outcome: stale.length > 0 ? BACKLOG_DISCHARGE.STALE : blindAll ? BACKLOG_DISCHARGE.CANNOT_EVALUATE : BACKLOG_DISCHARGE.CLEAN,
+    reason: stale.length === 0 && blindAll
+      ? [blind.length ? `${blind.length} item(s) sit in an Epic whose closure could not be read — ${unitsBlind}` : null,
+        store.broken.length ? `${store.broken.length} work item(s) could not be read` : null].filter(Boolean).join('; ')
+      : null,
+    rows: live.length,
+    liveRows: live.length,
+    resolvable: inEpic.length,
+    stale,
+    blind,
+    unitsBlind,
+    broken: store.broken,
+    sources: { units: units !== null, bugs: false, records: true },
+  };
+}
+
 /**
  * The two closure sources, kept apart.
  *
@@ -805,10 +902,34 @@ export async function backlogDischargeStatus(baseDir, { readText = null } = {}) 
  * @returns {Promise<{units: Map|null, bugs: Map|null, blind: string[]}>}
  */
 async function readClosureSources(baseDir, readText = null) {
-  const blind = [];
-  let units = null;
+  const { units, blind } = await readUnitClosure(baseDir, readText);
   let bugs = null;
 
+  try {
+    const { walkBugEntries } = await import('./bugs-tally.js');
+    const content = readText ? await readText(BUGS_REL) : await readFile(join(baseDir, BUGS_REL), 'utf-8');
+    bugs = new Map();
+    for (const e of walkBugEntries(content)) {
+      if (e.kind !== 'row' || !e.id) continue;
+      if (e.status === null) continue; // unreadable status cell — no answer
+      bugs.set(e.id, {
+        closed: e.status === 'fixed' || e.status === 'dismissed',
+        reason: `BUGS.md records ${e.id} ${e.status}`,
+      });
+    }
+  } catch (err) {
+    blind.push(`the bug catalog could not be read — ${err.message}`);
+  }
+
+  return { units, bugs, blind };
+}
+
+// The unit half of `readClosureSources`: `resolveClosures`, as a map of unit →
+// `{closed, reason}`, or null when it could not answer. Shared with the
+// store-on `storeDischargeStatus`, which needs no bug source.
+async function readUnitClosure(baseDir, readText = null) {
+  const blind = [];
+  let units = null;
   try {
     const { resolveClosures, CLOSURE } = await import('./closure.js');
     const { relative } = await import('node:path');
@@ -829,24 +950,7 @@ async function readClosureSources(baseDir, readText = null) {
   } catch (err) {
     blind.push(`unit closure could not be resolved — ${err.message}`);
   }
-
-  try {
-    const { walkBugEntries } = await import('./bugs-tally.js');
-    const content = readText ? await readText(BUGS_REL) : await readFile(join(baseDir, BUGS_REL), 'utf-8');
-    bugs = new Map();
-    for (const e of walkBugEntries(content)) {
-      if (e.kind !== 'row' || !e.id) continue;
-      if (e.status === null) continue; // unreadable status cell — no answer
-      bugs.set(e.id, {
-        closed: e.status === 'fixed' || e.status === 'dismissed',
-        reason: `BUGS.md records ${e.id} ${e.status}`,
-      });
-    }
-  } catch (err) {
-    blind.push(`the bug catalog could not be read — ${err.message}`);
-  }
-
-  return { units, bugs, blind };
+  return { units, blind };
 }
 
 /** The minimal BUGS.md skeleton used only when a promote must create it. */

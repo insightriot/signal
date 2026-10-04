@@ -154,12 +154,24 @@ function bugSummary(it) {
   return `**${cell(titleOf(it))}**`;
 }
 
-function renderBugs(listed, allBugs) {
-  const rows = listed.map((it) => `| ${it.id} | \`${statusWord(it)}\` | ${cell(it.record.priority ?? '—')} | ${bugSummary(it)} |`);
+/**
+ * The tally line `BUGS.md` publishes, over every BUG record (closes outside the
+ * window included). Exported for `published-facts.js` (M6.E13 t4.5a), which
+ * checks the view carries the line its records derive.
+ *
+ * @param {Array<{status: string}>} allBugs — BUG records with their folded status
+ * @returns {string}
+ */
+export function renderBugTally(allBugs) {
   const n = (pred) => allBugs.filter(pred).length;
-  const tally = `*${n((b) => b.status === 'N')} needs-triage · ${n((b) => ['T', 'Q', 'P'].includes(b.status))} confirmed · `
+  return `*${n((b) => b.status === 'N')} needs-triage · ${n((b) => ['T', 'Q', 'P'].includes(b.status))} confirmed · `
     + `${n((b) => b.status === 'closing')} closing · ${n((b) => b.status === 'C')} closed (${allBugs.length} total) · `
     + `closes more than ${RECENT_CLOSE_DAYS} days before the newest event are in \`work/history/\`*`;
+}
+
+function renderBugs(listed, allBugs) {
+  const rows = listed.map((it) => `| ${it.id} | \`${statusWord(it)}\` | ${cell(it.record.priority ?? '—')} | ${bugSummary(it)} |`);
+  const tally = renderBugTally(allBugs);
   return [GENERATED_MARKER, '# Bugs', '', '| ID | Status | Pri | Summary |', '|---|---|---|---|', ...rows, '', tally, ''].join('\n');
 }
 

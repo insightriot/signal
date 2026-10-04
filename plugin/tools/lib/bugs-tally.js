@@ -68,6 +68,59 @@ export {
 } from './legacy-lists.js';
 
 /**
+ * The same counts, from the work records (M6.E13 t4.5a) — the store-on twin of
+ * `deriveBugCounts`, in its exact shape so `formatTallySegment` renders it.
+ *
+ * Only BUG records count, by their folded status, mapped as the v1 view's
+ * status column maps them (`work-generate.js` `bugStatusWord`): N is
+ * needs-triage; T, Q and P are confirmed; a close with reason `fixed` is fixed,
+ * any other close dismissed. A *closing* bug — its fix requested and waiting
+ * for its commit — counts as fixed: on a v1 store that is how every
+ * `fixed in commit` close reads through the converter, and the v1 view counted
+ * it fixed. There are no heading captures in a store, so `capturedUntriaged` is
+ * 0, and no status cell to misread, so `unreadable` is empty.
+ *
+ * @param {Array<{record: object, status: string}>} records — `listRecords(...).records`
+ * @returns {{needsTriage:number, confirmed:number, dismissed:number,
+ *   fixed:number, capturedUntriaged:number, tableRows:number, total:number,
+ *   unreadable:Array}}
+ */
+export function deriveBugCountsFromRecords(records) {
+  const counts = { needsTriage: 0, confirmed: 0, dismissed: 0, fixed: 0 };
+  let total = 0;
+  for (const r of records) {
+    if (r.record.type !== 'BUG') continue;
+    total++;
+    if (r.status === 'N') counts.needsTriage++;
+    else if (r.status === 'closing') counts.fixed++;
+    else if (r.status === 'C') {
+      const close = r.record.events.findLast((e) => e.type === 'closed');
+      if (close?.reason === 'fixed') counts.fixed++;
+      else counts.dismissed++;
+    } else counts.confirmed++;
+  }
+  return { ...counts, capturedUntriaged: 0, tableRows: total, total, unreadable: [] };
+}
+
+/**
+ * The ids a bug record is known by, for matching text written about it
+ * (M6.E13 t4.5a): its `SIG-n`, then each `B{n}` form — its `legacy_id` when
+ * that is one (a migrated catalog row), and `B{n}` for its own number, which is
+ * how the v1 BUGS.md view showed every bug (`D-M6E11-20`). Measured on this
+ * repository: of 156 bug records, 127 carry `legacy_id` `B{n}` for their own
+ * `n`, 16 none, and 13 a `BUGS.md:LINE` capture reference — which is not an id
+ * anyone writes, so it is not matched.
+ *
+ * @param {{id: string, legacy_id?: string}} record
+ * @returns {{ids: string[], label: string}} `label` is `SIG-4 (B117, B4)`
+ */
+export function bugRecordIds(record) {
+  const n = record.id.slice(record.id.lastIndexOf('-') + 1);
+  const aliases = [...new Set([/^B\d+$/.test(record.legacy_id ?? '') ? record.legacy_id : null, `B${n}`].filter(Boolean))];
+  return { ids: [record.id, ...aliases], label: `${record.id} (${aliases.join(', ')})` };
+}
+
+/**
  * Render the counts as the tally line's leading segment, for a human to paste
  * or a future writer to use. Deliberately does NOT rewrite the file: the
  * footer's narrative half is hand-written history and this module has no

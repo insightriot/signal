@@ -42,10 +42,9 @@ import {
 import { enumerateRetros, parseExistingHooks, renderIndex } from './retro-index.js';
 import { runDriftChecks, renderDriftReport } from './state-drift.js';
 import { ALL_DRIFT_CHECKS, REACH } from './published-facts.js';
-import { backlogDischargeStatus, BACKLOG_DISCHARGE, REASON_NO_BACKLOG } from './backlog.js';
+import { backlogDischargeStatus, storeDischargeStatus, BACKLOG_DISCHARGE, REASON_NO_BACKLOG } from './backlog.js';
 import { isStoreOn, checkStore } from './work-store.js';
-import { checkRecords, isEpicArchived, listClosing, listRecords, storeVersion } from './work-records.js';
-import { resolveClosures, CLOSURE } from './closure.js';
+import { checkRecords, listClosing, listRecords, storeVersion } from './work-records.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -253,8 +252,14 @@ export async function retroIndexFreshness(baseDir) {
  * @returns {Promise<Array<{check: string, severity: string, file: string, message: string}>>}
  */
 export async function checkBacklogDischarge(baseDir) {
-  const store = readRecords(baseDir);
-  if (store) return storeDischarge(baseDir, store);
+  let storeOn;
+  try {
+    storeOn = isStoreOn(baseDir).on;
+  } catch (err) {
+    return [mkFinding('backlog-discharge', 'advisory', WORK_MD_REL,
+      `the backlog could not be checked — the work store could not be read — ${err.message}`)];
+  }
+  if (storeOn) return storeDischarge(baseDir);
   const rel = PLANNING_DIR + '/BACKLOG.md';
   let result;
   try {
@@ -307,67 +312,37 @@ export async function checkBacklogDischarge(baseDir) {
 /**
  * `checkBacklogDischarge` with the store on (M6.E13 t4.4), read from the records.
  *
- * A record cannot say "pending" about itself while closed — its status is folded
- * from its events — so the old question (a row naming finished work) becomes the
- * one a record CAN still get wrong: an item still open (T, Q or P) in an Epic
- * that is recorded closed. The Epic is the record's own (`epicOf`), never an id
- * read out of a title. Closed means archived (`isEpicArchived`), or closed by
- * `resolveClosures` — the same unit-closure definition the file check uses. A
- * closing item is done here (AC7.3), so it is never reported.
+ * A renderer only: what counts as stale is `backlog.js` `storeDischargeStatus`
+ * (the store-on half of `backlogDischargeStatus`, t4.5a) — a live item (T, Q
+ * or P) whose own Epic is archived or closed by `resolveClosures` — so this
+ * check and that function cannot disagree. The records are read there, once.
  *
  * Blindness is reported beside the result, never instead of it (the rule the
  * file check states above): records that do not read, and items in an Epic
  * that is not archived when unit closure could not be read.
- *
- * ⚠ `backlog.js` `backlogDischargeStatus` still reads BACKLOG.md; t4.5a makes it
- * store-aware, and when it does the two must give the same answer.
  */
-async function storeDischarge(baseDir, store) {
+async function storeDischarge(baseDir) {
   const finding = (message) => mkFinding('backlog-discharge', 'advisory', WORK_MD_REL, message);
-  if (store.error) return [finding(`the backlog could not be checked — ${store.error}`)];
-
-  const inEpic = store.records.filter((r) => ['T', 'Q', 'P'].includes(r.status) && r.epic);
-  let units = null;
-  let unitsBlind = null;
-  if (inEpic.some((r) => !isEpicArchived(baseDir, r.epic))) {
-    try {
-      const res = await resolveClosures(baseDir);
-      if (res.stateReadable) units = new Map(res.units.map((u) => [u.unit, u]));
-      else unitsBlind = res.reason ?? 'unit closure is unknowable';
-    } catch (err) {
-      unitsBlind = `unit closure could not be resolved — ${err.message}`;
-    }
-  }
-
-  const stale = [];
-  const blind = [];
-  for (const r of inEpic) {
-    const at = `${r.id} (${r.status} in ${r.epic}: "${String(r.record.title ?? '').slice(0, 60)}"`;
-    if (isEpicArchived(baseDir, r.epic)) {
-      stale.push(`${at}; ${r.epic} is archived)`);
-    } else if (units === null) {
-      blind.push(`${r.id} in ${r.epic}`);
-    } else if (units.get(r.epic)?.status === CLOSURE.CLOSED) {
-      stale.push(`${at}; ${units.get(r.epic).reason})`);
-    }
-  }
+  const res = await storeDischargeStatus(baseDir);
+  if (!res.sources.records) return [finding(`the backlog could not be checked — ${res.reason}`)];
 
   const out = [];
-  if (stale.length) {
+  if (res.stale.length) {
+    const named = res.stale.map((s) => `${s.id} (${s.status} in ${s.epic}: "${s.heading.slice(0, 60)}"; ${s.evidence})`);
     out.push(finding(
-      `${stale.length} item(s) read as open while the Epic they are in is recorded closed — ${stale.join('; ')}. ` +
+      `${res.stale.length} item(s) read as open while the Epic they are in is recorded closed — ${named.join('; ')}. ` +
         'Close each, or triage it out of the Epic.'
     ));
   }
-  if (blind.length) {
+  if (res.blind.length) {
     out.push(finding(
-      `${blind.length} item(s) sit in an Epic whose closure could not be read (${blind.join(', ')}) — ${unitsBlind}. ` +
+      `${res.blind.length} item(s) sit in an Epic whose closure could not be read (${res.blind.map((b) => `${b.id} in ${b.epic}`).join(', ')}) — ${res.unitsBlind}. ` +
         'Their status is UNKNOWN, not clean.'
     ));
   }
-  if (store.broken.length) {
+  if (res.broken.length) {
     out.push(finding(
-      `${store.broken.length} work item(s) could not be read — ${brokenIds(store.broken)} — their Epic is UNKNOWN, not clean.`
+      `${res.broken.length} work item(s) could not be read — ${brokenIds(res.broken)} — their Epic is UNKNOWN, not clean.`
     ));
   }
   return out;

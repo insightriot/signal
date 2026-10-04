@@ -22,8 +22,10 @@ import { join } from 'node:path';
 
 import { defineCheck, HEAL, APPLICABILITY } from './state-drift.js';
 import { makeReceipt } from './receipt.js';
-import { walkBugEntries } from './bugs-tally.js';
+import { walkBugEntries, bugRecordIds } from './bugs-tally.js';
 import { askNoul, resolveJevKey, noJevKeyReason, confidenceWords, JEV_DEFAULT_TIMEOUT_MS } from './jev.js';
+import { isStoreOn } from './work-store.js';
+import { listRecords } from './work-records.js';
 
 export const CHECK_ID = 'bug-fixed-jev';
 
@@ -66,7 +68,9 @@ export function bugFixedQuestion(id) {
  * @returns {{sections: Array<{heading: string, start: number, from: number, to: number, windowed: boolean, text: string}>, omitted: number}}
  */
 export function releasedSectionsFor(changelog, id, { maxChars = 6000, maxSections = 3 } = {}) {
-  const re = new RegExp(`(^|[^A-Za-z0-9])${id}(?![0-9])`);
+  // `id` may be a list (M6.E13 t4.5a): a work record is named by its `SIG-n`
+  // and by its legacy `B{n}`, and a section naming either is about it.
+  const re = new RegExp(`(^|[^A-Za-z0-9])(?:${[].concat(id).join('|')})(?![0-9])`);
   const lines = String(changelog).split(/\r?\n/);
   const found = [];
   let cur = null;
@@ -149,7 +153,15 @@ export function makeBugFixedJevCheck(opts = {}) {
       'The receipt cites the release section Jev read (heading + line range), not a sentence: the judgment is per section. ' +
       'Since REVIEW at most 3 sections per bug are sent, each cut to a window around the id; the measurement sent every section whole (B75: 7), so for multi-section bugs the number describes a slightly different input.',
     applicability: (ctx) => {
-      if (!existsSync(bugsFile(ctx))) return { status: APPLICABILITY.NA, reason: 'this project has no .planning/BUGS.md' };
+      // Store on (M6.E13 t4.5a): the bugs are the work records, read in `run`
+      // — after the key check below, so a run with no key reads nothing.
+      let storeOn;
+      try {
+        storeOn = isStoreOn(ctx.baseDir).on;
+      } catch (err) {
+        return { status: APPLICABILITY.BLIND, reason: `the work store could not be read — ${err.message}` };
+      }
+      if (!storeOn && !existsSync(bugsFile(ctx))) return { status: APPLICABILITY.NA, reason: 'this project has no .planning/BUGS.md' };
       if (!existsSync(join(ctx.baseDir, 'CHANGELOG.md'))) {
         return { status: APPLICABILITY.BLIND, reason: 'there is no CHANGELOG.md to read' };
       }
@@ -160,7 +172,8 @@ export function makeBugFixedJevCheck(opts = {}) {
     },
 
     async run(ctx) {
-      const bugs = readFileConfined(ctx.baseDir, '.planning/BUGS.md');
+      const store = isStoreOn(ctx.baseDir).on;
+      const bugs = store ? null : readFileConfined(ctx.baseDir, '.planning/BUGS.md');
       const changelog = readFileConfined(ctx.baseDir, 'CHANGELOG.md');
       // A CHANGELOG whose releases are not `## [x.y.z]` (e.g. `## v0.3.0`) would
       // yield zero candidates and read as "checked 0 of 0" — clean. It is not
@@ -169,14 +182,10 @@ export function makeBugFixedJevCheck(opts = {}) {
         throw new Error('CHANGELOG.md has no `## [version]` release headings this check can read');
       }
       const key = keyNow(ctx); // once per run, not once per bug
-      const candidates = walkBugEntries(bugs)
-        .filter((e) => e.kind === 'row' && e.status === 'confirmed')
-        .map((e) => ({
-          ...e,
-          ...releasedSectionsFor(changelog, e.id, { maxChars: cfg.maxSectionChars, maxSections: cfg.maxSections }),
-        }))
+      const sectionsOf = (ids) => releasedSectionsFor(changelog, ids, { maxChars: cfg.maxSectionChars, maxSections: cfg.maxSections });
+      const candidates = (store ? storeCandidates(ctx.baseDir) : rowCandidates(bugs))
+        .map((e) => ({ ...e, ...sectionsOf(e.ids) }))
         .filter((e) => e.sections.length);
-      const bugLines = bugs.split(/\r?\n/);
 
       const asked = candidates.slice(0, cfg.maxBugs);
       const unchecked = candidates.slice(cfg.maxBugs).map((e) => ({ id: e.id, reason: 'over-cap' }));
@@ -194,7 +203,7 @@ export function makeBugFixedJevCheck(opts = {}) {
           }
           const r = await ask({
             state: asked[i].sections.map((sec) => sec.text).join('\n\n'),
-            question: bugFixedQuestion(asked[i].id),
+            question: bugFixedQuestion(asked[i].label),
             key,
             timeoutMs: Math.min(cfg.requestTimeoutMs, remaining),
           });
@@ -228,14 +237,14 @@ export function makeBugFixedJevCheck(opts = {}) {
             .map((sec) => (sec.windowed ? `CHANGELOG.md:${sec.start} + ${sec.from}–${sec.to}` : `CHANGELOG.md:${sec.from}–${sec.to}`))
             .join(', ') + (bug.omitted ? `; ${bug.omitted} older section(s) not read` : '');
         findings.push({
-          file: '.planning/BUGS.md',
+          file: bug.claim.file,
           message:
-            `${bug.id} reads \`confirmed\`, and Jev (${a.model}, ${confidenceWords(a.noul)}, p=${a.noul}) reads ` +
+            `${bug.lead}, and Jev (${a.model}, ${confidenceWords(a.noul)}, p=${a.noul}) reads ` +
             `the released section(s) naming it (${ranges}) as saying it was fixed — a whole-section judgment, so no single line is cited; ` +
             'a judgment, not a proof; results can vary between runs.',
-          fix: `If it shipped, set ${bug.id}'s status to \`fixed\` and name the release.`,
+          fix: bug.fix,
           receipt: makeReceipt({
-            claim: { file: '.planning/BUGS.md', line: bug.line, excerpt: bugLines[bug.line - 1] ?? `| ${bug.id} | \`confirmed\` |` },
+            claim: bug.claim,
             evidence: { source: 'CHANGELOG.md', line: first.start, excerpt: first.heading },
           }),
           judgedBy: { model: a.model, confidence: a.noul },
@@ -253,4 +262,60 @@ export function makeBugFixedJevCheck(opts = {}) {
       };
     },
   });
+}
+
+// Store off: each `confirmed` BUGS.md row, cited at its line verbatim.
+function rowCandidates(bugs) {
+  const bugLines = bugs.split(/\r?\n/);
+  return walkBugEntries(bugs)
+    .filter((e) => e.kind === 'row' && e.status === 'confirmed')
+    .map((e) => ({
+      ...e,
+      ids: e.id,
+      label: e.id,
+      lead: `${e.id} reads \`confirmed\``,
+      fix: `If it shipped, set ${e.id}'s status to \`fixed\` and name the release.`,
+      claim: { file: '.planning/BUGS.md', line: e.line, excerpt: bugLines[e.line - 1] ?? `| ${e.id} | \`confirmed\` |` },
+    }));
+}
+
+const OPEN_BUG = new Set(['T', 'Q', 'P']);
+
+/**
+ * Store on (M6.E13 t4.5a): each open bug record — status T, Q or P, what
+ * BUGS.md shows as `confirmed`; N is needs-triage, and a *closing* bug has its
+ * fix requested already. Asked about by its `SIG-n` and its `B{n}` forms
+ * (`bugRecordIds`), so a release section written before the store still counts. The claim is the
+ * record file, at the line carrying the item's ID, quoted verbatim: a record
+ * has no status line to cite, since its status is folded from its events.
+ * A record that does not read stops the run — its status is unknown, and
+ * "checked all of them" would be false.
+ */
+function storeCandidates(baseDir) {
+  const { records, broken } = listRecords(baseDir);
+  if (broken.length > 0) {
+    throw new Error(`${broken.length} work item(s) could not be read — ${broken.map((b) => b.id ?? b.path).join(', ')} — so the open bugs are not all known`);
+  }
+  return records
+    .filter((r) => r.record.type === 'BUG' && OPEN_BUG.has(r.status))
+    .map((r) => {
+      const { ids, label } = bugRecordIds(r.record);
+      return {
+        id: r.id,
+        ids,
+        label,
+        lead: `${label} is open (\`confirmed\`)`,
+        fix: `If it shipped, close it: \`/sig:item close ${r.id} fixed <commit>\`, naming the release.`,
+        claim: idLineClaim(baseDir, r.path, r.id),
+      };
+    });
+}
+
+// The first line of the record file that names the item's ID (`"id": "SIG-4",`
+// in a v2 record, `id: SIG-4` in a v1 item read through the converter).
+function idLineClaim(baseDir, path, id) {
+  const lines = readFileConfined(baseDir, path).split(/\r?\n/);
+  const re = new RegExp(`\\bid\\b.*\\b${id}\\b`);
+  const i = Math.max(0, lines.findIndex((l) => re.test(l)));
+  return { file: path, line: i + 1, excerpt: lines[i] || id };
 }

@@ -125,6 +125,17 @@ describe.each(VERSIONS)('t4.3 — collectPreflight on a v%i store reads the open
     expect(cannotCheck.map((c) => c.source)).not.toContain('open questions (work store)');
   });
 
+  // t4.5a: a question QUEUED in the Epic names it too, whatever its title says.
+  it('an open question queued in the Epic blocks too, though its title does not name it (t4.5a)', async () => {
+    const queuedQ = { id: 'SIG-15', type: 'Q', title: 'Which export format?', status: 'Q', epic: 'M6.E3', v1: 'work/epics/M6.E3' };
+    const otherQ = { id: 'SIG-16', type: 'Q', title: 'Which import format?', status: 'Q', epic: 'M6.E4', v1: 'work/epics/M6.E4' };
+    const { blocking } = await collectPreflight(storeProject(version, { items: [...ITEMS, queuedQ, otherQ] }), { epic: 'M6.E3' });
+    expect(blocking.filter((b) => b.source === 'work store')).toEqual([
+      { source: 'work store', question: 'Should the M6.E3 export include archived rows?', detail: 'SIG-9 names M6.E3' },
+      { source: 'work store', question: 'Which export format?', detail: 'SIG-15 is in M6.E3 (queued or started)' },
+    ]);
+  });
+
   it('with no Epic, still reads the questions and blocks on none', async () => {
     const { blocking, checked } = await collectPreflight(storeProject(version), { epic: null });
     expect(blocking.filter((b) => b.source === 'work store')).toEqual([]);

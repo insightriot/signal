@@ -142,8 +142,11 @@ describe('Outcome — bug-status-vs-changelog reads statuses from item files', (
     const openBugs = bugItems.filter((i) => i.item.status === 'T').map((i) => `B${i.item.id.slice(i.item.id.indexOf('-') + 1)}`).sort();
     expect(confirmed).toEqual(openBugs);
 
-    const flagged = checkBugStatusVsChangelog.run(ctx).map((f) => f.message.match(/^(B\d+)/)[1]);
-    for (const id of flagged) expect(confirmed, id).toContain(id);
+    // M6.E13 t4.5a: with the store on the check reads the records, not this
+    // view, and names each flag by its item ID — so every flag is an open bug item.
+    const openItems = bugItems.filter((i) => ['T', 'Q', 'P'].includes(i.item.status)).map((i) => i.item.id);
+    const flagged = checkBugStatusVsChangelog.run(ctx).map((f) => f.message.match(/^(SIG-\d+) \(/)[1]);
+    for (const id of flagged) expect(openItems, id).toContain(id);
   });
 });
 

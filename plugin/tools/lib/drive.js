@@ -719,8 +719,9 @@ export async function collectPreflight(baseDir, { epic = null } = {}) {
   //    the batch is how a useful gate becomes one people click through.
   //    Store on (M6.E13 t4.3): the open question records — type Q, not closing
   //    or closed — whose title names the Epic, the same "heading includes the
-  //    Epic" test the file reader makes. OPEN-QUESTIONS.md is a view then, and is
-  //    not opened.
+  //    Epic" test the file reader makes, or (t4.5a) that are queued in or
+  //    started for it (`epicOf`). OPEN-QUESTIONS.md is a view then, and is not
+  //    opened.
   const store = readRecords(baseDir);
   const oqPath = join(baseDir, '.planning', 'OPEN-QUESTIONS.md');
   if (store?.error) {
@@ -728,12 +729,14 @@ export async function collectPreflight(baseDir, { epic = null } = {}) {
   } else if (store) {
     checked.push(STORE_QUESTIONS);
     if (epic) {
+      const epicOfId = new Map(store.records.map((r) => [r.id, r.epic]));
       for (const q of storeQuestions(store.records)) {
-        if (!q.text.includes(epic)) continue;
+        const names = q.text.includes(epic);
+        if (!names && epicOfId.get(q.id) !== epic) continue;
         blocking.push({
           source: 'work store',
           question: q.text.length > 160 ? `${q.text.slice(0, 157)}…` : q.text,
-          detail: `${q.id} names ${epic}`,
+          detail: names ? `${q.id} names ${epic}` : `${q.id} is in ${epic} (queued or started)`,
         });
       }
     }
