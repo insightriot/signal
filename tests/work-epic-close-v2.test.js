@@ -8,17 +8,17 @@
 // are regenerated, not the v1 lists. Same entry, `closeEpic`, branching on the
 // store version, so `ship.md` §6.8 does not change at the cutover.
 //
-// ⚠ Pinned as it stands, and surfaced (M6.E13-PROGRESS.md, t7.3 prep 2): a
-// record of this Epic that is *closing* — its fix commit requested but not yet
-// on the default branch — is open to `closeEpicCheck`. At an Epic-close SHIP
-// the Epic's own commits are not on `main` yet, so such an Epic refuses to
-// close until the commit is merged and confirmed.
+// A record of this Epic that is *closing* — its fix commit requested but not
+// yet on the default branch — counts as done when that commit is in the
+// current HEAD, the shipping branch (`D-M6E13-22`; the sequencing gap surfaced
+// at t7.3 prep 2). When git cannot tell, it stays open (fail-closed).
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
 
 import { closeEpic } from '../plugin/tools/lib/work-ops.js';
 import * as records from '../plugin/tools/lib/work-records.js';
@@ -96,12 +96,31 @@ describe('closeEpic on a v2 store', () => {
     expect(snapshotTree(root)).toEqual(before);
   });
 
-  it('a record of the Epic closing (commit not confirmed): OPEN_ITEMS too — the sequencing gap at SHIP, pinned', async () => {
+  it('a record of the Epic closing, and git cannot tell where its commit is: OPEN_ITEMS (fail-closed)', async () => {
     await store([{ id: 'SIG-3', type: 'BUG', title: 'fixed on the branch', events: [ev.created, ev.triaged, ev.started, ev.closing] }]);
     const before = snapshotTree(root);
     await expect(closeEpic(root, EPIC, { by, at: AT }, { execFn: noGit }))
       .rejects.toMatchObject({ code: 'OPEN_ITEMS', message: expect.stringMatching(/SIG-3 \(status closing\)/) });
     expect(snapshotTree(root)).toEqual(before);
+  });
+
+  it('a record of the Epic closing with its fix commit in HEAD (the shipping branch): the Epic closes (D-M6E13-22)', async () => {
+    const git = (...args) => {
+      const r = spawnSync('git', ['-c', 'commit.gpgsign=false', '-c', 'user.email=t@t.co', '-c', 'user.name=T', ...args], { cwd: root, encoding: 'utf8' });
+      if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr}`);
+      return r.stdout.trim();
+    };
+    git('init', '-q', '-b', 'feat');
+    await put('fix.txt', 'fixed\n');
+    git('add', 'fix.txt');
+    git('commit', '-q', '-m', 'the fix');
+    const sha = git('rev-parse', 'HEAD');
+    await store([{ id: 'SIG-3', type: 'BUG', title: 'fixed on the branch', events: [ev.created, ev.triaged, ev.started, { ...ev.closing, proof: sha }] }]);
+    const out = await closeEpic(root, EPIC, { by, at: AT });
+    expect(out).toMatchObject({ status: 'closed', to: `.planning/archive/epics/${EPIC}` });
+    // The record is untouched: still closing, confirmed after the merge.
+    expect(records.getRecord(root, 'SIG-3').status).toBe('closing');
+    expect(records.checkRecords(root)).toEqual([]);
   });
 
   it('no Epic folder: no-folder, nothing written', async () => {

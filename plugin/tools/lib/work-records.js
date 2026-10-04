@@ -1246,8 +1246,14 @@ export function isEpicArchived(baseDir, epicId) {
 
 /**
  * May this Epic close? Every record whose Epic (`epicOf`) is `epicId` must be
- * closed (C). *closing* is still open: its commit has not been confirmed on
- * the default branch. Read-only.
+ * closed (C), or *closing* with its fix on the shipping branch (`D-M6E13-22`):
+ * a *closing* record counts as done here iff its latest `close_requested`
+ * proof is a commit hash that `git merge-base --is-ancestor` finds in the
+ * current HEAD. At an Epic-close SHIP the Epic's fix commits are on the
+ * branch, not yet on the default branch, so `confirmCloses` cannot close them
+ * until after the merge; this gate does not wait for it. Fail-closed: no git,
+ * a shallow clone, an unknown commit or an invalid proof leave the record
+ * open. Never fetches. Read-only.
  *
  * Refuses with `OPEN_ITEMS`, the code and message shape of v1 `closeEpic`'s
  * gate, naming each open record. Refuses with `SCHEMA` when any record in the
@@ -1256,9 +1262,12 @@ export function isEpicArchived(baseDir, epicId) {
  *
  * @param {string} baseDir
  * @param {string} epicId
- * @param {{execFn?: Function}} [opts] — as `listRecords`'s
- * @returns {{epic: string, items: string[], archived: boolean}} `items`: the
- *   Epic's records, all closed, by number; `archived`: as `isEpicArchived`
+ * @param {{execFn?: Function}} [opts] — as `listRecords`'s; also runs the
+ *   ancestry check
+ * @returns {{epic: string, items: string[], closingOnBranch: string[], archived: boolean}}
+ *   `items`: the Epic's records, by number, every one closed or closing on the
+ *   branch; `closingOnBranch`: those still *closing* (confirmed after the
+ *   merge); `archived`: as `isEpicArchived`
  * @throws {WorkStoreError} SCHEMA (not an Epic ID, or a broken record), OPEN_ITEMS, CONFIG
  */
 export function closeEpicCheck(baseDir, epicId, opts = {}) {
@@ -1269,14 +1278,50 @@ export function closeEpicCheck(baseDir, epicId, opts = {}) {
       + `Fix these first:\n${broken.map((b) => `  ${b.error}`).join('\n')}`);
   }
   const mine = records.filter((r) => r.epic === epicId);
-  const open = mine.filter((r) => r.status !== 'C');
+  const execFn = opts.execFn ?? execFileSync;
+  const closingOnBranch = [];
+  let onHead;
+  const open = mine.filter((r) => {
+    if (r.status === 'C') return false;
+    if (r.status !== 'closing') return true;
+    onHead ??= headAncestry(baseDir, execFn);
+    if (!onHead(latestRequest(r.record)?.proof)) return true;
+    closingOnBranch.push(r.id);
+    return false;
+  });
   if (open.length) {
     const lines = open.map((r) => `  ${r.id} (status ${r.status})${r.record.title ? ` — ${r.record.title}` : ''}`);
     throw new WorkStoreError('OPEN_ITEMS', `${epicId} has ${open.length} open item${open.length === 1 ? '' : 's'} `
       + `in it — close each (\`/sig:item close\`; a closing item closes when confirmCloses finds its commit) `
       + `or triage it out of the Epic, then re-run. Nothing was moved:\n${lines.join('\n')}`);
   }
-  return { epic: epicId, items: mine.map((r) => r.id), archived: isEpicArchived(baseDir, epicId) };
+  return { epic: epicId, items: mine.map((r) => r.id), closingOnBranch, archived: isEpicArchived(baseDir, epicId) };
+}
+
+// `proof => boolean`: is this proof a commit in the current HEAD? Fail-closed —
+// anything but `merge-base --is-ancestor` exiting 0 (no repo, an invalid
+// proof, a shallow clone, an unknown commit) answers false. `HEAD` is a fixed
+// ref, and a proof reaches git only after matching COMMIT_RE.
+function headAncestry(baseDir, execFn) {
+  if (!isGitRepo(baseDir, execFn)) return () => false;
+  const isShallow = shallowProbe(baseDir, execFn);
+  return (proof) => typeof proof === 'string' && COMMIT_RE.test(proof)
+    && ancestryFailure(baseDir, proof, 'HEAD', execFn, isShallow) === null;
+}
+
+// A lazy, memoised `git rev-parse --is-shallow-repository` (false on failure).
+function shallowProbe(baseDir, execFn) {
+  let shallow;
+  return () => {
+    if (shallow === undefined) {
+      try {
+        shallow = runGit(baseDir, ['rev-parse', '--is-shallow-repository'], execFn).trim() === 'true';
+      } catch {
+        shallow = false;
+      }
+    }
+    return shallow;
+  };
 }
 
 // ── Confirming fixed closes (t2.6, AC7.2) ──────────────────────────────────
@@ -1411,17 +1456,7 @@ function classifyClosing(baseDir, execFn) {
   const ok = [];
   if (candidates.length > 0) {
     const target = defaultBranchRef(baseDir, execFn);
-    let shallow;
-    const isShallow = () => {
-      if (shallow === undefined) {
-        try {
-          shallow = runGit(baseDir, ['rev-parse', '--is-shallow-repository'], execFn).trim() === 'true';
-        } catch {
-          shallow = false;
-        }
-      }
-      return shallow;
-    };
+    const isShallow = shallowProbe(baseDir, execFn);
     for (const c of candidates) {
       const reason = target.reason ?? ancestryFailure(baseDir, c.req.proof, target.ref, execFn, isShallow);
       if (reason === null) ok.push(c);

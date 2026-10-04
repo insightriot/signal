@@ -1010,8 +1010,9 @@ function removeEmptyTree(dir) {
  *
  * On a v2 store (M6.E13 t7.3 prep) the items are records under `work/items/`
  * and the folder holds documents only, so the gate is `work-records.js`
- * `closeEpicCheck` — every record whose Epic is this one is closed; a
- * *closing* one is still open — and after the move the v2 views regenerate.
+ * `closeEpicCheck` — every record whose Epic is this one is closed, or
+ * *closing* with its fix commit in the current HEAD (`D-M6E13-22`) — and
+ * after the move the v2 views regenerate.
  * Everything else (the folder move, links, the README) is the same code.
  *
  * An Epic with no folder — every Epic from before the store — is not an error:
@@ -1084,7 +1085,7 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
       throw new WorkStoreError('CONFLICT', `${fromRel} holds entries that are not files or folders (${names}); `
         + 'moving the folder would leave them behind. Remove or replace them, then re-run.');
     }
-    if (v2) closeEpicCheck(baseDir, epicId);
+    if (v2) closeEpicCheck(baseDir, epicId, { execFn });
     const open = [];
     const broken = [];
     for (const abs of tree.files) {

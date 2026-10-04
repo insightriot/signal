@@ -3797,7 +3797,7 @@ priorities against each other before asking. The reader fixes were folded into p
 **Outcome data point 1 (`D-M6E12-12`):** the user picked a proposed priority (1), after one
 clarifying question that exposed the missing dependency check.
 
-## 2026-10-03 — M6.E13 DISCUSS: work items as records — Epic 1 of the storage re-architecture (D-M6E13-1 … D-M6E13-21)
+## 2026-10-03 — M6.E13 DISCUSS: work items as records — Epic 1 of the storage re-architecture (D-M6E13-1 … D-M6E13-22)
 
 **Label:** *"work items as records"*. Source: [`analysis/STORAGE-ARCHITECTURE-PROPOSAL.md`](../analysis/STORAGE-ARCHITECTURE-PROPOSAL.md),
 the synthesis of three deep-research runs (`analysis/item-architecture-research/`), all of which converged
@@ -3927,3 +3927,18 @@ confirm (`probeCloses`) and keeps its read-only contract. SHIP confirms, as buil
 and AC1.5's wording; also amends AC6.2: "the last 30 days" counts back from the newest event in the
 store, so committed views do not churn daily and AC5.2 stays deterministic. See `M6.E13-PLAN.md`
 § Decisions.
+
+### D-M6E13-22 — A *closing* record whose fix is on the shipping branch counts as done for Epic close (EXECUTE, 2026-10-04)
+On a v2 store `closeEpicCheck` counted *closing* as open, so every Epic-close SHIP refused
+(`OPEN_ITEMS`) when an item of the Epic was closed `fixed` during EXECUTE: its commit is on the branch,
+and `confirmCloses` can only confirm it after the merge. Surfaced at t7.3 prep 2. Rule: for the
+Epic-close gate only, a *closing* record counts as done iff its latest `close_requested` proof commit
+is an ancestor of the current HEAD (`git merge-base --is-ancestor`); otherwise it stays open.
+Fail-closed — no repository, a shallow clone, an unknown commit or a failing git all leave it open;
+never fetches. The record is not changed: it stays *closing* and is confirmed by a later SHIP or
+sweep once the commit is on the default branch (`D-M6E13-15`, `-21`). Consistent with AC7.3, which
+already treats *closing* as done for advise and drive. Makes one new state reachable — an archived
+Epic folder with a record still *closing* — which no check treats as an error (`checkRecords` and
+the `EPICS.md` view carry no "archived ⇒ all closed" rule). Other options were archiving the folder
+at the post-merge confirm, or moving §6.8 after the merge. Plumbing; adopted under `/sig:drive`;
+reversible (`closeEpicCheck`, one function).
