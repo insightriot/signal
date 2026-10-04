@@ -16,6 +16,7 @@
 //
 // Read side: t2.1. ID allocation and the duplicate-ID check: t2.3. Writes:
 // t2.2a (new, triage, queue, start) and t2.2b. The Epic close query: t2.5.
+// Confirming fixed closes against the default branch: t2.6.
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, realpathSync, existsSync, lstatSync, mkdirSync, rmdirSync, unlinkSync } from 'node:fs';
@@ -41,6 +42,7 @@ import {
   WORK_LOCK_TTL_MS,
 } from './work-store.js';
 import { parseFrontmatter } from './state.js';
+import { hasRemote, resolveDefaultBranch } from './branch-guard.js';
 
 const ITEMS_DIR = 'items';
 const ITEMS_REL = `.planning/${WORK_DIR}/${ITEMS_DIR}`;
@@ -1208,6 +1210,154 @@ export function closeEpicCheck(baseDir, epicId, opts = {}) {
       + `or triage it out of the Epic, then re-run. Nothing was moved:\n${lines.join('\n')}`);
   }
   return { epic: epicId, items: mine.map((r) => r.id), archived: isEpicArchived(baseDir, epicId) };
+}
+
+// ── Confirming fixed closes (t2.6, AC7.2) ──────────────────────────────────
+//
+// A fixed close is requested with a commit and stays *closing* until that
+// commit is on the remote's default branch. The check reads local refs only
+// (`/sig:resume` fetches first; this never does) and is fail-open: anything
+// other than `git merge-base --is-ancestor` exiting 0 leaves the item
+// closing, with the reason. Nothing is guessed.
+
+const STALE_CLOSING_MS = 14 * 24 * 60 * 60 * 1000;
+const CONFIRM_BY = 'confirmCloses';
+
+const latestRequest = (record) => record.events.findLast((e) => e.type === 'close_requested');
+
+// The ref a confirmed commit must be an ancestor of, or why there is none.
+// The REMOTE ref (`refs/remotes/origin/<branch>`), not the local branch: a
+// local `main` can hold commits nobody merged. The ref is built here from a
+// fixed prefix, so it cannot begin with `-`.
+function defaultBranchRef(baseDir, execFn) {
+  if (!isGitRepo(baseDir, execFn)) return { reason: 'not-a-repo' };
+  const remote = hasRemote(baseDir, { execFn });
+  if (remote === null) return { reason: 'git-failed' };
+  if (remote === false) return { reason: 'no-remote' };
+  const branch = resolveDefaultBranch(baseDir, { execFn });
+  if (branch === null) return { reason: 'no-default-branch' };
+  const ref = `refs/remotes/origin/${branch}`;
+  try {
+    runGit(baseDir, ['rev-parse', '--verify', '--quiet', ref], execFn);
+  } catch {
+    return { reason: 'no-default-branch' };
+  }
+  return { ref };
+}
+
+// null when `sha` is an ancestor of `ref`; otherwise why not. `sha` has
+// already matched COMMIT_RE, so it is bare lowercase hex and never an option;
+// `^{commit}` makes git refuse anything that is not a commit.
+function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
+  try {
+    execFn('git', ['merge-base', '--is-ancestor', `${sha}^{commit}`, ref], {
+      cwd: baseDir,
+      stdio: ['ignore', 'ignore', 'ignore'],
+    });
+    return null;
+  } catch (err) {
+    // In a shallow clone a missing commit and a cut-off history look the same
+    // as "not an ancestor", so the answer is that it cannot be known.
+    if (isShallow()) return 'shallow';
+    if (err?.status === 1) return 'not-on-default-branch';
+    if (err?.status === 128) return 'unknown-commit';
+    return 'git-failed';
+  }
+}
+
+/**
+ * Confirm fixed closes: for each record deriving *closing*, its latest
+ * `close_requested` proof is checked as a bare commit hash (lowercase hex, 7
+ * to 64 characters — re-checked here, not trusted to the schema), then with
+ * `git merge-base --is-ancestor <sha>^{commit} refs/remotes/origin/<default>`.
+ * The default branch is `resolveDefaultBranch`'s (origin/HEAD, else the one of
+ * main/master that exists); local refs only, never a fetch.
+ *
+ * Exit 0 → a `closed` event (reason fixed, the request's proof copied, by
+ * `confirmCloses`), written through the library under ONE `work` lock, each
+ * record re-read under the lock and confirmed only if it is still closing on
+ * the same proof; then ONE `regenerate`. Anything else leaves the item
+ * closing, with a reason: `invalid-proof`, `not-a-repo`, `no-remote`,
+ * `no-default-branch`, `not-on-default-branch`, `unknown-commit`, `shallow`,
+ * `git-failed`, or `changed` (it moved while git was asked).
+ *
+ * Git is not asked anything unless some proof is valid, and nothing is locked
+ * unless some commit is confirmed. A broken record is skipped (`listRecords`
+ * reports it; so does `checkRecords`).
+ *
+ * @param {string} baseDir
+ * @param {{now?: Date|string, execFn?: Function, renameFn?: Function,
+ *   regenerate?: (baseDir: string) => Promise<void>}} [opts]
+ *   `now`: the clock, for the closing `at` and for `stale` (default: now)
+ * @returns {Promise<{confirmed: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}>}
+ *   `stale`: items still closing whose request is more than 14 days before `now`
+ * @throws {WorkStoreError} CONFIG (store off, or v1), LOCKED, IO
+ */
+export async function confirmCloses(baseDir, opts = {}) {
+  const execFn = opts.execFn ?? execFileSync;
+  const now = opts.now === undefined ? new Date() : new Date(opts.now);
+  if (Number.isNaN(now.getTime())) throw new WorkStoreError('SCHEMA', `confirmCloses: now ${JSON.stringify(opts.now)} is not a date`);
+  assertWritable(baseDir);
+
+  const closing = listRecords(baseDir).records.filter((r) => r.status === 'closing');
+  const still = new Map(); // id -> {reason, request}
+  const candidates = [];
+  for (const r of closing) {
+    const req = latestRequest(r.record);
+    if (typeof req?.proof !== 'string' || !COMMIT_RE.test(req.proof)) still.set(r.id, { reason: 'invalid-proof', req });
+    else candidates.push({ id: r.id, req });
+  }
+
+  const ok = [];
+  if (candidates.length > 0) {
+    const target = defaultBranchRef(baseDir, execFn);
+    let shallow;
+    const isShallow = () => {
+      if (shallow === undefined) {
+        try {
+          shallow = runGit(baseDir, ['rev-parse', '--is-shallow-repository'], execFn).trim() === 'true';
+        } catch {
+          shallow = false;
+        }
+      }
+      return shallow;
+    };
+    for (const c of candidates) {
+      const reason = target.reason ?? ancestryFailure(baseDir, c.req.proof, target.ref, execFn, isShallow);
+      if (reason === null) ok.push(c);
+      else still.set(c.id, { reason, req: c.req });
+    }
+  }
+
+  const confirmed = [];
+  if (ok.length > 0) {
+    await withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+      const at = now.toISOString();
+      const planned = [];
+      for (const c of ok) {
+        const { entry, text } = readForWrite(handle, c.id);
+        if (entry.status !== 'closing') continue; // closed or reopened meanwhile: nothing to confirm
+        const req = latestRequest(entry.record);
+        if (req.proof !== c.req.proof) {
+          still.set(c.id, { reason: 'changed', req });
+          continue;
+        }
+        const next = withEvent(entry, { type: 'closed', at, by: CONFIRM_BY, reason: 'fixed', proof: req.proof });
+        planned.push({ next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path) });
+      }
+      if (planned.length === 0) return;
+      await writeRecords(handle, planned, opts);
+      confirmed.push(...planned.map((p) => p.next.id));
+      await regenerateAfter(handle, `${confirmed.join(', ')} ${confirmed.length === 1 ? 'was' : 'were'} confirmed closed`, opts);
+    });
+  }
+
+  const ids = [...still.keys()].sort((a, b) => numberOf(a) - numberOf(b));
+  const stale = ids.filter((id) => {
+    const t = Date.parse(still.get(id).req?.at);
+    return Number.isFinite(t) && now.getTime() - t > STALE_CLOSING_MS;
+  });
+  return { confirmed, stillClosing: ids.map((id) => ({ id, reason: still.get(id).reason })), stale };
 }
 
 // The record fields an `edited` event may change (the schema's `changes`).

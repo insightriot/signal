@@ -126,6 +126,19 @@ const WRITERS = {
   },
   reopenItem: { run: (base) => records.reopenItem(base, 'SIG-1006', { reason: 'back', by }) },
   editItem: { run: (base) => records.editItem(base, 'SIG-2', { changes: { title: 'edited' }, by }) },
+  // The store is not a git repo, so git is stubbed: origin/main resolves and
+  // SIG-5's proof (0123abc) is an ancestor of it. SIG-5 gains one `closed`.
+  // Real-git scenarios are in tests/work-records-confirm.test.js.
+  confirmCloses: {
+    run: (base) => records.confirmCloses(base, {
+      execFn: (cmd, args) => {
+        if (args.includes('--is-inside-work-tree')) return 'true\n';
+        if (args[0] === 'remote') return 'origin\n';
+        if (args.includes('origin/HEAD')) return 'origin/main\n';
+        return '';
+      },
+    }),
+  },
 };
 
 const EXEMPT = {
@@ -352,7 +365,12 @@ export async function promote(b, id) { await triage(b, id); return queue(b, id);
     const real = lockNesting(SOURCE).lockTaking; // the writers t2.2 added
     // closeEpicCheck reads through listRecords, so the injected take reaches it too.
     expect(lockTaking.filter((n) => !real.includes(n))).toEqual(['listRecords', 'getRecord', 'closeEpicCheck']);
-    expect(violations).toEqual([expect.stringMatching(/^getRecord .*listRecords/)]);
+    // confirmCloses takes the lock AND reads through listRecords, so a take
+    // injected into listRecords makes it a second entry point: caught too.
+    expect(violations).toEqual([
+      expect.stringMatching(/^getRecord .*listRecords/),
+      expect.stringMatching(/^confirmCloses .*listRecords/),
+    ]);
   });
 
   it('an aliased acquireLock import is refused, since the scan matches the name', () => {
