@@ -66,11 +66,11 @@ Each target status is its own event:
 
 | To | Call | From |
 |---|---|---|
-| T (back to the backlog) | `triageItem(baseDir, id, {by})` — the Epic is cleared | N, Q, P |
+| T (back to the backlog) | `triageItem(baseDir, id, {by})` — the Epic is cleared | Q, P |
 | Q (queued for an Epic) | `queueItem(baseDir, id, {epic, by})` | T, Q, P |
 | P (started in an Epic) | `startItem(baseDir, id, {epic, by})` | T, Q |
 
-The Epic is an Epic ID (`M6.E13`) and is required for Q and P. Nothing moves back to N. Closing is not a move — use `close`. Print *from → to*. The record stays where it is; only its events change.
+The Epic is an Epic ID (`M6.E13`) and is required for Q and P. An item at N reaches T through `triage`, which sets its type — a bare `triageItem` on a `NEW` item is refused (`SCHEMA`). Nothing moves back to N. Closing is not a move — use `close`. Print *from → to*. The record stays where it is; only its events change.
 
 ### `close <ID> <reason> [proof]` — close an item
 
