@@ -61,3 +61,19 @@ isStateStale (tools/lib/state.js) counts commits that touch only .planning/STATE
 2026-10-03, local full run before the v0.1.47 PR: tests/private-name-guard.test.js "no file outside the recorded inventory names a private project" failed at 15048 ms against testTimeout 15000 (vitest.config). Alone it ran in 3.6 s and the next full run was green; CI was green. A flaky guard is worse than a slow one: a red that goes away on re-run teaches people to re-run past it, and this is the test that keeps private project names out of the repo. Fix: give this test its own timeout, or make the scan cheaper.
 
 ---
+
+## advise digest never reads a roadmap file inside .planning/ — planned milestones vanish from the priorities
+
+**Status:** untriaged (N) · SIG-267
+
+Measured 2026-10-03, clean run 3 on a copy of eval-project (fresh agent, prior advisories removed, v0.1.45). The project keeps .planning/ROADMAP.md and .planning/big-picture-roadmap.md (simulation, versioning). The digest reads neither. Runs 1 and 2 proposed v2.3 versioning and v3.0a text simulation because the agent opened those files on its own; run 3 stayed with the digest and both disappeared as build priorities. SIG-261 says the digest reads only .planning/ — this is narrower and worse: the roadmap IS in .planning/ and is still unread. The quality of the priorities depends on whether the agent strays outside the digest.
+
+---
+
+## advisory says "Could not read: nothing" while the digest lists two gaps
+
+**Status:** untriaged (N) · SIG-268
+
+Same run 3. The digest reported two gaps (vision, milestone) and the advisory repeats them under "Digest could not read:", yet its own header says "Could not read: nothing — all 5 sources were readable." Two lists with the same name and different scopes (5 ranking sources vs digest sections) read as a contradiction. One list, or two clearly different names.
+
+---
