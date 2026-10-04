@@ -79,3 +79,11 @@ Update 2026-10-04 (M6.E13 t8.1): the v1 enable script tools/work-migrate.mjs was
 Reported 2026-10-04 by Brett from a /sig:drive run in another project (screenshot: "Accept VERIFY pass 2 ... and run REVIEW pass 2?"): "it is asking me MORE questions than less". Confirmed in code: profile.js applyRigorOverrides sets gates.confirm_discuss/plan/execute/verify/review/ship = attention !== unattended, so checkpointed confirms at every phase end, and plan.md/execute.md/verify.md/review.md tables say checkpointed = confirm at end of phase. drive.md says checkpointed advances every phase and stops only for floors and gray-area decisions. M6.E10 fixed canProceedUnattended but left the phase commands own end-of-phase confirm. Same session reproduced it: M6.E13 PLAN asked for plan approval under drive at checkpointed. Fix: phase-end confirms only at attended; checkpointed announces and continues; SHIP stays a floor.
 
 ---
+
+## A short proof hash shared by two commits can confirm when a branch of that name points at one of them
+
+**Status:** untriaged (N) · SIG-276
+
+Found 2026-10-04 by M6.E13 VERIFY pass 2. Two commits share a 7-hex prefix P; commit a is on origin/main. With no ref, probeCloses gives unknown-commit (correct). After git branch P a, it gives confirmable. The confirmed commit does start with P and is on main, so no non-commit is accepted, but it contradicts the ancestryFailure comment in work-records.js (a shared short id makes rev-parse fail). Fix: correct the comment, or refuse a proof that matches more than one commit (git rev-parse --disambiguate). Low.
+
+---
