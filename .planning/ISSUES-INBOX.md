@@ -21,3 +21,11 @@
 | Option C concerns block (calibration granularity) | Users hand-edit dials against tier defaults, or want a rigor level their tier doesn't offer | ✅ **FIRED on the first half — measured, not inferred.** Checked 2026-08-01 (M5.E16 PLAN drain). Three Epic-scoped profiles exist, **all `created_by: hand`, all overriding tier defaults**: `M5.E7-PROFILE.md`, `M5.E17-PROFILE.md`, `M5.E16-PROFILE.md`. The last states the motive outright — *"`nyquist_enforcement` goes to `strict` — a level above M5.E17's `basic`. This is deliberate and it is the one dial that matters here."* That is the condition's first clause verbatim. **But the remedy Option C proposed is not what is needed**, so this is decided rather than promoted: hand-editing dials is not a workaround here, it is the **supported mechanism** (Epic-scoped PROFILE, M4.5.E11 FR3), and it works. **What the practice actually exposed is that nothing validated the hand-edits** — `B59`, found the same day at this Epic's own PLAN preamble: `M5.E16-PROFILE.md` carried two out-of-enum values and the Epic that declared FEATURE ran DISCUSS at FULL. **That gap is now closed twice over** — `tests/own-profiles-parse.test.js` for Signal's own repo, and **M5.E16 check (g)** for every invoking project. **Row closed as decided.** A concerns block remains a v2 idea with no live pull; re-open only if someone wants a rigor level the four tiers genuinely cannot express, which is the second clause and has **never** been observed. |
 
 ---
+
+## SIG-146 and SIG-166 link to references/command-taxonomy.md, which moved to plugin/references/
+
+**Status:** untriaged (N) · SIG-269
+
+Found 2026-10-04 by the M6.E13 t1.5 dry conversion: both item bodies carry a relative link to references/command-taxonomy.md, broken since the file moved under plugin/references/ (M6.E1). Pre-existing in v1; the migration carries it unchanged. Fix: repoint both links after cutover.
+
+---
