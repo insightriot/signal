@@ -1426,12 +1426,11 @@ function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
  * closing, with a reason: `invalid-proof`, `not-a-repo`, `no-remote`,
  * `no-default-branch`, `not-on-default-branch`, `unknown-commit` (also an
  * ambiguous short id), `proof-names-a-ref`, `shallow`, `git-failed`,
- * `changed` (it moved while git was asked), or `unreadable` (it broke or
- * vanished between that check and the lock; the others are still confirmed).
+ * or `changed` (it moved while git was asked).
  *
  * Git is not asked anything unless some proof is valid, and nothing is locked
- * unless some commit is confirmed. A broken record is skipped (`listRecords`
- * reports it; so does `checkRecords`).
+ * unless some commit is confirmed. A broken record anywhere in the store
+ * refuses the run (SCHEMA), before git and again under the lock: all or nothing.
  *
  * @param {string} baseDir
  * @param {{now?: Date|string, execFn?: Function, renameFn?: Function,
@@ -1439,7 +1438,7 @@ function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
  *   `now`: the clock, for the closing `at` and for `stale` (default: now)
  * @returns {Promise<{confirmed: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}>}
  *   `stale`: items still closing whose request is more than 14 days before `now`
- * @throws {WorkStoreError} CONFIG (store off, or v1), LOCKED, IO
+ * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA (a broken record), LOCKED, IO
  */
 export async function confirmCloses(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
@@ -1454,18 +1453,9 @@ export async function confirmCloses(baseDir, opts = {}) {
     await withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
       const at = now.toISOString();
       const planned = [];
+      refuseBroken(listRecords(handle.baseDir));
       for (const c of ok) {
-        let read;
-        try {
-          read = readForWrite(handle, c.id);
-        } catch (err) {
-          // Broken or gone since it was classified (REVIEW pass 1): skip it,
-          // say so, and confirm the others.
-          if (!(err instanceof WorkStoreError) || (err.code !== 'SCHEMA' && err.code !== 'NOT_FOUND')) throw err;
-          still.set(c.id, { reason: 'unreadable', req: c.req });
-          continue;
-        }
-        const { entry, text } = read;
+        const { entry, text } = readForWrite(handle, c.id);
         if (entry.status !== 'closing') continue; // closed or reopened meanwhile: nothing to confirm
         const req = latestRequest(entry.record);
         if (req.proof !== c.req.proof) {
@@ -1490,7 +1480,9 @@ export async function confirmCloses(baseDir, opts = {}) {
 // records and asks git; writes nothing. Shared by `confirmCloses` and
 // `probeCloses`, so the two can never disagree on what is confirmable.
 function classifyClosing(baseDir, execFn) {
-  const closing = listRecords(baseDir).records.filter((r) => r.status === 'closing');
+  const listed = listRecords(baseDir);
+  refuseBroken(listed);
+  const closing = listed.records.filter((r) => r.status === 'closing');
   const still = new Map(); // id -> {reason, request}
   const candidates = [];
   for (const r of closing) {
@@ -1510,6 +1502,13 @@ function classifyClosing(baseDir, execFn) {
     }
   }
   return { still, ok };
+}
+
+// The views refuse to regenerate over a broken record, so writing the others
+// first would leave a partial write (REVIEW pass 2): refuse before anything.
+function refuseBroken({ broken }) {
+  if (broken.length === 0) return;
+  throw new WorkStoreError('SCHEMA', `broken record(s), so nothing was written: ${broken.map((b) => `${b.id ?? b.path} (${b.error})`).join('; ')}`);
 }
 
 function stillAndStale(still, now) {
@@ -1536,7 +1535,7 @@ function stillAndStale(still, now) {
  * @param {{now?: Date|string, execFn?: Function}} [opts]
  * @returns {{confirmable: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}}
  *   `confirmable` by ID number; the other two as `confirmCloses` returns them
- * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA (`now` is not a date)
+ * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA (`now` is not a date, or a broken record)
  */
 export function probeCloses(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;

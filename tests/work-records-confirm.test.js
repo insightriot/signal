@@ -178,7 +178,7 @@ describe('confirmCloses — the proof never reaches git as an option', () => {
     expect(mb).toEqual([['merge-base', '--is-ancestor', shas[0], 'refs/remotes/origin/main']]);
   });
 
-  it('a hand-written record with proof `--all` is broken (schema) and is never a candidate', async () => {
+  it('a hand-written record with proof `--all` is broken (schema): the run refuses and git never sees it', async () => {
     const { work } = await plantClone();
     await v2Store(work, []);
     const bad = rec('SIG-1', [created, request('--all')]);
@@ -188,17 +188,18 @@ describe('confirmCloses — the proof never reaches git as an option', () => {
       calls.push(args);
       throw new Error('git must not run');
     };
-    const out = await records.confirmCloses(work, { now: NOW, execFn });
-    expect(out).toEqual({ confirmed: [], stillClosing: [], stale: [] });
+    await expect(records.confirmCloses(work, { now: NOW, execFn }))
+      .rejects.toMatchObject({ code: 'SCHEMA', message: expect.stringMatching(/SIG-1/) });
     expect(calls.flat().some((a) => String(a).includes('--all'))).toBe(false);
   });
 });
 
-// REVIEW pass 1 suggestion: a record that breaks between the classification
-// (outside the lock) and the write (under it) is skipped and reported, not a
-// reason to abort every other confirmation.
+// REVIEW pass 2: a record that breaks between the classification (outside
+// the lock) and the write (under it) refuses the whole run before anything is
+// written. Skipping it (pass 1) wrote the others' events and then threw in the
+// view regeneration, which refuses a store with a broken record: a partial write.
 describe('confirmCloses — a record broken under the lock', () => {
-  it('is skipped and listed in stillClosing as unreadable; the others are confirmed', async () => {
+  it('refuses with SCHEMA naming it, before any record is written; regeneration is the real one', async () => {
     const { work, shas } = await plantClone();
     await v2Store(work, [rec('SIG-1', [created, request(shas[0])]), rec('SIG-2', [created, request(shas[1])])]);
     // The last git call before the lock is SIG-2's ancestry check: break its
@@ -208,12 +209,22 @@ describe('confirmCloses — a record broken under the lock', () => {
       if (args[0] === 'merge-base' && args.includes(shas[1])) writeFileSync(join(work, records.recordPath('SIG-2')), '{ broken\n');
       return out;
     };
-    // The views refuse to regenerate while a record is broken (checkRecords
-    // reports it); that is not what this test is about, so regeneration is a no-op.
-    const out = await records.confirmCloses(work, { now: NOW, execFn, regenerate: async () => {} });
-    expect(out.confirmed).toEqual(['SIG-1']);
-    expect(out.stillClosing).toEqual([{ id: 'SIG-2', reason: 'unreadable' }]);
-    expect((await read(work, 'SIG-1')).events.at(-1).type).toBe('closed');
+    await expect(records.confirmCloses(work, { now: NOW, execFn }))
+      .rejects.toMatchObject({ code: 'SCHEMA', message: expect.stringMatching(/SIG-2/) });
+    expect((await read(work, 'SIG-1')).events.at(-1).type).toBe('close_requested');
+  });
+
+  it('a broken record anywhere in the store refuses before git is asked or anything is written', async () => {
+    const { work, shas } = await plantClone();
+    await v2Store(work, [rec('SIG-1', [created, request(shas[0])])]);
+    await put(work, records.recordPath('SIG-3'), '{ broken\n');
+    const execFn = () => {
+      throw new Error('git must not run');
+    };
+    await expect(records.confirmCloses(work, { now: NOW, execFn }))
+      .rejects.toMatchObject({ code: 'SCHEMA', message: expect.stringMatching(/SIG-3/) });
+    expect(() => records.probeCloses(work, { now: NOW, execFn })).toThrow(/SIG-3/);
+    expect((await read(work, 'SIG-1')).events.at(-1).type).toBe('close_requested');
   });
 });
 
