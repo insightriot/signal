@@ -19,6 +19,7 @@
 // Confirming fixed closes against the default branch: t2.6, and its read-only
 // list of closing items, `listClosing`: t4.4; its read-only probe, `probeCloses`: t4.6.
 // The store check: t2.7.
+// Triage proposals read from records (v1 `work-ops.js`'s, ported): t7.3 prep.
 // The views it regenerates after every write: `work-views.js` (t3.1).
 
 import { execFileSync } from 'node:child_process';
@@ -34,6 +35,7 @@ import { RECORD_SCHEMA, parseRecord, serializeRecord, checkEvents, deriveStatus,
 import { bodyDirFor, convertV1Item } from './work-convert.js';
 import { ITEM_ID_RE } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
+import { proposeTriage } from './work-triage.js';
 // A cycle, by design: work-views.js reads through listRecords. Neither module
 // uses the other's bindings while it is being evaluated.
 import { regenerateToMemory, regenerateViews } from './work-views.js';
@@ -1503,6 +1505,124 @@ export function listClosing(baseDir, opts = {}) {
       };
     });
   return { version, closing, broken };
+}
+
+// ── Triage proposals, read from records (M6.E13 t7.3 prep) ─────────────────
+//
+// v1 `work-ops.js` `triageNext`, `listNeedsReview` and `listThemes`, reading
+// `listRecords` instead of item files, with the same proposal (`work-triage.js`
+// `proposeTriage`, shared, so the arithmetic is one implementation) and the
+// same output shape. Readers: no lock, nothing written. They work on a v1
+// store too (through the converter), which is how parity is tested.
+//
+// The v1 shape the proposal and the callers expect: the record's fields, and
+// `status` a letter. A *closing* record is passed as `C` — on v1 a fixed close
+// with a commit was C, and only the converter reads it as closing — so a
+// proposal names the same duplicates and themes on both stores.
+
+const TRIAGE_FILTER_KEYS = ['status', 'type', 'theme', 'priority', 'epic'];
+
+function asV1Item(entry) {
+  const { events, ...fields } = entry.record;
+  const item = { ...fields, status: entry.status === 'closing' ? 'C' : entry.status };
+  const created = events.find((e) => e.type === 'created');
+  if (created) item.created = { at: created.at, by: created.by };
+  return item;
+}
+
+const labelOf = (item) => `${item.id}-${item.type}-${item.status}`;
+
+// Every record, or SCHEMA naming each broken one: a list that silently drops
+// an item is the false-clean shape (v1 `listItems` refuses the same way).
+function triageRows(baseDir, opts = {}) {
+  const { records, broken } = listRecords(baseDir, opts);
+  if (broken.length) {
+    throw new WorkStoreError('SCHEMA', `cannot list the store — fix these records first:\n${broken.map((b) => `  ${b.error}`).join('\n')}`);
+  }
+  return records.map((r) => ({ item: asV1Item(r), label: labelOf(asV1Item(r)), path: r.path, epic: r.epic ?? undefined, body: r.body }));
+}
+
+function filterRows(rows, filter) {
+  for (const key of Object.keys(filter)) {
+    if (!TRIAGE_FILTER_KEYS.includes(key)) {
+      throw new WorkStoreError('SCHEMA', `listThemes: unknown filter ${JSON.stringify(key)} (filters: ${TRIAGE_FILTER_KEYS.join(', ')})`);
+    }
+  }
+  return rows.filter((row) => {
+    if (filter.status !== undefined && row.item.status !== filter.status) return false;
+    if (filter.type !== undefined && row.item.type !== filter.type) return false;
+    if (filter.theme !== undefined && row.item.theme !== filter.theme) return false;
+    if (filter.priority !== undefined && String(row.item.priority) !== String(filter.priority)) return false;
+    if (filter.epic !== undefined && row.epic !== filter.epic) return false;
+    return true;
+  });
+}
+
+const createdAtOf = (item) => (typeof item.created?.at === 'string' ? item.created.at : '');
+
+/**
+ * The next inbox record to triage, with a proposal — or null when there is
+ * none (v1 `work-ops.js` `triageNext`, read from records). Records carrying a
+ * `migration_note` come first, then the oldest `created` event, then the
+ * lowest number. Read-only.
+ *
+ * @param {string} baseDir
+ * @param {{exclude?: string[], execFn?: Function}} [opts] — `exclude`: IDs already skipped in this run
+ * @returns {null | {item: object, body: string, path: string, label: string, proposal: object}}
+ *   `item`: the record's fields with `status` (a letter; closing reads `C`) and
+ *   `created`; `path`: the record; `body`: its body, `''` when it has none
+ * @throws {WorkStoreError} CONFIG (store off), SCHEMA (a broken record, each named)
+ */
+export function triageNext(baseDir, opts = {}) {
+  const exclude = new Set(opts.exclude ?? []);
+  const rows = triageRows(baseDir, { bodies: true, ...(opts.execFn ? { execFn: opts.execFn } : {}) });
+  const queue = rows
+    .filter((r) => r.item.status === 'N' && !exclude.has(r.item.id))
+    .sort((a, b) =>
+      Number(!a.item.migration_note) - Number(!b.item.migration_note)
+      || createdAtOf(a.item).localeCompare(createdAtOf(b.item))
+      || numberOf(a.item.id) - numberOf(b.item.id));
+  if (queue.length === 0) return null;
+  const [next] = queue;
+  const body = next.body ?? '';
+  return { item: next.item, body, path: next.path, label: next.label, proposal: proposeTriage(next.item, body, rows) };
+}
+
+/**
+ * Records at T that the migration flagged for a human look (`migration_note`)
+ * — v1 `work-ops.js` `listNeedsReview`, read from records. Triage offers them
+ * after the inbox; accepting one clears the note (`editItem`). Read-only.
+ *
+ * @param {string} baseDir
+ * @returns {Array<{item: object, label: string, path: string}>} by number
+ * @throws {WorkStoreError} CONFIG, SCHEMA
+ */
+export function listNeedsReview(baseDir) {
+  return triageRows(baseDir)
+    .filter((r) => r.item.status === 'T' && r.item.migration_note)
+    .map(({ item, label, path }) => ({ item, label, path }));
+}
+
+/**
+ * The distinct theme values in use, with counts — v1 `work-ops.js`
+ * `listThemes`, read from records — so a new theme can join an existing one.
+ * Read-only.
+ *
+ * @param {string} baseDir
+ * @param {{status?: string, type?: string, theme?: string, priority?: string|number, epic?: string}} [filter]
+ *   exact matches; `status` is a letter (a closing record is `C`)
+ * @returns {Array<{theme: string, count: number}>} most-used first, then by name
+ * @throws {WorkStoreError} CONFIG, SCHEMA (a broken record, or an unknown filter)
+ */
+export function listThemes(baseDir, filter = {}) {
+  const rows = filterRows(triageRows(baseDir), filter);
+  const counts = new Map();
+  for (const { item } of rows) {
+    if (typeof item.theme === 'string' && item.theme.trim() !== '') counts.set(item.theme, (counts.get(item.theme) ?? 0) + 1);
+  }
+  return [...counts]
+    .map(([theme, count]) => ({ theme, count }))
+    .sort((a, b) => b.count - a.count || a.theme.localeCompare(b.theme));
 }
 
 // ── The v2 store check (t2.7, AC1.3, AC5.2, NFR integrity) ─────────────────

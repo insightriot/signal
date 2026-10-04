@@ -28,7 +28,7 @@ const MODULES = { 'work-records.js': records, 'work-item.js': itemLib, 'profile.
 // functions the command calls").
 const ACTIONS = {
   new: ['newItem'],
-  triage: ['listRecords', 'triageItem', 'closeItem', 'editItem'],
+  triage: ['triageNext', 'listThemes', 'listNeedsReview', 'triageItem', 'closeItem', 'editItem'],
   move: ['triageItem', 'queueItem', 'startItem'],
   close: ['requestClose', 'closeItem'],
   reopen: ['reopenItem'],

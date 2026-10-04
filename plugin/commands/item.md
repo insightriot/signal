@@ -15,7 +15,7 @@ An item's prose lives beside its record, in `SIG-n.md`. **That body file is your
 `BUGS.md`, `BACKLOG.md`, `ISSUES-INBOX.md`, `OPEN-QUESTIONS.md`, `.planning/work/EPICS.md` and `.planning/work/history/*.md` are **views**: generated from the records after every change. Do not edit them; the hook blocks it and says to come here.
 
 Authoritative references:
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-records.js` — `storeVersion`, `listRecords`, `getRecord`, `newItem`, `triageItem`, `queueItem`, `startItem`, `requestClose`, `closeItem`, `reopenItem`, `editItem`, `checkRecords`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-records.js` — `storeVersion`, `listRecords`, `getRecord`, `triageNext`, `listNeedsReview`, `listThemes`, `newItem`, `triageItem`, `queueItem`, `startItem`, `requestClose`, `closeItem`, `reopenItem`, `editItem`, `checkRecords`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-item.js` — `renderLabel`, `WorkStoreError` (dispatch on its `code` — every code is listed under *Errors* below)
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readEffectiveProfile` (for `attention`, triage only)
 
@@ -43,14 +43,14 @@ Every change below takes `by` (who made it) and returns the entry `{id, path, re
 
 ### `triage` — sort the inbox, one item at a time
 
-1. `listRecords(baseDir, {bodies: true})` and take the records whose `status` is N — ones the migration flagged (`record.migration_note`) first, then the oldest (`created` event). For each, **read the body and the record and propose** a type, title, theme and priority, and name any item it looks like a duplicate of. The themes already in use are the `theme` values across `listRecords` — prefer joining one to inventing a near-copy.
+1. `triageNext(baseDir, {exclude})` from `tools/lib/work-records.js` hands over the next record at N — ones the migration flagged (`migration_note`) first, then the oldest (`created` event), then the lowest number — with its body and a **proposal** (`proposal`: type, title, theme, priority, and `duplicates`, open items whose title overlaps), or `null` when none is left; `exclude` is the IDs skipped so far in this run. The proposal is deterministic keyword and overlap arithmetic, a starting point: **read the body and the record and refine it** before asking. The themes already in use are `listThemes(baseDir)` — prefer joining one to inventing a near-copy.
 2. Get a decision, one of:
    - **accept** — `triageItem(baseDir, id, {type, priority, theme, title, by})` → status T. The type must be `BUG`, `FEAT`, `CHORE` or `Q`.
    - **dup** — `closeItem(baseDir, id, {reason: 'dup', dup_of: 'SIG-n', by})` → closed `dup` of that item.
    - **reject** — `closeItem(baseDir, id, {reason: 'rejected', proof: '<what was checked and found false>', by})` → closed `rejected`, the text kept as proof.
    - **skip** — leave it at N and pass over it for the rest of this run.
 3. Repeat until no N record is left that was not skipped. A new title or theme, or a reject's proof, is scrubbed for secrets as in `new`: on `{aborted: 'sensitive-data-pending'}` nothing changed — ask **keep** or **abort**, and on keep call again with `acknowledgeSensitive: true` in the options.
-4. Then the records at T that still carry a `migration_note` — migrated rows that need a person's look. Offer them the same way; accepting one clears its note with `editItem(baseDir, id, {changes: {migration_note: null}, by})`.
+4. Then the records at T that still carry a `migration_note` — migrated rows that need a person's look: `listNeedsReview(baseDir)`. Offer them the same way; accepting one clears its note with `editItem(baseDir, id, {changes: {migration_note: null}, by})`.
 
 **The attention setting governs confirmation, as in every phase** (`attention` from `readEffectiveProfile`, via `gates.confirm_in_phase` — not `gate_strictness`):
 
