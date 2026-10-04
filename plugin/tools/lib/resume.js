@@ -213,9 +213,11 @@ const LINEAR_UNPREFIXED = new Set(['REQUIREMENTS']);
  *     pass 2 / D-M6E11-33): the file `resolveArtifactPath` reads when it is in
  *     the folder (`work/epics/{id}/{id}-{artifact}.md` or the bare
  *     `work/epics/{id}/{artifact}.md`), else the canonical folder name. The
- *     root `{id}-{artifact}.md` is never written once the folder exists: the
- *     first `moveItem` into an Epic moves its root artifacts into the new
- *     folder, so a root copy can only be one a store-off command wrote since.
+ *     root `{id}-{artifact}.md` is never written once the folder exists (on
+ *     the v1 store the first `moveItem` into an Epic moved its root artifacts
+ *     into the new folder; that move was retired with the v1 store at M6.E13
+ *     t7.4), so a root copy is one written before the folder existed or by a
+ *     store-off command since.
  *     The reader still finds that copy, below the folder candidates, until
  *     the folder's own is written; `closeEpic` refuses while it is there.
  *     Never a path under `archive/` (a closed Epic's folder is history), and

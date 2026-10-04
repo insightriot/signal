@@ -190,7 +190,7 @@ export const checkPublishedBugTally = defineCheck({
  *
  * ⚠ What this reduces to, stated: BUGS.md is generated from the records, so a
  * mismatch is a stale or hand-edited view — the same fact the store check
- * (`checkRecords` on v2, `checkStore` on v1) reports for the whole file. This
+ * (`checkRecords`) reports for the whole file. This
  * check names the tally that should be there.
  */
 function storeTallyFindings(p, store) {
