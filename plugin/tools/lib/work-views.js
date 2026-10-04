@@ -144,12 +144,15 @@ const titleOf = (it) => oneLine(it.record.title ?? it.id);
 
 // ── BUGS.md ─────────────────────────────────────────────────────────────────
 
-// A one-paragraph body (a migrated row's text) is the summary; anything
-// longer is summarised by its title, never by its body.
+// A body that opens with a bold headline (a migrated BUGS.md row's text) gives
+// its first paragraph — the row, without the notes added under it (SIG-52,
+// SIG-99) — as the summary. Anything else is summarised by its title: a bug
+// filed in the store has a prose body with no headline, and its first
+// paragraph would drop the title the v1 view showed (M6.E13 t7.1b R1).
 function bugSummary(it) {
-  const body = bodyAt(it, PLANNING_DEPTH).trim();
-  if (body !== '' && !/\n\s*\n/.test(body) && !body.split('\n').some((l) => HEADING_RE.test(l) || isFence(l))) {
-    return cell(body);
+  const first = bodyAt(it, PLANNING_DEPTH).trim().split(/\n\s*\n/)[0].trim();
+  if (first.startsWith('**') && !first.split('\n').some((l) => HEADING_RE.test(l) || isFence(l))) {
+    return cell(first);
   }
   return `**${cell(titleOf(it))}**`;
 }

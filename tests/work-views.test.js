@@ -208,12 +208,42 @@ describe('renderViews — bodies and links', () => {
     expect(views[P.backlog].split('\n').filter((l) => /^#{1,6} /.test(l))).toEqual(['# Backlog', '### title of SIG-1 · SIG-1']);
   });
 
-  it('a one-paragraph bug body is its BUGS summary; otherwise the title is', () => {
+  it('a bug body that opens with its bold headline gives its first paragraph; otherwise the title is', () => {
     const views = renderViews([
       entry('SIG-1', 'BUG', [ev.created()], {}, '**Short.** A pipe \\| kept, and a | new one, [X](../../../../analysis/X.md).\n'),
       entry('SIG-2', 'BUG', [ev.created()], {}, 'one\n\ntwo\n'),
+      entry('SIG-3', 'BUG', [ev.created()]),
     ]);
     expect(views[P.bugs]).toMatch(/^\| SIG-1 \| `needs-triage` \| — \| \*\*Short\.\*\* A pipe \\\| kept, and a \\\| new one, \[X\]\(\.\.\/analysis\/X\.md\)\. \|$/m);
+    expect(views[P.bugs]).toMatch(/^\| SIG-2 \| `needs-triage` \| — \| \*\*title of SIG-2\*\* \|$/m);
+    expect(views[P.bugs]).toMatch(/^\| SIG-3 \| `needs-triage` \| — \| \*\*title of SIG-3\*\* \|$/m);
+  });
+
+  // M6.E13 t7.1b R1: SIG-52 and SIG-99 are a migrated row followed by more
+  // paragraphs. The v1 view showed the row; the summary is that first paragraph.
+  it('a multi-paragraph body (a migrated row, then notes) keeps its first paragraph as the summary', () => {
+    const body = '**Session binds to one cache.** Observed live, a line\nwrapped onto two.\n\n**Related hazard.** later notes\n';
+    const views = renderViews([entry('SIG-52', 'BUG', [ev.created()], {}, body)]);
+    expect(views[P.bugs]).toMatch(/^\| SIG-52 \| `needs-triage` \| — \| \*\*Session binds to one cache\.\*\* Observed live, a line wrapped onto two\. \|$/m);
+    expect(views[P.bugs]).not.toMatch(/Related hazard/);
+  });
+
+  // ...and a bug filed in the store (SIG-258) has a prose body with no bold
+  // headline. Its first paragraph would drop the title the v1 view showed, and
+  // five such bugs open with the same sentence.
+  it('a multi-paragraph body with no bold headline is summarised by its title', () => {
+    const body = 'Found 2026-10-03 by the first run outside Signal.\n\nMore detail.\n';
+    const views = renderViews([entry('SIG-258', 'BUG', [ev.created()], {}, body)]);
+    expect(views[P.bugs]).toMatch(/^\| SIG-258 \| `needs-triage` \| — \| \*\*title of SIG-258\*\* \|$/m);
+    expect(views[P.bugs]).not.toMatch(/Found 2026-10-03/);
+  });
+
+  it('a first paragraph that is a heading or a fence is not a summary; the title is', () => {
+    const views = renderViews([
+      entry('SIG-1', 'BUG', [ev.created()], {}, '## A heading\n\ntext\n'),
+      entry('SIG-2', 'BUG', [ev.created()], {}, '```\ncode\n```\n\ntext\n'),
+    ]);
+    expect(views[P.bugs]).toMatch(/^\| SIG-1 \| `needs-triage` \| — \| \*\*title of SIG-1\*\* \|$/m);
     expect(views[P.bugs]).toMatch(/^\| SIG-2 \| `needs-triage` \| — \| \*\*title of SIG-2\*\* \|$/m);
   });
 
