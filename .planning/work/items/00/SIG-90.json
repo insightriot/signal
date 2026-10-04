@@ -1,0 +1,23 @@
+{
+  "id": "SIG-90",
+  "type": "BUG",
+  "title": "Signal can lower rigor per unit of work, and every surface that introduces the feature says it only raises it — so…",
+  "priority": "P1",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:155",
+  "legacy_id": "B90",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

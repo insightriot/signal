@@ -1,0 +1,21 @@
+{
+  "id": "SIG-33",
+  "type": "BUG",
+  "title": "Stale `LOCK_TTL_MS` comment in `add.js`.",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:61",
+  "legacy_id": "B33",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

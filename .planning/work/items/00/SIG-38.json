@@ -1,0 +1,23 @@
+{
+  "id": "SIG-38",
+  "type": "BUG",
+  "title": "109 entries classified (93 discipline / 16 shaping), `references/anti-rationalization-forms.md` generated from the…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:66",
+  "legacy_id": "B38",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

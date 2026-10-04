@@ -1,0 +1,22 @@
+{
+  "id": "SIG-233",
+  "type": "FEAT",
+  "title": "**Dedicated test-sandbox project for Signal QA.** A commi...",
+  "theme": "testing",
+  "priority": "P2",
+  "source": "migration:ISSUES-INBOX.md",
+  "source_ref": "ISSUES-INBOX.md:32",
+  "legacy_id": "ISSUES-INBOX.md:32",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "SIG-251",
+  "type": "BUG",
+  "title": "file-lock held-error understates the wait for a live holder (10x ttl)",
+  "theme": "work-store",
+  "priority": "P3",
+  "source": "M6.E11 REVIEW pass 3",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-30T15:27:01.514Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-30T15:27:01.514Z",
+      "by": "migration (v2)"
+    }
+  ]
+}

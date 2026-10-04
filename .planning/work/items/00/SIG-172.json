@@ -1,0 +1,23 @@
+{
+  "id": "SIG-172",
+  "type": "FEAT",
+  "title": "~~Cross-model review at REVIEW~~ · **SCOPED 2026-08-23** · `analysis/CROSS-MODEL-REVIEW-SCOPE.md` — verdict: **build neither**; the binding problem is that nothing READS the reviewer already running (measured: 4 real findings across 10 PRs, all four unread until the scoping pass went looking)",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:894",
+  "legacy_id": "BACKLOG.md:894",
+  "migration_note": "SCOPED — the heading records a scoping outcome, not the work itself.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

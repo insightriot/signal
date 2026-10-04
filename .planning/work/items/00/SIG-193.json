@@ -1,0 +1,22 @@
+{
+  "id": "SIG-193",
+  "type": "FEAT",
+  "title": "~~M5.E18 — The archive half, for the 8 projects out of 12 it does not reach~~ — **✅ SHIPPED v0.1.18 (M5.E18, 2026-08-04)**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1611",
+  "legacy_id": "BACKLOG.md:1611",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

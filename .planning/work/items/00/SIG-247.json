@@ -1,0 +1,20 @@
+{
+  "id": "SIG-247",
+  "type": "Q",
+  "title": "`M6.E1`: the `depSource` fallback in `adherence-harness.js` becomes dead code when S3 lands — remove it or it is an unreached branch.",
+  "source": "migration:OPEN-QUESTIONS.md",
+  "source_ref": "OPEN-QUESTIONS.md:179",
+  "legacy_id": "OPEN-QUESTIONS.md:179",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

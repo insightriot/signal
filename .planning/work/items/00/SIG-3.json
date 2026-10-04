@@ -1,0 +1,23 @@
+{
+  "id": "SIG-3",
+  "type": "BUG",
+  "title": "`/sig:add` derived-title cut mid-clause.",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:21",
+  "legacy_id": "B3",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

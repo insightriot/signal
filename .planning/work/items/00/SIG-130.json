@@ -1,0 +1,22 @@
+{
+  "id": "SIG-130",
+  "type": "BUG",
+  "title": "Archived phase logs are written but never staged",
+  "theme": "archive",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:235",
+  "legacy_id": "BUGS.md:235",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

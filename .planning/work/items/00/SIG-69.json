@@ -1,0 +1,21 @@
+{
+  "id": "SIG-69",
+  "type": "BUG",
+  "title": "The SHIP retro write-guard cannot evaluate a project whose `current_epic` is non-strict, and says nothing — the third…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:108",
+  "legacy_id": "B69",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

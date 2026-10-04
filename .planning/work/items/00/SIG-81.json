@@ -1,0 +1,21 @@
+{
+  "id": "SIG-81",
+  "type": "BUG",
+  "title": "`guard-callers.test.js` governs 1 of ~25 CLI flags in `tools/`, and its \"population is not empty\" assertion cannot…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:114",
+  "legacy_id": "B81",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

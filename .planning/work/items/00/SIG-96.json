@@ -1,0 +1,23 @@
+{
+  "id": "SIG-96",
+  "type": "BUG",
+  "title": "`extractEpicSection` cannot see a heading inside a blockquote, so `evictEpicNarrative` reports `no-section` — *\"a safe…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:202",
+  "legacy_id": "B96",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

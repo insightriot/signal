@@ -1,0 +1,21 @@
+{
+  "id": "SIG-173",
+  "type": "FEAT",
+  "title": "The entry price for *any* Phase A autonomy work: `B73`–`B76` · **agreed 2026-08-08**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:916",
+  "legacy_id": "BACKLOG.md:916",
+  "migration_note": "Names B73–B76 as its entry price; at migration B73, B74 and B76 read fixed and B75 confirmed — partly discharged, kept open by the parser.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

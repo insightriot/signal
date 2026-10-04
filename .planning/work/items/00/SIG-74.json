@@ -1,0 +1,23 @@
+{
+  "id": "SIG-74",
+  "type": "BUG",
+  "title": "Every phase's Exit Criteria carries an unconditional \"User approves…\" checkbox while the same file's §0 preamble makes…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:123",
+  "legacy_id": "B74",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

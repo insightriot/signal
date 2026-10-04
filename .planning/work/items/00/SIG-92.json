@@ -1,0 +1,21 @@
+{
+  "id": "SIG-92",
+  "type": "BUG",
+  "title": "A drain disposition stamp is only recognised when the reason's LAST word is `drain`.",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:206",
+  "legacy_id": "B92",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

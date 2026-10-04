@@ -1,0 +1,20 @@
+{
+  "id": "SIG-132",
+  "type": "BUG",
+  "title": "Two mutually-blind milestone Epic-row parsers, and the one feeding the SHIP gate cannot read Milestone 6 at all",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:251",
+  "legacy_id": "BUGS.md:251",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

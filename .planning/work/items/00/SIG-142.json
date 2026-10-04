@@ -1,0 +1,23 @@
+{
+  "id": "SIG-142",
+  "type": "CHORE",
+  "title": "`/sig:advise` ranks on age alone for 44 of 46 rows · **hygiene** · medium · *filed 2026-09-07 from `M6.E8` DISCUSS*",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:95",
+  "legacy_id": "BACKLOG.md:95",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-02",
+      "by": "M6.E12",
+      "reason": "fixed",
+      "proof": "DONE — M6.E12, 2026-10-02",
+      "legacy": true
+    }
+  ]
+}

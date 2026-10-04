@@ -1,0 +1,23 @@
+{
+  "id": "SIG-102",
+  "type": "BUG",
+  "title": "Signal's own migration instructions uninstall the plugin and then tell you they didn't.",
+  "priority": "P1",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:157",
+  "legacy_id": "B102",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

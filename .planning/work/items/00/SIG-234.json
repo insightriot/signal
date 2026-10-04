@@ -1,0 +1,22 @@
+{
+  "id": "SIG-234",
+  "type": "FEAT",
+  "title": "Behavioral evals as a second measurement shape (eve factory)",
+  "theme": "testing",
+  "priority": "P3",
+  "source": "migration:ISSUES-INBOX.md",
+  "source_ref": "ISSUES-INBOX.md:56",
+  "legacy_id": "ISSUES-INBOX.md:56",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

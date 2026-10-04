@@ -1,0 +1,23 @@
+{
+  "id": "SIG-93",
+  "type": "BUG",
+  "title": "`commands/discuss.md` reads the tier BEFORE the Epic roll, so a `--epic` run gates the whole phase on the PREVIOUS…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:205",
+  "legacy_id": "B93",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

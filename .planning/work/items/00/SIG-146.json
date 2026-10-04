@@ -1,0 +1,23 @@
+{
+  "id": "SIG-146",
+  "type": "FEAT",
+  "title": "2. ~~The closure-gated archive command~~ · **DONE — `v0.1.22` (`M5.E19`), 2026-08-07** · `B82` shipped in `v0.1.21`",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:210",
+  "legacy_id": "BACKLOG.md:210",
+  "migration_note": "One of two rows describing the closure-gated archive command (both closed) — a duplicate pair.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

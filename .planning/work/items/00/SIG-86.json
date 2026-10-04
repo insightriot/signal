@@ -1,0 +1,22 @@
+{
+  "id": "SIG-86",
+  "type": "BUG",
+  "title": "`claude plugin update` exits 0 on failure.",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:119",
+  "legacy_id": "B86",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "rejected",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "SIG-249",
+  "type": "BUG",
+  "title": "tools/adherence-ceiling.js ignores unknown flags and regenerates the log",
+  "theme": "tooling",
+  "priority": "P3",
+  "source": "M6.E11 REVIEW fixes",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29T18:38:46.800Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29T18:38:46.800Z",
+      "by": "migration (v2)"
+    }
+  ]
+}

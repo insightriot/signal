@@ -1,0 +1,23 @@
+{
+  "id": "SIG-22",
+  "type": "BUG",
+  "title": "`doc-hygiene.js` internal-link check touches disk outside the walk root.",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:49",
+  "legacy_id": "B22",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "SIG-182",
+  "type": "FEAT",
+  "title": "~~Task-handoff completeness — the research never reaches the builder~~ · **DONE — `M6.E4` S3, 2026-08-24**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1101",
+  "legacy_id": "BACKLOG.md:1101",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "SIG-192",
+  "type": "FEAT",
+  "title": "M5.E20 — The other two shapes of \"shipped but never run\" *(renumbered from `M5.E16`, 2026-08-09)*",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1550",
+  "legacy_id": "BACKLOG.md:1550",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "SIG-2",
+  "type": "BUG",
+  "title": "FUTURE-IDEAS footer drift — new entries could land below the `*Last updated:*` footer.",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:20",
+  "legacy_id": "B2",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

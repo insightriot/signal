@@ -1,0 +1,23 @@
+{
+  "id": "SIG-58",
+  "type": "BUG",
+  "title": "`marketplace.json`'s pinned `sha` sat two releases behind its `ref`, so every `/plugin` install since v0.1.14 silently…",
+  "priority": "P1",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:97",
+  "legacy_id": "B58",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

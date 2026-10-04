@@ -1,0 +1,22 @@
+{
+  "id": "SIG-177",
+  "type": "FEAT",
+  "title": "~~Spec-internal consistency — a plan that contradicts itself~~ · **DONE — `M6.E4` S1, 2026-08-24**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1025",
+  "legacy_id": "BACKLOG.md:1025",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "SIG-133",
+  "type": "BUG",
+  "title": "`transitionPhase` regenerates INDEX.md at phase ENTRY, so INDEX never holds the current phase's own artifact",
+  "theme": "index",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:274",
+  "legacy_id": "BUGS.md:274",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "SIG-171",
+  "type": "FEAT",
+  "title": "~~The measurable-outcome question in DISCUSS~~ · **DONE 2026-08-23** · asked at FULL+FEATURE; the honest decline is first-class and pinned",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:878",
+  "legacy_id": "BACKLOG.md:878",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

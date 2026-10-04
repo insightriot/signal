@@ -1,0 +1,23 @@
+{
+  "id": "SIG-138",
+  "type": "BUG",
+  "title": "An Epic-lane `--merge` produced a SQUASH, and a published adherence verdict immediately pointed at a commit absent…",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:389",
+  "legacy_id": "BUGS.md:389",
+  "migration_note": "Possibly the same defect as B117 (the Epic lane kept getting squashed); not re-judged by the migration.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "id": "SIG-161",
+  "type": "FEAT",
+  "title": "Structural status — make done-vs-live readable without inference · **roadmap** · large · **filed 2026-09-01** · **NEXT EPIC after `M6.E3` (Brett, 2026-09-27, `D-M6E3-16`)**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:527",
+  "legacy_id": "BACKLOG.md:527",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "queued",
+      "at": "2026-09-29",
+      "by": "migration (v2)",
+      "epic": "M6.E11"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-30",
+      "by": "M6.E11",
+      "reason": "fixed",
+      "proof": "DONE — M6.E11, 2026-09-30",
+      "legacy": true
+    }
+  ]
+}

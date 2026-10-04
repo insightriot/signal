@@ -1,0 +1,20 @@
+{
+  "id": "SIG-206",
+  "type": "FEAT",
+  "title": "Passive `OBSERVATIONS.md` capture",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1994",
+  "legacy_id": "BACKLOG.md:1994",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

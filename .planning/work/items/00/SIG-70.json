@@ -1,0 +1,23 @@
+{
+  "id": "SIG-70",
+  "type": "BUG",
+  "title": "Both commands now route through `describeNextAction` (never throws) + `formatNextActionCopy` (renders the copy);…",
+  "priority": "P1",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:109",
+  "legacy_id": "B70",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

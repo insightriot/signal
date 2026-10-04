@@ -1,0 +1,23 @@
+{
+  "id": "SIG-147",
+  "type": "FEAT",
+  "title": "3. ~~`M5.E14`'s shippable slice only~~ · **DONE — `v0.1.24`, 2026-08-09** · *not the tracker Epic*",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:253",
+  "legacy_id": "BACKLOG.md:253",
+  "migration_note": "One of 2 rows led by M5.E14 — possible duplicates.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

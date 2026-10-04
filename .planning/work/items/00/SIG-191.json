@@ -1,0 +1,22 @@
+{
+  "id": "SIG-191",
+  "type": "FEAT",
+  "title": "~~M5.E11 — Roadmap Advisor · **OPENED AS `M6.E7` 2026-09-05 — see [`M6.E7-REQUIREMENTS.md`](M6.E7-REQUIREMENTS.md)** *(2026-08-09, `D-BR0809-1`)*~~ · **DONE — M6.E7, 2026-09-06**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1514",
+  "legacy_id": "BACKLOG.md:1514",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

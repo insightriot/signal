@@ -1,0 +1,31 @@
+{
+  "id": "SIG-118",
+  "type": "BUG",
+  "title": "`/sig:drive` chooses what to work on by reading the checked-out branch's `STATE.md` and no other, so an Epic in flight…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:174",
+  "legacy_id": "B118",
+  "migration_note": "(v0.1.44) — tests/branch-work.test.js",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-01T21:11:36.729Z",
+      "by": "claude",
+      "reason": "fixed",
+      "proof": "a6c63f2"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-04T19:39:12.342Z",
+      "by": "confirmCloses",
+      "reason": "fixed",
+      "proof": "a6c63f2"
+    }
+  ]
+}

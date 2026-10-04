@@ -1,0 +1,22 @@
+{
+  "id": "SIG-139",
+  "type": "BUG",
+  "title": "The suite is flaky under local parallel load — a different test times out each run",
+  "theme": "testing",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:549",
+  "legacy_id": "BUGS.md:549",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "SIG-248",
+  "type": "Q",
+  "title": "Can the repo go private without breaking installs?",
+  "source": "migration:OPEN-QUESTIONS.md",
+  "source_ref": "OPEN-QUESTIONS.md:190",
+  "legacy_id": "OPEN-QUESTIONS.md:190",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

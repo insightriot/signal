@@ -1,0 +1,23 @@
+{
+  "id": "SIG-44",
+  "type": "BUG",
+  "title": "`transitionPhase`'s dedupe assumes a ≤7-entry per-Epic ledger — nothing enforces that invariant, so the first…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:76",
+  "legacy_id": "B44",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

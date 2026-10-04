@@ -1,0 +1,22 @@
+{
+  "id": "SIG-201",
+  "type": "FEAT",
+  "title": "~~Compound-engineering implementation audit~~ — **✅ DONE (M5.E7 S2.t6a/t6b), and it cut what it gated**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1953",
+  "legacy_id": "BACKLOG.md:1953",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

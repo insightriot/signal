@@ -1,0 +1,22 @@
+{
+  "id": "SIG-190",
+  "type": "FEAT",
+  "title": "~~▶ M5.E10 — Review hardening · **NEXT (confirmed 2026-08-09, `D-BR0809-1`)**~~ · **DONE — v0.1.25, 2026-08-13**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1412",
+  "legacy_id": "BACKLOG.md:1412",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "SIG-218",
+  "type": "FEAT",
+  "title": "Pre-scoped DISCUSS agenda",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:2074",
+  "legacy_id": "BACKLOG.md:2074",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

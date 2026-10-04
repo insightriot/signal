@@ -1,0 +1,23 @@
+{
+  "id": "SIG-8",
+  "type": "BUG",
+  "title": "v0.1.6 write-guard wedges pre-existing prose files, and its reason message hides the only escape.",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:28",
+  "legacy_id": "B8",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

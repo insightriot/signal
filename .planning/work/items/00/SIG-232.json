@@ -1,0 +1,20 @@
+{
+  "id": "SIG-232",
+  "type": "CHORE",
+  "title": "Nothing compares the tier a decision states with the tier the phase commands read",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:2187",
+  "legacy_id": "BACKLOG.md:2187",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

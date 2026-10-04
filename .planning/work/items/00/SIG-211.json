@@ -1,0 +1,21 @@
+{
+  "id": "SIG-211",
+  "type": "FEAT",
+  "title": "Retro *replay* into the next Epic's DISCUSS/PLAN — **KEPT, re-homed**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:2037",
+  "legacy_id": "BACKLOG.md:2037",
+  "migration_note": "KEPT — the work moved elsewhere but the row was kept open on purpose.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

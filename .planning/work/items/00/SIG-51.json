@@ -1,0 +1,23 @@
+{
+  "id": "SIG-51",
+  "type": "BUG",
+  "title": "`discuss.md` still instructs the DISCUSS close to set `phase: PLAN`, which makes `/sig:plan`'s at-entry transition…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:88",
+  "legacy_id": "B51",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

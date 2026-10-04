@@ -1,0 +1,23 @@
+{
+  "id": "SIG-150",
+  "type": "FEAT",
+  "title": "~~`M6.E3` — the claims-audit backstop, rebuilt around Jev · **roadmap** · large · **IN FLIGHT — REVIEW PASS on pass 3 (2026-09-27); SHIP next**~~ · **DONE — M6.E3, 2026-09-27**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:319",
+  "legacy_id": "BACKLOG.md:319",
+  "migration_note": "The heading is struck AND says IN FLIGHT — closed by the parser, possibly still open.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

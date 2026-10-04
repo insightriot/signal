@@ -1,0 +1,12 @@
+{
+  "id": "SIG-274",
+  "type": "NEW",
+  "title": "Turning the work store on for a new project still makes a v1 store, which v2 code refuses to write",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-04T17:52:10.530Z",
+      "by": "claude"
+    }
+  ]
+}

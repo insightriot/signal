@@ -1,0 +1,23 @@
+{
+  "id": "SIG-30",
+  "type": "BUG",
+  "title": "The FR1 retro pre-check (`/sig:ship` Step 0.5) runs BEFORE the SHIP transition (Step 5), so on a fresh REVIEW→SHIP…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:57",
+  "legacy_id": "B30",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

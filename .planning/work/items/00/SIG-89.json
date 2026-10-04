@@ -1,0 +1,23 @@
+{
+  "id": "SIG-89",
+  "type": "BUG",
+  "title": "`/sig:plan` grants permission to skip the drain and forbids skipping the drain, in the same file.",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:154",
+  "legacy_id": "B89",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "SIG-270",
+  "type": "NEW",
+  "title": "readOpenQuestions counts and lists a struck-through (~~settled~~) question as open",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-04T14:42:08.823Z",
+      "by": "claude"
+    }
+  ]
+}

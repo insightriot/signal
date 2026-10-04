@@ -1,0 +1,22 @@
+{
+  "id": "SIG-197",
+  "type": "FEAT",
+  "title": "~~M5.E15 — The control arm, made real (`B55`)~~ — **✅ SHIPPED v0.1.19 (2026-08-06)**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1809",
+  "legacy_id": "BACKLOG.md:1809",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

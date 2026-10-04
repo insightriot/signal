@@ -1,0 +1,20 @@
+{
+  "id": "SIG-239",
+  "type": "Q",
+  "title": "Tier count: validate 4 tiers — confirmed for v1, revisit on real-user data",
+  "source": "migration:OPEN-QUESTIONS.md",
+  "source_ref": "OPEN-QUESTIONS.md:78",
+  "legacy_id": "OPEN-QUESTIONS.md:78",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "SIG-266",
+  "type": "BUG",
+  "title": "private-name guard can time out under a full parallel run",
+  "theme": "testing",
+  "priority": "P2",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-03T23:46:04.765Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-03T23:46:04.765Z",
+      "by": "migration (v2)"
+    }
+  ]
+}

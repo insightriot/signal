@@ -1,0 +1,23 @@
+{
+  "id": "SIG-54",
+  "type": "BUG",
+  "title": "`checkGateArtifacts` is the never-called-guard class's FOURTH instance — and the only one that is not merely inert but…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:93",
+  "legacy_id": "B54",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

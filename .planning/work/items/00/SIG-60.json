@@ -1,0 +1,21 @@
+{
+  "id": "SIG-60",
+  "type": "BUG",
+  "title": "All six phase commands handle only the \"PROFILE.md not found\" error and have no branch for a malformed one — the four…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:99",
+  "legacy_id": "B60",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

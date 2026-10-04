@@ -1,0 +1,23 @@
+{
+  "id": "SIG-17",
+  "type": "BUG",
+  "title": "4 git-heavy migrate tests flake on vitest's 5 s default timeout under full-suite parallel load.",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:41",
+  "legacy_id": "B17",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

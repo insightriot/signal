@@ -1,0 +1,31 @@
+{
+  "id": "SIG-122",
+  "type": "BUG",
+  "title": "The `<details>` counter in `parseBacklogRows` is fence-unaware and code-span-unaware, so any MENTION of `<details`…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:177",
+  "legacy_id": "B122",
+  "migration_note": "tests/backlog-reader-fixes.test.js (v0.1.46)",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-03",
+      "by": "claude",
+      "reason": "fixed",
+      "proof": "3c0b504"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-04T19:39:12.342Z",
+      "by": "confirmCloses",
+      "reason": "fixed",
+      "proof": "3c0b504"
+    }
+  ]
+}

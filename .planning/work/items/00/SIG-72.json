@@ -1,0 +1,23 @@
+{
+  "id": "SIG-72",
+  "type": "BUG",
+  "title": "`/sig:discuss`'s done-Epic guard — the one that stops a writing command clobbering a finished unit's artifacts —…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:125",
+  "legacy_id": "B72",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

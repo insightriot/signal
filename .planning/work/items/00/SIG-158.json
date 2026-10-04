@@ -1,0 +1,21 @@
+{
+  "id": "SIG-158",
+  "type": "CHORE",
+  "title": "Cross-references become links, so a walker can check them · **hygiene** · small · **filed 2026-09-01**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:475",
+  "legacy_id": "BACKLOG.md:475",
+  "migration_note": "Another row carries the same title — a struck/live duplicate pair.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

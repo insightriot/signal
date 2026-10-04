@@ -1,0 +1,23 @@
+{
+  "id": "SIG-97",
+  "type": "BUG",
+  "title": "`tests/private-name-guard.test.js` covers 5 of the 13 eval-corpus projects, so a tracked file naming one of the other…",
+  "priority": "P1",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:200",
+  "legacy_id": "B97",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

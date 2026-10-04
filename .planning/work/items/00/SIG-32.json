@@ -1,0 +1,23 @@
+{
+  "id": "SIG-32",
+  "type": "BUG",
+  "title": "docs/map `COMMANDS` JS array incomplete.",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:60",
+  "legacy_id": "B32",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

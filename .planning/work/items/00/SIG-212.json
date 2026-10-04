@@ -1,0 +1,21 @@
+{
+  "id": "SIG-212",
+  "type": "FEAT",
+  "title": "Cross-Epic pattern detection — **KEPT, absorbed into M5.E11**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:2044",
+  "legacy_id": "BACKLOG.md:2044",
+  "migration_note": "KEPT — the work moved elsewhere but the row was kept open on purpose.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

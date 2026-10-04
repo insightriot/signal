@@ -1,0 +1,22 @@
+{
+  "id": "SIG-188",
+  "type": "FEAT",
+  "title": "~~M5.E8 — Measurement foundation~~ — **✅ SHIPPED v0.1.13 (2026-07-28)**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1330",
+  "legacy_id": "BACKLOG.md:1330",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

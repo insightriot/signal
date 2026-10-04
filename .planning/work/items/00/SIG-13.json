@@ -1,0 +1,23 @@
+{
+  "id": "SIG-13",
+  "type": "BUG",
+  "title": "`tools/lib/migrate-memory.js` has a literal NUL byte (~offset 57833) that makes `grep` treat the whole file as binary…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:36",
+  "legacy_id": "B13",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}
