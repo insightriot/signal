@@ -253,7 +253,9 @@ describe('generateAll — reads the store, writes the four files', () => {
 // and one parser, in the leaf module both already import, cannot drift.
 describe('the inbox status line — one formatter, one parser (REVIEW I8)', () => {
   it('round-trips every ID shape, with and without the key', async () => {
-    const { formatInboxStatusLine, parseInboxStatusLine } = await import('../plugin/tools/lib/work-marker.js');
+    const { formatInboxStatusLine } = await import('../plugin/tools/lib/work-marker.js');
+    // The parser moved to legacy-lists.js (M6.E13 t4.1); work-marker.js no longer re-exports it.
+    const { parseInboxStatusLine } = await import('../plugin/tools/lib/legacy-lists.js');
     for (const id of ['SIG-1', 'SIG-412', 'AB-9', 'A1-10', 'ABCDEFGHIJ-123456']) {
       const line = formatInboxStatusLine({ id, status: 'N' });
       const key = id.slice(0, id.lastIndexOf('-'));
@@ -266,7 +268,7 @@ describe('the inbox status line — one formatter, one parser (REVIEW I8)', () =
   });
 
   it('reads nothing that is not the line', async () => {
-    const { parseInboxStatusLine } = await import('../plugin/tools/lib/work-marker.js');
+    const { parseInboxStatusLine } = await import('../plugin/tools/lib/legacy-lists.js');
     for (const line of ['', '**Status:** untriaged (N) · SIG-0', '**Status:** untriaged (N) · sig-1',
       '**Status:** open · SIG-1', 'x **Status:** untriaged (N) · SIG-1', '**Status:** untriaged (N) · SIG-1 extra']) {
       expect(parseInboxStatusLine(line, 'SIG')).toBeNull();

@@ -10,8 +10,9 @@
 // `status.js`, `work-marker.js`) re-export them statically under the same names,
 // so every existing import and every store-off path is unchanged.
 //
-// ⚠ A LEAF MODULE. It imports nothing from `lib/`. The modules that re-export
-// it must never be imported back from here, or the re-export is a cycle.
+// ⚠ NEARLY A LEAF MODULE. Its one import from `lib/` is `work-marker.js`, itself
+// a leaf, for the inbox status line's format. The modules that re-export it
+// must never be imported from here, or the re-export is a cycle.
 //
 // THE TEST-ONLY FLAG. With `SIGNAL_FORBID_LIST_PARSERS=1` in the environment,
 // every exported function throws when CALLED, naming itself — never on import,
@@ -20,6 +21,8 @@
 // a parser fails by name. Unset (always, outside that test), the wrapper only
 // forwards the call. Internal calls between parsers go to the unwrapped
 // functions, so one call reports the parser the caller reached, not a helper.
+
+import { INBOX_STATUS_RE } from './work-marker.js';
 
 const FORBID_FLAG = 'SIGNAL_FORBID_LIST_PARSERS';
 
@@ -1044,12 +1047,10 @@ export const countOpenQuestions = guard('countOpenQuestions', _countOpenQuestion
 
 // ── The generated inbox's status line (from work-marker.js) ─────────────────
 //
-// The prefix and the parser stay together: `formatInboxStatusLine` (still in
-// work-marker.js) writes with this prefix, and the parser reads it back. If the
-// two disagree, the promote finds nothing and captures the block twice.
-
-export const INBOX_STATUS_PREFIX = '**Status:** untriaged (N) · ';
-const INBOX_STATUS_RE = /^\*\*Status:\*\* untriaged \(N\) · ([A-Z][A-Z0-9]{1,9}-[1-9]\d*)$/;
+// The format — `INBOX_STATUS_PREFIX`, `INBOX_STATUS_RE`, `formatInboxStatusLine`
+// — stays in work-marker.js, beside the writer, and this parser reads the
+// same `INBOX_STATUS_RE`, so the two cannot drift. If they disagree, the
+// promote finds nothing and captures the block twice.
 
 /**
  * The item ID on an inbox status line, or null when the line is not one.

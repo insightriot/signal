@@ -29,8 +29,7 @@ import { createHash } from 'node:crypto';
 
 import { atomicWrite } from './atomic-write.js';
 import { insertAboveFooter, rewriteFooter, buildBugsEntry, insertAtEnd, scrubSensitive } from './add.js';
-import { parseInboxStatusLine } from './work-marker.js';
-import { DONE_WORD_RE, declaresBugDischarge, isBugId, parseBacklogRows } from './legacy-lists.js';
+import { DONE_WORD_RE, declaresBugDischarge, isBugId, parseBacklogRows, parseInboxStatusLine } from './legacy-lists.js';
 import { isStoreOn } from './work-store.js';
 
 const BACKLOG_REL = '.planning/BACKLOG.md';

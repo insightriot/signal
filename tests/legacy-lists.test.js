@@ -16,6 +16,7 @@
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -24,7 +25,6 @@ import * as bugsTally from '../plugin/tools/lib/bugs-tally.js';
 import * as backlog from '../plugin/tools/lib/backlog.js';
 import * as drain from '../plugin/tools/lib/drain.js';
 import * as status from '../plugin/tools/lib/status.js';
-import * as workMarker from '../plugin/tools/lib/work-marker.js';
 
 const LIB = join(process.cwd(), 'plugin', 'tools', 'lib');
 const FLAG = 'SIGNAL_FORBID_LIST_PARSERS';
@@ -44,7 +44,6 @@ const RELOCATED = [
     ['parseEntries', 'listDrainCandidates', 'listStandingEntries', 'listDrainCandidatesWithRecovery', 'parseTriggerWatchlist'],
   ],
   ['status.js', status, ['extractTopOpenQuestions', 'countOpenQuestions']],
-  ['work-marker.js', workMarker, ['parseInboxStatusLine']],
 ];
 
 // Every module that re-exports legacy-lists.js or calls into it.
@@ -156,5 +155,36 @@ describe('legacy-lists — flag set: importing does not throw', () => {
     expect(r.stderr).toBe('');
     expect(r.status).toBe(0);
     expect(r.stdout.trim()).toBe(`imported ${urls.length}`);
+  });
+});
+
+describe('legacy-lists — the write path and the v2 modules do not import it', () => {
+  // t4.7 owns the full import-graph ban over the v2 modules. This pins the one
+  // edge t4.1 itself could have introduced: the inbox status line's parser
+  // moving out of work-marker.js, which atomic-write.js and work-views.js import.
+  const staticImports = (file) =>
+    [...readFileSync(join(LIB, file), 'utf-8').matchAll(/^\s*(?:import|export)\s[^;]*?from\s+'\.\/([\w.-]+\.js)'/gm)].map((m) => m[1]);
+
+  const reaches = (start) => {
+    const seen = new Set();
+    const stack = [start];
+    while (stack.length) {
+      const f = stack.pop();
+      if (seen.has(f)) continue;
+      seen.add(f);
+      stack.push(...staticImports(f));
+    }
+    return seen;
+  };
+
+  for (const mod of ['work-marker.js', 'atomic-write.js', 'work-record.js', 'work-records.js', 'work-views.js']) {
+    it(`${mod} does not reach legacy-lists.js through its static imports`, () => {
+      expect([...reaches(mod)]).not.toContain('legacy-lists.js');
+    });
+  }
+
+  it('the walk follows imports (guards a walker that finds nothing)', () => {
+    expect(reaches('backlog.js').has('legacy-lists.js')).toBe(true);
+    expect(reaches('work-views.js').has('work-marker.js')).toBe(true);
   });
 });
