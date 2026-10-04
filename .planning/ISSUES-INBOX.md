@@ -69,3 +69,11 @@ Found 2026-10-04 during M6.E13 t4.6 (wiring confirmCloses after the resume fetch
 Found 2026-10-04 at M6.E13 t6.2. The only path that turns a store on is node tools/work-migrate.mjs (v1, maintainer script). After M6.E13 the v2 library refuses writes on a v1 store, so a project that enables the store gets one it cannot use until it runs tools/work-migrate-v2.mjs too. Belongs with the other-projects Epic (/sig:docs-migrate), but the gap is real from this release.
 
 ---
+
+## checkpointed still asks "accept and continue?" at the end of every phase under /sig:drive
+
+**Status:** untriaged (N) · SIG-275
+
+Reported 2026-10-04 by Brett from a /sig:drive run in another project (screenshot: "Accept VERIFY pass 2 ... and run REVIEW pass 2?"): "it is asking me MORE questions than less". Confirmed in code: profile.js applyRigorOverrides sets gates.confirm_discuss/plan/execute/verify/review/ship = attention !== unattended, so checkpointed confirms at every phase end, and plan.md/execute.md/verify.md/review.md tables say checkpointed = confirm at end of phase. drive.md says checkpointed advances every phase and stops only for floors and gray-area decisions. M6.E10 fixed canProceedUnattended but left the phase commands own end-of-phase confirm. Same session reproduced it: M6.E13 PLAN asked for plan approval under drive at checkpointed. Fix: phase-end confirms only at attended; checkpointed announces and continues; SHIP stays a floor.
+
+---
