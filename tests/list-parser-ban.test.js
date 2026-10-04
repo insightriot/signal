@@ -253,10 +253,10 @@ const READER_MODULES = [
 // The list-parsing shapes, as they appear in source text. REVIEW pass 2: the
 // anchored forms are ONE general detector, not an enumeration — every pass of
 // enumerated shapes missed a spelling (`^#{2}`, `^\s*##`, `^[ \t]*\|`, …).
-// A `^` (not a negated class `[^`), optional leading whitespace — `\s`, a
-// class, or a space — with an optional quantifier, an optional group, then `#`
-// or `\|`. `\\{1,2}` lets a RegExp string's doubled backslash through.
-const ANCHORED = /(?<!\[)\^(?:(?:\\{1,2}s|\[[^\]]*\]| )(?:[*+?]|\{\d*,?\d*\})?)?(?:\((?:\?:)?)?(?:#|\\{1,2}\|)/;
+// A `^` (not a negated class `[^`), optional leading whitespace — `\s`, `\t`,
+// a class, or a space — with an optional quantifier, an optional group, then
+// `#`, `\|`, or a class holding either. `\\{1,2}` lets a RegExp string's doubled backslash through.
+const ANCHORED = /(?<!\[)\^(?:(?:\\{1,2}[st]|\[[^\]]*\]| )(?:[*+?]|\{\d*,?\d*\})?)?(?:\((?:\?:)?)?(?:#|\\{1,2}\||\[[^\]]*[#|][^\]]*\])/;
 const SHAPES = [
   ['anchored', ANCHORED], // a heading- or table-row-anchored regex, any spelling
   ['B-id', /B(?:-\??)?\(?(?:\\{1,2}d|\[0-9\])/], // a B{n} ID in a regex: B\d, B(\d+), B[0-9], B-?\d
@@ -414,6 +414,8 @@ describe('the source-text scanner bites (self-test)', () => {
     "if (line.at(0) === '|') rows.push(line);",
     "const ID = /\\bB-?\\d+/;",
     "const RE = new RegExp('^\\\\s*\\\\|');",
+    "const TABS = /^\\t*\\|/;",
+    "const EITHER = /^\\s*[#|]/;",
   ].join('\n');
 
   it('every planted line is found (no planted form slips through)', () => {

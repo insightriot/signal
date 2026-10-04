@@ -1508,7 +1508,7 @@ function classifyClosing(baseDir, execFn) {
 // first would leave a partial write (REVIEW pass 2): refuse before anything.
 function refuseBroken({ broken }) {
   if (broken.length === 0) return;
-  throw new WorkStoreError('SCHEMA', `broken record(s), so nothing was written: ${broken.map((b) => `${b.id ?? b.path} (${b.error})`).join('; ')}`);
+  throw new WorkStoreError('SCHEMA', `broken record(s), so nothing was written: ${broken.map((b) => `${b.id ?? b.path} (${b.error})`).join('; ')} — restore each with git (git checkout -- <path>, or resolve its merge conflict), then re-run.`);
 }
 
 function stillAndStale(still, now) {
