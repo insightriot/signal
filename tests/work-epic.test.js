@@ -368,6 +368,10 @@ describe('t5.3 — ship.md wires the Epic close (AC-8.3)', () => {
     expect(step).toMatch(/^Call `closeEpic\(baseDir, state\.current_epic, \{by, pr, release\}\)`/m);
     expect(step).toMatch(/OPEN_ITEMS.*HALT/);
     expect(step).toMatch(/no-folder/);
+    // closeEpicCheck runs before the folder lookup, so a broken record anywhere
+    // in the store throws SCHEMA at every Epic-close SHIP (REVIEW loop 1 part B).
+    expect(step).toMatch(/`SCHEMA`.*HALT/);
+    expect(step).toMatch(/`SCHEMA`.*\/sig:docs-sweep.*checkRecords.*\/sig:item/);
     expect(ship.indexOf('### 6.7')).toBeLessThan(ship.indexOf('### 6.8'));
     expect(ship.indexOf('### 6.8')).toBeLessThan(ship.indexOf('### 9.'));
   });

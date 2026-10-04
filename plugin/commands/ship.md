@@ -265,6 +265,7 @@ Call `closeEpic(baseDir, state.current_epic, {by, pr, release})` from `tools/lib
 3. **`{status: 'no-folder'}`** — the Epic has no folder (every Epic from before the store) **and no open record** (an open one refuses with `OPEN_ITEMS` first, item 1). Say so and continue; nothing changed.
 4. **`{status: 'closed'}`** — the folder is now `.planning/archive/epics/<EpicID>/` with the close in its `README.md`. Stage into the SHIP commit the moved files (`moved`), every live file whose links into the folder were retargeted (`rewritten`), and the regenerated lists (`.planning/work/EPICS.md` and any of the four lists that changed).
 5. **`CONFIG` with `version: 1`** — a v1 store. **HALT** and show the message verbatim: it names `node tools/work-migrate-v2.mjs`. Migrate, then re-run.
+6. **`SCHEMA` → HALT.** A record somewhere in the store is broken — not necessarily one of this Epic's — so its Epic cannot be read and the gate cannot tell whether it is open. `closeEpicCheck` runs before the folder lookup, so this fires at every Epic-close SHIP until it is fixed. Show the message verbatim: it lists each broken record. Run `/sig:docs-sweep` (or `checkRecords(baseDir)` from `tools/lib/work-records.js`) to find each one by ID, fix it through `/sig:item` or its body file, then re-run. Do not hand-edit the record's `.json`.
 
 ### 6.9 Confirm fixed closes (work store v2) — every SHIP
 
