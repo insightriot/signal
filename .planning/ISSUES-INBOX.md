@@ -53,3 +53,11 @@ Found 2026-10-04 by M6.E13 t1.6 capture: on the same store-off fixture the advis
 Seen 2026-10-04 during M6.E13 EXECUTE. Present in v0.1.47 (the control-character strip regex in branch-work.js:54). npm run lint exits non-zero, so lint is not a usable gate. Fix: an eslint-disable-next-line no-control-regex with the reason (the regex strips control and bidi characters on purpose), or build the class with RegExp from code points.
 
 ---
+
+## isStaleVsOrigin skips the fetch when STATE.md has no last_updated_commit, so later checks read stale origin refs
+
+**Status:** untriaged (N) · SIG-273
+
+Found 2026-10-04 during M6.E13 t4.6 (wiring confirmCloses after the resume fetch). When STATE.md carries no last_updated_commit, isStaleVsOrigin (state.js) returns before fetching; anything after it that reads refs/remotes/origin/* (now confirmCloses at /sig:resume) compares against whatever was last fetched. Fix: fetch independently of the baseline check, or have confirmCloses note its refs may be stale.
+
+---
