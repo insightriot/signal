@@ -4,12 +4,13 @@
 // Before the store, two shipped readers decided things by reading prose:
 // `bug-status-vs-changelog` took each bug's status from a hand-typed cell, and
 // `parseBacklogRows` decided which BACKLOG rows were still live from struck
-// headings and done-words. After it, the four lists are generated from item
-// files, so the status cell and a row's presence come from frontmatter.
+// headings and done-words. After it, the four lists are generated from the
+// store — since M6.E13, from records — so the status cell and a row's presence
+// come from each item's recorded status.
 //
 // "Before" is measured on the archived originals (`archive/pre-work-store/`),
 // "after" on the live generated files. Nothing here pins a number that ordinary
-// work moves: the after-side assertions are derived from the item files, so a
+// work moves: the after-side assertions are derived from the records, so a
 // new bug or a closed row keeps them true. The before-side numbers ARE pinned,
 // because the archive is frozen by construction.
 //
@@ -18,18 +19,17 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { checkBugStatusVsChangelog } from '../plugin/tools/lib/published-facts.js';
 import { APPLICABILITY } from '../plugin/tools/lib/state-drift.js';
 import { walkBugEntries } from '../plugin/tools/lib/bugs-tally.js';
 import { parseBacklogRows } from '../plugin/tools/lib/backlog.js';
 import { readCorpus } from '../plugin/tools/lib/advise-corpus.js';
-import { checkStore, isStoreOn, parseItemFileName, walkFiles } from '../plugin/tools/lib/work-store.js';
-import { parseItem } from '../plugin/tools/lib/work-item.js';
+import { isStoreOn } from '../plugin/tools/lib/work-store.js';
 import { resolveArtifactPath } from '../plugin/tools/lib/resume.js';
-import { checkRecords, listRecords, storeVersion } from '../plugin/tools/lib/work-records.js';
+import { checkRecords, listRecords } from '../plugin/tools/lib/work-records.js';
 import { REPO_ROOT } from './helpers/roots.js';
 import { archived, preStoreBase, removePreStoreBase } from './helpers/pre-store.js';
 
@@ -38,14 +38,12 @@ const PLANNING = join(ROOT, '.planning');
 
 const snapshot = () => execFileSync('git', ['status', '--porcelain', '.planning/'], { cwd: ROOT, encoding: 'utf-8' });
 
-// M6.E13 t7.3 prep: every "after" assertion holds on either store version, so
-// the cutover commit needs no edit here. On v1 the items are files with a
-// status in their frontmatter; on v2 they are records whose status is folded
-// from their events, and the views carry `SIG-n` (`work-views.js`).
-const LIVE_V2 = storeVersion(ROOT) === 2;
+// Since the M6.E13 cutover the items are records whose status is folded from
+// their events, and the views carry `SIG-n` (`work-views.js`). The v1 halves
+// (item files, read by folder) were removed at t7.4.
 
-// The v2 records in the shape `readItems` returns, enough for the checks below:
-// `item` with the folded status (closing stays `closing`) and the last close's reason.
+// The records, enough for the checks below: `item` with the folded status
+// (closing stays `closing`) and the last close's reason.
 function readRecordsAsItems() {
   return listRecords(ROOT).records.map((r) => {
     const close = r.record.events.findLast((e) => e.type === 'closed');
@@ -55,51 +53,25 @@ function readRecordsAsItems() {
   });
 }
 
-// Every item file in the store, parsed. `work/` also holds WORK.md, EPICS.md and
-// WATCHLIST.md; only `{ID}.md` names are items.
-function readItems(root = join(PLANNING, 'work')) {
-  if (!existsSync(root)) return [];
-  return walkFiles(root)
-    .filter((p) => parseItemFileName(basename(p)))
-    .map((p) => {
-      const parsed = parseItem(readFileSync(p, 'utf-8'), { path: p });
-      return { path: p, folder: p.slice(root.length + 1).split('/')[0], ...parsed };
-    });
-}
-
-// How the generated BUGS.md renders an item's status (the same mapping
-// `work-roundtrip.test.js` checks the generator against).
-const bugWord = (it) =>
-  it.status === 'N' ? 'needs-triage' : it.status === 'C' ? (it.close.reason === 'fixed' ? 'fixed' : 'dismissed') : 'confirmed';
-
-// The items the generated BACKLOG.md carries, by `generateBacklog`'s own rule:
-// an open status (T, Q or P) and a type that is neither BUG nor Q — in ANY
-// folder, so an open item under `work/epics/<id>/` (t7.5) still counts. Today
-// every such item is in `backlog/`, and the test says so.
+// The open items the generated BACKLOG.md carries: an open status (T, Q or P)
+// and a type that is neither BUG nor Q.
 const OPEN_ACTIVE = new Set(['T', 'Q', 'P']);
 const carriedBy = (list) => list.filter((i) => OPEN_ACTIVE.has(i.item.status) && !['BUG', 'Q'].includes(i.item.type));
-// The heading `generateBacklog` writes: the title with `~~` removed (and `**`
-// removed when the parser would still read a done-word), then ` · {id}`.
-// Compared with both sides' `**` stripped, so the rule is not re-implemented here.
-const heading = (it) => `${String(it.title ?? it.id).replace(/~~|\*\*/g, '')} · ${it.id}`;
-const bare = (text) => text.replace(/\*\*/g, '');
-
 let before;
 let items;
 beforeAll(() => {
   before = snapshot();
-  items = LIVE_V2 ? readRecordsAsItems() : readItems();
+  items = readRecordsAsItems();
 });
 afterAll(() => {
   expect(snapshot()).toEqual(before);
 });
 
 describe('Outcome — the store itself', () => {
-  it('the store is on, checkStore finds nothing, and the item count is the apply report total', () => {
-    // Without this, checkStore's `[]` would also mean "store off".
+  it('the store is on, checkRecords finds nothing, and the item count is the apply report total', () => {
+    // Without this, checkRecords' `[]` would also mean "store off".
     expect(isStoreOn(ROOT).on).toBe(true);
-    // v2: the records' check (`checkRecords`) is the store check.
-    expect(LIVE_V2 ? checkRecords(ROOT) : checkStore(ROOT)).toEqual([]);
+    expect(checkRecords(ROOT)).toEqual([]);
 
     // The total is read from the dry-run report the apply was checked against,
     // not re-typed here. Resolved through the artifact resolver so it keeps
@@ -108,15 +80,13 @@ describe('Outcome — the store itself', () => {
     expect(report, 'the migration dry-run report').toBeTruthy();
     const total = Number(readFileSync(report, 'utf-8').match(/^Items: \*\*(\d+)\*\*/m)?.[1]);
     expect(total).toBeGreaterThan(0);
-    // ≥, not ==: every later capture adds an item (SIG-249 was the first), and
-    // SHIP's closeEpic moves this Epic's items to archive/epics/ — so count both
-    // roots, and require every migrated ID (SIG-1 … SIG-{total}) to still exist.
+    // ≥, not ==: every later capture adds an item (SIG-249 was the first), so
+    // require every migrated ID (SIG-1 … SIG-{total}) to still exist.
     // REVIEW pass 1, C1: the exact count broke on the first ordinary capture.
-    const everywhere = LIVE_V2 ? items : [...items, ...readItems(join(PLANNING, 'archive', 'epics'))];
-    expect(everywhere.length).toBeGreaterThanOrEqual(total);
-    const ids = new Set(everywhere.map((i) => i.item?.id));
+    expect(items.length).toBeGreaterThanOrEqual(total);
+    const ids = new Set(items.map((i) => i.item?.id));
     for (let n = 1; n <= total; n += 1) expect(ids.has(`SIG-${n}`), `SIG-${n}`).toBe(true);
-    for (const i of everywhere) expect(i.errors, i.path).toEqual([]);
+    for (const i of items) expect(i.errors, i.path).toEqual([]);
   });
 });
 
@@ -138,35 +108,6 @@ describe('Outcome — bug-status-vs-changelog reads statuses from item files', (
       removePreStoreBase(base);
     }
   });
-
-  it.skipIf(LIVE_V2)('after (generated): every B-row status cell is its item file\'s status, so the confirmed set is the open BUG items', () => {
-    const ctx = { baseDir: ROOT };
-    expect(checkBugStatusVsChangelog.applicability(ctx)).toEqual(APPLICABILITY.EVAL);
-
-    const bugsText = readFileSync(join(PLANNING, 'BUGS.md'), 'utf-8');
-    const entries = walkBugEntries(bugsText);
-    const bugItems = items.filter((i) => i.item.type === 'BUG');
-    expect(entries.length).toBe(bugItems.length);
-    // No un-numbered prose entries survive: every bug is a table row with an id.
-    expect(entries.every((e) => e.kind === 'row')).toBe(true);
-
-    const byB = new Map(bugItems.map((i) => [`B${i.item.id.slice(i.item.id.indexOf('-') + 1)}`, i.item]));
-    for (const e of entries) {
-      const it = byB.get(e.id);
-      expect(it, `${e.id} has an item file`).toBeDefined();
-      expect(e.status, e.id).toBe(bugWord(it));
-    }
-
-    const confirmed = judged(bugsText).map((e) => e.id).sort();
-    const openBugs = bugItems.filter((i) => i.item.status === 'T').map((i) => `B${i.item.id.slice(i.item.id.indexOf('-') + 1)}`).sort();
-    expect(confirmed).toEqual(openBugs);
-
-    // M6.E13 t4.5a: with the store on the check reads the records, not this
-    // view, and names each flag by its item ID — so every flag is an open bug item.
-    const openItems = bugItems.filter((i) => ['T', 'Q', 'P'].includes(i.item.status)).map((i) => i.item.id);
-    const flagged = checkBugStatusVsChangelog.run(ctx).map((f) => f.message.match(/^(SIG-\d+) \(/)[1]);
-    for (const id of flagged) expect(openItems, id).toContain(id);
-  });
 });
 
 describe('Outcome — bug-status-vs-changelog reads statuses from records (v2)', () => {
@@ -175,7 +116,7 @@ describe('Outcome — bug-status-vs-changelog reads statuses from records (v2)',
   const word = (it) => ({ N: 'needs-triage', T: 'confirmed', Q: 'confirmed', P: 'confirmed', closing: 'closing' }[it.status]
     ?? it.close.reason);
 
-  it.runIf(LIVE_V2)('after (generated): every row\'s status cell is its record\'s status, every open bug has a row, and the check flags only open bugs', () => {
+  it('after (generated): every row\'s status cell is its record\'s status, every open bug has a row, and the check flags only open bugs', () => {
     const ctx = { baseDir: ROOT };
     expect(checkBugStatusVsChangelog.applicability(ctx)).toEqual(APPLICABILITY.EVAL);
 
@@ -206,7 +147,7 @@ describe('Outcome — BACKLOG.md liveness is no longer inferred', () => {
     expect(rows.filter((r) => r.discharged)).toHaveLength(39);
   });
 
-  it.runIf(LIVE_V2)('after (generated, v2): every row is a record with its status stated, and the open rows are exactly the open non-bug, non-question items', () => {
+  it('after (generated): every row is a record with its status stated, and the open rows are exactly the open non-bug, non-question items', () => {
     // v2 BACKLOG.md carries closing and recently closed rows too, each marked
     // in its heading from the record (`work-views.js`), so nothing is inferred
     // from struck text or done-words: the heading says the record's status.
@@ -227,26 +168,11 @@ describe('Outcome — BACKLOG.md liveness is no longer inferred', () => {
     }
     expect(open.sort()).toEqual(carriedBy(items).map((i) => i.item.id).sort());
   });
-
-  it.skipIf(LIVE_V2)('after (generated): zero rows are discharged by inference, and the rows are exactly the open non-bug, non-question backlog items', () => {
-    const rows = parseBacklogRows(readFileSync(join(PLANNING, 'BACKLOG.md'), 'utf-8'), { maxDepth: 4 });
-    expect(rows.filter((r) => r.discharged || r.inDetails)).toEqual([]);
-
-    const carried = carriedBy(items);
-    expect(carried.length).toBeGreaterThan(0);
-    expect(rows).toHaveLength(carried.length);
-    expect(rows.map((r) => bare(r.text)).sort()).toEqual(carried.map((i) => heading(i.item)).sort());
-    // Before t7.5 moves this Epic's items, the open non-bug, non-question items
-    // in `backlog/` are exactly these.
-    const inBacklog = items.filter((i) => i.folder === 'backlog' && !['BUG', 'Q'].includes(i.item.type));
-    const inEpics = carried.filter((i) => i.folder !== 'backlog');
-    expect(carried.length).toBe(inBacklog.length + inEpics.length);
-  });
 });
 
 describe('AC-7.3 (as corrected in M6.E11-PROGRESS.md) — /sig:advise reads the items the generated BACKLOG.md carries', () => {
-  // M6.E13 t4.2a: with the store on, `readCorpus` reads the records (this v1
-  // store through the converter), not the generated BACKLOG.md — so a row carries
+  // M6.E13 t4.2a: with the store on, `readCorpus` reads the records, not the
+  // generated BACKLOG.md — so a row carries
   // the item's ID and its own title, not the view's `title · ID` heading.
   it("readCorpus's live row set is exactly those items, by ID and title", async () => {
     const corpus = await readCorpus(ROOT);

@@ -1,251 +1,19 @@
-// The generated lists (M6.E11.S2 t2.3, AC-7.1, D-M6E11-20, D-M6E11-25).
-// See .planning/M6.E11-PLAN.md § S2 and .planning/M6.E11-VALIDATION.md row AC-7.1.
+// The inbox status line (M6.E11 REVIEW I8).
 //
-// Unit tests over hand-built items. The live-data round trip is
-// tests/work-roundtrip.test.js.
+// This file tested the v1 generator (`work-generate.js` `generateFiles`,
+// `generateAll`, M6.E11.S2 t2.3, AC-7.1); M6.E13 t7.4 retired it with the v1
+// store — the views are rendered from records by `work-views.js`, tested in
+// work-views*.test.js. What stays is the one-formatter/one-parser pin, with
+// its last case on the v2 views.
 
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
-import { GENERATED_MARKER, generateFiles, generateAll, GENERATED_FILES, EPICS_INDEX_REL } from '../plugin/tools/lib/work-generate.js';
-import { stringifyItem } from '../plugin/tools/lib/work-item.js';
-import { walkBugEntries, compareBugTally, deriveBugCounts } from '../plugin/tools/lib/bugs-tally.js';
-import { parseBacklogRows } from '../plugin/tools/lib/backlog.js';
-import { listDrainCandidates, listStandingEntries, parseTriggerWatchlist } from '../plugin/tools/lib/drain.js';
-import { countOpenQuestions, extractTopOpenQuestions } from '../plugin/tools/lib/status.js';
-import { lintFutureIdeasFooter } from '../plugin/tools/lib/add.js';
-
-const close = (reason, extra = {}) => ({ reason, by: 'migration', at: '2026-09-29', proof: 'legacy — not re-verified', ...extra });
-
-function sample() {
-  const items = [
-    {
-      item: { id: 'SIG-52', type: 'BUG', status: 'C', title: 'Session binds', priority: 'P1', close: close('fixed') },
-      body: '| B52 | `fixed` (v0.1.20) | **P1** | **Session binds** see [x](../../../../analysis/A.md) |\n\n  **⚠ more** |',
-      dir: 'work/done/2026-09',
-    },
-    {
-      item: { id: 'SIG-3', type: 'BUG', status: 'T', title: 'Pipe `a|b` in code', priority: 'P2' },
-      body: '| B3 | `confirmed` | P2 | **Pipe `a|b` in code** rest |',
-      dir: 'work/backlog',
-    },
-    {
-      item: { id: 'SIG-7', type: 'BUG', status: 'N', title: 'A heading capture | with a pipe' },
-      body: '## A heading capture | with a pipe\n\n**Status:** needs-triage\n\nBody.',
-      dir: 'work/inbox',
-    },
-    {
-      item: { id: 'SIG-8', type: 'BUG', status: 'C', title: 'Not a defect', close: close('rejected') },
-      body: '## Not a defect\n\n**Status:** resolved-not-a-defect',
-      dir: 'work/done/2026-09',
-    },
-    {
-      item: { id: 'SIG-9', type: 'BUG', status: 'C', title: 'Dup', close: close('dup', { dup_of: 'SIG-3' }) },
-      body: '## Dup\n\n**Status:** withdrawn (duplicate)',
-      dir: 'work/done/2026-09',
-    },
-    {
-      item: { id: 'SIG-20', type: 'FEAT', status: 'T', title: 'Open feature · **roadmap** · medium' },
-      body: '### Open feature · **roadmap** · medium\n\nBody with [link](../../../analysis/B.md).\n\n<details><summary>Original</summary>\n\n### Inner heading\n\n</details>\n\n#### Deeper heading',
-      dir: 'work/backlog',
-    },
-    {
-      item: { id: 'SIG-21', type: 'CHORE', status: 'T', title: '~~Struck title~~ · **DONE 2026-01-01**' },
-      body: '### whatever',
-      dir: 'work/backlog',
-    },
-    {
-      item: { id: 'SIG-22', type: 'FEAT', status: 'C', title: 'Closed feature', close: close('fixed') },
-      body: '### ~~Closed feature~~',
-      dir: 'work/done/2026-09',
-    },
-    {
-      item: { id: 'SIG-23', type: 'BUG', status: 'T', title: 'Fix-lane row · **fix lane** · small' },
-      body: '### Fix-lane row · **fix lane** · small\n\nBody.',
-      dir: 'work/backlog',
-    },
-    {
-      item: { id: 'SIG-24', type: 'Q', status: 'T', title: 'Product call row · **product call**' },
-      body: '### Product call row · **product call**\n\nBody.',
-      dir: 'work/backlog',
-    },
-    {
-      item: { id: 'SIG-30', type: 'NEW', status: 'N', title: 'A capture' },
-      body: '## A capture\n\n**Status:** Logged 2026-08-18 via `/sig:add`. → Deferred 2026-08-19 (M6.E3 drain).\n\nSee [BUGS.md](../../BUGS.md).',
-      dir: 'work/inbox',
-    },
-    {
-      item: { id: 'SIG-40', type: 'Q', status: 'T', title: 'Is it hookable?' },
-      body: '## Is it hookable?\n\n```md\n## not a heading, a sample\n```\n\nWhy.',
-      dir: 'work/backlog',
-    },
-    {
-      item: { id: 'SIG-41', type: 'Q', status: 'C', title: '~~Answered?~~ — **ANSWERED**', close: close('fixed') },
-      body: '## ~~Answered?~~ — **ANSWERED**',
-      dir: 'work/done/2026-09',
-    },
-  ];
-  const watchlist = {
-    text: '## Trigger watchlist — standing entry\n<!-- standing -->\n\n**Status:** standing.\n\n| Parked item | Trigger condition | Fired? |\n|---|---|---|\n| X | see [y](../BACKLOG.md) | no |',
-    dir: 'work',
-  };
-  return { items, watchlist };
-}
-
-describe('generateFiles — a table cell cannot break its row', () => {
-  it('BUGS.md: a priority holding `|` or a line break stays one cell of one row', () => {
-    const items = [{
-      item: { id: 'SIG-40', type: 'BUG', status: 'T', title: 'Odd priority', priority: 'P1 | hot\nnow' },
-      body: '## Odd priority\n\nBody.',
-      dir: 'work/backlog',
-    }];
-    const bugs = generateFiles({ items })['BUGS.md'];
-    expect(bugs).toContain('| B40 | `confirmed` | P1 \\| hot now | **Odd priority** |');
-    expect(walkBugEntries(bugs).map((e) => [e.id, e.status])).toEqual([['B40', 'confirmed']]);
-    expect(compareBugTally(bugs).ok).toBe(true);
-  });
-});
-
-describe('generateFiles — shape per file', () => {
-  const out = generateFiles(sample());
-
-  it('produces exactly the four files, each headed by the marker as its exact first line', () => {
-    expect(Object.keys(out).sort()).toEqual([...GENERATED_FILES].sort());
-    expect(GENERATED_MARKER).toBe('<!-- generated by /sig:item — do not edit; edit the item files under .planning/work/ -->');
-    for (const text of Object.values(out)) expect(text.split('\n')[0]).toBe(GENERATED_MARKER);
-  });
-
-  it('is deterministic — same input, byte-identical output, whatever the input order', () => {
-    const s = sample();
-    const again = generateFiles({ ...s, items: [...s.items].reverse() });
-    expect(again).toEqual(out);
-    expect(generateFiles(sample())).toEqual(out);
-  });
-
-  it('BUGS.md: every BUG item as `| B{n} |`, status mapped back, tally derived and consistent', () => {
-    const bugs = out['BUGS.md'];
-    const seen = walkBugEntries(bugs).map((e) => [e.id, e.status]);
-    expect(seen).toEqual([
-      ['B3', 'confirmed'],
-      ['B7', 'needs-triage'],
-      ['B8', 'dismissed'],
-      ['B9', 'dismissed'],
-      ['B23', 'confirmed'],
-      ['B52', 'fixed'],
-    ]);
-    expect(compareBugTally(bugs).ok).toBe(true);
-    expect(deriveBugCounts(bugs).capturedUntriaged).toBe(0);
-    // A table-sourced row keeps its verbatim summary (continuation included);
-    // a heading-sourced one is its title, pipe escaped.
-    expect(bugs).toContain('| B52 | `fixed` | P1 | **Session binds** see [x](../analysis/A.md) |\n\n  **⚠ more** |');
-    expect(bugs).toContain('| B3 | `confirmed` | P2 | **Pipe `a|b` in code** rest |');
-    expect(bugs).toContain('| B7 | `needs-triage` | — | **A heading capture \\| with a pipe** |');
-  });
-
-  it('BACKLOG.md: open non-BUG, non-Q items at `###`, closed omitted, visible at depth 3 and 4', () => {
-    const bl = out['BACKLOG.md'];
-    for (const maxDepth of [3, 4]) {
-      const rows = parseBacklogRows(bl, { maxDepth }).filter((r) => !r.inDetails);
-      expect(rows.map((r) => r.text)).toEqual([
-        'Open feature · **roadmap** · medium · SIG-20',
-        'Struck title · DONE 2026-01-01 · SIG-21',
-      ]);
-      expect(rows.every((r) => !r.discharged)).toBe(true);
-    }
-    expect(bl).not.toContain('Closed feature');
-    expect(bl).not.toContain('Fix-lane row');
-    expect(bl).not.toContain('Product call row');
-    // Headings inside a body are demoted, so nothing nests under a row.
-    expect(bl).toContain('**Inner heading**');
-    expect(bl).toContain('**Deeper heading**');
-    expect(bl).toContain('](../analysis/B.md)');
-  });
-
-  it('ISSUES-INBOX.md: the watchlist verbatim, then open captures with a fresh status line', () => {
-    const inbox = out['ISSUES-INBOX.md'];
-    const standing = listStandingEntries(inbox);
-    expect(standing).toHaveLength(1);
-    expect(inbox).toContain(`${sample().watchlist.text.replace('../BACKLOG.md', 'BACKLOG.md')}\n`);
-    expect(parseTriggerWatchlist(inbox).rows).toHaveLength(1);
-    const cands = listDrainCandidates(inbox);
-    expect(cands.map((c) => [c.heading, c.statusLine])).toEqual([['A capture', '**Status:** untriaged (N) · SIG-30']]);
-    expect(inbox).toContain('](BUGS.md)');
-    expect(lintFutureIdeasFooter(inbox).ok).toBe(true);
-  });
-
-  it('OPEN-QUESTIONS.md: open Q items only, one `## ` each, even with `## ` inside a fenced body', () => {
-    const q = out['OPEN-QUESTIONS.md'];
-    expect(countOpenQuestions(q)).toBe(2);
-    expect(extractTopOpenQuestions(q)).toEqual(['Product call row · **product call**', 'Is it hookable?']);
-    expect(q).not.toContain('Answered?');
-  });
-
-  it('every open item appears in exactly one generated file', () => {
-    const s = sample();
-    const all = Object.values(out).join('\n');
-    for (const { item } of s.items.filter((i) => i.item.status !== 'C' && i.item.type !== 'BUG')) {
-      expect(all.split(item.id).length - 1, item.id).toBe(1);
-    }
-  });
-});
-
-// ── generateAll against a temp store ──────────────────────────────────────────
-
-function tempStore({ on = true } = {}) {
-  const dir = mkdtempSync(join(tmpdir(), 'work-generate-'));
-  const planning = join(dir, '.planning');
-  mkdirSync(join(planning, 'work'), { recursive: true });
-  if (on) writeFileSync(join(planning, 'work', 'WORK.md'), '---\nkey: SIG\nschema_version: 1\n---\n');
-  const s = sample();
-  for (const { item, body, dir: d } of s.items) {
-    mkdirSync(join(planning, d), { recursive: true });
-    writeFileSync(join(planning, d, `${item.id}.md`), stringifyItem(item, body));
-  }
-  writeFileSync(join(planning, 'work', 'WATCHLIST.md'), s.watchlist.text);
-  return dir;
-}
-
-describe('generateAll — reads the store, writes the four files', () => {
-  it('writes the same bytes generateFiles produces, and a second run is identical', async () => {
-    const dir = tempStore();
-    try {
-      const res = await generateAll(dir);
-      // Plus the Epic index (M6.E11 t5.2), which lives under work/.
-      expect(res.written.sort()).toEqual([...GENERATED_FILES, EPICS_INDEX_REL].sort());
-      const expected = generateFiles(sample());
-      for (const f of GENERATED_FILES) expect(readFileSync(join(dir, '.planning', f), 'utf-8')).toBe(expected[f]);
-      const first = GENERATED_FILES.map((f) => readFileSync(join(dir, '.planning', f), 'utf-8'));
-      await generateAll(dir);
-      expect(GENERATED_FILES.map((f) => readFileSync(join(dir, '.planning', f), 'utf-8'))).toEqual(first);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('with the store off, writes nothing', async () => {
-    const dir = tempStore({ on: false });
-    try {
-      const res = await generateAll(dir);
-      expect(res.written).toEqual([]);
-      for (const f of GENERATED_FILES) expect(existsSync(join(dir, '.planning', f))).toBe(false);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('refuses to generate from a store with a broken item, naming the file', async () => {
-    const dir = tempStore();
-    try {
-      writeFileSync(join(dir, '.planning', 'work', 'inbox', 'SIG-99.md'), '---\nid: SIG-99\ntype: NOPE\nstatus: N\n---\n');
-      await expect(generateAll(dir)).rejects.toMatchObject({ code: 'SCHEMA', message: expect.stringMatching(/SIG-99\.md/) });
-      for (const f of GENERATED_FILES) expect(existsSync(join(dir, '.planning', f))).toBe(false);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-});
+import { recordPath } from '../plugin/tools/lib/work-records.js';
+import { serializeRecord } from '../plugin/tools/lib/work-record.js';
+import { regenerateToMemory } from '../plugin/tools/lib/work-views.js';
 
 // REVIEW I8: the generator writes the inbox status line and backlog.js's
 // promote reads it back to find the item. Two hand-kept copies of one format
@@ -275,11 +43,24 @@ describe('the inbox status line — one formatter, one parser (REVIEW I8)', () =
     }
   });
 
-  it('the generated inbox carries exactly the formatter\'s line for each N item', async () => {
+  it('the generated inbox carries exactly the formatter\'s line for each N capture', async () => {
     const { formatInboxStatusLine } = await import('../plugin/tools/lib/work-marker.js');
-    const inbox = generateFiles(sample())['ISSUES-INBOX.md'];
-    const n = sample().items.filter((e) => e.item.status === 'N' && e.item.type !== 'BUG' && e.item.type !== 'Q');
-    expect(n.length).toBeGreaterThan(0);
-    for (const e of n) expect(inbox.split('\n')).toContain(formatInboxStatusLine(e.item));
+    const dir = mkdtempSync(join(tmpdir(), 'sig-status-line-'));
+    try {
+      const put = (rel, text) => {
+        mkdirSync(dirname(join(dir, rel)), { recursive: true });
+        writeFileSync(join(dir, rel), text, 'utf-8');
+      };
+      put('.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n');
+      const created = { type: 'created', at: '2026-09-01T00:00:00.000Z', by: 'b' };
+      for (const [id, type] of [['SIG-1', 'NEW'], ['SIG-2', 'NEW'], ['SIG-3', 'BUG']]) {
+        put(recordPath(id), serializeRecord({ id, type, title: `t ${id}`, events: [created] }));
+      }
+      const inbox = regenerateToMemory(dir)['.planning/ISSUES-INBOX.md'].split('\n');
+      for (const id of ['SIG-1', 'SIG-2']) expect(inbox).toContain(formatInboxStatusLine({ id, status: 'N' }));
+      expect(inbox).not.toContain(formatInboxStatusLine({ id: 'SIG-3', status: 'N' }));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

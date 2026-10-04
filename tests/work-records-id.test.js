@@ -1,7 +1,7 @@
 // Tests for v2 ID allocation and the duplicate-ID check (M6.E13.S2.t2.3, AC2.3).
 // See .planning/M6.E13-PLAN.md t2.3 and .planning/M6.E13-VALIDATION.md row AC2.3.
 //
-// Exemplar: tests/work-id.test.js (v1 nextId). Real temp git repos, not a mocked
+// Exemplar: the v1 nextId tests (work-id.test.js, retired at t7.4). Real temp git repos, not a mocked
 // execFn, for every claim about what git reports.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -116,6 +116,26 @@ describe('nextIdV2 — git history', () => {
     commitAll(repo, 'other');
     git(repo, ['checkout', '-q', 'main']);
     expect(nextIdV2(repo).id).toBe('SIG-2002');
+  });
+
+  // Carried from the v1 work-id.test.js when nextId was retired (M6.E13 t7.4).
+  it('a number only a detached HEAD can reach counts', async () => {
+    initRepo(repo);
+    await v2(repo);
+    commitAll(repo, 'init');
+    git(repo, ['checkout', '-q', '--detach']);
+    await put(repo, recordPath('SIG-21'));
+    commitAll(repo, 'detached');
+    await rm(join(repo, recordPath('SIG-21')));
+    commitAll(repo, 'gone from worktree, still in HEAD history');
+    expect(nextIdV2(repo).id).toBe('SIG-22');
+  });
+
+  it('an empty repository (no commits) still reads git, not worktree-only', async () => {
+    initRepo(repo);
+    await v2(repo);
+    await put(repo, recordPath('SIG-4'));
+    expect(nextIdV2(repo)).toEqual({ id: 'SIG-5', basis: 'git-log' });
   });
 
   it('a shallow clone falls back to every ref\'s tree and reports ls-tree', async () => {
