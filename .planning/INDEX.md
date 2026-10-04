@@ -154,7 +154,10 @@
 - [M6.E12-REVIEW.md](M6.E12-REVIEW.md) — `other` — _(note pending)_
 - [M6.E12-VALIDATION.md](M6.E12-VALIDATION.md) — `other` — _(note pending)_
 - [M6.E12-VERIFICATION.md](M6.E12-VERIFICATION.md) — `other` — _(note pending)_
+- [M6.E13-PLAN.md](M6.E13-PLAN.md) — `other` — _(note pending)_
 - [M6.E13-REQUIREMENTS.md](M6.E13-REQUIREMENTS.md) — `other` — _(note pending)_
+- [M6.E13-RESEARCH.md](M6.E13-RESEARCH.md) — `other` — _(note pending)_
+- [M6.E13-VALIDATION.md](M6.E13-VALIDATION.md) — `other` — _(note pending)_
 - [M6.E2-CORPUS-MEASUREMENT.md](M6.E2-CORPUS-MEASUREMENT.md) — `other` — _(note pending)_
 - [M6.E2-PLAN.md](M6.E2-PLAN.md) — `other` — _(note pending)_
 - [M6.E2-PROGRESS.md](M6.E2-PROGRESS.md) — `other` — _(note pending)_
@@ -309,12 +312,19 @@
 - [work/backlog/SIG-252.md](work/backlog/SIG-252.md) — `other` — _(note pending)_
 - [work/backlog/SIG-253.md](work/backlog/SIG-253.md) — `other` — _(note pending)_
 - [work/backlog/SIG-255.md](work/backlog/SIG-255.md) — `other` — _(note pending)_
+- [work/backlog/SIG-256.md](work/backlog/SIG-256.md) — `other` — _(note pending)_
 - [work/backlog/SIG-257.md](work/backlog/SIG-257.md) — `other` — _(note pending)_
 - [work/backlog/SIG-258.md](work/backlog/SIG-258.md) — `other` — _(note pending)_
 - [work/backlog/SIG-259.md](work/backlog/SIG-259.md) — `other` — _(note pending)_
 - [work/backlog/SIG-260.md](work/backlog/SIG-260.md) — `other` — _(note pending)_
 - [work/backlog/SIG-261.md](work/backlog/SIG-261.md) — `other` — _(note pending)_
 - [work/backlog/SIG-262.md](work/backlog/SIG-262.md) — `other` — _(note pending)_
+- [work/backlog/SIG-263.md](work/backlog/SIG-263.md) — `other` — _(note pending)_
+- [work/backlog/SIG-264.md](work/backlog/SIG-264.md) — `other` — _(note pending)_
+- [work/backlog/SIG-265.md](work/backlog/SIG-265.md) — `other` — _(note pending)_
+- [work/backlog/SIG-266.md](work/backlog/SIG-266.md) — `other` — _(note pending)_
+- [work/backlog/SIG-267.md](work/backlog/SIG-267.md) — `other` — _(note pending)_
+- [work/backlog/SIG-268.md](work/backlog/SIG-268.md) — `other` — _(note pending)_
 - [work/backlog/SIG-33.md](work/backlog/SIG-33.md) — `other` — _(note pending)_
 - [work/backlog/SIG-34.md](work/backlog/SIG-34.md) — `other` — _(note pending)_
 - [work/backlog/SIG-35.md](work/backlog/SIG-35.md) — `other` — _(note pending)_
@@ -488,13 +498,6 @@
 - [work/done/2026-10/SIG-140.md](work/done/2026-10/SIG-140.md) — `other` — _(note pending)_
 - [work/done/2026-10/SIG-142.md](work/done/2026-10/SIG-142.md) — `other` — _(note pending)_
 - [work/done/2026-10/SIG-254.md](work/done/2026-10/SIG-254.md) — `other` — _(note pending)_
-- [work/inbox/SIG-256.md](work/inbox/SIG-256.md) — `other` — _(note pending)_
-- [work/inbox/SIG-263.md](work/inbox/SIG-263.md) — `other` — _(note pending)_
-- [work/inbox/SIG-264.md](work/inbox/SIG-264.md) — `other` — _(note pending)_
-- [work/inbox/SIG-265.md](work/inbox/SIG-265.md) — `other` — _(note pending)_
-- [work/inbox/SIG-266.md](work/inbox/SIG-266.md) — `other` — _(note pending)_
-- [work/inbox/SIG-267.md](work/inbox/SIG-267.md) — `other` — _(note pending)_
-- [work/inbox/SIG-268.md](work/inbox/SIG-268.md) — `other` — _(note pending)_
 
 ## Cold — archived + retrospectives
 
