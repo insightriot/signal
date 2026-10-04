@@ -15,7 +15,7 @@
 // message naming `node tools/work-migrate-v2.mjs` (PLAN Decision 1, AC4.2).
 //
 // Read side: t2.1. ID allocation and the duplicate-ID check: t2.3. Writes:
-// t2.2a (new, triage, queue, start) and t2.2b.
+// t2.2a (new, triage, queue, start) and t2.2b. The Epic close query: t2.5.
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, realpathSync, existsSync, lstatSync, mkdirSync, rmdirSync, unlinkSync } from 'node:fs';
@@ -26,7 +26,7 @@ import { acquireLock } from './file-lock.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { scrubSensitive } from './scrub.js';
 import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
-import { parseRecord, serializeRecord, checkEvents, deriveStatus, epicOf } from './work-record.js';
+import { RECORD_SCHEMA, parseRecord, serializeRecord, checkEvents, deriveStatus, epicOf } from './work-record.js';
 import { bodyDirFor, convertV1Item } from './work-convert.js';
 import { ITEM_ID_RE } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
@@ -1135,7 +1135,7 @@ export async function reopenItem(baseDir, id, reopen = {}, opts = {}) {
   if (pending) return pending;
   return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
     const current = readForWrite(handle, id).entry;
-    if (current.epic !== null && existsNoFollow(join(baseDir, ARCHIVED_EPICS_REL, current.epic))) {
+    if (current.epic !== null && isEpicArchived(baseDir, current.epic)) {
       throw new WorkStoreError('CONFLICT', `${id} belongs to Epic ${current.epic}, which is archived `
         + `(${ARCHIVED_EPICS_REL}/${current.epic}/) — nothing was reopened. Capture a new item and link it to ${id} instead.`);
     }
@@ -1143,6 +1143,71 @@ export async function reopenItem(baseDir, id, reopen = {}, opts = {}) {
     await regenerateAfter(handle, `${id} was reopened`, opts);
     return out;
   });
+}
+
+// ── Epics (t2.5, AC1.5) ─────────────────────────────────────────────────────
+//
+// An item's Epic is folded from its events (`epicOf`, Decision 4), so whether
+// an Epic may close is a query over every record, not a walk of its folder.
+// Moving the Epic folder stays in v1 `closeEpic` (`work-ops.js`) until S7.
+
+const EPIC_ID_RE = new RegExp(RECORD_SCHEMA.$defs.epic_id.pattern, 'u');
+
+function assertEpicId(epicId) {
+  if (typeof epicId !== 'string' || !EPIC_ID_RE.test(epicId)) {
+    throw new WorkStoreError('SCHEMA', `${JSON.stringify(epicId)} is not an Epic ID (M6.E13)`);
+  }
+}
+
+/**
+ * Whether an Epic is archived: `.planning/archive/epics/<Epic>/` exists (not
+ * followed if it is a link). `reopenItem` refuses on it; `closeEpicCheck`
+ * reports it. The ID is checked against the schema's Epic pattern before it
+ * becomes part of a path.
+ *
+ * @param {string} baseDir
+ * @param {string} epicId
+ * @returns {boolean}
+ * @throws {WorkStoreError} SCHEMA when `epicId` is not an Epic ID
+ */
+export function isEpicArchived(baseDir, epicId) {
+  assertEpicId(epicId);
+  return existsNoFollow(join(baseDir, ARCHIVED_EPICS_REL, epicId));
+}
+
+/**
+ * May this Epic close? Every record whose Epic (`epicOf`) is `epicId` must be
+ * closed (C). *closing* is still open: its commit has not been confirmed on
+ * the default branch. Read-only.
+ *
+ * Refuses with `OPEN_ITEMS`, the code and message shape of v1 `closeEpic`'s
+ * gate, naming each open record. Refuses with `SCHEMA` when any record in the
+ * store is broken: a broken record's Epic cannot be known, and passing over it
+ * could close an Epic with an open item in it.
+ *
+ * @param {string} baseDir
+ * @param {string} epicId
+ * @param {{execFn?: Function}} [opts] — as `listRecords`'s
+ * @returns {{epic: string, items: string[], archived: boolean}} `items`: the
+ *   Epic's records, all closed, by number; `archived`: as `isEpicArchived`
+ * @throws {WorkStoreError} SCHEMA (not an Epic ID, or a broken record), OPEN_ITEMS, CONFIG
+ */
+export function closeEpicCheck(baseDir, epicId, opts = {}) {
+  assertEpicId(epicId);
+  const { records, broken } = listRecords(baseDir, opts);
+  if (broken.length) {
+    throw new WorkStoreError('SCHEMA', `${epicId} cannot be checked — a broken record's Epic is unknown. `
+      + `Fix these first:\n${broken.map((b) => `  ${b.error}`).join('\n')}`);
+  }
+  const mine = records.filter((r) => r.epic === epicId);
+  const open = mine.filter((r) => r.status !== 'C');
+  if (open.length) {
+    const lines = open.map((r) => `  ${r.id} (status ${r.status})${r.record.title ? ` — ${r.record.title}` : ''}`);
+    throw new WorkStoreError('OPEN_ITEMS', `${epicId} has ${open.length} open item${open.length === 1 ? '' : 's'} `
+      + `in it — close each (\`/sig:item close\`; a closing item closes when confirmCloses finds its commit) `
+      + `or triage it out of the Epic, then re-run. Nothing was moved:\n${lines.join('\n')}`);
+  }
+  return { epic: epicId, items: mine.map((r) => r.id), archived: isEpicArchived(baseDir, epicId) };
 }
 
 // The record fields an `edited` event may change (the schema's `changes`).
