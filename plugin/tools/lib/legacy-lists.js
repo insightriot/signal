@@ -999,3 +999,71 @@ export const listStandingEntries = guard('listStandingEntries', _listStandingEnt
 export const listDrainCandidatesWithRecovery = guard('listDrainCandidatesWithRecovery', _listDrainCandidatesWithRecovery);
 export const statusLineIdxInBlock = guard('statusLineIdxInBlock', _statusLineIdxInBlock);
 export const parseTriggerWatchlist = guard('parseTriggerWatchlist', _parseTriggerWatchlist);
+
+// ── OPEN-QUESTIONS.md (from status.js) ──────────────────────────────────────
+
+/**
+ * Extract top-N level-2 (## ) headings from an OPEN-QUESTIONS.md file content.
+ * Truncates each to maxLen characters (with ellipsis appended on truncation).
+ *
+ * @param {string} content - Raw file content.
+ * @param {number} limit - Max number of headings to return (default 3).
+ * @param {number} maxLen - Max characters per heading (default 80).
+ * @returns {string[]} Truncated headings.
+ */
+function _extractTopOpenQuestions(content, limit = 3, maxLen = 80) {
+  if (typeof content !== 'string') return [];
+  const headings = [];
+  const re = /^## (.+)$/gm;
+  let match;
+  while ((match = re.exec(content)) !== null) {
+    let heading = match[1].trim();
+    if (heading.length > maxLen) {
+      heading = heading.slice(0, maxLen - 1).trimEnd() + '…';
+    }
+    headings.push(heading);
+    if (headings.length >= limit) break;
+  }
+  return headings;
+}
+
+/**
+ * Count total level-2 headings in an OPEN-QUESTIONS.md content.
+ *
+ * @param {string} content
+ * @returns {number}
+ */
+function _countOpenQuestions(content) {
+  if (typeof content !== 'string') return 0;
+  const matches = content.match(/^## /gm);
+  return matches ? matches.length : 0;
+}
+
+export const extractTopOpenQuestions = guard('extractTopOpenQuestions', _extractTopOpenQuestions);
+export const countOpenQuestions = guard('countOpenQuestions', _countOpenQuestions);
+
+// ── The generated inbox's status line (from work-marker.js) ─────────────────
+//
+// The prefix and the parser stay together: `formatInboxStatusLine` (still in
+// work-marker.js) writes with this prefix, and the parser reads it back. If the
+// two disagree, the promote finds nothing and captures the block twice.
+
+export const INBOX_STATUS_PREFIX = '**Status:** untriaged (N) · ';
+const INBOX_STATUS_RE = /^\*\*Status:\*\* untriaged \(N\) · ([A-Z][A-Z0-9]{1,9}-[1-9]\d*)$/;
+
+/**
+ * The item ID on an inbox status line, or null when the line is not one.
+ * Trailing whitespace (a `\r` included) is ignored.
+ * @param {string} line
+ * @param {string} [key] — the store's key; an ID under another key is null
+ * @returns {string|null}
+ */
+function _parseInboxStatusLine(line, key) {
+  if (typeof line !== 'string') return null;
+  const m = line.replace(/\s+$/, '').match(INBOX_STATUS_RE);
+  if (!m) return null;
+  if (key !== undefined && m[1].slice(0, m[1].lastIndexOf('-')) !== key) return null;
+  return m[1];
+}
+
+export const parseInboxStatusLine = guard('parseInboxStatusLine', _parseInboxStatusLine);

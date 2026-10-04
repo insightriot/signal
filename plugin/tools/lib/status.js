@@ -13,6 +13,7 @@ import {
   EPIC_ID_STRICT_RE,
 } from './state.js';
 import { readProfile } from './profile.js';
+import { countOpenQuestions, extractTopOpenQuestions } from './legacy-lists.js';
 import { extractSection } from './landscape.js';
 import { senseProject, CURRENT_LAYOUT_VERSION } from './migrate-memory.js';
 import { readCappedPrefix, readLayoutStampFromPrefix } from './layout-stamp.js';
@@ -153,42 +154,9 @@ export function reachedDoneViaSkip(currentPhase, phasesSkipped = []) {
   return idx + 1 < PHASES.length;
 }
 
-/**
- * Extract top-N level-2 (## ) headings from an OPEN-QUESTIONS.md file content.
- * Truncates each to maxLen characters (with ellipsis appended on truncation).
- *
- * @param {string} content - Raw file content.
- * @param {number} limit - Max number of headings to return (default 3).
- * @param {number} maxLen - Max characters per heading (default 80).
- * @returns {string[]} Truncated headings.
- */
-export function extractTopOpenQuestions(content, limit = 3, maxLen = 80) {
-  if (typeof content !== 'string') return [];
-  const headings = [];
-  const re = /^## (.+)$/gm;
-  let match;
-  while ((match = re.exec(content)) !== null) {
-    let heading = match[1].trim();
-    if (heading.length > maxLen) {
-      heading = heading.slice(0, maxLen - 1).trimEnd() + '…';
-    }
-    headings.push(heading);
-    if (headings.length >= limit) break;
-  }
-  return headings;
-}
-
-/**
- * Count total level-2 headings in an OPEN-QUESTIONS.md content.
- *
- * @param {string} content
- * @returns {number}
- */
-export function countOpenQuestions(content) {
-  if (typeof content !== 'string') return 0;
-  const matches = content.match(/^## /gm);
-  return matches ? matches.length : 0;
-}
+// `extractTopOpenQuestions` and `countOpenQuestions` live in `legacy-lists.js`
+// since M6.E13 t4.1 (Decision 12), re-exported here under the same names.
+export { extractTopOpenQuestions, countOpenQuestions };
 
 /**
  * Read .planning/OPEN-QUESTIONS.md if present and return {count, top}. Returns

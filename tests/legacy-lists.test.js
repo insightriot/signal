@@ -23,6 +23,8 @@ import * as legacy from '../plugin/tools/lib/legacy-lists.js';
 import * as bugsTally from '../plugin/tools/lib/bugs-tally.js';
 import * as backlog from '../plugin/tools/lib/backlog.js';
 import * as drain from '../plugin/tools/lib/drain.js';
+import * as status from '../plugin/tools/lib/status.js';
+import * as workMarker from '../plugin/tools/lib/work-marker.js';
 
 const LIB = join(process.cwd(), 'plugin', 'tools', 'lib');
 const FLAG = 'SIGNAL_FORBID_LIST_PARSERS';
@@ -41,10 +43,13 @@ const RELOCATED = [
     drain,
     ['parseEntries', 'listDrainCandidates', 'listStandingEntries', 'listDrainCandidatesWithRecovery', 'parseTriggerWatchlist'],
   ],
+  ['status.js', status, ['extractTopOpenQuestions', 'countOpenQuestions']],
+  ['work-marker.js', workMarker, ['parseInboxStatusLine']],
 ];
 
 // Every module that re-exports legacy-lists.js or calls into it.
-const IMPORTERS = ['legacy-lists.js', 'bugs-tally.js', 'backlog.js', 'advise.js', 'advise-priorities.js', 'drain.js'];
+const IMPORTERS = ['legacy-lists.js', 'bugs-tally.js', 'backlog.js', 'advise.js', 'advise-priorities.js', 'drain.js', 'status.js',
+  'work-marker.js', 'atomic-write.js'];
 
 const functions = Object.entries(legacy).filter(([, v]) => typeof v === 'function');
 
