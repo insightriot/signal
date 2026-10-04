@@ -1067,3 +1067,132 @@ function _parseInboxStatusLine(line, key) {
 }
 
 export const parseInboxStatusLine = guard('parseInboxStatusLine', _parseInboxStatusLine);
+
+// ── Inline parsers, named (M6.E13 t4.1) ─────────────────────────────────────
+//
+// Each of these was written inline in a reader. They are named and moved here
+// so the throw-on-call flag sees them like every other parser. The bodies are
+// the original expressions, unchanged.
+
+/**
+ * The open questions in an OPEN-QUESTIONS.md body that name `epic`: every
+ * `## ` heading, trimmed, that is not struck through (`~~`, answered) and
+ * contains the id. From `collectPreflight` (drive.js).
+ *
+ * @param {string} content
+ * @param {string} epic
+ * @returns {string[]}
+ */
+function _openQuestionsNaming(content, epic) {
+  const out = [];
+  for (const line of content.split('\n')) {
+    const m = line.match(/^##\s+(.*)$/);
+    if (!m) continue;
+    const heading = m[1].trim();
+    if (/^~~/.test(heading)) continue; // struck = answered
+    if (!heading.includes(epic)) continue;
+    out.push(heading);
+  }
+  return out;
+}
+
+/**
+ * The open questions in an OPEN-QUESTIONS.md body, with the 1-indexed line
+ * each sits on. Same rule as `countOpenQuestions`: every `## ` heading is open,
+ * except one struck through. Matching words like "resolved" would drop an open
+ * question that merely contains one ("should it fail closed?"). From
+ * `gatherBigPicture` (advise-digest.js).
+ *
+ * @param {string} content
+ * @returns {Array<{line: number, text: string}>}
+ */
+function _listOpenQuestions(content) {
+  const open = [];
+  content.split('\n').forEach((l, i) => {
+    if (/^##\s/.test(l) && !l.includes('~~')) open.push({ line: i + 1, text: l.replace(/^#+\s+/, '') });
+  });
+  return open;
+}
+
+/**
+ * How many `## ` entries a Markdown inbox holds. From `gatherBigPicture`
+ * (advise-digest.js).
+ *
+ * @param {string} content
+ * @returns {number}
+ */
+function _countInboxHeadings(content) {
+  return content.split('\n').filter((l) => /^##\s/.test(l)).length;
+}
+
+/**
+ * BUGS.md row → its priority cell (`P1`), or null. From advise-digest.js.
+ *
+ * @param {string|null|undefined} rowLine
+ * @returns {string|null}
+ */
+function _bugRowPriority(rowLine) {
+  const cell = (rowLine ?? '').split('|')[3] ?? '';
+  const m = cell.match(/\bP(\d)\b/);
+  return m ? `P${m[1]}` : null;
+}
+
+/**
+ * The 4th cell of a BUGS.md row — the headline a reader actually recognises.
+ * From advise-corpus.js.
+ *
+ * @param {string} rowLine
+ * @returns {string}
+ */
+function _bugRowHeadline(rowLine) {
+  const cells = rowLine.split('|');
+  const what = cells[4] ?? '';
+  return what.trim();
+}
+
+/**
+ * Whether a Markdown body has any `##`–`######` heading. `readCorpus` uses it
+ * to tell a BACKLOG.md it could not read (headings, zero rows parsed) from an
+ * empty queue (`B121`). From advise-corpus.js.
+ *
+ * @param {string} content
+ * @returns {boolean}
+ */
+function _hasSectionHeadings(content) {
+  return /^#{2,6}[ \t]/m.test(content);
+}
+
+/**
+ * The bug ids a BUGS.md body DEFINES: a table row's first cell, or an id in a
+ * heading — the two shapes the corpus actually uses. A mere mention never
+ * defines. From `checkDanglingReferences` (doc-hygiene.js).
+ *
+ * @param {string} content
+ * @returns {Set<string>}
+ */
+function _definedBugIds(content) {
+  const defined = new Set();
+  for (const m of content.matchAll(/^\|\s*(B\d{1,4})\s*\|/gm)) defined.add(m[1]);
+  for (const m of content.matchAll(/^#{2,6}\s+.*?\b(B\d{1,4})\b/gm)) defined.add(m[1]);
+  return defined;
+}
+
+/**
+ * Every bug id a document mentions, in order, repeats included. From
+ * `checkDanglingReferences` (doc-hygiene.js).
+ *
+ * @param {string} text
+ * @returns {string[]}
+ */
+function _citedBugIds(text) {
+  return [...text.matchAll(/\bB\d{1,4}\b/g)].map((m) => m[0]);
+}
+
+export const openQuestionsNaming = guard('openQuestionsNaming', _openQuestionsNaming);
+export const listOpenQuestions = guard('listOpenQuestions', _listOpenQuestions);
+export const countInboxHeadings = guard('countInboxHeadings', _countInboxHeadings);
+export const bugRowPriority = guard('bugRowPriority', _bugRowPriority);
+export const bugRowHeadline = guard('bugRowHeadline', _bugRowHeadline);
+export const hasSectionHeadings = guard('hasSectionHeadings', _hasSectionHeadings);
+export const definedBugIds = guard('definedBugIds', _definedBugIds);
+export const citedBugIds = guard('citedBugIds', _citedBugIds);

@@ -19,6 +19,7 @@ import { roster, ROOT } from './roster.js';
 import { isStubRetro } from './retro-index.js';
 import { resolveInboxPath } from './inbox-path.js';
 import { buildDecisionIdMap, resolveDecisionIdIn } from './planning-index.js';
+import { citedBugIds, definedBugIds } from './legacy-lists.js';
 
 // Inline `](target)` links only (reference-style / HTML links are out of scope,
 // matching the migrate dangling-gate).
@@ -760,12 +761,7 @@ export async function checkDanglingReferences(baseDir = ROOT, opts = {}) {
 
   // DEFINED SETS. A definition is a table row or a bolded/heading definition line —
   // the same two shapes the corpus actually uses. A mere mention never defines.
-  const definedBugs = new Set();
-  if (hasBugs) {
-    const c = read(bugsPath) ?? '';
-    for (const m of c.matchAll(/^\|\s*(B\d{1,4})\s*\|/gm)) definedBugs.add(m[1]);
-    for (const m of c.matchAll(/^#{2,6}\s+.*?\b(B\d{1,4})\b/gm)) definedBugs.add(m[1]);
-  }
+  const definedBugs = hasBugs ? definedBugIds(read(bugsPath) ?? '') : new Set();
   // D-IDS RESOLVE THROUGH THE REAL RESOLVER, NOT A SECOND IMPLEMENTATION.
   //
   // The first version of this check scanned `.planning/DECISIONS.md` directly and
@@ -794,15 +790,14 @@ export async function checkDanglingReferences(baseDir = ROOT, opts = {}) {
     const rel = `.planning/${name}`;
     const text = read(join(planning, name));
     if (text === null) continue;
-    const scan = (re) => {
-      for (const m of text.matchAll(re)) {
-        const id = m[0];
+    const add = (ids) => {
+      for (const id of ids) {
         if (!cited.has(id)) cited.set(id, new Set());
         cited.get(id).add(rel);
       }
     };
-    if (definedBugs.size > 0) scan(/\bB\d{1,4}\b/g);
-    if (decisionMap !== null) scan(/\bD-[A-Za-z0-9]+-\d+\b/g);
+    if (definedBugs.size > 0) add(citedBugIds(text));
+    if (decisionMap !== null) add([...text.matchAll(/\bD-[A-Za-z0-9]+-\d+\b/g)].map((m) => m[0]));
   }
 
   for (const [id, where] of [...cited].sort((a, b) => a[0].localeCompare(b[0]))) {

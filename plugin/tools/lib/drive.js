@@ -23,6 +23,7 @@ import { attentionFor, CALIBRATION_ENUMS } from './profile.js';
 import { LOOP_BOUNDED_PHASES } from './loop-ceiling.js';
 import { atomicWrite } from './atomic-write.js';
 import { parseBacklogRows } from './backlog.js';
+import { openQuestionsNaming } from './legacy-lists.js';
 import { readState, partitionCompletedPhases, PHASES } from './state.js';
 import { findWorkOnOtherBranches, nextStepFor } from './branch-work.js';
 import { resolveArtifactPath } from './resume.js';
@@ -649,12 +650,7 @@ export async function collectPreflight(baseDir, { epic = null } = {}) {
       const content = await readFile(oqPath, 'utf-8');
       checked.push('OPEN-QUESTIONS.md');
       if (epic) {
-        for (const line of content.split('\n')) {
-          const m = line.match(/^##\s+(.*)$/);
-          if (!m) continue;
-          const heading = m[1].trim();
-          if (/^~~/.test(heading)) continue; // struck = answered
-          if (!heading.includes(epic)) continue;
+        for (const heading of openQuestionsNaming(content, epic)) {
           blocking.push({
             source: 'OPEN-QUESTIONS.md',
             question: heading.length > 160 ? `${heading.slice(0, 157)}…` : heading,

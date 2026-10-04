@@ -49,7 +49,7 @@ const RELOCATED = [
 
 // Every module that re-exports legacy-lists.js or calls into it.
 const IMPORTERS = ['legacy-lists.js', 'bugs-tally.js', 'backlog.js', 'advise.js', 'advise-priorities.js', 'drain.js', 'status.js',
-  'work-marker.js', 'atomic-write.js'];
+  'work-marker.js', 'atomic-write.js', 'drive.js', 'advise-digest.js', 'advise-corpus.js', 'doc-hygiene.js'];
 
 const functions = Object.entries(legacy).filter(([, v]) => typeof v === 'function');
 
@@ -80,6 +80,54 @@ describe('legacy-lists — flag unset: nothing changes', () => {
   it('the flag must equal "1" exactly — any other value is unset', () => {
     vi.stubEnv(FLAG, 'true');
     expect(legacy.parseStatusCell('fixed')).toBe('fixed');
+  });
+});
+
+describe('legacy-lists — the inline parsers, named: same answers as the expressions they replace', () => {
+  it('openQuestionsNaming: `## ` headings naming the Epic, struck ones skipped, trimmed', () => {
+    const oq = ['# Q', '## M1.E2 — open one ', '## ~~M1.E2 answered~~', '### M1.E2 nested', '## other', '##M1.E2 no space'].join('\n');
+    expect(legacy.openQuestionsNaming(oq, 'M1.E2')).toEqual(['M1.E2 — open one']);
+  });
+
+  it('listOpenQuestions: every `## ` heading not struck, with its 1-indexed line', () => {
+    const oq = ['# Q', '## first?', '## ~~done~~', 'text', '## should it fail closed?'].join('\n');
+    expect(legacy.listOpenQuestions(oq)).toEqual([
+      { line: 2, text: 'first?' },
+      { line: 5, text: 'should it fail closed?' },
+    ]);
+  });
+
+  it('countInboxHeadings counts `## ` lines only', () => {
+    expect(legacy.countInboxHeadings('# Inbox\n## a\n### b\n## c\n')).toBe(2);
+  });
+
+  it('bugRowPriority and bugRowHeadline read the 3rd and 4th cells of a BUGS.md row', () => {
+    const row = '| B7 | `confirmed` | P2 | the headline | more |';
+    expect(legacy.bugRowPriority(row)).toBe('P2');
+    expect(legacy.bugRowPriority(null)).toBe(null);
+    expect(legacy.bugRowPriority('| B7 | `confirmed` | — | x |')).toBe(null);
+    expect(legacy.bugRowHeadline(row)).toBe('the headline');
+    expect(legacy.bugRowHeadline('| B7 |')).toBe('');
+  });
+
+  it('hasSectionHeadings: `##`–`######` followed by a space or tab', () => {
+    expect(legacy.hasSectionHeadings('# Title\nprose')).toBe(false);
+    expect(legacy.hasSectionHeadings('intro\n### Row')).toBe(true);
+    expect(legacy.hasSectionHeadings('##\tRow')).toBe(true);
+  });
+
+  it('definedBugIds: table-row ids and heading ids, never a mention', () => {
+    const bugs = ['| B1 | `fixed` |', '## B22 — a heading capture', 'prose citing B3', '|B4|x|'].join('\n');
+    expect([...legacy.definedBugIds(bugs)].sort()).toEqual(['B1', 'B22', 'B4']);
+  });
+
+  it('citedBugIds: every word-bounded mention, in order, repeats kept', () => {
+    expect(legacy.citedBugIds('B1 and B12, B1 again; AB3 and B12345 are not')).toEqual(['B1', 'B12', 'B1']);
+  });
+
+  it('isBugId: a bare bug id only', () => {
+    expect(['B1', 'B120'].map(legacy.isBugId)).toEqual([true, true]);
+    expect(['b1', 'B', 'M6.E13', ' B1', null].map(legacy.isBugId)).toEqual([false, false, false, false, false]);
   });
 });
 

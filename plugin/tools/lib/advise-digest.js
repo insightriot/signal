@@ -30,6 +30,7 @@ import { readCorpus } from './advise-corpus.js';
 import { readState, partitionCompletedPhases, compareEpicIds, EPIC_ID_STRICT_RE } from './state.js';
 import { parseEpicStatusRows } from './milestones.js';
 import { readRegularFile, regularFileRefusal } from './path-confine.js';
+import { bugRowPriority, countInboxHeadings, listOpenQuestions } from './legacy-lists.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -99,13 +100,6 @@ function sectionBody(lines, i) {
     out.push(lines[j]);
   }
   return out.join('\n').trim();
-}
-
-/** BUGS.md row → its priority cell (`P1`), or null. */
-function bugPriority(rowLine) {
-  const cell = (rowLine ?? '').split('|')[3] ?? '';
-  const m = cell.match(/\bP(\d)\b/);
-  return m ? `P${m[1]}` : null;
 }
 
 /**
@@ -241,7 +235,7 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
       const lines = readRegularFile(baseDir, c.sources.bugs.path).split('\n');
       const open = c.sources.bugs.entries
         .filter((e) => e.status === 'confirmed' || e.status === 'needs-triage')
-        .map((e) => ({ e, p: bugPriority(lines[e.line - 1]) }));
+        .map((e) => ({ e, p: bugRowPriority(lines[e.line - 1]) }));
       const order = (p) => (p ? Number(p.slice(1)) : 9);
       open.sort((a, b) => order(a.p) - order(b.p) || a.e.line - b.e.line);
       for (const { e, p } of open) {
@@ -340,14 +334,9 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
       fail('open questions', `${rel} is not present — this project files no questions here`);
     } else {
       try {
-        const lines = readRegularFile(baseDir, rel).split('\n');
-        const open = [];
-        lines.forEach((l, i) => {
-          // Same rule as `countOpenQuestions` (status.js): every `## ` heading is
-          // open, except one struck through. Matching words like "resolved" would
-          // drop an open question that merely contains one ("should it fail closed?").
-          if (/^##\s/.test(l) && !l.includes('~~')) open.push({ path: rel, line: i + 1, text: clip(l.replace(/^#+\s+/, ''), DIGEST_CAPS.row) });
-        });
+        // Same rule as `countOpenQuestions`: every `## ` heading is open, except one
+        // struck through (see `listOpenQuestions`).
+        const open = listOpenQuestions(readRegularFile(baseDir, rel)).map((q) => ({ path: rel, line: q.line, text: clip(q.text, DIGEST_CAPS.row) }));
         entries['open questions'].push(...open.slice(0, DIGEST_CAPS.questions));
         if (open.length > DIGEST_CAPS.questions) cut.push(`open questions: ${DIGEST_CAPS.questions} of ${open.length} shown`);
         ok('open questions');
@@ -372,7 +361,7 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
           fail('inbox', 'no ISSUES-INBOX.md — this project keeps no capture inbox here');
         } else {
           const content = readRegularFile(baseDir, rel);
-          const n = content.split('\n').filter((l) => /^##\s/.test(l)).length;
+          const n = countInboxHeadings(content);
           entries.inbox.push({ path: rel, line: 1, text: `${n} entr(y/ies) in the inbox` });
           ok('inbox');
         }

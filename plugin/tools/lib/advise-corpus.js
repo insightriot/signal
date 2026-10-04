@@ -32,6 +32,7 @@ import { join } from 'node:path';
 
 import { parseBacklogRows } from './backlog.js';
 import { walkBugEntries } from './bugs-tally.js';
+import { bugRowHeadline, hasSectionHeadings } from './legacy-lists.js';
 import { resolveClosures } from './closure.js';
 import { parseEpicStatusRows } from './milestones.js';
 import { readRegularFile, regularFileRefusal } from './path-confine.js';
@@ -68,13 +69,6 @@ export const ADVISOR_SOURCES = Object.freeze([
 // over-claim was a sentence; the fix for its cause is not reading the files.
 
 const MILESTONE_FILE_RE = /^MILESTONE-(\d+(?:\.\d+)?)\.md$/;
-
-/** The 4th cell of a BUGS.md row — the headline a reader actually recognises. */
-function bugHeadline(rowLine) {
-  const cells = rowLine.split('|');
-  const what = cells[4] ?? '';
-  return what.trim();
-}
 
 /**
  * Read every source the advisor reasons over.
@@ -133,7 +127,7 @@ export async function readCorpus(baseDir) {
       // `B121`: section headings with zero rows parsed from them is a file this
       // reader could not read, not an empty queue — otherwise the advisory says
       // "nothing to do". A title and prose alone is a queue that is empty.
-      if (all.length === 0 && /^#{2,6}[ \t]/m.test(content)) {
+      if (all.length === 0 && hasSectionHeadings(content)) {
         fail('BACKLOG.md', `${backlogRel} has headings but no rows this reader recognises (rows sit at ## to ####)`);
       } else {
         sources.backlog = { path: backlogRel, rows, totalRows: all.length };
@@ -161,7 +155,7 @@ export async function readCorpus(baseDir) {
           cell: e.cell,
           line: e.line,
           path: bugsRel,
-          headline: bugHeadline(lines[e.line - 1] ?? ''),
+          headline: bugRowHeadline(lines[e.line - 1] ?? ''),
         }));
       sources.bugs = { path: bugsRel, entries };
       checked.push('BUGS.md');
