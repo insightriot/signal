@@ -1704,7 +1704,8 @@ export function listThemes(baseDir, filter = {}) {
  *   exists but is broken is reported as broken, not missing);
  * - `duplicate-id` — `findDuplicateIds` (the relocated v1 folder is skipped);
  * - `view-stale` — a view differs from, or is missing against, its in-memory
- *   regeneration, or the regeneration failed.
+ *   regeneration, or the regeneration failed; or a `work/history/*.md` file
+ *   is on disk that no regeneration produces (a reopen, or one made by hand).
  *
  * `opts.regenerateToMemory(baseDir)` is the view generator, injected; by
  * default `work-views.js`'s `regenerateToMemory` (synchronous, as this check
@@ -1787,6 +1788,25 @@ function staleViews(baseDir, regenerate) {
       continue;
     }
     if (disk !== text) out.push(stale(rel, 'differs from a regeneration of the records — edited by hand, or not regenerated'));
+  }
+  // A history file on disk that no regeneration produces (REVIEW pass 1):
+  // regeneration never deletes one, so reopening the only item closed in an old
+  // year leaves that year's file listing it closed. Only `history/*.md` files,
+  // and only in a real folder (a linked one is not listed).
+  const produced = new Set(views instanceof Map ? views.keys() : Object.keys(views));
+  const histRel = `.planning/${WORK_DIR}/history`;
+  const histAbs = join(baseDir, histRel);
+  let entries = [];
+  try {
+    if (lstatSync(histAbs).isDirectory()) entries = readdirSync(histAbs, { withFileTypes: true });
+  } catch {
+    entries = []; // no history folder: nothing to compare
+  }
+  for (const e of entries) {
+    const rel = `${histRel}/${e.name}`;
+    if (!e.isFile() || !e.name.endsWith('.md') || produced.has(rel)) continue;
+    out.push(stale(rel, 'no regeneration produces it — no close outside the recent window falls in its year now '
+      + '(an item was reopened, or the file was made by hand). Remove it (`git rm`).'));
   }
   return out;
 }

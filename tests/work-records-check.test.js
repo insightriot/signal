@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 
 import * as records from '../plugin/tools/lib/work-records.js';
 import { serializeRecord } from '../plugin/tools/lib/work-record.js';
+import { regenerateViews } from '../plugin/tools/lib/work-views.js';
 
 const AT = '2026-10-04T10:00:00.000Z';
 const by = 'claude';
@@ -187,6 +188,30 @@ describe('checkRecords — one broken record never stops the others (NFR integri
     await putRecord(rec('SIG-12', [E.created, E.dup('SIG-12')]));
     await putRecord(rec('SIG-5', [E.created, E.wontdo]));
     expect(codes(check(base))).toEqual([['events', 'SIG-4'], ['dup-of-self', 'SIG-12'], ['invalid', 'SIG-30']]);
+  });
+});
+
+describe('checkRecords — a history file no regeneration produces is stale (REVIEW pass 1)', () => {
+  // Regeneration never deletes a history file, so reopening the only item
+  // closed in an old year leaves that year's file on disk, listing it closed.
+  it('reopen the only item closed in an old year: that year\'s history file is `view-stale`', async () => {
+    const OLD = { created: { ...E.created, at: '2024-02-01T10:00:00.000Z' }, wontdo: { ...E.wontdo, at: '2024-03-01T10:00:00.000Z' } };
+    await putRecord(rec('SIG-3', [OLD.created, OLD.wontdo]));
+    await regenerateViews(base);
+    const HIST = '.planning/work/history/2024.md';
+    expect(records.checkRecords(base)).toEqual([]);
+    await records.reopenItem(base, 'SIG-3', { reason: 'it came back', by, at: AT });
+    expect(records.checkRecords(base)).toEqual([
+      { code: 'view-stale', id: null, path: HIST, message: expect.stringMatching(/no regeneration produces it/) },
+    ]);
+  });
+
+  it('a hand-made history file is stale; a non-.md file and a sub-folder are not views', async () => {
+    await regenerateViews(base);
+    await put('.planning/work/history/1999.md', 'by hand\n');
+    await put('.planning/work/history/notes.txt', 'x\n');
+    await put('.planning/work/history/sub/2000.md', 'x\n');
+    expect(records.checkRecords(base).map((f) => [f.code, f.path])).toEqual([['view-stale', '.planning/work/history/1999.md']]);
   });
 });
 
