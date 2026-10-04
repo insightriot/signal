@@ -29,3 +29,19 @@
 Found 2026-10-04 by the M6.E13 t1.5 dry conversion: both item bodies carry a relative link to references/command-taxonomy.md, broken since the file moved under plugin/references/ (M6.E1). Pre-existing in v1; the migration carries it unchanged. Fix: repoint both links after cutover.
 
 ---
+
+## readOpenQuestions counts and lists a struck-through (~~settled~~) question as open
+
+**Status:** untriaged (N) · SIG-270
+
+Found 2026-10-04 by M6.E13 t1.6 store-off golden capture (tests/fixtures/work-store-off/readers/). status.js readOpenQuestions counts and lists a ~~struck~~ heading, while drive collectPreflight skips struck ones. Pinned as-is in readers-ac31.json; a fix must update the golden deliberately. Store-off behaviour.
+
+---
+
+## advise digest inbox line counts every heading; checkStaleInbox counts only drainable entries
+
+**Status:** untriaged (N) · SIG-271
+
+Found 2026-10-04 by M6.E13 t1.6 capture: on the same store-off fixture the advise digest reports 6 inbox entries (all ## headings, incl. standing and dispositioned) while checkStaleInbox reports 3 drainable. Two counts of one inbox with different meanings. Pinned as-is; fix updates the golden deliberately.
+
+---
