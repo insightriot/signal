@@ -1,0 +1,13 @@
+{
+  "id": "SIG-278",
+  "type": "BUG",
+  "title": "Backlog discharge reports discharged when one readable row matches and a broken record might also match",
+  "source": "M6.E13 REVIEW pass 2 (deferred)",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-04T22:14:45.336Z",
+      "by": "claude"
+    }
+  ]
+}

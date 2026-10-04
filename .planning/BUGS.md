@@ -160,5 +160,7 @@
 | SIG-267 | `confirmed` | P2 | **advise digest never reads a roadmap file inside .planning/ — planned milestones vanish from the priorities** |
 | SIG-268 | `confirmed` | P3 | **advisory says "Could not read: nothing" while the digest lists two gaps** |
 | SIG-277 | `needs-triage` | — | **Concurrent promotes of one inbox block can write twin records (dedupe runs outside the work lock)** |
+| SIG-278 | `needs-triage` | — | **Backlog discharge reports discharged when one readable row matches and a broken record might also match** |
+| SIG-279 | `needs-triage` | — | **A project whose .planning/ is a symbolic link (even to a folder inside the repo) cannot regenerate its work views** |
 
-*1 needs-triage · 48 confirmed · 0 closing · 108 closed (157 total) · closes more than 30 days before the newest event are in `work/history/`*
+*3 needs-triage · 48 confirmed · 0 closing · 108 closed (159 total) · closes more than 30 days before the newest event are in `work/history/`*
