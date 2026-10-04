@@ -62,7 +62,7 @@ Found 2026-10-04 during M6.E13 t4.6 (wiring confirmCloses after the resume fetch
 
 ---
 
-## Turning the work store on for a new project still makes a v1 store, which v2 code refuses to write
+## No path turns the work store on for a new project any more (the v1 enable script was retired in M6.E13)
 
 **Status:** untriaged (N) · SIG-274
 
