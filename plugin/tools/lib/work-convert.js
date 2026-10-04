@@ -8,7 +8,8 @@
 //
 // v1 is read through `parseItem` (read-only import); nothing in v1 is changed.
 
-import { parseItem } from './work-item.js';
+import { itemNumber, parseItem } from './work-item.js';
+import { rewriteRelativeLinks } from './work-links.js';
 import { validateRecord, checkEvents } from './work-record.js';
 
 // Record fields carried as they are (Decision 8's order is the serialiser's job).
@@ -48,6 +49,66 @@ function placeOf(relPath) {
   if (dir.length === 3 && dir[0] === 'work' && dir[1] === 'epics') return { statuses: ['Q', 'P', 'C'], epic: dir[2] };
   if (dir.length === 3 && dir[0] === 'archive' && dir[1] === 'epics') return { statuses: ['C'], epic: dir[2] };
   return null;
+}
+
+/**
+ * The folder a v2 item's body lives in, relative to `.planning/`:
+ * `work/items/NN`, NN = floor(n / 1000) as two digits (`SIG-5` → `work/items/00`).
+ *
+ * @param {string} id
+ * @returns {string}
+ */
+export function bodyDirFor(id) {
+  return `work/items/${String(Math.floor(itemNumber(id) / 1000)).padStart(2, '0')}`;
+}
+
+// A pasted legacy BUGS.md row (D-M6E13-13): `| B62 | `confirmed` | P2 | text |`.
+// ID cell, then a status cell (a backticked word, optionally followed by a
+// note such as `(v0.1.20)`), then a priority cell (`P2`, `**P1**` or a dash),
+// then the text — taken whole, never split on `|`, because pipes live inside
+// its code spans. The trailing `|` is optional (SIG-52 and SIG-99 have none).
+// Only a row whose ID is the item's own legacy_id is cleaned; any other row is
+// a quotation and is left as it is.
+const ROW_RE = /^\|\s*(B\d+)\s*\|\s*(`[a-z-]+`(?:\s*\([^)|]*\))?)\s*\|\s*(\*\*P\d\*\*|P\d|—|-)\s*\|\s?(.*?)(?:\s*\|)?\s*$/;
+
+const isFence = (line) => /^\s*(```|~~~)/.test(line);
+
+function cleanRows(body, legacyId, cellsRemoved) {
+  let fence = false;
+  return body
+    .split('\n')
+    .map((line, i) => {
+      if (isFence(line)) {
+        fence = !fence;
+        return line;
+      }
+      const m = fence ? null : ROW_RE.exec(line);
+      if (!m || m[1] !== legacyId) return line;
+      cellsRemoved.push(
+        { line: i + 1, cell: 'id', text: m[1] },
+        { line: i + 1, cell: 'status', text: m[2] },
+        { line: i + 1, cell: 'priority', text: m[3] },
+      );
+      return m[4];
+    })
+    .join('\n');
+}
+
+// `rewriteRelativeLinks` changes link targets only, so a changed line has the
+// same `](…)` matches in the same order before and after; pairing by index
+// lists exactly the targets that moved.
+const TARGET_RE = /\]\(([^)]+)\)/g;
+function listRewrites(before, after, linksRewritten) {
+  const a = before.split('\n');
+  const b = after.split('\n');
+  a.forEach((line, i) => {
+    if (line === b[i]) return;
+    const from = [...line.matchAll(TARGET_RE)].map((m) => m[1]);
+    const to = [...b[i].matchAll(TARGET_RE)].map((m) => m[1]);
+    from.forEach((f, k) => {
+      if (f !== to[k]) linksRewritten.push({ line: i + 1, from: f, to: to[k] });
+    });
+  });
 }
 
 function dirOf(relPath) {
@@ -126,7 +187,12 @@ function fail(manifest, body, ...errors) {
  * Synthesized events take the previous event's `at`, so the list stays in time
  * order. Every mapping is listed in the manifest; the result is checked with
  * `validateRecord` and `checkEvents`, and any failure is a manifest error with
- * `record: null`.
+ * `record: null` (and the body returned as read).
+ *
+ * Body (t1.4b): the item's own pasted legacy row loses its ID, status and
+ * priority cells and keeps the rest as prose (D-M6E13-13); relative links are
+ * rewritten from the v1 folder to `bodyDirFor(id)`. Each removed cell and each
+ * rewritten link is listed in the manifest with its body line number.
  *
  * @param {{relPath: string, text: string, fallbackAt?: string}} input
  *   `relPath` is relative to `.planning/` (`work/backlog/SIG-5.md`).
@@ -139,6 +205,8 @@ export function convertV1Item({ relPath, text, fallbackAt }) {
     source: relPath,
     fieldsMapped: [],
     fieldsDropped: [],
+    cellsRemoved: [],
+    linksRewritten: [],
     closeForm: null,
     errors: [],
   };
@@ -235,5 +303,10 @@ export function convertV1Item({ relPath, text, fallbackAt }) {
 
   const invalid = [...validateRecord(record), ...checkEvents(record).map((e) => e.message)];
   if (invalid.length > 0) return fail(manifest, body, ...invalid.map((e) => `${relPath}: ${e}`));
-  return { record, body, manifest };
+
+  // Body: clean the pasted row first, so links in its text are rewritten too.
+  const cleaned = cleanRows(body, item.legacy_id, manifest.cellsRemoved);
+  const moved = rewriteRelativeLinks(cleaned, dirOf(relPath), bodyDirFor(item.id));
+  listRewrites(cleaned, moved, manifest.linksRewritten);
+  return { record, body: moved, manifest };
 }
