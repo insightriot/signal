@@ -198,3 +198,42 @@ describe('migrateWorkStoreV2 — an apply that fails part-way names the recovery
       .rejects.toSatisfy((e) => /dirty/.test(e.message) && !/git checkout/.test(e.message));
   });
 });
+
+// REVIEW pass 2: the recovery is git's, so it only holds for files git has.
+describe('migrateWorkStoreV2 — --apply needs every v1 file tracked, and its recovery works from a subdirectory', () => {
+  it('a git-ignored v1 item refuses the apply under the lock, naming it, before anything is written', async () => {
+    put(work, '.gitignore', '.planning/work/backlog/SIG-2.md\n');
+    commitAll(work);
+    expect(g(work, 'status', '--porcelain')).toBe(''); // the clean-tree check cannot see it
+    const before = snapshotTree(join(work, '.planning'));
+    await expect(migrateWorkStoreV2(work, { apply: true, outDir: join(root, 'out'), now: NOW })).rejects.toSatisfy(
+      (e) => e.code === 'CONFIG' && /SIG-2\.md/.test(e.message) && /not tracked/.test(e.message) && !/git checkout/.test(e.message),
+    );
+    expect(snapshotTree(join(work, '.planning'))).toEqual(before);
+    expect(storeVersion(work)).toBe(1);
+  });
+
+  it('a project in a subdirectory of its repository: the printed recovery, run from the project, restores it', async () => {
+    const repo = join(root, 'repo');
+    const proj = join(repo, 'apps', 'proj');
+    mkdirSync(proj, { recursive: true });
+    g(repo, 'init', '-q', '-b', 'main');
+    v1Project(proj);
+    put(repo, 'README.md', 'repo\n');
+    commitAll(repo);
+    const projReal = realpathSync(proj);
+    const renameFn = async (from, to) => {
+      if (to.startsWith(projReal) && to.endsWith('SIG-2.json')) throw Object.assign(new Error('disk on fire'), { code: 'EIO' });
+      const { rename } = await import('node:fs/promises');
+      return rename(from, to);
+    };
+    const err = await migrateWorkStoreV2(proj, { apply: true, outDir: join(root, 'out'), now: NOW, renameFn }).catch((e) => e);
+    expect(err.message).toMatch(/disk on fire/);
+    expect(err.message).toMatch(/project directory/);
+    expect(err.message).not.toMatch(/exactly/);
+    expect(g(repo, 'status', '--porcelain')).not.toBe('');
+    execFileSync('sh', ['-c', err.recovery], { cwd: proj, stdio: 'ignore' });
+    expect(g(repo, 'status', '--porcelain')).toBe('');
+    expect(storeVersion(proj)).toBe(1);
+  });
+});

@@ -36,7 +36,7 @@
 // `closed` events), then `checkRecords`; the final manifest is also kept in the
 // project as `.planning/archive/pre-work-store-v2/MANIFEST.json`. It refuses outside a git repository
 // and on a dirty working tree, so the cutover is one reviewable diff — and so,
-// when it fails part-way, `APPLY_RECOVERY` restores the tree exactly.
+// when it fails part-way, `APPLY_RECOVERY` restores the tree.
 //
 // Every run refuses a symbolic link on any path it lists, writes or moves,
 // before writing anything (REVIEW I2); see `preflight`.
@@ -450,8 +450,9 @@ function assertUnchanged(baseDir, results) {
   }
   const before = new Map(results.map((r) => [r.relPath, r.text]));
   const now = listV1Items(baseDir, isStoreOn(baseDir).key);
+  const nowSet = new Set(now);
   const added = now.filter((p) => !before.has(p));
-  const removed = [...before.keys()].filter((p) => !now.includes(p));
+  const removed = [...before.keys()].filter((p) => !nowSet.has(p));
   const edited = now.filter((p) => before.has(p) && readFileSync(join(baseDir, '.planning', p), 'utf-8') !== before.get(p));
   if (added.length + removed.length + edited.length > 0) {
     const part = (label, list) => (list.length ? [`${label}: ${list.join(', ')}`] : []);
@@ -466,11 +467,11 @@ export const APPLY_RECOVERY = 'git checkout -- .planning && git clean -fd .plann
 
 // --apply is not transactional (REVIEW deferred): once the project is written,
 // a failure leaves it part-migrated. No rollback is attempted; the clean-tree
-// precondition makes git's restore exact, so the error says how.
+// and tracked-file preconditions let git restore it, so the error says how.
 function withRecovery(err) {
   const e = asWorkStoreError(err, 'IO');
   e.message = `${e.message}\n\n--apply failed part-way: the project WAS changed and is not rolled back. --apply `
-    + 'started from a clean working tree, so git restores it exactly. From the repository root, run:\n'
+    + `started from a clean tree with every v1 file tracked, so git can restore it. From the project directory, run:\n`
     + `  ${APPLY_RECOVERY}\n`
     + '(git clean removes every untracked file under .planning/ — check git status first if you created one '
     + 'during the run.)';
@@ -507,7 +508,7 @@ function headSha(baseDir, execFn) {
 
 function insideOf(parent, child) {
   const rel = relative(parent, child);
-  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+  return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
 }
 
 // The real path of `p`, or of its nearest existing ancestor joined with the rest.
@@ -670,6 +671,10 @@ export async function migrateWorkStoreV2(baseDir, opts = {}) {
     }
     try {
       assertUnchanged(baseDir, results);
+      // The recovery is git's: an ignored v1 file passes the clean-tree check, and git cannot restore it.
+      const tracked = new Set(String(execFn('git', ['--literal-pathspecs', 'ls-files', '-z', '--', '.planning'], { cwd: baseDir, encoding: 'utf8' })).split('\0'));
+      const untracked = ['work/WORK.md', ...results.map((r) => r.relPath)].map((p) => `.planning/${p}`).filter((p) => !tracked.has(p));
+      if (untracked.length > 0) throw new WorkStoreError('CONFIG', `--apply needs every v1 file tracked by git; not tracked (ignored?): ${untracked.join(', ')}. Commit or remove them, then re-run.`);
       preflight(baseDir, results);
       changed = true;
       await buildInto(baseDir, results, opts);
