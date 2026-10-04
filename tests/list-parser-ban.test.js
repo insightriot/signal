@@ -19,11 +19,12 @@
 //      call inside a `try { … } catch {}` that discards the throw still fails.
 //      (Searching the result for the flag's message, which this also does, only
 //      catches a catch that copies the message into the result.)
-//   2. SOURCE TEXT — no list-parsing regex literal (`B\d`, `B(\d+)`, `B[0-9]`,
-//      `^##`, `^#+`, `^ {0,3}#`, `^(#{1,6})`, `^\|`, `^\s*\|`, a `|`-cell split by string or
-//      regex, a first-character `=== '|'` test) in the reader modules outside
+//   2. SOURCE TEXT — no list-parsing literal (a regex anchored on `#` or `|`
+//      in any spelling — one general detector since REVIEW pass 2 —, a B-id
+//      pattern, a first-character `'|'`/`'#'` test, a `|`-cell split, a
+//      `startsWith('|'/'#')`) in the reader modules outside
 //      `legacy-lists.js`, except the reviewed exemptions below, each with its
-//      reason. The scanner is a pure function, and a planted line per shape
+//      reason (and, for resume.js, its function). The scanner is a pure function, and a planted line per shape
 //      proves it bites. The same count caveat holds for `READER_MODULES`: a new
 //      module that hosts a reader is scanned only once it is added by hand.
 //
@@ -244,24 +245,24 @@ const READER_MODULES = [
   'backlog.js', 'bugs-tally.js', 'add.js', 'checkpoint.js', 'drain.js',
   'work-record.js', 'work-records.js', 'work-views.js', 'work-convert.js', 'work-write-guard.js', 'scrub.js',
   'close-confirm.js', 'leading-id.js', 'work-triage.js', 'resume.js',
+  // REVIEW pass 2: the v1 store's library and its archive mover write the work
+  // tree too, so a list parse there would be one on a store-on path.
+  'work-ops.js', 'work-store.js', 'archive-tree.js',
 ];
 
-// The list-parsing shapes, as they appear in source text.
+// The list-parsing shapes, as they appear in source text. REVIEW pass 2: the
+// anchored forms are ONE general detector, not an enumeration — every pass of
+// enumerated shapes missed a spelling (`^#{2}`, `^\s*##`, `^[ \t]*\|`, …).
+// A `^` (not a negated class `[^`), optional leading whitespace — `\s`, a
+// class, or a space — with an optional quantifier, an optional group, then `#`
+// or `\|`. `\\{1,2}` lets a RegExp string's doubled backslash through.
+const ANCHORED = /(?<!\[)\^(?:(?:\\{1,2}s|\[[^\]]*\]| )(?:[*+?]|\{\d*,?\d*\})?)?(?:\((?:\?:)?)?(?:#|\\{1,2}\|)/;
 const SHAPES = [
-  ['B\\d', /B\\{1,2}d/], // a B{n} ID matched in a regex literal or a RegExp string
-  ['^##', /\^#{2,}/], // a heading-anchored regex
-  ['^\\|', /\^\\\|/], // a table-row-anchored regex
-  ["split('|')", /\.split\(\s*(['"`])\|\1\s*\)|\.split\(\s*\/\\\|\//], // a |-cell split
-  ["startsWith('|' or '##')", /startsWith\(\s*(['"`])(\||##)/],
-  // REVIEW I6 — the forms the first scan missed:
-  ['^\\s*\\|', /\^\\s[*+]\\\|/], // a table row with leading space
-  ['B(\\d+)', /B\(\\{1,2}d/], // a captured B-id
-  ['B[0-9]', /B\[0-9\]/], // a B-id by character class
-  ['^#+', /\^#\+/], // any-depth heading
-  ['^ {0,3}#', /\^ \{0,3\}#/], // a CommonMark ATX heading
-  ['split(/…\\|…/)', /\.split\(\s*\/(?!\\\|\/)[^/]*\\\|/], // a |-cell split by a wider regex
-  ["[0] === '|'", /\[0\]\s*===?\s*(['"`])\|\1/], // first character is a pipe
-  ['^(#', /\^\((\?:)?#/], // a heading whose hashes are a group (`^(#{1,6})`)
+  ['anchored', ANCHORED], // a heading- or table-row-anchored regex, any spelling
+  ['B-id', /B(?:-\??)?\(?(?:\\{1,2}d|\[0-9\])/], // a B{n} ID in a regex: B\d, B(\d+), B[0-9], B-?\d
+  ['first-char', /(?:\.charAt\(\s*0\s*\)|\.at\(\s*0\s*\)|\[0\])\s*===?\s*(['"`])[|#]\1/], // first character is | or #
+  ["split('|')", /\.split\(\s*(['"`])\|\1\s*\)|\.split\(\s*\/[^/]*\\\|/], // a |-cell split, by string or regex
+  ["startsWith('|' or '#')", /startsWith\(\s*(['"`])(\||#)/],
 ];
 
 /**
@@ -283,69 +284,95 @@ function scanListParsing(file, text) {
 // parse. t4.1's "left for t4.7" list, t4.4's and t4.5's carries, and what the
 // scan found beyond them.
 const EXEMPTIONS = [
-  { file: 'advise-digest.js', shape: '^##', has: 'RETRO_SECTION_RE =',
+  { file: 'advise-digest.js', shape: 'anchored', has: 'RETRO_SECTION_RE =',
     reason: 'a retrospective\'s "What to feed back" section heading — a retro, not a work list (t4.1)' },
-  { file: 'advise-digest.js', shape: '^##', has: 'Vision|Problem Statement|Problem',
+  { file: 'advise-digest.js', shape: 'anchored', has: 'Vision|Problem Statement|Problem',
     reason: 'the Vision/Problem heading of PROJECT.md — not a work list' },
-  { file: 'advise-digest.js', shape: '^##', has: "l.replace(/^##\\s+/, '')",
+  { file: 'advise-digest.js', shape: 'anchored', has: "l.replace(/^##\\s+/, '')",
     reason: 'strips the retro section heading it found above for the digest line (t4.1)' },
-  { file: 'drive.js', shape: '^##', has: 'const re = /^## (\\S+) — (.+)$/gm;',
+  { file: 'drive.js', shape: 'anchored', has: 'const re = /^## (\\S+) — (.+)$/gm;',
     reason: '`readQueue`: the decision queue (DECISION-QUEUE.md), not a work list (t4.1)' },
-  { file: 'doc-hygiene.js', shape: '^##', has: '/^##\\s+\\[(\\d+\\.\\d+\\.\\d+)\\]/m',
+  { file: 'doc-hygiene.js', shape: 'anchored', has: '/^##\\s+\\[(\\d+\\.\\d+\\.\\d+)\\]/m',
     reason: 'the newest CHANGELOG version heading, for the version-consistency check — not a work list' },
-  { file: 'doc-hygiene.js', shape: 'B\\d', has: '/^B\\d{1,4}$/.test(legacy)',
+  { file: 'doc-hygiene.js', shape: 'B-id', has: '/^B\\d{1,4}$/.test(legacy)',
     reason: '`readStoreIds`: a `legacy_id` shape test on a record field — an ID check, not a list parse (t4.4)' },
-  { file: 'doc-hygiene.js', shape: 'B\\d', has: '/\\bB\\d{1,4}\\b/g',
+  { file: 'doc-hygiene.js', shape: 'B-id', has: '/\\bB\\d{1,4}\\b/g',
     reason: '`checkDanglingWithStore`: finds B-id MENTIONS in prose to resolve against the records — not a list parse (t4.4)' },
-  { file: 'published-facts.js', shape: '^##', has: 'const RELEASED_HEADING',
+  { file: 'published-facts.js', shape: 'anchored', has: 'const RELEASED_HEADING',
     reason: 'CHANGELOG released-section heading (bug-vs-changelog reads the changelog, not a work list) (t4.1)' },
-  { file: 'published-facts.js', shape: '^##', has: 'const UNRELEASED_HEADING',
+  { file: 'published-facts.js', shape: 'anchored', has: 'const UNRELEASED_HEADING',
     reason: 'CHANGELOG [Unreleased] heading — not a work list (t4.1)' },
-  { file: 'published-facts.js', shape: '^##', has: "if (!/^##\\s*\\[/.test(lines[i])",
+  { file: 'published-facts.js', shape: 'anchored', has: "if (!/^##\\s*\\[/.test(lines[i])",
     reason: 'CHANGELOG section walk — not a work list (t4.1)' },
-  { file: 'published-facts.js', shape: '^##', has: 'if (/^##\\s/.test(lines[j])) break;',
+  { file: 'published-facts.js', shape: 'anchored', has: 'if (/^##\\s/.test(lines[j])) break;',
     reason: 'end of a CHANGELOG section — not a work list (t4.1)' },
-  { file: 'published-facts.js', shape: '^\\|', has: 'const EPIC_ROW',
+  { file: 'published-facts.js', shape: 'anchored', has: 'const EPIC_ROW',
     reason: 'a MILESTONE file\'s Epic-status table row (Epic vs STATE drift) — Epics are out of this Epic\'s store' },
-  { file: 'bug-fixed-jev.js', shape: '^##', has: 'const RELEASED_HEADING',
+  { file: 'bug-fixed-jev.js', shape: 'anchored', has: 'const RELEASED_HEADING',
     reason: 'CHANGELOG released-section heading — not a work list (t4.1)' },
-  { file: 'bug-fixed-jev.js', shape: '^##', has: 'const ANY_H2',
+  { file: 'bug-fixed-jev.js', shape: 'anchored', has: 'const ANY_H2',
     reason: 'end of a CHANGELOG section — not a work list (t4.1)' },
-  { file: 'backlog.js', shape: '^##', has: "if (!/^##\\s/.test(block)) return block;",
+  { file: 'backlog.js', shape: 'anchored', has: "if (!/^##\\s/.test(block)) return block;",
     reason: '`stripLeadingHeading`: ONE inbox block handed to promote, retitled — never a re-parse of a list' },
-  { file: 'backlog.js', shape: '^##', has: 'const m = block.match(/^##\\s+(.+)$/m);',
+  { file: 'backlog.js', shape: 'anchored', has: 'const m = block.match(/^##\\s+(.+)$/m);',
     reason: '`resolveTitle`: the title of ONE block handed to promote — never a list' },
-  { file: 'bugs-tally.js', shape: 'B\\d', has: "/^B\\d+$/.test(record.legacy_id ?? '')",
+  { file: 'bugs-tally.js', shape: 'B-id', has: "/^B\\d+$/.test(record.legacy_id ?? '')",
     reason: '`bugRecordIds`: a `legacy_id` shape test on a record field — an ID check (t4.5)' },
-  { file: 'add.js', shape: '^##', has: "if (/^## /.test(lines[i]) || MILESTONE_FOOTER_RE",
+  { file: 'add.js', shape: 'anchored', has: "if (/^## /.test(lines[i]) || MILESTONE_FOOTER_RE",
     reason: 'the store-off section append (`appendToSection`); store-on capture writes records (t4.1, t4.5b)' },
-  { file: 'work-convert.js', shape: 'B\\d', has: 'const ROW_RE',
+  { file: 'work-convert.js', shape: 'B-id', has: 'const ROW_RE',
     reason: 'the v1→v2 converter strips the pasted table row from ONE item\'s body (AC8.3); retired with v1 at S7' },
-  { file: 'work-convert.js', shape: '^\\|', has: 'const ROW_RE',
+  { file: 'work-convert.js', shape: 'anchored', has: 'const ROW_RE',
     reason: 'the same row as above (the shape matches twice)' },
-  { file: 'leading-id.js', shape: 'B\\d', has: '|(?:B\\d+))\\b/',
+  { file: 'leading-id.js', shape: 'B-id', has: '|(?:B\\d+))\\b/',
     reason: '`LEADING_ID_RE`: whether ONE heading or title leads with a unit or bug id — an ID check, not a list parse (M6.E13 R5)' },
   // Found when REVIEW I6 widened the shapes and added work-triage.js and resume.js:
-  { file: 'work-triage.js', shape: '^#+', has: "l.replace(/^#+\\s*/, '')",
+  { file: 'work-triage.js', shape: 'anchored', has: "l.replace(/^#+\\s*/, '')",
     reason: '`titleFromBody`: strips heading and bullet markers from ONE item body to derive its title — not a list parse' },
-  { file: 'resume.js', shape: "startsWith('|' or '##')", has: "if (line.startsWith('## ')) {",
+  { file: 'resume.js', fn: 'readLastArchivedRun', shape: "startsWith('|' or '#')", has: "if (line.startsWith('## ')) {",
     reason: '`readLastArchivedRun`: section walk of STATE-HISTORY.md for the last archived phase log — not a work list' },
-  { file: 'work-views.js', shape: '^(#', has: 'const HEADING_RE = /^(#{1,6})',
+  { file: 'work-views.js', shape: 'anchored', has: 'const HEADING_RE = /^(#{1,6})',
     reason: 'renders ONE item body into a view: drops its leading heading and demotes the rest to bold — writes a view, never parses a list' },
-  { file: 'resume.js', shape: "startsWith('|' or '##')", has: "line.startsWith('## Phase log — linear run ending')",
+  { file: 'resume.js', fn: 'readLastArchivedRun', shape: "startsWith('|' or '#')", has: "line.startsWith('## Phase log — linear run ending')",
     reason: '`readLastArchivedRun`: the phase-log section heading in STATE-HISTORY.md — not a work list' },
+  // Found when REVIEW pass 2 replaced the enumerated shapes with the general detector:
+  { file: 'advise-digest.js', shape: 'anchored', has: 'if (/^#{1,6}\\s/.test(lines[j])) break;',
+    reason: '`sectionBody`: the end of a Vision, milestone or retro section for the digest — never a work list' },
+  { file: 'advise-digest.js', shape: 'anchored', has: 'const h1 = lines.findIndex((l) => /^#\\s/.test(l));',
+    reason: 'the H1 of a MILESTONE file, where its digest excerpt starts — not a work list' },
+  { file: 'doc-hygiene.js', shape: 'anchored', has: 'text.matchAll(/^#{1,6}\\s+(.*)$/gm)',
+    reason: '`anchorResolves`: heading slugs of a link target, to check a `#anchor` — not a work list' },
+  { file: 'work-record.js', shape: 'anchored', has: 'const m = /^#\\/\\$defs\\/',
+    reason: '`resolveRef`: a JSON-schema `$ref` (`#/$defs/…`) — not Markdown at all' },
 ];
 
-const isExempt = (hit) => EXEMPTIONS.some((e) => e.file === hit.file && e.shape === hit.shape && hit.text.includes(e.has));
+// The 1-based line range of top-level `function name(` in `text`, to its
+// closing `}` at column 0; null when absent.
+function fnRange(text, name) {
+  const lines = text.split('\n');
+  const from = lines.findIndex((l) => new RegExp(`^(export )?(async )?function ${name}\\(`).test(l));
+  if (from === -1) return null;
+  return [from + 1, lines.findIndex((l, i) => i > from && l === '}') + 1];
+}
+
+const sourceOf = (file) => readFileSync(join(LIB, file), 'utf-8');
+
+// An exemption with `fn` holds only inside that function of the file (REVIEW pass 2).
+const isExempt = (hit, text) => EXEMPTIONS.some((e) => {
+  if (e.file !== hit.file || e.shape !== hit.shape || !hit.text.includes(e.has)) return false;
+  if (!e.fn) return true;
+  const range = fnRange(text ?? sourceOf(hit.file), e.fn);
+  return range !== null && hit.line >= range[0] && hit.line <= range[1];
+});
 
 describe('the ban in source text: no list-parsing literal in the reader modules (AC3.2)', () => {
-  it('scans the reviewed module set: 25 files, all present, legacy-lists.js not among them', () => {
-    expect(READER_MODULES).toHaveLength(25);
+  it('scans the reviewed module set: 28 files, all present, legacy-lists.js not among them', () => {
+    expect(READER_MODULES).toHaveLength(28);
     for (const f of READER_MODULES) expect(existsSync(join(LIB, f)), f).toBe(true);
     expect(READER_MODULES).not.toContain('legacy-lists.js');
   });
 
-  const hits = READER_MODULES.flatMap((f) => scanListParsing(f, readFileSync(join(LIB, f), 'utf-8')));
+  const hits = READER_MODULES.flatMap((f) => scanListParsing(f, sourceOf(f)));
 
   it('every hit is a reviewed exemption', () => {
     expect(hits.filter((h) => !isExempt(h)).map((h) => `${h.file}:${h.line} [${h.shape}] ${h.text}`)).toEqual([]);
@@ -377,6 +404,16 @@ describe('the source-text scanner bites (self-test)', () => {
     "const cells = row.split(/\\s*\\|\\s*/);",
     "if (line.trimStart()[0] === '|') rows.push(line);",
     "const H6 = /^(#{1,6})\\s+(.*)$/;",
+    // REVIEW pass 2: the spellings the enumerated shapes still missed.
+    "const H2 = /^#{2}\\s+(.+)$/;",
+    "const H23 = /^#{2,3}\\s/;",
+    "const INDENTED = /^\\s*##/;",
+    "const ROW1 = /^\\s?\\|/;",
+    "const ROW2 = /^[ \\t]*\\|/;",
+    "if (line.charAt(0) === '|') rows.push(line);",
+    "if (line.at(0) === '|') rows.push(line);",
+    "const ID = /\\bB-?\\d+/;",
+    "const RE = new RegExp('^\\\\s*\\\\|');",
   ].join('\n');
 
   it('every planted line is found (no planted form slips through)', () => {
@@ -395,6 +432,18 @@ describe('the source-text scanner bites (self-test)', () => {
     const line = "  const m = block.match(/^##\\s+(.+)$/m);";
     expect(isExempt(scanListParsing('backlog.js', line)[0])).toBe(true);
     expect(isExempt(scanListParsing('advise.js', line)[0])).toBe(false);
+  });
+
+  it('a negated class `[^#]` is not an anchor', () => {
+    expect(scanListParsing('drive.js', 'const t = s.replace(/[^#|]+/g, "");')).toEqual([]);
+  });
+
+  it('the resume.js exemption holds only inside readLastArchivedRun', () => {
+    const line = "  if (line.startsWith('## ')) {";
+    const inside = `export async function readLastArchivedRun(baseDir) {\n${line}\n}\n`;
+    const outside = `function readOpenRows(baseDir) {\n${line}\n}\n`;
+    expect(isExempt(scanListParsing('resume.js', inside)[0], inside)).toBe(true);
+    expect(isExempt(scanListParsing('resume.js', outside)[0], outside)).toBe(false);
   });
 
   it('a regex quoted in a comment is not a parser', () => {
