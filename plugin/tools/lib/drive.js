@@ -27,6 +27,9 @@ import { openQuestionsNaming } from './legacy-lists.js';
 import { readState, partitionCompletedPhases, PHASES } from './state.js';
 import { findWorkOnOtherBranches, nextStepFor } from './branch-work.js';
 import { resolveArtifactPath } from './resume.js';
+import { isStoreOn } from './work-store.js';
+import { listRecords } from './work-records.js';
+import { storeBacklogRows, storeQuestions } from './advise-corpus.js';
 
 export const QUEUE_REL = '.planning/DECISION-QUEUE.md';
 
@@ -143,12 +146,49 @@ export async function resolveFloors(phase, baseDir, { conditions = FLOOR_CONDITI
 }
 
 /**
+ * The work records, when the store is on (M6.E13 t4.3); `null` when it is off,
+ * and the caller then reads the list files exactly as before (AC4.1).
+ *
+ * ⚠ NO MARKDOWN LIST IS PARSED ON THIS PATH (Decision 12): with the store on,
+ * the list files are views that can lag the records, so a store that cannot be
+ * read is `{error}` (or a throw, with `throwOnError`) — never a fall-back to
+ * reading the views.
+ */
+function readRecords(baseDir, { throwOnError = false } = {}) {
+  try {
+    if (!isStoreOn(baseDir).on) return null;
+    return listRecords(baseDir);
+  } catch (err) {
+    if (throwOnError) throw err;
+    return { error: `the work store could not be read — ${err.message}` };
+  }
+}
+
+/** The records `listRecords` could not read, as one line naming each by ID (or path). */
+function brokenReason(broken) {
+  return `${broken.length} work item(s) could not be read — ${broken.map((b) => b.id ?? b.path).join(', ')}`;
+}
+
+/**
  * Is there anything in the capture inbox for PLAN's drain step to act on?
  *
  * No inbox file, or an inbox with no drain candidates, means the drain has
  * nothing to preview and nothing to delete — so neither PLAN floor applies.
  */
 async function inboxHasDrainableEntries(baseDir) {
+  // Store on (M6.E13 t4.3): the inbox is every record whose status is N — the
+  // definition `/sig:advise` counts by — read from the records, never from the
+  // generated ISSUES-INBOX.md. Both PLAN floors use this function. A broken
+  // WORK.md throws (from `isStoreOn` or `listRecords`), and so does a store
+  // with no N record but some record that does not read: either way the answer
+  // is "could not tell", and the caller's catch makes the floor live with the
+  // reason — fail closed, as the docblock above promises.
+  const store = readRecords(baseDir, { throwOnError: true });
+  if (store) {
+    if (store.records.some((r) => r.status === 'N')) return true;
+    if (store.broken.length > 0) throw new Error(brokenReason(store.broken));
+    return false;
+  }
   const { resolveInboxPath } = await import('./inbox-path.js');
   // resolveInboxPath returns a REPO-RELATIVE path. Joining it to baseDir is not
   // optional: `existsSync` on the bare relative path resolves against the
@@ -532,8 +572,40 @@ export async function proposeEpicCandidates(baseDir) {
   }
   cannotCheck.push(...otherBranches.cannotCheck);
 
+  const store = readRecords(baseDir);
   const backlogPath = join(baseDir, '.planning', 'BACKLOG.md');
-  if (!existsSync(backlogPath)) {
+  if (store?.error) {
+    cannotCheck.push({ source: 'work store', reason: store.error });
+  } else if (store) {
+    // Store on (M6.E13 t4.3): the live items `BACKLOG.md` lists — T, Q or P,
+    // neither a bug nor a question (`storeBacklogRows`, advise's definition) —
+    // read from the records. A closing item is done here (AC7.3).
+    //
+    // RANKED BY THE SAME `rankBacklogRow`, adapted rather than rewritten: each
+    // record becomes a row with its title as the text and its ID as the leading
+    // id. Every record has an ID, so the +5 is the same for all and orders
+    // nothing; a record has no heading depth, so the `##` penalty never applies;
+    // the title-text signals (a `·` tail, a groomed tag, a dated or "what
+    // shipped" record) rank exactly as they rank a heading. Ties keep ID order
+    // where a file kept line order — both are the order the work was filed in.
+    const fromStore = [];
+    for (const row of storeBacklogRows(store.records)) {
+      if (candidates.some((c) => c.id && c.id === row.id)) continue;
+      fromStore.push({
+        id: row.id,
+        title: row.text,
+        source: 'work store',
+        path: row.path,
+        line: null,
+        why: 'open item in the groomed queue',
+        rank: rankBacklogRow({ text: row.text, leadingId: row.id }),
+      });
+    }
+    // Stable sort: equal ranks keep `listRecords`' ID order.
+    fromStore.sort((a, b) => b.rank - a.rank);
+    candidates.push(...fromStore);
+    if (store.broken.length > 0) cannotCheck.push({ source: 'work store', reason: brokenReason(store.broken) });
+  } else if (!existsSync(backlogPath)) {
     cannotCheck.push({ source: 'BACKLOG.md', reason: 'no file — nothing to pick from' });
   } else {
     try {
@@ -578,6 +650,9 @@ export const PREFLIGHT_SOURCES = Object.freeze([
   'OPEN-QUESTIONS.md',
   'REQUIREMENTS unfilled markers',
 ]);
+
+// What the pre-flight pass names as read when the store is on: the records, not the file.
+const STORE_QUESTIONS = 'open questions (work store)';
 
 /**
  * Everything a person has to answer BEFORE the run starts.
@@ -642,8 +717,28 @@ export async function collectPreflight(baseDir, { epic = null } = {}) {
   // 3. Open questions naming this Epic. Scoped to the Epic ON PURPOSE — a project's
   //    standing questions are not this run's blockers, and hauling all of them into
   //    the batch is how a useful gate becomes one people click through.
+  //    Store on (M6.E13 t4.3): the open question records — type Q, not closing
+  //    or closed — whose title names the Epic, the same "heading includes the
+  //    Epic" test the file reader makes. OPEN-QUESTIONS.md is a view then, and is
+  //    not opened.
+  const store = readRecords(baseDir);
   const oqPath = join(baseDir, '.planning', 'OPEN-QUESTIONS.md');
-  if (!existsSync(oqPath)) {
+  if (store?.error) {
+    cannotCheck.push({ source: STORE_QUESTIONS, reason: store.error });
+  } else if (store) {
+    checked.push(STORE_QUESTIONS);
+    if (epic) {
+      for (const q of storeQuestions(store.records)) {
+        if (!q.text.includes(epic)) continue;
+        blocking.push({
+          source: 'work store',
+          question: q.text.length > 160 ? `${q.text.slice(0, 157)}…` : q.text,
+          detail: `${q.id} names ${epic}`,
+        });
+      }
+    }
+    if (store.broken.length > 0) cannotCheck.push({ source: STORE_QUESTIONS, reason: brokenReason(store.broken) });
+  } else if (!existsSync(oqPath)) {
     checked.push('OPEN-QUESTIONS.md (absent)');
   } else {
     try {

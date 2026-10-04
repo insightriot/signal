@@ -15,6 +15,9 @@ import {
 import { readProfile } from './profile.js';
 import { countOpenQuestions, extractTopOpenQuestions } from './legacy-lists.js';
 import { extractSection } from './landscape.js';
+import { isStoreOn } from './work-store.js';
+import { listRecords } from './work-records.js';
+import { storeQuestions } from './advise-corpus.js';
 import { senseProject, CURRENT_LAYOUT_VERSION } from './migrate-memory.js';
 import { readCappedPrefix, readLayoutStampFromPrefix } from './layout-stamp.js';
 import {
@@ -162,10 +165,36 @@ export { extractTopOpenQuestions, countOpenQuestions };
  * Read .planning/OPEN-QUESTIONS.md if present and return {count, top}. Returns
  * null if the file is absent, so callers can omit the section entirely.
  *
+ * With the work store on (M6.E13 t4.3) the answer comes from the records, in
+ * the same shape: `count` is the open question records — type Q, not closing
+ * or closed — and `top` their first three titles, in ID order, clipped to 80
+ * characters as `extractTopOpenQuestions` clips a heading. The branch is HERE,
+ * not in a caller, because `/sig:status` and `/sig:resume` call this function
+ * directly. OPEN-QUESTIONS.md is a view then, and is not opened.
+ *
+ * Two additions, only with the store on, so a result is never read as cleaner
+ * than it is:
+ * - `error` (with `count: null`, `top: []`) when the store cannot be read —
+ *   neither `null`, which means "no file", nor a count of zero;
+ * - `unreadable` (IDs) when some record does not read, since a question among
+ *   them is not counted.
+ *
  * @param {string} baseDir - Project root.
- * @returns {Promise<{count: number, top: string[]} | null>}
+ * @returns {Promise<{count: number|null, top: string[], error?: string, unreadable?: string[]} | null>}
  */
 export async function readOpenQuestions(baseDir) {
+  let store = null;
+  try {
+    if (isStoreOn(baseDir).on) store = listRecords(baseDir);
+  } catch (err) {
+    return { count: null, top: [], error: `the work store could not be read — ${err.message}` };
+  }
+  if (store) {
+    const open = storeQuestions(store.records);
+    const out = { count: open.length, top: open.slice(0, 3).map((q) => clipQuestion(q.text, 80)) };
+    if (store.broken.length > 0) out.unreadable = store.broken.map((b) => b.id ?? b.path);
+    return out;
+  }
   const path = join(baseDir, '.planning', 'OPEN-QUESTIONS.md');
   if (!existsSync(path)) return null;
   const content = await readFile(path, 'utf-8');
@@ -173,6 +202,12 @@ export async function readOpenQuestions(baseDir) {
     count: countOpenQuestions(content),
     top: extractTopOpenQuestions(content, 3, 80),
   };
+}
+
+// The clip `extractTopOpenQuestions` applies to a heading, applied to a title.
+function clipQuestion(text, maxLen) {
+  const t = text.trim();
+  return t.length > maxLen ? t.slice(0, maxLen - 1).trimEnd() + '…' : t;
 }
 
 /**
