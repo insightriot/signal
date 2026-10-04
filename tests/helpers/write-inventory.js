@@ -78,7 +78,9 @@ const TOP_LEVEL_RE = /^(?:export\s|async\s|function\s|const\s|let\s|var\s|class\
  * - an internal function that takes the lock without calling `acquireLock`
  *   itself (internal functions receive a handle; only the lock helper and the
  *   public entry points take it);
- * - `acquireLock` imported under an alias (the scan matches the name).
+ * - `acquireLock` imported under an alias, or `file-lock.js` as a namespace
+ *   (the scan matches the bare name);
+ * - `file-lock.js` imported but no take found (the scan would pass vacuously).
  *
  * @param {string} source
  * @returns {{lockTaking: string[], violations: string[]}} lockTaking in source order
@@ -88,6 +90,10 @@ export function lockNesting(source) {
   if (/import\s*\{[^}]*\bacquireLock\s+as\s+/.test(source)) {
     violations.push('acquireLock is imported under an alias — import it by name, so the lock scan can see every take');
   }
+  if (/import\s*\*\s*as\s+[\w$]+\s+from\s*['"][^'"]*file-lock\.js['"]/.test(source)) {
+    violations.push('file-lock.js is imported as a namespace — import acquireLock by name, so the lock scan can see every take');
+  }
+  const importsLock = /from\s*['"][^'"]*file-lock\.js['"]/.test(source);
   const text = code(source);
 
   const decls = [];
@@ -157,6 +163,12 @@ export function lockNesting(source) {
     if (!d.exported && taking.has(d.name) && !direct.has(d.name)) {
       violations.push(`${d.name}: an internal function that takes the lock — internal functions receive a handle (Decision 9)`);
     }
+  }
+  // A module that imports the lock but in which the scan finds no take: the
+  // scan is blind to how it is taken, and every check above passed vacuously.
+  if (importsLock && taking.size === 0) {
+    violations.push('the module imports file-lock.js but the scan found no function that calls acquireLock( — '
+      + 'take the lock by a direct call, or the nesting check proves nothing');
   }
   return { lockTaking: names.filter((n) => taking.has(n)), violations };
 }

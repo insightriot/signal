@@ -300,8 +300,30 @@ export async function promote(b, id) { await triage(b, id); return queue(b, id);
     expect(lockNesting(TWO).violations).toEqual([expect.stringMatching(/^promote .*queue.*triage|^promote .*triage.*queue/)]);
   });
 
+  it('a namespace import of file-lock.js is refused: fl.acquireLock( would be invisible', () => {
+    const NS = "import * as fl from './file-lock.js';\nexport async function x() { await fl.acquireLock('l'); }\n";
+    expect(lockNesting(NS).violations).toEqual(
+      expect.arrayContaining([expect.stringMatching(/namespace/)]),
+    );
+  });
+
+  it('a module that imports file-lock.js but shows no take is refused (the scan saw nothing)', () => {
+    const BLIND = "import { acquireLock } from './file-lock.js';\nexport const x = async () => { const take = acquireLock; await take('l'); };\n";
+    expect(lockNesting(BLIND).violations).toEqual([expect.stringMatching(/file-lock\.js.*no function/)]);
+  });
+
+  it('parses the real file: a take injected into two real exports is caught', () => {
+    const injected = SOURCE
+      .replace('export function listRecords(baseDir, opts = {}) {', "export function listRecords(baseDir, opts = {}) {\n  acquireLock('a');")
+      .replace('export function getRecord(baseDir, id, opts = {}) {', "export function getRecord(baseDir, id, opts = {}) {\n  acquireLock('b');\n  listRecords(baseDir);");
+    expect(injected).not.toBe(SOURCE);
+    const { lockTaking, violations } = lockNesting(injected);
+    expect(lockTaking).toEqual(['listRecords', 'getRecord']);
+    expect(violations).toEqual([expect.stringMatching(/^getRecord .*listRecords/)]);
+  });
+
   it('an aliased acquireLock import is refused, since the scan matches the name', () => {
     const ALIAS = "import { acquireLock as take } from './file-lock.js';\nexport async function x() { await take('l'); }\n";
-    expect(lockNesting(ALIAS).violations).toEqual([expect.stringMatching(/alias/)]);
+    expect(lockNesting(ALIAS).violations).toEqual([expect.stringMatching(/alias/), expect.stringMatching(/no function/)]);
   });
 });
