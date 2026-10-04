@@ -32,8 +32,9 @@ import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
+import { assertRealInsidePlanning, linkedComponent } from './path-confine.js';
 import { compareEpicIds, EPIC_ID_STRICT_RE, parseFrontmatter, StateSchemaError } from './state.js';
-import { WorkStoreError } from './work-errors.js';
+import { asWorkStoreError, WorkStoreError } from './work-errors.js';
 import { bodyDirFor } from './work-convert.js';
 import { rewriteRelativeLinks } from './work-links.js';
 import { formatInboxStatusLine, GENERATED_MARKER, isGeneratedFile } from './work-marker.js';
@@ -380,6 +381,25 @@ export function regenerateToMemory(baseDir) {
   return renderStore(baseDir);
 }
 
+// A view is written only to a real file in real folders inside `.planning/`
+// (REVIEW I1): a committed link — `work/history/` pointing out of the project,
+// a view file pointing at another file — refuses. Checked before the hand-kept
+// test, which opens the file and would read through a linked one.
+function confineView(baseDir, rel) {
+  let linked;
+  try {
+    linked = linkedComponent(baseDir, rel);
+    if (linked === null) assertRealInsidePlanning(baseDir, join(baseDir, rel), `${rel} (view regeneration)`);
+  } catch (err) {
+    throw asWorkStoreError(err, typeof err?.code === 'string' ? 'IO' : 'CONFLICT', 'nothing was written — ');
+  }
+  if (linked !== null) {
+    throw new WorkStoreError('CONFLICT', `${linked} is a symbolic link — the views are never written through a link, `
+      + `so nothing was written (${rel} would have been). Replace the link with a real `
+      + `${linked === rel ? 'file' : 'folder'} (or remove it), then re-run.`);
+  }
+}
+
 function handKept(baseDir, rels) {
   return rels.filter((rel) => {
     const abs = join(baseDir, rel);
@@ -395,6 +415,10 @@ function handKept(baseDir, rels) {
  * - Store off: writes nothing (`{written: []}`).
  * - v1 store: refuses (CONFIG, naming the migration) — v1's views are v1's.
  * - Any broken record: writes nothing (SCHEMA, naming each).
+ * - Any target reached through a symbolic link (a linked `.planning/work/`,
+ *   `work/history/`, or view file), or whose folder resolves outside
+ *   `.planning/`: writes nothing (CONFLICT, naming the link). Checked for
+ *   every target before any write, and again before each one.
  * - Any target that exists without the generated marker is hand-kept: writes
  *   nothing (CONFIG, naming each). Checked for every target before any write.
  * - A history file whose year no longer has a close outside the window is
@@ -414,6 +438,7 @@ export async function regenerateViews(baseDir) {
   }
   const views = renderStore(baseDir);
   const rels = Object.keys(views);
+  for (const rel of rels) confineView(baseDir, rel);
   const kept = handKept(baseDir, rels);
   if (kept.length > 0) {
     throw new WorkStoreError('CONFIG', `${kept.join(', ')} ${kept.length === 1 ? 'is' : 'are'} hand-kept, not generated `
@@ -424,6 +449,7 @@ export async function regenerateViews(baseDir) {
   }
   for (const rel of rels) {
     const abs = join(baseDir, rel);
+    confineView(baseDir, rel); // again before the mkdir: a link made after the check is still refused
     mkdirSync(dirname(abs), { recursive: true });
     // Re-checked per file: a list hand-written after the check is still not overwritten.
     if (handKept(baseDir, [rel]).length > 0) {
