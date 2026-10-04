@@ -81,9 +81,10 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   `ISSUES-INBOX.md`, `OPEN-QUESTIONS.md`, `work/EPICS.md`, `work/history/*.md`
   — **only** when `.planning/work/WORK.md` reads `schema_version: 2` — naming
   `/sig:item`. Item bodies (`items/**/*.md`) are allowed. On `work/WORK.md` itself
-  it blocks only an edit that would change or remove `schema_version: 2` (the
-  proposed content is computed for Write, Edit and MultiEdit), naming the
-  migration tool; other text in WORK.md may be edited. `MultiEdit` reaches only this guard.
+  it blocks only an edit that would change or remove `schema_version: 2` or the
+  `key:` line (the key prefixes every item ID, so changing it orphans every
+  record; the proposed content is computed for Write, Edit and MultiEdit),
+  naming the migration tool; other text in WORK.md may be edited. `MultiEdit` reaches only this guard.
 - **exit:** `2` + a `[signal:check-state-write]` stderr line to **block** the
   write (surfaces to the user); `0` to allow. `baseDir` is derived from the
   file path (`resolve(file_path, '..', '..')`), NOT from cwd.

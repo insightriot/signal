@@ -166,9 +166,9 @@ describe('work write guard — v2 store', () => {
   });
 
   // REVIEW I7, narrowed in loop 1 part B: only an edit that would change or
-  // remove `schema_version: 2` is blocked — that is the edit that switches the
-  // guard off. Any other WORK.md text edit is allowed.
-  describe('work/WORK.md: only a change to schema_version: 2 is blocked', () => {
+  // remove `schema_version: 2` (it switches the guard off) or the `key:` line
+  // (it orphans every record) is blocked. Any other WORK.md text edit is allowed.
+  describe('work/WORK.md: only a change to schema_version: 2 or the key is blocked', () => {
     const BODY = '---\nkey: SIG\nschema_version: 2\n---\n\nSome prose.\n';
     const at = () => join(dir, WORK_MD);
     const ed = (old_string, new_string, extra = {}) => ({ tool_name: 'Edit', tool_input: { file_path: at(), old_string, new_string, ...extra } });
@@ -204,6 +204,21 @@ describe('work write guard — v2 store', () => {
     // `$&` would re-insert the match under String.replace's expansion and the
     // version would survive; Claude Code writes it literally, which removes it.
     it('a `$&` in new_string is judged literally, as Claude Code writes it', () => expectBlocked(ed('schema_version: 2', '$&')));
+
+    // The store key prefixes every item ID, so a hand change to `key:` orphans
+    // every record (REVIEW loop 1 part B, follow-up to I7).
+    const expectKeyBlocked = (event) => {
+      expectBlocked(event);
+      expect(runHook(event).stderr).toContain('`key`');
+    };
+    it('Edit changing the key is blocked', () => expectKeyBlocked(ed('key: SIG', 'key: ABC')));
+    it('Edit removing the key line is blocked', () => expectKeyBlocked(ed('key: SIG\n', '')));
+    it('Write with a different key is blocked', () => expectKeyBlocked(wr('---\nkey: ABC\nschema_version: 2\n---\n')));
+    it('Write without a key is blocked', () => expectKeyBlocked(wr('---\nschema_version: 2\n---\n')));
+    it('MultiEdit whose second edit changes the key is blocked', () =>
+      expectKeyBlocked(me([{ old_string: 'Some prose.', new_string: 'Other prose.' }, { old_string: 'key: SIG', new_string: 'key: XYZ' }])));
+    it('Write keeping the same key and version is allowed', () =>
+      expectAllowed(wr('---\nschema_version: 2\nkey: SIG\n---\n\nReordered.\n')));
   });
 
   it('blocks an upper-case path on a case-insensitive filesystem', (ctx) => {
@@ -269,6 +284,11 @@ describe('hooks-api.md states what the guard cannot see (REVIEW I7)', () => {
     expect(section).toMatch(/through Bash/);
     expect(section).toContain('checkRecords');
     expect(section).toMatch(/valid\*?\s+record/);
+  });
+  it('the guard description says a WORK.md edit changing `key` is blocked', () => {
+    const at = doc.indexOf('**Work-store guard (M6.E13/t5.1):**');
+    const desc = doc.slice(at, doc.indexOf('- **exit:**', at));
+    expect(desc).toMatch(/change or remove `schema_version: 2` or the\s+`key:` line/);
   });
 });
 

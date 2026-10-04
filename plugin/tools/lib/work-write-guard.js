@@ -7,12 +7,14 @@
 // them is either overwritten at the next regeneration or, for a record, an
 // edit the event log never saw. Bodies (`items/**/*.md`) stay editable.
 // `work/WORK.md` is guarded too, with its own message (REVIEW I7), but only
-// against the one edit that matters: one that would change or remove
-// `schema_version: 2`, which would switch this guard off. The proposed content
-// is computed (Write: `content`; Edit: `old_string` → `new_string`, literally;
-// MultiEdit: each of `edits` in order) and blocked unless it still reads
-// `schema_version: 2` — a proposal whose frontmatter no longer parses counts
-// as removing it. Any other WORK.md text edit is allowed (loop 1 part B).
+// against the two edits that matter: one that would change or remove
+// `schema_version: 2`, which would switch this guard off, and one that would
+// change or remove the frontmatter `key:`, which prefixes every item ID and so
+// would orphan every record. The proposed content is computed (Write:
+// `content`; Edit: `old_string` → `new_string`, literally; MultiEdit: each of
+// `edits` in order) and blocked unless it still reads `schema_version: 2` and
+// the current `key` — a proposal whose frontmatter no longer parses counts as
+// removing both. Any other WORK.md text edit is allowed (loop 1 part B).
 //
 // What no PreToolUse hook can see: an edit made through Bash (`sed -i`, `>`,
 // a script). See references/hooks-api.md § "What the work-store guard cannot
@@ -45,10 +47,11 @@ export const BLOCK_MESSAGE = (rel) =>
   + 'For prose, edit the item\'s body file (.planning/work/items/NN/KEY-n.md), which is not blocked.';
 
 export const WORK_MD_MESSAGE = (rel) =>
-  `${rel} switches this project's v2 work store on (\`schema_version: 2\`), and this edit would change or `
-  + 'remove that line: it would switch off this guard and the generated views. Other text in the file may be '
-  + 'edited. Items are changed with /sig:item; the store\'s version is changed only by the migration tool, '
-  + '`node tools/work-migrate-v2.mjs`.';
+  `${rel} switches this project's v2 work store on (\`schema_version: 2\`) and names its \`key\`, which `
+  + 'prefixes every item ID. This edit would change or remove one of those lines: a changed version switches '
+  + 'off this guard and the generated views, and a changed key orphans every record. Other text in the file '
+  + 'may be edited. Items are changed with /sig:item; the store\'s version is changed only by the migration '
+  + 'tool, `node tools/work-migrate-v2.mjs`.';
 
 const isWorkMd = (rel) => rel.toLowerCase() === '.planning/work/work.md';
 
@@ -134,15 +137,23 @@ function proposedContent(abs, tool, input) {
   return text;
 }
 
-// Would this WORK.md write change or remove `schema_version: 2`? Unknown → false.
-async function changesVersion(abs, tool, input) {
+// Would this WORK.md write change or remove `schema_version: 2` or the
+// current `key`? Unknown → false.
+async function changesVersionOrKey(abs, tool, input) {
   const next = proposedContent(abs, tool, input);
   if (next === null) return false;
   const { parseFrontmatter } = await import('./state.js');
+  let key;
   try {
-    return parseFrontmatter(next).data?.schema_version !== 2;
+    key = parseFrontmatter(readFileSync(abs, 'utf-8')).data?.key;
   } catch {
-    return true; // a frontmatter that no longer parses has lost its version
+    return false; // the current key cannot be read — allow
+  }
+  try {
+    const data = parseFrontmatter(next).data;
+    return data?.schema_version !== 2 || data?.key !== key;
+  } catch {
+    return true; // a frontmatter that no longer parses has lost its version and key
   }
 }
 
@@ -168,7 +179,7 @@ export async function checkWorkWrite({ filePath, cwd, tool, input }) {
         const { storeVersion } = await import('./work-records.js');
         if (storeVersion(baseDir) !== 2) continue;
         if (!isWorkMd(rel)) return { block: true, reason: BLOCK_MESSAGE(rel) };
-        if (await changesVersion(abs, tool, input)) return { block: true, reason: WORK_MD_MESSAGE(rel) };
+        if (await changesVersionOrKey(abs, tool, input)) return { block: true, reason: WORK_MD_MESSAGE(rel) };
       } catch {
         // A broken or unknown WORK.md — allow.
       }
