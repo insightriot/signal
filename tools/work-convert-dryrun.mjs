@@ -176,7 +176,9 @@ export function assertOutsideRepo(outDir, repoRoot = REPO_ROOT) {
 
 export function writeOutput(outDir, results) {
   assertOutsideRepo(outDir);
-  rmSync(outDir, { recursive: true, force: true });
+  // Clear only what this script writes; OUT_DIR itself may hold anything.
+  rmSync(path.join(outDir, 'work'), { recursive: true, force: true });
+  rmSync(path.join(outDir, 'manifest.json'), { force: true });
   for (const r of results) {
     if (!r.record) continue;
     const dir = path.join(outDir, bodyDirFor(r.record.id));
