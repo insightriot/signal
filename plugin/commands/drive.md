@@ -82,7 +82,7 @@ beats starting something new — so if any candidate is an open Epic (from `STAT
 `D-M6E12-3`). Run its steps 1–5 as written in `commands/advise.md`: `prepareAdvise`, propose 3–5
 priorities from the digest, `runAdvise`, ask, `recordChoice`. **The picked priority becomes this
 run's work:** a new Epic, starting at DISCUSS, labelled with the priority's title and scoped to its
-`covers`. When the priorities fit the picker (four or fewer), ask the pick and **0b**'s
+`covers` — `BACKLOG.md:LINE` citations with the work store off, item IDs (`SIG-n`) with it on. When the priorities fit the picker (four or fewer), ask the pick and **0b**'s
 how-to-run question in the same `AskUserQuestion` call; with five, ask the numbered pick first,
 then **0b**.
 
@@ -91,6 +91,13 @@ candidates in their existing order: `rankBacklogRow` lifts rows that lead with a
 groomed tag, sinks rows that read as dated records, and breaks ties on line number. There is no age
 input, but in an append-mostly file line order leans oldest-first, so this list is a fallback — the
 priorities are where the judgment is.
+
+**With the work store on** (`.planning/work/WORK.md`), `BACKLOG.md` is a view and is not read: the
+candidates are the open work records — status T, Q or P, neither a bug nor a question — read through
+`listRecords` in `tools/lib/work-records.js` (a v1 store through its converter). Each carries
+`source: 'work store'`, its `id` (`SIG-n`), the record's `path` and `line: null`; name it by ID, not
+by a line. `rankBacklogRow` ranks the titles the same way, and ties keep ID order, which is filing
+order. A *closing* item is done and is not offered. Changing an item goes through `/sig:item`.
 
 ⚠ **The pick is a human stop at EVERY attention setting, `unattended` included.** `unattended`
 removes the stops between phases; it does not choose the work. No setting picks a priority on the
@@ -110,7 +117,8 @@ building automatic selection. That verdict is about a *silent* pick becoming wor
 for. A ranked proposal behind an explicit confirmation is a different mechanism: the person
 closes the recall gap by naming what the list missed, and the precision gap by declining.
 
-⚠ **`cannotCheck` entries render as their own line.** No `BACKLOG.md` means "could not look",
+⚠ **`cannotCheck` entries render as their own line.** No `BACKLOG.md` — or, with the store on, a
+work store that cannot be read or records that do not read (`source: 'work store'`) — means "could not look",
 never "no work" — and an empty candidate list with an unread source must never be presented
 as "nothing to do".
 

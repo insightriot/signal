@@ -309,6 +309,11 @@ describe.each(VERSIONS)('t4.2a (moved from t4.2b) — the artifact on a v%i stor
     expect(art).toMatch(/A work item is cited by its own record file/);
     expect(art).not.toMatch(/the discharge input did not open it/);
     expect(art).toMatch(/`BUGS\.md` — read from the work records for the covers/);
+    // t6.2: the Read line names the records, not the two views it never opened.
+    const readLine = art.split('\n').find((l) => l.startsWith('**Read:**'));
+    expect(readLine).toContain('work records (backlog rows) · work records (bugs)');
+    expect(readLine).toMatch(/BACKLOG\.md and BUGS\.md, its views, were not opened/);
+    expect(readLine).not.toMatch(/\*\*Read:\*\* BACKLOG\.md/);
     const v = await verifyCitations(base, art);
     expect(v.unresolved).toEqual([]);
     const evidenceTokens = checked.priorities.reduce((n, p) => n + p.evidence.length, 0);

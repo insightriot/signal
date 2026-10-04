@@ -30,6 +30,8 @@ Write `STATE.md` programmatically: call `initState(baseDir, 'CALIBRATE')` from `
 
 The rest of the v3 file set is created on-demand, not scaffolded here: the first `/sig:add` lazy-creates `.planning/ISSUES-INBOX.md` (never `FUTURE-IDEAS.md`), and `BACKLOG.md` is created on first promote by the `/sig:plan` drain.
 
+A new project starts with the **work store off** (no `.planning/work/WORK.md`), so those files are written as above. In a project whose store is on, the lists are views generated from work records, and every capture and status change goes through `/sig:item` and the library behind it, `tools/lib/work-records.js` — never a hand edit. Do not create `WORK.md` here.
+
 ### 1b. Epic mode (`--epic <name>`, optional)
 
 If invoked with `--epic <name>` (M4.5.E11), open the project's first Epic right after STATE init so `current_epic` is set automatically and downstream artifacts are Epic-scoped. Resolve the ID exactly as `/sig:discuss` § "Epic mode" describes: a strict `M{N}.E{K}` value is used verbatim; otherwise derive with `deriveNextEpicId(baseDir, { milestone })` (a brand-new project has no prior Epic, so pass the milestone explicitly) and call `setCurrentEpic(baseDir, resolvedId)` (`tools/lib/state.js`). Without `--epic`, the project starts in linear mode (byte-identical to pre-E11).

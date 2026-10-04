@@ -42,7 +42,7 @@ Run **before any other Workflow step**, regardless of `gate_strictness`. This is
 
 **No bypass.** Per D-E9-3 there is no `--no-retro` flag, no environment variable escape hatch, and no extra-args trick. `shipFR1Check` ignores any extra properties passed to it. **This is unchanged for Epics.** What D-E9-3 never decided is what a project with *no* Epics owes; until M5.E9 the code silently answered *"it is broken"* and refused to run. **The gate is Epic-only (D-M5E9-1) — that is a scope, not a bypass:** a linear project cannot opt out of a rule that never applied to it, and no flag was added.
 
-**Layered enforcement context:** even if a user manually edits STATE.md to skip `/sig:ship`, the `PreToolUse(Edit|Write)` hook in `hooks/hooks.json` (added in M4.5.E9.S1.t7) blocks that write. Even if the user clears context mid-EXECUTE without invoking SHIP, the `SessionStart(resume)` hook surfaces the missing retro on the next session resume.
+**Layered enforcement context:** even if a user manually edits STATE.md to skip `/sig:ship`, the `PreToolUse(Edit|Write|MultiEdit)` hook in `hooks/hooks.json` (added in M4.5.E9.S1.t7) blocks that write. Even if the user clears context mid-EXECUTE without invoking SHIP, the `SessionStart(resume)` hook surfaces the missing retro on the next session resume.
 
 ## 0.6 Branch precondition (`B88`) — run before any Workflow step
 
@@ -227,7 +227,7 @@ Call `runShipContentGate(baseDir, { acceptStale })` from `tools/lib/ship-gate.js
    set (environment or the project's `.env`), the gate asks TypeSafe's Jev whether each `STATE.md` paragraph contradicts the facts, and lists each contradiction with the paragraph, the fact, the
    confidence, how many paragraphs were checked, which facts were left out, and that results can
    vary between runs. It also asks, for each `confirmed` bug a released changelog section mentions,
-   whether that section says the bug was fixed, and lists each yes with the bug row and the release
+   whether that section says the bug was fixed, and lists each yes with the bug row (with the work store on, the bug's record — the check then reads the records, not `BUGS.md`) and the release
    section Jev read (its heading and line range — the judgment is per section, so no single line is
    cited). **Each of the two checks has its own 30-second budget and they run one after the other,
    so this step can take up to about a minute.** With no key the report says the Jev checks did not
@@ -263,10 +263,11 @@ Call `closeEpic(baseDir, state.current_epic, {by, pr, release})` from `tools/lib
 
 ### 6.9 Confirm fixed closes (work store v2) — every SHIP
 
-**Work store off or v1:** nothing happens.
+**Work store off or v1:** nothing happens. (On a v1 store no fixed close can be confirmed until it is migrated: `node tools/work-migrate-v2.mjs`.)
 
 1. Call `runConfirmCloses(baseDir)` from `tools/lib/close-confirm.js` before the SHIP commit and print its `line` (`null` → say no item is closing). It compares against the local `origin/<default>` ref; SHIP does not fetch.
 2. Stage the changed item records and views into the SHIP commit.
+3. Copy the `Closes:` line into the SHIP artifact verbatim, as the Jev lines are copied in §6.7 — it is the record of which fixes this release confirmed and which still read *closing*. When `line` is `null`, the artifact says no item was closing.
 
 ### 7. Manual milestone meta-retro (`--milestone-meta` flag, optional)
 

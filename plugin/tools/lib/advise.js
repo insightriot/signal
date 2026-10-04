@@ -411,7 +411,16 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
 
   out.push(`## ${L.corpus}`);
   out.push('');
-  out.push(`**Read:** ${corpus.checked.length > 0 ? corpus.checked.join(' · ') : 'nothing'}.`);
+  // M6.E13 t6.2: with the work store on, the backlog and the bugs are read from
+  // the records and neither list file is opened, so the line says so rather than
+  // name two files it did not read. Display only: `checked` keeps its source
+  // identifiers (`ADVISOR_SOURCES`), which the rest of the artifact and the
+  // could-not-read accounting use.
+  const fromStore = Boolean(corpus.sources?.backlog?.store || corpus.sources?.bugs?.store);
+  const readAs = (s) => (fromStore && s === 'BACKLOG.md' ? 'work records (backlog rows)'
+    : fromStore && s === 'BUGS.md' ? 'work records (bugs)' : s);
+  const readLine = corpus.checked.length > 0 ? corpus.checked.map(readAs).join(' · ') : 'nothing';
+  out.push(`**Read:** ${readLine}${fromStore ? ' — the work store is on, so BACKLOG.md and BUGS.md, its views, were not opened' : ''}.`);
   out.push('');
   // ⚠ SAYING WHICH SOURCES THE RANKING ACTUALLY USED, because "Read: …" does not
   // say it and a reader infers it. This used to be a LITERAL — "`BACKLOG.md`

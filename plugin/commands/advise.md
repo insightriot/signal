@@ -79,6 +79,12 @@ Write **3 to 5** priorities as a JSON array to a scratchpad file. Each is:
 - `covers` names what the priority would take on: a **live backlog row by its citation** (the
   `path:line` the digest gives it), an **open bug by id**, or **unfiled work** as `new: …`. A row
   sits under one priority only.
+- **With the work store on** (`.planning/work/WORK.md`), the digest lists rows and bugs by item ID,
+  and that is how they are covered: `"covers": ["SIG-412", "SIG-254", "new: …"]`. A
+  `BACKLOG.md:LINE` cover is refused there — `BACKLOG.md` and `BUGS.md` are views of the work
+  records (read through `listRecords` in `tools/lib/work-records.js`), and the artifact's
+  **Read:** line says the records were read, not the views. A closed, *closing*, question or inbox
+  item cannot be covered. Moving an item afterwards is `/sig:item`'s job, never this command's.
 - `evidence` is one or more `path:line` (or `path`) citations, repo-root-relative, that support the
   `why` — lines you actually read.
 - `dependsOn` (optional) lists the priorities this one should come after, by number.
