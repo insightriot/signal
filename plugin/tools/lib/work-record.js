@@ -255,3 +255,169 @@ export function parseRecord(text, opts = {}) {
   }
   return { record, errors: validateRecord(record).map((e) => `${where}: ${e}`) };
 }
+
+// The transition table (PLAN Decision 3). For each event, the derived states
+// it may follow. Status is never stored; `closing` is its own derived value,
+// never a letter. The item's `type` is never read here: the status letter `Q`
+// and the item type `Q` are different things and are never compared.
+const OPEN = ['N', 'T', 'Q', 'P'];
+const LEGAL_FROM = {
+  triaged: ['N', 'Q', 'P'],
+  queued: ['T', 'Q', 'P'],
+  started: ['T', 'Q'],
+  close_requested: OPEN,
+  reopened: ['C', 'closing'],
+};
+
+// One pass over the events. Returns the derived status and Epic, plus
+// `sequenceErrors` (an event not legal where it stands; that event is skipped
+// and folding continues from the last legal state, so every bad event is
+// reported) and `editErrors` (a field whose current value is not its last
+// edited `to`).
+function fold(record) {
+  const sequenceErrors = [];
+  const events = record?.events;
+  if (!Array.isArray(events) || events.length === 0) {
+    sequenceErrors.push({ index: 0, message: 'a record needs at least one event, and the first must be created' });
+    return { status: null, epic: null, sequenceErrors, editErrors: [] };
+  }
+
+  let status = null;
+  let epic = null;
+  let pendingProof = null; // the outstanding close request's commit
+  const lastEdit = new Map(); // field -> {index, to}
+
+  const refuse = (index, message) => sequenceErrors.push({ index, message });
+
+  if (!isMapping(events[0]) || events[0].type !== 'created') {
+    // Without a `created` there is no state to fold from; one error, not one per event.
+    const got = isMapping(events[0]) ? events[0].type : events[0];
+    refuse(0, `events[0]: the first event must be created (got ${JSON.stringify(got)})`);
+    return { status: null, epic: null, sequenceErrors, editErrors: [] };
+  }
+
+  events.forEach((event, index) => {
+    const type = isMapping(event) ? event.type : undefined;
+    if (index === 0) {
+      status = 'N';
+      return;
+    }
+    const illegal = () => refuse(index, `events[${index}]: ${type} is not legal from ${status}`);
+
+    switch (type) {
+      case 'triaged':
+      case 'queued':
+      case 'started':
+      case 'close_requested':
+      case 'reopened':
+        if (!LEGAL_FROM[type].includes(status)) return illegal();
+        if (type === 'triaged') [status, epic] = ['T', null];
+        else if (type === 'queued') [status, epic] = ['Q', event.epic];
+        else if (type === 'started') [status, epic] = ['P', event.epic];
+        else if (type === 'close_requested') [status, pendingProof] = ['closing', event.proof];
+        else [status, epic, pendingProof] = ['T', null, null];
+        return;
+      case 'closed': {
+        if (event.legacy === true) {
+          // Migration only: any open or closing state, original reason kept.
+          if (![...OPEN, 'closing'].includes(status)) return illegal();
+        } else if (event.reason === 'fixed') {
+          // `fixed` closes only by confirming a request, copying its proof.
+          if (status !== 'closing') return illegal();
+          if (event.proof !== pendingProof) {
+            return refuse(
+              index,
+              `events[${index}]: a fixed close must confirm the outstanding request's proof ` +
+                `(${JSON.stringify(pendingProof)}, got ${JSON.stringify(event.proof)})`,
+            );
+          }
+        } else if (![...OPEN, 'closing'].includes(status)) {
+          return illegal();
+        }
+        [status, pendingProof] = ['C', null];
+        return;
+      }
+      case 'edited':
+        if (isMapping(event.changes)) {
+          for (const [field, change] of Object.entries(event.changes)) {
+            lastEdit.set(field, { index, to: isMapping(change) ? change.to : undefined });
+          }
+        }
+        return;
+      default:
+        // `created` again, or a type validateRecord would reject.
+        return illegal();
+    }
+  });
+
+  const editErrors = [];
+  for (const [field, { index, to }] of lastEdit) {
+    const current = Object.hasOwn(record, field) ? record[field] : null;
+    if (current !== to) {
+      editErrors.push({
+        index,
+        message:
+          `events[${index}]: ${field} was last edited to ${JSON.stringify(to)} ` +
+          `but the record holds ${JSON.stringify(current)}`,
+      });
+    }
+  }
+  return { status, epic, sequenceErrors, editErrors };
+}
+
+function folded(record, what) {
+  const result = fold(record);
+  if (result.sequenceErrors.length > 0) {
+    // An illegal history has no honest answer; guessing one would read a
+    // broken record as, say, plausibly closed (Decision 1: nothing silently wrong).
+    const id = isMapping(record) && typeof record.id === 'string' ? record.id : 'work record';
+    throw new WorkStoreError(
+      'SCHEMA',
+      `${id}: cannot derive ${what}: ${result.sequenceErrors.map((e) => e.message).join('; ')}`,
+    );
+  }
+  return result;
+}
+
+/**
+ * The record's status, folded from its events: `'N' | 'T' | 'Q' | 'P' | 'C'`
+ * or `'closing'` (a fixed close requested, not yet confirmed). Throws a
+ * `WorkStoreError('SCHEMA')` when the event sequence is illegal. An `edited`
+ * inconsistency does not throw here: it says nothing about status, and
+ * `checkEvents` reports it.
+ *
+ * @param {object} record — a record that passes `validateRecord`
+ * @returns {'N'|'T'|'Q'|'P'|'C'|'closing'}
+ */
+export function deriveStatus(record) {
+  return folded(record, 'status').status;
+}
+
+/**
+ * The Epic the record belongs to, folded from its events (Decision 4): set by
+ * `queued`/`started`, cleared by `triaged`/`reopened`, kept by everything else.
+ * `null` when it is in none. Throws like `deriveStatus` on an illegal sequence.
+ *
+ * @param {object} record
+ * @returns {string|null}
+ */
+export function epicOf(record) {
+  return folded(record, 'Epic').epic;
+}
+
+/**
+ * Every problem with the record's history, each as `{index, message}`: an
+ * event not legal from the state before it (the transition table, PLAN
+ * Decision 3), and every edited field whose current value is not its last
+ * `to` (Decision 2). `[]` when the history is sound.
+ *
+ * Store-level rules are not here: whether `dup_of` exists, and refusing a
+ * reopen when the item's Epic is archived.
+ *
+ * @param {object} record — a record that passes `validateRecord`
+ * @returns {{index: number, message: string}[]}
+ */
+export function checkEvents(record) {
+  const { sequenceErrors, editErrors } = fold(record);
+  return [...sequenceErrors, ...editErrors].sort((a, b) => a.index - b.index);
+}
