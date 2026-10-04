@@ -567,6 +567,62 @@ describe('convertV1Item — pasted table row (AC8.3)', () => {
   });
 });
 
+// `/sig:add --bug`'s capture format (`add.js:698`): `**Status:** needs-triage`
+// under the heading. A status statement in a body contradicts the events the
+// moment the item moves (SIG-131 closed, SIG-129 triaged), so it goes too.
+describe('convertV1Item — body status statements (AC8.3, D-M6E13-13)', () => {
+  const capture = (status) => `## A title\n\n**Status:** ${status}\n\nThe text.\n`;
+
+  it('drops a `**Status:** <v1 status>` line and lists it', () => {
+    const { body, manifest } = convertV1Item({ relPath: 'work/backlog/SIG-62.md', text: v1(BACKLOG_NO_CREATED_FRONT, capture('needs-triage')), fallbackAt: '2026-09-29' });
+    expect(body).toBe('## A title\n\n\nThe text.\n');
+    expect(manifest.statusLinesRemoved).toEqual([{ line: 3, text: '**Status:** needs-triage' }]);
+  });
+
+  it('every v1 status word, with an optional note or full stop', () => {
+    for (const status of ['confirmed', 'dismissed', 'fixed', 'triaged', 'open', 'untriaged', 'withdrawn (duplicate)', 'resolved-not-a-defect', 'confirmed.']) {
+      const { body, manifest } = convertV1Item({ relPath: 'work/backlog/SIG-62.md', text: v1(BACKLOG_NO_CREATED_FRONT, capture(status)), fallbackAt: '2026-09-29' });
+      expect(body, status).toBe('## A title\n\n\nThe text.\n');
+      expect(manifest.statusLinesRemoved, status).toHaveLength(1);
+    }
+  });
+
+  it('a status word then a sentence: the statement goes, the sentence stays (SIG-139)', () => {
+    const text = v1(BACKLOG_NO_CREATED_FRONT, '**Status:** needs-triage. Found 2026-09-08 during the `B118` fix lane.\n');
+    const { body, manifest } = convertV1Item({ relPath: 'work/backlog/SIG-62.md', text, fallbackAt: '2026-09-29' });
+    expect(body).toBe('Found 2026-09-08 during the `B118` fix lane.\n');
+    expect(manifest.statusLinesRemoved).toEqual([{ line: 1, text: '**Status:** needs-triage.', kept: 'Found 2026-09-08 during the `B118` fix lane.' }]);
+  });
+
+  it('leaves lines that are not a v1 status statement alone', () => {
+    const keep = [
+      '**Status: verified by execution WITH A CONTROL ARM, 2026-08-27.** `detectProjectKind` is wrong.', // SIG-137:22
+      '**Status:** Logged 2026-08-18 via `/sig:add`. → Deferred 2026-08-19 (M6.E3 drain).', // SIG-234
+      '**Status:** fixed — **root cause closed 2026-09-04**', // SIG-138:20, a narrative, not a statement alone
+      '**Status:** No tier-count change for v1.', // SIG-239
+      'The **Status:** needs-triage line is what add.js writes.',
+    ].join('\n\n');
+    const { body, manifest } = convertV1Item({ relPath: 'work/backlog/SIG-62.md', text: v1(BACKLOG_NO_CREATED_FRONT, `${keep}\n`), fallbackAt: '2026-09-29' });
+    expect(body).toBe(`${keep}\n`);
+    expect(manifest.statusLinesRemoved).toEqual([]);
+  });
+
+  it('leaves a status line inside a fenced block alone', () => {
+    const fenced = '```\n**Status:** needs-triage\n```\n';
+    const { body, manifest } = convertV1Item({ relPath: 'work/backlog/SIG-62.md', text: v1(BACKLOG_NO_CREATED_FRONT, fenced), fallbackAt: '2026-09-29' });
+    expect(body).toBe(fenced);
+    expect(manifest.statusLinesRemoved).toEqual([]);
+  });
+
+  it('line numbers in every manifest list cite the v1 body', () => {
+    const text = v1(BACKLOG_NO_CREATED_FRONT, '**Status:** confirmed\n\n[x](../../X.md)\n');
+    const { body, manifest } = convertV1Item({ relPath: 'work/backlog/SIG-62.md', text, fallbackAt: '2026-09-29' });
+    expect(body).toBe('\n[x](../../../X.md)\n');
+    expect(manifest.statusLinesRemoved[0].line).toBe(1);
+    expect(manifest.linksRewritten[0].line).toBe(3);
+  });
+});
+
 describe('convertV1Item — relative links to the items/NN depth', () => {
   it('rewrites from the v1 folder depth and lists each rewrite', () => {
     const text = v1(
@@ -606,7 +662,7 @@ describe('convertV1Item — relative links to the items/NN depth', () => {
 
 describe('convertV1Item — manifest shape', () => {
   it('has every key, in every outcome', () => {
-    const keys = ['id', 'source', 'fieldsMapped', 'fieldsDropped', 'cellsRemoved', 'linksRewritten', 'closeForm', 'errors'];
+    const keys = ['id', 'source', 'fieldsMapped', 'fieldsDropped', 'cellsRemoved', 'statusLinesRemoved', 'linksRewritten', 'closeForm', 'errors'];
     const ok = convertV1Item({ relPath: 'work/done/2026-10/SIG-127.md', text: FIXED_WITH_COMMIT }).manifest;
     const bad = convertV1Item({ relPath: 'work/backlog/SIG-62.md', text: BACKLOG_NO_CREATED }).manifest;
     expect(Object.keys(ok)).toEqual(keys);

@@ -94,6 +94,47 @@ function cleanRows(body, legacyId, cellsRemoved) {
     .join('\n');
 }
 
+// A status statement in a body (D-M6E13-13, AC8.3): `/sig:add --bug`'s capture
+// line `**Status:** needs-triage` (`add.js:698`, read by `bugs-tally.js`'s
+// CAPTURE_STATUS_RE). Only a v1 status word counts — a closed list, so
+// `**Status:** Logged … via /sig:add` and `**Status: verified …**` (bold closed
+// after the colon, a narrative) are prose and stay. The word may carry a
+// parenthetical note and a full stop; a sentence after the full stop is kept.
+// Anything else after the word (` — …`) is a narrative and the line stays.
+const STATUS_WORDS = [
+  'needs-triage',
+  'confirmed',
+  'dismissed',
+  'fixed',
+  'triaged',
+  'open',
+  'untriaged',
+  'withdrawn',
+  'resolved-not-a-defect',
+];
+const STATUS_LINE_RE = new RegExp(
+  `^(\\*\\*Status:\\*\\*\\s*(?:${STATUS_WORDS.join('|')})(?:\\s*\\([^)]*\\))?(?:\\.|(?=\\s*$)))\\s*(.*)$`,
+);
+
+// Runs last, on the cleaned and re-linked body, so its line numbers — like
+// those of `cellsRemoved` and `linksRewritten` — cite the v1 body.
+function dropStatusLines(body, statusLinesRemoved) {
+  let fence = false;
+  const out = [];
+  body.split('\n').forEach((line, i) => {
+    if (isFence(line)) fence = !fence;
+    const m = fence ? null : STATUS_LINE_RE.exec(line);
+    if (!m) {
+      out.push(line);
+      return;
+    }
+    const kept = m[2].trimEnd();
+    statusLinesRemoved.push({ line: i + 1, text: m[1], ...(kept ? { kept } : {}) });
+    if (kept) out.push(kept);
+  });
+  return out.join('\n');
+}
+
 // `rewriteRelativeLinks` changes link targets only, so a changed line has the
 // same `](…)` matches in the same order before and after; pairing by index
 // lists exactly the targets that moved.
@@ -193,8 +234,10 @@ function fail(manifest, body, ...errors) {
  *
  * Body (t1.4b): the item's own pasted legacy row loses its ID, status and
  * priority cells and keeps the rest as prose (D-M6E13-13); relative links are
- * rewritten from the v1 folder to `bodyDirFor(id)`. Each removed cell and each
- * rewritten link is listed in the manifest with its body line number.
+ * rewritten from the v1 folder to `bodyDirFor(id)`; a `**Status:** <v1 status>`
+ * line is dropped (a sentence after it is kept). Each removed cell, removed
+ * status statement and rewritten link is listed in the manifest with its v1
+ * body line number.
  *
  * @param {{relPath: string, text: string, fallbackAt?: string}} input
  *   `relPath` is relative to `.planning/` (`work/backlog/SIG-5.md`).
@@ -208,6 +251,7 @@ export function convertV1Item({ relPath, text, fallbackAt }) {
     fieldsMapped: [],
     fieldsDropped: [],
     cellsRemoved: [],
+    statusLinesRemoved: [],
     linksRewritten: [],
     closeForm: null,
     errors: [],
@@ -310,5 +354,5 @@ export function convertV1Item({ relPath, text, fallbackAt }) {
   const cleaned = cleanRows(body, item.legacy_id, manifest.cellsRemoved);
   const moved = rewriteRelativeLinks(cleaned, dirOf(relPath), bodyDirFor(item.id));
   listRewrites(cleaned, moved, manifest.linksRewritten);
-  return { record, body: moved, manifest };
+  return { record, body: dropStatusLines(moved, manifest.statusLinesRemoved), manifest };
 }
