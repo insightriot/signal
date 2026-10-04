@@ -35,20 +35,25 @@
 // project itself under the work lock, then `confirmCloses` (which writes the
 // `closed` events), then `checkRecords`; the final manifest is also kept in the
 // project as `.planning/archive/pre-work-store-v2/MANIFEST.json`. It refuses outside a git repository
-// and on a dirty working tree, so the cutover is one reviewable diff.
+// and on a dirty working tree, so the cutover is one reviewable diff — and so,
+// when it fails part-way, `APPLY_RECOVERY` restores the tree exactly.
+//
+// Every run refuses a symbolic link on any path it lists, writes or moves,
+// before writing anything (REVIEW I2); see `preflight`.
 //
 // Nothing here imports a Markdown list parser (`legacy-lists.js`).
 
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, posix, relative, resolve, sep, isAbsolute } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
 import { acquireLock } from './file-lock.js';
 import { resolveDefaultBranch } from './branch-guard.js';
+import { assertRealInsidePlanning, linkedComponent } from './path-confine.js';
 import { bodyDirFor, convertV1Item } from './work-convert.js';
-import { WorkStoreError, lockFailure } from './work-errors.js';
+import { WorkStoreError, asWorkStoreError, lockFailure } from './work-errors.js';
 import { ITEM_ID_RE, parseItem } from './work-item.js';
 import { serializeRecord } from './work-record.js';
 import {
@@ -62,7 +67,7 @@ import {
   storeVersion,
 } from './work-records.js';
 import { isGitRepo, isStoreOn, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
-import { regenerateViews } from './work-views.js';
+import { regenerateViews, VIEW_PATHS } from './work-views.js';
 
 const toPosix = (p) => p.split(sep).join('/');
 
@@ -357,25 +362,120 @@ function removeEmptiedStatusDirs(planning) {
   }
 }
 
+// ── Write confinement (REVIEW I2) ───────────────────────────────────────────
+//
+// git tracks symlinks, so a cloned repository can ship any folder on the
+// migration's path as a link — `.planning/work/items` pointing out of the
+// project made even the dry run write records there, through the copy. The
+// migration never lists a v1 folder, writes, renames or moves through a link:
+// every such path is checked in the project before anything is written (dry
+// run and --apply), and again in the target before each write.
+
+// Checked whatever the store holds. The v1 folders are listed (and their
+// emptied status folders removed), the rest are written.
+const FIXED_PATHS = [
+  '.planning/work/WORK.md',
+  '.planning/work/items',
+  '.planning/work/history',
+  '.planning/archive',
+  RELOCATED_V1_REL,
+  ...Object.values(VIEW_PATHS),
+  ...V1_DIRS.map((d) => `.planning/${d}`),
+];
+
+// `rel` (repo-root-relative) under `root`: no existing component is a link,
+// and its folder resolves inside `root`'s real `.planning/`.
+function confineWrite(root, rel) {
+  let linked;
+  try {
+    linked = linkedComponent(root, rel);
+    if (linked === null) assertRealInsidePlanning(root, join(root, rel), `${rel} (work store migration)`);
+  } catch (err) {
+    throw asWorkStoreError(err, typeof err?.code === 'string' ? 'IO' : 'CONFLICT');
+  }
+  if (linked !== null) {
+    throw new WorkStoreError('CONFLICT', `${linked} is a symbolic link — the migration never lists, writes or moves `
+      + `through a link (${rel} would have gone through it). Replace the link with a real `
+      + `${linked === rel ? 'file' : 'folder'} (or remove it), commit, then re-run.`);
+  }
+}
+
+// Every path one run touches in a project, per converted item: the v1 file
+// (moved from), where it is relocated to, its record and its body.
+function preflight(root, results) {
+  for (const rel of FIXED_PATHS) confineWrite(root, rel);
+  for (const r of results) {
+    for (const rel of [`.planning/${r.relPath}`, `${RELOCATED_V1_REL}/${r.relPath}`, recordPath(r.record.id), bodyPath(r.record.id)]) {
+      confineWrite(root, rel);
+    }
+  }
+}
+
 // Relocate each v1 item file (never a folder), remove the status folders that
 // are now empty, write each record and body, and set WORK.md to v2 (frontmatter
-// and body). Views are the caller's: they need the store to read v2.
-async function buildInto(target, results) {
+// and body). Views are the caller's: they need the store to read v2. Every
+// path is confined in `target` just before it is used.
+async function buildInto(target, results, opts = {}) {
   const planning = join(target, '.planning');
+  const write = { renameFn: opts.renameFn };
   for (const r of results) {
-    const dest = join(target, RELOCATED_V1_REL, r.relPath);
+    const destRel = `${RELOCATED_V1_REL}/${r.relPath}`;
+    confineWrite(target, `.planning/${r.relPath}`);
+    confineWrite(target, destRel);
+    const dest = join(target, destRel);
     mkdirSync(dirname(dest), { recursive: true });
     renameSync(join(planning, r.relPath), dest);
   }
   removeEmptiedStatusDirs(planning);
   for (const r of results) {
+    confineWrite(target, recordPath(r.record.id));
+    confineWrite(target, bodyPath(r.record.id));
     const rec = join(target, recordPath(r.record.id));
     mkdirSync(dirname(rec), { recursive: true });
-    await atomicWrite(rec, serializeRecord(r.record));
-    await atomicWrite(join(target, bodyPath(r.record.id)), r.body);
+    await atomicWrite(rec, serializeRecord(r.record), write);
+    await atomicWrite(join(target, bodyPath(r.record.id)), r.body, write);
   }
+  confineWrite(target, '.planning/work/WORK.md');
   const workMd = join(planning, 'work', 'WORK.md');
-  await atomicWrite(workMd, toV2WorkMd(readFileSync(workMd, 'utf-8')));
+  await atomicWrite(workMd, toV2WorkMd(readFileSync(workMd, 'utf-8')), write);
+}
+
+// Under the apply lock: the v1 store must still be exactly what was converted
+// — no item file added, removed or edited since. A capture that landed in
+// between would otherwise be left behind in a status folder, unmigrated.
+function assertUnchanged(baseDir, results) {
+  if (storeVersion(baseDir) !== 1) {
+    throw new WorkStoreError('CONFLICT', '.planning/work/WORK.md changed after the store was converted; nothing in the '
+      + 'project was changed. Re-run the migration.');
+  }
+  const before = new Map(results.map((r) => [r.relPath, r.text]));
+  const now = listV1Items(baseDir, isStoreOn(baseDir).key);
+  const added = now.filter((p) => !before.has(p));
+  const removed = [...before.keys()].filter((p) => !now.includes(p));
+  const edited = now.filter((p) => before.has(p) && readFileSync(join(baseDir, '.planning', p), 'utf-8') !== before.get(p));
+  if (added.length + removed.length + edited.length > 0) {
+    const part = (label, list) => (list.length ? [`${label}: ${list.join(', ')}`] : []);
+    throw new WorkStoreError('CONFLICT', `the v1 store changed after it was converted (${[
+      ...part('added', added), ...part('removed', removed), ...part('edited', edited)].join('; ')}); nothing in the `
+      + 'project was changed. Commit the change, then re-run the migration.');
+  }
+}
+
+/** What to run after --apply fails part-way (the tree was clean when it started). */
+export const APPLY_RECOVERY = 'git checkout -- .planning && git clean -fd .planning';
+
+// --apply is not transactional (REVIEW deferred): once the project is written,
+// a failure leaves it part-migrated. No rollback is attempted; the clean-tree
+// precondition makes git's restore exact, so the error says how.
+function withRecovery(err) {
+  const e = asWorkStoreError(err, 'IO');
+  e.message = `${e.message}\n\n--apply failed part-way: the project WAS changed and is not rolled back. --apply `
+    + 'started from a clean working tree, so git restores it exactly. From the repository root, run:\n'
+    + `  ${APPLY_RECOVERY}\n`
+    + '(git clean removes every untracked file under .planning/ — check git status first if you created one '
+    + 'during the run.)';
+  e.recovery = APPLY_RECOVERY;
+  return e;
 }
 
 // A run of git against the SOURCE repo, whatever cwd the caller passed — so
@@ -439,11 +539,19 @@ function postBuildErrors(target, count) {
  * project changes); see the module comment for every step.
  *
  * @param {string} baseDir — the project root
- * @param {{apply?: boolean, outDir?: string, now?: Date|string, execFn?: Function}} [opts]
+ * @param {{apply?: boolean, outDir?: string, now?: Date|string, execFn?: Function, renameFn?: Function}} [opts]
  *   `outDir`: where the v2 project is built aside and `manifest.json` written
- *   (default: a new directory under `os.tmpdir()`); refused inside the project
- *   or when it already holds a `.planning/`. `now`: the clock for the probe and
- *   for the `closed` events `confirmCloses` writes at apply.
+ *   (default: a new directory under `os.tmpdir()`); refused inside the project,
+ *   when it is a symbolic link, or when it already holds a `.planning/`. `now`:
+ *   the clock for the probe and for the `closed` events `confirmCloses` writes
+ *   at apply. `renameFn`: passed to `atomicWrite` for records, bodies and
+ *   WORK.md (tests inject a failure).
+ *
+ * Refused (CONFLICT) before anything is written, dry run or apply: any link on
+ * a path the run lists, writes or moves (REVIEW I2). At apply, refused under
+ * the lock when the v1 store changed since it was converted. An apply that
+ * fails after the project was first written throws with the git commands that
+ * restore it (`APPLY_RECOVERY`, also on `err.recovery`); nothing is rolled back.
  * @returns {Promise<{mode: 'dry-run'|'apply', outDir: string, manifest: object}>}
  * @throws {WorkStoreError} CONFIG (no store, already v2, outDir, not a repo or
  *   dirty at apply), SCHEMA (the conversion or the built store failed
@@ -467,6 +575,15 @@ export async function migrateWorkStoreV2(baseDir, opts = {}) {
   }
 
   const outDir = resolve(opts.outDir ?? mkdtempSync(join(tmpdir(), 'signal-work-v2-')));
+  let outStat = null;
+  try {
+    outStat = lstatSync(outDir);
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw asWorkStoreError(err, 'IO');
+  }
+  if (outStat?.isSymbolicLink()) {
+    throw new WorkStoreError('CONFIG', `outDir ${outDir} is a symbolic link — choose a real directory (or a path that does not exist yet).`);
+  }
   if (insideOf(realpathSync(baseDir), realish(outDir))) {
     throw new WorkStoreError('CONFIG', `outDir ${outDir} is inside the project — the v2 store is built aside, outside it.`);
   }
@@ -474,19 +591,24 @@ export async function migrateWorkStoreV2(baseDir, opts = {}) {
     throw new WorkStoreError('CONFIG', `outDir ${outDir} already holds a .planning/ — choose an empty directory.`);
   }
 
+  preflight(baseDir, []); // the v1 folders are listed through no link
   const results = convertStore(baseDir, { execFn });
   const verification = verifyConversion(results, { exists: (p) => existsSync(join(baseDir, '.planning', p)) });
   if (verification.errors.length > 0) {
     throw new WorkStoreError('SCHEMA', `the conversion did not verify; nothing was written:\n  ${verification.errors.join('\n  ')}`);
   }
+  preflight(baseDir, results); // every item converted, so each has its record path
 
   // Build aside: a copy of .planning/ with the store swapped in.
   mkdirSync(outDir, { recursive: true });
+  // A link elsewhere in .planning/ is copied as the link it is, never followed
+  // and never rewritten to an absolute target; nothing is written through one.
   cpSync(join(baseDir, '.planning'), join(outDir, '.planning'), {
     recursive: true,
+    verbatimSymlinks: true,
     filter: (src) => !src.endsWith(`${sep}.lock`),
   });
-  await buildInto(outDir, results);
+  await buildInto(outDir, results, opts);
   await regenerateViews(outDir);
   verification.errors.push(...postBuildErrors(outDir, results.length));
 
@@ -519,19 +641,27 @@ export async function migrateWorkStoreV2(baseDir, opts = {}) {
   // At apply the manifest is ALSO kept in the project, beside the relocated
   // v1 files, so the cutover commit carries the record of what `confirmCloses`
   // confirmed (t7.3 prep). Written last, after confirming, so it is final.
-  const writeManifest = () => {
+  // atomicWrite renames over the file, so a manifest.json link is replaced, never followed.
+  const writeManifest = async () => {
     const text = `${JSON.stringify(manifest, null, 2)}\n`;
-    writeFileSync(join(outDir, 'manifest.json'), text);
+    await atomicWrite(join(outDir, 'manifest.json'), text);
     if (manifest.mode === 'apply' && existsSync(join(baseDir, RELOCATED_V1_REL))) {
-      writeFileSync(join(baseDir, RELOCATED_V1_MANIFEST_REL), text);
+      confineWrite(baseDir, RELOCATED_V1_MANIFEST_REL);
+      await atomicWrite(join(baseDir, RELOCATED_V1_MANIFEST_REL), text);
     }
   };
   if (verification.errors.length > 0) {
-    writeManifest();
+    await writeManifest();
     throw new WorkStoreError('SCHEMA', `the built store did not verify (${outDir}); the project was not changed:\n  ${verification.errors.join('\n  ')}`);
   }
 
-  if (apply) {
+  if (!apply) {
+    await writeManifest();
+    return { mode: manifest.mode, outDir, manifest };
+  }
+
+  let changed = false; // has the project itself been written yet?
+  try {
     let lock;
     try {
       lock = await acquireLock(join(baseDir, WORK_LOCK_REL), { label: 'work store migration', ttlMs: WORK_LOCK_TTL_MS });
@@ -539,7 +669,10 @@ export async function migrateWorkStoreV2(baseDir, opts = {}) {
       throw lockFailure(err);
     }
     try {
-      await buildInto(baseDir, results);
+      assertUnchanged(baseDir, results);
+      preflight(baseDir, results);
+      changed = true;
+      await buildInto(baseDir, results, opts);
       await regenerateViews(baseDir);
     } finally {
       await lock.released();
@@ -550,11 +683,12 @@ export async function migrateWorkStoreV2(baseDir, opts = {}) {
     const after = postBuildErrors(baseDir, results.length);
     if (after.length > 0) {
       manifest.verification.errors.push(...after);
-      writeManifest();
+      await writeManifest();
       throw new WorkStoreError('SCHEMA', `the migrated store did not verify — review with git diff:\n  ${after.join('\n  ')}`);
     }
+    await writeManifest();
+  } catch (err) {
+    throw changed ? withRecovery(err) : err;
   }
-
-  writeManifest();
   return { mode: manifest.mode, outDir, manifest };
 }
