@@ -436,6 +436,7 @@ export function renderResumeBriefing(params = {}) {
     retroSummary = null,
     projectTier = null,
     jevResult = null,
+    closesLine = null,
   } = params;
 
   const lines = [];
@@ -525,6 +526,14 @@ export function renderResumeBriefing(params = {}) {
   const jevLine = formatJevResumeLine(jevResult);
   if (jevLine) {
     lines.push(jevLine);
+    lines.push('');
+  }
+
+  // M6.E13 t4.6 — fixed closes confirmed after the origin check (AC7.2): one
+  // pre-resolved line from `close-confirm.js` `runConfirmCloses`, or null. In
+  // the advisory tier: it reports bookkeeping, not doubt about the briefing.
+  if (closesLine) {
+    lines.push(String(closesLine));
     lines.push('');
   }
 

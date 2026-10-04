@@ -261,6 +261,10 @@ Call `closeEpic(baseDir, state.current_epic, {by, pr, release})` from `tools/lib
 3. **`{status: 'no-folder'}`** — the Epic has no folder (every Epic from before the store). Say so and continue; nothing changed.
 4. **`{status: 'closed'}`** — the folder is now `.planning/archive/epics/<EpicID>/` with the close in its `README.md`. Stage into the SHIP commit the moved files (`moved`), every live file whose links into the folder were retargeted (`rewritten`), and the regenerated lists (`.planning/work/EPICS.md` and any of the four lists that changed).
 
+### 6.9 Confirm fixed closes (work store v2) — every SHIP
+
+**Work store off or v1:** nothing happens. Call `runConfirmCloses(baseDir)` from `tools/lib/close-confirm.js` before the SHIP commit and print its `line` (`null` → say no item is closing); stage the changed item records and views into the SHIP commit.
+
 ### 7. Manual milestone meta-retro (`--milestone-meta` flag, optional)
 
 If the user invokes `/sig:ship --milestone-meta` (or otherwise explicitly requests a milestone-level meta-retrospective), call `generateMilestoneMetaRetro(baseDir, milestoneId, opts)` from `tools/lib/retro-index.js` where `milestoneId` is derived from `state.current_epic` (drop the trailing `.E{N}` segment, e.g., `M4.5.E9` → `M4.5`).

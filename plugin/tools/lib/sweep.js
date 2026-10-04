@@ -44,7 +44,7 @@ import { runDriftChecks, renderDriftReport } from './state-drift.js';
 import { ALL_DRIFT_CHECKS, REACH } from './published-facts.js';
 import { backlogDischargeStatus, storeDischargeStatus, BACKLOG_DISCHARGE, REASON_NO_BACKLOG } from './backlog.js';
 import { isStoreOn, checkStore } from './work-store.js';
-import { checkRecords, listClosing, listRecords, storeVersion } from './work-records.js';
+import { checkRecords, listClosing, listRecords, probeCloses, recordPath, storeVersion } from './work-records.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -457,6 +457,42 @@ export function checkClosingTooLong(baseDir, opts = {}) {
       ));
 }
 
+/**
+ * Closes ready to confirm (portable, advisory — M6.E13 t4.6, AC7.2).
+ *
+ * `D-M6E13-15` runs the close confirmation "in the sweep", but the sweep is
+ * read-only (AC1.5; `D-M5E16-1` settled the same conflict in NFR2's favour), so
+ * it does not confirm: it asks `probeCloses` — the same question `confirmCloses`
+ * asks, with nothing written — and names each *closing* item whose fix commit
+ * is already on the default branch. The next `/sig:resume` or SHIP confirms it.
+ * Git is asked through local refs only (nothing is downloaded), so the sweep stays offline.
+ *
+ * v2 only, as `checkClosingTooLong`: store off or v1 → nothing, and git is not
+ * asked. Why the rest are still closing is not repeated here; a long wait is
+ * `checkClosingTooLong`'s finding.
+ *
+ * @param {string} baseDir — project root
+ * @param {{now?: Date|string, execFn?: Function}} [opts]
+ * @returns {Array<{check: string, severity: string, file: string, message: string}>}
+ */
+export function checkClosesConfirmable(baseDir, opts = {}) {
+  let probe;
+  try {
+    if (storeVersion(baseDir) !== 2) return [];
+    probe = probeCloses(baseDir, { now: opts.now, ...(opts.execFn ? { execFn: opts.execFn } : {}) });
+  } catch (err) {
+    return [mkFinding('closes-confirmable', 'advisory', WORK_MD_REL, `closes could not be checked — ${err.message}`)];
+  }
+  return probe.confirmable.map((id) =>
+    mkFinding(
+      'closes-confirmable',
+      'advisory',
+      recordPath(id),
+      `${id} is closing and its fix commit is on the default branch — the next /sig:resume or /sig:ship ` +
+        'confirms it closed. The sweep writes nothing.'
+    ));
+}
+
 // CLAUDE.md bloat threshold (AD6). A COARSE advisory nudge — NOT the STATE size
 // threshold (STATE accretes history; CLAUDE.md loads every turn, so it must stay
 // lean). PLAN-set default; revisitable in VERIFY if dogfooding shows noise.
@@ -679,6 +715,7 @@ export async function runSweep(baseDir = process.cwd()) {
   raw.push(...(await checkBacklogDischarge(baseDir)));
   raw.push(...checkWorkStore(baseDir));
   raw.push(...checkClosingTooLong(baseDir));
+  raw.push(...checkClosesConfirmable(baseDir));
   raw.push(...checkClaudeMdBloat(baseDir));
   raw.push(...(await checkPhaseLog(baseDir)));
 

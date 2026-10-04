@@ -17,7 +17,8 @@
 // Read side: t2.1. ID allocation and the duplicate-ID check: t2.3. Writes:
 // t2.2a (new, triage, queue, start) and t2.2b. The Epic close query: t2.5.
 // Confirming fixed closes against the default branch: t2.6, and its read-only
-// list of closing items, `listClosing`: t4.4. The store check: t2.7.
+// list of closing items, `listClosing`: t4.4; its read-only probe, `probeCloses`: t4.6.
+// The store check: t2.7.
 // The views it regenerates after every write: `work-views.js` (t3.1).
 
 import { execFileSync } from 'node:child_process';
@@ -1319,6 +1320,39 @@ export async function confirmCloses(baseDir, opts = {}) {
   if (Number.isNaN(now.getTime())) throw new WorkStoreError('SCHEMA', `confirmCloses: now ${JSON.stringify(opts.now)} is not a date`);
   assertWritable(baseDir);
 
+  const { still, ok } = classifyClosing(baseDir, execFn);
+
+  const confirmed = [];
+  if (ok.length > 0) {
+    await withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+      const at = now.toISOString();
+      const planned = [];
+      for (const c of ok) {
+        const { entry, text } = readForWrite(handle, c.id);
+        if (entry.status !== 'closing') continue; // closed or reopened meanwhile: nothing to confirm
+        const req = latestRequest(entry.record);
+        if (req.proof !== c.req.proof) {
+          still.set(c.id, { reason: 'changed', req });
+          continue;
+        }
+        const next = withEvent(entry, { type: 'closed', at, by: CONFIRM_BY, reason: 'fixed', proof: req.proof });
+        planned.push({ next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path) });
+      }
+      if (planned.length === 0) return;
+      await writeRecords(handle, planned, opts);
+      confirmed.push(...planned.map((p) => p.next.id));
+      await regenerateAfter(handle, `${confirmed.join(', ')} ${confirmed.length === 1 ? 'was' : 'were'} confirmed closed`, opts);
+    });
+  }
+
+  return { confirmed, ...stillAndStale(still, now) };
+}
+
+// Every *closing* record, split by whether its proof commit is on the default
+// branch now: `ok` (it is) and `still` (id → {reason, req}, why not). Reads the
+// records and asks git; writes nothing. Shared by `confirmCloses` and
+// `probeCloses`, so the two can never disagree on what is confirmable.
+function classifyClosing(baseDir, execFn) {
   const closing = listRecords(baseDir).records.filter((r) => r.status === 'closing');
   const still = new Map(); // id -> {reason, request}
   const candidates = [];
@@ -1348,36 +1382,42 @@ export async function confirmCloses(baseDir, opts = {}) {
       else still.set(c.id, { reason, req: c.req });
     }
   }
+  return { still, ok };
+}
 
-  const confirmed = [];
-  if (ok.length > 0) {
-    await withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
-      const at = now.toISOString();
-      const planned = [];
-      for (const c of ok) {
-        const { entry, text } = readForWrite(handle, c.id);
-        if (entry.status !== 'closing') continue; // closed or reopened meanwhile: nothing to confirm
-        const req = latestRequest(entry.record);
-        if (req.proof !== c.req.proof) {
-          still.set(c.id, { reason: 'changed', req });
-          continue;
-        }
-        const next = withEvent(entry, { type: 'closed', at, by: CONFIRM_BY, reason: 'fixed', proof: req.proof });
-        planned.push({ next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path) });
-      }
-      if (planned.length === 0) return;
-      await writeRecords(handle, planned, opts);
-      confirmed.push(...planned.map((p) => p.next.id));
-      await regenerateAfter(handle, `${confirmed.join(', ')} ${confirmed.length === 1 ? 'was' : 'were'} confirmed closed`, opts);
-    });
-  }
-
+function stillAndStale(still, now) {
   const ids = [...still.keys()].sort((a, b) => numberOf(a) - numberOf(b));
   const stale = ids.filter((id) => {
     const t = Date.parse(still.get(id).req?.at);
     return Number.isFinite(t) && now.getTime() - t > STALE_CLOSING_MS;
   });
-  return { confirmed, stillClosing: ids.map((id) => ({ id, reason: still.get(id).reason })), stale };
+  return { stillClosing: ids.map((id) => ({ id, reason: still.get(id).reason })), stale };
+}
+
+/**
+ * What `confirmCloses` would do now, without doing it (M6.E13 t4.6): the same
+ * classification — the same proof check and the same `git merge-base
+ * --is-ancestor` against `refs/remotes/origin/<default>` — with no lock, no
+ * event and no regeneration. For the sweep, which must stay read-only
+ * (`/sig:docs-sweep` AC1.5): it reports what the next `/sig:resume` or SHIP
+ * will confirm. Local refs only, never a fetch.
+ *
+ * v2 only, as `confirmCloses`: on a v1 store every fixed close reads as
+ * *closing* through the converter, and none of them can be confirmed there.
+ *
+ * @param {string} baseDir
+ * @param {{now?: Date|string, execFn?: Function}} [opts]
+ * @returns {{confirmable: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}}
+ *   `confirmable` by ID number; the other two as `confirmCloses` returns them
+ * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA (`now` is not a date)
+ */
+export function probeCloses(baseDir, opts = {}) {
+  const execFn = opts.execFn ?? execFileSync;
+  const now = opts.now === undefined ? new Date() : new Date(opts.now);
+  if (Number.isNaN(now.getTime())) throw new WorkStoreError('SCHEMA', `probeCloses: now ${JSON.stringify(opts.now)} is not a date`);
+  assertWritable(baseDir);
+  const { still, ok } = classifyClosing(baseDir, execFn);
+  return { confirmable: ok.map((c) => c.id).sort((a, b) => numberOf(a) - numberOf(b)), ...stillAndStale(still, now) };
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
