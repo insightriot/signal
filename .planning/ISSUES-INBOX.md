@@ -87,3 +87,11 @@ Reported 2026-10-04 by Brett from a /sig:drive run in another project (screensho
 Found 2026-10-04 by M6.E13 VERIFY pass 2. Two commits share a 7-hex prefix P; commit a is on origin/main. With no ref, probeCloses gives unknown-commit (correct). After git branch P a, it gives confirmable. The confirmed commit does start with P and is on main, so no non-commit is accepted, but it contradicts the ancestryFailure comment in work-records.js (a shared short id makes rev-parse fail). Fix: correct the comment, or refuse a proof that matches more than one commit (git rev-parse --disambiguate). Low.
 
 ---
+
+## M6.E13 REVIEW residue: broken-record remedy wording, probe message, double sweep report, weak two-process assertion
+
+**Status:** untriaged (N) · SIG-280
+
+From the narrow fresh check of M6.E13 REVIEW pass 2 fixes (2026-10-04). None Important. (1) ship.md §6.8 item 6 / docs-sweep.md: git checkout -- <path> restores nothing if the record is broken in HEAD; resolving the conflict by Edit is blocked by the hook — name git checkout --ours/--theirs. (2) refuseBroken says nothing was written also from read-only probeCloses (/sig:resume). (3) The sweep reports one broken record twice (checkRecords + closes-confirmed). (4) Two-process concurrency test never asserts a collision happened. (5) confirmCloses @throws omits NOT_FOUND. (6) Class: records written then views refuse to regenerate on a hand-kept view, linked WATCHLIST.md or bad archived Epic README YAML (work-views.js:349,373,456) — every writer.
+
+---
