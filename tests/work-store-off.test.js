@@ -30,9 +30,16 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 
-import { captureStoreOff, GOLDEN_PATH, READER_PLANTS } from './helpers/store-off-golden.js';
+import {
+  captureStoreOff,
+  captureStoreOffReaders,
+  GOLDEN_PATH,
+  READER_PLANTS,
+  READERS_GOLDEN_PATH,
+} from './helpers/store-off-golden.js';
 
 const golden = JSON.parse(readFileSync(GOLDEN_PATH, 'utf-8'));
+const readersGolden = JSON.parse(readFileSync(READERS_GOLDEN_PATH, 'utf-8'));
 
 describe('store off: every touched write path is byte-identical to the pre-S4 baseline', async () => {
   const now = await captureStoreOff();
@@ -113,5 +120,65 @@ describe('store off: the readers S5 changed answer exactly as before (work/ and 
     const call = golden.readers.isStateStale.calls[0];
     expect(call).toContain(':(glob).planning/STATE.md');
     expect(call).toContain('abc1234..HEAD');
+  });
+});
+
+// M6.E13 t1.6 (AC4.1 pin): every AC3.1 reader, on a store-off project, answers
+// exactly what it answered before S4 converted any of them.
+//
+// WHICH CODE PRODUCED readers-ac31.json: plugin/tools/lib as at 33ed19f (the
+// commit before t1.6), generated with
+// `node tests/helpers/store-off-golden.js --write-readers`. That IS v0.1.47
+// (4a7f416) behaviour for every module pinned here: `git diff 4a7f416 33ed19f --
+// plugin/tools/lib` lists only two ADDED files (work-convert.js,
+// work-record.js), which no reader imports. Regenerating after
+// S4 starts would make the file move with the code — the one thing it must not do.
+//
+// Fixture: tests/fixtures/work-store-off/readers/ (no `.planning/work/` at all).
+// Each reader runs on its own fresh copy, with the clock frozen.
+describe('store off: every AC3.1 reader answers exactly as at v0.1.47 (M6.E13 t1.6)', async () => {
+  const now = await captureStoreOffReaders();
+
+  it('ran with the same frozen clock as the baseline', () => {
+    expect(now.frozenAt).toBe(readersGolden.frozenAt);
+  });
+
+  it('the same readers ran, in the same order', () => {
+    expect(now.steps.map((s) => s.name)).toEqual(readersGolden.steps.map((s) => s.name));
+  });
+
+  readersGolden.steps.forEach((want, i) => {
+    it(`${want.name} — ${want.site}`, () => {
+      const got = now.steps[i];
+      expect(got.result).toEqual(want.result);
+      expect(got.changed).toEqual(want.changed);
+    });
+  });
+
+  it('the readers baseline is not hollow', () => {
+    const by = Object.fromEntries(readersGolden.steps.map((s) => [s.name, s.result]));
+    for (const s of readersGolden.steps) expect(s.result).not.toHaveProperty('threw');
+    for (const s of readersGolden.steps) {
+      expect(Object.keys(s.changed).some((k) => k.startsWith('.planning/work/'))).toBe(false);
+    }
+    // Discharge: one closed Epic row and one fixed-bug row read stale; an unfiled bug id is blind.
+    const discharge = by['backlog: backlogDischargeStatus (+ readClosureSources)'].ok;
+    expect(discharge.stale.map((r) => r.id)).toEqual(['M6.E1', 'B1']);
+    expect(discharge.blind.map((r) => r.id)).toEqual(['B4']);
+    // Advise: the struck, DONE, held-open and Fixes-B2 rows are not all live; both proposals were judged.
+    expect(by['advise: validatePriorities (valid)'].ok.ok).toBe(true);
+    expect(by['advise: validatePriorities (invalid)'].ok.ok).toBe(false);
+    expect(by['advise: runAdvise (valid proposal — stale-read guard passes, artifact written)'].ok.status).toBe('written');
+    expect(by['advise: runAdvise (invalid proposal — refused, nothing written)'].ok.status).toBe('skipped');
+    // Drive: the inbox is drainable; the Epic's open question and markers block.
+    expect(by['drive: inboxHasDrainableEntries (via FLOOR_CONDITIONS)'].ok).toEqual({ preview: true, destructive: true });
+    expect(by['drive: collectPreflight (M6.E3)'].ok.blocking.length).toBe(3);
+    // Sweep / hygiene / published facts each produced findings to pin.
+    // Standing, promoted and deferred entries are not drainable; the entry under the dangling fence is recovered.
+    expect(by['sweep: checkStaleInbox'].ok.map((f) => f.message)).toEqual(['inbox has 3 undrained entries — consider draining']);
+    expect(by['doc-hygiene: checkDanglingReferences'].ok.map((f) => f.message.split(' ')[0])).toEqual(['B4', 'B99', 'D-M6E3-9']);
+    expect(by['published-facts: bug tally + bug status vs changelog'].ok.results.every((r) => r.status === 'findings')).toBe(true);
+    expect(by['jev: bug-fixed-jev with no key (blind)'].ok.results[0].status).toBe('cannot-evaluate');
+    expect(by['jev: bug-fixed-jev with a stubbed ask'].ok.report.results[0].findings.length).toBe(1);
   });
 });
