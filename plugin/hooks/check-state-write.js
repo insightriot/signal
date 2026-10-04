@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// PreToolUse(Edit|Write) hook — D-E9-8 layer 2.
+// PreToolUse(Edit|Write|MultiEdit) hook — D-E9-8 layer 2.
 //
 // Reads the Claude Code hook event JSON from stdin. On a proposed write to
 // .planning/STATE.md it runs two checks with DIFFERENT strictness (the
@@ -49,7 +49,30 @@ try {
 const tool = event?.tool_name;
 const input = event?.tool_input ?? {};
 
-if (tool !== 'Edit' && tool !== 'Write') process.exit(0);
+if (tool !== 'Edit' && tool !== 'Write' && tool !== 'MultiEdit') process.exit(0);
+
+// M6.E13/t5.1 — a v2 work store's records, views and history are written by
+// /sig:item, not by hand. The guard is loaded only when the resolved path
+// mentions `.planning`, so an edit anywhere else pays one string test; it
+// blocks only at `schema_version: 2` and allows on any failure.
+if (typeof input.file_path === 'string') {
+  try {
+    const cwd = typeof event.cwd === 'string' ? event.cwd : process.cwd();
+    if (resolve(cwd, input.file_path).toLowerCase().includes('.planning')) {
+      const { checkWorkWrite } = await import('../tools/lib/work-write-guard.js');
+      const guard = await checkWorkWrite({ filePath: input.file_path, cwd });
+      if (guard.block) {
+        process.stderr.write(`[signal:check-state-write] ${guard.reason}\n`);
+        process.exit(2);
+      }
+    }
+  } catch {
+    // Fail open: the guard must never be the reason an ordinary edit fails.
+  }
+}
+// MultiEdit reaches only the guard above; the STATE.md checks below judge
+// Edit and Write, as before.
+if (tool === 'MultiEdit') process.exit(0);
 
 const filePath = input.file_path ?? '';
 // Require a path-boundary (start-of-string or `/`) before `.planning/STATE.md`.

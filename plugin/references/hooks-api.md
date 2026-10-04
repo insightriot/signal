@@ -58,13 +58,13 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   the stdout/exit contract; `tests/hook-state-write.test.js` proves the
   `detectDirtyExecute` decision logic.
 
-### `PreToolUse(Edit|Write)` → `check-state-write.js`
+### `PreToolUse(Edit|Write|MultiEdit)` → `check-state-write.js`
 
-- **Trigger:** before every `Edit` or `Write` tool call (`matcher: "Edit|Write"`).
+- **Trigger:** before every `Edit`, `Write` or `MultiEdit` tool call (`matcher: "Edit|Write|MultiEdit"`).
 - **stdin:** **required** — the Claude Code hook event JSON:
 
   ```json
-  {"tool_name":"Edit|Write","tool_input":{"file_path":"…","content":"…","old_string":"…","new_string":"…","replace_all":false}}
+  {"tool_name":"Edit|Write|MultiEdit","cwd":"…","tool_input":{"file_path":"…","content":"…","old_string":"…","new_string":"…","replace_all":false}}
   ```
 
 - **What it does:** ignores everything except a write whose `file_path` matches
@@ -72,10 +72,18 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   content (Write → `content`; Edit → apply `old_string`→`new_string` to the
   current file) and runs `checkProposedStateWrite`. If the write marks an
   Epic-close SHIP without a retro on disk, it **blocks**.
+- **Work-store guard (M6.E13/t5.1):** before the STATE.md check, when the path
+  (resolved against the event's `cwd` if relative) mentions `.planning`, it
+  lazy-loads `tools/lib/work-write-guard.js`. That **blocks** a hand edit of
+  `.planning/work/items/**/*.json`, `BUGS.md`, `BACKLOG.md`, `ISSUES-INBOX.md`,
+  `OPEN-QUESTIONS.md`, `work/EPICS.md` or `work/history/*.md` — **only** when
+  `.planning/work/WORK.md` reads `schema_version: 2` — naming `/sig:item`. Item
+  bodies (`items/**/*.md`) are allowed. `MultiEdit` reaches only this guard.
 - **exit:** `2` + a `[signal:check-state-write]` stderr line to **block** the
   write (surfaces to the user); `0` to allow. `baseDir` is derived from the
   file path (`resolve(file_path, '..', '..')`), NOT from cwd.
-- **Fail-open:** no stdin, malformed JSON, non-Edit/Write tool, a non-STATE path,
+- **Fail-open:** no stdin, malformed JSON, a tool other than Edit/Write/MultiEdit, a
+  non-STATE path outside a v2 store's generated files, any error in the work-store guard,
   a missing Edit target, or a malformed Edit (no `old_string`) → `exit 0` (allow).
   A hook bug must never wedge normal editing.
 
