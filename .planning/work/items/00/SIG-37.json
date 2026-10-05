@@ -1,0 +1,21 @@
+{
+  "id": "SIG-37",
+  "type": "BUG",
+  "title": "`/sig:checkpoint --context` (and `resume.md`, `discuss.md`) instruct a single-home violation — D16's dual-write was…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:65",
+  "legacy_id": "B37",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

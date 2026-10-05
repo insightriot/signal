@@ -1,0 +1,20 @@
+{
+  "id": "SIG-160",
+  "type": "CHORE",
+  "title": "Per-file documentation budgets · **hygiene** · small · **filed 2026-09-01**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:513",
+  "legacy_id": "BACKLOG.md:513",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

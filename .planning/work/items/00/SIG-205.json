@@ -1,0 +1,21 @@
+{
+  "id": "SIG-205",
+  "type": "FEAT",
+  "title": "`/sig:sweep --docs / --code` — periodic hygiene sweep — **⚠ PARTIALLY SHIPPED (v0.1.11, M5.E6, 2026-07-25)**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1977",
+  "legacy_id": "BACKLOG.md:1977",
+  "migration_note": "The heading records a partial close (a qualified done-word); the parser verdict was adopted.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

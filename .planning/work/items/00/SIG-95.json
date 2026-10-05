@@ -1,0 +1,23 @@
+{
+  "id": "SIG-95",
+  "type": "BUG",
+  "title": "`RETROSPECTIVES.md` orders its rows by file mtime, which git does not preserve — so the retro-index freshness check…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:203",
+  "legacy_id": "B95",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

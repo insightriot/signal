@@ -12,7 +12,7 @@
 | E3 contribution scaffolding — CONTRIBUTING.md / issue templates / `docs/compatibility.md` | (a) external PR opens; (b) ~5+ non-author issues; (c) Linux/WSL tester (pairs with the row above) | ❌ **NOT FIRED — checked 2026-08-01** (M5.E16 PLAN drain), all three sub-conditions measured, none met: **(a)** `gh pr list --state all` → 6 PRs, **all authored by `brettvt-insightriot`**, zero external; **(b)** `gh issue list --state all` → **0 issues** (the repo has never had one — and GitHub Issues adoption is itself still an unstarted Epic, so a non-author *cannot* currently file one; this sub-condition is unreachable by construction until that Epic lands); **(c)** pairs with the row above, also not fired. **Re-parked unchanged.** |
 | Synthesizer-output validator-side sanity check | 2+ new synthesizer quality regressions by **2026-08-23** — dated; if the date passes with <2, mark expired-clean | ✅ **EXPIRED-CLEAN 2026-08-23** — walked at `M6.E4` PLAN. **0 new synthesizer quality regressions** (needed 2+); previously checked 2026-07-29, also 0. Applying the condition's own rule: *"if the date passes with <2, mark expired-clean."* ⚠ Marked **on** the deadline date, not after it — 0 of 2 with hours remaining, and the next drain could be weeks away, which is the unobserved lapse this row exists to prevent. This is the row whose existence argued for implementing the walk rather than retiring the entry; the walk ran and closed it. |
 | `/sig:doctor` helper-script split | Inline `node -e` payloads reported hard to audit, OR a P-state needs JSON mutations beyond delete-a-key | ❌ **NOT FIRED — checked 2026-08-01** (M5.E16 PLAN drain). `commands/doctor.md` carries **1** inline `node -e` payload, and no audit-difficulty report exists; no P-state has needed a JSON mutation beyond delete-a-key. **Re-parked unchanged** — the condition is well-formed and cheap to re-check. |
-| `docs/map` refresh Stage 2 (auto-generate) | Stage 1 checklist forgotten on 3+ consecutive Epic ships | ❌ **NOT FIRED — but the condition was unmeasurable as written, and is now fixed.** Checked 2026-08-01 (M5.E16 PLAN drain). Stage 1 is `ship.md:66`, and it is **conditional**: *"refreshed **if** the command/agent/skill roster or structure changed."* Across the last three Epic ships (v0.1.13/M5.E8, v0.1.14/M5.E13, v0.1.15/M5.E17) the roster never moved — 18 commands / 26 agents / 21 skills throughout — so the checklist item was a **correct no-op**, not a forgotten step. *"Forgotten"* and *"not applicable"* are indistinguishable from the outside, which means this row could never have fired no matter how long it sat. **Re-parked, condition rewritten to something observable:** fires when a ship changes the roster **and** `docs/map/index.html` is unchanged in that same release. **This is now live rather than theoretical: M5.E16 FR6 moves the roster 18 → 19**, so the next ship is the first in four releases where Stage 1 actually applies. *Review by:* **the M5.E16 ship.** |
+| `docs/map` refresh Stage 2 (auto-generate) | Stage 1 checklist forgotten on 3+ consecutive Epic ships | ❌ **NOT FIRED — but the condition was unmeasurable as written, and is now fixed.** Checked 2026-08-01 (M5.E16 PLAN drain). Stage 1 is `ship.md:66`, and it is **conditional**: *"refreshed **if** the command/agent/skill roster or structure changed."* Across the last three Epic ships (v0.1.13/M5.E8, v0.1.14/M5.E13, v0.1.15/M5.E17) the roster never moved — 18 commands / 26 agents / 21 skills throughout — so the checklist item was a **correct no-op**, not a forgotten step. *"Forgotten"* and *"not applicable"* are indistinguishable from the outside, which means this row could never have fired no matter how long it sat. **Re-parked, condition rewritten to something observable:** fires when a ship changes the roster **and** `docs/map/index.html` is unchanged in that same release. **This is now live rather than theoretical: M5.E16 FR6 moves the roster 18 → 19**, so the next ship is the first in four releases where Stage 1 actually applies. *Review by:* **the M5.E16 ship.** **Walked 2026-10-04 (`M6.E13` PLAN): ❌ NOT FIRED.** The roster moved 18 → 24 commands since, and `docs/map/index.html` names all 24 (`grep -o 'sig:[a-z-]*' | sort -u` → 24); it was last touched by the `v0.1.47` release cut (`53aea1f`, 2026-10-03), so Stage 1 is keeping pace. Re-parked; review again at the next roster change. |
 | GitHub Issues adoption (setup checklist in its entry) | First live external tester (expected to fire in Sprint 0 — `BACKLOG-REVIEW-2026-07-04.md` §4) | ✅ **FIRED 2026-07-15** (4 non-Signal testers). Decided 2026-07-29: direction ratified, needs its own Epic — `analysis/CLAIM-INTEGRITY-ANALYSIS.md` §7 + D-M5E13-7. |
 | PREPARE phase early promotion | Any of: PLAN skill-load approaches ~40K tokens; 2+ independent "this is prep, not planning" observations; 2+ new skills land homeless | ❌ **NOT FIRED — checked 2026-08-01** (M5.E16 PLAN drain). Skill count is **21**, unchanged since M4.5 — zero new skills have landed, so none can have landed homeless. No "this is prep, not planning" observation is on record. The token sub-condition is **unmeasured, not passing**: nothing instruments PLAN's skill-load size, so it is being reported as not-fired on the strength of the other two only. **Re-parked with that limit stated in the row** rather than left implied. |
 | STATE auto-update Options B/C | Option A discipline demonstrably fails (frontmatter stale despite the refresh steps) | ❌ **NOT FIRED — and the near-miss is the interesting part.** Checked 2026-08-01 (M5.E16 PLAN drain). The condition asks whether **frontmatter** goes stale despite the refresh steps. It does not: `transitionPhase` + `markFresh` have kept the frontmatter accurate, and the M5.E16-opening incident that looks like a failure of this row **is not one** — frontmatter correctly read `current_epic: M5.E17`; the **body prose** was what omitted M5.E17. Same file, opposite halves, and only the prose half drifted. **Option A's discipline is holding exactly where it was scoped to hold.** Two same-day data points confirm the split rather than contradict it: `CONTEXT.md` is seven Epics stale (prose, no frontmatter), and `B59` was a malformed PROFILE (neither). **Re-parked, condition left deliberately narrow** — do not widen it to cover prose drift, because that is not what Options B/C would fix. **Prose-vs-data drift is M5.E16's own subject matter**; if anything covers it, checks (a)–(g) do. |
@@ -22,58 +22,76 @@
 
 ---
 
-## anti-rationalization-forms.md repeats its Discipline section; commands/add.md is listed three times
+## SIG-146 and SIG-166 link to references/command-taxonomy.md, which moved to plugin/references/
 
-**Status:** untriaged (N) · SIG-256
+**Status:** untriaged (N) · SIG-269
 
-Seen 2026-10-01 during M6.E12 EXECUTE. plugin/references/anti-rationalization-forms.md carries "## Discipline — prohibition form retained" twice (lines 86 and 168) and "### commands/add.md" three times. tests/anti-rationalization-forms.test.js checks that every corpus entry appears and that the page names nothing the corpus lacks, so it cannot see duplication — every copy is a valid entry. Editing a command's anti-rationalization table means editing every copy by hand (M6.E12 had to update commands/advise.md in two places). Fix: drop the duplicate section; add a no-duplicate-heading assertion to the test.
-
----
-
-## advise records one pick, but people choose an order
-
-**Status:** untriaged (N) · SIG-263
-
-Found 2026-10-03 on the second outside-Signal /sig:advise run (eval-project, run 1). The maintainer picked priority 1 AND a four-step order (1, then a polish batch, then versioning work, then a DISCUSS). recordChoice can record one pick only, so the agent recorded it as "Something else" with its own summary of the order — the advisory now reads as a miss although priority 1 was picked. For the outcome oracle (D-M6E12-12) count that run as priority 1. Fix: an optional `order` recorded alongside the pick.
+Found 2026-10-04 by the M6.E13 t1.5 dry conversion: both item bodies carry a relative link to references/command-taxonomy.md, broken since the file moved under plugin/references/ (M6.E1). Pre-existing in v1; the migration carries it unchanged. Fix: repoint both links after cutover.
 
 ---
 
-## advise "Other" answer must stay verbatim; summaries go in a separate field
+## readOpenQuestions counts and lists a struck-through (~~settled~~) question as open
 
-**Status:** untriaged (N) · SIG-264
+**Status:** untriaged (N) · SIG-270
 
-Same run as the pick-order item (2026-10-03). The agent recorded the maintainer's "Other" answer as near-verbatim words plus its own bracketed summary, in one field. The recorded choice is outcome data: the user's words must be stored exactly, and any agent paraphrase in a separate, labelled field.
-
----
-
-## isStateStale counts STATE.md-only commits as unreflected work
-
-**Status:** untriaged (N) · SIG-265
-
-isStateStale (tools/lib/state.js) counts commits that touch only .planning/STATE.md — "docs(state): …", "chore(state): mark STATE.md fresh" — as work STATE.md does not reflect. Marking STATE fresh goes through a PR, so the merge always leaves STATE "N commits behind". Measured 2026-10-03 after PR #270: /sig:resume reported 3 behind, all three STATE-only. Fix: ignore commits whose only change is STATE.md (and their merge commits).
+Found 2026-10-04 by M6.E13 t1.6 store-off golden capture (tests/fixtures/work-store-off/readers/). status.js readOpenQuestions counts and lists a ~~struck~~ heading, while drive collectPreflight skips struck ones. Pinned as-is in readers-ac31.json; a fix must update the golden deliberately. Store-off behaviour.
 
 ---
 
-## private-name guard can time out under a full parallel run
+## advise digest inbox line counts every heading; checkStaleInbox counts only drainable entries
 
-**Status:** untriaged (N) · SIG-266
+**Status:** untriaged (N) · SIG-271
 
-2026-10-03, local full run before the v0.1.47 PR: tests/private-name-guard.test.js "no file outside the recorded inventory names a private project" failed at 15048 ms against testTimeout 15000 (vitest.config). Alone it ran in 3.6 s and the next full run was green; CI was green. A flaky guard is worse than a slow one: a red that goes away on re-run teaches people to re-run past it, and this is the test that keeps private project names out of the repo. Fix: give this test its own timeout, or make the scan cheaper.
-
----
-
-## advise digest never reads a roadmap file inside .planning/ — planned milestones vanish from the priorities
-
-**Status:** untriaged (N) · SIG-267
-
-Measured 2026-10-03, clean run 3 on a copy of eval-project (fresh agent, prior advisories removed, v0.1.45). The project keeps .planning/ROADMAP.md and .planning/big-picture-roadmap.md (simulation, versioning). The digest reads neither. Runs 1 and 2 proposed v2.3 versioning and v3.0a text simulation because the agent opened those files on its own; run 3 stayed with the digest and both disappeared as build priorities. SIG-261 says the digest reads only .planning/ — this is narrower and worse: the roadmap IS in .planning/ and is still unread. The quality of the priorities depends on whether the agent strays outside the digest.
+Found 2026-10-04 by M6.E13 t1.6 capture: on the same store-off fixture the advise digest reports 6 inbox entries (all ## headings, incl. standing and dispositioned) while checkStaleInbox reports 3 drainable. Two counts of one inbox with different meanings. Pinned as-is; fix updates the golden deliberately.
 
 ---
 
-## advisory says "Could not read: nothing" while the digest lists two gaps
+## npm run lint fails: no-control-regex at plugin/tools/lib/branch-work.js:54
 
-**Status:** untriaged (N) · SIG-268
+**Status:** untriaged (N) · SIG-272
 
-Same run 3. The digest reported two gaps (vision, milestone) and the advisory repeats them under "Digest could not read:", yet its own header says "Could not read: nothing — all 5 sources were readable." Two lists with the same name and different scopes (5 ranking sources vs digest sections) read as a contradiction. One list, or two clearly different names.
+Seen 2026-10-04 during M6.E13 EXECUTE. Present in v0.1.47 (the control-character strip regex in branch-work.js:54). npm run lint exits non-zero, so lint is not a usable gate. Fix: an eslint-disable-next-line no-control-regex with the reason (the regex strips control and bidi characters on purpose), or build the class with RegExp from code points.
+
+---
+
+## isStaleVsOrigin skips the fetch when STATE.md has no last_updated_commit, so later checks read stale origin refs
+
+**Status:** untriaged (N) · SIG-273
+
+Found 2026-10-04 during M6.E13 t4.6 (wiring confirmCloses after the resume fetch). When STATE.md carries no last_updated_commit, isStaleVsOrigin (state.js) returns before fetching; anything after it that reads refs/remotes/origin/* (now confirmCloses at /sig:resume) compares against whatever was last fetched. Fix: fetch independently of the baseline check, or have confirmCloses note its refs may be stale.
+
+---
+
+## No path turns the work store on for a new project any more (the v1 enable script was retired in M6.E13)
+
+**Status:** untriaged (N) · SIG-274
+
+Found 2026-10-04 at M6.E13 t6.2. The only path that turns a store on is node tools/work-migrate.mjs (v1, maintainer script). After M6.E13 the v2 library refuses writes on a v1 store, so a project that enables the store gets one it cannot use until it runs tools/work-migrate-v2.mjs too. Belongs with the other-projects Epic (/sig:docs-migrate), but the gap is real from this release.
+
+Update 2026-10-04 (M6.E13 t8.1): the v1 enable script tools/work-migrate.mjs was retired in M6.E13 t7.4, so no path turns a store on at all now — that is the gap.
+
+---
+
+## checkpointed still asks "accept and continue?" at the end of every phase under /sig:drive
+
+**Status:** untriaged (N) · SIG-275
+
+Reported 2026-10-04 by Brett from a /sig:drive run in another project (screenshot: "Accept VERIFY pass 2 ... and run REVIEW pass 2?"): "it is asking me MORE questions than less". Confirmed in code: profile.js applyRigorOverrides sets gates.confirm_discuss/plan/execute/verify/review/ship = attention !== unattended, so checkpointed confirms at every phase end, and plan.md/execute.md/verify.md/review.md tables say checkpointed = confirm at end of phase. drive.md says checkpointed advances every phase and stops only for floors and gray-area decisions. M6.E10 fixed canProceedUnattended but left the phase commands own end-of-phase confirm. Same session reproduced it: M6.E13 PLAN asked for plan approval under drive at checkpointed. Fix: phase-end confirms only at attended; checkpointed announces and continues; SHIP stays a floor.
+
+---
+
+## A short proof hash shared by two commits can confirm when a branch of that name points at one of them
+
+**Status:** untriaged (N) · SIG-276
+
+Found 2026-10-04 by M6.E13 VERIFY pass 2. Two commits share a 7-hex prefix P; commit a is on origin/main. With no ref, probeCloses gives unknown-commit (correct). After git branch P a, it gives confirmable. The confirmed commit does start with P and is on main, so no non-commit is accepted, but it contradicts the ancestryFailure comment in work-records.js (a shared short id makes rev-parse fail). Fix: correct the comment, or refuse a proof that matches more than one commit (git rev-parse --disambiguate). Low.
+
+---
+
+## M6.E13 REVIEW residue: broken-record remedy wording, probe message, double sweep report, weak two-process assertion
+
+**Status:** untriaged (N) · SIG-280
+
+From the narrow fresh check of M6.E13 REVIEW pass 2 fixes (2026-10-04). None Important. (1) ship.md §6.8 item 6 / docs-sweep.md: git checkout -- <path> restores nothing if the record is broken in HEAD; resolving the conflict by Edit is blocked by the hook — name git checkout --ours/--theirs. (2) refuseBroken says nothing was written also from read-only probeCloses (/sig:resume). (3) The sweep reports one broken record twice (checkRecords + closes-confirmed). (4) Two-process concurrency test never asserts a collision happened. (5) confirmCloses @throws omits NOT_FOUND. (6) Class: records written then views refuse to regenerate on a hand-kept view, linked WATCHLIST.md or bad archived Epic README YAML (work-views.js:349,373,456) — every writer.
 
 ---

@@ -1,0 +1,22 @@
+{
+  "id": "SIG-170",
+  "type": "FEAT",
+  "title": "~~`.planning/ENVIRONMENT.md` — the environment the agent can't see~~ · **DONE 2026-08-22** · three deviations recorded at `D-BR0822-1`…`3`",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:860",
+  "legacy_id": "BACKLOG.md:860",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

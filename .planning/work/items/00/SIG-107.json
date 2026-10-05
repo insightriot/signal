@@ -1,0 +1,23 @@
+{
+  "id": "SIG-107",
+  "type": "BUG",
+  "title": "The private-name guard walked `git ls-files` only — tracked files — so a brand-new file was invisible to it until…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:162",
+  "legacy_id": "B107",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

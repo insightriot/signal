@@ -15,8 +15,11 @@
 // ⚠ IT RETURNS EVERY REASON, not the first (AC2.5). A model asked to fix a
 // proposal one refusal at a time takes as many round trips as there are faults.
 
-import { cite } from './advise.js';
+import { cite, rowKey } from './advise.js';
 import { verifyCitations, EVIDENCE_MARKER } from './citations.js';
+import { isBugId } from './legacy-lists.js';
+import { ITEM_ID_RE } from './work-item.js';
+import { listRecords } from './work-records.js';
 
 export const PRIORITY_COUNT = Object.freeze({ min: 3, max: 5 });
 export const WHY_MAX_SENTENCES = 3;
@@ -29,9 +32,26 @@ export const WHY_MAX = 600;
 /** Characters that break a line for a reader or a multiline regex: CR, LF, NEL, LS, PS. */
 const LINE_BREAK_RE = /[\r\n\u0085\u2028\u2029]/;
 
-const BUG_ID_RE = /^B\d+$/;
 const ROW_REF_RE = /^(.+):(\d+)$/;
 const NEW_RE = /^new:\s*/i;
+
+/**
+ * Why a work-store ID is not a cover, read from the store itself (AC3.3, AC7.3):
+ * unknown, unreadable, closed, *closing*, a question, or still in the inbox. Only
+ * called for an ID that is neither a live row nor an open bug in the corpus.
+ */
+function storeRefusal(lookup, id) {
+  const index = lookup();
+  if (index === null) return 'which the work store could not be read to resolve';
+  const hit = index.get(id);
+  if (!hit) return 'which is not an item in the work store';
+  if (hit.broken) return 'whose record could not be read';
+  if (hit.status === 'C') return 'which is closed';
+  if (hit.status === 'closing') return 'which is closing — a fixed close waiting for its commit, so it counts as done';
+  if (hit.type === 'Q') return 'which is an open question, not a backlog row or a bug';
+  if (hit.status === 'N') return 'which is in the inbox and not yet triaged';
+  return 'which is not a live backlog row or open bug in this corpus';
+}
 
 /** Sentences in `text`: terminal punctuation followed by space or end. */
 export function countSentences(text) {
@@ -48,6 +68,12 @@ export function countSentences(text) {
  * (`.planning/BACKLOG.md:42`), an open bug's id (`B254`) — both resolve to a line
  * in this corpus and are cited — or unfiled work, `new: <description>`, which has
  * no line and is labelled as such.
+ *
+ * ⚠ WITH THE WORK STORE ON (M6.E13 t4.2b, AC3.3) a row or bug is covered by its
+ * item ID (`SIG-12`), resolved against the store: an unknown, closed or *closing*
+ * item is refused, and so is the `BACKLOG.md:LINE` form — that file is a view of
+ * the store. Store on is read from the corpus (`corpus.work`), so one run decides
+ * it once. No list parser runs on that path.
  *
  * @param {string} baseDir
  * @param {unknown} priorities — parsed JSON from the agent
@@ -79,10 +105,27 @@ export async function validatePriorities(baseDir, priorities, corpus, { liveRows
   // appendix drops as Parked or folded rendered under a priority AND under
   // Dropped (REVIEW pass 1).
   const rows = liveRows ?? corpus?.sources?.backlog?.rows ?? [];
+  const storeOn = Boolean(corpus?.work);
+  // Read only when a store-on ID needs a refusal reason: `id -> {status, type}` or
+  // `{broken}`, or null when the store cannot be read.
+  let storeIndex;
+  const lookup = () => {
+    if (storeIndex !== undefined) return storeIndex;
+    try {
+      const { records, broken } = listRecords(baseDir);
+      storeIndex = new Map([
+        ...broken.filter((b) => b.id).map((b) => [b.id, { broken: true }]),
+        ...records.map((r) => [r.id, { status: r.status, type: r.record.type }]),
+      ]);
+    } catch {
+      storeIndex = null;
+    }
+    return storeIndex;
+  };
   // Why each dropped row was dropped, so a refusal can say it (REVIEW pass 2: the
   // agent was told "not live" for a row the digest had offered, with no reason).
-  const dropReason = new Map(droppedRows.map((d) => [`${d.path}:${d.line}`, d.why]));
-  const rowByRef = new Map(rows.map((r) => [`${r.path}:${r.line}`, r]));
+  const dropReason = new Map(droppedRows.map((d) => [rowKey(d), d.why]));
+  const rowByRef = new Map(rows.map((r) => [rowKey(r), r]));
   const openBugs = new Map(
     (corpus?.sources?.bugs?.entries ?? [])
       .filter((e) => e.status === 'confirmed' || e.status === 'needs-triage')
@@ -114,7 +157,11 @@ export async function validatePriorities(baseDir, priorities, corpus, { liveRows
 
     const covers = [];
     if (!Array.isArray(p.covers) || p.covers.length === 0) {
-      reasons.push(`${n}: covers must list at least one backlog row (".planning/BACKLOG.md:LINE"), open bug id ("B12"), or unfiled work ("new: …")`);
+      reasons.push(
+        storeOn
+          ? `${n}: covers must list at least one work item ID (a live backlog row or open bug, e.g. "SIG-12") or unfiled work ("new: …")`
+          : `${n}: covers must list at least one backlog row (".planning/BACKLOG.md:LINE"), open bug id ("B12"), or unfiled work ("new: …")`
+      );
     } else if (p.covers.length > COVERS_MAX) {
       reasons.push(`${n}: ${p.covers.length} covers entries — at most ${COVERS_MAX}`);
     } else {
@@ -129,7 +176,21 @@ export async function validatePriorities(baseDir, priorities, corpus, { liveRows
           if (!label) reasons.push(`${n}: a "new:" covers entry needs a description`);
           else if (label.includes(EVIDENCE_MARKER) || LINE_BREAK_RE.test(label)) reasons.push(`${n}: "new:" entry must be one line without the evidence marker`);
           else covers.push({ kind: 'new', id: null, label, path: null, line: null });
-        } else if (BUG_ID_RE.test(c)) {
+        } else if (storeOn) {
+          // Store on: an item ID, resolved against the store. Nothing here calls a
+          // list parser — `isBugId` is one, so this branch comes before it.
+          const row = ITEM_ID_RE.test(c) ? rowByRef.get(c) : undefined;
+          const bug = ITEM_ID_RE.test(c) ? openBugs.get(c) : undefined;
+          if (row) covers.push({ kind: 'row', id: row.id, label: row.text, path: row.path, line: null });
+          else if (bug) covers.push({ kind: 'bug', id: c, label: bug.headline, path: bug.path, line: null });
+          else if (ITEM_ID_RE.test(c) && dropReason.has(c)) reasons.push(`${n}: covers ${c}, but it is dropped from the appendix — ${dropReason.get(c)}`);
+          else if (ITEM_ID_RE.test(c)) reasons.push(`${n}: covers ${c}, ${storeRefusal(lookup, c)}`);
+          else if (ROW_REF_RE.test(c)) {
+            reasons.push(`${n}: covers ${c} — with the work store on, a backlog row or bug is covered by its item ID (e.g. "SIG-12"), not by a line in a view`);
+          } else {
+            reasons.push(`${n}: covers entry ${JSON.stringify(raw)} is neither a work item ID (e.g. "SIG-12") nor unfiled work ("new: …")`);
+          }
+        } else if (isBugId(c)) {
           const bug = openBugs.get(c);
           if (!bug) reasons.push(`${n}: covers ${c}, which is not an open bug in ${corpus?.sources?.bugs?.path ?? 'BUGS.md'}`);
           else covers.push({ kind: 'bug', id: c, label: bug.headline.replace(/\*\*/g, ''), path: bug.path, line: bug.line });
@@ -145,7 +206,7 @@ export async function validatePriorities(baseDir, priorities, corpus, { liveRows
       const seenHere = new Set();
       for (const c of covers) {
         if (c.kind === 'new') continue;
-        const key = `${c.path}:${c.line}`;
+        const key = rowKey(c);
         if (seenHere.has(key)) {
           reasons.push(`${n}: covers ${c.kind === 'bug' ? c.id : key} twice`);
         } else if (coveredBy.has(key) && coveredBy.get(key) !== i) {

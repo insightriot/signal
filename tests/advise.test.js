@@ -47,6 +47,7 @@ import {
   prepareAdvise,
   quoteSafe,
   renderArtifact,
+  citeTarget,
   runAdvise,
   writeArtifact,
 } from '../plugin/tools/lib/advise.js';
@@ -557,7 +558,7 @@ describe('M6.E12 FR3 — the advisory artifact', () => {
     // steps runAdvise takes — corpus, discharge, confirmed set, classify,
     // validate, render — and never calls writeArtifact.
     const cwd = process.cwd();
-    const { corpus } = await prepareAdvise(cwd);
+    const { corpus, classified: prepared } = await prepareAdvise(cwd);
     expect(corpus.sources.backlog, 'this repository must have a readable BACKLOG.md').not.toBeNull();
     let discharge = null;
     try {
@@ -568,17 +569,23 @@ describe('M6.E12 FR3 — the advisory artifact', () => {
     const confirmedBugs = corpus.sources.bugs
       ? new Set(corpus.sources.bugs.entries.filter((e) => e.status === 'confirmed').map((e) => e.id))
       : null;
-    const classified = classifyRows(corpus.sources.backlog.rows, { stale: discharge?.stale ?? [], discharge, confirmedBugs });
+    // M6.E13: with the work store on, `runAdvise` runs no discharge input (the
+    // rows are the live records), so the composition takes `prepareAdvise`'s.
+    const classified = corpus.sources.backlog.store
+      ? prepared
+      : classifyRows(corpus.sources.backlog.rows, { stale: discharge?.stale ?? [], discharge, confirmedBugs });
     expect(classified.live.length).toBeGreaterThanOrEqual(3);
 
     const proposal = classified.live.slice(0, 3).map((s, i) => ({
       title: `Real priority ${i + 1}`,
       why: 'Built from a real row for the test.',
-      covers: [`${s.row.path}:${s.row.line}`],
+      // M6.E13: this repository's work store is on, so a row is covered by its
+      // item ID and cited by its record file; store off it is `path:line`.
+      covers: [s.row.line === null ? s.row.id : `${s.row.path}:${s.row.line}`],
       // Two evidence tokens per priority, on purpose: with one, the pre-fix formula
       // (one claim per priority) and the shipped one (one per token) agree, and
       // this test pinned the wrong contract without failing (REVIEW pass 2).
-      evidence: [`${s.row.path}:${s.row.line}`, '.planning/BACKLOG.md'],
+      evidence: [citeTarget(s.row), '.planning/BACKLOG.md'],
     }));
     const checked = await validatePriorities(cwd, proposal, corpus, { liveRows: classified.live.map((s) => s.row) });
     expect(checked.reasons).toEqual([]);
@@ -586,12 +593,12 @@ describe('M6.E12 FR3 — the advisory artifact', () => {
     const art = renderArtifact({ today: TODAY, classified, priorities: checked.priorities, corpus });
     const app = appendixOf(art);
     for (const s of classified.live) {
-      const token = `\`${s.row.path}:${s.row.line}\``;
+      const token = `\`${citeTarget(s.row)}\``;
       expect(app.split(token).length - 1, `live row at ${token} must appear once`).toBe(1);
     }
     const dropped = classified.dropped.length > 0 ? app.slice(app.indexOf('### Dropped')) : '';
     for (const s of classified.dropped) {
-      const token = `\`${s.row.path}:${s.row.line}\``;
+      const token = `\`${citeTarget(s.row)}\``;
       expect(dropped.split(token).length - 1).toBe(1);
       expect(dropped.split('\n').find((l) => l.includes(token))).toMatch(/Dropped by the/);
     }

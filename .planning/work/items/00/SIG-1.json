@@ -1,0 +1,22 @@
+{
+  "id": "SIG-1",
+  "type": "BUG",
+  "title": "`/sig:checkpoint` \"Epic-ID-as-task-ID\" + \"only 2 of 5 commits\".",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:19",
+  "legacy_id": "B1",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "rejected",
+      "legacy": true
+    }
+  ]
+}

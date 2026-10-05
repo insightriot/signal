@@ -1,0 +1,22 @@
+{
+  "id": "SIG-140",
+  "type": "BUG",
+  "title": "`claude-review` CI fails before reviewing: claude binary missing on the runner",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:593",
+  "legacy_id": "BUGS.md:593",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-01T23:42:57.167Z",
+      "by": "brett (M6.E12 PLAN drain)",
+      "reason": "rejected",
+      "proof": "No longer true: the claude-review check passed on PR #265 and PR #266, 2026-10-01."
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "SIG-78",
+  "type": "BUG",
+  "title": "`commands/review.md` states the PASS-WITH-FIXES rule four times and no two agree — and the test pinning it is a fifth…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:111",
+  "legacy_id": "B78",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

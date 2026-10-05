@@ -1,0 +1,20 @@
+{
+  "id": "SIG-231",
+  "type": "FEAT",
+  "title": "CLAUDE.md version headline: derive at release, check as backstop",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:2157",
+  "legacy_id": "BACKLOG.md:2157",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

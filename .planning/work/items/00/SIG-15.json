@@ -1,0 +1,23 @@
+{
+  "id": "SIG-15",
+  "type": "BUG",
+  "title": "`FILE_SCAN_CEILING` (1 MB) truncation can silently defeat the blocking dangling-link gate on a >1 MB single doc.",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:39",
+  "legacy_id": "B15",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

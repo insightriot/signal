@@ -1,0 +1,12 @@
+{
+  "id": "SIG-272",
+  "type": "NEW",
+  "title": "npm run lint fails: no-control-regex at plugin/tools/lib/branch-work.js:54",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-04T15:00:23.780Z",
+      "by": "claude"
+    }
+  ]
+}

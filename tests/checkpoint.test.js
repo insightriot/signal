@@ -417,37 +417,39 @@ describe('handleCheckpointOrphans (S2.t7)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // M6.E11 t4.2 (AC-6.2 part, D-M6E11-27) — with the work store on, a checkpoint's
 // open questions become Q items. captureCheckpointContext already holds
-// withStateLock, which is not reentrant; newItem takes the store's own `work`
+// withStateLock, which is not reentrant; newItems takes the store's own `work`
 // lock, so this must complete rather than deadlock or throw "already running".
+// M6.E13 t4.5b: the items are v2 records (`work-records.js` `newItems`); a v1
+// store refuses with nothing written, naming the migration tool.
 // ─────────────────────────────────────────────────────────────────────────────
-describe('M6.E11 t4.2 — captureCheckpointContext with the work store on', async () => {
-  const { mkdtemp: mkd, rm: rmr, mkdir: mk, writeFile: wf, readFile: rf, readdir: rd } = await import('node:fs/promises');
+describe('M6.E11 t4.2 / M6.E13 t4.5b — captureCheckpointContext with the work store on', async () => {
+  const { mkdtemp: mkd, rm: rmr, mkdir: mk, writeFile: wf, readFile: rf } = await import('node:fs/promises');
   const { existsSync: ex } = await import('node:fs');
   const { join: j } = await import('node:path');
   const { tmpdir: tmp } = await import('node:os');
   const { captureCheckpointContext: capture } = await import('../plugin/tools/lib/checkpoint.js');
-  const { parseItem } = await import('../plugin/tools/lib/work-item.js');
+  const { getRecord, listRecords, recordPath } = await import('../plugin/tools/lib/work-records.js');
   const { GENERATED_MARKER } = await import('../plugin/tools/lib/work-marker.js');
 
   let root;
+  const workMd = (text) => wf(j(root, '.planning', 'work', 'WORK.md'), text, 'utf-8');
   beforeEach(async () => {
     root = await mkd(j(tmp(), 'signal-checkpoint-store-'));
     await mk(j(root, '.planning', 'work'), { recursive: true });
-    await wf(j(root, '.planning', 'work', 'WORK.md'), '---\nkey: SIG\n---\n', 'utf-8');
+    await workMd('---\nkey: SIG\nschema_version: 2\n---\n');
   });
   afterEach(async () => {
     await rmr(root, { recursive: true, force: true });
   });
 
-  it('questions become Q items in inbox/ from inside withStateLock — no deadlock', async () => {
+  it('questions become Q records from inside withStateLock — no deadlock', async () => {
     const res = await capture(root, { questions: ['Who owns the key?', 'Is the lock gitignored?'] });
-    const inbox = j(root, '.planning', 'work', 'inbox');
-    expect((await rd(inbox)).sort()).toEqual(['SIG-1.md', 'SIG-2.md']);
-    const { item, body } = parseItem(await rf(j(inbox, 'SIG-1.md'), 'utf-8'));
-    expect(item).toMatchObject({ type: 'Q', status: 'N', title: 'Who owns the key?', source: '/sig:checkpoint',
-      created: { by: '/sig:checkpoint' } });
-    expect(body).toBe('Who owns the key?');
-    expect(res.wrote).toEqual([j(inbox, 'SIG-1.md'), j(inbox, 'SIG-2.md')]);
+    expect(listRecords(root).records.map((r) => [r.id, r.record.type, r.status])).toEqual([['SIG-1', 'Q', 'N'], ['SIG-2', 'Q', 'N']]);
+    const got = getRecord(root, 'SIG-1');
+    expect(got.record).toMatchObject({ type: 'Q', title: 'Who owns the key?', source: '/sig:checkpoint',
+      events: [{ type: 'created', by: '/sig:checkpoint' }] });
+    expect(got.body).toBe('Who owns the key?');
+    expect(res.wrote).toEqual([j(root, recordPath('SIG-1')), j(root, recordPath('SIG-2'))]);
     const oq = await rf(j(root, '.planning', 'OPEN-QUESTIONS.md'), 'utf-8');
     expect(oq.split('\n')[0]).toBe(GENERATED_MARKER);
     expect(oq).toContain('## Who owns the key?');
@@ -465,12 +467,25 @@ describe('M6.E11 t4.2 — captureCheckpointContext with the work store on', asyn
   it('a pending sensitive-data prompt writes no item', async () => {
     const res = await capture(root, { questions: ['token AKIAABCDEFGHIJKLMNOP?'] });
     expect(res.aborted).toBe('sensitive-data-pending');
-    expect(ex(j(root, '.planning', 'work', 'inbox'))).toBe(false);
+    expect(ex(j(root, '.planning', 'work', 'items'))).toBe(false);
   });
 
   it('a broken WORK.md fails before ANY write — decisions are not half-written', async () => {
-    await wf(j(root, '.planning', 'work', 'WORK.md'), '---\nnokey: 1\n---\n', 'utf-8');
+    await workMd('---\nnokey: 1\n---\n');
     await expect(capture(root, { decisions: ['D'], questions: ['Q?'] })).rejects.toMatchObject({ code: 'CONFIG' });
+    expect(ex(j(root, '.planning', 'CONTEXT.md'))).toBe(false);
+    expect(ex(j(root, '.planning', 'DECISIONS.md'))).toBe(false);
+  });
+
+  it('a v1 store refuses, naming the migration tool — no item, and decisions not written (AC4.2)', async () => {
+    await workMd('---\nkey: SIG\n---\n');
+    const res = await capture(root, { decisions: ['D'], questions: ['Q?'] });
+    expect(res.aborted).toBe('work-store-failed');
+    expect(res.wrote).toEqual([]);
+    expect(res.error.code).toBe('CONFIG');
+    expect(res.error.message).toContain('node tools/work-migrate-v2.mjs');
+    expect(ex(j(root, '.planning', 'work', 'items'))).toBe(false);
+    expect(ex(j(root, '.planning', 'work', 'inbox'))).toBe(false);
     expect(ex(j(root, '.planning', 'CONTEXT.md'))).toBe(false);
     expect(ex(j(root, '.planning', 'DECISIONS.md'))).toBe(false);
   });

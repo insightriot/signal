@@ -1,0 +1,23 @@
+{
+  "id": "SIG-83",
+  "type": "BUG",
+  "title": "`guard-callers.test.js`'s scope-limit assertion was vacuous: every string it pinned appeared inside the assertion that…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:116",
+  "legacy_id": "B83",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

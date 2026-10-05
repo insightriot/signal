@@ -1,0 +1,22 @@
+{
+  "id": "SIG-152",
+  "type": "FEAT",
+  "title": "~~De-bloat `CLAUDE.md` — it is 51 KB against a 40 KB target~~ · **DONE 2026-09-02 — 51.4 KB → 25.9 KB**, grandfather flag dropped, ceiling lowered to the 40 KB target by the ratchet",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:350",
+  "legacy_id": "BACKLOG.md:350",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

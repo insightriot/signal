@@ -1,0 +1,22 @@
+{
+  "id": "SIG-186",
+  "type": "FEAT",
+  "title": "~~Standing inbox entries are counted as undecided~~ · **DONE — `M6.E4` S2, 2026-08-24**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1282",
+  "legacy_id": "BACKLOG.md:1282",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

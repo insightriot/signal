@@ -1,0 +1,20 @@
+{
+  "id": "SIG-214",
+  "type": "CHORE",
+  "title": "Slash-command testing harness (A5)",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:2058",
+  "legacy_id": "BACKLOG.md:2058",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

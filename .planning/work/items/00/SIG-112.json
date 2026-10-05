@@ -1,0 +1,21 @@
+{
+  "id": "SIG-112",
+  "type": "BUG",
+  "title": "`detectProjectKind` calls every non-git directory `greenfield`, so a full codebase and an empty folder are…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:166",
+  "legacy_id": "B112",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

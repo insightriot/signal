@@ -1,0 +1,12 @@
+{
+  "id": "SIG-271",
+  "type": "NEW",
+  "title": "advise digest inbox line counts every heading; checkStaleInbox counts only drainable entries",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-04T14:42:08.826Z",
+      "by": "claude"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "SIG-26",
+  "type": "BUG",
+  "title": "`shipFR1Check` returns `{skipped:true, 'not an Epic-close'}` for a FULLY-completed Epic on the Signal-on-Signal…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:53",
+  "legacy_id": "B26",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

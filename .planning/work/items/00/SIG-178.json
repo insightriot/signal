@@ -1,0 +1,20 @@
+{
+  "id": "SIG-178",
+  "type": "CHORE",
+  "title": "The dry-run gate, written down as a pattern · **hygiene** · small",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1038",
+  "legacy_id": "BACKLOG.md:1038",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

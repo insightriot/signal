@@ -1,0 +1,22 @@
+{
+  "id": "SIG-213",
+  "type": "FEAT",
+  "title": "~~Evaluate gstack's `/retro` + `/learn` port~~ — **✂ ABANDONED (M5.E7 — evaluated, then cut)**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:2048",
+  "legacy_id": "BACKLOG.md:2048",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "wontdo",
+      "legacy": true
+    }
+  ]
+}

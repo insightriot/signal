@@ -1,0 +1,22 @@
+{
+  "id": "SIG-200",
+  "type": "FEAT",
+  "title": "~~Feature-parity + landscape re-audit → `SIGNAL-INTEGRATION-RUNDOWN-v2.md`~~ — **✅ DONE (M5.E7)**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1947",
+  "legacy_id": "BACKLOG.md:1947",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

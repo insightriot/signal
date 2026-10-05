@@ -162,6 +162,10 @@ Open questions ({count}):
 
 (If `count > 3`, append `…and {count - 3} more`.)
 
+**Work store on** (`.planning/work/WORK.md` exists): the same call reads the question records (through `listRecords` in `tools/lib/work-records.js`; questions are changed with `/sig:item`), not `OPEN-QUESTIONS.md` (a view), and its result can carry two more fields. Never render either as a clean result:
+- `error` (then `count` is `null`) — the store could not be read. Render `Open questions: not checked — {error}` in place of the block; never `(0)` and never omit the section.
+- `unreadable` (a list of item IDs or paths) — some records did not read, so a question among them is not counted. Render the block as usual, then `  ({unreadable.length} unreadable, not counted: {unreadable joined by ", "} — run /sig:docs-sweep)`.
+
 #### 2.5 Last calibration / last escalation
 
 ```

@@ -1,0 +1,22 @@
+{
+  "id": "SIG-131",
+  "type": "BUG",
+  "title": "`attention` is undocumented in profile-schema.md",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:243",
+  "legacy_id": "BUGS.md:243",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-01T23:42:57.089Z",
+      "by": "brett (M6.E12 PLAN drain)",
+      "reason": "rejected",
+      "proof": "No longer true: plugin/references/profile-schema.md documents attention (9 mentions), checked 2026-10-01."
+    }
+  ]
+}

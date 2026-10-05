@@ -1,0 +1,22 @@
+{
+  "id": "SIG-235",
+  "type": "FEAT",
+  "title": "/sig:permissions principle — authority from outside the model input surface",
+  "theme": "permissions",
+  "priority": "P3",
+  "source": "migration:ISSUES-INBOX.md",
+  "source_ref": "ISSUES-INBOX.md:72",
+  "legacy_id": "ISSUES-INBOX.md:72",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

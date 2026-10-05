@@ -53,223 +53,71 @@
  * silently, which is the difference between `B39`'s shape and a working gate.
  */
 
-/** Status values a table row may carry. */
-export const BUG_STATUSES = Object.freeze([
-  'needs-triage',
-  'confirmed',
-  'dismissed',
-  'fixed',
-]);
-
-// A catalog row: `| B12 | `confirmed` | P2 | …`. The status cell is captured
-// loosely (everything up to the closing pipe) and normalised afterwards, so a
-// parenthetical like `` `fixed` (v0.1.13) `` counts as `fixed` rather than
-// silently missing. Anchored at line start so a row quoted inside prose or a
-// fence is not counted.
-const TABLE_ROW_RE = /^\|\s*B(\d+)\s*\|([^|]*)\|/;
-
-// A heading-capture's status line: `**Status:** needs-triage`. This is the
-// format `/sig:add --bug` writes and the format the 2026-08-03 tally could not
-// see.
-const CAPTURE_STATUS_RE = /^\*\*Status:\*\*\s*([a-z-]+)/;
-
-// The published tally line. Deliberately loose about what follows the counts —
-// the real footer carries a long narrative after `Last updated:` — but strict
-// about the `N label` pairs themselves.
-const TALLY_LINE_RE = /^\*\s*\d+\s+needs-triage\b/;
-
-// `**2 captured-untriaged**` / `2 captured-untriaged` — bold is cosmetic.
-function readCount(line, label) {
-  const re = new RegExp(`(\\d+)\\s+\\*{0,2}${label}`);
-  const m = line.match(re);
-  return m ? Number(m[1]) : null;
-}
+// The parsers this module published — `BUG_STATUSES`, `parseStatusCell`,
+// `walkBugEntries`, `deriveBugCounts`, `readPublishedTally`, `compareBugTally` —
+// live in `legacy-lists.js` since M6.E13 t4.1 (Decision 12), the one home of
+// every Markdown list parser. Re-exported here under the same names, so every
+// import of them from this module is unchanged.
+export {
+  BUG_STATUSES,
+  parseStatusCell,
+  walkBugEntries,
+  deriveBugCounts,
+  readPublishedTally,
+  compareBugTally,
+} from './legacy-lists.js';
 
 /**
- * Normalise a raw status cell to one of BUG_STATUSES, or null.
+ * The same counts, from the work records (M6.E13 t4.5a) — the store-on twin of
+ * `deriveBugCounts`, in its exact shape so `formatTallySegment` renders it.
  *
- * Strips markdown decoration, backticks and any trailing parenthetical, so
- * `` `fixed` (v0.1.13) `` and `` `fixed` `` are the same value. Returns null
- * for anything that is not a known status rather than guessing — an unreadable
- * cell is a finding, not a default.
+ * Only BUG records count, by their folded status, mapped as the v1 view's
+ * status column maps them (`work-generate.js` `bugStatusWord`): N is
+ * needs-triage; T, Q and P are confirmed; a close with reason `fixed` is fixed,
+ * any other close dismissed. A *closing* bug — its fix requested and waiting
+ * for its commit — counts as fixed: on a v1 store that is how every
+ * `fixed in commit` close reads through the converter, and the v1 view counted
+ * it fixed. There are no heading captures in a store, so `capturedUntriaged` is
+ * 0, and no status cell to misread, so `unreadable` is empty.
  *
- * @param {string} raw
- * @returns {string|null}
- */
-export function parseStatusCell(raw) {
-  if (typeof raw !== 'string') return null;
-  const cleaned = raw
-    .replace(/\([^)]*\)/g, ' ')
-    .replace(/[`*_]/g, '')
-    .trim()
-    .toLowerCase();
-  return BUG_STATUSES.includes(cleaned) ? cleaned : null;
-}
-
-/**
- * Walk every catalog entry in a BUGS.md body, once, fence-aware.
- *
- * Extracted from `deriveBugCounts` when M5.E10's FR9 needed per-id statuses
- * rather than totals. Counting and looking up an id are two readings of the
- * same rows, and writing the walk twice is `B82`'s shape — a second
- * implementation of "which lines are entries" that agrees with the first only
- * by construction.
- *
- * `line` is 1-indexed and was added ADDITIVELY (`M6.E7` t2.2) so `/sig:advise`
- * can cite a bug row by `path:line`. Additive because `deriveBugCounts` and
- * `readClosureSources` read the same records and must not change; forking the
- * walk to get one field is `B82`'s shape, which this docblock already warns
- * about one paragraph up.
- *
- * @param {string} content
- * @returns {Array<{kind:'row'|'capture', id:string|null, status:string|null, cell:string, line:number}>}
- */
-export function walkBugEntries(content) {
-  const out = [];
-  let inFence = false;
-  let lineNo = 0;
-
-  for (const line of String(content).split('\n')) {
-    lineNo += 1;
-    const t = line.trimStart();
-    if (t.startsWith('```') || t.startsWith('~~~')) {
-      inFence = !inFence;
-      continue;
-    }
-    if (inFence) continue;
-
-    const row = line.match(TABLE_ROW_RE);
-    if (row) {
-      out.push({
-        kind: 'row',
-        id: `B${row[1]}`,
-        status: parseStatusCell(row[2]),
-        cell: row[2].trim(),
-        line: lineNo,
-      });
-      continue;
-    }
-
-    const cap = line.match(CAPTURE_STATUS_RE);
-    if (cap) out.push({ kind: 'capture', id: null, status: cap[1], cell: cap[1], line: lineNo });
-  }
-  return out;
-}
-
-/**
- * Count every entry in a BUGS.md body, in both formats.
- *
- * Fence-aware: a table row or status line inside a ``` block is a literal
- * sample (this file's docblock contains several) and is not counted.
- *
- * @param {string} content
+ * @param {Array<{record: object, status: string}>} records — `listRecords(...).records`
  * @returns {{needsTriage:number, confirmed:number, dismissed:number,
  *   fixed:number, capturedUntriaged:number, tableRows:number, total:number,
- *   unreadable:Array<{id:string, cell:string}>}}
+ *   unreadable:Array}}
  */
-export function deriveBugCounts(content) {
-  const counts = { 'needs-triage': 0, confirmed: 0, dismissed: 0, fixed: 0 };
-  const unreadable = [];
-  let capturedUntriaged = 0;
-  let tableRows = 0;
-
-  for (const entry of walkBugEntries(content)) {
-    if (entry.kind === 'capture') {
-      capturedUntriaged++;
-      continue;
-    }
-    tableRows++;
-    if (entry.status) counts[entry.status]++;
-    else unreadable.push({ id: entry.id, cell: entry.cell });
+export function deriveBugCountsFromRecords(records) {
+  const counts = { needsTriage: 0, confirmed: 0, dismissed: 0, fixed: 0 };
+  let total = 0;
+  for (const r of records) {
+    if (r.record.type !== 'BUG') continue;
+    total++;
+    if (r.status === 'N') counts.needsTriage++;
+    else if (r.status === 'closing') counts.fixed++;
+    else if (r.status === 'C') {
+      const close = r.record.events.findLast((e) => e.type === 'closed');
+      if (close?.reason === 'fixed') counts.fixed++;
+      else counts.dismissed++;
+    } else counts.confirmed++;
   }
-
-  return {
-    needsTriage: counts['needs-triage'],
-    confirmed: counts.confirmed,
-    dismissed: counts.dismissed,
-    fixed: counts.fixed,
-    capturedUntriaged,
-    tableRows,
-    total: tableRows + capturedUntriaged,
-    unreadable,
-  };
+  return { ...counts, capturedUntriaged: 0, tableRows: total, total, unreadable: [] };
 }
 
 /**
- * Read the tally the file publishes, without judging it.
+ * The ids a bug record is known by, for matching text written about it
+ * (M6.E13 t4.5a): its `SIG-n`, then each `B{n}` form — its `legacy_id` when
+ * that is one (a migrated catalog row), and `B{n}` for its own number, which is
+ * how the v1 BUGS.md view showed every bug (`D-M6E11-20`). Measured on this
+ * repository: of 156 bug records, 127 carry `legacy_id` `B{n}` for their own
+ * `n`, 16 none, and 13 a `BUGS.md:LINE` capture reference — which is not an id
+ * anyone writes, so it is not matched.
  *
- * @param {string} content
- * @returns {{needsTriage:number|null, capturedUntriaged:number|null,
- *   confirmed:number|null, dismissed:number|null, fixed:number|null,
- *   total:number|null, line:string, lineNumber:number}|null}
- *   null when no tally line is present — distinct from a tally that is wrong.
+ * @param {{id: string, legacy_id?: string}} record
+ * @returns {{ids: string[], label: string}} `label` is `SIG-4 (B117, B4)`
  */
-export function readPublishedTally(content) {
-  const lines = String(content).split('\n');
-  let inFence = false;
-  for (let i = 0; i < lines.length; i++) {
-    const t = lines[i].trimStart();
-    if (t.startsWith('```') || t.startsWith('~~~')) {
-      inFence = !inFence;
-      continue;
-    }
-    if (inFence) continue;
-    if (!TALLY_LINE_RE.test(lines[i])) continue;
-
-    const line = lines[i];
-    return {
-      needsTriage: readCount(line, 'needs-triage'),
-      capturedUntriaged: readCount(line, 'captured-untriaged'),
-      confirmed: readCount(line, 'confirmed'),
-      dismissed: readCount(line, 'dismissed'),
-      fixed: readCount(line, 'fixed'),
-      total: readCount(line, 'total'),
-      line,
-      lineNumber: i + 1,
-    };
-  }
-  return null;
-}
-
-/**
- * Compare what the file publishes against what it contains.
- *
- * Returns `ok: false` with a named mismatch per wrong cell. A missing tally
- * returns `ok: false` with `reason: 'no-tally'` rather than passing — silence
- * must not read as clean (`B39`; the M5.E16 checked-and-clean vs. could-not-
- * check distinction).
- *
- * @param {string} content
- * @returns {{ok:boolean, reason?:string, derived:object, published:object|null,
- *   mismatches:Array<{cell:string, published:number|null, derived:number}>}}
- */
-export function compareBugTally(content) {
-  const derived = deriveBugCounts(content);
-  const published = readPublishedTally(content);
-
-  if (!published) {
-    return { ok: false, reason: 'no-tally', derived, published: null, mismatches: [] };
-  }
-
-  const cells = [
-    ['needs-triage', published.needsTriage, derived.needsTriage],
-    ['captured-untriaged', published.capturedUntriaged, derived.capturedUntriaged],
-    ['confirmed', published.confirmed, derived.confirmed],
-    ['dismissed', published.dismissed, derived.dismissed],
-    ['fixed', published.fixed, derived.fixed],
-    ['total', published.total, derived.total],
-  ];
-
-  const mismatches = cells
-    .filter(([, pub, der]) => pub !== der)
-    .map(([cell, pub, der]) => ({ cell, published: pub, derived: der }));
-
-  return {
-    ok: mismatches.length === 0 && derived.unreadable.length === 0,
-    derived,
-    published,
-    mismatches,
-  };
+export function bugRecordIds(record) {
+  const n = record.id.slice(record.id.lastIndexOf('-') + 1);
+  const aliases = [...new Set([/^B\d+$/.test(record.legacy_id ?? '') ? record.legacy_id : null, `B${n}`].filter(Boolean))];
+  return { ids: [record.id, ...aliases], label: `${record.id} (${aliases.join(', ')})` };
 }
 
 /**

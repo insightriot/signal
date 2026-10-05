@@ -1,0 +1,22 @@
+{
+  "id": "SIG-167",
+  "type": "FEAT",
+  "title": "~~Write down which tool new work goes into — Signal or prose~~ · **DONE 2026-08-14** · `D-BR0814-1`",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:739",
+  "legacy_id": "BACKLOG.md:739",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

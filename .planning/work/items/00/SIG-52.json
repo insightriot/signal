@@ -1,0 +1,23 @@
+{
+  "id": "SIG-52",
+  "type": "BUG",
+  "title": "A Claude Code session binds to ONE plugin-cache version for its whole life, so Signal-on-Signal can dogfood a release…",
+  "priority": "P1",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:89",
+  "legacy_id": "B52",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

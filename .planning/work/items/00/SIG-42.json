@@ -1,0 +1,23 @@
+{
+  "id": "SIG-42",
+  "type": "BUG",
+  "title": "A linear-mode project cannot run `/sig:ship` at all — the FR1 retro gate hard-halts on `current_epic: null`, and there…",
+  "priority": "P1",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:72",
+  "legacy_id": "B42",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

@@ -13,7 +13,11 @@ import {
   EPIC_ID_STRICT_RE,
 } from './state.js';
 import { readProfile } from './profile.js';
+import { countOpenQuestions, extractTopOpenQuestions } from './legacy-lists.js';
 import { extractSection } from './landscape.js';
+import { isStoreOn } from './work-store.js';
+import { listRecords } from './work-records.js';
+import { storeQuestions } from './advise-corpus.js';
 import { senseProject, CURRENT_LAYOUT_VERSION } from './migrate-memory.js';
 import { readCappedPrefix, readLayoutStampFromPrefix } from './layout-stamp.js';
 import {
@@ -153,51 +157,44 @@ export function reachedDoneViaSkip(currentPhase, phasesSkipped = []) {
   return idx + 1 < PHASES.length;
 }
 
-/**
- * Extract top-N level-2 (## ) headings from an OPEN-QUESTIONS.md file content.
- * Truncates each to maxLen characters (with ellipsis appended on truncation).
- *
- * @param {string} content - Raw file content.
- * @param {number} limit - Max number of headings to return (default 3).
- * @param {number} maxLen - Max characters per heading (default 80).
- * @returns {string[]} Truncated headings.
- */
-export function extractTopOpenQuestions(content, limit = 3, maxLen = 80) {
-  if (typeof content !== 'string') return [];
-  const headings = [];
-  const re = /^## (.+)$/gm;
-  let match;
-  while ((match = re.exec(content)) !== null) {
-    let heading = match[1].trim();
-    if (heading.length > maxLen) {
-      heading = heading.slice(0, maxLen - 1).trimEnd() + '…';
-    }
-    headings.push(heading);
-    if (headings.length >= limit) break;
-  }
-  return headings;
-}
-
-/**
- * Count total level-2 headings in an OPEN-QUESTIONS.md content.
- *
- * @param {string} content
- * @returns {number}
- */
-export function countOpenQuestions(content) {
-  if (typeof content !== 'string') return 0;
-  const matches = content.match(/^## /gm);
-  return matches ? matches.length : 0;
-}
+// `extractTopOpenQuestions` and `countOpenQuestions` live in `legacy-lists.js`
+// since M6.E13 t4.1 (Decision 12), re-exported here under the same names.
+export { extractTopOpenQuestions, countOpenQuestions };
 
 /**
  * Read .planning/OPEN-QUESTIONS.md if present and return {count, top}. Returns
  * null if the file is absent, so callers can omit the section entirely.
  *
+ * With the work store on (M6.E13 t4.3) the answer comes from the records, in
+ * the same shape: `count` is the open question records — type Q, not closing
+ * or closed — and `top` their first three titles, in ID order, clipped to 80
+ * characters as `extractTopOpenQuestions` clips a heading. The branch is HERE,
+ * not in a caller, because `/sig:status` and `/sig:resume` call this function
+ * directly. OPEN-QUESTIONS.md is a view then, and is not opened.
+ *
+ * Two additions, only with the store on, so a result is never read as cleaner
+ * than it is:
+ * - `error` (with `count: null`, `top: []`) when the store cannot be read —
+ *   neither `null`, which means "no file", nor a count of zero;
+ * - `unreadable` (IDs) when some record does not read, since a question among
+ *   them is not counted.
+ *
  * @param {string} baseDir - Project root.
- * @returns {Promise<{count: number, top: string[]} | null>}
+ * @returns {Promise<{count: number|null, top: string[], error?: string, unreadable?: string[]} | null>}
  */
 export async function readOpenQuestions(baseDir) {
+  let store = null;
+  try {
+    if (isStoreOn(baseDir).on) store = listRecords(baseDir);
+  } catch (err) {
+    return { count: null, top: [], error: `the work store could not be read — ${err.message}` };
+  }
+  if (store) {
+    const open = storeQuestions(store.records);
+    const out = { count: open.length, top: open.slice(0, 3).map((q) => clipQuestion(q.text, 80)) };
+    if (store.broken.length > 0) out.unreadable = store.broken.map((b) => b.id ?? b.path);
+    return out;
+  }
   const path = join(baseDir, '.planning', 'OPEN-QUESTIONS.md');
   if (!existsSync(path)) return null;
   const content = await readFile(path, 'utf-8');
@@ -205,6 +202,12 @@ export async function readOpenQuestions(baseDir) {
     count: countOpenQuestions(content),
     top: extractTopOpenQuestions(content, 3, 80),
   };
+}
+
+// The clip `extractTopOpenQuestions` applies to a heading, applied to a title.
+function clipQuestion(text, maxLen) {
+  const t = text.trim();
+  return t.length > maxLen ? t.slice(0, maxLen - 1).trimEnd() + '…' : t;
 }
 
 /**

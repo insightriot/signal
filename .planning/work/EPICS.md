@@ -3,4 +3,4 @@
 
 ## M6.E11 — closed 2026-09-30 · PR #263 · v0.1.43 · by claude
 
-- SIG-161-FEAT-C — Structural status — make done-vs-live readable without inference · **roadmap** · large · **filed 2026-09-01** · **NEXT EPIC after `M6.E3` (Brett, 2026-09-27, `D-M6E3-16`)**
+- SIG-161 · FEAT · C — Structural status — make done-vs-live readable without inference · **roadmap** · large · **filed 2026-09-01** · **NEXT EPIC after `M6.E3` (Brett, 2026-09-27, `D-M6E3-16`)**

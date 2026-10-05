@@ -1,0 +1,22 @@
+{
+  "id": "SIG-166",
+  "type": "FEAT",
+  "title": "~~Command namespace — decide whether group 4 gets a prefix~~ · **DONE — `docs-` prefix shipped 2026-09-02, `D-BR0902-1`** (clean break, no aliases)",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:706",
+  "legacy_id": "BACKLOG.md:706",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

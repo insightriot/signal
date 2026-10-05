@@ -186,8 +186,9 @@ by one, and nothing gets guessed.
 | `D-M6E11-4` | Readers keep parsing the generated lists | All readers go through the library |
 
 **Kept:**
-- `D-BR0928-1…7`: one system of record, a mandatory ID and close event, Epic membership optional, a
-  tracker as a replacement only.
+- `D-BR0928-1` and `-3` … `-7`: one system of record, a mandatory ID and close event, Epic membership
+  optional, a tracker as a replacement only. **`D-BR0928-2` (things physically move) is superseded** —
+  `D-M6E13-18`, Brett's choice 2026-10-03; this line wrongly listed it as kept until then.
 - `D-M6E11-6`: an item keeps one file for life. This design makes that literally true, because the
   file no longer moves.
 - `D-M6E11-9/10`: `SIG-n` IDs, never reused.

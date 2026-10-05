@@ -1,0 +1,3352 @@
+{
+  "frozenAt": "2026-01-15T12:00:00.000Z",
+  "steps": [
+    {
+      "name": "advise: readCorpus",
+      "site": "advise-corpus.js:90 (BACKLOG), :148-170 (BUGS)",
+      "result": {
+        "ok": {
+          "sources": {
+            "backlog": {
+              "path": ".planning/BACKLOG.md",
+              "rows": [
+                {
+                  "line": 7,
+                  "depth": 3,
+                  "text": "M6.E1 — Search across archived Epics",
+                  "inDetails": false,
+                  "leadingId": "M6.E1",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "**Tag:** roadmap\n\nFiled 2026-01-02. Background is in [the plan](M6.E1-PLAN.md)."
+                },
+                {
+                  "line": 13,
+                  "depth": 3,
+                  "text": "B1 — Resume ignores the Epic profile",
+                  "inDetails": false,
+                  "leadingId": "B1",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "**Tag:** bug\n\nFiled 2026-01-03. Fix the resume path."
+                },
+                {
+                  "line": 19,
+                  "depth": 3,
+                  "text": "B2 — Doctor misreads a missing key",
+                  "inDetails": false,
+                  "leadingId": "B2",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "**Tag:** bug\n\nTrigger: met — a second report came in on 2026-01-06."
+                },
+                {
+                  "line": 25,
+                  "depth": 3,
+                  "text": "B4 — A bug the catalog never filed",
+                  "inDetails": false,
+                  "leadingId": "B4",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Filed 2026-01-04. The id names nothing in BUGS.md."
+                },
+                {
+                  "line": 29,
+                  "depth": 3,
+                  "text": "M6.E4 — Batch the index writes (HELD OPEN until the profiler lands)",
+                  "inDetails": false,
+                  "leadingId": "M6.E4",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Blocked on the profiler. Filed 2026-01-05."
+                },
+                {
+                  "line": 33,
+                  "depth": 3,
+                  "text": "M6.E3 — Export the report",
+                  "inDetails": false,
+                  "leadingId": "M6.E3",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "The Epic in flight."
+                },
+                {
+                  "line": 49,
+                  "depth": 4,
+                  "text": "Export the report as JSON — parked, not sprint material",
+                  "inDetails": false,
+                  "leadingId": null,
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Wait for someone to ask."
+                },
+                {
+                  "line": 53,
+                  "depth": 4,
+                  "text": "Fixes B2 — the doctor rewrite",
+                  "inDetails": false,
+                  "leadingId": null,
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Rewrite the key lookup so a missing key is a failure."
+                },
+                {
+                  "line": 57,
+                  "depth": 4,
+                  "text": "Cache the unit walk",
+                  "inDetails": false,
+                  "leadingId": null,
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Filed 2025-11-20. Status takes two seconds on a large tree.\n\n<details>\n<summary>Original entry</summary>"
+                }
+              ],
+              "totalRows": 12
+            },
+            "bugs": {
+              "path": ".planning/BUGS.md",
+              "entries": [
+                {
+                  "id": "B1",
+                  "status": "fixed",
+                  "cell": "`fixed`",
+                  "line": 5,
+                  "path": ".planning/BUGS.md",
+                  "headline": "**Resume ignores the Epic profile** — fixed in M6.E1."
+                },
+                {
+                  "id": "B2",
+                  "status": "confirmed",
+                  "cell": "`confirmed`",
+                  "line": 6,
+                  "path": ".planning/BUGS.md",
+                  "headline": "**Doctor misreads a missing key** as a pass."
+                },
+                {
+                  "id": "B3",
+                  "status": "confirmed",
+                  "cell": "`confirmed`",
+                  "line": 7,
+                  "path": ".planning/BUGS.md",
+                  "headline": "**Drain crashes on an empty inbox** — reported twice."
+                },
+                {
+                  "id": "B5",
+                  "status": "dismissed",
+                  "cell": "`dismissed`",
+                  "line": 8,
+                  "path": ".planning/BUGS.md",
+                  "headline": "**Status colours look off** — terminal theme, not ours."
+                },
+                {
+                  "id": "B6",
+                  "status": "confirmed",
+                  "cell": "`confirmed (regression)`",
+                  "line": 9,
+                  "path": ".planning/BUGS.md",
+                  "headline": "**Checkpoint drops the last question.**"
+                }
+              ]
+            },
+            "closure": {
+              "units": [
+                {
+                  "unit": "M6.E1",
+                  "status": "closed",
+                  "reason": "M6.E1-VERIFICATION.md records a PASS, and M6.E1 is not the current unit",
+                  "evidence": "**Verdict:** PASS — every acceptance criterion checked against the archive search."
+                },
+                {
+                  "unit": "M6.E3",
+                  "status": "open",
+                  "reason": "M6.E3 is the current unit — mid-flight, not closed",
+                  "evidence": null
+                }
+              ],
+              "counts": {
+                "closed": 1,
+                "open": 1,
+                "cannotDetermine": 0
+              },
+              "stateReadable": true,
+              "reason": null
+            },
+            "milestones": {
+              "files": [
+                {
+                  "file": "MILESTONE-6.md",
+                  "path": ".planning/MILESTONE-6.md",
+                  "rows": [
+                    {
+                      "id": "M6.E1",
+                      "milestone": "M6",
+                      "epicNumber": 1,
+                      "title": "E1",
+                      "status": "**shipped** — `v0.1.2`, 2026-01-04",
+                      "line": 5,
+                      "raw": "| `M6.E1` | **shipped** — `v0.1.2`, 2026-01-04 | Search across archived Epics. |"
+                    },
+                    {
+                      "id": "M6.E2",
+                      "milestone": "M6",
+                      "epicNumber": 2,
+                      "title": "E2",
+                      "status": "**shipped** — `v0.1.3`, 2026-01-09",
+                      "line": 6,
+                      "raw": "| `M6.E2` | **shipped** — `v0.1.3`, 2026-01-09 | Inbox drain fixes. |"
+                    },
+                    {
+                      "id": "M6.E3",
+                      "milestone": "M6",
+                      "epicNumber": 3,
+                      "title": "E3",
+                      "status": "**in flight**",
+                      "line": 7,
+                      "raw": "| `M6.E3` | **in flight** | The export work. |"
+                    }
+                  ]
+                }
+              ]
+            },
+            "otherBranches": {
+              "open": [],
+              "unclassified": [],
+              "unreadable": []
+            }
+          },
+          "cannotCheck": [],
+          "checked": [
+            "BACKLOG.md",
+            "BUGS.md",
+            "STATE/closure",
+            "milestone rows",
+            "other branches"
+          ]
+        }
+      },
+      "changed": {}
+    },
+    {
+      "name": "advise: prepareAdvise (readCorpus + classifyCorpus + gatherBigPicture + formatDigest)",
+      "site": "advise.js:742 classifyCorpus, advise.js:285 classifyRows, advise-digest.js:236-380",
+      "result": {
+        "ok": {
+          "corpus": {
+            "sources": {
+              "backlog": {
+                "path": ".planning/BACKLOG.md",
+                "rows": [
+                  {
+                    "line": 7,
+                    "depth": 3,
+                    "text": "M6.E1 — Search across archived Epics",
+                    "inDetails": false,
+                    "leadingId": "M6.E1",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "**Tag:** roadmap\n\nFiled 2026-01-02. Background is in [the plan](M6.E1-PLAN.md)."
+                  },
+                  {
+                    "line": 13,
+                    "depth": 3,
+                    "text": "B1 — Resume ignores the Epic profile",
+                    "inDetails": false,
+                    "leadingId": "B1",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "**Tag:** bug\n\nFiled 2026-01-03. Fix the resume path."
+                  },
+                  {
+                    "line": 19,
+                    "depth": 3,
+                    "text": "B2 — Doctor misreads a missing key",
+                    "inDetails": false,
+                    "leadingId": "B2",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "**Tag:** bug\n\nTrigger: met — a second report came in on 2026-01-06."
+                  },
+                  {
+                    "line": 25,
+                    "depth": 3,
+                    "text": "B4 — A bug the catalog never filed",
+                    "inDetails": false,
+                    "leadingId": "B4",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "Filed 2026-01-04. The id names nothing in BUGS.md."
+                  },
+                  {
+                    "line": 29,
+                    "depth": 3,
+                    "text": "M6.E4 — Batch the index writes (HELD OPEN until the profiler lands)",
+                    "inDetails": false,
+                    "leadingId": "M6.E4",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "Blocked on the profiler. Filed 2026-01-05."
+                  },
+                  {
+                    "line": 33,
+                    "depth": 3,
+                    "text": "M6.E3 — Export the report",
+                    "inDetails": false,
+                    "leadingId": "M6.E3",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "The Epic in flight."
+                  },
+                  {
+                    "line": 49,
+                    "depth": 4,
+                    "text": "Export the report as JSON — parked, not sprint material",
+                    "inDetails": false,
+                    "leadingId": null,
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "Wait for someone to ask."
+                  },
+                  {
+                    "line": 53,
+                    "depth": 4,
+                    "text": "Fixes B2 — the doctor rewrite",
+                    "inDetails": false,
+                    "leadingId": null,
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "Rewrite the key lookup so a missing key is a failure."
+                  },
+                  {
+                    "line": 57,
+                    "depth": 4,
+                    "text": "Cache the unit walk",
+                    "inDetails": false,
+                    "leadingId": null,
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "Filed 2025-11-20. Status takes two seconds on a large tree.\n\n<details>\n<summary>Original entry</summary>"
+                  }
+                ],
+                "totalRows": 12
+              },
+              "bugs": {
+                "path": ".planning/BUGS.md",
+                "entries": [
+                  {
+                    "id": "B1",
+                    "status": "fixed",
+                    "cell": "`fixed`",
+                    "line": 5,
+                    "path": ".planning/BUGS.md",
+                    "headline": "**Resume ignores the Epic profile** — fixed in M6.E1."
+                  },
+                  {
+                    "id": "B2",
+                    "status": "confirmed",
+                    "cell": "`confirmed`",
+                    "line": 6,
+                    "path": ".planning/BUGS.md",
+                    "headline": "**Doctor misreads a missing key** as a pass."
+                  },
+                  {
+                    "id": "B3",
+                    "status": "confirmed",
+                    "cell": "`confirmed`",
+                    "line": 7,
+                    "path": ".planning/BUGS.md",
+                    "headline": "**Drain crashes on an empty inbox** — reported twice."
+                  },
+                  {
+                    "id": "B5",
+                    "status": "dismissed",
+                    "cell": "`dismissed`",
+                    "line": 8,
+                    "path": ".planning/BUGS.md",
+                    "headline": "**Status colours look off** — terminal theme, not ours."
+                  },
+                  {
+                    "id": "B6",
+                    "status": "confirmed",
+                    "cell": "`confirmed (regression)`",
+                    "line": 9,
+                    "path": ".planning/BUGS.md",
+                    "headline": "**Checkpoint drops the last question.**"
+                  }
+                ]
+              },
+              "closure": {
+                "units": [
+                  {
+                    "unit": "M6.E1",
+                    "status": "closed",
+                    "reason": "M6.E1-VERIFICATION.md records a PASS, and M6.E1 is not the current unit",
+                    "evidence": "**Verdict:** PASS — every acceptance criterion checked against the archive search."
+                  },
+                  {
+                    "unit": "M6.E3",
+                    "status": "open",
+                    "reason": "M6.E3 is the current unit — mid-flight, not closed",
+                    "evidence": null
+                  }
+                ],
+                "counts": {
+                  "closed": 1,
+                  "open": 1,
+                  "cannotDetermine": 0
+                },
+                "stateReadable": true,
+                "reason": null
+              },
+              "milestones": {
+                "files": [
+                  {
+                    "file": "MILESTONE-6.md",
+                    "path": ".planning/MILESTONE-6.md",
+                    "rows": [
+                      {
+                        "id": "M6.E1",
+                        "milestone": "M6",
+                        "epicNumber": 1,
+                        "title": "E1",
+                        "status": "**shipped** — `v0.1.2`, 2026-01-04",
+                        "line": 5,
+                        "raw": "| `M6.E1` | **shipped** — `v0.1.2`, 2026-01-04 | Search across archived Epics. |"
+                      },
+                      {
+                        "id": "M6.E2",
+                        "milestone": "M6",
+                        "epicNumber": 2,
+                        "title": "E2",
+                        "status": "**shipped** — `v0.1.3`, 2026-01-09",
+                        "line": 6,
+                        "raw": "| `M6.E2` | **shipped** — `v0.1.3`, 2026-01-09 | Inbox drain fixes. |"
+                      },
+                      {
+                        "id": "M6.E3",
+                        "milestone": "M6",
+                        "epicNumber": 3,
+                        "title": "E3",
+                        "status": "**in flight**",
+                        "line": 7,
+                        "raw": "| `M6.E3` | **in flight** | The export work. |"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "otherBranches": {
+                "open": [],
+                "unclassified": [],
+                "unreadable": []
+              }
+            },
+            "cannotCheck": [],
+            "checked": [
+              "BACKLOG.md",
+              "BUGS.md",
+              "STATE/closure",
+              "milestone rows",
+              "other branches"
+            ]
+          },
+          "classified": {
+            "live": [
+              {
+                "row": {
+                  "line": 19,
+                  "depth": 3,
+                  "text": "B2 — Doctor misreads a missing key",
+                  "inDetails": false,
+                  "leadingId": "B2",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "**Tag:** bug\n\nTrigger: met — a second report came in on 2026-01-06."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": true
+              },
+              {
+                "row": {
+                  "line": 25,
+                  "depth": 3,
+                  "text": "B4 — A bug the catalog never filed",
+                  "inDetails": false,
+                  "leadingId": "B4",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Filed 2026-01-04. The id names nothing in BUGS.md."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 33,
+                  "depth": 3,
+                  "text": "M6.E3 — Export the report",
+                  "inDetails": false,
+                  "leadingId": "M6.E3",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "The Epic in flight."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 53,
+                  "depth": 4,
+                  "text": "Fixes B2 — the doctor rewrite",
+                  "inDetails": false,
+                  "leadingId": null,
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Rewrite the key lookup so a missing key is a failure."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": {
+                  "id": "B2",
+                  "declaration": "Fixes B2"
+                },
+                "blocked": false,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 57,
+                  "depth": 4,
+                  "text": "Cache the unit walk",
+                  "inDetails": false,
+                  "leadingId": null,
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Filed 2025-11-20. Status takes two seconds on a large tree.\n\n<details>\n<summary>Original entry</summary>"
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              }
+            ],
+            "dropped": [
+              {
+                "row": {
+                  "line": 7,
+                  "depth": 3,
+                  "text": "M6.E1 — Search across archived Epics",
+                  "inDetails": false,
+                  "leadingId": "M6.E1",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "**Tag:** roadmap\n\nFiled 2026-01-02. Background is in [the plan](M6.E1-PLAN.md)."
+                },
+                "dischargedElsewhere": true,
+                "staleEntry": {
+                  "heading": "M6.E1 — Search across archived Epics",
+                  "line": 7,
+                  "id": "M6.E1",
+                  "evidence": "M6.E1-VERIFICATION.md records a PASS, and M6.E1 is not the current unit"
+                },
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 13,
+                  "depth": 3,
+                  "text": "B1 — Resume ignores the Epic profile",
+                  "inDetails": false,
+                  "leadingId": "B1",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "**Tag:** bug\n\nFiled 2026-01-03. Fix the resume path."
+                },
+                "dischargedElsewhere": true,
+                "staleEntry": {
+                  "heading": "B1 — Resume ignores the Epic profile",
+                  "line": 13,
+                  "id": "B1",
+                  "evidence": "BUGS.md records B1 fixed"
+                },
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 29,
+                  "depth": 3,
+                  "text": "M6.E4 — Batch the index writes (HELD OPEN until the profiler lands)",
+                  "inDetails": false,
+                  "leadingId": "M6.E4",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Blocked on the profiler. Filed 2026-01-05."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": true,
+                  "kind": "held-open",
+                  "declaration": "HELD OPEN"
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": true,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 49,
+                  "depth": 4,
+                  "text": "Export the report as JSON — parked, not sprint material",
+                  "inDetails": false,
+                  "leadingId": null,
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Wait for someone to ask."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": true,
+                  "kind": "parked",
+                  "declaration": "parked"
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              }
+            ],
+            "consulted": [
+              "BACKLOG.md",
+              "BUGS.md",
+              "STATE/closure"
+            ]
+          },
+          "digest": {
+            "entries": {
+              "vision": [],
+              "milestone": [
+                {
+                  "path": ".planning/MILESTONE-6.md",
+                  "line": 1,
+                  "text": "# Milestone 6 | Epic | Status | Summary | |---|---|---| | `M6.E1` | **shipped** — `v0.1.2`, 2026-01-04 | Search across archived Epics. | | `M6.E2` | **shipped** — `v0.1.3`, 2026-01-09 | Inbox drain fixes. | | `M6.E3` | **in flight** | The export work. |"
+                },
+                {
+                  "path": ".planning/MILESTONE-6.md",
+                  "line": 5,
+                  "text": "M6.E1 E1 — **shipped** — `v0.1.2`, 2026-01-04"
+                },
+                {
+                  "path": ".planning/MILESTONE-6.md",
+                  "line": 6,
+                  "text": "M6.E2 E2 — **shipped** — `v0.1.3`, 2026-01-09"
+                },
+                {
+                  "path": ".planning/MILESTONE-6.md",
+                  "line": 7,
+                  "text": "M6.E3 E3 — **in flight**"
+                }
+              ],
+              "open Epics": [
+                {
+                  "path": ".planning/STATE.md",
+                  "line": 4,
+                  "text": "M6.E3 — open here at EXECUTE"
+                }
+              ],
+              "bugs": [
+                {
+                  "path": ".planning/BUGS.md",
+                  "line": 6,
+                  "priority": "P1",
+                  "text": "B2 P1 confirmed — Doctor misreads a missing key as a pass."
+                },
+                {
+                  "path": ".planning/BUGS.md",
+                  "line": 9,
+                  "priority": "P1",
+                  "text": "B6 P1 confirmed — Checkpoint drops the last question."
+                },
+                {
+                  "path": ".planning/BUGS.md",
+                  "line": 7,
+                  "priority": "P2",
+                  "text": "B3 P2 confirmed — Drain crashes on an empty inbox — reported twice."
+                }
+              ],
+              "backlog": [
+                {
+                  "path": ".planning/BACKLOG.md",
+                  "line": 19,
+                  "text": "B2 — Doctor misreads a missing key"
+                },
+                {
+                  "path": ".planning/BACKLOG.md",
+                  "line": 25,
+                  "text": "B4 — A bug the catalog never filed"
+                },
+                {
+                  "path": ".planning/BACKLOG.md",
+                  "line": 33,
+                  "text": "M6.E3 — Export the report"
+                },
+                {
+                  "path": ".planning/BACKLOG.md",
+                  "line": 53,
+                  "text": "Fixes B2 — the doctor rewrite"
+                },
+                {
+                  "path": ".planning/BACKLOG.md",
+                  "line": 57,
+                  "text": "Cache the unit walk"
+                }
+              ],
+              "retrospectives": [],
+              "open questions": [
+                {
+                  "path": ".planning/OPEN-QUESTIONS.md",
+                  "line": 3,
+                  "text": "Should M6.E3 export a header row?"
+                },
+                {
+                  "path": ".planning/OPEN-QUESTIONS.md",
+                  "line": 17,
+                  "text": "Should drive stop at every phase?"
+                },
+                {
+                  "path": ".planning/OPEN-QUESTIONS.md",
+                  "line": 25,
+                  "text": "Does advise read archived Epics, and if it does, should it say so in the artifact's header line?"
+                }
+              ],
+              "inbox": [
+                {
+                  "path": ".planning/ISSUES-INBOX.md",
+                  "line": 1,
+                  "text": "6 entr(y/ies) in the inbox"
+                }
+              ]
+            },
+            "checked": [
+              "milestone",
+              "open Epics",
+              "bugs",
+              "backlog",
+              "open questions",
+              "inbox"
+            ],
+            "cannotCheck": [
+              {
+                "source": "vision",
+                "reason": "no PROJECT.md in .planning/ or at the root — this project states no vision here"
+              },
+              {
+                "source": "retrospectives",
+                "reason": "1 retrospective(s), none with a \"What to feed back\" or \"What we'd do differently\" section"
+              }
+            ],
+            "cut": [],
+            "notes": [
+              "4 backlog row(s) dropped (discharged, self-declared not live, or folded) are not offered here — they cannot be covered, and the advisory lists them under Dropped"
+            ],
+            "corpus": {
+              "sources": {
+                "backlog": {
+                  "path": ".planning/BACKLOG.md",
+                  "rows": [
+                    {
+                      "line": 7,
+                      "depth": 3,
+                      "text": "M6.E1 — Search across archived Epics",
+                      "inDetails": false,
+                      "leadingId": "M6.E1",
+                      "discharged": false,
+                      "dischargedBy": null,
+                      "dischargedAt": null,
+                      "path": ".planning/BACKLOG.md",
+                      "body": "**Tag:** roadmap\n\nFiled 2026-01-02. Background is in [the plan](M6.E1-PLAN.md)."
+                    },
+                    {
+                      "line": 13,
+                      "depth": 3,
+                      "text": "B1 — Resume ignores the Epic profile",
+                      "inDetails": false,
+                      "leadingId": "B1",
+                      "discharged": false,
+                      "dischargedBy": null,
+                      "dischargedAt": null,
+                      "path": ".planning/BACKLOG.md",
+                      "body": "**Tag:** bug\n\nFiled 2026-01-03. Fix the resume path."
+                    },
+                    {
+                      "line": 19,
+                      "depth": 3,
+                      "text": "B2 — Doctor misreads a missing key",
+                      "inDetails": false,
+                      "leadingId": "B2",
+                      "discharged": false,
+                      "dischargedBy": null,
+                      "dischargedAt": null,
+                      "path": ".planning/BACKLOG.md",
+                      "body": "**Tag:** bug\n\nTrigger: met — a second report came in on 2026-01-06."
+                    },
+                    {
+                      "line": 25,
+                      "depth": 3,
+                      "text": "B4 — A bug the catalog never filed",
+                      "inDetails": false,
+                      "leadingId": "B4",
+                      "discharged": false,
+                      "dischargedBy": null,
+                      "dischargedAt": null,
+                      "path": ".planning/BACKLOG.md",
+                      "body": "Filed 2026-01-04. The id names nothing in BUGS.md."
+                    },
+                    {
+                      "line": 29,
+                      "depth": 3,
+                      "text": "M6.E4 — Batch the index writes (HELD OPEN until the profiler lands)",
+                      "inDetails": false,
+                      "leadingId": "M6.E4",
+                      "discharged": false,
+                      "dischargedBy": null,
+                      "dischargedAt": null,
+                      "path": ".planning/BACKLOG.md",
+                      "body": "Blocked on the profiler. Filed 2026-01-05."
+                    },
+                    {
+                      "line": 33,
+                      "depth": 3,
+                      "text": "M6.E3 — Export the report",
+                      "inDetails": false,
+                      "leadingId": "M6.E3",
+                      "discharged": false,
+                      "dischargedBy": null,
+                      "dischargedAt": null,
+                      "path": ".planning/BACKLOG.md",
+                      "body": "The Epic in flight."
+                    },
+                    {
+                      "line": 49,
+                      "depth": 4,
+                      "text": "Export the report as JSON — parked, not sprint material",
+                      "inDetails": false,
+                      "leadingId": null,
+                      "discharged": false,
+                      "dischargedBy": null,
+                      "dischargedAt": null,
+                      "path": ".planning/BACKLOG.md",
+                      "body": "Wait for someone to ask."
+                    },
+                    {
+                      "line": 53,
+                      "depth": 4,
+                      "text": "Fixes B2 — the doctor rewrite",
+                      "inDetails": false,
+                      "leadingId": null,
+                      "discharged": false,
+                      "dischargedBy": null,
+                      "dischargedAt": null,
+                      "path": ".planning/BACKLOG.md",
+                      "body": "Rewrite the key lookup so a missing key is a failure."
+                    },
+                    {
+                      "line": 57,
+                      "depth": 4,
+                      "text": "Cache the unit walk",
+                      "inDetails": false,
+                      "leadingId": null,
+                      "discharged": false,
+                      "dischargedBy": null,
+                      "dischargedAt": null,
+                      "path": ".planning/BACKLOG.md",
+                      "body": "Filed 2025-11-20. Status takes two seconds on a large tree.\n\n<details>\n<summary>Original entry</summary>"
+                    }
+                  ],
+                  "totalRows": 12
+                },
+                "bugs": {
+                  "path": ".planning/BUGS.md",
+                  "entries": [
+                    {
+                      "id": "B1",
+                      "status": "fixed",
+                      "cell": "`fixed`",
+                      "line": 5,
+                      "path": ".planning/BUGS.md",
+                      "headline": "**Resume ignores the Epic profile** — fixed in M6.E1."
+                    },
+                    {
+                      "id": "B2",
+                      "status": "confirmed",
+                      "cell": "`confirmed`",
+                      "line": 6,
+                      "path": ".planning/BUGS.md",
+                      "headline": "**Doctor misreads a missing key** as a pass."
+                    },
+                    {
+                      "id": "B3",
+                      "status": "confirmed",
+                      "cell": "`confirmed`",
+                      "line": 7,
+                      "path": ".planning/BUGS.md",
+                      "headline": "**Drain crashes on an empty inbox** — reported twice."
+                    },
+                    {
+                      "id": "B5",
+                      "status": "dismissed",
+                      "cell": "`dismissed`",
+                      "line": 8,
+                      "path": ".planning/BUGS.md",
+                      "headline": "**Status colours look off** — terminal theme, not ours."
+                    },
+                    {
+                      "id": "B6",
+                      "status": "confirmed",
+                      "cell": "`confirmed (regression)`",
+                      "line": 9,
+                      "path": ".planning/BUGS.md",
+                      "headline": "**Checkpoint drops the last question.**"
+                    }
+                  ]
+                },
+                "closure": {
+                  "units": [
+                    {
+                      "unit": "M6.E1",
+                      "status": "closed",
+                      "reason": "M6.E1-VERIFICATION.md records a PASS, and M6.E1 is not the current unit",
+                      "evidence": "**Verdict:** PASS — every acceptance criterion checked against the archive search."
+                    },
+                    {
+                      "unit": "M6.E3",
+                      "status": "open",
+                      "reason": "M6.E3 is the current unit — mid-flight, not closed",
+                      "evidence": null
+                    }
+                  ],
+                  "counts": {
+                    "closed": 1,
+                    "open": 1,
+                    "cannotDetermine": 0
+                  },
+                  "stateReadable": true,
+                  "reason": null
+                },
+                "milestones": {
+                  "files": [
+                    {
+                      "file": "MILESTONE-6.md",
+                      "path": ".planning/MILESTONE-6.md",
+                      "rows": [
+                        {
+                          "id": "M6.E1",
+                          "milestone": "M6",
+                          "epicNumber": 1,
+                          "title": "E1",
+                          "status": "**shipped** — `v0.1.2`, 2026-01-04",
+                          "line": 5,
+                          "raw": "| `M6.E1` | **shipped** — `v0.1.2`, 2026-01-04 | Search across archived Epics. |"
+                        },
+                        {
+                          "id": "M6.E2",
+                          "milestone": "M6",
+                          "epicNumber": 2,
+                          "title": "E2",
+                          "status": "**shipped** — `v0.1.3`, 2026-01-09",
+                          "line": 6,
+                          "raw": "| `M6.E2` | **shipped** — `v0.1.3`, 2026-01-09 | Inbox drain fixes. |"
+                        },
+                        {
+                          "id": "M6.E3",
+                          "milestone": "M6",
+                          "epicNumber": 3,
+                          "title": "E3",
+                          "status": "**in flight**",
+                          "line": 7,
+                          "raw": "| `M6.E3` | **in flight** | The export work. |"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "otherBranches": {
+                  "open": [],
+                  "unclassified": [],
+                  "unreadable": []
+                }
+              },
+              "cannotCheck": [],
+              "checked": [
+                "BACKLOG.md",
+                "BUGS.md",
+                "STATE/closure",
+                "milestone rows",
+                "other branches"
+              ]
+            }
+          },
+          "digestText": "# Big-picture digest\n\n## Could not read — the picture below is missing these\n\n- **vision** — no PROJECT.md in .planning/ or at the root — this project states no vision here\n- **retrospectives** — 1 retrospective(s), none with a \"What to feed back\" or \"What we'd do differently\" section\n\n> 4 backlog row(s) dropped (discharged, self-declared not live, or folded) are not offered here — they cannot be covered, and the advisory lists them under Dropped\n\n## milestone (4)\n\n- # Milestone 6 | Epic | Status | Summary | |---|---|---| | `M6.E1` | **shipped** — `v0.1.2`, 2026-01-04 | Search across archived Epics. | | `M6.E2` | **shipped** — `v0.1.3`, 2026-01-09 | Inbox drain fixes. | | `M6.E3` | **in flight** | The export work. | (.planning/MILESTONE-6.md:1)\n- M6.E1 E1 — **shipped** — `v0.1.2`, 2026-01-04 (.planning/MILESTONE-6.md:5)\n- M6.E2 E2 — **shipped** — `v0.1.3`, 2026-01-09 (.planning/MILESTONE-6.md:6)\n- M6.E3 E3 — **in flight** (.planning/MILESTONE-6.md:7)\n\n## open Epics (1)\n\n- M6.E3 — open here at EXECUTE (.planning/STATE.md:4)\n\n## bugs (3)\n\n- B2 P1 confirmed — Doctor misreads a missing key as a pass. (.planning/BUGS.md:6)\n- B6 P1 confirmed — Checkpoint drops the last question. (.planning/BUGS.md:9)\n- B3 P2 confirmed — Drain crashes on an empty inbox — reported twice. (.planning/BUGS.md:7)\n\n## backlog (5)\n\n- B2 — Doctor misreads a missing key (.planning/BACKLOG.md:19)\n- B4 — A bug the catalog never filed (.planning/BACKLOG.md:25)\n- M6.E3 — Export the report (.planning/BACKLOG.md:33)\n- Fixes B2 — the doctor rewrite (.planning/BACKLOG.md:53)\n- Cache the unit walk (.planning/BACKLOG.md:57)\n\n## open questions (3)\n\n- Should M6.E3 export a header row? (.planning/OPEN-QUESTIONS.md:3)\n- Should drive stop at every phase? (.planning/OPEN-QUESTIONS.md:17)\n- Does advise read archived Epics, and if it does, should it say so in the artifact's header line? (.planning/OPEN-QUESTIONS.md:25)\n\n## inbox (1)\n\n- 6 entr(y/ies) in the inbox (.planning/ISSUES-INBOX.md:1)\n"
+        }
+      },
+      "changed": {}
+    },
+    {
+      "name": "advise: classifyRows with no discharge input",
+      "site": "advise.js:285 (/^B\\d+$/)",
+      "result": {
+        "ok": {
+          "live": [
+            {
+              "row": {
+                "line": 7,
+                "depth": 3,
+                "text": "M6.E1 — Search across archived Epics",
+                "inDetails": false,
+                "leadingId": "M6.E1",
+                "discharged": false,
+                "dischargedBy": null,
+                "dischargedAt": null,
+                "path": ".planning/BACKLOG.md",
+                "body": "**Tag:** roadmap\n\nFiled 2026-01-02. Background is in [the plan](M6.E1-PLAN.md)."
+              },
+              "dischargedElsewhere": false,
+              "staleEntry": null,
+              "notLive": {
+                "notLive": false,
+                "kind": null,
+                "declaration": null
+              },
+              "moved": {
+                "moved": false,
+                "kind": null,
+                "declaration": null,
+                "kept": false
+              },
+              "dischargesBug": null,
+              "blocked": false,
+              "triggerMet": false
+            },
+            {
+              "row": {
+                "line": 13,
+                "depth": 3,
+                "text": "B1 — Resume ignores the Epic profile",
+                "inDetails": false,
+                "leadingId": "B1",
+                "discharged": false,
+                "dischargedBy": null,
+                "dischargedAt": null,
+                "path": ".planning/BACKLOG.md",
+                "body": "**Tag:** bug\n\nFiled 2026-01-03. Fix the resume path."
+              },
+              "dischargedElsewhere": false,
+              "staleEntry": null,
+              "notLive": {
+                "notLive": false,
+                "kind": null,
+                "declaration": null
+              },
+              "moved": {
+                "moved": false,
+                "kind": null,
+                "declaration": null,
+                "kept": false
+              },
+              "dischargesBug": null,
+              "blocked": false,
+              "triggerMet": false
+            },
+            {
+              "row": {
+                "line": 19,
+                "depth": 3,
+                "text": "B2 — Doctor misreads a missing key",
+                "inDetails": false,
+                "leadingId": "B2",
+                "discharged": false,
+                "dischargedBy": null,
+                "dischargedAt": null,
+                "path": ".planning/BACKLOG.md",
+                "body": "**Tag:** bug\n\nTrigger: met — a second report came in on 2026-01-06."
+              },
+              "dischargedElsewhere": false,
+              "staleEntry": null,
+              "notLive": {
+                "notLive": false,
+                "kind": null,
+                "declaration": null
+              },
+              "moved": {
+                "moved": false,
+                "kind": null,
+                "declaration": null,
+                "kept": false
+              },
+              "dischargesBug": null,
+              "blocked": false,
+              "triggerMet": true
+            },
+            {
+              "row": {
+                "line": 25,
+                "depth": 3,
+                "text": "B4 — A bug the catalog never filed",
+                "inDetails": false,
+                "leadingId": "B4",
+                "discharged": false,
+                "dischargedBy": null,
+                "dischargedAt": null,
+                "path": ".planning/BACKLOG.md",
+                "body": "Filed 2026-01-04. The id names nothing in BUGS.md."
+              },
+              "dischargedElsewhere": false,
+              "staleEntry": null,
+              "notLive": {
+                "notLive": false,
+                "kind": null,
+                "declaration": null
+              },
+              "moved": {
+                "moved": false,
+                "kind": null,
+                "declaration": null,
+                "kept": false
+              },
+              "dischargesBug": null,
+              "blocked": false,
+              "triggerMet": false
+            },
+            {
+              "row": {
+                "line": 33,
+                "depth": 3,
+                "text": "M6.E3 — Export the report",
+                "inDetails": false,
+                "leadingId": "M6.E3",
+                "discharged": false,
+                "dischargedBy": null,
+                "dischargedAt": null,
+                "path": ".planning/BACKLOG.md",
+                "body": "The Epic in flight."
+              },
+              "dischargedElsewhere": false,
+              "staleEntry": null,
+              "notLive": {
+                "notLive": false,
+                "kind": null,
+                "declaration": null
+              },
+              "moved": {
+                "moved": false,
+                "kind": null,
+                "declaration": null,
+                "kept": false
+              },
+              "dischargesBug": null,
+              "blocked": false,
+              "triggerMet": false
+            },
+            {
+              "row": {
+                "line": 53,
+                "depth": 4,
+                "text": "Fixes B2 — the doctor rewrite",
+                "inDetails": false,
+                "leadingId": null,
+                "discharged": false,
+                "dischargedBy": null,
+                "dischargedAt": null,
+                "path": ".planning/BACKLOG.md",
+                "body": "Rewrite the key lookup so a missing key is a failure."
+              },
+              "dischargedElsewhere": false,
+              "staleEntry": null,
+              "notLive": {
+                "notLive": false,
+                "kind": null,
+                "declaration": null
+              },
+              "moved": {
+                "moved": false,
+                "kind": null,
+                "declaration": null,
+                "kept": false
+              },
+              "dischargesBug": {
+                "id": "B2",
+                "declaration": "Fixes B2"
+              },
+              "blocked": false,
+              "triggerMet": false
+            },
+            {
+              "row": {
+                "line": 57,
+                "depth": 4,
+                "text": "Cache the unit walk",
+                "inDetails": false,
+                "leadingId": null,
+                "discharged": false,
+                "dischargedBy": null,
+                "dischargedAt": null,
+                "path": ".planning/BACKLOG.md",
+                "body": "Filed 2025-11-20. Status takes two seconds on a large tree.\n\n<details>\n<summary>Original entry</summary>"
+              },
+              "dischargedElsewhere": false,
+              "staleEntry": null,
+              "notLive": {
+                "notLive": false,
+                "kind": null,
+                "declaration": null
+              },
+              "moved": {
+                "moved": false,
+                "kind": null,
+                "declaration": null,
+                "kept": false
+              },
+              "dischargesBug": null,
+              "blocked": false,
+              "triggerMet": false
+            }
+          ],
+          "dropped": [
+            {
+              "row": {
+                "line": 29,
+                "depth": 3,
+                "text": "M6.E4 — Batch the index writes (HELD OPEN until the profiler lands)",
+                "inDetails": false,
+                "leadingId": "M6.E4",
+                "discharged": false,
+                "dischargedBy": null,
+                "dischargedAt": null,
+                "path": ".planning/BACKLOG.md",
+                "body": "Blocked on the profiler. Filed 2026-01-05."
+              },
+              "dischargedElsewhere": false,
+              "staleEntry": null,
+              "notLive": {
+                "notLive": true,
+                "kind": "held-open",
+                "declaration": "HELD OPEN"
+              },
+              "moved": {
+                "moved": false,
+                "kind": null,
+                "declaration": null,
+                "kept": false
+              },
+              "dischargesBug": null,
+              "blocked": true,
+              "triggerMet": false
+            },
+            {
+              "row": {
+                "line": 49,
+                "depth": 4,
+                "text": "Export the report as JSON — parked, not sprint material",
+                "inDetails": false,
+                "leadingId": null,
+                "discharged": false,
+                "dischargedBy": null,
+                "dischargedAt": null,
+                "path": ".planning/BACKLOG.md",
+                "body": "Wait for someone to ask."
+              },
+              "dischargedElsewhere": false,
+              "staleEntry": null,
+              "notLive": {
+                "notLive": true,
+                "kind": "parked",
+                "declaration": "parked"
+              },
+              "moved": {
+                "moved": false,
+                "kind": null,
+                "declaration": null,
+                "kept": false
+              },
+              "dischargesBug": null,
+              "blocked": false,
+              "triggerMet": false
+            }
+          ],
+          "consulted": [
+            "BACKLOG.md",
+            "BUGS.md"
+          ]
+        }
+      },
+      "changed": {}
+    },
+    {
+      "name": "advise: validatePriorities (valid)",
+      "site": "advise-priorities.js:32-160",
+      "result": {
+        "ok": {
+          "ok": true,
+          "reasons": [],
+          "priorities": [
+            {
+              "title": "Make the doctor honest",
+              "why": "A missing key reads as a pass.",
+              "covers": [
+                {
+                  "kind": "bug",
+                  "id": "B2",
+                  "label": "Doctor misreads a missing key as a pass.",
+                  "path": ".planning/BUGS.md",
+                  "line": 6
+                }
+              ],
+              "evidence": [
+                ".planning/BUGS.md:6"
+              ],
+              "dependsOn": []
+            },
+            {
+              "title": "Finish the export",
+              "why": "The Epic in flight.",
+              "covers": [
+                {
+                  "kind": "row",
+                  "id": "M6.E3",
+                  "label": "M6.E3 — Export the report",
+                  "path": ".planning/BACKLOG.md",
+                  "line": 33
+                }
+              ],
+              "evidence": [
+                ".planning/BACKLOG.md:33",
+                ".planning/M6.E3-REQUIREMENTS.md:4"
+              ],
+              "dependsOn": []
+            },
+            {
+              "title": "Speed up status",
+              "why": "Two seconds is too slow.",
+              "covers": [
+                {
+                  "kind": "row",
+                  "id": null,
+                  "label": "Cache the unit walk",
+                  "path": ".planning/BACKLOG.md",
+                  "line": 57
+                },
+                {
+                  "kind": "new",
+                  "id": null,
+                  "label": "profile the walk",
+                  "path": null,
+                  "line": null
+                }
+              ],
+              "evidence": [
+                ".planning/BACKLOG.md:57"
+              ],
+              "dependsOn": [
+                2
+              ]
+            }
+          ]
+        }
+      },
+      "changed": {}
+    },
+    {
+      "name": "advise: validatePriorities (invalid)",
+      "site": "advise-priorities.js:32-160",
+      "result": {
+        "ok": {
+          "ok": false,
+          "reasons": [
+            "priority 1: covers B1, which is not an open bug in .planning/BUGS.md",
+            "priority 2: covers .planning/BACKLOG.md:37, which is not the line of a live backlog row",
+            "priority 3: why runs 4 sentences — at most 3",
+            "priority 3: covers .planning/BACKLOG.md:29, but BACKLOG.md:29 is dropped from the appendix — dropped",
+            "priority 3: cannot depend on itself",
+            "priority 1: evidence .planning/BUGS.md:999 does not resolve — file has only 25 lines",
+            "priority 2: evidence .planning/NOPE.md does not resolve — does not exist"
+          ],
+          "priorities": [
+            {
+              "title": "Cover a fixed bug",
+              "why": "B1 is closed.",
+              "covers": [],
+              "evidence": [
+                ".planning/BUGS.md:999"
+              ],
+              "dependsOn": []
+            },
+            {
+              "title": "Cover a struck row",
+              "why": "It was done.",
+              "covers": [],
+              "evidence": [
+                ".planning/NOPE.md"
+              ],
+              "dependsOn": []
+            },
+            {
+              "title": "Cover a held-open row",
+              "why": "One. Two. Three. Four.",
+              "covers": [],
+              "evidence": [
+                ".planning/STATE.md"
+              ],
+              "dependsOn": []
+            }
+          ]
+        }
+      },
+      "changed": {}
+    },
+    {
+      "name": "advise: runAdvise (invalid proposal — refused, nothing written)",
+      "site": "advise.js:789-853",
+      "result": {
+        "ok": {
+          "today": "2026-01-15",
+          "corpus": {
+            "sources": {
+              "backlog": {
+                "path": ".planning/BACKLOG.md",
+                "rows": [
+                  {
+                    "line": 7,
+                    "depth": 3,
+                    "text": "M6.E1 — Search across archived Epics",
+                    "inDetails": false,
+                    "leadingId": "M6.E1",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "**Tag:** roadmap\n\nFiled 2026-01-02. Background is in [the plan](M6.E1-PLAN.md)."
+                  },
+                  {
+                    "line": 13,
+                    "depth": 3,
+                    "text": "B1 — Resume ignores the Epic profile",
+                    "inDetails": false,
+                    "leadingId": "B1",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "**Tag:** bug\n\nFiled 2026-01-03. Fix the resume path."
+                  },
+                  {
+                    "line": 19,
+                    "depth": 3,
+                    "text": "B2 — Doctor misreads a missing key",
+                    "inDetails": false,
+                    "leadingId": "B2",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "**Tag:** bug\n\nTrigger: met — a second report came in on 2026-01-06."
+                  },
+                  {
+                    "line": 25,
+                    "depth": 3,
+                    "text": "B4 — A bug the catalog never filed",
+                    "inDetails": false,
+                    "leadingId": "B4",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "Filed 2026-01-04. The id names nothing in BUGS.md."
+                  },
+                  {
+                    "line": 29,
+                    "depth": 3,
+                    "text": "M6.E4 — Batch the index writes (HELD OPEN until the profiler lands)",
+                    "inDetails": false,
+                    "leadingId": "M6.E4",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "Blocked on the profiler. Filed 2026-01-05."
+                  },
+                  {
+                    "line": 33,
+                    "depth": 3,
+                    "text": "M6.E3 — Export the report",
+                    "inDetails": false,
+                    "leadingId": "M6.E3",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "The Epic in flight."
+                  },
+                  {
+                    "line": 49,
+                    "depth": 4,
+                    "text": "Export the report as JSON — parked, not sprint material",
+                    "inDetails": false,
+                    "leadingId": null,
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "Wait for someone to ask."
+                  },
+                  {
+                    "line": 53,
+                    "depth": 4,
+                    "text": "Fixes B2 — the doctor rewrite",
+                    "inDetails": false,
+                    "leadingId": null,
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "Rewrite the key lookup so a missing key is a failure."
+                  },
+                  {
+                    "line": 57,
+                    "depth": 4,
+                    "text": "Cache the unit walk",
+                    "inDetails": false,
+                    "leadingId": null,
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "Filed 2025-11-20. Status takes two seconds on a large tree.\n\n<details>\n<summary>Original entry</summary>"
+                  }
+                ],
+                "totalRows": 12
+              },
+              "bugs": {
+                "path": ".planning/BUGS.md",
+                "entries": [
+                  {
+                    "id": "B1",
+                    "status": "fixed",
+                    "cell": "`fixed`",
+                    "line": 5,
+                    "path": ".planning/BUGS.md",
+                    "headline": "**Resume ignores the Epic profile** — fixed in M6.E1."
+                  },
+                  {
+                    "id": "B2",
+                    "status": "confirmed",
+                    "cell": "`confirmed`",
+                    "line": 6,
+                    "path": ".planning/BUGS.md",
+                    "headline": "**Doctor misreads a missing key** as a pass."
+                  },
+                  {
+                    "id": "B3",
+                    "status": "confirmed",
+                    "cell": "`confirmed`",
+                    "line": 7,
+                    "path": ".planning/BUGS.md",
+                    "headline": "**Drain crashes on an empty inbox** — reported twice."
+                  },
+                  {
+                    "id": "B5",
+                    "status": "dismissed",
+                    "cell": "`dismissed`",
+                    "line": 8,
+                    "path": ".planning/BUGS.md",
+                    "headline": "**Status colours look off** — terminal theme, not ours."
+                  },
+                  {
+                    "id": "B6",
+                    "status": "confirmed",
+                    "cell": "`confirmed (regression)`",
+                    "line": 9,
+                    "path": ".planning/BUGS.md",
+                    "headline": "**Checkpoint drops the last question.**"
+                  }
+                ]
+              },
+              "closure": {
+                "units": [
+                  {
+                    "unit": "M6.E1",
+                    "status": "closed",
+                    "reason": "M6.E1-VERIFICATION.md records a PASS, and M6.E1 is not the current unit",
+                    "evidence": "**Verdict:** PASS — every acceptance criterion checked against the archive search."
+                  },
+                  {
+                    "unit": "M6.E3",
+                    "status": "open",
+                    "reason": "M6.E3 is the current unit — mid-flight, not closed",
+                    "evidence": null
+                  }
+                ],
+                "counts": {
+                  "closed": 1,
+                  "open": 1,
+                  "cannotDetermine": 0
+                },
+                "stateReadable": true,
+                "reason": null
+              },
+              "milestones": {
+                "files": [
+                  {
+                    "file": "MILESTONE-6.md",
+                    "path": ".planning/MILESTONE-6.md",
+                    "rows": [
+                      {
+                        "id": "M6.E1",
+                        "milestone": "M6",
+                        "epicNumber": 1,
+                        "title": "E1",
+                        "status": "**shipped** — `v0.1.2`, 2026-01-04",
+                        "line": 5,
+                        "raw": "| `M6.E1` | **shipped** — `v0.1.2`, 2026-01-04 | Search across archived Epics. |"
+                      },
+                      {
+                        "id": "M6.E2",
+                        "milestone": "M6",
+                        "epicNumber": 2,
+                        "title": "E2",
+                        "status": "**shipped** — `v0.1.3`, 2026-01-09",
+                        "line": 6,
+                        "raw": "| `M6.E2` | **shipped** — `v0.1.3`, 2026-01-09 | Inbox drain fixes. |"
+                      },
+                      {
+                        "id": "M6.E3",
+                        "milestone": "M6",
+                        "epicNumber": 3,
+                        "title": "E3",
+                        "status": "**in flight**",
+                        "line": 7,
+                        "raw": "| `M6.E3` | **in flight** | The export work. |"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "otherBranches": {
+                "open": [],
+                "unclassified": [],
+                "unreadable": []
+              }
+            },
+            "cannotCheck": [],
+            "checked": [
+              "BACKLOG.md",
+              "BUGS.md",
+              "STATE/closure",
+              "milestone rows",
+              "other branches"
+            ]
+          },
+          "classified": {
+            "live": [
+              {
+                "row": {
+                  "line": 19,
+                  "depth": 3,
+                  "text": "B2 — Doctor misreads a missing key",
+                  "inDetails": false,
+                  "leadingId": "B2",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "**Tag:** bug\n\nTrigger: met — a second report came in on 2026-01-06."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": true
+              },
+              {
+                "row": {
+                  "line": 25,
+                  "depth": 3,
+                  "text": "B4 — A bug the catalog never filed",
+                  "inDetails": false,
+                  "leadingId": "B4",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Filed 2026-01-04. The id names nothing in BUGS.md."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 33,
+                  "depth": 3,
+                  "text": "M6.E3 — Export the report",
+                  "inDetails": false,
+                  "leadingId": "M6.E3",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "The Epic in flight."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 53,
+                  "depth": 4,
+                  "text": "Fixes B2 — the doctor rewrite",
+                  "inDetails": false,
+                  "leadingId": null,
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Rewrite the key lookup so a missing key is a failure."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": {
+                  "id": "B2",
+                  "declaration": "Fixes B2"
+                },
+                "blocked": false,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 57,
+                  "depth": 4,
+                  "text": "Cache the unit walk",
+                  "inDetails": false,
+                  "leadingId": null,
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Filed 2025-11-20. Status takes two seconds on a large tree.\n\n<details>\n<summary>Original entry</summary>"
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              }
+            ],
+            "dropped": [
+              {
+                "row": {
+                  "line": 7,
+                  "depth": 3,
+                  "text": "M6.E1 — Search across archived Epics",
+                  "inDetails": false,
+                  "leadingId": "M6.E1",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "**Tag:** roadmap\n\nFiled 2026-01-02. Background is in [the plan](M6.E1-PLAN.md)."
+                },
+                "dischargedElsewhere": true,
+                "staleEntry": {
+                  "heading": "M6.E1 — Search across archived Epics",
+                  "line": 7,
+                  "id": "M6.E1",
+                  "evidence": "M6.E1-VERIFICATION.md records a PASS, and M6.E1 is not the current unit"
+                },
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 13,
+                  "depth": 3,
+                  "text": "B1 — Resume ignores the Epic profile",
+                  "inDetails": false,
+                  "leadingId": "B1",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "**Tag:** bug\n\nFiled 2026-01-03. Fix the resume path."
+                },
+                "dischargedElsewhere": true,
+                "staleEntry": {
+                  "heading": "B1 — Resume ignores the Epic profile",
+                  "line": 13,
+                  "id": "B1",
+                  "evidence": "BUGS.md records B1 fixed"
+                },
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 29,
+                  "depth": 3,
+                  "text": "M6.E4 — Batch the index writes (HELD OPEN until the profiler lands)",
+                  "inDetails": false,
+                  "leadingId": "M6.E4",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Blocked on the profiler. Filed 2026-01-05."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": true,
+                  "kind": "held-open",
+                  "declaration": "HELD OPEN"
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": true,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 49,
+                  "depth": 4,
+                  "text": "Export the report as JSON — parked, not sprint material",
+                  "inDetails": false,
+                  "leadingId": null,
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Wait for someone to ask."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": true,
+                  "kind": "parked",
+                  "declaration": "parked"
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              }
+            ],
+            "consulted": [
+              "BACKLOG.md",
+              "BUGS.md",
+              "STATE/closure"
+            ]
+          },
+          "priorities": [],
+          "verification": null,
+          "status": "skipped",
+          "path": ".planning/BACKLOG-REVIEW-2026-01-15.md",
+          "reason": "the proposed priorities were refused, so nothing was written (7 reason(s))",
+          "reasons": [
+            "priority 1: covers B1, which is not an open bug in .planning/BUGS.md",
+            "priority 2: covers .planning/BACKLOG.md:37, which is not the line of a live backlog row",
+            "priority 3: why runs 4 sentences — at most 3",
+            "priority 3: covers .planning/BACKLOG.md:29, but BACKLOG.md:29 is dropped from the appendix — self-declared: `HELD OPEN`",
+            "priority 3: cannot depend on itself",
+            "priority 1: evidence .planning/BUGS.md:999 does not resolve — file has only 25 lines",
+            "priority 2: evidence .planning/NOPE.md does not resolve — does not exist"
+          ]
+        }
+      },
+      "changed": {}
+    },
+    {
+      "name": "advise: runAdvise (valid proposal — stale-read guard passes, artifact written)",
+      "site": "advise.js:842-853",
+      "result": {
+        "ok": {
+          "status": "written",
+          "path": ".planning/BACKLOG-REVIEW-2026-01-15.md",
+          "reason": null,
+          "today": "2026-01-15",
+          "corpus": {
+            "sources": {
+              "backlog": {
+                "path": ".planning/BACKLOG.md",
+                "rows": [
+                  {
+                    "line": 7,
+                    "depth": 3,
+                    "text": "M6.E1 — Search across archived Epics",
+                    "inDetails": false,
+                    "leadingId": "M6.E1",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "**Tag:** roadmap\n\nFiled 2026-01-02. Background is in [the plan](M6.E1-PLAN.md)."
+                  },
+                  {
+                    "line": 13,
+                    "depth": 3,
+                    "text": "B1 — Resume ignores the Epic profile",
+                    "inDetails": false,
+                    "leadingId": "B1",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "**Tag:** bug\n\nFiled 2026-01-03. Fix the resume path."
+                  },
+                  {
+                    "line": 19,
+                    "depth": 3,
+                    "text": "B2 — Doctor misreads a missing key",
+                    "inDetails": false,
+                    "leadingId": "B2",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "**Tag:** bug\n\nTrigger: met — a second report came in on 2026-01-06."
+                  },
+                  {
+                    "line": 25,
+                    "depth": 3,
+                    "text": "B4 — A bug the catalog never filed",
+                    "inDetails": false,
+                    "leadingId": "B4",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "Filed 2026-01-04. The id names nothing in BUGS.md."
+                  },
+                  {
+                    "line": 29,
+                    "depth": 3,
+                    "text": "M6.E4 — Batch the index writes (HELD OPEN until the profiler lands)",
+                    "inDetails": false,
+                    "leadingId": "M6.E4",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "Blocked on the profiler. Filed 2026-01-05."
+                  },
+                  {
+                    "line": 33,
+                    "depth": 3,
+                    "text": "M6.E3 — Export the report",
+                    "inDetails": false,
+                    "leadingId": "M6.E3",
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "The Epic in flight."
+                  },
+                  {
+                    "line": 49,
+                    "depth": 4,
+                    "text": "Export the report as JSON — parked, not sprint material",
+                    "inDetails": false,
+                    "leadingId": null,
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "Wait for someone to ask."
+                  },
+                  {
+                    "line": 53,
+                    "depth": 4,
+                    "text": "Fixes B2 — the doctor rewrite",
+                    "inDetails": false,
+                    "leadingId": null,
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "Rewrite the key lookup so a missing key is a failure."
+                  },
+                  {
+                    "line": 57,
+                    "depth": 4,
+                    "text": "Cache the unit walk",
+                    "inDetails": false,
+                    "leadingId": null,
+                    "discharged": false,
+                    "dischargedBy": null,
+                    "dischargedAt": null,
+                    "path": ".planning/BACKLOG.md",
+                    "body": "Filed 2025-11-20. Status takes two seconds on a large tree.\n\n<details>\n<summary>Original entry</summary>"
+                  }
+                ],
+                "totalRows": 12
+              },
+              "bugs": {
+                "path": ".planning/BUGS.md",
+                "entries": [
+                  {
+                    "id": "B1",
+                    "status": "fixed",
+                    "cell": "`fixed`",
+                    "line": 5,
+                    "path": ".planning/BUGS.md",
+                    "headline": "**Resume ignores the Epic profile** — fixed in M6.E1."
+                  },
+                  {
+                    "id": "B2",
+                    "status": "confirmed",
+                    "cell": "`confirmed`",
+                    "line": 6,
+                    "path": ".planning/BUGS.md",
+                    "headline": "**Doctor misreads a missing key** as a pass."
+                  },
+                  {
+                    "id": "B3",
+                    "status": "confirmed",
+                    "cell": "`confirmed`",
+                    "line": 7,
+                    "path": ".planning/BUGS.md",
+                    "headline": "**Drain crashes on an empty inbox** — reported twice."
+                  },
+                  {
+                    "id": "B5",
+                    "status": "dismissed",
+                    "cell": "`dismissed`",
+                    "line": 8,
+                    "path": ".planning/BUGS.md",
+                    "headline": "**Status colours look off** — terminal theme, not ours."
+                  },
+                  {
+                    "id": "B6",
+                    "status": "confirmed",
+                    "cell": "`confirmed (regression)`",
+                    "line": 9,
+                    "path": ".planning/BUGS.md",
+                    "headline": "**Checkpoint drops the last question.**"
+                  }
+                ]
+              },
+              "closure": {
+                "units": [
+                  {
+                    "unit": "M6.E1",
+                    "status": "closed",
+                    "reason": "M6.E1-VERIFICATION.md records a PASS, and M6.E1 is not the current unit",
+                    "evidence": "**Verdict:** PASS — every acceptance criterion checked against the archive search."
+                  },
+                  {
+                    "unit": "M6.E3",
+                    "status": "open",
+                    "reason": "M6.E3 is the current unit — mid-flight, not closed",
+                    "evidence": null
+                  }
+                ],
+                "counts": {
+                  "closed": 1,
+                  "open": 1,
+                  "cannotDetermine": 0
+                },
+                "stateReadable": true,
+                "reason": null
+              },
+              "milestones": {
+                "files": [
+                  {
+                    "file": "MILESTONE-6.md",
+                    "path": ".planning/MILESTONE-6.md",
+                    "rows": [
+                      {
+                        "id": "M6.E1",
+                        "milestone": "M6",
+                        "epicNumber": 1,
+                        "title": "E1",
+                        "status": "**shipped** — `v0.1.2`, 2026-01-04",
+                        "line": 5,
+                        "raw": "| `M6.E1` | **shipped** — `v0.1.2`, 2026-01-04 | Search across archived Epics. |"
+                      },
+                      {
+                        "id": "M6.E2",
+                        "milestone": "M6",
+                        "epicNumber": 2,
+                        "title": "E2",
+                        "status": "**shipped** — `v0.1.3`, 2026-01-09",
+                        "line": 6,
+                        "raw": "| `M6.E2` | **shipped** — `v0.1.3`, 2026-01-09 | Inbox drain fixes. |"
+                      },
+                      {
+                        "id": "M6.E3",
+                        "milestone": "M6",
+                        "epicNumber": 3,
+                        "title": "E3",
+                        "status": "**in flight**",
+                        "line": 7,
+                        "raw": "| `M6.E3` | **in flight** | The export work. |"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "otherBranches": {
+                "open": [],
+                "unclassified": [],
+                "unreadable": []
+              }
+            },
+            "cannotCheck": [],
+            "checked": [
+              "BACKLOG.md",
+              "BUGS.md",
+              "STATE/closure",
+              "milestone rows",
+              "other branches"
+            ]
+          },
+          "classified": {
+            "live": [
+              {
+                "row": {
+                  "line": 19,
+                  "depth": 3,
+                  "text": "B2 — Doctor misreads a missing key",
+                  "inDetails": false,
+                  "leadingId": "B2",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "**Tag:** bug\n\nTrigger: met — a second report came in on 2026-01-06."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": true
+              },
+              {
+                "row": {
+                  "line": 25,
+                  "depth": 3,
+                  "text": "B4 — A bug the catalog never filed",
+                  "inDetails": false,
+                  "leadingId": "B4",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Filed 2026-01-04. The id names nothing in BUGS.md."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 33,
+                  "depth": 3,
+                  "text": "M6.E3 — Export the report",
+                  "inDetails": false,
+                  "leadingId": "M6.E3",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "The Epic in flight."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 53,
+                  "depth": 4,
+                  "text": "Fixes B2 — the doctor rewrite",
+                  "inDetails": false,
+                  "leadingId": null,
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Rewrite the key lookup so a missing key is a failure."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": {
+                  "id": "B2",
+                  "declaration": "Fixes B2"
+                },
+                "blocked": false,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 57,
+                  "depth": 4,
+                  "text": "Cache the unit walk",
+                  "inDetails": false,
+                  "leadingId": null,
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Filed 2025-11-20. Status takes two seconds on a large tree.\n\n<details>\n<summary>Original entry</summary>"
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              }
+            ],
+            "dropped": [
+              {
+                "row": {
+                  "line": 7,
+                  "depth": 3,
+                  "text": "M6.E1 — Search across archived Epics",
+                  "inDetails": false,
+                  "leadingId": "M6.E1",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "**Tag:** roadmap\n\nFiled 2026-01-02. Background is in [the plan](M6.E1-PLAN.md)."
+                },
+                "dischargedElsewhere": true,
+                "staleEntry": {
+                  "heading": "M6.E1 — Search across archived Epics",
+                  "line": 7,
+                  "id": "M6.E1",
+                  "evidence": "M6.E1-VERIFICATION.md records a PASS, and M6.E1 is not the current unit"
+                },
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 13,
+                  "depth": 3,
+                  "text": "B1 — Resume ignores the Epic profile",
+                  "inDetails": false,
+                  "leadingId": "B1",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "**Tag:** bug\n\nFiled 2026-01-03. Fix the resume path."
+                },
+                "dischargedElsewhere": true,
+                "staleEntry": {
+                  "heading": "B1 — Resume ignores the Epic profile",
+                  "line": 13,
+                  "id": "B1",
+                  "evidence": "BUGS.md records B1 fixed"
+                },
+                "notLive": {
+                  "notLive": false,
+                  "kind": null,
+                  "declaration": null
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 29,
+                  "depth": 3,
+                  "text": "M6.E4 — Batch the index writes (HELD OPEN until the profiler lands)",
+                  "inDetails": false,
+                  "leadingId": "M6.E4",
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Blocked on the profiler. Filed 2026-01-05."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": true,
+                  "kind": "held-open",
+                  "declaration": "HELD OPEN"
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": true,
+                "triggerMet": false
+              },
+              {
+                "row": {
+                  "line": 49,
+                  "depth": 4,
+                  "text": "Export the report as JSON — parked, not sprint material",
+                  "inDetails": false,
+                  "leadingId": null,
+                  "discharged": false,
+                  "dischargedBy": null,
+                  "dischargedAt": null,
+                  "path": ".planning/BACKLOG.md",
+                  "body": "Wait for someone to ask."
+                },
+                "dischargedElsewhere": false,
+                "staleEntry": null,
+                "notLive": {
+                  "notLive": true,
+                  "kind": "parked",
+                  "declaration": "parked"
+                },
+                "moved": {
+                  "moved": false,
+                  "kind": null,
+                  "declaration": null,
+                  "kept": false
+                },
+                "dischargesBug": null,
+                "blocked": false,
+                "triggerMet": false
+              }
+            ],
+            "consulted": [
+              "BACKLOG.md",
+              "BUGS.md",
+              "STATE/closure"
+            ]
+          },
+          "priorities": [
+            {
+              "title": "Make the doctor honest",
+              "why": "A missing key reads as a pass.",
+              "covers": [
+                {
+                  "kind": "bug",
+                  "id": "B2",
+                  "label": "Doctor misreads a missing key as a pass.",
+                  "path": ".planning/BUGS.md",
+                  "line": 6
+                }
+              ],
+              "evidence": [
+                ".planning/BUGS.md:6"
+              ],
+              "dependsOn": []
+            },
+            {
+              "title": "Finish the export",
+              "why": "The Epic in flight.",
+              "covers": [
+                {
+                  "kind": "row",
+                  "id": "M6.E3",
+                  "label": "M6.E3 — Export the report",
+                  "path": ".planning/BACKLOG.md",
+                  "line": 33
+                }
+              ],
+              "evidence": [
+                ".planning/BACKLOG.md:33",
+                ".planning/M6.E3-REQUIREMENTS.md:4"
+              ],
+              "dependsOn": []
+            },
+            {
+              "title": "Speed up status",
+              "why": "Two seconds is too slow.",
+              "covers": [
+                {
+                  "kind": "row",
+                  "id": null,
+                  "label": "Cache the unit walk",
+                  "path": ".planning/BACKLOG.md",
+                  "line": 57
+                },
+                {
+                  "kind": "new",
+                  "id": null,
+                  "label": "profile the walk",
+                  "path": null,
+                  "line": null
+                }
+              ],
+              "evidence": [
+                ".planning/BACKLOG.md:57"
+              ],
+              "dependsOn": [
+                2
+              ]
+            }
+          ],
+          "verification": {
+            "ok": true,
+            "resolved": [
+              {
+                "raw": ".planning/BUGS.md:6",
+                "path": ".planning/BUGS.md",
+                "line": 6,
+                "offset": 2083
+              },
+              {
+                "raw": ".planning/BUGS.md:6",
+                "path": ".planning/BUGS.md",
+                "line": 6,
+                "offset": 2191
+              },
+              {
+                "raw": ".planning/BACKLOG.md:33",
+                "path": ".planning/BACKLOG.md",
+                "line": 33,
+                "offset": 2281
+              },
+              {
+                "raw": ".planning/M6.E3-REQUIREMENTS.md:4",
+                "path": ".planning/M6.E3-REQUIREMENTS.md",
+                "line": 4,
+                "offset": 2308
+              },
+              {
+                "raw": ".planning/BACKLOG.md:33",
+                "path": ".planning/BACKLOG.md",
+                "line": 33,
+                "offset": 2413
+              },
+              {
+                "raw": ".planning/BACKLOG.md:57",
+                "path": ".planning/BACKLOG.md",
+                "line": 57,
+                "offset": 2510
+              },
+              {
+                "raw": ".planning/BACKLOG.md:57",
+                "path": ".planning/BACKLOG.md",
+                "line": 57,
+                "offset": 2649
+              },
+              {
+                "raw": ".planning/BACKLOG.md:33",
+                "path": ".planning/BACKLOG.md",
+                "line": 33,
+                "offset": 3148
+              },
+              {
+                "raw": ".planning/BACKLOG.md:57",
+                "path": ".planning/BACKLOG.md",
+                "line": 57,
+                "offset": 3253
+              },
+              {
+                "raw": ".planning/BACKLOG.md:19",
+                "path": ".planning/BACKLOG.md",
+                "line": 19,
+                "offset": 3416
+              },
+              {
+                "raw": ".planning/BACKLOG.md:25",
+                "path": ".planning/BACKLOG.md",
+                "line": 25,
+                "offset": 3495
+              },
+              {
+                "raw": ".planning/BACKLOG.md:53",
+                "path": ".planning/BACKLOG.md",
+                "line": 53,
+                "offset": 3652
+              },
+              {
+                "raw": ".planning/BACKLOG.md:7",
+                "path": ".planning/BACKLOG.md",
+                "line": 7,
+                "offset": 3930
+              },
+              {
+                "raw": ".planning/BACKLOG.md:13",
+                "path": ".planning/BACKLOG.md",
+                "line": 13,
+                "offset": 4136
+              },
+              {
+                "raw": ".planning/BACKLOG.md:29",
+                "path": ".planning/BACKLOG.md",
+                "line": 29,
+                "offset": 4361
+              },
+              {
+                "raw": ".planning/BACKLOG.md:49",
+                "path": ".planning/BACKLOG.md",
+                "line": 49,
+                "offset": 4571
+              }
+            ],
+            "unresolved": [],
+            "truncated": null
+          },
+          "artifact": "# Backlog review — 2026-01-15\n\nWhat to work on next in fixture, read from its own `.planning/` corpus.\n\n**This changes nothing on its own.** It proposes; you pick. Nothing in `.planning/` was modified, no row was struck, and nothing was added to the decision queue.\n\nThe priorities are a **judgment**, made by the agent that ran this command from a digest of this project's documents. Another run over the same files can propose different ones. What is checked is that each one cites lines that exist and covers rows and bugs that are live.\n\n*Produced `via /sig:advise`.*\n\n## Corpus read\n\n**Read:** BACKLOG.md · BUGS.md · STATE/closure · milestone rows · other branches.\n\n**Consulted by the row inputs:** `BACKLOG.md` · `BUGS.md` · `STATE/closure`.\n\n**Read, not consulted:** `milestone rows` — kept because it is cheap and is the natural home for a future \"already sequenced into an open Epic\" input; no ranking input reads it; `other branches` — not ranked — no Epic is open on another branch.\n\n**Could not read:** nothing — all 5 sources were readable.\n\n**Digest read** (re-read when this file was written): milestone · open Epics · bugs · backlog · open questions · inbox.\n\n**Digest could not read:**\n\n- **vision** — no PROJECT.md in .planning/ or at the root — this project states no vision here\n- **retrospectives** — 1 retrospective(s), none with a \"What to feed back\" or \"What we'd do differently\" section\n\n**Digest note:** 4 backlog row(s) dropped (discharged, self-declared not live, or folded) are not offered here — they cannot be covered, and the advisory lists them under Dropped.\n\n## Citation rule\n\nEvery claim below ends with a citation naming a repo-root-relative path and line. Each one was resolved against disk before this file was written: the path had to exist and the line had to be inside it. A citation that did not resolve fails the run, and this file would not exist. What that does NOT check is whether the cited line says what the claim says it says.\n\n## Priorities — 3\n\n### 1. Make the doctor honest\n\n**Why:** A missing key reads as a pass. — evidence: `.planning/BUGS.md:6`\n\nCovers:\n\n- **`B2`** Doctor misreads a missing key as a pass. — open bug. — evidence: `.planning/BUGS.md:6`\n\n### 2. Finish the export\n\n**Why:** The Epic in flight. — evidence: `.planning/BACKLOG.md:33`, `.planning/M6.E3-REQUIREMENTS.md:4`\n\nCovers:\n\n- **M6.E3 — Export the report** — backlog row. — evidence: `.planning/BACKLOG.md:33`\n\n### 3. Speed up status\n\n**Why:** Two seconds is too slow. — evidence: `.planning/BACKLOG.md:57`\n\n**Comes after:** priority 2 (Finish the export).\n\nCovers:\n\n- **Cache the unit walk** — backlog row. — evidence: `.planning/BACKLOG.md:57`\n- **profile the walk** — unfiled: not in the corpus yet, so there is no line to cite.\n\n## Appendix — every live row — 5\n\n**Not ranked.** Every live row appears exactly once: under the priority that covers it, or in the list after, in file order. Age is not an input. A row here was looked at, which is a different thing from a row nobody considered — the list is complete, not curated.\n\n### Under priority 2 — Finish the export\n\n- **M6.E3 — Export the report** — evidence: `.planning/BACKLOG.md:33`\n\n### Under priority 3 — Speed up status\n\n- **Cache the unit walk** — evidence: `.planning/BACKLOG.md:57`\n\n### Not covered by a priority — 3, in file order\n\n- **B2 — Doctor misreads a missing key** — its written trigger has fired. — evidence: `.planning/BACKLOG.md:19`\n- **B4 — A bug the catalog never filed** — evidence: `.planning/BACKLOG.md:25`\n- **Fixes B2 — the doctor rewrite** — its heading says it discharges `B2`, which `BUGS.md` still records as confirmed. — evidence: `.planning/BACKLOG.md:53`\n\n### Dropped — 4\n\n- **M6.E1 — Search across archived Epics** — Dropped by the **discharge** input — `M6.E1` reads closed in **unit closure** (M6.E1-VERIFICATION.md records a PASS, and M6.E1 is not the current unit), so it is not live work. — evidence: `.planning/BACKLOG.md:7`\n- **B1 — Resume ignores the Epic profile** — Dropped by the **discharge** input — `B1` reads closed in **`BUGS.md`** (BUGS.md records B1 fixed), so it is not live work. — evidence: `.planning/BACKLOG.md:13`\n- **M6.E4 — Batch the index writes (HELD OPEN until the profiler lands)** — Dropped by the **self-declared** input — the row's own heading says `HELD OPEN`, so it is not actionable work. — evidence: `.planning/BACKLOG.md:29`\n- **Export the report as JSON — parked, not sprint material** — Dropped by the **self-declared** input — the row's own heading says `parked`, so it is not actionable work. — evidence: `.planning/BACKLOG.md:49`\n"
+        }
+      },
+      "changed": {
+        ".planning/BACKLOG-REVIEW-2026-01-15.md": "# Backlog review — 2026-01-15\n\nWhat to work on next in fixture, read from its own `.planning/` corpus.\n\n**This changes nothing on its own.** It proposes; you pick. Nothing in `.planning/` was modified, no row was struck, and nothing was added to the decision queue.\n\nThe priorities are a **judgment**, made by the agent that ran this command from a digest of this project's documents. Another run over the same files can propose different ones. What is checked is that each one cites lines that exist and covers rows and bugs that are live.\n\n*Produced `via /sig:advise`.*\n\n## Corpus read\n\n**Read:** BACKLOG.md · BUGS.md · STATE/closure · milestone rows · other branches.\n\n**Consulted by the row inputs:** `BACKLOG.md` · `BUGS.md` · `STATE/closure`.\n\n**Read, not consulted:** `milestone rows` — kept because it is cheap and is the natural home for a future \"already sequenced into an open Epic\" input; no ranking input reads it; `other branches` — not ranked — no Epic is open on another branch.\n\n**Could not read:** nothing — all 5 sources were readable.\n\n**Digest read** (re-read when this file was written): milestone · open Epics · bugs · backlog · open questions · inbox.\n\n**Digest could not read:**\n\n- **vision** — no PROJECT.md in .planning/ or at the root — this project states no vision here\n- **retrospectives** — 1 retrospective(s), none with a \"What to feed back\" or \"What we'd do differently\" section\n\n**Digest note:** 4 backlog row(s) dropped (discharged, self-declared not live, or folded) are not offered here — they cannot be covered, and the advisory lists them under Dropped.\n\n## Citation rule\n\nEvery claim below ends with a citation naming a repo-root-relative path and line. Each one was resolved against disk before this file was written: the path had to exist and the line had to be inside it. A citation that did not resolve fails the run, and this file would not exist. What that does NOT check is whether the cited line says what the claim says it says.\n\n## Priorities — 3\n\n### 1. Make the doctor honest\n\n**Why:** A missing key reads as a pass. — evidence: `.planning/BUGS.md:6`\n\nCovers:\n\n- **`B2`** Doctor misreads a missing key as a pass. — open bug. — evidence: `.planning/BUGS.md:6`\n\n### 2. Finish the export\n\n**Why:** The Epic in flight. — evidence: `.planning/BACKLOG.md:33`, `.planning/M6.E3-REQUIREMENTS.md:4`\n\nCovers:\n\n- **M6.E3 — Export the report** — backlog row. — evidence: `.planning/BACKLOG.md:33`\n\n### 3. Speed up status\n\n**Why:** Two seconds is too slow. — evidence: `.planning/BACKLOG.md:57`\n\n**Comes after:** priority 2 (Finish the export).\n\nCovers:\n\n- **Cache the unit walk** — backlog row. — evidence: `.planning/BACKLOG.md:57`\n- **profile the walk** — unfiled: not in the corpus yet, so there is no line to cite.\n\n## Appendix — every live row — 5\n\n**Not ranked.** Every live row appears exactly once: under the priority that covers it, or in the list after, in file order. Age is not an input. A row here was looked at, which is a different thing from a row nobody considered — the list is complete, not curated.\n\n### Under priority 2 — Finish the export\n\n- **M6.E3 — Export the report** — evidence: `.planning/BACKLOG.md:33`\n\n### Under priority 3 — Speed up status\n\n- **Cache the unit walk** — evidence: `.planning/BACKLOG.md:57`\n\n### Not covered by a priority — 3, in file order\n\n- **B2 — Doctor misreads a missing key** — its written trigger has fired. — evidence: `.planning/BACKLOG.md:19`\n- **B4 — A bug the catalog never filed** — evidence: `.planning/BACKLOG.md:25`\n- **Fixes B2 — the doctor rewrite** — its heading says it discharges `B2`, which `BUGS.md` still records as confirmed. — evidence: `.planning/BACKLOG.md:53`\n\n### Dropped — 4\n\n- **M6.E1 — Search across archived Epics** — Dropped by the **discharge** input — `M6.E1` reads closed in **unit closure** (M6.E1-VERIFICATION.md records a PASS, and M6.E1 is not the current unit), so it is not live work. — evidence: `.planning/BACKLOG.md:7`\n- **B1 — Resume ignores the Epic profile** — Dropped by the **discharge** input — `B1` reads closed in **`BUGS.md`** (BUGS.md records B1 fixed), so it is not live work. — evidence: `.planning/BACKLOG.md:13`\n- **M6.E4 — Batch the index writes (HELD OPEN until the profiler lands)** — Dropped by the **self-declared** input — the row's own heading says `HELD OPEN`, so it is not actionable work. — evidence: `.planning/BACKLOG.md:29`\n- **Export the report as JSON — parked, not sprint material** — Dropped by the **self-declared** input — the row's own heading says `parked`, so it is not actionable work. — evidence: `.planning/BACKLOG.md:49`\n"
+      }
+    },
+    {
+      "name": "drive: inboxHasDrainableEntries (via FLOOR_CONDITIONS)",
+      "site": "drive.js:150",
+      "result": {
+        "ok": {
+          "preview": true,
+          "destructive": true
+        }
+      },
+      "changed": {}
+    },
+    {
+      "name": "drive: resolveFloors(PLAN)",
+      "site": "drive.js:104 → :150",
+      "result": {
+        "ok": {
+          "live": [
+            {
+              "id": "plan-drain-preview",
+              "at": "PLAN",
+              "why": "A drain write mutates the idea database; the diff is previewed and accepted before any write (`plan.md` R1 hard gate)."
+            },
+            {
+              "id": "plan-drain-destructive",
+              "at": "PLAN",
+              "why": "delete/merge remove text and confirm per entry regardless of gate_strictness (`plan.md` R5 sub-gate)."
+            }
+          ],
+          "dormant": [],
+          "cannotCheck": []
+        }
+      },
+      "changed": {}
+    },
+    {
+      "name": "drive: proposeEpicCandidates",
+      "site": "drive.js:490",
+      "result": {
+        "ok": {
+          "candidates": [
+            {
+              "id": "M6.E3",
+              "title": "M6.E3",
+              "source": "STATE.md (open Epic)",
+              "line": null,
+              "why": "already open at EXECUTE — finish it before starting new work"
+            },
+            {
+              "id": "M6.E1",
+              "title": "M6.E1 — Search across archived Epics",
+              "source": "BACKLOG.md",
+              "line": 7,
+              "why": "open row in the groomed queue",
+              "rank": 5
+            },
+            {
+              "id": "B1",
+              "title": "B1 — Resume ignores the Epic profile",
+              "source": "BACKLOG.md",
+              "line": 13,
+              "why": "open row in the groomed queue",
+              "rank": 5
+            },
+            {
+              "id": "B2",
+              "title": "B2 — Doctor misreads a missing key",
+              "source": "BACKLOG.md",
+              "line": 19,
+              "why": "open row in the groomed queue",
+              "rank": 5
+            },
+            {
+              "id": "B4",
+              "title": "B4 — A bug the catalog never filed",
+              "source": "BACKLOG.md",
+              "line": 25,
+              "why": "open row in the groomed queue",
+              "rank": 5
+            },
+            {
+              "id": "M6.E4",
+              "title": "M6.E4 — Batch the index writes (HELD OPEN until the profiler lands)",
+              "source": "BACKLOG.md",
+              "line": 29,
+              "why": "open row in the groomed queue",
+              "rank": 5
+            },
+            {
+              "id": null,
+              "title": "Export the report as JSON — parked, not sprint material",
+              "source": "BACKLOG.md",
+              "line": 49,
+              "why": "open row in the groomed queue",
+              "rank": 0
+            },
+            {
+              "id": null,
+              "title": "Fixes B2 — the doctor rewrite",
+              "source": "BACKLOG.md",
+              "line": 53,
+              "why": "open row in the groomed queue",
+              "rank": 0
+            },
+            {
+              "id": null,
+              "title": "Cache the unit walk",
+              "source": "BACKLOG.md",
+              "line": 57,
+              "why": "open row in the groomed queue",
+              "rank": 0
+            }
+          ],
+          "cannotCheck": [],
+          "unclassifiedBranches": []
+        }
+      },
+      "changed": {}
+    },
+    {
+      "name": "drive: collectPreflight (M6.E3)",
+      "site": "drive.js:602 (inline question parser :653)",
+      "result": {
+        "ok": {
+          "blocking": [
+            {
+              "source": "STATE.md",
+              "question": "Blocker still recorded: Waiting on the export format decision",
+              "detail": null
+            },
+            {
+              "source": "OPEN-QUESTIONS.md",
+              "question": "Should M6.E3 export a header row?",
+              "detail": "names M6.E3"
+            },
+            {
+              "source": "M6.E3-REQUIREMENTS.md",
+              "question": "2 unfilled marker(s) in the requirements — fill or confirm before building",
+              "detail": "[FILL IN: which columns], [INFERRED: UTF-8 with a BOM]"
+            }
+          ],
+          "cannotCheck": [],
+          "checked": [
+            "DECISION-QUEUE.md",
+            "STATE.md blockers",
+            "OPEN-QUESTIONS.md",
+            "M6.E3-REQUIREMENTS.md"
+          ]
+        }
+      },
+      "changed": {}
+    },
+    {
+      "name": "drive: collectPreflight (no Epic)",
+      "site": "drive.js:602",
+      "result": {
+        "ok": {
+          "blocking": [
+            {
+              "source": "STATE.md",
+              "question": "Blocker still recorded: Waiting on the export format decision",
+              "detail": null
+            }
+          ],
+          "cannotCheck": [
+            {
+              "source": "REQUIREMENTS unfilled markers",
+              "reason": "no Epic selected — nothing to check the spec of"
+            }
+          ],
+          "checked": [
+            "DECISION-QUEUE.md",
+            "STATE.md blockers",
+            "OPEN-QUESTIONS.md"
+          ]
+        }
+      },
+      "changed": {}
+    },
+    {
+      "name": "status: readOpenQuestions",
+      "site": "status.js:200",
+      "result": {
+        "ok": {
+          "count": 4,
+          "top": [
+            "Should M6.E3 export a header row?",
+            "~~Should M6.E3 stream large reports?~~",
+            "Should drive stop at every phase?"
+          ]
+        }
+      },
+      "changed": {}
+    },
+    {
+      "name": "sweep: checkBacklogDischarge",
+      "site": "sweep.js:236",
+      "result": {
+        "ok": [
+          {
+            "check": "backlog-discharge",
+            "severity": "advisory",
+            "file": ".planning/BACKLOG.md",
+            "message": "2 row(s) read as pending while the work they name is recorded closed — M6.E1 (line 7: \"M6.E1 — Search across archived Epics\"); B1 (line 13: \"B1 — Resume ignores the Epic profile\"). Discharge them at ship, or mark the heading \"STILL OPEN\" and say why."
+          },
+          {
+            "check": "backlog-discharge",
+            "severity": "advisory",
+            "file": ".planning/BACKLOG.md",
+            "message": "1 row(s) name work whose closure could not be read (BUGS.md) — their status is UNKNOWN, not clean."
+          }
+        ]
+      },
+      "changed": {}
+    },
+    {
+      "name": "sweep: checkStaleInbox",
+      "site": "sweep.js:296",
+      "result": {
+        "ok": [
+          {
+            "check": "stale-inbox",
+            "severity": "advisory",
+            "file": ".planning/ISSUES-INBOX.md",
+            "message": "inbox has 3 undrained entries — consider draining"
+          }
+        ]
+      },
+      "changed": {}
+    },
+    {
+      "name": "doc-hygiene: checkDanglingReferences",
+      "site": "doc-hygiene.js:741 (B\\d at :766-767, :804)",
+      "result": {
+        "ok": [
+          {
+            "check": "dangling-reference",
+            "severity": "soft",
+            "file": ".planning/BACKLOG.md",
+            "message": "B4 is cited in 1 file(s) but BUGS.md never defines it — a typo, a withdrawn record that still needs a tombstone, or a reference to something that was never filed (.planning/BACKLOG.md)"
+          },
+          {
+            "check": "dangling-reference",
+            "severity": "soft",
+            "file": ".planning/NOTES.md",
+            "message": "B99 is cited in 1 file(s) but BUGS.md never defines it — a typo, a withdrawn record that still needs a tombstone, or a reference to something that was never filed (.planning/NOTES.md)"
+          },
+          {
+            "check": "dangling-reference",
+            "severity": "soft",
+            "file": ".planning/NOTES.md",
+            "message": "D-M6E3-9 is cited in 1 file(s) but DECISIONS.md never defines it — a typo, a withdrawn record that still needs a tombstone, or a reference to something that was never filed (.planning/NOTES.md)"
+          }
+        ]
+      },
+      "changed": {}
+    },
+    {
+      "name": "published-facts: bug tally + bug status vs changelog",
+      "site": "published-facts.js:82, :173",
+      "result": {
+        "ok": {
+          "results": [
+            {
+              "id": "bug-status-vs-changelog",
+              "healCategory": 3,
+              "status": "findings",
+              "reason": null,
+              "findings": [
+                {
+                  "check": "bug-status-vs-changelog",
+                  "healCategory": 3,
+                  "healMechanism": null,
+                  "file": "<ROOT>/.planning/BUGS.md",
+                  "message": "B2 reads `confirmed`, but a released CHANGELOG entry's headline names it — it may already be fixed. Worth checking, and no more than that: this rule matches tokens, not meaning, and on this repository it flagged 2 rows of which 1 was real. A headline can name a bug it filed or merely relates to."
+                },
+                {
+                  "check": "bug-status-vs-changelog",
+                  "healCategory": 3,
+                  "healMechanism": null,
+                  "file": "<ROOT>/.planning/BUGS.md",
+                  "message": "B3 reads `confirmed`, but a released CHANGELOG entry's headline names it — it may already be fixed. Worth checking, and no more than that: this rule matches tokens, not meaning, and on this repository it flagged 2 rows of which 1 was real. A headline can name a bug it filed or merely relates to."
+                }
+              ]
+            },
+            {
+              "id": "published-bug-tally",
+              "healCategory": 3,
+              "status": "findings",
+              "reason": null,
+              "findings": [
+                {
+                  "check": "published-bug-tally",
+                  "healCategory": 3,
+                  "healMechanism": null,
+                  "file": "<ROOT>/.planning/BUGS.md",
+                  "message": "BUGS.md's tally disagrees with its own contents — fixed: published 2, file holds 1; total: published 7, file holds 6. Re-derive it, do not increment. Correct segment: 0 needs-triage · **1 captured-untriaged** · 3 confirmed · 1 dismissed · 1 fixed (**6 total**)"
+                }
+              ]
+            }
+          ],
+          "summary": {
+            "total": 2,
+            "withFindings": 2,
+            "clean": 0,
+            "notApplicable": 0,
+            "cannotEvaluate": 0,
+            "needsAPerson": 3,
+            "selfClearing": 0
+          }
+        }
+      },
+      "changed": {}
+    },
+    {
+      "name": "jev: bug-fixed-jev with no key (blind)",
+      "site": "bug-fixed-jev.js:162",
+      "result": {
+        "ok": {
+          "results": [
+            {
+              "id": "bug-fixed-jev",
+              "healCategory": 3,
+              "status": "cannot-evaluate",
+              "reason": "the Jev check did not run — TYPESAFE_API_KEY is not set (environment or .env)",
+              "findings": []
+            }
+          ],
+          "summary": {
+            "total": 1,
+            "withFindings": 0,
+            "clean": 0,
+            "notApplicable": 0,
+            "cannotEvaluate": 1,
+            "needsAPerson": 0,
+            "selfClearing": 0
+          }
+        }
+      },
+      "changed": {}
+    },
+    {
+      "name": "jev: bug-fixed-jev with a stubbed ask",
+      "site": "bug-fixed-jev.js:162",
+      "result": {
+        "ok": {
+          "report": {
+            "results": [
+              {
+                "id": "bug-fixed-jev",
+                "healCategory": 3,
+                "status": "findings",
+                "reason": null,
+                "findings": [
+                  {
+                    "check": "bug-fixed-jev",
+                    "healCategory": 3,
+                    "healMechanism": null,
+                    "file": ".planning/BUGS.md",
+                    "message": "B3 reads `confirmed`, and Jev (stub-model, likely, p=0.9) reads the released section(s) naming it (CHANGELOG.md:7–11) as saying it was fixed — a whole-section judgment, so no single line is cited; a judgment, not a proof; results can vary between runs.",
+                    "receipt": {
+                      "claim": {
+                        "file": ".planning/BUGS.md",
+                        "line": 7,
+                        "excerpt": "| B3 | `confirmed` | P2 | **Drain crashes on an empty inbox** — reported twice. |"
+                      },
+                      "evidence": {
+                        "source": "CHANGELOG.md",
+                        "line": 7,
+                        "excerpt": "## [0.1.3] - 2026-01-09"
+                      }
+                    },
+                    "judgedBy": {
+                      "model": "stub-model",
+                      "confidence": 0.9
+                    },
+                    "fix": "If it shipped, set B3's status to `fixed` and name the release."
+                  }
+                ],
+                "coverage": {
+                  "checked": 2,
+                  "total": 2,
+                  "unchecked": [],
+                  "model": "stub-model",
+                  "sectionsNotRead": []
+                },
+                "judged": "model"
+              }
+            ],
+            "summary": {
+              "total": 1,
+              "withFindings": 1,
+              "clean": 0,
+              "notApplicable": 0,
+              "cannotEvaluate": 0,
+              "needsAPerson": 1,
+              "selfClearing": 0
+            }
+          },
+          "asked": [
+            {
+              "id": "B2",
+              "state": "## [0.1.3] - 2026-01-09\n\n`B3` fixed — the inbox drain no longer crashes on an empty file.\n\nAlso tidied the command index. Relates to `B2`, which remains open."
+            },
+            {
+              "id": "B3",
+              "state": "## [0.1.3] - 2026-01-09\n\n`B3` fixed — the inbox drain no longer crashes on an empty file.\n\nAlso tidied the command index. Relates to `B2`, which remains open."
+            }
+          ]
+        }
+      },
+      "changed": {}
+    },
+    {
+      "name": "backlog: backlogDischargeStatus (+ readClosureSources)",
+      "site": "backlog.js:923, :1038",
+      "result": {
+        "ok": {
+          "outcome": "stale",
+          "reason": null,
+          "rows": 12,
+          "liveRows": 9,
+          "resolvable": 6,
+          "stale": [
+            {
+              "heading": "M6.E1 — Search across archived Epics",
+              "line": 7,
+              "id": "M6.E1",
+              "evidence": "M6.E1-VERIFICATION.md records a PASS, and M6.E1 is not the current unit"
+            },
+            {
+              "heading": "B1 — Resume ignores the Epic profile",
+              "line": 13,
+              "id": "B1",
+              "evidence": "BUGS.md records B1 fixed"
+            }
+          ],
+          "blind": [
+            {
+              "heading": "B4 — A bug the catalog never filed",
+              "line": 25,
+              "id": "B4",
+              "source": "BUGS.md"
+            }
+          ],
+          "sources": {
+            "units": true,
+            "bugs": true
+          }
+        }
+      },
+      "changed": {}
+    },
+    {
+      "name": "bugs-tally: deriveBugCounts",
+      "site": "bugs-tally.js:170",
+      "result": {
+        "ok": {
+          "needsTriage": 0,
+          "confirmed": 3,
+          "dismissed": 1,
+          "fixed": 1,
+          "capturedUntriaged": 1,
+          "tableRows": 5,
+          "total": 6,
+          "unreadable": []
+        }
+      },
+      "changed": {}
+    },
+    {
+      "name": "add: rewriteBugTally",
+      "site": "add.js:1404",
+      "result": {
+        "ok": "# Bugs\n\n| ID | Status | Pri | Summary |\n|---|---|---|---|\n| B1 | `fixed` | P2 | **Resume ignores the Epic profile** — fixed in M6.E1. |\n| B2 | `confirmed` | P1 | **Doctor misreads a missing key** as a pass. |\n| B3 | `confirmed` | P2 | **Drain crashes on an empty inbox** — reported twice. |\n| B5 | `dismissed` | P3 | **Status colours look off** — terminal theme, not ours. |\n| B6 | `confirmed (regression)` | P1 | **Checkpoint drops the last question.** |\n\nA sample row in a fence is not an entry:\n\n```\n| B7 | `confirmed` | P1 | sample only |\n```\n\n## Lock left behind after a crash\n\n**Status:** needs-triage\n\nA killed run leaves `.state.lock` behind.\n\n---\n\n*0 needs-triage · **1 captured-untriaged** · 3 confirmed · 1 dismissed · 1 fixed (**6 total**). Last updated: 2026-01-10.*\n"
+      },
+      "changed": {}
+    },
+    {
+      "name": "capture: captureToDestination via captureToBugs (store off)",
+      "site": "add.js:1088",
+      "result": {
+        "ok": {
+          "written": true,
+          "path": "<ROOT>/.planning/BUGS.md",
+          "line": 25,
+          "repaired": false
+        }
+      },
+      "changed": {
+        ".planning/BUGS.md": "# Bugs\n\n| ID | Status | Pri | Summary |\n|---|---|---|---|\n| B1 | `fixed` | P2 | **Resume ignores the Epic profile** — fixed in M6.E1. |\n| B2 | `confirmed` | P1 | **Doctor misreads a missing key** as a pass. |\n| B3 | `confirmed` | P2 | **Drain crashes on an empty inbox** — reported twice. |\n| B5 | `dismissed` | P3 | **Status colours look off** — terminal theme, not ours. |\n| B6 | `confirmed (regression)` | P1 | **Checkpoint drops the last question.** |\n\nA sample row in a fence is not an entry:\n\n```\n| B7 | `confirmed` | P1 | sample only |\n```\n\n## Lock left behind after a crash\n\n**Status:** needs-triage\n\nA killed run leaves `.state.lock` behind.\n\n---\n\n## Export drops the last row\n\n**Status:** needs-triage\n\nExport drops the last row.\n\n---\n\n\n*0 needs-triage · **2 captured-untriaged** · 3 confirmed · 1 dismissed · 1 fixed (**7 total**). Last updated: 2026-01-10.*\n"
+      }
+    },
+    {
+      "name": "capture: captureToDestination via captureToFutureIdeas (store off)",
+      "site": "add.js:1088",
+      "result": {
+        "ok": {
+          "written": true,
+          "path": "<ROOT>/.planning/ISSUES-INBOX.md",
+          "line": 62,
+          "repaired": false
+        }
+      },
+      "changed": {
+        ".planning/ISSUES-INBOX.md": "# Issues Inbox\n\nRaw capture inbox for `/sig:add` — untyped work lands here first, unsorted.\n\n## Trigger watchlist (check conditions at every drain)\n\n<!-- standing -->\n\n**Status:** Standing — never promote, merge, or delete.\n\n| Parked item | Condition | Fired? |\n|---|---|---|\n| JSON export | someone asks twice | — |\n| Profiler | 2026-03-01 | — |\n\n---\n\n## Faster status output\n\n**Status:** Logged 2026-01-02 via `/sig:add`.\n\nStatus takes two seconds on a large tree; cache the unit walk.\n\n---\n\n## Search the archive\n\n**Status:** Logged 2026-01-01 via `/sig:add`. → Promoted 2026-01-06 (M6.E2 drain).\n\nBecame the M6.E1 backlog row.\n\n---\n\n## Colour in the status header\n\n**Status:** Logged 2026-01-03 via `/sig:add`. → Deferred 2026-01-06 (M6.E2 drain).\n\nA coloured tier badge.\n\n---\n\n## A note with a dangling fence\n\n**Status:** Logged 2026-01-07 via `/sig:add`.\n\nThe paste below never closed its fence:\n\n```\n$ sig status\ntier: FULL\n\n## Export the report as CSV\n\n**Status:** Logged 2026-01-08 via `/sig:add`.\n\nA CSV export would let the numbers go into a spreadsheet.\n\n---\n\n*Last updated: 2026-01-08*\n\n## Tier in status header\n\n**Status:** Logged 2026-01-15 via `/sig:add`. (during M6.E3 EXECUTE)\n\nShow the tier in the status header.\n\n---\n\n*Last updated: 2026-01-15*\n"
+      }
+    },
+    {
+      "name": "capture: captureToDestination via captureToOpenQuestions (store off)",
+      "site": "add.js:1088",
+      "result": {
+        "ok": {
+          "written": true,
+          "path": "<ROOT>/.planning/OPEN-QUESTIONS.md",
+          "line": 31,
+          "repaired": false
+        }
+      },
+      "changed": {
+        ".planning/OPEN-QUESTIONS.md": "# Open Questions\n\n## Should M6.E3 export a header row?\n\n**Status:** Open — logged 2026-01-07 via `/sig:add`.\n\n**Resolve by:** M6.E3 PLAN\n\n---\n\n## ~~Should M6.E3 stream large reports?~~\n\n**Status:** Answered 2026-01-08 — no, see D-M6E3-2.\n\n---\n\n## Should drive stop at every phase?\n\n**Status:** Open — logged 2026-01-07 via `/sig:add`.\n\nThe attention dial says checkpointed; is that the right default? This is a deliberately long heading so the status reader truncates it.\n\n---\n\n## Does advise read archived Epics, and if it does, should it say so in the artifact's header line?\n\n**Status:** Open — logged 2026-01-09.\n\n---\n\n## Should the export include archived rows?\n\n**Status:** Open — logged 2026-01-15 via `/sig:add`. (during M6.E3 EXECUTE)\n\nShould the export include archived rows?\n\n**Resolve by:** (unset — triage at next planning pass)\n\n---\n"
+      }
+    }
+  ]
+}

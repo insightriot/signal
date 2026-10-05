@@ -1,0 +1,20 @@
+{
+  "id": "SIG-246",
+  "type": "Q",
+  "title": "`M6.E1` S3: manifest or vendor for `yaml`? Decide before building S3.t2.",
+  "source": "migration:OPEN-QUESTIONS.md",
+  "source_ref": "OPEN-QUESTIONS.md:169",
+  "legacy_id": "OPEN-QUESTIONS.md:169",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

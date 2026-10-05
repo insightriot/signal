@@ -1,0 +1,21 @@
+{
+  "id": "SIG-62",
+  "type": "BUG",
+  "title": "The claim is squash-merge specific, and the Epic lane moved to `--merge` at v0.1.19 (`CLAUDE.md`) precisely so branch…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:101",
+  "legacy_id": "B62",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

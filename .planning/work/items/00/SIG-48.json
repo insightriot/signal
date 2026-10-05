@@ -1,0 +1,23 @@
+{
+  "id": "SIG-48",
+  "type": "BUG",
+  "title": "`execute.md`'s phase-entry instruction is unconditional, and an agent refused it on correctness grounds — writing a…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:84",
+  "legacy_id": "B48",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

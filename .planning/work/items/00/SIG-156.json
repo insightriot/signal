@@ -1,0 +1,20 @@
+{
+  "id": "SIG-156",
+  "type": "FEAT",
+  "title": "`.planning/` layout as a runtime-read schema doc · **roadmap** · medium · **filed 2026-09-01**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:433",
+  "legacy_id": "BACKLOG.md:433",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "SIG-5",
+  "type": "BUG",
+  "title": "`npm run lint` is broken — ESLint v9 with no flat config.",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:24",
+  "legacy_id": "B5",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

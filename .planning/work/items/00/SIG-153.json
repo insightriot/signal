@@ -1,0 +1,20 @@
+{
+  "id": "SIG-153",
+  "type": "FEAT",
+  "title": "A stated ladder: convention → lint, with a grandfather list · **roadmap** · medium · **filed 2026-09-01**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:370",
+  "legacy_id": "BACKLOG.md:370",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

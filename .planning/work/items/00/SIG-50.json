@@ -1,0 +1,21 @@
+{
+  "id": "SIG-50",
+  "type": "BUG",
+  "title": "Completeness claims are written from the shape of the work rather than from the artifact — and Signal contains zero…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:87",
+  "legacy_id": "B50",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

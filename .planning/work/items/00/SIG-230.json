@@ -1,0 +1,21 @@
+{
+  "id": "SIG-230",
+  "type": "FEAT",
+  "title": "Parked — the trigger watchlist *(not sprint material)*",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:2140",
+  "legacy_id": "BACKLOG.md:2140",
+  "migration_note": "Duplicates the standing trigger watchlist, which migrates to WATCHLIST.md (D-M6E11-18).",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "SIG-19",
+  "type": "BUG",
+  "title": "The v3 migrate's tail `regeneratePlanningIndex` silently clobbers a pre-v3 hand-curated INDEX.md.",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:44",
+  "legacy_id": "B19",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

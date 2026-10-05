@@ -42,7 +42,7 @@ Run **before any other Workflow step**, regardless of `gate_strictness`. This is
 
 **No bypass.** Per D-E9-3 there is no `--no-retro` flag, no environment variable escape hatch, and no extra-args trick. `shipFR1Check` ignores any extra properties passed to it. **This is unchanged for Epics.** What D-E9-3 never decided is what a project with *no* Epics owes; until M5.E9 the code silently answered *"it is broken"* and refused to run. **The gate is Epic-only (D-M5E9-1) — that is a scope, not a bypass:** a linear project cannot opt out of a rule that never applied to it, and no flag was added.
 
-**Layered enforcement context:** even if a user manually edits STATE.md to skip `/sig:ship`, the `PreToolUse(Edit|Write)` hook in `hooks/hooks.json` (added in M4.5.E9.S1.t7) blocks that write. Even if the user clears context mid-EXECUTE without invoking SHIP, the `SessionStart(resume)` hook surfaces the missing retro on the next session resume.
+**Layered enforcement context:** if a user manually edits STATE.md to skip `/sig:ship`, the `PreToolUse(Edit|Write|MultiEdit)` hook in `hooks/hooks.json` (added in M4.5.E9.S1.t7) checks an `Edit` or `Write` of it: malformed frontmatter is blocked, and an Epic close with no retro on disk is a non-blocking warning. A `MultiEdit` of STATE.md is not checked (the hook judges only `Edit` and `Write` there), and neither is an edit made through Bash — the hard retro contract is §0.5's `shipFR1Check`. Even if the user clears context mid-EXECUTE without invoking SHIP, the `SessionStart(resume)` hook surfaces the missing retro on the next session resume.
 
 ## 0.6 Branch precondition (`B88`) — run before any Workflow step
 
@@ -184,7 +184,9 @@ On an **Epic-close** SHIP (when `shipFR1Check` returned `{isEpicClose: true}` in
 
 Call `dischargeBacklogRows(baseDir, {rows, by: state.current_epic, at: <today>})` from `tools/lib/backlog.js`, where `rows` are heading substrings **you name** from the Epic's own scope.
 
-**Work store on:** the same call closes the matched items (`closeItems`, reason `fixed`, the discharge stamp as proof) instead of editing `BACKLOG.md`, which is generated — as one batch: if any close fails, none is recorded. Stage the changed item files: an item in the Epic's folder closes in place and does not move (`D-M6E11-29`); one with no Epic moves to `done/YYYY-MM/`.
+**Work store on, v1:** the same call refuses (`CONFIG`), naming `node tools/work-migrate-v2.mjs`, and writes nothing — the v1 discharge, which closed item files, was retired with the v1 store (`M6.E13`). **HALT** and show the message verbatim; migrate, then re-run (as §6.8 item 5).
+
+**Work store on, v2** (`schema_version: 2`): the same call asks each matched item to close (`requestCloses`, one batch, all or nothing) with the Epic's commit as proof — the branch HEAD at ship by default, or pass `commit`; the result's `commit` says which. Each row then reads *closing*, not closed: §6.9 below, the sweep, or a later SHIP confirms it once that commit is on the default branch (`D-M6E13-15`, `D-M6E13-21`). A row already *closing* or closed reads `already-discharged`. Stage the changed item records and the regenerated views.
 
 *(That call sits on one line deliberately. `directive-classifier.js` reads at line granularity, so a
 call name wrapped across a break is invisible to it and the instruction ships **unmeasurable** —
@@ -194,10 +196,12 @@ the same wrap limit `S5.t1` pinned for `checkCorrectionProtocol`, hit here while
    list the backlog rows its work closed. If it closed none, say so — *"no backlog rows discharged;
    this Epic closed no queued item"* — and continue. A step that skips silently when it has nothing
    to do is indistinguishable from a step that did not run.
-2. Report every result. Four outcomes come back and they mean different things: `discharged`,
+2. Report every result. Five outcomes come back and they mean different things: `discharged`,
    `already-discharged` (someone struck it by hand — fine, and not an error), `not-found` (your
-   heading substring matched no live row — check the wording), and **`ambiguous`**, which **wrote
-   nothing** because the substring matched more than one row. Name the row exactly and re-run.
+   heading substring matched no live row — check the wording), `unreadable` (v2 store: nothing
+   readable matched and some records could not be read — the row may be one of them; fix the named
+   records, then re-run), and **`ambiguous`**, which **wrote nothing** because the substring matched
+   more than one row. Name the row exactly and re-run.
 3. When `{written: true}`, stage the modified `.planning/BACKLOG.md` into the SHIP commit alongside
    §5/§6/§6.5.
 
@@ -227,7 +231,7 @@ Call `runShipContentGate(baseDir, { acceptStale })` from `tools/lib/ship-gate.js
    set (environment or the project's `.env`), the gate asks TypeSafe's Jev whether each `STATE.md` paragraph contradicts the facts, and lists each contradiction with the paragraph, the fact, the
    confidence, how many paragraphs were checked, which facts were left out, and that results can
    vary between runs. It also asks, for each `confirmed` bug a released changelog section mentions,
-   whether that section says the bug was fixed, and lists each yes with the bug row and the release
+   whether that section says the bug was fixed, and lists each yes with the bug row (with the work store on, the bug's record — the check then reads the records, not `BUGS.md`) and the release
    section Jev read (its heading and line range — the judgment is per section, so no single line is
    cited). **Each of the two checks has its own 30-second budget and they run one after the other,
    so this step can take up to about a minute.** With no key the report says the Jev checks did not
@@ -254,12 +258,22 @@ missing precondition.
 
 **Work store off, or not an Epic-close SHIP:** skip this step. **Work store on** (`isStoreOn(baseDir)`), after §6.6 and §6.7:
 
-Call `closeEpic(baseDir, state.current_epic, {by, pr, release})` from `tools/lib/work-ops.js` — `pr` is §3's PR number, `release` the version this ship publishes, if any.
+Call `closeEpic(baseDir, state.current_epic, {by, pr, release})` from `tools/lib/work-ops.js` — `pr` is §3's PR number, `release` the version this ship publishes, if any. **On a v2 store** (`schema_version: 2`) the same call gates through `closeEpicCheck` from `tools/lib/work-records.js` — every record whose Epic is this one must be closed, or *closing* with its fix commit already in this branch's HEAD (`D-M6E13-22`: the fix reaches the default branch only at the merge, and a later SHIP or `/sig:docs-sweep` confirms the close); a *closing* one whose commit is not in HEAD, or when git cannot tell, still counts as open — then moves the folder, which holds documents only, and regenerates the v2 views. **On a v1 store** it refuses (`CONFIG`): the v1 item-file gate was retired with the v1 store (`M6.E13`).
 
-1. **`OPEN_ITEMS` → HALT.** The error names each open item in the Epic's folder. Close each (`/sig:item close`) or move it back to the backlog (`/sig:item move <id> T`), then re-run. Do not create the SHIP commit with the Epic's work still open.
+1. **`OPEN_ITEMS` → HALT.** The error names each open record whose Epic is this one — with or without an Epic folder, since the gate runs before the folder is looked for. Close each (`/sig:item close`) or move it back to the backlog (`/sig:item move <id> T`), then re-run. Do not create the SHIP commit with the Epic's work still open.
 2. **`CONFLICT` naming root artifacts → HALT.** The Epic has `{EpicID}-*.md` files at the `.planning/` root, outside its folder (written by a command run with the store off), and archiving the folder would leave them behind. `git mv` each into `.planning/work/epics/<EpicID>/`, then re-run. The retrospective and the profile stay at the root and never trigger this.
-3. **`{status: 'no-folder'}`** — the Epic has no folder (every Epic from before the store). Say so and continue; nothing changed.
+3. **`{status: 'no-folder'}`** — the Epic has no folder (every Epic from before the store) **and no open record** (an open one refuses with `OPEN_ITEMS` first, item 1). Say so and continue; nothing changed.
 4. **`{status: 'closed'}`** — the folder is now `.planning/archive/epics/<EpicID>/` with the close in its `README.md`. Stage into the SHIP commit the moved files (`moved`), every live file whose links into the folder were retargeted (`rewritten`), and the regenerated lists (`.planning/work/EPICS.md` and any of the four lists that changed).
+5. **`CONFIG` with `version: 1`** — a v1 store. **HALT** and show the message verbatim: it names `node tools/work-migrate-v2.mjs`. Migrate, then re-run.
+6. **`SCHEMA` → HALT.** A record somewhere in the store is broken — not necessarily one of this Epic's — so its Epic cannot be read and the gate cannot tell whether it is open. `closeEpicCheck` runs before the folder lookup, so this fires at every Epic-close SHIP until it is fixed. Show the message verbatim: it lists each broken record. Run `/sig:docs-sweep` (or `checkRecords(baseDir)` from `tools/lib/work-records.js`) to find each one by ID and path. `/sig:item` cannot repair it — every change refuses a broken record — and the record's `.json` is never hand-edited. Restore it with git: `git checkout -- <path>` for a damaged working copy, or resolve the merge conflict in the `.json` (the `hooks/check-state-write.js` edit guard blocks Edit and Write, not git). Then re-run.
+
+### 6.9 Confirm fixed closes (work store v2) — every SHIP
+
+**Work store off or v1:** nothing happens. (On a v1 store no fixed close can be confirmed until it is migrated: `node tools/work-migrate-v2.mjs`.)
+
+1. Call `runConfirmCloses(baseDir)` from `tools/lib/close-confirm.js` before the SHIP commit and print its `line` (`null` → say no item is closing). It compares against the local `origin/<default>` ref; SHIP does not fetch.
+2. Stage the changed item records and views into the SHIP commit.
+3. Copy the `Closes:` line into the SHIP artifact verbatim, as the Jev lines are copied in §6.7 — it is the record of which fixes this release confirmed and which still read *closing*. When `line` is `null`, the artifact says no item was closing.
 
 ### 7. Manual milestone meta-retro (`--milestone-meta` flag, optional)
 

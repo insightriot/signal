@@ -1,0 +1,23 @@
+{
+  "id": "SIG-110",
+  "type": "BUG",
+  "title": "The heading now reads *\"Promoted from the inbox drain\"* and carries a boxed note recording why.",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:165",
+  "legacy_id": "B110",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "SIG-65",
+  "type": "BUG",
+  "title": "The migrate's fs-backup snapshot is never expired, aged, or reported — and `B57`'s ignore is what made it invisible.",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:104",
+  "legacy_id": "B65",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

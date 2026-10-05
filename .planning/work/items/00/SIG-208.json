@@ -1,0 +1,22 @@
+{
+  "id": "SIG-208",
+  "type": "CHORE",
+  "title": "~~`docs/map` refresh protocol — Stage 1~~ — **✅ SHIPPED v0.1.11 (M5.E6 FR3)**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:2004",
+  "legacy_id": "BACKLOG.md:2004",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

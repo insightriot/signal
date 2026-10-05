@@ -1,0 +1,22 @@
+{
+  "id": "SIG-209",
+  "type": "CHORE",
+  "title": "~~Concurrency-lock the doc-runtime RMW paths~~ — **DONE** (M5.E4 FR5 + M5.E5 B25; closed-out M5.E6 FR7) *(deferred from the 2026-07-19 memory-layer review)*",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:2010",
+  "legacy_id": "BACKLOG.md:2010",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

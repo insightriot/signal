@@ -1,0 +1,23 @@
+{
+  "id": "SIG-57",
+  "type": "BUG",
+  "title": "`/sig:sweep` walks the migrate snapshot backup and reports a frozen directory as broken live docs — 92% noise on a…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:96",
+  "legacy_id": "B57",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

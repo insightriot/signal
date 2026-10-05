@@ -1,0 +1,12 @@
+{
+  "id": "SIG-273",
+  "type": "NEW",
+  "title": "isStaleVsOrigin skips the fetch when STATE.md has no last_updated_commit, so later checks read stale origin refs",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-04T17:35:19.210Z",
+      "by": "claude"
+    }
+  ]
+}

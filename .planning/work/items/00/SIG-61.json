@@ -1,0 +1,21 @@
+{
+  "id": "SIG-61",
+  "type": "BUG",
+  "title": "A hand-edited `last_updated_commit` whose short sha looks numeric is silently type-coerced by the YAML reader.",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:100",
+  "legacy_id": "B61",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

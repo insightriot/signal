@@ -1,0 +1,23 @@
+{
+  "id": "SIG-99",
+  "type": "BUG",
+  "title": "A plugin install carries Signal's private working notes and its test suite: ~11 MB of tracked files, of which…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:185",
+  "legacy_id": "B99",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

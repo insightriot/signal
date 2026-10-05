@@ -1,0 +1,21 @@
+{
+  "id": "SIG-119",
+  "type": "BUG",
+  "title": "`/sig:advise`'s artifact carries no commit anchor, so its `path:line` citations are true at exactly one commit and…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:173",
+  "legacy_id": "B119",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

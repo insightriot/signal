@@ -1,0 +1,23 @@
+{
+  "id": "SIG-203",
+  "type": "CHORE",
+  "title": "~~Vocabulary attribution sweep~~ — **✅ largely DONE (M5.E7 S4.t10)**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1963",
+  "legacy_id": "BACKLOG.md:1963",
+  "migration_note": "The heading records a partial close (a qualified done-word); the parser verdict was adopted.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

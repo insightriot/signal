@@ -1,0 +1,23 @@
+{
+  "id": "SIG-125",
+  "type": "BUG",
+  "title": "the audit scans `plugin/` and `tools/`, catches the injected-fetch idiom and git remote subcommands, and checks every…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:180",
+  "legacy_id": "B125",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

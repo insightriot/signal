@@ -1,0 +1,23 @@
+{
+  "id": "SIG-49",
+  "type": "BUG",
+  "title": "`package.json` says `0.1.11`; `.claude-plugin/plugin.json` says `0.1.12`.",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:86",
+  "legacy_id": "B49",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "SIG-199",
+  "type": "FEAT",
+  "title": "M5.E14 — Obligation tracker integration (single home for open/closed work)",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1883",
+  "legacy_id": "BACKLOG.md:1883",
+  "migration_note": "One of 2 rows led by M5.E14 — possible duplicates.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

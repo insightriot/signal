@@ -1,0 +1,23 @@
+{
+  "id": "SIG-41",
+  "type": "BUG",
+  "title": "Four of the seven phase commands never advance `phase`, so `completed_phases` is a ledger of phases that were never…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:70",
+  "legacy_id": "B41",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "SIG-68",
+  "type": "BUG",
+  "title": "The detected Epic/linear mode is never printed, so a project reads as Epic mode to a human and linear to Signal with…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:107",
+  "legacy_id": "B68",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

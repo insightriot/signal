@@ -4,7 +4,9 @@
 // INVOKING project (`process.cwd()`, never hard-coded Signal paths) to surface doc
 // rot. Each check returns findings shaped `{check, severity, file, message}` with
 // severity ∈ 'structural' (the things the test-suite guard hard-fails on) |
-// 'advisory' (nudges — bloat, stale inbox). Nothing here writes.
+// 'advisory' (nudges — bloat, stale inbox). Nothing here writes, with ONE
+// exception (`D-M6E13-21`): `confirmClosesInSweep` confirms fixed closes on a
+// v2 work store — `closed` events and the regenerated views.
 //
 // The portable checks live here (meaningful in any Signal-managed repo). The
 // stale-inbox check deliberately lives in THIS module, not doc-hygiene.js, so the
@@ -42,12 +44,31 @@ import {
 import { enumerateRetros, parseExistingHooks, renderIndex } from './retro-index.js';
 import { runDriftChecks, renderDriftReport } from './state-drift.js';
 import { ALL_DRIFT_CHECKS, REACH } from './published-facts.js';
-import { backlogDischargeStatus, BACKLOG_DISCHARGE, REASON_NO_BACKLOG } from './backlog.js';
-import { isStoreOn, checkStore } from './work-store.js';
+import { backlogDischargeStatus, storeDischargeStatus, BACKLOG_DISCHARGE, REASON_NO_BACKLOG } from './backlog.js';
+import { isStoreOn } from './work-store.js';
+import { checkRecords, listClosing, listRecords, recordPath, storeVersion } from './work-records.js';
+import { runConfirmCloses } from './close-confirm.js';
 
 const PLANNING_DIR = '.planning';
 
 const mkFinding = (check, severity, file, message) => ({ check, severity, file, message });
+
+const WORK_MD_REL = PLANNING_DIR + '/work/WORK.md';
+
+// The work records when the store is on (M6.E13 t4.4); `null` when it is off,
+// and the check then reads the list files exactly as before (AC4.1). A store
+// that cannot be read is `{error}` — never a fall-back to reading the views,
+// which can lag the records (Decision 12).
+function readRecords(baseDir) {
+  try {
+    if (!isStoreOn(baseDir).on) return null;
+    return listRecords(baseDir);
+  } catch (err) {
+    return { error: `the work store could not be read — ${err.message}` };
+  }
+}
+
+const brokenIds = (broken) => broken.map((b) => b.id ?? b.path).join(', ');
 
 // Stable finding order for deterministic reports (mirrors doc-hygiene.js's
 // findingCmp): by check, then file, then message.
@@ -234,6 +255,14 @@ export async function retroIndexFreshness(baseDir) {
  * @returns {Promise<Array<{check: string, severity: string, file: string, message: string}>>}
  */
 export async function checkBacklogDischarge(baseDir) {
+  let storeOn;
+  try {
+    storeOn = isStoreOn(baseDir).on;
+  } catch (err) {
+    return [mkFinding('backlog-discharge', 'advisory', WORK_MD_REL,
+      `the backlog could not be checked — the work store could not be read — ${err.message}`)];
+  }
+  if (storeOn) return storeDischarge(baseDir);
   const rel = PLANNING_DIR + '/BACKLOG.md';
   let result;
   try {
@@ -284,6 +313,45 @@ export async function checkBacklogDischarge(baseDir) {
 }
 
 /**
+ * `checkBacklogDischarge` with the store on (M6.E13 t4.4), read from the records.
+ *
+ * A renderer only: what counts as stale is `backlog.js` `storeDischargeStatus`
+ * (the store-on half of `backlogDischargeStatus`, t4.5a) — a live item (T, Q
+ * or P) whose own Epic is archived or closed by `resolveClosures` — so this
+ * check and that function cannot disagree. The records are read there, once.
+ *
+ * Blindness is reported beside the result, never instead of it (the rule the
+ * file check states above): records that do not read, and items in an Epic
+ * that is not archived when unit closure could not be read.
+ */
+async function storeDischarge(baseDir) {
+  const finding = (message) => mkFinding('backlog-discharge', 'advisory', WORK_MD_REL, message);
+  const res = await storeDischargeStatus(baseDir);
+  if (!res.sources.records) return [finding(`the backlog could not be checked — ${res.reason}`)];
+
+  const out = [];
+  if (res.stale.length) {
+    const named = res.stale.map((s) => `${s.id} (${s.status} in ${s.epic}: "${s.heading.slice(0, 60)}"; ${s.evidence})`);
+    out.push(finding(
+      `${res.stale.length} item(s) read as open while the Epic they are in is recorded closed — ${named.join('; ')}. ` +
+        'Close each, or triage it out of the Epic.'
+    ));
+  }
+  if (res.blind.length) {
+    out.push(finding(
+      `${res.blind.length} item(s) sit in an Epic whose closure could not be read (${res.blind.map((b) => `${b.id} in ${b.epic}`).join(', ')}) — ${res.unitsBlind}. ` +
+        'Their status is UNKNOWN, not clean.'
+    ));
+  }
+  if (res.broken.length) {
+    out.push(finding(
+      `${res.broken.length} work item(s) could not be read — ${brokenIds(res.broken)} — their Epic is UNKNOWN, not clean.`
+    ));
+  }
+  return out;
+}
+
+/**
  * Stale-inbox nudge (portable, advisory — AC2.2). Counts the undrained entries in
  * the capture inbox (resolved by `resolveInboxPath` so a legacy or v3 repo both
  * work — no inbox-name literal here) using the same `listDrainCandidatesWithRecovery`
@@ -294,6 +362,20 @@ export async function checkBacklogDischarge(baseDir) {
  * @returns {Promise<Array<{check: string, severity: string, file: string, message: string}>>}
  */
 export async function checkStaleInbox(baseDir) {
+  // Store on (M6.E13 t4.4): the inbox is every record whose status is N — the
+  // definition `/sig:advise` and `/sig:drive` count by — never the generated
+  // inbox view. A store that cannot be read says so: no finding would read as
+  // an empty inbox.
+  const store = readRecords(baseDir);
+  if (store?.error) {
+    return [mkFinding('stale-inbox', 'advisory', WORK_MD_REL, `the inbox could not be checked — ${store.error}`)];
+  }
+  if (store) {
+    const n = store.records.filter((r) => r.status === 'N').length;
+    return n > 0
+      ? [mkFinding('stale-inbox', 'advisory', WORK_MD_REL, `inbox has ${n} undrained ${n === 1 ? 'entry' : 'entries'} — consider draining`)]
+      : [];
+  }
   const inboxRel = resolveInboxPath(baseDir);
   let content;
   try {
@@ -313,10 +395,11 @@ export async function checkStaleInbox(baseDir) {
 /**
  * The work store's own consistency (portable, advisory — M6.E11 t6.2, AC-3.3).
  *
- * With `.planning/work/WORK.md` present, each `checkStore` finding (an item in
- * the wrong status folder, a duplicate ID, a schema violation, a file name that
- * disagrees with its `id`) becomes one advisory finding carrying its path and
- * message. Advisory in every case: the fix is `/sig:item`, not this sweep.
+ * With `.planning/work/WORK.md` present, each `checkRecords` finding (an
+ * invalid record, a duplicate ID, a broken duplicate link, a stale view — or,
+ * on a v1 store, that it must be migrated) becomes one advisory finding
+ * carrying its path and message. Advisory in every case: the fix is
+ * `/sig:item`, not this sweep.
  *
  * Store off → no findings, so a project without the store sees no change.
  * A broken WORK.md makes `isStoreOn` throw; that is reported as ONE advisory
@@ -328,12 +411,96 @@ export async function checkStaleInbox(baseDir) {
 export function checkWorkStore(baseDir) {
   const rel = PLANNING_DIR + '/work/WORK.md';
   try {
-    if (!isStoreOn(baseDir).on) return [];
-    return checkStore(baseDir).map((f) =>
+    // `checkRecords` (M6.E13 t4.4): records, folds, duplicates, stale views on
+    // a v2 store; on a v1 store ONE `v1-store` finding naming the migration —
+    // the v1 status-folder check was retired with the v1 store (t7.4).
+    // `storeVersion` throws on a broken WORK.md, as `isStoreOn` does.
+    const version = storeVersion(baseDir);
+    if (version === null) return [];
+    return checkRecords(baseDir).map((f) =>
       mkFinding('work-store', 'advisory', f.path ?? f.paths?.[0] ?? rel, f.message));
   } catch (err) {
     return [mkFinding('work-store', 'advisory', rel, `the work store could not be checked — ${err.message}`)];
   }
+}
+
+/**
+ * Items left *closing* too long (portable, advisory — M6.E13 t4.4, PLAN risk 3).
+ *
+ * A fixed close is requested with a commit and stays *closing* until
+ * `confirmCloses` finds that commit on the default branch. One that has waited
+ * more than 14 days is a fix that never merged, or a remote branch never
+ * brought down — either way a person has to look. Read through `listClosing`,
+ * the read-only form of `confirmCloses`' own stale test: nothing is written,
+ * and git is not asked (the sweep is offline).
+ *
+ * v2 only. On a v1 store every fixed close is read as *closing* through the
+ * converter until the cutover confirms it, so reporting them would name every
+ * fix ever made. Store off → nothing.
+ *
+ * @param {string} baseDir — project root
+ * @param {{now?: Date|string}} [opts] — the clock (default: now)
+ * @returns {Array<{check: string, severity: string, file: string, message: string}>}
+ */
+export function checkClosingTooLong(baseDir, opts = {}) {
+  let listed;
+  try {
+    if (storeVersion(baseDir) !== 2) return [];
+    listed = listClosing(baseDir, { now: opts.now });
+  } catch (err) {
+    return [mkFinding('closing-too-long', 'advisory', WORK_MD_REL, `closing items could not be checked — ${err.message}`)];
+  }
+  return listed.closing
+    .filter((c) => c.stale)
+    .map((c) =>
+      mkFinding(
+        'closing-too-long',
+        'advisory',
+        c.path,
+        `${c.id} has been closing for ${c.days} days — its fix commit ${c.proof} is not confirmed on the default branch. ` +
+          `Merge it, or reopen the item (\`/sig:item reopen ${c.id} "<reason>"\`) if the fix did not land.`
+      ));
+}
+
+/**
+ * Confirm closes (portable, advisory — M6.E13 t4.6 as amended by `D-M6E13-21`,
+ * AC7.2). **The one sweep step that writes.**
+ *
+ * `D-M6E13-21` settled where a *closing* item becomes closed: SHIP and the
+ * sweep confirm, `/sig:resume` only reports. So this runs `close-confirm.js`
+ * `runConfirmCloses` — `confirmCloses` under it — which writes a `closed` event
+ * for each *closing* item whose fix commit is already on the default branch
+ * and regenerates the views. Each confirmed item is one advisory naming its
+ * record, so the person running the sweep knows which files changed and to
+ * commit them. This supersedes `D-M5E16-1` for this step only; every other
+ * check here stays read-only. Git is asked through local refs only (nothing
+ * is downloaded), so the sweep stays offline.
+ *
+ * v2 only: store off or v1 → nothing, nothing written, and git is not asked.
+ * Fail-open, like `runConfirmCloses`: a broken `WORK.md` or a failed
+ * confirmation (LOCKED, IO) is one advisory, never a throw. Why the rest are
+ * still closing is not repeated here; a long wait is `checkClosingTooLong`'s
+ * finding.
+ *
+ * @param {string} baseDir — project root
+ * @param {{now?: Date|string, execFn?: Function, confirm?: Function}} [opts]
+ *   `confirm`: the confirmation, injected in tests (as `runConfirmCloses`)
+ * @returns {Promise<Array<{check: string, severity: string, file: string, message: string}>>}
+ */
+export async function confirmClosesInSweep(baseDir, opts = {}) {
+  const out = await runConfirmCloses(baseDir, opts);
+  if (out.error) {
+    const what = out.ran ? 'closes not confirmed' : 'closes not checked';
+    return [mkFinding('closes-confirmed', 'advisory', WORK_MD_REL, `${what} — ${out.error}`)];
+  }
+  return out.confirmed.map((id) =>
+    mkFinding(
+      'closes-confirmed',
+      'advisory',
+      recordPath(id),
+      `${id} confirmed closed — its fix commit is on the default branch. The sweep wrote its closed event ` +
+        'and regenerated the views; commit them.'
+    ));
 }
 
 // CLAUDE.md bloat threshold (AD6). A COARSE advisory nudge — NOT the STATE size
@@ -557,6 +724,11 @@ export async function runSweep(baseDir = process.cwd()) {
   raw.push(...(await checkStaleInbox(baseDir)));
   raw.push(...(await checkBacklogDischarge(baseDir)));
   raw.push(...checkWorkStore(baseDir));
+  // The one step that writes (D-M6E13-21): confirmed closes, on a v2 store only.
+  // It runs before the closing-too-long check, so an item it confirms is not
+  // also reported as stuck closing in the same report (REVIEW pass 1).
+  raw.push(...(await confirmClosesInSweep(baseDir)));
+  raw.push(...checkClosingTooLong(baseDir));
   raw.push(...checkClaudeMdBloat(baseDir));
   raw.push(...(await checkPhaseLog(baseDir)));
 

@@ -1,0 +1,23 @@
+{
+  "id": "SIG-104",
+  "type": "BUG",
+  "title": "`/sig:init` spawned four agents holding `Bash` across a codebase, and nothing anywhere told them the content was data.",
+  "priority": "P1",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:159",
+  "legacy_id": "B104",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

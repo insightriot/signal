@@ -1,0 +1,20 @@
+{
+  "id": "SIG-174",
+  "type": "FEAT",
+  "title": "Trajectory scoring — score whole runs, not single instructions · **roadmap** · medium · **UNPARKED 2026-08-10**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:950",
+  "legacy_id": "BACKLOG.md:950",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

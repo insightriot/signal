@@ -1,0 +1,23 @@
+{
+  "id": "SIG-108",
+  "type": "BUG",
+  "title": "`v0.1.31` moved confirm cadence from `gate_strictness` to `attention` and left SIX command files describing the old…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:163",
+  "legacy_id": "B108",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

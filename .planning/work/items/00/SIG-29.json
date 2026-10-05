@@ -1,0 +1,23 @@
+{
+  "id": "SIG-29",
+  "type": "BUG",
+  "title": "The `_afterRead` FR5 test seam destructures `opts._afterRead` (resolves inherited props) — an unreachable…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:56",
+  "legacy_id": "B29",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

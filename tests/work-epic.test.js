@@ -1,5 +1,16 @@
 // Epic folders in the work store (M6.E11.S5 t5.2–t5.3, FR-8, D-M6E11-13).
-// See .planning/M6.E11-VALIDATION.md rows AC-8.1 … AC-8.4.
+// See .planning/M6.E11-VALIDATION.md rows AC-8.2 … AC-8.4.
+//
+// M6.E13 t7.4: moved onto a v2 store. An item is a record under
+// `work/items/`, and its Epic is folded from its events (`epicOf`), so the
+// Epic folder holds documents only and nothing moves an item into it. What
+// these pin is what survived the cutover: the generated Epic index
+// (`work/EPICS.md`, from `work-views.js`) and `closeEpic` archiving the folder
+// once every record of the Epic is done. The v1 cases that only existed
+// because items were files in the folder (list --epic reading the folder, a
+// close moving the item file, a README created when the first item moved in)
+// were retired with the v1 store; their v2 counterparts are `epicOf`
+// (work-record tests) and `closeEpicCheck` (work-records-epic).
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
@@ -9,12 +20,14 @@ import { tmpdir } from 'node:os';
 
 import { execFileSync } from 'node:child_process';
 
-import { closeEpic, closeItem, getItem, listItems, moveItem, newItem } from '../plugin/tools/lib/work-ops.js';
-import { checkStore } from '../plugin/tools/lib/work-store.js';
+import { closeEpic } from '../plugin/tools/lib/work-ops.js';
+import * as records from '../plugin/tools/lib/work-records.js';
+import { serializeRecord } from '../plugin/tools/lib/work-record.js';
+import { regenerateViews } from '../plugin/tools/lib/work-views.js';
 import { parseFrontmatter } from '../plugin/tools/lib/state.js';
 import { checkInternalLinks } from '../plugin/tools/lib/doc-hygiene.js';
-import { stringifyItem, WorkStoreError } from '../plugin/tools/lib/work-item.js';
-import { GENERATED_MARKER, generateAll } from '../plugin/tools/lib/work-generate.js';
+import { WorkStoreError } from '../plugin/tools/lib/work-errors.js';
+import { GENERATED_MARKER } from '../plugin/tools/lib/work-marker.js';
 
 let base;
 beforeEach(async () => {
@@ -29,84 +42,48 @@ async function put(rel, content) {
   await mkdir(dirname(p), { recursive: true });
   await writeFile(p, content, 'utf-8');
 }
-const storeOn = () => put('.planning/work/WORK.md', '---\nkey: SIG\n---\n# Work store\n');
-const CREATED = { at: '2026-09-01T00:00:00.000Z', by: 'brett' };
-const CLOSE = { reason: 'fixed', by: 'brett', at: '2026-09-20T00:00:00.000Z', proof: 'v0.1.40' };
-const item = (id, type, status, extra = {}) => ({ id, type, status, title: `${id} title`, created: CREATED, ...extra });
-const plant = (folder, it, body = 'The words.\n') => put(`.planning/${folder}/${it.id}.md`, stringifyItem(it, body));
+const storeOn = () => put('.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n# Work store\n');
 const read = (rel) => readFile(join(base, rel), 'utf-8');
 
-describe('t5.2 — list --epic reads only that Epic\'s folder (AC-8.1)', () => {
-  beforeEach(async () => {
-    await storeOn();
-    await plant('work/epics/M6.E11', item('SIG-1', 'FEAT', 'P'));
-    await plant('work/epics/M6.E11', item('SIG-2', 'BUG', 'Q'));
-    await plant('work/epics/M6.E7', item('SIG-3', 'FEAT', 'Q'));
-    await plant('work/backlog', item('SIG-4', 'FEAT', 'T'));
-    await put('.planning/work/epics/M6.E11/M6.E11-PLAN.md', '# not an item\n');
-  });
-
-  it('returns the folder\'s items and nothing from other folders', () => {
-    expect(listItems(base, { epic: 'M6.E11' }).map((r) => r.item.id)).toEqual(['SIG-1', 'SIG-2']);
-  });
-
-  it('a broken item elsewhere breaks the whole list but not the Epic\'s — it never reads outside the folder', async () => {
-    await put('.planning/work/inbox/SIG-9.md', '---\nid: SIG-9\n---\nno status\n');
-    expect(() => listItems(base)).toThrow(WorkStoreError);
-    expect(listItems(base, { epic: 'M6.E11' }).map((r) => r.item.id)).toEqual(['SIG-1', 'SIG-2']);
-  });
-
-  it('an archived Epic\'s items are still its items', async () => {
-    await plant('archive/epics/M6.E1', item('SIG-5', 'CHORE', 'C', { close: CLOSE }));
-    expect(listItems(base, { epic: 'M6.E1' }).map((r) => r.item.id)).toEqual(['SIG-5']);
-  });
-
-  it('refuses an Epic ID that could leave the store', () => {
-    for (const bad of ['..', '../x', 'M6.E1/..', 'nope']) {
-      expect(() => listItems(base, { epic: bad })).toThrow(WorkStoreError);
-    }
-  });
-});
-
-describe('t5.2 — generateAll reads archived Epics too (carried finding)', () => {
-  it('a closed bug archived with its Epic stays in BUGS.md', async () => {
-    await storeOn();
-    await plant('archive/epics/M6.E1', item('SIG-7', 'BUG', 'C', { close: CLOSE, title: 'Archived bug' }));
-    await plant('work/backlog', item('SIG-8', 'BUG', 'T', { title: 'Live bug' }));
-    await generateAll(base);
-    const bugs = await read('.planning/BUGS.md');
-    expect(bugs).toMatch(/^\| B7 \| `fixed` \|/m);
-    expect(bugs).toMatch(/^\| B8 \| `confirmed` \|/m);
-  });
-});
+const AT = '2026-09-01T00:00:00.000Z';
+const by = 'brett';
+const ev = {
+  created: { type: 'created', at: AT, by },
+  triaged: { type: 'triaged', at: AT, by },
+  queued: (epic) => ({ type: 'queued', at: AT, by, epic }),
+  started: (epic) => ({ type: 'started', at: AT, by, epic }),
+  wontdo: { type: 'closed', at: '2026-09-20T00:00:00.000Z', by, reason: 'wontdo', proof: 'no' },
+};
+const plant = (id, type, title, events) => put(records.recordPath(id), serializeRecord({ id, type, title, events }));
 
 describe('t5.2 — the generated Epic index, .planning/work/EPICS.md (AC-8.2)', () => {
   beforeEach(async () => {
     await storeOn();
-    await plant('work/epics/M6.E11', item('SIG-1', 'FEAT', 'P'));
-    await plant('work/epics/M6.E11', item('SIG-2', 'BUG', 'Q'));
+    await mkdir(join(base, '.planning/work/epics/M6.E11'), { recursive: true });
+    await plant('SIG-1', 'FEAT', 'SIG-1 title', [ev.created, ev.triaged, ev.started('M6.E11')]);
+    await plant('SIG-2', 'BUG', 'SIG-2 title', [ev.created, ev.triaged, ev.queued('M6.E11')]);
     await put('.planning/archive/epics/M6.E1/README.md',
       '---\nepic: M6.E1\nclose:\n  at: 2026-09-20T00:00:00.000Z\n  by: brett\n  pr: 240\n  release: v0.1.40\n---\n# M6.E1\n');
-    await plant('archive/epics/M6.E1', item('SIG-5', 'CHORE', 'C', { close: CLOSE }));
+    await plant('SIG-5', 'CHORE', 'SIG-5 title', [ev.created, ev.triaged, ev.started('M6.E1'), ev.wontdo]);
   });
 
-  it('is generated with the marker first, one section per Epic folder, live and archived, with status and items', async () => {
-    await generateAll(base);
+  it('is generated with the marker first, one section per Epic, live and archived, with status and items', async () => {
+    await regenerateViews(base);
     const text = await read('.planning/work/EPICS.md');
     expect(text.split('\n')[0]).toBe(GENERATED_MARKER);
     expect(text).toMatch(/^## M6\.E11 — open$/m);
     expect(text).toMatch(/^## M6\.E1 — closed 2026-09-20 · PR 240 · v0\.1\.40 · by brett$/m);
-    expect(text).toContain('SIG-1-FEAT-P');
-    expect(text).toContain('SIG-2-BUG-Q');
-    expect(text).toContain('SIG-5-CHORE-C');
+    expect(text).toContain('- SIG-1 · FEAT · P — SIG-1 title');
+    expect(text).toContain('- SIG-2 · BUG · Q — SIG-2 title');
+    expect(text).toContain('- SIG-5 · CHORE · C — SIG-5 title');
     // Deterministic: the same store gives the same bytes.
-    await generateAll(base);
+    await regenerateViews(base);
     expect(await read('.planning/work/EPICS.md')).toBe(text);
   });
 
   it('orders Epics by number, not by text or by folder creation order (M6.E1 < M6.E2 < M6.E11)', async () => {
     for (const id of ['M6.E2', 'M6.E12', 'M6.E3']) await mkdir(join(base, `.planning/work/epics/${id}`), { recursive: true });
-    await generateAll(base);
+    await regenerateViews(base);
     const text = await read('.planning/work/EPICS.md');
     const at = (id) => text.indexOf(`## ${id} `);
     expect(at('M6.E2')).toBeLessThan(at('M6.E3'));
@@ -115,22 +92,23 @@ describe('t5.2 — the generated Epic index, .planning/work/EPICS.md (AC-8.2)', 
     expect(at('M6.E12')).toBeLessThan(at('M6.E1')); // open Epics first, then archived
   });
 
-  it('an Epic folder with no items is listed with "no items"', async () => {
+  it('an Epic folder with no records is still listed, as open', async () => {
     await mkdir(join(base, '.planning/work/epics/M6.E12'), { recursive: true });
-    await generateAll(base);
-    expect(await read('.planning/work/EPICS.md')).toMatch(/## M6\.E12 — open\n\n_no items_/);
+    await regenerateViews(base);
+    expect(await read('.planning/work/EPICS.md')).toMatch(/^## M6\.E12 — open$/m);
   });
 
-  it('regenerates on a mutation: an item moved into an Epic appears under it', async () => {
-    await generateAll(base);
-    const it3 = await newItem(base, { type: 'FEAT', title: 'Moved in', by: 'brett' });
-    await moveItem(base, it3.id, { status: 'Q', epic: 'M6.E11' });
-    expect(await read('.planning/work/EPICS.md')).toContain(`${it3.id}-FEAT-Q`);
+  it('regenerates on a mutation: a record queued into an Epic appears under it', async () => {
+    await regenerateViews(base);
+    const it3 = await records.newItem(base, { type: 'FEAT', title: 'Moved in', by }, { execFn: () => { throw new Error('no git'); } });
+    await records.triageItem(base, it3.id, { by });
+    await records.queueItem(base, it3.id, { epic: 'M6.E11', by });
+    expect(await read('.planning/work/EPICS.md')).toContain(`- ${it3.id} · FEAT · Q — Moved in`);
   });
 
   it('is never written when the store is off', async () => {
     await rm(join(base, '.planning/work/WORK.md'));
-    await generateAll(base);
+    await regenerateViews(base);
     expect(existsSync(join(base, '.planning/work/EPICS.md'))).toBe(false);
   });
 });
@@ -163,16 +141,20 @@ async function expectCode(promise, code, pattern) {
 const EPIC = '.planning/work/epics/M6.E99';
 const ARCH = '.planning/archive/epics/M6.E99';
 const CLOSE_BY = { by: 'brett', pr: 251, release: 'v0.1.43', at: '2026-09-29T12:00:00.000Z' };
+const noGit = { execFn: () => { throw new Error('not a git repository'); } };
+const close = (id) => records.closeItem(base, id, { reason: 'wontdo', by: 'b', proof: 'not needed' }, noGit);
+const triageOut = (id) => records.triageItem(base, id, { by: 'b' }, noGit);
 
 describe('t5.3 — closeEpic (AC-8.3, AC-8.4)', () => {
   beforeEach(async () => {
     await storeOn();
-    await plant('work/epics/M6.E99', item('SIG-1', 'FEAT', 'P', { title: 'Build it' }));
-    await plant('work/epics/M6.E99', item('SIG-2', 'BUG', 'Q', { title: 'Fix it' }));
-    await plant('work/backlog', item('SIG-3', 'FEAT', 'T'));
+    await plant('SIG-1', 'FEAT', 'Build it', [ev.created, ev.triaged, ev.started('M6.E99')]);
+    await plant('SIG-2', 'BUG', 'Fix it', [ev.created, ev.triaged, ev.queued('M6.E99')]);
+    await plant('SIG-3', 'FEAT', 'SIG-3 title', [ev.created, ev.triaged]);
     await put(`${EPIC}/M6.E99-PLAN.md`,
-      '# Plan\n\nSee [reqs](M6.E99-REQUIREMENTS.md), [item](SIG-1.md) and [queue](../../backlog/SIG-3.md) and [ctx](../../../CONTEXT.md).\n');
+      '# Plan\n\nSee [reqs](M6.E99-REQUIREMENTS.md) and [ctx](../../../CONTEXT.md).\n');
     await put(`${EPIC}/M6.E99-REQUIREMENTS.md`, '# Reqs\n');
+    await regenerateViews(base);
   });
 
   it('an Epic with no folder is a no-op (every legacy Epic): nothing written, nothing created', async () => {
@@ -181,31 +163,28 @@ describe('t5.3 — closeEpic (AC-8.3, AC-8.4)', () => {
     expect(existsSync(join(base, '.planning/archive'))).toBe(false);
   });
 
-  it('refuses while any item in the folder is open, naming each (id, label, status); nothing moves', async () => {
-    const err = await expectCode(closeEpic(base, 'M6.E99', CLOSE_BY), 'OPEN_ITEMS');
-    expect(err.message).toContain('SIG-1-FEAT-P');
-    expect(err.message).toContain('Build it');
-    expect(err.message).toContain('SIG-2-BUG-Q');
-    expect(err.message).toContain('Fix it');
+  it('refuses while any record of the Epic is open, naming each (id, status, title); nothing moves', async () => {
+    const err = await expectCode(closeEpic(base, 'M6.E99', CLOSE_BY, noGit), 'OPEN_ITEMS');
+    expect(err.message).toContain('SIG-1 (status P) — Build it');
+    expect(err.message).toContain('SIG-2 (status Q) — Fix it');
     expect(err.message).not.toContain('SIG-3');
-    expect(existsSync(join(base, `${EPIC}/SIG-1.md`))).toBe(true);
+    expect(existsSync(join(base, `${EPIC}/M6.E99-PLAN.md`))).toBe(true);
     expect(existsSync(join(base, ARCH))).toBe(false);
   });
 
-  it('passes once each item is closed or moved back to backlog; the folder moves to archive/epics/ with the close recorded', async () => {
-    await closeItem(base, 'SIG-1', { reason: 'fixed', by: 'brett', proof: 'tests', at: '2026-09-29T00:00:00.000Z' });
-    await expectCode(closeEpic(base, 'M6.E99', CLOSE_BY), 'OPEN_ITEMS', /SIG-2-BUG-Q/);
-    await moveItem(base, 'SIG-2', { status: 'T' });
+  it('passes once each record is closed or triaged out of the Epic; the folder moves to archive/epics/ with the close recorded', async () => {
+    await close('SIG-1');
+    await expectCode(closeEpic(base, 'M6.E99', CLOSE_BY, noGit), 'OPEN_ITEMS', /SIG-2 \(status Q\)/);
+    await triageOut('SIG-2');
 
-    const r = await closeEpic(base, 'M6.E99', CLOSE_BY);
+    const r = await closeEpic(base, 'M6.E99', CLOSE_BY, noGit);
     expect(r.status).toBe('closed');
     expect(r.to).toBe(ARCH);
     expect(existsSync(join(base, EPIC))).toBe(false);
-    // The closed item travelled with its Epic; the one moved back did not.
-    expect(existsSync(join(base, `${ARCH}/SIG-1.md`))).toBe(true);
-    expect(existsSync(join(base, '.planning/work/backlog/SIG-2.md'))).toBe(true);
     expect(existsSync(join(base, `${ARCH}/M6.E99-PLAN.md`))).toBe(true);
     expect(existsSync(join(base, `${ARCH}/M6.E99-REQUIREMENTS.md`))).toBe(true);
+    // Records never move.
+    expect(existsSync(join(base, records.recordPath('SIG-1')))).toBe(true);
 
     const { data } = parseFrontmatter(await read(`${ARCH}/README.md`));
     expect(data.epic).toBe('M6.E99');
@@ -213,51 +192,30 @@ describe('t5.3 — closeEpic (AC-8.3, AC-8.4)', () => {
 
     const index = await read('.planning/work/EPICS.md');
     expect(index).toMatch(/^## M6\.E99 — closed 2026-09-29 · PR 251 · v0\.1\.43 · by brett$/m);
-    expect(checkStore(base)).toEqual([]);
+    expect(index).toContain('- SIG-1 · FEAT · C — Build it');
+    expect(records.checkRecords(base)).toEqual([]);
   });
 
   it('rewrites links leaving the folder for the new location and leaves links inside it alone', async () => {
-    await closeItem(base, 'SIG-1', { reason: 'fixed', by: 'b' });
-    await moveItem(base, 'SIG-2', { status: 'T' });
-    await closeEpic(base, 'M6.E99', CLOSE_BY);
+    await close('SIG-1');
+    await triageOut('SIG-2');
+    await closeEpic(base, 'M6.E99', CLOSE_BY, noGit);
     const plan = await read(`${ARCH}/M6.E99-PLAN.md`);
     expect(plan).toContain('[reqs](M6.E99-REQUIREMENTS.md)');
-    expect(plan).toContain('[item](SIG-1.md)');
-    expect(plan).toContain('[queue](../../../work/backlog/SIG-3.md)');
     expect(plan).toContain('[ctx](../../../CONTEXT.md)');
   });
 
-  it('closeItem on an Epic\'s item closes it IN the folder (D-M6E11-29); an item with no Epic still goes to done/', async () => {
-    const r1 = await closeItem(base, 'SIG-1', { reason: 'fixed', by: 'b', at: '2026-09-29T00:00:00.000Z' });
-    expect(r1.to).toBe(`${EPIC}/SIG-1.md`);
-    expect(getItem(base, 'SIG-1').item.status).toBe('C');
-    const r3 = await closeItem(base, 'SIG-3', { reason: 'stale', by: 'b', at: '2026-09-29T00:00:00.000Z' });
-    expect(r3.to).toBe('.planning/work/done/2026-09/SIG-3.md');
-    expect(checkStore(base)).toEqual([]);
-  });
-
-  it('a closed item archived with its Epic is still found by show (getItem), and listed under the Epic', async () => {
-    await closeItem(base, 'SIG-1', { reason: 'fixed', by: 'b' });
-    await moveItem(base, 'SIG-2', { status: 'T' });
-    await closeEpic(base, 'M6.E99', CLOSE_BY);
-    const found = getItem(base, 'SIG-1');
-    expect(found.path).toBe(`${ARCH}/SIG-1.md`);
-    expect(found.epic).toBe('M6.E99');
-    expect(found.item.status).toBe('C');
-    expect(listItems(base, { epic: 'M6.E99' }).map((x) => x.item.id)).toEqual(['SIG-1']);
-  });
-
   it('rewrites INBOUND links: a live doc linking into the folder still resolves after the close', async () => {
-    await put('.planning/STATE.md', '# State\n\nSee [the plan](work/epics/M6.E99/M6.E99-PLAN.md#goal) and [x](./work/epics/M6.E99/SIG-1.md).\n');
+    await put('.planning/STATE.md', '# State\n\nSee [the plan](work/epics/M6.E99/M6.E99-PLAN.md#goal) and [r](./work/epics/M6.E99/M6.E99-REQUIREMENTS.md).\n');
     await put('.planning/notes/deep.md', 'Up [plan](../work/epics/M6.E99/M6.E99-PLAN.md), out [c](../CONTEXT.md).\n');
     await put('.planning/archive/old/OLD.md', 'Frozen [p](../../work/epics/M6.E99/M6.E99-PLAN.md).\n');
     await put('.planning/CONTEXT.md', '# ctx\n');
-    await closeItem(base, 'SIG-1', { reason: 'fixed', by: 'b' });
-    await moveItem(base, 'SIG-2', { status: 'T' });
-    await closeEpic(base, 'M6.E99', CLOSE_BY);
+    await close('SIG-1');
+    await triageOut('SIG-2');
+    await closeEpic(base, 'M6.E99', CLOSE_BY, noGit);
     const state = await read('.planning/STATE.md');
     expect(state).toContain('](./archive/epics/M6.E99/M6.E99-PLAN.md#goal)');
-    expect(state).toContain('](./archive/epics/M6.E99/SIG-1.md)');
+    expect(state).toContain('](./archive/epics/M6.E99/M6.E99-REQUIREMENTS.md)');
     expect(await read('.planning/notes/deep.md')).toBe('Up [plan](../archive/epics/M6.E99/M6.E99-PLAN.md), out [c](../CONTEXT.md).\n');
     // archive/ is history — left as written.
     expect(await read('.planning/archive/old/OLD.md')).toBe('Frozen [p](../../work/epics/M6.E99/M6.E99-PLAN.md).\n');
@@ -266,46 +224,46 @@ describe('t5.3 — closeEpic (AC-8.3, AC-8.4)', () => {
     expect(findings.filter((f) => f.severity === 'hard')).toEqual([]);
   });
 
-  // REVIEW I5: an item file's link into the folder is relative to the ITEM's
-  // folder — `../epics/<id>/…` from backlog/ — so it never contains the text
-  // `work/epics/<id>`, and a pre-filter on that text skipped it.
-  it('rewrites an ITEM file\'s link into the folder (../epics/<id>/…), and the regenerated BACKLOG.md has no dead link', async () => {
-    await plant('work/backlog', item('SIG-3', 'FEAT', 'T'), 'See [the plan](../epics/M6.E99/M6.E99-PLAN.md#goal).\n');
-    await closeItem(base, 'SIG-1', { reason: 'fixed', by: 'b' });
-    await moveItem(base, 'SIG-2', { status: 'T' });
-    const r = await closeEpic(base, 'M6.E99', CLOSE_BY);
-    expect(r.rewritten).toEqual(['.planning/work/backlog/SIG-3.md']);
-    const sig3 = await read('.planning/work/backlog/SIG-3.md');
-    expect(sig3).toContain('[the plan](../../archive/epics/M6.E99/M6.E99-PLAN.md#goal)');
-    expect(existsSync(join(base, '.planning/work/backlog/../../archive/epics/M6.E99/M6.E99-PLAN.md'))).toBe(true);
+  // REVIEW I5, carried to v2: an item body's link into the folder is relative
+  // to the BODY's folder — `../../epics/<id>/…` from items/00/ — so it never
+  // contains the text `work/epics/<id>`, and a pre-filter on that text would
+  // skip it.
+  it('rewrites an item BODY\'s link into the folder (../../epics/<id>/…), and the regenerated BACKLOG.md has no dead link', async () => {
+    await put(records.bodyPath('SIG-3'), 'See [the plan](../../epics/M6.E99/M6.E99-PLAN.md#goal).\n');
+    await regenerateViews(base);
+    await close('SIG-1');
+    await triageOut('SIG-2');
+    const r = await closeEpic(base, 'M6.E99', CLOSE_BY, noGit);
+    expect(r.rewritten).toEqual([records.bodyPath('SIG-3')]);
+    expect(await read(records.bodyPath('SIG-3'))).toContain('[the plan](../../../archive/epics/M6.E99/M6.E99-PLAN.md#goal)');
     const backlog = await read('.planning/BACKLOG.md');
     expect(backlog.split('\n')[0]).toBe(GENERATED_MARKER);
     expect(backlog).toContain('archive/epics/M6.E99/M6.E99-PLAN.md#goal');
-    const findings = checkInternalLinks(base, { topFiles: ['.planning/BACKLOG.md'], dirs: ['.planning/work/backlog'] });
+    const findings = checkInternalLinks(base, { topFiles: ['.planning/BACKLOG.md'], dirs: [] });
     expect(findings.filter((f) => f.severity === 'hard')).toEqual([]);
   });
 
   it('a failed inbound rewrite rewinds the inbound file too', async () => {
     const stateText = '# State\n\n[plan](work/epics/M6.E99/M6.E99-PLAN.md)\n';
     await put('.planning/STATE.md', stateText);
-    await closeItem(base, 'SIG-1', { reason: 'fixed', by: 'b' });
-    await moveItem(base, 'SIG-2', { status: 'T' });
+    await close('SIG-1');
+    await triageOut('SIG-2');
     const renameFn = async (from, to) => {
       if (to.endsWith('README.md')) throw new Error('disk full');
       const { rename } = await import('node:fs/promises');
       return rename(from, to);
     };
-    await expect(closeEpic(base, 'M6.E99', CLOSE_BY, { renameFn })).rejects.toThrow(/disk full/);
+    await expect(closeEpic(base, 'M6.E99', CLOSE_BY, { ...noGit, renameFn })).rejects.toThrow(/disk full/);
     expect(await read('.planning/STATE.md')).toBe(stateText);
-    expect(existsSync(join(base, `${EPIC}/SIG-1.md`))).toBe(true);
+    expect(existsSync(join(base, `${EPIC}/M6.E99-PLAN.md`))).toBe(true);
     expect(existsSync(join(base, ARCH))).toBe(false);
   });
 
   it('keeps an existing README.md\'s frontmatter and body and adds the close', async () => {
     await put(`${EPIC}/README.md`, '---\nepic: M6.E99\ngoal: ship the store\n---\n# M6.E99\n\nWhy this Epic exists.\n');
-    await closeItem(base, 'SIG-1', { reason: 'fixed', by: 'b' });
-    await moveItem(base, 'SIG-2', { status: 'T' });
-    await closeEpic(base, 'M6.E99', { by: 'brett' });
+    await close('SIG-1');
+    await triageOut('SIG-2');
+    await closeEpic(base, 'M6.E99', { by: 'brett' }, noGit);
     const { data, body } = parseFrontmatter(await read(`${ARCH}/README.md`));
     expect(data.goal).toBe('ship the store');
     expect(data.close.by).toBe('brett');
@@ -314,21 +272,21 @@ describe('t5.3 — closeEpic (AC-8.3, AC-8.4)', () => {
   });
 
   it('refuses when the archive folder already exists; nothing moves', async () => {
-    await closeItem(base, 'SIG-1', { reason: 'fixed', by: 'b' });
-    await moveItem(base, 'SIG-2', { status: 'T' });
+    await close('SIG-1');
+    await triageOut('SIG-2');
     await mkdir(join(base, ARCH), { recursive: true });
-    await expectCode(closeEpic(base, 'M6.E99', CLOSE_BY), 'CONFLICT', /archive\/epics\/M6\.E99/);
+    await expectCode(closeEpic(base, 'M6.E99', CLOSE_BY, noGit), 'CONFLICT', /archive\/epics\/M6\.E99/);
     expect(existsSync(join(base, `${EPIC}/M6.E99-PLAN.md`))).toBe(true);
   });
 
   it('a failed write rewinds: every file back where it was, byte-for-byte, no archive folder left', async () => {
-    await closeItem(base, 'SIG-1', { reason: 'fixed', by: 'b' });
-    await moveItem(base, 'SIG-2', { status: 'T' });
+    await close('SIG-1');
+    await triageOut('SIG-2');
     const before = await read(`${EPIC}/M6.E99-PLAN.md`);
     const renameFn = async () => {
       throw new Error('disk full');
     };
-    await expect(closeEpic(base, 'M6.E99', CLOSE_BY, { renameFn })).rejects.toThrow(/disk full/);
+    await expect(closeEpic(base, 'M6.E99', CLOSE_BY, { ...noGit, renameFn })).rejects.toThrow(/disk full/);
     expect(await read(`${EPIC}/M6.E99-PLAN.md`)).toBe(before);
     expect(existsSync(join(base, `${EPIC}/M6.E99-REQUIREMENTS.md`))).toBe(true);
     expect(existsSync(join(base, `${EPIC}/README.md`))).toBe(false);
@@ -336,11 +294,11 @@ describe('t5.3 — closeEpic (AC-8.3, AC-8.4)', () => {
   });
 
   it('closing again after archiving says so and changes nothing', async () => {
-    await closeItem(base, 'SIG-1', { reason: 'fixed', by: 'b' });
-    await moveItem(base, 'SIG-2', { status: 'T' });
-    await closeEpic(base, 'M6.E99', CLOSE_BY);
+    await close('SIG-1');
+    await triageOut('SIG-2');
+    await closeEpic(base, 'M6.E99', CLOSE_BY, noGit);
     const readme = await read(`${ARCH}/README.md`);
-    const r = await closeEpic(base, 'M6.E99', CLOSE_BY);
+    const r = await closeEpic(base, 'M6.E99', CLOSE_BY, noGit);
     expect(r.status).toBe('already-archived');
     expect(await read(`${ARCH}/README.md`)).toBe(readme);
   });
@@ -349,6 +307,33 @@ describe('t5.3 — closeEpic (AC-8.3, AC-8.4)', () => {
     await expectCode(closeEpic(base, '../x', CLOSE_BY), 'SCHEMA');
     await expectCode(closeEpic(base, 'M6.E99', { pr: 1 }), 'SCHEMA', /by/);
   });
+
+  // D-M6E11-33 (from work-epic-artifacts-move, whose other cases were the
+  // retired v1 moveItem's): the folder holds the whole Epic, so an artifact a
+  // store-off command wrote at the root is refused rather than left behind.
+  it('refuses while the Epic still has artifacts at the root, naming each; the retrospective and profile do not block', async () => {
+    await close('SIG-1');
+    await triageOut('SIG-2');
+    await put('.planning/M6.E99-VERIFICATION.md', '# v\n');
+    await put('.planning/M6.E99-RETROSPECTIVE.md', '# retro\n');
+    await put('.planning/M6.E99-PROFILE.md', '---\ntier: FEATURE\n---\n');
+    await put('.planning/M6.E990-PLAN.md', '# another Epic\n');
+    const err = await expectCode(closeEpic(base, 'M6.E99', CLOSE_BY, noGit), 'CONFLICT', /\.planning\/M6\.E99-VERIFICATION\.md/);
+    expect(err.message).not.toMatch(/RETROSPECTIVE|PROFILE|M6\.E990/);
+    expect(existsSync(join(base, EPIC))).toBe(true);
+
+    await rm(join(base, '.planning/M6.E99-VERIFICATION.md'));
+    expect((await closeEpic(base, 'M6.E99', CLOSE_BY, noGit)).status).toBe('closed');
+    expect(existsSync(join(base, '.planning/M6.E99-RETROSPECTIVE.md'))).toBe(true);
+  });
+
+  it('a v1 store refuses (CONFIG, naming the migration); nothing moves', async () => {
+    await put('.planning/work/WORK.md', '---\nkey: SIG\n---\n# Work store\n');
+    const err = await expectCode(closeEpic(base, 'M6.E99', CLOSE_BY, noGit), 'CONFIG', /work-migrate-v2\.mjs/);
+    expect(err.version).toBe(1);
+    expect(existsSync(join(base, `${EPIC}/M6.E99-PLAN.md`))).toBe(true);
+    expect(existsSync(join(base, '.planning/work/.lock'))).toBe(false);
+  });
 });
 
 describe('t5.3 — closeEpic in a git repo moves tracked files with git mv', () => {
@@ -356,85 +341,23 @@ describe('t5.3 — closeEpic in a git repo moves tracked files with git mv', () 
     initRepo();
     await storeOn();
     await put(`${EPIC}/M6.E99-PLAN.md`, '# Plan\n');
-    await plant('work/epics/M6.E99', item('SIG-4', 'CHORE', 'C', { close: CLOSE }));
+    await plant('SIG-4', 'CHORE', 'SIG-4 title', [ev.created, ev.triaged, ev.started('M6.E99'), ev.wontdo]);
+    await regenerateViews(base);
     commitAll();
     await closeEpic(base, 'M6.E99', CLOSE_BY);
     const staged = git(['diff', '--cached', '--name-status', '-M']);
     expect(staged).toMatch(/^R\d*\t\.planning\/work\/epics\/M6\.E99\/M6\.E99-PLAN\.md\t\.planning\/archive\/epics\/M6\.E99\/M6\.E99-PLAN\.md$/m);
-    expect(staged).toMatch(/^R\d*\t\.planning\/work\/epics\/M6\.E99\/SIG-4\.md\t\.planning\/archive\/epics\/M6\.E99\/SIG-4\.md$/m);
   });
 });
 
-describe('t5.3 — an Epic\'s README.md', () => {
-  beforeEach(storeOn);
-
-  it('moveItem into an Epic with no folder creates the folder with a README (epic: <id>)', async () => {
-    const it1 = await newItem(base, { type: 'FEAT', title: 'x', by: 'b' });
-    await moveItem(base, it1.id, { status: 'Q', epic: 'M6.E99' });
-    const { data } = parseFrontmatter(await read(`${EPIC}/README.md`));
-    expect(data).toEqual({ epic: 'M6.E99' });
-  });
-
-  it('a README write failure rewinds the move and throws a WorkStoreError', async () => {
-    const it1 = await newItem(base, { type: 'FEAT', title: 'x', by: 'b' });
-    await moveItem(base, it1.id, { status: 'T' });
-    const before = await read(`.planning/work/backlog/${it1.id}.md`);
-    const renameFn = async (from, to) => {
-      if (to.endsWith('README.md')) throw new Error('disk full');
-      const { rename } = await import('node:fs/promises');
-      return rename(from, to);
-    };
-    const err = await expectCode(moveItem(base, it1.id, { status: 'Q', epic: 'M6.E99' }, { renameFn }), 'CONFLICT', /README\.md[\s\S]*disk full/);
-    expect(err.message).toMatch(/nothing was moved/);
-    expect(await read(`.planning/work/backlog/${it1.id}.md`)).toBe(before);
-    expect(existsSync(join(base, EPIC))).toBe(false);
-  });
-
-  // REVIEW I9: the README goes in first, so a failure moving the ITEM must take
-  // the README (and the folder it created) back out — or EPICS.md lists an
-  // Epic with no items that nobody created.
-  it('a failed item move into a new Epic leaves no README, no folder, and no phantom in EPICS.md', async () => {
-    const it1 = await newItem(base, { type: 'FEAT', title: 'x', by: 'b' });
-    await moveItem(base, it1.id, { status: 'T' });
-    const before = await read(`.planning/work/backlog/${it1.id}.md`);
-    const renameFn = async (from, to) => {
-      if (to.endsWith(`${it1.id}.md`)) throw new Error('disk full');
-      const { rename } = await import('node:fs/promises');
-      return rename(from, to);
-    };
-    await expect(moveItem(base, it1.id, { status: 'Q', epic: 'M6.E99' }, { renameFn })).rejects.toThrow(/disk full/);
-    expect(await read(`.planning/work/backlog/${it1.id}.md`)).toBe(before);
-    expect(existsSync(join(base, EPIC))).toBe(false);
-    await generateAll(base);
-    expect(await read('.planning/work/EPICS.md')).not.toContain('M6.E99');
-  });
-
-  it('a failed item move into an existing Epic folder keeps the README that was already there', async () => {
-    await put(`${EPIC}/README.md`, '---\nepic: M6.E99\n---\n# Mine\n');
-    const it1 = await newItem(base, { type: 'FEAT', title: 'x', by: 'b' });
-    await moveItem(base, it1.id, { status: 'T' });
-    const renameFn = async (from, to) => {
-      if (to.endsWith(`${it1.id}.md`)) throw new Error('disk full');
-      const { rename } = await import('node:fs/promises');
-      return rename(from, to);
-    };
-    await expect(moveItem(base, it1.id, { status: 'Q', epic: 'M6.E99' }, { renameFn })).rejects.toThrow(/disk full/);
-    expect(await read(`${EPIC}/README.md`)).toBe('---\nepic: M6.E99\n---\n# Mine\n');
-  });
-
-  it('moveItem into an Epic never overwrites its README', async () => {
-    await put(`${EPIC}/README.md`, '---\nepic: M6.E99\n---\n# Mine\n');
-    const it1 = await newItem(base, { type: 'FEAT', title: 'x', by: 'b' });
-    await moveItem(base, it1.id, { status: 'Q', epic: 'M6.E99' });
-    expect(await read(`${EPIC}/README.md`)).toBe('---\nepic: M6.E99\n---\n# Mine\n');
-  });
-
-  it('is not an item: checkStore, listItems and the generator ignore it', async () => {
+describe('t5.3 — an Epic\'s README.md is not an item', () => {
+  it('checkRecords and the views ignore it, live and archived', async () => {
+    await storeOn();
     await put(`${EPIC}/README.md`, '---\nepic: M6.E99\n---\n# M6.E99\n');
     await put(`${ARCH.replace('M6.E99', 'M6.E1')}/README.md`, '---\nepic: M6.E1\n---\n# M6.E1\n');
-    expect(checkStore(base)).toEqual([]);
-    expect(listItems(base)).toEqual([]);
-    await generateAll(base);
+    await regenerateViews(base);
+    expect(records.checkRecords(base)).toEqual([]);
+    expect(records.listRecords(base).records).toEqual([]);
   });
 });
 
@@ -445,6 +368,10 @@ describe('t5.3 — ship.md wires the Epic close (AC-8.3)', () => {
     expect(step).toMatch(/^Call `closeEpic\(baseDir, state\.current_epic, \{by, pr, release\}\)`/m);
     expect(step).toMatch(/OPEN_ITEMS.*HALT/);
     expect(step).toMatch(/no-folder/);
+    // closeEpicCheck runs before the folder lookup, so a broken record anywhere
+    // in the store throws SCHEMA at every Epic-close SHIP (REVIEW loop 1 part B).
+    expect(step).toMatch(/`SCHEMA`.*HALT/);
+    expect(step).toMatch(/`SCHEMA`.*\/sig:docs-sweep.*checkRecords.*\/sig:item/);
     expect(ship.indexOf('### 6.7')).toBeLessThan(ship.indexOf('### 6.8'));
     expect(ship.indexOf('### 6.8')).toBeLessThan(ship.indexOf('### 9.'));
   });

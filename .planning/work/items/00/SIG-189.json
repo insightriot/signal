@@ -1,0 +1,22 @@
+{
+  "id": "SIG-189",
+  "type": "CHORE",
+  "title": "~~M5.E9 — Overdue enforcement + the bug pile~~ · **DONE — v0.1.12, 2026-07-27**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1354",
+  "legacy_id": "BACKLOG.md:1354",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

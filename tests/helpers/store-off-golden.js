@@ -371,12 +371,241 @@ export async function captureStoreOff() {
   }
 }
 
+// ── AC3.1 readers on a store-off project (M6.E13 t1.6, AC4.1 pin) ────────────
+//
+// M6.E13 S4 converts every AC3.1 reader to read records when the store is on.
+// The promise, again, is that a project WITHOUT `.planning/work/WORK.md` sees
+// no change — and "store off is unchanged" broke twice in M6.E11 (RESEARCH
+// § Risk 8, M6.E11 retro A3). So, BEFORE any reader moves, this records what
+// each one answers today on `tests/fixtures/work-store-off/readers/`: a
+// store-off project built to trip each reader's branches (stale Epic and bug
+// rows, a struck row, a held-open row, a `<details>` row, a `Fixes B2` row, a
+// standing watchlist entry, a dangling fence, struck questions, a wrong bug
+// tally, a CHANGELOG headline naming a `confirmed` bug, `[FILL IN]` markers, a
+// dangling `B99`). Pinned whatever the answer is, right or wrong: a misparse
+// found here is a report item, not something this file fixes.
+//
+// Separate from `captureStoreOff()` and from `golden.json` on purpose:
+// `golden.json` is the 7f44ba1 baseline and must not be regenerated at HEAD.
+//
+//   node tests/helpers/store-off-golden.js --write-readers   # regenerate readers-ac31.json
+//
+// Keys are the RESEARCH § "Readers, by AC3.1 group" groups, and each entry names
+// the `plugin/tools/lib` site(s) it covers, so S4 can find the pin for each
+// reader it converts.
+
+export const READERS_FIXTURE_DIR = join(FIXTURE_DIR, 'readers');
+export const READERS_GOLDEN_PATH = join(FIXTURE_DIR, 'readers-ac31.json');
+
+// The line a backlog heading sits on, so the priorities below cite rows by the
+// fixture's text rather than by hand-counted numbers.
+async function lineOf(root, rel, needle) {
+  const lines = (await readFile(join(root, rel), 'utf-8')).split('\n');
+  const i = lines.findIndex((l) => l.includes(needle));
+  if (i < 0) throw new Error(`fixture drift: no "${needle}" in ${rel}`);
+  return i + 1;
+}
+
+async function proposals(root) {
+  const B = '.planning/BACKLOG.md';
+  const row = async (needle) => `${B}:${await lineOf(root, B, needle)}`;
+  const b2 = `.planning/BUGS.md:${await lineOf(root, '.planning/BUGS.md', '| B2 |')}`;
+  const valid = [
+    { title: 'Make the doctor honest', why: 'A missing key reads as a pass.', covers: ['B2'], evidence: [b2] },
+    { title: 'Finish the export', why: 'The Epic in flight.', covers: [await row('### M6.E3 — Export the report')],
+      evidence: [await row('### M6.E3 — Export the report'), '.planning/M6.E3-REQUIREMENTS.md:4'] },
+    { title: 'Speed up status', why: 'Two seconds is too slow.', covers: [await row('#### Cache the unit walk'), 'new: profile the walk'],
+      evidence: [await row('#### Cache the unit walk')], dependsOn: [2] },
+  ];
+  const invalid = [
+    { title: 'Cover a fixed bug', why: 'B1 is closed.', covers: ['B1'], evidence: ['.planning/BUGS.md:999'] },
+    { title: 'Cover a struck row', why: 'It was done.', covers: [await row('### ~~Tidy the command index~~')], evidence: ['.planning/NOPE.md'] },
+    { title: 'Cover a held-open row', why: 'One. Two. Three. Four.', covers: [await row('### M6.E4 — Batch')], evidence: ['.planning/STATE.md'],
+      dependsOn: [3] },
+  ];
+  return { valid, invalid };
+}
+
+function readerSteps() {
+  return [
+    // advise
+    ['advise: readCorpus', 'advise-corpus.js:90 (BACKLOG), :148-170 (BUGS)', async (r) => {
+      const { readCorpus } = await import('../../plugin/tools/lib/advise-corpus.js');
+      return readCorpus(r);
+    }],
+    ['advise: prepareAdvise (readCorpus + classifyCorpus + gatherBigPicture + formatDigest)',
+      'advise.js:742 classifyCorpus, advise.js:285 classifyRows, advise-digest.js:236-380', async (r) => {
+        const { prepareAdvise } = await import('../../plugin/tools/lib/advise.js');
+        return prepareAdvise(r);
+      }],
+    ['advise: classifyRows with no discharge input', 'advise.js:285 (/^B\\d+$/)', async (r) => {
+      const { readCorpus } = await import('../../plugin/tools/lib/advise-corpus.js');
+      const { classifyRows } = await import('../../plugin/tools/lib/advise.js');
+      const corpus = await readCorpus(r);
+      return classifyRows(corpus.sources.backlog.rows, { confirmedBugs: new Set(['B2', 'B3']) });
+    }],
+    ['advise: validatePriorities (valid)', 'advise-priorities.js:32-160', async (r) => {
+      const { prepareAdvise } = await import('../../plugin/tools/lib/advise.js');
+      const { validatePriorities } = await import('../../plugin/tools/lib/advise-priorities.js');
+      const { corpus, classified } = await prepareAdvise(r);
+      return validatePriorities(r, (await proposals(r)).valid, corpus, {
+        liveRows: classified.live.map((s) => s.row),
+        droppedRows: classified.dropped.map((s) => ({ path: s.row.path, line: s.row.line, why: 'dropped' })),
+      });
+    }],
+    ['advise: validatePriorities (invalid)', 'advise-priorities.js:32-160', async (r) => {
+      const { prepareAdvise } = await import('../../plugin/tools/lib/advise.js');
+      const { validatePriorities } = await import('../../plugin/tools/lib/advise-priorities.js');
+      const { corpus, classified } = await prepareAdvise(r);
+      return validatePriorities(r, (await proposals(r)).invalid, corpus, {
+        liveRows: classified.live.map((s) => s.row),
+        droppedRows: classified.dropped.map((s) => ({ path: s.row.path, line: s.row.line, why: 'dropped' })),
+      });
+    }],
+    ['advise: runAdvise (invalid proposal — refused, nothing written)', 'advise.js:789-853', async (r) => {
+      const { runAdvise } = await import('../../plugin/tools/lib/advise.js');
+      return runAdvise(r, { today: TODAY, priorities: (await proposals(r)).invalid, projectName: 'fixture' });
+    }],
+    ['advise: runAdvise (valid proposal — stale-read guard passes, artifact written)', 'advise.js:842-853', async (r) => {
+      const { runAdvise } = await import('../../plugin/tools/lib/advise.js');
+      return runAdvise(r, { today: TODAY, priorities: (await proposals(r)).valid, projectName: 'fixture' });
+    }],
+    // drive
+    ['drive: inboxHasDrainableEntries (via FLOOR_CONDITIONS)', 'drive.js:150', async (r) => {
+      const { FLOOR_CONDITIONS } = await import('../../plugin/tools/lib/drive.js');
+      return {
+        preview: await FLOOR_CONDITIONS['plan-drain-preview'](r),
+        destructive: await FLOOR_CONDITIONS['plan-drain-destructive'](r),
+      };
+    }],
+    ['drive: resolveFloors(PLAN)', 'drive.js:104 → :150', async (r) => {
+      const { resolveFloors } = await import('../../plugin/tools/lib/drive.js');
+      return resolveFloors('PLAN', r);
+    }],
+    ['drive: proposeEpicCandidates', 'drive.js:490', async (r) => {
+      const { proposeEpicCandidates } = await import('../../plugin/tools/lib/drive.js');
+      return proposeEpicCandidates(r);
+    }],
+    ['drive: collectPreflight (M6.E3)', 'drive.js:602 (inline question parser :653)', async (r) => {
+      const { collectPreflight } = await import('../../plugin/tools/lib/drive.js');
+      return collectPreflight(r, { epic: 'M6.E3' });
+    }],
+    ['drive: collectPreflight (no Epic)', 'drive.js:602', async (r) => {
+      const { collectPreflight } = await import('../../plugin/tools/lib/drive.js');
+      return collectPreflight(r, { epic: null });
+    }],
+    // status / resume
+    ['status: readOpenQuestions', 'status.js:200', async (r) => {
+      const { readOpenQuestions } = await import('../../plugin/tools/lib/status.js');
+      return readOpenQuestions(r);
+    }],
+    // sweep
+    ['sweep: checkBacklogDischarge', 'sweep.js:236', async (r) => {
+      const { checkBacklogDischarge } = await import('../../plugin/tools/lib/sweep.js');
+      return checkBacklogDischarge(r);
+    }],
+    ['sweep: checkStaleInbox', 'sweep.js:296', async (r) => {
+      const { checkStaleInbox } = await import('../../plugin/tools/lib/sweep.js');
+      return checkStaleInbox(r);
+    }],
+    ['doc-hygiene: checkDanglingReferences', 'doc-hygiene.js:741 (B\\d at :766-767, :804)', async (r) => {
+      const { checkDanglingReferences } = await import('../../plugin/tools/lib/doc-hygiene.js');
+      return checkDanglingReferences(r);
+    }],
+    // published-facts
+    ['published-facts: bug tally + bug status vs changelog', 'published-facts.js:82, :173', async (r) => {
+      const { runDriftChecks } = await import('../../plugin/tools/lib/state-drift.js');
+      const { checkPublishedBugTally, checkBugStatusVsChangelog } = await import('../../plugin/tools/lib/published-facts.js');
+      return runDriftChecks(r, [checkPublishedBugTally, checkBugStatusVsChangelog]);
+    }],
+    // Jev — the deterministic paths only: no key, and a stubbed `ask`.
+    ['jev: bug-fixed-jev with no key (blind)', 'bug-fixed-jev.js:162', async (r) => {
+      const { runDriftChecks } = await import('../../plugin/tools/lib/state-drift.js');
+      const { makeBugFixedJevCheck } = await import('../../plugin/tools/lib/bug-fixed-jev.js');
+      return runDriftChecks(r, [makeBugFixedJevCheck({ key: '' })]);
+    }],
+    ['jev: bug-fixed-jev with a stubbed ask', 'bug-fixed-jev.js:162', async (r) => {
+      const { runDriftChecks } = await import('../../plugin/tools/lib/state-drift.js');
+      const { makeBugFixedJevCheck } = await import('../../plugin/tools/lib/bug-fixed-jev.js');
+      const asked = [];
+      const ask = async ({ state, question }) => {
+        const id = question.instructions.match(/Bug (B\d+)/)[1];
+        asked.push({ id, state });
+        return { ok: true, model: 'stub-model', noul: id === 'B3' ? 0.9 : 0.1 };
+      };
+      const report = await runDriftChecks(r, [makeBugFixedJevCheck({ key: 'k', ask, now: () => 0 })]);
+      return { report, asked };
+    }],
+    // backlog
+    ['backlog: backlogDischargeStatus (+ readClosureSources)', 'backlog.js:923, :1038', async (r) => {
+      const { backlogDischargeStatus } = await import('../../plugin/tools/lib/backlog.js');
+      return backlogDischargeStatus(r);
+    }],
+    // bugs-tally (outside AC3.1, pinned because the tally readers stand on it)
+    ['bugs-tally: deriveBugCounts', 'bugs-tally.js:170', async (r) => {
+      const { deriveBugCounts } = await import('../../plugin/tools/lib/bugs-tally.js');
+      return deriveBugCounts(await readFile(join(r, '.planning', 'BUGS.md'), 'utf-8'));
+    }],
+    ['add: rewriteBugTally', 'add.js:1404', async (r) => {
+      const { rewriteBugTally } = await import('../../plugin/tools/lib/add.js');
+      return rewriteBugTally(await readFile(join(r, '.planning', 'BUGS.md'), 'utf-8'));
+    }],
+    // capture (store-off write paths)
+    ['capture: captureToDestination via captureToBugs (store off)', 'add.js:1088', (r) =>
+      captureToBugs(r, { body: 'Export drops the last row.', today: TODAY, title: 'Export drops the last row',
+        sensitivePrompt: keep })],
+    ['capture: captureToDestination via captureToFutureIdeas (store off)', 'add.js:1088', (r) =>
+      captureToFutureIdeas(r, { body: 'Show the tier in the status header.', today: TODAY,
+        triggerContext: '(during M6.E3 EXECUTE)', title: 'Tier in status header', sensitivePrompt: keep })],
+    ['capture: captureToDestination via captureToOpenQuestions (store off)', 'add.js:1088', (r) =>
+      captureToOpenQuestions(r, { body: 'Should the export include archived rows?', today: TODAY,
+        triggerContext: '(during M6.E3 EXECUTE)', sensitivePrompt: keep })],
+  ];
+}
+
+/**
+ * Run every AC3.1 reader on the store-off readers fixture; return what each answered.
+ * @returns {Promise<{frozenAt: string, steps: Array<{name: string, site: string, result: object, changed: object}>}>}
+ */
+export async function captureStoreOffReaders() {
+  // Git must not find a repository ABOVE the temp copy (a TMPDIR inside a
+  // checkout would make the other-branches readers answer from that checkout).
+  const ceiling = process.env.GIT_CEILING_DIRECTORIES;
+  const out = [];
+  process.env.GIT_CEILING_DIRECTORIES = realpathSync(tmpdir());
+  try {
+    await withFrozenClock(FROZEN_AT, async () => {
+      // A fresh copy per reader, so no reader sees another's writes (runAdvise
+      // writes an advisory; the captures write the lists).
+      for (const [name, site, fn] of readerSteps()) {
+        const root = await mkdtemp(join(tmpdir(), 'signal-store-off-readers-'));
+        try {
+          await cp(READERS_FIXTURE_DIR, root, { recursive: true });
+          const { steps: [ran] } = await runSteps(root, [[name, fn]]);
+          out.push({ name, site, result: ran.result, changed: ran.changed });
+        } finally {
+          await rm(root, { recursive: true, force: true });
+        }
+      }
+    });
+  } finally {
+    if (ceiling === undefined) delete process.env.GIT_CEILING_DIRECTORIES;
+    else process.env.GIT_CEILING_DIRECTORIES = ceiling;
+  }
+  return { frozenAt: FROZEN_AT, steps: out };
+}
+
 if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
-  if (!process.argv.includes('--write')) {
-    console.error('usage: node tests/helpers/store-off-golden.js --write');
+  if (process.argv.includes('--write-readers')) {
+    const golden = await captureStoreOffReaders();
+    await writeFile(READERS_GOLDEN_PATH, `${JSON.stringify(golden, null, 2)}\n`, 'utf-8');
+    console.log(`wrote ${relative(process.cwd(), READERS_GOLDEN_PATH)}`);
+  } else if (process.argv.includes('--write')) {
+    const golden = await captureStoreOff();
+    await writeFile(GOLDEN_PATH, `${JSON.stringify(golden, null, 2)}\n`, 'utf-8');
+    console.log(`wrote ${relative(process.cwd(), GOLDEN_PATH)}`);
+  } else {
+    console.error('usage: node tests/helpers/store-off-golden.js --write | --write-readers');
     process.exit(2);
   }
-  const golden = await captureStoreOff();
-  await writeFile(GOLDEN_PATH, `${JSON.stringify(golden, null, 2)}\n`, 'utf-8');
-  console.log(`wrote ${relative(process.cwd(), GOLDEN_PATH)}`);
 }

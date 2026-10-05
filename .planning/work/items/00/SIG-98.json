@@ -1,0 +1,23 @@
+{
+  "id": "SIG-98",
+  "type": "BUG",
+  "title": "`tools/measure-corpus.js` pins only labels `A`–`E` by hash; `F` onward are handed out by `spare.shift()` over a…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:201",
+  "legacy_id": "B98",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "SIG-255",
+  "type": "BUG",
+  "title": "Archiving ignores a project's explicit keep-live list, so work held open on purpose is proposed for archive",
+  "theme": "archive",
+  "priority": "P2",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-01T23:34:30.044Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-01T23:34:30.044Z",
+      "by": "migration (v2)"
+    }
+  ]
+}

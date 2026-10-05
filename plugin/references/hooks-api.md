@@ -58,26 +58,57 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   the stdout/exit contract; `tests/hook-state-write.test.js` proves the
   `detectDirtyExecute` decision logic.
 
-### `PreToolUse(Edit|Write)` → `check-state-write.js`
+### `PreToolUse(Edit|Write|MultiEdit)` → `check-state-write.js`
 
-- **Trigger:** before every `Edit` or `Write` tool call (`matcher: "Edit|Write"`).
+- **Trigger:** before every `Edit`, `Write` or `MultiEdit` tool call (`matcher: "Edit|Write|MultiEdit"`).
 - **stdin:** **required** — the Claude Code hook event JSON:
 
   ```json
-  {"tool_name":"Edit|Write","tool_input":{"file_path":"…","content":"…","old_string":"…","new_string":"…","replace_all":false}}
+  {"tool_name":"Edit|Write|MultiEdit","cwd":"…","tool_input":{"file_path":"…","content":"…","old_string":"…","new_string":"…","replace_all":false}}
   ```
 
 - **What it does:** ignores everything except a write whose `file_path` matches
   `(^|/)\.planning/STATE\.md$`. For that, it computes the *proposed* post-write
   content (Write → `content`; Edit → apply `old_string`→`new_string` to the
-  current file) and runs `checkProposedStateWrite`. If the write marks an
-  Epic-close SHIP without a retro on disk, it **blocks**.
+  current file) and runs `checkStateFrontmatterShape`, which **blocks** malformed
+  frontmatter, then `checkProposedStateWrite`: an Epic-close SHIP without a retro
+  on disk is a non-blocking **warning** (the hard retro contract is `/sig:ship`
+  §0.5's `shipFR1Check`). A `MultiEdit` of STATE.md is not checked.
+- **Work-store guard (M6.E13/t5.1):** before the STATE.md check, when the path
+  (resolved against the event's `cwd` if relative) or its real path mentions
+  `.planning`, it lazy-loads `tools/lib/work-write-guard.js`. That **blocks** a
+  hand edit of `.planning/work/items/**/*.json`, `BUGS.md`, `BACKLOG.md`,
+  `ISSUES-INBOX.md`, `OPEN-QUESTIONS.md`, `work/EPICS.md`, `work/history/*.md`
+  — **only** when `.planning/work/WORK.md` reads `schema_version: 2` — naming
+  `/sig:item`. Item bodies (`items/**/*.md`) are allowed. On `work/WORK.md` itself
+  it blocks only an edit that would change or remove `schema_version: 2` or the
+  `key:` line (the key prefixes every item ID, so changing it orphans every
+  record; the proposed content is computed for Write, Edit and MultiEdit),
+  naming the migration tool; other text in WORK.md may be edited. `MultiEdit` reaches only this guard.
 - **exit:** `2` + a `[signal:check-state-write]` stderr line to **block** the
   write (surfaces to the user); `0` to allow. `baseDir` is derived from the
   file path (`resolve(file_path, '..', '..')`), NOT from cwd.
-- **Fail-open:** no stdin, malformed JSON, non-Edit/Write tool, a non-STATE path,
+- **Fail-open:** no stdin, malformed JSON, a tool other than Edit/Write/MultiEdit, a
+  non-STATE path outside a v2 store's generated files, any error in the work-store guard,
   a missing Edit target, or a malformed Edit (no `old_string`) → `exit 0` (allow).
   A hook bug must never wedge normal editing.
+
+### What the work-store guard cannot see (REVIEW I7)
+
+The guard is a `PreToolUse` hook on `Edit|Write|MultiEdit`, so it sees those
+three tools and nothing else. **An edit made through Bash** — `sed -i`, a shell
+redirect, a script, `git checkout` of an old file — reaches a record, a view or
+`WORK.md` without the hook running. That is the spirit of AC5.1 (*records
+change only through `/sig:item`*) held by convention, not enforcement, on that
+route.
+
+The backstop is `checkRecords` (`work-records.js`), run by `/sig:docs-sweep`
+(`checkWorkStore`) and by the AC5.2 tests: it reports a record that is invalid,
+whose events do not fold, or a duplicate ID, and any view that differs from a
+regeneration. **Its limit:** a record rewritten by hand into another *valid*
+record — a field changed with no event, its events still folding — passes it.
+Nothing in Signal can detect that edit after the fact; `git diff` of
+`.planning/work/items/` at review is the only place it shows.
 
 ## The cwd-vs-stdin asymmetry (read this before editing a hook)
 

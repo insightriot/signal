@@ -1,0 +1,23 @@
+{
+  "id": "SIG-31",
+  "type": "BUG",
+  "title": "`/sig:add` and drain RMW the same `ISSUES-INBOX.md` under DIFFERENT locks (`.add.lock` vs `.state.lock`) → concurrent…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:59",
+  "legacy_id": "B31",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

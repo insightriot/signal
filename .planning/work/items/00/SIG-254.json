@@ -1,0 +1,30 @@
+{
+  "id": "SIG-254",
+  "type": "BUG",
+  "title": "A plan named PLAN-<unit>.md is left out of its unit, so the archive moves 5 of 6 files and splits the slice",
+  "theme": "archive",
+  "priority": "P1",
+  "source": "/sig:item",
+  "migration_note": "tests/archive-destination.test.js B254 (v0.1.47)",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-01T23:34:30.041Z",
+      "by": "claude"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-03",
+      "by": "claude",
+      "reason": "fixed",
+      "proof": "940a667"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-04T19:39:12.342Z",
+      "by": "confirmCloses",
+      "reason": "fixed",
+      "proof": "940a667"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "SIG-143",
+  "type": "CHORE",
+  "title": "~~`/sig:advise` ranks on the backlog alone, while reading five sources · **hygiene** · small · *filed 2026-09-05 from `M6.E7` REVIEW*~~ · **DONE — M6.E8, 2026-09-24**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:118",
+  "legacy_id": "BACKLOG.md:118",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}
