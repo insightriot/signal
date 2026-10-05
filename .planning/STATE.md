@@ -24,7 +24,7 @@ last_updated: 2026-10-04T22:28:02.658Z
 
 ### ▶ WHERE THE WORK IS — read this first (2026-10-04)
 
-**`M6.E13` — *"work items as records"* — SHIP: PR open, waiting for Brett's merge (`--merge`).**
+**`M6.E13` — *"work items as records"* — SHIPPED in `v0.1.48` (2026-10-05; PR #280, release PR #281).**
 Epic 1 of the storage re-architecture is done.
 
 **What changed:**
@@ -42,9 +42,9 @@ Epic 1 of the storage re-architecture is done.
 Tests: 4444 → 5346. Branch `feat/m6.e13-work-item-records`. Retro:
 [`M6.E13-RETROSPECTIVE.md`](M6.E13-RETROSPECTIVE.md). Decisions `D-M6E13-1` … `D-M6E13-22`.
 
-**⚠ This session's installed plugin (`v0.1.47`) does not understand the v2 store.** After merging,
-cut the release and update the plugin before using `/sig:item`, `/sig:add` or `/sig:advise` here.
-Also open: PR #279 (SIG-275), so that `checkpointed` stops asking at every phase end.
+**Also shipped in `v0.1.48`:** SIG-275 (#279), so `checkpointed` no longer asks at every phase end.
+**Restart Claude Code** to load `v0.1.48`, which is installed; `v0.1.47` cannot read the v2 store.
+**Next:** pick the next work with `/sig:advise` or `/sig:drive`.
 
 **Why this replaced the queued work:** the next pick was moving other projects onto the store; doing that
 first would copy the current design into every repo. Reader fixes shipped as `v0.1.46`, `B254` as
@@ -94,7 +94,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-`M6.E13` at SHIP — PR open, waiting for merge. See *Where the work is* above.
+None. `M6.E13` shipped in `v0.1.48`.
 
 ## Blockers
 

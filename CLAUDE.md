@@ -77,7 +77,7 @@ checks them, you pick, the pick is recorded, and it offers to start; age is no l
 `/sig:drive`'s pick step uses the same flow. ⚠ **Three fresh-context review passes, each finding new
 routes for hostile repositories and branches**; stopped at the loop ceiling with a bounded fix, residue
 in `SIG-257`. Retro: [`.planning/M6.E12-RETROSPECTIVE.md`](.planning/M6.E12-RETROSPECTIVE.md).
-**Shipping: `M6.E13`** (PR open, 2026-10-04): work items are JSON records that never move, and
+**Latest: `v0.1.48` (2026-10-05) — `M6.E13` shipped:** work items are JSON records that never move, and
 their status comes from recorded events. One library writes them, and a hook blocks hand edits.
 Signal's own store has been cut over. `/sig:drive` ran it from PLAN through SHIP; a run starting at DISCUSS still has not happened.
 Retro: [`.planning/M6.E13-RETROSPECTIVE.md`](.planning/M6.E13-RETROSPECTIVE.md).
