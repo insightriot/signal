@@ -118,11 +118,16 @@ describe('gatherBigPicture — AC1.1–AC1.3', () => {
     expect(formatDigest(g)).toMatch(/## Could not read/);
   });
 
-  it('with the work store on, the inbox count comes from work/inbox/', async () => {
+  // M6.E13 t4.2a: the count comes from the records whose status is N (through
+  // `listRecords`), not from the files in `work/inbox/`. The store-on twins —
+  // v1 and v2, under the parser flag — are in `advise-store-on.test.js`.
+  it('with the work store on, the inbox count is the records in status N', async () => {
+    const item = (id, status) => `---\nid: ${id}\ntype: NEW\nstatus: ${status}\ncreated:\n  at: 2026-09-01T00:00:00.000Z\n  by: b\n---\nbody\n`;
     const base = project({
-      '.planning/work/WORK.md': 'key: SIG\n',
-      '.planning/work/inbox/SIG-1.md': '---\nid: SIG-1\n---\n',
-      '.planning/work/inbox/SIG-2.md': '---\nid: SIG-2\n---\n',
+      '.planning/work/WORK.md': '---\nkey: SIG\n---\n',
+      '.planning/work/inbox/SIG-1.md': item('SIG-1', 'N'),
+      '.planning/work/inbox/SIG-2.md': item('SIG-2', 'N'),
+      '.planning/work/backlog/SIG-3.md': item('SIG-3', 'T'),
     });
     const g = await gatherBigPicture(base);
     expect(g.entries.inbox[0].text).toMatch(/^2 item\(s\) in the inbox/);
@@ -194,6 +199,7 @@ describe('on this repository', () => {
       for (const e of g.entries[source]) {
         if (!e.path) continue;
         expect(existsSync(join(base, e.path)), e.path).toBe(true);
+        if (e.line === null) continue; // a work-store item: cited by its record file, which has no line (M6.E13)
         expect(e.line).toBeLessThanOrEqual(readFileSync(join(base, e.path), 'utf8').split('\n').length);
       }
     }

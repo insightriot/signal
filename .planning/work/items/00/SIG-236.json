@@ -1,0 +1,22 @@
+{
+  "id": "SIG-236",
+  "type": "FEAT",
+  "title": "Prior art for the attention axis — an unattended principal that parks",
+  "theme": "drive",
+  "priority": "P3",
+  "source": "migration:ISSUES-INBOX.md",
+  "source_ref": "ISSUES-INBOX.md:89",
+  "legacy_id": "ISSUES-INBOX.md:89",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

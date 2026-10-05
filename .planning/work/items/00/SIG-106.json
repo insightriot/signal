@@ -1,0 +1,23 @@
+{
+  "id": "SIG-106",
+  "type": "BUG",
+  "title": "`cut-release.js` updated the published test count and left the sentence naming the release that produced it — so every…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:161",
+  "legacy_id": "B106",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

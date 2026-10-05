@@ -1,0 +1,23 @@
+{
+  "id": "SIG-27",
+  "type": "BUG",
+  "title": "An archive-doc *inline* `](*.md)` link to an FR6-renamed target aborts `applyMigrate` — fail-safe but blocks a…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:54",
+  "legacy_id": "B27",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "SIG-55",
+  "type": "BUG",
+  "title": "The adherence canary's control arm is not isolated across files, so `deleteSection` never removed the instruction from…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:94",
+  "legacy_id": "B55",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

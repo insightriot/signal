@@ -1,0 +1,23 @@
+{
+  "id": "SIG-124",
+  "type": "BUG",
+  "title": "`/sig:resume` read `10/7 phases done` — the count was the log's line count, not a phase count.",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:179",
+  "legacy_id": "B124",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

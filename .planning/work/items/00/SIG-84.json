@@ -1,0 +1,23 @@
+{
+  "id": "SIG-84",
+  "type": "BUG",
+  "title": "`cut-release.js`'s \"you forgot to write the release notes\" guard cannot fire in this repo, and what it does instead is…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:117",
+  "legacy_id": "B84",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

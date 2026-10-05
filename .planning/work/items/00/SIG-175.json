@@ -1,0 +1,23 @@
+{
+  "id": "SIG-175",
+  "type": "CHORE",
+  "title": "`STATE.md`'s narrative vs. its frontmatter · **hygiene** · small · **FOLDED INTO `M5.E10`**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:973",
+  "legacy_id": "BACKLOG.md:973",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "dup",
+      "dup_of": "SIG-190",
+      "legacy": true
+    }
+  ]
+}

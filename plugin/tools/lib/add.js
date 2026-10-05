@@ -23,6 +23,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join, resolve, sep, basename, dirname } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
+import { scrubSensitive } from './scrub.js';
 import { readPublishedTally, deriveBugCounts, formatTallySegment } from './bugs-tally.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import {
@@ -35,12 +36,12 @@ import { resolveInboxPath } from './inbox-path.js';
 // drain uses, so add-vs-drain writes on a shared file are mutually excluded. state.js
 // does not import add.js, so this introduces no import cycle.
 import { withStateLock } from './state.js';
-// M6.E11 (t4.2): with the work store on, a capture becomes an item. `isStoreOn`
-// is a read with no cycle; `newItem` is imported lazily inside
-// `captureToStore`, because work-ops.js → work-generate.js → backlog.js →
-// add.js would otherwise be a static cycle.
-import { renderLabel } from './work-item.js';
-import { folderFor, isStoreOn } from './work-store.js';
+// M6.E11 (t4.2): with the work store on, a capture becomes an item. M6.E13
+// (t4.5b): a v2 record, through `work-records.js` — which imports nothing that
+// imports this module, so the import is static (the v1 `work-ops.js` one was
+// lazy because work-ops.js → work-generate.js → backlog.js → add.js).
+import { isStoreOn } from './work-store.js';
+import { assertWritable, newItem } from './work-records.js';
 
 // Re-export atomicWrite so existing consumers (tests/add.test.js, future
 // callers) keep working while atomic-write.js is the canonical implementation
@@ -71,18 +72,8 @@ const ONBOARDED_FLAG = '.planning/.add-onboarded';
 // mangle a hand-authored milestone plan (FR2 / R5).
 const MILESTONE_HOLDING_SECTION = 'Captured via /sig:add';
 
-// Sensitive-data detectors. The intent is detection, not prevention — the
-// caller decides whether to keep, abort, or scrub manually. Patterns are
-// deliberately conservative (low false-positive rate); they don't try to be
-// exhaustive. The first-run onboarding warning (S4) covers the residual.
-const SENSITIVE_PATTERNS = [
-  { type: 'aws-key', re: /AKIA[0-9A-Z]{16}/g },
-  { type: 'github-token', re: /ghp_[a-zA-Z0-9]{36,}/g },
-  { type: 'bearer-token', re: /Bearer\s+[a-zA-Z0-9._-]{8,}/g },
-  // 40-char hex blob — likely SHA-1, private key fragment, or similar. Use a
-  // boundary on both sides to avoid hitting inside longer alphanumeric runs.
-  { type: 'hex-blob-40', re: /\b[a-f0-9]{40}\b/gi },
-];
+// The sensitive-data detector lives in `scrub.js` (a leaf module, M6.E13
+// t2.2a) and is re-exported below, so every caller of `add.js` is unchanged.
 
 // --- Pure helpers ---
 
@@ -346,27 +337,7 @@ export function resolveDestination(flags = {}) {
   return { destination: 'future-ideas' };
 }
 
-/**
- * Scan a string for known sensitive-data patterns. Returns the list of hits
- * and the original body verbatim. The caller decides what to do — auto-
- * redacting silently is explicitly forbidden (see plan anti-rationalization
- * table; loss of fidelity is worse than the false-positive prompt cost).
- *
- * @param {string} body
- * @returns {{hits: Array<{type: string, match: string, index: number}>, body: string}}
- */
-export function scrubSensitive(body) {
-  const hits = [];
-  for (const { type, re } of SENSITIVE_PATTERNS) {
-    // Reset stateful regex (g flag) for each call.
-    re.lastIndex = 0;
-    let m;
-    while ((m = re.exec(body)) !== null) {
-      hits.push({ type, match: m[0], index: m.index });
-    }
-  }
-  return { hits, body };
-}
+export { scrubSensitive };
 
 /**
  * Soft-cap body length. Returns the cap-state and length; the caller may
@@ -1178,21 +1149,29 @@ export async function captureToDestination(baseDir, opts) {
 /**
  * The store-on half of `captureToDestination` (M6.E11 t4.2, AC-6.1,
  * D-M6E11-6): the same scrub and body-length prompts, in the same order, then
- * `newItem` writes `inbox/{KEY}-{n}.md` (status N) and regenerates the lists.
- * No `.add.lock`: `newItem` holds the store's own `work` lock across the ID
- * allocation and the write, which is what serialises two captures.
+ * `work-records.js` `newItem` writes the record `items/NN/{KEY}-{n}.json` with
+ * one `created` event (status N), its body beside it, and regenerates the
+ * views (M6.E13 t4.5b). No `.add.lock`: `newItem` holds the store's own `work`
+ * lock across the ID allocation and the write, which is what serialises two
+ * captures.
+ *
+ * A v1 store (no `schema_version: 2`) is refused FIRST — before any prompt,
+ * so nobody is asked about a capture that cannot be written — with
+ * `assertWritable`'s CONFIG error naming `node tools/work-migrate-v2.mjs`.
  *
  * The item records what the list entry recorded: the words verbatim as the
  * body, the heading as `title` (the caller's, else `deriveHeading`), the
- * capture date as `created.at`, the route as `source`, and the mid-flow
- * `triggerContext` as `source_ref`. `by` is the caller's `opts.by` when given,
- * else the route's own name — `/sig:add` has no other record of who.
+ * capture date as the `created` event's `at`, the route as `source`, and the
+ * mid-flow `triggerContext` as `source_ref`. `by` is the caller's `opts.by`
+ * when given, else the route's own name — `/sig:add` has no other record of
+ * who. `path` is the record file (the body is the `.md` beside it).
  *
  * @returns {Promise<{written: boolean, path?: string, line?: number, repaired?: boolean,
  *   id?: string, label?: string, aborted?: string}>}
  */
 async function captureToStore(baseDir, opts) {
   const { body, today, triggerContext, title, sensitivePrompt, bodyLengthPrompt, storeItem, by } = opts;
+  assertWritable(baseDir);
 
   // Body, title and trigger context all land in the item (the context as
   // `source_ref`), and `newItem` scrubs all three (REVIEW I3, pass 2), so all
@@ -1212,13 +1191,12 @@ async function captureToStore(baseDir, opts) {
     if (decision !== 'keep') return { written: false, aborted: 'body-length' };
   }
 
-  const { newItem } = await import('./work-ops.js');
-  // An item title is one line (validateItem). The given title and the derived
+  // An item title is one line (the record schema). The given title and the derived
   // clause can both span lines here, so they are joined — the capture is
   // never refused for its own heading. Store on only: the store-off heading is
   // unchanged.
   const heading = (title?.trim() || deriveHeading(body)).replace(/\s*[\r\n]+\s*/g, ' ');
-  const item = await newItem(baseDir, {
+  const entry = await newItem(baseDir, {
     type: storeItem.type,
     title: heading || undefined,
     body,
@@ -1229,11 +1207,11 @@ async function captureToStore(baseDir, opts) {
   }, { acknowledgeSensitive: true });
   return {
     written: true,
-    path: join(baseDir, '.planning', folderFor(item), `${item.id}.md`),
+    path: join(baseDir, entry.path),
     line: 1,
     repaired: false,
-    id: item.id,
-    label: renderLabel(item),
+    id: entry.id,
+    label: `${entry.id}-${entry.record.type}-${entry.status}`,
   };
 }
 

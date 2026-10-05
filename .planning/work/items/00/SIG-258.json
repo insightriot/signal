@@ -1,0 +1,20 @@
+{
+  "id": "SIG-258",
+  "type": "BUG",
+  "title": "advise digest: milestone files named MILESTONE-M2.9.md are not recognised, so it reports \"no milestone file\" when there are two",
+  "theme": "advise",
+  "priority": "P2",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-03T22:34:09.706Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-03T22:34:09.706Z",
+      "by": "migration (v2)"
+    }
+  ]
+}

@@ -62,11 +62,16 @@ export function isGeneratedFile(path) {
 // The generated ISSUES-INBOX.md gives each untriaged item this line, and
 // `backlog.js`'s promote reads it back to find WHICH item a drained block is.
 // If the two sides ever disagree the promote finds nothing and captures the
-// block a second time — a twin item, silently. So the format and its parser
-// live here together, in the leaf module both sides already import.
+// block a second time — a twin item, silently. So the format lives here, in the
+// leaf module both sides already import, and the parser builds on
+// `INBOX_STATUS_RE` from here. The parser itself, `parseInboxStatusLine`, lives
+// in `legacy-lists.js` since M6.E13 t4.1 (Decision 12) — not re-exported from
+// this module, because `atomic-write.js` and the v2 modules import this one and
+// must not reach `legacy-lists.js`.
 
 const INBOX_STATUS_PREFIX = '**Status:** untriaged (N) · ';
-const INBOX_STATUS_RE = /^\*\*Status:\*\* untriaged \(N\) · ([A-Z][A-Z0-9]{1,9}-[1-9]\d*)$/;
+/** The status line's shape; read only by `parseInboxStatusLine` in `legacy-lists.js`. */
+export const INBOX_STATUS_RE = /^\*\*Status:\*\* untriaged \(N\) · ([A-Z][A-Z0-9]{1,9}-[1-9]\d*)$/;
 
 /**
  * The status line the generated inbox writes under an untriaged item.
@@ -75,19 +80,4 @@ const INBOX_STATUS_RE = /^\*\*Status:\*\* untriaged \(N\) · ([A-Z][A-Z0-9]{1,9}
  */
 export function formatInboxStatusLine(item) {
   return `${INBOX_STATUS_PREFIX}${item.id}`;
-}
-
-/**
- * The item ID on an inbox status line, or null when the line is not one.
- * Trailing whitespace (a `\r` included) is ignored.
- * @param {string} line
- * @param {string} [key] — the store's key; an ID under another key is null
- * @returns {string|null}
- */
-export function parseInboxStatusLine(line, key) {
-  if (typeof line !== 'string') return null;
-  const m = line.replace(/\s+$/, '').match(INBOX_STATUS_RE);
-  if (!m) return null;
-  if (key !== undefined && m[1].slice(0, m[1].lastIndexOf('-')) !== key) return null;
-  return m[1];
 }

@@ -1,0 +1,23 @@
+{
+  "id": "SIG-47",
+  "type": "BUG",
+  "title": "`/sig:resume` reads `0/7 phases done` immediately after a linear-mode ship.",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:82",
+  "legacy_id": "B47",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

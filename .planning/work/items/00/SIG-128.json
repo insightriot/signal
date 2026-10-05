@@ -1,0 +1,22 @@
+{
+  "id": "SIG-128",
+  "type": "BUG",
+  "title": "M5.E7's changelog section is invisible to `/sig:update` · **RESOLVED 2026-08-18**",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:209",
+  "legacy_id": "BUGS.md:209",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "rejected",
+      "legacy": true
+    }
+  ]
+}

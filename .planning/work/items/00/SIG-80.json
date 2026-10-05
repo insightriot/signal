@@ -1,0 +1,23 @@
+{
+  "id": "SIG-80",
+  "type": "BUG",
+  "title": "`ADHERENCE-LOG.md` carries three kinds of annotation and `NOTICE_KINDS` knows two, so the third was hand-written into…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:113",
+  "legacy_id": "B80",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

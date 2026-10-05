@@ -1,0 +1,20 @@
+{
+  "id": "SIG-185",
+  "type": "FEAT",
+  "title": "Loop engineering — split attention from rigor · **roadmap** · large · **M6**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1181",
+  "legacy_id": "BACKLOG.md:1181",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

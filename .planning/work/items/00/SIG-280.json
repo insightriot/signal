@@ -1,0 +1,12 @@
+{
+  "id": "SIG-280",
+  "type": "NEW",
+  "title": "M6.E13 REVIEW residue: broken-record remedy wording, probe message, double sweep report, weak two-process assertion",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-04T22:24:54.800Z",
+      "by": "claude"
+    }
+  ]
+}

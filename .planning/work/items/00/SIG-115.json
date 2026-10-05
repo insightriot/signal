@@ -1,0 +1,23 @@
+{
+  "id": "SIG-115",
+  "type": "BUG",
+  "title": "`readBindingBanner` (`B52`, `v0.1.20`) is called by `/sig:status` and `/sig:resume` and by no other command.",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:170",
+  "legacy_id": "B115",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

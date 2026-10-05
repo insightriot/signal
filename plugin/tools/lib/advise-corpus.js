@@ -32,14 +32,100 @@ import { join } from 'node:path';
 
 import { parseBacklogRows } from './backlog.js';
 import { walkBugEntries } from './bugs-tally.js';
+import { bugRowHeadline, hasSectionHeadings } from './legacy-lists.js';
 import { resolveClosures } from './closure.js';
 import { parseEpicStatusRows } from './milestones.js';
 import { readRegularFile, regularFileRefusal } from './path-confine.js';
 import { relative } from 'node:path';
 import { findWorkOnOtherBranches } from './branch-work.js';
 import { readState } from './state.js';
+import { isStoreOn } from './work-store.js';
+import { listRecords } from './work-records.js';
 
 const PLANNING_DIR = '.planning';
+
+/** Where a store-on corpus says it read from: the work store, not a list file. */
+export const WORK_STORE_REL = `${PLANNING_DIR}/work`;
+
+/** Statuses a store-on item is live in. `closing` is not one: it counts as done (AC7.3). */
+const LIVE_STATUSES = new Set(['T', 'Q', 'P']);
+const OPEN_BUG_STATUS = Object.freeze({ N: 'needs-triage', T: 'confirmed', Q: 'confirmed', P: 'confirmed' });
+
+/**
+ * A record's priority as the lists write it (`P1`), or null. Records carry the
+ * v1 string (`P2`) or a number.
+ */
+export function recordPriority(record) {
+  const p = record?.priority;
+  if (typeof p === 'number' && Number.isInteger(p) && p >= 0) return `P${p}`;
+  if (typeof p === 'string' && /^P\d+$/.test(p.trim())) return p.trim();
+  return null;
+}
+
+/**
+ * Read the work store, when it is on (M6.E13 t4.2a). `null` when it is off — the
+ * caller then reads the list files exactly as before (AC4.1). Otherwise
+ * `{records, broken, version}` from `listRecords` (a v1 store through the
+ * converter), or `{error}` when `WORK.md` or the store cannot be read.
+ *
+ * ⚠ NO MARKDOWN LIST IS PARSED ON THIS PATH (Decision 12). With the store on,
+ * `BACKLOG.md` and `BUGS.md` are views that can lag the records, so they are not
+ * read at all — a broken store is cannot-check, never a fall-back to the views.
+ */
+export function readWorkStore(baseDir) {
+  try {
+    if (!isStoreOn(baseDir).on) return null;
+    return listRecords(baseDir, { bodies: true });
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+/**
+ * The store-on corpus row: the shape `parseBacklogRows` rows have, with the item
+ * ID where the line was. `line` is null and `path` is the record's own file, so
+ * a citation names the record (whole-file) rather than a view's line.
+ */
+function storeRow(entry) {
+  return {
+    id: entry.id,
+    leadingId: entry.id,
+    text: entry.record.title ?? entry.id,
+    body: String(entry.body ?? '').trim(),
+    path: entry.path,
+    line: null,
+    status: entry.status,
+    epic: entry.epic,
+  };
+}
+
+/** Open questions (type Q, not closing or closed), in ID order. */
+export function storeQuestions(records) {
+  return records
+    .filter((r) => r.record.type === 'Q' && Object.hasOwn(OPEN_BUG_STATUS, r.status))
+    .map((r) => ({ id: r.id, path: r.path, line: null, text: r.record.title ?? r.id }));
+}
+
+/** Live backlog rows, in ID order: what `work-views.js` lists in BACKLOG.md, minus closing and closed. */
+export function storeBacklogRows(records) {
+  return records
+    .filter((r) => r.record.type !== 'BUG' && r.record.type !== 'Q' && LIVE_STATUSES.has(r.status))
+    .map(storeRow);
+}
+
+/** Open bugs, in ID order, in the `walkBugEntries`-derived entry shape. */
+export function storeBugEntries(records) {
+  return records
+    .filter((r) => r.record.type === 'BUG' && Object.hasOwn(OPEN_BUG_STATUS, r.status))
+    .map((r) => ({
+      id: r.id,
+      status: OPEN_BUG_STATUS[r.status],
+      path: r.path,
+      line: null,
+      headline: r.record.title ?? r.id,
+      priority: recordPriority(r.record),
+    }));
+}
 
 /**
  * The sources this command claims to read, enumerated rather than implied.
@@ -69,13 +155,6 @@ export const ADVISOR_SOURCES = Object.freeze([
 
 const MILESTONE_FILE_RE = /^MILESTONE-(\d+(?:\.\d+)?)\.md$/;
 
-/** The 4th cell of a BUGS.md row — the headline a reader actually recognises. */
-function bugHeadline(rowLine) {
-  const cells = rowLine.split('|');
-  const what = cells[4] ?? '';
-  return what.trim();
-}
-
 /**
  * Read every source the advisor reasons over.
  *
@@ -95,10 +174,21 @@ export async function readCorpus(baseDir) {
 
   const fail = (source, reason) => cannotCheck.push({ source, reason });
 
+  // ── 0. The work store, when it is on: §1 and §2 then read the records, one read for both.
+  const store = readWorkStore(baseDir);
+  const storeFail = store?.error ? `the work store could not be read — ${store.error}` : null;
+  const broken = store?.broken?.map((b) => ({ id: b.id, path: b.path, error: b.error })) ?? [];
+
   // ── 1. BACKLOG.md — the live queue, read at depth 4 (see the header note).
   const backlogRel = `${PLANNING_DIR}/BACKLOG.md`;
   const backlogPath = join(planningDir, 'BACKLOG.md');
-  if (!existsSync(backlogPath)) {
+  if (storeFail) {
+    fail('BACKLOG.md', storeFail);
+  } else if (store) {
+    const rows = storeBacklogRows(store.records);
+    sources.backlog = { path: WORK_STORE_REL, store: store.version, rows, totalRows: rows.length, broken };
+    checked.push('BACKLOG.md');
+  } else if (!existsSync(backlogPath)) {
     fail('BACKLOG.md', `${backlogRel} is not present — this project keeps no queue here`);
   } else {
     try {
@@ -133,7 +223,7 @@ export async function readCorpus(baseDir) {
       // `B121`: section headings with zero rows parsed from them is a file this
       // reader could not read, not an empty queue — otherwise the advisory says
       // "nothing to do". A title and prose alone is a queue that is empty.
-      if (all.length === 0 && /^#{2,6}[ \t]/m.test(content)) {
+      if (all.length === 0 && hasSectionHeadings(content)) {
         fail('BACKLOG.md', `${backlogRel} has headings but no rows this reader recognises (rows sit at ## to ####)`);
       } else {
         sources.backlog = { path: backlogRel, rows, totalRows: all.length };
@@ -147,7 +237,12 @@ export async function readCorpus(baseDir) {
   // ── 2. BUGS.md — open defects, with the line each row sits on.
   const bugsRel = `${PLANNING_DIR}/BUGS.md`;
   const bugsPath = join(planningDir, 'BUGS.md');
-  if (!existsSync(bugsPath)) {
+  if (storeFail) {
+    fail('BUGS.md', storeFail);
+  } else if (store) {
+    sources.bugs = { path: WORK_STORE_REL, store: store.version, entries: storeBugEntries(store.records) };
+    checked.push('BUGS.md');
+  } else if (!existsSync(bugsPath)) {
     fail('BUGS.md', `${bugsRel} is not present — this project files no bugs here`);
   } else {
     try {
@@ -161,7 +256,7 @@ export async function readCorpus(baseDir) {
           cell: e.cell,
           line: e.line,
           path: bugsRel,
-          headline: bugHeadline(lines[e.line - 1] ?? ''),
+          headline: bugRowHeadline(lines[e.line - 1] ?? ''),
         }));
       sources.bugs = { path: bugsRel, entries };
       checked.push('BUGS.md');
@@ -261,5 +356,20 @@ try {
     fail('other branches', `branches could not be scanned — ${err.message}`);
   }
 
+  // `work` is present only with the store on, so a store-off corpus keeps its
+  // exact shape (AC4.1). It carries what the digest reads beyond the two
+  // sources, from the same read: open questions, the inbox count, and the
+  // records that did not read.
+  if (store) {
+    const work = storeFail
+      ? { error: storeFail }
+      : {
+          version: store.version,
+          questions: storeQuestions(store.records),
+          inbox: store.records.filter((r) => r.status === 'N').length,
+          broken,
+        };
+    return { sources, cannotCheck, checked, work };
+  }
   return { sources, cannotCheck, checked };
 }

@@ -1,0 +1,23 @@
+{
+  "id": "SIG-53",
+  "type": "BUG",
+  "title": "A non-strict `current_epic` splits artifact WRITE naming from READ resolution, so a phase command can write…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:92",
+  "legacy_id": "B53",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

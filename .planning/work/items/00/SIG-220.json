@@ -1,0 +1,20 @@
+{
+  "id": "SIG-220",
+  "type": "FEAT",
+  "title": "Option C — concern weighting",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:2088",
+  "legacy_id": "BACKLOG.md:2088",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

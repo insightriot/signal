@@ -41,12 +41,14 @@ import {
   declaresNotLiveWork,
   declaresWorkMovedElsewhere,
 } from './backlog.js';
+import { isBugId } from './legacy-lists.js';
 import { EVIDENCE_MARKER, verifyCitations } from './citations.js';
 import { assertRealInsidePlanning, regularFileRefusal, readRegularFile } from './path-confine.js';
 import { readCorpus, ADVISOR_SOURCES } from './advise-corpus.js';
 import { nextStepFor } from './branch-work.js';
 import { gatherBigPicture, formatDigest } from './advise-digest.js';
 import { validatePriorities } from './advise-priorities.js';
+import { listRecords } from './work-records.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -219,6 +221,21 @@ export function cite(...targets) {
 }
 
 /**
+ * What a backlog row, bug or cover is cited by: `path:line` — or, for a work-store
+ * item (M6.E13 t4.2a), which has an ID where a list row has a line, the record's
+ * own file as a whole-file citation. `verifyCitations` resolves both, so the
+ * count gate is unchanged.
+ */
+export function citeTarget(x) {
+  return x.line === null ? x.path : `${x.path}:${x.line}`;
+}
+
+/** What a row, bug or cover is matched by: `path:line`, or a work-store item's ID. */
+export function rowKey(x) {
+  return x.line === null ? x.id : `${x.path}:${x.line}`;
+}
+
+/**
  * Strip the evidence marker out of text quoted from the corpus.
  *
  * The extractor reads the FIRST marker on a line and takes the rest of the line
@@ -343,7 +360,7 @@ function dropReason(s) {
   if (s.dischargedElsewhere) {
     const e = s.staleEntry;
     if (e?.id && e?.evidence) {
-      const source = /^B\d+$/.test(e.id) ? '**`BUGS.md`**' : '**unit closure**';
+      const source = isBugId(e.id) ? '**`BUGS.md`**' : '**unit closure**';
       return (
         `Dropped by the **discharge** input — \`${e.id}\` reads closed in ${source} ` +
         `(${quoteSafe(e.evidence)}), so it is not live work.`
@@ -394,7 +411,16 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
 
   out.push(`## ${L.corpus}`);
   out.push('');
-  out.push(`**Read:** ${corpus.checked.length > 0 ? corpus.checked.join(' · ') : 'nothing'}.`);
+  // M6.E13 t6.2: with the work store on, the backlog and the bugs are read from
+  // the records and neither list file is opened, so the line says so rather than
+  // name two files it did not read. Display only: `checked` keeps its source
+  // identifiers (`ADVISOR_SOURCES`), which the rest of the artifact and the
+  // could-not-read accounting use.
+  const fromStore = Boolean(corpus.sources?.backlog?.store || corpus.sources?.bugs?.store);
+  const readAs = (s) => (fromStore && s === 'BACKLOG.md' ? 'work records (backlog rows)'
+    : fromStore && s === 'BUGS.md' ? 'work records (bugs)' : s);
+  const readLine = corpus.checked.length > 0 ? corpus.checked.map(readAs).join(' · ') : 'nothing';
+  out.push(`**Read:** ${readLine}${fromStore ? ' — the work store is on, so BACKLOG.md and BUGS.md, its views, were not opened' : ''}.`);
   out.push('');
   // ⚠ SAYING WHICH SOURCES THE RANKING ACTUALLY USED, because "Read: …" does not
   // say it and a reader infers it. This used to be a LITERAL — "`BACKLOG.md`
@@ -424,7 +450,11 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
               ? 'not ranked — an Epic open on another branch is listed in *Open on other branches*, because ' +
                 'finishing it comes before any priority'
               : 'not ranked — no Epic is open on another branch'
-            : 'the discharge input did not open it on this run';
+            : corpus.sources?.backlog?.store
+              ? // Store on: no discharge input runs (the rows are the live records), so
+                // "did not open it" would be a false reason.
+                'read from the work records for the covers; the row inputs run no discharge check on a work store'
+              : 'the discharge input did not open it on this run';
       out.push('');
       out.push(`**Read, not consulted:** ${readNotConsulted.map((s) => `\`${s}\` — ${why(s)}`).join('; ')}.`);
     }
@@ -510,12 +540,23 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
 
   out.push(`## ${L.citationRule}`);
   out.push('');
-  out.push(
-    'Every claim below ends with a citation naming a repo-root-relative path and line. Each one was ' +
-      'resolved against disk before this file was written: the path had to exist and the line had to ' +
-      'be inside it. A citation that did not resolve fails the run, and this file would not exist. ' +
-      'What that does NOT check is whether the cited line says what the claim says it says.'
-  );
+  if (corpus.sources?.backlog?.store) {
+    // Store on: an item has no line to cite, so the rule above would be false here.
+    out.push(
+      'Every claim below ends with a citation. A work item is cited by its own record file, which had ' +
+        'to exist; any other citation names a repo-root-relative path and line, and the line had to be ' +
+        'inside the file. Each one was resolved against disk before this file was written. A citation ' +
+        'that did not resolve fails the run, and this file would not exist. What that does NOT check is ' +
+        'whether the cited file or line says what the claim says it says.'
+    );
+  } else {
+    out.push(
+      'Every claim below ends with a citation naming a repo-root-relative path and line. Each one was ' +
+        'resolved against disk before this file was written: the path had to exist and the line had to ' +
+        'be inside it. A citation that did not resolve fails the run, and this file would not exist. ' +
+        'What that does NOT check is whether the cited line says what the claim says it says.'
+    );
+  }
   out.push('');
 
   // ── Priorities.
@@ -546,9 +587,9 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
       if (c.kind === 'new') {
         out.push(`- **${label(c)}** — unfiled: not in the corpus yet, so there is no line to cite.`);
       } else if (c.kind === 'bug') {
-        out.push(`- **\`${c.id}\`** ${label(c)} — open bug. ${cite(`${c.path}:${c.line}`)}`);
+        out.push(`- **\`${c.id}\`** ${label(c)} — open bug. ${cite(citeTarget(c))}`);
       } else {
-        out.push(`- **${label(c)}** — backlog row. ${cite(`${c.path}:${c.line}`)}`);
+        out.push(`- **${label(c)}** — backlog row. ${cite(citeTarget(c))}`);
       }
     }
     out.push('');
@@ -557,30 +598,32 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
   // ── Appendix: every live row exactly once, then every dropped row (AC3.4).
   const coveredAt = new Map();
   priorities.forEach((p, i) => {
-    for (const c of p.covers) if (c.kind === 'row') coveredAt.set(`${c.path}:${c.line}`, i);
+    for (const c of p.covers) if (c.kind === 'row') coveredAt.set(rowKey(c), i);
   });
   const rowLine = (s, extra = '') => {
     const note = extra || annotate(s);
-    return `- **${quoteSafe(s.row.text)}**${note ? ` — ${note}` : ''} ${cite(`${s.row.path}:${s.row.line}`)}`;
+    return `- **${quoteSafe(s.row.text)}**${note ? ` — ${note}` : ''} ${cite(citeTarget(s.row))}`;
   };
+  // A work-store corpus has no file order: its rows come in item-ID order.
+  const order = corpus.sources?.backlog?.store ? 'in item-ID order' : 'in file order';
   out.push(`## ${L.appendix} — ${classified.live.length}`);
   out.push('');
   out.push(
     '**Not ranked.** Every live row appears exactly once: under the priority that covers it, or in ' +
-      'the list after, in file order. Age is not an input. A row here was looked at, which is a ' +
+      `the list after, ${order}. Age is not an input. A row here was looked at, which is a ` +
       'different thing from a row nobody considered — the list is complete, not curated.'
   );
   out.push('');
   priorities.forEach((p, i) => {
-    const under = classified.live.filter((s) => coveredAt.get(`${s.row.path}:${s.row.line}`) === i);
+    const under = classified.live.filter((s) => coveredAt.get(rowKey(s.row)) === i);
     if (under.length === 0) return;
     out.push(`### Under priority ${i + 1} — ${quoteSafe(p.title)}`);
     out.push('');
     for (const s of under) out.push(rowLine(s));
     out.push('');
   });
-  const rest = classified.live.filter((s) => !coveredAt.has(`${s.row.path}:${s.row.line}`));
-  out.push(`### Not covered by a priority — ${rest.length}, in file order`);
+  const rest = classified.live.filter((s) => !coveredAt.has(rowKey(s.row)));
+  out.push(`### Not covered by a priority — ${rest.length}, ${order}`);
   out.push('');
   if (rest.length === 0) out.push('None.');
   for (const s of rest) out.push(rowLine(s));
@@ -696,6 +739,31 @@ async function findStaleCitations(baseDir, probes) {
   return stale;
 }
 
+/**
+ * The stale-read guard on the work store (M6.E13 t4.2b): an item has no line to
+ * re-read, so each cited ID is checked against a fresh read of the records — it
+ * must still exist and still be live (not closed, not *closing*, AC7.3). One
+ * `listRecords` call for the whole check. A store that cannot be read now fails
+ * every ID, rather than passing them unchecked.
+ *
+ * @returns {Array<{id: string, why: string}>}
+ */
+function findStaleItems(baseDir, ids) {
+  let byId;
+  try {
+    byId = new Map(listRecords(baseDir).records.map((r) => [r.id, r.status]));
+  } catch (err) {
+    return [...ids].map((id) => ({ id, why: `the work store could not be re-read — ${err.message}` }));
+  }
+  const stale = [];
+  for (const id of ids) {
+    const status = byId.get(id);
+    if (status === undefined) stale.push({ id, why: 'no longer in the work store' });
+    else if (status === 'C' || status === 'closing') stale.push({ id, why: status === 'C' ? 'closed' : 'closing' });
+  }
+  return stale;
+}
+
 /** A row's distinctive slice: the renderer never rewrites a row, but a heading can carry decoration. */
 function rowProbe(text) {
   return String(text ?? '').replace(/^[\s`*_~]+/, '').slice(0, 24);
@@ -741,6 +809,14 @@ function shortDropReason(s) {
  */
 async function classifyCorpus(baseDir, corpus) {
   if (!corpus.sources.backlog) return null;
+  // Store on (M6.E13 t4.2b): the rows are the live records, so nothing closed is
+  // among them and there is nothing for the discharge input to drop — it reads
+  // BACKLOG.md, a view, and is not run. Bug-discharge reads a `B`-id from a
+  // heading, which a record title does not carry, so it is not run either. The
+  // heading inputs (not-live, fold) read the record titles.
+  if (corpus.sources.backlog.store) {
+    return classifyRows(corpus.sources.backlog.rows, { stale: [], discharge: null, confirmedBugs: null });
+  }
   // The discharge input reads through the same rule as the corpus — otherwise the
   // artifact said a source "could not be read" and consulted it anyway (REVIEW pass 3).
   // Only a REFUSED STATE.md skips it: `resolveClosures` reads STATE through
@@ -814,7 +890,7 @@ export async function runAdvise(baseDir, { today, priorities, render = renderArt
 
   const checked = await validatePriorities(baseDir, priorities, corpus, {
     liveRows: classified.live.map((s) => s.row),
-    droppedRows: classified.dropped.map((s) => ({ path: s.row.path, line: s.row.line, why: shortDropReason(s) })),
+    droppedRows: classified.dropped.map((s) => ({ id: s.row.id, path: s.row.path, line: s.row.line, why: shortDropReason(s) })),
   });
   if (!checked.ok) {
     return {
@@ -839,6 +915,27 @@ export async function runAdvise(baseDir, { today, priorities, render = renderArt
   // citations off by exactly 5 lines: a human edit above every cited row, after
   // the read. `verifyCitations` checks a line is WITHIN the file, never what it
   // says, so this re-reads and checks each cited row and bug line still carries it.
+  //
+  // Store on (t4.2b): rows and bugs are cited by their record file, which has no
+  // line, so the check is by ID instead — each one must still exist and be live.
+  if (corpus.sources.backlog.store) {
+    const ids = new Set([
+      ...[...classified.live, ...classified.dropped].map((s) => s.row.id),
+      ...checked.priorities.flatMap((p) => p.covers.filter((c) => c.kind !== 'new').map((c) => c.id)),
+    ]);
+    const staleItems = findStaleItems(baseDir, ids);
+    if (staleItems.length > 0) {
+      return {
+        ...base,
+        status: 'skipped',
+        path: rel,
+        reason:
+          `${staleItems.length} cited work item(s) are no longer live — the store changed between reading it ` +
+          `and writing this artifact (${staleItems.map((x) => `${x.id}: ${x.why}`).join('; ')}). ` +
+          'Re-run to regenerate against the current records',
+      };
+    }
+  }
   const probes = [
     ...[...classified.live, ...classified.dropped].map((s) => ({ path: s.row.path, line: s.row.line, probe: rowProbe(s.row.text) })),
     ...checked.priorities.flatMap((p) =>

@@ -1,0 +1,23 @@
+{
+  "id": "SIG-136",
+  "type": "BUG",
+  "title": "⚠ WITHDRAWN as a duplicate of `B100` — `AC_ID_RE` drops the sub-letter",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:298",
+  "legacy_id": "BUGS.md:298",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "dup",
+      "dup_of": "SIG-100",
+      "legacy": true
+    }
+  ]
+}

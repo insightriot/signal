@@ -1,0 +1,23 @@
+{
+  "id": "SIG-274",
+  "type": "NEW",
+  "title": "No path turns the work store on for a new project any more (the v1 enable script was retired in M6.E13)",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-04T17:52:10.530Z",
+      "by": "claude"
+    },
+    {
+      "type": "edited",
+      "at": "2026-10-04T20:24:48.911Z",
+      "by": "claude",
+      "changes": {
+        "title": {
+          "from": "Turning the work store on for a new project still makes a v1 store, which v2 code refuses to write",
+          "to": "No path turns the work store on for a new project any more (the v1 enable script was retired in M6.E13)"
+        }
+      }
+    }
+  ]
+}

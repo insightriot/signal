@@ -1,0 +1,20 @@
+{
+  "id": "SIG-244",
+  "type": "Q",
+  "title": "Should the \"one canary is not a survey\" caveat name all declared deletion sites instead of just `canary.command`? It renders \"a fact about {id} in commands/{command}.md\", accurate when a canary had one anchor. The instruction now lives at five declared sites. `canary.command` is genuinely the measured command, so the sentence is defensible — but a reader could take it as the full footprint. Deliberately not changed in REVIEW: wording on a published-record template deserves its own decision.",
+  "source": "migration:OPEN-QUESTIONS.md",
+  "source_ref": "OPEN-QUESTIONS.md:153",
+  "legacy_id": "OPEN-QUESTIONS.md:153",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

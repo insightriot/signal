@@ -1,0 +1,22 @@
+{
+  "id": "SIG-243",
+  "type": "Q",
+  "title": "~~Does M5.E7 ever get a version number?~~ · **ANSWERED 2026-08-18 — no, and the heading changed instead**",
+  "source": "migration:OPEN-QUESTIONS.md",
+  "source_ref": "OPEN-QUESTIONS.md:143",
+  "legacy_id": "OPEN-QUESTIONS.md:143",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "SIG-180",
+  "type": "CHORE",
+  "title": "Map drift-guard · **hygiene** · small",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1065",
+  "legacy_id": "BACKLOG.md:1065",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

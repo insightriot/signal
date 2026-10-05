@@ -1,0 +1,23 @@
+{
+  "id": "SIG-88",
+  "type": "BUG",
+  "title": "Signal is branch-blind: nothing creates a branch, nothing checks one exists, and `/sig:ship`'s \"create a pull request\"…",
+  "priority": "P1",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:153",
+  "legacy_id": "B88",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

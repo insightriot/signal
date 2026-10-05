@@ -267,3 +267,62 @@ describe('parseItem / stringifyItem — AC-2.1', () => {
     expect(item.created.at).toBe('2026-09-29');
   });
 });
+
+// Moved from work-reopen.test.js at M6.E13 t7.4, when the v1 `reopenItem` it
+// also tested was retired: the converter still reads `history` from v1 item
+// files (work-convert.js), so the schema rule stays pinned.
+describe('the `history` field (work-item.js)', () => {
+  const CREATED = { at: '2026-09-01T00:00:00.000Z', by: 'brett' };
+  const CLOSE = { reason: 'fixed', by: 'brett', at: '2026-09-10T12:00:00.000Z', proof: 'abc1234' };
+  const CLOSED_AT = CLOSE.at;
+  const AT = '2026-09-29T12:00:00.000Z';
+  const entry = { ...CLOSE, reopened_at: AT, reopened_by: 'brett', reopen_reason: 'came back' };
+  const base = { id: 'SIG-1', type: 'BUG', status: 'T', created: CREATED };
+
+  it('accepts a list of prior closes on any status', () => {
+    expect(validateItem({ ...base, history: [entry] })).toEqual([]);
+    expect(validateItem({ ...base, status: 'C', close: CLOSE, history: [entry, entry] })).toEqual([]);
+  });
+
+  it('accepts an entry without proof (migrated closes have none)', () => {
+    const { proof, ...noProof } = entry;
+    expect(proof).toBeDefined();
+    expect(validateItem({ ...base, history: [{ ...noProof, reason: 'stale' }] })).toEqual([]);
+  });
+
+  it('refuses a non-list, an empty list, and a non-mapping entry', () => {
+    expect(validateItem({ ...base, history: entry })).toContain('history must be a non-empty list of prior close records');
+    expect(validateItem({ ...base, history: [] })).toContain('history must be a non-empty list of prior close records');
+    expect(validateItem({ ...base, history: ['x'] })).toContain('history[0] must be a mapping');
+  });
+
+  it('reports every missing field of an entry, named by its index', () => {
+    const errors = validateItem({ ...base, history: [entry, { reason: 'stale' }] });
+    for (const k of ['by', 'at', 'reopened_at', 'reopened_by', 'reopen_reason']) {
+      expect(errors).toContain(`history[1].${k} is required`);
+    }
+  });
+
+  it('holds an entry to the close rules: reason, dup_of, unknown keys', () => {
+    expect(validateItem({ ...base, history: [{ ...entry, reason: 'done' }] }))
+      .toContain('history[0].reason must be one of fixed/stale/wontdo/dup/rejected (got "done")');
+    expect(validateItem({ ...base, history: [{ ...entry, reason: 'dup' }] }))
+      .toContain('history[0].dup_of is required when history[0].reason is dup');
+    expect(validateItem({ ...base, history: [{ ...entry, dup_of: 'SIG-2' }] }))
+      .toContain('history[0].dup_of is only allowed when history[0].reason is dup');
+    expect(validateItem({ ...base, history: [{ ...entry, reopenReason: 'x' }] }))
+      .toContain('history[0].reopenReason is not a known field');
+  });
+
+  it('is written last, each entry in a fixed key order, and round-trips', () => {
+    const scrambled = { reopen_reason: 'came back', reopened_by: 'brett', proof: 'abc1234', at: CLOSED_AT, reopened_at: AT, by: 'brett', reason: 'fixed' };
+    const text = stringifyItem({ history: [scrambled], ...base, migration_note: 'n' }, 'body\n');
+    const fm = text.split('---')[1];
+    expect(fm.trimEnd().split('\n').filter((l) => /^\w/.test(l)).at(-1)).toBe('history:');
+    const keys = [...fm.slice(fm.indexOf('history:')).matchAll(/^\s+-?\s*(\w+):/gm)].map((m) => m[1]);
+    expect(keys).toEqual(['reason', 'by', 'at', 'proof', 'reopened_at', 'reopened_by', 'reopen_reason']);
+    const parsed = parseItem(text);
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.item.history).toEqual([entry]);
+  });
+});

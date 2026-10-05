@@ -1,0 +1,12 @@
+{
+  "id": "SIG-269",
+  "type": "NEW",
+  "title": "SIG-146 and SIG-166 link to references/command-taxonomy.md, which moved to plugin/references/",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-04T14:30:59.882Z",
+      "by": "claude"
+    }
+  ]
+}

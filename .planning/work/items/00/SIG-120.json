@@ -1,0 +1,21 @@
+{
+  "id": "SIG-120",
+  "type": "BUG",
+  "title": "`tests/drain-standing.test.js` AC2.2c pins THIS repo's `ISSUES-INBOX.md` at zero live candidates, so every `/sig:add`…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:175",
+  "legacy_id": "B120",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

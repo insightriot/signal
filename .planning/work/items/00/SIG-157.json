@@ -1,0 +1,23 @@
+{
+  "id": "SIG-157",
+  "type": "FEAT",
+  "title": "~~Cross-references become links, so a walker can check them~~ · **SUPERSEDED 2026-09-02 by `dangling-reference`** — the identifier half is solved better; the file-path half remains",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:450",
+  "legacy_id": "BACKLOG.md:450",
+  "migration_note": "Another row carries the same title — a struck/live duplicate pair. SUPERSEDED by `dangling-reference`, which is not an item — closed as fixed.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "SIG-207",
+  "type": "CHORE",
+  "title": "~~CLAUDE.md de-bloat + command-frontmatter freshness~~ — **✅ SHIPPED v0.1.11 (M5.E6), both halves**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1998",
+  "legacy_id": "BACKLOG.md:1998",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

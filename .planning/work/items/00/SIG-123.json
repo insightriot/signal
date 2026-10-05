@@ -1,0 +1,25 @@
+{
+  "id": "SIG-123",
+  "type": "BUG",
+  "title": "`/sig:advise`'s `today` parameter is not validated before it becomes the artifact's filename.",
+  "theme": "advise",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:178",
+  "legacy_id": "B123",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-02T15:41:17.105Z",
+      "by": "M6.E12",
+      "reason": "fixed",
+      "proof": "isValidStamp in advise.js; tests/advise.test.js SIG-123 cases (M6.E12, v0.1.45)",
+      "legacy": true
+    }
+  ]
+}

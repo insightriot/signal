@@ -1,0 +1,13 @@
+{
+  "id": "SIG-277",
+  "type": "BUG",
+  "title": "Concurrent promotes of one inbox block can write twin records (dedupe runs outside the work lock)",
+  "source": "M6.E13 REVIEW pass 1 (deferred)",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-04T21:38:43.038Z",
+      "by": "claude"
+    }
+  ]
+}

@@ -50,11 +50,12 @@ command that edited state would break the trust that makes these safe to run ref
 `add` · `checkpoint` · `item`
 
 Takes input from the user (or from git history) and files it. `add` routes an idea to its home;
-`checkpoint` reconciles `STATE.md` against reality; `item` moves a work item between the store's
-folders (new, triage, move, close, show, list — `M6.E11`).
+`checkpoint` reconciles `STATE.md` against reality; `item` records each change to a work item as an
+event on its record, which never moves (new, triage, move, close, reopen, edit, show, list —
+`M6.E11`, records since `M6.E13`).
 
 ⚠ **`item` is a noun in a group of bare verbs** — the naming rule below would have asked for a verb.
-The name was fixed by `D-M6E11-5` because the command takes six verbs as its first argument, so no
+The name was fixed by `D-M6E11-5` because the command takes a verb as its first argument (eight now), so no
 single verb names it. Recorded here, as `permissions` is below, so it is not re-litigated.
 
 ### 4. Document upkeep — acts on `.planning/` as a corpus

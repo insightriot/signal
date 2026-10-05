@@ -1,0 +1,21 @@
+{
+  "id": "SIG-116",
+  "type": "BUG",
+  "title": "`diffRequirementCoverage`'s denominator silently drops a real requirement on 21 of 22 REQUIREMENTS artifacts in this…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:171",
+  "legacy_id": "B116",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

@@ -64,7 +64,7 @@ Read from `.planning/`:
 
 ### 1b. Drain the inbox (required — classify + promote captured ideas into this plan)
 
-**Work store on?** If `.planning/work/WORK.md` exists (`isStoreOn(baseDir)` from `tools/lib/work-store.js`), the inbox is generated from item files: run `/sig:item triage` over `.planning/work/inbox/` instead of the drain below. The drain's write functions refuse when the store is on.
+**Work store on?** If `.planning/work/WORK.md` exists (`isStoreOn(baseDir)` from `tools/lib/work-store.js`), the inbox is a view generated from the work records: run `/sig:item triage` — it sorts every record at status N through `tools/lib/work-records.js` — instead of the drain below. The drain's write functions refuse when the store is on. On a v1 store (no `schema_version: 2` in `WORK.md`) triage refuses too, naming `node tools/work-migrate-v2.mjs`: migrate first.
 
 `/sig:add` captures ideas to the inbox (`ISSUES-INBOX.md`, back-compat `FUTURE-IDEAS.md`) between planning passes; PLAN is where they get dispositioned, so captures don't rot in a write-only file.
 

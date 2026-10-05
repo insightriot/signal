@@ -1,0 +1,20 @@
+{
+  "id": "SIG-215",
+  "type": "FEAT",
+  "title": "`/sig:report` + `/sig:orient` (co-ship)",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:2062",
+  "legacy_id": "BACKLOG.md:2062",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "SIG-25",
+  "type": "BUG",
+  "title": "FR5 AC5.2 has no behavioral read-enclosure test — `rmw-lock.test.js`'s throw-under-held-lock tests pass even for a…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:52",
+  "legacy_id": "B25",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

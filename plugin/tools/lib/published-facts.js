@@ -16,8 +16,18 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { defineCheck, HEAL, APPLICABILITY, STATE_DRIFT_CHECKS } from './state-drift.js';
-import { compareBugTally, readPublishedTally, formatTallySegment, walkBugEntries } from './bugs-tally.js';
+import {
+  compareBugTally,
+  readPublishedTally,
+  formatTallySegment,
+  walkBugEntries,
+  deriveBugCountsFromRecords,
+  bugRecordIds,
+} from './bugs-tally.js';
 import { retroStatusFromContent, RETRO_STATUS } from './retro-index.js';
+import { isStoreOn } from './work-store.js';
+import { listRecords } from './work-records.js';
+import { renderBugTally } from './work-views.js';
 
 /**
  * Measured reach per check — `evaluable` of `total` projects, from
@@ -61,6 +71,42 @@ function bugsPath(baseDir) {
   return join(baseDir, '.planning', 'BUGS.md');
 }
 
+// ── The work records (M6.E13 t4.5a) ─────────────────────────────────────────
+//
+// With the work store on, the bugs are records and BUGS.md is a view of them,
+// so the two bug checks below read the records through `listRecords` — a v2
+// store directly, a v1 store through the converter — and never parse BUGS.md.
+// Read once per run: `applicability` and `run` receive the same ctx.
+
+const storeReads = new WeakMap();
+
+// `null` when the store is off (the checks then read BUGS.md exactly as
+// before, AC4.1); `{error}` when it cannot be read — never a fall-back to the
+// view, which can lag the records; else `{version, records, broken}`.
+function storeOf(ctx) {
+  if (storeReads.has(ctx)) return storeReads.get(ctx);
+  let store;
+  try {
+    store = isStoreOn(ctx.baseDir).on ? listRecords(ctx.baseDir) : null;
+  } catch (err) {
+    store = { error: `the work store could not be read — ${err.message}` };
+  }
+  storeReads.set(ctx, store);
+  return store;
+}
+
+// Why a store-on bug check cannot evaluate, or null when it can. A record that
+// does not read is a bug whose status is unknown, so the population is.
+function storeBlindness(store) {
+  if (store.error) return store.error;
+  if (store.broken.length === 0) return null;
+  return `${store.broken.length} work item(s) could not be read — ${store.broken.map((b) => b.id ?? b.path).join(', ')} — ` +
+    'so the bug records are not all known.';
+}
+
+const OPEN_BUG = new Set(['T', 'Q', 'P']); // `confirmed` — N is needs-triage, closing is a fix waiting for its commit
+
+
 /**
  * `BUGS.md` publishes a tally of its own contents. Nothing re-derives it, so a
  * capture or a status edit silently falsifies the file's own summary.
@@ -91,6 +137,11 @@ export const checkPublishedBugTally = defineCheck({
     if (!existsSync(p)) {
       return { status: APPLICABILITY.NA, reason: 'this project has no .planning/BUGS.md' };
     }
+    const store = storeOf(ctx);
+    if (store) {
+      const blind = storeBlindness(store);
+      return blind ? { status: APPLICABILITY.BLIND, reason: blind } : APPLICABILITY.EVAL;
+    }
     let content;
     try {
       content = readFileSync(p, 'utf8');
@@ -110,6 +161,8 @@ export const checkPublishedBugTally = defineCheck({
 
   run: (ctx) => {
     const p = bugsPath(ctx.baseDir);
+    const store = storeOf(ctx);
+    if (store) return storeTallyFindings(p, store);
     const result = compareBugTally(readFileSync(p, 'utf8'));
     if (result.ok) return [];
 
@@ -127,6 +180,34 @@ export const checkPublishedBugTally = defineCheck({
     ];
   },
 });
+
+/**
+ * `published-bug-tally` with the store on (M6.E13 t4.5a). The counts come from
+ * the BUG records, by folded status, and the view must carry the tally line
+ * they render to — v2's own line (`work-views.js` `renderBugTally`), or on a v1
+ * store the v1 view's (`formatTallySegment` over `deriveBugCountsFromRecords`).
+ * The line is looked for whole; the view is not parsed.
+ *
+ * ⚠ What this reduces to, stated: BUGS.md is generated from the records, so a
+ * mismatch is a stale or hand-edited view — the same fact the store check
+ * (`checkRecords`) reports for the whole file. This
+ * check names the tally that should be there.
+ */
+function storeTallyFindings(p, store) {
+  const bugs = store.records.filter((r) => r.record.type === 'BUG');
+  const expected = store.version === 2
+    ? renderBugTally(bugs)
+    : `*${formatTallySegment(deriveBugCountsFromRecords(bugs))}*`;
+  if (readFileSync(p, 'utf8').includes(expected)) return [];
+  return [
+    {
+      file: p,
+      message:
+        'BUGS.md does not carry the tally its work records derive. With the work store on BUGS.md is generated ' +
+        `from the records, so the view is stale or was edited: regenerate it, do not edit it. Correct tally: ${expected}`,
+    },
+  ];
+}
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -178,7 +259,13 @@ export const checkBugStatusVsChangelog = defineCheck({
     'Weak signal by construction — measured on this repository it flagged 2 rows, of which 1 was real.',
 
   applicability: (ctx) => {
-    if (!existsSync(bugsPath(ctx.baseDir))) {
+    // Store on (M6.E13 t4.5a): the bugs are the records, so a missing BUGS.md
+    // view is no reason to skip; a store that cannot be read is.
+    const store = storeOf(ctx);
+    if (store) {
+      const blind = storeBlindness(store);
+      if (blind) return { status: APPLICABILITY.BLIND, reason: blind };
+    } else if (!existsSync(bugsPath(ctx.baseDir))) {
       return { status: APPLICABILITY.NA, reason: 'this project has no .planning/BUGS.md' };
     }
     if (!existsSync(join(ctx.baseDir, 'CHANGELOG.md'))) {
@@ -191,29 +278,17 @@ export const checkBugStatusVsChangelog = defineCheck({
   },
 
   run: (ctx) => {
+    const store = storeOf(ctx);
+    if (store) {
+      const changelog = readIf(join(ctx.baseDir, 'CHANGELOG.md'));
+      if (changelog === null) return [];
+      return storeBugsNamedInHeadlines(ctx.baseDir, store, releasedHeadlineText(changelog));
+    }
     const bugs = readIf(bugsPath(ctx.baseDir));
     const changelog = readIf(join(ctx.baseDir, 'CHANGELOG.md'));
     if (bugs === null || changelog === null) return [];
 
-    // Only a released entry's HEADLINE counts — its heading plus the first two
-    // non-empty lines under it, which is where an entry says what it IS rather
-    // than what it discusses. A mention under [Unreleased] is work in progress,
-    // which is exactly what `confirmed` should say.
-    const lines = changelog.split('\n');
-    const headlines = [];
-    for (let i = 0; i < lines.length; i++) {
-      if (!/^##\s*\[/.test(lines[i]) || !RELEASED_HEADING.test(lines[i])) continue;
-      const lead = [lines[i]];
-      let taken = 0;
-      for (let j = i + 1; j < lines.length && taken < 2; j++) {
-        if (/^##\s/.test(lines[j])) break;
-        if (lines[j].trim() === '') continue;
-        lead.push(lines[j]);
-        taken++;
-      }
-      headlines.push(lead.join(' '));
-    }
-    const headlineText = headlines.join('\n');
+    const headlineText = releasedHeadlineText(changelog);
 
     const confirmed = walkBugEntries(bugs).filter((e) => e.kind === 'row' && e.status === 'confirmed');
     return confirmed
@@ -228,6 +303,49 @@ export const checkBugStatusVsChangelog = defineCheck({
       }));
   },
 });
+
+// Only a released entry's HEADLINE counts — its heading plus the first two
+// non-empty lines under it, which is where an entry says what it IS rather
+// than what it discusses. A mention under [Unreleased] is work in progress,
+// which is exactly what `confirmed` should say.
+function releasedHeadlineText(changelog) {
+  const lines = changelog.split('\n');
+  const headlines = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^##\s*\[/.test(lines[i]) || !RELEASED_HEADING.test(lines[i])) continue;
+    const lead = [lines[i]];
+    let taken = 0;
+    for (let j = i + 1; j < lines.length && taken < 2; j++) {
+      if (/^##\s/.test(lines[j])) break;
+      if (lines[j].trim() === '') continue;
+      lead.push(lines[j]);
+      taken++;
+    }
+    headlines.push(lead.join(' '));
+  }
+  return headlines.join('\n');
+}
+
+/**
+ * `bug-status-vs-changelog` with the store on (M6.E13 t4.5a): an open bug
+ * record — status T, Q or P, what BUGS.md shows as `confirmed` — whose `SIG-n`
+ * or `B{n}` form (`bugRecordIds`) a released headline names. N is not `confirmed`, and a
+ * *closing* bug has its fix requested, so a changelog naming it is expected.
+ * The finding names the record file.
+ */
+function storeBugsNamedInHeadlines(baseDir, store, headlineText) {
+  return store.records
+    .filter((r) => r.record.type === 'BUG' && OPEN_BUG.has(r.status))
+    .filter((r) => bugRecordIds(r.record).ids.some((id) => new RegExp(`\\b${id}\\b`).test(headlineText)))
+    .map((r) => ({
+      file: join(baseDir, r.path),
+      message:
+        `${bugRecordIds(r.record).label} is open (\`confirmed\`), but a released CHANGELOG entry's headline names it — ` +
+        'it may already be fixed. Worth checking, and no more than that: this rule matches ' +
+        'tokens, not meaning, and on this repository it flagged 2 rows of which 1 was real. ' +
+        'A headline can name a bug it filed or merely relates to.',
+    }));
+}
 
 /**
  * A `## [Unreleased]` heading carrying a date. Unreleased content has no

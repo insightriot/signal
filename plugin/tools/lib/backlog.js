@@ -21,6 +21,7 @@
 //
 // No new runtime deps — pure string work over the shared add.js substrate.
 
+import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { existsSync, readdirSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
@@ -29,8 +30,10 @@ import { createHash } from 'node:crypto';
 
 import { atomicWrite } from './atomic-write.js';
 import { insertAboveFooter, rewriteFooter, buildBugsEntry, insertAtEnd, scrubSensitive } from './add.js';
-import { parseInboxStatusLine } from './work-marker.js';
+import { DONE_WORD_RE, declaresBugDischarge, isBugId, parseBacklogRows } from './legacy-lists.js';
 import { isStoreOn } from './work-store.js';
+import { assertWritable, isEpicArchived, listRecords, newItem, requestCloses } from './work-records.js';
+import { WorkStoreError } from './work-errors.js';
 
 const BACKLOG_REL = '.planning/BACKLOG.md';
 const BUGS_REL = '.planning/BUGS.md';
@@ -145,82 +148,57 @@ export function blockKey(block) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// With the work store on (M6.E11 t4.3, AC-6.2)
+// With the work store on (M6.E11 t4.3, AC-6.2; M6.E13 t4.5b)
 //
-// BACKLOG.md and BUGS.md are generated from item files, so a promote is an
-// item MOVE and a discharge is an item CLOSE — never an edit to the list.
+// BACKLOG.md and BUGS.md are generated from the work records, so a promote is
+// a new record and a discharge is an item CLOSE — never an edit to the list.
 //
-// A promote is triage's `accept` (`applyTriage`): it sets the type the
-// classification implies and moves the item to `backlog/`. The type mapping
-// is this module's call — `roadmap` → FEAT, `hygiene` → CHORE, a bug → BUG —
-// because the store has no tag and these are the nearest types it has.
+// A promote files ONE record, created and triaged in the same locked write
+// (`work-records.js` `newItem` with `triage` — the single lock the v1
+// `promoteInStore` lacked, B6, which captured and then triaged under two). The
+// type is this module's call — `roadmap` → FEAT, `hygiene` → CHORE, a bug →
+// BUG — because the store has no tag and these are the nearest types it has.
 //
-// Which item: a block cut from the GENERATED inbox carries
-// `**Status:** untriaged (N) · SIG-n` (read by `work-marker.js`'s
-// `parseInboxStatusLine`, the generator's own format), so that item is promoted — it is not
-// captured a second time. A block with no such line (a raw block handed in
-// directly) becomes a new item first. Dedupe survives: an item already past
-// triage is not promoted again, and a raw block's sha1 key is recorded as the
-// new item's `source_ref`, so a re-run finds it instead of making a twin.
+// It never reads a view. The v1 version read an item ID back out of a block
+// cut from the GENERATED inbox (`inboxItemId`) and moved that item instead;
+// that is gone (PLAN t4.5b). Only the drain hands this a block, and the drain
+// refuses outright with the store on (`drain.js` `refuseWhenStoreOn`), so no
+// caller depended on it — a block, whatever it quotes, becomes a new record.
+// Dedupe survives: the block's sha1 key is the record's `source_ref`, so a
+// re-run finds it instead of making a twin.
 //
-// `newItem`/`applyTriage`/`closeItems` are imported lazily: work-ops.js →
-// work-generate.js imports this module, so a static import would be a cycle.
+// A v1 store refuses (`assertWritable`: CONFIG, naming
+// `node tools/work-migrate-v2.mjs`) before anything is read or written.
 
 const STORE_SOURCE = '/sig:plan drain';
 
-function inboxItemId(block, key) {
-  for (const line of block.split('\n')) {
-    const id = parseInboxStatusLine(line, key);
-    if (id !== null) return id;
-  }
-  return null;
-}
-
 async function promoteInStore(baseDir, { block, type, title, keyName, by, acknowledgeSensitive }) {
-  const { applyTriage, getItem, listItems, newItem } = await import('./work-ops.js');
-  const { key } = isStoreOn(baseDir);
-  const itemPath = (id) => join(baseDir, '.planning', 'work', 'backlog', `${id}.md`);
-  const dedupeKey = `${keyName}: ${blockKey(block)}`;
+  assertWritable(baseDir);
+  const key = blockKey(block);
+  const dedupeKey = `${keyName}: ${key}`;
+  const twin = listRecords(baseDir).records.find((r) => r.record.source_ref === dedupeKey);
+  if (twin) return { written: false, deduped: true, path: join(baseDir, twin.path), key, id: twin.id };
 
-  let id = inboxItemId(block, key);
-  if (id === null) {
-    const twin = listItems(baseDir).find((r) => r.item.source_ref === dedupeKey);
-    if (twin) id = twin.item.id;
+  const heading = resolveTitle(title, block);
+  const body = groomBlockBody(block);
+  // The block and the retitle are new text entering a record, so they run the
+  // scrub like any capture (REVIEW pass 2). Scrubbed HERE rather than by
+  // `newItem`: the record's `source_ref` is the dedupe key, a sha1 — 40 hex
+  // characters, which the detector flags by design — so `newItem` is told the
+  // check was made.
+  const sensitiveHits = [heading, body].flatMap((t) => (t ? scrubSensitive(t).hits : []));
+  if (sensitiveHits.length > 0 && !acknowledgeSensitive) {
+    return { written: false, key, aborted: 'sensitive-data-pending', sensitiveHits };
   }
-  if (id !== null) {
-    const found = getItem(baseDir, id);
-    if (found.item.status !== 'N') {
-      return { written: false, deduped: true, path: join(baseDir, found.path), key: blockKey(block), id };
-    }
-  } else {
-    const heading = resolveTitle(title, block);
-    const body = groomBlockBody(block);
-    // A raw block handed in directly is new text entering an item, so its
-    // title and body run the scrub like any capture (REVIEW pass 2) — a block
-    // that came through an inbox item was scrubbed when that item was
-    // captured. Scrubbed HERE rather than by `newItem`: the item's
-    // `source_ref` is the dedupe key, a sha1 — 40 hex characters, which the
-    // detector flags by design — so `newItem` is told the check was made.
-    const sensitiveHits = [heading, body].flatMap((t) => (t ? scrubSensitive(t).hits : []));
-    if (sensitiveHits.length > 0 && !acknowledgeSensitive) {
-      return { written: false, key: blockKey(block), aborted: 'sensitive-data-pending', sensitiveHits };
-    }
-    const created = await newItem(baseDir, {
-      type,
-      title: heading,
-      body,
-      source: STORE_SOURCE,
-      source_ref: dedupeKey,
-      by: by ?? STORE_SOURCE,
-    }, { acknowledgeSensitive: true });
-    id = created.id;
-  }
-  const accept = { type };
-  const retitle = (title ?? '').trim();
-  if (retitle) accept.title = retitle;
-  const r = await applyTriage(baseDir, id, { accept }, { acknowledgeSensitive });
-  if (r.aborted) return { written: false, key: blockKey(block), id, aborted: r.aborted, sensitiveHits: r.sensitiveHits };
-  return { written: true, path: itemPath(id), key: blockKey(block), id, label: r.label };
+  const entry = await newItem(baseDir, {
+    title: heading,
+    body,
+    source: STORE_SOURCE,
+    source_ref: dedupeKey,
+    by: by ?? STORE_SOURCE,
+    triage: { type },
+  }, { acknowledgeSensitive: true });
+  return { written: true, path: join(baseDir, entry.path), key, id: entry.id, label: `${entry.id}-${entry.record.type}-${entry.status}` };
 }
 
 /**
@@ -238,15 +216,15 @@ async function promoteInStore(baseDir, { block, type, title, keyName, by, acknow
  * @param {'roadmap'|'hygiene'} opts.tag
  * @param {string} [opts.title] — retitle; falls back to the block's heading
  * @param {string} [opts.today] — ISO date for the footer bump
- * @param {string} [opts.by] — store on: `created.by` for a raw block's new item
+ * @param {string} [opts.by] — store on: the `created` event's `by`
  * @param {boolean} [opts.acknowledgeSensitive] — store on: the user has
  *   already been asked about sensitive data in `block` and `title`
  * @returns {Promise<{written: boolean, deduped?: boolean, path: string, key: string, id?: string, label?: string,
  *   aborted?: 'sensitive-data-pending', sensitiveHits?: object[]}>}
- *   With the store on, the item is moved instead (see "With the work store
- *   on" above) and `path`/`id` name the item file. A raw block (no inbox
- *   item) or a retitle with sensitive data, unacknowledged, writes nothing and
- *   returns `{written: false, aborted: 'sensitive-data-pending', sensitiveHits}`.
+ *   With the store on, a new triaged record is written instead (see "With the
+ *   work store on" above) and `path`/`id` name the record file; a v1 store
+ *   refuses (CONFIG). A block or retitle with sensitive data, unacknowledged,
+ *   writes nothing and returns `{written: false, aborted: 'sensitive-data-pending', sensitiveHits}`.
  */
 export async function promoteToBacklog(baseDir, { block, tag, title, today, by, acknowledgeSensitive } = {}) {
   if (!VALID_TAGS.has(tag)) {
@@ -309,6 +287,9 @@ export const ROW_DISCHARGE = Object.freeze({
   ALREADY_DISCHARGED: 'already-discharged',
   NOT_FOUND: 'not-found',
   AMBIGUOUS: 'ambiguous',
+  // v2 store only: nothing readable matched, and some records could not be
+  // read — the row may be one of them, so "not found" would be a guess.
+  UNREADABLE: 'unreadable',
 });
 
 /**
@@ -327,27 +308,13 @@ export const BACKLOG_DISCHARGE = Object.freeze({
   CANNOT_EVALUATE: 'cannot-evaluate',
 });
 
-const STRUCK_RE = /~~[^~]+~~/;
-// The done-word must sit inside a **bold status marker**, not merely somewhere in
-// the heading. `/\bDONE\b/i` matches ordinary English: measured on the real file,
-// 4 headings carry a done-word that is neither bold nor struck and ALL FOUR are
-// prose — *"what shipped"*, *"after v0.1.19 shipped"*, *"shipped but never run"*,
-// *"open/closed work"*. Two of them are live rows the check was therefore
-// skipping in silence, which is a false negative rather than a false alarm and so
-// the harder one to notice. Zero of the 26 genuinely-closed rows lose their
-// marker under this rule: every one is struck, bolded, or both.
-//
-// UPPER CASE ONLY (`B127`). Case-insensitive, the in-flight marker
-// `**IN FLIGHT — EXECUTE done 2026-09-27, VERIFY next**` read as discharged and
-// `/sig:advise` stopped seeing the Epic in flight. Measured 2026-10-03 before
-// dropping `/i`: zero discharged rows rely on a lower-case done-word, across six
-// projects' live BACKLOG.md and five snapshots of Signal's own pre-store file.
-export const DONE_WORD_RE = /\*\*[^*]{0,80}?\b(DONE|SHIPPED|ABANDONED|CLOSED|CUT|RESOLVED)\b/;
-// "PARTIALLY SHIPPED" / "largely DONE" assert OPEN work. The qualifier is
-// stripped before the done-word test rather than special-cased after it, so a
-// row carrying both a qualified and an unqualified marker still reads closed.
-const QUALIFIED_DONE_RE =
-  /\b(?:PARTIALLY|PARTLY|MOSTLY|LARGELY)\s+(?:DONE|SHIPPED|ABANDONED|CLOSED|CUT|RESOLVED)\b/gi;
+// `STRUCK_RE`, `DONE_WORD_RE`, `LEADING_ID_RE` and the other row-reading
+// regexes, `readRowDischarge`, `declaresBugDischarge` and `parseBacklogRows`
+// live in `legacy-lists.js` since M6.E13 t4.1 (Decision 12), re-exported here.
+// `HELD_OPEN_RE` stays here: no parser reads it, and its readers are the
+// heading classifiers and `backlogDischargeStatus` in this module.
+export { DONE_WORD_RE, declaresBugDischarge, parseBacklogRows };
+
 // The one way a row overrides the check: it says, in the heading a reader sees,
 // that it stays open on purpose. Added after running the check on Signal's own
 // file — without it, a row legitimately outliving the unit that named it is
@@ -355,44 +322,6 @@ const QUALIFIED_DONE_RE =
 // that makes it useless. The reason belongs in the row; this only needs the
 // declaration.
 const HELD_OPEN_RE = /\b(?:STILL|KEPT|HELD)\s+OPEN\b/i;
-const ISO_DATE_RE = /\b(\d{4}-\d{2}-\d{2})\b/;
-const VERSION_RE = /\bv\d+\.\d+(?:\.\d+)?\b/;
-const UNIT_ID_RE = /\bM\d+(?:\.\d+)?\.E\d+\b/;
-// The id a row LEADS with, past the decoration real headings carry: an ordinal
-// (`1. `), a status glyph, backticks, bold, strikethrough.
-//
-// **Both decoration runs are BOUNDED, and that is a fix rather than a style.**
-// Written first as `[…]*(?:\d+\.\s*)?[…]*`, two adjacent overlapping star-runs
-// backtrack quadratically on a non-matching heading: measured at REVIEW, a line
-// of 50,000 backticks took **3.9 seconds** inside `parseBacklogRows`, and
-// `/sig:docs-sweep` runs this over every heading in the file. Real heading decoration
-// is a handful of characters, so a bound costs nothing and removes the class.
-const LEADING_ID_RE =
-  /^[\s`*_~✅▶⚠✂]{0,40}(?:\d+\.\s{0,4})?[\s`*_~]{0,10}((?:M\d+(?:\.\d+)?\.E\d+)|(?:B\d+))\b/;
-
-/**
- * Whether a heading records its own closure, and what it records.
- *
- * Reads the vocabulary the maintainer already writes by hand — Signal's own
- * BACKLOG.md carries **zero** `backlog-key` markers and 29 hand-struck rows, so
- * a reader keyed to the machine marker would report every one of them as an
- * open row whose work had shipped. `dischargedBy` / `dischargedAt` are exact
- * for rows this module wrote and best-effort for hand-written ones.
- */
-function readRowDischarge(text) {
-  const unqualified = text.replace(QUALIFIED_DONE_RE, ' ');
-  const doneMatch = unqualified.match(DONE_WORD_RE);
-  const discharged = STRUCK_RE.test(text) || doneMatch !== null;
-  if (!discharged) return { discharged: false, dischargedBy: null, dischargedAt: null };
-
-  // Look for the attribution AFTER the marker: a row named `B52` in its title
-  // and discharged by `v0.1.20` must not report `B52` as the discharger.
-  const from = doneMatch ? doneMatch.index + doneMatch[0].length : 0;
-  const tail = unqualified.slice(from);
-  const by = tail.match(VERSION_RE) ?? tail.match(UNIT_ID_RE);
-  const at = tail.match(ISO_DATE_RE) ?? text.match(ISO_DATE_RE);
-  return { discharged: true, dischargedBy: by ? by[0] : null, dischargedAt: at ? at[1] : null };
-}
 
 // Ordered: the most specific declaration wins the `kind` label, so a row saying
 // both "parked" and "not sprint material" reports one reason rather than racing.
@@ -548,91 +477,9 @@ export function declaresWorkMovedElsewhere(headingText) {
   return { moved: false, kind: null, declaration: null, kept: false };
 }
 
-// ── `M6.E8` FR1 — a heading that says it DISCHARGES a bug.
-//
-// The row that proposed this input asked for the opposite: "a row naming an
-// open confirmed bug should rank above one that does not." Measured, that is
-// backwards (`D-M6E8-2`): zero live headings name a confirmed bug, nine BODIES
-// do, and five of the nine cite `B75` as a MEASUREMENT ("B75 measured that
-// ceiling") — they are not discharging it and are not stuck behind it either.
-// Promoting them is the wrong direction, and reading bodies is the heuristic
-// that matched another item's trigger in `M6.E7`. So: heading only, and the
-// verb must sit NEXT TO the id — `fixes B75`, `B75 — fixed` — because a bare
-// done-word anywhere in a heading is ordinary English (the real heading
-// "single home for open/closed work" carries "closed"; the `DONE_WORD_RE`
-// lesson, a second time).
-//
-// Ships firing on ZERO rows, declared rather than implied — the basis on which
-// `shelved` ships in `NOT_LIVE_VOCABULARY`. Correct the moment a maintainer
-// writes "Fixes B75" in a heading, and built now rather than in a hurry against
-// one example when it first matters.
-//
-// ⚠ BOTH TENSES, AND THE PAST TENSE WAS MISSING UNTIL REVIEW. The verb group was
-// `fix(?:es)?|close(?:s)?|…` — present tense only — so `Fixes B75` matched and
-// `Fixed B75` did not, and the id-first branch demanded a separator so
-// `B75 fixed` missed too. The predicate claimed to recognise "a heading that says
-// it discharges a bug" and recognised about half the forms a maintainer actually
-// writes, while `BUG_DISCHARGE_MEASURED` would have gone on reporting **0** with
-// such a row sitting on the file. Found in REVIEW by probing the predicate rather
-// than reading it. The widened form adds **zero** matches on this repository's
-// live `BACKLOG.md` and none on the three real trap headings (`B87`–`B90`,
-// `B73`–`B76`, "open/closed work"), so the measured zero below is unchanged.
-//
-// ⚠ THE SEPARATOR GROUP CARRIES ITS OWN WHITESPACE, AND THAT IS A ReDoS FIX, NOT
-// A TIDY-UP. Written first as `\s*(?:—|–|-|:)?\s*`, an optional separator
-// between two unbounded whitespace runs is quadratic: every split point between
-// the two runs is retried on failure. Measured on a `B1` + N spaces + `x`
-// heading — 1.9 ms at 1k, 161 ms at 10k, 1.5 s at 30k, **5.9 s at 60k**, and the
-// same for tabs. Nesting the separator inside the optional group leaves ONE
-// unbounded run before the verb and is flat at 0.2 ms across all four sizes,
-// while accepting the identical language (`ws* sep? ws*` and `ws* (sep ws*)?`
-// both describe `ws*` ∪ `ws* sep ws*`; verified against all 22 fixtures).
-//
-// It was introduced by the REVIEW fix that widened the tense and caught by the
-// NEXT review round — the author's own ReDoS probe had missed it, having tried
-// backtick runs, digit runs and repeated verbs but never a long whitespace run
-// after an id. `LEADING_ID_RE` above bounds its decoration runs for this exact
-// class and records the 3.9 s measurement that justified it; this is the same
-// lesson, relearned one function down. The timing is pinned by a test.
-//
-// ⚠ NO `for` BRANCH. It was there — `(?:for\s+)?` — and it promoted a row
-// headed "The fix for `B75` broke `B76`" as though it discharged `B75`, which is
-// the opposite of what that row says. Its only justification was an invented
-// fixture ("A fix for B9 that discharges it"), never a real heading, so it is
-// removed rather than documented.
-//
-// ⚠ INFLECTED FORMS ONLY, AND A REQUIRED SEPARATOR ON THE ID-FIRST BRANCH. Both
-// narrowings are fixes for false positives a fresh-context review found by
-// probing, and both say the same thing: this predicate reads a CLAIM THAT THE
-// WORK IS DONE, not a row that is merely about a bug.
-//
-//   - **No bare verb.** `fix` / `close` / `resolve` / `discharge` are also nouns
-//     and imperatives. `The B75 fix broke B76` and `the discharge B75 handler`
-//     matched through the noun; `Fix B75` and `Close B12` matched through the
-//     imperative, which states an INTENTION to do the work — the opposite of
-//     discharging it. Only `fixes|fixed|closes|closed|resolves|resolved|
-//     discharges|discharged` survive.
-//   - **Separator required after the id.** Making it optional (the previous
-//     round's widening) let `B75 fixes the ceiling` and `B75 fixed-width column`
-//     read as discharges, because a bug-as-subject heading is indistinguishable
-//     from a record without one. `B75 — fixed` is explicit; `B75 fixed` is not,
-//     and losing it is the price of not promoting the other two.
-//
-// It is also what makes the pattern linear again: an optional separator BETWEEN
-// two unbounded whitespace runs is quadratic (1.9 ms at 1k, 5.9 s at 60k). With
-// the separator required the literal anchors the two runs — measured flat at
-// 1.1 ms on a 300,000-character heading. `LEADING_ID_RE` above bounds its runs
-// for the same class and records the 3.9 s measurement behind it. Pinned by a test.
-//
-// ⚠ `(?!-)` AFTER EACH VERB, because `\b` is satisfied by a hyphen. Without it
-// `B9: discharged-batch queue`, `B1 — fixed-width column`, `B7 - resolved-name
-// cache` and `B12: closed-loop controller` all read as discharges — a row about a
-// batch queue promoted as though it closed a bug. Found by the pass-3 security
-// audit after the two earlier narrowings, and it is the same lesson a third time:
-// the vocabulary is a claim that the work is DONE, and an adjectival compound is
-// not that claim.
-const BUG_DISCHARGE_RE =
-  /\b(?:fix(?:es|ed)|close[sd]|resolve[sd]|discharge[sd])(?!-)\s+`?(B\d+)`?\b|`?\b(B\d+)\b`?\s*(?:—|–|-|:)\s*(?:fix(?:es|ed)|close[sd]|resolve[sd]|discharge[sd])(?!-)\b/i;
+// ── `M6.E8` FR1 — a heading that says it DISCHARGES a bug. The pattern and
+// `declaresBugDischarge` live in `legacy-lists.js` (M6.E13 t4.1), with the
+// reasoning behind every narrowing.
 
 /**
  * What `BUG_DISCHARGE_RE` hits on THIS repository's own `BACKLOG.md`, measured
@@ -642,103 +489,6 @@ const BUG_DISCHARGE_RE =
  * `fixed`. A red pin means a heading now claims a discharge — read it.
  */
 export const BUG_DISCHARGE_MEASURED = Object.freeze({ on: '2026-09-14', hits: 0 });
-
-/**
- * Whether a heading declares, in its own words, that it discharges a bug —
- * and which one. Whether that bug is still `confirmed` is the caller's
- * question (`rankRows` answers it from `BUGS.md`); this only reads the heading.
- *
- * @param {string} headingText — a row's heading, not its body
- * @returns {{id: string|null, declaration: string|null}}
- */
-export function declaresBugDischarge(headingText) {
-  const m = String(headingText ?? '').match(BUG_DISCHARGE_RE);
-  if (!m) return { id: null, declaration: null };
-  return { id: (m[1] ?? m[2]).toUpperCase(), declaration: m[0] };
-}
-
-/**
- * Every backlog row, with its discharge state normalized to `obligations.js`'s
- * field names (`discharged` / `dischargedBy` / `dischargedAt`).
- *
- * ONE definition of "which heading is a row", shared by the writer below and by
- * the `/sig:docs-sweep` check (AC S7.1). Three rules, each measured against the real
- * file rather than assumed:
- *
- *   1. A heading whose next heading is DEEPER is a **container**, not a row.
- *      Signal's file nests `###` rows under `##` sprint headings; a backlog the
- *      drain wrote nests nothing and puts its rows at `##`. A depth-literal rule
- *      would see zero rows in one shape or every section header in the other.
- *   2. A heading inside `<details>` is preserved history — the original entry
- *      kept under a discharged row for the reasoning that set the order. Live
- *      rows only; rewriting one would edit the record.
- *   3. Discharge is read from the hand vocabulary (see `readRowDischarge`).
- *
- * @param {string} content — a BACKLOG.md body
- * @returns {Array<{text:string, line:number, depth:number, inDetails:boolean,
- *   leadingId:string|null, discharged:boolean, dischargedBy:string|null,
- *   dischargedAt:string|null}>}
- */
-export function parseBacklogRows(content, { maxDepth = 3 } = {}) {
-  const lines = String(content).split('\n');
-  const heads = [];
-  let detailsDepth = 0;
-  let inFence = false;
-  // Depth 3 is the DEFAULT, not the truth, and the difference is a live bug.
-  // Signal's own promoted rows sit at `####` — correct nesting under their `###`
-  // section — so a depth-3 read reports zero of them (`B94`'s discharge half,
-  // filed twice). Every caller that reads a real BACKLOG.md passes `maxDepth: 4`
-  // — the discharge writer and the sweep check too since `B135`, measured: at 4
-  // the `###` section headers above `####` rows become containers and nothing
-  // else moves, on Signal's history and on every corpus backlog.
-  const headingRe = new RegExp(`^(#{2,${Math.max(2, maxDepth)}})\\s+(.*)$`);
-
-  lines.forEach((raw, i) => {
-    // `B121`: a CRLF file leaves `\r` on every line, `$` cannot match before it,
-    // and the whole file parsed as ZERO rows. Stripped per line so `i` stays
-    // aligned with the `split('\n')` the writers use.
-    const line = raw.endsWith('\r') ? raw.slice(0, -1) : raw;
-    const t = line.trimStart();
-    const isFenceLine = t.startsWith('```') || t.startsWith('~~~');
-    if (isFenceLine) inFence = !inFence;
-    const m = inFence ? null : line.match(headingRe);
-    if (m) heads.push({ line: i + 1, depth: m[1].length, text: m[2].trim(), inDetails: detailsDepth > 0 });
-    // `B122`: a MENTION of `<details>` — in a fence or a code span — is not a
-    // block, and counting it marked every row after it as preserved history.
-    if (inFence || isFenceLine) return;
-    const bare = line.replace(/`[^`]*`/g, '');
-    detailsDepth += (bare.match(/<details/g) ?? []).length - (bare.match(/<\/details>/g) ?? []).length;
-    if (detailsDepth < 0) detailsDepth = 0;
-  });
-
-  // The container fold runs over LIVE headings only, and the ordering is the fix.
-  //
-  // Folded over every heading, a live `## row` whose next heading is a `###`
-  // inside a following `<details>` block is classified as a container and
-  // DROPPED — and the `<details>` heading it was folded against is then removed
-  // by each call site's `inDetails` filter, so the row vanishes entirely:
-  // `dischargeBacklogRows` answers `not-found` for a row that exists, and
-  // `backlogDischargeStatus` never evaluates it. That is exactly rule 2's shape
-  // above (a discharged row keeping its original entry underneath) crossed with
-  // the drain-written shape (rows at `##`) — so it cannot occur in Signal's own
-  // file, where rows and their `<details>` headings sit at the same depth, and
-  // it hits every command-driven project. `B82`'s dogfood blindness again.
-  //
-  // Preserved-history headings are never containers: they are a record, not a
-  // structure, and nothing nests under them that a reader is meant to act on.
-  const live = heads.filter((h) => !h.inDetails);
-  const containers = new Set();
-  live.forEach((h, i) => {
-    if (i + 1 < live.length && live[i + 1].depth > h.depth) containers.add(h);
-  });
-
-  return heads
-    .filter((h) => !containers.has(h))
-    .map((h) => {
-      const lead = h.text.match(LEADING_ID_RE);
-      return { ...h, leadingId: lead ? lead[1] : null, ...readRowDischarge(h.text) };
-    });
-}
 
 /** The heading line a discharged row renders as. */
 function renderDischargedHeading(depth, text, by, at) {
@@ -764,10 +514,15 @@ function renderDischargedHeading(depth, text, by, at) {
  * @param {string} opts.by — what discharged them (an Epic id, a version)
  * @param {string} [opts.at] — ISO date
  * @param {string} [opts.today] — ISO date for the footer bump
- * @returns {Promise<{written:boolean, path:string, reason:string|null,
+ * @param {string} [opts.commit] — v2 work store only: the Epic's commit, the
+ *   proof each close request carries (default: the branch HEAD)
+ * @returns {Promise<{written:boolean, path:string, reason:string|null, commit?:string,
  *   results:Array<{row:string, status:string, reason:string|null, heading:string|null, line:number|null, id?:string}>}>}
- *   With the store on, a named row is an item and is CLOSED (`fixed`, the
- *   discharge stamp as proof) — see `dischargeInStore`. `line` is null there.
+ *   With the store on, a named row is an item record: it is asked to close
+ *   (`requestCloses`) with `commit` as proof, and reads *closing* until
+ *   `confirmCloses` finds that commit on the default branch — see
+ *   `dischargeInRecords`. `line` is null there. A v1 store refuses (CONFIG,
+ *   naming `node tools/work-migrate-v2.mjs`), writing nothing.
  */
 export async function dischargeBacklogRows(baseDir, opts = {}) {
   const { rows = [], by, at, today } = opts;
@@ -777,7 +532,10 @@ export async function dischargeBacklogRows(baseDir, opts = {}) {
   if (isStoreOn(baseDir).on) {
     // Test seam, like checkpoint.js's `_renameFn`: own-property + typeof guard.
     const renameFn = Object.hasOwn(opts, '_renameFn') && typeof opts._renameFn === 'function' ? opts._renameFn : undefined;
-    return dischargeInStore(baseDir, { rows, by, at, today, base, renameFn });
+    // A v1 store refuses (CONFIG, naming the migration): the v1 discharge,
+    // which closed item files, was retired with the v1 store (M6.E13 t7.4).
+    assertWritable(baseDir);
+    return dischargeInRecords(baseDir, { rows, by, at, today, base, renameFn, commit: opts.commit });
   }
 
   if (!existsSync(path)) {
@@ -836,58 +594,82 @@ export async function dischargeBacklogRows(baseDir, opts = {}) {
   return { written: true, path, reason: null, results };
 }
 
-// The store-on discharge (M6.E11 t4.3). The rows a discharge can name are the
-// rows the generated BACKLOG.md shows: items that are neither BUG nor Q and
-// are past the inbox. Same refusals as the list version — no match, or more
-// than one open match, writes nothing for that query — and an item already
-// closed reads as already discharged. Each hit is closed `fixed`, with the
-// stamp the list heading would have carried as its proof.
+// The v2 discharge (M6.E13 t7.3 prep, `D-M6E13-15`). The same rows and the
+// same refusals as the retired v1 discharge — the rows `BACKLOG.md` shows are the
+// records that are neither BUG nor Q and are past the inbox — but a v2 store
+// refuses a direct `fixed` close: a fixed close is a REQUEST carrying a
+// commit, confirmed by `confirmCloses` once that commit is on the default
+// branch (the sweep or the next SHIP). So each hit is asked to close with the
+// Epic's commit — `commit`, or the branch HEAD at ship — and a row already
+// *closing* or closed reads as already discharged.
 //
-// All the closes are ONE `closeItems` batch: one lock, one regeneration, and
-// all or nothing — a failure on one row leaves every row open. Two queries
-// naming the same item close it once.
-async function dischargeInStore(baseDir, { rows, by, at, today, base, renameFn }) {
-  const { closeItems, listItems } = await import('./work-ops.js');
-  const who = by ?? 'unspecified';
+// All the requests are ONE `requestCloses` batch: one lock, one regeneration,
+// all or nothing. Two queries naming the same item request it once.
+async function dischargeInRecords(baseDir, { rows, by, at, today, base, renameFn, commit }) {
+  const who = String(by ?? 'unspecified');
   const when = at ?? today ?? isoToday();
-  const proof = `DONE — ${at ? `${who}, ${at}` : String(who)}`;
-  const rowsOf = listItems(baseDir).filter((r) => r.item.type !== 'BUG' && r.item.type !== 'Q' && r.item.status !== 'N');
+  const listed = listRecords(baseDir);
+  const rowsOf = listed.records.filter((r) => r.record.type !== 'BUG' && r.record.type !== 'Q' && r.status !== 'N');
+  const unreadable = listed.broken.map((b) => b.path);
+  const isOpen = (r) => r.status !== 'C' && r.status !== 'closing';
+  const titleOf = (r) => r.record.title ?? r.id;
   const results = [];
-  const toClose = [];
+  const toRequest = [];
 
   for (const query of rows) {
     const needle = String(query).toLowerCase();
-    const hits = rowsOf.filter((r) => String(r.item.title ?? r.item.id).toLowerCase().includes(needle));
-    const open = hits.filter((r) => r.item.status !== 'C');
+    const hits = rowsOf.filter((r) => String(titleOf(r)).toLowerCase().includes(needle));
+    const open = hits.filter(isOpen);
     if (open.length > 1) {
       results.push({
         row: query,
         status: ROW_DISCHARGE.AMBIGUOUS,
-        reason: `${JSON.stringify(query)} matches ${open.length} items (${open.map((h) => h.item.id).join(', ')}) — name one of them exactly`,
+        reason: `${JSON.stringify(query)} matches ${open.length} items (${open.map((h) => h.id).join(', ')}) — name one of them exactly`,
         heading: null,
         line: null,
       });
     } else if (open.length === 1) {
       const [hit] = open;
-      if (!toClose.includes(hit.item.id)) toClose.push(hit.item.id);
-      results.push({ row: query, status: ROW_DISCHARGE.DISCHARGED, reason: null, heading: hit.item.title ?? hit.item.id, line: null, id: hit.item.id });
+      if (!toRequest.includes(hit.id)) toRequest.push(hit.id);
+      results.push({ row: query, status: ROW_DISCHARGE.DISCHARGED, reason: null, heading: titleOf(hit), line: null, id: hit.id });
     } else if (hits.length > 0) {
       const [hit] = hits;
-      results.push({ row: query, status: ROW_DISCHARGE.ALREADY_DISCHARGED, reason: `already closed (${hit.item.close?.reason}) at ${hit.path}`,
-        heading: hit.item.title ?? hit.item.id, line: null, id: hit.item.id });
+      const last = hit.record.events.findLast((e) => e.type === 'closed' || e.type === 'close_requested');
+      const how = hit.status === 'closing' ? `already closing (fixed by ${last?.proof})` : `already closed (${last?.reason})`;
+      results.push({ row: query, status: ROW_DISCHARGE.ALREADY_DISCHARGED, reason: `${how} at ${hit.path}`, heading: titleOf(hit), line: null, id: hit.id });
+    } else if (unreadable.length > 0) {
+      results.push({
+        row: query,
+        status: ROW_DISCHARGE.UNREADABLE,
+        reason: `no readable row matches ${JSON.stringify(query)}, and ${unreadable.length} record${unreadable.length === 1 ? '' : 's'} `
+          + `could not be read (${unreadable.join(', ')}) — the row may be one of them. Fix them, then re-run.`,
+        heading: null,
+        line: null,
+      });
     } else {
       results.push({ row: query, status: ROW_DISCHARGE.NOT_FOUND, reason: `no live backlog row matches ${JSON.stringify(query)}`, heading: null, line: null });
     }
   }
 
-  if (toClose.length > 0) {
-    // The proof is the stamp built above from `by` and `at`, not free text,
-    // so there is nothing new for the scrub to ask about.
-    const closed = await closeItems(baseDir, toClose.map((id) => ({ id, reason: 'fixed', by: String(who), at: when, proof })),
-      { renameFn, acknowledgeSensitive: true });
-    if (closed?.aborted) return { ...base, ...closed, results };
+  if (toRequest.length === 0) return { ...base, results };
+  const proof = commit ?? headCommit(baseDir);
+  if (proof === null) {
+    throw new WorkStoreError('CONFIG', 'the discharge on a v2 work store records the Epic\'s commit as each row\'s proof, '
+      + 'and there is none: this is not a git repository with a commit. Pass `commit`. Nothing was written.');
   }
-  return { ...base, written: toClose.length > 0, results };
+  await requestCloses(baseDir, toRequest.map((id) => ({ id, proof, by: who, at: when })), { renameFn });
+  return { ...base, written: true, commit: proof, results };
+}
+
+// The branch HEAD's full hash, or null (not a repository, or no commit yet).
+function headCommit(baseDir) {
+  try {
+    return String(execFileSync('git', ['rev-parse', '--verify', '--quiet', 'HEAD'], {
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+    })).trim() || null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -921,6 +703,17 @@ async function dischargeInStore(baseDir, { rows, by, at, today, base, renameFn }
  *   sources:{units:boolean, bugs:boolean}}>}
  */
 export async function backlogDischargeStatus(baseDir, { readText = null } = {}) {
+  // Store on (M6.E13 t4.5a): the records, never BACKLOG.md — a view. See
+  // `storeDischargeStatus`. A WORK.md that cannot be read is cannot-evaluate,
+  // never a fall-back to the view.
+  let storeOn;
+  try {
+    storeOn = isStoreOn(baseDir).on;
+  } catch (err) {
+    return storeCannot(`the work store could not be read — ${err.message}`);
+  }
+  if (storeOn) return storeDischargeStatus(baseDir);
+
   const path = join(baseDir, BACKLOG_REL);
   const cannot = (reason, extra = {}) => ({
     outcome: BACKLOG_DISCHARGE.CANNOT_EVALUATE,
@@ -983,7 +776,7 @@ export async function backlogDischargeStatus(baseDir, { readText = null } = {}) 
     if (row.discharged) continue; // already records its own closure
     if (HELD_OPEN_RE.test(row.text)) continue; // declared open on purpose
 
-    const isBug = /^B\d+$/.test(row.leadingId);
+    const isBug = isBugId(row.leadingId);
     const source = isBug ? bugs : units;
     if (source === null) {
       blind.push({ heading: row.text, line: row.line, id: row.leadingId, source: isBug ? 'BUGS.md' : 'unit closure' });
@@ -1019,6 +812,91 @@ export async function backlogDischargeStatus(baseDir, { readText = null } = {}) 
   };
 }
 
+const storeCannot = (reason) => ({
+  outcome: BACKLOG_DISCHARGE.CANNOT_EVALUATE,
+  reason,
+  rows: 0,
+  liveRows: 0,
+  resolvable: 0,
+  stale: [],
+  blind: [],
+  broken: [],
+  sources: { units: false, bugs: false, records: false },
+});
+
+/**
+ * `backlogDischargeStatus` with the work store on (M6.E13 t4.5a) — and the ONE
+ * definition `/sig:docs-sweep`'s `checkBacklogDischarge` renders (t4.4 wrote it
+ * there first; it lives here so the two cannot disagree).
+ *
+ * A record cannot say "pending" about itself while closed — its status is
+ * folded from its events — so the old question (a row naming finished work)
+ * becomes the one a record CAN still get wrong: an item still open (T, Q or P)
+ * in an Epic that is recorded closed. The Epic is the record's own (`epicOf`),
+ * never an id read out of a title. Closed means archived (`isEpicArchived`), or
+ * closed by `resolveClosures` — the unit half of `readClosureSources`, the same
+ * definition the file check uses. The bug half is not needed: a bug is a record
+ * whose own status says whether it is closed. A *closing* item is done (AC7.3)
+ * and never reported.
+ *
+ * Shape: the store-off result's, with `line: null`, plus `epic` and `status`
+ * on each stale and blind entry and `broken` (records that do not read, by ID).
+ * `rows` and `liveRows` count the live items (T, Q, P); `resolvable` those in an
+ * Epic. With none in an Epic the outcome is `clean`: every record's Epic is
+ * known, so "in no Epic" is an answer, unlike a row with no leading id.
+ * `sources.units` is whether unit closure was READ (false when no item needed
+ * it, or it could not be); `sources.bugs` is false (not consulted);
+ * `sources.records` is true. `readText` does not apply: nothing is read as text.
+ *
+ * @param {string} baseDir
+ * @returns {Promise<object>}
+ */
+export async function storeDischargeStatus(baseDir) {
+  let store;
+  try {
+    store = listRecords(baseDir);
+  } catch (err) {
+    return storeCannot(`the work store could not be read — ${err.message}`);
+  }
+  const live = store.records.filter((r) => ['T', 'Q', 'P'].includes(r.status));
+  const inEpic = live.filter((r) => r.epic);
+  const archived = new Map(inEpic.map((r) => [r.epic, isEpicArchived(baseDir, r.epic)]));
+
+  let units = null;
+  let unitsBlind = null;
+  if (inEpic.some((r) => !archived.get(r.epic))) {
+    const closure = await readUnitClosure(baseDir);
+    units = closure.units;
+    unitsBlind = closure.blind[0] ?? null;
+  }
+
+  const stale = [];
+  const blind = [];
+  for (const r of inEpic) {
+    const at = { heading: String(r.record.title ?? r.id), line: null, id: r.id, epic: r.epic, status: r.status };
+    if (archived.get(r.epic)) stale.push({ ...at, evidence: `${r.epic} is archived` });
+    else if (units === null) blind.push({ heading: at.heading, line: null, id: r.id, epic: r.epic, source: 'unit closure' });
+    else if (units.get(r.epic)?.closed) stale.push({ ...at, evidence: units.get(r.epic).reason });
+  }
+
+  const blindAll = blind.length > 0 || store.broken.length > 0;
+  return {
+    outcome: stale.length > 0 ? BACKLOG_DISCHARGE.STALE : blindAll ? BACKLOG_DISCHARGE.CANNOT_EVALUATE : BACKLOG_DISCHARGE.CLEAN,
+    reason: stale.length === 0 && blindAll
+      ? [blind.length ? `${blind.length} item(s) sit in an Epic whose closure could not be read — ${unitsBlind}` : null,
+        store.broken.length ? `${store.broken.length} work item(s) could not be read` : null].filter(Boolean).join('; ')
+      : null,
+    rows: live.length,
+    liveRows: live.length,
+    resolvable: inEpic.length,
+    stale,
+    blind,
+    unitsBlind,
+    broken: store.broken,
+    sources: { units: units !== null, bugs: false, records: true },
+  };
+}
+
 /**
  * The two closure sources, kept apart.
  *
@@ -1036,10 +914,34 @@ export async function backlogDischargeStatus(baseDir, { readText = null } = {}) 
  * @returns {Promise<{units: Map|null, bugs: Map|null, blind: string[]}>}
  */
 async function readClosureSources(baseDir, readText = null) {
-  const blind = [];
-  let units = null;
+  const { units, blind } = await readUnitClosure(baseDir, readText);
   let bugs = null;
 
+  try {
+    const { walkBugEntries } = await import('./bugs-tally.js');
+    const content = readText ? await readText(BUGS_REL) : await readFile(join(baseDir, BUGS_REL), 'utf-8');
+    bugs = new Map();
+    for (const e of walkBugEntries(content)) {
+      if (e.kind !== 'row' || !e.id) continue;
+      if (e.status === null) continue; // unreadable status cell — no answer
+      bugs.set(e.id, {
+        closed: e.status === 'fixed' || e.status === 'dismissed',
+        reason: `BUGS.md records ${e.id} ${e.status}`,
+      });
+    }
+  } catch (err) {
+    blind.push(`the bug catalog could not be read — ${err.message}`);
+  }
+
+  return { units, bugs, blind };
+}
+
+// The unit half of `readClosureSources`: `resolveClosures`, as a map of unit →
+// `{closed, reason}`, or null when it could not answer. Shared with the
+// store-on `storeDischargeStatus`, which needs no bug source.
+async function readUnitClosure(baseDir, readText = null) {
+  const blind = [];
+  let units = null;
   try {
     const { resolveClosures, CLOSURE } = await import('./closure.js');
     const { relative } = await import('node:path');
@@ -1060,24 +962,7 @@ async function readClosureSources(baseDir, readText = null) {
   } catch (err) {
     blind.push(`unit closure could not be resolved — ${err.message}`);
   }
-
-  try {
-    const { walkBugEntries } = await import('./bugs-tally.js');
-    const content = readText ? await readText(BUGS_REL) : await readFile(join(baseDir, BUGS_REL), 'utf-8');
-    bugs = new Map();
-    for (const e of walkBugEntries(content)) {
-      if (e.kind !== 'row' || !e.id) continue;
-      if (e.status === null) continue; // unreadable status cell — no answer
-      bugs.set(e.id, {
-        closed: e.status === 'fixed' || e.status === 'dismissed',
-        reason: `BUGS.md records ${e.id} ${e.status}`,
-      });
-    }
-  } catch (err) {
-    blind.push(`the bug catalog could not be read — ${err.message}`);
-  }
-
-  return { units, bugs, blind };
+  return { units, blind };
 }
 
 /** The minimal BUGS.md skeleton used only when a promote must create it. */
@@ -1100,12 +985,12 @@ function bugsSkeleton() {
  * @param {object} opts
  * @param {string} opts.block — the raw source inbox block (dedupe key = sha1(block))
  * @param {string} [opts.title] — retitle; falls back to the block's heading
- * @param {string} [opts.by] — store on: `created.by` for a raw block's new item
+ * @param {string} [opts.by] — store on: the `created` event's `by`
  * @param {boolean} [opts.acknowledgeSensitive] — store on: as `promoteToBacklog`
  * @returns {Promise<{written: boolean, deduped?: boolean, path: string, key: string, id?: string, label?: string,
  *   aborted?: 'sensitive-data-pending', sensitiveHits?: object[]}>}
- *   With the store on, the item becomes a BUG in `backlog/` instead, with
- *   `promoteToBacklog`'s sensitive-data rule.
+ *   With the store on, a new BUG record, triaged (status T), instead, with
+ *   `promoteToBacklog`'s sensitive-data and v1 rules.
  */
 export async function promoteToBugs(baseDir, { block, title, by, acknowledgeSensitive } = {}) {
   if (isStoreOn(baseDir).on) {

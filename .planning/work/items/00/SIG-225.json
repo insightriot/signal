@@ -1,0 +1,23 @@
+{
+  "id": "SIG-225",
+  "type": "FEAT",
+  "title": "~~Upstream phases — IDEATE / VALIDATE / STRATEGIZE~~ — **✂ ABANDONED (ratified by Brett 2026-07-26)** · **PREPARE seam survives, parked**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:2116",
+  "legacy_id": "BACKLOG.md:2116",
+  "migration_note": "Part abandoned, part parked — the parked part may still be live.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "wontdo",
+      "legacy": true
+    }
+  ]
+}

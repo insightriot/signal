@@ -1,0 +1,21 @@
+{
+  "id": "SIG-66",
+  "type": "BUG",
+  "title": "`checkStaleInbox` fires at `n > 0` with no magnitude, so a 110-entry inbox produces the same one-line advisory as a…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:105",
+  "legacy_id": "B66",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

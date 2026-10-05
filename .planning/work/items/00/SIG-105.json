@@ -1,0 +1,23 @@
+{
+  "id": "SIG-105",
+  "type": "BUG",
+  "title": "A guard on `CHANGELOG.md` asserted a property that is only true while no release is in progress, so WRITING THE…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:160",
+  "legacy_id": "B105",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

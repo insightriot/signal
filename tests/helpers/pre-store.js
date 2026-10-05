@@ -5,8 +5,11 @@
 // and `OPEN-QUESTIONS.md` are GENERATED from the item files under
 // `.planning/work/`. Tests that measured the hand-written text — its rows, its
 // struck headings, its vocabulary counts — read the byte-for-byte originals the
-// migration copied to `.planning/archive/pre-work-store/` instead. The path comes
-// from `PRE_STORE_ARCHIVE`, so the tests and `applyMigration` name one folder.
+// migration copied to `.planning/archive/pre-work-store/` instead. That folder
+// and the four names are fixed facts of this repository's history, so they are
+// stated here (M6.E13 t7.4): they used to come from `work-migrate.js`
+// (`PRE_STORE_ARCHIVE`, `SOURCES`), whose writer that named the folder was
+// retired with the v1 store.
 //
 // Two shapes, because the readers take two shapes:
 //
@@ -27,8 +30,12 @@ import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } f
 import { tmpdir } from 'node:os';
 import { join, relative, sep } from 'node:path';
 
-import { PRE_STORE_ARCHIVE, SOURCES } from '../../plugin/tools/lib/work-migrate.js';
 import { REPO_ROOT } from './roots.js';
+
+// Where M6.E11's migration kept the originals, relative to `.planning/`.
+const PRE_STORE_ARCHIVE = 'archive/pre-work-store';
+// The four hand-kept lists it took in — the four views' names today.
+const SOURCES = Object.freeze(['BUGS.md', 'BACKLOG.md', 'ISSUES-INBOX.md', 'OPEN-QUESTIONS.md']);
 
 const PLANNING = join(REPO_ROOT, '.planning');
 export const PRE_STORE_DIR = join(PLANNING, ...PRE_STORE_ARCHIVE.split('/'));

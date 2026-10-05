@@ -568,7 +568,7 @@ export async function senseArchiveTree(baseDir, opts = {}) {
  * Execute (or dry-run) the archive-tree move + keyed link/prose rewrite. LOCK-FREE
  * for the coarse `.state.lock` (§9): the caller owns it; this never takes it. With
  * the work store on, an apply takes the store's own `work` lock around all of its
- * writes (REVIEW pass 2) — the moves rewrite item files. Ordering (§2 / B8):
+ * writes (REVIEW pass 2) — the moves rewrite item bodies. Ordering (§2 / B8):
  * MOVE each file first with a byte-identical read-back assert (content preserved
  * before anything is rewritten), remove the source, THEN rewrite links/prose at the
  * files' NEW locations. Dry-run by default (writes nothing).
@@ -589,7 +589,7 @@ export async function applyArchiveTree(baseDir, opts = {}) {
     return { applied: false, moves, moveMap, plannedEdits: editCount };
   }
 
-  // With the store on, the moves rewrite item files and the lists are
+  // With the store on, the moves rewrite item bodies and the lists are
   // regenerated at the end, so the whole apply runs under the store's own
   // `work` lock (D-M6E11-27) — never `.state.lock`, which the migrate caller
   // already holds. Taken HERE, before any file moves (REVIEW pass 2): a busy
@@ -597,6 +597,12 @@ export async function applyArchiveTree(baseDir, opts = {}) {
   // list that is still hand-kept would refuse the regeneration, so it is
   // refused here too, for the same reason.
   const storeOn = isStoreOn(baseDir).on;
+  // A v1 store refuses before anything is locked or moved (CONFIG, naming the
+  // migration): its lists can only be regenerated from v2 records (M6.E13 t7.4).
+  if (storeOn) {
+    const { assertWritable } = await import('./work-records.js');
+    assertWritable(baseDir);
+  }
   let lock = null;
   if (storeOn) {
     try {
@@ -655,7 +661,7 @@ async function moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, sto
     if (next === text) continue;
     // M6.E11 (t4.5, D-M6E11-25): a generated list is not rewritten in place —
     // the write guard would refuse it, and an edit there would be lost at the
-    // next regeneration anyway. Its links come from the item files, which ARE
+    // next regeneration anyway. Its links come from the item bodies, which ARE
     // rewritten above like any other file, so the lists are regenerated below.
     if (isGeneratedText(text)) {
       staleGenerated = true;
@@ -665,12 +671,12 @@ async function moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, sto
     rewrittenFiles += 1;
   }
 
-  // Regenerate so the lists carry the item files' new links — still under
+  // Regenerate so the lists carry the item bodies' new links — still under
   // the caller's `work` lock. Only when something changed.
   if ((staleGenerated || rewrittenFiles > 0) && storeOn) {
-    const { generateAll } = await import('./work-generate.js');
+    const { regenerateViews } = await import('./work-views.js');
     try {
-      await generateAll(baseDir);
+      await regenerateViews(baseDir);
     } catch (err) {
       // The moves and rewrites above stand; say so, whatever failed.
       const wrapped = new WorkStoreError(err instanceof WorkStoreError ? err.code : 'IO',

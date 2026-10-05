@@ -2,53 +2,54 @@
 schema_version: 1
 docs_layout_version: 3
 phase: SHIP
-current_epic: M6.E12
+current_epic: M6.E13
 current_wave: null
 current_tasks: []
 completed_phases:
-  - DISCUSS (2026-10-01)
-  - PLAN (2026-10-01)
-  - EXECUTE (2026-10-02)
-  - VERIFY (2026-10-02)
-  - REVIEW (2026-10-02)
-  - EXECUTE (2026-10-02)
-  - VERIFY (2026-10-02)
-  - REVIEW (2026-10-02)
-  - EXECUTE (2026-10-02)
-  - VERIFY (2026-10-02)
-  - REVIEW (2026-10-02)
-  - SHIP (2026-10-02)
+  - DISCUSS (2026-10-04)
+  - PLAN (2026-10-04)
+  - EXECUTE (2026-10-04)
+  - VERIFY (2026-10-04)
+  - REVIEW (2026-10-04)
+  - SHIP (2026-10-04)
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-09-29T14:06:07.617Z
-last_updated_commit: 66acbd3
-last_updated: 2026-10-03T15:07:25.568Z
+last_updated_commit: 1a714e07e5403a69bec834f3fa0e2f60e19c18bd
+last_updated: 2026-10-04T22:28:02.658Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-10-02)
+### ▶ WHERE THE WORK IS — read this first (2026-10-04)
 
-**`M6.E12` SHIPPED as `v0.1.45`** (2026-10-02): `/sig:advise` and `/sig:drive`'s pick step propose 3–5
-big-picture priorities from a cited digest of the docs, ask, record the pick, and offer to start it;
-age is gone. Retro: [`M6.E12-RETROSPECTIVE.md`](M6.E12-RETROSPECTIVE.md). Hostile-repository residue:
-`SIG-257`. Earlier the same week: `v0.1.44` (`B118`, other-branch Epics).
+**`M6.E13` — *"work items as records"* — SHIP: PR open, waiting for Brett's merge (`--merge`).**
+Epic 1 of the storage re-architecture is done.
 
-**In flight outside this repo (2026-10-03): the first `/sig:advise` test on another project** — a private
-one; its name and path are in the maintainer's memory, never in this repo (`tests/private-name-guard.test.js`).
-Run 1 (baseline) is done — that project's `.planning/BACKLOG-REVIEW-2026-10-03.md`. The priorities held up, but only because the agent
-read files the digest never gave it; five gaps filed as `SIG-258` … `SIG-262`. Brett chose to move
-that project's backlog from GitHub Issues back into files (its own session does it, by PR). **When he pastes
-run 2:** compare it with run 1 — does the real backlog change the priorities, do the two fake heading
-rows disappear, what does "could not read" still list. Note his pick in each run as outcome data
-(`D-M6E12-12`; run on Signal was data point 1).
+**What changed:**
+- Work items are JSON records at `.planning/work/items/NN/SIG-n.json`. They never move, and their
+  status is folded from recorded events.
+- One write library (`plugin/tools/lib/work-records.js`); a hook blocks hand edits to records and
+  views.
+- Every store-on reader goes through the library, and `/sig:advise` covers cite `SIG-n`.
 
-**Next — picked by Brett in the first real `/sig:advise` run** ([`BACKLOG-REVIEW-2026-10-01.md`](BACKLOG-REVIEW-2026-10-01.md)):
-**get other projects onto the current system safely.** In order: the backlog-reader fixes (`B121`,
-`B122`, `B127`, `B135`) — **done, `v0.1.46` (2026-10-03)**; then
-the archive bugs (`B254` done, `v0.1.47`; `B255` needs a design choice); then step 5 of
-[`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](../analysis/WORK-ITEM-SYSTEM-DESIGN.md) (`/sig:docs-migrate`).
+**Signal's own store was cut over** in `a01d464`:
+- 275 records, 145 of them legacy closes;
+- 6 closes confirmed against `main`;
+- the v1 files are kept in `archive/pre-work-store-v2/`.
+
+Tests: 4444 → 5346. Branch `feat/m6.e13-work-item-records`. Retro:
+[`M6.E13-RETROSPECTIVE.md`](M6.E13-RETROSPECTIVE.md). Decisions `D-M6E13-1` … `D-M6E13-22`.
+
+**⚠ This session's installed plugin (`v0.1.47`) does not understand the v2 store.** After merging,
+cut the release and update the plugin before using `/sig:item`, `/sig:add` or `/sig:advise` here.
+Also open: PR #279 (SIG-275), so that `checkpointed` stops asking at every phase end.
+
+**Why this replaced the queued work:** the next pick was moving other projects onto the store; doing that
+first would copy the current design into every repo. Reader fixes shipped as `v0.1.46`, `B254` as
+`v0.1.47` (both 2026-10-03); `B255` waits for units-as-records. The `/sig:advise` outside test is done
+(three runs; findings `SIG-258`…`SIG-262`, `SIG-267`, `SIG-268`).
 
 ### ▶ PREVIOUS — `M6.E3` SHIPPED
 
@@ -93,7 +94,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-Nothing in flight in this repo. Outside it: the `/sig:advise` test on another project (run 2 pending) — see *Where the work is* above, which also names the next work.
+`M6.E13` at SHIP — PR open, waiting for merge. See *Where the work is* above.
 
 ## Blockers
 

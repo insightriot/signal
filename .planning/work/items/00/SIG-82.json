@@ -1,0 +1,23 @@
+{
+  "id": "SIG-82",
+  "type": "BUG",
+  "title": "`planArchiveMoves` does not use `deriveUnits`, so it archives half a unit — the exact outcome M5.E18's own test…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:115",
+  "legacy_id": "B82",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "SIG-227",
+  "type": "FEAT",
+  "title": "~~Harder TDD + `<HARD-GATE>` + systematic-debugging~~ — **✂ SPLIT: 1 abandoned, 2 parked**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:2124",
+  "legacy_id": "BACKLOG.md:2124",
+  "migration_note": "SPLIT — the heading records a split outcome (part abandoned, part parked).",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "wontdo",
+      "legacy": true
+    }
+  ]
+}

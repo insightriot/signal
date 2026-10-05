@@ -1,0 +1,23 @@
+{
+  "id": "SIG-12",
+  "type": "BUG",
+  "title": "Vector-1 de-prose leaves a generic `[relocated…]` placeholder (not a meaningful label) for a `completed_phases` entry…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:35",
+  "legacy_id": "B12",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "id": "SIG-121",
+  "type": "BUG",
+  "title": "`parseBacklogRows` returns ZERO rows for a CRLF `BACKLOG.md`, and `/sig:advise` then writes an advisory saying…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:176",
+  "legacy_id": "B121",
+  "migration_note": "tests/backlog-reader-fixes.test.js (v0.1.46)",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-03",
+      "by": "claude",
+      "reason": "fixed",
+      "proof": "3c0b504"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-04T19:39:12.342Z",
+      "by": "confirmCloses",
+      "reason": "fixed",
+      "proof": "3c0b504"
+    }
+  ]
+}

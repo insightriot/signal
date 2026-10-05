@@ -34,9 +34,12 @@ repository) and is not built into this command yet.** Until it is:
 - **Do not create `.planning/work/WORK.md` by hand** to turn the store on over existing lists. The
   store refuses to regenerate over a hand-kept list (`CONFIG`), so every capture would then fail; the
   lists have to be migrated into items first, which is the missing step.
-- **What exists today:** Signal's own records were moved by `tools/work-migrate.mjs` — a maintainer
-  tool in the Signal repository, **not shipped in the plugin**, dry-run by default, originals kept
-  byte-for-byte under `.planning/archive/pre-work-store/`. Step 5 wires the same engine in here
+- **What exists today:** Signal's own lists were moved twice by maintainer tools in the Signal
+  repository, **not shipped in the plugin**: into v1 item files by `tools/work-migrate.mjs` (M6.E11;
+  originals kept byte-for-byte under `.planning/archive/pre-work-store/`), then into records by
+  `tools/work-migrate-v2.mjs` (M6.E13). The first tool and its writer were retired at M6.E13 t7.4,
+  because the v1 store they produce is now refused by every writer; the list segmenters they used
+  stay in `tools/lib/work-migrate.js`. Step 5 brings a migration in here that writes records
   (`D-M6E11-21`: it must also recognise a project that is already store-shaped).
 
 ## The v2→v3 layout transition (FR6)

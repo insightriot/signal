@@ -151,7 +151,7 @@ All destinations share the same spine: scrub + body-length check run before the 
 
 ### 7. Success message
 
-Print exactly, substituting the destination's actual relative path (`result.path` relative to the project root) — the resolved inbox (`.planning/ISSUES-INBOX.md` or legacy `.planning/FUTURE-IDEAS.md`) for the default, `.planning/OPEN-QUESTIONS.md` for `--question`, `.planning/BUGS.md` for `--bug`, the resolved `.planning/MILESTONE-{N}.md` for `--milestone [N]`. Those paths are for the work store **off**. With it **on**, `result.path` is the new item file (`.planning/work/inbox/{result.id}.md`) — use it as-is, and name the item by `result.label`:
+Print exactly, substituting the destination's actual relative path (`result.path` relative to the project root) — the resolved inbox (`.planning/ISSUES-INBOX.md` or legacy `.planning/FUTURE-IDEAS.md`) for the default, `.planning/OPEN-QUESTIONS.md` for `--question`, `.planning/BUGS.md` for `--bug`, the resolved `.planning/MILESTONE-{N}.md` for `--milestone [N]`. Those paths are for the work store **off**. With it **on** (`.planning/work/WORK.md` with `schema_version: 2`), the default, `--question` and `--bug` routes create a new item through `newItem` in `tools/lib/work-records.js` — the library `/sig:item` uses, and the place to change the item afterwards — and `result.path` is its record (`.planning/work/items/NN/{result.id}.json`; the words are in the body, `{result.id}.md`, beside it). Use the path as-is, and name the item by `result.label`. On a **v1** store (no `schema_version: 2`) those three routes refuse before any prompt, with a message naming `node tools/work-migrate-v2.mjs`; show it verbatim — nothing was written:
 
 ```
 Added to {path} (line {result.line}).

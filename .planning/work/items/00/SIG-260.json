@@ -1,0 +1,20 @@
+{
+  "id": "SIG-260",
+  "type": "BUG",
+  "title": "advise digest: a BACKLOG.md that holds only section headings offers them as live work rows",
+  "theme": "advise",
+  "priority": "P2",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-03T22:34:09.710Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-03T22:34:09.710Z",
+      "by": "migration (v2)"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "SIG-163",
+  "type": "CHORE",
+  "title": "Drive `/sig:drive` end-to-end through a real Epic · **verification** · small · **filed 2026-09-01**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:580",
+  "legacy_id": "BACKLOG.md:580",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

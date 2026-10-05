@@ -1,0 +1,21 @@
+{
+  "id": "SIG-35",
+  "type": "BUG",
+  "title": "`sweep.js checkIndexFreshness` unwrapped compose/diff can crash the read-only sweep.",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:63",
+  "legacy_id": "B35",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "SIG-79",
+  "type": "BUG",
+  "title": "`evictEpicNarrative` has never been able to fire for Signal's own `.planning/STATE.md`, and reports that as a clean…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:112",
+  "legacy_id": "B79",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

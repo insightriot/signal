@@ -1,0 +1,23 @@
+{
+  "id": "SIG-21",
+  "type": "BUG",
+  "title": "`resolveDecisionId` rebuilds the whole D-ID map from disk on every call; the FR5 anchor gate calls it once per evicted…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:48",
+  "legacy_id": "B21",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

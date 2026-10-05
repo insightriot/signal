@@ -1,0 +1,23 @@
+{
+  "id": "SIG-94",
+  "type": "BUG",
+  "title": "`BACKLOG.md` is append-only: nothing in Signal ever marks a backlog row done when the work ships, so the queue asserts…",
+  "priority": "P1",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:204",
+  "legacy_id": "B94",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

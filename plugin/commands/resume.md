@@ -71,6 +71,8 @@ Two pre-render checks routed through `tools/lib/state.js` + `tools/lib/resume.js
 
 1a. **Staleness (origin)** — call `isStaleVsOrigin(baseDir)` from `tools/lib/state.js` and pass the result to `renderResumeBriefing` as `originDriftResult`. This reaches the network via a **bounded, hardened `git fetch`** (2s timeout + SIGKILL, `GIT_TERMINAL_PROMPT=0`, neutralized askpass, SSH BatchMode) and is **fail-open**: any failure (offline, no remote, auth-hang, timeout, diverged history) returns `{stale:false}` and renders no banner — it never blocks the briefing. The fetch writes `.git/` (FETCH_HEAD, remote refs), **not** `.planning/`, so the read-only-`.planning/` posture holds. The origin banner is **distinct** from the local one (D-E10-8): local = "your working tree moved past STATE.md"; origin = "someone pushed work you don't have" (the multi-machine case).
 
+1a′. **Closes ready to confirm (work store v2 only)** — after 1a's fetch, call `reportCloses(baseDir)` from `tools/lib/close-confirm.js` and pass its `line` to `renderResumeBriefing` as `closesLine`. It **writes nothing**: it asks `probeCloses` which *closing* items have their fix commit on the default branch and says `Closes: N ready to close (…) — run /sig:docs-sweep or /sig:ship to confirm`; the sweep and SHIP are where a close is confirmed (`D-M6E13-21`). Fail-open (never throws; store off or v1 does nothing, and git is not asked).
+
 1b. **Schema drift** — call `readSchemaDrift(baseDir)` from `tools/lib/state.js` and pass the result to `renderResumeBriefing` as `schemaDriftResult`. It's read-only + platform-agnostic (AD2 — deliberately NOT in `/sig:doctor`, which is macOS-gated), routes through `parseFrontmatter` (not `readState`, which throws on an ahead schema), and returns `null` when there's no drift. The briefing renders this banner **above** all others: a STATE.md schema mismatch means every field the briefing reads below could be misparsed.
 
 1c. **STATE.md size** (v0.1.6, FR2; tier-aware M5.E1.S2, FR2d) — call `readStateSizeForTier(baseDir)` from `tools/lib/status.js` and pass the result to `renderResumeBriefing` as `stateSizeResult`. Read-only + fail-open (never throws → `null` on a missing/unreadable file, or when PROFILE.md is absent/malformed). Async because it resolves the size threshold from the project tier (SKETCH 75 KB < FEATURE/SPIKE 150 KB < FULL 300 KB, flat 150 KB fallback). It's the **lowest-priority, advisory** banner (rendered last, just above the body — it doesn't cast doubt on the briefing's correctness the way schema/staleness/origin drift do).
@@ -131,7 +133,7 @@ renderResumeBriefing({
   visionText: resolvedVision,     // PROJECT.md Vision OR LANDSCAPE fallback per Step 2
   landscapeCapturedOn: lm?.capturedOn ?? null,
   lockedDecisions: …,             // first 5 bullets from CONTEXT.md § Locked Decisions
-  openQuestions: …,               // first 3 headings from OPEN-QUESTIONS.md
+  openQuestions: …,               // readOpenQuestions(baseDir)?.top ?? [] — store on: the question records, see below
   isStaleResult: staleResult,     // local staleness — from Step 3b(1)
   originDriftResult,              // origin drift — from Step 3b(1a); fail-open
   schemaDriftResult,             // schema drift — from Step 3b(1b); read-only
@@ -198,6 +200,7 @@ Landscape: captured {capturedOn or "date unknown"} (brownfield init)
 
 — Open questions ({count}) —
 {first 3 truncated headings; section omitted if file absent}
+{store on: see the rendering rule below for `error` and `unreadable`}
 
 — Work remaining —
 {formatNextActionCopy result — "Next phase: /sig:{cmd}", or, when STATE.md's `phase`
@@ -206,6 +209,10 @@ Landscape: captured {capturedOn or "date unknown"} (brownfield init)
 
 Ready to continue with {next-command}? (Reply "yes" to proceed, or run any /sig:* command directly.)
 ```
+
+**Open questions with the work store on.** `readOpenQuestions(baseDir)` reads the question records (through `listRecords` in `tools/lib/work-records.js`; questions are changed with `/sig:item`), not `OPEN-QUESTIONS.md` (a view), and can return two more fields; the renderer takes only the list of titles, so print them yourself, as their own lines just above the briefing's last line (the *Ready to continue* prompt). Never let either read as a clean result:
+- `error` (then `count` is `null`, `top` is empty) — pass `openQuestions: []` and print `Open questions: not checked — {error}`. Not "none", and not a silent omission.
+- `unreadable` (item IDs or paths) — pass `top` as usual and print `Open questions: {unreadable.length} record(s) unreadable, not counted ({unreadable joined by ", "}) — run /sig:docs-sweep`.
 
 ### 5. Final prompt — "Ready to continue?"
 

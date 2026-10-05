@@ -1,0 +1,23 @@
+{
+  "id": "SIG-23",
+  "type": "BUG",
+  "title": "M5.E3 REVIEW test-hardening follow-up (bundle).",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:50",
+  "legacy_id": "B23",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

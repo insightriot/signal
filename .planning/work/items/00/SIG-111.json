@@ -1,0 +1,23 @@
+{
+  "id": "SIG-111",
+  "type": "BUG",
+  "title": "Filed during `M6.E5` against `AC_ID_RE`'s missing `[a-z]?`, then withdrawn when the PR reviewer — not the filer —…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:167",
+  "legacy_id": "B111",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "rejected",
+      "legacy": true
+    }
+  ]
+}

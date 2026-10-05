@@ -1,0 +1,22 @@
+{
+  "id": "SIG-237",
+  "type": "FEAT",
+  "title": "A hard size bound on the curated memory document",
+  "theme": "docs",
+  "priority": "P3",
+  "source": "migration:ISSUES-INBOX.md",
+  "source_ref": "ISSUES-INBOX.md:108",
+  "legacy_id": "ISSUES-INBOX.md:108",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

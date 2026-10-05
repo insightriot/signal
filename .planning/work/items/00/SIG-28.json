@@ -1,0 +1,23 @@
+{
+  "id": "SIG-28",
+  "type": "BUG",
+  "title": "An absolute-path `](/abs/foo.md)` `.md` link that is a pre-existing dangle inside an evicted closed block false-aborts…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:55",
+  "legacy_id": "B28",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "SIG-268",
+  "type": "BUG",
+  "title": "advisory says \"Could not read: nothing\" while the digest lists two gaps",
+  "theme": "advise",
+  "priority": "P3",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-04T01:13:33.867Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-04T01:13:33.867Z",
+      "by": "migration (v2)"
+    }
+  ]
+}

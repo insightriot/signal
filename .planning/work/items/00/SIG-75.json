@@ -1,0 +1,21 @@
+{
+  "id": "SIG-75",
+  "type": "BUG",
+  "title": "`gate_strictness: light` and `strict` expand to identical gate config in code except a single boolean — every other…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:122",
+  "legacy_id": "B75",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "SIG-64",
+  "type": "BUG",
+  "title": "`senseArchiveTree` treats a retrospective file's existence as proof that an Epic is closed, and discards the `isStub`…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:103",
+  "legacy_id": "B64",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

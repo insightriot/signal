@@ -1,0 +1,20 @@
+{
+  "id": "SIG-155",
+  "type": "FEAT",
+  "title": "Retrieval over the heading tree, instead of reading whole files · **roadmap** · medium · **filed 2026-09-01**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:410",
+  "legacy_id": "BACKLOG.md:410",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

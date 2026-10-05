@@ -1,0 +1,23 @@
+{
+  "id": "SIG-137",
+  "type": "BUG",
+  "title": "`detectProjectKind` calls every non-git directory `greenfield`, so a real codebase is told to start fresh",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:326",
+  "legacy_id": "BUGS.md:326",
+  "migration_note": "Possibly the same defect as B112 (a table row with the same headline); not re-judged by the migration.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-01T23:42:56.961Z",
+      "by": "brett (M6.E12 PLAN drain)",
+      "reason": "dup",
+      "dup_of": "SIG-112"
+    }
+  ]
+}

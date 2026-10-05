@@ -3796,3 +3796,149 @@ range, not self, no cycle; rendered as *Comes after*), and `advise.md` step 2 re
 priorities against each other before asking. The reader fixes were folded into priority 1.
 **Outcome data point 1 (`D-M6E12-12`):** the user picked a proposed priority (1), after one
 clarifying question that exposed the missing dependency check.
+
+## 2026-10-03 — M6.E13 DISCUSS: work items as records — Epic 1 of the storage re-architecture (D-M6E13-1 … D-M6E13-22)
+
+**Label:** *"work items as records"*. Source: [`analysis/STORAGE-ARCHITECTURE-PROPOSAL.md`](../analysis/STORAGE-ARCHITECTURE-PROPOSAL.md),
+the synthesis of three deep-research runs (`analysis/item-architecture-research/`), all of which converged
+on structured records as the only source of truth. Brett, 2026-10-03: *"we keep doing tiny fixes that
+don't hold up as long-term, bulletproof architecture"* — measured: 107 of 265 items are storage defects,
+36 closed fixes were followed by a new defect in the same function, field or regex. Brett raised JSON
+first and was argued out of it; the research vindicated him (recorded so the reasoning is not lost).
+Scope is **work items only** (bugs, backlog rows, inbox captures, open questions); Epics as records,
+typed verdicts, the `STATE.md` split, decisions/requirements/retros and other projects are later Epics,
+in that order (proposal §4, decision 4). Inventory of every reader, writer and pinning test was taken at
+DISCUSS by a codebase researcher (24 code readers of generated lists, 13 commands, ~30 tests).
+
+### D-M6E13-1 — Records live at `.planning/work/items/NN/SIG-n.json`, never moved
+`NN` is the thousands bucket (`00/` = SIG-1…999, `01/` = SIG-1000…1999). An optional `SIG-n.md` beside
+it holds the prose. Status, Epic and close never change the path. Measured at 10,000 generated records:
+read and fold every status ~0.2 s, `git status` 0.06 s, repo 2.6 MB; GitHub's web view lists only 1,000
+entries per folder, hence buckets from day one.
+
+### D-M6E13-2 — Format: JSON, fixed key order, 2-space indent, trailing newline
+Deterministic serialisation so diffs and merges stay line-local. Brett's call, 2026-10-03.
+
+### D-M6E13-3 — `WORK.md` stays the on-switch; the store becomes `schema_version: 2`
+A v1 store (the `M6.E11` Markdown items) found by v2 code refuses writes and names the migration tool.
+Only Signal has a v1 store.
+
+### D-M6E13-4 — Status is derived from an embedded event list; no stored `status` field
+Events: `created`, `triaged`, `queued`, `started`, `close_requested`, `closed`, `reopened` (each with
+`at`, `by`, and its own fields). The N/T/Q/P/C letters stay as the derived values, plus a derived
+*closing* for `close_requested`. Two copies of one fact in one file is how the contradicting items
+happened (GPT's design over Gemini's stored-field-plus-history).
+
+### D-M6E13-5 — Epic membership is a field set by an event, not a folder
+Epics themselves stay as they are until the Epics-as-records Epic. `closeEpic`'s "every item closed"
+check becomes a query.
+
+### D-M6E13-6 — One write library, one `work` lock, never nested
+Every mutation goes through it and appends an event. An enforced test (write-path inventory) fails if
+an exported function changes a record without appending an event, unless it is on a reviewed exemption
+list.
+
+### D-M6E13-7 — ID allocation scans the new paths and the old ones in git history
+Numbers are never reused (`D-M6E11-10` kept).
+
+### D-M6E13-8 — Every store-on reader goes through the library
+advise (corpus, digest, priorities), drive (Epic candidates, inbox drain stop, preflight), status/resume
+open questions, the sweep checks (backlog discharge, stale inbox, dangling references), published-facts
+(bug tally, bug-vs-changelog), the Jev bug check, backlog discharge status, and inbox capture (which today
+reads the new ID back from the generated inbox). An enforced test fails if any store-on path loads a
+Markdown list parser.
+
+### D-M6E13-9 — Projects without the store are untouched
+The Markdown parsers stay, used only when the store is off; store-off behaviour must not change by a
+byte. Their retirement is the other-projects Epic.
+
+### D-M6E13-10 — The guard: the `PreToolUse` hook blocks direct edits to item JSON and generated views
+Extend `check-state-write.js` (matcher widened to `Edit|Write|MultiEdit`). Body `.md` files stay
+editable. Shell commands are not covered, so a validation test over the live repository is the backstop.
+
+### D-M6E13-11 — Generated views are committed; they show `SIG-n` only
+Proposal decision 1 (Brett). The fake `B{n}` IDs go. Views list open items plus recent closes.
+`work/EPICS.md` keeps a writer.
+
+### D-M6E13-12 — Migration of Signal's own store: built aside, verified by manifest, one cutover commit
+Every item, field, event and body is accounted for in a manifest. **`/sig:drive` halts before the
+cutover** for Brett's go-ahead.
+
+### D-M6E13-13 — Bodies are cleaned at migration
+The pasted legacy table row becomes plain prose; its status, priority and ID cells are dropped. Fixes the
+9 closed items whose body still says *confirmed*/*needs-triage* and the 5 milder ones, mechanically —
+status lives in the events.
+
+### D-M6E13-14 — The 142 never-re-checked closes keep their reason and carry `legacy: true` (Brett)
+Refines proposal decision 2: a `legacy` close counts as closed everywhere and is never admissible as
+proof; the original reason (fixed/rejected/wontdo/dup) is kept rather than overwritten, so nothing is lost.
+
+### D-M6E13-15 — `close_requested` → `closed` once the proof commit is reachable from `origin/main` (Brett)
+Proposal decision 3. A close-requested item shows as *closing*; advise and drive treat it as done. The
+confirmation runs at `/sig:resume`, at SHIP, and in the sweep; offline or no remote → stays *closing*
+(fail-open, never guessed).
+
+### D-M6E13-16 — Advise citations name item IDs, not `BACKLOG.md` line numbers (Brett)
+`covers` cites `SIG-n`. Ends the line-drift class for advisories.
+
+### D-M6E13-17 — How this Epic is run: `/sig:drive`, pushing through (Brett)
+Report each phase and continue. Halt only for: a scope call; a review finding not resolved within the
+loop ceiling; the cutover (`D-M6E13-12`); SHIP. Precondition: the session runs the current plugin
+(`claude plugin update sig@signal`, restart).
+
+**Superseded by this Epic** (for work items; the Epic/unit halves stay in force until their Epic):
+`D-M6E11-4` (readers parse generated lists) → `D-M6E13-8`; `D-M6E11-8` (folder must agree with status)
+→ `D-M6E13-1/4`; `D-M6E11-13`'s item-in-Epic-folder half → `D-M6E13-5`; `D-M6E11-14` (statuses carried
+unjudged) → `D-M6E13-14`; `D-M6E11-20` (generated files keep `B{n}`) → `D-M6E13-11`.
+**Kept:** `D-BR0928-1`, `-3` … `-7`, `D-M6E11-6` (one file for life — now literally), `D-M6E11-9/10`,
+`D-M6E11-12`, `D-M5E17-4/5`.
+
+### D-M6E13-18 — Files stay; status moves. Supersedes `D-BR0928-2` (Brett, 2026-10-03)
+`D-BR0928-2` said things physically move (`git mv` inbox → backlog → done → archive) so the repo does not
+fill with "things all over creation". This Epic keeps every file at one path and records movement as
+events — the stay-put pattern that decision rejected. **Missed at DISCUSS and caught before close:** the
+proposal and `D-M6E13` "Kept" line first listed `D-BR0928-1…7` as kept, which was wrong for `-2`.
+Put to Brett as an explicit choice (files stay / move once at close / keep moving folders); he chose
+**files stay**. The clutter concern is answered by views that show only open and recent items
+(`D-M6E13-11`, FR6) and by ID buckets, not by folders; the research's reason is that path changes are
+themselves a defect source (link rewriting on every move, `work-links.js`; the unit-grouping chain).
+
+### D-M6E13-19 — An `edited` event; Epic is derived, never stored (PLAN, 2026-10-04)
+AC2.1 counts "edit fields" as a mutation that appends an event; AC1.4's list had none. Added `edited`
+(`changes: {field: {from, to}}`, never changes status); a field's current value must equal its last
+`to`, checked by `checkEvents`. Same reasoning applied to `D-M6E13-5`: Epic membership is folded from
+`queued`/`started`/`triaged`/`reopened` events by `epicOf`, with no top-level `epic` key — two copies of
+one fact is what `D-M6E13-4` refused for status. Raised by the fresh-context plan check (B4, S2).
+Adopted at plumbing altitude under `/sig:drive` (reversible). The window change IS user-visible:
+it decides which closes the committed views show.
+
+### D-M6E13-20 — Three `fixed` closes with no commit become legacy closes; 142 → 145 (Brett, 2026-10-04)
+SIG-123, SIG-142 and SIG-161 were closed `fixed` with proof text naming no commit ("DONE — M6.E12…").
+The new model confirms a `fixed` close only through a commit, so they migrate as legacy closes: reason
+and proof text kept, never admissible as proof. Extends `D-M6E13-14` from 142 to 145. Asked at M6.E13
+PLAN approval (raised by plan-checker pass 2); options were legacy / look up their commits / reopen.
+
+### D-M6E13-21 — Where a *closing* item becomes closed: SHIP and the sweep, not `/sig:resume` (Brett, 2026-10-04)
+Refines `D-M6E13-15` ("at `/sig:resume`, at SHIP and in the sweep"). Asked at the t7.2 cutover halt
+because it collided with two existing contracts. **The sweep confirms** (`confirmCloses` writes close
+events), so `/sig:docs-sweep` is no longer read-only for that one step — this supersedes `D-M5E16-1`
+for it only; every other sweep check stays read-only. **`/sig:resume` only reports** what is ready to
+confirm (`probeCloses`) and keeps its read-only contract. SHIP confirms, as built. Amends AC1.4
+and AC1.5's wording; also amends AC6.2: "the last 30 days" counts back from the newest event in the
+store, so committed views do not churn daily and AC5.2 stays deterministic. See `M6.E13-PLAN.md`
+§ Decisions.
+
+### D-M6E13-22 — A *closing* record whose fix is on the shipping branch counts as done for Epic close (EXECUTE, 2026-10-04)
+On a v2 store `closeEpicCheck` counted *closing* as open, so every Epic-close SHIP refused
+(`OPEN_ITEMS`) when an item of the Epic was closed `fixed` during EXECUTE: its commit is on the branch,
+and `confirmCloses` can only confirm it after the merge. Surfaced at t7.3 prep 2. Rule: for the
+Epic-close gate only, a *closing* record counts as done iff its latest `close_requested` proof commit
+is an ancestor of the current HEAD (`git merge-base --is-ancestor`); otherwise it stays open.
+Fail-closed — no repository, a shallow clone, an unknown commit or a failing git all leave it open;
+never fetches. The record is not changed: it stays *closing* and is confirmed by a later SHIP or
+sweep once the commit is on the default branch (`D-M6E13-15`, `-21`). Consistent with AC7.3, which
+already treats *closing* as done for advise and drive. Makes one new state reachable — an archived
+Epic folder with a record still *closing* — which no check treats as an error (`checkRecords` and
+the `EPICS.md` view carry no "archived ⇒ all closed" rule). Other options were archiving the folder
+at the post-merge confirm, or moving §6.8 after the merge. Plumbing; adopted under `/sig:drive`;
+reversible (`closeEpicCheck`, one function).

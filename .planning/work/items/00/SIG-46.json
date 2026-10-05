@@ -1,0 +1,23 @@
+{
+  "id": "SIG-46",
+  "type": "BUG",
+  "title": "The re-triage this row was held open for is now made, and both halves resolve independently.",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:80",
+  "legacy_id": "B46",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "rejected",
+      "legacy": true
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "SIG-109",
+  "type": "BUG",
+  "title": "`setChangelogTestCount` reconciles the pending section's trailer from the same gating run that supplies `facts.md`'s…",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:164",
+  "legacy_id": "B109",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

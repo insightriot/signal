@@ -1,0 +1,22 @@
+{
+  "id": "SIG-176",
+  "type": "FEAT",
+  "title": "~~Blast radius and rollback — asked by no phase~~ · **DONE 2026-08-14**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:994",
+  "legacy_id": "BACKLOG.md:994",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

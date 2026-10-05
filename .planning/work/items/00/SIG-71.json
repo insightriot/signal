@@ -1,0 +1,21 @@
+{
+  "id": "SIG-71",
+  "type": "BUG",
+  "title": "`M5.E17-RETROSPECTIVE.md` was backfilled 2026-08-03, so `isEpicDone('M5.E17')` is now true and `REQUIREMENTS.md` is no…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:126",
+  "legacy_id": "B71",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

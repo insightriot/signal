@@ -1,0 +1,23 @@
+{
+  "id": "SIG-10",
+  "type": "BUG",
+  "title": "`/sig:migrate-memory` doesn't archive `SHIP` (or `LAUNCH-KIT`) scaffolds — closing docs orphaned in root while their…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:32",
+  "legacy_id": "B10",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

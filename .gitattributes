@@ -1,0 +1,2 @@
+# Work-item records are JSON written with LF; parse -> serialise is byte-identical (M6.E13 AC1.2).
+.planning/work/items/**/*.json text eol=lf

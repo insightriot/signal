@@ -1,0 +1,23 @@
+{
+  "id": "SIG-63",
+  "type": "BUG",
+  "title": "verified in source not documents: `tools/lib/migrate-memory.js:1945` opens the fix block naming the bug, and…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:102",
+  "legacy_id": "B63",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

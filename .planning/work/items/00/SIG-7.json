@@ -1,0 +1,23 @@
+{
+  "id": "SIG-7",
+  "type": "BUG",
+  "title": "`plugin.json` version stuck at `0.1.6` through the entire v0.1.7 release — clean main fails `install-contract.test.js`.",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:26",
+  "legacy_id": "B7",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

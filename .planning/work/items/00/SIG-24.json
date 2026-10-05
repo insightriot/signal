@@ -1,0 +1,23 @@
+{
+  "id": "SIG-24",
+  "type": "BUG",
+  "title": "A pre-existing broken `](*.md)` link inside a strictly-closed-milestone DECISIONS section blocks `applyMigrate` — it…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:51",
+  "legacy_id": "B24",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

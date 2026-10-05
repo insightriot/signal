@@ -1,0 +1,23 @@
+{
+  "id": "SIG-195",
+  "type": "FEAT",
+  "title": "~~`B52` — warn at session start when the bound plugin cache is not the installed one~~ — **✅ SHIPPED v0.1.20 (2026-08-06)**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1746",
+  "legacy_id": "BACKLOG.md:1746",
+  "migration_note": "One of 2 rows led by B52 — possible duplicates.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

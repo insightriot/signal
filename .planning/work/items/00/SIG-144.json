@@ -1,0 +1,21 @@
+{
+  "id": "SIG-144",
+  "type": "FEAT",
+  "title": "Since the snapshot — what shipped (reconciliation, 2026-07-19)",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:144",
+  "legacy_id": "BACKLOG.md:144",
+  "migration_note": "A dated reconciliation record rather than a unit of work (the heading says reconciliation).",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

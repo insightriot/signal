@@ -1,0 +1,20 @@
+{
+  "id": "SIG-257",
+  "type": "BUG",
+  "title": "/sig:advise hostile-repository hardening — the residue after M6.E12 review pass 3",
+  "theme": "advise",
+  "priority": "P3",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-02T15:38:20.303Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-02T15:38:20.303Z",
+      "by": "migration (v2)"
+    }
+  ]
+}

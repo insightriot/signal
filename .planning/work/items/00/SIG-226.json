@@ -1,0 +1,23 @@
+{
+  "id": "SIG-226",
+  "type": "FEAT",
+  "title": "~~Security upgrade — gstack's 15-phase audit~~ — **✂ ABANDONED (threat-model fit)** · Phase 8 parked",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:2120",
+  "legacy_id": "BACKLOG.md:2120",
+  "migration_note": "Part abandoned, part parked — the parked part may still be live.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "wontdo",
+      "legacy": true
+    }
+  ]
+}

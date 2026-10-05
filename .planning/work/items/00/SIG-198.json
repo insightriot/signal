@@ -1,0 +1,20 @@
+{
+  "id": "SIG-198",
+  "type": "FEAT",
+  "title": "M5.E12 — Project-facing currency",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1857",
+  "legacy_id": "BACKLOG.md:1857",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

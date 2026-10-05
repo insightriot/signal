@@ -1,0 +1,12 @@
+{
+  "id": "SIG-276",
+  "type": "NEW",
+  "title": "A short proof hash shared by two commits can confirm when a branch of that name points at one of them",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-04T20:49:36.158Z",
+      "by": "claude"
+    }
+  ]
+}

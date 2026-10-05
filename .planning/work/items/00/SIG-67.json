@@ -1,0 +1,21 @@
+{
+  "id": "SIG-67",
+  "type": "BUG",
+  "title": "Nothing detects a second, rival index — the freshness check only ever looks at the one file it manages.",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:106",
+  "legacy_id": "B67",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

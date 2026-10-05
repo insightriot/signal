@@ -1,0 +1,21 @@
+{
+  "id": "SIG-34",
+  "type": "BUG",
+  "title": "`renameFn` injectable seam is the B29-parity prototype-pollution gap.",
+  "priority": "P3",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:62",
+  "legacy_id": "B34",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

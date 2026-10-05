@@ -1,0 +1,32 @@
+{
+  "id": "SIG-135",
+  "type": "BUG",
+  "title": "dischargeBacklogRows is blind to rows nested below h3",
+  "theme": "advise",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:290",
+  "legacy_id": "BUGS.md:290",
+  "migration_note": "tests/backlog-reader-fixes.test.js (v0.1.46)",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-03",
+      "by": "claude",
+      "reason": "fixed",
+      "proof": "3c0b504"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-04T19:39:12.342Z",
+      "by": "confirmCloses",
+      "reason": "fixed",
+      "proof": "3c0b504"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "SIG-187",
+  "type": "FEAT",
+  "title": "Since the re-audit — what M5.E7 changed (reconciliation, 2026-07-26)",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:1305",
+  "legacy_id": "BACKLOG.md:1305",
+  "migration_note": "A dated reconciliation record rather than a unit of work (the heading says reconciliation).",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}

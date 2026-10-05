@@ -1,0 +1,23 @@
+{
+  "id": "SIG-91",
+  "type": "BUG",
+  "title": "The old ID was not reused and not silently swapped: the `BACKLOG.md` entry carries a visible note recording that it…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:156",
+  "legacy_id": "B91",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

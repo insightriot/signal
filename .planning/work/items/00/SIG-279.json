@@ -1,0 +1,13 @@
+{
+  "id": "SIG-279",
+  "type": "BUG",
+  "title": "A project whose .planning/ is a symbolic link (even to a folder inside the repo) cannot regenerate its work views",
+  "source": "M6.E13 REVIEW pass 2 (deferred)",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-04T22:14:45.543Z",
+      "by": "claude"
+    }
+  ]
+}

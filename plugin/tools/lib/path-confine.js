@@ -60,6 +60,37 @@ export function assertRealInsidePlanning(baseDir, destAbs, label) {
 }
 
 /**
+ * Refuse a write path that runs through a symbolic link (M6.E13 REVIEW I1/I2).
+ *
+ * `assertRealInsidePlanning` checks where the destination's folder really is;
+ * this checks that no component of `rel` that exists — every folder from the
+ * first one down, and the file itself — is a link at all. A view, a record or
+ * a relocated file has no legitimate reason to sit behind a link, and a link
+ * that points inside the project today can be repointed tomorrow. Components
+ * that do not exist yet are not checked: the caller is about to create them.
+ *
+ * @param {string} baseDir — the root `rel` is relative to
+ * @param {string} rel — `/`-separated, relative to `baseDir`
+ * @returns {string|null} the first linked component (relative to `baseDir`), or null
+ * @throws {Error} with the errno code when a component cannot be inspected
+ */
+export function linkedComponent(baseDir, rel) {
+  const parts = rel.split('/').filter((p) => p !== '' && p !== '.');
+  for (let i = 1; i <= parts.length; i++) {
+    const sub = parts.slice(0, i).join('/');
+    let st;
+    try {
+      st = lstatSync(resolve(baseDir, sub));
+    } catch (err) {
+      if (err.code === 'ENOENT') return null;
+      throw err;
+    }
+    if (st.isSymbolicLink()) return sub;
+  }
+  return null;
+}
+
+/**
  * Read `rel` under `baseDir` only if its REAL path stays inside the project
  * (M6.E3 REVIEW). A cloned repository can ship `.planning/STATE.md` as a
  * symlink to `~/.aws/credentials`; a check that sends file text to a model must

@@ -1,0 +1,22 @@
+{
+  "id": "SIG-141",
+  "type": "FEAT",
+  "title": "~~22 of Signal's 26 agents are documentation nothing calls — decide each one~~ · **roadmap** · large · **✅ SHIPPED 2026-09-09 as `M6.E9`, PR #250**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:13",
+  "legacy_id": "BACKLOG.md:13",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

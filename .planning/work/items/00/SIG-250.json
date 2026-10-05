@@ -1,0 +1,20 @@
+{
+  "id": "SIG-250",
+  "type": "CHORE",
+  "title": "ship.md §6.8 omits closeEpic's sensitive-data abort outcome",
+  "theme": "ship",
+  "priority": "P3",
+  "source": "M6.E11 REVIEW pass 3",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-30T15:27:01.511Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-30T15:27:01.511Z",
+      "by": "migration (v2)"
+    }
+  ]
+}

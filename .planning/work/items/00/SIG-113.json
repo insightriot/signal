@@ -1,0 +1,23 @@
+{
+  "id": "SIG-113",
+  "type": "BUG",
+  "title": "`drive.md` §3 now reads `loopStatusFor(state, state.phase)` and passes `{ loopStatus }` as the third argument; the…",
+  "priority": "P2",
+  "source": "migration:BUGS.md",
+  "source_ref": "BUGS.md:168",
+  "legacy_id": "B113",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-09-29",
+      "by": "migration",
+      "reason": "fixed",
+      "legacy": true
+    }
+  ]
+}

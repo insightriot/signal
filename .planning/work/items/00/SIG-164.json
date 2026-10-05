@@ -1,0 +1,20 @@
+{
+  "id": "SIG-164",
+  "type": "FEAT",
+  "title": "The row that doesn't know what the platform already does · **roadmap** · small · **filed 2026-08-25**",
+  "source": "migration:BACKLOG.md",
+  "source_ref": "BACKLOG.md:618",
+  "legacy_id": "BACKLOG.md:618",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-09-29",
+      "by": "migration (v2)"
+    }
+  ]
+}
