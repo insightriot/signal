@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.48] — 2026-10-05 — work items are records; drive stops asking at every phase end
 
 ### Fixed
 
