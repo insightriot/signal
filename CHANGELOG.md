@@ -6,7 +6,11 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.48] — 2026-10-05 — work items are records; drive stops asking at every phase end
+
+### Fixed
+
+- **"Drive it — ask when it matters" no longer asks "accept and continue?" at the end of every phase** (`SIG-275`, #279). At `attention: checkpointed`, every phase command (discuss, plan, execute, verify, review) still asked for approval at its end, so `/sig:drive` asked *more* questions than stepping through by hand. Only `attended` asks at phase ends now. Gray-area decisions are still asked, and SHIP's pull request is still a hard stop at every setting. M6.E10 fixed the loop's own stop and missed this second one inside each phase.
 
 ### Changed
 
