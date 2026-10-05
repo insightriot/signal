@@ -23,7 +23,7 @@ Read the **effective profile** before any other workflow step: `readEffectivePro
 | `context_rot_reread: false` | Skip Step 3 (45-min CONTEXT.md re-read). |
 | `context_rot_reread: true` | Run Step 3 every ~45 minutes (default). |
 | `attention: unattended` | Auto-advance — through wave transitions; no per-wave confirmation. |
-| `attention: checkpointed` | Confirm at end of phase only. Waves run without interruption. |
+| `attention: checkpointed` | No end-of-phase confirm: announce what the phase produced and continue. Gray-area decisions are still asked (`drive.md` § 3b). Waves run without interruption. |
 | `attention: attended` | Confirm at **every wave boundary** (`gates.confirm_in_phase`) — this is the in-phase ceremony the dial exists to meter. |
 | `gate_strictness: strict` | Runs the anti-rationalization check at the gate. **That is all `gate_strictness` does to gates** (`v0.1.31`) — it no longer sets confirm cadence. |
 

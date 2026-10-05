@@ -27,8 +27,8 @@ Read the **effective profile** before any other workflow step: `readEffectivePro
 | `nyquist_enforcement: off` | Skip Step 5 (Nyquist mapping). |
 | `nyquist_enforcement: basic` or `strict` | Run Step 5. (Strictness — proof-of-fail-before-pass — is enforced in VERIFY, not here.) |
 | `attention: unattended` | Auto-advance — through plan approval; no user confirmation required. |
-| `attention: checkpointed` | Confirm at the end of the phase (the default). |
-| `attention: attended` | Confirm at every step inside the phase (`gates.confirm_in_phase`), plus at the end. |
+| `attention: checkpointed` | No end-of-phase confirm: announce what the phase produced and continue. Gray-area decisions are still asked (`drive.md` § 3b). |
+| `attention: attended` | Confirm at every step inside the phase (`gates.confirm_in_phase`), plus at the end (`gates.confirm_plan`). |
 | `gate_strictness: strict` | Runs the anti-rationalization check at the gate. **That is all `gate_strictness` does to gates** (`v0.1.31`) — it no longer sets confirm cadence. |
 
 Tooling: `tools/lib/profile.js` exposes `readProfile`, `readEffectiveProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question convention: `references/question-patterns.md`.
@@ -268,4 +268,4 @@ Wrap the call in a **catch-all**: if `markFresh` throws for *any* reason — `St
 - [ ] `{phase}-RESEARCH.md` captures relevant findings
 - [ ] `{phase}-VALIDATION.md` maps tests to requirements
 - [ ] Plan passes 8-dimension validation
-- [ ] User explicitly approves the plan — **when `gates.confirm_plan` is set** (`attention` ≠ `unattended`). Unattended: no ask; the transition is recorded, not approved (`B74`).
+- [ ] User explicitly approves the plan — **when `gates.confirm_plan` is set** (`attention: attended`). Checkpointed and unattended: no ask; the transition is recorded, not approved (`B74`).

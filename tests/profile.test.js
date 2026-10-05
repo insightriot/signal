@@ -436,7 +436,10 @@ describe('applyRigorOverrides', () => {
     expect(merged.workflow.security_enforcement).toBe(true);
     expect(merged.workflow.security_asvs_level).toBe(1);
     expect(merged.parallelization.max_concurrent_agents).toBe(2);
-    expect(merged.gates.confirm_plan).toBe(true);
+    // light derives checkpointed, which has no phase-end confirm (SIG-275).
+    // This asserted `true` until then — the defect pinned as the contract.
+    expect(merged.gates.confirm_plan).toBe(false);
+    expect(merged.gates.confirm_ship).toBe(true);
     expect(merged.gates.anti_rationalization).toBe(false);
   });
 

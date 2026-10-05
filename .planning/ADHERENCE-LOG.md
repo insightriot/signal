@@ -53,7 +53,7 @@ rewrites only between the `adherence:ceiling` markers, so this survives every re
 <!-- adherence:ceiling:begin -->
 ## The coverage ceiling
 
-**Computed:** 2026-10-04 · **Commit:** `0487f16` · **Corpus:** 24 `commands/*.md` files
+**Computed:** 2026-10-05 · **Commit:** `6199165` · **Corpus:** 24 `commands/*.md` files
 
 This is the bound on everything the adherence harness can ever report. It is computed
 directly from the command corpus by `tools/lib/directive-classifier.js`, whose split
@@ -62,15 +62,15 @@ by line.
 
 | | count | share |
 |---|---:|---:|
-| Directive lines | **672** | 100% |
-| …naming a real `tools/lib` export | 122 | 18.2% |
+| Directive lines | **668** | 100% |
+| …naming a real `tools/lib` export | 122 | 18.3% |
 | …writing a named artifact | 22 | 3.3% |
-| **Trace-measurable (either)** | **144** | **21.4%** |
-| **No observable trace** | **528** | **78.6%** |
+| **Trace-measurable (either)** | **144** | **21.6%** |
+| **No observable trace** | **524** | **78.4%** |
 
 ### What the remainder is, stated plainly
 
-The 528 directives with no observable trace are **unmeasured, not passing.**
+The 524 directives with no observable trace are **unmeasured, not passing.**
 
 They are not "probably fine", not "covered by the test suite", and not "verified by the
 fact that Signal works". Nothing in this repository establishes whether an agent follows
@@ -87,7 +87,7 @@ harness run as evidence about the whole corpus will not find it here.
 | `status.md` | 27 | 12 | 15 |
 | `add.md` | 42 | 11 | 31 |
 | `discuss.md` | 31 | 10 | 21 |
-| `plan.md` | 55 | 10 | 45 |
+| `plan.md` | 54 | 10 | 44 |
 | `resume.md` | 31 | 10 | 21 |
 | `item.md` | 24 | 9 | 15 |
 | `init.md` | 43 | 7 | 36 |
@@ -98,9 +98,9 @@ harness run as evidence about the whole corpus will not find it here.
 | `drive.md` | 41 | 5 | 36 |
 | `calibrate.md` | 28 | 4 | 24 |
 | `docs-sweep.md` | 17 | 4 | 13 |
-| `execute.md` | 22 | 4 | 18 |
-| `review.md` | 48 | 4 | 44 |
-| `verify.md` | 40 | 4 | 36 |
+| `execute.md` | 21 | 4 | 17 |
+| `review.md` | 47 | 4 | 43 |
+| `verify.md` | 39 | 4 | 35 |
 | `update.md` | 11 | 3 | 8 |
 | `advise.md` | 22 | 2 | 20 |
 | `docs-index.md` | 7 | 2 | 5 |

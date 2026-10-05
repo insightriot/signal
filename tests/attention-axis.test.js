@@ -61,23 +61,51 @@ describe('attention axis — the dial split out from gate_strictness', () => {
     expect(merged.gates.confirm_plan).toBe(false);
   });
 
+  // The phase-end confirm gates, derived from the merged config rather than
+  // hand-listed, so a future confirm_<phase> gate cannot slip past these tests.
+  const PHASE_END = /^confirm_(discuss|plan|execute|verify|review)$/;
+  const phaseEndGates = (gates) => Object.keys(gates).filter((k) => PHASE_END.test(k));
+
   it('attended keeps every confirm gate up', () => {
     const merged = applyRigorOverrides(
       {},
       baseProfile({ gate_strictness: 'strict', attention: 'attended' })
     );
     expect(merged.workflow.auto_advance).toBe(false);
-    expect(merged.gates.confirm_plan).toBe(true);
+    const gates = phaseEndGates(merged.gates);
+    expect(gates).toHaveLength(5);
+    for (const g of gates) expect(merged.gates[g], g).toBe(true);
     expect(merged.gates.confirm_ship).toBe(true);
+    expect(merged.gates.confirm_in_phase).toBe(true);
   });
 
-  it('checkpointed confirms at phase boundaries but not in-phase', () => {
+  // SIG-275. This test used to be titled "checkpointed confirms at phase
+  // boundaries" — the defect, written as the contract. drive.md says checkpointed
+  // "advances every phase", so every phase ending in "Accept ... and continue?"
+  // meant /sig:drive asked MORE at checkpointed, not less. Only SHIP keeps its
+  // confirm, and SHIP's real gate is the floor in FLOORS (drive.js), not this flag.
+  it('checkpointed sets no phase-end confirm except SHIP, and nothing in-phase', () => {
     const merged = applyRigorOverrides(
       {},
       baseProfile({ gate_strictness: 'strict', attention: 'checkpointed' })
     );
+    const gates = phaseEndGates(merged.gates);
+    expect(gates).toHaveLength(5);
+    for (const g of gates) expect(merged.gates[g], g).toBe(false);
     expect(merged.gates.confirm_ship).toBe(true);
     expect(merged.gates.confirm_in_phase).toBe(false);
+    expect(merged.workflow.auto_advance).toBe(false);
+  });
+
+  it('unattended sets no confirm gate; SHIP is held by its floor, not by confirm_ship', () => {
+    // Recorded as current behaviour, unchanged by SIG-275. ship.md's PR approval
+    // box is unconditional and names no gate (attention-wiring.test.js).
+    const merged = applyRigorOverrides(
+      {},
+      baseProfile({ gate_strictness: 'strict', attention: 'unattended' })
+    );
+    for (const g of phaseEndGates(merged.gates)) expect(merged.gates[g], g).toBe(false);
+    expect(merged.gates.confirm_ship).toBe(false);
   });
 
   it('records the resolved attention on the merged config', () => {
