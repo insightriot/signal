@@ -8,6 +8,10 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ## [Unreleased]
 
+### Fixed
+
+- **"Drive it — ask when it matters" no longer asks "accept and continue?" at the end of every phase** (`SIG-275`, #279). At `attention: checkpointed`, every phase command (discuss, plan, execute, verify, review) still asked for approval at its end, so `/sig:drive` asked *more* questions than stepping through by hand. Only `attended` asks at phase ends now. Gray-area decisions are still asked, and SHIP's pull request is still a hard stop at every setting. M6.E10 fixed the loop's own stop and missed this second one inside each phase.
+
 ### Changed
 
 - **[BREAKING] Work items are records that never move; status comes from what happened to them** (`M6.E13`, Epic 1 of [`analysis/STORAGE-ARCHITECTURE-PROPOSAL.md`](analysis/STORAGE-ARCHITECTURE-PROPOSAL.md)). In the `v0.1.43` store an item's status was its folder (`inbox/`, `backlog/`, `epics/<id>/`, `done/`) and closing it moved the file. Now every item is one record, `.planning/work/items/NN/SIG-n.json`, written once and never moved, with its prose beside it in `SIG-n.md`. The record holds a list of events — created, triaged, queued, started, close requested, closed, reopened, edited — and the status is worked out from that list each time it is read. Nothing stores a status, so nothing can disagree with it. `WORK.md` moves to `schema_version: 2`.
