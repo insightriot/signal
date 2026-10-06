@@ -8,6 +8,13 @@
       "type": "created",
       "at": "2026-10-06T19:42:57.693Z",
       "by": "claude"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-06T20:14:07.368Z",
+      "by": "claude",
+      "reason": "fixed",
+      "proof": "fcd87b9"
     }
   ]
 }

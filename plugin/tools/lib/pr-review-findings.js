@@ -183,18 +183,21 @@ export function formatPrReviewFindings(result) {
 //
 // "No findings" is only worth something if a review happened. From 2026-09-25
 // to 2026-10-05 the `claude-review` check passed all 32 PRs while reviewing
-// none of them: its allowed tools could not launch the review's sub-agents, so
-// every run stopped after 2 turns for about $0.10 and reported success. A real
-// review on this repository runs ~35 turns for ~$2. The green tick and an empty
-// thread list looked exactly like a clean review, and three Epics merged under
-// it. Fixed in #283 — but the fix is not the guard; reading the run is.
+// none of them: every run stopped after 2–5 turns for $0.10–$0.17 and reported
+// success. Two causes, found one after the other (SIG-281): the allowed tools
+// could not launch the review's sub-agents (#283), and once they could, the
+// sub-agents ran in the background and the run ended before they returned
+// (#288, #290). A real review here is 9–35 turns for $0.85–$2 — sub-agent turns
+// are not counted in the total, so cost is the steadier number. The green tick
+// and an empty thread list looked exactly like a clean review, and three Epics
+// merged under it. The fix is not the guard; reading the run is.
 //
 // So SHIP reads the reviewer's own turn count and cost from its run log and
 // flags a run too small for the change it was given. Like the findings readout
 // above, it REPORTS and does not refuse.
 
 /** At or under maxTurns, or under maxCostUsd, a run did not do a review's worth of work. */
-export const HOLLOW_REVIEW = { maxTurns: 4, maxCostUsd: 0.3, minChangedLines: 50 };
+export const HOLLOW_REVIEW = { maxTurns: 5, maxCostUsd: 0.3, minChangedLines: 50 };
 
 const REVIEW_WORKFLOW = 'claude-code-review.yml';
 
@@ -290,7 +293,7 @@ export function formatReviewerEffort(result) {
       return `✓ PR reviewer: short run (${effort}), in line with a ${result.changedLines}-line change.`;
     case 'hollow':
       return (
-        `⚠ PR reviewer ran but did NOT review: ${effort} on ${result.changedLines} changed lines (a real review here is ~35 turns, ~$2).\n` +
+        `⚠ PR reviewer ran but did NOT review: ${effort} on ${result.changedLines} changed lines (a real review here is 9–35 turns, $0.85–$2).\n` +
         `   Its "no findings" means nothing. Read the run log for why it stopped, and get the change reviewed before merging.`
       );
     default:
