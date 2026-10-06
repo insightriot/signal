@@ -42,7 +42,11 @@ jobs:
           # The review command launches parallel sub-agents and reads the PR with `gh`; with only the
           # comment tool allowed it stopped after 2 turns (~$0.10) on every PR from 2026-09-25 on —
           # 32 runs, none a real review, all reported as a pass. Allow what the command declares.
-          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment,Task,Agent,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Read,Grep,Glob"'
+          # SIG-281: with the tools allowed, the reviewer still skipped the command's parallel review and
+          # validation agents and read the diff alone — its own words on #287: "I skipped the parallel
+          # review and validation agents". On #284 (227 lines) that was 5 turns, $0.16, no comment.
+          # The appended instruction makes every step mandatory unless step 1 stops the review.
+          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment,Task,Agent,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Read,Grep,Glob" --append-system-prompt "Run the code-review command exactly as written. Unless its step 1 check says to stop, launch every agent it names in steps 2 through 5 with the Task tool, including the four parallel review agents and the validation agents. Do not review the diff yourself in their place, and do not skip agents because the change looks small or simple. Always finish by posting the review comment the command describes, even when no issues are found."'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
