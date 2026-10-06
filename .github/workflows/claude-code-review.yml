@@ -46,3 +46,15 @@ jobs:
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
+      # SIG-281: after #283 the review still stops early (5 turns, $0.16 on #284) and the log shows
+      # only the result summary. Keep the reviewer's transcript for one day so the cause can be read,
+      # instead of `show_full_output`, which prints it into this public repo's logs indefinitely.
+      - name: Keep reviewer transcript (SIG-281)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-review-transcript
+          path: ${{ runner.temp }}/claude-execution-output.json
+          retention-days: 1
+          if-no-files-found: warn
+
