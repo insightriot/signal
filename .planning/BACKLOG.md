@@ -2364,3 +2364,15 @@ Seen 2026-10-01 during M6.E12 EXECUTE. plugin/references/anti-rationalization-fo
 **Status:** triaged (T)
 
 Found 2026-10-03 on the second outside-Signal /sig:advise run (eval-project, run 1). The maintainer picked priority 1 AND a four-step order (1, then a polish batch, then versioning work, then a DISCUSS). recordChoice can record one pick only, so the agent recorded it as "Something else" with its own summary of the order — the advisory now reads as a miss although priority 1 was picked. For the outcome oracle (D-M6E12-12) count that run as priority 1. Fix: an optional `order` recorded alongside the pick.
+
+### PR reviewer still does not review after #283 (5 turns, $0.16 on #284) · SIG-281 · closing
+
+**Status:** closing — a fixed close waiting for its commit on the default branch
+
+The claude-review check is still not reviewing after #283 widened its allowed tools.
+
+Evidence: on #284 (227 changed lines, the first PR after #283 merged) the reviewer run (Actions run 37520672683) finished in 13 s, 5 turns, $0.16, permission_denials_count 0, and posted no comment at all. The SHIP reviewer-effort check added in #284 flagged it. For comparison, #253 (2026-09-13) took 35 turns and $2.00 and posted a "Code review" comment.
+
+Unknown: why it stops. The log shows only the result summary, not the conversation, so the cause cannot be read from it. A guess, not checked: the upstream /code-review command's first step can decide a PR needs no review and exit early. Another guess: the plugin command is not loading.
+
+Next step: turn on the action's full output (show_full_output) on a test PR to see what the reviewer did, then fix the cause.

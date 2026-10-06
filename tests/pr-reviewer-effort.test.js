@@ -42,6 +42,16 @@ describe('reading the reviewer run', () => {
     expect(r.status).toBe('reviewed');
   });
 
+  it('passes a real review whose agents did the work: 9 turns, $0.85 (#289)', () => {
+    // Sub-agent turns are not counted in num_turns, so a full review can show few turns.
+    expect(readReviewerEffort({ ...args, execFn: gh({ log: logWith(9, 0.85) }) }).status).toBe('reviewed');
+  });
+
+  it('flags the hollow run after #283: 5 turns, $0.16 (#284)', () => {
+    expect(readReviewerEffort({ ...args, execFn: gh({ log: logWith(5, 0.16) }) }).status).toBe('hollow');
+    expect(readReviewerEffort({ ...args, execFn: gh({ log: logWith(5, 0.9) }) }).status).toBe('hollow');
+  });
+
   it('flags many cheap turns as well as few expensive ones', () => {
     expect(readReviewerEffort({ ...args, execFn: gh({ log: logWith(20, 0.12) }) }).status).toBe('hollow');
     expect(readReviewerEffort({ ...args, execFn: gh({ log: logWith(3, 1.5) }) }).status).toBe('hollow');
