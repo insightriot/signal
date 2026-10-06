@@ -178,3 +178,125 @@ export function formatPrReviewFindings(result) {
   }
   return lines.join('\n');
 }
+
+// ── Did the reviewer actually review? ─────────────────────────────────────────
+//
+// "No findings" is only worth something if a review happened. From 2026-09-25
+// to 2026-10-05 the `claude-review` check passed all 32 PRs while reviewing
+// none of them: its allowed tools could not launch the review's sub-agents, so
+// every run stopped after 2 turns for about $0.10 and reported success. A real
+// review on this repository runs ~35 turns for ~$2. The green tick and an empty
+// thread list looked exactly like a clean review, and three Epics merged under
+// it. Fixed in #283 — but the fix is not the guard; reading the run is.
+//
+// So SHIP reads the reviewer's own turn count and cost from its run log and
+// flags a run too small for the change it was given. Like the findings readout
+// above, it REPORTS and does not refuse.
+
+/** At or under maxTurns, or under maxCostUsd, a run did not do a review's worth of work. */
+export const HOLLOW_REVIEW = { maxTurns: 4, maxCostUsd: 0.3, minChangedLines: 50 };
+
+const REVIEW_WORKFLOW = 'claude-code-review.yml';
+
+/**
+ * Read the turn count and cost of the reviewer run on a PR's head commit.
+ *
+ * @param {{
+ *   owner: string, repo: string, pr: number,
+ *   execFn?: (cmd: string, args: string[]) => string,
+ * }} opts
+ * @returns {{
+ *   status: 'reviewed'|'hollow'|'small-change'|'cannot-check',
+ *   turns: number|null, costUsd: number|null, changedLines: number|null,
+ *   reason: string|null,
+ * }}
+ *
+ * `cannot-check` covers no run, a run still going, a run that was skipped, and
+ * a log with no result line — the reviewer action refuses to run on a PR that
+ * edits its own workflow, and that must not read as a review either.
+ */
+export function readReviewerEffort({ owner, repo, pr, execFn }) {
+  const empty = { status: 'cannot-check', turns: null, costUsd: null, changedLines: null, reason: null };
+  if (!owner || !repo || !Number.isInteger(pr)) {
+    return { ...empty, reason: 'no pull request identified for this branch' };
+  }
+  if (typeof execFn !== 'function') {
+    return { ...empty, reason: 'no exec function supplied' };
+  }
+  const R = `${owner}/${repo}`;
+  const run = (args) => String(execFn('gh', args));
+
+  let pull;
+  try {
+    pull = JSON.parse(run(['pr', 'view', String(pr), '-R', R, '--json', 'additions,deletions,headRefOid']));
+  } catch (err) {
+    return { ...empty, reason: `could not read the PR (${String(err?.message ?? err).split('\n')[0]})` };
+  }
+  const changedLines = (Number(pull?.additions) || 0) + (Number(pull?.deletions) || 0);
+  if (!pull?.headRefOid) return { ...empty, changedLines, reason: 'the PR has no head commit in the response' };
+
+  let runs;
+  try {
+    runs = JSON.parse(run([
+      'run', 'list', '-R', R, '--workflow', REVIEW_WORKFLOW,
+      '--commit', pull.headRefOid, '--json', 'databaseId,status,conclusion', '--limit', '1',
+    ]));
+  } catch (err) {
+    return { ...empty, changedLines, reason: `could not list reviewer runs (${String(err?.message ?? err).split('\n')[0]})` };
+  }
+  const latest = Array.isArray(runs) ? runs[0] : null;
+  if (!latest) return { ...empty, changedLines, reason: 'no reviewer run found for the PR head commit' };
+  if (latest.status !== 'completed') return { ...empty, changedLines, reason: `the reviewer run is still ${latest.status}` };
+  if (latest.conclusion !== 'success') {
+    return { ...empty, changedLines, reason: `the reviewer run ended "${latest.conclusion}"` };
+  }
+
+  let log;
+  try {
+    log = run(['run', 'view', String(latest.databaseId), '-R', R, '--log']);
+  } catch (err) {
+    return { ...empty, changedLines, reason: `could not read the reviewer log (${String(err?.message ?? err).split('\n')[0]})` };
+  }
+  const turns = lastNumber(log, /"num_turns":\s*(\d+)/g);
+  const costUsd = lastNumber(log, /"total_cost_usd":\s*([\d.]+)/g);
+  if (turns === null || costUsd === null) {
+    return { ...empty, changedLines, reason: 'the reviewer log has no turn count or cost — it may not have run at all' };
+  }
+
+  const small = turns <= HOLLOW_REVIEW.maxTurns || costUsd < HOLLOW_REVIEW.maxCostUsd;
+  let status = 'reviewed';
+  if (small) status = changedLines >= HOLLOW_REVIEW.minChangedLines ? 'hollow' : 'small-change';
+  return { status, turns, costUsd, changedLines, reason: null };
+}
+
+function lastNumber(text, re) {
+  let value = null;
+  for (const m of String(text).matchAll(re)) value = Number(m[1]);
+  return Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Render the reviewer-effort line for SHIP.
+ *
+ * @returns {string|null}
+ */
+export function formatReviewerEffort(result) {
+  if (!result) return null;
+  const effort = `${result.turns} turns, $${result.costUsd?.toFixed(2)}`;
+  switch (result.status) {
+    case 'reviewed':
+      return `✓ PR reviewer: ran a full review (${effort} on ${result.changedLines} changed lines).`;
+    case 'small-change':
+      return `✓ PR reviewer: short run (${effort}), in line with a ${result.changedLines}-line change.`;
+    case 'hollow':
+      return (
+        `⚠ PR reviewer ran but did NOT review: ${effort} on ${result.changedLines} changed lines (a real review here is ~35 turns, ~$2).\n` +
+        `   Its "no findings" means nothing. Read the run log for why it stopped, and get the change reviewed before merging.`
+      );
+    default:
+      return (
+        `⚠ PR reviewer: COULD NOT CHECK whether it reviewed — ${result.reason}.\n` +
+        `   A passing review check is not evidence of a review. Open the run log before merging.`
+      );
+  }
+}
