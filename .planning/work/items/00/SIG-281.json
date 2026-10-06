@@ -1,0 +1,13 @@
+{
+  "id": "SIG-281",
+  "type": "NEW",
+  "title": "PR reviewer still does not review after #283 (5 turns, $0.16 on #284)",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-06T19:42:57.693Z",
+      "by": "claude"
+    }
+  ]
+}

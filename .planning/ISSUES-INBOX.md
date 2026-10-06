@@ -95,3 +95,17 @@ Found 2026-10-04 by M6.E13 VERIFY pass 2. Two commits share a 7-hex prefix P; co
 From the narrow fresh check of M6.E13 REVIEW pass 2 fixes (2026-10-04). None Important. (1) ship.md §6.8 item 6 / docs-sweep.md: git checkout -- <path> restores nothing if the record is broken in HEAD; resolving the conflict by Edit is blocked by the hook — name git checkout --ours/--theirs. (2) refuseBroken says nothing was written also from read-only probeCloses (/sig:resume). (3) The sweep reports one broken record twice (checkRecords + closes-confirmed). (4) Two-process concurrency test never asserts a collision happened. (5) confirmCloses @throws omits NOT_FOUND. (6) Class: records written then views refuse to regenerate on a hand-kept view, linked WATCHLIST.md or bad archived Epic README YAML (work-views.js:349,373,456) — every writer.
 
 ---
+
+## PR reviewer still does not review after #283 (5 turns, $0.16 on #284)
+
+**Status:** untriaged (N) · SIG-281
+
+The claude-review check is still not reviewing after #283 widened its allowed tools.
+
+Evidence: on #284 (227 changed lines, the first PR after #283 merged) the reviewer run (Actions run 37520672683) finished in 13 s, 5 turns, $0.16, permission_denials_count 0, and posted no comment at all. The SHIP reviewer-effort check added in #284 flagged it. For comparison, #253 (2026-09-13) took 35 turns and $2.00 and posted a "Code review" comment.
+
+Unknown: why it stops. The log shows only the result summary, not the conversation, so the cause cannot be read from it. A guess, not checked: the upstream /code-review command's first step can decide a PR needs no review and exit early. Another guess: the plugin command is not loading.
+
+Next step: turn on the action's full output (show_full_output) on a test PR to see what the reviewer did, then fix the cause.
+
+---
