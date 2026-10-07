@@ -69,7 +69,8 @@ const nothing = () => ({ ran: false, confirmed: [], stillClosing: [], stale: [],
  * @param {{now?: Date|string, execFn?: Function, confirm?: Function}} [opts]
  *   `confirm`: the confirmation, injected in tests (default `confirmCloses`)
  * @returns {Promise<{ran: boolean, confirmed: string[], stillClosing: Array<{id: string, reason: string}>,
- *   stale: string[], error: string|null, line: string|null}>}
+ *   stale: string[], error: string|null, broken?: string[], line: string|null}>}
+ *   `broken`: on a refusal over broken records, their IDs (else empty).
  */
 export async function runConfirmCloses(baseDir, opts = {}) {
   let version;
@@ -92,6 +93,7 @@ export async function runConfirmCloses(baseDir, opts = {}) {
       ...nothing(),
       ran: true,
       error: err.message,
+      broken: Array.isArray(err?.broken) ? err.broken : [],
       line: `Closes not confirmed — ${err.message}`,
     };
   }

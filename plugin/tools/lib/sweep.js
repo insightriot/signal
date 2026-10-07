@@ -489,6 +489,9 @@ export function checkClosingTooLong(baseDir, opts = {}) {
  */
 export async function confirmClosesInSweep(baseDir, opts = {}) {
   const out = await runConfirmCloses(baseDir, opts);
+  // Refused over broken records: `checkWorkStore` already reports each one by
+  // ID, so this check says nothing rather than repeating them (SIG-280 (3)).
+  if (out.error && out.broken?.length > 0) return [];
   if (out.error) {
     const what = out.ran ? 'closes not confirmed' : 'closes not checked';
     return [mkFinding('closes-confirmed', 'advisory', WORK_MD_REL, `${what} — ${out.error}`)];

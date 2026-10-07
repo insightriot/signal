@@ -1519,7 +1519,7 @@ function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
  *   `now`: the clock, for the closing `at` and for `stale` (default: now)
  * @returns {Promise<{confirmed: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}>}
  *   `stale`: items still closing whose request is more than 14 days before `now`
- * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA (a broken record), LOCKED, IO
+ * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA (a broken record), NOT_FOUND (a record removed between the check and the write), LOCKED, IO
  */
 export async function confirmCloses(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
@@ -1560,9 +1560,9 @@ export async function confirmCloses(baseDir, opts = {}) {
 // branch now: `ok` (it is) and `still` (id → {reason, req}, why not). Reads the
 // records and asks git; writes nothing. Shared by `confirmCloses` and
 // `probeCloses`, so the two can never disagree on what is confirmable.
-function classifyClosing(baseDir, execFn) {
+function classifyClosing(baseDir, execFn, { writing = true } = {}) {
   const listed = listRecords(baseDir);
-  refuseBroken(listed);
+  refuseBroken(listed, { writing });
   const closing = listed.records.filter((r) => r.status === 'closing');
   const still = new Map(); // id -> {reason, request}
   const candidates = [];
@@ -1587,9 +1587,18 @@ function classifyClosing(baseDir, execFn) {
 
 // The views refuse to regenerate over a broken record, so writing the others
 // first would leave a partial write (REVIEW pass 2): refuse before anything.
-function refuseBroken({ broken }) {
+// `writing` (SIG-280 (2)): false on the read-only path (`probeCloses`, from
+// `/sig:resume`), where saying "nothing was written" answers a question nobody
+// asked. The error carries the broken IDs (`err.broken`) so a caller that
+// already reports each one — the sweep's `checkWorkStore` — need not repeat it.
+function refuseBroken({ broken }, { writing = true } = {}) {
   if (broken.length === 0) return;
-  throw new WorkStoreError('SCHEMA', `broken record(s), so nothing was written: ${broken.map((b) => `${b.id ?? b.path} (${b.error})`).join('; ')} — restore each with git (git checkout -- <path>, or resolve its merge conflict), then re-run.`);
+  const err = new WorkStoreError('SCHEMA', `broken record(s)${writing ? ', so nothing was written' : ''}: `
+    + `${broken.map((b) => `${b.id ?? b.path} (${b.error})`).join('; ')} — restore each with git: \`git checkout -- <path>\` `
+    + 'when HEAD holds a good copy; for a merge conflict in the record, take one side with '
+    + '`git checkout --ours <path>` or `git checkout --theirs <path>` (Edit is blocked on records; git is not). Then re-run.');
+  err.broken = broken.map((b) => b.id ?? b.path);
+  throw err;
 }
 
 function stillAndStale(still, now) {
@@ -1623,7 +1632,7 @@ export function probeCloses(baseDir, opts = {}) {
   const now = opts.now === undefined ? new Date() : new Date(opts.now);
   if (Number.isNaN(now.getTime())) throw new WorkStoreError('SCHEMA', `probeCloses: now ${JSON.stringify(opts.now)} is not a date`);
   assertWritable(baseDir);
-  const { still, ok } = classifyClosing(baseDir, execFn);
+  const { still, ok } = classifyClosing(baseDir, execFn, { writing: false });
   return { confirmable: ok.map((c) => c.id).sort((a, b) => numberOf(a) - numberOf(b)), ...stillAndStale(still, now) };
 }
 
