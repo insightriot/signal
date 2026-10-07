@@ -32,7 +32,7 @@ import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js'
 import { assertNoHandKeptLists, EPIC_README } from './work-generate.js';
 import { rewriteRelativeLinks } from './work-links.js';
 import { assertWritable, closeEpicCheck } from './work-records.js';
-import { checkViewsWritable, regenerateViews } from './work-views.js';
+import { assertViewsWritable, regenerateViews, viewsNotRegenerated } from './work-views.js';
 import { isGeneratedText } from './work-marker.js';
 import { FOLDERS, isGitRepo, walkFiles, WORK_DIR, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
 
@@ -53,10 +53,7 @@ async function withWorkLock(baseDir, fn) {
     throw lockFailure(err);
   }
   try {
-    assertNoHandKeptLists(baseDir); // its message explains a store switched on by hand
-    // Then everything else regenerateViews would refuse, before anything moves
-    // (SIG-280 (6), M6.E14): a broken record, a linked WATCHLIST.md, bad README YAML.
-    checkViewsWritable(baseDir);
+    assertNoHandKeptLists(baseDir);
     return await fn();
   } finally {
     await lock.released(); // only while this call still holds it (REVIEW I4)
@@ -146,11 +143,7 @@ async function regenerate(baseDir, done) {
     // broke the regeneration; undoing a good change to protect a stale view
     // would be the wrong way round.
     // A raw error here is git or the filesystem: IO, with the same sentence.
-    const code = err instanceof WorkStoreError ? err.code : 'IO';
-    const wrapped = new WorkStoreError(code, `${done}, but the views were not regenerated: ${err?.message ?? err} `
-      + '— the change stands; fix what this names, then make any item change and the views are regenerated with it.');
-    wrapped.cause = err;
-    throw wrapped;
+    throw viewsNotRegenerated(done, err);
   }
 }
 
@@ -331,6 +324,10 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
     if (!st.isDirectory()) {
       throw new WorkStoreError('CONFLICT', `${fromRel} is not a folder (a symlink or a file) — nothing was moved.`);
     }
+    // Everything else regenerateViews would refuse, before anything moves (SIG-280 (6),
+    // M6.E14) — after the gate and the folder lookup, so OPEN_ITEMS and the
+    // already-archived / no-folder answers come first, as ship.md §6.8 lists them.
+    assertViewsWritable(baseDir, { verb: 'moved' });
     confine(baseDir, fromAbs, '/sig:item');
     confine(baseDir, toAbs, '/sig:item');
 

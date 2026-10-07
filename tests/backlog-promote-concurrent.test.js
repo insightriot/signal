@@ -90,3 +90,24 @@ describe("newItems({dedupeBy: 'source_ref'}) (AC1.1)", () => {
     expect(records.listRecords(base).records).toHaveLength(0);
   });
 });
+
+describe('dedupe — within one call, and under the lock (M6.E14 REVIEW)', () => {
+  it('two specs with one key in a single call make one record', async () => {
+    const out = await records.newItems(base, [
+      { title: 'a', source_ref: 'k:9', by: 'a' },
+      { title: 'a again', source_ref: 'k:9', by: 'a' },
+    ], { dedupeBy: 'source_ref' });
+    expect(out[1]).toMatchObject({ id: out[0].id, deduped: true });
+    expect(records.listRecords(base).records).toHaveLength(1);
+  });
+
+  it('the dedupe read is inside newItems\' lock callback, not before it (structural)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const src = readFileSync('plugin/tools/lib/work-records.js', 'utf-8');
+    const fn = src.slice(src.indexOf('export async function newItems('), src.indexOf('export async function triageItem('));
+    const lock = fn.indexOf('withWorkLockV2(');
+    const read = fn.indexOf('listRecords(handle.baseDir)');
+    expect(lock).toBeGreaterThan(-1);
+    expect(read).toBeGreaterThan(lock);
+  });
+});

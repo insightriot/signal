@@ -84,6 +84,12 @@ describe('the sweep reports a broken record once (AC5.3)', () => {
     const closes = await confirmClosesInSweep(base, { execFn: noGit });
     expect(closes.filter((f) => /SIG-2/.test(f.message))).toEqual([]);
   });
+
+  it('a failure that is not about broken records is still reported (the check does not swallow everything)', async () => {
+    const out = await confirmClosesInSweep(base, { confirm: async () => { throw new Error('git exploded'); } });
+    expect(out).toHaveLength(1);
+    expect(out[0].message).toMatch(/git exploded/);
+  });
 });
 
 describe('confirmCloses documents NOT_FOUND (AC5.4)', () => {

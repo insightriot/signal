@@ -100,3 +100,24 @@ describe('confineView itself (AC3.3, direct)', () => {
     expect(() => confineView(base, '.planning/BUGS.md')).toThrow(/outside the repo/);
   });
 });
+
+describe('a .planning linked to the project folder itself or into .git (M6.E14 REVIEW)', () => {
+  for (const [name, target] of [['the project folder', '.'], ['.git', '.git']]) {
+    it(`refuses ${name}`, async () => {
+      await mkdir(join(base, '.git'), { recursive: true });
+      await rm(join(base, '.planning'));
+      await symlink(target, join(base, '.planning'));
+      const { confineView } = await import('../plugin/tools/lib/work-views.js');
+      expect(() => confineView(base, '.planning/BUGS.md')).toThrow(name === '.git' ? /inside \.git/ : /the project folder itself/);
+    });
+  }
+
+  it('AC3.2: the refused write left no record behind', async () => {
+    const before = (await import('./helpers/write-inventory.js')).snapshotTree(join(base, 'planning-real/work/items'));
+    await put(base, 'elsewhere.md', 'x\n');
+    await symlink(join('..', 'elsewhere.md'), join(base, 'planning-real', 'BUGS.md'));
+    await records.newItem(base, { title: 'x', by, at: AT }, { execFn: noGit }).catch(() => {});
+    const after = (await import('./helpers/write-inventory.js')).snapshotTree(join(base, 'planning-real/work/items'));
+    expect(after).toEqual(before);
+  });
+});

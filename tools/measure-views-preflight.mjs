@@ -14,6 +14,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
+import { performance } from 'node:perf_hooks';
 
 import { newItem, recordPath } from '../plugin/tools/lib/work-records.js';
 import { checkViewsWritable, regenerateViews } from '../plugin/tools/lib/work-views.js';
@@ -51,10 +52,10 @@ try {
   let t0 = performance.now();
   await newItem(base, { title: 'with the check', by, at: AT }, { execFn: noGit });
   const withCheck = ms(t0);
-  // An injected `regenerate` skips the pre-write check (the test seam), so this
-  // is the same write without it.
+  // `_skipViewsCheck` (a test-only seam) skips the pre-write check, so this is
+  // the same write without it.
   t0 = performance.now();
-  await newItem(base, { title: 'without the check', by, at: AT }, { execFn: noGit, regenerate: (b) => regenerateViews(b) });
+  await newItem(base, { title: 'without the check', by, at: AT }, { execFn: noGit, _skipViewsCheck: true });
   const without = ms(t0);
 
   console.log(`${N} records: checkViewsWritable ${check.join(' / ')} ms; `

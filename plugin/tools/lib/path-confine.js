@@ -51,6 +51,15 @@ export function assertRealInsidePlanning(baseDir, destAbs, label) {
       `${label}: ${PLANNING_DIR}/ resolves outside the repo (real ${realRoot}) — refusing a symlinked planning root.`
     );
   }
+  // A linked `.planning/` may point inside the project (SIG-279), but not at
+  // the project folder itself or into `.git/` (M6.E14 REVIEW).
+  const gitDir = resolve(realBase, '.git');
+  if (realRoot === realBase || realRoot === gitDir || realRoot.startsWith(gitDir + sep)) {
+    throw new Error(
+      `${label}: ${PLANNING_DIR}/ resolves to ${realRoot === realBase ? 'the project folder itself' : 'inside .git/'} `
+        + `(real ${realRoot}) — refusing a symlinked planning root.`
+    );
+  }
   const realDir = realpathNearestExisting(dirname(destAbs));
   if (realDir !== realRoot && !realDir.startsWith(realRoot + sep)) {
     throw new Error(

@@ -38,7 +38,7 @@ import { rewriteRelativeLinks } from './work-links.js';
 import { proposeTriage } from './work-triage.js';
 // A cycle, by design: work-views.js reads through listRecords. Neither module
 // uses the other's bindings while it is being evaluated.
-import { checkViewsWritable, regenerateToMemory, regenerateViews } from './work-views.js';
+import { assertViewsWritable, regenerateToMemory, regenerateViews, viewsNotRegenerated } from './work-views.js';
 import {
   isStoreOn,
   isGitRepo,
@@ -650,22 +650,11 @@ async function withWorkLockV2(baseDir, label, opts, fn) {
 
 // Before any record is written (SIG-280 (6), M6.E14): if the views would
 // refuse to regenerate, refuse the write, so a record never lands that the
-// views do not show. Skipped when the caller injects its own `regenerate`
-// (a test seam): its views are not `regenerateViews`'.
+// views do not show. `_skipViewsCheck` is a test-only seam (M6.E14 REVIEW):
+// injecting `regenerate` no longer turns the check off.
 function viewsWritableOrRefuse(baseDir, opts = {}) {
-  if (opts.regenerate) return;
-  try {
-    checkViewsWritable(baseDir);
-  } catch (err) {
-    const code = err instanceof WorkStoreError ? err.code : 'IO';
-    const broken = Array.isArray(err?.broken) && err.broken.length > 0
-      ? ' A broken record is restored with git: `git checkout -- <path>` when HEAD holds a good copy, or '
-        + '`git checkout --ours <path>` / `--theirs <path>` for a merge conflict.'
-      : '';
-    const wrapped = new WorkStoreError(code, `nothing was written — this change would leave views that cannot be regenerated: ${err?.message ?? err}${broken}`);
-    wrapped.cause = err;
-    throw wrapped;
-  }
+  if (opts._skipViewsCheck === true) return;
+  assertViewsWritable(baseDir);
 }
 
 async function regenerateAfter(handle, done, opts) {
@@ -673,11 +662,7 @@ async function regenerateAfter(handle, done, opts) {
   try {
     await run(handle.baseDir);
   } catch (err) {
-    const code = err instanceof WorkStoreError ? err.code : 'IO';
-    const wrapped = new WorkStoreError(code, `${done}, but the views were not regenerated: ${err?.message ?? err} `
-      + '— the change stands; fix what this names, then make any item change and the views are regenerated with it.');
-    wrapped.cause = err;
-    throw wrapped;
+    throw viewsNotRegenerated(done, err);
   }
 }
 
@@ -923,7 +908,16 @@ export async function newItems(baseDir, specs, opts = {}) {
         if (typeof e.record.source_ref === 'string' && !existing.has(e.record.source_ref)) existing.set(e.record.source_ref, e);
       }
     }
-    const fresh = specs.filter((spec) => !existing.has(spec?.source_ref));
+    // Within one call too: a second spec carrying a key an earlier one carries
+    // returns that one's record (M6.E14 REVIEW).
+    const seen = new Set();
+    const fresh = specs.filter((spec) => {
+      const key = opts.dedupeBy === 'source_ref' ? spec?.source_ref : undefined;
+      if (typeof key !== 'string') return true;
+      if (existing.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
     const planned = [];
     if (fresh.length > 0) {
       const { id: first } = nextIdV2(baseDir, { execFn: opts.execFn });
@@ -934,9 +928,15 @@ export async function newItems(baseDir, specs, opts = {}) {
       await regenerateAfter(handle, `${ids.join(', ')} ${ids.length === 1 ? 'was' : 'were'} written`, opts);
     }
     const made = planned.map((p) => entryOf(p.record));
-    return specs.map((spec) => (existing.has(spec?.source_ref)
-      ? { ...existing.get(spec.source_ref), deduped: true }
-      : made.shift()));
+    const byKey = new Map();
+    return specs.map((spec) => {
+      const key = opts.dedupeBy === 'source_ref' ? spec?.source_ref : undefined;
+      if (typeof key === 'string' && existing.has(key)) return { ...existing.get(key), deduped: true };
+      if (typeof key === 'string' && byKey.has(key)) return { ...byKey.get(key), deduped: true };
+      const entry = made.shift();
+      if (typeof key === 'string') byKey.set(key, entry);
+      return entry;
+    });
   });
 }
 
@@ -1127,7 +1127,12 @@ export async function requestCloses(baseDir, requests, opts = {}) {
     throw new WorkStoreError('SCHEMA', `requestCloses: ${[...new Set(twice)].join(', ')} named more than once — nothing was written.`);
   }
   for (const r of requests) assertProof(r?.id, r?.proof);
-  for (const r of requests) assertUnambiguousProof(baseDir, r.id, r.proof, opts);
+  const checked = new Set(); // one git check per distinct proof (M6.E14 REVIEW)
+  for (const r of requests) {
+    if (checked.has(r.proof)) continue;
+    checked.add(r.proof);
+    assertUnambiguousProof(baseDir, r.id, r.proof, opts);
+  }
   return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const planned = requests.map((r) => planRequest(handle, r.id, r));
     const out = await writeRecords(handle, planned, opts);
@@ -1443,15 +1448,20 @@ function commitsStartingWith(baseDir, prefix, execFn) {
   } catch {
     return 0;
   }
-  const commits = new Set();
+  // Only commit objects whose own id starts with the prefix: a tag object with
+  // the prefix that points at some other commit is not "a commit the proof is
+  // the start of" (M6.E14 REVIEW). Two are enough to answer.
+  let n = 0;
   for (const o of objects) {
+    if (!o.toLowerCase().startsWith(prefix.toLowerCase())) continue;
     try {
-      commits.add(runGit(baseDir, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${o}^{commit}`], execFn).trim());
+      if (runGit(baseDir, ['cat-file', '-t', '--end-of-options', o], execFn).trim() === 'commit') n += 1;
     } catch {
-      // a tree or a blob: not a commit
+      // not inspectable: not counted
     }
+    if (n > 1) break;
   }
-  return commits.size;
+  return n;
 }
 
 // null when `sha` is an ancestor of `ref`; otherwise why not. `sha` has

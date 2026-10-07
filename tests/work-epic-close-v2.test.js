@@ -158,3 +158,33 @@ describe('closeEpic refuses before moving anything when the views cannot be rege
     expect(snapshotTree(join(root, '.planning'))).toEqual(before);
   });
 });
+
+describe('closeEpic — order of refusals and the archived README (M6.E14 REVIEW)', () => {
+  it('open items AND a view that cannot regenerate: OPEN_ITEMS comes first, as ship.md §6.8 lists it', async () => {
+    await store([{ id: 'SIG-3', type: 'BUG', title: 'still open', events: [ev.created, ev.triaged, ev.queued] }]);
+    await put('.planning/archive/epics/M1.E1/README.md', '---\nclose: [unclosed\n---\n');
+    const err = await closeEpic(root, EPIC, { by, pr: '#300', at: AT }, { execFn: noGit }).catch((e) => e);
+    expect(err?.code).toBe('OPEN_ITEMS');
+  });
+
+  it('an Epic with no folder still answers no-folder, though a view cannot regenerate', async () => {
+    await store([]);
+    await rm(join(root, `.planning/work/epics/${EPIC}`), { recursive: true });
+    await put('.planning/archive/epics/M1.E1/README.md', '---\nclose: [unclosed\n---\n');
+    const out = await closeEpic(root, EPIC, { by, pr: '#300', at: AT }, { execFn: noGit });
+    expect(out.status).toBe('no-folder');
+  });
+
+  it('an archived README that is a link is refused without being read, naming only the path', async () => {
+    await store([]);
+    await put('private.txt', '---\nsecret: [do-not-echo\n---\n');
+    const { symlink } = await import('node:fs/promises');
+    await mkdir(join(root, '.planning/archive/epics/M1.E1'), { recursive: true });
+    await symlink(join('..', '..', '..', '..', 'private.txt'), join(root, '.planning/archive/epics/M1.E1/README.md'));
+    const err = await closeEpic(root, EPIC, { by, pr: '#300', at: AT }, { execFn: noGit }).catch((e) => e);
+    expect(err?.code).toBe('CONFLICT');
+    expect(err.message).toMatch(/^nothing was moved — .*archive\/epics\/M1\.E1\/README\.md is a symbolic link/s);
+    expect(err.message).not.toMatch(/do-not-echo|secret/);
+    expect(existsSync(join(root, `.planning/work/epics/${EPIC}`))).toBe(true);
+  });
+});

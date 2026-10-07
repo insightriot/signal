@@ -67,6 +67,7 @@ const WRITERS = {
   newItem: () => records.newItem(base, { title: 'new one', by, at: AT }, { execFn: noGit }),
   queueItem: () => records.queueItem(base, 'SIG-2', { epic: 'M6.E14', by, at: AT }, { execFn: noGit }),
   requestClose: () => records.requestClose(base, 'SIG-2', { proof: 'abcdef1', by, at: AT }, { execFn: noGit }),
+  closeItem: () => records.closeItem(base, 'SIG-2', { reason: 'wontdo', proof: 'not needed', by, at: AT }, { execFn: noGit }),
 };
 
 describe('a store write refuses up front when the views cannot be regenerated (AC4.1)', () => {
@@ -79,7 +80,7 @@ describe('a store write refuses up front when the views cannot be regenerated (A
         expect(err).toBeInstanceOf(WorkStoreError);
         expect(err.message).toMatch(says);
         expect(err.message).toMatch(/^nothing was written/);
-        expect(err.message).not.toMatch(/SIG-\d+ (was written|is closing|was queued)/);
+        expect(err.message).not.toMatch(/SIG-\d+ (was written|is closing|was queued|was closed)/);
         expect(snapshotTree(join(base, '.planning/work/items'))).toEqual(before);
       });
     }
@@ -87,17 +88,39 @@ describe('a store write refuses up front when the views cannot be regenerated (A
 });
 
 describe('a failure after the write still says the record was written (AC4.2)', () => {
-  it('names the change and the recovery: fix the cause, then make any item change', async () => {
+  // The real route (M6.E14 REVIEW): the check passes, then a view becomes a link
+  // before the real regeneration runs. Its own refusal says "nothing was written
+  // … then re-run", which is false once the record landed — and re-running
+  // newItem would write the item twice.
+  it('a real regeneration refusal after the write: says the change stands, never "nothing was written" or "re-run"', async () => {
+    const { regenerateViews } = await import('../plugin/tools/lib/work-views.js');
     const err = await records
       .newItem(base, { title: 'late failure', by, at: AT }, {
         execFn: noGit,
-        regenerate: async () => {
-          throw new WorkStoreError('CONFIG', '.planning/BACKLOG.md is hand-kept, not generated');
+        regenerate: async (b) => {
+          await put('elsewhere.md', 'x\n');
+          await rm(join(b, '.planning/BUGS.md'), { force: true });
+          await symlink(join('..', 'elsewhere.md'), join(b, '.planning/BUGS.md'));
+          return regenerateViews(b);
         },
       })
       .catch((e) => e);
     expect(err).toBeInstanceOf(WorkStoreError);
-    expect(err.message).toMatch(/SIG-3 was written, but the views were not regenerated/);
+    expect(err.message).toMatch(/^SIG-3 was written, and that change stands — but the views were not regenerated/);
+    expect(err.message).toMatch(/BUGS\.md is a symbolic link/);
     expect(err.message).toMatch(/then make any item change/);
+    expect(err.message).toMatch(/Do not repeat the command/);
+    expect(err.message).not.toMatch(/nothing was written|then re-run/);
+  });
+
+  it('injecting regenerate does not turn the pre-write check off', async () => {
+    await put('.planning/BUGS.md', '# Bugs kept by hand\n');
+    const before = snapshotTree(join(base, '.planning/work/items'));
+    const err = await records
+      .newItem(base, { title: 'x', by, at: AT }, { execFn: noGit, regenerate: async () => {} })
+      .catch((e) => e);
+    expect(err?.message).toMatch(/^nothing was written — the views cannot be regenerated as things stand: .*hand-kept/s);
+    expect(err.message).not.toMatch(/nothing was written.*nothing was written — /s);
+    expect(snapshotTree(join(base, '.planning/work/items'))).toEqual(before);
   });
 });

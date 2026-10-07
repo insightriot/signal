@@ -71,7 +71,8 @@ function heldError(label, lockPath, text, ttlSec) {
   const { pid: n, host } = parseLock(text);
   const local = host === hostname() && Number.isInteger(n) && n > 0 && pidAlive(n);
   return new Error(
-    `Another \`${label}\` is running (lock at ${lockPath} held by pid ${pid}; retry in <${local ? 10 * ttlSec : ttlSec}s). `
+    `Another \`${label}\` is running (lock at ${lockPath} held by pid ${pid}; `
+      + `${local ? `usually free within seconds — at most ${10 * ttlSec}s while that process is alive` : `retry in <${ttlSec}s`}). `
       + `If no Signal command is running, the lock is left over from one that stopped and it is safe to delete ${lockPath}.`
   );
 }

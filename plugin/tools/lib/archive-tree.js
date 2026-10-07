@@ -48,7 +48,7 @@ import { resolveClosures } from './closure.js';
 import { INBOX_NEW, INBOX_LEGACY, LEDGER_NEW, LEDGER_LEGACY } from './inbox-path.js';
 import { acquireLock } from './file-lock.js';
 import { isGeneratedText } from './work-marker.js';
-import { lockFailure, WorkStoreError } from './work-errors.js';
+import { lockFailure } from './work-errors.js';
 import { isStoreOn, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
 
 // The scaffold doc-types that archive with a closed Epic. A project-AGNOSTIC
@@ -616,8 +616,8 @@ export async function applyArchiveTree(baseDir, opts = {}) {
       const { assertNoHandKeptLists } = await import('./work-generate.js');
       assertNoHandKeptLists(baseDir);
       // Then everything else regenerateViews would refuse, before any move (SIG-280 (6), M6.E14).
-      const { checkViewsWritable } = await import('./work-views.js');
-      checkViewsWritable(baseDir);
+      const { assertViewsWritable } = await import('./work-views.js');
+      assertViewsWritable(baseDir, { verb: 'moved' });
     }
     return await moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, storeOn });
   } finally {
@@ -677,16 +677,12 @@ async function moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, sto
   // Regenerate so the lists carry the item bodies' new links — still under
   // the caller's `work` lock. Only when something changed.
   if ((staleGenerated || rewrittenFiles > 0) && storeOn) {
-    const { regenerateViews } = await import('./work-views.js');
+    const { regenerateViews, viewsNotRegenerated } = await import('./work-views.js');
     try {
       await regenerateViews(baseDir);
     } catch (err) {
       // The moves and rewrites above stand; say so, whatever failed.
-      const wrapped = new WorkStoreError(err instanceof WorkStoreError ? err.code : 'IO',
-        `the archive moves stood, but the lists were not regenerated: ${err?.message ?? err} `
-          + '— fix what this names, then make any item change and the views are regenerated with it.');
-      wrapped.cause = err;
-      throw wrapped;
+      throw viewsNotRegenerated('the archive moves were made', err);
     }
   }
 

@@ -28,7 +28,7 @@
 // parser, so `work-generate.js`, `backlog.js` and `bugs-tally.js` are not
 // imported; the small text helpers below are this module's own.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
@@ -340,10 +340,15 @@ function readEpicFolders(baseDir) {
     for (const e of entries) {
       if (!e.isDirectory() || !EPIC_ID_STRICT_RE.test(e.name)) continue;
       const epic = { id: e.name, archived };
-      const readme = join(baseDir, rel, e.name, 'README.md');
-      if (archived && existsSync(readme)) {
+      const readmeRel = `${rel}/${e.name}/README.md`;
+      // Read only as a regular, unlinked file inside the project (M6.E14 REVIEW
+      // security I1): a cloned repository can ship it as a link to /dev/zero or
+      // to a private file, and this read now runs before every store write.
+      const refusal = archived ? regularFileRefusal(baseDir, readmeRel) : null;
+      if (refusal !== null) throw new WorkStoreError('CONFLICT', `${refusal}. The views were not generated.`);
+      if (archived && existsSync(join(baseDir, readmeRel))) {
         try {
-          epic.close = parseFrontmatter(readFileSync(readme, 'utf-8')).data?.close ?? null;
+          epic.close = parseFrontmatter(readRegularFile(baseDir, readmeRel)).data?.close ?? null;
         } catch (err) {
           if (!(err instanceof StateSchemaError)) throw err;
           throw new WorkStoreError('SCHEMA', `${rel}/${e.name}/README.md: its frontmatter is not valid YAML — `
@@ -464,6 +469,60 @@ function prepareViews(baseDir) {
  */
 export function checkViewsWritable(baseDir) {
   prepareViews(baseDir);
+}
+
+// The git remedy for a broken record, shared by every refusal that names one.
+const BROKEN_REMEDY = ' A broken record is restored with git: `git checkout -- <path>` when HEAD holds a good copy, or '
+  + '`git checkout --ours <path>` / `--theirs <path>` for a merge conflict.';
+
+/**
+ * `checkViewsWritable`, as a refusal a writer can throw as it is: "nothing was
+ * {verb}", the cause, and — for a broken record — how to restore it. One
+ * wording for every writer (`work-records.js`, `closeEpic`, the archive moves;
+ * M6.E14 REVIEW).
+ *
+ * @param {string} baseDir
+ * @param {{verb?: string}} [opts] — what the caller did not do: 'written' (default), 'moved'
+ * @throws {WorkStoreError} the cause's code
+ */
+export function assertViewsWritable(baseDir, { verb = 'written' } = {}) {
+  try {
+    checkViewsWritable(baseDir);
+  } catch (err) {
+    const code = err instanceof WorkStoreError ? err.code : 'IO';
+    const inner = String(err?.message ?? err).replace(/^nothing was written — /, '');
+    const remedy = Array.isArray(err?.broken) && err.broken.length > 0 ? BROKEN_REMEDY : '';
+    const wrapped = new WorkStoreError(code, `nothing was ${verb} — the views cannot be regenerated as things stand: ${inner}${remedy}`);
+    wrapped.cause = err;
+    throw wrapped;
+  }
+}
+
+/**
+ * The error for a change that landed and whose views then failed to
+ * regenerate. The inner refusal was written for a caller that wrote nothing —
+ * "so nothing was written", "then re-run" — which is false here: the change
+ * stands, and re-running the command that made it would make it twice (M6.E14
+ * REVIEW). Those phrases are rewritten to be about the views.
+ *
+ * @param {string} done — what landed, as a clause ("SIG-3 was written")
+ * @param {unknown} err — the regeneration's error
+ * @returns {WorkStoreError}
+ */
+export function viewsNotRegenerated(done, err) {
+  const code = err instanceof WorkStoreError ? err.code : 'IO';
+  const inner = String(err?.message ?? err)
+    .replace(/^nothing was written — /, '')
+    .replace(/\bso nothing was written\b/g, 'so no view was written')
+    .replace(/\bnothing was written\b/g, 'no view was written')
+    .replace(/,? then re-run\.?/g, '.')
+    .replace(/\bre-run\b/g, 'retry');
+  const remedy = Array.isArray(err?.broken) && err.broken.length > 0 ? BROKEN_REMEDY : '';
+  const wrapped = new WorkStoreError(code, `${done}, and that change stands — but the views were not regenerated: ${inner}${remedy} `
+    + 'Fix what this names, then make any item change and the views are regenerated with it. '
+    + 'Do not repeat the command that made this change: it already landed.');
+  wrapped.cause = err;
+  return wrapped;
 }
 
 /**
