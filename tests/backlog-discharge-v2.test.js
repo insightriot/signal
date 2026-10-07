@@ -138,6 +138,26 @@ describe('dischargeBacklogRows on a v2 store — a close request with the Epic c
     expect(snapshotTree(root)).toEqual(before);
   });
 
+  // SIG-278 (M6.E14 S4): one readable match is not proof the row is unique
+  // while a record cannot be read — the broken one may match too.
+  it('one readable match while a record is unreadable reads `unreadable`, naming it; nothing closed (AC2.1)', async () => {
+    await v2Store();
+    await put(records.recordPath('SIG-9'), '{ not json\n');
+    const before = snapshotTree(root);
+    const res = await dischargeBacklogRows(root, { rows: ['tidy the index'], by: 'M6.E14', at: TODAY, commit: SHA });
+    expect(res.written).toBe(false);
+    expect(res.results).toEqual([{
+      row: 'tidy the index',
+      status: ROW_DISCHARGE.UNREADABLE,
+      reason: expect.stringContaining(records.recordPath('SIG-9')),
+      heading: null,
+      line: null,
+    }]);
+    expect(res.results[0].reason).toMatch(/SIG-2/);
+    expect(statusOf('SIG-2')).toBe('T');
+    expect(snapshotTree(root)).toEqual(before);
+  });
+
   it('an ambiguous row refuses and writes nothing for it', async () => {
     await v2Store();
     const before = snapshotTree(root);

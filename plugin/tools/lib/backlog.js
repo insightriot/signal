@@ -636,6 +636,17 @@ async function dischargeInRecords(baseDir, { rows, by, at, today, base, renameFn
         heading: null,
         line: null,
       });
+    } else if (open.length === 1 && unreadable.length > 0) {
+      // One readable match is not proof the row is unique while a record cannot
+      // be read: the broken one may match too (SIG-278). Nothing is closed.
+      results.push({
+        row: query,
+        status: ROW_DISCHARGE.UNREADABLE,
+        reason: `${JSON.stringify(query)} matches ${open[0].id}, but ${unreadable.length} record${unreadable.length === 1 ? '' : 's'} `
+          + `could not be read (${unreadable.join(', ')}) and may match too — fix them, then re-run.`,
+        heading: null,
+        line: null,
+      });
     } else if (open.length === 1) {
       const [hit] = open;
       if (!toRequest.includes(hit.id)) toRequest.push(hit.id);
