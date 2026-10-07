@@ -172,10 +172,16 @@ export function blockKey(block) {
 
 const STORE_SOURCE = '/sig:plan drain';
 
-async function promoteInStore(baseDir, { block, type, title, keyName, by, acknowledgeSensitive }) {
+// `_beforeWrite` is a test seam (M6.E14 S3, after `acquireLock`'s `_beforeTakeover`):
+// awaited after the checks and just before the record is written — how a test
+// puts a second promote of the same block between the two.
+async function promoteInStore(baseDir, { block, type, title, keyName, by, acknowledgeSensitive, _beforeWrite }) {
   assertWritable(baseDir);
   const key = blockKey(block);
   const dedupeKey = `${keyName}: ${key}`;
+  // An early exit only: the check that counts is `newItem`'s `dedupeBy`, under
+  // the lock that writes (SIG-277) — a promote finishing after this line is
+  // still found there.
   const twin = listRecords(baseDir).records.find((r) => r.record.source_ref === dedupeKey);
   if (twin) return { written: false, deduped: true, path: join(baseDir, twin.path), key, id: twin.id };
 
@@ -190,6 +196,7 @@ async function promoteInStore(baseDir, { block, type, title, keyName, by, acknow
   if (sensitiveHits.length > 0 && !acknowledgeSensitive) {
     return { written: false, key, aborted: 'sensitive-data-pending', sensitiveHits };
   }
+  if (typeof _beforeWrite === 'function') await _beforeWrite();
   const entry = await newItem(baseDir, {
     title: heading,
     body,
@@ -197,7 +204,8 @@ async function promoteInStore(baseDir, { block, type, title, keyName, by, acknow
     source_ref: dedupeKey,
     by: by ?? STORE_SOURCE,
     triage: { type },
-  }, { acknowledgeSensitive: true });
+  }, { acknowledgeSensitive: true, dedupeBy: 'source_ref' });
+  if (entry.deduped) return { written: false, deduped: true, path: join(baseDir, entry.path), key, id: entry.id };
   return { written: true, path: join(baseDir, entry.path), key, id: entry.id, label: `${entry.id}-${entry.record.type}-${entry.status}` };
 }
 
@@ -226,14 +234,14 @@ async function promoteInStore(baseDir, { block, type, title, keyName, by, acknow
  *   refuses (CONFIG). A block or retitle with sensitive data, unacknowledged,
  *   writes nothing and returns `{written: false, aborted: 'sensitive-data-pending', sensitiveHits}`.
  */
-export async function promoteToBacklog(baseDir, { block, tag, title, today, by, acknowledgeSensitive } = {}) {
+export async function promoteToBacklog(baseDir, { block, tag, title, today, by, acknowledgeSensitive, _beforeWrite } = {}) {
   if (!VALID_TAGS.has(tag)) {
     throw new Error(
       `promoteToBacklog: tag must be "roadmap" or "hygiene", got ${JSON.stringify(tag)}.`
     );
   }
   if (isStoreOn(baseDir).on) {
-    return promoteInStore(baseDir, { block, type: tag === 'roadmap' ? 'FEAT' : 'CHORE', title, keyName: 'backlog-key', by, acknowledgeSensitive });
+    return promoteInStore(baseDir, { block, type: tag === 'roadmap' ? 'FEAT' : 'CHORE', title, keyName: 'backlog-key', by, acknowledgeSensitive, _beforeWrite });
   }
   const date = today ?? isoToday();
   await createBacklogIfMissing(baseDir, { today: date });
@@ -992,9 +1000,9 @@ function bugsSkeleton() {
  *   With the store on, a new BUG record, triaged (status T), instead, with
  *   `promoteToBacklog`'s sensitive-data and v1 rules.
  */
-export async function promoteToBugs(baseDir, { block, title, by, acknowledgeSensitive } = {}) {
+export async function promoteToBugs(baseDir, { block, title, by, acknowledgeSensitive, _beforeWrite } = {}) {
   if (isStoreOn(baseDir).on) {
-    return promoteInStore(baseDir, { block, type: 'BUG', title, keyName: 'bugs-key', by, acknowledgeSensitive });
+    return promoteInStore(baseDir, { block, type: 'BUG', title, keyName: 'bugs-key', by, acknowledgeSensitive, _beforeWrite });
   }
   const path = join(baseDir, BUGS_REL);
   const key = blockKey(block);

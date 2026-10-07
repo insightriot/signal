@@ -888,8 +888,14 @@ export async function newItem(baseDir, fields = {}, opts = {}) {
  *   triage?: {type: string, priority?: string|number, theme?: string, title?: string}}>} specs
  *   `body` is written beside the record, its relative links rewritten from
  *   `linksFrom` (relative to `.planning/`, default `''`) to the record's folder.
+ *
+ * `opts.dedupeBy: 'source_ref'` (SIG-277, M6.E14): a spec whose `source_ref`
+ * an existing record already carries is not written; its entry is that
+ * record's, with `deduped: true`. Checked under the same lock that allocates
+ * IDs and writes, so two callers racing on one key make one record.
+ *
  * @param {{execFn?: Function, renameFn?: Function, acknowledgeSensitive?: boolean,
- *   regenerate?: (baseDir: string) => Promise<void>}} [opts]
+ *   regenerate?: (baseDir: string) => Promise<void>, dedupeBy?: 'source_ref'}} [opts]
  * @returns {Promise<object[]|{aborted: 'sensitive-data-pending', sensitiveHits: object[]}>} entries in spec order
  * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA, CONFLICT, LOCKED, IO
  */
@@ -903,14 +909,30 @@ export async function newItems(baseDir, specs, opts = {}) {
     opts,
   );
   if (pending) return pending;
+  if (opts.dedupeBy !== undefined && opts.dedupeBy !== 'source_ref') {
+    throw new WorkStoreError('SCHEMA', `newItems: dedupeBy must be 'source_ref', got ${JSON.stringify(opts.dedupeBy)} — nothing was written.`);
+  }
   return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
-    const { id: first } = nextIdV2(baseDir, { execFn: opts.execFn });
-    const start = numberOf(first);
-    const planned = specs.map((spec, i) => planNew(handle, `${handle.key}-${start + i}`, spec));
-    await writeNew(handle, planned, opts);
-    const ids = planned.map((p) => p.record.id);
-    await regenerateAfter(handle, `${ids.join(', ')} ${ids.length === 1 ? 'was' : 'were'} written`, opts);
-    return planned.map((p) => entryOf(p.record));
+    const existing = new Map();
+    if (opts.dedupeBy === 'source_ref') {
+      for (const e of listRecords(handle.baseDir).records) {
+        if (typeof e.record.source_ref === 'string' && !existing.has(e.record.source_ref)) existing.set(e.record.source_ref, e);
+      }
+    }
+    const fresh = specs.filter((spec) => !existing.has(spec?.source_ref));
+    const planned = [];
+    if (fresh.length > 0) {
+      const { id: first } = nextIdV2(baseDir, { execFn: opts.execFn });
+      const start = numberOf(first);
+      planned.push(...fresh.map((spec, i) => planNew(handle, `${handle.key}-${start + i}`, spec)));
+      await writeNew(handle, planned, opts);
+      const ids = planned.map((p) => p.record.id);
+      await regenerateAfter(handle, `${ids.join(', ')} ${ids.length === 1 ? 'was' : 'were'} written`, opts);
+    }
+    const made = planned.map((p) => entryOf(p.record));
+    return specs.map((spec) => (existing.has(spec?.source_ref)
+      ? { ...existing.get(spec.source_ref), deduped: true }
+      : made.shift()));
   });
 }
 
