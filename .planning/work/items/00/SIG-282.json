@@ -1,19 +1,20 @@
 {
-  "id": "SIG-269",
+  "id": "SIG-282",
   "type": "BUG",
-  "title": "SIG-146 and SIG-166 link to references/command-taxonomy.md, which moved to plugin/references/",
-  "theme": "docs",
+  "title": "PLAN's drain floors still describe the drain when the work store is on (the step is /sig:item triage)",
+  "theme": "drive",
   "priority": "P3",
+  "source": "/sig:drive",
   "events": [
     {
       "type": "created",
-      "at": "2026-10-04T14:30:59.882Z",
+      "at": "2026-10-07T23:07:02.424Z",
       "by": "claude"
     },
     {
       "type": "triaged",
-      "at": "2026-10-07T23:07:01.381Z",
-      "by": "claude (M6.E14 PLAN triage, confirmed by Brett)",
+      "at": "2026-10-07T23:07:10.625Z",
+      "by": "claude (M6.E14 PLAN triage)",
       "changes": {
         "type": {
           "from": "NEW",
@@ -21,7 +22,7 @@
         },
         "theme": {
           "from": null,
-          "to": "docs"
+          "to": "drive"
         },
         "priority": {
           "from": null,

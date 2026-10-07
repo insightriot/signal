@@ -1,7 +1,9 @@
 {
   "id": "SIG-274",
-  "type": "NEW",
+  "type": "FEAT",
   "title": "No path turns the work store on for a new project any more (the v1 enable script was retired in M6.E13)",
+  "theme": "work-store",
+  "priority": "P2",
   "events": [
     {
       "type": "created",
@@ -16,6 +18,25 @@
         "title": {
           "from": "Turning the work store on for a new project still makes a v1 store, which v2 code refuses to write",
           "to": "No path turns the work store on for a new project any more (the v1 enable script was retired in M6.E13)"
+        }
+      }
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-07T23:07:01.534Z",
+      "by": "claude (M6.E14 PLAN triage, confirmed by Brett)",
+      "changes": {
+        "type": {
+          "from": "NEW",
+          "to": "FEAT"
+        },
+        "theme": {
+          "from": null,
+          "to": "work-store"
+        },
+        "priority": {
+          "from": null,
+          "to": "P2"
         }
       }
     }

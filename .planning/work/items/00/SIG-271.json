@@ -1,12 +1,33 @@
 {
   "id": "SIG-271",
-  "type": "NEW",
+  "type": "BUG",
   "title": "advise digest inbox line counts every heading; checkStaleInbox counts only drainable entries",
+  "theme": "advise",
+  "priority": "P3",
   "events": [
     {
       "type": "created",
       "at": "2026-10-04T14:42:08.826Z",
       "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-07T23:07:01.485Z",
+      "by": "claude (M6.E14 PLAN triage, confirmed by Brett)",
+      "changes": {
+        "type": {
+          "from": "NEW",
+          "to": "BUG"
+        },
+        "theme": {
+          "from": null,
+          "to": "advise"
+        },
+        "priority": {
+          "from": null,
+          "to": "P3"
+        }
+      }
     }
   ]
 }

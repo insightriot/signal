@@ -159,11 +159,17 @@
 | SIG-266 | `confirmed` | P2 | **private-name guard can time out under a full parallel run** |
 | SIG-267 | `confirmed` | P2 | **advise digest never reads a roadmap file inside .planning/ — planned milestones vanish from the priorities** |
 | SIG-268 | `confirmed` | P3 | **advisory says "Could not read: nothing" while the digest lists two gaps** |
+| SIG-269 | `confirmed` | P3 | **SIG-146 and SIG-166 link to references/command-taxonomy.md, which moved to plugin/references/** |
+| SIG-270 | `confirmed` | P3 | **readOpenQuestions counts and lists a struck-through (~~settled~~) question as open** |
+| SIG-271 | `confirmed` | P3 | **advise digest inbox line counts every heading; checkStaleInbox counts only drainable entries** |
 | SIG-272 | `closing` | P3 | **npm run lint fails: no-control-regex at plugin/tools/lib/branch-work.js:54** |
+| SIG-273 | `confirmed` | P3 | **isStaleVsOrigin skips the fetch when STATE.md has no last_updated_commit, so later checks read stale origin refs** |
+| SIG-275 | `closing` | P2 | **checkpointed still asks "accept and continue?" at the end of every phase under /sig:drive** |
 | SIG-276 | `confirmed` | P3 | **A short proof hash shared by two commits can confirm when a branch of that name points at one of them** |
 | SIG-277 | `confirmed` | P2 | **Concurrent promotes of one inbox block can write twin records (dedupe runs outside the work lock)** |
 | SIG-278 | `confirmed` | P2 | **Backlog discharge reports discharged when one readable row matches and a broken record might also match** |
 | SIG-279 | `confirmed` | P2 | **A project whose .planning/ is a symbolic link (even to a folder inside the repo) cannot regenerate its work views** |
 | SIG-280 | `confirmed` | P2 | **M6.E13 REVIEW residue: broken-record remedy wording, probe message, double sweep report, weak two-process assertion** |
+| SIG-282 | `confirmed` | P3 | **PLAN's drain floors still describe the drain when the work store is on (the step is /sig:item triage)** |
 
-*0 needs-triage · 53 confirmed · 1 closing · 108 closed (162 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 58 confirmed · 2 closing · 108 closed (168 total) · closes more than 30 days before the newest event are in `work/history/`*
