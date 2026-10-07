@@ -38,7 +38,7 @@ import { rewriteRelativeLinks } from './work-links.js';
 import { proposeTriage } from './work-triage.js';
 // A cycle, by design: work-views.js reads through listRecords. Neither module
 // uses the other's bindings while it is being evaluated.
-import { regenerateToMemory, regenerateViews } from './work-views.js';
+import { checkViewsWritable, regenerateToMemory, regenerateViews } from './work-views.js';
 import {
   isStoreOn,
   isGitRepo,
@@ -632,7 +632,7 @@ export function findDuplicateIds(baseDir) {
 
 const WORK_LOCK_LABEL = 'work store';
 
-async function withWorkLockV2(baseDir, label, fn) {
+async function withWorkLockV2(baseDir, label, opts, fn) {
   const { key } = assertWritable(baseDir);
   let lock;
   try {
@@ -641,9 +641,26 @@ async function withWorkLockV2(baseDir, label, fn) {
     throw lockFailure(err);
   }
   try {
+    viewsWritableOrRefuse(baseDir, opts);
     return await fn({ baseDir, key });
   } finally {
     await lock.released();
+  }
+}
+
+// Before any record is written (SIG-280 (6), M6.E14): if the views would
+// refuse to regenerate, refuse the write, so a record never lands that the
+// views do not show. Skipped when the caller injects its own `regenerate`
+// (a test seam): its views are not `regenerateViews`'.
+function viewsWritableOrRefuse(baseDir, opts = {}) {
+  if (opts.regenerate) return;
+  try {
+    checkViewsWritable(baseDir);
+  } catch (err) {
+    const code = err instanceof WorkStoreError ? err.code : 'IO';
+    const wrapped = new WorkStoreError(code, `nothing was written — the views could not be regenerated afterwards: ${err?.message ?? err}`);
+    wrapped.cause = err;
+    throw wrapped;
   }
 }
 
@@ -653,7 +670,8 @@ async function regenerateAfter(handle, done, opts) {
     await run(handle.baseDir);
   } catch (err) {
     const code = err instanceof WorkStoreError ? err.code : 'IO';
-    const wrapped = new WorkStoreError(code, `${done}, but the views were not regenerated: ${err?.message ?? err}`);
+    const wrapped = new WorkStoreError(code, `${done}, but the views were not regenerated: ${err?.message ?? err} `
+      + '— the change stands; fix what this names, then make any item change and the views are regenerated with it.');
     wrapped.cause = err;
     throw wrapped;
   }
@@ -885,7 +903,7 @@ export async function newItems(baseDir, specs, opts = {}) {
     opts,
   );
   if (pending) return pending;
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const { id: first } = nextIdV2(baseDir, { execFn: opts.execFn });
     const start = numberOf(first);
     const planned = specs.map((spec, i) => planNew(handle, `${handle.key}-${start + i}`, spec));
@@ -919,7 +937,7 @@ export async function triageItem(baseDir, id, triage = {}, opts = {}) {
   assertWritable(baseDir);
   const pending = sensitivePending([triage.title, triage.theme], opts);
   if (pending) return pending;
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const current = readForWrite(handle, id).entry;
     const fields = {};
     for (const k of ['type', 'priority', 'theme', 'title']) if (triage[k] !== undefined) fields[k] = triage[k];
@@ -967,7 +985,7 @@ function refuseArchivedEpic(baseDir, id, epic, verb) {
  * @returns {Promise<object>} the entry
  */
 export async function queueItem(baseDir, id, move = {}, opts = {}) {
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const current = readForWrite(handle, id).entry;
     refuseArchivedEpic(baseDir, id, move.epic, 'queued');
     const out = await writeRecord(handle, withEvent(current, epicEvent('queued', move)), opts);
@@ -987,7 +1005,7 @@ export async function queueItem(baseDir, id, move = {}, opts = {}) {
  * @returns {Promise<object>} the entry
  */
 export async function startItem(baseDir, id, move = {}, opts = {}) {
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const current = readForWrite(handle, id).entry;
     refuseArchivedEpic(baseDir, id, move.epic, 'started');
     const out = await writeRecord(handle, withEvent(current, epicEvent('started', move)), opts);
@@ -1019,7 +1037,7 @@ const ARCHIVED_EPICS_REL = '.planning/archive/epics';
  */
 export async function requestClose(baseDir, id, request = {}, opts = {}) {
   assertProof(id, request.proof);
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const { next } = planRequest(handle, id, request);
     const out = await writeRecord(handle, next, opts);
     await regenerateAfter(handle, `${id} is closing (fixed by ${request.proof})`, opts);
@@ -1068,7 +1086,7 @@ export async function requestCloses(baseDir, requests, opts = {}) {
     throw new WorkStoreError('SCHEMA', `requestCloses: ${[...new Set(twice)].join(', ')} named more than once — nothing was written.`);
   }
   for (const r of requests) assertProof(r?.id, r?.proof);
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const planned = requests.map((r) => planRequest(handle, r.id, r));
     const out = await writeRecords(handle, planned, opts);
     await regenerateAfter(handle, `${ids.join(', ')} ${ids.length === 1 ? 'is' : 'are'} closing`, opts);
@@ -1187,7 +1205,7 @@ export async function closeItems(baseDir, closes, opts = {}) {
   assertWritable(baseDir);
   const pending = sensitivePending(closes.map((c) => c?.proof), opts);
   if (pending) return pending;
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const planned = closes.map((c) => planClose(handle, c ?? {}, closes));
     const out = await writeRecords(handle, planned, opts);
     await regenerateAfter(handle, `${ids.join(', ')} ${ids.length === 1 ? 'was' : 'were'} closed`, opts);
@@ -1218,7 +1236,7 @@ export async function reopenItem(baseDir, id, reopen = {}, opts = {}) {
   assertWritable(baseDir);
   const pending = sensitivePending([reason], opts);
   if (pending) return pending;
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const current = readForWrite(handle, id).entry;
     if (current.epic !== null && isEpicArchived(baseDir, current.epic)) {
       throw new WorkStoreError('CONFLICT', `${id} belongs to Epic ${current.epic}, which is archived `
@@ -1450,7 +1468,7 @@ export async function confirmCloses(baseDir, opts = {}) {
 
   const confirmed = [];
   if (ok.length > 0) {
-    await withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+    await withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
       const at = now.toISOString();
       const planned = [];
       refuseBroken(listRecords(handle.baseDir));
@@ -1868,7 +1886,7 @@ export async function editItem(baseDir, id, edit = {}, opts = {}) {
   assertWritable(baseDir);
   const pending = sensitivePending(Object.values(changes), opts);
   if (pending) return pending;
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const current = readForWrite(handle, id).entry;
     const diff = {};
     for (const [field, to] of Object.entries(changes)) {

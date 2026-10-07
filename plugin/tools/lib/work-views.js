@@ -421,6 +421,49 @@ function handKept(baseDir, rels) {
   });
 }
 
+// Everything `regenerateViews` checks before its first write: the store's
+// version, every record reading (`renderStore`), WATCHLIST.md and the archived
+// Epic READMEs, no link on any view's path, no hand-kept view. Returns the
+// rendered views, or null with the store off. Writes nothing.
+function prepareViews(baseDir) {
+  const version = storeVersion(baseDir);
+  if (version === null) return null;
+  if (version !== 2) {
+    const err = new WorkStoreError('CONFIG', V1_STORE_MESSAGE);
+    err.version = version;
+    throw err;
+  }
+  const views = renderStore(baseDir);
+  const rels = Object.keys(views);
+  for (const rel of rels) confineView(baseDir, rel);
+  const kept = handKept(baseDir, rels);
+  if (kept.length > 0) {
+    throw new WorkStoreError('CONFIG', `${kept.join(', ')} ${kept.length === 1 ? 'is' : 'are'} hand-kept, not generated `
+      + '(the first line is not the generated marker). Regenerating would overwrite '
+      + `${kept.length === 1 ? 'it' : 'them'} with a view of the records, so nothing was written. If this list `
+      + 'was never migrated, migrate it: `node tools/work-migrate-v2.mjs`. If it was edited by hand, restore '
+      + 'it from git (`git checkout -- <file>`) and make the change with /sig:item.');
+  }
+  return views;
+}
+
+/**
+ * Throw whatever `regenerateViews` would refuse with, writing nothing
+ * (SIG-280 (6), M6.E14). Every `work-records.js` writer calls it under the
+ * `work` lock BEFORE writing a record, so a cause the views refuse — a
+ * hand-kept view, a linked WATCHLIST.md, an archived Epic README that is not
+ * valid YAML, a broken record — refuses the write instead of leaving a record
+ * the views do not show. It renders the whole store in memory (measured
+ * 2026-10-07: ~20 ms at 282 records). What it cannot see is a view path the
+ * write itself creates (a new history year); `regenerateAfter` reports that.
+ *
+ * @param {string} baseDir
+ * @throws {WorkStoreError}
+ */
+export function checkViewsWritable(baseDir) {
+  prepareViews(baseDir);
+}
+
 /**
  * Regenerate and write every view of a v2 store. The default `regenerate` of
  * every `work-records.js` mutation, which calls it under the `work` lock — so
@@ -443,24 +486,9 @@ function handKept(baseDir, rels) {
  * @throws {WorkStoreError}
  */
 export async function regenerateViews(baseDir) {
-  const version = storeVersion(baseDir);
-  if (version === null) return { written: [] };
-  if (version !== 2) {
-    const err = new WorkStoreError('CONFIG', V1_STORE_MESSAGE);
-    err.version = version;
-    throw err;
-  }
-  const views = renderStore(baseDir);
+  const views = prepareViews(baseDir);
+  if (views === null) return { written: [] };
   const rels = Object.keys(views);
-  for (const rel of rels) confineView(baseDir, rel);
-  const kept = handKept(baseDir, rels);
-  if (kept.length > 0) {
-    throw new WorkStoreError('CONFIG', `${kept.join(', ')} ${kept.length === 1 ? 'is' : 'are'} hand-kept, not generated `
-      + '(the first line is not the generated marker). Regenerating would overwrite '
-      + `${kept.length === 1 ? 'it' : 'them'} with a view of the records, so nothing was written. If this list `
-      + 'was never migrated, migrate it: `node tools/work-migrate-v2.mjs`. If it was edited by hand, restore '
-      + 'it from git (`git checkout -- <file>`) and make the change with /sig:item.');
-  }
   for (const rel of rels) {
     const abs = join(baseDir, rel);
     confineView(baseDir, rel); // again before the mkdir: a link made after the check is still refused

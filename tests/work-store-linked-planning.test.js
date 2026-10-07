@@ -80,6 +80,6 @@ describe('a linked .planning inside the repository (SIG-279)', () => {
     await symlink(outside, join(base, '.planning'));
     const err = await records.newItem(base, { title: 'x', by, at: AT }, { execFn: noGit }).catch((e) => e);
     expect(err).toBeInstanceOf(WorkStoreError);
-    expect(err.message).toMatch(/outside the repo/);
+    expect(err.message).toMatch(/outside the (repo|project)/);
   });
 });
