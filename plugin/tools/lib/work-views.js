@@ -33,7 +33,7 @@ import { dirname, join, posix } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
 import { assertRealInsidePlanning, linkedComponent, readRegularFile, regularFileRefusal } from './path-confine.js';
-import { compareEpicIds, EPIC_ID_STRICT_RE, parseFrontmatter, StateSchemaError } from './state.js';
+import { compareEpicIds, EPIC_ID_STRICT_RE, parseFrontmatter, PLANNING_DIR, StateSchemaError } from './state.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
 import { bodyDirFor } from './work-convert.js';
 import { rewriteRelativeLinks } from './work-links.js';
@@ -400,7 +400,9 @@ export function regenerateToMemory(baseDir) {
 function confineView(baseDir, rel) {
   let linked;
   try {
-    linked = linkedComponent(baseDir, rel);
+    // `.planning` itself may be a link to a folder inside the repository
+    // (SIG-279); `assertRealInsidePlanning` refuses one that leaves it.
+    linked = linkedComponent(baseDir, rel, { from: PLANNING_DIR });
     if (linked === null) assertRealInsidePlanning(baseDir, join(baseDir, rel), `${rel} (view regeneration)`);
   } catch (err) {
     throw asWorkStoreError(err, typeof err?.code === 'string' ? 'IO' : 'CONFLICT', 'nothing was written — ');

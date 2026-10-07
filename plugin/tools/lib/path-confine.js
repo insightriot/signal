@@ -69,14 +69,23 @@ export function assertRealInsidePlanning(baseDir, destAbs, label) {
  * that points inside the project today can be repointed tomorrow. Components
  * that do not exist yet are not checked: the caller is about to create them.
  *
+ *
+ * `opts.from` names a leading component the caller has already confined by
+ * where it really is (SIG-279): `.planning` linked to a folder inside the
+ * repository is a legitimate layout, and `assertRealInsidePlanning` refuses
+ * one that leaves the repository. Components from `from` down — including
+ * `from` itself — are not checked; everything below it still is.
  * @param {string} baseDir — the root `rel` is relative to
  * @param {string} rel — `/`-separated, relative to `baseDir`
+ * @param {{from?: string}} [opts] — skip `rel`'s leading components through `from`
  * @returns {string|null} the first linked component (relative to `baseDir`), or null
  * @throws {Error} with the errno code when a component cannot be inspected
  */
-export function linkedComponent(baseDir, rel) {
+export function linkedComponent(baseDir, rel, opts = {}) {
   const parts = rel.split('/').filter((p) => p !== '' && p !== '.');
-  for (let i = 1; i <= parts.length; i++) {
+  const skip = opts.from ? opts.from.split('/').filter((p) => p !== '' && p !== '.') : [];
+  const skipped = skip.length > 0 && skip.every((p, i) => parts[i] === p) ? skip.length : 0;
+  for (let i = skipped + 1; i <= parts.length; i++) {
     const sub = parts.slice(0, i).join('/');
     let st;
     try {
