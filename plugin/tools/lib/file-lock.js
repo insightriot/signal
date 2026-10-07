@@ -64,10 +64,14 @@ function staleReason(text, ttlMs, now, mtimeMs) {
   return null;
 }
 
+// The wait states the real bound (SIG-251): a live pid on this host holds the
+// lock up to 10× the TTL (`staleReason`); anything else, the TTL.
 function heldError(label, lockPath, text, ttlSec) {
   const pid = String(text).split('\n')[0] || 'unknown';
+  const { pid: n, host } = parseLock(text);
+  const local = host === hostname() && Number.isInteger(n) && n > 0 && pidAlive(n);
   return new Error(
-    `Another \`${label}\` is running (lock at ${lockPath} held by pid ${pid}; retry in <${ttlSec}s). `
+    `Another \`${label}\` is running (lock at ${lockPath} held by pid ${pid}; retry in <${local ? 10 * ttlSec : ttlSec}s). `
       + `If no Signal command is running, the lock is left over from one that stopped and it is safe to delete ${lockPath}.`
   );
 }
@@ -108,6 +112,8 @@ export async function acquireLock(lockPath, opts = {}) {
   const label = opts.label ?? 'lock';
   const ttlSec = Math.ceil(ttlMs / 1000);
   const beforeTakeover = typeof opts._beforeTakeover === 'function' ? opts._beforeTakeover : null;
+  // Test seam (M6.E14 S6): how a test makes the lock vanish between its read and its stat.
+  const statOf = typeof opts._stat === 'function' ? opts._stat : (p) => statSync(p, { throwIfNoEntry: false });
 
   // Defensive: ensure the parent dir exists. Callers should have validated,
   // but a missing parent makes the lock un-creatable; mkdir keeps the
@@ -120,7 +126,11 @@ export async function acquireLock(lockPath, opts = {}) {
 
     const existing = readOrNull(lockPath);
     if (existing === null) continue; // released between the create and the read
-    const mtimeMs = statSync(lockPath, { throwIfNoEntry: false })?.mtimeMs ?? 0;
+    // Gone between the read and the stat: released, like a missing read above —
+    // never mtime 0, which would judge a fresh empty lock stale (SIG-252).
+    const st = statOf(lockPath);
+    if (st === undefined) continue;
+    const mtimeMs = st.mtimeMs;
     if (staleReason(existing, ttlMs, Date.now(), mtimeMs) === null) {
       throw heldError(label, lockPath, existing, ttlSec);
     }
