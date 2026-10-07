@@ -1059,6 +1059,7 @@ const ARCHIVED_EPICS_REL = '.planning/archive/epics';
  */
 export async function requestClose(baseDir, id, request = {}, opts = {}) {
   assertProof(id, request.proof);
+  assertUnambiguousProof(baseDir, id, request.proof, opts);
   return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const { next } = planRequest(handle, id, request);
     const out = await writeRecord(handle, next, opts);
@@ -1071,6 +1072,18 @@ function assertProof(id, proof) {
   if (typeof proof !== 'string' || !COMMIT_RE.test(proof)) {
     throw new WorkStoreError('SCHEMA', `${id}: a close request's proof is a commit hash — lowercase hex, `
       + `7 to 64 characters, nothing else (got ${JSON.stringify(proof)}). Nothing was written.`);
+  }
+}
+
+// A short proof that more than one commit starts with names neither (SIG-276).
+// Best effort at request time: outside a git repository git cannot say, and
+// the request is accepted — `ancestryFailure` checks again at confirm time.
+function assertUnambiguousProof(baseDir, id, proof, opts = {}) {
+  if (proof.length >= 40) return;
+  const n = commitsStartingWith(baseDir, proof, opts.execFn ?? execFileSync);
+  if (n > 1) {
+    throw new WorkStoreError('SCHEMA', `${id}: the proof ${proof} is the start of ${n} commits, so it names none of them — `
+      + 'use a longer hash (git rev-parse <commit>). Nothing was written.');
   }
 }
 
@@ -1108,6 +1121,7 @@ export async function requestCloses(baseDir, requests, opts = {}) {
     throw new WorkStoreError('SCHEMA', `requestCloses: ${[...new Set(twice)].join(', ')} named more than once — nothing was written.`);
   }
   for (const r of requests) assertProof(r?.id, r?.proof);
+  for (const r of requests) assertUnambiguousProof(baseDir, r.id, r.proof, opts);
   return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const planned = requests.map((r) => planRequest(handle, r.id, r));
     const out = await writeRecords(handle, planned, opts);
@@ -1413,6 +1427,27 @@ function defaultBranchRef(baseDir, execFn) {
   return { ref };
 }
 
+// How many distinct commits `prefix` abbreviates: every object git lists for
+// it, peeled to a commit (a tag object peels to the commit it names, so a tag
+// and its commit count once). 0 when git cannot say.
+function commitsStartingWith(baseDir, prefix, execFn) {
+  let objects;
+  try {
+    objects = runGit(baseDir, ['rev-parse', `--disambiguate=${prefix}`], execFn).split('\n').map((l) => l.trim()).filter(Boolean);
+  } catch {
+    return 0;
+  }
+  const commits = new Set();
+  for (const o of objects) {
+    try {
+      commits.add(runGit(baseDir, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${o}^{commit}`], execFn).trim());
+    } catch {
+      // a tree or a blob: not a commit
+    }
+  }
+  return commits.size;
+}
+
 // null when `sha` is an ancestor of `ref`; otherwise why not. `sha` has
 // already matched COMMIT_RE, so it is bare lowercase hex and never an option
 // (`--end-of-options` says so to git as well).
@@ -1421,9 +1456,15 @@ function defaultBranchRef(baseDir, execFn) {
 // git resolves `<name>^{commit}` as a branch or tag before it tries an
 // abbreviated object id, so a ref named `deadbee` would otherwise stand in for
 // a commit (the M6.E13 VERIFY AC7.2 finding). A resolved SHA that does not
-// start with the proof means the proof named a ref → `proof-names-a-ref`. An
-// ambiguous short id makes `rev-parse` fail → `unknown-commit`.
+// start with the proof means the proof named a ref → `proof-names-a-ref`.
+//
+// A short proof that more than one commit starts with → `ambiguous-proof`,
+// checked FIRST (SIG-276, M6.E14): a branch or tag named the shared prefix
+// makes `rev-parse` resolve the ref instead of failing, and the commit it
+// points at does start with the prefix — so without this check the proof
+// confirmed although it names two commits.
 function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
+  if (sha.length < 40 && commitsStartingWith(baseDir, sha, execFn) > 1) return 'ambiguous-proof';
   let full;
   try {
     full = runGit(baseDir, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${sha}^{commit}`], execFn)
@@ -1464,8 +1505,8 @@ function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
  * record re-read under the lock and confirmed only if it is still closing on
  * the same proof; then ONE `regenerate`. Anything else leaves the item
  * closing, with a reason: `invalid-proof`, `not-a-repo`, `no-remote`,
- * `no-default-branch`, `not-on-default-branch`, `unknown-commit` (also an
- * ambiguous short id), `proof-names-a-ref`, `shallow`, `git-failed`,
+ * `no-default-branch`, `not-on-default-branch`, `unknown-commit`, `proof-names-a-ref`,
+ * `ambiguous-proof` (a short id more than one commit starts with), `shallow`, `git-failed`,
  * or `changed` (it moved while git was asked).
  *
  * Git is not asked anything unless some proof is valid, and nothing is locked

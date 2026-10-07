@@ -78,11 +78,12 @@ function plantClone() {
 // Two commit objects whose ids share their first 7 hex digits, written into
 // `dir`'s object store. Found by hashing synthetic commit bodies (a birthday
 // search over 28 bits: tens of thousands of tries, milliseconds).
-function plantAmbiguousCommits(dir) {
+function plantAmbiguousCommits(dir, { parent = null, both = false } = {}) {
   const tree = g(dir, ['mktree'], '');
   const seen = new Map();
+  const head = parent ? `parent ${parent}\n` : '';
   for (let i = 0; ; i += 1) {
-    const body = `tree ${tree}\nauthor T <t@t.co> 1700000000 +0000\ncommitter T <t@t.co> 1700000000 +0000\n\nm${i}\n`;
+    const body = `tree ${tree}\n${head}author T <t@t.co> 1700000000 +0000\ncommitter T <t@t.co> 1700000000 +0000\n\nm${i}\n`;
     const id = createHash('sha1').update(`commit ${Buffer.byteLength(body)}\0${body}`).digest('hex');
     const prefix = id.slice(0, 7);
     if (seen.has(prefix)) {
@@ -90,7 +91,7 @@ function plantAmbiguousCommits(dir) {
       const b = g(dir, ['hash-object', '-t', 'commit', '-w', '--stdin'], body);
       expect(a.slice(0, 7)).toBe(prefix);
       expect(b).toBe(id);
-      return prefix;
+      return both ? { prefix, a, b } : prefix;
     }
     seen.set(prefix, body);
   }
@@ -139,7 +140,41 @@ describe('confirmCloses and probeCloses — a hex-named ref is not a commit (AC7
     expect(records.probeCloses(work, { now: NOW }).confirmable).toEqual([]);
     const out = await records.confirmCloses(work, { now: NOW });
     expect(out.confirmed).toEqual([]);
-    expect(out.stillClosing).toEqual([{ id: 'SIG-1', reason: 'unknown-commit' }]);
+    expect(out.stillClosing).toEqual([{ id: 'SIG-1', reason: 'ambiguous-proof' }]);
+  });
+
+  // SIG-276 (M6.E14 S5): one of the two commits is on origin/main and a branch
+  // is NAMED the shared prefix, pointing at it. git resolves the name as the
+  // branch, the resolved commit starts with the prefix and is on main — so the
+  // proof used to confirm, though it names two commits.
+  it('an ambiguous short id masked by a same-named branch does not confirm (AC6.1)', async () => {
+    const { work } = plantClone();
+    const { prefix, a } = plantAmbiguousCommits(work, { parent: g(work, ['rev-parse', 'origin/main']), both: true });
+    g(work, ['push', '-q', 'origin', `${a}:refs/heads/main`]);
+    g(work, ['fetch', '-q', 'origin']);
+    g(work, ['branch', prefix, a]);
+    await v2Store(work, [rec('SIG-1', [created, request(prefix)])]);
+    expect(records.probeCloses(work, { now: NOW }).confirmable).toEqual([]);
+    const out = await records.confirmCloses(work, { now: NOW });
+    expect(out.confirmed).toEqual([]);
+    expect(out.stillClosing).toEqual([{ id: 'SIG-1', reason: 'ambiguous-proof' }]);
+  });
+});
+
+describe('requestClose / requestCloses — an ambiguous proof is refused when it is asked for (AC6.1, SIG-276)', () => {
+  it('refuses a short proof two commits start with, writing nothing; a longer one is accepted', async () => {
+    const { work } = plantClone();
+    const { prefix, a } = plantAmbiguousCommits(work, { both: true });
+    await v2Store(work, [rec('SIG-1', [created, triaged])]);
+    for (const call of [
+      () => records.requestClose(work, 'SIG-1', { proof: prefix, by }),
+      () => records.requestCloses(work, [{ id: 'SIG-1', proof: prefix, by }]),
+    ]) {
+      await expect(call()).rejects.toMatchObject({ code: 'SCHEMA', message: expect.stringMatching(/start of 2 commits.*longer hash/) });
+      expect(records.getRecord(work, 'SIG-1').status).toBe('T');
+    }
+    const ok = await records.requestClose(work, 'SIG-1', { proof: a.slice(0, 12), by });
+    expect(ok.status).toBe('closing');
   });
 });
 
