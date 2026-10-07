@@ -65,6 +65,18 @@ describe('a broken record: the remedy (AC5.1) and the read-only path (AC5.2)', (
   });
 });
 
+describe('docs-sweep.md names the same remedy (AC5.1, VERIFY loop 1)', () => {
+  it('names --ours/--theirs and says plain checkout needs a good HEAD copy', () => {
+    const sweep = readFileSync('plugin/commands/docs-sweep.md', 'utf-8');
+    const at = sweep.indexOf('except a broken record');
+    expect(at).toBeGreaterThan(-1);
+    const sentence = sweep.slice(at, at + 400);
+    expect(sentence).toMatch(/git checkout --ours <path>/);
+    expect(sentence).toMatch(/--theirs <path>/);
+    expect(sentence).toMatch(/HEAD/);
+  });
+});
+
 describe('the sweep reports a broken record once (AC5.3)', () => {
   it('checkWorkStore names it; the closes check does not repeat it', async () => {
     const store = checkWorkStore(base);
@@ -80,5 +92,24 @@ describe('confirmCloses documents NOT_FOUND (AC5.4)', () => {
     const at = src.indexOf('export async function confirmCloses(');
     const doc = src.slice(src.lastIndexOf('/**', at), at);
     expect(doc).toMatch(/@throws[^\n]*NOT_FOUND/);
+  });
+});
+
+describe('VERIFY loop 1 — what a refusal tells you to do', () => {
+  it('a write refused over a broken record names the git remedy, and does not say "afterwards"', async () => {
+    const err = await records.newItem(base, { title: 'x', by, at: AT }, { execFn: noGit }).catch((e) => e);
+    expect(err.code).toBe('SCHEMA');
+    expect(err.message).toMatch(/^nothing was written/);
+    expect(err.message).toMatch(/git checkout --ours <path>/);
+    expect(err.message).not.toMatch(/afterwards/);
+  });
+
+  it('confirm-time output says what to do about an ambiguous proof (SIG-276)', async () => {
+    const { formatConfirmClosesLine } = await import('../plugin/tools/lib/close-confirm.js');
+    const line = formatConfirmClosesLine({ confirmed: [], stillClosing: [{ id: 'SIG-1', reason: 'ambiguous-proof' }], stale: [] });
+    expect(line).toMatch(/SIG-1: ambiguous-proof/);
+    expect(line).toMatch(/longer hash/);
+    expect(formatConfirmClosesLine({ confirmed: [], stillClosing: [{ id: 'SIG-1', reason: 'unknown-commit' }], stale: [] }))
+      .not.toMatch(/longer hash/);
   });
 });

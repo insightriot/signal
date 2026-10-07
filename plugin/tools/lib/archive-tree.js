@@ -615,6 +615,9 @@ export async function applyArchiveTree(baseDir, opts = {}) {
     if (storeOn) {
       const { assertNoHandKeptLists } = await import('./work-generate.js');
       assertNoHandKeptLists(baseDir);
+      // Then everything else regenerateViews would refuse, before any move (SIG-280 (6), M6.E14).
+      const { checkViewsWritable } = await import('./work-views.js');
+      checkViewsWritable(baseDir);
     }
     return await moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, storeOn });
   } finally {
@@ -680,7 +683,8 @@ async function moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, sto
     } catch (err) {
       // The moves and rewrites above stand; say so, whatever failed.
       const wrapped = new WorkStoreError(err instanceof WorkStoreError ? err.code : 'IO',
-        `the archive moves stood, but the lists were not regenerated: ${err?.message ?? err}`);
+        `the archive moves stood, but the lists were not regenerated: ${err?.message ?? err} `
+          + '— fix what this names, then make any item change and the views are regenerated with it.');
       wrapped.cause = err;
       throw wrapped;
     }

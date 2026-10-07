@@ -359,8 +359,10 @@ function readEpicFolders(baseDir) {
 function renderStore(baseDir) {
   const { records, broken } = listRecords(baseDir, { bodies: true });
   if (broken.length > 0) {
-    throw new WorkStoreError('SCHEMA', 'cannot generate the views — a view of part of the store would silently '
+    const err = new WorkStoreError('SCHEMA', 'cannot generate the views — a view of part of the store would silently '
       + `drop the broken records. Fix these first:\n${broken.map((b) => `  ${b.error}`).join('\n')}`);
+    err.broken = broken.map((b) => b.id ?? b.path); // as `refuseBroken`'s, so a caller can name the remedy
+    throw err;
   }
   return renderViews(records, { watchlistText: readWatchlist(baseDir), epics: readEpicFolders(baseDir) });
 }
@@ -397,7 +399,7 @@ export function regenerateToMemory(baseDir) {
 // (REVIEW I1): a committed link — `work/history/` pointing out of the project,
 // a view file pointing at another file — refuses. Checked before the hand-kept
 // test, which opens the file and would read through a linked one.
-function confineView(baseDir, rel) {
+export function confineView(baseDir, rel) {
   let linked;
   try {
     // `.planning` itself may be a link to a folder inside the repository

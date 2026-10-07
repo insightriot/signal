@@ -83,3 +83,20 @@ describe('a linked .planning inside the repository (SIG-279)', () => {
     expect(err.message).toMatch(/outside the (repo|project)/);
   });
 });
+
+// VERIFY loop 1 (I3): AC3.3 above is refused earlier, by the WATCHLIST read, so
+// it would stay green if confineView lost its own guard. This pins the guard.
+describe('confineView itself (AC3.3, direct)', () => {
+  it('accepts a view path under a .planning linked inside the repo', async () => {
+    const { confineView } = await import('../plugin/tools/lib/work-views.js');
+    expect(() => confineView(base, '.planning/BUGS.md')).not.toThrow();
+  });
+
+  it('refuses a view path under a .planning linked outside the repo', async () => {
+    const { confineView } = await import('../plugin/tools/lib/work-views.js');
+    outside = await mkdtemp(join(tmpdir(), 'sig-linked-outside-'));
+    await rm(join(base, '.planning'));
+    await symlink(outside, join(base, '.planning'));
+    expect(() => confineView(base, '.planning/BUGS.md')).toThrow(/outside the repo/);
+  });
+});

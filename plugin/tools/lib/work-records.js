@@ -658,7 +658,11 @@ function viewsWritableOrRefuse(baseDir, opts = {}) {
     checkViewsWritable(baseDir);
   } catch (err) {
     const code = err instanceof WorkStoreError ? err.code : 'IO';
-    const wrapped = new WorkStoreError(code, `nothing was written — the views could not be regenerated afterwards: ${err?.message ?? err}`);
+    const broken = Array.isArray(err?.broken) && err.broken.length > 0
+      ? ' A broken record is restored with git: `git checkout -- <path>` when HEAD holds a good copy, or '
+        + '`git checkout --ours <path>` / `--theirs <path>` for a merge conflict.'
+      : '';
+    const wrapped = new WorkStoreError(code, `nothing was written — this change would leave views that cannot be regenerated: ${err?.message ?? err}${broken}`);
     wrapped.cause = err;
     throw wrapped;
   }
@@ -1076,8 +1080,10 @@ function assertProof(id, proof) {
 }
 
 // A short proof that more than one commit starts with names neither (SIG-276).
-// Best effort at request time: outside a git repository git cannot say, and
-// the request is accepted — `ancestryFailure` checks again at confirm time.
+// Best effort at request time: git answers for the repository `baseDir` is in —
+// an enclosing one included, the same one the confirm-time checks ask. With no
+// repository it cannot say, and the request is accepted; `ancestryFailure`
+// checks again at confirm time.
 function assertUnambiguousProof(baseDir, id, proof, opts = {}) {
   if (proof.length >= 40) return;
   const n = commitsStartingWith(baseDir, proof, opts.execFn ?? execFileSync);

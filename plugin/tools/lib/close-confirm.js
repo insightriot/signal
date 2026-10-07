@@ -45,6 +45,10 @@ export function formatConfirmClosesLine(result) {
   }
   if (stillClosing.length > 0) {
     parts.push(`${stillClosing.length} still closing (${list(stillClosing.map((s) => `${s.id}: ${s.reason}`))})`);
+    // SIG-276: the reason alone does not say what to do.
+    if (stillClosing.some((s) => s.reason === 'ambiguous-proof')) {
+      parts.push('ambiguous-proof: the proof is the start of more than one commit — reopen the item and close it again with a longer hash');
+    }
   }
   if (stale.length > 0) parts.push(`${stale.length} closing over 14 days (${list(stale)}) — see /sig:docs-sweep`);
   return parts.length === 0 ? null : `Closes: ${parts.join(' · ')}`;

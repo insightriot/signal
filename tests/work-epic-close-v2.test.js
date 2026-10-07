@@ -142,3 +142,19 @@ describe('closeEpic on a v2 store', () => {
     expect(snapshotTree(root)).toEqual(before);
   });
 });
+
+// M6.E14 VERIFY loop 1 (SIG-280 (6)): the close regenerates the views at its
+// end, so a cause the views refuse must stop it before the folder moves.
+describe('closeEpic refuses before moving anything when the views cannot be regenerated', () => {
+  it('a linked WATCHLIST.md: refused, the Epic folder stays, nothing changes', async () => {
+    await store([]);
+    await put('elsewhere.md', 'x\n');
+    const { symlink } = await import('node:fs/promises');
+    await symlink(join('..', '..', 'elsewhere.md'), join(root, '.planning/work/WATCHLIST.md'));
+    const before = snapshotTree(join(root, '.planning'));
+    const err = await closeEpic(root, EPIC, { by, pr: '#300', at: AT }, { execFn: noGit }).catch((e) => e);
+    expect(err?.message).toMatch(/WATCHLIST\.md/);
+    expect(existsSync(join(root, `.planning/work/epics/${EPIC}`))).toBe(true);
+    expect(snapshotTree(join(root, '.planning'))).toEqual(before);
+  });
+});
