@@ -3942,3 +3942,52 @@ Epic folder with a record still *closing* — which no check treats as an error 
 the `EPICS.md` view carry no "archived ⇒ all closed" rule). Other options were archiving the folder
 at the post-merge confirm, or moving §6.8 after the merge. Plumbing; adopted under `/sig:drive`;
 reversible (`closeEpicCheck`, one function).
+
+## 2026-10-07 — M6.E14 DISCUSS: harden the work store before other projects depend on it (D-M6E14-1 … D-M6E14-10)
+
+**Label:** *"harden the work store"*. Picked by Brett from
+[`BACKLOG-REVIEW-2026-10-06.md`](BACKLOG-REVIEW-2026-10-06.md) (priority 1 of 4; priority 2, other
+projects onto the store, depends on it). Run by `/sig:drive` at `checkpointed`. Requirements:
+[`M6.E14-REQUIREMENTS.md`](M6.E14-REQUIREMENTS.md). D-1 … D-7 are plumbing, proposed together and
+approved as a batch by Brett; D-8 is his scope call.
+
+### D-M6E14-1 — `SIG-277`: dedupe inside the `work` lock, fixed now
+`newItems` takes a dedupe key and returns the existing record under the lock that allocates IDs. Fixed
+although unreachable today (the only caller refuses with the store on), because priority 2 adds a
+store-on caller. Reversible: one option on `newItems`.
+
+### D-M6E14-2 — `SIG-278`: a broken record blocks a single-match discharge
+Any broken record plus exactly one readable match reports `unreadable`, never `discharged`. Chosen over
+"discharge and warn": a close cannot be taken back by a later read, a refusal costs one re-run.
+
+### D-M6E14-3 — `SIG-279`: a linked `.planning` inside the repo is supported
+`linkedComponent` starts below `.planning` for store paths; `assertRealInsidePlanning` keeps refusing a
+link that escapes the repository. The migration refuses a linked `.planning` explicitly, since its
+`cpSync(verbatimSymlinks)` copy would otherwise fail as an obscure IO error.
+
+### D-M6E14-4 — `SIG-280` (6): check the views can regenerate before writing a record
+Preferred over "write, then report the failure", which leaves a record the views do not show. The
+post-write failure message (still possible) must say the record was written.
+
+### D-M6E14-5 — `SIG-280` (1)–(5): fix all five small items
+Remedy wording, read-only message, single sweep report, a collision assertion in the two-process test,
+`@throws` doc. None is Important alone; taken because this Epic is the store's cleanup pass.
+
+### D-M6E14-6 — `SIG-276`: refuse an ambiguous proof hash
+Chosen over only correcting the comment: a proof is evidence, and evidence that names two commits
+names neither.
+
+### D-M6E14-7 — `SIG-251`, `SIG-252`: real wait in the held message; missing stat retries
+Both as filed.
+
+### D-M6E14-8 — Scope: add `SIG-280` and `SIG-276` (Brett)
+Offered: add `SIG-280` only (recommended), both, or keep the six. Brett chose both, clearing every known
+store defect before other projects use it.
+
+### D-M6E14-9 — Housekeeping at DISCUSS
+`SIG-253` closed `stale` (proof: `9abcc45` removed `dischargeInStore` and its abort path). `SIG-272`
+(lint at `branch-work.js:54`) requested closed, fixed by `dc5b4a7` (#287).
+
+### D-M6E14-10 — Tier and cadence
+No per-Epic profile: the project's FULL applies (integrity work on shared state). `attention:
+checkpointed`, chosen at `/sig:drive` step 0b.

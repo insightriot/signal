@@ -2347,9 +2347,9 @@ Open question this does not answer: which Signal document should carry a bound. 
 
 closeEpic can return {aborted: 'sensitive-data-pending'} when pr/release text trips the scrub (added M6.E11 review 3). ship.md §6.8 lists four outcomes, not this one. Probed: PR numbers/URLs and version strings do not trip it, so unlikely. Fix: one line, nothing changed; ask keep/abort.
 
-### aborted store discharge still labels rows discharged · SIG-253
+### aborted store discharge still labels rows discharged · SIG-253 · closed (stale)
 
-**Status:** triaged (T)
+**Status:** closed 2026-10-07 (stale)
 
 backlog.js dischargeInStore returns results whose rows say status: discharged alongside written:false and aborted. Unreachable today (acknowledgeSensitive:true is passed). Fix: mark rows not written on abort, or drop the guard as dead code.
 

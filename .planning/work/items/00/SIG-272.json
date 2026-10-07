@@ -1,12 +1,40 @@
 {
   "id": "SIG-272",
-  "type": "NEW",
+  "type": "BUG",
   "title": "npm run lint fails: no-control-regex at plugin/tools/lib/branch-work.js:54",
+  "theme": "tooling",
+  "priority": "P3",
   "events": [
     {
       "type": "created",
       "at": "2026-10-04T15:00:23.780Z",
       "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-07T15:43:37.846Z",
+      "by": "claude (M6.E14 DISCUSS, scope approved by Brett)",
+      "changes": {
+        "type": {
+          "from": "NEW",
+          "to": "BUG"
+        },
+        "theme": {
+          "from": null,
+          "to": "tooling"
+        },
+        "priority": {
+          "from": null,
+          "to": "P3"
+        }
+      }
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-07T15:43:37.866Z",
+      "by": "claude (M6.E14 DISCUSS, scope approved by Brett)",
+      "reason": "fixed",
+      "proof": "dc5b4a7c9e91b656f5da7144749351172ca4b2ee"
     }
   ]
 }

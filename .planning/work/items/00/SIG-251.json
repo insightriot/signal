@@ -15,6 +15,12 @@
       "type": "triaged",
       "at": "2026-09-30T15:27:01.514Z",
       "by": "migration (v2)"
+    },
+    {
+      "type": "queued",
+      "at": "2026-10-07T15:43:37.668Z",
+      "by": "claude (M6.E14 DISCUSS, scope approved by Brett)",
+      "epic": "M6.E14"
     }
   ]
 }
