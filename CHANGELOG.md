@@ -6,6 +6,54 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### M6.E14 — the work store, hardened before other projects use it
+
+Eight work-store defects fixed, each with a test that fails without its fix. Run end to end by
+`/sig:drive` from DISCUSS — the first such run. 5362 → 5425 tests.
+
+Still only Signal's own repository uses the work store. Other projects will move onto it through
+`/sig:docs-migrate`, which is not built yet — that is the next priority, and this Epic is its
+precondition.
+
+#### Fixed
+- **A `.planning/` folder that is a link to a folder inside the project now works** (`SIG-279`).
+  Every item change used to refuse, because the views were never written through a link. A link
+  *below* `.planning/` is still refused, and so is a `.planning` that resolves outside the project,
+  to the project folder itself, or into `.git/`. The v1→v2 migration still refuses a linked
+  `.planning`.
+- **A store change either lands completely or is refused before anything is written** (`SIG-280`).
+  Every writer — new items, status moves, closes, Epic close and the archive moves — now checks
+  first that the views can be regenerated: a hand-kept view, a linked `WATCHLIST.md`, an archived
+  Epic `README.md` that is not valid YAML, or a broken record refuses the change up front, instead of
+  leaving a record the views do not show. If a regeneration still fails after a change lands, the
+  message says the change stands and not to repeat the command. Adds about 0.3 s per write at 10,000
+  records (`node tools/measure-views-preflight.mjs`).
+- **Two promotes of the same inbox block make one record** (`SIG-277`): the duplicate check now runs
+  under the lock that writes. `newItems` takes `dedupeBy: 'source_ref'`.
+- **Discharge never reports "discharged" while a broken record could also match** (`SIG-278`); the
+  row reads `unreadable`, naming the records.
+- **A short proof hash that matches more than one commit — or a commit and a tag that leads to one —
+  is refused** at close request and reads `ambiguous-proof` at confirm (`SIG-276`). A branch named
+  like the prefix used to make it confirm.
+- **The lock-held message states the real wait** for a live local holder, and a lock whose stat
+  vanishes between read and stat is retried instead of taken over (`SIG-251`, `SIG-252`).
+- **M6.E13 REVIEW residue** (`SIG-280` 1–5): a broken record's remedy names
+  `git checkout --ours/--theirs` for a merge conflict (`refuseBroken`, `ship.md`, `docs-sweep.md`);
+  the read-only path at `/sig:resume` makes no claim about writing; `/sig:docs-sweep` reports a
+  broken record once; a two-process test proves the processes actually collided.
+
+#### Security
+- An archived Epic `README.md` is read only as a regular, unlinked file inside the project. A cloned
+  repository could ship it as a link to `/dev/zero` or a private file, and that read now runs before
+  every store write.
+
+#### Closed without code
+- `SIG-253` (stale — its code was removed in M6.E13); `SIG-272` (fixed by #287).
+
+---
+
 ## [0.1.48] — 2026-10-05 — work items are records; drive stops asking at every phase end
 
 ### Fixed

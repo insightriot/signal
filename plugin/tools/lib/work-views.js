@@ -28,12 +28,12 @@
 // parser, so `work-generate.js`, `backlog.js` and `bugs-tally.js` are not
 // imported; the small text helpers below are this module's own.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
 import { assertRealInsidePlanning, linkedComponent, readRegularFile, regularFileRefusal } from './path-confine.js';
-import { compareEpicIds, EPIC_ID_STRICT_RE, parseFrontmatter, StateSchemaError } from './state.js';
+import { compareEpicIds, EPIC_ID_STRICT_RE, parseFrontmatter, PLANNING_DIR, StateSchemaError } from './state.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
 import { bodyDirFor } from './work-convert.js';
 import { rewriteRelativeLinks } from './work-links.js';
@@ -340,10 +340,15 @@ function readEpicFolders(baseDir) {
     for (const e of entries) {
       if (!e.isDirectory() || !EPIC_ID_STRICT_RE.test(e.name)) continue;
       const epic = { id: e.name, archived };
-      const readme = join(baseDir, rel, e.name, 'README.md');
-      if (archived && existsSync(readme)) {
+      const readmeRel = `${rel}/${e.name}/README.md`;
+      // Read only as a regular, unlinked file inside the project (M6.E14 REVIEW
+      // security I1): a cloned repository can ship it as a link to /dev/zero or
+      // to a private file, and this read now runs before every store write.
+      const refusal = archived ? regularFileRefusal(baseDir, readmeRel) : null;
+      if (refusal !== null) throw new WorkStoreError('CONFLICT', `${refusal}. The views were not generated.`);
+      if (archived && existsSync(join(baseDir, readmeRel))) {
         try {
-          epic.close = parseFrontmatter(readFileSync(readme, 'utf-8')).data?.close ?? null;
+          epic.close = parseFrontmatter(readRegularFile(baseDir, readmeRel)).data?.close ?? null;
         } catch (err) {
           if (!(err instanceof StateSchemaError)) throw err;
           throw new WorkStoreError('SCHEMA', `${rel}/${e.name}/README.md: its frontmatter is not valid YAML — `
@@ -359,8 +364,10 @@ function readEpicFolders(baseDir) {
 function renderStore(baseDir) {
   const { records, broken } = listRecords(baseDir, { bodies: true });
   if (broken.length > 0) {
-    throw new WorkStoreError('SCHEMA', 'cannot generate the views — a view of part of the store would silently '
+    const err = new WorkStoreError('SCHEMA', 'cannot generate the views — a view of part of the store would silently '
       + `drop the broken records. Fix these first:\n${broken.map((b) => `  ${b.error}`).join('\n')}`);
+    err.broken = broken.map((b) => b.id ?? b.path); // as `refuseBroken`'s, so a caller can name the remedy
+    throw err;
   }
   return renderViews(records, { watchlistText: readWatchlist(baseDir), epics: readEpicFolders(baseDir) });
 }
@@ -397,10 +404,12 @@ export function regenerateToMemory(baseDir) {
 // (REVIEW I1): a committed link — `work/history/` pointing out of the project,
 // a view file pointing at another file — refuses. Checked before the hand-kept
 // test, which opens the file and would read through a linked one.
-function confineView(baseDir, rel) {
+export function confineView(baseDir, rel) {
   let linked;
   try {
-    linked = linkedComponent(baseDir, rel);
+    // `.planning` itself may be a link to a folder inside the repository
+    // (SIG-279); `assertRealInsidePlanning` refuses one that leaves it.
+    linked = linkedComponent(baseDir, rel, { from: PLANNING_DIR });
     if (linked === null) assertRealInsidePlanning(baseDir, join(baseDir, rel), `${rel} (view regeneration)`);
   } catch (err) {
     throw asWorkStoreError(err, typeof err?.code === 'string' ? 'IO' : 'CONFLICT', 'nothing was written — ');
@@ -417,6 +426,109 @@ function handKept(baseDir, rels) {
     const abs = join(baseDir, rel);
     return existsSync(abs) && !isGeneratedFile(abs);
   });
+}
+
+// Everything `regenerateViews` checks before its first write: the store's
+// version, every record reading (`renderStore`), WATCHLIST.md and the archived
+// Epic READMEs, no link on any view's path, no hand-kept view. Returns the
+// rendered views, or null with the store off. Writes nothing.
+function prepareViews(baseDir) {
+  const version = storeVersion(baseDir);
+  if (version === null) return null;
+  if (version !== 2) {
+    const err = new WorkStoreError('CONFIG', V1_STORE_MESSAGE);
+    err.version = version;
+    throw err;
+  }
+  const views = renderStore(baseDir);
+  const rels = Object.keys(views);
+  for (const rel of rels) confineView(baseDir, rel);
+  const kept = handKept(baseDir, rels);
+  if (kept.length > 0) {
+    throw new WorkStoreError('CONFIG', `${kept.join(', ')} ${kept.length === 1 ? 'is' : 'are'} hand-kept, not generated `
+      + '(the first line is not the generated marker). Regenerating would overwrite '
+      + `${kept.length === 1 ? 'it' : 'them'} with a view of the records, so nothing was written. If this list `
+      + 'was never migrated, migrate it: `node tools/work-migrate-v2.mjs`. If it was edited by hand, restore '
+      + 'it from git (`git checkout -- <file>`) and make the change with /sig:item.');
+  }
+  return views;
+}
+
+/**
+ * Throw whatever `regenerateViews` would refuse with, writing nothing
+ * (SIG-280 (6), M6.E14). Every `work-records.js` writer calls it under the
+ * `work` lock BEFORE writing a record, so a cause the views refuse — a
+ * hand-kept view, a linked WATCHLIST.md, an archived Epic README that is not
+ * valid YAML, a broken record — refuses the write instead of leaving a record
+ * the views do not show. It renders the whole store in memory (measured
+ * 2026-10-07: ~20 ms at 282 records). What it cannot see is a view path the
+ * write itself creates (a new history year); `regenerateAfter` reports that.
+ *
+ * @param {string} baseDir
+ * @throws {WorkStoreError}
+ */
+export function checkViewsWritable(baseDir) {
+  prepareViews(baseDir);
+}
+
+// A message ends in a full stop before the next sentence is appended to it.
+const endSentence = (text) => (/[.!?)]$/.test(text.trim()) ? text.trim() : `${text.trim()}.`);
+
+// The git remedy for a broken record, shared by every refusal that names one.
+const BROKEN_REMEDY = ' A broken record is restored with git: `git checkout -- <path>` when HEAD holds a good copy, or '
+  + '`git checkout --ours <path>` / `--theirs <path>` for a merge conflict.';
+
+/**
+ * `checkViewsWritable`, as a refusal a writer can throw as it is: "nothing was
+ * {verb}", the cause, and — for a broken record — how to restore it. One
+ * wording for every writer (`work-records.js`, `closeEpic`, the archive moves;
+ * M6.E14 REVIEW).
+ *
+ * @param {string} baseDir
+ * @param {{verb?: string}} [opts] — what the caller did not do: 'written' (default), 'moved'
+ * @throws {WorkStoreError} the cause's code
+ */
+export function assertViewsWritable(baseDir, { verb = 'written' } = {}) {
+  try {
+    checkViewsWritable(baseDir);
+  } catch (err) {
+    const code = err instanceof WorkStoreError ? err.code : 'IO';
+    const inner = endSentence(String(err?.message ?? err)
+      .replace(/^nothing was written — /, '')
+      .replace(/,? so nothing was written\b/g, ''));
+    const remedy = Array.isArray(err?.broken) && err.broken.length > 0 ? BROKEN_REMEDY : '';
+    const wrapped = new WorkStoreError(code, `nothing was ${verb} — the views cannot be regenerated as things stand: ${inner}${remedy}`);
+    wrapped.cause = err;
+    throw wrapped;
+  }
+}
+
+/**
+ * The error for a change that landed and whose views then failed to
+ * regenerate. The inner refusal was written for a caller that wrote nothing —
+ * "so nothing was written", "then re-run" — which is false here: the change
+ * stands, and re-running the command that made it would make it twice (M6.E14
+ * REVIEW). Those phrases are rewritten to be about the views.
+ *
+ * @param {string} done — what landed, as a clause ("SIG-3 was written")
+ * @param {unknown} err — the regeneration's error
+ * @returns {WorkStoreError}
+ */
+export function viewsNotRegenerated(done, err) {
+  const code = err instanceof WorkStoreError ? err.code : 'IO';
+  // Only this module's own phrasings are rewritten — never a bare word, which
+  // could sit inside a path or a quoted value (REVIEW pass 2).
+  const inner = endSentence(String(err?.message ?? err)
+    .replace(/^nothing was written — /, '')
+    .replace(/\bso nothing was written\b/g, 'so no view was written')
+    .replace(/,? then re-run\.?/g, '.')
+    .replace(/ and make the change with \/sig:item\./g, '.'));
+  const remedy = Array.isArray(err?.broken) && err.broken.length > 0 ? BROKEN_REMEDY : '';
+  const wrapped = new WorkStoreError(code, `${done}, and that change stands — but the views were not regenerated: ${inner}${remedy} `
+    + 'Fix what this names, then make any item change and the views are regenerated with it. '
+    + 'Do not repeat the command that made this change: it already landed.');
+  wrapped.cause = err;
+  return wrapped;
 }
 
 /**
@@ -441,24 +553,9 @@ function handKept(baseDir, rels) {
  * @throws {WorkStoreError}
  */
 export async function regenerateViews(baseDir) {
-  const version = storeVersion(baseDir);
-  if (version === null) return { written: [] };
-  if (version !== 2) {
-    const err = new WorkStoreError('CONFIG', V1_STORE_MESSAGE);
-    err.version = version;
-    throw err;
-  }
-  const views = renderStore(baseDir);
+  const views = prepareViews(baseDir);
+  if (views === null) return { written: [] };
   const rels = Object.keys(views);
-  for (const rel of rels) confineView(baseDir, rel);
-  const kept = handKept(baseDir, rels);
-  if (kept.length > 0) {
-    throw new WorkStoreError('CONFIG', `${kept.join(', ')} ${kept.length === 1 ? 'is' : 'are'} hand-kept, not generated `
-      + '(the first line is not the generated marker). Regenerating would overwrite '
-      + `${kept.length === 1 ? 'it' : 'them'} with a view of the records, so nothing was written. If this list `
-      + 'was never migrated, migrate it: `node tools/work-migrate-v2.mjs`. If it was edited by hand, restore '
-      + 'it from git (`git checkout -- <file>`) and make the change with /sig:item.');
-  }
   for (const rel of rels) {
     const abs = join(baseDir, rel);
     confineView(baseDir, rel); // again before the mkdir: a link made after the check is still refused

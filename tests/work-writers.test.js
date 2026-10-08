@@ -310,6 +310,18 @@ describe('drain.js — refuses outright when the store is on (AC-6.3, D-M6E11-25
 
 describe('archive-tree.js — the link rewrite leaves generated lists to the generator', () => {
   beforeEach(v2);
+  // M6.E14 VERIFY loop 1 (SIG-280 (6)): the moves end in a regeneration, so a
+  // cause the views refuse must stop them before anything moves.
+  it('a broken record refuses the archive moves before any file moves', async () => {
+    await put('.planning/M6.E1-RETROSPECTIVE.md', '# M6.E1 retro\n');
+    await put('.planning/M6.E1-PLAN.md', '# M6.E1 plan\n');
+    await put(recordPath('SIG-9'), '{ not json');
+    const err = await applyArchiveTree(root, { apply: true }).catch((e) => e);
+    expect(err?.code).toBe('SCHEMA');
+    expect(existsSync(planning('M6.E1-PLAN.md'))).toBe(true);
+    expect(existsSync(planning('archive', 'M6', 'E1', 'M6.E1-PLAN.md'))).toBe(false);
+  });
+
   it('a scaffold move rewrites the item body and regenerates the lists; no write into a generated file', async () => {
     await newItem(root, { title: 'Follow up the plan', body: 'See [the plan](M6.E1-PLAN.md).', by: 't' });
     await put('.planning/M6.E1-RETROSPECTIVE.md', '# M6.E1 retro\n');

@@ -22,76 +22,26 @@
 
 ---
 
-## SIG-146 and SIG-166 link to references/command-taxonomy.md, which moved to plugin/references/
+## CI does not run lint, so a lint error can reach main unnoticed
 
-**Status:** untriaged (N) · SIG-269
+**Status:** untriaged (N) · SIG-283
 
-Found 2026-10-04 by the M6.E13 t1.5 dry conversion: both item bodies carry a relative link to references/command-taxonomy.md, broken since the file moved under plugin/references/ (M6.E1). Pre-existing in v1; the migration carries it unchanged. Fix: repoint both links after cutover.
-
----
-
-## readOpenQuestions counts and lists a struck-through (~~settled~~) question as open
-
-**Status:** untriaged (N) · SIG-270
-
-Found 2026-10-04 by M6.E13 t1.6 store-off golden capture (tests/fixtures/work-store-off/readers/). status.js readOpenQuestions counts and lists a ~~struck~~ heading, while drive collectPreflight skips struck ones. Pinned as-is in readers-ac31.json; a fix must update the golden deliberately. Store-off behaviour.
+Found 2026-10-07 at M6.E14 REVIEW. .github/workflows/test.yml runs the test suite only; there is no `npm run lint` step. During M6.E14, commit ac79e0c added tools/measure-views-preflight.mjs using `performance` without importing it (no-undef), and the VERIFY report recorded lint as clean because the result was read from an empty last line of output instead of the exit code. Nothing between the session and main would have caught it. Fix: add a lint step to the test workflow (or a separate required check).
 
 ---
 
-## advise digest inbox line counts every heading; checkStaleInbox counts only drainable entries
+## /sig:advise records the pick with the UTC date, not the local one
 
-**Status:** untriaged (N) · SIG-271
+**Status:** untriaged (N) · SIG-284
 
-Found 2026-10-04 by M6.E13 t1.6 capture: on the same store-off fixture the advise digest reports 6 inbox entries (all ## headings, incl. standing and dispositioned) while checkStaleInbox reports 3 drainable. Two counts of one inbox with different meanings. Pinned as-is; fix updates the golden deliberately.
-
----
-
-## npm run lint fails: no-control-regex at plugin/tools/lib/branch-work.js:54
-
-**Status:** untriaged (N) · SIG-272
-
-Seen 2026-10-04 during M6.E13 EXECUTE. Present in v0.1.47 (the control-character strip regex in branch-work.js:54). npm run lint exits non-zero, so lint is not a usable gate. Fix: an eslint-disable-next-line no-control-regex with the reason (the regex strips control and bidi characters on purpose), or build the class with RegExp from code points.
+Found 2026-10-06 (evening, US Eastern). plugin/tools/lib/advise-record.js:74 stamps the pick with new Date().toISOString().slice(0, 10), which is the UTC date. The advisory .planning/BACKLOG-REVIEW-2026-10-06.md is named with the local date and its "Picked by you" line reads "picked on 2026-10-07". Fix: use the same local-date source as the advisory's filename.
 
 ---
 
-## isStaleVsOrigin skips the fetch when STATE.md has no last_updated_commit, so later checks read stale origin refs
+## SHIP's reviewer-effort check reads only the latest run, so a re-push after a real review reads as 'did NOT review'
 
-**Status:** untriaged (N) · SIG-273
+**Status:** untriaged (N) · SIG-285
 
-Found 2026-10-04 during M6.E13 t4.6 (wiring confirmCloses after the resume fetch). When STATE.md carries no last_updated_commit, isStaleVsOrigin (state.js) returns before fetching; anything after it that reads refs/remotes/origin/* (now confirmCloses at /sig:resume) compares against whatever was last fetched. Fix: fetch independently of the baseline check, or have confirmCloses note its refs may be stale.
-
----
-
-## No path turns the work store on for a new project any more (the v1 enable script was retired in M6.E13)
-
-**Status:** untriaged (N) · SIG-274
-
-Found 2026-10-04 at M6.E13 t6.2. The only path that turns a store on is node tools/work-migrate.mjs (v1, maintainer script). After M6.E13 the v2 library refuses writes on a v1 store, so a project that enables the store gets one it cannot use until it runs tools/work-migrate-v2.mjs too. Belongs with the other-projects Epic (/sig:docs-migrate), but the gap is real from this release.
-
-Update 2026-10-04 (M6.E13 t8.1): the v1 enable script tools/work-migrate.mjs was retired in M6.E13 t7.4, so no path turns a store on at all now — that is the gap.
-
----
-
-## checkpointed still asks "accept and continue?" at the end of every phase under /sig:drive
-
-**Status:** untriaged (N) · SIG-275
-
-Reported 2026-10-04 by Brett from a /sig:drive run in another project (screenshot: "Accept VERIFY pass 2 ... and run REVIEW pass 2?"): "it is asking me MORE questions than less". Confirmed in code: profile.js applyRigorOverrides sets gates.confirm_discuss/plan/execute/verify/review/ship = attention !== unattended, so checkpointed confirms at every phase end, and plan.md/execute.md/verify.md/review.md tables say checkpointed = confirm at end of phase. drive.md says checkpointed advances every phase and stops only for floors and gray-area decisions. M6.E10 fixed canProceedUnattended but left the phase commands own end-of-phase confirm. Same session reproduced it: M6.E13 PLAN asked for plan approval under drive at checkpointed. Fix: phase-end confirms only at attended; checkpointed announces and continues; SHIP stays a floor.
-
----
-
-## A short proof hash shared by two commits can confirm when a branch of that name points at one of them
-
-**Status:** untriaged (N) · SIG-276
-
-Found 2026-10-04 by M6.E13 VERIFY pass 2. Two commits share a 7-hex prefix P; commit a is on origin/main. With no ref, probeCloses gives unknown-commit (correct). After git branch P a, it gives confirmable. The confirmed commit does start with P and is on main, so no non-commit is accepted, but it contradicts the ancestryFailure comment in work-records.js (a shared short id makes rev-parse fail). Fix: correct the comment, or refuse a proof that matches more than one commit (git rev-parse --disambiguate). Low.
-
----
-
-## M6.E13 REVIEW residue: broken-record remedy wording, probe message, double sweep report, weak two-process assertion
-
-**Status:** untriaged (N) · SIG-280
-
-From the narrow fresh check of M6.E13 REVIEW pass 2 fixes (2026-10-04). None Important. (1) ship.md §6.8 item 6 / docs-sweep.md: git checkout -- <path> restores nothing if the record is broken in HEAD; resolving the conflict by Edit is blocked by the hook — name git checkout --ours/--theirs. (2) refuseBroken says nothing was written also from read-only probeCloses (/sig:resume). (3) The sweep reports one broken record twice (checkRecords + closes-confirmed). (4) Two-process concurrency test never asserts a collision happened. (5) confirmCloses @throws omits NOT_FOUND. (6) Class: records written then views refuse to regenerate on a hand-kept view, linked WATCHLIST.md or bad archived Epic README YAML (work-views.js:349,373,456) — every writer.
+Found 2026-10-07 at M6.E14 SHIP on PR #292. readReviewerEffort (plugin/tools/lib/pr-review-findings.js, added in #284) reads the claude-review run on the PR head commit only. On #292 the first two runs reviewed in full (12 turns / $1.96 on adcd45e; 9 turns / $1.41 on a6e0175) and posted a finding; the run on the next push (b486691) stopped after 2 turns / $0.10, because the upstream review command stops once Claude has already commented on the PR. SHIP printed "PR reviewer ran but did NOT review" — a false alarm. Fix: when the head run is short, look at the earlier completed runs for the same PR and report "reviewed at <sha> (N turns, $X); later pushes not re-reviewed", which is itself worth saying, since the later commits were not reviewed.
 
 ---

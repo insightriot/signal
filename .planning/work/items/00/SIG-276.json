@@ -1,12 +1,46 @@
 {
   "id": "SIG-276",
-  "type": "NEW",
+  "type": "BUG",
   "title": "A short proof hash shared by two commits can confirm when a branch of that name points at one of them",
+  "theme": "work-store",
+  "priority": "P3",
   "events": [
     {
       "type": "created",
       "at": "2026-10-04T20:49:36.158Z",
       "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-07T15:43:37.516Z",
+      "by": "claude (M6.E14 DISCUSS, scope approved by Brett)",
+      "changes": {
+        "type": {
+          "from": "NEW",
+          "to": "BUG"
+        },
+        "theme": {
+          "from": null,
+          "to": "work-store"
+        },
+        "priority": {
+          "from": null,
+          "to": "P3"
+        }
+      }
+    },
+    {
+      "type": "queued",
+      "at": "2026-10-07T15:43:37.711Z",
+      "by": "claude (M6.E14 DISCUSS, scope approved by Brett)",
+      "epic": "M6.E14"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-08T01:00:43.604Z",
+      "by": "M6.E14 SHIP",
+      "reason": "fixed",
+      "proof": "adcd45e91af8d1123e3a6a042593d8bd832d53ad"
     }
   ]
 }

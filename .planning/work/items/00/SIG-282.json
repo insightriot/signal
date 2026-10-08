@@ -1,0 +1,34 @@
+{
+  "id": "SIG-282",
+  "type": "BUG",
+  "title": "PLAN's drain floors still describe the drain when the work store is on (the step is /sig:item triage)",
+  "theme": "drive",
+  "priority": "P3",
+  "source": "/sig:drive",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-07T23:07:02.424Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-07T23:07:10.625Z",
+      "by": "claude (M6.E14 PLAN triage)",
+      "changes": {
+        "type": {
+          "from": "NEW",
+          "to": "BUG"
+        },
+        "theme": {
+          "from": null,
+          "to": "drive"
+        },
+        "priority": {
+          "from": null,
+          "to": "P3"
+        }
+      }
+    }
+  ]
+}

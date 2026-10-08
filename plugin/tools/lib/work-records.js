@@ -38,7 +38,7 @@ import { rewriteRelativeLinks } from './work-links.js';
 import { proposeTriage } from './work-triage.js';
 // A cycle, by design: work-views.js reads through listRecords. Neither module
 // uses the other's bindings while it is being evaluated.
-import { regenerateToMemory, regenerateViews } from './work-views.js';
+import { assertViewsWritable, regenerateToMemory, regenerateViews, viewsNotRegenerated } from './work-views.js';
 import {
   isStoreOn,
   isGitRepo,
@@ -632,7 +632,7 @@ export function findDuplicateIds(baseDir) {
 
 const WORK_LOCK_LABEL = 'work store';
 
-async function withWorkLockV2(baseDir, label, fn) {
+async function withWorkLockV2(baseDir, label, opts, fn) {
   const { key } = assertWritable(baseDir);
   let lock;
   try {
@@ -641,10 +641,21 @@ async function withWorkLockV2(baseDir, label, fn) {
     throw lockFailure(err);
   }
   try {
+    viewsWritableOrRefuse(baseDir, opts);
     return await fn({ baseDir, key });
   } finally {
     await lock.released();
   }
+}
+
+// Before any record is written (SIG-280 (6), M6.E14): if the views would
+// refuse to regenerate, refuse the write, so a record never lands that the
+// views do not show. `_skipViewsCheck` is a seam for tests and
+// `tools/measure-views-preflight.mjs`, never for a real caller (M6.E14 REVIEW):
+// injecting `regenerate` no longer turns the check off.
+function viewsWritableOrRefuse(baseDir, opts = {}) {
+  if (opts._skipViewsCheck === true) return;
+  assertViewsWritable(baseDir);
 }
 
 async function regenerateAfter(handle, done, opts) {
@@ -652,10 +663,7 @@ async function regenerateAfter(handle, done, opts) {
   try {
     await run(handle.baseDir);
   } catch (err) {
-    const code = err instanceof WorkStoreError ? err.code : 'IO';
-    const wrapped = new WorkStoreError(code, `${done}, but the views were not regenerated: ${err?.message ?? err}`);
-    wrapped.cause = err;
-    throw wrapped;
+    throw viewsNotRegenerated(done, err);
   }
 }
 
@@ -870,8 +878,14 @@ export async function newItem(baseDir, fields = {}, opts = {}) {
  *   triage?: {type: string, priority?: string|number, theme?: string, title?: string}}>} specs
  *   `body` is written beside the record, its relative links rewritten from
  *   `linksFrom` (relative to `.planning/`, default `''`) to the record's folder.
+ *
+ * `opts.dedupeBy: 'source_ref'` (SIG-277, M6.E14): a spec whose `source_ref`
+ * an existing record already carries is not written; its entry is that
+ * record's, with `deduped: true`. Checked under the same lock that allocates
+ * IDs and writes, so two callers racing on one key make one record.
+ *
  * @param {{execFn?: Function, renameFn?: Function, acknowledgeSensitive?: boolean,
- *   regenerate?: (baseDir: string) => Promise<void>}} [opts]
+ *   regenerate?: (baseDir: string) => Promise<void>, dedupeBy?: 'source_ref'}} [opts]
  * @returns {Promise<object[]|{aborted: 'sensitive-data-pending', sensitiveHits: object[]}>} entries in spec order
  * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA, CONFLICT, LOCKED, IO
  */
@@ -885,14 +899,45 @@ export async function newItems(baseDir, specs, opts = {}) {
     opts,
   );
   if (pending) return pending;
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
-    const { id: first } = nextIdV2(baseDir, { execFn: opts.execFn });
-    const start = numberOf(first);
-    const planned = specs.map((spec, i) => planNew(handle, `${handle.key}-${start + i}`, spec));
-    await writeNew(handle, planned, opts);
-    const ids = planned.map((p) => p.record.id);
-    await regenerateAfter(handle, `${ids.join(', ')} ${ids.length === 1 ? 'was' : 'were'} written`, opts);
-    return planned.map((p) => entryOf(p.record));
+  if (opts.dedupeBy !== undefined && opts.dedupeBy !== 'source_ref') {
+    throw new WorkStoreError('SCHEMA', `newItems: dedupeBy must be 'source_ref', got ${JSON.stringify(opts.dedupeBy)} — nothing was written.`);
+  }
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
+    const existing = new Map();
+    if (opts.dedupeBy === 'source_ref') {
+      for (const e of listRecords(handle.baseDir).records) {
+        if (typeof e.record.source_ref === 'string' && !existing.has(e.record.source_ref)) existing.set(e.record.source_ref, e);
+      }
+    }
+    // Within one call too: a second spec carrying a key an earlier one carries
+    // returns that one's record (M6.E14 REVIEW).
+    const seen = new Set();
+    const fresh = specs.filter((spec) => {
+      const key = opts.dedupeBy === 'source_ref' ? spec?.source_ref : undefined;
+      if (typeof key !== 'string') return true;
+      if (existing.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const planned = [];
+    if (fresh.length > 0) {
+      const { id: first } = nextIdV2(baseDir, { execFn: opts.execFn });
+      const start = numberOf(first);
+      planned.push(...fresh.map((spec, i) => planNew(handle, `${handle.key}-${start + i}`, spec)));
+      await writeNew(handle, planned, opts);
+      const ids = planned.map((p) => p.record.id);
+      await regenerateAfter(handle, `${ids.join(', ')} ${ids.length === 1 ? 'was' : 'were'} written`, opts);
+    }
+    const made = planned.map((p) => entryOf(p.record));
+    const byKey = new Map();
+    return specs.map((spec) => {
+      const key = opts.dedupeBy === 'source_ref' ? spec?.source_ref : undefined;
+      if (typeof key === 'string' && existing.has(key)) return { ...existing.get(key), deduped: true };
+      if (typeof key === 'string' && byKey.has(key)) return { ...byKey.get(key), deduped: true };
+      const entry = made.shift();
+      if (typeof key === 'string') byKey.set(key, entry);
+      return entry;
+    });
   });
 }
 
@@ -919,7 +964,7 @@ export async function triageItem(baseDir, id, triage = {}, opts = {}) {
   assertWritable(baseDir);
   const pending = sensitivePending([triage.title, triage.theme], opts);
   if (pending) return pending;
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const current = readForWrite(handle, id).entry;
     const fields = {};
     for (const k of ['type', 'priority', 'theme', 'title']) if (triage[k] !== undefined) fields[k] = triage[k];
@@ -967,7 +1012,7 @@ function refuseArchivedEpic(baseDir, id, epic, verb) {
  * @returns {Promise<object>} the entry
  */
 export async function queueItem(baseDir, id, move = {}, opts = {}) {
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const current = readForWrite(handle, id).entry;
     refuseArchivedEpic(baseDir, id, move.epic, 'queued');
     const out = await writeRecord(handle, withEvent(current, epicEvent('queued', move)), opts);
@@ -987,7 +1032,7 @@ export async function queueItem(baseDir, id, move = {}, opts = {}) {
  * @returns {Promise<object>} the entry
  */
 export async function startItem(baseDir, id, move = {}, opts = {}) {
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const current = readForWrite(handle, id).entry;
     refuseArchivedEpic(baseDir, id, move.epic, 'started');
     const out = await writeRecord(handle, withEvent(current, epicEvent('started', move)), opts);
@@ -1019,7 +1064,8 @@ const ARCHIVED_EPICS_REL = '.planning/archive/epics';
  */
 export async function requestClose(baseDir, id, request = {}, opts = {}) {
   assertProof(id, request.proof);
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+  assertUnambiguousProof(baseDir, id, request.proof, opts);
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const { next } = planRequest(handle, id, request);
     const out = await writeRecord(handle, next, opts);
     await regenerateAfter(handle, `${id} is closing (fixed by ${request.proof})`, opts);
@@ -1031,6 +1077,20 @@ function assertProof(id, proof) {
   if (typeof proof !== 'string' || !COMMIT_RE.test(proof)) {
     throw new WorkStoreError('SCHEMA', `${id}: a close request's proof is a commit hash — lowercase hex, `
       + `7 to 64 characters, nothing else (got ${JSON.stringify(proof)}). Nothing was written.`);
+  }
+}
+
+// A short proof that more than one commit starts with names neither (SIG-276).
+// Best effort at request time: git answers for the repository `baseDir` is in —
+// an enclosing one included, the same one the confirm-time checks ask. With no
+// repository it cannot say, and the request is accepted; `ancestryFailure`
+// checks again at confirm time.
+function assertUnambiguousProof(baseDir, id, proof, opts = {}) {
+  if (proof.length >= 40) return;
+  const n = commitsStartingWith(baseDir, proof, opts.execFn ?? execFileSync);
+  if (n > 1) {
+    throw new WorkStoreError('SCHEMA', `${id}: the proof ${proof} is the start of ${n} commits or tags, so it names none of them — `
+      + 'use a longer hash (git rev-parse <commit>). Nothing was written.');
   }
 }
 
@@ -1068,7 +1128,13 @@ export async function requestCloses(baseDir, requests, opts = {}) {
     throw new WorkStoreError('SCHEMA', `requestCloses: ${[...new Set(twice)].join(', ')} named more than once — nothing was written.`);
   }
   for (const r of requests) assertProof(r?.id, r?.proof);
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+  const checked = new Set(); // one git check per distinct proof (M6.E14 REVIEW)
+  for (const r of requests) {
+    if (checked.has(r.proof)) continue;
+    checked.add(r.proof);
+    assertUnambiguousProof(baseDir, r.id, r.proof, opts);
+  }
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const planned = requests.map((r) => planRequest(handle, r.id, r));
     const out = await writeRecords(handle, planned, opts);
     await regenerateAfter(handle, `${ids.join(', ')} ${ids.length === 1 ? 'is' : 'are'} closing`, opts);
@@ -1187,7 +1253,7 @@ export async function closeItems(baseDir, closes, opts = {}) {
   assertWritable(baseDir);
   const pending = sensitivePending(closes.map((c) => c?.proof), opts);
   if (pending) return pending;
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const planned = closes.map((c) => planClose(handle, c ?? {}, closes));
     const out = await writeRecords(handle, planned, opts);
     await regenerateAfter(handle, `${ids.join(', ')} ${ids.length === 1 ? 'was' : 'were'} closed`, opts);
@@ -1218,7 +1284,7 @@ export async function reopenItem(baseDir, id, reopen = {}, opts = {}) {
   assertWritable(baseDir);
   const pending = sensitivePending([reason], opts);
   if (pending) return pending;
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const current = readForWrite(handle, id).entry;
     if (current.epic !== null && isEpicArchived(baseDir, current.epic)) {
       throw new WorkStoreError('CONFLICT', `${id} belongs to Epic ${current.epic}, which is archived `
@@ -1373,6 +1439,40 @@ function defaultBranchRef(baseDir, execFn) {
   return { ref };
 }
 
+// How many commit-like objects `prefix` abbreviates — commits, and tag objects
+// that lead to a commit, which is what git counts when it resolves
+// `<prefix>^{commit}`: two sharing the prefix make git call it ambiguous.
+// 0 when git cannot say.
+function commitsStartingWith(baseDir, prefix, execFn) {
+  let objects;
+  try {
+    objects = runGit(baseDir, ['rev-parse', `--disambiguate=${prefix}`], execFn).split('\n').map((l) => l.trim()).filter(Boolean);
+  } catch {
+    return 0;
+  }
+  // Each listed object once, counted when it is a commit or a tag (M6.E14
+  // REVIEW pass 2: counting commits only accepted a proof git itself calls
+  // ambiguous, which then could never confirm). Trees and blobs are not counted.
+  // Two are enough to answer.
+  let n = 0;
+  for (const o of new Set(objects)) {
+    try {
+      const type = runGit(baseDir, ['cat-file', '-t', '--end-of-options', o], execFn).trim();
+      // A tag counts only when it leads to a commit: git ignores one that
+      // points at a blob or a tree when it resolves `<prefix>^{commit}` (REVIEW pass 3).
+      if (type === 'commit') n += 1;
+      else if (type === 'tag') {
+        runGit(baseDir, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${o}^{commit}`], execFn);
+        n += 1;
+      }
+    } catch {
+      // not inspectable: not counted
+    }
+    if (n > 1) break;
+  }
+  return n;
+}
+
 // null when `sha` is an ancestor of `ref`; otherwise why not. `sha` has
 // already matched COMMIT_RE, so it is bare lowercase hex and never an option
 // (`--end-of-options` says so to git as well).
@@ -1381,9 +1481,15 @@ function defaultBranchRef(baseDir, execFn) {
 // git resolves `<name>^{commit}` as a branch or tag before it tries an
 // abbreviated object id, so a ref named `deadbee` would otherwise stand in for
 // a commit (the M6.E13 VERIFY AC7.2 finding). A resolved SHA that does not
-// start with the proof means the proof named a ref → `proof-names-a-ref`. An
-// ambiguous short id makes `rev-parse` fail → `unknown-commit`.
+// start with the proof means the proof named a ref → `proof-names-a-ref`.
+//
+// A short proof that more than one commit starts with → `ambiguous-proof`,
+// checked FIRST (SIG-276, M6.E14): a branch or tag named the shared prefix
+// makes `rev-parse` resolve the ref instead of failing, and the commit it
+// points at does start with the prefix — so without this check the proof
+// confirmed although it names two commits.
 function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
+  if (sha.length < 40 && commitsStartingWith(baseDir, sha, execFn) > 1) return 'ambiguous-proof';
   let full;
   try {
     full = runGit(baseDir, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${sha}^{commit}`], execFn)
@@ -1424,8 +1530,8 @@ function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
  * record re-read under the lock and confirmed only if it is still closing on
  * the same proof; then ONE `regenerate`. Anything else leaves the item
  * closing, with a reason: `invalid-proof`, `not-a-repo`, `no-remote`,
- * `no-default-branch`, `not-on-default-branch`, `unknown-commit` (also an
- * ambiguous short id), `proof-names-a-ref`, `shallow`, `git-failed`,
+ * `no-default-branch`, `not-on-default-branch`, `unknown-commit`, `proof-names-a-ref`,
+ * `ambiguous-proof` (a short id more than one commit starts with), `shallow`, `git-failed`,
  * or `changed` (it moved while git was asked).
  *
  * Git is not asked anything unless some proof is valid, and nothing is locked
@@ -1438,7 +1544,7 @@ function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
  *   `now`: the clock, for the closing `at` and for `stale` (default: now)
  * @returns {Promise<{confirmed: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}>}
  *   `stale`: items still closing whose request is more than 14 days before `now`
- * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA (a broken record), LOCKED, IO
+ * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA (a broken record), NOT_FOUND (a record removed between the check and the write), LOCKED, IO
  */
 export async function confirmCloses(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
@@ -1450,7 +1556,7 @@ export async function confirmCloses(baseDir, opts = {}) {
 
   const confirmed = [];
   if (ok.length > 0) {
-    await withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+    await withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
       const at = now.toISOString();
       const planned = [];
       refuseBroken(listRecords(handle.baseDir));
@@ -1479,9 +1585,9 @@ export async function confirmCloses(baseDir, opts = {}) {
 // branch now: `ok` (it is) and `still` (id → {reason, req}, why not). Reads the
 // records and asks git; writes nothing. Shared by `confirmCloses` and
 // `probeCloses`, so the two can never disagree on what is confirmable.
-function classifyClosing(baseDir, execFn) {
+function classifyClosing(baseDir, execFn, { writing = true } = {}) {
   const listed = listRecords(baseDir);
-  refuseBroken(listed);
+  refuseBroken(listed, { writing });
   const closing = listed.records.filter((r) => r.status === 'closing');
   const still = new Map(); // id -> {reason, request}
   const candidates = [];
@@ -1506,9 +1612,18 @@ function classifyClosing(baseDir, execFn) {
 
 // The views refuse to regenerate over a broken record, so writing the others
 // first would leave a partial write (REVIEW pass 2): refuse before anything.
-function refuseBroken({ broken }) {
+// `writing` (SIG-280 (2)): false on the read-only path (`probeCloses`, from
+// `/sig:resume`), where saying "nothing was written" answers a question nobody
+// asked. The error carries the broken IDs (`err.broken`) so a caller that
+// already reports each one — the sweep's `checkWorkStore` — need not repeat it.
+function refuseBroken({ broken }, { writing = true } = {}) {
   if (broken.length === 0) return;
-  throw new WorkStoreError('SCHEMA', `broken record(s), so nothing was written: ${broken.map((b) => `${b.id ?? b.path} (${b.error})`).join('; ')} — restore each with git (git checkout -- <path>, or resolve its merge conflict), then re-run.`);
+  const err = new WorkStoreError('SCHEMA', `broken record(s)${writing ? ', so nothing was written' : ''}: `
+    + `${broken.map((b) => `${b.id ?? b.path} (${b.error})`).join('; ')} — restore each with git: \`git checkout -- <path>\` `
+    + 'when HEAD holds a good copy; for a merge conflict in the record, take one side with '
+    + '`git checkout --ours <path>` or `git checkout --theirs <path>` (Edit is blocked on records; git is not). Then re-run.');
+  err.broken = broken.map((b) => b.id ?? b.path);
+  throw err;
 }
 
 function stillAndStale(still, now) {
@@ -1542,7 +1657,7 @@ export function probeCloses(baseDir, opts = {}) {
   const now = opts.now === undefined ? new Date() : new Date(opts.now);
   if (Number.isNaN(now.getTime())) throw new WorkStoreError('SCHEMA', `probeCloses: now ${JSON.stringify(opts.now)} is not a date`);
   assertWritable(baseDir);
-  const { still, ok } = classifyClosing(baseDir, execFn);
+  const { still, ok } = classifyClosing(baseDir, execFn, { writing: false });
   return { confirmable: ok.map((c) => c.id).sort((a, b) => numberOf(a) - numberOf(b)), ...stillAndStale(still, now) };
 }
 
@@ -1868,7 +1983,7 @@ export async function editItem(baseDir, id, edit = {}, opts = {}) {
   assertWritable(baseDir);
   const pending = sensitivePending(Object.values(changes), opts);
   if (pending) return pending;
-  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, async (handle) => {
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const current = readForWrite(handle, id).entry;
     const diff = {};
     for (const [field, to] of Object.entries(changes)) {

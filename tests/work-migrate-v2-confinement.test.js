@@ -100,6 +100,21 @@ describe('migrateWorkStoreV2 — links on the write path are refused before anyt
     expect(storeVersion(work)).toBe(1);
   });
 
+  it('a .planning that is a link to a folder INSIDE the repo is still refused before anything is copied (SIG-279 AC3.4)', async () => {
+    // M6.E14 lets the views write through such a link; the migration must not follow,
+    // because its build-aside copy keeps links verbatim and would copy the link, not the store.
+    const real = join(work, 'planning-real');
+    execFileSync('mv', [join(work, '.planning'), real]);
+    symlinkSync('planning-real', join(work, '.planning'));
+    const out = join(root, 'out');
+    const before = snapshotTree(real);
+    await expect(migrateWorkStoreV2(work, { outDir: out, now: NOW })).rejects.toMatchObject({
+      message: expect.stringMatching(/^\.planning\b.*symbolic link/s),
+    });
+    expect(existsSync(join(out, '.planning'))).toBe(false);
+    expect(snapshotTree(real)).toEqual(before);
+  });
+
   it('a symlinked v1 status folder is refused (its files would be moved in from outside)', async () => {
     rmSync(join(work, '.planning/work/backlog'), { recursive: true });
     put(outside, 'SIG-2.md', item({ id: 'SIG-2', type: 'BUG', status: 'T', title: 'outside' }));

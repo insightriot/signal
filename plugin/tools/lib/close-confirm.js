@@ -45,6 +45,10 @@ export function formatConfirmClosesLine(result) {
   }
   if (stillClosing.length > 0) {
     parts.push(`${stillClosing.length} still closing (${list(stillClosing.map((s) => `${s.id}: ${s.reason}`))})`);
+    // SIG-276: the reason alone does not say what to do.
+    if (stillClosing.some((s) => s.reason === 'ambiguous-proof')) {
+      parts.push('ambiguous-proof: the proof is the start of more than one commit — reopen the item and close it again with a longer hash');
+    }
   }
   if (stale.length > 0) parts.push(`${stale.length} closing over 14 days (${list(stale)}) — see /sig:docs-sweep`);
   return parts.length === 0 ? null : `Closes: ${parts.join(' · ')}`;
@@ -69,7 +73,8 @@ const nothing = () => ({ ran: false, confirmed: [], stillClosing: [], stale: [],
  * @param {{now?: Date|string, execFn?: Function, confirm?: Function}} [opts]
  *   `confirm`: the confirmation, injected in tests (default `confirmCloses`)
  * @returns {Promise<{ran: boolean, confirmed: string[], stillClosing: Array<{id: string, reason: string}>,
- *   stale: string[], error: string|null, line: string|null}>}
+ *   stale: string[], error: string|null, broken?: string[], line: string|null}>}
+ *   `broken`: on a refusal over broken records, their IDs (else empty).
  */
 export async function runConfirmCloses(baseDir, opts = {}) {
   let version;
@@ -92,6 +97,7 @@ export async function runConfirmCloses(baseDir, opts = {}) {
       ...nothing(),
       ran: true,
       error: err.message,
+      broken: Array.isArray(err?.broken) ? err.broken : [],
       line: `Closes not confirmed — ${err.message}`,
     };
   }

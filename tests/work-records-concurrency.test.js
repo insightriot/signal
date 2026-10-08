@@ -106,3 +106,29 @@ describe('newItem from two processes at once (the work lock across processes)', 
     expect(ok.map((r) => r.id)).not.toContain(after.id);
   }, 20000);
 });
+
+// SIG-280 (4), M6.E14 S7 (AC5.5): the test above cannot show the processes ever
+// met — every attempt may have run alone. This one makes the collision
+// certain: the parent holds the work lock while a child process writes.
+describe('a write from another process while this one holds the work lock (AC5.5)', () => {
+  it('is refused LOCKED because of the held lock, and succeeds once it is released', async () => {
+    const { acquireLock } = await import('../plugin/tools/lib/file-lock.js');
+    const { WORK_LOCK_REL } = await import('../plugin/tools/lib/work-store.js');
+    const lock = await acquireLock(join(base, WORK_LOCK_REL), { label: 'work', ttlMs: 60_000 });
+    let held;
+    try {
+      held = await child('held', Date.now());
+    } finally {
+      await lock.released();
+    }
+    expect(held).toHaveLength(5);
+    for (const r of held) {
+      expect(r, r.message).toMatchObject({ code: 'LOCKED' });
+      expect(r.message).toContain(`pid ${process.pid}`);
+    }
+    expect(records.listRecords(base).records).toEqual([]);
+    const free = await child('free', Date.now());
+    expect(free.filter((r) => r.id)).toHaveLength(5);
+  }, 20000);
+});
+

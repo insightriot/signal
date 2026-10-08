@@ -1,0 +1,13 @@
+{
+  "id": "SIG-283",
+  "type": "NEW",
+  "title": "CI does not run lint, so a lint error can reach main unnoticed",
+  "source": "/sig:review",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-08T00:07:13.312Z",
+      "by": "claude"
+    }
+  ]
+}

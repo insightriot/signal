@@ -1,12 +1,33 @@
 {
   "id": "SIG-269",
-  "type": "NEW",
+  "type": "BUG",
   "title": "SIG-146 and SIG-166 link to references/command-taxonomy.md, which moved to plugin/references/",
+  "theme": "docs",
+  "priority": "P3",
   "events": [
     {
       "type": "created",
       "at": "2026-10-04T14:30:59.882Z",
       "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-07T23:07:01.381Z",
+      "by": "claude (M6.E14 PLAN triage, confirmed by Brett)",
+      "changes": {
+        "type": {
+          "from": "NEW",
+          "to": "BUG"
+        },
+        "theme": {
+          "from": null,
+          "to": "docs"
+        },
+        "priority": {
+          "from": null,
+          "to": "P3"
+        }
+      }
     }
   ]
 }

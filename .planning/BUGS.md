@@ -144,8 +144,8 @@
 | SIG-140 | `rejected` | — | **`claude-review` CI fails before reviewing: claude binary missing on the runner** |
 | SIG-148 | `confirmed` | — | **Jev key and receipt hardening — the pass-3 REVIEW residue · **fix lane** · small · *filed 2026-09-27 from `M6.E3` REVIEW*** |
 | SIG-249 | `confirmed` | P3 | **tools/adherence-ceiling.js ignores unknown flags and regenerates the log** |
-| SIG-251 | `confirmed` | P3 | **file-lock held-error understates the wait for a live holder (10x ttl)** |
-| SIG-252 | `confirmed` | P3 | **file-lock: a failed stat treats a fresh empty lock as stale** |
+| SIG-251 | `closing` | P3 | **file-lock held-error understates the wait for a live holder (10x ttl)** |
+| SIG-252 | `closing` | P3 | **file-lock: a failed stat treats a fresh empty lock as stale** |
 | SIG-254 | `fixed` | P1 | **A plan named PLAN-<unit>.md is left out of its unit, so the archive moves 5 of 6 files and splits the slice** |
 | SIG-255 | `confirmed` | P2 | **Archiving ignores a project's explicit keep-live list, so work held open on purpose is proposed for archive** |
 | SIG-257 | `confirmed` | P3 | **/sig:advise hostile-repository hardening — the residue after M6.E12 review pass 3** |
@@ -159,8 +159,17 @@
 | SIG-266 | `confirmed` | P2 | **private-name guard can time out under a full parallel run** |
 | SIG-267 | `confirmed` | P2 | **advise digest never reads a roadmap file inside .planning/ — planned milestones vanish from the priorities** |
 | SIG-268 | `confirmed` | P3 | **advisory says "Could not read: nothing" while the digest lists two gaps** |
-| SIG-277 | `needs-triage` | — | **Concurrent promotes of one inbox block can write twin records (dedupe runs outside the work lock)** |
-| SIG-278 | `needs-triage` | — | **Backlog discharge reports discharged when one readable row matches and a broken record might also match** |
-| SIG-279 | `needs-triage` | — | **A project whose .planning/ is a symbolic link (even to a folder inside the repo) cannot regenerate its work views** |
+| SIG-269 | `confirmed` | P3 | **SIG-146 and SIG-166 link to references/command-taxonomy.md, which moved to plugin/references/** |
+| SIG-270 | `confirmed` | P3 | **readOpenQuestions counts and lists a struck-through (~~settled~~) question as open** |
+| SIG-271 | `confirmed` | P3 | **advise digest inbox line counts every heading; checkStaleInbox counts only drainable entries** |
+| SIG-272 | `fixed` | P3 | **npm run lint fails: no-control-regex at plugin/tools/lib/branch-work.js:54** |
+| SIG-273 | `confirmed` | P3 | **isStaleVsOrigin skips the fetch when STATE.md has no last_updated_commit, so later checks read stale origin refs** |
+| SIG-275 | `fixed` | P2 | **checkpointed still asks "accept and continue?" at the end of every phase under /sig:drive** |
+| SIG-276 | `closing` | P3 | **A short proof hash shared by two commits can confirm when a branch of that name points at one of them** |
+| SIG-277 | `closing` | P2 | **Concurrent promotes of one inbox block can write twin records (dedupe runs outside the work lock)** |
+| SIG-278 | `closing` | P2 | **Backlog discharge reports discharged when one readable row matches and a broken record might also match** |
+| SIG-279 | `closing` | P2 | **A project whose .planning/ is a symbolic link (even to a folder inside the repo) cannot regenerate its work views** |
+| SIG-280 | `closing` | P2 | **M6.E13 REVIEW residue: broken-record remedy wording, probe message, double sweep report, weak two-process assertion** |
+| SIG-282 | `confirmed` | P3 | **PLAN's drain floors still describe the drain when the work store is on (the step is /sig:item triage)** |
 
-*3 needs-triage · 48 confirmed · 0 closing · 108 closed (159 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 51 confirmed · 7 closing · 110 closed (168 total) · closes more than 30 days before the newest event are in `work/history/`*

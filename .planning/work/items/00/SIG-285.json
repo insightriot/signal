@@ -1,0 +1,13 @@
+{
+  "id": "SIG-285",
+  "type": "NEW",
+  "title": "SHIP's reviewer-effort check reads only the latest run, so a re-push after a real review reads as 'did NOT review'",
+  "source": "/sig:ship",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-08T01:08:17.299Z",
+      "by": "claude"
+    }
+  ]
+}

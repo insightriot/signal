@@ -1,12 +1,47 @@
 {
   "id": "SIG-275",
-  "type": "NEW",
+  "type": "BUG",
   "title": "checkpointed still asks \"accept and continue?\" at the end of every phase under /sig:drive",
+  "theme": "drive",
+  "priority": "P2",
   "events": [
     {
       "type": "created",
       "at": "2026-10-04T19:02:36.115Z",
       "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-07T23:07:01.558Z",
+      "by": "claude (M6.E14 PLAN triage, confirmed by Brett)",
+      "changes": {
+        "type": {
+          "from": "NEW",
+          "to": "BUG"
+        },
+        "theme": {
+          "from": null,
+          "to": "drive"
+        },
+        "priority": {
+          "from": null,
+          "to": "P2"
+        }
+      }
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-07T23:07:01.581Z",
+      "by": "claude (M6.E14 PLAN triage, confirmed by Brett)",
+      "reason": "fixed",
+      "proof": "83c170c"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-08T01:00:53.991Z",
+      "by": "confirmCloses",
+      "reason": "fixed",
+      "proof": "83c170c"
     }
   ]
 }

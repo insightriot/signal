@@ -389,6 +389,8 @@ export async function promote(b, id) { await triage(b, id); return queue(b, id);
     // injected into listRecords makes it a second entry point: caught too.
     expect(violations).toEqual([
       expect.stringMatching(/^getRecord .*listRecords/),
+      // newItems reads through listRecords under its lock for `dedupeBy` (M6.E14 S3, SIG-277).
+      expect.stringMatching(/^newItems .*listRecords/),
       expect.stringMatching(/^confirmCloses .*listRecords/),
       // ...and the internal classifyClosing (t4.6) now reaches the injected take: caught as internal.
       expect.stringMatching(/^classifyClosing: an internal function that takes the lock/),

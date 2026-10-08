@@ -1,0 +1,13 @@
+{
+  "id": "SIG-284",
+  "type": "NEW",
+  "title": "/sig:advise records the pick with the UTC date, not the local one",
+  "source": "/sig:advise",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-08T00:07:13.313Z",
+      "by": "claude"
+    }
+  ]
+}

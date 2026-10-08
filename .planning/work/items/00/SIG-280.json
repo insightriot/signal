@@ -1,12 +1,46 @@
 {
   "id": "SIG-280",
-  "type": "NEW",
+  "type": "BUG",
   "title": "M6.E13 REVIEW residue: broken-record remedy wording, probe message, double sweep report, weak two-process assertion",
+  "theme": "work-store",
+  "priority": "P2",
   "events": [
     {
       "type": "created",
       "at": "2026-10-04T22:24:54.800Z",
       "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-07T15:43:37.647Z",
+      "by": "claude (M6.E14 DISCUSS, scope approved by Brett)",
+      "changes": {
+        "type": {
+          "from": "NEW",
+          "to": "BUG"
+        },
+        "theme": {
+          "from": null,
+          "to": "work-store"
+        },
+        "priority": {
+          "from": null,
+          "to": "P2"
+        }
+      }
+    },
+    {
+      "type": "queued",
+      "at": "2026-10-07T15:43:37.801Z",
+      "by": "claude (M6.E14 DISCUSS, scope approved by Brett)",
+      "epic": "M6.E14"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-08T01:00:43.606Z",
+      "by": "M6.E14 SHIP",
+      "reason": "fixed",
+      "proof": "adcd45e91af8d1123e3a6a042593d8bd832d53ad"
     }
   ]
 }

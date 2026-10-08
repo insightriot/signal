@@ -4,7 +4,14 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-10-03) — M6.E13 at DISCUSS (closed; PLAN next)
+## Where things stand (2026-10-07) — M6.E14 at DISCUSS
+
+**`M6.E14` — *"harden the work store"*** — fix the eight known work-store defects (`SIG-251`, `-252`,
+`-276` … `-280`) before priority 2 moves other projects onto the store. Branch
+`feat/m6.e14-harden-work-store`. Requirements: [`M6.E14-REQUIREMENTS.md`](M6.E14-REQUIREMENTS.md);
+decisions `D-M6E14-1` … `D-M6E14-10`. Run by `/sig:drive` at `checkpointed`.
+
+## Previously (2026-10-03) — M6.E13 at DISCUSS (shipped v0.1.48, 2026-10-05)
 
 **`M6.E13` — *"work items as records"*** — Epic 1 of the storage re-architecture
 ([`analysis/STORAGE-ARCHITECTURE-PROPOSAL.md`](../analysis/STORAGE-ARCHITECTURE-PROPOSAL.md)). Work items

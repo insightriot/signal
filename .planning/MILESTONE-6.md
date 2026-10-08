@@ -32,6 +32,8 @@ The two candidate themes are recorded in `BACKLOG.md` and remain live for `E2` o
 | `M6.E10` | **shipped** — `v0.1.40`, 2026-09-10 | `/sig:drive` can take a step: it asks how to run, and floors fire on conditions, not phase names. |
 | `M6.E11` | **shipped** — `v0.1.43`, 2026-09-30 (PR #263) | The work-item store, step 1: one file per thing, moved through folders by `/sig:item` (24th command); Epic folders; Signal's own 248 records migrated. 3602 → 4237 tests. |
 | `M6.E12` | **shipped** — `v0.1.45`, 2026-10-02 | `/sig:advise` and `/sig:drive`'s pick step propose 3–5 big-picture priorities from a cited digest and ask; age removed. |
+| `M6.E13` | **shipped** — `v0.1.48`, 2026-10-05 (PR #280) | Work items are JSON records that never move; status comes from recorded events; one write library and a hook blocking hand edits. Signal's own store cut over. |
+| `M6.E14` | **shipped** — 2026-10-07, PR #292 | The work store hardened before other projects use it: eight defects (`SIG-251`, `-252`, `-276` … `-280`). First `/sig:drive` run from DISCUSS. 5362 → 5425 tests. |
 
 > ⚠ **This table sat two rows long while six Epics existed** — `M6.E3`, `M6.E4`, `M6.E5` and
 > `M6.E6` were all missing when `M6.E6` closed on 2026-09-04. That is the row *this milestone's own

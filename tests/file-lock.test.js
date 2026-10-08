@@ -284,3 +284,40 @@ describe('acquireLock — empty locks and live holders (REVIEW pass 3)', () => {
     await expect(acquireLock(lockPath, { ttlMs: 5_000 })).rejects.toThrow(/lock at/);
   });
 });
+
+// M6.E14 S6 (SIG-251, SIG-252).
+describe('acquireLock — the held message and a vanished stat', () => {
+  let tempDir;
+  let lockPath;
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'sig-lock-m6e14-'));
+    await mkdir(join(tempDir, '.planning'), { recursive: true });
+    lockPath = join(tempDir, '.planning', '.test.lock');
+  });
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('AC7.1: held by a live pid on this host, the message states the real wait — 10 × ttl', async () => {
+    await writeFile(lockPath, `${process.pid}\n${Date.now()}\nme\n${hostname()}\n`, 'utf-8');
+    await expect(acquireLock(lockPath, { ttlMs: 5_000 })).rejects.toThrow(/usually free within seconds — at most 50s while that process is alive/);
+  });
+
+  it('AC7.1: held by a pid on another host, the message keeps ttl', async () => {
+    await writeFile(lockPath, `${process.pid}\n${Date.now()}\nthem\nsome-other-host\n`, 'utf-8');
+    await expect(acquireLock(lockPath, { ttlMs: 5_000 })).rejects.toThrow(/retry in <5s/);
+  });
+
+  it('AC7.2: a lock whose stat vanishes after it was read is not taken over', async () => {
+    // An empty lock: created, not yet written. Its mtime is what keeps it held.
+    // Depends on the `_stat` seam: old code ignores it and stats the real file,
+    // so the route is asserted, not only the outcome (M6.E14 REVIEW).
+    await writeFile(lockPath, '', 'utf-8');
+    let stats = 0;
+    const err = await acquireLock(lockPath, { ttlMs: 5_000, _stat: () => { stats += 1; return undefined; } }).catch((e) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toMatch(/lock created concurrently/);
+    expect(stats).toBe(2);
+    expect(readFileSync(lockPath, 'utf-8')).toBe('');
+  });
+});

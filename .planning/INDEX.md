@@ -18,6 +18,7 @@
 - [BACKLOG-REVIEW-2026-09-13.md](BACKLOG-REVIEW-2026-09-13.md) — `other` — _(note pending)_
 - [BACKLOG-REVIEW-2026-09-14.md](BACKLOG-REVIEW-2026-09-14.md) — `other` — _(note pending)_
 - [BACKLOG-REVIEW-2026-10-01.md](BACKLOG-REVIEW-2026-10-01.md) — `other` — _(note pending)_
+- [BACKLOG-REVIEW-2026-10-06.md](BACKLOG-REVIEW-2026-10-06.md) — `other` — _(note pending)_
 - [BACKLOG.md](BACKLOG.md) — `other` — The sequenced roadmap, promoted from `ISSUES-INBOX.md`; every entry tagged `roadmap` or `hygiene`. Supersedes the point-in-time `BACKLOG-REVIEW-2026-07-04` snapshot (folded in + archived under `archive/`).
 - [BUGS.md](BUGS.md) — `other` — Bugs & verified-findings catalog — where findings get logged (catalog → triage → confirm / dismiss / fixed). GitHub Issues deferred until Signal has live users.
 - [CONTEXT.md](CONTEXT.md) — `other` — Locked + deferred decisions for the *current* work — what DISCUSS settled for the active Epic.
@@ -162,6 +163,13 @@
 - [M6.E13-REVIEW.md](M6.E13-REVIEW.md) — `other` — _(note pending)_
 - [M6.E13-VALIDATION.md](M6.E13-VALIDATION.md) — `other` — _(note pending)_
 - [M6.E13-VERIFICATION.md](M6.E13-VERIFICATION.md) — `other` — _(note pending)_
+- [M6.E14-PLAN.md](M6.E14-PLAN.md) — `other` — _(note pending)_
+- [M6.E14-PROGRESS.md](M6.E14-PROGRESS.md) — `other` — _(note pending)_
+- [M6.E14-REQUIREMENTS.md](M6.E14-REQUIREMENTS.md) — `other` — _(note pending)_
+- [M6.E14-RESEARCH.md](M6.E14-RESEARCH.md) — `other` — _(note pending)_
+- [M6.E14-REVIEW.md](M6.E14-REVIEW.md) — `other` — _(note pending)_
+- [M6.E14-VALIDATION.md](M6.E14-VALIDATION.md) — `other` — _(note pending)_
+- [M6.E14-VERIFICATION.md](M6.E14-VERIFICATION.md) — `other` — _(note pending)_
 - [M6.E2-CORPUS-MEASUREMENT.md](M6.E2-CORPUS-MEASUREMENT.md) — `other` — _(note pending)_
 - [M6.E2-PLAN.md](M6.E2-PLAN.md) — `other` — _(note pending)_
 - [M6.E2-PROGRESS.md](M6.E2-PROGRESS.md) — `other` — _(note pending)_
@@ -437,6 +445,10 @@
 - [work/items/00/SIG-279.md](work/items/00/SIG-279.md) — `other` — _(note pending)_
 - [work/items/00/SIG-28.md](work/items/00/SIG-28.md) — `other` — _(note pending)_
 - [work/items/00/SIG-280.md](work/items/00/SIG-280.md) — `other` — _(note pending)_
+- [work/items/00/SIG-281.md](work/items/00/SIG-281.md) — `other` — _(note pending)_
+- [work/items/00/SIG-282.md](work/items/00/SIG-282.md) — `other` — _(note pending)_
+- [work/items/00/SIG-283.md](work/items/00/SIG-283.md) — `other` — _(note pending)_
+- [work/items/00/SIG-284.md](work/items/00/SIG-284.md) — `other` — _(note pending)_
 - [work/items/00/SIG-29.md](work/items/00/SIG-29.md) — `other` — _(note pending)_
 - [work/items/00/SIG-3.md](work/items/00/SIG-3.md) — `other` — _(note pending)_
 - [work/items/00/SIG-30.md](work/items/00/SIG-30.md) — `other` — _(note pending)_
@@ -550,6 +562,7 @@
 - [M6.E11-RETROSPECTIVE.md](M6.E11-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E12-RETROSPECTIVE.md](M6.E12-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E13-RETROSPECTIVE.md](M6.E13-RETROSPECTIVE.md) — `other` — _(note pending)_
+- [M6.E14-RETROSPECTIVE.md](M6.E14-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E2-RETROSPECTIVE.md](M6.E2-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E3-RETROSPECTIVE.md](M6.E3-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E4-RETROSPECTIVE.md](M6.E4-RETROSPECTIVE.md) — `other` — _(note pending)_
@@ -657,6 +670,7 @@
 - [archive/M6/E11/STATE-NARRATIVE.md](archive/M6/E11/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E12/STATE-NARRATIVE.md](archive/M6/E12/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E13/CONTEXT-2026-08-26.md](archive/M6/E13/CONTEXT-2026-08-26.md) — `other` — _(note pending)_
+- [archive/M6/E13/STATE-NARRATIVE.md](archive/M6/E13/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E2/STATE-NARRATIVE.md](archive/M6/E2/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E3/AUGUST-PLAN.md](archive/M6/E3/AUGUST-PLAN.md) — `other` — _(note pending)_
 - [archive/M6/E3/AUGUST-RESEARCH.md](archive/M6/E3/AUGUST-RESEARCH.md) — `other` — _(note pending)_
@@ -1007,3 +1021,4 @@
 - [M6.E11](M6.E11-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E12](M6.E12-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E13](M6.E13-RETROSPECTIVE.md) — _(note pending)_
+- [M6.E14](M6.E14-RETROSPECTIVE.md) — _(note pending)_

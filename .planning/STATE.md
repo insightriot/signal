@@ -2,27 +2,43 @@
 schema_version: 1
 docs_layout_version: 3
 phase: SHIP
-current_epic: M6.E13
+current_epic: M6.E14
 current_wave: null
 current_tasks: []
 completed_phases:
-  - DISCUSS (2026-10-04)
-  - PLAN (2026-10-04)
-  - EXECUTE (2026-10-04)
-  - VERIFY (2026-10-04)
-  - REVIEW (2026-10-04)
-  - SHIP (2026-10-04)
+  - DISCUSS (2026-10-07)
+  - PLAN (2026-10-07)
+  - EXECUTE (2026-10-07)
+  - VERIFY (2026-10-07)
+  - REVIEW (2026-10-08)
+  - SHIP (2026-10-08)
 blockers: []
-last_completed_task: null
-last_decision_at: 2026-09-29T14:06:07.617Z
-last_updated_commit: 1a714e07e5403a69bec834f3fa0e2f60e19c18bd
-last_updated: 2026-10-04T22:28:02.658Z
+last_completed_task:
+  id: r3.fix
+  status: done
+  commit: 74d6bfb
+  completedAt: 2026-10-08T00:10:16.683Z
+last_decision_at: 2026-10-08T00:10:16.683Z
+last_updated_commit: 4d176ca
+last_updated: 2026-10-08T01:04:19.124Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-10-04)
+### ▶ WHERE THE WORK IS — read this first (2026-10-07)
+
+**`M6.E14` — *"harden the work store"* — at SHIP: PR #292 open, waiting for Brett's merge.**
+`/sig:advise` priority 1 (picked 2026-10-06). Eight work-store defects fixed (`SIG-251`, `-252`,
+`-276` … `-280`) before priority 2 — moving other projects onto the store — which depends on it.
+The first `/sig:drive` run to start at DISCUSS (`SIG-163`'s missing proof): one floor halt (PLAN
+inbox), then DISCUSS → REVIEW without a stop, halting at SHIP's floors. VERIFY and REVIEW each failed
+once on fresh-context readers and looped; a fix's own reader found the Epic's worst defect (`bba6f44`).
+Tests 5362 → 5425. Retro: [`M6.E14-RETROSPECTIVE.md`](M6.E14-RETROSPECTIVE.md). Decisions
+`D-M6E14-1` … `D-M6E14-10`. The seven bugs read *closing* (proof `adcd45e`) until the merge; the next
+SHIP or `/sig:docs-sweep` confirms them. **After the merge:** a release PR, then priority 2.
+
+### Previously (2026-10-04)
 
 **`M6.E13` — *"work items as records"* — SHIPPED in `v0.1.48` (2026-10-05; PR #280, release PR #281).**
 Epic 1 of the storage re-architecture is done.
