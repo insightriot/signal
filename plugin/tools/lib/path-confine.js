@@ -52,9 +52,13 @@ export function assertRealInsidePlanning(baseDir, destAbs, label) {
     );
   }
   // A linked `.planning/` may point inside the project (SIG-279), but not at
-  // the project folder itself or into `.git/` (M6.E14 REVIEW).
-  const gitDir = resolve(realBase, '.git');
-  if (realRoot === realBase || realRoot === gitDir || realRoot.startsWith(gitDir + sep)) {
+  // the project folder itself or into `.git/` (M6.E14 REVIEW). Compared without
+  // case: on a case-insensitive disk `.GIT` IS `.git`, and realpath keeps the
+  // case the link spelled (PR #292 review). Refusing a separate `.GIT` folder on
+  // a case-sensitive disk costs nothing.
+  const lc = (p) => p.toLowerCase();
+  const gitDir = lc(resolve(realBase, '.git'));
+  if (lc(realRoot) === lc(realBase) || lc(realRoot) === gitDir || lc(realRoot).startsWith(gitDir + sep)) {
     throw new Error(
       `${label}: ${PLANNING_DIR}/ resolves to ${realRoot === realBase ? 'the project folder itself' : 'inside .git/'} `
         + `(real ${realRoot}) — refusing a symlinked planning root.`

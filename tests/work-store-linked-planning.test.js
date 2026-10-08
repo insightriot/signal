@@ -121,3 +121,18 @@ describe('a .planning linked to the project folder itself or into .git (M6.E14 R
     expect(after).toEqual(before);
   });
 });
+
+// PR #292 review: the two refusals compared paths case-sensitively, so on a
+// case-insensitive disk (macOS default) `.planning -> .GIT` resolved into the
+// real `.git/` and was accepted. Portable: where the disk is case-sensitive,
+// `.GIT` is created as its own folder, and refusing it costs nothing.
+describe('the .git and project-folder refusals ignore case (PR #292 review)', () => {
+  it('refuses .planning linked to .GIT', async () => {
+    await mkdir(join(base, '.git'), { recursive: true });
+    if (!existsSync(join(base, '.GIT'))) await mkdir(join(base, '.GIT'));
+    await rm(join(base, '.planning'));
+    await symlink('.GIT', join(base, '.planning'));
+    const { confineView } = await import('../plugin/tools/lib/work-views.js');
+    expect(() => confineView(base, '.planning/BUGS.md')).toThrow(/inside \.git/);
+  });
+});
