@@ -216,9 +216,15 @@ describe('closeEpicCheck — a hex-named ref is not a commit on the shipping bra
 describe('a short proof that matches a commit and a tag object (REVIEW pass 2)', () => {
   const C = 'abcdef1' + '1'.repeat(33);
   const T = 'abcdef1' + '2'.repeat(33);
-  const fakeGit = (types) => (cmd, args) => {
+  // `peels`: the ids whose `<id>^{commit}` resolves (a commit, or a tag leading to one).
+  const fakeGit = (types, peels = [C, T]) => (cmd, args) => {
     if (args[0] === 'rev-parse' && args[1].startsWith('--disambiguate=')) return `${C}\n${T}\n`;
     if (args[0] === 'cat-file') return `${types[args.at(-1)]}\n`;
+    if (args[0] === 'rev-parse' && args.at(-1).endsWith('^{commit}')) {
+      const id = args.at(-1).slice(0, -'^{commit}'.length);
+      if (peels.includes(id)) return `${id}\n`;
+      throw new Error('not a commit');
+    }
     throw new Error(`unexpected git ${args.join(' ')}`);
   };
 
@@ -227,6 +233,13 @@ describe('a short proof that matches a commit and a tag object (REVIEW pass 2)',
     await expect(records.requestClose(root, 'SIG-1', { proof: 'abcdef1', by }, { execFn: fakeGit({ [C]: 'commit', [T]: 'tag' }) }))
       .rejects.toMatchObject({ code: 'SCHEMA', message: expect.stringMatching(/start of 2 /) });
     expect(records.getRecord(root, 'SIG-1').status).toBe('T');
+  });
+
+  it('a commit plus a tag that points at a blob is not ambiguous — git resolves the commit (REVIEW pass 3)', async () => {
+    await v2Store(root, [rec('SIG-1', [created, triaged])]);
+    const ok = await records.requestClose(root, 'SIG-1', { proof: 'abcdef1', by },
+      { execFn: fakeGit({ [C]: 'commit', [T]: 'tag' }, [C]), regenerate: async () => {} });
+    expect(ok.status).toBe('closing');
   });
 
   it('a commit plus a tree or blob sharing the prefix is not ambiguous', async () => {

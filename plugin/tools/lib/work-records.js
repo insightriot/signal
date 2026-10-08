@@ -1439,9 +1439,10 @@ function defaultBranchRef(baseDir, execFn) {
   return { ref };
 }
 
-// How many commit-like objects `prefix` abbreviates — commits and tag objects,
-// which is what git counts when it resolves `<prefix>^{commit}`: one of each
-// sharing the prefix makes git call it ambiguous. 0 when git cannot say.
+// How many commit-like objects `prefix` abbreviates — commits, and tag objects
+// that lead to a commit, which is what git counts when it resolves
+// `<prefix>^{commit}`: two sharing the prefix make git call it ambiguous.
+// 0 when git cannot say.
 function commitsStartingWith(baseDir, prefix, execFn) {
   let objects;
   try {
@@ -1457,7 +1458,13 @@ function commitsStartingWith(baseDir, prefix, execFn) {
   for (const o of new Set(objects)) {
     try {
       const type = runGit(baseDir, ['cat-file', '-t', '--end-of-options', o], execFn).trim();
-      if (type === 'commit' || type === 'tag') n += 1;
+      // A tag counts only when it leads to a commit: git ignores one that
+      // points at a blob or a tree when it resolves `<prefix>^{commit}` (REVIEW pass 3).
+      if (type === 'commit') n += 1;
+      else if (type === 'tag') {
+        runGit(baseDir, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${o}^{commit}`], execFn);
+        n += 1;
+      }
     } catch {
       // not inspectable: not counted
     }
