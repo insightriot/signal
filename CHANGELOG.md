@@ -13,6 +13,10 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 Eight work-store defects fixed, each with a test that fails without its fix. Run end to end by
 `/sig:drive` from DISCUSS — the first such run. 5362 → 5425 tests.
 
+Still only Signal's own repository uses the work store. Other projects will move onto it through
+`/sig:docs-migrate`, which is not built yet — that is the next priority, and this Epic is its
+precondition.
+
 #### Fixed
 - **A `.planning/` folder that is a link to a folder inside the project now works** (`SIG-279`).
   Every item change used to refuse, because the views were never written through a link. A link
