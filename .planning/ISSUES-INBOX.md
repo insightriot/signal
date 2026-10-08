@@ -37,3 +37,11 @@ Found 2026-10-07 at M6.E14 REVIEW. .github/workflows/test.yml runs the test suit
 Found 2026-10-06 (evening, US Eastern). plugin/tools/lib/advise-record.js:74 stamps the pick with new Date().toISOString().slice(0, 10), which is the UTC date. The advisory .planning/BACKLOG-REVIEW-2026-10-06.md is named with the local date and its "Picked by you" line reads "picked on 2026-10-07". Fix: use the same local-date source as the advisory's filename.
 
 ---
+
+## SHIP's reviewer-effort check reads only the latest run, so a re-push after a real review reads as 'did NOT review'
+
+**Status:** untriaged (N) · SIG-285
+
+Found 2026-10-07 at M6.E14 SHIP on PR #292. readReviewerEffort (plugin/tools/lib/pr-review-findings.js, added in #284) reads the claude-review run on the PR head commit only. On #292 the first two runs reviewed in full (12 turns / $1.96 on adcd45e; 9 turns / $1.41 on a6e0175) and posted a finding; the run on the next push (b486691) stopped after 2 turns / $0.10, because the upstream review command stops once Claude has already commented on the PR. SHIP printed "PR reviewer ran but did NOT review" — a false alarm. Fix: when the head run is short, look at the earlier completed runs for the same PR and report "reviewed at <sha> (N turns, $X); later pushes not re-reviewed", which is itself worth saying, since the later commits were not reviewed.
+
+---
