@@ -77,10 +77,15 @@ checks them, you pick, the pick is recorded, and it offers to start; age is no l
 `/sig:drive`'s pick step uses the same flow. ⚠ **Three fresh-context review passes, each finding new
 routes for hostile repositories and branches**; stopped at the loop ceiling with a bounded fix, residue
 in `SIG-257`. Retro: [`.planning/M6.E12-RETROSPECTIVE.md`](.planning/M6.E12-RETROSPECTIVE.md).
-**Latest: `v0.1.48` (2026-10-05) — `M6.E13` shipped:** work items are JSON records that never move, and
-their status comes from recorded events. One library writes them, and a hook blocks hand edits.
-Signal's own store has been cut over. `/sig:drive` ran it from PLAN through SHIP; a run starting at DISCUSS still has not happened.
-Retro: [`.planning/M6.E13-RETROSPECTIVE.md`](.planning/M6.E13-RETROSPECTIVE.md).
+**Previous: `v0.1.48` (2026-10-05) — `M6.E13` shipped:** work items are JSON records that never move,
+status from recorded events, one write library, a hook blocking hand edits. Retro:
+[`.planning/M6.E13-RETROSPECTIVE.md`](.planning/M6.E13-RETROSPECTIVE.md).
+**Latest: `v0.1.49` (2026-10-07) — `M6.E14` shipped: the work store, hardened** before other projects
+use it — eight defects (linked `.planning`, write-then-stale-views, twin records, ambiguous proofs, lock
+races). **The first `/sig:drive` run from DISCUSS** (one floor halt, then through to SHIP). ⚠ A fix's
+own fresh reader found the Epic's worst defect, again. Retro:
+[`.planning/M6.E14-RETROSPECTIVE.md`](.planning/M6.E14-RETROSPECTIVE.md). **Next:** other projects onto
+the store (`/sig:docs-migrate`).
 
 ✅ **`B117` — the Epic lane kept getting squashed. CLOSED 2026-09-08 by the ruleset** (see *How changes reach `main`* below: `main` now permits `merge` only, so the sticky button cannot arm anything). The history is kept because the *cause* is the lesson. PR #239 was
 merged with the green button and collapsed 35 commits into one, orphaning two published anchors and
@@ -97,12 +102,10 @@ only if someone pushes the branch back. **That half is NOT fixed by the ruleset*
 `*-REQUIREMENTS.md` artifacts here, so `missing: []` can read clean over a requirement it never
 counted. Found by *using* it during `M6.E7` VERIFY.
 
-⚠ **`/sig:drive` is half-proven, and the remaining half is the gate on further loop work.** It drove
-`M6.E6` from **VERIFY through SHIP** on 2026-09-04: one unattended advance, one halt at SHIP with
-`reason: floor`, and **no `loop-unknown` halt** — so `B113` is empirically fixed, not merely fixed
-against the module. What has never happened is a run starting at **DISCUSS**. Filed in
-[`.planning/BACKLOG.md`](.planning/BACKLOG.md). *(This paragraph read "has never been run end-to-end"
-for four days after that run; corrected 2026-09-08.)*
+✅ **`/sig:drive` is proven end to end.** It drove `M6.E6` from VERIFY through SHIP (2026-09-04), and
+**`M6.E14` from DISCUSS through SHIP (2026-10-07)** at `checkpointed`: one floor halt (PLAN's inbox),
+every phase advanced, VERIFY and REVIEW each looped once, a halt at SHIP's floors, no `loop-unknown`.
+That was `SIG-163`. Rough edges it found are filed (`SIG-282`).
 
 ⚠ **And the reason it did not feel like a loop was a dial nobody turned.** This project's
 `PROFILE.md` had no `attention`, so it derived `attended` from `gate_strictness: strict` and

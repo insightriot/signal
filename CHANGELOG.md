@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.49] — 2026-10-07 — the work store, hardened
 
 ### M6.E14 — the work store, hardened before other projects use it
 

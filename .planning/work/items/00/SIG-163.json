@@ -15,6 +15,20 @@
       "type": "triaged",
       "at": "2026-09-29",
       "by": "migration (v2)"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-08T03:01:07.070Z",
+      "by": "claude (v0.1.49 release)",
+      "reason": "fixed",
+      "proof": "c41b3bd"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-08T03:01:07.112Z",
+      "by": "confirmCloses",
+      "reason": "fixed",
+      "proof": "c41b3bd"
     }
   ]
 }

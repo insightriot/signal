@@ -3,13 +3,13 @@
 
 ## M6.E14 — no Epic folder
 
-- SIG-251 · BUG · closing — file-lock held-error understates the wait for a live holder (10x ttl)
-- SIG-252 · BUG · closing — file-lock: a failed stat treats a fresh empty lock as stale
-- SIG-276 · BUG · closing — A short proof hash shared by two commits can confirm when a branch of that name points at one of them
-- SIG-277 · BUG · closing — Concurrent promotes of one inbox block can write twin records (dedupe runs outside the work lock)
-- SIG-278 · BUG · closing — Backlog discharge reports discharged when one readable row matches and a broken record might also match
-- SIG-279 · BUG · closing — A project whose .planning/ is a symbolic link (even to a folder inside the repo) cannot regenerate its work views
-- SIG-280 · BUG · closing — M6.E13 REVIEW residue: broken-record remedy wording, probe message, double sweep report, weak two-process assertion
+- SIG-251 · BUG · C — file-lock held-error understates the wait for a live holder (10x ttl)
+- SIG-252 · BUG · C — file-lock: a failed stat treats a fresh empty lock as stale
+- SIG-276 · BUG · C — A short proof hash shared by two commits can confirm when a branch of that name points at one of them
+- SIG-277 · BUG · C — Concurrent promotes of one inbox block can write twin records (dedupe runs outside the work lock)
+- SIG-278 · BUG · C — Backlog discharge reports discharged when one readable row matches and a broken record might also match
+- SIG-279 · BUG · C — A project whose .planning/ is a symbolic link (even to a folder inside the repo) cannot regenerate its work views
+- SIG-280 · BUG · C — M6.E13 REVIEW residue: broken-record remedy wording, probe message, double sweep report, weak two-process assertion
 
 ## M6.E11 — closed 2026-09-30 · PR #263 · v0.1.43 · by claude
 

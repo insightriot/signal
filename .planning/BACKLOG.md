@@ -567,9 +567,9 @@ dead end only while it prevents a tempting mistake, otherwise delete it. Signal 
 which is precisely why reading dead ends forward
 ([`../analysis/LOOP-GOAL-DIRECTION.md`](../analysis/LOOP-GOAL-DIRECTION.md) §4) is a budget problem.
 
-### Drive `/sig:drive` end-to-end through a real Epic · **verification** · small · **filed 2026-09-01** · SIG-163
+### Drive `/sig:drive` end-to-end through a real Epic · **verification** · small · **filed 2026-09-01** · SIG-163 · closed (fixed)
 
-**Status:** triaged (T)
+**Status:** closed 2026-10-08 (fixed)
 
 *Plain: the command that runs the whole workflow has never been watched doing a full run.*
 
