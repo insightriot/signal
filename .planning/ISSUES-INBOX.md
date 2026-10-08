@@ -30,7 +30,7 @@ Found 2026-10-07 at M6.E14 REVIEW. .github/workflows/test.yml runs the test suit
 
 ---
 
-## /sig:advise records the pick with the UTC date, not the local one
+## /sig:advise and tools/cut-release.js stamp dates with the UTC date, not the local one
 
 **Status:** untriaged (N) · SIG-284
 

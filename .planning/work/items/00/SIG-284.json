@@ -1,13 +1,24 @@
 {
   "id": "SIG-284",
   "type": "NEW",
-  "title": "/sig:advise records the pick with the UTC date, not the local one",
+  "title": "/sig:advise and tools/cut-release.js stamp dates with the UTC date, not the local one",
   "source": "/sig:advise",
   "events": [
     {
       "type": "created",
       "at": "2026-10-08T00:07:13.313Z",
       "by": "claude"
+    },
+    {
+      "type": "edited",
+      "at": "2026-10-08T02:56:55.338Z",
+      "by": "claude",
+      "changes": {
+        "title": {
+          "from": "/sig:advise records the pick with the UTC date, not the local one",
+          "to": "/sig:advise and tools/cut-release.js stamp dates with the UTC date, not the local one"
+        }
+      }
     }
   ]
 }
