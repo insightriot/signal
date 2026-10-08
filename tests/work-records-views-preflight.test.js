@@ -124,3 +124,29 @@ describe('a failure after the write still says the record was written (AC4.2)', 
     expect(snapshotTree(join(base, '.planning/work/items'))).toEqual(before);
   });
 });
+
+describe('message wording (REVIEW pass 2)', () => {
+  it('viewsNotRegenerated rewrites only its own phrasings — a path containing "re-run" survives', async () => {
+    const { viewsNotRegenerated } = await import('../plugin/tools/lib/work-views.js');
+    const err = viewsNotRegenerated('SIG-3 was written', new WorkStoreError('IO', "nothing was written — open '/x/.planning/work/re-run.md'"));
+    expect(err.message).toContain("'/x/.planning/work/re-run.md'.");
+    expect(err.message).not.toMatch(/nothing was written/);
+  });
+
+  it('a hand-kept view after the write: no "make the change with /sig:item" next to "do not repeat"', async () => {
+    const { viewsNotRegenerated } = await import('../plugin/tools/lib/work-views.js');
+    const inner = new WorkStoreError('CONFIG', '.planning/BUGS.md is hand-kept, so nothing was written. If it was edited by hand, restore '
+      + 'it from git (`git checkout -- <file>`) and make the change with /sig:item.');
+    const msg = viewsNotRegenerated('SIG-3 was written', inner).message;
+    expect(msg).not.toMatch(/make the change with/);
+    expect(msg).toMatch(/so no view was written/);
+  });
+
+  it('a refused write says "nothing was written" once', async () => {
+    await put('elsewhere.md', 'x\n');
+    await rm(join(base, '.planning/BUGS.md'), { force: true });
+    await symlink(join('..', 'elsewhere.md'), join(base, '.planning/BUGS.md'));
+    const err = await records.newItem(base, { title: 'x', by, at: AT }, { execFn: noGit }).catch((e) => e);
+    expect(err.message.match(/nothing was written/g)).toHaveLength(1);
+  });
+});

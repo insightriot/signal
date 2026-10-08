@@ -208,3 +208,30 @@ describe('closeEpicCheck — a hex-named ref is not a commit on the shipping bra
     expect(records.closeEpicCheck(work, 'M6.E13')).toMatchObject({ closingOnBranch: ['SIG-1'] });
   });
 });
+
+// M6.E14 REVIEW pass 2: git calls a short id ambiguous when it matches a
+// commit AND a tag object (`<p>^{commit}` fails). Counting only `commit`
+// objects let such a proof through at request time, and it then could never
+// confirm (`unknown-commit`). Commit and tag objects both count, as git's do.
+describe('a short proof that matches a commit and a tag object (REVIEW pass 2)', () => {
+  const C = 'abcdef1' + '1'.repeat(33);
+  const T = 'abcdef1' + '2'.repeat(33);
+  const fakeGit = (types) => (cmd, args) => {
+    if (args[0] === 'rev-parse' && args[1].startsWith('--disambiguate=')) return `${C}\n${T}\n`;
+    if (args[0] === 'cat-file') return `${types[args.at(-1)]}\n`;
+    throw new Error(`unexpected git ${args.join(' ')}`);
+  };
+
+  it('is refused at request time, naming two objects', async () => {
+    await v2Store(root, [rec('SIG-1', [created, triaged])]);
+    await expect(records.requestClose(root, 'SIG-1', { proof: 'abcdef1', by }, { execFn: fakeGit({ [C]: 'commit', [T]: 'tag' }) }))
+      .rejects.toMatchObject({ code: 'SCHEMA', message: expect.stringMatching(/start of 2 /) });
+    expect(records.getRecord(root, 'SIG-1').status).toBe('T');
+  });
+
+  it('a commit plus a tree or blob sharing the prefix is not ambiguous', async () => {
+    await v2Store(root, [rec('SIG-1', [created, triaged])]);
+    const ok = await records.requestClose(root, 'SIG-1', { proof: 'abcdef1', by }, { execFn: fakeGit({ [C]: 'commit', [T]: 'blob' }), regenerate: async () => {} });
+    expect(ok.status).toBe('closing');
+  });
+});

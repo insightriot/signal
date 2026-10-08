@@ -52,8 +52,8 @@ try {
   let t0 = performance.now();
   await newItem(base, { title: 'with the check', by, at: AT }, { execFn: noGit });
   const withCheck = ms(t0);
-  // `_skipViewsCheck` (a test-only seam) skips the pre-write check, so this is
-  // the same write without it.
+  // `_skipViewsCheck` — a seam for tests and for this measurement, never for
+  // a real caller — skips the pre-write check, so this is the same write without it.
   t0 = performance.now();
   await newItem(base, { title: 'without the check', by, at: AT }, { execFn: noGit, _skipViewsCheck: true });
   const without = ms(t0);

@@ -650,7 +650,8 @@ async function withWorkLockV2(baseDir, label, opts, fn) {
 
 // Before any record is written (SIG-280 (6), M6.E14): if the views would
 // refuse to regenerate, refuse the write, so a record never lands that the
-// views do not show. `_skipViewsCheck` is a test-only seam (M6.E14 REVIEW):
+// views do not show. `_skipViewsCheck` is a seam for tests and
+// `tools/measure-views-preflight.mjs`, never for a real caller (M6.E14 REVIEW):
 // injecting `regenerate` no longer turns the check off.
 function viewsWritableOrRefuse(baseDir, opts = {}) {
   if (opts._skipViewsCheck === true) return;
@@ -1088,7 +1089,7 @@ function assertUnambiguousProof(baseDir, id, proof, opts = {}) {
   if (proof.length >= 40) return;
   const n = commitsStartingWith(baseDir, proof, opts.execFn ?? execFileSync);
   if (n > 1) {
-    throw new WorkStoreError('SCHEMA', `${id}: the proof ${proof} is the start of ${n} commits, so it names none of them — `
+    throw new WorkStoreError('SCHEMA', `${id}: the proof ${proof} is the start of ${n} commits or tags, so it names none of them — `
       + 'use a longer hash (git rev-parse <commit>). Nothing was written.');
   }
 }
@@ -1438,9 +1439,9 @@ function defaultBranchRef(baseDir, execFn) {
   return { ref };
 }
 
-// How many distinct commits `prefix` abbreviates: every object git lists for
-// it, peeled to a commit (a tag object peels to the commit it names, so a tag
-// and its commit count once). 0 when git cannot say.
+// How many commit-like objects `prefix` abbreviates — commits and tag objects,
+// which is what git counts when it resolves `<prefix>^{commit}`: one of each
+// sharing the prefix makes git call it ambiguous. 0 when git cannot say.
 function commitsStartingWith(baseDir, prefix, execFn) {
   let objects;
   try {
@@ -1448,14 +1449,15 @@ function commitsStartingWith(baseDir, prefix, execFn) {
   } catch {
     return 0;
   }
-  // Only commit objects whose own id starts with the prefix: a tag object with
-  // the prefix that points at some other commit is not "a commit the proof is
-  // the start of" (M6.E14 REVIEW). Two are enough to answer.
+  // Each listed object once, counted when it is a commit or a tag (M6.E14
+  // REVIEW pass 2: counting commits only accepted a proof git itself calls
+  // ambiguous, which then could never confirm). Trees and blobs are not counted.
+  // Two are enough to answer.
   let n = 0;
-  for (const o of objects) {
-    if (!o.toLowerCase().startsWith(prefix.toLowerCase())) continue;
+  for (const o of new Set(objects)) {
     try {
-      if (runGit(baseDir, ['cat-file', '-t', '--end-of-options', o], execFn).trim() === 'commit') n += 1;
+      const type = runGit(baseDir, ['cat-file', '-t', '--end-of-options', o], execFn).trim();
+      if (type === 'commit' || type === 'tag') n += 1;
     } catch {
       // not inspectable: not counted
     }

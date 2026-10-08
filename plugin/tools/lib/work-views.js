@@ -471,6 +471,9 @@ export function checkViewsWritable(baseDir) {
   prepareViews(baseDir);
 }
 
+// A message ends in a full stop before the next sentence is appended to it.
+const endSentence = (text) => (/[.!?)]$/.test(text.trim()) ? text.trim() : `${text.trim()}.`);
+
 // The git remedy for a broken record, shared by every refusal that names one.
 const BROKEN_REMEDY = ' A broken record is restored with git: `git checkout -- <path>` when HEAD holds a good copy, or '
   + '`git checkout --ours <path>` / `--theirs <path>` for a merge conflict.';
@@ -490,7 +493,9 @@ export function assertViewsWritable(baseDir, { verb = 'written' } = {}) {
     checkViewsWritable(baseDir);
   } catch (err) {
     const code = err instanceof WorkStoreError ? err.code : 'IO';
-    const inner = String(err?.message ?? err).replace(/^nothing was written — /, '');
+    const inner = endSentence(String(err?.message ?? err)
+      .replace(/^nothing was written — /, '')
+      .replace(/,? so nothing was written\b/g, ''));
     const remedy = Array.isArray(err?.broken) && err.broken.length > 0 ? BROKEN_REMEDY : '';
     const wrapped = new WorkStoreError(code, `nothing was ${verb} — the views cannot be regenerated as things stand: ${inner}${remedy}`);
     wrapped.cause = err;
@@ -511,12 +516,13 @@ export function assertViewsWritable(baseDir, { verb = 'written' } = {}) {
  */
 export function viewsNotRegenerated(done, err) {
   const code = err instanceof WorkStoreError ? err.code : 'IO';
-  const inner = String(err?.message ?? err)
+  // Only this module's own phrasings are rewritten — never a bare word, which
+  // could sit inside a path or a quoted value (REVIEW pass 2).
+  const inner = endSentence(String(err?.message ?? err)
     .replace(/^nothing was written — /, '')
     .replace(/\bso nothing was written\b/g, 'so no view was written')
-    .replace(/\bnothing was written\b/g, 'no view was written')
     .replace(/,? then re-run\.?/g, '.')
-    .replace(/\bre-run\b/g, 'retry');
+    .replace(/ and make the change with \/sig:item\./g, '.'));
   const remedy = Array.isArray(err?.broken) && err.broken.length > 0 ? BROKEN_REMEDY : '';
   const wrapped = new WorkStoreError(code, `${done}, and that change stands — but the views were not regenerated: ${inner}${remedy} `
     + 'Fix what this names, then make any item change and the views are regenerated with it. '
