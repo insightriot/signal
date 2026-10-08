@@ -1,0 +1,34 @@
+{
+  "id": "SIG-286",
+  "type": "BUG",
+  "title": "/sig:docs-migrate dry run lists a unit's files to move while also saying it \"could not evaluate\" that unit",
+  "theme": "archive",
+  "priority": "P3",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-08T15:41:43.454Z",
+      "by": "claude (corpus layout-v3 migration, 2026-10-08)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-08T15:41:43.538Z",
+      "by": "claude (corpus layout-v3 migration, 2026-10-08)",
+      "changes": {
+        "type": {
+          "from": "NEW",
+          "to": "BUG"
+        },
+        "theme": {
+          "from": null,
+          "to": "archive"
+        },
+        "priority": {
+          "from": null,
+          "to": "P3"
+        }
+      }
+    }
+  ]
+}
