@@ -1,7 +1,7 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: REVIEW
+phase: SHIP
 current_epic: M6.E14
 current_wave: null
 current_tasks: []
@@ -10,6 +10,8 @@ completed_phases:
   - PLAN (2026-10-07)
   - EXECUTE (2026-10-07)
   - VERIFY (2026-10-07)
+  - REVIEW (2026-10-08)
+  - SHIP (2026-10-08)
 blockers: []
 last_completed_task:
   id: r3.fix
@@ -17,14 +19,26 @@ last_completed_task:
   commit: 74d6bfb
   completedAt: 2026-10-08T00:10:16.683Z
 last_decision_at: 2026-10-08T00:10:16.683Z
-last_updated_commit: 74d6bfb
-last_updated: 2026-10-08T00:10:16.684Z
+last_updated_commit: 33c7ab199353f864191f00b1352f2d575830fb4e
+last_updated: 2026-10-08T01:00:24.791Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-10-04)
+### ▶ WHERE THE WORK IS — read this first (2026-10-07)
+
+**`M6.E14` — *"harden the work store"* — at SHIP: PR #292 open, waiting for Brett's merge.**
+`/sig:advise` priority 1 (picked 2026-10-06). Eight work-store defects fixed (`SIG-251`, `-252`,
+`-276` … `-280`) before priority 2 — moving other projects onto the store — which depends on it.
+The first `/sig:drive` run to start at DISCUSS (`SIG-163`'s missing proof): one floor halt (PLAN
+inbox), then DISCUSS → REVIEW without a stop, halting at SHIP's floors. VERIFY and REVIEW each failed
+once on fresh-context readers and looped; a fix's own reader found the Epic's worst defect (`bba6f44`).
+Tests 5362 → 5425. Retro: [`M6.E14-RETROSPECTIVE.md`](M6.E14-RETROSPECTIVE.md). Decisions
+`D-M6E14-1` … `D-M6E14-10`. The seven bugs read *closing* (proof `adcd45e`) until the merge; the next
+SHIP or `/sig:docs-sweep` confirms them. **After the merge:** a release PR, then priority 2.
+
+### Previously (2026-10-04)
 
 **`M6.E13` — *"work items as records"* — SHIPPED in `v0.1.48` (2026-10-05; PR #280, release PR #281).**
 Epic 1 of the storage re-architecture is done.

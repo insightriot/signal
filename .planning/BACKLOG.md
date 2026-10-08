@@ -2373,9 +2373,9 @@ Found 2026-10-04 at M6.E13 t6.2. The only path that turns a store on is node too
 
 Update 2026-10-04 (M6.E13 t8.1): the v1 enable script tools/work-migrate.mjs was retired in M6.E13 t7.4, so no path turns a store on at all now — that is the gap.
 
-### PR reviewer still does not review after #283 (5 turns, $0.16 on #284) · SIG-281 · closing
+### PR reviewer still does not review after #283 (5 turns, $0.16 on #284) · SIG-281 · closed (fixed)
 
-**Status:** closing — a fixed close waiting for its commit on the default branch
+**Status:** closed 2026-10-08 (fixed)
 
 The claude-review check is still not reviewing after #283 widened its allowed tools.
 

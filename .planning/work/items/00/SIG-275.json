@@ -35,6 +35,13 @@
       "by": "claude (M6.E14 PLAN triage, confirmed by Brett)",
       "reason": "fixed",
       "proof": "83c170c"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-08T01:00:53.991Z",
+      "by": "confirmCloses",
+      "reason": "fixed",
+      "proof": "83c170c"
     }
   ]
 }

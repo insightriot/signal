@@ -167,6 +167,7 @@
 - [M6.E14-PROGRESS.md](M6.E14-PROGRESS.md) — `other` — _(note pending)_
 - [M6.E14-REQUIREMENTS.md](M6.E14-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E14-RESEARCH.md](M6.E14-RESEARCH.md) — `other` — _(note pending)_
+- [M6.E14-REVIEW.md](M6.E14-REVIEW.md) — `other` — _(note pending)_
 - [M6.E14-VALIDATION.md](M6.E14-VALIDATION.md) — `other` — _(note pending)_
 - [M6.E14-VERIFICATION.md](M6.E14-VERIFICATION.md) — `other` — _(note pending)_
 - [M6.E2-CORPUS-MEASUREMENT.md](M6.E2-CORPUS-MEASUREMENT.md) — `other` — _(note pending)_
@@ -446,6 +447,8 @@
 - [work/items/00/SIG-280.md](work/items/00/SIG-280.md) — `other` — _(note pending)_
 - [work/items/00/SIG-281.md](work/items/00/SIG-281.md) — `other` — _(note pending)_
 - [work/items/00/SIG-282.md](work/items/00/SIG-282.md) — `other` — _(note pending)_
+- [work/items/00/SIG-283.md](work/items/00/SIG-283.md) — `other` — _(note pending)_
+- [work/items/00/SIG-284.md](work/items/00/SIG-284.md) — `other` — _(note pending)_
 - [work/items/00/SIG-29.md](work/items/00/SIG-29.md) — `other` — _(note pending)_
 - [work/items/00/SIG-3.md](work/items/00/SIG-3.md) — `other` — _(note pending)_
 - [work/items/00/SIG-30.md](work/items/00/SIG-30.md) — `other` — _(note pending)_
@@ -559,6 +562,7 @@
 - [M6.E11-RETROSPECTIVE.md](M6.E11-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E12-RETROSPECTIVE.md](M6.E12-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E13-RETROSPECTIVE.md](M6.E13-RETROSPECTIVE.md) — `other` — _(note pending)_
+- [M6.E14-RETROSPECTIVE.md](M6.E14-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E2-RETROSPECTIVE.md](M6.E2-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E3-RETROSPECTIVE.md](M6.E3-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E4-RETROSPECTIVE.md](M6.E4-RETROSPECTIVE.md) — `other` — _(note pending)_
@@ -1017,3 +1021,4 @@
 - [M6.E11](M6.E11-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E12](M6.E12-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E13](M6.E13-RETROSPECTIVE.md) — _(note pending)_
+- [M6.E14](M6.E14-RETROSPECTIVE.md) — _(note pending)_
