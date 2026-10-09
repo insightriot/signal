@@ -65,15 +65,31 @@ export const verifyFaithful = verifyCardCoverage;
  * (consumed by the S1.t7 safety harness). Fail-open: non-array / unknown input
  * degrades to a dry-run (the safe default), never throws.
  *
+ * `--work-store` chooses the store migration (`work-migrate-lists.js`, M6.E15)
+ * and `--key VALUE` its project key. Each is in the result only when given, so
+ * a run without them parses exactly as before. A `--key` followed by nothing,
+ * or by another flag, sets no key.
+ *
  * @param {string[]} argv
- * @returns {{apply: boolean, force: boolean}}
+ * @returns {{apply: boolean, force: boolean, workStore?: true, key?: string}}
  */
 export function parseMigrateArgs(argv = []) {
   const args = Array.isArray(argv) ? argv : [];
-  return {
-    apply: args.includes('--apply'),
-    force: args.includes('--force'),
-  };
+  const parsed = { apply: false, force: false };
+  for (let i = 0; i < args.length; i++) {
+    const token = args[i];
+    if (token === '--apply') parsed.apply = true;
+    else if (token === '--force') parsed.force = true;
+    else if (token === '--work-store') parsed.workStore = true;
+    else if (token === '--key') {
+      const next = args[i + 1];
+      if (typeof next === 'string' && !next.startsWith('--')) {
+        parsed.key = next;
+        i++; // consume VALUE
+      }
+    }
+  }
+  return parsed;
 }
 
 // --- docs_layout_version stamp (FR7.1) — raw-line splice, never a serializer ---
