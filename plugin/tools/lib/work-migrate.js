@@ -146,6 +146,9 @@ const BUG_ROW_RE = /^\|\s*B(\d+)\s*\|([^|]*)\|([^|]*)\|/;
 const H2_RE = /^## /;
 const TALLY_RE = /^\*\s*\d+\s+needs-triage\b/;
 const ENTRY_STATUS_RE = /^\*\*Status:\*\*\s*(.*)$/;
+// A markdown table separator row (`|---|---|`), and any row's first three cells.
+const TABLE_SEP_RE = /^\|(?:\s*:?-{3,}:?\s*\|)+\s*$/;
+const ANY_ROW_RE = /^\|([^|]*)\|([^|]*)\|([^|]*)\|/;
 
 // Where does a summary cell's text begin? Right after the fourth `|` of the
 // first line — i.e. after the id, status and priority cells.
@@ -238,14 +241,77 @@ export function segmentBugs(text) {
     });
   }
 
-  // Every `## ` heading must be an entry: a heading with no status line is a
-  // shape this segmenter does not know, and it must not become orphan text
-  // without anyone noticing.
+  // Every `## ` heading is an entry. One with no **Status:** line (another
+  // project's shape, M6.E15 t2.2) is an open entry with `statusRaw: null`,
+  // ending where a status-line entry would; what that means is the planner's.
   lines.forEach((l, i) => {
-    if (!inFence[i] && H2_RE.test(l) && !rows.some((r) => r.kind === 'entry' && r.line === i + 1)) {
-      throw new WorkStoreError('SCHEMA', `BUGS.md:${i + 1}: \`## \` heading with no **Status:** line — not a bug entry this migration can read`);
-    }
+    const h = i + 1;
+    if (inFence[i] || !H2_RE.test(l) || rows.some((r) => r.kind === 'entry' && r.line === h)) return;
+    let end = h + 1;
+    while (end <= lines.length && !isBoundary(end) && !(lines[end - 1].trim() === '---' && !inFence[end - 1])) end++;
+    end = trimRowEnd(lines, h, end - 1);
+    rows.push({
+      source: 'BUGS.md',
+      kind: 'entry',
+      id: null,
+      n: null,
+      line: h,
+      endLine: end,
+      text: sliceLines(lines, h, end),
+      heading: l.replace(H2_RE, '').trim(),
+      statusRaw: null,
+      priority: null,
+      summary: null,
+    });
   });
+
+  // Table rows whose ID is not `B{n}`, or that have none (M6.E15 t2.2, AC7.1).
+  // Only in a table BODY (after a `|---|` separator, so a header is never an
+  // item) and only outside every row and entry above — a table quoted inside
+  // an entry's body is that entry's text. `walkBugEntries` is not changed: the
+  // tally, sweep and advise read B-rows through it.
+  const claimed = (ln) => rows.some((r) => ln >= r.line && ln <= r.endLine);
+  let inTable = false;
+  for (let ln = 1; ln <= lines.length; ln++) {
+    const l = lines[ln - 1];
+    if (inFence[ln - 1]) {
+      inTable = false;
+      continue;
+    }
+    if (TABLE_SEP_RE.test(l)) {
+      inTable = true;
+      continue;
+    }
+    if (claimed(ln)) continue;
+    if (!l.startsWith('|')) {
+      inTable = false;
+      continue;
+    }
+    if (!inTable) continue;
+    // A row that does not close on its first line continues to the first line
+    // that does, when one comes before a boundary; otherwise it is one line.
+    let end = ln;
+    while (end < lines.length && !lines[end - 1].trimEnd().endsWith('|') && !isBoundary(end + 1) && !claimed(end + 1)) end++;
+    if (!lines[end - 1].trimEnd().endsWith('|')) end = ln;
+    const rowText = sliceLines(lines, ln, end);
+    const m = l.match(ANY_ROW_RE);
+    const idCell = (m ? m[1] : rowText.split('|')[1] ?? '').replace(/[`*_]/g, '').trim();
+    const start = m ? m[0].length : 1;
+    const close = rowText.lastIndexOf('|');
+    rows.push({
+      source: 'BUGS.md',
+      kind: 'table',
+      id: /^[-—–]*$/.test(idCell) ? null : idCell,
+      n: null,
+      line: ln,
+      endLine: end,
+      text: rowText,
+      statusRaw: m ? m[2].trim() : null,
+      priority: m ? m[3].trim() : null,
+      summary: (close >= start ? rowText.slice(start, close) : rowText.slice(start)).trim(),
+    });
+    ln = end;
+  }
 
   rows.sort((a, b) => a.line - b.line);
   const { orphans, gaps } = tile(lines, rows, (core, ctx) => {

@@ -57,11 +57,11 @@ function assertPartition(text, seg) {
 describe('BUGS.md — table rows of any ID, and `##` entries with or without a status line', () => {
   const text = fixture('BUGS.md');
 
-  it.fails('does not throw (AC3.4)', () => {
+  it('does not throw (AC3.4)', () => {
     expect(() => segmentBugs(text)).not.toThrow();
   });
 
-  it.fails('every table row is an item: a B-number, a non-B ID, and no ID (AC7.1)', () => {
+  it('every table row is an item: a B-number, a non-B ID, and no ID (AC7.1)', () => {
     const rows = segmentBugs(text).rows.filter((r) => r.kind === 'table');
     expect(rows.map((r) => [r.line, r.id, r.n])).toEqual([
       [5, 'B1', 1],
@@ -73,7 +73,7 @@ describe('BUGS.md — table rows of any ID, and `##` entries with or without a s
     expect(rows[2].summary).toMatch(/^\*\*Shopping list export/);
   });
 
-  it.fails('every `##` is an entry, status text carried as written, null where there is none', () => {
+  it('every `##` is an entry, status text carried as written, null where there is none', () => {
     const entries = segmentBugs(text).rows.filter((r) => r.kind === 'entry');
     expect(entries.map((r) => [r.line, r.endLine])).toEqual([
       [9, 13],
@@ -92,12 +92,12 @@ describe('BUGS.md — table rows of any ID, and `##` entries with or without a s
     expect(entries[4].heading).toBe('Older clients overwrite a row written by a newer deploy');
   });
 
-  it.fails('the header and separator are the only non-item text (named preamble)', () => {
+  it('the header and separator are the only non-item text (named preamble)', () => {
     const seg = segmentBugs(text);
     expect(seg.orphans.map((o) => [o.name, o.line, o.endLine])).toEqual([['preamble', 1, 4]]);
   });
 
-  it.fails('rows + orphans + gaps tile the file byte for byte', () => {
+  it('rows + orphans + gaps tile the file byte for byte', () => {
     assertPartition(text, segmentBugs(text));
   });
 });
