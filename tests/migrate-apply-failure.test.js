@@ -51,6 +51,8 @@ describe('M5.E2 REVIEW — rollback wired around the mechanical phase (Fix 1, fs
     );
     // Closed Epic M6.E1: the retro is the closed-signal, the PLAN scaffold moves.
     await writeFile(join(planning, 'M6.E1-RETROSPECTIVE.md'), '# M6.E1 retro\n', 'utf-8');
+    // SIG-286: closure needs a readable PASS verdict, not a retro alone.
+    await writeFile(join(planning, 'M6.E1-VERIFICATION.md'), '# M6.E1 verification\n\n**Verdict:** PASS\n', 'utf-8');
     await writeFile(join(planning, 'M6.E1-PLAN.md'), PLAN_BODY, 'utf-8');
     // `.planning/archive` is a regular FILE → the archive-tree mkdir throws ENOTDIR.
     await writeFile(join(planning, 'archive'), 'not a directory\n', 'utf-8');
@@ -151,6 +153,8 @@ describe('M5.E4 — B16: a rolled-back git-mode apply deletes the pre-apply tag'
       'utf-8',
     );
     await writeFile(join(planning, 'M6.E1-RETROSPECTIVE.md'), '# M6.E1 retro\n', 'utf-8');
+    // SIG-286: closure needs a readable PASS verdict, not a retro alone.
+    await writeFile(join(planning, 'M6.E1-VERIFICATION.md'), '# M6.E1 verification\n\n**Verdict:** PASS\n', 'utf-8');
     await writeFile(join(planning, 'M6.E1-PLAN.md'), PLAN_BODY, 'utf-8');
     // `.planning/archive` is a regular FILE → the archive-tree mkdir throws ENOTDIR mid-phase.
     await writeFile(join(planning, 'archive'), 'not a directory\n', 'utf-8');

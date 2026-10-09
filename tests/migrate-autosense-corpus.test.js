@@ -146,6 +146,7 @@ describe('M5.E2.S2.t5b append-log protection — DECISIONS.md left untouched', (
       'STATE.md': CONFORMANT_STATE,
       'DECISIONS.md': BIG_DECISIONS,
       'M6.E1-RETROSPECTIVE.md': '# M6.E1 retro\n',
+      'M6.E1-VERIFICATION.md': '# M6.E1 verification\n\n**Verdict:** PASS\n', // SIG-286: a readable PASS closes it
       'M6.E1-PLAN.md': '# M6.E1 plan\n\ncontent\n',
     });
     const plan = await senseProject(dir);
@@ -183,6 +184,7 @@ describe('M5.E2.S2.t5b append-log protection — DECISIONS.md left untouched', (
       'STATE.md': CONFORMANT_STATE,
       'DECISIONS.md': BIG_DECISIONS,
       'M6.E1-RETROSPECTIVE.md': '# M6.E1 retro\n',
+      'M6.E1-VERIFICATION.md': '# M6.E1 verification\n\n**Verdict:** PASS\n', // SIG-286: a readable PASS closes it
       'M6.E1-PLAN.md': '# M6.E1 plan\n\ncontent\n',
     });
     initGit(dir);

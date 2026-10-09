@@ -112,6 +112,8 @@ describe('t3 — isV3Conformant (filesystem-aware, both directions)', () => {
     await writeFile(join(p, 'STATE.md'), STATE_CLOSED_EPIC, 'utf-8');
     await writeFile(join(p, 'BACKLOG.md'), '# Backlog\n', 'utf-8');
     await writeFile(join(p, 'M5.E1-RETROSPECTIVE.md'), M5E1_RETRO, 'utf-8');
+    // SIG-286: closure needs a readable PASS verdict, not a retro alone.
+    await writeFile(join(p, 'M5.E1-VERIFICATION.md'), '# M5.E1 verification\n\n**Verdict:** PASS\n', 'utf-8');
 
     // Isolate the fold: the STATE text itself is vector-clean, and the pending evict
     // is the sole non-conformance signal.
