@@ -1111,6 +1111,50 @@ export function probeGitState(baseDir, opts = {}) {
   return { mode: 'git', proceed: true, dirty, warnings };
 }
 
+// --- pre-apply tag + staging — shared by every `/sig:docs-migrate` apply ------
+//
+// Extracted from `applyMigrate` (M6.E15 S1) so the work-store migration
+// (`work-migrate-lists.js`) keeps the same contract: a tag at the pre-apply
+// HEAD, and the changed files left staged, not committed. Both are
+// best-effort, as they were inline: a failed tag leaves `null` (the caller's
+// revert line then names the pre-apply commit generically), and a failed
+// `git add` leaves the changes on disk regardless. Each caller words its own
+// revert line.
+
+/**
+ * Create the pre-apply tag at HEAD. Call only in `git` mode.
+ *
+ * @param {string} baseDir
+ * @param {string} name — e.g. `pre-migrate-memory-<stamp>`
+ * @param {typeof execFileSync} [execFn]
+ * @returns {string|null} the tag, or null when git refused it
+ */
+export function tagPreApply(baseDir, name, execFn = execFileSync) {
+  try {
+    execFn('git', ['tag', name], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
+    return name;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Stage exactly `paths` (repo-root-relative). `--` ends option parsing so a
+ * pathological path never parses as a flag. Every path must exist or be a
+ * tracked deletion: one that matches nothing fails the whole `git add`.
+ *
+ * @param {string} baseDir
+ * @param {string[]} paths
+ * @param {typeof execFileSync} [execFn]
+ */
+export function stagePaths(baseDir, paths, execFn = execFileSync) {
+  try {
+    execFn('git', ['add', '--', ...paths], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
+  } catch {
+    /* staging is best-effort — the changes are on disk regardless */
+  }
+}
+
 // --- single-STATE auto-sense (S1.t6) — stamp-first → structural sniff → plan ---
 //
 // Produces plan-DATA, mutating nothing. Conservative (FR6.5): only entries the
@@ -2494,15 +2538,7 @@ export async function applyMigrate(baseDir, opts = {}) {
     // deleted (B16 — so retries don't accumulate stray tags); it is KEPT only if the
     // in-memory rollback itself fails, as the last-resort recovery pointer. On a
     // successful apply it's the intended revert pointer (see revertLine below).
-    let tag = null;
-    if (probe.mode === 'git') {
-      try {
-        execFn('git', ['tag', `pre-migrate-memory-${stamp}`], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
-        tag = `pre-migrate-memory-${stamp}`;
-      } catch {
-        tag = null;
-      }
-    }
+    const tag = probe.mode === 'git' ? tagPreApply(baseDir, `pre-migrate-memory-${stamp}`, execFn) : null;
 
     // B19: set when the tail INDEX regen is SKIPPED because the existing INDEX.md is a
     // foreign/pre-v3 format (see the regen block below) — surfaced in the return warnings.
@@ -2682,11 +2718,7 @@ export async function applyMigrate(baseDir, opts = {}) {
       .filter(([, s]) => s.existed || existsSync(s.abs))
       .map(([rel]) => `${PLANNING_DIR}/${rel}`);
     if (probe.mode === 'git') {
-      try {
-        execFn('git', ['add', '--', ...touched], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
-      } catch {
-        /* staging is best-effort — the changes are on disk regardless */
-      }
+      stagePaths(baseDir, touched, execFn);
       revertLine =
         probe.dirty && force
           ? `# --force on a dirty tree: restore ONLY the migrated files from ${snapshotDir} — do NOT 'git reset --hard' (it would discard your other uncommitted work).`
