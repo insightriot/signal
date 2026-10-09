@@ -112,26 +112,26 @@ describe('BACKLOG.md — old IDs and cleaned titles', () => {
   });
 
   it('a leading `#N` is the old ID; no ID, and a unit ID leading a title, give none', () => {
-    expect(seg.rows.map((r) => r.legacyId)).toEqual(['#99', '#96', '#89', '#73', '#82', '#58', null, null, null]);
+    expect(seg.rows.map((r) => r.legacyId)).toEqual(['#310', '#305', '#288', '#271', '#279', '#244', null, null, null]);
     // `leadingId` (read by the existing planner and the backlog checks) is unchanged.
     expect(seg.rows[8].leadingId).toBe('M9.E2');
   });
 
   it('the title drops strike-through, the tag/size tail and the DONE tail; the raw heading stays', () => {
     expect(seg.rows.map((r) => r.title)).toEqual([
-      '#99 — Strategic: Lanternfly as a shared kitchen platform — household API + per-plan history',
-      '#96 — Future: implement leftovers tracking (documented, not in code)',
-      "#89 — New Plan dialog: offer 'Import file' as a third start",
-      '#73 — First screen after sign-in is a plain grey wait',
-      "#82 — No narrow-screen layout and no 'desktop only' notice",
-      '#58 — Fix 4 effect-ordering lint warnings in the planner',
+      '#310 — Strategic: Lanternfly as a shared kitchen platform — household API + per-plan history',
+      '#305 — Future: implement leftovers tracking (documented, not in code)',
+      "#288 — New Plan dialog: offer 'Import file' as a third start",
+      '#271 — First screen after sign-in is a plain grey wait',
+      "#279 — No narrow-screen layout and no 'desktop only' notice",
+      '#244 — Fix 4 effect-ordering lint warnings in the planner',
       'Planner does not enforce the length cap on notes',
       'Pantry toggle jumps between the top and bottom of the rail',
       'M9.E2 REVIEW follow-ups',
     ]);
     const struck = seg.rows[2];
     expect(struck.heading).toBe(
-      "~~#89 — New Plan dialog: offer 'Import file' as a third start · **roadmap** · small~~ · **DONE — M9.E2, 2026-03-08**"
+      "~~#288 — New Plan dialog: offer 'Import file' as a third start · **roadmap** · small~~ · **DONE — M9.E2, 2026-03-08**"
     );
     expect(struck.text.split('\n')[0]).toBe(`### ${struck.heading}`);
   });
