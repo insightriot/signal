@@ -192,10 +192,11 @@ function dryRunReport(a) {
 // The undo line, worded for this migration. Clean git: reset to the tag. With
 // --force on a dirty tree, or outside git, only this migration's files are
 // undone: the files it created are removed, then each archived list is moved
-// back to its path.
+// back to its path. `fs-backup` is outside git, an unborn HEAD, or an ignored
+// `.planning/` (`probeGitState`); none can be reset to a commit.
 function revertLineFor(probe, force, tag, created, archived) {
   const fileUndo = [`rm -f -- ${created.join(' ')}`, ...archived.map((a) => `mv -- ${a.to} ${a.from}`)].join(' && ');
-  if (probe.mode !== 'git') return `# no git: undo with ${fileUndo}`;
+  if (probe.mode !== 'git') return `# nothing staged (.planning/ is not under git): undo with ${fileUndo}`;
   if (probe.dirty && force) {
     const staged = [...created, ...archived.map((a) => a.to)];
     return '# --force on a dirty tree: do NOT \'git reset --hard\' (it would discard your other uncommitted work). '
