@@ -53,7 +53,7 @@ export function assertNoHandKeptLists(baseDir) {
     + 'generated. Regenerating would overwrite '
     + `${handKept.length === 1 ? 'it' : 'them'} with entries the store does not hold, so nothing was written. `
     + 'Turning the store on for a project with existing lists is done by a migration, which moves every entry '
-    + 'into the store first: `/sig:docs-migrate`, in a later release. '
+    + 'into the store first: `/sig:docs-migrate --work-store`. '
     + `If .planning/${WORK_DIR}/WORK.md was created by hand, delete it to turn the store back off. `
     + 'If this project was already migrated, the list was edited by hand: restore it from git '
     + '(`git checkout -- <file>`) — a generated list\'s first line is the marker.');

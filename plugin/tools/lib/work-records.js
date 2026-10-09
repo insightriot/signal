@@ -59,7 +59,8 @@ const WORK_FILE_REL = `.planning/${WORK_DIR}/${WORK_FILE}`;
 // What a v2 write says on a v1 store (AC4.2).
 export const V1_STORE_MESSAGE = `${WORK_FILE_REL} has no \`schema_version: 2\`: this is a v1 work store `
   + '(item files in status folders). The v2 library reads it, but does not write to it. Migrate it first: '
-  + '`node tools/work-migrate-v2.mjs` (a dry run; `--apply` to write).';
+  + '`node tools/work-migrate-v2.mjs` (a dry run; `--apply` to write). If this project never had a store and '
+  + `${WORK_FILE_REL} was made by hand, delete it and run \`/sig:docs-migrate --work-store\` instead.`;
 
 const toPosix = (p) => p.split(sep).join('/');
 

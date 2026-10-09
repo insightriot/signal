@@ -23,7 +23,7 @@ Authoritative references:
 
 Call `storeVersion(baseDir)`.
 
-- `null` → the store is off. Stop and say, in plain words: *"This project does not use the work store, so there are no items to change. Turning it on for a project with existing lists is done by a migration, which moves every entry into the store and writes `.planning/work/WORK.md` itself: `/sig:docs-migrate`, in a later release. Don't create `WORK.md` by hand: with hand-kept lists present, every item change then refuses rather than overwrite them. Until then, `/sig:add` captures into the usual files."* Write nothing.
+- `null` → the store is off. Stop and say, in plain words: *"This project does not use the work store, so there are no items to change. Turning it on is done by a migration, which moves every entry of the existing lists into the store and writes `.planning/work/WORK.md` itself: `/sig:docs-migrate --work-store` (a dry run; add `--apply` to write). Don't create `WORK.md` by hand: with hand-kept lists present, every item change then refuses rather than overwrite them. Until the store is on, `/sig:add` captures into the usual files."* Write nothing.
 - `2` → every action below works.
 - `1` → a **v1 store** (item files in status folders, written before records existed). `show` and `list` work — they read the v1 files through the converter, and `path` is the v1 file. **Every change refuses** with a `CONFIG` error whose `version` is `1` and whose message names `node tools/work-migrate-v2.mjs` — show it verbatim and stop. Never move a v1 item file by hand instead.
 - A `CONFIG` error naming a **hand-kept** list → the store was switched on without the migration. Show the message verbatim and stop; nothing was written.

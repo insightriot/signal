@@ -20,7 +20,8 @@ import { tmpdir } from 'node:os';
 import { parseMigrateArgs, runMigrate } from '../plugin/tools/lib/migrate-memory.js';
 import { createBacklogIfMissing } from '../plugin/tools/lib/backlog.js';
 import { GENERATED_MARKER } from '../plugin/tools/lib/work-marker.js';
-import { STORE_KEY_RE } from '../plugin/tools/lib/work-store.js';
+import { STORE_KEY_RE, STORE_OFF_MESSAGE } from '../plugin/tools/lib/work-store.js';
+import { V1_STORE_MESSAGE } from '../plugin/tools/lib/work-records.js';
 
 // Imported lazily so AC1.1 (a regression guard that passes before the change)
 // still runs while the module does not exist.
@@ -374,5 +375,39 @@ describe('import rule — no v2 module reaches work-migrate-lists.js', () => {
   ];
   it.each(V2_MODULES)('%s', (mod) => {
     expect([...reaches(mod)]).not.toContain('work-migrate-lists.js');
+  });
+});
+
+describe('t1.5 — the store-off messages name the shipped command', () => {
+  it('STORE_OFF_MESSAGE, the hand-kept refusal and /sig:item no longer say "in a later release"', async () => {
+    const { assertNoHandKeptLists } = await import('../plugin/tools/lib/work-generate.js');
+    expect(STORE_OFF_MESSAGE).not.toContain('later release');
+    expect(STORE_OFF_MESSAGE).toContain('/sig:docs-migrate --work-store');
+    project();
+    mkdirSync(join(base, '.planning', 'work'), { recursive: true });
+    writeFileSync(join(base, '.planning', 'BUGS.md'), '# Bugs\n');
+    let msg = '';
+    try {
+      assertNoHandKeptLists(base);
+    } catch (err) {
+      msg = err.message;
+    }
+    expect(msg).not.toContain('later release');
+    expect(msg).toContain('/sig:docs-migrate --work-store');
+    const item = readFileSync(join(process.cwd(), 'plugin', 'commands', 'item.md'), 'utf-8');
+    expect(item).not.toContain('in a later release');
+    expect(item).toContain('/sig:docs-migrate --work-store');
+  });
+
+  it('V1_STORE_MESSAGE still names the v1 migration, and says what to do with a hand-made WORK.md', () => {
+    expect(V1_STORE_MESSAGE).toContain('node tools/work-migrate-v2.mjs');
+    expect(V1_STORE_MESSAGE).toContain('/sig:docs-migrate --work-store');
+  });
+
+  it('commands/docs-migrate.md documents --work-store and drops "NOT done by this command yet"', () => {
+    const doc = readFileSync(join(process.cwd(), 'plugin', 'commands', 'docs-migrate.md'), 'utf-8');
+    expect(doc).toMatch(/^args: ".*--work-store.*--key/m);
+    expect(doc).not.toContain('NOT done by this command yet');
+    expect(doc).toContain('runWorkStoreMigrate');
   });
 });
