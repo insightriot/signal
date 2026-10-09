@@ -171,7 +171,10 @@
 | SIG-279 | `fixed` | P2 | **A project whose .planning/ is a symbolic link (even to a folder inside the repo) cannot regenerate its work views** |
 | SIG-280 | `fixed` | P2 | **M6.E13 REVIEW residue: broken-record remedy wording, probe message, double sweep report, weak two-process assertion** |
 | SIG-282 | `confirmed` | P3 | **PLAN's drain floors still describe the drain when the work store is on (the step is /sig:item triage)** |
+| SIG-283 | `confirmed` | P2 | **CI does not run lint, so a lint error can reach main unnoticed** |
+| SIG-284 | `confirmed` | P3 | **/sig:advise and tools/cut-release.js stamp dates with the UTC date, not the local one** |
+| SIG-285 | `confirmed` | P3 | **SHIP's reviewer-effort check reads only the latest run, so a re-push after a real review reads as 'did NOT review'** |
 | SIG-286 | `confirmed` | P3 | **/sig:docs-migrate dry run lists a unit's files to move while also saying it "could not evaluate" that unit** |
 | SIG-287 | `confirmed` | P3 | **/sig:docs-sweep dangling-reference flags non-bug IDs like "B3." research-assumption labels as missing bugs** |
 
-*0 needs-triage · 53 confirmed · 0 closing · 117 closed (170 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 56 confirmed · 0 closing · 117 closed (173 total) · closes more than 30 days before the newest event are in `work/history/`*

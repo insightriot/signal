@@ -3992,7 +3992,7 @@ store defect before other projects use it.
 No per-Epic profile: the project's FULL applies (integrity work on shared state). `attention:
 checkpointed`, chosen at `/sig:drive` step 0b.
 
-## 2026-10-08 — M6.E15 DISCUSS: move other projects onto the work store (D-M6E15-1 … D-M6E15-17)
+## 2026-10-08 — M6.E15 DISCUSS: move other projects onto the work store (D-M6E15-1 … D-M6E15-22)
 
 Epic label: *"other projects onto the store"*. `SIG-274` (nothing turns the store on for a project)
 plus build step 5 of [`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](../analysis/WORK-ITEM-SYSTEM-DESIGN.md) §6
@@ -4087,3 +4087,34 @@ No per-Epic profile: project FULL applies (the migration rewrites another projec
 Brett: land it on corpus project 1 first and leave corpus project 2 until then. Fixtures and the
 outcome measure cover corpus project 1's shapes; corpus project 2's (prose roadmap, long write-ups) are
 a follow-up. `D-M6E15-5` … `-16` approved as written, after a plain-language batch ask.
+
+### D-M6E15-18 — A finished entry's wording is its `proof`, and markers map onto the close enum (PLAN, 2026-10-09)
+`closed.reason` is an enum (`fixed | stale | wontdo | dup | rejected`, `plugin/references/work-item.schema.json`),
+so `D-M6E15-3`'s "original wording as the reason" cannot stand as written. Mapping: DONE / RESOLVED /
+ANSWERED / fixed / closed / a struck-through heading → `fixed`; not-a-bug → `rejected`; won't-fix →
+`wontdo`; superseded (any case) → `stale`. The entry's own marker text goes in `proof` (allowed on a
+`legacy: true` close). Plumbing, decided at PLAN.
+
+### D-M6E15-19 — Dates come from the entry, else from git (PLAN, 2026-10-09)
+`created.at`: the source file's first-commit date (`firstAddedDates` precedent). `closed.at`: a date
+written in the marker (`**DONE — …, 2026-10-08**`), else the file's last-commit date. Never the
+migration date: views keep a close live for 30 days after the newest event, so "today" would flood them.
+
+### D-M6E15-20 — Build aside, then swap; the snapshotter is not used (PLAN, 2026-10-09)
+`createSnapshotter` cannot restore a hand-kept original over a generated view (`GENERATED`,
+`atomic-write.js:34`). The store is built and verified in a temp directory, then moved in; on any
+failure after the move starts, the originals are restored from the archive copy.
+
+### D-M6E15-21 — `SIG-286` is fixed on the `/sig:docs-migrate` path only; corrects `D-M6E15-4`'s premise (PLAN, 2026-10-09)
+`D-M6E15-4` said docs-migrate should use "the closed-unit check `/sig:docs-archive` uses". Research
+found `/sig:docs-archive` uses the **same** retro-or-verdict default (`archive-command.js:68`) and
+differs only in refusing when STATE.md is unreadable. Fix route (a): docs-migrate passes `closedUnits`
+from `resolveClosures` (closed, minus stub retros; `[]` when STATE is unreadable) at all four of its
+sites. Changing the shared default (route b) would change `/sig:docs-archive` too, which this Epic did
+not scope; filed as a follow-up item instead.
+The same route covers `senseVector3` (`migrate-memory.js:988-997`), which evicts a retro'd Epic's
+STATE narrative by the same retro-only rule (plan-checker I3).
+
+### D-M6E15-22 — Backlog types follow the existing tag mapping (PLAN, 2026-10-09)
+Refines `D-M6E15-11`: `**roadmap**` → `FEAT`, `**hygiene**` → `CHORE`, untagged → `FEAT`. The tag
+carries the author's own classification; overriding it with one type per file loses it.
