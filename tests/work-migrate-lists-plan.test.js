@@ -19,6 +19,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createBacklogIfMissing } from '../plugin/tools/lib/backlog.js';
+import { checkEvents, deriveStatus, serializeRecord, validateRecord } from '../plugin/tools/lib/work-record.js';
 import { segmentBacklog } from '../plugin/tools/lib/work-migrate.js';
 import * as lists from '../plugin/tools/lib/work-migrate-lists.js';
 
@@ -427,5 +428,48 @@ describe('t3.4 — every source byte lands in exactly one record body or one nam
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('t3.5 — every planned record is valid, bodies are scrubbed, and Signal-only data stays out (NFR security, AC7.2)', () => {
+  it('every corpus record passes validateRecord and checkEvents, serializes, and folds to the manifest’s status', () => {
+    const p = plan(corpus());
+    expect(p.records.length).toBeGreaterThan(0);
+    p.records.forEach((r, i) => {
+      expect(validateRecord(r.record), r.record.id).toEqual([]);
+      expect(checkEvents(r.record), r.record.id).toEqual([]);
+      expect(() => serializeRecord(r.record), r.record.id).not.toThrow();
+      expect(deriveStatus(r.record), r.record.id).toBe(p.manifest.items[i].status);
+    });
+  });
+
+  it('a secret in a list body stops the plan for a decision: {aborted: sensitive-data-pending, hits}, no records', () => {
+    const key = `AKIA${'Q'.repeat(16)}`;
+    const p = lists.planListsToRecords({ 'BUGS.md': bugEntry(`needs-triage — logs show ${key}`) }, { key: 'LF', dates: DATES });
+    expect(p.aborted).toBe('sensitive-data-pending');
+    expect(p.records).toEqual([]);
+    expect(p.hits).toEqual([expect.objectContaining({ id: 'LF-1', file: 'BUGS.md', type: 'aws-key', match: key })]);
+  });
+
+  it('acknowledged, the same plan goes ahead with the text kept verbatim (detection, never silent redaction)', () => {
+    const key = `AKIA${'Q'.repeat(16)}`;
+    const p = lists.planListsToRecords({ 'BUGS.md': bugEntry(`needs-triage — logs show ${key}`) }, { key: 'LF', dates: DATES, acknowledgeSensitive: true });
+    expect(p.aborted).toBeUndefined();
+    expect(p.records[0].body).toContain(key);
+  });
+
+  it('the corpus’s backlog-key marker (a 40-hex sha1) is a hit too, so an unacknowledged corpus plan stops', () => {
+    const p = lists.planListsToRecords(corpus(), { key: 'LF', dates: DATES });
+    expect(p.aborted).toBe('sensitive-data-pending');
+    expect(p.records).toEqual([]);
+    expect(p.hits.map((h) => [h.file, h.type])).toEqual([['BACKLOG.md', 'hex-blob-40']]);
+  });
+
+  it('AC7.2: the module neither imports nor names closeEvents / NO_COMMIT_LEGACY_IDS (Signal’s own data)', () => {
+    const src = readFileSync(join(__dirname, '..', 'plugin', 'tools', 'lib', 'work-migrate-lists.js'), 'utf-8');
+    expect(src).not.toMatch(/\bcloseEvents\b/);
+    expect(src).not.toMatch(/\bNO_COMMIT_LEGACY_IDS\b/);
+    const fromConvert = [...src.matchAll(/import\s*\{([^}]*)\}\s*from\s*'\.\/work-convert\.js'/g)].flatMap((m) => m[1].split(',').map((x) => x.trim()).filter(Boolean));
+    expect(fromConvert).toEqual(['bodyDirFor']);
   });
 });

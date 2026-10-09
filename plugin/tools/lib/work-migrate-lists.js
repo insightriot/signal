@@ -67,6 +67,7 @@ import {
 } from './work-migrate.js';
 import { checkEvents, validateRecord } from './work-record.js';
 import { bodyPath, recordPath } from './work-records.js';
+import { scrubSensitive } from './scrub.js';
 import { isGeneratedFile } from './work-marker.js';
 import { STORE_KEY_RE, WORK_DIR, WORK_FILE, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
 import { confineView, regenerateViews, VIEW_PATHS } from './work-views.js';
@@ -600,6 +601,10 @@ function decide(file, row) {
  *   file, its first- and last-commit dates (`YYYY-MM-DD`). `created.at` is
  *   `first`; a close is at the date its marker writes, else `last`
  *   (D-M6E15-19). Never the run's own date.
+ * @param {boolean} [opts.acknowledgeSensitive] — go ahead past sensitive-data
+ *   hits a person has read (as `newItems`). Without it, any hit in a planned
+ *   title or body returns `{aborted: 'sensitive-data-pending', hits: [{id, file,
+ *   type, match}]}` with no records.
  * @param {Record<string, (text: string) => object>} [opts.segmenters] — TEST SEAM
  *   ONLY: replace a file's segmenter, to prove the conservation check refuses a
  *   segmentation that loses or alters a byte. Production callers never pass it.
@@ -764,5 +769,15 @@ export function planListsToRecords(texts, opts = {}) {
   }
   const manifest = { key, files, items };
   if (errors.length) return { key, records: [], regions, manifest, errors };
+
+  // The sensitive-data gate `newItems` applies (scrub.js): list text from
+  // another repository is data, and a hit stops the plan for a person's
+  // decision. Detection only — with `acknowledgeSensitive` the text is kept
+  // verbatim, never redacted in silence.
+  const hits = records.flatMap((r) => [r.record.title, r.body].flatMap((t) => scrubSensitive(t).hits)
+    .map((h) => ({ id: r.record.id, file: r.sourceRef.file, type: h.type, match: h.match })));
+  if (hits.length > 0 && !opts.acknowledgeSensitive) {
+    return { key, records: [], regions, manifest, errors, aborted: 'sensitive-data-pending', hits };
+  }
   return { key, records, regions, manifest, errors };
 }
