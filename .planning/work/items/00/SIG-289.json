@@ -1,0 +1,34 @@
+{
+  "id": "SIG-289",
+  "type": "BUG",
+  "title": "An Epic whose VERIFICATION is already in archive/ keeps its STATE narrative and isV3Conformant reads true (resolveClosures lists only top-level .planning/)",
+  "theme": "archive",
+  "priority": "P3",
+  "source": "M6.E15 S6",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-09T23:28:00.924Z",
+      "by": "claude (M6.E15 S6)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-09T23:28:00.967Z",
+      "by": "claude (M6.E15 S6)",
+      "changes": {
+        "type": {
+          "from": "NEW",
+          "to": "BUG"
+        },
+        "theme": {
+          "from": null,
+          "to": "archive"
+        },
+        "priority": {
+          "from": null,
+          "to": "P3"
+        }
+      }
+    }
+  ]
+}

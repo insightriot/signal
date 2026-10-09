@@ -176,5 +176,7 @@
 | SIG-285 | `confirmed` | P3 | **SHIP's reviewer-effort check reads only the latest run, so a re-push after a real review reads as 'did NOT review'** |
 | SIG-286 | `confirmed` | P3 | **/sig:docs-migrate dry run lists a unit's files to move while also saying it "could not evaluate" that unit** |
 | SIG-287 | `confirmed` | P3 | **/sig:docs-sweep dangling-reference flags non-bug IDs like "B3." research-assumption labels as missing bugs** |
+| SIG-288 | `confirmed` | P3 | **/sig:docs-archive shares the retro-only closure default (archive-tree.js senseArchiveTree), so a filled retrospective alone can archive an unfinished Epic** |
+| SIG-289 | `confirmed` | P3 | **An Epic whose VERIFICATION is already in archive/ keeps its STATE narrative and isV3Conformant reads true (resolveClosures lists only top-level .planning/)** |
 
-*0 needs-triage · 56 confirmed · 0 closing · 117 closed (173 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 58 confirmed · 0 closing · 117 closed (175 total) · closes more than 30 days before the newest event are in `work/history/`*

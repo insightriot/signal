@@ -1,0 +1,34 @@
+{
+  "id": "SIG-288",
+  "type": "BUG",
+  "title": "/sig:docs-archive shares the retro-only closure default (archive-tree.js senseArchiveTree), so a filled retrospective alone can archive an unfinished Epic",
+  "theme": "archive",
+  "priority": "P3",
+  "source": "M6.E15 S6",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-09T23:28:00.646Z",
+      "by": "claude (M6.E15 S6)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-09T23:28:00.701Z",
+      "by": "claude (M6.E15 S6)",
+      "changes": {
+        "type": {
+          "from": "NEW",
+          "to": "BUG"
+        },
+        "theme": {
+          "from": null,
+          "to": "archive"
+        },
+        "priority": {
+          "from": null,
+          "to": "P3"
+        }
+      }
+    }
+  ]
+}
