@@ -12,8 +12,8 @@
 // `backlogSkeleton`). The skeleton is a named non-item region, never an item:
 // it is moved to `.planning/archive/pre-work-store/` before the views are
 // written, because `regenerateViews` refuses a list without the generated
-// marker. Any other list content is refused for now — lists with items are
-// split into records by a later slice (S3/S4).
+// marker. `planListsToRecords` below plans lists with items as records (S3,
+// pure); `runWorkStoreMigrate` still refuses them until S4 wires that plan in.
 //
 // The command's contract is kept (D-M6E15-5): dry run by default; `--apply`
 // refuses a dirty tree without `--force`, tags the pre-apply HEAD, leaves the
@@ -618,10 +618,11 @@ function decide(file, row) {
  *   segmentation that loses or alters a byte. Production callers never pass it.
  * @returns {{key: string, records: Array<{record: object, body: string, recordPath: string,
  *   bodyPath: string, flagged: string|null, sourceRef: {file: string, ranges: Array<{line: number, endLine: number}>}}>,
- *   regions: Array<{file: string, name: string, line: number, endLine: number, text: string}>,
+ *   regions: Array<{file: string, kind: 'orphan'|'gap'|'watchlist'|'skeleton', name: string, line: number,
+ *     endLine: number, text: string}>,
  *   manifest: {key: string,
  *     files: Record<string, {lines: number, items: number, open: number, closed: number, flagged: number,
- *       regions: Array<{name: string, line: number, endLine: number}>, verified?: true}>,
+ *       regions: Array<{kind: string, name: string, line: number, endLine: number}>, verified?: true}>,
  *     items: Array<{id: string, legacy_id: string|null, title: string, status: 'N'|'T'|'C', flag: string|null,
  *       dateNote?: string, file: string, ranges: Array<{line: number, endLine: number}>}>},
  *   errors: string[]}}
@@ -650,8 +651,8 @@ export function planListsToRecords(texts, opts = {}) {
     const lineCount = text.split('\n').length;
     files[file] = { lines: lineCount, items: 0, open: 0, closed: 0, flagged: 0, regions: [] };
     if (file === 'BACKLOG.md' && BACKLOG_SKELETON_RE.test(text)) {
-      regions.push({ file, name: 'backlog skeleton', line: 1, endLine: lineCount, text });
-      files[file].regions.push({ name: 'backlog skeleton', line: 1, endLine: lineCount });
+      regions.push({ file, kind: 'skeleton', name: 'backlog skeleton', line: 1, endLine: lineCount, text });
+      files[file].regions.push({ kind: 'skeleton', name: 'backlog skeleton', line: 1, endLine: lineCount });
       files[file].verified = true;
       continue;
     }
@@ -671,16 +672,16 @@ export function planListsToRecords(texts, opts = {}) {
     for (const row of seg.rows) planned.push({ file, row, pieces: [row] });
     const prose = [];
     for (const o of seg.orphans) {
-      if (structureOnly(o.text)) regions.push({ file, name: o.name, line: o.line, endLine: o.endLine, text: o.text });
+      if (structureOnly(o.text)) regions.push({ file, kind: 'orphan', name: o.name, line: o.line, endLine: o.endLine, text: o.text });
       else prose.push(o);
     }
-    for (const g of seg.gaps) regions.push({ file, name: g.text.split('\n').some((l) => l.trim() === '---') ? 'separator' : 'blank', line: g.line, endLine: g.endLine, text: g.text });
+    for (const g of seg.gaps) regions.push({ file, kind: 'gap', name: g.text.split('\n').some((l) => l.trim() === '---') ? 'separator' : 'blank', line: g.line, endLine: g.endLine, text: g.text });
     if (seg.watchlist) {
       const w = seg.watchlist;
-      regions.push({ file, name: 'standing watchlist', line: w.line, endLine: w.endLine, text: w.text });
+      regions.push({ file, kind: 'watchlist', name: 'standing watchlist', line: w.line, endLine: w.endLine, text: w.text });
     }
     if (prose.length > 0) planned.push({ file, row: null, pieces: prose, flagged: 'non-item' });
-    for (const r of regions.filter((x) => x.file === file)) files[file].regions.push({ name: r.name, line: r.line, endLine: r.endLine });
+    for (const r of regions.filter((x) => x.file === file)) files[file].regions.push({ kind: r.kind, name: r.name, line: r.line, endLine: r.endLine });
   }
 
   // Every file that yields a record needs both dates (D-M6E15-19): there is no

@@ -369,8 +369,15 @@ describe('t3.4 — every source byte lands in exactly one record body or one nam
     }
   });
 
-  it('every region is named', () => {
-    for (const g of plan(corpus()).regions) expect(g.name, `${g.file}:${g.line}`).toMatch(/\S/);
+  it('every region is named, and says what kind it is (S4 counts orphans apart from blank gaps)', () => {
+    const p = plan(corpus());
+    for (const g of p.regions) {
+      expect(g.name, `${g.file}:${g.line}`).toMatch(/\S/);
+      expect(['orphan', 'gap', 'watchlist', 'skeleton'], `${g.file}:${g.line}`).toContain(g.kind);
+    }
+    expect(p.manifest.files['BACKLOG.md'].regions.filter((g) => g.kind === 'orphan').map((g) => g.name)).toEqual([
+      'section intro: Product direction', 'section intro: Planner polish (v4.2 remainder)', 'section intro: Code health & ops', 'footer',
+    ]);
   });
 
   it('a segmentation that leaves a byte unaccounted → an error naming the lines, and no records', () => {
@@ -434,7 +441,7 @@ describe('t3.4 — every source byte lands in exactly one record body or one nam
       const p = plan({ 'BACKLOG.md': skeleton });
       expect(p.errors).toEqual([]);
       expect(p.records).toEqual([]);
-      expect(p.regions).toEqual([{ file: 'BACKLOG.md', name: 'backlog skeleton', line: 1, endLine: skeleton.split('\n').length, text: skeleton }]);
+      expect(p.regions).toEqual([{ file: 'BACKLOG.md', kind: 'skeleton', name: 'backlog skeleton', line: 1, endLine: skeleton.split('\n').length, text: skeleton }]);
       // one byte more and it is not the skeleton: its purpose line is prose
       const edited = plan({ 'BACKLOG.md': skeleton.replace('# Backlog\n', '# Backlog\n\nOur own note.\n') });
       expect(edited.records.map((r) => r.flagged)).toEqual(['non-item']);
