@@ -144,3 +144,130 @@ describe('t3.1 — IDs, types, open statuses, old IDs (AC5.1, AC5.2, AC3.3, AC2.
     expect(() => lists.planListsToRecords(corpus(), { key: 'sig', dates: DATES })).toThrow(/key/);
   });
 });
+
+// One entry in one list → its single planned (non-"non-item") record.
+const one = (file, text, opts) => {
+  const p = plan({ [file]: text }, opts);
+  expect(p.errors).toEqual([]);
+  const entries = p.records.filter((r) => r.flagged !== 'non-item');
+  expect(entries).toHaveLength(1);
+  return entries[0];
+};
+const closedEvent = (r) => r.record.events.find((e) => e.type === 'closed');
+const bugTable = (id, cell) => ['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|', `| ${id} | ${cell} | P2 | **A defect in the exporter** — details. |`, ''].join('\n');
+const bugEntry = (status) => ['# Bugs', '', '## The exporter drops a row', '', `**Status:** ${status}`, '', 'What happens.', '', '---', ''].join('\n');
+const backlogRow = (heading, body = 'Body text.') => ['# Backlog', '', `### ${heading}`, body, ''].join('\n');
+const question = (heading, status, group = null) => [
+  '# Open Questions', '',
+  ...(group ? [`## ${group}`, ''] : []),
+  `${group ? '###' : '##'} ${heading}`, '',
+  ...(status ? [`**Status:** ${status}`, ''] : []),
+].join('\n');
+
+describe('t3.2 — finished markers close as legacy, with the marker text as proof (AC4.1, D-M6E15-10, -18)', () => {
+  const cases = [
+    ['DONE in a backlog heading', 'BACKLOG.md', backlogRow('#12 — Export to CSV · **roadmap** · small · **DONE — M9.E1**'), 'fixed', 'DONE — M9.E1'],
+    ['a struck-through heading alone', 'BACKLOG.md', backlogRow('~~#13 — Export to PDF · **roadmap** · small~~'), 'fixed', '~~#13 — Export to PDF · **roadmap** · small~~'],
+    ['RESOLVED on a Status line', 'OPEN-QUESTIONS.md', question('Q4 — Which date format?', 'RESOLVED — ISO dates everywhere.'), 'fixed', 'RESOLVED — ISO dates everywhere.'],
+    ['ANSWERED in a heading', 'OPEN-QUESTIONS.md', question('Q5 — Which units? · **ANSWERED**', null), 'fixed', 'ANSWERED'],
+    ['fixed in a bug table cell', 'BUGS.md', bugTable('B3', '`fixed`'), 'fixed', '`fixed`'],
+    ['closed in a bug table cell', 'BUGS.md', bugTable('B4', '`closed`'), 'fixed', '`closed`'],
+    ['fixed on a Status line', 'BUGS.md', bugEntry('fixed in M9.E2 — rows are kept now.'), 'fixed', 'fixed in M9.E2 — rows are kept now.'],
+    ['closed on a Status line', 'BUGS.md', bugEntry('Closed. Nothing to do.'), 'fixed', 'Closed. Nothing to do.'],
+    ['DONE (lower case) on a Status line', 'BUGS.md', bugEntry('done'), 'fixed', 'done'],
+    ['not-a-bug → rejected', 'BUGS.md', bugEntry('not-a-bug (closed 2026-03-02) — works as designed.'), 'rejected', 'not-a-bug (closed 2026-03-02) — works as designed.'],
+    ['won\'t-fix → wontdo', 'BUGS.md', bugEntry("won't-fix — the old exporter is going away."), 'wontdo', "won't-fix — the old exporter is going away."],
+    ['wontfix in a table cell → wontdo', 'BUGS.md', bugTable('B5', '`wontfix`'), 'wontdo', '`wontfix`'],
+    ['superseded (lower case) → stale', 'BACKLOG.md', backlogRow('#14 — Old importer · **hygiene** · small · **superseded by #20**'), 'stale', 'superseded by #20'],
+    ['SUPERSEDED (upper case) → stale', 'BUGS.md', bugEntry('SUPERSEDED by the new exporter.'), 'stale', 'SUPERSEDED by the new exporter.'],
+    ['an entry under a Resolved/Done/Closed section heading', 'OPEN-QUESTIONS.md', question('Q6 — Which currency?', null, 'Done in v2'), 'fixed', 'Done in v2'],
+  ];
+  for (const [name, file, text, reason, proof] of cases) {
+    it(`${name} → closed ${reason}`, () => {
+      const r = one(file, text);
+      expect(status(r.record)).toBe('C');
+      expect(r.record.events.map((e) => e.type)).toEqual(['created', 'closed']);
+      expect(closedEvent(r)).toMatchObject({ reason, legacy: true, by: 'migration', proof });
+      expect(r.flagged).toBeNull();
+      expect(r.record.migration_note).toBeUndefined();
+    });
+  }
+
+  it('the corpus: B1, the not-a-bug and the fixed entries, the DONE rows and the resolved questions close; the rest stay open', () => {
+    const p = byId(plan(corpus()));
+    const closes = Object.fromEntries([...p].filter(([, r]) => status(r.record) === 'C').map(([id, r]) => [id, closedEvent(r).reason]));
+    expect(closes).toEqual({
+      'LF-1': 'fixed', 'LF-4': 'rejected', 'LF-5': 'fixed',
+      'LF-11': 'fixed', 'LF-13': 'fixed',
+      'LF-20': 'fixed', 'LF-21': 'fixed', 'LF-22': 'fixed',
+    });
+    expect(closedEvent(p.get('LF-20')).proof).toBe('Resolved during v4.1 (kept for reference); Fully resolved. Logged as Issue #12 on 2026-02-10; the missing rule was added in `0007_pantry_events_delete.sql` (PR #20, 2026-02-14), so deletes now take effect.');
+  });
+});
+
+describe('t3.2 — no marker, an unknown word, or markers that disagree: open and flagged, never thrown (AC4.2, AC3.4)', () => {
+  it('a heading DONE with a body “Closed — superseded” disagree (fixed vs stale) → open, flagged conflict (corpus #271)', () => {
+    const r = byId(plan(corpus())).get('LF-12');
+    expect(status(r.record)).toBe('T');
+    expect(r.flagged).toBe('conflict');
+    expect(r.record.migration_note).toMatch(/disagree/);
+  });
+
+  for (const word of ['reopened', 'needs-triage', 'confirmed', 'scoped into M9.E3 (FR-02), 2026-03-09']) {
+    it(`a Status line reading "${word}" → open, flagged, the wording kept in the note`, () => {
+      const r = one('BUGS.md', bugEntry(word));
+      expect(status(r.record)).toBe('T');
+      expect(r.flagged).toBe('status-unmapped');
+      expect(r.record.migration_note).toContain(word);
+    });
+  }
+
+  it('an unknown word in a bug table cell → open, flagged', () => {
+    const r = one('BUGS.md', bugTable('B6', '`parked`'));
+    expect(status(r.record)).toBe('T');
+    expect(r.flagged).toBe('status-unmapped');
+  });
+
+  it('a bug entry with no Status line → open, flagged', () => {
+    const r = byId(plan(corpus())).get('LF-8');
+    expect(status(r.record)).toBe('T');
+    expect(r.flagged).toBe('no-status-line');
+  });
+
+  it('a qualified marker ("Partially resolved", "not fixed") → open, flagged unclear', () => {
+    for (const s of ['Partially resolved — the importer half is left.', 'not fixed yet']) {
+      const r = one('BUGS.md', bugEntry(s));
+      expect(status(r.record), s).toBe('T');
+      expect(r.flagged, s).toBe('unclear');
+    }
+  });
+
+  it('a struck heading whose Status line says something else → open, flagged conflict', () => {
+    const text = ['# Bugs', '', '## ~~The exporter drops a row~~', '', '**Status:** needs-triage', ''].join('\n');
+    const r = one('BUGS.md', text);
+    expect(status(r.record)).toBe('T');
+    expect(r.flagged).toBe('conflict');
+  });
+
+  it('a finished word the backlog reader knows but this migration does not map (SHIPPED) → open, flagged', () => {
+    const r = one('BACKLOG.md', backlogRow('#15 — Share a plan · **roadmap** · small · **SHIPPED v2.1**'));
+    expect(status(r.record)).toBe('T');
+    expect(r.flagged).toBe('finished-word-unmapped');
+    expect(r.record.migration_note).toContain('SHIPPED');
+  });
+
+  it('a title that merely contains a marker word is not a marker', () => {
+    const r = one('BACKLOG.md', backlogRow('#16 — Show closed plans in the archive · **roadmap** · small'));
+    expect(status(r.record)).toBe('T');
+    expect(r.flagged).toBe('no-marker');
+  });
+
+  it('an inbox entry stays NEW at N unless it carries a marker', () => {
+    const open = one('ISSUES-INBOX.md', ['# Issues Inbox', '', '## A capture', 'Text.', ''].join('\n'));
+    expect(status(open.record)).toBe('N');
+    expect(open.flagged).toBeNull();
+    const done = one('ISSUES-INBOX.md', ['# Issues Inbox', '', '## ~~A capture~~ **RESOLVED**', 'Text.', ''].join('\n'));
+    expect(status(done.record)).toBe('C');
+    expect(closedEvent(done).reason).toBe('fixed');
+  });
+});

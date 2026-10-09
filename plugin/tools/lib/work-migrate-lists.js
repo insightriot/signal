@@ -429,6 +429,139 @@ function titleOf(file, row) {
   return /\S/.test(t) ? t : `Untitled entry at ${file}:${row.line}`;
 }
 
+// ── Finished markers (D-M6E15-10, -18; AC4.1, AC4.2) ────────────────────────
+//
+// An entry closes only when it says so plainly, and only when everything it
+// says agrees. Where a marker is read:
+//
+//   - a heading that is struck through (`~~…~~`), anywhere → `fixed`;
+//   - a heading's bold annotations (`· **DONE — M9.E1, 2026-03-08**`), and the
+//     plain text after a struck span (`~~Q4~~ — ANSWERED`). A bold run that
+//     OPENS the heading is its title, not an annotation;
+//   - a `**Status:** …` line in the entry: only its lead phrase (before the
+//     first ` — `, `.`, `;` or `,`, parentheticals removed) is read, because
+//     the rest is prose (`not-a-bug (closed …) — …` is not-a-bug, not closed);
+//   - a bug table's status cell;
+//   - in BACKLOG.md, a body line that opens with a bold marker (`**Done** in
+//     …`, `**Closed — superseded**`) — the shape corpus project 1 writes;
+//   - in OPEN-QUESTIONS.md, the section heading an entry sits under, when it
+//     says Resolved / Done / Closed (the segmenter's `groupWord`).
+//
+// Words, any case: done / resolved / answered / fixed / closed → `fixed`;
+// not-a-bug → `rejected`; won't-fix → `wontdo`; superseded → `stale`. Within
+// ONE marker a specific word wins over a generic one (`Closed — superseded`
+// is a close because superseded: `stale`). ACROSS markers, two reasons — or a
+// marker beside a status that is not one — is a conflict: open, flagged. A
+// qualified word (`partially resolved`, `not fixed`) is unclear: open,
+// flagged. A finished word the backlog reader knows but this list does not
+// map (SHIPPED, ABANDONED, CUT) is flagged, never guessed. Nothing throws.
+
+const FINISH_RE = /\b(?:done|resolved|answered|fixed|closed)\b/i;
+const QUALIFIED_FINISH_RE = /\b(?:partially|partly|mostly|largely|not)\s+(?:done|resolved|answered|fixed|closed)\b/i;
+const SPECIFIC_FINISH = [
+  [/\bnot[- ]a[- ]bug\b/i, 'rejected'],
+  [/\bwon['’]?t[- ]?fix\b/i, 'wontdo'],
+  [/\bsuperseded\b/i, 'stale'],
+];
+const UNMAPPED_FINISH_RE = /\b(?:SHIPPED|ABANDONED|CUT)\b/;
+const STRUCK_RE = /~~[^~]+~~/;
+const BOLD_RE = /\*\*([^*]+)\*\*/g;
+const STATUS_LINE_RE = /^\*\*Status:\*\*\s*(.*)$/;
+const BOLD_LEAD_RE = /^\*\*([^*]+)\*\*/;
+
+// The words a status line's lead phrase carries.
+function leadPhrase(text) {
+  return text.replace(/\([^)]*\)/g, ' ').split(/\s[—–-]\s|[.;,](?:\s|$)/)[0];
+}
+
+// `{reasons: Set, unclear: boolean}` for one marker's text.
+function classify(text) {
+  const unclear = QUALIFIED_FINISH_RE.test(text);
+  const specific = new Set(SPECIFIC_FINISH.filter(([re]) => re.test(text)).map(([, r]) => r));
+  const reasons = specific.size > 0 ? specific : FINISH_RE.test(text) ? new Set(['fixed']) : new Set();
+  return { reasons, unclear };
+}
+
+// Everything an entry says about being finished.
+function readMarkers(file, row) {
+  const markers = []; // {reason, text}
+  const unclear = [];
+  const statuses = []; // status text that is not a finished marker
+  const unmappedFinish = [];
+  const take = (text, words = text) => {
+    const c = classify(words);
+    if (c.unclear) unclear.push(text);
+    else if (c.reasons.size > 1) [...c.reasons].forEach((reason) => markers.push({ reason, text }));
+    else if (c.reasons.size === 1) markers.push({ reason: [...c.reasons][0], text });
+    return c.reasons.size > 0 || c.unclear;
+  };
+
+  const heading = file === 'BUGS.md' && row.kind === 'table' ? null : row.heading;
+  if (heading) {
+    if (STRUCK_RE.test(heading)) markers.push({ reason: 'fixed', text: heading });
+    for (const m of heading.matchAll(BOLD_RE)) {
+      if (heading.slice(0, m.index).replace(/[~\s]/g, '') === '') continue; // the title, not an annotation
+      if (!take(m[1]) && UNMAPPED_FINISH_RE.test(m[1])) unmappedFinish.push(m[1]);
+    }
+    const lastStrike = heading.lastIndexOf('~~');
+    if (STRUCK_RE.test(heading) && lastStrike + 2 < heading.length) {
+      const tail = heading.slice(lastStrike + 2).replace(BOLD_RE, ' ').replace(/^[\s·—–:-]+|\s+$/g, '');
+      if (tail) take(tail);
+    }
+  }
+  if (file === 'BUGS.md' && row.kind === 'table') {
+    const cell = row.statusRaw ?? '';
+    if (!take(cell, leadPhrase(cell.replace(/[`*_]/g, ''))) && cell.trim()) statuses.push(cell.trim());
+  }
+  if (file === 'OPEN-QUESTIONS.md' && row.groupWord) markers.push({ reason: 'fixed', text: row.groupHeading });
+
+  let statusLine = false;
+  let fence = false;
+  for (const line of row.text.split('\n').slice(1)) {
+    if (/^\s*(```|~~~)/.test(line)) fence = !fence;
+    if (fence) continue;
+    const st = line.match(STATUS_LINE_RE);
+    if (st) {
+      statusLine = true;
+      const text = st[1].trim();
+      if (!take(text, leadPhrase(text)) && text) statuses.push(text);
+      continue;
+    }
+    const bold = file === 'BACKLOG.md' ? line.match(BOLD_LEAD_RE) : null;
+    if (bold) take(line.trim(), bold[1]);
+  }
+  return { markers, unclear, statuses, unmappedFinish, statusLine };
+}
+
+const quote = (s) => `“${s}”`;
+
+// The entry's outcome: `{close: {reason, proof}}`, or `{flag, note}` (open).
+function decide(file, row) {
+  const m = readMarkers(file, row);
+  const reasons = new Set(m.markers.map((x) => x.reason));
+  if (m.unclear.length > 0) {
+    return { flag: 'unclear', note: `Its marker ${m.unclear.map(quote).join(', ')} is qualified, so it was left open rather than closed by inference.` };
+  }
+  if (reasons.size > 1 || (reasons.size === 1 && m.statuses.length > 0)) {
+    const said = [...m.markers.map((x) => `${quote(x.text)} → ${x.reason}`), ...m.statuses.map((s) => `${quote(s)} → open`)];
+    return { flag: 'conflict', note: `Its finished markers disagree (${said.join('; ')}), so it was left open rather than closed by inference.` };
+  }
+  if (reasons.size === 1) {
+    return { close: { reason: [...reasons][0], proof: [...new Set(m.markers.map((x) => x.text))].join('; ') } };
+  }
+  if (m.statuses.length > 0) {
+    return { flag: 'status-unmapped', note: `Its status reads ${m.statuses.map(quote).join(', ')}, which is not a finished marker this migration maps; left open.` };
+  }
+  if (file === 'BUGS.md' && row.kind === 'entry' && !m.statusLine) {
+    return { flag: 'no-status-line', note: 'It has no **Status:** line; left open.' };
+  }
+  if (m.unmappedFinish.length > 0 || (file === 'BACKLOG.md' && row.discharged)) {
+    const what = m.unmappedFinish.length > 0 ? ` (${m.unmappedFinish.map(quote).join(', ')})` : '';
+    return { flag: 'finished-word-unmapped', note: `The list marks it finished${what}, but not with a marker this migration closes on; left open.` };
+  }
+  return { flag: file === 'ISSUES-INBOX.md' ? null : 'no-marker', note: null };
+}
+
 /**
  * Plan the four lists as records. Pure: texts in, plan out; writes nothing.
  *
@@ -517,10 +650,18 @@ export function planListsToRecords(texts, opts = {}) {
       const legacy = legacyOf(file, row);
       if (legacy) record.legacy_id = legacy;
       text = row.text;
-      if (record.type !== 'NEW') {
-        flagged = 'no-marker';
-        record.migration_note = `Open in ${file} when it moved to the store; its type and status were not re-checked.`;
-        events.push({ type: 'triaged', at: created, by: PLAN_BY });
+      const outcome = decide(file, row);
+      if (outcome.close) {
+        events.push({ type: 'closed', at: d?.last, by: PLAN_BY, reason: outcome.close.reason, proof: outcome.close.proof, legacy: true });
+      } else {
+        flagged = outcome.flag;
+        if (record.type !== 'NEW') {
+          const generic = `Open in ${file} when it moved to the store; its type and status were not re-checked.`;
+          record.migration_note = outcome.note ? `${generic} ${outcome.note}` : generic;
+          events.push({ type: 'triaged', at: created, by: PLAN_BY });
+        } else if (outcome.note) {
+          record.migration_note = outcome.note;
+        }
       }
     }
     record.events = events;
