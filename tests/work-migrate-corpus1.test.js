@@ -25,6 +25,7 @@ import {
   segmentInbox,
   segmentQuestions,
 } from '../plugin/tools/lib/work-migrate.js';
+import { archived } from './helpers/pre-store.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIX = join(__dirname, 'fixtures', 'work-migrate-corpus1');
@@ -194,5 +195,22 @@ describe('OPEN-QUESTIONS.md — `##` groupings over `###` items', () => {
 
   it('rows + orphans + gaps tile the file byte for byte', () => {
     assertPartition(text, segmentQuestions(text));
+  });
+});
+
+// AC3.2, the half work-migrate.test.js and work-roundtrip.test.js do not see:
+// those pin Signal's counts and regions unchanged; this pins that the fields
+// S2 added say nothing about Signal's own pre-store lists.
+describe("Signal's own pre-store lists — the new row fields are neutral", () => {
+  it('BUGS.md: every table row is a B-number, every entry has a status line', () => {
+    const rows = segmentBugs(archived('BUGS.md')).rows;
+    expect(rows.filter((r) => r.kind === 'table' && !/^B\d+$/.test(r.id))).toEqual([]);
+    expect(rows.filter((r) => r.kind === 'entry' && r.statusRaw === null)).toEqual([]);
+  });
+
+  it('BACKLOG.md and OPEN-QUESTIONS.md: no old IDs, no groupings', () => {
+    expect(segmentBacklog(archived('BACKLOG.md')).rows.filter((r) => r.legacyId !== null)).toEqual([]);
+    const q = segmentQuestions(archived('OPEN-QUESTIONS.md')).rows;
+    expect(q.filter((r) => r.legacyId !== null || r.groupHeading !== null || r.groupWord !== null)).toEqual([]);
   });
 });
