@@ -368,6 +368,21 @@ function liveBacklogHeadings(lines, maxDepth) {
   return out;
 }
 
+// A row's heading as a title (M6.E15 t2.4): strike-through removed, and the
+// trailing ` · **tag** · size` and ` · **DONE — …**` segments dropped, last
+// first. Nothing else is touched — a leading `#99 — ` stays (the old ID is
+// `legacyId` too). The raw heading stays on the row and as its text's first line.
+const TITLE_TAIL_RE = /\s*·\s*(?:\*\*[^*]{1,200}\*\*|small|medium|large)\s*$/i;
+
+function backlogTitle(heading) {
+  let t = heading.replace(/~~/g, '').trim();
+  for (let prev = null; prev !== t; ) {
+    prev = t;
+    t = t.replace(TITLE_TAIL_RE, '').trim();
+  }
+  return t;
+}
+
 /**
  * @param {string} text — BACKLOG.md content
  */
@@ -398,6 +413,8 @@ export function segmentBacklog(text) {
       heading: r.text,
       depth: r.depth,
       leadingId: r.leadingId,
+      legacyId: legacyIdOf(r.text),
+      title: backlogTitle(r.text),
       discharged: r.discharged,
       dischargedBy: r.dischargedBy,
       dischargedAt: r.dischargedAt,

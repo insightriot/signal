@@ -10,9 +10,9 @@
 // named non-item region, and what each row carries for the planner (S3) to
 // read. Statuses and closes are S3's.
 //
-// RED (t2.1): `it.fails` marks an expectation the segmenters do not meet yet,
-// so the suite stays green and the failure is recorded mechanically; each task
-// that makes one true flips it to `it`.
+// RED (t2.1): these expectations were committed as `it.fails` against the
+// segmenters as they stood, and t2.2–t2.4 each flipped the ones they made
+// true; the recorded failures are in the t2.1 commit message.
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -110,13 +110,13 @@ describe('BACKLOG.md — old IDs and cleaned titles', () => {
     expect(seg.rows.map((r) => r.line)).toEqual([7, 11, 17, 22, 27, 34, 38, 42, 45]);
   });
 
-  it.fails('a leading `#N` is the old ID; no ID, and a unit ID leading a title, give none', () => {
+  it('a leading `#N` is the old ID; no ID, and a unit ID leading a title, give none', () => {
     expect(seg.rows.map((r) => r.legacyId)).toEqual(['#99', '#96', '#89', '#73', '#82', '#58', null, null, null]);
     // `leadingId` (read by the existing planner and the backlog checks) is unchanged.
     expect(seg.rows[8].leadingId).toBe('M9.E2');
   });
 
-  it.fails('the title drops strike-through, the tag/size tail and the DONE tail; the raw heading stays', () => {
+  it('the title drops strike-through, the tag/size tail and the DONE tail; the raw heading stays', () => {
     expect(seg.rows.map((r) => r.title)).toEqual([
       '#99 — Strategic: Lanternfly as a shared kitchen platform — household API + per-plan history',
       '#96 — Future: implement leftovers tracking (documented, not in code)',
