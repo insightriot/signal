@@ -164,7 +164,7 @@ describe('ISSUES-INBOX.md — a title and a preamble only', () => {
 describe('OPEN-QUESTIONS.md — `##` groupings over `###` items', () => {
   const text = fixture('OPEN-QUESTIONS.md');
 
-  it.fails('the `###` entries are the items, with their old IDs (AC3.1)', () => {
+  it('the `###` entries are the items, with their old IDs (AC3.1)', () => {
     const seg = segmentQuestions(text);
     expect(seg.rows.map((r) => [r.line, r.endLine, r.legacyId])).toEqual([
       [17, 19, 'R3'],
@@ -174,7 +174,7 @@ describe('OPEN-QUESTIONS.md — `##` groupings over `###` items', () => {
     expect(seg.rows[0].heading).toBe('R3 — Missing delete policy on `pantry_events`');
   });
 
-  it.fails("each item records its grouping heading and that heading's finished word", () => {
+  it("each item records its grouping heading and that heading's finished word", () => {
     const seg = segmentQuestions(text);
     for (const r of seg.rows) {
       expect(r.groupHeading).toBe('Resolved during v4.1 (kept for reference)');
@@ -182,7 +182,7 @@ describe('OPEN-QUESTIONS.md — `##` groupings over `###` items', () => {
     }
   });
 
-  it.fails('every `##` is a named non-item region, its text kept', () => {
+  it('every `##` is a named non-item region, its text kept', () => {
     const seg = segmentQuestions(text);
     expect(seg.orphans.map((o) => [o.name, o.line, o.endLine])).toEqual([
       ['preamble', 1, 3],

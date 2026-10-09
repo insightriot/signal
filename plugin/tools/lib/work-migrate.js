@@ -115,6 +115,21 @@ function tile(lines, rows, nameOf, splitAt = new Set()) {
   return { orphans, gaps };
 }
 
+// The old ID a heading LEADS with, in another project's schemes (M6.E15
+// t2.3, t2.4; `D-M6E15-2`): `#99`, `Issue #45`, `R3`, `NFR-04`. A letter ID
+// counts only when a separator (`—`, `–`, `:`, ` - `) follows it, so a title
+// that merely starts with a word and a number is not read as one. A unit ID
+// (`M9.E1 …`) is not an old ID — `M9` is followed by `.` — and neither is a
+// `B{n}`: in a list other than BUGS.md it names the bug, not this entry
+// (`leadingId` still carries both). The decoration run is bounded, as in
+// `leading-id.js`, so a non-matching heading cannot backtrack.
+const LEGACY_ID_RE = /^[\s`*_~]{0,10}(?:(Issue #\d+|#\d+)\b|((?!B\d)[A-Z]{1,5}-?\d+)(?=\s{0,3}(?:—|–|:|-\s)))/;
+
+function legacyIdOf(heading) {
+  const m = String(heading).match(LEGACY_ID_RE);
+  return m ? (m[1] ?? m[2]) : null;
+}
+
 // A readable name for an orphan from its first line: markdown decoration
 // stripped, cut at a word boundary. Names are for people and for the tests
 // that list the regions; nothing keys on them.
@@ -450,15 +465,26 @@ export function segmentInbox(text) {
 // whichever comes first; text after a `---` and before the next heading (the
 // italic re-entry note) belongs to no entry. Answered = struck heading that
 // says ANSWERED — both, because either alone is ordinary prose.
+//
+// TWO LEVELS (M6.E15 t2.3). Another project groups its questions: `##`
+// headings (`Currently blocking`, `Resolved during …`, `Last Updated`) over
+// `###` entries. A file with any `### ` heading is read that way — the `###`
+// are the entries and EVERY `##` is a named non-item region (`section: …`),
+// its text kept, whether or not it has entries under it. Each entry records
+// the `##` it sits under and that heading's finished word, for the planner.
+// A file with no `### ` heading splits exactly as before.
 
 const ANSWERED_RE = /~~[^~]+~~.*\bANSWERED\b/;
+const H3_RE = /^### /;
+const GROUP_WORD_RE = /\b(resolved|done|closed)\b/i;
 
 /**
  * @param {string} text — OPEN-QUESTIONS.md content
  */
 export function segmentQuestions(text) {
   const lines = String(text).split('\n');
-  const heads = [];
+  const h2 = [];
+  const h3 = [];
   let fence = false;
   const topSep = new Set();
   lines.forEach((l, i) => {
@@ -467,16 +493,28 @@ export function segmentQuestions(text) {
       return;
     }
     if (fence) return;
-    if (H2_RE.test(l)) heads.push(i + 1);
+    if (H2_RE.test(l)) h2.push(i + 1);
+    if (H3_RE.test(l)) h3.push(i + 1);
     if (l.trim() === '---') topSep.add(i + 1);
   });
+  const grouped = h3.length > 0;
+  const heads = grouped ? h3 : h2;
+  const allHeads = [...h2, ...h3].sort((a, b) => a - b);
+  const groupOf = (h) => {
+    const g = grouped ? h2.filter((x) => x < h).pop() : undefined;
+    if (g === undefined) return { groupHeading: null, groupWord: null };
+    const groupHeading = lines[g - 1].replace(H2_RE, '').trim();
+    const w = groupHeading.match(GROUP_WORD_RE);
+    return { groupHeading, groupWord: w ? w[1].toLowerCase() : null };
+  };
 
-  const rows = heads.map((h, k) => {
-    const limit = k + 1 < heads.length ? heads[k + 1] - 1 : lines.length;
+  const rows = heads.map((h) => {
+    const nextHead = allHeads.find((x) => x > h);
+    const limit = nextHead !== undefined ? nextHead - 1 : lines.length;
     let end = h;
     while (end < limit && !topSep.has(end + 1)) end++;
     end = trimRowEnd(lines, h, end);
-    const heading = lines[h - 1].replace(H2_RE, '').trim();
+    const heading = lines[h - 1].replace(grouped ? H3_RE : H2_RE, '').trim();
     return {
       source: 'OPEN-QUESTIONS.md',
       kind: 'question',
@@ -485,9 +523,20 @@ export function segmentQuestions(text) {
       text: sliceLines(lines, h, end),
       heading,
       answered: ANSWERED_RE.test(heading),
+      legacyId: legacyIdOf(heading),
+      ...groupOf(h),
     };
   });
-  const { orphans, gaps } = tile(lines, rows, (core, ctx) => (ctx.first ? 'preamble' : `note: ${nameFromFirstLine(core.text, 40)}`));
+  const sections = new Map(grouped ? h2.map((g) => [g, lines[g - 1].replace(H2_RE, '').trim()]) : []);
+  const { orphans, gaps } = tile(
+    lines,
+    rows,
+    (core, ctx) => {
+      if (sections.has(core.line)) return `section: ${sections.get(core.line)}`;
+      return ctx.first ? 'preamble' : `note: ${nameFromFirstLine(core.text, 40)}`;
+    },
+    new Set(sections.keys())
+  );
   return { rows, orphans, gaps };
 }
 
