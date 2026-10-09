@@ -39,6 +39,12 @@
           "to": "P2"
         }
       }
+    },
+    {
+      "type": "queued",
+      "at": "2026-10-08T17:08:19.306Z",
+      "by": "claude (M6.E15 DISCUSS)",
+      "epic": "M6.E15"
     }
   ]
 }

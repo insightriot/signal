@@ -11,6 +11,11 @@
 - SIG-279 · BUG · C — A project whose .planning/ is a symbolic link (even to a folder inside the repo) cannot regenerate its work views
 - SIG-280 · BUG · C — M6.E13 REVIEW residue: broken-record remedy wording, probe message, double sweep report, weak two-process assertion
 
+## M6.E15 — no Epic folder
+
+- SIG-274 · FEAT · Q — No path turns the work store on for a new project any more (the v1 enable script was retired in M6.E13)
+- SIG-286 · BUG · Q — /sig:docs-migrate dry run lists a unit's files to move while also saying it "could not evaluate" that unit
+
 ## M6.E11 — closed 2026-09-30 · PR #263 · v0.1.43 · by claude
 
 - SIG-161 · FEAT · C — Structural status — make done-vs-live readable without inference · **roadmap** · large · **filed 2026-09-01** · **NEXT EPIC after `M6.E3` (Brett, 2026-09-27, `D-M6E3-16`)**

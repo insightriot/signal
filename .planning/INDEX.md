@@ -449,6 +449,9 @@
 - [work/items/00/SIG-282.md](work/items/00/SIG-282.md) — `other` — _(note pending)_
 - [work/items/00/SIG-283.md](work/items/00/SIG-283.md) — `other` — _(note pending)_
 - [work/items/00/SIG-284.md](work/items/00/SIG-284.md) — `other` — _(note pending)_
+- [work/items/00/SIG-285.md](work/items/00/SIG-285.md) — `other` — _(note pending)_
+- [work/items/00/SIG-286.md](work/items/00/SIG-286.md) — `other` — _(note pending)_
+- [work/items/00/SIG-287.md](work/items/00/SIG-287.md) — `other` — _(note pending)_
 - [work/items/00/SIG-29.md](work/items/00/SIG-29.md) — `other` — _(note pending)_
 - [work/items/00/SIG-3.md](work/items/00/SIG-3.md) — `other` — _(note pending)_
 - [work/items/00/SIG-30.md](work/items/00/SIG-30.md) — `other` — _(note pending)_
@@ -671,6 +674,7 @@
 - [archive/M6/E12/STATE-NARRATIVE.md](archive/M6/E12/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E13/CONTEXT-2026-08-26.md](archive/M6/E13/CONTEXT-2026-08-26.md) — `other` — _(note pending)_
 - [archive/M6/E13/STATE-NARRATIVE.md](archive/M6/E13/STATE-NARRATIVE.md) — `other` — _(note pending)_
+- [archive/M6/E14/STATE-NARRATIVE.md](archive/M6/E14/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E2/STATE-NARRATIVE.md](archive/M6/E2/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E3/AUGUST-PLAN.md](archive/M6/E3/AUGUST-PLAN.md) — `other` — _(note pending)_
 - [archive/M6/E3/AUGUST-RESEARCH.md](archive/M6/E3/AUGUST-RESEARCH.md) — `other` — _(note pending)_

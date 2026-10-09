@@ -3991,3 +3991,99 @@ store defect before other projects use it.
 ### D-M6E14-10 — Tier and cadence
 No per-Epic profile: the project's FULL applies (integrity work on shared state). `attention:
 checkpointed`, chosen at `/sig:drive` step 0b.
+
+## 2026-10-08 — M6.E15 DISCUSS: move other projects onto the work store (D-M6E15-1 … D-M6E15-17)
+
+Epic label: *"other projects onto the store"*. `SIG-274` (nothing turns the store on for a project)
+plus build step 5 of [`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](../analysis/WORK-ITEM-SYSTEM-DESIGN.md) §6
+(a project's hand-kept lists become records), and `SIG-286`. Run by `/sig:drive` at `checkpointed`.
+Field evidence, read-only, 2026-10-08: two corpus projects write their lists in shapes the existing
+segmenters (`plugin/tools/lib/work-migrate.js`) refuse — bugs as `##` headings with no ID and no
+`**Status:**` line, backlog rows keyed by GitHub issue numbers (`### #99 —`), finished rows struck
+through with a trailing `**DONE**`, a backlog that is a prose roadmap with no headings, and inbox and
+question files of long `##` write-ups with status in the text.
+
+### D-M6E15-1 — Split by headings and table rows; status only from explicit markers (Brett)
+Offered: headings + markers (recommended), Claude proposes and code checks, or one item per section
+with no status. Brett chose headings + markers: the same input gives the same result every run, and
+nothing is guessed. An entry is closed only when it says so plainly (D-M6E15-10); every other entry
+lands open and flagged for triage (`migration_note`). Cost accepted: more triage afterwards.
+
+### D-M6E15-2 — Every item gets a new number; the old ID is kept (Brett)
+Offered: new numbers + old ID kept (recommended), keep numbers where possible, or drop old IDs. Old IDs
+(`B1`, `#99`, `R3`, `NFR-04`) go in `legacy_id` and are printed on the first line of the item's body,
+so a text search for `#99` still finds it. Numbering is file order: BUGS, BACKLOG, ISSUES-INBOX,
+OPEN-QUESTIONS, from `KEY-1`. Differs from Signal's own migration (B75 → SIG-75) on purpose: other
+projects mix ID schemes that would collide.
+
+### D-M6E15-3 — Finished entries migrate as closed, legacy items (Brett)
+Offered: migrate as closed (recommended), archive only, or ask per run. They become records closed with
+`legacy: true` and their original wording kept as the reason — the same treatment as Signal's 145
+never-re-checked closes (`D-M6E13-14`, `-20`). History stays in one place.
+
+### D-M6E15-4 — `SIG-286` is fixed in this Epic (Brett)
+Offered: fix here (recommended), separate fix-lane PR, or defer. `/sig:docs-migrate`'s archive moves
+must pass the same closed-unit check `/sig:docs-archive` uses: today `senseArchiveTree`
+(`archive-tree.js:475-526`) also treats any Epic with a filled-in retrospective as closed, with no
+current-unit or verdict check, so an unfinished Epic's files can move. Other projects run this
+command right after this Epic ships.
+
+### D-M6E15-5 — Opt-in: `/sig:docs-migrate --work-store`
+A plain `/sig:docs-migrate` never touches the lists. The store migration runs only with the flag, keeps
+the command's existing shape (dry run by default, `--apply` writes, staged not committed, a pre-apply
+tag, refuses a dirty tree) and is its own apply, not chained with the layout steps.
+
+### D-M6E15-6 — One path for both cases: a project with lists and a project without
+With no lists, `--work-store --apply` just turns the store on (WORK.md + empty views). That is
+`SIG-274`; there is no separate enable command.
+
+### D-M6E15-7 — The project key: proposed, confirmed at the dry run, passed as `--key`
+Default proposed from the repository folder name (uppercase letters, 2–10 characters, valid against
+`STORE_KEY_RE`). The dry run prints it; apply needs it confirmed or overridden with `--key`.
+
+### D-M6E15-8 — Layout first: the store migration requires layout v3
+A project not yet at `docs_layout_version: 3` (e.g. still on `FUTURE-IDEAS.md`) is refused with the
+plain command to run first. Two large changes in one apply are harder to review and undo.
+`CURRENT_LAYOUT_VERSION` stays 3; the store is detected by `WORK.md`, not by a stamp (`D-M6E11-21`).
+
+### D-M6E15-9 — No text is lost, and that is checked before anything is written
+The four originals are kept byte-for-byte in `.planning/archive/pre-work-store/` with a manifest. Every
+byte of every source list lands in exactly one item body or one named non-item region (the M6.E11
+AC-9.4 rule). Any failure refuses the whole apply. Non-item text (a preamble, a prose roadmap) that
+is more than a title and blank lines becomes one flagged item per file, so it shows in the views
+rather than only in the archive. The apply's input-hash guard covers the four lists as well as
+STATE.md (today it covers STATE.md only, `migrate-memory.js:2163`).
+
+### D-M6E15-10 — What counts as "finished"
+Any of: a struck-through heading (`~~…~~`); a heading or `Status:` line carrying DONE, RESOLVED,
+ANSWERED, fixed, closed, not-a-bug, won't-fix (any case); a bug table status cell `fixed`/`closed`;
+or an entry under a section heading that says Resolved/Done/Closed. The exact list and the close
+reason each maps to are set at PLAN and pinned by tests; anything ambiguous stays open and flagged.
+
+### D-M6E15-11 — Item types by source file
+BUGS → `BUG`, BACKLOG → `FEAT`, OPEN-QUESTIONS → `Q`, each open at T with a `migration_note`;
+ISSUES-INBOX → `NEW` at N (untriaged, as it was). Triage refines types afterwards.
+
+### D-M6E15-12 — Old-ID lookup
+`/sig:item show` and `list` accept an old ID (`#99`) and resolve it through `legacy_id`. Prose
+mentions of old IDs in other documents (STATE, retros) are not rewritten.
+
+### D-M6E15-13 — Remove Signal-only assumptions from the migration path
+`B\d+`-only bug IDs, the `'SIG'` default key (`work-migrate.js:614`), Signal data in logic
+(`NO_COMMIT_LEGACY_IDS`, `work-convert.js:30`), and WORK.md body text naming Signal's own migration.
+
+### D-M6E15-14 — Test material: anonymised fixtures in the corpus projects' shapes
+Fixtures reproduce the observed shapes with invented text; corpus projects are never named
+(`references/eval-corpus.md`). Real-project runs happen only on scratch copies until Brett applies.
+
+### D-M6E15-15 — Applying to the two real projects is Brett's step, after release
+SHIP of this Epic does not touch them. Their first real applies are the outcome measure.
+
+### D-M6E15-16 — Tier and cadence
+No per-Epic profile: project FULL applies (the migration rewrites another project's records).
+`attention: checkpointed`, chosen at `/sig:drive` step 0b.
+
+### D-M6E15-17 — Scope narrowed to corpus project 1; the rest approved as recommended (Brett, 2026-10-09)
+Brett: land it on corpus project 1 first and leave corpus project 2 until then. Fixtures and the
+outcome measure cover corpus project 1's shapes; corpus project 2's (prose roadmap, long write-ups) are
+a follow-up. `D-M6E15-5` … `-16` approved as written, after a plain-language batch ask.
