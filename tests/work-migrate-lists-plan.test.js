@@ -260,6 +260,19 @@ describe('t3.2 — no marker, an unknown word, or markers that disagree: open an
     expect(r.record.migration_note).toContain('SHIPPED');
   });
 
+  it('an unmapped finished word beside a mapped marker (struck + ABANDONED) → open, flagged conflict — never closed as fixed', () => {
+    const r = one('BACKLOG.md', backlogRow('~~#5 — Old idea · **roadmap** · small~~ · **ABANDONED — v2.1**'));
+    expect(status(r.record)).toBe('T');
+    expect(r.flagged).toBe('conflict');
+    expect(r.record.migration_note).toContain('ABANDONED');
+  });
+
+  it('an unmapped finished word inside a marker that also maps (**DONE — CUT half**) → open, flagged conflict', () => {
+    const r = one('BACKLOG.md', backlogRow('#6 — Two halves · **roadmap** · small · **DONE — CUT half**'));
+    expect(status(r.record)).toBe('T');
+    expect(r.flagged).toBe('conflict');
+  });
+
   it('a title that merely contains a marker word is not a marker', () => {
     const r = one('BACKLOG.md', backlogRow('#16 — Show closed plans in the archive · **roadmap** · small'));
     expect(status(r.record)).toBe('T');

@@ -481,7 +481,9 @@ function titleOf(file, row) {
 // marker beside a status that is not one — is a conflict: open, flagged. A
 // qualified word (`partially resolved`, `not fixed`) is unclear: open,
 // flagged. A finished word the backlog reader knows but this list does not
-// map (SHIPPED, ABANDONED, CUT) is flagged, never guessed. Nothing throws.
+// map (SHIPPED, ABANDONED, CUT) is flagged, never guessed — alone, or beside
+// a marker that does map (`~~…~~ · **ABANDONED**` is not a fixed close).
+// Nothing throws.
 
 const FINISH_RE = /\b(?:done|resolved|answered|fixed|closed)\b/i;
 const QUALIFIED_FINISH_RE = /\b(?:partially|partly|mostly|largely|not)\s+(?:done|resolved|answered|fixed|closed)\b/i;
@@ -528,12 +530,14 @@ function readMarkers(file, row) {
     if (STRUCK_RE.test(heading)) markers.push({ reason: 'fixed', text: heading });
     for (const m of heading.matchAll(BOLD_RE)) {
       if (heading.slice(0, m.index).replace(/[~\s]/g, '') === '') continue; // the title, not an annotation
-      if (!take(m[1]) && UNMAPPED_FINISH_RE.test(m[1])) unmappedFinish.push(m[1]);
+      take(m[1]);
+      if (UNMAPPED_FINISH_RE.test(m[1])) unmappedFinish.push(m[1]);
     }
     const lastStrike = heading.lastIndexOf('~~');
     if (STRUCK_RE.test(heading) && lastStrike + 2 < heading.length) {
       const tail = heading.slice(lastStrike + 2).replace(BOLD_RE, ' ').replace(/^[\s·—–:-]+|\s+$/g, '');
       if (tail) take(tail);
+      if (tail && UNMAPPED_FINISH_RE.test(tail)) unmappedFinish.push(tail);
     }
   }
   if (file === 'BUGS.md' && row.kind === 'table') {
@@ -569,8 +573,12 @@ function decide(file, row) {
   if (m.unclear.length > 0) {
     return { flag: 'unclear', note: `Its marker ${m.unclear.map(quote).join(', ')} is qualified, so it was left open rather than closed by inference.` };
   }
-  if (reasons.size > 1 || (reasons.size === 1 && m.statuses.length > 0)) {
-    const said = [...m.markers.map((x) => `${quote(x.text)} → ${x.reason}`), ...m.statuses.map((s) => `${quote(s)} → open`)];
+  if (reasons.size > 1 || (reasons.size === 1 && (m.statuses.length > 0 || m.unmappedFinish.length > 0))) {
+    const said = [
+      ...m.markers.map((x) => `${quote(x.text)} → ${x.reason}`),
+      ...m.statuses.map((x) => `${quote(x)} → open`),
+      ...m.unmappedFinish.map((x) => `${quote(x)} → not mapped`),
+    ];
     return { flag: 'conflict', note: `Its finished markers disagree (${said.join('; ')}), so it was left open rather than closed by inference.` };
   }
   if (reasons.size === 1) {
