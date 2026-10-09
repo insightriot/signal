@@ -384,6 +384,8 @@ function undo(baseDir, archived) {
 // never an item.
 
 const PLAN_BY = 'migration';
+const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_DAY_G = /\b(\d{4}-\d{2}-\d{2})\b/g;
 const OLD_ID_PREFIX = 'Old ID: ';
 
 const SEGMENTERS = Object.freeze({
@@ -624,12 +626,27 @@ export function planListsToRecords(texts, opts = {}) {
     for (const r of regions.filter((x) => x.file === file)) files[file].regions.push(r.name);
   }
 
+  // Every file that yields a record needs both dates (D-M6E15-19): there is no
+  // fallback to the run's own date, which would flood the views with closes.
+  for (const file of new Set(planned.map((p) => p.file))) {
+    const d = dates[file];
+    if (!d || typeof d !== 'object') {
+      errors.push(`${file}: no dates given — pass its first- and last-commit dates (YYYY-MM-DD); the run's own date is never used.`);
+      continue;
+    }
+    for (const k of ['first', 'last']) {
+      if (typeof d[k] !== 'string' || !ISO_DAY_RE.test(d[k])) errors.push(`${file}: dates.${k} ${JSON.stringify(d[k] ?? null)} is not a YYYY-MM-DD date.`);
+    }
+  }
+  if (errors.length) return { key, records: [], regions, manifest: { key, files, items: [] }, errors };
+
   const records = [];
+  const dateNotes = new Map();
   planned.forEach((p, i) => {
     const id = `${key}-${i + 1}`;
     const { file, row } = p;
     const d = dates[file];
-    const created = d?.first;
+    const created = d.first;
     const record = { id };
     const events = [{ type: 'created', at: created, by: PLAN_BY }];
     let flagged = p.flagged ?? null;
@@ -652,7 +669,15 @@ export function planListsToRecords(texts, opts = {}) {
       text = row.text;
       const outcome = decide(file, row);
       if (outcome.close) {
-        events.push({ type: 'closed', at: d?.last, by: PLAN_BY, reason: outcome.close.reason, proof: outcome.close.proof, legacy: true });
+        // A date the marker writes wins, when it writes exactly one; two (a
+        // logged date and a fix date) do not say which is the close.
+        const written = [...new Set([...outcome.close.proof.matchAll(ISO_DAY_G)].map((m) => m[1]))];
+        const at = written.length === 1 ? written[0] : d.last;
+        if (at < created) {
+          events[0].at = at;
+          dateNotes.set(id, `closed at ${at} (its marker's date), before ${file}'s first date ${created}; created moved back to ${at}`);
+        }
+        events.push({ type: 'closed', at, by: PLAN_BY, reason: outcome.close.reason, proof: outcome.close.proof, legacy: true });
       } else {
         flagged = outcome.flag;
         if (record.type !== 'NEW') {
@@ -682,6 +707,7 @@ export function planListsToRecords(texts, opts = {}) {
     title: r.record.title,
     status: r.record.events.at(-1).type === 'closed' ? 'C' : r.record.events.at(-1).type === 'triaged' ? 'T' : 'N',
     flag: r.flagged,
+    ...(dateNotes.has(r.record.id) ? { dateNote: dateNotes.get(r.record.id) } : {}),
     file: r.sourceRef.file,
     ranges: r.sourceRef.ranges,
   }));

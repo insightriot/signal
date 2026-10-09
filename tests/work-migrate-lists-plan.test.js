@@ -271,3 +271,59 @@ describe('t3.2 — no marker, an unknown word, or markers that disagree: open an
     expect(closedEvent(done).reason).toBe('fixed');
   });
 });
+
+describe('t3.3 — dates come from the entry, else from the file’s history; never the run’s own date (D-M6E15-19)', () => {
+  it('created.at is the source file’s first date', () => {
+    const p = plan(corpus());
+    for (const r of p.records) {
+      const first = DATES[r.sourceRef.file].first;
+      const closed = closedEvent(r);
+      if (!closed || closed.at >= first) expect(r.record.events[0].at, r.record.id).toBe(first);
+    }
+  });
+
+  it('a date written in the marker wins for closed.at (**DONE — M9.E1, 2026-10-08**)', () => {
+    const r = one('BACKLOG.md', backlogRow('#12 — Export to CSV · **roadmap** · small · **DONE — M9.E1, 2026-10-08**'),
+      { dates: { 'BACKLOG.md': { first: '2026-01-06', last: '2026-11-01' } } });
+    expect(closedEvent(r).at).toBe('2026-10-08');
+    expect(r.record.events[0].at).toBe('2026-01-06');
+  });
+
+  it('the corpus: a dated marker gives its date; an undated one, or one naming two dates, falls back to the file’s last date', () => {
+    const p = byId(plan(corpus()));
+    expect(closedEvent(p.get('LF-4')).at).toBe('2026-03-02'); // not-a-bug (closed 2026-03-02 …)
+    expect(closedEvent(p.get('LF-11')).at).toBe('2026-03-08'); // DONE — M9.E2, 2026-03-08
+    expect(closedEvent(p.get('LF-21')).at).toBe('2026-02-15'); // (PR #22, 2026-02-15)
+    expect(closedEvent(p.get('LF-1')).at).toBe(DATES['BUGS.md'].last); // `fixed`, no date
+    expect(closedEvent(p.get('LF-20')).at).toBe(DATES['OPEN-QUESTIONS.md'].last); // 2026-02-10 and 2026-02-14: which is the close is not said
+  });
+
+  it('a marker date before the file’s first date moves created back to it, and says so in the manifest — a close never precedes its creation', () => {
+    const p = plan({ 'BUGS.md': bugEntry('fixed 2025-12-01 — rows are kept now.') }, { dates: { 'BUGS.md': { first: '2026-01-05', last: '2026-03-09' } } });
+    expect(p.errors).toEqual([]);
+    const r = p.records[0];
+    expect(closedEvent(r).at).toBe('2025-12-01');
+    expect(r.record.events[0].at).toBe('2025-12-01');
+    expect(p.manifest.items[0].dateNote).toMatch(/2025-12-01/);
+  });
+
+  it('a file with entries and no dates → an error and no records (never today’s date)', () => {
+    const p = lists.planListsToRecords(corpus(), { key: 'LF', dates: { 'BUGS.md': DATES['BUGS.md'] }, acknowledgeSensitive: true });
+    expect(p.records).toEqual([]);
+    expect(p.errors.join('\n')).toMatch(/BACKLOG\.md: no dates/);
+    expect(p.errors.join('\n')).toMatch(/OPEN-QUESTIONS\.md: no dates/);
+  });
+
+  it('a malformed date → an error and no records', () => {
+    const p = lists.planListsToRecords({ 'BUGS.md': bugEntry('needs-triage') }, { key: 'LF', dates: { 'BUGS.md': { first: 'yesterday', last: '2026-03-09' } } });
+    expect(p.records).toEqual([]);
+    expect(p.errors.join('\n')).toMatch(/BUGS\.md: .*yesterday/);
+  });
+
+  it('a file that yields no record needs no dates (a backlog skeleton)', () => {
+    const skeleton = '# Backlog\n\nGroomed, sequenced roadmap — promoted from the issues inbox. Roadmap-vs-hygiene is a **Tag** on each entry, not a separate file.\n\n*Last updated: 2026-01-01*\n';
+    const p = lists.planListsToRecords({ 'BACKLOG.md': skeleton }, { key: 'LF', dates: {} });
+    expect(p.errors).toEqual([]);
+    expect(p.records).toEqual([]);
+  });
+});
