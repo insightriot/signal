@@ -108,6 +108,17 @@ const EXEMPTIONS = [
       + 'finds. The `.md` filter is pinned — widened to `.json`, the walk would rewrite records with no event',
   },
   {
+    file: 'plugin/tools/lib/work-migrate-lists.js',
+    writes: [
+      'renameSync(join(baseDir, x.from), join(baseDir, x.to))',
+      'atomicWrite(join(baseDir, WORK_MD_REL), workMd(a.key, archived))',
+      'renameSync(join(baseDir, x.to), join(baseDir, x.from))',
+    ],
+    reason: '`/sig:docs-migrate --work-store` (M6.E15): its writes are the list moves to the pre-store archive, WORK.md '
+      + 'and their undo. It names `recordPath(` only in `planListsToRecords`, which is pure and returns the planned '
+      + 'paths; no record is written here yet (writing them is S4, which must re-review this entry)',
+  },
+  {
     file: 'plugin/tools/lib/work-views.js',
     writes: ['atomicWrite(abs, views[rel], { generated: true })'],
     reason: 'regenerates the views from the records it reads; it writes views, never a record',

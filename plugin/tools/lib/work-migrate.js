@@ -575,7 +575,7 @@ const TITLE_MAX = 120;
 
 const stripMd = (s) => s.replace(/\*\*/g, '').replace(/~~/g, '').trim();
 
-function clip(s, max = TITLE_MAX) {
+export function clip(s, max = TITLE_MAX) {
   const t = s.replace(/\s+/g, ' ').trim();
   if (t.length <= max) return t;
   const cut = t.slice(0, max - 1);
@@ -595,7 +595,7 @@ function firstSentence(s) {
   return m ? m[1] : s;
 }
 
-function bugTitle(summary) {
+export function bugTitle(summary) {
   let rest = summary.trim();
   for (;;) {
     const m = rest.match(/^\*\*([\s\S]+?)\*\*/);
@@ -637,7 +637,7 @@ const FOLD_RE = /\b(?:FOLDED INTO|absorbed into)\b/;
 const KEPT_RE = /\bKEPT\b/i;
 const TARGET_TOKEN_RE = /\b(M\d+(?:\.\d+)?\.E\d+|B\d+)\b|`([^`]+)`/;
 
-const TAG_TYPES = {
+export const TAG_TYPES = {
   roadmap: 'FEAT',
   hygiene: 'CHORE',
   verification: 'CHORE',
@@ -647,7 +647,7 @@ const TAG_TYPES = {
 const HEADING_TAG_RE = /\*\*(roadmap|hygiene|verification|product call|fix lane)\*\*/i;
 const BODY_TAG_RE = /^\*\*Tag:\*\*\s*([a-z][a-z ]*?)(?=\s*(?:·|\(|$))/im;
 
-function backlogTag(row) {
+export function backlogTag(row) {
   const h = row.heading.match(HEADING_TAG_RE);
   if (h) return h[1].toLowerCase();
   const b = row.text.match(BODY_TAG_RE);

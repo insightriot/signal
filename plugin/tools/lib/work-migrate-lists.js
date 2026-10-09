@@ -50,8 +50,23 @@ import {
   stagePaths,
   tagPreApply,
 } from './migrate-memory.js';
-import { lockFailure } from './work-errors.js';
+import { bodyDirFor } from './work-convert.js';
+import { lockFailure, WorkStoreError } from './work-errors.js';
 import { GENERATED_FILES } from './work-generate.js';
+import { rewriteRelativeLinks } from './work-links.js';
+import {
+  backlogTag,
+  bugTitle,
+  clip,
+  segmentBacklog,
+  segmentBugs,
+  segmentInbox,
+  segmentQuestions,
+  SOURCES,
+  TAG_TYPES,
+} from './work-migrate.js';
+import { checkEvents, validateRecord } from './work-record.js';
+import { bodyPath, recordPath } from './work-records.js';
 import { isGeneratedFile } from './work-marker.js';
 import { STORE_KEY_RE, WORK_DIR, WORK_FILE, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
 import { confineView, regenerateViews, VIEW_PATHS } from './work-views.js';
@@ -334,4 +349,209 @@ function undo(baseDir, archived) {
       /* best-effort */
     }
   }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// THE PLAN (S3) — the four lists' texts → planned records. Pure: nothing here
+// reads or writes a file; `runWorkStoreMigrate` (S4) does both.
+// ═════════════════════════════════════════════════════════════════════════════
+//
+// Rows come from the segmenters in `work-migrate.js` (the shipped readers, so
+// "which lines are an entry" has one definition). This section adds what a
+// record needs and the segmenters do not decide:
+//
+//   - the ID: `KEY-1` upward in file order — BUGS, BACKLOG, ISSUES-INBOX,
+//     OPEN-QUESTIONS (D-M6E15-2). A file's non-item text, when it has any, is
+//     numbered last in that file's block;
+//   - the type: BUGS → BUG, OPEN-QUESTIONS → Q, ISSUES-INBOX → NEW, BACKLOG by
+//     its tag through `TAG_TYPES` (untagged → FEAT) (D-M6E15-11, -22);
+//   - the status: ISSUES-INBOX at N, everything else open at T with a
+//     `migration_note` (D-M6E15-11);
+//   - `legacy_id`: the entry's own old ID (`B1`, `BUG-7`, `#99`, `R3`,
+//     `NFR-04`), printed again as the body's first line (`Old ID: …`) so a text
+//     search finds it. An entry with no old ID gets none — not a `FILE:line`
+//     stand-in, which an old-ID lookup would then match;
+//   - the body: the entry's source text, relative links rewritten for the
+//     body's folder (`bodyDirFor`).
+//
+// Non-item text (D-M6E15-9, AC6.3): the text between entries. Lines that are
+// only structure — a heading, a blank, `---`, a table header and its `|---|`
+// row, the `*Last updated: …*` footer — stay named regions. When a file has
+// any other text outside its entries (a preamble paragraph, a section's prose),
+// every region holding such text goes, whole, into ONE flagged item for that
+// file (NEW at N), so it shows in the views and not only in the archive. The
+// exact BACKLOG.md skeleton a layout migration leaves is one named region,
+// never an item.
+
+const PLAN_BY = 'migration';
+const OLD_ID_PREFIX = 'Old ID: ';
+
+const SEGMENTERS = Object.freeze({
+  'BUGS.md': segmentBugs,
+  'BACKLOG.md': segmentBacklog,
+  'ISSUES-INBOX.md': segmentInbox,
+  'OPEN-QUESTIONS.md': segmentQuestions,
+});
+
+const PLAN_TABLE_SEP_RE = /^\|(?:\s*:?-{3,}:?\s*\|)+\s*$/;
+const PLAN_HEADING_RE = /^#{1,6}\s/;
+const PLAN_FOOTER_RE = /^\*Last updated:.*\*\s*$/;
+
+// Is every line of this region structure (no prose)? A table header counts as
+// structure only when the next line is its `|---|` row.
+function structureOnly(text) {
+  const ls = text.split('\n');
+  return ls.every((l, i) => {
+    const t = l.trim();
+    if (t === '' || t === '---' || PLAN_HEADING_RE.test(t) || PLAN_FOOTER_RE.test(t) || PLAN_TABLE_SEP_RE.test(t)) return true;
+    return t.startsWith('|') && PLAN_TABLE_SEP_RE.test((ls[i + 1] ?? '').trim());
+  });
+}
+
+const typeOf = (file, row) => {
+  if (file === 'BUGS.md') return 'BUG';
+  if (file === 'OPEN-QUESTIONS.md') return 'Q';
+  if (file === 'ISSUES-INBOX.md') return 'NEW';
+  return TAG_TYPES[backlogTag(row)] ?? 'FEAT';
+};
+
+const legacyOf = (file, row) => {
+  if (file === 'BUGS.md') return row.kind === 'table' ? row.id : null;
+  if (file === 'BACKLOG.md' || file === 'OPEN-QUESTIONS.md') return row.legacyId ?? null;
+  return null;
+};
+
+function titleOf(file, row) {
+  let t;
+  if (file === 'BUGS.md') t = row.kind === 'table' ? bugTitle(row.summary) : clip(row.heading.replace(/~~/g, ''));
+  else if (file === 'BACKLOG.md') t = clip(row.title);
+  else t = clip(String(row.heading).replace(/~~/g, ''));
+  return /\S/.test(t) ? t : `Untitled entry at ${file}:${row.line}`;
+}
+
+/**
+ * Plan the four lists as records. Pure: texts in, plan out; writes nothing.
+ *
+ * @param {Partial<Record<'BUGS.md'|'BACKLOG.md'|'ISSUES-INBOX.md'|'OPEN-QUESTIONS.md', string>>} texts
+ *   a missing or empty source is skipped
+ * @param {object} opts
+ * @param {string} opts.key — the store key (`STORE_KEY_RE`). Required: there is
+ *   no default on this path (AC2.3).
+ * @param {Record<string, {first: string, last: string}>} opts.dates — per source
+ *   file, its first- and last-commit dates (`YYYY-MM-DD`). `created.at` is
+ *   `first`; a close is at the date its marker writes, else `last`
+ *   (D-M6E15-19). Never the run's own date.
+ * @returns {{key: string, records: Array<{record: object, body: string, recordPath: string,
+ *   bodyPath: string, flagged: string|null, sourceRef: {file: string, ranges: Array<{line: number, endLine: number}>}}>,
+ *   regions: Array<{file: string, name: string, line: number, endLine: number, text: string}>,
+ *   manifest: {key: string, files: object, items: object[]}, errors: string[]}}
+ *   `records` is empty whenever `errors` is not.
+ * @throws {WorkStoreError} SCHEMA when `key` is missing or not a valid key
+ */
+export function planListsToRecords(texts, opts = {}) {
+  const { key } = opts;
+  if (typeof key !== 'string' || !STORE_KEY_RE.test(key)) {
+    throw new WorkStoreError('SCHEMA', `planListsToRecords: ${JSON.stringify(key ?? null)} is not a store key — ${KEY_RULE}. There is no default key on this path.`);
+  }
+  const dates = opts.dates ?? {};
+  const errors = [];
+  const regions = [];
+  const planned = []; // {file, row|null, pieces, flagged}
+  const files = {};
+
+  for (const file of SOURCES) {
+    const text = texts[file];
+    if (typeof text !== 'string' || text === '') continue;
+    const lineCount = text.split('\n').length;
+    files[file] = { lines: lineCount, items: 0, open: 0, closed: 0, flagged: 0, regions: [] };
+    if (file === 'BACKLOG.md' && BACKLOG_SKELETON_RE.test(text)) {
+      regions.push({ file, name: 'backlog skeleton', line: 1, endLine: lineCount, text });
+      files[file].regions.push('backlog skeleton');
+      continue;
+    }
+    let seg;
+    try {
+      seg = SEGMENTERS[file](text);
+    } catch (err) {
+      errors.push(`${file}: ${err.message}`);
+      continue;
+    }
+    for (const row of seg.rows) planned.push({ file, row, pieces: [row] });
+    const prose = [];
+    for (const o of seg.orphans) {
+      if (structureOnly(o.text)) regions.push({ file, name: o.name, line: o.line, endLine: o.endLine, text: o.text });
+      else prose.push(o);
+    }
+    for (const g of seg.gaps) regions.push({ file, name: g.text.split('\n').some((l) => l.trim() === '---') ? 'separator' : 'blank', line: g.line, endLine: g.endLine, text: g.text });
+    if (seg.watchlist) {
+      const w = seg.watchlist;
+      regions.push({ file, name: 'standing watchlist', line: w.line, endLine: w.endLine, text: w.text });
+    }
+    if (prose.length > 0) planned.push({ file, row: null, pieces: prose, flagged: 'non-item' });
+    for (const r of regions.filter((x) => x.file === file)) files[file].regions.push(r.name);
+  }
+
+  const records = [];
+  planned.forEach((p, i) => {
+    const id = `${key}-${i + 1}`;
+    const { file, row } = p;
+    const d = dates[file];
+    const created = d?.first;
+    const record = { id };
+    const events = [{ type: 'created', at: created, by: PLAN_BY }];
+    let flagged = p.flagged ?? null;
+    const ranges = p.pieces.map((x) => ({ line: x.line, endLine: x.endLine }));
+    let text;
+    if (row === null) {
+      record.type = 'NEW';
+      record.title = `Text in ${file} outside any entry`;
+      record.source = `migration:${file}`;
+      record.source_ref = `${file}:${ranges[0].line}`;
+      record.migration_note = `Text from ${file} that belongs to no entry (lines ${ranges.map((r) => (r.line === r.endLine ? `${r.line}` : `${r.line}–${r.endLine}`)).join(', ')}), kept so it shows in the views. Triage: make it an item, fold it into one, or close it.`;
+      text = p.pieces.map((x) => x.text).join('\n\n');
+    } else {
+      record.type = typeOf(file, row);
+      record.title = titleOf(file, row);
+      record.source = `migration:${file}`;
+      record.source_ref = `${file}:${row.line}`;
+      const legacy = legacyOf(file, row);
+      if (legacy) record.legacy_id = legacy;
+      text = row.text;
+      if (record.type !== 'NEW') {
+        flagged = 'no-marker';
+        record.migration_note = `Open in ${file} when it moved to the store; its type and status were not re-checked.`;
+        events.push({ type: 'triaged', at: created, by: PLAN_BY });
+      }
+    }
+    record.events = events;
+    const dir = bodyDirFor(id);
+    const moved = rewriteRelativeLinks(text, '', dir);
+    const body = record.legacy_id ? `${OLD_ID_PREFIX}${record.legacy_id}\n\n${moved}` : moved;
+    records.push({ record, body, recordPath: recordPath(id), bodyPath: bodyPath(id), flagged, sourceRef: { file, ranges } });
+  });
+
+  for (const r of records) {
+    const invalid = [...validateRecord(r.record), ...checkEvents(r.record).map((e) => e.message)];
+    if (invalid.length) errors.push(`${r.record.id} (${r.sourceRef.file}:${r.sourceRef.ranges[0].line}): ${invalid.join('; ')}`);
+  }
+
+  const items = records.map((r) => ({
+    id: r.record.id,
+    legacy_id: r.record.legacy_id ?? null,
+    title: r.record.title,
+    status: r.record.events.at(-1).type === 'closed' ? 'C' : r.record.events.at(-1).type === 'triaged' ? 'T' : 'N',
+    flag: r.flagged,
+    file: r.sourceRef.file,
+    ranges: r.sourceRef.ranges,
+  }));
+  for (const it of items) {
+    const f = files[it.file];
+    f.items++;
+    if (it.status === 'C') f.closed++;
+    else f.open++;
+    if (it.flag) f.flagged++;
+  }
+  const manifest = { key, files, items };
+  if (errors.length) return { key, records: [], regions, manifest, errors };
+  return { key, records, regions, manifest, errors };
 }
