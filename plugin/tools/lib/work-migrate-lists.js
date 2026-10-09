@@ -410,6 +410,30 @@ function structureOnly(text) {
   });
 }
 
+// The conservation check (D-M6E15-9, AC6.2): the segmentation's pieces —
+// rows, orphans, gaps and a standing watchlist — must cover the file's lines
+// once each, in order, and each piece's text must be the source's text for its
+// lines; so their join is the file, byte for byte. Every piece then goes to
+// exactly one place: a row to its record, an orphan to a named region or the
+// file's one non-item record, a gap or the watchlist to a named region. The
+// segmenters tile by construction (`tile()` in work-migrate.js); this checks
+// the result rather than trusting it. Returns one message per fault.
+function unaccounted(file, text, seg) {
+  const lines = text.split('\n');
+  const pieces = [...seg.rows, ...seg.orphans, ...seg.gaps, ...(seg.watchlist ? [seg.watchlist] : [])].sort((a, b) => a.line - b.line);
+  const faults = [];
+  let next = 1;
+  for (const x of pieces) {
+    if (x.line > next) faults.push(`${file}: line ${next}${x.line - 1 > next ? `–${x.line - 1}` : ''} is in no record or region`);
+    if (x.line < next) faults.push(`${file}: line ${x.line} is claimed twice`);
+    if (x.text !== lines.slice(x.line - 1, x.endLine).join('\n')) faults.push(`${file}: the piece at lines ${x.line}–${x.endLine} is not the source text for those lines`);
+    next = Math.max(next, x.endLine + 1);
+  }
+  if (next <= lines.length) faults.push(`${file}: line ${next}${lines.length > next ? `–${lines.length}` : ''} is in no record or region`);
+  if (faults.length === 0 && pieces.map((x) => x.text).join('\n') !== text) faults.push(`${file}: the pieces do not join back to the file`);
+  return faults;
+}
+
 const typeOf = (file, row) => {
   if (file === 'BUGS.md') return 'BUG';
   if (file === 'OPEN-QUESTIONS.md') return 'Q';
@@ -576,11 +600,24 @@ function decide(file, row) {
  *   file, its first- and last-commit dates (`YYYY-MM-DD`). `created.at` is
  *   `first`; a close is at the date its marker writes, else `last`
  *   (D-M6E15-19). Never the run's own date.
+ * @param {Record<string, (text: string) => object>} [opts.segmenters] — TEST SEAM
+ *   ONLY: replace a file's segmenter, to prove the conservation check refuses a
+ *   segmentation that loses or alters a byte. Production callers never pass it.
  * @returns {{key: string, records: Array<{record: object, body: string, recordPath: string,
  *   bodyPath: string, flagged: string|null, sourceRef: {file: string, ranges: Array<{line: number, endLine: number}>}}>,
  *   regions: Array<{file: string, name: string, line: number, endLine: number, text: string}>,
- *   manifest: {key: string, files: object, items: object[]}, errors: string[]}}
- *   `records` is empty whenever `errors` is not.
+ *   manifest: {key: string,
+ *     files: Record<string, {lines: number, items: number, open: number, closed: number, flagged: number,
+ *       regions: Array<{name: string, line: number, endLine: number}>, verified?: true}>,
+ *     items: Array<{id: string, legacy_id: string|null, title: string, status: 'N'|'T'|'C', flag: string|null,
+ *       dateNote?: string, file: string, ranges: Array<{line: number, endLine: number}>}>},
+ *   errors: string[]}}
+ *   `records` is empty whenever `errors` is not. `flagged` (and a manifest
+ *   item's `flag`) is null for a closed entry and an unmarked inbox entry;
+ *   otherwise why it needs a person's look: `no-marker`, `status-unmapped`,
+ *   `no-status-line`, `unclear`, `conflict`, `finished-word-unmapped`, or
+ *   `non-item` (the file's text outside its entries). `verified` is set on a
+ *   file whose bytes all landed in one record or region.
  * @throws {WorkStoreError} SCHEMA when `key` is missing or not a valid key
  */
 export function planListsToRecords(texts, opts = {}) {
@@ -601,16 +638,23 @@ export function planListsToRecords(texts, opts = {}) {
     files[file] = { lines: lineCount, items: 0, open: 0, closed: 0, flagged: 0, regions: [] };
     if (file === 'BACKLOG.md' && BACKLOG_SKELETON_RE.test(text)) {
       regions.push({ file, name: 'backlog skeleton', line: 1, endLine: lineCount, text });
-      files[file].regions.push('backlog skeleton');
+      files[file].regions.push({ name: 'backlog skeleton', line: 1, endLine: lineCount });
+      files[file].verified = true;
       continue;
     }
     let seg;
     try {
-      seg = SEGMENTERS[file](text);
+      seg = (opts.segmenters?.[file] ?? SEGMENTERS[file])(text);
     } catch (err) {
       errors.push(`${file}: ${err.message}`);
       continue;
     }
+    const lost = unaccounted(file, text, seg);
+    if (lost.length > 0) {
+      errors.push(...lost);
+      continue;
+    }
+    files[file].verified = true;
     for (const row of seg.rows) planned.push({ file, row, pieces: [row] });
     const prose = [];
     for (const o of seg.orphans) {
@@ -623,7 +667,7 @@ export function planListsToRecords(texts, opts = {}) {
       regions.push({ file, name: 'standing watchlist', line: w.line, endLine: w.endLine, text: w.text });
     }
     if (prose.length > 0) planned.push({ file, row: null, pieces: prose, flagged: 'non-item' });
-    for (const r of regions.filter((x) => x.file === file)) files[file].regions.push(r.name);
+    for (const r of regions.filter((x) => x.file === file)) files[file].regions.push({ name: r.name, line: r.line, endLine: r.endLine });
   }
 
   // Every file that yields a record needs both dates (D-M6E15-19): there is no

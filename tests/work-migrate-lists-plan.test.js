@@ -13,10 +13,13 @@
 // hit. The abort itself is pinned in its own describe block (t3.5).
 
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { createBacklogIfMissing } from '../plugin/tools/lib/backlog.js';
+import { segmentBacklog } from '../plugin/tools/lib/work-migrate.js';
 import * as lists from '../plugin/tools/lib/work-migrate-lists.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -325,5 +328,104 @@ describe('t3.3 — dates come from the entry, else from the file’s history; ne
     const p = lists.planListsToRecords({ 'BACKLOG.md': skeleton }, { key: 'LF', dates: {} });
     expect(p.errors).toEqual([]);
     expect(p.records).toEqual([]);
+  });
+});
+
+describe('t3.4 — every source byte lands in exactly one record body or one named region (AC6.2, AC6.3, D-M6E15-9)', () => {
+  // Rebuild each file from the plan alone: records by their source ranges,
+  // regions by their own text. Each line is claimed once, in order, and the
+  // join is the file, byte for byte.
+  it('the corpus tiles: each line in exactly one record or region, and the join is the file', () => {
+    const texts = corpus();
+    const p = plan(texts);
+    for (const file of SOURCES) {
+      const lines = texts[file].split('\n');
+      const pieces = [
+        ...p.records.filter((r) => r.sourceRef.file === file).flatMap((r) => r.sourceRef.ranges.map((x) => ({ ...x, text: lines.slice(x.line - 1, x.endLine).join('\n') }))),
+        ...p.regions.filter((g) => g.file === file),
+      ].sort((a, b) => a.line - b.line);
+      let next = 1;
+      for (const x of pieces) {
+        expect(x.line, `${file}: a piece starts where the last ended`).toBe(next);
+        next = x.endLine + 1;
+      }
+      expect(next - 1, file).toBe(lines.length);
+      expect(pieces.map((x) => x.text).join('\n'), file).toBe(texts[file]);
+      expect(p.manifest.files[file].verified, file).toBe(true);
+    }
+  });
+
+  it('every region is named', () => {
+    for (const g of plan(corpus()).regions) expect(g.name, `${g.file}:${g.line}`).toMatch(/\S/);
+  });
+
+  it('a segmentation that leaves a byte unaccounted → an error naming the lines, and no records', () => {
+    const dropGap = (text) => {
+      const seg = segmentBacklog(text);
+      return { ...seg, gaps: seg.gaps.slice(1) };
+    };
+    const p = plan(corpus(), { segmenters: { 'BACKLOG.md': dropGap } });
+    expect(p.records).toEqual([]);
+    expect(p.errors.join('\n')).toMatch(/BACKLOG\.md: line \d+ .*no record or region/);
+  });
+
+  it('a segmentation whose text differs from the source → an error, and no records', () => {
+    const alter = (text) => {
+      const seg = segmentBacklog(text);
+      return { ...seg, rows: seg.rows.map((r, i) => (i === 0 ? { ...r, text: `${r.text}!` } : r)) };
+    };
+    const p = plan(corpus(), { segmenters: { 'BACKLOG.md': alter } });
+    expect(p.records).toEqual([]);
+    expect(p.errors.join('\n')).toMatch(/BACKLOG\.md: .*not the source text/);
+  });
+
+  it('a segmenter that refuses its input → an error, and no records; the plan never throws', () => {
+    const bugs = ['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|', '| B1 | `fixed` | P2 | **A row that never', 'closes', '', '## Next', '**Status:** needs-triage', ''].join('\n');
+    let p;
+    expect(() => { p = plan({ 'BUGS.md': bugs }); }).not.toThrow();
+    expect(p.records).toEqual([]);
+    expect(p.errors.join('\n')).toMatch(/^BUGS\.md: /);
+  });
+
+  it('title, blanks and `---` only outside the entries → no flagged item (AC6.3)', () => {
+    const p = plan({ 'BACKLOG.md': ['# Backlog', '', '### #1 — Export · **roadmap** · small', 'Body.', '', '---', '', '*Last updated: 2026-01-01*', ''].join('\n') });
+    expect(p.errors).toEqual([]);
+    expect(p.records.map((r) => r.flagged)).toEqual(['no-marker']);
+  });
+
+  it('prose outside the entries → ONE flagged item per file, holding every such region whole (AC6.3)', () => {
+    const text = ['# Backlog', '', 'An intro paragraph.', '', '## Later', '', 'Some section prose.', '', '### #1 — Export · **roadmap** · small', 'Body.', ''].join('\n');
+    const p = plan({ 'BACKLOG.md': text });
+    expect(p.errors).toEqual([]);
+    const flagged = p.records.filter((r) => r.flagged === 'non-item');
+    expect(flagged).toHaveLength(1);
+    expect(flagged[0].record.id).toBe('LF-2'); // numbered last in its file's block
+    expect(flagged[0].record.type).toBe('NEW');
+    expect(status(flagged[0].record)).toBe('N');
+    expect(flagged[0].body).toContain('An intro paragraph.');
+    expect(flagged[0].body).toContain('Some section prose.');
+    expect(flagged[0].record.migration_note).toMatch(/belongs to no entry/);
+  });
+
+  it('the corpus: BACKLOG, ISSUES-INBOX and OPEN-QUESTIONS each get one flagged item; BUGS (title + table header) none', () => {
+    const p = plan(corpus());
+    expect(p.records.filter((r) => r.flagged === 'non-item').map((r) => r.sourceRef.file)).toEqual(['BACKLOG.md', 'ISSUES-INBOX.md', 'OPEN-QUESTIONS.md']);
+  });
+
+  it('the exact backlog skeleton is one named region, never an item', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'plan-skeleton-'));
+    try {
+      await createBacklogIfMissing(dir, { today: '2026-01-02' });
+      const skeleton = readFileSync(join(dir, '.planning', 'BACKLOG.md'), 'utf-8');
+      const p = plan({ 'BACKLOG.md': skeleton });
+      expect(p.errors).toEqual([]);
+      expect(p.records).toEqual([]);
+      expect(p.regions).toEqual([{ file: 'BACKLOG.md', name: 'backlog skeleton', line: 1, endLine: skeleton.split('\n').length, text: skeleton }]);
+      // one byte more and it is not the skeleton: its purpose line is prose
+      const edited = plan({ 'BACKLOG.md': skeleton.replace('# Backlog\n', '# Backlog\n\nOur own note.\n') });
+      expect(edited.records.map((r) => r.flagged)).toEqual(['non-item']);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
