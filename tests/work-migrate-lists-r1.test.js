@@ -21,7 +21,10 @@ const DATES = {
 // fixture here cites it, so what these tests vary is the wording.
 const HASH = 'e41d30e9b7c2a1f0e41d30e9b7c2a1f0e41d30e9';
 const EVIDENCE = { commits: [HASH], prs: new Map([[7, HASH]]), epics: new Map() };
-const plan = (texts, opts = {}) => planListsToRecords(texts, { key: 'LF', dates: DATES, evidence: EVIDENCE, ...opts });
+// confirmCloses: true is the person's yes to the proposed closes (D-M6E15-25):
+// these tests pin what a CONFIRMED close carries. That nothing closes without
+// it is pinned in tests/work-migrate-propose.test.js.
+const plan = (texts, opts = {}) => planListsToRecords(texts, { key: 'LF', dates: DATES, evidence: EVIDENCE, confirmCloses: true, ...opts });
 const entries = (p) => p.records.filter((r) => r.flagged !== 'non-item');
 const one = (file, text) => {
   const p = plan({ [file]: text });

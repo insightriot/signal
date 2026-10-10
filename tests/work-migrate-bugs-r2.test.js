@@ -12,7 +12,10 @@ import { planListsToRecords } from '../plugin/tools/lib/work-migrate-lists.js';
 const DATES = { 'BUGS.md': { first: '2026-01-05', last: '2026-03-09' } };
 const HASH = 'e41d30e9b7c2a1f0e41d30e9b7c2a1f0e41d30e9';
 const EVIDENCE = { commits: [HASH], prs: new Map([[7, HASH]]), epics: new Map() };
-const plan = (text) => planListsToRecords({ 'BUGS.md': text }, { key: 'LF', dates: DATES, evidence: EVIDENCE });
+// confirmCloses: true is the person's yes to the proposed closes (D-M6E15-25):
+// these tests pin what a CONFIRMED close carries. That nothing closes without
+// it is pinned in tests/work-migrate-propose.test.js.
+const plan = (text) => planListsToRecords({ 'BUGS.md': text }, { key: 'LF', dates: DATES, evidence: EVIDENCE, confirmCloses: true });
 const status = (r) => ({ created: 'N', triaged: 'T', closed: 'C' }[r.record.events.at(-1).type]);
 const table = (...rows) => ['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|', ...rows, ''].join('\n');
 

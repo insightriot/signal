@@ -43,11 +43,13 @@ committed, an undo line printed.
   `.planning/archive/pre-work-store/`. Afterwards `/sig:item new` works.
 - **A project whose lists have entries** — each `##`/`###` entry and bug-table row becomes one record,
   numbered `KEY-1` upward in the order BUGS, BACKLOG, ISSUES-INBOX, OPEN-QUESTIONS. An old ID (`B1`,
-  `#99`, `R3`) is kept in `legacy_id` and on the body's first line. An entry closes (as a legacy close)
-  only when its wording says so plainly — struck through, or DONE / RESOLVED / ANSWERED / FIXED /
+  `#99`, `R3`) is kept in `legacy_id` and on the body's first line. **The migration never closes an
+  entry on its own** (`D-M6E15-25`): an entry is *proposed* for closing only when its wording says so plainly — struck through, or DONE / RESOLVED / ANSWERED / FIXED /
   CLOSED / SHIPPED, not-a-bug, won't-fix, superseded, followed by nothing but a date, `in <ref>`, a dash
   and a note, or `(` — **and** a commit, PR (`#N` in a commit subject) or Epic (with a retrospective)
-  it cites is found in this repository; the proof names both. Anything else stays open and **flagged**,
+  it cites is found in this repository; the dry run lists each proposal with its wording and evidence,
+  and you confirm the list with one yes (each then closes as a legacy close whose proof names both) or
+  say no (each stays open, flagged `looks-finished`). Anything else stays open and **flagged**,
   with a note saying what was found and not found. Text outside any entry becomes one flagged item per file.
   Dates come from each list's git history (first commit → created; last commit → an undated close),
   or the file's modification date outside git.
@@ -96,9 +98,9 @@ Drive the command by calling into `tools/lib/migrate-memory.js` (import with `no
 
 From `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-migrate-lists.js`. It never calls `senseProject`, `renderDryRun` or `applyMigrate`.
 
-1. **Dry run** — `const dry = await runWorkStoreMigrate(baseDir, {apply: false, key})`. If `dry.refused`, print `dry.reason` and stop. Otherwise print `dry.report` — the key, each list's counts and dates, every planned item and its flag, any sensitive-data hits — and hold `dry.inputHash`.
-2. **Confirm** — the user confirms the key (or re-runs with `--key KEY`) and has seen the counts and the flagged items. If `dry.sensitiveHits` is not empty, ask: **keep** the text as it is, or **abort** and edit the list first. No confirmation → stop, having written nothing.
-3. **Apply** (`--apply` only) — `await runWorkStoreMigrate(baseDir, {apply: true, force, key: dry.key, expectedHash: dry.inputHash, acknowledgeSensitive})`, with `acknowledgeSensitive: true` only when the user chose keep. A `refused` result (dirty tree, `STATE.md` or a list changed since the dry run or while the apply ran, an earlier run of this tool stopped part-way) or `aborted: 'sensitive-data-pending'` → print `reason` and stop. Otherwise print `result.report`, which ends with the pre-apply tag and `result.revertLine`.
+1. **Dry run** — `const dry = await runWorkStoreMigrate(baseDir, {apply: false, key})`. If `dry.refused`, print `dry.reason` and stop. Otherwise print `dry.report` — the key, each list's counts and dates, every planned item and its flag, the **proposed closes** (each with its new ID, old ID, title, wording and evidence), any sensitive-data hits — and hold `dry.inputHash`.
+2. **Confirm** — the user confirms the key (or re-runs with `--key KEY`) and has seen the counts and the flagged items. If `dry.proposedCloses` is not empty, show that section again and ask **one yes/no**: *close these N entries?* Yes → `confirmCloses = true`; no → `false` (they stay open, flagged `looks-finished`). Never answer it for the user, and never ask per entry. If `dry.sensitiveHits` is not empty, ask: **keep** the text as it is, or **abort** and edit the list first. No confirmation → stop, having written nothing.
+3. **Apply** (`--apply` only) — `await runWorkStoreMigrate(baseDir, {apply: true, force, key: dry.key, expectedHash: dry.inputHash, confirmCloses, acknowledgeSensitive})`, with `confirmCloses: true` only when the user said yes in step 2 and `acknowledgeSensitive: true` only when the user chose keep. A `refused` result (dirty tree, `STATE.md` or a list changed since the dry run or while the apply ran, what the dry run showed — an item's status or flag, a proposed close or its evidence — no longer what the apply would do, an earlier run of this tool stopped part-way) or `aborted: 'sensitive-data-pending'` → print `reason` and stop. Otherwise print `result.report`, which ends with the pre-apply tag and `result.revertLine`.
 
 ## Lib symbols this command calls
 
@@ -111,7 +113,7 @@ From `${CLAUDE_PLUGIN_ROOT}/tools/lib/migrate-memory.js`:
 - `relocateFaithful(...)` / `verifyFaithful(...)` / `conserves(...)` — the faithfulness gate (S1.t3): WORD conservation is the vector-1 gate; `verifyFaithful` is the ID/date/status-token backstop.
 
 From `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-migrate-lists.js` (`--work-store` only):
-- `runWorkStoreMigrate(baseDir, {apply, force, key, expectedHash, acknowledgeSensitive})` — `expectedHash` (the dry run's `inputHash`) is required with `apply`: without it the apply is refused. Returns refusals, a sensitive-data stop (`{aborted, hits}`), dry run (`{key, files, items, dates, sensitiveHits, inputHash, report}`) or apply (`{tag, revertLine, written, archived, records, flagged, report}`).
+- `runWorkStoreMigrate(baseDir, {apply, force, key, expectedHash, confirmCloses, acknowledgeSensitive})` — `expectedHash` (the dry run's `inputHash`) is required with `apply`: without it the apply is refused. `confirmCloses` is the user's yes to the proposed closes. Returns refusals, a sensitive-data stop (`{aborted, hits}`), dry run (`{key, files, items, dates, proposedCloses, sensitiveHits, inputHash, report}`) or apply (`{tag, revertLine, written, archived, records, flagged, closesConfirmed, report}`).
 - `proposeKey(folderName)` → a valid key or `null` — what the dry run proposes.
 
 Supporting (pure cores + read-only sensing helpers the command uses; the mutating cores compose under the ONE coarse lock inside `runMigrate`/`applyMigrate`): `senseState`/`senseProject` (auto-sense), `deproseFrontmatter`/`locateFrontmatterProse` (vector-1), `planVector2` (vector-2), `stampOnConformance` (the stamp), `scanDanglingLinks`/`computeDanglingDelta` (dangling baseline). Vector-3 evict + archive-tree + link-rewrite + the full-corpus brain land in **S2**; the FR7.2 upgrade banner + SessionStart hook in **S3**.

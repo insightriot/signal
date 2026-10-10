@@ -340,12 +340,21 @@ function assess(baseDir, opts) {
   if (plan.errors.length > 0) {
     return refuse(`The lists could not be planned as records, so nothing was written:\n  ${plan.errors.join('\n  ')}`);
   }
+  // What the person saw is always the unconfirmed plan (the proposals, open);
+  // the apply builds the confirmed one when they said yes (D-M6E15-25).
+  const shown = plan;
+  if (opts.confirmCloses === true) {
+    plan = planListsToRecords(texts, { ...planOpts, acknowledgeSensitive: sensitiveHits.length > 0, confirmCloses: true });
+    if (plan.errors.length > 0) {
+      return refuse(`The lists could not be planned as records, so nothing was written:\n  ${plan.errors.join('\n  ')}`);
+    }
+  }
 
   const files = present.map((name) => {
     const f = plan.manifest.files[name] ?? { items: 0, open: 0, closed: 0, flagged: 0, regions: [] };
     return { file: `.planning/${name}`, items: f.items, open: f.open, closed: f.closed, flagged: f.flagged, regions: f.regions.map((r) => r.name) };
   });
-  return { key, keySource, folder, files, archived, dates, texts, plan, sensitiveHits, evidence, inputHash: inputHashOf(stateText, texts) };
+  return { key, keySource, folder, files, archived, dates, texts, plan, shown, sensitiveHits, evidence, inputHash: inputHashOf(stateText, texts) };
 }
 
 // The `pre-work-store-*` tags this tool's apply makes, from a fixed-argument
@@ -408,7 +417,7 @@ function dryRunReport(a) {
       if (f.items > 0 && d) lines.push(`  dates: first ${d.first}, last ${d.last} (${DATE_SOURCE[d.source]})`);
     }
   }
-  const items = a.plan.manifest.items;
+  const items = a.shown.manifest.items;
   if (items.length > 0) {
     lines.push('', 'Items — new ID, old ID, status (N new, T open, C closed), title:');
     for (const it of items) {
@@ -418,6 +427,14 @@ function dryRunReport(a) {
     if (flagged > 0) {
       lines.push('', `${flagged} item${flagged === 1 ? ' is' : 's are'} flagged: left open for a person's look, each with a migration_note saying why. `
         + 'Triage them with /sig:item after the apply.');
+    }
+  }
+  const proposed = a.shown.proposedCloses;
+  if (proposed.length > 0) {
+    lines.push('', `Proposed closes (${proposed.length}) — confirm to close them; anything not confirmed stays open, flagged looks-finished. `
+      + 'New ID, old ID, title, the wording, the evidence:');
+    for (const c of proposed) {
+      lines.push(`  ${c.id}  ${c.legacyId ?? '—'}  ${c.title}  — wording ${quote(clip(c.wording))}; evidence ${c.evidence.join('; ')}`);
     }
   }
   if (a.sensitiveHits.length > 0) {
@@ -644,11 +661,13 @@ async function buildAndSwap(baseDir, a, ctx) {
  *
  * @param {string} baseDir — project root
  * @param {{apply?: boolean, force?: boolean, key?: string, expectedHash?: string,
- *          acknowledgeSensitive?: boolean, stamp?: string, execFn?: typeof execFileSync,
+ *          confirmCloses?: boolean, acknowledgeSensitive?: boolean, stamp?: string, execFn?: typeof execFileSync,
  *          onSwapStep?: (step: string) => void,
  *          segmenters?: Record<string, (text: string) => object>}} [opts]
  *   `expectedHash`: the dry run's `inputHash` — required with `apply` (refused
- *   without it). `acknowledgeSensitive`: go ahead past the sensitive-data hits the dry run
+ *   without it). `confirmCloses`: the person's yes to the dry run's proposed
+ *   closes — the apply closes exactly that list; without it they stay open,
+ *   flagged `looks-finished` (D-M6E15-25). Ignored by a dry run. `acknowledgeSensitive`: go ahead past the sensitive-data hits the dry run
  *   listed, after a person has read them (the text is kept as it is).
  *   `onSwapStep`: TEST SEAM ONLY — called with `archive`, `work`, `views` and
  *   `verify` before those steps of the swap, with `archive:<list>` before each
@@ -659,9 +678,9 @@ async function buildAndSwap(baseDir, a, ctx) {
  *   loses a byte refuses the whole run (AC6.2). Production callers pass neither.
  * @returns {Promise<object>} a refusal `{applied: false, refused: true, reason}`; a
  *   sensitive-data stop `{applied: false, aborted: 'sensitive-data-pending', hits, reason}`;
- *   a dry run `{applied: false, dryRun: true, key, files, items, dates, sensitiveHits,
- *   inputHash, report}`; or an apply `{applied: true, key, mode, tag, revertLine, written,
- *   archived, records, flagged, warnings, report}`
+ *   a dry run `{applied: false, dryRun: true, key, files, items, dates, proposedCloses,
+ *   sensitiveHits, inputHash, report}`; or an apply `{applied: true, key, mode, tag, revertLine,
+ *   written, archived, records, flagged, closesConfirmed, warnings, report}`
  * @throws {WorkStoreError} LOCKED / IO when the `work` lock cannot be taken; whatever
  *   the build or the swap threw, after the project is put back and the tag removed
  */
@@ -686,8 +705,8 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   if (a.refusal) return refused(a.refusal);
   if (!apply) {
     return {
-      applied: false, dryRun: true, key: a.key, files: a.files, items: a.plan.manifest.items, dates: a.dates,
-      sensitiveHits: maskHits(a.sensitiveHits), inputHash: a.inputHash, report: dryRunReport(a),
+      applied: false, dryRun: true, key: a.key, files: a.files, items: a.shown.manifest.items, dates: a.dates,
+      proposedCloses: a.shown.proposedCloses, sensitiveHits: maskHits(a.sensitiveHits), inputHash: a.inputHash, report: dryRunReport(a),
     };
   }
   // The apply is bound to what a person read in the dry run (AC6.4): without
@@ -786,6 +805,11 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   const revertLine = revertLineFor(probe, force, tag, created, b.archived, indexRegenerated);
   const items = b.plan.manifest.items;
   const flagged = items.filter((it) => it.flag).length;
+  const proposedN = b.plan.proposedCloses.length;
+  const proposedLine = proposedN === 0 ? []
+    : opts.confirmCloses === true
+      ? [`Closed ${proposedN} proposed close${proposedN === 1 ? '' : 's'}, as confirmed (each a legacy close; its proof is the wording and the evidence).`]
+      : [`${proposedN} proposed close${proposedN === 1 ? ' was' : 's were'} not confirmed: left open, flagged looks-finished.`];
   const report = [
     `/sig:docs-migrate --work-store — the work store is on (key ${b.key})`,
     '',
@@ -795,6 +819,7 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
     ...(indexRegenerated ? [`Regenerated ${INDEX_REL} so it lists the new files.`] : []),
     ...(swapped.index === 'not-a-file' ? [`${INDEX_REL} is a symbolic link or not a regular file, so it was not regenerated: run /sig:docs-index.`] : []),
     ...(swapped.index === 'foreign' ? [`${INDEX_REL} is hand-written, so it was left as it is: reconcile it with /sig:docs-index.`] : []),
+    ...proposedLine,
     ...(flagged > 0 ? [`${flagged} item${flagged === 1 ? ' is' : 's are'} flagged for a person's look (each carries a migration_note saying why): triage with /sig:item.`] : []),
     probe.mode === 'git' ? 'Staged, not committed — review with `git diff --cached`, then commit.' : 'Not a git checkout: nothing staged.',
     ...(tag ? [`Pre-apply tag: ${tag}`] : []),
@@ -802,7 +827,7 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   ].join('\n');
   return {
     applied: true, key: b.key, mode: probe.mode, tag, revertLine, written, archived: b.archived,
-    records: items.length, flagged, warnings: probe.warnings, report,
+    records: items.length, flagged, closesConfirmed: opts.confirmCloses === true ? proposedN : 0, warnings: probe.warnings, report,
   };
 }
 
@@ -1245,7 +1270,7 @@ function decide(file, folded, evidence) {
     const shown = checked.found.slice(0, 3).join('; ');
     const room = PROOF_MAX - shown.length - 2;
     const proof = `${clip(printable(wording), Math.max(room, 20))}; ${shown}`;
-    return { close: { reason: [...reasons][0], proof, wording } };
+    return { close: { reason: [...reasons][0], proof, wording, evidence: checked.found } };
   }
   if (m.statuses.length > 0) {
     return { flag: 'status-unmapped', note: `Its status reads ${m.statuses.map(quote).join(', ')}, which is not a finished marker this migration maps; left open.` };
@@ -1276,6 +1301,12 @@ function decide(file, folded, evidence) {
  *   the repository's evidence index (`buildEvidenceIndex`). A finished entry
  *   closes only when a reference in it resolves here (D-M6E15-24); without an
  *   index nothing resolves, so every finished entry stays open (fail closed).
+ * @param {boolean} [opts.confirmCloses] — the person's yes to the proposed
+ *   closes (D-M6E15-25). Without it no entry is closed: one whose wording and
+ *   evidence pass is open, flagged `looks-finished`, and listed in
+ *   `proposedCloses`; with it exactly those entries get a legacy `closed`
+ *   event (proof = wording + evidence). `proposedCloses` is the same list
+ *   either way.
  * @param {boolean} [opts.acknowledgeSensitive] — go ahead past sensitive-data
  *   hits a person has read (as `newItems`). Without it, any hit in a planned
  *   title or body returns `{aborted: 'sensitive-data-pending', hits: [{id, file,
@@ -1292,12 +1323,14 @@ function decide(file, folded, evidence) {
  *       regions: Array<{kind: string, name: string, line: number, endLine: number}>, verified?: true}>,
  *     items: Array<{id: string, legacy_id: string|null, title: string, status: 'N'|'T'|'C', flag: string|null,
  *       dateNote?: string, file: string, ranges: Array<{line: number, endLine: number}>}>},
- *   errors: string[]}}
+ *   errors: string[], proposedCloses: Array<{id: string, legacyId: string|null, title: string,
+ *     reason: string, wording: string, evidence: string[], proof: string}>}}
  *   `records` is empty whenever `errors` is not. `flagged` (and a manifest
  *   item's `flag`) is null for a closed entry and an unmarked inbox entry;
  *   otherwise why it needs a person's look: `no-marker`, `status-unmapped`,
  *   `no-status-line`, `unclear`, `conflict`, `finished-word-unmapped`,
  *   `no-evidence` (the wording says finished; no reference in it resolves),
+ *   `looks-finished` (a proposed close the person did not confirm),
  *   `id-unreadable` (a bug table row whose ID cell is not an ID), or
  *   `non-item` (the file's text outside its entries). `verified` is set on a
  *   file whose bytes all landed in one record or region.
@@ -1310,6 +1343,8 @@ export function planListsToRecords(texts, opts = {}) {
   }
   const dates = opts.dates ?? {};
   const evidence = opts.evidence ?? null;
+  const confirmCloses = opts.confirmCloses === true;
+  const proposedCloses = [];
   const errors = [];
   const regions = [];
   const planned = []; // {file, row|null, pieces, flagged}
@@ -1366,7 +1401,7 @@ export function planListsToRecords(texts, opts = {}) {
       if (typeof d[k] !== 'string' || !ISO_DAY_RE.test(d[k])) errors.push(`${file}: dates.${k} ${JSON.stringify(d[k] ?? null)} is not a YYYY-MM-DD date.`);
     }
   }
-  if (errors.length) return { key, records: [], regions, manifest: { key, files, items: [] }, errors };
+  if (errors.length) return { key, records: [], regions, manifest: { key, files, items: [] }, errors, proposedCloses };
 
   const records = [];
   const dateNotes = new Map();
@@ -1395,7 +1430,23 @@ export function planListsToRecords(texts, opts = {}) {
       const legacy = legacyOf(file, row);
       if (legacy) record.legacy_id = legacy;
       text = row.text;
-      const outcome = decide(file, row, evidence);
+      let outcome = decide(file, row, evidence);
+      // A close is only ever PROPOSED (D-M6E15-25, AC4.1): the person confirms
+      // the list as one yes; without it the entry stays open, flagged.
+      if (outcome.close) {
+        const c = outcome.close;
+        proposedCloses.push({
+          id, legacyId: legacy ?? null, title: record.title, reason: c.reason,
+          wording: printable(c.wording), evidence: c.evidence.map(printable), proof: c.proof,
+        });
+        if (!confirmCloses) {
+          outcome = {
+            flag: 'looks-finished',
+            note: `Its wording says ${quote(clip(printable(c.wording)))} and ${c.evidence.slice(0, 3).map(printable).join('; ')} resolves in this repository's history, so it looks finished (${c.reason}). `
+              + 'The migration closes nothing on its own and this close was not confirmed, so it is open; if it is finished, close it with /sig:item close.',
+          };
+        }
+      }
       if (outcome.close) {
         // A date the marker writes beside its finish word wins, when there is
         // exactly one (`markerDates`, REVIEW S1); any other date in the proof is
@@ -1450,7 +1501,7 @@ export function planListsToRecords(texts, opts = {}) {
     if (it.flag) f.flagged++;
   }
   const manifest = { key, files, items };
-  if (errors.length) return { key, records: [], regions, manifest, errors };
+  if (errors.length) return { key, records: [], regions, manifest, errors, proposedCloses };
 
   // The sensitive-data gate `newItems` applies (scrub.js): list text from
   // another repository is data, and a hit stops the plan for a person's
@@ -1460,7 +1511,7 @@ export function planListsToRecords(texts, opts = {}) {
   const hits = records.flatMap((r) => [r.record.title, r.body].flatMap(sensitiveHits)
     .map((h) => ({ id: r.record.id, file: r.sourceRef.file, type: h.type, match: h.match })));
   if (hits.length > 0 && !opts.acknowledgeSensitive) {
-    return { key, records: [], regions, manifest, errors, aborted: 'sensitive-data-pending', hits };
+    return { key, records: [], regions, manifest, errors, aborted: 'sensitive-data-pending', hits, proposedCloses };
   }
-  return { key, records, regions, manifest, errors };
+  return { key, records, regions, manifest, errors, proposedCloses };
 }

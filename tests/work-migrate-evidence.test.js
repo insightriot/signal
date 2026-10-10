@@ -33,7 +33,10 @@ const EVIDENCE = {
   prs: new Map([[157, HASH]]),
   epics: new Map([['M2.10.E2', '.planning/archive/M2.10.E2-RETROSPECTIVE.md']]),
 };
-const plan = (texts, opts = {}) => planListsToRecords(texts, { key: 'LF', dates: DATES, evidence: EVIDENCE, ...opts });
+// confirmCloses: true is the person's yes to the proposed closes (D-M6E15-25):
+// these tests pin what a CONFIRMED close carries. That nothing closes without
+// it is pinned in tests/work-migrate-propose.test.js.
+const plan = (texts, opts = {}) => planListsToRecords(texts, { key: 'LF', dates: DATES, evidence: EVIDENCE, confirmCloses: true, ...opts });
 const one = (file, text, opts) => {
   const p = plan({ [file]: text }, opts);
   expect(p.errors).toEqual([]);
@@ -381,10 +384,13 @@ describe('C1 (b) — integration: the index is built from this repository’s gi
     const r = await runWorkStoreMigrate(base, { apply: false, key: 'LN' });
     expect(r.refused).toBeUndefined();
     const byOld = Object.fromEntries(r.items.map((it) => [it.legacy_id, it]));
-    expect(Object.fromEntries(Object.entries(byOld).map(([k, it]) => [k, it.status]))).toEqual({
-      B1: 'C', B2: 'T', B3: 'C', B4: 'T', B5: 'C', B6: 'T',
+    // Every entry is open in a dry run; the ones that resolve are PROPOSED
+    // closes (D-M6E15-25).
+    expect(Object.fromEntries(Object.entries(byOld).map(([k, it]) => [k, it.flag]))).toEqual({
+      B1: 'looks-finished', B2: 'no-evidence', B3: 'looks-finished', B4: 'no-evidence', B5: 'looks-finished', B6: 'no-evidence',
     });
-    for (const k of ['B2', 'B4', 'B6']) expect(byOld[k].flag, k).toBe('no-evidence');
+    for (const it of r.items) expect(it.status, it.legacy_id).toBe('T');
+    expect(r.proposedCloses.map((c) => c.legacyId)).toEqual(['B1', 'B3', 'B5']);
     expect(r.report).toMatch(/checked against this repository's history/);
   });
 

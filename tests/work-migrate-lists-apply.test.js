@@ -125,7 +125,10 @@ describe('t4.1 — the dry run lists every planned item and writes nothing (AC1.
       expect(line).toContain(it.legacy_id ?? '—');
       expect(line).toMatch(new RegExp(`\\b${it.status}\\b`));
     }
-    expect(r.items.find((i) => i.legacy_id === 'B1')).toMatchObject({ status: 'C' });
+    // A dry run never shows a close, only a proposal (D-M6E15-25).
+    expect(r.items.find((i) => i.legacy_id === 'B1')).toMatchObject({ status: 'T', flag: 'looks-finished' });
+    expect(r.items.filter((i) => i.status === 'C')).toEqual([]);
+    expect(r.proposedCloses.map((c) => c.legacyId)).toContain('B1');
     expect(r.items.find((i) => i.legacy_id === '#244')).toMatchObject({ status: 'T' });
     expect(r.report).toMatch(/flagged/);
     expect(typeof r.inputHash).toBe('string');
@@ -137,7 +140,8 @@ describe('t4.1 — apply: originals archived byte-for-byte, records + views writ
   it('archives, writes 23 records, regenerates the views, checkRecords is clean, stages and tags', async () => {
     corpusProject();
     const dry = await runWorkStoreMigrate(base, { key: 'LF' });
-    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', expectedHash: dry.inputHash, stamp: 'T1' });
+    // The person confirmed the proposed closes (D-M6E15-25), so B1 closes.
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', expectedHash: dry.inputHash, stamp: 'T1', confirmCloses: true });
     expect(r.applied).toBe(true);
 
     for (const f of LISTS) expect(read(`${ARCHIVE}/${f}`), f).toBe(fixture(f));
@@ -310,7 +314,8 @@ describe('t4.3 — the input hash covers STATE.md and the four lists (AC6.4)', (
 describe('t4.4 — dates from git, else the file’s mtime, stated in the manifest (D-M6E15-19)', () => {
   it('git: created at each file’s first commit; an undated close at its last commit', async () => {
     corpusProject();
-    await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', expectedHash: await tokenFor() });
+    // Confirmed (D-M6E15-25): the close dates are what this test pins.
+    await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', expectedHash: await tokenFor(), confirmCloses: true });
     const { records } = listRecords(base);
     const bugs = records.filter((x) => x.record.source === 'migration:BUGS.md');
     // Exactly BUGS.md's first commit — except an item closed at an earlier

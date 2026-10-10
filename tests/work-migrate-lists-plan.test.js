@@ -45,7 +45,10 @@ const EVIDENCE = {
   epics: new Map([['M9.E1', '.planning/M9.E1-RETROSPECTIVE.md'], ['M9.E2', '.planning/archive/M9.E2-RETROSPECTIVE.md']]),
 };
 const PR7 = 'PR #7 → e41d30e';
-const plan = (texts, opts = {}) => lists.planListsToRecords(texts, { key: 'LF', dates: DATES, evidence: EVIDENCE, ...opts });
+// confirmCloses: true is the person's yes to the proposed closes (D-M6E15-25):
+// these tests pin what a CONFIRMED close carries. That nothing closes without
+// it is pinned in tests/work-migrate-propose.test.js.
+const plan = (texts, opts = {}) => lists.planListsToRecords(texts, { key: 'LF', dates: DATES, evidence: EVIDENCE, confirmCloses: true, ...opts });
 const status = (record) => {
   const last = record.events.at(-1).type;
   return { created: 'N', triaged: 'T', closed: 'C' }[last];
