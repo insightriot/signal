@@ -4145,3 +4145,17 @@ cited PRs resolve in its history and its Epic IDs have retros; answered question
 become flagged, by design. **Going forward this already holds:** `ship.md` § 6.6 closes an Epic's items
 with its commit as proof, confirmed only once that commit is on the default branch. A Jev second
 opinion (flag-only, never closes) is a separate follow-up item.
+
+### D-M6E15-25 — The migration proposes closes; the person confirms them as one list (REVIEW pass 3, 2026-10-10)
+Refines `D-M6E15-3` and `D-M6E15-24`. REVIEW pass 3 failed on the same class a third time: notes after
+a dash or in a parenthesis ("Fixed — regressed in v3", "Done — needs QA") still closed open entries,
+and a wrong close carries no flag, so triage never sees it. At the loop ceiling Brett chose **"propose,
+you confirm"** over a stricter rule (each round had found a new phrasing) and over shipping with
+documented leaks. **The migration never closes an entry on its own.** An entry whose wording and evidence
+pass `D-M6E15-24` is a *proposed close*: the dry run lists each with its wording and evidence; the person
+answers one yes/no; on yes the apply closes exactly that list (legacy close, proof = wording + evidence),
+on no they stay open, flagged `looks-finished`. What the person saw — every item's status, flag and
+proposed close — is part of the dry-run hash, so the apply refuses if any of it changed. Evidence is read
+from the default branch's history (`git log HEAD`), as native closes require, not `--all`. A wrong
+proposal is now visible before it is acted on, which is the property three passes could not get from
+wording rules alone. Loop 3 runs past the ceiling by Brett's choice.
