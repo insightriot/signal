@@ -33,6 +33,7 @@ function initRepo(dir) {
   git(dir, ['config', 'user.email', 't@t.co']);
   git(dir, ['config', 'user.name', 'T']);
   git(dir, ['config', 'commit.gpgsign', 'false']);
+  git(dir, ['config', 'tag.gpgsign', 'false']);
 }
 function commitAll(dir) {
   git(dir, ['add', '-A']);

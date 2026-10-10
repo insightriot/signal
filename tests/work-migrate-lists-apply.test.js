@@ -39,6 +39,7 @@ function initRepo(dir) {
   git(dir, ['config', 'user.email', 't@t.co']);
   git(dir, ['config', 'user.name', 'T']);
   git(dir, ['config', 'commit.gpgsign', 'false']);
+  git(dir, ['config', 'tag.gpgsign', 'false']); // the apply tags the pre-apply HEAD
 }
 const commitAll = (dir, day, msg = 'c') => {
   git(dir, ['add', '-A']);
@@ -212,6 +213,7 @@ describe('t4.8 — a project with an INDEX.md: the apply regenerates it, stages 
     expect(read('.planning/INDEX.md')).toBe(before);
     for (const f of LISTS) expect(read(`.planning/${f}`), f).toBe(fixture(f));
     expect(existsSync(join(base, '.planning/work'))).toBe(false);
+    expect(existsSync(join(base, '.planning/archive'))).toBe(false);
     expect(git(base, ['status', '--porcelain']).trim()).toBe('');
   });
 
@@ -279,6 +281,19 @@ describe('t4.3 — the input hash covers STATE.md and the four lists (AC6.4)', (
     expect(git(base, ['tag', '-l']).trim()).toBe('');
   });
 
+  it('a list deleted between the dry run and the apply → refused, nothing written', async () => {
+    corpusProject();
+    const dry = await runWorkStoreMigrate(base, { key: 'LF' });
+    git(base, ['rm', '-q', '.planning/ISSUES-INBOX.md']);
+    commitAll(base, '2026-02-21');
+    const before = snapshot(base);
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', expectedHash: dry.inputHash, stamp: 'T1' });
+    expect(r.refused).toBe(true);
+    expect(r.reason).toMatch(/changed since the dry run/);
+    expect(snapshot(base)).toEqual(before);
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+  });
+
   it('the dry run’s hash moves when any list or STATE.md changes', async () => {
     corpusProject();
     const h0 = (await runWorkStoreMigrate(base, { key: 'LF' })).inputHash;
@@ -296,7 +311,14 @@ describe('t4.4 — dates from git, else the file’s mtime, stated in the manife
     await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', expectedHash: await tokenFor() });
     const { records } = listRecords(base);
     const bugs = records.filter((x) => x.record.source === 'migration:BUGS.md');
-    for (const b of bugs) expect(b.record.events[0].at.slice(0, 10) <= '2026-01-05', b.id).toBe(true);
+    // Exactly BUGS.md's first commit — except an item closed at an earlier
+    // marker date, whose created moves back to it (the manifest's dateNote).
+    const manifest = JSON.parse(read(`${ARCHIVE}/MANIFEST.json`));
+    for (const b of bugs) {
+      const note = manifest.items.find((i) => i.id === b.id).dateNote;
+      const want = note ? note.match(/created moved back to (\d{4}-\d{2}-\d{2})/)[1] : '2026-01-05';
+      expect(b.record.events[0].at.slice(0, 10), b.id).toBe(want);
+    }
     const inbox = records.filter((x) => x.record.source === 'migration:ISSUES-INBOX.md');
     for (const b of inbox) expect(b.record.events[0].at.slice(0, 10), b.id).toBe('2026-02-20');
     const b1 = bugs.find((x) => x.record.legacy_id === 'B1');
@@ -673,5 +695,23 @@ describe('a sensitive-data hit is masked wherever it is returned', () => {
     const stop = await runWorkStoreMigrate(base, { apply: true, key: 'LF', expectedHash: dry.inputHash, stamp: 'T1' });
     expect(stop.aborted).toBe('sensitive-data-pending');
     expect(JSON.stringify(stop)).not.toContain(SECRET);
+  });
+});
+
+describe('I7 — never overwrite: a store file or archive copy already in place is refused', () => {
+  it('a leftover archive copy (with its MANIFEST.json) → refused, naming both, nothing written', async () => {
+    corpusProject();
+    write(`${ARCHIVE}/BUGS.md`, 'an older archived list\n');
+    write(`${ARCHIVE}/MANIFEST.json`, '{}\n');
+    commitAll(base, '2026-02-21');
+    await refusedEither(/archive\/pre-work-store\/MANIFEST\.json, \.planning\/archive\/pre-work-store\/BUGS\.md already exist; this run never overwrites one/);
+    expect(read(`${ARCHIVE}/BUGS.md`)).toBe('an older archived list\n');
+  });
+
+  it('a store folder with no WORK.md (.planning/work/items/) → refused, nothing written', async () => {
+    corpusProject();
+    write('.planning/work/items/00/keep.txt', 'x\n');
+    commitAll(base, '2026-02-21');
+    await refusedEither(/\.planning\/work\/items already exists; this run never overwrites one/);
   });
 });

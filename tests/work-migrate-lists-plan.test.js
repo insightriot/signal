@@ -551,3 +551,19 @@ describe('t3.5 — every planned record is valid, bodies are scrubbed, and Signa
     expect(src).not.toMatch(/\bplanMigration\b/);
   });
 });
+
+describe('I8 — an OPEN-QUESTIONS.md entry that is still open (AC3.3)', () => {
+  it('becomes a Q at T, with a migration_note and events [created, triaged]', () => {
+    const text = '# Open Questions\n\n## Currently blocking\n\n### Q7 — Do we keep the CSV export?\n\n'
+      + '**Status:** Open. Waiting on the March usage numbers.\n';
+    const p = plan({ 'OPEN-QUESTIONS.md': text });
+    expect(p.errors).toEqual([]);
+    const q = p.records.find((r) => r.record.legacy_id === 'Q7');
+    expect(q, 'the Q7 entry is planned').toBeDefined();
+    expect(q.record.type).toBe('Q');
+    expect(deriveStatus(q.record)).toBe('T');
+    expect(q.record.migration_note).toMatch(/\S/);
+    expect(q.record.events.map((e) => e.type)).toEqual(['created', 'triaged']);
+    expect(p.manifest.items.find((i) => i.id === q.record.id)).toMatchObject({ status: 'T', file: 'OPEN-QUESTIONS.md' });
+  });
+});

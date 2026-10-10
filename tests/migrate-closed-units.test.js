@@ -17,6 +17,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -83,6 +84,22 @@ describe('M6.E15 S6 — docs-migrate archives only closed units (SIG-286)', () =
     const { plan } = await runMigrate(dir, { apply: false });
     expect([...movedUnits(plan.archive.moves)]).toEqual(['M9.E1']);
     expect(plan.v3.evicts.map((e) => e.epicId)).toEqual(['M9.E1']);
+  });
+
+  it('AC8.1 on --apply — the unclosed Epics\' files do not move; the closed control does', async () => {
+    await setup(dir, STATE_READABLE);
+    const r = await runMigrate(dir, { apply: true, stamp: 'T1', dateStr: '2026-07-17' });
+    expect(r.applied, r.reason).toBe(true);
+    const at = (rel) => existsSync(join(dir, rel));
+    for (const id of ['M9.E2', 'M9.E3']) {
+      for (const kind of ['PLAN', 'VERIFICATION', 'RETROSPECTIVE']) expect(at(`.planning/${id}-${kind}.md`), `${id}-${kind}`).toBe(true);
+    }
+    // The positive control: the closed Epic's plan did move, to where the plan said.
+    const move = r.plan.archive.moves.find((m) => m.from.endsWith('M9.E1-PLAN.md'));
+    expect(move).toBeDefined();
+    expect(move.from).toBe('.planning/M9.E1-PLAN.md');
+    expect(at(move.from)).toBe(false);
+    expect(at(move.to)).toBe(true);
   });
 
   it('AC8.3 / AC8.4 — the dry run\'s move list, vector-3 evicts and explanation agree for every unit', async () => {
