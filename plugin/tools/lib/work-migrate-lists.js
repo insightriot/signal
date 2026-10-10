@@ -638,8 +638,9 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
 //     `migration_note` (D-M6E15-11);
 //   - `legacy_id`: the entry's own old ID (`B1`, `BUG-7`, `#99`, `R3`,
 //     `NFR-04`), printed again as the body's first line (`Old ID: …`) so a text
-//     search finds it. An entry with no old ID gets none — not a `FILE:line`
-//     stand-in, which an old-ID lookup would then match;
+//     search finds it, and dropped from the front of the title (t4.8). An
+//     entry with no old ID gets none — not a `FILE:line` stand-in, which an
+//     old-ID lookup would then match;
 //   - the body: the entry's source text, relative links rewritten for the
 //     body's folder (`bodyDirFor`).
 //
@@ -716,11 +717,26 @@ const legacyOf = (file, row) => {
   return null;
 };
 
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// A title does not repeat its old ID (t4.8): when the entry's `legacy_id`
+// leads the title, it and the dash or colon after it are dropped
+// (`#99 — Strategic: …` → `Strategic: …`). The raw heading stays in the body,
+// and the old ID is the body's first line. A title that is nothing but the ID
+// keeps it.
+function withoutLegacyId(title, legacy) {
+  if (!legacy) return title;
+  const re = new RegExp(`^[\\s\`*_]{0,10}${escapeRe(legacy)}[\`*_]{0,4}\\s{0,3}(?:—|–|:|-)\\s*`);
+  const rest = title.replace(re, '');
+  return /\S/.test(rest) ? rest : title;
+}
+
 function titleOf(file, row) {
   let t;
+  const legacy = legacyOf(file, row);
   if (file === 'BUGS.md') t = row.kind === 'table' ? bugTitle(row.summary) : clip(row.heading.replace(/~~/g, ''));
-  else if (file === 'BACKLOG.md') t = clip(row.title);
-  else t = clip(String(row.heading).replace(/~~/g, ''));
+  else if (file === 'BACKLOG.md') t = clip(withoutLegacyId(row.title, legacy));
+  else t = clip(withoutLegacyId(String(row.heading).replace(/~~/g, ''), legacy));
   return /\S/.test(t) ? t : `Untitled entry at ${file}:${row.line}`;
 }
 

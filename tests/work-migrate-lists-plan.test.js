@@ -112,6 +112,29 @@ describe('t3.1 — IDs, types, open statuses, old IDs (AC5.1, AC5.2, AC3.3, AC2.
     }
   });
 
+  it('a title does not repeat its old ID: the leading ID and its dash are dropped; the body keeps both (t4.8)', () => {
+    const p = byId(plan(corpus()));
+    expect(p.get('LF-9').record.title).toMatch(/^Strategic: Lanternfly as a shared kitchen platform/);
+    expect(p.get('LF-10').record.title).toMatch(/^Future: implement leftovers tracking/);
+    expect(p.get('LF-14').record.title).toBe('Fix 4 effect-ordering lint warnings in the planner');
+    expect(p.get('LF-20').record.title).toBe('Missing delete policy on `pantry_events`');
+    expect(p.get('LF-21').record.title).toBe('`unsafe-eval` header violation');
+    expect(p.get('LF-22').record.title).toBe('sync worker swallows its own errors');
+    for (const id of ['LF-9', 'LF-20', 'LF-21', 'LF-22']) {
+      const { record, body } = p.get(id);
+      expect(body.split('\n')[0], id).toBe(`Old ID: ${record.legacy_id}`);
+      expect(body.split('\n')[2], id).toContain(`${record.legacy_id} — `); // the raw heading
+    }
+    // a struck, finished row: strike and tail gone, then the ID
+    const struck = Object.values(Object.fromEntries(p)).find((r) => r.record.legacy_id === '#288');
+    expect(struck.record.title).toBe('New Plan dialog: offer \'Import file\' as a third start');
+  });
+
+  it('a colon separator is dropped too; a title that only mentions an ID later keeps it', () => {
+    expect(one('BACKLOG.md', backlogRow('#12: Ship the exporter · **roadmap** · small')).record.title).toBe('Ship the exporter');
+    expect(one('BACKLOG.md', backlogRow('Ship the exporter after #12 · **roadmap** · small')).record.title).toBe('Ship the exporter after #12');
+  });
+
   it('an entry with no old ID has no legacy_id (never a FILE:line stand-in, which an old-ID lookup would match)', () => {
     const p = byId(plan(corpus()));
     for (const id of ['LF-3', 'LF-4', 'LF-8', 'LF-15', 'LF-16', 'LF-17']) {
